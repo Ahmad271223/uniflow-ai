@@ -66,3 +66,5 @@ jobs:
           for f in app/static/*.js; do cp "$f" "/tmp/mjs/$(basename "$f" .js).mjs"; done
           for f in /tmp/mjs/*.mjs; do node --check "$f" || exit 1; done
           echo "alle Module syntaktisch korrekt"
+      - name: Gemeinsame Zusammenfuehrungs-Tests (Web)
+        run: node --test tests/js/*.test.mjs

@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 
 /// Seitenkoordinaten: Punkte der angezeigten Seite (inklusive Drehung), Ursprung oben links, ohne Zoom.
 /// So speichert auch der Web-Editor (pdf.js-Viewport mit Massstab 1).

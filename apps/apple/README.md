@@ -1,20 +1,49 @@
 # UniFlow für iPad (SwiftUI, PDFKit, PencilKit)
 
-**Stand: Etappe 1, nicht kompiliert und nicht auf einem Gerät getestet.** Der Code wurde auf einem Windows-PC
-geschrieben. Bauen und Testen braucht einen Mac mit Xcode.
+**Stand 25.10.2026:** Code wird in GitHub Actions gebaut und getestet (`.github/workflows/apple.yml`): der
+gemeinsame Kern unter Linux und macOS, die App im iPad-Simulator. **Nicht auf einem echten iPad getestet.**
+Schreibgefühl, Handballen-Erkennung, Pencil-Doppeltippen und Zoomverhalten am Gerät sind unbestätigt.
 
-## Was Etappe 1 kann
+## Aufbau
 
-- Mit dem UniFlow-Server im WLAN verbinden (Adresse + PIN; PIN im Schlüsselbund).
-- Bibliothek: Module und PDF-Dokumente aus Stud.IP, Suche.
-- PDF öffnen (PDFKit), mit dem Apple Pencil schreiben (PencilKit, Werkzeugpalette von Apple).
-  Finger scrollen und zoomen, „Nur Stift“ ist Standard und oben umschaltbar.
-- Jede Änderung wird sofort lokal gesichert und nach 1,2 s an den Server geschickt; ohne WLAN wird es
-  automatisch nachgeholt. Konflikte (gleiche Datei auf PC und iPad) werden seitenweise zusammengeführt.
-- Striche aus dem Web-Editor erscheinen auf dem iPad, Striche vom iPad erscheinen im Web-Editor.
+| Teil | Aufgabe | Testbar ohne Mac |
+| --- | --- | --- |
+| `Packages/UniFlowCore` | Notizmodell (JSON, verlustfrei), Drei-Wege-Zusammenführung, lokales Journal, Synchronisierung, Zoom- und Seitengeometrie | ja (`swift test`, auch Linux) |
+| `UniFlow/Models/StrokeConverter.swift` | PencilKit ↔ gemeinsames Strichformat mit stabilen IDs | Simulator |
+| `UniFlow/Services/DocumentStore.swift` | Trennung von Stifteingabe, Umrechnung (Hintergrund), lokalem Sichern und Upload | Simulator |
+| `UniFlow/Editor/PDFEditorController.swift` | PDFKit (Scrollen, Zoomen) + PencilKit (Schreiben) je Seite | Simulator, Gefühl nur am Gerät |
+| `UniFlow/Views/Views.swift` | Verbinden, Bibliothek, Dokumentansicht | Simulator |
 
-Noch nicht: im Browser eingefügte Leerseiten, Text/Formen/Bilder anzeigen (bleiben aber erhalten), gedrehte Seiten
-(Koordinaten ungeprüft), Lernkalender und übrige Ansichten nativ, Split-Screen, Konten, Abos/StoreKit.
+### Datenfluss beim Schreiben
+
+1. PencilKit meldet eine geänderte Zeichnung. Der Editor merkt sich nur die neueste Zeichnung je Seite und kehrt
+   sofort zurück (keine Arbeit auf dem Hauptthread während des Schreibens).
+2. Nach 0,25 s Ruhe rechnet `InkProcessor` (Actor) die Zeichnung in Objekte um. Unveränderte Striche behalten ihr
+   JSON, neue bekommen neue IDs, mit dem Pixel-Radierer geteilte Striche werden in sichtbare Teile zerlegt.
+3. `SyncEngine.updatePage` vergibt eine neue Revision und schreibt die Seite atomar ins Journal. Schlägt das fehl,
+   zeigt der Status „Nicht gesichert“, nie „Gespeichert“.
+4. Nach 1,2 s lädt die Engine hoch, höchstens ein Upload gleichzeitig. Bestätigt werden genau die gesendeten
+   Revisionen; was während des Uploads entstand, bleibt ungesendet.
+5. Antwortet der Server mit 409, wird objektweise mit dem neueren Stand zusammengeführt (Basis = letzter
+   bestätigter Stand) und erneut gesendet. Ohne Netz: Wiederholung nach 2 s … 60 s, beim Wechsel ins WLAN und
+   beim Zurückkehren in die App sofort.
+
+### Journal auf dem Gerät
+
+`Application Support/UniFlow/journal/docs/<Datei-ID>/`: `meta.json` (Seitenliste usw.), `acks.json`
+(Serverversion, bestätigte Revisionen), `pages/<Seite>.json` (Stand + Revision), `base/<Seite>.json`
+(Vergleichsstand für Konflikte). Jede Datei wird einzeln atomar ersetzt; nach einem Absturz ist an den Revisionen
+erkennbar, was noch fehlt.
+
+## Plattformübergreifend bearbeitbar
+
+| Inhalt | Web → iPad | iPad → Web |
+| --- | --- | --- |
+| Striche Stift/Bleistift/Textmarker | bearbeitbar (verschieben, radieren, löschen) | bearbeitbar |
+| Breite je Punkt, Farbe, Deckkraft | ja | ja |
+| PencilKit-Pinselstruktur, Neigung | – | nur sichtbar (geht bei Bearbeitung im Browser verloren) |
+| Text, Formen, Bilder | bleiben erhalten, auf dem iPad noch nicht angezeigt | – |
+| Eingefügte Leer-/Bildseiten | bleiben erhalten, auf dem iPad noch nicht angezeigt | – |
 
 ## Bauen (Mac)
 
@@ -29,24 +58,12 @@ cd apps/apple && xcodegen generate && open UniFlow.xcodeproj
 In Xcode: Ziel „UniFlow“ → Signing & Capabilities → eigenes Team (Apple-ID reicht für 7 Tage), iPad per Kabel
 verbinden, Run. Am PC `Start-iPad.cmd` starten, in der App Adresse und PIN eintragen.
 
-## Erste Prüfung auf dem iPad (Abnahme Etappe 1)
+Ohne Mac: Tests des Kerns lokal mit Docker (`swift:6.0-jammy`) oder über GitHub Actions („Apple“, auch manuell
+startbar).
 
-1. PDF öffnen, 15 Minuten schreiben, dabei zoomen und mit einem Finger scrollen.
-2. 100 kurze Striche mit kurzem Abheben; Hand liegt dabei auf.
-3. App schließen, neu öffnen: alle Striche an derselben Stelle.
-4. Dasselbe PDF am PC im Browser öffnen: Striche sind da; dort einen Strich ergänzen, auf dem iPad neu öffnen.
-5. Flugmodus: schreiben, App schließen, WLAN an, App öffnen → Status „Gespeichert“, Striche am PC sichtbar.
+## Ausstehende Gerätetests
 
-## Aufbau
-
-| Datei | Aufgabe |
-| --- | --- |
-| `UniFlow/Editor/PDFEditorController.swift` | PDFView + PKCanvasView je Seite (`PDFPageOverlayViewProvider`), Werkzeugpalette |
-| `UniFlow/Services/DocumentStore.swift` | Laden, lokales Sichern, Upload mit `base_version`, Konflikte, Wiederholen |
-| `UniFlow/Models/StrokeConverter.swift` | PencilKit ↔ gemeinsames Strichformat, Signatur für `pkdrawing` |
-| `UniFlow/Models/AnnotationDocument.swift`, `JSONValue.swift` | Notizmodell verlustfrei (unbekannte Felder bleiben) |
-| `UniFlow/Services/APIClient.swift`, `Session.swift`, `LocalStore.swift` | Server, PIN/Schlüsselbund, Dateien im App-Container |
-| `UniFlow/Views/Views.swift` | Verbinden, Bibliothek (3 Spalten), Dokumentansicht |
+Siehe `docs/MAC-IPAD-CHECKLISTE.md`.
 
 Vor einer Veröffentlichung: `NSAllowsArbitraryLoads` aus `project.yml` entfernen (Server dann per HTTPS),
 Bundle-ID und Team festlegen, Datenschutzangaben, App-Store-Connect-Eintrag.

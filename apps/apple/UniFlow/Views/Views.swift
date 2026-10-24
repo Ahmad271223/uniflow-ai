@@ -234,6 +234,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store)
+        let bridge = self.bridge
         vc.pencilOnly = pencilOnly
         vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
         vc.onPageChange = { [weak bridge] i in bridge?.pageIndex = i }

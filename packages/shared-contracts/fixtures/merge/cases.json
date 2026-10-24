@@ -1,0 +1,79 @@
+{
+  "description": "Gemeinsame Testfaelle fuer die Drei-Wege-Zusammenfuehrung einer Seite. Geprueft von UniFlowCore (Swift) und app/static/merge.js. base/local/server = null bedeutet: Seite existiert dort nicht. expectIds = Reihenfolge der Objekt-IDs im Ergebnis, null = Seite geloescht.",
+  "cases": [
+    {
+      "name": "beide Geraete ergaenzen dieselbe Seite",
+      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
+      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "ipad1", "type": "stroke", "points": [5, 6, 7, 8] } ] },
+      "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "web1", "type": "stroke", "points": [9, 9, 9, 9] } ] },
+      "expectIds": ["a", "web1", "ipad1"],
+      "expectConflicts": 0
+    },
+    {
+      "name": "auf dem Server geloescht, hier unveraendert",
+      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "b", "type": "stroke", "points": [1, 1, 2, 2] } ] },
+      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "b", "type": "stroke", "points": [1, 1, 2, 2] }, { "id": "c", "type": "stroke", "points": [3, 3, 4, 4] } ] },
+      "server": { "objects": [ { "id": "b", "type": "stroke", "points": [1, 1, 2, 2] } ] },
+      "expectIds": ["b", "c"],
+      "expectConflicts": 0
+    },
+    {
+      "name": "hier geloescht, auf dem Server verschoben",
+      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4], "x": 0 } ] },
+      "local":  { "objects": [] },
+      "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4], "x": 30 } ] },
+      "expectIds": ["a"],
+      "expectConflicts": 1
+    },
+    {
+      "name": "dasselbe Objekt verschieden geaendert: dieses Geraet gewinnt",
+      "base":   { "objects": [ { "id": "a", "type": "stroke", "color": "#000000", "points": [1, 2, 3, 4] } ] },
+      "local":  { "objects": [ { "id": "a", "type": "stroke", "color": "#ff0000", "points": [1, 2, 3, 4] } ] },
+      "server": { "objects": [ { "id": "a", "type": "stroke", "color": "#00ff00", "points": [1, 2, 3, 4] } ] },
+      "expectIds": ["a"],
+      "expectField": { "index": 0, "key": "color", "value": "#ff0000" },
+      "expectConflicts": 1
+    },
+    {
+      "name": "hier nichts geaendert: Serverstand gilt",
+      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
+      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
+      "server": { "objects": [ { "id": "z", "type": "text", "text": "neu" } ], "template": "grid" },
+      "expectIds": ["z"],
+      "expectConflicts": 0
+    },
+    {
+      "name": "ohne bekannte Basis: beide Staende vereinigen",
+      "base":   null,
+      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "l", "type": "stroke", "points": [2, 2, 3, 3] } ] },
+      "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "s", "type": "stroke", "points": [4, 4, 5, 5] } ] },
+      "expectIds": ["a", "s", "l"],
+      "expectConflicts": 0
+    },
+    {
+      "name": "unbekannte Seitenfelder bleiben, Feldreihenfolge egal",
+      "base":   { "objects": [], "template": "lined" },
+      "local":  { "template": "lined", "objects": [ { "type": "stroke", "id": "n", "points": [1, 1, 2, 2] } ] },
+      "server": { "objects": [], "template": "lined", "zukunftsFeld": { "x": 1 } },
+      "expectIds": ["n"],
+      "expectPageField": { "key": "zukunftsFeld", "value": { "x": 1 } },
+      "expectConflicts": 0
+    },
+    {
+      "name": "Objekte ohne ID werden ueber ihren Inhalt erkannt",
+      "base":   { "objects": [ { "type": "shape", "kind": "rect", "x": 1 } ] },
+      "local":  { "objects": [ { "type": "shape", "kind": "rect", "x": 1 }, { "id": "neu", "type": "stroke", "points": [0, 0, 1, 1] } ] },
+      "server": { "objects": [ { "x": 1, "kind": "rect", "type": "shape" } ] },
+      "expectIds": [null, "neu"],
+      "expectConflicts": 0
+    },
+    {
+      "name": "Seite hier entfernt, auf dem Server unveraendert",
+      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
+      "local":  null,
+      "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
+      "expectIds": null,
+      "expectConflicts": 0
+    }
+  ]
+}

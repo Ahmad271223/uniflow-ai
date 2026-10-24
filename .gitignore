@@ -16,3 +16,6 @@ apps/apple/*.xcodeproj/
 apps/apple/build/
 apps/apple/DerivedData/
 xcuserdata/
+
+# von XcodeGen erzeugt
+apps/apple/UniFlow/Info.plist

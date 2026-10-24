@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "zoom": 1.4,
+  "note": "Fragen zur Projektion für die Übung",
+  "bookmarks": [{ "key": "p2", "title": "Aufgabe 2" }],
+  "outline": [],
+  "deletedPages": [],
+  "zukunftsFeld": { "nurKuenftigeVersionen": true },
+  "pageOrder": [
+    { "key": "p1", "type": "pdf", "index": 1 },
+    { "key": "b7x2k9", "type": "blank", "template": "lined", "w": 595, "h": 842 },
+    { "key": "p2", "type": "pdf", "index": 2 }
+  ],
+  "pages": {
+    "p1": {
+      "objects": [
+        { "id": "s1", "type": "stroke", "tool": "pen", "color": "#1f2937", "width": 2.2, "widths": [2.05, 2.27, 2.11], "opacity": 1,
+          "points": [643.73, 111.74, 648.52, 108.54, 665.29, 98.95], "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+        { "id": "t1", "type": "text", "text": "Skalarprodukt ⟨v,w⟩", "x": 40, "y": 60, "width": 200, "fontFamily": "Arial", "fontSize": 14,
+          "fill": "#4f5bd5", "bold": true, "italic": false, "underline": false, "align": "left", "lineHeight": 1.25 },
+        { "id": "r1", "type": "shape", "kind": "rect", "x": 30, "y": 300, "width": 120, "height": 40, "stroke": "#e5322d", "strokeWidth": 2,
+          "fill": null, "opacity": 1, "rotation": 0, "scaleX": 1, "scaleY": 1 }
+      ]
+    },
+    "b7x2k9": { "objects": [], "template": "lined" },
+    "p2": {
+      "objects": [
+        { "id": "pkf3a9c2d1e0b7", "type": "stroke", "tool": "marker", "color": "#ffd400", "width": 14, "opacity": 0.35,
+          "points": [50, 200, 250, 200], "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "source": "pencilkit" }
+      ],
+      "pkdrawing": { "data": "AAEC", "objectsSig": "0000", "format": "pkdrawing-v1", "strokeIds": [["pkf3a9c2d1e0b7"]] }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 // UniFlow Editor 2.0 – PDF- und Notizeditor (pdf.js + Konva + pdf-lib)
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
-import { icon } from "./icons.js?v=24";
+import { icon } from "./icons.js?v=25";
+import { mergePage } from "./merge.js?v=25";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -84,7 +85,7 @@ export class PdfEditor {
       // Entwurf ist aelter als der Server (anderes Geraet hat inzwischen gespeichert): zusammenfuehren statt verwerfen
       const local = this.migrate(draft.data);
       const keys = draft.dirtyKeys || Object.keys(local.pages).filter(k => JSON.stringify(local.pages[k]) !== JSON.stringify(serverModel.pages[k]));
-      this.model = this.mergeInto(serverModel, local, { keys, struct: !!draft.struct, meta: !!draft.meta });
+      this.model = this.mergeInto(serverModel, local, { keys, struct: !!draft.struct, meta: !!draft.meta }, draft.basePages || null);
       this.base = this.snap(serverModel); this.dirty = true;
       this._mergedOnLoad = keys.length;
     } else {
@@ -96,9 +97,15 @@ export class PdfEditor {
   // Vergleichsstand: pro Seite das JSON, dazu Seitenreihenfolge und Dokument-Notizen
   snap(m) { return { pages: Object.fromEntries(Object.entries(m.pages || {}).map(([k, v]) => [k, JSON.stringify(v)])), order: JSON.stringify([m.pageOrder || [], m.deletedPages || []]), meta: JSON.stringify([m.note || "", m.bookmarks || [], m.outline || []]) }; }
   diffFromBase(m = this.model) { const b = this.base || { pages: {}, order: "", meta: "" }; const keys = Object.keys(m.pages || {}).filter(k => b.pages[k] !== JSON.stringify(m.pages[k])); const cur = this.snap(m); return { keys, struct: cur.order !== b.order, meta: cur.meta !== b.meta }; }
-  mergeInto(server, local, d) {
-    const merged = JSON.parse(JSON.stringify(server));
-    for (const k of d.keys) if (local.pages[k]) merged.pages[k] = JSON.parse(JSON.stringify(local.pages[k]));
+  // basePages: Seiten-JSON des letzten bestaetigten Stands (fuer objektweises Zusammenfuehren; fehlt er, werden beide Seiten vereinigt)
+  mergeInto(server, local, d, basePages = null) {
+    const merged = JSON.parse(JSON.stringify(server)); this._mergeConflicts = 0;
+    for (const k of d.keys) if (local.pages[k]) {
+      const base = basePages && basePages[k] ? JSON.parse(basePages[k]) : null;
+      const r = mergePage(base, local.pages[k], server.pages?.[k] ?? null);
+      this._mergeConflicts += r.conflicts;
+      merged.pages[k] = JSON.parse(JSON.stringify(r.page ?? local.pages[k]));
+    }
     if (d.struct) { merged.pageOrder = JSON.parse(JSON.stringify(local.pageOrder)); merged.deletedPages = JSON.parse(JSON.stringify(local.deletedPages || [])); merged.pageOrder.forEach(pe => { merged.pages[pe.key] ||= JSON.parse(JSON.stringify(local.pages[pe.key] || { objects: [] })); }); }
     if (d.meta) { merged.note = local.note; merged.bookmarks = local.bookmarks; merged.outline = local.outline; }
     return this.migrate(merged);
@@ -107,7 +114,7 @@ export class PdfEditor {
   applyServerMerge(serverData, version) {
     const server = this.migrate(serverData || { version: 2 });
     const d = this.diffFromBase(this.model);
-    const merged = this.mergeInto(server, this.model, d);
+    const merged = this.mergeInto(server, this.model, d, this.base?.pages || null);
     const old = this.model; const orderChanged = JSON.stringify(merged.pageOrder) !== JSON.stringify(old.pageOrder);
     this.model = merged; this.version = version; this.base = this.snap(server);
     this.history = []; this.future = [];          // Undo-Schritte bezogen sich auf den alten Stand
@@ -495,10 +502,10 @@ export class PdfEditor {
   // Lokaler Entwurf unabhaengig vom Hochladen: spaetestens 1,5 s nach einer Aenderung (zwischen zwei Strichen),
   // damit ein Safari-Absturz beim Dauerschreiben nichts verliert
   _draftSoon() { if (!this._draftT) this._draftT = setTimeout(() => this._writeDraft(), 1500); }
-  _writeDraft(force = false) { if (!force && (this.penDown || this._activeLive) && !this.destroyed) { this._draftT = setTimeout(() => this._writeDraft(), 300); return; } clearTimeout(this._draftT); this._draftT = 0; if (!this.dirty || !this.model) return; try { const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta }); } catch {} }
+  _writeDraft(force = false) { if (!force && (this.penDown || this._activeLive) && !this.destroyed) { this._draftT = setTimeout(() => this._writeDraft(), 300); return; } clearTimeout(this._draftT); this._draftT = 0; if (!this.dirty || !this.model) return; try { const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta, basePages: Object.fromEntries(dd.keys.map(k => [k, this.base?.pages?.[k] ?? null])) }); } catch {} }
   setSaveState(st) { const el = $(".ed-status", this.c); if (el) el.dataset.state = st; this.onStatus(st === "saving" ? "Speichert…" : st === "offline" ? "Offline – wird nachgeholt" : "Gespeichert"); }
   scheduleSave() { clearTimeout(this._t); if (!this._dirtySince) this._dirtySince = Date.now(); this._t = setTimeout(() => this._saveTick(), 1200); }
-  _saveTick() { const busy = (this.penDown && Date.now() - (this.penSeenAt || 0) < 15000) || (this._activeLive && Date.now() - (this._liveAt || 0) < 15000); const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta }); this.flush(); }
+  _saveTick() { const busy = (this.penDown && Date.now() - (this.penSeenAt || 0) < 15000) || (this._activeLive && Date.now() - (this._liveAt || 0) < 15000); const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta, basePages: Object.fromEntries(dd.keys.map(k => [k, this.base?.pages?.[k] ?? null])) }); this.flush(); }
   async flush() {
     if (!this.dirty || this.saving) return; this.saving = true;
     let retryConflict = false;

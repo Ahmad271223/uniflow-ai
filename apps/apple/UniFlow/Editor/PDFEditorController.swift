@@ -132,11 +132,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: .PDFViewScaleChanged, object: pdfView, queue: .main) { [weak self] _ in
-            self?.scaleChanged()
+            MainActor.assumeIsolated { self?.scaleChanged() }
         })
         observers.append(center.addObserver(forName: .PDFViewPageChanged, object: pdfView, queue: .main) { [weak self] _ in
-            guard let self, let page = self.pdfView.currentPage, let doc = self.pdfView.document else { return }
-            self.onPageChange?(doc.index(for: page))
+            MainActor.assumeIsolated {
+                guard let self, let page = self.pdfView.currentPage, let doc = self.pdfView.document else { return }
+                self.onPageChange?(doc.index(for: page))
+            }
         })
         store.onPagesChanged = { [weak self] indices in self?.reloadPages(indices) }
     }
