@@ -1,0 +1,68 @@
+# Server und Weboberflaeche: Tests, Abhaengigkeits-Sicherheitspruefung, Syntaxpruefung der JS-Module.
+# Laeuft auf Linux (1x Minuten). Echte Daten und Zugangsdaten werden nie benutzt (Temp-Datenordner in den Tests).
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+    paths-ignore:
+      - "apps/apple/**"
+      - "**/*.md"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Python-Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Abhaengigkeiten
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Tests
+        run: python -m pytest -q tests
+
+  security:
+    name: Sicherheitspruefung
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Bekannte Schwachstellen in Abhaengigkeiten (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --strict
+      - name: Keine Zugangsdaten im Repository
+        run: |
+          test ! -e .env || { echo ".env darf nicht eingecheckt sein"; exit 1; }
+          ! git ls-files | grep -E '^(data|logs|backup)/' || { echo "data/, logs/, backup/ duerfen nicht eingecheckt sein"; exit 1; }
+          ! git grep -nIE '(STUDIP|QIS|IDM)_PASSWORD=.{4,}' -- ':!.env.example' ':!tests/' || { echo "Passwort im Code gefunden"; exit 1; }
+
+  frontend:
+    name: Weboberflaeche (Syntax)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: ES-Module pruefen
+        run: |
+          node --version
+          mkdir -p /tmp/mjs
+          for f in app/static/*.js; do cp "$f" "/tmp/mjs/$(basename "$f" .js).mjs"; done
+          for f in /tmp/mjs/*.mjs; do node --check "$f" || exit 1; done
+          echo "alle Module syntaktisch korrekt"

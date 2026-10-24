@@ -1,63 +1,113 @@
 import Foundation
+import Network
 import PDFKit
 import PencilKit
+import UIKit
+import UniFlowCore
 
-/// Zustand eines geoeffneten Dokuments: PDF, Notizmodell, Speichern und Synchronisieren.
+/// Ordner im App-Container.
+enum AppPaths {
+    static var support: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("UniFlow", isDirectory: true)
+    }
+    /// Journal aller Dokumente (Seiten, Revisionen, Basis fuer Konflikte).
+    static var journal: URL { support.appendingPathComponent("journal", isDirectory: true) }
+    static func pdf(_ fileID: String) -> URL {
+        support.appendingPathComponent("pdf", isDirectory: true).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf")
+    }
+}
+
+enum LocalJournalName {
+    static func safe(_ s: String) -> String {
+        let ok = s.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || $0 == "_" || $0 == "-" }
+        return ok && !s.isEmpty ? s : s.utf8.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+/// Umrechnung PencilKit <-> Seiten-JSON abseits des Hauptthreads, mit gemerkter Strich-Identitaet je Seite.
+actor InkProcessor {
+    private var states: [String: InkPageState] = [:]
+
+    func drawing(key: String, page: JSONValue?) -> DrawingBox {
+        let (d, state) = StrokeConverter.drawing(fromPage: page)
+        states[key] = state
+        return DrawingBox(drawing: d)
+    }
+
+    func page(key: String, drawing: DrawingBox, previous: JSONValue?) -> JSONValue {
+        let state: InkPageState
+        if let s = states[key] { state = s } else { state = StrokeConverter.drawing(fromPage: previous).1 }
+        let (page, next) = StrokeConverter.page(from: drawing.drawing, previous: previous, state: state)
+        states[key] = next
+        return page
+    }
+}
+
+/// Zustand eines geoeffneten Dokuments.
 ///
-/// Ablauf beim Schreiben: Strich fertig -> `update(drawing:pageIndex:)` -> sofort lokal gespeichert ->
-/// nach 1,2 s Pause Upload mit `base_version`. Bei 409 (anderes Geraet war schneller) werden die Seiten,
-/// die hier geaendert wurden, auf den Serverstand gelegt und erneut gesendet. Ohne Netz: Wiederholung mit
-/// wachsendem Abstand (2 s … 60 s). Der lokale Stand wird nie durch eine aeltere Serverantwort ersetzt.
+/// Ablauf: Strich fertig -> `canvasChanged` merkt nur die neueste Zeichnung (Hauptthread, sofort zurueck) ->
+/// nach 0,25 s Pause Umrechnung im `InkProcessor` -> `SyncEngine.updatePage` sichert lokal und laedt hoch.
+/// Eingabe, Umrechnung, lokales Sichern und Upload laufen dadurch getrennt; ein Upload unterbricht nie einen Strich.
 @MainActor
 final class DocumentStore: ObservableObject {
     @Published private(set) var pdf: PDFDocument?
-    @Published private(set) var status = "Lädt…"
+    @Published private(set) var status: SyncStatus = .loading
     @Published private(set) var errorMessage: String?
+    @Published private(set) var notice: String?
     @Published private(set) var insertedPages = 0
+    @Published private(set) var removedPDFPages: [Int] = []
 
     let file: LibFile
     private let api: APIClient
-    private var doc = AnnotationDocument.empty()
-    private var dirtyPages = Set<String>()
-    private var lastData: [Int: Data] = [:]
-    private var saveTask: Task<Void, Never>?
-    private var retrySeconds: UInt64 = 2
+    private let engine: SyncEngine
+    private let ink = InkProcessor()
+    private var document = AnnotationDocument.empty()
+    private var pendingDrawings: [String: DrawingBox] = [:]
+    private var processing = false
+    private var processTask: Task<Void, Never>?
+    private var monitor: NWPathMonitor?
+    private var lifecycle: [NSObjectProtocol] = []
 
-    nonisolated init(file: LibFile, api: APIClient) {
+    /// Seiten (0-basierte PDF-Indizes), deren Inhalt sich durch den Server oder eine Zusammenfuehrung geaendert hat.
+    var onPagesChanged: (([Int]) -> Void)?
+
+    init(file: LibFile, api: APIClient) {
         self.file = file
         self.api = api
+        let journal = LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: file.id)
+        self.engine = SyncEngine(documentID: file.id, transport: HTTPAnnotationTransport(api: api), journal: journal)
     }
 
     // MARK: Laden
 
     func load() async {
         do {
-            let url = LocalStore.pdfURL(file.id)
+            let url = AppPaths.pdf(file.id)
             if !FileManager.default.fileExists(atPath: url.path) {
                 let (data, http) = try await api.data("/api/files/\(file.id)/content")
                 guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
                     throw APIError(status: http.statusCode, message: "Keine PDF-Datei erhalten")
                 }
+                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try data.write(to: url, options: .atomic)
             }
-            guard let document = PDFDocument(url: url) else { throw APIError(status: 0, message: "PDF lässt sich nicht öffnen") }
-
-            let server = try? await api.json("/api/files/\(file.id)/annotations", as: AnnotationsResponse.self)
-            if let local = LocalStore.loadState(file.id), !local.dirtyPages.isEmpty {
-                // Ungesendete Aenderungen vom letzten Mal haben Vorrang
-                doc = AnnotationDocument(root: local.root, version: local.version)
-                dirtyPages = Set(local.dirtyPages)
-                if let server, server.version != local.version, let data = server.data { merge(serverRoot: data, version: server.version) }
-            } else if let server {
-                doc = AnnotationDocument(root: server.data ?? AnnotationDocument.empty().root, version: server.version)
-            } else if let local = LocalStore.loadState(file.id) {
-                doc = AnnotationDocument(root: local.root, version: local.version)
+            guard let pdfDocument = PDFDocument(url: url) else {
+                throw APIError(status: 0, message: "PDF lässt sich nicht öffnen")
             }
-            doc.ensurePDFPages(count: document.pageCount)
-            insertedPages = doc.insertedPageCount
-            pdf = document
-            status = dirtyPages.isEmpty ? "Gespeichert" : "Ungesendet"
-            if !dirtyPages.isEmpty { scheduleSave(after: 0) }
+            await engine.setHandlers(
+                onStatus: { [weak self] s in Task { @MainActor in self?.status = s } },
+                onRemoteChange: { [weak self] keys in Task { @MainActor in await self?.remoteChanged(keys) } })
+            let opened = await engine.open(pdfPageCount: pdfDocument.pageCount)
+            document = opened.document
+            insertedPages = document.insertedPageCount
+            removedPDFPages = document.removedPDFIndices(pdfPageCount: pdfDocument.pageCount)
+            if !opened.damagedFiles.isEmpty {
+                notice = "\(opened.damagedFiles.count) lokale Datei(en) beschädigt – Serverstand verwendet, wo möglich."
+            } else if opened.restoredUnsentPages > 0 {
+                notice = "\(opened.restoredUnsentPages) ungesendete Seite(n) wiederhergestellt."
+            }
+            pdf = pdfDocument
+            startMonitoring()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -65,83 +115,95 @@ final class DocumentStore: ObservableObject {
 
     // MARK: Zeichnungen
 
-    func drawing(forPageIndex index: Int) -> PKDrawing {
-        guard let key = doc.pageKey(forPDFIndex: index + 1) else { return PKDrawing() }
-        let objects = doc.objects(page: key)
-        var result: PKDrawing
-        if let pk = doc.pkDrawing(page: key), pk.signature == StrokeConverter.signature(objects),
-           let data = Data(base64Encoded: pk.data), let d = try? PKDrawing(data: data) {
-            result = d                                   // verlustfrei: unveraenderte native Zeichnung
-        } else {
-            result = StrokeConverter.drawing(from: objects)   // im Browser bearbeitet -> aus den Objekten aufbauen
+    func pageKey(forPageIndex index: Int) -> String? { document.pageKey(forPDFIndex: index + 1) }
+
+    /// Zeichnung einer PDF-Seite (0-basiert). Wird im Hintergrund aufgebaut.
+    func drawing(forPageIndex index: Int) async -> PKDrawing {
+        guard let key = pageKey(forPageIndex: index) else { return PKDrawing() }
+        if let pending = pendingDrawings[key] { return pending.drawing }      // noch nicht verarbeitet: neuester Stand
+        let page = await engine.page(key)
+        return await ink.drawing(key: key, page: page).drawing
+    }
+
+    /// Vom Editor nach jeder Aenderung einer Canvas. Kehrt sofort zurueck.
+    func canvasChanged(pageIndex index: Int, drawing: PKDrawing) {
+        guard let key = pageKey(forPageIndex: index) else {
+            notice = "Seite \(index + 1) wurde im Browser entfernt – Striche dort werden nicht gespeichert."
+            return
         }
-        lastData[index] = result.dataRepresentation()
-        return result
-    }
-
-    func update(drawing: PKDrawing, pageIndex index: Int) {
-        let data = drawing.dataRepresentation()
-        guard data != lastData[index], let key = doc.pageKey(forPDFIndex: index + 1) else { return }
-        lastData[index] = data
-        let others = doc.objects(page: key).filter { $0["type"]?.string != "stroke" }   // Text, Formen, Bilder bleiben
-        let all = others + StrokeConverter.objects(from: drawing)
-        doc.setPage(key, objects: all, pkData: data.base64EncodedString(), signature: StrokeConverter.signature(all))
-        dirtyPages.insert(key)
-        persistLocal()
-        status = "Ungesendet"
-        scheduleSave(after: 1.2)
-    }
-
-    private func persistLocal() {
-        LocalStore.saveState(LocalDocState(root: doc.root, version: doc.version, dirtyPages: Array(dirtyPages)), file.id)
-    }
-
-    // MARK: Synchronisieren
-
-    func scheduleSave(after seconds: Double) {
-        saveTask?.cancel()
-        saveTask = Task { [weak self] in
-            if seconds > 0 { try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
+        pendingDrawings[key] = DrawingBox(drawing: drawing)
+        processTask?.cancel()
+        processTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 250_000_000)
             guard !Task.isCancelled else { return }
-            await self?.sync()
+            await self?.processPending()
         }
     }
 
-    func sync(attempt: Int = 0) async {
-        guard !dirtyPages.isEmpty else { status = "Gespeichert"; return }
-        status = "Speichert…"
-        do {
-            let body = try JSONEncoder().encode(doc.root)
-            let (data, http) = try await api.data("/api/files/\(file.id)/annotations?base_version=\(doc.version)", method: "PUT", body: body)
-            if http.statusCode == 409, attempt < 3 {
-                let conflict = try JSONDecoder().decode(ConflictResponse.self, from: data)
-                merge(serverRoot: conflict.data, version: conflict.version)
-                persistLocal()
-                await sync(attempt: attempt + 1)
-                return
-            }
-            guard (200..<300).contains(http.statusCode) else { throw APIError(status: http.statusCode, message: "Speichern abgelehnt") }
-            let saved = try JSONDecoder().decode(SaveResponse.self, from: data)
-            doc.version = saved.version
-            dirtyPages.removeAll()
-            persistLocal()
-            retrySeconds = 2
-            status = "Gespeichert"
-        } catch {
-            status = "Offline – wird nachgeholt"
-            let wait = retrySeconds
-            retrySeconds = min(retrySeconds * 2, 60)
-            scheduleSave(after: Double(wait))
+    /// Alles Ausstehende sofort verarbeiten (vor dem Schliessen, beim Wechsel in den Hintergrund).
+    func flush() async {
+        processTask?.cancel()
+        await processPending()
+        await engine.requestUpload()
+    }
+
+    private func processPending() async {
+        guard !processing else { return }
+        processing = true
+        defer { processing = false }
+        while let (key, box) = pendingDrawings.first {
+            pendingDrawings.removeValue(forKey: key)
+            let previous = await engine.page(key)
+            let page = await ink.page(key: key, drawing: box, previous: previous)
+            await engine.updatePage(key, page)
         }
     }
 
-    /// Serverstand uebernehmen, aber hier geaenderte Seiten behalten (seitenweise Zusammenfuehrung).
-    private func merge(serverRoot: JSONValue, version: Int) {
-        var merged = AnnotationDocument(root: serverRoot, version: version)
-        for key in dirtyPages {
-            if let page = doc.page(key) { merged.setPageRaw(key, page) }
+    private func remoteChanged(_ keys: [String]) async {
+        let doc = await engine.currentDocument()
+        document = doc
+        insertedPages = doc.insertedPageCount
+        let indices = keys.compactMap { doc.pdfIndex(forPageKey: $0) }.map { $0 - 1 }
+        if !indices.isEmpty { onPagesChanged?(indices) }
+    }
+
+    // MARK: Netz und App-Lebenszyklus
+
+    private func startMonitoring() {
+        let m = NWPathMonitor()
+        m.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in await self?.engine.requestUpload() }
         }
-        if let count = pdf?.pageCount { merged.ensurePDFPages(count: count) }
-        doc = merged
+        m.start(queue: DispatchQueue(label: "uniflow.network"))
+        monitor = m
+        let center = NotificationCenter.default
+        lifecycle.append(center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.flushInBackground() }
+        })
+        lifecycle.append(center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.engine.requestUpload() }
+        })
+    }
+
+    private func flushInBackground() async {
+        var taskID = UIBackgroundTaskIdentifier.invalid
+        taskID = UIApplication.shared.beginBackgroundTask(withName: "UniFlow speichern") {
+            UIApplication.shared.endBackgroundTask(taskID)
+        }
+        processTask?.cancel()
+        await processPending()
+        await engine.syncNow()
+        if taskID != .invalid { UIApplication.shared.endBackgroundTask(taskID) }
+    }
+
+    /// Dokument schliessen: Ausstehendes sichern, Wiederholungen beenden (Ungesendetes bleibt im Journal).
+    func close() async {
+        await flush()
+        await engine.syncNow()
+        await engine.shutdown()
+        monitor?.cancel()
+        lifecycle.forEach { NotificationCenter.default.removeObserver($0) }
+        lifecycle = []
     }
 }

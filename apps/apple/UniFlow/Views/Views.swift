@@ -1,4 +1,5 @@
 import SwiftUI
+import UniFlowCore
 
 // MARK: - Verbindung
 
@@ -17,7 +18,7 @@ struct ConnectView: View {
                 } header: {
                     Text("UniFlow-Server")
                 } footer: {
-                    Text("Am PC Start-iPad.cmd starten. Adresse und PIN stehen in der App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen.")
+                    Text("Am PC Start-iPad.cmd starten. Adresse und PIN stehen in der App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen. Zu Hause funktioniert auch der Rechnername, z. B. http://amo.fritz.box:8765.")
                 }
                 if let error = session.lastError {
                     Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
@@ -83,6 +84,9 @@ struct LibraryView: View {
             .overlay {
                 if library == nil && loadError == nil { ProgressView() }
                 if let loadError { ContentUnavailableView("Bibliothek nicht geladen", systemImage: "wifi.exclamationmark", description: Text(loadError)) }
+                if library != nil && loadError == nil && files.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                }
             }
             .refreshable { await load() }
             .navigationTitle("Dokumente")
@@ -111,9 +115,23 @@ struct LibraryView: View {
 
 // MARK: - Dokument
 
+/// Verbindung zwischen SwiftUI-Leiste und dem UIKit-Editor.
+@MainActor
+final class EditorBridge: ObservableObject {
+    weak var controller: PDFEditorController?
+    @Published var zoomPercent = 100
+    @Published var pageIndex = 0
+
+    func undo() { controller?.undo() }
+    func redo() { controller?.redo() }
+    func fitWidth() { controller?.fitWidth() }
+}
+
 struct DocumentView: View {
     @StateObject private var store: DocumentStore
+    @StateObject private var bridge = EditorBridge()
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
+    @State private var fullScreen = false
 
     init(file: LibFile, api: APIClient) {
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
@@ -124,39 +142,106 @@ struct DocumentView: View {
             if let error = store.errorMessage {
                 ContentUnavailableView("Dokument nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
             } else if store.pdf != nil {
-                PDFEditorView(store: store, pencilOnly: pencilOnly).ignoresSafeArea(edges: .bottom)
+                PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly)
+                    .ignoresSafeArea(edges: .bottom)
+                    .overlay(alignment: .bottom) { pageInfo }
             } else {
                 ProgressView("Lädt…")
             }
         }
         .navigationTitle(store.file.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(fullScreen ? .hidden : .visible, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Text(store.insertedPages > 0 ? "\(store.status) · \(store.insertedPages) eingefügte Seiten nur im Browser" : store.status)
-                    .font(.caption).foregroundStyle(.secondary)
+            ToolbarItemGroup(placement: .topBarLeading) {
+                Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
+                Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                StatusLabel(status: store.status)
                 Button { pencilOnly.toggle() } label: {
                     Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
                 }
+                Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if fullScreen {
+                Button { fullScreen = false } label: { Label("Vollbild beenden", systemImage: "xmark").padding(10) }
+                    .buttonStyle(.borderedProminent).padding()
             }
         }
         .task { await store.load() }
-        .onDisappear { Task { await store.sync() } }
+        .onDisappear { Task { await store.close() } }
+    }
+
+    private var pageInfo: some View {
+        HStack(spacing: 10) {
+            Text("Seite \(bridge.pageIndex + 1) / \(store.pdf?.pageCount ?? 0)")
+            Divider().frame(height: 14)
+            Button("\(bridge.zoomPercent) %") { bridge.fitWidth() }
+                .accessibilityHint("Seite einpassen")
+            if let notice = store.notice {
+                Divider().frame(height: 14)
+                Text(notice).lineLimit(1)
+            }
+            if store.insertedPages > 0 {
+                Divider().frame(height: 14)
+                Text("\(store.insertedPages) eingefügte Seite(n) nur im Browser")
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(.regularMaterial, in: Capsule())
+        .padding(.bottom, 12)
+    }
+}
+
+struct StatusLabel: View {
+    let status: SyncStatus
+
+    var body: some View {
+        Label(status.label, systemImage: icon)
+            .labelStyle(.titleAndIcon)
+            .font(.caption)
+            .foregroundStyle(color)
+            .accessibilityLabel(status.label)
+    }
+
+    private var icon: String {
+        switch status {
+        case .saved: return "checkmark.icloud"
+        case .uploading, .loading: return "arrow.triangle.2.circlepath.icloud"
+        case .pending: return "internaldrive"
+        case .offline: return "icloud.slash"
+        case .localSaveFailed, .conflictUnresolved: return "exclamationmark.triangle"
+        }
+    }
+
+    private var color: Color {
+        switch status {
+        case .localSaveFailed, .conflictUnresolved: return .red
+        case .offline: return .orange
+        default: return .secondary
+        }
     }
 }
 
 struct PDFEditorView: UIViewControllerRepresentable {
     let store: DocumentStore
+    let bridge: EditorBridge
     let pencilOnly: Bool
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store)
         vc.pencilOnly = pencilOnly
+        vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
+        vc.onPageChange = { [weak bridge] i in bridge?.pageIndex = i }
+        bridge.controller = vc
         return vc
     }
 
+    /// Wird bei jeder SwiftUI-Aktualisierung aufgerufen (z. B. Statuswechsel). Darf die Canvas nicht anfassen.
     func updateUIViewController(_ vc: PDFEditorController, context: Context) {
         if vc.pencilOnly != pencilOnly { vc.pencilOnly = pencilOnly }
     }

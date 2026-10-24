@@ -1,0 +1,103 @@
+# iPad-App: gemeinsamer Swift-Kern unter Linux (guenstig), danach App-Build und Tests im iOS-Simulator (macOS).
+# Kosten: Linux-Minuten zaehlen 1x, macOS-Minuten 10x gegen das Freikontingent privater Repos. Darum laeuft der
+# macOS-Job nur, wenn der Linux-Job gruen ist, und nur bei Aenderungen unter apps/apple. Kein Signieren.
+name: Apple
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "apps/apple/**"
+      - "packages/shared-contracts/**"
+      - ".github/workflows/apple.yml"
+  pull_request:
+    paths:
+      - "apps/apple/**"
+      - ".github/workflows/apple.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: apple-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  core-linux:
+    name: UniFlowCore (Linux, swift test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container: swift:6.0-jammy
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift-Version
+        run: swift --version
+      - name: Tests
+        shell: bash
+        working-directory: apps/apple/Packages/UniFlowCore
+        run: swift test 2>&1 | tee swift-test-linux.log
+      - name: Protokoll sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-test-linux
+          path: apps/apple/Packages/UniFlowCore/swift-test-linux.log
+          retention-days: 7
+
+  ios:
+    name: iPad-App (Xcode, Simulator)
+    needs: core-linux
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode und Simulatoren
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes available
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+      - name: Kern auch auf macOS testen
+        working-directory: apps/apple/Packages/UniFlowCore
+        run: swift test 2>&1 | tee swift-test-macos.log
+      - name: Xcode-Projekt erzeugen
+        working-directory: apps/apple
+        run: xcodegen generate
+      - name: iPad-Simulator waehlen
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          cands = [(rt, d) for rt, ds in devices.items() if "iOS" in rt for d in ds if d["name"].startswith("iPad")]
+          def ver(rt):
+              tail = rt.split("iOS-")[-1]
+              return tuple(int(x) for x in tail.split("-") if x.isdigit())
+          cands.sort(key=lambda t: (ver(t[0]), "Pro" in t[1]["name"]))
+          print(cands[-1][1]["udid"] if cands else "")
+          ')
+          test -n "$UDID" || { echo "kein iPad-Simulator gefunden"; exit 1; }
+          xcrun simctl list devices | grep "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - name: Bauen und testen
+        working-directory: apps/apple
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project UniFlow.xcodeproj -scheme UniFlow \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            2>&1 | tee xcodebuild.log | grep -E "error:|warning: .*(deprecated|unused)|Test Case|Executed|BUILD|\*\*" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" xcodebuild.log
+      - name: Ergebnisse sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: |
+            apps/apple/xcodebuild.log
+            apps/apple/TestResults.xcresult
+            apps/apple/Packages/UniFlowCore/swift-test-macos.log
+          retention-days: 7
