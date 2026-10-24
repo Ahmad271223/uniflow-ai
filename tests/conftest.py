@@ -8,20 +8,27 @@ from pathlib import Path
 _TMP = tempfile.mkdtemp(prefix="lernapp-test-")
 os.environ["LERNAPP_DATA_DIR"] = str(Path(_TMP) / "data")
 os.environ["LERNAPP_LOG_DIR"] = str(Path(_TMP) / "logs")
+os.environ["LERNAPP_ALLOWED_HOSTS"] = "test"        # Host-Kopfzeile der Test-Aufrufe
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest  # noqa: E402
 
 
-def asgi_call(app, method, path, client=("127.0.0.1", 5000), body=None, cookies=None):
-    """Minimaler ASGI-Aufruf ohne httpx; liefert (status, headers, body_bytes)."""
-    q = path.split("?", 1)[1].encode() if "?" in path else b""
-    headers = [(b"host", b"test"), (b"content-type", b"application/json")]
+def asgi_call(app, method, path, client=("127.0.0.1", 5000), body=None, cookies=None, headers=None, host="test",
+              content_type="application/json", raw_path=False):
+    """Minimaler ASGI-Aufruf ohne httpx; liefert (status, headers, body_bytes).
+    Der Pfad wird wie bei uvicorn prozent-dekodiert (%5C -> Backslash), raw_path bleibt kodiert."""
+    from urllib.parse import unquote
+    p, _, q = path.partition("?")
+    hdrs = [(b"host", host.encode()), (b"content-type", content_type.encode())]
     if cookies:
-        headers.append((b"cookie", cookies.encode()))
+        hdrs.append((b"cookie", cookies.encode()))
+    for k, v in (headers or {}).items():
+        hdrs.append((k.lower().encode(), v.encode()))
     raw = body if isinstance(body, bytes) else (body.encode() if isinstance(body, str) else b"")
+    hdrs.append((b"content-length", str(len(raw)).encode()))
     scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": method, "scheme": "http",
-             "path": path.split("?")[0], "raw_path": path.encode(), "query_string": q, "headers": headers,
+             "path": unquote(p), "raw_path": p.encode(), "query_string": q.encode(), "headers": hdrs,
              "client": client, "server": ("test", 80)}
     out = {"status": None, "headers": [], "body": b""}
     sent = {"done": False}

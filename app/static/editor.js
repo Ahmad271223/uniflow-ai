@@ -287,7 +287,7 @@ export class PdfEditor {
     // Sicherheitsnetz: Abheben, das nicht ueber die Seite kommt, beendet den Strich trotzdem
     this._winUp = e => { if (e.pointerType === "pen") { this.penDown = false; this.penLiftAt = Date.now(); } this.touches?.delete(e.pointerId); const a = this._activeLive; if (a && a.id === e.pointerId) a.finish(); };
     window.addEventListener("pointerup", this._winUp); window.addEventListener("pointercancel", this._winUp);
-    this._resetInput = () => { this.penDown = false; this.pan = null; if (this.pinch) this.pinchEnd(); this.pointers.clear(); this.touches?.clear(); this.rulerG = null; this._activeLive?.finish(); };
+    this._resetInput = () => { this.penDown = false; this.pan = null; if (this.pinch) this.pinchEnd(); this.pointers.clear(); this.touches?.clear(); this.rulerG = null; this._activeLive?.finish(); if (this.dirty && !this.destroyed) { this._writeDraft(true); if (document.visibilityState === "hidden") this.flush(); } };
     document.addEventListener("visibilitychange", this._resetInput); window.addEventListener("blur", this._resetInput); window.addEventListener("pagehide", this._resetInput);
     // Stift-Cursor beim Schweben (fixiert, veraendert die Scrollflaeche nicht)
     this.cursorEl = document.createElement("div"); this.cursorEl.className = "ed-cursor"; this.cursorEl.hidden = true; this.c.append(this.cursorEl);
@@ -491,7 +491,11 @@ export class PdfEditor {
   reAdd(h) { const objs = this.model.pages[h.key]?.objects; if (!objs) return; const o = JSON.parse(h.addJson); objs.push(o); const pg = this.pages.find(x => x.key === h.key); if (pg?.mounted) { this.addNode(pg, o); pg.layer.batchDraw(); } this.markDirty(); }
   restore(key, json) { this.model.pages[key].objects = JSON.parse(json); const pg = this.pages.find(p => p.key === key); if (pg?.mounted) { this.clearSelection(); pg.layer.find(".obj").forEach(n => n.destroy()); this.model.pages[key].objects.forEach(o => this.addNode(pg, o)); pg.layer.batchDraw(); } this.markDirty(); }
   restorePages(h, which) { const snap = JSON.parse(h[which]); const cur = this.model.pageOrder.map(p => p.key); this.model.pageOrder = snap.o; this.model.deletedPages = snap.d || []; snap.o.forEach(p => { if (!this.model.pages[p.key]) this.model.pages[p.key] = (h.snapPages && h.snapPages[p.key]) || { objects: [] }; }); this.rebuildPages(); this.markDirty(); }
-  markDirty() { this.dirty = true; this.setSaveState("saving"); this.scheduleSave(); }
+  markDirty() { this.dirty = true; this.setSaveState("saving"); this.scheduleSave(); this._draftSoon(); }
+  // Lokaler Entwurf unabhaengig vom Hochladen: spaetestens 1,5 s nach einer Aenderung (zwischen zwei Strichen),
+  // damit ein Safari-Absturz beim Dauerschreiben nichts verliert
+  _draftSoon() { if (!this._draftT) this._draftT = setTimeout(() => this._writeDraft(), 1500); }
+  _writeDraft(force = false) { if (!force && (this.penDown || this._activeLive) && !this.destroyed) { this._draftT = setTimeout(() => this._writeDraft(), 300); return; } clearTimeout(this._draftT); this._draftT = 0; if (!this.dirty || !this.model) return; try { const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta }); } catch {} }
   setSaveState(st) { const el = $(".ed-status", this.c); if (el) el.dataset.state = st; this.onStatus(st === "saving" ? "Speichert…" : st === "offline" ? "Offline – wird nachgeholt" : "Gespeichert"); }
   scheduleSave() { clearTimeout(this._t); if (!this._dirtySince) this._dirtySince = Date.now(); this._t = setTimeout(() => this._saveTick(), 1200); }
   _saveTick() { const busy = (this.penDown && Date.now() - (this.penSeenAt || 0) < 15000) || (this._activeLive && Date.now() - (this._liveAt || 0) < 15000); const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta }); this.flush(); }
@@ -929,7 +933,7 @@ export class PdfEditor {
     else if (k === "f11") { e.preventDefault(); this.toggleFullscreen(); }
   }
   async destroy() {
-    this.destroyed = true; clearTimeout(this._t); if (this.recorder) this.recorder.stop(); if (this.dirty) await this.flush();
+    this.destroyed = true; clearTimeout(this._t); if (this.recorder) this.recorder.stop(); if (this.dirty) { this._writeDraft(true); await this.flush(); } clearTimeout(this._draftT);
     this.io?.disconnect(); this.thumbIO?.disconnect(); this._ro?.disconnect(); this.pages.forEach(p => this.unmount(p));
     document.removeEventListener("keydown", this._space); document.removeEventListener("keyup", this._spaceUp); document.removeEventListener("pointerdown", this._popClose); document.removeEventListener("gesturestart", this._gest); document.removeEventListener("gesturechange", this._gest); document.removeEventListener("selectstart", this._selStart); window.removeEventListener("pointerup", this._winUp); window.removeEventListener("pointercancel", this._winUp); document.removeEventListener("visibilitychange", this._resetInput); window.removeEventListener("blur", this._resetInput); window.removeEventListener("pagehide", this._resetInput); document.documentElement.classList.remove("ed-inking"); window.removeEventListener("online", this._online);
     this.pdf?.destroy?.(); this.assetDocs.forEach(d => d.destroy?.()); this.c.innerHTML = ""; this.c.classList.remove("ed");

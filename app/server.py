@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import re
 import threading
 import uuid
 from datetime import date, timedelta
@@ -58,7 +59,7 @@ async def lan_pin_guard(request, call_next):
         _PIN_FAILS.pop(host, None)
         response = await call_next(request)
         if request.query_params.get("pin"):
-            response.set_cookie("lernapp_pin", pin, max_age=60 * 60 * 24 * 365, samesite="lax")
+            response.set_cookie("lernapp_pin", pin, max_age=60 * 60 * 24 * 365, samesite="lax", httponly=True)
         return response
     if request.url.path.startswith("/api/"):
         return JSONResponse({"detail": "PIN erforderlich (Einstellungen > Zugang auf dem PC)"}, status_code=401)
@@ -73,6 +74,67 @@ async def no_cache_static(request, call_next):
     if not p.startswith("/api/") and (p == "/" or p.endswith((".js", ".mjs", ".css", ".html"))):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
     return response
+
+
+def _host_allowed(host_header: str) -> bool:
+    """Schutz gegen DNS-Rebinding: nur IP-Adressen, localhost, der eigene Rechnername und lokale Namen."""
+    import ipaddress
+    import os
+    import socket
+    h = (host_header or "").strip().lower()
+    if not h:
+        return True
+    if h.startswith("["):                                   # [::1]:8765
+        h = h[1:].split("]", 1)[0]
+    elif h.count(":") == 1:
+        h = h.rsplit(":", 1)[0]
+    try:
+        ipaddress.ip_address(h)
+        return True
+    except ValueError:
+        pass
+    extra = {x.strip().lower() for x in os.environ.get("LERNAPP_ALLOWED_HOSTS", "").split(",") if x.strip()}
+    me = socket.gethostname().lower()
+    if h in extra or h in ("localhost", me) or h.endswith(".localhost"):
+        return True
+    return any(h == f"{me}{suffix}" for suffix in (".fritz.box", ".local", ".lan", ".home", ".home.arpa", ".internal", ".speedport.ip"))
+
+
+@app.middleware("http")
+async def same_origin_guard(request, call_next):
+    """Schutz gegen fremde Webseiten: falscher Host (Rebinding) -> 421, fremde Herkunft bei Aenderungen -> 403.
+    Anfragen ohne Origin (native App, Skripte) bleiben erlaubt; im WLAN gilt zusaetzlich die PIN."""
+    host = request.headers.get("host", "")
+    if not _host_allowed(host):
+        return JSONResponse({"detail": "Unbekannter Hostname"}, status_code=421)
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        origin = request.headers.get("origin")
+        if origin is not None:
+            from urllib.parse import urlsplit
+            o = urlsplit(origin)
+            if origin == "null" or o.netloc.lower() != host.lower():
+                return JSONResponse({"detail": "Anfrage von fremder Seite abgelehnt"}, status_code=403)
+    return await call_next(request)
+
+
+_SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")
+_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}\.[A-Za-z0-9]{1,6}$")
+
+
+def _safe_id(value: str) -> str:
+    """Datei-IDs werden fuer Pfade benutzt: keine Punkte, Schraegstriche oder Backslashes (Pfad-Traversal)."""
+    if not _SAFE_ID.match(value or ""):
+        raise HTTPException(400, "Ungueltige ID")
+    return value
+
+
+def _inside(base: Path, p: Path) -> Path:
+    rb, rp = base.resolve(), p.resolve()
+    if rp != rb and rb not in rp.parents:
+        raise HTTPException(400, "Ungueltiger Pfad")
+    return rp
+
+
 # Windows kennt .mjs nicht -> Module-Skripte brauchen den richtigen MIME-Typ
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("application/manifest+json", ".webmanifest")
@@ -263,6 +325,7 @@ def get_annotations(file_id: str):
 def put_annotations(file_id: str, body: dict = Body(...), base_version: int | None = None):
     """Speichert Annotationen. Mit base_version wird ein Konflikt (409) gemeldet, wenn der Server neuer ist."""
     with db.cursor() as conn:
+        conn.execute("BEGIN IMMEDIATE")      # Versionspruefung und Schreiben atomar: zwei Geraete koennen nicht beide gewinnen
         cur = db.row(conn, "SELECT version, data FROM annotations WHERE file_id=?", (file_id,))
         cur_v = (cur["version"] or 1) if cur else 0
         if base_version is not None and cur and cur_v != base_version:
@@ -302,11 +365,12 @@ ASSETS_DIR = DATA_DIR / "assets"
 @app.post("/api/files/{file_id}/assets")
 async def upload_asset(file_id: str, upload: UploadFile = File(...)):
     """Bild (oder Screenshot) fuer den Editor ablegen. Antwort: URL zum Einbetten."""
+    _safe_id(file_id)
     ext = Path(upload.filename or "bild.png").suffix.lower() or ".png"
     if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf"):
         raise HTTPException(400, "Nur Bild- oder PDF-Dateien")
     name = f"{uuid.uuid4().hex}{ext}"
-    target = ASSETS_DIR / file_id
+    target = _inside(ASSETS_DIR, ASSETS_DIR / file_id)
     target.mkdir(parents=True, exist_ok=True)
     data = await upload.read()
     if len(data) > 15 * 1024 * 1024:
@@ -317,8 +381,11 @@ async def upload_asset(file_id: str, upload: UploadFile = File(...)):
 
 @app.get("/api/assets/{file_id}/{name}")
 def get_asset(file_id: str, name: str):
-    p = ASSETS_DIR / file_id / Path(name).name
-    if not p.exists():
+    _safe_id(file_id)
+    if not _SAFE_NAME.match(name or ""):
+        raise HTTPException(400, "Ungueltiger Dateiname")
+    p = _inside(ASSETS_DIR, ASSETS_DIR / file_id / name)
+    if not p.is_file():
         raise HTTPException(404)
     return FileResponse(p)
 
@@ -1363,9 +1430,12 @@ def api_recordings(file_id: str):
 
 @app.post("/api/files/{file_id}/recordings")
 async def api_recording_add(file_id: str, upload: UploadFile = File(...), page: int = Form(default=1), title: str = Form(default=""), duration: float = Form(default=0)):
+    _safe_id(file_id)
     ext = Path(upload.filename or "aufnahme.webm").suffix.lower() or ".webm"
+    if ext not in (".webm", ".m4a", ".mp4", ".ogg", ".oga", ".wav", ".mp3", ".aac"):
+        raise HTTPException(400, "Nur Audio-Aufnahmen")
     name = f"rec_{uuid.uuid4().hex}{ext}"
-    target = ASSETS_DIR / file_id; target.mkdir(parents=True, exist_ok=True)
+    target = _inside(ASSETS_DIR, ASSETS_DIR / file_id); target.mkdir(parents=True, exist_ok=True)
     (target / name).write_bytes(await upload.read())
     with db.cursor() as conn:
         cur = conn.execute("INSERT INTO recordings(file_id, page, title, url, duration, created_at) VALUES (?,?,?,?,?,?)",
@@ -1379,9 +1449,12 @@ def api_recording_delete(rec_id: int):
         r = db.row(conn, "SELECT url FROM recordings WHERE id=?", (rec_id,))
         conn.execute("DELETE FROM recordings WHERE id=?", (rec_id,))
     if r:
-        p = ASSETS_DIR / r["url"].replace("/api/assets/", "")
-        if p.exists():
-            p.unlink()
+        try:
+            p = _inside(ASSETS_DIR, ASSETS_DIR / r["url"].replace("/api/assets/", ""))
+            if p.is_file():
+                p.unlink()
+        except HTTPException:
+            pass                                             # alter Eintrag mit ungueltigem Pfad: nur DB-Zeile loeschen
     return {"ok": True}
 
 

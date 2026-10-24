@@ -17,7 +17,7 @@ STATIC_DIR = ROOT / "app" / "static"
 for d in (DATA_DIR, FILES_DIR, LOG_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
-load_dotenv(ROOT / ".env")
+load_dotenv(ROOT / ".env", interpolate=False)
 
 STUDIP_BASE = os.getenv("STUDIP_BASE", "https://studip.uni-hannover.de").rstrip("/")
 STUDIP_USER = os.getenv("STUDIP_USER", "")
@@ -33,7 +33,7 @@ def credentials() -> tuple[str, str]:
     """Liest LUH-ID und Passwort frisch aus der .env (damit Aenderungen zur Laufzeit wirken)."""
     from dotenv import dotenv_values
 
-    v = dotenv_values(ROOT / ".env") if (ROOT / ".env").exists() else {}
+    v = dotenv_values(ROOT / ".env", interpolate=False) if (ROOT / ".env").exists() else {}
     user = (v.get("STUDIP_USER") or "").strip()
     pw = (v.get("STUDIP_PASSWORD") or "").strip()
     return ("" if user in PLACEHOLDERS else user, "" if pw in PLACEHOLDERS else pw)
@@ -44,19 +44,31 @@ def set_env(values: dict) -> None:
     path = ROOT / ".env"
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else \
         ((ROOT / ".env.example").read_text(encoding="utf-8").splitlines() if (ROOT / ".env.example").exists() else [])
+    for k, v in values.items():
+        if v is not None and ("\n" in str(v) or "\r" in str(v)):
+            raise ValueError(f"{k}: Zeilenumbrueche sind nicht erlaubt")
     out, seen = [], set()
     for line in lines:
         key = line.split("=", 1)[0].strip() if "=" in line and not line.lstrip().startswith("#") else None
         if key in values:
             seen.add(key)
             if values[key] is not None:
-                out.append(f"{key}={str(values[key]).strip()}")
+                out.append(f"{key}={_env_quote(values[key])}")
         else:
             out.append(line)
     for k, v in values.items():
         if k not in seen and v is not None:
-            out.append(f"{k}={str(v).strip()}")
-    path.write_text("\n".join(out) + "\n", encoding="utf-8")
+            out.append(f"{k}={_env_quote(v)}")
+    # atomar: erst Temp-Datei, dann ersetzen (ein Absturz mitten im Schreiben darf die Zugangsdaten nicht loeschen)
+    tmp = path.with_name(".env.tmp")
+    tmp.write_text("\n".join(out) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _env_quote(v) -> str:
+    """Wert in doppelten Anfuehrungszeichen, damit '#', Leerzeichen und Anfuehrungszeichen erhalten bleiben."""
+    s = str(v).strip()
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def save_credentials(user: str, password: str, prefix: str = "STUDIP") -> None:
@@ -66,7 +78,7 @@ def save_credentials(user: str, password: str, prefix: str = "STUDIP") -> None:
 
 def _env() -> dict:
     from dotenv import dotenv_values
-    return dotenv_values(ROOT / ".env") if (ROOT / ".env").exists() else {}
+    return dotenv_values(ROOT / ".env", interpolate=False) if (ROOT / ".env").exists() else {}
 
 
 def service_status(prefix: str) -> dict:

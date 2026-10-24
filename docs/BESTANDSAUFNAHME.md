@@ -46,13 +46,47 @@ Spalten: Priorität · Befund · Reproduktion · Ursache · Dateien · Korrektur
 Geprüft ohne Befund: doppelte Kurse, Dateien, Termine, Wochentests (eindeutiger Index), Noten. Passwörter in Logs
 und Code: keine Fundstelle. Logs: keine Tracebacks; Sync-Fehler nur aus der Ersteinrichtung.
 
+## 2a. Audit Phase 1 (25.10.2026, Zweig `develop`)
+
+Jeder Befund ist durch einen Test belegt, der am alten Code fehlschlug (`tests/test_security.py`), oder durch den
+genannten Code nachgewiesen. Server-Korrekturen wirken erst nach einem Neustart von `Start-iPad.cmd`.
+
+| P | Befund | Reproduktion | Ursache | Dateien | Korrektur | Test | Offen |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P0 | Beliebige Dateien lesbar, z. B. `.env` mit Passwörtern | `GET /api/assets/..%5C..%5C/.env` (vom PC ohne PIN) | Datei-ID ging ungeprüft in den Pfad, Windows wertet `\` als Trenner | `server.py` | IDs/Dateinamen nur `[A-Za-z0-9_-]`, Pfad muss im Asset-Ordner liegen | `test_asset_read_rejects_path_traversal` | – |
+| P0 | Beliebige Dateien schreibbar, auch `.bat` in den Autostart-Ordner | `POST /api/files/..%5C..%5C…%5CStartup/recordings` mit `x.bat` | wie oben, dazu beliebige Endung bei Aufnahmen | `server.py` | wie oben, nur Audio-Endungen | `test_recording_upload_rejects_path_traversal_and_bad_extension` | – |
+| P0 | Fremde Webseiten lösen Aktionen aus (Sync, KI, Uploads; mit der Zeile darüber Code-Ausführung) | Formular-POST einer beliebigen Webseite an `http://127.0.0.1:8765` | vom PC selbst gilt keine PIN, keine Herkunftsprüfung | `server.py` | Änderungen nur mit eigener oder ohne `Origin`, sonst 403 | `test_cross_site_post_is_rejected` | – |
+| P0 | DNS-Rebinding liest PIN, Noten, Dokumente | fremder Hostname löst auf 127.0.0.1 auf | Host-Kopfzeile ungeprüft | `server.py` | nur IP-Adressen, `localhost`, eigener Rechnername (auch `.fritz.box`, `.local`), sonst 421 | `test_foreign_host_header_is_rejected` | – |
+| P0 | Zwei Geräte speichern gleichzeitig: beide bekommen „gespeichert“, eines ist verloren | zwei PUT mit derselben `base_version` | Versionsprüfung lief außerhalb der Schreibtransaktion | `server.py` | `BEGIN IMMEDIATE` vor der Prüfung | `test_concurrent_annotation_saves_do_not_both_win` | – |
+| P1 | Passwort mit ` #` oder `${…}` wird verfälscht, Zeilenumbruch schleust Einträge ein, Absturz beim Schreiben leert die `.env` | Passwort `ab #c` speichern | Werte ungequotet, Variablen-Ersetzung an, Schreiben nicht atomar | `config.py` | Werte in Anführungszeichen, keine Ersetzung, Temp-Datei + Ersetzen, Umbrüche abgelehnt | `test_env_roundtrip_special_characters`; echte `.env` liest unverändert | – |
+| P1 | Web-Editor: beim Dauerschreiben bis 20 s ohne lokalen Entwurf, Safari-Absturz verliert Striche | 5 s ohne Pause schreiben, Tab schließen | Entwurf nur zusammen mit dem Hochladen nach einer Pause | `editor.js` | Entwurf spätestens 1,5 s nach jeder Änderung, sofort beim Verlassen | Desktop: Entwurf 5/10/15 Striche nach 2,5/3,7/5 s, vorher 0 | iPad-Test |
+| P1 | Eingeschleustes HTML über KI-Themen in „Meine Module“ | Dokument, dessen Analyse HTML in `topics` liefert | Themenliste ohne `esc()` | `views-misc.js` | maskiert | Codeprüfung | – |
+| P2 | PIN-Cookie für Skripte lesbar | – | Cookie ohne `HttpOnly` | `server.py` | `HttpOnly` | Codeprüfung | – |
+| P2 | Builds nicht reproduzierbar | – | Abhängigkeiten ohne Versionen | `requirements*.txt` | feste Versionen | Tests mit diesen Versionen | – |
+| P2 | Eine Stud.IP-Datei liefert 403 und wird bei jedem Sync erneut versucht | `logs/sync.log` | keine Merkliste für dauerhaft gesperrte Dateien | `studip_sync.py` | – | – | offen (braucht DB-Feld) |
+| P2 | Nach mehr als 3 Konflikten bleibt der Web-Editor still auf „Offline“ | – | Fehlerzähler wird nie zurückgesetzt | `editor.js` | – | – | offen |
+
+Native App (`apps/apple`, nie kompiliert), Korrektur in Phase 2 und 3:
+
+| P | Befund | Ursache | Datei |
+| --- | --- | --- | --- |
+| P0 | Striche, die während eines Uploads entstehen, gelten danach als gesendet und gehen beim nächsten Start verloren | `dirtyPages.removeAll()` nach Erfolg, ohne Revisionen | `DocumentStore.swift` |
+| P0 | Jede Änderung vergibt allen Strichen der Seite neue IDs | `UUID()` bei jeder Umwandlung | `StrokeConverter.swift` |
+| P0 | Konflikt: eigene Seite überschreibt die Striche des anderen Geräts auf derselben Seite | seitenweise statt objektweise Zusammenführung | `DocumentStore.swift` |
+| P1 | Bei jeder Stiftänderung: ganze Seite umwandeln, hashen, ganzes Dokument als JSON schreiben, alles auf dem Hauptthread | keine Trennung von Eingabe, Speichern, Umwandeln | `DocumentStore.swift` |
+| P1 | Speicherfehler werden verschluckt, Status zeigt trotzdem Erfolg | `try?` | `LocalStore.swift` |
+| P1 | Zwei Uploads gleichzeitig möglich | Timer und `onDisappear` starten unabhängig | `DocumentStore.swift`, `Views.swift` |
+| P1 | Zoom springt zurück, wenn sich die Fläche ändert | `autoScales = true` dauerhaft | `PDFEditorController.swift` |
+| P1 | Werkzeugpalette verschwindet, wenn die erste Seite aus dem Bild scrollt | First Responder ist eine Seiten-Canvas | `PDFEditorController.swift` |
+| P1 | Striche auf im Browser entfernten PDF-Seiten werden still verworfen | `pageKey` nil → `return` | `DocumentStore.swift` |
+
 ## 3. Tests
 
 ```bash
 .venv\Scripts\python.exe -m pytest -q tests
 ```
 
-7 Regressionstests (Temp-Datenordner über `LERNAPP_DATA_DIR`, die echte Datenbank wird nie berührt).
+13 Tests (Temp-Datenordner über `LERNAPP_DATA_DIR`, die echte Datenbank wird nie berührt).
 Editor-Tests liefen im Desktop-Browser mit simulierten Stift- und Fingerereignissen; **kein Test auf einem echten iPad.**
 
 ## 4. Offene Risiken
