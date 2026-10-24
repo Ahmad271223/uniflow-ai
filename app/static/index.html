@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>UniFlow AI</title>
+<meta name="theme-color" content="#4f5bd5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="UniFlow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css?v=20">
+<link rel="stylesheet" href="editor.css?v=20">
+<script>try{const t=localStorage.getItem('theme')||'light';if(t!=='auto')document.documentElement.dataset.theme=t;}catch{document.documentElement.dataset.theme='light';}</script>
+</head>
+<body>
+<div class="shell" id="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="logo" id="brandLogo"></div><span>UniFlow AI</span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <a href="#/settings" class="nav-link" id="navSettings"></a>
+      <button class="btn ghost" id="collapseBtn" title="Sidebar einklappen"></button>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="header">
+      <button class="btn ghost icon menu-btn" id="menuBtn" title="Menü"></button>
+      <div class="search" id="globalSearch"><input id="searchInput" placeholder="Suche nach Dateien, Modulen, Themen…" autocomplete="off"><span class="kbd">Strg K</span><div class="search-pop" id="searchPop" hidden></div></div>
+      <span class="spacer"></span>
+      <span class="sync-chip" id="syncChip"></span>
+      <button class="btn sm" id="syncBtn" title="Jetzt mit Stud.IP synchronisieren"></button>
+      <button class="btn ghost icon" id="themeBtn" title="Hell/Dunkel"></button>
+      <button class="btn ghost icon" id="profileBtn" title="Profil"></button>
+      <div class="avatar" id="avatar" title="Angemeldet mit deiner LUH-ID">AH</div>
+    </header>
+    <main id="view"></main>
+  </div>
+</div>
+<nav class="mobile-nav" id="mobileNav"></nav>
+<div id="overlay"></div>
+<script type="module" src="app.js?v=20"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+playwright
+pypdf
+python-dotenv
+python-multipart

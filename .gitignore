@@ -1,0 +1,18 @@
+.env
+.venv/
+data/
+__pycache__/
+*.pyc
+logs/
+backup/
+.pytest_cache/
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+Thumbs.db
+# iPad-App (Xcode erzeugt)
+apps/apple/*.xcodeproj/
+apps/apple/build/
+apps/apple/DerivedData/
+xcuserdata/

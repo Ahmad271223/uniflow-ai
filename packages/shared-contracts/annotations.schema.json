@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/annotations-v2.json",
+  "title": "UniFlow-Notizmodell (Version 2)",
+  "description": "Ein Dokument pro Datei. Wird von Web-Editor (app/static/editor.js) und iPad-App (apps/apple) gelesen und geschrieben. Unbekannte Felder MUESSEN beim Speichern erhalten bleiben (Vorwaertskompatibilitaet). Koordinaten in Seitenpunkten der PDF-Seite ohne Zoom, Ursprung oben links.",
+  "type": "object",
+  "required": ["version", "pages"],
+  "properties": {
+    "version": { "const": 2 },
+    "format": { "type": "string", "description": "optional, z. B. 'uniflow-annotations/2'" },
+    "zoom": { "type": "number", "description": "zuletzt genutzter Zoom (nur Anzeige)" },
+    "note": { "type": "string", "description": "freie Textnotiz zum Dokument" },
+    "bookmarks": { "type": "array" },
+    "outline": { "type": "array" },
+    "deletedPages": { "type": "array", "description": "im Web-Editor geloeschte Seiten (wiederherstellbar)" },
+    "pageOrder": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "type"],
+        "properties": {
+          "key": { "type": "string", "description": "Schluessel in 'pages', z. B. 'p1' oder 'b3k...'" },
+          "type": { "enum": ["pdf", "blank", "asset"] },
+          "index": { "type": "integer", "minimum": 1, "description": "nur type=pdf: 1-basierte PDF-Seite" },
+          "rotation": { "enum": [0, 90, 180, 270] },
+          "template": { "type": "string", "description": "nur type=blank: blank|lined|grid|dotted|mm|cornell" },
+          "w": { "type": "number" }, "h": { "type": "number" }
+        }
+      }
+    },
+    "pages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "objects": { "type": "array", "items": { "$ref": "#/$defs/object" } },
+          "pkdrawing": {
+            "type": "object",
+            "description": "Native PencilKit-Zeichnung (nur Apple). Gueltig nur, wenn objectsSig der SHA-256 der Objekte (JSON, Schluessel sortiert) entspricht; sonst aus 'objects' neu aufbauen.",
+            "required": ["data", "objectsSig"],
+            "properties": { "data": { "type": "string", "contentEncoding": "base64" }, "objectsSig": { "type": "string" }, "format": { "const": "pkdrawing-v1" } }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "object": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "enum": ["stroke", "text", "shape", "image"] },
+        "x": { "type": "number" }, "y": { "type": "number" }, "rotation": { "type": "number" },
+        "scaleX": { "type": "number" }, "scaleY": { "type": "number" }, "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tool": { "enum": ["pen", "fountain", "pencil", "marker"], "description": "nur stroke" },
+        "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "width": { "type": "number", "description": "mittlere Strichbreite in Punkten" },
+        "widths": { "type": "array", "items": { "type": "number" }, "description": "optional: Breite je Punkt (gleiche Anzahl wie Punkte)" },
+        "points": { "type": "array", "items": { "type": "number" }, "description": "x0,y0,x1,y1,... relativ zur Objekt-Transformation (Reihenfolge: skalieren, drehen, verschieben)" },
+        "source": { "type": "string", "description": "z. B. 'pencilkit' (nur informativ)" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-uniflow-crossplatform": {
+    "editierbar_ueberall": ["stroke.points", "stroke.color", "stroke.width", "stroke.widths", "stroke.opacity", "stroke.tool", "Objekt-Transformation"],
+    "nur_visuell_erhalten": ["PencilKit-Pinseldetails (pkdrawing)", "Neigung und Druck zwischen Stuetzpunkten"],
+    "nur_web_editor_v1": ["text", "shape", "image", "Seiten type=blank/asset"]
+  }
+}
