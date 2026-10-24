@@ -207,7 +207,7 @@ def files(course_id: str | None = None, subject: str | None = None):
 @app.get("/api/files/{file_id}")
 def file_meta(file_id: str):
     with db.cursor() as conn:
-        f = db.row(conn, """SELECT f.*, c.title AS course_title, c.subject, a.doc_type, a.title AS ai_title, a.topics,
+        f = db.row(conn, """SELECT f.*, c.title AS course_title, c.subject, c.module_id, a.doc_type, a.title AS ai_title, a.topics,
                                    a.difficulty, a.est_minutes, a.summary, a.prerequisites
                             FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
                             WHERE f.id=?""", (file_id,))
@@ -1174,6 +1174,21 @@ def put_service_credentials(service: str, body: dict = Body(...)):
         raise HTTPException(400, "Benutzername und Passwort angeben")
     config.save_credentials(user, pw, prefix)
     return {"ok": True, "configured": True}
+
+
+@app.post("/api/related")
+def api_related(body: dict = Body(...)):
+    """Passende Vorlesungs-/Skriptstellen zu einem Aufgabentext (oder einer Seite) eines Dokuments."""
+    from . import scriptsearch
+    fid = body.get("file_id"); text = (body.get("text") or "").strip(); page = int(body.get("page") or 0)
+    with db.cursor() as conn:
+        f = db.row(conn, "SELECT f.id, c.module_id FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", (fid,))
+        if not f or not f["module_id"]:
+            return {"terms": [], "results": [], "note": "Dokument gehoert zu keinem Modul"}
+        if not text and page:
+            pages = scriptsearch.page_texts(conn, fid)
+            text = pages[page - 1] if 0 < page <= len(pages) else ""
+        return scriptsearch.search(conn, f["module_id"], text[:6000], exclude=fid)
 
 
 @app.get("/api/network")

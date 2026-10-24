@@ -1,6 +1,6 @@
 // UniFlow Editor 2.0 – PDF- und Notizeditor (pdf.js + Konva + pdf-lib)
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
-import { icon } from "./icons.js?v=20";
+import { icon } from "./icons.js?v=24";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -23,7 +23,7 @@ export const IDB = {
 export const FONTS = ["Arial", "Helvetica", "Segoe UI", "Verdana", "Georgia", "Times New Roman", "Courier New", "Comic Sans MS", "Cambria Math"];
 export const TEMPLATES = { blank: "Leer", lined: "Liniert", grid: "Kariert", dotted: "Gepunktet", mm: "Millimeter", cornell: "Cornell" };
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const DPR = () => Math.min(window.devicePixelRatio || 1, IS_IOS ? 1.5 : 2);
+const DPR = () => Math.min(window.devicePixelRatio || 1, 2);   // volle Schaerfe; Speicher begrenzt pageDpr() ueber MAX_PX
 // iOS Safari hat ein festes Gesamtlimit fuer Canvas-Speicher -> pro Seiten-Canvas hoechstens ~4,5 MPixel
 const MAX_PX = IS_IOS ? 4.5e6 : 12e6;
 const pageDpr = (pg, zoom) => Math.max(0.6, Math.min(DPR(), Math.sqrt(MAX_PX / Math.max(1, pg.w * zoom * pg.h * zoom))));
@@ -67,18 +67,71 @@ export class PdfEditor {
     await this.loadModel();
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
-    this.onStatus("Alle Änderungen gespeichert");
+    this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
     this._online = () => this.flush(); window.addEventListener("online", this._online);
   }
   async loadModel() {
-    let server = { data: null, version: 0 };
-    try { server = await (await fetch(`/api/files/${this.fileId}/annotations`)).json(); } catch { this.offline = true; }
+    let server = null;
+    try { const r = await fetch(`/api/files/${this.fileId}/annotations`); if (r.ok) server = await r.json(); else this.offline = true; } catch { this.offline = true; }
     const draft = await IDB.get("drafts", this.fileId);
-    let model = server.data; this.version = server.version || 0;
-    if (draft && draft.dirty && (draft.version >= this.version || !model)) { model = draft.data; this.dirty = true; }
-    this.model = this.migrate(model || { version: 2 });
+    const serverModel = server ? this.migrate(server.data || { version: 2 }) : null;
+    this.version = server ? (server.version || 0) : (draft?.version || 0);
+    if (draft && draft.dirty && (!server || (draft.version || 0) >= (server.version || 0))) {
+      // ungesendeter Entwurf auf dem neuesten Stand
+      this.model = this.migrate(draft.data); this.dirty = true;
+      this.base = this.snap(serverModel || this.migrate({ version: 2 }));
+    } else if (draft && draft.dirty && serverModel) {
+      // Entwurf ist aelter als der Server (anderes Geraet hat inzwischen gespeichert): zusammenfuehren statt verwerfen
+      const local = this.migrate(draft.data);
+      const keys = draft.dirtyKeys || Object.keys(local.pages).filter(k => JSON.stringify(local.pages[k]) !== JSON.stringify(serverModel.pages[k]));
+      this.model = this.mergeInto(serverModel, local, { keys, struct: !!draft.struct, meta: !!draft.meta });
+      this.base = this.snap(serverModel); this.dirty = true;
+      this._mergedOnLoad = keys.length;
+    } else {
+      this.model = serverModel || this.migrate({ version: 2 });
+      this.base = this.snap(this.model);
+    }
     if (this.dirty) this.scheduleSave();
   }
+  // Vergleichsstand: pro Seite das JSON, dazu Seitenreihenfolge und Dokument-Notizen
+  snap(m) { return { pages: Object.fromEntries(Object.entries(m.pages || {}).map(([k, v]) => [k, JSON.stringify(v)])), order: JSON.stringify([m.pageOrder || [], m.deletedPages || []]), meta: JSON.stringify([m.note || "", m.bookmarks || [], m.outline || []]) }; }
+  diffFromBase(m = this.model) { const b = this.base || { pages: {}, order: "", meta: "" }; const keys = Object.keys(m.pages || {}).filter(k => b.pages[k] !== JSON.stringify(m.pages[k])); const cur = this.snap(m); return { keys, struct: cur.order !== b.order, meta: cur.meta !== b.meta }; }
+  mergeInto(server, local, d) {
+    const merged = JSON.parse(JSON.stringify(server));
+    for (const k of d.keys) if (local.pages[k]) merged.pages[k] = JSON.parse(JSON.stringify(local.pages[k]));
+    if (d.struct) { merged.pageOrder = JSON.parse(JSON.stringify(local.pageOrder)); merged.deletedPages = JSON.parse(JSON.stringify(local.deletedPages || [])); merged.pageOrder.forEach(pe => { merged.pages[pe.key] ||= JSON.parse(JSON.stringify(local.pages[pe.key] || { objects: [] })); }); }
+    if (d.meta) { merged.note = local.note; merged.bookmarks = local.bookmarks; merged.outline = local.outline; }
+    return this.migrate(merged);
+  }
+  // Serverstand eines anderen Geraets uebernehmen, eigene geaenderte Seiten behalten, Anzeige nur dort erneuern, wo noetig
+  applyServerMerge(serverData, version) {
+    const server = this.migrate(serverData || { version: 2 });
+    const d = this.diffFromBase(this.model);
+    const merged = this.mergeInto(server, this.model, d);
+    const old = this.model; const orderChanged = JSON.stringify(merged.pageOrder) !== JSON.stringify(old.pageOrder);
+    this.model = merged; this.version = version; this.base = this.snap(server);
+    this.history = []; this.future = [];          // Undo-Schritte bezogen sich auf den alten Stand
+    if (orderChanged) this.buildPages();
+    else for (const pg of this.pages) { if (pg.mounted && JSON.stringify(old.pages[pg.key]?.objects) !== JSON.stringify(merged.pages[pg.key]?.objects)) this.reloadPage(pg); }
+    this.onStatus("Mit anderem Gerät zusammengeführt");
+    return d.keys.length + (d.struct || d.meta ? 1 : 0);
+  }
+  // Aufgabe auf der aktuellen Seite: Block ab der Ueberschrift "Aufgabe 2.3" ueber dem letzten Strich (sonst Bildmitte)
+  async taskContext() {
+    const pg = this.pages[this.currentPage]; if (!pg || pg.type !== "pdf" || !this.pdf) return null;
+    const page = await this.pdf.getPage(pg.index); const tc = await page.getTextContent(); const vp = page.getViewport({ scale: 1, rotation: ((page.rotate || 0) + (pg.rotation || 0)) % 360 });
+    const lines = [];
+    for (const it of tc.items) { if (!it.str || !it.str.trim()) continue; const [, y] = vp.convertToViewportPoint(it.transform[4], it.transform[5]); let L = lines.find(l => Math.abs(l.y - y) < 4); if (!L) { L = { y, s: "" }; lines.push(L); } L.s += (L.s ? " " : "") + it.str; }
+    lines.sort((a, b) => a.y - b.y);
+    let ty = null;
+    if (this._lastInkPage === pg.key && Date.now() - (this._lastInkAt || 0) < 120000) { const last = [...(this.model.pages[pg.key]?.objects || [])].reverse().find(o => o.type === "stroke" && o.points?.length); if (last) ty = last.points[1] + (last.y || 0); }
+    if (ty == null) { const r = pg.el.getBoundingClientRect(), sr = this.scroll.getBoundingClientRect(); ty = ((sr.top + sr.height / 2) - r.top) / this.zoom; }
+    const heads = lines.map((l, i) => ({ i, m: l.s.match(/^\s*(Aufgabe|Übung|Uebung|Exercise|Problem)\s*(\d+(?:[.,]\d+)?)/i) })).filter(h => h.m);
+    let from = 0, to = lines.length, label = `Seite ${this.currentPage + 1}`;
+    if (heads.length) { const cur = heads.filter(h => lines[h.i].y <= ty + 12).pop() || heads[0]; const nxt = heads.find(h => h.i > cur.i); from = cur.i; to = nxt ? nxt.i : lines.length; label = `${cur.m[1]} ${cur.m[2]}`; }
+    return { page: this.currentPage + 1, label, text: lines.slice(from, to).map(l => l.s).join("\n"), key: `${pg.key}:${from}` };
+  }
+  reloadPage(pg) { this.clearSelection(); pg.layer.find(".obj").forEach(n => n.destroy()); (this.model.pages[pg.key]?.objects || []).forEach(o => this.addNode(pg, o)); pg.layer.batchDraw(); }
   migrate(m) {
     const n = this.pdf ? this.pdf.numPages : 0;
     const out = { ...(m.version === 2 ? m : {}), version: 2, zoom: m.zoom || 1.2, pages: {}, pageOrder: [], bookmarks: m.bookmarks || [], outline: m.outline || [], note: m.note || "", deletedPages: m.deletedPages || [] };
@@ -164,12 +217,14 @@ export class PdfEditor {
     // ---- Eingabe: Stift zeichnet, Finger scrollt/zoomt, Handballen wird ignoriert, nichts rutscht nach
     this.penDown = false; this.penLiftAt = 0; this.pan = null; this.touches = new Map();
     const PALM_AFTER_PEN = 500, PAN_SLOP = 8;
-    const stopScrollMotion = () => { this._fling = null; this._clampAnim = null; this.pan = null; this.pinch = null; this.pointers.clear(); clearTimeout(this._initialGoto); const t = this.scroll.scrollTop, l = this.scroll.scrollLeft; this.scroll.scrollTop = t; this.scroll.scrollLeft = l; };
+    const stopScrollMotion = () => { this._fling = null; this._clampAnim = null; this.pan = null; if (this.pinch) this.pinchEnd(); this.pointers.clear(); clearTimeout(this._initialGoto); const t = this.scroll.scrollTop, l = this.scroll.scrollLeft; this.scroll.scrollTop = t; this.scroll.scrollLeft = l; };
     this.scroll.addEventListener("pointerdown", e => {
       this._fling = null; clearTimeout(this._initialGoto);
+      const palmLike = e.pointerType === "touch" && (this.penDown || Date.now() - this.penLiftAt < PALM_AFTER_PEN || (e.width > 90 && e.height > 90));
+      if (e.pointerType !== "pen" && !palmLike && this.ruler?.group && (this.rulerG || this.rulerHit(e.clientX, e.clientY, e.pointerType === "mouse"))) { this.rulerDown(e); e.stopPropagation(); e.preventDefault(); return; }
       if (e.pointerType === "pen" || e.pointerType === "mouse") {
         if (e.pointerType === "pen") {
-          this.penDown = true; this.penSeenAt = Date.now();
+          this.penDown = true; this.penSeenAt = Date.now(); this.rulerG = null;
           this.touches.forEach(t => { t.palm = true; });          // was schon aufliegt, ist Handballen
           stopScrollMotion(); this.cancelLiveStroke("touch");
           try { window.getSelection()?.removeAllRanges(); } catch {}
@@ -194,6 +249,7 @@ export class PdfEditor {
       } else if (fingers.length > 2) { e.stopPropagation(); e.preventDefault(); }
     }, true);
     this.scroll.addEventListener("pointermove", e => {
+      if (this.rulerG?.ptrs.has(e.pointerId)) { this.rulerMove(e); e.stopPropagation(); e.preventDefault(); return; }
       const t = this.touches.get(e.pointerId);
       if (t) { t.ev = e; if (t.palm) { e.stopPropagation(); e.preventDefault(); return; } }
       if (this.pinch && this.pointers.has(e.pointerId)) { this.pointers.set(e.pointerId, e); if (!this.penDown) this.pinchMove(); e.stopPropagation(); e.preventDefault(); return; }
@@ -205,9 +261,10 @@ export class PdfEditor {
       const dt = Math.max(1, now - p.t); p.vx = 0.7 * (p.vx || 0) + 0.3 * (dx / dt); p.vy = 0.7 * (p.vy || 0) + 0.3 * (dy / dt); p.t = now; p.x = e.clientX; p.y = e.clientY;
     }, true);
     const up = e => {
+      if (this.rulerG?.ptrs.has(e.pointerId)) { this.rulerG.ptrs.delete(e.pointerId); if (!this.rulerG.ptrs.size) this.rulerG = null; else this.rulerReset(); e.stopPropagation(); return; }
       if (e.pointerType === "pen") { this.penDown = false; this.penLiftAt = Date.now(); this.penSeenAt = Date.now(); }
       const t = this.touches.get(e.pointerId); this.touches.delete(e.pointerId);
-      if (this.pointers.has(e.pointerId)) { this.pointers.clear(); this.pinch = null; this.clampView(true); }
+      if (this.pointers.has(e.pointerId)) { this.pointers.clear(); this.pinchEnd(); }
       const p = this.pan;
       if (p && p.id === e.pointerId) {
         this.pan = null;
@@ -227,6 +284,11 @@ export class PdfEditor {
     document.addEventListener("gesturestart", this._gest = e => { if (this.c.contains(e.target)) e.preventDefault(); }, { passive: false });
     document.addEventListener("gesturechange", this._gest, { passive: false });
     document.addEventListener("selectstart", this._selStart = e => { if (this.penDown || this._activeLive) e.preventDefault(); });
+    // Sicherheitsnetz: Abheben, das nicht ueber die Seite kommt, beendet den Strich trotzdem
+    this._winUp = e => { if (e.pointerType === "pen") { this.penDown = false; this.penLiftAt = Date.now(); } this.touches?.delete(e.pointerId); const a = this._activeLive; if (a && a.id === e.pointerId) a.finish(); };
+    window.addEventListener("pointerup", this._winUp); window.addEventListener("pointercancel", this._winUp);
+    this._resetInput = () => { this.penDown = false; this.pan = null; if (this.pinch) this.pinchEnd(); this.pointers.clear(); this.touches?.clear(); this.rulerG = null; this._activeLive?.finish(); };
+    document.addEventListener("visibilitychange", this._resetInput); window.addEventListener("blur", this._resetInput); window.addEventListener("pagehide", this._resetInput);
     // Stift-Cursor beim Schweben (fixiert, veraendert die Scrollflaeche nicht)
     this.cursorEl = document.createElement("div"); this.cursorEl.className = "ed-cursor"; this.cursorEl.hidden = true; this.c.append(this.cursorEl);
     this.scroll.addEventListener("pointermove", e => { if ((this.tool !== "pen" && this.tool !== "eraser") || e.pointerType === "touch" || e.buttons || this.penDown) { this.cursorEl.hidden = true; return; } const sz = this.tool === "eraser" ? this.eraserSize : Math.max(2, this.width * this.zoom); this.cursorEl.style.cssText = `width:${sz}px;height:${sz}px;left:${e.clientX}px;top:${e.clientY}px;border-color:${this.tool === "eraser" ? "#888" : this.color}`; this.cursorEl.hidden = false; });
@@ -364,7 +426,7 @@ export class PdfEditor {
   addNode(pg, o) {
     let node;
     const common = { id: o.id, name: "obj", x: o.x || 0, y: o.y || 0, rotation: o.rotation || 0, scaleX: o.scaleX || 1, scaleY: o.scaleY || 1, opacity: o.opacity ?? 1, draggable: false };
-    if (o.type === "stroke" && o.widths && o.widths.length * 2 === o.points.length && o.points.length >= 4) {
+    if (o.type === "stroke" && o.tool !== "marker" && o.points && o.points.length >= 4) {
       node = this.makeInkShape(common, o);
     } else if (o.type === "stroke") {
       node = new Konva.Line({ ...common, points: o.points, stroke: o.color, strokeWidth: o.width, lineCap: "round", lineJoin: "round", tension: o.tool === "marker" || o.points.length >= 24 ? 0 : 0.25, hitStrokeWidth: Math.max(12, o.width), globalCompositeOperation: o.tool === "marker" ? "multiply" : "source-over", shadowForStrokeEnabled: false, perfectDrawEnabled: false });
@@ -398,11 +460,14 @@ export class PdfEditor {
     this.commit(pg, before);
   }
   makeInkShape(common, o) {
-    const pts = o.points, ws = o.widths; const maxW = Math.max(...ws, 0.5);
+    const pts = o.points; const ws = o.widths && o.widths.length * 2 === pts.length ? o.widths : null; const W = o.width || 2;
+    const maxW = ws ? Math.max(...ws, 0.5) : W; const avgW = ws ? ws.reduce((x, y) => x + y, 0) / ws.length : W;
+    const single = !ws || (o.opacity ?? 1) < 1;   // halbtransparent: ein Pfad, sonst ueberlagern sich Segmente zu Punkten
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; for (let i = 0; i < pts.length; i += 2) { if (pts[i] < minX) minX = pts[i]; if (pts[i] > maxX) maxX = pts[i]; if (pts[i + 1] < minY) minY = pts[i + 1]; if (pts[i + 1] > maxY) maxY = pts[i + 1]; }
     const node = new Konva.Shape({ ...common, stroke: o.color, strokeWidth: maxW, hitStrokeWidth: Math.max(12, maxW), perfectDrawEnabled: false, shadowForStrokeEnabled: false,
-      sceneFunc: (ctx, shape) => { const c = ctx._context; c.save(); c.strokeStyle = o.color; c.lineCap = "round"; c.lineJoin = "round"; if (o.tool === "pencil") c.setLineDash([1.5, 1.2]); const n = pts.length / 2;
-        if (n === 1) { c.beginPath(); c.arc(pts[0], pts[1], ws[0] / 2, 0, Math.PI * 2); c.fillStyle = o.color; c.fill(); c.restore(); return; }
+      sceneFunc: (ctx) => { const c = ctx._context; c.save(); c.strokeStyle = o.color; c.lineCap = "round"; c.lineJoin = "round"; if (o.tool === "pencil") c.setLineDash([1.5, 1.2]); const n = pts.length / 2;
+        if (n === 1) { c.beginPath(); c.arc(pts[0], pts[1], (ws ? ws[0] : W) / 2, 0, Math.PI * 2); c.fillStyle = o.color; c.fill(); c.restore(); return; }
+        if (single) { c.lineWidth = Math.max(0.3, avgW); c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 1; i < n - 1; i++) c.quadraticCurveTo(pts[2 * i], pts[2 * i + 1], (pts[2 * i] + pts[2 * i + 2]) / 2, (pts[2 * i + 1] + pts[2 * i + 3]) / 2); c.lineTo(pts[2 * n - 2], pts[2 * n - 1]); c.stroke(); c.restore(); return; }
         for (let i = 1; i < n; i++) { const x0 = pts[2 * i - 2], y0 = pts[2 * i - 1], x1 = pts[2 * i], y1 = pts[2 * i + 1]; c.lineWidth = Math.max(0.3, (ws[i - 1] + ws[i]) / 2); c.beginPath();
           if (i === 1) c.moveTo(x0, y0); else c.moveTo((x0 + pts[2 * i - 4]) / 2, (y0 + pts[2 * i - 3]) / 2);
           if (i === n - 1) c.lineTo(x1, y1); else c.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
@@ -429,18 +494,30 @@ export class PdfEditor {
   markDirty() { this.dirty = true; this.setSaveState("saving"); this.scheduleSave(); }
   setSaveState(st) { const el = $(".ed-status", this.c); if (el) el.dataset.state = st; this.onStatus(st === "saving" ? "Speichert…" : st === "offline" ? "Offline – wird nachgeholt" : "Gespeichert"); }
   scheduleSave() { clearTimeout(this._t); if (!this._dirtySince) this._dirtySince = Date.now(); this._t = setTimeout(() => this._saveTick(), 1200); }
-  _saveTick() { const busy = this.penDown || this._activeLive; const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now() }); this.flush(); }
+  _saveTick() { const busy = (this.penDown && Date.now() - (this.penSeenAt || 0) < 15000) || (this._activeLive && Date.now() - (this._liveAt || 0) < 15000); const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta }); this.flush(); }
   async flush() {
     if (!this.dirty || this.saving) return; this.saving = true;
+    let retryConflict = false;
     try {
-      const r = await fetch(`/api/files/${this.fileId}/annotations?base_version=${this.version}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(this.model) });
-      if (r.status === 409) { const srv = await r.json(); this.saving = false; if (confirm("Auf dem Server liegt eine neuere Version dieser Notizen (anderes Gerät/Fenster).\nOK = Serverversion übernehmen, Abbrechen = meine Version behalten und überschreiben.")) { this.version = srv.version; this.model = this.migrate(srv.data); this.dirty = false; this.buildPages(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: false, savedAt: Date.now() }); this.onStatus("Serverversion übernommen"); return; } this.version = srv.version; return this.flush(); }
+      const sentJson = JSON.stringify(this.model);
+      const r = await fetch(`/api/files/${this.fileId}/annotations?base_version=${this.version}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: sentJson });
+      if (r.status === 409) {
+        const srv = await r.json();
+        this._conflicts = (this._conflicts || 0) + 1;
+        if (this._conflicts > 3) throw new Error("Konflikt nicht auflösbar");
+        this.applyServerMerge(srv.data, srv.version); retryConflict = true; return;
+      }
       if (!r.ok) throw new Error(r.statusText);
-      const j = await r.json(); this.version = j.version; this.dirty = false;
-      IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: false, savedAt: Date.now() }); IDB.del("thumbs", this.fileId + ":" + (this.pages[0]?.key || ""));
-      this.setSaveState("saved"); this.offline = false;
+      const j = await r.json(); this.version = j.version; this._conflicts = 0;
+      this.base = this.snap(JSON.parse(sentJson));
+      const changedMeanwhile = JSON.stringify(this.model) !== sentJson;   // waehrend des Sendens weitergeschrieben?
+      this.dirty = changedMeanwhile;
+      if (changedMeanwhile) { this.scheduleSave(); this.setSaveState("saving"); }
+      else { IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: false, savedAt: Date.now() }); this.setSaveState("saved"); }
+      IDB.del("thumbs", this.fileId + ":" + (this.pages[0]?.key || ""));
+      this.offline = false;
     } catch (e) { this.offline = true; this.setSaveState("offline"); setTimeout(() => this.flush(), 15000); }
-    finally { this.saving = false; }
+    finally { this.saving = false; if (retryConflict) this.flush(); }
   }
 
   // ---------------------------------------------------------------- Werkzeuge
@@ -465,13 +542,14 @@ export class PdfEditor {
   liveCtx(pg, cls = ".ed-live") { const cv = $(cls, pg.el); const dpr = pageDpr(pg, this.zoom); const W = Math.round(pg.w * this.zoom * dpr), H = Math.round(pg.h * this.zoom * dpr); if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } const ctx = cv.getContext("2d"); ctx.setTransform(this.zoom * dpr, 0, 0, this.zoom * dpr, 0, 0); return { cv, ctx, dpr }; }
   clearLive(d) { try { this.liveClear(d); if (d.pctx && d.pcv) { d.pctx.save(); d.pctx.setTransform(1, 0, 0, 1, 0, 0); d.pctx.clearRect(0, 0, d.pcv.width, d.pcv.height); d.pctx.restore(); } d.pred = null; } catch {} }
   strokeAbort(d) { this.clearLive(d); }
-  penWidth(d, pr, speed, ev) { const base = this.width, t = d.tool; if (t === "marker") return base; const sp = Math.min(1, (speed || 0) / 2.2); let w; if (t === "fountain") w = base * (0.45 + 1.1 * pr) * (1.15 - 0.5 * sp); else if (t === "pencil") { const tilt = ev ? Math.min(1, Math.hypot(ev.tiltX || 0, ev.tiltY || 0) / 60) : 0; w = base * (0.8 + 0.3 * pr + 0.9 * tilt); } else w = base * (0.82 + 0.33 * pr) * (1.08 - 0.28 * sp); const prev = d.widths[d.widths.length - 1]; return prev ? prev * 0.65 + w * 0.35 : w; }
+  penWidth(d, pr, speed, ev) { const base = this.width, t = d.tool; if (t === "marker") return base; const sp = Math.min(1, (speed || 0) / 2.2); let w; if (t === "fountain") w = base * (0.45 + 1.1 * pr) * (1.15 - 0.5 * sp); else if (t === "pencil") { const tilt = ev ? Math.min(1, Math.hypot(ev.tiltX || 0, ev.tiltY || 0) / 60) : 0; w = base * (0.8 + 0.3 * pr + 0.9 * tilt); } else w = base * (0.9 + 0.2 * pr) * (1.03 - 0.1 * sp); /* Kugelschreiber: fast gleichmaessig */ const prev = d.widths[d.widths.length - 1]; return prev ? prev * 0.65 + w * 0.35 : w; }
   liveClear(d) { const { cv, ctx } = d; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.restore(); }
   widthAt(d, pr) { return d.widths?.length ? d.widths[d.widths.length - 1] : (d.tool === "fountain" ? this.width * (0.5 + pr) : this.width); }
   strokeBegin(pg, p, pressure = 0.5) { if (this.ruler && this.ruler.pg === pg) { const pr = this.rulerProject(p); if (pr) { p = pr; this._rulerStroke = true; } else this._rulerStroke = false; } const t = this.penType; if (this._livePg && this._livePg !== pg) this.releaseLiveCanvases(this._livePg); this._livePg = pg; const { cv, ctx, dpr } = this.liveCtx(pg); const d = { dpr, tool: t, pts: [p.x, p.y], pressures: [pressure], widths: [], cv, ctx, pg, t0: performance.now(), tl: performance.now(), pred: null }; d.widths.push(this.penWidth(d, pressure, 0, null)); this.liveClear(d); const pc = this.liveCtx(pg, ".ed-predict"); d.pcv = pc.cv; d.pctx = pc.ctx; pc.ctx.save(); pc.ctx.setTransform(1, 0, 0, 1, 0, 0); pc.ctx.clearRect(0, 0, pc.cv.width, pc.cv.height); pc.ctx.restore(); ctx.strokeStyle = this.color; ctx.fillStyle = this.color; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.globalAlpha = this.opacity; ctx.globalCompositeOperation = t === "marker" ? "multiply" : "source-over"; ctx.setLineDash(t === "pencil" ? [1.5, 1.2] : []); ctx.beginPath(); ctx.arc(p.x, p.y, this.widthAt(d, pressure) / 2, 0, Math.PI * 2); ctx.fill(); return d; }
-  strokeMove(pg, d, p, pressure = 0.5, ev = null) { if (this._rulerStroke) { const pr = this.rulerProject(p, true); if (pr) p = pr; } const pts = d.pts; const lx = pts[pts.length - 2], ly = pts[pts.length - 1]; const dist = Math.hypot(p.x - lx, p.y - ly); if (dist < 0.35 / this.zoom) return; const now = ev?.timeStamp || performance.now(); const dt = Math.max(1, now - d.tl); d.tl = now; const w = this.penWidth(d, pressure, dist / dt, ev); pts.push(p.x, p.y); d.pressures.push(pressure); d.widths.push(w); const ctx = d.ctx; const n = pts.length; if (this.opacity < 1) { this.liveClear(d); ctx.lineWidth = Math.max(0.3, d.widths.reduce((a, b) => a + b, 0) / d.widths.length); ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < n - 2; i += 2) ctx.quadraticCurveTo(pts[i], pts[i + 1], (pts[i] + pts[i + 2]) / 2, (pts[i + 1] + pts[i + 3]) / 2); ctx.lineTo(pts[n - 2], pts[n - 1]); ctx.stroke(); return; } ctx.lineWidth = Math.max(0.3, (d.widths[d.widths.length - 2] + w) / 2); ctx.beginPath(); if (n >= 6) { const [x0, y0, x1, y1, x2, y2] = pts.slice(-6); ctx.moveTo((x0 + x1) / 2, (y0 + y1) / 2); ctx.quadraticCurveTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2); } else { ctx.moveTo(pts[0], pts[1]); ctx.lineTo((pts[0] + pts[2]) / 2, (pts[1] + pts[3]) / 2); } ctx.stroke(); }
+  strokeMove(pg, d, p, pressure = 0.5, ev = null) { if (this._rulerStroke) { const pr = this.rulerProject(p, true); if (pr) p = pr; } const pts = d.pts; const lx = pts[pts.length - 2], ly = pts[pts.length - 1]; d.raw = p; if (!this._rulerStroke && d.tool !== "marker") p = { x: lx + (p.x - lx) * 0.6, y: ly + (p.y - ly) * 0.6 };   // Zittern glaetten
+    const dist = Math.hypot(p.x - lx, p.y - ly); if (dist < 0.35 / this.zoom) return; const now = ev?.timeStamp || performance.now(); const dt = Math.max(1, now - d.tl); d.tl = now; const w = this.penWidth(d, pressure, dist / dt, ev); pts.push(p.x, p.y); d.pressures.push(pressure); d.widths.push(w); const ctx = d.ctx; const n = pts.length; if (this.opacity < 1) { this.liveClear(d); ctx.lineWidth = Math.max(0.3, d.widths.reduce((a, b) => a + b, 0) / d.widths.length); ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < n - 2; i += 2) ctx.quadraticCurveTo(pts[i], pts[i + 1], (pts[i] + pts[i + 2]) / 2, (pts[i + 1] + pts[i + 3]) / 2); ctx.lineTo(pts[n - 2], pts[n - 1]); ctx.stroke(); return; } ctx.lineWidth = Math.max(0.3, (d.widths[d.widths.length - 2] + w) / 2); ctx.beginPath(); if (n >= 6) { const [x0, y0, x1, y1, x2, y2] = pts.slice(-6); ctx.moveTo((x0 + x1) / 2, (y0 + y1) / 2); ctx.quadraticCurveTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2); } else { ctx.moveTo(pts[0], pts[1]); ctx.lineTo((pts[0] + pts[2]) / 2, (pts[1] + pts[3]) / 2); } ctx.stroke(); }
   strokePredict(d, preds) { const c = d.pctx; if (!c) return; const k = this.zoom * (d.dpr || DPR()); if (d.pred) { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(d.pred.x * k - 8, d.pred.y * k - 8, d.pred.w * k + 16, d.pred.h * k + 16); c.restore(); d.pred = null; } const pts = d.pts, n = pts.length; if (n < 4 || this.opacity < 1) return; const lx = pts[n - 2], ly = pts[n - 1]; const mx = (pts[n - 4] + lx) / 2, my = (pts[n - 3] + ly) / 2; let minX = Math.min(mx, lx), minY = Math.min(my, ly), maxX = Math.max(mx, lx), maxY = Math.max(my, ly); c.strokeStyle = this.color; c.globalAlpha = this.opacity; c.lineCap = "round"; c.lineJoin = "round"; c.setLineDash([]); c.lineWidth = Math.max(0.3, d.widths[d.widths.length - 1] || this.width); c.beginPath(); c.moveTo(mx, my); c.lineTo(lx, ly); for (const q of preds) { c.lineTo(q.x, q.y); minX = Math.min(minX, q.x); minY = Math.min(minY, q.y); maxX = Math.max(maxX, q.x); maxY = Math.max(maxY, q.y); } c.stroke(); const pad = c.lineWidth; d.pred = { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad }; }
-  strokeEnd(pg, d) { let pts = d.pts; let widths = d.widths.slice(); if (pts.length < 2) { this.clearLive(d); return; } if (pts.length === 2) { pts = [pts[0], pts[1], pts[0] + 0.05, pts[1] + 0.05]; widths = [widths[0], widths[0]]; } else if (pts.length >= 10) { const sm = [pts[0], pts[1]]; for (let i = 2; i < pts.length - 2; i += 2) sm.push((pts[i - 2] + pts[i] * 2 + pts[i + 2]) / 4, (pts[i - 1] + pts[i + 1] * 2 + pts[i + 3]) / 4); sm.push(pts[pts.length - 2], pts[pts.length - 1]); pts = sm; } const avg = d.pressures.reduce((a, b) => a + b, 0) / d.pressures.length; const w = widths.length ? widths.reduce((a, b) => a + b, 0) / widths.length : (d.tool === "fountain" ? this.width * (0.5 + avg) : this.width); const o = { id: uid(), type: "stroke", tool: d.tool, color: this.color, width: Math.round(w * 100) / 100, opacity: this.opacity, points: pts.map(v => Math.round(v * 100) / 100), x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }; if (d.tool !== "marker" && widths.length * 2 === pts.length && Math.max(...widths) - Math.min(...widths) > 0.05) o.widths = widths.map(v => Math.round(v * 100) / 100); this.model.pages[pg.key].objects.push(o); const node = this.addNode(pg, o); try { node.draw(); } catch { pg.layer.batchDraw(); } this.clearLive(d); this.history.push({ key: pg.key, id: o.id, addJson: JSON.stringify(o) }); if (this.history.length > 150) this.history.shift(); this.future = []; this.markDirty(); this.zoomWinRefresh(); }
+  strokeEnd(pg, d) { if (d.raw && d.pts.length >= 2 && d.tool !== "marker" && !this._rulerStroke) { const n = d.pts.length; if (Math.hypot(d.raw.x - d.pts[n - 2], d.raw.y - d.pts[n - 1]) > 0.3 / this.zoom) { d.pts.push(d.raw.x, d.raw.y); d.widths.push(d.widths[d.widths.length - 1]); d.pressures.push(d.pressures[d.pressures.length - 1]); } } let pts = d.pts; let widths = d.widths.slice(); if (pts.length < 2) { this.clearLive(d); return; } if (pts.length === 2) { pts = [pts[0], pts[1], pts[0] + 0.05, pts[1] + 0.05]; widths = [widths[0], widths[0]]; } const avg = d.pressures.reduce((a, b) => a + b, 0) / d.pressures.length; const w = widths.length ? widths.reduce((a, b) => a + b, 0) / widths.length : (d.tool === "fountain" ? this.width * (0.5 + avg) : this.width); const o = { id: uid(), type: "stroke", tool: d.tool, color: this.color, width: Math.round(w * 100) / 100, opacity: this.opacity, points: pts.map(v => Math.round(v * 100) / 100), x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }; if (d.tool !== "marker" && widths.length * 2 === pts.length && Math.max(...widths) - Math.min(...widths) > 0.05) o.widths = widths.map(v => Math.round(v * 100) / 100); this.model.pages[pg.key].objects.push(o); const node = this.addNode(pg, o); try { node.draw(); } catch { pg.layer.batchDraw(); } this.clearLive(d); this.history.push({ key: pg.key, id: o.id, addJson: JSON.stringify(o) }); if (this.history.length > 150) this.history.shift(); this.future = []; this.markDirty(); this._lastInkAt = Date.now(); this._lastInkPage = pg.key; this.onInk?.(); this.zoomWinRefresh(); }
 
   bindStage(pg) {
     const st = pg.stage; let drawing = null, lasso = null, shape = null, marquee = null, tsel = null;
@@ -494,14 +572,14 @@ export class PdfEditor {
       el.addEventListener("pointerdown", ev => {
         if (this.tool !== "pen" && this.tool !== "eraser") return;
         if (this.spaceHand || ev.button === 1 || !this.allowPointer(ev)) return;
-        if (live) { if (live.type === "touch" && ev.pointerType === "pen") endLive(false); else if (live.id !== ev.pointerId) endLive(true); else return; }
+        if (live) endLive(!(live.type === "touch" && ev.pointerType === "pen"));   // neues Aufsetzen beendet immer den alten Strich (iPad: gleiche pointerId)
         ev.preventDefault(); ev.stopPropagation(); try { el.setPointerCapture(ev.pointerId); } catch {}
         this.flushZoom();                                   // ausstehende Zoom-Anpassung vor dem Strich abschliessen
         this.setCurrent(pg); this.onActive?.(this); rect = null; const p = lpR(ev, getRect());
         document.documentElement.classList.add("ed-inking");
         if (this.tool === "pen") live = { id: ev.pointerId, type: ev.pointerType, d: this.strokeBegin(pg, p, press(ev)) };
         else { live = { id: ev.pointerId, type: ev.pointerType, tool: "eraser", before: this.snapshot(pg), changed: false }; this.eraseAt(pg, p, live); }
-        this._activeLive = { pg, type: ev.pointerType, cancel: () => endLive(false) };
+        this._activeLive = { pg, type: ev.pointerType, id: ev.pointerId, cancel: () => endLive(false), finish: () => endLive(true) }; this._liveAt = Date.now();
       }, true);
       el.addEventListener("pointermove", ev => {
         if (!live || ev.pointerId !== live.id) return;
@@ -733,14 +811,15 @@ export class PdfEditor {
   setCurrent(pg) { const i = this.pages.indexOf(pg); if (i >= 0 && i !== this.currentPage) { this.currentPage = i; $(".ed-pageno", this.c).value = i + 1; $$(".ed-thumb", this.c).forEach(t => t.classList.toggle("active", +t.dataset.i === i)); $(".ed-ai-page", this.c).textContent = `Seite ${i + 1}`; this.onPage(i + 1); if (this.ruler) this.showRuler(pg); if (this.zoomWin) this.zoomWinSetPage(pg); } }
   onScroll() { if (this.prefs.single) return; const horiz = this.prefs.scroll === "horizontal"; const mid = horiz ? this.scroll.scrollLeft + this.scroll.clientWidth / 2 : this.scroll.scrollTop + this.scroll.clientHeight / 3; let best = 0; for (let i = 0; i < this.pages.length; i++) { const el = this.pages[i].el; if ((horiz ? el.offsetLeft : el.offsetTop) <= mid) best = i; else break; } this.setCurrent(this.pages[best]); }
   goToPage(i) { i = clamp(i, 0, this.pages.length - 1); if (this.prefs.single) { this.currentPage = i; this.showSingle(); this.setCurrent(this.pages[i]); $(".ed-pageno", this.c).value = i + 1; return; } const el = this.pages[i].el; this.prefs.scroll === "horizontal" ? this.scroll.scrollTo({ left: el.offsetLeft - 12, behavior: "smooth" }) : this.scroll.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" }); this.setCurrent(this.pages[i]); }
-  zoomTo(z, anchor) { z = clamp(z, 0.3, 6); const old = this.zoom; if (Math.abs(z - old) < 0.001) return; const sr = this.scroll.getBoundingClientRect(); const a = anchor || { x: this.scroll.clientWidth / 2, y: this.scroll.clientHeight / 2 }; const ax = sr.left + a.x, ay = sr.top + a.y; let ref = null; for (const pg of this.pages) { const r = pg.el.getBoundingClientRect(); if (r.width && ay >= r.top - 30 && ay <= r.bottom + 30) { ref = { pg, px: (ax - r.left) / old, py: (ay - r.top) / old }; break; } } if (!ref) { const pg = this.pages[this.currentPage] || this.pages[0]; const r = pg.el.getBoundingClientRect(); ref = { pg, px: (ax - r.left) / old, py: (ay - r.top) / old }; } this.zoom = z; this.model.zoom = z; this.applyZoomSizes(); this.updateZoomLabel(); const r2 = ref.pg.el.getBoundingClientRect(); this.scroll.scrollLeft += (r2.left + ref.px * z) - ax; this.scroll.scrollTop += (r2.top + ref.py * z) - ay; this.dirty = true; clearTimeout(this._zs); this._zs = setTimeout(() => this.flush(), 2500); if (this.ruler) this.showRuler(this.pages[this.currentPage]); if (!this.pinch) this.clampView(); }
+  zoomTo(z, anchor) { z = clamp(z, 0.3, 6); const old = this.zoom; if (Math.abs(z - old) < 0.001) return; const sr = this.scroll.getBoundingClientRect(); const a = anchor || { x: this.scroll.clientWidth / 2, y: this.scroll.clientHeight / 2 }; const ax = sr.left + a.x, ay = sr.top + a.y; let ref = null; for (const pg of this.pages) { const r = pg.el.getBoundingClientRect(); if (r.width && ay >= r.top - 30 && ay <= r.bottom + 30) { ref = { pg, px: (ax - r.left) / old, py: (ay - r.top) / old }; break; } } if (!ref) { const pg = this.pages[this.currentPage] || this.pages[0]; const r = pg.el.getBoundingClientRect(); ref = { pg, px: (ax - r.left) / old, py: (ay - r.top) / old }; } this.zoom = z; this.model.zoom = z; this.applyZoomSizes(); this.updateZoomLabel(); const r2 = ref.pg.el.getBoundingClientRect(); this.scroll.scrollLeft += (r2.left + ref.px * z) - ax; this.scroll.scrollTop += (r2.top + ref.py * z) - ay; this.dirty = true; clearTimeout(this._zs); this._zs = setTimeout(() => this.flush(), 2500); if (this.ruler) this.showRuler(this.pages[this.currentPage]); if (!this.pinch && !this._pinchCommit) this.clampView(); }
   zoomAt(z, clientX, clientY) { const r = this.scroll.getBoundingClientRect(); this.zoomTo(z, { x: clientX - r.left, y: clientY - r.top }); }
   fitWidth() { const pg = this.pages[this.currentPage] || this.pages[0]; this.zoomTo((this.scroll.clientWidth - 40) / pg.w); }
   fitPage() { const pg = this.pages[this.currentPage] || this.pages[0]; this.zoomTo(Math.min((this.scroll.clientWidth - 40) / pg.w, (this.scroll.clientHeight - 30) / pg.h)); }
   updateZoomLabel() { $(".ed-zoom", this.c).textContent = Math.round(this.zoom * 100) + "%"; }
   fling(vx, vy) { if (Math.hypot(vx, vy) < 0.05) return; const f = { vx, vy, t: performance.now() }; this._fling = f; const step = () => { if (this._fling !== f) return; const now = performance.now(); const dt = Math.min(40, now - f.t); f.t = now; this.scroll.scrollLeft -= f.vx * dt; this.scroll.scrollTop -= f.vy * dt; { const sl = this.scroll.scrollLeft, st = this.scroll.scrollTop; this.clampView(); if (this.scroll.scrollLeft !== sl) f.vx = 0; if (this.scroll.scrollTop !== st) f.vy = 0; } f.vx *= Math.pow(0.94, dt / 16); f.vy *= Math.pow(0.94, dt / 16); if (Math.hypot(f.vx, f.vy) > 0.02) requestAnimationFrame(step); else this._fling = null; }; requestAnimationFrame(step); }
-  pinchStart() { const [a, b] = [...this.pointers.values()]; this.pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), z: this.zoom, cx: (a.clientX + b.clientX) / 2, cy: (a.clientY + b.clientY) / 2 }; }
-  pinchMove() { if (!this.pinch) return; const [a, b] = [...this.pointers.values()]; const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); const cx = (a.clientX + b.clientX) / 2, cy = (a.clientY + b.clientY) / 2; this.scroll.scrollLeft -= cx - this.pinch.cx; this.scroll.scrollTop -= cy - this.pinch.cy; this.pinch.cx = cx; this.pinch.cy = cy; const z = this.pinch.z * d / this.pinch.d; if (Math.abs(z - this.zoom) / this.zoom > 0.01) this.zoomAt(z, cx, cy); }
+  pinchStart() { const [a, b] = [...this.pointers.values()]; if (!a || !b) return; const mx = (a.clientX + b.clientX) / 2, my = (a.clientY + b.clientY) / 2; const pr = this.pagesEl.getBoundingClientRect(); this.pinch = { d0: Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)), z0: this.zoom, m0x: mx, m0y: my, k: 1, tx: 0, ty: 0 }; const pe = this.pagesEl.style; pe.transformOrigin = `${mx - pr.left}px ${my - pr.top}px`; pe.willChange = "transform"; }
+  pinchMove() { if (!this.pinch || this._pinchRaf) return; this._pinchRaf = requestAnimationFrame(() => { this._pinchRaf = 0; const P = this.pinch; if (!P) return; const [a, b] = [...this.pointers.values()]; if (!a || !b) return; const z = clamp(P.z0 * Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) / P.d0, 0.3, 6); P.k = z / P.z0; P.tx = (a.clientX + b.clientX) / 2 - P.m0x; P.ty = (a.clientY + b.clientY) / 2 - P.m0y; this.pagesEl.style.transform = `translate(${P.tx}px, ${P.ty}px) scale(${P.k})`; const zl = $(".ed-zoom", this.c); if (zl) zl.textContent = Math.round(z * 100) + "%"; }); }
+  pinchEnd() { const P = this.pinch; this.pinch = null; if (this._pinchRaf) { cancelAnimationFrame(this._pinchRaf); this._pinchRaf = 0; } if (!P) return; const pe = this.pagesEl.style; pe.transform = ""; pe.transformOrigin = ""; pe.willChange = ""; this._pinchCommit = true; try { if (Math.abs(P.k - 1) > 0.003) this.zoomAt(P.z0 * P.k, P.m0x, P.m0y); this.scroll.scrollLeft -= P.tx; this.scroll.scrollTop -= P.ty; } finally { this._pinchCommit = false; } this.updateZoomLabel(); this.clampView(true); }
   toggleFullscreen() { document.body.classList.toggle("fullscreen-doc"); }
   getState() { return { page: this.currentPage, zoom: this.zoom, tool: this.tool, penType: this.penType, color: this.color, width: this.width, scrollTop: this.scroll.scrollTop, scrollLeft: this.scroll.scrollLeft }; }
   restoreState(s) { if (!s) return; this.penType = s.penType || this.penType; this.color = s.color || this.color; this.width = s.width || this.width; if (s.zoom && Math.abs(s.zoom - this.zoom) > 0.01) this.zoomTo(s.zoom); this.setTool(s.tool || "pen"); if (s.page) this._initialGoto = setTimeout(() => this.goToPage(s.page), 200); }
@@ -750,9 +829,22 @@ export class PdfEditor {
   async extractText(pg, box) { if (pg.type !== "pdf") return; const page = await this.pdf.getPage(pg.index); const tc = await page.getTextContent(); const vp = page.getViewport({ scale: 1 }); const parts = []; tc.items.forEach(it => { if (!it.str) return; const [x, y] = vp.convertToViewportPoint(it.transform[4], it.transform[5]); const h = Math.hypot(it.transform[2], it.transform[3]) || 10; const w = it.width || 0; const ix = x, iy = y - h; if (ix + w >= box.x && ix <= box.x + box.w && iy + h >= box.y && iy <= box.y + box.h) parts.push({ y: Math.round(iy / 4), x: ix, s: it.str }); }); parts.sort((a, b) => a.y - b.y || a.x - b.x); let text = "", lastY = null; parts.forEach(p => { if (lastY !== null && p.y !== lastY) text += "\n"; else if (text && !text.endsWith(" ")) text += " "; text += p.s; lastY = p.y; }); $(".ed-ai", this.c).hidden = false; $(".ed-ai-sel", this.c).value = text.trim(); this.onStatus(text.trim() ? "Text übernommen – Modus wählen und Fragen" : "Kein Text im markierten Bereich"); }
 
   // ---------------------------------------------------------------- Zubehör: Lineal
-  toggleRuler() { if (this.ruler) { this.ruler.pg?.tmp?.listening(false); this.ruler.group?.destroy(); this.ruler.pg?.tmp?.batchDraw(); this.ruler = null; return; } this.ruler = { pg: null, x: 80, y: 200, angle: 0, len: 400 }; this.showRuler(this.pages[this.currentPage]); }
-  showRuler(pg) { if (!this.ruler || !pg?.mounted) return; this.ruler.group?.destroy(); const r = this.ruler; r.pg = pg; pg.tmp.listening(true); const g = new Konva.Group({ x: r.x, y: r.y, rotation: r.angle, draggable: true, name: "rulerui" }); const body = new Konva.Rect({ width: r.len, height: 34, fill: "rgba(79,91,213,.16)", stroke: "#4f5bd5", strokeWidth: 1 / this.zoom, cornerRadius: 4, name: "rulerui" }); g.add(body); for (let x = 0; x <= r.len; x += 10) g.add(new Konva.Line({ points: [x, 0, x, x % 50 === 0 ? 12 : 6], stroke: "#4f5bd5", strokeWidth: 1 / this.zoom, name: "rulerui", listening: false })); const lbl = new Konva.Text({ x: 6, y: 16, text: `${Math.round(r.angle)}°`, fontSize: 11, fill: "#4f5bd5", name: "rulerui", listening: false }); g.add(lbl); const knob = new Konva.Circle({ x: r.len, y: 17, radius: 9, fill: "#4f5bd5", draggable: true, name: "rulerui" }); g.add(knob); knob.on("dragmove", () => { const p = knob.position(); const ang = Math.atan2(p.y - 17, p.x) * 180 / Math.PI; r.angle = (r.angle + ang + 360) % 360; g.rotation(r.angle); knob.position({ x: r.len, y: 17 }); lbl.text(`${Math.round(r.angle)}°`); }); g.on("dragend", () => { r.x = g.x(); r.y = g.y(); }); pg.tmp.add(g); pg.tmp.batchDraw(); r.group = g; }
-  rulerProject(p, force = false) { const r = this.ruler; if (!r?.group) return null; const a = r.angle * Math.PI / 180; const dir = { x: Math.cos(a), y: Math.sin(a) }; const base = { x: r.group.x(), y: r.group.y() }; const rel = { x: p.x - base.x, y: p.y - base.y }; const along = rel.x * dir.x + rel.y * dir.y; const off = -rel.x * dir.y + rel.y * dir.x; if (!force && (off < -14 || off > 4 || along < 0 || along > r.len)) return null; const o = -3; return { x: base.x + dir.x * along - dir.y * o, y: base.y + dir.y * along + dir.x * o }; }
+  toggleRuler() { if (this.ruler) { this.ruler.pg?.tmp?.listening(false); this.ruler.group?.destroy(); this.ruler.pg?.tmp?.batchDraw(); this.ruler = null; return; } const rpg = this.pages[this.currentPage]; let rx = 80, ry = 200; if (rpg?.el) { const sr = this.scroll.getBoundingClientRect(); const c = this.toPage(rpg, sr.left + sr.width / 2, sr.top + sr.height / 2); rx = Math.max(0, c.x - 200); ry = Math.max(0, c.y - 17); } this.ruler = { pg: null, x: rx, y: ry, angle: 0, len: 400 }; this.showRuler(this.pages[this.currentPage]); }
+  showRuler(pg) { if (!this.ruler || !pg?.mounted) return; this.ruler.group?.destroy(); const r = this.ruler; r.pg = pg; const g = new Konva.Group({ x: r.x, y: r.y, rotation: r.angle, name: "rulerui", listening: false }); g.add(new Konva.Rect({ width: r.len, height: 34, fill: "rgba(79,91,213,.14)", stroke: "#4f5bd5", strokeWidth: 1 / this.zoom, cornerRadius: 5 })); for (let x = 0; x <= r.len; x += 10) g.add(new Konva.Line({ points: [x, 0, x, x % 50 === 0 ? 12 : 6], stroke: "#4f5bd5", strokeWidth: 1 / this.zoom })); for (let x = 0; x <= r.len; x += 10) g.add(new Konva.Line({ points: [x, 34, x, x % 50 === 0 ? 22 : 28], stroke: "#4f5bd5", strokeWidth: 1 / this.zoom })); const lbl = new Konva.Text({ x: r.len / 2 - 14, y: 12, text: `${Math.round(r.angle)}°`, fontSize: 11, fill: "#4f5bd5", fontStyle: "bold" }); g.add(lbl); g.add(new Konva.Circle({ x: r.len, y: 17, radius: 11, fill: "#4f5bd5", opacity: .9 })); pg.tmp.add(g); pg.tmp.batchDraw(); r.group = g; r.label = lbl; }
+  toPage(pg, cx, cy) { const r = pg.el.getBoundingClientRect(); return { x: (cx - r.left) / this.zoom, y: (cy - r.top) / this.zoom }; }
+  rulerHit(cx, cy, mouse = false) { const R = this.ruler, g = R?.group, pg = R?.pg; if (!g || !pg?.mounted) return null; const q = this.toPage(pg, cx, cy); const a = -R.angle * Math.PI / 180; const dx = q.x - g.x(), dy = q.y - g.y(); const lx = dx * Math.cos(a) - dy * Math.sin(a), ly = dx * Math.sin(a) + dy * Math.cos(a); const pad = mouse ? 0 : 12 / this.zoom;   /* Maus: Kante bleibt zum Zeichnen frei */ if (Math.hypot(lx - R.len, ly - 17) < 22 / this.zoom) return "knob"; return lx >= -pad && lx <= R.len + pad && ly >= -pad && ly <= 34 + pad ? "body" : null; }
+  rulerDown(e) { const hit = this.rulerG ? "body" : this.rulerHit(e.clientX, e.clientY); if (!this.rulerG) this.rulerG = { ptrs: new Map(), knob: hit === "knob" }; this.rulerG.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); this.rulerReset(); }
+  rulerReset() { const G = this.rulerG, R = this.ruler; if (!G || !R?.group) return; G.s = { x: R.group.x(), y: R.group.y(), a: R.angle, ptrs: [...G.ptrs.values()].map(q => ({ ...q })) }; if (G.ptrs.size > 1) G.knob = false; }
+  rulerMove(e) {
+    const G = this.rulerG, R = this.ruler, pg = R?.pg; if (!G?.s || !R?.group || !pg?.mounted) return; G.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const now = [...G.ptrs.values()], s = G.s; let x = s.x, y = s.y, ang = s.a;
+    if (now.length >= 2 && s.ptrs.length >= 2) { const d = Math.atan2(now[1].y - now[0].y, now[1].x - now[0].x) - Math.atan2(s.ptrs[1].y - s.ptrs[0].y, s.ptrs[1].x - s.ptrs[0].x); const m0 = this.toPage(pg, (s.ptrs[0].x + s.ptrs[1].x) / 2, (s.ptrs[0].y + s.ptrs[1].y) / 2), m1 = this.toPage(pg, (now[0].x + now[1].x) / 2, (now[0].y + now[1].y) / 2); const ox = s.x - m0.x, oy = s.y - m0.y; x = m1.x + ox * Math.cos(d) - oy * Math.sin(d); y = m1.y + ox * Math.sin(d) + oy * Math.cos(d); ang = s.a + d * 180 / Math.PI; }
+    else if (G.knob) { const q = this.toPage(pg, now[0].x, now[0].y); ang = (Math.atan2(q.y - s.y, q.x - s.x) - Math.atan2(17, R.len)) * 180 / Math.PI; }
+    else { const p0 = this.toPage(pg, s.ptrs[0].x, s.ptrs[0].y), p1 = this.toPage(pg, now[0].x, now[0].y); x = s.x + p1.x - p0.x; y = s.y + p1.y - p0.y; }
+    ang = ((ang % 360) + 360) % 360; for (const sn of [0, 45, 90, 135, 180, 225, 270, 315, 360]) if (Math.abs(ang - sn) < 2) ang = sn % 360;
+    R.angle = ang; R.x = x; R.y = y; R.group.position({ x, y }); R.group.rotation(ang); R.label?.text(`${Math.round(ang)}°`); pg.tmp.batchDraw();
+  }
+  rulerProject(p, force = false) { const r = this.ruler; if (!r?.group) return null; const a = r.angle * Math.PI / 180; const dir = { x: Math.cos(a), y: Math.sin(a) }; const base = { x: r.group.x(), y: r.group.y() }; const rel = { x: p.x - base.x, y: p.y - base.y }; const along = rel.x * dir.x + rel.y * dir.y; const off = -rel.x * dir.y + rel.y * dir.x; let o; if (force) o = this._rulerEdge ?? -3; else { if (along < -10 || along > r.len + 10) return null; if (off >= -16 && off <= 6) o = -3; else if (off >= 28 && off <= 50) o = 37; else return null; this._rulerEdge = o; } return { x: base.x + dir.x * along - dir.y * o, y: base.y + dir.y * along + dir.x * o }; }
 
   // ---------------------------------------------------------------- Zubehör: Zoom-Ansicht
   toggleZoomWin() { const w = $(".ed-zoomwin", this.c); if (this.zoomWin) { this.zoomWin.rect?.destroy(); this.zoomWin.pg?.tmp?.batchDraw(); this.zoomWin = null; w.hidden = true; return; } w.hidden = false; this.zoomWin = { pg: null, x: 40, y: 60, w: 260, h: 70, scale: 3 }; this.zoomWinSetPage(this.pages[this.currentPage]); this.bindZoomCanvas(); }
@@ -839,7 +931,7 @@ export class PdfEditor {
   async destroy() {
     this.destroyed = true; clearTimeout(this._t); if (this.recorder) this.recorder.stop(); if (this.dirty) await this.flush();
     this.io?.disconnect(); this.thumbIO?.disconnect(); this._ro?.disconnect(); this.pages.forEach(p => this.unmount(p));
-    document.removeEventListener("keydown", this._space); document.removeEventListener("keyup", this._spaceUp); document.removeEventListener("pointerdown", this._popClose); document.removeEventListener("gesturestart", this._gest); document.removeEventListener("gesturechange", this._gest); document.removeEventListener("selectstart", this._selStart); document.documentElement.classList.remove("ed-inking"); window.removeEventListener("online", this._online);
+    document.removeEventListener("keydown", this._space); document.removeEventListener("keyup", this._spaceUp); document.removeEventListener("pointerdown", this._popClose); document.removeEventListener("gesturestart", this._gest); document.removeEventListener("gesturechange", this._gest); document.removeEventListener("selectstart", this._selStart); window.removeEventListener("pointerup", this._winUp); window.removeEventListener("pointercancel", this._winUp); document.removeEventListener("visibilitychange", this._resetInput); window.removeEventListener("blur", this._resetInput); window.removeEventListener("pagehide", this._resetInput); document.documentElement.classList.remove("ed-inking"); window.removeEventListener("online", this._online);
     this.pdf?.destroy?.(); this.assetDocs.forEach(d => d.destroy?.()); this.c.innerHTML = ""; this.c.classList.remove("ed");
   }
 }

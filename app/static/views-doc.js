@@ -1,6 +1,6 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
-import { $, $$, api, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=20";
-import { PdfEditor } from "./editor.js?v=20";
+import { $, $$, api, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=24";
+import { PdfEditor } from "./editor.js?v=24";
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };
@@ -25,7 +25,7 @@ export async function viewDoc(parts, params, view) {
       <button class="btn ghost icon sm" id="docFav" title="Favorit" style="color:${f.favorite ? "var(--warn)" : "var(--muted)"}">${icon("star", 16)}</button>
       <button class="btn ghost sm" id="docNotes" title="Notizfläche">${icon("note", 16)}<span class="hide-s"> Notizen</span></button><button class="btn ghost sm" id="docSplit" title="Zweites Dokument daneben öffnen">${icon("columns", 16)}<span class="hide-s"> Geteilt</span></button><button class="btn ghost icon sm" id="docFull" title="Vollbild">${icon("maximize", 16)}</button></div>
     <button class="fs-exit" id="fsExit" title="Vollbild verlassen">${icon("x", 15)} Vollbild beenden</button>
-    <div class="doc-panes ${hand}" id="docPanes"><div class="doc-pane" id="paneA"></div><div class="doc-pane" id="paneB" hidden></div><div class="notes-pane" id="paneN" hidden><div class="nh">${icon("note", 16)} Eigene Notizen<span class="spacer"></span><span class="muted tiny" id="noteSaved"></span></div><textarea id="noteArea" placeholder="Hier frei schreiben und rechnen. Wird automatisch gespeichert.&#10;Für Handschrift: im Editor eine leere Notizseite einfügen (Seite +)."></textarea></div></div>`;
+    <div class="doc-panes ${hand}" id="docPanes"><div class="doc-pane" id="paneA"></div><div class="split-handle" id="splitHandle" hidden title="Breite ziehen"><i></i></div><div class="doc-pane" id="paneB" hidden></div><div class="notes-pane" id="paneN" hidden><div class="nh">${icon("note", 16)} Eigene Notizen<span class="spacer"></span><span class="muted tiny" id="noteSaved"></span></div><textarea id="noteArea" placeholder="Hier frei schreiben und rechnen. Wird automatisch gespeichert.&#10;Für Handschrift: im Editor eine leere Notizseite einfügen (Seite +)."></textarea></div></div>`;
   renderTabs(id);
   $("#docBack").onclick = () => { if (history.length > 1) history.back(); else location.hash = f.module_id ? `#/modules/${f.module_id}` : "#/files"; };
   $("#docState").onchange = async () => { await api(`/files/${id}`, { method: "PATCH", body: { status: $("#docState").value } }); toast("Status gespeichert"); };
@@ -37,12 +37,51 @@ export async function viewDoc(parts, params, view) {
   const edA = await mountDoc($("#paneA"), f, { page: +params.page || f.last_page || 1, penInput: settings.pen_input, onPage: debounce(p => api(`/files/${id}/opened`, { method: "POST", body: { last_page: p } }).catch(() => {}), 800), restore: docTabs.state[id] });
   let lastEd = edA;
   if (edA) { edA.tabId = id; edA.onActive = () => { lastEd = edA; }; edA.delegate = () => lastEd; $("#noteArea").value = edA.model.note || ""; $("#noteArea").oninput = debounce(() => { edA.model.note = $("#noteArea").value; edA.markDirty(); $("#noteSaved").textContent = "gespeichert"; }, 600); }
-  $("#docNotes").onclick = () => { notesOpen = !notesOpen; $("#paneN").hidden = !notesOpen; $("#docPanes").classList.toggle("notes", notesOpen); };
-  $("#docSplit").onclick = async () => {
-    if (split) { split = false; const ed = state.editors.find(e => e.pane === "B"); if (edA) { edA.onToolState = null; lastEd = edA; } if (ed) { await ed.destroy(); state.editors = state.editors.filter(e => e !== ed); } $("#paneB").hidden = true; $("#paneB").innerHTML = ""; $("#docPanes").classList.remove("split"); return; }
-    const pick = await pickDocument(f.module_id); if (!pick) return;
-    split = true; $("#paneB").hidden = false; $("#docPanes").classList.add("split"); const f2 = await api(`/files/${pick}`); const ed = await mountDoc($("#paneB"), f2, { page: f2.last_page || 1, penInput: settings.pen_input }); if (ed) { ed.pane = "B"; ed.onActive = () => { lastEd = ed; }; if (edA) { ed.applyToolState(edA.toolState()); edA.onToolState = st => ed.applyToolState(st); } }
+  $("#docNotes").onclick = () => { notesOpen = !notesOpen; $("#paneN").hidden = !notesOpen; $("#docPanes").classList.toggle("notes", notesOpen); layoutSplit(); };
+  // geteilte Ansicht: Skript auf der Seite der freien Hand, Breite ziehbar und gemerkt
+  const splitPct = () => { try { return Math.max(20, Math.min(65, +localStorage.getItem("doc-split") || 35)); } catch { return 35; } };
+  const layoutSplit = () => {
+    const P = $("#docPanes"), H = $("#splitHandle"); if (!P) return;
+    if (!split) { P.style.gridTemplateColumns = ""; H.hidden = true; ["#paneA", "#paneB", "#paneN"].forEach(s => { $(s).style.order = ""; }); return; }
+    const right = hand === "hand-right", pct = splitPct(), notes = notesOpen ? " 300px" : "";
+    P.style.gridTemplateColumns = right ? `${pct}% 10px minmax(0, 1fr)${notes}` : `minmax(0, 1fr) 10px ${pct}%${notes}`;
+    $("#paneB").style.order = right ? 1 : 3; H.style.order = 2; $("#paneA").style.order = right ? 3 : 1; $("#paneN").style.order = 4; H.hidden = false;
   };
+  $("#splitHandle").onpointerdown = e => {
+    e.preventDefault(); const H = e.currentTarget; try { H.setPointerCapture(e.pointerId); } catch {}
+    const box = $("#docPanes").getBoundingClientRect();
+    H.onpointermove = ev => { let pct = hand === "hand-right" ? (ev.clientX - box.left) / box.width * 100 : (box.right - ev.clientX) / box.width * 100; pct = Math.max(20, Math.min(65, pct)); try { localStorage.setItem("doc-split", pct.toFixed(1)); } catch {} layoutSplit(); };
+    H.onpointerup = H.onpointercancel = () => { H.onpointermove = null; };
+  };
+  const closeSplit = async () => { split = false; const ed = state.editors.find(e => e.pane === "B"); if (edA) { edA.onToolState = null; lastEd = edA; } if (ed) { await ed.destroy(); state.editors = state.editors.filter(e => e !== ed); } $("#paneB").hidden = true; $("#paneB").innerHTML = ""; $("#docPanes").classList.remove("split"); layoutSplit(); };
+  const openSplit = async (pick, page) => {
+    if (split) await closeSplit();
+    split = true; $("#paneB").hidden = false; $("#docPanes").classList.add("split"); layoutSplit(); const f2 = await api(`/files/${pick}`); const ed = await mountDoc($("#paneB"), f2, { page: page || f2.last_page || 1, penInput: settings.pen_input }); if (ed) { ed.pane = "B"; ed.onActive = () => { lastEd = ed; }; if (edA) { ed.applyToolState(edA.toolState()); edA.onToolState = st => ed.applyToolState(st); } }
+  };
+  $("#docSplit").onclick = async () => { if (split) return closeSplit(); const pick = await pickDocument(f.module_id); if (pick) openSplit(pick); };
+  const isExercise = ["uebung", "loesung", "klausur"].includes(f.doc_type) || /übung|uebung|blatt|ueb\d|aufgabe/i.test(`${f.name} ${f.studip_folder || ""}`);
+  if (edA && isExercise) setupScriptHint(edA, f, openSplit);   // Modul ermittelt der Server aus der Datei
+}
+// ---------------------------------------------------------------- Skriptsuche: unaufdringlicher Hinweis zur aktuellen Aufgabe
+function setupScriptHint(ed, f, openSplit) {
+  const box = document.createElement("div"); box.className = "script-hint"; box.hidden = true; $("#docPanes").append(box);
+  const cache = new Map(), dismissed = new Set(); let timer = null, lastKey = null;
+  const run = async () => {
+    if (ed.destroyed || document.documentElement.classList.contains("ed-inking")) return;
+    const ctx = await ed.taskContext().catch(() => null);
+    if (!ctx || ctx.text.length < 40 || dismissed.has(ctx.key)) { box.hidden = true; return; }
+    if (ctx.key === lastKey && !box.hidden) return; lastKey = ctx.key;
+    let r = cache.get(ctx.key);
+    if (!r) { try { r = await api("/related", { method: "POST", body: { file_id: f.id, text: ctx.text } }); cache.set(ctx.key, r); } catch { return; } }
+    const hit = r.results && r.results[0]; if (!hit || ed.destroyed) { box.hidden = true; return; }
+    box.innerHTML = `${icon("book", 16)}<div class="m"><b>Passende Skriptstelle${ctx.label.startsWith("Seite") ? "" : ` zu ${esc(ctx.label)}`}</b><span>${esc(hit.title)} · Seite ${hit.page}</span></div><button class="btn sm primary" data-open>${icon("columns", 14)} Öffnen</button><button class="btn ghost icon sm" data-x title="Für diese Aufgabe ausblenden">${icon("x", 14)}</button>`;
+    box.title = `${hit.snippet}\n\nGemeinsame Begriffe: ${hit.terms.join(", ")}`; box.hidden = false;
+    box.querySelector("[data-open]").onclick = () => { box.hidden = true; openSplit(hit.file_id, hit.page); };
+    box.querySelector("[data-x]").onclick = () => { dismissed.add(ctx.key); box.hidden = true; };
+  };
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(run, 2500); };
+  ed.onInk = schedule; const prevOnPage = ed.onPage; ed.onPage = p => { prevOnPage?.(p); schedule(); };
+  ed.scroll.addEventListener("scroll", schedule, { passive: true }); schedule();
 }
 function renderTabs(activeId) {
   const el = $("#docTabs"); if (!el) return;

@@ -35,6 +35,11 @@ Spalten: Priorität · Befund · Reproduktion · Ursache · Dateien · Korrektur
 | P1 | Safari markiert Seitentext | Pencil lange auf die Seite halten | kein `user-select:none`, Touch-Standardaktionen aktiv | `editor.css`, `editor.js` | Markieren/Lupe/Seiten-Zoom auf der Schreibfläche aus | Desktop: CSS geprüft | iPad-Test |
 | P1 | PIN per Durchprobieren erratbar | viele `?pin=`-Aufrufe aus dem WLAN | keine Begrenzung | `server.py` | 8 Fehlversuche → 10 min Sperre | `test_lan_pin_guard` | Server-Neustart nötig |
 | P1 | Zugangsdaten im Klartext auf der Platte | `.env` öffnen | Einzelplatz-Design | `.env` | – | Suche: kein Passwort außerhalb `.env` (Logs, Code) | vor Store-Start: Keychain/Windows-Anmeldeinformationen |
+| P0 | Stift reagiert ab und zu nicht mehr | Abheben geht verloren (iPad), dann neu aufsetzen | neues Aufsetzen mit gleicher Stift-ID wurde verworfen, solange der alte Strich als aktiv galt | `editor.js` | jedes Aufsetzen beendet den alten Strich; Abheben am Fenster, App-/Fensterwechsel setzen zurück; Speichern blockiert höchstens 15 s | Desktop: Strich ohne Abheben + neues Aufsetzen → 2 Striche; Abheben außerhalb → Strich beendet | iPad-Test |
+| P1 | Pinch-Zoom wackelt | zwei Finger zoomen | jede Fingerbewegung baute Seiten neu auf und korrigierte die Position | `editor.js` | während der Geste nur CSS-Transformation, Übernahme beim Loslassen | Desktop: 3 Gesten, Punkt unter den Fingern ≤ 2 px versetzt | iPad-Test |
+| P1 | Lineal lässt sich nicht bewegen/drehen | Lineal mit dem Finger ziehen | Konva-Ziehen auf einer nicht hörenden Ebene, Finger-Eingabe vorher abgefangen | `editor.js` | eigene Gesten: verschieben, Knopf, zwei Finger, Einrasten | Desktop: verschieben exakt, Knopf 30°, zwei Finger 44°→45°, Handballen bewegt nichts, beide Kanten | iPad-Test |
+| P1 | Schriftbild unsauber | schreiben | Pixelrate 1,5 auf iOS, Tempo-Ausdünnung, Glättung erst beim Loslassen (Formsprung) | `editor.js` | Pixelrate 2 mit Budget, gleichmäßigere Breite, Glättung live, gleiche Zeichenroutine live und gespeichert | Desktop: Endpunkt exakt, Abweichung kleiner als das Zittern, 83 alte Striche fehlerfrei gezeichnet | iPad-Test |
+| P2 | Skript-Hinweis erscheint nie | Übungsblatt öffnen | `GET /api/files/{id}` ohne `module_id` | `server.py`, `views-doc.js` | Feld ergänzt, Hinweis hängt nicht mehr davon ab | `test_file_meta_has_module_id`; Desktop: Aufgabe 2.3 → Folie 13, geteilte Ansicht | Server-Neustart |
 | P2 | Lernpakete gleicher Titel am selben Tag | Lernkalender 18./19.11. | Paket-Titel = Thema der Woche, Inhalte verschieden | `study.py` | keine (kein Duplikat) | DB-Prüfung | Titel aussagekräftiger |
 | P2 | Kalender: Termine überlagern sich, Namen abgeschnitten | Woche auf dem iPad | volle Spaltenbreite je Termin | `views-plan.js` | Spuren nebeneinander, Kurznamen, 3-Tage-Ansicht | Sichtprüfung Desktop | – |
 
@@ -47,7 +52,7 @@ und Code: keine Fundstelle. Logs: keine Tracebacks; Sync-Fehler nur aus der Erst
 .venv\Scripts\python.exe -m pytest -q tests
 ```
 
-6 Regressionstests (Temp-Datenordner über `LERNAPP_DATA_DIR`, die echte Datenbank wird nie berührt).
+7 Regressionstests (Temp-Datenordner über `LERNAPP_DATA_DIR`, die echte Datenbank wird nie berührt).
 Editor-Tests liefen im Desktop-Browser mit simulierten Stift- und Fingerereignissen; **kein Test auf einem echten iPad.**
 
 ## 4. Offene Risiken

@@ -80,3 +80,14 @@ def test_document_type_from_studip_folder():
     assert week_hint("GU01.pdf", "Gruppenübung") == 1
     assert week_hint("02A.pdf", "Vorlesung") == 2
     assert week_hint("Übungsblatt 3.pdf", None) == 3
+
+
+# -- P2: Skript-Hinweis startete nie, weil die Dokumentabfrage kein Modul lieferte
+def test_file_meta_has_module_id(app):
+    from app import db
+    _add_file("f-mod", "ZU02.pdf")
+    with db.cursor() as conn:
+        conn.execute("INSERT INTO modules(id, name, created_at) VALUES (77, 'Mathe I', '2026-10-24')")
+        conn.execute("UPDATE courses SET module_id=77 WHERE id='c1'")
+    st, _, b = asgi_call(app, "GET", "/api/files/f-mod")
+    assert st == 200 and json.loads(b)["module_id"] == 77

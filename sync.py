@@ -52,6 +52,14 @@ def main(argv: list[str]) -> int:
     except Exception as e:  # noqa: BLE001
         log(f"Lernkalender-Fehler: {e}")
 
+    # Skriptsuche: Seitentexte neuer Vorlesungs-/Skript-PDFs vorab lesen
+    try:
+        from app import scriptsearch
+        with db.cursor() as conn:
+            scriptsearch.index_all(conn, log=log)
+    except Exception as e:  # noqa: BLE001
+        log(f"Skriptsuche-Index-Fehler: {e}")
+
     # Notenspiegel & Bescheinigungen aus QIS (nur mit eigenem QIS-Zugang, hoechstens einmal pro 20 Stunden)
     try:
         from app import config, qis

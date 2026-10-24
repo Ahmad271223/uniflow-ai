@@ -469,3 +469,13 @@ body.fullscreen-doc .fs-exit { display: inline-flex; position: fixed; top: 10px;
 
 .cal2-ev.narrow { padding: .3rem .3rem; } .cal2-ev.narrow b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; } .cal2-ev.narrow .r, .cal2-ev.narrow .t .ic { display: none; } .cal2-ev.narrow .t { white-space: nowrap; overflow: hidden; }
 .set-body { min-width: 0; } .set-body .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); } .set-body .grid > * { min-width: 0; } .set-body .span-2 { grid-column: 1 / -1; } .set-body .card .row { flex-wrap: wrap; }
+
+/* ---- Skriptsuche-Hinweis und ziehbarer Trenner der geteilten Ansicht ---- */
+.doc-panes { position: relative; }
+.split-handle { cursor: col-resize; display: flex; align-items: center; justify-content: center; touch-action: none; border-radius: 6px; }
+.split-handle i { width: 4px; height: 48px; border-radius: 4px; background: var(--line-strong); }
+.split-handle:hover i, .split-handle:active i { background: var(--accent); }
+.script-hint { position: absolute; top: 120px; right: 22px; z-index: 30; display: flex; align-items: center; gap: .6rem; max-width: min(440px, 80%); padding: .5rem .55rem .5rem .8rem; background: color-mix(in srgb, var(--surface) 94%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 12px; box-shadow: var(--sh); font-size: .82rem; }
+.script-hint > .ic { color: var(--accent-text); flex: none; }
+.script-hint .m { display: flex; flex-direction: column; min-width: 0; } .script-hint .m span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.ed-inking .script-hint { opacity: .25; pointer-events: none; }

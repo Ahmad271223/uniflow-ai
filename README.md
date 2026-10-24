@@ -84,6 +84,18 @@ Uni & Noten, Community (vorbereitet), Einstellungen**. Rechts oben: Sync, Hell/D
   Diagnose unter „Erweitert“, Schreibhand. Dateien wie `.py`/`.zip` öffnen nicht mehr im PDF-Editor.
   Native iPad-App (Etappe 1, ungetestet): `apps/apple`. Gemeinsames Notizformat und API: `packages/shared-contracts`.
   Blocker-Liste: `docs/BESTANDSAUFNAHME.md`. Tests: `.venv\Scripts\python.exe -m pytest -q tests`.
+- **3.1 Stift, Zoom, Lineal, Schriftbild**:
+  - Stift reagierte nicht mehr: Kam das Abheben nicht an, verwarf der Editor jedes neue Aufsetzen mit derselben
+    Stift-ID. Jetzt beendet jedes Aufsetzen den alten Strich; Abheben außerhalb der Seite, App-Wechsel und
+    Fensterwechsel setzen die Eingabe zurück.
+  - Pinch-Zoom: während der Geste nur eine GPU-Verschiebung der Seiten, erst beim Loslassen neu berechnet und scharf
+    gezeichnet. Der Punkt unter den Fingern bleibt stehen.
+  - Lineal: ein Finger oder die Maus verschiebt, der runde Knopf dreht, zwei Finger verschieben und drehen; rastet
+    bei 0°, 45°, 90° … ein; Gradanzeige. Beide Kanten führen den Stift. Der Handballen bewegt das Lineal nicht.
+  - Schriftbild: volle Bildschirmschärfe auf dem iPad (Speicher weiter über das Pixel-Budget begrenzt), leichte
+    Glättung gegen Zittern, Strichende exakt am Abhebepunkt, kaum Breitenschwankung beim Kugelschreiber, gespeicherte
+    Striche sehen aus wie beim Schreiben.
+  - Skript-Hinweis zu Übungsaufgaben startete nie (Dokumentabfrage ohne Modul); behoben.
 - **Apple-Pencil-Reparatur 2.9** (Ursachen und Änderungen):
   - Handballen, der vor dem Stift aufliegt, startete eine Finger-Scrollbewegung, die beim Schreiben und nach dem
     Abheben weiterlief (inkl. Schwung). Jetzt gilt jede Berührung, die mit dem Stift zusammenfällt oder bis 0,5 s danach
