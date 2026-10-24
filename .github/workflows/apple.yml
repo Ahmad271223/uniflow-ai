@@ -77,7 +77,9 @@ jobs:
           def ver(rt):
               tail = rt.split("iOS-")[-1]
               return tuple(int(x) for x in tail.split("-") if x.isdigit())
-          cands.sort(key=lambda t: (ver(t[0]), "Pro" in t[1]["name"]))
+          def pref(name):   # grosses iPad bevorzugen (Layout wie iPad Pro / Air)
+              return 3 if "iPad Pro 13" in name else 2 if "iPad Pro" in name else 1 if "iPad Air" in name else 0
+          cands.sort(key=lambda t: (ver(t[0]), pref(t[1]["name"])))
           print(cands[-1][1]["udid"] if cands else "")
           ')
           test -n "$UDID" || { echo "kein iPad-Simulator gefunden"; exit 1; }

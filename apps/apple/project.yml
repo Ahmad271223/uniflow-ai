@@ -78,3 +78,5 @@ schemes:
         - name: UniFlowTests
     run:
       config: Debug
+      # nur lokales StoreKit-Testen in Xcode; echte Produkte erst nach Freigabe
+      storeKitConfiguration: UniFlowTests/UniFlow.storekit

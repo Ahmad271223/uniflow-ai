@@ -627,10 +627,15 @@ def delete_test(test_id: int):
 # Einstellungen
 # ----------------------------------------------------------------------------
 
+def _public_settings(s: dict) -> dict:
+    """Einstellungen ohne die PIN (die steht nur in /api/network fuer die Anzeige am PC)."""
+    return {k: v for k, v in s.items() if k != "lan_pin"}
+
+
 @app.get("/api/settings")
 def get_settings():
     with db.cursor() as conn:
-        return db.get_settings(conn)
+        return _public_settings(db.get_settings(conn))
 
 
 @app.put("/api/settings")
@@ -638,7 +643,7 @@ def put_settings(body: dict = Body(...)):
     with db.cursor() as conn:
         for k, v in body.items():
             db.set_setting(conn, k, v)
-        return db.get_settings(conn)
+        return _public_settings(db.get_settings(conn))
 
 
 @app.get("/api/credentials")
@@ -671,6 +676,8 @@ def api_dashboard():
     with db.cursor() as conn:
         d = study.dashboard(conn)
     d["bg"] = _bg_state
+    if isinstance(d.get("settings"), dict):
+        d["settings"] = _public_settings(d["settings"])
     return d
 
 
@@ -758,7 +765,10 @@ def api_course_module(course_id: str, body: dict = Body(...)):
 @app.get("/api/calendar")
 def api_calendar(start: str, end: str):
     with db.cursor() as conn:
-        return study.calendar(conn, date.fromisoformat(start), date.fromisoformat(end))
+        c = study.calendar(conn, date.fromisoformat(start), date.fromisoformat(end))
+    if isinstance(c, dict) and isinstance(c.get("settings"), dict):
+        c["settings"] = _public_settings(c["settings"])
+    return c
 
 
 @app.post("/api/calendar/generate")

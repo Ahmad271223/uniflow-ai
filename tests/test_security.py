@@ -112,3 +112,15 @@ def test_env_roundtrip_special_characters(monkeypatch, tmp_path):
     except ValueError:
         raised = True
     assert raised and "boese" not in (tmp_path / ".env").read_text(encoding="utf-8")
+
+
+# -- P2: PIN stand in den Antworten von Einstellungen, Uebersicht und Kalender
+def test_pin_not_in_settings_responses(app):
+    from app import db
+    with db.cursor() as conn:
+        db.set_setting(conn, "lan_pin", "654321")
+    for path in ("/api/settings", "/api/dashboard", "/api/calendar?start=2026-10-26&end=2026-11-01"):
+        st, _, b = asgi_call(app, "GET", path)
+        assert st == 200 and b"654321" not in b, path
+    st, _, b = asgi_call(app, "GET", "/api/network")
+    assert b"654321" in b, "Anzeige am PC braucht die PIN weiterhin"
