@@ -52,7 +52,13 @@ struct UniFlowApp: App {
 
 /// Begruessung -> Tarifwahl (nur beim ersten Mal) -> Oberflaeche; die Oberflaeche erscheint auch ohne Server
 struct RootView: View {
+    @State private var choosingPlan = false
+
     var body: some View {
         OnboardingFlow { MainView() }
+            .environment(\.ufSwitchPlan) { choosingPlan = true }            // "Tarif wechseln" in den Einstellungen
+            .sheet(isPresented: $choosingPlan) {
+                PlanPickerView(context: .settings) { choosingPlan = false }
+            }
     }
 }

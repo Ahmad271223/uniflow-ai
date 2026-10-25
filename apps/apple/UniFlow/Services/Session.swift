@@ -12,6 +12,10 @@ final class Session: ObservableObject {
     private let urlKey = "uniflow.serverURL"
 
     init() {
+        #if DEBUG
+        // -UFNoServer YES: wie ein App-Store-Nutzer ohne Server starten, die gespeicherte Verbindung bleibt erhalten
+        if UserDefaults.standard.bool(forKey: "UFNoServer") { return }
+        #endif
         if let s = UserDefaults.standard.string(forKey: urlKey), let url = URL(string: s),
            let pin = Keychain.get("uniflow.pin") {
             api = APIClient(base: url, pin: pin)
@@ -56,6 +60,7 @@ final class Session: ObservableObject {
 /// Nur Debug-Builds: Startargumente fuer Simulator und UI-Vergleiche.
 ///   -UFServer http://localhost:8765   verbindet ohne PIN (nur fuer einen lokalen Testserver, der keine PIN verlangt)
 ///   -UFDisconnect YES -UFServerHint <url>   trennt die Verbindung und traegt die Adresse vor; die PIN gibt der Inhaber ein
+///   -UFNoServer YES                   startet ohne Server (wie im App Store), ohne die gespeicherte PIN zu loeschen
 ///                                     (Einstellungen -> Entwicklung -> Mit eigenem UniFlow-Server verbinden).
 ///                                     -UFServer wird dann nicht verbunden, -UFRoute/-UFAction gelten weiter, z. B.
 ///                                     -UFDisconnect YES -UFRoute "#/settings?tab=dev" zeigt das Verbindungsformular.

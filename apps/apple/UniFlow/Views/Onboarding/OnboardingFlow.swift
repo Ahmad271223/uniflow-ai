@@ -22,14 +22,13 @@ struct OnboardingFlow<Main: View>: View {
 
 // MARK: - Bruecke zur Tarifwahl
 
-/// Schritt "Tarif waehlen" im ersten Start. Die echte Tarifwahl (`PlanPickerView(onDone:)` in
-/// Views/Onboarding/PlanPickerView.swift) baut das Abo-Paket; bis sie da ist, zeigt der Standard einen Platzhalter.
-/// Einsetzen: `static let current = OnboardingPlanStep { AnyView(PlanPickerView(onDone: $0)) }`
+/// Schritt "Tarif waehlen" im ersten Start: `PlanPickerView(onDone:)` (Views/Onboarding/PlanPickerView.swift).
+/// Der Platzhalter bleibt fuer Tests ohne StoreKit.
 struct OnboardingPlanStep {
     /// baut den Bildschirm; `onDone` fuehrt weiter zur Oberflaeche (Free gewaehlt oder Kauf erfolgreich)
-    let make: (@escaping () -> Void) -> AnyView
+    let make: @MainActor (@escaping () -> Void) -> AnyView
 
-    static let current: OnboardingPlanStep = .placeholder
+    static let current = OnboardingPlanStep { @MainActor onDone in AnyView(PlanPickerView(onDone: onDone)) }
 
     static let placeholder = OnboardingPlanStep { onDone in AnyView(PlanStepPlaceholder(onDone: onDone)) }
 }

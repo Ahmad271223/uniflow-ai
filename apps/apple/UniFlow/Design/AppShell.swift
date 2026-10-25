@@ -307,11 +307,27 @@ enum UFThemeMode: String {
 }
 
 struct UFHeader: View {
+    /// Sync-Knopf: Server-Abgleich, Stud.IP-Abgleich oder der Weg zur Stud.IP-Anmeldung
+    private func sync() {
+        if session.api != nil { Task { await shell.startSync(toast: toast) }; return }
+        switch studip.phase {
+        case .signedOut, .needsLogin:
+            toast.show("Zuerst Stud.IP verbinden")
+            router.go(.settings(tab: "account"))
+        default:
+            toast.show("Stud.IP wird abgeglichen …")
+            Task { await studip.run() }
+        }
+    }
+
     let narrow: Bool
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var timer: StudyTimer
+    @EnvironmentObject private var account: AccountStore
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
     @State private var query = ""
     @FocusState private var searchFocused: Bool
@@ -334,8 +350,9 @@ struct UFHeader: View {
                 .foregroundStyle(UF.muted)
                 .lineLimit(1)
             }
-            UFButton("Sync", icon: "sync", size: .small) { Task { await shell.startSync(toast: toast) } }
-                .disabled(shell.syncRunning)
+            // mit eigenem Server dessen Abgleich, sonst Stud.IP direkt auf dem iPad (V1 ohne PC-Server)
+            UFButton("Sync", icon: "sync", size: .small) { sync() }
+                .disabled(shell.syncRunning || studip.isRunning)
             UFButton(icon: theme == UFThemeMode.dark.rawValue ? "moon" : "sun", kind: .ghost) {
                 let next = (UFThemeMode(rawValue: theme) ?? .light).next
                 theme = next.rawValue
@@ -344,12 +361,15 @@ struct UFHeader: View {
             if !narrow {
                 UFButton(icon: "clock", kind: .ghost) { timer.toggle() }     // #profileBtn: Zeitmesser
             }
-            Text(shell.initials)                                          // .avatar: 34 pt, accent-soft, .78rem fett
-                .font(.uf(12.48, 700))
-                .foregroundStyle(UF.accentText)
-                .frame(width: 34, height: 34)
-                .background(Circle().fill(UF.accentSoft))
-                .help("Angemeldet mit deiner LUH-ID")
+            // .avatar: 34 pt, accent-soft, .78rem fett; ohne Server die Initialen aus dem Apple-Namen, sonst ein Symbol
+            let ini = shell.initials.isEmpty ? ShellState.initials(of: account.account?.name) : shell.initials
+            Group {
+                if ini.isEmpty { UFIcon("user", size: 16) } else { Text(ini).font(.uf(12.48, 700)) }
+            }
+            .foregroundStyle(UF.accentText)
+            .frame(width: 34, height: 34)
+            .background(Circle().fill(UF.accentSoft))
+            .help(account.account == nil ? "Nicht angemeldet" : "Angemeldet mit deiner Apple-ID")
         }
         .padding(.horizontal, narrow ? 11.2 : 17.6)
         .frame(height: UF.header)

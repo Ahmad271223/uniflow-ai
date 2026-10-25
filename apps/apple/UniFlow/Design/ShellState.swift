@@ -18,7 +18,8 @@ final class ShellState: ObservableObject {
     @Published private(set) var syncRunning = false
     @Published private(set) var lastSyncOK = true
     @Published private(set) var searchHits: [SearchHit] = []
-    @Published private(set) var initials = "AH"
+    /// Initialen aus dem Anzeigenamen des Servers (/api/settings); leer ohne Server
+    @Published private(set) var initials = ""
     /// wird nach einem abgeschlossenen Sync erhoeht; Ansichten laden dann neu (route() im Web)
     @Published private(set) var reloadToken = 0
 
@@ -32,6 +33,11 @@ final class ShellState: ObservableObject {
         "whiteboard": "square", "pdf": "file-text", "image": "image",
     ]
 
+    /// "Ahmad H." -> "AH": erste Buchstaben der ersten zwei Woerter
+    nonisolated static func initials(of name: String?) -> String {
+        String((name ?? "").split(whereSeparator: \.isWhitespace).compactMap(\.first).prefix(2)).uppercased()
+    }
+
     func attach(_ api: APIClient?) {
         self.api = api
         Task { await refresh() }
@@ -40,7 +46,7 @@ final class ShellState: ObservableObject {
     func refresh() async {
         guard let api else { syncChip = nil; return }
         if let s = try? await api.value("/api/settings"), let name = s.s("user_name")?.trimmingCharacters(in: .whitespaces), !name.isEmpty {
-            initials = String(name.split(whereSeparator: \.isWhitespace).compactMap(\.first).prefix(2)).uppercased()
+            initials = Self.initials(of: name)
         }
         await updateSyncChip()
         if let bg = try? await api.value("/api/bg"), bg["running"]?.bool == true { await poll() }
