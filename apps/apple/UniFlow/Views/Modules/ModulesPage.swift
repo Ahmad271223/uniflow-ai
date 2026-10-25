@@ -365,7 +365,7 @@ struct ModulePage: View {
         }
     }
 
-    /// .card.week-block: Kopf klappt ein/aus, Gruppen nach sub_label, "Zusammenfassen" bei Vorlesungen
+    /// .card.week-block: Kopf klappt ein/aus, Gruppen nach sub_label, "Zusammenfassen" bei Vorlesungen (nur PC-Server)
     private func weekBlock(_ w: JSONValue, m: JSONValue) -> some View {
         let wk = w.i("week") ?? 0
         let open = !collapsed.contains(wk)
@@ -377,7 +377,8 @@ struct ModulePage: View {
                 Text("\(w.s("label") ?? "")\(w.s("topic").flatMap { $0.isEmpty ? nil : " – " + $0 } ?? "")").ufFont(15.2, 650, em: -0.01)
                     .foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
                 Text("\(w.i("count") ?? 0) Dokumente").ufFont(12.8).foregroundStyle(UF.muted)
-                if !w.list("vorlesungen").isEmpty {
+                // KI-Zusammenfassung nur mit dem PC-Server; ohne PC gibt es keine KI (AUFTRAG-APPSTORE-V1, 2.4)
+                if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true {
                     UFButton("Zusammenfassen", icon: "sparkles", kind: .ghost, size: .small) { overlay.modal { WeekSummaryDialog(w: w, m: m) } }
                 }
             }
