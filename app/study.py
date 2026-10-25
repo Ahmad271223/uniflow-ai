@@ -53,10 +53,21 @@ def ensure_modules(conn) -> None:
 # Semesterwochen
 # ----------------------------------------------------------------------------
 
+def semester_cut(t: date) -> date:
+    """Stichtag des laufenden Semesters: der letzte 1.10. (Wintersemester) bzw. 1.3. (Sommersemester), der nicht nach
+    t liegt. Frueher lag er im Januar/Februar (1.3.) und im September (1.10.) in der Zukunft: Dann galten alle Dateien
+    als "Aeltere Unterlagen" und der Semesterbeginn war die laufende Woche."""
+    if t.month >= 10:
+        return date(t.year, 10, 1)
+    if t.month >= 3:
+        return date(t.year, 3, 1)
+    return date(t.year - 1, 10, 1)
+
+
 def semester_start(conn) -> date:
     """Montag der ersten Woche, in der >= 5 Kurse Dateien hochgeladen haben (sonst >= 3, sonst erste)."""
     t = today()
-    cut = date(t.year, 10, 1) if t.month >= 9 else date(t.year, 3, 1)
+    cut = semester_cut(t)
     rows = db.rows(conn, "SELECT course_id, chdate FROM files WHERE chdate >= ?", (int(datetime(cut.year, cut.month, cut.day).timestamp()),))
     per = defaultdict(set)
     for r in rows:
@@ -73,11 +84,11 @@ def week_index(start: date, chdate: int | None) -> int:
     if not chdate:
         return 0
     d = datetime.fromtimestamp(chdate).date()
-    t = today()
-    cut = date(t.year, 10, 1) if t.month >= 9 else date(t.year, 3, 1)
-    if d < cut:
+    if d < semester_cut(today()):
         return -1  # aelteres Semester
-    return (monday(d) - start).days // 7 + 1
+    # nach dem Stichtag, aber vor dem Vorlesungsbeginn: Woche 0 ("Vor Vorlesungsbeginn"); ohne max() wurden daraus
+    # -1 und -2, also "Aeltere Unterlagen" bzw. "Klausuren & Altklausuren"
+    return max(0, (monday(d) - start).days // 7 + 1)
 
 
 def week_label(start: date, w: int) -> str:
