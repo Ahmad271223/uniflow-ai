@@ -30,18 +30,17 @@ Bestandsaufnahmen: `docs/paritaet/web-ansichten.md`, `web-editor.md`, `ipad-app.
 
 ## Stand
 
+Aktualisiert nach Commit `74354ff` (Arbeit der ersten Mac-Sitzung). Maßgeblich ist immer `WEB-IPAD-PARITAET.md`.
+
 | Bereich | Stand |
 | --- | --- |
-| Designsystem `apps/apple/UniFlow/Design/` | Tokens aus `style.css` (`UFTheme.swift`), Komponenten nach den CSS-Klassen (`UFComponents.swift`), Formatierung wie `core.js` (`UFFormat.swift`), 83 Web-Icons als Vektor (`Assets.xcassets/Icons`, erzeugt mit `node tools/gen-ios-icons.mjs`) – **geschrieben, nie kompiliert** |
-| App-Rahmen `AppShell.swift`, `ShellState.swift` | Seitenleiste, Kopfzeile (Suche, Sync, Hell/Dunkel/Auto), untere Leiste unter 900 pt, Router mit den Web-Routen – **nicht kompiliert** |
-| Übersicht `Views/DashboardView.swift` + `Views/PlanDialogs.swift` | 1:1 nach `viewDashboard`; Dialoge „Lernplan erstellen“, „Lernkombination ändern“, „Meine Woche retten“ – **nicht kompiliert** |
-| Stundenplan, Uni & Noten, Community | Übergang: Web-Ansicht des PC-Servers eingebettet (`UFWebFallback.swift`) |
-| Kalender, Module, Dokumente, Tests, Einstellungen, Editor | alte native Ansichten, noch nicht 1:1 |
-| Stud.IP direkt vom iPad | Kern getestet (`StudIPClient`, `StudIPImport`), App-Teil (`StudIPSync`, `StudIPView`) nicht kompiliert; siehe `docs/IPAD-STUDIP-SYNC.md` |
-| Swift-Kern `Packages/UniFlowCore` | 48/48 Tests grün (Linux-Container `swift:6.0-jammy`) |
-
-Auf dem PC war nur eine Syntaxprüfung (`swiftc -parse`) der App-Dateien möglich, **keine Typprüfung**. Beim ersten
-Bauen sind Typfehler zu erwarten – zuerst diese beheben.
+| Designsystem, App-Rahmen, Übersicht, Lernkalender, Stundenplan, Meine Module, Dokumente & Notizen | 1:1 umgesetzt und **kompiliert** (284 Einträge) – geprüft bisher nur gegen einen lokalen Testserver, nicht mit echten Daten |
+| Stundenplan-Import | 3 Einträge „Getestet“, aber mit einer erfundenen ICS-Datei gegen den Testserver → mit echten Daten wiederholen |
+| Dokumentansicht, PDF-Editor | **nicht begonnen** (27 + 107 Einträge), alter nativer Editor |
+| Tests & Wiederholung, Einstellungen, Uni & Noten, Zeitmesser, Community | nicht begonnen (Uni & Noten/Community: Web-Ansicht des PC-Servers als Übergang) |
+| Stud.IP direkt vom iPad | Kern getestet; App-Teil kompiliert, mit echter Anmeldung noch nicht ausprobiert; Aufbau von QIS/Stud.IP in `docs/QIS-STUDIP-STRUKTUR.md` |
+| Swift-Kern `Packages/UniFlowCore` | 48/48 Tests grün |
+| Visuell geprüft | **0** – noch kein Bildvergleich abgelegt |
 
 ## Erste Schritte auf dem Mac
 
@@ -77,17 +76,47 @@ Sicherheitsregel. Stattdessen den Inhaber kurz bitten, sich selbst anzumelden, u
 Feste Beispieldaten sind nur in automatisierten Unit-Tests erlaubt (`UniFlowTests`, `UniFlowCoreTests`), nie für
 Bildschirmvergleiche oder das Ausprobieren von Abläufen.
 
-## Nächste Schritte (Reihenfolge des Auftrags)
+**Kein lokaler Testserver mehr für Prüfungen.** Der Debug-Start mit `-UFServer http://localhost:8765` ist nur noch für
+reine Darstellungsfragen erlaubt, nicht für einen Status. Alle bisherigen Prüfungen gegen den Testserver (Stundenplan-
+Import, Safari-Abgleich der Übersicht) werden mit den echten Daten wiederholt; erst dann „Getestet“ bzw. „Visuell
+geprüft“.
 
-1. Bauen, Typfehler beheben, bis die App im iPad-Simulator startet. Status in `status.json` auf „Kompiliert“ setzen.
-2. Übersicht mit Daten im Simulator prüfen; Bildschirmfotos Web (Safari im Simulator, gleiche Größe) und iPad
-   nebeneinander unter `docs/paritaet/screens/` ablegen und vergleichen.
-3. Bereich für Bereich nach der Checkliste umsetzen: Lernkalender (inkl. Lernpaket- und Termin-Drawer), Stundenplan,
-   Module, Dokumente, Dokumentansicht + Editor, Tests/Karteikarten, Uni & Noten, Einstellungen, Zeitmesser.
-   Nach jedem Bereich kompilieren, testen, vergleichen, `status.json` aktualisieren, `python3 tools/gen-parity.py`.
-4. Lokales Backend (SQLite + Swift-Port von `study.py`, `timetable.py`, `scriptsearch.py`), damit die App ohne PC läuft.
-   Antworten gegen den Python-Server auf derselben Test-Datenbank vergleichen.
-5. KI ohne PC braucht einen KI-Dienst – das kostet Geld und **braucht die Zustimmung des Inhabers**.
+## Testen mit echten Daten: lesen ja, schreiben nur mit Zustimmung
+
+- **Ohne Rückfrage erlaubt:** alles, was nur liest (Ansichten öffnen, blättern, Drawer und Dialoge öffnen und mit
+  „Abbrechen“ schließen, Importvorschau ansehen).
+- **Nur nach ausdrücklicher Zustimmung des Inhabers im Chat:** alles, was Daten auf dem PC-Server ändert –
+  „Übernehmen“, „Speichern“, „Erstellen“, „Löschen“, „Erledigt“, Verschieben, Lernplan erstellen, Notizen/Striche in
+  Dokumenten, Tests abgeben, Stud.IP- oder QIS-Abruf auslösen. Vorher sagen, was genau sich ändert.
+- **Danach aufräumen:** eigene Testeinträge über ihre ID wieder entfernen und prüfen, dass nur sie entfernt wurden
+  (der Inhaber arbeitet parallel mit denselben Daten).
+- Die Debug-Aktion `tt-import-ics` (erfundene Kalenderdatei „Testkurs Physik“) **nie gegen den PC-Server** ausführen:
+  „Übernehmen“ würde erfundene Termine anlegen und echte als „nicht mehr enthalten“ entfernen. Für Importtests eine
+  echte Datei des Inhabers bzw. den Stud.IP-Abgleich nehmen und vor „Übernehmen“ fragen.
+
+## Bildvergleich (Voraussetzung für „Visuell geprüft“)
+
+- Je Ansicht und Zustand ein Bildpaar mit **denselben echten Daten**: Web-App in Safari im iPad-Simulator (gleiches
+  Gerät, gleiche Ausrichtung) und native App im selben Simulator. Querformat 1180 × 820, zusätzlich Hochformat, wo
+  sich das Layout ändert (≤ 900 pt).
+- Ablage: `docs/paritaet/screens/<bereich>-<zustand>-web.png` und `…-ipad.png`. Persönliche Daten (Noten, Namen
+  anderer Personen, Adressen) vor dem Ablegen unkenntlich machen oder die Bilder nicht ins Repository legen
+  (`docs/paritaet/screens/` dann in `.gitignore`).
+- Abweichungen in `status.json` beim jeweiligen Eintrag notieren; „Visuell geprüft“ erst, wenn keine sichtbaren
+  Unterschiede mehr bleiben außer den begründeten iPad-Anpassungen.
+
+## Nächste Schritte (Priorität des Inhabers)
+
+1. **Dokumentansicht und PDF-Editor 1:1** (wichtigste Funktion für den Inhaber, Apple Pencil): Leisten, Werkzeuge,
+   Seitenverwaltung, Rückgängig für alles, Lineal, Zoom-Ansicht, KI-Seitenleiste (nur Anbindung an den Server),
+   Tabs, geteilte Ansicht, Export. Pencil-Feingefühl bleibt Gerätetest (`docs/MAC-IPAD-CHECKLISTE.md`).
+2. Bisher kompilierte Bereiche mit echten Daten prüfen und Bildvergleiche ablegen.
+3. Tests & Wiederholung (inkl. Karteikarten), Einstellungen, Uni & Noten, Zeitmesser, Community.
+4. Nach jedem Bereich: kompilieren, Unit-Tests, mit echten Daten ausprobieren, Bildvergleich, `status.json`
+   aktualisieren, `python3 tools/gen-parity.py`, committen mit `[skip ci]` (nach Freigabe des Inhabers).
+5. Lokales Backend (SQLite + Swift-Port von `study.py`, `timetable.py`, `scriptsearch.py`), damit die App ohne PC läuft.
+   Antworten gegen den Python-Server vergleichen.
+6. KI ohne PC braucht einen KI-Dienst – das kostet Geld und **braucht die Zustimmung des Inhabers**.
 
 ## Abnahme (aus dem Auftrag)
 
@@ -99,4 +128,5 @@ Datenverlustfehler gibt.
 ## Startnachricht für die neue Sitzung
 
 > Lies `docs/UEBERGABE-MAC.md` und `WEB-IPAD-PARITAET.md` und arbeite auf `develop` an der 1:1-Umsetzung der Web-App
-> für das iPad weiter. Beginne damit, die App in Xcode für den iPad-Simulator zu bauen und alle Compilerfehler zu beheben.
+> für das iPad weiter – mit meinen echten Daten vom PC-Server, schreibende Tests nur nach meiner Zustimmung.
+> Als Nächstes: Dokumentansicht und PDF-Editor 1:1.
