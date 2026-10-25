@@ -36,6 +36,9 @@ final class RemoteData: ObservableObject {
     }
 
     @Published private(set) var state: State = .loading
+    /// letzter Fehler war ein Netzfehler (Server nicht erreichbar), keine Fehlerantwort des Servers – wie
+    /// /Failed to fetch|NetworkError|Load failed/ in route() (app.js)
+    @Published private(set) var failedOffline = false
     private(set) var path: String
     private let api: APIClient?
 
@@ -59,7 +62,7 @@ final class RemoteData: ObservableObject {
     }
 
     func load() async {
-        guard let api else { state = .failed("Nicht mit dem Server verbunden."); return }
+        guard let api else { failedOffline = true; state = .failed("Nicht mit dem Server verbunden."); return }
         // Zwischenspeicher je Server getrennt (sonst zeigt ein anderer Server alte Daten)
         let key = api.base.absoluteString + path
         if value == nil, let cached = ResponseCache.shared.load(key) { state = .loaded(cached.0, offlineSince: cached.1) }
@@ -68,9 +71,12 @@ final class RemoteData: ObservableObject {
             ResponseCache.shared.store(v, for: key)
             state = .loaded(v, offlineSince: nil)
         } catch {
-            if let cached = ResponseCache.shared.load(key) {
+            // nur bei Netzfehlern den letzten Stand als "Offline" zeigen; eine Fehlerantwort (401, 500 …) ist kein Offline
+            let network = !(error is APIError)
+            if network, let cached = ResponseCache.shared.load(key) {
                 state = .loaded(cached.0, offlineSince: cached.1)
             } else {
+                failedOffline = network
                 state = .failed(error.localizedDescription)
             }
         }

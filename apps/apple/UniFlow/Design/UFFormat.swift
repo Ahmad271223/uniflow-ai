@@ -75,11 +75,12 @@ struct UFRemote<Content: View>: View {
                 HStack(spacing: 16) { ForEach(0..<3, id: \.self) { _ in UFSkeleton().frame(height: 120) } }
             }
         case .failed(let message):
+            let offline = data.failedOffline
             UFContent {
                 UFCard {
-                    HStack(spacing: 7.2) { UFIcon("alert", size: 18); Text(isOffline(message) ? "Server nicht erreichbar" : "Fehler").font(UF.h2) }
+                    HStack(spacing: 7.2) { UFIcon("alert", size: 18); Text(offline ? "Server nicht erreichbar" : "Fehler").font(UF.h2) }
                         .foregroundStyle(UF.text)
-                    Text(isOffline(message)
+                    Text(offline
                          ? "Die App holt ihre Daten vom UniFlow-Server auf deinem PC. Der Server startet gerade neu oder wurde beendet."
                          : message)
                         .font(UF.body).foregroundStyle(UF.muted).padding(.vertical, 5.6)
@@ -100,12 +101,6 @@ struct UFRemote<Content: View>: View {
                 content(value)
             }
         }
-    }
-
-    private func isOffline(_ m: String) -> Bool {
-        let l = m.lowercased()
-        return l.contains("offline") || l.contains("verbind") || l.contains("network") || l.contains("timed out")
-            || l.contains("zeitüberschreitung") || l.contains("server") || l.contains("nicht verbunden")
     }
 }
 

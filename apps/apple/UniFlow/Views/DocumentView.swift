@@ -72,6 +72,7 @@ struct DocumentView: View {
     @State private var showSidebar = false
     @State private var showSearch = false
     @State private var showInfo = false
+    @State private var showTrash = false
     @State private var choosingCompanion = false
     @State private var addingText = false
     @State private var newText = ""
@@ -138,6 +139,7 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
+        .sheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id) { f in
                 companion = Companion(file: f, pdfPage: nil)
@@ -295,9 +297,18 @@ struct DocumentView: View {
                 }
                 Menu {
                     ForEach(PageTemplate.all) { t in
-                        Button(t.name) { Task { await store.addBlankPage(afterKey: bridge.pageKey, template: t.id) } }
+                        // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
+                        Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
                     }
                 } label: { Label("Leere Seite danach", systemImage: "doc.badge.plus") }
+                Button(role: .destructive) {
+                    Task {
+                        if await bridge.controller?.trashPage(key: bridge.pageKey) != true {
+                            actionError = "Diese Seite lässt sich nicht in den Papierkorb legen (letzte Seite oder noch nicht geladen)."
+                        }
+                    }
+                } label: { Label("Seite in den Papierkorb", systemImage: "trash") }
+                Button { showTrash = true } label: { Label("Papierkorb …", systemImage: "trash.slash") }
                 Button {
                     if let key = bridge.pageKey { Task { await store.rotatePage(key: key) } }
                 } label: { Label("Seite drehen", systemImage: "rotate.right") }
@@ -680,6 +691,57 @@ struct InfoSheet: View {
             .toolbar { Button("Fertig") { dismiss() } }
             .task { info = await store.info() }
         }
+    }
+}
+
+/// Papierkorb der Seiten (deletedPages wie im Web-Editor): neueste zuerst, Wiederherstellen an den frueheren Platz.
+struct PageTrashSheet: View {
+    @ObservedObject var bridge: EditorBridge
+    @Environment(\.dismiss) private var dismiss
+    @State private var pages: [PageOrder.TrashedPage]?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let pages {
+                    if pages.isEmpty { ContentUnavailableView("Papierkorb ist leer", systemImage: "trash") }
+                    ForEach(pages.reversed(), id: \.trashIndex) { p in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(title(p))
+                                Text(detail(p)).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Wiederherstellen") {
+                                Task {
+                                    if await bridge.controller?.restorePage(key: p.key) == true { dismiss() } else { await reload() }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Papierkorb")
+            .toolbar { Button("Fertig") { dismiss() } }
+            .task { await reload() }
+        }
+    }
+
+    private func reload() async { pages = await bridge.controller?.trashedPages() ?? [] }
+
+    private func title(_ p: PageOrder.TrashedPage) -> String {
+        if p.type == "pdf", let i = p.pdfIndex { return "PDF-Seite \(i)" }
+        if p.type == "blank" { return "Leere Seite (\(PageTemplate.all.first { $0.id == p.template }?.name ?? "Leer"))" }
+        return "Eingefügte Seite"
+    }
+
+    private func detail(_ p: PageOrder.TrashedPage) -> String {
+        var parts = ["früher an Stelle \(p.position + 1)"]
+        if p.objectCount > 0 { parts.append("\(p.objectCount) Notizen") }
+        if let d = p.deletedAt { parts.append(d.formatted(date: .abbreviated, time: .shortened)) }
+        return parts.joined(separator: " · ")
     }
 }
 
