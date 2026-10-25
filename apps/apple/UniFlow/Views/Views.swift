@@ -33,6 +33,11 @@ struct ConnectView: View {
                     }
                     .disabled(url.isEmpty || pin.isEmpty || session.connecting)
                 }
+                Section {
+                    NavigationLink { StudIPView() } label: { Label("Stud.IP ohne PC nutzen", systemImage: "graduationcap") }
+                } footer: {
+                    Text("Dateien direkt aus Stud.IP aufs iPad laden. Notizen, Kalender und Tests brauchen weiterhin den UniFlow-Server.")
+                }
             }
             .navigationTitle("UniFlow")
             .onAppear { if url.isEmpty { url = session.savedURL } }

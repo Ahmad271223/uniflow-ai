@@ -5,12 +5,18 @@ import SwiftUI
 @main
 struct UniFlowApp: App {
     @StateObject private var session = Session()
+    @StateObject private var studip = StudIPSync()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(session)
+                .environmentObject(studip)
                 .tint(Color("AccentColor"))
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { studip.runIfDue() }      // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min
         }
     }
 }

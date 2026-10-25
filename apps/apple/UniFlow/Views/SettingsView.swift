@@ -52,6 +52,11 @@ struct SettingsView: View {
                     }
                     Button("Stud.IP jetzt abgleichen") { confirmSync = true }
                 }
+                Section {
+                    NavigationLink("Stud.IP direkt auf dem iPad") { StudIPView() }
+                } header: { Text("Stud.IP") } footer: {
+                    Text("Anmeldung auf der Stud.IP-Seite der Universität, Dateien werden ohne PC aufs iPad geladen.")
+                }
                 Section("Tarif") {
                     NavigationLink("Abo (Testmodus)") { SubscriptionView() }
                 }

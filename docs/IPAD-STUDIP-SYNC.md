@@ -1,6 +1,6 @@
 # Stud.IP-Abgleich auf dem iPad (ohne Playwright)
 
-Stand 25.10.2026. Ziel: Dateien, Termine und Kurse direkt auf dem iPad abgleichen. Das LUH-Passwort bleibt beim
+Stand 25.10.2026 (Probe an der LUH und Umsetzung von Option B: Abschnitte 7–9). Ziel: Dateien, Termine und Kurse direkt auf dem iPad abgleichen. Das LUH-Passwort bleibt beim
 Studierenden, der zentrale Dienst bekommt weder Passwort noch Stud.IP-Token (Vorgabe vom 25.10.).
 
 ## 1. Warum Playwright dort nicht geht
@@ -68,3 +68,73 @@ Realistisches Versprechen an Nutzer: „Neue Dateien erscheinen spätestens beim
 - Ablauf mit Test-Instanz von Stud.IP (eigene Docker-Instanz) und Testkonto; nie mit echten LUH-Zugangsdaten in CI.
 - Token-Ablauf, Widerruf, Netzabbruch während Downloads, App-Beendigung während Hintergrund-Downloads.
 - Am Gerät: Hintergrundabgleich über mehrere Tage beobachten (Zeitpunkte protokollieren).
+
+## 7. Probe an der LUH (25.10.2026, nur lesend)
+
+Ablauf wie später auf dem iPad: Anmeldung von Hand auf der echten Stud.IP-Seite (WebSSO) im Browser, danach nur
+noch Abrufe der JSON:API mit dem Sitzungs-Cookie. 124 GET-Anfragen nacheinander mit 250 ms Pause, nichts verändert.
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| `users/me` mit Sitzungs-Cookie | 200 (ohne Anmeldung: 401) |
+| Kurse (`users/{id}/courses`) | 19, alle 14 Kurse mit Dateien aus dem PC-Abgleich enthalten |
+| Dateien nur über den Ordnerbaum der API (`courses/{id}/folders` → `folders/{id}/file-refs` / `folders`) | **151 – genau so viele wie der PC-Abgleich**, keine Abweichung in einem Kurs, 52 Ordner |
+| Datei-Merkmale | `name`, `filesize`, `mime-type`, `chdate`, `mkdate`, `is-downloadable` u. a. → Änderungen ohne Download erkennbar |
+| Download `file-refs/{id}/content` (3 kleinste Dateien) | 3 × 200, Größe stimmt byte-genau |
+| nicht herunterladbar | 1 Datei (deckt sich mit dem PC: 150 von 151 geladen) |
+| Antwortzeiten | Median 62 ms, 95 % unter 99 ms, max. 237 ms; keine Fehler |
+| Sitzungs-Cookie für Skripte lesbar? | nein (HttpOnly) |
+| `dispatch.php/api/oauth2/authorize` ohne Parameter | 500 (Route vorhanden, Einrichtung unbekannt) |
+| Sitzung nach 10 Minuten | noch gültig; **Dauer über Stunden noch nicht gemessen** |
+
+Bisherige PC-Läufe (24.10.): alle 7 Fehlschläge betrafen das automatische Ausfüllen des Anmeldeformulars bzw.
+fehlende Zugangsdaten während der Einrichtung; alle regulären Läufe danach waren erfolgreich. Auf dem iPad meldet
+sich der Mensch selbst an, diese Fehlerquelle entfällt. Neue Unbekannte ist die Lebensdauer der Sitzung.
+
+## 8. Nutzungsbedingungen und Recht (Recherche 25.10.2026, keine Rechtsberatung)
+
+- **Stud.IP-Nutzungsbedingungen der LUH** (Betreiber ZQS/elsa,
+  [Nutzungsbedingungen](https://studip.uni-hannover.de/dispatch.php/siteinfo/show/1/8)): Herunterladen für den
+  privaten Gebrauch sowie Forschung und Lehre erlaubt. Verboten: Weitergabe an Dritte zu kommerziellen Zwecken,
+  Zugänglichmachen für Nicht-Berechtigte, Weitergabe des Passworts, automatisiertes Erheben von Daten (z. B. Namen)
+  über das übliche Maß hinaus. Zu API, Bots oder Drittanbieter-Apps steht dort nichts; Abruflimits nicht gefunden.
+- **LUIS-Nutzungsordnung** ([PDF](https://www.luis.uni-hannover.de/fileadmin/it-support/Nutzungsordnung_LUIS-IT_2017-08-17.pdf)):
+  nur eigene Kennung, Passwort geheim, Betrieb nicht stören, Urheberrecht beachten. LUIS wertet das Hinterlegen von
+  Zugangsdaten auf Systemen Dritter als unzulässig ([Hinweis zu Mail-Apps](https://www.luis.uni-hannover.de/services/kommunikation/e-mail/exchange-mailsystem/zugaenge/sicherheitsmaengel-in-mail-apps-fuer-android-und-ios))
+  → Cookies/Tokens nie auf einen zentralen Server.
+- **Stud.IP-Doku:** JSON:API ist ausdrücklich die externe Schnittstelle; Anmeldung per Basic-Auth, Sitzungs-Cookie
+  oder OAuth2 ([JSON:API](https://docs.gitlab.studip.de/entwicklung/jsonapi/start/),
+  [OAuth2](https://docs.gitlab.studip.de/entwicklung/functions/oauth2/)). OAuth2: Clients legt ein Root-Admin an,
+  Apps mit PKCE, einziger Scope `api` (Vollzugriff).
+- **Eingebettete Anmeldung:** RFC 8252 §8.12 rät von Anmeldungen in eingebetteten Webansichten ab, weil die App die
+  Eingaben technisch mitlesen könnte. Option B ist deshalb nur als Übergang und für die eigene Nutzung gedacht; für
+  eine Veröffentlichung OAuth2 mit `ASWebAuthenticationSession` (Option A).
+- **Urheberrecht:** Speichern auf dem eigenen Gerät deckt sich mit den Nutzungsbedingungen (privater Gebrauch).
+  Zentrale Speicherung durch einen (bezahlten) Dienst oder Bereitstellung für andere ist kritisch (§ 53 Abs. 1
+  S. 2, § 60a UrhG) → Dateien nur auf dem Gerät des Studierenden; vor einer Veröffentlichung juristisch prüfen lassen.
+- **Datenschutz:** Stud.IP protokolliert IP und Benutzername je Abruf (7 Tage) – die Abrufe der App sind dort
+  sichtbar. Bei Verteilung an andere: Datenschutzerklärung, keine Cookies/Dateien auf eigenen Servern.
+
+Ansprechpartner: ZQS/elsa E-Learning-Support (betreibt Stud.IP, elearning@uni-hannover.de), LUIS
+IT-Service-Desk, Datenschutzbeauftragter der LUH. Entwurf einer Anfrage: `docs/ANFRAGE-STUDIP-ZUGANG.md`.
+
+## 9. Umsetzung auf dem iPad (Option B, Stand 25.10.2026)
+
+Geprüft: Kern lokal im offiziellen Linux-Container `swift:6.0-jammy` (Swift 6.0.3, derselbe wie im CI): 48 von 48 Tests grün, keine Warnungen. **App-Teil (Webansicht, Schlüsselbund, Oberfläche) nicht kompiliert** – braucht macOS/Xcode (CI-Lauf auf macOS oder Mac).
+
+- **Kern** (`UniFlowCore`, auch unter Linux testbar): `StudIPClient` (nur lesend, nacheinander, 250 ms Pause,
+  höchstens 1500 Anfragen je Durchgang, nur der eigene Host, abgelaufene Sitzung bei 401 oder Umleitung auf die
+  Anmeldung), `StudIPImport` (neu/geändert/unverändert/nicht herunterladbar/in Stud.IP entfernt, sichere
+  Dateinamen, Vorauswahl der Kurse des jüngsten Semesters). Tests: `StudIPTests.swift` (11 Fälle).
+- **App:** `StudIPLoginView` (eingebettete Webansicht ohne eigene Skripte, Stud.IP-Seite der LUH; Erfolg erst, wenn
+  `users/me` mit den Cookies 200 liefert), `StudIPKeychain` (nur dieses Gerät, nicht im Backup), `StudIPSync`
+  (Abgleich beim Öffnen der App, höchstens alle 30 Minuten, und auf Knopfdruck; Dateien unter
+  Application Support/StudIP, vom iCloud-Backup ausgenommen; Verzeichnis nach jeder Datei gespeichert),
+  `StudIPView` (Status, Kursauswahl, Dateien mit Vorschau, Abmelden mit/ohne Löschen). Erreichbar über
+  Einstellungen → Stud.IP und auf dem Verbindungsbildschirm („Stud.IP ohne PC nutzen“).
+- **Noch nicht:** Anzeige der Stud.IP-Dateien im Editor und in den Modulen, Termine, Hintergrundabgleich.
+
+Offen und zu messen, sobald die App auf dem Gerät läuft:
+1. Lebensdauer der Sitzung (wie oft muss man sich neu anmelden; bleibt die SSO-Anmeldung in der Webansicht erhalten?).
+2. Abgleich über mehrere Tage: Anzahl Anfragen und Dauer je Durchgang, Fehler.
+3. Speicherbedarf (PC-Stand: 151 Dateien, 222 MB).

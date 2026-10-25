@@ -18,6 +18,7 @@ your spending limit needs to be increased“. Alles, was danach geändert wurde,
 | `ecfdfab` Korrektur | grün | grün | App kompiliert; neue Testdatei mit Raw-String-Fehler | – |
 | `7efe85f` Phase 5/6 | **nicht gestartet (Abrechnung)** | – | – | – |
 | lokal (PC) | – | – | – | Python 29 grün, Node 10 grün |
+| lokal Docker `swift:6.0-jammy` (25.10., mit Stud.IP-Kern) | 48 grün | – | nicht gebaut | Python 43 grün, Node 10 grün |
 
 ## Phase 1 – Audit und Live-Blocker
 - **Fertig:** 6 P0/P1-Lücken im Server (Pfad-Traversal lesen/schreiben, fremde Webseiten, DNS-Rebinding, gleichzeitiges
