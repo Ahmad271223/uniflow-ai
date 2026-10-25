@@ -25,11 +25,14 @@ struct PlanPickerView: View {
     @State private var legal: LegalPage?
     @State private var info: String?
 
-    init(context: Context = .onboarding, entitlements: Entitlements = .shared, onDone: @escaping () -> Void) {
+    /// `entitlements: nil` = `Entitlements.shared` (erst im MainActor-Kontext aufgeloest, Swift 6)
+    @MainActor
+    init(context: Context = .onboarding, entitlements: Entitlements? = nil, onDone: @escaping () -> Void) {
+        let ent = entitlements ?? .shared
         self.context = context
         self.onDone = onDone
-        _store = StateObject(wrappedValue: PurchaseStore(entitlements: entitlements))
-        _ent = ObservedObject(wrappedValue: entitlements)
+        _store = StateObject(wrappedValue: PurchaseStore(entitlements: ent))
+        _ent = ObservedObject(wrappedValue: ent)
     }
 
     enum LegalPage: String, Identifiable {
@@ -59,8 +62,12 @@ struct PlanPickerView: View {
         .manageSubscriptionsSheet(isPresented: $manage)
         .onChange(of: manage) { _, open in
             // nach dem Verwalten (Kuendigen, Wechsel) den Tarif neu lesen
-            if !open { Task { await store.refreshEntitlements() } }
+            if !open { Task { await store.refreshEntitlements(); await store.refreshEligibility() } }
         }
+        // Anspruch auf die Probewoche gilt je Abo-Gruppe: nach jedem Tarifwechsel und jeder neuen Transaktion
+        // (Kauf auf dieser Seite, Wiederherstellen, Transaction.updates) fuer alle Tarife neu lesen
+        .onChange(of: ent.plan) { _, _ in Task { await store.refreshEligibility() } }
+        .onChange(of: ent.transactionCount) { _, _ in Task { await store.refreshEligibility() } }
         .ufModal(isPresented: Binding(get: { legal != nil }, set: { if !$0 { legal = nil } })) {
             if let legal { legalDialog(legal) }
         }
@@ -103,6 +110,11 @@ struct PlanPickerView: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(rows(plan), id: \.title) { r in featureRow(r) }
             }
+            if !UFFeatureMatrix.hasAvailableExtras(in: plan) {
+                // ehrlich sagen, dass der Tarif heute noch nicht mehr bietet (Abschnitt 2 Punkt 4: nichts vortaeuschen)
+                Text("Diese Funktionen folgen mit einem Update. Bis dahin bietet \(plan.title) denselben Umfang wie \(plan == .pro ? "Plus" : "Free").")
+                    .ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 9.6)
+            }
             Spacer(minLength: 16)
             actionButton(plan, current: current)
             if current, context == .settings, plan != .free, ent.inIntroOffer {
@@ -121,7 +133,7 @@ struct PlanPickerView: View {
     /// Inhalte aus Abschnitt 4; KI-Zeilen nur mit freigegebenem KI-Dienst
     private func rows(_ plan: UFPlan) -> [Row] {
         var out = UFFeatureMatrix.added(in: plan).filter { !$0.isV2 }.map { f in
-            Row(title: f.title, detail: f.detail, icon: f.icon, soon: f == .uniGrades && !UFFeatureMatrix.uniGradesOnDevice)
+            Row(title: f.title, detail: f.detail, icon: f.icon, soon: UFFeatureMatrix.access(f, plan: plan) == .comingSoon)
         }
         if UFFeatureMatrix.aiServiceAvailable {
             out.append(Row(title: "\(plan.aiTestQuota) Wochentests mit KI im Monat", icon: UFFeature.aiTests.icon))
@@ -312,9 +324,4 @@ private struct PlanCardFrame<Content: View>: View {
             .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(highlight ? UF.accent : UF.line, lineWidth: highlight ? 2 : 1))
             .ufShadow(.sm)
     }
-}
-
-extension UFFeatureMatrix {
-    /// Uni & Noten laeuft heute ueber den PC-Server; direkt auf dem iPad erst mit F4 (Pruefbericht)
-    static let uniGradesOnDevice = false
 }

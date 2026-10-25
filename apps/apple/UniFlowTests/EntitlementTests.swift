@@ -22,7 +22,7 @@ final class EntitlementTests: XCTestCase {
         for f: UFFeature in [.pencilWriting, .splitView, .studyPlanning, .flashcards] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.plus), f.rawValue)
         }
-        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free), .locked(.pro))
+        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: true), .locked(.pro))
     }
 
     func testMatrixPlusAndPro() {
@@ -30,8 +30,27 @@ final class EntitlementTests: XCTestCase {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .plus), .allowed, f.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .pro), .allowed, f.rawValue)
         }
-        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .plus), .locked(.pro))
-        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .pro), .allowed)
+        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .plus, uniGrades: true), .locked(.pro))
+        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .pro, uniGrades: true), .allowed)
+    }
+
+    /// Abschnitt 4: Uni & Noten erst, "sobald nativ vorhanden (F4)" – bis dahin in keinem Tarif, auch nicht in Pro
+    @MainActor
+    func testUniGradesComingSoonUntilOnDevice() {
+        XCTAssertFalse(UFFeatureMatrix.uniGradesOnDevice)
+        for p in UFPlan.allCases {
+            XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: p), .comingSoon, p.rawValue)
+        }
+        XCTAssertFalse(Entitlements(observe: false, plan: .pro).allows(.uniGrades))
+    }
+
+    /// Pro bietet in V1 ohne KI-Dienst und ohne Uni & Noten nichts ueber Plus hinaus; die Tarifkarte sagt das
+    func testProHasNoExtrasWithoutAIAndUniGrades() {
+        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .free))
+        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .plus))
+        XCTAssertFalse(UFFeatureMatrix.hasAvailableExtras(in: .pro))
+        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .pro, uniGrades: true))
+        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .pro, aiService: true))
     }
 
     func testAIAndV2AreComingSoonWithoutService() {
@@ -107,7 +126,12 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(ent.access(.flashcards), .locked(.plus))
         ent.setPlanForTesting(.plus)
         XCTAssertTrue(ent.allows(.flashcards))
-        XCTAssertEqual(UFLockedCard.message(.uniGrades, access: .locked(.pro)).contains("Enthalten in Pro"), true)
+        XCTAssertTrue(UFLockedCard.message(.studyPlanning, access: .locked(.plus)).contains("Enthalten in Plus und Pro"))
+        // Uni & Noten wird nicht als kaufbar beworben, sondern als "bald"
+        let soon = UFLockedCard.message(.uniGrades, access: ent.access(.uniGrades))
+        XCTAssertFalse(soon.contains("Enthalten in"))
+        XCTAssertTrue(soon.contains("Bald verfügbar"))
+        XCTAssertTrue(UFLockedCard.message(.aiTutor, access: .comingSoon).contains("KI-Funktionen"))
     }
 
     // MARK: Angebotstexte (Richtlinie 3.1.2)

@@ -157,7 +157,8 @@ enum UFAccess: Equatable {
     case allowed
     /// gesperrt, freigeschaltet ab diesem Tarif
     case locked(UFPlan)
-    /// noch nicht vorhanden (KI ohne freigegebenen Dienst, Funktionen ab V2) – als "bald" kennzeichnen
+    /// noch nicht vorhanden (KI ohne freigegebenen Dienst, Uni & Noten vor F4, Funktionen ab V2) – als "bald"
+    /// kennzeichnen, in keinem Tarif freigeschaltet
     case comingSoon
 
     var isAllowed: Bool { self == .allowed }
@@ -168,9 +169,25 @@ enum UFFeatureMatrix {
     /// Ein KI-Dienst ist in V1 nicht freigegeben (Abschnitt 6). Erst nach Entscheidung des Inhabers umstellen.
     static let aiServiceAvailable = false
 
-    static func access(_ f: UFFeature, plan: UFPlan, aiService: Bool = aiServiceAvailable) -> UFAccess {
-        if f.isV2 || (f.needsAIService && !aiService) { return .comingSoon }
+    /// Uni & Noten laeuft heute ueber den PC-Server; direkt auf dem iPad erst mit F4 (Pruefbericht). Bis dahin ist
+    /// die Funktion in keinem Tarif enthalten ("bald"), auch nicht in Pro (Abschnitt 4: "sobald nativ vorhanden").
+    static let uniGradesOnDevice = false
+
+    static func access(_ f: UFFeature, plan: UFPlan, aiService: Bool = aiServiceAvailable,
+                       uniGrades: Bool = uniGradesOnDevice) -> UFAccess {
+        if f.isV2 || (f.needsAIService && !aiService) || (f == .uniGrades && !uniGrades) { return .comingSoon }
         return plan >= f.minimumPlan ? .allowed : .locked(f.minimumPlan)
+    }
+
+    /// Bietet der Tarif heute schon etwas, das der naechstkleinere nicht hat? In V1 ohne KI-Dienst und ohne
+    /// Uni & Noten auf dem Geraet ist das fuer Pro nicht der Fall; die Tarifkarte sagt das dann offen.
+    static func hasAvailableExtras(in plan: UFPlan, aiService: Bool = aiServiceAvailable,
+                                   uniGrades: Bool = uniGradesOnDevice) -> Bool {
+        if plan == .free { return true }
+        if aiService && plan.aiTestQuota > (UFPlan.allCases.last { $0 < plan }?.aiTestQuota ?? 0) { return true }
+        return UFFeature.allCases.contains {
+            $0.minimumPlan == plan && access($0, plan: plan, aiService: aiService, uniGrades: uniGrades) == .allowed
+        }
     }
 
     /// Wochentest mit KI: Kontingent des Tarifs im laufenden Monat
@@ -253,6 +270,9 @@ final class Entitlements: ObservableObject {
     @Published private(set) var expiresAt: Date?
     /// Abo noch nicht geprueft (erster Abruf von currentEntitlements laeuft)
     @Published private(set) var loading = true
+    /// zaehlt verifizierte Transaktionen (Kauf, Transaction.updates wie Verlaengerung oder freigegebene Kaufanfrage);
+    /// die Tarifwahl liest daraufhin den Anspruch auf die Probewoche neu
+    @Published private(set) var transactionCount = 0
 
     /// Server-Pruefung der signierten Transaktion (JWS, ab V2). In V1 nicht gesetzt.
     var verifyOnServer: ((String) async -> Bool)?
@@ -300,6 +320,7 @@ final class Entitlements: ObservableObject {
     @discardableResult
     func handle(_ result: VerificationResult<StoreKit.Transaction>) async -> Bool {
         guard case .verified(let transaction) = result else { return false }
+        transactionCount += 1
         var ok = true
         if let verify = verifyOnServer { ok = await verify(result.jwsRepresentation) }
         await transaction.finish()
@@ -331,8 +352,10 @@ extension EnvironmentValues {
 extension View {
     /// Funktion nur im passenden Tarif: sonst sichtbar, aber gedimmt, mit Schloss; Tippen fuehrt zur Abo-Seite.
     /// Beispiel: `UFButton("Stift", icon: "pen") { … }.ufRequires(.pencilWriting)`
-    func ufRequires(_ feature: UFFeature, entitlements: Entitlements = .shared) -> some View {
-        modifier(UFRequiresModifier(feature: feature, ent: entitlements))
+    /// `entitlements: nil` = `Entitlements.shared` (erst im MainActor-Kontext aufgeloest, Swift 6).
+    @MainActor
+    func ufRequires(_ feature: UFFeature, entitlements: Entitlements? = nil) -> some View {
+        modifier(UFRequiresModifier(feature: feature, ent: entitlements ?? .shared))
     }
 }
 
@@ -400,9 +423,11 @@ struct UFLockedCard: View {
     @Environment(\.ufShowPlans) private var showPlans
     @State private var sheet = false
 
-    init(_ feature: UFFeature, entitlements: Entitlements = .shared) {
+    /// `entitlements: nil` = `Entitlements.shared`
+    @MainActor
+    init(_ feature: UFFeature, entitlements: Entitlements? = nil) {
         self.feature = feature
-        _ent = ObservedObject(wrappedValue: entitlements)
+        _ent = ObservedObject(wrappedValue: entitlements ?? .shared)
     }
 
     var body: some View {
@@ -438,7 +463,10 @@ struct UFLockedCard: View {
         switch access {
         case .allowed: return ""
         case .comingSoon:
-            return f.isV2 ? "Kommt mit der nächsten Version von UniFlow." : "Bald verfügbar – KI-Funktionen sind noch nicht freigeschaltet."
+            if f.isV2 { return "Kommt mit der nächsten Version von UniFlow." }
+            if f.needsAIService { return "Bald verfügbar – KI-Funktionen sind noch nicht freigeschaltet." }
+            let base = f.detail.map { "\($0). " } ?? ""
+            return base + "Bald verfügbar – kommt mit einem Update direkt auf dein iPad."
         case .locked(let p):
             let base = f.detail.map { "\($0). " } ?? ""
             return base + "Enthalten in \(p == .plus ? "Plus und Pro" : "Pro"). Deine Notizen und Daten bleiben in jedem Tarif erhalten."
@@ -447,6 +475,31 @@ struct UFLockedCard: View {
 
     private func open() {
         if let showPlans { showPlans() } else { sheet = true }
+    }
+}
+
+/// Ansicht nur im passenden Tarif, sonst die Sperrkarte. Beobachtet den Tarif selbst, damit nach Kauf, Ablauf oder
+/// Erstattung sofort neu gezeichnet wird (ein blosses `if Entitlements.shared.allows(…)` im Aufrufer tut das nicht).
+/// Beispiel: `UFGate(.studyPlanning) { PlanView() }`
+struct UFGate<Content: View>: View {
+    let feature: UFFeature
+    @ObservedObject private var ent: Entitlements
+    private let content: () -> Content
+
+    /// `entitlements: nil` = `Entitlements.shared`
+    @MainActor
+    init(_ feature: UFFeature, entitlements: Entitlements? = nil, @ViewBuilder content: @escaping () -> Content) {
+        self.feature = feature
+        self.content = content
+        _ent = ObservedObject(wrappedValue: entitlements ?? .shared)
+    }
+
+    var body: some View {
+        if ent.allows(feature) {
+            content()
+        } else {
+            UFLockedCard(feature, entitlements: ent)
+        }
     }
 }
 

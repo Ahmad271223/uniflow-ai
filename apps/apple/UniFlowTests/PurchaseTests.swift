@@ -7,6 +7,8 @@ import XCTest
 @MainActor
 final class PurchaseTests: XCTestCase {
     private var session: SKTestSession!
+    /// Gab es in diesem Testprozess schon einen Kauf? Dann meldet StoreKit keinen Anspruch mehr (siehe test0…).
+    private static var processHadPurchase = false
 
     override func setUp() async throws {
         session = try SKTestSession(configurationFileNamed: "UniFlow")
@@ -16,6 +18,7 @@ final class PurchaseTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        if !session.allTransactions().isEmpty { Self.processHadPurchase = true }
         session.clearTransactions()
         session = nil
     }
@@ -43,9 +46,16 @@ final class PurchaseTests: XCTestCase {
         return (store, ent)
     }
 
-    /// Laeuft als erster Test der Klasse (Name): clearTransactions() setzt den Anspruch auf die Probewoche
-    /// innerhalb eines Testlaufs nicht zurueck, erst ein neuer Prozess startet wieder mit Anspruch.
-    func test1ProductsCarryOneFreeWeek() async throws {
+    /// Verhalten der StoreKit-Testsitzung (mit einem Prueftest unter Xcode 27.1 ermittelt): Nach dem ersten Kauf im
+    /// Testprozess liefert `isEligibleForIntroOffer` fuer die Gruppe bis zum Prozessende false, auch nach
+    /// clearTransactions() und resetToDefaultState(). Ein neuer Kauf nach clearTransactions() bekommt die Gratiswoche
+    /// dagegen wieder (testPurchaseAfterClearedTransactionsStartsFreeWeekAgain). Darum prueft nur dieser Test den
+    /// Anspruch selbst; er heisst "test0…", weil XCTest die Tests einer Klasse alphabetisch ausfuehrt. Laeuft er
+    /// doch nach einem Kauf (zufaellige Reihenfolge), wird er uebersprungen statt falsch rot.
+    func test0ProductsCarryOneFreeWeekUntilFirstPurchase() async throws {
+        if Self.processHadPurchase {
+            throw XCTSkip("In diesem Testprozess wurde schon gekauft; StoreKit meldet dann keinen Anspruch mehr.")
+        }
         let (store, ent) = await makeStore()
         XCTAssertEqual(store.products.map(\.id).sorted(), PurchaseStore.productIDs.sorted())
         XCTAssertEqual(ent.plan, .free)
@@ -61,6 +71,18 @@ final class PurchaseTests: XCTestCase {
             XCTAssertTrue(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true)
                 .hasPrefix("1 Woche gratis, danach \(p.displayPrice)/Monat"))
         }
+        // Kauf von Plus verbraucht den Anspruch fuer die ganze Abo-Gruppe: auch Pro zeigt danach den normalen Preis.
+        // Ohne erneutes loadProducts(), so wie die Seite in den Einstellungen nach dem Kauf offen bleibt.
+        let outcome = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
+        XCTAssertEqual(outcome, .success, store.lastError ?? "")
+        XCTAssertEqual(store.introEligible["de.uniflow.plus.monthly"], false)
+        XCTAssertEqual(store.introEligible["de.uniflow.pro.monthly"], false)
+        let pro = try XCTUnwrap(store.product(for: .pro))
+        let eligible = store.introEligible[pro.id] == true
+        XCTAssertEqual(UFOfferText.button(plan: .pro, price: pro.displayPrice, period: pro.ufPeriod, freeTrial: pro.ufFreeTrial,
+                                          eligible: eligible), "Pro für \(pro.displayPrice)/Monat")
+        XCTAssertFalse(UFOfferText.summary(price: pro.displayPrice, period: pro.ufPeriod, freeTrial: pro.ufFreeTrial,
+                                           eligible: eligible).contains("gratis"))
     }
 
     func testPlusPurchaseStartsFreeWeekAndUsesUpEligibility() async throws {
@@ -73,10 +95,61 @@ final class PurchaseTests: XCTestCase {
         XCTAssertTrue(ent.inIntroOffer, "Während der Gratiswoche gilt Plus mit Einführungsangebot")
         XCTAssertTrue(ent.allows(.pencilWriting))
         XCTAssertFalse(ent.allows(.uniGrades))
-        // Probewoche ist je Abo-Gruppe verbraucht: auch Pro zeigt danach den normalen Preis
-        await store.loadProducts()
+        XCTAssertEqual(ent.transactionCount, 1)
         XCTAssertEqual(store.introEligible["de.uniflow.plus.monthly"], false)
         XCTAssertEqual(store.introEligible["de.uniflow.pro.monthly"], false)
+    }
+
+    /// Beleg, dass die Kauf-Tests nicht von der Reihenfolge abhaengen: Nach clearTransactions() startet ein neuer
+    /// Kauf wieder mit der Gratiswoche
+    func testPurchaseAfterClearedTransactionsStartsFreeWeekAgain() async throws {
+        let (store, ent) = await makeStore()
+        let plus = try XCTUnwrap(store.product(for: .plus))
+        _ = await store.purchase(plus)
+        XCTAssertTrue(ent.inIntroOffer)
+        session.clearTransactions()
+        await waitForPlan(ent, .free)
+        XCTAssertEqual(ent.plan, .free)
+        let again = await store.purchase(plus)
+        XCTAssertEqual(again, .success, store.lastError ?? "")
+        XCTAssertEqual(ent.plan, .plus)
+        XCTAssertTrue(ent.inIntroOffer, "Nach gelöschten Transaktionen beginnt Plus wieder mit der Gratiswoche")
+    }
+
+    /// Verlaengerung nach der Gratiswoche: Tarif bleibt Plus, jetzt bezahlt (kein Einfuehrungsangebot mehr)
+    func testRenewalAfterFreeWeekKeepsPlusWithoutIntroOffer() async throws {
+        let (store, ent) = await makeStore()
+        let plus = try XCTUnwrap(store.product(for: .plus))
+        let outcome = await store.purchase(plus)
+        XCTAssertEqual(outcome, .success, store.lastError ?? "")
+        XCTAssertTrue(ent.inIntroOffer)
+        let firstExpiry = try XCTUnwrap(ent.expiresAt)
+        try session.forceRenewalOfSubscription(productIdentifier: plus.id)
+        let renewed = await eventually { await ent.refresh(); return !ent.inIntroOffer }
+        XCTAssertTrue(renewed, "Nach der Verlängerung läuft keine Gratiswoche mehr")
+        XCTAssertEqual(ent.plan, .plus)
+        XCTAssertTrue(ent.allows(.pencilWriting))
+        XCTAssertGreaterThan(try XCTUnwrap(ent.expiresAt), firstExpiry)
+        await store.refreshEligibility()
+        XCTAssertEqual(store.introEligible[plus.id], false)
+    }
+
+    /// Kaufanfrage (Familienfreigabe, "Ask to Buy"): erst ausstehend und weiter Free, nach Freigabe Plus
+    func testAskToBuyIsPendingUntilApproved() async throws {
+        session.askToBuyEnabled = true
+        let (store, ent) = await makeStore()
+        let plus = try XCTUnwrap(store.product(for: .plus))
+        let outcome = await store.purchase(plus)
+        XCTAssertEqual(outcome, .pending, store.lastError ?? "")
+        XCTAssertNil(store.lastError)
+        await ent.refresh()
+        XCTAssertEqual(ent.plan, .free)
+        XCTAssertFalse(ent.allows(.pencilWriting))
+        let t = try XCTUnwrap(session.allTransactions().first { $0.productIdentifier == plus.id })
+        try session.approveAskToBuyTransaction(identifier: t.identifier)
+        await waitForPlan(ent, .plus)
+        XCTAssertEqual(ent.plan, .plus)
+        XCTAssertTrue(ent.allows(.pencilWriting))
     }
 
     func testExpiryFallsBackToFree() async throws {
@@ -112,17 +185,24 @@ final class PurchaseTests: XCTestCase {
         XCTAssertEqual(ent.plan, .plus)
         _ = await store.purchase(try XCTUnwrap(store.product(for: .pro)))
         XCTAssertEqual(ent.plan, .pro)
-        XCTAssertTrue(ent.allows(.uniGrades))
+        XCTAssertTrue(ent.allows(.pencilWriting))
+        // Uni & Noten gibt es auf dem iPad erst mit F4: auch in Pro "bald", nicht freigeschaltet
+        XCTAssertEqual(ent.access(.uniGrades), .comingSoon)
     }
 
     func testRestoreOnNewInstall() async throws {
         let (store, ent) = await makeStore()
         _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
         XCTAssertEqual(ent.plan, .plus)
-        // neue Instanz wie nach Neuinstallation: Wiederherstellen liefert den Tarif aus dem Store
-        let (fresh, freshEnt) = await makeStore()
+        // neue Instanz wie nach Neuinstallation, ohne vorheriges refresh(): Tarif zuerst Free,
+        // erst restore() liefert den Tarif aus dem Store
+        let freshEnt = Entitlements(observe: false)
+        let fresh = PurchaseStore(entitlements: freshEnt)
+        await fresh.loadProducts()
+        XCTAssertEqual(freshEnt.plan, .free)
         await fresh.restore()
         XCTAssertNil(fresh.lastError)
         XCTAssertEqual(freshEnt.plan, .plus)
+        XCTAssertNotNil(freshEnt.expiresAt, "Ablauf des wiederhergestellten Abos fehlt")
     }
 }

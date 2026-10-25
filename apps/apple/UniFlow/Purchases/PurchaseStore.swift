@@ -22,8 +22,10 @@ final class PurchaseStore: ObservableObject {
 
     let entitlements: Entitlements
 
-    init(entitlements: Entitlements = .shared) {
-        self.entitlements = entitlements
+    /// `nil` = gemeinsamer Tarif der App (`Entitlements.shared`). Aufgeloest erst hier im MainActor-Kontext, weil
+    /// Standardargumente in Swift 5 nicht isoliert ausgewertet werden (in Swift 6 ein Fehler).
+    init(entitlements: Entitlements? = nil) {
+        self.entitlements = entitlements ?? .shared
     }
 
     /// aktueller Tarif als Text ("free"/"plus"/"pro"), wie bisher
@@ -38,15 +40,22 @@ final class PurchaseStore: ObservableObject {
         defer { loadingProducts = false }
         do {
             products = try await Product.products(for: Self.productIDs).sorted { $0.price < $1.price }
-            var eligible: [String: Bool] = [:]
-            for p in products {
-                if let sub = p.subscription { eligible[p.id] = await sub.isEligibleForIntroOffer }
-            }
-            introEligible = eligible
+            await refreshEligibility()
             lastError = products.isEmpty ? "Die Tarife konnten nicht geladen werden. Prüfe die Verbindung und versuche es erneut." : nil
         } catch {
             lastError = "Die Tarife konnten nicht geladen werden: \(error.localizedDescription)"
         }
+    }
+
+    /// Anspruch auf das Einfuehrungsangebot fuer alle geladenen Produkte neu lesen. Apple fuehrt ihn je Abo-Gruppe:
+    /// Nach einem Kauf, Wiederherstellen oder einer Aktualisierung (Transaction.updates) entfaellt er auch fuer die
+    /// anderen Tarife der Gruppe. Ohne neues Lesen wuerde die Seite weiter mit "1 Woche gratis" werben (Richtlinie 3.1.2).
+    func refreshEligibility() async {
+        var eligible: [String: Bool] = [:]
+        for p in products {
+            if let sub = p.subscription { eligible[p.id] = await sub.isEligibleForIntroOffer }
+        }
+        introEligible = eligible
     }
 
     /// Apple-Kaufdialog. Bei Abbruch bleibt alles, wie es war.
@@ -62,7 +71,7 @@ final class PurchaseStore: ObservableObject {
                     lastError = "Der Kauf konnte nicht bestätigt werden."
                     return .failed
                 }
-                if let sub = product.subscription { introEligible[product.id] = await sub.isEligibleForIntroOffer }
+                await refreshEligibility()
                 return .success
             case .userCancelled:
                 return .cancelled
@@ -91,6 +100,7 @@ final class PurchaseStore: ObservableObject {
             lastError = "Wiederherstellen fehlgeschlagen: \(error.localizedDescription)"
         }
         await entitlements.refresh()
+        await refreshEligibility()
     }
 
     func refreshEntitlements() async {
