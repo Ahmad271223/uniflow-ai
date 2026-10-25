@@ -7,6 +7,8 @@ import UniFlowCore
 // Dokumente & Notizen 1:1 nach viewFiles() in app/static/views-lib.js: Modulordner, eigene Ordner, Typ-Chips,
 // Bereiche (Favoriten, Zuletzt, Neu aus Stud.IP, Papierkorb), Kacheln/Liste, Suche, Sortierung, Neu-Menü,
 // Menüs je Element. Daten: GET /api/library.
+// Lokal (ohne PC) zusaetzlich: Stud.IP-Kurse ohne Modul als Ordner (Pfad "c<Kurs-ID>", Kursliste aus GET /api/courses),
+// solange die Einordnung in Faecher und Module fehlt (S4, docs/IPAD-OHNE-PC.md). Mit eigenem Server wie im Web.
 
 enum LibraryStyle {
     /// FILE_COLORS in views-lib.js
@@ -30,6 +32,45 @@ enum LibraryStyle {
     }
 }
 
+/// Stud.IP-Kurse ohne Modul als Ordner in Dokumente & Notizen und in Meine Module (nur lokal): Ohne Fach gibt es bis
+/// zur Einordnung (S4) keine Module, die Dokumente der Kurse stuenden sonst nur unter "Neu aus Stud.IP" und "Zuletzt".
+/// Mit eigenem Server ordnet der PC zu, dort bleibt alles wie im Web.
+enum LibraryCourses {
+    /// Pseudokurs der eigenen Dokumente (app/db.py)
+    static let ownDocuments = "__user__"
+
+    /// Stud.IP-Kurse aus `GET /api/courses`, die keinem Modul zugeordnet sind
+    static func unassigned(_ courses: [JSONValue]) -> [JSONValue] {
+        courses.filter { $0.s("id") != ownDocuments && $0["module_id"]?.isNull != false }
+    }
+
+    /// Pfad des Kursordners
+    static func path(_ courseID: String) -> String { "c" + courseID }
+
+    /// Kurs-ID aus einem Pfad "c<Kurs-ID>[/...]"; nil fuer Modul- und eigene Ordner
+    static func courseID(_ path: String) -> String? {
+        let first = path.split(separator: "/", maxSplits: 1).first.map(String.init) ?? ""
+        guard first.hasPrefix("c"), first.count > 1 else { return nil }
+        return String(first.dropFirst())
+    }
+
+    /// Kurstitel eines Stud.IP-Dokuments (lokal ohne Fach statt "Eigene Notizen" im Schnellzugriff)
+    static func title(of file: JSONValue, in courses: [JSONValue]) -> String? {
+        guard let cid = file.s("course_id"), cid != ownDocuments else { return nil }
+        return courses.first { $0.s("id") == cid }?.s("title")
+    }
+
+    /// Ordner je Kurs ohne Modul, der Dokumente in der Bibliothek hat (Papierkorb und inaktive Kurse zaehlen nicht,
+    /// die liefert `/api/library` nicht); Reihenfolge wie `/api/courses` (nach Titel)
+    static func folders(_ courses: [JSONValue], files: [JSONValue]) -> [LibraryPage.Item] {
+        unassigned(courses).compactMap { c in
+            guard let id = c.s("id") else { return nil }
+            let n = files.filter { $0.s("course_id") == id && $0["module_id"]?.isNull != false }.count
+            return n > 0 ? LibraryPage.Item(id: path(id), kind: .folder, label: c.s("title") ?? "Kurs", count: n, path: path(id)) : nil
+        }
+    }
+}
+
 extension ISO8601DateFormatter {
     /// "2026-10-25T08:23:26" ohne Zeitzone (lokale Zeit wie db.now_iso)
     static let local: ISO8601DateFormatter = {
@@ -50,6 +91,8 @@ struct LibraryPage: View {
     @EnvironmentObject private var router: UFRouter
     @AppStorage("lib-mode") private var mode = "grid"
     @State private var lib: JSONValue?
+    /// lokal: Kursliste fuer die Kursordner (`LibraryCourses`); mit eigenem Server leer
+    @State private var courses: [JSONValue] = []
     @State private var error: String?
     @State private var query = ""
     @State private var searchTask: Task<Void, Never>?
@@ -71,7 +114,12 @@ struct LibraryPage: View {
 
     private func load() async {
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
-        do { lib = try await api.value("/api/library"); error = nil } catch { if lib == nil { self.error = error.localizedDescription } }
+        do {
+            let value = try await api.value("/api/library")
+            courses = api.isLocal ? ((try? await api.value("/api/courses"))?.items ?? []) : []
+            lib = value
+            error = nil
+        } catch { if lib == nil { self.error = error.localizedDescription } }
     }
 
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
@@ -123,7 +171,7 @@ struct LibraryPage: View {
                 b.items = modules.map { m in
                     Item(id: "m\(m.i("id") ?? 0)", kind: .folder, label: m.s("name") ?? "", color: m.s("color"),
                          count: files.filter { $0.i("module_id") == m.i("id") }.count, path: "m\(m.i("id") ?? 0)", module: m)
-                } + folders.filter { $0["parent_id"]?.isNull != false && $0["module_id"]?.isNull != false }.map { f in
+                } + LibraryCourses.folders(courses, files: files) + folders.filter { $0["parent_id"]?.isNull != false && $0["module_id"]?.isNull != false }.map { f in
                     Item(id: "f\(f.i("id") ?? 0)", kind: .folder, label: f.s("name") ?? "", color: f.s("color") ?? "#8b93a8", count: count(f.i("id") ?? 0),
                          path: "f\(f.i("id") ?? 0)", user: f)
                 } + files.filter { $0.s("course_id") == "__user__" && $0["folder_id"]?.isNull != false }.map(doc)
@@ -154,6 +202,11 @@ struct LibraryPage: View {
                     b.crumbs.append((LibraryStyle.typeFolders.first { $0.0 == t }?.1 ?? t, seg.joined(separator: "/")))
                     b.items = modFiles.filter { ($0.s("doc_type") ?? "sonstiges") == t && $0.s("course_id") != "__user__" }.map(doc)
                 }
+            } else if let cid = LibraryCourses.courseID(seg[0]) {
+                // lokal: Kursordner mit allen Dokumenten des Kurses
+                b.crumbs.append((courses.first { $0.s("id") == cid }?.s("title") ?? "Kurs", seg[0]))
+                let courseFiles = files.filter { $0.s("course_id") == cid }
+                b.items = filter == "all" ? courseFiles.map(doc) : byFilter(courseFiles)
             } else if seg[0].hasPrefix("f") {
                 var parent = 0
                 for (i, s) in seg.enumerated() {
@@ -199,6 +252,8 @@ struct LibraryPage: View {
         let section = self.section ?? "docs"
         let path = self.path ?? ""
         let curMod = path.hasPrefix("m") ? Int(path.components(separatedBy: "/")[0].dropFirst()) ?? 0 : 0
+        // im Kursordner entsteht Neues auf der Stammebene (ein Kurs ist kein Ablageort eigener Dokumente)
+        let inCourse = LibraryCourses.courseID(path) != nil
         let newCount = lib.list("files").filter { $0.s("status") == "neu" }.count
         let sectionTitle = ["fav": "Favoriten", "recent": "Zuletzt bearbeitet", "new": "Neu aus Stud.IP", "trash": "Papierkorb"][section]
         UFContent(maxWidth: 1480) {
@@ -208,7 +263,9 @@ struct LibraryPage: View {
                          selection: Binding(get: { curMod }, set: { v in router.go(.files(path: v == 0 ? nil : "m\(v)")) }))
                 UFSelect(options: [("date", "Zuletzt bearbeitet"), ("name", "Name")], selection: Binding(get: { Self.sort }, set: { Self.sort = $0; tick += 1 }))
                 UFIconSegmented(options: [("grid", "grid"), ("list", "list")], selection: $mode)
-                UFButton("Neu", icon: "plus", kind: .primary) { overlay.modal { LibraryNewDialog(lib: lib, path: path, current: b.crumbs.last ?? ("", "")) } }
+                UFButton("Neu", icon: "plus", kind: .primary) {
+                    overlay.modal { LibraryNewDialog(lib: lib, path: inCourse ? "" : path, current: inCourse ? b.crumbs[0] : (b.crumbs.last ?? ("", ""))) }
+                }
             }
             UFFlexWrap(gap: 9.6, justify: .between) {                         // .row.between.wrap
                 UFFlexWrap(gap: 8) {                                         // .chips
@@ -251,7 +308,9 @@ struct LibraryPage: View {
                         Text("Zuletzt geöffnete Dokumente erscheinen hier.").ufFont(13.12).foregroundStyle(UF.muted)
                     } else {
                         UFGridLayout(spacing: 12.8, minWidth: 230) {
-                            ForEach(Row.rows(recent)) { row in LibraryQuickItem(f: row.value) { openDoc(row.value) } }
+                            ForEach(Row.rows(recent)) { row in
+                                LibraryQuickItem(f: row.value, place: LibraryCourses.title(of: row.value, in: courses)) { openDoc(row.value) }
+                            }
                         }
                         .environment(\.ufFillsCell, true)
                     }
@@ -444,7 +503,10 @@ struct LibraryFolderCard: View {
                 HStack(alignment: .top, spacing: 9.6) {
                     Text(it.label).ufFont(16.32, 650, lh: 1.25).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Button(action: menu) { UFIcon("more", size: 18).foregroundStyle(UF.muted).padding(3.2) }.buttonStyle(.plain).help("Mehr")
+                    // Kursordner (lokal) haben kein Menue
+                    if it.user != nil || it.module != nil {
+                        Button(action: menu) { UFIcon("more", size: 18).foregroundStyle(UF.muted).padding(3.2) }.buttonStyle(.plain).help("Mehr")
+                    }
                 }
                 .padding(.leading, 56).frame(minHeight: 44, alignment: .top)
                 Text("\(it.count) Dokument\(it.count == 1 ? "" : "e")").ufFont(12.8).foregroundStyle(UF.muted).padding(.leading, 56).padding(.top, 2.4)
@@ -654,6 +716,8 @@ struct LibraryListRow: View {
 /// .quick-item: Farbkachel je Typ, Titel, "Fach · vor N Tagen"
 struct LibraryQuickItem: View {
     let f: JSONValue
+    /// lokal: Kurs, wenn das Dokument noch kein Fach hat
+    var place: String?
     let open: () -> Void
     @Environment(\.ufFillsCell) private var fills
 
@@ -665,7 +729,7 @@ struct LibraryQuickItem: View {
                 .overlay(UFIcon(ic, size: 18).foregroundStyle(.white))
             VStack(alignment: .leading, spacing: 0) {
                 Text(f.s("title") ?? "").ufFont(14.08, 700).foregroundStyle(UF.text).lineLimit(1)
-                Text("\(f.s("subject") ?? "Eigene Notizen") · \(LibraryStyle.ago(f))").ufFont(11.84).foregroundStyle(UF.muted)
+                Text("\(f.s("subject") ?? place ?? "Eigene Notizen") · \(LibraryStyle.ago(f))").ufFont(11.84).foregroundStyle(UF.muted)
             }
             Spacer(minLength: 0)
         }
@@ -705,6 +769,7 @@ actor UFThumbnails {
         guard let out else { return nil }
         memory[key] = out
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        AppPaths.excludeFromBackup(dir)                                 // Vorschauen von Stud.IP-Dateien: nur auf dem Geraet
         try? out.jpegData(compressionQuality: 0.75)?.write(to: file, options: .atomic)
         return out
     }

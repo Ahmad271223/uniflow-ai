@@ -79,7 +79,8 @@ public enum SyncIssue: Equatable, Sendable {
     case serverfehler(Int)
     /// Bei der Zusammenfuehrung mit dem Server mussten so viele Objekte entschieden werden.
     case konflikteZusammengefuehrt(Int)
-    /// 409 ohne neueren Stand: Die Datenquelle kann (noch) nicht speichern, z. B. das lokale Backend vor S3. Keine
+    /// 409 ohne neueren Stand: Die Datenquelle kann nicht speichern, z. B. das lokale Backend fuer ein Dokument, das
+    /// es in seiner Datenbank nicht gibt. Keine
     /// automatische Wiederholung; die Meldung kommt aus "detail".
     case nichtVerfuegbar(String)
 

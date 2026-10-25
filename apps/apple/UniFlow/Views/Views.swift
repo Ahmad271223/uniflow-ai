@@ -92,6 +92,9 @@ struct LibraryView: View {
             guard let new else { return }
             if !openTabs.contains(new) { openTabs.append(new) }
             columns = .detailOnly
+            // wie viewDoc im Web: geoeffnet (Zuletzt, gilt als gesehen); Fehler sind egal
+            let api = session.api
+            Task { _ = try? await api?.value("/api/files/\(new)/opened", method: "POST", body: [:]) }
         }
         .task {
             await load()

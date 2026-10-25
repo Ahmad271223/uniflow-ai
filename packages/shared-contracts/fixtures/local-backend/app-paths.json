@@ -1,12 +1,12 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 76,
+ "count": 77,
  "paths": [
   {
    "method": "DELETE",
    "shape": "/api/flashcards/{}",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/flashcards/1"
@@ -30,7 +30,7 @@
    "method": "DELETE",
    "shape": "/api/folders/{}",
    "sources": [
-    "UniFlow\\Views\\Library\\LibraryDialogs.swift"
+    "UniFlow/Views/Library/LibraryDialogs.swift"
    ],
    "request": {
     "path": "/api/folders/1"
@@ -54,7 +54,7 @@
    "method": "DELETE",
    "shape": "/api/packages/{}",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/packages/1"
@@ -78,7 +78,7 @@
    "method": "DELETE",
    "shape": "/api/tasks/{}",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/tasks/1"
@@ -102,7 +102,7 @@
    "method": "DELETE",
    "shape": "/api/tests/{}",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/tests/1"
@@ -126,7 +126,7 @@
    "method": "DELETE",
    "shape": "/api/timetable/events/{}",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/timetable/events/1"
@@ -174,7 +174,7 @@
    "method": "GET",
    "shape": "/api/bg",
    "sources": [
-    "UniFlow\\Design\\ShellState.swift"
+    "UniFlow/Design/ShellState.swift"
    ],
    "request": {
     "path": "/api/bg"
@@ -204,7 +204,7 @@
    "method": "GET",
    "shape": "/api/calendar",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanView.swift"
+    "UniFlow/Views/Plan/PlanView.swift"
    ],
    "request": {
     "path": "/api/calendar?start=2026-10-26&end=2026-11-01"
@@ -358,7 +358,7 @@
    "method": "GET",
    "shape": "/api/calendar/feasibility",
    "sources": [
-    "UniFlow\\Views\\PlanDialogs.swift"
+    "UniFlow/Views/PlanDialogs.swift"
    ],
    "request": {
     "path": "/api/calendar/feasibility"
@@ -394,7 +394,9 @@
    "method": "GET",
    "shape": "/api/courses",
    "sources": [
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Library/LibraryPage.swift",
+    "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/courses"
@@ -447,10 +449,6 @@
     }
    },
    "expect": {
-    "empty_lists": [
-     "$"
-    ],
-    "reason": "Python zeigt den Pseudokurs __user__ (Eigene Dokumente); lokal kommen Kurse mit S3",
     "status": 200
    }
   },
@@ -458,7 +456,7 @@
    "method": "GET",
    "shape": "/api/credentials",
    "sources": [
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/credentials"
@@ -477,7 +475,7 @@
    "method": "GET",
    "shape": "/api/dashboard",
    "sources": [
-    "UniFlow\\Views\\DashboardView.swift"
+    "UniFlow/Views/DashboardView.swift"
    ],
    "request": {
     "path": "/api/dashboard"
@@ -714,7 +712,7 @@
    "method": "GET",
    "shape": "/api/files/{}/annotations",
    "sources": [
-    "UniFlow\\Services\\APIClient.swift"
+    "UniFlow/Services/APIClient.swift"
    ],
    "request": {
     "path": "/api/files/f1/annotations"
@@ -756,10 +754,10 @@
    "method": "GET",
    "shape": "/api/files/{}/content",
    "sources": [
-    "UniFlow\\Services\\DocumentStore.swift",
-    "UniFlow\\Views\\Library\\LibraryDialogs.swift",
-    "UniFlow\\Views\\Library\\LibraryPage.swift",
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Services/DocumentStore.swift",
+    "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Library/LibraryPage.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/files/f1/content"
@@ -783,7 +781,7 @@
    "method": "GET",
    "shape": "/api/files/{}/pagetext",
    "sources": [
-    "UniFlow\\Views\\Modules\\ModulesPage.swift"
+    "UniFlow/Views/Modules/ModulesPage.swift"
    ],
    "request": {
     "path": "/api/files/f1/pagetext?page=1"
@@ -807,7 +805,7 @@
    "method": "GET",
    "shape": "/api/flashcards",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/flashcards?due=true"
@@ -827,7 +825,7 @@
    "method": "GET",
    "shape": "/api/grades",
    "sources": [
-    "UniFlow\\Views\\Services\\ServicesPage.swift"
+    "UniFlow/Views/Services/ServicesPage.swift"
    ],
    "request": {
     "path": "/api/grades"
@@ -868,10 +866,10 @@
    "method": "GET",
    "shape": "/api/library",
    "sources": [
-    "UniFlow\\Views\\DocumentView.swift",
-    "UniFlow\\Views\\Library\\LibraryPage.swift",
-    "UniFlow\\Views\\Settings\\SettingsPage.swift",
-    "UniFlow\\Views\\Views.swift"
+    "UniFlow/Views/DocumentView.swift",
+    "UniFlow/Views/Library/LibraryPage.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Views.swift"
    ],
    "request": {
     "path": "/api/library"
@@ -908,12 +906,12 @@
    "method": "GET",
    "shape": "/api/modules",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift",
-    "UniFlow\\Views\\Modules\\ModulesPage.swift",
-    "UniFlow\\Views\\Plan\\PlanActions.swift",
-    "UniFlow\\Views\\Plan\\PlanView.swift",
-    "UniFlow\\Views\\Settings\\SettingsPage.swift",
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift",
+    "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanView.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/modules"
@@ -933,9 +931,9 @@
    "method": "GET",
    "shape": "/api/modules/{}",
    "sources": [
-    "UniFlow\\Views\\Library\\LibraryDialogs.swift",
-    "UniFlow\\Views\\Modules\\ModulesPage.swift",
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/modules/1"
@@ -959,7 +957,7 @@
    "method": "GET",
    "shape": "/api/packages/{}",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/packages/1"
@@ -983,7 +981,7 @@
    "method": "GET",
    "shape": "/api/qis/documents/{}",
    "sources": [
-    "UniFlow\\Views\\Services\\ServicesPage.swift"
+    "UniFlow/Views/Services/ServicesPage.swift"
    ],
    "request": {
     "path": "/api/qis/documents/1"
@@ -1007,7 +1005,7 @@
    "method": "GET",
    "shape": "/api/search",
    "sources": [
-    "UniFlow\\Design\\ShellState.swift"
+    "UniFlow/Design/ShellState.swift"
    ],
    "request": {
     "path": "/api/search?q=algebra"
@@ -1036,7 +1034,7 @@
    "method": "GET",
    "shape": "/api/services",
    "sources": [
-    "UniFlow\\Views\\Services\\ServicesPage.swift"
+    "UniFlow/Views/Services/ServicesPage.swift"
    ],
    "request": {
     "path": "/api/services"
@@ -1159,11 +1157,11 @@
    "method": "GET",
    "shape": "/api/settings",
    "sources": [
-    "UniFlow\\Design\\ShellState.swift",
-    "UniFlow\\Services\\Session.swift",
-    "UniFlow\\Views\\PlanDialogs.swift",
-    "UniFlow\\Views\\Settings\\SettingsPage.swift",
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Design/ShellState.swift",
+    "UniFlow/Services/Session.swift",
+    "UniFlow/Views/PlanDialogs.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/settings"
@@ -1272,8 +1270,8 @@
    "method": "GET",
    "shape": "/api/sync/status",
    "sources": [
-    "UniFlow\\Design\\ShellState.swift",
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Design/ShellState.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/sync/status"
@@ -1312,7 +1310,7 @@
    "method": "GET",
    "shape": "/api/tasks/open",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanView.swift"
+    "UniFlow/Views/Plan/PlanView.swift"
    ],
    "request": {
     "path": "/api/tasks/open"
@@ -1332,7 +1330,7 @@
    "method": "GET",
    "shape": "/api/terms",
    "sources": [
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/terms"
@@ -1368,7 +1366,7 @@
    "method": "GET",
    "shape": "/api/tests",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/tests"
@@ -1388,7 +1386,7 @@
    "method": "GET",
    "shape": "/api/tests/{}",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/tests/1"
@@ -1412,7 +1410,7 @@
    "method": "GET",
    "shape": "/api/timetable/auto-status",
    "sources": [
-    "UniFlow\\Views\\Services\\ServicesPage.swift"
+    "UniFlow/Views/Services/ServicesPage.swift"
    ],
    "request": {
     "path": "/api/timetable/auto-status"
@@ -1444,7 +1442,7 @@
    "method": "GET",
    "shape": "/api/timetable/conflicts",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableView.swift"
+    "UniFlow/Views/Timetable/TimetableView.swift"
    ],
    "request": {
     "path": "/api/timetable/conflicts"
@@ -1464,8 +1462,8 @@
    "method": "GET",
    "shape": "/api/timetable/day",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanView.swift",
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/Plan/PlanView.swift",
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/timetable/day?date=2026-10-26"
@@ -1533,7 +1531,7 @@
    "method": "GET",
    "shape": "/api/timetable/event-materials/{}",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/timetable/event-materials/1?date=2026-10-26"
@@ -1557,7 +1555,7 @@
    "method": "GET",
    "shape": "/api/timetable/events",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/timetable/events"
@@ -1577,8 +1575,8 @@
    "method": "GET",
    "shape": "/api/timetable/week",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanView.swift",
-    "UniFlow\\Views\\Timetable\\TimetableView.swift"
+    "UniFlow/Views/Plan/PlanView.swift",
+    "UniFlow/Views/Timetable/TimetableView.swift"
    ],
    "request": {
     "path": "/api/timetable/week?start=2026-10-26"
@@ -1683,7 +1681,7 @@
    "method": "PATCH",
    "shape": "/api/courses/{}",
    "sources": [
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/courses/k1",
@@ -1705,7 +1703,7 @@
    "method": "PATCH",
    "shape": "/api/folders/{}",
    "sources": [
-    "UniFlow\\Views\\Library\\LibraryDialogs.swift"
+    "UniFlow/Views/Library/LibraryDialogs.swift"
    ],
    "request": {
     "path": "/api/folders/1",
@@ -1727,7 +1725,7 @@
    "method": "PATCH",
    "shape": "/api/library/files/{}",
    "sources": [
-    "UniFlow\\Views\\Library\\LibraryDialogs.swift"
+    "UniFlow/Views/Library/LibraryDialogs.swift"
    ],
    "request": {
     "path": "/api/library/files/f1",
@@ -1754,8 +1752,8 @@
    "method": "PATCH",
    "shape": "/api/modules/{}",
    "sources": [
-    "UniFlow\\Views\\Modules\\ModulesPage.swift",
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/modules/1",
@@ -1777,8 +1775,8 @@
    "method": "PATCH",
    "shape": "/api/packages/{}",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift",
-    "UniFlow\\Views\\Plan\\PlanGrids.swift"
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanGrids.swift"
    ],
    "request": {
     "path": "/api/packages/1",
@@ -1800,7 +1798,7 @@
    "method": "PATCH",
    "shape": "/api/tasks/{}",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/tasks/1",
@@ -1822,7 +1820,7 @@
    "method": "PATCH",
    "shape": "/api/timetable/events/{}",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/timetable/events/1",
@@ -1849,7 +1847,7 @@
    "method": "POST",
    "shape": "/api/ai/tutor",
    "sources": [
-    "UniFlow\\Views\\Modules\\ModulesPage.swift"
+    "UniFlow/Views/Modules/ModulesPage.swift"
    ],
    "request": {
     "path": "/api/ai/tutor",
@@ -1866,8 +1864,8 @@
    "method": "POST",
    "shape": "/api/calendar/apply",
    "sources": [
-    "UniFlow\\Views\\PlanDialogs.swift",
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/PlanDialogs.swift"
    ],
    "request": {
     "path": "/api/calendar/apply",
@@ -1894,8 +1892,8 @@
    "method": "POST",
    "shape": "/api/calendar/generate",
    "sources": [
-    "UniFlow\\Views\\PlanDialogs.swift",
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/PlanDialogs.swift"
    ],
    "request": {
     "path": "/api/calendar/generate",
@@ -1926,8 +1924,8 @@
    "method": "POST",
    "shape": "/api/calendar/suggest",
    "sources": [
-    "UniFlow\\Views\\DashboardView.swift",
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/DashboardView.swift",
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/calendar/suggest",
@@ -1958,7 +1956,7 @@
    "method": "POST",
    "shape": "/api/courses/{}/module",
    "sources": [
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/courses/k1/module",
@@ -1985,7 +1983,7 @@
    "method": "POST",
    "shape": "/api/files/mark-seen",
    "sources": [
-    "UniFlow\\Views\\DashboardView.swift"
+    "UniFlow/Views/DashboardView.swift"
    ],
    "request": {
     "path": "/api/files/mark-seen"
@@ -2009,8 +2007,8 @@
    "method": "POST",
    "shape": "/api/files/{}/favorite",
    "sources": [
-    "UniFlow\\Views\\Library\\LibraryDialogs.swift",
-    "UniFlow\\Views\\Library\\LibraryPage.swift"
+    "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Library/LibraryPage.swift"
    ],
    "request": {
     "path": "/api/files/f1/favorite",
@@ -2035,9 +2033,34 @@
   },
   {
    "method": "POST",
+   "shape": "/api/files/{}/opened",
+   "sources": [
+    "UniFlow/Views/Views.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/opened",
+    "body": {}
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/flashcards/{}/review",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/flashcards/1/review",
@@ -2064,7 +2087,7 @@
    "method": "POST",
    "shape": "/api/folders",
    "sources": [
-    "UniFlow\\Views\\Library\\LibraryDialogs.swift"
+    "UniFlow/Views/Library/LibraryDialogs.swift"
    ],
    "request": {
     "path": "/api/folders",
@@ -2099,15 +2122,14 @@
     }
    },
    "expect": {
-    "status": 409,
-    "reason": "Anlegen kommt mit S3"
+    "status": 200
    }
   },
   {
    "method": "POST",
    "shape": "/api/grades/sync",
    "sources": [
-    "UniFlow\\Views\\Services\\ServicesPage.swift"
+    "UniFlow/Views/Services/ServicesPage.swift"
    ],
    "request": {
     "path": "/api/grades/sync"
@@ -2121,7 +2143,7 @@
    "method": "POST",
    "shape": "/api/modules",
    "sources": [
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/modules",
@@ -2182,7 +2204,7 @@
    "method": "POST",
    "shape": "/api/modules/auto-assign",
    "sources": [
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/modules/auto-assign"
@@ -2210,8 +2232,8 @@
    "method": "POST",
    "shape": "/api/notebooks",
    "sources": [
-    "UniFlow\\Views\\Library\\LibraryDialogs.swift",
-    "UniFlow\\Views\\Views.swift"
+    "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Views.swift"
    ],
    "request": {
     "path": "/api/notebooks",
@@ -2304,15 +2326,14 @@
     }
    },
    "expect": {
-    "status": 409,
-    "reason": "Eigene Dokumente kommen mit S3"
+    "status": 200
    }
   },
   {
    "method": "POST",
    "shape": "/api/packages",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/packages",
@@ -2377,7 +2398,7 @@
    "method": "POST",
    "shape": "/api/packages/{}/tasks",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/packages/1/tasks",
@@ -2404,7 +2425,7 @@
    "method": "POST",
    "shape": "/api/related",
    "sources": [
-    "UniFlow\\Views\\DocumentView.swift"
+    "UniFlow/Views/DocumentView.swift"
    ],
    "request": {
     "path": "/api/related",
@@ -2440,8 +2461,8 @@
    "method": "POST",
    "shape": "/api/sync",
    "sources": [
-    "UniFlow\\Design\\ShellState.swift",
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Design/ShellState.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/sync?ai=false"
@@ -2455,8 +2476,8 @@
    "method": "POST",
    "shape": "/api/tasks/skip",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift",
-    "UniFlow\\Views\\Plan\\PlanView.swift"
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanView.swift"
    ],
    "request": {
     "path": "/api/tasks/skip",
@@ -2483,7 +2504,7 @@
    "method": "POST",
    "shape": "/api/tasks/{}/start-test",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift"
+    "UniFlow/Views/Plan/PlanActions.swift"
    ],
    "request": {
     "path": "/api/tasks/1/start-test"
@@ -2497,9 +2518,9 @@
    "method": "POST",
    "shape": "/api/tasks/{}/status",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift",
-    "UniFlow\\Views\\Plan\\PlanActions.swift",
-    "UniFlow\\Views\\Plan\\PlanGrids.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift",
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanGrids.swift"
    ],
    "request": {
     "path": "/api/tasks/1/status",
@@ -2526,7 +2547,7 @@
    "method": "POST",
    "shape": "/api/tests/generate",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/tests/generate",
@@ -2544,7 +2565,7 @@
    "method": "POST",
    "shape": "/api/tests/generate-week",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/tests/generate-week"
@@ -2558,7 +2579,7 @@
    "method": "POST",
    "shape": "/api/tests/{}/submit",
    "sources": [
-    "UniFlow\\Views\\Exams\\ExamsPage.swift"
+    "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
     "path": "/api/tests/1/submit",
@@ -2586,7 +2607,7 @@
    "method": "POST",
    "shape": "/api/timetable/attendance",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/timetable/attendance",
@@ -2614,7 +2635,7 @@
    "method": "POST",
    "shape": "/api/timetable/events",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/timetable/events",
@@ -2691,7 +2712,7 @@
    "method": "POST",
    "shape": "/api/timetable/import/confirm",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableView.swift"
+    "UniFlow/Views/Timetable/TimetableView.swift"
    ],
    "request": {
     "path": "/api/timetable/import/confirm",
@@ -2733,7 +2754,7 @@
    "method": "POST",
    "shape": "/api/timetable/import/preview",
    "sources": [
-    "UniFlow\\Views\\Timetable\\TimetableView.swift"
+    "UniFlow/Views/Timetable/TimetableView.swift"
    ],
    "request": {
     "path": "/api/timetable/import/preview",
@@ -2750,9 +2771,9 @@
    "method": "POST",
    "shape": "/api/timetable/reslot",
    "sources": [
-    "UniFlow\\Views\\Plan\\PlanActions.swift",
-    "UniFlow\\Views\\Plan\\PlanGrids.swift",
-    "UniFlow\\Views\\Timetable\\TimetableView.swift"
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanGrids.swift",
+    "UniFlow/Views/Timetable/TimetableView.swift"
    ],
    "request": {
     "path": "/api/timetable/reslot",
@@ -2784,7 +2805,7 @@
    "method": "PUT",
    "shape": "/api/credentials/{}",
    "sources": [
-    "UniFlow\\Views\\Services\\ServicesPage.swift"
+    "UniFlow/Views/Services/ServicesPage.swift"
    ],
    "request": {
     "path": "/api/credentials/qis",
@@ -2801,7 +2822,7 @@
    "method": "PUT",
    "shape": "/api/files/{}/annotations",
    "sources": [
-    "UniFlow\\Services\\APIClient.swift"
+    "UniFlow/Services/APIClient.swift"
    ],
    "request": {
     "path": "/api/files/f1/annotations?base_version=0",
@@ -2818,16 +2839,16 @@
    },
    "expect": {
     "status": 409,
-    "reason": "Notizen lokal erst mit S3; Journal behaelt alles"
+    "reason": "Dokument fehlt in der Datenbank: Python 500 (Fremdschluessel), lokal 409 ohne version, die App behaelt die Notizen im Journal"
    }
   },
   {
    "method": "PUT",
    "shape": "/api/settings",
    "sources": [
-    "UniFlow\\Views\\PlanDialogs.swift",
-    "UniFlow\\Views\\Settings\\SettingsPage.swift",
-    "UniFlow\\Views\\Timetable\\TimetableShared.swift"
+    "UniFlow/Views/PlanDialogs.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
     "path": "/api/settings",
@@ -2939,7 +2960,7 @@
    "method": "PUT",
    "shape": "/api/terms",
    "sources": [
-    "UniFlow\\Views\\Settings\\SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift"
    ],
    "request": {
     "path": "/api/terms",

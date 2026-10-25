@@ -53,13 +53,17 @@ public indirect enum PyJSON: Equatable, Sendable {
     // MARK: Schreiben wie Python
 
     /// `json.dumps(value)` mit den Standardwerten: `ensure_ascii=True`, Trenner ", " und ": ".
-    public var dumps: String {
+    public var dumps: String { dumps(ensureASCII: true) }
+
+    /// `json.dumps(value, ensure_ascii=...)`: mit `false` bleiben Zeichen ausserhalb von ASCII stehen (so speichert
+    /// app/server.py die Notizen, `PUT /api/files/{id}/annotations`).
+    public func dumps(ensureASCII: Bool) -> String {
         var out = ""
-        write(into: &out)
+        write(into: &out, ascii: ensureASCII)
         return out
     }
 
-    private func write(into out: inout String) {
+    private func write(into out: inout String, ascii: Bool) {
         switch self {
         case .null: out += "null"
         case .bool(let b): out += b ? "true" : "false"
@@ -67,24 +71,51 @@ public indirect enum PyJSON: Equatable, Sendable {
         case .float(let d):
             // json.dumps schreibt nicht endliche Werte als NaN/Infinity (allow_nan=True)
             if d.isNaN { out += "NaN" } else if d.isInfinite { out += d < 0 ? "-Infinity" : "Infinity" } else { out += PyJSON.repr(d) }
-        case .string(let s): PyJSON.writeASCII(s, into: &out)
+        case .string(let s): PyJSON.writeString(s, ascii: ascii, into: &out)
         case .array(let a):
             out += "["
             for (i, v) in a.enumerated() {
                 if i > 0 { out += ", " }
-                v.write(into: &out)
+                v.write(into: &out, ascii: ascii)
             }
             out += "]"
         case .object(let m):
             out += "{"
             for (i, e) in m.enumerated() {
                 if i > 0 { out += ", " }
-                PyJSON.writeASCII(e.key, into: &out)
+                PyJSON.writeString(e.key, ascii: ascii, into: &out)
                 out += ": "
-                e.value.write(into: &out)
+                e.value.write(into: &out, ascii: ascii)
             }
             out += "}"
         }
+    }
+
+    static func writeString(_ s: String, ascii: Bool, into out: inout String) {
+        if ascii { writeASCII(s, into: &out) } else { writeUnicode(s, into: &out) }
+    }
+
+    /// Zeichenkette wie `json.dumps(..., ensure_ascii=False)`: nur `"`, `\` und Steuerzeichen unter 0x20 werden
+    /// maskiert (\n, \r, \t, \b, \f, sonst \u00XX), alles andere bleibt stehen (auch DEL und Zeichen ausserhalb der BMP).
+    static func writeUnicode(_ s: String, into out: inout String) {
+        out += "\""
+        for u in s.unicodeScalars {
+            switch u.value {
+            case 0x22: out += "\\\""
+            case 0x5C: out += "\\\\"
+            case 0x0A: out += "\\n"
+            case 0x0D: out += "\\r"
+            case 0x09: out += "\\t"
+            case 0x08: out += "\\b"
+            case 0x0C: out += "\\f"
+            case 0x00..<0x20:
+                out += "\\u00"
+                out.append(hex[Int(u.value >> 4)])
+                out.append(hex[Int(u.value & 0xF)])
+            default: out.unicodeScalars.append(u)
+            }
+        }
+        out += "\""
     }
 
     /// `repr(float)`: kuerzeste exakte Darstellung; wissenschaftlich ab 1e16 und unter 1e-4 ("1e+16", "1.5e-07"),

@@ -81,7 +81,7 @@ struct DashboardView: View {
                     }
                 }
                 // lokal: solange Stud.IP nicht verbunden ist, oben die Karte "Stud.IP verbinden" (Auftrag 2a); danach
-                // bis S3 Abgleichstand und Stud.IP-Dateien, die die lokale Uebersicht noch nicht kennt
+                // der Abgleichstand (die neuen Dateien stehen unten unter "Neu aus Stud.IP")
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
 

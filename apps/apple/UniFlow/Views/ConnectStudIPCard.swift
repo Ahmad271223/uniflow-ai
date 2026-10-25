@@ -3,8 +3,10 @@ import UniFlowCore
 
 // V1 ohne PC-Server (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a): Die Seiten laden vom lokalen Backend des iPads
 // (dieselben /api/-Pfade wie der PC-Server, docs/IPAD-OHNE-PC.md) und zeigen ihre echten, anfangs leeren Zustaende.
-// Solange Stud.IP nicht verbunden ist, steht die Karte "Stud.IP verbinden" oberhalb der Seite, danach bis S3 die
-// Statusleiste mit Abgleichstand und Stud.IP-Dateien – keine Beispieldaten, keine Hinweise auf PC oder PIN. Mit eigenem Server (Entwicklungsmodus des Inhabers) laden die Seiten wie bisher.
+// Solange Stud.IP nicht verbunden ist, steht die Karte "Stud.IP verbinden" oberhalb der Seite, danach die
+// Statusleiste mit dem Abgleichstand (laufend, Fehler mit "Erneut versuchen"). Die abgeglichenen Dateien stehen seit S3
+// in den Seiten selbst (Dokumente, Uebersicht, Editor) – keine Beispieldaten, keine Hinweise auf PC oder PIN. Mit
+// eigenem Server (Entwicklungsmodus des Inhabers) laden die Seiten wie bisher.
 // Die Entscheidung trifft nur UFDataMode.current (Weiche fuer alle Seiten) und UFNoServerContent.resolve (was der
 // leere Zustand ohne Datenquelle zeigt); beide sind reine Funktionen mit Unit-Tests (NoServerStateTests).
 
@@ -101,7 +103,7 @@ struct UFNoServerContent: Equatable {
     let text: String
     /// Funktion braucht eine spaetere Version (QIS-Noten, KI-Wochentests): als "bald" kennzeichnen
     let soon: Bool
-    /// Beschriftung des Knopfs zu StudIPView; nil = kein Knopf
+    /// Beschriftung des Knopfs zu StudIPView (nur ohne Datenquelle); nil = kein Knopf
     let filesButton: String?
     /// kurzer Satz neben dem Knopf in der Statusleiste oberhalb einer lokalen Seite (UFStudIPStatusBar)
     var filesSummary: String?
@@ -111,8 +113,8 @@ struct UFNoServerContent: Equatable {
 
     static func resolve(kind: UFNoServerPage.Kind, mode: UFDataMode, phase: StudIPSync.Phase,
                         files: Int, courses: Int) -> UFNoServerContent {
-        // Stud.IP verbunden: ohne Datenquelle oder mit lokalem Backend (bis S3 kennen die lokalen Seiten die
-        // abgeglichenen Dateien noch nicht, deshalb Abgleichstand und Knopf zu StudIPView wie im leeren Zustand)
+        // Stud.IP verbunden: ohne Datenquelle oder mit lokalem Backend. Lokal zeigen die Seiten die abgeglichenen
+        // Dateien seit S3 selbst; der Knopf zu StudIPView bleibt nur fuer den leeren Zustand ohne Datenquelle
         let connected = mode == .empty || mode == .local(.connected)
         var status: Status?
         if connected {
@@ -124,10 +126,10 @@ struct UFNoServerContent: Equatable {
         }
         var button: String?
         var summary: String?
-        if connected, files > 0 {
+        if mode == .empty, files > 0 {
             button = "Stud.IP-Dateien ansehen (\(files))"
             summary = filesHere(files)
-        } else if connected, courses > 0 {
+        } else if mode == .empty, courses > 0 {
             button = "Stud.IP-Kurse ansehen (\(courses))"
             summary = coursesSynced(courses)
         }
@@ -241,6 +243,9 @@ struct UFNoServerPage: View {
         var maxWidth: CGFloat?
         /// Seite gibt es mit dem lokalen Backend (sonst lokal der leere Zustand, z. B. QIS-Noten, KI-Wochentests)
         var local = true
+        /// lokal Karte "Stud.IP verbinden" bzw. Statusleiste oberhalb der Seite; im Editor nicht (dort zaehlt die
+        /// ganze Hoehe fuer die Seite, Abgleich und Anmeldung stehen auf den uebrigen Seiten)
+        var barAbove = true
     }
 
     let spec: Spec
@@ -318,39 +323,17 @@ struct UFStudIPStatusCard: View {
     }
 }
 
-/// Statusleiste oberhalb einer lokalen Seite bei verbundenem Stud.IP (bis S3): Abgleichstand, Fehler mit
-/// "Erneut versuchen" und der Knopf zu den abgeglichenen Stud.IP-Dateien. Zeigt nichts, wenn nichts davon da ist.
+/// Statusleiste oberhalb einer lokalen Seite bei verbundenem Stud.IP: Abgleichstand und Fehler mit "Erneut
+/// versuchen" (die Dateien selbst stehen seit S3 in den Seiten). Zeigt nichts, wenn nichts davon da ist.
 struct UFStudIPStatusBar: View {
     let kind: UFNoServerPage.Kind
     let mode: UFDataMode
     @EnvironmentObject private var studip: StudIPSync
-    @State private var showFiles = false
 
     var body: some View {
         let c = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase,
                                           files: studip.entries.count, courses: studip.courses.count)
-        if c.showsStatusBar {
-            VStack(alignment: .leading, spacing: 12.8) {
-                if let status = c.status { UFStudIPStatusCard(status: status) }
-                if let label = c.filesButton {
-                    UFCard(flat: true) {
-                        HStack(spacing: 9.6) {
-                            UFIcon("folder", size: 18).foregroundStyle(UF.accent)
-                            Text(c.filesSummary ?? "").ufFont(14.5).foregroundStyle(UF.text2)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 8)
-                            UFButton(label, icon: "folder", size: .small) { showFiles = true }
-                        }
-                    }
-                }
-            }
-            .sheet(isPresented: $showFiles) {
-                NavigationStack {
-                    StudIPView()
-                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { showFiles = false } } }
-                }
-            }
-        }
+        if let status = c.status { UFStudIPStatusCard(status: status) }
     }
 }
 
@@ -362,6 +345,9 @@ extension UFNoServerPage.Spec {
                               kind: .modules, maxWidth: 1480)
     static let library = Self(title: "Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.",
                               kind: .library)
+    /// geoeffnetes Dokument (Editor): wie `library`, aber ohne Leiste oberhalb
+    static let document = Self(title: "Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.",
+                               kind: .library, barAbove: false)
     // Wochentests sind KI (entfallen in V1), Noten kommen erst mit QIS (F4): lokal der leere Zustand
     static let exams = Self(title: "Tests & Wiederholung", sub: "Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.",
                             kind: .exams, local: false)
@@ -374,8 +360,8 @@ extension UFNoServerPage.Spec {
 }
 
 /// Seite mit Datenquelle laden (eigener Server oder lokales Backend), sonst den leeren Zustand zeigen. Lokal steht
-/// die Karte "Stud.IP verbinden" oberhalb der echten Seite, solange Stud.IP nicht verbunden ist, danach bis S3 die
-/// Statusleiste mit Abgleichstand und Stud.IP-Dateien. Seiten, deren Funktion es in V1 nicht gibt (KI-Wochentests,
+/// die Karte "Stud.IP verbinden" oberhalb der echten Seite, solange Stud.IP nicht verbunden ist, danach die
+/// Statusleiste mit dem Abgleichstand. Seiten, deren Funktion es in V1 nicht gibt (KI-Wochentests,
 /// QIS-Noten), zeigen lokal weiter den ehrlichen leeren Zustand (`Spec.local == false`).
 struct UFServerGate<Content: View>: View {
     let spec: UFNoServerPage.Spec
@@ -419,8 +405,9 @@ enum UFGatePresentation: Equatable {
         guard mode.loadsPages else { return .empty }
         if case .local = mode {
             guard spec.local else { return .empty }
+            guard spec.barAbove else { return .page }
             if mode.showsConnectCard { return .pageBelowConnectCard }
-            // bis S3: Abgleichstand, Fehler und die Stud.IP-Dateien oberhalb der Seite, die sie noch nicht kennt
+            // Abgleichstand und Fehler oberhalb der Seite; die Dateien zeigt die Seite selbst (S3)
             let c = UFNoServerContent.resolve(kind: spec.kind, mode: mode, phase: phase, files: files, courses: courses)
             return c.showsStatusBar ? .pageBelowStudIPStatus : .page
         }

@@ -1,4 +1,6 @@
 import Foundation
+import PDFKit
+import UIKit
 import UniFlowCore
 
 /// Besitzt die lokale Datenbank und das lokale Backend des Geraets (docs/IPAD-OHNE-PC.md, Abschnitt 4).
@@ -8,21 +10,27 @@ import UniFlowCore
 /// und gehoert ins iCloud-Backup (Notizen, Plan, Einstellungen; Entscheidung 6 in IPAD-OHNE-PC.md). SQLite legt
 /// -wal/-shm im selben Ordner an, sie erben den Schutz des Ordners.
 ///
+/// Dateien (Stud.IP-Downloads, eigene Dokumente, Bilder der Notizen) stehen in der Datenbank mit Pfaden relativ zum
+/// App-Container (`LocalFiles.app`), denn dessen Pfad aendert sich zwischen Installationen.
+///
 /// Geoeffnet wird erst bei der ersten Anfrage. Scheitert das (z. B. Speicher voll), antworten alle Pfade mit 503 und
 /// Meldung; die naechste Anfrage versucht es erneut.
 final class LocalBackendHost: @unchecked Sendable {
-    static let shared = LocalBackendHost(directory: AppPaths.support.appendingPathComponent("db", isDirectory: true))
+    static let shared = LocalBackendHost(directory: AppPaths.support.appendingPathComponent("db", isDirectory: true), files: .app)
 
     static let fileName = "uniflow.sqlite"
 
     let directory: URL
+    /// Dateiablage des Backends; nil = keine Dateien (Tests ohne Stud.IP)
+    let files: LocalFiles?
     private let clock: UniFlowClock
     private let lock = NSLock()
     private var opening: Task<LocalBackend, Error>?
 
-    init(directory: URL, clock: UniFlowClock = .system) {
+    init(directory: URL, clock: UniFlowClock = .system, files: LocalFiles? = nil) {
         self.directory = directory
         self.clock = clock
+        self.files = files
     }
 
     var databaseURL: URL { directory.appendingPathComponent(Self.fileName) }
@@ -31,8 +39,8 @@ final class LocalBackendHost: @unchecked Sendable {
     func backend() async throws -> LocalBackend {
         let task: Task<LocalBackend, Error> = lock.withLock {
             if let opening { return opening }
-            let dir = directory, url = databaseURL, clock = clock
-            let t = Task { try await Self.open(directory: dir, database: url, clock: clock) }
+            let dir = directory, url = databaseURL, clock = clock, files = files
+            let t = Task { try await Self.open(directory: dir, database: url, clock: clock, files: files) }
             opening = t
             return t
         }
@@ -54,7 +62,7 @@ final class LocalBackendHost: @unchecked Sendable {
     }
 
     /// Ordner mit Dateischutz anlegen (bestehende Ordner bekommen ihn nachtraeglich), Datenbank oeffnen, migrieren
-    private static func open(directory: URL, database: URL, clock: UniFlowClock) async throws -> LocalBackend {
+    private static func open(directory: URL, database: URL, clock: UniFlowClock, files: LocalFiles?) async throws -> LocalBackend {
         let fm = FileManager.default
         let protection: [FileAttributeKey: Any] = [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]
         try fm.createDirectory(at: directory, withIntermediateDirectories: true, attributes: protection)
@@ -63,9 +71,35 @@ final class LocalBackendHost: @unchecked Sendable {
         var values = URLResourceValues()
         values.isExcludedFromBackup = false                                    // ausdruecklich ins Backup
         try? dir.setResourceValues(values)
-        let backend = try await LocalBackend.open(path: database.path, clock: clock)
+        let backend = try await LocalBackend.open(path: database.path, clock: clock, files: files)
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend
+    }
+}
+
+extension LocalFiles {
+    /// App-Container mit dem Datenordner Application Support/UniFlow (eigene Dokumente und Bilder im Backup);
+    /// Stud.IP-Dateien liegen daneben unter Application Support/StudIP (ohne Backup, StudIPSync).
+    static var app: LocalFiles {
+        let home = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        let data = LocalFiles(container: home, dataDirectory: "").stored(AppPaths.support) ?? "Library/Application Support/UniFlow"
+        return LocalFiles(container: home, dataDirectory: data, tools: AppDocumentTools())
+    }
+}
+
+/// Seitenzahl (PDFKit) und Bild als einseitige PDF (UIKit) fuer eigene Dokumente, wie pypdf und Pillow am PC.
+struct AppDocumentTools: LocalDocumentTools {
+    func pdfPageCount(_ data: Data) -> Int? { PDFDocument(data: data)?.pageCount }
+
+    func pdfFromImage(_ data: Data) -> Data? {
+        guard let image = UIImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
+        // Seite in Bildgroesse wie Pillow (ein Pixel = ein Punkt)
+        let size = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        let format = UIGraphicsPDFRendererFormat()
+        return UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: size), format: format).pdfData { ctx in
+            ctx.beginPage()
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
     }
 }
 

@@ -42,6 +42,16 @@ public enum StudIPError: Error, Equatable, CustomStringConvertible, LocalizedErr
     }
 
     public var errorDescription: String? { description }
+
+    /// Fehler, der nur einen Kurs oder eine Datei betrifft (HTTP-Fehler, unerwartete Antwort, z. B. ein Kurs ohne
+    /// Dateibereich oder eine gesperrte Datei): Der Abgleich macht wie run_sync in app/studip_sync.py mit dem
+    /// naechsten weiter. Abgelaufene Sitzung und Anfragegrenze brechen den Lauf ab.
+    public var affectsOnlyItem: Bool {
+        switch self {
+        case .http, .badResponse: return true
+        case .sessionExpired, .requestLimit: return false
+        }
+    }
 }
 
 public struct StudIPCourse: Sendable, Equatable, Codable {

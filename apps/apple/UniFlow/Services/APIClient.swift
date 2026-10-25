@@ -166,8 +166,8 @@ struct HTTPAnnotationTransport: AnnotationTransport {
             let v = try JSONValue.parse(d)
             return .saved(version: v["version"]?.int ?? baseVersion + 1)
         case 409:
-            // Konflikt nur mit neuerem Stand; 409 ohne "version" heisst "kann hier (noch) nicht speichern" (lokales
-            // Backend vor S3): Fehler mit Meldung, die Notizen bleiben im Journal
+            // Konflikt nur mit neuerem Stand; 409 ohne "version" heisst "kann hier nicht speichern" (lokales Backend:
+            // Dokument fehlt in der Datenbank): Fehler mit Meldung, die Notizen bleiben im Journal
             let v = try JSONValue.parse(d)
             guard v["version"] != nil else { throw APIError(status: 409, message: String(decoding: d.prefix(400), as: UTF8.self)) }
             return .conflict(ServerSnapshot(version: v["version"]?.int ?? 0, root: v["data"] ?? AnnotationDocument.emptyRoot))

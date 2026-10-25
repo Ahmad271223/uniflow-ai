@@ -24,6 +24,15 @@ enum AppPaths {
         root.appendingPathComponent("sources", isDirectory: true).appendingPathComponent(namespace.id, isDirectory: true)
             .appendingPathComponent("pdf", isDirectory: true)
     }
+
+    /// Zwischenspeicher (Original-PDFs, Vorschaubilder) nicht ins iCloud-Backup: Stud.IP-Dateien bleiben nur auf dem
+    /// Geraet (Entscheidung 6 in docs/IPAD-OHNE-PC.md), und alles darin laesst sich aus der Datenquelle neu laden.
+    static func excludeFromBackup(_ directory: URL) {
+        var dir = directory
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? dir.setResourceValues(values)
+    }
 }
 
 /// Einmaliger Umzug in die Namensraeume je Datenquelle (S2): Journale und PDF-Zwischenspeicher aus der Zeit vor dem
@@ -225,6 +234,7 @@ final class DocumentStore: ObservableObject {
                     throw APIError(status: http.statusCode, message: "Keine PDF-Datei erhalten")
                 }
                 try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                AppPaths.excludeFromBackup(url.deletingLastPathComponent())
                 try data.write(to: url, options: .atomic)
             }
             guard let pdfDocument = PDFDocument(url: url) else {

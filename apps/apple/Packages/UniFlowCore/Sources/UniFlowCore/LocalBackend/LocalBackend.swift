@@ -9,6 +9,9 @@ public final class LocalBackend: Sendable {
     public static let standardModules: [LocalEndpointModule.Type] = [
         SettingsEndpoints.self,
         TermsEndpoints.self,
+        LibraryEndpoints.self,
+        FilesEndpoints.self,
+        AnnotationEndpoints.self,
         DroppedEndpoints.self,
         PendingOverviewEndpoints.self,
         PendingLibraryEndpoints.self,
@@ -27,21 +30,23 @@ public final class LocalBackend: Sendable {
     public let context: LocalContext
 
     /// Mit schon migrierter Datenbank. Wirft, wenn zwei Module denselben Pfad belegen.
-    public init(database: SQLiteDatabase, clock: UniFlowClock = .system,
+    public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
+                newHex: @escaping @Sendable () -> String = LocalContext.randomHex,
                 modules: [LocalEndpointModule.Type] = LocalBackend.standardModules) throws {
         let router = LocalRouter()
         for m in modules { router.register(m) }
         guard router.conflicts.isEmpty else { throw ConflictError(conflicts: router.conflicts) }
         self.router = router
-        self.context = LocalContext(database: database, clock: clock)
+        self.context = LocalContext(database: database, clock: clock, files: files, newHex: newHex)
     }
 
     /// Datenbank oeffnen (Datei oder `SQLiteDatabase.inMemory`), auf den Stand von app/db.py bringen, Backend bauen.
-    public static func open(path: String, clock: UniFlowClock = .system,
+    public static func open(path: String, clock: UniFlowClock = .system, files: LocalFiles? = nil,
+                            newHex: @escaping @Sendable () -> String = LocalContext.randomHex,
                             modules: [LocalEndpointModule.Type] = LocalBackend.standardModules) async throws -> LocalBackend {
         let db = try SQLiteDatabase(path: path)
         try await db.migrate(clock: clock)
-        return try LocalBackend(database: db, clock: clock, modules: modules)
+        return try LocalBackend(database: db, clock: clock, files: files, newHex: newHex, modules: modules)
     }
 
     public func handle(_ request: LocalRequest) async -> LocalResponse {

@@ -15,8 +15,11 @@ final class LocalBackendAppTests: XCTestCase {
     }
 
     private func localAPI() throws -> (APIClient, LocalBackendHost) {
-        let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true),
-                                    clock: .fixed(berlin: "2026-10-25T14:30:05")!)
+        let container = try tempDir()
+        let host = LocalBackendHost(directory: container.appendingPathComponent("db", isDirectory: true),
+                                    clock: .fixed(berlin: "2026-10-25T14:30:05")!,
+                                    files: LocalFiles(container: container, dataDirectory: "Library/Application Support/UniFlow",
+                                                      tools: AppDocumentTools()))
         return (APIClient(base: APIClient.localBase, transport: LocalTransport(host: host)), host)
     }
 
@@ -76,14 +79,14 @@ final class LocalBackendAppTests: XCTestCase {
         } catch let e as APIError {
             XCTAssertEqual(e.errorDescription, "KI-Funktionen gibt es in dieser Version nicht.")
         }
-        // Formular (multipart) geht durch den Router, Anlegen ist noch nicht moeglich
+        // Formular (multipart) geht durch den Router: keine PDF -> 400 mit Meldung wie app/server.py
         do {
             _ = try await api.upload("/api/notebooks", fields: ["kind": "pdf", "title": "Skript"], fileField: "upload",
-                                     fileName: "skript.pdf", mimeType: "application/pdf", data: Data("%PDF-1.4".utf8))
-            XCTFail("409 erwartet")
+                                     fileName: "skript.pdf", mimeType: "application/pdf", data: Data("kein PDF".utf8))
+            XCTFail("400 erwartet")
         } catch let e as APIError {
-            XCTAssertEqual(e.status, 409)
-            XCTAssertEqual(e.errorDescription, "Dateien importieren geht auf diesem iPad noch nicht.")
+            XCTAssertEqual(e.status, 400)
+            XCTAssertEqual(e.errorDescription, "Die Datei ist keine PDF")
         }
         // unbekannter Pfad: 404 wie FastAPI, kein Absturz
         let (_, http) = try await api.data("/api/gibt-es-nicht")
@@ -109,16 +112,33 @@ final class LocalBackendAppTests: XCTestCase {
         XCTAssertEqual(dash.value?["today"]?["date"], "2026-10-25")
     }
 
-    func testAnnotationsStayLocalUntilS3() async throws {
+    /// S3: Notizen werden im lokalen Backend gespeichert (mit Versionen und Konflikt wie am PC)
+    func testAnnotationsSaveLocally() async throws {
         let (api, _) = try localAPI()
+        // eigenes Dokument (PDF-Import) und Notizen dazu
+        let created = try await api.upload("/api/notebooks", fields: ["kind": "pdf", "title": "Skript"], fileField: "upload",
+                                           fileName: "skript.pdf", mimeType: "application/pdf", data: Data("%PDF-1.4 Test".utf8))
+        let id = try XCTUnwrap(created["id"]?.string)
+        XCTAssertEqual(created["local_path"]?.string, "Library/Application Support/UniFlow/files/Eigene Dokumente/\(id).pdf",
+                       "relativ zum App-Container")
         let transport = HTTPAnnotationTransport(api: api)
-        let snap = try await transport.fetch(documentID: "f1")
+        let snap = try await transport.fetch(documentID: id)
         XCTAssertEqual(snap.version, 0)
+        let root: JSONValue = ["version": 2, "pages": ["p1": ["objects": [["id": "s1", "type": "stroke"]]]]]
+        let saved = try await transport.put(documentID: id, root: root, baseVersion: 0)
+        XCTAssertEqual(saved, .saved(version: 1))
+        let stale = try await transport.put(documentID: id, root: AnnotationDocument.emptyRoot, baseVersion: 0)
+        guard case .conflict(let current) = stale else { return XCTFail("\(stale)") }
+        XCTAssertEqual(current.version, 1)
+        XCTAssertEqual(current.root["pages"]?["p1"]?["objects"]?.array?.count, 1)
+        let (pdf, http) = try await api.data("/api/files/\(id)/content")
+        XCTAssertEqual(http.statusCode, 200)
+        XCTAssertEqual(pdf, Data("%PDF-1.4 Test".utf8))
+        // Dokument fehlt in der Datenbank: kein Konflikt (der wuerde endlos zusammengefuehrt), sondern Meldung
         do {
-            _ = try await transport.put(documentID: "f1", root: AnnotationDocument.emptyRoot, baseVersion: 0)
-            XCTFail("kein Speichern lokal vor S3")
+            _ = try await transport.put(documentID: "fremd", root: AnnotationDocument.emptyRoot, baseVersion: 0)
+            XCTFail("unbekanntes Dokument")
         } catch {
-            // kein Konflikt (der wuerde endlos zusammengefuehrt), sondern "noch nicht moeglich" mit Meldung
             guard case .nichtVerfuegbar(let m) = SyncIssue.classify(error) else { return XCTFail("\(error)") }
             XCTAssertTrue(m.contains("bleiben lokal gesichert"), m)
         }
@@ -181,6 +201,10 @@ final class LocalBackendAppTests: XCTestCase {
         XCTAssertEqual(gate(.plan, .local(.notConnected), .signedOut), .pageBelowConnectCard)
         XCTAssertEqual(gate(.library, .local(.expired), .needsLogin, files: 3), .pageBelowConnectCard)
         XCTAssertEqual(gate(.modules, .local(.connected)), .page)
+        // im Editor keine Karte und keine Statusleiste oberhalb, die Seite bekommt die ganze Hoehe
+        XCTAssertEqual(gate(.document, .local(.notConnected), .signedOut), .page)
+        XCTAssertEqual(gate(.document, .local(.connected), .running("Lade 1 von 3"), files: 3), .page)
+        XCTAssertEqual(gate(.document, .connectStudIP), .empty, "ohne Datenquelle weiter der leere Zustand")
         // KI-Wochentests und QIS-Noten gibt es in V1 nicht: lokal der ehrliche leere Zustand
         XCTAssertEqual(gate(.exams, .local(.connected)), .empty)
         XCTAssertEqual(gate(.services, .local(.notConnected)), .empty)
@@ -189,14 +213,14 @@ final class LocalBackendAppTests: XCTestCase {
         XCTAssertEqual(gate(.plan, .connectStudIP), .empty)
     }
 
-    /// Bis S3 kennen die lokalen Seiten die abgeglichenen Dateien nicht: Abgleichstand, Fehler und der Knopf zu den
-    /// Stud.IP-Dateien stehen dann oberhalb der Seite (vorher nur im leeren Zustand ohne Datenquelle)
+    /// Lokal zeigen die Seiten die abgeglichenen Dateien seit S3 selbst: oberhalb der Seite stehen nur noch
+    /// Abgleichstand und Fehler, kein Knopf zu den Stud.IP-Dateien (der bleibt dem leeren Zustand ohne Datenquelle)
     func testGateShowsStudIPStatusWhileConnectedLocally() {
         let connected = UFDataMode.local(.connected)
         XCTAssertEqual(gate(.library, connected, .running("Dateien werden geladen …")), .pageBelowStudIPStatus)
         XCTAssertEqual(gate(.plan, connected, .failed("offline")), .pageBelowStudIPStatus)
-        XCTAssertEqual(gate(.modules, connected, .idle, files: 12), .pageBelowStudIPStatus)
-        XCTAssertEqual(gate(.modules, connected, .idle, courses: 2), .pageBelowStudIPStatus)
+        XCTAssertEqual(gate(.modules, connected, .idle, files: 12), .page, "Dateien stehen in der Seite")
+        XCTAssertEqual(gate(.modules, connected, .idle, courses: 2), .page)
         XCTAssertEqual(gate(.timetable, connected, .idle), .page, "nichts abgeglichen, kein Fehler: keine Leiste")
 
         let running = UFNoServerContent.resolve(kind: .library, mode: connected, phase: .running("Kurse werden geladen …"),
@@ -206,12 +230,15 @@ final class LocalBackendAppTests: XCTestCase {
         XCTAssertTrue(running.showsStatusBar)
         let failed = UFNoServerContent.resolve(kind: .dashboard, mode: connected, phase: .failed("offline"), files: 12, courses: 3)
         XCTAssertEqual(failed.status, .failed("offline"))
-        XCTAssertEqual(failed.filesButton, "Stud.IP-Dateien ansehen (12)")
-        XCTAssertEqual(failed.filesSummary, "12 Dateien aus Stud.IP liegen auf diesem iPad.")
+        XCTAssertNil(failed.filesButton, "lokal kein Knopf zu StudIPView mehr")
+        XCTAssertNil(failed.filesSummary)
         XCTAssertFalse(failed.showsConnectCard)
         let courses = UFNoServerContent.resolve(kind: .modules, mode: connected, phase: .idle, files: 0, courses: 1)
-        XCTAssertEqual(courses.filesButton, "Stud.IP-Kurse ansehen (1)")
-        XCTAssertEqual(courses.filesSummary, "1 Kurs aus Stud.IP ist abgeglichen.")
+        XCTAssertNil(courses.filesButton)
+        XCTAssertFalse(courses.showsStatusBar)
+        // ohne Datenquelle (eigener Server getrennt, keine lokale Seite) bleibt der Knopf zu StudIPView
+        XCTAssertEqual(UFNoServerContent.resolve(kind: .library, mode: .empty, phase: .idle, files: 12, courses: 3).filesButton,
+                       "Stud.IP-Dateien ansehen (12)")
         // nicht verbunden bzw. eigener Server: keine Leiste
         XCTAssertFalse(UFNoServerContent.resolve(kind: .library, mode: .local(.notConnected), phase: .failed("x"),
                                                  files: 3, courses: 1).showsStatusBar)

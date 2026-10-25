@@ -112,8 +112,8 @@ final class JournalNamespaceTests: XCTestCase {
     }
 }
 
-/// Lokales Backend als Notiz-Transport (wie HTTPAnnotationTransport der App): solange es nicht speichern kann,
-/// bleibt alles im Journal, ohne endlose Wiederholung.
+/// Lokales Backend als Notiz-Transport (wie HTTPAnnotationTransport der App): Notizen werden lokal gespeichert (S3);
+/// kann es fuer ein Dokument nicht speichern, bleibt alles im Journal, ohne endlose Wiederholung.
 final class LocalAnnotationPlaceholderTests: XCTestCase {
 
     private struct DetailError: HTTPStatusError {
@@ -152,6 +152,33 @@ final class LocalAnnotationPlaceholderTests: XCTestCase {
         }
     }
 
+    /// S3: Dokument aus dem Stud.IP-Abgleich: Striche landen in der lokalen Datenbank, neu geoeffnet sind sie da
+    func testNotesAreSavedLocally() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory)
+        try await backend.context.database.execute("INSERT INTO courses(id, title) VALUES ('k1', 'Testkurs')")
+        try await backend.context.database.execute("INSERT INTO files(id, course_id, name) VALUES ('f1', 'k1', 'Blatt.pdf')")
+        let transport = BackendTransport(backend: backend)
+        let engine = SyncEngine(documentID: "f1", transport: transport, journal: LocalJournal(store: MemoryBlobStore(), documentID: "f1", namespace: .local),
+                                uploadDelay: 0, sleeper: fastSleeper)
+        _ = await engine.open(pdfPageCount: 2)
+        await engine.updatePage("p1", page(["a"]))
+        await engine.syncNow()
+        let status = await engine.status
+        XCTAssertEqual(status, .saved)
+        let issue = await engine.issue
+        XCTAssertNil(issue)
+        await engine.shutdown()
+        // anderes Journal (z. B. nach Neuinstallation): Stand kommt aus der Datenbank
+        let fresh = SyncEngine(documentID: "f1", transport: transport, journal: LocalJournal(store: MemoryBlobStore(), documentID: "f1", namespace: .local),
+                               uploadDelay: 0, sleeper: fastSleeper)
+        let reopened = await fresh.open(pdfPageCount: 2)
+        XCTAssertEqual(reopened.document.page("p1"), page(["a"]))
+        await fresh.shutdown()
+        let versions = try await backend.context.database.scalar("SELECT version FROM annotations WHERE file_id='f1'")?.int
+        XCTAssertEqual(versions, 1)
+    }
+
+    /// Dokument fehlt in der lokalen Datenbank: 409 ohne Stand, die Notizen bleiben im Journal
     func testNotesStayInJournalWhileLocalSavingIsNotAvailable() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory)
         let transport = BackendTransport(backend: backend)
@@ -164,7 +191,7 @@ final class LocalAnnotationPlaceholderTests: XCTestCase {
         await engine.syncNow()
         let issue = await engine.issue
         guard case .nichtVerfuegbar(let message)? = issue else { return XCTFail("\(String(describing: issue))") }
-        XCTAssertTrue(message.contains("noch nicht gespeichert"), message)
+        XCTAssertTrue(message.contains("bleiben lokal gesichert"), message)
         XCTAssertTrue(issue?.needsUserAction == true)
         let status = await engine.status
         XCTAssertEqual(status, .pending(pages: 1))

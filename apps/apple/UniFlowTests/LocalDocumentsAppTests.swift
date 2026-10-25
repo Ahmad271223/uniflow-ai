@@ -1,0 +1,488 @@
+import PDFKit
+import PencilKit
+import XCTest
+import UniFlowCore
+@testable import UniFlow
+
+/// S3 im lokalen Modus (ohne PC): Stud.IP-Abgleich in die Datenbank -> Dokumente, Kurse und Uebersicht -> im Editor
+/// oeffnen, mit dem Stift schreiben, speichern, neu laden. Stud.IP antwortet mit festen, erfundenen Daten
+/// (kein Netz); der "PC" ist ein Transport im Speicher, nie ein echter Server.
+@MainActor
+final class LocalDocumentsAppTests: XCTestCase {
+
+    // MARK: Umgebung
+
+    /// App-Container im Temp-Ordner: Datenbank, Stud.IP-Ordner, Datenordner, Journal
+    private struct Device {
+        let container: URL
+        let host: LocalBackendHost
+        let api: APIClient
+        let studipRoot: URL
+        /// AppPaths.support im Container (Journal, PDF-Zwischenspeicher)
+        var support: URL { container.appendingPathComponent("Library/Application Support/UniFlow", isDirectory: true) }
+    }
+
+    private func tempDir() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-s3-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        return dir
+    }
+
+    private static let clock = UniFlowClock.fixed(berlin: "2026-10-25T14:30:05")!
+
+    /// Geraet mit lokalem Backend; mit `container` dasselbe Geraet nach einem Neustart der App
+    private func device(_ container: URL? = nil) throws -> Device {
+        let c = try container ?? tempDir()
+        let host = LocalBackendHost(directory: c.appendingPathComponent("Library/Application Support/UniFlow/db", isDirectory: true),
+                                    clock: Self.clock,
+                                    files: LocalFiles(container: c, dataDirectory: "Library/Application Support/UniFlow", tools: AppDocumentTools()))
+        return Device(container: c, host: host, api: APIClient(base: APIClient.localBase, transport: LocalTransport(host: host)),
+                      studipRoot: c.appendingPathComponent("Library/Application Support/StudIP", isDirectory: true))
+    }
+
+    private func defaults() throws -> UserDefaults {
+        let suite = "uniflow-s3-\(UUID().uuidString)"
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        return try XCTUnwrap(UserDefaults(suiteName: suite))
+    }
+
+    /// Zweiseitige Test-PDF
+    private func makePDF(_ marker: String) -> Data {
+        UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842)).pdfData { ctx in
+            for i in 1...2 {
+                ctx.beginPage()
+                (("\(marker) Seite \(i)") as NSString).draw(at: CGPoint(x: 72, y: 72), withAttributes: [.font: UIFont.systemFont(ofSize: 24)])
+            }
+        }
+    }
+
+    /// Stud.IP mit festen Antworten (erfundener Kurs, zwei Dateien); merkt sich die Abrufe
+    private final class FakeStudIP: StudIPTransport, @unchecked Sendable {
+        private let lock = NSLock()
+        private var routes: [String: HTTPReply] = [:]
+        private var log: [String] = []
+
+        var requested: [String] { lock.lock(); defer { lock.unlock() }; return log }
+
+        func set(_ path: String, _ reply: HTTPReply) { lock.lock(); routes[path] = reply; lock.unlock() }
+
+        func json(_ path: String, _ text: String) {
+            set(path, HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(text.utf8)))
+        }
+
+        func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+            let key = url.absoluteString.replacingOccurrences(of: StudIPSync.base.absoluteString, with: "")
+                .replacingOccurrences(of: "%5B", with: "[").replacingOccurrences(of: "%5D", with: "]")
+            lock.lock()
+            log.append(key)
+            let r = routes[key]
+            lock.unlock()
+            return r ?? HTTPReply(status: 404, contentType: "application/vnd.api+json", body: Data(#"{"errors":[]}"#.utf8))
+        }
+
+        var downloads: [String] { requested.filter { $0.hasSuffix("/content") } }
+    }
+
+    private func fakeStudIP(pdf: Data, changed: String = "2026-10-19T10:00:00+02:00") -> FakeStudIP {
+        let t = FakeStudIP()
+        t.json("/jsonapi.php/v1/users/me", #"{"data":{"id":"u1","type":"users"}}"#)
+        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+            {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
+              "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
+             "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}
+            """#)
+        t.json("/jsonapi.php/v1/courses/c1/folders?page[limit]=200", #"{"data":[{"id":"r1","attributes":{"folder-type":"RootFolder","name":""}}]}"#)
+        t.json("/jsonapi.php/v1/folders/r1/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"d1","attributes":{"name":"Blatt 3.pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"\#(changed)","is-downloadable":true}},
+                     {"id":"d2","attributes":{"name":"Gesperrt.pdf","filesize":5,"mime-type":"application/pdf","chdate":"2026-10-19T11:00:00+02:00","is-downloadable":false}}]}
+            """#)
+        t.json("/jsonapi.php/v1/folders/r1/folders?page[limit]=200", #"{"data":[]}"#)
+        t.set("/jsonapi.php/v1/file-refs/d1/content", HTTPReply(status: 200, contentType: "application/pdf", body: pdf))
+        return t
+    }
+
+    private func client(_ t: FakeStudIP) -> StudIPClient { StudIPClient(base: StudIPSync.base, transport: t, pauseMillis: 0) }
+
+    /// Strich wie von der PencilKit-Canvas (waagrecht, in Seitenpunkten)
+    private func drawing(y: CGFloat, x0: CGFloat = 100, step: CGFloat = 20) -> PKDrawing {
+        let pts = (0..<12).map { i in
+            PKStrokePoint(location: CGPoint(x: x0 + CGFloat(i) * step, y: y), timeOffset: Double(i) * 0.01, size: CGSize(width: 3, height: 3),
+                          opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2)
+        }
+        return PKDrawing(strokes: [PKStroke(ink: PKInk(.pen, color: .black), path: PKStrokePath(controlPoints: pts, creationDate: Date()))])
+    }
+
+    private func waitUntil(_ timeout: Double = 5, _ condition: () async -> Bool) async -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        while Date() < end {
+            if await condition() { return true }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        return await condition()
+    }
+
+    private func libraryFile(_ api: APIClient, _ id: String) async throws -> LibFile {
+        let lib = try await api.json("/api/library", as: LibraryResponse.self)
+        return try XCTUnwrap(lib.files.first { $0.id == id }, "Datei \(id) in der Bibliothek")
+    }
+
+    private func strokes(_ api: APIClient, _ id: String, page: String = "p1") async throws -> [JSONValue] {
+        let v = try await api.value("/api/files/\(id)/annotations")
+        return (v["data"]?["pages"]?[page]?["objects"]?.array ?? []).filter { $0["type"]?.string == "stroke" }
+    }
+
+    // MARK: Abnahme S3: Stud.IP verbinden -> Dokumente erscheinen -> im Editor oeffnen und schreiben, offline
+
+    func testStudIPFilesAppearAndOpenInEditorOffline() async throws {
+        let dev = try device()
+        let pdf = makePDF("Testblatt")
+        let stud = fakeStudIP(pdf: pdf)
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"], "gesperrte Datei wird nicht geladen")
+
+        // Dokumente: beide Dateien, die PDF ist geladen und oeffnet sich im Editor
+        let lib = try await dev.api.value("/api/library")
+        let files = lib["files"]?.array ?? []
+        XCTAssertEqual(Set(files.compactMap { $0["id"]?.string }), ["d1", "d2"])
+        let d1 = try XCTUnwrap(files.first { $0["id"] == "d1" })
+        XCTAssertEqual(d1["status"], "neu")
+        XCTAssertEqual(d1["kind"], "pdf")
+        XCTAssertNotNil(d1["downloaded_at"]?.string)
+        XCTAssertEqual(files.first { $0["id"] == "d2" }?["downloaded_at"], .null)
+        // Kursliste (Module/Einstellungen) mit dem Pseudokurs "Eigene Dokumente"
+        let courses = try await dev.api.value("/api/courses").array ?? []
+        XCTAssertEqual(Set(courses.compactMap { $0["id"]?.string }), ["__user__", "c1"])
+        XCTAssertEqual(courses.first { $0["id"] == "c1" }?["file_count"], 2)
+        // ohne Modul (Einordnung S4): Kurs als Ordner in Dokumente und in der Kursliste von Meine Module
+        XCTAssertEqual(LibraryCourses.unassigned(courses).compactMap { $0["id"]?.string }, ["c1"])
+        let folders = LibraryCourses.folders(courses, files: files)
+        XCTAssertEqual(folders.map(\.path), ["cc1"])
+        XCTAssertEqual(folders.first?.label, "Testkurs Numerik")
+        XCTAssertEqual(folders.first?.count, 2)
+        XCTAssertEqual(LibraryCourses.courseID("cc1"), "c1")
+        XCTAssertNil(LibraryCourses.courseID("m3/f2"))
+        XCTAssertNil(LibraryCourses.courseID(""))
+        XCTAssertEqual(LibraryCourses.title(of: d1, in: courses), "Testkurs Numerik", "Schnellzugriff: Kurs statt „Eigene Notizen“")
+        XCTAssertNil(LibraryCourses.title(of: ["course_id": "__user__"], in: courses))
+        let modules = try await dev.api.value("/api/modules").array ?? []
+        XCTAssertEqual(modules, [], "Module erst mit S4")
+        // Uebersicht: "Neu aus Stud.IP" und letzter Abgleich
+        let dash = try await dev.api.value("/api/dashboard")
+        XCTAssertEqual(dash["new_total"], 2)
+        XCTAssertEqual(dash["last_sync"]?["message"], "1 neue/geaenderte Dateien")
+        XCTAssertEqual(dash["last_sync"]?["ok"], 1)
+        // Pfad relativ zum App-Container
+        let meta = try await dev.api.value("/api/files/d1")
+        XCTAssertEqual(meta["local_path"], "Library/Application Support/StudIP/files/d1/Blatt 3.pdf")
+        XCTAssertEqual(meta["exists"], true)
+
+        // Ab hier offline: Stud.IP wird nicht mehr gefragt
+        let before = stud.requested.count
+        let file = try await libraryFile(dev.api, "d1")
+        XCTAssertTrue(file.isPDF)
+        let store = DocumentStore(file: file, api: dev.api, root: dev.support)
+        await store.load()
+        XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(store.pdf?.pageCount, 2)
+        // "Lösung teilen" braucht die unveraenderten Original-Bytes
+        XCTAssertEqual(try store.originalPDFData(), pdf)
+        // die Kopie im Zwischenspeicher gehoert nicht ins iCloud-Backup (Stud.IP-Dateien nur auf dem Geraet)
+        let cacheValues = try store.originalPDFURL.deletingLastPathComponent().resourceValues(forKeys: [.isExcludedFromBackupKey])
+        XCTAssertEqual(cacheValues.isExcludedFromBackup, true)
+
+        store.canvasChanged(pageKey: "p1", drawing: drawing(y: 300))
+        await store.flush()
+        let saved = await waitUntil { (try? await self.strokes(dev.api, "d1"))?.count == 1 }
+        XCTAssertTrue(saved, "Strich in der lokalen Datenbank")
+        let isSaved = await waitUntil { store.status == .saved }
+        XCTAssertTrue(isSaved, store.status.label)
+        await store.close()
+        XCTAssertEqual(stud.requested.count, before, "Editor und Speichern ohne Netz")
+
+        // neu laden (frisches Journal): Notiz kommt aus der Datenbank
+        let other = try tempDir()
+        let reopened = DocumentStore(file: file, api: dev.api, root: other)
+        await reopened.load()
+        XCTAssertNil(reopened.errorMessage)
+        let objects = await reopened.objects(forPageKey: "p1")
+        XCTAssertEqual(objects.filter { $0["type"]?.string == "stroke" }.count, 1)
+        await reopened.close()
+
+        // Neustart der App: neue Datenbankverbindung auf derselben Datei
+        let restarted = try device(dev.container)
+        let after = try await strokes(restarted.api, "d1")
+        XCTAssertEqual(after.count, 1, "Notizen bleiben nach dem Neustart erhalten")
+        let versions = try await restarted.api.value("/api/files/d1/annotations/versions").array ?? []
+        XCTAssertGreaterThanOrEqual(versions.count, 1)
+
+        // erneuter Abgleich: nichts neu laden, Status und Notizen bleiben
+        _ = try await restarted.api.value("/api/files/d1", method: "PATCH", body: ["status": "gelesen"])
+        let again = StudIPSync(root: restarted.studipRoot, host: restarted.host, clock: Self.clock, defaults: try defaults())
+        let stud2 = fakeStudIP(pdf: pdf)
+        await again.run(client: client(stud2))
+        XCTAssertEqual(again.phase, .idle)
+        XCTAssertEqual(stud2.downloads, [], "unveraendert in Stud.IP: kein Download")
+        let meta2 = try await restarted.api.value("/api/files/d1")
+        XCTAssertEqual(meta2["status"], "gelesen")
+        let still = try await strokes(restarted.api, "d1")
+        XCTAssertEqual(still.count, 1)
+    }
+
+    /// Abgleich vor S3: die schon geladenen Dateien (index.json) erscheinen, ohne neu zu laden
+    func testDownloadsFromBeforeS3AreAdoptedWithoutReloading() async throws {
+        let dev = try device()
+        let pdf = makePDF("Alt")
+        let rel = "files/d1/Blatt 3.pdf"
+        try FileManager.default.createDirectory(at: dev.studipRoot.appendingPathComponent("files/d1"), withIntermediateDirectories: true)
+        try pdf.write(to: dev.studipRoot.appendingPathComponent(rel))
+        let entry = StudIPLocalEntry(id: "d1", courseID: "c1", courseTitle: "Testkurs Numerik", folderPath: "", name: "Blatt 3.pdf",
+                                     size: pdf.count, changed: "2026-10-19T10:00:00+02:00", mimeType: "application/pdf",
+                                     relativePath: rel, downloadedAt: "2026-10-20T06:00:00Z")
+        try JSONEncoder().encode([entry]).write(to: dev.studipRoot.appendingPathComponent("index.json"))
+        try JSONEncoder().encode([StudIPCourse(id: "c1", title: "Testkurs Numerik", number: "T-42", semesterTitle: "WiSe 2026/27")])
+            .write(to: dev.studipRoot.appendingPathComponent("courses.json"))
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        _ = await sync.adoptExistingDownloads()                         // wie beim Start (zweiter Lauf tut nichts)
+        let lib = try await dev.api.value("/api/library")
+        XCTAssertEqual(lib["files"]?.array?.compactMap { $0["id"]?.string }, ["d1"], "ohne Abgleich schon in Dokumente")
+        let (content, http) = try await dev.api.data("/api/files/d1/content")
+        XCTAssertEqual(http.statusCode, 200)
+        XCTAssertEqual(content, pdf)
+        let count = await sync.adoptExistingDownloads()
+        XCTAssertEqual(count, 0)
+        // naechster Abgleich mit derselben Datei: kein Download
+        let stud = fakeStudIP(pdf: pdf)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle)
+        XCTAssertEqual(stud.downloads, [])
+    }
+
+    /// Abgleich scheitert (Sitzung abgelaufen): Protokoll mit Fehler, vorhandene Dokumente bleiben
+    func testFailedSyncIsLoggedAndKeepsDocuments() async throws {
+        let dev = try device()
+        let pdf = makePDF("Blatt")
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(fakeStudIP(pdf: pdf)))
+        // im Editor geoeffnet: Kopie im PDF-Zwischenspeicher
+        let store = DocumentStore(file: try await libraryFile(dev.api, "d1"), api: dev.api, root: dev.support)
+        await store.load()
+        XCTAssertNil(store.errorMessage)
+        await store.close()
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.originalPDFURL.path))
+        let expired = FakeStudIP()
+        expired.set("/jsonapi.php/v1/users/me", HTTPReply(status: 401, contentType: "application/vnd.api+json"))
+        await sync.run(client: client(expired))
+        XCTAssertEqual(sync.phase, .needsLogin)
+        let log = try await dev.api.value("/api/sync/status")["log"]?.array ?? []
+        XCTAssertEqual(log.count, 2)
+        XCTAssertEqual(log.first?["ok"], 0)
+        XCTAssertEqual(log.first?["message"], "FEHLER: Stud.IP-Anmeldung abgelaufen. Bitte neu anmelden.")
+        let lib = try await dev.api.value("/api/library")
+        XCTAssertEqual(lib["files"]?.array?.count, 2)
+        // "Abmelden und Dateien löschen": Dokumente und Notizen bleiben, die Datei fehlt bis zum naechsten Abgleich
+        _ = try await dev.api.value("/api/files/d1/annotations?base_version=0", method: "PUT", body: ["pages": ["p1": ["objects": []]]])
+        await sync.removeDownloads()
+        let (_, http) = try await dev.api.data("/api/files/d1/content")
+        XCTAssertEqual(http.statusCode, 404)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.originalPDFURL.path), "auch die Kopie des Editors ist weg")
+        let notes = try await dev.api.value("/api/files/d1/annotations")
+        XCTAssertEqual(notes["version"], 1)
+        // naechster Abgleich laedt die Datei neu, der Editor oeffnet sie wieder
+        let stud = fakeStudIP(pdf: pdf)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"])
+        let again = DocumentStore(file: try await libraryFile(dev.api, "d1"), api: dev.api, root: dev.support)
+        await again.load()
+        XCTAssertNil(again.errorMessage)
+        XCTAssertEqual(try again.originalPDFData(), pdf)
+        await again.close()
+    }
+
+    /// Wie run_sync: ein Kurs ohne lesbare Dateiliste oder eine Datei, die sich nicht laden laesst, halten den
+    /// Abgleich nicht an; der naechste Abgleich holt die Datei nach.
+    func testErrorInOneCourseOrFileDoesNotStopTheSync() async throws {
+        let dev = try device()
+        let pdf = makePDF("Blatt")
+        let stud = fakeStudIP(pdf: pdf)
+        stud.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+            {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
+                     {"id":"c2","type":"courses","attributes":{"title":"Testkurs ohne Dateien"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
+             "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}
+            """#)
+        stud.set("/jsonapi.php/v1/courses/c2/folders?page[limit]=200", HTTPReply(status: 403, contentType: "application/vnd.api+json"))
+        stud.json("/jsonapi.php/v1/folders/r1/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"d1","attributes":{"name":"Blatt 3.pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"2026-10-19T10:00:00+02:00"}},
+                     {"id":"d3","attributes":{"name":"Blatt 4.pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"2026-10-19T12:00:00+02:00"}}]}
+            """#)
+        stud.set("/jsonapi.php/v1/file-refs/d3/content", HTTPReply(status: 500, contentType: "text/plain"))
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertEqual(Set(stud.downloads), ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d3/content"])
+        let summary = try XCTUnwrap(sync.lastSummary)
+        XCTAssertTrue(summary.contains("1 nicht geladen (Fehler)"), summary)
+        XCTAssertTrue(summary.contains("1 Kurs nicht lesbar"), summary)
+        let lib = try await dev.api.value("/api/library")["files"]?.array ?? []
+        XCTAssertNotEqual(lib.first { $0["id"] == "d1" }?["downloaded_at"], .null)
+        XCTAssertEqual(lib.first { $0["id"] == "d3" }?["downloaded_at"], .null, "in der Datenbank, aber noch ohne Datei")
+        let log = try await dev.api.value("/api/sync/status")["log"]?.array ?? []
+        XCTAssertEqual(log.first?["ok"], 1)
+        XCTAssertEqual(log.first?["message"], "1 neue/geaenderte Dateien")
+        let courses = try await dev.api.value("/api/courses").array ?? []
+        XCTAssertEqual(Set(courses.compactMap { $0["id"]?.string }), ["__user__", "c1", "c2"], "Kurs ohne Dateiliste steht trotzdem da")
+
+        // Stud.IP liefert die Datei wieder: nur sie wird nachgeladen
+        stud.set("/jsonapi.php/v1/file-refs/d3/content", HTTPReply(status: 200, contentType: "application/pdf", body: pdf))
+        let before = stud.downloads.count
+        await sync.run(client: client(stud))
+        XCTAssertEqual(Array(stud.downloads.dropFirst(before)), ["/jsonapi.php/v1/file-refs/d3/content"])
+        let d3 = try await dev.api.value("/api/files/d3")
+        XCTAssertEqual(d3["exists"], true)
+    }
+
+    /// Ist kein einziger Kurs lesbar, gilt der Lauf als gescheitert (Meldung mit "Erneut versuchen")
+    func testSyncFailsWhenNoCourseIsReadable() async throws {
+        let dev = try device()
+        let stud = fakeStudIP(pdf: makePDF("Blatt"))
+        stud.set("/jsonapi.php/v1/courses/c1/folders?page[limit]=200", HTTPReply(status: 503, contentType: "text/plain"))
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(stud))
+        guard case .failed(let message) = sync.phase else { return XCTFail("\(sync.phase)") }
+        XCTAssertTrue(message.contains("503"), message)
+        XCTAssertEqual(stud.downloads, [])
+        let log = try await dev.api.value("/api/sync/status")["log"]?.array ?? []
+        XCTAssertEqual(log.first?["ok"], 0)
+        XCTAssertTrue(log.first?["message"]?.string?.hasPrefix("FEHLER: ") == true)
+    }
+
+    // MARK: Eigene Dokumente
+
+    /// Bild importieren: wie mit Pillow am PC eine einseitige PDF in Bildgroesse (ein Pixel = ein Punkt), abgelegt im
+    /// App-Container und im Editor beschreibbar
+    func testImportedImageBecomesOnePagePDF() async throws {
+        let dev = try device()
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let png = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30), format: format).pngData { ctx in
+            UIColor.systemTeal.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 40, height: 30))
+        }
+        let created = try await dev.api.upload("/api/notebooks", fields: ["kind": "image", "title": "Testfoto"], fileField: "upload",
+                                               fileName: "foto.png", mimeType: "image/png", data: png)
+        let id = try XCTUnwrap(created["id"]?.string)
+        XCTAssertEqual(created["name"], "Testfoto.pdf")
+        XCTAssertEqual(created["page_count"], 1)
+        XCTAssertEqual(created["course_id"], "__user__")
+        XCTAssertEqual(created["local_path"]?.string, "Library/Application Support/UniFlow/files/Eigene Dokumente/\(id).pdf")
+        let (data, http) = try await dev.api.data("/api/files/\(id)/content")
+        XCTAssertEqual(http.statusCode, 200)
+        XCTAssertEqual(http.value(forHTTPHeaderField: "Content-Type"), "application/pdf")
+        let doc = try XCTUnwrap(PDFDocument(data: data))
+        XCTAssertEqual(doc.pageCount, 1)
+        XCTAssertEqual(doc.page(at: 0)?.bounds(for: .mediaBox).size, CGSize(width: 40, height: 30))
+
+        let file = try await libraryFile(dev.api, id)
+        XCTAssertTrue(file.isPDF)
+        let store = DocumentStore(file: file, api: dev.api, root: dev.support)
+        await store.load()
+        XCTAssertNil(store.errorMessage)
+        store.canvasChanged(pageKey: "p1", drawing: drawing(y: 15, x0: 4, step: 3))
+        await store.flush()
+        let saved = await waitUntil { (try? await self.strokes(dev.api, id))?.count == 1 }
+        XCTAssertTrue(saved)
+        await store.close()
+    }
+
+    // MARK: Wechsel PC <-> lokal
+
+    /// "PC" im Speicher: beantwortet Datei-Inhalt und Notizen wie app/server.py (409 bei veraltetem Stand)
+    private final class FakePC: APITransport, @unchecked Sendable {
+        private let lock = NSLock()
+        private var version = 0
+        private var root: JSONValue = AnnotationDocument.emptyRoot
+        let pdf: Data
+
+        init(pdf: Data) { self.pdf = pdf }
+
+        var stored: (Int, JSONValue) { lock.lock(); defer { lock.unlock() }; return (version, root) }
+
+        func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+            let url = request.url!
+            func reply(_ status: Int, _ body: Data, _ type: String = "application/json") -> (Data, HTTPURLResponse) {
+                (body, HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": type])!)
+            }
+            lock.lock()
+            defer { lock.unlock() }
+            switch (request.httpMethod ?? "GET", url.path) {
+            case ("GET", "/api/files/d1/content"): return reply(200, pdf, "application/pdf")
+            case ("GET", "/api/files/d1/annotations"):
+                return reply(200, JSONValue.object(["data": root, "version": .number(Double(version)), "updated_at": .null]).serialized())
+            case ("PUT", "/api/files/d1/annotations"):
+                let base = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "base_version" }?.value.flatMap(Int.init)
+                if let base, version > 0, base != version {
+                    return reply(409, JSONValue.object(["detail": "Konflikt", "version": .number(Double(version)), "data": root]).serialized())
+                }
+                version += 1
+                root = try JSONValue.parse(request.httpBody ?? Data())
+                return reply(200, JSONValue.object(["ok": true, "version": .number(Double(version))]).serialized())
+            default:
+                return reply(404, Data(#"{"detail":"Not Found"}"#.utf8))
+            }
+        }
+    }
+
+    func testSwitchingBetweenPCAndLocalLosesNothing() async throws {
+        let dev = try device()
+        let pdf = makePDF("Gemeinsam")
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(fakeStudIP(pdf: pdf)))
+        let file = try await libraryFile(dev.api, "d1")
+
+        // lokal schreiben
+        let local = DocumentStore(file: file, api: dev.api, root: dev.support)
+        await local.load()
+        local.canvasChanged(pageKey: "p1", drawing: drawing(y: 200))
+        await local.flush()
+        let localSaved = await waitUntil { (try? await self.strokes(dev.api, "d1"))?.count == 1 }
+        XCTAssertTrue(localSaved)
+        await local.close()
+        let localStroke = try await strokes(dev.api, "d1").first?["id"]
+
+        // Wechsel zum eigenen Server (gleiche Datei-ID, eigener Namensraum), dort schreiben
+        let pc = FakePC(pdf: pdf)
+        let server = APIClient(base: URL(string: "http://10.0.0.2:8765")!, transport: pc)
+        let remote = DocumentStore(file: file, api: server, root: dev.support)
+        await remote.load()
+        XCTAssertNil(remote.errorMessage)
+        XCTAssertEqual(remote.namespace.id, "server-10.0.0.2-8765")
+        let startObjects = await remote.objects(forPageKey: "p1")
+        XCTAssertTrue(startObjects.isEmpty, "lokale Notizen gehen nicht an den Server")
+        remote.canvasChanged(pageKey: "p1", drawing: drawing(y: 500))
+        await remote.flush()
+        let pcSaved = await waitUntil { pc.stored.0 >= 1 }
+        XCTAssertTrue(pcSaved)
+        await remote.close()
+
+        // lokal unveraendert, PC hat nur seinen Strich
+        let localNow = try await strokes(dev.api, "d1")
+        XCTAssertEqual(localNow.map { $0["id"] }, [localStroke])
+        let pcStrokes = (pc.stored.1["pages"]?["p1"]?["objects"]?.array ?? []).filter { $0["type"]?.string == "stroke" }
+        XCTAssertEqual(pcStrokes.count, 1)
+        XCTAssertNotEqual(pcStrokes.first?["id"], localStroke)
+
+        // zurueck lokal: der lokale Strich ist da, der des PCs nicht; Journale getrennt
+        let back = DocumentStore(file: file, api: dev.api, root: dev.support)
+        await back.load()
+        let objects = await back.objects(forPageKey: "p1")
+        XCTAssertEqual(objects.filter { $0["type"]?.string == "stroke" }.map { $0["id"] }, [localStroke])
+        await back.close()
+        let spaces = dev.support.appendingPathComponent("journal/spaces")
+        let names = try FileManager.default.contentsOfDirectory(atPath: spaces.path).sorted()
+        XCTAssertEqual(names, ["local", "server-10.0.0.2-8765"])
+    }
+}

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Platzhalter: Module und Kurse (S3, S4).
+/// Platzhalter: Module und Zuordnung der Kurse (S4). Kurse selbst sind seit S3 echt (FilesEndpoints).
 enum PendingModulesEndpoints: LocalEndpointModule {
     static let name = "Module (Platzhalter)"
 
@@ -19,11 +19,6 @@ enum PendingModulesEndpoints: LocalEndpointModule {
         // keine Kurse ohne Modul: nichts zuzuordnen
         router.post("/api/modules/auto-assign", placeholder: true) { _, _ in .json(["assigned": 0, "uncertain": []]) }
 
-        router.get("/api/courses", placeholder: true) { _, _ in .json([]) }
-        router.patch("/api/courses/{course_id}", placeholder: true) { req, _ in
-            _ = try req.objectBody()
-            return .json(.null)
-        }
         router.post("/api/courses/{course_id}/module", placeholder: true) { req, _ in
             let body = try req.objectBody()
             if !(body["module_id"].map(LocalPending.truthy) ?? false) { return .ok }

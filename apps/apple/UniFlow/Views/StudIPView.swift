@@ -32,7 +32,7 @@ struct StudIPView: View {
         }
         .confirmationDialog("Von Stud.IP abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Abmelden", role: .destructive) { Task { @MainActor in await studip.signOut() } }
-            Button("Abmelden und Dateien löschen", role: .destructive) { Task { @MainActor in await studip.signOut(); studip.removeDownloads() } }
+            Button("Abmelden und Dateien löschen", role: .destructive) { Task { @MainActor in await studip.signOut(); await studip.removeDownloads() } }
         } message: {
             Text("Das Sitzungs-Cookie und die Anmeldung in der Webansicht werden gelöscht.")
         }

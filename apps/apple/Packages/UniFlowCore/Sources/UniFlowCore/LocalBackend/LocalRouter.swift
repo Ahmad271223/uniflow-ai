@@ -1,13 +1,31 @@
 import Foundation
 
-/// Was ein Endpunkt fuer seine Arbeit bekommt: die Datenbank des Geraets und die Uhr.
+/// Was ein Endpunkt fuer seine Arbeit bekommt: die Datenbank des Geraets, die Uhr und die Dateiablage.
 public struct LocalContext: Sendable {
     public let database: SQLiteDatabase
     public let clock: UniFlowClock
+    /// Stud.IP-Dateien, eigene Dokumente, Bilder der Notizen; nil = keine Dateien (Inhalte 404, Hochladen 503)
+    public let files: LocalFiles?
+    /// Neue Kennung wie `uuid.uuid4().hex` (32 Hex-Zeichen); Tests setzen dieselbe Folge wie die Python-Fixtures
+    public let newHex: @Sendable () -> String
 
-    public init(database: SQLiteDatabase, clock: UniFlowClock = .system) {
+    public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
+                newHex: @escaping @Sendable () -> String = LocalContext.randomHex) {
         self.database = database
         self.clock = clock
+        self.files = files
+        self.newHex = newHex
+    }
+
+    /// `uuid.uuid4().hex`
+    public static let randomHex: @Sendable () -> String = {
+        UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+    }
+
+    /// Dateiablage oder 503 mit Meldung
+    func requireFiles() throws -> LocalFiles {
+        guard let files else { throw LocalHTTPError(status: 503, message: "Auf diesem Gerät gibt es keinen Speicherort für Dateien.") }
+        return files
     }
 }
 

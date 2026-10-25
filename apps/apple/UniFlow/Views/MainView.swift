@@ -22,7 +22,7 @@ struct MainView: View {
             case .files(let s, let p, let q):
                 UFServerGate(.library) { LibraryPage(section: s, path: p, q: q) }             // 1:1
             case .doc(let id, _, _):
-                UFServerGate(.library) { LibraryView(openFile: id) }
+                UFServerGate(.document) { LibraryView(openFile: id) }                         // Editor ohne Leiste darueber
             case .exams:
                 UFServerGate(.exams) { ExamsPage() }                                          // 1:1
             case .exam(let id, let task):

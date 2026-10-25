@@ -3,11 +3,15 @@ import UniFlowCore
 
 /// Meine Module 1:1 nach viewModules()/modCard() in app/static/views-misc.js: Karten (.mod2) oder Liste (.lib-row),
 /// Umschalter in localStorage "mod-mode", Link zu den Moduleinstellungen. Daten: GET /api/modules.
+/// Lokal ohne Module (Einordnung in Faecher erst mit S4) stehen hier die abgeglichenen Stud.IP-Kurse
+/// (GET /api/courses); ein Kurs oeffnet seinen Ordner in Dokumente & Notizen (`LibraryCourses`).
 struct ModulesPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @AppStorage("mod-mode") private var mode = "cards"
     @State private var mods: [JSONValue]?
+    /// lokal ohne Module: Stud.IP-Kurse ohne Modul
+    @State private var courses: [JSONValue] = []
     @State private var error: String?
 
     var body: some View {
@@ -22,7 +26,12 @@ struct ModulesPage: View {
 
     private func load() async {
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
-        do { mods = try await api.value("/api/modules").items; error = nil } catch { if mods == nil { self.error = error.localizedDescription } }
+        do {
+            let list = try await api.value("/api/modules").items
+            courses = api.isLocal && list.isEmpty ? LibraryCourses.unassigned((try? await api.value("/api/courses"))?.items ?? []) : []
+            mods = list
+            error = nil
+        } catch { if mods == nil { self.error = error.localizedDescription } }
     }
 
     @ViewBuilder private func content(_ mods: [JSONValue]) -> some View {
@@ -31,7 +40,9 @@ struct ModulesPage: View {
                 UFSegPill(options: [("cards", "Karten", nil), ("list", "Liste", nil)], selection: mode) { mode = $0 }
                 UFButton("Module & Wochentests", icon: "settings") { router.go(.settings(tab: "modules")) }
             }
-            if mods.isEmpty {
+            if mods.isEmpty, !courses.isEmpty {
+                LocalCoursesCard(courses: courses) { router.go(.files(path: LibraryCourses.path($0))) }
+            } else if mods.isEmpty {
                 UFCard { UFEmpty(icon: "book", text: "Noch keine Module. Erst synchronisieren.") }
             } else if mode == "cards" {
                 UFAutoGrid(min: 300, spacing: 19.2) {
@@ -46,6 +57,45 @@ struct ModulesPage: View {
                 .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
                 .clipShape(RoundedRectangle(cornerRadius: UF.r))
                 .ufShadow(.sm)
+            }
+        }
+    }
+}
+
+/// Lokal ohne Module: Stud.IP-Kurse als Liste im Stil von .mod2-list (Titel, Semester, Dateien, neu); ein Kurs oeffnet
+/// seinen Ordner in Dokumente & Notizen
+struct LocalCoursesCard: View {
+    let courses: [JSONValue]
+    let open: (String) -> Void
+
+    var body: some View {
+        UFCard {
+            UFCardHead("Deine Stud.IP-Kurse", icon: "book") { Text("\(courses.count)").ufFont(13.12).foregroundStyle(UF.muted) }
+            Text("Ein Modul fasst die Vorlesung und die Übungen eines Fachs zusammen. Diese Einordnung macht UniFlow auf dem iPad noch nicht – bis dahin findest du deine Unterlagen hier und in „Dokumente & Notizen“ nach Stud.IP-Kursen.")
+                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
+            VStack(spacing: 0) {
+                ForEach(Row.rows(courses)) { row in
+                    let c = row.value
+                    let sub = [c.s("semester"), c.s("number")].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
+                    Button { if let id = c.s("id") { open(id) } } label: {
+                        HStack(spacing: 9.6) {
+                            RoundedRectangle(cornerRadius: 6).fill(UF.accent).frame(width: 36, height: 36)
+                                .overlay(UFIcon("folder", size: 18).foregroundStyle(.white))
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(c.s("title") ?? "").ufFont(14.08, 700).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                                if !sub.isEmpty { Text(sub).ufFont(11.84).foregroundStyle(UF.muted) }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            let n = c.i("file_count") ?? 0
+                            Text("\(n) \(n == 1 ? "Datei" : "Dateien") · \(c.i("new_count") ?? 0) neu").ufFont(13.12).foregroundStyle(UF.muted).fixedSize()
+                            UFIcon("chevron-right", size: 16).foregroundStyle(UF.text).frame(width: 36)
+                        }
+                        .padding(.vertical, 7.2).padding(.horizontal, 8)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .ufBorderBottom()
+                }
             }
         }
     }
