@@ -1,7 +1,8 @@
 import Foundation
 
 /// Stundenplan-Import wie app/timetable.py: Art und Modul raten (`guess_kind`, `guess_module`), Kalenderdateien
-/// (`parse_ics`, `_ics_dt` mit UTC/TZID und EXDATE, Korrektur vom 25.10.2026 zuerst in Python), Einzeltermine zu
+/// (`parse_ics`, `_ics_dt` mit UTC/TZID und EXDATE, Korrektur vom 25.10.2026 zuerst in Python; BYDAY wie der
+/// LSF-Export der Uni Hildesheim), Einzeltermine zu
 /// Serien (`merge_weekly`), Stud.IP-Termine (`studip_entries`, `auto_import`), Vorschau (`enrich`,
 /// `diff_against_existing`) und Uebernahme (`apply_import`). Eintraege sind JSON-Objekte in der Form von Python.
 ///
@@ -58,36 +59,10 @@ enum LocalTimetableImport {
     /// `guess_kind(title)`
     static func guessKind(_ title: String) -> String { StudIPSchedule.guessKind(title) }
 
-    private static let nameTokens = regex("[a-z0-9äöü]+")
-
-    /// `guess_module(conn, title)`: Modul, dessen Name (oder Kurstitel) am besten zum Titel passt, ab 0,55
+    /// `guess_module(conn, title)`: Modul, dessen Name (oder Kurstitel) am besten zum Titel passt, ab 0,55. Eine
+    /// Fassung fuer Stundenplan und Module (`ModuleGuess`, S4), hier als JSON-Wert fuer die Eintraege.
     static func guessModule(_ c: SQLiteConnection, title: String) throws -> JSONValue {
-        let t = title.lowercased()
-        var best: JSONValue = .null
-        var score = 0.0
-        for m in try c.rows("SELECT id, name FROM modules") {
-            guard let name = m["name"]?.string else { throw LocalHTTPError(status: 500, message: "Modul ohne Namen") }
-            let n = name.lowercased()
-            var sc = PySequenceMatcher.ratio(t, n)
-            if contains(t, n) || contains(n, t) { sc = max(sc, 0.9) }
-            // Kurztitel wie "Mathe I", "DuA", "GDS", "ET"
-            let ns = n as NSString
-            let toks = nameTokens.matches(in: n, range: NSRange(location: 0, length: ns.length))
-                .map { ns.substring(with: $0.range) }.filter { $0.unicodeScalars.count > 2 }
-            let hit = toks.filter { contains(t, $0) }.count
-            if !toks.isEmpty && Double(hit) / Double(toks.count) >= 0.5 {
-                sc = max(sc, 0.6 + 0.4 * Double(hit) / Double(toks.count))
-            }
-            if sc > score { best = m["id"] ?? .null; score = sc }
-        }
-        for co in try c.rows("SELECT module_id, title FROM courses WHERE module_id IS NOT NULL") {
-            guard let title = co["title"]?.string else { continue }
-            let n = title.lowercased()
-            var sc = PySequenceMatcher.ratio(t, n)
-            if contains(t, n) || contains(n, t) { sc = max(sc, 0.9) }
-            if sc > score { best = co["module_id"] ?? .null; score = sc }
-        }
-        return score >= 0.55 ? best : .null
+        try ModuleGuess.guessModule(c, title: title)?.json ?? .null
     }
 
     // MARK: Kalenderdatei (ICS)
@@ -199,7 +174,7 @@ enum LocalTimetableImport {
         return out.sorted()
     }
 
-    /// `parse_ics(text)`: VEVENT mit DTSTART/DTEND/SUMMARY/LOCATION/RRULE/EXDATE
+    /// `parse_ics(text)`: VEVENT mit DTSTART/DTEND/SUMMARY/LOCATION/RRULE (auch BYDAY)/EXDATE/UID/DESCRIPTION
     static func parseICS(_ text: String) -> [Entry] {
         // Zeilen entfalten: "\r\n" -> "\n", Folgezeilen mit Leerzeichen/Tab an die vorige haengen
         var scalars: [Unicode.Scalar] = []
@@ -260,15 +235,38 @@ enum LocalTimetableImport {
             let interval = search(intervalRule, rr)?[1]
             let title = (ev.props["SUMMARY"] ?? "Veranstaltung").replacingOccurrences(of: "\\,", with: ",")
             let room = (ev.props["LOCATION"] ?? "").replacingOccurrences(of: "\\,", with: ",")
-            out.append([
-                "title": .string(title), "kind": .string(guessKind(title)), "weekday": .number(Double(BerlinClock.weekday(st.day))),
-                "start_time": .string(LocalFreeWindows.mh(st.minutes)), "end_time": .string(LocalFreeWindows.mh(en.minutes)),
-                "room": .string(room), "rrule": .string(weekly ? (interval == "2" ? "biweekly" : "weekly") : "once"),
-                "date_from": .string(BerlinClock.isoDate(st.day)), "date_to": icsUntil(rr, start: st).map(JSONValue.string) ?? .null,
-                "uncertain": false, "exdates": .array(icsExdates(ev.exdates).map(JSONValue.string)),
-            ])
+            // BYDAY bestimmt den Wochentag (im LSF ist DTSTART der Semesterbeginn, auch fuer Donnerstags-Kurse); bei
+            // mehreren Tagen je Tag eine Serie mit den Ausfaellen an diesem Wochentag
+            let days = weekly ? byDays(rr) : []
+            let exdates = icsExdates(ev.exdates)
+            let until = icsUntil(rr, start: st).map(JSONValue.string) ?? .null
+            let description = (ev.props["DESCRIPTION"] ?? "").replacingOccurrences(of: "\\n", with: "\n").replacingOccurrences(of: "\\,", with: ",")
+            let startWeekday = BerlinClock.weekday(st.day)
+            for wd in days.isEmpty ? [startWeekday] : days {
+                let first = st.day + ((wd - startWeekday) % 7 + 7) % 7
+                let own = exdates.filter { d in days.isEmpty || BerlinClock.parseISODate(d).map(BerlinClock.weekday) == wd }
+                out.append([
+                    "title": .string(title), "kind": .string(guessKind(title)), "weekday": .number(Double(wd)),
+                    "start_time": .string(LocalFreeWindows.mh(st.minutes)), "end_time": .string(LocalFreeWindows.mh(en.minutes)),
+                    "room": .string(room), "rrule": .string(weekly ? (interval == "2" ? "biweekly" : "weekly") : "once"),
+                    "date_from": .string(BerlinClock.isoDate(first)), "date_to": until,
+                    "uncertain": false, "exdates": .array(own.map(JSONValue.string)),
+                    "uid": ev.props["UID"].map(JSONValue.string) ?? .null, "description": .string(description),
+                ])
+            }
         }
         return out
+    }
+
+    /// Wochentage wie `ICS_DAYS`
+    static let icsDays: [String: Int] = ["MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6]
+    private static let byDayRule = regex("BYDAY=([A-Z,0-9+-]+)")
+
+    /// Wochentage aus BYDAY (`[ICS_DAYS[d[-2:]] for d in ... if d[-2:] in ICS_DAYS]`, z. B. "-1SU" -> 6); doppelte
+    /// bleiben doppelt wie in Python
+    static func byDays(_ rrule: String) -> [Int] {
+        guard let g = search(byDayRule, rrule), let list = g[1] else { return [] }
+        return list.split(separator: ",", omittingEmptySubsequences: false).compactMap { d in icsDays[String(d.suffix(2))] }
     }
 
     // MARK: Serien aus Einzelterminen
@@ -448,8 +446,11 @@ enum LocalTimetableImport {
         }
     }
 
-    /// `auto_import(conn)`: alle eindeutigen Stud.IP-Termine uebernehmen; parallele Gruppen bleiben zur Auswahl
+    /// `auto_import(conn)`: alle eindeutigen Stud.IP-Termine uebernehmen; parallele Gruppen bleiben zur Auswahl.
+    /// Zuerst `ensure_modules`, damit Termine neuer Kurse das Modul ihres Fachs bekommen (Korrektur vom 26.10.2026,
+    /// zuerst in Python, tests/test_timetable.py)
     static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> JSONValue {
+        try LocalModules.ensureModules(c, clock: clock)
         let all = try studipEntries(c)
         let entries = try enrich(c, all.filter { LocalTimetable.truthy($0["selected"]) })
         let diff = try diffAgainstExisting(c, entries)
@@ -518,12 +519,14 @@ enum LocalTimetableImport {
         return ["new": .array(new), "changed": .array(changed), "same": .array(same), "removed": .array(removed)]
     }
 
-    /// `apply_import(conn, entries, source, remove_ids)`; Ausfaelle (`exdates`) werden zu Ausnahmen "cancelled",
+    /// `apply_import(conn, entries, source, remove_ids)` mit den IDs der neuen Serien (`ids`, fuer den LSF-Import am
+    /// PC); Ausfaelle (`exdates`) werden zu Ausnahmen "cancelled",
     /// bei einer vorhandenen Serie entfallen nicht mehr gemeldete Ausfaelle derselben Quelle. `imported` (nur auf dem
     /// Geraet, StudIPScheduleImport) bekommt jeden Eintrag mit der ID seiner Serie.
     static func applyImport(_ c: SQLiteConnection, _ entries: [JSONValue], source: String, removeIDs: [JSONValue] = [],
                             clock: UniFlowClock, imported: ((Entry, SQLiteValue) throws -> Void)? = nil) throws -> JSONValue {
         var nNew = 0, nUpd = 0
+        var newIDs: [JSONValue] = []
         let note = source.hasPrefix("studip") ? "Ausfall laut Stud.IP" : "Ausfall laut Kalender"
         func required(_ e: [String: JSONValue], _ k: String) throws -> JSONValue {
             guard let v = e[k] else { throw LocalHTTPError(status: 500, message: "Eintrag ohne \(k)") }
@@ -552,6 +555,7 @@ enum LocalTimetableImport {
                           try LocalTimetable.bind(LocalTimetable.or(e["rrule"], "weekly"), "rrule"), try LocalTimetable.bind(e["date_from"], "date_from"),
                           try LocalTimetable.bind(e["date_to"], "date_to"), .text(source), .text(clock.nowISO)])
                 eventID = .integer(c.lastInsertRowID)
+                newIDs.append(.number(Double(c.lastInsertRowID)))
                 nNew += 1
             }
             try addCancellations(c, eventID: eventID, dates: e["exdates"], note: note, clock: clock)
@@ -560,7 +564,7 @@ enum LocalTimetableImport {
         for rid in removeIDs {
             try c.execute("DELETE FROM course_events WHERE id=?", [try LocalTimetable.bind(rid, "remove_ids")])
         }
-        return ["new": .number(Double(nNew)), "updated": .number(Double(nUpd)), "removed": .number(Double(removeIDs.count))]
+        return ["new": .number(Double(nNew)), "updated": .number(Double(nUpd)), "removed": .number(Double(removeIDs.count)), "ids": .array(newIDs)]
     }
 
     /// `_add_cancellations`: Ausfaelle einer Serie als Ausnahme "cancelled"; Tage mit vorhandener Ausnahme bleiben

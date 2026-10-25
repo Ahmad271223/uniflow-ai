@@ -36,8 +36,11 @@ enum StudIPScheduleImport {
 
     /// `auto_import(conn)` auf dem Geraet: eindeutige Stud.IP-Eintraege, die noch nicht verknuepft sind, uebernehmen
     /// (eine schon vorhandene gleiche Serie wird verknuepft statt neu angelegt), danach die Ausfaelle aller
-    /// verknuepften Serien nachziehen. Liefert die Zahl neuer Serien und die Eintraege offener Gruppen.
+    /// verknuepften Serien nachziehen. Liefert die Zahl neuer Serien und die Eintraege offener Gruppen. Wie
+    /// `auto_import` zuerst `ensure_modules`: der Abgleich speichert neue Kurse direkt davor, ihre Termine sollen das
+    /// Modul ihres Fachs bekommen (sonst fehlen ihnen dauerhaft die Unterlagen zum Termin).
     static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> (new: Int, pendingGroups: Int) {
+        try LocalModules.ensureModules(c, clock: clock)
         try c.executeScript(linkTable)
         let all = try LocalTimetableImport.studipEntries(c)
         var links = try readLinks(c)

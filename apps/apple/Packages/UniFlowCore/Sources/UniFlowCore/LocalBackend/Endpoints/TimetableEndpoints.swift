@@ -116,7 +116,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
                 try T.setAttendance(c, eventID: try T.bind(e["id"], "id"), date: try T.bind(dv, "date"), mode: b["mode"], clock: clock)
                 let after = try LocalFreeWindows.compute(c, day: day, settings: try LocalSettings.read(c))
                 func total(_ w: [JSONValue]) -> Int { w.reduce(0) { $0 + ($1["minutes"]?.int ?? 0) } }
-                let mats = try T.materials(c, event: e, day: day)
+                let mats = try T.materials(c, event: e, day: day, clock: clock)
                 let fresh = after.filter { w in !before.contains { $0["start"] == w["start"] && $0["end"] == w["end"] } }
                 return ["ok": true, "freed_minutes": .number(Double(max(0, total(after) - total(before)))), "windows": .array(fresh),
                         "materials": .array(mats), "event": .object(e)]
@@ -147,10 +147,11 @@ public enum TimetableEndpoints: LocalEndpointModule {
         router.get("/api/timetable/event-materials/{event_id:int}") { req, ctx in
             let raw = try req.requiredQuery("date")
             let id: SQLiteValue = .integer(Int64(req.intParam("event_id")))
+            let clock = ctx.clock
             return .json(.array(try await ctx.database.withConnection { c in
                 guard let e = try c.rows("SELECT * FROM course_events WHERE id=?", [id]).first else { throw LocalHTTPError.notFound() }
                 guard let d = BerlinClock.parseISODate(raw) else { throw LocalHTTPError(status: 422, message: "Ungültiges Datum: \(raw)") }
-                return try T.materials(c, event: e, day: d)
+                return try T.materials(c, event: e, day: d, clock: clock)
             }))
         }
 

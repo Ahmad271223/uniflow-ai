@@ -1,6 +1,7 @@
 {
  "generator": "tools/gen-timetable-fixture.py",
  "now": "2026-10-25T14:30:05",
+ "timezone": "Europe/Berlin",
  "seed": [
   {
    "sql": "UPDATE settings SET value=? WHERE key='blocked_times'",
@@ -788,6 +789,146 @@
     "07:00",
     "07:45",
     null,
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-ma-skript",
+    "k-ma-vl",
+    "Skript Testmathematik.pdf",
+    1000,
+    "application/pdf",
+    1791187200,
+    null,
+    "gelesen",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-ma-alt",
+    "k-ma-vl",
+    "Altklausur 2025.pdf",
+    1001,
+    "application/pdf",
+    1789891200,
+    "Klausuren",
+    "neu",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-ma-1",
+    "k-ma-vl",
+    "Vorlesung_01.pdf",
+    1002,
+    "application/pdf",
+    1791878400,
+    "Vorlesung",
+    "neu",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-ue-1",
+    "k-ma-ue",
+    "Übungsblatt 1.pdf",
+    1003,
+    "application/pdf",
+    1791961200,
+    "Übungsblätter",
+    "gelesen",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-ph-1",
+    "k-ph",
+    "Folien Einführung.pdf",
+    1004,
+    "application/pdf",
+    1792058400,
+    null,
+    "neu",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-pg-1",
+    "k-prog-ue",
+    "Blatt 1.pdf",
+    1005,
+    "application/pdf",
+    1792130400,
+    null,
+    "neu",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-ma-2",
+    "k-ma-vl",
+    "Vorlesung_02.pdf",
+    1006,
+    "application/pdf",
+    1792483200,
+    "Vorlesung",
+    "gelesen",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-ue-2",
+    "k-ma-ue",
+    "Lösung Blatt 1.pdf",
+    1007,
+    "application/pdf",
+    1792598400,
+    "Lösungen",
+    "neu",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-ma-3",
+    "k-ma-vl",
+    "Vorlesung_03.pdf",
+    1008,
+    "application/pdf",
+    1792877400,
+    "Vorlesung",
+    "neu",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "tf-alt",
+    "k-alt",
+    "Folien Altkurs.pdf",
+    1009,
+    "application/pdf",
+    1791878400,
+    null,
+    "gelesen",
     "2026-10-24T08:00:00"
    ]
   }
@@ -2452,7 +2593,361 @@
    "method": "GET",
    "path": "/api/timetable/event-materials/1?date=2026-10-26",
    "status": 200,
-   "response": []
+   "response": [
+    {
+     "id": "tf-ma-1",
+     "name": "Vorlesung_01.pdf",
+     "chdate": 1791878400,
+     "status": "neu",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1002,
+     "course_id": "k-ma-vl",
+     "studip_folder": "Vorlesung",
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": 1
+    },
+    {
+     "id": "tf-ue-1",
+     "name": "Übungsblatt 1.pdf",
+     "chdate": 1791961200,
+     "status": "gelesen",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1003,
+     "course_id": "k-ma-ue",
+     "studip_folder": "Übungsblätter",
+     "course_title": "Übung zu Testmathematik I",
+     "course_kind": "uebung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "uebung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Übung",
+     "week_hint": 1
+    },
+    {
+     "id": "tf-ma-2",
+     "name": "Vorlesung_02.pdf",
+     "chdate": 1792483200,
+     "status": "gelesen",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1006,
+     "course_id": "k-ma-vl",
+     "studip_folder": "Vorlesung",
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": 2
+    },
+    {
+     "id": "tf-ma-3",
+     "name": "Vorlesung_03.pdf",
+     "chdate": 1792877400,
+     "status": "neu",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1008,
+     "course_id": "k-ma-vl",
+     "studip_folder": "Vorlesung",
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": 3
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/event-materials/5?date=2026-10-22",
+   "status": 200,
+   "response": [
+    {
+     "id": "tf-ma-2",
+     "name": "Vorlesung_02.pdf",
+     "chdate": 1792483200,
+     "status": "gelesen",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1006,
+     "course_id": "k-ma-vl",
+     "studip_folder": "Vorlesung",
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": 2
+    },
+    {
+     "id": "tf-ue-2",
+     "name": "Lösung Blatt 1.pdf",
+     "chdate": 1792598400,
+     "status": "neu",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1007,
+     "course_id": "k-ma-ue",
+     "studip_folder": "Lösungen",
+     "course_title": "Übung zu Testmathematik I",
+     "course_kind": "uebung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "loesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Lösung",
+     "week_hint": 1
+    },
+    {
+     "id": "tf-ma-3",
+     "name": "Vorlesung_03.pdf",
+     "chdate": 1792877400,
+     "status": "neu",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1008,
+     "course_id": "k-ma-vl",
+     "studip_folder": "Vorlesung",
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": 3
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/event-materials/2?date=2026-10-14",
+   "status": 200,
+   "response": [
+    {
+     "id": "tf-ph-1",
+     "name": "Folien Einführung.pdf",
+     "chdate": 1792058400,
+     "status": "neu",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1004,
+     "course_id": "k-ph",
+     "studip_folder": null,
+     "course_title": "Testphysik für Ingenieure",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 2,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": null
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/event-materials/1?date=2026-10-05",
+   "status": 200,
+   "response": [
+    {
+     "id": "tf-ma-skript",
+     "name": "Skript Testmathematik.pdf",
+     "chdate": 1791187200,
+     "status": "gelesen",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1000,
+     "course_id": "k-ma-vl",
+     "studip_folder": null,
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "skript",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Skript",
+     "week_hint": null
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/event-materials/1?date=2026-09-28",
+   "status": 200,
+   "response": [
+    {
+     "id": "tf-ma-1",
+     "name": "Vorlesung_01.pdf",
+     "chdate": 1791878400,
+     "status": "neu",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1002,
+     "course_id": "k-ma-vl",
+     "studip_folder": "Vorlesung",
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": 1
+    },
+    {
+     "id": "tf-ue-1",
+     "name": "Übungsblatt 1.pdf",
+     "chdate": 1791961200,
+     "status": "gelesen",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1003,
+     "course_id": "k-ma-ue",
+     "studip_folder": "Übungsblätter",
+     "course_title": "Übung zu Testmathematik I",
+     "course_kind": "uebung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "uebung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Übung",
+     "week_hint": 1
+    },
+    {
+     "id": "tf-ma-2",
+     "name": "Vorlesung_02.pdf",
+     "chdate": 1792483200,
+     "status": "gelesen",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1006,
+     "course_id": "k-ma-vl",
+     "studip_folder": "Vorlesung",
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": 2
+    },
+    {
+     "id": "tf-ma-3",
+     "name": "Vorlesung_03.pdf",
+     "chdate": 1792877400,
+     "status": "neu",
+     "favorite": 0,
+     "last_opened": null,
+     "size": 1008,
+     "course_id": "k-ma-vl",
+     "studip_folder": "Vorlesung",
+     "course_title": "Testmathematik I",
+     "course_kind": "vorlesung",
+     "subject": null,
+     "module_id": 1,
+     "doc_type": "vorlesung",
+     "ai_title": null,
+     "difficulty": null,
+     "est_minutes": null,
+     "topics": null,
+     "summary": null,
+     "has_notes": null,
+     "ai_doc_type": null,
+     "sub_label": "Vorlesung",
+     "week_hint": 3
+    }
+   ]
   },
   {
    "method": "GET",
@@ -2467,6 +2962,129 @@
    "response": {
     "detail": "Not Found"
    }
+  },
+  {
+   "method": "GET",
+   "path": "/api/modules",
+   "status": 200,
+   "response": [
+    {
+     "id": 1,
+     "name": "Testmathematik I",
+     "semester": null,
+     "color": "#111111",
+     "icon": null,
+     "priority": 2,
+     "exam_date": null,
+     "sort": 0,
+     "created_at": "2026-10-01T09:00:00",
+     "active": 1,
+     "weekly_test": 1,
+     "test_minutes": null,
+     "file_count": 7,
+     "new_count": 4,
+     "open_tasks": 0,
+     "progress": 0,
+     "next_package": {
+      "date": "2026-10-29",
+      "title": "Paket A"
+     },
+     "next_event": {
+      "event_id": 5,
+      "date": "2026-10-29",
+      "start": "12:15",
+      "end": "13:45",
+      "title": "Übung zu Testmathematik I",
+      "kind": "uebung",
+      "module_id": 1,
+      "module_name": "Testmathematik I",
+      "color": "#111111",
+      "room": "Raum C",
+      "lecturer": "",
+      "course_id": "k-ma-ue",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     },
+     "task_count": 0,
+     "test_count": 0,
+     "topics": [],
+     "courses": 2,
+     "weeks": 3
+    },
+    {
+     "id": 2,
+     "name": "Testphysik",
+     "semester": null,
+     "color": "#222222",
+     "icon": null,
+     "priority": 2,
+     "exam_date": null,
+     "sort": 1,
+     "created_at": "2026-10-01T09:00:00",
+     "active": 1,
+     "weekly_test": 1,
+     "test_minutes": null,
+     "file_count": 1,
+     "new_count": 1,
+     "open_tasks": 0,
+     "progress": 0,
+     "next_package": {
+      "date": "2026-10-29",
+      "title": "Paket B"
+     },
+     "next_event": {
+      "event_id": 2,
+      "date": "2026-10-28",
+      "start": "08:30",
+      "end": "10:00",
+      "title": "Testphysik",
+      "kind": "vorlesung",
+      "module_id": 2,
+      "module_name": "Testphysik",
+      "color": "#ff0000",
+      "room": "Raum B",
+      "lecturer": "",
+      "course_id": "k-ph",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": "edit"
+     },
+     "task_count": 0,
+     "test_count": 0,
+     "topics": [],
+     "courses": 1,
+     "weeks": 1
+    },
+    {
+     "id": 3,
+     "name": "Programmierkurs Beispiel",
+     "semester": null,
+     "color": "#333333",
+     "icon": null,
+     "priority": 2,
+     "exam_date": null,
+     "sort": 2,
+     "created_at": "2026-10-01T09:00:00",
+     "active": 1,
+     "weekly_test": 1,
+     "test_minutes": null,
+     "file_count": 1,
+     "new_count": 1,
+     "open_tasks": 0,
+     "progress": 0,
+     "next_package": {
+      "date": "2026-10-25",
+      "title": "Paket C"
+     },
+     "next_event": null,
+     "task_count": 0,
+     "test_count": 0,
+     "topics": [],
+     "courses": 1,
+     "weeks": 1
+    }
+   ]
   },
   {
    "method": "POST",
@@ -3136,6 +3754,8 @@
       "exdates": [
        "2026-12-23"
       ],
+      "uid": null,
+      "description": "",
       "module_id": null,
       "module_guess_uncertain": true
      },
@@ -3151,6 +3771,8 @@
       "date_to": null,
       "uncertain": false,
       "exdates": [],
+      "uid": null,
+      "description": "",
       "module_id": 1,
       "module_guess_uncertain": false
      }
@@ -3171,6 +3793,8 @@
        "exdates": [
         "2026-12-23"
        ],
+       "uid": null,
+       "description": "",
        "module_id": null,
        "module_guess_uncertain": true
       }
@@ -3188,6 +3812,8 @@
        "date_to": null,
        "uncertain": false,
        "exdates": [],
+       "uid": null,
+       "description": "",
        "module_id": 1,
        "module_guess_uncertain": false,
        "old_start": "10:00",
@@ -3319,6 +3945,8 @@
       "exdates": [
        "2026-12-23"
       ],
+      "uid": null,
+      "description": "",
       "module_id": null,
       "module_guess_uncertain": true
      },
@@ -3334,6 +3962,8 @@
       "date_to": null,
       "uncertain": false,
       "exdates": [],
+      "uid": null,
+      "description": "",
       "module_id": 1,
       "module_guess_uncertain": false
      }
@@ -3354,6 +3984,8 @@
        "exdates": [
         "2026-12-23"
        ],
+       "uid": null,
+       "description": "",
        "module_id": null,
        "module_guess_uncertain": true
       }
@@ -3371,6 +4003,8 @@
        "date_to": null,
        "uncertain": false,
        "exdates": [],
+       "uid": null,
+       "description": "",
        "module_id": 1,
        "module_guess_uncertain": false,
        "old_start": "10:00",
@@ -3515,6 +4149,14 @@
     "new": 6,
     "updated": 3,
     "removed": 1,
+    "ids": [
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ],
     "conflicts": [
      {
       "date": "2026-10-29",
@@ -4454,7 +5096,33 @@
     "ok": true,
     "freed_minutes": 0,
     "windows": [],
-    "materials": [],
+    "materials": [
+     {
+      "id": "tf-ph-1",
+      "name": "Folien Einführung.pdf",
+      "chdate": 1792058400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1004,
+      "course_id": "k-ph",
+      "studip_folder": null,
+      "course_title": "Testphysik für Ingenieure",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 2,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": null
+     }
+    ],
     "event": {
      "id": 2,
      "module_id": 2,
@@ -4524,7 +5192,83 @@
     "ok": true,
     "freed_minutes": 0,
     "windows": [],
-    "materials": [],
+    "materials": [
+     {
+      "id": "tf-ma-2",
+      "name": "Vorlesung_02.pdf",
+      "chdate": 1792483200,
+      "status": "gelesen",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1006,
+      "course_id": "k-ma-vl",
+      "studip_folder": "Vorlesung",
+      "course_title": "Testmathematik I",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": 2
+     },
+     {
+      "id": "tf-ue-2",
+      "name": "Lösung Blatt 1.pdf",
+      "chdate": 1792598400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1007,
+      "course_id": "k-ma-ue",
+      "studip_folder": "Lösungen",
+      "course_title": "Übung zu Testmathematik I",
+      "course_kind": "uebung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "loesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Lösung",
+      "week_hint": 1
+     },
+     {
+      "id": "tf-ma-3",
+      "name": "Vorlesung_03.pdf",
+      "chdate": 1792877400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1008,
+      "course_id": "k-ma-vl",
+      "studip_folder": "Vorlesung",
+      "course_title": "Testmathematik I",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": 3
+     }
+    ],
     "event": {
      "id": 1,
      "module_id": 1,
@@ -4575,7 +5319,83 @@
       "campus": false
      }
     ],
-    "materials": [],
+    "materials": [
+     {
+      "id": "tf-ma-2",
+      "name": "Vorlesung_02.pdf",
+      "chdate": 1792483200,
+      "status": "gelesen",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1006,
+      "course_id": "k-ma-vl",
+      "studip_folder": "Vorlesung",
+      "course_title": "Testmathematik I",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": 2
+     },
+     {
+      "id": "tf-ue-2",
+      "name": "Lösung Blatt 1.pdf",
+      "chdate": 1792598400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1007,
+      "course_id": "k-ma-ue",
+      "studip_folder": "Lösungen",
+      "course_title": "Übung zu Testmathematik I",
+      "course_kind": "uebung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "loesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Lösung",
+      "week_hint": 1
+     },
+     {
+      "id": "tf-ma-3",
+      "name": "Vorlesung_03.pdf",
+      "chdate": 1792877400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1008,
+      "course_id": "k-ma-vl",
+      "studip_folder": "Vorlesung",
+      "course_title": "Testmathematik I",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": 3
+     }
+    ],
     "event": {
      "id": 5,
      "module_id": 1,
@@ -4619,7 +5439,108 @@
       "campus": false
      }
     ],
-    "materials": [],
+    "materials": [
+     {
+      "id": "tf-ma-1",
+      "name": "Vorlesung_01.pdf",
+      "chdate": 1791878400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1002,
+      "course_id": "k-ma-vl",
+      "studip_folder": "Vorlesung",
+      "course_title": "Testmathematik I",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": 1
+     },
+     {
+      "id": "tf-ue-1",
+      "name": "Übungsblatt 1.pdf",
+      "chdate": 1791961200,
+      "status": "gelesen",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1003,
+      "course_id": "k-ma-ue",
+      "studip_folder": "Übungsblätter",
+      "course_title": "Übung zu Testmathematik I",
+      "course_kind": "uebung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "uebung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Übung",
+      "week_hint": 1
+     },
+     {
+      "id": "tf-ma-2",
+      "name": "Vorlesung_02.pdf",
+      "chdate": 1792483200,
+      "status": "gelesen",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1006,
+      "course_id": "k-ma-vl",
+      "studip_folder": "Vorlesung",
+      "course_title": "Testmathematik I",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": 2
+     },
+     {
+      "id": "tf-ma-3",
+      "name": "Vorlesung_03.pdf",
+      "chdate": 1792877400,
+      "status": "neu",
+      "favorite": 0,
+      "last_opened": null,
+      "size": 1008,
+      "course_id": "k-ma-vl",
+      "studip_folder": "Vorlesung",
+      "course_title": "Testmathematik I",
+      "course_kind": "vorlesung",
+      "subject": null,
+      "module_id": 1,
+      "doc_type": "vorlesung",
+      "ai_title": null,
+      "difficulty": null,
+      "est_minutes": null,
+      "topics": null,
+      "summary": null,
+      "has_notes": null,
+      "ai_doc_type": null,
+      "sub_label": "Vorlesung",
+      "week_hint": 3
+     }
+    ],
     "event": {
      "id": 5,
      "module_id": 1,
@@ -5886,6 +6807,145 @@
    }
   },
   {
+   "method": "GET",
+   "path": "/api/modules",
+   "status": 200,
+   "response": [
+    {
+     "id": 1,
+     "name": "Testmathematik I",
+     "semester": null,
+     "color": "#111111",
+     "icon": null,
+     "priority": 2,
+     "exam_date": null,
+     "sort": 0,
+     "created_at": "2026-10-01T09:00:00",
+     "active": 1,
+     "weekly_test": 1,
+     "test_minutes": null,
+     "file_count": 7,
+     "new_count": 4,
+     "open_tasks": 0,
+     "progress": 0,
+     "next_package": {
+      "date": "2026-10-29",
+      "title": "Paket A"
+     },
+     "next_event": {
+      "event_id": 8,
+      "date": "2026-10-27",
+      "start": "16:00",
+      "end": "17:30",
+      "title": "Lerngruppe Testmathematik alle 2 Wochen",
+      "kind": "vorlesung",
+      "module_id": 1,
+      "module_name": "Testmathematik I",
+      "color": "#111111",
+      "room": "",
+      "lecturer": "",
+      "course_id": null,
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     },
+     "task_count": 0,
+     "test_count": 0,
+     "topics": [],
+     "courses": 2,
+     "weeks": 3
+    },
+    {
+     "id": 2,
+     "name": "Testphysik",
+     "semester": null,
+     "color": "#222222",
+     "icon": null,
+     "priority": 2,
+     "exam_date": null,
+     "sort": 1,
+     "created_at": "2026-10-01T09:00:00",
+     "active": 1,
+     "weekly_test": 1,
+     "test_minutes": null,
+     "file_count": 1,
+     "new_count": 1,
+     "open_tasks": 0,
+     "progress": 0,
+     "next_package": {
+      "date": "2026-10-29",
+      "title": "Paket B"
+     },
+     "next_event": {
+      "event_id": 10,
+      "date": "2026-10-28",
+      "start": "08:15",
+      "end": "09:45",
+      "title": "Testphysik für Ingenieure",
+      "kind": "vorlesung",
+      "module_id": 2,
+      "module_name": "Testphysik",
+      "color": "#222222",
+      "room": "",
+      "lecturer": "",
+      "course_id": "k-ph",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     },
+     "task_count": 0,
+     "test_count": 0,
+     "topics": [],
+     "courses": 1,
+     "weeks": 1
+    },
+    {
+     "id": 3,
+     "name": "Programmierkurs Beispiel",
+     "semester": null,
+     "color": "#333333",
+     "icon": null,
+     "priority": 2,
+     "exam_date": null,
+     "sort": 2,
+     "created_at": "2026-10-01T09:00:00",
+     "active": 1,
+     "weekly_test": 1,
+     "test_minutes": null,
+     "file_count": 1,
+     "new_count": 1,
+     "open_tasks": 0,
+     "progress": 0,
+     "next_package": {
+      "date": "2026-10-25",
+      "title": "Paket C"
+     },
+     "next_event": {
+      "event_id": 7,
+      "date": "2026-10-27",
+      "start": "08:00",
+      "end": "09:30",
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "module_id": 3,
+      "module_name": "Programmierkurs Beispiel",
+      "color": "#333333",
+      "room": "Pool 0",
+      "lecturer": "",
+      "course_id": "k-prog-ue",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     },
+     "task_count": 0,
+     "test_count": 0,
+     "topics": [],
+     "courses": 1,
+     "weeks": 1
+    }
+   ]
+  },
+  {
    "method": "DELETE",
    "path": "/api/timetable/events/3",
    "status": 200,
@@ -6212,6 +7272,7 @@
     "new": 0,
     "updated": 0,
     "removed": 2,
+    "ids": [],
     "conflicts": []
    },
    "body": {
@@ -6228,6 +7289,9 @@
     "new": 1,
     "updated": 0,
     "removed": 0,
+    "ids": [
+     17
+    ],
     "conflicts": []
    },
    "body": {
@@ -6310,6 +7374,7 @@
     "new": 0,
     "updated": 1,
     "removed": 0,
+    "ids": [],
     "conflicts": []
    },
    "body": {
@@ -6691,6 +7756,7 @@
     "new": 0,
     "updated": 1,
     "removed": 0,
+    "ids": [],
     "conflicts": []
    },
    "body": {
@@ -7332,6 +8398,8 @@
       "exdates": [
        "2026-12-23"
       ],
+      "uid": null,
+      "description": "",
       "module_id": null,
       "module_guess_uncertain": true
      },
@@ -7347,6 +8415,8 @@
       "date_to": null,
       "uncertain": false,
       "exdates": [],
+      "uid": null,
+      "description": "",
       "module_id": 1,
       "module_guess_uncertain": false
      }
@@ -7374,6 +8444,8 @@
       "exdates": [
        "2026-12-23"
       ],
+      "uid": null,
+      "description": "",
       "module_id": null,
       "module_guess_uncertain": true
      },
@@ -7389,6 +8461,8 @@
       "date_to": null,
       "uncertain": false,
       "exdates": [],
+      "uid": null,
+      "description": "",
       "module_id": 1,
       "module_guess_uncertain": false
      }
@@ -7460,7 +8534,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7479,7 +8555,9 @@
      "date_from": "2026-11-04",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7498,7 +8576,9 @@
      "date_from": "2026-10-25",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "Umstellung nachher",
@@ -7511,7 +8591,9 @@
      "date_from": "2026-10-25",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7530,7 +8612,9 @@
      "date_from": "2027-03-28",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7549,7 +8633,9 @@
      "date_from": "2026-11-06",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7568,7 +8654,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7587,7 +8675,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7606,7 +8696,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7625,7 +8717,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7644,7 +8738,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "New York Luecke",
@@ -7657,7 +8753,9 @@
      "date_from": "2026-10-28",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7676,7 +8774,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7695,7 +8795,9 @@
      "date_from": "2026-10-20",
      "date_to": "2027-01-26",
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "Until vor Beginn",
@@ -7708,7 +8810,9 @@
      "date_from": "2026-10-20",
      "date_to": "2027-01-26",
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "Until gleicher Tag",
@@ -7721,7 +8825,9 @@
      "date_from": "2026-10-20",
      "date_to": "2027-01-25",
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "Until Datum",
@@ -7734,7 +8840,9 @@
      "date_from": "2026-10-20",
      "date_to": "2027-01-26",
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "Intervall 02",
@@ -7747,7 +8855,9 @@
      "date_from": "2026-10-20",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "Taeglich Labor",
@@ -7760,7 +8870,9 @@
      "date_from": "2026-10-20",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7786,7 +8898,9 @@
       "2026-11-18",
       "2026-12-23",
       "2026-12-30"
-     ]
+     ],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7805,7 +8919,9 @@
      "date_from": "2026-11-06",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7824,7 +8940,9 @@
      "date_from": "2026-10-22",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "Kurz",
@@ -7837,7 +8955,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     },
     {
      "title": "Veranstaltung",
@@ -7850,7 +8970,9 @@
      "date_from": "2026-10-21",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
     }
    ]
   },
@@ -7869,7 +8991,9 @@
      "date_from": "2026-10-22",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": "Zeit: 10:00weiter"
     }
    ]
   },
@@ -7888,7 +9012,173 @@
      "date_from": "2026-10-23",
      "date_to": null,
      "uncertain": false,
-     "exdates": []
+     "exdates": [],
+     "uid": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "byday",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:0815 - Testseminar Wohnen\\, Raum und Kultur\r\nDTSTART;TZID=Europe/Berlin:20261026T160000\r\nDTEND;TZID=Europe/Berlin:20261026T180000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TH\r\nEXDATE;TZID=Europe/Berlin:20261224T160000,20261231T160000,\r\nUID:4711:0815\r\nDESCRIPTION:Erste Sitzung\\nBitte Text lesen\\, danach Diskussion\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "0815 - Testseminar Wohnen, Raum und Kultur",
+     "kind": "seminar",
+     "weekday": 3,
+     "start_time": "16:00",
+     "end_time": "18:00",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-29",
+     "date_to": "2027-02-05",
+     "uncertain": false,
+     "exdates": [
+      "2026-12-24",
+      "2026-12-31"
+     ],
+     "uid": "4711:0815",
+     "description": "Erste Sitzung\nBitte Text lesen, danach Diskussion"
+    }
+   ]
+  },
+  {
+   "name": "byday-mehrere",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:1234 - Testvorlesung Pädagogik\r\nDTSTART;TZID=Europe/Berlin:20261026T100000\r\nDTEND;TZID=Europe/Berlin:20261026T120000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;BYDAY=TU,TH,-1SU,XX\r\nEXDATE;TZID=Europe/Berlin:20261222T100000\r\nEXDATE;TZID=Europe/Berlin:20261224T100000\r\nEXDATE:20261225\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "1234 - Testvorlesung Pädagogik",
+     "kind": "vorlesung",
+     "weekday": 1,
+     "start_time": "10:00",
+     "end_time": "12:00",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-27",
+     "date_to": "2027-02-05",
+     "uncertain": false,
+     "exdates": [
+      "2026-12-22"
+     ],
+     "uid": null,
+     "description": ""
+    },
+    {
+     "title": "1234 - Testvorlesung Pädagogik",
+     "kind": "vorlesung",
+     "weekday": 3,
+     "start_time": "10:00",
+     "end_time": "12:00",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-29",
+     "date_to": "2027-02-05",
+     "uncertain": false,
+     "exdates": [
+      "2026-12-24"
+     ],
+     "uid": null,
+     "description": ""
+    },
+    {
+     "title": "1234 - Testvorlesung Pädagogik",
+     "kind": "vorlesung",
+     "weekday": 6,
+     "start_time": "10:00",
+     "end_time": "12:00",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-11-01",
+     "date_to": "2027-02-05",
+     "uncertain": false,
+     "exdates": [],
+     "uid": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "byday-doppelt",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Doppelt\r\nDTSTART:20261021T081500\r\nDTEND:20261021T094500\r\nRRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,MO\r\nEXDATE:20261102T081500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Doppelt",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-26",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": [
+      "2026-11-02"
+     ],
+     "uid": null,
+     "description": ""
+    },
+    {
+     "title": "Doppelt",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-26",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": [
+      "2026-11-02"
+     ],
+     "uid": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "byday-unbekannt",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Unbekannt\r\nDTSTART:20261021T081500\r\nDTEND:20261021T094500\r\nRRULE:FREQ=WEEKLY;BYDAY=xx\r\nEXDATE:20261104T081500,20261106T081500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Unbekannt",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": [
+      "2026-11-04",
+      "2026-11-06"
+     ],
+     "uid": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "byday-taeglich",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Taeglich\r\nDTSTART:20261021T081500\r\nDTEND:20261021T094500\r\nRRULE:FREQ=DAILY;BYDAY=FR\r\nUID:  mit Leerzeichen  \r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Taeglich",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": [],
+     "uid": "mit Leerzeichen",
+     "description": ""
     }
    ]
   }
@@ -8195,8 +9485,60 @@
   }
  ],
  "auto_import": {
+  "extra_seed": [
+   {
+    "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+    "params": [
+     "k-neu",
+     "Testchemie",
+     null,
+     "WiSe 2026/27",
+     "Testchemie",
+     "vorlesung",
+     1,
+     null,
+     "2026-10-24T08:00:00"
+    ]
+   },
+   {
+    "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+    "params": [
+     "se-neu-0",
+     "k-neu",
+     "Sitzung",
+     "2026-10-19T14:00:00",
+     "2026-10-19T15:30:00",
+     "Labor C",
+     "2026-10-24T08:00:00"
+    ]
+   },
+   {
+    "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+    "params": [
+     "se-neu-1",
+     "k-neu",
+     "Sitzung",
+     "2026-10-26T14:00:00",
+     "2026-10-26T15:30:00",
+     "Labor C",
+     "2026-10-24T08:00:00"
+    ]
+   },
+   {
+    "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+    "params": [
+     "se-neu-2",
+     "k-neu",
+     "Sitzung",
+     "2026-11-02T14:00:00",
+     "2026-11-02T15:30:00",
+     "Labor C",
+     "2026-10-24T08:00:00"
+    ]
+   }
+  ],
   "first": {
-   "new": 8,
+   "new": 9,
    "pending_groups": 7
   },
   "second": {
@@ -8226,6 +9568,25 @@
     },
     {
      "id": 8,
+     "module_id": 4,
+     "course_id": "k-neu",
+     "title": "Testchemie",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "14:00",
+     "end_time": "15:30",
+     "room": "Labor C",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-19",
+     "date_to": "2026-11-02",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    },
+    {
+     "id": 9,
      "module_id": 1,
      "course_id": null,
      "title": "Lerngruppe Testmathematik alle 2 Wochen",
@@ -8244,7 +9605,7 @@
      "created_at": "2026-10-25T14:30:05"
     },
     {
-     "id": 9,
+     "id": 10,
      "module_id": null,
      "course_id": null,
      "title": "Termin",
@@ -8263,7 +9624,7 @@
      "created_at": "2026-10-25T14:30:05"
     },
     {
-     "id": 10,
+     "id": 11,
      "module_id": 2,
      "course_id": "k-ph",
      "title": "Testphysik für Ingenieure",
@@ -8282,7 +9643,7 @@
      "created_at": "2026-10-25T14:30:05"
     },
     {
-     "id": 11,
+     "id": 12,
      "module_id": 1,
      "course_id": "k-ma-ue",
      "title": "Übung zu Testmathematik I",
@@ -8301,7 +9662,7 @@
      "created_at": "2026-10-25T14:30:05"
     },
     {
-     "id": 12,
+     "id": 13,
      "module_id": 1,
      "course_id": "k-ma-ue",
      "title": "Übung zu Testmathematik I",
@@ -8320,7 +9681,7 @@
      "created_at": "2026-10-25T14:30:05"
     },
     {
-     "id": 13,
+     "id": 14,
      "module_id": 2,
      "course_id": "k-ph",
      "title": "Testphysik für Ingenieure",
@@ -8339,7 +9700,7 @@
      "created_at": "2026-10-25T14:30:05"
     },
     {
-     "id": 14,
+     "id": 15,
      "module_id": null,
      "course_id": null,
      "title": "Chor",
@@ -8381,6 +9742,24 @@
        "course_id": "k-ma-vl",
        "uncertain": false,
        "count": 4,
+       "group_slots": 1,
+       "selected": true,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Testchemie",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "14:00",
+       "end_time": "15:30",
+       "room": "Labor C",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": "2026-11-02",
+       "module_id": 4,
+       "course_id": "k-neu",
+       "uncertain": false,
+       "count": 3,
        "group_slots": 1,
        "selected": true,
        "module_guess_uncertain": false
@@ -8524,6 +9903,64 @@
      "confirmed": 1
     }
    ]
-  }
+  },
+  "modules": [
+   {
+    "id": 1,
+    "name": "Testmathematik I",
+    "semester": null,
+    "color": "#111111",
+    "icon": null,
+    "priority": 2,
+    "exam_date": null,
+    "sort": 0,
+    "created_at": "2026-10-01T09:00:00",
+    "active": 1,
+    "weekly_test": 1,
+    "test_minutes": null
+   },
+   {
+    "id": 2,
+    "name": "Testphysik",
+    "semester": null,
+    "color": "#222222",
+    "icon": null,
+    "priority": 2,
+    "exam_date": null,
+    "sort": 1,
+    "created_at": "2026-10-01T09:00:00",
+    "active": 1,
+    "weekly_test": 1,
+    "test_minutes": null
+   },
+   {
+    "id": 3,
+    "name": "Programmierkurs Beispiel",
+    "semester": null,
+    "color": "#333333",
+    "icon": null,
+    "priority": 2,
+    "exam_date": null,
+    "sort": 2,
+    "created_at": "2026-10-01T09:00:00",
+    "active": 1,
+    "weekly_test": 1,
+    "test_minutes": null
+   },
+   {
+    "id": 4,
+    "name": "Testchemie",
+    "semester": "WiSe 2026/27",
+    "color": "#9b59d9",
+    "icon": null,
+    "priority": 2,
+    "exam_date": null,
+    "sort": 3,
+    "created_at": "2026-10-25T14:30:05",
+    "active": 1,
+    "weekly_test": 1,
+    "test_minutes": null
+   }
+  ]
  }
 }

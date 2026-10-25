@@ -156,7 +156,7 @@ def test_reimport_drops_stale_cancellations(app):
         timetable.set_exception(conn, eid, "2026-12-04", "moved", "2026-12-05", "10:00", "11:30")
         # andere Gruppe derselben Uebung (Freitag 08:00, ohne Ausfaelle) ersetzt die bisherige
         res = timetable.apply_import(conn, [{**base, "existing_id": eid, "start_time": "08:00", "end_time": "09:30", "exdates": []}], "studip")
-        assert res == {"new": 0, "updated": 1, "removed": 0}
+        assert res == {"new": 0, "updated": 1, "removed": 0, "ids": []}
         assert exceptions(conn, eid) == [("2026-11-20", "cancelled", "Ausfall laut Kalender"), ("2026-11-27", "cancelled", "Dozent krank"),
                                          ("2026-12-04", "moved", "")]
         # Kalenderdatei ohne den alten EXDATE, dafuer ein neuer
@@ -182,3 +182,33 @@ def test_import_preview_ics_upload(app):
     e = r["entries"][0]
     assert (e["start_time"], e["end_time"], e["date_to"], e["exdates"]) == ("08:15", "09:45", "2027-01-27", ["2026-12-23"])
     assert r["diff"]["new"][0]["exdates"] == ["2026-12-23"]
+
+
+def test_auto_import_assigns_modules_of_new_courses(app):
+    """Erster Abgleich auf frischer Datenbank: run_sync speichert die Kurse (Fach aus classify) und ruft gleich danach
+    auto_import auf. Die Termine bekommen das Modul ihres Fachs, damit der Stundenplan Unterlagen zum Termin findet
+    (vorher legte erst die naechste Seite das Modul an, die Termine blieben ohne module_id). Werte erfunden."""
+    from datetime import date
+
+    from app import db, timetable
+    with db.cursor() as conn:
+        conn.execute("INSERT INTO courses(id, title, subject, kind, active, created_at) VALUES ('c-aa-vl', 'Testfach Abgleich', 'Testfach Abgleich', 'vorlesung', 1, '2026-10-01')")
+        conn.execute("INSERT INTO courses(id, title, subject, kind, active, created_at) VALUES ('c-aa-erst', 'Begrüßung Abgleich', 'Begrüßung Abgleich', 'sonstiges', 1, '2026-10-01')")
+        for i, d in enumerate(["2026-10-19", "2026-10-26", "2026-11-02"]):
+            conn.execute("INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?, 'c-aa-vl', 'Sitzung', ?, ?, 'Raum T', '2026-10-24')",
+                         (f"se-aa-{i}", f"{d}T10:00:00", f"{d}T11:30:00"))
+        conn.execute("INSERT INTO files(id, course_id, name, chdate) VALUES ('f-aa-1', 'c-aa-vl', 'Vorlesung_01.pdf', 1792312800)")   # 18.10.2026
+        try:
+            assert timetable.auto_import(conn)["new"] >= 1
+            mid = db.row(conn, "SELECT module_id FROM courses WHERE id='c-aa-vl'")["module_id"]
+            assert mid and db.row(conn, "SELECT name FROM modules WHERE id=?", (mid,))["name"] == "Testfach Abgleich"
+            ev = db.row(conn, "SELECT * FROM course_events WHERE course_id='c-aa-vl'")
+            assert ev["module_id"] == mid and ev["rrule"] == "weekly"
+            assert [f["id"] for f in timetable.materials_for_event(conn, ev, date(2026, 10, 26))] == ["f-aa-1"]
+            assert db.row(conn, "SELECT module_id FROM courses WHERE id='c-aa-erst'")["module_id"] is None   # sonstiges
+        finally:
+            conn.execute("DELETE FROM course_events WHERE course_id='c-aa-vl'")
+            conn.execute("DELETE FROM studip_events WHERE course_id='c-aa-vl'")
+            conn.execute("DELETE FROM files WHERE id='f-aa-1'")
+            conn.execute("DELETE FROM courses WHERE id IN ('c-aa-vl', 'c-aa-erst')")
+            conn.execute("DELETE FROM modules WHERE name='Testfach Abgleich'")

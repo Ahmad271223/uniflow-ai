@@ -38,7 +38,10 @@ public enum StudIPLibrary {
     }
 
     /// Meldung in `sync_log` wie Python
-    public static func summary(newFiles: Int) -> String { "\(newFiles) neue/geaenderte Dateien" }
+    /// `newEvents`: von auto_import uebernommene Stundenplan-Termine (S5), wie `message += ", N Stundenplan-Termine"`
+    public static func summary(newFiles: Int, newEvents: Int = 0) -> String {
+        "\(newFiles) neue/geaenderte Dateien" + (newEvents > 0 ? ", \(newEvents) Stundenplan-Termine" : "")
+    }
     public static func failure(_ message: String) -> String { "FEHLER: \(message)" }
 
     // MARK: Schreiben

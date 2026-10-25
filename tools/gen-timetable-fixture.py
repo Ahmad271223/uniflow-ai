@@ -5,25 +5,32 @@ schickt dieselben Anfragen in derselben Reihenfolge an das lokale Backend und ve
 
 Inhalt:
 - seed: SQL-Anweisungen nach init_db (Einstellungen, Module, Kurse, Termine, Ausnahmen, Lernpakete, Stud.IP-Termine
-  und persoenliche Stud.IP-Eintraege; alles erfunden)
-- steps: Anfragen mit Status und Antwort; danach die Tabellen course_events, event_exceptions, schedule_imports
+  und persoenliche Stud.IP-Eintraege, Stud.IP-Dateien der Module ueber mehrere Semesterwochen; alles erfunden)
+- steps: Anfragen mit Status und Antwort; danach die Tabellen course_events, event_exceptions, schedule_imports.
+  Mit den Dateien liefern /api/timetable/event-materials und /attendance echte Unterlagen zum Termin
+  (materials_for_event, S4), GET /api/modules den naechsten Termin je Modul (next_event aus occurrences)
 - dashboard_today: Termine und freie Fenster von heute aus GET /api/dashboard (die Uebersicht ist sonst S6)
-- ics: parse_ics fuer Kalenderdateien (UTC, TZID, RRULE, EXDATE, Ganztags, Faltung, Zeitumstellung)
+- ics: parse_ics fuer Kalenderdateien (UTC, TZID, RRULE, BYDAY wie der LSF-Export, EXDATE, UID, DESCRIPTION,
+  Ganztags, Faltung, Zeitumstellung)
 - matcher: difflib.SequenceMatcher(None, a, b).ratio(); guess_module: Titel -> Modul auf den Seed-Daten
 - merge_weekly: Einzeltermine -> Serien
-- auto_import: timetable.auto_import zweimal auf frischen Seed-Daten, Ergebnis und Tabellen
+- auto_import: timetable.auto_import zweimal auf frischen Seed-Daten mit einem neuen Kurs samt Fach (extra_seed, wie
+  direkt nach dem Speichern im Abgleich: ensure_modules legt sein Modul an), Ergebnis, Tabellen und modules
 
 Pfade mit KI (Import aus Text, PDF, Bild) werden nicht aufgerufen. Der Server laeuft nur gegen Dateien in einem
-Temp-Ordner (tools/schema_source.py), nie gegen data/.
+Temp-Ordner (tools/schema_source.py), nie gegen data/. Zeitzone Europe/Berlin (datetime.fromtimestamp der
+Aenderungszeiten wie auf dem PC-Server in Berlin).
 Aufruf im Projektordner: python tools/gen-timetable-fixture.py [--check]
 """
 from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sqlite3
 import sys
-from datetime import date
+import time
+from datetime import date, datetime
 from pathlib import Path
 
 from schema_source import ROOT, SchemaSource, write_or_check
@@ -111,6 +118,39 @@ for pe in [
     SEED.append(("INSERT INTO studip_schedule_entries(id, title, weekday, start, end, description, fetched_at) VALUES (?,?,?,?,?,?,?)",
                  pe + ["2026-10-24T08:00:00"]))
 
+# Stud.IP-Dateien der Module (Aenderungszeit Ortszeit Berlin): Semesterbeginn ist der Montag 12.10.2026 (drei Kurse
+# laden in dieser Woche hoch); Woche 0 nach dem Stichtag 1.10., aeltere Unterlagen davor, ein inaktiver Kurs
+SEED_FILES = [
+    ("tf-ma-skript", "k-ma-vl", "Skript Testmathematik.pdf", None, "2026-10-05T10:00"),
+    ("tf-ma-alt", "k-ma-vl", "Altklausur 2025.pdf", "Klausuren", "2026-09-20T10:00"),
+    ("tf-ma-1", "k-ma-vl", "Vorlesung_01.pdf", "Vorlesung", "2026-10-13T10:00"),
+    ("tf-ue-1", "k-ma-ue", "Übungsblatt 1.pdf", "Übungsblätter", "2026-10-14T09:00"),
+    ("tf-ph-1", "k-ph", "Folien Einführung.pdf", None, "2026-10-15T12:00"),
+    ("tf-pg-1", "k-prog-ue", "Blatt 1.pdf", None, "2026-10-16T08:00"),
+    ("tf-ma-2", "k-ma-vl", "Vorlesung_02.pdf", "Vorlesung", "2026-10-20T10:00"),
+    ("tf-ue-2", "k-ma-ue", "Lösung Blatt 1.pdf", "Lösungen", "2026-10-21T18:00"),
+    ("tf-ma-3", "k-ma-vl", "Vorlesung_03.pdf", "Vorlesung", "2026-10-24T23:30"),
+    ("tf-alt", "k-alt", "Folien Altkurs.pdf", None, "2026-10-13T10:00"),
+]
+
+
+def _files_seed() -> list[tuple[str, list]]:
+    """INSERT der Dateien (Unix-Zeiten erst hier: TZ=Europe/Berlin ist dann gesetzt)"""
+    return [("INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, status, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+             [fid, course, name, 1000 + i, "application/pdf", int(datetime.fromisoformat(when).timestamp()), folder,
+              "gelesen" if i % 3 == 0 else "neu", "2026-10-24T08:00:00"])
+            for i, (fid, course, name, folder, when) in enumerate(SEED_FILES)]
+
+
+# auto_import direkt nach dem Speichern eines neuen Kurses mit Fach (noch ohne Modul): ensure_modules zuerst
+AUTO_EXTRA: list[tuple[str, list]] = [
+    ("INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+     ["k-neu", "Testchemie", None, "WiSe 2026/27", "Testchemie", "vorlesung", 1, None, "2026-10-24T08:00:00"]),
+    *[("INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+       [f"se-neu-{i}", "k-neu", "Sitzung", f"{d}T14:00:00", f"{d}T15:30:00", "Labor C", "2026-10-24T08:00:00"])
+      for i, d in enumerate(["2026-10-19", "2026-10-26", "2026-11-02"])],
+]
+
 ICS_IN_FORM = ("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs Physik – Vorlesung\r\nDTSTART:20261021T061500Z\r\nDTEND:20261021T074500Z\r\n"
                "RRULE:FREQ=WEEKLY;UNTIL=20270127T235959Z\r\nLOCATION:P 101\\, Haus 2\r\nEXDATE:20261223T071500Z\r\nEND:VEVENT\r\n"
                "BEGIN:VEVENT\r\nSUMMARY:Testmathematik I\r\nDTSTART;TZID=Europe/Berlin:20261019T101500\r\nDTEND;TZID=Europe/Berlin:20261019T114500\r\n"
@@ -130,8 +170,13 @@ STEPS: list[dict] = [
     {"method": "GET", "path": "/api/timetable/conflicts?days=3"},
     {"method": "GET", "path": "/api/timetable/auto-status"},
     {"method": "GET", "path": "/api/timetable/event-materials/1?date=2026-10-26"},
+    {"method": "GET", "path": "/api/timetable/event-materials/5?date=2026-10-22"},
+    {"method": "GET", "path": "/api/timetable/event-materials/2?date=2026-10-14"},
+    {"method": "GET", "path": "/api/timetable/event-materials/1?date=2026-10-05"},
+    {"method": "GET", "path": "/api/timetable/event-materials/1?date=2026-09-28"},
     {"method": "GET", "path": "/api/timetable/event-materials/3?date=2026-10-30"},
     {"method": "GET", "path": "/api/timetable/event-materials/999?date=2026-10-26"},
+    {"method": "GET", "path": "/api/modules"},
     {"method": "POST", "path": "/api/timetable/import/preview", "form": {"source": "studip"}, "name": "studip"},
     {"method": "POST", "path": "/api/timetable/import/preview", "form": {"source": "ics", "text": ICS_IN_FORM}},
     {"method": "POST", "path": "/api/timetable/import/preview", "form": {"source": "ics"},
@@ -160,6 +205,7 @@ STEPS: list[dict] = [
     {"method": "GET", "path": "/api/timetable/week?start=2026-10-26"},
     {"method": "GET", "path": "/api/timetable/week?start=2026-11-09"},
     {"method": "GET", "path": "/api/timetable/week?start=2026-11-16"},
+    {"method": "GET", "path": "/api/modules"},
     {"method": "DELETE", "path": "/api/timetable/events/3"},
     {"method": "DELETE", "path": "/api/timetable/events/999"},
     {"method": "GET", "path": "/api/timetable/events"},
@@ -213,6 +259,19 @@ ICS_CASES: list[tuple[str, str]] = [
     ("faltung", "SUMMARY:Testkurs mit langem\n  Titel\\, Teil 2\nDTSTART:20261021T081500Z\nDTEND:20261021T094500Z\nLOCATION:Raum 1\\, Haus 2\n"
                 "DESCRIPTION:Zeit: 10:00\n\tweiter\ndtstart:20261022T081500\nX-LEER\nSUMMARY;LANGUAGE=de:Überschrieben"),
     ("verschachtelt", "SUMMARY:Erster\nDTSTART:20261021T081500\nBEGIN:VEVENT\nSUMMARY:Zweiter\nDTSTART:20261023T081500"),
+    # wie der LSF-Export (Uni Hildesheim): DTSTART ist der Semesterbeginn (Montag), der Wochentag steht in BYDAY
+    ("byday", "SUMMARY:0815 - Testseminar Wohnen\\, Raum und Kultur\nDTSTART;TZID=Europe/Berlin:20261026T160000\n"
+              "DTEND;TZID=Europe/Berlin:20261026T180000\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TH\n"
+              "EXDATE;TZID=Europe/Berlin:20261224T160000,20261231T160000,\nUID:4711:0815\n"
+              "DESCRIPTION:Erste Sitzung\\nBitte Text lesen\\, danach Diskussion"),
+    ("byday-mehrere", "SUMMARY:1234 - Testvorlesung Pädagogik\nDTSTART;TZID=Europe/Berlin:20261026T100000\n"
+                      "DTEND;TZID=Europe/Berlin:20261026T120000\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;BYDAY=TU,TH,-1SU,XX\n"
+                      "EXDATE;TZID=Europe/Berlin:20261222T100000\nEXDATE;TZID=Europe/Berlin:20261224T100000\nEXDATE:20261225"),
+    ("byday-doppelt", "SUMMARY:Doppelt\nDTSTART:20261021T081500\nDTEND:20261021T094500\nRRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,MO\n"
+                      "EXDATE:20261102T081500"),
+    ("byday-unbekannt", "SUMMARY:Unbekannt\nDTSTART:20261021T081500\nDTEND:20261021T094500\nRRULE:FREQ=WEEKLY;BYDAY=xx\n"
+                        "EXDATE:20261104T081500,20261106T081500"),
+    ("byday-taeglich", "SUMMARY:Taeglich\nDTSTART:20261021T081500\nDTEND:20261021T094500\nRRULE:FREQ=DAILY;BYDAY=FR\nUID:  mit Leerzeichen  "),
 ]
 
 MATCHER_CASES = [
@@ -308,6 +367,10 @@ def series_ids(body, path: Path):
 
 def main() -> int:
     check = "--check" in sys.argv[1:]
+    saved_tz = os.environ.get("TZ")
+    os.environ["TZ"] = "Europe/Berlin"                  # datetime.fromtimestamp wie auf dem PC-Server in Berlin
+    time.tzset()
+    SEED.extend(_files_seed())
     src = SchemaSource()
     try:
         from app import server, timetable
@@ -354,12 +417,21 @@ def main() -> int:
         path = fresh(src, "autoimport")
         with src.db.cursor() as conn:
             conn.execute("DELETE FROM course_events")
+            for sql, params in AUTO_EXTRA:
+                conn.execute(sql, params)
             first = timetable.auto_import(conn)
             second = timetable.auto_import(conn)
-        auto = {"first": first, "second": second, "tables": tables(path)}
+            modules = [dict(r) for r in conn.execute("SELECT * FROM modules ORDER BY id")]
+        auto = {"extra_seed": [{"sql": q, "params": p} for q, p in AUTO_EXTRA], "first": first, "second": second,
+                "tables": tables(path), "modules": modules}
     finally:
         src.cleanup()
-    out = {"generator": "tools/gen-timetable-fixture.py", "now": NOW, "seed": [{"sql": q, "params": p} for q, p in SEED],
+        if saved_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = saved_tz
+        time.tzset()
+    out = {"generator": "tools/gen-timetable-fixture.py", "now": NOW, "timezone": "Europe/Berlin", "seed": [{"sql": q, "params": p} for q, p in SEED],
            "steps": steps, "tables_after": after, "dashboard_today": dashboard_today, "ics": ics, "matcher": matcher,
            "guess_module": guess, "merge_weekly": merge, "auto_import": auto}
     ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)

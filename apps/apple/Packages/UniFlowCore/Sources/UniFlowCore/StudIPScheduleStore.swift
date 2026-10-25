@@ -168,16 +168,10 @@ public enum StudIPScheduleStore {
     /// Parallele Gruppen bleiben zur Auswahl.
     public static func store(_ d: StudIPScheduleDownload, in c: SQLiteConnection, clock: UniFlowClock) throws -> StudIPScheduleResult {
         let now: SQLiteValue = .text(clock.nowISO)
-        // Kurse wie run_sync: anlegen bzw. Titel, Nummer, Semester aktualisieren; die Art (classify) nur, wenn sie
-        // noch fehlt (der Nutzer darf sie aendern). Das Fach (subject) setzt die Einordnung der Dateien (S3/S4).
-        for course in d.courses {
-            let kind: SQLiteValue = .text(StudIPSchedule.courseArt(course.title).rawValue)
-            try c.execute("""
-                INSERT INTO courses(id, title, number, semester, subject, kind, created_at) VALUES (?,?,?,?,NULL,?,?)
-                ON CONFLICT(id) DO UPDATE SET title=excluded.title, number=excluded.number, semester=excluded.semester
-                """, [.text(course.id), .text(course.title), SQLiteValue(course.number), .text(course.semesterTitle ?? ""), kind, now])
-            try c.execute("UPDATE courses SET kind=COALESCE(kind, ?) WHERE id=?", [kind, .text(course.id)])
-        }
+        // Kurse wie upsert_course in run_sync, derselbe Weg wie der Datei-Abgleich (`StudIPLibrary.storeCourses`):
+        // anlegen bzw. Titel, Nummer, Semester aktualisieren; Fach und Art aus `StudyClassify.classify` nur, solange
+        // sie fehlen (der Nutzer darf sie aendern). Ohne Art fiele ein Kurs aus studip_entries (kind != 'sonstiges').
+        try StudIPLibrary.storeCourses(c, d.courses, startedAt: clock.nowISO)
         // Einzeltermine je vollstaendig geladenem Kurs ersetzen (store_events; dort bleiben Veraltete stehen)
         var events = 0
         for (courseID, list) in d.events.sorted(by: { $0.key < $1.key }) {

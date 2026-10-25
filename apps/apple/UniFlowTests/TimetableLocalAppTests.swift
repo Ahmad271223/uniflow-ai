@@ -334,4 +334,242 @@ final class TimetableLocalAppTests: XCTestCase {
         XCTAssertTrue(all.contains("3 neu · 0 geändert · 8 unverändert"), all)
         XCTAssertTrue(all.contains(kept), all)
     }
+
+    // MARK: Gesamtablauf S3 + S4 + S5
+
+    /// Zweiseitige Test-PDF
+    private func pdf(_ marker: String) -> Data {
+        UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842)).pdfData { ctx in
+            for i in 1...2 {
+                ctx.beginPage()
+                ("\(marker) Seite \(i)" as NSString).draw(at: CGPoint(x: 72, y: 72), withAttributes: [.font: UIFont.systemFont(ofSize: 24)])
+            }
+        }
+    }
+
+    /// Ein ganzes Stud.IP mit erfundenen Antworten: ein Fach in Vorlesung und Uebung (mit Kurszeiten, einem Ausfall und
+    /// einer Klausur als Einzeltermin), ein Seminar nur mit Einzelterminen, eine Begruessung; Dateien in Stud.IP-Ordnern
+    /// ueber zwei Lehrwochen (die Vorlesungszeit beginnt am 12.10., drei Kurse laden dort hoch), ein eigener Eintrag
+    private func fullStudIP() -> FixtureTransport {
+        let body = pdf("Testunterlage")
+        func ok(_ text: String) -> HTTPReply { HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(text.utf8)) }
+        let semester = #""relationships":{"start-semester":{"data":{"type":"semesters","id":"s-test"}}}"#
+        var routes: [String: HTTPReply] = [
+            "/jsonapi.php/v1/users/me": ok(#"{"data":{"id":"u-flow","type":"users"}}"#),
+            "/jsonapi.php/v1/users/u-flow/courses?page[limit]=100&include=start-semester": ok(#"""
+                {"data":[
+                  {"id":"c-ma","type":"courses","attributes":{"title":"Testmathematik I","course-number":"T-MA1","course-type":1},\#(semester)},
+                  {"id":"c-ma-ue","type":"courses","attributes":{"title":"Übung zu Testmathematik I","course-number":"T-MA2","course-type":3},\#(semester)},
+                  {"id":"c-sem","type":"courses","attributes":{"title":"Testseminar Beispiel","course-type":2},\#(semester)},
+                  {"id":"c-erst","type":"courses","attributes":{"title":"Begrüßung der Testsemester","course-type":7},\#(semester)}],
+                 "included":[{"id":"s-test","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}],
+                 "links":{}}
+                """#),
+            "/jsonapi.php/v1/users/u-flow/schedule": ok(#"""
+                {"data":[
+                  {"id":"cy-flow-ma","type":"seminar-cycle-dates",
+                   "attributes":{"title":"Kurszeit","description":"","start":"10:00","end":"11:30","weekday":1,"color":null,
+                                 "recurrence":{"FREQ":"WEEKLY","INTERVAL":1,"DTSTART":"2026-10-12T10:00:00+02:00","UNTIL":"2027-01-25T11:30:00+01:00",
+                                               "EXDATES":["2026-11-02T10:00:00+01:00"]},
+                                 "locations":["Hörsaal Test 1"]},
+                   "relationships":{"owner":{"data":{"type":"courses","id":"c-ma"}}}},
+                  {"id":"cy-flow-ue","type":"seminar-cycle-dates",
+                   "attributes":{"title":"Kurszeit","description":"","start":"14:00","end":"15:30","weekday":3,"color":null,
+                                 "recurrence":{"FREQ":"WEEKLY","INTERVAL":1,"DTSTART":"2026-10-14","UNTIL":"2027-01-27"},"locations":["Raum Test 2"]},
+                   "relationships":{"owner":{"data":{"type":"courses","id":"c-ma-ue"}}}},
+                  {"id":"pe-flow-1","type":"schedule-entries",
+                   "attributes":{"title":"Chorprobe","description":"","start":"17:00","end":"19:00","weekday":7,"color":null},
+                   "relationships":{"owner":{"data":{"type":"users","id":"u-flow"}}}}],
+                 "links":{}}
+                """#),
+            // Einzeltermine: die Kurszeit der Vorlesung deckt die Montage ab, die Klausur liegt ausserhalb; das Seminar hat
+            // keine Kurszeit (drei Dienstage werden wie am PC eine Serie); die Begruessung ("sonstiges") faellt heraus
+            "/jsonapi.php/v1/courses/c-ma/events?page[limit]=200": ok(#"""
+                {"data":[
+                  {"id":"ev-ma-1","type":"course-events","attributes":{"title":"Sitzung","start":"2026-10-12T10:00:00+02:00","end":"2026-10-12T11:30:00+02:00","location":"Hörsaal Test 1","is-cancelled":false}},
+                  {"id":"ev-ma-2","type":"course-events","attributes":{"title":"Sitzung","start":"2026-10-19T10:00:00+02:00","end":"2026-10-19T11:30:00+02:00","location":"Hörsaal Test 1","is-cancelled":false}},
+                  {"id":"ev-ma-k","type":"course-events","attributes":{"title":"Klausur","start":"2027-02-08T09:00:00+01:00","end":"2027-02-08T11:00:00+01:00","location":"Audimax Test","is-cancelled":false}}],
+                 "links":{}}
+                """#),
+            "/jsonapi.php/v1/courses/c-ma-ue/events?page[limit]=200": ok(#"{"data":[],"links":{}}"#),
+            "/jsonapi.php/v1/courses/c-sem/events?page[limit]=200": ok(#"""
+                {"data":[
+                  {"id":"ev-sem-a","type":"course-events","attributes":{"title":"Termin","start":"2026-10-13T16:00:00+02:00","end":"2026-10-13T17:30:00+02:00","location":"Seminarraum Test","is-cancelled":false}},
+                  {"id":"ev-sem-b","type":"course-events","attributes":{"title":"Termin","start":"2026-10-20T16:00:00+02:00","end":"2026-10-20T17:30:00+02:00","location":"Seminarraum Test","is-cancelled":false}},
+                  {"id":"ev-sem-c","type":"course-events","attributes":{"title":"Termin","start":"2026-10-27T16:00:00+01:00","end":"2026-10-27T17:30:00+01:00","location":"Seminarraum Test","is-cancelled":false}}],
+                 "links":{}}
+                """#),
+            "/jsonapi.php/v1/courses/c-erst/events?page[limit]=200": ok(#"""
+                {"data":[{"id":"ev-erst","type":"course-events","attributes":{"title":"Begrüßung","start":"2026-10-12T09:00:00+02:00","end":"2026-10-12T12:00:00+02:00","location":"Audimax Test","is-cancelled":false}}],
+                 "links":{}}
+                """#),
+        ]
+        func ref(_ id: String, _ name: String, _ changed: String) -> String {
+            #"{"id":"\#(id)","attributes":{"name":"\#(name)","filesize":\#(body.count),"mime-type":"application/pdf","chdate":"\#(changed)","is-downloadable":true}}"#
+        }
+        // Ordnerbaum: Kurs -> Wurzelordner -> Unterordner mit Dateien
+        let tree: [(course: String, root: String, rootFiles: [String], subs: [(id: String, name: String, files: [String])])] = [
+            ("c-ma", "fr-ma", [ref("fk1", "Altklausur WS 2025.pdf", "2026-10-16T08:00:00+02:00")],
+             [("fr-ma-v", "Vorlesung", [ref("fv1", "VL01 Einführung.pdf", "2026-10-13T10:00:00+02:00"), ref("fv2", "VL02.pdf", "2026-10-20T10:00:00+02:00")])]),
+            ("c-ma-ue", "fr-ue", [],
+             [("fr-ue-b", "Übungsblätter", [ref("fu1", "Blatt 1.pdf", "2026-10-14T12:00:00+02:00"), ref("fu2", "Blatt 2.pdf", "2026-10-21T12:00:00+02:00")]),
+              ("fr-ue-l", "Lösungen", [ref("fl1", "Lösung Blatt 1.pdf", "2026-10-21T13:00:00+02:00")])]),
+            ("c-sem", "fr-sem", [], []),
+            ("c-erst", "fr-erst", [ref("fw1", "Willkommen.pdf", "2026-10-12T08:00:00+02:00")], []),
+        ]
+        for c in tree {
+            routes["/jsonapi.php/v1/courses/\(c.course)/folders?page[limit]=200"] = ok(#"{"data":[{"id":"\#(c.root)","attributes":{"folder-type":"RootFolder","name":""}}]}"#)
+            routes["/jsonapi.php/v1/folders/\(c.root)/file-refs?page[limit]=500"] = ok(#"{"data":[\#(c.rootFiles.joined(separator: ","))]}"#)
+            let subs = c.subs.map { #"{"id":"\#($0.id)","attributes":{"name":"\#($0.name)"}}"# }.joined(separator: ",")
+            routes["/jsonapi.php/v1/folders/\(c.root)/folders?page[limit]=200"] = ok(#"{"data":[\#(subs)]}"#)
+            for s in c.subs {
+                routes["/jsonapi.php/v1/folders/\(s.id)/file-refs?page[limit]=500"] = ok(#"{"data":[\#(s.files.joined(separator: ","))]}"#)
+                routes["/jsonapi.php/v1/folders/\(s.id)/folders?page[limit]=200"] = ok(#"{"data":[]}"#)
+            }
+        }
+        for id in ["fk1", "fv1", "fv2", "fu1", "fu2", "fl1", "fw1"] {
+            routes["/jsonapi.php/v1/file-refs/\(id)/content"] = HTTPReply(status: 200, contentType: "application/pdf", body: body)
+        }
+        return FixtureTransport(routes)
+    }
+
+    /// Geraet mit lokalem Backend und Dateiablage im Temp-Ordner, Abgleich ueber `StudIPSync` wie in der App
+    private func syncedDevice() async throws -> (api: APIClient, recorder: RecordingTransport, sync: StudIPSync, stud: FixtureTransport,
+                                                 client: StudIPClient) {
+        let c = try tempDir()
+        let h = LocalBackendHost(directory: c.appendingPathComponent("Library/Application Support/UniFlow/db", isDirectory: true),
+                                 clock: .fixed(berlin: "2026-10-25T14:30:05")!,
+                                 files: LocalFiles(container: c, dataDirectory: "Library/Application Support/UniFlow", tools: AppDocumentTools()))
+        let suite = "uniflow-s5-flow-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        let sync = StudIPSync(root: c.appendingPathComponent("Library/Application Support/StudIP", isDirectory: true), host: h,
+                              clock: .fixed(berlin: "2026-10-25T14:30:05")!, defaults: defaults,
+                              support: c.appendingPathComponent("Library/Application Support/UniFlow", isDirectory: true))
+        let stud = fullStudIP()
+        let client = StudIPClient(base: URL(string: "https://studip.test")!, transport: stud, pauseMillis: 0)
+        await sync.run(client: client)
+        let recorder = RecordingTransport(LocalTransport(host: h))
+        return (APIClient(base: APIClient.localBase, transport: recorder), recorder, sync, stud, client)
+    }
+
+    /// Abnahme S3 + S4 + S5 in einem Ablauf ohne PC: Stud.IP-Abgleich (`StudIPSync.run`, feste erfundene Antworten)
+    /// -> Dateien in Dokumente nach Fach und Lehrwoche -> Stundenplan mit Kurszeiten, Ausfall, Einzelterminen und
+    /// eigenem Eintrag -> Unterlagen zum Termin (Endpunkte und Termin-Panel im Fenster) und naechster Termin im Modul.
+    /// Ein zweiter Abgleich laedt und uebernimmt nichts doppelt.
+    func testStudIPSyncFillsDocumentsTimetableAndEventMaterials() throws {
+        let (api, recorder, sync, stud, client) = try awaiting { try await self.syncedDevice() }
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertEqual(stud.requested.filter { $0.hasSuffix("/content") }.count, 7)
+        XCTAssertTrue(stud.requested.contains("/jsonapi.php/v1/users/u-flow/schedule"), "Stundenplan nach dem Datei-Abgleich")
+        let summary = try XCTUnwrap(sync.lastSummary)
+        XCTAssertTrue(summary.hasPrefix("7 neu/geändert"), summary)
+        XCTAssertTrue(summary.contains("5 Stundenplan-Termine"), summary)
+        XCTAssertFalse(summary.contains("nicht geladen"), summary)
+
+        let series = try awaiting { () async throws -> Int in
+            // 1. Dokumente & Notizen: ein Modul je Fach (Vorlesung und Uebung zusammen), Art und Lehrwoche je Datei
+            let lib = try await api.value("/api/library")
+            let mods = lib.list("modules")
+            XCTAssertEqual(mods.compactMap { $0.s("name") }, ["Testmathematik I", "Testseminar Beispiel"])
+            let ma = try XCTUnwrap(mods.first?.i("id"))
+            let files = Dictionary(uniqueKeysWithValues: lib.list("files").compactMap { f in f.s("id").map { ($0, f) } })
+            for id in ["fk1", "fv1", "fv2", "fu1", "fu2", "fl1"] { XCTAssertEqual(files[id]?.i("module_id"), ma, id) }
+            XCTAssertEqual(files["fw1"]?["module_id"], .null, "Begrüßung ohne Modul")
+            XCTAssertEqual(files["fv2"]?.s("doc_type"), "vorlesung")
+            XCTAssertEqual(files["fu2"]?.s("doc_type"), "uebung")
+            XCTAssertEqual(files["fl1"]?.s("doc_type"), "loesung")
+            XCTAssertEqual(files["fk1"]?.s("sub_label"), "Altklausur")
+            let detail = try await api.value("/api/modules/\(ma)")
+            let weeks = detail.list("weeks")
+            XCTAssertEqual(weeks.map { $0.s("label") ?? "" }, ["Woche 1 · 12.10. – 18.10.", "Woche 2 · 19.10. – 25.10.", "Klausuren & Altklausuren"])
+            XCTAssertEqual(weeks.first?.list("vorlesungen").compactMap { $0.s("id") }, ["fv1"])
+            XCTAssertEqual(weeks.dropFirst().first?.list("uebungen").compactMap { $0.s("id") }, ["fu2"])
+
+            // 2. Stundenplan aus Kurszeiten, Einzelterminen und eigenem Eintrag; die Termine gehoeren zum Modul ihres Fachs
+            let events = try await api.value("/api/timetable/events").items
+            XCTAssertEqual(events.count, 5, "\(events.map { $0.s("title") ?? "" })")
+            XCTAssertTrue(events.allSatisfy { $0.s("source") == "studip" })
+            let lecture = try XCTUnwrap(events.first { $0.s("course_id") == "c-ma" && $0.s("rrule") == "weekly" })
+            XCTAssertEqual(lecture.i("module_id"), ma, "Modul schon beim ersten Abgleich")
+            XCTAssertEqual(lecture.s("room"), "Hörsaal Test 1")
+            XCTAssertEqual(events.first { $0.s("course_id") == "c-ma-ue" }?.i("module_id"), ma)
+            XCTAssertEqual(events.first { $0.s("course_id") == "c-sem" }?.s("rrule"), "weekly", "drei Einzeltermine werden eine Serie")
+            XCTAssertNotNil(events.first { $0.s("course_id") == "c-ma" && $0.s("rrule") == "once" && $0.s("date_from") == "2027-02-08" },
+                            "Klausur außerhalb der Kurszeit")
+            XCTAssertNil(events.first { $0.s("course_id") == "c-erst" }, "Begrüßung nicht im Stundenplan")
+            let week = try await api.value("/api/timetable/week?start=2026-10-26")
+            let days = week.list("days")
+            func titles(_ d: Int) -> [String] { days[d].list("events").map { "\($0.s("title") ?? "") \($0.s("start") ?? "")" } }
+            XCTAssertEqual(titles(0), ["Testmathematik I 10:00"])
+            XCTAssertEqual(titles(1), ["Testseminar Beispiel 16:00"])
+            XCTAssertEqual(titles(2), ["Übung zu Testmathematik I 14:00"])
+            XCTAssertEqual(titles(6), ["Chorprobe 17:00"])
+            XCTAssertEqual(days[0].list("events").first?.s("module_name"), "Testmathematik I")
+            let next = try await api.value("/api/timetable/week?start=2026-11-02")
+            XCTAssertEqual(next.list("days").first?.list("events").first?.s("status"), "ausfall", "Ausfall laut Stud.IP")
+
+            // 3. Unterlagen zum Termin: dieselbe Semesterwoche wie die Dateien, sonst die neuesten des Moduls
+            let id = try XCTUnwrap(lecture.i("id"))
+            func materials(_ event: Int, _ date: String) async throws -> [String] {
+                try await api.value("/api/timetable/event-materials/\(event)?date=\(date)").items.compactMap { $0.s("id") }
+            }
+            let mats1 = try await materials(id, "2026-10-12")
+            XCTAssertEqual(mats1, ["fv1", "fu1"], "Woche 1")
+            let mats2 = try await materials(id, "2026-10-19")
+            XCTAssertEqual(mats2, ["fv2", "fu2", "fl1"], "Woche 2")
+            let mats3 = try await materials(id, "2026-10-26")
+            XCTAssertEqual(mats3, ["fv1", "fu1", "fv2", "fu2"], "Woche 3 ohne Dateien: die neuesten")
+            let exercise = try XCTUnwrap(events.first { $0.s("course_id") == "c-ma-ue" }?.i("id"))
+            let matsUe = try await materials(exercise, "2026-10-21")
+            XCTAssertEqual(matsUe, ["fv2", "fu2", "fl1"])
+            let seminar = try XCTUnwrap(events.first { $0.s("course_id") == "c-sem" }?.i("id"))
+            let matsSem = try await materials(seminar, "2026-10-20")
+            XCTAssertEqual(matsSem, [], "Modul ohne Dateien")
+            // Nicht-Teilnahme liefert dieselben Unterlagen fuer die freie Zeit
+            let skip = try await api.value("/api/timetable/attendance", method: "POST",
+                                           body: ["event_id": .number(Double(id)), "date": "2026-10-19", "mode": "today_skip"])
+            XCTAssertEqual(skip.list("materials").compactMap { $0.s("id") }, ["fv2", "fu2", "fl1"])
+            _ = try await api.value("/api/timetable/attendance", method: "POST",
+                                    body: ["event_id": .number(Double(id)), "date": "2026-10-19", "mode": "reset"])
+
+            // 4. Meine Module: naechster Termin je Modul aus dem Stundenplan
+            let list = try await api.value("/api/modules").items
+            let card = try XCTUnwrap(list.first { $0.i("id") == ma })
+            XCTAssertEqual(card["next_event"]?.s("date"), "2026-10-26")
+            XCTAssertEqual(card["next_event"]?.s("title"), "Testmathematik I")
+            XCTAssertEqual(list.first { $0.s("name") == "Testseminar Beispiel" }?["next_event"]?.s("date"), "2026-10-27")
+            let log = try await api.value("/api/sync/status")["log"]?.array ?? []
+            XCTAssertEqual(log.first?["message"], "7 neue/geaenderte Dateien, 5 Stundenplan-Termine")
+            return id
+        }
+
+        // 5. Termin-Panel im Fenster (wie ein Tipp auf den Termin im Stundenplan): passende Unterlagen der Woche
+        let names = ["VL02.pdf", "Blatt 2.pdf", "Lösung Blatt 1.pdf"]
+        let shown = try render(EventDrawer(eventID: series, date: "2026-10-19"), api: api, recorder: recorder,
+                               expected: ["Passende Unterlagen"] + names) { calls in
+            calls.contains { $0.path.hasPrefix("/api/timetable/event-materials/") }
+        }
+        let all = shown.joined(separator: "\n")
+        XCTAssertTrue(all.contains("Passende Unterlagen"), all)
+        for n in names { XCTAssertTrue(all.contains(n), "\(n) fehlt: \(all)") }
+        XCTAssertFalse(all.contains("Keine passenden Unterlagen"), all)
+        XCTAssertFalse(all.contains("VL01 Einführung.pdf"), "Woche 1 gehört nicht dazu: \(all)")
+        XCTAssertTrue(all.contains("Modul öffnen"), all)
+        XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
+
+        // 6. Zweiter Abgleich: nichts doppelt geladen oder uebernommen, Zuordnung bleibt
+        try awaiting { () async throws -> Void in
+            let before = stud.requested.filter { $0.hasSuffix("/content") }.count
+            await sync.run(client: client)
+            XCTAssertEqual(sync.phase, .idle)
+            XCTAssertEqual(stud.requested.filter { $0.hasSuffix("/content") }.count, before, "unverändert in Stud.IP: kein Download")
+            let events = try await api.value("/api/timetable/events").items
+            XCTAssertEqual(events.count, 5)
+            let summary = try XCTUnwrap(sync.lastSummary)
+            XCTAssertFalse(summary.contains("Stundenplan-Termine"), summary)
+            let mats = try await api.value("/api/timetable/event-materials/\(series)?date=2026-10-19").items.compactMap { $0.s("id") }
+            XCTAssertEqual(mats, ["fv2", "fu2", "fl1"])
+        }
+    }
 }

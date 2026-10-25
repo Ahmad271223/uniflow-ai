@@ -127,10 +127,32 @@ final class LocalTimetableTests: XCTestCase {
         }
     }
 
+    /// Derselbe difflib-Port wie fuer die Module (`SequenceMatcher` in ModuleGuess.swift, auch gegen
+    /// study-modules.json geprueft)
     func testSequenceMatcherMatchesPython() throws {
-        for c in try fixture()["matcher"]?.array ?? [] {
+        let cases = try fixture()["matcher"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 10)
+        for c in cases {
             let a = c["a"]?.string ?? "", b = c["b"]?.string ?? ""
-            XCTAssertEqual(PySequenceMatcher.ratio(a, b), c["ratio"]?.double, "\(a.prefix(20)) / \(b.prefix(20))")
+            XCTAssertEqual(SequenceMatcher(a, b).ratio(), c["ratio"]?.double, "\(a.prefix(20)) / \(b.prefix(20))")
+        }
+    }
+
+    /// LSF-Export der Uni Hildesheim (packages/shared-contracts/fixtures/hildesheim, Erwartungen aus Python): der
+    /// Wochentag kommt aus BYDAY, mehrere BYDAY werden mehrere Serien mit ihren Ausfaellen. Verglichen werden die
+    /// Felder von `parse_ics`; Nummer, Titel und Lehrende trennt erst `lsf.split_summary` (nicht portiert).
+    func testHildesheimLSFExportMatchesPython() throws {
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { root.deleteLastPathComponent() }
+        let dir = root.appendingPathComponent("packages/shared-contracts/fixtures/hildesheim")
+        let expected = try JSONValue.parse(Data(contentsOf: dir.appendingPathComponent("expected.json")))
+        let keys = ["weekday", "start_time", "end_time", "rrule", "date_from", "date_to", "exdates"]
+        for name in ["lsf-course.ics", "lsf-plan.ics"] {
+            let text = try String(contentsOf: dir.appendingPathComponent(name), encoding: .utf8)
+            let got: [JSONValue] = LocalTimetableImport.parseICS(text).map { e in .object(e.filter { keys.contains($0.key) }) }
+            let want: [JSONValue] = (expected[name]?.array ?? []).map { e in .object((e.object ?? [:]).filter { keys.contains($0.key) }) }
+            XCTAssertFalse(want.isEmpty, name)
+            XCTAssertNil(jsonDiff(.array(got), .array(want)), "\(name): \(jsonDiff(.array(got), .array(want)) ?? "")")
         }
     }
 
@@ -153,19 +175,30 @@ final class LocalTimetableTests: XCTestCase {
     }
 
     /// auto_import wie nach dem Stud.IP-Abgleich: eindeutige Termine uebernehmen, parallele Gruppen bleiben offen;
-    /// ein zweiter Lauf legt nichts doppelt an
+    /// ein zweiter Lauf legt nichts doppelt an. Ein eben gespeicherter Kurs mit Fach (extra_seed) bekommt vorher sein
+    /// Modul (ensure_modules), seine Termine damit auch.
     func testAutoImportMatchesPython() async throws {
         let fx = try fixture()
         let backend = try await seeded(fx)
-        let (first, second) = try await backend.context.database.transaction { c -> (JSONValue, JSONValue) in
-            try c.execute("DELETE FROM course_events")
-            return (try LocalTimetableImport.autoImport(c, clock: clock), try LocalTimetableImport.autoImport(c, clock: clock))
-        }
         let expect = fx["auto_import"] ?? .null
+        let extra = expect["extra_seed"]?.array ?? []
+        XCTAssertFalse(extra.isEmpty)
+        let (first, second, modules) = try await backend.context.database.transaction { c -> (JSONValue, JSONValue, JSONValue) in
+            try c.execute("DELETE FROM course_events")
+            for s in extra {
+                try c.execute(s["sql"]?.string ?? "", (s["params"]?.array ?? []).map { SQLiteValue(json: $0) ?? .null })
+            }
+            let a = try LocalTimetableImport.autoImport(c, clock: clock), b = try LocalTimetableImport.autoImport(c, clock: clock)
+            return (a, b, .array(try c.rows("SELECT * FROM modules ORDER BY id").map(JSONValue.object)))
+        }
         XCTAssertEqual(first, expect["first"])
         XCTAssertEqual(second, expect["second"])
         let t = try await tables(backend)
         XCTAssertNil(jsonDiff(t, expect["tables"]), jsonDiff(t, expect["tables"]) ?? "")
+        XCTAssertNil(jsonDiff(modules, expect["modules"]), jsonDiff(modules, expect["modules"]) ?? "")
+        let neu = t["course_events"]?.array?.filter { $0["course_id"] == "k-neu" } ?? []
+        XCTAssertEqual(neu.count, 1)
+        XCTAssertEqual(neu.first?["module_id"], 4, "Modul des neuen Fachs")
     }
 
     // MARK: nur auf dem Geraet

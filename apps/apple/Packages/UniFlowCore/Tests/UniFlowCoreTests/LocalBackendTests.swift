@@ -271,7 +271,10 @@ final class LocalBackendCoverageTests: XCTestCase {
             }
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
-        XCTAssertGreaterThan(placeholders, 40, "die meisten Pfade sind bis zur Portierung Platzhalter")
+        // Nach S2 bis S5 (Einstellungen, Bibliothek und Dateien, Module, Stundenplan) bleiben 29 Pfade Platzhalter bis
+        // zu ihrer Portierung (Lernkalender, Pakete, Aufgaben, reslot: S6; Suche: S7; Karteikarten, Uni & Noten, ...).
+        // Jeder weitere Port senkt die Zahl; dann hier nachziehen.
+        XCTAssertEqual(placeholders, 29, "Platzhalter nach S2–S5")
     }
 
     func testServicesListLikeServer() async throws {

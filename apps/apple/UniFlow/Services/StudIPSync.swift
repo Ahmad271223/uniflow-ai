@@ -261,8 +261,9 @@ final class StudIPSync: ObservableObject {
     }
 
     /// Ein Abgleich mit diesem Client (Tests: feste Antworten statt Stud.IP). Ablauf wie run_sync in
-    /// app/studip_sync.py: Kurse, je Kurs die Dateiliste in die Datenbank, dann die Downloads, am Ende `sync_log`.
-    /// Kein `await` innerhalb einer Transaktion: erst das Netz, dann kurz schreiben.
+    /// app/studip_sync.py: Kurse, je Kurs die Dateiliste in die Datenbank, dann die Downloads, danach der Stundenplan
+    /// derselben Kurse (`StudIPScheduleSync` mit demselben lokalen Backend, wie `auto_import` am Ende von run_sync),
+    /// am Ende `sync_log`. Kein `await` innerhalb einer Transaktion: erst das Netz, dann kurz schreiben.
     func run(client: StudIPClient) async {
         guard !isRunning else { return }
         phase = .running("Kurse werden geladen …")
@@ -357,7 +358,8 @@ final class StudIPSync: ObservableObject {
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
             parts += timetable.summary
             finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
-            await log(database, started: started, ok: true, newFiles: loaded, message: StudIPLibrary.summary(newFiles: loaded))
+            await log(database, started: started, ok: true, newFiles: loaded,
+                      message: StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0))
             phase = .idle
         } catch StudIPError.sessionExpired {
             entries = sortedEntries()

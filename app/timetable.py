@@ -428,7 +428,12 @@ def studip_entries(conn) -> list[dict]:
 
 def auto_import(conn) -> dict:
     """Uebernimmt automatisch alle eindeutigen Stud.IP-Termine (Vorlesungen, Kurse mit hoechstens zwei Terminen,
-    persoenliche Stundenplan-Eintraege). Parallele Uebungsgruppen bleiben der manuellen Auswahl vorbehalten."""
+    persoenliche Stundenplan-Eintraege). Parallele Uebungsgruppen bleiben der manuellen Auswahl vorbehalten.
+    Zuerst ensure_modules: run_sync ruft auto_import direkt nach dem Speichern neuer Kurse auf, deren Modul sonst erst
+    die naechste Seite anlegt. Ohne Modul blieben die neuen Termine dauerhaft ohne module_id (ein spaeterer Abgleich
+    uebernimmt nur neue Termine) und ohne Unterlagen zum Termin (Korrektur vom 26.10.2026)."""
+    from . import study
+    study.ensure_modules(conn)
     entries = enrich(conn, [e for e in studip_entries(conn) if e.get("selected")])
     diff = diff_against_existing(conn, entries)
     res = apply_import(conn, diff["new"], "studip")

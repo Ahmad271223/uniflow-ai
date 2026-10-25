@@ -270,13 +270,11 @@ enum LocalTimetable {
         }
     }
 
-    /// `materials_for_event(conn, event, d)`: passende Unterlagen des Moduls aus derselben Semesterwoche. Ohne Modul
-    /// keine; die Einordnung der Dateien (Dokumentart, Lehrwoche, Semesterbeginn) kommt erst mit den Stud.IP-Dateien
-    /// in der Datenbank (S3) und `effective_type`/`week_hint` (S4). Bis dahin gibt es lokal keine Dateien zu einem
-    /// Modul, die Liste bleibt leer wie in Python ohne Dateien.
-    static func materials(_ c: SQLiteConnection, event: [String: JSONValue], day: Int) throws -> [JSONValue] {
-        guard truthy(event["module_id"]) else { return [] }
-        return []
+    /// `materials_for_event(conn, event, d)`: passende Unterlagen des Moduls aus derselben Semesterwoche, sonst die
+    /// neuesten; ohne Modul keine. Eine Fassung mit den Modulen (`LocalModules.eventMaterials`, S4): Dateien mit
+    /// Einordnung aus dem Stud.IP-Abgleich (S3) und die Semesterwochen aus `StudyWeeks`.
+    static func materials(_ c: SQLiteConnection, event: [String: JSONValue], day: Int, clock: UniFlowClock) throws -> [JSONValue] {
+        try LocalModules.eventMaterials(c, event: event, day: day, clock: clock)
     }
 
     // MARK: Konflikte

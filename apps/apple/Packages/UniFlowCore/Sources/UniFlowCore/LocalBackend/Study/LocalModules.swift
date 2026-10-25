@@ -216,10 +216,29 @@ public enum LocalModules {
 
     // MARK: modules_overview
 
-    /// Termine der naechsten 14 Tage wie in `modules_overview` (`timetable.occurrences`, nur Teilnahme und noch
-    /// nicht vorbei, nach Datum und Beginn). Kurszeiten und eigene Termine gibt es lokal erst mit S5 (Port von
-    /// app/timetable.py); bis dahin keine, `next_event` bleibt wie auf dem PC ohne Termine null.
-    static func upcomingOccurrences(_ c: SQLiteConnection, today: Int, clock: UniFlowClock) throws -> [[String: JSONValue]] { [] }
+    /// Termine der naechsten 14 Tage wie in `modules_overview`: `timetable.occurrences` (Port in `LocalTimetable`,
+    /// S5) von heute bis heute + 14, nur Status None/"teilnahme" und noch nicht vorbei, nach Datum und Beginn (schon so
+    /// sortiert). "Noch nicht vorbei" ist dort `o["date"] > heute or o["end"] >= t.strftime("%H:%M")` mit einem
+    /// `date` t, also immer gegen "00:00": auch heute schon beendete Termine zaehlen wie am PC. Scheitert etwas (z. B.
+    /// ein Termin ohne Ende), gibt es wie im `except` dort keine Termine.
+    static func upcomingOccurrences(_ c: SQLiteConnection, today: Int, clock: UniFlowClock) throws -> [[String: JSONValue]] {
+        guard let all = try? LocalTimetable.occurrences(c, from: today, to: today + 14) else { return [] }
+        let todayISO = BerlinClock.isoDate(today)
+        var out: [[String: JSONValue]] = []
+        for o in all {
+            guard let occ = o.object else { continue }
+            let status = occ["status"] ?? .null
+            guard status == .null || status == "teilnahme" else { continue }
+            // date ist immer Text (isoformat); ein Ende, das kein Text ist, laesst den Vergleich scheitern (TypeError)
+            if let d = occ["date"]?.string, PyText.less(todayISO, d) {
+                out.append(occ)
+                continue
+            }
+            guard let end = occ["end"]?.string else { return [] }
+            if !PyText.less(end, "00:00") { out.append(occ) }
+        }
+        return out
+    }
 
     /// `modules_overview(conn)`: alle Module mit Zahlen fuer die Karten auf "Meine Module". Schreibt
     /// (`ensure_modules`), darum in einer Transaktion aufrufen.
