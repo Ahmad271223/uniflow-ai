@@ -31,10 +31,12 @@ struct StudIPView: View {
             }
         }
         .confirmationDialog("Von Stud.IP abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-            Button("Abmelden", role: .destructive) { Task { @MainActor in await studip.signOut() } }
-            Button("Abmelden und Dateien löschen", role: .destructive) { Task { @MainActor in await studip.signOut(); await studip.removeDownloads() } }
+            Button("Abmelden", role: .destructive) { Task { @MainActor in await studip.signOut(); UniversityCredentialStore.standard.deleteAll(for: .luh) } }
+            Button("Abmelden und Dateien löschen", role: .destructive) {
+                Task { @MainActor in await studip.signOut(); UniversityCredentialStore.standard.deleteAll(for: .luh); await studip.removeDownloads() }
+            }
         } message: {
-            Text("Das Sitzungs-Cookie und die Anmeldung in der Webansicht werden gelöscht.")
+            Text("Das Sitzungs-Cookie, die Anmeldung in der Webansicht und die auf diesem iPad gemerkten LUH-Zugangsdaten werden gelöscht.")
         }
     }
 
@@ -55,7 +57,7 @@ struct StudIPView: View {
                 }
             }
             .padding(.top, 12.8)
-            Text("Du meldest dich auf der Seite der Universität an. UniFlow liest keine Eingaben aus dieser Seite und speichert nur das Sitzungs-Cookie im Schlüsselbund dieses iPads. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck.")
+            Text("Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. UniFlow speichert das Sitzungs-Cookie im Schlüsselbund dieses iPads; nur mit dem Schalter „Auf diesem iPad merken“ auch Benutzername und Passwort, damit sie beim nächsten Mal schon im Formular stehen (nicht in iCloud, nie auf einem Server). Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8)
@@ -186,17 +188,21 @@ struct StudIPView: View {
 }
 
 /// Anmeldung auf der echten Stud.IP-Seite. Sobald Stud.IP die Sitzung bestaetigt (users/me), werden die Cookies
-/// an `onSignedIn` uebergeben. Keine eingeschleusten Skripte, kein Zugriff auf Formularfelder.
+/// an `onSignedIn` uebergeben. Auf den Anmeldeseiten der LUH (Stud.IP-Login, WebSSO) merkt sich die App mit dem
+/// Schalter "Auf diesem iPad merken" Benutzername und Passwort und fuellt sie beim naechsten Mal vor
+/// (UniversityLoginAutofill); abgeschickt wird nie automatisch.
 struct StudIPLoginView: View {
     let base: URL
     let onSignedIn: ([HTTPCookie]) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var checking = false
     @State private var done = false
+    @StateObject private var autofill = UniversityLoginAutofill(university: .luh, serviceKey: "studip")!
 
     var body: some View {
         NavigationStack {
-            StudIPWebView(url: base.appendingPathComponent("dispatch.php/login")) { webView in check(webView) }
+            StudIPWebView(url: base.appendingPathComponent("dispatch.php/login"), autofill: autofill) { webView in check(webView) }
+                .safeAreaInset(edge: .bottom, spacing: 0) { UniversityRememberBar(autofill: autofill) }
                 .navigationTitle("Stud.IP-Anmeldung")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -222,10 +228,12 @@ struct StudIPLoginView: View {
     }
 }
 
-/// Eingebettete Webansicht ohne eigene Skripte. Eigener, dauerhafter Datenspeicher der App (nicht Safari):
-/// die Hochschul-Anmeldung bleibt erhalten, sodass eine erneute Anmeldung oft ohne Passwort gelingt.
+/// Eingebettete Webansicht. Eigener, dauerhafter Datenspeicher der App (nicht Safari): die Hochschul-Anmeldung
+/// bleibt erhalten, sodass eine erneute Anmeldung oft ohne Passwort gelingt. Eigene Skripte nur ueber `autofill`
+/// (eigene Inhaltswelt, nur auf den Anmeldeseiten der Hochschule).
 struct StudIPWebView: UIViewRepresentable {
     let url: URL
+    var autofill: UniversityLoginAutofill? = nil
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onPageLoaded: onPageLoaded) }
@@ -233,6 +241,7 @@ struct StudIPWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
+        autofill?.install(into: config.userContentController)
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         view.load(URLRequest(url: url))
@@ -240,6 +249,10 @@ struct StudIPWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        UniversityLoginAutofill.uninstall(from: uiView.configuration.userContentController)
+    }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         let onPageLoaded: (WKWebView) -> Void

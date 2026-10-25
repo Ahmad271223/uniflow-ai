@@ -133,6 +133,10 @@ Stud.IP (S3) und Learnweb schreiben beide darüber.
 
 - CAS-Login im `WKWebView` mit dem Uni-eigenen Website-Datenspeicher. Die Studierenden tippen die Zugangsdaten
   selbst ein; die App speichert das Passwort nicht, es sei denn, sie wählen „merken“ (dann nur Keychain, pro Uni).
+- **Entscheidung des Inhabers (25.10.2026):** Nach der Registrierung wählt man LUH oder Hildesheim; die App öffnet die
+  Anmeldeseiten dieser Uni (LUH: Stud.IP, QIS; Hildesheim: CAS für Learnweb und LSF) und merkt sich Benutzername und
+  Passwort (Schalter „Auf diesem iPad merken“, Standard an). **Nur vorausfüllen:** „Anmelden“ tippt immer der Mensch;
+  automatisches Anmelden gibt es bewusst nicht. Einzelheiten und Risiken: `docs/SICHERHEITSKONZEPT-KONTEN.md` 1a.
 - **Learnweb-Token bevorzugen**, in dieser Reihenfolge prüfen:
   1. Moodle-SSO-Start `…/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=<zufall>&urlscheme=<schema>`
      im `WKWebView`; die abschließende Weiterleitung auf `<schema>://token=<base64>` in
@@ -181,9 +185,32 @@ Stud.IP (S3) und Learnweb schreiben beide darüber.
   Donnerstag und Ausfall an Heiligabend → Notenspiegel (leer ist ok).
 - `WEB-IPAD-PARITAET.md`/`docs/paritaet/status.json` um die Hildesheim-Punkte ergänzen.
 
+## Stand iPad (26.10.2026, Zweig `wip/hochschulen-2` ab `develop` 2706e52)
+
+Grundlagen gebaut, **noch nicht** in Start, Speicher und Sync eingebunden (das folgt nach der S3–S5-Integration).
+Gegen echte Uni-Seiten wurde nichts geprüft (keine Anmeldung, keine Abfrage); alle Tests laufen mit erfundenen
+Fixtures und lokalen HTML-Seiten.
+
+| Teil | Datei(en) | Stand |
+|---|---|---|
+| Hochschul-Profile wie `universities.py` (Schlüssel, Namen, Dienste, Anmelde-/Datenadressen, Keychain-Präfix, erlaubte Anmeldeseiten) | `UniFlowCore/Universities/UniversityProfile.swift` | gebaut, Kern-Tests grün |
+| CAS: Login-URL mit service, Anmeldeseite/abgelaufene Sitzung (`/sso/login`), Formular `#username`/`#password`/`name=submit`, Fehlertext `#loginErrorsPanel`, Erfolg = Rücksprung zur service-URL | `Universities/CASLogin.swift` | gebaut, Kern-Tests grün |
+| Learnweb: Kurse, Dateilisten (REST mit Schlüssel, AJAX mit Sitzung als Rückfall), Kurstitel → Semester/Nr./Titel, „Woche N“, NFC, Datei-ID wie PC, Änderung = höheres `timemodified`/Revision, HTML statt Datei = Sitzung abgelaufen, 3 Versuche mit Backoff, Fehler je Kurs überspringt nur diesen Kurs, Netz über `LearnwebTransport` | `Universities/LearnwebParsing.swift`, `LearnwebClient.swift`, `InsecureHash.swift` (SHA-1/MD5 ohne CryptoKit) | gebaut; `learnweb-course-contents.json` ergibt genau `expected.json` (inkl. NFC-Name, Ordner) |
+| Moodle-SSO: `tool_mobile_get_public_config` (launchurl, forcedurlscheme, Standard `moodlemobile`), Start-URL mit zufälligem passport, Antwort `<schema>://token=<base64>` zerlegen, passport per MD5 prüfen | `Universities/MoodleSSO.swift` | Kern gebaut und getestet; das Abfangen in `decidePolicyFor` (App) fehlt noch |
+| Token nur beim Download: im POST-Körper an die eigene Pluginfile-Adresse (nie in der Adresse, nie an fremde Rechner) | `LearnwebClient.download` | **Abweichung vom PC** (`?token=`); dass Moodle den Token im Körper annimmt (`required_param` liest POST), ist gegen das echte Learnweb ungeprüft |
+| Notenspiegel Hildesheim wie `qis.parse_grade_rows` (Abschluss-Zeile, Kopfzeile irgendwo, `Prüfungsnr.`, Bonus = LP, Modulzeilen/„Prüfung vorhanden“ keine Leistung); LUH unverändert | `Universities/QISHildesheim.swift`, `QISCollector.absorb(…, layout:)` | gebaut, Kern-Tests grün. Steht eine Stammdaten-Zeile in derselben Tabelle wie die Leistungen, wird die ganze Tabelle verworfen (Stammdaten nie lesen) – dann bleibt der Notenspiegel leer; beim ersten echten Test prüfen |
+| Zugangsdaten je Hochschule im Schlüsselbund (`luh.studip.*`, `luh.qis.*`, `hildesheim.cas.*`), `WhenUnlockedThisDeviceOnly`, nicht synchronisiert, kein Rückfall, Löschen je Uni | `UniFlow/Services/UniversityCredentials.swift` | gebaut, App-Tests grün; Konto löschen räumt alle Unis, Stud.IP abmelden alle LUH-Einträge, Uni-Wechsel nur als Schnittstelle |
+| Anmeldeseite merkt sich Benutzername und Passwort, füllt beim nächsten Mal vor, schickt nie ab | `UniFlow/Services/UniversityLoginAutofill.swift`, `Views/UniversityLoginViews.swift`, Einbau in `StudIPLoginView` | gebaut; WKWebView-Tests mit lokalen Seiten grün (nur mit Zustimmung, nur erlaubter Host/Pfad, Vorausfüllen ohne Absenden, Löschen je Uni, andere Uni sieht nichts). In der App bisher nur die Stud.IP-Anmeldung angebunden; Oberfläche im Simulator nicht angesehen (öffnet die echte Stud.IP-Seite) |
+
+Nicht gebaut (folgt nach der Integration): Hochschulwahl beim ersten Start, Datentrennung der Speicher je
+(Apple-Nutzer, Hochschule) samt eigenem `WKWebsiteDataStore`, LSF-ICS-Auswertung (braucht den Stundenplan-Port),
+Learnweb-Abgleich in die Datenbank, CAS-/Learnweb-/LSF-Anmeldeansichten, Abfangen der Moodle-SSO-Antwort im WebView,
+Speichern des Learnweb-Schlüssels (`hildesheim.learnweb.token`).
+
 ## Regeln
 
 - Nur `develop`, kein Merge nach `main`, kein Release. Commits mit `[skip ci]`, solange die GitHub-Abrechnung offen ist.
-- Keine echten Zugangsdaten in Code, Tests, Fixtures oder Logs. Passwörter tippt nur der Mensch selbst.
+- Keine echten Zugangsdaten in Code, Tests, Fixtures oder Logs. Passwörter tippt nur der Mensch selbst (danach füllt
+  die App sie auf Wunsch nur vor; „Anmelden“ tippt immer der Mensch).
 - Keine Stammdaten (Name, Geburtsdatum, Anschrift, Matrikelnummer) speichern oder committen.
 - Fragen an den Inhaber, nicht raten: insbesondere ob das Moodle-SSO-Schema erlaubt ist, wenn es im Test scheitert.

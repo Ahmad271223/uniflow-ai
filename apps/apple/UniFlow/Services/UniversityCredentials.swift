@@ -1,0 +1,172 @@
+import Foundation
+import Security
+import UniFlowCore
+
+// Gemerkte Zugangsdaten je Hochschule und Dienst (Entscheidung des Inhabers, 25.10.2026): Nach der Wahl der
+// Hochschule oeffnet die App deren Anmeldeseiten; wer den Schalter "Auf diesem iPad merken" an laesst, dessen
+// Benutzername und Passwort legt die App beim Tippen auf "Anmelden" im Schluesselbund ab und fuellt sie beim
+// naechsten Mal vor. Angemeldet wird nie automatisch.
+//
+// Schluesselbund: eigener Dienst "de.uniflow.ai.university", Eintrag je Hochschule und Dienst mit Praefix
+// ("luh.studip.user", "hildesheim.cas.password"), kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht
+// synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule.
+// Docs: docs/SICHERHEITSKONZEPT-KONTEN.md, Abschnitt "Gemerkte Hochschul-Zugangsdaten".
+
+/// Benutzername und Passwort einer Anmeldeseite. In Beschreibungen geschwaerzt (nie im Protokoll).
+struct UniversityCredential: Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    let user: String
+    let password: String
+
+    /// Grenzen gegen unsinnige Eingaben; leer wird nie gespeichert
+    static let maxUser = 256
+    static let maxPassword = 1024
+
+    var isStorable: Bool {
+        !user.isEmpty && !password.isEmpty && user.count <= Self.maxUser && password.count <= Self.maxPassword
+    }
+
+    var description: String { "UniversityCredential(user: ***, password: ***)" }
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [:]) }
+}
+
+/// Schluesselbund-Zugriff; Tests verwenden einen eigenen Dienstnamen bzw. einen Speicher im Arbeitsspeicher.
+protocol UniversitySecretStoring {
+    func read(_ account: String) -> String?
+    @discardableResult func write(_ value: String, account: String) -> Bool
+    func remove(_ account: String)
+    /// alle Eintraege dieses Dienstes (zum Loeschen je Hochschule)
+    func accounts() -> [String]
+}
+
+/// Generic-Password-Eintraege unter einem eigenen Dienst, nur dieses Geraet, nur entsperrt lesbar, nicht synchronisiert.
+struct UniversityKeychain: UniversitySecretStoring {
+    static let defaultService = "de.uniflow.ai.university"
+    let service: String
+
+    init(service: String = UniversityKeychain.defaultService) { self.service = service }
+
+    private func query(_ account: String?) -> [String: Any] {
+        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+                                kSecAttrSynchronizable as String: kCFBooleanFalse as Any]
+        if let account { q[kSecAttrAccount as String] = account }
+        return q
+    }
+
+    func read(_ account: String) -> String? {
+        var q = query(account)
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    @discardableResult
+    func write(_ value: String, account: String) -> Bool {
+        SecItemDelete(query(account) as CFDictionary)
+        var add = query(account)
+        add[kSecValueData as String] = Data(value.utf8)
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+    }
+
+    func remove(_ account: String) { SecItemDelete(query(account) as CFDictionary) }
+
+    func accounts() -> [String] {
+        var q = query(nil)
+        q[kSecReturnAttributes as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitAll
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let items = out as? [[String: Any]] else { return [] }
+        return items.compactMap { $0[kSecAttrAccount as String] as? String }
+    }
+
+    /// Schutzklasse und Synchronisation eines Eintrags (fuer Tests)
+    func attributes(_ account: String) -> (accessible: String?, synchronizable: Bool?)? {
+        var q = query(account)
+        q[kSecReturnAttributes as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let a = out as? [String: Any] else { return nil }
+        let sync = (a[kSecAttrSynchronizable as String] as? NSNumber)?.boolValue
+        return (a[kSecAttrAccessible as String] as? String, sync)
+    }
+}
+
+/// Zugangsdaten je (Hochschule, Dienst). Ein Dienst, der nicht zur Hochschule gehoert, hat nie Zugangsdaten.
+final class UniversityCredentialStore {
+    static let standard = UniversityCredentialStore()
+
+    private let secrets: UniversitySecretStoring
+    private let defaults: UserDefaults
+
+    init(secrets: UniversitySecretStoring = UniversityKeychain(), defaults: UserDefaults = .standard) {
+        self.secrets = secrets
+        self.defaults = defaults
+    }
+
+    private func accounts(_ uni: UniversityKey, _ service: String) -> (user: String, password: String)? {
+        let p = uni.profile
+        guard let u = p.keychainAccount(service: service, field: "user"),
+              let pw = p.keychainAccount(service: service, field: "password") else { return nil }
+        return (u, pw)
+    }
+
+    func credential(_ uni: UniversityKey, service: String) -> UniversityCredential? {
+        guard let a = accounts(uni, service), let user = secrets.read(a.user), let password = secrets.read(a.password) else { return nil }
+        let c = UniversityCredential(user: user, password: password)
+        return c.isStorable ? c : nil
+    }
+
+    func hasCredential(_ uni: UniversityKey, service: String) -> Bool { credential(uni, service: service) != nil }
+
+    /// Speichert beide Felder; schlaegt ein Teil fehl, bleibt nichts Halbes liegen.
+    @discardableResult
+    func save(_ c: UniversityCredential, _ uni: UniversityKey, service: String) -> Bool {
+        guard c.isStorable, let a = accounts(uni, service) else { return false }
+        guard secrets.write(c.user, account: a.user), secrets.write(c.password, account: a.password) else {
+            delete(uni, service: service)
+            return false
+        }
+        return true
+    }
+
+    func delete(_ uni: UniversityKey, service: String) {
+        guard let a = accounts(uni, service) else { return }
+        secrets.remove(a.user)
+        secrets.remove(a.password)
+    }
+
+    /// Abmelden, Hochschule wechseln: alles mit dem Praefix dieser Hochschule (auch kuenftige Eintraege wie
+    /// "hildesheim.learnweb.token"); die andere Hochschule bleibt unberuehrt.
+    func deleteAll(for uni: UniversityKey) {
+        let p = uni.profile
+        for s in p.loginServices { delete(uni, service: s.key) }
+        for account in secrets.accounts() where p.ownsKeychainAccount(account) { secrets.remove(account) }
+    }
+
+    /// Hochschule gewechselt: gemerkte Zugangsdaten der bisherigen Hochschule entfernen (die Wahl selbst kommt mit
+    /// der Hochschulwahl nach der Integration).
+    func universityChanged(from old: UniversityKey, to new: UniversityKey) {
+        guard old != new else { return }
+        deleteAll(for: old)
+    }
+
+    /// Konto loeschen: alle Hochschulen.
+    func deleteAll() { UniversityKey.allCases.forEach(deleteAll(for:)) }
+
+    // MARK: Schalter "Auf diesem iPad merken" (Standard: an)
+
+    static func rememberKey(_ uni: UniversityKey, _ service: String) -> String { "uniflow.login.remember.\(uni.rawValue).\(service)" }
+
+    func remember(_ uni: UniversityKey, service: String) -> Bool {
+        defaults.object(forKey: Self.rememberKey(uni, service)) as? Bool ?? true
+    }
+
+    /// Aus: nichts mehr merken und die gespeicherten Zugangsdaten dieses Dienstes sofort entfernen.
+    func setRemember(_ on: Bool, _ uni: UniversityKey, service: String) {
+        defaults.set(on, forKey: Self.rememberKey(uni, service))
+        if !on { delete(uni, service: service) }
+    }
+}

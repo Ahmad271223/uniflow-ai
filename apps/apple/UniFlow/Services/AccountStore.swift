@@ -188,7 +188,8 @@ final class AccountStore: ObservableObject {
     }
 
     /// Ganzer Ablauf "Konto loeschen" aus den Einstellungen: erst die weiteren Schluesselbund-Eintraege der App
-    /// entfernen (`deletionSteps`: Stud.IP-Sitzung, Server-PIN), danach das Konto selbst -> Begruessung.
+    /// entfernen (`deletionSteps`: Stud.IP-Sitzung, Server-PIN, gemerkte Hochschul-Zugangsdaten), danach das Konto
+    /// selbst -> Begruessung.
     /// Heruntergeladene Dateien und Notizen bleiben; `beforeWelcome` laeuft direkt vor dem Wechsel zur Begruessung
     /// (Dialoge schliessen, Route zuruecksetzen).
     func deleteAccount(also steps: [() async -> Void], beforeWelcome: () -> Void = {}) async {
@@ -197,9 +198,11 @@ final class AccountStore: ObservableObject {
         deleteAccount()
     }
 
-    /// Schritte fuer `deleteAccount(also:)` in der App: Stud.IP abmelden (Cookie, Webansicht) und Server-PIN loeschen
-    static func deletionSteps(studip: StudIPSync, session: Session) -> [() async -> Void] {
-        [{ await studip.signOut() }, { session.disconnect() }]
+    /// Schritte fuer `deleteAccount(also:)` in der App: Stud.IP abmelden (Cookie, Webansicht), Server-PIN loeschen
+    /// und die gemerkten Zugangsdaten aller Hochschulen entfernen
+    static func deletionSteps(studip: StudIPSync, session: Session,
+                              credentials: UniversityCredentialStore = .standard) -> [() async -> Void] {
+        [{ await studip.signOut() }, { session.disconnect() }, { credentials.deleteAll() }]
     }
 
     #if DEBUG

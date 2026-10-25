@@ -729,7 +729,7 @@ private struct DeleteAccountDialog: View {
     var body: some View {
         UFDialog("Konto löschen?", icon: "trash") {
             VStack(alignment: .leading, spacing: 9.6) {
-                Text("Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von UniFlow (Stud.IP-Sitzung, Server-PIN) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung.")
+                Text("Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von UniFlow (Stud.IP-Sitzung, Server-PIN, gemerkte Hochschul-Zugangsdaten) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung.")
                 Text("Heruntergeladene Dateien und Notizen auf diesem iPad bleiben erhalten.")
                 Text("Ein Abo wird dadurch nicht gekündigt. Abos kündigst du bei Apple:").font(.uf(13.12, 700)).foregroundStyle(UF.text)
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)

@@ -13,8 +13,10 @@ ich studiere im 1. Semester an der LUH und entwickle für mich eine Lern-App fü
 meine eigenen Kursunterlagen aus Stud.IP auf mein Gerät, damit ich sie dort mit dem Apple Pencil bearbeiten kann.
 
 So funktioniert es derzeit:
-- Ich melde mich in der App auf der normalen Stud.IP-Seite der LUH (WebSSO) an. Die App liest keine Eingaben aus
-  und speichert nur das Sitzungs-Cookie im Schlüsselbund des iPads.
+- Ich melde mich in der App auf der normalen Stud.IP-Seite der LUH (WebSSO) an. Die App speichert das
+  Sitzungs-Cookie im Schlüsselbund des iPads; Benutzername und Passwort nur, wenn ich „Auf diesem iPad merken“
+  einschalte (ebenfalls nur im Schlüsselbund dieses Geräts, nie auf einem Server), damit sie beim nächsten Mal im
+  Formular stehen. Abschicken muss ich das Formular immer selbst.
 - Danach ruft die App über die JSON:API nur lesend meine Kurse, den Ordnerbaum und die Dateien ab
   (`users/me`, `users/{id}/courses`, `courses/{id}/folders`, `folders/{id}/file-refs`, `file-refs/{id}/content`).
 - Die Abrufe laufen nacheinander mit Pause, beim Öffnen der App höchstens alle 30 Minuten; ein Durchgang für
