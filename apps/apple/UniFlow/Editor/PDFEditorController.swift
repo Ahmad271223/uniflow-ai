@@ -9,9 +9,24 @@ final class ToolPickerAnchor: UIView {
     override var canBecomeFirstResponder: Bool { true }
 }
 
+/// PencilKit-Canvas ohne eigenen Rueckgaengig-Verlauf. PencilKit wuerde seine Eintraege an die Canvas binden; die
+/// verschwindet aber beim Scrollen (Overlay-Wiederverwendung) und beim Neuaufbau der Seiten. Den Verlauf fuehrt
+/// deshalb der Editor je Seitenschluessel (siehe `PDFEditorController.registerUndo`).
+final class InkCanvasView: PKCanvasView {
+    private let silentUndo: UndoManager = {
+        let u = UndoManager()
+        u.disableUndoRegistration()
+        return u
+    }()
+
+    override var undoManager: UndoManager? { silentUndo }
+}
+
 /// Overlay einer Seite: Vorlage und Web-Objekte (Text, Formen, Bilder) unten, PencilKit-Canvas oben.
 /// Beide arbeiten in Seitenpunkten (wie der Web-Editor); passt PDFKit die Overlay-Groesse an, gleicht eine
 /// Skalierung des Inhalts das aus. Die Canvas scrollt und zoomt nie selbst.
+/// Immer hell: PencilKit kehrt Tintenfarben im Dunkelmodus um; auf dem weissen Papier soll schwarze Tinte schwarz
+/// bleiben (wie im Web und im PDF-Export).
 final class PageInkView: UIView {
     let pageIndex: Int
     /// Fester Seitenschluessel aus `pageOrder` (gespeichert wird immer ueber ihn, nie ueber den Index).
@@ -21,7 +36,7 @@ final class PageInkView: UIView {
     let geometry: PageGeometry
     let content = UIView()
     let objectsView: PageObjectsView
-    let canvas = PKCanvasView()
+    let canvas = InkCanvasView()
     /// Zeichnung wird gerade programmatisch gesetzt (kein Speichern ausloesen).
     var isApplyingDrawing = false
     /// Stift ist gerade auf dieser Canvas aktiv.
@@ -29,6 +44,10 @@ final class PageInkView: UIView {
     /// Neuer Stand vom Server, der wartet, bis der laufende Strich fertig ist.
     var deferredReload = false
     var loaded = false
+    /// Stand der Zeichnung beim letzten Rueckgaengig-Eintrag (Ausgangspunkt des naechsten Eintrags).
+    var undoBase = PKDrawing()
+    /// Aenderung, waehrend der Stift noch aktiv ist (z. B. Radierer): Eintrag erst beim Absetzen anlegen.
+    var undoPending = false
 
     init(pageIndex: Int, pageKey: String = "", generation: Int = 0, geometry: PageGeometry) {
         self.pageIndex = pageIndex
@@ -40,11 +59,13 @@ final class PageInkView: UIView {
         super.init(frame: rect)
         backgroundColor = .clear
         isOpaque = false
+        overrideUserInterfaceStyle = .light            // gilt fuer Canvas, Vorlage und Objekte
         content.bounds = rect
         content.backgroundColor = .clear
         canvas.frame = rect
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
+        canvas.overrideUserInterfaceStyle = .light
         canvas.isScrollEnabled = false
         canvas.minimumZoomScale = 1
         canvas.maximumZoomScale = 1
@@ -68,12 +89,31 @@ final class PageInkView: UIView {
     }
 }
 
+/// Aendern der Seitenstruktur im gemeinsamen Modell (Einfuegen, Papierkorb, Wiederherstellen ueber `PageOrder`).
+/// Umsetzung im `DocumentStore` (braucht dessen SyncEngine); solange sie fehlt, kann der Editor nur einfuegen.
+@MainActor
+protocol PageStructureEditing: AnyObject {
+    /// Aktuelles Modell (ausstehende Striche zuerst verarbeitet).
+    func pageStructureDocument() async -> AnnotationDocument
+    /// `change` auf das aktuelle Modell anwenden; bei Erfolg Wurzelfelder und `changedPageKeys` speichern,
+    /// den Seitenaufbau aktualisieren und das Ergebnis zurueckgeben.
+    func applyPageStructure(_ change: (inout AnnotationDocument) -> PageOrder.Change?) async -> PageOrder.Change?
+}
+
+/// Ziel der Rueckgaengig-Eintraege einer Seite (damit sie sich je Seite oder je Editor entfernen lassen).
+final class PageUndoTarget {
+    let key: String
+    init(key: String) { self.key = key }
+}
+
 /// Nativer PDF-Arbeitsbereich: PDFKit zeigt, scrollt und zoomt; PencilKit schreibt.
 ///
 /// - Finger: Scrollen und Zoomen (PDFKit). Der Stift scrollt nie (`allowedTouchTypes` der Scroll-Gesten).
 /// - "Finger zeichnet": Scrollen dann mit zwei Fingern.
 /// - Zoom wird nach dem ersten Einpassen nicht mehr automatisch zurueckgesetzt (siehe `ZoomPolicy`).
 /// - Seiten-Overlays werden wiederverwendet (die letzten 6), statt beim Zurueckscrollen neu aufgebaut zu werden.
+/// - Rueckgaengig/Wiederholen gilt dokumentweit: Eintraege haengen am Seitenschluessel, nicht am Overlay, und wirken
+///   auf die gerade gebundene Canvas oder, ohne Overlay, direkt auf den gespeicherten Stand der Seite.
 final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, PKCanvasViewDelegate, PKToolPickerObserver {
 
     private let store: DocumentStore
@@ -87,6 +127,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// In der geteilten Ansicht teilen sich beide Dokumente einen Verlauf, damit "Rueckgaengig" der gemeinsamen
     /// Palette immer den zuletzt geschriebenen Strich zuruecknimmt, egal auf welcher Seite.
     private let documentUndo: UndoManager
+    private var undoTargets: [String: PageUndoTarget] = [:]
     private var live: [Int: PageInkView] = [:]
     private var parked: [PageInkView] = []
     private let parkedLimit = 6
@@ -94,6 +135,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private var userZoomed = false
     private var observers: [NSObjectProtocol] = []
     private(set) var shownLayoutVersion = -1
+    /// Seite, die nach dem naechsten Neuaufbau gezeigt werden soll (nach Einfuegen, Papierkorb, Wiederherstellen).
+    private var pendingFocusKey: String?
 
     var onZoomChange: ((CGFloat) -> Void)?
     /// Anzeige-Index und Seitenschluessel der aktuellen Seite.
@@ -119,6 +162,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         self.documentUndo = undoManager ?? UndoManager()
         self.initialPDFPage = initialPDFPage
         super.init(nibName: nil, bundle: nil)
+        if documentUndo.levelsOfUndo == 0 { documentUndo.levelsOfUndo = 150 }     // wie der Verlauf im Web-Editor
     }
 
     @available(*, unavailable)
@@ -164,6 +208,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         showLayout()
 
         toolPicker.addObserver(self)
+        toolPicker.colorUserInterfaceStyle = .light   // Farben wie auf dem hellen Papier; die Palette folgt dem System
         if ownsToolPicker {
             toolPicker.stateAutosaveName = "uniflow.toolpicker"
             toolPicker.setVisible(true, forFirstResponder: anchor)
@@ -197,10 +242,14 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         if ownsToolPicker { toolPicker.setVisible(false, forFirstResponder: anchor) }
-        for v in allOverlays where v.loaded { store.canvasChanged(pageKey: v.pageKey, drawing: v.canvas.drawing) }
+        for v in allOverlays where v.loaded {
+            commitPendingUndo(v)
+            store.canvasChanged(pageKey: v.pageKey, drawing: v.canvas.drawing)
+        }
         if !ownsToolPicker {
             // geteilter Verlauf: Eintraege dieses Dokuments entfernen, sonst wirkt "Rueckgaengig" ins Leere
-            for v in allOverlays { documentUndo.removeAllActions(withTarget: v.canvas) }
+            for t in undoTargets.values { documentUndo.removeAllActions(withTarget: t) }
+            undoTargets = [:]
         }
     }
 
@@ -250,16 +299,18 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     // MARK: Anzeige-PDF (neu aufbauen, wenn sich die Seitenstruktur aendert)
 
     /// Zeigt den aktuellen Seitenaufbau. Bleibt auf derselben Seite (ueber den Seitenschluessel) und beim Zoom.
+    /// Der Rueckgaengig-Verlauf haengt am Seitenschluessel und bleibt erhalten.
     func showLayout() {
         guard store.layoutVersion != shownLayoutVersion, let layout = store.layout else { return }
-        let keepKey = currentPageKey
+        let keepKey = pendingFocusKey ?? currentPageKey
+        pendingFocusKey = nil
         let keepScale = pdfView.scaleFactor
         // offene Canvases ueber ihren Schluessel sichern (Indizes koennen sich gerade verschoben haben)
-        for v in allOverlays where v.loaded { store.canvasChanged(pageKey: v.pageKey, drawing: v.canvas.drawing) }
-        for v in allOverlays {
-            toolPicker.removeObserver(v.canvas)
-            documentUndo.removeAllActions(withTarget: v.canvas)
+        for v in allOverlays where v.loaded {
+            commitPendingUndo(v)
+            store.canvasChanged(pageKey: v.pageKey, drawing: v.canvas.drawing)
         }
+        for v in allOverlays { toolPicker.removeObserver(v.canvas) }
         live = [:]
         parked = []
         shownLayout = layout
@@ -298,19 +349,18 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func pdfView(_ pdfView: PDFView, willEndDisplayingOverlayView overlayView: UIView, for page: PDFPage) {
         guard let overlay = overlayView as? PageInkView else { return }
-        if overlay.loaded { store.canvasChanged(pageKey: overlay.pageKey, drawing: overlay.canvas.drawing) }
+        if overlay.loaded {
+            commitPendingUndo(overlay)
+            store.canvasChanged(pageKey: overlay.pageKey, drawing: overlay.canvas.drawing)
+        }
         if live[overlay.pageIndex] === overlay { live.removeValue(forKey: overlay.pageIndex) }
         guard overlay.generation == shownLayoutVersion else {       // Overlay eines alten Seitenaufbaus: verwerfen
             toolPicker.removeObserver(overlay.canvas)
-            documentUndo.removeAllActions(withTarget: overlay.canvas)
             return
         }
         parked.append(overlay)
-        while parked.count > parkedLimit {
-            let old = parked.removeFirst()
-            toolPicker.removeObserver(old.canvas)
-            documentUndo.removeAllActions(withTarget: old.canvas)
-        }
+        // der Verlauf bleibt: er haengt am Seitenschluessel und wirkt spaeter auf ein neues Overlay oder den Store
+        while parked.count > parkedLimit { toolPicker.removeObserver(parked.removeFirst().canvas) }
     }
 
     private func configure(_ overlay: PageInkView) {
@@ -321,14 +371,15 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         toolPicker.addObserver(c)
     }
 
-    private func loadContent(into overlay: PageInkView) {
+    /// - Parameter remote: Inhalt hat sich ausserhalb dieses Editors geaendert (Server, Zusammenfuehrung, Aktion).
+    private func loadContent(into overlay: PageInkView, remote: Bool = false) {
         Task { @MainActor [weak self, weak overlay] in
             guard let self, let overlay else { return }
             let entry = self.store.entry(forKey: overlay.pageKey)
             let objects = await self.store.objects(forPageKey: overlay.pageKey)
             self.showObjects(objects, entry: entry, on: overlay)
             let drawing = await self.store.drawing(forPageKey: overlay.pageKey)
-            self.apply(drawing, to: overlay)
+            self.apply(drawing, to: overlay, remote: remote)
         }
     }
 
@@ -347,23 +398,98 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     /// Zeichnung setzen, ohne einen laufenden Strich zu unterbrechen. Striche, die schon vor dem Laden auf der
     /// Canvas entstanden sind, bleiben erhalten.
-    private func apply(_ drawing: PKDrawing, to overlay: PageInkView) {
+    private func apply(_ drawing: PKDrawing, to overlay: PageInkView, remote: Bool = false) {
         if overlay.isDrawing { overlay.deferredReload = true; return }
         var next = drawing
         if !overlay.loaded, !overlay.canvas.drawing.strokes.isEmpty { next.append(overlay.canvas.drawing) }
+        if remote, overlay.loaded,
+           next.strokes.count != overlay.canvas.drawing.strokes.count || next != overlay.canvas.drawing {
+            // fremde Aenderung auf dieser Seite: alte Schnappschuesse wuerden sie wieder zuruecknehmen
+            dropUndo(forKey: overlay.pageKey)
+        }
         overlay.isApplyingDrawing = true
         overlay.canvas.drawing = next
         overlay.isApplyingDrawing = false
         let hadEarlyStrokes = !overlay.loaded && next.strokes.count != drawing.strokes.count
         overlay.loaded = true
-        if hadEarlyStrokes { store.canvasChanged(pageKey: overlay.pageKey, drawing: next) }
+        overlay.undoBase = next
+        overlay.undoPending = false
+        if hadEarlyStrokes {
+            store.canvasChanged(pageKey: overlay.pageKey, drawing: next)
+            registerUndo(key: overlay.pageKey, restore: drawing, redo: next)
+        }
     }
 
     private func reloadPages(_ keys: [String]) {
         let wanted = Set(keys)
         for overlay in allOverlays where wanted.contains(overlay.pageKey) {
-            if overlay.isDrawing { overlay.deferredReload = true } else { loadContent(into: overlay) }
+            if overlay.isDrawing { overlay.deferredReload = true } else { loadContent(into: overlay, remote: true) }
         }
+    }
+
+    // MARK: Rueckgaengig/Wiederholen je Seitenschluessel
+
+    private func undoTarget(_ key: String) -> PageUndoTarget {
+        if let t = undoTargets[key] { return t }
+        let t = PageUndoTarget(key: key)
+        undoTargets[key] = t
+        return t
+    }
+
+    private func dropUndo(forKey key: String) {
+        guard let t = undoTargets.removeValue(forKey: key) else { return }
+        documentUndo.removeAllActions(withTarget: t)
+    }
+
+    /// Eintrag "Seite `key` auf `old` zuruecksetzen"; beim Ausfuehren entsteht der Gegeneintrag (zurueck auf `new`).
+    /// Schnappschuesse statt Einzelschritte: PKDrawing ist ein Wert, das Merken kostet beim Schreiben praktisch nichts.
+    private func registerUndo(key: String, restore old: PKDrawing, redo new: PKDrawing) {
+        documentUndo.registerUndo(withTarget: undoTarget(key)) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.setDrawing(old, forKey: key)
+                self.registerUndo(key: key, restore: new, redo: old)
+            }
+        }
+    }
+
+    /// Aenderung seit dem letzten Eintrag als einen Schritt merken (ohne Vergleich der Zeichnungen: der kostet bei
+    /// vollen Seiten Zeit, und PencilKit meldet nur echte Aenderungen).
+    private func registerStep(_ overlay: PageInkView) {
+        overlay.undoPending = false
+        let now = overlay.canvas.drawing
+        let before = overlay.undoBase
+        overlay.undoBase = now
+        registerUndo(key: overlay.pageKey, restore: before, redo: now)
+    }
+
+    private func commitPendingUndo(_ overlay: PageInkView) {
+        if overlay.undoPending { registerStep(overlay) }
+    }
+
+    /// Overlay des aktuellen Seitenaufbaus fuer einen Schluessel (sichtbar oder geparkt).
+    private func boundOverlay(forKey key: String) -> PageInkView? {
+        allOverlays.first { $0.pageKey == key && $0.generation == shownLayoutVersion }
+    }
+
+    /// Zeichnung einer Seite aus dem Verlauf setzen: auf der gebundenen Canvas oder, ohne Overlay, nur im Store
+    /// (ein spaeter angelegtes Overlay laedt dann diesen Stand). Ist die Seite nicht im Bild, springt die Ansicht
+    /// hin, damit man sieht, was zurueckgenommen wurde.
+    private func setDrawing(_ drawing: PKDrawing, forKey key: String) {
+        store.canvasChanged(pageKey: key, drawing: drawing)
+        if let overlay = boundOverlay(forKey: key) {
+            if overlay.loaded {
+                overlay.isApplyingDrawing = true
+                overlay.canvas.drawing = drawing
+                overlay.isApplyingDrawing = false
+                overlay.undoBase = drawing
+                overlay.undoPending = false
+            } else {
+                loadContent(into: overlay)          // Laden laeuft noch: neu laden, liefert den eben gesetzten Stand
+            }
+        }
+        let visible = live.values.contains { $0.pageKey == key && $0.generation == shownLayoutVersion }
+        if !visible, let i = shownLayout?.index(ofKey: key) { goToPage(i) }
     }
 
     // MARK: PKCanvasViewDelegate
@@ -375,6 +501,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
         guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing, overlay.loaded else { return }
         store.canvasChanged(pageKey: overlay.pageKey, drawing: canvasView.drawing)
+        guard !documentUndo.isUndoing, !documentUndo.isRedoing else { return }
+        // waehrend der Stift aufliegt (Radierer, Lasso) erst beim Absetzen einen Schritt anlegen
+        if overlay.isDrawing { overlay.undoPending = true } else { registerStep(overlay) }
     }
 
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
@@ -384,9 +513,88 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
         guard let overlay = overlay(of: canvasView) else { return }
         overlay.isDrawing = false
+        if overlay.loaded { commitPendingUndo(overlay) }
         if overlay.deferredReload {
             overlay.deferredReload = false
-            loadContent(into: overlay)
+            loadContent(into: overlay, remote: true)
+        }
+    }
+
+    // MARK: Seiten (gleiches Modell wie der Web-Editor, siehe PageOrder)
+
+    /// Umsetzung im Store, sobald vorhanden. Pruefung zur Laufzeit, damit der Editor auch ohne sie baut.
+    private var pageEditor: PageStructureEditing? { (store as AnyObject) as? PageStructureEditing }
+
+    /// Papierkorb und Wiederherstellen sind verfuegbar (Einfuegen geht immer).
+    var canEditPageStructure: Bool { pageEditor != nil }
+
+    /// Leere Seite nach `key` (Standard: aktuelle Seite) einfuegen und hinspringen. Vorlage: blank, lined, grid,
+    /// dotted, mm, cornell; Groesse wie die Seite davor (ohne deren zusaetzliche Drehung, wie im Web).
+    /// - Returns: Schluessel der neuen Seite.
+    @discardableResult
+    func insertBlankPage(after key: String? = nil, template: String = "blank") async -> String? {
+        let afterKey = key ?? currentPageKey
+        let t = PaperTemplate.isKnown(template) ? template : "blank"
+        let size = afterKey.flatMap { shownLayout?.index(ofKey: $0) }.flatMap { shownLayout?.baseSize(at: $0) }
+            ?? CGSize(width: 595, height: 842)
+        guard let editor = pageEditor else {
+            // ohne Umsetzung im Store: bisheriger Weg, neue Seite ueber den Vergleich der Schluessel finden
+            let before = Set(store.layout?.entries.map(\.key) ?? [])
+            await store.addBlankPage(afterKey: afterKey, template: t)
+            let added = store.layout?.entries.first { !before.contains($0.key) }?.key
+            pendingFocusKey = added
+            finishPageChange(PageOrder.Change(focusKey: added, changedPageKeys: []))
+            return added
+        }
+        let newKey = PageOrder.newBlankKey()
+        let w = Double(size.width), h = Double(size.height)
+        pendingFocusKey = newKey
+        let change = await editor.applyPageStructure { doc in
+            PageOrder.insertBlank(&doc, after: afterKey, template: t, width: w, height: h, key: newKey)
+        }
+        finishPageChange(change)
+        return change?.focusKey
+    }
+
+    /// Seite (Standard: aktuelle) in den Papierkorb legen (`deletedPages`, wiederherstellbar). Die letzte Seite bleibt.
+    @discardableResult
+    func trashPage(key: String? = nil) async -> Bool {
+        guard let editor = pageEditor, let key = key ?? currentPageKey, let layout = shownLayout,
+              let i = layout.index(ofKey: key), layout.entries.count > 1 else { return false }
+        if let v = boundOverlay(forKey: key), v.loaded { store.canvasChanged(pageKey: key, drawing: v.canvas.drawing) }
+        pendingFocusKey = layout.key(at: i + 1) ?? layout.key(at: i - 1)
+        let change = await editor.applyPageStructure { doc in PageOrder.trash(&doc, key: key) }
+        // Verlauf der Seite verwerfen: er wuerde unsichtbar auf die geloeschte Seite wirken
+        if change != nil { dropUndo(forKey: key) }
+        finishPageChange(change)
+        return change != nil
+    }
+
+    /// Juengsten Papierkorb-Eintrag einer Seite an ihren frueheren Platz zurueckholen und hinspringen.
+    @discardableResult
+    func restorePage(key: String) async -> Bool {
+        guard let editor = pageEditor else { return false }
+        pendingFocusKey = key
+        let change = await editor.applyPageStructure { doc in PageOrder.restore(&doc, key: key) }
+        finishPageChange(change)
+        return change != nil
+    }
+
+    /// Inhalt des Papierkorbs (aelteste zuerst), leer ohne Umsetzung im Store.
+    func trashedPages() async -> [PageOrder.TrashedPage] {
+        guard let editor = pageEditor else { return [] }
+        return PageOrder.trashedPages(await editor.pageStructureDocument())
+    }
+
+    /// Nach einer Seitenoperation neu aufbauen und die betroffene Seite zeigen. Hat SwiftUI schon neu aufgebaut
+    /// (`updateUIViewController`), wurde `pendingFocusKey` dort verbraucht; dann nur noch hinspringen.
+    private func finishPageChange(_ change: PageOrder.Change?) {
+        defer { pendingFocusKey = nil }
+        guard let change else { return }
+        let alreadyShown = shownLayoutVersion == store.layoutVersion
+        showLayout()
+        if alreadyShown, let key = change.focusKey, key != currentPageKey, let i = shownLayout?.index(ofKey: key) {
+            goToPage(i)
         }
     }
 
@@ -402,7 +610,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         pdfView.go(to: selection)
     }
 
-    func undo() { documentUndo.undo() }
+    func undo() {
+        allOverlays.forEach(commitPendingUndo)
+        documentUndo.undo()
+    }
+
     func redo() { documentUndo.redo() }
 
     func fitWidth() {

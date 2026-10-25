@@ -1,8 +1,8 @@
 import UIKit
 import UniFlowCore
 
-/// Geometrie und Aussehen der Nicht-Strich-Objekte aus dem Web-Editor (Text, Formen, Bilder) und der
-/// Seitenvorlagen. Gemeinsam genutzt von der Bildschirmanzeige (`PageObjectsView`) und dem PDF-Export.
+/// Geometrie und Aussehen der Nicht-Strich-Objekte aus dem Web-Editor (Text, Formen, Bilder), gemeinsam genutzt
+/// von der Bildschirmanzeige (`PageObjectsView`) und dem PDF-Export, dazu die Seitenvorlagen des Exports.
 /// Gleiche Regeln wie `addNode` in app/static/editor.js (Konva): verschieben -> drehen -> skalieren.
 enum ObjectGeometry {
     static let templateColor = UIColor(red: 0.85, green: 0.87, blue: 0.91, alpha: 1)
@@ -98,7 +98,8 @@ enum ObjectGeometry {
         return CGSize(width: width, height: ceil(r.height) + 2 * textPadding)
     }
 
-    /// Linien der Seitenvorlage (wie drawTemplatePdf im Web-Editor), in Seitenpunkten mit Ursprung oben links.
+    /// Linien der Seitenvorlage fuer den PDF-Export (wie drawTemplatePdf im Web-Editor), in Seitenpunkten mit Ursprung
+    /// oben links. Die Bildschirmanzeige nutzt `PaperTemplate` (wie renderTemplate im Web).
     static func templatePath(_ template: String?, size: CGSize) -> (lines: CGPath?, dots: CGPath?) {
         guard let t = template, t != "blank" else { return (nil, nil) }
         let W = size.width, H = size.height
@@ -170,7 +171,8 @@ enum ObjectGeometry {
 }
 
 /// Bildschirmanzeige von Vorlage, Text, Formen und Bildern einer Seite (unter der PencilKit-Canvas, ohne Eingabe).
-/// Vorlage und Formen sind Vektor-Ebenen und bleiben beim Zoomen scharf.
+/// Vorlage und Formen sind Vektor-Ebenen und bleiben beim Zoomen scharf. Immer im hellen Erscheinungsbild
+/// (siehe `PageInkView`), damit Farben auf dem weissen Papier wie im Web aussehen.
 final class PageObjectsView: UIView {
     private var signature = ""
 
@@ -193,21 +195,8 @@ final class PageObjectsView: UIView {
         layer.sublayers?.forEach { $0.removeFromSuperlayer() }
         subviews.forEach { $0.removeFromSuperview() }
 
-        let (lines, dots) = ObjectGeometry.templatePath(template, size: bounds.size)
-        if let lines {
-            let l = CAShapeLayer()
-            l.path = lines
-            l.strokeColor = ObjectGeometry.templateColor.cgColor
-            l.lineWidth = template == "cornell" ? 1 : 0.5
-            l.fillColor = nil
-            layer.addSublayer(l)
-        }
-        if let dots {
-            let d = CAShapeLayer()
-            d.path = dots
-            d.fillColor = ObjectGeometry.templateColor.cgColor
-            layer.addSublayer(d)
-        }
+        // Vorlage zuerst, damit sie hinter Text, Formen und der Tinte liegt (wie im Web)
+        PaperTemplate.layers(for: template, size: bounds.size).forEach { layer.addSublayer($0) }
         if let placeholder {
             let label = UILabel(frame: bounds.insetBy(dx: 40, dy: 40))
             label.text = placeholder

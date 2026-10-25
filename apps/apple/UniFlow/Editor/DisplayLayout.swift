@@ -6,13 +6,14 @@ import UniFlowCore
 /// - PDF-Seiten mit zusaetzlicher Drehung aus dem Web-Editor (`pageOrder[i].rotation`),
 /// - eingefuegte Leerseiten mit Vorlage (liniert, kariert ...),
 /// - Platzhalter fuer eingefuegte Bild- oder PDF-Seiten (Striche darauf werden normal gespeichert),
-/// - im Browser entfernte PDF-Seiten fehlen auch hier.
+/// - im Browser oder hier entfernte Seiten (Papierkorb `deletedPages`, siehe `PageOrder`) fehlen auch hier.
 struct DisplayLayout {
     struct Entry: Equatable {
         let key: String
         let kind: String            // pdf | blank | asset
         let template: String?
         let pdfIndex: Int?          // 1-basiert, nur pdf
+        var rotation: Int = 0       // zusaetzliche Drehung aus pageOrder
     }
 
     let pdf: PDFDocument
@@ -21,6 +22,14 @@ struct DisplayLayout {
     func key(at index: Int) -> String? { entries.indices.contains(index) ? entries[index].key : nil }
     func index(ofKey key: String) -> Int? { entries.firstIndex { $0.key == key } }
     func entry(at index: Int) -> Entry? { entries.indices.contains(index) ? entries[index] : nil }
+
+    /// Seitengroesse ohne die zusaetzliche Drehung aus `pageOrder` (wie `baseW`/`baseH` im Web-Editor).
+    /// Groesse neuer Leerseiten nach dieser Seite.
+    func baseSize(at index: Int) -> CGSize? {
+        guard let entry = entry(at: index), let page = pdf.page(at: index) else { return nil }
+        let shown = PageGeometry(boxSize: page.bounds(for: .cropBox).size, rotation: page.rotation).pageSize
+        return entry.rotation % 180 == 0 ? shown : CGSize(width: shown.height, height: shown.width)
+    }
 
     /// Signatur der Struktur: aendert sie sich, muss die Anzeige neu aufgebaut werden.
     static func structureSignature(_ doc: AnnotationDocument) -> String {
@@ -54,7 +63,7 @@ struct DisplayLayout {
             }
             out.insert(page, at: out.pageCount)
             let template = p["template"]?.string ?? doc.page(key)?["template"]?.string
-            entries.append(Entry(key: key, kind: type, template: template, pdfIndex: pdfIndex))
+            entries.append(Entry(key: key, kind: type, template: template, pdfIndex: pdfIndex, rotation: normalized(extra)))
         }
         return DisplayLayout(pdf: out, entries: entries)
     }
