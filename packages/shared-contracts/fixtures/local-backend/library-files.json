@@ -6380,11 +6380,6 @@
   ".png": null,
   "a.": null
  },
- "s4_fields": [
-  "doc_type",
-  "sub_label",
-  "week_hint"
- ],
  "unordered": [
   "/api/library",
   "/api/files"

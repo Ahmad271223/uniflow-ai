@@ -108,7 +108,7 @@ public enum AnnotationEndpoints: LocalEndpointModule {
 
     /// `version or 1`
     static func version(_ v: SQLiteValue?) -> Int {
-        guard let v, LocalLibrary.truthy(v) else { return 1 }
+        guard let v, LocalModules.truthy(v) else { return 1 }
         return v.int ?? Int(v.double ?? 1)
     }
 

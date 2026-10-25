@@ -7,7 +7,8 @@ import UniFlowCore
 // (verbindet ein iPad mit dem PC) zeigt die Karte die Verbindung dieses iPads, Stud.IP direkt und den Tarif.
 // V1 (docs/AUFTRAG-APPSTORE-V1.md 2a): Die Seite funktioniert auch ohne Server. Oben stehen "Konto" (Mit Apple
 // angemeldet, Konto loeschen) und "Tarif"; die Verbindung zum eigenen PC-Server liegt unter "Entwicklung" (nur in
-// Debug-Builds). Lokal kommen Lernzeit und Semester vom lokalen Backend (/api/settings, /api/terms).
+// Debug-Builds). Lokal kommen Lernzeit und Semester vom lokalen Backend (/api/settings, /api/terms), ebenso der
+// Reiter "Module" (Anlegen, Zuordnen, automatische Zuordnung; /api/modules, /api/courses) ohne die Wochentests (KI).
 // Ist ein gespeicherter Server nicht erreichbar (PC aus, PIN gewechselt), zeigt die Seite dieselben Bereiche wie
 // ohne Server mit einem Hinweis oben, damit "Verbindung trennen" und "Konto loeschen" erreichbar bleiben.
 
@@ -28,6 +29,9 @@ struct SettingsPage: View {
     struct LocalLoaded {
         var s: JSONValue
         var term: JSONValue
+        /// Reiter "Module": Kurse und Module aus der lokalen Datenbank
+        var courses: [JSONValue] = []
+        var mods: [JSONValue] = []
     }
 
     /// Antworten von /settings, /courses, /modules, /sync/status, /credentials, /terms
@@ -60,7 +64,11 @@ struct SettingsPage: View {
             async let s = try? api.value("/api/settings")
             async let t = try? api.value("/api/terms")
             let (sv, tv) = await (s, t)
-            local = sv.map { LocalLoaded(s: $0, term: tv ?? .null) }
+            // Module zuerst: GET /api/modules ordnet neue Kurse ihrem Fach zu (ensure_modules), die Kursliste danach
+            // zeigt diese Zuordnung schon
+            let mv = try? await api.value("/api/modules")
+            let cv = try? await api.value("/api/courses")
+            local = sv.map { LocalLoaded(s: $0, term: tv ?? .null, courses: cv?.items ?? [], mods: mv?.items ?? []) }
             return
         }
         local = nil
@@ -97,6 +105,11 @@ struct SettingsPage: View {
                        switch current {
                        case "dev": DevelopmentTab(error: error)
                        case "plan": if let local { PlanTab(s: local.s) }
+                       case "modules":
+                           if let local {
+                               ModulesTab(d: Loaded(s: local.s, courses: local.courses, mods: local.mods, log: [], cred: .null, term: local.term),
+                                          reload: { await load() }, withTests: false)
+                           }
                        default: LocalAccountTab(term: local?.term, reload: { await load() })
                        }
                    })
@@ -138,16 +151,22 @@ private struct SettingsNav: View {
     static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
                                                     ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings"),
                                                     ("dev", "Entwicklung", "layers")]
-    /// ohne eigenen Server: Zugang & Darstellung, Lernzeit (lokales Backend), Entwicklung (nur Debug)
+    /// ohne eigenen Server: Zugang & Darstellung, Module und Lernzeit (lokales Backend), Entwicklung (nur Debug)
     static func localKeys(withPlan: Bool) -> [String] {
-        ["account"] + (withPlan ? ["plan"] : []) + (Session.ownServerAvailable ? ["dev"] : [])
+        ["account"] + (withPlan ? ["modules", "plan"] : []) + (Session.ownServerAvailable ? ["dev"] : [])
+    }
+
+    /// Beschriftung eines Bereichs; ohne eigenen Server gibt es keine Wochentests (keine KI)
+    static func label(_ key: String, _ label: String, local: Bool) -> String {
+        local && key == "modules" ? "Module" : label
     }
 
     var body: some View {
         // "Entwicklung" (eigener Server) gibt es im Release-Build nicht
         let shown = Self.items.filter { (keys?.contains($0.0) ?? true) && ($0.0 != "dev" || Session.ownServerAvailable) }
         let buttons = ForEach(shown, id: \.0) { item in
-            let (k, l, i) = item
+            let (k, i) = (item.0, item.2)
+            let l = Self.label(k, item.1, local: keys != nil)
             Button { tab = k } label: {
                 HStack(spacing: 9.6) {
                     UFIcon(i, size: 16)
@@ -217,6 +236,8 @@ private struct SettingsAPI {
 private struct ModulesTab: View {
     let d: SettingsPage.Loaded
     let reload: () async -> Void
+    /// Wochentests (KI) nur mit eigenem Server; ohne PC nur Module und Zuordnung
+    var withTests = true
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var toast: UFToastCenter
@@ -231,26 +252,31 @@ private struct ModulesTab: View {
         let tmin = d.s.i("test_minutes") ?? 30
         let loose = d.courses.filter { ($0["module_id"]?.isNull ?? true) && $0.s("id") != "__user__" }
         UFCard {
-            UFCardHead("Module & Wochentests") { UFBadge("\(active.count) aktiv", tone: .ok) }
-            (Text("Ein Modul fasst mehrere Stud.IP-Kurse zusammen (Vorlesung, Hörsaalübung, Gruppenübung …). Pro Modul und Lehrwoche entsteht höchstens ")
-             + Text("ein gemeinsamer Wochentest").font(.uf(13.12, 700))
-             + Text(", und nur wenn in der Woche neue Inhalte vorliegen."))
-                .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
+            UFCardHead(withTests ? "Module & Wochentests" : "Module") { UFBadge("\(active.count) aktiv", tone: .ok) }
+            if withTests {
+                (Text("Ein Modul fasst mehrere Stud.IP-Kurse zusammen (Vorlesung, Hörsaalübung, Gruppenübung …). Pro Modul und Lehrwoche entsteht höchstens ")
+                 + Text("ein gemeinsamer Wochentest").font(.uf(13.12, 700))
+                 + Text(", und nur wenn in der Woche neue Inhalte vorliegen."))
+                    .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
 
-            // .row.wrap (margin .6rem 0): Checkbox, Spacer, "Standard-Testdauer" mit Segment
-            UFFlexWrap(gap: 9.6) {
-                UFCheckbox("Gemeinsamen Wochentest pro Modul automatisch erstellen", isOn: Binding(get: { autoTests }, set: { v in
-                    autoTests = v
-                    Task { await api.put(["auto_tests": .bool(v)]) }
-                }))
-                UFFlexSpacer()
-                HStack(spacing: 8) {
-                    Text("Standard-Testdauer").ufFont(13.6).foregroundStyle(UF.text2)
-                    UFSegmented(options: [(15, "15 Min."), (30, "30 Min."), (60, "60 Min."), (0, "Eigene")],
-                                selection: Binding(get: { [15, 30, 60].contains(tmin) ? tmin : 0 }, set: { v in setMinutes(v, current: tmin) }))
+                // .row.wrap (margin .6rem 0): Checkbox, Spacer, "Standard-Testdauer" mit Segment
+                UFFlexWrap(gap: 9.6) {
+                    UFCheckbox("Gemeinsamen Wochentest pro Modul automatisch erstellen", isOn: Binding(get: { autoTests }, set: { v in
+                        autoTests = v
+                        Task { await api.put(["auto_tests": .bool(v)]) }
+                    }))
+                    UFFlexSpacer()
+                    HStack(spacing: 8) {
+                        Text("Standard-Testdauer").ufFont(13.6).foregroundStyle(UF.text2)
+                        UFSegmented(options: [(15, "15 Min."), (30, "30 Min."), (60, "60 Min."), (0, "Eigene")],
+                                    selection: Binding(get: { [15, 30, 60].contains(tmin) ? tmin : 0 }, set: { v in setMinutes(v, current: tmin) }))
+                    }
                 }
+                .padding(.vertical, 9.6 - 5.6)
+            } else {
+                Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet UniFlow neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung.")
+                    .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
             }
-            .padding(.vertical, 9.6 - 5.6)
 
             VStack(alignment: .leading, spacing: 8) {                                          // .stack
                 ForEach(d.mods.indices, id: \.self) { i in moduleRow(d.mods[i]) }
@@ -280,10 +306,12 @@ private struct ModulesTab: View {
             }
             .padding(.top, 12.8)
 
-            (Text("Deine Einstellungen:").font(.uf(13.12, 700))
-             + Text(" \(active.filter { $0.i("weekly_test") != 0 }.count) Wochentests in einer Woche mit neuen Inhalten in allen aktiven Modulen, jeweils \(tmin) Minuten. Vorlesungen und sämtliche zugehörigen Übungen werden gemeinsam berücksichtigt."))
-                .ufFont(13.12).foregroundStyle(UF.muted)
-                .padding(.top, 12.8).padding(.bottom, 5.6)
+            if withTests {
+                (Text("Deine Einstellungen:").font(.uf(13.12, 700))
+                 + Text(" \(active.filter { $0.i("weekly_test") != 0 }.count) Wochentests in einer Woche mit neuen Inhalten in allen aktiven Modulen, jeweils \(tmin) Minuten. Vorlesungen und sämtliche zugehörigen Übungen werden gemeinsam berücksichtigt."))
+                    .ufFont(13.12).foregroundStyle(UF.muted)
+                    .padding(.top, 12.8).padding(.bottom, 5.6)
+            }
         }
         .onAppear { autoTests = d.s["auto_tests"]?.bool ?? ((d.s.i("auto_tests") ?? 0) != 0) }
     }
@@ -301,9 +329,11 @@ private struct ModulesTab: View {
                 Text(m.s("name") ?? "").ufFont(14.5, 700).foregroundStyle(inactive ? UF.muted : UF.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text("\(cs.count) Kurse").ufFont(13.12).foregroundStyle(UF.muted).fixedSize()
-                UFBadge(m.i("weekly_test") == 0 ? "kein Wochentest" : "1 gemeinsamer Test pro Woche" + (m.i("test_minutes").map { " · \($0) min" } ?? ""),
-                        tone: m.i("weekly_test") == 0 ? .neutral : .ok)
-                    .fixedSize()                                                   // .badge: white-space nowrap
+                if withTests {
+                    UFBadge(m.i("weekly_test") == 0 ? "kein Wochentest" : "1 gemeinsamer Test pro Woche" + (m.i("test_minutes").map { " · \($0) min" } ?? ""),
+                            tone: m.i("weekly_test") == 0 ? .neutral : .ok)
+                        .fixedSize()                                               // .badge: white-space nowrap
+                }
                 ActiveToggle(on: !inactive) { v in
                     Task { _ = await api.send("/api/modules/\(id)", method: "PATCH", body: ["active": .number(v ? 1 : 0)], toast: "Gespeichert") }
                 }

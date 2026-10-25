@@ -3,14 +3,15 @@ import UniFlowCore
 
 /// Meine Module 1:1 nach viewModules()/modCard() in app/static/views-misc.js: Karten (.mod2) oder Liste (.lib-row),
 /// Umschalter in localStorage "mod-mode", Link zu den Moduleinstellungen. Daten: GET /api/modules.
-/// Lokal ohne Module (Einordnung in Faecher erst mit S4) stehen hier die abgeglichenen Stud.IP-Kurse
+/// Lokal ordnet der Abgleich die Stud.IP-Kurse nach Fach in Module (classify und ensure_modules wie am PC, S4). Gibt
+/// es dabei kein einziges Modul (z. B. nur eine Begruessung, Art "sonstiges"), stehen hier die Kurse ohne Modul
 /// (GET /api/courses); ein Kurs oeffnet seinen Ordner in Dokumente & Notizen (`LibraryCourses`).
 struct ModulesPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
     @AppStorage("mod-mode") private var mode = "cards"
     @State private var mods: [JSONValue]?
-    /// lokal ohne Module: Stud.IP-Kurse ohne Modul
+    /// lokal ohne ein einziges Modul: Stud.IP-Kurse ohne Modul
     @State private var courses: [JSONValue] = []
     @State private var error: String?
 
@@ -38,7 +39,10 @@ struct ModulesPage: View {
         UFContent(maxWidth: 1480) {
             UFPageHead("Meine Module", sub: "Alle Module deines Studiums – Vorlesungen, Übungen, Materialien und Tests an einem Ort.") {
                 UFSegPill(options: [("cards", "Karten", nil), ("list", "Liste", nil)], selection: mode) { mode = $0 }
-                UFButton("Module & Wochentests", icon: "settings") { router.go(.settings(tab: "modules")) }
+                // ohne PC keine Wochentests (KI): der Reiter "Module" der Einstellungen ordnet nur zu
+                UFButton(session.api?.isLocal == true ? "Module verwalten" : "Module & Wochentests", icon: "settings") {
+                    router.go(.settings(tab: "modules"))
+                }
             }
             if mods.isEmpty, !courses.isEmpty {
                 LocalCoursesCard(courses: courses) { router.go(.files(path: LibraryCourses.path($0))) }
@@ -62,8 +66,8 @@ struct ModulesPage: View {
     }
 }
 
-/// Lokal ohne Module: Stud.IP-Kurse als Liste im Stil von .mod2-list (Titel, Semester, Dateien, neu); ein Kurs oeffnet
-/// seinen Ordner in Dokumente & Notizen
+/// Lokal ohne ein einziges Modul: Stud.IP-Kurse ohne Modul als Liste im Stil von .mod2-list (Titel, Semester, Dateien,
+/// neu); ein Kurs oeffnet seinen Ordner in Dokumente & Notizen
 struct LocalCoursesCard: View {
     let courses: [JSONValue]
     let open: (String) -> Void
@@ -71,7 +75,7 @@ struct LocalCoursesCard: View {
     var body: some View {
         UFCard {
             UFCardHead("Deine Stud.IP-Kurse", icon: "book") { Text("\(courses.count)").ufFont(13.12).foregroundStyle(UF.muted) }
-            Text("Ein Modul fasst die Vorlesung und die Übungen eines Fachs zusammen. Diese Einordnung macht UniFlow auf dem iPad noch nicht – bis dahin findest du deine Unterlagen hier und in „Dokumente & Notizen“ nach Stud.IP-Kursen.")
+            Text("Ein Modul fasst die Vorlesung und die Übungen eines Fachs zusammen. Diese Kurse gehören zu keinem Modul – ihre Unterlagen findest du hier und in „Dokumente & Notizen“ nach Stud.IP-Kursen. Unter „Module verwalten“ legst du ein Modul an und ordnest sie zu.")
                 .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
             VStack(spacing: 0) {
                 ForEach(Row.rows(courses)) { row in

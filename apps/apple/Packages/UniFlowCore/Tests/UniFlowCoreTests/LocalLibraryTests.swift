@@ -113,16 +113,12 @@ final class LocalLibraryFixtureTests: XCTestCase {
         return (backend, container)
     }
 
-    /// Listen ohne feste Reihenfolge bei gleichem Sortierwert (gleiche chdate/deleted_at) nach ID ordnen
-    private func normalized(_ v: JSONValue, path: String, s4: [String], unordered: Bool) -> JSONValue {
+    /// Listen ohne feste Reihenfolge bei gleichem Sortierwert (gleiche chdate/deleted_at) nach ID ordnen. Die Einordnung
+    /// der Dateien (`doc_type`, `sub_label`, `week_hint` aus `StudyClassify.enrichFile`, S4) wird mit verglichen.
+    private func normalized(_ v: JSONValue, path: String, unordered: Bool) -> JSONValue {
         func byID(_ a: [JSONValue]) -> [JSONValue] { a.sorted { ($0["id"]?.string ?? "") < ($1["id"]?.string ?? "") } }
-        func strip(_ f: JSONValue) -> JSONValue {
-            guard var o = f.object else { return f }
-            for k in s4 { o[k] = nil }
-            return .object(o)
-        }
         if path == "/api/library", var o = v.object {
-            o["files"] = .array(byID(o["files"]?.array ?? []).map(strip))
+            o["files"] = .array(byID(o["files"]?.array ?? []))
             o["trash"] = .array(byID(o["trash"]?.array ?? []))
             return .object(o)
         }
@@ -133,7 +129,6 @@ final class LocalLibraryFixtureTests: XCTestCase {
     func testStepsMatchPythonServer() async throws {
         let fx = try fixture("library-files.json")
         let (backend, container) = try await seeded(fx)
-        let s4 = fx["s4_fields"]?.array?.compactMap(\.string) ?? []
         let unordered = Set(fx["unordered"]?.array?.compactMap(\.string) ?? [])
         var problems: [String] = []
         for (i, step) in (fx["steps"]?.array ?? []).enumerated() {
@@ -165,10 +160,13 @@ final class LocalLibraryFixtureTests: XCTestCase {
                     continue
                 }
                 let free = method == "GET" && unordered.contains(path)
-                let a = normalized(local, path: path, s4: s4, unordered: free), b = normalized(expected, path: path, s4: s4, unordered: free)
+                let a = normalized(local, path: path, unordered: free), b = normalized(expected, path: path, unordered: free)
                 if a != b { problems.append("\(label):\n  lokal  \(a.jsonString(sortedKeys: true).prefix(1500))\n  Python \(b.jsonString(sortedKeys: true).prefix(1500))") }
                 if path == "/api/library" {
-                    for f in local["files"]?.array ?? [] where s4.contains(where: { f[$0] == nil }) { problems.append("\(label): S4-Feld fehlt in \(f)") }
+                    let enrichment = ["ai_doc_type", "doc_type", "sub_label", "week_hint"]
+                    for f in local["files"]?.array ?? [] where enrichment.contains(where: { f[$0] == nil }) {
+                        problems.append("\(label): Einordnung fehlt in \(f)")
+                    }
                     let ch = (local["files"]?.array ?? []).map { $0["chdate"]?.double ?? 0 }
                     if ch != ch.sorted(by: >) { problems.append("\(label): nicht nach chdate absteigend") }
                 }
@@ -201,6 +199,20 @@ final class LocalLibraryFixtureTests: XCTestCase {
         }
         XCTAssertEqual(listFiles(container), fx["disk"]?.array?.compactMap(\.string) ?? [], "Dateien auf der Platte")
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+    }
+
+    /// Gegenprobe zum Vergleich oben: Python ordnet die Dateien der Fixture wirklich ein (Art aus Ordner und Name,
+    /// Lehrwoche), der Vergleich prueft also mehr als den Rueckfall "Sonstiges" ohne Woche
+    func testFixtureLibraryFilesAreClassified() throws {
+        let fx = try fixture("library-files.json")
+        let first = (fx["steps"]?.array ?? []).first { $0["method"]?.string == "GET" && $0["path"]?.string == "/api/library" }
+        let files = Dictionary(uniqueKeysWithValues: (first?["response"]?["files"]?.array ?? []).compactMap { f in f["id"]?.string.map { ($0, f) } })
+        XCTAssertEqual(files["f1"]?["doc_type"], "vorlesung")
+        XCTAssertEqual(files["f1"]?["week_hint"], 1)
+        XCTAssertEqual(files["f2"]?["doc_type"], "uebung")
+        XCTAssertEqual(files["f2"]?["week_hint"], 2)
+        XCTAssertEqual(files["f10"]?["sub_label"], "Übung")
+        XCTAssertEqual(files["f3"]?["doc_type"], "sonstiges")
     }
 
     /// Endungen wie mimetypes.guess_type (nur die, die ueberall gleich sind)

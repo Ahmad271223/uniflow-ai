@@ -111,8 +111,10 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// Abgleich der eigenen Stud.IP-Dateien aufs iPad. Laeuft beim Oeffnen der App (hoechstens alle 30 Minuten)
 /// und auf Knopfdruck; Dateien liegen unter Application Support/StudIP, ausgenommen vom iCloud-Backup.
 ///
-/// Seit S3 landen Kurse und Dateien wie bei app/studip_sync.py in der lokalen Datenbank (`StudIPLibrary`): sie
-/// erscheinen in Dokumente, der Kursliste und der Uebersicht (Modulordner mit S4) und oeffnen sich im Editor.
+/// Seit S3 landen Kurse und Dateien wie bei app/studip_sync.py in der lokalen Datenbank (`StudIPLibrary`), seit S4
+/// mit Fach und Art je Kurs (`classify`): sie erscheinen nach Fach als Module in Dokumente (Modulordner mit
+/// Unterordnern nach Art) und Meine Module (Moduldetail nach Lehrwoche), dazu in der Kursliste und der Uebersicht,
+/// und oeffnen sich im Editor.
 /// Welche Dateien geladen werden, entscheidet die Datenbank (neu, in Stud.IP geaendert, lokal fehlend);
 /// `index.json` bleibt fuer die Liste in StudIPView. Was ein Abgleich vor S3 schon geladen hat, wird beim Start
 /// uebernommen, ohne neu zu laden.
@@ -280,7 +282,8 @@ final class StudIPSync: ObservableObject {
             if selectedCourses.isEmpty { selectedCourses = StudIPImport.defaultSelection(list) }
 
             let chosen = courses.filter { selectedCourses.contains($0.id) }
-            try await db.transaction { try StudIPLibrary.storeCourses($0, chosen, startedAt: started) }
+            // Fach und Art wie upsert_course (classify); die Module legt ensure_modules beim naechsten Lesen an
+            try await db.transaction { try StudIPLibrary.storeCourses($0, chosen, startedAt: started, classify: StudIPLibrary.classify) }
             var remote: [StudIPFile] = []
             var wanted: [StudIPFile] = []
             var checked = Set<String>()

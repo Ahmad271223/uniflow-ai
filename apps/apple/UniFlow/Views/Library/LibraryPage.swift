@@ -7,8 +7,9 @@ import UniFlowCore
 // Dokumente & Notizen 1:1 nach viewFiles() in app/static/views-lib.js: Modulordner, eigene Ordner, Typ-Chips,
 // Bereiche (Favoriten, Zuletzt, Neu aus Stud.IP, Papierkorb), Kacheln/Liste, Suche, Sortierung, Neu-Menü,
 // Menüs je Element. Daten: GET /api/library.
-// Lokal (ohne PC) zusaetzlich: Stud.IP-Kurse ohne Modul als Ordner (Pfad "c<Kurs-ID>", Kursliste aus GET /api/courses),
-// solange die Einordnung in Faecher und Module fehlt (S4, docs/IPAD-OHNE-PC.md). Mit eigenem Server wie im Web.
+// Lokal (ohne PC) zusaetzlich: Stud.IP-Kurse ohne Modul als Ordner (Pfad "c<Kurs-ID>", Kursliste aus GET /api/courses).
+// Seit S4 ordnet der Abgleich die Kurse nach Fach in Module (Modulordner wie im Web); ohne Modul bleiben nur Kurse ohne
+// Fach oder mit der Art "sonstiges" (z. B. eine Begruessung). Mit eigenem Server wie im Web.
 
 enum LibraryStyle {
     /// FILE_COLORS in views-lib.js
@@ -32,9 +33,9 @@ enum LibraryStyle {
     }
 }
 
-/// Stud.IP-Kurse ohne Modul als Ordner in Dokumente & Notizen und in Meine Module (nur lokal): Ohne Fach gibt es bis
-/// zur Einordnung (S4) keine Module, die Dokumente der Kurse stuenden sonst nur unter "Neu aus Stud.IP" und "Zuletzt".
-/// Mit eigenem Server ordnet der PC zu, dort bleibt alles wie im Web.
+/// Stud.IP-Kurse ohne Modul als Ordner in Dokumente & Notizen und in Meine Module (nur lokal): Kurse ohne Fach oder mit
+/// der Art "sonstiges" bekommen von ensure_modules kein Modul, ihre Dokumente stuenden sonst nur unter "Neu aus
+/// Stud.IP" und "Zuletzt" (bewusste Abweichung vom Web, docs/IPAD-OHNE-PC.md). Mit eigenem Server wie im Web.
 enum LibraryCourses {
     /// Pseudokurs der eigenen Dokumente (app/db.py)
     static let ownDocuments = "__user__"

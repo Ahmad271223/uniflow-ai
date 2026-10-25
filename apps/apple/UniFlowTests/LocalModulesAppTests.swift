@@ -27,6 +27,18 @@ final class LocalModulesAppTests: XCTestCase {
         var calls: [(path: String, status: Int)] { lock.withLock { log } }
     }
 
+    /// Konto ohne Schluesselbund und ohne Apple (die Einstellungen zeigen kurz "Zugang & Darstellung")
+    private final class MemorySecrets: AccountSecretStore {
+        var values: [String: String] = [:]
+        func get(_ key: String) -> String? { values[key] }
+        func set(_ value: String, for key: String) { values[key] = value }
+        func delete(_ key: String) { values[key] = nil }
+    }
+
+    private struct AuthorizedChecker: AppleCredentialChecking {
+        func state(forUserID id: String) async -> AppleCredentialState { .authorized }
+    }
+
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-s4-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -130,6 +142,7 @@ final class LocalModulesAppTests: XCTestCase {
             .environmentObject(UFOverlay())
             .environmentObject(UFToastCenter())
             .environmentObject(StudIPSync())
+            .environmentObject(AccountStore(secrets: MemorySecrets(), defaults: defaults, checker: AuthorizedChecker(), observeRevocation: false))
         let frame = CGRect(x: 0, y: 0, width: 1180, height: 1400)
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
@@ -216,6 +229,26 @@ final class LocalModulesAppTests: XCTestCase {
         }
         XCTAssertFalse(shows(shown, "Begrüßung"), "Begrüßung ist kein Fach: \(all)")
         XCTAssertFalse(shows(shown, "Noch keine Module"), all)
+    }
+
+    /// Einstellungen ohne PC: Reiter "Module" (Anlegen, Zuordnen, automatische Zuordnung) aus der lokalen Datenbank,
+    /// ohne Wochentests (keine KI); der Knopf "Module verwalten" auf Meine Module fuehrt hierher
+    func testSettingsModulesTabLocally() async throws {
+        let (api, recorder) = try await seededAPI()
+        let shown = try await render(SettingsPage(initialTab: "modules"), api: api, recorder: recorder) { calls in
+            calls.contains { $0.path == "/api/courses" }
+        }
+        let calls = recorder.calls
+        XCTAssertTrue(calls.contains { $0.path == "/api/modules" && $0.status == 200 }, "\(calls)")
+        XCTAssertTrue(calls.contains { $0.path == "/api/courses" && $0.status == 200 }, "\(calls)")
+        XCTAssertFalse(calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(calls)")
+        let all = shown.joined(separator: "\n")
+        for text in ["Testmathematik I", "Grundlagen der Beispieltechnik", "Probeinformatik", "3 aktiv",
+                     "Ohne Modul (nicht eingeplant)", "Begrüßung der Erstsemester", "Modul anlegen", "Zuordnung automatisch prüfen"] {
+            XCTAssertTrue(shows(shown, text), "\(text): \(all)")
+        }
+        XCTAssertFalse(shows(shown, "Wochentest"), "ohne PC keine Wochentests: \(all)")
+        XCTAssertFalse(shows(shown, "Standard-Testdauer"), all)
     }
 
     func testModuleDetailPageLoadsLocally() async throws {

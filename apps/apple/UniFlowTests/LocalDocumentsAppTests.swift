@@ -160,20 +160,26 @@ final class LocalDocumentsAppTests: XCTestCase {
         // Kursliste (Module/Einstellungen) mit dem Pseudokurs "Eigene Dokumente"
         let courses = try await dev.api.value("/api/courses").array ?? []
         XCTAssertEqual(Set(courses.compactMap { $0["id"]?.string }), ["__user__", "c1"])
-        XCTAssertEqual(courses.first { $0["id"] == "c1" }?["file_count"], 2)
-        // ohne Modul (Einordnung S4): Kurs als Ordner in Dokumente und in der Kursliste von Meine Module
-        XCTAssertEqual(LibraryCourses.unassigned(courses).compactMap { $0["id"]?.string }, ["c1"])
-        let folders = LibraryCourses.folders(courses, files: files)
-        XCTAssertEqual(folders.map(\.path), ["cc1"])
-        XCTAssertEqual(folders.first?.label, "Testkurs Numerik")
-        XCTAssertEqual(folders.first?.count, 2)
+        let c1 = courses.first { $0["id"] == "c1" }
+        XCTAssertEqual(c1?["file_count"], 2)
+        // S4: Fach und Art beim Abgleich (classify), das Modul legt /api/library an (ensure_modules); der Kurs ist damit
+        // kein Kursordner mehr, seine Dokumente stehen im Modulordner, nach Art und Lehrwoche eingeordnet
+        XCTAssertEqual(c1?["subject"], "Testkurs Numerik")
+        XCTAssertEqual(c1?["kind"], "vorlesung")
+        let modules = try await dev.api.value("/api/modules").array ?? []
+        XCTAssertEqual(modules.compactMap { $0["name"]?.string }, ["Testkurs Numerik"])
+        XCTAssertEqual(c1?["module_id"], modules.first?["id"])
+        XCTAssertEqual(lib["modules"]?.array?.compactMap { $0["name"]?.string }, ["Testkurs Numerik"])
+        XCTAssertEqual(d1["module_id"], modules.first?["id"])
+        XCTAssertEqual(d1["doc_type"], "uebung")
+        XCTAssertEqual(d1["week_hint"], 3, "Blatt 3")
+        XCTAssertEqual(LibraryCourses.unassigned(courses), [])
+        XCTAssertEqual(LibraryCourses.folders(courses, files: files).map(\.path), [])
         XCTAssertEqual(LibraryCourses.courseID("cc1"), "c1")
         XCTAssertNil(LibraryCourses.courseID("m3/f2"))
         XCTAssertNil(LibraryCourses.courseID(""))
-        XCTAssertEqual(LibraryCourses.title(of: d1, in: courses), "Testkurs Numerik", "Schnellzugriff: Kurs statt „Eigene Notizen“")
+        XCTAssertEqual(LibraryCourses.title(of: d1, in: courses), "Testkurs Numerik")
         XCTAssertNil(LibraryCourses.title(of: ["course_id": "__user__"], in: courses))
-        let modules = try await dev.api.value("/api/modules").array ?? []
-        XCTAssertEqual(modules, [], "Module erst mit S4")
         // Uebersicht: "Neu aus Stud.IP" und letzter Abgleich
         let dash = try await dev.api.value("/api/dashboard")
         XCTAssertEqual(dash["new_total"], 2)
@@ -234,6 +240,116 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(meta2["status"], "gelesen")
         let still = try await strokes(restarted.api, "d1")
         XCTAssertEqual(still.count, 1)
+    }
+
+    // MARK: S3 + S4: Abgleich ordnet nach Fach, Art und Lehrwoche
+
+    /// Stud.IP mit einem Fach in zwei Kursen (Vorlesung, Uebung) und einer Begruessung; Dateien in Stud.IP-Ordnern
+    private func fakeStudIPWithSubjects(pdf: Data) -> FakeStudIP {
+        let t = FakeStudIP()
+        t.json("/jsonapi.php/v1/users/me", #"{"data":{"id":"u1","type":"users"}}"#)
+        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+            {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testmathematik I","course-number":"T-MA1"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
+                     {"id":"c2","type":"courses","attributes":{"title":"Übung zu Testmathematik I"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
+                     {"id":"c3","type":"courses","attributes":{"title":"Begrüßung der Testsemester"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
+             "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}
+            """#)
+        func ref(_ id: String, _ name: String, _ changed: String) -> String {
+            #"{"id":"\#(id)","attributes":{"name":"\#(name)","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"\#(changed)","is-downloadable":true}}"#
+        }
+        // Ordnerbaum: Kurs -> Wurzelordner -> Unterordner mit Dateien
+        let tree: [(course: String, root: String, rootFiles: [String], subs: [(id: String, name: String, files: [String])])] = [
+            ("c1", "r1", [ref("k1", "Altklausur WS 2025.pdf", "2026-10-16T08:00:00+02:00")],
+             [("r1v", "Vorlesung", [ref("v1", "VL01 Einführung.pdf", "2026-10-13T10:00:00+02:00"), ref("v2", "VL02.pdf", "2026-10-20T10:00:00+02:00")])]),
+            ("c2", "r2", [],
+             [("r2u", "Übungsblätter", [ref("u1", "Blatt 1.pdf", "2026-10-14T12:00:00+02:00"), ref("u2", "Blatt 2.pdf", "2026-10-21T12:00:00+02:00")]),
+              ("r2l", "Lösungen", [ref("l1", "Lösung Blatt 1.pdf", "2026-10-21T13:00:00+02:00")])]),
+            // drei Kurse laden in der Woche ab 12.10. hoch: dort beginnt die Vorlesungszeit (study.semester_start)
+            ("c3", "r3", [ref("w1", "Willkommen.pdf", "2026-10-12T08:00:00+02:00")], []),
+        ]
+        for c in tree {
+            t.json("/jsonapi.php/v1/courses/\(c.course)/folders?page[limit]=200", #"{"data":[{"id":"\#(c.root)","attributes":{"folder-type":"RootFolder","name":""}}]}"#)
+            t.json("/jsonapi.php/v1/folders/\(c.root)/file-refs?page[limit]=500", #"{"data":[\#(c.rootFiles.joined(separator: ","))]}"#)
+            let subs = c.subs.map { #"{"id":"\#($0.id)","attributes":{"name":"\#($0.name)"}}"# }.joined(separator: ",")
+            t.json("/jsonapi.php/v1/folders/\(c.root)/folders?page[limit]=200", #"{"data":[\#(subs)]}"#)
+            for s in c.subs {
+                t.json("/jsonapi.php/v1/folders/\(s.id)/file-refs?page[limit]=500", #"{"data":[\#(s.files.joined(separator: ","))]}"#)
+                t.json("/jsonapi.php/v1/folders/\(s.id)/folders?page[limit]=200", #"{"data":[]}"#)
+            }
+        }
+        for id in ["k1", "v1", "v2", "u1", "u2", "l1", "w1"] {
+            t.set("/jsonapi.php/v1/file-refs/\(id)/content", HTTPReply(status: 200, contentType: "application/pdf", body: pdf))
+        }
+        return t
+    }
+
+    /// Abnahme S4 mit Daten aus dem S3-Abgleich: Stud.IP verbinden -> Fächer geordnet (Vorlesung und Übung ein Modul),
+    /// Dokumente im Modulordner nach Art, Moduldetail mit Lehrwochen; die Begrüßung bleibt ein Kursordner
+    func testSyncSortsDocumentsBySubjectAndWeek() async throws {
+        let dev = try device()
+        let stud = fakeStudIPWithSubjects(pdf: makePDF("Fach"))
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertEqual(stud.downloads.count, 7)
+
+        // Dokumente & Notizen (wie LibraryPage.load: erst die Bibliothek, dann die Kursliste)
+        let lib = try await dev.api.value("/api/library")
+        let courses = try await dev.api.value("/api/courses").array ?? []
+        let mods = lib["modules"]?.array ?? []
+        XCTAssertEqual(mods.compactMap { $0["name"]?.string }, ["Testmathematik I"], "ein Modul je Fach, Begrüßung ohne Modul")
+        let mid = try XCTUnwrap(mods.first?["id"])
+        let files = Dictionary(uniqueKeysWithValues: (lib["files"]?.array ?? []).compactMap { f in f["id"]?.string.map { ($0, f) } })
+        for id in ["k1", "v1", "v2", "u1", "u2", "l1"] { XCTAssertEqual(files[id]?["module_id"], mid, id) }
+        XCTAssertEqual(files["w1"]?["module_id"], .null)
+        let kinds = ["v1": ("vorlesung", "Vorlesung", 1), "v2": ("vorlesung", "Vorlesung", 2), "u1": ("uebung", "Übung", 1),
+                     "u2": ("uebung", "Übung", 2), "l1": ("loesung", "Lösung", 1)]
+        for (id, k) in kinds {
+            XCTAssertEqual(files[id]?["doc_type"]?.string, k.0, id)
+            XCTAssertEqual(files[id]?["sub_label"]?.string, k.1, id)
+            XCTAssertEqual(files[id]?["week_hint"]?.int, k.2, id)
+        }
+        XCTAssertEqual(files["k1"]?["sub_label"], "Altklausur")
+        XCTAssertEqual(files["w1"]?["doc_type"], "sonstiges")
+        // Kursordner nur noch fuer den Kurs ohne Modul
+        XCTAssertEqual(LibraryCourses.unassigned(courses).compactMap { $0["id"]?.string }, ["c3"])
+        XCTAssertEqual(LibraryCourses.folders(courses, files: lib["files"]?.array ?? []).map(\.label), ["Begrüßung der Testsemester"])
+        XCTAssertEqual(Set(courses.filter { $0["module_id"] == mid }.compactMap { $0["kind"]?.string }), ["vorlesung", "uebung"])
+
+        // Meine Module und Moduldetail mit Wochen
+        let list = try await dev.api.value("/api/modules").items
+        XCTAssertEqual(list.map { $0.s("name") ?? "" }, ["Testmathematik I"])
+        XCTAssertEqual(list.first?.i("courses"), 2)
+        XCTAssertEqual(list.first?.i("file_count"), 6)
+        let detail = try await dev.api.value("/api/modules/\(mid.int ?? 0)")
+        let weeks = detail.list("weeks")
+        XCTAssertEqual(weeks.map { $0.s("label") ?? "" }, ["Woche 1 · 12.10. – 18.10.", "Woche 2 · 19.10. – 25.10.", "Klausuren & Altklausuren"])
+        func ids(_ i: Int, _ key: String) -> [String] { weeks.indices.contains(i) ? weeks[i].list(key).compactMap { $0.s("id") } : [] }
+        XCTAssertEqual(ids(0, "vorlesungen"), ["v1"])
+        XCTAssertEqual(ids(0, "uebungen"), ["u1"])
+        XCTAssertEqual(ids(0, "loesungen"), ["l1"])
+        XCTAssertEqual(ids(1, "vorlesungen"), ["v2"])
+        XCTAssertEqual(ids(1, "uebungen"), ["u2"])
+        XCTAssertEqual(ids(2, "klausuren"), ["k1"])
+
+        // Nutzer ordnet die Uebung einem eigenen Modul zu (Einstellungen -> Module); der naechste Abgleich laedt nichts
+        // doppelt und ueberschreibt weder Fach noch Zuordnung (Fach/Art nur, solange leer, wie upsert_course)
+        let own = try await dev.api.value("/api/modules", method: "POST", body: ["name": "Eigenes Fach"])
+        let ownID = try XCTUnwrap(own.i("id"))
+        _ = try await dev.api.value("/api/courses/c2/module", method: "POST", body: ["module_id": .number(Double(ownID))])
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle)
+        XCTAssertEqual(stud.downloads.count, 7, "unveraendert in Stud.IP: kein Download")
+        let again = try await dev.api.value("/api/modules").items
+        XCTAssertEqual(again.map { $0.s("name") ?? "" }, ["Testmathematik I", "Eigenes Fach"])
+        let c2 = try await dev.api.value("/api/courses").array?.first { $0["id"] == "c2" }
+        XCTAssertEqual(c2?["subject"], "Eigenes Fach")
+        XCTAssertEqual(c2?["module_id"]?.int, ownID)
+        let moved = try await dev.api.value("/api/modules/\(ownID)")
+        XCTAssertEqual(moved.list("weeks").flatMap { $0.list("uebungen") }.compactMap { $0.s("id") }, ["u1", "u2"])
     }
 
     /// Abgleich vor S3: die schon geladenen Dateien (index.json) erscheinen, ohne neu zu laden

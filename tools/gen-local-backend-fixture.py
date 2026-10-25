@@ -21,7 +21,9 @@
   Notizbuecher und Dokument-Aktionen mit den Antworten von app/server.py und den Tabellen danach. Uhr und uuid4 sind
   eingefroren wie in den Swift-Tests (Frozen).
 - studip-import.json (S3): mehrere Durchgaenge von studip_sync.run_sync ohne Netz und Playwright (Kurse, Dateilisten,
-  Ordner und Downloads ersetzt, Einordnung classify erst mit S4) und die Tabellen courses, files, sync_log danach.
+  Ordner und Downloads ersetzt; Fach und Art der Kurse mit dem echten classify, S4) und die Tabellen courses, files,
+  sync_log danach. Dazu "classified" (S3 + S4): ein Abgleich mit mehreren Kursen je Fach, danach Bibliothek, Module,
+  Moduldetail mit Lehrwochen und Kursliste ueber den Server und die Tabellen courses und modules.
 
 Der Server laeuft dabei nur gegen Dateien in einem Temp-Ordner (tools/schema_source.py), nie gegen data/.
 Pfade mit Netzwerk, KI oder Zugangsdaten (Sync, QIS, Tests, /api/credentials, /api/services) werden nicht
@@ -1128,14 +1130,13 @@ def library_files(src: SchemaSource, server) -> dict:
     return {"generator": "tools/gen-local-backend-fixture.py", "now": FROZEN, "studip_base": STUDIP_BASE_TEST,
             "seed": LIB_SEED, "disk_seed": {k: base64.b64encode(v).decode() for k, v in LIB_DISK.items()},
             "steps": steps, "tables": tables, "disk": disk, "mime_guess": guesses,
-            "s4_fields": ["doc_type", "sub_label", "week_hint"],
             "unordered": ["/api/library", "/api/files"],
             "expect": {"PUT /api/files/gibtsnicht/annotations?base_version=0":
                        {"status": 409, "reason": "Python 500 (Fremdschluessel annotations.file_id); lokal 409 ohne version"}}}
 
 
 # ----------------------------------------------------------------------------
-# S3: Stud.IP-Abgleich in die Datenbank (run_sync ohne Netz, Playwright und Einordnung)
+# S3: Stud.IP-Abgleich in die Datenbank (run_sync ohne Netz und Playwright, Einordnung mit classify wie S4)
 # ----------------------------------------------------------------------------
 
 def _f(fid, name, changed, *, size=10, mime="application/pdf", folder="", downloadable=True, fail=False):
@@ -1146,8 +1147,12 @@ def _f(fid, name, changed, *, size=10, mime="application/pdf", folder="", downlo
 
 IMPORT_ROUNDS = [
     {"name": "Erster Abgleich", "now": "2026-10-20T08:00:00",
+     # c3: Uebung desselben Fachs wie c1 (classify: Fach "Testkurs Analysis", Art "uebung"), c4: Begruessung
+     # ("sonstiges", bekommt kein Modul)
      "courses": [{"id": "c1", "title": "Testkurs Analysis", "number": "T-1", "semester": "WiSe 2026/27"},
-                 {"id": "c2", "title": "Testkurs Chemie", "number": None, "semester": ""}],
+                 {"id": "c2", "title": "Testkurs Chemie", "number": None, "semester": ""},
+                 {"id": "c3", "title": "Übung zu Testkurs Analysis", "number": "T-1Ü", "semester": "WiSe 2026/27"},
+                 {"id": "c4", "title": "Begrüßung der Testsemester", "number": None, "semester": "WiSe 2026/27"}],
      "files": {"c1": [_f("a1", "Folien 1.pdf", "2026-10-19T10:00:00+02:00", size=100),
                       _f("a2", "Blatt 1.pdf", "2026-10-19T12:00:00.250+02:00", folder="Übungen"),
                       _f("a3", "Daten.zip", "2026-10-18T09:00:00Z", mime=None, folder="Material/Extra"),
@@ -1193,7 +1198,9 @@ def _unix(changed: str) -> int:
     return int(datetime.fromisoformat(changed).timestamp())          # ohne Zone: Ortszeit (TZ=Europe/Berlin)
 
 
-def studip_import(src: SchemaSource) -> dict:
+def _import_rounds(src: SchemaSource, import_rounds: list, db_name: str) -> list:
+    """Durchgaenge von run_sync auf einer frischen Datenbank `db_name` (Netz, Playwright, Termine und Stundenplan
+    ersetzt); je Durchgang die versuchten und geladenen Dateien und die Tabellen courses, files, sync_log danach."""
     import sqlite3
     import time as _time
     from app import db, studip_sync, timetable
@@ -1202,11 +1209,11 @@ def studip_import(src: SchemaSource) -> dict:
     saved_now = db.now_iso
     db.now_iso = lambda: FROZEN                                          # Pseudokurs __user__ wie in den Swift-Tests
     try:
-        fresh_db(src, "abgleich")
+        fresh_db(src, db_name)
     finally:
         db.now_iso = saved_now
     names = ("sync_playwright", "login", "fetch_courses", "fetch_events", "fetch_files", "fetch_folder_paths", "download",
-             "classify", "SEMESTER_FILTER")
+             "SEMESTER_FILTER")
     saved = {k: getattr(studip_sync, k) for k in names}
     saved_sleep, saved_auto, saved_now, saved_tz = studip_sync.time.sleep, timetable.auto_import, db.now_iso, os.environ.get("TZ")
     os.environ["TZ"] = "Europe/Berlin"
@@ -1274,11 +1281,10 @@ def studip_import(src: SchemaSource) -> dict:
         studip_sync.fetch_files = fetch_files
         studip_sync.fetch_folder_paths = fetch_folder_paths
         studip_sync.download = download
-        studip_sync.classify = lambda title: (None, None)                # S3: Fach und Art erst mit S4
         studip_sync.SEMESTER_FILTER = ""
         studip_sync.time.sleep = lambda s: None
         timetable.auto_import = lambda conn: {"new": 0}                  # Stundenplan: S5
-        for r in IMPORT_ROUNDS:
+        for r in import_rounds:
             state.update(round=r, attempted=[], downloaded=[])
             conn = sqlite3.connect(src.db.DB_PATH)
             for sql in r.get("user_sql", []):
@@ -1314,8 +1320,79 @@ def studip_import(src: SchemaSource) -> dict:
             os.environ["TZ"] = saved_tz
         _time.tzset()
         shutil.rmtree(files_dir, ignore_errors=True)
-    unix = {c: _unix(c) for c in sorted({f["changed"] for r in IMPORT_ROUNDS for fs in r.get("files", {}).values() for f in fs})}
-    return {"generator": "tools/gen-local-backend-fixture.py", "studip_base": STUDIP_BASE_TEST, "rounds": rounds, "unix_times": unix}
+    return rounds
+
+
+# ----------------------------------------------------------------------------
+# S3 + S4: Abgleich mit Einordnung, danach Bibliothek und Module wie am PC
+# ----------------------------------------------------------------------------
+
+# Ein Fach mit Vorlesung, Uebung und Gruppenuebung, ein zweites Fach mit Vorlesung und Uebung, eine Hoersaaluebung
+# (classify entfernt diese Vorsilbe nicht: eigenes Modul wie in Python), eine Begruessung ("sonstiges", kein Modul).
+# Dateien in Stud.IP-Ordnern mit Lehrwoche im Namen oder nur ueber die Aenderungszeit, eine Loesung, eine
+# Altklausur, ein Skript vor dem Vorlesungsbeginn, eine Datei ohne Download. Alle Namen erfunden.
+CLASSIFIED_ROUNDS = [
+    {"name": "Abgleich mit Einordnung", "now": "2026-10-24T08:00:00",
+     "courses": [{"id": "m1", "title": "Testmathematik I", "number": "T-MA1", "semester": "WiSe 2026/27"},
+                 {"id": "m2", "title": "Übung zu Testmathematik I", "number": "T-MA1-U", "semester": "WiSe 2026/27"},
+                 {"id": "m3", "title": "Gruppenübung Testmathematik I", "number": None, "semester": "WiSe 2026/27"},
+                 {"id": "m4", "title": "Hörsaalübung Testmathematik I", "number": None, "semester": "WiSe 2026/27"},
+                 {"id": "b1", "title": "Grundlagen der Beispieltechnik", "number": "T-BT", "semester": "WiSe 2026/27"},
+                 {"id": "b2", "title": "Übung: Grundlagen der Beispieltechnik", "number": None, "semester": "WiSe 2026/27"},
+                 {"id": "e1", "title": "Begrüßung der Testsemester", "number": None, "semester": "WiSe 2026/27"}],
+     "files": {"m1": [_f("v1", "VL01 Einführung.pdf", "2026-10-13T10:00:00+02:00", folder="Vorlesung"),
+                      _f("v2", "VL02.pdf", "2026-10-20T10:15:00+02:00", folder="Vorlesung"),
+                      _f("v3", "Folien.pdf", "2026-10-21T09:00:00+02:00", folder="Vorlesung/Folien"),
+                      _f("v4", "Skript Testmathematik.pdf", "2026-10-02T12:00:00+02:00", folder="Skript"),
+                      _f("v5", "Altklausur WS 2025.pdf", "2026-10-16T08:00:00+02:00", folder="Alte Klausuren")],
+               "m2": [_f("u1", "Blatt 1.pdf", "2026-10-14T12:00:00+02:00", folder="Übungsblätter"),
+                      _f("u2", "Blatt 2.pdf", "2026-10-21T12:00:00+02:00", folder="Übungsblätter"),
+                      _f("u3", "Lösung Blatt 1.pdf", "2026-10-21T13:00:00+02:00", folder="Lösungen"),
+                      _f("u4", "Gesperrt.pdf", "2026-10-22T08:00:00+02:00", folder="Übungsblätter", downloadable=False)],
+               "m3": [_f("g1", "GU01.pdf", "2026-10-15T09:30:00+02:00")],
+               "m4": [_f("h1", "HÜ02.pdf", "2026-10-22T10:00:00+02:00")],
+               "b1": [_f("t1", "Folien_VL01.pdf", "2026-10-12T09:00:00+02:00")],
+               "b2": [_f("t2", "Übungsblatt 1.pdf", "2026-10-15T09:00:00+02:00", folder="Übungen")],
+               "e1": [_f("w1", "Willkommen.pdf", "2026-10-05T10:00:00+02:00")]}},
+]
+
+
+def studip_classified(src: SchemaSource) -> dict:
+    """run_sync mit dem echten classify, danach Bibliothek, Module, Moduldetail je Modul und Kursliste ueber den Server
+    (eingefrorene Uhr wie die Swift-Tests) und die Tabellen courses und modules danach."""
+    import sqlite3
+    from app import server
+    rounds = _import_rounds(src, CLASSIFIED_ROUNDS, "abgleich-einordnung")
+    prefix = str(Path(os.environ["LERNAPP_DATA_DIR"])) + "/"
+    steps = []
+    with Frozen(server):
+        def get(path: str):
+            status, _, body = asgi_raw(server.app, "GET", path)
+            steps.append({"method": "GET", "path": path, "status": status, "response": _strip(json.loads(body), prefix)})
+            return steps[-1]["response"]
+        get("/api/library")                                         # zuerst: ensure_modules legt die Module an
+        for m in get("/api/modules"):
+            get(f"/api/modules/{m['id']}")
+        get("/api/courses")
+        conn = sqlite3.connect(src.db.DB_PATH)
+        try:
+            tables = {}
+            for name in ("courses", "modules"):
+                cur = conn.execute(f"SELECT * FROM {name} ORDER BY id")
+                cols = [d[0] for d in cur.description]
+                tables[name] = [dict(zip(cols, row)) for row in cur.fetchall()]
+        finally:
+            conn.close()
+    return {"now": FROZEN, "rounds": rounds, "steps": steps, "tables": tables}
+
+
+def studip_import(src: SchemaSource) -> dict:
+    rounds = _import_rounds(src, IMPORT_ROUNDS, "abgleich")
+    classified = studip_classified(src)
+    unix = {c: _unix(c) for c in sorted({f["changed"] for r in IMPORT_ROUNDS + CLASSIFIED_ROUNDS
+                                         for fs in r.get("files", {}).values() for f in fs})}
+    return {"generator": "tools/gen-local-backend-fixture.py", "studip_base": STUDIP_BASE_TEST, "rounds": rounds,
+            "classified": classified, "unix_times": unix}
 
 
 def main() -> int:

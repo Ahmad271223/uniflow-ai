@@ -10,13 +10,17 @@ import Foundation
 ///
 /// Abweichungen von Python: `author` kennt die JSON:API nicht (bleibt leer bzw. unveraendert), `download_url` ist die
 /// JSON:API-Adresse, aus der die App laedt, `local_path` ist relativ zum App-Container (`LocalFiles`).
-/// Fach und Art der Kurse (`classify`) kommen mit S4: bis dahin bleiben sie leer und werden dann wie in Python nur
-/// gesetzt, solange sie leer sind (der Nutzer darf sie aendern).
+/// Fach und Art eines Kurses kommen wie in `upsert_course` aus `classify` (`StudyClassify.classify`, S4) und werden
+/// nur gesetzt, solange sie leer sind (der Nutzer darf sie aendern); die Module dazu legt `ensure_modules` beim
+/// naechsten Lesen an (`LocalModules.ensureModules`, wie Python in `/api/library`, `/api/modules` und der Uebersicht).
 ///
 /// Alles hier ist synchron und fuer `SQLiteDatabase.transaction` gedacht (kein Netz, kein `await` darin).
 public enum StudIPLibrary {
-    /// `classify(title) -> (subject, kind)` aus app/studip_sync.py (Port mit S4)
+    /// `classify(title) -> (subject, kind)` aus app/studip_sync.py
     public typealias Classifier = @Sendable (_ courseTitle: String) -> (subject: String?, kind: String?)
+
+    /// `studip_sync.classify` (Port in `StudyClassify`); Vorgabe fuer jeden Abgleich und die Uebernahme
+    public static let classify: Classifier = { let r = StudyClassify.classify($0); return (r.subject, r.kind) }
 
     /// `file_kind(name, mime)`: nur echte PDFs gehen in den PDF-Editor
     public static func fileKind(name: String, mime: String?) -> String {
@@ -39,11 +43,12 @@ public enum StudIPLibrary {
 
     // MARK: Schreiben
 
-    /// Kurse eines Durchgangs: neu anlegen oder Titel, Nummer und Semester aktualisieren
+    /// Kurse eines Durchgangs wie `upsert_course`: neu anlegen oder Titel, Nummer und Semester aktualisieren; Fach und
+    /// Art aus `classify`
     public static func storeCourses(_ c: SQLiteConnection, _ courses: [StudIPCourse], startedAt: String,
-                                    classify: Classifier? = nil) throws {
+                                    classify: Classifier = StudIPLibrary.classify) throws {
         for course in courses {
-            let (subject, kind) = classify?(course.title) ?? (nil, nil)
+            let (subject, kind) = classify(course.title)
             try c.execute("""
                 INSERT INTO courses(id, title, number, semester, subject, kind, created_at)
                 VALUES (?,?,?,?,?,?,?)

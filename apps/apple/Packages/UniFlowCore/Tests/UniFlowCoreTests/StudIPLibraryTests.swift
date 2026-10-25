@@ -91,6 +91,68 @@ final class StudIPLibraryTests: XCTestCase {
         }
     }
 
+    /// S3 + S4 zusammen: Abgleich mit erfundenen Stud.IP-Antworten (mehrere Kurse je Fach, Stud.IP-Ordner, Lehrwochen
+    /// im Namen), danach ordnen Bibliothek, Meine Module und Moduldetail die Dateien nach Fach, Art und Lehrwoche wie
+    /// app/server.py auf derselben Datenbank (Fixture `classified` in studip-import.json, gleiche eingefrorene Uhr).
+    func testImportThenModulesMatchPython() async throws {
+        let fx = try XCTUnwrap(try fixture("studip-import.json")["classified"])
+        let container = try tempContainer(self)
+        let files = LocalFiles(container: container, dataDirectory: "")
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock, files: files)
+        let db = backend.context.database
+        for round in fx["rounds"]?.array ?? [] {
+            let courses = (round["courses"]?.array ?? []).map {
+                StudIPCourse(id: $0["id"]?.string ?? "", title: $0["title"]?.string ?? "", number: $0["number"]?.string,
+                             semesterTitle: $0["semester"]?.string)
+            }
+            let lists = courses.map { ($0.id, remoteFiles(round["files"]?[$0.id], course: $0.id)) }
+            let (wanted, loaded) = try await run(db, files: files, now: round["now"]?.string ?? "", courses: courses, lists: lists)
+            XCTAssertEqual(wanted, round["attempted"]?.array?.compactMap(\.string))
+            XCTAssertEqual(loaded, round["downloaded"]?.array?.compactMap(\.string))
+        }
+        var problems: [String] = []
+        for step in fx["steps"]?.array ?? [] {
+            let path = step["path"]?.string ?? ""
+            let r = await backend.handle(LocalRequest(method: step["method"]?.string ?? "GET", path: path))
+            if r.status != step["status"]?.int { problems.append("\(path): Status \(r.status)") }
+            if r.json != step["response"] {
+                problems.append("\(path):\n  lokal  \(r.json?.jsonString(sortedKeys: true).prefix(2000) ?? "-")\n  Python \(step["response"]?.jsonString(sortedKeys: true).prefix(2000) ?? "-")")
+            }
+        }
+        for table in ["courses", "modules"] {
+            let local = JSONValue.array(try await db.rows("SELECT * FROM \(table) ORDER BY id").map(JSONValue.object))
+            if local != fx["tables"]?[table] { problems.append("Tabelle \(table):\n  lokal  \(local.jsonString(sortedKeys: true))") }
+        }
+        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+
+        // Was der Vergleich bedeutet: ein Modul je Fach, Kurse eines Fachs zusammen, Dateien nach Woche und Art
+        let mods = await backend.handle(LocalRequest(method: "GET", path: "/api/modules")).json?.array ?? []
+        XCTAssertEqual(mods.compactMap { $0["name"]?.string },
+                       ["Testmathematik I", "Hörsaalübung Testmathematik I", "Grundlagen der Beispieltechnik"],
+                       "Begrüßung ohne Modul; Hörsaalübung bleibt wie in Python ein eigenes Modul")
+        XCTAssertEqual(mods.first?["courses"], 3)
+        let math = await backend.handle(LocalRequest(method: "GET", path: "/api/modules/\(mods.first?["id"]?.int ?? 0)")).json
+        let weeks = math?["weeks"]?.array ?? []
+        func ids(_ i: Int, _ key: String) -> [String] {
+            guard weeks.indices.contains(i) else { return [] }
+            return weeks[i][key]?.array?.compactMap { $0["id"]?.string } ?? []
+        }
+        XCTAssertEqual(weeks.compactMap { $0["label"]?.string },
+                       ["Vor Vorlesungsbeginn", "Woche 1 · 12.10. – 18.10.", "Woche 2 · 19.10. – 25.10.", "Klausuren & Altklausuren"])
+        XCTAssertEqual(ids(1, "vorlesungen"), ["v1"])
+        XCTAssertEqual(Set(ids(1, "uebungen")), ["u1", "g1"], "Übung und Gruppenübung derselben Woche")
+        XCTAssertEqual(ids(1, "loesungen"), ["u3"], "Lösung Blatt 1 bei Woche 1")
+        XCTAssertEqual(Set(ids(2, "vorlesungen")), ["v2", "v3"], "Folien ohne Nummer: Woche aus der Änderungszeit")
+        XCTAssertEqual(ids(0, "skripte"), ["v4"])
+        XCTAssertEqual(ids(3, "klausuren"), ["v5"])
+        let lib = await backend.handle(LocalRequest(method: "GET", path: "/api/library")).json
+        let w1 = lib?["files"]?.array?.first { $0["id"] == "w1" }
+        XCTAssertEqual(w1?["module_id"], .null, "Begrüßung: kein Modul, Ordner nach Kurs bleibt")
+        let u3 = lib?["files"]?.array?.first { $0["id"] == "u3" }
+        XCTAssertEqual(u3?["doc_type"], "loesung")
+        XCTAssertEqual(u3?["week_hint"], 1)
+    }
+
     func testUnixTimesLikePython() throws {
         let fx = try fixture("studip-import.json")
         for (text, unix) in fx["unix_times"]?.object ?? [:] {

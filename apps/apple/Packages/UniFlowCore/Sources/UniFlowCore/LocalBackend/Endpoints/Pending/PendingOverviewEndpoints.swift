@@ -20,7 +20,7 @@ enum PendingOverviewEndpoints: LocalEndpointModule {
             // wie study.dashboard zuerst ensure_modules (Modul der neuen Dateien), darum in einer Transaktion
             let clock = ctx.clock
             let (newFiles, lastSync) = try await ctx.database.transaction { c in
-                try LocalLibrary.ensureModules(c, clock: clock)
+                try LocalModules.ensureModules(c, clock: clock)
                 return (try LocalLibrary.newFiles(c), try LocalLibrary.lastSync(c))
             }
             return .json(["today": today, "modules": [], "new_files": .array(Array(newFiles.prefix(50))), "new_total": .number(Double(newFiles.count)),
