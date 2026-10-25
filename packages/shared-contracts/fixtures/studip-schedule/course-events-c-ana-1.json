@@ -1,0 +1,10 @@
+{"data": [
+ {"id": "ev-ana-1", "type": "course-events", "attributes": {"title": "Sitzung 1", "description": "", "start": "2026-10-12T10:00:00+02:00",
+  "end": "2026-10-12T11:30:00+02:00", "type": "1", "categories": "Sitzung", "location": "Hörsaal Test 1 (9999 - A001), Beispielweg 1",
+  "is-cancelled": false}},
+ {"id": "ev-ana-2", "type": "course-events", "attributes": {"title": "Sitzung 2", "start": "2026-10-19T10:00:00+02:00",
+  "end": "2026-10-19T11:30:00+02:00", "categories": "Sitzung", "location": "Hörsaal Test 1 (9999 - A001), Beispielweg 1", "is-cancelled": false}},
+ {"id": "ev-ana-3", "type": "course-events", "attributes": {"title": "Sitzung 3", "start": "2026-10-26T10:00:00+01:00",
+  "end": "2026-10-26T11:30:00+01:00", "categories": "Sitzung", "location": "Hörsaal Test 1", "is-cancelled": false}}
+],
+ "links": {"next": "/jsonapi.php/v1/courses/c-ana/events?page[offset]=3&page[limit]=200"}}

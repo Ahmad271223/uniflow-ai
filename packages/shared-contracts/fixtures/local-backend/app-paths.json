@@ -2703,8 +2703,7 @@
     }
    },
    "expect": {
-    "status": 409,
-    "reason": "Termine kommen mit S5"
+    "status": 200
    }
   },
   {
@@ -2745,8 +2744,7 @@
     }
    },
    "expect": {
-    "status": 409,
-    "reason": "Import kommt mit S5"
+    "status": 200
    }
   },
   {
@@ -2761,9 +2759,48 @@
      "source": "studip"
     }
    },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "diff": {
+       "type": "object",
+       "keys": {
+        "changed": {
+         "type": "array",
+         "item": null
+        },
+        "new": {
+         "type": "array",
+         "item": null
+        },
+        "removed": {
+         "type": "array",
+         "item": null
+        },
+        "same": {
+         "type": "array",
+         "item": null
+        }
+       }
+      },
+      "entries": {
+       "type": "array",
+       "item": null
+      },
+      "import_id": {
+       "type": "number"
+      },
+      "modules": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
    "expect": {
-    "status": 409,
-    "reason": "Import kommt mit S5"
+    "status": 200
    }
   },
   {

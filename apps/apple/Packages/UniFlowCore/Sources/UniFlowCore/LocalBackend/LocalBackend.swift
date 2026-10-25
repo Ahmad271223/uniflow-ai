@@ -12,6 +12,7 @@ public final class LocalBackend: Sendable {
         LibraryEndpoints.self,
         FilesEndpoints.self,
         AnnotationEndpoints.self,
+        TimetableEndpoints.self,
         DroppedEndpoints.self,
         ModulesEndpoints.self,
         PendingOverviewEndpoints.self,

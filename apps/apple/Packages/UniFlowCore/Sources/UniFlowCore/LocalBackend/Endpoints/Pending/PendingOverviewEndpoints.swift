@@ -12,7 +12,12 @@ enum PendingOverviewEndpoints: LocalEndpointModule {
             let s = try await LocalPending.settings(ctx)
             let t = LocalPending.today(ctx)
             var today = LocalPending.calendarDay(t, settings: s)
-            today["free"] = .array(try LocalFreeWindows.compute(day: t, settings: s))
+            // Termine und freie Fenster von heute aus dem Stundenplan (S5)
+            let (events, free) = try await ctx.database.withConnection { c in
+                (try LocalTimetable.occurrences(c, from: t, to: t), try LocalFreeWindows.compute(c, day: t, settings: s))
+            }
+            today["events"] = .array(events)
+            today["free"] = .array(free)
             let monday = t - LocalPending.weekday(t)
             let days: [JSONValue] = (0..<7).map { i in
                 ["date": .string(LocalPending.iso(monday + i)), "status": .string(LocalPending.emptyStatus(monday + i, settings: s)), "minutes": 0]

@@ -1,0 +1,14 @@
+{"data": [
+ {"id": "c-ana", "type": "courses", "attributes": {"title": "Testanalysis I", "course-number": "9001", "course-type": 1},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-test"}}}},
+ {"id": "c-ana-ue", "type": "courses", "attributes": {"title": "Übung Testanalysis I", "course-number": "9002", "course-type": 3},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-test"}}}},
+ {"id": "c-prog", "type": "courses", "attributes": {"title": "Testprogrammierung", "course-number": "9003", "course-type": 1},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-test"}}}},
+ {"id": "c-sem", "type": "courses", "attributes": {"title": "Testseminar Beispiel", "course-type": 2},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-test"}}}},
+ {"id": "c-erst", "type": "courses", "attributes": {"title": "Begrüßung der Erstsemester", "course-type": 7},
+  "relationships": {"start-semester": {"data": {"type": "semesters", "id": "s-test"}}}}
+],
+ "included": [{"id": "s-test", "type": "semesters", "attributes": {"title": "WiSe 2026/27", "start": "2026-10-01T00:00:00+02:00"}}],
+ "links": {}}

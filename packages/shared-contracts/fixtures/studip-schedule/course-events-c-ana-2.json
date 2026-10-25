@@ -1,0 +1,8 @@
+{"data": [
+ {"id": "ev-ana-4", "type": "course-events", "attributes": {"title": "Sitzung 4 (fällt aus)", "start": "2026-11-02T10:00:00+01:00",
+  "end": "2026-11-02T11:30:00+01:00", "categories": "Sitzung", "location": "Hörsaal Test 1", "is-cancelled": true}},
+ {"id": "ev-ana-k", "type": "course-events", "attributes": {"title": "Klausur", "start": "2027-02-10T09:00:00+01:00",
+  "end": "2027-02-10T11:00:00+01:00", "categories": "Sitzung", "location": "Halle Test, Eingang Nord", "is-cancelled": false}},
+ {"type": "course-events", "attributes": {"title": "ohne ID", "start": "2026-10-13T10:00:00+02:00", "end": "2026-10-13T11:00:00+02:00"}}
+],
+ "links": {}}

@@ -1,0 +1,7990 @@
+{
+ "generator": "tools/gen-timetable-fixture.py",
+ "now": "2026-10-25T14:30:05",
+ "seed": [
+  {
+   "sql": "UPDATE settings SET value=? WHERE key='blocked_times'",
+   "params": [
+    "[{\"weekday\": 0, \"start\": \"12:00\", \"end\": \"13:00\", \"title\": \"Mittag\"}, {\"weekday\": 3, \"start\": \"17:00\", \"end\": \"18:30\"}]"
+   ]
+  },
+  {
+   "sql": "UPDATE settings SET value='20' WHERE key='travel_minutes'",
+   "params": []
+  },
+  {
+   "sql": "INSERT INTO modules(name, color, sort, created_at) VALUES (?,?,?,?)",
+   "params": [
+    "Testmathematik I",
+    "#111111",
+    0,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO modules(name, color, sort, created_at) VALUES (?,?,?,?)",
+   "params": [
+    "Testphysik",
+    "#222222",
+    1,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO modules(name, color, sort, created_at) VALUES (?,?,?,?)",
+   "params": [
+    "Programmierkurs Beispiel",
+    "#333333",
+    2,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-ma-vl",
+    "Testmathematik I",
+    null,
+    "WiSe 2026/27",
+    null,
+    "vorlesung",
+    1,
+    1,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-ma-ue",
+    "Übung zu Testmathematik I",
+    null,
+    "WiSe 2026/27",
+    null,
+    "uebung",
+    1,
+    1,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-ph",
+    "Testphysik für Ingenieure",
+    null,
+    "WiSe 2026/27",
+    null,
+    "vorlesung",
+    1,
+    2,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-prog-ue",
+    "Gruppenübung Programmierkurs Beispiel",
+    null,
+    "WiSe 2026/27",
+    null,
+    "gruppenuebung",
+    1,
+    3,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-block",
+    "Blockseminar Beispiel",
+    null,
+    "WiSe 2026/27",
+    null,
+    "vorlesung",
+    1,
+    null,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-sonst",
+    "Begrüßung der Erstsemester",
+    null,
+    "WiSe 2026/27",
+    null,
+    "sonstiges",
+    1,
+    null,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-alt",
+    "Altkurs Inaktiv",
+    null,
+    "WiSe 2026/27",
+    null,
+    "vorlesung",
+    0,
+    null,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    1,
+    "k-ma-vl",
+    "Testmathematik I",
+    "vorlesung",
+    0,
+    "10:00",
+    "11:30",
+    "Raum A",
+    "Prof. Beispiel",
+    "weekly",
+    null,
+    null,
+    1,
+    "studip",
+    null,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    2,
+    "k-ph",
+    "Testphysik",
+    "vorlesung",
+    2,
+    "08:15",
+    "09:45",
+    "Raum B",
+    "",
+    "biweekly",
+    "2026-10-14",
+    null,
+    1,
+    "manual",
+    "#ff0000",
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    null,
+    null,
+    "Laborpraktikum Test",
+    "labor",
+    4,
+    "14:00",
+    "17:00",
+    "Labor 1",
+    "",
+    "once",
+    "2026-10-30",
+    null,
+    1,
+    "manual",
+    null,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    null,
+    null,
+    "Sport (nicht besucht)",
+    "sonstiges",
+    1,
+    "18:00",
+    "19:30",
+    "",
+    "",
+    "weekly",
+    null,
+    null,
+    0,
+    "personal",
+    null,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    1,
+    "k-ma-ue",
+    "Übung zu Testmathematik I",
+    "uebung",
+    3,
+    "12:15",
+    "13:45",
+    "Raum C",
+    "",
+    "weekly",
+    "2026-10-19",
+    "2026-12-17",
+    1,
+    "studip",
+    null,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, color, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    null,
+    null,
+    "Sonntagstermin",
+    "sonstiges",
+    6,
+    "09:00",
+    "10:00",
+    "",
+    "",
+    "weekly",
+    null,
+    null,
+    1,
+    "manual",
+    "",
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    1,
+    "2026-10-26",
+    "cancelled",
+    null,
+    null,
+    null,
+    "fällt aus",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    1,
+    "2026-11-02",
+    "moved",
+    "2026-11-03",
+    "10:00",
+    "11:30",
+    "",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    5,
+    "2026-10-22",
+    "skip",
+    null,
+    null,
+    null,
+    "",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    4,
+    "2026-10-27",
+    "attend",
+    null,
+    null,
+    null,
+    "",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    2,
+    "2026-10-28",
+    "edit",
+    null,
+    "08:30",
+    "10:00",
+    "einzeln bearbeitet",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    6,
+    "2026-11-01",
+    "skip",
+    null,
+    null,
+    null,
+    "",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(date, module_id, subject, title, start_time, end_time, status, planned_minutes, created_at) VALUES (?,?,?,?,?,?,?,45,?)",
+   "params": [
+    "2026-10-29",
+    1,
+    "Testmathematik I",
+    "Paket A",
+    "12:00",
+    "13:00",
+    "geplant",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(date, module_id, subject, title, start_time, end_time, status, planned_minutes, created_at) VALUES (?,?,?,?,?,?,?,45,?)",
+   "params": [
+    "2026-10-29",
+    2,
+    "Testphysik",
+    "Paket B",
+    "15:00",
+    "16:00",
+    "in_bearbeitung",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(date, module_id, subject, title, start_time, end_time, status, planned_minutes, created_at) VALUES (?,?,?,?,?,?,?,45,?)",
+   "params": [
+    "2026-10-27",
+    1,
+    "Testmathematik I",
+    "Paket verschoben",
+    "09:00",
+    "10:00",
+    "verschoben",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(date, module_id, subject, title, start_time, end_time, status, planned_minutes, created_at) VALUES (?,?,?,?,?,?,?,45,?)",
+   "params": [
+    "2026-10-25",
+    3,
+    "Programmierkurs Beispiel",
+    "Paket C",
+    "15:00",
+    "16:30",
+    "geplant",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(date, module_id, subject, title, start_time, end_time, status, planned_minutes, created_at) VALUES (?,?,?,?,?,?,?,45,?)",
+   "params": [
+    "2026-11-03",
+    3,
+    "Programmierkurs Beispiel",
+    "Paket D",
+    "10:30",
+    "11:00",
+    "geplant",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(date, module_id, subject, title, start_time, end_time, status, planned_minutes, created_at) VALUES (?,?,?,?,?,?,?,45,?)",
+   "params": [
+    "2026-10-30",
+    2,
+    "Testphysik",
+    "Paket ohne Zeit",
+    null,
+    null,
+    "geplant",
+    "2026-10-02T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ma-0",
+    "k-ma-vl",
+    "Sitzung",
+    "2026-10-19T10:00:00",
+    "2026-10-19T11:30:00",
+    "Hörsaal 1, Gebäude 3",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ma-1",
+    "k-ma-vl",
+    "Sitzung",
+    "2026-10-26T10:00:00",
+    "2026-10-26T11:30:00",
+    "Hörsaal 1, Gebäude 3",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ma-2",
+    "k-ma-vl",
+    "Sitzung",
+    "2026-11-02T10:00:00",
+    "2026-11-02T11:30:00",
+    "Hörsaal 1, Gebäude 3",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ma-3",
+    "k-ma-vl",
+    "Sitzung",
+    "2026-11-09T10:00:00",
+    "2026-11-09T11:30:00",
+    "Hörsaal 1, Gebäude 3",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ma-x",
+    "k-ma-vl",
+    "Sitzung",
+    "kaputt",
+    "2026-11-16T11:30:00",
+    "Hörsaal 1",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ph-0",
+    "k-ph",
+    "Sitzung",
+    "2026-10-14T08:15:00",
+    "2026-10-14T09:45:00",
+    "",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ph-1",
+    "k-ph",
+    "Sitzung",
+    "2026-10-28T08:15:00",
+    "2026-10-28T09:45:00",
+    "",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ph-2",
+    "k-ph",
+    "Sitzung",
+    "2026-11-11T08:15:00",
+    "2026-11-11T09:45:00",
+    "",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ue-0",
+    "k-ma-ue",
+    "Sitzung",
+    "2026-10-22T12:15:00",
+    "2026-10-22T13:45:00",
+    "Raum C",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-ue-1",
+    "k-ma-ue",
+    "Sitzung",
+    "2026-10-29T12:15:00+01:00",
+    "2026-10-29T13:45:00+01:00",
+    "Raum C",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-0-0",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-10-20T08:00:00",
+    "2026-10-20T09:30:00",
+    "Pool 0",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-0-1",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-10-27T08:00:00",
+    "2026-10-27T09:30:00",
+    "Pool 0",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-0-2",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-11-03T08:00:00",
+    "2026-11-03T09:30:00",
+    "Pool 0",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-1-0",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-10-20T10:00:00",
+    "2026-10-20T11:30:00",
+    "Pool 1",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-1-1",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-10-27T10:00:00",
+    "2026-10-27T11:30:00",
+    "Pool 1",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-1-2",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-11-03T10:00:00",
+    "2026-11-03T11:30:00",
+    "Pool 1",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-2-0",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-10-21T14:00:00",
+    "2026-10-21T15:30:00",
+    "Pool 2",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-2-1",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-10-28T14:00:00",
+    "2026-10-28T15:30:00",
+    "Pool 2",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-2-2",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-11-04T14:00:00",
+    "2026-11-04T15:30:00",
+    "Pool 2",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-3-0",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-10-23T08:00:00",
+    "2026-10-23T09:30:00",
+    "Pool 3",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-3-1",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-10-30T08:00:00",
+    "2026-10-30T09:30:00",
+    "Pool 3",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-3-2",
+    "k-prog-ue",
+    "Sitzung",
+    "2026-11-06T08:00:00",
+    "2026-11-06T09:30:00",
+    "Pool 3",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-bl-0",
+    "k-block",
+    "Sitzung",
+    "2026-11-07T09:00:00",
+    "2026-11-07T16:00:00",
+    "Seminarraum",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-bl-1",
+    "k-block",
+    "Sitzung",
+    "2026-11-14T09:00:00",
+    "2026-11-14T16:00:00",
+    "Seminarraum",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-bl-2",
+    "k-block",
+    "Sitzung",
+    "2026-10-25T02:30:00",
+    "2026-10-25T03:30:00",
+    null,
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-so-0",
+    "k-sonst",
+    "Sitzung",
+    "2026-10-12T09:00:00",
+    "2026-10-12T12:00:00",
+    "Audimax",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-alt-0",
+    "k-alt",
+    "Sitzung",
+    "2026-10-13T09:00:00",
+    "2026-10-13T12:00:00",
+    "Raum Z",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "se-pg-biw-0",
+    "k-ph",
+    "Sitzung",
+    "2026-10-16T10:00:00",
+    "2026-10-16T11:00:00",
+    "Raum B",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_schedule_entries(id, title, weekday, start, end, description, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "pe1",
+    "Lerngruppe Testmathematik alle 2 Wochen",
+    1,
+    "16:00",
+    "17:30",
+    "",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_schedule_entries(id, title, weekday, start, end, description, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "pe2",
+    "Chor",
+    4,
+    "18:00",
+    "20:00",
+    "zweiwöchentlich",
+    "2026-10-24T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_schedule_entries(id, title, weekday, start, end, description, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "pe3",
+    null,
+    2,
+    "07:00",
+    "07:45",
+    null,
+    "2026-10-24T08:00:00"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-10-19",
+   "status": 200,
+   "response": {
+    "start": "2026-10-19",
+    "end": "2026-10-25",
+    "days": [
+     {
+      "date": "2026-10-19",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 1,
+        "date": "2026-10-19",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum A",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 580,
+        "minutes": 100,
+        "start_hm": "08:00",
+        "end_hm": "09:40",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-20",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 4,
+        "date": "2026-10-20",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-21",
+      "weekday": 2,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-22",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-10-22",
+        "start": "12:15",
+        "end": "13:45",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "nicht_teilnahme",
+        "permanent_skip": false,
+        "exception": "skip"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-23",
+      "weekday": 4,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-24",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-25",
+      "weekday": 6,
+      "events": [
+       {
+        "event_id": 6,
+        "date": "2026-10-25",
+        "start": "09:00",
+        "end": "10:00",
+        "title": "Sonntagstermin",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 4,
+        "date": "2026-10-25",
+        "module_id": 3,
+        "subject": "Programmierkurs Beispiel",
+        "title": "Paket C",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "15:00",
+        "end_time": "16:30",
+        "color": "#333333"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 620,
+        "end": 900,
+        "minutes": 280,
+        "start_hm": "10:20",
+        "end_hm": "15:00",
+        "campus": false
+       },
+       {
+        "start": 990,
+        "end": 1260,
+        "minutes": 270,
+        "start_hm": "16:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-10-26",
+   "status": 200,
+   "response": {
+    "start": "2026-10-26",
+    "end": "2026-11-01",
+    "days": [
+     {
+      "date": "2026-10-26",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 1,
+        "date": "2026-10-26",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum A",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 720,
+        "minutes": 240,
+        "start_hm": "08:00",
+        "end_hm": "12:00",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-27",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 4,
+        "date": "2026-10-27",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": true,
+        "exception": "attend"
+       }
+      ],
+      "packages": [
+       {
+        "id": 3,
+        "date": "2026-10-27",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Paket verschoben",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "verschoben",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "09:00",
+        "end_time": "10:00",
+        "color": "#111111"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 1060,
+        "minutes": 580,
+        "start_hm": "08:00",
+        "end_hm": "17:40",
+        "campus": false
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-28",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 2,
+        "date": "2026-10-28",
+        "start": "08:30",
+        "end": "10:00",
+        "title": "Testphysik",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#ff0000",
+        "room": "Raum B",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": "edit"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-29",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-10-29",
+        "start": "12:15",
+        "end": "13:45",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 1,
+        "date": "2026-10-29",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Paket A",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "12:00",
+        "end_time": "13:00",
+        "color": "#111111"
+       },
+       {
+        "id": 2,
+        "date": "2026-10-29",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Paket B",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "in_bearbeitung",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "15:00",
+        "end_time": "16:00",
+        "color": "#222222"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 715,
+        "minutes": 235,
+        "start_hm": "08:00",
+        "end_hm": "11:55",
+        "campus": false
+       },
+       {
+        "start": 845,
+        "end": 900,
+        "minutes": 55,
+        "start_hm": "14:05",
+        "end_hm": "15:00",
+        "campus": false
+       },
+       {
+        "start": 960,
+        "end": 1020,
+        "minutes": 60,
+        "start_hm": "16:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-30",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 3,
+        "date": "2026-10-30",
+        "start": "14:00",
+        "end": "17:00",
+        "title": "Laborpraktikum Test",
+        "kind": "labor",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Labor 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 6,
+        "date": "2026-10-30",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Paket ohne Zeit",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": null,
+        "end_time": null,
+        "color": "#222222"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 820,
+        "minutes": 340,
+        "start_hm": "08:00",
+        "end_hm": "13:40",
+        "campus": false
+       },
+       {
+        "start": 1040,
+        "end": 1260,
+        "minutes": 220,
+        "start_hm": "17:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-31",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-01",
+      "weekday": 6,
+      "events": [
+       {
+        "event_id": 6,
+        "date": "2026-11-01",
+        "start": "09:00",
+        "end": "10:00",
+        "title": "Sonntagstermin",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "nicht_teilnahme",
+        "permanent_skip": false,
+        "exception": "skip"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-11-02",
+   "status": 200,
+   "response": {
+    "start": "2026-11-02",
+    "end": "2026-11-08",
+    "days": [
+     {
+      "date": "2026-11-02",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 1,
+        "date": "2026-11-02",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum A",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "verschoben",
+        "permanent_skip": false,
+        "exception": "moved",
+        "moved_to": "2026-11-03"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 720,
+        "minutes": 240,
+        "start_hm": "08:00",
+        "end_hm": "12:00",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-03",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 1,
+        "date": "2026-11-03",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum A",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": "moved_here",
+        "moved_from": "2026-11-02"
+       },
+       {
+        "event_id": 4,
+        "date": "2026-11-03",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 5,
+        "date": "2026-11-03",
+        "module_id": 3,
+        "subject": "Programmierkurs Beispiel",
+        "title": "Paket D",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "10:30",
+        "end_time": "11:00",
+        "color": "#333333"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 580,
+        "minutes": 100,
+        "start_hm": "08:00",
+        "end_hm": "09:40",
+        "campus": false
+       },
+       {
+        "start": 710,
+        "end": 1260,
+        "minutes": 550,
+        "start_hm": "11:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-04",
+      "weekday": 2,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-05",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-11-05",
+        "start": "12:15",
+        "end": "13:45",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 715,
+        "minutes": 235,
+        "start_hm": "08:00",
+        "end_hm": "11:55",
+        "campus": false
+       },
+       {
+        "start": 845,
+        "end": 1020,
+        "minutes": 175,
+        "start_hm": "14:05",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-06",
+      "weekday": 4,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-07",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-08",
+      "weekday": 6,
+      "events": [
+       {
+        "event_id": 6,
+        "date": "2026-11-08",
+        "start": "09:00",
+        "end": "10:00",
+        "title": "Sonntagstermin",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2027-01-25",
+   "status": 200,
+   "response": {
+    "start": "2027-01-25",
+    "end": "2027-01-31",
+    "days": [
+     {
+      "date": "2027-01-25",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 1,
+        "date": "2027-01-25",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum A",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 580,
+        "minutes": 100,
+        "start_hm": "08:00",
+        "end_hm": "09:40",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2027-01-26",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 4,
+        "date": "2027-01-26",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2027-01-27",
+      "weekday": 2,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2027-01-28",
+      "weekday": 3,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2027-01-29",
+      "weekday": 4,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2027-01-30",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2027-01-31",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/day?date=2026-10-25",
+   "status": 200,
+   "response": {
+    "date": "2026-10-25",
+    "events": [
+     {
+      "event_id": 6,
+      "date": "2026-10-25",
+      "start": "09:00",
+      "end": "10:00",
+      "title": "Sonntagstermin",
+      "kind": "sonstiges",
+      "module_id": null,
+      "module_name": null,
+      "color": "#4f5bd5",
+      "room": "",
+      "lecturer": "",
+      "course_id": null,
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     }
+    ],
+    "packages": [
+     {
+      "id": 4,
+      "date": "2026-10-25",
+      "module_id": 3,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket C",
+      "week_no": null,
+      "planned_minutes": 45,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-02T09:00:00",
+      "start_time": "15:00",
+      "end_time": "16:30",
+      "color": "#333333"
+     }
+    ],
+    "free": [
+     {
+      "start": 480,
+      "end": 520,
+      "minutes": 40,
+      "start_hm": "08:00",
+      "end_hm": "08:40",
+      "campus": false
+     },
+     {
+      "start": 620,
+      "end": 900,
+      "minutes": 280,
+      "start_hm": "10:20",
+      "end_hm": "15:00",
+      "campus": false
+     },
+     {
+      "start": 990,
+      "end": 1260,
+      "minutes": 270,
+      "start_hm": "16:30",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "blocked": [],
+    "learn_start": "08:00",
+    "learn_end": "21:00"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/day?date=2026-10-29",
+   "status": 200,
+   "response": {
+    "date": "2026-10-29",
+    "events": [
+     {
+      "event_id": 5,
+      "date": "2026-10-29",
+      "start": "12:15",
+      "end": "13:45",
+      "title": "Übung zu Testmathematik I",
+      "kind": "uebung",
+      "module_id": 1,
+      "module_name": "Testmathematik I",
+      "color": "#111111",
+      "room": "Raum C",
+      "lecturer": "",
+      "course_id": "k-ma-ue",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     }
+    ],
+    "packages": [
+     {
+      "id": 1,
+      "date": "2026-10-29",
+      "module_id": 1,
+      "subject": "Testmathematik I",
+      "title": "Paket A",
+      "week_no": null,
+      "planned_minutes": 45,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-02T09:00:00",
+      "start_time": "12:00",
+      "end_time": "13:00",
+      "color": "#111111"
+     },
+     {
+      "id": 2,
+      "date": "2026-10-29",
+      "module_id": 2,
+      "subject": "Testphysik",
+      "title": "Paket B",
+      "week_no": null,
+      "planned_minutes": 45,
+      "status": "in_bearbeitung",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-02T09:00:00",
+      "start_time": "15:00",
+      "end_time": "16:00",
+      "color": "#222222"
+     }
+    ],
+    "free": [
+     {
+      "start": 480,
+      "end": 715,
+      "minutes": 235,
+      "start_hm": "08:00",
+      "end_hm": "11:55",
+      "campus": false
+     },
+     {
+      "start": 845,
+      "end": 900,
+      "minutes": 55,
+      "start_hm": "14:05",
+      "end_hm": "15:00",
+      "campus": false
+     },
+     {
+      "start": 960,
+      "end": 1020,
+      "minutes": 60,
+      "start_hm": "16:00",
+      "end_hm": "17:00",
+      "campus": false
+     },
+     {
+      "start": 1110,
+      "end": 1260,
+      "minutes": 150,
+      "start_hm": "18:30",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "blocked": [
+     {
+      "weekday": 3,
+      "start": "17:00",
+      "end": "18:30"
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/day?date=2026-11-03",
+   "status": 200,
+   "response": {
+    "date": "2026-11-03",
+    "events": [
+     {
+      "event_id": 1,
+      "date": "2026-11-03",
+      "start": "10:00",
+      "end": "11:30",
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "module_id": 1,
+      "module_name": "Testmathematik I",
+      "color": "#111111",
+      "room": "Raum A",
+      "lecturer": "Prof. Beispiel",
+      "course_id": "k-ma-vl",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": "moved_here",
+      "moved_from": "2026-11-02"
+     },
+     {
+      "event_id": 4,
+      "date": "2026-11-03",
+      "start": "18:00",
+      "end": "19:30",
+      "title": "Sport (nicht besucht)",
+      "kind": "sonstiges",
+      "module_id": null,
+      "module_name": null,
+      "color": "#4f5bd5",
+      "room": "",
+      "lecturer": "",
+      "course_id": null,
+      "status": "nicht_teilnahme",
+      "permanent_skip": true,
+      "exception": null
+     }
+    ],
+    "packages": [
+     {
+      "id": 5,
+      "date": "2026-11-03",
+      "module_id": 3,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket D",
+      "week_no": null,
+      "planned_minutes": 45,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-02T09:00:00",
+      "start_time": "10:30",
+      "end_time": "11:00",
+      "color": "#333333"
+     }
+    ],
+    "free": [
+     {
+      "start": 480,
+      "end": 580,
+      "minutes": 100,
+      "start_hm": "08:00",
+      "end_hm": "09:40",
+      "campus": false
+     },
+     {
+      "start": 710,
+      "end": 1260,
+      "minutes": 550,
+      "start_hm": "11:50",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "blocked": [],
+    "learn_start": "08:00",
+    "learn_end": "21:00"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/events",
+   "status": 200,
+   "response": [
+    {
+     "id": 1,
+     "module_id": 1,
+     "course_id": "k-ma-vl",
+     "title": "Testmathematik I",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "10:00",
+     "end_time": "11:30",
+     "room": "Raum A",
+     "lecturer": "Prof. Beispiel",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": "Testmathematik I"
+    },
+    {
+     "id": 4,
+     "module_id": null,
+     "course_id": null,
+     "title": "Sport (nicht besucht)",
+     "kind": "sonstiges",
+     "weekday": 1,
+     "start_time": "18:00",
+     "end_time": "19:30",
+     "room": "",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 0,
+     "source": "personal",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": null
+    },
+    {
+     "id": 2,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "Raum B",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-14",
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": "#ff0000",
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": "Testphysik"
+    },
+    {
+     "id": 5,
+     "module_id": 1,
+     "course_id": "k-ma-ue",
+     "title": "Übung zu Testmathematik I",
+     "kind": "uebung",
+     "weekday": 3,
+     "start_time": "12:15",
+     "end_time": "13:45",
+     "room": "Raum C",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-19",
+     "date_to": "2026-12-17",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": "Testmathematik I"
+    },
+    {
+     "id": 3,
+     "module_id": null,
+     "course_id": null,
+     "title": "Laborpraktikum Test",
+     "kind": "labor",
+     "weekday": 4,
+     "start_time": "14:00",
+     "end_time": "17:00",
+     "room": "Labor 1",
+     "lecturer": "",
+     "rrule": "once",
+     "date_from": "2026-10-30",
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": null
+    },
+    {
+     "id": 6,
+     "module_id": null,
+     "course_id": null,
+     "title": "Sonntagstermin",
+     "kind": "sonstiges",
+     "weekday": 6,
+     "start_time": "09:00",
+     "end_time": "10:00",
+     "room": "",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": "",
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": null
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/free?date=2026-10-28",
+   "status": 200,
+   "response": [
+    {
+     "start": 620,
+     "end": 1260,
+     "minutes": 640,
+     "start_hm": "10:20",
+     "end_hm": "21:00",
+     "campus": false
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/conflicts",
+   "status": 200,
+   "response": [
+    {
+     "date": "2026-10-29",
+     "package_id": 1,
+     "subject": "Testmathematik I",
+     "title": "Paket A",
+     "slot": "12:00–13:00",
+     "event": "Übung zu Testmathematik I",
+     "event_time": "12:15–13:45"
+    },
+    {
+     "date": "2026-11-03",
+     "package_id": 5,
+     "subject": "Programmierkurs Beispiel",
+     "title": "Paket D",
+     "slot": "10:30–11:00",
+     "event": "Testmathematik I",
+     "event_time": "10:00–11:30"
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/conflicts?days=3",
+   "status": 200,
+   "response": []
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/auto-status",
+   "status": 200,
+   "response": {
+    "pending_groups": 7,
+    "courses": [
+     "Blockseminar Beispiel",
+     "Gruppenübung Programmierkurs Beispiel"
+    ],
+    "personal": [
+     {
+      "title": "Lerngruppe Testmathematik alle 2 Wochen",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "16:00",
+      "end_time": "17:30",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": 1,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan"
+     },
+     {
+      "title": "Termin",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "07:00",
+      "end_time": "07:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan"
+     },
+     {
+      "title": "Chor",
+      "kind": "vorlesung",
+      "weekday": 4,
+      "start_time": "18:00",
+      "end_time": "20:00",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/event-materials/1?date=2026-10-26",
+   "status": 200,
+   "response": []
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/event-materials/3?date=2026-10-30",
+   "status": 200,
+   "response": []
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/event-materials/999?date=2026-10-26",
+   "status": 404,
+   "response": {
+    "detail": "Not Found"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/preview",
+   "status": 200,
+   "response": {
+    "import_id": 1,
+    "entries": [
+     {
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "11:30",
+      "room": "Hörsaal 1, Gebäude 3",
+      "rrule": "weekly",
+      "date_from": "2026-10-19",
+      "date_to": "2026-11-09",
+      "module_id": 1,
+      "course_id": "k-ma-vl",
+      "uncertain": false,
+      "count": 4,
+      "group_slots": 1,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 1,
+      "start_time": "08:00",
+      "end_time": "09:30",
+      "room": "Pool 0",
+      "rrule": "weekly",
+      "date_from": "2026-10-20",
+      "date_to": "2026-11-03",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": false,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 1,
+      "start_time": "10:00",
+      "end_time": "11:30",
+      "room": "Pool 1",
+      "rrule": "weekly",
+      "date_from": "2026-10-20",
+      "date_to": "2026-11-03",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": false,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Lerngruppe Testmathematik alle 2 Wochen",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "16:00",
+      "end_time": "17:30",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": 1,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Termin",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "07:00",
+      "end_time": "07:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "Testphysik für Ingenieure",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:15",
+      "end_time": "09:45",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": "2026-10-14",
+      "date_to": "2026-11-11",
+      "module_id": 2,
+      "course_id": "k-ph",
+      "uncertain": false,
+      "count": 3,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 2,
+      "start_time": "14:00",
+      "end_time": "15:30",
+      "room": "Pool 2",
+      "rrule": "weekly",
+      "date_from": "2026-10-21",
+      "date_to": "2026-11-04",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": false,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Übung zu Testmathematik I",
+      "kind": "uebung",
+      "weekday": 3,
+      "start_time": "12:15",
+      "end_time": "13:45",
+      "room": "Raum C",
+      "rrule": "once",
+      "date_from": "2026-10-22",
+      "date_to": "2026-10-22",
+      "module_id": 1,
+      "course_id": "k-ma-ue",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Übung zu Testmathematik I",
+      "kind": "uebung",
+      "weekday": 3,
+      "start_time": "12:15",
+      "end_time": "13:45",
+      "room": "Raum C",
+      "rrule": "once",
+      "date_from": "2026-10-29",
+      "date_to": "2026-10-29",
+      "module_id": 1,
+      "course_id": "k-ma-ue",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 4,
+      "start_time": "08:00",
+      "end_time": "09:30",
+      "room": "Pool 3",
+      "rrule": "weekly",
+      "date_from": "2026-10-23",
+      "date_to": "2026-11-06",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": false,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Testphysik für Ingenieure",
+      "kind": "vorlesung",
+      "weekday": 4,
+      "start_time": "10:00",
+      "end_time": "11:00",
+      "room": "Raum B",
+      "rrule": "once",
+      "date_from": "2026-10-16",
+      "date_to": "2026-10-16",
+      "module_id": 2,
+      "course_id": "k-ph",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Chor",
+      "kind": "vorlesung",
+      "weekday": 4,
+      "start_time": "18:00",
+      "end_time": "20:00",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "Blockseminar Beispiel",
+      "kind": "seminar",
+      "weekday": 5,
+      "start_time": "09:00",
+      "end_time": "16:00",
+      "room": "Seminarraum",
+      "rrule": "once",
+      "date_from": "2026-11-07",
+      "date_to": "2026-11-07",
+      "module_id": 3,
+      "course_id": "k-block",
+      "uncertain": true,
+      "group_slots": 3,
+      "selected": false,
+      "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Blockseminar Beispiel",
+      "kind": "seminar",
+      "weekday": 5,
+      "start_time": "09:00",
+      "end_time": "16:00",
+      "room": "Seminarraum",
+      "rrule": "once",
+      "date_from": "2026-11-14",
+      "date_to": "2026-11-14",
+      "module_id": 3,
+      "course_id": "k-block",
+      "uncertain": true,
+      "group_slots": 3,
+      "selected": false,
+      "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Blockseminar Beispiel",
+      "kind": "seminar",
+      "weekday": 6,
+      "start_time": "02:30",
+      "end_time": "03:30",
+      "room": "",
+      "rrule": "once",
+      "date_from": "2026-10-25",
+      "date_to": "2026-10-25",
+      "module_id": 3,
+      "course_id": "k-block",
+      "uncertain": true,
+      "group_slots": 3,
+      "selected": false,
+      "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     }
+    ],
+    "diff": {
+     "new": [
+      {
+       "title": "Gruppenübung Programmierkurs Beispiel",
+       "kind": "uebung",
+       "weekday": 1,
+       "start_time": "08:00",
+       "end_time": "09:30",
+       "room": "Pool 0",
+       "rrule": "weekly",
+       "date_from": "2026-10-20",
+       "date_to": "2026-11-03",
+       "module_id": 3,
+       "course_id": "k-prog-ue",
+       "uncertain": true,
+       "count": 3,
+       "group_slots": 4,
+       "selected": false,
+       "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Gruppenübung Programmierkurs Beispiel",
+       "kind": "uebung",
+       "weekday": 1,
+       "start_time": "10:00",
+       "end_time": "11:30",
+       "room": "Pool 1",
+       "rrule": "weekly",
+       "date_from": "2026-10-20",
+       "date_to": "2026-11-03",
+       "module_id": 3,
+       "course_id": "k-prog-ue",
+       "uncertain": true,
+       "count": 3,
+       "group_slots": 4,
+       "selected": false,
+       "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Lerngruppe Testmathematik alle 2 Wochen",
+       "kind": "vorlesung",
+       "weekday": 1,
+       "start_time": "16:00",
+       "end_time": "17:30",
+       "room": "",
+       "rrule": "biweekly",
+       "date_from": null,
+       "date_to": null,
+       "module_id": 1,
+       "course_id": null,
+       "uncertain": false,
+       "selected": true,
+       "group_slots": 1,
+       "personal": true,
+       "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Termin",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "07:00",
+       "end_time": "07:45",
+       "room": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "module_id": null,
+       "course_id": null,
+       "uncertain": false,
+       "selected": true,
+       "group_slots": 1,
+       "personal": true,
+       "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+       "module_guess_uncertain": true
+      },
+      {
+       "title": "Testphysik für Ingenieure",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "",
+       "rrule": "biweekly",
+       "date_from": "2026-10-14",
+       "date_to": "2026-11-11",
+       "module_id": 2,
+       "course_id": "k-ph",
+       "uncertain": false,
+       "count": 3,
+       "group_slots": 2,
+       "selected": true,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Gruppenübung Programmierkurs Beispiel",
+       "kind": "uebung",
+       "weekday": 2,
+       "start_time": "14:00",
+       "end_time": "15:30",
+       "room": "Pool 2",
+       "rrule": "weekly",
+       "date_from": "2026-10-21",
+       "date_to": "2026-11-04",
+       "module_id": 3,
+       "course_id": "k-prog-ue",
+       "uncertain": true,
+       "count": 3,
+       "group_slots": 4,
+       "selected": false,
+       "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Gruppenübung Programmierkurs Beispiel",
+       "kind": "uebung",
+       "weekday": 4,
+       "start_time": "08:00",
+       "end_time": "09:30",
+       "room": "Pool 3",
+       "rrule": "weekly",
+       "date_from": "2026-10-23",
+       "date_to": "2026-11-06",
+       "module_id": 3,
+       "course_id": "k-prog-ue",
+       "uncertain": true,
+       "count": 3,
+       "group_slots": 4,
+       "selected": false,
+       "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Testphysik für Ingenieure",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "10:00",
+       "end_time": "11:00",
+       "room": "Raum B",
+       "rrule": "once",
+       "date_from": "2026-10-16",
+       "date_to": "2026-10-16",
+       "module_id": 2,
+       "course_id": "k-ph",
+       "uncertain": false,
+       "group_slots": 2,
+       "selected": true,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Chor",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "18:00",
+       "end_time": "20:00",
+       "room": "",
+       "rrule": "biweekly",
+       "date_from": null,
+       "date_to": null,
+       "module_id": null,
+       "course_id": null,
+       "uncertain": false,
+       "selected": true,
+       "group_slots": 1,
+       "personal": true,
+       "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+       "module_guess_uncertain": true
+      },
+      {
+       "title": "Blockseminar Beispiel",
+       "kind": "seminar",
+       "weekday": 5,
+       "start_time": "09:00",
+       "end_time": "16:00",
+       "room": "Seminarraum",
+       "rrule": "once",
+       "date_from": "2026-11-07",
+       "date_to": "2026-11-07",
+       "module_id": 3,
+       "course_id": "k-block",
+       "uncertain": true,
+       "group_slots": 3,
+       "selected": false,
+       "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Blockseminar Beispiel",
+       "kind": "seminar",
+       "weekday": 5,
+       "start_time": "09:00",
+       "end_time": "16:00",
+       "room": "Seminarraum",
+       "rrule": "once",
+       "date_from": "2026-11-14",
+       "date_to": "2026-11-14",
+       "module_id": 3,
+       "course_id": "k-block",
+       "uncertain": true,
+       "group_slots": 3,
+       "selected": false,
+       "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Blockseminar Beispiel",
+       "kind": "seminar",
+       "weekday": 6,
+       "start_time": "02:30",
+       "end_time": "03:30",
+       "room": "",
+       "rrule": "once",
+       "date_from": "2026-10-25",
+       "date_to": "2026-10-25",
+       "module_id": 3,
+       "course_id": "k-block",
+       "uncertain": true,
+       "group_slots": 3,
+       "selected": false,
+       "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+       "module_guess_uncertain": false
+      }
+     ],
+     "changed": [],
+     "same": [
+      {
+       "title": "Testmathematik I",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "10:00",
+       "end_time": "11:30",
+       "room": "Hörsaal 1, Gebäude 3",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": "2026-11-09",
+       "module_id": 1,
+       "course_id": "k-ma-vl",
+       "uncertain": false,
+       "count": 4,
+       "group_slots": 1,
+       "selected": true,
+       "module_guess_uncertain": false,
+       "existing_id": 1
+      },
+      {
+       "title": "Übung zu Testmathematik I",
+       "kind": "uebung",
+       "weekday": 3,
+       "start_time": "12:15",
+       "end_time": "13:45",
+       "room": "Raum C",
+       "rrule": "once",
+       "date_from": "2026-10-22",
+       "date_to": "2026-10-22",
+       "module_id": 1,
+       "course_id": "k-ma-ue",
+       "uncertain": false,
+       "group_slots": 2,
+       "selected": true,
+       "module_guess_uncertain": false,
+       "existing_id": 5
+      },
+      {
+       "title": "Übung zu Testmathematik I",
+       "kind": "uebung",
+       "weekday": 3,
+       "start_time": "12:15",
+       "end_time": "13:45",
+       "room": "Raum C",
+       "rrule": "once",
+       "date_from": "2026-10-29",
+       "date_to": "2026-10-29",
+       "module_id": 1,
+       "course_id": "k-ma-ue",
+       "uncertain": false,
+       "group_slots": 2,
+       "selected": true,
+       "module_guess_uncertain": false,
+       "existing_id": 5
+      }
+     ],
+     "removed": [
+      {
+       "id": 2,
+       "module_id": 2,
+       "course_id": "k-ph",
+       "title": "Testphysik",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "Raum B",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": "2026-10-14",
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": "#ff0000",
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 3,
+       "module_id": null,
+       "course_id": null,
+       "title": "Laborpraktikum Test",
+       "kind": "labor",
+       "weekday": 4,
+       "start_time": "14:00",
+       "end_time": "17:00",
+       "room": "Labor 1",
+       "lecturer": "",
+       "rrule": "once",
+       "date_from": "2026-10-30",
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 6,
+       "module_id": null,
+       "course_id": null,
+       "title": "Sonntagstermin",
+       "kind": "sonstiges",
+       "weekday": 6,
+       "start_time": "09:00",
+       "end_time": "10:00",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": "",
+       "created_at": "2026-10-01T09:00:00"
+      }
+     ]
+    },
+    "modules": [
+     {
+      "id": 3,
+      "name": "Programmierkurs Beispiel",
+      "color": "#333333"
+     },
+     {
+      "id": 1,
+      "name": "Testmathematik I",
+      "color": "#111111"
+     },
+     {
+      "id": 2,
+      "name": "Testphysik",
+      "color": "#222222"
+     }
+    ]
+   },
+   "form": {
+    "source": "studip"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/preview",
+   "status": 200,
+   "response": {
+    "import_id": 2,
+    "entries": [
+     {
+      "title": "Testkurs Physik – Vorlesung",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:15",
+      "end_time": "09:45",
+      "room": "P 101, Haus 2",
+      "rrule": "weekly",
+      "date_from": "2026-10-21",
+      "date_to": "2027-01-27",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-23"
+      ],
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:15",
+      "end_time": "11:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-19",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "module_id": 1,
+      "module_guess_uncertain": false
+     }
+    ],
+    "diff": {
+     "new": [
+      {
+       "title": "Testkurs Physik – Vorlesung",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "P 101, Haus 2",
+       "rrule": "weekly",
+       "date_from": "2026-10-21",
+       "date_to": "2027-01-27",
+       "uncertain": false,
+       "exdates": [
+        "2026-12-23"
+       ],
+       "module_id": null,
+       "module_guess_uncertain": true
+      }
+     ],
+     "changed": [
+      {
+       "title": "Testmathematik I",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "10:15",
+       "end_time": "11:45",
+       "room": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": null,
+       "uncertain": false,
+       "exdates": [],
+       "module_id": 1,
+       "module_guess_uncertain": false,
+       "old_start": "10:00",
+       "old_end": "11:30",
+       "existing_id": 1
+      }
+     ],
+     "same": [],
+     "removed": [
+      {
+       "id": 2,
+       "module_id": 2,
+       "course_id": "k-ph",
+       "title": "Testphysik",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "Raum B",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": "2026-10-14",
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": "#ff0000",
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 3,
+       "module_id": null,
+       "course_id": null,
+       "title": "Laborpraktikum Test",
+       "kind": "labor",
+       "weekday": 4,
+       "start_time": "14:00",
+       "end_time": "17:00",
+       "room": "Labor 1",
+       "lecturer": "",
+       "rrule": "once",
+       "date_from": "2026-10-30",
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 5,
+       "module_id": 1,
+       "course_id": "k-ma-ue",
+       "title": "Übung zu Testmathematik I",
+       "kind": "uebung",
+       "weekday": 3,
+       "start_time": "12:15",
+       "end_time": "13:45",
+       "room": "Raum C",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": "2026-12-17",
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 6,
+       "module_id": null,
+       "course_id": null,
+       "title": "Sonntagstermin",
+       "kind": "sonstiges",
+       "weekday": 6,
+       "start_time": "09:00",
+       "end_time": "10:00",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": "",
+       "created_at": "2026-10-01T09:00:00"
+      }
+     ]
+    },
+    "modules": [
+     {
+      "id": 3,
+      "name": "Programmierkurs Beispiel",
+      "color": "#333333"
+     },
+     {
+      "id": 1,
+      "name": "Testmathematik I",
+      "color": "#111111"
+     },
+     {
+      "id": 2,
+      "name": "Testphysik",
+      "color": "#222222"
+     }
+    ]
+   },
+   "form": {
+    "source": "ics",
+    "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs Physik – Vorlesung\r\nDTSTART:20261021T061500Z\r\nDTEND:20261021T074500Z\r\nRRULE:FREQ=WEEKLY;UNTIL=20270127T235959Z\r\nLOCATION:P 101\\, Haus 2\r\nEXDATE:20261223T071500Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Testmathematik I\r\nDTSTART;TZID=Europe/Berlin:20261019T101500\r\nDTEND;TZID=Europe/Berlin:20261019T114500\r\nRRULE:FREQ=WEEKLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/preview",
+   "status": 200,
+   "response": {
+    "import_id": 3,
+    "entries": [
+     {
+      "title": "Testkurs Upload – Vorlesung",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:15",
+      "end_time": "09:45",
+      "room": "P 101, Haus 2",
+      "rrule": "weekly",
+      "date_from": "2026-10-21",
+      "date_to": "2027-01-27",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-23"
+      ],
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:15",
+      "end_time": "11:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-19",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "module_id": 1,
+      "module_guess_uncertain": false
+     }
+    ],
+    "diff": {
+     "new": [
+      {
+       "title": "Testkurs Upload – Vorlesung",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "P 101, Haus 2",
+       "rrule": "weekly",
+       "date_from": "2026-10-21",
+       "date_to": "2027-01-27",
+       "uncertain": false,
+       "exdates": [
+        "2026-12-23"
+       ],
+       "module_id": null,
+       "module_guess_uncertain": true
+      }
+     ],
+     "changed": [
+      {
+       "title": "Testmathematik I",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "10:15",
+       "end_time": "11:45",
+       "room": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": null,
+       "uncertain": false,
+       "exdates": [],
+       "module_id": 1,
+       "module_guess_uncertain": false,
+       "old_start": "10:00",
+       "old_end": "11:30",
+       "existing_id": 1
+      }
+     ],
+     "same": [],
+     "removed": [
+      {
+       "id": 2,
+       "module_id": 2,
+       "course_id": "k-ph",
+       "title": "Testphysik",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "Raum B",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": "2026-10-14",
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": "#ff0000",
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 3,
+       "module_id": null,
+       "course_id": null,
+       "title": "Laborpraktikum Test",
+       "kind": "labor",
+       "weekday": 4,
+       "start_time": "14:00",
+       "end_time": "17:00",
+       "room": "Labor 1",
+       "lecturer": "",
+       "rrule": "once",
+       "date_from": "2026-10-30",
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 5,
+       "module_id": 1,
+       "course_id": "k-ma-ue",
+       "title": "Übung zu Testmathematik I",
+       "kind": "uebung",
+       "weekday": 3,
+       "start_time": "12:15",
+       "end_time": "13:45",
+       "room": "Raum C",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": "2026-12-17",
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 6,
+       "module_id": null,
+       "course_id": null,
+       "title": "Sonntagstermin",
+       "kind": "sonstiges",
+       "weekday": 6,
+       "start_time": "09:00",
+       "end_time": "10:00",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": "",
+       "created_at": "2026-10-01T09:00:00"
+      }
+     ]
+    },
+    "modules": [
+     {
+      "id": 3,
+      "name": "Programmierkurs Beispiel",
+      "color": "#333333"
+     },
+     {
+      "id": 1,
+      "name": "Testmathematik I",
+      "color": "#111111"
+     },
+     {
+      "id": 2,
+      "name": "Testphysik",
+      "color": "#222222"
+     }
+    ]
+   },
+   "form": {
+    "source": "ics"
+   },
+   "file": {
+    "field": "upload",
+    "filename": "plan.ics",
+    "content_type": "text/calendar",
+    "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs Upload – Vorlesung\r\nDTSTART:20261021T061500Z\r\nDTEND:20261021T074500Z\r\nRRULE:FREQ=WEEKLY;UNTIL=20270127T235959Z\r\nLOCATION:P 101\\, Haus 2\r\nEXDATE:20261223T071500Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Testmathematik I\r\nDTSTART;TZID=Europe/Berlin:20261019T101500\r\nDTEND;TZID=Europe/Berlin:20261019T114500\r\nRRULE:FREQ=WEEKLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/preview",
+   "status": 422,
+   "response": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "body",
+       "source"
+      ],
+      "msg": "Field required",
+      "input": null
+     }
+    ]
+   },
+   "form": {
+    "text": "x"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/confirm",
+   "status": 200,
+   "response": {
+    "new": 6,
+    "updated": 3,
+    "removed": 1,
+    "conflicts": [
+     {
+      "date": "2026-10-29",
+      "package_id": 1,
+      "subject": "Testmathematik I",
+      "title": "Paket A",
+      "slot": "12:00–13:00",
+      "event": "Übung zu Testmathematik I",
+      "event_time": "12:15–13:45"
+     },
+     {
+      "date": "2026-11-03",
+      "package_id": 5,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket D",
+      "slot": "10:30–11:00",
+      "event": "Testmathematik I",
+      "event_time": "10:00–11:30"
+     }
+    ]
+   },
+   "body": {
+    "entries": [
+     {
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "11:30",
+      "room": "Hörsaal 1, Gebäude 3",
+      "rrule": "weekly",
+      "date_from": "2026-10-19",
+      "date_to": "2026-11-09",
+      "module_id": 1,
+      "course_id": "k-ma-vl",
+      "uncertain": false,
+      "count": 4,
+      "group_slots": 1,
+      "selected": true,
+      "module_guess_uncertain": false,
+      "existing_id": 1
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 1,
+      "start_time": "08:00",
+      "end_time": "09:30",
+      "room": "Pool 0",
+      "rrule": "weekly",
+      "date_from": "2026-10-20",
+      "date_to": "2026-11-03",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": true,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false,
+      "existing_id": null
+     },
+     {
+      "title": "Lerngruppe Testmathematik alle 2 Wochen",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "16:00",
+      "end_time": "17:30",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": 1,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": false,
+      "existing_id": null
+     },
+     {
+      "title": "Termin",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "07:00",
+      "end_time": "07:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": true,
+      "existing_id": null
+     },
+     {
+      "title": "Testphysik für Ingenieure",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:15",
+      "end_time": "09:45",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": "2026-10-14",
+      "date_to": "2026-11-11",
+      "module_id": 2,
+      "course_id": "k-ph",
+      "uncertain": false,
+      "count": 3,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false,
+      "existing_id": null
+     },
+     {
+      "title": "Übung zu Testmathematik I",
+      "kind": "uebung",
+      "weekday": 3,
+      "start_time": "12:15",
+      "end_time": "13:45",
+      "room": "Raum C",
+      "rrule": "once",
+      "date_from": "2026-10-22",
+      "date_to": "2026-10-22",
+      "module_id": 1,
+      "course_id": "k-ma-ue",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false,
+      "existing_id": 5
+     },
+     {
+      "title": "Übung zu Testmathematik I",
+      "kind": "uebung",
+      "weekday": 3,
+      "start_time": "12:15",
+      "end_time": "13:45",
+      "room": "Raum C",
+      "rrule": "once",
+      "date_from": "2026-10-29",
+      "date_to": "2026-10-29",
+      "module_id": 1,
+      "course_id": "k-ma-ue",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false,
+      "existing_id": 5
+     },
+     {
+      "title": "Testphysik für Ingenieure",
+      "kind": "vorlesung",
+      "weekday": 4,
+      "start_time": "10:00",
+      "end_time": "11:00",
+      "room": "Raum B",
+      "rrule": "once",
+      "date_from": "2026-10-16",
+      "date_to": "2026-10-16",
+      "module_id": 2,
+      "course_id": "k-ph",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false,
+      "existing_id": null
+     },
+     {
+      "title": "Chor",
+      "kind": "vorlesung",
+      "weekday": 4,
+      "start_time": "18:00",
+      "end_time": "20:00",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": true,
+      "existing_id": null
+     }
+    ],
+    "source": "studip",
+    "import_id": 1,
+    "remove_ids": [
+     6
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-10-26",
+   "status": 200,
+   "response": {
+    "start": "2026-10-26",
+    "end": "2026-11-01",
+    "days": [
+     {
+      "date": "2026-10-26",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 1,
+        "date": "2026-10-26",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 720,
+        "minutes": 240,
+        "start_hm": "08:00",
+        "end_hm": "12:00",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-27",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 7,
+        "date": "2026-10-27",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 0",
+        "lecturer": "",
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 8,
+        "date": "2026-10-27",
+        "start": "16:00",
+        "end": "17:30",
+        "title": "Lerngruppe Testmathematik alle 2 Wochen",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 4,
+        "date": "2026-10-27",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": true,
+        "exception": "attend"
+       }
+      ],
+      "packages": [
+       {
+        "id": 3,
+        "date": "2026-10-27",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Paket verschoben",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "verschoben",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "09:00",
+        "end_time": "10:00",
+        "color": "#111111"
+       }
+      ],
+      "free": [
+       {
+        "start": 570,
+        "end": 960,
+        "minutes": 390,
+        "start_hm": "09:30",
+        "end_hm": "16:00",
+        "campus": true
+       },
+       {
+        "start": 1050,
+        "end": 1080,
+        "minutes": 30,
+        "start_hm": "17:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-28",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-10-28",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 10,
+        "date": "2026-10-28",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik für Ingenieure",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 2,
+        "date": "2026-10-28",
+        "start": "08:30",
+        "end": "10:00",
+        "title": "Testphysik",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#ff0000",
+        "room": "Raum B",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": "edit"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-29",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-10-29",
+        "start": "12:15",
+        "end": "13:45",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 1,
+        "date": "2026-10-29",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Paket A",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "12:00",
+        "end_time": "13:00",
+        "color": "#111111"
+       },
+       {
+        "id": 2,
+        "date": "2026-10-29",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Paket B",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "in_bearbeitung",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "15:00",
+        "end_time": "16:00",
+        "color": "#222222"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 715,
+        "minutes": 235,
+        "start_hm": "08:00",
+        "end_hm": "11:55",
+        "campus": false
+       },
+       {
+        "start": 845,
+        "end": 900,
+        "minutes": 55,
+        "start_hm": "14:05",
+        "end_hm": "15:00",
+        "campus": false
+       },
+       {
+        "start": 960,
+        "end": 1020,
+        "minutes": 60,
+        "start_hm": "16:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-30",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 3,
+        "date": "2026-10-30",
+        "start": "14:00",
+        "end": "17:00",
+        "title": "Laborpraktikum Test",
+        "kind": "labor",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Labor 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 12,
+        "date": "2026-10-30",
+        "start": "18:00",
+        "end": "20:00",
+        "title": "Chor",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 6,
+        "date": "2026-10-30",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Paket ohne Zeit",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": null,
+        "end_time": null,
+        "color": "#222222"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 820,
+        "minutes": 340,
+        "start_hm": "08:00",
+        "end_hm": "13:40",
+        "campus": false
+       },
+       {
+        "start": 1020,
+        "end": 1080,
+        "minutes": 60,
+        "start_hm": "17:00",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1220,
+        "end": 1260,
+        "minutes": 40,
+        "start_hm": "20:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-31",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-01",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/auto-status",
+   "status": 200,
+   "response": {
+    "pending_groups": 7,
+    "courses": [
+     "Blockseminar Beispiel",
+     "Gruppenübung Programmierkurs Beispiel"
+    ],
+    "personal": [
+     {
+      "title": "Lerngruppe Testmathematik alle 2 Wochen",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "16:00",
+      "end_time": "17:30",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": 1,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan"
+     },
+     {
+      "title": "Termin",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "07:00",
+      "end_time": "07:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan"
+     },
+     {
+      "title": "Chor",
+      "kind": "vorlesung",
+      "weekday": 4,
+      "start_time": "18:00",
+      "end_time": "20:00",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan"
+     }
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/events",
+   "status": 200,
+   "response": {
+    "id": 13,
+    "module_id": 2,
+    "course_id": null,
+    "title": "Neuer Termin",
+    "kind": "vorlesung",
+    "weekday": 4,
+    "start_time": "09:00",
+    "end_time": "10:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "manual",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   "body": {
+    "title": "Neuer Termin",
+    "weekday": 4,
+    "start_time": "09:00",
+    "end_time": "10:30",
+    "module_id": 2
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/events",
+   "status": 200,
+   "response": {
+    "id": 14,
+    "module_id": null,
+    "course_id": null,
+    "title": "Veranstaltung",
+    "kind": "vorlesung",
+    "weekday": 0,
+    "start_time": "08:00",
+    "end_time": "09:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "manual",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   "body": {}
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/events",
+   "status": 200,
+   "response": {
+    "id": 15,
+    "module_id": null,
+    "course_id": null,
+    "title": "Text-Wochentag",
+    "kind": "vorlesung",
+    "weekday": 2,
+    "start_time": "08:00",
+    "end_time": "09:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "once",
+    "date_from": "2026-11-04",
+    "date_to": null,
+    "attend": 1,
+    "source": "manual",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   "body": {
+    "title": "Text-Wochentag",
+    "weekday": "2",
+    "rrule": "once",
+    "date_from": "2026-11-04"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/timetable/events/2",
+   "status": 200,
+   "response": {
+    "id": 2,
+    "module_id": 2,
+    "course_id": "k-ph",
+    "title": "Testphysik",
+    "kind": "vorlesung",
+    "weekday": 2,
+    "start_time": "08:15",
+    "end_time": "09:45",
+    "room": "Neuer Raum",
+    "lecturer": "",
+    "rrule": "biweekly",
+    "date_from": "2026-10-14",
+    "date_to": null,
+    "attend": 1,
+    "source": "manual",
+    "color": "#00ff00",
+    "created_at": "2026-10-01T09:00:00"
+   },
+   "body": {
+    "scope": "series",
+    "room": "Neuer Raum",
+    "color": "#00ff00",
+    "unbekannt": 1
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/timetable/events/1",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "scope": "future",
+    "new_id": 16
+   },
+   "body": {
+    "scope": "future",
+    "date": "2026-11-16",
+    "start_time": "10:15",
+    "end_time": "11:45"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/timetable/events/5",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "scope": "single"
+   },
+   "body": {
+    "scope": "single",
+    "date": "2026-11-05",
+    "start_time": "13:00",
+    "end_time": "14:30"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/timetable/events/5",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "scope": "single"
+   },
+   "body": {
+    "scope": "single",
+    "date": "2026-11-12",
+    "new_date": "2026-11-13",
+    "start_time": "08:00",
+    "end_time": "09:30"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/timetable/events/4",
+   "status": 200,
+   "response": {
+    "id": 4,
+    "module_id": null,
+    "course_id": null,
+    "title": "Sport (nicht besucht)",
+    "kind": "sonstiges",
+    "weekday": 1,
+    "start_time": "18:00",
+    "end_time": "19:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "personal",
+    "color": null,
+    "created_at": "2026-10-01T09:00:00"
+   },
+   "body": {
+    "scope": "single",
+    "attend": 1
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/timetable/events/999",
+   "status": 404,
+   "response": {
+    "detail": "Not Found"
+   },
+   "body": {
+    "title": "x"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 0,
+    "windows": [],
+    "materials": [],
+    "event": {
+     "id": 2,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "Neuer Raum",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-14",
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": "#00ff00",
+     "created_at": "2026-10-01T09:00:00"
+    }
+   },
+   "body": {
+    "event_id": 2,
+    "date": "2026-11-11",
+    "mode": "today_skip"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 0,
+    "windows": [],
+    "materials": [],
+    "event": {
+     "id": 4,
+     "module_id": null,
+     "course_id": null,
+     "title": "Sport (nicht besucht)",
+     "kind": "sonstiges",
+     "weekday": 1,
+     "start_time": "18:00",
+     "end_time": "19:30",
+     "room": "",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "personal",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00"
+    }
+   },
+   "body": {
+    "event_id": 4,
+    "date": "2026-11-03",
+    "mode": "permanent_attend"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 0,
+    "windows": [],
+    "materials": [],
+    "event": {
+     "id": 1,
+     "module_id": 1,
+     "course_id": "k-ma-vl",
+     "title": "Testmathematik I",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "10:00",
+     "end_time": "11:30",
+     "room": "Hörsaal 1, Gebäude 3",
+     "lecturer": "Prof. Beispiel",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": "2026-11-15",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00"
+    }
+   },
+   "body": {
+    "event_id": 1,
+    "mode": "cancelled"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 0,
+    "windows": [
+     {
+      "start": 480,
+      "end": 715,
+      "minutes": 235,
+      "start_hm": "08:00",
+      "end_hm": "11:55",
+      "campus": false
+     },
+     {
+      "start": 845,
+      "end": 1020,
+      "minutes": 175,
+      "start_hm": "14:05",
+      "end_hm": "17:00",
+      "campus": false
+     }
+    ],
+    "materials": [],
+    "event": {
+     "id": 5,
+     "module_id": 1,
+     "course_id": "k-ma-ue",
+     "title": "Übung zu Testmathematik I",
+     "kind": "uebung",
+     "weekday": 3,
+     "start_time": "12:15",
+     "end_time": "13:45",
+     "room": "Raum C",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-19",
+     "date_to": "2026-12-17",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00"
+    }
+   },
+   "body": {
+    "event_id": 5,
+    "date": "2026-10-22",
+    "mode": "reset"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 130,
+    "windows": [
+     {
+      "start": 480,
+      "end": 1020,
+      "minutes": 540,
+      "start_hm": "08:00",
+      "end_hm": "17:00",
+      "campus": false
+     }
+    ],
+    "materials": [],
+    "event": {
+     "id": 5,
+     "module_id": 1,
+     "course_id": "k-ma-ue",
+     "title": "Übung zu Testmathematik I",
+     "kind": "uebung",
+     "weekday": 3,
+     "start_time": "12:15",
+     "end_time": "13:45",
+     "room": "Raum C",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-19",
+     "date_to": "2026-12-17",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00"
+    }
+   },
+   "body": {
+    "event_id": "5",
+    "date": "2026-11-19",
+    "mode": "permanent_skip"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 404,
+   "response": {
+    "detail": "Not Found"
+   },
+   "body": {
+    "event_id": 999,
+    "mode": "today_skip"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/exceptions",
+   "status": 200,
+   "response": {
+    "ok": true
+   },
+   "body": {
+    "event_id": 2,
+    "date": "2026-11-25",
+    "type": "cancelled",
+    "note": "Dozent krank"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/exceptions",
+   "status": 200,
+   "response": {
+    "ok": true
+   },
+   "body": {
+    "event_id": "3",
+    "date": "2026-10-30",
+    "type": "moved",
+    "new_date": "2026-10-31",
+    "new_start": "10:00",
+    "new_end": "13:00"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-10-26",
+   "status": 200,
+   "response": {
+    "start": "2026-10-26",
+    "end": "2026-11-01",
+    "days": [
+     {
+      "date": "2026-10-26",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 14,
+        "date": "2026-10-26",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Veranstaltung",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 1,
+        "date": "2026-10-26",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 590,
+        "end": 720,
+        "minutes": 130,
+        "start_hm": "09:50",
+        "end_hm": "12:00",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-27",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 7,
+        "date": "2026-10-27",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 0",
+        "lecturer": "",
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 8,
+        "date": "2026-10-27",
+        "start": "16:00",
+        "end": "17:30",
+        "title": "Lerngruppe Testmathematik alle 2 Wochen",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 4,
+        "date": "2026-10-27",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": "attend"
+       }
+      ],
+      "packages": [
+       {
+        "id": 3,
+        "date": "2026-10-27",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Paket verschoben",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "verschoben",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "09:00",
+        "end_time": "10:00",
+        "color": "#111111"
+       }
+      ],
+      "free": [
+       {
+        "start": 570,
+        "end": 960,
+        "minutes": 390,
+        "start_hm": "09:30",
+        "end_hm": "16:00",
+        "campus": true
+       },
+       {
+        "start": 1050,
+        "end": 1080,
+        "minutes": 30,
+        "start_hm": "17:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-28",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-10-28",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 10,
+        "date": "2026-10-28",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik für Ingenieure",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 2,
+        "date": "2026-10-28",
+        "start": "08:30",
+        "end": "10:00",
+        "title": "Testphysik",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#00ff00",
+        "room": "Neuer Raum",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": "edit"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-29",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-10-29",
+        "start": "12:15",
+        "end": "13:45",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 1,
+        "date": "2026-10-29",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Paket A",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "12:00",
+        "end_time": "13:00",
+        "color": "#111111"
+       },
+       {
+        "id": 2,
+        "date": "2026-10-29",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Paket B",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "in_bearbeitung",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "15:00",
+        "end_time": "16:00",
+        "color": "#222222"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 720,
+        "minutes": 240,
+        "start_hm": "08:00",
+        "end_hm": "12:00",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 900,
+        "minutes": 120,
+        "start_hm": "13:00",
+        "end_hm": "15:00",
+        "campus": false
+       },
+       {
+        "start": 960,
+        "end": 1020,
+        "minutes": 60,
+        "start_hm": "16:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-30",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 13,
+        "date": "2026-10-30",
+        "start": "09:00",
+        "end": "10:30",
+        "title": "Neuer Termin",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 3,
+        "date": "2026-10-30",
+        "start": "10:00",
+        "end": "13:00",
+        "title": "Laborpraktikum Test",
+        "kind": "labor",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Labor 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "verschoben",
+        "permanent_skip": false,
+        "exception": "moved",
+        "moved_to": "2026-10-31"
+       },
+       {
+        "event_id": 12,
+        "date": "2026-10-30",
+        "start": "18:00",
+        "end": "20:00",
+        "title": "Chor",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 6,
+        "date": "2026-10-30",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Paket ohne Zeit",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": null,
+        "end_time": null,
+        "color": "#222222"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 630,
+        "end": 1080,
+        "minutes": 450,
+        "start_hm": "10:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1220,
+        "end": 1260,
+        "minutes": 40,
+        "start_hm": "20:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-31",
+      "weekday": 5,
+      "events": [
+       {
+        "event_id": 3,
+        "date": "2026-10-31",
+        "start": "10:00",
+        "end": "13:00",
+        "title": "Laborpraktikum Test",
+        "kind": "labor",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Labor 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": "moved_here",
+        "moved_from": "2026-10-30"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 580,
+        "minutes": 100,
+        "start_hm": "08:00",
+        "end_hm": "09:40",
+        "campus": false
+       },
+       {
+        "start": 800,
+        "end": 1260,
+        "minutes": 460,
+        "start_hm": "13:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-01",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-11-09",
+   "status": 200,
+   "response": {
+    "start": "2026-11-09",
+    "end": "2026-11-15",
+    "days": [
+     {
+      "date": "2026-11-09",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 14,
+        "date": "2026-11-09",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Veranstaltung",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 1,
+        "date": "2026-11-09",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 570,
+        "end": 600,
+        "minutes": 30,
+        "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-10",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 8,
+        "date": "2026-11-10",
+        "start": "16:00",
+        "end": "17:30",
+        "title": "Lerngruppe Testmathematik alle 2 Wochen",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 4,
+        "date": "2026-11-10",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 940,
+        "minutes": 460,
+        "start_hm": "08:00",
+        "end_hm": "15:40",
+        "campus": false
+       },
+       {
+        "start": 1050,
+        "end": 1080,
+        "minutes": 30,
+        "start_hm": "17:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-11",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-11-11",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 2,
+        "date": "2026-11-11",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#00ff00",
+        "room": "Neuer Raum",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "nicht_teilnahme",
+        "permanent_skip": false,
+        "exception": "skip"
+       },
+       {
+        "event_id": 10,
+        "date": "2026-11-11",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik für Ingenieure",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 605,
+        "end": 1260,
+        "minutes": 655,
+        "start_hm": "10:05",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-12",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-11-12",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "verschoben",
+        "permanent_skip": true,
+        "exception": "moved",
+        "moved_to": "2026-11-13"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-13",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-11-13",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": "moved_here",
+        "moved_from": "2026-11-12"
+       },
+       {
+        "event_id": 13,
+        "date": "2026-11-13",
+        "start": "09:00",
+        "end": "10:30",
+        "title": "Neuer Termin",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 12,
+        "date": "2026-11-13",
+        "start": "18:00",
+        "end": "20:00",
+        "title": "Chor",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 630,
+        "end": 1080,
+        "minutes": 450,
+        "start_hm": "10:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1220,
+        "end": 1260,
+        "minutes": 40,
+        "start_hm": "20:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-14",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-15",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-11-16",
+   "status": 200,
+   "response": {
+    "start": "2026-11-16",
+    "end": "2026-11-22",
+    "days": [
+     {
+      "date": "2026-11-16",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 14,
+        "date": "2026-11-16",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Veranstaltung",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 16,
+        "date": "2026-11-16",
+        "start": "10:15",
+        "end": "11:45",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 570,
+        "end": 615,
+        "minutes": 45,
+        "start_hm": "09:30",
+        "end_hm": "10:15",
+        "campus": true
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-17",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 4,
+        "date": "2026-11-17",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1060,
+        "minutes": 580,
+        "start_hm": "08:00",
+        "end_hm": "17:40",
+        "campus": false
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-18",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-11-18",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 485,
+        "end": 1260,
+        "minutes": 775,
+        "start_hm": "08:05",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-19",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-11-19",
+        "start": "12:15",
+        "end": "13:45",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-20",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 13,
+        "date": "2026-11-20",
+        "start": "09:00",
+        "end": "10:30",
+        "title": "Neuer Termin",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 650,
+        "end": 1260,
+        "minutes": 610,
+        "start_hm": "10:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-21",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-22",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/timetable/events/3",
+   "status": 200,
+   "response": {
+    "ok": true
+   }
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/timetable/events/999",
+   "status": 200,
+   "response": {
+    "ok": true
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/events",
+   "status": 200,
+   "response": [
+    {
+     "id": 14,
+     "module_id": null,
+     "course_id": null,
+     "title": "Veranstaltung",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "08:00",
+     "end_time": "09:30",
+     "room": "",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": null
+    },
+    {
+     "id": 1,
+     "module_id": 1,
+     "course_id": "k-ma-vl",
+     "title": "Testmathematik I",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "10:00",
+     "end_time": "11:30",
+     "room": "Hörsaal 1, Gebäude 3",
+     "lecturer": "Prof. Beispiel",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": "2026-11-15",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": "Testmathematik I"
+    },
+    {
+     "id": 16,
+     "module_id": 1,
+     "course_id": "k-ma-vl",
+     "title": "Testmathematik I",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "10:15",
+     "end_time": "11:45",
+     "room": "Hörsaal 1, Gebäude 3",
+     "lecturer": "Prof. Beispiel",
+     "rrule": "weekly",
+     "date_from": "2026-11-16",
+     "date_to": null,
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": "Testmathematik I"
+    },
+    {
+     "id": 7,
+     "module_id": 3,
+     "course_id": "k-prog-ue",
+     "title": "Gruppenübung Programmierkurs Beispiel",
+     "kind": "uebung",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:30",
+     "room": "Pool 0",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-20",
+     "date_to": "2026-11-03",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": "Programmierkurs Beispiel"
+    },
+    {
+     "id": 8,
+     "module_id": 1,
+     "course_id": null,
+     "title": "Lerngruppe Testmathematik alle 2 Wochen",
+     "kind": "vorlesung",
+     "weekday": 1,
+     "start_time": "16:00",
+     "end_time": "17:30",
+     "room": "",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": "Testmathematik I"
+    },
+    {
+     "id": 4,
+     "module_id": null,
+     "course_id": null,
+     "title": "Sport (nicht besucht)",
+     "kind": "sonstiges",
+     "weekday": 1,
+     "start_time": "18:00",
+     "end_time": "19:30",
+     "room": "",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "personal",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": null
+    },
+    {
+     "id": 9,
+     "module_id": null,
+     "course_id": null,
+     "title": "Termin",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "07:00",
+     "end_time": "07:45",
+     "room": "",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": null
+    },
+    {
+     "id": 15,
+     "module_id": null,
+     "course_id": null,
+     "title": "Text-Wochentag",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:00",
+     "end_time": "09:30",
+     "room": "",
+     "lecturer": "",
+     "rrule": "once",
+     "date_from": "2026-11-04",
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": null
+    },
+    {
+     "id": 2,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "Neuer Raum",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-14",
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": "#00ff00",
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": "Testphysik"
+    },
+    {
+     "id": 10,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik für Ingenieure",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-14",
+     "date_to": "2026-11-11",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": "Testphysik"
+    },
+    {
+     "id": 5,
+     "module_id": 1,
+     "course_id": "k-ma-ue",
+     "title": "Übung zu Testmathematik I",
+     "kind": "uebung",
+     "weekday": 3,
+     "start_time": "12:15",
+     "end_time": "13:45",
+     "room": "Raum C",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-19",
+     "date_to": "2026-12-17",
+     "attend": 0,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-01T09:00:00",
+     "module_name": "Testmathematik I"
+    },
+    {
+     "id": 13,
+     "module_id": 2,
+     "course_id": null,
+     "title": "Neuer Termin",
+     "kind": "vorlesung",
+     "weekday": 4,
+     "start_time": "09:00",
+     "end_time": "10:30",
+     "room": "",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "manual",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": "Testphysik"
+    },
+    {
+     "id": 11,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik für Ingenieure",
+     "kind": "vorlesung",
+     "weekday": 4,
+     "start_time": "10:00",
+     "end_time": "11:00",
+     "room": "Raum B",
+     "lecturer": "",
+     "rrule": "once",
+     "date_from": "2026-10-16",
+     "date_to": "2026-10-16",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": "Testphysik"
+    },
+    {
+     "id": 12,
+     "module_id": null,
+     "course_id": null,
+     "title": "Chor",
+     "kind": "vorlesung",
+     "weekday": 4,
+     "start_time": "18:00",
+     "end_time": "20:00",
+     "room": "",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05",
+     "module_name": null
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/conflicts",
+   "status": 200,
+   "response": [
+    {
+     "date": "2026-11-03",
+     "package_id": 5,
+     "subject": "Programmierkurs Beispiel",
+     "title": "Paket D",
+     "slot": "10:30–11:00",
+     "event": "Testmathematik I",
+     "event_time": "10:00–11:30"
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/confirm",
+   "status": 200,
+   "response": {
+    "new": 0,
+    "updated": 0,
+    "removed": 2,
+    "conflicts": []
+   },
+   "body": {
+    "entries": [],
+    "remove_ids": "12",
+    "source": "ics"
+   }
+  }
+ ],
+ "tables_after": {
+  "course_events": [
+   {
+    "id": 4,
+    "module_id": null,
+    "course_id": null,
+    "title": "Sport (nicht besucht)",
+    "kind": "sonstiges",
+    "weekday": 1,
+    "start_time": "18:00",
+    "end_time": "19:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "personal",
+    "color": null,
+    "created_at": "2026-10-01T09:00:00"
+   },
+   {
+    "id": 5,
+    "module_id": 1,
+    "course_id": "k-ma-ue",
+    "title": "Übung zu Testmathematik I",
+    "kind": "uebung",
+    "weekday": 3,
+    "start_time": "12:15",
+    "end_time": "13:45",
+    "room": "Raum C",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": "2026-10-19",
+    "date_to": "2026-12-17",
+    "attend": 0,
+    "source": "studip",
+    "color": null,
+    "created_at": "2026-10-01T09:00:00"
+   },
+   {
+    "id": 7,
+    "module_id": 3,
+    "course_id": "k-prog-ue",
+    "title": "Gruppenübung Programmierkurs Beispiel",
+    "kind": "uebung",
+    "weekday": 1,
+    "start_time": "08:00",
+    "end_time": "09:30",
+    "room": "Pool 0",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": "2026-10-20",
+    "date_to": "2026-11-03",
+    "attend": 1,
+    "source": "studip",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 8,
+    "module_id": 1,
+    "course_id": null,
+    "title": "Lerngruppe Testmathematik alle 2 Wochen",
+    "kind": "vorlesung",
+    "weekday": 1,
+    "start_time": "16:00",
+    "end_time": "17:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "biweekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "studip",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 9,
+    "module_id": null,
+    "course_id": null,
+    "title": "Termin",
+    "kind": "vorlesung",
+    "weekday": 2,
+    "start_time": "07:00",
+    "end_time": "07:45",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "studip",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 10,
+    "module_id": 2,
+    "course_id": "k-ph",
+    "title": "Testphysik für Ingenieure",
+    "kind": "vorlesung",
+    "weekday": 2,
+    "start_time": "08:15",
+    "end_time": "09:45",
+    "room": "",
+    "lecturer": "",
+    "rrule": "biweekly",
+    "date_from": "2026-10-14",
+    "date_to": "2026-11-11",
+    "attend": 1,
+    "source": "studip",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 11,
+    "module_id": 2,
+    "course_id": "k-ph",
+    "title": "Testphysik für Ingenieure",
+    "kind": "vorlesung",
+    "weekday": 4,
+    "start_time": "10:00",
+    "end_time": "11:00",
+    "room": "Raum B",
+    "lecturer": "",
+    "rrule": "once",
+    "date_from": "2026-10-16",
+    "date_to": "2026-10-16",
+    "attend": 1,
+    "source": "studip",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 12,
+    "module_id": null,
+    "course_id": null,
+    "title": "Chor",
+    "kind": "vorlesung",
+    "weekday": 4,
+    "start_time": "18:00",
+    "end_time": "20:00",
+    "room": "",
+    "lecturer": "",
+    "rrule": "biweekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "studip",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 13,
+    "module_id": 2,
+    "course_id": null,
+    "title": "Neuer Termin",
+    "kind": "vorlesung",
+    "weekday": 4,
+    "start_time": "09:00",
+    "end_time": "10:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "manual",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 14,
+    "module_id": null,
+    "course_id": null,
+    "title": "Veranstaltung",
+    "kind": "vorlesung",
+    "weekday": 0,
+    "start_time": "08:00",
+    "end_time": "09:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": null,
+    "date_to": null,
+    "attend": 1,
+    "source": "manual",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 15,
+    "module_id": null,
+    "course_id": null,
+    "title": "Text-Wochentag",
+    "kind": "vorlesung",
+    "weekday": 2,
+    "start_time": "08:00",
+    "end_time": "09:30",
+    "room": "",
+    "lecturer": "",
+    "rrule": "once",
+    "date_from": "2026-11-04",
+    "date_to": null,
+    "attend": 1,
+    "source": "manual",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 16,
+    "module_id": 1,
+    "course_id": "k-ma-vl",
+    "title": "Testmathematik I",
+    "kind": "vorlesung",
+    "weekday": 0,
+    "start_time": "10:15",
+    "end_time": "11:45",
+    "room": "Hörsaal 1, Gebäude 3",
+    "lecturer": "Prof. Beispiel",
+    "rrule": "weekly",
+    "date_from": "2026-11-16",
+    "date_to": null,
+    "attend": 1,
+    "source": "studip",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   }
+  ],
+  "event_exceptions": [
+   {
+    "id": 4,
+    "event_id": 4,
+    "date": "2026-10-27",
+    "type": "attend",
+    "new_date": null,
+    "new_start": null,
+    "new_end": null,
+    "note": "",
+    "created_at": "2026-10-02T09:00:00"
+   },
+   {
+    "id": 7,
+    "event_id": 5,
+    "date": "2026-11-05",
+    "type": "edit",
+    "new_date": null,
+    "new_start": "13:00",
+    "new_end": "14:30",
+    "note": "einzeln bearbeitet",
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 9,
+    "event_id": 5,
+    "date": "2026-11-12",
+    "type": "moved",
+    "new_date": "2026-11-13",
+    "new_start": "08:00",
+    "new_end": "09:30",
+    "note": "",
+    "created_at": "2026-10-25T14:30:05"
+   }
+  ],
+  "schedule_imports": [
+   {
+    "id": 1,
+    "source": "studip",
+    "created_at": "2026-10-25T14:30:05",
+    "status": "confirmed",
+    "raw": "",
+    "parsed": [
+     {
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "11:30",
+      "room": "Hörsaal 1, Gebäude 3",
+      "rrule": "weekly",
+      "date_from": "2026-10-19",
+      "date_to": "2026-11-09",
+      "module_id": 1,
+      "course_id": "k-ma-vl",
+      "uncertain": false,
+      "count": 4,
+      "group_slots": 1,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 1,
+      "start_time": "08:00",
+      "end_time": "09:30",
+      "room": "Pool 0",
+      "rrule": "weekly",
+      "date_from": "2026-10-20",
+      "date_to": "2026-11-03",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": false,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 1,
+      "start_time": "10:00",
+      "end_time": "11:30",
+      "room": "Pool 1",
+      "rrule": "weekly",
+      "date_from": "2026-10-20",
+      "date_to": "2026-11-03",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": false,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Lerngruppe Testmathematik alle 2 Wochen",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "16:00",
+      "end_time": "17:30",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": 1,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Termin",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "07:00",
+      "end_time": "07:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "Testphysik für Ingenieure",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:15",
+      "end_time": "09:45",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": "2026-10-14",
+      "date_to": "2026-11-11",
+      "module_id": 2,
+      "course_id": "k-ph",
+      "uncertain": false,
+      "count": 3,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 2,
+      "start_time": "14:00",
+      "end_time": "15:30",
+      "room": "Pool 2",
+      "rrule": "weekly",
+      "date_from": "2026-10-21",
+      "date_to": "2026-11-04",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": false,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Übung zu Testmathematik I",
+      "kind": "uebung",
+      "weekday": 3,
+      "start_time": "12:15",
+      "end_time": "13:45",
+      "room": "Raum C",
+      "rrule": "once",
+      "date_from": "2026-10-22",
+      "date_to": "2026-10-22",
+      "module_id": 1,
+      "course_id": "k-ma-ue",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Übung zu Testmathematik I",
+      "kind": "uebung",
+      "weekday": 3,
+      "start_time": "12:15",
+      "end_time": "13:45",
+      "room": "Raum C",
+      "rrule": "once",
+      "date_from": "2026-10-29",
+      "date_to": "2026-10-29",
+      "module_id": 1,
+      "course_id": "k-ma-ue",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "weekday": 4,
+      "start_time": "08:00",
+      "end_time": "09:30",
+      "room": "Pool 3",
+      "rrule": "weekly",
+      "date_from": "2026-10-23",
+      "date_to": "2026-11-06",
+      "module_id": 3,
+      "course_id": "k-prog-ue",
+      "uncertain": true,
+      "count": 3,
+      "group_slots": 4,
+      "selected": false,
+      "hint": "4 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Testphysik für Ingenieure",
+      "kind": "vorlesung",
+      "weekday": 4,
+      "start_time": "10:00",
+      "end_time": "11:00",
+      "room": "Raum B",
+      "rrule": "once",
+      "date_from": "2026-10-16",
+      "date_to": "2026-10-16",
+      "module_id": 2,
+      "course_id": "k-ph",
+      "uncertain": false,
+      "group_slots": 2,
+      "selected": true,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Chor",
+      "kind": "vorlesung",
+      "weekday": 4,
+      "start_time": "18:00",
+      "end_time": "20:00",
+      "room": "",
+      "rrule": "biweekly",
+      "date_from": null,
+      "date_to": null,
+      "module_id": null,
+      "course_id": null,
+      "uncertain": false,
+      "selected": true,
+      "group_slots": 1,
+      "personal": true,
+      "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "Blockseminar Beispiel",
+      "kind": "seminar",
+      "weekday": 5,
+      "start_time": "09:00",
+      "end_time": "16:00",
+      "room": "Seminarraum",
+      "rrule": "once",
+      "date_from": "2026-11-07",
+      "date_to": "2026-11-07",
+      "module_id": 3,
+      "course_id": "k-block",
+      "uncertain": true,
+      "group_slots": 3,
+      "selected": false,
+      "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Blockseminar Beispiel",
+      "kind": "seminar",
+      "weekday": 5,
+      "start_time": "09:00",
+      "end_time": "16:00",
+      "room": "Seminarraum",
+      "rrule": "once",
+      "date_from": "2026-11-14",
+      "date_to": "2026-11-14",
+      "module_id": 3,
+      "course_id": "k-block",
+      "uncertain": true,
+      "group_slots": 3,
+      "selected": false,
+      "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "Blockseminar Beispiel",
+      "kind": "seminar",
+      "weekday": 6,
+      "start_time": "02:30",
+      "end_time": "03:30",
+      "room": "",
+      "rrule": "once",
+      "date_from": "2026-10-25",
+      "date_to": "2026-10-25",
+      "module_id": 3,
+      "course_id": "k-block",
+      "uncertain": true,
+      "group_slots": 3,
+      "selected": false,
+      "hint": "3 parallele Gruppen – nur deine Gruppe auswählen",
+      "module_guess_uncertain": false
+     }
+    ],
+    "confirmed": 1
+   },
+   {
+    "id": 2,
+    "source": "ics",
+    "created_at": "2026-10-25T14:30:05",
+    "status": "preview",
+    "raw": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs Physik – Vorlesung\r\nDTSTART:20261021T061500Z\r\nDTEND:20261021T074500Z\r\nRRULE:FREQ=WEEKLY;UNTIL=20270127T235959Z\r\nLOCATION:P 101\\, Haus 2\r\nEXDATE:20261223T071500Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Testmathematik I\r\nDTSTART;TZID=Europe/Berlin:20261019T101500\r\nDTEND;TZID=Europe/Berlin:20261019T114500\r\nRRULE:FREQ=WEEKLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+    "parsed": [
+     {
+      "title": "Testkurs Physik – Vorlesung",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:15",
+      "end_time": "09:45",
+      "room": "P 101, Haus 2",
+      "rrule": "weekly",
+      "date_from": "2026-10-21",
+      "date_to": "2027-01-27",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-23"
+      ],
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:15",
+      "end_time": "11:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-19",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "module_id": 1,
+      "module_guess_uncertain": false
+     }
+    ],
+    "confirmed": 0
+   },
+   {
+    "id": 3,
+    "source": "ics",
+    "created_at": "2026-10-25T14:30:05",
+    "status": "preview",
+    "raw": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs Upload – Vorlesung\r\nDTSTART:20261021T061500Z\r\nDTEND:20261021T074500Z\r\nRRULE:FREQ=WEEKLY;UNTIL=20270127T235959Z\r\nLOCATION:P 101\\, Haus 2\r\nEXDATE:20261223T071500Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Testmathematik I\r\nDTSTART;TZID=Europe/Berlin:20261019T101500\r\nDTEND;TZID=Europe/Berlin:20261019T114500\r\nRRULE:FREQ=WEEKLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+    "parsed": [
+     {
+      "title": "Testkurs Upload – Vorlesung",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:15",
+      "end_time": "09:45",
+      "room": "P 101, Haus 2",
+      "rrule": "weekly",
+      "date_from": "2026-10-21",
+      "date_to": "2027-01-27",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-23"
+      ],
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:15",
+      "end_time": "11:45",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-19",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "module_id": 1,
+      "module_guess_uncertain": false
+     }
+    ],
+    "confirmed": 0
+   }
+  ]
+ },
+ "dashboard_today": {
+  "events": [
+   {
+    "event_id": 6,
+    "date": "2026-10-25",
+    "start": "09:00",
+    "end": "10:00",
+    "title": "Sonntagstermin",
+    "kind": "sonstiges",
+    "module_id": null,
+    "module_name": null,
+    "color": "#4f5bd5",
+    "room": "",
+    "lecturer": "",
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null
+   }
+  ],
+  "free": [
+   {
+    "start": 480,
+    "end": 520,
+    "minutes": 40,
+    "start_hm": "08:00",
+    "end_hm": "08:40",
+    "campus": false
+   },
+   {
+    "start": 620,
+    "end": 900,
+    "minutes": 280,
+    "start_hm": "10:20",
+    "end_hm": "15:00",
+    "campus": false
+   },
+   {
+    "start": 990,
+    "end": 1260,
+    "minutes": 270,
+    "start_hm": "16:30",
+    "end_hm": "21:00",
+    "campus": false
+   }
+  ]
+ },
+ "ics": [
+  {
+   "name": "utc-sommer",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:UTC Sommer\r\nDTSTART:20261021T061500Z\r\nDTEND:20261021T074500Z\r\nRRULE:FREQ=WEEKLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "UTC Sommer",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "utc-winter",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:UTC Winter\r\nDTSTART:20261104T071500Z\r\nDTEND:20261104T084500Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "UTC Winter",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-11-04",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "utc-zeitumstellung",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Umstellung vorher\r\nDTSTART:20261025T003000Z\r\nDTEND:20261025T005959Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Umstellung nachher\r\nDTSTART:20261025T010000Z\r\nDTEND:20261025T013000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Umstellung vorher",
+     "kind": "vorlesung",
+     "weekday": 6,
+     "start_time": "02:30",
+     "end_time": "02:59",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-25",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "Umstellung nachher",
+     "kind": "vorlesung",
+     "weekday": 6,
+     "start_time": "02:00",
+     "end_time": "02:30",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-25",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "utc-maerz",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Maerz\r\nDTSTART:20270328T005900Z\r\nDTEND:20270328T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Maerz",
+     "kind": "vorlesung",
+     "weekday": 6,
+     "start_time": "01:59",
+     "end_time": "03:00",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2027-03-28",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "utc-mitternacht",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Nachtkurs\r\nDTSTART:20261105T233000Z\r\nDTEND:20261106T003000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Nachtkurs",
+     "kind": "vorlesung",
+     "weekday": 4,
+     "start_time": "00:30",
+     "end_time": "01:30",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-11-06",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "tzid-berlin",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Berlin\r\nDTSTART;TZID=Europe/Berlin:20261021T081500\r\nDTEND;TZID=Europe/Berlin:20261021T094500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Berlin",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "tzid-quoted",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Quoted\r\nDTSTART;TZID=\"Europe/Berlin\":20261021T081500\r\nDTEND;VALUE=DATE-TIME;TZID=\"Europe/Berlin\":20261021T094500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Quoted",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "tzid-utc",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:TZID UTC\r\nDTSTART;TZID=UTC:20261021T061500\r\nDTEND;TZID=Etc/UTC:20261021T074500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "TZID UTC",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "tzid-windows",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Windows\r\nDTSTART;TZID=W. Europe Standard Time:20261021T081500\r\nDTEND;TZID=W. Europe Standard Time:20261021T094500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Windows",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "tzid-newyork",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:New York\r\nDTSTART;TZID=America/New_York:20261021T101500\r\nDTEND;TZID=America/New_York:20261021T114500\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:New York Luecke\r\nDTSTART;TZID=America/New_York:20261028T101500\r\nDTEND;TZID=America/New_York:20261028T114500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "New York",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "16:15",
+     "end_time": "17:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "New York Luecke",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "15:15",
+     "end_time": "16:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-28",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "tzid-unbekannt",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Unbekannt\r\nDTSTART;TZID=Mars/Olympus:20261021T081500\r\nDTEND;TZID=GMT+1:20261021T094500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Unbekannt",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "rrule",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs Analysis – Übung\r\nDTSTART;TZID=Europe/Berlin:20261020T101500\r\nDTEND;TZID=Europe/Berlin:20261020T114500\r\nRRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL=20270126T225959Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Until vor Beginn\r\nDTSTART:20261020T091500Z\r\nDTEND:20261020T104500Z\r\nRRULE:FREQ=WEEKLY;UNTIL=20270126T235959Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Until gleicher Tag\r\nDTSTART;TZID=Europe/Berlin:20261020T101500\r\nDTEND;TZID=Europe/Berlin:20261020T114500\r\nRRULE:FREQ=WEEKLY;UNTIL=20270126T080000Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Until Datum\r\nDTSTART:20261020T101500\r\nDTEND:20261020T114500\r\nRRULE:FREQ=WEEKLY;UNTIL=20270126\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Intervall 02\r\nDTSTART:20261020T101500\r\nDTEND:20261020T114500\r\nRRULE:FREQ=WEEKLY;INTERVAL=02\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Taeglich Labor\r\nDTSTART:20261020T101500\r\nDTEND:20261020T114500\r\nRRULE:FREQ=DAILY;COUNT=5\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Testkurs Analysis – Übung",
+     "kind": "uebung",
+     "weekday": 1,
+     "start_time": "10:15",
+     "end_time": "11:45",
+     "room": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-20",
+     "date_to": "2027-01-26",
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "Until vor Beginn",
+     "kind": "vorlesung",
+     "weekday": 1,
+     "start_time": "11:15",
+     "end_time": "12:45",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-20",
+     "date_to": "2027-01-26",
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "Until gleicher Tag",
+     "kind": "vorlesung",
+     "weekday": 1,
+     "start_time": "10:15",
+     "end_time": "11:45",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-20",
+     "date_to": "2027-01-25",
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "Until Datum",
+     "kind": "vorlesung",
+     "weekday": 1,
+     "start_time": "10:15",
+     "end_time": "11:45",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-20",
+     "date_to": "2027-01-26",
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "Intervall 02",
+     "kind": "vorlesung",
+     "weekday": 1,
+     "start_time": "10:15",
+     "end_time": "11:45",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-20",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "Taeglich Labor",
+     "kind": "labor",
+     "weekday": 1,
+     "start_time": "10:15",
+     "end_time": "11:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-20",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "exdate",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs Mechanik\r\nDTSTART;TZID=Europe/Berlin:20261021T081500\r\nDTEND;TZID=Europe/Berlin:20261021T094500\r\nRRULE:FREQ=WEEKLY\r\nEXDATE;TZID=Europe/Berlin:20261104T081500,20261111T081500\r\nEXDATE:20261223T071500Z\r\nEXDATE;VALUE=DATE:20261230\r\nEXDATE:20261105T233000Z\r\nEXDATE:kaputt\r\nEXDATE;TZID=America/New_York:20261118T030000\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Testkurs Mechanik",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": [
+      "2026-11-04",
+      "2026-11-06",
+      "2026-11-11",
+      "2026-11-18",
+      "2026-12-23",
+      "2026-12-30"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ganztags",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Exkursion\r\nDTSTART;VALUE=DATE:20261106\r\nDTEND;VALUE=DATE:20261107\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Exkursion",
+     "kind": "vorlesung",
+     "weekday": 4,
+     "start_time": "00:00",
+     "end_time": "00:00",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-11-06",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "ohne-ende-und-kaputt",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Ohne Ende\r\nDTSTART:20261022T233000\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Ohne Beginn\r\nDTEND:20261021T094500Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Kaputt\r\nDTSTART:20260230T081500\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Kurz\r\nDTSTART:20261021T0815\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:Sekunde 60\r\nDTSTART:20261021T081560\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART:20261021T081500\r\nLOCATION:\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Ohne Ende",
+     "kind": "vorlesung",
+     "weekday": 3,
+     "start_time": "23:30",
+     "end_time": "01:00",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-22",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "Kurz",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:01",
+     "end_time": "09:31",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    },
+    {
+     "title": "Veranstaltung",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-21",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "faltung",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs mit langem\r\n  Titel\\, Teil 2\r\nDTSTART:20261021T081500Z\r\nDTEND:20261021T094500Z\r\nLOCATION:Raum 1\\, Haus 2\r\nDESCRIPTION:Zeit: 10:00\r\n\tweiter\r\ndtstart:20261022T081500\r\nX-LEER\r\nSUMMARY;LANGUAGE=de:Überschrieben\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Überschrieben",
+     "kind": "vorlesung",
+     "weekday": 3,
+     "start_time": "08:15",
+     "end_time": "11:45",
+     "room": "Raum 1, Haus 2",
+     "rrule": "once",
+     "date_from": "2026-10-22",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  },
+  {
+   "name": "verschachtelt",
+   "text": "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Erster\r\nDTSTART:20261021T081500\r\nBEGIN:VEVENT\r\nSUMMARY:Zweiter\r\nDTSTART:20261023T081500\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+   "entries": [
+    {
+     "title": "Zweiter",
+     "kind": "vorlesung",
+     "weekday": 4,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "rrule": "once",
+     "date_from": "2026-10-23",
+     "date_to": null,
+     "uncertain": false,
+     "exdates": []
+    }
+   ]
+  }
+ ],
+ "matcher": [
+  {
+   "a": "testkurs mathematik i",
+   "b": "mathematik i",
+   "ratio": 0.7272727272727273
+  },
+  {
+   "a": "",
+   "b": "",
+   "ratio": 1.0
+  },
+  {
+   "a": "abc",
+   "b": "",
+   "ratio": 0.0
+  },
+  {
+   "a": "übung zu testmathematik i",
+   "b": "testmathematik i",
+   "ratio": 0.7804878048780488
+  },
+  {
+   "a": "programmierkurs beispiel",
+   "b": "gruppenübung programmierkurs beispiel",
+   "ratio": 0.7868852459016393
+  },
+  {
+   "a": "abcd",
+   "b": "bcda",
+   "ratio": 0.75
+  },
+  {
+   "a": "aaaa",
+   "b": "aa",
+   "ratio": 0.6666666666666666
+  },
+  {
+   "a": "einführung in die testphysik",
+   "b": "testphysik für ingenieure",
+   "ratio": 0.37735849056603776
+  },
+  {
+   "a": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxabc",
+   "b": "yxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxabc",
+   "ratio": 0.985781990521327
+  },
+  {
+   "a": "abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab",
+   "b": "babababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababa",
+   "ratio": 0.0
+  },
+  {
+   "a": "é",
+   "b": "é",
+   "ratio": 0.0
+  },
+  {
+   "a": "qwertzuiop",
+   "b": "poiuztrewq",
+   "ratio": 0.1
+  }
+ ],
+ "guess_module": [
+  {
+   "title": "Testmathematik I",
+   "module_id": 1
+  },
+  {
+   "title": "Übung zu Testmathematik I",
+   "module_id": 1
+  },
+  {
+   "title": "Testphysik für Ingenieure",
+   "module_id": 2
+  },
+  {
+   "title": "Gruppenübung Programmierkurs Beispiel",
+   "module_id": 3
+  },
+  {
+   "title": "Lerngruppe Testmathematik alle 2 Wochen",
+   "module_id": 1
+  },
+  {
+   "title": "Chor",
+   "module_id": null
+  },
+  {
+   "title": "Termin",
+   "module_id": null
+  },
+  {
+   "title": "",
+   "module_id": 1
+  },
+  {
+   "title": "Programmier",
+   "module_id": 3
+  },
+  {
+   "title": "Physik",
+   "module_id": 2
+  },
+  {
+   "title": "TESTPHYSIK",
+   "module_id": 2
+  },
+  {
+   "title": "Beispiel Programmierkurs",
+   "module_id": 3
+  }
+ ],
+ "merge_weekly": [
+  {
+   "entries": [
+    {
+     "title": "A",
+     "weekday": 0,
+     "start_time": "10:00",
+     "end_time": "11:00",
+     "date_from": "2026-10-19",
+     "room": "R1"
+    },
+    {
+     "title": "A",
+     "weekday": 0,
+     "start_time": "10:00",
+     "end_time": "11:00",
+     "date_from": "2026-10-26",
+     "room": "R1"
+    },
+    {
+     "title": "A",
+     "weekday": 0,
+     "start_time": "10:00",
+     "end_time": "11:00",
+     "date_from": "2026-11-02",
+     "room": "R1"
+    }
+   ],
+   "merged": [
+    {
+     "title": "A",
+     "weekday": 0,
+     "start_time": "10:00",
+     "end_time": "11:00",
+     "date_from": "2026-10-19",
+     "room": "R1",
+     "rrule": "weekly",
+     "date_to": "2026-11-02",
+     "count": 3
+    }
+   ]
+  },
+  {
+   "entries": [
+    {
+     "title": "B",
+     "weekday": 2,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-11-11"
+    },
+    {
+     "title": "B",
+     "weekday": 2,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-14"
+    },
+    {
+     "title": "B",
+     "weekday": 2,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-28"
+    }
+   ],
+   "merged": [
+    {
+     "title": "B",
+     "weekday": 2,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-14",
+     "rrule": "biweekly",
+     "date_to": "2026-11-11",
+     "count": 3
+    }
+   ]
+  },
+  {
+   "entries": [
+    {
+     "title": "C",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-20"
+    },
+    {
+     "title": "C",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-20"
+    },
+    {
+     "title": "C",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-27"
+    },
+    {
+     "title": "D",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-20"
+    },
+    {
+     "title": "C",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:30",
+     "date_from": "2026-10-20"
+    }
+   ],
+   "merged": [
+    {
+     "title": "C",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-20",
+     "rrule": "weekly",
+     "date_to": "2026-10-27",
+     "count": 3
+    },
+    {
+     "title": "D",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-20"
+    },
+    {
+     "title": "C",
+     "weekday": 1,
+     "start_time": "08:00",
+     "end_time": "09:30",
+     "date_from": "2026-10-20"
+    }
+   ]
+  },
+  {
+   "entries": [
+    {
+     "title": "E",
+     "weekday": 3,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-22"
+    },
+    {
+     "title": "E",
+     "weekday": 3,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-11-05"
+    },
+    {
+     "title": "E",
+     "weekday": 3,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-11-12"
+    },
+    {
+     "title": "E",
+     "weekday": 3,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-11-26"
+    }
+   ],
+   "merged": [
+    {
+     "title": "E",
+     "weekday": 3,
+     "start_time": "08:00",
+     "end_time": "09:00",
+     "date_from": "2026-10-22",
+     "rrule": "weekly",
+     "date_to": "2026-11-26",
+     "count": 4
+    }
+   ]
+  }
+ ],
+ "auto_import": {
+  "first": {
+   "new": 8,
+   "pending_groups": 7
+  },
+  "second": {
+   "new": 0,
+   "pending_groups": 7
+  },
+  "tables": {
+   "course_events": [
+    {
+     "id": 7,
+     "module_id": 1,
+     "course_id": "k-ma-vl",
+     "title": "Testmathematik I",
+     "kind": "vorlesung",
+     "weekday": 0,
+     "start_time": "10:00",
+     "end_time": "11:30",
+     "room": "Hörsaal 1, Gebäude 3",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-19",
+     "date_to": "2026-11-09",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    },
+    {
+     "id": 8,
+     "module_id": 1,
+     "course_id": null,
+     "title": "Lerngruppe Testmathematik alle 2 Wochen",
+     "kind": "vorlesung",
+     "weekday": 1,
+     "start_time": "16:00",
+     "end_time": "17:30",
+     "room": "",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    },
+    {
+     "id": 9,
+     "module_id": null,
+     "course_id": null,
+     "title": "Termin",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "07:00",
+     "end_time": "07:45",
+     "room": "",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    },
+    {
+     "id": 10,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik für Ingenieure",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": "2026-10-14",
+     "date_to": "2026-11-11",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    },
+    {
+     "id": 11,
+     "module_id": 1,
+     "course_id": "k-ma-ue",
+     "title": "Übung zu Testmathematik I",
+     "kind": "uebung",
+     "weekday": 3,
+     "start_time": "12:15",
+     "end_time": "13:45",
+     "room": "Raum C",
+     "lecturer": "",
+     "rrule": "once",
+     "date_from": "2026-10-22",
+     "date_to": "2026-10-22",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    },
+    {
+     "id": 12,
+     "module_id": 1,
+     "course_id": "k-ma-ue",
+     "title": "Übung zu Testmathematik I",
+     "kind": "uebung",
+     "weekday": 3,
+     "start_time": "12:15",
+     "end_time": "13:45",
+     "room": "Raum C",
+     "lecturer": "",
+     "rrule": "once",
+     "date_from": "2026-10-29",
+     "date_to": "2026-10-29",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    },
+    {
+     "id": 13,
+     "module_id": 2,
+     "course_id": "k-ph",
+     "title": "Testphysik für Ingenieure",
+     "kind": "vorlesung",
+     "weekday": 4,
+     "start_time": "10:00",
+     "end_time": "11:00",
+     "room": "Raum B",
+     "lecturer": "",
+     "rrule": "once",
+     "date_from": "2026-10-16",
+     "date_to": "2026-10-16",
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    },
+    {
+     "id": 14,
+     "module_id": null,
+     "course_id": null,
+     "title": "Chor",
+     "kind": "vorlesung",
+     "weekday": 4,
+     "start_time": "18:00",
+     "end_time": "20:00",
+     "room": "",
+     "lecturer": "",
+     "rrule": "biweekly",
+     "date_from": null,
+     "date_to": null,
+     "attend": 1,
+     "source": "studip",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    }
+   ],
+   "event_exceptions": [],
+   "schedule_imports": [
+    {
+     "id": 1,
+     "source": "studip-auto",
+     "created_at": "2026-10-25T14:30:05",
+     "status": "auto",
+     "raw": "",
+     "parsed": [
+      {
+       "title": "Testmathematik I",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "10:00",
+       "end_time": "11:30",
+       "room": "Hörsaal 1, Gebäude 3",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": "2026-11-09",
+       "module_id": 1,
+       "course_id": "k-ma-vl",
+       "uncertain": false,
+       "count": 4,
+       "group_slots": 1,
+       "selected": true,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Lerngruppe Testmathematik alle 2 Wochen",
+       "kind": "vorlesung",
+       "weekday": 1,
+       "start_time": "16:00",
+       "end_time": "17:30",
+       "room": "",
+       "rrule": "biweekly",
+       "date_from": null,
+       "date_to": null,
+       "module_id": 1,
+       "course_id": null,
+       "uncertain": false,
+       "selected": true,
+       "group_slots": 1,
+       "personal": true,
+       "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Termin",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "07:00",
+       "end_time": "07:45",
+       "room": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "module_id": null,
+       "course_id": null,
+       "uncertain": false,
+       "selected": true,
+       "group_slots": 1,
+       "personal": true,
+       "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+       "module_guess_uncertain": true
+      },
+      {
+       "title": "Testphysik für Ingenieure",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "",
+       "rrule": "biweekly",
+       "date_from": "2026-10-14",
+       "date_to": "2026-11-11",
+       "module_id": 2,
+       "course_id": "k-ph",
+       "uncertain": false,
+       "count": 3,
+       "group_slots": 2,
+       "selected": true,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Übung zu Testmathematik I",
+       "kind": "uebung",
+       "weekday": 3,
+       "start_time": "12:15",
+       "end_time": "13:45",
+       "room": "Raum C",
+       "rrule": "once",
+       "date_from": "2026-10-22",
+       "date_to": "2026-10-22",
+       "module_id": 1,
+       "course_id": "k-ma-ue",
+       "uncertain": false,
+       "group_slots": 2,
+       "selected": true,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Übung zu Testmathematik I",
+       "kind": "uebung",
+       "weekday": 3,
+       "start_time": "12:15",
+       "end_time": "13:45",
+       "room": "Raum C",
+       "rrule": "once",
+       "date_from": "2026-10-29",
+       "date_to": "2026-10-29",
+       "module_id": 1,
+       "course_id": "k-ma-ue",
+       "uncertain": false,
+       "group_slots": 2,
+       "selected": true,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Testphysik für Ingenieure",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "10:00",
+       "end_time": "11:00",
+       "room": "Raum B",
+       "rrule": "once",
+       "date_from": "2026-10-16",
+       "date_to": "2026-10-16",
+       "module_id": 2,
+       "course_id": "k-ph",
+       "uncertain": false,
+       "group_slots": 2,
+       "selected": true,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "Chor",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "18:00",
+       "end_time": "20:00",
+       "room": "",
+       "rrule": "biweekly",
+       "date_from": null,
+       "date_to": null,
+       "module_id": null,
+       "course_id": null,
+       "uncertain": false,
+       "selected": true,
+       "group_slots": 1,
+       "personal": true,
+       "hint": "persönlicher Eintrag aus deinem Stud.IP-Stundenplan",
+       "module_guess_uncertain": true
+      }
+     ],
+     "confirmed": 1
+    },
+    {
+     "id": 2,
+     "source": "studip-auto",
+     "created_at": "2026-10-25T14:30:05",
+     "status": "auto",
+     "raw": "",
+     "parsed": [],
+     "confirmed": 1
+    }
+   ]
+  }
+ }
+}

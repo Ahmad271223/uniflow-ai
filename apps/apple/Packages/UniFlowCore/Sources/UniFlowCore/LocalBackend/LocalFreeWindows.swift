@@ -1,24 +1,71 @@
 import Foundation
 
-/// Freie Zeitfenster wie `timetable.free_windows` in app/timetable.py, solange es lokal noch keine Termine und
-/// Lernpakete gibt (Termine mit S5, Lernpakete mit S6): Lernbeginn bis Lernende abzueglich der Sperrzeiten des
-/// Wochentags. Ohne Campus-Termine entfallen die Fahrtzeiten, `campus` ist immer false. Ergebnisgleichheit mit
-/// Python prueft `LocalFreeWindowsTests` (Fixture timetable-free.json).
+/// Freie Zeitfenster wie `timetable.free_windows` in app/timetable.py: Lernbeginn bis Lernende abzueglich der
+/// belegten Bloecke (`busy_blocks`: besuchte Hochschultermine, Sperrzeiten des Wochentags, schon geplante
+/// Lernslots) und der Fahrtzeit vor dem ersten und nach dem letzten Campus-Termin. `campus` ist wahr, wenn das
+/// Fenster zwischen zwei Campus-Terminen liegt. Ergebnisgleichheit mit Python: `LocalFreeWindowsTests`
+/// (timetable-free.json, nur Sperrzeiten) und `LocalTimetableTests` (timetable-logic.json, mit Terminen und Paketen).
 enum LocalFreeWindows {
-    /// `free_windows(conn, d, s)` ohne Termine und Lernpakete
+    /// Belegter Block eines Tages (`busy_blocks`)
+    struct Block {
+        let start: Int
+        let end: Int
+        /// event | blocked | study | travel
+        let kind: String
+        let campus: Bool
+    }
+
+    /// `free_windows(conn, d, s, include_packages)`
+    static func compute(_ c: SQLiteConnection, day: Int, settings s: [String: JSONValue], includePackages: Bool = true) throws -> [JSONValue] {
+        let (lo, hi) = (try hm(s["learn_start"], key: "learn_start"), try hm(s["learn_end"], key: "learn_end"))
+        return try windows(lo: lo, hi: hi, blocks: try busyBlocks(c, day: day, settings: s, includePackages: includePackages), settings: s)
+    }
+
+    /// Nur mit Sperrzeiten, ohne Datenbank (keine Termine, keine Lernslots)
     static func compute(day: Int, settings s: [String: JSONValue]) throws -> [JSONValue] {
-        let lo = try hm(s["learn_start"], key: "learn_start")
-        let hi = try hm(s["learn_end"], key: "learn_end")
-        // busy_blocks: nur die Sperrzeiten des Wochentags, nach Beginn sortiert (stabil wie sorted in Python)
-        var blocks: [(start: Int, end: Int)] = []
-        for b in LocalPending.blocked(day, settings: s).array ?? [] {
+        let (lo, hi) = (try hm(s["learn_start"], key: "learn_start"), try hm(s["learn_end"], key: "learn_end"))
+        return try windows(lo: lo, hi: hi, blocks: try blockedBlocks(day, settings: s), settings: s)
+    }
+
+    /// `busy_blocks(conn, d, settings, include_packages)`, nach Beginn sortiert (stabil wie `sorted` in Python)
+    static func busyBlocks(_ c: SQLiteConnection, day: Int, settings s: [String: JSONValue], includePackages: Bool = true) throws -> [Block] {
+        var blocks: [Block] = []
+        for o in try LocalTimetable.occurrences(c, from: day, to: day) where o["status"] == "teilnahme" {
+            blocks.append(Block(start: try hm(o["start"], key: "start"), end: try hm(o["end"], key: "end"), kind: "event", campus: true))
+        }
+        blocks += try blockedBlocks(day, settings: s)
+        if includePackages {
+            for p in try c.rows("SELECT start_time, end_time, subject FROM study_packages WHERE date=? AND start_time IS NOT NULL AND status NOT IN ('verschoben','uebersprungen')",
+                                [.text(LocalTimetable.iso(day))]) {
+                blocks.append(Block(start: try hm(p["start_time"], key: "start_time"), end: try hm(p["end_time"], key: "end_time"),
+                                    kind: "study", campus: false))
+            }
+        }
+        return LocalTimetable.stableSorted(blocks) { $0.start < $1.start }
+    }
+
+    /// Sperrzeiten des Wochentags als Bloecke
+    static func blockedBlocks(_ day: Int, settings s: [String: JSONValue]) throws -> [Block] {
+        try LocalTimetable.blocked(day, settings: s).map { b in
             // b["start"] fehlt -> KeyError in Python (500); null zaehlt wie "00:00"
             guard let start = b["start"], let end = b["end"] else {
                 throw LocalHTTPError(status: 500, message: "Sperrzeit ohne Beginn oder Ende")
             }
-            blocks.append((try hm(start, key: "blocked_times"), try hm(end, key: "blocked_times")))
+            return Block(start: try hm(start, key: "blocked_times"), end: try hm(end, key: "blocked_times"), kind: "blocked", campus: false)
         }
-        blocks = blocks.enumerated().sorted { ($0.element.start, $0.offset) < ($1.element.start, $1.offset) }.map(\.element)
+    }
+
+    /// Rest von `free_windows`: Fahrtzeiten, Luecken zwischen den Bloecken, Mindestlaenge, Campus-Merkmal
+    static func windows(lo: Int, hi: Int, blocks busy: [Block], settings s: [String: JSONValue]) throws -> [JSONValue] {
+        var blocks = busy
+        let travel = s["travel_minutes"]?.int ?? 30
+        let campus = blocks.filter { $0.kind == "event" }
+        // Fahrtzeit: vor dem ersten und nach dem letzten Campus-Termin (erster und letzter nach Beginn)
+        if let first = campus.first, let last = campus.last {
+            blocks.append(Block(start: first.start - travel, end: first.start, kind: "travel", campus: false))
+            blocks.append(Block(start: last.end, end: last.end + travel, kind: "travel", campus: false))
+        }
+        blocks = LocalTimetable.stableSorted(blocks) { $0.start < $1.start }
 
         var windows: [(start: Int, end: Int)] = []
         var cur = lo
@@ -32,8 +79,9 @@ enum LocalFreeWindows {
 
         let minSlot = s["min_slot_minutes"]?.int ?? 30
         return windows.filter { $0.end - $0.start >= minSlot }.map { w in
-            ["start": .number(Double(w.start)), "end": .number(Double(w.end)), "minutes": .number(Double(w.end - w.start)),
-             "start_hm": .string(mh(w.start)), "end_hm": .string(mh(w.end)), "campus": false]
+            let onCampus = campus.contains { $0.end <= w.start } && campus.contains { $0.start >= w.end }
+            return ["start": .number(Double(w.start)), "end": .number(Double(w.end)), "minutes": .number(Double(w.end - w.start)),
+                    "start_hm": .string(mh(w.start)), "end_hm": .string(mh(w.end)), "campus": .bool(onCampus)]
         }
     }
 
@@ -42,7 +90,7 @@ enum LocalFreeWindows {
     static func hm(_ value: JSONValue?, key: String) throws -> Int {
         let v = value ?? .null
         let text: String
-        if !LocalPending.truthy(v) {
+        if !LocalTimetable.truthy(v) {
             text = "00:00"
         } else if let s = v.string {
             text = s
