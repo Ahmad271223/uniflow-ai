@@ -58,25 +58,41 @@ enum PDFExporter {
         return cleaned.isEmpty ? "Dokument" : String(cleaned.prefix(80))
     }
 
-    /// Laengster Dateiname in UTF-8-Byte (APFS und die meisten Dateisysteme: 255; die Grenze von 255
-    /// UTF-16-Einheiten ist damit ebenfalls eingehalten).
+    /// Laengster Dateiname in UTF-8-Byte, unzerlegt (Grenze vieler Ziele beim Weitergeben, z. B. ext4).
     static let maxFileNameBytes = 255
+    /// Laengster Dateiname in UTF-16-Einheiten nach der Zerlegung (APFS auf iPad und Mac, nachgemessen: der Name
+    /// wird beim Schreiben kanonisch zerlegt, erlaubt sind danach 255 UTF-16-Einheiten). Kann enger sein als die
+    /// Bytegrenze, z. B. "ǜ" (2 Byte, zerlegt 3 Einheiten) oder "ᾂ" (3 Byte, zerlegt 4 Einheiten).
+    static let maxFileNameUnits = 255
+
+    /// Laenge im Dateisystem in UTF-16-Einheiten: je Unicode-Skalar die groessere Zahl von unzerlegt und kanonisch
+    /// zerlegt (NFD). Das Dateisystem zerlegt nicht alles (z. B. CJK-Kompatibilitaetszeichen U+2F800 ff. bleiben
+    /// ganz), die groessere Zahl ist daher immer eine sichere Obergrenze.
+    static func fileSystemUnits<S: StringProtocol>(_ s: S) -> Int {
+        s.unicodeScalars.reduce(0) { n, scalar in
+            let decomposed = String(scalar).decomposedStringWithCanonicalMapping.utf16.count
+            return n + max(scalar.utf16.count, decomposed)
+        }
+    }
 
     /// Dateiname aus Titel und Endung (z. B. " – Notizen.pdf"): Titel wie `safeFileName`, der ganze Name hoechstens
-    /// `maxFileNameBytes` UTF-8-Byte. Gekuerzt wird nur zwischen Zeichen (Graphemen), Emoji und Umlaute bleiben
-    /// ganz; die Endung bleibt immer erhalten.
+    /// `maxFileNameBytes` UTF-8-Byte und `maxFileNameUnits` UTF-16-Einheiten nach der Zerlegung. Gekuerzt wird nur
+    /// zwischen Zeichen (Graphemen), Emoji und Umlaute bleiben ganz; die Endung bleibt immer erhalten.
     static func fileName(_ title: String, suffix: String) -> String {
         let stem = safeFileName(title)
-        let limit = maxFileNameBytes - suffix.utf8.count
-        guard stem.utf8.count > limit else { return stem + suffix }
+        let byteLimit = maxFileNameBytes - suffix.utf8.count
+        let unitLimit = maxFileNameUnits - fileSystemUnits(suffix)
         var end = stem.startIndex
-        var bytes = 0
+        var bytes = 0, units = 0
         for i in stem.indices {
-            let n = stem[i].utf8.count
-            guard bytes + n <= limit else { break }
-            bytes += n
+            let c = String(stem[i])
+            let b = c.utf8.count, u = fileSystemUnits(c)
+            guard bytes + b <= byteLimit, units + u <= unitLimit else { break }
+            bytes += b
+            units += u
             end = stem.index(after: i)
         }
+        guard end < stem.endIndex else { return stem + suffix }
         let kept = stem[..<end].trimmingCharacters(in: .whitespacesAndNewlines)
         return (kept.isEmpty ? "Dokument" : kept) + suffix
     }

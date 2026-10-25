@@ -44,6 +44,50 @@ struct SolutionSource: Sendable {
     }
 }
 
+/// Was der Dialog "Lösung teilen" zur Auswahl zeigt. Die Vorschau ist kein Teilen: sie enthaelt auch Seiten ohne
+/// Notizen, damit der Dialog nennt, warum etwas fehlt (ausgelassene Seite mit Grund, eingefuegte Seiten aus dem
+/// Browser, keine eigenen Notizen). Das Paket selbst entsteht nur mit eigenen Notizen (`SolutionSharing.content`).
+struct SolutionShareDraft: Sendable {
+    /// alle teilbaren Seiten ohne die ausgelassenen (auch ohne Notizen); `nil`, wenn keine Seite bleibt
+    let content: SolutionContent?
+    /// Vorauswahl: Seiten mit eigenen Notizen, ohne ausgelassene
+    let selection: Set<String>
+    /// eingefuegte Bild- und PDF-Seiten aus dem Browser (werden nie geteilt)
+    let assetPages: Int
+    /// Seiten, deren Objekte die Pruefungen nicht bestehen (mit Grund); sie fehlen in `content`
+    let problems: [SolutionBuilder.PageProblem]
+    /// Irgendeine Seite des Dokuments hat eigene Notizobjekte (auch eine ausgelassene oder eingefuegte).
+    let hasAnyOwnNotes: Bool
+
+    static func problemText(_ problem: SolutionBuilder.PageProblem) -> String {
+        "\(problem.label) lässt sich nicht teilen: \(problem.error.description)"
+    }
+
+    static func assetText(_ count: Int) -> String {
+        "Eingefügte Bild- und PDF-Seiten aus dem Browser werden nie geteilt (\(count))."
+    }
+
+    /// Meldung statt der Vorschau, wenn keine Seite teilbar ist: alle Gruende (ausgelassene und eingefuegte Seiten).
+    var unavailable: String? {
+        guard content == nil else { return nil }
+        let lines = problems.map(Self.problemText) + (assetPages > 0 ? [Self.assetText(assetPages)] : [])
+        return lines.isEmpty ? SolutionError.nothingSelected.description : lines.joined(separator: "\n")
+    }
+
+    /// Gewaehlte Seiten in Anzeigereihenfolge.
+    func chosen(_ selected: Set<String>) -> [SolutionPage] { content?.pages.filter { selected.contains($0.key) } ?? [] }
+
+    /// Teilen ist moeglich: mindestens eine gewaehlte Seite hat eigene Notizobjekte.
+    func canShare(_ selected: Set<String>) -> Bool { chosen(selected).contains { !$0.objects.isEmpty } }
+
+    /// Hinweis "keine eigenen Notizen": gewaehlte Seiten ohne Notizen oder ein Dokument ganz ohne eigene Notizen.
+    /// Liegen Notizen nur auf ausgelassenen oder eingefuegten Seiten, nennt der Dialog stattdessen diese Gruende.
+    func showsNoOwnNotes(_ selected: Set<String>) -> Bool {
+        guard content != nil, !canShare(selected) else { return false }
+        return !selected.isEmpty || !hasAnyOwnNotes
+    }
+}
+
 /// Ergebnis beim Laden der passenden Loesungen fuer ein Dokument.
 struct SolutionLayerLoad {
     /// Loesung, die nicht angezeigt wird (nichts davon erscheint, auch nicht teilweise).
@@ -117,15 +161,30 @@ enum SolutionSharing {
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
     }
 
-    /// Inhalt fuer die gewaehlten Seiten (reines Notizmodell, laeuft auf jedem Thread).
+    /// Inhalt fuer die gewaehlten Seiten (reines Notizmodell, laeuft auf jedem Thread). `requireOwnNotes: false`
+    /// nur fuer die Vorschau (`draft`), geteilt wird nie ein Inhalt ohne eigene Notizen.
     static func content(_ source: SolutionSource, keys: [String], displayName: String, solutionID: UUID = UUID(),
-                        createdAt: Date = Date()) throws -> SolutionContent {
+                        createdAt: Date = Date(), requireOwnNotes: Bool = true) throws -> SolutionContent {
         let srcs = Set(SolutionBuilder.imageSources(source.document, keys: keys))
         let infos = source.pageInfos
         return try SolutionBuilder.build(document: source.document, selectedKeys: keys, pdfPageCount: source.pdfPageCount,
                                          pdfPage: { infos[$0] }, images: source.images.filter { srcs.contains($0.key) },
                                          fingerprint: source.fingerprint, title: source.title, displayName: displayName,
-                                         solutionID: solutionID, createdAt: createdAt)
+                                         solutionID: solutionID, createdAt: createdAt, requireOwnNotes: requireOwnNotes)
+    }
+
+    /// Auswahl fuer den Dialog: alle teilbaren Seiten als Vorschau (auch ohne Notizen); Seiten mit Objekten, die
+    /// die Pruefungen nicht bestehen, werden genannt und ausgelassen (statt alles zu sperren).
+    static func draft(_ source: SolutionSource) throws -> SolutionShareDraft {
+        let doc = source.document
+        let candidates = SolutionBuilder.candidates(doc)
+        let problems = SolutionBuilder.pageProblems(doc, keys: candidates.filter(\.shareable).map(\.key))
+        let blocked = Set(problems.map(\.key))
+        let keys = candidates.filter { $0.shareable && !blocked.contains($0.key) }.map(\.key)
+        let content = keys.isEmpty ? nil : try SolutionSharing.content(source, keys: keys, displayName: "", requireOwnNotes: false)
+        return SolutionShareDraft(content: content, selection: Set(SolutionBuilder.defaultSelection(doc)).subtracting(blocked),
+                                  assetPages: candidates.filter { !$0.shareable }.count, problems: problems,
+                                  hasAnyOwnNotes: candidates.contains { $0.objectCount > 0 })
     }
 
     /// Verschluesseltes Paket (Schluessel aus den Bytes der Original-PDF).

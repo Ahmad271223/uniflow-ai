@@ -238,6 +238,41 @@ final class SolutionPackageTests: XCTestCase {
         }
     }
 
+    /// Nie ein Paket ohne ein einziges eigenes Notizobjekt; gewaehlte leere Seiten neben Seiten mit Notizen bleiben
+    /// im Paket. Ohne diese Pflicht (nur Vorschau im Dialog) entsteht der Inhalt auch aus leeren Seiten.
+    func testNoContentWithoutOwnNotesButEmptyPagesBesideNotesStay() throws {
+        let pdf = fakePDF()
+        var doc = try makeDocument()
+        doc.pages["p2"] = ["objects": []]
+        // (a) alle gewaehlten Seiten leer (PDF-Seiten, auch mit fehlendem Eintrag in "pages")
+        doc.pages["p1"] = nil
+        XCTAssertThrowsError(try build(doc, keys: ["p1", "p2", "p3"], pdf: pdf)) {
+            XCTAssertEqual($0 as? SolutionError, .noOwnNotes)
+        }
+        // (c) klare Meldung
+        XCTAssertTrue(SolutionError.noOwnNotes.description.contains("Notizen"), SolutionError.noOwnNotes.description)
+        XCTAssertEqual(SolutionError.noOwnNotes.errorDescription, SolutionError.noOwnNotes.description)
+        // (b) leere Seiten neben einer Seite mit Notizen: Paket entsteht, die leeren Seiten sind darin
+        let mixed = try build(doc, keys: ["p2", "bQ1", "p3"], pdf: pdf)
+        XCTAssertEqual(mixed.pages.map(\.key), ["bQ1", "p2", "p3"], "Reihenfolge wie in pageOrder")
+        XCTAssertEqual(mixed.pages.map(\.objects.count), [1, 0, 0])
+        let package = try SolutionPackage.seal(mixed, originalPDF: pdf, cipher: cipher)
+        let opened = try SolutionPackage.decode(package.encoded()).open(originalPDF: pdf, cipher: cipher)
+        XCTAssertEqual(opened.pages.map(\.key), ["bQ1", "p2", "p3"])
+        // (d) Vorschau im Dialog: auch ganz ohne Notizen, Seiten vollstaendig
+        let preview = try SolutionBuilder.build(document: doc, selectedKeys: ["p1", "p2", "p3"], pdfPageCount: 3, pdfPage: pdfInfo,
+                                                images: [:], fingerprint: cipher.sha256Hex(pdf), title: "Übungsblatt 3",
+                                                displayName: "", requireOwnNotes: false)
+        XCTAssertEqual(preview.pages.map(\.key), ["p1", "p2", "p3"])
+        XCTAssertTrue(preview.pages.allSatisfy { $0.objects.isEmpty })
+        // ohne Auswahl bleibt es bei "Keine Seite ausgewählt", auch fuer die Vorschau
+        XCTAssertThrowsError(try SolutionBuilder.build(document: doc, selectedKeys: [], pdfPageCount: 3, pdfPage: pdfInfo,
+                                                       images: [:], fingerprint: cipher.sha256Hex(pdf), title: "",
+                                                       displayName: "", requireOwnNotes: false)) {
+            XCTAssertEqual($0 as? SolutionError, .nothingSelected)
+        }
+    }
+
     /// Eigener Freitext, der PDF-Begriffe enthaelt, ist eigener Inhalt und geht nicht verloren.
     func testOwnTextMentioningPDFIsShared() throws {
         let pdf = fakePDF()

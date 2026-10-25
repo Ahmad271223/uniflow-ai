@@ -20,13 +20,10 @@ struct SolutionShareSheet: View {
     let close: () -> Void
 
     @State private var source: SolutionSource?
-    /// alle teilbaren Seiten (fuer Vorschau und Auswahl)
-    @State private var preview: SolutionContent?
+    /// alle teilbaren Seiten (fuer Vorschau und Auswahl), ausgelassene Seiten mit Grund, eingefuegte Seiten
+    @State private var draft: SolutionShareDraft?
     @State private var previewImages: [String: UIImage] = [:]
     @State private var selected: Set<String> = []
-    @State private var assetPages = 0
-    /// Seiten, die sich nicht teilen lassen (mit Grund), werden genannt und ausgelassen
-    @State private var pageProblems: [SolutionBuilder.PageProblem] = []
     @State private var displayName = ""
     @State private var loadError: String?
     @State private var shareError: String?
@@ -53,8 +50,8 @@ struct SolutionShareSheet: View {
             notice
             if let loadError {
                 UFCard { UFEmpty(icon: "alert", text: loadError, small: true) }
-            } else if let preview {
-                pagesCard(preview)
+            } else if let draft, let preview = draft.content {
+                pagesCard(preview, draft: draft)
                 nameCard
                 if let shareError {
                     Text(shareError).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
@@ -84,7 +81,7 @@ struct SolutionShareSheet: View {
         }
     }
 
-    private func pagesCard(_ preview: SolutionContent) -> some View {
+    private func pagesCard(_ preview: SolutionContent, draft: SolutionShareDraft) -> some View {
         UFCard {
             UFCardHead("Vorschau ohne Original", icon: "layers", wrap: true) {
                 UFButton("Alle", size: .small) { selected = Set(preview.pages.map(\.key)) }
@@ -105,7 +102,7 @@ struct SolutionShareSheet: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(summary(preview)).ufFont(13.12, 600).foregroundStyle(UF.text2)
-                if !selected.isEmpty, !hasNotes(preview) {
+                if draft.showsNoOwnNotes(selected) {
                     // nie ein leeres Paket: Teilen bleibt gesperrt, bis eine Seite mit Notizen gewaehlt ist
                     Label(SolutionError.noOwnNotes.description, systemImage: "exclamationmark.triangle")
                         .ufFont(13.12).foregroundStyle(UF.warn).fixedSize(horizontal: false, vertical: true)
@@ -117,12 +114,12 @@ struct SolutionShareSheet: View {
                           systemImage: "exclamationmark.triangle")
                         .ufFont(13.12).foregroundStyle(UF.warn)
                 }
-                if assetPages > 0 {
-                    Text("Eingefügte Bild- und PDF-Seiten aus dem Browser werden nie geteilt (\(assetPages)).")
+                if draft.assetPages > 0 {
+                    Text(SolutionShareDraft.assetText(draft.assetPages))
                         .ufFont(13.12).foregroundStyle(UF.muted)
                 }
-                ForEach(pageProblems, id: \.key) { problem in
-                    Label("\(problem.label) lässt sich nicht teilen: \(problem.error.description)", systemImage: "exclamationmark.triangle")
+                ForEach(draft.problems, id: \.key) { problem in
+                    Label(SolutionShareDraft.problemText(problem), systemImage: "exclamationmark.triangle")
                         .ufFont(13.12).foregroundStyle(UF.warn).fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -148,7 +145,7 @@ struct SolutionShareSheet: View {
                 Text(SolutionTexts.communityNotConnected).ufFont(12.8).foregroundStyle(UF.muted)
             }
             UFButton(busy ? "Wird erstellt …" : "Als Datei teilen", icon: "download", kind: .primary) { share() }
-                .disabled(busy || selected.isEmpty || !(preview.map(hasNotes) ?? false))
+                .disabled(busy || !(draft?.canShare(selected) ?? false))
         }
     }
 
@@ -159,9 +156,6 @@ struct SolutionShareSheet: View {
     }
 
     private func chosen(_ preview: SolutionContent) -> [SolutionPage] { preview.pages.filter { selected.contains($0.key) } }
-
-    /// Mindestens eine gewaehlte Seite hat eigene Notizobjekte.
-    private func hasNotes(_ preview: SolutionContent) -> Bool { chosen(preview).contains { !$0.objects.isEmpty } }
 
     private func summary(_ preview: SolutionContent) -> String {
         let pages = chosen(preview)
@@ -174,30 +168,22 @@ struct SolutionShareSheet: View {
         return SolutionBuilder.imageSources(source.document, keys: chosen(preview).map(\.key)).filter { preview.images[$0] == nil }.count
     }
 
+    /// Die Vorschau ist kein Teilen: Seiten ohne Notizen stehen darin, die Gruende fuer fehlende Notizen
+    /// (ausgelassene oder eingefuegte Seiten) nennt die Seitenkarte. Ob geteilt werden kann, entscheidet die Auswahl.
     private func load() async {
-        guard preview == nil, Entitlements.shared.allows(.community) else { return }
+        guard draft == nil, Entitlements.shared.allows(.community) else { return }
         displayName = savedName
         do {
             let s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
-            let candidates = SolutionBuilder.candidates(s.document)
-            assetPages = candidates.filter { !$0.shareable }.count
-            // Seiten mit Objekten, die die Pruefungen nicht bestehen, nennen und auslassen (statt alles zu sperren)
-            let problems = SolutionBuilder.pageProblems(s.document, keys: candidates.filter(\.shareable).map(\.key))
-            let blocked = Set(problems.map(\.key))
-            let keys = candidates.filter { $0.shareable && !blocked.contains($0.key) }.map(\.key)
-            pageProblems = problems
-            guard !keys.isEmpty else {
-                loadError = problems.first.map { "\($0.label) lässt sich nicht teilen: \($0.error.description)" }
-                    ?? SolutionError.nothingSelected.description
+            let prepared = try await Task.detached(priority: .userInitiated) { try SolutionSharing.draft(s) }.value
+            guard let all = prepared.content else {
+                loadError = prepared.unavailable
                 return
             }
-            let all = try await Task.detached(priority: .userInitiated) {
-                try SolutionSharing.content(s, keys: keys, displayName: "")
-            }.value
             source = s
             previewImages = try ForeignSolutionLayer.uiImages(all.images)
-            preview = all
-            selected = Set(SolutionBuilder.defaultSelection(s.document)).subtracting(blocked)
+            draft = prepared
+            selected = prepared.selection
         } catch {
             loadError = (error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht vorbereiten: \(error.localizedDescription)"
         }
@@ -205,7 +191,7 @@ struct SolutionShareSheet: View {
 
     /// Inhalt, Siegel und Datei entstehen abseits des Hauptthreads ("Wird erstellt …" bleibt so sichtbar).
     private func share() {
-        guard let source, !selected.isEmpty, !busy else { return }
+        guard let source, draft?.canShare(selected) == true, !busy else { return }
         busy = true
         shareError = nil
         let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)

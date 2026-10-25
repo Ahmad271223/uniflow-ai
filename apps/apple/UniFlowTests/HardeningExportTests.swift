@@ -878,6 +878,72 @@ final class HardeningExportTests: XCTestCase {
         }
     }
 
+    /// Laenge eines Namens auf APFS, unabhaengig vom App-Code gerechnet: UTF-16-Einheiten nach der Zerlegung, je
+    /// Skalar die groessere Zahl (das Dateisystem zerlegt z. B. U+2F800 nicht).
+    private func apfsUnits(_ name: String) -> Int {
+        name.unicodeScalars.reduce(0) { $0 + max($1.utf16.count, String($1).decomposedStringWithCanonicalMapping.utf16.count) }
+    }
+
+    /// `PDFExporter.fileName` direkt: Endung bleibt, hoechstens 255 UTF-8-Byte und 255 UTF-16-Einheiten nach der
+    /// Zerlegung (APFS), gekuerzt nur zwischen ganzen Zeichen (kein halbes ZWJ-Emoji, kein abgetrennter Umlaut-Punkt),
+    /// leerer Titel = "Dokument". Jeder Name wird wirklich geschrieben. Zeichen, die zerlegt laenger sind als ihre
+    /// Bytes: "ǜ" (2 Byte, 3 Einheiten), "ᾂ" (3 Byte, 4 Einheiten); U+2F800 bleibt beim Schreiben unzerlegt.
+    func testFileNameKeepsSuffixWholeCharactersAndFitsEveryLimit() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-dateiname-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        let suffixes = [" – Notizen.pdf", ".pdf", " – Lösung." + SolutionPackage.fileExtension]
+        let titles = [String(repeating: "\u{1D544}", count: 90) + " Skript",
+                      "Übung " + String(repeating: "\u{1F9EE}", count: 85),
+                      String(repeating: "線形代数", count: 25),
+                      String(repeating: "U\u{308}bung A\u{308}rger O\u{308}l ", count: 8),
+                      "Informatik " + String(repeating: "\u{1F469}\u{200D}\u{1F4BB}", count: 80),
+                      String(repeating: "\u{01DC}", count: 90),
+                      String(repeating: "\u{1F82}", count: 90),
+                      String(repeating: "\u{1F82}", count: 57) + String(repeating: "\u{2F800}", count: 20),
+                      String(repeating: "a\u{301}\u{1F469}\u{200D}\u{1F4BB}", count: 40),
+                      "Kurz"]
+        for suffix in suffixes {
+            for (n, title) in titles.enumerated() {
+                let name = PDFExporter.fileName(title, suffix: suffix)
+                let label = "Titel \(n + 1), Endung \(suffix)"
+                XCTAssertTrue(name.hasSuffix(suffix), "\(label): Endung fehlt")
+                XCTAssertLessThanOrEqual(name.utf8.count, 255, "\(label): Byte")
+                XCTAssertLessThanOrEqual(apfsUnits(name), 255, "\(label): UTF-16-Einheiten nach Zerlegung")
+                let stem = Array(name.dropLast(suffix.count))
+                let full = Array(PDFExporter.safeFileName(title))
+                XCTAssertFalse(stem.isEmpty, label)
+                XCTAssertTrue(full.starts(with: stem), "\(label): nur ganze Zeichen vom Anfang des Titels")
+                if stem.count < full.count {
+                    // gekuerzt: das naechste ganze Zeichen haette eine Grenze ueberschritten (oder war Leerraum am Ende)
+                    let next = String(stem) + String(full[stem.count]) + suffix
+                    XCTAssertTrue(next.utf8.count > 255 || apfsUnits(next) > 255 || full[stem.count].isWhitespace,
+                                  "\(label): unnoetig gekuerzt")
+                }
+                XCTAssertNoThrow(try Data("x".utf8).write(to: dir.appendingPathComponent(name), options: .atomic),
+                                 "\(label): Datei laesst sich nicht schreiben (\(name.utf8.count) Byte, \(apfsUnits(name)) Einheiten)")
+            }
+        }
+        // ungekuerzt bis genau an die Bytegrenze, ein Zeichen mehr wird abgeschnitten
+        let exact = String(repeating: "\u{1F9EE}", count: 62) + "abc"
+        XCTAssertEqual(PDFExporter.fileName(exact, suffix: ".pdf"), exact + ".pdf")
+        XCTAssertEqual(PDFExporter.fileName(exact, suffix: ".pdf").utf8.count, 255)
+        XCTAssertEqual(PDFExporter.fileName(exact + "d", suffix: ".pdf"), exact + ".pdf")
+        // ungekuerzt bis genau an die Grenze nach der Zerlegung (62 x 4 + 3 + 4 = 255 Einheiten, nur 193 Byte)
+        let exactUnits = String(repeating: "\u{1F82}", count: 62) + "abc"
+        XCTAssertEqual(PDFExporter.fileName(exactUnits, suffix: ".pdf"), exactUnits + ".pdf")
+        XCTAssertEqual(apfsUnits(exactUnits + ".pdf"), 255)
+        XCTAssertEqual(PDFExporter.fileName(exactUnits + "d", suffix: ".pdf"), exactUnits + ".pdf")
+        for name in [exact + ".pdf", exactUnits + ".pdf"] {
+            XCTAssertNoThrow(try Data("x".utf8).write(to: dir.appendingPathComponent(name), options: .atomic), "Grenze selbst ist erlaubt")
+        }
+        // leer oder nur Leerraum
+        for blank in ["", "   ", "\n\t "] {
+            XCTAssertEqual(PDFExporter.fileName(blank, suffix: ".pdf"), "Dokument.pdf")
+            XCTAssertEqual(PDFExporter.fileName(blank, suffix: " – Notizen.pdf"), "Dokument – Notizen.pdf")
+        }
+    }
+
     // MARK: Export direkt nach dem Schreiben (Flush)
 
     /// Strich gerade beendet (Canvas-Aenderung noch in der 0,25-s-Pause) und sofort exportiert: der Strich ist drin.

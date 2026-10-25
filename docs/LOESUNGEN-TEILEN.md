@@ -38,7 +38,10 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
   „Wird erstellt …“ auf dem Knopf.
 - Nie ein leeres Paket: Ohne ein einziges eigenes Notizobjekt auf den gewählten Seiten (z. B. „Alle“ gewählt, aber
   nirgends Notizen) bleibt der Knopf gesperrt und der Dialog sagt warum; auch `SolutionBuilder` weist das ab
-  (`SolutionError.noOwnNotes`) – keine Datei, kein Eintrag unter „Meine geteilten Lösungen“.
+  (`SolutionError.noOwnNotes`) – keine Datei, kein Eintrag unter „Meine geteilten Lösungen“. Die Vorschau selbst ist
+  kein Teilen (`SolutionSharing.draft`, `requireOwnNotes: false`): Stehen die eigenen Notizen nur auf ausgelassenen
+  oder eingefügten Seiten, zeigt der Dialog die Vorschau mit genau diesen Gründen statt „keine eigenen Notizen“.
+  Bleibt gar keine teilbare Seite, nennt die Meldung alle Gründe.
 - „In der Community veröffentlichen“ ist deaktiviert: „Community-Dienst noch nicht verbunden“.
 - „Abbrechen“.
 

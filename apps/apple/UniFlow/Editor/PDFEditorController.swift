@@ -51,8 +51,6 @@ final class PageInkView: UIView {
     var undoBase = PKDrawing()
     /// Aenderung, waehrend der Stift noch aktiv ist (z. B. Radierer): Eintrag erst beim Absetzen anlegen.
     var undoPending = false
-    /// Die Canvas hat eine Aenderung, die der Store noch nicht hat (nur moeglich, solange das Laden laeuft).
-    var unsaved = false
     /// Fremde Ebenen wurden nach einer Speicherwarnung freigegeben und werden beim naechsten Anzeigen neu gebaut.
     var foreignReleased = false
 
@@ -317,11 +315,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         if ownsToolPicker { toolPicker.setVisible(false, forFirstResponder: anchor) }
-        // Gesichert ist schon alles: jede Aenderung geht sofort an den Store (siehe `saveIfChanged`)
-        for v in allOverlays where v.loaded {
-            commitPendingUndo(v)
-            saveIfChanged(v)
-        }
+        // Verlassen schreibt nie: jede Aenderung einer geladenen Canvas ging schon beim Zeichnen an den Store
+        // (`canvasViewDrawingDidChange`), hier wird nur ein offener Rueckgaengig-Schritt abgeschlossen
+        for v in allOverlays where v.loaded { commitPendingUndo(v) }
         if !ownsToolPicker {
             // geteilter Verlauf: Eintraege dieses Dokuments entfernen, sonst wirkt "Rueckgaengig" ins Leere
             for t in undoTargets.values { documentUndo.removeAllActions(withTarget: t) }
@@ -386,12 +382,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             pendingFocusKey = nil
         }
         let keepScale = pdfView.scaleFactor
-        // offene Canvases ueber ihren Schluessel sichern (Indizes koennen sich gerade verschoben haben); nur, was
-        // sich geaendert hat, der Neuaufbau selbst schreibt nichts
-        for v in allOverlays where v.loaded {
-            commitPendingUndo(v)
-            saveIfChanged(v)
-        }
+        // Der Neuaufbau schreibt nie (alles ist schon im Store), nur offene Rueckgaengig-Schritte abschliessen
+        for v in allOverlays where v.loaded { commitPendingUndo(v) }
         for v in allOverlays { toolPicker.removeObserver(v.canvas) }
         live = [:]
         parked = []
@@ -434,11 +426,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func pdfView(_ pdfView: PDFView, willEndDisplayingOverlayView overlayView: UIView, for page: PDFPage) {
         guard let overlay = overlayView as? PageInkView else { return }
-        // Scrollen schreibt nie: gesichert wird nur eine Aenderung, die der Store noch nicht hat
-        if overlay.loaded {
-            commitPendingUndo(overlay)
-            saveIfChanged(overlay)
-        }
+        // Scrollen schreibt nie (alles ist schon im Store), nur ein offener Rueckgaengig-Schritt wird abgeschlossen
+        if overlay.loaded { commitPendingUndo(overlay) }
         if live[overlay.pageIndex] === overlay { live.removeValue(forKey: overlay.pageIndex) }
         guard overlay.generation == shownLayoutVersion else {       // Overlay eines alten Seitenaufbaus: verwerfen
             toolPicker.removeObserver(overlay.canvas)
@@ -529,20 +518,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         overlay.loaded = true
         overlay.undoBase = next
         overlay.undoPending = false
-        overlay.unsaved = false                     // Stand des Stores, fruehe Striche werden gleich gesichert
         if hadEarlyStrokes {
             store.canvasChanged(pageKey: overlay.pageKey, drawing: next)
             registerUndo(key: overlay.pageKey, restore: drawing, redo: next)
         }
-    }
-
-    /// Beim Wegscrollen, Neuaufbau und Verlassen: nur sichern, was der Store noch nicht hat. Jede Aenderung auf
-    /// einer geladenen Canvas geht schon beim Zeichnen an den Store (`canvasViewDrawingDidChange`, Verlauf); eine
-    /// nur angezeigte Seite wird deshalb nie geschrieben, im Ansichtsmodus also gar nichts.
-    private func saveIfChanged(_ overlay: PageInkView) {
-        guard overlay.unsaved else { return }
-        overlay.unsaved = false
-        store.canvasChanged(pageKey: overlay.pageKey, drawing: overlay.canvas.drawing)
     }
 
     private func reloadPages(_ keys: [String]) {
@@ -630,8 +609,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
         guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing else { return }
         // Laden laeuft noch: `apply` uebernimmt die frueh gezeichneten Striche und sichert sie
-        guard overlay.loaded else { overlay.unsaved = true; return }
-        overlay.unsaved = false
+        guard overlay.loaded else { return }
         store.canvasChanged(pageKey: overlay.pageKey, drawing: canvasView.drawing)
         guard !documentUndo.isUndoing, !documentUndo.isRedoing else { return }
         // waehrend der Stift aufliegt (Radierer, Lasso) erst beim Absetzen einen Schritt anlegen

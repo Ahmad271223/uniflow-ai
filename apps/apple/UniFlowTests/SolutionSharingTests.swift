@@ -305,6 +305,114 @@ final class SolutionSharingTests: XCTestCase {
         XCTAssertGreaterThan(Int(white.r), 250)
     }
 
+    // MARK: Auswahl im Dialog
+
+    private func doc(_ json: String) throws -> AnnotationDocument { AnnotationDocument(root: try JSONValue.parse(json)) }
+
+    /// Notizen nur auf einer Seite, die sich nicht teilen laesst (unbekannter Objekttyp aus dem Web-Editor, PDF-Daten
+    /// im Bild), oder nur auf eingefuegten Seiten aus dem Browser: der Dialog zeigt die Vorschau mit dem echten Grund,
+    /// nicht "keine eigenen Notizen". Geteilt wird trotzdem nie ein Paket ohne Notizen.
+    func testDraftNamesRealReasonWhenNotesSitOnlyOnBlockedOrInsertedPages() throws {
+        let pdf = makePDFData()
+        // (1) Notizen nur auf PDF-Seite 3, Objekttyp unbekannt
+        let blocked = try SolutionSharing.draft(source(try doc(#"""
+        {"version":2,"pageOrder":[{"key":"p1","type":"pdf","index":1},{"key":"p2","type":"pdf","index":2},
+          {"key":"p3","type":"pdf","index":3}],
+         "pages":{"p3":{"objects":[{"id":"h1","type":"hologram","x":1,"y":2}]}}}
+        """#), pdf: pdf))
+        let content = try XCTUnwrap(blocked.content, "Vorschau statt Fehlermeldung")
+        XCTAssertNil(blocked.unavailable)
+        XCTAssertEqual(content.pages.map(\.key), ["p1", "p2"])
+        XCTAssertTrue(blocked.selection.isEmpty)
+        XCTAssertEqual(blocked.problems.map(\.label), ["PDF-Seite 3"])
+        let reason = SolutionShareDraft.problemText(try XCTUnwrap(blocked.problems.first))
+        XCTAssertTrue(reason.hasPrefix("PDF-Seite 3 lässt sich nicht teilen: "), reason)
+        XCTAssertTrue(reason.contains("hologram"), reason)
+        XCTAssertFalse(blocked.showsNoOwnNotes([]), "Grund steht bei der Seite, nicht \"keine eigenen Notizen\"")
+        XCTAssertFalse(blocked.canShare([]))
+        XCTAssertFalse(blocked.canShare(["p1", "p2"]))
+        XCTAssertTrue(blocked.showsNoOwnNotes(["p1", "p2"]), "\"Alle\" gewaehlt: Hinweis auf fehlende Notizen")
+        // Teilen bleibt gesperrt: ohne Notizen entsteht kein Paket
+        XCTAssertThrowsError(try SolutionSharing.content(source(try doc(#"""
+        {"version":2,"pageOrder":[{"key":"p1","type":"pdf","index":1},{"key":"p2","type":"pdf","index":2}],"pages":{}}
+        """#), pdf: pdf), keys: ["p1", "p2"], displayName: "")) { XCTAssertEqual($0 as? SolutionError, .noOwnNotes) }
+
+        // (2) PDF-Daten in einem Bild auf einer eigenen Leerseite
+        let pdfData = try SolutionSharing.draft(source(try doc(#"""
+        {"version":2,"pageOrder":[{"key":"p1","type":"pdf","index":1},{"key":"bL","type":"blank","template":"grid"}],
+         "pages":{"bL":{"objects":[{"id":"i1","type":"image","src":"data:application/pdf;base64,AAAA","x":1,"y":2}]}}}
+        """#), pdf: pdf))
+        XCTAssertEqual(pdfData.content?.pages.map(\.key), ["p1"])
+        XCTAssertEqual(pdfData.problems.map(\.label), ["Eigene Seite 2"])
+        XCTAssertEqual(pdfData.problems.first?.error, .containsPDFData)
+        XCTAssertFalse(pdfData.showsNoOwnNotes([]))
+
+        // (3) Notizen nur auf einer eingefuegten Seite aus dem Browser
+        let asset = try SolutionSharing.draft(source(try doc(#"""
+        {"version":2,"pageOrder":[{"key":"p1","type":"pdf","index":1},{"key":"p2","type":"pdf","index":2},
+          {"key":"aX","type":"asset","src":"/api/assets/a1"}],
+         "pages":{"aX":{"objects":[{"id":"s9","type":"stroke","points":[0,0,10,10]}]}}}
+        """#), pdf: pdf))
+        XCTAssertEqual(asset.content?.pages.map(\.key), ["p1", "p2"])
+        XCTAssertEqual(asset.assetPages, 1)
+        XCTAssertTrue(asset.problems.isEmpty)
+        XCTAssertTrue(asset.selection.isEmpty)
+        XCTAssertFalse(asset.showsNoOwnNotes([]), "Grund ist der Hinweis auf eingefuegte Seiten")
+        XCTAssertTrue(SolutionShareDraft.assetText(asset.assetPages).contains("nie geteilt"))
+
+        // (4) gar keine eigenen Notizen: dann ist "keine eigenen Notizen" der Grund
+        let none = try SolutionSharing.draft(source(try doc(#"""
+        {"version":2,"pageOrder":[{"key":"p1","type":"pdf","index":1},{"key":"aX","type":"asset","src":"/api/assets/a1"}],"pages":{}}
+        """#), pdf: pdf))
+        XCTAssertEqual(none.content?.pages.map(\.key), ["p1"])
+        XCTAssertTrue(none.showsNoOwnNotes([]))
+        XCTAssertFalse(none.canShare(["p1"]))
+
+        // (5) keine teilbare Seite: Meldung mit allen Gruenden statt der Vorschau
+        let nothing = try SolutionSharing.draft(source(try doc(#"""
+        {"version":2,"pageOrder":[{"key":"p1","type":"pdf","index":1},{"key":"aX","type":"asset","src":"/api/assets/a1"}],
+         "pages":{"p1":{"objects":[{"id":"h1","type":"hologram"}]}}}
+        """#), pdf: pdf))
+        XCTAssertNil(nothing.content)
+        let text = try XCTUnwrap(nothing.unavailable)
+        XCTAssertTrue(text.contains("PDF-Seite 1 lässt sich nicht teilen"), text)
+        XCTAssertTrue(text.contains(SolutionShareDraft.assetText(1)), text)
+        XCTAssertFalse(nothing.canShare(["p1"]))
+        let onlyAsset = try SolutionSharing.draft(source(try doc(#"""
+        {"version":2,"pageOrder":[{"key":"aX","type":"asset","src":"/api/assets/a1"}],"pages":{}}
+        """#), pdf: pdf))
+        XCTAssertEqual(onlyAsset.unavailable, SolutionShareDraft.assetText(1))
+
+        // (6) Notizen auf teilbaren Seiten: Vorauswahl wie bisher, Teilen moeglich, kein Hinweis
+        let own = try ownDocument()
+        let normal = try SolutionSharing.draft(source(own, pdf: pdf))
+        XCTAssertEqual(normal.selection, Set(SolutionBuilder.defaultSelection(own)))
+        XCTAssertEqual(normal.content?.pages.map(\.key), ["p1", "bL", "p2", "p3"])
+        XCTAssertTrue(normal.canShare(normal.selection))
+        XCTAssertFalse(normal.showsNoOwnNotes(normal.selection))
+        XCTAssertFalse(normal.showsNoOwnNotes([]))
+    }
+
+    /// Loesungsdatei mit langem Titel (Zeichen, die zerlegt laenger sind als ihre Bytes): wird geschrieben, Endung
+    /// bleibt, Name in den Grenzen, Inhalt laesst sich wieder oeffnen.
+    func testLongTitleSolutionFileIsWritten() throws {
+        let pdf = makePDFData()
+        let package = try SolutionSharing.package(try SolutionSharing.content(source(try ownDocument(), pdf: pdf), keys: ["p1"],
+                                                                              displayName: ""), originalPDF: pdf)
+        let suffix = " – Lösung." + SolutionPackage.fileExtension
+        for title in [String(repeating: "\u{01DC}", count: 90), String(repeating: "\u{1F82}", count: 90),
+                      String(repeating: "\u{1F82}", count: 57) + String(repeating: "\u{2F800}", count: 20),
+                      "Informatik " + String(repeating: "\u{1F469}\u{200D}\u{1F4BB}", count: 80)] {
+            let url = try SolutionSharing.writeFile(package, title: title)
+            let name = url.lastPathComponent
+            XCTAssertTrue(name.precomposedStringWithCanonicalMapping.hasSuffix(suffix.precomposedStringWithCanonicalMapping), name)
+            XCTAssertLessThanOrEqual(name.decomposedStringWithCanonicalMapping.utf16.count, 255)
+            XCTAssertTrue(SolutionSharing.isSolutionFile(url))
+            let opened = try SolutionPackage.decode(try Data(contentsOf: url)).open(originalPDF: pdf, cipher: cipher)
+            XCTAssertEqual(opened.pages.map(\.key), ["p1"])
+        }
+    }
+
     // MARK: Eigene Notizen bleiben unveraendert
 
     /// Eigenes Dokument im lokalen Backend (Temp-Ordner) mit der Test-PDF als Original-Datei.

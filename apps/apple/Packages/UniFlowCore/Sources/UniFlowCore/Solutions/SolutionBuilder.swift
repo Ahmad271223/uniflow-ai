@@ -100,10 +100,13 @@ public enum SolutionBuilder {
     ///   - pdfPage: Groesse und Drehung einer PDF-Seite (1-basiert), `nil` = gibt es nicht.
     ///   - images: verfuegbare eigene Bilder nach `src`; fehlende werden in `missingImages` gezaehlt.
     ///   - fingerprint: SHA-256 der unveraenderten Original-PDF-Datei.
+    ///   - requireOwnNotes: `true` (Teilen): ohne ein einziges eigenes Notizobjekt entsteht kein Inhalt
+    ///     (`SolutionError.noOwnNotes`). `false` nur fuer die Vorschau im Dialog: dort stehen auch Seiten ohne
+    ///     Notizen, damit der Dialog die eigentlichen Gruende nennt (ausgelassene oder eingefuegte Seiten).
     public static func build(document doc: AnnotationDocument, selectedKeys: [String], pdfPageCount: Int,
                              pdfPage: (Int) -> PDFPageInfo?, images: [String: SolutionImage], fingerprint: String,
                              title: String, displayName: String, solutionID: UUID = UUID(),
-                             createdAt: Date = Date()) throws -> SolutionContent {
+                             createdAt: Date = Date(), requireOwnNotes: Bool = true) throws -> SolutionContent {
         let wanted = Set(selectedKeys)
         guard !wanted.isEmpty else { throw SolutionError.nothingSelected }
         var pages: [SolutionPage] = []
@@ -138,7 +141,7 @@ public enum SolutionBuilder {
         }
         guard !pages.isEmpty else { throw SolutionError.nothingSelected }
         // nie ein Paket ohne Inhalt (z. B. "Alle" gewaehlt, aber keine Seite mit Notizen)
-        guard pages.contains(where: { !$0.objects.isEmpty }) else { throw SolutionError.noOwnNotes }
+        if requireOwnNotes, !pages.contains(where: { !$0.objects.isEmpty }) { throw SolutionError.noOwnNotes }
         var embedded: [String: SolutionImage] = [:]
         var missing: [String] = []
         for src in imageSources(doc, keys: pages.map(\.key)) {
