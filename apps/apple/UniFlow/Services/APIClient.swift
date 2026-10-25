@@ -52,6 +52,30 @@ final class APIClient: @unchecked Sendable {
         return try JSONDecoder().decode(T.self, from: d)
     }
 
+    /// Datei hochladen (multipart/form-data), z. B. PDF-Import ueber `POST /api/notebooks`.
+    func upload(_ path: String, fields: [String: String], fileField: String, fileName: String, mimeType: String, data: Data) async throws -> JSONValue {
+        let boundary = "uniflow-" + UUID().uuidString
+        let crlf = "\r\n"
+        let safeName = fileName.components(separatedBy: CharacterSet(charactersIn: "\"\r\n")).joined(separator: "_")
+        var body = Data()
+        for (k, v) in fields.sorted(by: { $0.key < $1.key }) {
+            body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + k + "\"" + crlf + crlf + v + crlf).utf8))
+        }
+        body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + fileField + "\"; filename=\"" + safeName + "\"" + crlf
+                          + "Content-Type: " + mimeType + crlf + crlf).utf8))
+        body.append(data)
+        body.append(Data((crlf + "--" + boundary + "--" + crlf).utf8))
+        var r = try request(path, method: "POST", body: nil)
+        r.httpBody = body
+        r.setValue("multipart/form-data; boundary=" + boundary, forHTTPHeaderField: "Content-Type")
+        let (d, resp) = try await session.data(for: r)
+        guard let http = resp as? HTTPURLResponse else { throw APIError(status: -1, message: "Keine HTTP-Antwort") }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError(status: http.statusCode, message: String(decoding: d.prefix(400), as: UTF8.self))
+        }
+        return try JSONValue.parse(d)
+    }
+
     /// Roh-JSON (verlustfrei, auch fuer Felder, die die App nicht kennt).
     func value(_ path: String, method: String = "GET", body: JSONValue? = nil) async throws -> JSONValue {
         let (d, http) = try await data(path, method: method, body: body?.serialized())

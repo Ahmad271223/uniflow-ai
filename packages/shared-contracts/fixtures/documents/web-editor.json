@@ -18,7 +18,7 @@
           "points": [643.73, 111.74, 648.52, 108.54, 665.29, 98.95], "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 },
         { "id": "t1", "type": "text", "text": "Skalarprodukt ⟨v,w⟩", "x": 40, "y": 60, "width": 200, "fontFamily": "Arial", "fontSize": 14,
           "fill": "#4f5bd5", "bold": true, "italic": false, "underline": false, "align": "left", "lineHeight": 1.25 },
-        { "id": "r1", "type": "shape", "kind": "rect", "x": 30, "y": 300, "width": 120, "height": 40, "stroke": "#e5322d", "strokeWidth": 2,
+        { "id": "r1", "type": "shape", "shape": "rect", "x": 30, "y": 300, "width": 120, "height": 40, "stroke": "#e5322d", "strokeWidth": 2,
           "fill": null, "opacity": 1, "rotation": 0, "scaleX": 1, "scaleY": 1 }
       ]
     },

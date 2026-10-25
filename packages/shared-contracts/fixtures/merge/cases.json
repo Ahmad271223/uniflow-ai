@@ -61,9 +61,9 @@
     },
     {
       "name": "Objekte ohne ID werden ueber ihren Inhalt erkannt",
-      "base":   { "objects": [ { "type": "shape", "kind": "rect", "x": 1 } ] },
-      "local":  { "objects": [ { "type": "shape", "kind": "rect", "x": 1 }, { "id": "neu", "type": "stroke", "points": [0, 0, 1, 1] } ] },
-      "server": { "objects": [ { "x": 1, "kind": "rect", "type": "shape" } ] },
+      "base":   { "objects": [ { "type": "shape", "shape": "rect", "x": 1 } ] },
+      "local":  { "objects": [ { "type": "shape", "shape": "rect", "x": 1 }, { "id": "neu", "type": "stroke", "points": [0, 0, 1, 1] } ] },
+      "server": { "objects": [ { "x": 1, "shape": "rect", "type": "shape" } ] },
       "expectIds": [null, "neu"],
       "expectConflicts": 0
     },

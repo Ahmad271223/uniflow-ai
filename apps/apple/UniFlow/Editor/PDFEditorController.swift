@@ -9,11 +9,14 @@ final class ToolPickerAnchor: UIView {
     override var canBecomeFirstResponder: Bool { true }
 }
 
-/// Overlay einer PDF-Seite. Die Canvas arbeitet immer in Seitenpunkten (wie der Web-Editor); passt PDFKit die
-/// Overlay-Groesse an, gleicht eine Skalierung das aus. Die Canvas scrollt und zoomt nie selbst.
+/// Overlay einer Seite: Vorlage und Web-Objekte (Text, Formen, Bilder) unten, PencilKit-Canvas oben.
+/// Beide arbeiten in Seitenpunkten (wie der Web-Editor); passt PDFKit die Overlay-Groesse an, gleicht eine
+/// Skalierung des Inhalts das aus. Die Canvas scrollt und zoomt nie selbst.
 final class PageInkView: UIView {
     let pageIndex: Int
     let geometry: PageGeometry
+    let content = UIView()
+    let objectsView: PageObjectsView
     let canvas = PKCanvasView()
     /// Zeichnung wird gerade programmatisch gesetzt (kein Speichern ausloesen).
     var isApplyingDrawing = false
@@ -26,9 +29,14 @@ final class PageInkView: UIView {
     init(pageIndex: Int, geometry: PageGeometry) {
         self.pageIndex = pageIndex
         self.geometry = geometry
-        super.init(frame: CGRect(origin: .zero, size: geometry.pageSize))
+        let rect = CGRect(origin: .zero, size: geometry.pageSize)
+        objectsView = PageObjectsView(frame: rect)
+        super.init(frame: rect)
         backgroundColor = .clear
         isOpaque = false
+        content.bounds = rect
+        content.backgroundColor = .clear
+        canvas.frame = rect
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
         canvas.isScrollEnabled = false
@@ -37,8 +45,9 @@ final class PageInkView: UIView {
         canvas.contentInsetAdjustmentBehavior = .never
         canvas.showsVerticalScrollIndicator = false
         canvas.showsHorizontalScrollIndicator = false
-        canvas.bounds = CGRect(origin: .zero, size: geometry.pageSize)
-        addSubview(canvas)
+        content.addSubview(objectsView)
+        content.addSubview(canvas)
+        addSubview(content)
     }
 
     @available(*, unavailable)
@@ -47,9 +56,9 @@ final class PageInkView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let s = geometry.scale(forViewSize: bounds.size)
-        canvas.bounds = CGRect(origin: .zero, size: geometry.pageSize)
-        canvas.center = CGPoint(x: bounds.midX, y: bounds.midY)
-        canvas.transform = abs(s - 1) < 0.0001 ? .identity : CGAffineTransform(scaleX: s, y: s)
+        content.bounds = CGRect(origin: .zero, size: geometry.pageSize)
+        content.center = CGPoint(x: bounds.midX, y: bounds.midY)
+        content.transform = abs(s - 1) < 0.0001 ? .identity : CGAffineTransform(scaleX: s, y: s)
     }
 }
 
@@ -58,7 +67,7 @@ final class PageInkView: UIView {
 /// - Finger: Scrollen und Zoomen (PDFKit). Der Stift scrollt nie (`allowedTouchTypes` der Scroll-Gesten).
 /// - "Finger zeichnet": Scrollen dann mit zwei Fingern.
 /// - Zoom wird nach dem ersten Einpassen nicht mehr automatisch zurueckgesetzt (siehe `ZoomPolicy`).
-/// - Seiten-Canvases werden wiederverwendet (die letzten 6), statt beim Zurueckscrollen neu aufgebaut zu werden.
+/// - Seiten-Overlays werden wiederverwendet (die letzten 6), statt beim Zurueckscrollen neu aufgebaut zu werden.
 final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, PKCanvasViewDelegate, PKToolPickerObserver {
 
     private let store: DocumentStore
@@ -72,6 +81,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private var lastFit: CGFloat = 0
     private var userZoomed = false
     private var observers: [NSObjectProtocol] = []
+    private(set) var shownLayoutVersion = -1
 
     var onZoomChange: ((CGFloat) -> Void)?
     var onPageChange: ((Int) -> Void)?
@@ -79,7 +89,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var pencilOnly = true {
         didSet {
             guard pencilOnly != oldValue else { return }
-            allCanvases.forEach { $0.canvas.drawingPolicy = pencilOnly ? .pencilOnly : .anyInput }
+            allOverlays.forEach { $0.canvas.drawingPolicy = pencilOnly ? .pencilOnly : .anyInput }
             configureScrollGestures()
         }
     }
@@ -96,7 +106,12 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     deinit { observers.forEach { NotificationCenter.default.removeObserver($0) } }
 
-    private var allCanvases: [PageInkView] { Array(live.values) + parked }
+    private var allOverlays: [PageInkView] { Array(live.values) + parked }
+
+    var currentPageIndex: Int {
+        guard let page = pdfView.currentPage, let doc = pdfView.document else { return 0 }
+        return doc.index(for: page)
+    }
 
     // MARK: Aufbau
 
@@ -124,7 +139,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         pdfView.autoScales = true                     // nur fuer das erste Einpassen, danach aus
         pdfView.pageOverlayViewProvider = self        // vor dem Setzen des Dokuments
         pdfView.isInMarkupMode = true                 // Overlays bekommen die Stifteingabe, keine Textauswahl
-        pdfView.document = store.pdf
+        showLayout()
 
         toolPicker.stateAutosaveName = "uniflow.toolpicker"
         toolPicker.addObserver(self)
@@ -136,8 +151,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         })
         observers.append(center.addObserver(forName: .PDFViewPageChanged, object: pdfView, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, let page = self.pdfView.currentPage, let doc = self.pdfView.document else { return }
-                self.onPageChange?(doc.index(for: page))
+                guard let self else { return }
+                self.onPageChange?(self.currentPageIndex)
             }
         })
         store.onPagesChanged = { [weak self] indices in self?.reloadPages(indices) }
@@ -152,7 +167,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         toolPicker.setVisible(false, forFirstResponder: anchor)
-        for v in allCanvases where v.loaded { store.canvasChanged(pageIndex: v.pageIndex, drawing: v.canvas.drawing) }
+        for v in allOverlays where v.loaded { store.canvasChanged(pageIndex: v.pageIndex, drawing: v.canvas.drawing) }
     }
 
     override func viewDidLayoutSubviews() {
@@ -198,6 +213,23 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         return nil
     }
 
+    // MARK: Anzeige-PDF (neu aufbauen, wenn sich die Seitenstruktur aendert)
+
+    /// Zeigt den aktuellen Seitenaufbau. Bleibt auf derselben Seite (ueber den Seitenschluessel) und beim Zoom.
+    func showLayout() {
+        guard store.layoutVersion != shownLayoutVersion, let pdf = store.pdf else { return }
+        let keepKey = shownLayoutVersion >= 0 ? store.pageKey(forPageIndex: currentPageIndex) : nil
+        let keepScale = pdfView.scaleFactor
+        for v in allOverlays where v.loaded { store.canvasChanged(pageIndex: v.pageIndex, drawing: v.canvas.drawing) }
+        for v in allOverlays { toolPicker.removeObserver(v.canvas) }
+        live = [:]
+        parked = []
+        pdfView.document = pdf
+        shownLayoutVersion = store.layoutVersion
+        if lastFit > 0 { pdfView.scaleFactor = keepScale }
+        if let keepKey, let i = store.layout?.index(ofKey: keepKey), let page = pdf.page(at: i) { pdfView.go(to: page) }
+    }
+
     // MARK: PDFPageOverlayViewProvider
 
     func pdfView(_ view: PDFView, overlayViewFor page: PDFPage) -> UIView? {
@@ -211,7 +243,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             let box = page.bounds(for: .cropBox).size
             overlay = PageInkView(pageIndex: index, geometry: PageGeometry(boxSize: box, rotation: page.rotation))
             configure(overlay)
-            loadDrawing(into: overlay)
+            loadContent(into: overlay)
         }
         live[index] = overlay
         return overlay
@@ -235,11 +267,27 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         toolPicker.addObserver(c)
     }
 
-    private func loadDrawing(into overlay: PageInkView) {
+    private func loadContent(into overlay: PageInkView) {
         Task { @MainActor [weak self, weak overlay] in
             guard let self, let overlay else { return }
+            let entry = self.store.entry(forPageIndex: overlay.pageIndex)
+            let objects = await self.store.objects(forPageIndex: overlay.pageIndex)
+            self.showObjects(objects, entry: entry, on: overlay)
             let drawing = await self.store.drawing(forPageIndex: overlay.pageIndex)
             self.apply(drawing, to: overlay)
+        }
+    }
+
+    private func showObjects(_ objects: [JSONValue], entry: DisplayLayout.Entry?, on overlay: PageInkView) {
+        let placeholder = entry?.kind == "asset" ? "Eingefügte Seite aus dem Browser – Inhalt nur dort sichtbar. Notizen hier werden gespeichert." : nil
+        overlay.objectsView.show(template: entry?.template, placeholder: placeholder, objects: objects, images: store.images)
+        for o in objects where o["type"]?.string == "image" {
+            if let src = o["src"]?.string, store.images[src] == nil {
+                store.loadImage(src) { [weak self, weak overlay] in
+                    guard let self, let overlay else { return }
+                    overlay.objectsView.show(template: entry?.template, placeholder: placeholder, objects: objects, images: self.store.images)
+                }
+            }
         }
     }
 
@@ -260,27 +308,31 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private func reloadPages(_ indices: [Int]) {
         for i in indices {
             guard let overlay = live[i] ?? parked.first(where: { $0.pageIndex == i }) else { continue }
-            loadDrawing(into: overlay)
+            if overlay.isDrawing { overlay.deferredReload = true } else { loadContent(into: overlay) }
         }
     }
 
     // MARK: PKCanvasViewDelegate
 
+    private func overlay(of canvasView: PKCanvasView) -> PageInkView? {
+        canvasView.superview?.superview as? PageInkView
+    }
+
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-        guard let overlay = canvasView.superview as? PageInkView, !overlay.isApplyingDrawing, overlay.loaded else { return }
+        guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing, overlay.loaded else { return }
         store.canvasChanged(pageIndex: overlay.pageIndex, drawing: canvasView.drawing)
     }
 
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
-        (canvasView.superview as? PageInkView)?.isDrawing = true
+        overlay(of: canvasView)?.isDrawing = true
     }
 
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
-        guard let overlay = canvasView.superview as? PageInkView else { return }
+        guard let overlay = overlay(of: canvasView) else { return }
         overlay.isDrawing = false
         if overlay.deferredReload {
             overlay.deferredReload = false
-            loadDrawing(into: overlay)
+            loadContent(into: overlay)
         }
     }
 
@@ -291,10 +343,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         pdfView.go(to: page)
     }
 
+    func show(_ selection: PDFSelection) {
+        pdfView.highlightedSelections = [selection]
+        pdfView.go(to: selection)
+    }
+
     func undo() { documentUndo.undo() }
     func redo() { documentUndo.redo() }
-    var canUndo: Bool { documentUndo.canUndo }
-    var canRedo: Bool { documentUndo.canRedo }
 
     func fitWidth() {
         guard lastFit > 0 else { return }

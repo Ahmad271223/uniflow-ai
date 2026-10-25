@@ -22,7 +22,7 @@ final class PurchaseStore: ObservableObject {
 
     init() {
         updates = Task { [weak self] in
-            for await result in Transaction.updates {
+            for await result in StoreKit.Transaction.updates {
                 await self?.handle(result)
             }
         }
@@ -76,7 +76,7 @@ final class PurchaseStore: ObservableObject {
 
     func refreshEntitlements() async {
         var best = "free"
-        for await result in Transaction.currentEntitlements {
+        for await result in StoreKit.Transaction.currentEntitlements {
             guard case .verified(let t) = result, t.revocationDate == nil else { continue }
             if let exp = t.expirationDate, exp < Date() { continue }
             if let plan = Self.plan(forProductID: t.productID), Self.rank(plan) > Self.rank(best) { best = plan }
@@ -84,7 +84,7 @@ final class PurchaseStore: ObservableObject {
         activePlan = best
     }
 
-    private func handle(_ result: VerificationResult<Transaction>) async {
+    private func handle(_ result: VerificationResult<StoreKit.Transaction>) async {
         guard case .verified(let transaction) = result else {
             lastError = "Kauf konnte nicht bestätigt werden."
             return
