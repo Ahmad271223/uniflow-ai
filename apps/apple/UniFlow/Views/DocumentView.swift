@@ -1,0 +1,578 @@
+import PDFKit
+import PencilKit
+import SwiftUI
+import UniFlowCore
+
+// MARK: - Dokument
+
+/// Verbindung zwischen SwiftUI-Leisten und dem UIKit-Editor.
+@MainActor
+final class EditorBridge: ObservableObject {
+    weak var controller: PDFEditorController?
+    @Published var zoomPercent = 100
+    @Published var pageIndex = 0
+
+    func undo() { controller?.undo() }
+    func redo() { controller?.redo() }
+    func fitWidth() { controller?.fitWidth() }
+}
+
+/// Eine Werkzeugpalette fuer beide Seiten der geteilten Ansicht.
+@MainActor
+final class ToolPickerHolder: ObservableObject {
+    let picker = PKToolPicker()
+}
+
+/// Vorlagen fuer neue Seiten (gleiche Namen wie TEMPLATES im Web-Editor).
+struct PageTemplate: Identifiable {
+    let id: String
+    let name: String
+    static let all = [
+        PageTemplate(id: "blank", name: "Leer"), PageTemplate(id: "lined", name: "Liniert"),
+        PageTemplate(id: "grid", name: "Kariert"), PageTemplate(id: "dotted", name: "Gepunktet"),
+        PageTemplate(id: "mm", name: "Millimeter"), PageTemplate(id: "cornell", name: "Cornell"),
+    ]
+}
+
+struct ExportFile: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+/// Zweites Dokument der geteilten Ansicht (meist das Skript zur Uebung).
+struct Companion: Identifiable, Equatable {
+    let file: LibFile
+    let page: Int?
+    var id: String { file.id }
+}
+
+/// Vorschlag der Skriptsuche (`POST /api/related`), ohne KI-Aufruf.
+struct ScriptSuggestion: Equatable {
+    let fileID: String
+    let title: String
+    let page: Int
+    let terms: [String]
+    let forPage: Int
+}
+
+struct DocumentView: View {
+    let api: APIClient
+    @StateObject private var store: DocumentStore
+    @StateObject private var bridge = EditorBridge()
+    @StateObject private var tools = ToolPickerHolder()
+    @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
+    @AppStorage("uniflow.hand") private var hand = "right"
+    @AppStorage("uniflow.splitFraction") private var splitFraction = 0.42
+    @State private var fullScreen = false
+    @State private var showSidebar = false
+    @State private var showSearch = false
+    @State private var showInfo = false
+    @State private var choosingCompanion = false
+    @State private var addingText = false
+    @State private var newText = ""
+    @State private var exportFile: ExportFile?
+    @State private var exporting = false
+    @State private var actionError: String?
+    @State private var companion: Companion?
+    @State private var suggestion: ScriptSuggestion?
+    @State private var dismissedSuggestions: Set<Int> = []
+    @State private var suggestionTask: Task<Void, Never>?
+    @State private var suggestionCache: [Int: ScriptSuggestion?] = [:]
+
+    init(file: LibFile, api: APIClient) {
+        self.api = api
+        _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
+    }
+
+    /// Skript auf der Seite der freien Hand: Rechtshaender -> links.
+    private var scriptLeft: Bool { hand != "left" }
+
+    private var isExercise: Bool {
+        let f = store.file
+        if ["uebung", "loesung", "klausur"].contains(f.doc_type ?? "") { return true }
+        let text = (f.name + " " + (f.studip_folder ?? "")).lowercased()
+        return ["übung", "uebung", "blatt", "aufgabe"].contains { text.contains($0) }
+    }
+
+    var body: some View {
+        Group {
+            if let error = store.errorMessage {
+                ContentUnavailableView("Dokument nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
+            } else if store.pdf != nil {
+                GeometryReader { geo in
+                    HStack(spacing: 0) {
+                        if showSidebar {
+                            PageSidebar(store: store, bridge: bridge).frame(width: 200)
+                            Divider()
+                        }
+                        if let c = companion, scriptLeft {
+                            companionPane(c).frame(width: geo.size.width * splitFraction)
+                            splitHandle(width: geo.size.width)
+                        }
+                        primaryPane
+                        if let c = companion, !scriptLeft {
+                            splitHandle(width: geo.size.width)
+                            companionPane(c).frame(width: geo.size.width * splitFraction)
+                        }
+                    }
+                }
+            } else {
+                ProgressView("Lädt…")
+            }
+        }
+        .navigationTitle(store.file.displayTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(fullScreen ? .hidden : .visible, for: .navigationBar)
+        .toolbar { toolbar }
+        .overlay(alignment: .topTrailing) {
+            if fullScreen {
+                Button { fullScreen = false } label: { Label("Vollbild beenden", systemImage: "xmark").padding(10) }
+                    .buttonStyle(.borderedProminent).padding()
+            }
+        }
+        .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
+        .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
+        .sheet(isPresented: $choosingCompanion) {
+            CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id) { f in
+                companion = Companion(file: f, page: nil)
+            }
+        }
+        .sheet(item: $exportFile) { f in ActivityView(items: [f.url]) }
+        .alert("Text hinzufügen", isPresented: $addingText) {
+            TextField("Text", text: $newText)
+            Button("Hinzufügen") {
+                let text = newText
+                newText = ""
+                Task { await store.addText(text, pageIndex: bridge.pageIndex) }
+            }
+            Button("Abbrechen", role: .cancel) { newText = "" }
+        } message: { Text("Erscheint oben links auf der aktuellen Seite und ist im Browser bearbeitbar.") }
+        .alert("Hinweis", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(actionError ?? "") }
+        .onChange(of: bridge.pageIndex) { _, page in scheduleSuggestion(page) }
+        .task {
+            await store.load()
+            scheduleSuggestion(bridge.pageIndex)
+        }
+        .onDisappear {
+            suggestionTask?.cancel()
+            Task { await store.close() }
+        }
+    }
+
+    private var primaryPane: some View {
+        PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
+                      toolPicker: tools.picker, ownsToolPicker: true, initialPage: nil)
+            .ignoresSafeArea(edges: .bottom)
+            .overlay(alignment: .bottom) { pageInfo }
+            .overlay(alignment: .top) { suggestionBanner }
+    }
+
+    private func companionPane(_ c: Companion) -> some View {
+        CompanionView(file: c.file, api: api, page: c.page, toolPicker: tools.picker, pencilOnly: pencilOnly) {
+            companion = nil
+        }
+        .id(c.id + "-" + String(c.page ?? -1))
+    }
+
+    private func splitHandle(width: CGFloat) -> some View {
+        ZStack {
+            Color(uiColor: .separator).frame(width: 1)
+            Capsule().fill(Color.secondary.opacity(0.5)).frame(width: 5, height: 44)
+        }
+        .frame(width: 12)
+        .contentShape(Rectangle())
+        .gesture(DragGesture(coordinateSpace: .global).onChanged { g in
+            let x = g.location.x
+            let f = scriptLeft ? x / max(width, 1) : (width - x) / max(width, 1)
+            splitFraction = min(0.65, max(0.2, Double(f)))
+        })
+        .accessibilityLabel("Breite der geteilten Ansicht")
+    }
+
+    @ViewBuilder
+    private var suggestionBanner: some View {
+        if companion == nil, let s = suggestion, s.forPage == bridge.pageIndex, !dismissedSuggestions.contains(s.forPage) {
+            HStack(spacing: 10) {
+                Image(systemName: "book")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Passende Skriptstelle").font(.caption).bold()
+                    Text("\(s.title) · Seite \(s.page)").font(.caption).lineLimit(1)
+                }
+                Button("Daneben öffnen") {
+                    if let f = libFile(id: s.fileID, title: s.title) { companion = Companion(file: f, page: s.page - 1) }
+                }
+                .buttonStyle(.borderedProminent).controlSize(.small)
+                Button { dismissedSuggestions.insert(s.forPage) } label: { Image(systemName: "xmark") }
+                    .accessibilityLabel("Für diese Seite ausblenden")
+            }
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.top, 8)
+            .help("Gemeinsame Begriffe: \(s.terms.joined(separator: ", "))")
+        }
+    }
+
+    private func libFile(id: String, title: String) -> LibFile? {
+        LibFile(id: id, name: title + ".pdf", title: title, kind: "pdf", module_id: store.file.module_id, subject: store.file.subject,
+                doc_type: "vorlesung", ai_title: title, sub_label: nil, downloaded_at: "unbekannt", has_notes: nil,
+                page_count: nil, studip_folder: nil)
+    }
+
+    /// Skriptsuche hoechstens einmal je Seite und erst nach 2,5 s Ruhe (keine Anfrage bei jeder Stiftbewegung).
+    private func scheduleSuggestion(_ page: Int) {
+        suggestionTask?.cancel()
+        guard isExercise, companion == nil else { return }
+        if let cached = suggestionCache[page] { suggestion = cached; return }
+        suggestionTask = Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            guard !Task.isCancelled, let pdfPage = store.entry(forPageIndex: page)?.pdfIndex else { return }
+            do {
+                let r = try await api.value("/api/related", method: "POST",
+                                            body: .object(["file_id": .string(store.file.id), "page": .number(Double(pdfPage))]))
+                let hit = r.list("results").first
+                let s = hit.flatMap { h -> ScriptSuggestion? in
+                    guard let id = h.s("file_id"), let p = h.i("page") else { return nil }
+                    return ScriptSuggestion(fileID: id, title: h.s("title") ?? h.s("name") ?? "Skript", page: p,
+                                            terms: h.list("terms").compactMap { $0.string }, forPage: page)
+                }
+                suggestionCache[page] = .some(s)
+                if bridge.pageIndex == page { suggestion = s }
+            } catch {
+                // ohne Server kein Vorschlag; kein Fehlerhinweis noetig
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarLeading) {
+            Button { withAnimation { showSidebar.toggle() } } label: { Label("Seiten", systemImage: "sidebar.left") }
+            Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
+            Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            StatusLabel(status: store.status)
+            Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
+            Button {
+                if companion != nil { companion = nil } else { choosingCompanion = true }
+            } label: { Label(companion == nil ? "Geteilt" : "Teilung beenden", systemImage: "rectangle.split.2x1") }
+            Button { pencilOnly.toggle() } label: {
+                Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
+            }
+            Menu {
+                Button {
+                    Task { await store.toggleBookmark(pageIndex: bridge.pageIndex) }
+                } label: {
+                    Label(store.isBookmarked(pageIndex: bridge.pageIndex) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
+                }
+                Menu {
+                    ForEach(PageTemplate.all) { t in
+                        Button(t.name) { Task { await store.addBlankPage(after: bridge.pageIndex, template: t.id) } }
+                    }
+                } label: { Label("Leere Seite danach", systemImage: "doc.badge.plus") }
+                Button { Task { await store.rotatePage(bridge.pageIndex) } } label: { Label("Seite drehen", systemImage: "rotate.right") }
+                Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
+                Divider()
+                Button {
+                    exporting = true
+                    Task {
+                        defer { exporting = false }
+                        do { exportFile = ExportFile(url: try await store.exportPDF()) } catch { actionError = "Export fehlgeschlagen: \(error.localizedDescription)" }
+                    }
+                } label: { Label(exporting ? "Exportiert…" : "Als PDF mit Notizen teilen", systemImage: "square.and.arrow.up") }
+                .disabled(exporting)
+                Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
+                Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
+            } label: { Label("Mehr", systemImage: "ellipsis.circle") }
+        }
+    }
+
+    private var pageInfo: some View {
+        HStack(spacing: 10) {
+            Text("Seite \(bridge.pageIndex + 1) / \(store.pdf?.pageCount ?? 0)")
+            Divider().frame(height: 14)
+            Button("\(bridge.zoomPercent) %") { bridge.fitWidth() }
+                .accessibilityHint("Seite einpassen")
+            if let notice = store.notice {
+                Divider().frame(height: 14)
+                Text(notice).lineLimit(1)
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(.regularMaterial, in: Capsule())
+        .padding(.bottom, 12)
+    }
+}
+
+/// Rechte bzw. linke Seite der geteilten Ansicht: eigenes Dokument, eigenes Scrollen und Zoomen,
+/// keine eigene Werkzeugpalette (die Palette des Hauptdokuments gilt fuer beide).
+struct CompanionView: View {
+    @StateObject private var store: DocumentStore
+    @StateObject private var bridge = EditorBridge()
+    let page: Int?
+    let toolPicker: PKToolPicker
+    let pencilOnly: Bool
+    let onClose: () -> Void
+
+    init(file: LibFile, api: APIClient, page: Int?, toolPicker: PKToolPicker, pencilOnly: Bool, onClose: @escaping () -> Void) {
+        _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
+        self.page = page
+        self.toolPicker = toolPicker
+        self.pencilOnly = pencilOnly
+        self.onClose = onClose
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text(store.file.displayTitle).font(.caption).bold().lineLimit(1)
+                Spacer()
+                StatusLabel(status: store.status)
+                Text("S. \(bridge.pageIndex + 1)").font(.caption.monospacedDigit())
+                Button { onClose() } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel("Schließen")
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(.bar)
+            if let error = store.errorMessage {
+                ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
+            } else if store.pdf != nil {
+                PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
+                              toolPicker: toolPicker, ownsToolPicker: false, initialPage: page)
+            } else {
+                ProgressView().frame(maxHeight: .infinity)
+            }
+        }
+        .task { await store.load() }
+        .onDisappear { Task { await store.close() } }
+    }
+}
+
+/// Auswahl des zweiten Dokuments (Dokumente desselben Moduls zuerst).
+struct CompanionPicker: View {
+    let api: APIClient
+    let moduleID: Int?
+    let excluding: String
+    let onPick: (LibFile) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var files: [LibFile] = []
+    @State private var query = ""
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            List(filtered) { f in
+                Button {
+                    onPick(f)
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading) {
+                        Text(f.displayTitle).lineLimit(2)
+                        Text([f.subject, f.sub_label].compactMap { $0 }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .overlay { if let error { ContentUnavailableView("Nicht geladen", systemImage: "wifi.exclamationmark", description: Text(error)) } }
+            .searchable(text: $query, prompt: "Skript suchen")
+            .navigationTitle("Daneben öffnen")
+            .toolbar { Button("Abbrechen") { dismiss() } }
+            .task {
+                do {
+                    let lib = try await api.json("/api/library", as: LibraryResponse.self)
+                    files = lib.files.filter { $0.isPDF && $0.id != excluding }
+                        .sorted { ($0.module_id == moduleID ? 0 : 1, $0.displayTitle) < ($1.module_id == moduleID ? 0 : 1, $1.displayTitle) }
+                } catch let e {
+                    error = e.localizedDescription
+                }
+            }
+        }
+    }
+
+    private var filtered: [LibFile] {
+        let q = query.lowercased()
+        return q.isEmpty ? files : files.filter { ($0.displayTitle + " " + $0.name).lowercased().contains(q) }
+    }
+}
+
+/// Seitenuebersicht (Miniaturen von PDFKit) und Lesezeichen.
+struct PageSidebar: View {
+    @ObservedObject var store: DocumentStore
+    @ObservedObject var bridge: EditorBridge
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if !store.bookmarks.isEmpty {
+                List {
+                    Section("Lesezeichen") {
+                        ForEach(store.bookmarks) { b in
+                            Button(b.title) {
+                                if let i = store.layout?.index(ofKey: b.key) { bridge.controller?.goToPage(i) }
+                            }
+                        }
+                    }
+                }
+                .listStyle(.plain)
+                .frame(maxHeight: 180)
+                Divider()
+            }
+            ThumbnailStrip(bridge: bridge)
+        }
+        .background(Color(uiColor: .secondarySystemBackground))
+    }
+}
+
+struct ThumbnailStrip: UIViewRepresentable {
+    let bridge: EditorBridge
+
+    func makeUIView(context: Context) -> PDFThumbnailView {
+        let v = PDFThumbnailView()
+        v.layoutMode = .vertical
+        v.thumbnailSize = CGSize(width: 140, height: 190)
+        v.backgroundColor = .secondarySystemBackground
+        v.pdfView = bridge.controller?.pdfView
+        return v
+    }
+
+    func updateUIView(_ v: PDFThumbnailView, context: Context) {
+        if v.pdfView == nil { v.pdfView = bridge.controller?.pdfView }
+    }
+}
+
+struct SearchSheet: View {
+    @ObservedObject var store: DocumentStore
+    let bridge: EditorBridge
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var hits: [SearchHit] = []
+
+    var body: some View {
+        NavigationStack {
+            List(hits) { hit in
+                Button {
+                    bridge.controller?.show(hit.selection)
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Seite \(hit.pageIndex + 1)").font(.caption).foregroundStyle(.secondary)
+                        Text(hit.snippet).lineLimit(2)
+                    }
+                }
+            }
+            .overlay {
+                if query.count >= 2 && hits.isEmpty { ContentUnavailableView.search(text: query) }
+            }
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Im PDF suchen")
+            .onChange(of: query) { _, q in hits = store.search(q) }
+            .navigationTitle("Suchen")
+            .toolbar { Button("Fertig") { dismiss() } }
+        }
+    }
+}
+
+struct InfoSheet: View {
+    @ObservedObject var store: DocumentStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var info: DocumentInfo?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let i = info {
+                    Section("Dokument") {
+                        LabeledContent("Titel", value: i.title)
+                        LabeledContent("Datei", value: i.fileName)
+                        if let s = i.subject { LabeledContent("Veranstaltung", value: s) }
+                        if let f = i.folder { LabeledContent("Stud.IP-Ordner", value: f) }
+                    }
+                    Section("Seiten") {
+                        LabeledContent("Angezeigt", value: "\(i.displayPages)")
+                        LabeledContent("Im PDF", value: "\(i.pdfPages)")
+                        LabeledContent("Eingefügt (Browser/iPad)", value: "\(i.insertedPages)")
+                        if !i.removedPDFPages.isEmpty {
+                            LabeledContent("Im Browser entfernt", value: i.removedPDFPages.map(String.init).joined(separator: ", "))
+                        }
+                        LabeledContent("Lesezeichen", value: "\(i.bookmarks)")
+                    }
+                    Section("Speichern") {
+                        LabeledContent("Status", value: i.status)
+                        LabeledContent("Ungesendete Seiten", value: "\(i.unsentPages)")
+                        LabeledContent("Serverversion", value: "\(i.serverVersion)")
+                    }
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Dokumentinformation")
+            .toolbar { Button("Fertig") { dismiss() } }
+            .task { info = await store.info() }
+        }
+    }
+}
+
+/// Teilen-Dialog des Systems (z. B. exportierte PDF in Dateien sichern).
+struct ActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
+struct StatusLabel: View {
+    let status: SyncStatus
+
+    var body: some View {
+        Label(status.label, systemImage: icon)
+            .labelStyle(.titleAndIcon)
+            .font(.caption)
+            .foregroundStyle(color)
+            .accessibilityLabel(status.label)
+    }
+
+    private var icon: String {
+        switch status {
+        case .saved: return "checkmark.icloud"
+        case .uploading, .loading: return "arrow.triangle.2.circlepath.icloud"
+        case .pending: return "internaldrive"
+        case .offline: return "icloud.slash"
+        case .localSaveFailed, .conflictUnresolved: return "exclamationmark.triangle"
+        }
+    }
+
+    private var color: Color {
+        switch status {
+        case .localSaveFailed, .conflictUnresolved: return .red
+        case .offline: return .orange
+        default: return .secondary
+        }
+    }
+}
+
+struct PDFEditorView: UIViewControllerRepresentable {
+    let store: DocumentStore
+    let bridge: EditorBridge
+    let pencilOnly: Bool
+    let layoutVersion: Int
+    var toolPicker: PKToolPicker?
+    var ownsToolPicker = true
+    var initialPage: Int?
+
+    func makeUIViewController(context: Context) -> PDFEditorController {
+        let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker, initialPage: initialPage)
+        let bridge = self.bridge
+        vc.pencilOnly = pencilOnly
+        vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
+        vc.onPageChange = { [weak bridge] i in bridge?.pageIndex = i }
+        bridge.controller = vc
+        return vc
+    }
+
+    /// Wird bei jeder SwiftUI-Aktualisierung aufgerufen (z. B. Statuswechsel). Fasst die Canvas nicht an; baut die
+    /// Anzeige nur neu auf, wenn sich die Seitenstruktur geaendert hat.
+    func updateUIViewController(_ vc: PDFEditorController, context: Context) {
+        if vc.pencilOnly != pencilOnly { vc.pencilOnly = pencilOnly }
+        if vc.shownLayoutVersion != layoutVersion { vc.showLayout() }
+    }
+}

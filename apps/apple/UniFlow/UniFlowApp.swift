@@ -20,7 +20,7 @@ struct RootView: View {
 
     var body: some View {
         if session.api != nil {
-            LibraryView()
+            MainView()
         } else {
             ConnectView()
         }

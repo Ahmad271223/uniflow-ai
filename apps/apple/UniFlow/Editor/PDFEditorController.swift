@@ -72,7 +72,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     private let store: DocumentStore
     let pdfView = PDFView()
-    private let toolPicker = PKToolPicker()
+    private let toolPicker: PKToolPicker
+    /// Nur ein Editor zeigt die Palette (geteilte Ansicht: Uebung und Skript teilen sich eine Palette).
+    private let ownsToolPicker: Bool
+    private var initialPage: Int?
     private let anchor = ToolPickerAnchor()
     private let documentUndo = UndoManager()
     private var live: [Int: PageInkView] = [:]
@@ -96,8 +99,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     override var undoManager: UndoManager? { documentUndo }
 
-    init(store: DocumentStore) {
+    init(store: DocumentStore, toolPicker: PKToolPicker? = nil, ownsToolPicker: Bool = true, initialPage: Int? = nil) {
         self.store = store
+        self.toolPicker = toolPicker ?? PKToolPicker()
+        self.ownsToolPicker = ownsToolPicker
+        self.initialPage = initialPage
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -141,9 +147,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         pdfView.isInMarkupMode = true                 // Overlays bekommen die Stifteingabe, keine Textauswahl
         showLayout()
 
-        toolPicker.stateAutosaveName = "uniflow.toolpicker"
         toolPicker.addObserver(self)
-        toolPicker.setVisible(true, forFirstResponder: anchor)
+        if ownsToolPicker {
+            toolPicker.stateAutosaveName = "uniflow.toolpicker"
+            toolPicker.setVisible(true, forFirstResponder: anchor)
+        }
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: .PDFViewScaleChanged, object: pdfView, queue: .main) { [weak self] _ in
@@ -161,12 +169,16 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         configureScrollGestures()
-        anchor.becomeFirstResponder()
+        if ownsToolPicker { anchor.becomeFirstResponder() }
+        if let p = initialPage {
+            initialPage = nil
+            goToPage(p)
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        toolPicker.setVisible(false, forFirstResponder: anchor)
+        if ownsToolPicker { toolPicker.setVisible(false, forFirstResponder: anchor) }
         for v in allOverlays where v.loaded { store.canvasChanged(pageIndex: v.pageIndex, drawing: v.canvas.drawing) }
     }
 
@@ -358,6 +370,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     func showToolPicker(_ visible: Bool) {
+        guard ownsToolPicker else { return }
         toolPicker.setVisible(visible, forFirstResponder: anchor)
         if visible { anchor.becomeFirstResponder() }
     }

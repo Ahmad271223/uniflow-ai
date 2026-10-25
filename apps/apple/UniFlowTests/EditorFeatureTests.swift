@@ -40,13 +40,13 @@ final class EditorFeatureTests: XCTestCase {
     }
 
     func testShapeAndTextGeometry() throws {
-        let rect = try JSONValue.parse(#"{"type":"shape","shape":"rect","x":30,"y":300,"width":120,"height":40,"stroke":"#e5322d","strokeWidth":2}"#)
+        let rect = try JSONValue.parse(##"{"type":"shape","shape":"rect","x":30,"y":300,"width":120,"height":40,"stroke":"#e5322d","strokeWidth":2}"##)
         let r = try XCTUnwrap(ObjectGeometry.shapePath(rect))
         XCTAssertEqual(r.path.boundingBox, CGRect(x: 0, y: 0, width: 120, height: 40))
         XCTAssertEqual(CGPoint.zero.applying(ObjectGeometry.transform(rect)), CGPoint(x: 30, y: 300))
-        let arrow = try JSONValue.parse(#"{"type":"shape","shape":"arrow","points":[0,0,100,0],"stroke":"#000000","strokeWidth":2}"#)
+        let arrow = try JSONValue.parse(##"{"type":"shape","shape":"arrow","points":[0,0,100,0],"stroke":"#000000","strokeWidth":2}"##)
         XCTAssertNotNil(try XCTUnwrap(ObjectGeometry.shapePath(arrow)).arrowHead)
-        let text = try JSONValue.parse(#"{"type":"text","text":"Skalarprodukt und Projektion auf eine Gerade","width":120,"fontSize":14}"#)
+        let text = try JSONValue.parse(##"{"type":"text","text":"Skalarprodukt und Projektion auf eine Gerade","width":120,"fontSize":14}"##)
         let size = ObjectGeometry.textSize(text, ObjectGeometry.attributedText(text))
         XCTAssertEqual(size.width, 120)
         XCTAssertGreaterThan(size.height, 30, "laengerer Text bricht um")
@@ -63,8 +63,8 @@ final class EditorFeatureTests: XCTestCase {
     @MainActor
     func testObjectsViewShowsTemplateAndShapes() throws {
         let v = PageObjectsView(frame: CGRect(x: 0, y: 0, width: 595, height: 842))
-        let rect = try JSONValue.parse(#"{"id":"r","type":"shape","shape":"rect","x":30,"y":30,"width":50,"height":50,"stroke":"#000000","strokeWidth":2}"#)
-        let text = try JSONValue.parse(#"{"id":"t","type":"text","text":"Hallo","x":10,"y":10,"width":100}"#)
+        let rect = try JSONValue.parse(##"{"id":"r","type":"shape","shape":"rect","x":30,"y":30,"width":50,"height":50,"stroke":"#000000","strokeWidth":2}"##)
+        let text = try JSONValue.parse(##"{"id":"t","type":"text","text":"Hallo","x":10,"y":10,"width":100}"##)
         v.show(template: "grid", placeholder: nil, objects: [rect, text], images: [:])
         XCTAssertEqual(v.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.count, 2, "Raster + Rechteck")
         XCTAssertEqual(v.subviews.count, 1, "ein Textfeld")
@@ -74,7 +74,7 @@ final class EditorFeatureTests: XCTestCase {
         let original = makePDF(pages: 2)
         var doc = AnnotationDocument.empty()
         doc.ensurePDFPages(count: 2)
-        let stroke = try JSONValue.parse(#"{"id":"s1","type":"stroke","tool":"pen","color":"#000000","width":6,"opacity":1,"points":[100,100,300,100,300,300],"x":0,"y":0,"rotation":0,"scaleX":1,"scaleY":1}"#)
+        let stroke = try JSONValue.parse(##"{"id":"s1","type":"stroke","tool":"pen","color":"#000000","width":6,"opacity":1,"points":[100,100,300,100,300,300],"x":0,"y":0,"rotation":0,"scaleX":1,"scaleY":1}"##)
         let layout = DisplayLayout.build(original: original, document: doc)
         let data = PDFExporter.render(layout: layout, pages: ["p1": .object(["objects": .array([stroke])])], images: [:])
         let exported = try XCTUnwrap(PDFDocument(data: data))
