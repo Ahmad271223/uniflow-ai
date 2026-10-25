@@ -60,6 +60,15 @@ Claude-Kommandozeilenwerkzeugs, mit dem gemessen wurde. Laufzeit je Datei 40 bis
 4. Nie Aufgaben aus fast leerem Text erzeugen: unter ca. 300 Zeichen pro Seite immer PDF verwenden.
 5. Als Nächstes vergleichen: Bewertung der Antworten (Haiku vs. Sonnet), dort entstehen nach dem Teilen die meisten Kosten.
 
+## Umsetzung (25.10.2026)
+
+- Dateianalyse und Wochentests nutzen `CLAUDE_MODEL_MATERIAL` (Standard `haiku`) und lesen PDFs als Seiten
+  (`ai.ask_pdf`): gekürzte Kopien (Analyse 12 Seiten, Test 10 je Datei, zusammen 40) in einem eigenen Arbeitsordner,
+  Lesen nur dort, schreibende, ausführende und Netz-Werkzeuge gesperrt, Ordner danach gelöscht.
+- Scheitert der PDF-Weg, folgt automatisch der Text-Weg. Das Ergebnis vermerkt `_input` (`pdf` oder `text`).
+- Live geprüft: eingescanntes Übungsblatt richtig eingeordnet, Wochentest Signale und Systeme mit 8 Aufgaben.
+- Bereits vorhandene Analysen (aus Text) bleiben bestehen; neue Dateien werden mit PDF analysiert.
+
 ## Grenzen
 
 20 Dateien mit je 3 Aufgaben (60 Aufgaben je Variante), ein Prüfermodell, Prüfer aus derselben Modellfamilie,

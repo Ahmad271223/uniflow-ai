@@ -65,7 +65,7 @@ def analyze_pending(limit: int = 80, workers: int = 4, log=print) -> int:
 
     def work(f):
         text = extract_text(f["local_path"])
-        res = ai.analyze_file(f["course_title"], f["name"], text)
+        res = ai.analyze_file(f["course_title"], f["name"], text, pdf_path=f["local_path"])
         _store_analysis(f["id"], res, text)
         return f, res
 
@@ -215,7 +215,7 @@ def _materials_for_test(conn, subject: str, limit: int = 8, module_id: int | Non
         if rows:
             return rows
     rows = db.rows(conn, """
-        SELECT f.id, f.name, f.text_excerpt AS text, a.title, a.doc_type, a.difficulty
+        SELECT f.id, f.name, f.text_excerpt AS text, f.local_path, f.content_sha256, a.title, a.doc_type, a.difficulty
         FROM files f JOIN courses c ON c.id = f.course_id
         LEFT JOIN analysis a ON a.file_id = f.id
         WHERE (c.subject = ? OR c.module_id = ?) AND c.active = 1 AND f.local_path IS NOT NULL

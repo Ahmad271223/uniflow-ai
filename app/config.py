@@ -42,6 +42,9 @@ STUDIP_BASE = os.getenv("STUDIP_BASE", "https://studip.uni-hannover.de").rstrip(
 STUDIP_USER = os.getenv("STUDIP_USER", "")
 STUDIP_PASSWORD = os.getenv("STUDIP_PASSWORD", "")
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "sonnet")
+# Modell fuer Lehrmaterial (Dateianalyse, Wochentests). Vergleich vom 25.10.2026 an 20 Mathe-/ET-Dateien:
+# Haiku 5.5 mit PDF-Seiten so gut wie Sonnet 5.5 mit PDF, etwa 1/17 der Kosten (docs/KI-MODELLVERGLEICH-2026-10-25.md)
+CLAUDE_MODEL_MATERIAL = os.getenv("CLAUDE_MODEL_MATERIAL", "haiku")
 SEMESTER_FILTER = os.getenv("SEMESTER_FILTER", "")
 PORT = int(os.getenv("PORT", "8765"))
 
