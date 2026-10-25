@@ -438,6 +438,11 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 (f["id"], c["id"], f["name"], f["size"], f["mime"], f["author"], f["chdate"],
                  f["download_url"], started, file_kind(f["name"], f["mime"])),
             )
+        elif changed:
+            # neue Fassung (Groesse, Typ, Aenderungszeit) erst mit dem Download uebernehmen: scheitert
+            # er, gilt die Datei beim naechsten Abgleich weiter als geaendert und wird erneut geladen
+            conn.execute("UPDATE files SET name=?, author=?, download_url=? WHERE id=?",
+                         (f["name"], f["author"], f["download_url"], f["id"]))
         else:
             conn.execute(
                 "UPDATE files SET name=?, size=?, mime=?, author=?, chdate=?, download_url=? WHERE id=?",
@@ -455,8 +460,9 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
             try:
                 download_fn(f["download_url"], target)
                 from .testshare import file_sha256
-                conn.execute("UPDATE files SET local_path=?, downloaded_at=?, content_sha256=? WHERE id=?",
-                             (str(target), db.now_iso(), file_sha256(target), f["id"]))
+                conn.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=?, content_sha256=? "
+                             "WHERE id=?",
+                             (str(target), db.now_iso(), f["size"], f["mime"], f["chdate"], file_sha256(target), f["id"]))
                 new_files.append(f["id"])
                 log(f"Neu: {c['title'][:40]} / {f['name']}")
             except Exception as e:  # noqa: BLE001

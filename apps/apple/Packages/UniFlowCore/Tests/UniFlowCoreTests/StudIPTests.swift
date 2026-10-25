@@ -97,21 +97,27 @@ final class StudIPClientTests: XCTestCase {
         let t = StubTransport(["/jsonapi.php/v1/users/me": login, "/jsonapi.php/v1/file-refs/f1/content": login])
         let c = StudIPClient(base: base, transport: t, pauseMillis: 0)
         do { _ = try await c.currentUserID(); XCTFail("Anmeldeseite statt JSON") } catch { XCTAssertEqual(error as? StudIPError, .sessionExpired) }
-        do { _ = try await c.download(fileID: "f1"); XCTFail("Anmeldeseite statt Datei") } catch { XCTAssertEqual(error as? StudIPError, .sessionExpired) }
+        let target = FileManager.default.temporaryDirectory.appendingPathComponent("studip-\(UUID().uuidString).pdf")
+        do { try await c.download(fileID: "f1", to: target); XCTFail("Anmeldeseite statt Datei") } catch { XCTAssertEqual(error as? StudIPError, .sessionExpired) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path), "keine Anmeldeseite als Datei")
     }
 
-    func testDownloadReturnsBytesAndReportsHTTPErrorsWithoutIDs() async throws {
+    func testDownloadWritesFileAndReportsHTTPErrorsWithoutIDs() async throws {
         let id = "0123456789abcdef0123456789abcdef"
         let t = StubTransport([
             "/jsonapi.php/v1/file-refs/f1/content": HTTPReply(status: 200, contentType: "application/pdf", body: Data([37, 80, 68, 70])),
-            "/jsonapi.php/v1/file-refs/\(id)/content": HTTPReply(status: 403, contentType: "application/vnd.api+json"),
+            "/jsonapi.php/v1/file-refs/\(id)/content": HTTPReply(status: 403, contentType: "application/vnd.api+json", body: Data("{}".utf8)),
         ])
         let c = StudIPClient(base: base, transport: t, pauseMillis: 0)
-        let d = try await c.download(fileID: "f1")
-        XCTAssertEqual(Array(d), [37, 80, 68, 70])
-        do { _ = try await c.download(fileID: id); XCTFail("403 muss als Fehler kommen") } catch {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("studip-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try await c.download(fileID: "f1", to: dir.appendingPathComponent("f1"))
+        XCTAssertEqual(Array(try Data(contentsOf: dir.appendingPathComponent("f1"))), [37, 80, 68, 70])
+        do { try await c.download(fileID: id, to: dir.appendingPathComponent("x")); XCTFail("403 muss als Fehler kommen") } catch {
             XCTAssertEqual(error as? StudIPError, .http(status: 403, path: "jsonapi.php/v1/file-refs/:id/content"))
         }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.appendingPathComponent("x").path), "Fehlerseite bleibt nicht liegen")
     }
 
     func testRequestLimitStopsRun() async {

@@ -3,8 +3,9 @@ import Foundation
 /// Stud.IP-Abgleich in die lokale Datenbank wie `run_sync` in app/studip_sync.py: dieselben Tabellen (`courses`,
 /// `files`, `sync_log`), dieselben IDs (Kurs- und Datei-ID aus Stud.IP, die Datei-ID ist die FileRef-ID), dieselben
 /// Felder und Standardwerte. Neue Dateien bekommen Status "neu" und `seen_by_user = 0`; beim erneuten Abgleich
-/// aendert sich nur, was aus Stud.IP kommt (Name, Groesse, Typ, Aenderungszeit, Download-Adresse, Ordner) –
-/// Status, gesehen, Favorit, Ordner in UniFlow, Titel und Notizen bleiben. In Stud.IP geloeschte Dateien bleiben wie
+/// aendert sich nur, was aus Stud.IP kommt (Name, Groesse, Typ, Aenderungszeit, Download-Adresse, Ordner; eine neue
+/// Fassung erst mit ihrem Download) – Status, gesehen, Favorit, Ordner in UniFlow, Titel und Notizen bleiben.
+/// Duplikate von Stud.IP-Dateien teilen sich deren lokale Datei. In Stud.IP geloeschte Dateien bleiben wie
 /// in Python stehen (mit ihren Notizen), eine umbenannte Datei behaelt ihre ID und damit ihre Notizen.
 ///
 /// Abweichungen von Python: `author` kennt die JSON:API nicht (bleibt leer bzw. unveraendert), `download_url` ist die
@@ -59,6 +60,10 @@ public enum StudIPLibrary {
     /// Vollstaendige Dateiliste eines Kurses. Rueckgabe: Dateien, die wie in Python geladen werden muessen (neu, in
     /// Stud.IP juenger als der gespeicherte Stand, ohne lokale Datei oder lokale Datei fehlt). Ob sie sich laden
     /// lassen (`isDownloadable`), entscheidet der Aufrufer.
+    ///
+    /// Die neue Fassung einer bekannten Datei (Groesse, Typ, Aenderungszeit) gilt erst mit dem Download
+    /// (`markDownloaded`): Bricht der Lauf vorher ab oder scheitert der Download, bleibt die Datei beim naechsten
+    /// Abgleich "geaendert" und wird erneut geladen. Name, Download-Adresse und Ordner kommen sofort.
     public static func storeFiles(_ c: SQLiteConnection, _ files: [StudIPFile], startedAt: String, base: URL,
                                   localFiles: LocalFiles?) throws -> [StudIPFile] {
         var download: [StudIPFile] = []
@@ -71,9 +76,14 @@ public enum StudIPLibrary {
                 let old = e["chdate"]?.double ?? 0
                 let path = e["local_path"]?.string
                 changed = old < Double(chdate) || (path ?? "").isEmpty || !(localFiles?.exists(stored: path) ?? false)
-                try c.execute("UPDATE files SET name=?, size=?, mime=?, chdate=?, download_url=? WHERE id=?",
-                              [.text(f.name), .integer(Int64(f.size)), SQLiteValue(f.mimeType), .integer(chdate),
-                               .text(downloadURL(base: base, fileID: f.id)), id])
+                if changed {
+                    try c.execute("UPDATE files SET name=?, download_url=? WHERE id=?",
+                                  [.text(f.name), .text(downloadURL(base: base, fileID: f.id)), id])
+                } else {
+                    try c.execute("UPDATE files SET name=?, size=?, mime=?, chdate=?, download_url=? WHERE id=?",
+                                  [.text(f.name), .integer(Int64(f.size)), SQLiteValue(f.mimeType), .integer(chdate),
+                                   .text(downloadURL(base: base, fileID: f.id)), id])
+                }
             } else {
                 try c.execute("""
                     INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind)
@@ -88,9 +98,20 @@ public enum StudIPLibrary {
         return download
     }
 
-    /// Datei heruntergeladen: Ablageort relativ zum App-Container, Zeitpunkt wie `db.now_iso()`
-    public static func markDownloaded(_ c: SQLiteConnection, fileID: String, localPath: String, at: String) throws {
-        try c.execute("UPDATE files SET local_path=?, downloaded_at=? WHERE id=?", [.text(localPath), .text(at), .text(fileID)])
+    /// Datei heruntergeladen: Ablageort relativ zum App-Container, Zeitpunkt wie `db.now_iso()`, dazu die geladene
+    /// Fassung (Groesse, Typ, Aenderungszeit, siehe `storeFiles`) in einem Schritt.
+    /// Kopien ("Duplizieren") teilen sich die Datei des Originals; wer seinen Ablageort verloren hat (z. B. nach
+    /// "Abmelden und Dateien löschen", `forgetDownloads`), bekommt ihn hier mit zurueck, sonst oeffnete sich die
+    /// Kopie samt Notizen nicht mehr.
+    public static func markDownloaded(_ c: SQLiteConnection, file f: StudIPFile, localPath: String, at: String) throws {
+        let chdate = Int64(unixTime(f.changed) ?? 0)
+        try c.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=? WHERE id=?",
+                      [.text(localPath), .text(at), .integer(Int64(f.size)), SQLiteValue(f.mimeType), .integer(chdate), .text(f.id)])
+        try c.execute("""
+            UPDATE files SET local_path=?, downloaded_at=?
+            WHERE id<>? AND course_id<>'__user__' AND COALESCE(local_path, '')=''
+              AND download_url=(SELECT download_url FROM files WHERE id=?)
+            """, [.text(localPath), .text(at), .text(f.id), .text(f.id)])
     }
 
     /// Eintrag in `sync_log` wie im `finally` von run_sync
@@ -100,8 +121,9 @@ public enum StudIPLibrary {
     }
 
     /// Lokale Datei entfernt (z. B. "Abmelden und Dateien löschen"): Eintrag und Notizen bleiben, nur der Ablageort
-    /// faellt weg; der naechste Abgleich laedt die Datei neu. Rueckgabe: IDs der betroffenen Dateien (der Aufrufer
-    /// entfernt damit Kopien, z. B. im PDF-Zwischenspeicher des Editors).
+    /// faellt weg; der naechste Abgleich laedt die Datei neu (Duplikate bekommen ihn dabei mit, `markDownloaded`).
+    /// Rueckgabe: IDs der betroffenen Dateien samt Duplikaten (der Aufrufer entfernt damit Kopien, z. B. im
+    /// PDF-Zwischenspeicher des Editors).
     @discardableResult
     public static func forgetDownloads(_ c: SQLiteConnection, under prefix: String) throws -> [String] {
         let match = "course_id <> '__user__' AND substr(local_path, 1, ?) = ?"
@@ -133,7 +155,7 @@ public enum StudIPLibrary {
                                folderPath: e.folderPath)
             _ = try storeFiles(c, [f], startedAt: at, base: base, localFiles: nil)
             let loaded = unixTime(e.downloadedAt).map { BerlinClock.localISO(utc: $0) } ?? at
-            try markDownloaded(c, fileID: e.id, localPath: path, at: loaded)
+            try markDownloaded(c, file: f, localPath: path, at: loaded)
             adopted += 1
         }
         return adopted

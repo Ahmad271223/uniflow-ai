@@ -750,9 +750,19 @@ actor UFThumbnails {
     private var memory: [String: UIImage] = [:]
     private let dir = AppPaths.support.appendingPathComponent("thumbs", isDirectory: true)
 
+    /// Schluessel einer Vorschau: je Datenquelle getrennt (lokal und ein Server koennen dieselbe Datei-ID haben)
+    nonisolated static func key(fileID: String, namespace: DataSourceNamespace, version: String) -> String {
+        "\(namespace.id):\(fileID):\(version):220"
+    }
+
+    /// Anfang der Dateinamen aller Vorschauen einer Datei (der Schluessel enthaelt ":", `LocalJournalName.safe`
+    /// schreibt ihn deshalb byteweise hexadezimal; das Praefix bleibt so ein Praefix)
+    nonisolated static func fileNamePrefix(fileID: String, namespace: DataSourceNamespace) -> String {
+        LocalJournalName.safe("\(namespace.id):\(fileID):")
+    }
+
     func image(fileID: String, version: String, image isImage: Bool, api: APIClient) async -> UIImage? {
-        // je Datenquelle getrennt: lokal und ein Server koennen dieselbe Datei-ID haben
-        let key = "\(api.namespace.id):\(fileID):\(version):220"
+        let key = Self.key(fileID: fileID, namespace: api.namespace, version: version)
         if let m = memory[key] { return m }
         let file = dir.appendingPathComponent(LocalJournalName.safe(key) + ".jpg")
         if let d = try? Data(contentsOf: file), let img = UIImage(data: d) { memory[key] = img; return img }

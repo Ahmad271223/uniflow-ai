@@ -40,12 +40,17 @@ public final class LocalJournal: @unchecked Sendable {
     /// `namespace`: Datenquelle des Dokuments (lokal oder ein bestimmter Server); nil nur fuer den alten Ort.
     public init(store: BlobStore, documentID: String, namespace: DataSourceNamespace? = nil) {
         self.store = store
-        self.dir = (namespace.map { $0.journalPrefix + "/" } ?? "") + "docs/" + LocalJournal.safeName(documentID)
+        self.dir = LocalJournal.directory(documentID: documentID, namespace: namespace)
     }
 
     /// Ordner aller Journale eines Namensraums im Speicher (`spaces/<id>/docs`), z. B. fuer die Diagnose
     public static func documentsDirectory(_ namespace: DataSourceNamespace?) -> String {
         (namespace.map { $0.journalPrefix + "/" } ?? "") + "docs"
+    }
+
+    /// Ordner des Journals eines Dokuments im Speicher (z. B. zum Entfernen nach "Endgültig löschen")
+    public static func directory(documentID: String, namespace: DataSourceNamespace?) -> String {
+        documentsDirectory(namespace) + "/" + safeName(documentID)
     }
 
     /// Dokument-ID zu einem Ordnernamen unter `documentsDirectory` (Umkehrung von `safeName`)

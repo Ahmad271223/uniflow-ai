@@ -43,8 +43,11 @@ struct LibraryNewDialog: View {
     var body: some View {
         UFDialog("Neu" + (current.path.isEmpty ? "" : " in „\(current.label)“")) {
             VStack(spacing: 8) {
+                // Notizbuch und Whiteboard gibt es nur zum Schreiben: Plus (Schloss mit Weg zur Abo-Seite)
                 UFMenuButton(text: "Notizbuch", icon: "note") { close(); overlay.modal { NotebookDialog(kind: "notebook", lib: lib, moduleID: moduleID, folderID: folderID) } }
+                    .ufRequires(NotebookDialog.feature)
                 UFMenuButton(text: "Whiteboard", icon: "square") { close(); overlay.modal { NotebookDialog(kind: "whiteboard", lib: lib, moduleID: moduleID, folderID: folderID) } }
+                    .ufRequires(NotebookDialog.feature)
                 UFMenuButton(text: "Ordner", icon: "folder") { close(); Task { await newFolder() } }
                 UFMenuButton(text: "PDF importieren", icon: "file-text") { importKind = "pdf" }
                 UFMenuButton(text: "Bild importieren", icon: "image") { imageSource = true }
@@ -109,6 +112,10 @@ struct LibraryNewDialog: View {
 
 /// notebookDialog(kind, moduleId, folderId): Titel, Vorlage (nur Notizbuch), Modul -> Erstellen, danach Dokument oeffnen
 struct NotebookDialog: View {
+    /// Notizbuecher und Whiteboards sind zum Schreiben da: Plus wie das Schreiben selbst (PDF- und Bild-Import zum
+    /// Lesen bleiben Free)
+    static let feature = UFFeature.pencilWriting
+
     let kind: String
     let lib: JSONValue
     let moduleID: Int?
@@ -160,6 +167,11 @@ struct NotebookDialog: View {
 
     private func create() async {
         guard let api = session.api else { return }
+        // Tarif inzwischen ohne Schreiben (z. B. Abo abgelaufen, waehrend der Dialog offen war)
+        guard Entitlements.shared.allows(Self.feature) else {
+            toast.show("Notizbücher und Whiteboards gibt es mit Plus.")
+            return
+        }
         var fields = ["kind": kind, "title": title.isEmpty ? "Notizen" : title, "template": tpl]
         if module != 0 { fields["module_id"] = "\(module)" }
         if let folderID { fields["folder_id"] = "\(folderID)" }
@@ -301,7 +313,13 @@ struct LibraryTrashMenu: View {
     private func run(_ body: JSONValue) {
         close()
         Task {
-            do { _ = try await session.api?.value("/api/library/files/\(id)", method: "PATCH", body: body) } catch { toast.show(error.localizedDescription, seconds: 4) }
+            do {
+                if let api = session.api {
+                    _ = try await api.value("/api/library/files/\(id)", method: "PATCH", body: body)
+                    // endgueltig geloescht: auch Zwischenspeicher, Journal und Vorschauen dieses Dokuments auf dem Geraet
+                    if body["delete_forever"] == true { AppPaths.removeDocumentCopies(fileID: id, namespace: api.namespace) }
+                }
+            } catch { toast.show(error.localizedDescription, seconds: 4) }
             router.reload()
         }
     }

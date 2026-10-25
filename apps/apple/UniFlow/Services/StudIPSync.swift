@@ -63,14 +63,15 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
     private let session: URLSession
     private let cookieHeader: String
 
-    init(cookies: [HTTPCookie], host: String) {
+    /// `configuration`: nur Tests (feste Antworten ueber `URLProtocol`); sonst fluechtig, ohne Cookie-Speicher.
+    init(cookies: [HTTPCookie], host: String, configuration: URLSessionConfiguration = .ephemeral) {
         let now = Date()
         let valid = cookies.filter { c in
             let d = c.domain.hasPrefix(".") ? String(c.domain.dropFirst()) : c.domain
             return (host == d || host.hasSuffix("." + d)) && (c.expiresDate ?? .distantFuture) > now
         }
         cookieHeader = HTTPCookie.requestHeaderFields(with: valid)["Cookie"] ?? ""
-        let config = URLSessionConfiguration.ephemeral
+        let config = configuration
         config.httpShouldSetCookies = false
         config.httpCookieAcceptPolicy = .never
         config.timeoutIntervalForRequest = 30
@@ -78,14 +79,32 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
         session = URLSession(configuration: config)
     }
 
-    func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+    private func request(_ url: URL, accept: String?) -> URLRequest {
         var r = URLRequest(url: url)
         r.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         if let accept { r.setValue(accept, forHTTPHeaderField: "Accept") }
-        let (data, response) = try await session.data(for: r)
+        return r
+    }
+
+    private static func reply(_ response: URLResponse, body: Data = Data()) throws -> HTTPReply {
         guard let http = response as? HTTPURLResponse else { throw StudIPError.badResponse("keine HTTP-Antwort") }
         return HTTPReply(status: http.statusCode, contentType: http.value(forHTTPHeaderField: "Content-Type") ?? "",
-                         finalURL: http.url, body: data)
+                         finalURL: http.url, body: body)
+    }
+
+    func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+        let (data, response) = try await session.data(for: request(url, accept: accept))
+        return try Self.reply(response, body: data)
+    }
+
+    /// Dateien gehen direkt auf die Platte (Vorlesungsvideos sprengen sonst den Arbeitsspeicher)
+    func download(_ url: URL, to file: URL) async throws -> HTTPReply {
+        let (temp, response) = try await session.download(for: request(url, accept: nil))
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let reply = try Self.reply(response)
+        if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
+        try FileManager.default.moveItem(at: temp, to: file)
+        return reply
     }
 }
 
@@ -97,8 +116,9 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// Welche Dateien geladen werden, entscheidet die Datenbank (neu, in Stud.IP geaendert, lokal fehlend);
 /// `index.json` bleibt fuer die Liste in StudIPView. Was ein Abgleich vor S3 schon geladen hat, wird beim Start
 /// uebernommen, ohne neu zu laden.
-/// Wie in Python halten Fehler einzelner Kurse oder Dateien den Abgleich nicht an (`StudIPError.affectsOnlyItem`);
-/// eine abgelaufene Sitzung, Netzfehler und volle Platte brechen ab.
+/// Wie in Python halten Fehler einzelner Kurse oder Dateien den Abgleich nicht an (`StudIPError.affectsOnlyItem`,
+/// beim Download auch Transportfehler einer Datei wie eine Zeitueberschreitung); eine abgelaufene Sitzung, kein Netz
+/// und volle Platte brechen ab. Eine neue Fassung, die nicht ankam, laedt der naechste Abgleich (`StudIPLibrary`).
 @MainActor
 final class StudIPSync: ObservableObject {
     static let base = URL(string: "https://studip.uni-hannover.de")!
@@ -205,10 +225,11 @@ final class StudIPSync: ObservableObject {
     }
 
     /// Heruntergeladene Dateien loeschen. In der Datenbank bleiben die Dokumente mit ihren Notizen, nur der Ablageort
-    /// faellt weg; der naechste Abgleich laedt sie neu. Die Kopien im PDF-Zwischenspeicher des Editors (lokale
-    /// Datenquelle) gehen mit, sonst blieben die Stud.IP-Dateien auf dem Geraet.
+    /// faellt weg; der naechste Abgleich laedt sie neu. Die Kopien im PDF-Zwischenspeicher des Editors und die
+    /// Vorschaubilder der Bibliothek (lokale Datenquelle) gehen mit, sonst blieben die Stud.IP-Dateien auf dem Geraet.
     func removeDownloads() async {
         try? FileManager.default.removeItem(at: root.appendingPathComponent("files"))
+        try? FileManager.default.removeItem(at: partialFolder)
         index = [:]
         saveIndex()
         entries = []
@@ -216,6 +237,7 @@ final class StudIPSync: ObservableObject {
             let ids = (try? await backend.context.database.transaction { try StudIPLibrary.forgetDownloads($0, under: prefix + "/") }) ?? []
             let cache = AppPaths.pdfDirectory(.local, root: support)
             for id in ids { try? FileManager.default.removeItem(at: cache.appendingPathComponent(LocalJournalName.safe(id) + ".pdf")) }
+            AppPaths.removeThumbnails(fileIDs: ids, namespace: .local, root: support)
         }
     }
 
@@ -288,26 +310,36 @@ final class StudIPSync: ObservableObject {
                                          fileExists: { FileManager.default.fileExists(atPath: root.appendingPathComponent($0).path) }).goneRemotely
             let download = wanted.filter(\.isDownloadable)
             var failed = 0
+            // Downloads erst in einen Zwischenordner, dann an ihren Platz: ein Abbruch hinterlaesst keine halbe Datei
+            // als "geladen"; Reste eines abgebrochenen Laufs gehen hier weg
+            let partial = partialFolder
+            try? FileManager.default.removeItem(at: partial)
+            try FileManager.default.createDirectory(at: partial, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: partial) }
             for (i, f) in download.enumerated() {
                 phase = .running("Lade \(i + 1) von \(download.count): \(f.name)")
-                let data: Data
+                let temp = partial.appendingPathComponent(UUID().uuidString)
                 do {
-                    data = try await client.download(fileID: f.id)
+                    try await client.download(fileID: f.id, to: temp)
                 } catch let e as StudIPError where e.affectsOnlyItem {
                     // wie run_sync ("Download-Fehler"): naechste Datei; der naechste Abgleich versucht es erneut
+                    failed += 1
+                    continue
+                } catch let e as URLError where !Self.endsRun(e) {
+                    // z. B. Zeitueberschreitung bei einer grossen Datei: nur diese Datei, die uebrigen kommen trotzdem
                     failed += 1
                     continue
                 }
                 let rel = StudIPImport.relativePath(for: f)
                 let target = root.appendingPathComponent(rel)
                 try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try data.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                try Self.place(temp, at: target)
                 index[f.id] = StudIPLocalEntry(file: f, courseTitle: titles[f.courseID] ?? "Kurs", relativePath: rel,
                                                downloadedAt: ISO8601DateFormatter().string(from: Date()))
                 saveIndex()                                   // nach jeder Datei: Abbruch verliert nichts
                 if let stored = localFiles?.stored(target) {
                     let now = clock.nowISO
-                    try await db.transaction { try StudIPLibrary.markDownloaded($0, fileID: f.id, localPath: stored, at: now) }
+                    try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, at: now) }
                 }
                 loaded += 1
             }
@@ -346,6 +378,27 @@ final class StudIPSync: ObservableObject {
         lastSummary = summary
         defaults.set(lastRun, forKey: "uniflow.studip.lastRun")
         defaults.set(summary, forKey: "uniflow.studip.lastSummary")
+    }
+
+    /// Zwischenordner der laufenden Downloads (im Stud.IP-Ordner, also ohne Backup)
+    private var partialFolder: URL { root.appendingPathComponent(".laden", isDirectory: true) }
+
+    /// Transportfehler, nach dem keine weitere Datei ankaeme (kein Netz, Stud.IP nicht erreichbar, abgebrochen):
+    /// der Lauf endet als Fehler. Alles andere (z. B. Zeitueberschreitung) betrifft nur die eine Datei.
+    nonisolated static func endsRun(_ e: URLError) -> Bool {
+        [.notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff, .cannotFindHost, .cannotConnectToHost,
+         .dnsLookupFailed, .cancelled].contains(e.code)
+    }
+
+    /// Geladene Datei an ihren Platz (ersetzt eine aeltere Fassung), mit Dateischutz wie bisher
+    nonisolated static func place(_ temp: URL, at target: URL) throws {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: target.path) {
+            _ = try fm.replaceItemAt(target, withItemAt: temp)
+        } else {
+            try fm.moveItem(at: temp, to: target)
+        }
+        try? fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path)
     }
 
     /// Ordner anlegen und vom iCloud-Backup ausnehmen (Vorlesungsunterlagen lassen sich jederzeit neu laden).

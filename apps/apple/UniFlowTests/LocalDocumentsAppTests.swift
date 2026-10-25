@@ -61,11 +61,15 @@ final class LocalDocumentsAppTests: XCTestCase {
     private final class FakeStudIP: StudIPTransport, @unchecked Sendable {
         private let lock = NSLock()
         private var routes: [String: HTTPReply] = [:]
+        private var failures: [String: URLError] = [:]
         private var log: [String] = []
 
         var requested: [String] { lock.lock(); defer { lock.unlock() }; return log }
 
-        func set(_ path: String, _ reply: HTTPReply) { lock.lock(); routes[path] = reply; lock.unlock() }
+        func set(_ path: String, _ reply: HTTPReply) { lock.lock(); routes[path] = reply; failures[path] = nil; lock.unlock() }
+
+        /// Transportfehler statt Antwort (Netz weg, Zeitueberschreitung)
+        func fail(_ path: String, _ error: URLError) { lock.lock(); failures[path] = error; lock.unlock() }
 
         func json(_ path: String, _ text: String) {
             set(path, HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(text.utf8)))
@@ -76,8 +80,9 @@ final class LocalDocumentsAppTests: XCTestCase {
                 .replacingOccurrences(of: "%5B", with: "[").replacingOccurrences(of: "%5D", with: "]")
             lock.lock()
             log.append(key)
-            let r = routes[key]
+            let r = routes[key], failure = failures[key]
             lock.unlock()
+            if let failure { throw failure }
             return r ?? HTTPReply(status: 404, contentType: "application/vnd.api+json", body: Data(#"{"errors":[]}"#.utf8))
         }
 
@@ -360,6 +365,151 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertTrue(log.first?["message"]?.string?.hasPrefix("FEHLER: ") == true)
     }
 
+    // MARK: Neue Fassung, Transportfehler, Kopien
+
+    /// Neue Fassung in Stud.IP, ihr Download scheitert (Fehler bei Stud.IP) oder der Lauf bricht ab (Netz weg): der
+    /// naechste Abgleich laedt sie trotzdem. Vorher stand die neue Aenderungszeit schon in der Datenbank, und die alte
+    /// Datei galt still als aktuell.
+    func testNewVersionArrivesAfterFailedDownloadOrAbort() async throws {
+        let dev = try device()
+        let v1 = makePDF("Fassung 1"), v2 = makePDF("Fassung 2")
+        XCTAssertNotEqual(v1, v2)
+        let changed = "2026-10-22T10:00:00+02:00"
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(fakeStudIP(pdf: v1)))
+        func content() async throws -> Data { try await dev.api.data("/api/files/d1/content").0 }
+        let first = try await content()
+        XCTAssertEqual(first, v1)
+
+        let broken = fakeStudIP(pdf: v2, changed: changed)
+        broken.set("/jsonapi.php/v1/file-refs/d1/content", HTTPReply(status: 500, contentType: "text/plain"))
+        await sync.run(client: client(broken))
+        XCTAssertEqual(sync.phase, .idle, "Fehler nur dieser Datei")
+        let afterError = try await content()
+        XCTAssertEqual(afterError, v1)
+
+        let offline = fakeStudIP(pdf: v2, changed: changed)
+        offline.fail("/jsonapi.php/v1/file-refs/d1/content", URLError(.notConnectedToInternet))
+        await sync.run(client: client(offline))
+        guard case .failed = sync.phase else { return XCTFail("kein Netz bricht den Lauf ab: \(sync.phase)") }
+        let afterAbort = try await content()
+        XCTAssertEqual(afterAbort, v1)
+
+        let ok = fakeStudIP(pdf: v2, changed: changed)
+        await sync.run(client: client(ok))
+        XCTAssertEqual(sync.phase, .idle)
+        XCTAssertEqual(ok.downloads, ["/jsonapi.php/v1/file-refs/d1/content"], "naechster Abgleich laedt die neue Fassung")
+        let latest = try await content()
+        XCTAssertEqual(latest, v2)
+        let meta = try await dev.api.value("/api/files/d1")
+        XCTAssertEqual(meta["chdate"]?.int, StudIPLibrary.unixTime(changed))
+        XCTAssertEqual(meta["size"]?.int, v2.count)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dev.studipRoot.appendingPathComponent(".laden").path), "keine halben Dateien")
+        let quiet = fakeStudIP(pdf: v2, changed: changed)
+        await sync.run(client: client(quiet))
+        XCTAssertEqual(quiet.downloads, [], "danach unveraendert")
+    }
+
+    /// Zeitueberschreitung beim Download einer (grossen) Datei: nur diese fehlt, die uebrigen kommen an; der naechste
+    /// Abgleich holt sie nach. Kein Netz beendet den Lauf (jede weitere Datei schluege ebenso fehl).
+    func testTimeoutOfOneDownloadDoesNotStopTheOthers() async throws {
+        XCTAssertFalse(StudIPSync.endsRun(URLError(.timedOut)))
+        XCTAssertFalse(StudIPSync.endsRun(URLError(.networkConnectionLost)))
+        XCTAssertTrue(StudIPSync.endsRun(URLError(.notConnectedToInternet)))
+        XCTAssertTrue(StudIPSync.endsRun(URLError(.cancelled)))
+        let dev = try device()
+        let pdf = makePDF("Blatt")
+        let stud = fakeStudIP(pdf: pdf)
+        stud.json("/jsonapi.php/v1/folders/r1/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"d1","attributes":{"name":"Vorlesung.mp4","filesize":800000000,"mime-type":"video/mp4","chdate":"2026-10-19T10:00:00+02:00"}},
+                     {"id":"d3","attributes":{"name":"Blatt 4.pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"2026-10-19T12:00:00+02:00"}}]}
+            """#)
+        stud.fail("/jsonapi.php/v1/file-refs/d1/content", URLError(.timedOut))
+        stud.set("/jsonapi.php/v1/file-refs/d3/content", HTTPReply(status: 200, contentType: "application/pdf", body: pdf))
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        let summary = try XCTUnwrap(sync.lastSummary)
+        XCTAssertTrue(summary.contains("1 nicht geladen (Fehler)"), summary)
+        let d3 = try await dev.api.value("/api/files/d3")
+        XCTAssertEqual(d3["exists"], true, "Datei hinter der langsamen kommt an")
+        let d1 = try await dev.api.value("/api/files/d1")
+        XCTAssertEqual(d1["exists"], false)
+
+        stud.set("/jsonapi.php/v1/file-refs/d1/content", HTTPReply(status: 200, contentType: "video/mp4", body: Data("Film".utf8)))
+        let before = stud.downloads.count
+        await sync.run(client: client(stud))
+        XCTAssertEqual(Array(stud.downloads.dropFirst(before)), ["/jsonapi.php/v1/file-refs/d1/content"])
+        let again = try await dev.api.value("/api/files/d1")
+        XCTAssertEqual(again["exists"], true)
+    }
+
+    /// Kopie ("Duplizieren") einer Stud.IP-Datei mit Notizen: nach "Abmelden und Dateien löschen" und erneutem
+    /// Abgleich oeffnet sie sich wieder im Editor, mit ihren Notizen. Vorschaubilder der Stud.IP-Dateien gehen beim
+    /// Loeschen mit.
+    func testCopyOfStudIPFileOpensWithNotesAfterRemovingDownloads() async throws {
+        let dev = try device()
+        let pdf = makePDF("Blatt")
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(fakeStudIP(pdf: pdf)))
+        let dup = try await dev.api.value("/api/library/files/d1", method: "PATCH", body: ["duplicate": true])
+        let copyID = try XCTUnwrap(dup["id"]?.string)
+        let store = DocumentStore(file: try await libraryFile(dev.api, copyID), api: dev.api, root: dev.support)
+        await store.load()
+        XCTAssertNil(store.errorMessage)
+        store.canvasChanged(pageKey: "p1", drawing: drawing(y: 300))
+        await store.flush()
+        let saved = await waitUntil { (try? await self.strokes(dev.api, copyID))?.count == 1 }
+        XCTAssertTrue(saved, "Notiz der Kopie")
+        await store.close()
+        let thumbs = dev.support.appendingPathComponent("thumbs", isDirectory: true)
+        try FileManager.default.createDirectory(at: thumbs, withIntermediateDirectories: true)
+        let thumb = thumbs.appendingPathComponent(LocalJournalName.safe(UFThumbnails.key(fileID: copyID, namespace: .local, version: "v")) + ".jpg")
+        try Data("jpg".utf8).write(to: thumb)
+
+        await sync.removeDownloads()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.originalPDFURL.path), "Kopie im Zwischenspeicher des Editors weg")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: thumb.path), "Vorschau weg")
+        let (_, gone) = try await dev.api.data("/api/files/\(copyID)/content")
+        XCTAssertEqual(gone.statusCode, 404)
+
+        let stud = fakeStudIP(pdf: pdf)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"], "nur das Original wird geladen")
+        let reopened = DocumentStore(file: try await libraryFile(dev.api, copyID), api: dev.api, root: dev.support)
+        await reopened.load()
+        XCTAssertNil(reopened.errorMessage, "Kopie oeffnet sich wieder")
+        XCTAssertEqual(try reopened.originalPDFData(), pdf)
+        let objects = await reopened.objects(forPageKey: "p1")
+        XCTAssertEqual(objects.filter { $0["type"]?.string == "stroke" }.count, 1, "mit ihren Notizen")
+        await reopened.close()
+    }
+
+    /// Download der App direkt in eine Datei (nicht im Arbeitsspeicher), mit Sitzungs-Cookie; feste Antwort ueber
+    /// `URLProtocol`, kein Netz
+    func testURLSessionTransportDownloadsIntoFile() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [FixedReplyProtocol.self]
+        FixedReplyProtocol.reply = (200, "application/pdf", Data("%PDF Testinhalt".utf8))
+        let cookie = try XCTUnwrap(HTTPCookie(properties: [.name: "Seminar_Session", .value: "test-sitzung", .domain: "studip.test", .path: "/"]))
+        let t = URLSessionStudIPTransport(cookies: [cookie], host: "studip.test", configuration: config)
+        let dir = try tempDir()
+        let file = dir.appendingPathComponent("ziel.pdf")
+        try Data("alt".utf8).write(to: file)
+        let c = StudIPClient(base: URL(string: "https://studip.test")!, transport: t, pauseMillis: 0)
+        try await c.download(fileID: "d1", to: file)
+        XCTAssertEqual(try Data(contentsOf: file), Data("%PDF Testinhalt".utf8), "ersetzt die alte Datei")
+        XCTAssertEqual(FixedReplyProtocol.lastRequest?.url?.path, "/jsonapi.php/v1/file-refs/d1/content")
+        XCTAssertEqual(FixedReplyProtocol.lastRequest?.value(forHTTPHeaderField: "Cookie"), "Seminar_Session=test-sitzung")
+        // Fehlerseite statt Datei: nichts bleibt liegen
+        FixedReplyProtocol.reply = (403, "application/vnd.api+json", Data("{}".utf8))
+        let failed = dir.appendingPathComponent("fehler.pdf")
+        do { try await c.download(fileID: "d2", to: failed); XCTFail("403") } catch {
+            XCTAssertEqual(error as? StudIPError, .http(status: 403, path: "jsonapi.php/v1/file-refs/d2/content"))
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: failed.path))
+    }
+
     // MARK: Eigene Dokumente
 
     /// Bild importieren: wie mit Pillow am PC eine einseitige PDF in Bildgroesse (ein Pixel = ein Punkt), abgelegt im
@@ -485,4 +635,34 @@ final class LocalDocumentsAppTests: XCTestCase {
         let names = try FileManager.default.contentsOfDirectory(atPath: spaces.path).sorted()
         XCTAssertEqual(names, ["local", "server-10.0.0.2-8765"])
     }
+}
+
+/// Feste HTTP-Antwort fuer eine URLSession in Tests (kein Netz); merkt sich die letzte Anfrage.
+final class FixedReplyProtocol: URLProtocol {
+    private static let lock = NSLock()
+    private static var stored: (status: Int, type: String, body: Data) = (200, "", Data())
+    private static var request: URLRequest?
+
+    static var reply: (status: Int, type: String, body: Data) {
+        get { lock.lock(); defer { lock.unlock() }; return stored }
+        set { lock.lock(); stored = newValue; lock.unlock() }
+    }
+
+    static var lastRequest: URLRequest? { lock.lock(); defer { lock.unlock() }; return request }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.lock.lock()
+        Self.request = request
+        Self.lock.unlock()
+        let r = Self.reply
+        let response = HTTPURLResponse(url: request.url!, statusCode: r.status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": r.type])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: r.body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }

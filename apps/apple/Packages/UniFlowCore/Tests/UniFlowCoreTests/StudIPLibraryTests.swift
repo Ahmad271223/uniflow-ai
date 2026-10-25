@@ -16,10 +16,13 @@ private let base = URL(string: "https://studip.test")!
 final class StudIPLibraryTests: XCTestCase {
 
     /// Ein Durchgang wie StudIPSync.run in der App: Kurse, je Kurs die Dateiliste, Downloads, Protokoll.
+    /// `failing`: Downloads, die scheitern (Datei bleibt wie bei einem Netzfehler ungeladen), `abortBeforeDownloads`:
+    /// Lauf bricht nach den Dateilisten ab (Netz weg, App beendet), ohne Protokoll.
     /// Rueckgabe: Dateien, die geladen werden muessten, und die geladenen.
     @discardableResult
     private func run(_ db: SQLiteDatabase, files: LocalFiles, now: String, courses: [StudIPCourse],
-                     lists: [(String, [StudIPFile])], error: String? = nil) async throws -> (wanted: [String], loaded: [String]) {
+                     lists: [(String, [StudIPFile])], error: String? = nil, failing: Set<String> = [],
+                     abortBeforeDownloads: Bool = false) async throws -> (wanted: [String], loaded: [String]) {
         if let error {
             try await db.transaction { try StudIPLibrary.log($0, startedAt: now, finishedAt: now, ok: false, newFiles: 0, message: StudIPLibrary.failure(error)) }
             return ([], [])
@@ -29,11 +32,12 @@ final class StudIPLibraryTests: XCTestCase {
         for (_, list) in lists {
             wanted += try await db.transaction { try StudIPLibrary.storeFiles($0, list, startedAt: now, base: base, localFiles: files) }
         }
+        if abortBeforeDownloads { return (wanted.map(\.id), []) }
         var loaded: [String] = []
-        for f in wanted where f.isDownloadable {
+        for f in wanted where f.isDownloadable && !failing.contains(f.id) {
             let rel = "studip/" + StudIPImport.relativePath(for: f)
             _ = try files.write(Data("Inhalt \(f.id)".utf8), to: rel)
-            try await db.transaction { try StudIPLibrary.markDownloaded($0, fileID: f.id, localPath: rel, at: now) }
+            try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: rel, at: now) }
             loaded.append(f.id)
         }
         let n = loaded.count
@@ -68,8 +72,11 @@ final class StudIPLibraryTests: XCTestCase {
             }
             // Reihenfolge der Kurse wie Python (Liste der Kurse, darin die Dateien)
             let lists = courses.map { ($0.id, remoteFiles(round["files"]?[$0.id], course: $0.id)) }
+            // Download scheitert trotz "ladbar" (Netz), wie `download` im Generator
+            let failing = Set((round["files"]?.object ?? [:]).values.flatMap { $0.array ?? [] }
+                .filter { $0["fail"]?.bool == true }.compactMap { $0["id"]?.string })
             let (wanted, loaded) = try await run(db, files: files, now: round["now"]?.string ?? "", courses: courses, lists: lists,
-                                                 error: round["error"]?.string)
+                                                 error: round["error"]?.string, failing: failing)
             XCTAssertEqual(wanted, round["attempted"]?.array?.compactMap(\.string), "\(name): zu ladende Dateien wie Python")
             XCTAssertEqual(loaded, round["downloaded"]?.array?.compactMap(\.string), "\(name): geladene Dateien")
             for table in ["courses", "files", "sync_log"] {
@@ -233,5 +240,98 @@ final class StudIPLibraryTests: XCTestCase {
         XCTAssertNotNil(u, "eigene Dokumente bleiben")
         let notes = try await db.scalar("SELECT COUNT(*) FROM annotations")?.int
         XCTAssertEqual(notes, 1)
+    }
+
+    /// Neue Fassung in Stud.IP: Bricht der Lauf vor ihrem Download ab oder scheitert der Download, laedt der naechste
+    /// Abgleich sie trotzdem (vorher stand die neue Aenderungszeit schon in der Datenbank, die alte Datei blieb still)
+    func testNewVersionIsLoadedAfterAbortOrFailedDownload() async throws {
+        let container = try tempContainer(self)
+        let files = LocalFiles(container: container, dataDirectory: "")
+        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+        try await db.migrate(clock: clock)
+        let course = StudIPCourse(id: "c1", title: "Testkurs", number: nil, semesterTitle: "WiSe 2026/27")
+        func version(_ changed: String, size: Int) -> [StudIPFile] {
+            [StudIPFile(id: "a1", courseID: "c1", name: "Folien.pdf", size: size, mimeType: "application/pdf", changed: changed)]
+        }
+        let v1 = version("2026-10-19T10:00:00+02:00", size: 10), v2 = version("2026-10-22T10:00:00+02:00", size: 12)
+        let v3 = version("2026-10-23T10:00:00+02:00", size: 14)
+        let first = try await run(db, files: files, now: "2026-10-20T08:00:00", courses: [course], lists: [("c1", v1)])
+        XCTAssertEqual(first.loaded, ["a1"])
+        func row() async throws -> [String: JSONValue] {
+            try await db.rows("SELECT chdate, size, mime, downloaded_at FROM files WHERE id='a1'").first ?? [:]
+        }
+        let loaded1 = try await row()
+
+        // Lauf bricht nach der Dateiliste ab (Netz weg, Sitzung abgelaufen, App beendet): alter Stand bleibt
+        let aborted = try await run(db, files: files, now: "2026-10-22T12:00:00", courses: [course], lists: [("c1", v2)],
+                                    abortBeforeDownloads: true)
+        XCTAssertEqual(aborted.wanted, ["a1"])
+        let afterAbort = try await row()
+        XCTAssertEqual(afterAbort, loaded1, "Aenderungszeit und Groesse erst mit dem Download")
+        let retried = try await run(db, files: files, now: "2026-10-22T13:00:00", courses: [course], lists: [("c1", v2)])
+        XCTAssertEqual(retried.loaded, ["a1"], "naechster Abgleich laedt die neue Fassung")
+        let loaded2 = try await row()
+        XCTAssertEqual(loaded2["chdate"]?.int, StudIPLibrary.unixTime("2026-10-22T10:00:00+02:00"))
+        XCTAssertEqual(loaded2["size"]?.int, 12)
+        XCTAssertEqual(loaded2["downloaded_at"]?.string, "2026-10-22T13:00:00")
+
+        // einzelner Download scheitert (affectsOnlyItem): ebenso
+        let failed = try await run(db, files: files, now: "2026-10-23T12:00:00", courses: [course], lists: [("c1", v3)], failing: ["a1"])
+        XCTAssertEqual(failed.wanted, ["a1"])
+        XCTAssertEqual(failed.loaded, [])
+        let afterFailure = try await row()
+        XCTAssertEqual(afterFailure, loaded2)
+        let again = try await run(db, files: files, now: "2026-10-23T13:00:00", courses: [course], lists: [("c1", v3)])
+        XCTAssertEqual(again.loaded, ["a1"])
+        let quiet = try await run(db, files: files, now: "2026-10-23T14:00:00", courses: [course], lists: [("c1", v3)])
+        XCTAssertEqual(quiet.wanted, [], "danach unveraendert")
+    }
+
+    /// Kopie ("Duplizieren") einer Stud.IP-Datei teilt sich deren Datei. Nach "Abmelden und Dateien löschen" und
+    /// erneutem Abgleich oeffnet sie sich wieder, ihre Notizen bleiben.
+    func testDuplicateOpensAgainAfterDownloadsWereRemoved() async throws {
+        let container = try tempContainer(self)
+        let files = LocalFiles(container: container, dataDirectory: "")
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock, files: files)
+        let db = backend.context.database
+        let course = StudIPCourse(id: "c1", title: "Testkurs", number: nil, semesterTitle: "WiSe 2026/27")
+        let list = [StudIPFile(id: "a1", courseID: "c1", name: "Folien.pdf", size: 10, mimeType: "application/pdf",
+                               changed: "2026-10-19T10:00:00+02:00")]
+        _ = try await run(db, files: files, now: "2026-10-20T08:00:00", courses: [course], lists: [("c1", list)])
+        let dup = await backend.handle(LocalRequest(method: "PATCH", path: "/api/library/files/a1", body: Data(#"{"duplicate": true}"#.utf8)))
+        let copy = try XCTUnwrap(dup.json?["id"]?.string)
+        let put = await backend.handle(LocalRequest(method: "PUT", path: "/api/files/\(copy)/annotations", query: [.init("base_version", "0")],
+                                                    body: Data(#"{"pages": {"p1": {"objects": [{"id": "k"}]}}}"#.utf8)))
+        XCTAssertEqual(put.status, 200, String(decoding: put.body, as: UTF8.self))
+        let before = await backend.handle(LocalRequest(method: "GET", path: "/api/files/\(copy)/content"))
+        XCTAssertEqual(before.status, 200)
+
+        // "Abmelden und Dateien löschen": Dateien weg, Ablageorte vergessen (Original und Kopie)
+        try FileManager.default.removeItem(at: container.appendingPathComponent("studip"))
+        let forgotten = try await db.transaction { try StudIPLibrary.forgetDownloads($0, under: "studip/") }
+        XCTAssertEqual(Set(forgotten), ["a1", copy])
+        let gone = await backend.handle(LocalRequest(method: "GET", path: "/api/files/\(copy)/content"))
+        XCTAssertEqual(gone.status, 404)
+
+        let again = try await run(db, files: files, now: "2026-10-21T08:00:00", courses: [course], lists: [("c1", list)])
+        XCTAssertEqual(again.loaded, ["a1"], "nur das Original wird geladen")
+        for id in ["a1", copy] {
+            let content = await backend.handle(LocalRequest(method: "GET", path: "/api/files/\(id)/content"))
+            XCTAssertEqual(content.status, 200, id)
+            XCTAssertEqual(String(decoding: content.body, as: UTF8.self), "Inhalt a1", id)
+        }
+        let copyRow = try await db.queryOne("SELECT local_path, downloaded_at, chdate, title FROM files WHERE id=?", [.text(copy)])
+        XCTAssertEqual(copyRow?["downloaded_at"]?.string, "2026-10-21T08:00:00")
+        XCTAssertEqual(copyRow?["title"]?.string, "Folien.pdf (Kopie)", "sonst bleibt die Kopie unveraendert")
+        let notes = await backend.handle(LocalRequest(method: "GET", path: "/api/files/\(copy)/annotations"))
+        XCTAssertEqual(notes.json?["data"]?["pages"]?["p1"]?["objects"]?.array?.count, 1, "Notizen der Kopie bleiben")
+        // eigene Dokumente bekommen nie den Ablageort einer Stud.IP-Datei
+        try await db.execute("INSERT INTO files(id, course_id, name, download_url) VALUES ('u1', '__user__', 'x.pdf', ?)",
+                             [.text(StudIPLibrary.downloadURL(base: base, fileID: "a1"))])
+        _ = try await db.transaction { try StudIPLibrary.forgetDownloads($0, under: "studip/") }
+        try FileManager.default.removeItem(at: container.appendingPathComponent("studip"))
+        _ = try await run(db, files: files, now: "2026-10-22T08:00:00", courses: [course], lists: [("c1", list)])
+        let own = try await db.scalar("SELECT local_path FROM files WHERE id='u1'")
+        XCTAssertEqual(own, .null)
     }
 }

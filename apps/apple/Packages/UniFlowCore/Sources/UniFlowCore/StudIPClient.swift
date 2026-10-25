@@ -23,6 +23,17 @@ public struct HTTPReply: Sendable {
 /// Transport fuer Stud.IP-Anfragen: die App setzt das Sitzungs-Cookie, Tests liefern feste Antworten.
 public protocol StudIPTransport: Sendable {
     func get(_ url: URL, accept: String?) async throws -> HTTPReply
+    /// Antwort direkt in `file` schreiben (grosse Dateien nicht im Arbeitsspeicher); `body` der Rueckgabe ist leer.
+    func download(_ url: URL, to file: URL) async throws -> HTTPReply
+}
+
+extension StudIPTransport {
+    /// Ersatz fuer Transporte ohne eigenen Download (Tests): ueber `get`, danach in die Datei.
+    public func download(_ url: URL, to file: URL) async throws -> HTTPReply {
+        let r = try await get(url, accept: nil)
+        try r.body.write(to: file, options: .atomic)
+        return HTTPReply(status: r.status, contentType: r.contentType, finalURL: r.finalURL)
+    }
 }
 
 public enum StudIPError: Error, Equatable, CustomStringConvertible, LocalizedError {
@@ -137,10 +148,16 @@ public actor StudIPClient {
     }
 
     private func send(_ pathOrLink: String, accept: String?) async throws -> HTTPReply {
+        let transport = self.transport
+        return try await perform(pathOrLink) { try await transport.get($0, accept: accept) }
+    }
+
+    /// Eine Anfrage mit Pause und Anfragegrenze; abgelaufene Sitzung und HTTP-Fehler werden zu `StudIPError`.
+    private func perform(_ pathOrLink: String, _ call: (URL) async throws -> HTTPReply) async throws -> HTTPReply {
         guard requestCount < maxRequests else { throw StudIPError.requestLimit }
         if requestCount > 0, pauseNanos > 0 { try await Task.sleep(nanoseconds: pauseNanos) }
         requestCount += 1
-        let reply = try await transport.get(try url(pathOrLink), accept: accept)
+        let reply = try await call(try url(pathOrLink))
         if reply.status == 401 || Self.looksLikeLogin(reply) { throw StudIPError.sessionExpired }
         guard (200..<300).contains(reply.status) else { throw StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink)) }
         return reply
@@ -235,12 +252,25 @@ public actor StudIPClient {
         }
     }
 
-    /// Inhalt einer Datei. Liefert Stud.IP statt der Datei eine HTML-Anmeldeseite, ist die Sitzung abgelaufen.
-    public func download(fileID: String) async throws -> Data {
-        let r = try await send("jsonapi.php/v1/file-refs/\(fileID)/content", accept: nil)
-        if r.contentType.lowercased().contains("text/html"), String(decoding: r.body.prefix(4000), as: UTF8.self).lowercased().contains("login") {
-            throw StudIPError.sessionExpired
+    /// Inhalt einer Datei direkt nach `file` (grosse Dateien nicht im Arbeitsspeicher). Liefert Stud.IP statt der
+    /// Datei eine HTML-Anmeldeseite, ist die Sitzung abgelaufen. Bei jedem Fehler bleibt keine halbe Datei liegen.
+    public func download(fileID: String, to file: URL) async throws {
+        let transport = self.transport
+        do {
+            let r = try await perform("jsonapi.php/v1/file-refs/\(fileID)/content") { try await transport.download($0, to: file) }
+            if r.contentType.lowercased().contains("text/html"), Self.head(of: file).lowercased().contains("login") {
+                throw StudIPError.sessionExpired
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: file)
+            throw error
         }
-        return r.body
+    }
+
+    /// Anfang einer Datei als Text (Erkennen der Anmeldeseite, ohne die ganze Datei zu lesen)
+    static func head(of file: URL, bytes: Int = 4000) -> String {
+        guard let h = try? FileHandle(forReadingFrom: file) else { return "" }
+        defer { try? h.close() }
+        return String(decoding: (try? h.read(upToCount: bytes)) ?? Data(), as: UTF8.self)
     }
 }

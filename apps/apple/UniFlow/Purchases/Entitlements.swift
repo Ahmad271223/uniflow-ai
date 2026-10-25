@@ -490,6 +490,31 @@ struct UFGate<Content: View>: View {
     }
 }
 
+/// Sperrkarte als Blatt, z. B. im Editor (Schreiben, geteilte Ansicht): Schloss, Umfang, "Mit Plus freischalten".
+/// Nach einem Kauf zeigt das Blatt, dass die Funktion frei ist.
+struct UFLockedSheet: View {
+    let feature: UFFeature
+    let close: () -> Void
+
+    init(_ feature: UFFeature, close: @escaping () -> Void) {
+        self.feature = feature
+        self.close = close
+    }
+
+    var body: some View {
+        NavigationStack {
+            UFContent(maxWidth: 640, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
+                UFGate(feature) {
+                    UFCard { Text("„\(feature.title)“ ist freigeschaltet.").ufFont(14.5).foregroundStyle(UF.text) }
+                }
+            }
+            .navigationTitle(feature.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schließen", action: close) } }
+        }
+    }
+}
+
 /// Tarifwahl als Blatt (aus Sperren heraus)
 struct UFPlanSheet: View {
     let close: () -> Void

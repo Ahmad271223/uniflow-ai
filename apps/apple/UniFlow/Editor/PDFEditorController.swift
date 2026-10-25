@@ -201,10 +201,39 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             guard ownNotesVisible != oldValue else { return }
             for v in allOverlays {
                 if !ownNotesVisible, v.loaded { commitPendingUndo(v) }
-                v.setOwnNotesVisible(ownNotesVisible)
+                applyOwnNotes(to: v)
             }
-            showToolPicker(ownNotesVisible)
+            showToolPicker(writable)
         }
+    }
+
+    /// Tarif erlaubt Schreiben (Plus, `UFFeatureMatrix.notes(plan:).canEdit`). Ohne (Free, nach dem Herabstufen):
+    /// nur ansehen, die eigenen Notizen bleiben sichtbar (Canvas ohne Eingabe, keine Palette, kein Rueckgaengig,
+    /// keine Seitenaktionen). Der Verlauf geht beim Sperren verloren, damit Rueckgaengig ueber das System nichts
+    /// mehr schreibt; Ausstehendes wird noch gesichert.
+    var canEdit = true {
+        didSet {
+            store.canEdit = canEdit
+            guard canEdit != oldValue else { return }
+            for v in allOverlays {
+                if !canEdit, v.loaded { commitPendingUndo(v) }
+                applyOwnNotes(to: v)
+            }
+            if !canEdit {
+                for t in undoTargets.values { documentUndo.removeAllActions(withTarget: t) }
+                undoTargets = [:]
+            }
+            showToolPicker(writable)
+        }
+    }
+
+    /// Schreiben gerade moeglich (eigene Notizen eingeblendet und Tarif mit Schreiben)
+    var writable: Bool { ownNotesVisible && canEdit }
+
+    /// Sichtbarkeit der eigenen Notizen und Eingabe der Canvas fuer ein Overlay
+    private func applyOwnNotes(to overlay: PageInkView) {
+        overlay.setOwnNotesVisible(ownNotesVisible)
+        if !canEdit { overlay.canvas.isUserInteractionEnabled = false }
     }
 
     var pencilOnly = true {
@@ -284,7 +313,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         toolPicker.colorUserInterfaceStyle = .light   // Farben wie auf dem hellen Papier; die Palette folgt dem System
         if ownsToolPicker {
             toolPicker.stateAutosaveName = "uniflow.toolpicker"
-            toolPicker.setVisible(true, forFirstResponder: anchor)
+            toolPicker.setVisible(writable, forFirstResponder: anchor)
         }
 
         let center = NotificationCenter.default
@@ -416,7 +445,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             overlay = PageInkView(pageIndex: index, pageKey: key, generation: shownLayoutVersion,
                                   geometry: PageGeometry(boxSize: box, rotation: page.rotation))
             configure(overlay)
-            overlay.setOwnNotesVisible(ownNotesVisible)
+            applyOwnNotes(to: overlay)
             applyForeign(overlay)
             loadContent(into: overlay)
         }
@@ -554,7 +583,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private func registerUndo(key: String, restore old: PKDrawing, redo new: PKDrawing) {
         documentUndo.registerUndo(withTarget: undoTarget(key)) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self else { return }
+                // ohne Schreiben im Tarif nimmt ein Schritt, den `removeAllActions(withTarget:)` nicht erreicht hat
+                // (z. B. in einer noch offenen Gruppe), nichts zurueck, auch nicht auf der Canvas
+                guard let self, self.canEdit else { return }
                 self.setDrawing(old, forKey: key)
                 self.registerUndo(key: key, restore: new, redo: old)
             }
@@ -611,6 +642,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Laden laeuft noch: `apply` uebernimmt die frueh gezeichneten Striche und sichert sie
         guard overlay.loaded else { return }
         store.canvasChanged(pageKey: overlay.pageKey, drawing: canvasView.drawing)
+        guard canEdit else { return }                        // ohne Schreiben im Tarif: kein Rueckgaengig-Schritt
         guard !documentUndo.isUndoing, !documentUndo.isRedoing else { return }
         // waehrend der Stift aufliegt (Radierer, Lasso) erst beim Absetzen einen Schritt anlegen
         if overlay.isDrawing { overlay.undoPending = true } else { registerStep(overlay) }
@@ -648,7 +680,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// - Returns: Schluessel der neuen Seite.
     @discardableResult
     func insertBlankPage(after key: String? = nil, template: String = "blank") async -> String? {
-        guard ownNotesVisible else { return nil }           // nur ansehen
+        guard writable else { return nil }                  // nur ansehen
         let afterKey = key ?? currentPageKey
         let t = PaperTemplate.isKnown(template) ? template : "blank"
         guard let editor = pageEditor else {
@@ -675,7 +707,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Seite (Standard: aktuelle) in den Papierkorb legen (`deletedPages`, wiederherstellbar). Die letzte Seite bleibt.
     @discardableResult
     func trashPage(key: String? = nil) async -> Bool {
-        guard ownNotesVisible else { return false }
+        guard writable else { return false }
         guard let editor = pageEditor, let key = key ?? currentPageKey, let layout = shownLayout,
               let i = layout.index(ofKey: key), layout.entries.count > 1 else { return false }
         if let v = boundOverlay(forKey: key), v.loaded { store.canvasChanged(pageKey: key, drawing: v.canvas.drawing) }
@@ -690,7 +722,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Juengsten Papierkorb-Eintrag einer Seite an ihren frueheren Platz zurueckholen und hinspringen.
     @discardableResult
     func restorePage(key: String) async -> Bool {
-        guard ownNotesVisible else { return false }
+        guard writable else { return false }
         guard let editor = pageEditor else { return false }
         pendingFocusKey = key
         let change = await editor.applyPageStructure { doc in PageOrder.restore(&doc, key: key) }
@@ -730,13 +762,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     func undo() {
-        guard ownNotesVisible else { return }               // ausgeblendet: nur ansehen
+        guard writable else { return }                      // ausgeblendet oder ohne Schreiben im Tarif: nur ansehen
         allOverlays.forEach(commitPendingUndo)
         documentUndo.undo()
     }
 
     func redo() {
-        guard ownNotesVisible else { return }
+        guard writable else { return }
         documentUndo.redo()
     }
 

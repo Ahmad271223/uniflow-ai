@@ -33,6 +33,29 @@ enum AppPaths {
         values.isExcludedFromBackup = true
         try? dir.setResourceValues(values)
     }
+
+    /// Kopien eines endgueltig geloeschten Dokuments auf dem Geraet entfernen: Original-PDF im Zwischenspeicher,
+    /// Journal (Notizen, im iCloud-Backup) und Vorschaubilder der Bibliothek, nur fuer diese Datenquelle. Ohne das
+    /// blieben sie fuer immer liegen (die Kennung kommt nie wieder).
+    static func removeDocumentCopies(fileID: String, namespace: DataSourceNamespace, root: URL = support) {
+        let fm = FileManager.default
+        try? fm.removeItem(at: pdfDirectory(namespace, root: root).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf"))
+        let journal = root.appendingPathComponent("journal", isDirectory: true)
+            .appendingPathComponent(LocalJournal.directory(documentID: fileID, namespace: namespace), isDirectory: true)
+        try? fm.removeItem(at: journal)
+        removeThumbnails(fileIDs: [fileID], namespace: namespace, root: root)
+    }
+
+    /// Vorschaubilder der Bibliothek (`thumbs`, alle Bearbeitungsstaende) zu diesen Dateien einer Datenquelle
+    static func removeThumbnails(fileIDs: [String], namespace: DataSourceNamespace, root: URL = support) {
+        guard !fileIDs.isEmpty else { return }
+        let fm = FileManager.default
+        let thumbs = root.appendingPathComponent("thumbs", isDirectory: true)
+        let prefixes = fileIDs.map { UFThumbnails.fileNamePrefix(fileID: $0, namespace: namespace) }
+        for name in (try? fm.contentsOfDirectory(atPath: thumbs.path)) ?? [] where prefixes.contains(where: { name.hasPrefix($0) }) {
+            try? fm.removeItem(at: thumbs.appendingPathComponent(name))
+        }
+    }
 }
 
 /// Einmaliger Umzug in die Namensraeume je Datenquelle (S2): Journale und PDF-Zwischenspeicher aus der Zeit vor dem
@@ -206,6 +229,12 @@ final class DocumentStore: ObservableObject {
     /// Drehen, Papierkorb, Wiederherstellen, Lesezeichen), tun dann nichts. Ausstehende Striche von vorher werden
     /// weiter gesichert.
     var ownNotesReadOnly = false
+    /// Tarif erlaubt Schreiben (Plus, `UFFeatureMatrix.notes(plan:).canEdit`). Ohne (Free, nach dem Herabstufen):
+    /// nur ansehen wie bei ausgeblendeten Notizen, dazu nimmt der Store keine neuen Zeichnungen an. Die eigenen
+    /// Notizen bleiben sichtbar und exportierbar; was vorher gezeichnet wurde und noch aussteht, wird gesichert.
+    var canEdit = true
+    /// Schreibende Aktionen erlaubt (Notizen eingeblendet und Tarif mit Schreiben)
+    var isWritable: Bool { canEdit && !ownNotesReadOnly }
 
     /// - Parameter root: Ordner fuer Journal und PDF-Zwischenspeicher (Standard: App-Container; Tests: Temp-Ordner).
     init(file: LibFile, api: APIClient, root: URL = AppPaths.support) {
@@ -233,9 +262,12 @@ final class DocumentStore: ObservableObject {
                 guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
                     throw APIError(status: http.statusCode, message: "Keine PDF-Datei erhalten")
                 }
-                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                AppPaths.excludeFromBackup(url.deletingLastPathComponent())
-                try data.write(to: url, options: .atomic)
+                // grosse Skripte: Schreiben nicht auf dem Hauptthread (die Oberflaeche bliebe so lange stehen)
+                try await Task.detached(priority: .userInitiated) {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    AppPaths.excludeFromBackup(url.deletingLastPathComponent())
+                    try data.write(to: url, options: .atomic)
+                }.value
             }
             guard let pdfDocument = PDFDocument(url: url) else {
                 throw APIError(status: 0, message: "PDF lässt sich nicht öffnen")
@@ -326,7 +358,8 @@ final class DocumentStore: ObservableObject {
     /// Vom Editor nach jeder Aenderung einer Canvas. Kehrt sofort zurueck. Der Schluessel stammt aus dem
     /// Seitenaufbau, mit dem die Canvas angelegt wurde (bleibt richtig, auch wenn sich die Reihenfolge aendert).
     func canvasChanged(pageKey key: String, drawing: PKDrawing) {
-        guard !key.isEmpty else { return }
+        // ohne Schreiben im Tarif keine neuen Zeichnungen (auch nicht ueber Rueckgaengig); Ausstehendes bleibt
+        guard !key.isEmpty, canEdit else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
         canvasEdits[key, default: 0] += 1
         processTask?.cancel()
@@ -419,7 +452,7 @@ final class DocumentStore: ObservableObject {
     }
 
     func toggleBookmark(pageKey key: String, title: String) async {
-        guard !ownNotesReadOnly else { return }
+        guard isWritable else { return }
         await updateMeta { meta in
             var list = meta["bookmarks"]?.array ?? []
             if let i = list.firstIndex(where: { $0["key"]?.string == key }) { list.remove(at: i) }
@@ -430,7 +463,7 @@ final class DocumentStore: ObservableObject {
 
     /// Leere Seite nach der angegebenen Seite einfuegen (Vorlage: blank, lined, grid, dotted, mm, cornell).
     func addBlankPage(afterKey: String?, template: String) async {
-        guard !ownNotesReadOnly else { return }
+        guard isWritable else { return }
         let index = afterKey.flatMap { layout?.index(ofKey: $0) }
         let size = index.flatMap { layout?.pdf.page(at: $0) }.map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize }
             ?? CGSize(width: 595, height: 842)
@@ -448,7 +481,7 @@ final class DocumentStore: ObservableObject {
 
     /// Seite um 90 Grad drehen (wie "Drehen" im Web-Editor; Notizen behalten ihre Koordinaten).
     func rotatePage(key: String) async {
-        guard !ownNotesReadOnly else { return }
+        guard isWritable else { return }
         await updateMeta { meta in
             var order = meta["pageOrder"]?.array ?? []
             guard let i = order.firstIndex(where: { $0["key"]?.string == key }) else { return }
@@ -460,7 +493,7 @@ final class DocumentStore: ObservableObject {
 
     /// Textfeld auf der Seite anlegen (im Web-Editor bearbeitbar).
     func addText(_ text: String, pageKey key: String) async {
-        guard !text.isEmpty, !ownNotesReadOnly else { return }
+        guard !text.isEmpty, isWritable else { return }
         await processPending()
         var page = (await engine.page(key)) ?? .object(["objects": .array([])])
         var objects = page["objects"]?.array ?? []
@@ -595,7 +628,7 @@ extension DocumentStore: PageStructureEditing {
     }
 
     func applyPageStructure(_ change: (inout AnnotationDocument) -> PageOrder.Change?) async -> PageOrder.Change? {
-        guard !ownNotesReadOnly else { return nil }         // nur ansehen
+        guard isWritable else { return nil }                // nur ansehen
         await settlePending()
         var doc = await engine.currentDocument()
         guard let result = change(&doc) else { return nil }

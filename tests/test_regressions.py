@@ -132,3 +132,83 @@ def test_delete_forever_of_duplicate_keeps_shared_file(app, tmp_path):
     assert pdf.exists(), "das Original nutzt die Datei noch"
     st, _, _ = asgi_call(app, "PATCH", "/api/library/files/u-orig", body=json.dumps({"delete_forever": True}))
     assert st == 200 and not pdf.exists(), "letztes Dokument: die Datei wird geloescht"
+
+
+# -- Abgleich: eine neue Fassung ging still verloren, wenn ihr Download scheiterte (chdate stand schon in der Datenbank,
+#    der naechste Abgleich hielt die alte Datei fuer aktuell)
+def test_failed_download_of_new_version_is_retried(app, monkeypatch, tmp_path):
+    from app import db, studip_sync, timetable
+    remote = {"f-sync-1": {"name": "Folien.pdf", "size": 10, "chdate": 1792000000}}
+    failing: set = set()
+    loaded: list = []
+
+    class Request:
+        def get(self, *a, **k):
+            raise RuntimeError("kein Netz im Test")
+
+    class Page:
+        request = Request()
+
+    class Ctx:
+        def new_page(self):
+            return Page()
+
+        def close(self):
+            pass
+
+    class Chromium:
+        def launch_persistent_context(self, *a, **k):
+            return Ctx()
+
+    class PW:
+        chromium = Chromium()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def download(page, url, target):
+        fid = url.split("/file-refs/")[1].split("/")[0]
+        if fid in failing:
+            raise RuntimeError("Verbindung abgebrochen")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"%PDF Fassung " + str(remote[fid]["chdate"]).encode())
+        loaded.append(fid)
+
+    def fetch_files(page, cid):
+        return [{"id": k, "name": v["name"], "size": v["size"], "mime": "application/pdf", "author": None, "chdate": v["chdate"],
+                 "download_url": f"https://studip.test/jsonapi.php/v1/file-refs/{k}/content"} for k, v in remote.items()]
+
+    monkeypatch.setattr(studip_sync, "sync_playwright", lambda: PW())
+    monkeypatch.setattr(studip_sync, "login", lambda page: None)
+    monkeypatch.setattr(studip_sync, "fetch_courses",
+                        lambda page: [{"id": "c-sync", "title": "Testkurs Abgleich", "number": None, "semester": ""}])
+    monkeypatch.setattr(studip_sync, "fetch_events", lambda page, cid: [])
+    monkeypatch.setattr(studip_sync, "fetch_files", fetch_files)
+    monkeypatch.setattr(studip_sync, "fetch_folder_paths", lambda page, cid: {})
+    monkeypatch.setattr(studip_sync, "download", download)
+    monkeypatch.setattr(studip_sync, "classify", lambda title: (None, None))
+    monkeypatch.setattr(studip_sync, "SEMESTER_FILTER", "")
+    monkeypatch.setattr(studip_sync, "FILES_DIR", tmp_path / "files")
+    monkeypatch.setattr(studip_sync.time, "sleep", lambda s: None)
+    monkeypatch.setattr(timetable, "auto_import", lambda conn: {"new": 0})
+
+    def row():
+        with db.cursor() as conn:
+            return dict(db.row(conn, "SELECT chdate, size, local_path FROM files WHERE id='f-sync-1'"))
+
+    assert studip_sync.run_sync()["ok"] and loaded == ["f-sync-1"]
+    remote["f-sync-1"].update(size=12, chdate=1792100000)
+    failing.add("f-sync-1")
+    assert studip_sync.run_sync()["ok"]
+    r = row()
+    assert (r["chdate"], r["size"]) == (1792000000, 10), "neue Fassung erst mit ihrem Download"
+    failing.clear()
+    assert studip_sync.run_sync()["new_files"] == ["f-sync-1"], "naechster Abgleich laedt die neue Fassung"
+    r = row()
+    assert (r["chdate"], r["size"]) == (1792100000, 12)
+    with open(r["local_path"], "rb") as fh:
+        assert fh.read() == b"%PDF Fassung 1792100000"
+    assert studip_sync.run_sync()["new_files"] == [], "danach unveraendert"

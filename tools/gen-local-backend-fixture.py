@@ -796,8 +796,10 @@ def library_files(src: SchemaSource, server) -> dict:
 # S3: Stud.IP-Abgleich in die Datenbank (run_sync ohne Netz, Playwright und Einordnung)
 # ----------------------------------------------------------------------------
 
-def _f(fid, name, changed, *, size=10, mime="application/pdf", folder="", downloadable=True):
-    return {"id": fid, "name": name, "size": size, "mime": mime, "changed": changed, "folder": folder, "downloadable": downloadable}
+def _f(fid, name, changed, *, size=10, mime="application/pdf", folder="", downloadable=True, fail=False):
+    # fail: Download bricht ab (z. B. Netz), obwohl Stud.IP die Datei als ladbar meldet
+    return {"id": fid, "name": name, "size": size, "mime": mime, "changed": changed, "folder": folder, "downloadable": downloadable,
+            **({"fail": True} if fail else {})}
 
 
 IMPORT_ROUNDS = [
@@ -828,6 +830,16 @@ IMPORT_ROUNDS = [
      "files": {"c1": [_f("a1", "Folien 1.pdf", "2026-10-19T10:00:00+02:00", size=100),
                       _f("a2", "Blatt 1 (neu).pdf", "2026-10-20T18:00:00+02:00", size=60, folder="Übungen/Neu"),
                       _f("a5", "Folien 2.pdf", "2026-10-19T10:00:00+02:00", size=120)]}},
+    # neue Fassung von a1, ihr Download scheitert: Aenderungszeit, Groesse und Typ bleiben beim alten Stand, damit der
+    # naechste Abgleich die Datei wieder als geaendert erkennt und laedt (vorher ging die neue Fassung verloren)
+    {"name": "Neue Fassung, Download scheitert", "now": "2026-10-22T12:00:00",
+     "courses": [{"id": "c1", "title": "Testkurs Analysis I", "number": "T-1a", "semester": "WiSe 2026/27"}],
+     "files": {"c1": [_f("a1", "Folien 1 (v2).pdf", "2026-10-22T09:00:00+02:00", size=130, mime="application/x-pdf", fail=True),
+                      _f("a2", "Blatt 1 (neu).pdf", "2026-10-20T18:00:00+02:00", size=60, folder="Übungen/Neu")]}},
+    {"name": "Naechster Abgleich laedt die neue Fassung", "now": "2026-10-22T18:00:00",
+     "courses": [{"id": "c1", "title": "Testkurs Analysis I", "number": "T-1a", "semester": "WiSe 2026/27"}],
+     "files": {"c1": [_f("a1", "Folien 1 (v2).pdf", "2026-10-22T09:00:00+02:00", size=130, mime="application/x-pdf"),
+                      _f("a2", "Blatt 1 (neu).pdf", "2026-10-20T18:00:00+02:00", size=60, folder="Übungen/Neu")]}},
     {"name": "Abgleich mit Fehler", "now": "2026-10-23T08:00:00", "error": "Testfehler"},
 ]
 
@@ -906,6 +918,8 @@ def studip_import(src: SchemaSource) -> dict:
         f = next(x for fs in state["round"]["files"].values() for x in fs if x["id"] == fid)
         if not f["downloadable"]:
             raise RuntimeError("Download fehlgeschlagen (403)")
+        if f.get("fail"):
+            raise RuntimeError("Verbindung abgebrochen")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(f"Inhalt {fid}".encode())
         state["downloaded"].append(fid)

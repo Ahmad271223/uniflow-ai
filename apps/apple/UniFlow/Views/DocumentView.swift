@@ -115,6 +115,8 @@ struct DocumentView: View {
     /// passende, aber nicht lesbare Loesungen (im Ebenen-Menue entfernbar)
     @State private var foreignProblems: [SolutionLayerLoad.Problem] = []
     @ObservedObject private var entitlements = Entitlements.shared
+    /// gesperrte Plus-Funktion, deren Sperrkarte gerade offen ist (Schreiben, geteilte Ansicht)
+    @State private var lockedFeature: UFFeature?
 
     init(file: LibFile, api: APIClient) {
         self.api = api
@@ -123,6 +125,10 @@ struct DocumentView: View {
 
     /// Skript auf der Seite der freien Hand: Rechtshaender -> links.
     private var scriptLeft: Bool { hand != "left" }
+
+    /// Schreiben mit dem Pencil, Seiten und Lesezeichen nur mit Plus; Free und nach dem Herabstufen nur ansehen
+    /// (Notizen bleiben sichtbar und exportierbar, docs/AUFTRAG-APPSTORE-V1.md Abschnitt 4)
+    private var canWrite: Bool { entitlements.notes.canEdit }
 
     private var isExercise: Bool {
         let f = store.file
@@ -178,6 +184,7 @@ struct DocumentView: View {
             }
         }
         .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
+        .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
         .fileImporter(isPresented: $importingSolution, allowedContentTypes: [Self.solutionType]) { result in
             importSolution(result)
         }
@@ -210,8 +217,8 @@ struct DocumentView: View {
             Button("Hinzufügen") {
                 let text = newText
                 newText = ""
-                // ausgeblendete eigene Notizen = nur ansehen (der Store weist es ebenfalls ab)
-                if ownNotesVisible, let key = bridge.pageKey { Task { await store.addText(text, pageKey: key) } }
+                // ausgeblendete eigene Notizen oder Free = nur ansehen (der Store weist es ebenfalls ab)
+                if ownNotesVisible, canWrite, let key = bridge.pageKey { Task { await store.addText(text, pageKey: key) } }
             }
             Button("Abbrechen", role: .cancel) { newText = "" }
         } message: { Text("Erscheint oben links auf der aktuellen Seite und ist im Browser bearbeitbar.") }
@@ -233,7 +240,7 @@ struct DocumentView: View {
     private var primaryPane: some View {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                       toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: nil,
-                      foreignLayers: foreignLayers, ownNotesVisible: ownNotesVisible)
+                      foreignLayers: foreignLayers, ownNotesVisible: ownNotesVisible, canEdit: canWrite)
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { pageInfo }
             .overlay(alignment: .top) { suggestionBanner }
@@ -241,7 +248,7 @@ struct DocumentView: View {
 
     private func companionPane(_ c: Companion) -> some View {
         CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
-                      pencilOnly: pencilOnly) {
+                      pencilOnly: pencilOnly, canEdit: canWrite) {
             companion = nil
         }
         .id(c.id + "-" + String(c.pdfPage ?? -1))
@@ -272,7 +279,11 @@ struct DocumentView: View {
                     Text("\(s.title) · Seite \(s.page)").font(.caption).lineLimit(1)
                 }
                 Button("Daneben öffnen") {
-                    companion = Companion(file: libFile(id: s.fileID, title: s.title), pdfPage: s.page)
+                    if entitlements.allows(.splitView) {
+                        companion = Companion(file: libFile(id: s.fileID, title: s.title), pdfPage: s.page)
+                    } else {
+                        lockedFeature = .splitView
+                    }
                 }
                 .buttonStyle(.borderedProminent).controlSize(.small)
                 Button { dismissedSuggestions.insert(s.forPage) } label: { Image(systemName: "xmark") }
@@ -321,15 +332,27 @@ struct DocumentView: View {
         ToolbarItemGroup(placement: .topBarLeading) {
             Button { withAnimation { showSidebar.toggle() } } label: { Label("Seiten", systemImage: "sidebar.left") }
             Button { bridge.undo() } label: { Label("Rückgängig", systemImage: "arrow.uturn.backward") }
+                .disabled(!canWrite)
             Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
+                .disabled(!canWrite)
+            if !canWrite {
+                // Free: Schloss mit Weg zur Abo-Seite statt still nicht schreibender Stift
+                Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (Plus)", systemImage: "lock") }
+                    .labelStyle(.titleAndIcon)
+            }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
             StatusLabel(status: store.status)
             SyncIssueBadge(store: store)
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
             Button {
-                if companion != nil { companion = nil } else { choosingCompanion = true }
-            } label: { Label(companion == nil ? "Geteilt" : "Teilung beenden", systemImage: "rectangle.split.2x1") }
+                if companion != nil { companion = nil }
+                else if entitlements.allows(.splitView) { choosingCompanion = true }
+                else { lockedFeature = .splitView }
+            } label: {
+                Label(companion == nil ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (Plus)") : "Teilung beenden",
+                      systemImage: companion == nil && !entitlements.allows(.splitView) ? "lock" : "rectangle.split.2x1")
+            }
             Button { pencilOnly.toggle() } label: {
                 Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
             }
@@ -351,7 +374,13 @@ struct DocumentView: View {
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
             Menu {
-                if !ownNotesVisible {
+                if !canWrite {
+                    // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
+                    Button { lockedFeature = .pencilWriting } label: {
+                        Label("Schreiben, Seiten und Lesezeichen mit Plus", systemImage: "lock")
+                    }
+                    Divider()
+                } else if !ownNotesVisible {
                     // nur ansehen: schreibende Eintraege sind gesperrt
                     Button { ownNotesVisible = true } label: {
                         Label("Meine Notizen einblenden, um zu bearbeiten", systemImage: "eye")
@@ -387,7 +416,7 @@ struct DocumentView: View {
                     } label: { Label("Seite drehen", systemImage: "rotate.right") }
                     Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
                 }
-                .disabled(!ownNotesVisible)
+                .disabled(!ownNotesVisible || !canWrite)
                 Divider()
                 Button {
                     if entitlements.allows(.community) { importingSolution = true } else { solutionSheet = .locked }
@@ -541,7 +570,13 @@ struct DocumentView: View {
             Divider().frame(height: 14)
             Button("\(bridge.zoomPercent) %") { bridge.fitWidth() }
                 .accessibilityHint("Seite einpassen")
-            if !ownNotesVisible {
+            if !canWrite {
+                Divider().frame(height: 14)
+                Button { lockedFeature = .pencilWriting } label: {
+                    Label("Nur ansehen – Schreiben mit Plus", systemImage: "lock").lineLimit(1)
+                }
+                .accessibilityHint("Öffnet die Tarifwahl")
+            } else if !ownNotesVisible {
                 Divider().frame(height: 14)
                 Label("Meine Notizen ausgeblendet – nur ansehen", systemImage: "eye.slash").lineLimit(1)
             }
@@ -571,16 +606,18 @@ struct CompanionView: View {
     let toolPicker: PKToolPicker
     let undoManager: UndoManager
     let pencilOnly: Bool
+    let canEdit: Bool
     let onClose: () -> Void
 
     init(file: LibFile, api: APIClient, pdfPage: Int?, toolPicker: PKToolPicker, undoManager: UndoManager,
-         pencilOnly: Bool, onClose: @escaping () -> Void) {
+         pencilOnly: Bool, canEdit: Bool = true, onClose: @escaping () -> Void) {
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
         self.api = api
         self.pdfPage = pdfPage
         self.toolPicker = toolPicker
         self.undoManager = undoManager
         self.pencilOnly = pencilOnly
+        self.canEdit = canEdit
         self.onClose = onClose
     }
 
@@ -600,7 +637,8 @@ struct CompanionView: View {
                 ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
             } else if store.pdf != nil {
                 PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
-                              toolPicker: toolPicker, ownsToolPicker: false, undoManager: undoManager, initialPDFPage: pdfPage)
+                              toolPicker: toolPicker, ownsToolPicker: false, undoManager: undoManager, initialPDFPage: pdfPage,
+                              canEdit: canEdit)
             } else {
                 ProgressView().frame(maxHeight: .infinity)
             }
@@ -1034,6 +1072,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
     /// fremde Loesungen (nur Anzeige) und Sichtbarkeit der eigenen Notizen
     var foreignLayers: [ForeignSolutionLayer] = []
     var ownNotesVisible = true
+    /// Tarif erlaubt Schreiben (Plus); sonst nur ansehen
+    var canEdit = true
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker,
@@ -1042,6 +1082,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.pencilOnly = pencilOnly
         vc.foreignLayers = foreignLayers
         vc.ownNotesVisible = ownNotesVisible
+        vc.canEdit = canEdit
         vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
         vc.onPageChange = { [weak bridge] i, key in
             bridge?.pageIndex = i
@@ -1058,5 +1099,6 @@ struct PDFEditorView: UIViewControllerRepresentable {
         if vc.shownLayoutVersion != layoutVersion { vc.showLayout() }
         if vc.foreignSignature != PDFEditorController.signature(foreignLayers) { vc.foreignLayers = foreignLayers }
         if vc.ownNotesVisible != ownNotesVisible { vc.ownNotesVisible = ownNotesVisible }
+        if vc.canEdit != canEdit { vc.canEdit = canEdit }
     }
 }
