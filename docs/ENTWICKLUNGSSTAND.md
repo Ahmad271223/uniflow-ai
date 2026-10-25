@@ -1,5 +1,7 @@
 # Entwicklungsstand nach Phasen (Zweig `develop`, Stand 25.10.2026)
 
+> Aktueller Gesamtstand nach der Stabilisierungsrunde: `RELEASE-READINESS.md` im Projektordner.
+
 Grundregel dieses Berichts: „getestet“ heißt, der Test lief wirklich und ist grün. Nichts hier wurde auf einem echten
 iPad oder Mac ausgeführt; iOS-Tests liefen im iPad-Simulator in GitHub Actions.
 

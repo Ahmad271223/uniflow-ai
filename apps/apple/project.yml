@@ -58,6 +58,10 @@ targets:
     platform: iOS
     sources:
       - path: UniFlowTests
+        excludes:
+          - "*.storekit"
+      - path: UniFlowTests/UniFlow.storekit
+        buildPhase: resources       # SKTestSession(configurationFileNamed:) sucht die Datei im Testbundle
     dependencies:
       - target: UniFlow
       - package: UniFlowCore

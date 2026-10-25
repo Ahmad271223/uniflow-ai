@@ -1,0 +1,3 @@
+{ "id": "u_7f3a", "email": "studi@example.org", "email_verified": true, "plan": "plus", "plan_expires_at": "2026-11-25T00:00:00Z",
+  "capabilities": { "annotate": true, "pencil": true, "split_screen": true, "ai_advanced": false },
+  "quotas": { "ai_tests": { "used": 2, "limit": 6, "period": "2026-10" } } }

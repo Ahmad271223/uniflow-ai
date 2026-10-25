@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v2/me.json",
+  "title": "GET /v2/me – Entwurf. Enthaelt nie Hochschul-Zugangsdaten.",
+  "type": "object",
+  "required": ["id", "email", "plan", "capabilities", "quotas"],
+  "properties": {
+    "id": { "type": "string" },
+    "email": { "type": "string" },
+    "email_verified": { "type": "boolean" },
+    "plan": { "enum": ["free", "plus", "pro"] },
+    "plan_expires_at": { "type": ["string", "null"] },
+    "capabilities": {
+      "type": "object",
+      "required": ["annotate", "pencil", "split_screen", "ai_advanced"],
+      "properties": {
+        "annotate": { "type": "boolean" }, "pencil": { "type": "boolean" },
+        "split_screen": { "type": "boolean" }, "ai_advanced": { "type": "boolean" }
+      }
+    },
+    "quotas": {
+      "type": "object",
+      "required": ["ai_tests"],
+      "properties": {
+        "ai_tests": {
+          "type": "object", "required": ["used", "limit", "period"],
+          "properties": { "used": { "type": "integer", "minimum": 0 }, "limit": { "type": "integer", "minimum": 0 }, "period": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

@@ -41,12 +41,41 @@ def _lan_pin() -> str:
     return pin
 
 
+def _nets(*cidrs):
+    import ipaddress
+    return tuple(ipaddress.ip_network(c) for c in cidrs)
+
+
+# Ausdrueckliche Liste (ipaddress.is_private zaehlt auch Dokumentations- und Sonderbereiche mit)
+_PRIVATE_NETS = _nets("127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "100.64.0.0/10",
+                      "::1/128", "fc00::/7", "fe80::/10")
+
+
+def _client_allowed(host: str) -> bool:
+    """Nur Geraete aus privaten Netzen: Heimnetz (RFC 1918), IPv6-ULA, Link-Local, Tailscale/CGNAT (100.64/10).
+    Oeffentliche Adressen werden abgelehnt, auch wenn der Router den Port weiterleitet.
+    Ausnahme nur bewusst: LERNAPP_ALLOW_PUBLIC_CLIENTS=1."""
+    import ipaddress
+    import os
+    if host in LOOPBACK or os.environ.get("LERNAPP_ALLOW_PUBLIC_CLIENTS") == "1":
+        return True
+    try:
+        ip = ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        return False
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return any(ip in net for net in _PRIVATE_NETS if net.version == ip.version)
+
+
 @app.middleware("http")
 async def lan_pin_guard(request, call_next):
     """Zugriff von anderen Geraeten (iPad im WLAN) nur mit PIN; vom PC selbst immer frei."""
     host = request.client.host if request.client else "127.0.0.1"
     if host in LOOPBACK:
         return await call_next(request)
+    if not _client_allowed(host):
+        return JSONResponse({"detail": "Zugriff nur aus dem eigenen Netz"}, status_code=403)
     pin = _lan_pin()
     given = request.query_params.get("pin") or request.cookies.get("lernapp_pin")
     import time as _time
@@ -115,6 +144,24 @@ async def same_origin_guard(request, call_next):
             if origin == "null" or o.netloc.lower() != host.lower():
                 return JSONResponse({"detail": "Anfrage von fremder Seite abgelehnt"}, status_code=403)
     return await call_next(request)
+
+
+_FILE_PATHS = re.compile(r"^/api/(files/[^/]+/content|assets/|qis/documents/)")
+_INLINE_TYPES = ("application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp", "text/plain")
+
+
+@app.middleware("http")
+async def file_response_headers(request, call_next):
+    """Dateien aus Stud.IP, eigene Uploads und QIS-Dokumente: Browser darf den Typ nicht raten, und alles ausser PDF
+    laeuft ohne Skripte (Sandbox). Sonst koennte z. B. eine HTML- oder SVG-Datei aus einem Stud.IP-Gruppenordner
+    mit den Rechten der App auf die API zugreifen."""
+    response = await call_next(request)
+    if _FILE_PATHS.match(request.url.path):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
+        if ctype != "application/pdf":
+            response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'"
+    return response
 
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")
@@ -285,9 +332,12 @@ def file_content(file_id: str):
         f = db.row(conn, "SELECT local_path, name, mime FROM files WHERE id=?", (file_id,))
     if not f or not f["local_path"] or not Path(f["local_path"]).exists():
         raise HTTPException(404, "Datei nicht lokal vorhanden")
-    mt = f["mime"] or mimetypes.guess_type(f["name"])[0] or "application/octet-stream"
-    return FileResponse(f["local_path"], media_type=mt, filename=f["name"],
-                        content_disposition_type="inline")
+    mt = (f["mime"] or mimetypes.guess_type(f["name"])[0] or "application/octet-stream").split(";")[0].strip().lower()
+    if mt in _INLINE_TYPES:
+        return FileResponse(f["local_path"], media_type=mt, filename=f["name"], content_disposition_type="inline")
+    # HTML, SVG, Skripte usw. nie im Kontext der App anzeigen, sondern herunterladen
+    return FileResponse(f["local_path"], media_type="application/octet-stream", filename=f["name"],
+                        content_disposition_type="attachment")
 
 
 @app.patch("/api/files/{file_id}")
@@ -1103,6 +1153,8 @@ async def api_tt_import_preview(source: str = Form(...), text: str = Form(defaul
                     raise HTTPException(400, "Bild fehlt")
                 tmp = DATA_DIR / "imports"; tmp.mkdir(exist_ok=True)
                 ext = Path(upload.filename or "x.png").suffix.lower() or ".png"
+                if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"):
+                    raise HTTPException(400, "Nur Bilddateien")
                 p = tmp / f"{uuid.uuid4().hex}{ext}"; p.write_bytes(await upload.read())
                 raw = str(p)
                 entries = timetable.ai_parse(conn, image_path=str(p))
@@ -1352,7 +1404,11 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
     if upload is not None and kind in ("pdf", "image"):
         d = DATA_DIR / "files" / "Eigene Dokumente"; d.mkdir(parents=True, exist_ok=True)
         ext = Path(upload.filename or "datei.pdf").suffix.lower() or ".pdf"
+        if kind == "image" and ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"):
+            raise HTTPException(400, "Nur Bilddateien")
         data = await upload.read()
+        if kind == "pdf" and not data.startswith(b"%PDF"):
+            raise HTTPException(400, "Die Datei ist keine PDF")
         if kind == "image":
             # Bild in eine PDF-Seite verpacken
             try:

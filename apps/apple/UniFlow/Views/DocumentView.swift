@@ -11,16 +11,18 @@ final class EditorBridge: ObservableObject {
     weak var controller: PDFEditorController?
     @Published var zoomPercent = 100
     @Published var pageIndex = 0
+    @Published var pageKey: String?
 
     func undo() { controller?.undo() }
     func redo() { controller?.redo() }
     func fitWidth() { controller?.fitWidth() }
 }
 
-/// Eine Werkzeugpalette fuer beide Seiten der geteilten Ansicht.
+/// Eine Werkzeugpalette und ein Rueckgaengig-Verlauf fuer beide Seiten der geteilten Ansicht.
 @MainActor
 final class ToolPickerHolder: ObservableObject {
     let picker = PKToolPicker()
+    let undo = UndoManager()
 }
 
 /// Vorlagen fuer neue Seiten (gleiche Namen wie TEMPLATES im Web-Editor).
@@ -42,7 +44,8 @@ struct ExportFile: Identifiable {
 /// Zweites Dokument der geteilten Ansicht (meist das Skript zur Uebung).
 struct Companion: Identifiable, Equatable {
     let file: LibFile
-    let page: Int?
+    /// PDF-Seite (1-basiert, wie von /api/related geliefert), `nil` = Anfang.
+    let pdfPage: Int?
     var id: String { file.id }
 }
 
@@ -115,6 +118,7 @@ struct DocumentView: View {
                             companionPane(c).frame(width: geo.size.width * splitFraction)
                         }
                     }
+                    .coordinateSpace(NamedCoordinateSpace.named("split"))
                 }
             } else {
                 ProgressView("Lädt…")
@@ -134,7 +138,7 @@ struct DocumentView: View {
         .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id) { f in
-                companion = Companion(file: f, page: nil)
+                companion = Companion(file: f, pdfPage: nil)
             }
         }
         .sheet(item: $exportFile) { f in ActivityView(items: [f.url]) }
@@ -143,7 +147,7 @@ struct DocumentView: View {
             Button("Hinzufügen") {
                 let text = newText
                 newText = ""
-                Task { await store.addText(text, pageIndex: bridge.pageIndex) }
+                if let key = bridge.pageKey { Task { await store.addText(text, pageKey: key) } }
             }
             Button("Abbrechen", role: .cancel) { newText = "" }
         } message: { Text("Erscheint oben links auf der aktuellen Seite und ist im Browser bearbeitbar.") }
@@ -157,23 +161,24 @@ struct DocumentView: View {
         }
         .onDisappear {
             suggestionTask?.cancel()
-            Task { await store.close() }
+            Task { await store.pause() }       // Tabwechsel: weiter synchronisieren; endgueltig beendet beim Schliessen
         }
     }
 
     private var primaryPane: some View {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
-                      toolPicker: tools.picker, ownsToolPicker: true, initialPage: nil)
+                      toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: nil)
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { pageInfo }
             .overlay(alignment: .top) { suggestionBanner }
     }
 
     private func companionPane(_ c: Companion) -> some View {
-        CompanionView(file: c.file, api: api, page: c.page, toolPicker: tools.picker, pencilOnly: pencilOnly) {
+        CompanionView(file: c.file, api: api, pdfPage: c.pdfPage, toolPicker: tools.picker, undoManager: tools.undo,
+                      pencilOnly: pencilOnly) {
             companion = nil
         }
-        .id(c.id + "-" + String(c.page ?? -1))
+        .id(c.id + "-" + String(c.pdfPage ?? -1))
     }
 
     private func splitHandle(width: CGFloat) -> some View {
@@ -183,7 +188,7 @@ struct DocumentView: View {
         }
         .frame(width: 12)
         .contentShape(Rectangle())
-        .gesture(DragGesture(coordinateSpace: .global).onChanged { g in
+        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: NamedCoordinateSpace.named("split")).onChanged { g in
             let x = g.location.x
             let f = scriptLeft ? x / max(width, 1) : (width - x) / max(width, 1)
             splitFraction = min(0.65, max(0.2, Double(f)))
@@ -201,7 +206,7 @@ struct DocumentView: View {
                     Text("\(s.title) · Seite \(s.page)").font(.caption).lineLimit(1)
                 }
                 Button("Daneben öffnen") {
-                    if let f = libFile(id: s.fileID, title: s.title) { companion = Companion(file: f, page: s.page - 1) }
+                    companion = Companion(file: libFile(id: s.fileID, title: s.title), pdfPage: s.page)
                 }
                 .buttonStyle(.borderedProminent).controlSize(.small)
                 Button { dismissedSuggestions.insert(s.forPage) } label: { Image(systemName: "xmark") }
@@ -214,7 +219,7 @@ struct DocumentView: View {
         }
     }
 
-    private func libFile(id: String, title: String) -> LibFile? {
+    private func libFile(id: String, title: String) -> LibFile {
         LibFile(id: id, name: title + ".pdf", title: title, kind: "pdf", module_id: store.file.module_id, subject: store.file.subject,
                 doc_type: "vorlesung", ai_title: title, sub_label: nil, downloaded_at: "unbekannt", has_notes: nil,
                 page_count: nil, studip_folder: nil)
@@ -263,16 +268,21 @@ struct DocumentView: View {
             }
             Menu {
                 Button {
-                    Task { await store.toggleBookmark(pageIndex: bridge.pageIndex) }
+                    if let key = bridge.pageKey {
+                        let title = "Seite \(bridge.pageIndex + 1)"
+                        Task { await store.toggleBookmark(pageKey: key, title: title) }
+                    }
                 } label: {
-                    Label(store.isBookmarked(pageIndex: bridge.pageIndex) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
+                    Label(store.isBookmarked(pageKey: bridge.pageKey) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
                 }
                 Menu {
                     ForEach(PageTemplate.all) { t in
-                        Button(t.name) { Task { await store.addBlankPage(after: bridge.pageIndex, template: t.id) } }
+                        Button(t.name) { Task { await store.addBlankPage(afterKey: bridge.pageKey, template: t.id) } }
                     }
                 } label: { Label("Leere Seite danach", systemImage: "doc.badge.plus") }
-                Button { Task { await store.rotatePage(bridge.pageIndex) } } label: { Label("Seite drehen", systemImage: "rotate.right") }
+                Button {
+                    if let key = bridge.pageKey { Task { await store.rotatePage(key: key) } }
+                } label: { Label("Seite drehen", systemImage: "rotate.right") }
                 Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
                 Divider()
                 Button {
@@ -312,15 +322,18 @@ struct DocumentView: View {
 struct CompanionView: View {
     @StateObject private var store: DocumentStore
     @StateObject private var bridge = EditorBridge()
-    let page: Int?
+    let pdfPage: Int?
     let toolPicker: PKToolPicker
+    let undoManager: UndoManager
     let pencilOnly: Bool
     let onClose: () -> Void
 
-    init(file: LibFile, api: APIClient, page: Int?, toolPicker: PKToolPicker, pencilOnly: Bool, onClose: @escaping () -> Void) {
+    init(file: LibFile, api: APIClient, pdfPage: Int?, toolPicker: PKToolPicker, undoManager: UndoManager,
+         pencilOnly: Bool, onClose: @escaping () -> Void) {
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
-        self.page = page
+        self.pdfPage = pdfPage
         self.toolPicker = toolPicker
+        self.undoManager = undoManager
         self.pencilOnly = pencilOnly
         self.onClose = onClose
     }
@@ -340,13 +353,13 @@ struct CompanionView: View {
                 ContentUnavailableView("Nicht verfügbar", systemImage: "exclamationmark.triangle", description: Text(error))
             } else if store.pdf != nil {
                 PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
-                              toolPicker: toolPicker, ownsToolPicker: false, initialPage: page)
+                              toolPicker: toolPicker, ownsToolPicker: false, undoManager: undoManager, initialPDFPage: pdfPage)
             } else {
                 ProgressView().frame(maxHeight: .infinity)
             }
         }
         .task { await store.load() }
-        .onDisappear { Task { await store.close() } }
+        .onDisappear { Task { await store.pause() } }
     }
 }
 
@@ -557,14 +570,19 @@ struct PDFEditorView: UIViewControllerRepresentable {
     let layoutVersion: Int
     var toolPicker: PKToolPicker?
     var ownsToolPicker = true
-    var initialPage: Int?
+    var undoManager: UndoManager?
+    var initialPDFPage: Int?
 
     func makeUIViewController(context: Context) -> PDFEditorController {
-        let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker, initialPage: initialPage)
+        let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker,
+                                     undoManager: undoManager, initialPDFPage: initialPDFPage)
         let bridge = self.bridge
         vc.pencilOnly = pencilOnly
         vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
-        vc.onPageChange = { [weak bridge] i in bridge?.pageIndex = i }
+        vc.onPageChange = { [weak bridge] i, key in
+            bridge?.pageIndex = i
+            bridge?.pageKey = key
+        }
         bridge.controller = vc
         return vc
     }

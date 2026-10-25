@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v2/auth-tokens.json",
+  "title": "POST /v2/auth/login | /v2/auth/refresh (Antwort 200) – Entwurf",
+  "type": "object",
+  "required": ["access_token", "refresh_token", "token_type", "expires_in"],
+  "properties": {
+    "access_token": { "type": "string", "description": "kurzlebig (15 min), Bearer" },
+    "refresh_token": { "type": "string", "description": "rotierend, 30 Tage; altes wird beim Erneuern ungueltig" },
+    "token_type": { "const": "Bearer" },
+    "expires_in": { "type": "integer", "minimum": 60 }
+  }
+}

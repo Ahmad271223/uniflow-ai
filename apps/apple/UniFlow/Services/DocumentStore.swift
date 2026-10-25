@@ -107,8 +107,10 @@ final class DocumentStore: ObservableObject {
     private(set) var images: [String: UIImage] = [:]
     private var loadingImages: Set<String> = []
 
-    /// Seiten (Anzeige-Indizes), deren Inhalt sich durch den Server oder eine Zusammenfuehrung geaendert hat.
-    var onPagesChanged: (([Int]) -> Void)?
+    /// Seiten (Schluessel), deren Inhalt sich durch den Server, eine Zusammenfuehrung oder eine Aktion geaendert hat.
+    /// Schluessel statt Anzeige-Indizes: nach Einfuegen/Drehen von Seiten verschieben sich die Indizes.
+    var onPagesChanged: (([String]) -> Void)?
+    private var loadStarted = false
 
     init(file: LibFile, api: APIClient) {
         self.file = file
@@ -120,6 +122,8 @@ final class DocumentStore: ObservableObject {
     // MARK: Laden
 
     func load() async {
+        guard !loadStarted else { return }          // .task laeuft bei jedem Erscheinen erneut (z. B. Tabwechsel)
+        loadStarted = true
         do {
             let url = AppPaths.pdf(file.id)
             if !FileManager.default.fileExists(atPath: url.path) {
@@ -174,18 +178,18 @@ final class DocumentStore: ObservableObject {
 
     func entry(forPageIndex index: Int) -> DisplayLayout.Entry? { layout?.entry(at: index) }
 
-    /// Zeichnung einer Seite (Anzeige-Index). Wird im Hintergrund aufgebaut.
-    func drawing(forPageIndex index: Int) async -> PKDrawing {
-        guard let key = pageKey(forPageIndex: index) else { return PKDrawing() }
+    func entry(forKey key: String) -> DisplayLayout.Entry? { layout?.entries.first { $0.key == key } }
+
+    /// Zeichnung einer Seite. Wird im Hintergrund aufgebaut.
+    func drawing(forPageKey key: String) async -> PKDrawing {
         if let pending = pendingDrawings[key] { return pending.drawing }      // noch nicht verarbeitet: neuester Stand
         let page = await engine.page(key)
         return await ink.drawing(key: key, page: page).drawing
     }
 
     /// Text, Formen, Bilder einer Seite.
-    func objects(forPageIndex index: Int) async -> [JSONValue] {
-        guard let key = pageKey(forPageIndex: index) else { return [] }
-        return (await engine.page(key))?["objects"]?.array ?? []
+    func objects(forPageKey key: String) async -> [JSONValue] {
+        (await engine.page(key))?["objects"]?.array ?? []
     }
 
     /// Bild eines Bildobjekts laden (ueber den Server, mit PIN). Ruft `done` auf, sobald es da ist.
@@ -200,12 +204,10 @@ final class DocumentStore: ObservableObject {
         }
     }
 
-    /// Vom Editor nach jeder Aenderung einer Canvas. Kehrt sofort zurueck.
-    func canvasChanged(pageIndex index: Int, drawing: PKDrawing) {
-        guard let key = pageKey(forPageIndex: index) else {
-            notice = "Seite \(index + 1) ist nicht mehr im Dokument – Striche dort werden nicht gespeichert."
-            return
-        }
+    /// Vom Editor nach jeder Aenderung einer Canvas. Kehrt sofort zurueck. Der Schluessel stammt aus dem
+    /// Seitenaufbau, mit dem die Canvas angelegt wurde (bleibt richtig, auch wenn sich die Reihenfolge aendert).
+    func canvasChanged(pageKey key: String, drawing: PKDrawing) {
+        guard !key.isEmpty else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
         processTask?.cancel()
         processTask = Task { [weak self] in
@@ -236,8 +238,7 @@ final class DocumentStore: ObservableObject {
 
     private func remoteChanged(_ keys: [String]) async {
         apply(document: await engine.currentDocument())
-        let indices = keys.compactMap { layout?.index(ofKey: $0) }
-        if !indices.isEmpty { onPagesChanged?(indices) }
+        if !keys.isEmpty { onPagesChanged?(keys) }
     }
 
     // MARK: Bearbeiten der Struktur (gleiches Format wie der Web-Editor)
@@ -252,27 +253,26 @@ final class DocumentStore: ObservableObject {
         apply(document: doc)
     }
 
-    func isBookmarked(pageIndex: Int) -> Bool {
-        guard let key = pageKey(forPageIndex: pageIndex) else { return false }
+    func isBookmarked(pageKey key: String?) -> Bool {
+        guard let key else { return false }
         return bookmarks.contains { $0.key == key }
     }
 
-    func toggleBookmark(pageIndex: Int) async {
-        guard let key = pageKey(forPageIndex: pageIndex) else { return }
+    func toggleBookmark(pageKey key: String, title: String) async {
         await updateMeta { meta in
             var list = meta["bookmarks"]?.array ?? []
             if let i = list.firstIndex(where: { $0["key"]?.string == key }) { list.remove(at: i) }
-            else { list.append(.object(["key": .string(key), "title": .string("Seite \(pageIndex + 1)")])) }
+            else { list.append(.object(["key": .string(key), "title": .string(title)])) }
             meta["bookmarks"] = .array(list)
         }
     }
 
     /// Leere Seite nach der angegebenen Seite einfuegen (Vorlage: blank, lined, grid, dotted, mm, cornell).
-    func addBlankPage(after index: Int, template: String) async {
-        let size = layout?.pdf.page(at: index).map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize }
+    func addBlankPage(afterKey: String?, template: String) async {
+        let index = afterKey.flatMap { layout?.index(ofKey: $0) }
+        let size = index.flatMap { layout?.pdf.page(at: $0) }.map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize }
             ?? CGSize(width: 595, height: 842)
         let key = "b" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(11).lowercased()
-        let afterKey = pageKey(forPageIndex: index)
         await engine.updatePage(key, .object(["objects": .array([]), "template": .string(template)]))
         await updateMeta { meta in
             var order = meta["pageOrder"]?.array ?? []
@@ -285,8 +285,7 @@ final class DocumentStore: ObservableObject {
     }
 
     /// Seite um 90 Grad drehen (wie "Drehen" im Web-Editor; Notizen behalten ihre Koordinaten).
-    func rotatePage(_ index: Int) async {
-        guard let key = pageKey(forPageIndex: index) else { return }
+    func rotatePage(key: String) async {
         await updateMeta { meta in
             var order = meta["pageOrder"]?.array ?? []
             guard let i = order.firstIndex(where: { $0["key"]?.string == key }) else { return }
@@ -297,8 +296,8 @@ final class DocumentStore: ObservableObject {
     }
 
     /// Textfeld auf der Seite anlegen (im Web-Editor bearbeitbar).
-    func addText(_ text: String, pageIndex: Int) async {
-        guard let key = pageKey(forPageIndex: pageIndex), !text.isEmpty else { return }
+    func addText(_ text: String, pageKey key: String) async {
+        guard !text.isEmpty else { return }
         await processPending()
         var page = (await engine.page(key)) ?? .object(["objects": .array([])])
         var objects = page["objects"]?.array ?? []
@@ -311,7 +310,7 @@ final class DocumentStore: ObservableObject {
         ]))
         page["objects"] = .array(objects)
         await engine.updatePage(key, page)
-        onPagesChanged?([pageIndex])
+        onPagesChanged?([key])
     }
 
     // MARK: Suche, Export, Information
@@ -377,6 +376,20 @@ final class DocumentStore: ObservableObject {
         await processPending()
         await engine.syncNow()
         if taskID != .invalid { UIApplication.shared.endBackgroundTask(taskID) }
+    }
+
+    /// Ansicht verdeckt (Tabwechsel, anderes Dokument): Ausstehendes sichern und hochladen, Synchronisierung laeuft weiter.
+    func pause() async {
+        await flush()
+        await engine.syncNow()
+    }
+
+    deinit {
+        // Dokument endgueltig geschlossen: Wiederholungen beenden (Ungesendetes bleibt im Journal).
+        let engine = self.engine
+        Task { await engine.shutdown() }
+        monitor?.cancel()
+        lifecycle.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
     /// Dokument schliessen: Ausstehendes sichern, Wiederholungen beenden (Ungesendetes bleibt im Journal).

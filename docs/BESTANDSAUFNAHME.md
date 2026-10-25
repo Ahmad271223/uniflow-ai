@@ -66,6 +66,17 @@ genannten Code nachgewiesen. Server-Korrekturen wirken erst nach einem Neustart 
 | P2 | Eine Stud.IP-Datei liefert 403 und wird bei jedem Sync erneut versucht | `logs/sync.log` | keine Merkliste für dauerhaft gesperrte Dateien | `studip_sync.py` | – | – | offen (braucht DB-Feld) |
 | P2 | Nach mehr als 3 Konflikten bleibt der Web-Editor still auf „Offline“ | – | Fehlerzähler wird nie zurückgesetzt | `editor.js` | – | – | offen |
 
+Zweite Prüfrunde (25.10.2026, Stabilisierung):
+
+| P | Befund | Ursache | Dateien | Korrektur | Test |
+| --- | --- | --- | --- | --- | --- |
+| P1 | HTML/SVG aus Stud.IP-Ordnern oder Uploads lief mit den Rechten der App (Skripte gegen die API) | Dateien inline auf der App-Adresse mit dem Typ aus Stud.IP | `server.py` | nur PDF/Bilder/Text inline, sonst Download; `nosniff`; Sandbox-CSP | `test_security_extended.py` |
+| P1 | Server bei Portweiterleitung oder im eduroam für Fremde erreichbar | `0.0.0.0` ohne Netzprüfung; Firewall erlaubt Python in öffentlichen Netzen | `server.py`, `serve.py` | nur private Netze; WLAN-Modus startet nicht in „Öffentlich“-Netzen | ja (10 Adressen) |
+| P1 | iPad: nach Einfügen/Drehen von Seiten könnten Striche auf der falschen Seite landen | Canvases über Anzeige-Index statt Seitenschlüssel gespeichert | `PDFEditorController.swift`, `DocumentStore.swift`, `DocumentView.swift` | Seitenschlüssel je Overlay, Overlays alter Seitenaufbauten werden nicht wiederverwendet | nicht gebaut |
+| P1 | iPad: nach einem Tabwechsel wurde nicht mehr hochgeladen | `onDisappear` beendete die Synchronisierung endgültig | `DocumentView.swift`, `DocumentStore.swift` | Pausieren beim Verdecken, Beenden erst beim Schließen | nicht gebaut |
+| P2 | iPad geteilte Ansicht: Rückgängig nahm nur im Hauptdokument zurück; Skript öffnete auf falscher Seite bei eingefügten Seiten | getrennte Verläufe; Index statt PDF-Seite | wie oben | gemeinsamer Verlauf; PDF-Seite → Anzeige-Index | nicht gebaut |
+| P2 | Import akzeptierte beliebige Endungen und Nicht-PDFs | keine Prüfung | `server.py` | Bild-Endungen, `%PDF`-Kopf | ja |
+
 Native App (`apps/apple`, nie kompiliert), Korrektur in Phase 2 und 3:
 
 | P | Befund | Ursache | Datei |
@@ -86,7 +97,7 @@ Native App (`apps/apple`, nie kompiliert), Korrektur in Phase 2 und 3:
 .venv\Scripts\python.exe -m pytest -q tests
 ```
 
-13 Tests (Temp-Datenordner über `LERNAPP_DATA_DIR`, die echte Datenbank wird nie berührt).
+42 Tests (Temp-Datenordner über `LERNAPP_DATA_DIR`, die echte Datenbank wird nie berührt).
 Editor-Tests liefen im Desktop-Browser mit simulierten Stift- und Fingerereignissen; **kein Test auf einem echten iPad.**
 
 ## 4. Offene Risiken

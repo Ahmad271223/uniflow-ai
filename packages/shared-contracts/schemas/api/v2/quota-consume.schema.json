@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v2/quota-consume.json",
+  "title": "POST /v2/ai/quota/consume (Antwort) – Entwurf; Logik: app/billing.py consume()",
+  "type": "object",
+  "required": ["ok", "used", "limit", "duplicate"],
+  "properties": {
+    "ok": { "type": "boolean", "description": "false = Kontingent erschoepft" },
+    "used": { "type": "integer", "minimum": 0 },
+    "limit": { "type": "integer", "minimum": 0 },
+    "duplicate": { "type": "boolean", "description": "gleiche request_id schon gezaehlt (Wiederholung)" }
+  }
+}

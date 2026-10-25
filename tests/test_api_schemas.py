@@ -7,7 +7,8 @@ from pathlib import Path
 
 from conftest import asgi_call
 
-SCHEMAS = Path(__file__).resolve().parents[1] / "packages" / "shared-contracts" / "schemas" / "api" / "v1"
+CONTRACTS = Path(__file__).resolve().parents[1] / "packages" / "shared-contracts"
+SCHEMAS = CONTRACTS / "schemas" / "api" / "v1"
 TYPES = {"object": dict, "array": list, "string": str, "boolean": bool, "null": type(None)}
 
 
@@ -24,6 +25,8 @@ def check(value, schema, path="$"):
             return isinstance(value, TYPES[t])
         if not any(ok(t) for t in allowed):
             return [f"{path}: Typ {type(value).__name__}, erwartet {allowed}"]
+    if "enum" in schema and value not in schema["enum"]:
+        errors.append(f"{path}: {value!r} nicht in {schema['enum']}")
     if "const" in schema and value != schema["const"]:
         errors.append(f"{path}: {value!r} != {schema['const']!r}")
     if "minimum" in schema and isinstance(value, (int, float)) and value < schema["minimum"]:
@@ -81,3 +84,28 @@ def test_errors_match_contract(app):
 def test_checker_finds_violations():
     assert check({"ok": False, "version": 0}, schema("annotations-put")) != []
     assert check({"files": [{"id": 1, "name": "x"}], "modules": [], "folders": [], "trash": []}, schema("library")) != []
+
+
+# ---------------------------------------------------------------- v2 (Konten, Entwurf): Beispiele und Kontingent-Logik
+
+def schema_v2(name):
+    return json.loads((CONTRACTS / "schemas" / "api" / "v2" / f"{name}.schema.json").read_text(encoding="utf-8"))
+
+
+def test_v2_examples_match_draft_schemas():
+    for name in ("auth-tokens", "me", "quota-consume", "apple-verify"):
+        example = json.loads((CONTRACTS / "fixtures" / "api-v2" / f"{name}.json").read_text(encoding="utf-8"))
+        assert check(example, schema_v2(name)) == [], name
+
+
+def test_v2_contract_matches_billing_logic():
+    """Tarif-Faehigkeiten und Kontingent-Antwort im Vertrag entsprechen app/billing.py."""
+    from dataclasses import asdict
+    from app import billing
+    caps = set(schema_v2("me")["properties"]["capabilities"]["required"])
+    for plan, spec in billing.PLANS.items():
+        assert caps <= set(spec), plan
+    assert set(schema_v2("me")["properties"]["plan"]["enum"]) == set(billing.PLANS)
+    sample = asdict(billing.ConsumeResult(ok=True, used=1, limit=6))
+    assert check(sample, schema_v2("quota-consume")) == []
+    assert "STUDIP" not in json.dumps(schema_v2("me")).upper(), "Konto-Antwort enthaelt keine Hochschul-Zugangsdaten"
