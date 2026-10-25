@@ -13,7 +13,7 @@ from playwright.sync_api import sync_playwright
 
 from . import cas, config, db, learnweb, lsf
 from .config import DATA_DIR
-from .studip_sync import log, store_course_files, upsert_course
+from .studip_sync import log, store_course_files, stream_download, upsert_course
 from .universities import HILDESHEIM_CAS, LEARNWEB_BASE
 
 PROFILE_DIR = DATA_DIR / "browser-profile-hildesheim"
@@ -21,14 +21,8 @@ LEARNWEB_LOGIN = f"{LEARNWEB_BASE}/login/index.php?authCAS=CAS"
 
 
 def _download(page, url: str, target: Path, token: str = "") -> None:
-    r = page.request.get(learnweb.with_token(url, token) if token else url)
-    if not r.ok:
-        raise RuntimeError(f"Download fehlgeschlagen ({r.status}): {url}")   # url ohne Token
-    body = r.body()
-    if body[:15].lower().startswith((b"<!doctype html", b"<html")) and not target.suffix.lower() in (".html", ".htm"):
-        raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {url}")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(body)
+    # gestreamt (konstanter Speicher); Fehlermeldungen zeigen die URL ohne Token
+    stream_download(page, learnweb.with_token(url, token) if token else url, target, shown_url=url)
 
 
 def _learnweb_client(page, user: str, pw: str, token: str):

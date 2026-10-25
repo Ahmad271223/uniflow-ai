@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import sys
 import time
@@ -285,12 +286,82 @@ def safe_name(s: str) -> str:
     return s.strip(" .")[:120] or "datei"
 
 
+HTML_STARTS = (b"<!doctype html", b"<html")
+
+
+def stream_download(page, url: str, target: Path, shown_url: str | None = None, timeout: int = 180) -> None:
+    """Datei direkt auf die Platte streamen, mit den Cookies der angemeldeten Browsersitzung.
+    Playwright (page.request) haelt jede Antwort komplett im Speicher; beim Live-Test mit 539 Dateien (1 GB)
+    wuchs der Serverprozess so auf 2,7 GB. Hier bleibt der Speicher konstant (1-MB-Bloecke).
+    Schreibt erst in <name>.part und ersetzt dann atomar: ein Abbruch zerstoert nie eine gute Datei.
+    Kommt eine HTML-Seite statt der Datei (abgelaufene Anmeldung), wird nichts gespeichert."""
+    import shutil
+    import urllib.request
+    shown = shown_url or url
+    headers = {"User-Agent": _user_agent(page), "Accept": "*/*"}
+    try:
+        jar = page.context.cookies([url])
+    except Exception:  # noqa: BLE001
+        jar = []
+    if jar:
+        headers["Cookie"] = "; ".join(f"{c['name']}={c['value']}" for c in jar)
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        resp = urllib.request.urlopen(req, timeout=timeout)  # noqa: S310 - URL stammt aus der Uni-Schnittstelle
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Download fehlgeschlagen ({e.code}): {shown}") from None
+    with resp:
+        first = resp.read(65536)
+        if first.lstrip()[:15].lower().startswith(HTML_STARTS) and target.suffix.lower() not in (".html", ".htm"):
+            raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {shown}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        part = target.with_name(target.name + ".part")
+        try:
+            with open(part, "wb") as f:
+                f.write(first)
+                shutil.copyfileobj(resp, f, 1 << 20)
+            os.replace(part, target)
+        finally:
+            part.unlink(missing_ok=True)
+
+
+_UA: dict[int, str] = {}
+
+
+def _user_agent(page) -> str:
+    try:
+        key = id(page.context)
+        if key not in _UA:
+            _UA[key] = page.evaluate("() => navigator.userAgent")
+        return _UA[key]
+    except Exception:  # noqa: BLE001
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UniFlow-Lernapp"
+
+
 def download(page: Page, url: str, target: Path) -> None:
+    """Stud.IP: gestreamt; falls das scheitert (z. B. Cookie-Eigenheiten), einmal der alte Weg ueber
+    page.request, mit sofortiger Freigabe des Antwortspeichers (dispose)."""
+    try:
+        stream_download(page, url, target)
+        return
+    except Exception as e:  # noqa: BLE001
+        log(f"Gestreamter Download fehlgeschlagen ({e}); versuche den Browser-Weg.")
     resp = page.request.get(url)
-    if not resp.ok:
-        raise RuntimeError(f"Download fehlgeschlagen ({resp.status}): {url}")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(resp.body())
+    try:
+        if not resp.ok:
+            raise RuntimeError(f"Download fehlgeschlagen ({resp.status}): {url}")
+        body = resp.body()
+        if body.lstrip()[:15].lower().startswith(HTML_STARTS) and target.suffix.lower() not in (".html", ".htm"):
+            raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {url}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        part = target.with_name(target.name + ".part")
+        part.write_bytes(body)
+        os.replace(part, target)
+    finally:
+        try:
+            resp.dispose()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 # ----------------------------------------------------------------------------

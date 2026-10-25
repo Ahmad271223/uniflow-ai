@@ -482,3 +482,96 @@ def test_grade_rows_luh_layout_still_works():
     (r,) = parse_grade_rows(rows, "Abschluss 82 Bachelor of Science")
     assert (r["text"], r["semester"], r["note"], r["credits"], r["versuch"], r["abschluss"]) == \
         ("Mathematik I", "WiSe 26/27", "2,0", "8", "1", "Abschluss 82 Bachelor of Science")
+
+
+# ---------------------------------------------------------------- Downloads gestreamt (Live-Test: 2,7 GB Speicher)
+
+@pytest.fixture
+def local_server():
+    import http.server
+    import threading
+    seen = {}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            seen["cookie"] = self.headers.get("Cookie")
+            if self.path.startswith("/file"):
+                body = b"%PDF-1.7\n" + b"x" * 300_000
+                self.send_response(200); self.send_header("Content-Type", "application/pdf")
+            elif self.path.startswith("/login"):
+                body = b"<!DOCTYPE html><html><body>Anmelden</body></html>"
+                self.send_response(200); self.send_header("Content-Type", "text/html")
+            else:
+                body = b"nicht da"
+                self.send_response(404)
+            self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_address[1]}", seen
+    srv.shutdown()
+
+
+class _FakePage:
+    class context:  # noqa: N801
+        @staticmethod
+        def cookies(urls):
+            return [{"name": "MoodleSession", "value": "abc"}]
+
+    @staticmethod
+    def evaluate(js):
+        return "TestBrowser/1.0"
+
+
+def test_stream_download_writes_file_and_sends_cookie(local_server, tmp_path):
+    from app.studip_sync import stream_download
+    base, seen = local_server
+    target = tmp_path / "a" / "folie.pdf"
+    stream_download(_FakePage(), base + "/file", target)
+    assert target.read_bytes().startswith(b"%PDF") and target.stat().st_size == 300_009
+    assert seen["cookie"] == "MoodleSession=abc"
+    assert not list(tmp_path.rglob("*.part"))
+
+
+def test_stream_download_rejects_login_page_and_keeps_old_file(local_server, tmp_path):
+    from app.studip_sync import stream_download
+    base, _ = local_server
+    target = tmp_path / "folie.pdf"
+    target.write_bytes(b"%PDF alt")
+    with pytest.raises(RuntimeError, match="Webseite"):
+        stream_download(_FakePage(), base + "/login", target)
+    assert target.read_bytes() == b"%PDF alt" and not list(tmp_path.glob("*.part"))
+
+
+def test_stream_download_error_hides_token(local_server, tmp_path):
+    from app.studip_sync import stream_download
+    base, _ = local_server
+    with pytest.raises(RuntimeError) as e:
+        stream_download(_FakePage(), base + "/missing?token=GEHEIM123", tmp_path / "x.pdf", shown_url=base + "/missing")
+    assert "404" in str(e.value) and "GEHEIM123" not in str(e.value)
+
+
+def test_luh_download_falls_back_to_browser_and_disposes(local_server, tmp_path):
+    from app import studip_sync
+    base, _ = local_server
+    disposed = []
+
+    class Resp:
+        ok, status = True, 200
+        def body(self):
+            return b"%PDF-1.4 aus dem Browser"
+        def dispose(self):
+            disposed.append(True)
+
+    class Page(_FakePage):
+        class request:  # noqa: N801
+            @staticmethod
+            def get(url):
+                return Resp()
+
+    target = tmp_path / "blatt.pdf"
+    studip_sync.download(Page(), base + "/login", target)     # Stream liefert HTML -> Browser-Weg
+    assert target.read_bytes() == b"%PDF-1.4 aus dem Browser" and disposed == [True]

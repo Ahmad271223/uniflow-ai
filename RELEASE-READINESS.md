@@ -1,5 +1,8 @@
 # UniFlow AI – Release-Readiness (Zweig `develop`, 25.10.2026)
 
+> Neuester Stand: [`docs/LIVE-BLOCKER-TEST-2026-10-25.md`](docs/LIVE-BLOCKER-TEST-2026-10-25.md) (Live-Blocker-Test,
+> fünf behobene Blocker, Serverplanung nach Nutzerzahl).
+
 Kurzfassung: **Nicht release-bereit.** Server und Web-Editor sind getestet und gehärtet. Die iPad-App ist bis Phase 3
 im Simulator grün, Phase 4 kompiliert, alles danach ist **nicht gebaut**, weil GitHub Actions seit 25.10., 00:15 Uhr
 wegen der Abrechnung keine Jobs startet. Kein Test auf einem echten iPad oder Mac. `main` ist unverändert, kein Merge,
