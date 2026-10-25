@@ -7,7 +7,9 @@ import Foundation
 ///   andere Typen (blank, asset) sind im Web-Editor eingefuegte Seiten.
 /// - `pages[key].objects`: Objekte der Seite in Seitenpunkten (Ursprung oben links, Seite ohne Zoom).
 /// - `pages[key].pkdrawing`: zusaetzlich die native PencilKit-Zeichnung (`data` Base64) samt Signatur der
-///   Objekte, aus denen sie stammt, und den Objekt-IDs je PencilKit-Strich (`strokeIds`).
+///   Objekte, aus denen sie stammt, und den Objekt-IDs je PencilKit-Strich (`strokeIds`). Ab `pkdrawing-v2`
+///   zusaetzlich eine Signatur je Strich (`strokeSigs`), damit eine Browser-Aenderung nur die betroffenen
+///   Striche neu aufbauen laesst.
 public struct AnnotationDocument: Equatable, Sendable {
     public var root: JSONValue
 
@@ -88,29 +90,62 @@ public struct AnnotationDocument: Equatable, Sendable {
 }
 
 /// Native Zeichnung einer Seite, wie sie im Feld `pkdrawing` steht.
+///
+/// - `pkdrawing-v1`: gueltig nur, solange `objectsSig` zu allen Objekten der Seite passt.
+/// - `pkdrawing-v2`: zusaetzlich `strokeSigs[i]` = Signatur der Objekte von `strokeIds[i]`. Jeder native Strich
+///   ist fuer sich gueltig, solange seine Objekte unveraendert sind. `objectsSig` wird weiter geschrieben, damit
+///   aeltere App-Versionen (nur v1) die Zeichnung als Ganzes verwenden oder verwerfen koennen.
 public struct StoredDrawing: Equatable, Sendable {
+    public static let formatV1 = "pkdrawing-v1"
+    public static let formatV2 = "pkdrawing-v2"
+
     public var data: String
     public var signature: String
     /// Objekt-IDs je PencilKit-Strich (gleiche Reihenfolge wie die Striche der Zeichnung).
     public var strokeIDs: [[String]]
+    /// Signatur je Strich (nur v2, gleiche Reihenfolge wie `strokeIDs`); `nil` = v1.
+    public var strokeSignatures: [String]?
 
-    public init(data: String, signature: String, strokeIDs: [[String]]) {
+    public init(data: String, signature: String, strokeIDs: [[String]], strokeSignatures: [String]? = nil) {
         self.data = data
         self.signature = signature
         self.strokeIDs = strokeIDs
+        self.strokeSignatures = strokeSignatures
     }
 
     public init?(page: JSONValue?) {
-        guard let pk = page?["pkdrawing"], let d = pk["data"]?.string, let s = pk["objectsSig"]?.string else { return nil }
+        guard let pk = page?["pkdrawing"] else { return nil }
+        self.init(json: pk)
+    }
+
+    public init?(json pk: JSONValue) {
+        guard let d = pk["data"]?.string, let s = pk["objectsSig"]?.string else { return nil }
         data = d
         signature = s
         strokeIDs = (pk["strokeIds"]?.array ?? []).map { ($0.array ?? []).compactMap { $0.string } }
+        if pk["format"]?.string == StoredDrawing.formatV2, let sigs = pk["strokeSigs"]?.array {
+            strokeSignatures = sigs.map { $0.string ?? "" }
+        } else {
+            strokeSignatures = nil
+        }
+    }
+
+    /// v2: jeder Strich traegt seine eigene Signatur.
+    public var isPerStroke: Bool { strokeSignatures != nil }
+
+    /// `true`, wenn das Feld `pkdrawing` eine v2-Zeichnung ist (prueft ihre Gueltigkeit je Strich selbst).
+    public static func isPerStroke(_ pk: JSONValue?) -> Bool {
+        guard let pk else { return false }
+        return pk["format"]?.string == formatV2 && pk["strokeSigs"]?.array != nil
     }
 
     public var json: JSONValue {
-        .object([
-            "data": .string(data), "objectsSig": .string(signature), "format": .string("pkdrawing-v1"),
+        var o: [String: JSONValue] = [
+            "data": .string(data), "objectsSig": .string(signature),
+            "format": .string(strokeSignatures == nil ? StoredDrawing.formatV1 : StoredDrawing.formatV2),
             "strokeIds": .array(strokeIDs.map { .array($0.map { .string($0) }) }),
-        ])
+        ]
+        if let strokeSignatures { o["strokeSigs"] = .array(strokeSignatures.map { .string($0) }) }
+        return .object(o)
     }
 }

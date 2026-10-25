@@ -11,6 +11,12 @@ struct APIError: LocalizedError {
     }
 }
 
+/// HTTP-Status fuer die Synchronisierung: 401/403 sind nicht "Offline", 5xx ist ein Serverfehler. Ohne Antwort
+/// (`status <= 0`) gilt der Fehler als Netzfehler.
+extension APIError: HTTPStatusError {
+    var httpStatus: Int { status }
+}
+
 /// HTTP-Zugriff auf den bestehenden UniFlow-Server. Die PIN geht als Cookie mit (wie im Browser).
 /// Unveraenderlich nach dem Anlegen und daher sicher von mehreren Threads nutzbar.
 final class APIClient: @unchecked Sendable {

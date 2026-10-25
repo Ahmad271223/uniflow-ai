@@ -3,6 +3,9 @@ import Foundation
 
 enum TestError: Error { case offline }
 
+/// Antwort mit HTTP-Status wie `APIError` der App.
+struct TestHTTPError: HTTPStatusError { let httpStatus: Int }
+
 /// Server wie `PUT /api/files/{id}/annotations?base_version=` in app/server.py: 409 mit neuerem Stand, wenn
 /// `base_version` nicht der aktuellen Version entspricht.
 actor MockServer: AnnotationTransport {
@@ -12,11 +15,16 @@ actor MockServer: AnnotationTransport {
     private(set) var maxConcurrentPuts = 0
     private var concurrentPuts = 0
     var online = true
+    /// Statt zu speichern mit diesem HTTP-Status antworten (401, 403, 503 ...).
+    private(set) var failStatus: Int?
+    /// Zeitpunkte aller Speicherversuche (auch fehlgeschlagener).
+    private(set) var putTimes: [Date] = []
     private var holdNextPut = false
     private var heldPut: CheckedContinuation<Void, Never>?
     private(set) var isHoldingPut = false
 
     func setOnline(_ on: Bool) { online = on }
+    func setFailStatus(_ status: Int?) { failStatus = status }
     func holdNext() { holdNextPut = true }
 
     func releaseHeldPut() {
@@ -27,11 +35,14 @@ actor MockServer: AnnotationTransport {
 
     func fetch(documentID: String) async throws -> ServerSnapshot {
         guard online else { throw TestError.offline }
+        if let failStatus { throw TestHTTPError(httpStatus: failStatus) }
         return ServerSnapshot(version: version, root: root)
     }
 
     func put(documentID: String, root newRoot: JSONValue, baseVersion: Int) async throws -> PutOutcome {
         guard online else { throw TestError.offline }
+        putTimes.append(Date())
+        if let failStatus { throw TestHTTPError(httpStatus: failStatus) }
         putCount += 1
         concurrentPuts += 1
         maxConcurrentPuts = max(maxConcurrentPuts, concurrentPuts)

@@ -39,10 +39,23 @@ public enum AnnotationMerge {
         let (objects, c) = mergeObjects(base: base?["objects"]?.array ?? [], local: localObjects, server: serverObjects)
         result["objects"] = .array(objects)
         conflicts += c
-        // Native Zeichnung nur behalten, wenn sie noch genau zu den Objekten passt
-        if let pk = lo["pkdrawing"], objects == localObjects { result["pkdrawing"] = pk }
-        else if let pk = so["pkdrawing"], objects == serverObjects { result["pkdrawing"] = pk }
+        if let pk = mergedDrawing(local: lo["pkdrawing"], server: so["pkdrawing"],
+                                  objectsMatchLocal: objects == localObjects, objectsMatchServer: objects == serverObjects) {
+            result["pkdrawing"] = pk
+        }
         return Result(page: .object(result), conflicts: conflicts)
+    }
+
+    /// Native Zeichnung des Ergebnisses. v1 nur, wenn sie noch genau zu den Objekten passt. v2 prueft jeden Strich
+    /// beim Laden selbst (Signatur je Strich) und bleibt deshalb auch bei abweichenden Objekten erhalten: geloeschte
+    /// oder im Browser geaenderte Striche werden dann aus den Objekten aufgebaut, alle anderen behalten ihr natives
+    /// Aussehen. Vorrang hat die Zeichnung dieses Geraets (neuester nativer Stand).
+    static func mergedDrawing(local: JSONValue?, server: JSONValue?, objectsMatchLocal: Bool, objectsMatchServer: Bool) -> JSONValue? {
+        if let local, objectsMatchLocal { return local }
+        if let server, objectsMatchServer { return server }
+        if StoredDrawing.isPerStroke(local) { return local }
+        if StoredDrawing.isPerStroke(server) { return server }
+        return nil
     }
 
     static func mergeField(base: JSONValue?, local: JSONValue?, server: JSONValue?) -> (JSONValue?, Int) {

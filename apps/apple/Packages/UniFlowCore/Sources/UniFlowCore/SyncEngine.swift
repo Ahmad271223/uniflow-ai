@@ -23,6 +23,11 @@ public enum PutOutcome: Equatable, Sendable {
     case conflict(ServerSnapshot)
 }
 
+/// Fehler des Transports mit HTTP-Status (z. B. `APIError` der App). Fehler ohne Status gelten als Netzfehler.
+public protocol HTTPStatusError: Error {
+    var httpStatus: Int { get }
+}
+
 // MARK: - Status
 
 public enum SyncStatus: Equatable, Sendable {
@@ -55,6 +60,44 @@ public enum SyncStatus: Equatable, Sendable {
     }
 }
 
+/// Zusaetzlicher Zustand fuer die Oberflaeche (neben `SyncStatus`): warum nicht hochgeladen wird bzw. dass
+/// zusammengefuehrt wurde. Lokal gesichert ist in allen Faellen alles.
+public enum SyncIssue: Equatable, Sendable {
+    /// Server nicht erreichbar (echter Netzfehler); Wiederholung mit wachsendem Abstand (2 s … 60 s).
+    case offline
+    /// 401: PIN fehlt oder ist falsch. Keine automatische Wiederholung.
+    case pinFehlt
+    /// 403: Zugriff verweigert (z. B. nicht aus dem eigenen Netz). Keine automatische Wiederholung.
+    case zugriffVerweigert
+    /// 5xx oder andere unerwartete Antwort; Wiederholung mit wachsendem Abstand (2 s … 5 min).
+    case serverfehler(Int)
+    /// Bei der Zusammenfuehrung mit dem Server mussten so viele Objekte entschieden werden.
+    case konflikteZusammengefuehrt(Int)
+
+    /// Einordnung eines Transportfehlers: 401/403 sind nie "Offline", nur Fehler ohne HTTP-Antwort sind es.
+    public static func classify(_ error: Error) -> SyncIssue {
+        guard let e = error as? HTTPStatusError, e.httpStatus > 0 else { return .offline }
+        switch e.httpStatus {
+        case 401: return .pinFehlt
+        case 403: return .zugriffVerweigert
+        default: return .serverfehler(e.httpStatus)
+        }
+    }
+
+    /// Wird erst nach einer ausdruecklichen Anfrage (`requestUpload`, `syncNow`) erneut versucht.
+    public var needsUserAction: Bool { self == .pinFehlt || self == .zugriffVerweigert }
+
+    public var label: String {
+        switch self {
+        case .offline: return "Offline – Änderungen sind lokal gesichert"
+        case .pinFehlt: return "PIN fehlt oder ist falsch – Änderungen sind lokal gesichert"
+        case .zugriffVerweigert: return "Zugriff verweigert – Änderungen sind lokal gesichert"
+        case .serverfehler(let code): return "Serverfehler (\(code)) – neuer Versuch folgt"
+        case .konflikteZusammengefuehrt(let n): return n == 1 ? "1 Konflikt zusammengeführt" : "\(n) Konflikte zusammengeführt"
+        }
+    }
+}
+
 public struct SyncStats: Equatable, Sendable {
     public var puts = 0
     public var conflicts = 0
@@ -73,6 +116,8 @@ public struct SyncStats: Equatable, Sendable {
 /// - Bei 409 wird objektweise mit dem Serverstand zusammengefuehrt (Basis = letzter bestaetigter Stand) und
 ///   erneut gesendet. Striche beider Geraete bleiben erhalten.
 /// - Ohne Netz: Wiederholung mit wachsendem Abstand (2 s … 60 s), lokale Daten bleiben ungesendet markiert.
+/// - 401/403 (PIN, Zugriff): keine automatische Wiederholung, erst wieder nach `requestUpload`/`syncNow`.
+///   5xx: Wiederholung mit wachsendem Abstand (2 s … 5 min). Den Grund meldet `issue` (nie "Offline").
 public actor SyncEngine {
     public typealias Sleeper = @Sendable (Double) async -> Void
 
@@ -84,6 +129,7 @@ public actor SyncEngine {
 
     private var statusHandler: (@Sendable (SyncStatus) -> Void)?
     private var remoteChangeHandler: (@Sendable ([String]) -> Void)?
+    private var issueHandler: (@Sendable (SyncIssue?) -> Void)?
 
     private var pdfPageCount = 0
     private var serverVersion = 0
@@ -104,12 +150,17 @@ public actor SyncEngine {
     private var uploading = false
     private var networkDown = false
     private var retryDelay = 2.0
+    private var blockedBy: SyncIssue?                     // 401/403: wartet auf ausdrueckliche Anfrage
+    private var serverErrorStatus: Int?
+    private var serverRetryDelay = 2.0
+    private var mergedConflictCount = 0
     private var debounceTask: Task<Void, Never>?
     private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     private var unresolvedConflict: String?
     private var isShutDown = false
 
     public private(set) var status: SyncStatus = .loading
+    public private(set) var issue: SyncIssue?
     public private(set) var stats = SyncStats()
 
     public init(documentID: String, transport: AnnotationTransport, journal: LocalJournal,
@@ -127,6 +178,18 @@ public actor SyncEngine {
         statusHandler = onStatus
         remoteChangeHandler = onRemoteChange
         onStatus?(status)
+    }
+
+    /// Meldet jede Aenderung von `issue` (auch sofort den aktuellen Wert).
+    public func setIssueHandler(_ handler: (@Sendable (SyncIssue?) -> Void)?) {
+        issueHandler = handler
+        handler?(issue)
+    }
+
+    /// Hinweis "Konflikte zusammengefuehrt" gesehen: zuruecksetzen.
+    public func acknowledgeMergedConflicts() {
+        mergedConflictCount = 0
+        refreshStatus()
     }
 
     // MARK: Oeffnen
@@ -154,17 +217,17 @@ public actor SyncEngine {
         do {
             let server = try await transport.fetch(documentID: documentID)
             reachable = true
-            networkDown = false
+            noteReachable()
             if snapshot == nil {
                 adoptServer(server)
             } else if server.version != serverVersion || hasStalePages {
                 merge(with: server)
             }
         } catch {
-            networkDown = true
+            noteTransportFailure(SyncIssue.classify(error))
         }
         refreshStatus()
-        if hasDirty { scheduleUpload(after: 0) }
+        if hasDirty && blockedBy == nil { scheduleUpload(after: 0) }
         return OpenResult(document: currentDocument(), serverReachable: reachable,
                           restoredUnsentPages: restored, damagedFiles: snapshot?.damaged ?? [])
     }
@@ -195,7 +258,30 @@ public actor SyncEngine {
         pages[key] = JournalPage(page: page, localRev: rev)
         persistPage(key)
         refreshStatus()
-        scheduleUpload(after: uploadDelay)
+        scheduleUploadAfterEdit()
+    }
+
+    /// Neuer Stand einer Seite, den der Editor aus `previous` berechnet hat. Hat sich die Seite inzwischen geaendert
+    /// (Zusammenfuehrung mit dem Server waehrend der Umrechnung), wird drei-Wege zusammengefuehrt (Basis =
+    /// `previous`), statt den neueren Stand zu ueberschreiben: im Browser Geloeschtes kommt nicht zurueck, im Browser
+    /// Ergaenztes bleibt.
+    /// - Returns: `true`, wenn das Ergebnis vom uebergebenen Stand abweicht (Anzeige neu laden).
+    @discardableResult
+    public func updatePage(_ key: String, _ page: JSONValue, derivedFrom previous: JSONValue?) -> Bool {
+        let current = pages[key]?.page
+        guard current != previous else {
+            updatePage(key, page)
+            return false
+        }
+        let result = AnnotationMerge.mergePage(base: previous, local: page, server: current)
+        if result.conflicts > 0 {
+            stats.mergedConflicts += result.conflicts
+            mergedConflictCount += result.conflicts
+        }
+        let merged = result.page ?? page
+        updatePage(key, merged)
+        refreshStatus()
+        return merged != page
     }
 
     /// Neue Wurzelfelder (Seitenreihenfolge, Lesezeichen ...), ohne `pages`.
@@ -208,7 +294,7 @@ public actor SyncEngine {
         metaRev = max(metaRev, metaAckedRev) + 1
         persistMeta()
         refreshStatus()
-        scheduleUpload(after: uploadDelay)
+        scheduleUploadAfterEdit()
     }
 
     // MARK: Hochladen
@@ -232,6 +318,13 @@ public actor SyncEngine {
             return
         }
         await uploadLoop()
+    }
+
+    /// Nach einer Aenderung: kurz warten und hochladen. Bei 401/403 nicht (wartet auf ausdrueckliche Anfrage), bei
+    /// einem Serverfehler bleibt die geplante Wiederholung mit wachsendem Abstand bestehen.
+    private func scheduleUploadAfterEdit() {
+        guard blockedBy == nil, serverErrorStatus == nil else { return }
+        scheduleUpload(after: uploadDelay)
     }
 
     private func scheduleUpload(after delay: Double) {
@@ -268,20 +361,31 @@ public actor SyncEngine {
             do {
                 outcome = try await transport.put(documentID: documentID, root: root, baseVersion: serverVersion)
             } catch {
-                networkDown = true
-                let wait = retryDelay
-                retryDelay = min(retryDelay * 2, 60)
+                let failure = SyncIssue.classify(error)
+                noteTransportFailure(failure)
                 uploading = false
                 refreshStatus()
-                scheduleUpload(after: wait)
+                switch failure {
+                case .pinFehlt, .zugriffVerweigert:
+                    break                                       // keine Wiederholung ohne ausdrueckliche Anfrage
+                case .serverfehler:
+                    let wait = serverRetryDelay
+                    serverRetryDelay = min(serverRetryDelay * 2, 300)
+                    scheduleUpload(after: wait)
+                default:
+                    let wait = retryDelay
+                    retryDelay = min(retryDelay * 2, 60)
+                    scheduleUpload(after: wait)
+                }
                 resumeIdleWaiters()
                 return
             }
-            networkDown = false
+            noteReachable()
             switch outcome {
             case .saved(let version):
                 serverVersion = version
                 retryDelay = 2
+                serverRetryDelay = 2
                 conflictsInRow = 0
                 unresolvedConflict = nil
                 for (key, sent) in sentPages {
@@ -420,6 +524,7 @@ public actor SyncEngine {
         serverVersion = server.version
         persistAcks()
         stats.mergedConflicts += conflicts
+        mergedConflictCount += conflicts
         if !changed.isEmpty { remoteChangeHandler?(changed.sorted()) }
     }
 
@@ -432,6 +537,30 @@ public actor SyncEngine {
     private var dirtyCount: Int { dirtyPageKeys.count + (isMetaDirty ? 1 : 0) }
     private var hasStalePages: Bool { pages.contains { $0.value.localRev < (acked[$0.key] ?? 0) } }
 
+    /// Antwort vom Server erhalten (auch 409): Netz und Server sind wieder in Ordnung.
+    private func noteReachable() {
+        networkDown = false
+        blockedBy = nil
+        serverErrorStatus = nil
+    }
+
+    private func noteTransportFailure(_ failure: SyncIssue) {
+        switch failure {
+        case .pinFehlt, .zugriffVerweigert:
+            blockedBy = failure
+            networkDown = false
+            serverErrorStatus = nil
+        case .serverfehler(let code):
+            serverErrorStatus = code
+            networkDown = false
+            blockedBy = nil
+        default:
+            networkDown = true
+            blockedBy = nil
+            serverErrorStatus = nil
+        }
+    }
+
     private func refreshStatus() {
         let next: SyncStatus
         if let e = lastWriteError { next = .localSaveFailed(e) }
@@ -439,10 +568,21 @@ public actor SyncEngine {
         else if uploading { next = .uploading(pages: dirtyCount) }
         else if !hasDirty { next = .saved }
         else if networkDown { next = .offline(pages: dirtyCount) }
-        else { next = .pending(pages: dirtyCount) }
-        guard next != status else { return }
-        status = next
-        statusHandler?(next)
+        else { next = .pending(pages: dirtyCount) }       // auch bei 401/403/5xx: nicht "Offline", Grund in `issue`
+        if next != status {
+            status = next
+            statusHandler?(next)
+        }
+        let nextIssue: SyncIssue?
+        if let blockedBy { nextIssue = blockedBy }
+        else if let code = serverErrorStatus { nextIssue = .serverfehler(code) }
+        else if networkDown { nextIssue = .offline }
+        else if mergedConflictCount > 0 { nextIssue = .konflikteZusammengefuehrt(mergedConflictCount) }
+        else { nextIssue = nil }
+        if nextIssue != issue {
+            issue = nextIssue
+            issueHandler?(nextIssue)
+        }
     }
 
     // MARK: Journal (Fehler werden gemeldet und wiederholt)

@@ -34,12 +34,13 @@ actor InkProcessor {
         return DrawingBox(drawing: d)
     }
 
-    func page(key: String, drawing: DrawingBox, previous: JSONValue?) -> JSONValue {
+    /// Neuer Seitenstand aus der Zeichnung (drei-Wege gegen `previous`, siehe `StrokeConverter.update`).
+    func page(key: String, drawing: DrawingBox, previous: JSONValue?) -> InkPageUpdate {
         let state: InkPageState
         if let s = states[key] { state = s } else { state = StrokeConverter.drawing(fromPage: previous).1 }
-        let (page, next) = StrokeConverter.page(from: drawing.drawing, previous: previous, state: state)
-        states[key] = next
-        return page
+        let update = StrokeConverter.update(from: drawing.drawing, previous: previous, state: state)
+        states[key] = update.state
+        return update
     }
 }
 
@@ -84,6 +85,9 @@ final class DocumentStore: ObservableObject {
     @Published private(set) var layout: DisplayLayout?
     @Published private(set) var layoutVersion = 0
     @Published private(set) var status: SyncStatus = .loading
+    /// Warum nicht hochgeladen wird (offline, PIN fehlt, Zugriff verweigert, Serverfehler) oder dass Konflikte
+    /// zusammengefuehrt wurden; `nil` = nichts zu melden. Fuer die Anzeige neben `status`.
+    @Published private(set) var syncIssue: SyncIssue?
     @Published private(set) var errorMessage: String?
     @Published private(set) var notice: String?
     @Published private(set) var insertedPages = 0
@@ -141,6 +145,7 @@ final class DocumentStore: ObservableObject {
             await engine.setHandlers(
                 onStatus: { [weak self] s in Task { @MainActor in self?.status = s } },
                 onRemoteChange: { [weak self] keys in Task { @MainActor in await self?.remoteChanged(keys) } })
+            await engine.setIssueHandler { [weak self] issue in Task { @MainActor in self?.syncIssue = issue } }
             let opened = await engine.open(pdfPageCount: pdfDocument.pageCount)
             apply(document: opened.document, forceLayout: true)
             if !opened.damagedFiles.isEmpty {
@@ -228,12 +233,29 @@ final class DocumentStore: ObservableObject {
         guard !processing else { return }
         processing = true
         defer { processing = false }
+        var outdated: [String] = []
         while let (key, box) = pendingDrawings.first {
             pendingDrawings.removeValue(forKey: key)
             let previous = await engine.page(key)
-            let page = await ink.page(key: key, drawing: box, previous: previous)
-            await engine.updatePage(key, page)
+            let update = await ink.page(key: key, drawing: box, previous: previous)
+            // hat eine Zusammenfuehrung die Seite waehrend der Umrechnung geaendert, wird zusammengefuehrt statt
+            // ueberschrieben (im Browser Geloeschtes kommt nicht zurueck)
+            let merged = await engine.updatePage(key, update.page, derivedFrom: previous)
+            if update.canvasOutdated || merged { outdated.append(key) }
         }
+        // Canvas zeigt anderswo geloeschte oder geaenderte Striche: aus dem gespeicherten Stand neu laden
+        let reload = outdated.filter { pendingDrawings[$0] == nil }
+        if !reload.isEmpty { onPagesChanged?(reload) }
+    }
+
+    /// Hinweis "Konflikte zusammengefuehrt" gesehen.
+    func acknowledgeSyncNotice() async {
+        await engine.acknowledgeMergedConflicts()
+    }
+
+    /// Erneut hochladen (z. B. nach neuer PIN); bei 401/403 wird sonst nicht automatisch wiederholt.
+    func retrySync() async {
+        await engine.requestUpload()
     }
 
     private func remoteChanged(_ keys: [String]) async {

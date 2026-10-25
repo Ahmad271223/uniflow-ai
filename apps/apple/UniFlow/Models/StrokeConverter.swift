@@ -7,11 +7,17 @@ import UniFlowCore
 ///
 /// Plattformuebergreifend bearbeitbar: Punkte, Farbe, Breite je Punkt, Deckkraft, Werkzeugart. Nur auf dem iPad
 /// sichtbar (gehen bei Bearbeitung im Browser verloren): PencilKit-eigene Pinselstruktur und Neigung. Deshalb wird
-/// die native Zeichnung zusaetzlich als `pkdrawing` gespeichert, zusammen mit den Objekt-IDs je Strich.
+/// die native Zeichnung zusaetzlich als `pkdrawing` gespeichert, zusammen mit den Objekt-IDs und (ab v2) einer
+/// Signatur je Strich: aendert der Browser einen Strich, wird nur dieser aus dem JSON neu aufgebaut.
 ///
 /// Identitaet eines PencilKit-Strichs: Erstellzeit des Pfads + Punktzahl + Tintenart. Verschieben (Lasso) aendert nur
-/// `transform`, Radieren mit dem Pixel-Radierer nur `mask` -> die ID bleibt, das Objekt wird aktualisiert.
-/// Unveraenderte Striche werden nie neu umgerechnet; ihr JSON bleibt Byte fuer Byte erhalten.
+/// `transform`, Radieren mit dem Pixel-Radierer nur `mask` -> die ID bleibt, das Objekt wird aktualisiert und behaelt
+/// alle Felder, die die App nicht kennt. Unveraenderte Striche werden nie neu umgerechnet; ihr JSON bleibt Byte fuer
+/// Byte erhalten.
+///
+/// Drei-Wege beim Speichern (Basis = Stand beim letzten Laden/Speichern, hier = Zeichnung, dort = aktuelle Seite):
+/// anderswo geloescht und hier unveraendert -> geloescht; anderswo geaendert und hier unveraendert -> dortiger Stand;
+/// hier geaendert -> Stand dieses Geraets; hier radiert, dort geaendert -> bleibt.
 struct InkPageState: Sendable {
     struct StrokeKey: Hashable, Sendable {
         let created: Double
@@ -23,12 +29,27 @@ struct InkPageState: Sendable {
         var ids: [String]
         var content: Int
         var objects: [JSONValue]
+        /// Die native Darstellung entspricht `objects` (darf so in `pkdrawing` gespeichert werden).
+        var nativeMatches = true
+        /// Anderswo geloescht, hier unveraendert: wird nicht gespeichert, bis die Canvas neu geladen ist.
+        var deletedElsewhere = false
+        /// Signatur von `objects` fuer `pkdrawing-v2` (einmal berechnet, solange der Strich unveraendert bleibt).
+        var signature: String?
     }
 
     var entries: [StrokeKey: [Entry]] = [:]
     /// IDs, die in der Zeichnung dargestellt sind. Andere Strich-Objekte der Seite (z. B. nicht darstellbar)
     /// werden beim Speichern unveraendert uebernommen.
     var represented: Set<String> = []
+}
+
+/// Ergebnis einer Umrechnung PencilKit -> Seite.
+struct InkPageUpdate: Sendable {
+    var page: JSONValue
+    var state: InkPageState
+    /// Die Canvas zeigt etwas anderes als der gespeicherte Stand (anderswo geloeschte oder geaenderte Striche):
+    /// Anzeige aus dem Seitenstand neu laden.
+    var canvasOutdated: Bool
 }
 
 /// PencilKit-Zeichnung, die zwischen Threads weitergereicht wird (PKDrawing ist ein Werttyp).
@@ -38,15 +59,27 @@ struct DrawingBox: @unchecked Sendable {
 
 enum StrokeConverter {
 
+    /// Deckkraft des Textmarkers im Web-Editor, die dem PencilKit-Marker mit voller Farbe entspricht.
+    static let markerOpacity = 0.35
+
+    /// Tintenarten, die ab iOS 17 sicher wiederhergestellt werden koennen (`pkInk`).
+    static let restorableInks: Set<PKInk.InkType> = [.pen, .pencil, .marker, .monoline, .fountainPen, .watercolor, .crayon]
+
     // MARK: Seite -> PencilKit
 
-    /// Zeichnung einer Seite: bevorzugt die gespeicherte native Zeichnung, wenn sie noch zu den Objekten passt
-    /// (sonst wurde die Seite im Browser bearbeitet und die Zeichnung wird aus den Objekten aufgebaut).
+    /// Zeichnung einer Seite: bevorzugt die gespeicherte native Zeichnung. v2: je Strich, solange dessen Objekte
+    /// unveraendert sind; v1: nur als Ganzes, wenn sie noch zu allen Objekten passt. Alles andere wird aus den
+    /// Objekten aufgebaut.
     static func drawing(fromPage page: JSONValue?) -> (PKDrawing, InkPageState) {
         let objects = page?["objects"]?.array ?? []
-        if let stored = StoredDrawing(page: page), stored.signature == signature(objects),
-           let data = Data(base64Encoded: stored.data), let native = try? PKDrawing(data: data),
-           native.strokes.count == stored.strokeIDs.count {
+        guard let stored = StoredDrawing(page: page), let data = Data(base64Encoded: stored.data),
+              let native = try? PKDrawing(data: data), native.strokes.count == stored.strokeIDs.count else {
+            return rebuild(objects: objects)
+        }
+        if let sigs = stored.strokeSignatures, sigs.count == stored.strokeIDs.count {
+            return combine(native: native, strokeIDs: stored.strokeIDs, signatures: sigs, objects: objects)
+        }
+        if stored.signature == signature(objects) {
             var byID: [String: JSONValue] = [:]
             for o in objects { if let id = o["id"]?.string { byID[id] = o } }
             var state = InkPageState()
@@ -63,15 +96,55 @@ enum StrokeConverter {
         return rebuild(objects: objects)
     }
 
+    /// v2: native Striche, deren Objekte unveraendert sind (Signatur je Strich), behalten ihr Aussehen; alle anderen
+    /// Strich-Objekte werden aus dem JSON aufgebaut. Reihenfolge (Ueberdeckung) wie in `objects`.
+    static func combine(native: PKDrawing, strokeIDs: [[String]], signatures: [String], objects: [JSONValue]) -> (PKDrawing, InkPageState) {
+        var byID: [String: JSONValue] = [:]
+        for o in objects { if let id = o["id"]?.string { byID[id] = o } }
+        var valid: [Int: [JSONValue]] = [:]
+        var nativeIndex: [String: Int] = [:]
+        var objectless: [Int] = []                                   // winzige Striche ohne Objekt (nur nativ)
+        for (i, ids) in strokeIDs.enumerated() {
+            if ids.isEmpty { objectless.append(i); continue }
+            let objs = ids.compactMap { byID[$0] }
+            guard objs.count == ids.count, strokeSignature(objs) == signatures[i] else { continue }   // geaendert/geloescht
+            valid[i] = objs
+            for id in ids { nativeIndex[id] = i }
+        }
+        var slots = CreationSlots(reserved: valid.keys.map { native.strokes[$0] } + objectless.map { native.strokes[$0] })
+        var strokes: [PKStroke] = []
+        var state = InkPageState()
+        var emitted = Set<Int>()
+        func addNative(_ i: Int, objects objs: [JSONValue]) {
+            let s = native.strokes[i]
+            strokes.append(s)
+            state.entries[key(s), default: []].append(.init(ids: strokeIDs[i], content: contentHash(s), objects: objs,
+                                                            signature: signatures[i]))
+            state.represented.formUnion(strokeIDs[i])
+        }
+        for o in objects {
+            guard let id = o["id"]?.string else { continue }
+            if let i = nativeIndex[id], let objs = valid[i] {
+                if emitted.insert(i).inserted { addNative(i, objects: objs) }
+            } else if let s = stroke(from: o, created: slots.next()) {
+                strokes.append(s)
+                state.entries[key(s), default: []].append(.init(ids: [id], content: contentHash(s), objects: [o]))
+                state.represented.insert(id)
+            }
+        }
+        for i in objectless { addNative(i, objects: []) }
+        return (PKDrawing(strokes: strokes), state)
+    }
+
     /// Zeichnung aus den Objekten aufbauen. Jeder Strich bekommt eine eindeutige kuenstliche Erstellzeit, damit
     /// er spaeter eindeutig wiedererkannt wird.
     static func rebuild(objects: [JSONValue]) -> (PKDrawing, InkPageState) {
         var strokes: [PKStroke] = []
         var state = InkPageState()
+        var slots = CreationSlots(reserved: [])
         for o in objects {
             guard let id = o["id"]?.string else { continue }
-            let created = Date(timeIntervalSinceReferenceDate: 1_000 + Double(strokes.count) * 0.001)
-            guard let s = stroke(from: o, created: created) else { continue }
+            guard let s = stroke(from: o, created: slots.next()) else { continue }
             strokes.append(s)
             state.entries[key(s), default: []].append(.init(ids: [id], content: contentHash(s), objects: [o]))
             state.represented.insert(id)
@@ -103,24 +176,71 @@ enum StrokeConverter {
                                         opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2))
         }
         let base = UIColor(hex: o["color"]?.string) ?? .black
-        let ink: PKInk
-        switch tool {
-        case "marker": ink = PKInk(.marker, color: base)
-        case "pencil": ink = PKInk(.pencil, color: base.withAlphaComponent(CGFloat(opacity)))
-        default: ink = PKInk(.pen, color: base.withAlphaComponent(CGFloat(opacity)))
-        }
+        let type = inkType(forWebTool: tool, pkInk: o["pkInk"]?.string)
+        let ink = PKInk(type, color: base.withAlphaComponent(CGFloat(inkAlpha(opacity: opacity, tool: tool))))
         return PKStroke(ink: ink, path: PKStrokePath(controlPoints: points, creationDate: created))
+    }
+
+    // MARK: Werkzeuge
+
+    /// Werkzeug im Web-Editor (pen, fountain, pencil, marker) zu einer PencilKit-Tintenart.
+    static func webTool(for ink: PKInk.InkType) -> String {
+        switch ink {
+        case .marker, .watercolor: return "marker"
+        case .pencil, .crayon: return "pencil"
+        case .fountainPen: return "fountain"
+        default: return "pen"
+        }
+    }
+
+    /// Tintenart zu einem Web-Werkzeug. Die gespeicherte native Tintenart (`pkInk`) gilt, solange das Werkzeug im
+    /// Browser nicht geaendert wurde (sonst bestimmt das Web-Werkzeug).
+    static func inkType(forWebTool tool: String, pkInk: String?) -> PKInk.InkType {
+        if let raw = pkInk, let t = PKInk.InkType(rawValue: raw), restorableInks.contains(t), webTool(for: t) == tool { return t }
+        switch tool {
+        case "marker": return .marker
+        case "pencil": return .pencil
+        case "fountain": return .fountainPen
+        default: return .pen
+        }
+    }
+
+    /// Deckkraft im JSON -> Alpha der PencilKit-Farbe. Der Marker ist in PencilKit schon durchscheinend:
+    /// Web-Deckkraft 0,35 entspricht voller Farbe.
+    static func inkAlpha(opacity: Double, tool: String) -> Double {
+        let o = min(max(opacity, 0), 1)
+        return tool == "marker" ? min(1, o / markerOpacity) : o
+    }
+
+    /// Alpha der PencilKit-Farbe -> Deckkraft im JSON (Umkehrung von `inkAlpha`).
+    static func opacity(inkAlpha alpha: Double, tool: String) -> Double {
+        let a = min(max(alpha, 0), 1)
+        return tool == "marker" ? a * markerOpacity : a
     }
 
     // MARK: PencilKit -> Seite
 
-    /// Neuer Seitenstand aus der Zeichnung. Text, Formen, Bilder und nicht dargestellte Striche bleiben an ihrer
-    /// Stelle; unveraenderte Striche behalten ihr JSON; neue Striche bekommen neue IDs.
+    /// Neuer Seitenstand aus der Zeichnung (Kurzform von `update`).
     static func page(from drawing: PKDrawing, previous: JSONValue?, state: InkPageState) -> (JSONValue, InkPageState) {
+        let u = update(from: drawing, previous: previous, state: state)
+        return (u.page, u.state)
+    }
+
+    /// Neuer Seitenstand aus der Zeichnung. Text, Formen, Bilder und nicht dargestellte Striche bleiben an ihrer
+    /// Stelle; unveraenderte Striche behalten ihr JSON; neue Striche bekommen neue IDs. `previous` ist der aktuelle
+    /// Seitenstand (kann inzwischen Aenderungen aus dem Browser enthalten), `state` der Stand beim letzten Laden.
+    static func update(from drawing: PKDrawing, previous: JSONValue?, state: InkPageState) -> InkPageUpdate {
+        let previousObjects = previous?["objects"]?.array ?? []
+        var previousByID: [String: JSONValue] = [:]
+        for o in previousObjects { if let id = o["id"]?.string { previousByID[id] = o } }
+
         var pool = state.entries
         var next = InkPageState()
+        var nativeStrokes: [PKStroke] = []
         var strokeIDs: [[String]] = []
+        var strokeSigs: [String] = []
         var current: [JSONValue] = []
+        var outdated = false
         for s in drawing.strokes {
             let k = key(s)
             let content = contentHash(s)
@@ -129,31 +249,76 @@ enum StrokeConverter {
                 let old = list.removeFirst()
                 pool[k] = list
                 if old.content == content {
-                    entry = old
+                    // hier unveraendert: fuer diese IDs gilt der aktuelle Seitenstand
+                    let present = old.ids.filter { previousByID[$0] != nil }
+                    if present.isEmpty && !old.ids.isEmpty {
+                        // anderswo geloescht, hier unveraendert -> Loeschung gewinnt
+                        var ghost = old
+                        ghost.deletedElsewhere = true
+                        next.entries[k, default: []].append(ghost)
+                        outdated = true
+                        continue
+                    }
+                    let objs = present.compactMap { previousByID[$0] }
+                    if present.count == old.ids.count && objs == old.objects {
+                        entry = old
+                        entry.deletedElsewhere = false
+                    } else {
+                        // anderswo geaendert oder teilweise geloescht: dortiger Stand, native Darstellung passt nicht mehr
+                        entry = .init(ids: present, content: content, objects: objs, nativeMatches: false)
+                        outdated = true
+                    }
                 } else {
-                    let objs = objects(for: s, ids: old.ids)
+                    // hier geaendert (Lasso, Radierer, Farbe): neu umrechnen, bisherige Zusatzfelder behalten
+                    var oldByID: [String: JSONValue] = [:]
+                    for o in old.objects { if let id = o["id"]?.string { oldByID[id] = o } }
+                    let templates = old.ids.map { previousByID[$0] ?? oldByID[$0] }
+                    let objs = objects(for: s, ids: old.ids, templates: templates)
                     entry = .init(ids: objs.compactMap { $0["id"]?.string }, content: content, objects: objs)
                 }
             } else {
                 let objs = objects(for: s, ids: [])
                 entry = .init(ids: objs.compactMap { $0["id"]?.string }, content: content, objects: objs)
             }
+            if entry.nativeMatches {
+                let sig = entry.signature ?? strokeSignature(entry.objects)
+                entry.signature = sig
+                nativeStrokes.append(s)
+                strokeIDs.append(entry.ids)
+                strokeSigs.append(sig)
+            }
             next.entries[k, default: []].append(entry)
             next.represented.formUnion(entry.ids)
-            strokeIDs.append(entry.ids)
             current.append(contentsOf: entry.objects)
         }
+
+        // hier radiert: nur, wenn anderswo unveraendert (sonst bleibt der dortige Stand)
+        var keptDespiteErase = Set<String>()
+        for list in pool.values {
+            for old in list where !old.deletedElsewhere {
+                for o in old.objects {
+                    guard let id = o["id"]?.string, let theirs = previousByID[id], theirs != o else { continue }
+                    keptDespiteErase.insert(id)
+                    outdated = true
+                }
+            }
+        }
+
         var byID: [String: JSONValue] = [:]
         for o in current { if let id = o["id"]?.string { byID[id] = o } }
-
         var result: [JSONValue] = []
         var placed = Set<String>()
-        for o in previous?["objects"]?.array ?? [] {
+        for o in previousObjects {
             let id = o["id"]?.string ?? ""
-            if o["type"]?.string == "stroke", !id.isEmpty, state.represented.contains(id) {
-                if let updated = byID[id] { result.append(updated); placed.insert(id) }   // sonst: radiert
+            if o["type"]?.string == "stroke", !id.isEmpty, state.represented.contains(id) || byID[id] != nil {
+                if let updated = byID[id] {
+                    if placed.insert(id).inserted { result.append(updated) }
+                } else if keptDespiteErase.contains(id), placed.insert(id).inserted {
+                    result.append(o)
+                }                                                                   // sonst: hier radiert
             } else {
-                result.append(o)                                                       // Text, Formen, Bilder ...
+                result.append(o)                                                    // Text, Formen, Bilder ...
+                if !id.isEmpty { placed.insert(id) }
             }
         }
         for o in current {
@@ -162,29 +327,36 @@ enum StrokeConverter {
 
         var p = previous?.object ?? [:]
         p["objects"] = .array(result)
-        p["pkdrawing"] = StoredDrawing(data: drawing.dataRepresentation().base64EncodedString(),
-                                       signature: signature(result), strokeIDs: strokeIDs).json
-        return (.object(p), next)
+        let native = nativeStrokes.count == drawing.strokes.count ? drawing : PKDrawing(strokes: nativeStrokes)
+        // Aeltere App-Versionen (nur v1) nutzen die Zeichnung als Ganzes, wenn `objectsSig` passt. Das darf nur
+        // sein, wenn sie jedes Strich-Objekt der Seite enthaelt; sonst wuerden die fehlenden dort unsichtbar.
+        let nativeIDs = Set(strokeIDs.joined())
+        let complete = result.allSatisfy { o in
+            o["type"]?.string != "stroke" || (o["id"]?.string).map { nativeIDs.contains($0) } == true
+        }
+        p["pkdrawing"] = StoredDrawing(data: native.dataRepresentation().base64EncodedString(),
+                                       signature: complete ? signature(result) : "teilweise",
+                                       strokeIDs: strokeIDs, strokeSignatures: strokeSigs).json
+        return InkPageUpdate(page: .object(p), state: next, canvasOutdated: outdated)
     }
 
     /// Ein PencilKit-Strich als UniFlow-Objekt(e). Mit Pixel-Radierer geteilte Striche ergeben je sichtbarem Stueck
-    /// ein Objekt, damit im Browser keine radierten Teile wieder auftauchen.
-    static func objects(for s: PKStroke, ids: [String]) -> [JSONValue] {
+    /// ein Objekt, damit im Browser keine radierten Teile wieder auftauchen. `templates[i]` ist der bisherige Stand
+    /// des Objekts mit `ids[i]`: seine Felder bleiben erhalten (auch unbekannte), nur Geometrie, Farbe, Deckkraft und
+    /// Werkzeug werden neu gesetzt. Zusaetzliche Stuecke uebernehmen die Felder des ersten bisherigen Objekts.
+    static func objects(for s: PKStroke, ids: [String], templates: [JSONValue?] = []) -> [JSONValue] {
         let ranges: [ClosedRange<CGFloat>]
         if s.mask != nil {
             ranges = s.maskedPathRanges
         } else {
             ranges = [0...CGFloat(max(s.path.count - 1, 0))]
         }
-        let tool: String
-        switch s.ink.inkType {
-        case .marker: tool = "marker"
-        case .pencil: tool = "pencil"
-        default: tool = "pen"
-        }
+        let type = s.ink.inkType
+        let tool = webTool(for: type)
         let t = s.transform
         let scale = sqrt(abs(t.a * t.d - t.b * t.c))
         let (hex, alpha) = s.ink.color.uniflowRGBA
+        let firstTemplate = templates.lazy.compactMap { $0 }.first
         var out: [JSONValue] = []
         for (i, range) in ranges.enumerated() {
             var pts: [JSONValue] = []
@@ -197,15 +369,34 @@ enum StrokeConverter {
             }
             guard pts.count >= 4 else { continue }
             let id = i < ids.count ? ids[i] : newID()
+            let template = (i < templates.count ? templates[i] : nil) ?? firstTemplate
+            var o = template?.object ?? [:]
+            // Farbe und Deckkraft: bisherige Angabe behalten, wenn sie dieselbe Darstellung ergibt
+            let oldColor = o["color"]?.string
+            let color = oldColor?.lowercased() == hex ? oldColor! : hex
+            var opacity = round2(opacity(inkAlpha: alpha, tool: tool))
+            if let old = o["opacity"]?.double, o["tool"]?.string == tool, abs(inkAlpha(opacity: old, tool: tool) - alpha) < 0.01 {
+                opacity = old
+            }
             let avg = widths.reduce(0, +) / Double(max(1, widths.count))
-            var o: [String: JSONValue] = [
-                "id": .string(id), "type": "stroke", "tool": .string(tool), "color": .string(hex),
-                "width": .number(round2(avg)), "opacity": .number(tool == "marker" ? 0.35 : round2(alpha)),
-                "points": .array(pts), "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1,
-                "source": "pencilkit",
-            ]
+            o["id"] = .string(id)
+            o["type"] = "stroke"
+            o["tool"] = .string(tool)
+            o["pkInk"] = .string(type.rawValue)
+            o["color"] = .string(color)
+            o["width"] = .number(round2(avg))
+            o["opacity"] = .number(opacity)
+            o["points"] = .array(pts)
+            o["x"] = 0
+            o["y"] = 0
+            o["rotation"] = 0
+            o["scaleX"] = 1
+            o["scaleY"] = 1
+            if o["source"] == nil { o["source"] = "pencilkit" }
             if tool != "marker", (widths.max() ?? 0) - (widths.min() ?? 0) > 0.05 {
                 o["widths"] = .array(widths.map { .number($0) })
+            } else {
+                o.removeValue(forKey: "widths")
             }
             out.append(.object(o))
         }
@@ -229,7 +420,9 @@ enum StrokeConverter {
             h.combine(s.maskedPathRanges.count)
             for r in s.maskedPathRanges { h.combine(Double(r.lowerBound)); h.combine(Double(r.upperBound)) }
         }
-        h.combine(s.ink.color.uniflowRGBA.hex)
+        let rgba = s.ink.color.uniflowRGBA
+        h.combine(rgba.hex)
+        h.combine(round2(rgba.alpha))
         return h.finalize()
     }
 
@@ -239,11 +432,38 @@ enum StrokeConverter {
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// Signatur der Objekte eines einzelnen Strichs (`pkdrawing-v2`, gekuerzt auf 96 Bit).
+    static func strokeSignature(_ objects: [JSONValue]) -> String {
+        String(signature(objects).prefix(24))
+    }
+
     static func newID() -> String {
         "pk" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(12).lowercased()
     }
 
     static func round2(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+}
+
+/// Kuenstliche Erstellzeiten fuer aus JSON aufgebaute Striche (1000 s + n ms nach dem Referenzdatum). Zeiten, die
+/// gespeicherte native Striche schon tragen, werden uebersprungen, damit jeder Strich eindeutig wiedererkannt wird.
+struct CreationSlots {
+    private var taken: Set<Int>
+    private var n = 0
+
+    init(reserved: [PKStroke]) {
+        taken = Set(reserved.map { CreationSlots.slot($0.path.creationDate) })
+    }
+
+    static func slot(_ date: Date) -> Int {
+        let v = (date.timeIntervalSinceReferenceDate - 1_000) * 1_000
+        return v.isFinite && abs(v) < 1e15 ? Int(v.rounded()) : Int.min
+    }
+
+    mutating func next() -> Date {
+        while taken.contains(n) { n += 1 }
+        defer { n += 1 }
+        return Date(timeIntervalSinceReferenceDate: 1_000 + Double(n) * 0.001)
+    }
 }
 
 extension UIColor {
