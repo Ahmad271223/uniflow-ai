@@ -114,7 +114,7 @@ Abschnitt 2a (Tarifwahl: zwei Karten Free / Plus) und in der Startnachricht.
 | Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ |
 | Uni & Noten (QIS: Notenspiegel, Bescheinigungen) – vorerst außerhalb der Tarife, sobald nativ vorhanden (F4) | bald | bald |
 | **Schreiben mit Apple Pencil** (Stift, Marker, Radierer, Lasso), Seiten einfügen/drehen/Papierkorb, Lesezeichen | – | ✓ |
-| **Community**: Lösungen teilen und ansehen – Funktion folgt, in der Tarifwahl als „bald“ gekennzeichnet | – | bald |
+| **Community**: Lösungen als Datei teilen und im Editor ansehen (S9, `docs/LOESUNGEN-TEILEN.md`); Online-Community folgt (Knopf deaktiviert, „Community-Dienst noch nicht verbunden“) | – | ✓ |
 | **Übung und Skript nebeneinander** + Skriptsuche zur Aufgabe | – | ✓ |
 | Eigene Karteikarten mit Wiederholung | – | ✓ |
 | ab V2: UniFlow-Editor (auf Apple wählbar) | – | ✓ |
@@ -125,8 +125,9 @@ Regeln:
 - **Herabstufen:** Notizen bleiben vollständig erhalten, lesbar und exportierbar; nur Bearbeiten wird gesperrt.
 - **Sperren sichtbar machen:** Gesperrte Funktionen zeigen ein Schloss und führen zur Abo-Seite, statt zu
   verschwinden oder still nichts zu tun.
-- **„bald“ ehrlich kennzeichnen:** Uni & Noten und Community sind in keinem Tarif freigeschaltet, bis sie auf dem iPad
-  bzw. mit dem zentralen Dienst wirklich funktionieren – nichts vortäuschen.
+- **„bald“ ehrlich kennzeichnen:** Uni & Noten ist in keinem Tarif freigeschaltet, bis es auf dem iPad wirklich
+  funktioniert; von der Community ist nur der Teil freigeschaltet, der ohne Dienst wirklich funktioniert (Lösung als
+  Datei teilen und ansehen, Plus). Veröffentlichen in der Online-Community bleibt deaktiviert – nichts vortäuschen.
 - **KI** entfällt vorerst (Abschnitt 6); KI-Funktionen werden weder angeboten noch beworben.
 
 ## 5. Abos technisch (V1)

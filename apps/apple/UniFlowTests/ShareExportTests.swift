@@ -85,7 +85,7 @@ private final class LoadLog: @unchecked Sendable {
     }
 }
 
-/// Teilen & Export: Handschrift als Vektoren wie im Web-Editor, Datensatz fuer die Community, Miniaturen.
+/// Privater PDF-Export: Handschrift als Vektoren wie im Web-Editor, Datensatz des Exports, Miniaturen.
 final class ShareExportTests: XCTestCase {
 
     /// - Parameter fill: Farbe, mit der jede Seite ganz gefuellt wird (`nil` = leer).

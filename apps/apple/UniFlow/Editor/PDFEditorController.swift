@@ -22,7 +22,8 @@ final class InkCanvasView: PKCanvasView {
     override var undoManager: UndoManager? { silentUndo }
 }
 
-/// Overlay einer Seite: Vorlage und Web-Objekte (Text, Formen, Bilder) unten, PencilKit-Canvas oben.
+/// Overlay einer Seite: fremde Loesungen (nur Anzeige) ganz unten, darueber Vorlage und Web-Objekte (Text, Formen,
+/// Bilder), PencilKit-Canvas oben.
 /// Beide arbeiten in Seitenpunkten (wie der Web-Editor); passt PDFKit die Overlay-Groesse an, gleicht eine
 /// Skalierung des Inhalts das aus. Die Canvas scrollt und zoomt nie selbst.
 /// Immer hell: PencilKit kehrt Tintenfarben im Dunkelmodus um; auf dem weissen Papier soll schwarze Tinte schwarz
@@ -37,6 +38,8 @@ final class PageInkView: UIView {
     let content = UIView()
     let objectsView: PageObjectsView
     let canvas = InkCanvasView()
+    /// Eigene Schicht fuer fremde Loesungen: ueber der PDF, unter der eigenen Zeichenflaeche, ohne Eingabe.
+    let foreignView = UIView()
     /// Zeichnung wird gerade programmatisch gesetzt (kein Speichern ausloesen).
     var isApplyingDrawing = false
     /// Stift ist gerade auf dieser Canvas aktiv.
@@ -72,9 +75,29 @@ final class PageInkView: UIView {
         canvas.contentInsetAdjustmentBehavior = .never
         canvas.showsVerticalScrollIndicator = false
         canvas.showsHorizontalScrollIndicator = false
+        foreignView.frame = rect
+        foreignView.backgroundColor = .clear
+        foreignView.isUserInteractionEnabled = false
+        content.addSubview(foreignView)
         content.addSubview(objectsView)
         content.addSubview(canvas)
         addSubview(content)
+    }
+
+    /// Fremde Loesungsseiten dieser Seite setzen (ersetzt die bisherigen).
+    func setForeign(_ views: [ForeignLayerView]) {
+        foreignView.subviews.forEach { $0.removeFromSuperview() }
+        views.forEach { foreignView.addSubview($0) }
+    }
+
+    var foreignLayerViews: [ForeignLayerView] { foreignView.subviews.compactMap { $0 as? ForeignLayerView } }
+
+    /// "Meine Notizen" ein-/ausblenden. Ausgeblendet nimmt die Canvas keine Eingabe an (nur ansehen); an den
+    /// Notizen selbst aendert sich nichts.
+    func setOwnNotesVisible(_ visible: Bool) {
+        objectsView.isHidden = !visible
+        canvas.isHidden = !visible
+        canvas.isUserInteractionEnabled = visible
     }
 
     @available(*, unavailable)
@@ -143,6 +166,34 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var onPageChange: ((Int, String?) -> Void)?
     /// Seitenaufbau, den die PDFView gerade zeigt (kann kurz vom neuesten Stand im Store abweichen).
     private var shownLayout: DisplayLayout?
+
+    /// Fremde Loesungen (nur Anzeige, nie gespeichert), eigene Schicht ueber der PDF und unter der eigenen
+    /// Zeichenflaeche. Zuordnung ueber den PDF-Seitenindex, Drehung je Seite umgerechnet.
+    var foreignLayers: [ForeignSolutionLayer] = [] {
+        didSet {
+            foreignSignature = Self.signature(foreignLayers)
+            allOverlays.forEach(applyForeign)
+        }
+    }
+    /// Kennung der gezeigten fremden Ebenen (IDs und Sichtbarkeit), damit SwiftUI nicht bei jeder Aktualisierung
+    /// neu aufbaut.
+    private(set) var foreignSignature = ""
+
+    static func signature(_ layers: [ForeignSolutionLayer]) -> String {
+        layers.map { "\($0.id):\($0.visible)" }.joined(separator: ",")
+    }
+
+    /// "Meine Notizen" sichtbar. Ausgeblendet: nur ansehen (Canvas ohne Eingabe, Palette weg, kein Rueckgaengig).
+    var ownNotesVisible = true {
+        didSet {
+            guard ownNotesVisible != oldValue else { return }
+            for v in allOverlays {
+                if !ownNotesVisible, v.loaded { commitPendingUndo(v) }
+                v.setOwnNotesVisible(ownNotesVisible)
+            }
+            showToolPicker(ownNotesVisible)
+        }
+    }
 
     var pencilOnly = true {
         didSet {
@@ -346,6 +397,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             overlay = PageInkView(pageIndex: index, pageKey: key, generation: shownLayoutVersion,
                                   geometry: PageGeometry(boxSize: box, rotation: page.rotation))
             configure(overlay)
+            overlay.setOwnNotesVisible(ownNotesVisible)
+            applyForeign(overlay)
             loadContent(into: overlay)
         }
         live[index] = overlay
@@ -366,6 +419,28 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         parked.append(overlay)
         // der Verlauf bleibt: er haengt am Seitenschluessel und wirkt spaeter auf ein neues Overlay oder den Store
         while parked.count > parkedLimit { toolPicker.removeObserver(parked.removeFirst().canvas) }
+    }
+
+    /// Fremde Loesungsseiten fuer ein Overlay: nur PDF-Seiten, gedreht von der Drehung des Absenders auf die
+    /// angezeigte Drehung dieser Seite (`/Rotate` + eigene Drehung aus `pageOrder`).
+    private func applyForeign(_ overlay: PageInkView) {
+        guard overlay.generation == shownLayoutVersion, let layout = shownLayout, let entry = layout.entry(at: overlay.pageIndex),
+              entry.key == overlay.pageKey, let pdfIndex = entry.pdfIndex, let page = layout.pdf.page(at: overlay.pageIndex) else {
+            overlay.setForeign([])
+            return
+        }
+        let views = foreignLayers.filter(\.visible).compactMap { layer -> ForeignLayerView? in
+            guard let p = layer.byPDFIndex[pdfIndex] else { return nil }
+            return ForeignLayerView(solutionID: layer.id, page: p, images: layer.images, targetRotation: page.rotation,
+                                    label: layer.label)
+        }
+        overlay.setForeign(views)
+    }
+
+    /// Overlay einer Anzeige-Seite (nur fuer Tests: erzeugt es wie PDFKit beim Scrollen).
+    func overlayForTesting(at index: Int) -> PageInkView? {
+        guard let page = pdfView.document?.page(at: index) else { return nil }
+        return pdfView(pdfView, overlayViewFor: page) as? PageInkView
     }
 
     private func configure(_ overlay: PageInkView) {
@@ -626,11 +701,15 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     func undo() {
+        guard ownNotesVisible else { return }               // ausgeblendet: nur ansehen
         allOverlays.forEach(commitPendingUndo)
         documentUndo.undo()
     }
 
-    func redo() { documentUndo.redo() }
+    func redo() {
+        guard ownNotesVisible else { return }
+        documentUndo.redo()
+    }
 
     func fitWidth() {
         guard lastFit > 0 else { return }

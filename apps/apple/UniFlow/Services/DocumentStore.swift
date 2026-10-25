@@ -17,6 +17,9 @@ enum AppPaths {
         pdfDirectory(namespace, root: support).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf")
     }
 
+    /// Geteilte und empfangene Loesungen (nur eigene Notizen anderer, verschluesselt), siehe `SolutionLibrary`.
+    static var solutions: URL { support.appendingPathComponent("solutions", isDirectory: true) }
+
     static func pdfDirectory(_ namespace: DataSourceNamespace, root: URL) -> URL {
         root.appendingPathComponent("sources", isDirectory: true).appendingPathComponent(namespace.id, isDirectory: true)
             .appendingPathComponent("pdf", isDirectory: true)
@@ -187,14 +190,21 @@ final class DocumentStore: ObservableObject {
     /// Schluessel statt Anzeige-Indizes: nach Einfuegen/Drehen von Seiten verschieben sich die Indizes.
     var onPagesChanged: (([String]) -> Void)?
     private var loadStarted = false
+    /// Datei, aus der die Original-PDF geladen wird (unveraenderte Bytes, Grundlage des Loesungs-Fingerabdrucks).
+    let originalPDFURL: URL
+    private var fingerprintCache: String?
 
-    init(file: LibFile, api: APIClient) {
+    /// - Parameter root: Ordner fuer Journal und PDF-Zwischenspeicher (Standard: App-Container; Tests: Temp-Ordner).
+    init(file: LibFile, api: APIClient, root: URL = AppPaths.support) {
         self.file = file
         self.api = api
         self.namespace = api.namespace
+        self.originalPDFURL = AppPaths.pdfDirectory(api.namespace, root: root)
+            .appendingPathComponent(LocalJournalName.safe(file.id) + ".pdf")
         let transport = SwitchableAnnotationTransport(api: api)
         self.transport = transport
-        let journal = LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: file.id, namespace: api.namespace)
+        let journal = LocalJournal(store: FileBlobStore(root: root.appendingPathComponent("journal", isDirectory: true)),
+                                   documentID: file.id, namespace: api.namespace)
         self.engine = SyncEngine(documentID: file.id, transport: transport, journal: journal)
     }
 
@@ -204,7 +214,7 @@ final class DocumentStore: ObservableObject {
         guard !loadStarted else { return }          // .task laeuft bei jedem Erscheinen erneut (z. B. Tabwechsel)
         loadStarted = true
         do {
-            let url = AppPaths.pdf(file.id, namespace: namespace)
+            let url = originalPDFURL
             if !FileManager.default.fileExists(atPath: url.path) {
                 let (data, http) = try await api.data("/api/files/\(file.id)/content")
                 guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
@@ -473,6 +483,24 @@ final class DocumentStore: ObservableObject {
         }
         return try PDFExporter.export(layout: layout, pages: doc.pages, images: images, title: file.displayTitle)
     }
+
+    /// Unveraenderte Bytes der Original-PDF (die Datei, aus der der Editor sie laedt; nie `dataRepresentation()`).
+    func originalPDFData() throws -> Data {
+        guard original != nil else { throw ShareExportError.notLoaded }
+        return try Data(contentsOf: originalPDFURL, options: .mappedIfSafe)
+    }
+
+    /// SHA-256 der Original-PDF-Datei (Zuordnung geteilter Loesungen), einmal je Dokument berechnet.
+    func originalFingerprint(cipher: SolutionCipher = CryptoKitSolutionCipher()) async -> String? {
+        if let fingerprintCache { return fingerprintCache }
+        guard let data = try? originalPDFData() else { return nil }
+        let fp = await Task.detached(priority: .userInitiated) { cipher.sha256Hex(data) }.value
+        fingerprintCache = fp
+        return fp
+    }
+
+    /// Original-PDF wie geladen (Seitengroessen und eigene Drehung fuer die Zuordnung der Loesungen).
+    var originalPDF: PDFDocument? { original }
 
     func info() async -> DocumentInfo {
         let unsent = await engine.unsentPageKeys.count

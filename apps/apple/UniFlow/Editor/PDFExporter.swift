@@ -71,12 +71,17 @@ enum PageRenderer {
             cg.fill(rect)
         }
 
-        // Vorlage (liniert, kariert ...)
-        let (lines, dots) = ObjectGeometry.templatePath(entry.template, size: rect.size)
+        drawTemplate(entry.template, size: rect.size, in: cg)
+        drawObjects(objects, images: images, in: cg)
+    }
+
+    /// Vorlage (liniert, kariert ...) in Seitenpunkten.
+    static func drawTemplate(_ template: String?, size: CGSize, in cg: CGContext) {
+        let (lines, dots) = ObjectGeometry.templatePath(template, size: size)
         if let lines {
             cg.addPath(lines)
             cg.setStrokeColor(ObjectGeometry.templateColor.cgColor)
-            cg.setLineWidth(entry.template == "cornell" ? 1 : 0.5)
+            cg.setLineWidth(template == "cornell" ? 1 : 0.5)
             cg.strokePath()
         }
         if let dots {
@@ -84,10 +89,13 @@ enum PageRenderer {
             cg.setFillColor(ObjectGeometry.templateColor.cgColor)
             cg.fillPath()
         }
+    }
 
-        // Notizobjekte als eigene Gruppe (wie die Konva-Ebene auf eigenem Canvas ueber pdf.js): der Textmarker
-        // multipliziert nur mit den Objekten darunter, die Gruppe liegt normal ueber Seite und Vorlage.
-        // Ohne Textmarker ergibt die Gruppe dasselbe Bild, daher nur dann (kleinere PDF, keine Formular-Objekte).
+    /// Notizobjekte als eigene Gruppe (wie die Konva-Ebene auf eigenem Canvas ueber pdf.js): der Textmarker
+    /// multipliziert nur mit den Objekten darunter, die Gruppe liegt normal ueber Seite und Vorlage.
+    /// Ohne Textmarker ergibt die Gruppe dasselbe Bild, daher nur dann (kleinere PDF, keine Formular-Objekte).
+    /// Auch fuer die Vorschau geteilter Loesungen (ohne PDF-Seite, siehe `SolutionPreview`).
+    static func drawObjects(_ objects: [JSONValue], images: [String: UIImage], in cg: CGContext) {
         let group = objects.contains { InkRenderer.isMarker($0) }
         if group { cg.beginTransparencyLayer(auxiliaryInfo: nil) }
         for o in objects {

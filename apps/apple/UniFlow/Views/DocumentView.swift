@@ -2,6 +2,7 @@ import PDFKit
 import PencilKit
 import SwiftUI
 import UniFlowCore
+import UniformTypeIdentifiers
 
 // MARK: - Dokument
 
@@ -41,6 +42,25 @@ struct ExportFile: Identifiable {
     let url: URL
     /// Hinweis ueber dem Teilen-Menue (z. B. fehlende Bilder).
     var notice: String? = nil
+}
+
+/// Blaetter rund um "Lösung teilen".
+enum SolutionSheet: Identifiable, Equatable {
+    case share
+    case shared
+    /// Vorschau einer empfangenen Loesung (Loesungs-ID)
+    case preview(String)
+    /// Free: Sperrkarte mit Weg zur Abo-Seite
+    case locked
+
+    var id: String {
+        switch self {
+        case .share: return "share"
+        case .shared: return "shared"
+        case .preview(let id): return "preview-" + id
+        case .locked: return "locked"
+        }
+    }
 }
 
 /// Zweites Dokument der geteilten Ansicht (meist das Skript zur Uebung).
@@ -84,6 +104,15 @@ struct DocumentView: View {
     @State private var dismissedSuggestions: Set<Int> = []
     @State private var suggestionTask: Task<Void, Never>?
     @State private var suggestionCache: [Int: ScriptSuggestion?] = [:]
+    /// PDF-Export (privat) wartet auf die Bestaetigung des Hinweises
+    @State private var pendingExport: ShareScope?
+    @State private var solutionSheet: SolutionSheet?
+    @State private var importingSolution = false
+    /// "Meine Notizen" sichtbar; ausgeblendet = nur ansehen
+    @State private var ownNotesVisible = true
+    /// passende empfangene Loesungen (nur Anzeige)
+    @State private var foreignLayers: [ForeignSolutionLayer] = []
+    @ObservedObject private var entitlements = Entitlements.shared
 
     init(file: LibFile, api: APIClient) {
         self.api = api
@@ -146,6 +175,22 @@ struct DocumentView: View {
                 companion = Companion(file: f, pdfPage: nil)
             }
         }
+        .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
+        .fileImporter(isPresented: $importingSolution, allowedContentTypes: [Self.solutionType]) { result in
+            importSolution(result)
+        }
+        .ufModal(isPresented: Binding(get: { pendingExport != nil }, set: { if !$0 { pendingExport = nil } })) {
+            if let scope = pendingExport {
+                PDFExportNoticeDialog(scope: scope, export: {
+                    pendingExport = nil
+                    share(scope)
+                }, cancel: { pendingExport = nil })
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .uniflowSolutionsChanged)) { _ in
+            Task { await reloadSolutionLayers() }
+        }
+        .onChange(of: entitlements.plan) { _, _ in Task { await reloadSolutionLayers() } }
         .sheet(item: $exportFile) { f in
             VStack(spacing: 0) {
                 if let notice = f.notice {
@@ -174,6 +219,7 @@ struct DocumentView: View {
         .task {
             await store.load()
             scheduleSuggestion(bridge.pageIndex)
+            await reloadSolutionLayers()
         }
         .onDisappear {
             suggestionTask?.cancel()
@@ -183,7 +229,8 @@ struct DocumentView: View {
 
     private var primaryPane: some View {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
-                      toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: nil)
+                      toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: nil,
+                      foreignLayers: foreignLayers, ownNotesVisible: ownNotesVisible)
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { pageInfo }
             .overlay(alignment: .top) { suggestionBanner }
@@ -283,9 +330,21 @@ struct DocumentView: View {
             Button { pencilOnly.toggle() } label: {
                 Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
             }
+            layersMenu
             Menu {
-                Button { share(.document) } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
-                Button { share(.page(bridge.pageIndex)) } label: { Label("Diese Seite", systemImage: "doc") }
+                // A) privat: Original-PDF mit Notizen (auch in Free), vorher Hinweis auf das Originalmaterial
+                Section("PDF exportieren (nur privat)") {
+                    Button { pendingExport = .document } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
+                    Button { pendingExport = .page(bridge.pageIndex) } label: { Label("Diese Seite", systemImage: "doc") }
+                }
+                // B) nur eigene Notizen, ohne Original (Plus)
+                Section("Nur eigene Notizen") {
+                    Button { openSolutionSheet(.share) } label: {
+                        Label(entitlements.allows(.community) ? "Lösung teilen …" : "Lösung teilen … (Plus)",
+                              systemImage: entitlements.allows(.community) ? "person.2" : "lock")
+                    }
+                    Button { openSolutionSheet(.shared) } label: { Label("Meine geteilten Lösungen …", systemImage: "tray.full") }
+                }
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
             Menu {
@@ -316,9 +375,114 @@ struct DocumentView: View {
                 } label: { Label("Seite drehen", systemImage: "rotate.right") }
                 Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
                 Divider()
+                Button {
+                    if entitlements.allows(.community) { importingSolution = true } else { solutionSheet = .locked }
+                } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
                 Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
                 Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
             } label: { Label("Mehr", systemImage: "ellipsis.circle") }
+        }
+    }
+
+    // MARK: Loesungen (nur eigene Notizen teilen, fremde Loesungen ansehen)
+
+    static var solutionType: UTType { UTType(SolutionPackage.typeIdentifier) ?? .data }
+
+    /// Ebenen: eigene Notizen und passende empfangene Loesungen ein-/ausblenden.
+    private var layersMenu: some View {
+        Menu {
+            Button { ownNotesVisible.toggle() } label: {
+                Label("Meine Notizen", systemImage: ownNotesVisible ? "checkmark.circle.fill" : "circle")
+            }
+            if entitlements.allows(.community) {
+                Section("Lösungen anderer") {
+                    if foreignLayers.isEmpty {
+                        Text("Keine Lösungen zu dieser PDF")
+                    }
+                    ForEach(foreignLayers) { layer in
+                        Menu {
+                            Button { setVisible(layer, !layer.visible) } label: {
+                                Label(layer.visible ? "Ausblenden" : "Einblenden", systemImage: layer.visible ? "eye.slash" : "eye")
+                            }
+                            Button { solutionSheet = .preview(layer.id) } label: {
+                                Label("Vorschau ohne Original", systemImage: "rectangle.on.rectangle")
+                            }
+                            Button(role: .destructive) { removeLayer(layer) } label: { Label("Entfernen", systemImage: "trash") }
+                        } label: {
+                            Label(layer.label, systemImage: layer.visible ? "checkmark.circle.fill" : "circle")
+                        }
+                    }
+                    Button { importingSolution = true } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
+                }
+            } else {
+                Button { solutionSheet = .locked } label: { Label("Lösungen anderer ansehen (Plus)", systemImage: "lock") }
+            }
+        } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
+        .disabled(store.pdf == nil)
+    }
+
+    private func openSolutionSheet(_ sheet: SolutionSheet) {
+        solutionSheet = entitlements.allows(.community) ? sheet : .locked
+    }
+
+    @ViewBuilder
+    private func solutionSheetView(_ sheet: SolutionSheet) -> some View {
+        switch sheet {
+        case .share:
+            SolutionShareSheet(store: store, api: api) { solutionSheet = nil }
+        case .shared:
+            SharedSolutionsSheet { solutionSheet = nil }
+        case .preview(let id):
+            if let layer = foreignLayers.first(where: { $0.id == id }) {
+                SolutionPreviewSheet(layer: layer) { solutionSheet = nil }
+            }
+        case .locked:
+            SolutionLockedSheet { solutionSheet = nil }
+        }
+    }
+
+    /// Passende Loesungen neu laden (nur mit Plus). Passt eine nicht zur PDF, erscheint sie nicht, und es gibt
+    /// eine Meldung.
+    private func reloadSolutionLayers() async {
+        guard entitlements.allows(.community), store.pdf != nil else {
+            foreignLayers = []
+            return
+        }
+        let result = await store.solutionLayers()
+        foreignLayers = result.layers
+        if !result.problems.isEmpty { actionError = result.problems.joined(separator: "\n") }
+    }
+
+    private func setVisible(_ layer: ForeignSolutionLayer, _ visible: Bool) {
+        try? SolutionSharing.library.setVisible(layer.id, visible)
+        if let i = foreignLayers.firstIndex(where: { $0.id == layer.id }) { foreignLayers[i].visible = visible }
+    }
+
+    private func removeLayer(_ layer: ForeignSolutionLayer) {
+        do {
+            try SolutionSharing.library.remove(layer.id)
+            foreignLayers.removeAll { $0.id == layer.id }
+        } catch {
+            actionError = "Entfernen fehlgeschlagen: \(error.localizedDescription)"
+        }
+    }
+
+    private func importSolution(_ result: Result<URL, Error>) {
+        Task {
+            do {
+                let entry = try SolutionSharing.importFile(try result.get())
+                let label = ForeignSolutionLayer.label(displayName: entry.displayName, createdAt: entry.createdAt)
+                guard entry.fingerprint == (await store.originalFingerprint()) else {
+                    actionError = "\(label): \(SolutionError.fingerprintMismatch.description) Sie ist gespeichert und erscheint, sobald du die passende PDF öffnest."
+                    return
+                }
+                await reloadSolutionLayers()
+                if !foreignLayers.contains(where: { $0.id == entry.solutionID }) && actionError == nil {
+                    actionError = "\(label) lässt sich mit dieser PDF nicht öffnen."
+                }
+            } catch {
+                actionError = (error as? SolutionError)?.description ?? "Import fehlgeschlagen: \(error.localizedDescription)"
+            }
         }
     }
 
@@ -342,6 +506,14 @@ struct DocumentView: View {
             Divider().frame(height: 14)
             Button("\(bridge.zoomPercent) %") { bridge.fitWidth() }
                 .accessibilityHint("Seite einpassen")
+            if !ownNotesVisible {
+                Divider().frame(height: 14)
+                Label("Meine Notizen ausgeblendet – nur ansehen", systemImage: "eye.slash").lineLimit(1)
+            }
+            if foreignLayers.contains(where: \.visible) {
+                Divider().frame(height: 14)
+                Label("\(foreignLayers.filter(\.visible).count) Lösung(en) eingeblendet", systemImage: "square.3.layers.3d").lineLimit(1)
+            }
             if let notice = store.notice {
                 Divider().frame(height: 14)
                 Text(notice).lineLimit(1)
@@ -824,12 +996,17 @@ struct PDFEditorView: UIViewControllerRepresentable {
     var ownsToolPicker = true
     var undoManager: UndoManager?
     var initialPDFPage: Int?
+    /// fremde Loesungen (nur Anzeige) und Sichtbarkeit der eigenen Notizen
+    var foreignLayers: [ForeignSolutionLayer] = []
+    var ownNotesVisible = true
 
     func makeUIViewController(context: Context) -> PDFEditorController {
         let vc = PDFEditorController(store: store, toolPicker: toolPicker, ownsToolPicker: ownsToolPicker,
                                      undoManager: undoManager, initialPDFPage: initialPDFPage)
         let bridge = self.bridge
         vc.pencilOnly = pencilOnly
+        vc.foreignLayers = foreignLayers
+        vc.ownNotesVisible = ownNotesVisible
         vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
         vc.onPageChange = { [weak bridge] i, key in
             bridge?.pageIndex = i
@@ -844,5 +1021,7 @@ struct PDFEditorView: UIViewControllerRepresentable {
     func updateUIViewController(_ vc: PDFEditorController, context: Context) {
         if vc.pencilOnly != pencilOnly { vc.pencilOnly = pencilOnly }
         if vc.shownLayoutVersion != layoutVersion { vc.showLayout() }
+        if vc.foreignSignature != PDFEditorController.signature(foreignLayers) { vc.foreignLayers = foreignLayers }
+        if vc.ownNotesVisible != ownNotesVisible { vc.ownNotesVisible = ownNotesVisible }
     }
 }

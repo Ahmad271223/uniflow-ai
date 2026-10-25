@@ -19,7 +19,7 @@ jedem Umsetzungsschritt fortgeschrieben (Abschnitt 2 und 7).
 | Lernkalender und **Lernplanung** (Lernplan, Lernkombination, freie Zeitfenster, Nachholen, Woche retten) | ✓ | ✓ |
 | Zeitmesser, vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ |
 | **Schreiben mit Apple Pencil**, Seiten einfügen/drehen/Papierkorb, Lesezeichen | – | ✓ |
-| **Community** (Lösungen teilen und ansehen) | – | ✓ (folgt) |
+| **Community** (Lösungen teilen und ansehen) | – | ✓ als Datei (S9); online folgt |
 | Übung und Skript nebeneinander mit Skriptsuche, eigene Karteikarten | – | ✓ |
 
 Pro und alle KI-Funktionen entfallen vorerst. Umgesetzt auf `develop` (Tarifwahl, Berechtigungen, StoreKit-Test).
@@ -51,7 +51,7 @@ Dateien noch nicht. Der eigene PC-Server ist nur noch in Debug-Builds unter Eins
 | Geänderte Original-PDF bei vorhandenen Notizen | **fehlt** | Fingerabdruck, Neuzuordnung der Seiten, alte Fassung aufbewahren |
 | Hintergrundabgleich | **fehlt** | BGAppRefresh; vorher Sitzungsdauer messen bzw. OAuth2 |
 | Zeitmesser | **nativ fertig** | Mitteilung bei Ablauf im Hintergrund |
-| Community | **fehlt** | zentraler Dienst (Entscheidung des Inhabers) |
+| Community „Lösungen teilen“ | **lokal fertig (S9, Zweig `wip/loesung-teilen`)**: im Editor „Lösung teilen …“ (nur eigene Notizen, verschlüsseltes Paket `*.uniflowsolution`, Vorschau ohne Original), Import über „Öffnen in“/„Lösung importieren …“, Anzeige als eigene, nicht bearbeitbare Ebene über der eigenen PDF, „Meine geteilten Lösungen“; PDF-Export davon getrennt und nur privat (`docs/LOESUNGEN-TEILEN.md`) | zentraler Dienst (Entscheidung des Inhabers) mit echter Berechtigungsprüfung, Konten, Moderation; Prüfung „Datei aus dem eigenen Stud.IP-Abgleich“ (nach S3) |
 
 ## 3. Serverabhängigkeiten
 
@@ -124,6 +124,11 @@ Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter 
    lesen); Melden und Blockieren (App Store 1.2); Hinweis auf die Prüfungsordnung. Eine echte Prüfung der
    Kursmitgliedschaft auf dem Dienst ginge nur mit Mitwirkung der Hochschule (z. B. signierter Beleg), denn
    Stud.IP-Cookies oder -Tokens dürfen nie an einen Dienst.
+   **Umgesetzt in S9 (ohne Dienst):** Paketformat, Verschlüsselung (AES-256-GCM, Schlüssel per HKDF-SHA256 aus den
+   vollständigen PDF-Bytes, Kopf als AAD), Teilen als Datei, Import, Anzeige im Editor, Schnittstelle
+   `CommunityService` mit der Umsetzung „nicht verbunden“. Noch offen: die Prüfung „Datei stammt aus dem eigenen
+   Stud.IP-Abgleich“ (braucht S3) sowie Melden/Blockieren und die Berechtigungsprüfung auf dem Dienst.
+   Einzelheiten und Grenzen: `docs/LOESUNGEN-TEILEN.md`.
 
 ## 5. Reihenfolge der Umsetzung
 
@@ -139,7 +144,7 @@ Zuerst der größte Nutzen: Dokumente öffnen und mit dem Pencil schreiben ohne 
 | S6 | Lernlogik (`study.py`): lesen, verschieben, planen; Übersicht, Kalender | Lernplan erstellen, Aufgaben abhaken, Übersicht |
 | S7 | Neue Original-Fassung mit erhaltenen Notizen; Suche und Skriptsuche | Notizen überleben neue PDF; Suche offline |
 | S8 | Hintergrundabgleich (nach Messung der Sitzungsdauer bzw. OAuth2) | Abgleich beim Öffnen und, wenn iPadOS es erlaubt, im Hintergrund |
-| S9 | Community „Lösungen teilen“ (nach Entscheidung zum Dienst) | Lösung veröffentlichen, im Editor ansehen, zurückziehen |
+| S9 | Community „Lösungen teilen“: **lokaler Teil umgesetzt** (`wip/loesung-teilen`, `docs/LOESUNGEN-TEILEN.md`): Lösung als Datei teilen (nur eigene Notizen), importieren, im Editor als Ebene ansehen, lokal zurückziehen; Online-Teil nach Entscheidung zum Dienst | lokal: Lösung als Datei teilen, auf zweitem iPad mit derselben PDF ansehen (**Tests grün**); online: veröffentlichen, finden, zurückziehen, melden (**offen**) |
 | S10 | Anmeldung härten, Release-Bereinigung, Demo-Modus für die App-Prüfung, Abnahmeliste | Abnahme nach AUFTRAG 2a und dieser Datei |
 
 Nach jedem Schritt: bauen, Unit-Tests, Prüfung „funktioniert auf einem iPad ohne Windows-PC“, Abschnitt 2 dieser
@@ -174,4 +179,7 @@ Datei fortschreiben.
 **Offen:**
 
 8. **Community-Dienst:** CloudKit (gehört zum Developer Program, 99 €/Jahr) oder Supabase (ca. 25 USD/Monat) –
-   entscheidet der Inhaber später; bis dahin wird die Community nur vorbereitet (ohne echten Dienst).
+   entscheidet der Inhaber später; bis dahin wird die Community nur vorbereitet (ohne echten Dienst). Seit S9 läuft
+   „Lösung teilen“ als Datei ohne Dienst (Plus); der Knopf „In der Community veröffentlichen“ bleibt deaktiviert
+   („Community-Dienst noch nicht verbunden“). Vor dem Einschalten braucht es eine echte Berechtigungsprüfung (signierter
+   Beleg der Hochschule oder OAuth2-Scope) und Moderation (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7).

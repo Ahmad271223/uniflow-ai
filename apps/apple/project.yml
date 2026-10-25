@@ -61,6 +61,26 @@ targets:
           - CFBundleURLName: de.uniflow.ai
             CFBundleURLSchemes:
               - uniflow
+        # Loesungspaket *.uniflowsolution (nur eigene Notizen, verschluesselt; docs/LOESUNGEN-TEILEN.md)
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: UniFlow-Lösung
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - de.uniflow.solution
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: de.uniflow.solution
+            UTTypeDescription: UniFlow-Lösung
+            UTTypeConformsTo:
+              - public.data
+              - public.content
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - uniflowsolution
+              public.mime-type:
+                - application/vnd.uniflow.solution+json
+        # Dateien aus "Öffnen in" werden in die App kopiert (nicht an Ort und Stelle bearbeitet)
+        LSSupportsOpeningDocumentsInPlace: false
         # Nur fuer die Entwicklung (Server laeuft per http im WLAN). Vor TestFlight/App Store auf HTTPS umstellen und entfernen.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

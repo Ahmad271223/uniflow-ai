@@ -1,4 +1,5 @@
 import SwiftUI
+import UniFlowCore
 
 /// Einstieg der nativen iPad-App. Erster Start nach docs/AUFTRAG-APPSTORE-V1.md Abschnitt 2a
 /// (Views/Onboarding/OnboardingFlow.swift); die Handschrift laeuft nativ ueber PencilKit
@@ -40,6 +41,18 @@ struct UniFlowApp: App {
                 .preferredColorScheme((UFThemeMode(rawValue: theme) ?? .light).scheme)
                 .tint(UF.accent)
                 .onOpenURL { url in
+                    // Datei *.uniflowsolution (AirDrop, Dateien, "Öffnen in"): verschluesselt ablegen; sie erscheint im
+                    // passenden Dokument unter "Ebenen" (docs/LOESUNGEN-TEILEN.md)
+                    if SolutionSharing.isSolutionFile(url) {
+                        do {
+                            let e = try SolutionSharing.importFile(url)
+                            let label = ForeignSolutionLayer.label(displayName: e.displayName, createdAt: e.createdAt)
+                            toast.show("\(label) gespeichert – sie erscheint in der passenden PDF unter „Ebenen“.", seconds: 4)
+                        } catch {
+                            toast.show((error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht öffnen.", seconds: 4)
+                        }
+                        return
+                    }
                     // uniflow://#/plan?view=week -> dieselbe Hash-Route wie in der Web-App
                     if let hash = UFRoute.hash(fromDeepLink: url) { router.go(hash: hash) }
                 }

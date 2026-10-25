@@ -9,8 +9,10 @@ enum ShareScope: Equatable, Sendable {
     case page(Int)
 }
 
-/// Geteilter Stand eines Dokuments: PDF mit Notizen (Handschrift als Vektoren) und Angaben dazu.
-/// Wird ohne Netzwerk erzeugt; das spaetere Community-Teilen laedt genau diesen Datensatz hoch.
+/// Privater Export eines Dokuments: Original-PDF mit Notizen (Handschrift als Vektoren) und Angaben dazu.
+/// Wird ohne Netzwerk erzeugt und nur ueber das Teilen-Menue des Systems weitergegeben (z. B. Dateien-App). Die PDF
+/// enthaelt das Originalmaterial der Hochschule und ist NICHT fuer die Community bestimmt: geteilt werden dort nur
+/// eigene Notizen ohne Original, als Loesungspaket (`SolutionPackage`, docs/LOESUNGEN-TEILEN.md).
 struct SharePayload: Equatable, Sendable {
     let pdf: Data
     let title: String
