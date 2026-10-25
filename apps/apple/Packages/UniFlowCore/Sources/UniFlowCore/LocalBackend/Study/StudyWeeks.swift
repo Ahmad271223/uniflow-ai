@@ -58,13 +58,18 @@ public enum StudyWeeks {
         return monday(today)
     }
 
-    /// `week_index(start, chdate)`: 0 ohne Datum und vor dem Vorlesungsbeginn, -1 vor dem Stichtag (aelteres
-    /// Semester), sonst die Semesterwoche ab 1
-    public static func weekIndex(start: Int, chdate: SQLiteValue, today: Int) throws -> Int {
-        if isEmpty(chdate: chdate) { return 0 }
-        let d = try localDay(chdate: chdate)
+    /// `day_week(start, d)`: Semesterwoche eines Tages, -1 vor dem Stichtag (aelteres Semester), 0 nach dem
+    /// Stichtag, aber vor dem Vorlesungsbeginn, sonst ab 1. Dieselbe Regel fuer Dateien (`weekIndex`) und Termine
+    /// (`LocalModules.eventMaterials`), damit eine Datei und ein Termin am selben Tag in derselben Woche liegen.
+    public static func dayWeek(start: Int, day d: Int, today: Int) -> Int {
         if d < semesterCut(today: today) { return -1 }
         return max(0, BerlinClock.floorDiv(monday(d) - start, 7) + 1)
+    }
+
+    /// `week_index(start, chdate)`: 0 ohne Datum, sonst `dayWeek` des Tages der Aenderung
+    public static func weekIndex(start: Int, chdate: SQLiteValue, today: Int) throws -> Int {
+        if isEmpty(chdate: chdate) { return 0 }
+        return dayWeek(start: start, day: try localDay(chdate: chdate), today: today)
     }
 
     /// `week_label(start, w)`

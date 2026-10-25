@@ -78,7 +78,12 @@ Fragestunden eines Fachs ein Modul; eine „Hörsaalübung …“ oder „Zentra
 entfernt diese Vorsilbe nicht). Anlegen und Umordnen gehen über `POST /api/modules` und
 `POST /api/courses/{id}/module`, in der App ohne PC aber erst, wenn die Einstellungen den Reiter „Module“ auch lokal
 zeigen (heute nur mit eigenem Server; braucht die Kursliste aus S3). Bis dahin lässt sich ein Modul ohne PC nur im
-Moduldetail über „Modul“ ändern (Name, Farbe, Priorität, Klausurtermin). Die KI-Zusammenfassung einer Woche
+Moduldetail über „Modul“ ändern (Name, Farbe, Priorität, Klausurtermin). Die Unterlagen zu einem Termin des
+Stundenplans (`timetable.materials_for_event`) liefert S4 ebenfalls (`LocalModules.eventMaterials`, gegen Python
+geprüft); der Stundenplan aus S5 ruft sie beim Zusammenführen auf. Die Woche eines Termins folgt dabei derselben Regel
+wie die einer Datei (zuerst in Python korrigiert, `study.day_week`): Ein Termin zwischen Stichtag und
+Vorlesungsbeginn zeigt die Unterlagen „Vor Vorlesungsbeginn“, nicht mehr die des älteren Semesters. Die
+KI-Zusammenfassung einer Woche
 („Zusammenfassen“) ist ohne PC ausgeblendet, das Wochenthema bleibt ohne KI-Analyse leer.
 
 | Bereich | Stand | Was fehlt |

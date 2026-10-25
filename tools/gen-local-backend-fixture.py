@@ -12,7 +12,8 @@
   Einstellungen (erfundene Werte) ohne Termine und Lernpakete, wie timetable.free_windows sie berechnet.
 - study-modules.json: Einordnung ohne KI (studip_sync.classify, study.effective_type, study.week_hint) als Tabellen,
   dazu difflib-Aehnlichkeiten (timetable.guess_module), str.lower und die Zeichen, auf die ein Buchstabe mit re.I
-  passt (fuer PyRegex/PyText im Swift-Kern), Semesterwochen (semester_cut, semester_start, week_index, week_label) fuer mehrere Tage, und eine Folge von
+  passt (fuer PyRegex/PyText im Swift-Kern), Semesterwochen (semester_cut, semester_start, week_index, week_label) fuer mehrere Tage,
+  Unterlagen zum Termin (timetable.materials_for_event) je Modul und Tag, und eine Folge von
   Anfragen an die Module-Endpunkte auf einer erfundenen Seed-Datenbank mit eingefrorener Uhr (study.today,
   db.now_iso) und Zeitzone Europe/Berlin; dazu die Tabellen danach.
 - library-files.json (S3): erfundene Datenbank mit Kursen, Dateien (auch auf der Platte), Ordnern und Notizen, eine
@@ -626,6 +627,12 @@ MODULE_SCENARIOS = [
     ]),
 ]
 
+# Unterlagen zum Termin (timetable.materials_for_event) auf der Seed-Datenbank nach ensure_modules: je Tag (Uhr
+# eingefroren) und Modul die Termine an EVENT_DAYS, auch vor dem Stichtag und zwischen Stichtag und Vorlesungsbeginn
+EVENT_TODAYS = ["2026-09-15", "2026-11-20", "2027-05-04"]
+EVENT_DAYS = ["2026-04-20", "2026-09-20", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-09", "2026-10-12",
+              "2026-10-15", "2026-10-21", "2026-10-28", "2026-11-04", "2026-11-11", "2026-12-02", "2027-04-14"]
+
 # Tabellen nach allen Schritten
 MODULE_TABLES = {
     "modules": "SELECT * FROM modules ORDER BY id",
@@ -641,7 +648,7 @@ def study_modules(src: SchemaSource, app) -> dict:
     import time
     from datetime import date, datetime
 
-    from app import db, study
+    from app import db, study, timetable
     from app.studip_sync import classify
 
     os.environ["TZ"] = "Europe/Berlin"                  # datetime.fromtimestamp wie auf dem PC-Server in Berlin
@@ -681,6 +688,28 @@ def study_modules(src: SchemaSource, app) -> dict:
                               "labels": {str(w): study.week_label(start, w) for w in (-2, -1, 0, 1, 2, 9, 16, 30)}})
 
         seed = _seed()
+        fresh_db(src, "materials")
+        with db.cursor() as conn:
+            for sql, params in seed:
+                conn.execute(sql, params)
+            study.ensure_modules(conn)
+            module_ids = [r["id"] for r in db.rows(conn, "SELECT id FROM modules ORDER BY id")]
+        materials = []
+        for today in EVENT_TODAYS:
+            study.today = lambda d=date.fromisoformat(today): d
+            with db.cursor() as conn:
+                start = study.semester_start(conn)
+                for mid in module_ids + [99, 0, None]:
+                    days = [{"day": d, "week": study.day_week(start, date.fromisoformat(d)),
+                             "ids": [f["id"] for f in timetable.materials_for_event(conn, {"module_id": mid}, date.fromisoformat(d))]}
+                            for d in EVENT_DAYS]
+                    materials.append({"today": today, "module_id": mid, "days": days})
+        # eine Antwort vollstaendig (Werte der Dateien wie im Moduldetail)
+        study.today = lambda: date(2026, 11, 20)
+        with db.cursor() as conn:
+            material_sample = {"today": "2026-11-20", "module_id": 1, "day": "2026-10-21",
+                               "response": timetable.materials_for_event(conn, {"module_id": 1}, date(2026, 10, 21))}
+
         fresh_db(src, "module")
         with db.cursor() as conn:
             for sql, params in seed:
@@ -707,7 +736,8 @@ def study_modules(src: SchemaSource, app) -> dict:
     return {"generator": "tools/gen-local-backend-fixture.py", "timezone": "Europe/Berlin", "classify": cls,
             "effective_type": eff, "week_hint": hints, "sequence_ratios": ratios, "lower": lower, "ignorecase": ignorecase,
             "semester_files": files, "semesters": semesters,
-            "seed": seed, "scenarios": scenarios, "tables": tables}
+            "seed": seed, "event_materials": materials, "event_material_sample": material_sample,
+            "scenarios": scenarios, "tables": tables}
 
 
 # ----------------------------------------------------------------------------

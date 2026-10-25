@@ -200,24 +200,97 @@ final class StudyWeeksTests: XCTestCase {
         XCTAssertThrowsError(try StudyWeeks.weekIndex(start: start, chdate: .text("gestern"), today: day("2026-11-20")))
         XCTAssertThrowsError(try StudyWeeks.weekIndex(start: start, chdate: .integer(Int64.max), today: day("2026-11-20")))
     }
+
+    /// `day_week`: ein Termin und eine Datei am selben Tag liegen in derselben Woche (auch vor dem Stichtag und vor
+    /// dem Vorlesungsbeginn)
+    func testDayWeekMatchesWeekIndexOfFiles() throws {
+        func day(_ s: String) -> Int { BerlinClock.parseISODate(s)! }
+        let start = day("2026-10-12"), today = day("2026-11-20")
+        for d in day("2026-09-01")...day("2027-02-28") {
+            let noon = SQLiteValue.integer(Int64(BerlinClock.utcSeconds(day: d, minutes: 720)))
+            XCTAssertEqual(StudyWeeks.dayWeek(start: start, day: d, today: today), try StudyWeeks.weekIndex(start: start, chdate: noon, today: today),
+                           BerlinClock.isoDate(d))
+        }
+        XCTAssertEqual(StudyWeeks.dayWeek(start: start, day: day("2026-09-30"), today: today), -1)
+        XCTAssertEqual(StudyWeeks.dayWeek(start: start, day: day("2026-10-02"), today: today), 0)
+        XCTAssertEqual(StudyWeeks.dayWeek(start: start, day: day("2026-10-18"), today: today), 1)
+    }
+}
+
+// MARK: - Unterlagen zum Termin
+
+final class EventMaterialsTests: XCTestCase {
+
+    /// timetable.materials_for_event fuer EVENT_TODAYS x Module x EVENT_DAYS auf der Seed-Datenbank nach
+    /// ensure_modules: gleiche Woche des Termins, gleiche Dateien in gleicher Reihenfolge; eine Antwort Wert fuer Wert
+    func testEventMaterialsLikePython() async throws {
+        let fx = try studyFixture()
+        let db = try await seededStudyDatabase(fx)
+        try await db.transaction { try LocalModules.ensureModules($0, clock: .fixed(berlin: "2026-10-01T08:00:00")!) }
+        let cases = fx["event_materials"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 30)
+        var problems: [String] = []
+        var checked = 0
+        for m in cases {
+            let todayText = m["today"]?.string ?? ""
+            let clock = try XCTUnwrap(UniFlowClock.fixed(berlin: todayText))
+            let today = try XCTUnwrap(BerlinClock.parseISODate(todayText))
+            let start = try await db.withConnection { try StudyWeeks.semesterStart($0, today: today) }
+            let event: [String: JSONValue] = ["module_id": m["module_id"] ?? .null]
+            for d in m["days"]?.array ?? [] {
+                checked += 1
+                let dayText = d["day"]?.string ?? ""
+                let day = try XCTUnwrap(BerlinClock.parseISODate(dayText))
+                let label = "\(todayText) Modul \(m["module_id"]?.jsonString() ?? "-") Termin \(dayText)"
+                let w = StudyWeeks.dayWeek(start: start, day: day, today: today)
+                if w != d["week"]?.int { problems.append("\(label): Woche \(w) statt \(d["week"]?.int ?? 99)") }
+                let ids = try await db.withConnection { try LocalModules.eventMaterials($0, event: event, day: day, clock: clock) }.map { $0["id"] ?? .null }
+                if ids != d["ids"]?.array ?? [] {
+                    problems.append("\(label): \(JSONValue.array(ids).jsonString()) statt \(d["ids"]?.jsonString() ?? "-")")
+                }
+            }
+        }
+        XCTAssertGreaterThanOrEqual(checked, 400)
+        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+
+        // Termin 10 Tage vor dem Vorlesungsbeginn: das Skript aus Woche 0, nicht der Rueckfall auf die neuesten
+        let anchor = try XCTUnwrap(cases.first { $0["today"] == "2026-11-20" && $0["module_id"] == 1 })
+        XCTAssertEqual(anchor["days"]?.array?.first { $0["day"] == "2026-10-02" }?["ids"], ["f-ma-04"])
+
+        let sample = try XCTUnwrap(fx["event_material_sample"])
+        let clock = try XCTUnwrap(UniFlowClock.fixed(berlin: sample["today"]?.string ?? ""))
+        let day = try XCTUnwrap(BerlinClock.parseISODate(sample["day"]?.string ?? ""))
+        let full = try await db.withConnection { try LocalModules.eventMaterials($0, event: ["module_id": sample["module_id"] ?? .null], day: day, clock: clock) }
+        XCTAssertEqual(JSONValue.array(full), sample["response"])
+        XCTAssertGreaterThanOrEqual(full.count, 2)
+
+        // ohne Modul keine Unterlagen, auch ohne Schluessel
+        let none = try await db.withConnection { try LocalModules.eventMaterials($0, event: [:], day: day, clock: clock) }
+        XCTAssertEqual(none, [])
+    }
 }
 
 // MARK: - Module-Endpunkte gegen app/server.py
 
+/// Die erfundene Seed-Datenbank aus dem Fixture (`_seed()` im Generator)
+private func seededStudyDatabase(_ fx: JSONValue) async throws -> SQLiteDatabase {
+    let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+    try await db.migrate(clock: .fixed(berlin: "2026-10-01T08:00:00")!)
+    let seed = fx["seed"]?.array ?? []
+    XCTAssertGreaterThan(seed.count, 40)
+    try await db.transaction { c in
+        for s in seed {
+            let parts = s.array ?? []
+            try c.execute(parts.first?.string ?? "", (parts.count > 1 ? parts[1].array ?? [] : []).map(sqliteValue))
+        }
+    }
+    return db
+}
+
 final class LocalModulesEndpointTests: XCTestCase {
 
     private func seededDatabase(_ fx: JSONValue) async throws -> SQLiteDatabase {
-        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
-        try await db.migrate(clock: .fixed(berlin: "2026-10-01T08:00:00")!)
-        let seed = fx["seed"]?.array ?? []
-        XCTAssertGreaterThan(seed.count, 40)
-        try await db.transaction { c in
-            for s in seed {
-                let parts = s.array ?? []
-                try c.execute(parts.first?.string ?? "", (parts.count > 1 ? parts[1].array ?? [] : []).map(sqliteValue))
-            }
-        }
-        return db
+        try await seededStudyDatabase(fx)
     }
 
     /// Dieselbe Folge wie MODULE_SCENARIOS (Uhr je Abschnitt eingefroren) auf derselben Seed-Datenbank: gleicher
@@ -277,9 +350,12 @@ final class LocalModulesEndpointTests: XCTestCase {
             XCTAssertFalse(route.placeholder, "\(m) \(p)")
             XCTAssertEqual(route.module, ModulesEndpoints.name)
         }
-        // Kursliste und Kurs aendern bleiben Platzhalter bis S3
-        XCTAssertEqual(backend.route(method: "GET", path: "/api/courses")?.placeholder, true)
-        XCTAssertEqual(backend.route(method: "PATCH", path: "/api/courses/k1")?.placeholder, true)
+        // Kursliste und Kurs aendern gehoeren nicht zu den Modulen: Platzhalter bis S3, danach echt in den
+        // Kurs-Endpunkten von S3. Darum hier nur pruefen, dass es sie gibt und S4 sie nicht belegt.
+        for (m, p) in [("GET", "/api/courses"), ("PATCH", "/api/courses/k1")] {
+            let route = try XCTUnwrap(backend.route(method: m, path: p), "\(m) \(p)")
+            XCTAssertNotEqual(route.module, ModulesEndpoints.name, "\(m) \(p)")
+        }
     }
 
     /// Ohne Stud.IP-Daten: leere Liste wie der PC-Server; ein angelegtes Modul erscheint mit Farbe und Sortierung
