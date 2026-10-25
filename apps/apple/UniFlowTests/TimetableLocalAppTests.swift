@@ -157,6 +157,64 @@ final class TimetableLocalAppTests: XCTestCase {
         XCTAssertEqual(noDB.summary, ["Stundenplan nicht gespeichert"])
     }
 
+    /// Stud.IP haengt (Zeitlimit) oder kein Netz: nach der ersten gescheiterten Anfrage fragt der Stundenplan nichts
+    /// mehr ab, statt jeden Kurs bis zum Zeitlimit zu versuchen
+    func testUnreachableStudIPStopsAfterFirstRequest() async throws {
+        final class TimeoutTransport: StudIPTransport, @unchecked Sendable {
+            private let lock = NSLock()
+            private var n = 0
+            var count: Int { lock.withLock { n } }
+            func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+                lock.withLock { n += 1 }
+                throw URLError(.timedOut)
+            }
+        }
+        let many = (1...12).map { StudIPCourse(id: "c-\($0)", title: "Testkurs \($0)") }
+        let t = TimeoutTransport()
+        let client = StudIPClient(base: URL(string: "https://studip.test")!, transport: t, pauseMillis: 0)
+        let out = await StudIPScheduleSync(host: try host()).run(client: client, userID: "u-test", courses: many)
+        XCTAssertEqual(t.count, 1)
+        XCTAssertTrue(out.unreachable)
+        XCTAssertEqual(out.failedCourses, 12)
+        XCTAssertEqual(out.summary, ["Stundenplan: Stud.IP nicht erreichbar"])
+    }
+
+    /// Gruppenwahl ueber die Importvorschau wie TimetablePreviewDialog: schon uebernommene Termine sind nicht
+    /// vorausgewaehlt, Aenderungen des Nutzers bleiben; danach meldet der Abgleich keine offenen Gruppen mehr
+    func testGroupChoiceKeepsUserChangesAndClearsHint() async throws {
+        let (api, _, h) = try await syncedAPI()
+        let events = try await api.value("/api/timetable/events").items
+        let ana = try XCTUnwrap(events.first { $0.s("title") == "Testanalysis I" && $0.i("weekday") == 0 }?.i("id"))
+        _ = try await api.value("/api/timetable/events/\(ana)", method: "PATCH",
+                                body: ["start_time": "10:15", "end_time": "11:45", "room": "Eigener Raum", "kind": "seminar"])
+
+        let preview = try await api.form("/api/timetable/import/preview", fields: ["source": "studip"])
+        let diff = preview["diff"] ?? .null
+        let rows = preview.list("entries")
+        XCTAssertEqual(rows.filter { TimetablePreviewDialog.preselected($0, diff: diff, source: "studip") }.count, 0,
+                       "alles schon uebernommen, offene Gruppen nicht angehakt")
+        XCTAssertEqual(rows.filter { TimetablePreviewDialog.preselected($0, diff: diff, source: "ics") }.count, rows.count - 3,
+                       "andere Quellen wie in der Web-App")
+        // wie confirm: angehakte Zeilen (hier nur die gewaehlte Gruppe) mit existing_id
+        var group = try XCTUnwrap(rows.first { $0.s("room") == "Pool Test B" }?.object)
+        group["selected"] = true
+        group["existing_id"] = TimetablePreviewDialog.existing(diff, .object(group))?["existing_id"] ?? .null
+        let res = try await api.value("/api/timetable/import/confirm", method: "POST",
+                                      body: ["entries": [.object(group)], "source": "studip", "import_id": preview["import_id"] ?? .null, "remove_ids": []])
+        XCTAssertEqual(res.i("new"), 1)
+        XCTAssertEqual(res.i("updated"), 0)
+        let after = try await api.value("/api/timetable/events").items.first { $0.i("id") == ana }
+        XCTAssertEqual(after?.s("start_time"), "10:15")
+        XCTAssertEqual(after?.s("room"), "Eigener Raum")
+        XCTAssertEqual(after?.s("kind"), "seminar")
+
+        let again = await StudIPScheduleSync(host: h).run(client: try studIP().0, userID: "u-test", courses: Self.courses)
+        XCTAssertEqual(again.result?.newEvents, 0)
+        XCTAssertEqual(again.summary, [], "Gruppe gewählt: kein Hinweis mehr")
+        let status = try await api.value("/api/timetable/auto-status")
+        XCTAssertEqual(status.i("pending_groups"), 0)
+    }
+
     // MARK: Seiten im Fenster
 
     // Die Seiten-Tests laufen synchron: nur dann arbeitet die Hauptschleife (RunLoop.main) die Aufgaben der Ansicht
@@ -268,10 +326,12 @@ final class TimetableLocalAppTests: XCTestCase {
         let entries = preview.list("entries")
         XCTAssertEqual(entries.filter { $0["selected"]?.bool == false }.count, 3)
         let hint = "3 parallele Gruppen – nur deine Gruppe auswählen"
-        let shown = try render(TimetablePreviewDialog(r: preview, source: "studip"), api: api, recorder: recorder, expected: [hint]) { _ in true }
+        let kept = "Schon übernommene Termine sind nicht angehakt"
+        let shown = try render(TimetablePreviewDialog(r: preview, source: "studip"), api: api, recorder: recorder, expected: [hint, kept]) { _ in true }
         let all = shown.joined(separator: "\n")
         XCTAssertTrue(all.contains("Importvorschau · \(entries.count) Veranstaltungen"), all)
         XCTAssertTrue(all.contains(hint), all)
         XCTAssertTrue(all.contains("3 neu · 0 geändert · 8 unverändert"), all)
+        XCTAssertTrue(all.contains(kept), all)
     }
 }

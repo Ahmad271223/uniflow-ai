@@ -6219,6 +6219,493 @@
     "remove_ids": "12",
     "source": "ics"
    }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/confirm",
+   "status": 200,
+   "response": {
+    "new": 1,
+    "updated": 0,
+    "removed": 0,
+    "conflicts": []
+   },
+   "body": {
+    "entries": [
+     {
+      "title": "Testkurs Mechanik",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:15",
+      "end_time": "09:45",
+      "room": "M 1",
+      "rrule": "weekly",
+      "date_from": "2026-10-21",
+      "date_to": "2027-01-27",
+      "exdates": [
+       "2026-11-04",
+       "2026-11-11",
+       "2026-11-18"
+      ]
+     }
+    ],
+    "source": "ics",
+    "remove_ids": []
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/exceptions",
+   "status": 200,
+   "response": {
+    "ok": true
+   },
+   "body": {
+    "event_id": 17,
+    "date": "2026-11-25",
+    "type": "cancelled",
+    "note": "Dozent krank"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/attendance",
+   "status": 200,
+   "response": {
+    "ok": true,
+    "freed_minutes": 0,
+    "windows": [],
+    "materials": [],
+    "event": {
+     "id": 17,
+     "module_id": null,
+     "course_id": null,
+     "title": "Testkurs Mechanik",
+     "kind": "vorlesung",
+     "weekday": 2,
+     "start_time": "08:15",
+     "end_time": "09:45",
+     "room": "M 1",
+     "lecturer": "",
+     "rrule": "weekly",
+     "date_from": "2026-10-21",
+     "date_to": "2027-01-27",
+     "attend": 1,
+     "source": "ics",
+     "color": null,
+     "created_at": "2026-10-25T14:30:05"
+    }
+   },
+   "body": {
+    "event_id": 17,
+    "date": "2026-11-11",
+    "mode": "today_attend"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/confirm",
+   "status": 200,
+   "response": {
+    "new": 0,
+    "updated": 1,
+    "removed": 0,
+    "conflicts": []
+   },
+   "body": {
+    "entries": [
+     {
+      "existing_id": 17,
+      "title": "Testkurs Mechanik",
+      "kind": "vorlesung",
+      "weekday": 2,
+      "start_time": "08:30",
+      "end_time": "10:00",
+      "room": "",
+      "exdates": [
+       "2026-11-11",
+       "2026-12-02",
+       "kaputt"
+      ]
+     }
+    ],
+    "source": "ics",
+    "remove_ids": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-11-02",
+   "status": 200,
+   "response": {
+    "start": "2026-11-02",
+    "end": "2026-11-08",
+    "days": [
+     {
+      "date": "2026-11-02",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 14,
+        "date": "2026-11-02",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Veranstaltung",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 590,
+        "end": 720,
+        "minutes": 130,
+        "start_hm": "09:50",
+        "end_hm": "12:00",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 1260,
+        "minutes": 480,
+        "start_hm": "13:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-03",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 7,
+        "date": "2026-11-03",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 0",
+        "lecturer": "",
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 4,
+        "date": "2026-11-03",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 5,
+        "date": "2026-11-03",
+        "module_id": 3,
+        "subject": "Programmierkurs Beispiel",
+        "title": "Paket D",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "10:30",
+        "end_time": "11:00",
+        "color": "#333333"
+       }
+      ],
+      "free": [
+       {
+        "start": 570,
+        "end": 630,
+        "minutes": 60,
+        "start_hm": "09:30",
+        "end_hm": "10:30",
+        "campus": true
+       },
+       {
+        "start": 660,
+        "end": 1080,
+        "minutes": 420,
+        "start_hm": "11:00",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-04",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-11-04",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 15,
+        "date": "2026-11-04",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Text-Wochentag",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 17,
+        "date": "2026-11-04",
+        "start": "08:30",
+        "end": "10:00",
+        "title": "Testkurs Mechanik",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "M 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-05",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-11-05",
+        "start": "13:00",
+        "end": "14:30",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": "edit"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-11-06",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 13,
+        "date": "2026-11-06",
+        "start": "09:00",
+        "end": "10:30",
+        "title": "Neuer Termin",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 650,
+        "end": 1260,
+        "minutes": 610,
+        "start_hm": "10:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-07",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-08",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/confirm",
+   "status": 200,
+   "response": {
+    "new": 0,
+    "updated": 1,
+    "removed": 0,
+    "conflicts": []
+   },
+   "body": {
+    "entries": [
+     {
+      "existing_id": 17,
+      "title": "Testkurs Mechanik",
+      "weekday": 2,
+      "start_time": "08:30",
+      "end_time": "10:00"
+     }
+    ],
+    "source": "ics",
+    "remove_ids": []
+   }
   }
  ],
  "tables_after": {
@@ -6450,6 +6937,25 @@
     "source": "studip",
     "color": null,
     "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 17,
+    "module_id": null,
+    "course_id": null,
+    "title": "Testkurs Mechanik",
+    "kind": "vorlesung",
+    "weekday": 2,
+    "start_time": "08:30",
+    "end_time": "10:00",
+    "room": "M 1",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": "2026-10-21",
+    "date_to": "2027-01-27",
+    "attend": 1,
+    "source": "ics",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
    }
   ],
   "event_exceptions": [
@@ -6484,6 +6990,39 @@
     "new_start": "08:00",
     "new_end": "09:30",
     "note": "",
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 17,
+    "event_id": 17,
+    "date": "2026-11-25",
+    "type": "cancelled",
+    "new_date": null,
+    "new_start": null,
+    "new_end": null,
+    "note": "Dozent krank",
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 18,
+    "event_id": 17,
+    "date": "2026-11-11",
+    "type": "attend",
+    "new_date": null,
+    "new_start": null,
+    "new_end": null,
+    "note": "",
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 19,
+    "event_id": 17,
+    "date": "2026-12-02",
+    "type": "cancelled",
+    "new_date": null,
+    "new_start": null,
+    "new_end": null,
+    "note": "Ausfall laut Kalender",
     "created_at": "2026-10-25T14:30:05"
    }
   ],

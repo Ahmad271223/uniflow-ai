@@ -9,7 +9,8 @@ import UniFlowCore
 /// (Vorschau mit Hinweis "n parallele Gruppen", `/api/timetable/import/preview` und `/confirm`).
 ///
 /// Fehler hier brechen den Datei-Abgleich nie ab: `run` wirft nicht. Was nicht geladen werden konnte, bleibt wie
-/// zuletzt gespeichert; die Zusammenfassung nennt es.
+/// zuletzt gespeichert; die Zusammenfassung nennt es. Nach einem Netz- oder Zeitlimitfehler fragt der Abruf nichts
+/// mehr ab (sonst wartete jeder Kurs bis zum Zeitlimit von 30 s).
 struct StudIPScheduleSync {
     /// Lokales Backend, in dessen Datenbank der Stundenplan landet
     let host: LocalBackendHost
@@ -28,8 +29,11 @@ struct StudIPScheduleSync {
         var sessionExpired = false
         /// Kurszeiten und eigene Eintraege (users/{id}/schedule) nicht lesbar
         var scheduleFailed = false
+        /// Netz- oder Zeitlimitfehler: der Rest wurde nicht mehr abgefragt
+        var unreachable = false
 
-        /// Teile fuer die Zusammenfassung des Abgleichs (wie `message += ", N Stundenplan-Termine"` in run_sync)
+        /// Teile fuer die Zusammenfassung des Abgleichs (wie `message += ", N Stundenplan-Termine"` in run_sync).
+        /// Gruppen, aus denen schon gewaehlt ist, zaehlen nicht (StudIPScheduleImport.openGroups).
         var summary: [String] {
             var parts: [String] = []
             if let r = result {
@@ -40,6 +44,8 @@ struct StudIPScheduleSync {
             }
             if sessionExpired {
                 parts.append("Stundenplan: Stud.IP-Anmeldung abgelaufen")
+            } else if unreachable {
+                parts.append("Stundenplan: Stud.IP nicht erreichbar")
             } else {
                 if scheduleFailed { parts.append("Kurszeiten nicht geladen") }
                 if failedCourses > 0 { parts.append("Termine von \(failedCourses) \(failedCourses == 1 ? "Kurs" : "Kursen") nicht geladen") }
@@ -55,7 +61,7 @@ struct StudIPScheduleSync {
         progress("Stundenplan wird geladen …")
         let download = await StudIPScheduleStore.fetch(client: client, userID: userID, courses: courses)
         var out = Outcome(failedCourses: download.failedCourses.count, sessionExpired: download.sessionExpired,
-                          scheduleFailed: download.scheduleError != nil)
+                          scheduleFailed: download.scheduleError != nil, unreachable: download.unreachable)
         do {
             let backend = try await host.backend()
             let clock = backend.context.clock

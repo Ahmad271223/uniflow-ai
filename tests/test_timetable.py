@@ -62,6 +62,22 @@ def test_ics_tzid_variants():
     assert ny2["start_time"] == "15:15"
 
 
+def test_zone_database_available():
+    """TZID wie America/New_York braucht eine Zeitzonendatenbank. Windows hat keine; ohne das Paket tzdata wuerde
+    eine solche Kalenderdatei stillschweigend als Berliner Zeit gelesen (6 Stunden daneben), darum steht es fest in
+    requirements.txt (Korrektur vom 25.10.2026)."""
+    import re
+    from pathlib import Path
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    req = (Path(__file__).resolve().parent.parent / "requirements.txt").read_text(encoding="utf-8")
+    assert re.search(r"^tzdata==\d{4}\.\d+\s*$", req, re.M), "tzdata fehlt in requirements.txt"
+    try:
+        ZoneInfo("America/New_York")
+    except ZoneInfoNotFoundError:
+        raise AssertionError("keine Zeitzonendatenbank: pip install -r requirements.txt (tzdata)") from None
+
+
 def test_ics_rrule_until_and_interval():
     e = _one(_ics("SUMMARY:Testkurs Analysis – Übung\nDTSTART;TZID=Europe/Berlin:20261020T101500\nDTEND;TZID=Europe/Berlin:20261020T114500\n"
                   "RRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL=20270126T225959Z"))
@@ -120,6 +136,37 @@ def test_apply_import_adds_cancellations(app):
         # unbekannte Serie: kein Fehler (vorher wie jetzt ohne Wirkung)
         assert timetable.apply_import(conn, [{"existing_id": 99999, "start_time": "08:00", "end_time": "09:00", "exdates": ["2026-11-04"]}], "ics")["updated"] == 1
         assert not db.row(conn, "SELECT 1 FROM event_exceptions WHERE event_id=99999")
+        conn.execute("DELETE FROM course_events WHERE id=?", (eid,))
+
+
+def test_reimport_drops_stale_cancellations(app):
+    """Erneuter Import einer vorhandenen Serie: Ausfaelle derselben Quelle, die nicht mehr gemeldet werden, entfallen
+    (z. B. andere Uebungsgruppe gewaehlt); Ausnahmen des Nutzers und anderer Quellen bleiben (Korrektur vom 25.10.2026)."""
+    from app import db, timetable
+
+    def exceptions(conn, eid):
+        return [(r["date"], r["type"], r["note"]) for r in db.rows(conn, "SELECT date, type, note FROM event_exceptions WHERE event_id=? ORDER BY date", (eid,))]
+
+    with db.cursor() as conn:
+        base = {"title": "Testkurs Wechsel", "weekday": 4, "start_time": "10:00", "end_time": "11:30", "rrule": "weekly"}
+        timetable.apply_import(conn, [{**base, "exdates": ["2026-12-25", "2027-01-01"]}], "studip")
+        eid = db.row(conn, "SELECT id FROM course_events WHERE title='Testkurs Wechsel'")["id"]
+        timetable.apply_import(conn, [{**base, "existing_id": eid, "exdates": ["2026-11-20"]}], "ics")
+        timetable.set_exception(conn, eid, "2026-11-27", "cancelled", note="Dozent krank")
+        timetable.set_exception(conn, eid, "2026-12-04", "moved", "2026-12-05", "10:00", "11:30")
+        # andere Gruppe derselben Uebung (Freitag 08:00, ohne Ausfaelle) ersetzt die bisherige
+        res = timetable.apply_import(conn, [{**base, "existing_id": eid, "start_time": "08:00", "end_time": "09:30", "exdates": []}], "studip")
+        assert res == {"new": 0, "updated": 1, "removed": 0}
+        assert exceptions(conn, eid) == [("2026-11-20", "cancelled", "Ausfall laut Kalender"), ("2026-11-27", "cancelled", "Dozent krank"),
+                                         ("2026-12-04", "moved", "")]
+        # Kalenderdatei ohne den alten EXDATE, dafuer ein neuer
+        timetable.apply_import(conn, [{**base, "existing_id": eid, "exdates": ["2026-12-11", 7]}], "ics")
+        assert exceptions(conn, eid) == [("2026-11-27", "cancelled", "Dozent krank"), ("2026-12-04", "moved", ""),
+                                         ("2026-12-11", "cancelled", "Ausfall laut Kalender")]
+        # ohne Liste der Ausfaelle (KI, Stud.IP-Einzeltermine am PC): nichts entfernt
+        timetable.apply_import(conn, [{**base, "existing_id": eid}], "ics")
+        timetable.apply_import(conn, [{**base, "existing_id": eid, "exdates": None}], "ics")
+        assert len(exceptions(conn, eid)) == 3
         conn.execute("DELETE FROM course_events WHERE id=?", (eid,))
 
 

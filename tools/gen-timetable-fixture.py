@@ -165,6 +165,21 @@ STEPS: list[dict] = [
     {"method": "GET", "path": "/api/timetable/events"},
     {"method": "GET", "path": "/api/timetable/conflicts"},
     {"method": "POST", "path": "/api/timetable/import/confirm", "body": {"entries": [], "remove_ids": "12", "source": "ics"}},
+    # Kalenderdatei mit Ausfaellen uebernehmen, Nutzer aendert zwei Tage, dann neue Fassung der Datei fuer dieselbe
+    # Serie: nicht mehr gemeldete Ausfaelle entfallen, die Tage des Nutzers bleiben ("id:<Titel>" = ID der Serie)
+    {"method": "POST", "path": "/api/timetable/import/confirm", "body": {"entries": [
+        {"title": "Testkurs Mechanik", "kind": "vorlesung", "weekday": 2, "start_time": "08:15", "end_time": "09:45", "room": "M 1",
+         "rrule": "weekly", "date_from": "2026-10-21", "date_to": "2027-01-27", "exdates": ["2026-11-04", "2026-11-11", "2026-11-18"]}],
+        "source": "ics", "remove_ids": []}},
+    {"method": "POST", "path": "/api/timetable/exceptions", "body": {"event_id": "id:Testkurs Mechanik", "date": "2026-11-25", "type": "cancelled", "note": "Dozent krank"}},
+    {"method": "POST", "path": "/api/timetable/attendance", "body": {"event_id": "id:Testkurs Mechanik", "date": "2026-11-11", "mode": "today_attend"}},
+    {"method": "POST", "path": "/api/timetable/import/confirm", "body": {"entries": [
+        {"existing_id": "id:Testkurs Mechanik", "title": "Testkurs Mechanik", "kind": "vorlesung", "weekday": 2, "start_time": "08:30", "end_time": "10:00",
+         "room": "", "exdates": ["2026-11-11", "2026-12-02", "kaputt"]}], "source": "ics", "remove_ids": []}},
+    {"method": "GET", "path": "/api/timetable/week?start=2026-11-02"},
+    {"method": "POST", "path": "/api/timetable/import/confirm", "body": {"entries": [
+        {"existing_id": "id:Testkurs Mechanik", "title": "Testkurs Mechanik", "weekday": 2, "start_time": "08:30", "end_time": "10:00"}],
+        "source": "ics", "remove_ids": []}},
 ]
 
 ICS_CASES: list[tuple[str, str]] = [
@@ -276,6 +291,21 @@ def confirm_body(preview: dict) -> dict:
     return {"entries": entries, "source": "studip", "import_id": preview["import_id"], "remove_ids": removed}
 
 
+def series_ids(body, path: Path):
+    """Platzhalter "id:<Titel>" -> ID der juengsten Serie mit diesem Titel (haengt von den Schritten davor ab)"""
+    if isinstance(body, dict):
+        return {k: series_ids(v, path) for k, v in body.items()}
+    if isinstance(body, list):
+        return [series_ids(v, path) for v in body]
+    if isinstance(body, str) and body.startswith("id:"):
+        conn = sqlite3.connect(path)
+        try:
+            return conn.execute("SELECT id FROM course_events WHERE title=? ORDER BY id DESC", (body[3:],)).fetchone()[0]
+        finally:
+            conn.close()
+    return body
+
+
 def main() -> int:
     check = "--check" in sys.argv[1:]
     src = SchemaSource()
@@ -292,6 +322,8 @@ def main() -> int:
             body = s.get("body")
             if body == "FROM_STUDIP_PREVIEW":
                 body = confirm_body(previews["studip"])
+            elif body is not None:
+                body = series_ids(body, path)
             form = dict(s.get("form") or {})
             if "file" in s:
                 status, value = asgi_file(server.app, s["path"], form, s["file"])

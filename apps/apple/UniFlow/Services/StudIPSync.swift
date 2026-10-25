@@ -346,9 +346,9 @@ final class StudIPSync: ObservableObject {
                 }
                 loaded += 1
             }
+            entries = sortedEntries()                         // Dateien schon zeigen, waehrend der Stundenplan laedt
             // Stundenplan aus Stud.IP (S5); Fehler dort brechen den Datei-Abgleich nicht ab
             let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
-            entries = sortedEntries()
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
             var parts = ["\(loaded) neu/geändert", "\(remote.count - notDownloadable - download.count) unverändert"]
             if notDownloadable > 0 { parts.append("\(notDownloadable) nicht herunterladbar") }

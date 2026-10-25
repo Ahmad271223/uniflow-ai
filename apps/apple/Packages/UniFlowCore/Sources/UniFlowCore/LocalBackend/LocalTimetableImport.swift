@@ -518,9 +518,11 @@ enum LocalTimetableImport {
         return ["new": .array(new), "changed": .array(changed), "same": .array(same), "removed": .array(removed)]
     }
 
-    /// `apply_import(conn, entries, source, remove_ids)`; Ausfaelle (`exdates`) werden zu Ausnahmen "cancelled"
+    /// `apply_import(conn, entries, source, remove_ids)`; Ausfaelle (`exdates`) werden zu Ausnahmen "cancelled",
+    /// bei einer vorhandenen Serie entfallen nicht mehr gemeldete Ausfaelle derselben Quelle. `imported` (nur auf dem
+    /// Geraet, StudIPScheduleImport) bekommt jeden Eintrag mit der ID seiner Serie.
     static func applyImport(_ c: SQLiteConnection, _ entries: [JSONValue], source: String, removeIDs: [JSONValue] = [],
-                            clock: UniFlowClock) throws -> JSONValue {
+                            clock: UniFlowClock, imported: ((Entry, SQLiteValue) throws -> Void)? = nil) throws -> JSONValue {
         var nNew = 0, nUpd = 0
         let note = source.hasPrefix("studip") ? "Ausfall laut Stud.IP" : "Ausfall laut Kalender"
         func required(_ e: [String: JSONValue], _ k: String) throws -> JSONValue {
@@ -536,6 +538,7 @@ enum LocalTimetableImport {
                               [try LocalTimetable.bind(try required(e, "start_time"), "start_time"), try LocalTimetable.bind(try required(e, "end_time"), "end_time"),
                                try LocalTimetable.bind(LocalTimetable.or(e["room"], ""), "room"), try LocalTimetable.bind(LocalTimetable.or(e["kind"], "vorlesung"), "kind"),
                                try LocalTimetable.bind(e["module_id"], "module_id"), eventID])
+                try dropStaleCancellations(c, eventID: eventID, dates: e["exdates"], note: note)
                 nUpd += 1
             } else {
                 try c.execute("""
@@ -552,6 +555,7 @@ enum LocalTimetableImport {
                 nNew += 1
             }
             try addCancellations(c, eventID: eventID, dates: e["exdates"], note: note, clock: clock)
+            try imported?(e, eventID)
         }
         for rid in removeIDs {
             try c.execute("DELETE FROM course_events WHERE id=?", [try LocalTimetable.bind(rid, "remove_ids")])
@@ -569,6 +573,18 @@ enum LocalTimetableImport {
             if try c.queryOne("SELECT 1 FROM event_exceptions WHERE event_id=? AND date=?", [eventID, .text(s)]) != nil { continue }
             try c.execute("INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,'cancelled',NULL,NULL,NULL,?,?)",
                           [eventID, .text(s), .text(note), .text(clock.nowISO)])
+        }
+    }
+
+    /// `_drop_stale_cancellations`: erneuter Import einer vorhandenen Serie; Ausfaelle derselben Quelle (gleiche
+    /// Notiz), die die neue Fassung nicht mehr meldet, entfallen. Ohne Liste (`exdates` fehlt) aendert sich nichts.
+    static func dropStaleCancellations(_ c: SQLiteConnection, eventID: SQLiteValue, dates: JSONValue?, note: String) throws {
+        guard let list = dates?.array else { return }
+        // `d in keep` nach Codepunkten wie Python
+        let keep = Set(list.compactMap { $0.string.map { $0.unicodeScalars.map(\.value) } })
+        for r in try c.rows("SELECT id, date FROM event_exceptions WHERE event_id=? AND type='cancelled' AND note=? ORDER BY id", [eventID, .text(note)]) {
+            if let d = r["date"]?.string, keep.contains(d.unicodeScalars.map(\.value)) { continue }
+            try c.execute("DELETE FROM event_exceptions WHERE id=?", [try LocalTimetable.bind(r["id"], "id")])
         }
     }
 }

@@ -111,16 +111,26 @@ der Datenbank ab: `studip_events` und `studip_schedule_entries` wie `app/studip_
 vorhandene Tabelle `studip_cycle_dates` (`StudIPScheduleStore`). Danach übernimmt `auto_import` wie am PC alle
 eindeutigen Termine in den Stundenplan; Kurszeiten ersetzen für ihren Kurs die aus Einzelterminen abgeleiteten Serien,
 Einzeltermine außerhalb der Kurszeiten (z. B. Klausur, Blocktermin) bleiben wie in Python, Ausfälle laut Stud.IP
-werden zu Ausnahmen „Ausfall laut Stud.IP“. **Parallele Übungsgruppen** bleiben offen: „Stundenplan importieren →
-Aus Stud.IP übernehmen“ zeigt sie wie in der Web-App orange mit „n parallele Gruppen – nur deine Gruppe auswählen“, die
-gewählte Gruppe kommt mit ihren Ausfällen dazu. Fehler beim Termin-Abruf brechen den Datei-Abgleich nie ab; die
-Zusammenfassung nennt sie („Kurszeiten nicht geladen“, „Termine von n Kursen nicht geladen“), Nichtgeladenes bleibt wie
-zuletzt gespeichert. Woche, Tag, Termine anlegen/ändern/löschen (Serie, ab Datum, einzeln), Teilnahme, Ausnahmen,
-freie Fenster mit Terminen, Fahrtzeit und Lernslots, Konflikte mit Lernslots, ICS-Import und die Termine von heute in
-der Übersicht sind 1:1-Ports von `app/timetable.py` (Antworten exakt gegen Python geprüft). Import aus PDF, Bild oder
-Text braucht KI und meldet lokal „KI-Funktionen gibt es in dieser Version nicht.“ (die Auswahl im Importdialog bleibt
-bis zur Release-Bereinigung sichtbar). Unterlagen zum Termin bleiben leer, bis Dateien mit Einordnung lokal sind
-(S3/S4); Lernslots neu legen (`/api/timetable/reslot`) gehört zu S6.
+werden zu Ausnahmen „Ausfall laut Stud.IP“. Die nur auf dem Gerät vorhandene Tabelle `studip_timetable_links`
+(`StudIPScheduleImport`) merkt sich, welcher Stud.IP-Eintrag welche Serie wurde: Ausfälle, die Stud.IP erst später
+meldet, kommen bei jedem Abgleich in die vorhandene Serie (auch in die gewählte Gruppe), zurückgenommene entfallen,
+Tage, die der Nutzer geändert oder zurückgesetzt hat, bleiben; eine gelöschte oder umbenannte Serie legt der Abgleich
+nicht wieder an (zurückholen über die Importvorschau). **Parallele Übungsgruppen** bleiben offen: „Stundenplan
+importieren → Aus Stud.IP übernehmen“ zeigt sie wie in der Web-App orange mit „n parallele Gruppen – nur deine Gruppe
+auswählen“, die gewählte Gruppe kommt mit ihren Ausfällen dazu (wechselt der Nutzer die Gruppe, entfallen die Ausfälle
+der alten). Schon übernommene Termine sind dort aus Stud.IP nicht vorausgewählt, damit „Übernehmen“ eigene Änderungen
+(Zeit, Raum, Art) nicht zurücksetzt. Ist aus einer Gruppe gewählt, meldet der Abgleich sie nicht mehr als offen.
+Fehler beim Termin-Abruf brechen den Datei-Abgleich nie ab; die Zusammenfassung nennt sie („Kurszeiten nicht geladen“,
+„Termine von n Kursen nicht geladen“, bei Netz- oder Zeitlimitfehlern „Stud.IP nicht erreichbar“, danach wird nichts
+mehr abgefragt), Nichtgeladenes bleibt wie zuletzt gespeichert. Woche, Tag, Termine anlegen/ändern/löschen (Serie,
+ab Datum, einzeln), Teilnahme, Ausnahmen, freie Fenster mit Terminen, Fahrtzeit und Lernslots, Konflikte mit
+Lernslots, ICS-Import und die Termine von heute in der Übersicht sind 1:1-Ports von `app/timetable.py` (Antworten exakt
+gegen Python geprüft). Import aus PDF, Bild oder Text braucht KI und meldet lokal „KI-Funktionen gibt es in dieser
+Version nicht.“ (die Auswahl im Importdialog bleibt bis zur Release-Bereinigung sichtbar). Unterlagen zum Termin
+bleiben leer, bis Dateien mit Einordnung lokal sind (S3/S4); Lernslots neu legen (`/api/timetable/reslot`) gehört zu
+S6. Grenzen: Teilt der Nutzer eine Serie „ab Datum“, bekommt nur der alte Teil spätere Ausfälle; die Gruppenwahl in der
+Vorschau ordnet wie in der Web-App über Titel und Wochentag zu (liegt die Vorlesung desselben Kurses am selben Tag,
+würde sie ersetzt).
 
 | Bereich | Stand | Was fehlt |
 |---|---|---|
@@ -196,10 +206,14 @@ Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
   fehlt“, „Nur Bilddateien“) mit 404 „KI-Funktionen gibt es in dieser Version nicht.“; falsche Datumsangaben in der
   Query 422 statt 500; `conflicts?days=` höchstens 3660; Unterlagen zum Termin leer bis S3/S4; auf dem Gerät ersetzen
   Kurszeiten die aus Einzelterminen abgeleiteten Serien ihres Kurses (ohne Kurszeiten genau wie Python), und ein
-  vollständig geladener Kurs ersetzt seine gespeicherten Einzeltermine (Python lässt veraltete stehen). In
-  `app/timetable.py` korrigiert (zuerst in Python, `tests/test_timetable.py`): ICS-Zeiten mit „Z“ (UTC) und `TZID`
-  werden in Berliner Ortszeit umgerechnet, `EXDATE` und `UNTIL` mit Uhrzeit werden beachtet, Ausfälle werden beim
-  Import zu Ausnahmen.
+  vollständig geladener Kurs ersetzt seine gespeicherten Einzeltermine (Python lässt veraltete stehen); der Abgleich
+  nutzt die Verknüpfung `studip_timetable_links` (siehe oben), und `/auto-status` zählt Gruppen aus Kurszeiten nicht
+  mehr, aus denen schon eine Kurszeit im Stundenplan steht (ohne Kurszeiten wie Python). In `app/timetable.py`
+  korrigiert (zuerst in Python, `tests/test_timetable.py`): ICS-Zeiten mit „Z“ (UTC) und `TZID` werden in Berliner
+  Ortszeit umgerechnet, `EXDATE` und `UNTIL` mit Uhrzeit werden beachtet, Ausfälle werden beim Import zu Ausnahmen,
+  ein erneuter Import einer vorhandenen Serie entfernt nicht mehr gemeldete Ausfälle derselben Quelle; `tzdata` steht
+  fest in `requirements.txt` (Windows hat keine Zeitzonendatenbank, `TZID=America/New_York` wäre sonst Berliner Zeit;
+  auf dem PC einmal `pip install -r requirements.txt`).
 - **Platzhalter in Server-Form** bis zur Portierung (leere Listen bzw. Objekte mit denselben Feldern wie
   `app/server.py` bei leerer Datenbank): Übersicht ohne Dateien und Termine von heute (Lernpakete, Woche, Module: S6),
   Lernkalender/Pakete/Aufgaben und `/api/timetable/reslot` (S6), Karteikarten, Uni & Noten, Suche und Skriptsuche

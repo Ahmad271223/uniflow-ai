@@ -498,7 +498,7 @@ struct TimetablePreviewDialog: View {
         .onAppear {
             if entries.isEmpty {
                 entries = r.list("entries").enumerated().map { i, e in
-                    Entry(id: i, selected: e["selected"]?.bool != false, title: e.s("title") ?? "", kind: e.s("kind") ?? "vorlesung",
+                    Entry(id: i, selected: Self.preselected(e, diff: diff, source: source), title: e.s("title") ?? "", kind: e.s("kind") ?? "vorlesung",
                           start: e.s("start_time") ?? "", end: e.s("end_time") ?? "", room: e.s("room") ?? "", weekday: e.i("weekday") ?? 0,
                           module: e.i("module_id") ?? 0, raw: e)
                 }
@@ -513,7 +513,31 @@ struct TimetablePreviewDialog: View {
         if r.list("entries").contains(where: { $0["uncertain"]?.bool == true }) {
             s += "Orange markierte Zeilen sind unsicher (z. B. mehrere parallele Übungsgruppen): bitte prüfen und nur deine Gruppe auswählen."
         }
+        if source == "studip", r.list("entries").contains(where: { Self.existing(diff, $0) != nil }) {
+            s += (s.hasSuffix(". ") ? "" : " ") + "Schon übernommene Termine sind nicht angehakt; Anhaken setzt Zeit, Raum und Art auf Stud.IP zurück."
+        }
         return s
+    }
+
+    /// Vorhandene Serie zu einer Zeile wie impConfirm: aus diff.changed, sonst diff.same mit gleichem Titel und
+    /// Wochentag. Kurszeiten aus Stud.IP genau ueber ihre Stud.IP-ID (Vorlesung und Gruppe eines Kurses am selben Tag
+    /// haben denselben Titel; die Zuordnung zur Serie macht das lokale Backend)
+    static func existing(_ diff: JSONValue, title: String?, weekday: Int?, studipID: String? = nil) -> JSONValue? {
+        if let id = studipID { return (diff.list("changed") + diff.list("same")).first { $0.s("studip_id") == id } }
+        return diff.list("changed").first { $0.s("title") == title && $0.i("weekday") == weekday }
+            ?? diff.list("same").first { $0.s("title") == title && $0.i("weekday") == weekday }
+    }
+
+    static func existing(_ diff: JSONValue, _ e: JSONValue) -> JSONValue? {
+        existing(diff, title: e.s("title"), weekday: e.i("weekday"), studipID: e.s("studip_id"))
+    }
+
+    /// Vorauswahl einer Zeile: wie in der Web-App alle ausser offenen Gruppen. Aus Stud.IP (auf dem Geraet der Weg zur
+    /// Gruppenwahl) bleiben schon uebernommene Termine frei; sonst setzte "Übernehmen" Zeit, Raum, Art und Modul, die
+    /// der Nutzer geaendert hat, auf die Werte aus Stud.IP zurueck.
+    static func preselected(_ e: JSONValue, diff: JSONValue, source: String) -> Bool {
+        guard e["selected"]?.bool != false else { return false }
+        return source != "studip" || existing(diff, e) == nil
     }
 
     private var header: some View {
@@ -565,15 +589,13 @@ struct TimetablePreviewDialog: View {
     private func confirm(_ diff: JSONValue) async {
         let chosen = entries.filter(\.selected)
         if chosen.isEmpty { toast.show("Nichts ausgewählt"); return }
-        let changed = diff.list("changed"), same = diff.list("same")
         let body: [JSONValue] = chosen.map { e in
             var o = e.raw.object ?? [:]
             o["selected"] = true
             o["title"] = .string(e.title); o["kind"] = .string(e.kind); o["weekday"] = .number(Double(e.weekday))
             o["start_time"] = .string(e.start); o["end_time"] = .string(e.end); o["room"] = .string(e.room)
             o["module_id"] = e.module == 0 ? .null : .number(Double(e.module))
-            let match = changed.first { $0.s("title") == e.title && $0.i("weekday") == e.weekday } ?? same.first { $0.s("title") == e.title && $0.i("weekday") == e.weekday }
-            o["existing_id"] = match?["existing_id"] ?? .null
+            o["existing_id"] = Self.existing(diff, title: e.title, weekday: e.weekday, studipID: e.raw.s("studip_id"))?["existing_id"] ?? .null
             return .object(o)
         }
         guard let api = session.api else { return }

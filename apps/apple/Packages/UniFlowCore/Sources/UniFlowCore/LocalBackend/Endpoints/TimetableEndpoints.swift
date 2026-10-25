@@ -196,7 +196,9 @@ public enum TimetableEndpoints: LocalEndpointModule {
                     throw LocalHTTPError(status: 500, message: "Import fehlgeschlagen: \(why)")
                 }
                 entries = try LocalTimetableImport.enrich(c, entries)
-                let diff = try LocalTimetableImport.diffAgainstExisting(c, entries)
+                var diff = try LocalTimetableImport.diffAgainstExisting(c, entries)
+                // Kurszeiten ueber die Verknuepfung zuordnen statt ueber Titel und Wochentag (nur auf dem Geraet)
+                if source == "studip" { diff = try StudIPScheduleImport.previewDiff(c, diff, entries: entries) }
                 let list: JSONValue = .array(entries.map(JSONValue.object))
                 try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES (?,?,?,?,?,0)",
                               [.text(source), .text(clock.nowISO), "preview", .text(LocalTimetableImport.slice(text, 0, 20000)),
@@ -214,7 +216,9 @@ public enum TimetableEndpoints: LocalEndpointModule {
             let removeIDs = try iterable(b["remove_ids"], "remove_ids", strict: false)
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { c -> JSONValue in
-                var res = try LocalTimetableImport.applyImport(c, entries, source: source.string ?? T.text(source), removeIDs: removeIDs, clock: clock)
+                let src = source.string ?? T.text(source)
+                var res = try LocalTimetableImport.applyImport(c, entries, source: src, removeIDs: removeIDs, clock: clock,
+                                                               imported: StudIPScheduleImport.confirmed(c, source: src, clock: clock))
                 if T.truthy(b["import_id"]) {
                     try c.execute("UPDATE schedule_imports SET confirmed=1, status='confirmed' WHERE id=?", [try T.bind(b["import_id"], "import_id")])
                 }
@@ -242,7 +246,8 @@ public enum TimetableEndpoints: LocalEndpointModule {
         router.get("/api/timetable/auto-status") { _, ctx in
             .json(try await ctx.database.withConnection { c -> JSONValue in
                 let entries = try LocalTimetableImport.studipEntries(c)
-                let pending = entries.filter { !T.truthy($0["selected"]) }
+                // Gruppen aus Kurszeiten, aus denen schon gewaehlt ist, zaehlen nicht (ohne Kurszeiten wie Python)
+                let pending = try StudIPScheduleImport.openGroups(c, entries)
                 let groups = Set(pending.compactMap { $0["title"]?.string }).sorted { $0.unicodeScalars.lexicographicallyPrecedes($1.unicodeScalars) }
                 return ["pending_groups": .number(Double(pending.count)), "courses": .array(groups.map(JSONValue.string)),
                         "personal": .array(entries.filter { T.truthy($0["personal"]) }.map(JSONValue.object))]

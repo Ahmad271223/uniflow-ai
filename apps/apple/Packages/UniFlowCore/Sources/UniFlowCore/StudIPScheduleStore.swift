@@ -67,6 +67,8 @@ public struct StudIPScheduleDownload: Sendable {
     public var failedCourses: [String] = []
     /// Anmeldung abgelaufen (der Rest wurde nicht mehr abgefragt)
     public var sessionExpired = false
+    /// Netz- oder Zeitlimitfehler: der Rest wurde nicht mehr abgefragt (steht in `failedCourses`)
+    public var unreachable = false
     /// users/{id}/schedule liess sich nicht laden (Meldung ohne Kennungen)
     public var scheduleError: String?
 
@@ -79,7 +81,7 @@ public struct StudIPScheduleDownload: Sendable {
 public struct StudIPScheduleResult: Sendable, Equatable {
     /// neu in den Stundenplan uebernommene Serien (auto_import)
     public let newEvents: Int
-    /// Eintraege, die auf die Gruppenauswahl warten
+    /// Eintraege offener Gruppen, die auf die Auswahl warten (StudIPScheduleImport.openGroups)
     public let pendingGroups: Int
     public let cycles: Int
     public let events: Int
@@ -108,7 +110,9 @@ public enum StudIPScheduleStore {
     // MARK: Abruf
 
     /// Laedt Kurszeiten, eigene Eintraege und die Einzeltermine der Kurse. Wirft nie: Fehler je Teil stehen im
-    /// Ergebnis, damit der Datei-Abgleich davon unberuehrt bleibt.
+    /// Ergebnis, damit der Datei-Abgleich davon unberuehrt bleibt. Nach einem Netz- oder Zeitlimitfehler
+    /// (`stopsFetch`) fragt der Abruf nichts mehr ab: jede weitere Anfrage wuerde nur bis zum Zeitlimit warten
+    /// (30 s je Kurs), waehrend der Datei-Abgleich noch nicht fertig gemeldet ist.
     public static func fetch(client: StudIPClient, userID: String, courses: [StudIPCourse]) async -> StudIPScheduleDownload {
         var d = StudIPScheduleDownload(courses: courses)
         do {
@@ -123,8 +127,13 @@ public enum StudIPScheduleStore {
             return d
         } catch {
             d.scheduleError = (error as? StudIPError)?.description ?? "Stundenplan nicht lesbar"
+            if stopsFetch(error) {
+                d.unreachable = true
+                d.failedCourses = courses.map(\.id)
+                return d
+            }
         }
-        for c in courses {
+        for (i, c) in courses.enumerated() {
             do {
                 d.events[c.id] = try await client.courseEvents(courseID: c.id)
             } catch StudIPError.sessionExpired {
@@ -132,15 +141,31 @@ public enum StudIPScheduleStore {
                 break
             } catch {
                 d.failedCourses.append(c.id)
+                if stopsFetch(error) {
+                    d.unreachable = true
+                    d.failedCourses += courses[(i + 1)...].map(\.id)
+                    break
+                }
             }
         }
         return d
     }
 
+    /// Fehler, nach denen weitere Anfragen sinnlos sind: kein Netz, Server nicht erreichbar oder haengt (Zeitlimit),
+    /// Abbruch der Aufgabe, Anfragegrenze des Durchgangs erreicht
+    static func stopsFetch(_ error: Error) -> Bool {
+        if error is CancellationError || (error as? StudIPError) == StudIPError.requestLimit { return true }
+        guard let u = error as? URLError else { return false }
+        let codes: Set<URLError.Code> = [.timedOut, .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost, .cannotFindHost,
+                                         .dnsLookupFailed, .cancelled, .internationalRoamingOff, .dataNotAllowed, .secureConnectionFailed]
+        return codes.contains(u.code)
+    }
+
     // MARK: Speichern
 
     /// Schreibt den Abruf in die Datenbank (in einer Transaktion aufrufen) und uebernimmt danach wie auf dem PC alle
-    /// eindeutigen Termine in den Stundenplan (`auto_import`). Parallele Gruppen bleiben zur Auswahl.
+    /// eindeutigen Termine in den Stundenplan (`auto_import`, auf dem Geraet mit Verknuepfung: StudIPScheduleImport).
+    /// Parallele Gruppen bleiben zur Auswahl.
     public static func store(_ d: StudIPScheduleDownload, in c: SQLiteConnection, clock: UniFlowClock) throws -> StudIPScheduleResult {
         let now: SQLiteValue = .text(clock.nowISO)
         // Kurse wie run_sync: anlegen bzw. Titel, Nummer, Semester aktualisieren; die Art (classify) nur, wenn sie
@@ -190,8 +215,8 @@ public enum StudIPScheduleStore {
                 cycles += 1
             }
         }
-        let r = try LocalTimetableImport.autoImport(c, clock: clock)
-        return StudIPScheduleResult(newEvents: r["new"]?.int ?? 0, pendingGroups: r["pending_groups"]?.int ?? 0, cycles: cycles, events: events)
+        let r = try StudIPScheduleImport.autoImport(c, clock: clock)
+        return StudIPScheduleResult(newEvents: r.new, pendingGroups: r.pendingGroups, cycles: cycles, events: events)
     }
 
     // MARK: Lesen

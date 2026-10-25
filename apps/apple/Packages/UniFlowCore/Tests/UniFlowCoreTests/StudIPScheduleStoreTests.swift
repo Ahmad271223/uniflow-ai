@@ -56,6 +56,90 @@ private func store(_ d: StudIPScheduleDownload, _ backend: LocalBackend) async t
     try await backend.context.database.transaction { try StudIPScheduleStore.store(d, in: $0, clock: clock) }
 }
 
+/// users/{id}/schedule wie die Fixture mit ersetzten Textstellen (weitere Ausfaelle, weitere Kurszeiten)
+private func scheduleReply(_ replace: [(String, String)]) throws -> HTTPReply {
+    var text = String(decoding: try fixtureReply("users-schedule.json").body, as: UTF8.self)
+    for (a, b) in replace {
+        guard text.contains(a) else { throw NSError(domain: "fixture", code: 1, userInfo: [NSLocalizedDescriptionKey: "nicht in der Fixture: \(a)"]) }
+        text = text.replacingOccurrences(of: a, with: b)
+    }
+    return HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(text.utf8))
+}
+
+/// Ausfaelle von cy-ana-1 (Testanalysis I, Montag 10:00) in users-schedule.json
+private let anaExdates = #""EXDATES": ["2026-11-02T10:00:00+01:00"]"#
+
+/// Antwort des lokalen Backends (JSON-Rumpf)
+private func call(_ backend: LocalBackend, _ method: String, _ path: String, _ body: JSONValue? = nil) async -> LocalResponse {
+    await backend.handle(LocalRequest(method: method, path: path, body: body?.serialized() ?? Data()))
+}
+
+/// Termine eines Tages als "Titel Status"
+private func day(_ backend: LocalBackend, _ date: String) async -> [String] {
+    let r = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", date)]))
+    return r.json?["events"]?.array?.map { "\($0["title"]?.string ?? "") \($0["status"]?.string ?? "")" } ?? []
+}
+
+/// Ausnahmen einer Serie als "Datum|Art|Notiz"
+private func exceptions(_ backend: LocalBackend, _ eventID: Int) async throws -> [String] {
+    try await backend.context.database.rows("SELECT date, type, note FROM event_exceptions WHERE event_id=? ORDER BY date", [.integer(Int64(eventID))])
+        .map { "\($0["date"]?.string ?? "")|\($0["type"]?.string ?? "")|\($0["note"]?.string ?? "")" }
+}
+
+private func eventID(_ backend: LocalBackend, _ whereSQL: String) async throws -> Int {
+    let id = try await backend.context.database.scalar("SELECT id FROM course_events WHERE \(whereSQL)")
+    return try XCTUnwrap(id?.int, whereSQL)
+}
+
+/// Importvorschau "aus Stud.IP" wie TimetableView
+private func studipPreview(_ backend: LocalBackend) async throws -> JSONValue {
+    let b = "x-test"
+    let body = "--\(b)\r\nContent-Disposition: form-data; name=\"source\"\r\n\r\nstudip\r\n--\(b)--\r\n"
+    let r = await backend.handle(LocalRequest(method: "POST", path: "/api/timetable/import/preview",
+                                              headers: ["Content-Type": "multipart/form-data; boundary=\(b)"], body: Data(body.utf8)))
+    XCTAssertEqual(r.status, 200)
+    return try XCTUnwrap(r.json)
+}
+
+/// Gruppe aus der Vorschau waehlen wie TimetablePreviewDialog.confirm: existing_id aus diff.changed/diff.same,
+/// bei Kurszeiten ueber die Stud.IP-ID
+private func choose(_ backend: LocalBackend, room: String) async throws -> JSONValue {
+    let preview = try await studipPreview(backend)
+    var o = try XCTUnwrap(preview["entries"]?.array?.first { $0["selected"] == false && $0["room"]?.string == room }?.object)
+    o["selected"] = true
+    let candidates = (preview["diff"]?["changed"]?.array ?? []) + (preview["diff"]?["same"]?.array ?? [])
+    o["existing_id"] = candidates.first { $0["studip_id"] == o["studip_id"] }?["existing_id"] ?? .null
+    let body: JSONValue = ["entries": [.object(o)], "source": "studip", "import_id": preview["import_id"] ?? .null, "remove_ids": []]
+    let r = await call(backend, "POST", "/api/timetable/import/confirm", body)
+    XCTAssertEqual(r.status, 200)
+    return try XCTUnwrap(r.json)
+}
+
+/// Jede Anfrage scheitert mit einem Netzfehler (Server haengt: Zeitlimit), ausser den Pfaden in `routes`
+final class FailingTransport: StudIPTransport, @unchecked Sendable {
+    private let lock = NSLock()
+    private let routes: [String: HTTPReply]
+    private let error: Error
+    private var log: [String] = []
+
+    init(_ error: Error, routes: [String: HTTPReply] = [:]) {
+        self.error = error
+        self.routes = routes
+    }
+
+    var requested: [String] { lock.lock(); defer { lock.unlock() }; return log }
+
+    func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+        let key = url.absoluteString.replacingOccurrences(of: "https://studip.test", with: "")
+            .replacingOccurrences(of: "%5B", with: "[").replacingOccurrences(of: "%5D", with: "]")
+        record(key)
+        if let r = routes[key] { return r }
+        throw error
+    }
+
+    private func record(_ key: String) { lock.lock(); log.append(key); lock.unlock() }
+}
+
 /// Serien im Stundenplan als "Titel|Wochentag|Beginn-Ende|rrule|von|bis|Raum|Art"
 private func series(_ backend: LocalBackend) async throws -> [String] {
     try await backend.context.database.rows("SELECT * FROM course_events ORDER BY weekday, start_time, title").map { e in
@@ -244,5 +328,266 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertTrue(s.contains("Testanalysis I|2|09:00|11:00|once|2027-02-10|2027-02-10|Halle Test|vorlesung|studip"), "\(s)")
         let table = try await backend.context.database.scalar("SELECT COUNT(*) FROM sqlite_master WHERE name='studip_cycle_dates'")
         XCTAssertEqual(table, .integer(0), "Tabelle nur bei Bedarf")
+    }
+
+    // MARK: Nachbesserung S5: Verknuepfung Stud.IP-Eintrag -> Serie (StudIPScheduleImport)
+
+    /// Ausfaelle, die Stud.IP erst nach der ersten Uebernahme meldet, kommen in die vorhandene Serie; was der Nutzer
+    /// an einem Tag geaendert hat, bleibt; ein zurueckgenommener Ausfall entfaellt wieder
+    func testLaterCancellationsReachExistingSeries() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let (d, _) = try await download()
+        _ = try await store(d, backend)
+        let ana = try await eventID(backend, "title='Testanalysis I' AND weekday=0")
+        // Nutzer: Ausfall vom 02.11. zurueckgesetzt (findet doch statt), 16.11. selbst ausgelassen
+        for (date, mode) in [("2026-11-02", "reset"), ("2026-11-16", "today_skip")] {
+            _ = await call(backend, "POST", "/api/timetable/attendance", ["event_id": .number(Double(ana)), "date": .string(date), "mode": .string(mode)])
+        }
+        let more = try scheduleReply([(anaExdates, #""EXDATES": ["2026-11-02T10:00:00+01:00", "2026-11-09T10:00:00+01:00", "2026-11-16T10:00:00+01:00"]"#)])
+        let (d2, _) = try await download(["/jsonapi.php/v1/users/u-test/schedule": more])
+        let r2 = try await store(d2, backend)
+        XCTAssertEqual(r2.newEvents, 0)
+        let after = await day(backend, "2026-11-09")
+        XCTAssertEqual(after, ["Testanalysis I ausfall"])
+        let reset = await day(backend, "2026-11-02")
+        XCTAssertEqual(reset, ["Testanalysis I teilnahme"], "vom Nutzer zurueckgesetzt, kommt nicht wieder")
+        let ex = try await exceptions(backend, ana)
+        XCTAssertEqual(ex, ["2026-11-09|cancelled|Ausfall laut Stud.IP", "2026-11-16|skip|"])
+        // Stud.IP nimmt die Ausfaelle vom 09. und 16.11. zurueck: der eigene vom 16.11. bleibt
+        let (d3, _) = try await download()
+        _ = try await store(d3, backend)
+        let back = try await exceptions(backend, ana)
+        XCTAssertEqual(back, ["2026-11-16|skip|"])
+        let n = try await backend.context.database.scalar("SELECT COUNT(*) FROM course_events")
+        XCTAssertEqual(n, .integer(8), "nichts doppelt")
+    }
+
+    /// Zwei Kurszeiten desselben Kurses am selben Tag (gleicher Titel und Wochentag): der Ausfall landet in der
+    /// richtigen Serie (Zuordnung ueber die Stud.IP-ID, nicht ueber Titel und Wochentag)
+    func testCancellationGoesToTheRightSeriesOfTheDay() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let extra = #"""
+            {"data": [
+             {"id": "cy-ana-3", "type": "seminar-cycle-dates",
+              "attributes": {"title": "Kurszeit", "description": "Übung", "start": "14:00", "end": "15:30", "weekday": 1, "color": null,
+                             "recurrence": {"FREQ": "WEEKLY", "INTERVAL": 1, "DTSTART": "2026-10-12", "UNTIL": "2027-01-25"EXTRA}, "locations": ["Raum Test 4"]},
+              "relationships": {"owner": {"data": {"type": "courses", "id": "c-ana"}}}},
+            """#
+        let first = try scheduleReply([(#"{"data": ["#, extra.replacingOccurrences(of: "EXTRA", with: ""))])
+        let (d, _) = try await download(["/jsonapi.php/v1/users/u-test/schedule": first])
+        let r = try await store(d, backend)
+        XCTAssertEqual(r.newEvents, 9)
+        let morning = try await eventID(backend, "title='Testanalysis I' AND weekday=0 AND start_time='10:00'")
+        let afternoon = try await eventID(backend, "title='Testanalysis I' AND weekday=0 AND start_time='14:00'")
+        let later = try scheduleReply([(#"{"data": ["#, extra.replacingOccurrences(of: "EXTRA", with: #", "EXDATES": ["2026-11-09"]"#))])
+        let (d2, _) = try await download(["/jsonapi.php/v1/users/u-test/schedule": later])
+        _ = try await store(d2, backend)
+        let m = try await exceptions(backend, morning), a = try await exceptions(backend, afternoon)
+        XCTAssertEqual(m, ["2026-11-02|cancelled|Ausfall laut Stud.IP"])
+        XCTAssertEqual(a, ["2026-11-09|cancelled|Ausfall laut Stud.IP"])
+        let shown = await day(backend, "2026-11-09")
+        XCTAssertEqual(shown, ["Testanalysis I teilnahme", "Testanalysis I ausfall"])
+        // Nachmittag geloescht: die Vorschau bietet ihn als neu an, statt ihn mit dem Vormittag zu paaren
+        _ = await call(backend, "DELETE", "/api/timetable/events/\(afternoon)")
+        let preview = try await studipPreview(backend)
+        let back = (preview["diff"]?["new"]?.array ?? []).first { $0["studip_id"] == "cy-ana-3" }
+        XCTAssertNotNil(back)
+        XCTAssertNil(back?["existing_id"])
+        XCTAssertEqual(preview["diff"]?["same"]?.array?.first { $0["studip_id"] == "cy-ana-1" }?["existing_id"]?.int, morning)
+        let r3 = try await store(d2, backend)
+        XCTAssertEqual(r3.newEvents, 0, "geloescht bleibt geloescht")
+    }
+
+    /// Geloeschte oder umbenannte Serien legt der naechste Abgleich nicht wieder an; ueber die Vorschau laesst sich
+    /// eine geloeschte Serie zurueckholen
+    func testDeletedOrRenamedSeriesAreNotRecreated() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let (d, _) = try await download()
+        _ = try await store(d, backend)
+        let chor = try await eventID(backend, "title='Chorprobe'")
+        let prog = try await eventID(backend, "title='Testprogrammierung'")
+        let del = await call(backend, "DELETE", "/api/timetable/events/\(chor)")
+        XCTAssertEqual(del.status, 200)
+        let patch = await call(backend, "PATCH", "/api/timetable/events/\(prog)", ["title": "Programmierung (VL)", "weekday": 3])
+        XCTAssertEqual(patch.status, 200)
+        let before = try await series(backend)
+
+        let r2 = try await store(d, backend)
+        XCTAssertEqual(r2.newEvents, 0)
+        let after = try await series(backend)
+        XCTAssertEqual(after, before, "nichts neu angelegt")
+        XCTAssertFalse(after.contains { $0.hasPrefix("Chorprobe|") || $0.hasPrefix("Testprogrammierung|") }, "\(after)")
+
+        // zurueckholen: die Vorschau bietet die geloeschte Chorprobe als neu an
+        let preview = try await studipPreview(backend)
+        var o = try XCTUnwrap(preview["diff"]?["new"]?.array?.first { $0["title"] == "Chorprobe" }?.object)
+        o["selected"] = true
+        let res = await call(backend, "POST", "/api/timetable/import/confirm", ["entries": [.object(o)], "source": "studip", "remove_ids": []])
+        XCTAssertEqual(res.json?["new"], 1)
+        let r3 = try await store(d, backend)
+        XCTAssertEqual(r3.newEvents, 0)
+        let n = try await backend.context.database.scalar("SELECT COUNT(*) FROM course_events WHERE title='Chorprobe'")
+        XCTAssertEqual(n, .integer(1))
+    }
+
+    /// Gewaehlte Gruppe: kein Hinweis "zur Auswahl" mehr (Abgleich und Auto-Status), spaetere Ausfaelle kommen dazu
+    func testChosenGroupIsNoLongerPendingAndGetsLaterCancellations() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let (d, _) = try await download()
+        let r = try await store(d, backend)
+        XCTAssertEqual(r.pendingGroups, 3)
+        let res = try await choose(backend, room: "Pool Test B")
+        XCTAssertEqual(res["new"], 1)
+        let r2 = try await store(d, backend)
+        XCTAssertEqual(r2, StudIPScheduleResult(newEvents: 0, pendingGroups: 0, cycles: 8, events: 7))
+        let status = await call(backend, "GET", "/api/timetable/auto-status")
+        XCTAssertEqual(status.json?["pending_groups"], 0)
+        XCTAssertEqual(status.json?["courses"], [])
+        // die Vorschau zeigt die Gruppen weiter (Wechsel bleibt moeglich)
+        let preview = try await studipPreview(backend)
+        XCTAssertEqual(preview["entries"]?.array?.filter { $0["selected"] == false }.count, 3)
+
+        let later = try scheduleReply([(#""EXDATES": ["2026-12-25", "2027-01-01"]"#, #""EXDATES": ["2026-12-25", "2027-01-01", "2027-01-08"]"#)])
+        let (d3, _) = try await download(["/jsonapi.php/v1/users/u-test/schedule": later])
+        _ = try await store(d3, backend)
+        let shown = await day(backend, "2027-01-08")
+        XCTAssertEqual(shown, ["Testprogrammierung ausfall"])
+    }
+
+    /// Ohne Gruppe gewaehlt, aber eine Serie mit Kurs, Wochentag und Beginn einer Gruppe (vor der Verknuepfung
+    /// gewaehlt): die Gruppe gilt als entschieden; andere Arten desselben Kurses zaehlen nicht
+    func testGroupChosenBeforeLinksCountsAsDecided() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let (d, _) = try await download()
+        _ = try await store(d, backend)
+        // Vorlesung desselben Kurses (Art vorlesung) entscheidet die Uebungsgruppen nicht
+        let pendingBefore = try await store(d, backend).pendingGroups
+        XCTAssertEqual(pendingBefore, 3)
+        _ = await call(backend, "POST", "/api/timetable/events", ["title": "Testprogrammierung", "kind": "uebung", "weekday": 4,
+                                                                  "start_time": "08:00", "end_time": "09:30", "course_id": "c-prog"])
+        let r = try await store(d, backend)
+        XCTAssertEqual(r.pendingGroups, 0)
+    }
+
+    /// Gruppe gewechselt (A ersetzt B ueber diff.changed): die Ausfaelle laut Stud.IP von B entfallen, eigene
+    /// Ausnahmen bleiben, der naechste Abgleich bringt B's Ausfaelle nicht zurueck
+    func testSwitchingGroupDropsCancellationsOfOldGroup() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let (d, _) = try await download()
+        _ = try await store(d, backend)
+        _ = try await choose(backend, room: "Pool Test B")
+        let row = try await eventID(backend, "weekday=4")
+        let b = try await exceptions(backend, row)
+        XCTAssertEqual(b, ["2026-12-25|cancelled|Ausfall laut Stud.IP", "2027-01-01|cancelled|Ausfall laut Stud.IP"])
+        _ = await call(backend, "POST", "/api/timetable/attendance", ["event_id": .number(Double(row)), "date": "2026-11-06", "mode": "today_skip"])
+
+        let res = try await choose(backend, room: "Pool Test A")
+        XCTAssertEqual(res["updated"], 1, "ersetzt die bisherige Gruppe (gleicher Titel und Wochentag)")
+        let s = try await series(backend)
+        XCTAssertEqual(s.filter { $0.contains("|4|") }, ["Testprogrammierung|4|08:00|09:30|weekly|2026-10-16|2027-01-29|Pool Test A|uebung|studip"])
+        let a = try await exceptions(backend, row)
+        XCTAssertEqual(a, ["2026-11-06|skip|"])
+        _ = try await store(d, backend)
+        let again = try await exceptions(backend, row)
+        XCTAssertEqual(again, ["2026-11-06|skip|"])
+        let xmas = await day(backend, "2026-12-25")
+        XCTAssertEqual(xmas, ["Testprogrammierung teilnahme"])
+    }
+
+    /// Vorlesung und Uebungsgruppe eines Kurses am selben Wochentag (gleicher Titel): die Gruppenwahl legt die Gruppe
+    /// neu an und laesst die Vorlesung stehen; ein Wechsel zu einer anderen Gruppe am selben Tag ersetzt die Gruppe
+    func testGroupOnLectureDayKeepsLecture() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        // Gruppe 3 (Pool Test C) am Dienstag wie die Vorlesung, dazu eine vierte Gruppe am Dienstag
+        let tuesday = try scheduleReply([
+            (#""description": "Übung Gruppe 3", "start": "16:00", "end": "17:30", "weekday": 3"#, #""description": "Übung Gruppe 3", "start": "16:00", "end": "17:30", "weekday": 2"#),
+            (#"{"data": ["#, #"""
+                {"data": [
+                 {"id": "cy-prog-ue4", "type": "seminar-cycle-dates",
+                  "attributes": {"title": "Kurszeit", "description": "Übung Gruppe 4", "start": "08:00", "end": "09:30", "weekday": 2, "color": null,
+                                 "recurrence": {"FREQ": "WEEKLY", "INTERVAL": 1, "DTSTART": "2026-10-13", "UNTIL": "2027-01-26", "EXDATES": ["2026-11-10"]}, "locations": ["Pool Test D"]},
+                  "relationships": {"owner": {"data": {"type": "courses", "id": "c-prog"}}}},
+                """#),
+        ])
+        let (d, _) = try await download(["/jsonapi.php/v1/users/u-test/schedule": tuesday])
+        _ = try await store(d, backend)
+        let lecture = try await eventID(backend, "title='Testprogrammierung' AND weekday=1")
+        // Titel und Wochentag allein trafen die Vorlesung (Python: "changed" mit ihrer ID)
+        let preview = try await studipPreview(backend)
+        let c = (preview["diff"]?["new"]?.array ?? []).first { $0["room"] == "Pool Test C" }
+        XCTAssertNotNil(c, "Gruppe am Vorlesungstag ist neu")
+        XCTAssertNil(c?["existing_id"])
+        XCTAssertEqual(preview["diff"]?["same"]?.array?.first { $0["studip_id"] == "cy-prog-vl" }?["existing_id"]?.int, lecture)
+
+        let res = try await choose(backend, room: "Pool Test C")
+        XCTAssertEqual(res["new"], 1)
+        XCTAssertEqual(res["updated"], 0)
+        let tue = try await series(backend).filter { $0.contains("|1|") && $0.hasPrefix("Testprogrammierung|") }
+        XCTAssertEqual(tue, ["Testprogrammierung|1|12:00|13:30|weekly|2026-10-13|2027-01-26|Hörsaal Test 3|vorlesung|studip",
+                             "Testprogrammierung|1|16:00|17:30|weekly|2026-10-14|2027-01-27|Pool Test C|uebung|studip"])
+        // Wechsel zu Gruppe 4 (auch Dienstag): ersetzt Gruppe 3, die Vorlesung bleibt, Ausfall der neuen Gruppe dazu
+        let sw = try await choose(backend, room: "Pool Test D")
+        XCTAssertEqual(sw["updated"], 1)
+        _ = try await store(d, backend)
+        let after = try await series(backend).filter { $0.contains("|1|") && $0.hasPrefix("Testprogrammierung|") }
+        XCTAssertEqual(after.count, 2, "\(after)")
+        XCTAssertTrue(after.contains("Testprogrammierung|1|12:00|13:30|weekly|2026-10-13|2027-01-26|Hörsaal Test 3|vorlesung|studip"), "\(after)")
+        XCTAssertTrue(after.contains { $0.hasPrefix("Testprogrammierung|1|08:00|09:30|") && $0.contains("Pool Test D") }, "\(after)")
+        let shown = await day(backend, "2026-11-10")
+        XCTAssertEqual(shown, ["Testprogrammierung ausfall", "Testprogrammierung teilnahme"])
+        let ex = try await exceptions(backend, lecture)
+        XCTAssertEqual(ex, [], "Vorlesung ohne Ausfall der Gruppe")
+    }
+
+    /// Serien aus der Zeit vor der Verknuepfung (Tabelle fehlt): genau passende Serien werden verknuepft statt neu
+    /// angelegt und bekommen spaetere Ausfaelle
+    func testSeriesFromBeforeLinksAreAdopted() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let (d, _) = try await download()
+        _ = try await store(d, backend)
+        try await backend.context.database.transaction { try $0.executeScript("DROP TABLE studip_timetable_links") }
+        let before = try await series(backend)
+        let more = try scheduleReply([(anaExdates, #""EXDATES": ["2026-11-02T10:00:00+01:00", "2026-11-09T10:00:00+01:00"]"#)])
+        let (d2, _) = try await download(["/jsonapi.php/v1/users/u-test/schedule": more])
+        let r = try await store(d2, backend)
+        XCTAssertEqual(r.newEvents, 0)
+        let after = try await series(backend)
+        XCTAssertEqual(after, before)
+        let shown = await day(backend, "2026-11-09")
+        XCTAssertEqual(shown, ["Testanalysis I ausfall"])
+        let links = try await backend.context.database.scalar("SELECT COUNT(*) FROM studip_timetable_links")
+        XCTAssertEqual(links, .integer(8))
+    }
+
+    // MARK: Nachbesserung S5: Netzfehler
+
+    /// Haengt der Server (Zeitlimit) oder fehlt das Netz, fragt der Abruf nichts mehr ab: hoechstens eine Anfrage
+    /// bis zum Zeitlimit statt einer je Kurs
+    func testTransportErrorStopsFetch() async throws {
+        let many = (1...12).map { StudIPCourse(id: "c-\($0)", title: "Testkurs \($0)") }
+        for error in [URLError(.timedOut), URLError(.notConnectedToInternet), CancellationError()] as [Error] {
+            let t = FailingTransport(error)
+            let client = StudIPClient(base: base, transport: t, pauseMillis: 0)
+            let d = await StudIPScheduleStore.fetch(client: client, userID: "u-test", courses: many)
+            XCTAssertEqual(t.requested.count, 1, "\(error)")
+            XCTAssertTrue(d.unreachable)
+            XCTAssertEqual(d.failedCourses, many.map(\.id))
+            XCTAssertNotNil(d.scheduleError)
+            XCTAssertTrue(d.events.isEmpty)
+        }
+        // Kurszeiten geladen, dann haengt der Server bei den Einzelterminen
+        let ok = try routes()
+        let t = FailingTransport(URLError(.timedOut), routes: ok.filter { !$0.key.contains("/events") })
+        let d = await StudIPScheduleStore.fetch(client: StudIPClient(base: base, transport: t, pauseMillis: 0), userID: "u-test", courses: courses)
+        XCTAssertEqual(t.requested.count, 3, "\(t.requested)")
+        XCTAssertNil(d.scheduleError)
+        XCTAssertEqual(d.cycles?.count, 8)
+        XCTAssertTrue(d.unreachable)
+        XCTAssertEqual(d.failedCourses, courses.map(\.id))
+        // HTTP-Fehler eines Kurses sind kein Netzfehler: die anderen Kurse werden weiter geladen
+        let (d2, _) = try await download(["/jsonapi.php/v1/courses/c-ana/events?page[limit]=200": serverError])
+        XCTAssertFalse(d2.unreachable)
+        XCTAssertEqual(d2.failedCourses, ["c-ana"])
+        XCTAssertEqual(d2.events.count, 4)
     }
 }

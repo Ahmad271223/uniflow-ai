@@ -502,6 +502,7 @@ def apply_import(conn, entries: list[dict], source: str, remove_ids: list[int] |
             conn.execute("UPDATE course_events SET start_time=?, end_time=?, room=COALESCE(NULLIF(?,''), room), kind=?, module_id=COALESCE(?, module_id) WHERE id=?",
                          (e["start_time"], e["end_time"], e.get("room") or "", e.get("kind") or "vorlesung", e.get("module_id"), e["existing_id"]))
             event_id = e["existing_id"]
+            _drop_stale_cancellations(conn, event_id, e.get("exdates"), note)
             n_upd += 1
         else:
             cur = conn.execute("""INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, created_at)
@@ -529,6 +530,18 @@ def _add_cancellations(conn, event_id, dates, note: str) -> None:
             continue
         conn.execute("INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,'cancelled',NULL,NULL,NULL,?,?)",
                      (event_id, d, note, db.now_iso()))
+
+
+def _drop_stale_cancellations(conn, event_id, dates, note: str) -> None:
+    """Erneuter Import einer vorhandenen Serie: Ausfaelle derselben Quelle (gleiche Notiz), die die neue Fassung nicht
+    mehr meldet, entfallen (Kalenderdatei ohne diesen EXDATE, andere Uebungsgruppe gewaehlt). Ausnahmen des Nutzers
+    (andere Art oder Notiz) bleiben. Ohne Liste der Ausfaelle (KI, Stud.IP-Einzeltermine) aendert sich nichts."""
+    if not isinstance(dates, list):
+        return
+    keep = {d for d in dates if isinstance(d, str)}
+    for r in db.rows(conn, "SELECT id, date FROM event_exceptions WHERE event_id=? AND type='cancelled' AND note=? ORDER BY id", (event_id, note)):
+        if r["date"] not in keep:
+            conn.execute("DELETE FROM event_exceptions WHERE id=?", (r["id"],))
 
 
 def week_grid(conn, start: date) -> dict:
