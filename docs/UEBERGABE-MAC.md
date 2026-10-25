@@ -4,7 +4,8 @@ Stand 25.10.2026, Zweig `develop`. Diese Datei ist für eine **neue Sitzung auf 
 Notizen der bisherigen Arbeit liegen auf dem Windows-PC und sind auf dem Mac nicht sichtbar.
 
 > **Neu – hat Vorrang:** [`docs/AUFTRAG-APPSTORE-V1.md`](AUFTRAG-APPSTORE-V1.md). V1 = iPad-App im App Store mit
-> Apple-Editor (PencilKit), „Mit Apple anmelden“ und Abos (7 Tage kostenlos, dann Free/Plus/Pro), ohne PC-Server.
+> Apple-Editor (PencilKit), „Mit Apple anmelden“ und Abos (Free dauerhaft; Plus und Pro mit 1 Woche gratis als
+> Apple-Einführungsangebot), ohne PC-Server.
 > Eigener UniFlow-Editor, Android und Windows folgen ca. 1 Monat später (V2). Die Reihenfolge unten gilt nur, soweit
 > sie dem Auftrag nicht widerspricht.
 

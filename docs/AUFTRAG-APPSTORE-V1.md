@@ -11,7 +11,9 @@ schreibende Tests nur mit Zustimmung, `[skip ci]`, kein `main`, keine Passwörte
 | **V1** | jetzt | **iPad im App Store** – noch kein Play Store, kein Windows | **Apple-Editor** (PencilKit + PDFKit, der vorhandene native Editor) | **Mit Apple anmelden** |
 | **V2** | ca. 1 Monat nach V1 | zusätzlich **Android (Play Store)** und **Windows** | **eigener UniFlow-Editor** (1:1 wie im Web). Auf Apple in den Einstellungen wählbar: „Apple-Editor“ oder „UniFlow-Editor“. Windows und Android: nur UniFlow-Editor | zusätzlich **Google** und **SMS** |
 
-Abos gibt es **von Anfang an**: 7 Tage kostenlos, danach **Free**, **Plus** oder **Pro** (Abschnitt 4).
+Abos gibt es **von Anfang an**: **Free** dauerhaft ohne Abo; **Plus** und **Pro** beginnen mit **7 Tagen kostenlos als
+Apple-Einführungsangebot** („1 Woche gratis“, entschieden am 25.10.2026), danach kostenpflichtig, wenn nicht gekündigt
+(Abschnitt 4 und 5).
 
 ## 2. Was das für V1 bedeutet
 
@@ -87,14 +89,20 @@ Regeln:
 
 - **StoreKit 2**, eine Abo-Gruppe „UniFlow“: `de.uniflow.plus.monthly`, `de.uniflow.pro.monthly` (bereits in
   `apps/apple/UniFlowTests/UniFlow.storekit` und `Purchases/PurchaseStore.swift`).
-- **7 Tage kostenlos – Empfehlung:** Apples Einführungsangebot „1 Woche gratis“ auf Plus **und** Pro
-  (StoreKit-Testkonfiguration: `introductoryOffer` mit `paymentMode: free`, `subscriptionPeriod: P1W`). Apple
-  prüft selbst, ob jemand das Angebot schon genutzt hat; danach verlängert sich das Abo kostenpflichtig, wenn es nicht
-  gekündigt wird. Preis, Laufzeit und Kündigungshinweis müssen vor dem Kauf klar sichtbar sein (Richtlinie 3.1.2).
-  Free bleibt ohne Abo dauerhaft nutzbar.
-  *Alternative, falls der Inhaber „7 Tage alles frei ohne Zahlungsdaten“ will:* nach der ersten Anmeldung 7 Tage
-  Pro-Umfang, danach Free; Startdatum im Schlüsselbund. Lässt sich auf weiteren Geräten wiederholen und ist bei der
-  App-Prüfung weniger üblich. **Nicht ohne Entscheidung des Inhabers bauen.**
+- **7 Tage kostenlos – entschieden (Inhaber, 25.10.2026): Apple-Einführungsangebot „1 Woche gratis“ auf Plus
+  und Pro.** Umsetzung:
+  - StoreKit-Testkonfiguration (`apps/apple/UniFlowTests/UniFlow.storekit`): bei beiden Produkten
+    `introductoryOffer` mit `paymentMode: free`, `subscriptionPeriod: P1W`, `numberOfPeriods: 1` eintragen (heute
+    leer). In App Store Connect richtet der Inhaber dasselbe Angebot später selbst ein.
+  - Anspruch prüfen mit `Product.SubscriptionInfo.isEligibleForIntroOffer` (je Abo-Gruppe, Apple merkt sich die
+    Nutzung pro Apple ID): Hat jemand die Woche schon genutzt, zeigt die Abo-Seite den normalen Preis statt
+    „1 Woche gratis“.
+  - Vor dem Kauf klar sichtbar: „1 Woche gratis, danach 1,99 €/Monat bzw. 4,99 €/Monat, monatlich kündbar“
+    (Richtlinie 3.1.2); Preise immer aus `Product.displayPrice`, nie fest im Code.
+  - Während der Gratiswoche gilt der volle Umfang des gewählten Tarifs (StoreKit liefert die Berechtigung wie bei
+    einem bezahlten Abo). Wird gekündigt, endet der Zugang mit der Woche und die App fällt auf Free zurück.
+  - Free bleibt ohne Abo dauerhaft nutzbar. Eine Probezeit ohne Zahlungsdaten (eigene 7-Tage-Freischaltung) wird
+    **nicht** gebaut.
 - **Berechtigung in V1 auf dem Gerät:** `Transaction.currentEntitlements` (von StoreKit signiert und geprüft),
   `Transaction.updates` beobachten, „Käufe wiederherstellen“ (`AppStore.sync()`), „Abo verwalten“
   (`manageSubscriptionsSheet`). Ab V2 prüft zusätzlich der Server (`/api/billing/apple/verify`,
@@ -104,16 +112,16 @@ Regeln:
 - **Keine echten Produkte, keine Preise in App Store Connect, keine Einreichung zur App-Prüfung** ohne ausdrückliche
   Freigabe des Inhabers. Alles Kostenpflichtige (Developer Program, Produkte, Dienste) richtet der Inhaber selbst ein.
 
-## 6. Entscheidungen des Inhabers (offen)
+## 6. Entscheidungen des Inhabers
 
-| Thema | Optionen / Hinweis |
+| Thema | Stand |
 |---|---|
-| **KI in V1** | KI braucht ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App). Ohne KI hat Pro in V1 wenig Mehrwert |
-| **Art der 7 Tage** | Apple-Einführungsangebot (Empfehlung) oder 7 Tage frei ohne Zahlungsdaten |
-| **Preise** | Zielpreise 1,99 € / 4,99 € pro Monat; Jahresabo ja/nein |
-| **Server für V2** | Google- und SMS-Anmeldung, Abgleich zwischen Geräten und Abos über Plattformen hinweg brauchen einen gehosteten Dienst (Kosten, Betrieb, Datenschutz). SMS kostet pro Nachricht |
-| **Apple Developer Program** | 99 €/Jahr, Voraussetzung für „Mit Apple anmelden“, TestFlight, App Store und echte Abos |
-| **Rechtliches vor dem Start** | Datenschutzerklärung (URL in App Store Connect), Impressum, Abo-Bedingungen; rechtliche Prüfung des Stud.IP-Abrufs für andere Studierende (`docs/IPAD-STUDIP-SYNC.md`, Abschnitt 8) |
+| **Art der 7 Tage** | **Entschieden (25.10.2026):** Apple-Einführungsangebot, 1 Woche gratis auf Plus und Pro (Abschnitt 5) |
+| **KI in V1** | Offen. KI braucht ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App). Ohne KI hat Pro in V1 wenig Mehrwert |
+| **Preise** | Offen. Zielpreise 1,99 € / 4,99 € pro Monat; Jahresabo ja/nein |
+| **Server für V2** | Offen. Google- und SMS-Anmeldung, Abgleich zwischen Geräten und Abos über Plattformen hinweg brauchen einen gehosteten Dienst (Kosten, Betrieb, Datenschutz). SMS kostet pro Nachricht |
+| **Apple Developer Program** | Offen, Anmeldung durch den Inhaber. 99 €/Jahr, Voraussetzung für „Mit Apple anmelden“, TestFlight, App Store und echte Abos |
+| **Rechtliches vor dem Start** | Offen. Datenschutzerklärung (URL in App Store Connect), Impressum, Abo-Bedingungen; rechtliche Prüfung des Stud.IP-Abrufs für andere Studierende (`docs/IPAD-STUDIP-SYNC.md`, Abschnitt 8) |
 
 ## 7. App-Store-Vorbereitung (V1)
 
@@ -131,6 +139,6 @@ Regeln:
 ## Startnachricht für die Mac-Sitzung
 
 > Hol mit `git pull` den neuen Stand und lies zuerst `docs/AUFTRAG-APPSTORE-V1.md` – das hat Vorrang. V1 ist die
-> iPad-App im App Store mit Apple-Editor, „Mit Apple anmelden“ und Abos (7 Tage kostenlos, dann Free/Plus/Pro). Sie
+> iPad-App im App Store mit Apple-Editor, „Mit Apple anmelden“ und Abos (Free dauerhaft; Plus und Pro mit 1 Woche gratis als Apple-Einführungsangebot). Sie
 > muss ohne meinen PC-Server laufen. Arbeite nach der Reihenfolge in Abschnitt 3. Keine echten Produkte, keine
 > Einreichung, nichts Kostenpflichtiges ohne mich; offene Entscheidungen (Abschnitt 6) fragst du mich.
