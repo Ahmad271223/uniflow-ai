@@ -57,28 +57,34 @@
       "status": "Nicht begonnen"
     },
     "B.7": {
-      "heute": "fehlt",
-      "status": "Nicht begonnen"
+      "heute": "1:1 (Views/Timer/StudyTimer.swift), global über allen Ansichten",
+      "status": "Kompiliert",
+      "note": "baut; Kasten und Pille mit dem Web-Code in Safari im selben Simulator verglichen (ohne Daten, Abweichung ≤ 0,5 pt)"
     },
     "B.8": {
-      "heute": "alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert",
-      "status": "Nicht begonnen"
+      "heute": "1:1 (Views/Exams/ExamsPage.swift: ExamsPage, ExamRunPage, ExamTimer)",
+      "status": "Kompiliert",
+      "note": "baut; Testliste mit echten Daten im Simulator angezeigt; Safari-Vergleich mit denselben echten Daten steht aus (PIN in Safari im Simulator)"
     },
     "B.8.3": {
-      "heute": "fehlt (Karteikarten)",
-      "status": "Nicht begonnen"
+      "heute": "1:1 (CardsPage in Views/Exams/ExamsPage.swift)",
+      "status": "Kompiliert",
+      "note": "baut; Safari-Vergleich mit denselben echten Daten steht aus (PIN in Safari im Simulator)"
     },
     "B.9": {
-      "heute": "fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet",
-      "status": "Nicht begonnen"
+      "heute": "1:1 (Views/Services/ServicesPage.swift)",
+      "status": "Kompiliert",
+      "note": "baut; mit echten Daten im Simulator angezeigt; Kartenkopf „Notenspiegel (QIS)“ mit Web-CSS verglichen (±1,5 pt); Safari-Vergleich mit denselben echten Daten steht aus (PIN in Safari im Simulator)"
     },
     "B.10": {
-      "heute": "fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet",
-      "status": "Nicht begonnen"
+      "heute": "1:1 (Views/Services/CommunityPage.swift)",
+      "status": "Kompiliert",
+      "note": "baut; Safari-Vergleich mit denselben echten Daten steht aus (PIN in Safari im Simulator)"
     },
     "B.11": {
-      "heute": "alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose)",
-      "status": "Nicht begonnen"
+      "heute": "1:1 (Views/Settings/SettingsPage.swift), alte Formularansicht entfernt",
+      "status": "Kompiliert",
+      "note": "baut; alle vier Bereiche mit echten Daten im Simulator angezeigt, keine Änderung ausgelöst; Safari-Vergleich mit denselben echten Daten steht aus (PIN in Safari im Simulator)"
     },
     "B.12": {
       "heute": "teilweise in Systemoptik",
@@ -115,11 +121,15 @@
     },
     {
       "prefix": "W.A-12",
-      "heute": "Übergang: Web-Ansicht eingebettet"
+      "heute": "Uni & Noten 1:1 (ServicesPage)",
+      "status": "Kompiliert",
+      "note": "baut"
     },
     {
       "prefix": "W.A-13",
-      "heute": "Übergang: Web-Ansicht eingebettet"
+      "heute": "Community 1:1 (CommunityPage)",
+      "status": "Kompiliert",
+      "note": "baut"
     },
     {
       "prefix": "W.B.0",
@@ -720,7 +730,9 @@
     },
     {
       "prefix": "W.B.9.1",
-      "note": "bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort"
+      "note": "bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort",
+      "heute": "CredentialDialog: „Gleiches Passwort wie …“ und „Nicht speichern“ wie im Web; „Eigene Zugangsdaten“ nur Anzeige",
+      "status": "Kompiliert"
     },
     {
       "prefix": "W.B.0",
@@ -987,24 +999,24 @@
       "contains": [
         "import läuft"
       ],
-      "status": "Getestet",
-      "note": "ICS-Import über Debug-Startaktion gegen den Testserver ausgeführt: Wartedialog, Formular-Upload, Vorschau erscheint"
+      "status": "Kompiliert",
+      "note": "früher nur gegen den lokalen Testserver mit einer ICS-Testdatei ausprobiert (ICS-Import über Debug-Startaktion gegen den Testserver ausgeführt: Wartedialog, Formular-Upload, Vorschau erscheint); mit echten Daten zu wiederholen"
     },
     {
       "prefix": "W.B.3.5",
       "contains": [
         "importvorschau"
       ],
-      "status": "Getestet",
-      "note": "mit ICS-Testdatei gegen den Testserver geprüft: Zählung (1 neu, 9 nicht mehr enthalten), Tabelle und Entfernen-Chips korrekt; Übernehmen noch nicht ausprobiert"
+      "status": "Kompiliert",
+      "note": "früher nur gegen den lokalen Testserver mit einer ICS-Testdatei ausprobiert (mit ICS-Testdatei gegen den Testserver geprüft: Zählung (1 neu, 9 nicht mehr enthalten), Tabelle und Entfernen-Chips korrekt; Übernehmen noch nicht ausprobiert); mit echten Daten zu wiederholen"
     },
     {
       "prefix": "W.B.3.5",
       "contains": [
         "nicht mehr im neuen plan"
       ],
-      "status": "Getestet",
-      "note": "mit ICS-Testdatei angezeigt (9 Einträge mit Wochentag und Uhrzeit)"
+      "status": "Kompiliert",
+      "note": "früher nur gegen den lokalen Testserver mit einer ICS-Testdatei ausprobiert (mit ICS-Testdatei angezeigt (9 Einträge mit Wochentag und Uhrzeit)); mit echten Daten zu wiederholen"
     },
     {
       "prefix": "W.B.0-01",
@@ -1099,6 +1111,81 @@
       "heute": "Teilen-Menü von iPadOS (Sichern in Dateien)",
       "status": "Kompiliert",
       "note": "bewusst anders: kein Browser-Download auf dem iPad; noch nicht ausprobiert"
+    },
+    {
+      "prefix": "W.B.7-0",
+      "contains": [
+        "anzeige"
+      ],
+      "status": "Getestet",
+      "note": "Format m:ss (Math.round, nie negativ) per Unit-Test (TimerAndServicesTests); Kasten mit Web-Code verglichen"
+    },
+    {
+      "prefix": "W.B.7-0",
+      "contains": [
+        "start"
+      ],
+      "status": "Getestet",
+      "note": "Start/Pause/Takt per Unit-Test (TimerAndServicesTests)"
+    },
+    {
+      "prefix": "W.B.7-0",
+      "contains": [
+        "pill"
+      ],
+      "status": "Getestet",
+      "note": "Sichtbarkeit per Unit-Test; Lage/Größe mit Web-Code in Safari verglichen"
+    },
+    {
+      "prefix": "W.B.7-0",
+      "contains": [
+        "ablauf"
+      ],
+      "status": "Getestet",
+      "note": "Meldungen und Pomodoro-Phasenwechsel per Unit-Test (TimerAndServicesTests)"
+    },
+    {
+      "prefix": "W.B.7-0",
+      "contains": [
+        "öffnen"
+      ],
+      "note": "Kopfzeilen-Knopf fertig; Editor-Zubehör „Zeitmesser“ folgt mit dem PDF-Editor"
+    },
+    {
+      "prefix": "W.B.7-0",
+      "contains": [
+        "widget"
+      ],
+      "note": "wie im Web ragt die Moduswahl rechts aus dem 260-px-Kasten, der Schließen-Knopf liegt außerhalb des Bildschirms (Fehler der Web-App, Schließen über das Uhr-Symbol)"
+    },
+    {
+      "prefix": "W.B.9-07",
+      "heute": "Hinweiskasten ohne Passwortfelder: QIS-Zugang in der Web-App am PC eintragen",
+      "status": "Kompiliert",
+      "note": "bewusst anders: kein Passwort auf dem iPad; Anmeldung über die echte QIS-Seite folgt mit dem nativen QIS-Abruf"
+    },
+    {
+      "prefix": "W.B.9-11",
+      "note": "PDF über /api/qis/documents/:id, Vorschau mit QuickLook statt neuem Tab"
+    },
+    {
+      "prefix": "W.B.11.3-10",
+      "heute": "Karte „Auf diesem iPad“: Serveradresse, Verbindung trennen, Abo (Testmodus)",
+      "status": "Kompiliert"
+    },
+    {
+      "prefix": "W.B.11.3-02",
+      "heute": "LUH-ID als Anzeige, Hinweis statt Passwortfeld; Knopf „Stud.IP direkt auf dem iPad“",
+      "status": "Kompiliert"
+    },
+    {
+      "prefix": "W.B.11.3-03",
+      "status": "Kompiliert"
+    },
+    {
+      "prefix": "W.B.11.4-03",
+      "heute": "PDFKit statt pdf.js: Abruf, Seitenzahl, Seite 1 als Bild",
+      "status": "Kompiliert"
     }
   ],
   "extra": [

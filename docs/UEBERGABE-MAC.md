@@ -30,16 +30,17 @@ Bestandsaufnahmen: `docs/paritaet/web-ansichten.md`, `web-editor.md`, `ipad-app.
 
 ## Stand
 
-Aktualisiert nach Commit `74354ff` (Arbeit der ersten Mac-Sitzung). Maßgeblich ist immer `WEB-IPAD-PARITAET.md`.
+Aktualisiert nach Commit `c6e4f7a` (zweite Mac-Sitzung, 25.10.2026). Maßgeblich ist immer `WEB-IPAD-PARITAET.md`.
 
 | Bereich | Stand |
 | --- | --- |
 | Designsystem, App-Rahmen, Übersicht, Lernkalender, Stundenplan, Meine Module, Dokumente & Notizen | 1:1 umgesetzt und **kompiliert** (284 Einträge) – geprüft bisher nur gegen einen lokalen Testserver, nicht mit echten Daten |
-| Stundenplan-Import | 3 Einträge „Getestet“, aber mit einer erfundenen ICS-Datei gegen den Testserver → mit echten Daten wiederholen |
+| Stundenplan-Import | auf „Kompiliert“ zurückgestuft: bisher nur mit einer erfundenen ICS-Datei gegen den Testserver ausprobiert → mit echten Daten wiederholen |
 | Dokumentansicht, PDF-Editor | **nicht begonnen** (27 + 107 Einträge), alter nativer Editor |
-| Tests & Wiederholung, Einstellungen, Uni & Noten, Zeitmesser, Community | nicht begonnen (Uni & Noten/Community: Web-Ansicht des PC-Servers als Übergang) |
+| Tests & Wiederholung, Einstellungen, Uni & Noten, Zeitmesser, Community | 1:1 umgesetzt und **kompiliert**, mit echten Daten im Simulator angezeigt (nichts Änderndes ausgelöst); Safari-Vergleich mit echten Daten offen (Safari im Simulator braucht die PIN); Zeitmesser-Logik per Unit-Test geprüft (4 Einträge „Getestet“) |
 | Stud.IP direkt vom iPad | Kern getestet; App-Teil kompiliert, mit echter Anmeldung noch nicht ausprobiert; Aufbau von QIS/Stud.IP in `docs/QIS-STUDIP-STRUKTUR.md` |
 | Swift-Kern `Packages/UniFlowCore` | 48/48 Tests grün |
+| App-Tests `UniFlowTests` | 33/33 grün im iPad-Simulator (ad-hoc signiert, inkl. Schlüsselbund) |
 | Visuell geprüft | **0** – noch kein Bildvergleich abgelegt |
 
 ## Erste Schritte auf dem Mac
@@ -115,7 +116,9 @@ geprüft“.
    Seitenverwaltung, Rückgängig für alles, Lineal, Zoom-Ansicht, KI-Seitenleiste (nur Anbindung an den Server),
    Tabs, geteilte Ansicht, Export. Pencil-Feingefühl bleibt Gerätetest (`docs/MAC-IPAD-CHECKLISTE.md`).
 2. Bisher kompilierte Bereiche mit echten Daten prüfen und Bildvergleiche ablegen.
-3. Tests & Wiederholung (inkl. Karteikarten), Einstellungen, Uni & Noten, Zeitmesser, Community.
+3. Tests & Wiederholung (inkl. Karteikarten), Einstellungen, Uni & Noten, Zeitmesser, Community: umgesetzt und kompiliert;
+   offen sind der Safari-Vergleich mit echten Daten, die QIS-Anmeldung über die echte QIS-Seite (nativer Abruf) und
+   „Zeitmesser“ im Zubehör-Menü des Editors.
 4. Nach jedem Bereich: kompilieren, Unit-Tests, mit echten Daten ausprobieren, Bildvergleich, `status.json`
    aktualisieren, `python3 tools/gen-parity.py`, committen mit `[skip ci]` (nach Freigabe des Inhabers).
 5. Lokales Backend (SQLite + Swift-Port von `study.py`, `timetable.py`, `scriptsearch.py`), damit die App ohne PC läuft.
