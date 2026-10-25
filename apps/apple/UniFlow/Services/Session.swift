@@ -1,7 +1,8 @@
 import Foundation
 import Security
 
-/// Verbindung zum UniFlow-Server: Adresse in UserDefaults, PIN im Schluesselbund.
+/// Verbindung zum eigenen UniFlow-Server (nur Entwicklung, Einstellungen -> Entwicklung):
+/// Adresse in UserDefaults, PIN im Schluesselbund. Ohne Verbindung bleibt `api` nil und die App laeuft trotzdem.
 @MainActor
 final class Session: ObservableObject {
     @Published private(set) var api: APIClient?
@@ -17,7 +18,8 @@ final class Session: ObservableObject {
         }
     }
 
-    var savedURL: String { UserDefaults.standard.string(forKey: urlKey) ?? "http://192.168.0.10:8765" }
+    /// zuletzt verwendete oder per -UFServerHint vorgetragene Adresse; leer, wenn noch keine bekannt ist
+    var savedURL: String { UserDefaults.standard.string(forKey: urlKey) ?? "" }
 
     func connect(urlString: String, pin: String) async {
         lastError = nil
@@ -54,12 +56,40 @@ final class Session: ObservableObject {
 /// Nur Debug-Builds: Startargumente fuer Simulator und UI-Vergleiche.
 ///   -UFServer http://localhost:8765   verbindet ohne PIN (nur fuer einen lokalen Testserver, der keine PIN verlangt)
 ///   -UFDisconnect YES -UFServerHint <url>   trennt die Verbindung und traegt die Adresse vor; die PIN gibt der Inhaber ein
+///                                     (Einstellungen -> Entwicklung -> Mit eigenem UniFlow-Server verbinden)
+///   -UFOnboarding reset               Konto und Merker "Tarifwahl gezeigt" loeschen -> Begruessung wie nach Neuinstallation
+///   -UFOnboarding skip                Debug-Konto ohne Apple-ID, Tarifwahl gilt als gezeigt -> direkt die Oberflaeche
+///   -UFOnboarding plan                Debug-Konto, Tarifwahl noch nicht gezeigt -> Tarifwahl
+///                                     Ohne -UFOnboarding gilt bei -UFServer/-UFRoute/-UFAction "skip" (bisherige Bildvergleiche).
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,
 ///                                     timer:<stopwatch|countdown|pomodoro>[:run|:pill])
 /// Die Darstellung laesst sich ueber -theme dark|light|auto setzen (AppStorage liest Startargumente).
 enum DebugLaunch {
+    /// vor dem ersten Bild (UniFlowApp.init), damit die Begruessung nicht kurz aufblitzt
+    @MainActor
+    static func prepare(account: AccountStore) {
+        #if DEBUG
+        let d = UserDefaults.standard
+        let mode = d.string(forKey: "UFOnboarding")
+            ?? (["UFServer", "UFRoute", "UFAction"].contains { d.object(forKey: $0) != nil } ? "skip" : nil)
+        switch mode {
+        case "reset":
+            account.deleteAccount()
+            account.notice = nil
+        case "skip":
+            if account.account == nil { account.skipSignInForDebug() }
+            account.markPlanShown()
+        case "plan":
+            account.deleteAccount()
+            account.notice = nil
+            account.skipSignInForDebug()
+        default: break
+        }
+        #endif
+    }
+
     @MainActor
     static func apply(session: Session, router: UFRouter, overlay: UFOverlay, toast: UFToastCenter, timer: StudyTimer) async {
         #if DEBUG

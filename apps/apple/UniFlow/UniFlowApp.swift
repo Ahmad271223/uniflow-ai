@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Einstieg der nativen iPad-App. Studienfunktionen kommen vom bestehenden UniFlow-Server (FastAPI),
-/// die Handschrift laeuft nativ ueber PencilKit (siehe Editor/PDFEditorController.swift).
+/// Einstieg der nativen iPad-App. Erster Start nach docs/AUFTRAG-APPSTORE-V1.md Abschnitt 2a
+/// (Views/Onboarding/OnboardingFlow.swift); die Handschrift laeuft nativ ueber PencilKit
+/// (siehe Editor/PDFEditorController.swift). Der eigene UniFlow-Server ist nur noch ein Entwicklungsmodus.
 @main
 struct UniFlowApp: App {
+    @StateObject private var account: AccountStore
     @StateObject private var session = Session()
     @StateObject private var studip = StudIPSync()
     @StateObject private var router = UFRouter()
@@ -14,12 +16,19 @@ struct UniFlowApp: App {
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue     // wie localStorage "theme" im Web
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        let a = AccountStore()
+        DebugLaunch.prepare(account: a)                                   // -UFOnboarding vor dem ersten Bild
+        _account = StateObject(wrappedValue: a)
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
                 .modifier(StudyTimerHost(timer: timer, toast: toast))      // Zeitmesser unter Dialogen und Meldungen
                 .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
                 .modifier(UFToastOverlay(center: toast))
+                .environmentObject(account)
                 .environmentObject(session)
                 .environmentObject(studip)
                 .environmentObject(router)
@@ -41,14 +50,9 @@ struct UniFlowApp: App {
     }
 }
 
+/// Begruessung -> Tarifwahl (nur beim ersten Mal) -> Oberflaeche; die Oberflaeche erscheint auch ohne Server
 struct RootView: View {
-    @EnvironmentObject private var session: Session
-
     var body: some View {
-        if session.api != nil {
-            MainView()
-        } else {
-            ConnectView()
-        }
+        OnboardingFlow { MainView() }
     }
 }

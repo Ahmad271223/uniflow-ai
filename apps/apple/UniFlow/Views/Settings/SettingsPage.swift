@@ -5,6 +5,8 @@ import UniFlowCore
 // Einstellungen 1:1 nach viewSettings() und diagTab() in app/static/views-misc.js.
 // Bewusst anders (WEB-IPAD-PARITAET.md, W.B.11.3): kein Passwortfeld fuer Stud.IP; statt "Auf dem iPad benutzen"
 // (verbindet ein iPad mit dem PC) zeigt die Karte die Verbindung dieses iPads, Stud.IP direkt und den Tarif.
+// V1 (docs/AUFTRAG-APPSTORE-V1.md 2a): Die Seite funktioniert auch ohne Server. Oben stehen "Konto" (Mit Apple
+// angemeldet, Konto loeschen) und "Tarif"; die Verbindung zum eigenen PC-Server liegt unter "Entwicklung".
 
 struct SettingsPage: View {
     let initialTab: String?
@@ -30,19 +32,19 @@ struct SettingsPage: View {
 
     var body: some View {
         Group {
-            if let data { content(data) } else if let error { UFContent(maxWidth: 1180) { UFEmpty(icon: "alert", text: error) } } else {
+            if session.api == nil { localContent } else if let data { content(data) } else if let error {
+                UFContent(maxWidth: 1180) { UFEmpty(icon: "alert", text: error) }
+            } else {
                 UFContent(maxWidth: 1180) { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
             }
         }
-        .task {
-            tab = initialTab == "diag" ? "advanced" : (initialTab ?? "modules")
-            await load()
-        }
+        .task { tab = initialTab == "diag" ? "advanced" : (initialTab ?? (session.api == nil ? "account" : "modules")) }
+        .task(id: session.api?.base) { await load() }                      // nach Verbinden/Trennen unter "Entwicklung"
         .ufReload { await load() }
     }
 
     private func load() async {
-        guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
+        guard let api = session.api else { data = nil; error = nil; return }
         do {
             async let s = api.value("/api/settings")
             async let c = api.value("/api/courses")
@@ -57,17 +59,28 @@ struct SettingsPage: View {
     }
 
     @ViewBuilder private func content(_ d: Loaded) -> some View {
-        let narrow = windowWidth <= 820
         UFContent(maxWidth: 1180) {
             UFPageHead("Einstellungen")
-            // .set-layout: 240 px Navigation | Inhalt, gap 1.2rem; bis 820 px untereinander, Navigation waagerecht
-            let nav = SettingsNav(tab: $tab, horizontal: narrow)
-            let pane = SettingsBody(tab: tab, d: d, reload: { await load() })
-            if narrow {
-                VStack(alignment: .leading, spacing: 19.2) { nav; pane }
-            } else {
-                HStack(alignment: .top, spacing: 19.2) { nav.frame(width: 240); pane.frame(maxWidth: .infinity, alignment: .leading) }
-            }
+            layout(SettingsNav(tab: $tab, horizontal: windowWidth <= 820), SettingsBody(tab: tab, d: d, reload: { await load() }))
+        }
+    }
+
+    /// ohne Server (V1-Normalfall): Konto, Tarif, Stud.IP direkt, Darstellung auf dem Geraet und "Entwicklung"
+    @ViewBuilder private var localContent: some View {
+        let current = SettingsNav.localKeys.contains(tab) ? tab : "account"
+        UFContent(maxWidth: 1180) {
+            UFPageHead("Einstellungen")
+            layout(SettingsNav(tab: Binding(get: { current }, set: { tab = $0 }), horizontal: windowWidth <= 820, keys: SettingsNav.localKeys),
+                   Group { if current == "dev" { DevelopmentTab() } else { LocalAccountTab() } })
+        }
+    }
+
+    /// .set-layout: 240 px Navigation | Inhalt, gap 1.2rem; bis 820 px untereinander, Navigation waagerecht
+    @ViewBuilder private func layout<N: View, P: View>(_ nav: N, _ pane: P) -> some View {
+        if windowWidth <= 820 {
+            VStack(alignment: .leading, spacing: 19.2) { nav; pane }
+        } else {
+            HStack(alignment: .top, spacing: 19.2) { nav.frame(width: 240); pane.frame(maxWidth: .infinity, alignment: .leading) }
         }
     }
 }
@@ -76,11 +89,16 @@ struct SettingsPage: View {
 private struct SettingsNav: View {
     @Binding var tab: String
     let horizontal: Bool
+    /// nur diese Bereiche zeigen (ohne Server: Zugang & Darstellung, Entwicklung)
+    var keys: [String]?
     static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
-                                                    ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings")]
+                                                    ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings"),
+                                                    ("dev", "Entwicklung", "layers")]
+    static let localKeys = ["account", "dev"]
 
     var body: some View {
-        let buttons = ForEach(Self.items, id: \.0) { item in
+        let shown = Self.items.filter { keys?.contains($0.0) ?? true }
+        let buttons = ForEach(shown, id: \.0) { item in
             let (k, l, i) = item
             Button { tab = k } label: {
                 HStack(spacing: 9.6) {
@@ -112,6 +130,7 @@ private struct SettingsBody: View {
         switch tab {
         case "account": AccountTab(d: d)
         case "advanced": AdvancedTab(d: d)
+        case "dev": DevelopmentTab()
         case "plan": PlanTab(s: d.s)
         default: ModulesTab(d: d, reload: reload)
         }
@@ -440,21 +459,19 @@ private struct AccountTab: View {
     @State private var userName = ""
     @State private var pen = "all"
     @State private var hand = "right"
-    @State private var sheet: SheetKind?
-
-    enum SheetKind: String, Identifiable { case studip, tarif; var id: String { rawValue } }
+    @State private var studipSheet = false
 
     private var api: SettingsAPI { SettingsAPI(api: session.api, toast: toast, router: router) }
 
     var body: some View {
         // .set-body .grid.cols-2: auto-fit, minmax(340px, 1fr); .span-2 ueber die ganze Zeile
         VStack(alignment: .leading, spacing: 16) {
+            AppAccountCards()
             UFGridLayout(spacing: 16, minWidth: 340) {
                 credCard
                 looksCard
             }
             .environment(\.ufFillsCell, true)
-            ipadCard
         }
             .onAppear {
                 termName = d.term.s("name") ?? ""
@@ -465,12 +482,7 @@ private struct AccountTab: View {
                 hand = d.s.s("hand") ?? "right"
                 localHand = hand
             }
-            .sheet(item: $sheet) { k in
-                NavigationStack {
-                    Group { if k == .studip { StudIPView() } else { SubscriptionView() } }
-                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { sheet = nil } } }
-                }
-            }
+            .sheet(isPresented: $studipSheet) { SettingsSheet(close: { studipSheet = false }) { StudIPView() } }
     }
 
     /// Stud.IP-Zugang: Status wie im Web; ohne Passwortfeld (Anmeldung auf der echten Stud.IP-Seite)
@@ -495,7 +507,7 @@ private struct AccountTab: View {
                         }
                     }
                 }
-                UFButton("Stud.IP direkt auf dem iPad", icon: "book", size: .small) { sheet = .studip }
+                UFButton("Stud.IP direkt auf dem iPad", icon: "book", size: .small) { studipSheet = true }
             }
         }
     }
@@ -545,25 +557,244 @@ private struct AccountTab: View {
                 .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4).padding(.bottom, 5.6)
         }
     }
+}
 
-    /// statt "Auf dem iPad benutzen": Verbindung dieses iPads, Stud.IP direkt, Tarif
-    private var ipadCard: some View {
-        UFCard {
-            UFCardHead("Auf diesem iPad", icon: "columns") { UFBadge("mit dem PC verbunden", tone: .ok) }
+// MARK: - Konto und Tarif (auch ohne Server)
+
+private struct UFSwitchPlanKey: EnvironmentKey {
+    static let defaultValue: (() -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// "Tarif wechseln" in den Einstellungen; setzt das Abo-Paket. Ohne Wert oeffnet die Karte die Tarifansicht (Testmodus).
+    var ufSwitchPlan: (() -> Void)? {
+        get { self[UFSwitchPlanKey.self] }
+        set { self[UFSwitchPlanKey.self] = newValue }
+    }
+}
+
+/// Karten "Konto" (Mit Apple angemeldet, Konto loeschen) und "Tarif" nebeneinander
+private struct AppAccountCards: View {
+    @EnvironmentObject private var account: AccountStore
+    @EnvironmentObject private var overlay: UFOverlay
+    @Environment(\.ufSwitchPlan) private var switchPlan
+    @State private var plans = false
+
+    var body: some View {
+        UFGridLayout(spacing: 16, minWidth: 340) {
+            accountCard
+            planCard
+        }
+        .environment(\.ufFillsCell, true)
+        .sheet(isPresented: $plans) { SettingsSheet(close: { plans = false }) { SubscriptionView() } }
+    }
+
+    private var accountCard: some View {
+        let a = account.account
+        return UFCard {
+            UFCardHead("Konto", icon: "user") {
+                if a?.isDebug == true { UFBadge("Debug ohne Apple-ID", tone: .warn) } else { UFBadge("Mit Apple angemeldet", tone: .ok) }
+            }
             VStack(alignment: .leading, spacing: 7.2) {
-                (Text("Server: ").font(.uf(13.12, 700)) + Text(session.api?.base.absoluteString ?? "–"))
-                Text("Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ fragt die App beim nächsten Start wieder nach Adresse und PIN.")
+                if a?.isDebug == true {
+                    Text("Die Anmeldung wurde in diesem Debug-Build übersprungen.").foregroundStyle(UF.muted)
+                } else {
+                    (Text("Name: ").font(.uf(13.12, 700)) + Text(a?.name ?? "nicht freigegeben"))
+                    (Text("E-Mail: ").font(.uf(13.12, 700)) + Text(a?.email ?? "nicht freigegeben"))
+                }
+                Text("Das Konto ordnet dein Abo und deine Stud.IP-Verbindung zu. Deine Dateien und Notizen bleiben auf diesem iPad.")
                     .foregroundStyle(UF.muted)
             }
             .ufFont(13.12).foregroundStyle(UF.text)
             UFFlexWrap(gap: 9.6) {
-                UFButton("Verbindung trennen", icon: "log-out", kind: .danger, size: .small) {
-                    Task { if await overlay.confirm("Verbindung zum PC trennen?") { session.disconnect() } }
-                }
-                UFButton("Abo (Testmodus)", icon: "star", size: .small) { sheet = .tarif }
+                UFButton("Konto löschen", icon: "trash", kind: .danger, size: .small) { overlay.modal { DeleteAccountDialog() } }
             }
             .padding(.top, 9.6)
         }
+    }
+
+    /// Platz fuer den Tarif; Inhalt (aktueller Tarif, Verwalten, Wiederherstellen) baut das Abo-Paket
+    private var planCard: some View {
+        UFCard {
+            UFCardHead("Tarif", icon: "star")
+            Text("Free, Plus oder Pro wählen, Abo verwalten und Käufe wiederherstellen.")
+                .ufFont(13.12).foregroundStyle(UF.muted)
+            UFFlexWrap(gap: 9.6) {
+                UFButton("Tarif wechseln", icon: "star", kind: .primary, size: .small) {
+                    if let switchPlan { switchPlan() } else { plans = true }
+                }
+            }
+            .padding(.top, 9.6)
+        }
+    }
+}
+
+/// Rueckfrage "Konto loeschen" (Richtlinie 5.1.1(v)) mit Hinweis auf die Abo-Verwaltung bei Apple
+private struct DeleteAccountDialog: View {
+    @EnvironmentObject private var account: AccountStore
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
+    @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var router: UFRouter
+    @Environment(\.ufClose) private var close
+    @State private var busy = false
+
+    var body: some View {
+        UFDialog("Konto löschen?", icon: "trash") {
+            VStack(alignment: .leading, spacing: 9.6) {
+                Text("Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von UniFlow (Stud.IP-Sitzung, Server-PIN) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung.")
+                Text("Heruntergeladene Dateien und Notizen auf diesem iPad bleiben erhalten.")
+                Text("Ein Abo wird dadurch nicht gekündigt. Abos kündigst du bei Apple:").font(.uf(13.12, 700)).foregroundStyle(UF.text)
+                Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
+                    .ufFont(13.12, 600).foregroundStyle(UF.accentText)
+            }
+            .ufFont(13.12).foregroundStyle(UF.text2)
+            .fixedSize(horizontal: false, vertical: true)
+        } foot: {
+            UFButton("Abbrechen") { close() }
+            UFButton("Konto löschen", icon: "trash", kind: .danger) {
+                busy = true
+                Task {
+                    await studip.signOut()
+                    session.disconnect()
+                    overlay.closeAll()
+                    router.go(.dashboard)
+                    account.deleteAccount()                         // RootView zeigt danach die Begruessung
+                }
+            }
+            .disabled(busy)
+        }
+    }
+}
+
+/// "Zugang & Darstellung" ohne Server: Konto, Tarif, Stud.IP direkt und die Einstellungen dieses Geraets
+private struct LocalAccountTab: View {
+    @EnvironmentObject private var studip: StudIPSync
+    @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
+    @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
+    @AppStorage("uniflow.hand") private var hand = "right"
+    @State private var studipSheet = false
+
+    var body: some View {
+        let connected = studip.phase != .signedOut && studip.phase != .needsLogin
+        VStack(alignment: .leading, spacing: 16) {
+            AppAccountCards()
+            UFGridLayout(spacing: 16, minWidth: 340) {
+                UFCard {
+                    UFCardHead("Stud.IP", icon: "graduation") {
+                        connected ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht verbunden", tone: .warn)
+                    }
+                    Text("Kurse, Ordner und neue Dateien direkt aus Stud.IP. Du meldest dich auf der echten Stud.IP-Seite an; Dateien bleiben nur auf diesem iPad.")
+                        .ufFont(13.12).foregroundStyle(UF.muted)
+                    UFFlexWrap(gap: 9.6) {
+                        UFButton(connected ? "Stud.IP öffnen" : "Stud.IP verbinden", icon: "book", kind: connected ? .normal : .primary, size: .small) {
+                            studipSheet = true
+                        }
+                    }
+                    .padding(.top, 9.6)
+                }
+                UFCard {
+                    UFCardHead("Darstellung", icon: "sun")
+                    UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                    UFCardHead("Stift & Touch", icon: "pen").padding(.top, 16)
+                    UFSelect(options: [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")],
+                             selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
+                    UFCardHead("Schreibhand", icon: "hand").padding(.top, 16)
+                    UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
+                    Text("Geteilte Ansicht: Das Skript öffnet auf der Seite der freien Hand (35 %), das Übungsblatt daneben.")
+                        .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4).padding(.bottom, 5.6)
+                }
+            }
+            .environment(\.ufFillsCell, true)
+        }
+        .sheet(isPresented: $studipSheet) { SettingsSheet(close: { studipSheet = false }) { StudIPView() } }
+    }
+}
+
+/// Blatt mit "Fertig" fuer die bisherigen Systemansichten (Stud.IP direkt, Tarif im Testmodus)
+private struct SettingsSheet<Content: View>: View {
+    let close: () -> Void
+    @ViewBuilder let content: Content
+
+    init(close: @escaping () -> Void, @ViewBuilder content: () -> Content) {
+        self.close = close
+        self.content = content()
+    }
+
+    var body: some View {
+        NavigationStack {
+            content.toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
+        }
+    }
+}
+
+// MARK: - Entwicklung
+
+/// Nur fuer den Inhaber: Verbindung zum eigenen UniFlow-Server (frueher der Startbildschirm)
+private struct DevelopmentTab: View {
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var overlay: UFOverlay
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if let api = session.api {
+                UFCard {
+                    UFCardHead("Eigener UniFlow-Server", icon: "layers") { UFBadge("verbunden", tone: .ok) }
+                    VStack(alignment: .leading, spacing: 7.2) {
+                        (Text("Server: ").font(.uf(13.12, 700)) + Text(api.base.absoluteString))
+                        Text("Die Daten kommen von deinem UniFlow-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ läuft die App wieder ohne Server.")
+                            .foregroundStyle(UF.muted)
+                    }
+                    .ufFont(13.12).foregroundStyle(UF.text)
+                    UFFlexWrap(gap: 9.6) {
+                        UFButton("Verbindung trennen", icon: "log-out", kind: .danger, size: .small) {
+                            Task { if await overlay.confirm("Verbindung zum UniFlow-Server trennen?") { session.disconnect() } }
+                        }
+                    }
+                    .padding(.top, 9.6)
+                }
+            } else {
+                ConnectView()
+            }
+        }
+    }
+}
+
+/// "Mit eigenem UniFlow-Server verbinden": die Adresse darf die App vortragen (zuletzt verwendet oder -UFServerHint),
+/// die PIN gibt der Nutzer selbst ein.
+struct ConnectView: View {
+    @EnvironmentObject private var session: Session
+    @State private var url = ""
+    @State private var pin = ""
+
+    var body: some View {
+        UFCard {
+            UFCardHead("Mit eigenem UniFlow-Server verbinden", icon: "layers") { UFBadge("Entwicklung", tone: .neutral) }
+            Text("Nur für die Entwicklung: verbindet dieses iPad mit deinem UniFlow-Server im WLAN. Am PC Start-iPad.cmd starten; Adresse und PIN stehen in der Web-App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen.")
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
+            UFField("Adresse") {
+                UFTextField("http://192.168.0.10:8765", text: $url)
+                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+            }
+            UFField("PIN") {
+                UFTextField("6 Ziffern", text: $pin, secure: true).keyboardType(.numberPad).frame(maxWidth: 260)
+            }
+            if let error = session.lastError {
+                HStack(alignment: .top, spacing: 7.2) {
+                    UFIcon("alert", size: 14)
+                    Text(error).fixedSize(horizontal: false, vertical: true)
+                }
+                .ufFont(13.12).foregroundStyle(UF.bad).padding(.top, 5.6)
+            }
+            UFFlexWrap(gap: 9.6) {
+                UFButton(session.connecting ? "Verbinde …" : "Verbinden", icon: "sync", kind: .primary, size: .small) {
+                    Task { await session.connect(urlString: url, pin: pin) }
+                }
+                .disabled(url.isEmpty || pin.isEmpty || session.connecting)
+            }
+            .padding(.top, 9.6)
+        }
+        .onAppear { if url.isEmpty { url = session.savedURL } }
     }
 }
 

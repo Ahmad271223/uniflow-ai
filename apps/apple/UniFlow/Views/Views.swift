@@ -3,47 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UniFlowCore
 
-// MARK: - Verbindung
-
-struct ConnectView: View {
-    @EnvironmentObject private var session: Session
-    @State private var url = ""
-    @State private var pin = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("http://192.168.0.10:8765", text: $url)
-                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    SecureField("PIN (6 Ziffern)", text: $pin).keyboardType(.numberPad)
-                } header: {
-                    Text("UniFlow-Server")
-                } footer: {
-                    Text("Am PC Start-iPad.cmd starten. Adresse und PIN stehen in der App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen. Zu Hause funktioniert auch der Rechnername, z. B. http://amo.fritz.box:8765.")
-                }
-                if let error = session.lastError {
-                    Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
-                }
-                Section {
-                    Button {
-                        Task { await session.connect(urlString: url, pin: pin) }
-                    } label: {
-                        HStack { Spacer(); if session.connecting { ProgressView() } else { Text("Verbinden").bold() }; Spacer() }
-                    }
-                    .disabled(url.isEmpty || pin.isEmpty || session.connecting)
-                }
-                Section {
-                    NavigationLink { StudIPView() } label: { Label("Stud.IP ohne PC nutzen", systemImage: "graduationcap") }
-                } footer: {
-                    Text("Dateien direkt aus Stud.IP aufs iPad laden. Notizen, Kalender und Tests brauchen weiterhin den UniFlow-Server.")
-                }
-            }
-            .navigationTitle("UniFlow")
-            .onAppear { if url.isEmpty { url = session.savedURL } }
-        }
-    }
-}
+// Die Verbindung zum eigenen UniFlow-Server (ConnectView) liegt in Views/Settings/SettingsPage.swift unter "Entwicklung".
 
 // MARK: - Bibliothek mit Dokument-Tabs
 
