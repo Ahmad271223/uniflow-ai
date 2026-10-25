@@ -272,7 +272,7 @@ final class EventMaterialsTests: XCTestCase {
 
 // MARK: - Module-Endpunkte gegen app/server.py
 
-/// Die erfundene Seed-Datenbank aus dem Fixture (`_seed()` im Generator)
+/// Die erfundene Seed-Datenbank aus dem Fixture (`_module_seed()` im Generator)
 private func seededStudyDatabase(_ fx: JSONValue) async throws -> SQLiteDatabase {
     let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
     try await db.migrate(clock: .fixed(berlin: "2026-10-01T08:00:00")!)

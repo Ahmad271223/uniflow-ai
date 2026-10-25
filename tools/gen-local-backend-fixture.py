@@ -511,9 +511,10 @@ SEMESTER_CHDATES = [None, 0, "2026-02-27T12:00", "2026-03-01T00:00", "2026-04-14
                     "2026-10-25T23:30", "2026-10-26T00:30", "2027-01-18T08:00", "2027-02-27T12:00", "2027-04-20T12:00"]
 
 
-def _seed() -> list[list]:
+def _module_seed() -> list[list]:
     """Erfundene Datenbank fuer die Module-Endpunkte: Kurse (Fach/Art aus classify wie beim Abgleich), Module,
-    Dateien mit Ordnern und Zeiten, Analysen, Notizen, Lernpakete, Aufgaben, ein Test. Liste von [SQL, Parameter]."""
+    Dateien mit Ordnern und Zeiten, Analysen, Notizen, Lernpakete, Aufgaben, ein Test. Liste von [SQL, Parameter].
+    Nicht `_seed`: so heisst in S3 die Seed-Funktion der Bibliothek (beim Zusammenfuehren sonst ueberschrieben)."""
     from app.studip_sync import classify
     out: list[list] = []
     for mid, name, sem, color, sort, prio, exam in [(1, "Testmathematik I", "WiSe 2026/27", "#4f6df5", 0, 3, "2027-02-15"),
@@ -687,7 +688,7 @@ def study_modules(src: SchemaSource, app) -> dict:
                               "start": start.isoformat(), "weeks": weeks,
                               "labels": {str(w): study.week_label(start, w) for w in (-2, -1, 0, 1, 2, 9, 16, 30)}})
 
-        seed = _seed()
+        seed = _module_seed()
         fresh_db(src, "materials")
         with db.cursor() as conn:
             for sql, params in seed:
