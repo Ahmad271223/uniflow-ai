@@ -10,6 +10,11 @@
   app/server.py und dem Inhalt der Tabelle settings danach (exakter Text wie db.set_setting ihn schreibt).
 - timetable-free.json: freie Zeitfenster und Sperrzeiten aus GET /api/timetable/day und /week fuer mehrere
   Einstellungen (erfundene Werte) ohne Termine und Lernpakete, wie timetable.free_windows sie berechnet.
+- study-modules.json: Einordnung ohne KI (studip_sync.classify, study.effective_type, study.week_hint) als Tabellen,
+  dazu difflib-Aehnlichkeiten (timetable.guess_module), str.lower und die Zeichen, auf die ein Buchstabe mit re.I
+  passt (fuer PyRegex/PyText im Swift-Kern), Semesterwochen (semester_cut, semester_start, week_index, week_label) fuer mehrere Tage, und eine Folge von
+  Anfragen an die Module-Endpunkte auf einer erfundenen Seed-Datenbank mit eingefrorener Uhr (study.today,
+  db.now_iso) und Zeitzone Europe/Berlin; dazu die Tabellen danach.
 - library-files.json (S3): erfundene Datenbank mit Kursen, Dateien (auch auf der Platte), Ordnern und Notizen, eine
   Folge von Anfragen an Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen (Versionen, Konflikt), Bilder, Ordner,
   Notizbuecher und Dokument-Aktionen mit den Antworten von app/server.py und den Tabellen danach. Uhr und uuid4 sind
@@ -73,8 +78,7 @@ SAMPLES: dict[str, dict] = {
     "POST /api/related": {"path": "/api/related", "body": {"file_id": "f1", "text": "Eigenwerte"}},
     "GET /api/modules": {"path": "/api/modules"},
     "GET /api/modules/{}": {"path": "/api/modules/1"},
-    "POST /api/modules": {"path": "/api/modules", "body": {"name": "Testmodul"},
-                          "expect": {"status": 409, "reason": "Module kommen mit S4"}},
+    "POST /api/modules": {"path": "/api/modules", "body": {"name": "Testmodul"}},
     "PATCH /api/modules/{}": {"path": "/api/modules/1", "body": {"active": 1}},
     "POST /api/modules/auto-assign": {"path": "/api/modules/auto-assign"},
     "GET /api/courses": {"path": "/api/courses"},
@@ -222,9 +226,12 @@ def app_calls() -> dict[str, list[str]]:
 # Aufrufe gegen app/server.py (ASGI direkt, ohne Netzwerk)
 # ----------------------------------------------------------------------------
 
-def asgi(app, method: str, path: str, body=None, form=None):
+def asgi(app, method: str, path: str, body=None, form=None, raw_body: str | None = None):
     p, _, q = path.partition("?")
-    if form is not None:
+    if raw_body is not None:                            # genau diese Bytes (z. B. doppelte Schluessel)
+        raw = raw_body.encode()
+        ctype = "application/json"
+    elif form is not None:
         parts = [f'--{MP}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n' for k, v in form.items()]
         raw = ("".join(parts) + f"--{MP}--\r\n").encode()
         ctype = f"multipart/form-data; boundary={MP}"
@@ -397,6 +404,310 @@ def timetable_free(src: SchemaSource, app) -> dict:
         scenarios.append({"name": name, "settings": body, "raw": json.dumps(body) if body is not None else None,
                           "learn_start": week["learn_start"], "learn_end": week["learn_end"], "days": days})
     return {"generator": "tools/gen-local-backend-fixture.py", "start": FREE_START, "scenarios": scenarios}
+
+
+# ----------------------------------------------------------------------------
+# Fach, Art, Lehrwoche und Module (S4); alle Titel, Namen und IDs erfunden
+# ----------------------------------------------------------------------------
+
+# Kurstitel fuer studip_sync.classify: jede Regel, ihre Reihenfolge und Eigenheiten von re (\b, \s, re.I, "zu|zur",
+# "." ohne Zeilenende); dazu Zeichen, bei denen ICU sonst anders zaehlt (\v, U+001C, NBSP, zerlegte Umlaute, "SS"
+# statt "ß", arabisch-indische Ziffern)
+CLASSIFY_TITLES = [
+    "Grundlagen der Beispieltechnik", "Übung zu Grundlagen der Beispieltechnik", "Uebung zur Testmathematik I",
+    "Übung: Probeinformatik", "Übung", "Übungen zur Beispielchemie", "Gruppenübung Testmathematik I",
+    "Gruppenuebung zu Testmathematik II", "Hörsaalübung Testmathematik I", "Zentralübung Beispielphysik",
+    "Hoersaaluebung Beispielphysik", "Tutorium Probeinformatik", "Tutorium: Testlogik", "Probeinformatik - Tutorium",
+    "Mathematik für Testzwecke - Tutorium Gruppe 1", "Testmathematik I – Fragestunden", "Fragestunde Testmathematik",
+    "Testfragestunde Mathematik", "12345 Erfundene Physik", "12345  Übung Erfundene Physik", "٣ Testlogik",
+    "Erfundene Physik (Tranche A)", "Erfundene Physik, Tranche B Gruppe 2", "Erfundene Chemie (für Lehramt)",
+    "Grundlagen der Signale (Elektrotechnische Grundlagen der Informationstechnik)",
+    "Testlogik (Tranche 2) – Fragestunden", "Testlogik Tranche", "Testlogik Tranche I: Grundlagen",
+    "Gruppenübung (für Lehramt), Tranche C", "Begrüßung der Erstsemester", "BEGRÜSSUNG neuer Studierender",
+    "BEGRÜẞUNG neuer Studierender", "Einführungsveranstaltung Studiengänge Testtechnik", "Erstsemester-Tutorium",
+    "Laborübung Beispieltechnik", "Labor-Übung Beispieltechnik", "ÜBUNG ZU TESTLOGIK", "übung zu testlogik",
+    "  Übung   zu  Testmathematik   ", "Übung\vzu Testmathematik", "Übung\u00a0zu Beispielchemie",
+    "Testmathematik\u001cI", "U\u0308bung Testmathematik", "Testlogik -:,", "(Testlogik)", "Testlogik 😀 Übung",
+    "Testlogik – Fragestunden\nzweite Zeile", "Testlogik – Fragestunden\rzweite Zeile", "Vorlesung mit\u2028Zeilenwechsel",
+    # re.I: "İ"/"ı" passen auf "i", "ſ" auf "s", das Kelvin-Zeichen auf "k"; Ligaturen wie "ﬆ" nie auf "st" (ICU anders)
+    "TUTORİUM Testlogik", "Tutorıum: Testlogik", "Testlogik - TUTORİUM Gruppe 2", "Erﬆsemester-Treffen Testlogik",
+    "Erſtſemeſter-Treffen", "Frageﬆunde Testmathematik", "Testlogik (Elektrotechnische Grundlagen der Informationstechni\u212a)",
+    "GRUPPENÜBUNG ZU TESTLOGIK", "Begrüssung im Testinstitut", "Übung ﬀ Testlogik",
+]
+
+# Kleinschreibung (str.lower) mit Sigma am Wortende und Sonderfaellen der vollen Abbildung
+LOWER_CASES = ["ΟΔΟΣ", "ΟΔΟΣ ΚΑΙ ΣΤΑΣΗ", "Σ", "ΑΣ.", "ΑΣ'Β", "Α\u0301Σ", "ΑΣ\u0301", "ΣΑ", "ΑΣ\u0345", "1Σ", "İSTANBUL",
+               "ẞ", "ǅ", "Ⅻ", "U\u0308BUNG", "ÄÖÜ", "ﬆ", "ΆΣ ΣΣ"]
+
+# Buchstaben, die in Mustern mit re.I vorkommen duerfen (PyRegex.caseVariants)
+IGNORECASE_LETTERS = "abcdefghijklmnopqrstuvwxyzäöüß"
+
+# (Dateiname, Stud.IP-Ordner, KI-Typ) fuer study.effective_type: jede Regel in ihrer Reihenfolge und Grenzfaelle
+EFFECTIVE_TYPE_CASES = [
+    ("Klausurergebnisse WS.pdf", None, None), ("Raumverteilung.pdf", "Klausur", "klausur"), ("Hinweise.pdf", "Organisatorisches", None),
+    ("Termine.pdf", None, None), ("Ankündigung.pdf", None, None), ("ankuendigung_neu.pdf", None, None),
+    ("Blatt3_Loesung.pdf", "Übungen", None), ("Lösungen Blatt 2.pdf", None, None), ("lsg_03.pdf", None, None),
+    ("blatt3_lsg.pdf", None, None), ("Blatt 3 lsg.pdf", None, None), ("blatt3.lsg.pdf", None, None), ("solution_sheet1.pdf", None, None),
+    ("Musterlösung KK1.pdf", "Alte Klausuren", None), ("KK1aWS2425lsg.pdf", "Alte Klausuren/WS 24/25", "loesung"),
+    ("gk2_lsg.pdf", None, None), ("Lösung.pdf", "Kurztest", None), ("Losung.pdf", None, None), ("Lo\u0308sung.pdf", None, None),
+    ("KK1.pdf", "Alte Klausuren/WS 24/25", "klausur"), ("Probeklausur.pdf", None, None), ("exam_2025.pdf", None, None),
+    ("Klausur SS23.pdf", None, None), ("Klausur WS 2024.pdf", None, None), ("gk.pdf", None, None), ("gkx.pdf", None, None),
+    ("Examples.pdf", "Vorlesung", None), ("Kurztest 3.pdf", None, None), ("a\u0301kk1.pdf", None, None),
+    ("GU01.pdf", "Gruppenübung", None), ("gü3.pdf", None, None), ("Gue2.pdf", None, None), ("Gruppenuebung_4.pdf", None, None),
+    ("ueb2.pdf", "Zentralübung", "uebung"), ("Hörsaalübung 3.pdf", None, None), ("hoersaal_5.pdf", None, None),
+    ("ZÜ4.pdf", None, None), ("hü1.pdf", None, None), ("hu2.pdf", None, None), ("Zentraluebung.pdf", None, None),
+    ("Tutorium 3.pdf", None, None), ("tut2.pdf", None, None), ("Übungsblatt 3.pdf", None, None), ("Blatt 4.pdf", None, None),
+    ("ueb3.pdf", None, None), ("ub2.pdf", None, None), ("Exercise 5.pdf", None, None), ("Aufgaben_06.pdf", None, None),
+    ("sheet7.pdf", None, None), ("x.pdf", "Mitschriften Tranche I", None), ("Mitschrift Vorlesung 3.pdf", None, None),
+    ("Skript_Kapitel2.pdf", None, None), ("Script.pdf", None, None), ("Folien_VL03.pdf", None, None), ("slides_week4.pdf", None, None),
+    ("vl5.pdf", None, None), ("2vl3.pdf", None, None), ("Lecture 6.pdf", None, None), ("Vorlesung 02A.pdf", "Vorlesung", None),
+    ("VL01.pdf", "Übungen", None), ("BLATT 3.PDF", None, None), ("datei.pdf", None, None), ("datei.pdf", None, "skript"),
+    ("datei.pdf", "", "test"), ("datei.pdf", None, ""), (None, "Vorlesung", None), (None, None, None),
+]
+
+# (Dateiname, Stud.IP-Ordner) fuer study.week_hint
+WEEK_HINT_CASES = [
+    ("GU01.pdf", "Gruppenübung"), ("02A.pdf", "Vorlesung"), ("Übungsblatt 3.pdf", None), ("Blatt_12.pdf", None),
+    ("blatt17.pdf", None), ("Woche 4 Folien.pdf", None), ("KW 45.pdf", None), ("ueb2.pdf", None), ("VL03.pdf", None),
+    ("vorlesung_10.pdf", None), ("Folien-07.pdf", None), ("Kapitel 5.pdf", None), ("Kap.3.pdf", None), ("Serie 08.pdf", None),
+    ("Aufgabenblatt-1.pdf", None), ("tut3.pdf", None), ("hu2.pdf", None), ("ZÜ04.pdf", None), ("Prog1-01-Intro.pdf", None),
+    ("Uebung10.pdf", None), ("Übung_3a.pdf", None), ("Blatt 3.pdf", "Woche 5"), ("intro.pdf", "Vorlesungen/Woche 06"),
+    ("intro.pdf", "Woche 06/Material"), ("01B.pdf", None), ("17.pdf", None), ("7.pdf", None), ("05.pdf", None),
+    ("Datei.v2.pdf", None), ("blatt٣.pdf", None), ("BLATT 3.PDF", None), ("Blatt 3.tar.gz", None), ("blatt 3.pdf\n", None),
+    ("folien\r07.pdf", None), ("Woche 0.pdf", None), ("GÜ 2.pdf", None), ("woche_ 2.pdf", None), ("Vorlesungsfolien.pdf", None),
+    ("x.pdf", "Vorlesungsfolien"), ("Prog1-01-Intro.pdf", "Vorlesungsfolien"), ("U\u0308bung 4.pdf", None), (None, "Woche 3"), (None, None),
+]
+
+# Paare fuer difflib.SequenceMatcher(None, a, b).ratio() (timetable.guess_module); ab 200 Zeichen in b greift autojunk
+SEQUENCE_PAIRS = [
+    ("testmathematik i zusatzaufgaben", "testmathematik i"), ("v\u00f6llig anderes seminar", "probeinformatik"), ("", ""), ("a", ""),
+    ("abc", "abc"), ("\u00fcbung", "zentral\u00fcbung testmathematik i"), ("u\u0308bung", "\u00fcbung"), ("abxcd", "abcd"), ("private", "pirate"),
+    ("ab" * 150, "ba" * 120), ("x" * 250 + "abc", "abc" + "x" * 250), ("tutorium probeinformatik \U0001f600", "probeinformatik"),
+    ("aaaa bbbb cccc", "cccc bbbb aaaa"), ("grundlagen der beispieltechnik", "\u00fcbung zu grundlagen der beispieltechnik"),
+]
+
+
+def _berlin_ts(text: str) -> int:
+    """Unix-Zeit einer Ortszeit in Berlin ("2026-10-25T23:30") bzw. einer UTC-Zeit mit "Z" am Ende"""
+    from datetime import datetime, timezone
+    if text.endswith("Z"):
+        return int(datetime.fromisoformat(text[:-1]).replace(tzinfo=timezone.utc).timestamp())
+    return int(datetime.fromisoformat(text).timestamp())             # TZ=Europe/Berlin (study_modules)
+
+
+# Dateien fuer die Semesterwochen: (Kurs, Zeit) ueber Sommer 2026, Winter 2026/27 und Sommer 2027
+SEMESTER_FILES = [
+    ("s1", "2026-03-05T10:00"), ("s1", "2026-04-14T10:00"), ("s2", "2026-04-15T10:00"), ("s3", "2026-04-17T10:00"),
+    ("s1", "2026-03-29T03:30"), ("w1", "2026-10-05T09:00"), ("w2", "2026-10-07T09:00"), ("w1", "2026-10-12T00:30"),
+    ("w2", "2026-10-13T10:00"), ("w3", "2026-10-14T10:00"), ("w4", "2026-10-15T10:00"), ("w5", "2026-10-18T23:59"),
+    ("w5", "2026-10-25T23:30"), ("w6", "2026-10-18T22:30Z"), ("t1", "2027-03-20T10:00"), ("t1", "2027-04-12T10:00"),
+    ("t2", "2027-04-13T10:00"),
+]
+SEMESTER_TODAYS = ["2026-03-01", "2026-06-15", "2026-09-15", "2026-09-30", "2026-10-01", "2026-11-20", "2027-01-18",
+                   "2027-02-28", "2027-03-01", "2027-05-04"]
+SEMESTER_CHDATES = [None, 0, "2026-02-27T12:00", "2026-03-01T00:00", "2026-04-14T10:00", "2026-09-30T23:59",
+                    "2026-10-01T00:00", "2026-10-09T12:00", "2026-10-11T23:59", "2026-10-12T00:00", "2026-10-18T22:30Z",
+                    "2026-10-25T23:30", "2026-10-26T00:30", "2027-01-18T08:00", "2027-02-27T12:00", "2027-04-20T12:00"]
+
+
+def _seed() -> list[list]:
+    """Erfundene Datenbank fuer die Module-Endpunkte: Kurse (Fach/Art aus classify wie beim Abgleich), Module,
+    Dateien mit Ordnern und Zeiten, Analysen, Notizen, Lernpakete, Aufgaben, ein Test. Liste von [SQL, Parameter]."""
+    from app.studip_sync import classify
+    out: list[list] = []
+    for mid, name, sem, color, sort, prio, exam in [(1, "Testmathematik I", "WiSe 2026/27", "#4f6df5", 0, 3, "2027-02-15"),
+                                                    (2, "Grundlagen der Beispieltechnik", "WiSe 2026/27", "#0ea5a0", 1, 2, None),
+                                                    (3, "Leeres Modul", None, "#e0803a", 2, 1, None)]:
+        out.append(["INSERT INTO modules(id, name, semester, color, sort, priority, exam_date, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                    [mid, name, sem, color, sort, prio, exam, "2026-10-01T08:00:00"]])
+    courses = [("k-ma-v", "Testmathematik I", None, "WiSe 2026/27"), ("k-ma-gu", "Gruppenübung Testmathematik I", None, "WiSe 2026/27"),
+               ("k-ma-fs", "Testmathematik I - Fragestunden", None, "WiSe 2026/27"), ("k-ma-zu", "Zentralübung Testmathematik I", None, "WiSe 2026/27"),
+               ("k-bt-v", "12345 Grundlagen der Beispieltechnik (Tranche A)", "12345", "WiSe 2026/27"),
+               ("k-bt-u", "Übung zu Grundlagen der Beispieltechnik", "12346", "WiSe 2026/27"),
+               ("k-pi-v", "Probeinformatik", None, "WiSe 2026/27"), ("k-pi-t", "Tutorium Probeinformatik", None, "WiSe 2026/27"),
+               ("k-erst", "Begrüßung der Erstsemester", None, "WiSe 2026/27"), ("k-alt", "Altes Fach vom Sommer", None, "SoSe 2026"),
+               ("k-inaktiv", "Inaktiver Testkurs", None, "WiSe 2026/27"), ("k-leer", "Übung", None, "WiSe 2026/27"),
+               # gleiches Fach, einmal mit zerlegtem Umlaut: fuer Python zwei Schluessel, also zwei Module
+               ("k-pt-v", "Grundlagen der Prüfungstechnik", None, "WiSe 2026/27"),
+               ("k-pt-u", "Übung zu Grundlagen der Pru\u0308fungstechnik", None, "WiSe 2026/27")]
+    for cid, title, number, sem in courses:
+        subject, kind = classify(title)
+        out.append(["INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                    [cid, title, number, sem, subject, kind, 0 if cid == "k-inaktiv" else 1, "2026-10-01T08:00:00"]])
+    # ohne Fach (z. B. vom Nutzer geleert): nur die automatische Zuordnung ordnet sie zu
+    out.append(["INSERT INTO courses(id, title, subject, kind, created_at) VALUES ('k-ohne', 'Testmathematik I Zusatzaufgaben', NULL, 'uebung', '2026-10-01T08:00:00')", []])
+    out.append(["INSERT INTO courses(id, title, subject, kind, created_at) VALUES ('k-fremd', 'Völlig anderes Seminar', NULL, 'vorlesung', '2026-10-01T08:00:00')", []])
+    files = [  # id, Kurs, Name, Ordner, Zeit, Status
+        ("f-ma-01", "k-ma-v", "VL01_Einfuehrung.pdf", "Vorlesung", "2026-10-13T10:00", "neu"),
+        ("f-ma-02", "k-ma-v", "VL02.pdf", "Vorlesung", "2026-10-20T10:00", "neu"),
+        ("f-ma-03", "k-ma-v", "Folien Woche 3.pdf", "Vorlesung/Folien", "2026-10-27T10:00", "erledigt"),
+        ("f-ma-04", "k-ma-v", "Skript_gesamt.pdf", "Skript", "2026-10-02T10:00", "gelesen"),
+        ("f-ma-05", "k-ma-gu", "GU01.pdf", "Gruppenübung", "2026-10-14T10:00", "neu"),
+        ("f-ma-06", "k-ma-gu", "GU01_lsg.pdf", "Gruppenübung/Lösungen", "2026-10-21T10:00", "neu"),
+        ("f-ma-07", "k-ma-gu", "GU02.pdf", "Gruppenübung", "2026-10-21T11:00", "neu"),
+        ("f-ma-08", "k-ma-v", "Probeklausur 2025.pdf", "Alte Klausuren/WS 25/26", "2026-11-10T10:00", "neu"),
+        ("f-ma-09", "k-ma-v", "Musterlösung Probeklausur.pdf", "Alte Klausuren", "2026-11-11T10:00", "neu"),
+        ("f-ma-10", "k-ma-v", "Klausurergebnisse.pdf", None, "2026-11-12T10:00", "gelesen"),
+        ("f-ma-11", "k-ma-v", "datei_ohne_hinweis.pdf", None, None, "neu"),
+        ("f-ma-12", "k-ma-fs", "Fragen.pdf", None, "2026-10-18T22:30Z", "neu"),
+        ("f-ma-13", "k-ma-gu", "Blatt 3.pdf", None, "2026-10-28T10:00", "neu"),
+        ("f-ma-14", "k-ma-v", "VL04.pdf", "Vorlesung", "2026-11-03T10:00", "neu"),
+        ("f-zu-01", "k-ma-zu", "ZÜ01.pdf", "Zentralübung", "2026-10-16T10:00", "neu"),
+        ("f-bt-01", "k-bt-v", "Kapitel 1.pdf", "Skript", "2026-10-12T08:00", "erledigt"),
+        ("f-bt-02", "k-bt-u", "Übungsblatt 1.pdf", "Übungen", "2026-10-15T10:00", "neu"),
+        ("f-bt-03", "k-bt-u", "Übungsblatt 2.pdf", "Übungen", "2026-10-25T23:30", "neu"),
+        ("f-bt-04", "k-bt-u", "Lösung Blatt 1.pdf", "Übungen/Lösungen", "2026-10-26T00:30", "neu"),
+        ("f-bt-05", "k-bt-v", "Organisatorisches.pdf", None, "2026-10-13T09:00", "gelesen"),
+        ("f-bt-06", "k-bt-v", "datei.pdf", None, "2026-10-13T11:00", "neu"),
+        ("f-bt-07", "k-bt-v", "notizen.pdf", None, "2026-10-20T11:00", "neu"),
+        ("f-bt-08", "k-bt-u", "Blatt 3 (alt).pdf", "Übungen", "2026-09-20T10:00", "neu"),
+        ("f-bt-09", "k-bt-u", "Übungsblatt 3.pdf", "Übungen", "2026-11-02T10:00", "neu"),
+        ("f-bt-10", "k-bt-v", "Kapitel 2.pdf", "Skript", "2026-10-19T10:00", "neu"),
+        ("f-pi-01", "k-pi-v", "Prog1-01-Intro.pdf", "Vorlesungsfolien", "2026-10-14T12:00", "neu"),
+        ("f-pi-02", "k-pi-t", "tut2.pdf", "Tutorium", "2026-10-21T12:00", "neu"),
+        ("f-pi-03", "k-pi-v", "02A.pdf", "Vorlesung", "2026-10-19T12:00", "neu"),
+        ("f-pi-04", "k-pi-v", "Kurztest 1.pdf", "Kurztests", "2026-11-02T12:00", "neu"),
+        ("f-pi-05", "k-pi-v", "Nachtrag.pdf", "Vorlesung", "2027-04-13T12:00", "neu"),
+        ("f-alt-01", "k-alt", "VL01.pdf", "Vorlesung", "2026-04-14T10:00", "erledigt"),
+        ("f-alt-02", "k-alt", "Blatt 1.pdf", None, "2026-04-20T10:00", "neu"),
+        ("f-in-01", "k-inaktiv", "VL01.pdf", "Vorlesung", "2026-10-13T08:30", "neu"),
+        ("f-erst-01", "k-erst", "Willkommen.pdf", None, "2026-10-05T10:00", "neu"),
+    ]
+    for fid, cid, name, folder, when, status in files:
+        out.append(["INSERT INTO files(id, course_id, name, size, chdate, status, studip_folder, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
+                    [fid, cid, name, 1000, _berlin_ts(when) if when else None, status, folder, "pdf", "2026-10-20T08:00:00"]])
+    for fid, typ, title, topics in [("f-bt-06", "vorlesung", "Einführung in Beispielsignale", '["Beispielsignale", "Faltung"]'),
+                                    ("f-bt-07", "vorlesung", "Zweite Analyse", "kein json"),
+                                    ("f-ma-05", "uebung", None, '[42, "x"]'),
+                                    ("f-ma-11", "organisatorisch", None, "[]")]:
+        out.append(["INSERT INTO analysis(file_id, doc_type, title, topics, difficulty, est_minutes, summary, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                    [fid, typ, title, topics, 2, 40, "Kurzfassung (erfunden)", "2026-10-20T08:00:00"]])
+    for fid in ("f-bt-02", "f-ma-01"):
+        out.append(["INSERT INTO annotations(file_id, data, updated_at) VALUES (?, '{}', '2026-10-22T18:00:00')", [fid]])
+    for pid, day, mid, status, title in [(1, "2026-11-25", 1, "geplant", "Testmathematik I – Woche 6"), (2, "2026-11-18", 1, "erledigt", "Testmathematik I – Woche 5"),
+                                         (3, "2027-01-20", 2, "geplant", "Beispieltechnik – Woche 14"), (4, "2026-11-21", 1, "in_bearbeitung", "Testmathematik I – Nachholen")]:
+        out.append(["INSERT INTO study_packages(id, date, module_id, subject, title, status, created_at) VALUES (?,?,?,?,?,?,?)",
+                    [pid, day, mid, "x", title, status, "2026-11-01T08:00:00"]])
+    for tid, pid, typ, fid, status in [(1, 2, "vorlesung", "f-ma-01", "erledigt"), (2, 2, "uebung", "f-ma-05", "erledigt"), (3, 1, "vorlesung", "f-ma-02", "geplant"),
+                                       (4, 4, "uebung", "f-ma-07", "nachholen"), (5, 3, "uebung", "f-bt-02", "geplant"), (6, 2, "test", None, "erledigt")]:
+        out.append(["INSERT INTO study_tasks(id, package_id, type, file_id, title, status, created_at) VALUES (?,?,?,?,?,?,?)",
+                    [tid, pid, typ, fid, f"Aufgabe {tid}", status, "2026-11-01T08:00:00"]])
+    out.append(["INSERT INTO tests(subject, title, duration_min, questions, created_at, module_id, week_no, auto) VALUES ('Testmathematik I', 'Wochentest', 30, '[]', '2026-11-01T08:00:00', 1, 3, 0)", []])
+    return out
+
+
+# Folgen von Anfragen je eingefrorener Uhr (Berlin), alle auf derselben Seed-Datenbank nacheinander. Ein Rumpf als
+# Text wird genau so gesendet (doppelte Schluessel).
+MODULE_SCENARIOS = [
+    ("2026-11-20T10:00:00", [("GET", "/api/modules", None)] + [("GET", f"/api/modules/{i}", None) for i in range(1, 12)]
+     + [("GET", "/api/modules/99", None)]),
+    ("2027-01-18T09:00:00", [("GET", "/api/modules", None), ("GET", "/api/modules/1", None), ("GET", "/api/modules/2", None)]),
+    ("2027-05-04T08:00:00", [("GET", "/api/modules", None), ("GET", "/api/modules/5", None)]),
+    ("2026-11-20T11:00:00", [
+        ("POST", "/api/modules", {"name": "  Eigenes Fach  ", "semester": "WiSe 2026/27"}),
+        ("POST", "/api/modules", {"name": "Zweites Fach", "color": "#123456"}),
+        ("POST", "/api/modules", {"name": "Drittes Fach", "color": "", "semester": None}),
+        ("POST", "/api/modules", {"name": ""}), ("POST", "/api/modules", {"name": " \u3000\x1c "}), ("POST", "/api/modules", {}),
+        ("POST", "/api/modules", {"name": 0}), ("POST", "/api/modules", [1]),
+        ("PATCH", "/api/modules/1", {"color": "#000000", "priority": 3, "exam_date": "", "unbekannt": 5}),
+        ("PATCH", "/api/modules/1", {"exam_date": "2027-02-10", "active": True, "sort": 7, "weekly_test": False, "test_minutes": 45.5}),
+        ("PATCH", "/api/modules/2", {"name": "Umbenannte Beispieltechnik"}),
+        ("PATCH", "/api/modules/99", {"name": "gibt es nicht"}),
+        ("PATCH", "/api/modules/3", '{"icon": "a", "icon": "b", "semester": "SoSe 2027"}'),
+        ("POST", "/api/courses/k-pi-t/module", {"module_id": None}),
+        ("POST", "/api/courses/k-pi-t/module", {"module_id": 99}),
+        ("POST", "/api/courses/k-pi-t/module", {"module_id": "2"}),
+        ("POST", "/api/courses/k-ma-fs/module", {"module_id": 0}),
+        ("POST", "/api/courses/gibt-es-nicht/module", {"module_id": 1}),
+        ("DELETE", "/api/modules/1", None), ("DELETE", "/api/modules/12", None), ("DELETE", "/api/modules/98", None),
+        ("POST", "/api/modules/auto-assign", None),
+        ("POST", "/api/modules/auto-assign", None),
+        ("GET", "/api/modules", None), ("GET", "/api/modules/2", None), ("GET", "/api/modules/5", None),
+    ]),
+]
+
+# Tabellen nach allen Schritten
+MODULE_TABLES = {
+    "modules": "SELECT * FROM modules ORDER BY id",
+    "courses": "SELECT id, subject, kind, module_id FROM courses ORDER BY id",
+    "study_packages": "SELECT id, module_id, subject FROM study_packages ORDER BY id",
+}
+
+
+def study_modules(src: SchemaSource, app) -> dict:
+    import difflib
+    import os
+    import sqlite3
+    import time
+    from datetime import date, datetime
+
+    from app import db, study
+    from app.studip_sync import classify
+
+    os.environ["TZ"] = "Europe/Berlin"                  # datetime.fromtimestamp wie auf dem PC-Server in Berlin
+    time.tzset()
+    saved = (study.today, db.now_iso)
+    try:
+        cls = [{"title": t, "subject": classify(t)[0], "kind": classify(t)[1]} for t in CLASSIFY_TITLES]
+        eff = [{"name": n, "folder": f, "ai_type": a, "type": study.effective_type(n, f, a)[0],
+                "label": study.effective_type(n, f, a)[1]} for n, f, a in EFFECTIVE_TYPE_CASES]
+        hints = [{"name": n, "folder": f, "hint": study.week_hint(n, f)} for n, f in WEEK_HINT_CASES]
+        ratios = [{"a": a, "b": b, "ratio": difflib.SequenceMatcher(None, a, b).ratio()} for a, b in SEQUENCE_PAIRS]
+        lower = [{"text": t, "lower": t.lower()} for t in LOWER_CASES]
+        # je Buchstabe alle Codepunkte, auf die er mit re.I passt (erst grob ueber eine Klasse, dann einzeln)
+        rough = re.compile(f"[{IGNORECASE_LETTERS}]", re.I)
+        cands = [chr(c) for c in range(sys.maxunicode + 1) if not 0xD800 <= c <= 0xDFFF and rough.fullmatch(chr(c))]
+        ignorecase = [{"letter": L, "matches": [ord(ch) for ch in cands if re.fullmatch(L, ch, re.I)]} for L in IGNORECASE_LETTERS]
+
+        fresh_db(src, "semester")
+        files = [[cid, _berlin_ts(when)] for cid, when in SEMESTER_FILES]
+        with db.cursor() as conn:
+            for i, (cid, ts) in enumerate(files):
+                conn.execute("INSERT OR IGNORE INTO courses(id, title, kind, created_at) VALUES (?, ?, 'vorlesung', '2026-01-01T00:00:00')",
+                             (cid, f"Kurs {cid}"))
+                conn.execute("INSERT INTO files(id, course_id, name, chdate) VALUES (?, ?, 'f.pdf', ?)", (f"sem{i}", cid, ts))
+        chdates = [_berlin_ts(c) if isinstance(c, str) else c for c in SEMESTER_CHDATES]
+        semesters = []
+        for today in SEMESTER_TODAYS:
+            study.today = lambda d=date.fromisoformat(today): d
+            with db.cursor() as conn:
+                start = study.semester_start(conn)
+            weeks = []
+            for ch in chdates:
+                w = study.week_index(start, ch)
+                weeks.append({"chdate": ch, "week": w, "label": study.week_label(start, w)})
+            semesters.append({"today": today, "cut": study.semester_cut(date.fromisoformat(today)).isoformat(),
+                              "start": start.isoformat(), "weeks": weeks,
+                              "labels": {str(w): study.week_label(start, w) for w in (-2, -1, 0, 1, 2, 9, 16, 30)}})
+
+        seed = _seed()
+        fresh_db(src, "module")
+        with db.cursor() as conn:
+            for sql, params in seed:
+                conn.execute(sql, params)
+        scenarios = []
+        for now, steps in MODULE_SCENARIOS:
+            dt = datetime.fromisoformat(now)
+            study.today = lambda d=dt.date(): d
+            db.now_iso = lambda n=now: n
+            out_steps = []
+            for method, path, body in steps:
+                raw = body if isinstance(body, str) else (json.dumps(body) if body is not None else None)
+                status, value = asgi(app, method, path, raw_body=raw)
+                out_steps.append({"method": method, "path": path, "raw": raw, "status": status, "response": value})
+            scenarios.append({"now": now, "steps": out_steps})
+        conn = sqlite3.connect(src.db.DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            tables = {name: [dict(r) for r in conn.execute(sql)] for name, sql in MODULE_TABLES.items()}
+        finally:
+            conn.close()
+    finally:
+        study.today, db.now_iso = saved
+    return {"generator": "tools/gen-local-backend-fixture.py", "timezone": "Europe/Berlin", "classify": cls,
+            "effective_type": eff, "week_hint": hints, "sequence_ratios": ratios, "lower": lower, "ignorecase": ignorecase,
+            "semester_files": files, "semesters": semesters,
+            "seed": seed, "scenarios": scenarios, "tables": tables}
 
 
 # ----------------------------------------------------------------------------
@@ -985,6 +1296,7 @@ def main() -> int:
         cov = coverage(src, app, server)
         st = settings_terms(src, app)
         tf = timetable_free(src, app)
+        sm = study_modules(src, app)
         lib = library_files(src, server)
         imp = studip_import(src)
     finally:
@@ -992,6 +1304,7 @@ def main() -> int:
     out = {"app-paths.json": json.dumps(cov, ensure_ascii=False, indent=1) + "\n",
            "settings-terms.json": json.dumps(st, ensure_ascii=False, indent=1) + "\n",
            "timetable-free.json": json.dumps(tf, ensure_ascii=False, indent=1) + "\n",
+           "study-modules.json": json.dumps(sm, ensure_ascii=False, indent=1) + "\n",
            "library-files.json": json.dumps(lib, ensure_ascii=False, indent=1) + "\n",
            "studip-import.json": json.dumps(imp, ensure_ascii=False, indent=1) + "\n"}
     ok = all([write_or_check(OUT / name, content, check) for name, content in out.items()])
