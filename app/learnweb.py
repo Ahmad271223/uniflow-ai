@@ -56,7 +56,8 @@ def nfc(s: str | None) -> str:
 
 def file_id(cmid, filepath: str, filename: str) -> str:
     filepath, filename = nfc(filepath), nfc(filename)
-    h = hashlib.sha1(f"{filepath or '/'}{filename}".encode("utf-8")).hexdigest()[:8]
+    # SHA-256 wie im Swift-Kern (SolutionSHA256), damit iPad und PC dieselben Datei-IDs bilden
+    h = hashlib.sha256(f"{filepath or '/'}{filename}".encode("utf-8")).hexdigest()[:8]
     return f"lw-{cmid}-{h}"
 
 

@@ -50,19 +50,31 @@ def test_analysis_reads_pdf_pages_in_isolated_folder(captured, tmp_path):
     assert res["doc_type"] == "vorlesung" and res["_input"] == "pdf"
     assert c["model"] == "haiku" and c["allowed"] == ["Read(./**)"]
     assert {"Bash", "Write", "Edit", "WebFetch", "WebSearch"} <= set(c["blocked"])
-    assert c["pdfs"] == {"material1.pdf": ai.PDF_PAGES_ANALYSIS}          # gekuerzte Kopie, nicht das Original
-    assert str(src.parent) not in c["prompt"] and "Seiten 1 bis 12 von 30" in c["prompt"]
+    assert c["pdfs"] == {"material1.pdf": ai.PDF_PAGES_ANALYSIS} == {"material1.pdf": 10}   # gekuerzte Kopie
+    assert str(Path(c["cwd"]) / "material1.pdf") in c["prompt"]              # absoluter Pfad im Arbeitsordner
+    assert str(src) not in c["prompt"] and "Seiten 1 bis 10 von 30" in c["prompt"]
     assert not Path(c["cwd"]).exists()                                        # Arbeitsordner wieder geloescht
 
 
 def test_analysis_falls_back_to_text(captured, tmp_path):
     from app import ai
     calls, answers = captured
-    answers += [RuntimeError("CLI weg"), {"doc_type": "uebung", "title": "Blatt 1"}]
+    answers += [RuntimeError("CLI weg"), RuntimeError("CLI weg"), {"doc_type": "uebung", "title": "Blatt 1"}]
     src = _pdf(tmp_path / "blatt.pdf", 2)
     res = ai.analyze_file("Mathe I", "blatt.pdf", "Aufgabe 1: ...", pdf_path=str(src))
-    assert res["_input"] == "text" and res["doc_type"] == "uebung"
-    assert calls[1]["model"] == "haiku" and calls[1]["cwd"] is None and "Aufgabe 1" in calls[1]["prompt"]
+    assert res["_input"] == "text" and res["doc_type"] == "uebung"                 # zwei PDF-Versuche, dann Text
+    assert calls[2]["model"] == "haiku" and calls[2]["cwd"] is None and "Aufgabe 1" in calls[2]["prompt"]
+
+
+def test_unreadable_answer_is_not_stored_as_analysis(captured, tmp_path):
+    """Live-Fehler 25.10.2026: 'PDF nicht lesbar' wurde als Analyse uebernommen und ersetzte gute alte."""
+    from app import ai
+    calls, answers = captured
+    answers += [{"doc_type": "sonstiges", "title": "Analyse nicht moeglich: material1.pdf nicht lesbar"},
+                {"doc_type": "vorlesung", "title": "Laplace-Transformation", "summary": "..."}]
+    res = ai.analyze_file("SigSys", "vl.pdf", "", pdf_path=str(_pdf(tmp_path / "vl.pdf", 3)))
+    assert res["_input"] == "pdf" and res["doc_type"] == "vorlesung" and len(calls) == 2
+    assert ai._unreadable({"title": "PDF konnte nicht gelesen werden"}) and not ai._unreadable({"title": "Lesbarkeit von Code"})
 
 
 def test_analysis_of_non_pdf_uses_text(captured, tmp_path):
@@ -77,7 +89,7 @@ def test_analysis_of_non_pdf_uses_text(captured, tmp_path):
 def test_weekly_test_page_budget_and_text_rest(captured, tmp_path):
     from app import ai
     calls, answers = captured
-    answers.append({"title": "Wochentest", "questions": [{"nr": 1, "type": "calc", "question": "x", "answer": "1", "points": 100}]})
+    answers.append({"title": "Wochentest", "questions": [{"nr": i, "type": "calc", "question": "x", "answer": "1", "points": 25} for i in range(4)]})
     mats = [{"name": f"vl{i}.pdf", "title": f"VL {i}", "doc_type": "vorlesung", "difficulty": 3,
              "local_path": str(_pdf(tmp_path / f"vl{i}.pdf", 15)), "text": f"Text {i}"} for i in range(5)]
     mats.append({"name": "code.py", "title": "Code", "doc_type": "uebung", "local_path": None, "text": "def f(): pass"})
@@ -92,10 +104,11 @@ def test_weekly_test_page_budget_and_text_rest(captured, tmp_path):
 def test_weekly_test_falls_back_to_text(captured, tmp_path):
     from app import ai
     calls, answers = captured
-    answers += [{"title": "leer"}, {"title": "Wochentest", "questions": [{"nr": 1, "points": 100}]}]   # PDF-Antwort ohne Fragen
+    answers += [{"title": "leer"}, {"title": "PDF nicht lesbar", "questions": [{"nr": 1}] * 5},       # zwei untaugliche PDF-Antworten
+                {"title": "Wochentest", "questions": [{"nr": 1, "points": 100}]}]
     mats = [{"name": "vl.pdf", "local_path": str(_pdf(tmp_path / "vl.pdf", 3)), "text": "Grenzwerte"}]
     res = ai.generate_test("Mathe I", 45, mats)
-    assert res["_input"] == "text" and "Grenzwerte" in calls[1]["prompt"] and calls[1]["cwd"] is None
+    assert res["_input"] == "text" and "Grenzwerte" in calls[2]["prompt"] and calls[2]["cwd"] is None
 
 
 def test_reanalyze_replaces_only_text_analyses(app, tmp_path, monkeypatch):

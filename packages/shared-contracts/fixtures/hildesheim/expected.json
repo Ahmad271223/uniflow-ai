@@ -1,4 +1,310 @@
 {
+ "_hinweis": "Erzeugt mit tools/gen-hildesheim-fixture.py aus der Python-Referenz; nicht von Hand aendern.",
+ "course-titles": {
+  "SoSe 2026: 0406 Theorien der Erziehungswissenschaft": {
+   "semester": "SoSe 2026",
+   "number": "0406",
+   "title": "0406 Theorien der Erziehungswissenschaft"
+  },
+  "WiSe 2026/27:  1532   Klein(st)kinder": {
+   "semester": "WiSe 2026/27",
+   "number": "1532",
+   "title": "1532 Klein(st)kinder"
+  },
+  "Mathe-Vorkurs": {
+   "semester": "",
+   "number": null,
+   "title": "Mathe-Vorkurs"
+  },
+  "SS 26: 3200 Grundlagen der BWL": {
+   "semester": "SS 26",
+   "number": "3200",
+   "title": "3200 Grundlagen der BWL"
+  },
+  "WS 2026/27: Ringvorlesung": {
+   "semester": "WS 2026/27",
+   "number": null,
+   "title": "Ringvorlesung"
+  }
+ },
+ "section-labels": [
+  {
+   "title": "3",
+   "number": 3,
+   "label": "Woche 3"
+  },
+  {
+   "title": "Informationen",
+   "number": 0,
+   "label": "Informationen"
+  },
+  {
+   "title": "",
+   "number": 4,
+   "label": "Abschnitt 4"
+  },
+  {
+   "title": "  Woche  2 ",
+   "number": 2,
+   "label": "Woche 2"
+  },
+  {
+   "title": "12",
+   "number": 12,
+   "label": "Woche 12"
+  }
+ ],
+ "file-ids": [
+  {
+   "cmid": 77,
+   "filepath": "/",
+   "filename": "plan.pdf",
+   "id": "lw-77-b77af79f"
+  },
+  {
+   "cmid": 80,
+   "filepath": "/Teil 1/",
+   "filename": "Einführung.pdf",
+   "id": "lw-80-99d3b5e8"
+  }
+ ],
+ "learnweb-course-contents.json": [
+  {
+   "id": "lw-77-b77af79f",
+   "name": "plan.pdf",
+   "size": 1200,
+   "mime": "application/pdf",
+   "chdate": 1760000000,
+   "download_url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/mod_resource/content/1/plan.pdf",
+   "folder": "Informationen"
+  },
+  {
+   "id": "lw-80-99d3b5e8",
+   "name": "Einführung.pdf",
+   "size": 5,
+   "mime": "application/pdf",
+   "chdate": 1760000001,
+   "download_url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/6/mod_folder/content/2/Teil%201/Einfu%CC%88hrung.pdf",
+   "folder": "Woche 1/Literatur/Teil 1"
+  }
+ ],
+ "pluginfile": [
+  {
+   "url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/4711/mod_resource/content/3/01%20Folien.pdf?forcedownload=1",
+   "parsed": {
+    "area": "resource",
+    "revision": 3,
+    "filepath": "/",
+    "filename": "01 Folien.pdf"
+   }
+  },
+  {
+   "url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/9/mod_folder/content/12/Kapitel%201/Text.pdf",
+   "parsed": {
+    "area": "folder",
+    "revision": 12,
+    "filepath": "/Kapitel 1/",
+    "filename": "Text.pdf"
+   }
+  },
+  {
+   "url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/1/mod_resource/content/2/Einfu%CC%88hrung.pdf",
+   "parsed": {
+    "area": "resource",
+    "revision": 2,
+    "filepath": "/",
+    "filename": "Einführung.pdf"
+   }
+  },
+  {
+   "url": "https://www.uni-hildesheim.de/learnweb2026/mod/resource/view.php?id=1",
+   "parsed": null
+  }
+ ],
+ "with-token": [
+  {
+   "url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/a.pdf",
+   "token": "ABC123",
+   "result": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/a.pdf?token=ABC123"
+  },
+  {
+   "url": "https://www.uni-hildesheim.de/learnweb2026/x.php?a=1",
+   "token": "ABC123",
+   "result": "https://www.uni-hildesheim.de/learnweb2026/x.php?a=1&token=ABC123"
+  }
+ ],
+ "session-state": {
+  "state": {
+   "section": [
+    {
+     "id": "10",
+     "number": 0,
+     "title": "Informationen"
+    },
+    {
+     "id": "11",
+     "number": 1,
+     "title": "1"
+    },
+    {
+     "id": "12",
+     "number": 2,
+     "title": ""
+    }
+   ],
+   "cm": [
+    {
+     "id": "1",
+     "module": "resource",
+     "name": "Folien 1",
+     "sectionid": "11"
+    },
+    {
+     "id": "2",
+     "module": "folder",
+     "name": "Texte",
+     "sectionid": "10"
+    },
+    {
+     "id": "3",
+     "module": "forum",
+     "name": "Forum",
+     "sectionid": "10"
+    },
+    {
+     "id": "4",
+     "module": "resource",
+     "name": "versteckt",
+     "sectionid": "10",
+     "uservisible": false
+    },
+    {
+     "id": "5",
+     "module": "resource",
+     "name": "Blatt",
+     "sectionid": "12"
+    }
+   ]
+  },
+  "links": {
+   "1": [
+    "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/5/mod_resource/content/4/Folien%201.pdf"
+   ],
+   "2": [
+    "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/x.pdf?forcedownload=1",
+    "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/Sub/y.pdf"
+   ],
+   "5": [
+    "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/7/mod_resource/content/1/blatt.pdf"
+   ]
+  },
+  "files": [
+   {
+    "id": "lw-1-2e4a3839",
+    "name": "Folien 1.pdf",
+    "chdate": 4,
+    "download_url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/5/mod_resource/content/4/Folien%201.pdf",
+    "folder": "Woche 1"
+   },
+   {
+    "id": "lw-2-d7d9a757",
+    "name": "x.pdf",
+    "chdate": 2,
+    "download_url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/x.pdf",
+    "folder": "Informationen/Texte"
+   },
+   {
+    "id": "lw-2-f9923d73",
+    "name": "y.pdf",
+    "chdate": 2,
+    "download_url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/Sub/y.pdf",
+    "folder": "Informationen/Texte/Sub"
+   },
+   {
+    "id": "lw-5-355519f7",
+    "name": "blatt.pdf",
+    "chdate": 1,
+    "download_url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/7/mod_resource/content/1/blatt.pdf",
+    "folder": "Abschnitt 2"
+   }
+  ]
+ },
+ "folder-html": {
+  "html": "<a href=\"https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/x.pdf?forcedownload=1\">x</a><a href=\"https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/x.pdf\">x</a><a href=\"/other\">o</a>",
+  "links": [
+   "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/x.pdf?forcedownload=1"
+  ]
+ },
+ "semester-labels": {
+  "2026-03-15": "WiSe 2025/26",
+  "2026-04-01": "SoSe 2026",
+  "2026-09-30": "SoSe 2026",
+  "2026-10-01": "WiSe 2026/27",
+  "2026-12-24": "WiSe 2026/27",
+  "2027-01-20": "WiSe 2026/27"
+ },
+ "learnweb-discover": {
+  "names": {
+   "2025": "Learnweb SoSe 2025 - WiSe 2025/26",
+   "2026": "Learnweb SoSe 2026 - WiSe 2026/27",
+   "2027": "Learnweb SoSe 2027 - WiSe 2027/28"
+  },
+  "cases": [
+   {
+    "today": "2026-10-25",
+    "alive": [
+     2025,
+     2026
+    ],
+    "base": "https://www.uni-hildesheim.de/learnweb2026"
+   },
+   {
+    "today": "2027-01-20",
+    "alive": [
+     2025,
+     2026,
+     2027
+    ],
+    "base": "https://www.uni-hildesheim.de/learnweb2026"
+   },
+   {
+    "today": "2027-04-10",
+    "alive": [
+     2026,
+     2027
+    ],
+    "base": "https://www.uni-hildesheim.de/learnweb2027"
+   },
+   {
+    "today": "2027-04-10",
+    "alive": [
+     2026
+    ],
+    "base": "https://www.uni-hildesheim.de/learnweb2026"
+   }
+  ]
+ },
+ "cas": {
+  "login_url": "https://www.uni-hildesheim.de/sso/login?service=https%3A%2F%2Flsf.uni-hildesheim.de%2Fqisserver%2Frds%3Fstate%3Duser%26type%3D1",
+  "is_cas_page": [
+   {
+    "url": "https://www.uni-hildesheim.de/sso/login?service=x",
+    "result": true
+   },
+   {
+    "url": "https://uni-hildesheim.de/sso/login",
+    "result": true
+   },
+   {
+    "url": "https://www.uni-hildesheim.de/learnweb2026/my/",
+    "result": false
+   },
+   {
+    "url": "https://lsf.uni-hildesheim.de/sso/login",
+    "result": false
+   }
+  ]
+ },
  "lsf-course.ics": [
   {
    "weekday": 3,
@@ -67,37 +373,152 @@
    ]
   }
  ],
- "learnweb-course-contents.json": [
+ "lsf-summary": [
   {
-   "id": "lw-77-ce50f85d",
-   "name": "plan.pdf",
-   "chdate": 1760000000,
-   "download_url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/mod_resource/content/1/plan.pdf",
-   "folder": "Informationen"
+   "summary": "0449 - Erinnerungen\\, Erzählungen (Zimmermann)",
+   "number": "0449",
+   "title": "Erinnerungen, Erzählungen",
+   "lecturer": "Zimmermann"
   },
   {
-   "id": "lw-80-c0ee9bd7",
-   "name": "Einführung.pdf",
-   "chdate": 1760000001,
-   "download_url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/6/mod_folder/content/2/Teil%201/Einfu%CC%88hrung.pdf",
-   "folder": "Woche 1/Literatur/Teil 1"
+   "summary": "1532 - Klein(st)kinder in den stationären Hilfen",
+   "number": "1532",
+   "title": "Klein(st)kinder in den stationären Hilfen",
+   "lecturer": ""
+  },
+  {
+   "summary": "Ohne Nummer (Meier, Schulz)",
+   "number": null,
+   "title": "Ohne Nummer",
+   "lecturer": "Meier, Schulz"
+  },
+  {
+   "summary": "2072 - Das perfekte Zimmer. Wohnraum als Konsumkultur",
+   "number": "2072",
+   "title": "Das perfekte Zimmer. Wohnraum als Konsumkultur",
+   "lecturer": ""
   }
  ],
- "course-titles": {
-  "SoSe 2026: 0406 Theorien der Erziehungswissenschaft": {
-   "semester": "SoSe 2026",
-   "number": "0406",
-   "title": "0406 Theorien der Erziehungswissenschaft"
+ "lsf-plan-link": [
+  {
+   "html": "<a href=\"https://lsf.uni-hildesheim.de/qisserver/rds?state=verpublish&amp;status=transform&amp;termine=1,2&amp;moduleCall=iCalendarPlan\">",
+   "link": "https://lsf.uni-hildesheim.de/qisserver/rds?state=verpublish&status=transform&termine=1,2&moduleCall=iCalendarPlan"
   },
-  "WiSe 2026/27:  1532   Klein(st)kinder": {
-   "semester": "WiSe 2026/27",
-   "number": "1532",
-   "title": "1532 Klein(st)kinder"
+  {
+   "html": "<a href=\"rds?state=wplan&amp;moduleCall=iCalendarPlan\">",
+   "link": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&moduleCall=iCalendarPlan"
   },
-  "Mathe-Vorkurs": {
-   "semester": "",
-   "number": null,
-   "title": "Mathe-Vorkurs"
+  {
+   "html": "<html>kein Plan</html>",
+   "link": null
   }
+ ],
+ "grade-rows": {
+  "abschluss": "Fallback",
+  "rows": [
+   [
+    "Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022 Prüfungsordnung Studienordnung"
+   ],
+   [
+    "Prüfungsnr.",
+    "Bezeichnung der Leistung / der Lehrveranstaltung",
+    "Note",
+    "Status",
+    "Bonus"
+   ],
+   [
+    "5010",
+    "Modul 1: Einführung",
+    "",
+    "",
+    "12"
+   ],
+   [
+    "5011",
+    "TM 1: Grundlagen /\n0424 Einführung",
+    "1,7",
+    "bestanden",
+    "6"
+   ],
+   [
+    "5013",
+    "TM 3: Prozesse / 0503 Methodik",
+    "",
+    "bestanden",
+    "3"
+   ],
+   [
+    "5032",
+    "TM 2: Kindheit / 0410 Kindheit",
+    "",
+    "angemeldet (SoSe 26)",
+    "0"
+   ],
+   [
+    "8000",
+    "Gesamtkonto studienbegleitender Prüfungen",
+    "",
+    "",
+    "44,5"
+   ],
+   [
+    "Abschluss: [82] Bachelor Studiengang: [021] Begleitfach PO-Version: 2022"
+   ],
+   [
+    "Prüfungsnr.",
+    "Bezeichnung der Leistung / der Lehrveranstaltung",
+    "Note",
+    "Status",
+    "Bonus"
+   ],
+   [
+    "10010",
+    "Pflichtmodule (mindestens 12 LP)",
+    "",
+    "Prüfung vorhanden",
+    "6"
+   ],
+   [
+    "4220",
+    "Grundlagen I / 3200 Grundlagen 1",
+    "2,3",
+    "bestanden",
+    "6"
+   ]
+  ],
+  "grades": [
+   {
+    "pruefungsnr": "5011",
+    "text": "TM 1: Grundlagen / 0424 Einführung",
+    "note": "1,7",
+    "status": "bestanden",
+    "credits": "6",
+    "abschluss": "Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022"
+   },
+   {
+    "pruefungsnr": "5013",
+    "text": "TM 3: Prozesse / 0503 Methodik",
+    "note": "",
+    "status": "bestanden",
+    "credits": "3",
+    "abschluss": "Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022"
+   },
+   {
+    "pruefungsnr": "5032",
+    "text": "TM 2: Kindheit / 0410 Kindheit",
+    "note": "",
+    "status": "angemeldet (SoSe 26)",
+    "credits": "0",
+    "abschluss": "Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022"
+   },
+   {
+    "pruefungsnr": "4220",
+    "text": "Grundlagen I / 3200 Grundlagen 1",
+    "note": "2,3",
+    "status": "bestanden",
+    "credits": "6",
+    "abschluss": "Abschluss: [82] Bachelor Studiengang: [021] Begleitfach PO-Version: 2022"
+   }
+  ]
  }
 }
