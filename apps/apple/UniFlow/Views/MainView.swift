@@ -1,36 +1,38 @@
 import SwiftUI
 
-/// Hauptnavigation der iPad-App.
+/// Hauptnavigation wie die Web-App: Seitenleiste + Kopfzeile (Design/AppShell.swift), Inhalt je Route.
+/// Bereiche ohne 1:1-Umsetzung zeigen vorerst die bisherige native Ansicht bzw. die Web-Ansicht des Servers;
+/// den Stand je Funktion fuehrt WEB-IPAD-PARITAET.md.
 struct MainView: View {
     @EnvironmentObject private var session: Session
-    @SceneStorage("uniflow.tab") private var tab = "docs"
+    @EnvironmentObject private var shell: ShellState
 
     var body: some View {
-        TabView(selection: $tab) {
-            DashboardView(api: session.api)
-                .tabItem { Label("Übersicht", systemImage: "house") }.tag("home")
-            LibraryView()
-                .tabItem { Label("Dokumente", systemImage: "doc.richtext") }.tag("docs")
-            ModulesView(api: session.api)
-                .tabItem { Label("Module", systemImage: "books.vertical") }.tag("modules")
-            CalendarView(api: session.api)
-                .tabItem { Label("Kalender", systemImage: "calendar") }.tag("calendar")
-            TestsView(api: session.api)
-                .tabItem { Label("Tests", systemImage: "graduationcap") }.tag("tests")
-            SettingsView(api: session.api)
-                .tabItem { Label("Einstellungen", systemImage: "gearshape") }.tag("settings")
+        AppShell { route in
+            switch route {
+            case .dashboard:
+                DashboardView(api: session.api)                       // 1:1
+            case .plan:
+                CalendarView(api: session.api)                        // alt, wird 1:1 ersetzt
+            case .modules, .module:
+                ModulesView(api: session.api)                         // alt, wird 1:1 ersetzt
+            case .files:
+                LibraryView()                                         // alt, wird 1:1 ersetzt
+            case .doc(let id, _, _):
+                LibraryView(openFile: id)
+            case .exams, .exam, .cards:
+                TestsView(api: session.api)                           // alt, wird 1:1 ersetzt
+            case .settings:
+                SettingsView(api: session.api)                        // alt, wird 1:1 ersetzt
+            case .timetable, .services, .community:
+                UFWebFallback(route: route)                           // Uebergang
+            }
         }
+        .onAppear { shell.attach(session.api) }
+        .onChange(of: session.api?.base) { _, _ in shell.attach(session.api) }
     }
 }
 
 #Preview("Verbinden") {
     ConnectView().environmentObject(Session())
-}
-
-#Preview("Karte") {
-    Card(title: "Heute", systemImage: "sun.max") {
-        ProgressBar(value: 0.4)
-        Text("2 von 5 Aufgaben")
-    }
-    .padding()
 }

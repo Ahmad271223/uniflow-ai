@@ -13,6 +13,8 @@ final class APIClient: @unchecked Sendable {
     let base: URL
     private let pin: String?
     private let session: URLSession
+    /// PIN fuer eingebettete Web-Ansichten (Cookie lernapp_pin)
+    var pinValue: String? { pin }
 
     init(base: URL, pin: String?) {
         self.base = base

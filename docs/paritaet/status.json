@@ -1,0 +1,800 @@
+{
+  "intro": "# Web ↔ iPad: Paritäts-Checkliste\n\nZiel: Die native iPad-App ist eine vollständige 1:1-Umsetzung der Web-App (Design, Navigation, Funktionen, Daten, Logik). Abweichungen nur dort, wo Apple Pencil, Touch, Bildschirmgröße oder iPadOS es erfordern.\n\n**Diese Datei wird erzeugt:** `python tools/gen-parity.py` (Zeilen aus den Bestandsaufnahmen in `docs/paritaet/`, Status aus `docs/paritaet/status.json`). Status bitte in `status.json` pflegen, nicht hier.\n\nStatus-Stufen (aufsteigend, jede setzt die vorige voraus):\n\n| Status | Bedeutung |\n|---|---|\n| Nicht begonnen | keine native 1:1-Umsetzung (ggf. alte native Ansicht oder Übergang, siehe „iPad heute“) |\n| Implementiert | Code geschrieben, **nicht kompiliert** |\n| Kompiliert | baut in Xcode für das iPad |\n| Getestet | automatisiert oder im Simulator ausprobiert, Ergebnis notiert |\n| Visuell geprüft | Bildschirmfoto Web und iPad nebeneinander verglichen |\n| Vollständig gleichwertig | gleiche Funktion, gleiche Daten, gleiche Gestaltung, am echten iPad bestätigt |\n\n**Implementiert bedeutet nicht getestet.** Stand: 25.10.2026, Zweig `develop`.\n\nBestandsaufnahmen (vollständige Beschreibung jeder Funktion mit Quelltextstelle): [Web-Ansichten](docs/paritaet/web-ansichten.md) · [Web-Editor](docs/paritaet/web-editor.md) · [iPad-App vor dem Umbau](docs/paritaet/ipad-app.md).",
+  "middle": "## Wie es umgesetzt wird\n\n### Architektur\n\n- **Gleiche Daten in gleicher Form:** Die nativen Ansichten lesen dieselben JSON-Antworten wie die Web-App (`/api/...`). Heute liefert sie der UniFlow-Server am PC. Für den Betrieb ohne PC kommt ein **lokales Backend** auf dem iPad dazu (SQLite mit demselben Schema, Python-Logik nach Swift portiert), das dieselben Endpunkte mit derselben JSON-Form beantwortet. Die Ansichten bleiben dabei unverändert.\n- **Prüfbar:** Python-Server und Swift-Backend werden auf derselben Test-Datenbank verglichen (gleiche Anfrage, gleiche Antwort). Der Swift-Kern läuft auch unter Linux (`swift test` im Docker-Image `swift:6.0-jammy`).\n- **Designsystem:** `apps/apple/UniFlow/Design/` – Farben, Radien, Schatten, Schrift 1:1 aus `style.css` (`UFTheme.swift`), Komponenten 1:1 nach den CSS-Klassen (`UFComponents.swift`), dieselben 83 Icons als Vektor (`tools/gen-ios-icons.mjs` erzeugt sie aus `app/static/icons.js`), App-Rahmen wie `index.html`/`app.js` (`AppShell.swift`).\n\n### Ersatz der Python-Serverlogik\n\n| Python | Aufgabe | Nativer Ersatz | Stand |\n|---|---|---|---|\n| `studip_sync.py` (Playwright) | Anmeldung, Kurse, Ordner, Dateien, Termine | Anmeldung auf der echten Stud.IP-Seite (Webansicht) + JSON:API (`StudIPClient`, `StudIPSync`) | Kurse/Ordner/Dateien: Kern getestet (48/48), App nicht kompiliert; Termine/Stundenplan fehlen |\n| `study.py` (749 Z., ohne KI) | Lernpakete, Zeitfenster, Machbarkeit, Kalender, Nachholen, „Woche retten“, Übersicht | Swift-Port im Kern | Nicht begonnen |\n| `timetable.py` (436 Z.) | Termine, Ausnahmen, Anwesenheit, freie Fenster, ICS, Stud.IP-Import | Swift-Port im Kern; Bildimport nur mit KI | Nicht begonnen |\n| `scriptsearch.py` (196 Z.) | Skriptstelle zur Aufgabe (BM25, ohne KI) | PDFKit-Textauszug + BM25 in Swift | Nicht begonnen |\n| `planner.py` | Dateianalyse (KI), KI-Wochenplan, Wochentests (KI) | Einordnung nach Stud.IP-Ordner und Dateiname ohne KI; KI-Teile über KI-Dienst | Nicht begonnen |\n| `ai.py` | KI über `claude -p` auf dem PC | Ohne PC nur mit einem KI-Dienst (kostenpflichtig, **braucht deine Freigabe**); bis dahin über den UniFlow-Server, wenn erreichbar; sonst sichtbar „nicht verfügbar“ | Entscheidung offen |\n| `qis.py` (Playwright) | Noten, Bescheinigungen | Anmeldung in Webansicht + Auswertung der QIS-Seiten | Nicht begonnen |\n| `extract.py` | PDF-Text | PDFKit | Nicht begonnen |\n| `billing.py` | Tarife, Kontingente | StoreKit 2 (Testmodus vorhanden) + lokale Kontingente | im Web nicht eingebunden |\n| `server.py` (101 Endpunkte) | Notizen mit Versionen, Ordner, Papierkorb, Aufnahmen, Suche, Karteikarten, Einstellungen | Endpunkte des lokalen Backends | Nicht begonnen |\n| `db.py` (27 Tabellen) | Datenmodell, Migrationen | SQLite auf dem iPad, gleiches Schema | Nicht begonnen |\n\n### Prüfen ohne und mit Mac\n\n- **Ohne Mac (PC):** Swift-Kern kompilieren und testen (Docker), Syntaxprüfung aller App-Dateien (`swiftc -parse`). Typprüfung von SwiftUI-Code ist ohne macOS nicht möglich.\n- **Mit Mac:** Kompilieren, Simulator, Bildschirmfotos, UI-Tests. Das ist für jeden Status ab „Kompiliert“ nötig.\n\n### Bekannte Fehler der bisherigen iPad-App (Auswahl, vollständig in `docs/paritaet/ipad-app.md` Abschnitt F)\n\n1. Dokumentliste ohne Server leer, obwohl PDFs lokal liegen.\n2. Direkt aus Stud.IP geladene Dateien nur in der Vorschau, nicht im Editor.\n3. Text, Formen, Bilder, Haftnotizen aus dem Web nur Anzeige.\n4. Rückgängig nur für Striche.\n5. Dokument-Tabs werden beim Wechsel neu aufgebaut (Zoom/Position weg).\n6. Tests: kein Timer, Antworten gehen beim Verlassen verloren.\n7. PDF-Zwischenspeicher wird nie erneuert; Zwischenspeicher nicht nach Server getrennt.",
+  "outro": "## Visueller Vergleich\n\nNoch nicht durchgeführt. Vorgehen je Ansicht: Web-App im iPad-Simulator-Safari bzw. im Browser bei 1180 × 820 (Querformat) und 820 × 1180 (Hochformat), native Ansicht im iPad-Simulator mit denselben Daten, beide Bilder nebeneinander in `docs/paritaet/screens/<ansicht>-web.png` / `-ipad.png`, Abweichungen in die Spalte „Fehlt zur Gleichheit“.",
+  "areas": {
+    "A": "Routen",
+    "B.0": "Gemeinsame Bausteine",
+    "C": "App-Rahmen (Seitenleiste, Kopfzeile, Layout)",
+    "D.3": "Designsystem: Komponenten",
+    "B.1": "Übersicht",
+    "B.2": "Lernkalender",
+    "B.3": "Stundenplan",
+    "B.4": "Meine Module",
+    "B.5": "Dokumente & Notizen",
+    "B.6": "Dokumentansicht",
+    "B.7": "Zeitmesser",
+    "B.8": "Tests & Wiederholung",
+    "B.9": "Uni & Noten",
+    "B.10": "Community",
+    "B.11": "Einstellungen",
+    "B.12": "Globale Zustände",
+    "E.A": "PDF-Editor: Leisten und Menüs",
+    "E.B": "PDF-Editor: Funktionen und Tastenkürzel"
+  },
+  "sections": {
+    "A": {
+      "heute": "alte native Ansicht (Systemoptik)",
+      "status": "Nicht begonnen"
+    },
+    "B.0": {
+      "heute": "–",
+      "status": "Nicht begonnen"
+    },
+    "B.1": {
+      "heute": "alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift)",
+      "status": "Implementiert",
+      "note": "nicht kompiliert, nicht verglichen"
+    },
+    "B.2": {
+      "heute": "alt: Kalender Tag/3 Tage/Woche, nur Anzeige",
+      "status": "Nicht begonnen"
+    },
+    "B.3": {
+      "heute": "fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet",
+      "status": "Nicht begonnen"
+    },
+    "B.4": {
+      "heute": "alt: Modulliste und Moduldetail, nur Anzeige",
+      "status": "Nicht begonnen"
+    },
+    "B.5": {
+      "heute": "alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer",
+      "status": "Nicht begonnen"
+    },
+    "B.6": {
+      "heute": "alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis",
+      "status": "Nicht begonnen"
+    },
+    "B.7": {
+      "heute": "fehlt",
+      "status": "Nicht begonnen"
+    },
+    "B.8": {
+      "heute": "alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert",
+      "status": "Nicht begonnen"
+    },
+    "B.8.3": {
+      "heute": "fehlt (Karteikarten)",
+      "status": "Nicht begonnen"
+    },
+    "B.9": {
+      "heute": "fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet",
+      "status": "Nicht begonnen"
+    },
+    "B.10": {
+      "heute": "fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet",
+      "status": "Nicht begonnen"
+    },
+    "B.11": {
+      "heute": "alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose)",
+      "status": "Nicht begonnen"
+    },
+    "B.12": {
+      "heute": "teilweise in Systemoptik",
+      "status": "Nicht begonnen"
+    },
+    "C": {
+      "heute": "alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift)",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    "D.3": {
+      "heute": "Systemoptik",
+      "status": "Nicht begonnen"
+    },
+    "E.": {
+      "heute": "siehe docs/paritaet/ipad-app.md Abschnitt C",
+      "status": "Nicht begonnen"
+    }
+  },
+  "rows": [
+    {
+      "prefix": "W.A-01",
+      "heute": "Übersicht 1:1",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.A-04",
+      "heute": "Übergang: Web-Ansicht eingebettet"
+    },
+    {
+      "prefix": "W.A-08",
+      "heute": "öffnet die Bibliothek mit dem Dokument (alter Editor)"
+    },
+    {
+      "prefix": "W.A-12",
+      "heute": "Übergang: Web-Ansicht eingebettet"
+    },
+    {
+      "prefix": "W.A-13",
+      "heute": "Übergang: Web-Ansicht eingebettet"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "api("
+      ],
+      "heute": "APIClient (vorhanden)",
+      "status": "Implementiert",
+      "note": "Fehlertext aus detail wie im Web prüfen"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "toast("
+      ],
+      "heute": "UFToastCenter",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "modal("
+      ],
+      "heute": "ufModal + UFDialog",
+      "status": "Implementiert",
+      "note": "nicht kompiliert; Option wide fehlt"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "statuspill"
+      ],
+      "heute": "UFStatusPill",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "shortname"
+      ],
+      "heute": "UFFmt.shortName",
+      "status": "Implementiert",
+      "note": "initial() fehlt"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "icons"
+      ],
+      "heute": "83 Web-Icons als Vektor (Assets.xcassets/Icons, UFIcon)",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.B.1",
+      "contains": [
+        "lernpaket öffnen"
+      ],
+      "note": "öffnet die Tagesansicht statt des Lernpaket-Drawers (kommt mit B.2.10)"
+    },
+    {
+      "prefix": "W.B.1",
+      "contains": [
+        "heute an der uni"
+      ],
+      "note": "Tippen öffnet den Stundenplan statt des Termin-Drawers (kommt mit B.3.2)"
+    },
+    {
+      "prefix": "W.B.1",
+      "contains": [
+        "leerzustand"
+      ],
+      "note": "Dialoge „Lernplan erstellen“ und „Lernkombination ändern“ umgesetzt (PlanDialogs.swift); nicht kompiliert"
+    },
+    {
+      "prefix": "W.B.1",
+      "contains": [
+        "kpi 3"
+      ],
+      "note": "„neu planen“ öffnet „Meine Woche retten“ (PlanDialogs.swift); nicht kompiliert"
+    },
+    {
+      "prefix": "W.B.2.11-06",
+      "heute": "GeneratePlanDialog",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.B.2.11-07",
+      "heute": "ConfigDialog",
+      "status": "Implementiert",
+      "note": "Lernzeit als Schrittregler statt Zahlenfeld (Touch); nicht kompiliert"
+    },
+    {
+      "prefix": "W.B.2.11-08",
+      "heute": "SuggestDialog",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.B.12-02",
+      "heute": "UFRemote (Skeleton, „Server nicht erreichbar“, Offline-Hinweis)",
+      "status": "Implementiert",
+      "note": "automatisches Neuladen nach 3 s fehlt"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "ed-inking"
+      ],
+      "heute": "fehlt",
+      "status": "Nicht begonnen",
+      "note": "kommt mit dem Editor"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "fullscreen-doc"
+      ],
+      "note": "Rahmen blendet aus; Auslöser im Editor fehlt"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "exam-focus"
+      ],
+      "note": "Rahmen blendet aus; Auslöser in der Testansicht fehlt"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "script-hint"
+      ],
+      "status": "Nicht begonnen",
+      "note": "kommt mit der Dokumentansicht"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "drawer"
+      ],
+      "status": "Nicht begonnen",
+      "note": "Drawer-Baustein fehlt"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "fs-exit"
+      ],
+      "status": "Nicht begonnen",
+      "note": "kommt mit der Dokumentansicht"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "timer"
+      ],
+      "status": "Nicht begonnen",
+      "note": "Zeitmesser fehlt"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "1500 px"
+      ],
+      "status": "Nicht begonnen",
+      "note": "kommt mit dem Lernkalender"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "1400 px"
+      ],
+      "status": "Nicht begonnen",
+      "note": "kommt mit dem Lernkalender"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "1366 px"
+      ],
+      "status": "Nicht begonnen",
+      "note": "kommt mit der Testübersicht"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "640 px"
+      ],
+      "status": "Nicht begonnen",
+      "note": "kommt mit der Testübersicht"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "pointer: coarse"
+      ],
+      "status": "Nicht begonnen",
+      "note": "kommt mit der Dokumentansicht"
+    },
+    {
+      "prefix": "W.C",
+      "contains": [
+        "1100 px"
+      ],
+      "note": "Raster umgesetzt (UFGrid); cal2, doc-top, docStatus folgen"
+    },
+    {
+      "prefix": "W.C-H",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.C-H06",
+      "status": "Nicht begonnen",
+      "note": "Knopf vorhanden, Zeitmesser selbst fehlt"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".btn"
+      ],
+      "heute": "UFButtonStyle / UFButton",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".card"
+      ],
+      "heute": "UFCard / UFCardHead",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".badge"
+      ],
+      "heute": "UFBadge",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "badge-varianten"
+      ],
+      "heute": "UFTone",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".status-pill"
+      ],
+      "heute": "UFStatusPill",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "`.chip`"
+      ],
+      "heute": "UFChip",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "`.seg`"
+      ],
+      "heute": "UFSegmented",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".tabs"
+      ],
+      "heute": "UFTabs",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "`.input`"
+      ],
+      "heute": "UFTextField",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "label.field"
+      ],
+      "heute": "UFField / UFCheckbox",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".progress"
+      ],
+      "heute": "UFProgress",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".modal"
+      ],
+      "heute": "ufModal / UFDialog",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".toast"
+      ],
+      "heute": "UFToastOverlay",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".page-head"
+      ],
+      "heute": "UFPageHead",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".content"
+      ],
+      "heute": "UFContent",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".kpi"
+      ],
+      "heute": "UFKPI, UFEmpty, UFSkeleton",
+      "status": "Implementiert",
+      "note": ".tbl fehlt; nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".item"
+      ],
+      "heute": "UFItemRow",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "sidebar/nav"
+      ],
+      "heute": "UFSidebar",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "header-suche"
+      ],
+      "heute": "UFHeader",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".avatar"
+      ],
+      "heute": "UFHeader (Avatar)",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".pkg-card"
+      ],
+      "heute": "PackageCard",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "wochenleiste"
+      ],
+      "heute": "Übersicht (Wochenstreifen)",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".sd"
+      ],
+      "heute": "UFStatusDot",
+      "status": "Implementiert",
+      "note": "nicht kompiliert"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".chips .chip"
+      ],
+      "heute": "–",
+      "status": "Nicht begonnen",
+      "note": "kommt mit der Bibliothek"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".seg.pill"
+      ],
+      "heute": "–",
+      "status": "Nicht begonnen",
+      "note": "native 1:1-Umsetzung"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "stift"
+      ],
+      "heute": "PencilKit-Stift (Füller wird als Stift gespeichert)"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "textmarker"
+      ],
+      "heute": "PencilKit-Marker (Deckkraft fest 0,35)"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "radierer"
+      ],
+      "heute": "PencilKit-Radierer"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "lasso"
+      ],
+      "heute": "PencilKit-Lasso, nur Striche"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "formen"
+      ],
+      "heute": "nur Anzeige"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "haftnotiz"
+      ],
+      "heute": "nur Anzeige"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "ki-"
+      ],
+      "heute": "fehlt"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "kitutor"
+      ],
+      "heute": "fehlt"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "audioaufnahme"
+      ],
+      "heute": "fehlt"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "lineal"
+      ],
+      "heute": "fehlt (PencilKit-Lineal nicht eingebunden)"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "zoom-ansicht"
+      ],
+      "heute": "fehlt"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "rückgängig"
+      ],
+      "heute": "nur für Striche"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "export"
+      ],
+      "heute": "ganzes Dokument über Teilen (Handschrift gerastert)"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "miniaturen"
+      ],
+      "heute": "vorhanden, ohne Handschrift/Vorlagen; Umsortieren fehlt"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "suche im pdf"
+      ],
+      "heute": "vorhanden"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "autosave"
+      ],
+      "heute": "lokales Journal je Seite, Versionen, Zusammenführung (UniFlowCore, getestet)"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "tastenkürzel"
+      ],
+      "heute": "fehlt"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "vollbild"
+      ],
+      "heute": "teilweise (nur Navigationsleiste aus)"
+    },
+    {
+      "prefix": "E.",
+      "contains": [
+        "seitenverwaltung"
+      ],
+      "heute": "Leerseite nach dieser Seite, Drehen, Lesezeichen; Rest fehlt"
+    },
+    {
+      "prefix": "W.B.11.3",
+      "contains": [
+        "passwort"
+      ],
+      "note": "bewusst anders: auf dem iPad Anmeldung über die echte Stud.IP-Seite (StudIPView), kein Passwortfeld – Passwort bleibt beim Nutzer"
+    },
+    {
+      "prefix": "W.B.11.3",
+      "contains": [
+        "zugang speichern"
+      ],
+      "note": "bewusst anders: entfällt mit der Anmeldung über die Stud.IP-Seite"
+    },
+    {
+      "prefix": "W.B.11.3",
+      "contains": [
+        "auf dem ipad benutzen"
+      ],
+      "note": "entfällt auf dem iPad selbst (dient zum Verbinden des iPads mit dem PC-Server)"
+    },
+    {
+      "prefix": "W.B.9.1",
+      "note": "bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort"
+    }
+  ],
+  "extra": [
+    {
+      "id": "W.C-H01",
+      "code": "C",
+      "area": "C",
+      "name": "Menü-Knopf (≤ 900 px)",
+      "look": "öffnet die Seitenleiste als Schublade mit abgedunkeltem Hintergrund",
+      "where": "app.js:21 · index.html"
+    },
+    {
+      "id": "W.C-H02",
+      "code": "C",
+      "area": "C",
+      "name": "Globale Suche (Strg K)",
+      "look": "ab 2 Zeichen, 220 ms verzögert; Treffer Module (Punkt) und Dateien (Typ-Icon); Escape/Klick daneben schließt",
+      "where": "app.js:26-46 · GET /search"
+    },
+    {
+      "id": "W.C-H03",
+      "code": "C",
+      "area": "C",
+      "name": "Sync-Chip",
+      "look": "„Zuletzt synchronisiert: HH:MM“ bzw. „Noch kein Sync“; während Job „<Task> läuft…“",
+      "where": "app.js:48 · GET /sync/status, GET /bg"
+    },
+    {
+      "id": "W.C-H04",
+      "code": "C",
+      "area": "C",
+      "name": "Sync-Knopf",
+      "look": "Toast „Synchronisierung gestartet“, Abfrage alle 3 s, danach Meldung und Neuladen der Ansicht",
+      "where": "app.js:24 · POST /sync"
+    },
+    {
+      "id": "W.C-H05",
+      "code": "C",
+      "area": "C",
+      "name": "Hell/Dunkel/Automatisch",
+      "look": "Reihenfolge Dunkel → Hell → Automatisch; Mond/Sonne; Toast „Design: …“; Vorgabe Hell",
+      "where": "app.js:22, 36"
+    },
+    {
+      "id": "W.C-H06",
+      "code": "C",
+      "area": "C",
+      "name": "Zeitmesser-Knopf",
+      "look": "Uhr-Icon, öffnet den globalen Zeitmesser",
+      "where": "app.js:23"
+    },
+    {
+      "id": "W.C-H07",
+      "code": "C",
+      "area": "C",
+      "name": "Avatar",
+      "look": "34 px Kreis, Initialen aus user_name, accent-soft",
+      "where": "index.html · GET /settings"
+    },
+    {
+      "id": "W.C-H08",
+      "code": "C",
+      "area": "C",
+      "name": "Seitenleiste einklappen",
+      "look": "248 → 68 px, nur Icons, gemerkt",
+      "where": "app.js:19-20"
+    },
+    {
+      "id": "W.C-H09",
+      "code": "C",
+      "area": "C",
+      "name": "Untere Leiste (≤ 900 px)",
+      "look": "Start, Kalender, Module, Dokumente, Mehr",
+      "where": "app.js:17"
+    }
+  ]
+}

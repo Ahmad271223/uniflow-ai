@@ -1,0 +1,692 @@
+# Web ↔ iPad: Paritäts-Checkliste
+
+Ziel: Die native iPad-App ist eine vollständige 1:1-Umsetzung der Web-App (Design, Navigation, Funktionen, Daten, Logik). Abweichungen nur dort, wo Apple Pencil, Touch, Bildschirmgröße oder iPadOS es erfordern.
+
+**Diese Datei wird erzeugt:** `python tools/gen-parity.py` (Zeilen aus den Bestandsaufnahmen in `docs/paritaet/`, Status aus `docs/paritaet/status.json`). Status bitte in `status.json` pflegen, nicht hier.
+
+Status-Stufen (aufsteigend, jede setzt die vorige voraus):
+
+| Status | Bedeutung |
+|---|---|
+| Nicht begonnen | keine native 1:1-Umsetzung (ggf. alte native Ansicht oder Übergang, siehe „iPad heute“) |
+| Implementiert | Code geschrieben, **nicht kompiliert** |
+| Kompiliert | baut in Xcode für das iPad |
+| Getestet | automatisiert oder im Simulator ausprobiert, Ergebnis notiert |
+| Visuell geprüft | Bildschirmfoto Web und iPad nebeneinander verglichen |
+| Vollständig gleichwertig | gleiche Funktion, gleiche Daten, gleiche Gestaltung, am echten iPad bestätigt |
+
+**Implementiert bedeutet nicht getestet.** Stand: 25.10.2026, Zweig `develop`.
+
+Bestandsaufnahmen (vollständige Beschreibung jeder Funktion mit Quelltextstelle): [Web-Ansichten](docs/paritaet/web-ansichten.md) · [Web-Editor](docs/paritaet/web-editor.md) · [iPad-App vor dem Umbau](docs/paritaet/ipad-app.md).
+
+## Stand auf einen Blick
+
+509 Web-Funktionen und Ansichtselemente aus den Bestandsaufnahmen (`docs/paritaet/web-ansichten.md`, `docs/paritaet/web-editor.md`).
+
+| Bereich | Nicht begonnen | Implementiert | Kompiliert | Getestet | Visuell geprüft | Vollständig gleichwertig |
+|---|---:|---:|---:|---:|---:|---:|
+| Routen | 13 | 1 |  |  |  |  |
+| Gemeinsame Bausteine | 3 | 6 |  |  |  |  |
+| App-Rahmen (Seitenleiste, Kopfzeile, Layout) | 11 | 28 |  |  |  |  |
+| Designsystem: Komponenten | 19 | 29 |  |  |  |  |
+| Übersicht |  | 14 |  |  |  |  |
+| Lernkalender | 74 | 3 |  |  |  |  |
+| Stundenplan | 39 |  |  |  |  |  |
+| Meine Module | 19 |  |  |  |  |  |
+| Dokumente & Notizen | 34 |  |  |  |  |  |
+| Dokumentansicht | 27 |  |  |  |  |  |
+| Zeitmesser | 8 |  |  |  |  |  |
+| Tests & Wiederholung | 22 |  |  |  |  |  |
+| Uni & Noten | 20 |  |  |  |  |  |
+| Community | 3 |  |  |  |  |  |
+| Einstellungen | 27 |  |  |  |  |  |
+| Globale Zustände | 1 | 1 |  |  |  |  |
+| PDF-Editor: Leisten und Menüs | 52 |  |  |  |  |  |
+| PDF-Editor: Funktionen und Tastenkürzel | 55 |  |  |  |  |  |
+| **Summe** | **427** | **82** | **0** | **0** | **0** | **0** |
+
+## Wie es umgesetzt wird
+
+### Architektur
+
+- **Gleiche Daten in gleicher Form:** Die nativen Ansichten lesen dieselben JSON-Antworten wie die Web-App (`/api/...`). Heute liefert sie der UniFlow-Server am PC. Für den Betrieb ohne PC kommt ein **lokales Backend** auf dem iPad dazu (SQLite mit demselben Schema, Python-Logik nach Swift portiert), das dieselben Endpunkte mit derselben JSON-Form beantwortet. Die Ansichten bleiben dabei unverändert.
+- **Prüfbar:** Python-Server und Swift-Backend werden auf derselben Test-Datenbank verglichen (gleiche Anfrage, gleiche Antwort). Der Swift-Kern läuft auch unter Linux (`swift test` im Docker-Image `swift:6.0-jammy`).
+- **Designsystem:** `apps/apple/UniFlow/Design/` – Farben, Radien, Schatten, Schrift 1:1 aus `style.css` (`UFTheme.swift`), Komponenten 1:1 nach den CSS-Klassen (`UFComponents.swift`), dieselben 83 Icons als Vektor (`tools/gen-ios-icons.mjs` erzeugt sie aus `app/static/icons.js`), App-Rahmen wie `index.html`/`app.js` (`AppShell.swift`).
+
+### Ersatz der Python-Serverlogik
+
+| Python | Aufgabe | Nativer Ersatz | Stand |
+|---|---|---|---|
+| `studip_sync.py` (Playwright) | Anmeldung, Kurse, Ordner, Dateien, Termine | Anmeldung auf der echten Stud.IP-Seite (Webansicht) + JSON:API (`StudIPClient`, `StudIPSync`) | Kurse/Ordner/Dateien: Kern getestet (48/48), App nicht kompiliert; Termine/Stundenplan fehlen |
+| `study.py` (749 Z., ohne KI) | Lernpakete, Zeitfenster, Machbarkeit, Kalender, Nachholen, „Woche retten“, Übersicht | Swift-Port im Kern | Nicht begonnen |
+| `timetable.py` (436 Z.) | Termine, Ausnahmen, Anwesenheit, freie Fenster, ICS, Stud.IP-Import | Swift-Port im Kern; Bildimport nur mit KI | Nicht begonnen |
+| `scriptsearch.py` (196 Z.) | Skriptstelle zur Aufgabe (BM25, ohne KI) | PDFKit-Textauszug + BM25 in Swift | Nicht begonnen |
+| `planner.py` | Dateianalyse (KI), KI-Wochenplan, Wochentests (KI) | Einordnung nach Stud.IP-Ordner und Dateiname ohne KI; KI-Teile über KI-Dienst | Nicht begonnen |
+| `ai.py` | KI über `claude -p` auf dem PC | Ohne PC nur mit einem KI-Dienst (kostenpflichtig, **braucht deine Freigabe**); bis dahin über den UniFlow-Server, wenn erreichbar; sonst sichtbar „nicht verfügbar“ | Entscheidung offen |
+| `qis.py` (Playwright) | Noten, Bescheinigungen | Anmeldung in Webansicht + Auswertung der QIS-Seiten | Nicht begonnen |
+| `extract.py` | PDF-Text | PDFKit | Nicht begonnen |
+| `billing.py` | Tarife, Kontingente | StoreKit 2 (Testmodus vorhanden) + lokale Kontingente | im Web nicht eingebunden |
+| `server.py` (101 Endpunkte) | Notizen mit Versionen, Ordner, Papierkorb, Aufnahmen, Suche, Karteikarten, Einstellungen | Endpunkte des lokalen Backends | Nicht begonnen |
+| `db.py` (27 Tabellen) | Datenmodell, Migrationen | SQLite auf dem iPad, gleiches Schema | Nicht begonnen |
+
+### Prüfen ohne und mit Mac
+
+- **Ohne Mac (PC):** Swift-Kern kompilieren und testen (Docker), Syntaxprüfung aller App-Dateien (`swiftc -parse`). Typprüfung von SwiftUI-Code ist ohne macOS nicht möglich.
+- **Mit Mac:** Kompilieren, Simulator, Bildschirmfotos, UI-Tests. Das ist für jeden Status ab „Kompiliert“ nötig.
+
+### Bekannte Fehler der bisherigen iPad-App (Auswahl, vollständig in `docs/paritaet/ipad-app.md` Abschnitt F)
+
+1. Dokumentliste ohne Server leer, obwohl PDFs lokal liegen.
+2. Direkt aus Stud.IP geladene Dateien nur in der Vorschau, nicht im Editor.
+3. Text, Formen, Bilder, Haftnotizen aus dem Web nur Anzeige.
+4. Rückgängig nur für Striche.
+5. Dokument-Tabs werden beim Wechsel neu aufgebaut (Zoom/Position weg).
+6. Tests: kein Timer, Antworten gehen beim Verlassen verloren.
+7. PDF-Zwischenspeicher wird nie erneuert; Zwischenspeicher nicht nach Server getrennt.
+
+## Checkliste je Funktion
+
+Spalten: **Web** = Ort im Quelltext und API · **iPad heute** = Stand vor dem 1:1-Umbau bzw. jetzt · **Status** = Fortschritt der 1:1-Umsetzung · **Fehlt zur Gleichheit** = offene Unterschiede.
+
+### Routen
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.A-01 | `#/` · `#/dashboard` · unbekannt | – · `viewDashboard` | app.js:78 | Übersicht 1:1 | Implementiert | nicht kompiliert |
+| W.A-02 | `#/plan` | `view=day/ · 3days/ | week/ | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-03 | `#/tasks` | wie plan, `view` ist fest `list` · Lambda → `viewPlan(p,{...q,view:"list"})` | app.js:58 | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-04 | `#/timetable` | `date=` (Woche, die das Datum enthält) · `viewTimetable` | views-tt.js:6 | Übergang: Web-Ansicht eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-05 | `#/modules` | – · `viewModules` | views-misc.js:19 | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-06 | `#/modules/:id` | – · `viewModules` → `viewModule(id)` | views-misc.js:20/27 | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-07 | `#/files` | `section=docs/ · fav/ | recent/ | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-08 | `#/doc/:id` | `task=<taskId>` (zeigt „Erledigt“-Button), `page=<n>` · `viewDoc` | views-doc.js:12 | öffnet die Bibliothek mit dem Dokument (alter Editor) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-09 | `#/exams` | – · `viewExams` | views-misc.js:68 | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-10 | `#/exams/:id` | `task=<taskId>` (Zurück führt zu #/plan; nach Abgabe wird die Aufgabe erledigt gesetzt) · `viewExams` → `runTest` | views-misc.js:69/92 | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-11 | `#/cards` | – · `viewCards` (Karteikarten, kein Sidebar-Eintrag) | views-misc.js:114 | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-12 | `#/services` | – · `viewServices` | views-misc.js:151 | Übergang: Web-Ansicht eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-13 | `#/community` | – · `viewCommunity` | views-misc.js:180 | Übergang: Web-Ansicht eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.A-14 | `#/settings` | `tab=modules/ · plan/ | account/ | alte native Ansicht (Systemoptik) | Nicht begonnen | native 1:1-Umsetzung |
+
+### Gemeinsame Bausteine
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.0-01 | `api(path, opts)` | fetch `/api…`; JSON-Body oder FormData; wirft bei !ok `detail`/statusText | core.js:15 | APIClient (vorhanden) | Implementiert | Fehlertext aus detail wie im Web prüfen |
+| W.B.0-02 | `toast(msg, ms=2600)` | ein `#toastEl` unten mittig, wird überschrieben, blendet nach ms aus | core.js:32 | UFToastCenter | Implementiert | nicht kompiliert |
+| W.B.0-03 | `modal(html,{wide})` | `.modal` im `#overlay`; Klick auf die Abdunkelung schließt; `[data-close]` schließt; wide = 900 px | core.js:33 | ufModal + UFDialog | Implementiert | nicht kompiliert; Option wide fehlt |
+| W.B.0-04 | `drawer(html)` | rechter Drawer `#drawerEl` plus Backdrop `#drawerBd`; Backdrop-Klick und `[data-close]` schließen; immer nur einer offen | core.js:34–35 | – | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.0-05 | `statusPill(st)` | Pill `.st-<status>` mit Icon und Text: Geplant, In Bearbeitung, Erledigt, Teilweise erledigt, Nachholen, Verschoben, Übersprungen, Frei, Nichts geplant | core.js:9–10, 36 | UFStatusPill | Implementiert | nicht kompiliert |
+| W.B.0-06 | `diffBadge(d)` | „Stufe N“: ok bei ≤2, bad bei ≥4, sonst warn | core.js:37 | – | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.0-07 | `typeBadge(t)` | neutrale Badge mit Dokumenttyp | core.js:38 | – | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.0-08 | `initial()`/`shortName()` | Modul-Initialen und Kurznamen (z. B. Mathematik für die Ingenieurwissenschaften → Mathematik) | core.js:39–40 | UFFmt.shortName | Implementiert | initial() fehlt |
+| W.B.0-09 | Icons | `icon(name,size)`: Lucide-Stil, 24×24, stroke 2, round; unbekannter Name → `file` | icons.js:71 | 83 Web-Icons als Vektor (Assets.xcassets/Icons, UFIcon) | Implementiert | nicht kompiliert |
+
+### App-Rahmen (Seitenleiste, Kopfzeile, Layout)
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.C-01 | dashboard | Übersicht · home |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-02 | plan | Lernkalender · calendar |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-03 | timetable | Stundenplan · clock |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-04 | modules | Meine Module · book |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-05 | files | Dokumente & Notizen · folder |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-06 | exams | Tests & Wiederholung · exam |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-07 | services | Uni & Noten · graduation |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-08 | community | Community · users |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-09 | `doc-open` | viewDoc · `html` und `body` scrollen nicht; Header und Mobile-Nav ausgeblendet; doc-view 100dvh hoch. Ab 901 px: Sidebar fest auf 68 px, Labels und Badges ausgeblendet, … | :412–452 | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-10 | `fullscreen-doc` | `#docFull` (oder Editor `toggleFullscreen`) · Sidebar, Header und `.doc-top` ausgeblendet; Shell einspaltig; doc-view 100vh; `#fsExit` sichtbar | :230, 425, 432, 444–446 | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | Rahmen blendet aus; Auslöser im Editor fehlt |
+| W.C-11 | `exam-focus` | runTest bei offenem Test · Sidebar und Header ausgeblendet, Shell einspaltig | :212 | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | Rahmen blendet aus; Auslöser in der Testansicht fehlt |
+| W.C-12 | `html.ed-inking` | Editor beim Schreiben · Skript-Hinweis mit Deckkraft .25, nicht klickbar | :498 | fehlt | Nicht begonnen | kommt mit dem Editor |
+| W.C-13 | header | 15 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-14 | backdrop | 19 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-15 | sidebar | 20 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-16 | mobile-nav | 30 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-17 | script-hint | 30 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | kommt mit der Dokumentansicht |
+| W.C-18 | drawer | 40 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | Drawer-Baustein fehlt |
+| W.C-19 | fs-exit | 40 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | kommt mit der Dokumentansicht |
+| W.C-20 | timer | 45 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | Zeitmesser fehlt |
+| W.C-21 | modal | 50 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-22 | toast | 60 |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-23 | 1500 px | kompakte Wochenansicht |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | kommt mit dem Lernkalender |
+| W.C-24 | 1400 px | Seitenspalte im Kalender standardmäßig aus |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | kommt mit dem Lernkalender |
+| W.C-25 | 1366 px | Testraster zweispaltig |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | kommt mit der Testübersicht |
+| W.C-26 | 1100 px | cols-3 → 2; cal2 einspaltig; `.hide-s` in der doc-top aus; `#docStatus` aus |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | Raster umgesetzt (UFGrid); cal2, doc-top, docStatus folgen |
+| W.C-27 | 900 px | Mobil-Layout |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-28 | 820 px | Grids einspaltig; Einstellungen einspaltig |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-29 | 640 px | Testraster einspaltig |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | kommt mit der Testübersicht |
+| W.C-30 | `pointer: coarse` | doc-top 52 px |  | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | kommt mit der Dokumentansicht |
+| W.C-H01 | Menü-Knopf (≤ 900 px) | öffnet die Seitenleiste als Schublade mit abgedunkeltem Hintergrund | app.js:21 · index.html | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-H02 | Globale Suche (Strg K) | ab 2 Zeichen, 220 ms verzögert; Treffer Module (Punkt) und Dateien (Typ-Icon); Escape/Klick daneben schließt | app.js:26-46 · GET /search | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-H03 | Sync-Chip | „Zuletzt synchronisiert: HH:MM“ bzw. „Noch kein Sync“; während Job „<Task> läuft…“ | app.js:48 · GET /sync/status, GET /bg | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-H04 | Sync-Knopf | Toast „Synchronisierung gestartet“, Abfrage alle 3 s, danach Meldung und Neuladen der Ansicht | app.js:24 · POST /sync | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-H05 | Hell/Dunkel/Automatisch | Reihenfolge Dunkel → Hell → Automatisch; Mond/Sonne; Toast „Design: …“; Vorgabe Hell | app.js:22, 36 | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-H06 | Zeitmesser-Knopf | Uhr-Icon, öffnet den globalen Zeitmesser | app.js:23 | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Nicht begonnen | Knopf vorhanden, Zeitmesser selbst fehlt |
+| W.C-H07 | Avatar | 34 px Kreis, Initialen aus user_name, accent-soft | index.html · GET /settings | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-H08 | Seitenleiste einklappen | 248 → 68 px, nur Icons, gemerkt | app.js:19-20 | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+| W.C-H09 | Untere Leiste (≤ 900 px) | Start, Kalender, Module, Dokumente, Mehr | app.js:17 | alt: Reiterleiste unten (Systemoptik); jetzt Rahmen wie Web (Design/AppShell.swift) | Implementiert | nicht kompiliert |
+
+### Designsystem: Komponenten
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.D.3-01 | `.btn` | inline-flex, gap .45rem, padding .5rem .85rem, radius 8px, 1px line-strong, bg surface, 500, lh 1.2; hover surface-2; aktiv translateY(1px); disabled .55 | :81–82 | UFButtonStyle / UFButton | Implementiert | nicht kompiliert |
+| W.D.3-02 | `.btn.primary` | bg/border accent, #fff; hover accent-strong | :83 | UFButtonStyle / UFButton | Implementiert | nicht kompiliert |
+| W.D.3-03 | `.btn.ghost` | transparent, text-2; hover surface-2/text | :84 | UFButtonStyle / UFButton | Implementiert | nicht kompiliert |
+| W.D.3-04 | `.btn.danger` | color bad, border bad 40 % (color-mix); hover bad-soft | :85 | UFButtonStyle / UFButton | Implementiert | nicht kompiliert |
+| W.D.3-05 | `.btn.ok` | bg/border ok, #fff | :87 | UFButtonStyle / UFButton | Implementiert | nicht kompiliert |
+| W.D.3-06 | `.btn.sm` / `.icon` / `.icon.sm` | padding .3rem .6rem, .82rem / 34×34 px, padding .45rem / 28×28 px, padding .25rem | :86 | UFButtonStyle / UFButton | Implementiert | nicht kompiliert |
+| W.D.3-07 | `.card` | surface, 1px line, radius 12px, padding 1.1rem 1.2rem, sh-sm; `.flat` ohne Schatten; `.pad-0` | :88–89 | UFCard / UFCardHead | Implementiert | nicht kompiliert |
+| W.D.3-08 | `.card-head` | flex between, gap .6rem, mb .8rem; h2 flex gap .45rem | :90–91 | UFCard / UFCardHead | Implementiert | nicht kompiliert |
+| W.D.3-09 | `.badge` | pill, padding .1rem .5rem, .72rem, 600, accent-soft/accent-text | :96 | UFBadge | Implementiert | nicht kompiliert |
+| W.D.3-10 | Badge-Varianten | ok (ok-soft/ok), warn, bad, info, neutral (surface-2/text-2) | :97 | UFTone | Implementiert | nicht kompiliert |
+| W.D.3-11 | `.status-pill` | .75rem 600, padding .1rem .5rem, pill. geplant info-soft/info; in_bearbeitung accent-soft/accent-text; erledigt ok; teilweise warn; nachholen bad; verschoben, übersprung… | :134–135 | UFStatusPill | Implementiert | nicht kompiliert |
+| W.D.3-12 | `.chip` | padding .25rem .65rem, pill, 1px line, surface, .8rem, text-2; `.on` accent-soft, Rahmen transparent, accent-text, 600 | :98–99 | UFChip | Implementiert | nicht kompiliert |
+| W.D.3-13 | `.chips .chip` (Bibliothek) | .45rem .95rem, .86rem, radius 10px, bg surface-2 | :379 | – | Nicht begonnen | kommt mit der Bibliothek |
+| W.D.3-14 | `.seg` | surface-2, radius 8px, padding 3px, gap 2px; Button .35rem .7rem, radius 6px; aktiv surface + sh-sm | :108–110 | UFSegmented | Implementiert | nicht kompiliert |
+| W.D.3-15 | `.seg.pill` | padding 4px, radius 10px; Button .4rem .9rem, radius 8px; aktiv bg accent, #fff | :328–329 | – | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-16 | `.tabs` | Unterlinie line; Button .6rem .85rem, text-2; aktiv accent-text mit 2px accent unten | :105–107 | UFTabs | Implementiert | nicht kompiliert |
+| W.D.3-17 | `.input` | padding .5rem .7rem, radius 8px, 1px line-strong; Fokus: Rahmen accent und Ring 0 0 0 3px accent-soft | :100–101 | UFTextField | Implementiert | nicht kompiliert |
+| W.D.3-18 | `label.field` | .85rem, text-2, margin .55rem 0 | :102 | UFField / UFCheckbox | Implementiert | nicht kompiliert |
+| W.D.3-19 | `.progress` | 6px, Spur surface-2, Füllung accent (.ok → ok), Übergang width .3s; `.mod2` 7px in Modulfarbe | :116–117, 404 | UFProgress | Implementiert | nicht kompiliert |
+| W.D.3-20 | `.modal` / `.modal-box` | fixed inset, padding 1rem / surface, radius 16px, Breite min(620px,100%) (wide 900px), max-height 92vh, padding 1.3rem 1.4rem, sh-lg; `.modal-foot` flex-end, gap .5rem, … | :125–127 | ufModal / UFDialog | Implementiert | nicht kompiliert |
+| W.D.3-21 | `.drawer` | rechts fixiert, Breite min(440px,100%), border-left, sh-lg; head padding .9rem 1.1rem; body 1rem 1.1rem; foot .8rem 1.1rem | :129–133 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-22 | `.toast` | unten 1.2rem, zentriert, bg text / color bg (invertiert), .55rem 1rem, pill, sh-lg, .9rem | :128 | UFToastOverlay | Implementiert | nicht kompiliert |
+| W.D.3-23 | `.statbar` | flex, gap .5rem 1.6rem, surface, 1px line, radius 12px, padding .6rem 1rem, .9rem text-2; b 1.05rem text | :468–469 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-24 | `.page-head` | flex, align end, between, gap 1rem, wrap, mb 1.2rem; `.sub` muted; h1 1.9rem/700 | :76–77, 324 | UFPageHead | Implementiert | nicht kompiliert |
+| W.D.3-25 | `.content` | padding 1.4rem 1.6rem 3rem, max 1480px; `.wide` max none, padding .8rem 1rem 1rem. Pro View per Inline-Style: Dashboard 1120, Module 1480, Karteikarten 820, Uni & Noten … | :73–74 | UFContent | Implementiert | nicht kompiliert |
+| W.D.3-26 | `.kpi`, `.empty`, `.skeleton`, `.tbl` | kpi b 1.35rem; empty zentriert, muted, 2rem 1rem; tbl .86rem, th .76rem uppercase .04em muted; Zeilen-Hover surface-2 | :118–124 | UFKPI, UFEmpty, UFSkeleton | Implementiert | .tbl fehlt; nicht kompiliert |
+| W.D.3-27 | `.item`/`.list` | .6rem .5rem, Trennlinie, radius 8px; `.title` 550 mit Ellipse; `.sub` .8rem muted | :111–114 | UFItemRow | Implementiert | nicht kompiliert |
+| W.D.3-28 | Sidebar/Nav | Sidebar padding .75rem .6rem; Link .55rem .7rem, radius 8px, text-2, 500; aktiv accent-soft | :46–63 | UFSidebar | Implementiert | nicht kompiliert |
+| W.D.3-29 | Header-Suche | Input pill, bg surface-2, padding .5rem .8rem .5rem 2.2rem; Max-Breite 520px; `.kbd` .68rem, radius 5px; Popover radius 12px, sh-lg, max 60vh | :66–71, 326 | UFHeader | Implementiert | nicht kompiliert |
+| W.D.3-30 | `.avatar` | 34px, Kreis, accent-soft/accent-text, .78rem 700 | :325 | UFHeader (Avatar) | Implementiert | nicht kompiliert |
+| W.D.3-31 | **Kalender cal2** | Grid minmax(0,1fr) + 286px. main: radius 16px, padding .9rem 1rem 1rem. Raster 44px + 7 Spalten, gap 0 6px. Tageskopf radius 12px, heute accent-soft. Ring 18px conic (in… | :330–354, 455–466, 481 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-32 | Seitenkarten / Donut / Mini-Kalender | side-card radius 16px, padding 1rem 1.1rem. Donut 104px (innen 76px). legend2 .8rem. todo-item radius 12px. quick-grid 2 Spalten. Mini-Kalender 7 Spalten, Zellen radius … | :355–367 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-33 | Tagesansicht day2 | Termin radius 12px, padding .55rem .9rem, bg Farbe 10 %, linker Rand 4px; Icon-Kachel 38px radius 10px; study info 8 %; frei schraffiert ok 12 %. task2-Checkbox 22px run… | :368–378 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-34 | Monat | `.cal-month` 7 Spalten, gap .4rem; Zelle min 86px, radius 8px; Farbbalken 4px | :187–192 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-35 | `.pkg` | radius 8px, padding .5rem .6rem, surface-2, linker Rand 4px (--pc), .83rem; erledigt .7; nachholen bad-soft; teilweise warn-soft; Aufgaben-Kacheln 18px (done ok, late ba… | :179–186 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-36 | `.pkg-card` | linker Rand 4px, radius 12px, padding .7rem .9rem | :309 | PackageCard | Implementiert | nicht kompiliert |
+| W.D.3-37 | `.task-row` | Checkbox 22px, radius 6px, an = ok; erledigt durchgestrichen; nachholen bad | :194–199 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-38 | Stundenplan tt | Raster 52px + 7×minmax(120px,1fr), min-width 900px. Kopf sticky .82rem. Termin radius 8px, .72rem, bg Farbe, #fff, linker Rand 3px rgba(0,0,0,.18). study: surface mit Ra… | :289–306 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-39 | **Bibliothek** | lib-grid auto-fill minmax(150px), gap 1.2rem 1rem. Mappe 112×86px radius 12px (Lasche 46×16). Vorschau 112×86px radius 6px. Liste: Spalten 44px 1fr 110px 120px 90px 36px… | :264–286, 380–395 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-40 | **Modulkarten** | `.mod2-grid` minmax(300px), gap 1.2rem. `.mod2` radius 18px, Rahmen Farbe 22 % gemischt, padding 1.2rem 1.3rem 1.1rem, Gradient 160° (Farbe 14 % → surface bei 72 %). Dek… | :152–163, 396–407 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-41 | `.mod-card` (Dienste) | linker Streifen 4px (--mc), Hover translateY(-2px) + sh | :141–145 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-42 | **test-card** | oberer Rand 4px (--mc); test-grid auto-fill minmax(280px); Löschen 40×40 (Hover bad); test-go min-height 40px. Frage `.q` radius 12px (good ok / bad bad); `.opt` radius … | :204–211, 310–313, 470–473 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-43 | Karteikarte `.fc-card` | radius 16px, padding 1.6rem, min 180px, zentriert; Antwort accent-text | :213–214 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-44 | Dokumentansicht | `.doc-top` 46px. Tabs 32px radius 9px max 210px, aktiv accent-soft/600. Status-Select 32px. Bereiche: Grid, gap .4rem, padding .4rem; geteilt 65fr/35fr (Rechtshänder 35/… | :217–229, 257–262, 433–451, 485–498 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-45 | Zeitmesser | Widget 260px, radius 16px, sh-lg; Zeit 2rem/700 tabular (abgelaufen bad); Pill accent/#fff, 600 | :318–321 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-46 | Einstellungen | `.set-layout` 240px + 1fr; Nav sticky, Buttons min 44px, aktiv accent-soft | :475–482 | Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.D.3-47 | Wochenleiste (Dashboard) | 7 Spalten; Tag radius 8px, surface-2, .78rem; heute outline 2px accent | :146–149 | Übersicht (Wochenstreifen) | Implementiert | nicht kompiliert |
+| W.D.3-48 | Status-Punkt `.sd` | geplant info, in_bearbeitung accent, erledigt ok, teilweise warn, nachholen bad, frei/leer line-strong | :177 | UFStatusDot | Implementiert | nicht kompiliert |
+
+### Übersicht
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.1-01 | Begrüßung | „Guten Morgen“ (<11 Uhr), „Guten Tag“ (<18 Uhr), sonst „Guten Abend“. Datumszeile: Wochentag, Datum · „heute N Lernpaket(e)“ oder „heute ist nichts geplant“ · „N Uni-Ter… | app.js:80, 87 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-02 | Button „Tagesansicht“ | Link `#/plan?view=day&date=<heute>` | app.js:88 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-03 | Button „Weiterlernen“ (primary) | nur bei offener Aufgabe; führt zu `#/doc/<file>?task=<id>`, ohne Datei zur Tagesansicht | app.js:85, 88 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-04 | KPI 1 | geplante Minuten heute, dazu „· X frei“ | app.js:89 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-05 | KPI 2 | „erledigt / gesamt“, „Aufgaben erledigt“, grüner Fortschrittsbalken | app.js:89 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-06 | KPI 3 | Anzahl „nachzuholen“; bei >0 roter Rahmen und roter Wert, dazu Link „neu planen“ (`#rescueBtn`) → `suggestFlow({rescue:true})` | app.js:89, 106 · `POST /calendar/suggest` | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | „neu planen“ öffnet „Meine Woche retten“ (PlanDialogs.swift); nicht kompiliert |
+| W.B.1-07 | Karte „Heute für dich geplant“ | pro Paket eine `.pkg-card` (linker Rand in Modulfarbe): Punkt, Fach, Uhrzeit, Minuten, Titel, Status-Pill. Darunter die Aufgaben mit Icon, Titel (erledigt durchgestriche… | app.js:92–95 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-08 | Button „Lernpaket öffnen“ (`data-pkg`) | öffnet den Lernpaket-Drawer (B.2.10) | app.js:95, 104 · `GET /packages/:id` | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | öffnet die Tagesansicht statt des Lernpaket-Drawers (kommt mit B.2.10) |
+| W.B.1-09 | Leerzustand | Kalender-Icon, „Für heute ist nichts geplant.“ und Button „Lernplan erstellen“ (`#genTodayBtn`) → `generatePlan(heute)` | app.js:96, 107 · `GET /calendar/feasibility` | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | Dialoge „Lernplan erstellen“ und „Lernkombination ändern“ umgesetzt (PlanDialogs.swift); nicht kompiliert |
+| W.B.1-10 | Karte „Heute an der Uni“ (nur bei Terminen) | Link „Stundenplan“; Zeilen mit Punkt, Zeit, Titel (durchgestrichen, wenn keine Teilnahme) und Raum (max. 22 Zeichen). Klick öffnet den Termin-Drawer | app.js:97, 105 · `GET /timetable/events`, `/timetable/day`, `/timetable/event-materials/:id` | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | Tippen öffnet den Stundenplan statt des Termin-Drawers (kommt mit B.3.2) |
+| W.B.1-11 | Karte „Nächste Termine“ | bis zu 6 Einträge; Link zur Tagesansicht, zum Modul oder zu `#/plan`; Unterzeile „Datum · Klausur/Wochentest/Lernpaket“. Leer: „Keine Termine.“ | app.js:100 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-12 | Karte „Diese Woche“ | „done/total“, Fortschrittsbalken, `.week-strip` mit 7 Tagen (Kürzel, Statuspunkt `.sd`, Minuten oder „–“); heute umrandet; Klick → Tagesansicht | app.js:101 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-13 | Karte „Neu aus Stud.IP“ | Gesamtzahl; bis zu 4 Module mit „N neue Datei(en) · Titel …“ und Badge (Link `#/files?section=new`); Link „Alle anzeigen“. Leer: „Nichts Neues.“ | app.js:102 · – | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+| W.B.1-14 | Button „Gesehen“ (`#markSeenBtn`) | markiert alle neuen Dateien als gesehen und lädt die Route neu | app.js:108 · `POST /files/mark-seen` | alt: Anzeige in Systemoptik, nichts antippbar; jetzt 1:1 (Views/DashboardView.swift) | Implementiert | nicht kompiliert, nicht verglichen |
+
+### Lernkalender
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.2.1-01 | Titel | „Lernkalender“, Unterzeile „Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.“ | :24 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-02 | „+ Lernpaket“ (`#addPkgBtn`) | Dialog „Neues Lernpaket“ (B.2.15); Datum: Tag oder Wochenstart | :25, 47 · `GET /modules` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-03 | „Lernkombination“ (`#cfgBtn`) | Dialog „Lernkombination“ (B.2.17) | :25, 47 · `GET /settings` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-04 | „Woche retten“ (`#rescueBtn`) | ohne Rückstand deaktiviert (Tooltip „Nichts nachzuholen“); sonst `suggestFlow({rescue:true})` | :25, 48 · `POST /calendar/suggest` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-05 | „Plan erstellen“ (primary, `#genBtn`) | Dialog „Lernplan erstellen“; Startdatum: Wochenanfang in der Wochenansicht, sonst der Tag | :25, 46 · `GET /calendar/feasibility` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-06 | Nachhol-Banner (rot, nur bei Rückstand) | „N Aufgabe(n) müssen nachgeholt werden“ | :26 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-07 | · „Jetzt nachholen“ (`#catchNow`) | wechselt in die Listenansicht | :49 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-08 | · „Neu einplanen“ (primary, `#catchPlan`) | `suggestFlow({})` | :49 · `POST /calendar/suggest` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-09 | · „Bewusst überspringen“ (ghost, `#catchSkip`) | Browser-`confirm` „N offene Aufgaben als bewusst übersprungen markieren?“, danach Toast „Übersprungen“ | :50 · `POST /tasks/skip {task_ids}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-10 | Segment (Pill) | Tag, 3 Tage, Woche, Monat, „Liste“ (mit Icon); `data-view` setzt den Hash | :28, 41 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-11 | ‹ / › (`#prevBtn`/`#nextBtn`) | Monat ±1, Woche ±7, 3 Tage ±3, Tag/Liste ±1 | :29, 42–43 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-12 | Zeitraum-Titel | Kalender-Icon und Label (Zeitraum, „Monat Jahr“ oder langes Tagesdatum) | :19, 29 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-13 | „Heute“ (`#todayBtn`) | springt zu heute | :30, 43 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-14 | Select „Alle Module“ (`#modSel`) | Modulfilter, setzt `module=` im Hash | :30, 45 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-15 | Zahnrad (`#cfgBtn2`) | Lernkombination | :30, 47 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.1-16 | `panel-right` (`#sideBtn`, nur Woche/3 Tage) | blendet die Seitenspalte ein/aus (`.side-off`); gespeichert in localStorage `cal-side`; Standard: aus bei Fensterbreite <1400 px | :30, 44, 60 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-01 | Tageskopf `.cal2-dh` | Wochentag, „T.M.“, Fortschrittsring (Farbe nach Status: nachholen rot, erledigt grün, teilweise orange, sonst accent), dazu Minuten, „Frei“, „Nichts geplant“ oder kompak… | :70–75, 104 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-02 | Zeitachse | 60 px pro Stunde; mindestens 08:00–19:00, wird durch Termine erweitert | :55–56, 95 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-03 | Freie Fenster `.cal2-free` | grün schraffiert, Tooltip „Frei hh:mm–hh:mm“ | :91 · (`/timetable/week`) | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-04 | Uni-Termin `.cal2-ev` | Farbe des Termins, Uhrzeit, Name (kompakt/parallel: TINY-Kürzel wie „Mathe I“, „ET“, „DSA“, „Ü …“), Raum ab Höhe >54 px. `off` (nicht besucht) blass und durchgestrichen.… | :58–59, 63–69, 76–79, 107 · Termin-Drawer-APIs | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-05 | Lernblock `.cal2-ev.study` | gestrichelter Info-Rahmen, Buch-Icon, Uhrzeit, Fach, Titel (ab >54 px), Fuß mit Status-Pill und Checkbox (ab >88 px, nicht kompakt). Klick → Lernpaket-Drawer | :80–83, 101 · `GET /packages/:id` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-06 | Checkbox `[data-pkgdone]` | setzt alle Aufgaben des Pakets auf erledigt bzw. zurück auf geplant; Toast „Lernpaket erledigt ✓“ oder „Wieder offen“ | :102 · `GET /packages/:id`, je Aufgabe `POST /tasks/:id/status` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-07 | Jetzt-Linie `.cal2-now` | nur heute | :92 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-08 | „+“-Button `.cal2-add` (nur Spalte heute) | „Lernpaket hinzufügen“ | :92, 105 · `GET /modules` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-09 | **Drag & Drop** | Pakete (`.pkg`, `.tt-ev`, `.cal2-ev`, `.day2-ev` mit `data-pkg`) sind ziehbar (`.dragging`). Drop auf `.cal2-col` oder `.cal-day` (Hervorhebung `.drop`) ändert nur das D… | :101, 103 · `PATCH /packages/:id {date}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-10 | Legende | Uni-Termin, Lernblock, Freie Zeit, nicht besucht | :97 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-11 | Karte „N Lernpaket(e) ohne Uhrzeit“ | Button „Uhrzeiten vergeben“ (`#reslotWeek`), Toast „Uhrzeiten vergeben“; darunter die Paket-Boxen (klick- und ziehbar) | :98, 106 · `POST /timetable/reslot {}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.2-12 | Kompaktmodus | 7 Tage bei Fensterbreite <1500 px: Kurznamen, nur Startzeit, kein Fuß | :86 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.3-01 | Raster `.cal-month` | Kopfzeile Mo–So; 6 Wochen; Tage anderer Monate blass (`.other`); heute mit Akzentrahmen | :35 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.3-02 | Tageszelle `.md` | Statuspunkt, Tageszahl, Farbbalken je Paket (Tooltip: Fach), Minuten. Klick → Tagesansicht | :35, 104 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.3-03 | Drop-Ziel | Monatszellen sind **kein** Drop-Ziel | :103 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.4-01 | Zeitachse | 72 px pro Stunde; mindestens 07:00–20:00, erweiterbar | :143–145 · `GET /timetable/day?date` (ggf. `GET /calendar`) | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.4-02 | Freie Fenster `.day2-free` | schraffiert, Tooltip „Frei: …“ | :146 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.4-03 | Termin `.day2-ev` | Icon nach Art, Titel, Zeit, Raum, „nicht besucht“ oder „fällt aus“; Art-Badge, Modul-Badge. Klick → Termin-Drawer | :147, 107 · s. B.3.2 | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.4-04 | Lernpaket `.day2-ev.study` | „Fach – Titel“, Zeit, Minuten, „x/y erledigt“, Badge „Lernpaket“, Status-Pill. Klick → Drawer; ziehbar (es gibt aber nur eine Spalte) | :148 · `GET /packages/:id` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.4-05 | Sperrzeit `.tt-blocked` | Titel oder „Sperrzeit“ | :149 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.4-06 | Jetzt-Linie | nur heute | :151 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.4-07 | „N Lernpaket(e) ohne Uhrzeit“ | Link-Button „Uhrzeiten vergeben“ (`#reslotBtn`) | :152, 165 · `POST /timetable/reslot {dates:[date]}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.5-01 | Gruppen | „Nachholen“ (rote Badge), „Heute“ (info), „Demnächst“ (neutral) mit Anzahl; je Aufgabe eine Kopfzeile (Punkt, Fach, Datum) und eine Aufgabenzeile (B.2.8) | :283–286 · `GET /tasks/open` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.5-02 | Leerzustand | Häkchen-Icon, „Keine offenen Aufgaben.“ | :286 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.6-01 | „Mein Fortschritt“ | Donut: Erledigt (ok), Geplant (info), Nachholen (bad), Uni-Termine (nur wenn >0); Mitte „done / total Aufgaben“ | :112–116, 128 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.6-02 | „Nicht erledigt“ | Badge mit Anzahl; bis zu 4 Einträge (Warn-Icon, Fach, Titel, Chevron). Klick → Lernpaket-Drawer. Leer: „Alles erledigt – nichts nachzuholen.“ | :129, 134 · `GET /packages/:id` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.6-03 | „Schnell hinzufügen“ | 4 Buttons: „Lernpaket“ (Dialog), „Freie Zeit“ (Verfügbarkeitsdialog), „Testtermin“ (navigiert nur zu `#/exams`), „Persönlich“ (Termin-Dialog mit Art persönlich und Datum) | :130, 135 · je nach Dialog | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.6-04 | Mini-Kalender | „Monat Jahr“ mit ‹/›-Links (Monat ±1); Kopf Mo–So; 42 Tageslinks zur Tagesansicht, bis zu 3 Farbpunkte; Klassen heute/sel/other | :117–122 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.7-01 | Mini-Kalender | wie oben | :159 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.7-02 | „Tagesübersicht“ | Donut: Vorlesungen, Übungen, Tests, Freie Zeit; Mitte „done/total Aufgaben“ | :155–160 · `GET /timetable/day` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.7-03 | „Heutige Aufgaben“ + „Hinzufügen“ (`#addTaskBtn`) | der Button öffnet den Dialog „Neues Lernpaket“ (nicht „Aufgabe“) | :161, 137 · `GET /modules` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.7-04 | Aufgabe `.task2` | runde Checkbox (`data-taskdone`, Toast „Erledigt ✓“ oder „Wieder offen“), „Fach – Titel“, Zeit · Typ · Minuten, Buch-Button → `#/doc/<file>?task=`. Leer: „Für diesen Tag… | :161, 136 · `POST /tasks/:id/status` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.7-05 | „Freie Zeit“ | Fenster „hh:mm – hh:mm“, Minuten, „· Campus“, Button „Lernzeit planen“ (`data-use`) → B.2.19. Leer: „Keine freien Fenster (Lernzeit a–b).“ | :162, 138 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.8-01 | Checkbox `.chk` (`data-done`) | Tooltip „Als erledigt/offen markieren“; Toast „Erledigt ✓“ oder „Wieder offen“ | :201, 207 · `POST /tasks/:id/status {status}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.8-02 | Titel/Meta | Typ-Icon und Titel; Typ · Minuten · Uhrzeit · Status · „verschoben von …“ · Testpunkte | :202 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.8-03 | „Öffnen“ | Link `#/doc/<file>?task=<id>[&page=<last_page>]` | :203 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.8-04 | Test-Button (`data-starttest`) | „Test starten“ (primary), „Fortsetzen“ oder „Ergebnis“; zeigt „Test wird erstellt…“, dann → `#/exams/<test>?task=<id>`. Fehler als Toast (5 s) | :203, 208 · `POST /tasks/:id/start-test` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.8-05 | „…“ (`data-taskmenu`) | öffnet das Aufgaben-Menü (B.2.9) | :204, 209 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.9-01 | „In Bearbeitung“ | setzt den Status | :211, 217 · `POST /tasks/:id/status {status:"in_bearbeitung"}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.9-02 | „Auf anderen Tag verschieben“ | Verschieben-Dialog (B.2.11), Toast „Verschoben“ | :214 · `POST /calendar/apply {moves:[{task_id,to}]}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.9-03 | „Bewusst überspringen“ | setzt den Status | :217 · `POST /tasks/:id/status {status:"uebersprungen"}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.9-04 | „Titel / Dauer ändern“ | Modal „Aufgabe bearbeiten“: Titel (vorbelegt), Dauer in Minuten (immer mit 45 vorbelegt, min 5, step 5); Abbrechen/Speichern | :216 · `PATCH /tasks/:id {title, est_minutes}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.9-05 | „Löschen“ (danger) | `confirm` „Aufgabe löschen?“ | :215 · `DELETE /tasks/:id` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.9-06 | „Abbrechen“ | schließt | :211 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.10-01 | Laden | lädt das Paket; Fehler-Toast „Paket nicht gefunden“ | :185 · `GET /packages/:id` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.10-02 | Kopf | Punkt, Fach, „Titel · Datum · Zeit · Minuten“, Status-Pill, X schließt | :186 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.10-03 | Körper | Aufgabenzeilen (B.2.8) | :187 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.10-04 | Nachhol-Box (Status nachholen/teilweise) | „N Aufgaben müssen nachgeholt werden.“; „Neu einplanen“ (`#pkSuggest`) → `suggestFlow({package_id})`; „Bewusst überspringen“ (`#pkSkip`), Toast „Übersprungen“ | :188, 192–193 · `POST /calendar/suggest`; `POST /tasks/skip` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.10-05 | „Verschieben“ (`#pkMove`) | Verschieben-Dialog „Lernpaket „X“ verschieben“, Toast „Verschoben“ | :194 · `PATCH /packages/:id {date}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.10-06 | „Uhrzeit“ (`#pkTime`) | Modal „Uhrzeit“: Beginn (time, Standard 09:00), Dauer (number, step 15); Abbrechen/Speichern | :195 · `PATCH /packages/:id {start_time,end_time}` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.10-07 | „Aufgabe“ (`#pkAddTask`) | Dialog „Aufgabe hinzufügen“ (B.2.14) | :197 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.10-08 | Papierkorb (danger, `#pkDel`) | `confirm` „Lernpaket mit allen Aufgaben löschen?“ | :196 · `DELETE /packages/:id` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.11-01 | **B.2.11 Verschieben-Dialog** (`moveDialog`) | Titel, „Neuer Tag“ (date), Chips „+1 Tag“, „+2 Tage“, „+3 Tage“, „+7 Tage“ (gerechnet ab heute); Abbrechen/„Verschieben“ | :221–225 · Callback | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.11-02 | **B.2.12 Uhrzeit** | s. B.2.10 | :195 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.11-03 | **B.2.13 Aufgabe bearbeiten** | s. B.2.9 | :216 · – | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.11-04 | **B.2.14 „Aufgabe hinzufügen“** (`addTaskDialog`) | Art: Vorlesung, Übung, Wochentest, Wiederholung, Freies Lernen. Dokument (optional, Dateien des Moduls; füllt den Titel vor). Titel (Platzhalter „z. B. Kapitel 3 wiederh… | :226–234 · `GET /modules/:id`; `POST /packages/:id/tasks` | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.11-05 | **B.2.15 „Neues Lernpaket“** (`addPackageDialog`) | Tag (date), Modul (select), Titel („z. B. Kapitel 2 lernen“), Beginn (optional), Dauer (Standard 60 oder freie Minuten); Abbrechen/„Anlegen“, Toast „Lernpaket angelegt“ | :235–241 · `GET /modules`; `POST /packages {date,module_id,title,minutes}`; mit Beginn zusätzlich `PATCH /pac… | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.2.11-06 | **B.2.16 „Lernplan erstellen“** (`generatePlan`) | Erklärtext. Hinweisbox (warn) oder „Offen: ca. X · verfügbar in 4 Wochen: Y“. „Ab“ (date), „Tage“ (7 Tage, 14 Tage, 4 Wochen). Checkbox „Bereits geplante, noch nicht beg… | :242–251 · `GET /calendar/feasibility`; `POST /calendar/generate {start,days,replace}` | GeneratePlanDialog | Implementiert | nicht kompiliert |
+| W.B.2.11-07 | **B.2.17 „Meinen Lernplan konfigurieren“** (`configDialog`) | Preset-Radios: A Intensiv, B Intensiv mit Wiederholung, C Abwechslungsreich, D Zwei Fächer mit Wiederholung, E Benutzerdefiniert. Felder: Fächer pro Tag (1/2/3), Lernzei… | :252–273 · `GET /settings`; `PUT /settings {subjects_per_day, parts_lecture, parts_exercise, tests_per_subjec… | ConfigDialog | Implementiert | Lernzeit als Schrittregler statt Zahlenfeld (Touch); nicht kompiliert |
+| W.B.2.11-08 | **B.2.18 „Meine Woche retten“ / „Neu einplanen“** (`suggestFlow`) | ohne Vorschläge nur ein Toast mit der Meldung. Sonst: Meldung, Liste je Vorschlag (Icon, Fach: Titel, Minuten, „von →“, editierbares Datum), Hinweistext; Abbrechen/„Vors… | :274–282 · `POST /calendar/suggest`; `POST /calendar/apply {moves}` | SuggestDialog | Implementiert | nicht kompiliert |
+| W.B.2.11-09 | **B.2.19 „X frei (hh:mm–hh:mm)“** (`useFreeWindow`) | „Wie möchtest du die Zeit nutzen?“. Mit Materialien zusätzlich „Passende Übung bearbeiten“ und „Vorlesung selbstständig nacharbeiten“. Immer: „Lerneinheit automatisch ei… | :168–181 · Übung/Vorlesung: `POST /packages {date,module_id,title,tasks}` und `POST /timetable/reslot {dates}… | alt: Kalender Tag/3 Tage/Woche, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+
+### Stundenplan
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.3.1-01 | Titel | „Stundenplan“; Unterzeile „Semester · Beginn – Ende · Lernzeit a–b“ | :12 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-02 | „Verfügbarkeit“ (`#ttAvail`) | Dialog „Persönliche Verfügbarkeit“ (B.3.4) | :13, 28 · `GET /settings` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-03 | „+ Termin“ (`#ttAdd`) | Dialog „Neuer Termin“ (B.3.3) | :13, 28 · `GET /modules` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-04 | „Stundenplan importieren“ (primary, `#ttImport`) | Import-Dialog (B.3.5) | :13, 28 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-05 | Konflikt-Banner (warn) | „N Lernslot(s) überschneiden sich mit Hochschulterminen“, bis zu 4 Konflikte; Button „Lernslots neu legen“ (`#ttReslot`), Toast „N Tage neu gelegt“ | :14, 29 · `POST /timetable/reslot {}` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-06 | Wochennavigation | ‹ (`#ttPrev`, −7 Tage), Zeitraum-Label, › (`#ttNext`), „Heute“ (ghost, `#ttToday`) | :15, 27 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-07 | Legende | Vorlesung/Übung, Lernslot, Frei, Sperrzeit | :16 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-08 | Leerzustand | „Noch kein Stundenplan.“ und Hinweis auf Import aus Stud.IP | :17 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-09 | Raster | Kopf mit langem Wochentag und Datum (heute hervorgehoben); Achse 56 px pro Stunde (min(Lernbeginn, 8:00) −1 h bis max(Lernende, 18:00) +1 h) | :9, 18–19 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-10 | Freie Fenster / Sperrzeiten | `.tt-free` schraffiert (Tooltip mit Minuten); `.tt-blocked` mit Titel | :21–22 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-11 | Termin `.tt-ev` | Kurzname, „Zeit · Raum (18 Zeichen)“; Statusklassen nicht_teilnahme, ausfall, verschoben. Klick → Termin-Drawer | :23, 30 · B.3.2 | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-12 | Lernslot `.tt-ev.study` | Fach, Zeit · Titel. Klick → Lernpaket-Drawer; hier **nicht** ziehbar (bindCalendar wird nicht aufgerufen) | :24, 31 · `GET /packages/:id` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-13 | **Doppelklick** in eine Spalte | öffnet „Neuer Termin“, vorbelegt mit Wochentag, Startzeit (auf 15 min gerundet), Ende +90 min und date_from | :32 · `GET /modules` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.1-14 | Fußhinweis | Erklärung zum Termin-Klick | :26 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-01 | Laden | Fehler: Toast „Termin nicht gefunden“ | :36–38 · `GET /timetable/events`, `GET /timetable/day?date`, `GET /timetable/event-materials/:id?date` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-02 | Kopf | Punkt, Titel, „Art · Datum · Zeit · Raum · Dozent“, X | :40 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-03 | Teilnahme-Karte | „Teilnahme: Ich nehme teil / Heute nicht / Dauerhaft nicht / Fällt aus / Verschoben“; Rhythmus „Alle zwei Wochen/Wöchentlich · aus Stud.IP“ | :41 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-04 | Buttons (aktiver = primary) | „Ich nehme teil“ (today_attend), „Ich nehme heute nicht teil“ (today_skip), „Ich besuche diese Veranstaltung dauerhaft nicht“ (permanent_skip), „Veranstaltung fällt aus“… | :42, 46–53 · `POST /timetable/attendance {event_id,date,mode}` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-05 | Folge-Modal „Du hast jetzt X frei“ | nur bei skip oder cancelled mit ≥30 freien Minuten: „Frei lassen“ / „Zeit nutzen“ → B.2.19. Sonst Toast „Teilnahme gespeichert“ | :48–51 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-06 | „Passende Unterlagen“ | Dokumentzeilen (Link `#/doc/:id`). Leer: „Keine passenden Unterlagen gefunden.“ Button „Modul öffnen“ | :43–44 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-07 | „Bearbeiten“ (`#evEdit`) | Termin-Dialog mit Datum | :54 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-08 | „Lernblock danach“ (`#evBlock`) | Freies Fenster vom Terminende +90 min (höchstens bis 22:00) → B.2.19 | :56 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.2-09 | Papierkorb (`#evDel`) | `confirm` „Ganze Veranstaltungsreihe aus dem Stundenplan entfernen?“ | :55 · `DELETE /timetable/events/:id` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.3-01 | Titel | „Neuer Termin“ oder „Termin bearbeiten“ | :60–62 · `GET /modules` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.3-02 | Felder | Titel („z. B. Mathematik I – Vorlesung“); Art (alle 9 KIND_TXT: Vorlesung, Übung, Hörsaalübung, Gruppenübung, Tutorium, Labor, Seminar, Sonstiges, Persönlich); Modul (– … | :63–67 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.3-03 | „Änderung gilt für“ (nur beim Bearbeiten einer Serie) | „Nur diesen Termin (Datum)“ / „Diesen und alle zukünftigen Termine“ / „Die gesamte Veranstaltungsreihe“ (Standard) | :68 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.3-04 | Abbrechen/Speichern | Toast „Gespeichert“ | :69–74 · neu: `POST /timetable/events`; bearbeiten: `PATCH /timetable/events/:id {…, scope, date}` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.4-01 | Felder | Früheste Lernzeit, Späteste Lernzeit (time); Fahrtzeit Zuhause ↔ Uni, Mindestdauer eines Lernslots, Pause zwischen Aufgaben (step 5); Maximale Lernzeit pro Tag (step 15) | :79–82 · `GET /settings` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.4-02 | Chips „Lernfreie Wochentage“ Mo–So | an = **lernfrei** (umgekehrt zu B.2.17) | :83, 89 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.4-03 | Sperrzeiten-Liste | pro Zeile: Wochentag-Select, Start, Ende, Bezeichnung, X löschen. Leer: „Keine Sperrzeiten.“ Button „+ Sperrzeit“ (Standard Mo 12:00–13:00) | :84, 86–88 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.4-04 | Abbrechen/Speichern | Toast „Verfügbarkeit gespeichert“ | :90 · `PUT /settings {learn_start, learn_end, travel_minutes, min_slot_minutes, break_minutes, hours_per_day,… | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.5-01 | Modal „Stundenplan importieren“ | Hinweis zur Vorschau. Quellen: „Aus Stud.IP übernehmen (Termine deiner Kurse)“ (primary), „Kalenderdatei (ICS)“, „PDF-Stundenplan (Texterkennung + KI)“, „Screenshot / Fo… | :94–99 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.5-02 | Datei-Auswahl | verstecktes `<input type=file>`; accept `.ics,text/calendar`, `application/pdf` oder `image/*` | :103 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.5-03 | Modal „Stundenplan als Text“ | Textarea mit Beispiel-Platzhalter; Abbrechen/„Analysieren“ | :101 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.5-04 | Modal „Import läuft…“ | Stud.IP: „Termine werden zusammengefasst.“; sonst: „Die KI liest … halbe Minute.“ Fehler: Toast „Import fehlgeschlagen: …“ (6 s) | :106–110 · `POST /timetable/import/preview` (FormData: source, text/upload) | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.5-05 | Modal „Importvorschau · N Veranstaltungen“ (breit, 900 px) | Zählung neu/geändert/unverändert/nicht mehr enthalten; Hinweis auf orange (unsichere) Zeilen. Tabelle: Checkbox, Veranstaltung (Input und Hinweise „vorhanden (bisher …)“… | :111–117 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.5-06 | „Nicht mehr im neuen Plan“ | Chips mit Checkbox „Titel (Tag Zeit)“, Hinweis „Angehakte werden entfernt.“ | :115 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.5-07 | Abbrechen/„Übernehmen“ | ohne Auswahl Toast „Nichts ausgewählt“; sonst Toast „N neu, M aktualisiert, K entfernt“ | :118–124 · `POST /timetable/import/confirm {entries,source,import_id,remove_ids}` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.3.5-08 | Modal „N Lernslots kollidieren jetzt mit Terminen“ | Liste (bis 8); „Später“ / „Lernslots neu legen“ | :123 · `POST /timetable/reslot {}` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+
+### Meine Module
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.4.1-01 | Titel | „Meine Module“, Unterzeile | :22 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.1-02 | Segment „Karten“/„Liste“ (Pill) | in localStorage `mod-mode` | :23, 25 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.1-03 | „Module & Wochentests“ | Link `#/settings?tab=modules` | :23 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.1-04 | Modulkarte `.mod2` (Link `#/modules/:id`) | Deko-Icon nach Name (mathe → grid, elektro → sparkles, signal → rotate, programm → type, datenstruktur → layers, einf → columns, digital → cards, sonst book); Initialen-… | :5–18 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.1-05 | Listenzeile `.lib-row` | Initialen-Ordner, Name, Themen, „% bearbeitet“, „N Dateien · N neu“, nächster Termin, Chevron | :24 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.1-06 | Leerzustand | „Noch keine Module. Erst synchronisieren.“ | :24 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-01 | Kopf | Farbkachel mit Initialen, Name, „N Veranstaltungen: Arten · Klausur Datum“ | :38 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-02 | „Modul“ (`#modEdit`) | Modal „Modul bearbeiten“ (B.4.3) | :39, 47 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-03 | Segment Liste/Kacheln (Icons) | Ansichtsmodus, nur im Speicher | :39, 44 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-04 | KPIs | Lernfortschritt %; aktuelle Lehrwoche (· Thema); nächster Lernblock (Datum, Titel, Link „öffnen“) oder „Kein Lernblock geplant“ | :40 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-05 | Tabs | Übersicht, Vorlesungen, Übungen, Lösungen, Skripte, Klausuren, Notizen (nur im Speicher) | :41, 43 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-06 | Übersicht: Wochenblöcke | Kopf (Chevron, „Label – Thema“, „N Dokumente“) klappt den Inhalt ein/aus. Button „Zusammenfassen“ (nur bei Vorlesungen) → B.4.4. Inhalt nach Gruppe (Vorlesung, Übung, Lö… | :33–34, 45–46 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-07 | Andere Tabs | Dokumentliste (Zeilen oder `.doc-grid`-Karten). Leer: „Nichts vorhanden.“ | :32, 35–36 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-08 | Dokumentzeile `.doc-row` | Typ-Icon, Titel (Status neu → Badge „Neu“; erledigt → durchgestrichen), Unterzeile „sub_label · Ordner · Datum · ca. N min · mit Notizen“, Stern bei Favorit, Stufen-Badg… | :51 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.2-09 | Dokumentkarte `.doc-card` | Typ-Badge, Stufe, Titel, Datum · Minuten, Zusammenfassung (3 Zeilen) | :52 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.3-01 | Felder | Name; Farbe (Farbwähler); Priorität (Niedrig/Normal/Hoch); Klausurtermin (date); Checkbox „Modul aktiv (wird eingeplant)“; Checkbox „Gemeinsamer Wochentest“; „Abweichend… | :54–56 · – | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.3-02 | Abbrechen/Speichern | Toast „Gespeichert“ | :57–58 · `PATCH /modules/:id {name,color,priority,exam_date,active,weekly_test,test_minutes}` | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.4-01 | Ladezustand | „⏳ Die KI liest die Vorlesungsfolien dieser Woche…“ | :61–62 · bis zu 3 Vorlesungen × Seite 1–4: `GET /files/:id/pagetext?page=n` (max. 9000 Zeichen) | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.4.4-02 | Ergebnis | Markdown (über `md` aus editor.js); Fehler: „Fehler: …“; Button „Schließen“ | :63–64 · `POST /ai/tutor {file_id,page:1,mode:"summary",page_text,question}` | alt: Modulliste und Moduldetail, nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+
+### Dokumente & Notizen
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.5.1-01 | Titel | „Dokumente & Notizen“, Unterzeile | :57 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-02 | Suche (`#libQ`, Platzhalter „In Dokumenten suchen…“) | Debounce 300 ms, setzt `q=` im Hash; durchsucht title, name, ai_title, subject (lokal) | :58, 70, 50 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-03 | Modul-Select (`#libMod`) | „Alle Module“ oder Modul → `#/files?path=m<id>` | :59, 71 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-04 | Sortierung (`#libSort`) | „Zuletzt bearbeitet“ / „Name“ (nur im Speicher) | :60, 71 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-05 | Segment Kacheln/Liste | in localStorage `lib-mode` | :61, 73 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-06 | „+ Neu“ (primary, `#libNew`) | Neu-Menü (B.5.2) | :61, 74 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-07 | Typ-Chips | Alle, Vorlesungen, Übungen, Skripte, Klausuren, Notizen, Sonstiges (Filter nur im Speicher; außerhalb von docs → `#/files`) | :6, 62, 72 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-08 | Bereichs-Links (ghost) | „Favoriten“ (Stern), „Zuletzt“ (Uhr), „Neu aus Stud.IP“ (sparkles, Badge mit Anzahl), „Papierkorb“ (trash); aktiver Bereich in accent-soft | :63 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-09 | Brotkrumen `.lib-crumbs` (nicht auf der Startebene) | Bereichstitel oder Pfad-Links mit „›“; Zusatz „· Suche „q““ bzw. „· Filter“ | :64 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-10 | Papierkorb-Hinweis | „Dokumente im Papierkorb lassen sich wiederherstellen …“ | :65 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-11 | Startebene: `.folder-grid` | Ordnerkarten für Module (Initialen) und eigene Ordner (Ordner-Icon): Welle, Mappe, Name, Kebab-Menü (`data-menu` module:ID oder folder:ID), „N Dokument(e)“. Klick öffnet… | :66, 82–85 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-12 | Startebene: „Eigene Dokumente“ | eigene Dokumente ohne Ordner als Kacheln oder Liste | :66 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-13 | Startebene: „Schnellzugriff“ | 4 zuletzt bearbeitete; Link „Alle anzeigen →“; Farbkachel je Typ, Titel, „Fach/Eigene Notizen · vor N Tagen“. Leer: „Zuletzt geöffnete Dokumente erscheinen hier.“ | :67, 86–89 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-14 | Unterebenen: Kacheln `.lib-grid` | Ordner (farbige Mappe, Name, bei eigenen Ordnern Menü-Chevron, „N Dokumente“). Dokument: Vorschau (PDF-Thumbnail lazy über IntersectionObserver, rootMargin 400px; Notizb… | :68, 77, 79–80, 90–94 · `POST /files/:id/favorite {favorite}`; Thumbnail `GET /files/:id/content` (renderThum… | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-15 | Unterebenen: Liste `.lib-row` | Mini-Icon oder Thumbnail, Titel (+ Originalname), Typ, Fach/„Eigene“, Datum, „…“-Menü | :95–99 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-16 | Leerzustände | Ordner-Icon und „Papierkorb ist leer.“, „Keine Treffer.“ oder „Hier ist noch nichts. Über „Neu“ ein Notizbuch anlegen oder eine PDF importieren.“ | :68 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.1-17 | Klick auf Element (`data-open`) | `doc:` → `#/doc/:id`; `path:` → `#/files?path=` | :75 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.2-01 | Modal „Neu (in „Ordner“)“ | Buttons Notizbuch, Whiteboard, Ordner, PDF importieren, Bild importieren; Abbrechen | views-lib.js:100–104 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.2-02 | · Ordner | `prompt` „Name des Ordners:“ (Standard „Neuer Ordner“) | :107 · `POST /folders {name,parent_id,module_id}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.2-03 | · PDF/Bild importieren | Datei-Dialog (mehrere Dateien), Toast „Importiert“ | :109–110 · je Datei `POST /notebooks` (FormData: kind, title, module_id, folder_id, upload) | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.2-04 | Modal „Neues Notizbuch“ / „Neues Whiteboard“ | Titel (Standard Notizen/Whiteboard); nur Notizbuch: Vorlagen-Chips Leer, Liniert (Standard), Kariert, Gepunktet, Millimeter, Cornell; Modul (optional); Abbrechen/„Erstel… | :113–120 · `POST /notebooks` (FormData: kind, title, template, module_id, folder_id) | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-01 | Ordner „X“: Umbenennen | `prompt` „Neuer Name:“ | :123 · `PATCH /folders/:id {name}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-02 | Ordner: Farbe | `prompt` „Farbe (Hex):“ | :123 · `PATCH /folders/:id {color}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-03 | Ordner: „Ordner löschen (Inhalt bleibt erhalten)“ | `confirm` | :123 · `DELETE /folders/:id` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-04 | Papierkorb: Wiederherstellen | Fehler als Toast | :124 · `PATCH /library/files/:id {restore:true}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-05 | Papierkorb: Endgültig löschen (danger) | ohne Rückfrage | :124 · `PATCH /library/files/:id {delete_forever:true}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-06 | Dokument: Öffnen | `#/doc/:id` | :126, 129 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-07 | Dokument: Zu Favoriten / Aus Favoriten entfernen | – | :130 · `POST /files/:id/favorite` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-08 | Dokument: Umbenennen | `prompt` „Neuer Titel:“ | :131 · `PATCH /library/files/:id {title}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-09 | Dokument: „In Ordner verschieben“ | Modal „Verschieben nach“ (Select „(kein Ordner …)“ oder „Modul › Ordner“), Abbrechen/Verschieben | :132 · `PATCH /library/files/:id {folder_id}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-10 | Dokument: Duplizieren | – | :133 · `PATCH /library/files/:id {duplicate:true}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-11 | Dokument: Original herunterladen | nur bei geladenen PDFs; `<a download>` | :126 · `GET /files/:id/content` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-12 | Dokument: In den Papierkorb (danger) | `confirm` (bei Stud.IP-Dateien mit Hinweis auf das Original) | :134 · `PATCH /library/files/:id {trash:true}` | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.5.3-13 | Modul-Kebab auf Ordnerkarte (`module:ID`) | **fehlerhaft**, s. E | :84, 125 · – | alt: Liste mit Modulfilter, Suche, PDF-Import; ohne Server leer | Nicht begonnen | native 1:1-Umsetzung |
+
+### Dokumentansicht
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.6.1-01 | Menü (`#docMenu`, nur ≤900 px) | schaltet die Sidebar um (ohne Backdrop) | :22, 35 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-02 | „‹ Dokumente“ (`#docBack`) | `history.back()`, sonst Modul oder `#/files`; Text unter 1100 px ausgeblendet | :22, 30 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-03 | Tabs `#docTabs` | geöffnete Dokumente aus localStorage `uniflow-doc-tabs` (max. 12): Icon, Titel, Tooltip. Klick → `#/doc/:id`. X schließt den Tab; beim aktiven Tab geht es zum letzten Ta… | :5–10, 105–111 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-04 | „✓ Erledigt“ (btn ok, `#docDone`, nur mit `?task=`) | Toast „Aufgabe erledigt ✓“, dann → `#/plan` | :23, 36 · `POST /tasks/:task/status {status:"erledigt"}` | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-05 | Status-Select (`#docState`) | neu / gelesen / erledigt; Toast „Status gespeichert“ | :24, 31 · `PATCH /files/:id {status}` | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-06 | Stern (`#docFav`) | Farbe warn (Favorit) oder muted | :25, 32 · `POST /files/:id/favorite {favorite}` | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-07 | „Notizen“ (`#docNotes`) | blendet die Notizspalte ein/aus | :26, 40 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-08 | „Geteilt“ (`#docSplit`) | offen: schließt die geteilte Ansicht; sonst Auswahl „Zweites Dokument öffnen“ (B.6.4) | :26, 80 · `GET /files` | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-09 | Vollbild (`#docFull`) | schaltet `body.fullscreen-doc` um | :26, 33 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.1-10 | „× Vollbild beenden“ (`#fsExit`) | schwebende Pill oben rechts, nur im Vollbild sichtbar | :27, 34 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.2-01 | Bereich A `#paneA` | Editor (PdfEditor) für PDFs und Notizbücher. Startseite aus `?page`, last_page oder dem gespeicherten Tab-Zustand. Seitenwechsel (Debounce 800 ms) speichert last_page | :37, 119–134 · `POST /files/:id/opened {last_page}`; Inhalt `GET /files/:id/content` | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.2-02 | Notizspalte `#paneN` | Kopf „Eigene Notizen“ mit Anzeige „gespeichert“; Textarea mit Platzhalter (Hinweis auf Handschrift über „Seite +“). Debounce 600 ms schreibt in `edA.model.note` und `mar… | :28, 39 · (editor) | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.2-03 | Trenner `#splitHandle` | nur in der geteilten Ansicht; Pointer-Drag 20–65 %, gespeichert in localStorage `doc-split` (Standard 35 %) | :28, 42–55 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.2-04 | Bereich B `#paneB` | `.pane-bar` mit Buch-Icon, „Lädt…“ bzw. Titel, Button „× Schließen“; zweiter Editor ohne eigene Werkzeugleisten (CSS blendet `.ed-main`/`.ed-ctx` aus); übernimmt den Wer… | :58–79 · `GET /files/:pick`; Fehler: Toast „Dokument nicht gefunden“ | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.2-05 | Layout | Rechtshänder: [B pct %][10 px][A](+300 px Notizen). Linkshänder: [A][10 px][B pct %] | :43–49 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.3-01 | Datei fehlt lokal | „Datei ist lokal nicht vorhanden. Bitte Sync ausführen.“ | :123 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.3-02 | Textdateien (.py .txt .md .c .h .java .pf .csv .tex) | Monospace-Block `.nonpdf` | :135 · `GET /files/:id/content` | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.3-03 | Bilder (.png .jpg .gif .webp) | `<img>` | :136 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.3-04 | Sonstige Typen | „Keine Vorschau für diesen Dateityp.“ + „Öffnen / Herunterladen“ | :137 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.3-05 | Fehler-Karte (warn) „Dokument wird nicht angezeigt“ | Meldung; „Im Browser-Viewer anzeigen“ (iframe `…/content#toolbar=1`), „In neuem Tab öffnen“, „Neu laden“, „Diagnose“ (→ `#/settings?tab=diag`). Wird auch nach 2,5 s geze… | :112–118, 130, 132 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.4-01 | Suche | Platzhalter „Suchen… (z. B. Übungsblatt)“, filtert live | :141–144 · `GET /files` (nur PDFs) | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.4-02 | Liste | max. 60, gleiches Modul zuerst, dann neueste; Icon, Titel, „Fach · Typ“; Klick wählt | :143 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.4-03 | Abbrechen / Klick auf die Abdunkelung | Ergebnis null | :144 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.5-01 | Auslöser | 2,5 s nach Tinte, Seitenwechsel oder Scrollen; nicht während des Schreibens (`html.ed-inking`) | :88–103 · `POST /related {file_id,text}` (pro Kontext-Key gecacht) | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.5-02 | Box `.script-hint` (schwebt oben rechts) | „Passende Skriptstelle (zu Aufgabe X)“, „Titel · Seite N“; Tooltip mit Ausschnitt und gemeinsamen Begriffen | :96–97 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.5-03 | „Öffnen“ (primary) | öffnet die Stelle in der geteilten Ansicht auf der Seite | :98 · `GET /files/:id` | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.6.5-04 | X | „Für diese Aufgabe ausblenden“ | :99 · – | alt: Dokument-Tabs (nicht gespeichert), geteilte Ansicht, Skript-Hinweis | Nicht begonnen | native 1:1-Umsetzung |
+
+### Zeitmesser
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.7-01 | Öffnen | Header-Button `#profileBtn` (Uhr-Icon, Tooltip „Zeitmesser“) schaltet um; die Editor-Funktion „timer“ öffnet | app.js:16, 23; views-doc.js:128, 150 · – | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.7-02 | Widget `.timer-widget` (unten rechts, 260 px) | Segment Stoppuhr / Countdown / Pomodoro (Wechsel setzt zurück); X schließt | :160, 165, 167 · – | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.7-03 | Anzeige | große Zeit m:ss; rot bei Ablauf | :161 · – | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.7-04 | Countdown-Chips | 5, 15, 25, 45, 60 min | :162, 166 · – | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.7-05 | Pomodoro-Info | „Arbeiten/Pause · Runde N · 25/5 min“ | :162 · – | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.7-06 | „Start“/„Pause“ (primary), „Zurücksetzen“ | Takt alle 500 ms | :163, 168–169 · – | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.7-07 | Pill `.timer-pill` | bei geschlossenem Widget, wenn die Uhr läuft oder Zeit vergangen ist; Klick öffnet | :157 · – | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.7-08 | Ablauf | Toast „Pomodoro vorbei – Pause!“, „Pause vorbei – weiter geht's“ oder „Zeit abgelaufen“; Pomodoro wechselt die Phase automatisch | :154 · – | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+
+### Tests & Wiederholung
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.8.1-01 | Titel | „Tests & Wiederholung“, Unterzeile | :78 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.1-02 | Modul-Select (`#exSubj`), Dauer-Select (`#exDur`) | Dauer 15/30 (Standard)/45/60/90 min | :79 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.1-03 | „+ Zusatztest“ (`#exGen`) | Toast „Zusatztest wird erstellt (ca. 1 Minute)…“, dann pollBg | :79, 82 · `POST /tests/generate {module_id,duration_min}` | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.1-04 | „Wochentests erstellen“ (primary, `#exWeek`) | Toast „Fehlende Wochentests werden erstellt…“ | :79, 83 · `POST /tests/generate-week` | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.1-05 | Statusleiste `.statbar` | „N offene Tests“, „N abgeschlossen · Ø X %“, Link „N Karteikarten fällig →“ (`#/cards`) | :80 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.1-06 | Testkarte `.test-card` (oberer Rand in Modulfarbe) | Punkt und Fach; Badge „Wochentest“ (neutral) oder „manuell“ (info); Löschen-Icon (40×40); „Lehrwoche N / Woche Datum · Dauer · N Aufgaben“; bereinigter Titel. Abgegeben:… | :72–77 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.1-07 | Leerzustand | Test-Icon und „Noch keine Wochentests. Sie entstehen automatisch …“ | :77 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.1-08 | Modal „Test löschen?“ | „Fach · Titel“; bei automatischen Tests Hinweis, dass sie nicht neu entstehen; bei abgegebenen „Ergebnis und Antworten werden mit gelöscht.“; Abbrechen / „Löschen“ (dang… | :85–89 · `DELETE /tests/:id` | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-01 | „‹ Abbrechen“/„Zurück“ (`#exBack`) | → `#/plan` (mit task) oder `#/exams`; entfernt exam-focus und stoppt den Timer | :97, 109 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-02 | Kopf | Titel; „Fach · Dauer · N Aufgaben · KI-generiert · Lehrwoche N“ | :97 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-03 | Timer `#timer` | „⏱ m:ss“ ab started_at + Dauer; rot unter 5 min; bei 0 Toast „Zeit abgelaufen – bitte abgeben.“ | :97, 112 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-04 | Ergebnis-Karte (abgegeben) | „X / Y Punkte (Z %)“, Zusammenfassung, „Nochmal anschauen: …“ | :98 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-05 | Aufgaben-Chips (Nummern) | aktive markiert; Rahmen grün/rot nach Feedback, accent wenn beantwortet; Klick springt (aktuelle Antwort wird gemerkt) | :99, 106 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-06 | Aufgabenkarte `.q` | „Aufgabe N von M · Multiple Choice / Rechnen / Programmieren / Kurzantwort“, Punkte (→ erreicht); Frage; MC-Radios `.opt` oder Textarea „Deine Antwort / Rechenweg“; nach… | :100–103 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-07 | „‹ Zurück“ (`#qPrev`) | an Position 0 deaktiviert | :104, 107 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-08 | „Weiter ›“ (primary, `#qNext`) | nächste Aufgabe | :104, 107 · – | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.2-09 | „✓ Abgeben & bewerten“ (btn ok, `#qSubmit`) | `confirm` „Test abgeben? N Aufgaben sind unbeantwortet. Die KI bewertet deine Antworten.“; Button zeigt „Wird bewertet…“; danach wird die Ansicht neu gerendert. Fehler: … | :104, 108 · `POST /tests/:id/submit {answers}`; mit task zusätzlich `POST /tasks/:task/status {erledigt}` | alt: Testliste, Durchführen, Abgeben, Ergebnis; kein Timer, Antworten nicht zwischengespeichert | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.3-01 | Kopf | „Karteikarten“, „N fällig · Leitner-System …“, Button „‹ Tests“ | :120 · – | fehlt (Karteikarten) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.3-02 | Karte `.fc-card` | „Karte i von N · Fach x · Modul“; Frage; „Klicken zum Aufdecken“; Klick zeigt die Antwort | :121–122 · – | fehlt (Karteikarten) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.3-03 | „Falsch“ (danger) / „Richtig“ (ok) | nur nach dem Aufdecken; weiter zur nächsten Karte | :121, 123–124 · `POST /flashcards/:id/review {correct}` | fehlt (Karteikarten) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.3-04 | Leerzustand | Häkchen-Icon und „Heute nichts fällig.“ | :121 · – | fehlt (Karteikarten) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.8.3-05 | „Alle Karten“ (Anzahl) | Frage; „Antwort · Fach · fällig Datum“; Papierkorb-Button. Leer: „Noch keine Karten. Erstelle welche im Editor über die KI-Seitenleiste.“ | :117, 125 · `DELETE /flashcards/:id` | fehlt (Karteikarten) | Nicht begonnen | native 1:1-Umsetzung |
+
+### Uni & Noten
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.9-01 | Titel | „Uni & Noten“, Unterzeile | :154 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-02 | KPI 1 | Notendurchschnitt (mit Komma) und „· N LP“ | :156 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-03 | KPI 2 | „Leistungen im Notenspiegel · N bestanden“ | :157 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-04 | KPI 3 | Datum des letzten Abrufs; „zuletzt abgerufen“, „letzter Abruf fehlgeschlagen“ oder „noch nicht abgerufen“ | :158 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-05 | Karte „Notenspiegel (QIS)“: „Zugang“ (`#qisCred`) | Zugangsdialog für QIS (B.9.1) | :160, 176 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-06 | · „Noten & Bescheinigungen abrufen“ (primary, `#qisSync`) | Toast „Notenspiegel wird abgerufen…“, dann pollBg | :160, 172–173 · `POST /grades/sync` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-07 | · Inline-Box „QIS-Zugang hinterlegen“ (ohne eigenen QIS-Zugang) | Erklärtext (ggf. „Aktuell: wie X.“); Felder Benutzername, QIS-Passwort; „✓ Speichern & abrufen“ (`#qInlineOk`). Leere Felder: Toast „Benutzername und Passwort eingeben“;… | :161, 174 · `PUT /credentials/qis {user,password}`, danach `POST /grades/sync` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-08 | · Hinweis bei vorhandenem Zugang | „Zugang gespeichert (user). Die App meldet sich selbst an …“ | :161 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-09 | · Fehlerbox (letzter Abruf fehlgeschlagen) | Meldung, Hinweis auf `logs/qis-fehler.png`, Button „Noten abrufen (sichtbar)“ (`#qisShow`) | :162, 174 · `POST /grades/sync?show=true` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-10 | · Notentabelle `.tbl` | Prüfung (+ Nr · Abschluss), Semester, Note, LP, Status-Badge (be… = ok, ni… = bad, sonst neutral), Versuch. Leer: Icon und „Noch keine Noten geladen …“ | :163 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-11 | · „Bescheinigungen & Transcript of Records“ | Links (neuer Tab) mit Titel und Datum | :164 · `GET /qis/documents/:id` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-12 | · Fußhinweis | Datenschutz und Herkunft | :165 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-13 | Karte „Stundenplan“ | automatische Übernahme (+ N persönliche Einträge). Bei offenen Gruppen: Warnbox „N Fach/Fächer mit parallelen Übungsgruppen“ mit Liste und Hinweis; sonst „Keine offenen … | :167 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-14 | Karte „Zugänge“ | 8 Zeilen: Stud.IP / WebSSO, QIS (Prüfungsverwaltung), IDM Account-Manager, ILIAS, E-Mail (LUIS), Matrix-Chat, LUHKI, GitLab. Badges: Stud.IP „LUH-ID gespeichert“ (ok) od… | :131, 168, 175 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9-15 | Abschnitt „Uni-Dienste“ | Kacheln `.mod-card` (Link, neuer Tab): Icon, Name, Beschreibung, Login-Badge, „synchronisiert“ (ok), „Noten-Abruf“ (info) oder „öffnen ↗“ | :170–171 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.9.1-01 | Hinweis | dienstspezifisch (QIS eigenes Passwort, IDM wie QIS, sonst „wie Stud.IP“) | :135 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort |
+| W.B.9.1-02 | Radio „Eigene Zugangsdaten“ | Benutzername, Passwort (Platzhalter „•••••••• (leer lassen = behalten)“) | :136–137, 146 · `PUT /credentials/:key {user,password}` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort |
+| W.B.9.1-03 | Radio „Gleiches Passwort wie [Select]“ | andere Dienste zur Auswahl | :138, 145 · `PUT /credentials/:key {same_as}` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort |
+| W.B.9.1-04 | Radio „Nicht speichern“ | löscht den Zugang | :139, 144 · `PUT /credentials/:key {clear:true}` | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort |
+| W.B.9.1-05 | Abbrechen/Speichern | Toast „Zugang gespeichert“; Fehler als Toast (4 s) | :140–149 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort |
+
+### Community
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.10-01 | Titel | „Community“, Unterzeile „Lösungen vergleichen, Fragen stellen, Lerngruppen.“ | :181 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.10-02 | Badge (warn) | „Vorbereitet, noch nicht verbunden“ und Erklärtext | :182 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.10-03 | Liste | „Eigene Lösungen freiwillig teilen – geplant“, „Lösungswege anderer Studierender vergleichen – geplant“, „Fragen und Antworten pro Modul – geplant“ | :183 · – | fehlt nativ; Übergang: Web-Ansicht des Servers eingebettet | Nicht begonnen | native 1:1-Umsetzung |
+
+### Einstellungen
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.11.1-01 | Kopf | Badge „N aktiv“ und Erklärtext | :197 · – | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-02 | Checkbox „Gemeinsamen Wochentest pro Modul automatisch erstellen“ (`#sAutoTests`) | Toast „Gespeichert“ | :198, 223 · `PUT /settings {auto_tests}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-03 | Segment „Standard-Testdauer“ | 15, 30, 60 Min., „Eigene“ (`prompt` „Testdauer in Minuten:“); Toast „Testdauer gespeichert“ | :198, 222 · `PUT /settings {test_minutes}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-04 | Modulzeile (Klick klappt auf/zu) | Farbpunkt, Name, „N Kurse“, Badge „kein Wochentest“ oder „1 gemeinsamer Test pro Woche · N min“; inaktive Module blass | :199, 219 · – | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-05 | · Checkbox „aktiv“ | Toast „Gespeichert“ | :199, 221 · `PATCH /modules/:id {active}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-06 | · Zahnrad | Modal „Modul bearbeiten“ (B.4.3) | :199, 220 · `PATCH /modules/:id` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-07 | Aufgeklappt: Tabelle Stud.IP-Kurs / Art / Modul | Art-Select (Vorlesung, Übung, Hörsaalübung, Gruppenübung, Tutorium, Labor, Seminar, Sonstiges), Toast „Gespeichert“. Modul-Select (+ „– kein Modul –“), Toast „Zuordnung … | :200, 225–226 · `PATCH /courses/:id {kind}`; `POST /courses/:id/module {module_id}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-08 | Karte „Ohne Modul (nicht eingeplant)“ | pro Kurs ein Modul-Select | :201 · `POST /courses/:id/module` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-09 | Chip „+ Modul anlegen“ | Modal „Neues Modul“ (Name), Abbrechen/„Anlegen“ | :202, 227 · `POST /modules {name}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-10 | Chip „Zuordnung automatisch prüfen“ | Toast „N Kurse zugeordnet, M unsicher“; bei unsicheren Zuordnungen Modal „Unsichere Zuordnungen“ (Liste „Kurs → Vorschlag“, OK) | :202, 228 · `POST /modules/auto-assign` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.1-11 | Zusammenfassung | „Deine Einstellungen: …“ | :203 · – | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.2-01 | „Lernkombination“ (primary, `#openCfg`) | Dialog B.2.17 | :217, 250 · `GET/PUT /settings` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.2-02 | „Verfügbarkeit & Sperrzeiten“ (`#openAvail`) | Dialog B.3.4 | :217, 251 · `GET/PUT /settings` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.2-03 | Text „Aktuell: …“ | Fächer pro Tag, Minuten, Lernzeit, freie Tage, Fahrtzeit | :217 · – | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.3-01 | Karte „Stud.IP-Zugang“ | Badge „gespeichert“ oder „fehlt“; Hinweis „… für den Sync um 8 und 15 Uhr.“ | :204 · – | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.3-02 | · Felder LUH-ID, WebSSO-Passwort | Platzhalter „•••••••• (leer lassen = behalten)“ bzw. „noch nicht gesetzt“ | :205 · – | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | bewusst anders: auf dem iPad Anmeldung über die echte Stud.IP-Seite (StudIPView), kein Passwortfeld – Passwort bleibt beim Nutzer |
+| W.B.11.3-03 | · „Zugang speichern“ (primary) | Toast „Zugang gespeichert“ | :206, 229 · `PUT /credentials {user,password}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | bewusst anders: entfällt mit der Anmeldung über die Stud.IP-Seite |
+| W.B.11.3-04 | · „Dateien jetzt holen (ohne KI)“ | Toast „Dateien werden geholt…“, dann pollBg | :206, 230 · `POST /sync?ai=false` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.3-05 | „Semester“ | Name, Beginn, Ende, Speichern; Toast „Semester gespeichert“ | :207, 231 · `PUT /terms {name,start,end}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.3-06 | „Anzeigename“ | Input (Platzhalter „z. B. Ahmad H.“), Speichern; Toast „Gespeichert“, danach **Seiten-Reload** | :208, 247 · `PUT /settings {user_name}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.3-07 | „Darstellung“ (Segment) | Automatisch / Hell / Dunkel → `setTheme` | :209, 232 · – | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.3-08 | „Stift & Touch“ (Select) | „Finger darf schreiben (Handballen wird bei Stift ignoriert)“ / „Nur Stift schreibt, Finger navigiert“; Toast „Gespeichert“ | :210, 233 · `PUT /settings {pen_input}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.3-09 | „Schreibhand“ (Segment) | Rechtshänder / Linkshänder; Hinweis zur geteilten Ansicht (35 %); Toast „Schreibhand gespeichert“ | :211, 246 · `PUT /settings {hand}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.3-10 | Karte „Auf dem iPad benutzen“ | Badge „…“ → „WLAN-Zugriff aktiv“ (ok) oder „nur auf diesem PC“ (warn). Laden: „Netzwerk wird geprüft…“; Fehler: „Netzwerkinfo nicht verfügbar.“ 5 Schritte: Firewall-Befe… | :212, 234–245 · `GET /network` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | entfällt auf dem iPad selbst (dient zum Verbinden des iPads mit dem PC-Server) |
+| W.B.11.4-01 | Karte „Sync-Protokoll“ | Checkbox „Lernkalender nach dem Sync automatisch auffüllen“ (Toast „Gespeichert“); Einträge „✅/❌ Datum – Meldung (90 Zeichen)“, scrollbar bis 200 px. Leer: „Noch kein Sy… | :213, 224 · `PUT /settings {auto_plan}` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.4-02 | Karte „Diagnose“ | Text-Block: Browser, Fenster, Pixelverhältnis, Design, Adresse, „Module-Version: v=25“, Fehlerzahl und Fehlerliste. Button „Kopieren“ (Toast „Diagnose kopiert“) | :188–189, 248 · – | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.11.4-03 | „PDF-Anzeige testen“ / „Test starten“ | „Prüfe…“; ohne PDF „Keine PDF vorhanden.“; sonst Zeilen zu HTTP-Status, pdf.js, Canvas und Konva plus Vorschaubild; Fehler rot | :190, 249 · `GET /library`, `GET /files/:id/content` | alt: teilweise (Name, Schreibhand, Pencil, Server, Sync, Tarif, Diagnose) | Nicht begonnen | native 1:1-Umsetzung |
+
+### Globale Zustände
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| W.B.12-01 | Fehler-Toast | JS-Fehler und unbehandelte Promises: „Fehler: …“ (5 s, höchstens einmal in 8 s); gespeichert in `state.errors` (max. 30); „ResizeObserver loop“ wird ignoriert | app.js:51–54 · – | teilweise in Systemoptik | Nicht begonnen | native 1:1-Umsetzung |
+| W.B.12-02 | Skeleton, Offline, Fehler | s. A | app.js:66–71 · `GET /bg` (Wiederholversuch) | UFRemote (Skeleton, „Server nicht erreichbar“, Offline-Hinweis) | Implementiert | automatisches Neuladen nach 3 s fehlt |
+
+### PDF-Editor: Leisten und Menüs
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| E.A1-01 |  |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-02 | Seitenleiste / `panel-left` | `toggleSide()`: Seitenleiste auf/zu · Tabs siehe A4 | editor.js:195, 345, 846 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-03 | Im Dokument suchen / `search` | Such-Popover `searchPop` · – | editor.js:196, 850, 854 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-04 | KI-Assistent / `sparkles` | blendet `.ed-ai` ein/aus · siehe A5 | editor.js:197, 848 | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-05 |  |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-06 | Lasso (L) / `lasso` | Auswahlwerkzeug · Kontextleiste A2 | editor.js:200 | PencilKit-Lasso, nur Striche | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-07 | Stift (P) / `pen` | Freihandstift; kommt man vom Textmarker zurück, wird der letzte Stifttyp wiederhergestellt · 4 Stifttypen | editor.js:201, 606 | PencilKit-Stift (Füller wird als Stift gespeichert) | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-08 | Textmarker / `highlighter` | setzt `penType="marker"`, Werkzeug intern `pen` · – | editor.js:202, 605 | PencilKit-Marker (Deckkraft fest 0,35) | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-09 | Radierer (E) / `eraser` | Radieren · 3 Größen, 3 Modi | editor.js:203 | PencilKit-Radierer | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-10 | Text (T) / `type` | Textfeld setzen · Schrift/Format | editor.js:204 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-11 | Formen (S) / `square` | Formen zeichnen · 6 Formarten | editor.js:205 | nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-12 | Bild einfügen / `image` | Bild per Klick auf die Seite · – | editor.js:206 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-13 | Haftnotiz / `note` | Haftnotiz per Klick · Farbfelder | editor.js:207 | nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-14 | PDF-Text markieren (für KI) / `text-select` | Rechteck über PDF-Text ziehen → Text geht in das KI-Panel · – | editor.js:208 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-15 | Verschieben (Leertaste) / `hand` | Hand: Ansicht ziehen · – | editor.js:209 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-16 | Trenner `.ed-sep` | – · – | editor.js:210 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-17 | Zubehör / `more` + `chevron-down`(12) | Popover `accessoriesPop` · siehe A7 | editor.js:211, 887 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-18 |  |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-19 | Status-Pill `.ed-status` | Speicherstatus: Punkt plus Text, `data-state` saving/offline/saved · Texte siehe B „Autosave" | editor.js:214, 574 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-20 | Eingabe-Umschalter `.ed-peninput` | schaltet `penInput` zwischen `pen_only` und `all` um; `PUT /api/settings` · Anzeige `pen`+„Stift" (aktiv) oder `hand`+„Finger" | editor.js:215, 446, 845 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-21 | Seite hinzufügen / `page-plus` | Popover `addPagePop` · siehe A7 | editor.js:216, 855 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-22 | Teilen und Exportieren / `download` | Popover `exportPop` · siehe A7 | editor.js:217, 865 | ganzes Dokument über Teilen (Handschrift gerastert) | Nicht begonnen | native 1:1-Umsetzung |
+| E.A1-23 | Mehr / `more` | Popover `morePop` · siehe A7 | editor.js:218, 871 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-01 | **pen** | (a) Stifttypen: Kugelschreiber `pen`, Füller `fountain`, Bleistift `pencil`, Textmarker `highlighter` (`data-pen`). (b) 3 Breiten-Presets `data-w`. (c) Regler „Strichstä… | editor.js:351, 363-369 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-02 | **eraser** | (a) Größen Klein/Mittel/Groß (`data-esize`, Punktvorschau `s/2+6 px`). (b) Segment Teilweise / Ganzer Strich / Objekte (`data-emode`). (c) Hinweis „Radiert nur deine Not… | editor.js:352, 370-371, 445 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-03 | **text** (auch wenn eine Auswahl Text enthält) | (a) Schriftart-Select (jede Option in ihrer eigenen Schrift), Schriftgröße (Zahl), Textfarbe. (b) Fett `bold`, Kursiv `italic`, Unterstrichen `underline`. (c) Ausrichtun… | editor.js:353-355, 374-381 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-04 | **shape** | (a) Formarten `data-shape`: Linie `line`, Pfeil `arrow`, Rechteck `square`, Kreis/Ellipse `circle`, Dreieck `triangle`, Polygon `layers` (Tooltip „Klicks, Doppelklick be… | editor.js:356, 372-373 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-05 | **lasso** mit Auswahl | „N ausgewählt", Duplizieren (`copy`), Kopieren (`copy`), Ausschneiden (`eraser`-Icon), Löschen (`trash`). Ist das erste Objekt ein Strich oder eine Form, zusätzlich Brei… | editor.js:357 | PencilKit-Lasso, nur Striche | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-06 | **lasso** ohne Auswahl | Hinweis „Umkreise Notizen mit dem Lasso oder ziehe ein Rechteck…" · – | editor.js:357 | PencilKit-Lasso, nur Striche | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-07 | **image** | Hinweis (Klick oder Strg+V) und Button „Bild wählen" (`data-act=image`) · – | editor.js:358, 849 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-08 | **sticky** | Hinweis und Farbfelder `data-sticky` · Default `#fff7a8` | editor.js:359, 367 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-09 | **textselect** | Hinweis „Ziehe ein Rechteck über PDF-Text…" · – | editor.js:360 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A2-10 | **hand** | Hinweis „Ziehen zum Verschieben, Strg+Mausrad oder zwei Finger zum Zoomen." · – | editor.js:361 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-01 | `chevron-left` (14) `prev` | vorige Seite | editor.js:847 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-02 | „Seite" + Zahlenfeld `.ed-pageno` (min 1) | `onchange` → `goToPage(n-1)` | editor.js:243 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-03 | „/" + `.ed-pagecount` | Seitenzahl | editor.js:400 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-04 | `chevron-right` `next` | nächste Seite | editor.js:847 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-05 | Trenner | – | – | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-06 | Kleiner `zoom-out` | Zoom ÷ 1.2 | editor.js:847 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-07 | `.ed-zoom` | Anzeige „120%" | editor.js:897 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-08 | Größer `zoom-in` | Zoom × 1.2 | editor.js:847 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-09 | Seitenbreite `fit` | `fitWidth()` | editor.js:895 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A3-10 | Vollbild `maximize` | `toggleFullscreen()` (setzt Body-Klasse `fullscreen-doc`) | editor.js:902 | teilweise (nur Navigationsleiste aus) | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-01 | **Im Dokument suchen** | Eingabe „Suchbegriff… (Enter)", Trefferliste (Links „S. n …Kontext…") | editor.js:854, 906 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-02 | **Seite hinzufügen** | Segment Vor dieser / Nach dieser (Default) / Letzte Seite. Unterkopf „Neue Vorlagen" mit Hinweis „Vorlagen übernehmen, wenn möglich, die Größe der aktuellen Seite." Vorl… | editor.js:855-864 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-03 | **Teilen und Exportieren** | Unterkopf „Zusammenarbeit": „Teilen…" (`users`, deaktiviert, „vorbereitet"). Unterkopf „Exportieren": Checkbox „Ohne Notizen exportieren", Diese Seite exportieren (`file… | editor.js:865-870 | ganzes Dokument über Teilen (Handschrift gerastert) | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-04 | **Mehr** | Unterkopf „Seite „n"": Zu Favoriten hinzufügen / Aus Favoriten entfernen (`bookmark`), Seite kopieren (`copy`), Seite drehen (`rotate`), Seite zur Gliederung hinzufügen … | editor.js:871-884 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-05 | **Papierkorb** | je gelöschte Seite „Notizseite" bzw. „PDF-Seite n wiederherstellen" mit Uhrzeit, danach „Papierkorb leeren" (danger) | editor.js:885 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-06 | **Werkzeugleiste anpassen** | Checkboxen Lasso, Stift, Radierer, Text, Formen, Bild, Haftnotiz, PDF-Text markieren, Hand (Textmarker fehlt in der Liste) und der Hinweis „Stiftfarben und -stärken merk… | editor.js:886 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-07 | **Zubehör** | Aufnehmen / Aufnahme stoppen (`circle`), Aufnahmen anzeigen (`sync`), Zoom-Ansicht (Zusatz „(aus)", wenn aktiv; `zoom-in`), Lineal (Zusatz „(aus)"; `line`), Zeitmesser (… | editor.js:887 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-08 | **Seitenmenü** (Miniatur) | Kopf „Seite „n"": Favoriten-Toggle, „Seite kopieren (duplizieren)", Seite drehen, Seite zur Gliederung hinzufügen, Vorlage wechseln, Gehe zu Seite (1 – N), Seite leeren,… | editor.js:826-838 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.A7-09 | **Vorlage wechseln** | Raster mit Leer, Liniert, Kariert, Gepunktet, Millimeter, Cornell | editor.js:839 | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+
+### PDF-Editor: Funktionen und Tastenkürzel
+
+| ID | Funktion | Aussehen / Verhalten (Web) | Web: Ort · API | iPad heute | Status | Fehlt zur Gleichheit |
+|---|---|---|---|---|---|---|
+| E.B24-01 | Strg/Cmd+Z | Rückgängig |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-02 | Strg/Cmd+Shift+Z | Wiederholen |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-03 | Strg/Cmd+Y | Wiederholen |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-04 | Strg/Cmd+C | Auswahl kopieren |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-05 | Strg/Cmd+X | Ausschneiden |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-06 | Strg/Cmd+D | Duplizieren |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-07 | Strg/Cmd+V | Einfügen (Paste-Ereignis am Container: Bild aus der Zwischenablage oder interne Zwischenablage, editor.js:256, 782) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-08 | Strg/Cmd + `+` oder `=` | Zoom × 1.2 |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-09 | Strg/Cmd + `-` | Zoom ÷ 1.2 |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-10 | Strg/Cmd + 0 | Seitenbreite |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-11 | Strg/Cmd+B / I / U | Fett / Kursiv / Unterstrichen umschalten |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-12 | Entf / Rücktaste | Auswahl löschen |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-13 | Escape | Auswahl aufheben, Popover schließen, Polygon beenden |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-14 | V oder L | Lasso |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-15 | P | Stift (Typ Kugelschreiber) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-16 | H | Textmarker (nicht die Hand!) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-17 | E | Radierer |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-18 | T | Text |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-19 | S | Formen |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-20 | Bild ab / Bild auf | nächste / vorige Seite |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-21 | Pfeil rechts / links | nächste / vorige Seite (nur im Einzelseitenmodus) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-22 | F11 | Vollbild (Body-Klasse) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-23 | Leertaste gedrückt halten | temporäre Hand (Fokus im Editor nötig, editor.js:338-339) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-24 | Strg/Cmd+Mausrad | Zoom am Cursor (editor.js:254) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-25 | In der Textbearbeitung | Escape bricht ab, Strg/Cmd+Enter übernimmt (editor.js:771) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-26 | Im Suchfeld | Enter sucht (editor.js:854) |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24-27 | Global (app.js:28) | Strg/Cmd+K fokussiert die App-Suche |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B1 | B1 Stifttypen |  |  | PencilKit-Stift (Füller wird als Stift gespeichert) | Nicht begonnen | native 1:1-Umsetzung |
+| E.B2 | B2 Druck- und Breitenmodell `penWidth` (editor.js:624) |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B3 | B3 Handballenerkennung (editor.js:257-331) |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B4 | B4 Nur-Stift- vs. Finger-Modus |  |  | PencilKit-Stift (Füller wird als Stift gespeichert) | Nicht begonnen | native 1:1-Umsetzung |
+| E.B5 | B5 Radierer (editor.js:729-747) |  |  | PencilKit-Radierer | Nicht begonnen | native 1:1-Umsetzung |
+| E.B6 | B6 Lasso, Auswahl, Bearbeiten |  |  | PencilKit-Lasso, nur Striche | Nicht begonnen | native 1:1-Umsetzung |
+| E.B7 | B7 Formen (editor.js:694, 706, 714, 721-727) |  |  | nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| E.B8 | B8 Textfelder (editor.js:761-772) |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B9 | B9 Haftnotizen (editor.js:762) |  |  | nur Anzeige | Nicht begonnen | native 1:1-Umsetzung |
+| E.B10 | B10 Bilder |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B11 | B11 Lineal (editor.js:911-926) |  |  | fehlt (PencilKit-Lineal nicht eingebunden) | Nicht begonnen | native 1:1-Umsetzung |
+| E.B12 | B12 Zoom-Ansicht (editor.js:929-933) |  |  | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| E.B13 | B13 Seitenverwaltung (editor.js:785-798) |  |  | Leerseite nach dieser Seite, Drehen, Lesezeichen; Rest fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| E.B14 | B14 Miniaturen-Seitenleiste (editor.js:804-808, 823-824) |  |  | vorhanden, ohne Handschrift/Vorlagen; Umsortieren fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| E.B15 | B15 Suche im PDF-Text (editor.js:906-907) |  |  | vorhanden | Nicht begonnen | native 1:1-Umsetzung |
+| E.B16 | B16 PDF-Text markieren (editor.js:695, 713, 908) |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B17 | B17 KI-Tutor (editor.js:947-962) |  |  | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| E.B18 | B18 Audioaufnahme (editor.js:936-944, 817-821) |  |  | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| E.B19 | B19 Export und Drucken (editor.js:965-994) |  |  | ganzes Dokument über Teilen (Handschrift gerastert) | Nicht begonnen | native 1:1-Umsetzung |
+| E.B20 | B20 Rückgängig / Wiederholen (editor.js:559-568) |  |  | nur für Striche | Nicht begonnen | native 1:1-Umsetzung |
+| E.B21 | B21 Zoom, Pinch, Seitenbreite (editor.js:893-901) |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B22 | B22 Scrollrichtung, Einzelseite, Seitenleiste links/rechts |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B23 | B23 Vollbild |  |  | teilweise (nur Navigationsleiste aus) | Nicht begonnen | native 1:1-Umsetzung |
+| E.B24 | B24 Tastenkürzel (`onKey` editor.js:997-1009) |  |  | fehlt | Nicht begonnen | native 1:1-Umsetzung |
+| E.B25 | B25 Autosave, Entwürfe, Zusammenführung, Offline (editor.js:16-22, 102-154, 569-600) |  |  | lokales Journal je Seite, Versionen, Zusammenführung (UniFlowCore, getestet) | Nicht begonnen | native 1:1-Umsetzung |
+| E.B26 | B26 Aufgabenkontext für die Skriptsuche |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B27 | B27 Einbindung `mountDoc` und geteilte Ansicht (views-doc.js) |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+| E.B28 | B28 Render-Performance |  |  | siehe docs/paritaet/ipad-app.md Abschnitt C | Nicht begonnen | native 1:1-Umsetzung |
+
+## Visueller Vergleich
+
+Noch nicht durchgeführt. Vorgehen je Ansicht: Web-App im iPad-Simulator-Safari bzw. im Browser bei 1180 × 820 (Querformat) und 820 × 1180 (Hochformat), native Ansicht im iPad-Simulator mit denselben Daten, beide Bilder nebeneinander in `docs/paritaet/screens/<ansicht>-web.png` / `-ipad.png`, Abweichungen in die Spalte „Fehlt zur Gleichheit“.

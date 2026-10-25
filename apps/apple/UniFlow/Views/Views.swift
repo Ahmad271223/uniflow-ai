@@ -58,6 +58,10 @@ struct LibraryView: View {
     @State private var columns: NavigationSplitViewVisibility = .all
     @State private var importing = false
     @State private var importMessage: String?
+    /// Dokument, das beim Oeffnen gleich angezeigt wird (Route #/doc/<id> aus Uebersicht/Suche)
+    var openFile: String?
+
+    init(openFile: String? = nil) { self.openFile = openFile }
 
     private var files: [LibFile] {
         let all = (library?.files ?? []).filter { $0.isPDF }
@@ -127,7 +131,10 @@ struct LibraryView: View {
             if !openTabs.contains(new) { openTabs.append(new) }
             columns = .detailOnly
         }
-        .task { await load() }
+        .task {
+            await load()
+            if let o = openFile { fileSelection = o }
+        }
     }
 
     private var tabStrip: some View {
