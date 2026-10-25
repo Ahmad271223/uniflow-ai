@@ -575,3 +575,28 @@ def test_luh_download_falls_back_to_browser_and_disposes(local_server, tmp_path)
     target = tmp_path / "blatt.pdf"
     studip_sync.download(Page(), base + "/login", target)     # Stream liefert HTML -> Browser-Weg
     assert target.read_bytes() == b"%PDF-1.4 aus dem Browser" and disposed == [True]
+
+
+# ---------------------------------------------------------------- Learnweb-Instanz wechselt jaehrlich
+
+def test_semester_label():
+    from datetime import date
+    from app.learnweb import semester_label
+    assert [semester_label(date(2026, m, 15)) for m in (3, 4, 9, 10, 12)] == \
+        ["WiSe 2025/26", "SoSe 2026", "SoSe 2026", "WiSe 2026/27", "WiSe 2026/27"]
+    assert semester_label(date(2027, 1, 20)) == "WiSe 2026/27"
+
+
+def test_discover_learnweb_base_across_years():
+    from datetime import date
+    from app import learnweb
+    names = {2025: "Learnweb SoSe 2025 - WiSe 2025/26", 2026: "Learnweb SoSe 2026 - WiSe 2026/27", 2027: "Learnweb SoSe 2027 - WiSe 2027/28"}
+    probe_for = lambda years: (lambda base: names.get(int(base[-4:])) if int(base[-4:]) in years else None)
+    root = "https://www.uni-hildesheim.de/learnweb"
+    assert learnweb.discover_base(date(2026, 10, 25), probe_for({2025, 2026})) == root + "2026"
+    assert learnweb.discover_base(date(2027, 1, 20), probe_for({2025, 2026, 2027})) == root + "2026"   # Januar: noch WiSe 26/27
+    assert learnweb.discover_base(date(2027, 4, 10), probe_for({2026, 2027})) == root + "2027"         # neues Sommersemester
+    assert learnweb.discover_base(date(2027, 4, 10), probe_for({2026})) == root + "2026"               # neue Instanz fehlt noch
+    assert learnweb.discover_base(date(2027, 4, 10), probe_for(set()), override="https://x/lw/") == "https://x/lw"
+    with pytest.raises(learnweb.LearnwebError, match="HILDESHEIM_LEARNWEB_URL"):
+        learnweb.discover_base(date(2027, 4, 10), probe_for(set()))

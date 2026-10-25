@@ -30,6 +30,10 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
 
 ## Learnweb
 
+- **Die Instanz wechselt jährlich** (`learnweb2026` = „SoSe 2026 - WiSe 2026/27“). Der Sync fragt die öffentliche
+  Moodle-Schnittstelle von Vorjahr, aktuellem und nächstem Jahr und nimmt die Instanz, deren Name das aktuelle Semester
+  nennt (`learnweb.discover_base`); im Januar also noch die Vorjahres-Instanz. Notfalls `HILDESHEIM_LEARNWEB_URL`.
+
 - Mit Schlüssel: REST `core_webservice_get_site_info` → `core_enrol_get_users_courses` → `core_course_get_contents`.
   Änderungserkennung über `timemodified`. Moodle verbucht keine Aufrufe.
 - Ohne Schlüssel: CAS-Login im Playwright-Profil `data/browser-profile-hildesheim`, AJAX

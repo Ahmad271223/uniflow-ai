@@ -135,6 +135,61 @@ def _course(c: dict) -> dict:
 
 
 # ----------------------------------------------------------------------------
+# Welche Learnweb-Instanz? Die Uni legt jedes Jahr eine neue an (learnweb2026 = "SoSe 2026 - WiSe 2026/27").
+# ----------------------------------------------------------------------------
+
+LEARNWEB_ROOT = "https://www.uni-hildesheim.de"
+
+
+def semester_label(today=None) -> str:
+    """Aktuelles Semester wie in den Learnweb-Namen: April bis September SoSe, sonst WiSe."""
+    from datetime import date
+    d = today or date.today()
+    if 4 <= d.month <= 9:
+        return f"SoSe {d.year}"
+    start = d.year if d.month >= 10 else d.year - 1
+    return f"WiSe {start}/{str(start + 1)[-2:]}"
+
+
+def _public_sitename(base: str, timeout: int = 15) -> str | None:
+    """Name der Moodle-Instanz ueber die oeffentliche Schnittstelle (ohne Anmeldung); None, wenn es sie nicht gibt."""
+    body = json.dumps([{"index": 0, "methodname": "tool_mobile_get_public_config", "args": {}}]).encode()
+    req = urllib.request.Request(f"{base}/lib/ajax/service-nologin.php?info=tool_mobile_get_public_config", data=body,
+                                 headers={"Content-Type": "application/json", "User-Agent": "UniFlow-Lernapp"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 - feste Uni-Adresse
+            d = json.loads(r.read().decode("utf-8", "replace"))[0]
+    except Exception:  # noqa: BLE001
+        return None
+    return None if d.get("error") else (d.get("data") or {}).get("sitename") or ""
+
+
+def discover_base(today=None, probe=None, override: str | None = None) -> str:
+    """Learnweb-Adresse fuer das aktuelle Semester. Reihenfolge: eigene Einstellung (HILDESHEIM_LEARNWEB_URL),
+    dann die Instanz des Vorjahrs, des aktuellen und des naechsten Jahres, deren Name das aktuelle Semester nennt,
+    sonst die neueste erreichbare. probe(base) -> Sitename oder None (fuer Tests austauschbar)."""
+    from datetime import date
+    if override:
+        return override.rstrip("/")
+    d = today or date.today()
+    probe = probe or _public_sitename
+    want = semester_label(d).lower().replace(" ", "")
+    alive = []
+    for year in (d.year + 1, d.year, d.year - 1):
+        base = f"{LEARNWEB_ROOT}/learnweb{year}"
+        name = probe(base)
+        if name is None:
+            continue
+        if want in name.lower().replace(" ", ""):
+            return base
+        alive.append(base)
+    if alive:
+        return alive[0]
+    raise LearnwebError("Keine Learnweb-Instanz erreichbar (Netz oder Adresse pruefen; "
+                        "notfalls HILDESHEIM_LEARNWEB_URL in der .env setzen)")
+
+
+# ----------------------------------------------------------------------------
 # Weg 1: REST mit Sicherheitsschluessel
 # ----------------------------------------------------------------------------
 

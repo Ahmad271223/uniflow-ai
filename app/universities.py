@@ -8,6 +8,7 @@ from __future__ import annotations
 DEFAULT = "luh"
 
 HILDESHEIM_CAS = "https://www.uni-hildesheim.de/sso"
+# Nur fuer Links in der Oberflaeche; der Sync ermittelt die Instanz des Semesters selbst (learnweb.discover_base)
 LEARNWEB_BASE = "https://www.uni-hildesheim.de/learnweb2026"
 LSF_BASE = "https://lsf.uni-hildesheim.de"
 

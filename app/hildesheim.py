@@ -14,10 +14,14 @@ from playwright.sync_api import sync_playwright
 from . import cas, config, db, learnweb, lsf
 from .config import DATA_DIR
 from .studip_sync import log, store_course_files, stream_download, upsert_course
-from .universities import HILDESHEIM_CAS, LEARNWEB_BASE
+from .universities import HILDESHEIM_CAS
 
 PROFILE_DIR = DATA_DIR / "browser-profile-hildesheim"
-LEARNWEB_LOGIN = f"{LEARNWEB_BASE}/login/index.php?authCAS=CAS"
+
+
+def learnweb_base() -> str:
+    """Learnweb-Instanz des aktuellen Semesters (wechselt jaehrlich), siehe learnweb.discover_base."""
+    return learnweb.discover_base(override=config.secret("HILDESHEIM_LEARNWEB_URL") or None)
 
 
 def _download(page, url: str, target: Path, token: str = "") -> None:
@@ -27,8 +31,10 @@ def _download(page, url: str, target: Path, token: str = "") -> None:
 
 def _learnweb_client(page, user: str, pw: str, token: str):
     """Schluessel bevorzugt; bei fehlendem/ungueltigem Schluessel die CAS-Sitzung."""
+    base = learnweb_base()
+    log(f"Learnweb: {base}")
     if token:
-        client = learnweb.TokenClient(LEARNWEB_BASE, token)
+        client = learnweb.TokenClient(base, token)
         try:
             courses = client.courses()
             log(f"Learnweb: Zugriff mit Sicherheitsschluessel, {len(courses)} Kurse.")
@@ -37,8 +43,8 @@ def _learnweb_client(page, user: str, pw: str, token: str):
             log(f"Learnweb-Schluessel funktioniert nicht ({e}); versuche die Anmeldung mit dem UNI-Account.")
             if not (user and pw):
                 raise
-    client = learnweb.SessionClient(page, LEARNWEB_BASE)
-    cas.login(page, LEARNWEB_LOGIN, HILDESHEIM_CAS, user, pw, client.is_logged_in, log)
+    client = learnweb.SessionClient(page, base)
+    cas.login(page, f"{base}/login/index.php?authCAS=CAS", HILDESHEIM_CAS, user, pw, client.is_logged_in, log)
     courses = client.courses()
     log(f"Learnweb: angemeldet ueber das CAS, {len(courses)} Kurse.")
     return client, courses, ""
