@@ -241,11 +241,12 @@ public struct QISCollector: Sendable, Equatable, Codable {
     public init() {}
 
     /// Seite uebernehmen; `link` ist der Link, ueber den sie erreicht wurde (bestimmt den Abschluss der Leistungen).
-    public mutating func absorb(_ page: QISPage, via link: QISLink? = nil) {
+    /// `layout`: Aufbau des Notenspiegels der Hochschule (Universities/QISHildesheim.swift), Standard LUH.
+    public mutating func absorb(_ page: QISPage, via link: QISLink? = nil, layout: QISGradeLayout = .luh) {
         visited.insert(page.address)
         if let link { visited.insert(link.address) }
         let abschluss = link.map { $0.studiengang ?? $0.text } ?? ""
-        grades = QISParser.merge(grades + page.grades(abschluss: abschluss))
+        grades = QISParser.merge(grades + page.grades(abschluss: abschluss, layout: layout))
         var known = Set(documents.map(\.link.address))
         for d in page.documents where known.insert(d.link.address).inserted { documents.append(d) }
     }
