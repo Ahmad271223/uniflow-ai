@@ -26,8 +26,29 @@ Stand 25.10.2026, Zweig `develop`. Geschrieben von der PC-Sitzung. Gilt zusätzl
 | LSF-Noten | `app/qis.py` Profil `hildesheim` | gleicher HIS-QIS-Notenspiegel wie LUH, ohne Bescheinigungen |
 | Ablauf | `app/hildesheim.py` | Learnweb, danach LSF; jeder Kurs einzeln gespeichert |
 | Doku | `docs/HILDESHEIM.md` | Endpunkte, Eigenheiten, offene Punkte |
-| Tests | `tests/test_hildesheim.py` | 35 Tests ohne Netzwerk |
+| Tests | `tests/test_hildesheim.py` | 40 Tests ohne Netzwerk |
 | **Gemeinsame Fixtures** | `packages/shared-contracts/fixtures/hildesheim/` | ICS, Moodle-JSON und `expected.json`; **dieselben Erwartungen in UniFlowCore prüfen** |
+
+## Stand im Swift-Kern (PC-Sitzung, 25.10.2026 spät)
+
+Fertig in `apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Hildesheim/`, unter Linux kompiliert und getestet
+(`HildesheimFixtureTests`, gleiche Erwartungen wie Python über `tools/gen-hildesheim-fixture.py`):
+
+| Datei | Inhalt |
+| --- | --- |
+| `Learnweb.swift` | Kurstitel, Abschnitt → „Woche N“, Datei-ID (SHA-256), REST-Dateiliste, Sitzungs-Dateiliste, Pluginfile-Links, Ordnerseiten, Token anhängen, **Instanz des Semesters** (`discoverBase`, jährlicher Wechsel learnweb2026 → 2027) |
+| `HildesheimCAS.swift` | CAS-Login-Adressen für LSF und Learnweb, Erkennung der Loginseite |
+| `LSFCalendar.swift` | ICS-Parser mit BYDAY und EXDATE, LSF-Titel „0449 - Titel (Lehrperson)“, iCal-Link aus der Stundenplan-Seite |
+| `GradeRows.swift` | Notenspiegel-Zeilen im Hildesheimer Aufbau (Kopfzeile irgendwo, mehrere Abschlüsse, Modulzeilen weg) |
+| `TestShare.swift` | Schlüssel der gemeinsamen Wochentests, Inhalts-Hash |
+| `Store/Migrations.swift` | `tests.share_key`, `files.content_sha256`, Index wie `app/db.py` |
+
+**Für die Mac-Sitzung bleibt:** CAS-Anmeldung im `WKWebView` mit eigenem Datenspeicher je (Nutzer, Uni);
+Learnweb-Zugriff (Moodle-SSO-Token zuerst prüfen, sonst Schlüssel einfügen, sonst AJAX mit Cookies); LSF-Seiten mit
+den Cookies laden und an die Parser geben; Sync-Ablauf mit Wiederholungen und je Kurs eigener Transaktion;
+Speicher je (Nutzer, Uni); Uni-Auswahl im ersten Start; Oberfläche „Uni & Noten“ für Hildesheim; Gerätetest.
+Die Sitzungs-Dateiliste braucht pro Material-Link die Weiterleitung von `mod/resource/view.php?id=…&redirect=1`
+(ohne ihr zu folgen: Location-Header lesen) bzw. das HTML der Ordnerseite.
 
 ## Fakten aus dem Live-Test (nicht neu herausfinden)
 
