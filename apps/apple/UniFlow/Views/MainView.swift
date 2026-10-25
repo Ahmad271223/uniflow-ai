@@ -22,8 +22,12 @@ struct MainView: View {
                 LibraryPage(section: s, path: p, q: q)                // 1:1
             case .doc(let id, _, _):
                 LibraryView(openFile: id)
-            case .exams, .exam, .cards:
-                TestsView(api: session.api)                           // alt, wird 1:1 ersetzt
+            case .exams:
+                ExamsPage()                                           // 1:1
+            case .exam(let id, let task):
+                ExamRunPage(id: id, task: task)                       // 1:1
+            case .cards:
+                CardsPage()                                           // 1:1
             case .settings:
                 SettingsView(api: session.api)                        // alt, wird 1:1 ersetzt
             case .timetable(let d):

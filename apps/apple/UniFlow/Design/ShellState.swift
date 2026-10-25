@@ -70,6 +70,9 @@ final class ShellState: ObservableObject {
         }
     }
 
+    /// window.pollBg(): Hintergrundaufgabe (Test erstellen, Noten abrufen …) beobachten, danach Meldung und Neuladen
+    func pollBackground(toast: UFToastCenter) async { await poll(toast: toast) }
+
     private func poll(toast: UFToastCenter? = nil) async {
         guard let api else { return }
         var was = false
