@@ -11,7 +11,7 @@ struct GeneratePlanDialog: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
     @State private var feas: JSONValue?
-    @State private var startDate = Date()
+    @State private var startDate = ""
     @State private var days = 7
     @State private var replace = false
     @State private var busy = false
@@ -21,33 +21,29 @@ struct GeneratePlanDialog: View {
         if showConfig {
             ConfigDialog(api: api) { saved in showConfig = false; if !saved { onClose() } }
         } else {
-            UFDialog("Lernplan erstellen") {
-                VStack(alignment: .leading, spacing: 9.6) {
+            UFDialog("Lernplan erstellen", icon: "sparkles") {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("Erstellt Lernpakete pro Modul und Lehrwoche (Vorlesung → Übungen → gemeinsamer Wochentest) für freie Tage ab dem gewählten Datum und legt sie in freie Zeitfenster deines Stundenplans. Bestehende Pakete bleiben erhalten.")
-                        .font(UF.small).foregroundStyle(UF.muted)
+                        .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
                     if let f = feas {
                         if let hint = f.s("hint"), !hint.isEmpty {
-                            HStack(alignment: .top, spacing: 6) {
-                                UFIcon("alert", size: 14)
-                                (Text("Hinweis: ").bold() + Text(hint))
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                UFIcon("alert", size: 14).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
+                                (Text("Hinweis: ").font(.uf(14.5, 700)) + Text(hint))
                             }
-                            .font(UF.body)
-                            .padding(.vertical, 17.6).padding(.horizontal, 19.2)
+                            .ufFont(14.5).foregroundStyle(UF.text)
+                            .padding(.vertical, 17.6 + ufB).padding(.horizontal, 19.2 + ufB)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.warnSoft))
+                            .padding(.vertical, 8)
                         } else {
                             Text("Offen: ca. \(UFFmt.min(f.n("open_minutes"))) · verfügbar in 4 Wochen: \(UFFmt.min(f.n("available_minutes_4w")))")
-                                .font(UF.small).foregroundStyle(UF.muted)
+                                .ufFont(13.12).foregroundStyle(UF.muted)
                         }
                     }
-                    HStack(alignment: .bottom, spacing: 9.6) {
-                        UFField("Ab") { DatePicker("", selection: $startDate, displayedComponents: .date).labelsHidden().environment(\.locale, Locale(identifier: "de_DE")) }
-                        UFField("Tage") {
-                            Picker("", selection: $days) {
-                                Text("7 Tage").tag(7); Text("14 Tage").tag(14); Text("4 Wochen").tag(28)
-                            }
-                            .labelsHidden().pickerStyle(.menu)
-                        }
+                    HStack(alignment: .top, spacing: 9.6) {
+                        UFField("Ab") { UFDateField(iso: $startDate) }
+                        UFField("Tage") { UFSelect(options: [(7, "7 Tage"), (14, "14 Tage"), (28, "4 Wochen")], selection: $days, fill: true) }
                     }
                     UFCheckbox("Bereits geplante, noch nicht begonnene Pakete in diesem Zeitraum ersetzen", isOn: $replace)
                 }
@@ -57,7 +53,7 @@ struct GeneratePlanDialog: View {
                 UFButton("Erstellen", kind: .primary) { Task { await create() } }.disabled(busy)
             }
             .task {
-                startDate = Fmt.date(start) ?? Date()
+                startDate = start
                 feas = try? await api?.value("/api/calendar/feasibility")
             }
         }
@@ -66,7 +62,7 @@ struct GeneratePlanDialog: View {
     private func create() async {
         guard let api else { return }
         busy = true
-        let st = Fmt.isoDay(startDate)
+        let st = startDate
         do {
             let r = try await api.value("/api/calendar/generate", method: "POST",
                                         body: ["start": .string(st), "days": .number(Double(days)), "replace": .bool(replace)])
@@ -107,55 +103,48 @@ struct ConfigDialog: View {
 
     var body: some View {
         UFDialog("Meinen Lernplan konfigurieren") {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {                     // .stack#presets: label.chip mit Radioknopf
                 ForEach(presets, id: \.key) { p in
                     Button {
                         preset = p.key
                         if let v = p.v { sub = v.sub; lec = v.lec; ex = v.ex; tests = v.tests }
                     } label: {
-                        HStack(spacing: 6.4) {
-                            Image(systemName: preset == p.key ? "largecircle.fill.circle" : "circle").foregroundStyle(preset == p.key ? UF.accent : UF.muted)
-                            Text("\(p.key) – \(p.name)").bold()
-                            Text(p.desc).foregroundStyle(UF.muted).lineLimit(1)
+                        HStack(spacing: 0) {
+                            UFRadio(on: preset == p.key).padding(.trailing, 6.4)
+                            Text("\(p.key) – \(p.name)").font(.uf(12.8, 700)).foregroundStyle(UF.text2)
+                            Text(" ").font(.uf(12.8))
+                            Text(p.desc).font(.uf(12.8)).foregroundStyle(UF.muted).lineLimit(1)
                             Spacer(minLength: 0)
                         }
-                        .font(.system(size: 12.8))
-                        .foregroundStyle(UF.text)
-                        .padding(.vertical, 8).padding(.horizontal, 12.8)
+                        .ufFont(12.8)
+                        .padding(.vertical, 8 + ufB).padding(.horizontal, 12.8 + ufB)
                         .background(RoundedRectangle(cornerRadius: 10).fill(UF.surface))
                         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(UF.line, lineWidth: 1))
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
-                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
-                    GridRow {
-                        UFField("Fächer pro Tag") { menu($sub, [(1, "1 Fach"), (2, "2 Fächer"), (3, "3 Fächer")]) }
-                        UFField("Lernzeit pro Tag (Minuten)") {
-                            Stepper(value: $minutes, in: 30...720, step: 15) { Text("\(minutes)") }
-                        }
-                    }
-                    GridRow {
-                        UFField("Vorlesungen der Woche") { menu($lec, [(0, "nicht einplanen"), (1, "alle der Lehrwoche")]) }
-                        UFField("Übungen der Woche") { menu($ex, [(0, "nicht einplanen"), (1, "alle (Hörsaal-, Gruppenübung …)")]) }
-                    }
-                    GridRow {
-                        UFField("Wochentest pro Modul") { menu($tests, [(0, "kein Test"), (1, "1 gemeinsamer Test"), (2, "1 Test + Wiederholung")]) }
-                        UFField("Dauer Wochentest") { menu($testMin, [15, 30, 45, 60, 90].map { ($0, "\($0) min") }) }
-                    }
-                }
-                .padding(.top, 12.8)
-                UFField("Lerntage") {
-                    HStack(spacing: 6.4) {
-                        ForEach(0..<7, id: \.self) { i in
-                            UFChip(text: ShellState.days[i], on: learnDays.contains(i)) {
-                                if learnDays.contains(i) { learnDays.remove(i) } else { learnDays.insert(i) }
-                            }
-                        }
-                    }
-                }
-                UFCheckbox("Klausurtermine stärker priorisieren", isOn: $examPriority)
-                feasibility.font(UF.small).padding(.vertical, 6.4)
             }
+            UFGridLayout(columns: 2) {                                    // .grid.cols-2, margin-top .8rem
+                UFField("Fächer pro Tag") { UFSelect(options: [(1, "1 Fach"), (2, "2 Fächer"), (3, "3 Fächer")], selection: $sub, fill: true) }
+                UFField("Lernzeit pro Tag (Minuten)") { UFNumberField(value: $minutes) }
+                UFField("Vorlesungen der Woche") { UFSelect(options: [(0, "nicht einplanen"), (1, "alle der Lehrwoche")], selection: $lec, fill: true) }
+                UFField("Übungen der Woche") { UFSelect(options: [(0, "nicht einplanen"), (1, "alle (Hörsaal-, Gruppenübung …)")], selection: $ex, fill: true) }
+                UFField("Wochentest pro Modul") { UFSelect(options: [(0, "kein Test"), (1, "1 gemeinsamer Test"), (2, "1 Test + Wiederholung")], selection: $tests, fill: true) }
+                UFField("Dauer Wochentest") { UFSelect(options: [15, 30, 45, 60, 90].map { ($0, "\($0) min") }, selection: $testMin, fill: true) }
+            }
+            .padding(.top, 12.8)
+            UFField("Lerntage") {
+                HStack(spacing: 9.6) {
+                    ForEach(0..<7, id: \.self) { i in
+                        UFChip(text: ShellState.days[i], on: learnDays.contains(i)) {
+                            if learnDays.contains(i) { learnDays.remove(i) } else { learnDays.insert(i) }
+                        }
+                    }
+                }
+            }
+            UFCheckbox("Klausurtermine stärker priorisieren", isOn: $examPriority)
+            feasibility.ufFont(13.12).padding(.vertical, 6.4)
         } foot: {
             UFButton("Abbrechen") { onDone(false) }
             UFButton("Speichern", kind: .primary) { Task { await save() } }
@@ -173,14 +162,6 @@ struct ConfigDialog: View {
             return head + Text("Das passt nicht in \(UFFmt.min(minutes)). Vorschlag: \(sub > 1 ? "weniger Fächer pro Tag" : "kürzerer Test oder mehr Lernzeit").").foregroundColor(UF.bad)
         }
         return head + Text("Passt in \(UFFmt.min(minutes)).").foregroundColor(UF.ok)
-    }
-
-    private func menu(_ value: Binding<Int>, _ options: [(Int, String)]) -> some View {
-        Picker("", selection: value) {
-            ForEach(options.indices, id: \.self) { i in Text(options[i].1).tag(options[i].0) }
-        }
-        .labelsHidden()
-        .pickerStyle(.menu)
     }
 
     private func load() async {
@@ -221,43 +202,46 @@ struct SuggestDialog: View {
     let suggestion: JSONValue
     let onClose: () -> Void
     @EnvironmentObject private var toast: UFToastCenter
-    @State private var targets: [Date] = []
+    @State private var targets: [String] = []
 
     var body: some View {
         let moves = suggestion.list("moves")
-        UFDialog(rescue ? "Meine Woche retten" : "Neu einplanen") {
-            VStack(alignment: .leading, spacing: 6.4) {
-                Text(suggestion.s("message") ?? "").font(UF.body).foregroundStyle(UF.text)
+        UFDialog(rescue ? "Meine Woche retten" : "Neu einplanen", icon: rescue ? "life-buoy" : "move") {
+            Text(suggestion.s("message") ?? "").ufFont(14.5).foregroundStyle(UF.text).padding(.vertical, 5.6)
+            VStack(alignment: .leading, spacing: 0) {                     // ul.sugg: Spalten 1fr auto auto auto
                 ForEach(moves.indices, id: \.self) { i in
                     let mv = moves[i]
                     HStack(spacing: 8) {
-                        UFIcon(ShellState.typeIcon[mv.s("type") ?? ""] ?? "file", size: 14)
-                        Text("\(UFFmt.shortName(mv.s("subject"))): \(mv.s("title") ?? "")").lineLimit(1)
-                        Spacer(minLength: 4)
-                        Text("\(mv.i("est_minutes") ?? 0) min").font(UF.small).foregroundStyle(UF.muted)
-                        Text("\(UFFmt.short(mv.s("from"))) →").font(UF.small).foregroundStyle(UF.muted)
-                        if i < targets.count {
-                            DatePicker("", selection: $targets[i], displayedComponents: .date).labelsHidden().frame(width: 150)
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            UFIcon(ShellState.typeIcon[mv.s("type") ?? ""] ?? "file", size: 14).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
+                            Text("\(UFFmt.shortName(mv.s("subject"))): \(mv.s("title") ?? "")")
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("\(mv.i("est_minutes") ?? 0) min").ufFont(13.12).foregroundStyle(UF.muted)
+                        Text("\(UFFmt.short(mv.s("from"))) →").ufFont(13.12).foregroundStyle(UF.muted)
+                        if i < targets.count { UFDateField(iso: $targets[i]).frame(width: 150) }
                     }
-                    .font(UF.body)
+                    .ufFont(13.76)
+                    .padding(.vertical, 6.4)
+                    .ufBorderBottom()
                 }
-                Text(rescue ? "Verteilt auf die nächsten 7 Tage, höchstens 60 % deiner Tageszeit, damit nichts gestapelt wird. Du kannst jeden Tag noch ändern."
-                            : "Verteilt nach freier Lernzeit. Erledigte Aufgaben bleiben erledigt. Du kannst jeden Tag noch ändern.")
-                    .font(UF.small).foregroundStyle(UF.muted)
             }
+            .padding(.vertical, 8)
+            Text((rescue ? "Verteilt auf die nächsten 7 Tage, höchstens 60 % deiner Tageszeit, damit nichts gestapelt wird."
+                         : "Verteilt nach freier Lernzeit. Erledigte Aufgaben bleiben erledigt.") + " Du kannst jeden Tag noch ändern.")
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
         } foot: {
             UFButton("Abbrechen") { onClose() }
             UFButton("Vorschlag übernehmen", kind: .primary) { Task { await apply(moves) } }
         }
-        .onAppear { targets = moves.map { Fmt.date($0.s("to")) ?? Date() } }
+        .onAppear { targets = moves.map { $0.s("to") ?? "" } }
     }
 
     private func apply(_ moves: [JSONValue]) async {
         guard let api else { return }
         let updated: [JSONValue] = moves.enumerated().map { i, mv in
             var o = mv.object ?? [:]
-            if i < targets.count { o["to"] = .string(Fmt.isoDay(targets[i])) }
+            if i < targets.count { o["to"] = .string(targets[i]) }
             return .object(o)
         }
         do {
@@ -281,11 +265,12 @@ struct UFField<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.system(size: 13.6)).foregroundStyle(UF.text2)
+        VStack(alignment: .leading, spacing: 4) {                     // label.field: .85rem, margin .55rem 0
+            Text(label).ufFont(13.6).foregroundStyle(UF.text2)
             content
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 4.4)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -303,7 +288,7 @@ struct UFCheckbox: View {
         Button { isOn.toggle() } label: {
             HStack(alignment: .top, spacing: 6.4) {
                 Image(systemName: isOn ? "checkmark.square.fill" : "square").foregroundStyle(isOn ? UF.accent : UF.muted)
-                Text(text).font(.system(size: 13.6)).foregroundStyle(UF.text2).multilineTextAlignment(.leading)
+                Text(text).ufFont(13.6).foregroundStyle(UF.text2).multilineTextAlignment(.leading)
             }
         }
         .buttonStyle(.plain)
