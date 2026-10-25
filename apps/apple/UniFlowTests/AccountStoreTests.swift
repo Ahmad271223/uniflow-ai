@@ -219,6 +219,16 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertNil(s.notice)
     }
 
+    func testForcedPlanOnlyForKnownValues() {
+        XCTAssertNil(DebugLaunch.forcedPlan(defaults: defaults), "ohne -UFPlan gilt der Tarif aus StoreKit")
+        defaults.set("plus", forKey: "UFPlan")
+        XCTAssertEqual(DebugLaunch.forcedPlan(defaults: defaults), .plus)
+        defaults.set("free", forKey: "UFPlan")
+        XCTAssertEqual(DebugLaunch.forcedPlan(defaults: defaults), .free)
+        defaults.set("pro", forKey: "UFPlan")
+        XCTAssertNil(DebugLaunch.forcedPlan(defaults: defaults), "unbekannter Tarif wird ignoriert")
+    }
+
     func testPrepareSkipsForOldScreenshotArguments() {
         for key in DebugLaunch.skipTriggers {
             let suiteName = "\(suite).\(key)"

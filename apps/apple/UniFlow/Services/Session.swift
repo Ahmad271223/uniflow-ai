@@ -105,12 +105,23 @@ final class Session: ObservableObject {
 ///   -UFOnboarding plan                Debug-Konto, Tarifwahl noch nicht gezeigt -> Tarifwahl
 ///                                     Ohne -UFOnboarding gilt bei -UFServer/-UFDisconnect/-UFRoute/-UFAction "skip"
 ///                                     (bisherige Bildvergleiche).
+///   -UFPlan plus                      fester Tarif ohne Kauf (free|plus), z. B. fuer "Lösung teilen" im Simulator, wo
+///                                     ohne Xcode keine StoreKit-Testkonfiguration laeuft
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,
 ///                                     timer:<stopwatch|countdown|pomodoro>[:run|:pill])
 /// Die Darstellung laesst sich ueber -theme dark|light|auto setzen (AppStorage liest Startargumente).
 enum DebugLaunch {
+    /// Tarif aus -UFPlan (nur Debug); nil = Tarif aus StoreKit
+    static func forcedPlan(defaults d: UserDefaults = .standard) -> UFPlan? {
+        #if DEBUG
+        return d.string(forKey: "UFPlan").flatMap(UFPlan.init(rawValue:))
+        #else
+        return nil
+        #endif
+    }
+
     /// vor dem ersten Bild (UniFlowApp.init), damit die Begruessung nicht kurz aufblitzt
     /// Startargumente, bei denen ohne -UFOnboarding die Anmeldung uebersprungen wird
     static let skipTriggers = ["UFServer", "UFDisconnect", "UFRoute", "UFAction"]

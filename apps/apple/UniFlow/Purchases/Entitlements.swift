@@ -292,7 +292,11 @@ final class Entitlements: ObservableObject {
             if let e = t.expirationDate { expiry[t.productID] = e }
         }
         let now = Date()
-        let p = UFEntitlementResolver.plan(from: entries, now: now)
+        var p = UFEntitlementResolver.plan(from: entries, now: now)
+        #if DEBUG
+        // Startargument -UFPlan free|plus: fester Tarif fuer Simulator-Ablaeufe ohne StoreKit-Testkonfiguration
+        if let forced = DebugLaunch.forcedPlan() { p = forced }
+        #endif
         plan = p
         inIntroOffer = UFEntitlementResolver.inIntroOffer(entries, plan: p, now: now)
         expiresAt = p.productID.flatMap { expiry[$0] }
