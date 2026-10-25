@@ -141,7 +141,8 @@
           {"name": "kind", "type": "TEXT", "notnull": 0, "default": "'pdf'", "pk": 0},
           {"name": "deleted_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "page_count", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "page_count", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "content_sha256", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "courses", "from": "course_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
@@ -447,15 +448,17 @@
           {"name": "feedback", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "week_no", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
-          {"name": "auto", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
+          {"name": "auto", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "share_key", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
+          {"name": "ix_tests_share_key", "unique": 0, "origin": "c", "partial": 0, "columns": ["share_key"]},
           {"name": "ux_tests_auto", "unique": 1, "origin": "c", "partial": 1, "columns": ["module_id", "week_no"]}
         ]
       }
     },
-    "index_sql": {"ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
+    "index_sql": {"ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
     "user_version": 0
   },
   "settings": [

@@ -75,6 +75,9 @@ public enum Migrations {
         .addColumn("tests", "module_id", "INTEGER"),
         .addColumn("tests", "week_no", "INTEGER"),
         .addColumn("tests", "auto", "INTEGER DEFAULT 0"),
+        .addColumn("tests", "share_key", "TEXT"),               // gemeinsamer Wochentest (app/testshare.py)
+        .addColumn("files", "content_sha256", "TEXT"),          // Inhalts-Hash fuer gemeinsame Tests
+        .sql("CREATE INDEX IF NOT EXISTS ix_tests_share_key ON tests(share_key)"),
         // Hoechstens ein automatischer Wochentest pro Modul und Lehrwoche
         .sql("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"),
     ]

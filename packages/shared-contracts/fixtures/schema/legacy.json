@@ -172,7 +172,8 @@
           {"name": "kind", "type": "TEXT", "notnull": 0, "default": "'pdf'", "pk": 0},
           {"name": "deleted_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "page_count", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "page_count", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "content_sha256", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "courses", "from": "course_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
@@ -478,15 +479,17 @@
           {"name": "feedback", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "week_no", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
-          {"name": "auto", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
+          {"name": "auto", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "share_key", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
+          {"name": "ix_tests_share_key", "unique": 0, "origin": "c", "partial": 0, "columns": ["share_key"]},
           {"name": "ux_tests_auto", "unique": 1, "origin": "c", "partial": 1, "columns": ["module_id", "week_no"]}
         ]
       }
     },
-    "index_sql": {"ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
+    "index_sql": {"ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
     "user_version": 0
   },
   "rows": {
@@ -496,20 +499,20 @@
       {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "created_at": "2026-09-01T07:00:00", "module_id": null}
     ],
     "files": [
-      {"id": "f1", "course_id": "k1", "name": "Folien_01.pdf", "size": 1024, "mime": "application/pdf", "author": null, "chdate": 1760000000, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "gelesen", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null},
-      {"id": "f2", "course_id": "k2", "name": "blatt1.py", "size": null, "mime": "text/x-python", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": "Uebungen", "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null},
-      {"id": "f3", "course_id": "k2", "name": "Skizze.PNG", "size": null, "mime": "image/png", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null},
-      {"id": "f4", "course_id": "k1", "name": "archiv.zip", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null},
-      {"id": "f5", "course_id": "k1", "name": "Tafel.JPeG", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null},
-      {"id": "f6", "course_id": "k1", "name": "Altklausur.PDF", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null},
-      {"id": "u1", "course_id": "__user__", "name": "Mein Notizbuch", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null}
+      {"id": "f1", "course_id": "k1", "name": "Folien_01.pdf", "size": 1024, "mime": "application/pdf", "author": null, "chdate": 1760000000, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "gelesen", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
+      {"id": "f2", "course_id": "k2", "name": "blatt1.py", "size": null, "mime": "text/x-python", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": "Uebungen", "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
+      {"id": "f3", "course_id": "k2", "name": "Skizze.PNG", "size": null, "mime": "image/png", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
+      {"id": "f4", "course_id": "k1", "name": "archiv.zip", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
+      {"id": "f5", "course_id": "k1", "name": "Tafel.JPeG", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
+      {"id": "f6", "course_id": "k1", "name": "Altklausur.PDF", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
+      {"id": "u1", "course_id": "__user__", "name": "Mein Notizbuch", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null}
     ],
     "annotations": [
       {"file_id": "f1", "data": "{\"version\":2,\"pages\":{}}", "updated_at": "2026-10-02T10:00:00", "version": 3},
       {"file_id": "f6", "data": "{\"version\":2,\"pages\":{\"p1\":{\"objects\":[]}}}", "updated_at": "2026-10-03T11:00:00", "version": 1}
     ],
     "tests": [
-      {"id": 1, "subject": "Algebra", "week_start": null, "title": "Probetest", "duration_min": 45, "questions": "[]", "created_at": null, "started_at": null, "submitted_at": null, "answers": null, "score": 7.5, "max_score": null, "feedback": null, "module_id": null, "week_no": null, "auto": 0}
+      {"id": 1, "subject": "Algebra", "week_start": null, "title": "Probetest", "duration_min": 45, "questions": "[]", "created_at": null, "started_at": null, "submitted_at": null, "answers": null, "score": 7.5, "max_score": null, "feedback": null, "module_id": null, "week_no": null, "auto": 0, "share_key": null}
     ],
     "settings": [
       {"key": "hours_per_day", "value": "6"},

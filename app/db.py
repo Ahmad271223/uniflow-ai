@@ -359,60 +359,68 @@ class UniversityMismatch(RuntimeError):
 
 
 def init_db() -> None:
+    conn = connect()
+    try:
+        with conn:                      # Transaktion; schliesst die Verbindung NICHT (sqlite3), daher finally
+            _init_db(conn)
+    finally:
+        conn.close()
+
+
+def _init_db(conn) -> None:
     from . import config
-    with connect() as conn:
-        conn.executescript(SCHEMA)
-        # Jede Datenbank gehoert genau einer Hochschule (Schutz gegen vertauschte Datenordner)
-        owner = conn.execute("SELECT value FROM settings WHERE key='university'").fetchone()
-        if owner is None:
-            conn.execute("INSERT INTO settings(key, value) VALUES ('university', ?)", (config.UNIVERSITY,))
-        elif owner[0] != config.UNIVERSITY:
-            raise UniversityMismatch(f"Der Datenordner {config.DATA_DIR} gehoert zur Hochschule '{owner[0]}', "
-                                     f"die App laeuft fuer '{config.UNIVERSITY}'. Es werden keine Daten gemischt.")
-        for k, v in DEFAULT_SETTINGS.items():
-            conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
-        # Migrationen fuer bestehende Datenbanken
-        def add_col(table, col, decl):
-            cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
-            if col not in cols:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
-        add_col("annotations", "version", "INTEGER DEFAULT 1")
-        add_col("files", "studip_folder", "TEXT")
-        add_col("courses", "module_id", "INTEGER")
-        add_col("files", "favorite", "INTEGER DEFAULT 0")
-        add_col("files", "last_opened", "TEXT")
-        add_col("files", "last_page", "INTEGER DEFAULT 1")
-        add_col("files", "opened_count", "INTEGER DEFAULT 0")
-        add_col("files", "folder_id", "INTEGER")
-        add_col("files", "kind", "TEXT DEFAULT 'pdf'")        # pdf | notebook | whiteboard | image | file
-        # Stud.IP-Dateien bekamen frueher immer kind=pdf (auch .py/.zip/.gif) -> Editor versuchte sie als PDF zu laden
-        conn.execute("""UPDATE files SET kind = CASE
-                            WHEN lower(name) GLOB '*.png' OR lower(name) GLOB '*.jpg' OR lower(name) GLOB '*.jpeg' OR lower(name) GLOB '*.gif' OR lower(name) GLOB '*.webp' THEN 'image'
-                            ELSE 'file' END
-                        WHERE kind = 'pdf' AND lower(name) NOT GLOB '*.pdf' AND course_id <> '__user__'""")
-        add_col("files", "deleted_at", "TEXT")
-        add_col("files", "title", "TEXT")
-        add_col("files", "page_count", "INTEGER")
-        add_col("study_packages", "start_time", "TEXT")
-        add_col("study_packages", "end_time", "TEXT")
-        add_col("study_tasks", "start_time", "TEXT")
-        add_col("study_tasks", "end_time", "TEXT")
-        add_col("modules", "active", "INTEGER DEFAULT 1")
-        add_col("modules", "weekly_test", "INTEGER DEFAULT 1")
-        add_col("modules", "test_minutes", "INTEGER")
-        add_col("tests", "module_id", "INTEGER")
-        add_col("tests", "week_no", "INTEGER")
-        add_col("tests", "auto", "INTEGER DEFAULT 0")
-        add_col("tests", "share_key", "TEXT")               # gemeinsamer Wochentest (app/testshare.py)
-        add_col("files", "content_sha256", "TEXT")          # Inhalts-Hash fuer gemeinsame Tests
-        conn.execute("CREATE INDEX IF NOT EXISTS ix_tests_share_key ON tests(share_key)")
-        # Hoechstens ein automatischer Wochentest pro Modul und Lehrwoche
-        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1")
-        # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
-        conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
-                        VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))
-        if not conn.execute("SELECT 1 FROM terms").fetchone():
-            conn.execute("INSERT INTO terms(name, start, end, active) VALUES ('WiSe 2026/27', '2026-10-12', '2027-01-30', 1)")
+    conn.executescript(SCHEMA)
+    # Jede Datenbank gehoert genau einer Hochschule (Schutz gegen vertauschte Datenordner)
+    owner = conn.execute("SELECT value FROM settings WHERE key='university'").fetchone()
+    if owner is None:
+        conn.execute("INSERT INTO settings(key, value) VALUES ('university', ?)", (config.UNIVERSITY,))
+    elif owner[0] != config.UNIVERSITY:
+        raise UniversityMismatch(f"Der Datenordner {config.DATA_DIR} gehoert zur Hochschule '{owner[0]}', "
+                                 f"die App laeuft fuer '{config.UNIVERSITY}'. Es werden keine Daten gemischt.")
+    for k, v in DEFAULT_SETTINGS.items():
+        conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
+    # Migrationen fuer bestehende Datenbanken
+    def add_col(table, col, decl):
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if col not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+    add_col("annotations", "version", "INTEGER DEFAULT 1")
+    add_col("files", "studip_folder", "TEXT")
+    add_col("courses", "module_id", "INTEGER")
+    add_col("files", "favorite", "INTEGER DEFAULT 0")
+    add_col("files", "last_opened", "TEXT")
+    add_col("files", "last_page", "INTEGER DEFAULT 1")
+    add_col("files", "opened_count", "INTEGER DEFAULT 0")
+    add_col("files", "folder_id", "INTEGER")
+    add_col("files", "kind", "TEXT DEFAULT 'pdf'")        # pdf | notebook | whiteboard | image | file
+    # Stud.IP-Dateien bekamen frueher immer kind=pdf (auch .py/.zip/.gif) -> Editor versuchte sie als PDF zu laden
+    conn.execute("""UPDATE files SET kind = CASE
+                        WHEN lower(name) GLOB '*.png' OR lower(name) GLOB '*.jpg' OR lower(name) GLOB '*.jpeg' OR lower(name) GLOB '*.gif' OR lower(name) GLOB '*.webp' THEN 'image'
+                        ELSE 'file' END
+                    WHERE kind = 'pdf' AND lower(name) NOT GLOB '*.pdf' AND course_id <> '__user__'""")
+    add_col("files", "deleted_at", "TEXT")
+    add_col("files", "title", "TEXT")
+    add_col("files", "page_count", "INTEGER")
+    add_col("study_packages", "start_time", "TEXT")
+    add_col("study_packages", "end_time", "TEXT")
+    add_col("study_tasks", "start_time", "TEXT")
+    add_col("study_tasks", "end_time", "TEXT")
+    add_col("modules", "active", "INTEGER DEFAULT 1")
+    add_col("modules", "weekly_test", "INTEGER DEFAULT 1")
+    add_col("modules", "test_minutes", "INTEGER")
+    add_col("tests", "module_id", "INTEGER")
+    add_col("tests", "week_no", "INTEGER")
+    add_col("tests", "auto", "INTEGER DEFAULT 0")
+    add_col("tests", "share_key", "TEXT")               # gemeinsamer Wochentest (app/testshare.py)
+    add_col("files", "content_sha256", "TEXT")          # Inhalts-Hash fuer gemeinsame Tests
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_tests_share_key ON tests(share_key)")
+    # Hoechstens ein automatischer Wochentest pro Modul und Lehrwoche
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1")
+    # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
+    conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
+                    VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))
+    if not conn.execute("SELECT 1 FROM terms").fetchone():
+        conn.execute("INSERT INTO terms(name, start, end, active) VALUES ('WiSe 2026/27', '2026-10-12', '2027-01-30', 1)")
 
 
 @contextmanager
