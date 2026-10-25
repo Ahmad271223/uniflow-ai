@@ -1,0 +1,493 @@
+{
+  "generator": "tools/gen-schema-fixture.py",
+  "schema": {
+    "tables": {
+      "analysis": {
+        "columns": [
+          {"name": "file_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "doc_type", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "topics", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "difficulty", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "est_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "summary", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "prerequisites", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "raw", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "files", "from": "file_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
+        ],
+        "indexes": [
+          {"name": "sqlite_autoindex_analysis_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["file_id"]}
+        ]
+      },
+      "annotation_versions": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "file_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "version", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0},
+          {"name": "data", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "annotations": {
+        "columns": [
+          {"name": "file_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "data", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "files", "from": "file_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
+        ],
+        "indexes": [
+          {"name": "sqlite_autoindex_annotations_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["file_id"]}
+        ]
+      },
+      "course_events": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "course_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "kind", "type": "TEXT", "notnull": 0, "default": "'vorlesung'", "pk": 0},
+          {"name": "weekday", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0},
+          {"name": "start_time", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "end_time", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "room", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "lecturer", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "rrule", "type": "TEXT", "notnull": 0, "default": "'weekly'", "pk": 0},
+          {"name": "date_from", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "date_to", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "attend", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "source", "type": "TEXT", "notnull": 0, "default": "'manual'", "pk": 0},
+          {"name": "color", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "courses": {
+        "columns": [
+          {"name": "id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "title", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "number", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "semester", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "subject", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "kind", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": "90", "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_courses_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["id"]}
+        ]
+      },
+      "dismissed_tests": {
+        "columns": [
+          {"name": "module_id", "type": "INTEGER", "notnull": 1, "default": null, "pk": 1},
+          {"name": "week_no", "type": "INTEGER", "notnull": 1, "default": null, "pk": 2},
+          {"name": "dismissed_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_dismissed_tests_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["module_id", "week_no"]}
+        ]
+      },
+      "event_exceptions": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "event_id", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0},
+          {"name": "date", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "type", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "new_date", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "new_start", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "new_end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "course_events", "from": "event_id", "to": "id", "on_update": "NO ACTION", "on_delete": "CASCADE"}
+        ],
+        "indexes": []
+      },
+      "files": {
+        "columns": [
+          {"name": "id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "course_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "name", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "size", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "mime", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "author", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "download_url", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "local_path", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "downloaded_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "first_seen", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "status", "type": "TEXT", "notnull": 0, "default": "'neu'", "pk": 0},
+          {"name": "seen_by_user", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "text_excerpt", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "studip_folder", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "favorite", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "last_opened", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "last_page", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "opened_count", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "folder_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "kind", "type": "TEXT", "notnull": 0, "default": "'pdf'", "pk": 0},
+          {"name": "deleted_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "page_count", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "courses", "from": "course_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
+        ],
+        "indexes": [
+          {"name": "sqlite_autoindex_files_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["id"]}
+        ]
+      },
+      "flashcards": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "file_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "subject", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "question", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "answer", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "box", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "due", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "folders": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "name", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "parent_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "color", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "grades": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "pruefungsnr", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "text", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "semester", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "status", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "credits", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "versuch", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "datum", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "abschluss", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "raw", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_grades_1", "unique": 1, "origin": "u", "partial": 0, "columns": ["pruefungsnr", "text", "semester", "versuch"]}
+        ]
+      },
+      "modules": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "name", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "semester", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "color", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "icon", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "priority", "type": "INTEGER", "notnull": 0, "default": "2", "pk": 0},
+          {"name": "exam_date", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sort", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "weekly_test", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "page_texts": {
+        "columns": [
+          {"name": "file_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 1},
+          {"name": "page", "type": "INTEGER", "notnull": 1, "default": null, "pk": 2},
+          {"name": "text", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_page_texts_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["file_id", "page"]}
+        ]
+      },
+      "plan_items": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "week_start", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "day", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0},
+          {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "duration_min", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "course_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "subject", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "file_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "test_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "kind", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "done", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "manual", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "sort_order", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "plans", "from": "week_start", "to": "week_start", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
+        ],
+        "indexes": []
+      },
+      "plans": {
+        "columns": [
+          {"name": "week_start", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "generated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "notes", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_plans_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["week_start"]}
+        ]
+      },
+      "qis_documents": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "local_path", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "qis_runs": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "started_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "finished_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "ok", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "message", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "grades", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "documents", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "recordings": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "file_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "page", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "url", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "duration", "type": "REAL", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "schedule_imports": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "source", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "status", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "raw", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "parsed", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "confirmed", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "settings": {
+        "columns": [
+          {"name": "key", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "value", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_settings_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["key"]}
+        ]
+      },
+      "studip_events": {
+        "columns": [
+          {"name": "id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "course_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "start", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "room", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_studip_events_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["id"]}
+        ]
+      },
+      "studip_schedule_entries": {
+        "columns": [
+          {"name": "id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "weekday", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "start", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "description", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_studip_schedule_entries_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["id"]}
+        ]
+      },
+      "study_packages": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "date", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "subject", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "week_no", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "planned_minutes", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "status", "type": "TEXT", "notnull": 0, "default": "'geplant'", "pk": 0},
+          {"name": "sort", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "generated", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "modules", "from": "module_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
+        ],
+        "indexes": []
+      },
+      "study_tasks": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "package_id", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0},
+          {"name": "type", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "file_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "test_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "sort", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "est_minutes", "type": "INTEGER", "notnull": 0, "default": "45", "pk": 0},
+          {"name": "actual_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "status", "type": "TEXT", "notnull": 0, "default": "'geplant'", "pk": 0},
+          {"name": "done_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "moved_from", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [
+          {"table": "study_packages", "from": "package_id", "to": "id", "on_update": "NO ACTION", "on_delete": "CASCADE"}
+        ],
+        "indexes": []
+      },
+      "sync_log": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "started_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "finished_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "ok", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "new_files", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
+          {"name": "message", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "task_history": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "task_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "package_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "old_status", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "new_status", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "old_date", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "new_date", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "terms": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "name", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "start", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "end", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": []
+      },
+      "tests": {
+        "columns": [
+          {"name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1},
+          {"name": "subject", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "week_start", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "duration_min", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "questions", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "started_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "submitted_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "answers", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "score", "type": "REAL", "notnull": 0, "default": null, "pk": 0},
+          {"name": "max_score", "type": "REAL", "notnull": 0, "default": null, "pk": 0},
+          {"name": "feedback", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "week_no", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "auto", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "ux_tests_auto", "unique": 1, "origin": "c", "partial": 1, "columns": ["module_id", "week_no"]}
+        ]
+      }
+    },
+    "index_sql": {"ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
+    "user_version": 0
+  },
+  "settings": [
+    ["hours_per_day", "4"],
+    ["free_days", "[6]"],
+    ["day_start", "09:00"],
+    ["test_default_minutes", "90"],
+    ["auto_plan", "1"],
+    ["auto_tests", "1"],
+    ["subjects_per_day", "2"],
+    ["parts_lecture", "1"],
+    ["parts_exercise", "1"],
+    ["tests_per_subject", "1"],
+    ["test_minutes", "45"],
+    ["break_minutes", "15"],
+    ["exam_priority", "1"],
+    ["auto_suggest", "1"],
+    ["theme", "auto"],
+    ["user_name", ""],
+    ["lan_pin", ""],
+    ["learn_start", "08:00"],
+    ["learn_end", "21:00"],
+    ["travel_minutes", "30"],
+    ["min_slot_minutes", "30"],
+    ["blocked_times", "[]"],
+    ["pen_input", "all"],
+    ["hand", "right"]
+  ],
+  "courses": [
+    {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "module_id": null}
+  ],
+  "terms": [
+    {"id": 1, "name": "WiSe 2026/27", "start": "2026-10-12", "end": "2027-01-30", "active": 1}
+  ]
+}

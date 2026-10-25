@@ -1,0 +1,7 @@
+// Nur unter Linux (Package.swift: Abhaengigkeit mit condition .linux). iOS/macOS nutzen das System-Modul SQLite3.
+// Braucht die Kopfdateien des Systems: apt-get install libsqlite3-dev
+module CSQLite [system] {
+    header "shim.h"
+    link "sqlite3"
+    export *
+}
