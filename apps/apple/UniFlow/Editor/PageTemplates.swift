@@ -1,9 +1,9 @@
 import UIKit
 import UniFlowCore
 
-/// Bildschirmvorlagen fuer Notizseiten, wie `renderTemplate` in app/static/editor.js: gleiche Abstaende (Linien ab
-/// 60 pt alle 24 pt, Raster und Punkte alle 14,17 pt = 5 mm, Millimeter 2,835 pt), Farben und Strichstaerken, in
-/// Seitenpunkten. Liegt in `PageObjectsView` ganz unten, also unter Text, Formen und der Tinte.
+/// Bildschirmvorlagen fuer Notizseiten, wie `renderTemplate` in app/static/editor.js. Abstaende, Farben und
+/// Strichstaerken kommen aus `TemplateGeometry` (Kern, dort gegen die Web-Werte getestet), in Seitenpunkten.
+/// Liegt in `PageObjectsView` ganz unten, also unter Text, Formen und der Tinte.
 /// Der PDF-Export nutzt weiter `ObjectGeometry.templatePath` (entspricht `drawTemplatePdf` im Web).
 enum PaperTemplate {
     /// Auswahl beim Einfuegen (gleiche Schluessel und Namen wie TEMPLATES im Web-Editor).
@@ -14,62 +14,51 @@ enum PaperTemplate {
 
     static func isKnown(_ template: String) -> Bool { PageOrder.templates.contains(template) }
 
-    // Farben wie im Web (#d9dde8 Linien, #c9ced9 Punkte, Cornell: #b9c2d6 Trennlinien, #9aa0ae Beschriftung, #fffdf7 Papier)
-    static let lineColor = UIColor(red: 217 / 255, green: 221 / 255, blue: 232 / 255, alpha: 1)
-    static let dotColor = UIColor(red: 201 / 255, green: 206 / 255, blue: 217 / 255, alpha: 1)
-    static let cornellRuleColor = UIColor(red: 185 / 255, green: 194 / 255, blue: 214 / 255, alpha: 1)
-    static let cornellLabelColor = UIColor(red: 154 / 255, green: 160 / 255, blue: 174 / 255, alpha: 1)
-    static let cornellPaper = UIColor(red: 1, green: 253 / 255, blue: 247 / 255, alpha: 1)
-
-    static func step(_ template: String) -> CGFloat {
-        template == "mm" ? 2.835 : (template == "grid" || template == "dotted") ? 14.17 : 24
-    }
+    static let lineColor = color(TemplateGeometry.lineColor)
+    static let dotColor = color(TemplateGeometry.dotColor)
+    static let cornellRuleColor = color(TemplateGeometry.cornellRuleColor)
+    static let cornellLabelColor = color(TemplateGeometry.cornellLabelColor)
+    static let cornellPaper = color(TemplateGeometry.cornellPaper)
 
     /// Ebenen der Vorlage fuer eine Seite der Groesse `size` (Ursprung oben links). Leer bei `blank`/`nil`.
     static func layers(for template: String?, size: CGSize) -> [CALayer] {
-        guard let t = template, t != "blank", size.width > 0, size.height > 0 else { return [] }
-        let W = size.width, H = size.height, step = step(t)
+        let g = TemplateGeometry.make(template, width: Double(size.width), height: Double(size.height))
+        guard !g.isEmpty else { return [] }
+        let W = size.width, H = size.height
+        let cornell = g.cornellFooterY != nil
         var out: [CALayer] = []
 
-        if t == "cornell" {
+        if cornell {
             let paper = CALayer()
             paper.frame = CGRect(origin: .zero, size: size)
             paper.backgroundColor = cornellPaper.cgColor
             out.append(paper)
         }
-        if t == "lined" || t == "cornell" {
+        if !g.horizontal.isEmpty, g.vertical.isEmpty {
+            // liniert und Cornell
             let p = CGMutablePath()
-            var y: CGFloat = 60
-            while y < H { p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: W, y: y)); y += step }
-            out.append(stroke(p, color: lineColor, width: 0.6))
+            for y in g.horizontal { p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: W, y: y)) }
+            out.append(stroke(p, color: lineColor, width: TemplateGeometry.lineWidth))
         }
-        if t == "grid" || t == "mm" {
-            // Millimeterpapier: jede zehnte Linie (1 cm) kraeftiger
+        if !g.vertical.isEmpty {
+            // Raster und Millimeterpapier (jede zehnte Linie kraeftiger)
             let thin = CGMutablePath(), bold = CGMutablePath()
-            var i = 0
-            var x: CGFloat = 0
-            while x < W {
-                let p = t == "mm" && i % 10 == 0 ? bold : thin
+            for (i, x) in g.vertical.enumerated() {
+                let p = g.isBold(i) ? bold : thin
                 p.move(to: CGPoint(x: x, y: 0)); p.addLine(to: CGPoint(x: x, y: H))
-                i += 1; x = CGFloat(i) * step
             }
-            i = 0
-            var y: CGFloat = 0
-            while y < H {
-                let p = t == "mm" && i % 10 == 0 ? bold : thin
+            for (i, y) in g.horizontal.enumerated() {
+                let p = g.isBold(i) ? bold : thin
                 p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: W, y: y))
-                i += 1; y = CGFloat(i) * step
             }
-            out.append(stroke(thin, color: lineColor, width: 0.5))
-            if !bold.isEmpty { out.append(stroke(bold, color: lineColor, width: 1.2)) }
+            out.append(stroke(thin, color: lineColor, width: TemplateGeometry.gridWidth))
+            if !bold.isEmpty { out.append(stroke(bold, color: lineColor, width: TemplateGeometry.gridBoldWidth)) }
         }
-        if t == "dotted" {
+        if !g.dotColumns.isEmpty {
             let p = CGMutablePath()
-            var x = step
-            while x < W {
-                var y = step
-                while y < H { p.addEllipse(in: CGRect(x: x - 0.9, y: y - 0.9, width: 1.8, height: 1.8)); y += step }
-                x += step
+            let r = TemplateGeometry.dotRadius
+            for x in g.dotColumns {
+                for y in g.dotRows { p.addEllipse(in: CGRect(x: x - r, y: y - r, width: 2 * r, height: 2 * r)) }
             }
             let dots = CAShapeLayer()
             dots.path = p
@@ -77,16 +66,24 @@ enum PaperTemplate {
             dots.strokeColor = nil
             out.append(dots)
         }
-        if t == "cornell" {
+        if let footer = g.cornellFooterY {
             let p = CGMutablePath()
-            p.move(to: CGPoint(x: 150, y: 0)); p.addLine(to: CGPoint(x: 150, y: H - 150))
-            p.move(to: CGPoint(x: 0, y: H - 150)); p.addLine(to: CGPoint(x: W, y: H - 150))
-            out.append(stroke(p, color: cornellRuleColor, width: 1.4))
-            out.append(label("Stichworte", baseline: CGPoint(x: 12, y: 22)))
-            out.append(label("Notizen", baseline: CGPoint(x: 162, y: 22)))
-            out.append(label("Zusammenfassung", baseline: CGPoint(x: 12, y: H - 128)))
+            let x = TemplateGeometry.cornellDividerX
+            p.move(to: CGPoint(x: x, y: 0)); p.addLine(to: CGPoint(x: x, y: footer))
+            p.move(to: CGPoint(x: 0, y: footer)); p.addLine(to: CGPoint(x: W, y: footer))
+            out.append(stroke(p, color: cornellRuleColor, width: TemplateGeometry.cornellRuleWidth))
+            for l in TemplateGeometry.cornellLabels {
+                out.append(label(l.text, baseline: CGPoint(x: l.x, y: l.fromBottom ? Double(H) - l.y : l.y)))
+            }
         }
         return out
+    }
+
+    /// "#rrggbb" -> UIColor (nur die festen Vorlagenfarben).
+    private static func color(_ hex: String) -> UIColor {
+        let v = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        return UIColor(red: CGFloat((v >> 16) & 0xff) / 255, green: CGFloat((v >> 8) & 0xff) / 255,
+                       blue: CGFloat(v & 0xff) / 255, alpha: 1)
     }
 
     private static func stroke(_ path: CGPath, color: UIColor, width: CGFloat) -> CAShapeLayer {

@@ -28,7 +28,9 @@ struct DisplayLayout {
     func baseSize(at index: Int) -> CGSize? {
         guard let entry = entry(at: index), let page = pdf.page(at: index) else { return nil }
         let shown = PageGeometry(boxSize: page.bounds(for: .cropBox).size, rotation: page.rotation).pageSize
-        return entry.rotation % 180 == 0 ? shown : CGSize(width: shown.height, height: shown.width)
+        let base = PageOrder.baseSize(shownWidth: Double(shown.width), shownHeight: Double(shown.height),
+                                      extraRotation: entry.rotation)
+        return CGSize(width: base.width, height: base.height)
     }
 
     /// Signatur der Struktur: aendert sie sich, muss die Anzeige neu aufgebaut werden.

@@ -57,6 +57,14 @@ public enum PageOrder {
 
     static func index(of key: String, in order: [JSONValue]) -> Int? { order.firstIndex { $0["key"]?.string == key } }
 
+    // MARK: Groesse
+
+    /// Seitengroesse ohne die zusaetzliche Drehung aus `pageOrder` (wie `baseW`/`baseH` im Web-Editor): bei 90 und
+    /// 270 Grad sind Breite und Hoehe der angezeigten Seite vertauscht. Groesse neuer Leerseiten nach dieser Seite.
+    public static func baseSize(shownWidth: Double, shownHeight: Double, extraRotation: Int) -> (width: Double, height: Double) {
+        extraRotation % 180 == 0 ? (shownWidth, shownHeight) : (shownHeight, shownWidth)
+    }
+
     // MARK: Einfuegen
 
     /// Leerseite nach `afterKey` einfuegen (ohne oder mit unbekanntem Schluessel: am Ende).
@@ -134,7 +142,8 @@ public enum PageOrder {
     /// Papierkorb-Eintrag wiederherstellen: zurueck an den frueheren Platz (hoechstens ans Ende), Objekte zurueck in
     /// `pages[key]`. Andere Felder der Seite (z. B. `pkdrawing`) bleiben; passt deren Signatur nicht mehr zu den
     /// Objekten, wird die Zeichnung wie gewohnt aus den Objekten neu aufgebaut.
-    /// Steht die Seite schon in `pageOrder` (z. B. nach einer Zusammenfuehrung), wird nur der Eintrag entfernt.
+    /// Steht die Seite schon in `pageOrder` (z. B. nach einer Zusammenfuehrung), wird nur der Eintrag entfernt;
+    /// `pages[key]` bleibt dann unberuehrt, damit seitdem entstandene Objekte nicht verloren gehen.
     @discardableResult
     public static func restore(_ doc: inout AnnotationDocument, trashIndex: Int) -> Change? {
         var deleted = doc.root["deletedPages"]?.array ?? []
@@ -142,12 +151,13 @@ public enum PageOrder {
         let d = deleted[trashIndex]
         guard let entry = d["entry"], let key = entry["key"]?.string else { return nil }
         deleted.remove(at: trashIndex)
-        var order = doc.pageOrder
-        if index(of: key, in: order) == nil {
-            order.insert(entry, at: min(max(0, d["pos"]?.int ?? order.count), order.count))
-        }
-        doc.root["pageOrder"] = .array(order)
         doc.root["deletedPages"] = .array(deleted)
+        var order = doc.pageOrder
+        if index(of: key, in: order) != nil {
+            return Change(focusKey: key, changedPageKeys: [])   // Seite ist schon da: alter Stand waere veraltet
+        }
+        order.insert(entry, at: min(max(0, d["pos"]?.int ?? order.count), order.count))
+        doc.root["pageOrder"] = .array(order)
         let before = doc.page(key)
         var page = before ?? .object([:])
         if case .object = page {} else { page = .object([:]) }
@@ -160,4 +170,84 @@ public enum PageOrder {
         }
         return Change(focusKey: key, changedPageKeys: changed)
     }
+}
+
+/// Geometrie der Bildschirmvorlagen wie `renderTemplate` in app/static/editor.js, in Seitenpunkten (Ursprung oben
+/// links). Die App zeichnet daraus Ebenen (`PaperTemplate`); Farben und Strichstaerken stehen ebenfalls hier, damit
+/// sie zusammen mit den Abstaenden gegen das Web geprueft werden koennen.
+public struct TemplateGeometry: Equatable, Sendable {
+    /// Waagrechte Linien ueber die ganze Breite (liniert und Cornell ab 60 pt, Raster ab 0), y-Werte.
+    public var horizontal: [Double] = []
+    /// Senkrechte Linien ueber die ganze Hoehe (Raster, Millimeter), x-Werte.
+    public var vertical: [Double] = []
+    /// Millimeterpapier: jede zehnte Linie (1 cm, Index 0, 10, 20 ...) kraeftiger; sonst nil.
+    public var boldEvery: Int?
+    /// Punktraster: Spalten (x) und Zeilen (y), Punkte an allen Kreuzungen.
+    public var dotColumns: [Double] = []
+    public var dotRows: [Double] = []
+    /// Cornell: senkrechte Trennlinie bei x = 150 bis `cornellFooterY`, waagrechte bei `cornellFooterY`.
+    public var cornellFooterY: Double?
+
+    // Werte wie im Web (Farben als #rrggbb)
+    public static let lineColor = "#d9dde8"
+    public static let dotColor = "#c9ced9"
+    public static let cornellRuleColor = "#b9c2d6"
+    public static let cornellLabelColor = "#9aa0ae"
+    public static let cornellPaper = "#fffdf7"
+    public static let lineWidth = 0.6           // liniert, Cornell
+    public static let gridWidth = 0.5           // Raster, Millimeter (duenn)
+    public static let gridBoldWidth = 1.2       // Millimeter, jede zehnte
+    public static let cornellRuleWidth = 1.4
+    public static let dotRadius = 0.9
+    public static let cornellDividerX = 150.0
+    public static let cornellFooterHeight = 150.0
+    /// Beschriftungen (Text, Grundlinie links); `fromBottom`: y vom unteren Rand gemessen.
+    public static let cornellLabels: [(text: String, x: Double, y: Double, fromBottom: Bool)] = [
+        ("Stichworte", 12, 22, false), ("Notizen", 162, 22, false), ("Zusammenfassung", 12, 128, true),
+    ]
+
+    public init() {}
+
+    /// Abstand der Linien: 24 pt liniert/Cornell, 5 mm Raster und Punkte, 1 mm Millimeterpapier.
+    public static func step(_ template: String) -> Double {
+        template == "mm" ? 2.835 : (template == "grid" || template == "dotted") ? 14.17 : 24
+    }
+
+    /// Geometrie fuer eine Seite; leer bei `blank`, `nil`, unbekannten Vorlagen und leerer Groesse.
+    public static func make(_ template: String?, width W: Double, height H: Double) -> TemplateGeometry {
+        var g = TemplateGeometry()
+        guard let t = template, t != "blank", PageOrder.templates.contains(t), W > 0, H > 0 else { return g }
+        let step = step(t)
+        // Positionen als Vielfache des Abstands (nicht aufsummiert), sonst wandern sie auf langen Seiten
+        func run(from start: Double, below limit: Double) -> [Double] {
+            var out: [Double] = []
+            var i = 0
+            while start + Double(i) * step < limit { out.append(start + Double(i) * step); i += 1 }
+            return out
+        }
+        switch t {
+        case "lined":
+            g.horizontal = run(from: 60, below: H)
+        case "cornell":
+            g.horizontal = run(from: 60, below: H)
+            g.cornellFooterY = H - cornellFooterHeight
+        case "grid", "mm":
+            g.vertical = run(from: 0, below: W)
+            g.horizontal = run(from: 0, below: H)
+            g.boldEvery = t == "mm" ? 10 : nil
+        case "dotted":
+            g.dotColumns = run(from: step, below: W)
+            g.dotRows = run(from: step, below: H)
+        default:
+            break
+        }
+        return g
+    }
+
+    public var isEmpty: Bool {
+        horizontal.isEmpty && vertical.isEmpty && dotColumns.isEmpty && cornellFooterY == nil
+    }
+
+    /// Linie mit Index `i` ist kraeftig (nur Millimeterpapier).
+    public func isBold(_ i: Int) -> Bool { boldEvery.map { i % $0 == 0 } ?? false }
 }

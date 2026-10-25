@@ -302,8 +302,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Der Rueckgaengig-Verlauf haengt am Seitenschluessel und bleibt erhalten.
     func showLayout() {
         guard store.layoutVersion != shownLayoutVersion, let layout = store.layout else { return }
-        let keepKey = pendingFocusKey ?? currentPageKey
-        pendingFocusKey = nil
+        // Fokus nur verbrauchen, wenn die Seite schon im Aufbau steht (ein fremder Neuaufbau waehrend einer
+        // Seitenoperation kommt sonst vor der neuen Seite und wuerde den Sprung dorthin verschlucken)
+        var keepKey = currentPageKey
+        if let focus = pendingFocusKey, layout.index(ofKey: focus) != nil {
+            keepKey = focus
+            pendingFocusKey = nil
+        }
         let keepScale = pdfView.scaleFactor
         // offene Canvases ueber ihren Schluessel sichern (Indizes koennen sich gerade verschoben haben)
         for v in allOverlays where v.loaded {
@@ -422,6 +427,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     private func reloadPages(_ keys: [String]) {
         let wanted = Set(keys)
+        // Seiten ohne geladene, gebundene Canvas: deren Verlauf kennt die fremde Aenderung nicht. Ein spaeter
+        // angelegtes Overlay laedt den neuen Stand, ein alter Schnappschuss wuerde ihn wieder entfernen (und die
+        // Loeschung hochladen). Mit geladener Canvas entscheidet `apply(_:to:remote:)`.
+        for key in wanted where boundOverlay(forKey: key)?.loaded != true { dropUndo(forKey: key) }
         for overlay in allOverlays where wanted.contains(overlay.pageKey) {
             if overlay.isDrawing { overlay.deferredReload = true } else { loadContent(into: overlay, remote: true) }
         }
@@ -529,14 +538,17 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var canEditPageStructure: Bool { pageEditor != nil }
 
     /// Leere Seite nach `key` (Standard: aktuelle Seite) einfuegen und hinspringen. Vorlage: blank, lined, grid,
-    /// dotted, mm, cornell; Groesse wie die Seite davor (ohne deren zusaetzliche Drehung, wie im Web).
+    /// dotted, mm, cornell.
+    /// - Mit `PageStructureEditing`: Groesse wie die Seite davor ohne deren zusaetzliche Drehung (`baseW`/`baseH`
+    ///   im Web), Schluessel im Web-Format (`PageOrder.newBlankKey`).
+    /// - Ersatzweg ohne Umsetzung im Store (`DocumentStore.addBlankPage`): angezeigte Groesse der Seite davor,
+    ///   also mit zusaetzlicher Drehung (nach einer um 90 Grad gedrehten Seite Breite und Hoehe vertauscht), und
+    ///   Schluessel "b" + 11 Hex-Zeichen.
     /// - Returns: Schluessel der neuen Seite.
     @discardableResult
     func insertBlankPage(after key: String? = nil, template: String = "blank") async -> String? {
         let afterKey = key ?? currentPageKey
         let t = PaperTemplate.isKnown(template) ? template : "blank"
-        let size = afterKey.flatMap { shownLayout?.index(ofKey: $0) }.flatMap { shownLayout?.baseSize(at: $0) }
-            ?? CGSize(width: 595, height: 842)
         guard let editor = pageEditor else {
             // ohne Umsetzung im Store: bisheriger Weg, neue Seite ueber den Vergleich der Schluessel finden
             let before = Set(store.layout?.entries.map(\.key) ?? [])
@@ -546,6 +558,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             finishPageChange(PageOrder.Change(focusKey: added, changedPageKeys: []))
             return added
         }
+        let size = afterKey.flatMap { shownLayout?.index(ofKey: $0) }.flatMap { shownLayout?.baseSize(at: $0) }
+            ?? CGSize(width: 595, height: 842)
         let newKey = PageOrder.newBlankKey()
         let w = Double(size.width), h = Double(size.height)
         pendingFocusKey = newKey
@@ -587,7 +601,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     /// Nach einer Seitenoperation neu aufbauen und die betroffene Seite zeigen. Hat SwiftUI schon neu aufgebaut
-    /// (`updateUIViewController`), wurde `pendingFocusKey` dort verbraucht; dann nur noch hinspringen.
+    /// (`updateUIViewController`), wurde `pendingFocusKey` dort verbraucht; dann nur noch hinspringen. Danach wird
+    /// `pendingFocusKey` immer geleert (auch wenn ein fremder Neuaufbau ihn nicht verwenden konnte).
     private func finishPageChange(_ change: PageOrder.Change?) {
         defer { pendingFocusKey = nil }
         guard let change else { return }

@@ -139,6 +139,22 @@ final class PageOrderTests: XCTestCase {
         XCTAssertEqual(d.root["deletedPages"], [])
     }
 
+    func testRestoreKeepsObjectsAddedAfterTrashWhenPageAlreadyInOrder() throws {
+        var d = try threePages()
+        d.pages["p1"] = ["objects": [["id": "alt", "type": "stroke"]]]
+        PageOrder.trash(&d, key: "p1")
+        var order = d.pageOrder
+        order.insert(["key": "p1", "type": "pdf", "index": 1], at: 0)   // Zusammenfuehrung brachte p1 zurueck
+        d.root["pageOrder"] = .array(order)
+        d.pages["p1"] = ["objects": [["id": "alt", "type": "stroke"], ["id": "neu", "type": "stroke"]]]
+        let c = PageOrder.restore(&d, key: "p1")
+        XCTAssertEqual(c, PageOrder.Change(focusKey: "p1", changedPageKeys: []))
+        XCTAssertEqual(d.objects(page: "p1").compactMap { $0["id"]?.string }, ["alt", "neu"],
+                       "Objekte nach dem Loeschen bleiben erhalten")
+        XCTAssertEqual(keys(d), ["p1", "p2", "p3"])
+        XCTAssertEqual(d.root["deletedPages"], [])
+    }
+
     func testRestoresWebEditorTrashEntry() throws {
         var d = try doc(#"""
         {"version":2,"pages":{"p1":{"objects":[]}},"pageOrder":[{"key":"p1","type":"pdf","index":1}],
@@ -152,5 +168,79 @@ final class PageOrderTests: XCTestCase {
         XCTAssertEqual(c?.changedPageKeys, ["bk2"], "Seite fehlte in pages und wird angelegt")
         XCTAssertEqual(keys(d), ["bk2", "p1"])
         XCTAssertEqual(d.objects(page: "bk2").first?["text"]?.string, "Hallo")
+    }
+
+    // MARK: Groesse und Vorlagen
+
+    func testBaseSizeIgnoresExtraRotationLikeWebBaseSize() {
+        XCTAssertTrue(PageOrder.baseSize(shownWidth: 595, shownHeight: 842, extraRotation: 0) == (595, 842))
+        XCTAssertTrue(PageOrder.baseSize(shownWidth: 842, shownHeight: 595, extraRotation: 90) == (595, 842))
+        XCTAssertTrue(PageOrder.baseSize(shownWidth: 595, shownHeight: 842, extraRotation: 180) == (595, 842))
+        XCTAssertTrue(PageOrder.baseSize(shownWidth: 842, shownHeight: 595, extraRotation: 270) == (595, 842))
+        XCTAssertTrue(PageOrder.baseSize(shownWidth: 842, shownHeight: 595, extraRotation: -90) == (595, 842))
+    }
+
+    func testTemplateStepsAndColorsMatchRenderTemplate() {
+        XCTAssertEqual(TemplateGeometry.step("lined"), 24)
+        XCTAssertEqual(TemplateGeometry.step("cornell"), 24)
+        XCTAssertEqual(TemplateGeometry.step("grid"), 14.17)
+        XCTAssertEqual(TemplateGeometry.step("dotted"), 14.17)
+        XCTAssertEqual(TemplateGeometry.step("mm"), 2.835)
+        XCTAssertEqual(TemplateGeometry.lineColor, "#d9dde8")
+        XCTAssertEqual(TemplateGeometry.dotColor, "#c9ced9")
+        XCTAssertEqual(TemplateGeometry.cornellRuleColor, "#b9c2d6")
+        XCTAssertEqual(TemplateGeometry.cornellLabelColor, "#9aa0ae")
+        XCTAssertEqual(TemplateGeometry.cornellPaper, "#fffdf7")
+    }
+
+    func testBlankOrUnknownTemplateHasNoGeometry() {
+        XCTAssertTrue(TemplateGeometry.make(nil, width: 595, height: 842).isEmpty)
+        XCTAssertTrue(TemplateGeometry.make("blank", width: 595, height: 842).isEmpty)
+        XCTAssertTrue(TemplateGeometry.make("wellen", width: 595, height: 842).isEmpty)
+        XCTAssertTrue(TemplateGeometry.make("lined", width: 0, height: 842).isEmpty)
+    }
+
+    func testLinedStartsAt60Every24() {
+        let g = TemplateGeometry.make("lined", width: 595, height: 842)
+        XCTAssertEqual(g.horizontal.first, 60)
+        XCTAssertEqual(g.horizontal[1], 84)
+        XCTAssertEqual(g.horizontal.count, 33, "60 + 32 * 24 = 828 < 842, 852 nicht mehr")
+        XCTAssertEqual(g.horizontal.last, 828)
+        XCTAssertTrue(g.vertical.isEmpty)
+        XCTAssertNil(g.cornellFooterY)
+        XCTAssertFalse(g.isBold(0))
+    }
+
+    func testGridAndMillimeterStartAtZeroAndMmIsBoldEveryTenth() {
+        let grid = TemplateGeometry.make("grid", width: 100, height: 50)
+        XCTAssertEqual(grid.vertical.count, 8, "0 ... 7 * 14,17 = 99,19")
+        XCTAssertEqual(grid.horizontal.count, 4, "0 ... 3 * 14,17 = 42,51")
+        XCTAssertEqual(grid.vertical.first, 0)
+        XCTAssertFalse(grid.isBold(0))
+        let mm = TemplateGeometry.make("mm", width: 595, height: 842)
+        XCTAssertEqual(mm.vertical.count, 210, "210 mm Breite (A4)")
+        XCTAssertEqual(mm.vertical[10], 28.35, accuracy: 1e-9, "Vielfache, nicht aufsummiert")
+        XCTAssertTrue(mm.isBold(0))
+        XCTAssertTrue(mm.isBold(20))
+        XCTAssertFalse(mm.isBold(5))
+    }
+
+    func testDottedStartsOneStepIn() {
+        let g = TemplateGeometry.make("dotted", width: 60, height: 30)
+        XCTAssertEqual(g.dotColumns, [14.17, 28.34, 14.17 * 3, 14.17 * 4])
+        XCTAssertEqual(g.dotRows, [14.17, 28.34])
+        XCTAssertTrue(g.horizontal.isEmpty)
+        XCTAssertEqual(TemplateGeometry.dotRadius, 0.9)
+    }
+
+    func testCornellHasRowsDividerFooterAndLabels() {
+        let g = TemplateGeometry.make("cornell", width: 595, height: 842)
+        XCTAssertEqual(g.horizontal.first, 60)
+        XCTAssertEqual(g.cornellFooterY, 692)
+        XCTAssertEqual(TemplateGeometry.cornellDividerX, 150)
+        XCTAssertEqual(TemplateGeometry.cornellLabels.map(\.text), ["Stichworte", "Notizen", "Zusammenfassung"])
+        XCTAssertEqual(TemplateGeometry.cornellLabels.map(\.x), [12, 162, 12])
+        XCTAssertEqual(TemplateGeometry.cornellLabels[2].y, 128)
+        XCTAssertTrue(TemplateGeometry.cornellLabels[2].fromBottom)
     }
 }
