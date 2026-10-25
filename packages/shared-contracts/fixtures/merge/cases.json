@@ -74,6 +74,26 @@
       "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
       "expectIds": null,
       "expectConflicts": 0
+    },
+    {
+      "name": "iPad-Zeichnung v2 bleibt, auch wenn die Objekte abweichen (Strich im Browser geloescht)",
+      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
+      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "b", "type": "stroke", "points": [5, 6, 7, 8] } ],
+                  "pkdrawing": { "data": "AAAA", "objectsSig": "teilweise", "format": "pkdrawing-v2", "strokeIds": [["a"], ["b"]], "strokeSigs": ["s-a", "s-b"] } },
+      "server": { "objects": [] },
+      "expectIds": ["b"],
+      "expectConflicts": 0,
+      "expectPageField": { "key": "pkdrawing", "value": { "data": "AAAA", "objectsSig": "teilweise", "format": "pkdrawing-v2", "strokeIds": [["a"], ["b"]], "strokeSigs": ["s-a", "s-b"] } }
+    },
+    {
+      "name": "iPad-Zeichnung v1 faellt bei abweichenden Objekten weg, v2 vom Server bleibt",
+      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
+      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "b", "type": "stroke", "points": [5, 6, 7, 8] } ],
+                  "pkdrawing": { "data": "BBBB", "objectsSig": "x", "format": "pkdrawing-v1", "strokeIds": [["a"], ["b"]] } },
+      "server": { "objects": [], "pkdrawing": { "data": "AAAA", "objectsSig": "teilweise", "format": "pkdrawing-v2", "strokeIds": [["a"], ["b"]], "strokeSigs": ["s-a", "s-b"] } },
+      "expectIds": ["b"],
+      "expectConflicts": 0,
+      "expectPageField": { "key": "pkdrawing", "value": { "data": "AAAA", "objectsSig": "teilweise", "format": "pkdrawing-v2", "strokeIds": [["a"], ["b"]], "strokeSigs": ["s-a", "s-b"] } }
     }
   ]
 }

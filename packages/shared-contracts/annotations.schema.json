@@ -36,9 +36,15 @@
           "objects": { "type": "array", "items": { "$ref": "#/$defs/object" } },
           "pkdrawing": {
             "type": "object",
-            "description": "Native PencilKit-Zeichnung (nur Apple). Gueltig nur, wenn objectsSig der SHA-256 der Objekte (JSON, Schluessel sortiert) entspricht; sonst aus 'objects' neu aufbauen.",
+            "description": "Native PencilKit-Zeichnung (nur Apple). pkdrawing-v1: gueltig nur, wenn objectsSig der SHA-256 der Objekte (JSON, Schluessel sortiert) entspricht; sonst aus 'objects' neu aufbauen. pkdrawing-v2: strokeSigs enthaelt je PencilKit-Strich die Signatur seiner Objekte (strokeIds); passt sie, bleibt der Strich nativ, sonst wird nur er aus 'objects' neu aufgebaut. v2 bleibt beim Zusammenfuehren auch bei abweichenden Objekten erhalten (objectsSig dann 'teilweise').",
             "required": ["data", "objectsSig"],
-            "properties": { "data": { "type": "string", "contentEncoding": "base64" }, "objectsSig": { "type": "string" }, "format": { "const": "pkdrawing-v1" } }
+            "properties": {
+              "data": { "type": "string", "contentEncoding": "base64" },
+              "objectsSig": { "type": "string" },
+              "format": { "enum": ["pkdrawing-v1", "pkdrawing-v2"] },
+              "strokeIds": { "type": "array", "items": { "type": "array", "items": { "type": "string" } }, "description": "je PencilKit-Strich die IDs seiner Objekte" },
+              "strokeSigs": { "type": "array", "items": { "type": "string" }, "description": "nur v2: Signatur je Strich, gleiche Reihenfolge wie strokeIds" }
+            }
           }
         }
       }
@@ -54,6 +60,7 @@
         "x": { "type": "number" }, "y": { "type": "number" }, "rotation": { "type": "number" },
         "scaleX": { "type": "number" }, "scaleY": { "type": "number" }, "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
         "tool": { "enum": ["pen", "fountain", "pencil", "marker"], "description": "nur stroke" },
+        "pkInk": { "type": "string", "description": "nur stroke, nur iPad: PencilKit-Tintenart (z. B. com.apple.ink.monoline), solange sie zu tool passt; der Web-Editor ignoriert das Feld und behaelt es" },
         "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "width": { "type": "number", "description": "mittlere Strichbreite in Punkten" },
         "widths": { "type": "array", "items": { "type": "number" }, "description": "optional: Breite je Punkt (gleiche Anzahl wie Punkte)" },

@@ -57,8 +57,12 @@ export function mergePage(base, local, server) {
   }
   const m = mergeObjects(base?.objects || [], local.objects || [], server.objects || []);
   result.objects = m.objects; conflicts += m.conflicts;
-  // native iPad-Zeichnung nur behalten, wenn sie noch genau zu den Objekten passt
+  // native iPad-Zeichnung: v1 nur, wenn sie noch genau zu den Objekten passt. v2 prueft das iPad je Strich selbst
+  // (strokeSigs) und bleibt deshalb auch bei abweichenden Objekten erhalten (wie AnnotationMerge.mergedDrawing)
+  const perStroke = pk => !!pk && pk.format === "pkdrawing-v2" && Array.isArray(pk.strokeSigs);
   if (local.pkdrawing && same(m.objects, local.objects || [])) result.pkdrawing = local.pkdrawing;
   else if (server.pkdrawing && same(m.objects, server.objects || [])) result.pkdrawing = server.pkdrawing;
+  else if (perStroke(local.pkdrawing)) result.pkdrawing = local.pkdrawing;
+  else if (perStroke(server.pkdrawing)) result.pkdrawing = server.pkdrawing;
   return { page: result, conflicts };
 }
