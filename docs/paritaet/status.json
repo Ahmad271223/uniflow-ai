@@ -721,6 +721,384 @@
     {
       "prefix": "W.B.9.1",
       "note": "bewusst anders: QIS-Anmeldung auf dem iPad über die echte QIS-Seite, kein gespeichertes Passwort"
+    },
+    {
+      "prefix": "W.B.0",
+      "status": "Kompiliert",
+      "note": "baut; Darstellung im Simulator geprüft"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "drawer("
+      ],
+      "heute": "UFOverlay/UFDrawerHost (Design/UFKit.swift)",
+      "status": "Kompiliert",
+      "note": "Lernpaket- und Termin-Drawer im Simulator angezeigt; Abdunkelung wie im Web unter der Seitenleiste"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "diffbadge"
+      ],
+      "heute": "UFDiffBadge",
+      "status": "Kompiliert",
+      "note": "baut; noch in keiner Ansicht sichtbar geprüft"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "typebadge"
+      ],
+      "heute": "UFTypeBadge",
+      "status": "Kompiliert",
+      "note": "baut; noch in keiner Ansicht sichtbar geprüft"
+    },
+    {
+      "prefix": "W.B.0",
+      "contains": [
+        "initial()"
+      ],
+      "heute": "UFFmt.shortName, UFFmt.initial",
+      "status": "Kompiliert",
+      "note": "baut"
+    },
+    {
+      "prefix": "W.C",
+      "status": "Kompiliert",
+      "note": "baut; Querformat 1180 × 820 im Simulator mit Safari verglichen"
+    },
+    {
+      "prefix": "W.D.3",
+      "status": "Kompiliert",
+      "note": "baut; CSS-Box-Modell (Rahmen nimmt Platz ein), Zeilenhöhe 1.5, gleich hohe Rasterzeilen umgesetzt; Schrift Inter wie im Web (gleiche Datei, Gewichte wie CSS-Schriftabgleich, optische Größe), per Test gegen Safari-Messwert geprüft"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "drawer"
+      ],
+      "heute": "UFDrawerFrame",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "seg.pill"
+      ],
+      "heute": "UFSegPill",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "kalender cal2"
+      ],
+      "heute": "PlanView/PlanWeekGrid (Views/Plan)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "seitenkarten"
+      ],
+      "heute": "PlanSideCard, UFDonut, PlanMiniCal",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "tagesansicht day2"
+      ],
+      "heute": "PlanDayTimeline",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        "monat"
+      ],
+      "heute": "PlanMonthGrid",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".pkg`"
+      ],
+      "heute": "PlanPkgBox",
+      "status": "Kompiliert",
+      "note": "baut; im Simulator noch nicht sichtbar (keine Pakete ohne Uhrzeit in den Testdaten)"
+    },
+    {
+      "prefix": "W.D.3",
+      "contains": [
+        ".task-row"
+      ],
+      "heute": "TaskRow",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.1-",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari verglichen (Abstände, Höhen, Farben gleich); bekannte Web-Eigenheit: rechte Spalte wird bei langen Titeln breiter (1fr ohne min-width), nativ festes 2:1. Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.1-",
+      "contains": [
+        "lernpaket öffnen"
+      ],
+      "status": "Kompiliert",
+      "note": "öffnet jetzt den Lernpaket-Drawer wie im Web; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.1-",
+      "contains": [
+        "heute an der uni"
+      ],
+      "status": "Kompiliert",
+      "note": "Tippen öffnet jetzt den Termin-Drawer; mit Testdaten nicht sichtbar (Sonntag ohne Termine)"
+    },
+    {
+      "prefix": "W.A-02",
+      "heute": "Lernkalender 1:1 (Views/Plan/PlanView.swift)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.A-03",
+      "heute": "Lernkalender, Ansicht Liste",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.2",
+      "heute": "1:1 (Views/Plan/PlanView.swift, PlanGrids.swift, PlanActions.swift)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.2",
+      "contains": [
+        "drag"
+      ],
+      "status": "Kompiliert",
+      "note": "Ziehen per Drag & Drop (iPadOS: lange drücken) umgesetzt, noch nicht ausprobiert"
+    },
+    {
+      "prefix": "W.B.2.11",
+      "contains": [
+        "b.2.16"
+      ],
+      "heute": "GeneratePlanDialog",
+      "status": "Kompiliert",
+      "note": "auf Web-Felder umgestellt (Datum TT.MM.JJJJ, Auswahlfeld); Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.2.11",
+      "contains": [
+        "b.2.17"
+      ],
+      "heute": "ConfigDialog",
+      "status": "Kompiliert",
+      "note": "auf Web-Felder umgestellt (Zahlenfeld statt Regler, Auswahlfelder); im Simulator angezeigt; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.3.2",
+      "heute": "EventDrawer (Views/Timetable/TimetableShared.swift)",
+      "status": "Kompiliert",
+      "note": "Termin-Drawer im Simulator angezeigt; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.3.3",
+      "heute": "EventDialog",
+      "status": "Kompiliert",
+      "note": "im Simulator angezeigt; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.3.4",
+      "heute": "AvailabilityDialog",
+      "status": "Kompiliert",
+      "note": "im Simulator angezeigt; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.A-01",
+      "heute": "Übersicht 1:1 (Views/DashboardView.swift)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.12-02",
+      "status": "Kompiliert",
+      "note": "baut; Ladezustand im Simulator gesehen; automatisches Neuladen nach 3 s fehlt"
+    },
+    {
+      "prefix": "W.B.1-",
+      "contains": [
+        "karte „nächste termine“"
+      ],
+      "status": "Kompiliert",
+      "note": "Spaltenbreite wie im Web: rechte Spur wächst auf die Min-Content-Breite (minmax(auto, 1fr)); im Simulator mit Safari verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.A-04",
+      "heute": "Stundenplan 1:1 (Views/Timetable/TimetableView.swift)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.3.1",
+      "heute": "1:1 (Views/Timetable/TimetableView.swift)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.3.1",
+      "contains": [
+        "doppelklick"
+      ],
+      "status": "Kompiliert",
+      "note": "auf dem iPad als Doppeltippen umgesetzt (gleiche Vorbelegung); noch nicht ausprobiert"
+    },
+    {
+      "prefix": "W.B.3.5",
+      "heute": "TimetableImportDialog, TimetablePreviewDialog",
+      "status": "Kompiliert",
+      "note": "baut; KI-Quellen (PDF, Bild, Text) brauchen die KI des PC-Servers und sind lokal nicht prüfbar; Stud.IP-Quelle braucht echte Stud.IP-Termine"
+    },
+    {
+      "prefix": "W.B.3.5",
+      "contains": [
+        "datei-auswahl"
+      ],
+      "heute": "Dateiauswahl von iPadOS (fileImporter: ICS, PDF, Bilder)",
+      "status": "Kompiliert",
+      "note": "bewusst anders: Dateien-App statt <input type=file>; noch nicht ausprobiert"
+    },
+    {
+      "prefix": "W.B.3.5",
+      "contains": [
+        "import läuft"
+      ],
+      "status": "Getestet",
+      "note": "ICS-Import über Debug-Startaktion gegen den Testserver ausgeführt: Wartedialog, Formular-Upload, Vorschau erscheint"
+    },
+    {
+      "prefix": "W.B.3.5",
+      "contains": [
+        "importvorschau"
+      ],
+      "status": "Getestet",
+      "note": "mit ICS-Testdatei gegen den Testserver geprüft: Zählung (1 neu, 9 nicht mehr enthalten), Tabelle und Entfernen-Chips korrekt; Übernehmen noch nicht ausprobiert"
+    },
+    {
+      "prefix": "W.B.3.5",
+      "contains": [
+        "nicht mehr im neuen plan"
+      ],
+      "status": "Getestet",
+      "note": "mit ICS-Testdatei angezeigt (9 Einträge mit Wochentag und Uhrzeit)"
+    },
+    {
+      "prefix": "W.B.0-01",
+      "heute": "APIClient: Fehlertext aus detail wie api() im Web",
+      "status": "Kompiliert",
+      "note": "Fehlermeldungen zeigen jetzt detail bzw. den HTTP-Statustext"
+    },
+    {
+      "prefix": "W.A-05",
+      "heute": "Meine Module 1:1 (Views/Modules/ModulesPage.swift)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.A-06",
+      "heute": "Moduldetail 1:1 (ModulePage)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.4",
+      "heute": "1:1 (Views/Modules/ModulesPage.swift)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.4.1",
+      "contains": [
+        "listenzeile"
+      ],
+      "status": "Kompiliert",
+      "note": "baut; Listenansicht im Simulator noch nicht angesehen"
+    },
+    {
+      "prefix": "W.B.4.2",
+      "contains": [
+        "dokumentkarte"
+      ],
+      "status": "Kompiliert",
+      "note": "baut; Kachelansicht im Simulator noch nicht angesehen"
+    },
+    {
+      "prefix": "W.B.4.3",
+      "status": "Kompiliert",
+      "note": "Dialog umgesetzt (Farbe über die Farbauswahl von iPadOS); noch nicht ausprobiert"
+    },
+    {
+      "prefix": "W.B.4.4",
+      "status": "Kompiliert",
+      "note": "umgesetzt; braucht die KI des PC-Servers (lokal nicht prüfbar)"
+    },
+    {
+      "prefix": "W.A-07",
+      "heute": "Dokumente & Notizen 1:1 (Views/Library/LibraryPage.swift)",
+      "status": "Kompiliert",
+      "note": "im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.5",
+      "heute": "1:1 (Views/Library/LibraryPage.swift, LibraryDialogs.swift)",
+      "status": "Kompiliert",
+      "note": "baut; Menüs und Dialoge noch nicht ausprobiert"
+    },
+    {
+      "prefix": "W.B.5.1",
+      "status": "Kompiliert",
+      "note": "Startebene und Unterordner mit PDF-Vorschauen im Simulator mit Testdaten angezeigt und mit Safari (gleiches Gerät) verglichen; Bedienung noch nicht getestet"
+    },
+    {
+      "prefix": "W.B.5.2",
+      "contains": [
+        "pdf/bild importieren"
+      ],
+      "heute": "Dateien-App bzw. Fotomediathek von iPadOS",
+      "status": "Kompiliert",
+      "note": "bewusst anders: Dateiauswahl von iPadOS statt <input type=file>; noch nicht ausprobiert"
+    },
+    {
+      "prefix": "W.B.5.3",
+      "contains": [
+        "modul-kebab"
+      ],
+      "heute": "Menü mit Öffnen und Modul bearbeiten",
+      "status": "Kompiliert",
+      "note": "bewusst anders: im Web ohne Funktion (TypeError, Bestandsaufnahme E.3)"
+    },
+    {
+      "prefix": "W.B.5.3",
+      "contains": [
+        "original herunterladen"
+      ],
+      "heute": "Teilen-Menü von iPadOS (Sichern in Dateien)",
+      "status": "Kompiliert",
+      "note": "bewusst anders: kein Browser-Download auf dem iPad; noch nicht ausprobiert"
     }
   ],
   "extra": [
