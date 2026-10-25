@@ -12,19 +12,23 @@ struct MainView: View {
             switch route {
             case .dashboard:
                 DashboardView(api: session.api)                       // 1:1
-            case .plan:
-                CalendarView(api: session.api)                        // alt, wird 1:1 ersetzt
-            case .modules, .module:
-                ModulesView(api: session.api)                         // alt, wird 1:1 ersetzt
-            case .files:
-                LibraryView()                                         // alt, wird 1:1 ersetzt
+            case .plan(let v, let d, let m):
+                PlanView(params: (v, d, m))                           // 1:1
+            case .modules:
+                ModulesPage()                                         // 1:1
+            case .module(let id):
+                ModulePage(id: id)                                    // 1:1
+            case .files(let s, let p, let q):
+                LibraryPage(section: s, path: p, q: q)                // 1:1
             case .doc(let id, _, _):
                 LibraryView(openFile: id)
             case .exams, .exam, .cards:
                 TestsView(api: session.api)                           // alt, wird 1:1 ersetzt
             case .settings:
                 SettingsView(api: session.api)                        // alt, wird 1:1 ersetzt
-            case .timetable, .services, .community:
+            case .timetable(let d):
+                TimetableView(date: d)                                // 1:1
+            case .services, .community:
                 UFWebFallback(route: route)                           // Uebergang
             }
         }
