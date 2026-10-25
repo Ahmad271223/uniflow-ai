@@ -43,6 +43,29 @@ def test_annotations_conflict_does_not_overwrite(app):
     assert len(json.loads(b)["data"]["pages"]["p1"]["objects"]) == 1
 
 
+def test_deleted_weekly_test_is_not_recreated(app, monkeypatch):
+    from datetime import date
+
+    from app import db, planner, study
+    with db.cursor() as conn:
+        mid = conn.execute("INSERT INTO modules(name, active, weekly_test) VALUES ('Loeschmodul', 1, 1)").lastrowid
+        tid = conn.execute("INSERT INTO tests(subject, title, duration_min, questions, created_at, module_id, week_no, auto) "
+                           "VALUES ('Loeschmodul', 'Wochentest', 30, '[]', ?, ?, 3, 1)", (db.now_iso(), mid)).lastrowid
+    st, _, _ = asgi_call(app, "DELETE", f"/api/tests/{tid}")
+    assert st == 200
+    # Inhalte in Lehrwoche 3 vorhanden -> ohne Merker wuerde der Sync den Test sofort neu anlegen
+    monkeypatch.setattr(study, "semester_start", lambda conn: date(2026, 10, 12))
+    monkeypatch.setattr(study, "_file_rows", lambda conn, m: [{"doc_type": "vorlesung", "chdate": 0}] if m == mid else [])
+    monkeypatch.setattr(study, "week_index", lambda start, chdate: 3)
+    made = []
+    monkeypatch.setattr(planner, "create_test", lambda *a, **k: made.append(k.get("module_id")) or 0)
+    planner.create_weekly_tests(log=lambda *_: None)
+    assert mid not in made, "geloeschter Wochentest wurde neu erstellt"
+    with db.cursor() as conn:
+        assert not db.row(conn, "SELECT 1 FROM tests WHERE id=?", (tid,))
+        conn.execute("UPDATE modules SET active=0 WHERE id=?", (mid,))
+
+
 def test_annotations_keep_unknown_fields(app):
     _add_file("f-pk", "pk.pdf")
     data = {"version": 2, "format": "uniflow-annotations/1", "pages": {"p1": {"objects": [], "pkdrawing": {"data": "AAEC", "objectsSig": "0"}}}, "pageOrder": [{"key": "p1", "type": "pdf", "index": 1}]}

@@ -115,6 +115,14 @@ CREATE TABLE IF NOT EXISTS tests (
     feedback TEXT                  -- JSON
 );
 
+-- geloeschte Wochentests: werden beim naechsten Sync nicht automatisch neu erstellt
+CREATE TABLE IF NOT EXISTS dismissed_tests (
+    module_id INTEGER NOT NULL,
+    week_no INTEGER NOT NULL,
+    dismissed_at TEXT,
+    PRIMARY KEY (module_id, week_no)
+);
+
 CREATE TABLE IF NOT EXISTS modules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

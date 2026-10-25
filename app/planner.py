@@ -279,8 +279,11 @@ def create_weekly_tests(week_start: date | None = None, log=print) -> list[int]:
         for m in db.rows(conn, "SELECT * FROM modules WHERE active=1 AND weekly_test=1"):
             weeks = sorted({study.week_index(start, f["chdate"]) for f in study._file_rows(conn, m["id"]) if f.get("doc_type") in ("vorlesung", "uebung") and study.week_index(start, f["chdate"]) >= 1})
             for w in weeks[-2:]:  # die beiden juengsten Lehrwochen mit Inhalten
-                if not db.row(conn, "SELECT 1 FROM tests WHERE module_id=? AND week_no=? AND auto=1", (m["id"], w)):
-                    todo.append((m, w))
+                if db.row(conn, "SELECT 1 FROM tests WHERE module_id=? AND week_no=? AND auto=1", (m["id"], w)):
+                    continue
+                if db.row(conn, "SELECT 1 FROM dismissed_tests WHERE module_id=? AND week_no=?", (m["id"], w)):
+                    continue   # vom Nutzer geloescht
+                todo.append((m, w))
     for m, w in todo:
         try:
             ids.append(create_test(m["name"], m.get("test_minutes") or s["test_minutes"], log=log, module_id=m["id"], week_no=w, auto=True))

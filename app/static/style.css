@@ -53,6 +53,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .collapsed .brand span, .collapsed .nav a span, .collapsed .side-foot span { display: none; }
 .collapsed .nav a { justify-content: center; padding: .6rem; }
 .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: .25rem; }
+/* Einstellungen und Einklappen immer sichtbar: 100vh ist im iPad-Safari hoeher als der sichtbare Bereich, die Liste scrollt selbst */
+.sidebar { height: 100vh; height: 100dvh; padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
+.nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.side-foot { flex: none; margin-top: 0; padding-top: .35rem; border-top: 1px solid var(--line); }
+.side-foot > a, .side-foot > .btn { display: flex; align-items: center; justify-content: flex-start; gap: .65rem; width: 100%; height: auto; padding: .55rem .7rem; border-radius: var(--r-sm); color: var(--text-2); font-weight: 500; font-size: inherit; white-space: nowrap; }
+.side-foot > a:hover { background: var(--surface-2); text-decoration: none; color: var(--text); }
+.side-foot > a.active { background: var(--accent-soft); color: var(--accent-text); }
+.collapsed .side-foot > a, .collapsed .side-foot > .btn { justify-content: center; padding: .6rem; }
 .main { min-width: 0; display: flex; flex-direction: column; }
 .header { position: sticky; top: 0; z-index: 15; height: var(--header); display: flex; align-items: center; gap: .6rem; padding: 0 1.1rem; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
 .header .search { flex: 1; max-width: 520px; position: relative; }
@@ -228,7 +236,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
   .shell, .shell.collapsed { grid-template-columns: 1fr; }
   .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar); transform: translateX(-100%); transition: transform var(--t); box-shadow: var(--sh-lg); }
   .sidebar.open { transform: none; }
-  .collapsed .brand span, .collapsed .nav a span, .collapsed .side-foot span { display: inline; } .collapsed .nav a { justify-content: flex-start; padding: .55rem .7rem; }
+  .collapsed .brand span, .collapsed .nav a span, .collapsed .side-foot span { display: inline; } .collapsed .nav a, .collapsed .side-foot > a, .collapsed .side-foot > .btn { justify-content: flex-start; padding: .55rem .7rem; }
   .menu-btn { display: inline-flex; }
   .header { padding: 0 .7rem; gap: .4rem; } .header .search { min-width: 0; } .header .search input { padding-left: 2rem; }
   .sync-chip { display: none; } #profileBtn { display: none; }
@@ -300,6 +308,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
 /* ---------- Lernpaket-Karten (Übersicht), Testkarten ---------- */
 .pkg-card { border: 1px solid var(--line); border-left: 4px solid var(--pc, var(--accent)); border-radius: var(--r); padding: .7rem .9rem; margin-bottom: .6rem; background: var(--surface); }
 .test-card { position: relative; border-top: 4px solid var(--mc, var(--accent)); }
+.test-head-r { gap: .15rem; margin: -.35rem -.45rem -.35rem 0; }
+.test-del { width: 40px; height: 40px; color: var(--muted); }
+.test-del:hover, .test-del:active { color: var(--bad); background: var(--surface-2); }
 .pkg.uni { background: color-mix(in srgb, var(--pc) 12%, var(--surface)); cursor: default; }
 .kpi a { font-weight: 600; }
 
@@ -415,7 +426,7 @@ body.doc-open .doc-view, body.fullscreen-doc .doc-view { height: 100vh; height: 
 @media (min-width: 901px) {
   body.doc-open .shell, body.doc-open .shell.collapsed { grid-template-columns: var(--sidebar-min) 1fr; }
   body.doc-open .brand span, body.doc-open .nav a span, body.doc-open .side-foot span, body.doc-open .nav a .badge { display: none; }
-  body.doc-open .nav a { justify-content: center; padding: .6rem; }
+  body.doc-open .nav a, body.doc-open .side-foot > a { justify-content: center; padding: .6rem; }
   body.doc-open #collapseBtn { display: none; }
 }
 body.fullscreen-doc.doc-open .shell { grid-template-columns: 1fr; }

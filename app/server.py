@@ -668,7 +668,15 @@ def submit_test(test_id: int, body: dict = Body(...)):
 @app.delete("/api/tests/{test_id}")
 def delete_test(test_id: int):
     with db.cursor() as conn:
+        t = db.row(conn, "SELECT auto, module_id, week_no FROM tests WHERE id=?", (test_id,))
+        if not t:
+            return {"ok": True}
+        # sonst legt der Sync (create_weekly_tests) denselben Wochentest sofort wieder an
+        if t["auto"] and t["module_id"] is not None and t["week_no"] is not None:
+            conn.execute("INSERT OR IGNORE INTO dismissed_tests(module_id, week_no, dismissed_at) VALUES (?,?,?)",
+                         (t["module_id"], t["week_no"], db.now_iso()))
         conn.execute("UPDATE plan_items SET test_id=NULL WHERE test_id=?", (test_id,))
+        conn.execute("UPDATE study_tasks SET test_id=NULL WHERE test_id=?", (test_id,))   # Aufgabe bietet dann "Test starten" an
         conn.execute("DELETE FROM tests WHERE id=?", (test_id,))
     return {"ok": True}
 
