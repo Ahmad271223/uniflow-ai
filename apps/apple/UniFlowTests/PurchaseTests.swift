@@ -37,12 +37,25 @@ final class PurchaseTests: XCTestCase {
         _ = await eventually { await ent.refresh(); return ent.plan == plan }
     }
 
-    /// eigener Tarif ohne Beobachter, damit sich die Tests nicht gegenseitig beeinflussen
+    /// Steht eine Transaktion, die die Testsitzung noch als ausstehende Kaufanfrage fuehrt, in currentEntitlements?
+    private static func entitlementsListPendingAskToBuy(_ session: SKTestSession) async -> Bool {
+        let pending = Set(session.allTransactions().filter(\.pendingAskToBuyConfirmation).map { UInt64($0.identifier) })
+        guard !pending.isEmpty else { return false }
+        for await result in StoreKit.Transaction.currentEntitlements {
+            if case .verified(let t) = result, pending.contains(t.id) { return true }
+        }
+        return false
+    }
+
+    /// eigener Tarif ohne Beobachter, damit sich die Tests nicht gegenseitig beeinflussen. Ausgangslage ist immer Free:
+    /// Nach clearTransactions() meldet die Testsitzung den Kauf des vorigen Tests noch kurz in currentEntitlements,
+    /// darum wird gewartet, bis er verschwunden ist (sonst startet z. B. die Kaufanfrage scheinbar schon mit Plus).
     private func makeStore() async -> (PurchaseStore, Entitlements) {
         let ent = Entitlements(observe: false)
         let store = PurchaseStore(entitlements: ent)
         await store.loadProducts()
-        await ent.refresh()
+        await waitForPlan(ent, .free)
+        XCTAssertEqual(ent.plan, .free, "Ausgangslage: kein Kauf aus einem vorigen Test mehr gueltig")
         return (store, ent)
     }
 
@@ -141,8 +154,21 @@ final class PurchaseTests: XCTestCase {
         XCTAssertEqual(outcome, .pending, store.lastError ?? "")
         XCTAssertNil(store.lastError)
         await ent.refresh()
-        XCTAssertEqual(ent.plan, .free)
-        XCTAssertFalse(ent.allows(.pencilWriting))
+        // Eigenheit der StoreKit-Testsitzung (Xcode 27.1, gemessen 4 von 8 Laeufen): die noch ausstehende Kaufanfrage
+        // (Zustand "deferred", pendingAskToBuyConfirmation) steht manchmal schon in Transaction.currentEntitlements.
+        // Im App Store entsteht vor der Freigabe keine Transaktion. Nur in genau diesem Fall darf Free hier fehlen;
+        // vergibt die App Plus ohne einen solchen Eintrag, bleibt der Test rot.
+        let stillFree = {
+            XCTAssertEqual(ent.plan, .free)
+            XCTAssertFalse(ent.allows(.pencilWriting))
+        }
+        if await Self.entitlementsListPendingAskToBuy(session) {
+            // nur diese beiden Pruefungen, die Freigabe danach bleibt streng
+            XCTExpectFailure("StoreKit-Testsitzung meldet die ausstehende Kaufanfrage schon als Anspruch", strict: false,
+                             failingBlock: stillFree)
+        } else {
+            stillFree()
+        }
         let t = try XCTUnwrap(session.allTransactions().first { $0.productIdentifier == plus.id })
         try session.approveAskToBuyTransaction(identifier: t.identifier)
         await waitForPlan(ent, .plus)
