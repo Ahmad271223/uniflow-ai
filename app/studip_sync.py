@@ -441,8 +441,9 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 target = target.with_name(f"{target.stem}_{suffix}{target.suffix}")
             try:
                 download_fn(f["download_url"], target)
-                conn.execute("UPDATE files SET local_path=?, downloaded_at=? WHERE id=?",
-                             (str(target), db.now_iso(), f["id"]))
+                from .testshare import file_sha256
+                conn.execute("UPDATE files SET local_path=?, downloaded_at=?, content_sha256=? WHERE id=?",
+                             (str(target), db.now_iso(), file_sha256(target), f["id"]))
                 new_files.append(f["id"])
                 log(f"Neu: {c['title'][:40]} / {f['name']}")
             except Exception as e:  # noqa: BLE001

@@ -133,6 +133,11 @@ Batch-Verarbeitung kostet die Hälfte.
 Beispiel 10.000 Nutzer (70 % Free, 20 % Plus, 10 % Pro), Analyse mit Haiku, Tests mit Sonnet:
 KI ca. 4.500 $ im Monat, Hosting ca. 100 €, Einnahmen netto ca. 6.400 €.
 
+**Nachtrag:** Diese Rechnung enthält noch nicht die Bewertung der Antworten (pro Nutzer, mit Sonnet 5.5 ca. 2.240 $ bei
+10.000 Nutzern). Mit **gemeinsamen Wochentests** (gleiche Vorlesung und Übung, derselbe Test) sinken die KI-Kosten bei
+10.000 Nutzern von ca. 6.770 $ auf ca. 2.720 $, mit Haiku-Bewertung auf ca. 600 $. Details:
+[`GEMEINSAME-WOCHENTESTS.md`](GEMEINSAME-WOCHENTESTS.md).
+
 **Empfehlungen:**
 1. Dateianalyse mit Haiku 5.5 über die Batch-API (zeitunkritisch, 50 % günstiger).
 2. Wochentests mit Sonnet 5.5, aber zuerst die Qualität gegen Haiku 5.5 an echten Folien vergleichen. Reicht Haiku,

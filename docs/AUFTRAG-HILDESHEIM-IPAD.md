@@ -116,6 +116,13 @@ Stand 25.10.2026, Zweig `develop`. Geschrieben von der PC-Sitzung. Gilt zusätzl
 - Offline: letzter Stand bleibt nutzbar; Status je Quelle anzeigen („Learnweb: 16:30 ok“, „LSF: Anmeldung nötig“).
 - Protokollzeilen nur ASCII-sicher bzw. UTF-8; Sonderzeichen dürfen nie einen Absturz auslösen.
 
+### 5a. Gemeinsame Wochentests (Vorgabe des Inhabers)
+
+- Gleiche Vorlesung und gleiche Übung ergeben denselben Wochentest. Schlüssel wie `app/testshare.py`:
+  Uni, Dauer-Stufe, sortierte SHA-256-Hashes des Dateiinhalts, Version `wt1`. Erwartungswerte:
+  `packages/shared-contracts/fixtures/testshare/cases.json`. Konzept: `docs/GEMEINSAME-WOCHENTESTS.md`.
+- Hash beim Download berechnen und speichern; vorhandenen Test mit gleichem Schlüssel wiederverwenden.
+
 ### 6. Abnahme
 
 - `swift test` in UniFlowCore: Fixtures aus `packages/shared-contracts/fixtures/hildesheim/` ergeben genau

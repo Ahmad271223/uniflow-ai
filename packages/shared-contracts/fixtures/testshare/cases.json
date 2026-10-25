@@ -1,0 +1,75 @@
+{
+ "version": "wt1",
+ "minute_steps": [
+  15,
+  30,
+  45,
+  60,
+  90,
+  120
+ ],
+ "canonical": "sha256(JSON mit sortierten Schluesseln, ohne Leerzeichen: {materials: sortierte eindeutige Inhalts-Hashes, minutes: Stufe, uni, v}), Ergebnis 'wt1:' + hex",
+ "cases": [
+  {
+   "name": "VL + Blatt A, 45 min",
+   "university": "hildesheim",
+   "minutes": 45,
+   "materials": [
+    "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
+    "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36"
+   ],
+   "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
+  },
+  {
+   "name": "gleiche Materialien, andere Reihenfolge, 40 min (gleiche Stufe)",
+   "university": "hildesheim",
+   "minutes": 40,
+   "materials": [
+    "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36",
+    "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f"
+   ],
+   "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
+  },
+  {
+   "name": "andere Uebungsgruppe",
+   "university": "hildesheim",
+   "minutes": 45,
+   "materials": [
+    "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
+    "924ed833cb5d5d08e79df1e626ff9f1e0c5ee56cb27c1f925591c04eefa4eddf"
+   ],
+   "expected_key": "wt1:8b2b26d49504376f3890e7201447700859f6346ec1acb935f5b804ded5c98b4f"
+  },
+  {
+   "name": "andere Uni",
+   "university": "luh",
+   "minutes": 45,
+   "materials": [
+    "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
+    "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36"
+   ],
+   "expected_key": "wt1:61ced5e02df59dc1dc928f99ef59baef4103881d40ab9553ef6ae5ec8eaba079"
+  },
+  {
+   "name": "Dauer 60",
+   "university": "hildesheim",
+   "minutes": 60,
+   "materials": [
+    "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
+    "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36"
+   ],
+   "expected_key": "wt1:e3dade83cf57cf11c46f3ab8f0cdacec398dd54ba4725c071564721e6085e6a9"
+  },
+  {
+   "name": "doppelte Datei zaehlt einmal",
+   "university": "hildesheim",
+   "minutes": 45,
+   "materials": [
+    "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
+    "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36",
+    "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f"
+   ],
+   "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
+  }
+ ]
+}
