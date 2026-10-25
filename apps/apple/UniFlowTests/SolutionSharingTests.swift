@@ -161,7 +161,7 @@ final class SolutionSharingTests: XCTestCase {
         let copy = Data(pdf)
         let load = SolutionSharing.loadLayers(library: receiver, originalPDF: copy, fingerprint: cipher.sha256Hex(copy),
                                               pdf: PDFDocument(data: copy)!)
-        XCTAssertTrue(load.problems.isEmpty, load.problems.joined())
+        XCTAssertTrue(load.problems.isEmpty, load.problems.map(\.text).joined())
         XCTAssertEqual(load.layers.count, 1)
         let layer = try XCTUnwrap(load.layers.first)
         XCTAssertEqual(layer.label, "Lösung von Lea (\(ForeignSolutionLayer.date(content.createdAt)))")
@@ -194,7 +194,8 @@ final class SolutionSharingTests: XCTestCase {
                                                     pdf: PDFDocument(data: other)!)
         XCTAssertTrue(forgedLoad.layers.isEmpty)
         XCTAssertEqual(forgedLoad.problems.count, 1)
-        XCTAssertTrue(forgedLoad.problems[0].contains("lässt sich mit dieser PDF-Datei nicht öffnen"), forgedLoad.problems[0])
+        XCTAssertTrue(forgedLoad.problems[0].text.contains("lässt sich mit dieser PDF-Datei nicht öffnen"), forgedLoad.problems[0].text)
+        XCTAssertEqual(forgedLoad.problems[0].id, package.header.solutionID, "mit Loesungs-ID, damit sie sich entfernen laesst")
         // Seitengroessen passen nicht (gleiche Seitenzahl, andere PDF, Fingerabdruck haendisch passend gemacht):
         // abgewiesen, bevor etwas erscheint
         let content = try package.open(originalPDF: pdf, cipher: cipher)
@@ -306,13 +307,13 @@ final class SolutionSharingTests: XCTestCase {
 
     // MARK: Eigene Notizen bleiben unveraendert
 
-    func testOwnNotesUnchangedAfterImportAndShowing() async throws {
+    /// Eigenes Dokument im lokalen Backend (Temp-Ordner) mit der Test-PDF als Original-Datei.
+    private func makeStore(pdf: Data) async throws -> DocumentStore {
         let root = try tempDir()
         let host = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true),
                                     clock: .fixed(berlin: "2026-10-25T14:30:05")!)
         let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
         let fileID = "loesung-test-" + UUID().uuidString.prefix(8).lowercased()
-        let pdf = makePDFData()
         let pdfURL = AppPaths.pdfDirectory(api.namespace, root: root).appendingPathComponent(fileID + ".pdf")
         try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try pdf.write(to: pdfURL)
@@ -322,6 +323,17 @@ final class SolutionSharingTests: XCTestCase {
         await store.load()
         XCTAssertNil(store.errorMessage)
         XCTAssertEqual(store.originalPDFURL, pdfURL)
+        return store
+    }
+
+    private func serialized(_ store: DocumentStore) async -> Data {
+        await store.flush()
+        return (await store.pageStructureDocument()).root.serialized(sortedKeys: true)
+    }
+
+    func testOwnNotesUnchangedAfterImportAndShowing() async throws {
+        let pdf = makePDFData()
+        let store = try await makeStore(pdf: pdf)
         XCTAssertEqual(try store.originalPDFData(), pdf, "unveraenderte Dateibytes, nicht dataRepresentation()")
         await store.addText("Meine eigene Notiz", pageKey: "p1")
         await store.flush()
@@ -335,7 +347,7 @@ final class SolutionSharingTests: XCTestCase {
                                                   originalPDF: pdf)
         try lib.importPackage(package.encoded())
         let load = await store.solutionLayers(library: lib)
-        XCTAssertTrue(load.problems.isEmpty, load.problems.joined())
+        XCTAssertTrue(load.problems.isEmpty, load.problems.map(\.text).joined())
         XCTAssertEqual(load.layers.count, 1)
 
         let editor = PDFEditorController(store: store)
@@ -368,6 +380,252 @@ final class SolutionSharingTests: XCTestCase {
         XCTAssertEqual(before, after, "eigenes Dokument byte-genau unveraendert")
         XCTAssertFalse(String(decoding: after, as: UTF8.self).contains("x = 42"), "nichts Fremdes im eigenen Dokument")
         await store.close()
+    }
+
+    /// Zuordnung ueber den Editor-Pfad: Der Empfaenger hat eine eigene Leerseite VOR PDF-Seite 1 eingefuegt und
+    /// PDF-Seite 2 zweimal gedreht (180 Grad). Die fremde Ebene erscheint nur auf PDF-Seiten, an der richtigen
+    /// Anzeige-Seite und mit der Abbildung von der Drehung des Absenders (90) auf 180.
+    func testForeignLayerFollowsOwnPageOrderInEditor() async throws {
+        let pdf = makePDFData()
+        let store = try await makeStore(pdf: pdf)
+        let change = await store.applyPageStructure { doc in
+            guard let c = PageOrder.insertBlank(&doc, after: nil, template: "grid", key: "bVORNE") else { return nil }
+            var order = doc.pageOrder
+            let blank = order.removeLast()
+            order.insert(blank, at: 0)
+            doc.root["pageOrder"] = .array(order)
+            return c
+        }
+        XCTAssertNotNil(change)
+        await store.rotatePage(key: "p2")
+        await store.rotatePage(key: "p2")
+        XCTAssertEqual(store.layout?.entries.map(\.key), ["bVORNE", "p1", "p2", "p3"])
+        let before = await serialized(store)
+
+        let lib = SolutionLibrary(root: try tempDir())
+        let package = try SolutionSharing.package(try SolutionSharing.content(source(try ownDocument(), pdf: pdf), keys: ["p1", "bL", "p2"],
+                                                                                displayName: "Ben"), originalPDF: pdf)
+        try lib.importPackage(package.encoded())
+        let load = await store.solutionLayers(library: lib)
+        XCTAssertTrue(load.problems.isEmpty, load.problems.map(\.text).joined())
+        let editor = PDFEditorController(store: store)
+        editor.loadViewIfNeeded()
+        editor.foreignLayers = load.layers
+
+        // Anzeige-Seite 0 ist die eigene Leerseite: keine fremde Ebene (auch nicht die Leerseite der Loesung)
+        XCTAssertTrue(try XCTUnwrap(editor.overlayForTesting(at: 0)).foreignLayerViews.isEmpty)
+        // Anzeige-Seite 1 = PDF-Seite 1 (ungedreht): Abbildung unveraendert
+        let first = try XCTUnwrap(editor.overlayForTesting(at: 1)).foreignLayerViews
+        XCTAssertEqual(first.count, 1)
+        XCTAssertTrue(first.first?.mapping.isIdentity == true)
+        XCTAssertEqual(first.first?.bounds.size, CGSize(width: 595, height: 842))
+        // Anzeige-Seite 2 = PDF-Seite 2 (842 x 595), Absender 90, Empfaenger 180
+        let second = try XCTUnwrap(editor.overlayForTesting(at: 2)).foreignLayerViews
+        XCTAssertEqual(second.count, 1)
+        let t = SolutionGeometry.transform(width: 842, height: 595, from: 90, to: 180)
+        let expected = CGAffineTransform(a: t.a, b: t.b, c: t.c, d: t.d, tx: t.tx, ty: t.ty)
+        XCTAssertEqual(second.first?.mapping, expected)
+        XCTAssertFalse(second.first?.mapping.isIdentity ?? true)
+        XCTAssertEqual(second.first?.bounds.size, CGSize(width: 842, height: 595), "180 Grad: Groesse wie ungedreht")
+        // Anzeige-Seite 3 = PDF-Seite 3: nicht geteilt -> nichts
+        XCTAssertTrue(try XCTUnwrap(editor.overlayForTesting(at: 3)).foreignLayerViews.isEmpty)
+
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        let after = await serialized(store)
+        XCTAssertEqual(before, after, "eigenes Dokument vor und nach dem Einblenden byte-gleich")
+        await store.close()
+    }
+
+    // MARK: Nur ansehen
+
+    /// "Meine Notizen" ausgeblendet: Text, Leerseite, Drehen, Papierkorb, Wiederherstellen und Lesezeichen schreiben
+    /// nichts ins eigene Dokument.
+    func testHiddenOwnNotesAreViewOnly() async throws {
+        let pdf = makePDFData()
+        let store = try await makeStore(pdf: pdf)
+        await store.addText("vorher", pageKey: "p1")
+        let editor = PDFEditorController(store: store)
+        editor.loadViewIfNeeded()
+        let before = await serialized(store)
+
+        editor.ownNotesVisible = false
+        XCTAssertTrue(store.ownNotesReadOnly)
+        await store.addText("im Ansichtsmodus", pageKey: "p1")
+        await store.addBlankPage(afterKey: "p1", template: "lined")
+        await store.rotatePage(key: "p1")
+        await store.toggleBookmark(pageKey: "p1", title: "Seite 1")
+        let trashed = await store.applyPageStructure { doc in PageOrder.trash(&doc, key: "p2") }
+        XCTAssertNil(trashed)
+        let inserted = await editor.insertBlankPage(after: "p1", template: "grid")
+        XCTAssertNil(inserted)
+        let trashedByEditor = await editor.trashPage(key: "p3")
+        XCTAssertFalse(trashedByEditor)
+        let during = await serialized(store)
+        XCTAssertEqual(during, before, "nichts geschrieben")
+
+        // wieder eingeblendet: schreiben geht wieder
+        editor.ownNotesVisible = true
+        XCTAssertFalse(store.ownNotesReadOnly)
+        await store.addText("danach", pageKey: "p1")
+        let after = await serialized(store)
+        XCTAssertNotEqual(after, before)
+        await store.close()
+    }
+
+    // MARK: Import im offenen Dokument
+
+    /// Passender Fingerabdruck, aber nicht lesbarer Inhalt (manipuliertes Chiffrat bzw. mit einer anderen PDF
+    /// versiegelt und den Fingerabdruck uebernommen): sofort wieder entfernt, nichts bleibt unter dem Fingerabdruck.
+    func testUnreadableImportForOpenDocumentIsRemoved() async throws {
+        let pdf = makePDFData(), other = makePDFData(marker: "Andere Fassung")
+        let store = try await makeStore(pdf: pdf)
+        let fingerprint = await store.originalFingerprint()
+        let fp = try XCTUnwrap(fingerprint)
+        let lib = SolutionLibrary(root: try tempDir())
+        let dir = try tempDir()
+        let package = try SolutionSharing.package(try SolutionSharing.content(source(try ownDocument(), pdf: pdf), keys: ["p1"],
+                                                                                displayName: "Lea"), originalPDF: pdf)
+        // 1) Chiffrat veraendert, Kopf passend
+        var flipped = package
+        flipped.ciphertext[flipped.ciphertext.count / 3] ^= 0x01
+        let flippedURL = dir.appendingPathComponent("veraendert.uniflowsolution")
+        try flipped.encoded().write(to: flippedURL)
+        guard case .removedUnreadable(let e1, let err1) = try await store.importSolution(flippedURL, library: lib) else {
+            return XCTFail("nicht entfernt")
+        }
+        XCTAssertEqual(e1.solutionID, package.header.solutionID)
+        XCTAssertEqual(err1, .decryptionFailed)
+        XCTAssertTrue(lib.entries(fingerprint: fp).isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: lib.root.appendingPathComponent("received/\(e1.solutionID).uniflowsolution").path))
+        // 2) mit einer anderen PDF versiegelt, Fingerabdruck dieser PDF eingetragen
+        let foreignSealed = try SolutionSharing.package(try SolutionSharing.content(source(try ownDocument(), pdf: other), keys: ["p1"],
+                                                                                      displayName: ""), originalPDF: other)
+        var forged = try JSONValue.parse(foreignSealed.encoded())
+        forged["header"]?["document"]?["sha256"] = .string(fp)
+        let forgedURL = dir.appendingPathComponent("gefaelscht.uniflowsolution")
+        try forged.serialized(sortedKeys: true).write(to: forgedURL)
+        guard case .removedUnreadable = try await store.importSolution(forgedURL, library: lib) else { return XCTFail("nicht entfernt") }
+        XCTAssertTrue(lib.entries(fingerprint: fp).isEmpty)
+        XCTAssertTrue(lib.allEntries().isEmpty)
+        XCTAssertTrue(SolutionSharing.unreadableImportMessage.contains("passt nicht zu dieser PDF oder wurde verändert"))
+        // 3) gueltig: angezeigt; andere PDF: bleibt gespeichert
+        let okURL = dir.appendingPathComponent("gut.uniflowsolution")
+        try package.encoded().write(to: okURL)
+        guard case .shown = try await store.importSolution(okURL, library: lib) else { return XCTFail("nicht angezeigt") }
+        XCTAssertEqual(lib.entries(fingerprint: fp).map(\.solutionID), [package.header.solutionID])
+        let otherURL = dir.appendingPathComponent("andere.uniflowsolution")
+        try foreignSealed.encoded().write(to: otherURL)
+        guard case .otherPDF = try await store.importSolution(otherURL, library: lib) else { return XCTFail("nicht als andere PDF erkannt") }
+        XCTAssertEqual(lib.allEntries().count, 2)
+        await store.close()
+    }
+
+    func testProblemNoticeOnlyOncePerSession() {
+        SolutionProblemNotices.resetForTesting()
+        let p = SolutionLayerLoad.Problem(id: "6f1c1c0e-6a63-4c38-9a0b-6c0f0f7b9a11", label: "Lösung von Anonym (25.10.2026)",
+                                          message: SolutionError.decryptionFailed.description)
+        XCTAssertEqual(SolutionProblemNotices.unseen([p]), [p])
+        XCTAssertTrue(SolutionProblemNotices.unseen([p]).isEmpty, "zweites Laden: kein erneuter Hinweis")
+        XCTAssertEqual(p.text, "Lösung von Anonym (25.10.2026): \(SolutionError.decryptionFailed.description)")
+    }
+
+    // MARK: Bilder
+
+    private static func crc32(_ bytes: [UInt8]) -> UInt32 {
+        var c: UInt32 = 0xFFFF_FFFF
+        for b in bytes {
+            c ^= UInt32(b)
+            for _ in 0..<8 { c = (c & 1) != 0 ? (c >> 1) ^ 0xEDB8_8320 : c >> 1 }
+        }
+        return ~c
+    }
+
+    private static func be32(_ v: UInt32) -> [UInt8] { withUnsafeBytes(of: v.bigEndian) { Array($0) } }
+
+    /// Grossflaechiges, stark komprimiertes PNG (1 Bit Grau, einfarbig): wenige Kilobyte, entpackt aber viele
+    /// Gigabyte als Bitmap.
+    private func bombPNG(width: Int, height: Int) throws -> Data {
+        func chunk(_ type: String, _ data: [UInt8]) -> [UInt8] {
+            let body = Array(type.utf8) + data
+            return Self.be32(UInt32(data.count)) + body + Self.be32(Self.crc32(body))
+        }
+        let rowBytes = 1 + (width + 7) / 8
+        let raw = Data(count: rowBytes * height)
+        let deflated = try (raw as NSData).compressed(using: .zlib) as Data      // rohes DEFLATE (RFC 1951)
+        // Adler-32 ueber lauter Nullen: a bleibt 1, b = Anzahl Bytes mod 65521
+        let a: UInt32 = 1, b = UInt32(raw.count % 65_521)
+        let zlib: [UInt8] = [0x78, 0x01] + [UInt8](deflated) + Self.be32((b << 16) | a)
+        var png: [UInt8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        png += chunk("IHDR", Self.be32(UInt32(width)) + Self.be32(UInt32(height)) + [1, 0, 0, 0, 0])
+        png += chunk("IDAT", zlib)
+        png += chunk("IEND", [])
+        return Data(png)
+    }
+
+    func testOversizedEmbeddedImageRejectsWholeSolution() throws {
+        let bomb = try bombPNG(width: 20_000, height: 20_000)
+        XCTAssertLessThan(bomb.count, 200_000, "klein als Datei")
+        let size = try XCTUnwrap(ForeignSolutionLayer.pixelSize(bomb))
+        XCTAssertEqual(size.width, 20_000)
+        XCTAssertEqual(size.height, 20_000)
+        XCTAssertFalse(ForeignSolutionLayer.fitsLimits(width: size.width, height: size.height))
+        XCTAssertFalse(ForeignSolutionLayer.fitsLimits(width: 8_192, height: 8_193))
+        XCTAssertFalse(ForeignSolutionLayer.fitsLimits(width: 5_000, height: 5_000), "25 MP")
+        XCTAssertTrue(ForeignSolutionLayer.fitsLimits(width: 4_096, height: 4_096))
+        XCTAssertThrowsError(try ForeignSolutionLayer.uiImages(["/x": SolutionImage(mime: "image/png", data: bomb)])) {
+            XCTAssertEqual($0 as? SolutionError, .imageTooLarge)
+        }
+
+        // gueltig verschluesseltes Paket mit diesem Bild (wie es jeder mit derselben PDF bauen koennte)
+        let pdf = makePDFData()
+        let doc = try ownDocument()
+        let plain = source(doc, pdf: pdf)
+        let src = SolutionSource(document: doc, originalPDF: pdf, pdfPageCount: plain.pdfPageCount, pageInfos: plain.pageInfos,
+                                 fingerprint: plain.fingerprint,
+                                 images: ["/api/files/x/assets/skizze.png": SolutionImage(mime: "image/png", data: bomb)], title: "Blatt")
+        let content = try SolutionSharing.content(src, keys: ["p1"], displayName: "")
+        XCTAssertEqual(content.images.count, 1)
+        let lib = SolutionLibrary(root: try tempDir())
+        try lib.importPackage(try SolutionSharing.package(content, originalPDF: pdf).encoded())
+        let load = SolutionSharing.loadLayers(library: lib, originalPDF: pdf, fingerprint: cipher.sha256Hex(pdf), pdf: PDFDocument(data: pdf)!)
+        XCTAssertTrue(load.layers.isEmpty, "ganze Ebene abgewiesen")
+        XCTAssertEqual(load.problems.map(\.message), [SolutionError.imageTooLarge.description])
+        XCTAssertThrowsError(try SolutionSharing.layer(content, visible: true, pdf: PDFDocument(data: pdf)!)) {
+            XCTAssertEqual($0 as? SolutionError, .imageTooLarge)
+        }
+        // eigene grosse Bilder werden beim Teilen verkleinert, damit der Empfaenger sie oeffnen kann
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let wide = UIGraphicsImageRenderer(size: CGSize(width: 9_000, height: 60), format: format).image { ctx in
+            UIColor.green.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 9_000, height: 60))
+        }
+        let embedded = try XCTUnwrap(SolutionSharing.embed(["/w": wide])["/w"])
+        let fitted = try XCTUnwrap(ForeignSolutionLayer.pixelSize(embedded.data))
+        XCTAssertEqual(fitted.width, 8_192)
+        XCTAssertTrue(ForeignSolutionLayer.fitsLimits(width: fitted.width, height: fitted.height))
+        XCTAssertNoThrow(try ForeignSolutionLayer.uiImages(["/w": embedded]))
+    }
+
+    // MARK: Schluessel
+
+    /// HKDF in Bloecken ueber die PDF-Bytes = HKDF-SHA256 nach RFC 5869 (Testfall 1) und = CryptoKit `deriveKey`.
+    func testStreamingHKDFMatchesRFC5869AndCryptoKit() {
+        let ikm = Data(repeating: 0x0b, count: 22)
+        let salt = Data((0x00...0x0c).map { UInt8($0) })
+        let info = Data((0xf0...0xf9).map { UInt8($0) })
+        let okm = CryptoKitSolutionCipher.deriveKey(ikm, salt: salt, info: info).withUnsafeBytes { Data($0) }
+        XCTAssertEqual(okm.map { String(format: "%02x", $0) }.joined(),
+                       "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf")
+        var rng = SystemRandomNumberGenerator()
+        for n in [1, 1 << 20, (1 << 20) + 1, 3 * (1 << 20) + 17] {
+            let data = Data((0..<n).map { _ in UInt8.random(in: 0...255, using: &rng) })
+            let s = Data((0..<32).map { _ in UInt8.random(in: 0...255, using: &rng) })
+            let streamed = CryptoKitSolutionCipher.deriveKey(data, salt: s, info: info).withUnsafeBytes { Data($0) }
+            let reference = HKDF<SHA256>.deriveKey(inputKeyMaterial: SymmetricKey(data: data), salt: s, info: info, outputByteCount: 32)
+                .withUnsafeBytes { Data($0) }
+            XCTAssertEqual(streamed, reference, "\(n) Byte")
+        }
     }
 
     // MARK: Texte

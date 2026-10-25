@@ -193,6 +193,10 @@ final class DocumentStore: ObservableObject {
     /// Datei, aus der die Original-PDF geladen wird (unveraenderte Bytes, Grundlage des Loesungs-Fingerabdrucks).
     let originalPDFURL: URL
     private var fingerprintCache: String?
+    /// "Meine Notizen" ausgeblendet = nur ansehen: Aktionen, die ins eigene Dokument schreiben (Text, Leerseite,
+    /// Drehen, Papierkorb, Wiederherstellen, Lesezeichen), tun dann nichts. Ausstehende Striche von vorher werden
+    /// weiter gesichert.
+    var ownNotesReadOnly = false
 
     /// - Parameter root: Ordner fuer Journal und PDF-Zwischenspeicher (Standard: App-Container; Tests: Temp-Ordner).
     init(file: LibFile, api: APIClient, root: URL = AppPaths.support) {
@@ -404,6 +408,7 @@ final class DocumentStore: ObservableObject {
     }
 
     func toggleBookmark(pageKey key: String, title: String) async {
+        guard !ownNotesReadOnly else { return }
         await updateMeta { meta in
             var list = meta["bookmarks"]?.array ?? []
             if let i = list.firstIndex(where: { $0["key"]?.string == key }) { list.remove(at: i) }
@@ -414,6 +419,7 @@ final class DocumentStore: ObservableObject {
 
     /// Leere Seite nach der angegebenen Seite einfuegen (Vorlage: blank, lined, grid, dotted, mm, cornell).
     func addBlankPage(afterKey: String?, template: String) async {
+        guard !ownNotesReadOnly else { return }
         let index = afterKey.flatMap { layout?.index(ofKey: $0) }
         let size = index.flatMap { layout?.pdf.page(at: $0) }.map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize }
             ?? CGSize(width: 595, height: 842)
@@ -431,6 +437,7 @@ final class DocumentStore: ObservableObject {
 
     /// Seite um 90 Grad drehen (wie "Drehen" im Web-Editor; Notizen behalten ihre Koordinaten).
     func rotatePage(key: String) async {
+        guard !ownNotesReadOnly else { return }
         await updateMeta { meta in
             var order = meta["pageOrder"]?.array ?? []
             guard let i = order.firstIndex(where: { $0["key"]?.string == key }) else { return }
@@ -442,7 +449,7 @@ final class DocumentStore: ObservableObject {
 
     /// Textfeld auf der Seite anlegen (im Web-Editor bearbeitbar).
     func addText(_ text: String, pageKey key: String) async {
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty, !ownNotesReadOnly else { return }
         await processPending()
         var page = (await engine.page(key)) ?? .object(["objects": .array([])])
         var objects = page["objects"]?.array ?? []
@@ -578,6 +585,7 @@ extension DocumentStore: PageStructureEditing {
     }
 
     func applyPageStructure(_ change: (inout AnnotationDocument) -> PageOrder.Change?) async -> PageOrder.Change? {
+        guard !ownNotesReadOnly else { return nil }         // nur ansehen
         await settlePending()
         var doc = await engine.currentDocument()
         guard let result = change(&doc) else { return nil }

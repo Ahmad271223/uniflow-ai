@@ -54,6 +54,36 @@ public enum SolutionBuilder {
         candidates(doc).filter { $0.shareable && $0.objectCount > 0 }.map(\.key)
     }
 
+    /// Seite, die sich nicht teilen laesst, mit Grund (fuer den Dialog).
+    public struct PageProblem: Equatable, Sendable {
+        public var key: String
+        /// z. B. "PDF-Seite 3" oder "Eigene Seite 2"
+        public var label: String
+        public var error: SolutionError
+    }
+
+    /// Bezeichnung einer Seite fuer Meldungen: PDF-Seite mit Index, eigene Leerseite mit Position in der Anzeige.
+    public static func pageLabel(_ doc: AnnotationDocument, key: String) -> String {
+        let order = candidates(doc)
+        guard let i = order.firstIndex(where: { $0.key == key }) else { return "Seite „\(key)“" }
+        if let p = order[i].pdfIndex { return "PDF-Seite \(p)" }
+        return order[i].type == "blank" ? "Eigene Seite \(i + 1)" : "Eingefügte Seite \(i + 1)"
+    }
+
+    /// Gewaehlte Seiten, deren Objekte die Pruefungen nicht bestehen (unbekannter Objekttyp, ungueltige Zahlen,
+    /// PDF-Daten). Der Dialog nennt sie und laesst sie aus, statt still etwas zu verlieren.
+    public static func pageProblems(_ doc: AnnotationDocument, keys: [String]) -> [PageProblem] {
+        keys.compactMap { key in
+            do {
+                for o in doc.objects(page: key) { try SolutionValidator.validateObject(o) }
+                return nil
+            } catch {
+                return PageProblem(key: key, label: pageLabel(doc, key: key),
+                                   error: (error as? SolutionError) ?? .invalidContent("Objekt"))
+            }
+        }
+    }
+
     /// Quellen der Bildobjekte auf den gewaehlten Seiten (sortiert, ohne Doppelte).
     public static func imageSources(_ doc: AnnotationDocument, keys: [String]) -> [String] {
         var out = Set<String>()
@@ -83,7 +113,11 @@ public enum SolutionBuilder {
             let type = entry["type"]?.string ?? "pdf"
             let extra = SolutionGeometry.normalized(entry["rotation"]?.int ?? 0)
             let objects = doc.objects(page: key)
-            for o in objects { try SolutionValidator.validateObject(o) }
+            do {
+                for o in objects { try SolutionValidator.validateObject(o) }
+            } catch let e as SolutionError {
+                throw SolutionError.onPage(pageLabel(doc, key: key), e)
+            }
             switch type {
             case "pdf":
                 guard let i = entry["index"]?.int, i >= 1, i <= pdfPageCount, let info = pdfPage(i) else {

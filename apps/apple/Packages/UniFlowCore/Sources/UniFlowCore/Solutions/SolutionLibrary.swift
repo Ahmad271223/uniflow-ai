@@ -2,8 +2,9 @@ import Foundation
 
 /// Lokale Ablage der Loesungen auf dem Geraet (App: `Application Support/UniFlow/solutions/`), ohne Server.
 ///
-/// - `received/<id>.uniflowsolution`: empfangene Pakete genau so, wie sie ankamen (verschluesselt). Entschluesselt wird
-///   nur im Arbeitsspeicher, wenn das passende Dokument offen ist.
+/// - `received/<id>.uniflowsolution`: empfangene Pakete verschluesselt wie empfangen (in der kanonischen Form von
+///   `SolutionPackage.encoded()`: Kopf und Chiffrat unveraendert, sonst nichts). Entschluesselt wird nur im
+///   Arbeitsspeicher, wenn das passende Dokument offen ist.
 /// - `shared/<id>.uniflowsolution`: eigene, als Datei geteilte Pakete ("Meine geteilten Lösungen").
 /// - `index.json`: empfangene Loesungen nach Fingerabdruck der Original-PDF, dazu die geteilten.
 ///
@@ -157,21 +158,32 @@ public final class SolutionLibrary: @unchecked Sendable {
 
     // MARK: Empfangene Loesungen
 
-    /// Paket pruefen (Kopf) und unveraendert ablegen. Dieselbe Loesungs-ID ersetzt den alten Stand (Sichtbarkeit
-    /// bleibt). Wirft bei ungueltigen Paketen; dann wird nichts gespeichert.
+    /// Paket pruefen (Kopf) und verschluesselt ablegen. Gespeichert wird nur die gepruefte, kanonische Form
+    /// (`encoded()`), nie die empfangenen Rohbytes.
+    ///
+    /// Gleiche Loesungs-ID: Beim Import ist der Kopf noch nicht authentifiziert (das geht erst mit der PDF). Ein
+    /// erneuter Import desselben Pakets ist daher erlaubt (Sichtbarkeit bleibt), ein ANDERES Paket mit derselben ID
+    /// (anderer Fingerabdruck, anderer Kopf oder anderes Chiffrat) verdraengt die vorhandene Loesung nie: es wird mit
+    /// `conflictingSolution` abgewiesen. Ist die vorhandene Datei unlesbar, wird sie ersetzt.
+    /// Wirft bei ungueltigen Paketen; dann wird nichts gespeichert.
     @discardableResult
     public func importPackage(_ data: Data, now: Date = Date()) throws -> Entry {
         let package = try SolutionPackage.decode(data)
         return try locked {
             var index = readIndex()
             var entry = Entry(header: package.header, receivedAt: now)
+            let url = receivedDir.appendingPathComponent(Self.fileName(entry.solutionID))
+            let known = index.byFingerprint.values.flatMap { $0 }.first { $0.solutionID == entry.solutionID }
+            if let stored = try? SolutionPackage.decode(Data(contentsOf: url)), stored != package {
+                throw SolutionError.conflictingSolution
+            }
+            if let known { entry.visible = known.visible }
             for (fp, list) in index.byFingerprint {
-                if let old = list.first(where: { $0.solutionID == entry.solutionID }) { entry.visible = old.visible }
                 index.byFingerprint[fp] = list.filter { $0.solutionID != entry.solutionID }
                 if index.byFingerprint[fp]?.isEmpty == true { index.byFingerprint[fp] = nil }
             }
             try FileManager.default.createDirectory(at: receivedDir, withIntermediateDirectories: true)
-            try data.write(to: receivedDir.appendingPathComponent(Self.fileName(entry.solutionID)), options: .atomic)
+            try package.encoded().write(to: url, options: .atomic)
             index.byFingerprint[entry.fingerprint, default: []].append(entry)
             try writeIndex(index)
             return entry

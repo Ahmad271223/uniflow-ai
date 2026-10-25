@@ -112,6 +112,8 @@ struct DocumentView: View {
     @State private var ownNotesVisible = true
     /// passende empfangene Loesungen (nur Anzeige)
     @State private var foreignLayers: [ForeignSolutionLayer] = []
+    /// passende, aber nicht lesbare Loesungen (im Ebenen-Menue entfernbar)
+    @State private var foreignProblems: [SolutionLayerLoad.Problem] = []
     @ObservedObject private var entitlements = Entitlements.shared
 
     init(file: LibFile, api: APIClient) {
@@ -208,7 +210,8 @@ struct DocumentView: View {
             Button("Hinzufügen") {
                 let text = newText
                 newText = ""
-                if let key = bridge.pageKey { Task { await store.addText(text, pageKey: key) } }
+                // ausgeblendete eigene Notizen = nur ansehen (der Store weist es ebenfalls ab)
+                if ownNotesVisible, let key = bridge.pageKey { Task { await store.addText(text, pageKey: key) } }
             }
             Button("Abbrechen", role: .cancel) { newText = "" }
         } message: { Text("Erscheint oben links auf der aktuellen Seite und ist im Browser bearbeitbar.") }
@@ -348,32 +351,43 @@ struct DocumentView: View {
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
             Menu {
-                Button {
-                    if let key = bridge.pageKey {
-                        let title = "Seite \(bridge.pageIndex + 1)"
-                        Task { await store.toggleBookmark(pageKey: key, title: title) }
+                if !ownNotesVisible {
+                    // nur ansehen: schreibende Eintraege sind gesperrt
+                    Button { ownNotesVisible = true } label: {
+                        Label("Meine Notizen einblenden, um zu bearbeiten", systemImage: "eye")
                     }
-                } label: {
-                    Label(store.isBookmarked(pageKey: bridge.pageKey) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
+                    Divider()
                 }
-                Menu {
-                    ForEach(PageTemplate.all) { t in
-                        // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
-                        Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
-                    }
-                } label: { Label("Leere Seite danach", systemImage: "doc.badge.plus") }
-                Button(role: .destructive) {
-                    Task {
-                        if await bridge.controller?.trashPage(key: bridge.pageKey) != true {
-                            actionError = "Diese Seite lässt sich nicht in den Papierkorb legen (letzte Seite oder noch nicht geladen)."
+                // schreiben ins eigene Dokument: gesperrt, solange "Meine Notizen" ausgeblendet ist
+                Group {
+                    Button {
+                        if let key = bridge.pageKey {
+                            let title = "Seite \(bridge.pageIndex + 1)"
+                            Task { await store.toggleBookmark(pageKey: key, title: title) }
                         }
+                    } label: {
+                        Label(store.isBookmarked(pageKey: bridge.pageKey) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
                     }
-                } label: { Label("Seite in den Papierkorb", systemImage: "trash") }
-                Button { showTrash = true } label: { Label("Papierkorb …", systemImage: "trash.slash") }
-                Button {
-                    if let key = bridge.pageKey { Task { await store.rotatePage(key: key) } }
-                } label: { Label("Seite drehen", systemImage: "rotate.right") }
-                Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
+                    Menu {
+                        ForEach(PageTemplate.all) { t in
+                            // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
+                            Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
+                        }
+                    } label: { Label("Leere Seite danach", systemImage: "doc.badge.plus") }
+                    Button(role: .destructive) {
+                        Task {
+                            if await bridge.controller?.trashPage(key: bridge.pageKey) != true {
+                                actionError = "Diese Seite lässt sich nicht in den Papierkorb legen (letzte Seite oder noch nicht geladen)."
+                            }
+                        }
+                    } label: { Label("Seite in den Papierkorb", systemImage: "trash") }
+                    Button { showTrash = true } label: { Label("Papierkorb …", systemImage: "trash.slash") }
+                    Button {
+                        if let key = bridge.pageKey { Task { await store.rotatePage(key: key) } }
+                    } label: { Label("Seite drehen", systemImage: "rotate.right") }
+                    Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
+                }
+                .disabled(!ownNotesVisible)
                 Divider()
                 Button {
                     if entitlements.allows(.community) { importingSolution = true } else { solutionSheet = .locked }
@@ -396,8 +410,16 @@ struct DocumentView: View {
             }
             if entitlements.allows(.community) {
                 Section("Lösungen anderer") {
-                    if foreignLayers.isEmpty {
+                    if foreignLayers.isEmpty && foreignProblems.isEmpty {
                         Text("Keine Lösungen zu dieser PDF")
+                    }
+                    ForEach(foreignProblems) { problem in
+                        Menu {
+                            Text(problem.message)
+                            Button(role: .destructive) { removeProblem(problem) } label: { Label("Entfernen", systemImage: "trash") }
+                        } label: {
+                            Label("Nicht lesbar: \(problem.label)", systemImage: "exclamationmark.triangle")
+                        }
                     }
                     ForEach(foreignLayers) { layer in
                         Menu {
@@ -441,16 +463,28 @@ struct DocumentView: View {
         }
     }
 
-    /// Passende Loesungen neu laden (nur mit Plus). Passt eine nicht zur PDF, erscheint sie nicht, und es gibt
-    /// eine Meldung.
+    /// Passende Loesungen neu laden (nur mit Plus). Passt eine nicht zur PDF, erscheint sie nicht; die Meldung kommt
+    /// einmal je Sitzung als Hinweis, danach steht sie im Ebenen-Menue (mit "Entfernen").
     private func reloadSolutionLayers() async {
         guard entitlements.allows(.community), store.pdf != nil else {
             foreignLayers = []
+            foreignProblems = []
             return
         }
         let result = await store.solutionLayers()
         foreignLayers = result.layers
-        if !result.problems.isEmpty { actionError = result.problems.joined(separator: "\n") }
+        foreignProblems = result.problems
+        let unseen = SolutionProblemNotices.unseen(result.problems)
+        if !unseen.isEmpty, actionError == nil { actionError = unseen.map(\.text).joined(separator: "\n") }
+    }
+
+    private func removeProblem(_ problem: SolutionLayerLoad.Problem) {
+        do {
+            try SolutionSharing.library.remove(problem.id)
+            foreignProblems.removeAll { $0.id == problem.id }
+        } catch {
+            actionError = "Entfernen fehlgeschlagen: \(error.localizedDescription)"
+        }
     }
 
     private func setVisible(_ layer: ForeignSolutionLayer, _ visible: Bool) {
@@ -470,15 +504,16 @@ struct DocumentView: View {
     private func importSolution(_ result: Result<URL, Error>) {
         Task {
             do {
-                let entry = try SolutionSharing.importFile(try result.get())
-                let label = ForeignSolutionLayer.label(displayName: entry.displayName, createdAt: entry.createdAt)
-                guard entry.fingerprint == (await store.originalFingerprint()) else {
+                switch try await store.importSolution(try result.get()) {
+                case .shown:
+                    await reloadSolutionLayers()
+                case .otherPDF(let entry):
+                    let label = ForeignSolutionLayer.label(displayName: entry.displayName, createdAt: entry.createdAt)
                     actionError = "\(label): \(SolutionError.fingerprintMismatch.description) Sie ist gespeichert und erscheint, sobald du die passende PDF öffnest."
-                    return
-                }
-                await reloadSolutionLayers()
-                if !foreignLayers.contains(where: { $0.id == entry.solutionID }) && actionError == nil {
-                    actionError = "\(label) lässt sich mit dieser PDF nicht öffnen."
+                case .removedUnreadable(let entry, let error):
+                    let label = ForeignSolutionLayer.label(displayName: entry.displayName, createdAt: entry.createdAt)
+                    actionError = "\(label): \(SolutionSharing.unreadableImportMessage)\n(\(error.description))"
+                    await reloadSolutionLayers()
                 }
             } catch {
                 actionError = (error as? SolutionError)?.description ?? "Import fehlgeschlagen: \(error.localizedDescription)"

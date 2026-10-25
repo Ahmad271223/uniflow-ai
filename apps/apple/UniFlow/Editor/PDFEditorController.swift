@@ -183,9 +183,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         layers.map { "\($0.id):\($0.visible)" }.joined(separator: ",")
     }
 
-    /// "Meine Notizen" sichtbar. Ausgeblendet: nur ansehen (Canvas ohne Eingabe, Palette weg, kein Rueckgaengig).
+    /// "Meine Notizen" sichtbar. Ausgeblendet: nur ansehen (Canvas ohne Eingabe, Palette weg, kein Rueckgaengig,
+    /// der Store nimmt keine schreibenden Aktionen an).
     var ownNotesVisible = true {
         didSet {
+            store.ownNotesReadOnly = !ownNotesVisible
             guard ownNotesVisible != oldValue else { return }
             for v in allOverlays {
                 if !ownNotesVisible, v.loaded { commitPendingUndo(v) }
@@ -622,6 +624,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// - Returns: Schluessel der neuen Seite.
     @discardableResult
     func insertBlankPage(after key: String? = nil, template: String = "blank") async -> String? {
+        guard ownNotesVisible else { return nil }           // nur ansehen
         let afterKey = key ?? currentPageKey
         let t = PaperTemplate.isKnown(template) ? template : "blank"
         guard let editor = pageEditor else {
@@ -648,6 +651,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Seite (Standard: aktuelle) in den Papierkorb legen (`deletedPages`, wiederherstellbar). Die letzte Seite bleibt.
     @discardableResult
     func trashPage(key: String? = nil) async -> Bool {
+        guard ownNotesVisible else { return false }
         guard let editor = pageEditor, let key = key ?? currentPageKey, let layout = shownLayout,
               let i = layout.index(ofKey: key), layout.entries.count > 1 else { return false }
         if let v = boundOverlay(forKey: key), v.loaded { store.canvasChanged(pageKey: key, drawing: v.canvas.drawing) }
@@ -662,6 +666,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Juengsten Papierkorb-Eintrag einer Seite an ihren frueheren Platz zurueckholen und hinspringen.
     @discardableResult
     func restorePage(key: String) async -> Bool {
+        guard ownNotesVisible else { return false }
         guard let editor = pageEditor else { return false }
         pendingFocusKey = key
         let change = await editor.applyPageStructure { doc in PageOrder.restore(&doc, key: key) }

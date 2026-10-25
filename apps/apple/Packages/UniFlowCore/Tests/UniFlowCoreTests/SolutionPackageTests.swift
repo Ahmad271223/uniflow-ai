@@ -210,14 +210,47 @@ final class SolutionPackageTests: XCTestCase {
         XCTAssertThrowsError(try build(doc, keys: [], pdf: pdf)) { XCTAssertEqual($0 as? SolutionError, .nothingSelected) }
         XCTAssertThrowsError(try build(doc, keys: ["aX"], pdf: pdf), "Bild-/PDF-Seite aus dem Browser wird nie geteilt")
         // unbekannter Objekttyp: lieber nicht teilen als still etwas verlieren
+        // Fehler nennen die betroffene Seite (Dialog)
         doc.pages["p3"] = ["objects": [["id": "q", "type": "hologram"]]]
         XCTAssertThrowsError(try build(doc, keys: ["p3"], pdf: pdf)) {
-            XCTAssertEqual($0 as? SolutionError, .unsupportedObjectType("hologram"))
+            XCTAssertEqual($0 as? SolutionError, .onPage("PDF-Seite 3", .unsupportedObjectType("hologram")))
+            XCTAssertEqual(($0 as? SolutionError)?.withoutPage, .unsupportedObjectType("hologram"))
+            XCTAssertTrue("\($0)".hasPrefix("PDF-Seite 3: "), "\($0)")
         }
+        XCTAssertEqual(SolutionBuilder.pageProblems(doc, keys: ["p1", "bQ1", "p3"]).map(\.label), ["PDF-Seite 3"])
+        XCTAssertEqual(SolutionBuilder.pageLabel(doc, key: "bQ1"), "Eigene Seite 2")
         doc.pages["p3"] = ["objects": [["id": "q", "type": "image", "src": "data:application/pdf;base64,AAAA"]]]
-        XCTAssertThrowsError(try build(doc, keys: ["p3"], pdf: pdf)) { XCTAssertEqual($0 as? SolutionError, .containsPDFData) }
+        XCTAssertThrowsError(try build(doc, keys: ["p3"], pdf: pdf)) {
+            XCTAssertEqual($0 as? SolutionError, .onPage("PDF-Seite 3", .containsPDFData))
+        }
         doc.pages["p3"] = ["objects": [["id": "q", "type": "stroke", "points": [.number(.infinity), 1]]]]
-        XCTAssertThrowsError(try build(doc, keys: ["p3"], pdf: pdf)) { XCTAssertEqual($0 as? SolutionError, .nonFiniteNumber) }
+        XCTAssertThrowsError(try build(doc, keys: ["p3"], pdf: pdf)) {
+            XCTAssertEqual($0 as? SolutionError, .onPage("PDF-Seite 3", .nonFiniteNumber))
+        }
+        // Base64 einer PDF in einem unbekannten Feld (beginnt mit JVBERi0) bzw. in einem Datenfeld
+        doc.pages["p3"] = ["objects": [["id": "q", "type": "shape", "anhang": "JVBERi0xLjcK"]]]
+        XCTAssertThrowsError(try build(doc, keys: ["p3"], pdf: pdf)) {
+            XCTAssertEqual(($0 as? SolutionError)?.withoutPage, .containsPDFData)
+        }
+        doc.pages["p3"] = ["objects": [["id": "q", "type": "image", "src": "/x", "data": "abc JVBERi0xLjcK"]]]
+        XCTAssertThrowsError(try build(doc, keys: ["p3"], pdf: pdf)) {
+            XCTAssertEqual(($0 as? SolutionError)?.withoutPage, .containsPDFData)
+        }
+    }
+
+    /// Eigener Freitext, der PDF-Begriffe enthaelt, ist eigener Inhalt und geht nicht verloren.
+    func testOwnTextMentioningPDFIsShared() throws {
+        let pdf = fakePDF()
+        var doc = try makeDocument()
+        let texts = ["als application/pdf speichern", "%PDF-1.7 ist der Dateikopf", "Base64 beginnt mit JVBERi0"]
+        doc.pages["p3"] = .object(["objects": .array(texts.enumerated().map { i, t in
+            .object(["id": .string("t\(i)"), "type": "text", "text": .string(t), "x": 10, "y": .number(Double(20 * i))])
+        })])
+        XCTAssertTrue(SolutionBuilder.pageProblems(doc, keys: ["p3"]).isEmpty)
+        let content = try build(doc, keys: ["p3"], pdf: pdf)
+        let package = try SolutionPackage.seal(content, originalPDF: pdf, cipher: cipher)
+        let opened = try SolutionPackage.decode(package.encoded()).open(originalPDF: pdf, cipher: cipher)
+        XCTAssertEqual(opened.pages[0].objects.compactMap { $0["text"]?.string }, texts)
     }
 
     // MARK: Paket
@@ -338,10 +371,20 @@ final class SolutionPackageTests: XCTestCase {
         assertRejected(mutate(package) { $0["header"]?["encryption"]?["salt"] = .string(Data(repeating: 7, count: 32).base64EncodedString()) },
                        pdf: pdf, .decryptionFailed)
         assertRejected(mutate(package) { $0["header"]?["extra"] = "x" }, pdf: pdf, .invalidHeader("unbekannte Felder"))
+        // zusaetzliches Feld auf oberster Ebene (nicht authentifiziert): abgewiesen, etwa ein Traeger fuer die PDF
+        assertRejected(mutate(package) { $0["beigabe"] = .string(pdf.base64EncodedString()) }, pdf: pdf, .invalidHeader("unbekannte Felder"))
+        assertRejected(mutate(package) { $0["ciphertext"] = nil }, pdf: pdf, .invalidHeader("unbekannte Felder"))
         assertRejected(mutate(package) { $0["header"]?["solutionId"] = "keine-uuid" }, pdf: pdf, .invalidHeader("Lösungs-ID"))
         assertRejected(mutate(package) { $0["header"]?["encryption"]?["cipher"] = "ROT13" }, pdf: pdf, .invalidHeader("Verfahren"))
-        // Version
+        // Version (auch Werte, die sich nicht als Int darstellen lassen: kein Absturz, sondern abgewiesen)
         assertRejected(mutate(package) { $0["formatVersion"] = 2 }, pdf: pdf, .unsupportedVersion(2))
+        for v in [1e300, -1e300, 1e18, -9.3e18, 1.5, 9.0e15] {
+            assertRejected(mutate(package) { $0["formatVersion"] = .number(v) }, pdf: pdf, .invalidHeader("Formatversion"))
+        }
+        for raw in [#"1e300"#, #""1""#, "null", "[1]"] {
+            let text = #"{"format":"uniflow-solution","formatVersion":\#(raw),"header":{},"ciphertext":""}"#
+            assertRejected(Data(text.utf8), pdf: pdf, .invalidHeader("Formatversion"))
+        }
         assertRejected(mutate(package) { $0["format"] = "etwas-anderes" }, pdf: pdf, .notASolution)
         // Groesse: angegebene Klartextgroesse, abgeschnittenes Chiffrat, zu grosse Datei
         assertRejected(mutate(package) { $0["header"]?["encryption"]?["plaintextBytes"] = .number(Double(package.header.plaintextBytes + 1)) },
@@ -391,7 +434,9 @@ final class SolutionPackageTests: XCTestCase {
                        pdf: pdf, .unsupportedObjectType("script"))
         assertRejected(try sealRaw(Data(contentText(objects: #"[{"id":"a","type":"stroke","points":[1e999,0,1,1]}]"#, pdf: pdf).utf8), pdf: pdf),
                        pdf: pdf, .nonFiniteNumber)
-        assertRejected(try sealRaw(Data(contentText(objects: #"[{"id":"a","type":"text","text":"%PDF-1.7"}]"#, pdf: pdf).utf8), pdf: pdf),
+        assertRejected(try sealRaw(Data(contentText(objects: #"[{"id":"a","type":"image","src":"data:application/pdf;base64,JVBERi0x"}]"#, pdf: pdf).utf8), pdf: pdf),
+                       pdf: pdf, .containsPDFData)
+        assertRejected(try sealRaw(Data(contentText(objects: #"[{"id":"a","type":"shape","x":1,"beigabe":"%PDF-1.7 ..."}]"#, pdf: pdf).utf8), pdf: pdf),
                        pdf: pdf, .containsPDFData)
         assertRejected(try sealRaw(Data(contentText(objects: "[]", page: #"{"key":"p9","kind":"pdf","pdfIndex":9,"width":595,"height":842,"rotation":0,"extraRotation":0,"objects":[]}"#, pdf: pdf).utf8), pdf: pdf),
                        pdf: pdf, .invalidContent("PDF-Seite"))
@@ -480,6 +525,20 @@ final class SolutionPackageTests: XCTestCase {
         // ungueltiges Paket: nichts gespeichert
         XCTAssertThrowsError(try again.importPackage(Data("kaputt".utf8)))
         XCTAssertEqual(again.allEntries().count, 1)
+        // Zusatzfeld auf oberster Ebene (z. B. die PDF als Base64): abgewiesen, nichts gespeichert
+        var carrier = try JSONValue.parse(a.encoded())
+        carrier["beigabe"] = .string(pdf.base64EncodedString())
+        XCTAssertThrowsError(try again.importPackage(carrier.serialized(sortedKeys: true))) {
+            XCTAssertEqual($0 as? SolutionError, .invalidHeader("unbekannte Felder"))
+        }
+        XCTAssertEqual(again.allEntries().count, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: again.root.appendingPathComponent("received/\(a.header.solutionID).uniflowsolution").path))
+        // gespeichert wird die kanonische Form, nie zusaetzliche Rohbytes
+        let padded = Data("  ".utf8) + b.encoded() + Data("\n\n".utf8)
+        try again.importPackage(padded)
+        let storedB = try Data(contentsOf: again.root.appendingPathComponent("received/\(b.header.solutionID).uniflowsolution"))
+        XCTAssertEqual(storedB, b.encoded())
+        XCTAssertNil(storedB.range(of: Data("JVBER".utf8)))
         // eigene geteilte Loesungen: merken und lokal zurueckziehen
         try again.recordShared(a, title: "Blatt 3")
         XCTAssertEqual(again.sharedEntries().map(\.title), ["Blatt 3"])
@@ -488,6 +547,36 @@ final class SolutionPackageTests: XCTestCase {
         XCTAssertTrue(again.sharedEntries().isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: again.sharedPackageURL(a.header.solutionID).path))
         XCTAssertEqual(SolutionLibrary.fileName("../../etc"), "ec.uniflowsolution", "kein Pfad aus der ID")
+    }
+
+    /// Ein fremdes Paket mit derselben Loesungs-ID verdraengt eine schon empfangene Loesung nicht (der Kopf ist beim
+    /// Import noch nicht authentifiziert).
+    func testSameSolutionIDNeverReplacesAnotherPackage() throws {
+        let pdf = fakePDF(), other = fakePDF(4)
+        let lib = SolutionLibrary(root: try tempDir())
+        let real = try SolutionPackage.seal(try build(try makeDocument(), pdf: pdf), originalPDF: pdf, cipher: cipher)
+        try lib.importPackage(real.encoded())
+        let id = real.header.solutionID
+        let storedURL = lib.root.appendingPathComponent("received/\(id).uniflowsolution")
+        // gleiche ID, anderer Fingerabdruck (z. B. haendisch zusammengesetzt)
+        var forged = try JSONValue.parse(real.encoded())
+        forged["header"]?["document"]?["sha256"] = .string(SolutionSHA256.hex(other))
+        XCTAssertThrowsError(try lib.importPackage(forged.serialized(sortedKeys: true))) {
+            XCTAssertEqual($0 as? SolutionError, .conflictingSolution)
+        }
+        // gleiche ID und gleicher Fingerabdruck, aber anderes Chiffrat
+        var flipped = real
+        flipped.ciphertext[3] ^= 0x10
+        XCTAssertThrowsError(try lib.importPackage(flipped.encoded())) { XCTAssertEqual($0 as? SolutionError, .conflictingSolution) }
+        XCTAssertEqual(lib.entries(fingerprint: SolutionSHA256.hex(pdf)).map(\.solutionID), [id])
+        XCTAssertTrue(lib.entries(fingerprint: SolutionSHA256.hex(other)).isEmpty)
+        XCTAssertEqual(try Data(contentsOf: storedURL), real.encoded())
+        XCTAssertEqual(try lib.package(id).open(originalPDF: pdf, cipher: cipher).solutionID, id)
+        // dasselbe Paket erneut: erlaubt
+        XCTAssertNoThrow(try lib.importPackage(real.encoded()))
+        // nach dem Entfernen darf die ID wieder ankommen
+        try lib.remove(id)
+        XCTAssertNoThrow(try lib.importPackage(flipped.encoded()))
     }
 
     // MARK: Community

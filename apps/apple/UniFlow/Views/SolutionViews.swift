@@ -25,6 +25,8 @@ struct SolutionShareSheet: View {
     @State private var previewImages: [String: UIImage] = [:]
     @State private var selected: Set<String> = []
     @State private var assetPages = 0
+    /// Seiten, die sich nicht teilen lassen (mit Grund), werden genannt und ausgelassen
+    @State private var pageProblems: [SolutionBuilder.PageProblem] = []
     @State private var displayName = ""
     @State private var loadError: String?
     @State private var shareError: String?
@@ -114,6 +116,10 @@ struct SolutionShareSheet: View {
                     Text("Eingefügte Bild- und PDF-Seiten aus dem Browser werden nie geteilt (\(assetPages)).")
                         .ufFont(13.12).foregroundStyle(UF.muted)
                 }
+                ForEach(pageProblems, id: \.key) { problem in
+                    Label("\(problem.label) lässt sich nicht teilen: \(problem.error.description)", systemImage: "exclamationmark.triangle")
+                        .ufFont(13.12).foregroundStyle(UF.warn).fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(.top, 12)
         }
@@ -167,33 +173,44 @@ struct SolutionShareSheet: View {
             let s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
             let candidates = SolutionBuilder.candidates(s.document)
             assetPages = candidates.filter { !$0.shareable }.count
-            let keys = candidates.filter(\.shareable).map(\.key)
-            let all = try SolutionSharing.content(s, keys: keys, displayName: "")
+            // Seiten mit Objekten, die die Pruefungen nicht bestehen, nennen und auslassen (statt alles zu sperren)
+            let problems = SolutionBuilder.pageProblems(s.document, keys: candidates.filter(\.shareable).map(\.key))
+            let blocked = Set(problems.map(\.key))
+            let keys = candidates.filter { $0.shareable && !blocked.contains($0.key) }.map(\.key)
+            pageProblems = problems
+            guard !keys.isEmpty else {
+                loadError = problems.first.map { "\($0.label) lässt sich nicht teilen: \($0.error.description)" }
+                    ?? SolutionError.nothingSelected.description
+                return
+            }
+            let all = try await Task.detached(priority: .userInitiated) {
+                try SolutionSharing.content(s, keys: keys, displayName: "")
+            }.value
             source = s
-            previewImages = ForeignSolutionLayer.uiImages(all.images)
+            previewImages = try ForeignSolutionLayer.uiImages(all.images)
             preview = all
-            selected = Set(SolutionBuilder.defaultSelection(s.document))
+            selected = Set(SolutionBuilder.defaultSelection(s.document)).subtracting(blocked)
         } catch {
             loadError = (error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht vorbereiten: \(error.localizedDescription)"
         }
     }
 
+    /// Inhalt, Siegel und Datei entstehen abseits des Hauptthreads ("Wird erstellt …" bleibt so sichtbar).
     private func share() {
-        guard let source, !selected.isEmpty else { return }
+        guard let source, !selected.isEmpty, !busy else { return }
         busy = true
         shareError = nil
         let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         savedName = name
-        do {
-            let content = try SolutionSharing.content(source, keys: Array(selected), displayName: name)
-            let package = try SolutionSharing.package(content, originalPDF: source.originalPDF)
-            let url = try SolutionSharing.writeFile(package, title: source.title)
-            try SolutionSharing.library.recordShared(package, title: source.title)
-            shareFile = ExportFile(url: url)
-        } catch {
-            shareError = (error as? SolutionError)?.description ?? "Teilen fehlgeschlagen: \(error.localizedDescription)"
+        let keys = Array(selected)
+        Task {
+            do {
+                shareFile = ExportFile(url: try await SolutionSharing.shareFile(source, keys: keys, displayName: name))
+            } catch {
+                shareError = (error as? SolutionError)?.description ?? "Teilen fehlgeschlagen: \(error.localizedDescription)"
+            }
+            busy = false
         }
-        busy = false
     }
 }
 

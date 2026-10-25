@@ -39,6 +39,12 @@ public enum SolutionError: Error, Equatable, CustomStringConvertible, LocalizedE
     /// Es sollte etwas mit PDF-Daten geteilt werden (nie erlaubt).
     case containsPDFData
     case nothingSelected
+    /// Eingebettetes Bild mit zu grossen Pixelmassen (Schutz vor Speicherabbruch beim Anzeigen).
+    case imageTooLarge
+    /// Eine andere Loesung mit derselben Loesungs-ID ist schon gespeichert (sie bleibt erhalten).
+    case conflictingSolution
+    /// Fehler auf einer bestimmten Seite beim Erzeugen (Seitenbezeichnung fuer den Dialog).
+    indirect case onPage(String, SolutionError)
 
     public var description: String {
         switch self {
@@ -55,10 +61,20 @@ public enum SolutionError: Error, Equatable, CustomStringConvertible, LocalizedE
         case .nonFiniteNumber: return "Die Lösung enthält ungültige Zahlen."
         case .containsPDFData: return "Geteilt werden dürfen nur eigene Notizen – PDF-Inhalte sind nicht erlaubt."
         case .nothingSelected: return "Keine Seite ausgewählt."
+        case .imageTooLarge: return "Die Lösung enthält ein Bild mit zu großen Abmessungen. Sie wird nicht angezeigt."
+        case .conflictingSolution:
+            return "Eine andere Lösung mit derselben Kennung ist schon gespeichert. Die vorhandene Lösung bleibt erhalten."
+        case .onPage(let page, let inner): return "\(page): \(inner.description)"
         }
     }
 
     public var errorDescription: String? { description }
+
+    /// Fehler ohne Seitenangabe.
+    public var withoutPage: SolutionError {
+        if case .onPage(_, let inner) = self { return inner.withoutPage }
+        return self
+    }
 }
 
 /// Verschluesselung des Paketinhalts. Der Kern bringt bewusst keine eigene AES-Umsetzung mit (Foundation-only, Linux);
@@ -194,6 +210,10 @@ public enum SolutionLimits {
     public static let maxObjects = 200_000
     public static let maxImages = 200
     public static let maxImageBytes = 10 << 20
+    /// Pixelmasse eingebetteter Bilder: ein kleines PNG kann sonst zu vielen Gigabyte entpacken (die App prueft die
+    /// Masse beim Oeffnen ohne zu dekodieren und verkleinert eigene Bilder beim Teilen).
+    public static let maxImageSide = 8_192
+    public static let maxImagePixels = 16_777_216
     public static let maxPDFPages = 100_000
     /// 200 Zoll, groesste Seite nach PDF-Spezifikation
     public static let maxPageSide = 14_400.0
@@ -216,6 +236,12 @@ public enum SolutionValidator {
         try checkNoPDF(o)
     }
 
+    /// Felder, die auf Daten verweisen oder Daten tragen (Bildquelle, Daten-URL): hier wird streng nach PDF gesucht.
+    public static let referenceFields: Set<String> = ["src", "data", "url", "href", "file", "asset", "uri"]
+    /// Freitext des Nutzers: wird nie auf PDF-Kennungen geprueft (eine Notiz "als application/pdf speichern" ist
+    /// eigener Inhalt und darf geteilt werden).
+    public static let proseFields: Set<String> = ["text"]
+
     /// Alle Zahlen endlich (der JSON-Leser macht aus 1e999 Unendlich).
     public static func checkFinite(_ v: JSONValue) throws {
         switch v {
@@ -226,18 +252,34 @@ public enum SolutionValidator {
         }
     }
 
-    /// Kein Text, der nach PDF-Daten aussieht ("%PDF-", Base64 "JVBERi0", data:application/pdf).
-    public static func checkNoPDF(_ v: JSONValue) throws {
+    /// Zusatzsicherung (Heuristik), keine Garantie: Die eigentliche Garantie ist der Aufbau des Builders, der nur
+    /// eigene Objekte uebernimmt (keine asset-Seiten, kein `pkdrawing`, keine PDF-Daten); eingebettete Bilder muessen
+    /// PNG/JPEG sein. Diese Pruefung faengt zusaetzlich offensichtliche PDF-Daten ab:
+    /// - Verweis- und Datenfelder (`referenceFields`): kein `application/pdf`, `%PDF-` oder `JVBERi0` (Base64 von
+    ///   "%PDF-") im Wert.
+    /// - uebrige Werte ausser Freitext (`proseFields`): beginnen nicht mit `%PDF-`, `JVBERi0` oder
+    ///   `data:application/pdf`.
+    /// Base64 einer PDF in anderer Ausrichtung (nicht ab Byte 0) erkennt sie nicht.
+    public static func checkNoPDF(_ v: JSONValue, field: String? = nil) throws {
         switch v {
         case .string(let s):
-            if s.contains("%PDF-") || s.contains("JVBERi0") || s.lowercased().contains("application/pdf") {
-                throw SolutionError.containsPDFData
+            let f = field?.lowercased() ?? ""
+            if proseFields.contains(f) { return }
+            if referenceFields.contains(f) {
+                if s.contains("%PDF-") || s.contains("JVBERi0") || s.lowercased().contains("application/pdf") {
+                    throw SolutionError.containsPDFData
+                }
+            } else {
+                let t = s.drop(while: { $0.isWhitespace })
+                if t.hasPrefix("%PDF-") || t.hasPrefix("JVBERi0") || t.lowercased().hasPrefix("data:application/pdf") {
+                    throw SolutionError.containsPDFData
+                }
             }
-        case .array(let a): for x in a { try checkNoPDF(x) }
+        case .array(let a): for x in a { try checkNoPDF(x, field: field) }
         case .object(let o):
             for (k, x) in o {
                 if k.contains("%PDF-") { throw SolutionError.containsPDFData }
-                try checkNoPDF(x)
+                try checkNoPDF(x, field: k)
             }
         default: break
         }
@@ -362,8 +404,9 @@ public struct SolutionContent: Equatable, Sendable {
             guard let s = v.string else { throw SolutionError.invalidContent("fehlende Bilder") }
             return s
         }
-        try SolutionValidator.checkNoPDF(.array(missing.map { .string($0) }))
-        try SolutionValidator.checkNoPDF(.array(images.keys.map { .string($0) }))
+        // Bildquellen sind Verweise: streng pruefen
+        try SolutionValidator.checkNoPDF(.array(missing.map { .string($0) }), field: "src")
+        try SolutionValidator.checkNoPDF(.array(images.keys.map { .string($0) }), field: "src")
         self.init(solutionID: id.lowercased(), createdAt: created, title: title, displayName: name, fingerprint: fp,
                   pdfPageCount: count, pages: pages, images: images, missingImages: missing)
     }
@@ -496,16 +539,21 @@ public struct SolutionPackage: Equatable, Sendable {
         ]).serialized(sortedKeys: true)
     }
 
+    /// Felder der Datei auf oberster Ebene (genau diese, sonst abgewiesen).
+    static let rootFields: Set<String> = ["format", "formatVersion", "header", "ciphertext"]
+
     /// Datei lesen und den Kopf pruefen (ohne PDF, ohne Entschluesselung). Wirft bei falschem Format, falscher
-    /// Version, ungueltigem Kopf, falscher Groesse und nicht endlichen Zahlen.
+    /// Version, ungueltigem Kopf, unbekannten Feldern, falscher Groesse und nicht endlichen Zahlen. Laeuft auf
+    /// ungeprueften fremden Bytes: nie eine Umwandlung, die abbrechen kann (`exactInt` statt `Int(Double)`).
     public static func decode(_ data: Data) throws -> SolutionPackage {
         guard data.count <= SolutionLimits.maxPackageBytes else { throw SolutionError.tooLarge }
-        guard let root = try? JSONValue.parse(data), case .object = root else { throw SolutionError.notASolution }
+        guard let root = try? JSONValue.parse(data), case .object(let fields) = root else { throw SolutionError.notASolution }
         guard root["format"]?.string == format else { throw SolutionError.notASolution }
-        guard let v = root["formatVersion"]?.double, v.isFinite, v == v.rounded() else {
-            throw SolutionError.invalidHeader("Formatversion")
-        }
-        guard Int(v) == formatVersion else { throw SolutionError.unsupportedVersion(Int(v)) }
+        guard let v = SolutionValidator.exactInt(root["formatVersion"]) else { throw SolutionError.invalidHeader("Formatversion") }
+        guard v == formatVersion else { throw SolutionError.unsupportedVersion(v) }
+        // nur die Felder, die das Format kennt: alles ausser dem Chiffrat ist damit authentifiziert (AAD), es gibt
+        // keinen unbemerkten Traeger fuer weitere Daten
+        guard Set(fields.keys) == rootFields else { throw SolutionError.invalidHeader("unbekannte Felder") }
         try SolutionValidator.checkFinite(root)
         guard let rawHeader = root["header"] else { throw SolutionError.invalidHeader("fehlt") }
         let header = try SolutionHeader(json: rawHeader)
@@ -529,10 +577,8 @@ public struct SolutionPackage: Equatable, Sendable {
         guard checked == content else { throw SolutionError.invalidContent("nicht verlustfrei") }
         let plaintext = content.json.serialized(sortedKeys: true)
         guard plaintext.count <= SolutionLimits.maxPlaintextBytes else { throw SolutionError.tooLarge }
-        // letzte Sicherung: nie etwas, das wie PDF-Bytes aussieht
-        if plaintext.range(of: Data("%PDF-".utf8)) != nil || plaintext.range(of: Data("JVBERi0".utf8)) != nil {
-            throw SolutionError.containsPDFData
-        }
+        // keine pauschale Textsuche nach "%PDF-" mehr: eigener Freitext darf das enthalten; PDF-Daten in Verweisen und
+        // Bildern sind oben schon abgewiesen (SolutionValidator.checkNoPDF, Bild nur PNG/JPEG)
         let header = SolutionHeader(
             solutionID: content.solutionID, createdAt: content.createdAt, displayName: content.displayName,
             fingerprint: content.fingerprint, pdfPageCount: content.pdfPageCount, pageCount: content.pages.count,

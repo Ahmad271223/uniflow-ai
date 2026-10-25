@@ -20,8 +20,26 @@ struct CryptoKitSolutionCipher: SolutionCipher {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// HKDF-SHA256 (RFC 5869) mit 32 Byte Ergebnis, gleiches Ergebnis wie `HKDF<SHA256>.deriveKey`. Extract laeuft
+    /// als HMAC in Bloecken ueber die (gemappte) PDF-Datei, damit keine Vollkopie der PDF-Bytes in einem
+    /// `SymmetricKey` entsteht; danach Expand mit der Info.
+    static func deriveKey(_ keyMaterial: Data, salt: Data, info: Data) -> SymmetricKey {
+        var hmac = HMAC<SHA256>(key: SymmetricKey(data: salt))
+        keyMaterial.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in
+            let block = 1 << 20
+            var offset = 0
+            while offset < buffer.count {
+                let end = min(offset + block, buffer.count)
+                hmac.update(data: UnsafeRawBufferPointer(rebasing: buffer[offset..<end]))
+                offset = end
+            }
+        }
+        let prk = hmac.finalize()
+        return HKDF<SHA256>.expand(pseudoRandomKey: prk, info: info, outputByteCount: 32)
+    }
+
     private func key(_ keyMaterial: Data, salt: Data, info: Data) -> SymmetricKey {
-        HKDF<SHA256>.deriveKey(inputKeyMaterial: SymmetricKey(data: keyMaterial), salt: salt, info: info, outputByteCount: 32)
+        Self.deriveKey(keyMaterial, salt: salt, info: info)
     }
 
     func seal(_ plaintext: Data, keyMaterial: Data, salt: Data, info: Data, nonce: Data, aad: Data) throws -> Data {

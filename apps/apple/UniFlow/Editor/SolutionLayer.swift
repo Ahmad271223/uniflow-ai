@@ -1,3 +1,4 @@
+import ImageIO
 import PDFKit
 import UIKit
 import UniFlowCore
@@ -44,8 +45,34 @@ struct ForeignSolutionLayer: Identifiable {
         return out.string(from: d)
     }
 
-    static func uiImages(_ images: [String: SolutionImage]) -> [String: UIImage] {
-        images.compactMapValues { UIImage(data: $0.data) }
+    /// Pixelmasse aus dem Bildkopf, ohne das Bild zu dekodieren; `nil` = kein lesbares Bild.
+    static func pixelSize(_ data: Data) -> (width: Int, height: Int)? {
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, options), CGImageSourceGetCount(source) >= 1,
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [CFString: Any],
+              let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+              let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue, w > 0, h > 0 else { return nil }
+        return (w, h)
+    }
+
+    /// Pixelmasse innerhalb der Grenzen (`SolutionLimits.maxImageSide`, `maxImagePixels`).
+    static func fitsLimits(width: Int, height: Int) -> Bool {
+        width <= SolutionLimits.maxImageSide && height <= SolutionLimits.maxImageSide
+            && width.multipliedReportingOverflow(by: height).partialValue <= SolutionLimits.maxImagePixels
+    }
+
+    /// Eingebettete Bilder einer Loesung als `UIImage`. Vorher werden die Pixelmasse aus dem Bildkopf gelesen (ohne
+    /// Dekodieren): ein kleines, stark komprimiertes PNG kann sonst beim Anzeigen viele Gigabyte belegen. Ist ein
+    /// Bild zu gross oder unlesbar, wird die ganze Loesung abgewiesen (nie ein Teil gezeigt).
+    static func uiImages(_ images: [String: SolutionImage]) throws -> [String: UIImage] {
+        var out: [String: UIImage] = [:]
+        for (src, img) in images {
+            guard let size = pixelSize(img.data) else { throw SolutionError.invalidContent("Bilddaten") }
+            guard fitsLimits(width: size.width, height: size.height) else { throw SolutionError.imageTooLarge }
+            guard let ui = UIImage(data: img.data) else { throw SolutionError.invalidContent("Bilddaten") }
+            out[src] = ui
+        }
+        return out
     }
 }
 

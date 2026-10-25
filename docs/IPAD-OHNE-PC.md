@@ -128,6 +128,10 @@ Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter 
    vollständigen PDF-Bytes, Kopf als AAD), Teilen als Datei, Import, Anzeige im Editor, Schnittstelle
    `CommunityService` mit der Umsetzung „nicht verbunden“. Noch offen: die Prüfung „Datei stammt aus dem eigenen
    Stud.IP-Abgleich“ (braucht S3) sowie Melden/Blockieren und die Berechtigungsprüfung auf dem Dienst.
+   Nachgebessert (`wip/loesung-teilen-fix`): präparierte Dateien bringen die App nicht mehr zum Absturz
+   (Formatversion), Zusatzfelder ohne Authentifizierung werden abgewiesen, Bilder mit zu großen Pixelmaßen ebenso,
+   eine gleiche Lösungs-ID verdrängt keine vorhandene Lösung, ausgeblendete eigene Notizen sind wirklich nur zum
+   Ansehen, unlesbare Importe bleiben nicht als Dauermeldung liegen.
    Einzelheiten und Grenzen: `docs/LOESUNGEN-TEILEN.md`.
 
 ## 5. Reihenfolge der Umsetzung
@@ -144,7 +148,7 @@ Zuerst der größte Nutzen: Dokumente öffnen und mit dem Pencil schreiben ohne 
 | S6 | Lernlogik (`study.py`): lesen, verschieben, planen; Übersicht, Kalender | Lernplan erstellen, Aufgaben abhaken, Übersicht |
 | S7 | Neue Original-Fassung mit erhaltenen Notizen; Suche und Skriptsuche | Notizen überleben neue PDF; Suche offline |
 | S8 | Hintergrundabgleich (nach Messung der Sitzungsdauer bzw. OAuth2) | Abgleich beim Öffnen und, wenn iPadOS es erlaubt, im Hintergrund |
-| S9 | Community „Lösungen teilen“: **lokaler Teil umgesetzt** (`wip/loesung-teilen`, `docs/LOESUNGEN-TEILEN.md`): Lösung als Datei teilen (nur eigene Notizen), importieren, im Editor als Ebene ansehen, lokal zurückziehen; Online-Teil nach Entscheidung zum Dienst | lokal: Lösung als Datei teilen, auf zweitem iPad mit derselben PDF ansehen (**Tests grün**); online: veröffentlichen, finden, zurückziehen, melden (**offen**) |
+| S9 | Community „Lösungen teilen“: **lokaler Teil umgesetzt** (`wip/loesung-teilen`, nachgebessert in `wip/loesung-teilen-fix`: robuste Formatversion, keine Zusatzfelder, Pixelgrenze für Bilder, gleiche Lösungs-ID verdrängt nichts, Ansichtsmodus schreibt nichts, unlesbare Importe werden entfernt, Entschlüsseln abseits des Hauptthreads; `docs/LOESUNGEN-TEILEN.md`): Lösung als Datei teilen (nur eigene Notizen), importieren, im Editor als Ebene ansehen, lokal zurückziehen; Online-Teil nach Entscheidung zum Dienst | lokal: Lösung als Datei teilen, auf zweitem iPad mit derselben PDF ansehen (**Tests grün**); online: veröffentlichen, finden, zurückziehen, melden (**offen**) |
 | S10 | Anmeldung härten, Release-Bereinigung, Demo-Modus für die App-Prüfung, Abnahmeliste | Abnahme nach AUFTRAG 2a und dieser Datei |
 
 Nach jedem Schritt: bauen, Unit-Tests, Prüfung „funktioniert auf einem iPad ohne Windows-PC“, Abschnitt 2 dieser
