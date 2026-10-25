@@ -1525,7 +1525,9 @@ def api_library_file_patch(file_id: str, body: dict = Body(...)):
                 conn.execute(f"DELETE FROM {t} WHERE file_id=?", (file_id,))
             conn.execute("UPDATE study_tasks SET file_id=NULL WHERE file_id=?", (file_id,))
             conn.execute("DELETE FROM files WHERE id=?", (file_id,))
-            if f and f["local_path"] and Path(f["local_path"]).exists():
+            # Duplikate teilen sich die Datei: nur loeschen, wenn sie kein anderes Dokument mehr nutzt
+            shared = f and f["local_path"] and db.row(conn, "SELECT 1 FROM files WHERE local_path=?", (f["local_path"],))
+            if f and f["local_path"] and not shared and Path(f["local_path"]).exists():
                 try:
                     Path(f["local_path"]).unlink()
                 except OSError:

@@ -114,3 +114,21 @@ def test_file_meta_has_module_id(app):
         conn.execute("UPDATE courses SET module_id=77 WHERE id='c1'")
     st, _, b = asgi_call(app, "GET", "/api/files/f-mod")
     assert st == 200 and json.loads(b)["module_id"] == 77
+
+
+# -- Datenverlust: "Endgueltig loeschen" einer Kopie loeschte die Datei des Originals mit (Duplikate teilen local_path)
+def test_delete_forever_of_duplicate_keeps_shared_file(app, tmp_path):
+    from app import db
+    pdf = tmp_path / "eigen.pdf"
+    pdf.write_bytes(b"%PDF-1.4 Testdokument")
+    with db.cursor() as conn:
+        conn.execute("INSERT INTO files(id, course_id, name, kind, status, local_path) VALUES ('u-orig', '__user__', 'eigen.pdf', 'pdf', 'gelesen', ?)",
+                     (str(pdf),))
+    st, _, b = asgi_call(app, "PATCH", "/api/library/files/u-orig", body=json.dumps({"duplicate": True}))
+    assert st == 200
+    copy = json.loads(b)["id"]
+    st, _, _ = asgi_call(app, "PATCH", f"/api/library/files/{copy}", body=json.dumps({"delete_forever": True}))
+    assert st == 200
+    assert pdf.exists(), "das Original nutzt die Datei noch"
+    st, _, _ = asgi_call(app, "PATCH", "/api/library/files/u-orig", body=json.dumps({"delete_forever": True}))
+    assert st == 200 and not pdf.exists(), "letztes Dokument: die Datei wird geloescht"
