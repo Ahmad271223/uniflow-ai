@@ -140,6 +140,7 @@ struct DocumentView: View {
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
         .sheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
+        .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
         .sheet(isPresented: $choosingCompanion) {
             CompanionPicker(api: api, moduleID: store.file.module_id, excluding: store.file.id) { f in
                 companion = Companion(file: f, pdfPage: nil)
@@ -274,6 +275,7 @@ struct DocumentView: View {
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
             StatusLabel(status: store.status)
+            SyncIssueBadge(store: store)
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
             Button {
                 if companion != nil { companion = nil } else { choosingCompanion = true }
@@ -355,6 +357,7 @@ struct DocumentView: View {
 /// Rechte bzw. linke Seite der geteilten Ansicht: eigenes Dokument, eigenes Scrollen und Zoomen,
 /// keine eigene Werkzeugpalette (die Palette des Hauptdokuments gilt fuer beide).
 struct CompanionView: View {
+    let api: APIClient
     @StateObject private var store: DocumentStore
     @StateObject private var bridge = EditorBridge()
     let pdfPage: Int?
@@ -366,6 +369,7 @@ struct CompanionView: View {
     init(file: LibFile, api: APIClient, pdfPage: Int?, toolPicker: PKToolPicker, undoManager: UndoManager,
          pencilOnly: Bool, onClose: @escaping () -> Void) {
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
+        self.api = api
         self.pdfPage = pdfPage
         self.toolPicker = toolPicker
         self.undoManager = undoManager
@@ -379,6 +383,7 @@ struct CompanionView: View {
                 Text(store.file.displayTitle).font(.caption).bold().lineLimit(1)
                 Spacer()
                 StatusLabel(status: store.status)
+                SyncIssueBadge(store: store)
                 Text("S. \(bridge.pageIndex + 1)").font(.caption.monospacedDigit())
                 Button { onClose() } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel("Schließen")
             }
@@ -395,6 +400,7 @@ struct CompanionView: View {
         }
         .task { await store.load() }
         .onDisappear { Task { await store.pause() } }
+        .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
     }
 }
 
@@ -752,6 +758,31 @@ struct ActivityView: UIViewControllerRepresentable {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
+/// Grund, warum gerade nicht gespeichert wird (PIN, Zugriff, Serverfehler, offline) oder Hinweis auf
+/// zusammengefuehrte Konflikte; Tippen zeigt "Erneut versuchen" bzw. "Verstanden".
+struct SyncIssueBadge: View {
+    @ObservedObject var store: DocumentStore
+
+    var body: some View {
+        if let issue = store.syncIssue {
+            Menu {
+                if case .konflikteZusammengefuehrt = issue {
+                    Button("Verstanden") { Task { await store.acknowledgeSyncNotice() } }
+                } else {
+                    Button("Erneut versuchen") { Task { await store.retrySync() } }
+                }
+            } label: {
+                Label(issue.label, systemImage: issue.needsUserAction ? "exclamationmark.triangle" : "info.circle")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption)
+                    .foregroundStyle(issue.needsUserAction ? .red : .orange)
+                    .lineLimit(1)
+            }
+            .accessibilityLabel(issue.label)
+        }
+    }
 }
 
 struct StatusLabel: View {

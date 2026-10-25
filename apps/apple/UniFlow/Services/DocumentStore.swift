@@ -502,3 +502,41 @@ final class DocumentStore: ObservableObject {
         lifecycle = []
     }
 }
+
+// MARK: Seitenstruktur (Papierkorb, Wiederherstellen, Einfuegen ueber PageOrder)
+
+extension DocumentStore: PageStructureEditing {
+    func pageStructureDocument() async -> AnnotationDocument {
+        await settlePending()
+        return await engine.currentDocument()
+    }
+
+    func applyPageStructure(_ change: (inout AnnotationDocument) -> PageOrder.Change?) async -> PageOrder.Change? {
+        await settlePending()
+        var doc = await engine.currentDocument()
+        guard let result = change(&doc) else { return nil }
+        for key in result.changedPageKeys {
+            if let page = doc.page(key) { await engine.updatePage(key, page) }
+        }
+        await engine.updateRootMeta(doc.rootMeta)
+        apply(document: await engine.currentDocument())
+        if !result.changedPageKeys.isEmpty { onPagesChanged?(result.changedPageKeys) }
+        return result
+    }
+
+    /// Ausstehende Striche vollstaendig verarbeiten. `processPending` kehrt sofort zurueck, wenn schon eine
+    /// Verarbeitung laeuft; dann auf deren Ende warten, bis nichts mehr aussteht (sonst landen veraltete Objekte
+    /// im Papierkorb, und Wiederherstellen schreibt diesen Stand zurueck).
+    private func settlePending() async {
+        processTask?.cancel()
+        while true {
+            if processing {
+                await withCheckedContinuation { processingWaiters.append($0) }
+            } else if !pendingDrawings.isEmpty {
+                await processPending()
+            } else {
+                return
+            }
+        }
+    }
+}
