@@ -7,6 +7,8 @@ import UniFlowCore
 // (verbindet ein iPad mit dem PC) zeigt die Karte die Verbindung dieses iPads, Stud.IP direkt und den Tarif.
 // V1 (docs/AUFTRAG-APPSTORE-V1.md 2a): Die Seite funktioniert auch ohne Server. Oben stehen "Konto" (Mit Apple
 // angemeldet, Konto loeschen) und "Tarif"; die Verbindung zum eigenen PC-Server liegt unter "Entwicklung".
+// Ist ein gespeicherter Server nicht erreichbar (PC aus, PIN gewechselt), zeigt die Seite dieselben Bereiche wie
+// ohne Server mit einem Hinweis oben, damit "Verbindung trennen" und "Konto loeschen" erreichbar bleiben.
 
 struct SettingsPage: View {
     let initialTab: String?
@@ -32,8 +34,8 @@ struct SettingsPage: View {
 
     var body: some View {
         Group {
-            if session.api == nil { localContent } else if let data { content(data) } else if let error {
-                UFContent(maxWidth: 1180) { UFEmpty(icon: "alert", text: error) }
+            if session.api == nil { localContent(error: nil) } else if let data { content(data) } else if let error {
+                localContent(error: error)
             } else {
                 UFContent(maxWidth: 1180) { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
             }
@@ -65,14 +67,32 @@ struct SettingsPage: View {
         }
     }
 
-    /// ohne Server (V1-Normalfall): Konto, Tarif, Stud.IP direkt, Darstellung auf dem Geraet und "Entwicklung"
-    @ViewBuilder private var localContent: some View {
+    /// ohne Server (V1-Normalfall): Konto, Tarif, Stud.IP direkt, Darstellung auf dem Geraet und "Entwicklung".
+    /// Mit `error` ist ein gespeicherter Server nicht erreichbar: Hinweis oben, Navigation bleibt nutzbar.
+    @ViewBuilder private func localContent(error: String?) -> some View {
         let current = SettingsNav.localKeys.contains(tab) ? tab : "account"
         UFContent(maxWidth: 1180) {
             UFPageHead("Einstellungen")
+            if let error { unreachableBanner(error) }
             layout(SettingsNav(tab: Binding(get: { current }, set: { tab = $0 }), horizontal: windowWidth <= 820, keys: SettingsNav.localKeys),
-                   Group { if current == "dev" { DevelopmentTab() } else { LocalAccountTab() } })
+                   Group { if current == "dev" { DevelopmentTab(error: error) } else { LocalAccountTab() } })
         }
+    }
+
+    /// Hinweis "Server nicht erreichbar" mit Weg zu "Erneut versuchen" und "Entwicklung" (Verbindung trennen)
+    private func unreachableBanner(_ error: String) -> some View {
+        UFCard {
+            HStack(spacing: 7.2) { UFIcon("alert", size: 18); Text("Eigener UniFlow-Server nicht erreichbar").font(UF.h2) }
+                .foregroundStyle(UF.warn)
+            Text("\(error)\nDie Einstellungen dieses iPads kannst du trotzdem ändern. Unter „Entwicklung“ trennst du die Verbindung.")
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
+                .fixedSize(horizontal: false, vertical: true)
+            UFFlexWrap(gap: 9.6) {
+                UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
+                UFButton("Entwicklung", icon: "layers", size: .small) { tab = "dev" }
+            }
+        }
+        .padding(.bottom, 16)
     }
 
     /// .set-layout: 240 px Navigation | Inhalt, gap 1.2rem; bis 820 px untereinander, Navigation waagerecht
@@ -566,7 +586,8 @@ private struct UFSwitchPlanKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// "Tarif wechseln" in den Einstellungen; setzt das Abo-Paket. Ohne Wert oeffnet die Karte die Tarifansicht (Testmodus).
+    /// "Tarif wechseln" in den Einstellungen; setzt das Abo-Paket. Ohne Wert oeffnet die Karte im Debug-Build die
+    /// bisherige Tarifansicht (Testmodus); im Release ist der Knopf dann deaktiviert (keine Preise ohne Pflichtangaben).
     var ufSwitchPlan: (() -> Void)? {
         get { self[UFSwitchPlanKey.self] }
         set { self[UFSwitchPlanKey.self] = newValue }
@@ -586,8 +607,13 @@ private struct AppAccountCards: View {
             planCard
         }
         .environment(\.ufFillsCell, true)
+        #if DEBUG
         .sheet(isPresented: $plans) { SettingsSheet(close: { plans = false }) { SubscriptionView() } }
+        #endif
     }
+
+    /// ohne Abo-Paket gibt es nur im Debug-Build einen Ersatz
+    private var canSwitchPlan: Bool { switchPlan != nil || AccountStore.isDebugBuild }
 
     private var accountCard: some View {
         let a = account.account
@@ -617,12 +643,15 @@ private struct AppAccountCards: View {
     private var planCard: some View {
         UFCard {
             UFCardHead("Tarif", icon: "star")
-            Text("Free, Plus oder Pro wählen, Abo verwalten und Käufe wiederherstellen.")
+            Text(canSwitchPlan
+                 ? "Free, Plus oder Pro wählen, Abo verwalten und Käufe wiederherstellen."
+                 : "Die Auswahl zwischen Free, Plus und Pro folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
             UFFlexWrap(gap: 9.6) {
                 UFButton("Tarif wechseln", icon: "star", kind: .primary, size: .small) {
                     if let switchPlan { switchPlan() } else { plans = true }
                 }
+                .disabled(!canSwitchPlan)
             }
             .padding(.top, 9.6)
         }
@@ -655,11 +684,11 @@ private struct DeleteAccountDialog: View {
             UFButton("Konto löschen", icon: "trash", kind: .danger) {
                 busy = true
                 Task {
-                    await studip.signOut()
-                    session.disconnect()
-                    overlay.closeAll()
-                    router.go(.dashboard)
-                    account.deleteAccount()                         // RootView zeigt danach die Begruessung
+                    // RootView zeigt danach die Begruessung
+                    await account.deleteAccount(also: AccountStore.deletionSteps(studip: studip, session: session)) {
+                        overlay.closeAll()
+                        router.go(.dashboard)
+                    }
                 }
             }
             .disabled(busy)
@@ -732,6 +761,8 @@ private struct SettingsSheet<Content: View>: View {
 
 /// Nur fuer den Inhaber: Verbindung zum eigenen UniFlow-Server (frueher der Startbildschirm)
 private struct DevelopmentTab: View {
+    /// gespeicherter Server antwortet nicht (Netzfehler, PIN abgelehnt)
+    var error: String?
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
 
@@ -739,7 +770,9 @@ private struct DevelopmentTab: View {
         VStack(alignment: .leading, spacing: 16) {
             if let api = session.api {
                 UFCard {
-                    UFCardHead("Eigener UniFlow-Server", icon: "layers") { UFBadge("verbunden", tone: .ok) }
+                    UFCardHead("Eigener UniFlow-Server", icon: "layers") {
+                        error == nil ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht erreichbar", tone: .warn)
+                    }
                     VStack(alignment: .leading, spacing: 7.2) {
                         (Text("Server: ").font(.uf(13.12, 700)) + Text(api.base.absoluteString))
                         Text("Die Daten kommen von deinem UniFlow-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ läuft die App wieder ohne Server.")

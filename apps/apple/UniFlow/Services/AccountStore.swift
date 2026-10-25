@@ -31,6 +31,14 @@ final class AccountStore: ObservableObject {
     }
 
     static let debugUserPrefix = "debug."
+    /// Debug-Build? Debug-Konten und Hinweise fuer Entwickler gibt es nur dort.
+    nonisolated static var isDebugBuild: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
     /// Abos kuendigt der Nutzer bei Apple (Richtlinie 5.1.1(v): Hinweis beim Loeschen des Kontos)
     static let manageSubscriptionsURL = URL(string: "https://apps.apple.com/account/subscriptions")!
 
@@ -48,7 +56,8 @@ final class AccountStore: ObservableObject {
     private var revokeObserver: NSObjectProtocol?
 
     init(secrets: AccountSecretStore = KeychainSecretStore(), defaults: UserDefaults = .standard,
-         checker: AppleCredentialChecking = AppleIDCredentialChecker(), observeRevocation: Bool = true) {
+         checker: AppleCredentialChecking = AppleIDCredentialChecker(), observeRevocation: Bool = true,
+         allowsDebugAccount: Bool = AccountStore.isDebugBuild) {
         self.secrets = secrets
         self.defaults = defaults
         self.checker = checker
@@ -59,6 +68,14 @@ final class AccountStore: ObservableObject {
         }
         account = secrets.get(Keys.user).map { Account(userID: $0, name: secrets.get(Keys.name), email: secrets.get(Keys.email)) }
         planShown = defaults.bool(forKey: Keys.planShown)
+        // Release/TestFlight ueber einem Debug-Build installiert: das Debug-Konto gilt nicht als Anmeldung,
+        // sonst waere "Mit Apple anmelden" umgangen (verifyCredential prueft Debug-Konten nicht bei Apple).
+        // Die Tarifwahl wurde dann nur im Debug-Build "gezeigt" und erscheint nach der echten Anmeldung erneut.
+        if account?.isDebug == true && !allowsDebugAccount {
+            signOut()
+            planShown = false
+            defaults.removeObject(forKey: Keys.planShown)
+        }
         if observeRevocation {
             // Apple meldet einen Widerruf auch waehrend die App laeuft (Einstellungen -> Apple-ID -> Mit Apple anmelden)
             revokeObserver = NotificationCenter.default.addObserver(
@@ -116,13 +133,16 @@ final class AccountStore: ObservableObject {
     }
 
     /// Abbruch durch den Nutzer ist kein Fehler; sonst ein kurzer Hinweis auf der Begruessung
-    nonisolated static func message(for error: Error) -> String? {
+    nonisolated static func message(for error: Error, debugBuild: Bool = isDebugBuild) -> String? {
         if let e = error as? ASAuthorizationError {
             switch e.code {
             case .canceled: return nil
             case .unknown:
-                // typisch ohne die Faehigkeit "Sign in with Apple" (Build ohne bezahltes Team)
-                return "„Mit Apple anmelden“ ist in diesem Build nicht verfügbar. Bitte später erneut versuchen."
+                // im Debug-Build typisch ohne die Faehigkeit "Sign in with Apple" (Build ohne bezahltes Team);
+                // im App Store meist ein Geraet ohne Apple-ID oder ein Systemfehler
+                return debugBuild
+                    ? "„Mit Apple anmelden“ ist in diesem Build nicht verfügbar. Bitte später erneut versuchen."
+                    : "Anmeldung nicht möglich. Prüfe, ob du auf diesem iPad mit deiner Apple-ID angemeldet bist."
             default: break
             }
         }
@@ -165,6 +185,21 @@ final class AccountStore: ObservableObject {
         defaults.removeObject(forKey: Keys.planShown)
         lastError = nil
         notice = .deleted
+    }
+
+    /// Ganzer Ablauf "Konto loeschen" aus den Einstellungen: erst die weiteren Schluesselbund-Eintraege der App
+    /// entfernen (`deletionSteps`: Stud.IP-Sitzung, Server-PIN), danach das Konto selbst -> Begruessung.
+    /// Heruntergeladene Dateien und Notizen bleiben; `beforeWelcome` laeuft direkt vor dem Wechsel zur Begruessung
+    /// (Dialoge schliessen, Route zuruecksetzen).
+    func deleteAccount(also steps: [() async -> Void], beforeWelcome: () -> Void = {}) async {
+        for step in steps { await step() }
+        beforeWelcome()
+        deleteAccount()
+    }
+
+    /// Schritte fuer `deleteAccount(also:)` in der App: Stud.IP abmelden (Cookie, Webansicht) und Server-PIN loeschen
+    static func deletionSteps(studip: StudIPSync, session: Session) -> [() async -> Void] {
+        [{ await studip.signOut() }, { session.disconnect() }]
     }
 
     #if DEBUG

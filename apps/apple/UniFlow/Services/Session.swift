@@ -56,11 +56,14 @@ final class Session: ObservableObject {
 /// Nur Debug-Builds: Startargumente fuer Simulator und UI-Vergleiche.
 ///   -UFServer http://localhost:8765   verbindet ohne PIN (nur fuer einen lokalen Testserver, der keine PIN verlangt)
 ///   -UFDisconnect YES -UFServerHint <url>   trennt die Verbindung und traegt die Adresse vor; die PIN gibt der Inhaber ein
-///                                     (Einstellungen -> Entwicklung -> Mit eigenem UniFlow-Server verbinden)
+///                                     (Einstellungen -> Entwicklung -> Mit eigenem UniFlow-Server verbinden).
+///                                     -UFServer wird dann nicht verbunden, -UFRoute/-UFAction gelten weiter, z. B.
+///                                     -UFDisconnect YES -UFRoute "#/settings?tab=dev" zeigt das Verbindungsformular.
 ///   -UFOnboarding reset               Konto und Merker "Tarifwahl gezeigt" loeschen -> Begruessung wie nach Neuinstallation
 ///   -UFOnboarding skip                Debug-Konto ohne Apple-ID, Tarifwahl gilt als gezeigt -> direkt die Oberflaeche
 ///   -UFOnboarding plan                Debug-Konto, Tarifwahl noch nicht gezeigt -> Tarifwahl
-///                                     Ohne -UFOnboarding gilt bei -UFServer/-UFRoute/-UFAction "skip" (bisherige Bildvergleiche).
+///                                     Ohne -UFOnboarding gilt bei -UFServer/-UFDisconnect/-UFRoute/-UFAction "skip"
+///                                     (bisherige Bildvergleiche).
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,
@@ -68,12 +71,15 @@ final class Session: ObservableObject {
 /// Die Darstellung laesst sich ueber -theme dark|light|auto setzen (AppStorage liest Startargumente).
 enum DebugLaunch {
     /// vor dem ersten Bild (UniFlowApp.init), damit die Begruessung nicht kurz aufblitzt
+    /// Startargumente, bei denen ohne -UFOnboarding die Anmeldung uebersprungen wird
+    static let skipTriggers = ["UFServer", "UFDisconnect", "UFRoute", "UFAction"]
+
+    /// `defaults` nur fuer Tests (eigene Suite); in der App liegen die Startargumente in UserDefaults.standard
     @MainActor
-    static func prepare(account: AccountStore) {
+    static func prepare(account: AccountStore, defaults d: UserDefaults = .standard) {
         #if DEBUG
-        let d = UserDefaults.standard
         let mode = d.string(forKey: "UFOnboarding")
-            ?? (["UFServer", "UFRoute", "UFAction"].contains { d.object(forKey: $0) != nil } ? "skip" : nil)
+            ?? (skipTriggers.contains { d.object(forKey: $0) != nil } ? "skip" : nil)
         switch mode {
         case "reset":
             account.deleteAccount()
@@ -94,12 +100,12 @@ enum DebugLaunch {
     static func apply(session: Session, router: UFRouter, overlay: UFOverlay, toast: UFToastCenter, timer: StudyTimer) async {
         #if DEBUG
         let d = UserDefaults.standard
-        if d.bool(forKey: "UFDisconnect") {
+        let disconnect = d.bool(forKey: "UFDisconnect")
+        if disconnect {
             session.disconnect()
             if let hint = d.string(forKey: "UFServerHint") { d.set(hint, forKey: "uniflow.serverURL") }
-            return
         }
-        if let server = d.string(forKey: "UFServer"), session.api?.base.absoluteString != server {
+        if !disconnect, let server = d.string(forKey: "UFServer"), session.api?.base.absoluteString != server {
             await session.connect(urlString: server, pin: "")
         }
         if let route = d.string(forKey: "UFRoute") { router.go(hash: route) }

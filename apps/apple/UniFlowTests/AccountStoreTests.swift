@@ -33,8 +33,10 @@ final class AccountStoreTests: XCTestCase {
         super.tearDown()
     }
 
-    private func store(_ secrets: MemorySecrets, state: AppleCredentialState = .authorized) -> AccountStore {
-        AccountStore(secrets: secrets, defaults: defaults, checker: FixedChecker(state: state), observeRevocation: false)
+    private func store(_ secrets: MemorySecrets, state: AppleCredentialState = .authorized,
+                       allowsDebugAccount: Bool = true) -> AccountStore {
+        AccountStore(secrets: secrets, defaults: defaults, checker: FixedChecker(state: state), observeRevocation: false,
+                     allowsDebugAccount: allowsDebugAccount)
     }
 
     func testFirstStartShowsWelcome() {
@@ -134,10 +136,122 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertNotNil(s.account, "Debug-Konto bleibt angemeldet")
     }
 
+    func testDebugAccountIsDiscardedOutsideDebugBuild() {
+        // Release/TestFlight ueber einem Debug-Build: Schluesselbund und Merker "installed" sind noch da
+        let secrets = MemorySecrets()
+        let debug = store(secrets)
+        debug.skipSignInForDebug()
+        debug.markPlanShown()
+        let release = store(secrets, allowsDebugAccount: false)
+        XCTAssertNil(release.account)
+        XCTAssertEqual(release.stage, .welcome)
+        XCTAssertTrue(secrets.values.isEmpty)
+        XCTAssertFalse(release.planShown, "Tarifwahl nach der echten Anmeldung erneut zeigen")
+        XCTAssertNil(release.notice)
+
+        // ein echtes Konto bleibt auch ohne Debug-Erlaubnis angemeldet
+        store(secrets).signIn(userID: "001.abc", name: nil, email: nil)
+        XCTAssertEqual(store(secrets, allowsDebugAccount: false).account?.userID, "001.abc")
+    }
+
+    func testDeleteAccountRunsAllStepsAndKeepsFilesAndNotes() async throws {
+        let secrets = MemorySecrets()
+        let s = store(secrets)
+        s.signIn(userID: "001.abc", name: "Ada", email: "ada@example.com")
+        s.markPlanShown()
+        // Geraeteeinstellungen und eine heruntergeladene Datei duerfen nicht verschwinden
+        defaults.set("left", forKey: "uniflow.hand")
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-delete-\(UUID().uuidString).pdf")
+        try Data("%PDF".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        var calls: [String] = []
+        await s.deleteAccount(also: [
+            { calls.append("studip:\(s.stage)") },
+            { calls.append("pin:\(s.stage)") },
+        ]) { calls.append("close:\(s.stage)") }
+
+        XCTAssertEqual(calls, ["studip:ready", "pin:ready", "close:ready"], "alle Schritte vor dem Wechsel zur Begruessung")
+        XCTAssertEqual(s.stage, .welcome)
+        XCTAssertEqual(s.notice, .deleted)
+        XCTAssertTrue(secrets.values.isEmpty, "alle Schluesselbund-Eintraege des Kontos entfernt")
+        XCTAssertFalse(defaults.bool(forKey: AccountStore.Keys.planShown))
+        XCTAssertEqual(defaults.string(forKey: "uniflow.hand"), "left")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    // MARK: Startargumente (DebugLaunch.prepare)
+
+    func testPrepareReset() {
+        let secrets = MemorySecrets()
+        let s = store(secrets)
+        s.signIn(userID: "001.abc", name: nil, email: nil)
+        s.markPlanShown()
+        defaults.set("reset", forKey: "UFOnboarding")
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .welcome)
+        XCTAssertNil(s.notice, "kein Hinweis \"Konto geloescht\" nach -UFOnboarding reset")
+        XCTAssertTrue(secrets.values.isEmpty)
+    }
+
+    func testPrepareSkipKeepsExistingAccount() {
+        let s = store(MemorySecrets())
+        defaults.set("skip", forKey: "UFOnboarding")
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .ready)
+        XCTAssertEqual(s.account?.isDebug, true)
+
+        let real = store(MemorySecrets())
+        real.signIn(userID: "001.abc", name: nil, email: nil)
+        DebugLaunch.prepare(account: real, defaults: defaults)
+        XCTAssertEqual(real.account?.userID, "001.abc")
+        XCTAssertEqual(real.stage, .ready)
+    }
+
+    func testPreparePlanShowsPlanPicker() {
+        let s = store(MemorySecrets())
+        s.signIn(userID: "001.abc", name: nil, email: nil)
+        s.markPlanShown()
+        defaults.set("plan", forKey: "UFOnboarding")
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .planPicker)
+        XCTAssertEqual(s.account?.isDebug, true)
+        XCTAssertNil(s.notice)
+    }
+
+    func testPrepareSkipsForOldScreenshotArguments() {
+        for key in DebugLaunch.skipTriggers {
+            let suiteName = "\(suite).\(key)"
+            let d = UserDefaults(suiteName: suiteName)!
+            defer { d.removePersistentDomain(forName: suiteName) }
+            d.set(key == "UFDisconnect" ? "YES" : "#/settings?tab=dev", forKey: key)
+            let s = AccountStore(secrets: MemorySecrets(), defaults: d, checker: FixedChecker(state: .authorized),
+                                 observeRevocation: false)
+            DebugLaunch.prepare(account: s, defaults: d)
+            XCTAssertEqual(s.stage, .ready, key)
+        }
+        XCTAssertTrue(DebugLaunch.skipTriggers.contains("UFDisconnect"))
+    }
+
+    func testPrepareWithoutArgumentsChangesNothing() {
+        let s = store(MemorySecrets())
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .welcome)
+        XCTAssertNil(s.account)
+    }
+
     func testCancelIsNoError() {
         XCTAssertNil(AccountStore.message(for: ASAuthorizationError(.canceled)))
         XCTAssertNotNil(AccountStore.message(for: ASAuthorizationError(.failed)))
         XCTAssertNotNil(AccountStore.message(for: ASAuthorizationError(.unknown)))
+    }
+
+    func testUnknownErrorMentionsBuildOnlyInDebug() throws {
+        let debug = try XCTUnwrap(AccountStore.message(for: ASAuthorizationError(.unknown), debugBuild: true))
+        let release = try XCTUnwrap(AccountStore.message(for: ASAuthorizationError(.unknown), debugBuild: false))
+        XCTAssertTrue(debug.contains("Build"))
+        XCTAssertFalse(release.contains("Build"))
+        XCTAssertTrue(release.contains("Apple-ID"))
     }
 
     func testRequestAsksForNameAndEmail() {
