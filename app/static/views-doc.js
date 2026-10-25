@@ -1,6 +1,6 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
-import { $, $$, api, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=25";
-import { PdfEditor } from "./editor.js?v=25";
+import { $, $$, api, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=26";
+import { PdfEditor } from "./editor.js?v=26";
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };
@@ -53,10 +53,29 @@ export async function viewDoc(parts, params, view) {
     H.onpointermove = ev => { let pct = hand === "hand-right" ? (ev.clientX - box.left) / box.width * 100 : (box.right - ev.clientX) / box.width * 100; pct = Math.max(20, Math.min(65, pct)); try { localStorage.setItem("doc-split", pct.toFixed(1)); } catch {} layoutSplit(); };
     H.onpointerup = H.onpointercancel = () => { H.onpointermove = null; };
   };
-  const closeSplit = async () => { split = false; const ed = state.editors.find(e => e.pane === "B"); if (edA) { edA.onToolState = null; lastEd = edA; } if (ed) { await ed.destroy(); state.editors = state.editors.filter(e => e !== ed); } $("#paneB").hidden = true; $("#paneB").innerHTML = ""; $("#docPanes").classList.remove("split"); layoutSplit(); };
+  // Schliessen wirkt sofort; das Speichern des zweiten Dokuments laeuft im Hintergrund weiter (Entwurf liegt lokal)
+  let splitGen = 0;
+  const closeSplit = () => {
+    split = false; splitGen++;
+    if (edA) { edA.onToolState = null; lastEd = edA; }
+    const P = $("#paneB"); P.hidden = true; $("#docPanes").classList.remove("split"); layoutSplit();
+    const ed = state.editors.find(e => e.pane === "B");
+    if (ed) { state.editors = state.editors.filter(e => e !== ed); ed.destroy().catch(e => console.error(e)); }
+    P.innerHTML = "";
+  };
   const openSplit = async (pick, page) => {
-    if (split) await closeSplit();
-    split = true; $("#paneB").hidden = false; $("#docPanes").classList.add("split"); layoutSplit(); const f2 = await api(`/files/${pick}`); const ed = await mountDoc($("#paneB"), f2, { page: page || f2.last_page || 1, penInput: settings.pen_input }); if (ed) { ed.pane = "B"; ed.onActive = () => { lastEd = ed; }; if (edA) { ed.applyToolState(edA.toolState()); edA.onToolState = st => ed.applyToolState(st); } }
+    if (split) closeSplit();
+    const gen = ++splitGen; split = true;
+    const P = $("#paneB");
+    P.innerHTML = `<div class="pane-bar"><span class="t">${icon("book", 14)}<b>Lädt…</b></span><button class="btn ghost sm" data-close-split title="Zweites Dokument schließen">${icon("x", 14)} Schließen</button></div><div class="pane-body"></div>`;
+    P.querySelector("[data-close-split]").onclick = () => { if (gen === splitGen) closeSplit(); };
+    P.hidden = false; $("#docPanes").classList.add("split"); layoutSplit();
+    let f2; try { f2 = await api(`/files/${pick}`); } catch { if (gen === splitGen) { toast("Dokument nicht gefunden"); closeSplit(); } return; }
+    if (gen !== splitGen) return;
+    $(".pane-bar b", P).textContent = f2.title || f2.ai_title || f2.name;
+    const ed = await mountDoc($(".pane-body", P), f2, { page: page || f2.last_page || 1, penInput: settings.pen_input, pane: "B" });
+    if (!ed || gen !== splitGen) return;
+    ed.onActive = () => { lastEd = ed; }; if (edA) { ed.applyToolState(edA.toolState()); edA.onToolState = st => ed.applyToolState(st); }
   };
   $("#docSplit").onclick = async () => { if (split) return closeSplit(); const pick = await pickDocument(f.module_id); if (pick) openSplit(pick); };
   const isExercise = ["uebung", "loesung", "klausur"].includes(f.doc_type) || /übung|uebung|blatt|ueb\d|aufgabe/i.test(`${f.name} ${f.studip_folder || ""}`);
@@ -97,7 +116,7 @@ function docFallback(host, f, msg, keep = false) {
   box.querySelector("#fbViewer").onclick = () => { host.innerHTML = `<iframe src="/api/files/${f.id}/content#toolbar=1" style="flex:1;border:1px solid var(--line);border-radius:var(--r);min-height:70vh;background:#fff"></iframe>`; };
   box.querySelector("#fbRetry").onclick = () => location.reload();
 }
-export async function mountDoc(host, f, { page = 1, onPage, penInput, restore } = {}) {
+export async function mountDoc(host, f, { page = 1, onPage, penInput, restore, pane } = {}) {
   host.innerHTML = "";
   const isPdf = !!f.exists && (/\.pdf$/i.test(f.local_path || "") || /\.pdf$/i.test(f.name || "") || /pdf/i.test(f.mime || ""));
   const notebook = f.kind === "notebook" || f.kind === "whiteboard" || (!f.local_path && f.course_id === "__user__");
@@ -107,8 +126,8 @@ export async function mountDoc(host, f, { page = 1, onPage, penInput, restore } 
     const ed = new PdfEditor(div, { fileId: f.id, name: f.title || f.name, url: notebook && !f.local_path ? null : `/api/files/${f.id}/content`, penInput, onPage,
       onStatus: s => { const el = $(".ed-status", div); if (el) { el.textContent = s; el.title = s; } if (host.id === "paneA") { const d = $("#docStatus"); if (d) d.textContent = s; } },
       onAccessory: k => { if (k === "timer") toggleTimer(true); } });
-    state.editors.push(ed);
-    try { await ed.load(); if (restore) ed.restoreState(restore); else if (page > 1) (ed._initialGoto = setTimeout(() => ed.goToPage(page - 1), 300)); } catch (e) { console.error(e); state.errors?.push({ t: new Date().toISOString(), msg: e.message, src: "editor" }); docFallback(host, f, e.message); return null; }
+    ed.pane = pane; state.editors.push(ed);           // vor dem Laden markieren: Schliessen waehrend des Ladens findet den Editor
+    try { await ed.load(); if (ed.destroyed) return null; if (restore) ed.restoreState(restore); else if (page > 1) (ed._initialGoto = setTimeout(() => ed.goToPage(page - 1), 300)); } catch (e) { if (ed.destroyed) return null; console.error(e); state.errors?.push({ t: new Date().toISOString(), msg: e.message, src: "editor" }); docFallback(host, f, e.message); return null; }
     // Sicherheitsnetz: wenn nach dem Laden keine Seite sichtbar ist, Hinweis + Browser-Viewer anbieten
     setTimeout(() => { if (ed.destroyed) return; const sc = div.querySelector(".ed-scroll"); const visible = sc && sc.clientHeight > 40 && div.querySelectorAll(".ed-page").length > 0 && [...div.querySelectorAll("canvas.ed-pdf")].some(c => c.width > 0); if (!visible) docFallback(host, f, `Die Seiten wurden nicht dargestellt (Seiten: ${ed.pages?.length ?? 0}, Ansichtshöhe: ${sc ? sc.clientHeight : 0}px, Browser: ${navigator.userAgent.split(") ").pop()}).`, true); }, 2500);
     return ed;

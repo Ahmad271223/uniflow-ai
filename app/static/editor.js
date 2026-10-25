@@ -1,7 +1,7 @@
 // UniFlow Editor 2.0 – PDF- und Notizeditor (pdf.js + Konva + pdf-lib)
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
-import { icon } from "./icons.js?v=25";
-import { mergePage } from "./merge.js?v=25";
+import { icon } from "./icons.js?v=26";
+import { mergePage } from "./merge.js?v=26";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -32,6 +32,29 @@ try { if (window.Konva) Konva.pixelRatio = DPR(); } catch {}
 const PEN_DEFAULTS = { pen: { width: 2.2, opacity: 1 }, fountain: { width: 2.6, opacity: 1 }, pencil: { width: 1.8, opacity: 0.75 }, marker: { width: 16, opacity: 0.35 } };
 const WIDTHS = [1.2, 2.5, 5];
 const SWATCHES = ["#1d2130", "#5b6170", "#9aa0ae", "#e5322d", "#22a55b", "#9a2a2a", "#2b5df0", "#f5b400"];
+// Konva legt je Stage zwei Puffer in voller Seitengroesse an. Gebraucht werden sie nur fuer halbtransparente Formen
+// mit Rand und Fuellung (oder Schatten); bei vielen Seiten belegen sie auf dem iPad den knappen Canvas-Speicher.
+// Daher 1x1, bis eine Form sie wirklich anfordert (vendorte Konva 9.3.16, _resizeDOM entspricht dem Original).
+function patchKonva() {
+  const K = window.Konva; if (!K || K._uniBuf) return; K._uniBuf = true;
+  const fit = st => { const w = st._needBuf ? st.width() : 1, h = st._needBuf ? st.height() : 1; st.bufferCanvas.setSize(w, h); st.bufferHitCanvas.setSize(w, h); };
+  const need = st => { if (st && !st._needBuf) { st._needBuf = true; fit(st); } };
+  K.Stage.prototype._resizeDOM = function () { const w = this.width(), h = this.height(); if (this.content) { this.content.style.width = w + "px"; this.content.style.height = h + "px"; } fit(this); this.children.forEach(l => { l.setSize({ width: w, height: h }); l.draw(); }); };
+  const ub = K.Shape.prototype._useBufferCanvas; K.Shape.prototype._useBufferCanvas = function (f) { const r = ub.call(this, f); if (r) need(this.getStage()); return r; };
+  const is = K.Shape.prototype.intersects; K.Shape.prototype.intersects = function (p) { need(this.getStage()); return is.call(this, p); };
+}
+// Seiten der Reihe nach rendern: pdf.js rechnet je Seite in 15-ms-Happen pro Bild. Mehrere Seiten gleichzeitig
+// (schnelles Scrollen, geteilte Ansicht) lassen dem Scrollen keine Zeit. Immer nur eine, die zur Bildmitte naechste zuerst.
+const renderQ = { cur: null, wait: new Set() };
+function pumpRender() {
+  if (renderQ.cur) return;
+  let best = null, bd = Infinity;
+  for (const it of renderQ.wait) { if (it.ed.destroyed || !it.pg.mounted || it.pg._rq !== it) { renderQ.wait.delete(it); continue; } const d = it.ed.pageDistance(it.pg); if (d < bd) { bd = d; best = it; } }
+  if (!best) return;
+  renderQ.wait.delete(best); best.pg._rq = null; renderQ.cur = best;
+  const done = () => { if (renderQ.cur !== best) return; renderQ.cur = null; pumpRender(); };
+  best.ed.renderPdfNow(best.pg).catch(() => {}).finally(done); setTimeout(done, 8000);   // haengt eine Seite (Netz), nicht alle blockieren
+}
 const DEFAULT_TEXT = { fontFamily: "Arial", fontSize: 14, fill: "#1d2130", bold: false, italic: false, underline: false, align: "left", bg: "", opacity: 1, width: 220, lineHeight: 1.25 };
 
 // ================================================================= Editor
@@ -45,13 +68,14 @@ export class PdfEditor {
     this.pages = []; this.history = []; this.future = []; this.selection = []; this.clipboard = null;
     this.penSeenAt = 0; this.pointers = new Map(); this.currentPage = 0; this.textCache = new Map(); this.assetDocs = new Map();
     this.destroyed = false; this.penInput = opts.penInput || "all";
-    this.ruler = null; this.zoomWin = null; this.recorder = null;
+    this.ruler = null; this.zoomWin = null; this.recorder = null; this._prev = new Map();
     this.prefs = Object.assign({ scroll: "vertical", single: false, sidebar: "left", hidden: [] }, (() => { try { return JSON.parse(localStorage.getItem("ed-prefs") || "{}"); } catch { return {}; } })());
   }
 
   // ---------------------------------------------------------------- Laden
   async load() {
-    await Promise.all([getPdfjs(), loadScript("./vendor/konva.min.js")]);
+    await Promise.all([getPdfjs(), loadScript("./vendor/konva.min.js")]); patchKonva();
+    if (this.destroyed) return;                       // waehrend des Ladens geschlossen
     this.buildUI();
     this.onStatus("Lade Dokument…");
     this.pdf = null; this.pageSizes = [];
@@ -60,12 +84,16 @@ export class PdfEditor {
       this.loadInfo = { status: r.status, type: ct, pages: 0 };
       if (!r.ok) throw new Error(`Die Datei konnte nicht geladen werden (HTTP ${r.status}).`);
       if (!ct.includes("pdf")) throw new Error(`Unerwarteter Dateityp „${ct || "unbekannt"}“ – keine PDF.`);
-      const buf = await r.arrayBuffer(); this.pdfBytes = buf.slice(0);
+      const buf = await r.arrayBuffer(); if (this.destroyed) return; this.pdfBytes = buf.slice(0);
       try { this.pdf = await pdfjsLib.getDocument({ data: buf }).promise; } catch (e) { throw new Error(`PDF konnte nicht gelesen werden: ${e.message}`); }
-      for (let i = 1; i <= this.pdf.numPages; i++) { const p = await this.pdf.getPage(i); const vp = p.getViewport({ scale: 1 }); this.pageSizes.push({ w: vp.width, h: vp.height }); }
+      if (this.destroyed) { this.pdf.destroy(); this.pdf = null; return; }
+      // Seitengroessen parallel abfragen (nacheinander dauert das bei 100+ Folien auf dem iPad mehrere Sekunden)
+      const ps = await Promise.all(Array.from({ length: this.pdf.numPages }, (_, i) => this.pdf.getPage(i + 1)));
+      for (const p of ps) { const vp = p.getViewport({ scale: 1 }); this.pageSizes.push({ w: vp.width, h: vp.height }); }
       this.loadInfo.pages = this.pdf.numPages;
     }
     await this.loadModel();
+    if (this.destroyed) { this.pdf?.destroy?.(); this.pdf = null; return; }
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
     this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
@@ -118,7 +146,8 @@ export class PdfEditor {
     const old = this.model; const orderChanged = JSON.stringify(merged.pageOrder) !== JSON.stringify(old.pageOrder);
     this.model = merged; this.version = version; this.base = this.snap(server);
     this.history = []; this.future = [];          // Undo-Schritte bezogen sich auf den alten Stand
-    if (orderChanged) this.buildPages();
+    if (this.destroyed) { /* geschlossen: nur noch speichern */ }
+    else if (orderChanged) this.buildPages();
     else for (const pg of this.pages) { if (pg.mounted && JSON.stringify(old.pages[pg.key]?.objects) !== JSON.stringify(merged.pages[pg.key]?.objects)) this.reloadPage(pg); }
     this.onStatus("Mit anderem Gerät zusammengeführt");
     return d.keys.length + (d.struct || d.meta ? 1 : 0);
@@ -216,7 +245,11 @@ export class PdfEditor {
     $(".ed-ai-go", this.c).onclick = () => this.askAI();
     $(".ed-ai-mode", this.c).onchange = e => { $(".ed-ai-own-wrap", this.c).hidden = e.target.value !== "check"; };
     $$("[data-zw]", this.c).forEach(b => b.onclick = () => this.zoomWinAction(b.dataset.zw));
-    this.scroll.addEventListener("scroll", () => { this._scrollEpoch = (this._scrollEpoch || 0) + 1; this.onScroll(); clearTimeout(this._sct); this._sct = setTimeout(() => { if (!this.pan && !this.pinch && !this.penDown && !this._activeLive && !this._clampAnim && !this._fling) this.clampView(true); }, 220); });
+    this.scroll.addEventListener("scroll", () => {
+      if (this.destroyed) return;                    // Browser liefert ein vorgemerktes Scroll-Ereignis evtl. erst nach dem Schliessen
+      this._scrollEpoch = (this._scrollEpoch || 0) + 1;
+      { const now = performance.now(), st = this.scroll.scrollTop + this.scroll.scrollLeft, L = this._lastSc; if (L && now - L.t < 100 && Math.abs(st - L.st) / Math.max(1, now - L.t) > 1.2) this._scrollFastAt = now; this._lastSc = { t: now, st }; }
+      this.onScroll(); clearTimeout(this._sct); this._sct = setTimeout(() => { if (!this.pan && !this.pinch && !this.penDown && !this._activeLive && !this._clampAnim && !this._fling) this.clampView(true); }, 220); });
     this._ro = new ResizeObserver(() => { this.setPad(); this.clampView(); }); this._ro.observe(this.scroll);
     this.scroll.addEventListener("wheel", e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.zoomAt(this.zoom * (e.deltaY < 0 ? 1.1 : 0.9), e.clientX, e.clientY); } }, { passive: false });
     this.scroll.addEventListener("keydown", e => this.onKey(e));
@@ -226,7 +259,7 @@ export class PdfEditor {
     const PALM_AFTER_PEN = 500, PAN_SLOP = 8;
     const stopScrollMotion = () => { this._fling = null; this._clampAnim = null; this.pan = null; if (this.pinch) this.pinchEnd(); this.pointers.clear(); clearTimeout(this._initialGoto); const t = this.scroll.scrollTop, l = this.scroll.scrollLeft; this.scroll.scrollTop = t; this.scroll.scrollLeft = l; };
     this.scroll.addEventListener("pointerdown", e => {
-      this._fling = null; clearTimeout(this._initialGoto);
+      this._fling = null; clearTimeout(this._initialGoto); if (this._pendMount?.size) this.flushMounts(true);
       const palmLike = e.pointerType === "touch" && (this.penDown || Date.now() - this.penLiftAt < PALM_AFTER_PEN || (e.width > 90 && e.height > 90));
       if (e.pointerType !== "pen" && !palmLike && this.ruler?.group && (this.rulerG || this.rulerHit(e.clientX, e.clientY, e.pointerType === "mouse"))) { this.rulerDown(e); e.stopPropagation(); e.preventDefault(); return; }
       if (e.pointerType === "pen" || e.pointerType === "mouse") {
@@ -359,31 +392,44 @@ export class PdfEditor {
       const rot = p.rotation || 0; const sw = rot % 180 ? size.h : size.w, sh = rot % 180 ? size.w : size.h;
       const el = document.createElement("div"); el.className = "ed-page" + (p.type === "blank" ? " blank" : ""); el.dataset.i = i;
       el.innerHTML = `<canvas class="ed-pdf"></canvas><div class="ed-stage"></div><canvas class="ed-live"></canvas><canvas class="ed-predict"></canvas><div class="ed-pagelabel">${i + 1}</div>`;
+      const pv = this._prev.get(this.prevKey(p)); if (pv) this.setPreview(el, pv);
       this.pagesEl.append(el);
       this.pages.push({ ...p, w: sw, h: sh, baseW: size.w, baseH: size.h, el, mounted: false, stage: null, layer: null, renderTask: null });
     });
     this.applyZoomSizes(); this.setPad();
     $(".ed-pagecount", this.c).textContent = this.pages.length;
-    this.io?.disconnect();
-    this.io = new IntersectionObserver(entries => entries.forEach(en => { const pg = this.pages[+en.target.dataset.i]; if (!pg) return; if (en.isIntersecting) this.mount(pg); else this.unmount(pg); }), { root: this.scroll, rootMargin: "300px 300px" });
-    this.pages.forEach(p => this.io.observe(p.el));
+    this.io?.disconnect(); this.ioFar?.disconnect();
+    // aufbauen kurz vor dem Sichtbereich, abbauen erst weit davon entfernt (kein Neuaufbau beim Hin- und Herscrollen)
+    this.io = new IntersectionObserver(entries => entries.forEach(en => { const pg = this.pages[+en.target.dataset.i]; if (!pg) return; pg.near = en.isIntersecting; if (en.isIntersecting) this.mountSoon(pg); }), { root: this.scroll, rootMargin: "300px 300px" });
+    this.ioFar = new IntersectionObserver(entries => entries.forEach(en => { const pg = this.pages[+en.target.dataset.i]; if (pg && !en.isIntersecting) this.unmount(pg); }), { root: this.scroll, rootMargin: "100% 100%" });
+    this.pages.forEach(p => { this.io.observe(p.el); this.ioFar.observe(p.el); });
     this.pages.slice(0, 2).forEach(p => this.mount(p));
     requestAnimationFrame(() => this.clampView());
     if (this.prefs.single) this.showSingle();
   }
   applyZoomSizes(now = false) { this.pages.forEach(p => { p.el.style.width = p.w * this.zoom + "px"; p.el.style.height = p.h * this.zoom + "px"; if (p.stage && p.stageZoom) { p.stage.content.style.transformOrigin = "0 0"; p.stage.content.style.transform = `scale(${this.zoom / p.stageZoom})`; } }); this._zoomPending = true; clearTimeout(this._zc); if (now) this.flushZoom(); else this._zc = setTimeout(() => this.flushZoom(), 220); }
   flushZoom() { clearTimeout(this._zc); if (!this._zoomPending) return; this._zoomPending = false; if (this._livePg) this.releaseLiveCanvases(this._livePg); this.pages.forEach(p => { if (!p.stage) return; if (p.stageZoom !== this.zoom) { this.sizeStage(p); p.stage.batchDraw(); } if (p.mounted && p.renderedZoom !== this.zoom) this.renderPdf(p); }); }
-  sizeStage(p) { if (!p.stage) return; const r = pageDpr(p, this.zoom); p.stage.content.style.transform = ""; if (p.layerPR !== r) { p.layer.getCanvas().setPixelRatio(r); p.tmp.getCanvas().setPixelRatio(Math.min(1, r)); p.layerPR = r; } if (!p.hitPR) { try { p.layer.hitCanvas.setPixelRatio(0.75); p.tmp.hitCanvas.setPixelRatio(0.5); } catch {} p.hitPR = 1; } p.stage.size({ width: p.w * this.zoom, height: p.h * this.zoom }); p.stage.scale({ x: this.zoom, y: this.zoom }); p.stageZoom = this.zoom; }
+  sizeStage(p) { if (!p.stage) return; const r = pageDpr(p, this.zoom), lr = p.inked ? r : Math.min(r, 0.2); p.stage.content.style.transform = ""; if (p.layerPR !== lr) { p.layer.getCanvas().setPixelRatio(lr); p.tmp.getCanvas().setPixelRatio(Math.min(1, r)); p.layerPR = lr; } if (!p.hitPR) { try { p.layer.hitCanvas.setPixelRatio(0.75); p.tmp.hitCanvas.setPixelRatio(0.5); } catch {} p.hitPR = 1; } p.stage.size({ width: p.w * this.zoom, height: p.h * this.zoom }); p.stage.scale({ x: this.zoom, y: this.zoom }); p.stageZoom = this.zoom; }
   releaseLiveCanvases(pg) { $$(".ed-live, .ed-predict", pg.el).forEach(c => { c.width = 0; c.height = 0; }); if (this._livePg === pg) this._livePg = null; }
   cancelLiveStroke(type) { const a = this._activeLive; if (!a || (type && a.type !== type)) return; a.cancel(); }
   setPad() { const W = this.scroll.clientWidth, H = this.scroll.clientHeight; if (!W || !H) return; const px = Math.round(W * 0.6), py = Math.round(H * 0.6); const dx = px - (this._padX || 0), dy = py - (this._padY || 0); if (!dx && !dy) return; this.pagesEl.style.padding = `${py}px ${px}px`; this._padX = px; this._padY = py; this.scroll.scrollLeft += dx; this.scroll.scrollTop += dy; }
   viewBounds() { const W = this.scroll.clientWidth, H = this.scroll.clientHeight; let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const pg of this.pages) { const e = pg.el; if (!e.offsetParent) continue; x0 = Math.min(x0, e.offsetLeft); y0 = Math.min(y0, e.offsetTop); x1 = Math.max(x1, e.offsetLeft + e.offsetWidth); y1 = Math.max(y1, e.offsetTop + e.offsetHeight); } if (x0 === Infinity) return null; const ax = (lo, hi, V, m) => hi - lo + 2 * m <= V ? [(lo + hi) / 2 - V / 2, (lo + hi) / 2 - V / 2] : [lo - m, hi - V + m]; const [l0, l1] = ax(x0, x1, W, 12); const [t0, t1] = ax(y0, y1, H, 10); return { l0, l1, t0, t1 }; }
   clampView(smooth = false) { const b = this.viewBounds(); if (!b) return; const sl = clamp(this.scroll.scrollLeft, b.l0, b.l1), st = clamp(this.scroll.scrollTop, b.t0, b.t1); if (Math.abs(sl - this.scroll.scrollLeft) < 0.5 && Math.abs(st - this.scroll.scrollTop) < 0.5) return; if (!smooth) { this.scroll.scrollLeft = sl; this.scroll.scrollTop = st; return; } const fl = this.scroll.scrollLeft, ft = this.scroll.scrollTop, t0 = performance.now(), anim = {}; this._clampAnim = anim; const step = () => { if (this._clampAnim !== anim) return; const k = Math.min(1, (performance.now() - t0) / 200), e = 1 - Math.pow(1 - k, 3); this.scroll.scrollLeft = fl + (sl - fl) * e; this.scroll.scrollTop = ft + (st - ft) * e; if (k < 1) requestAnimationFrame(step); else this._clampAnim = null; }; requestAnimationFrame(step); }
   showSingle() { this.pages.forEach((p, i) => p.el.style.display = (!this.prefs.single || i === this.currentPage) ? "" : "none"); if (this.prefs.single) this.mount(this.pages[this.currentPage]); }
+  // waehrend schnellem Wischen keine Seiten aufbauen (Konva und Canvas kosten auf dem iPad Millisekunden je Seite)
+  mountSoon(pg) {
+    if (!this.renderShouldWait(true)) { this.mount(pg); return; }
+    (this._pendMount ||= new Set()).add(pg); clearTimeout(this._pendT); this._pendT = setTimeout(() => this.flushMounts(), 120);
+  }
+  flushMounts(force = false) {
+    clearTimeout(this._pendT); const set = this._pendMount; if (!set?.size || this.destroyed) return;
+    if (!force && this.renderShouldWait(true)) { this._pendT = setTimeout(() => this.flushMounts(), 120); return; }
+    this._pendMount = null; set.forEach(pg => { if (pg.near && this.pages[+pg.el.dataset.i] === pg) this.mount(pg); });
+  }
   async mount(pg) {
-    if (pg.mounted || this.destroyed) return; pg.mounted = true;
+    if (pg.mounted || this.destroyed) return; pg.mounted = true; pg.inked = (this.model.pages[pg.key]?.objects?.length || 0) > 0;
     this.renderPdf(pg);
-    const stage = new Konva.Stage({ container: $(".ed-stage", pg.el), width: pg.w * this.zoom, height: pg.h * this.zoom });
+    const stage = new Konva.Stage({ container: $(".ed-stage", pg.el), width: 1, height: 1 });   // Groesse setzt sizeStage
     stage.scale({ x: this.zoom, y: this.zoom });
     const layer = new Konva.Layer(); const tmp = new Konva.Layer({ listening: false }); stage.add(layer, tmp);
     pg.stage = stage; pg.layer = layer; pg.tmp = tmp; layer.listening(this.tool === "lasso"); this.sizeStage(pg);
@@ -398,23 +444,43 @@ export class PdfEditor {
   applyToolState(st) { if (!st) return; Object.assign(this, { penType: st.penType, color: st.color, width: st.width, opacity: st.opacity, eraserMode: st.eraserMode, eraserSize: st.eraserSize, shapeKind: st.shapeKind }); this._penCustom = true; if (this.tool !== st.tool) this.setTool(st.tool); else this.renderCtx(); }
   saveEraser() { try { localStorage.setItem("ed-eraser", JSON.stringify({ size: this.eraserSize, mode: this.eraserMode })); } catch {} }
   updatePenInputBtn() { const b = $(".ed-peninput", this.c); if (!b) return; const po = this.penInput === "pen_only"; b.innerHTML = po ? `${icon("pen", 16)}<span class="ed-pi">Stift</span>` : `${icon("hand", 16)}<span class="ed-pi">Finger</span>`; b.classList.toggle("active", po); b.title = po ? "Nur der Stift schreibt, Finger scrollt und zoomt (tippen zum Umschalten)" : "Finger und Stift schreiben (tippen für „Nur Stift“)"; }
-  unmount(pg) { if (!pg.mounted) return; pg.mounted = false; pg.layerPR = pg.hitPR = pg.stageZoom = undefined; if (this._livePg === pg) this._livePg = null; const lv = $(".ed-live", pg.el); if (lv) { lv.width = 0; lv.height = 0; } const pv = $(".ed-predict", pg.el); if (pv) { pv.width = 0; pv.height = 0; } pg.renderTask?.cancel?.(); pg.renderTask = null; if (pg.stage) { pg.stage.destroy(); pg.stage = null; pg.layer = null; } const cv = $(".ed-pdf", pg.el); cv.width = cv.height = 0; this.selection = this.selection.filter(s => s.pg !== pg); }
-  async renderPdf(pg) {
-    const cv = $(".ed-pdf", pg.el); const dpr = pageDpr(pg, this.zoom);
-    if (pg.type !== "pdf" && pg.type !== "asset") { this.renderTemplate(cv, pg, dpr); return; }
+  unmount(pg) { this._pendMount?.delete(pg); if (!pg.mounted) return; pg.mounted = false; if (pg._rq) { renderQ.wait.delete(pg._rq); pg._rq = null; } pg.layerPR = pg.hitPR = pg.stageZoom = undefined; if (this._livePg === pg) this._livePg = null; const lv = $(".ed-live", pg.el); if (lv) { lv.width = 0; lv.height = 0; } const pv = $(".ed-predict", pg.el); if (pv) { pv.width = 0; pv.height = 0; } pg.renderTask?.cancel?.(); pg.renderTask = null; if (pg.stage) { pg.stage.destroy(); pg.stage = null; pg.layer = null; } const cv = $(".ed-pdf", pg.el); cv.width = cv.height = 0; this.selection = this.selection.filter(s => s.pg !== pg); }
+  // Vorlagenseiten sofort, PDF-Seiten ueber die gemeinsame Warteschlange
+  renderPdf(pg) {
+    if (pg.type !== "pdf" && pg.type !== "asset") { this.renderTemplate($(".ed-pdf", pg.el), pg, pageDpr(pg, this.zoom)); return; }
+    if (pg._rq) return; pg._rq = { ed: this, pg }; renderQ.wait.add(pg._rq); pumpRender();
+  }
+  async renderPdfNow(pg) {
     let doc = this.pdf;
     if (pg.type === "asset") doc = await this.assetDoc(pg.assetUrl);
-    if (!doc) return;
+    if (!doc || !pg.mounted || this.destroyed) return;
     const page = await doc.getPage(pg.index);
-    if (!pg.mounted) return;
+    if (!pg.mounted || this.destroyed) return;
     pg.renderTask?.cancel?.();
-    const vp = page.getViewport({ scale: this.zoom * dpr, rotation: ((page.rotate || 0) + (pg.rotation || 0)) % 360 });
-    const off = document.createElement("canvas"); off.width = vp.width; off.height = vp.height;
+    const zoom = this.zoom, vp = page.getViewport({ scale: zoom * pageDpr(pg, zoom), rotation: ((page.rotate || 0) + (pg.rotation || 0)) % 360 });
+    // in eine neue Canvas rendern und fertig einsetzen: bis dahin bleibt die alte Darstellung bzw. die Vorschau stehen
+    const off = document.createElement("canvas"); off.className = "ed-pdf"; off.width = vp.width; off.height = vp.height; off.style.width = "100%"; off.style.height = "100%";
     const task = page.render({ canvasContext: off.getContext("2d"), viewport: vp }); pg.renderTask = task;
+    task.onContinue = next => this.paceRender(next);
     try { await task.promise; } catch { off.width = off.height = 0; return; }
     if (!pg.mounted || pg.renderTask !== task) { off.width = off.height = 0; return; }
-    cv.width = vp.width; cv.height = vp.height; cv.style.width = "100%"; cv.style.height = "100%";
-    cv.getContext("2d").drawImage(off, 0, 0); off.width = off.height = 0; pg.renderedZoom = this.zoom;
+    pg.renderTask = null;
+    const cv = $(".ed-pdf", pg.el); if (cv) { cv.replaceWith(off); cv.width = cv.height = 0; } else pg.el.prepend(off);
+    pg.renderedZoom = zoom; this.savePreview(pg, off);
+    if (zoom !== this.zoom) this.renderPdf(pg);          // waehrenddessen gezoomt
+  }
+  // pdf.js meldet sich nach jedem Happen: waehrend Wischen, Zoomen und Schreiben kurz warten (je Happen hoechstens 1,5 s)
+  paceRender(next, since = performance.now()) { if (!this.destroyed && this.renderShouldWait() && performance.now() - since < 1500) { setTimeout(() => this.paceRender(next, since), 50); return; } next(); }
+  renderShouldWait(scrollOnly = false) { const moving = !!this._fling || performance.now() - (this._scrollFastAt || 0) < 120; return scrollOnly ? moving : moving || !!this.pinch || document.documentElement.classList.contains("ed-inking"); }
+  pageDistance(pg) { const s = this.scroll, e = pg.el, hz = this.prefs.scroll === "horizontal"; const V = Math.max(1, hz ? s.clientWidth : s.clientHeight), c = (hz ? s.scrollLeft : s.scrollTop) + V / 2, a = hz ? e.offsetLeft : e.offsetTop, b = a + (hz ? e.offsetWidth : e.offsetHeight); return (c < a ? a - c : c > b ? c - b : 0) / V; }
+  // kleine JPEG-Vorschau je Seite: beim Zurueckscrollen sofort sichtbar, bis die scharfe Darstellung fertig ist
+  prevKey(p) { return `${p.key}:${p.rotation || 0}`; }
+  setPreview(el, url) { el.style.background = `#fff url("${url}") 0 0 / 100% 100% no-repeat`; }
+  savePreview(pg, src) {
+    const k = this.prevKey(pg); if (this._prev.has(k) || !src.width) return; this._prev.set(k, "");
+    const c = document.createElement("canvas"), s = Math.min(1, 360 / src.width); c.width = Math.max(1, Math.round(src.width * s)); c.height = Math.max(1, Math.round(src.height * s));
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+    c.toBlob(b => { c.width = c.height = 0; if (!b || this.destroyed) { this._prev.delete(k); return; } const u = URL.createObjectURL(b); this._prev.set(k, u); const p = this.pages.find(x => this.prevKey(x) === k); if (p) this.setPreview(p.el, u); }, "image/jpeg", 0.7);
   }
   renderTemplate(cv, pg, dpr) {
     const W = Math.round(pg.w * this.zoom * dpr), H = Math.round(pg.h * this.zoom * dpr); cv.width = W; cv.height = H; cv.style.width = "100%"; cv.style.height = "100%";
@@ -456,7 +522,9 @@ export class PdfEditor {
       const img = new Image(); img.onload = () => { if (o.crop) node.crop(o.crop); node.image(img); pg.layer?.batchDraw(); }; img.src = o.src;
     }
     if (!node) return null;
-    node.setAttr("obj", o); pg.layer.add(node); pg.tr.moveToTop();
+    node.setAttr("obj", o);
+    if (!pg.inked) { pg.inked = true; if (pg.stage && pg.layerPR !== undefined) { const r = pageDpr(pg, this.zoom); pg.layer.getCanvas().setPixelRatio(r); pg.layerPR = r; } }
+    pg.layer.add(node); pg.tr.moveToTop();
     node.on("dragend transformend", () => this.syncNode(pg, node));
     return node;
   }
@@ -819,9 +887,9 @@ export class PdfEditor {
   accessoriesPop(btn) { this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Zubehör</div><button data-ac="record">${icon("circle", 16)} ${this.recorder ? "Aufnahme stoppen" : "Aufnehmen"}</button><button data-ac="recs">${icon("sync", 16)} Aufnahmen anzeigen</button><button data-ac="zoomwin">${icon("zoom-in", 16)} Zoom-Ansicht ${this.zoomWin ? "(aus)" : ""}</button><button data-ac="ruler">${icon("line", 16)} Lineal ${this.ruler ? "(aus)" : ""}</button><button data-ac="timer">${icon("clock", 16)} Zeitmesser</button><div class="ed-menu-sub"></div><button data-ac="toolbar">${icon("settings", 16)} Werkzeugleiste anpassen</button></div>`); $$("[data-ac]", this.pop).forEach(b => b.onclick = () => { const k = b.dataset.ac; if (k !== "toolbar") this.pop.hidden = true; if (k === "record") this.toggleRecording(); if (k === "recs") { this.sideTab = "rec"; $$("[data-side]", this.c).forEach(x => x.classList.toggle("active", x.dataset.side === "rec")); this.toggleSide(true); } if (k === "zoomwin") this.toggleZoomWin(); if (k === "ruler") this.toggleRuler(); if (k === "timer") this.onAccessory("timer"); if (k === "toolbar") this.toolbarPop(btn); }); }
 
   // ---------------------------------------------------------------- Navigation, Zoom, Vollbild
-  setCurrent(pg) { const i = this.pages.indexOf(pg); if (i >= 0 && i !== this.currentPage) { this.currentPage = i; $(".ed-pageno", this.c).value = i + 1; $$(".ed-thumb", this.c).forEach(t => t.classList.toggle("active", +t.dataset.i === i)); $(".ed-ai-page", this.c).textContent = `Seite ${i + 1}`; this.onPage(i + 1); if (this.ruler) this.showRuler(pg); if (this.zoomWin) this.zoomWinSetPage(pg); } }
+  setCurrent(pg) { if (this.destroyed) return; const i = this.pages.indexOf(pg); if (i >= 0 && i !== this.currentPage) { this.currentPage = i; $(".ed-pageno", this.c).value = i + 1; $$(".ed-thumb", this.c).forEach(t => t.classList.toggle("active", +t.dataset.i === i)); $(".ed-ai-page", this.c).textContent = `Seite ${i + 1}`; this.onPage(i + 1); if (this.ruler) this.showRuler(pg); if (this.zoomWin) this.zoomWinSetPage(pg); } }
   onScroll() { if (this.prefs.single) return; const horiz = this.prefs.scroll === "horizontal"; const mid = horiz ? this.scroll.scrollLeft + this.scroll.clientWidth / 2 : this.scroll.scrollTop + this.scroll.clientHeight / 3; let best = 0; for (let i = 0; i < this.pages.length; i++) { const el = this.pages[i].el; if ((horiz ? el.offsetLeft : el.offsetTop) <= mid) best = i; else break; } this.setCurrent(this.pages[best]); }
-  goToPage(i) { i = clamp(i, 0, this.pages.length - 1); if (this.prefs.single) { this.currentPage = i; this.showSingle(); this.setCurrent(this.pages[i]); $(".ed-pageno", this.c).value = i + 1; return; } const el = this.pages[i].el; this.prefs.scroll === "horizontal" ? this.scroll.scrollTo({ left: el.offsetLeft - 12, behavior: "smooth" }) : this.scroll.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" }); this.setCurrent(this.pages[i]); }
+  goToPage(i) { if (this.destroyed || !this.pages.length) return; i = clamp(i, 0, this.pages.length - 1); if (this.prefs.single) { this.currentPage = i; this.showSingle(); this.setCurrent(this.pages[i]); $(".ed-pageno", this.c).value = i + 1; return; } const el = this.pages[i].el; this.prefs.scroll === "horizontal" ? this.scroll.scrollTo({ left: el.offsetLeft - 12, behavior: "smooth" }) : this.scroll.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" }); this.setCurrent(this.pages[i]); }
   zoomTo(z, anchor) { z = clamp(z, 0.3, 6); const old = this.zoom; if (Math.abs(z - old) < 0.001) return; const sr = this.scroll.getBoundingClientRect(); const a = anchor || { x: this.scroll.clientWidth / 2, y: this.scroll.clientHeight / 2 }; const ax = sr.left + a.x, ay = sr.top + a.y; let ref = null; for (const pg of this.pages) { const r = pg.el.getBoundingClientRect(); if (r.width && ay >= r.top - 30 && ay <= r.bottom + 30) { ref = { pg, px: (ax - r.left) / old, py: (ay - r.top) / old }; break; } } if (!ref) { const pg = this.pages[this.currentPage] || this.pages[0]; const r = pg.el.getBoundingClientRect(); ref = { pg, px: (ax - r.left) / old, py: (ay - r.top) / old }; } this.zoom = z; this.model.zoom = z; this.applyZoomSizes(); this.updateZoomLabel(); const r2 = ref.pg.el.getBoundingClientRect(); this.scroll.scrollLeft += (r2.left + ref.px * z) - ax; this.scroll.scrollTop += (r2.top + ref.py * z) - ay; this.dirty = true; clearTimeout(this._zs); this._zs = setTimeout(() => this.flush(), 2500); if (this.ruler) this.showRuler(this.pages[this.currentPage]); if (!this.pinch && !this._pinchCommit) this.clampView(); }
   zoomAt(z, clientX, clientY) { const r = this.scroll.getBoundingClientRect(); this.zoomTo(z, { x: clientX - r.left, y: clientY - r.top }); }
   fitWidth() { const pg = this.pages[this.currentPage] || this.pages[0]; this.zoomTo((this.scroll.clientWidth - 40) / pg.w); }
@@ -940,10 +1008,14 @@ export class PdfEditor {
     else if (k === "f11") { e.preventDefault(); this.toggleFullscreen(); }
   }
   async destroy() {
-    this.destroyed = true; clearTimeout(this._t); if (this.recorder) this.recorder.stop(); if (this.dirty) { this._writeDraft(true); await this.flush(); } clearTimeout(this._draftT);
-    this.io?.disconnect(); this.thumbIO?.disconnect(); this._ro?.disconnect(); this.pages.forEach(p => this.unmount(p));
+    if (this.destroyed) return; this.destroyed = true; clearTimeout(this._t); clearTimeout(this._pendT); clearTimeout(this._initialGoto); if (this.recorder) this.recorder.stop();
+    const unsaved = this.dirty; if (unsaved) this._writeDraft(true); clearTimeout(this._draftT);
+    this.io?.disconnect(); this.ioFar?.disconnect(); this.thumbIO?.disconnect(); this._ro?.disconnect(); this.pages.forEach(p => this.unmount(p));
     document.removeEventListener("keydown", this._space); document.removeEventListener("keyup", this._spaceUp); document.removeEventListener("pointerdown", this._popClose); document.removeEventListener("gesturestart", this._gest); document.removeEventListener("gesturechange", this._gest); document.removeEventListener("selectstart", this._selStart); window.removeEventListener("pointerup", this._winUp); window.removeEventListener("pointercancel", this._winUp); document.removeEventListener("visibilitychange", this._resetInput); window.removeEventListener("blur", this._resetInput); window.removeEventListener("pagehide", this._resetInput); document.documentElement.classList.remove("ed-inking"); window.removeEventListener("online", this._online);
     this.pdf?.destroy?.(); this.assetDocs.forEach(d => d.destroy?.()); this.c.innerHTML = ""; this.c.classList.remove("ed");
+    this._prev.forEach(u => u && URL.revokeObjectURL(u)); this._prev.clear();
+    // der Entwurf liegt schon in IndexedDB; das Senden laeuft weiter, Schliessen und Seitenwechsel warten hoechstens 1,5 s
+    if (unsaved) await Promise.race([this.flush(), new Promise(r => setTimeout(r, 1500))]);
   }
 }
 

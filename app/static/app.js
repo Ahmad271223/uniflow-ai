@@ -1,10 +1,10 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=25";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=25";
-import { viewFiles } from "./views-lib.js?v=25";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=25";
-import { viewTimetable, openEvent } from "./views-tt.js?v=25";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=25";
+import { $, $$, api, esc, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=26";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=26";
+import { viewFiles } from "./views-lib.js?v=26";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=26";
+import { viewTimetable, openEvent } from "./views-tt.js?v=26";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=26";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
@@ -49,7 +49,7 @@ window.pollBg = pollBg;
 async function updateSyncChip() { try { const s = await api("/sync/status"); const l = s.log[0]; $("#syncChip").innerHTML = l ? `${icon(l.ok ? "check" : "alert", 14, l.ok ? "ok" : "")} Zuletzt synchronisiert: ${new Date(l.finished_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : `${icon("info", 14)} Noch kein Sync`; $("#syncChip").title = l ? l.message : ""; } catch {} }
 // Fehler sichtbar machen (Diagnose unter Einstellungen → Diagnose)
 state.errors = [];
-function noteError(msg, src) { const m = String(msg || "Unbekannter Fehler"); state.errors.push({ t: new Date().toISOString(), msg: m, src: src || "" }); if (state.errors.length > 30) state.errors.shift(); if (!noteError._shown) { noteError._shown = true; toast("Fehler: " + m.slice(0, 120), 5000); setTimeout(() => noteError._shown = false, 8000); } }
+function noteError(msg, src) { const m = String(msg || "Unbekannter Fehler"); if (/ResizeObserver loop/i.test(m)) return; /* harmlose Browsermeldung */ state.errors.push({ t: new Date().toISOString(), msg: m, src: src || "" }); if (state.errors.length > 30) state.errors.shift(); if (!noteError._shown) { noteError._shown = true; toast("Fehler: " + m.slice(0, 120), 5000); setTimeout(() => noteError._shown = false, 8000); } }
 window.addEventListener("error", e => noteError(e.message, e.filename ? `${e.filename.split("/").pop()}:${e.lineno}` : ""));
 window.addEventListener("unhandledrejection", e => noteError(e.reason?.message || e.reason, "promise"));
 api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); }).catch(() => {});

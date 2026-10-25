@@ -472,6 +472,12 @@ body.fullscreen-doc .fs-exit { display: inline-flex; position: fixed; top: 10px;
 
 /* ---- Skriptsuche-Hinweis und ziehbarer Trenner der geteilten Ansicht ---- */
 .doc-panes { position: relative; }
+/* zweites Dokument: Titel und Schliessen, auch im Vollbild sichtbar */
+.pane-bar { display: flex; align-items: center; gap: .4rem; min-height: 34px; padding: 0 .1rem .3rem; font-size: .82rem; color: var(--muted); }
+.pane-bar .t { flex: 1; min-width: 0; display: flex; align-items: center; gap: .35rem; white-space: nowrap; overflow: hidden; }
+.pane-bar .t b { overflow: hidden; text-overflow: ellipsis; color: var(--text); font-weight: 600; }
+.pane-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pane-body > .ed-host, .pane-body > .pane-empty { flex: 1; min-height: 0; }
 .split-handle { cursor: col-resize; display: flex; align-items: center; justify-content: center; touch-action: none; border-radius: 6px; }
 .split-handle i { width: 4px; height: 48px; border-radius: 4px; background: var(--line-strong); }
 .split-handle:hover i, .split-handle:active i { background: var(--accent); }
