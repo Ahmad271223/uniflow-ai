@@ -1,0 +1,4 @@
+// Vorlage: nach Team.xcconfig kopieren (wird nicht eingecheckt, siehe .gitignore) und die Team-ID aus dem
+// bezahlten Apple Developer Program eintragen. Danach `xcodegen generate`.
+DEVELOPMENT_TEAM = ABCDE12345
+CODE_SIGN_ENTITLEMENTS = UniFlow/UniFlow.entitlements

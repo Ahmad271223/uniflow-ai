@@ -39,6 +39,21 @@ Offen, weil Hosting noch nicht entschieden ist (siehe `KONTEN-ABOS-PLAN.md`): St
 | `NSLocalNetworkUsageDescription` | „UniFlow verbindet sich mit deinem UniFlow-Server im WLAN.“ | nur Development |
 | (keine Kamera, kein Mikrofon, kein Standort) | – | Aufnahmen gibt es nur im Web-Editor |
 
+## Mit Apple anmelden freischalten
+
+Die Fähigkeit *Sign in with Apple* gibt es nur mit dem bezahlten Apple Developer Program. Damit Simulator, CI und
+Builds mit kostenloser Apple-ID (Personal Team) weiter funktionieren, ist sie nicht fest eingetragen:
+
+1. `apps/apple/Config/Team.xcconfig.example` nach `apps/apple/Config/Team.xcconfig` kopieren (steht in `.gitignore`).
+2. Dort die Team-ID des bezahlten Programms eintragen; `CODE_SIGN_ENTITLEMENTS` zeigt auf
+   `UniFlow/UniFlow.entitlements` (`com.apple.developer.applesignin`).
+3. `xcodegen generate`. Ohne diese Datei meldet der Knopf „Mit Apple anmelden“, dass die Anmeldung in diesem Build
+   nicht verfügbar ist; im Debug-Build gibt es „Anmeldung überspringen (Debug)“.
+
+Beim Löschen des Kontos widerruft V1 keine Apple-Token, weil die App keine speichert (der `authorizationCode` wird
+nicht eingelöst). Ab V2 mit Server müssen die Token beim Löschen über `https://appleid.apple.com/auth/revoke`
+widerrufen werden.
+
 ## Datenschutz
 
 - `PrivacyInfo.xcprivacy` (Privacy Manifest): genutzte „Required Reason APIs“ angeben (`UserDefaults`: CA92.1,

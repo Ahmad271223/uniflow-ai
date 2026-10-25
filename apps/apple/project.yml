@@ -23,6 +23,10 @@ targets:
       - path: UniFlow
     dependencies:
       - package: UniFlowCore
+    # Team und "Mit Apple anmelden" nur mit der nicht eingecheckten Config/Team.xcconfig (siehe Config/Base.xcconfig)
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai

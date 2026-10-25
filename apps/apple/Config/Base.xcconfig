@@ -1,0 +1,5 @@
+// Gemeinsame Einstellungen der App fuer Debug und Release (in project.yml unter configFiles).
+// Die nicht eingecheckte Team.xcconfig (Vorlage: Team.xcconfig.example) setzt das bezahlte Team und schaltet
+// damit "Mit Apple anmelden" frei. Fehlt sie, bauen Simulator, CI und kostenlose Personal-Team-Builds wie bisher
+// ohne diese Faehigkeit; der Knopf meldet dann, dass die Anmeldung in diesem Build nicht verfuegbar ist.
+#include? "Team.xcconfig"
