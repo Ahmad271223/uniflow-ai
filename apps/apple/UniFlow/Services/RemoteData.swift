@@ -60,13 +60,15 @@ final class RemoteData: ObservableObject {
 
     func load() async {
         guard let api else { state = .failed("Nicht mit dem Server verbunden."); return }
-        if value == nil, let cached = ResponseCache.shared.load(path) { state = .loaded(cached.0, offlineSince: cached.1) }
+        // Zwischenspeicher je Server getrennt (sonst zeigt ein anderer Server alte Daten)
+        let key = api.base.absoluteString + path
+        if value == nil, let cached = ResponseCache.shared.load(key) { state = .loaded(cached.0, offlineSince: cached.1) }
         do {
             let v = try await api.value(path)
-            ResponseCache.shared.store(v, for: path)
+            ResponseCache.shared.store(v, for: key)
             state = .loaded(v, offlineSince: nil)
         } catch {
-            if let cached = ResponseCache.shared.load(path) {
+            if let cached = ResponseCache.shared.load(key) {
                 state = .loaded(cached.0, offlineSince: cached.1)
             } else {
                 state = .failed(error.localizedDescription)

@@ -53,6 +53,7 @@ final class Session: ObservableObject {
 
 /// Nur Debug-Builds: Startargumente fuer Simulator und UI-Vergleiche.
 ///   -UFServer http://localhost:8765   verbindet ohne PIN (nur fuer einen lokalen Testserver, der keine PIN verlangt)
+///   -UFDisconnect YES -UFServerHint <url>   trennt die Verbindung und traegt die Adresse vor; die PIN gibt der Inhaber ein
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>)
@@ -62,6 +63,11 @@ enum DebugLaunch {
     static func apply(session: Session, router: UFRouter, overlay: UFOverlay, toast: UFToastCenter) async {
         #if DEBUG
         let d = UserDefaults.standard
+        if d.bool(forKey: "UFDisconnect") {
+            session.disconnect()
+            if let hint = d.string(forKey: "UFServerHint") { d.set(hint, forKey: "uniflow.serverURL") }
+            return
+        }
         if let server = d.string(forKey: "UFServer"), session.api?.base.absoluteString != server {
             await session.connect(urlString: server, pin: "")
         }

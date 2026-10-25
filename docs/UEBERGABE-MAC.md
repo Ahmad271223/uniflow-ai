@@ -53,8 +53,12 @@ cd apps/apple && xcodegen generate
 xcrun simctl list devices available | grep iPad
 xcodebuild build -project UniFlow.xcodeproj -scheme UniFlow \
   -destination 'platform=iOS Simulator,name=<iPad-Simulator aus der Liste>' \
-  CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|warning:|BUILD" | head -80
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= CODE_SIGNING_REQUIRED=NO \
+  2>&1 | grep -E "error:|warning:|BUILD" | head -80
 ```
+
+Ad-hoc signieren (`CODE_SIGN_IDENTITY=-`), nicht `CODE_SIGNING_ALLOWED=NO`: Ein unsignierter Simulator-Build darf nicht
+in den Schlüsselbund schreiben, die PIN geht dann bei jeder Neuinstallation verloren (geprüft von `KeychainTests`).
 
 Danach Tests: `xcodebuild test` mit demselben `-destination` (wie in `.github/workflows/apple.yml`).
 
