@@ -81,7 +81,7 @@ struct ForeignSolutionLayer: Identifiable {
 enum SolutionPreview {
     static func image(_ page: SolutionPage, images: [String: UIImage], width: CGFloat, scale: CGFloat = 2) -> UIImage {
         let (w, h) = page.displaySize
-        let size = CGSize(width: max(1, w), height: max(1, h))
+        let size = CGSize(width: ForeignLayerView.pageSide(w), height: ForeignLayerView.pageSide(h))
         let s = width / size.width
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
@@ -134,13 +134,20 @@ final class ForeignLayerView: UIView {
     private let objectsView: PageObjectsView
     private let strokes = CALayer()
 
+    /// Seitenlaenge fuer die Anzeige: endlich, 1...`SolutionLimits.maxPageSide` (geprueft ist das schon beim
+    /// Oeffnen; hier zusaetzlich, damit keine Ebene mit NaN oder Unendlich entstehen kann).
+    static func pageSide(_ v: Double) -> Double {
+        v.isFinite ? min(SolutionLimits.maxPageSide, max(1, v)) : 1
+    }
+
     /// - Parameter targetRotation: Drehung der angezeigten Seite beim Betrachter (`/Rotate` + eigene Drehung).
     init(solutionID: String, page: SolutionPage, images: [String: UIImage], targetRotation: Int, label: String) {
         self.solutionID = solutionID
-        let (sw, sh) = page.displaySize
-        let (tw, th) = SolutionGeometry.displaySize(width: page.width, height: page.height, rotation: targetRotation)
+        let pw = Self.pageSide(page.width), ph = Self.pageSide(page.height)
+        let (sw, sh) = SolutionGeometry.displaySize(width: pw, height: ph, rotation: page.rotation)
+        let (tw, th) = SolutionGeometry.displaySize(width: pw, height: ph, rotation: targetRotation)
         let source = CGRect(x: 0, y: 0, width: sw, height: sh)
-        let t = SolutionGeometry.transform(width: page.width, height: page.height, from: page.rotation, to: targetRotation)
+        let t = SolutionGeometry.transform(width: pw, height: ph, from: page.rotation, to: targetRotation)
         mapping = CGAffineTransform(a: t.a, b: t.b, c: t.c, d: t.d, tx: t.tx, ty: t.ty)
         objectsView = PageObjectsView(frame: source)
         super.init(frame: CGRect(x: 0, y: 0, width: tw, height: th))

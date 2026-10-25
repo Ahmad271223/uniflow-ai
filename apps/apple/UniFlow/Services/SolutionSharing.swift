@@ -140,7 +140,7 @@ enum SolutionSharing {
         try? fm.removeItem(at: root)
         let dir = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent(PDFExporter.safeFileName(title) + " – Lösung." + SolutionPackage.fileExtension)
+        let url = dir.appendingPathComponent(PDFExporter.fileName(title, suffix: " – Lösung." + SolutionPackage.fileExtension))
         try package.encoded().write(to: url, options: .atomic)
         return url
     }

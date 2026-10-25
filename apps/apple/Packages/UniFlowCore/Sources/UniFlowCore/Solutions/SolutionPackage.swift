@@ -39,6 +39,8 @@ public enum SolutionError: Error, Equatable, CustomStringConvertible, LocalizedE
     /// Es sollte etwas mit PDF-Daten geteilt werden (nie erlaubt).
     case containsPDFData
     case nothingSelected
+    /// Auf den gewaehlten Seiten gibt es kein einziges eigenes Notizobjekt (es entsteht kein leeres Paket).
+    case noOwnNotes
     /// Eingebettetes Bild mit zu grossen Pixelmassen (Schutz vor Speicherabbruch beim Anzeigen).
     case imageTooLarge
     /// Eine andere Loesung mit derselben Loesungs-ID ist schon gespeichert (sie bleibt erhalten).
@@ -61,6 +63,8 @@ public enum SolutionError: Error, Equatable, CustomStringConvertible, LocalizedE
         case .nonFiniteNumber: return "Die Lösung enthält ungültige Zahlen."
         case .containsPDFData: return "Geteilt werden dürfen nur eigene Notizen – PDF-Inhalte sind nicht erlaubt."
         case .nothingSelected: return "Keine Seite ausgewählt."
+        case .noOwnNotes:
+            return "Auf den gewählten Seiten gibt es keine eigenen Notizen. Schreibe oder zeichne zuerst etwas – leere Lösungen werden nicht geteilt."
         case .imageTooLarge: return "Die Lösung enthält ein Bild mit zu großen Abmessungen. Sie wird nicht angezeigt."
         case .conflictingSolution:
             return "Eine andere Lösung mit derselben Kennung ist schon gespeichert. Die vorhandene Lösung bleibt erhalten."

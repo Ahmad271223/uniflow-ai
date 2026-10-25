@@ -327,10 +327,11 @@ final class DocumentStore: ObservableObject {
         }
     }
 
-    /// Alles Ausstehende sofort verarbeiten (vor dem Schliessen, beim Wechsel in den Hintergrund).
+    /// Alles Ausstehende sofort verarbeiten (vor dem Schliessen, beim Wechsel in den Hintergrund, vor Export und
+    /// Teilen). Laeuft schon eine Umrechnung, wird auf sie gewartet: danach ist jeder Strich gesichert, auch einer,
+    /// der waehrenddessen dazukam.
     func flush() async {
-        processTask?.cancel()
-        await processPending()
+        await settlePending()
         await engine.requestUpload()
     }
 
@@ -480,7 +481,7 @@ final class DocumentStore: ObservableObject {
     }
 
     func exportPDF() async throws -> URL {
-        await processPending()
+        await settlePending()
         guard let layout else { throw APIError(status: 0, message: "Dokument nicht geladen") }
         let doc = await engine.currentDocument()
         var srcs = Set<String>()
@@ -545,8 +546,7 @@ final class DocumentStore: ObservableObject {
             UIApplication.shared.endBackgroundTask(box.id)
             box.id = .invalid
         }
-        processTask?.cancel()
-        await processPending()
+        await settlePending()
         await engine.syncNow()
         if box.id != .invalid { UIApplication.shared.endBackgroundTask(box.id); box.id = .invalid }
     }
@@ -600,7 +600,8 @@ extension DocumentStore: PageStructureEditing {
 
     /// Ausstehende Striche vollstaendig verarbeiten. `processPending` kehrt sofort zurueck, wenn schon eine
     /// Verarbeitung laeuft; dann auf deren Ende warten, bis nichts mehr aussteht (sonst landen veraltete Objekte
-    /// im Papierkorb, und Wiederherstellen schreibt diesen Stand zurueck).
+    /// im Papierkorb, Wiederherstellen schreibt diesen Stand zurueck, und Export oder Teilen kaemen ohne die
+    /// gerade umgerechneten Striche).
     private func settlePending() async {
         processTask?.cancel()
         while true {

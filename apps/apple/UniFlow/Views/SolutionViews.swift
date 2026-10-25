@@ -105,6 +105,11 @@ struct SolutionShareSheet: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(summary(preview)).ufFont(13.12, 600).foregroundStyle(UF.text2)
+                if !selected.isEmpty, !hasNotes(preview) {
+                    // nie ein leeres Paket: Teilen bleibt gesperrt, bis eine Seite mit Notizen gewaehlt ist
+                    Label(SolutionError.noOwnNotes.description, systemImage: "exclamationmark.triangle")
+                        .ufFont(13.12).foregroundStyle(UF.warn).fixedSize(horizontal: false, vertical: true)
+                }
                 let missing = missingImages(preview)
                 if missing > 0 {
                     Label(missing == 1 ? "1 Bild ist nicht verfügbar und fehlt in der Lösung."
@@ -143,7 +148,7 @@ struct SolutionShareSheet: View {
                 Text(SolutionTexts.communityNotConnected).ufFont(12.8).foregroundStyle(UF.muted)
             }
             UFButton(busy ? "Wird erstellt …" : "Als Datei teilen", icon: "download", kind: .primary) { share() }
-                .disabled(busy || selected.isEmpty)
+                .disabled(busy || selected.isEmpty || !(preview.map(hasNotes) ?? false))
         }
     }
 
@@ -154,6 +159,9 @@ struct SolutionShareSheet: View {
     }
 
     private func chosen(_ preview: SolutionContent) -> [SolutionPage] { preview.pages.filter { selected.contains($0.key) } }
+
+    /// Mindestens eine gewaehlte Seite hat eigene Notizobjekte.
+    private func hasNotes(_ preview: SolutionContent) -> Bool { chosen(preview).contains { !$0.objects.isEmpty } }
 
     private func summary(_ preview: SolutionContent) -> String {
         let pages = chosen(preview)

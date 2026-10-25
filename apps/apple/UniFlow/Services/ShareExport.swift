@@ -38,8 +38,8 @@ struct SharePayload: Equatable, Sendable {
         }
     }
 
-    /// Dateiname fuer das Teilen-Menue: Titel.pdf
-    var fileName: String { PDFExporter.safeFileName(title) + ".pdf" }
+    /// Dateiname fuer das Teilen-Menue: Titel.pdf (lange Titel gekuerzt, siehe `PDFExporter.fileName`)
+    var fileName: String { PDFExporter.fileName(title, suffix: ".pdf") }
 }
 
 enum ShareExportError: LocalizedError, Equatable {

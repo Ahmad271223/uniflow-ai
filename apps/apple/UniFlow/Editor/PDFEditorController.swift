@@ -51,6 +51,10 @@ final class PageInkView: UIView {
     var undoBase = PKDrawing()
     /// Aenderung, waehrend der Stift noch aktiv ist (z. B. Radierer): Eintrag erst beim Absetzen anlegen.
     var undoPending = false
+    /// Die Canvas hat eine Aenderung, die der Store noch nicht hat (nur moeglich, solange das Laden laeuft).
+    var unsaved = false
+    /// Fremde Ebenen wurden nach einer Speicherwarnung freigegeben und werden beim naechsten Anzeigen neu gebaut.
+    var foreignReleased = false
 
     init(pageIndex: Int, pageKey: String = "", generation: Int = 0, geometry: PageGeometry) {
         self.pageIndex = pageIndex
@@ -88,6 +92,13 @@ final class PageInkView: UIView {
     func setForeign(_ views: [ForeignLayerView]) {
         foreignView.subviews.forEach { $0.removeFromSuperview() }
         views.forEach { foreignView.addSubview($0) }
+        foreignReleased = false
+    }
+
+    /// Fremde Ebenen freigeben (Speicherwarnung); die Auswahl der Ebenen bleibt im Editor.
+    func releaseForeign() {
+        foreignView.subviews.forEach { $0.removeFromSuperview() }
+        foreignReleased = true
     }
 
     var foreignLayerViews: [ForeignLayerView] { foreignView.subviews.compactMap { $0 as? ForeignLayerView } }
@@ -172,7 +183,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var foreignLayers: [ForeignSolutionLayer] = [] {
         didSet {
             foreignSignature = Self.signature(foreignLayers)
-            allOverlays.forEach(applyForeign)
+            // nach einer Speicherwarnung freigegebene Seiten bauen ihre Ebenen erst beim Anzeigen neu auf
+            for overlay in allOverlays where !overlay.foreignReleased { applyForeign(overlay) }
         }
     }
     /// Kennung der gezeigten fremden Ebenen (IDs und Sichtbarkeit), damit SwiftUI nicht bei jeder Aktualisierung
@@ -205,7 +217,17 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         }
     }
 
-    override var undoManager: UndoManager? { documentUndo }
+    /// Verlauf fuer den Ansichtsmodus: leer und ohne Eintraege, damit Rueckgaengig ueber das System (Cmd-Z,
+    /// Wischen mit drei Fingern, Leiste der Palette) nichts zuruecknimmt und nichts schreibt.
+    private let viewOnlyUndo: UndoManager = {
+        let u = UndoManager()
+        u.disableUndoRegistration()
+        return u
+    }()
+
+    /// Verlauf der Responder-Kette. Ausgeblendete eigene Notizen = nur ansehen: kein Rueckgaengig (der Verlauf des
+    /// Dokuments bleibt erhalten und gilt wieder, sobald die Notizen eingeblendet sind).
+    override var undoManager: UndoManager? { ownNotesVisible ? documentUndo : viewOnlyUndo }
 
     init(store: DocumentStore, toolPicker: PKToolPicker? = nil, ownsToolPicker: Bool = true,
          undoManager: UndoManager? = nil, initialPDFPage: Int? = nil) {
@@ -295,9 +317,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         if ownsToolPicker { toolPicker.setVisible(false, forFirstResponder: anchor) }
+        // Gesichert ist schon alles: jede Aenderung geht sofort an den Store (siehe `saveIfChanged`)
         for v in allOverlays where v.loaded {
             commitPendingUndo(v)
-            store.canvasChanged(pageKey: v.pageKey, drawing: v.canvas.drawing)
+            saveIfChanged(v)
         }
         if !ownsToolPicker {
             // geteilter Verlauf: Eintraege dieses Dokuments entfernen, sonst wirkt "Rueckgaengig" ins Leere
@@ -363,10 +386,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             pendingFocusKey = nil
         }
         let keepScale = pdfView.scaleFactor
-        // offene Canvases ueber ihren Schluessel sichern (Indizes koennen sich gerade verschoben haben)
+        // offene Canvases ueber ihren Schluessel sichern (Indizes koennen sich gerade verschoben haben); nur, was
+        // sich geaendert hat, der Neuaufbau selbst schreibt nichts
         for v in allOverlays where v.loaded {
             commitPendingUndo(v)
-            store.canvasChanged(pageKey: v.pageKey, drawing: v.canvas.drawing)
+            saveIfChanged(v)
         }
         for v in allOverlays { toolPicker.removeObserver(v.canvas) }
         live = [:]
@@ -394,6 +418,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         let overlay: PageInkView
         if let i = parked.firstIndex(where: { $0.pageIndex == index && $0.generation == shownLayoutVersion }) {
             overlay = parked.remove(at: i)
+            if overlay.foreignReleased { applyForeign(overlay) }      // nach einer Speicherwarnung neu aufbauen
         } else {
             let box = page.bounds(for: .cropBox).size
             overlay = PageInkView(pageIndex: index, pageKey: key, generation: shownLayoutVersion,
@@ -409,9 +434,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func pdfView(_ pdfView: PDFView, willEndDisplayingOverlayView overlayView: UIView, for page: PDFPage) {
         guard let overlay = overlayView as? PageInkView else { return }
+        // Scrollen schreibt nie: gesichert wird nur eine Aenderung, die der Store noch nicht hat
         if overlay.loaded {
             commitPendingUndo(overlay)
-            store.canvasChanged(pageKey: overlay.pageKey, drawing: overlay.canvas.drawing)
+            saveIfChanged(overlay)
         }
         if live[overlay.pageIndex] === overlay { live.removeValue(forKey: overlay.pageIndex) }
         guard overlay.generation == shownLayoutVersion else {       // Overlay eines alten Seitenaufbaus: verwerfen
@@ -437,6 +463,13 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
                                     label: layer.label)
         }
         overlay.setForeign(views)
+    }
+
+    /// Speicherwarnung: fremde Ebenen weggescrollter (geparkter) Seiten freigeben. Sichtbare Seiten behalten sie,
+    /// Auswahl und Sichtbarkeit der Ebenen bleiben; beim Zurueckscrollen entstehen sie neu an derselben Stelle.
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        for overlay in parked where !overlay.foreignReleased { overlay.releaseForeign() }
     }
 
     /// Overlay einer Anzeige-Seite (nur fuer Tests: erzeugt es wie PDFKit beim Scrollen).
@@ -496,10 +529,20 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         overlay.loaded = true
         overlay.undoBase = next
         overlay.undoPending = false
+        overlay.unsaved = false                     // Stand des Stores, fruehe Striche werden gleich gesichert
         if hadEarlyStrokes {
             store.canvasChanged(pageKey: overlay.pageKey, drawing: next)
             registerUndo(key: overlay.pageKey, restore: drawing, redo: next)
         }
+    }
+
+    /// Beim Wegscrollen, Neuaufbau und Verlassen: nur sichern, was der Store noch nicht hat. Jede Aenderung auf
+    /// einer geladenen Canvas geht schon beim Zeichnen an den Store (`canvasViewDrawingDidChange`, Verlauf); eine
+    /// nur angezeigte Seite wird deshalb nie geschrieben, im Ansichtsmodus also gar nichts.
+    private func saveIfChanged(_ overlay: PageInkView) {
+        guard overlay.unsaved else { return }
+        overlay.unsaved = false
+        store.canvasChanged(pageKey: overlay.pageKey, drawing: overlay.canvas.drawing)
     }
 
     private func reloadPages(_ keys: [String]) {
@@ -585,7 +628,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-        guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing, overlay.loaded else { return }
+        guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing else { return }
+        // Laden laeuft noch: `apply` uebernimmt die frueh gezeichneten Striche und sichert sie
+        guard overlay.loaded else { overlay.unsaved = true; return }
+        overlay.unsaved = false
         store.canvasChanged(pageKey: overlay.pageKey, drawing: canvasView.drawing)
         guard !documentUndo.isUndoing, !documentUndo.isRedoing else { return }
         // waehrend der Stift aufliegt (Radierer, Lasso) erst beim Absetzen einen Schritt anlegen

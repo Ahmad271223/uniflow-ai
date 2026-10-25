@@ -10,7 +10,7 @@ enum PDFExporter {
     static func export(layout: DisplayLayout, pages: [String: JSONValue], images: [String: UIImage], title: String) throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent(safeFileName(title) + " – Notizen.pdf")
+        let url = dir.appendingPathComponent(fileName(title, suffix: " – Notizen.pdf"))
         let data = render(layout: layout, pages: pages, images: images, title: title)
         try data.write(to: url, options: .atomic)
         return url
@@ -19,29 +19,66 @@ enum PDFExporter {
     /// - Parameters:
     ///   - pageIndices: angezeigte Seiten (0-basiert, Reihenfolge des Notizmodells); `nil` = alle.
     ///   - title: Titel in den PDF-Metadaten.
+    /// Geschrieben mit einem CoreGraphics-PDF-Kontext und eigener MediaBox je Seite: `UIGraphicsPDFRenderer`
+    /// ersetzt eine Seite von genau 612 x 792 (US Letter) durch die Standardgroesse des Renderers, dann stimmten
+    /// Groesse und Lage von Original und Notizen nicht mehr.
     static func render(layout: DisplayLayout, pages: [String: JSONValue], images: [String: UIImage],
                        pageIndices: [Int]? = nil, title: String? = nil) -> Data {
         let count = layout.pdf.pageCount
         let indices = (pageIndices ?? Array(0..<count)).filter { $0 >= 0 && $0 < count }
-        let format = UIGraphicsPDFRendererFormat()
         var info: [String: Any] = [kCGPDFContextCreator as String: "UniFlow"]
         if let title { info[kCGPDFContextTitle as String] = title }
-        format.documentInfo = info
-        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: format)
-        return renderer.pdfData { ctx in
-            for i in indices {
-                guard let page = layout.pdf.page(at: i), let entry = layout.entry(at: i) else { continue }
-                ctx.beginPage(withBounds: CGRect(origin: .zero, size: PageRenderer.size(of: page)), pageInfo: [:])
-                PageRenderer.draw(page: page, entry: entry, objects: pages[entry.key]?["objects"]?.array ?? [],
-                                  images: images, in: ctx.cgContext)
-            }
+        let out = NSMutableData()
+        var standard = CGRect(x: 0, y: 0, width: 595, height: 842)
+        guard let consumer = CGDataConsumer(data: out as CFMutableData),
+              let cg = CGContext(consumer: consumer, mediaBox: &standard, info as CFDictionary) else { return Data() }
+        for i in indices {
+            guard let page = layout.pdf.page(at: i), let entry = layout.entry(at: i) else { continue }
+            var box = CGRect(origin: .zero, size: PageRenderer.size(of: page))
+            let pageInfo = [kCGPDFContextMediaBox as String: NSData(bytes: &box, length: MemoryLayout<CGRect>.size)]
+            cg.beginPDFPage(pageInfo as CFDictionary)
+            cg.saveGState()
+            // Ursprung oben links wie UIKit (Seitenpunkte der angezeigten Seite)
+            cg.translateBy(x: 0, y: box.height)
+            cg.scaleBy(x: 1, y: -1)
+            UIGraphicsPushContext(cg)
+            PageRenderer.draw(page: page, entry: entry, objects: pages[entry.key]?["objects"]?.array ?? [],
+                              images: images, in: cg)
+            UIGraphicsPopContext()
+            cg.restoreGState()
+            cg.endPDFPage()
         }
+        cg.closePDF()
+        return out as Data
     }
 
     static func safeFileName(_ s: String) -> String {
         let bad = CharacterSet(charactersIn: "/\\:?%*|\"<>")
         let cleaned = s.components(separatedBy: bad).joined(separator: "-").trimmingCharacters(in: .whitespacesAndNewlines)
         return cleaned.isEmpty ? "Dokument" : String(cleaned.prefix(80))
+    }
+
+    /// Laengster Dateiname in UTF-8-Byte (APFS und die meisten Dateisysteme: 255; die Grenze von 255
+    /// UTF-16-Einheiten ist damit ebenfalls eingehalten).
+    static let maxFileNameBytes = 255
+
+    /// Dateiname aus Titel und Endung (z. B. " – Notizen.pdf"): Titel wie `safeFileName`, der ganze Name hoechstens
+    /// `maxFileNameBytes` UTF-8-Byte. Gekuerzt wird nur zwischen Zeichen (Graphemen), Emoji und Umlaute bleiben
+    /// ganz; die Endung bleibt immer erhalten.
+    static func fileName(_ title: String, suffix: String) -> String {
+        let stem = safeFileName(title)
+        let limit = maxFileNameBytes - suffix.utf8.count
+        guard stem.utf8.count > limit else { return stem + suffix }
+        var end = stem.startIndex
+        var bytes = 0
+        for i in stem.indices {
+            let n = stem[i].utf8.count
+            guard bytes + n <= limit else { break }
+            bytes += n
+            end = stem.index(after: i)
+        }
+        let kept = stem[..<end].trimmingCharacters(in: .whitespacesAndNewlines)
+        return (kept.isEmpty ? "Dokument" : kept) + suffix
     }
 }
 
@@ -160,15 +197,16 @@ enum InkRenderer {
 
     /// Zeichenplan eines Strichobjekts; `nil`, wenn nichts sichtbar waere (wie Konva bei weniger als zwei Punkten).
     static func plan(_ o: JSONValue) -> Plan? {
-        guard o["type"]?.string == "stroke", let raw = o["points"]?.array else { return nil }
-        let pts = raw.compactMap { $0.double }.map { CGFloat($0) }
+        guard o["type"]?.string == "stroke", o["points"]?.array != nil else { return nil }
+        // Zahlen endlich und begrenzt (siehe `ObjectGeometry.number`)
+        let pts = ObjectGeometry.coordinates(o["points"]).map { CGFloat($0) }
         let n = pts.count / 2
         guard n >= 2 else { return nil }
         let tool = o["tool"]?.string ?? "pen"
-        let given = CGFloat(o["width"]?.double ?? 0)
+        let given = CGFloat(ObjectGeometry.lineWidth(o["width"], 0))
         let width = given > 0 ? given : 2                                     // o.width || 2
-        let opacity = CGFloat(o["opacity"]?.double ?? 1)
-        var plan = Plan(pieces: [], color: UIColor(hex: o["color"]?.string) ?? .black, alpha: min(1, max(0, opacity)),
+        let opacity = CGFloat(ObjectGeometry.opacity(o))
+        var plan = Plan(pieces: [], color: UIColor(hex: o["color"]?.string) ?? .black, alpha: opacity,
                         dash: tool == "pencil" ? pencilDash : [], multiply: tool == "marker",
                         transform: ObjectGeometry.transform(o))
         func p(_ i: Int) -> CGPoint { CGPoint(x: pts[2 * i], y: pts[2 * i + 1]) }
@@ -184,7 +222,7 @@ enum InkRenderer {
 
         let ws: [CGFloat]? = {
             guard let w = o["widths"]?.array?.compactMap({ $0.double }), w.count == n else { return nil }
-            return w.map { CGFloat($0) }
+            return w.map { CGFloat(ObjectGeometry.clamped($0, 0, in: 0...ObjectGeometry.maxLineWidth)) }
         }()
         if ws == nil || opacity < 1 {
             let avg = ws.map { $0.reduce(0, +) / CGFloat($0.count) } ?? width

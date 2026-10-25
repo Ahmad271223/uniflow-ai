@@ -137,6 +137,8 @@ public enum SolutionBuilder {
             }
         }
         guard !pages.isEmpty else { throw SolutionError.nothingSelected }
+        // nie ein Paket ohne Inhalt (z. B. "Alle" gewaehlt, aber keine Seite mit Notizen)
+        guard pages.contains(where: { !$0.objects.isEmpty }) else { throw SolutionError.noOwnNotes }
         var embedded: [String: SolutionImage] = [:]
         var missing: [String] = []
         for src in imageSources(doc, keys: pages.map(\.key)) {

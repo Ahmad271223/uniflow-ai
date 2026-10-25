@@ -36,6 +36,9 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
 - „Als Datei teilen“ öffnet das Teilen-Menü des Systems und merkt die Lösung unter „Meine geteilten Lösungen“.
   Inhalt, Siegel (HKDF über die ganze PDF, AES-GCM) und Datei entstehen abseits des Hauptthreads; währenddessen steht
   „Wird erstellt …“ auf dem Knopf.
+- Nie ein leeres Paket: Ohne ein einziges eigenes Notizobjekt auf den gewählten Seiten (z. B. „Alle“ gewählt, aber
+  nirgends Notizen) bleibt der Knopf gesperrt und der Dialog sagt warum; auch `SolutionBuilder` weist das ab
+  (`SolutionError.noOwnNotes`) – keine Datei, kein Eintrag unter „Meine geteilten Lösungen“.
 - „In der Community veröffentlichen“ ist deaktiviert: „Community-Dienst noch nicht verbunden“.
 - „Abbrechen“.
 
@@ -135,18 +138,24 @@ die ganze Lösung abgewiesen.
    sie im Menü „Ebenen“ unter „Nicht lesbar: …“ mit „Entfernen“. Entschlüsseln (HKDF über die ganze PDF, in Blöcken über
    die gemappte Datei ohne Vollkopie) läuft abseits des Hauptthreads.
 4. Menü „Ebenen“: „Meine Notizen“ ein-/ausblenden (ausgeblendet = nur ansehen: Canvas ohne Eingabe, Palette weg,
-   kein Rückgängig; im Menü „Mehr“ sind Lesezeichen, Leerseite, Papierkorb, Drehen und Text gesperrt, mit dem Eintrag
-   „Meine Notizen einblenden, um zu bearbeiten“; auch der `DocumentStore` nimmt dann keine schreibenden Aktionen an,
-   `ownNotesReadOnly`), je Lösung „Lösung von <Name oder Anonym> (<Datum>)“ mit Ein-/Ausblenden, „Vorschau ohne
-   Original“ und „Entfernen“.
+   kein Rückgängig, auch nicht über das System – Cmd-Z, Wischen mit drei Fingern –, weil der Editor der
+   Responder-Kette dann einen leeren Verlauf gibt; im Menü „Mehr“ sind Lesezeichen, Leerseite, Papierkorb, Drehen und
+   Text gesperrt, mit dem Eintrag „Meine Notizen einblenden, um zu bearbeiten“; auch der `DocumentStore` nimmt dann
+   keine schreibenden Aktionen an, `ownNotesReadOnly`), je Lösung „Lösung von <Name oder Anonym> (<Datum>)“ mit
+   Ein-/Ausblenden, „Vorschau ohne Original“ und „Entfernen“.
 5. Anzeige: eigene, nicht bearbeitbare Schicht `PageInkView.foreignView` über der PDF und unter den eigenen Objekten
    und der Zeichenfläche (`PDFEditorController.applyForeign`, `ForeignLayerView`). Zuordnung über den PDF-Seitenindex.
    Hat der Empfänger die Seite anders gedreht als der Absender, bildet `SolutionGeometry.transform` die Anzeige um –
    die Objekte selbst werden nie umgerechnet. Zoom ist reine Anzeige. Eigene Leerseiten des Absenders gibt es beim
-   Empfänger nicht; sie sind nur in der Vorschau zu sehen.
+   Empfänger nicht; sie sind nur in der Vorschau zu sehen. Zahlen der Objekte werden vor dem Anzeigen endlich und
+   begrenzt gelesen (`ObjectGeometry.number`: Lage und Größe ±100 000 Punkte, Skalierung ±100, Drehung modulo 360),
+   so entsteht auch bei Werten wie `1e300` keine Ebene mit NaN oder Unendlich. Nach einer Speicherwarnung werden die
+   fremden Ebenen weggescrollter Seiten freigegeben und beim Zurückscrollen neu aufgebaut.
 6. Eigene Notizen werden **nie** verändert: Es gibt keinen Schreibweg von der Lösung in `DocumentStore`, Journal oder
    Server (Test `testOwnNotesUnchangedAfterImportAndShowing`: serialisiertes eigenes Dokument vor/nach Import und
-   Einblenden byte-gleich).
+   Einblenden byte-gleich). Auch Scrollen, Ein-/Ausblenden und der Ansichtsmodus schreiben nichts: Der Editor gibt nur
+   echte Änderungen der Zeichenfläche an den Store, eine nur angezeigte Seite wird nie gespeichert
+   (`HardeningSolutionEditorTests`).
 
 „Meine geteilten Lösungen“ (Menü „Teilen“): Kopien der selbst geteilten Pakete unter `solutions/shared/`, „Erneut
 teilen“ und „Entfernen“. Ohne Dienst heißt Zurückziehen nur: die Kopie auf diesem iPad löschen. Bereits

@@ -7,10 +7,54 @@ import UniFlowCore
 enum ObjectGeometry {
     static let templateColor = UIColor(red: 0.85, green: 0.87, blue: 0.91, alpha: 1)
 
+    // MARK: Zahlen sicher begrenzt
+    //
+    // Notizen liegen auf Seiten von hoechstens 14 400 Punkten (`SolutionLimits.maxPageSide`). Werte weit darueber
+    // (1e300, groesste Gleitkommazahl) sind nie sichtbar, ergeben aber in Produkten Unendlich und daraus NaN in der
+    // Ebenen-Geometrie: CALayer bricht dann mit einer Ausnahme ab. Fremde Loesungen kommen von anderen Geraeten;
+    // deshalb wird jede Zahl vor dem Zeichnen und Anzeigen endlich und begrenzt gelesen. Uebliche Werte bleiben
+    // unveraendert.
+
+    /// Groesster Betrag fuer Lage, Groesse und Punkte (Seitenpunkte, rund das Siebenfache der groessten Seite).
+    static let maxCoordinate: Double = 100_000
+    /// Groesster Betrag fuer scaleX/scaleY.
+    static let maxScale: Double = 100
+    /// Groesste Linienbreite.
+    static let maxLineWidth: Double = 10_000
+    /// Schriftgroesse und Zeilenhoehe (Vielfaches) des Textes.
+    static let fontSizeRange: ClosedRange<Double> = 1...1_600
+    static let lineHeightRange: ClosedRange<Double> = 0.1...10
+
+    /// Zahl eines Objektfelds, endlich und auf `range` begrenzt; fehlt sie oder ist sie nicht endlich, gilt
+    /// `fallback`.
+    static func number(_ v: JSONValue?, _ fallback: Double, in range: ClosedRange<Double>) -> Double {
+        clamped(v?.double, fallback, in: range)
+    }
+
+    static func clamped(_ d: Double?, _ fallback: Double, in range: ClosedRange<Double>) -> Double {
+        guard let d, d.isFinite else { return fallback }
+        return min(range.upperBound, max(range.lowerBound, d))
+    }
+
+    /// Lage, Groesse oder Punkt (Seitenpunkte), begrenzt auf +-`maxCoordinate`.
+    static func coordinate(_ v: JSONValue?, _ fallback: Double) -> Double {
+        number(v, fallback, in: -maxCoordinate...maxCoordinate)
+    }
+
+    /// Koordinaten einer Punktliste (x, y, x, y, ...), begrenzt; nicht endliche Werte werden 0.
+    static func coordinates(_ v: JSONValue?) -> [Double] {
+        (v?.array ?? []).compactMap { $0.double }.map { clamped($0, 0, in: -maxCoordinate...maxCoordinate) }
+    }
+
+    /// Deckkraft 0...1 (wie Konva).
+    static func opacity(_ o: JSONValue) -> Double { number(o["opacity"], 1, in: 0...1) }
+
     static func transform(_ o: JSONValue) -> CGAffineTransform {
-        let x = o["x"]?.double ?? 0, y = o["y"]?.double ?? 0
-        let rot = (o["rotation"]?.double ?? 0) * .pi / 180
-        let sx = o["scaleX"]?.double ?? 1, sy = o["scaleY"]?.double ?? 1
+        let x = coordinate(o["x"], 0), y = coordinate(o["y"], 0)
+        // Grad, auf eine Umdrehung zurueckgefuehrt (fmod ist exakt, auch bei sehr grossen Werten)
+        let degrees = o["rotation"]?.double.flatMap { $0.isFinite ? $0.truncatingRemainder(dividingBy: 360) : nil } ?? 0
+        let rot = degrees * .pi / 180
+        let sx = number(o["scaleX"], 1, in: -maxScale...maxScale), sy = number(o["scaleY"], 1, in: -maxScale...maxScale)
         return CGAffineTransform(translationX: x, y: y).rotated(by: rot).scaledBy(x: sx, y: sy)
     }
 
@@ -22,8 +66,8 @@ enum ObjectGeometry {
     /// Umriss einer Form in Objektkoordinaten. `closed` = darf gefuellt werden.
     static func shapePath(_ o: JSONValue) -> (path: CGPath, closed: Bool, arrowHead: CGPath?)? {
         guard o["type"]?.string == "shape" else { return nil }
-        let w = o["width"]?.double ?? 0, h = o["height"]?.double ?? 0
-        let pts = (o["points"]?.array ?? []).compactMap { $0.double }
+        let w = coordinate(o["width"], 0), h = coordinate(o["height"], 0)
+        let pts = coordinates(o["points"])
         func polyline(_ p: [Double], close: Bool) -> CGPath? {
             guard p.count >= 4 else { return nil }
             let path = CGMutablePath()
@@ -48,7 +92,7 @@ enum ObjectGeometry {
             guard let p = polyline(pts, close: false), pts.count >= 4 else { return nil }
             let n = pts.count
             let tip = CGPoint(x: pts[n - 2], y: pts[n - 1]), from = CGPoint(x: pts[n - 4], y: pts[n - 3])
-            let sw = CGFloat(o["strokeWidth"]?.double ?? 2)
+            let sw = CGFloat(lineWidth(o["strokeWidth"], 2))
             let len: CGFloat = max(8, sw * 3), half: CGFloat = max(8, sw * 3) / 2
             let angle: CGFloat = atan2(tip.y - from.y, tip.x - from.x)
             let back = CGPoint(x: tip.x - cos(angle) * len, y: tip.y - sin(angle) * len)
@@ -64,16 +108,19 @@ enum ObjectGeometry {
         }
     }
 
+    /// Linienbreite einer Form (`strokeWidth`), 0...`maxLineWidth`.
+    static func lineWidth(_ v: JSONValue?, _ fallback: Double) -> Double { number(v, fallback, in: 0...maxLineWidth) }
+
     /// Text wie Konva.Text: Breite inklusive 4 pt Innenabstand, Zeilenumbruch nach Woertern.
     static func attributedText(_ o: JSONValue) -> NSAttributedString {
-        let size = CGFloat(o["fontSize"]?.double ?? 14)
+        let size = CGFloat(number(o["fontSize"], 14, in: fontSizeRange))
         var font = UIFont(name: o["fontFamily"]?.string ?? "Arial", size: size) ?? .systemFont(ofSize: size)
         var traits: UIFontDescriptor.SymbolicTraits = []
         if o["bold"]?.bool == true { traits.insert(.traitBold) }
         if o["italic"]?.bool == true { traits.insert(.traitItalic) }
         if !traits.isEmpty, let d = font.fontDescriptor.withSymbolicTraits(traits) { font = UIFont(descriptor: d, size: size) }
         let style = NSMutableParagraphStyle()
-        style.lineHeightMultiple = CGFloat(o["lineHeight"]?.double ?? 1.25)
+        style.lineHeightMultiple = CGFloat(number(o["lineHeight"], 1.25, in: lineHeightRange))
         style.lineBreakMode = .byWordWrapping
         switch o["align"]?.string {
         case "center": style.alignment = .center
@@ -89,13 +136,14 @@ enum ObjectGeometry {
 
     static let textPadding: CGFloat = 4
 
-    /// Groesse eines Textobjekts (Breite aus dem Objekt, Hoehe aus dem Inhalt).
+    /// Groesse eines Textobjekts (Breite aus dem Objekt, Hoehe aus dem Inhalt), immer endlich.
     static func textSize(_ o: JSONValue, _ text: NSAttributedString) -> CGSize {
-        let width = CGFloat(o["width"]?.double ?? 200)
+        let width = CGFloat(number(o["width"], 200, in: 0...maxCoordinate))
         let inner = max(1, width - 2 * textPadding)
         let r = text.boundingRect(with: CGSize(width: inner, height: .greatestFiniteMagnitude),
                                   options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
-        return CGSize(width: width, height: ceil(r.height) + 2 * textPadding)
+        let height = r.height.isFinite ? min(CGFloat(maxCoordinate), ceil(max(0, r.height))) : 0
+        return CGSize(width: width, height: height + 2 * textPadding)
     }
 
     /// Linien der Seitenvorlage fuer den PDF-Export (wie drawTemplatePdf im Web-Editor), in Seitenpunkten mit Ursprung
@@ -139,9 +187,9 @@ enum ObjectGeometry {
             guard type == "shape" || type == "text" || type == "image" else { continue }
             ctx.saveGState()
             ctx.concatenate(transform(o))
-            ctx.setAlpha(CGFloat(o["opacity"]?.double ?? 1))
+            ctx.setAlpha(CGFloat(opacity(o)))
             if let s = shapePath(o) {
-                let sw = CGFloat(o["strokeWidth"]?.double ?? 2)
+                let sw = CGFloat(lineWidth(o["strokeWidth"], 2))
                 if s.closed, let fill = color(o["fill"]) { ctx.addPath(s.path); ctx.setFillColor(fill.cgColor); ctx.fillPath() }
                 if let stroke = color(o["stroke"]) {
                     ctx.addPath(s.path); ctx.setStrokeColor(stroke.cgColor); ctx.setLineWidth(sw)
@@ -160,7 +208,7 @@ enum ObjectGeometry {
                           options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
                 UIGraphicsPopContext()
             } else if type == "image", let src = o["src"]?.string, let img = images[src] {
-                let w = o["width"]?.double ?? Double(img.size.width), h = o["height"]?.double ?? Double(img.size.height)
+                let w = coordinate(o["width"], Double(img.size.width)), h = coordinate(o["height"], Double(img.size.height))
                 UIGraphicsPushContext(ctx)
                 img.draw(in: CGRect(x: 0, y: 0, width: w, height: h))
                 UIGraphicsPopContext()
@@ -211,14 +259,14 @@ final class PageObjectsView: UIView {
 
     private func add(_ o: JSONValue, images: [String: UIImage]) {
         let t = ObjectGeometry.transform(o)
-        let alpha = Float(o["opacity"]?.double ?? 1)
+        let alpha = Float(ObjectGeometry.opacity(o))
         if let s = ObjectGeometry.shapePath(o) {
             let l = CAShapeLayer()
             l.path = s.path
             l.anchorPoint = .zero
             l.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
             l.setAffineTransform(t)
-            l.lineWidth = CGFloat(o["strokeWidth"]?.double ?? 2)
+            l.lineWidth = CGFloat(ObjectGeometry.lineWidth(o["strokeWidth"], 2))
             l.lineJoin = .round
             l.lineCap = .round
             l.strokeColor = ObjectGeometry.color(o["stroke"])?.cgColor
@@ -256,7 +304,7 @@ final class PageObjectsView: UIView {
             box.transform = t
         case "image":
             guard let src = o["src"]?.string else { return }
-            let w = o["width"]?.double ?? 100, h = o["height"]?.double ?? 100
+            let w = ObjectGeometry.coordinate(o["width"], 100), h = ObjectGeometry.coordinate(o["height"], 100)
             let view = UIImageView(frame: CGRect(x: 0, y: 0, width: w, height: h))
             view.layer.anchorPoint = .zero
             view.contentMode = .scaleToFill
