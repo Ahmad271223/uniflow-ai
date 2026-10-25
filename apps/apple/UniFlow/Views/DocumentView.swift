@@ -267,6 +267,11 @@ struct DocumentView: View {
                 Label(pencilOnly ? "Nur Stift" : "Finger zeichnet", systemImage: pencilOnly ? "applepencil" : "hand.draw")
             }
             Menu {
+                Button { share(.document) } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
+                Button { share(.page(bridge.pageIndex)) } label: { Label("Diese Seite", systemImage: "doc") }
+            } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
+            .disabled(exporting || store.pdf == nil)
+            Menu {
                 Button {
                     if let key = bridge.pageKey {
                         let title = "Seite \(bridge.pageIndex + 1)"
@@ -285,17 +290,23 @@ struct DocumentView: View {
                 } label: { Label("Seite drehen", systemImage: "rotate.right") }
                 Button { addingText = true } label: { Label("Text hinzufügen", systemImage: "textformat") }
                 Divider()
-                Button {
-                    exporting = true
-                    Task {
-                        defer { exporting = false }
-                        do { exportFile = ExportFile(url: try await store.exportPDF()) } catch { actionError = "Export fehlgeschlagen: \(error.localizedDescription)" }
-                    }
-                } label: { Label(exporting ? "Exportiert…" : "Als PDF mit Notizen teilen", systemImage: "square.and.arrow.up") }
-                .disabled(exporting)
                 Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
                 Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
             } label: { Label("Mehr", systemImage: "ellipsis.circle") }
+        }
+    }
+
+    /// PDF mit Notizen (Ganzes Dokument oder aktuelle Seite) erzeugen und das Teilen-Menue des Systems zeigen.
+    private func share(_ scope: ShareScope) {
+        exporting = true
+        Task {
+            defer { exporting = false }
+            do {
+                let payload = try await store.sharePayload(scope)
+                exportFile = ExportFile(url: try ShareExport.writeFile(payload))
+            } catch {
+                actionError = "Teilen fehlgeschlagen: \(error.localizedDescription)"
+            }
         }
     }
 
@@ -409,7 +420,7 @@ struct CompanionPicker: View {
     }
 }
 
-/// Seitenuebersicht (Miniaturen von PDFKit) und Lesezeichen.
+/// Seitenuebersicht (Miniaturen mit Notizen) und Lesezeichen.
 struct PageSidebar: View {
     @ObservedObject var store: DocumentStore
     @ObservedObject var bridge: EditorBridge
@@ -430,26 +441,81 @@ struct PageSidebar: View {
                 .frame(maxHeight: 180)
                 Divider()
             }
-            ThumbnailStrip(bridge: bridge)
+            ThumbnailStrip(store: store, bridge: bridge)
         }
         .background(Color(uiColor: .secondarySystemBackground))
     }
 }
 
-struct ThumbnailStrip: UIViewRepresentable {
-    let bridge: EditorBridge
+/// Seitenminiaturen mit Handschrift, Text und Formen (gleiche Zeichenroutine wie der PDF-Export).
+/// Eine Miniatur wird nur neu gezeichnet, wenn sich die Objekte ihrer Seite oder der Seitenaufbau geaendert haben.
+struct ThumbnailStrip: View {
+    @ObservedObject var store: DocumentStore
+    @ObservedObject var bridge: EditorBridge
+    @StateObject private var cache = ThumbnailCache()
 
-    func makeUIView(context: Context) -> PDFThumbnailView {
-        let v = PDFThumbnailView()
-        v.layoutMode = .vertical
-        v.thumbnailSize = CGSize(width: 140, height: 190)
-        v.backgroundColor = .secondarySystemBackground
-        v.pdfView = bridge.controller?.pdfView
-        return v
+    static let width: CGFloat = 140
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 14) {
+                    ForEach(Array((store.layout?.entries ?? []).enumerated()), id: \.element.key) { i, entry in
+                        Button { bridge.controller?.goToPage(i) } label: { cell(i, entry) }
+                            .buttonStyle(.plain)
+                            .id(entry.key)
+                            .task(id: "\(entry.key)|\(store.layoutVersion)|\(cache.tick)") {
+                                await cache.update(index: i, entry: entry, store: store, layoutVersion: store.layoutVersion)
+                            }
+                    }
+                }
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+            }
+            .onChange(of: bridge.pageIndex) { _, i in
+                if let key = store.layout?.key(at: i) { withAnimation { proxy.scrollTo(key, anchor: .center) } }
+            }
+        }
+        .onChange(of: store.status) { _, _ in cache.tick += 1 }
     }
 
-    func updateUIView(_ v: PDFThumbnailView, context: Context) {
-        if v.pdfView == nil { v.pdfView = bridge.controller?.pdfView }
+    private func cell(_ i: Int, _ entry: DisplayLayout.Entry) -> some View {
+        let current = i == bridge.pageIndex
+        return VStack(spacing: 4) {
+            Group {
+                if let img = cache.images[entry.key] {
+                    Image(uiImage: img).resizable().scaledToFit()
+                } else {
+                    Color.white.aspectRatio(595.0 / 842.0, contentMode: .fit)
+                }
+            }
+            .frame(width: Self.width)
+            .overlay(Rectangle().strokeBorder(current ? Color.accentColor : Color(uiColor: .separator), lineWidth: current ? 2 : 1))
+            Text("\(i + 1)").font(.caption2.monospacedDigit()).foregroundStyle(current ? Color.accentColor : .secondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Seite \(i + 1)")
+        .accessibilityAddTraits(current ? [.isSelected] : [])
+    }
+}
+
+/// Gezeichnete Miniaturen je Seitenschluessel, mit Signatur des gezeichneten Stands.
+@MainActor
+final class ThumbnailCache: ObservableObject {
+    @Published private(set) var images: [String: UIImage] = [:]
+    /// Erhoeht bei jedem Speicherstatus-Wechsel: sichtbare Miniaturen pruefen dann ihre Signatur.
+    @Published var tick = 0
+    private var signatures: [String: String] = [:]
+
+    func update(index: Int, entry: DisplayLayout.Entry, store: DocumentStore, layoutVersion: Int) async {
+        let objects = await store.objects(forPageKey: entry.key)
+        guard !Task.isCancelled, let layout = store.layout, layout.entry(at: index) == entry,
+              let page = layout.pdf.page(at: index) else { return }
+        let sig = "\(layoutVersion)|\(store.images.count)|" + JSONValue.array(objects).jsonString(sortedKeys: true)
+        guard signatures[entry.key] != sig else { return }
+        signatures[entry.key] = sig
+        images[entry.key] = PageRenderer.thumbnail(page: page, entry: entry, objects: objects, images: store.images,
+                                                   width: ThumbnailStrip.width, scale: max(1, UITraitCollection.current.displayScale))
     }
 }
 

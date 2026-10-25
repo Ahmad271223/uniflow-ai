@@ -698,12 +698,27 @@ actor UFThumbnails {
         } else if let doc = PDFDocument(data: data), let page = doc.page(at: 0) {
             let b = page.bounds(for: .mediaBox)
             let w: CGFloat = 220
-            out = page.thumbnail(of: CGSize(width: w, height: w * b.height / max(1, b.width)), for: .mediaBox)
+            out = Self.inkThumbnail(fileID: fileID, pdf: doc, width: w)
+                ?? page.thumbnail(of: CGSize(width: w, height: w * b.height / max(1, b.width)), for: .mediaBox)
         }
         guard let out else { return nil }
         memory[key] = out
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try? out.jpegData(compressionQuality: 0.75)?.write(to: file, options: .atomic)
         return out
+    }
+
+    /// Erste PDF-Seite mit den Notizen aus dem lokalen Journal (nur Dokumente, die auf diesem Geraet schon offen
+    /// waren; ohne Netzwerk). Gleiche Zeichenroutine wie PDF-Export und Seitenminiaturen. `nil` = keine Notizen.
+    private static func inkThumbnail(fileID: String, pdf: PDFDocument, width: CGFloat) -> UIImage? {
+        let journal = LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: fileID)
+        guard let snap = try? journal.load() else { return nil }
+        let doc = AnnotationDocument(rootMeta: snap.rootMeta, pages: snap.pages.mapValues(\.page))
+        let key = doc.pageKey(forPDFIndex: 1) ?? "p1"
+        let objects = doc.objects(page: key)
+        guard !objects.isEmpty else { return nil }
+        let layout = DisplayLayout.build(original: pdf, document: doc)
+        guard let i = layout.index(ofKey: key), let page = layout.pdf.page(at: i), let entry = layout.entry(at: i) else { return nil }
+        return PageRenderer.thumbnail(page: page, entry: entry, objects: objects, images: [:], width: width)
     }
 }
