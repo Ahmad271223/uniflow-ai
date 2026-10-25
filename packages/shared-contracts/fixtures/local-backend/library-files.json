@@ -2570,6 +2570,7 @@
      "message": "3 neue/geaenderte Dateien"
     },
     "settings": {
+     "university": "luh",
      "hours_per_day": 4.0,
      "free_days": [
       6
@@ -2603,7 +2604,8 @@
       3,
       4,
       5
-     ]
+     ],
+     "university_next": "luh"
     },
     "bg": {
      "running": false,
@@ -2727,6 +2729,7 @@
      "message": "3 neue/geaenderte Dateien"
     },
     "settings": {
+     "university": "luh",
      "hours_per_day": 4.0,
      "free_days": [
       6
@@ -2760,7 +2763,8 @@
       3,
       4,
       5
-     ]
+     ],
+     "university_next": "luh"
     },
     "bg": {
      "running": false,

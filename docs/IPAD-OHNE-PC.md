@@ -26,9 +26,13 @@ Pro und alle KI-Funktionen entfallen vorerst. Umgesetzt auf `develop` (Tarifwahl
 
 ## 2. Stand heute: was ohne PC läuft
 
-Stand nach **S3** (Zweig `wip/s3-dokumente-3`, auf `wip/int-v1`, nachgebessert in `wip/s3-dokumente-3-fix`): Die App startet im lokalen Modus. `session.api` zeigt
+Stand nach **S3** (Zweig `wip/s3-dokumente-3`, nachgebessert in `wip/s3-dokumente-3-fix`; auf den neuen `develop`
+gesetzt in `wip/int-s345`, also zusammen mit den Härtetest-Behebungen von „Lösung teilen“ und PDF-Export und der
+Hochschul-Regel der Datenbank): Die App startet im lokalen Modus. `session.api` zeigt
 auf das lokale Backend (`uniflow-local://device/`, Datenbank `Application Support/UniFlow/db/uniflow.sqlite`,
-Dateischutz `completeUntilFirstUserAuthentication`, im Backup). Der Stud.IP-Abgleich der App (`StudIPSync`) schreibt
+Dateischutz `completeUntilFirstUserAuthentication`, im Backup). Die Datenbank gehört einer Hochschule wie am PC
+(`settings.university`, in V1 `luh`; eine Datenbank einer anderen Uni öffnet sich nicht, `UniversityMismatch` wie
+`app/db.py`). Der Stud.IP-Abgleich der App (`StudIPSync`) schreibt
 Kurse und Dateien jetzt wie `app/studip_sync.py` in diese Datenbank (`StudIPLibrary`: gleiche IDs, Felder,
 Standardwerte, `sync_log`). Die Dateien erscheinen in **Dokumente & Notizen** (je Stud.IP-Kurs ein Ordner auf der
 Stammebene, dazu „Neu aus Stud.IP“, Typ-Chips, Suche im Seitenkopf der Bibliothek, Zuletzt, Favoriten), unter
@@ -62,8 +66,8 @@ mit dem Apple Pencil in der Oberfläche (im Simulator nur per Test auf `Document
 | Bereich | Stand | Was fehlt |
 |---|---|---|
 | Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle 77 App-Pfade beantwortet; **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt | Portierung der übrigen Bereiche (S4–S7) |
-| Einstellungen (Lernzeit, Lernkombination, Verfügbarkeit), Semester | **lokal echt (S2)**: `GET/PUT /api/settings`, `GET/PUT /api/terms` | – |
-| Stud.IP-Abgleich in die Datenbank | **lokal echt (S3)**: Kurse (Titel, Nummer, Semester), Dateien (Name, Größe, Typ, Änderungszeit, Ordnerpfad, Art pdf/image/file, Status „neu“), Downloads mit Pfad **relativ zum App-Container**, `sync_log`; idempotent, Nutzerfelder (Status, gesehen, Favorit, Ordner, Titel) und Notizen bleiben; umbenannte Dateien behalten ihre ID, in Stud.IP gelöschte bleiben stehen (wie Python); Fehler eines Kurses oder einer Datei (HTTP, unerwartete Antwort) überspringen nur diese wie in Python, ist kein Kurs lesbar, gilt der Lauf als gescheitert; eine neue Fassung (Größe, Typ, Änderungszeit) gilt erst mit ihrem Download – scheitert er oder bricht der Lauf vorher ab, lädt der nächste Abgleich sie (in `app/studip_sync.py` ebenso korrigiert, Test in `tests/test_regressions.py`); Downloads gehen direkt in eine Datei (nicht in den Arbeitsspeicher), eine Zeitüberschreitung überspringt nur diese Datei; gegen `run_sync` geprüft (`studip-import.json`, 6 Durchgänge) | Fach/Art der Kurse (`classify`, S4); `author` (die JSON:API liefert keinen Namen); große Dateien werden immer automatisch geladen (Entscheidung „über 100 MB nur auf Wunsch“ noch ohne Oberfläche; eine Datei, die länger als 10 Minuten lädt, scheitert bei jedem Abgleich erneut, hält die übrigen aber nicht auf); kein ETag/If-Modified-Since; kein Netz und abgelaufene Sitzung brechen den Lauf ab (schon gelesene Kurse und geladene Dateien bleiben gespeichert); alte Datei bleibt nach Umbenennen liegen (wie Python); abgewählte Kurse bleiben mit ihren Dateien in Dokumente (ausblenden über `courses.active` erst mit S4) |
+| Einstellungen (Lernzeit, Lernkombination, Verfügbarkeit), Semester | **lokal echt (S2)**: `GET/PUT /api/settings` (mit `university` und `university_next` wie `server.py`; `PUT` prüft `university`, schreibt es aber nie), `GET/PUT /api/terms` | Hochschule wählen und wechseln auf dem iPad (`docs/AUFTRAG-HILDESHEIM-IPAD.md`) |
+| Stud.IP-Abgleich in die Datenbank | **lokal echt (S3)**: Kurse (Titel, Nummer, Semester), Dateien (Name, Größe, Typ, Änderungszeit, Ordnerpfad, Art pdf/image/file, Status „neu“), Downloads mit Pfad **relativ zum App-Container**, `sync_log`; idempotent, Nutzerfelder (Status, gesehen, Favorit, Ordner, Titel) und Notizen bleiben; umbenannte Dateien behalten ihre ID, in Stud.IP gelöschte bleiben stehen (wie Python); Fehler eines Kurses oder einer Datei (HTTP, unerwartete Antwort) überspringen nur diese wie in Python, ist kein Kurs lesbar, gilt der Lauf als gescheitert; eine neue Fassung (Größe, Typ, Änderungszeit) gilt erst mit ihrem Download – scheitert er oder bricht der Lauf vorher ab, lädt der nächste Abgleich sie (in `app/studip_sync.py` ebenso korrigiert, in `store_course_files`, das am PC auch der Learnweb-Abgleich für Hildesheim nutzt; Test in `tests/test_regressions.py`); Downloads gehen direkt in eine Datei (nicht in den Arbeitsspeicher), eine Zeitüberschreitung überspringt nur diese Datei; gegen `run_sync` geprüft (`studip-import.json`, 6 Durchgänge) | Fach/Art der Kurse (`classify`, S4); `author` (die JSON:API liefert keinen Namen); große Dateien werden immer automatisch geladen (Entscheidung „über 100 MB nur auf Wunsch“ noch ohne Oberfläche; eine Datei, die länger als 10 Minuten lädt, scheitert bei jedem Abgleich erneut, hält die übrigen aber nicht auf); kein ETag/If-Modified-Since; kein Netz und abgelaufene Sitzung brechen den Lauf ab (schon gelesene Kurse und geladene Dateien bleiben gespeichert); alte Datei bleibt nach Umbenennen liegen (wie Python); abgewählte Kurse bleiben mit ihren Dateien in Dokumente (ausblenden über `courses.active` erst mit S4) |
 | Notizen beim Wechsel PC ↔ lokal | **getrennt (S2)**, **lokal gespeichert (S3)**: Journal und PDF-Zwischenspeicher je Datenquelle, Notizen lokal in `annotations`/`annotation_versions` | Übernahme vom PC (Entwicklung) |
 | Erster Start (Mit Apple anmelden, Tarifwahl, Konto löschen) | **nativ fertig** (echte Apple-Anmeldung braucht das Developer Program) | – |
 | Stud.IP-Anmeldung auf der echten Seite, Sitzung im Schlüsselbund, Ablauf erkennen | **nativ fertig** | Navigationsgrenzen und Fehlermeldungen in der Webansicht; Logout beendet die Sitzung nicht beim Server; stilles Erneuern; OAuth2 (Freigabe LUH) |
@@ -149,8 +153,9 @@ Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter 
 **Was nach S3 ohne PC noch nicht geht** (ehrlich): Module und Fächer samt Modulordnern in Dokumente (bis dahin
 Kursordner) und „Module & Wochentests“ in den Einstellungen (S4), Lernplan und Kalender mit Inhalt (S6),
 Stundenplan aus Stud.IP (S5), Suche und Skriptsuche (S7), neue Original-Fassung mit erhaltenen Notizen (S7),
-Hintergrundabgleich (S8), QIS-Noten, Übernahme der Notizen und Pläne vom PC. Keiner dieser Punkte braucht im
-App-Store-Betrieb einen PC; sie sind nur noch nicht portiert.
+Hintergrundabgleich (S8), QIS-Noten, Übernahme der Notizen und Pläne vom PC, die Uni Hildesheim auf dem iPad
+(Learnweb, LSF, CAS; Auftrag der PC-Sitzung in `docs/AUFTRAG-HILDESHEIM-IPAD.md`, am PC fertig). Keiner dieser
+Punkte braucht im App-Store-Betrieb einen PC; sie sind nur noch nicht portiert.
 
 ## 4. Architektur
 
@@ -188,6 +193,10 @@ App-Store-Betrieb einen PC; sie sind nur noch nicht portiert.
    (Formatversion), Zusatzfelder ohne Authentifizierung werden abgewiesen, Bilder mit zu großen Pixelmaßen ebenso,
    eine gleiche Lösungs-ID verdrängt keine vorhandene Lösung, ausgeblendete eigene Notizen sind wirklich nur zum
    Ansehen, unlesbare Importe bleiben nicht als Dauermeldung liegen.
+   Härtetests auf `develop` behoben: Ansichtsmodus schreibt nie (auch nicht über Rückgängig des Systems), Export
+   wartet auf ausstehende Tinte, gemischte Seitengrößen, lange Titel, kein leeres Paket, Extremwerte sicher
+   (`HardeningExportTests`, `HardeningSolutionEditorTests`, `HardeningSolutionRoundTripTests`). Seit S3 kommt die
+   Plus-Sperre dazu: mit Free ist der Editor wie im Ansichtsmodus nur zum Ansehen (`canEdit` neben `ownNotesVisible`).
    Einzelheiten und Grenzen: `docs/LOESUNGEN-TEILEN.md`.
 
 ## 5. Reihenfolge der Umsetzung
@@ -231,7 +240,9 @@ Datei fortschreiben.
 2. **Lernplan ohne Testaufgaben** (keine KI): Standard `tests_per_subject` = 0, in Python und auf dem iPad.
 3. **Demo-Modus** für die App-Prüfung nur über einen versteckten Schalter für Prüfer; sonst keine Beispieldaten.
 4. **Eigener Server** (Entwicklungsmodus) nur in Debug-Builds; im Release nicht erreichbar.
-5. **Nur LUH** in V1.
+5. **Nur LUH** in V1. Seitdem auf `develop`: Hochschulen strikt getrennt und Hildesheim am PC
+   (`docs/HILDESHEIM.md`), Auftrag für die iPad-App in `docs/AUFTRAG-HILDESHEIM-IPAD.md`; auf dem iPad bisher nur die
+   Hochschul-Regel der lokalen Datenbank (`settings.university`, `UniversityMismatch`).
 6. **Backup:** Notizen, Plan und Einstellungen ins iCloud-Backup; Stud.IP-Dateien, alte Fassungen und Seitentexte
    ausgenommen.
 7. **Große Dateien** (z. B. Videos über 100 MB) werden nur auf Wunsch geladen.
