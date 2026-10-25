@@ -93,7 +93,7 @@ struct UFNoServerContent: Equatable {
         }
         return UFNoServerContent(showsConnectCard: mode.showsConnectCard, status: status,
                                  text: text(kind, connected: connected, files: files, courses: courses),
-                                 soon: kind == .services || kind == .exams, filesButton: button)
+                                 soon: kind == .services, filesButton: button)
     }
 
     private static func text(_ kind: UFNoServerPage.Kind, connected: Bool, files: Int, courses: Int) -> String {
@@ -112,8 +112,8 @@ struct UFNoServerContent: Equatable {
         case .library:
             if connected, files > 0 { return filesHere }
             return "Noch keine Dokumente."
-        // Wochentests brauchen den noch offenen KI-Dienst, Noten kommen aus QIS (F4): nichts versprechen
-        case .exams: return "Wochentests kommen in einer späteren Version."
+        // keine KI in V1 (Entscheidung 25.10.): Wochentests weder anbieten noch ankuendigen
+        case .exams: return "Noch keine Tests."
         case .cards: return "Noch keine Karteikarten."
         case .services: return "Noten aus QIS kommen in einer späteren Version."
         case .generic: return "Hier ist noch nichts."

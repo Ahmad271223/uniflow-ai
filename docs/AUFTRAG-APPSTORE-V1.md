@@ -41,19 +41,19 @@ Apple-Einführungsangebot** („1 Woche gratis“, entschieden am 25.10.2026), d
    V2 auf Windows/Android erhalten bleiben. Heute verlustbehaftet: PencilKit-Tinten außer Stift/Bleistift/Marker
    werden als „Stift“ gespeichert, Text/Formen/Bilder sind im Apple-Editor nur sichtbar. Für V1 reicht: nichts geht
    verloren, was in V1 entstehen kann.
-4. **KI in V1 ist offen** (Entscheidung des Inhabers, Abschnitt 6). Ohne Freigabe eines KI-Dienstes: KI-Funktionen
-   in V1 ausblenden oder klar als „bald“ kennzeichnen – nichts vortäuschen. Ein KI-Schlüssel darf nie in der App liegen.
+4. **KI entfällt in V1** (Entscheidung des Inhabers vom 25.10.2026, Abschnitt 6): KI-Funktionen werden weder
+   angeboten noch beworben – nichts vortäuschen. Ein KI-Schlüssel darf nie in der App liegen.
 5. **iPad-only:** `TARGETED_DEVICE_FAMILY` auf `2` (heute `1,2` mit iPhone).
 
 ## 2a. Erster Start – Vorgabe des Inhabers (25.10.2026, verbindlich)
 
-**App laden → mit Apple ID registrieren → Free, Plus oder Pro wählen → direkt die UniFlow-Oberfläche.**
+**App laden → mit Apple ID registrieren → Free oder Plus wählen → direkt die UniFlow-Oberfläche.**
 Keine PIN, keine Serveradresse, kein Verbindungsformular, keine weiteren Pflichtschritte.
 
 | Schritt | Bildschirm | Einzelheiten |
 |---|---|---|
 | 1 | **Begrüßung** im UniFlow-Design | Logo, ein Satz, Knopf „Mit Apple anmelden“ (`SignInWithAppleButton`, Umfang Name und E-Mail). Nutzerkennung (`credential.user`) im Schlüsselbund speichern |
-| 2 | **Tarif wählen** | Drei Karten Free / Plus / Pro mit den Inhalten aus Abschnitt 4; Preise aus `Product.displayPrice`, bei Anspruch „1 Woche gratis“ (Abschnitt 5). „Free nutzen“ → weiter. „Plus – 1 Woche gratis“ / „Pro – 1 Woche gratis“ → Apple-Kaufdialog → nach Erfolg weiter, bei Abbruch bleibt die Seite. Dazu „Käufe wiederherstellen“ und Links zu Nutzungsbedingungen und Datenschutzerklärung (Pflicht bei Abos) |
+| 2 | **Tarif wählen** | Zwei Karten Free / Plus mit den Inhalten aus Abschnitt 4; Preise aus `Product.displayPrice`, bei Anspruch „1 Woche gratis“ (Abschnitt 5). „Free nutzen“ → weiter. „Plus – 1 Woche gratis“ → Apple-Kaufdialog → nach Erfolg weiter, bei Abbruch bleibt die Seite. Dazu „Käufe wiederherstellen“ und Links zu Nutzungsbedingungen und Datenschutzerklärung (Pflicht bei Abos) |
 | 3 | **UniFlow-Oberfläche** | App-Rahmen mit Seitenleiste, Übersicht – sofort, ohne Zwischenschritt |
 
 - **Stud.IP verbinden geschieht in der App**, nicht beim Start: Solange Stud.IP nicht verbunden ist, zeigt die
@@ -86,7 +86,7 @@ Keine PIN, keine Serveradresse, kein Verbindungsformular, keine weiteren Pflicht
 
 1. **Erster Start** (Abschnitt 2a): Begrüßung, Mit Apple anmelden, Tarifwahl, danach direkt UniFlow; das
    Verbindungsformular aus dem normalen Start entfernen.
-2. Prüfbericht **K2–K11** und **K3/K4** (K1 nur, wenn KI in V1 kommt).
+2. Prüfbericht **K2–K11** und **K3/K4** (K1 entfällt, keine KI in V1).
 3. **Lokales Backend** (F3) mit **Stud.IP direkt** als Datenquelle (F5) – damit ist auch Offline (F2) erfüllt.
 4. **Abos vollständig** (Abschnitt 4 und 5: Sperren je Tarif, Probewoche, Wiederherstellen, Verwalten) und
    **Konto löschen**.
@@ -186,7 +186,7 @@ Regeln:
 ## Startnachricht für die Mac-Sitzung
 
 > Hol mit `git pull` den neuen Stand und lies zuerst `docs/AUFTRAG-APPSTORE-V1.md` – das hat Vorrang. V1 ist die
-> iPad-App im App Store mit Apple-Editor, „Mit Apple anmelden“ und Abos (Free dauerhaft; Plus und Pro mit 1 Woche gratis als Apple-Einführungsangebot). Sie
+> iPad-App im App Store mit Apple-Editor, „Mit Apple anmelden“ und Abos (Free dauerhaft; Plus mit 1 Woche gratis als Apple-Einführungsangebot). Sie
 > muss ohne meinen PC-Server laufen. Beginne mit dem ersten Start (Abschnitt 2a: App laden → mit Apple ID registrieren
-> → Free/Plus/Pro wählen → direkt UniFlow, ohne PIN) und arbeite dann nach der Reihenfolge in Abschnitt 3. Keine echten Produkte, keine
+> → Free/Plus wählen → direkt UniFlow, ohne PIN) und arbeite dann nach der Reihenfolge in Abschnitt 3. Keine echten Produkte, keine
 > Einreichung, nichts Kostenpflichtiges ohne mich; offene Entscheidungen (Abschnitt 6) fragst du mich.

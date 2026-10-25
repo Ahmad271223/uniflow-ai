@@ -98,9 +98,10 @@ final class NoServerStateTests: XCTestCase {
             let services = content(.services, mode, files: 2)
             XCTAssertEqual(services.text, "Noten aus QIS kommen in einer späteren Version.")
             XCTAssertTrue(services.soon)
+            // keine KI in V1: Wochentests werden weder angeboten noch angekuendigt
             let exams = content(.exams, mode)
-            XCTAssertEqual(exams.text, "Wochentests kommen in einer späteren Version.")
-            XCTAssertTrue(exams.soon)
+            XCTAssertEqual(exams.text, "Noch keine Tests.")
+            XCTAssertFalse(exams.soon)
         }
         XCTAssertFalse(content(.library, .empty).soon)
         XCTAssertNil(UFNoServerPage.Spec.services.sub?.range(of: "Notenspiegel"))

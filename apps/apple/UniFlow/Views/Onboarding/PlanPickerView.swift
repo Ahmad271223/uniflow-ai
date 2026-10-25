@@ -83,9 +83,11 @@ struct PlanPickerView: View {
     }
 
     private var subtitle: String {
-        let trial = store.product(for: .plus).map { store.introEligible[$0.id] == true && $0.ufFreeTrial != nil } ?? false
+        // Dauer des Angebots aus dem Produkt, nicht fest im Code
+        let plus = store.product(for: .plus)
+        let trial = plus.flatMap { p in store.introEligible[p.id] == true ? p.ufFreeTrial : nil }
         let base = "Mit Free planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos."
-        if trial { return base + " Plus fügt das Schreiben mit Apple Pencil hinzu; die erste Woche ist gratis." }
+        if let trial { return base + " Plus fügt das Schreiben mit Apple Pencil hinzu; \(UFOfferText.period(value: trial.0, unit: trial.1)) gratis zum Start." }
         return base + " Plus fügt das Schreiben mit Apple Pencil hinzu. Du kannst den Tarif jederzeit wechseln."
     }
 

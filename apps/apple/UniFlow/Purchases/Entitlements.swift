@@ -460,7 +460,7 @@ struct UFLockedCard: View {
 
 /// Ansicht nur im passenden Tarif, sonst die Sperrkarte. Beobachtet den Tarif selbst, damit nach Kauf, Ablauf oder
 /// Erstattung sofort neu gezeichnet wird (ein blosses `if Entitlements.shared.allows(…)` im Aufrufer tut das nicht).
-/// Beispiel: `UFGate(.studyPlanning) { PlanView() }`
+/// Beispiel: `UFGate(.flashcards) { CardsPage() }`
 struct UFGate<Content: View>: View {
     let feature: UFFeature
     @ObservedObject private var ent: Entitlements
