@@ -515,6 +515,7 @@
       {"key": "hours_per_day", "value": "6"},
       {"key": "user_name", "value": "Testperson"},
       {"key": "eigener_schluessel", "value": "x"},
+      {"key": "university", "value": "luh"},
       {"key": "free_days", "value": "[6]"},
       {"key": "day_start", "value": "09:00"},
       {"key": "test_default_minutes", "value": "90"},

@@ -459,6 +459,7 @@
     "user_version": 0
   },
   "settings": [
+    ["university", "luh"],
     ["hours_per_day", "4"],
     ["free_days", "[6]"],
     ["day_start", "09:00"],

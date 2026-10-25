@@ -4,7 +4,7 @@ import Foundation
 /// angelegt wurde. Ein Lauf ist idempotent (jede Spalte wird ueber `PRAGMA table_info` geprueft, alles andere mit
 /// IF NOT EXISTS / OR IGNORE), also bei jedem Start gefahrlos.
 ///
-/// Reihenfolge wie in Python: Schema, Standardeinstellungen, die add_col-Folge mit der Korrektur der Dateiart
+/// Reihenfolge wie in Python: Schema, Hochschule der Datenbank, Standardeinstellungen, die add_col-Folge mit der Korrektur der Dateiart
 /// mittendrin, Index, Pseudokurs `__user__`, Standardsemester. Dazu `page_texts`, die Python erst bei der ersten
 /// Skriptsuche anlegt. Aenderungen immer zuerst in app/db.py, dann hier und in den Fixtures
 /// (tools/gen-swift-schema.py, tools/gen-schema-fixture.py).
@@ -94,11 +94,24 @@ public enum Migrations {
 
     public static let deviceSteps: [DeviceStep] = []
 
-    /// Alles in einer Transaktion: bricht ein Schritt ab, bleibt die Datenbank im alten Stand.
+    /// Hochschule dieser App (V1 nur LUH, `config.UNIVERSITY` in Python)
+    public static let defaultUniversity = "luh"
+
+    /// Alles in einer Transaktion: bricht ein Schritt ab, bleibt die Datenbank im alten Stand. Gehoert die Datenbank
+    /// einer anderen Hochschule, bricht der Lauf mit `UniversityMismatch` ab (wie `init_db`), nichts wird geaendert.
     public static func migrate(_ conn: SQLiteConnection, clock: UniFlowClock = .system,
+                               university: String = Migrations.defaultUniversity,
                                deviceSteps: [DeviceStep] = Migrations.deviceSteps) throws {
         try conn.transaction { conn in
             try conn.executeScript(SchemaSQL.schema)
+            // Jede Datenbank gehoert genau einer Hochschule (Schutz gegen vertauschte Datenordner)
+            if let owner = try conn.queryOne("SELECT value FROM settings WHERE key='university'") {
+                guard owner[0].string == university else {
+                    throw UniversityMismatch(stored: owner[0].string, expected: university)
+                }
+            } else {
+                try conn.execute("INSERT INTO settings(key, value) VALUES ('university', ?)", [.text(university)])
+            }
             for (key, value) in defaultSettings {
                 try conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", [.text(key), .text(value)])
             }
@@ -132,9 +145,22 @@ public enum Migrations {
     }
 }
 
+/// `db.UniversityMismatch`: Der Datenordner gehoert zu einer anderen Hochschule. Lieber nicht oeffnen als Daten mischen.
+public struct UniversityMismatch: Error, Equatable, CustomStringConvertible {
+    /// Hochschule laut Datenbank (nil, wenn der Eintrag kein Text ist)
+    public let stored: String?
+    public let expected: String
+
+    public var description: String {
+        "Diese Daten gehören zur Hochschule „\(stored ?? "unbekannt")“, die App läuft für „\(expected)“. "
+            + "Es werden keine Daten gemischt."
+    }
+}
+
 extension SQLiteDatabase {
     /// Schema anlegen bzw. bestehende Datenbank auf den aktuellen Stand bringen (bei jedem Start).
-    public func migrate(clock: UniFlowClock = .system, deviceSteps: [Migrations.DeviceStep] = Migrations.deviceSteps) throws {
-        try withConnection { try Migrations.migrate($0, clock: clock, deviceSteps: deviceSteps) }
+    public func migrate(clock: UniFlowClock = .system, university: String = Migrations.defaultUniversity,
+                        deviceSteps: [Migrations.DeviceStep] = Migrations.deviceSteps) throws {
+        try withConnection { try Migrations.migrate($0, clock: clock, university: university, deviceSteps: deviceSteps) }
     }
 }

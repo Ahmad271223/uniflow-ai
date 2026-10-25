@@ -50,12 +50,19 @@ public enum LocalSettings {
         return out
     }
 
-    /// `_public_settings`: ohne die PIN des PC-Servers
+    /// `_public_settings`: ohne die PIN des PC-Servers, dazu die Hochschule. `university_next` ist in Python die Uni
+    /// des naechsten Starts; einen Hochschulwechsel gibt es auf dem iPad in V1 nicht, darum dieselbe.
     public static func publicSettings(_ s: [String: JSONValue]) -> [String: JSONValue] {
         var p = s
         p["lan_pin"] = nil
+        let uni = s["university"] ?? .string(Migrations.defaultUniversity)
+        p["university"] = uni
+        p["university_next"] = uni
         return p
     }
+
+    /// Hochschulen wie `universities.valid` in app/universities.py
+    static let knownUniversities: Set<String> = ["luh", "hildesheim"]
 
     /// `set_setting(conn, key, value)`: Listen und Objekte als `json.dumps`, Wahrheitswerte als "1"/"0", sonst `str(value)`.
     public static func write(_ c: SQLiteConnection, key: String, value: PyJSON) throws {
@@ -169,7 +176,15 @@ public enum SettingsEndpoints: LocalEndpointModule {
         }
 
         router.put("/api/settings") { req, ctx in
-            let members = try req.pythonObjectBody()
+            var members = try req.pythonObjectBody()
+            // "university" wie put_settings: pruefen und nie in settings schreiben (die Datenbank gehoert ihrer Uni);
+            // ein Wechsel wird auf dem iPad in V1 nicht vorgemerkt
+            if let i = members.lastIndex(where: { $0.key == "university" }) {
+                guard case .string(let uni) = members[i].value, LocalSettings.knownUniversities.contains(uni) else {
+                    throw LocalHTTPError(status: 400, message: "Unbekannte Hochschule")
+                }
+                members.removeAll { $0.key == "university" }
+            }
             let s = try await ctx.database.transaction { c -> [String: JSONValue] in
                 for m in members { try LocalSettings.write(c, key: m.key, value: m.value) }
                 return try LocalSettings.read(c)

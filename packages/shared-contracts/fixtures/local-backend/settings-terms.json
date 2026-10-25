@@ -8,6 +8,7 @@
    "raw": null,
    "status": 200,
    "response": {
+    "university": "luh",
     "hours_per_day": 4.0,
     "free_days": [
      6
@@ -41,7 +42,8 @@
      3,
      4,
      5
-    ]
+    ],
+    "university_next": "luh"
    }
   },
   {
@@ -83,6 +85,7 @@
    "raw": "{\"hours_per_day\": 4.5, \"free_days\": [5, 6], \"auto_plan\": false, \"user_name\": \"Testperson \\u00c4\", \"blocked_times\": [{\"weekday\": 0, \"start\": \"12:00\", \"end\": \"13:00\", \"title\": \"Mittag \\u00fc \\ud83d\\ude00\"}], \"eigener_schluessel\": null, \"subjects_per_day\": \"x\", \"test_minutes\": 30.0, \"travel_minutes\": \" 25 \", \"x_int\": 7, \"x_float\": 1e-07, \"x_big\": 1e+16, \"x_obj\": {\"b\": 1, \"a\": [true, null, 2.5, \"\\n\\t\\\"\\\\\"]}}",
    "status": 200,
    "response": {
+    "university": "luh",
     "hours_per_day": 4.5,
     "free_days": [
      5,
@@ -128,7 +131,8 @@
      2,
      3,
      4
-    ]
+    ],
+    "university_next": "luh"
    }
   },
   {
@@ -138,6 +142,7 @@
    "raw": null,
    "status": 200,
    "response": {
+    "university": "luh",
     "hours_per_day": 4.5,
     "free_days": [
      5,
@@ -183,7 +188,8 @@
      2,
      3,
      4
-    ]
+    ],
+    "university_next": "luh"
    }
   },
   {
@@ -198,6 +204,7 @@
    "raw": "{\"lan_pin\": \"123456\", \"free_days\": {\"6\": true}}",
    "status": 200,
    "response": {
+    "university": "luh",
     "hours_per_day": 4.5,
     "free_days": {
      "6": true
@@ -244,7 +251,8 @@
      4,
      5,
      6
-    ]
+    ],
+    "university_next": "luh"
    }
   },
   {
@@ -261,6 +269,7 @@
    "raw": "{\"free_days\": [true, 6.0], \"min_slot_minutes\": \"1_5\", \"hours_per_day\": \"1_0\"}",
    "status": 200,
    "response": {
+    "university": "luh",
     "hours_per_day": 10.0,
     "free_days": [
      true,
@@ -306,7 +315,8 @@
      3,
      4,
      5
-    ]
+    ],
+    "university_next": "luh"
    }
   },
   {
@@ -368,6 +378,7 @@
    "raw": null,
    "status": 200,
    "response": {
+    "university": "luh",
     "hours_per_day": 10.0,
     "free_days": [
      true,
@@ -413,7 +424,8 @@
      3,
      4,
      5
-    ]
+    ],
+    "university_next": "luh"
    }
   },
   {
@@ -577,6 +589,10 @@
   [
    "travel_minutes",
    " 25 "
+  ],
+  [
+   "university",
+   "luh"
   ],
   [
    "user_name",

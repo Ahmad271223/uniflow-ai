@@ -96,7 +96,7 @@ final class SQLiteStoreTests: XCTestCase {
         assertSchema(try snapshot(c), fx["schema"])
         let settings: [JSONValue] = try c.query("SELECT key, value FROM settings ORDER BY rowid").map { [json($0[0]), json($0[1])] }
         XCTAssertEqual(settings, fx["settings"]?.array)
-        XCTAssertEqual(Migrations.defaultSettings.count, fx["settings"]?.array?.count)
+        XCTAssertEqual(Migrations.defaultSettings.count + 1, fx["settings"]?.array?.count, "Standardwerte und Hochschule")
 
         var courses = try c.rows("SELECT * FROM courses ORDER BY rowid")
         XCTAssertEqual(courses.first?["created_at"], "2026-10-25T14:30:05", "now_iso() aus der Uhr")
@@ -115,7 +115,7 @@ final class SQLiteStoreTests: XCTestCase {
         try Migrations.migrate(c, clock: .fixed(berlin: "2027-01-01T08:00")!)
         try Migrations.migrate(c, clock: .fixed(berlin: "2027-01-02T08:00")!)
         assertSchema(try snapshot(c), before)
-        XCTAssertEqual(try c.scalar("SELECT COUNT(*) FROM settings")?.int, Migrations.defaultSettings.count)
+        XCTAssertEqual(try c.scalar("SELECT COUNT(*) FROM settings")?.int, Migrations.defaultSettings.count + 1, "Standardwerte und Hochschule")
         XCTAssertEqual(try c.scalar("SELECT value FROM settings WHERE key='hours_per_day'")?.string, "6", "Nutzerwert bleibt")
         XCTAssertEqual(try c.scalar("SELECT COUNT(*) FROM terms")?.int, 1)
         XCTAssertEqual(try c.scalar("SELECT created_at FROM courses WHERE id='__user__'")?.string, "2026-10-25T14:30:05")
@@ -148,6 +148,28 @@ final class SQLiteStoreTests: XCTestCase {
         XCTAssertNil(try c.queryOne("PRAGMA foreign_key_check"))
     }
 
+    /// wie init_db: die Datenbank merkt sich ihre Hochschule; eine andere Uni oeffnet sie nicht und aendert nichts
+    func testDatabaseBelongsToOneUniversity() throws {
+        let c = try SQLiteConnection(path: SQLiteDatabase.inMemory)
+        try Migrations.migrate(c, clock: clock)
+        XCTAssertEqual(try c.scalar("SELECT value FROM settings WHERE key='university'")?.string, "luh")
+        let before = try snapshot(c)
+        XCTAssertThrowsError(try Migrations.migrate(c, clock: clock, university: "hildesheim")) { error in
+            XCTAssertEqual(error as? UniversityMismatch, UniversityMismatch(stored: "luh", expected: "hildesheim"))
+            XCTAssertTrue("\(error)".contains("keine Daten gemischt"))
+        }
+        assertSchema(try snapshot(c), before)
+        XCTAssertEqual(try c.scalar("SELECT value FROM settings WHERE key='university'")?.string, "luh")
+        XCTAssertFalse(c.isInTransaction)
+        try Migrations.migrate(c, clock: clock)                     // dieselbe Uni oeffnet weiter
+        // eine Datenbank, die schon einer anderen Uni gehoert, oeffnet die LUH-App nicht
+        let other = try SQLiteConnection(path: SQLiteDatabase.inMemory)
+        try Migrations.migrate(other, clock: clock, university: "hildesheim")
+        XCTAssertThrowsError(try Migrations.migrate(other, clock: clock)) {
+            XCTAssertEqual($0 as? UniversityMismatch, UniversityMismatch(stored: "hildesheim", expected: "luh"))
+        }
+    }
+
     func testFailedMigrationLeavesDatabaseUntouched() throws {
         let c = try SQLiteConnection(path: SQLiteDatabase.inMemory)
         let failing = Migrations.DeviceStep(version: 1) { _ in throw Boom() }
@@ -155,7 +177,7 @@ final class SQLiteStoreTests: XCTestCase {
         XCTAssertEqual(try c.scalar("SELECT COUNT(*) FROM sqlite_master")?.int, 0, "alles zurueckgerollt")
         XCTAssertFalse(c.isInTransaction)
         try Migrations.migrate(c, clock: clock)
-        XCTAssertEqual(try c.scalar("SELECT COUNT(*) FROM settings")?.int, Migrations.defaultSettings.count)
+        XCTAssertEqual(try c.scalar("SELECT COUNT(*) FROM settings")?.int, Migrations.defaultSettings.count + 1, "Standardwerte und Hochschule")
     }
 
     func testDeviceStepsRunOnceByUserVersion() throws {

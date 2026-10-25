@@ -333,6 +333,12 @@
         "travel_minutes": {
          "type": "number"
         },
+        "university": {
+         "type": "string"
+        },
+        "university_next": {
+         "type": "string"
+        },
         "user_name": {
          "type": "string"
         }
@@ -593,6 +599,12 @@
         },
         "travel_minutes": {
          "type": "number"
+        },
+        "university": {
+         "type": "string"
+        },
+        "university_next": {
+         "type": "string"
         },
         "user_name": {
          "type": "string"
@@ -1239,6 +1251,12 @@
       },
       "travel_minutes": {
        "type": "number"
+      },
+      "university": {
+       "type": "string"
+      },
+      "university_next": {
+       "type": "string"
       },
       "user_name": {
        "type": "string"
@@ -2687,6 +2705,10 @@
        "type": "array",
        "item": null
       },
+      "ids": {
+       "type": "array",
+       "item": null
+      },
       "new": {
        "type": "number"
       },
@@ -2893,6 +2915,12 @@
       },
       "travel_minutes": {
        "type": "number"
+      },
+      "university": {
+       "type": "string"
+      },
+      "university_next": {
+       "type": "string"
       },
       "user_name": {
        "type": "string"
