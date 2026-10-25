@@ -11,6 +11,7 @@ struct DashboardView: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
     @State private var showGenerate = false
     @State private var suggestion: JSONValue?
     private let api: APIClient?
@@ -22,7 +23,8 @@ struct DashboardView: View {
 
     var body: some View {
         Group {
-            if api == nil { noServer } else {
+            let mode = UFDataMode.current(api: api, studip: studip)
+            if mode != .server { noServer(mode) } else {
                 UFRemote(data: data) { d in content(d) }
                     .task { await data.load() }
                     .ufReload { await data.load() }
@@ -45,11 +47,11 @@ struct DashboardView: View {
 
     /// V1 ohne PC-Server: Begruessung, Karte "Stud.IP verbinden" (solange nicht verbunden) und ein ehrlicher
     /// leerer Zustand – keine Beispieldaten.
-    private var noServer: some View {
+    private func noServer(_ mode: UFDataMode) -> some View {
         UFContent {
             VStack(alignment: .leading, spacing: 0) {
                 UFPageHeadGreet(title: "\(UFFmt.greeting())!", sub: UFFmt.longToday()) { EmptyView() }
-                UFNoServerBody(icon: "calendar", text: "Hier stehen deine Lernpakete, Uni-Termine und neuen Dateien – noch ist nichts da.")
+                UFNoServerBody(kind: .dashboard, mode: mode)
             }
             .frame(maxWidth: 1120, alignment: .leading)
         }

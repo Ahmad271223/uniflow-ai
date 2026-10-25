@@ -4,6 +4,8 @@ import UniFlowCore
 // V1 ohne PC-Server (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a): Ohne eigenen UniFlow-Server zeigt jede Seite einen
 // ehrlichen leeren Zustand mit dem Weg zu "Stud.IP verbinden" – keine Beispieldaten, keine Hinweise auf PC oder PIN.
 // Mit Server (Entwicklungsmodus des Inhabers) laden die Seiten wie bisher.
+// Die Entscheidung trifft nur UFDataMode.current (Weiche fuer alle Seiten) und UFNoServerContent.resolve (was der
+// leere Zustand zeigt); beide sind reine Funktionen mit Unit-Tests (NoServerStateTests).
 
 /// Stand der Stud.IP-Verbindung aus Sicht der Oberflaeche.
 enum StudIPLink: Equatable {
@@ -13,11 +15,14 @@ enum StudIPLink: Equatable {
     /// angemeldet; auch waehrend eines Abgleichs und nach einem Abgleichfehler (z. B. offline)
     case connected
 
-    init(_ phase: StudIPSync.Phase) {
+    /// `hasSession`: liegt ein Sitzungs-Cookie im Schluesselbund? Nur bei `.failed` gefragt – scheitert schon das
+    /// Speichern nach der Anmeldung (StudIPSync.signedIn), ist Stud.IP nicht verbunden, obwohl die Phase `.failed` ist.
+    init(_ phase: StudIPSync.Phase, hasSession: @autoclosure () -> Bool) {
         switch phase {
         case .signedOut: self = .notConnected
         case .needsLogin: self = .expired
-        case .idle, .running, .failed: self = .connected
+        case .idle, .running: self = .connected
+        case .failed: self = hasSession() ? .connected : .notConnected
         }
     }
 }
@@ -42,31 +47,113 @@ enum UFDataMode: Equatable {
         }
     }
 
+    /// Die eine Weiche fuer alle Seiten (UFServerGate, Uebersicht, UFRemote, Community): Server aus der Sitzung,
+    /// Stud.IP aus dem Abgleich. Den Schluesselbund liest sie nur bei einem Abgleichfehler.
+    @MainActor static func current(api: APIClient?, studip: StudIPSync) -> UFDataMode {
+        resolve(hasServer: api != nil, studIP: StudIPLink(studip.phase, hasSession: !StudIPKeychain.load().isEmpty))
+    }
+
     /// Karte "Stud.IP verbinden" zeigen
     var showsConnectCard: Bool { self == .connectStudIP || self == .reconnectStudIP }
 }
 
+/// Was der leere Zustand einer Seite ohne Server zeigt: Abgleichstand, Text, Knopf zu den Stud.IP-Dateien.
+struct UFNoServerContent: Equatable {
+    enum Status: Equatable {
+        /// erster oder laufender Abgleich (Fortschrittstext aus StudIPSync)
+        case syncing(String)
+        /// Abgleich fehlgeschlagen (z. B. offline): Meldung mit "Erneut versuchen"
+        case failed(String)
+    }
+
+    let showsConnectCard: Bool
+    let status: Status?
+    let text: String
+    /// Funktion braucht eine spaetere Version (QIS-Noten, KI-Wochentests): als "bald" kennzeichnen
+    let soon: Bool
+    /// Beschriftung des Knopfs zu StudIPView; nil = kein Knopf
+    let filesButton: String?
+
+    static func resolve(kind: UFNoServerPage.Kind, mode: UFDataMode, phase: StudIPSync.Phase,
+                        files: Int, courses: Int) -> UFNoServerContent {
+        let connected = mode == .empty
+        var status: Status?
+        if connected {
+            switch phase {
+            case .running(let step): status = .syncing(step)
+            case .failed(let message): status = .failed(message)
+            case .signedOut, .needsLogin, .idle: status = nil
+            }
+        }
+        var button: String?
+        if connected, files > 0 {
+            button = "Stud.IP-Dateien ansehen (\(files))"
+        } else if connected, courses > 0 {
+            button = "Stud.IP-Kurse ansehen (\(courses))"
+        }
+        return UFNoServerContent(showsConnectCard: mode.showsConnectCard, status: status,
+                                 text: text(kind, connected: connected, files: files, courses: courses),
+                                 soon: kind == .services || kind == .exams, filesButton: button)
+    }
+
+    private static func text(_ kind: UFNoServerPage.Kind, connected: Bool, files: Int, courses: Int) -> String {
+        let filesHere = files == 1 ? "1 Datei aus Stud.IP liegt auf diesem iPad." : "\(files) Dateien aus Stud.IP liegen auf diesem iPad."
+        switch kind {
+        case .dashboard:
+            if connected, files > 0 { return filesHere + " Lernpakete und Uni-Termine gibt es noch keine." }
+            return "Hier stehen deine Lernpakete, Uni-Termine und neuen Dateien – noch ist nichts da."
+        case .plan: return "Noch keine Lernpakete geplant."
+        case .timetable: return "Noch keine Termine im Stundenplan."
+        case .modules:
+            if connected, courses > 0 {
+                return courses == 1 ? "1 Kurs aus Stud.IP ist abgeglichen." : "\(courses) Kurse aus Stud.IP sind abgeglichen."
+            }
+            return "Noch keine Module."
+        case .library:
+            if connected, files > 0 { return filesHere }
+            return "Noch keine Dokumente."
+        // Wochentests brauchen den noch offenen KI-Dienst, Noten kommen aus QIS (F4): nichts versprechen
+        case .exams: return "Wochentests kommen in einer späteren Version."
+        case .cards: return "Noch keine Karteikarten."
+        case .services: return "Noten aus QIS kommen in einer späteren Version."
+        case .generic: return "Hier ist noch nichts."
+        }
+    }
+}
+
 /// Karte "Stud.IP verbinden": kurzer Satz und Knopf, oeffnet die echte Stud.IP-Anmeldung (StudIPLoginView);
-/// das Passwort tippt der Nutzer selbst auf der Seite der Universitaet. Ist Stud.IP verbunden, zeigt die Karte
-/// nichts – sie verschwindet also nach erfolgreicher Anmeldung von selbst (auch in den Einstellungen nutzbar).
+/// das Passwort tippt der Nutzer selbst auf der Seite der Universitaet. Zeigt nur etwas, solange `mode` die Karte
+/// verlangt – sie verschwindet also nach erfolgreicher Anmeldung von selbst. In den Einstellungen (ohne Server)
+/// mit `UFDataMode.current(api: nil, studip:)` nutzbar.
 struct ConnectStudIPCard: View {
+    let mode: UFDataMode
     @EnvironmentObject private var studip: StudIPSync
     @State private var showLogin = false
 
     var body: some View {
-        let link = StudIPLink(studip.phase)
-        if link != .connected {
+        if mode.showsConnectCard {
+            let expired = mode == .reconnectStudIP
             UFCard {
-                UFCardHead(link == .expired ? "Stud.IP-Anmeldung abgelaufen" : "Stud.IP verbinden", icon: "graduation")
-                Text(link == .expired
+                UFCardHead(expired ? "Stud.IP-Anmeldung abgelaufen" : "Stud.IP verbinden", icon: "graduation")
+                Text(expired
                      ? "Melde dich erneut bei Stud.IP an, damit UniFlow deine Kurse und Dateien weiter abgleicht."
                      : "Melde dich bei Stud.IP der Leibniz Universität an, damit UniFlow deine Kurse und Dateien auf dieses iPad holt.")
                     .ufFont(14.5).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
+                // z. B. Schluesselbundfehler nach der Anmeldung: Meldung zeigen statt still zu verschwinden
+                if case .failed(let message) = studip.phase {
+                    HStack(alignment: .top, spacing: 6) {
+                        UFIcon("alert", size: 14).padding(.top, 2)
+                        Text("Die Anmeldung konnte nicht abgeschlossen werden: \(message)")
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .ufFont(13.12).foregroundStyle(UF.bad)
+                    .padding(.top, 6)
+                }
                 Text("Dein Passwort gibst du nur auf der Seite der Universität ein.")
                     .ufFont(13.12).foregroundStyle(UF.muted)
                     .padding(.top, 4)
-                UFButton(link == .expired ? "Erneut anmelden" : "Stud.IP verbinden", icon: "arrow-right", kind: .primary) { showLogin = true }
+                UFButton(expired || isFailed ? "Erneut anmelden" : "Stud.IP verbinden", icon: "arrow-right", kind: .primary) { showLogin = true }
                     .padding(.top, 12.8)
             }
             .sheet(isPresented: $showLogin) {
@@ -77,44 +164,67 @@ struct ConnectStudIPCard: View {
             }
         }
     }
+
+    private var isFailed: Bool { if case .failed = studip.phase { return true }; return false }
 }
 
 /// Leerer Zustand einer Seite ohne Server: Kopf wie die Seite, Karte "Stud.IP verbinden", leere Karte.
 struct UFNoServerPage: View {
+    /// Seite, deren leerer Zustand gezeigt wird (bestimmt Icon und Text, UFNoServerContent)
+    enum Kind: Equatable {
+        case dashboard, plan, timetable, modules, library, exams, cards, services, generic
+
+        var icon: String {
+            switch self {
+            case .dashboard, .plan: return "calendar"
+            case .timetable: return "clock"
+            case .modules: return "book"
+            case .library: return "folder"
+            case .exams: return "exam"
+            case .cards: return "cards"
+            case .services: return "graduation"
+            case .generic: return "info"
+            }
+        }
+    }
+
     struct Spec {
         let title: String
         var sub: String?
-        let icon: String
-        let text: String
+        let kind: Kind
         var maxWidth: CGFloat?
     }
 
     let spec: Spec
+    let mode: UFDataMode
 
     var body: some View {
         UFContent(maxWidth: spec.maxWidth) {
             UFPageHead(spec.title, sub: spec.sub)
-            UFNoServerBody(icon: spec.icon, text: spec.text)
+            UFNoServerBody(kind: spec.kind, mode: mode)
         }
     }
 }
 
 /// Inhalt unter dem Seitenkopf ohne Server (auch fuer die Uebersicht mit eigener Begruessung).
 struct UFNoServerBody: View {
-    let icon: String
-    let text: String
+    let kind: UFNoServerPage.Kind
+    let mode: UFDataMode
     @EnvironmentObject private var studip: StudIPSync
     @State private var showFiles = false
 
     var body: some View {
-        let mode = UFDataMode.resolve(hasServer: false, studIP: StudIPLink(studip.phase))
+        let c = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase,
+                                          files: studip.entries.count, courses: studip.courses.count)
         VStack(alignment: .leading, spacing: 16) {
-            if mode.showsConnectCard { ConnectStudIPCard() }
+            if c.showsConnectCard { ConnectStudIPCard(mode: mode) }
+            if let status = c.status { statusCard(status) }
             UFCard {
-                UFEmpty(icon: icon, text: text) {
-                    // verbunden: die heruntergeladenen Stud.IP-Dateien sind echte Daten auf diesem iPad
-                    if mode == .empty, !studip.entries.isEmpty {
-                        UFButton("Stud.IP-Dateien ansehen (\(studip.entries.count))", icon: "folder") { showFiles = true }
+                UFEmpty(icon: kind.icon, text: c.text) {
+                    if c.soon { UFBadge("bald", tone: .info, icon: "clock") }
+                    // die heruntergeladenen Stud.IP-Dateien und Kurse sind echte Daten auf diesem iPad
+                    if let label = c.filesButton {
+                        UFButton(label, icon: "folder") { showFiles = true }
                             .padding(.top, 8)
                     }
                 }
@@ -127,22 +237,50 @@ struct UFNoServerBody: View {
             }
         }
     }
+
+    /// Abgleichstand: Fortschrittszeile beim Abgleich, Meldung mit "Erneut versuchen" nach einem Fehler
+    @ViewBuilder private func statusCard(_ status: UFNoServerContent.Status) -> some View {
+        UFCard(flat: true) {
+            switch status {
+            case .syncing(let step):
+                HStack(spacing: 9.6) {
+                    ProgressView().tint(UF.accent)
+                    Text("Stud.IP wird abgeglichen – \(step)")
+                        .ufFont(14.5).foregroundStyle(UF.text2)
+                        .lineLimit(2)
+                }
+            case .failed(let message):
+                HStack(alignment: .top, spacing: 7.2) {
+                    UFIcon("alert", size: 18).foregroundStyle(UF.warn)
+                    VStack(alignment: .leading, spacing: 2.4) {
+                        Text("Stud.IP-Abgleich fehlgeschlagen").ufFont(14.5, 600).foregroundStyle(UF.text)
+                        Text(message).ufFont(13.12).foregroundStyle(UF.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    UFButton("Erneut versuchen", icon: "refresh", size: .small) { Task { await studip.run() } }
+                }
+            }
+        }
+    }
 }
 
 extension UFNoServerPage.Spec {
-    static let plan = Self(title: "Lernkalender", icon: "calendar", text: "Noch keine Lernpakete geplant.", maxWidth: 1600)
-    static let timetable = Self(title: "Stundenplan", icon: "clock", text: "Noch keine Termine im Stundenplan.", maxWidth: 1600)
+    static let plan = Self(title: "Lernkalender", sub: "Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.",
+                           kind: .plan, maxWidth: 1600)
+    static let timetable = Self(title: "Stundenplan", kind: .timetable, maxWidth: 1600)
     static let modules = Self(title: "Meine Module", sub: "Alle Module deines Studiums – Vorlesungen, Übungen, Materialien und Tests an einem Ort.",
-                              icon: "book", text: "Noch keine Module.", maxWidth: 1480)
+                              kind: .modules, maxWidth: 1480)
     static let library = Self(title: "Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.",
-                              icon: "folder", text: "Noch keine Dokumente.")
+                              kind: .library)
     static let exams = Self(title: "Tests & Wiederholung", sub: "Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.",
-                            icon: "exam", text: "Noch keine Wochentests.")
-    static let cards = Self(title: "Karteikarten", icon: "cards", text: "Noch keine Karteikarten.", maxWidth: 820)
-    static let services = Self(title: "Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel direkt in der App.",
-                               icon: "graduation", text: "Noch keine Noten geladen.", maxWidth: 1120)
+                            kind: .exams)
+    static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
+    // ohne "Notenspiegel direkt in der App": Noten kommen erst mit QIS (F4)
+    static let services = Self(title: "Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort.",
+                               kind: .services, maxWidth: 1120)
     /// Rueckfall fuer Ansichten ohne eigene Angaben (UFRemote)
-    static let generic = Self(title: "UniFlow", icon: "info", text: "Hier ist noch nichts.")
+    static let generic = Self(title: "UniFlow", kind: .generic)
 }
 
 /// Seite nur mit eigenem UniFlow-Server laden, sonst den leeren Zustand zeigen. Die Inhaltsansicht (und ihr
@@ -151,6 +289,7 @@ struct UFServerGate<Content: View>: View {
     let spec: UFNoServerPage.Spec
     @ViewBuilder var content: () -> Content
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
 
     init(_ spec: UFNoServerPage.Spec, @ViewBuilder content: @escaping () -> Content) {
         self.spec = spec
@@ -158,6 +297,7 @@ struct UFServerGate<Content: View>: View {
     }
 
     var body: some View {
-        if session.api != nil { content() } else { UFNoServerPage(spec: spec) }
+        let mode = UFDataMode.current(api: session.api, studip: studip)
+        if mode == .server { content() } else { UFNoServerPage(spec: spec, mode: mode) }
     }
 }

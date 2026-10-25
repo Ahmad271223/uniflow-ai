@@ -67,10 +67,12 @@ struct UFRemote<Content: View>: View {
     @ObservedObject var data: RemoteData
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
     @ViewBuilder var content: (JSONValue) -> Content
 
     var body: some View {
-        if session.api == nil { UFNoServerPage(spec: .generic) } else { remote }
+        let mode = UFDataMode.current(api: session.api, studip: studip)
+        if mode == .server { remote } else { UFNoServerPage(spec: .generic, mode: mode) }
     }
 
     @ViewBuilder private var remote: some View {
