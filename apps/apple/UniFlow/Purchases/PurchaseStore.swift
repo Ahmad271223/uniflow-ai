@@ -1,13 +1,14 @@
 import StoreKit
 import SwiftUI
 
-/// Abos ueber StoreKit 2 (Plus, Pro): Produkte laden, kaufen, wiederherstellen.
+/// Abo ueber StoreKit 2 (nur Plus, Entscheidung des Inhabers vom 25.10.2026): Produkt laden, kaufen, wiederherstellen.
 ///
 /// NUR TESTKONFIGURATION: Die Produkte existieren ausschliesslich in `UniFlow.storekit` (lokales StoreKit-Testen in
 /// Xcode/Simulator). Echte Produkte in App Store Connect werden erst nach ausdruecklicher Freigabe angelegt.
 /// Den Tarif fuehrt `Entitlements` (Transaction.currentEntitlements, Transaction.updates).
 @MainActor
 final class PurchaseStore: ObservableObject {
+    /// nur "de.uniflow.plus.monthly"; Free hat kein Produkt, Pro wird vorerst nicht angeboten
     static let productIDs = UFPlan.allCases.compactMap(\.productID)
 
     /// Ergebnis eines Kaufs; nur bei `.success` geht die Tarifwahl weiter
@@ -28,7 +29,7 @@ final class PurchaseStore: ObservableObject {
         self.entitlements = entitlements ?? .shared
     }
 
-    /// aktueller Tarif als Text ("free"/"plus"/"pro"), wie bisher
+    /// aktueller Tarif als Text ("free"/"plus"), wie bisher
     var activePlan: String { entitlements.plan.rawValue }
 
     func product(for plan: UFPlan) -> Product? {
@@ -48,8 +49,8 @@ final class PurchaseStore: ObservableObject {
     }
 
     /// Anspruch auf das Einfuehrungsangebot fuer alle geladenen Produkte neu lesen. Apple fuehrt ihn je Abo-Gruppe:
-    /// Nach einem Kauf, Wiederherstellen oder einer Aktualisierung (Transaction.updates) entfaellt er auch fuer die
-    /// anderen Tarife der Gruppe. Ohne neues Lesen wuerde die Seite weiter mit "1 Woche gratis" werben (Richtlinie 3.1.2).
+    /// Nach einem Kauf, Wiederherstellen oder einer Aktualisierung (Transaction.updates) entfaellt er fuer die ganze
+    /// Gruppe. Ohne neues Lesen wuerde die Seite weiter mit "1 Woche gratis" werben (Richtlinie 3.1.2).
     func refreshEligibility() async {
         var eligible: [String: Bool] = [:]
         for p in products {

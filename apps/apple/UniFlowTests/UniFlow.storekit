@@ -34,7 +34,7 @@
           ],
           "displayPrice" : "1.99",
           "familyShareable" : false,
-          "groupNumber" : 2,
+          "groupNumber" : 1,
           "internalID" : "6500000001",
           "introductoryOffer" : {
             "internalID" : "6500000011",
@@ -44,7 +44,7 @@
           },
           "localizations" : [
             {
-              "description" : "Schreiben mit Apple Pencil, Übung und Skript nebeneinander, Lernplanung, Karteikarten",
+              "description" : "Schreiben mit Apple Pencil, Übung und Skript nebeneinander, Karteikarten, bald Community",
               "displayName" : "UniFlow Plus",
               "locale" : "de"
             }
@@ -52,36 +52,6 @@
           "productID" : "de.uniflow.plus.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Plus monatlich",
-          "subscriptionGroupID" : "21500001",
-          "type" : "RecurringSubscription"
-        },
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "4.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "6500000002",
-          "introductoryOffer" : {
-            "internalID" : "6500000012",
-            "numberOfPeriods" : 1,
-            "paymentMode" : "free",
-            "subscriptionPeriod" : "P1W"
-          },
-          "localizations" : [
-            {
-              "description" : "Alles aus Plus, dazu bald Uni & Noten",
-              "displayName" : "UniFlow Pro",
-              "locale" : "de"
-            }
-          ],
-          "productID" : "de.uniflow.pro.monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Pro monatlich",
           "subscriptionGroupID" : "21500001",
           "type" : "RecurringSubscription"
         }

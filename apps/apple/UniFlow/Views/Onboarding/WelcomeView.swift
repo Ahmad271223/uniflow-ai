@@ -9,7 +9,7 @@ struct WelcomeView: View {
 
     /// wofuer das Konto dient: Icon, Titel, Erklaerung
     private static let reasons: [(String, String, String)] = [
-        ("star", "Abo", "Dein Tarif (Free, Plus oder Pro) wird deinem Konto zugeordnet."),
+        ("star", "Abo", "Dein Tarif (Free oder Plus) wird deinem Konto zugeordnet."),
         ("graduation", "Stud.IP-Zuordnung", "Deine Stud.IP-Verbindung und deine Kurse werden deinem Konto zugeordnet."),
         ("sync", "Später: Abgleich", "In einer späteren Version gleichen sich deine Notizen zwischen deinen Geräten ab."),
     ]

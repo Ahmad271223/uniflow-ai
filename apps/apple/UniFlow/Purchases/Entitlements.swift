@@ -2,14 +2,15 @@ import StoreKit
 import SwiftUI
 
 // Tarife und Berechtigungen in V1 (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 4 und 5).
+// Entscheidung des Inhabers vom 25.10.2026: nur Free und Plus; Pro und KI entfallen vorerst.
 // Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit signiert und
 // geprueft). Ab V2 prueft zusaetzlich der Server (app/billing.py, /api/billing/apple/verify).
 
 // MARK: - Tarif
 
-/// Free / Plus / Pro wie PLANS in app/billing.py
+/// Free / Plus (Abschnitt 4). Pro aus app/billing.py gibt es in der App vorerst nicht.
 enum UFPlan: String, CaseIterable, Comparable, Identifiable {
-    case free, plus, pro
+    case free, plus
 
     var id: String { rawValue }
 
@@ -17,7 +18,6 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         switch self {
         case .free: return 0
         case .plus: return 1
-        case .pro: return 2
         }
     }
 
@@ -27,7 +27,6 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         switch self {
         case .free: return "Free"
         case .plus: return "Plus"
-        case .pro: return "Pro"
         }
     }
 
@@ -36,47 +35,35 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         switch self {
         case .free: return nil
         case .plus: return "de.uniflow.plus.monthly"
-        case .pro: return "de.uniflow.pro.monthly"
         }
     }
 
-    /// APPLE_PRODUCTS in app/billing.py; fremde Produkte geben keinen Tarif
+    /// Produkt -> Tarif; fremde und nicht mehr angebotene Produkte (z. B. das fruehere Pro) geben keinen Tarif
     init?(productID: String) {
         guard let p = UFPlan.allCases.first(where: { $0.productID == productID }) else { return nil }
         self = p
-    }
-
-    /// Wochentests mit KI im Monat (nur mit freigegebenem KI-Dienst)
-    var aiTestQuota: Int {
-        switch self {
-        case .free: return 1
-        case .plus: return 6
-        case .pro: return 40
-        }
     }
 }
 
 // MARK: - Funktionen
 
-/// Funktionen aus der Tabelle in Abschnitt 4. Jede Zeile der Tabelle ist genau ein Fall.
+/// Funktionen aus der Tabelle in Abschnitt 4. Jede Zeile der Tabelle ist genau ein Fall; die Reihenfolge ist die
+/// Reihenfolge auf den Tarifkarten.
 enum UFFeature: String, CaseIterable, Identifiable {
     // Free
     case studipSync          // Mit Apple anmelden, Stud.IP verbinden, Kurse/Ordner/neue Dateien abgleichen
-    case readDocuments       // Dokumente lesen und durchsuchen, Bibliothek, Ordner, Favoriten
-    case modulesTimetable    // Meine Module, Stundenplan ansehen
+    case readDocuments       // Dokumente oeffnen, lesen und durchsuchen, Bibliothek, Ordner, Favoriten
+    case modulesTimetable    // Meine Module (Faecher geordnet), Stundenplan ansehen
     case studyCalendar       // Lernkalender ansehen, Aufgaben abhaken
+    case studyPlanning       // Lernplan, Lernkombination, freie Zeitfenster, Nachholen, "Woche retten"
     case timer               // Stoppuhr, Countdown, Pomodoro
     case viewNotes           // vorhandene Notizen ansehen und als PDF exportieren
+    case uniGrades           // Uni & Noten (QIS), vorerst ausserhalb der Tarife: "bald", bis nativ vorhanden (F4)
     // Plus
-    case pencilWriting       // Stift, Marker, Radierer, Lasso, Seiten einfuegen/drehen, Lesezeichen
+    case pencilWriting       // Stift, Marker, Radierer, Lasso, Seiten einfuegen/drehen/Papierkorb, Lesezeichen
+    case community           // Loesungen teilen und ansehen, Funktion folgt ("bald")
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
-    case studyPlanning       // Lernplan, Lernkombination, freie Zeitfenster, Nachholen, "Woche retten"
     case flashcards          // eigene Karteikarten mit Wiederholung
-    // Pro
-    case uniGrades           // Uni & Noten (QIS), sobald nativ vorhanden (F4)
-    // KI (nur mit freigegebenem KI-Dienst)
-    case aiTests             // Wochentests erstellen und bewerten, Kontingent je Tarif (UFPlan.aiTestQuota)
-    case aiTutor             // Tutor, Zusammenfassungen, Karteikarten aus dem Skript, "Meine Lösung prüfen"
     // ab V2
     case uniflowEditor
     case deviceSync
@@ -86,13 +73,13 @@ enum UFFeature: String, CaseIterable, Identifiable {
     /// kleinster Tarif, in dem die Funktion enthalten ist
     var minimumPlan: UFPlan {
         switch self {
-        case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .timer, .viewNotes, .aiTests: return .free
-        case .pencilWriting, .splitView, .studyPlanning, .flashcards, .uniflowEditor, .deviceSync: return .plus
-        case .uniGrades, .aiTutor: return .pro
+        case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
+             .uniGrades:
+            return .free
+        case .pencilWriting, .community, .splitView, .flashcards, .uniflowEditor, .deviceSync:
+            return .plus
         }
     }
-
-    var needsAIService: Bool { self == .aiTests || self == .aiTutor }
 
     /// erst ab V2 vorhanden (UniFlow-Editor, Abgleich zwischen Geraeten)
     var isV2: Bool { self == .uniflowEditor || self == .deviceSync }
@@ -101,18 +88,17 @@ enum UFFeature: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .studipSync: return "Stud.IP verbinden und abgleichen"
-        case .readDocuments: return "Dokumente lesen und durchsuchen"
+        case .readDocuments: return "Dokumente öffnen, lesen und durchsuchen"
         case .modulesTimetable: return "Meine Module und Stundenplan"
         case .studyCalendar: return "Lernkalender ansehen, Aufgaben abhaken"
+        case .studyPlanning: return "Lernplanung"
         case .timer: return "Zeitmesser (Stoppuhr, Countdown, Pomodoro)"
         case .viewNotes: return "Notizen ansehen und als PDF exportieren"
-        case .pencilWriting: return "Schreiben mit Apple Pencil"
-        case .splitView: return "Übung und Skript nebeneinander"
-        case .studyPlanning: return "Lernplanung"
-        case .flashcards: return "Eigene Karteikarten mit Wiederholung"
         case .uniGrades: return "Uni & Noten"
-        case .aiTests: return "Wochentests mit KI"
-        case .aiTutor: return "KI-Tutor und Zusammenfassungen"
+        case .pencilWriting: return "Schreiben mit Apple Pencil"
+        case .community: return "Community"
+        case .splitView: return "Übung und Skript nebeneinander"
+        case .flashcards: return "Eigene Karteikarten mit Wiederholung"
         case .uniflowEditor: return "UniFlow-Editor"
         case .deviceSync: return "Abgleich zwischen deinen Geräten"
         }
@@ -121,11 +107,12 @@ enum UFFeature: String, CaseIterable, Identifiable {
     /// Zusatz unter dem Titel (Umfang der Zeile aus Abschnitt 4)
     var detail: String? {
         switch self {
-        case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen und drehen, Lesezeichen"
-        case .splitView: return "Mit Skriptsuche zur Aufgabe"
+        case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Lernplan, Lernkombination, freie Zeitfenster, Nachholen, „Woche retten“"
         case .uniGrades: return "Notenspiegel und Bescheinigungen aus QIS"
-        case .aiTutor: return "Tutor im Editor, Karteikarten aus dem Skript, „Meine Lösung prüfen“"
+        case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
+        case .community: return "Lösungen teilen und ansehen"
+        case .splitView: return "Mit Skriptsuche zur Aufgabe"
         default: return nil
         }
     }
@@ -136,14 +123,14 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .readDocuments: return "book"
         case .modulesTimetable: return "calendar"
         case .studyCalendar: return "tasks"
+        case .studyPlanning: return "calendar"
         case .timer: return "clock"
         case .viewNotes: return "download"
-        case .pencilWriting: return "pencil"
-        case .splitView: return "columns"
-        case .studyPlanning: return "calendar"
-        case .flashcards: return "cards"
         case .uniGrades: return "graduation"
-        case .aiTests, .aiTutor: return "sparkles"
+        case .pencilWriting: return "pencil"
+        case .community: return "users"
+        case .splitView: return "columns"
+        case .flashcards: return "cards"
         case .uniflowEditor: return "pen"
         case .deviceSync: return "refresh"
         }
@@ -157,8 +144,8 @@ enum UFAccess: Equatable {
     case allowed
     /// gesperrt, freigeschaltet ab diesem Tarif
     case locked(UFPlan)
-    /// noch nicht vorhanden (KI ohne freigegebenen Dienst, Uni & Noten vor F4, Funktionen ab V2) – als "bald"
-    /// kennzeichnen, in keinem Tarif freigeschaltet
+    /// noch nicht vorhanden (Uni & Noten vor F4, Community, Funktionen ab V2) – als "bald" kennzeichnen, in keinem
+    /// Tarif freigeschaltet
     case comingSoon
 
     var isAllowed: Bool { self == .allowed }
@@ -166,38 +153,31 @@ enum UFAccess: Equatable {
 
 /// Regeln aus Abschnitt 4, ohne StoreKit (testbar)
 enum UFFeatureMatrix {
-    /// Ein KI-Dienst ist in V1 nicht freigegeben (Abschnitt 6). Erst nach Entscheidung des Inhabers umstellen.
-    static let aiServiceAvailable = false
-
     /// Uni & Noten laeuft heute ueber den PC-Server; direkt auf dem iPad erst mit F4 (Pruefbericht). Bis dahin ist
-    /// die Funktion in keinem Tarif enthalten ("bald"), auch nicht in Pro (Abschnitt 4: "sobald nativ vorhanden").
+    /// die Funktion in keinem Tarif freigeschaltet ("bald" bei Free, Abschnitt 4).
     static let uniGradesOnDevice = false
 
-    static func access(_ f: UFFeature, plan: UFPlan, aiService: Bool = aiServiceAvailable,
-                       uniGrades: Bool = uniGradesOnDevice) -> UFAccess {
-        if f.isV2 || (f.needsAIService && !aiService) || (f == .uniGrades && !uniGrades) { return .comingSoon }
+    /// Community braucht einen zentralen Dienst (Anmeldung, Moderation); bis er steht, in Plus nur als "bald"
+    static let communityAvailable = false
+
+    static func access(_ f: UFFeature, plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
+                       community: Bool = communityAvailable) -> UFAccess {
+        if f.isV2 || (f == .uniGrades && !uniGrades) || (f == .community && !community) { return .comingSoon }
         return plan >= f.minimumPlan ? .allowed : .locked(f.minimumPlan)
     }
 
-    /// Bietet der Tarif heute schon etwas, das der naechstkleinere nicht hat? In V1 ohne KI-Dienst und ohne
-    /// Uni & Noten auf dem Geraet ist das fuer Pro nicht der Fall; die Tarifkarte sagt das dann offen.
-    static func hasAvailableExtras(in plan: UFPlan, aiService: Bool = aiServiceAvailable,
-                                   uniGrades: Bool = uniGradesOnDevice) -> Bool {
+    /// Bietet der Tarif heute schon etwas, das der naechstkleinere nicht hat? Sonst sagt die Tarifkarte das offen.
+    static func hasAvailableExtras(in plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
+                                   community: Bool = communityAvailable) -> Bool {
         if plan == .free { return true }
-        if aiService && plan.aiTestQuota > (UFPlan.allCases.last { $0 < plan }?.aiTestQuota ?? 0) { return true }
         return UFFeature.allCases.contains {
-            $0.minimumPlan == plan && access($0, plan: plan, aiService: aiService, uniGrades: uniGrades) == .allowed
+            $0.minimumPlan == plan && access($0, plan: plan, uniGrades: uniGrades, community: community) == .allowed
         }
-    }
-
-    /// Wochentest mit KI: Kontingent des Tarifs im laufenden Monat
-    static func canStartAITest(plan: UFPlan, usedThisMonth: Int, aiService: Bool = aiServiceAvailable) -> Bool {
-        access(.aiTests, plan: plan, aiService: aiService).isAllowed && usedThisMonth < plan.aiTestQuota
     }
 
     /// Funktionen, die ein Tarif mehr bietet als der naechstkleinere (Inhalt der Tarifkarten)
     static func added(in plan: UFPlan) -> [UFFeature] {
-        UFFeature.allCases.filter { $0.minimumPlan == plan && !$0.needsAIService }
+        UFFeature.allCases.filter { $0.minimumPlan == plan }
     }
 
     /// Herabstufen (Abschnitt 4, "Regeln"): Notizen bleiben vollstaendig erhalten, lesbar und exportierbar;
@@ -464,12 +444,12 @@ struct UFLockedCard: View {
         case .allowed: return ""
         case .comingSoon:
             if f.isV2 { return "Kommt mit der nächsten Version von UniFlow." }
-            if f.needsAIService { return "Bald verfügbar – KI-Funktionen sind noch nicht freigeschaltet." }
             let base = f.detail.map { "\($0). " } ?? ""
+            if f == .community { return base + "Bald verfügbar – die Community folgt mit einem Update." }
             return base + "Bald verfügbar – kommt mit einem Update direkt auf dein iPad."
         case .locked(let p):
             let base = f.detail.map { "\($0). " } ?? ""
-            return base + "Enthalten in \(p == .plus ? "Plus und Pro" : "Pro"). Deine Notizen und Daten bleiben in jedem Tarif erhalten."
+            return base + "Enthalten in \(p.title). Deine Notizen und Daten bleiben in jedem Tarif erhalten."
         }
     }
 

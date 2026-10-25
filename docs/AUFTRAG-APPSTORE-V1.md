@@ -11,9 +11,10 @@ schreibende Tests nur mit Zustimmung, `[skip ci]`, kein `main`, keine Passwörte
 | **V1** | jetzt | **iPad im App Store** – noch kein Play Store, kein Windows | **Apple-Editor** (PencilKit + PDFKit, der vorhandene native Editor) | **Mit Apple anmelden** |
 | **V2** | ca. 1 Monat nach V1 | zusätzlich **Android (Play Store)** und **Windows** | **eigener UniFlow-Editor** (1:1 wie im Web). Auf Apple in den Einstellungen wählbar: „Apple-Editor“ oder „UniFlow-Editor“. Windows und Android: nur UniFlow-Editor | zusätzlich **Google** und **SMS** |
 
-Abos gibt es **von Anfang an**: **Free** dauerhaft ohne Abo; **Plus** und **Pro** beginnen mit **7 Tagen kostenlos als
+Abos gibt es **von Anfang an**: **Free** dauerhaft ohne Abo; **Plus** beginnt mit **7 Tagen kostenlos als
 Apple-Einführungsangebot** („1 Woche gratis“, entschieden am 25.10.2026), danach kostenpflichtig, wenn nicht gekündigt
-(Abschnitt 4 und 5).
+(Abschnitt 4 und 5). **Entscheidung des Inhabers vom 25.10.2026: Pro und KI entfallen vorerst** – es gibt nur Free
+(mit Lernplanung) und Plus (zusätzlich Schreiben mit Apple Pencil und Community).
 
 ## 2. Was das für V1 bedeutet
 
@@ -95,50 +96,55 @@ Keine PIN, keine Serveradresse, kein Verbindungsformular, keine weiteren Pflicht
 
 ## 4. Abos – was in welchem Tarif enthalten ist
 
-Grundlage: `docs/KONTEN-ABOS-PLAN.md` und `app/billing.py` (Free/Plus/Pro). **Preise und Umfang legt der Inhaber
-fest**; die Zielpreise stammen aus dem bestehenden Plan.
+Grundlage: `docs/KONTEN-ABOS-PLAN.md` und `app/billing.py` (dort noch Free/Plus/Pro; der PC-Server dient nur der
+Entwicklung). **Preise und Umfang legt der Inhaber fest.**
 
-| Funktion | Free | Plus | Pro |
-|---|:---:|:---:|:---:|
-| Mit Apple anmelden, Stud.IP verbinden, Kurse/Ordner/neue Dateien abgleichen | ✓ | ✓ | ✓ |
-| Dokumente lesen und durchsuchen, Bibliothek, Ordner, Favoriten | ✓ | ✓ | ✓ |
-| Meine Module, Stundenplan ansehen | ✓ | ✓ | ✓ |
-| Lernkalender ansehen, Aufgaben abhaken | ✓ | ✓ | ✓ |
-| Zeitmesser (Stoppuhr, Countdown, Pomodoro) | ✓ | ✓ | ✓ |
-| Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ | ✓ |
-| **Schreiben mit Apple Pencil** (Stift, Marker, Radierer, Lasso), Seiten einfügen/drehen, Lesezeichen | – | ✓ | ✓ |
-| **Übung und Skript nebeneinander** + Skriptsuche zur Aufgabe | – | ✓ | ✓ |
-| **Lernplanung**: Lernplan erstellen, Lernkombination, freie Zeitfenster, Nachholen, „Woche retten“ | – | ✓ | ✓ |
-| Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |
-| Uni & Noten (QIS: Notenspiegel, Bescheinigungen) – sobald nativ vorhanden (F4) | – | – | ✓ |
-| **KI** (nur mit freigegebenem KI-Dienst): Wochentests erstellen und bewerten | 1/Monat | 6/Monat | 40/Monat |
-| **KI** (nur mit freigegebenem KI-Dienst): Tutor im Editor, Zusammenfassungen, Karteikarten aus dem Skript, „Meine Lösung prüfen“ | – | – | ✓ |
-| ab V2: UniFlow-Editor (auf Apple wählbar) | – | ✓ | ✓ |
-| ab V2: Abgleich zwischen eigenen Geräten (iPad, Windows, Android) | – | ✓ | ✓ |
-| **Zielpreis** | 0 € | 1,99 €/Monat | 4,99 €/Monat |
+**Entscheidung des Inhabers (25.10.2026): Pro und KI entfallen vorerst komplett.** Es gibt nur **Free** und **Plus**;
+die Lernplanung gehört zu Free. Keine KI-Zeilen, kein Pro, kein KI-Kontingent. Das ersetzt auch die Angaben zu Pro in
+Abschnitt 2a (Tarifwahl: zwei Karten Free / Plus) und in der Startnachricht.
+
+| Funktion | Free | Plus |
+|---|:---:|:---:|
+| Mit Apple anmelden, Stud.IP verbinden, Kurse/Ordner/neue Dateien abgleichen | ✓ | ✓ |
+| Dokumente öffnen, lesen und durchsuchen, Bibliothek, Ordner, Favoriten | ✓ | ✓ |
+| Meine Module (Fächer geordnet), Stundenplan ansehen | ✓ | ✓ |
+| Lernkalender ansehen, Aufgaben abhaken | ✓ | ✓ |
+| **Lernplanung**: Lernplan erstellen, Lernkombination, freie Zeitfenster, Nachholen, „Woche retten“ | ✓ | ✓ |
+| Zeitmesser (Stoppuhr, Countdown, Pomodoro) | ✓ | ✓ |
+| Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ |
+| Uni & Noten (QIS: Notenspiegel, Bescheinigungen) – vorerst außerhalb der Tarife, sobald nativ vorhanden (F4) | bald | bald |
+| **Schreiben mit Apple Pencil** (Stift, Marker, Radierer, Lasso), Seiten einfügen/drehen/Papierkorb, Lesezeichen | – | ✓ |
+| **Community**: Lösungen teilen und ansehen – Funktion folgt, in der Tarifwahl als „bald“ gekennzeichnet | – | bald |
+| **Übung und Skript nebeneinander** + Skriptsuche zur Aufgabe | – | ✓ |
+| Eigene Karteikarten mit Wiederholung | – | ✓ |
+| ab V2: UniFlow-Editor (auf Apple wählbar) | – | ✓ |
+| ab V2: Abgleich zwischen eigenen Geräten (iPad, Windows, Android) | – | ✓ |
+| **Preis** | 0 €, dauerhaft | 1,99 €/Monat, 1 Woche gratis (Apple-Einführungsangebot) |
 
 Regeln:
 - **Herabstufen:** Notizen bleiben vollständig erhalten, lesbar und exportierbar; nur Bearbeiten wird gesperrt.
 - **Sperren sichtbar machen:** Gesperrte Funktionen zeigen ein Schloss und führen zur Abo-Seite, statt zu
   verschwinden oder still nichts zu tun.
-- **Ohne KI-Dienst** fallen die KI-Zeilen weg; dann unterscheidet sich Pro in V1 nur durch Uni & Noten. Das ist mit
-  dem Inhaber zu klären (Abschnitt 6).
+- **„bald“ ehrlich kennzeichnen:** Uni & Noten und Community sind in keinem Tarif freigeschaltet, bis sie auf dem iPad
+  bzw. mit dem zentralen Dienst wirklich funktionieren – nichts vortäuschen.
+- **KI** entfällt vorerst (Abschnitt 6); KI-Funktionen werden weder angeboten noch beworben.
 
 ## 5. Abos technisch (V1)
 
-- **StoreKit 2**, eine Abo-Gruppe „UniFlow“: `de.uniflow.plus.monthly`, `de.uniflow.pro.monthly` (bereits in
-  `apps/apple/UniFlowTests/UniFlow.storekit` und `Purchases/PurchaseStore.swift`).
-- **7 Tage kostenlos – entschieden (Inhaber, 25.10.2026): Apple-Einführungsangebot „1 Woche gratis“ auf Plus
-  und Pro.** Umsetzung:
-  - StoreKit-Testkonfiguration (`apps/apple/UniFlowTests/UniFlow.storekit`): bei beiden Produkten
-    `introductoryOffer` mit `paymentMode: free`, `subscriptionPeriod: P1W`, `numberOfPeriods: 1` eintragen (heute
-    leer). In App Store Connect richtet der Inhaber dasselbe Angebot später selbst ein.
+- **StoreKit 2**, eine Abo-Gruppe „UniFlow“ mit **einem** Produkt: `de.uniflow.plus.monthly` (in
+  `apps/apple/UniFlowTests/UniFlow.storekit` und `Purchases/PurchaseStore.swift`). `de.uniflow.pro.monthly` entfällt
+  vorerst (Entscheidung 25.10.2026) und gibt in der App keinen Tarif mehr.
+- **7 Tage kostenlos – entschieden (Inhaber, 25.10.2026): Apple-Einführungsangebot „1 Woche gratis“ auf Plus.**
+  Umsetzung:
+  - StoreKit-Testkonfiguration (`apps/apple/UniFlowTests/UniFlow.storekit`): beim Plus-Produkt
+    `introductoryOffer` mit `paymentMode: free`, `subscriptionPeriod: P1W`, `numberOfPeriods: 1` (eingetragen).
+    In App Store Connect richtet der Inhaber dasselbe Angebot später selbst ein.
   - Anspruch prüfen mit `Product.SubscriptionInfo.isEligibleForIntroOffer` (je Abo-Gruppe, Apple merkt sich die
     Nutzung pro Apple ID): Hat jemand die Woche schon genutzt, zeigt die Abo-Seite den normalen Preis statt
     „1 Woche gratis“.
-  - Vor dem Kauf klar sichtbar: „1 Woche gratis, danach 1,99 €/Monat bzw. 4,99 €/Monat, monatlich kündbar“
+  - Vor dem Kauf klar sichtbar: „1 Woche gratis, danach 1,99 €/Monat, monatlich kündbar“
     (Richtlinie 3.1.2); Preise immer aus `Product.displayPrice`, nie fest im Code.
-  - Während der Gratiswoche gilt der volle Umfang des gewählten Tarifs (StoreKit liefert die Berechtigung wie bei
+  - Während der Gratiswoche gilt der volle Umfang von Plus (StoreKit liefert die Berechtigung wie bei
     einem bezahlten Abo). Wird gekündigt, endet der Zugang mit der Woche und die App fällt auf Free zurück.
   - Free bleibt ohne Abo dauerhaft nutzbar. Eine Probezeit ohne Zahlungsdaten (eigene 7-Tage-Freischaltung) wird
     **nicht** gebaut.
@@ -155,9 +161,10 @@ Regeln:
 
 | Thema | Stand |
 |---|---|
-| **Art der 7 Tage** | **Entschieden (25.10.2026):** Apple-Einführungsangebot, 1 Woche gratis auf Plus und Pro (Abschnitt 5) |
-| **KI in V1** | Offen. KI braucht ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App). Ohne KI hat Pro in V1 wenig Mehrwert |
-| **Preise** | Offen. Zielpreise 1,99 € / 4,99 € pro Monat; Jahresabo ja/nein |
+| **Tarife** | **Entschieden (25.10.2026):** nur Free und Plus; Pro entfällt vorerst. Free mit Lernplanung, Plus zusätzlich mit Schreiben (Apple Pencil) und Community (Abschnitt 4) |
+| **Art der 7 Tage** | **Entschieden (25.10.2026):** Apple-Einführungsangebot, 1 Woche gratis auf Plus (Abschnitt 5) |
+| **KI in V1** | **Entschieden (25.10.2026):** KI entfällt vorerst komplett, keine KI-Zeilen und keine KI-Kontingente. KI bräuchte ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App) |
+| **Preise** | Plus 1,99 €/Monat (25.10.2026). Offen: Jahresabo ja/nein |
 | **Server für V2** | Offen. Google- und SMS-Anmeldung, Abgleich zwischen Geräten und Abos über Plattformen hinweg brauchen einen gehosteten Dienst (Kosten, Betrieb, Datenschutz). SMS kostet pro Nachricht |
 | **Apple Developer Program** | Offen, Anmeldung durch den Inhaber. 99 €/Jahr, Voraussetzung für „Mit Apple anmelden“, TestFlight, App Store und echte Abos |
 | **Rechtliches vor dem Start** | Offen. Datenschutzerklärung (URL in App Store Connect), Impressum, Abo-Bedingungen; rechtliche Prüfung des Stud.IP-Abrufs für andere Studierende (`docs/IPAD-STUDIP-SYNC.md`, Abschnitt 8) |

@@ -644,8 +644,8 @@ private struct AppAccountCards: View {
         UFCard {
             UFCardHead("Tarif", icon: "star")
             Text(canSwitchPlan
-                 ? "Free, Plus oder Pro wählen, Abo verwalten und Käufe wiederherstellen."
-                 : "Die Auswahl zwischen Free, Plus und Pro folgt hier.")
+                 ? "Free oder Plus wählen, Abo verwalten und Käufe wiederherstellen."
+                 : "Die Auswahl zwischen Free und Plus folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
             UFFlexWrap(gap: 9.6) {
                 UFButton("Tarif wechseln", icon: "star", kind: .primary, size: .small) {

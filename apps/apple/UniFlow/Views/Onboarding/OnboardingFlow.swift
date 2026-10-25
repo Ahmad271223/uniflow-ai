@@ -41,7 +41,7 @@ private struct PlanStepPlaceholder: View {
         OnboardingPage {
             UFCard {
                 UFCardHead("Tarif wählen", icon: "star")
-                Text("Die Auswahl zwischen Free, Plus und Pro folgt hier. Du kannst den Tarif später jederzeit in den Einstellungen wechseln.")
+                Text("Die Auswahl zwischen Free und Plus folgt hier. Du kannst den Tarif später jederzeit in den Einstellungen wechseln.")
                     .ufFont(14.5).foregroundStyle(UF.muted)
                 HStack {
                     Spacer()

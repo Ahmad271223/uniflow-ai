@@ -6,85 +6,71 @@ import XCTest
 final class EntitlementTests: XCTestCase {
 
     func testProductToPlan() {
+        XCTAssertEqual(UFPlan.allCases, [.free, .plus])
         XCTAssertEqual(UFPlan(productID: "de.uniflow.plus.monthly"), .plus)
-        XCTAssertEqual(UFPlan(productID: "de.uniflow.pro.monthly"), .pro)
+        // Pro wird vorerst nicht angeboten (Entscheidung 25.10.2026): das fruehere Produkt gibt keinen Tarif
+        XCTAssertNil(UFPlan(productID: "de.uniflow.pro.monthly"))
         XCTAssertNil(UFPlan(productID: "fremd"))
         XCTAssertNil(UFPlan.free.productID)
-        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.pro.monthly"])
+        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly"])
         XCTAssertLessThan(UFPlan.free, .plus)
-        XCTAssertLessThan(UFPlan.plus, .pro)
     }
 
+    /// Free: planen (Lernplanung), Dokumente oeffnen, Faecher geordnet sehen und der Rest des Uni-Alltags
     func testMatrixFree() {
-        for f: UFFeature in [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .timer, .viewNotes] {
+        for f: UFFeature in [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .allowed, f.rawValue)
         }
-        for f: UFFeature in [.pencilWriting, .splitView, .studyPlanning, .flashcards] {
+        for f: UFFeature in [.pencilWriting, .splitView, .flashcards] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.plus), f.rawValue)
         }
-        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: true), .locked(.pro))
+        XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .free, community: true), .locked(.plus))
+        // Uni & Noten liegt ausserhalb der Tarife: sobald nativ vorhanden, gleich in Free
+        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: true), .allowed)
     }
 
-    func testMatrixPlusAndPro() {
-        for f: UFFeature in [.pencilWriting, .splitView, .studyPlanning, .flashcards, .readDocuments] {
+    func testMatrixPlus() {
+        for f: UFFeature in [.pencilWriting, .splitView, .flashcards, .studyPlanning, .readDocuments] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .plus), .allowed, f.rawValue)
-            XCTAssertEqual(UFFeatureMatrix.access(f, plan: .pro), .allowed, f.rawValue)
         }
-        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .plus, uniGrades: true), .locked(.pro))
-        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .pro, uniGrades: true), .allowed)
+        XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .plus, community: true), .allowed)
     }
 
-    /// Abschnitt 4: Uni & Noten erst, "sobald nativ vorhanden (F4)" – bis dahin in keinem Tarif, auch nicht in Pro
+    /// Uni & Noten erst, "sobald nativ vorhanden (F4)"; Community, bis der zentrale Dienst steht: bis dahin "bald"
     @MainActor
-    func testUniGradesComingSoonUntilOnDevice() {
+    func testUniGradesAndCommunityComingSoon() {
         XCTAssertFalse(UFFeatureMatrix.uniGradesOnDevice)
+        XCTAssertFalse(UFFeatureMatrix.communityAvailable)
         for p in UFPlan.allCases {
             XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: p), .comingSoon, p.rawValue)
-        }
-        XCTAssertFalse(Entitlements(observe: false, plan: .pro).allows(.uniGrades))
-    }
-
-    /// Pro bietet in V1 ohne KI-Dienst und ohne Uni & Noten nichts ueber Plus hinaus; die Tarifkarte sagt das
-    func testProHasNoExtrasWithoutAIAndUniGrades() {
-        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .free))
-        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .plus))
-        XCTAssertFalse(UFFeatureMatrix.hasAvailableExtras(in: .pro))
-        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .pro, uniGrades: true))
-        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .pro, aiService: true))
-    }
-
-    func testAIAndV2AreComingSoonWithoutService() {
-        XCTAssertFalse(UFFeatureMatrix.aiServiceAvailable)
-        for p in UFPlan.allCases {
-            XCTAssertEqual(UFFeatureMatrix.access(.aiTests, plan: p), .comingSoon)
-            XCTAssertEqual(UFFeatureMatrix.access(.aiTutor, plan: p), .comingSoon)
+            XCTAssertEqual(UFFeatureMatrix.access(.community, plan: p), .comingSoon, p.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(.uniflowEditor, plan: p), .comingSoon)
             XCTAssertEqual(UFFeatureMatrix.access(.deviceSync, plan: p), .comingSoon)
-            XCTAssertFalse(UFFeatureMatrix.canStartAITest(plan: p, usedThisMonth: 0))
         }
+        XCTAssertFalse(Entitlements(observe: false, plan: .plus).allows(.uniGrades))
+        XCTAssertFalse(Entitlements(observe: false, plan: .plus).allows(.community))
     }
 
-    func testAIQuotaWithService() {
-        XCTAssertEqual(UFPlan.allCases.map(\.aiTestQuota), [1, 6, 40])
-        XCTAssertTrue(UFFeatureMatrix.canStartAITest(plan: .free, usedThisMonth: 0, aiService: true))
-        XCTAssertFalse(UFFeatureMatrix.canStartAITest(plan: .free, usedThisMonth: 1, aiService: true))
-        XCTAssertTrue(UFFeatureMatrix.canStartAITest(plan: .plus, usedThisMonth: 5, aiService: true))
-        XCTAssertFalse(UFFeatureMatrix.canStartAITest(plan: .plus, usedThisMonth: 6, aiService: true))
-        XCTAssertTrue(UFFeatureMatrix.canStartAITest(plan: .pro, usedThisMonth: 39, aiService: true))
-        XCTAssertEqual(UFFeatureMatrix.access(.aiTutor, plan: .plus, aiService: true), .locked(.pro))
-        XCTAssertEqual(UFFeatureMatrix.access(.aiTutor, plan: .pro, aiService: true), .allowed)
+    /// Plus bietet schon heute mehr als Free (Schreiben, Uebung und Skript, Karteikarten)
+    func testPlusHasExtras() {
+        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .free))
+        XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .plus))
     }
 
     func testDowngradeKeepsNotesReadableAndExportable() {
         XCTAssertEqual(UFFeatureMatrix.notes(plan: .free), UFNoteAccess(canView: true, canExport: true, canEdit: false))
         XCTAssertEqual(UFFeatureMatrix.notes(plan: .plus), UFNoteAccess(canView: true, canExport: true, canEdit: true))
-        XCTAssertEqual(UFFeatureMatrix.notes(plan: .pro), UFNoteAccess(canView: true, canExport: true, canEdit: true))
     }
 
-    func testPlanCardsWithoutAIRows() {
-        XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 }, [.pencilWriting, .splitView, .studyPlanning, .flashcards])
-        XCTAssertEqual(UFFeatureMatrix.added(in: .pro), [.uniGrades])
-        XCTAssertFalse(UFFeatureMatrix.added(in: .free).contains(.aiTests))
+    /// Inhalt der zwei Tarifkarten (Abschnitt 4), ohne KI-Zeilen
+    func testPlanCards() {
+        XCTAssertEqual(UFFeatureMatrix.added(in: .free),
+                       [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes, .uniGrades])
+        XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 }, [.pencilWriting, .community, .splitView, .flashcards])
+        for f in UFFeature.allCases {
+            XCTAssertFalse(f.title.contains("KI"), f.rawValue)
+            XCTAssertFalse((f.detail ?? "").contains("KI"), f.rawValue)
+        }
     }
 
     // MARK: Tarif aus Transaktionen
@@ -94,16 +80,16 @@ final class EntitlementTests: XCTestCase {
         let later = now.addingTimeInterval(3600), earlier = now.addingTimeInterval(-3600)
         XCTAssertEqual(UFEntitlementResolver.plan(from: [], now: now), .free)
         XCTAssertEqual(UFEntitlementResolver.plan(from: [.init(productID: "de.uniflow.plus.monthly", expirationDate: later)], now: now), .plus)
+        // abgelaufen, erstattet, ersetzt oder fremd (auch das fruehere Pro) -> zaehlt nicht
         XCTAssertEqual(UFEntitlementResolver.plan(from: [
-            .init(productID: "de.uniflow.plus.monthly", expirationDate: later),
+            .init(productID: "de.uniflow.plus.monthly", expirationDate: earlier),
+            .init(productID: "de.uniflow.plus.monthly", expirationDate: later, revocationDate: earlier),
+            .init(productID: "de.uniflow.plus.monthly", expirationDate: later, isUpgraded: true),
             .init(productID: "de.uniflow.pro.monthly", expirationDate: later),
-        ], now: now), .pro)
-        // abgelaufen, erstattet, ersetzt oder fremd -> zaehlt nicht
-        XCTAssertEqual(UFEntitlementResolver.plan(from: [
-            .init(productID: "de.uniflow.pro.monthly", expirationDate: earlier),
-            .init(productID: "de.uniflow.pro.monthly", expirationDate: later, revocationDate: earlier),
-            .init(productID: "de.uniflow.pro.monthly", expirationDate: later, isUpgraded: true),
             .init(productID: "fremd", expirationDate: later),
+        ], now: now), .free)
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [
+            .init(productID: "de.uniflow.plus.monthly", expirationDate: earlier),
             .init(productID: "de.uniflow.plus.monthly", expirationDate: later),
         ], now: now), .plus)
     }
@@ -126,12 +112,16 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(ent.access(.flashcards), .locked(.plus))
         ent.setPlanForTesting(.plus)
         XCTAssertTrue(ent.allows(.flashcards))
-        XCTAssertTrue(UFLockedCard.message(.studyPlanning, access: .locked(.plus)).contains("Enthalten in Plus und Pro"))
-        // Uni & Noten wird nicht als kaufbar beworben, sondern als "bald"
-        let soon = UFLockedCard.message(.uniGrades, access: ent.access(.uniGrades))
-        XCTAssertFalse(soon.contains("Enthalten in"))
-        XCTAssertTrue(soon.contains("Bald verfügbar"))
-        XCTAssertTrue(UFLockedCard.message(.aiTutor, access: .comingSoon).contains("KI-Funktionen"))
+        XCTAssertTrue(ent.allows(.studyPlanning), "Lernplanung gehoert zu Free")
+        let locked = UFLockedCard.message(.pencilWriting, access: .locked(.plus))
+        XCTAssertTrue(locked.contains("Enthalten in Plus."))
+        XCTAssertFalse(locked.contains("Pro"))
+        // Uni & Noten und Community werden nicht als kaufbar beworben, sondern als "bald"
+        for f: UFFeature in [.uniGrades, .community] {
+            let soon = UFLockedCard.message(f, access: ent.access(f))
+            XCTAssertFalse(soon.contains("Enthalten in"), f.rawValue)
+            XCTAssertTrue(soon.contains("Bald verfügbar"), f.rawValue)
+        }
     }
 
     // MARK: Angebotstexte (Richtlinie 3.1.2)
@@ -141,12 +131,12 @@ final class EntitlementTests: XCTestCase {
         let week = (1, Product.SubscriptionPeriod.Unit.week)
         XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month, freeTrial: week, eligible: true),
                        "1 Woche gratis, danach 1,99 €/Monat, monatlich kündbar")
-        XCTAssertEqual(UFOfferText.summary(price: "4,99 €", period: month, freeTrial: week, eligible: false),
-                       "4,99 €/Monat, monatlich kündbar")
-        XCTAssertEqual(UFOfferText.summary(price: "4,99 €", period: month, freeTrial: nil, eligible: true),
-                       "4,99 €/Monat, monatlich kündbar")
+        XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month, freeTrial: week, eligible: false),
+                       "1,99 €/Monat, monatlich kündbar")
+        XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month, freeTrial: nil, eligible: true),
+                       "1,99 €/Monat, monatlich kündbar")
         XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: true), "Plus – 1 Woche gratis")
-        XCTAssertEqual(UFOfferText.button(plan: .pro, price: "4,99 €", period: month, freeTrial: week, eligible: false), "Pro für 4,99 €/Monat")
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: false), "Plus für 1,99 €/Monat")
         XCTAssertEqual(UFOfferText.period(value: 2, unit: .week), "2 Wochen")
         XCTAssertEqual(UFOfferText.per(value: 1, unit: .year), "/Jahr")
         XCTAssertEqual(UFOfferText.per(value: 3, unit: .month), "/3 Monate")

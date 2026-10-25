@@ -1,7 +1,8 @@
 import StoreKit
 import SwiftUI
 
-// Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5): drei Karten Free / Plus / Pro.
+// Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5): zwei Karten Free / Plus
+// (Entscheidung des Inhabers vom 25.10.2026: Pro und KI entfallen vorerst).
 // Preise nur aus Product.displayPrice; "1 Woche gratis" nur bei Anspruch auf das Einfuehrungsangebot.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
@@ -42,17 +43,15 @@ struct PlanPickerView: View {
     }
 
     var body: some View {
-        UFContent(maxWidth: 1180) {
+        UFContent(maxWidth: 860) {
             UFPageHead(title, sub: subtitle)
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
             UFGridLayout(spacing: 16, minWidth: 280) {
                 planCard(.free)
                 planCard(.plus)
-                planCard(.pro)
             }
             .environment(\.ufFillsCell, true)
-            if !UFFeatureMatrix.aiServiceAvailable { aiNote.padding(.top, 16) }
             footer.padding(.top, 22.4)
         }
         .task {
@@ -79,18 +78,15 @@ struct PlanPickerView: View {
         switch context {
         case .onboarding: return "Tarif wählen"
         case .settings: return "Tarif"
-        case .upgrade: return "Mehr mit Plus und Pro"
+        case .upgrade: return "Mehr mit Plus"
         }
     }
 
     private var subtitle: String {
-        let trial = UFPlan.allCases.contains { p in
-            guard let pr = store.product(for: p) else { return false }
-            return store.introEligible[pr.id] == true && pr.ufFreeTrial != nil
-        }
-        let base = "Free bleibt dauerhaft kostenlos."
-        if trial { return base + " Plus und Pro kannst du zuerst eine Woche gratis nutzen." }
-        return base + " Du kannst den Tarif jederzeit wechseln."
+        let trial = store.product(for: .plus).map { store.introEligible[$0.id] == true && $0.ufFreeTrial != nil } ?? false
+        let base = "Mit Free planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos."
+        if trial { return base + " Plus fügt das Schreiben mit Apple Pencil hinzu; die erste Woche ist gratis." }
+        return base + " Plus fügt das Schreiben mit Apple Pencil hinzu. Du kannst den Tarif jederzeit wechseln."
     }
 
     // MARK: Karten
@@ -105,14 +101,14 @@ struct PlanPickerView: View {
             }
             priceBlock(plan).padding(.top, 6.4)
             Rectangle().fill(UF.line).frame(height: 1).padding(.vertical, 14.4)
-            Text(plan == .free ? "Alles für den Uni-Alltag:" : plan == .plus ? "Alles aus Free, dazu:" : "Alles aus Plus, dazu:")
+            Text(plan == .free ? "Alles für den Uni-Alltag:" : "Alles aus Free, dazu:")
                 .ufFont(13.12, 600).foregroundStyle(UF.text2).padding(.bottom, 6.4)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(rows(plan), id: \.title) { r in featureRow(r) }
             }
             if !UFFeatureMatrix.hasAvailableExtras(in: plan) {
                 // ehrlich sagen, dass der Tarif heute noch nicht mehr bietet (Abschnitt 2 Punkt 4: nichts vortaeuschen)
-                Text("Diese Funktionen folgen mit einem Update. Bis dahin bietet \(plan.title) denselben Umfang wie \(plan == .pro ? "Plus" : "Free").")
+                Text("Diese Funktionen folgen mit einem Update. Bis dahin bietet \(plan.title) denselben Umfang wie Free.")
                     .ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 9.6)
             }
             Spacer(minLength: 16)
@@ -130,16 +126,11 @@ struct PlanPickerView: View {
         var soon = false
     }
 
-    /// Inhalte aus Abschnitt 4; KI-Zeilen nur mit freigegebenem KI-Dienst
+    /// Inhalte aus Abschnitt 4; was noch fehlt (Uni & Noten, Community), traegt "bald"
     private func rows(_ plan: UFPlan) -> [Row] {
-        var out = UFFeatureMatrix.added(in: plan).filter { !$0.isV2 }.map { f in
+        UFFeatureMatrix.added(in: plan).filter { !$0.isV2 }.map { f in
             Row(title: f.title, detail: f.detail, icon: f.icon, soon: UFFeatureMatrix.access(f, plan: plan) == .comingSoon)
         }
-        if UFFeatureMatrix.aiServiceAvailable {
-            out.append(Row(title: "\(plan.aiTestQuota) Wochentests mit KI im Monat", icon: UFFeature.aiTests.icon))
-            if plan == .pro { out.append(Row(title: UFFeature.aiTutor.title, detail: UFFeature.aiTutor.detail, icon: UFFeature.aiTutor.icon)) }
-        }
-        return out
     }
 
     private func featureRow(_ r: Row) -> some View {
@@ -262,16 +253,6 @@ struct PlanPickerView: View {
                 Text(text).ufFont(14.5).foregroundStyle(UF.text)
                 Spacer(minLength: 0)
             }
-        }
-    }
-
-    private var aiNote: some View {
-        HStack(spacing: 10) {
-            UFIcon("sparkles", size: 16).foregroundStyle(UF.muted)
-            Text("KI-Funktionen wie Wochentests und Tutor sind noch nicht freigeschaltet und in keinem Tarif enthalten.")
-                .ufFont(13.12).foregroundStyle(UF.muted)
-            UFBadge("bald", tone: .neutral)
-            Spacer(minLength: 0)
         }
     }
 

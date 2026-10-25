@@ -54,35 +54,31 @@ final class PurchaseTests: XCTestCase {
     /// einem Hinweis statt falsch rot. Er heisst "test0…", weil XCTest die Tests einer Klasse alphabetisch ausfuehrt.
     func test0ProductsCarryOneFreeWeekUntilFirstPurchase() async throws {
         let (store, ent) = await makeStore()
-        XCTAssertEqual(store.products.map(\.id).sorted(), PurchaseStore.productIDs.sorted())
+        // nur Plus wird angeboten (Entscheidung 25.10.2026), kein Pro-Produkt mehr
+        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly"])
         XCTAssertEqual(ent.plan, .free)
-        let eligibleNow = PurchaseStore.productIDs.allSatisfy { store.introEligible[$0] == true }
-        for plan in [UFPlan.plus, .pro] {
-            let p = try XCTUnwrap(store.product(for: plan))
-            let trial = try XCTUnwrap(p.ufFreeTrial)
-            XCTAssertEqual(trial.0, 1)
-            XCTAssertEqual(trial.1, .week)
-            XCTAssertEqual(p.ufPeriod.1, .month)
-            XCTAssertEqual(UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true),
-                           "\(plan.title) – 1 Woche gratis")
-            XCTAssertTrue(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true)
-                .hasPrefix("1 Woche gratis, danach \(p.displayPrice)/Monat"))
-        }
+        let p = try XCTUnwrap(store.product(for: .plus))
+        let eligibleNow = store.introEligible[p.id] == true
+        let trial = try XCTUnwrap(p.ufFreeTrial)
+        XCTAssertEqual(trial.0, 1)
+        XCTAssertEqual(trial.1, .week)
+        XCTAssertEqual(p.ufPeriod.1, .month)
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true),
+                       "Plus – 1 Woche gratis")
+        XCTAssertTrue(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true)
+            .hasPrefix("1 Woche gratis, danach \(p.displayPrice)/Monat"))
         guard eligibleNow, !Self.processHadPurchase else {
             throw XCTSkip("Die StoreKit-Testumgebung dieses Simulators hat die Probewoche schon verbraucht; Angebot und Texte sind geprüft, der Anspruch nicht (frischer Simulator nötig).")
         }
-        // Kauf von Plus verbraucht den Anspruch fuer die ganze Abo-Gruppe: auch Pro zeigt danach den normalen Preis.
+        // Kauf verbraucht den Anspruch: danach zeigt Plus den normalen Preis.
         // Ohne erneutes loadProducts(), so wie die Seite in den Einstellungen nach dem Kauf offen bleibt.
-        let outcome = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
+        let outcome = await store.purchase(p)
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
-        XCTAssertEqual(store.introEligible["de.uniflow.plus.monthly"], false)
-        XCTAssertEqual(store.introEligible["de.uniflow.pro.monthly"], false)
-        let pro = try XCTUnwrap(store.product(for: .pro))
-        let eligible = store.introEligible[pro.id] == true
-        XCTAssertEqual(UFOfferText.button(plan: .pro, price: pro.displayPrice, period: pro.ufPeriod, freeTrial: pro.ufFreeTrial,
-                                          eligible: eligible), "Pro für \(pro.displayPrice)/Monat")
-        XCTAssertFalse(UFOfferText.summary(price: pro.displayPrice, period: pro.ufPeriod, freeTrial: pro.ufFreeTrial,
-                                           eligible: eligible).contains("gratis"))
+        XCTAssertEqual(store.introEligible[p.id], false)
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
+                                          eligible: false), "Plus für \(p.displayPrice)/Monat")
+        XCTAssertFalse(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
+                                           eligible: store.introEligible[p.id] == true).contains("gratis"))
     }
 
     func testPlusPurchaseStartsFreeWeekAndUsesUpEligibility() async throws {
@@ -94,10 +90,12 @@ final class PurchaseTests: XCTestCase {
         XCTAssertEqual(store.activePlan, "plus")
         XCTAssertTrue(ent.inIntroOffer, "Während der Gratiswoche gilt Plus mit Einführungsangebot")
         XCTAssertTrue(ent.allows(.pencilWriting))
-        XCTAssertFalse(ent.allows(.uniGrades))
+        XCTAssertTrue(ent.allows(.splitView))
+        // Uni & Noten und Community sind auch mit Plus "bald", nicht freigeschaltet
+        XCTAssertEqual(ent.access(.uniGrades), .comingSoon)
+        XCTAssertEqual(ent.access(.community), .comingSoon)
         XCTAssertEqual(ent.transactionCount, 1)
         XCTAssertEqual(store.introEligible["de.uniflow.plus.monthly"], false)
-        XCTAssertEqual(store.introEligible["de.uniflow.pro.monthly"], false)
     }
 
     /// Beleg, dass die Kauf-Tests nicht von der Reihenfolge abhaengen: Nach clearTransactions() startet ein neuer
@@ -172,24 +170,16 @@ final class PurchaseTests: XCTestCase {
 
     func testRefundRevokesPlan() async throws {
         let (store, ent) = await makeStore()
-        let pro = try XCTUnwrap(store.product(for: .pro))
-        _ = await store.purchase(pro)
-        XCTAssertEqual(ent.plan, .pro)
-        let t = try XCTUnwrap(session.allTransactions().first { $0.productIdentifier == pro.id })
+        let plus = try XCTUnwrap(store.product(for: .plus))
+        _ = await store.purchase(plus)
+        XCTAssertEqual(ent.plan, .plus)
+        let t = try XCTUnwrap(session.allTransactions().first { $0.productIdentifier == plus.id })
         try session.refundTransaction(identifier: t.identifier)
         await waitForPlan(ent, .free)
         XCTAssertEqual(ent.plan, .free)
-    }
-
-    func testUpgradePlusToPro() async throws {
-        let (store, ent) = await makeStore()
-        _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
-        XCTAssertEqual(ent.plan, .plus)
-        _ = await store.purchase(try XCTUnwrap(store.product(for: .pro)))
-        XCTAssertEqual(ent.plan, .pro)
-        XCTAssertTrue(ent.allows(.pencilWriting))
-        // Uni & Noten gibt es auf dem iPad erst mit F4: auch in Pro "bald", nicht freigeschaltet
-        XCTAssertEqual(ent.access(.uniGrades), .comingSoon)
+        XCTAssertFalse(ent.allows(.pencilWriting))
+        // Lernplanung bleibt in Free
+        XCTAssertTrue(ent.allows(.studyPlanning))
     }
 
     func testRestoreOnNewInstall() async throws {
