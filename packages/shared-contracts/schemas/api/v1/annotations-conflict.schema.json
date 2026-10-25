@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v1/annotations-conflict.json",
+  "title": "PUT /api/files/{id}/annotations (Antwort 409)",
+  "type": "object",
+  "required": ["detail", "version", "data"],
+  "properties": {
+    "detail": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1, "description": "aktuelle Serverversion = neue base_version" },
+    "data": { "type": "object", "description": "aktueller Serverstand zum Zusammenfuehren" }
+  }
+}

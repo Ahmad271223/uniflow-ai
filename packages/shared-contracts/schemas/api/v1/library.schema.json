@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v1/library.json",
+  "title": "GET /api/library",
+  "type": "object",
+  "required": ["files", "modules", "folders", "trash"],
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "title": { "type": ["string", "null"] },
+          "kind": { "type": ["string", "null"] },
+          "module_id": { "type": ["integer", "null"] },
+          "doc_type": { "type": ["string", "null"] },
+          "downloaded_at": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "items": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "integer" }, "name": { "type": "string" } } }
+    },
+    "folders": { "type": "array" },
+    "trash": { "type": "array" }
+  }
+}

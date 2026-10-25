@@ -19,3 +19,10 @@ xcuserdata/
 
 # von XcodeGen erzeugt
 apps/apple/UniFlow/Info.plist
+
+# Build-Ausgaben Windows/Android
+apps/windows/node_modules/
+apps/windows/src-tauri/target/
+apps/windows/src-tauri/icons/
+apps/android/.gradle/
+apps/android/**/build/

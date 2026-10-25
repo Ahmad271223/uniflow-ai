@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v1/annotations-put.json",
+  "title": "PUT /api/files/{id}/annotations?base_version=N (Antwort 200)",
+  "type": "object",
+  "required": ["ok", "version"],
+  "properties": {
+    "ok": { "const": true },
+    "version": { "type": "integer", "minimum": 1 }
+  }
+}

@@ -1,0 +1,11 @@
+[package]
+name = "uniflow-desktop"
+version = "0.2.0"
+description = "UniFlow fuer Windows (Fenster fuer die lokale Weboberflaeche)"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

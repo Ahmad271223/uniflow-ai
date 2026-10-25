@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v1/error.json",
+  "title": "Fehlerantwort (400, 401, 403, 404, 409, 421, 429, 500)",
+  "type": "object",
+  "required": ["detail"],
+  "properties": { "detail": { "type": ["string", "object", "array"] } }
+}

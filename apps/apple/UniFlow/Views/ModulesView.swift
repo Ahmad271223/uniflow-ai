@@ -65,9 +65,11 @@ struct ModuleDetailView: View {
         _data = StateObject(wrappedValue: RemoteData(path: "/api/modules/\(moduleID)", api: api))
     }
 
-    private let groups: [(key: String, title: String)] = [
-        ("vorlesungen", "Vorlesungen"), ("uebungen", "Übungen"), ("loesungen", "Lösungen"),
-        ("skripte", "Skripte"), ("klausuren", "Klausuren"), ("sonstiges", "Sonstiges"),
+    private struct FileGroup: Identifiable { let id: String; let title: String }
+    private let groups = [
+        FileGroup(id: "vorlesungen", title: "Vorlesungen"), FileGroup(id: "uebungen", title: "Übungen"),
+        FileGroup(id: "loesungen", title: "Lösungen"), FileGroup(id: "skripte", title: "Skripte"),
+        FileGroup(id: "klausuren", title: "Klausuren"), FileGroup(id: "sonstiges", title: "Sonstiges"),
     ]
 
     var body: some View {
@@ -82,8 +84,8 @@ struct ModuleDetailView: View {
                 }
                 ForEach(Row.rows(d.list("weeks"), key: "week")) { w in
                     Section {
-                        ForEach(groups, id: \.key) { g in
-                            let files = w.value.list(g.key)
+                        ForEach(groups) { g in
+                            let files = w.value.list(g.id)
                             if !files.isEmpty {
                                 Text(g.title).font(.caption).foregroundStyle(.secondary)
                                 ForEach(Row.rows(files)) { f in fileRow(f.value) }

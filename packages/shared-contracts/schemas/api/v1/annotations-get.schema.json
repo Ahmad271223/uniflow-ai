@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uniflow.local/contracts/api/v1/annotations-get.json",
+  "title": "GET /api/files/{id}/annotations",
+  "type": "object",
+  "required": ["data", "version"],
+  "properties": {
+    "data": { "type": "object", "description": "Notizmodell, siehe annotations.schema.json" },
+    "version": { "type": "integer", "minimum": 0, "description": "0 = noch keine Notizen gespeichert" },
+    "updated_at": { "type": ["string", "null"] }
+  }
+}
