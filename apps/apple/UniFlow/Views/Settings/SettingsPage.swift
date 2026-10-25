@@ -1,0 +1,715 @@
+import SwiftUI
+import PDFKit
+import UniFlowCore
+
+// Einstellungen 1:1 nach viewSettings() und diagTab() in app/static/views-misc.js.
+// Bewusst anders (WEB-IPAD-PARITAET.md, W.B.11.3): kein Passwortfeld fuer Stud.IP; statt "Auf dem iPad benutzen"
+// (verbindet ein iPad mit dem PC) zeigt die Karte die Verbindung dieses iPads, Stud.IP direkt und den Tarif.
+
+struct SettingsPage: View {
+    let initialTab: String?
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var shell: ShellState
+    @Environment(\.ufWindowWidth) private var windowWidth
+    @State private var data: Loaded?
+    @State private var error: String?
+    @State private var tab = "modules"
+
+    /// Antworten von /settings, /courses, /modules, /sync/status, /credentials, /terms
+    struct Loaded {
+        var s: JSONValue
+        var courses: [JSONValue]
+        var mods: [JSONValue]
+        var log: [JSONValue]
+        var cred: JSONValue
+        var term: JSONValue
+    }
+
+    var body: some View {
+        Group {
+            if let data { content(data) } else if let error { UFContent(maxWidth: 1180) { UFEmpty(icon: "alert", text: error) } } else {
+                UFContent(maxWidth: 1180) { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
+            }
+        }
+        .task {
+            tab = initialTab == "diag" ? "advanced" : (initialTab ?? "modules")
+            await load()
+        }
+        .ufReload { await load() }
+    }
+
+    private func load() async {
+        guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
+        do {
+            async let s = api.value("/api/settings")
+            async let c = api.value("/api/courses")
+            async let m = api.value("/api/modules")
+            async let l = api.value("/api/sync/status")
+            async let cr = api.value("/api/credentials")
+            async let t = api.value("/api/terms")
+            let (sv, cv, mv, lv, crv, tv) = try await (s, c, m, l, cr, t)
+            data = Loaded(s: sv, courses: cv.items, mods: mv.items, log: lv.list("log"), cred: crv, term: tv)
+            error = nil
+        } catch { if data == nil { self.error = error.localizedDescription } }
+    }
+
+    @ViewBuilder private func content(_ d: Loaded) -> some View {
+        let narrow = windowWidth <= 820
+        UFContent(maxWidth: 1180) {
+            UFPageHead("Einstellungen")
+            // .set-layout: 240 px Navigation | Inhalt, gap 1.2rem; bis 820 px untereinander, Navigation waagerecht
+            let nav = SettingsNav(tab: $tab, horizontal: narrow)
+            let pane = SettingsBody(tab: tab, d: d, reload: { await load() })
+            if narrow {
+                VStack(alignment: .leading, spacing: 19.2) { nav; pane }
+            } else {
+                HStack(alignment: .top, spacing: 19.2) { nav.frame(width: 240); pane.frame(maxWidth: .infinity, alignment: .leading) }
+            }
+        }
+    }
+}
+
+/// .set-nav: Knoepfe mit Icon 16, min. 44 pt hoch; aktiv --accent-soft / --accent-text
+private struct SettingsNav: View {
+    @Binding var tab: String
+    let horizontal: Bool
+    static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
+                                                    ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings")]
+
+    var body: some View {
+        let buttons = ForEach(Self.items, id: \.0) { item in
+            let (k, l, i) = item
+            Button { tab = k } label: {
+                HStack(spacing: 9.6) {
+                    UFIcon(i, size: 16)
+                    Text(l).ufFont(14.5, 500).fixedSize(horizontal: horizontal, vertical: false).multilineTextAlignment(.leading)
+                }
+                .foregroundStyle(tab == k ? UF.accentText : UF.text2)
+                .padding(.vertical, 10.4).padding(.horizontal, 12.8)
+                .frame(maxWidth: horizontal ? nil : .infinity, minHeight: 44, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(tab == k ? UF.accentSoft : .clear))
+                .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
+            }
+            .buttonStyle(.plain)
+        }
+        if horizontal {
+            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 3.2) { buttons } }
+        } else {
+            VStack(alignment: .leading, spacing: 3.2) { buttons }
+        }
+    }
+}
+
+private struct SettingsBody: View {
+    let tab: String
+    let d: SettingsPage.Loaded
+    let reload: () async -> Void
+
+    var body: some View {
+        switch tab {
+        case "account": AccountTab(d: d)
+        case "advanced": AdvancedTab(d: d)
+        case "plan": PlanTab(s: d.s)
+        default: ModulesTab(d: d, reload: reload)
+        }
+    }
+}
+
+/// gemeinsame Aenderungen ueber die API mit Meldung wie im Web
+@MainActor
+private struct SettingsAPI {
+    let api: APIClient?
+    let toast: UFToastCenter
+    let router: UFRouter
+
+    func put(_ body: [String: JSONValue], toast text: String = "Gespeichert", reload: Bool = false) async {
+        guard let api else { return }
+        do {
+            _ = try await api.value("/api/settings", method: "PUT", body: .object(body))
+            toast.show(text)
+            if reload { router.reload() }
+        } catch { toast.show(error.localizedDescription, seconds: 4) }
+    }
+
+    func send(_ path: String, method: String, body: JSONValue? = nil, toast text: String?, reload: Bool = true) async -> JSONValue? {
+        guard let api else { return nil }
+        do {
+            let r = try await api.value(path, method: method, body: body)
+            if let text { toast.show(text) }
+            if reload { router.reload() }
+            return r
+        } catch { toast.show(error.localizedDescription, seconds: 4); return nil }
+    }
+}
+
+// MARK: - Module & Wochentests
+
+private struct ModulesTab: View {
+    let d: SettingsPage.Loaded
+    let reload: () async -> Void
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var router: UFRouter
+    @State private var openMod: Int?
+    @State private var autoTests = false
+
+    private var api: SettingsAPI { SettingsAPI(api: session.api, toast: toast, router: router) }
+
+    var body: some View {
+        let active = d.mods.filter { $0.i("active") != 0 }
+        let tmin = d.s.i("test_minutes") ?? 30
+        let loose = d.courses.filter { ($0["module_id"]?.isNull ?? true) && $0.s("id") != "__user__" }
+        UFCard {
+            UFCardHead("Module & Wochentests") { UFBadge("\(active.count) aktiv", tone: .ok) }
+            (Text("Ein Modul fasst mehrere Stud.IP-Kurse zusammen (Vorlesung, Hörsaalübung, Gruppenübung …). Pro Modul und Lehrwoche entsteht höchstens ")
+             + Text("ein gemeinsamer Wochentest").font(.uf(13.12, 700))
+             + Text(", und nur wenn in der Woche neue Inhalte vorliegen."))
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
+
+            // .row.wrap (margin .6rem 0): Checkbox, Spacer, "Standard-Testdauer" mit Segment
+            UFFlexWrap(gap: 9.6) {
+                UFCheckbox("Gemeinsamen Wochentest pro Modul automatisch erstellen", isOn: Binding(get: { autoTests }, set: { v in
+                    autoTests = v
+                    Task { await api.put(["auto_tests": .bool(v)]) }
+                }))
+                UFFlexSpacer()
+                HStack(spacing: 8) {
+                    Text("Standard-Testdauer").ufFont(13.6).foregroundStyle(UF.text2)
+                    UFSegmented(options: [(15, "15 Min."), (30, "30 Min."), (60, "60 Min."), (0, "Eigene")],
+                                selection: Binding(get: { [15, 30, 60].contains(tmin) ? tmin : 0 }, set: { v in setMinutes(v, current: tmin) }))
+                }
+            }
+            .padding(.vertical, 9.6 - 5.6)
+
+            VStack(alignment: .leading, spacing: 8) {                                          // .stack
+                ForEach(d.mods.indices, id: \.self) { i in moduleRow(d.mods[i]) }
+                if !loose.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Ohne Modul (nicht eingeplant)").ufFont(14.5, 700).foregroundStyle(UF.muted)
+                        ForEach(loose.indices, id: \.self) { i in
+                            let c = loose[i]
+                            HStack(spacing: 9.6) {
+                                Text(c.s("title") ?? "").ufFont(13.12).foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
+                                UFSelect(options: [(0, "– kein Modul –")] + d.mods.compactMap { m in m.i("id").map { ($0, UFFmt.shortName(m.s("name"))) } },
+                                         selection: Binding(get: { 0 }, set: { v in assign(c, v) }))
+                            }
+                            .padding(.top, 6.4)
+                        }
+                    }
+                    .padding(.vertical, 11.2 + ufB).padding(.horizontal, 14.4 + ufB)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
+                    .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+                }
+            }
+
+            UFFlexWrap(gap: 9.6) {
+                UFChip(text: "Modul anlegen", icon: "plus") { overlay.modal { NewModuleDialog() } }
+                UFChip(text: "Zuordnung automatisch prüfen", icon: "sparkles") { Task { await autoAssign() } }
+            }
+            .padding(.top, 12.8)
+
+            (Text("Deine Einstellungen:").font(.uf(13.12, 700))
+             + Text(" \(active.filter { $0.i("weekly_test") != 0 }.count) Wochentests in einer Woche mit neuen Inhalten in allen aktiven Modulen, jeweils \(tmin) Minuten. Vorlesungen und sämtliche zugehörigen Übungen werden gemeinsam berücksichtigt."))
+                .ufFont(13.12).foregroundStyle(UF.muted)
+                .padding(.top, 12.8).padding(.bottom, 5.6)
+        }
+        .onAppear { autoTests = d.s["auto_tests"]?.bool ?? ((d.s.i("auto_tests") ?? 0) != 0) }
+    }
+
+    /// .card.flat (padding .7rem .9rem): Kopfzeile klappt die Kurstabelle auf; inaktive Module blass (.muted)
+    @ViewBuilder private func moduleRow(_ m: JSONValue) -> some View {
+        let id = m.i("id") ?? 0
+        let cs = d.courses.filter { $0.i("module_id") == id }
+        let open = openMod == id
+        let inactive = m.i("active") == 0
+        VStack(alignment: .leading, spacing: 0) {
+            // .row.wrap mit b { flex: 1 }: der Name nimmt den freien Platz und bricht selbst um
+            HStack(spacing: 9.6) {
+                Circle().fill(Color(hex: m.s("color"))).frame(width: 12, height: 12)
+                Text(m.s("name") ?? "").ufFont(14.5, 700).foregroundStyle(inactive ? UF.muted : UF.text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("\(cs.count) Kurse").ufFont(13.12).foregroundStyle(UF.muted).fixedSize()
+                UFBadge(m.i("weekly_test") == 0 ? "kein Wochentest" : "1 gemeinsamer Test pro Woche" + (m.i("test_minutes").map { " · \($0) min" } ?? ""),
+                        tone: m.i("weekly_test") == 0 ? .neutral : .ok)
+                    .fixedSize()                                                   // .badge: white-space nowrap
+                ActiveToggle(on: !inactive) { v in
+                    Task { _ = await api.send("/api/modules/\(id)", method: "PATCH", body: ["active": .number(v ? 1 : 0)], toast: "Gespeichert") }
+                }
+                .fixedSize()
+                Button { overlay.modal { ModuleEditDialog(m: m) } } label: { UFIcon("settings", size: 14) }
+                    .buttonStyle(UFButtonStyle(kind: .ghost, size: .small, iconOnly: true))
+                UFIcon(open ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(inactive ? UF.muted : UF.text)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { openMod = open ? nil : id }
+            if open {
+                CoursesTable(courses: cs, mods: d.mods, setKind: setKind, assign: assign)
+                    .padding(.top, 8)
+                    .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
+                    .padding(.top, 9.6)
+            }
+        }
+        .padding(.vertical, 11.2 + ufB).padding(.horizontal, 14.4 + ufB)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
+        .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+    }
+
+    private func setMinutes(_ v: Int, current: Int) {
+        if v == 0 {
+            Task {
+                guard let text = await overlay.prompt("Testdauer in Minuten:", value: "\(current)"),
+                      let n = Int(text.trimmingCharacters(in: .whitespaces)), n > 0 else { return }
+                await api.put(["test_minutes": .number(Double(n))], toast: "Testdauer gespeichert", reload: true)
+            }
+        } else {
+            Task { await api.put(["test_minutes": .number(Double(v))], toast: "Testdauer gespeichert", reload: true) }
+        }
+    }
+
+    private func setKind(_ c: JSONValue, _ kind: String) {
+        guard let id = c.s("id") else { return }
+        Task { _ = await api.send("/api/courses/\(id)", method: "PATCH", body: ["kind": .string(kind)], toast: "Gespeichert", reload: false) }
+    }
+
+    private func assign(_ c: JSONValue, _ module: Int) {
+        guard let id = c.s("id") else { return }
+        Task { _ = await api.send("/api/courses/\(id)/module", method: "POST", body: ["module_id": module == 0 ? .null : .number(Double(module))], toast: "Zuordnung gespeichert") }
+    }
+
+    private func autoAssign() async {
+        guard let r = await api.send("/api/modules/auto-assign", method: "POST", toast: nil) else { return }
+        let unsure = r.list("uncertain")
+        toast.show("\(r.i("assigned") ?? 0) Kurse zugeordnet" + (unsure.isEmpty ? "" : ", \(unsure.count) unsicher"))
+        if !unsure.isEmpty { overlay.modal { UncertainDialog(items: unsure) } }
+    }
+}
+
+/// <label class="small"><input type="checkbox"> aktiv</label>
+private struct ActiveToggle: View {
+    let on: Bool
+    let change: (Bool) -> Void
+    @State private var value = false
+
+    var body: some View {
+        Button { value.toggle(); change(value) } label: {
+            HStack(spacing: 4.8) {
+                Image(systemName: value ? "checkmark.square.fill" : "square").foregroundStyle(value ? UF.accent : UF.muted)
+                Text("aktiv").ufFont(13.12).foregroundStyle(UF.text)
+            }
+        }
+        .buttonStyle(.plain)
+        .onAppear { value = on }
+        .onChange(of: on) { _, v in value = v }
+    }
+}
+
+/// table.tbl: Stud.IP-Kurs / Art / Modul mit Auswahlfeldern
+private struct CoursesTable: View {
+    let courses: [JSONValue]
+    let mods: [JSONValue]
+    let setKind: (JSONValue, String) -> Void
+    let assign: (JSONValue, Int) -> Void
+    private static let kinds = ["vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar", "sonstiges"]
+
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+            GridRow {
+                ForEach(["Stud.IP-Kurs", "Art", "Modul"], id: \.self) { h in
+                    Text(h.uppercased()).ufFont(12.16, 600, em: 0.04).foregroundStyle(UF.muted)
+                        .padding(.vertical, 7.2).padding(.horizontal, 8)
+                        .frame(maxWidth: h == "Stud.IP-Kurs" ? .infinity : nil, alignment: .leading)
+                }
+            }
+            line
+            if courses.isEmpty {
+                Text("Keine Kurse zugeordnet.").ufFont(13.76).foregroundStyle(UF.muted).padding(8)
+                line
+            }
+            ForEach(courses.indices, id: \.self) { i in
+                let c = courses[i]
+                GridRow(alignment: .center) {
+                    Text(c.s("title") ?? "").ufFont(13.76).foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                    UFSelect(options: Self.kinds.map { ($0, UFKind.text($0)) },
+                             selection: Binding(get: { c.s("kind") ?? "sonstiges" }, set: { setKind(c, $0) }), cell: true).padding(8)
+                    UFSelect(options: mods.compactMap { m in m.i("id").map { ($0, UFFmt.shortName(m.s("name"))) } } + [(0, "– kein Modul –")],
+                             selection: Binding(get: { c.i("module_id") ?? 0 }, set: { assign(c, $0) }), cell: true).padding(8)
+                }
+                line
+            }
+        }
+    }
+
+    private var line: some View { Rectangle().fill(UF.line).frame(height: 1).gridCellUnsizedAxes(.horizontal) }
+}
+
+/// Modal "Neues Modul": Name, Abbrechen / Anlegen
+private struct NewModuleDialog: View {
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var toast: UFToastCenter
+    @Environment(\.ufClose) private var close
+    @State private var name = ""
+
+    var body: some View {
+        UFDialog("Neues Modul") {
+            UFField("Name") { UFTextInput(text: $name) }
+        } foot: {
+            UFButton("Abbrechen") { close() }
+            UFButton("Anlegen", kind: .primary) {
+                Task {
+                    do {
+                        _ = try await session.api?.value("/api/modules", method: "POST", body: ["name": .string(name)])
+                        close()
+                        router.reload()
+                    } catch { toast.show(error.localizedDescription, seconds: 4) }
+                }
+            }
+        }
+    }
+}
+
+/// Modal "Unsichere Zuordnungen": Liste "Kurs → Vorschlag", OK
+private struct UncertainDialog: View {
+    let items: [JSONValue]
+    @Environment(\.ufClose) private var close
+
+    var body: some View {
+        UFDialog("Unsichere Zuordnungen") {
+            Text("Bitte unter dem jeweiligen Modul prüfen.").ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(items.indices, id: \.self) { i in
+                    Text("\(items[i].s("title") ?? "") → \(items[i].s("suggestion") ?? "kein Vorschlag")")
+                        .overlay(alignment: .topLeading) { Text("•").offset(x: -13) }
+                }
+            }
+            .ufFont(13.12).foregroundStyle(UF.text)
+            .padding(.leading, 40).padding(.vertical, 13.12)
+        } foot: {
+            UFButton("OK", kind: .primary) { close() }
+        }
+    }
+}
+
+// MARK: - Lernzeit & Verfuegbarkeit
+
+private struct PlanTab: View {
+    let s: JSONValue
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var router: UFRouter
+
+    var body: some View {
+        let a = PlanActions(api: session.api, overlay: overlay, toast: toast, router: router)
+        let free = (s["free_days"]?.array ?? []).compactMap(\.int).map { ShellState.days[safe: $0] ?? "" }
+        UFCard {
+            UFCardHead("Lernzeit & Verfügbarkeit")
+            Text("Lernkombination (Fächer pro Tag, Vorlesung/Übungen/Wochentest) und persönliche Verfügbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten).")
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
+            UFFlexWrap(gap: 9.6) {
+                UFButton("Lernkombination", icon: "settings", kind: .primary) { a.config { router.reload() } }
+                UFButton("Verfügbarkeit & Sperrzeiten", icon: "clock") { a.availability() }
+            }
+            Text("Aktuell: \(s.i("subjects_per_day") ?? 0) Fächer pro Tag · \(UFFmt.min(s.n("minutes_per_day"))) · Lernzeit \(s.s("learn_start") ?? "")–\(s.s("learn_end") ?? "") · freie Tage: \(free.isEmpty ? "keine" : free.joined(separator: ", ")) · Fahrtzeit \(s.i("travel_minutes") ?? 0) min")
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 12.8)
+        }
+    }
+}
+
+// MARK: - Zugang & Darstellung
+
+private struct AccountTab: View {
+    let d: SettingsPage.Loaded
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var shell: ShellState
+    @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
+    @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
+    @AppStorage("uniflow.hand") private var localHand = "right"
+    @State private var termName = ""
+    @State private var termStart = ""
+    @State private var termEnd = ""
+    @State private var userName = ""
+    @State private var pen = "all"
+    @State private var hand = "right"
+    @State private var sheet: SheetKind?
+
+    enum SheetKind: String, Identifiable { case studip, tarif; var id: String { rawValue } }
+
+    private var api: SettingsAPI { SettingsAPI(api: session.api, toast: toast, router: router) }
+
+    var body: some View {
+        // .set-body .grid.cols-2: auto-fit, minmax(340px, 1fr); .span-2 ueber die ganze Zeile
+        VStack(alignment: .leading, spacing: 16) {
+            UFGridLayout(spacing: 16, minWidth: 340) {
+                credCard
+                looksCard
+            }
+            .environment(\.ufFillsCell, true)
+            ipadCard
+        }
+            .onAppear {
+                termName = d.term.s("name") ?? ""
+                termStart = d.term.s("start") ?? ""
+                termEnd = d.term.s("end") ?? ""
+                userName = d.s.s("user_name") ?? ""
+                pen = d.s.s("pen_input") ?? (pencilOnly ? "pen_only" : "all")
+                hand = d.s.s("hand") ?? "right"
+                localHand = hand
+            }
+            .sheet(item: $sheet) { k in
+                NavigationStack {
+                    Group { if k == .studip { StudIPView() } else { SubscriptionView() } }
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { sheet = nil } } }
+                }
+            }
+    }
+
+    /// Stud.IP-Zugang: Status wie im Web; ohne Passwortfeld (Anmeldung auf der echten Stud.IP-Seite)
+    private var credCard: some View {
+        let saved = d.cred.s("user") != nil && d.cred["password_set"]?.bool == true
+        return UFCard {
+            UFCardHead("Stud.IP-Zugang", icon: "log-out") {
+                saved ? UFBadge("gespeichert", tone: .ok) : UFBadge("fehlt", tone: .warn)
+            }
+            Text("Nur lokal in der .env gespeichert, für den Sync um 8 und 15 Uhr.").ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
+            UFField("LUH-ID") {
+                UFInputBox { Text(d.cred.s("user") ?? "noch nicht gesetzt").foregroundStyle(d.cred.s("user") == nil ? UF.muted : UF.text) }
+                    .opacity(0.8)
+            }
+            Text("Das WebSSO-Passwort trägst du selbst in der Web-App am PC ein. Auf dem iPad wird kein Passwort eingegeben – für Stud.IP direkt meldest du dich auf der echten Stud.IP-Seite an.")
+                .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
+            UFFlexWrap(gap: 9.6) {
+                UFButton("Dateien jetzt holen (ohne KI)", size: .small) {
+                    Task {
+                        if await api.send("/api/sync?ai=false", method: "POST", toast: "Dateien werden geholt…", reload: false) != nil {
+                            await shell.pollBackground(toast: toast)
+                        }
+                    }
+                }
+                UFButton("Stud.IP direkt auf dem iPad", icon: "book", size: .small) { sheet = .studip }
+            }
+        }
+    }
+
+    private var looksCard: some View {
+        UFCard {
+            UFCardHead("Semester", icon: "calendar")
+            HStack(alignment: .top, spacing: 9.6) {                               // .row, label.field { flex: 1 }
+                UFField("Name") { UFTextInput(text: $termName) }
+                UFField("Beginn") { UFDateField(iso: $termStart) }
+                UFField("Ende") { UFDateField(iso: $termEnd) }
+            }
+            UFButton("Speichern", kind: .primary, size: .small) {
+                Task { _ = await api.send("/api/terms", method: "PUT", body: ["name": .string(termName), "start": .string(termStart), "end": .string(termEnd)], toast: "Semester gespeichert", reload: false) }
+            }
+
+            UFCardHead("Anzeigename", icon: "user").padding(.top, 16)
+            HStack(spacing: 9.6) {
+                UFTextInput("z. B. Ahmad H.", text: $userName).frame(maxWidth: 260)
+                UFButton("Speichern", size: .small) {
+                    Task {
+                        await api.put(["user_name": .string(userName)])
+                        await shell.refresh()                                    // Web: location.reload() fuer die Initialen
+                    }
+                }
+            }
+
+            UFCardHead("Darstellung", icon: "sun").padding(.top, 16)
+            UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+
+            UFCardHead("Stift & Touch", icon: "pen").padding(.top, 16)
+            UFSelect(options: [("all", "Finger darf schreiben (Handballen wird bei Stift ignoriert)"), ("pen_only", "Nur Stift schreibt, Finger navigiert")],
+                     selection: Binding(get: { pen }, set: { v in
+                         pen = v
+                         pencilOnly = v == "pen_only"                               // Editor auf dem iPad
+                         Task { await api.put(["pen_input": .string(v)]) }
+                     }))
+
+            UFCardHead("Schreibhand", icon: "hand").padding(.top, 16)
+            UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")],
+                        selection: Binding(get: { hand }, set: { v in
+                            hand = v
+                            localHand = v                                         // Seite des Skripts in der geteilten Ansicht
+                            Task { await api.put(["hand": .string(v)], toast: "Schreibhand gespeichert") }
+                        }))
+            Text("Geteilte Ansicht: Das Skript öffnet auf der Seite der freien Hand (35 %), das Übungsblatt daneben.")
+                .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4).padding(.bottom, 5.6)
+        }
+    }
+
+    /// statt "Auf dem iPad benutzen": Verbindung dieses iPads, Stud.IP direkt, Tarif
+    private var ipadCard: some View {
+        UFCard {
+            UFCardHead("Auf diesem iPad", icon: "columns") { UFBadge("mit dem PC verbunden", tone: .ok) }
+            VStack(alignment: .leading, spacing: 7.2) {
+                (Text("Server: ").font(.uf(13.12, 700)) + Text(session.api?.base.absoluteString ?? "–"))
+                Text("Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ fragt die App beim nächsten Start wieder nach Adresse und PIN.")
+                    .foregroundStyle(UF.muted)
+            }
+            .ufFont(13.12).foregroundStyle(UF.text)
+            UFFlexWrap(gap: 9.6) {
+                UFButton("Verbindung trennen", icon: "log-out", kind: .danger, size: .small) {
+                    Task { if await overlay.confirm("Verbindung zum PC trennen?") { session.disconnect() } }
+                }
+                UFButton("Abo (Testmodus)", icon: "star", size: .small) { sheet = .tarif }
+            }
+            .padding(.top, 9.6)
+        }
+    }
+}
+
+// MARK: - Erweitert
+
+private struct AdvancedTab: View {
+    let d: SettingsPage.Loaded
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var router: UFRouter
+    @Environment(\.ufWindowWidth) private var windowWidth
+    @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
+    @State private var autoPlan = false
+    @State private var diag: Diagnostics?
+    @State private var test: PDFTestResult?
+    @State private var testing = false
+
+    struct PDFTestResult { var ok: Bool; var lines: [String]; var image: UIImage? }
+    struct PDFTestError: LocalizedError { var errorDescription: String? { "PDF nicht lesbar" } }
+
+    private static let logDate: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "de_DE")
+        f.dateFormat = "d.M.yyyy, HH:mm:ss"                                       // toLocaleString("de-DE")
+        return f
+    }()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {                                    // .stack
+            UFCard {
+                UFCardHead("Sync-Protokoll", icon: "sync") {
+                    Button {
+                        autoPlan.toggle()
+                        let v = autoPlan
+                        Task { await SettingsAPI(api: session.api, toast: toast, router: router).put(["auto_plan": .bool(v)]) }
+                    } label: {
+                        HStack(spacing: 4.8) {
+                            Image(systemName: autoPlan ? "checkmark.square.fill" : "square").foregroundStyle(autoPlan ? UF.accent : UF.muted)
+                            Text("Lernkalender nach dem Sync automatisch auffüllen").ufFont(13.12).foregroundStyle(UF.text)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if d.log.isEmpty { Text("Noch kein Sync.").foregroundStyle(UF.muted) }
+                        ForEach(d.log.indices, id: \.self) { i in
+                            let l = d.log[i]
+                            let ok = (l.i("ok") ?? 0) == 1 || l["ok"]?.bool == true
+                            // HTML fasst Zeilenumbrueche und Leerraum zu einem Leerzeichen zusammen
+                            let msg = String((l.s("message") ?? "").prefix(90)).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                            let when = l.s("started_at").flatMap { ISO8601DateFormatter.local.date(from: String($0.prefix(19))) }
+                            Text("\(ok ? "✅" : "❌") \(when.map { Self.logDate.string(from: $0) } ?? "") – \(msg)")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .ufFont(13.12).foregroundStyle(UF.text)
+                }
+                .frame(maxHeight: 200)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            UFCard {
+                UFCardHead("Diagnose", icon: "info") {
+                    UFButton("Kopieren", icon: "copy", size: .small) {
+                        UIPasteboard.general.string = diagText
+                        toast.show("Diagnose kopiert")
+                    }
+                }
+                Text(diagText)
+                    .font(.system(size: 13.12, design: .monospaced))
+                    .foregroundStyle(UF.text)
+                    .padding(11.2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
+                    .padding(.vertical, 13.12)
+                    .textSelection(.enabled)
+
+                UFCardHead("PDF-Anzeige testen", icon: "file-text") {
+                    UFButton("Test starten", kind: .primary, size: .small) { Task { await runPDFTest() } }.disabled(testing)
+                }
+                .padding(.top, 16 - 13.12)
+                Text("Lädt eine PDF aus deiner Bibliothek, liest sie mit PDFKit und zeichnet Seite 1 – genau wie der Editor. Wenn hier ein Bild erscheint, funktioniert die Anzeige auf diesem iPad.")
+                    .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
+                if testing { Text("Prüfe…").ufFont(13.12).foregroundStyle(UF.text) }
+                if let test {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text((test.ok ? "✅ " : "") + test.lines.joined(separator: "\n")).ufFont(13.12).foregroundStyle(test.ok ? UF.ok : UF.bad)
+                        if let img = test.image {
+                            Image(uiImage: img).resizable().scaledToFit().frame(maxWidth: 220)
+                                .overlay(Rectangle().strokeBorder(UF.line, lineWidth: 1))
+                        }
+                    }
+                }
+            }
+        }
+        .task {
+            autoPlan = d.s["auto_plan"]?.bool ?? ((d.s.i("auto_plan") ?? 0) != 0)
+            diag = await Diagnostics.collect()
+        }
+    }
+
+    /// wie diagTab(): Geraet, Fenster, Design, Adresse, Version, dazu der Zustand der lokalen Daten
+    private var diagText: String {
+        let scale = UIScreen.main.scale
+        var lines = [
+            "Gerät: \(UIDevice.current.model), iPadOS \(UIDevice.current.systemVersion)",
+            "Fenster: \(Int(windowWidth))×\(Int(UIScreen.main.bounds.height)), Pixelverhältnis \(Self.js(scale))",
+            "Design: \(theme)",
+            "Adresse: \(session.api?.base.absoluteString ?? "–")",
+            "App-Version: \(diag?.appVersion ?? "…")",
+        ]
+        if let d = diag {
+            lines += [
+                "Lokale Notizen: \(ByteCountFormatter.string(fromByteCount: d.journalBytes, countStyle: .file))",
+                "Zwischenspeicher: \(ByteCountFormatter.string(fromByteCount: d.cacheBytes, countStyle: .file))",
+                "Ungesendete Seiten: \(d.unsentPages) in \(d.documentsWithUnsent) Dokumenten",
+                "Beschädigte lokale Dateien: \(d.damaged.isEmpty ? "keine" : d.damaged.joined(separator: ", "))",
+            ]
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func js(_ d: CGFloat) -> String { d == d.rounded() ? String(Int(d)) : "\(d)" }
+
+    /// erste geladene PDF aus /library holen, mit PDFKit oeffnen und Seite 1 zeichnen
+    private func runPDFTest() async {
+        guard let api = session.api else { return }
+        testing = true; test = nil
+        defer { testing = false }
+        var lines: [String] = []
+        do {
+            let lib = try await api.value("/api/library")
+            guard let f = lib.list("files").first(where: { $0.s("kind") == "pdf" && !($0["downloaded_at"]?.isNull ?? true) }), let id = f.s("id") ?? f.i("id").map(String.init) else {
+                test = PDFTestResult(ok: false, lines: ["Keine PDF vorhanden."], image: nil); return
+            }
+            let (data, resp) = try await api.data("/api/files/\(id)/content")
+            lines.append("PDF-Abruf: HTTP \(resp.statusCode), Typ \(resp.value(forHTTPHeaderField: "Content-Type") ?? "?")")
+            guard let doc = PDFDocument(data: data), let page = doc.page(at: 0) else { throw PDFTestError() }
+            lines.append("PDFKit: \(doc.pageCount) Seiten gelesen")
+            let box = page.bounds(for: .mediaBox)
+            let img = page.thumbnail(of: CGSize(width: box.width, height: box.height), for: .mediaBox)
+            lines.append("Seite 1 gezeichnet (\(Int(box.width.rounded()))×\(Int(box.height.rounded())))")
+            test = PDFTestResult(ok: true, lines: lines, image: img)
+        } catch {
+            lines.append("❌ \(error.localizedDescription)")
+            test = PDFTestResult(ok: false, lines: lines, image: nil)
+        }
+    }
+}

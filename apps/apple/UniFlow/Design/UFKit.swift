@@ -181,6 +181,8 @@ struct UFSelect<Value: Hashable>: View {
     @Binding var selection: Value
     var fill = false
     var small = false
+    /// in Tabellen: .tbl .input (padding .3rem .5rem, Schrift wie die Tabelle .86rem)
+    var cell = false
 
     var body: some View {
         Menu {
@@ -197,9 +199,10 @@ struct UFSelect<Value: Hashable>: View {
                 .frame(maxWidth: fill ? .infinity : nil, alignment: .leading)
                 Image(systemName: "chevron.up.chevron.down").font(.system(size: small ? 10 : 12, weight: .semibold)).foregroundStyle(UF.text)
             }
-            .font(.uf(small ? 12.8 : 14.5))
-            .padding(.vertical, (small ? 3.2 : 8) + ufB)
-            .padding(.horizontal, (small ? 4.8 : 11.2) + ufB)
+            .font(.uf(small ? 12.8 : cell ? 13.76 : 14.5))
+            .padding(.vertical, (small ? 3.2 : cell ? 4.8 : 8) + ufB)
+            .padding(.horizontal, (small ? 4.8 : cell ? 8 : 11.2) + ufB)
+            .frame(minWidth: cell ? 72 : nil, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: small ? 6 : UF.rSm).fill(UF.surface))
             .overlay(RoundedRectangle(cornerRadius: small ? 6 : UF.rSm).strokeBorder(small ? UF.line : UF.lineStrong, lineWidth: 1))
             .contentShape(Rectangle())

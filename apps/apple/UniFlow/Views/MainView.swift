@@ -28,8 +28,8 @@ struct MainView: View {
                 ExamRunPage(id: id, task: task)                       // 1:1
             case .cards:
                 CardsPage()                                           // 1:1
-            case .settings:
-                SettingsView(api: session.api)                        // alt, wird 1:1 ersetzt
+            case .settings(let t):
+                SettingsPage(initialTab: t)
             case .timetable(let d):
                 TimetableView(date: d)                                // 1:1
             case .services:
