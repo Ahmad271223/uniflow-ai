@@ -32,8 +32,10 @@ struct MainView: View {
                 SettingsView(api: session.api)                        // alt, wird 1:1 ersetzt
             case .timetable(let d):
                 TimetableView(date: d)                                // 1:1
-            case .services, .community:
-                UFWebFallback(route: route)                           // Uebergang
+            case .services:
+                ServicesPage()
+            case .community:
+                CommunityPage()
             }
         }
         .onAppear { shell.attach(session.api) }

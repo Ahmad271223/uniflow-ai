@@ -87,8 +87,14 @@ struct UFFlexWrap: Layout {
         return out.filter { !$0.isEmpty }
     }
 
+    /// Abfragebreite fuer die CSS-Mindestbreite (min-content = breitestes Element), siehe UFCardHead
+    static let minContentProbe: CGFloat = 0.001
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? subviews.reduce(0) { $0 + $1.sizeThatFits(.unspecified).width + gap }
+        if proposal.width == Self.minContentProbe {
+            return CGSize(width: subviews.map { ceil($0.sizeThatFits(.unspecified).width) + 0.5 }.max() ?? 0, height: 0)
+        }
+        let width = proposal.width ?? max(0, subviews.reduce(0) { $0 + ceil($1.sizeThatFits(.unspecified).width) + 0.5 + gap } - gap)
         let ls = lines(subviews, width: width)
         let h = ls.map { l in l.map(\.height).max() ?? 0 }.reduce(0, +) + CGFloat(max(0, ls.count - 1)) * (rowGap ?? gap)
         return CGSize(width: proposal.width ?? width, height: h)

@@ -132,25 +132,90 @@ private struct OptionalShadow: ViewModifier {
 struct UFCardHead<Trailing: View>: View {
     let title: String
     var icon: String?
+    /// .actions als umbrechende Zeile (flex-wrap, gap .5rem); Titel und Aktionen schrumpfen wie in CSS-Flexbox,
+    /// wenn beide nicht nebeneinander passen (Titel bricht um, Knoepfe rutschen in die naechste Zeile)
+    var wrap = false
     @ViewBuilder var trailing: Trailing
 
-    init(_ title: String, icon: String? = nil, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
+    init(_ title: String, icon: String? = nil, wrap: Bool = false, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
         self.title = title
         self.icon = icon
+        self.wrap = wrap
         self.trailing = trailing()
     }
 
+    private var heading: some View {
+        HStack(spacing: 7.2) {
+            if let icon { UFIcon(icon, size: 18) }
+            Text(title).ufFont(17.6, 650, em: -0.01)
+        }
+        .foregroundStyle(UF.text)
+    }
+
     var body: some View {
-        HStack(spacing: 9.6) {
-            HStack(spacing: 7.2) {
-                if let icon { UFIcon(icon, size: 18) }
-                Text(title).ufFont(17.6, 650, em: -0.01)
+        Group {
+            if wrap {
+                // min-content des Titels: Icon + laengstes Wort
+                let word = title.split(separator: " ").map { UFTypeface.width(String($0), 17.6, 650) - 0.176 * CGFloat($0.count) }.max() ?? 0
+                UFShrinkRow(gap: 9.6, firstMin: ceil(word) + (icon == nil ? 0 : 25.2)) {
+                    heading
+                    UFFlexWrap(gap: 8) { trailing }
+                }
+            } else {
+                HStack(spacing: 9.6) {
+                    heading
+                    Spacer(minLength: 0)
+                    trailing
+                }
             }
-            .foregroundStyle(UF.text)
-            Spacer(minLength: 0)
-            trailing
         }
         .padding(.bottom, 12.8)
+    }
+}
+
+/// Zwei Flex-Elemente mit justify-content: space-between und align-items: center. Reicht der Platz nicht, schrumpfen
+/// beide anteilig zu ihrer Grundbreite (flex-shrink 1), hoechstens bis zur Mindestbreite (min-content).
+struct UFShrinkRow: Layout {
+    var gap: CGFloat
+    var firstMin: CGFloat
+
+    private func widths(_ w: CGFloat, _ subviews: Subviews) -> [CGFloat] {
+        let basis = subviews.map { ceil($0.sizeThatFits(.unspecified).width) }
+        guard basis.count == 2 else { return basis.map { min($0, w) } }
+        let mins = [firstMin, ceil(subviews[1].sizeThatFits(ProposedViewSize(width: UFFlexWrap.minContentProbe, height: nil)).width)]
+        var out = basis
+        var over = basis.reduce(0, +) + gap - w
+        var open = [0, 1]
+        while over > 0.01 && !open.isEmpty {
+            let total = open.reduce(0) { $0 + basis[$1] }
+            var next: [Int] = []
+            var used: CGFloat = 0
+            for k in open {
+                let want = over * basis[k] / max(1, total)
+                let cut = min(want, out[k] - mins[k])
+                out[k] -= cut; used += cut
+                if cut >= want - 0.01 { next.append(k) }
+            }
+            over -= used
+            if next.count == open.count { break }
+            open = next
+        }
+        return out
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let w = proposal.width ?? subviews.reduce(0) { $0 + $1.sizeThatFits(.unspecified).width } + gap
+        let ws = widths(w, subviews)
+        let h = zip(subviews, ws).map { $0.sizeThatFits(ProposedViewSize(width: $1, height: nil)).height }.max() ?? 0
+        return CGSize(width: w, height: h)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let ws = widths(bounds.width, subviews)
+        for (i, s) in subviews.enumerated() {
+            let x = i == 0 ? bounds.minX : max(bounds.minX + ws[0] + gap, bounds.maxX - ws[i])
+            s.place(at: CGPoint(x: x, y: bounds.midY), anchor: .leading, proposal: ProposedViewSize(width: ws[i], height: nil))
+        }
     }
 }
 
@@ -429,18 +494,21 @@ struct UFKPI: View {
 struct UFEmpty<Actions: View>: View {
     let icon: String
     let text: String
+    /// .empty.small: Schrift .82rem, Icon 30 pt
+    var small = false
     @ViewBuilder var actions: Actions
 
-    init(icon: String, text: String, @ViewBuilder actions: () -> Actions = { EmptyView() }) {
+    init(icon: String, text: String, small: Bool = false, @ViewBuilder actions: () -> Actions = { EmptyView() }) {
         self.icon = icon
         self.text = text
+        self.small = small
         self.actions = actions()
     }
 
     var body: some View {
         VStack(spacing: 8) {
-            UFIcon(icon, size: 36).foregroundStyle(UF.lineStrong)
-            Text(text).ufFont(14.5).foregroundStyle(UF.muted).multilineTextAlignment(.center)
+            UFIcon(icon, size: small ? 30 : 36).foregroundStyle(UF.lineStrong)
+            Text(text).ufFont(small ? 13.12 : 14.5).foregroundStyle(UF.muted).multilineTextAlignment(.center)
             actions
         }
         .frame(maxWidth: .infinity)
@@ -538,7 +606,19 @@ struct UFContent<Content: View>: View {
                 .frame(maxWidth: maxWidth ?? (wide ? .infinity : 1480), alignment: .leading)
                 .frame(maxWidth: .infinity)
         }
+        .defaultScrollAnchor(UFDebugScroll.anchor)
         .background(UF.bg)
+    }
+}
+
+/// Nur Debug-Builds: -UFScroll bottom zeigt das Seitenende (Bildvergleich ohne Wischgeste)
+enum UFDebugScroll {
+    static var anchor: UnitPoint? {
+        #if DEBUG
+        return UserDefaults.standard.string(forKey: "UFScroll") == "bottom" ? .bottom : nil
+        #else
+        return nil
+        #endif
     }
 }
 
