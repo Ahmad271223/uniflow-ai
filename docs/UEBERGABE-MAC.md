@@ -59,9 +59,23 @@ xcodebuild build -project UniFlow.xcodeproj -scheme UniFlow \
 
 Danach Tests: `xcodebuild test` mit demselben `-destination` (wie in `.github/workflows/apple.yml`).
 
-**Daten im Simulator:** Die App holt ihre Daten noch vom UniFlow-Server auf dem PC. Der PC muss im selben WLAN laufen
-(`Start-iPad.cmd`); in der App beim Verbinden `http://amo.fritz.box:8765` (oder die IP des PCs) und die PIN aus den
-Web-Einstellungen eingeben. Die PIN gibt der Inhaber selbst ein.
+## Echte Daten – keine Testdaten, kein Ersatz-Server
+
+Entwickelt und geprüft wird **mit den echten Daten des Inhabers**, nicht mit erfundenen Daten oder einem nachgebauten
+Server. Die echten Daten liegen bereits auf dem UniFlow-Server am Windows-PC (Stud.IP-Abgleich, Kalender, Tests …):
+
+1. Auf dem PC läuft `Start-iPad.cmd` (Server im Heimnetz, Port 8765). Mac und PC im selben WLAN.
+2. In der App im Simulator auf dem Verbindungsbildschirm: Adresse `http://192.168.178.46:8765` (IP des PCs im WLAN;
+   alternativ `http://amo.fritz.box:8765`) und die PIN. **Adresse darf die Sitzung eintragen, die PIN tippt der
+   Inhaber selbst** (sie steht in der Web-App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen).
+   Die App merkt sich beides im Schlüsselbund des Simulators.
+3. Stud.IP direkt vom iPad: Der Inhaber meldet sich im Simulator selbst im Stud.IP-Fenster der App an
+   (Einstellungen → Stud.IP oder „Stud.IP ohne PC nutzen“); danach lädt die App seine echten Dateien.
+
+Keine Claude-Sitzung tippt LUH-, Stud.IP- oder QIS-Zugangsdaten oder die PIN ein – das ist eine feste
+Sicherheitsregel. Stattdessen den Inhaber kurz bitten, sich selbst anzumelden, und danach weiterarbeiten.
+Feste Beispieldaten sind nur in automatisierten Unit-Tests erlaubt (`UniFlowTests`, `UniFlowCoreTests`), nie für
+Bildschirmvergleiche oder das Ausprobieren von Abläufen.
 
 ## Nächste Schritte (Reihenfolge des Auftrags)
 
