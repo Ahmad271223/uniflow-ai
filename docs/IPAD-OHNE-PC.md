@@ -127,17 +127,19 @@ Datei fortschreiben.
 
 ## 7. Entscheidungen des Inhabers
 
-Vorschläge, bis du anders entscheidest:
+**Entschieden am 25.10.2026** (Vorschläge 1–7 bestätigt):
 
-1. **Python-Korrekturen** (Stichtag des Semesterbeginns, Uhrzeit von Lernpaketen wird nicht gespeichert, ICS mit
-   UTC): als Fehlerbehebung auch für die Web-App übernehmen. *Vorschlag: ja.*
-2. **Lernplan ohne Testaufgaben** (keine KI): Standard `tests_per_subject` auf 0. *Vorschlag: ja.*
-3. **Demo-Modus** für die App-Prüfung (Apple braucht Zugang ohne echtes Uni-Konto): nur über einen versteckten
-   Schalter für Prüfer, sonst keine Beispieldaten. *Vorschlag: ja.*
-4. **Eigener Server im Release:** nur im Debug-Build. *Vorschlag: ja.*
-5. **Nur LUH in V1.** *Vorschlag: ja.*
-6. **Backup:** Notizen, Plan und Einstellungen ins iCloud-Backup; Stud.IP-Dateien und alte Fassungen nicht.
-   *Vorschlag: ja.*
-7. **Große Dateien** (z. B. Videos über 100 MB) nur auf Wunsch laden. *Vorschlag: ja.*
+1. **Python-Korrekturen** (Stichtag des Semesterbeginns, gespeicherte Uhrzeit von Lernpaketen, ICS mit UTC/TZID)
+   werden als Fehlerbehebung auch in der Web-App übernommen – zuerst in Python, danach portiert.
+2. **Lernplan ohne Testaufgaben** (keine KI): Standard `tests_per_subject` = 0, in Python und auf dem iPad.
+3. **Demo-Modus** für die App-Prüfung nur über einen versteckten Schalter für Prüfer; sonst keine Beispieldaten.
+4. **Eigener Server** (Entwicklungsmodus) nur in Debug-Builds; im Release nicht erreichbar.
+5. **Nur LUH** in V1.
+6. **Backup:** Notizen, Plan und Einstellungen ins iCloud-Backup; Stud.IP-Dateien, alte Fassungen und Seitentexte
+   ausgenommen.
+7. **Große Dateien** (z. B. Videos über 100 MB) werden nur auf Wunsch geladen.
+
+**Offen:**
+
 8. **Community-Dienst:** CloudKit (gehört zum Developer Program, 99 €/Jahr) oder Supabase (ca. 25 USD/Monat) –
-   offen; bis dahin nur vorbereitet.
+   entscheidet der Inhaber später; bis dahin wird die Community nur vorbereitet (ohne echten Dienst).
