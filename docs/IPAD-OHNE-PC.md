@@ -26,52 +26,93 @@ Pro und alle KI-Funktionen entfallen vorerst. Umgesetzt auf `develop` (Tarifwahl
 
 ## 2. Stand heute: was ohne PC läuft
 
-Stand nach **S2** (Zweig `wip/s2-weiche`): Die App startet im lokalen Modus. `session.api` zeigt auf das lokale
-Backend (`uniflow-local://device/`, Datenbank `Application Support/UniFlow/db/uniflow.sqlite`, Dateischutz
-`completeUntilFirstUserAuthentication`, im Backup). Alle Seiten laden ohne Fehler ihre echten, anfangs leeren
-Ansichten; solange Stud.IP nicht verbunden ist, steht „Stud.IP verbinden“ oberhalb der Seite. Ist Stud.IP verbunden,
-zeigt bis S3 eine Statusleiste oberhalb der Seiten (auch der Übersicht) den Abgleichstand, einen Abgleichfehler mit
-„Erneut versuchen“ und den Knopf „Stud.IP-Dateien ansehen (n)“, denn die lokalen Seiten kennen die abgeglichenen
-Dateien noch nicht. Der eigene PC-Server ist nur noch in Debug-Builds unter Einstellungen → Entwicklung erreichbar.
+Stand nach **S3** (Zweig `wip/s3-dokumente-3`, auf `wip/int-v1`): Die App startet im lokalen Modus. `session.api` zeigt
+auf das lokale Backend (`uniflow-local://device/`, Datenbank `Application Support/UniFlow/db/uniflow.sqlite`,
+Dateischutz `completeUntilFirstUserAuthentication`, im Backup). Der Stud.IP-Abgleich der App (`StudIPSync`) schreibt
+Kurse und Dateien jetzt wie `app/studip_sync.py` in diese Datenbank (`StudIPLibrary`: gleiche IDs, Felder,
+Standardwerte, `sync_log`). Die Dateien erscheinen in **Dokumente & Notizen** (je Stud.IP-Kurs ein Ordner auf der
+Stammebene, dazu „Neu aus Stud.IP“, Typ-Chips, Suche im Seitenkopf der Bibliothek, Zuletzt, Favoriten), unter
+**Meine Module** als Kursliste „Deine Stud.IP-Kurse“ (`/api/courses`, ein Kurs öffnet seinen Ordner) und auf der
+**Übersicht** unter „Neu aus Stud.IP“; jede PDF öffnet sich im Editor und lässt sich mit dem
+Apple Pencil beschreiben, **offline** – die Notizen liegen in der lokalen Datenbank (Versionen, Konflikt wie am PC)
+und bleiben nach einem Neustart erhalten. Was ein Abgleich vor S3 schon geladen hatte (`index.json`), wird beim
+ersten Start übernommen, ohne neu zu laden. Die Statusleiste oberhalb der Seiten zeigt nur noch den Abgleichstand und
+Fehler mit „Erneut versuchen“; den Knopf „Stud.IP-Dateien ansehen“ gibt es lokal nicht mehr (StudIPView bleibt in
+den Einstellungen erreichbar), und über dem geöffneten Dokument steht weder Karte noch Leiste (der Editor bekommt die
+ganze Höhe). Öffnen zählt wie im Web (`POST /api/files/{id}/opened`: „Zuletzt“, gesehen). Wie `run_sync` hält ein
+Fehler eines Kurses (z. B. ohne Dateibereich) oder einer Datei den Abgleich nicht an; der nächste Abgleich holt die
+Datei nach. Die Kopie der Original-PDF, die der Editor öffnet (`sources/<quelle>/pdf`), und die Vorschaubilder liegen
+nicht im iCloud-Backup (Entscheidung 6); „Abmelden und Dateien löschen“ entfernt auch die Kopien des Editors,
+Dokumente und Notizen bleiben. Der eigene PC-Server ist nur in Debug-Builds unter Einstellungen → Entwicklung
+erreichbar.
+
+Ehrlich offen nach S3: Ohne Fach (Einordnung erst mit **S4**) gibt es noch keine Module. Bis dahin ordnet die App
+lokal nach Stud.IP-Kursen: Kurse ohne Modul sind Ordner in Dokumente (Pfad `c<Kurs-ID>`, alle Dokumente des Kurses
+ohne Unterordner nach Art, die Chips zeigen sie als „Sonstiges“, der Schnellzugriff nennt den Kurs statt „Eigene
+Notizen“) und stehen in „Meine Module“ als Liste mit Hinweis, dass die Einordnung in Module auf dem iPad noch fehlt.
+Das ist eine bewusste Abweichung vom Web (dort stehen Dateien von Kursen ohne Modul nur unter „Neu“, „Zuletzt“ und in
+der Suche); mit eigenem Server bleibt alles wie im Web. Einstellungen → „Module & Wochentests“ gibt es weiter nur mit
+eigenem Server (dort hängen Module und KI-Wochentests dran); welche Kurse abgeglichen werden, wählt man lokal in
+Einstellungen → Stud.IP. Geprüft: App-Tests mit festen, erfundenen Stud.IP-Antworten gegen das lokale Backend
+(Abgleich → Dokumente, Kursordner, Kursliste → Editor → Strich speichern → Neustart), dazu im Simulator mit erfundenen
+Daten in der lokalen Datenbank: Übersicht und Dokumente „Neu aus Stud.IP“, „Zuletzt“, Kursordner in Dokumente, „Deine
+Stud.IP-Kurse“ in Meine Module, Öffnen im Editor ohne Netz. Nicht geprüft: echtes Stud.IP, echtes iPad und Schreiben
+mit dem Apple Pencil in der Oberfläche (im Simulator nur per Test auf `DocumentStore`-Ebene).
 
 | Bereich | Stand | Was fehlt |
 |---|---|---|
-| Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**: alle 76 App-Pfade beantwortet, Form wie `app/server.py` geprüft | Portierung der Logik je Bereich (S3–S7) |
-| Einstellungen (Lernzeit, Lernkombination, Verfügbarkeit), Semester | **lokal echt (S2)**: `GET/PUT /api/settings`, `GET/PUT /api/terms`, gleiche abgeleitete Felder und gespeicherte Texte wie Python | – |
-| Notizen beim Wechsel PC ↔ lokal | **getrennt (S2)**: Journal und PDF-Zwischenspeicher je Datenquelle, alte Journale beim ersten Start in den Server-Namensraum umgezogen | lokales Speichern der Notizen (S3); Übernahme vom PC |
+| Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle 77 App-Pfade beantwortet; **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt | Portierung der übrigen Bereiche (S4–S7) |
+| Einstellungen (Lernzeit, Lernkombination, Verfügbarkeit), Semester | **lokal echt (S2)**: `GET/PUT /api/settings`, `GET/PUT /api/terms` | – |
+| Stud.IP-Abgleich in die Datenbank | **lokal echt (S3)**: Kurse (Titel, Nummer, Semester), Dateien (Name, Größe, Typ, Änderungszeit, Ordnerpfad, Art pdf/image/file, Status „neu“), Downloads mit Pfad **relativ zum App-Container**, `sync_log`; idempotent, Nutzerfelder (Status, gesehen, Favorit, Ordner, Titel) und Notizen bleiben; umbenannte Dateien behalten ihre ID, in Stud.IP gelöschte bleiben stehen (wie Python); Fehler eines Kurses oder einer Datei (HTTP, unerwartete Antwort) überspringen nur diese wie in Python, ist kein Kurs lesbar, gilt der Lauf als gescheitert; gegen `run_sync` geprüft (`studip-import.json`) | Fach/Art der Kurse (`classify`, S4); `author` (die JSON:API liefert keinen Namen); ganze Dateien im Arbeitsspeicher; kein ETag/If-Modified-Since; Netzausfall und abgelaufene Sitzung brechen den Lauf ab (schon gelesene Kurse und geladene Dateien bleiben gespeichert); alte Datei bleibt nach Umbenennen liegen (wie Python); abgewählte Kurse bleiben mit ihren Dateien in Dokumente (ausblenden über `courses.active` erst mit S4) |
+| Notizen beim Wechsel PC ↔ lokal | **getrennt (S2)**, **lokal gespeichert (S3)**: Journal und PDF-Zwischenspeicher je Datenquelle, Notizen lokal in `annotations`/`annotation_versions` | Übernahme vom PC (Entwicklung) |
 | Erster Start (Mit Apple anmelden, Tarifwahl, Konto löschen) | **nativ fertig** (echte Apple-Anmeldung braucht das Developer Program) | – |
 | Stud.IP-Anmeldung auf der echten Seite, Sitzung im Schlüsselbund, Ablauf erkennen | **nativ fertig** | Navigationsgrenzen und Fehlermeldungen in der Webansicht; Logout beendet die Sitzung nicht beim Server; stilles Erneuern; OAuth2 (Freigabe LUH) |
-| Kurse, Ordnerbaum, Dateien laden | **nativ teilweise** | Dateien nur in einer eigenen Liste und QuickLook; ein Fehler bricht den ganzen Lauf ab; ganze Dateien im Arbeitsspeicher; kein ETag/If-Modified-Since; keine Einordnung (Fach, Art, Lehrwoche) |
-| Kurszeiten (seminar-cycle-dates) | **Kern fertig**, nicht angebunden | Abruf in der App, lokale Ablage, Gruppenauswahl |
-| Einzeltermine (course-events) | **nur Server** | Swift-Abruf |
+| Dokumente & Notizen | **lokal echt (S3)**: `GET /api/library`, Kursordner je Stud.IP-Kurs ohne Modul, Ordner anlegen/umbenennen/löschen, Notizbuch/Whiteboard anlegen, eigene PDF und Bilder importieren (Ablage `Application Support/UniFlow/files/Eigene Dokumente`, im Backup; Bild → PDF-Seite mit UIKit), Titel, Ordner, Papierkorb, Wiederherstellen, Duplizieren, endgültig löschen (nur eigene) | Modulordner und Dokumenttypen (S4) |
+| Übersicht | **teilweise (S3)**: „Neu aus Stud.IP“ (`new_files`, `new_total`, vorher `ensure_modules` wie Python), „Gesehen“ (`mark-seen`), letzter Abgleich (`last_sync`) echt | Lernpakete, Woche, Termine, Module, Nachholen (S6, S5, S4) |
+| Module und Kurse | **Kursliste echt (S3)**: `GET /api/courses` (in „Meine Module“ als „Deine Stud.IP-Kurse“), `PATCH /api/courses/{id}` (Fach, Art, aktiv, Testminuten; lokal noch ohne Oberfläche) | Module, Zuordnung, Moduldetail mit Wochen (S4); „Module & Wochentests“ in den Einstellungen lokal |
+| Kurszeiten (seminar-cycle-dates) | **Kern fertig**, nicht angebunden | Abruf in der App, lokale Ablage, Gruppenauswahl (S5) |
+| Einzeltermine (course-events) | **nur Server** | Swift-Abruf (S5) |
 | QIS (Noten) | **Kern fertig** (Parser), nicht angebunden | Webansicht, Ablage, Anzeige |
-| Übersicht, Lernkalender, Stundenplan, Module, Dokumente | **lokal leer (S2)**: Seiten laden, Antworten in Server-Form ohne Inhalte; freie Zeitfenster schon aus den echten Einstellungen (Lernbeginn/-ende minus Sperrzeiten, gleich mit Python); Anlegen meldet „geht auf diesem iPad noch nicht“ (409); Stud.IP-Dateien bis S3 über die Statusleiste | Daten aus Stud.IP und Logik-Ports (S3–S6) |
-| PDF-Editor mit Apple Pencil | **nur Server** (`/api/files/{id}/content` und `/annotations`); lokal: leeres Dokument, Speichern 409 mit Meldung, Notizen bleiben im Journal | lokale Datei und lokale Notizablage (S3) |
-| Suche, Skriptsuche | **nur Server** | lokaler Index, Port von `scriptsearch.py` |
-| Geänderte Original-PDF bei vorhandenen Notizen | **fehlt** | Fingerabdruck, Neuzuordnung der Seiten, alte Fassung aufbewahren |
-| Hintergrundabgleich | **fehlt** | BGAppRefresh; vorher Sitzungsdauer messen bzw. OAuth2 |
+| Lernkalender, Stundenplan | **lokal leer (S2)**: Seiten laden, freie Zeitfenster aus den echten Einstellungen; Anlegen 409 mit Meldung | S5, S6 |
+| PDF-Editor mit Apple Pencil | **lokal echt (S3)**: Original aus dem Stud.IP-Abgleich oder Import über `/api/files/{id}/content` (Bytes der lokalen Datei, Kopfzeilen wie `server.py`), Notizen über `/api/files/{id}/annotations` lokal mit `base_version`-Konflikt und 30 Versionen; offline; „Lösung teilen“ nutzt die unveränderten Original-Bytes (`DocumentStore.originalPDFURL`, geprüft) | Seitentext/Skriptsuche (S7); neue Original-Fassung bei vorhandenen Notizen (S7); der PDF-Zwischenspeicher `sources/<quelle>/pdf` (seit S3 ohne Backup) wird nach einer neuen Stud.IP-Fassung nicht erneuert (S7); Vorschaubilder gelöschter Dateien bleiben im Zwischenspeicher `thumbs` (ohne Backup) |
+| Suche, Skriptsuche | **nur Server** | lokaler Index, Port von `scriptsearch.py` (S7) |
+| Geänderte Original-PDF bei vorhandenen Notizen | **fehlt** | Fingerabdruck, Neuzuordnung der Seiten, alte Fassung aufbewahren (S7) |
+| Hintergrundabgleich | **fehlt** | BGAppRefresh; vorher Sitzungsdauer messen bzw. OAuth2 (S8) |
 | Zeitmesser | **nativ fertig** | Mitteilung bei Ablauf im Hintergrund |
-| Community „Lösungen teilen“ | **lokal fertig (S9, Zweig `wip/loesung-teilen`)**: im Editor „Lösung teilen …“ (nur eigene Notizen, verschlüsseltes Paket `*.uniflowsolution`, Vorschau ohne Original), Import über „Öffnen in“/„Lösung importieren …“, Anzeige als eigene, nicht bearbeitbare Ebene über der eigenen PDF, „Meine geteilten Lösungen“; PDF-Export davon getrennt und nur privat (`docs/LOESUNGEN-TEILEN.md`) | zentraler Dienst (Entscheidung des Inhabers) mit echter Berechtigungsprüfung, Konten, Moderation; Prüfung „Datei aus dem eigenen Stud.IP-Abgleich“ (nach S3) |
+| Community „Lösungen teilen“ | **lokal fertig (S9, Zweig `wip/loesung-teilen`)**: im Editor „Lösung teilen …“ (nur eigene Notizen, verschlüsseltes Paket `*.uniflowsolution`, Vorschau ohne Original), Import über „Öffnen in“/„Lösung importieren …“, Anzeige als eigene, nicht bearbeitbare Ebene über der eigenen PDF, „Meine geteilten Lösungen“; PDF-Export davon getrennt und nur privat (`docs/LOESUNGEN-TEILEN.md`) | zentraler Dienst (Entscheidung des Inhabers) mit echter Berechtigungsprüfung, Konten, Moderation; Prüfung „Datei aus dem eigenen Stud.IP-Abgleich“ (seit S3 möglich: `files.course_id` + `download_url`, noch nicht eingebaut) |
+
+Tarife unverändert: Lesen, Öffnen und Exportieren Free; Schreiben mit dem Pencil und Notizbücher Plus
+(`Entitlements`/`UFGate`, keine Änderung in S3).
 
 ## 3. Serverabhängigkeiten
 
-Die iPad-App ruft **76 verschiedene Endpunkte** auf (Methode + Pfad, Liste per grep über `apps/apple/UniFlow` in
-`packages/shared-contracts/fixtures/local-backend/app-paths.json`, erzeugt mit `tools/gen-local-backend-fixture.py`).
-Seit S2 beantwortet das lokale Backend **jeden** davon (`LocalBackendCoverageTests`):
+Die iPad-App ruft **77 verschiedene Endpunkte** auf (Methode + Pfad, Liste per grep über `apps/apple/UniFlow` in
+`packages/shared-contracts/fixtures/local-backend/app-paths.json`, erzeugt mit `tools/gen-local-backend-fixture.py`;
+neu seit S3: `POST /api/files/{id}/opened` beim Öffnen eines Dokuments wie im Web, für „Zuletzt“ und „gesehen“).
+Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
 
-- **echt lokal:** `GET/PUT /api/settings`, `GET/PUT /api/terms`; freie Zeitfenster in `/api/timetable/week`,
-  `/api/timetable/day` und `today.free` von `/api/dashboard` (Port von `timetable.free_windows` ohne Termine und
-  Lernpakete, `LocalFreeWindowsTests` gegen `timetable-free.json`); die feste Dienste-Liste in `GET /api/services`
-  (`SERVICES` aus `app/server.py`, exakt verglichen).
-- **Platzhalter in Server-Form** bis zur Portierung (leere Listen, leere Objekte mit denselben Feldern wie
-  `app/server.py` bei leerer Datenbank, Datumsangaben aus der Uhr, Machbarkeit und Sperrzeiten schon aus den echten
-  Einstellungen): Übersicht, Bibliothek, Module/Kurse, Lernkalender/Pakete/Aufgaben, Stundenplan, Karteikarten,
-  Uni & Noten, Suche, Sync-Status. Einträge nach ID gibt es noch nicht (404 wie am PC), Ändern/Löschen fehlender
-  Einträge antwortet wie der PC-Server, **Anlegen** (Lernpakete, Module, Ordner, Notizbücher, Termine, Import) und
-  **Notizen speichern** antworten mit **409** und klarer Meldung. Ein echter Endpunkt ersetzt den Platzhalter
-  automatisch (`LocalRoute.placeholder`). Der Formvergleich meldet eine lokal leere Liste, die Python füllt; bewusst
-  leer bleibt bis S3 nur `GET /api/courses` (Python zeigt dort den Pseudokurs „Eigene Dokumente“,
-  `expect.empty_lists` im Fixture).
+- **echt lokal (S2):** `GET/PUT /api/settings`, `GET/PUT /api/terms`; freie Zeitfenster in `/api/timetable/week`,
+  `/api/timetable/day` und `today.free` von `/api/dashboard`; die feste Dienste-Liste in `GET /api/services`.
+- **echt lokal (S3), Antworten wie `app/server.py` bei gleicher Datenbank** (`LocalLibraryFixtureTests` gegen
+  `library-files.json`, 114 Anfragen samt Tabellen und Dateien danach): `GET /api/library` (mit
+  `ensure_modules`), `GET /api/courses`, `PATCH /api/courses/{id}`, `GET /api/files`, `GET/PATCH /api/files/{id}`,
+  `GET /api/files/{id}/content`, `GET/PUT /api/files/{id}/annotations`, `GET .../annotations/versions`,
+  `POST .../annotations/restore/{v}`, `POST /api/files/{id}/assets`, `GET /api/assets/{id}/{name}`,
+  `POST /api/files/mark-seen`, `POST /api/files/{id}/opened`, `POST /api/files/{id}/favorite`,
+  `POST/PATCH/DELETE /api/folders`, `POST /api/notebooks`, `PATCH /api/library/files/{id}`, `GET /api/sync/status`
+  (Protokoll der Abgleiche auf dem Gerät); in `/api/dashboard` `new_files`, `new_total`, `last_sync`.
+  Bewusste Abweichungen: Einordnung der Dateien (`doc_type`, `sub_label`, `week_hint`) liefert bis S4 den Rückfall
+  „Sonstiges“ ohne Lehrwoche (im Fixture als `s4_fields` ausgenommen); Notizen für ein Dokument, das es lokal nicht
+  gibt, antworten mit 409 ohne `version` statt 500 (die App behält sie im Journal); falsche Zahlen 422 statt 500;
+  `local_path` relativ zum App-Container statt absolut. In `app/server.py` korrigiert (zuerst in Python, Test in
+  `tests/test_regressions.py`): „Endgültig löschen“ einer Kopie löschte die gemeinsame PDF-Datei des Originals.
+- **Platzhalter in Server-Form** bis zur Portierung (leere Listen bzw. Objekte mit denselben Feldern wie
+  `app/server.py` bei leerer Datenbank): Übersicht ohne die Dateien (Lernpakete, Woche, Termine, Module: S4–S6),
+  Module (`/api/modules*`, `POST /api/courses/{id}/module`: S4), Lernkalender/Pakete/Aufgaben (S6), Stundenplan
+  und Termine (S5), Karteikarten, Uni & Noten, Suche und Skriptsuche (`/api/search`, `/api/related`,
+  `/api/files/{id}/pagetext`: S7), `/api/bg`. Einträge nach ID gibt es dort noch nicht (404 wie am PC), **Anlegen**
+  (Lernpakete, Module, Termine, Stundenplan-Import) antwortet mit **409** und klarer Meldung. Ein echter Endpunkt
+  ersetzt den Platzhalter automatisch (`LocalRoute.placeholder`).
 - **bewusst entfallen:** KI (`/api/ai/tutor`), Wochentests (`/api/tests/*` außer der leeren Liste,
   `/api/tasks/{id}/start-test`), Zugänge (`PUT /api/credentials/*`; `GET` liefert „kein Zugang“): 404 mit Meldung.
   QIS-Abruf (`/api/grades/sync`) 404 „kommt in einer späteren Version“, `/api/sync` 409 (Stud.IP gleicht die App
@@ -79,22 +120,28 @@ Seit S2 beantwortet das lokale Backend **jeden** davon (`LocalBackendCoverageTes
 
 Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter den leeren Zustand (keine KI, QIS folgt).
 
-| Bereich | Endpunkte | Ziel |
-|---|---|---|
-| Übersicht, Dateien als gesehen | `/api/dashboard`, `/api/files/mark-seen` | lokal (Free) |
-| Module und Kurse | `/api/modules*`, `/api/courses*` (9) | lokal (Free) |
-| Bibliothek, Ordner, Notizbücher, Favoriten | `/api/library*`, `/api/folders*`, `/api/notebooks`, `/api/files/{id}/favorite` (7) | lokal (Free; Notizbücher Plus) |
-| Datei-Inhalt und Notizen | `/api/files/{id}/content`, `/annotations` (GET/PUT, Versionen) | lokal (Lesen Free, Schreiben Plus) |
-| Lernkalender, Pakete, Aufgaben, Zeitfenster | `/api/calendar*`, `/api/tasks*`, `/api/packages*`, `/api/timetable/reslot` (16) | lokal (Free) |
-| Stundenplan, Termine, Import, Konflikte | `/api/timetable/*` (12) | lokal (Free) |
-| Einstellungen, Semester | `/api/settings`, `/api/terms` | **lokal (S2)** |
-| Suche, Skriptsuche | `/api/search`, `/api/related` | lokal |
-| Abgleich und Status | `/api/sync`, `/api/sync/status`, `/api/bg` | lokal als Stud.IP-Abgleich |
-| Karteikarten | `/api/flashcards*` | lokal (Plus), eigenes Anlegen ohne KI |
-| Uni & Noten | `/api/services`, `/api/grades*`, `/api/qis/*` | Dienste-Liste lokal; QIS auf dem Gerät (später) |
-| Zugänge | `/api/credentials*` | entfällt (keine Passwörter in der App) |
-| Tests, KI | `/api/tests*`, `/api/ai/tutor`, `/api/tasks/{id}/start-test` | entfällt (keine KI) |
-| Community, Konto | – | zentraler Dienst (Entscheidung) |
+| Bereich | Endpunkte | Ziel | Stand |
+|---|---|---|---|
+| Übersicht, Dateien als gesehen | `/api/dashboard`, `/api/files/mark-seen` | lokal (Free) | neue Dateien und `mark-seen` lokal (S3), Rest S4–S6 |
+| Module und Kurse | `/api/modules*`, `/api/courses*` (9) | lokal (Free) | Kurse lokal (S3), Module S4 |
+| Bibliothek, Ordner, Notizbücher, Favoriten | `/api/library*`, `/api/folders*`, `/api/notebooks`, `/api/files/{id}/favorite` (7) | lokal (Free; Notizbücher Plus) | **lokal (S3)** |
+| Datei-Inhalt und Notizen | `/api/files/{id}/content`, `/annotations` (GET/PUT, Versionen), `/assets` | lokal (Lesen Free, Schreiben Plus) | **lokal (S3)** |
+| Lernkalender, Pakete, Aufgaben, Zeitfenster | `/api/calendar*`, `/api/tasks*`, `/api/packages*`, `/api/timetable/reslot` (16) | lokal (Free) | Platzhalter (S6) |
+| Stundenplan, Termine, Import, Konflikte | `/api/timetable/*` (12) | lokal (Free) | Platzhalter (S5), freie Fenster echt |
+| Einstellungen, Semester | `/api/settings`, `/api/terms` | lokal | **lokal (S2)** |
+| Suche, Skriptsuche | `/api/search`, `/api/related`, `/api/files/{id}/pagetext` | lokal | Platzhalter (S7) |
+| Abgleich und Status | `/api/sync`, `/api/sync/status`, `/api/bg` | lokal als Stud.IP-Abgleich | Abgleich in der App (S3), Protokoll lokal |
+| Karteikarten | `/api/flashcards*` | lokal (Plus), eigenes Anlegen ohne KI | Platzhalter |
+| Uni & Noten | `/api/services`, `/api/grades*`, `/api/qis/*` | Dienste-Liste lokal; QIS auf dem Gerät (später) | Dienste lokal, QIS offen |
+| Zugänge | `/api/credentials*` | entfällt (keine Passwörter in der App) | entfallen |
+| Tests, KI | `/api/tests*`, `/api/ai/tutor`, `/api/tasks/{id}/start-test` | entfällt (keine KI) | entfallen |
+| Community, Konto | – | zentraler Dienst (Entscheidung) | Lösung als Datei (S9) |
+
+**Was nach S3 ohne PC noch nicht geht** (ehrlich): Module und Fächer samt Modulordnern in Dokumente (bis dahin
+Kursordner) und „Module & Wochentests“ in den Einstellungen (S4), Lernplan und Kalender mit Inhalt (S6),
+Stundenplan aus Stud.IP (S5), Suche und Skriptsuche (S7), neue Original-Fassung mit erhaltenen Notizen (S7),
+Hintergrundabgleich (S8), QIS-Noten, Übernahme der Notizen und Pläne vom PC. Keiner dieser Punkte braucht im
+App-Store-Betrieb einen PC; sie sind nur noch nicht portiert.
 
 ## 4. Architektur
 
@@ -142,7 +189,7 @@ Zuerst der größte Nutzen: Dokumente öffnen und mit dem Pencil schreiben ohne 
 |---|---|---|
 | S1 | SQLite-Schicht, Schema, Migrationen, gemeinsame Uhr | Tests im Kern grün (macOS und Linux) |
 | S2 | Transport-Weiche und Router; Journal-Namensraum je Datenquelle; **Übernahme der eigenen Notizen und Pläne vom PC** (Entwicklung, noch offen); gültige leere Antworten für noch nicht portierte Pfade | Seiten laden lokal ohne Fehler; Wechsel PC ↔ lokal verliert keine Notizen (**umgesetzt bis auf die Übernahme**) |
-| S3 | Stud.IP-Dateien in die Datenbank; Endpunkte Bibliothek, Datei-Inhalt, Notizen; Editor lokal | Stud.IP verbinden → Dokumente erscheinen → im Editor öffnen und schreiben, offline |
+| S3 | Stud.IP-Dateien in die Datenbank; Endpunkte Bibliothek, Datei-Inhalt, Notizen; Editor lokal (**umgesetzt**, `wip/s3-dokumente-3`) | Stud.IP verbinden → Dokumente erscheinen → im Editor öffnen und schreiben, offline (**App-Test mit festen Stud.IP-Antworten grün**, `LocalDocumentsAppTests`; echtes Stud.IP und Gerät offen) |
 | S4 | Fach, Art, Lehrwoche ohne KI (`classify`, `effective_type`, `week_hint`); Module-Endpunkte | Fächer geordnet, Moduldetail mit Wochen |
 | S5 | Stundenplan: Kurszeiten und Einzeltermine aus Stud.IP, `timetable.py`-Port | Stundenplan aus Stud.IP |
 | S6 | Lernlogik (`study.py`): lesen, verschieben, planen; Übersicht, Kalender | Lernplan erstellen, Aufgaben abhaken, Übersicht |
