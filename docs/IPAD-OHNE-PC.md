@@ -103,6 +103,25 @@ den nächsten Abgleich) und der Reiter „Module“ ohne PC gezeichnet und per T
 stellt `ensure_modules` eine gelöste Zuordnung („– kein Modul –“) eines Kurses mit Fach beim nächsten Lesen wieder
 her; dauerhaft ohne Modul bleibt ein Kurs nur ohne Fach oder mit der Art „sonstiges“.
 
+Stand nach **S5** (Zweig `wip/s5-stundenplan-2`, ohne S3/S4): Der **Stundenplan aus Stud.IP** läuft ohne PC. Nach
+jedem Datei-Abgleich lädt die App (`StudIPScheduleSync`, ein Aufruf in `StudIPSync`) die Kurszeiten
+(`users/{id}/schedule`: seminar-cycle-dates mit Rhythmus, Zeitraum und Ausfällen), die eigenen Einträge
+(schedule-entries) und die Einzeltermine der abgeglichenen Kurse (`courses/{id}/events`, alle Seiten) und legt sie in
+der Datenbank ab: `studip_events` und `studip_schedule_entries` wie `app/studip_sync.py`, dazu die nur auf dem Gerät
+vorhandene Tabelle `studip_cycle_dates` (`StudIPScheduleStore`). Danach übernimmt `auto_import` wie am PC alle
+eindeutigen Termine in den Stundenplan; Kurszeiten ersetzen für ihren Kurs die aus Einzelterminen abgeleiteten Serien,
+Einzeltermine außerhalb der Kurszeiten (z. B. Klausur, Blocktermin) bleiben wie in Python, Ausfälle laut Stud.IP
+werden zu Ausnahmen „Ausfall laut Stud.IP“. **Parallele Übungsgruppen** bleiben offen: „Stundenplan importieren →
+Aus Stud.IP übernehmen“ zeigt sie wie in der Web-App orange mit „n parallele Gruppen – nur deine Gruppe auswählen“, die
+gewählte Gruppe kommt mit ihren Ausfällen dazu. Fehler beim Termin-Abruf brechen den Datei-Abgleich nie ab; die
+Zusammenfassung nennt sie („Kurszeiten nicht geladen“, „Termine von n Kursen nicht geladen“), Nichtgeladenes bleibt wie
+zuletzt gespeichert. Woche, Tag, Termine anlegen/ändern/löschen (Serie, ab Datum, einzeln), Teilnahme, Ausnahmen,
+freie Fenster mit Terminen, Fahrtzeit und Lernslots, Konflikte mit Lernslots, ICS-Import und die Termine von heute in
+der Übersicht sind 1:1-Ports von `app/timetable.py` (Antworten exakt gegen Python geprüft). Import aus PDF, Bild oder
+Text braucht KI und meldet lokal „KI-Funktionen gibt es in dieser Version nicht.“ (die Auswahl im Importdialog bleibt
+bis zur Release-Bereinigung sichtbar). Unterlagen zum Termin bleiben leer, bis Dateien mit Einordnung lokal sind
+(S3/S4); Lernslots neu legen (`/api/timetable/reslot`) gehört zu S6.
+
 | Bereich | Stand | Was fehlt |
 |---|---|---|
 | Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle 77 App-Pfade beantwortet; **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt; **S4**: Module echt | Portierung der übrigen Bereiche (S5–S7) |
@@ -112,13 +131,14 @@ her; dauerhaft ohne Modul bleibt ein Kurs nur ohne Fach oder mit der Art „sons
 | Erster Start (Mit Apple anmelden, Tarifwahl, Konto löschen) | **nativ fertig** (echte Apple-Anmeldung braucht das Developer Program) | – |
 | Stud.IP-Anmeldung auf der echten Seite, Sitzung im Schlüsselbund, Ablauf erkennen | **nativ fertig** | Navigationsgrenzen und Fehlermeldungen in der Webansicht; Logout beendet die Sitzung nicht beim Server; stilles Erneuern; OAuth2 (Freigabe LUH) |
 | Dokumente & Notizen | **lokal echt (S3)**: `GET /api/library`, Kursordner je Stud.IP-Kurs ohne Modul, Ordner anlegen/umbenennen/löschen, Notizbuch/Whiteboard anlegen, eigene PDF und Bilder importieren (Ablage `Application Support/UniFlow/files/Eigene Dokumente`, im Backup; Bild → PDF-Seite mit UIKit), Titel, Ordner, Papierkorb, Wiederherstellen, Duplizieren (Kopien von Stud.IP-Dateien teilen sich deren Datei und öffnen sich nach „Abmelden und Dateien löschen“ und dem nächsten Abgleich wieder mit ihren Notizen), endgültig löschen (nur eigene; entfernt auch die PDF-Kopie des Editors, das Journal und die Vorschaubilder auf dem Gerät); **S4**: Modulordner je Fach mit Unterordnern nach Art, Einordnung `doc_type`/`sub_label`/`week_hint` wie `study.enrich_file` (gegen Python verglichen) | Prüfung auf einem echten iPad |
-| Übersicht | **teilweise (S3)**: „Neu aus Stud.IP“ (`new_files`, `new_total`, vorher `ensure_modules` wie Python), „Gesehen“ (`mark-seen`), letzter Abgleich (`last_sync`) echt | Lernpakete, Woche, Termine, Module, Nachholen (S5, S6) |
+| Übersicht | **teilweise (S3)**: „Neu aus Stud.IP“ (`new_files`, `new_total`, vorher `ensure_modules` wie Python), „Gesehen“ (`mark-seen`), letzter Abgleich (`last_sync`) echt; **S5**: Termine und freie Fenster von heute (`today.events`, `today.free`) aus dem Stundenplan | Lernpakete, Woche, Module, Nachholen (S6) |
 | Einordnung ohne KI: Fach, Art, Lehrwoche, Semesterwochen | **Kern fertig (S4)**: `StudyClassify.classify`/`effectiveType`/`weekHint`, `StudyWeeks` (Stichtag und Woche 0 zuerst in Python korrigiert), `ModuleGuess` (`timetable.guess_module` mit `difflib`); Regeln wie Pythons `re` (`PyRegex`: `\b`, `\w`, `\s`, `re.I` Zeichen für Zeichen, nicht wie ICU); **angebunden**: `classify` beim Stud.IP-Abgleich (`StudIPLibrary.classify`), `enrichFile` in Bibliothek und Moduldetail | Vorsilbe „Hörsaalübung“/„Zentralübung“ bleibt im Fach (wie Python, Entscheidung des Inhabers) |
 | Module und Kurse | **Kursliste echt (S3)**: `GET /api/courses` (in „Meine Module“ als „Deine Stud.IP-Kurse“, solange es kein Modul gibt), `PATCH /api/courses/{id}` (Art in Einstellungen → „Module“; Fach, aktiv, Testminuten ohne Oberfläche); **Module lokal echt (S4)**: `GET/POST /api/modules`, `GET/PATCH/DELETE /api/modules/{id}`, `POST /api/modules/auto-assign`, `POST /api/courses/{id}/module`; gleiche Antworten und Tabellen wie Python auf einer Seed-Datenbank; Seiten „Meine Module“ und Moduldetail im Simulator mit Seed-Daten geprüft, mit Daten aus dem Stud.IP-Abgleich im App-Test; Einstellungen → „Module“ ohne PC (Anlegen, Zuordnen, automatische Zuordnung, ohne Wochentests); KI-Zusammenfassung der Woche ohne PC ausgeblendet | nächster Termin `next_event` erst mit S5 (bis dahin `null`); Wochenthema bleibt ohne KI-Analyse leer; Module in der Übersicht (`/api/dashboard`) mit S6; Prüfung auf einem echten iPad |
-| Kurszeiten (seminar-cycle-dates) | **Kern fertig**, nicht angebunden | Abruf in der App, lokale Ablage, Gruppenauswahl (S5) |
-| Einzeltermine (course-events) | **nur Server** | Swift-Abruf (S5) |
+| Kurszeiten (seminar-cycle-dates) | **lokal echt (S5)**: Abruf nach dem Datei-Abgleich, Ablage `studip_cycle_dates`, Übernahme mit Rhythmus, Zeitraum und Ausfällen; Gruppenauswahl in der Importvorschau wie in der Web-App | Rhythmen außer wöchentlich/zweiwöchentlich nur mit Hinweis „bitte prüfen“ |
+| Einzeltermine (course-events) | **lokal echt (S5)**: Swift-Abruf (`StudIPClient.courseEvents`, alle Seiten, abgesagte ohne), Ablage `studip_events`; ein Fehler je Kurs lässt dessen alte Termine stehen | – |
 | QIS (Noten) | **Kern fertig** (Parser), nicht angebunden | Webansicht, Ablage, Anzeige |
-| Lernkalender, Stundenplan | **lokal leer (S2)**: Seiten laden, freie Zeitfenster aus den echten Einstellungen; Anlegen 409 mit Meldung | S5, S6 |
+| Stundenplan | **lokal echt (S5)**: alle `/api/timetable/*` außer `reslot` (Woche, Tag, Termine, Ausnahmen, Teilnahme, freie Fenster, Unterlagen, ICS- und Stud.IP-Import, Konflikte, Auto-Status), heutige Termine und freie Fenster in der Übersicht; ICS mit UTC/TZID/EXDATE (Korrektur zuerst in Python, `tests/test_timetable.py`) | Unterlagen zum Termin (braucht S3/S4); Lernslots neu legen (S6); KI-Import entfällt |
+| Lernkalender | **lokal leer (S2)**: Seite lädt, freie Zeitfenster aus den echten Einstellungen und dem Stundenplan; Anlegen 409 mit Meldung | S6 |
 | PDF-Editor mit Apple Pencil | **lokal echt (S3)**: Original aus dem Stud.IP-Abgleich oder Import über `/api/files/{id}/content` (Bytes der lokalen Datei, Kopfzeilen wie `server.py`), Notizen über `/api/files/{id}/annotations` lokal mit `base_version`-Konflikt und 30 Versionen; offline; „Lösung teilen“ nutzt die unveränderten Original-Bytes (`DocumentStore.originalPDFURL`, geprüft) | Seitentext/Skriptsuche (S7); neue Original-Fassung bei vorhandenen Notizen (S7); der PDF-Zwischenspeicher `sources/<quelle>/pdf` (seit S3 ohne Backup) wird nach einer neuen Stud.IP-Fassung nicht erneuert (S7) und ist eine zweite vollständige Kopie der Datei (je Duplikat eine weitere; ein APFS-Klon statt der Kopie fehlt, das Schreiben läuft abseits des Hauptthreads) |
 | Suche, Skriptsuche | **nur Server** | lokaler Index, Port von `scriptsearch.py` (S7) |
 | Geänderte Original-PDF bei vorhandenen Notizen | **fehlt** | Fingerabdruck, Neuzuordnung der Seiten, alte Fassung aufbewahren (S7) |
@@ -146,7 +166,9 @@ neu seit S3: `POST /api/files/{id}/opened` beim Öffnen eines Dokuments wie im W
 Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
 
 - **echt lokal (S2):** `GET/PUT /api/settings`, `GET/PUT /api/terms`; freie Zeitfenster in `/api/timetable/week`,
-  `/api/timetable/day` und `today.free` von `/api/dashboard`; die feste Dienste-Liste in `GET /api/services`.
+  `/api/timetable/day` und `today.free` von `/api/dashboard` (Port von `timetable.free_windows`, seit S5 mit Terminen,
+  Fahrtzeit und Lernslots, `LocalFreeWindowsTests` gegen `timetable-free.json`); die feste Dienste-Liste in `GET /api/services`
+  (`SERVICES` aus `app/server.py`, exakt verglichen).
 - **echt lokal (S3), Antworten wie `app/server.py` bei gleicher Datenbank** (`LocalLibraryFixtureTests` gegen
   `library-files.json`, 114 Anfragen samt Tabellen und Dateien danach): `GET /api/library` (mit
   `ensure_modules`), `GET /api/courses`, `PATCH /api/courses/{id}`, `GET /api/files`, `GET/PATCH /api/files/{id}`,
@@ -163,11 +185,26 @@ Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
 - **echt lokal (S4):** die Module: `GET/POST /api/modules`, `GET/PATCH/DELETE /api/modules/{id}`,
   `POST /api/modules/auto-assign`, `POST /api/courses/{id}/module` (`ModulesEndpoints`, `LocalModulesEndpointTests`
   gegen `study-modules.json`; nach einem Abgleich mit erfundenen Stud.IP-Daten `classified` in `studip-import.json`).
+- **echt lokal (S5), Antworten wie `app/server.py` bei gleicher Datenbank** (`LocalTimetableTests` gegen
+  `timetable-logic.json` aus `tools/gen-timetable-fixture.py`: knapp 50 Anfragen mit eingefrorener Uhr am Tag der
+  Zeitumstellung, Tabellen danach, ICS-Fälle, `auto_import`): `GET /api/timetable/week`, `/day`, `/events`, `/free`,
+  `/conflicts`, `/auto-status`, `/event-materials/{id}`, `POST/PATCH/DELETE /api/timetable/events`,
+  `POST /api/timetable/attendance`, `/exceptions`, `/import/preview` (Quellen `studip` und `ics`), `/import/confirm`;
+  `today.events`/`today.free` in `/api/dashboard`. Stud.IP-Abruf und Ablage: `StudIPScheduleStoreTests` (Kern) und
+  `TimetableLocalAppTests` (App) mit erfundenen JSON:API-Antworten (`fixtures/studip-schedule`). Bewusste
+  Abweichungen: Import aus `pdf`, `image`, `text` antwortet nach den Prüfungen von Python (400 „PDF fehlt“, „Bild
+  fehlt“, „Nur Bilddateien“) mit 404 „KI-Funktionen gibt es in dieser Version nicht.“; falsche Datumsangaben in der
+  Query 422 statt 500; `conflicts?days=` höchstens 3660; Unterlagen zum Termin leer bis S3/S4; auf dem Gerät ersetzen
+  Kurszeiten die aus Einzelterminen abgeleiteten Serien ihres Kurses (ohne Kurszeiten genau wie Python), und ein
+  vollständig geladener Kurs ersetzt seine gespeicherten Einzeltermine (Python lässt veraltete stehen). In
+  `app/timetable.py` korrigiert (zuerst in Python, `tests/test_timetable.py`): ICS-Zeiten mit „Z“ (UTC) und `TZID`
+  werden in Berliner Ortszeit umgerechnet, `EXDATE` und `UNTIL` mit Uhrzeit werden beachtet, Ausfälle werden beim
+  Import zu Ausnahmen.
 - **Platzhalter in Server-Form** bis zur Portierung (leere Listen bzw. Objekte mit denselben Feldern wie
-  `app/server.py` bei leerer Datenbank): Übersicht ohne die Dateien (Lernpakete, Woche, Termine, Module: S5, S6),
-  Lernkalender/Pakete/Aufgaben (S6), Stundenplan und Termine (S5), Karteikarten, Uni & Noten, Suche und Skriptsuche
+  `app/server.py` bei leerer Datenbank): Übersicht ohne Dateien und Termine von heute (Lernpakete, Woche, Module: S6),
+  Lernkalender/Pakete/Aufgaben und `/api/timetable/reslot` (S6), Karteikarten, Uni & Noten, Suche und Skriptsuche
   (`/api/search`, `/api/related`, `/api/files/{id}/pagetext`: S7), `/api/bg`. Einträge nach ID gibt es dort noch
-  nicht (404 wie am PC), **Anlegen** (Lernpakete, Termine, Stundenplan-Import) antwortet mit **409** und klarer
+  nicht (404 wie am PC), **Anlegen** (Lernpakete) antwortet mit **409** und klarer
   Meldung. Ein echter Endpunkt ersetzt den Platzhalter automatisch (`LocalRoute.placeholder`).
 - **bewusst entfallen:** KI (`/api/ai/tutor`), Wochentests (`/api/tests/*` außer der leeren Liste,
   `/api/tasks/{id}/start-test`), Zugänge (`PUT /api/credentials/*`; `GET` liefert „kein Zugang“): 404 mit Meldung.
@@ -178,12 +215,12 @@ Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter 
 
 | Bereich | Endpunkte | Ziel | Stand |
 |---|---|---|---|
-| Übersicht, Dateien als gesehen | `/api/dashboard`, `/api/files/mark-seen` | lokal (Free) | neue Dateien und `mark-seen` lokal (S3), Rest S5, S6 |
+| Übersicht, Dateien als gesehen | `/api/dashboard`, `/api/files/mark-seen` | lokal (Free) | neue Dateien und `mark-seen` lokal (S3), Termine von heute (S5), Rest S6 |
 | Module und Kurse | `/api/modules*`, `/api/courses*` (9) | lokal (Free) | Kurse lokal (S3), **Module lokal (S4)** |
 | Bibliothek, Ordner, Notizbücher, Favoriten | `/api/library*`, `/api/folders*`, `/api/notebooks`, `/api/files/{id}/favorite` (7) | lokal (Free; Notizbücher Plus) | **lokal (S3)** |
 | Datei-Inhalt und Notizen | `/api/files/{id}/content`, `/annotations` (GET/PUT, Versionen), `/assets` | lokal (Lesen Free, Schreiben Plus) | **lokal (S3)** |
 | Lernkalender, Pakete, Aufgaben, Zeitfenster | `/api/calendar*`, `/api/tasks*`, `/api/packages*`, `/api/timetable/reslot` (16) | lokal (Free) | Platzhalter (S6) |
-| Stundenplan, Termine, Import, Konflikte | `/api/timetable/*` (12) | lokal (Free) | Platzhalter (S5), freie Fenster echt |
+| Stundenplan, Termine, Import, Konflikte | `/api/timetable/*` (12) | lokal (Free) | **lokal (S5)**, außer `reslot` (S6) |
 | Einstellungen, Semester | `/api/settings`, `/api/terms` | lokal | **lokal (S2)** |
 | Suche, Skriptsuche | `/api/search`, `/api/related`, `/api/files/{id}/pagetext` | lokal | Platzhalter (S7) |
 | Abgleich und Status | `/api/sync`, `/api/sync/status`, `/api/bg` | lokal als Stud.IP-Abgleich | Abgleich in der App (S3), Protokoll lokal |
@@ -193,9 +230,9 @@ Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter 
 | Tests, KI | `/api/tests*`, `/api/ai/tutor`, `/api/tasks/{id}/start-test` | entfällt (keine KI) | entfallen |
 | Community, Konto | – | zentraler Dienst (Entscheidung) | Lösung als Datei (S9) |
 
-**Was nach S3 und S4 ohne PC noch nicht geht** (ehrlich): Wochentests (KI, entfallen), nächster Termin eines Moduls
+**Was nach S3, S4 und S5 ohne PC noch nicht geht** (ehrlich): Wochentests (KI, entfallen), nächster Termin eines Moduls
 und Unterlagen im Stundenplan (S5), Lernplan und Kalender mit Inhalt (S6),
-Stundenplan aus Stud.IP (S5), Suche und Skriptsuche (S7), neue Original-Fassung mit erhaltenen Notizen (S7),
+Suche und Skriptsuche (S7), neue Original-Fassung mit erhaltenen Notizen (S7),
 Hintergrundabgleich (S8), QIS-Noten, Übernahme der Notizen und Pläne vom PC, die Uni Hildesheim auf dem iPad
 (Learnweb, LSF, CAS; Auftrag der PC-Sitzung in `docs/AUFTRAG-HILDESHEIM-IPAD.md`, am PC fertig). Keiner dieser
 Punkte braucht im App-Store-Betrieb einen PC; sie sind nur noch nicht portiert.
@@ -252,7 +289,7 @@ Zuerst der größte Nutzen: Dokumente öffnen und mit dem Pencil schreiben ohne 
 | S2 | Transport-Weiche und Router; Journal-Namensraum je Datenquelle; **Übernahme der eigenen Notizen und Pläne vom PC** (Entwicklung, noch offen); gültige leere Antworten für noch nicht portierte Pfade | Seiten laden lokal ohne Fehler; Wechsel PC ↔ lokal verliert keine Notizen (**umgesetzt bis auf die Übernahme**) |
 | S3 | Stud.IP-Dateien in die Datenbank; Endpunkte Bibliothek, Datei-Inhalt, Notizen; Editor lokal (**umgesetzt**, `wip/s3-dokumente-3`; nachgebessert in `wip/s3-dokumente-3-fix`: neue Fassung erst mit dem Download, Kopien nach „Dateien löschen“, Plus-Sperre für Schreiben und Notizbücher, Downloads als Datei) | Stud.IP verbinden → Dokumente erscheinen → im Editor öffnen und schreiben, offline (**App-Test mit festen Stud.IP-Antworten grün**, `LocalDocumentsAppTests`; echtes Stud.IP und Gerät offen) |
 | S4 | Fach, Art, Lehrwoche ohne KI (`classify`, `effective_type`, `week_hint`); Module-Endpunkte: **umgesetzt** (`wip/s4-module-3`): Port von `classify`, `effective_type`, `week_hint`, `enrich_file`, Semesterwochen (Stichtag und Woche 0 vorher in Python korrigiert), `ensure_modules`, `module_detail`, `modules_overview`, `guess_module`; alle Module-Endpunkte; im Kern gegen Python, in der App mit Seed-Daten im Simulator geprüft; mit S3 zusammengeführt in `wip/int-s345-s4` (`classify` beim Abgleich, eine Fassung von `ensure_modules`, Einstellungen → „Module“ ohne PC) | Fächer geordnet, Moduldetail mit Wochen (**mit Seed-Daten im Simulator und mit Daten aus dem Stud.IP-Abgleich im App-Test erfüllt**, feste erfundene Stud.IP-Antworten; echtes Stud.IP und echtes iPad offen) |
-| S5 | Stundenplan: Kurszeiten und Einzeltermine aus Stud.IP, `timetable.py`-Port | Stundenplan aus Stud.IP |
+| S5 | Stundenplan: Kurszeiten und Einzeltermine aus Stud.IP, `timetable.py`-Port; **umgesetzt** (`wip/s5-stundenplan-2`): Abruf nach dem Datei-Abgleich (`StudIPScheduleSync`), Ablage und `auto_import` (`StudIPScheduleStore`), alle `/api/timetable/*` außer `reslot` (S6), Gruppenauswahl in der Importvorschau, ICS mit UTC/TZID/EXDATE (zuerst in Python korrigiert) | Stundenplan aus Stud.IP (**im Simulator mit erfundenen Stud.IP-Antworten geprüft**: Woche zeigt die Kurse, Ausfälle, Gruppen zur Auswahl; mit echtem Stud.IP noch nicht) |
 | S6 | Lernlogik (`study.py`): lesen, verschieben, planen; Übersicht, Kalender | Lernplan erstellen, Aufgaben abhaken, Übersicht |
 | S7 | Neue Original-Fassung mit erhaltenen Notizen; Suche und Skriptsuche | Notizen überleben neue PDF; Suche offline |
 | S8 | Hintergrundabgleich (nach Messung der Sitzungsdauer bzw. OAuth2) | Abgleich beim Öffnen und, wenn iPadOS es erlaubt, im Hintergrund |

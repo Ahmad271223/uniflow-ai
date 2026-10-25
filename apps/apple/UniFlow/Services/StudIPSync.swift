@@ -346,6 +346,8 @@ final class StudIPSync: ObservableObject {
                 }
                 loaded += 1
             }
+            // Stundenplan aus Stud.IP (S5); Fehler dort brechen den Datei-Abgleich nicht ab
+            let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
             entries = sortedEntries()
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
             var parts = ["\(loaded) neu/geändert", "\(remote.count - notDownloadable - download.count) unverändert"]
@@ -353,6 +355,7 @@ final class StudIPSync: ObservableObject {
             if failed > 0 { parts.append("\(failed) nicht geladen (Fehler)") }
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
+            parts += timetable.summary
             finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
             await log(database, started: started, ok: true, newFiles: loaded, message: StudIPLibrary.summary(newFiles: loaded))
             phase = .idle
