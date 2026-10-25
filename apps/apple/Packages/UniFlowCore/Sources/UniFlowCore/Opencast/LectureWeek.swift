@@ -48,7 +48,13 @@ public enum LectureWeek {
         if let w = numberedSession(title) { return LectureWeekGuess(week: w, source: .title) }
         guard let start = semesterStart.map({ monday($0, calendar: calendar) }) else { return .unknown }
         if fromEarlierSemester(title + " " + desc, semesterStart: start, calendar: calendar) { return .unknown }
-        let date = dateInText(title, near: start, calendar: calendar) ?? created
+        var date = created
+        if let t = dateInText(title, near: start, calendar: calendar) {
+            if calendar.startOfDay(for: t.date) >= start { date = t.date }
+            // "vom 06.11.2023": volle Jahreszahl vor Semesterbeginn = frueheres Semester; sonst (zweistelliges oder
+            // fehlendes Jahr) war es wohl kein Datum – dann gilt das Erstelldatum
+            else if t.fullYear { return .unknown }
+        }
         guard let d = date, calendar.startOfDay(for: d) >= start else { return .unknown }   // vor Semesterbeginn
         let w = weekIndex(start: start, date: d, calendar: calendar)
         return (1...maxWeek).contains(w) ? LectureWeekGuess(week: w, source: .date) : .unknown
@@ -77,22 +83,30 @@ public enum LectureWeek {
         return nil
     }
 
-    /// (c) Datum im Text: "06.11.2026", "6.11.26", "06.11." (Jahr passend zum Semester), "2026-11-06"
-    static func dateInText(_ s: String, near start: Date, calendar: Calendar) -> Date? {
-        if let m = groups(s, #"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)"#), let y = Int(m[0]), let mo = Int(m[1]), let d = Int(m[2]) {
-            return day(y, mo, d, calendar)
+    /// (c) Datum im Text: "06.11.2026", "6.11.26", "06.11." (Jahr passend zum Semester), "2026-11-06".
+    /// Zweistellige Jahre nur nach "vom"/"am" oder nahe am Semesterjahr (sonst waere "Kapitel 1.2.10" der 01.02.2010).
+    /// `fullYear`: Jahr vierstellig angegeben (dann ist ein Datum vor Semesterbeginn ein frueheres Semester).
+    static func dateInText(_ s: String, near start: Date, calendar: Calendar) -> (date: Date, fullYear: Bool)? {
+        if let m = groups(s, #"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)"#), let y = Int(m[0]), let mo = Int(m[1]), let d = Int(m[2]),
+           let date = day(y, mo, d, calendar) {
+            return (date, true)
         }
-        if let m = groups(s, #"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(?![\d])"#),
-           let d = Int(m[0]), let mo = Int(m[1]), var y = Int(m[2]) {
-            if y < 100 { y += 2000 }
-            return day(y, mo, d, calendar)
+        let y0 = calendar.component(.year, from: start)
+        for m in allGroups(s, #"(?:\b(vom|am)\s+)?(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(?![\d])"#) {
+            guard let d = Int(m[1]), let mo = Int(m[2]), var y = Int(m[3]) else { continue }
+            let full = m[3].count == 4
+            if !full {
+                y += 2000
+                guard !m[0].isEmpty || (y0 - 1...y0 + 1).contains(y) else { continue }
+            }
+            if let date = day(y, mo, d, calendar) { return (date, full) }
         }
         // ohne Jahr nur nach "vom"/"am" (sonst waere "Kapitel 2.1." ein Datum); das Jahr, in dem das Datum am
         // naechsten am Semester liegt (Wintersemester ueber Neujahr)
         guard let m = groups(s, #"\b(?:vom|am)\s+(\d{1,2})\.(\d{1,2})\.(?!\d)"#), let d = Int(m[0]), let mo = Int(m[1]) else { return nil }
-        let y0 = calendar.component(.year, from: start)
         return [y0 - 1, y0, y0 + 1].compactMap { day($0, mo, d, calendar) }
             .min { abs($0.timeIntervalSince(start) - 60 * 86400) < abs($1.timeIntervalSince(start) - 60 * 86400) }
+            .map { ($0, false) }
     }
 
     /// Offensichtlich frueheres Semester: Jahreszahl vor dem Semesterjahr ("(2023)") oder Semesterangabe

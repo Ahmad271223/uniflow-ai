@@ -61,7 +61,8 @@ struct UniFlowApp: App {
                 .task { await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { studip.runIfDue() }      // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min
+            // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min; nie unter XCTest oder mit Debug-Startargumenten
+            if phase == .active { studip.runIfDue() }
         }
     }
 }

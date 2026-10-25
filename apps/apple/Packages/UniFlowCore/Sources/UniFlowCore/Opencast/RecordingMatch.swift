@@ -168,31 +168,36 @@ public enum ScriptSearchText {
 
 // MARK: - Passendes Video zur Aufgabe
 
-/// Erkannte Aufgabe im Dokument: Modul und Lehrwoche des Blatts, Text der Seite.
+/// Erkannte Aufgabe im Dokument: Modul und Lehrwoche des Blatts, Text der Seite. `names` sind Modulname, Fach und
+/// Kurstitel: sie stehen im Kopf fast jedes Blatts und in vielen Videotiteln und sagen nichts ueber den Inhalt.
 public struct RecordingTaskContext: Sendable, Equatable {
     public let moduleID: Int?
     public let sheetWeek: Int?
     public let text: String
+    public let names: [String]
 
-    public init(moduleID: Int?, sheetWeek: Int?, text: String) {
+    public init(moduleID: Int?, sheetWeek: Int?, text: String, names: [String] = []) {
         self.moduleID = moduleID
         self.sheetWeek = sheetWeek
         self.text = text
+        self.names = names
     }
 }
 
-/// Ein Video mit seinem Modul und seiner Lehrwoche.
+/// Ein Video mit seinem Modul und seiner Lehrwoche; `courseTitle` zaehlt wie `RecordingTaskContext.names` nicht mit.
 public struct RecordingCandidate: Sendable, Equatable {
     public let courseID: String
     public let video: OpencastVideo
     public let moduleID: Int?
     public let week: Int?
+    public let courseTitle: String?
 
-    public init(courseID: String, video: OpencastVideo, moduleID: Int?, week: Int?) {
+    public init(courseID: String, video: OpencastVideo, moduleID: Int?, week: Int?, courseTitle: String? = nil) {
         self.courseID = courseID
         self.video = video
         self.moduleID = moduleID
         self.week = week
+        self.courseTitle = courseTitle
     }
 }
 
@@ -209,19 +214,31 @@ public struct RecordingSuggestion: Sendable, Equatable {
 public enum RecordingSuggester {
     /// Mindestwert fuer einen Vorschlag
     public static let threshold = 1.5
-    /// Stichwoerter allein muessen mindestens so viel ergeben (z. B. ein langes Fachwort wie "Grenzwerte")
-    public static let keywordOnly = 1.5
+    /// Stichwoerter allein (ohne passende Woche) muessen mindestens so viel ergeben ...
+    public static let keywordOnly = 2.0
+    /// ... und aus mindestens so vielen verschiedenen inhaltlichen Wortstaemmen bestehen (ein einzelnes Wort ist zu
+    /// oft Zufall, z. B. ein Fachwort aus der Ueberschrift)
+    public static let keywordOnlyTerms = 2
 
     /// Woerter in Videotiteln, die nichts ueber den Inhalt sagen
-    static let videoStopWords: Set<String> = ["vorlesungswoche", "woche", "zentralübung", "zentraluebung", "hörsaalübung",
-                                              "teil", "video", "videos", "aufzeichnung", "vorlesungsaufzeichnung", "ergänzung",
-                                              "besprechung", "korrektur", "fortsetzung", "wiederholung", "sitzung", "termin",
-                                              "übungsblatt", "übungsblatts", "aufgabenblatt", "vorlesungen", "lösungen"]
+    static let videoStopWords: Set<String> = [
+        "vorlesungswoche", "woche", "zentralübung", "zentraluebung", "hörsaalübung", "hoersaaluebung", "gruppenübung",
+        "gruppenuebung", "teil", "video", "videos", "aufzeichnung", "aufzeichnungen", "vorlesungsaufzeichnung", "mitschnitt",
+        "livestream", "stream", "ergänzung", "ergaenzung", "besprechung", "korrektur", "fortsetzung", "wiederholung",
+        "sitzung", "termin", "übungsblatt", "übungsblatts", "uebungsblatt", "aufgabenblatt", "vorlesungen", "lösungen",
+        "zusammenfassung", "einführung", "einfuehrung", "organisatorisches", "organisation", "überblick", "ueberblick",
+        "fragestunde", "fragen", "klausurvorbereitung", "vorbereitung", "nachtrag", "hinweise", "einheit", "lektion",
+        "thema", "themen", "inhalt", "inhalte", "semester", "sommersemester", "wintersemester", "vortrag", "gastvortrag",
+        "grundlagen", "veranstaltung", "folien", "skript", "professor", "live",
+    ]
+    /// dieselben Woerter als Wortstaemme (wie `ScriptSearchText.tokens` sie bildet)
+    static let videoStopTokens: Set<String> = videoStopWords.union(videoStopWords.flatMap { ScriptSearchText.tokens($0) })
 
     /// Bestes Video oder nil, wenn nichts sicher passt. Nie bei unbekanntem Modul, nie aus einem anderen Modul.
     public static func best(for task: RecordingTaskContext, among candidates: [RecordingCandidate]) -> RecordingSuggestion? {
         guard let module = task.moduleID else { return nil }
-        let taskTokens = Set(ScriptSearchText.tokens(task.text))
+        let names = Set(task.names.flatMap { ScriptSearchText.tokens($0) })
+        let taskTokens = Set(ScriptSearchText.tokens(task.text)).subtracting(names)
         let scored = candidates.filter { $0.moduleID == module }.compactMap { score($0, task: task, taskTokens: taskTokens) }
         return scored.max { a, b in
             (a.score, a.video.created ?? .distantPast, a.video.id) < (b.score, b.video.created ?? .distantPast, b.video.id)
@@ -229,7 +246,8 @@ public enum RecordingSuggester {
     }
 
     /// Bewertung eines Videos: Woche (gleiche 2,0; Woche davor 1,5; beide bekannt, aber weiter weg -1,0) plus
-    /// Stichwoerter (je gemeinsamem Stamm 0,5 / 1,0 / 1,5 nach Laenge). nil unter der Schwelle.
+    /// Stichwoerter (je gemeinsamem Stamm 0,5 / 1,0 / 1,5 nach Laenge; Modul-, Fach- und Kursname zaehlen nicht).
+    /// nil unter der Schwelle; ohne passende Woche nur mit mindestens zwei inhaltlichen Stichwoertern.
     static func score(_ c: RecordingCandidate, task: RecordingTaskContext, taskTokens: Set<String>) -> RecordingSuggestion? {
         var weekScore = 0.0
         var weekReason: String?
@@ -239,14 +257,22 @@ public enum RecordingSuggester {
             else if w == s - 1 { weekScore = 1.5; weekReason = "\(kind) der Woche davor" }
             else { weekScore = -1.0 }
         }
+        var ignored = Set<String>()
+        if let t = c.courseTitle {
+            ignored.formUnion(ScriptSearchText.tokens(t))
+            ignored.formUnion(ScriptSearchText.tokens(StudIPSubject.classify(t).subject))
+        }
         var shared: [(token: String, word: String)] = []
         for t in ScriptSearchText.tokensWithWords(c.video.title + "\n" + (c.video.description ?? ""))
-        where taskTokens.contains(t.token) && !videoStopWords.contains(t.word.lowercased()) && !shared.contains(where: { $0.token == t.token }) {
+        where taskTokens.contains(t.token) && !ignored.contains(t.token)
+            && !videoStopTokens.contains(t.token) && !videoStopWords.contains(t.word.lowercased())
+            && !shared.contains(where: { $0.token == t.token }) {
             shared.append(t)
         }
         let keywordScore = shared.reduce(0.0) { acc, t in acc + (t.token.count >= 8 ? 1.5 : t.token.count >= 6 ? 1.0 : 0.5) }
         let total = weekScore + keywordScore
-        guard total >= threshold, weekScore > 0 || keywordScore >= keywordOnly else { return nil }
+        let keywordsSuffice = shared.count >= keywordOnlyTerms && keywordScore >= keywordOnly
+        guard total >= threshold, weekScore > 0 || keywordsSuffice else { return nil }
         // laengste (spezifischste) Woerter zuerst
         let words = shared.sorted { ($0.token.count, $1.word) > ($1.token.count, $0.word) }.map(\.word)
         var parts: [String] = []

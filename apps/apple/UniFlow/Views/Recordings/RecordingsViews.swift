@@ -225,6 +225,8 @@ enum RecordingFormat {
 // MARK: - Laden
 
 /// "Laden (… MB)" / Fortschritt mit "Abbrechen" / "Fortsetzen" / "Geladen ✓" mit "Entfernen". Nur auf Wunsch.
+/// Der Zustand gilt fuer alle Fassungen des Videos: laeuft z. B. 1080p (Kontextmenue), zeigt die Zeile diesen
+/// Download mit Qualitaet und Abbrechen; solange er laeuft, startet kein zweiter.
 struct RecordingDownloadControl: View {
     let entry: RecordingEntry
     @EnvironmentObject private var library: RecordingLibrary
@@ -234,55 +236,64 @@ struct RecordingDownloadControl: View {
     var body: some View {
         let course = entry.courseID, video = entry.video.id
         let have = library.qualities(course: course, video: video)
+        let qualities = entry.video.downloads.map(\.quality)
         if let q = have.sorted().first {
             HStack(spacing: 6) {
                 UFBadge("Geladen ✓", tone: .ok)
                 UFButton("Entfernen", icon: "trash", kind: .ghost, size: .small) {
-                    for q in have { library.remove(course: course, video: video, quality: q) }
+                    for q in have.union(qualities) { library.remove(course: course, video: video, quality: q) }
                 }
-                .help(q)
+                .help(have.sorted().joined(separator: ", "))
+                .accessibilityHint("Geladen in \(q)")
             }
+        } else if let q = library.pendingQuality(course: course, video: video, qualities: qualities), let d = entry.video.download(q) {
+            pending(d, state: library.state(course: course, video: video, quality: q))
         } else if let d = RecordingPlayback.quality(for: entry.video) {
-            let state = library.state(course: course, video: video, quality: d.quality)
-            switch state {
-            case .running(let f)?:
-                HStack(spacing: 8) {
-                    UFProgress(value: f ?? 0).frame(width: 90)
-                    Text(f.map { "\(Int(($0 * 100).rounded())) %" } ?? "…").ufFont(12.48).foregroundStyle(UF.muted).frame(minWidth: 34)
-                    UFButton("Abbrechen", icon: "x", kind: .ghost, size: .small) { library.cancel(course: course, video: video, quality: d.quality) }
+            UFButton(library.size(d.url).map { "Laden (\(RecordingFormatBytes.text($0)))" } ?? "Laden", icon: "download", size: .small) {
+                Task { await load(d) }
+            }
+            .contextMenu {
+                ForEach(entry.video.downloads, id: \.quality) { other in
+                    Button("\(other.quality) laden") { Task { await load(other) } }
                 }
-            case .failed(let message)?:
-                HStack(spacing: 6) {
-                    Text(message).ufFont(12.48).foregroundStyle(UF.bad).lineLimit(2).frame(maxWidth: 220, alignment: .leading)
-                    UFButton(resumable(d) ? "Fortsetzen" : "Erneut", icon: "refresh", size: .small) { Task { await load(d) } }
-                }
-            default:
-                if resumable(d) || state == .paused {
-                    HStack(spacing: 6) {
-                        UFButton("Fortsetzen", icon: "download", size: .small) { Task { await load(d) } }
-                        UFButton("Verwerfen", icon: "trash", kind: .ghost, size: .small) { library.remove(course: course, video: video, quality: d.quality) }
-                    }
-                } else {
-                    UFButton(library.size(d.url).map { "Laden (\(RecordingFormatBytes.text($0)))" } ?? "Laden", icon: "download", size: .small) {
-                        Task { await load(d) }
-                    }
-                    .contextMenu {
-                        ForEach(entry.video.downloads, id: \.quality) { other in
-                            Button("\(other.quality) laden") { Task { await load(other) } }
-                        }
-                    }
-                    .onAppear { library.requestSize(d.url) }
-                }
+            }
+            .onAppear { library.requestSize(d.url) }
+        }
+    }
+
+    /// laufender, abgebrochener oder gescheiterter Download einer Fassung
+    @ViewBuilder private func pending(_ d: OpencastDownload, state: RecordingLibrary.DownloadState?) -> some View {
+        let course = entry.courseID, video = entry.video.id
+        let canResume = library.isResumable(course: course, video: video, quality: d.quality)
+        switch state {
+        case .running(let f)?:
+            HStack(spacing: 8) {
+                UFProgress(value: f ?? 0).frame(width: 90)
+                Text("\(d.quality) · " + (f.map { "\(Int(($0 * 100).rounded())) %" } ?? "…")).ufFont(12.48).foregroundStyle(UF.muted)
+                    .frame(minWidth: 70, alignment: .leading)
+                UFButton("Abbrechen", icon: "x", kind: .ghost, size: .small) { library.cancel(course: course, video: video, quality: d.quality) }
+            }
+        case .failed(let message)?:
+            HStack(spacing: 6) {
+                Text("\(d.quality): \(message)").ufFont(12.48).foregroundStyle(UF.bad).lineLimit(2).frame(maxWidth: 220, alignment: .leading)
+                UFButton(canResume ? "Fortsetzen" : "Erneut", icon: "refresh", size: .small) { Task { await load(d) } }
+                UFButton("Verwerfen", icon: "trash", kind: .ghost, size: .small) { library.remove(course: course, video: video, quality: d.quality) }
+            }
+        default:
+            HStack(spacing: 6) {
+                Text(d.quality).ufFont(12.48).foregroundStyle(UF.muted)
+                UFButton("Fortsetzen", icon: "download", size: .small) { Task { await load(d) } }
+                UFButton("Verwerfen", icon: "trash", kind: .ghost, size: .small) { library.remove(course: course, video: video, quality: d.quality) }
             }
         }
     }
 
-    private func resumable(_ d: OpencastDownload) -> Bool {
-        library.resumable.contains(RecordingLibrary.key(course: entry.courseID, video: entry.video.id, quality: d.quality))
-    }
-
     /// Groesse vorher zeigen, bei wenig Platz warnen, dann laden
     private func load(_ d: OpencastDownload) async {
+        guard !library.isLoading(course: entry.courseID, video: entry.video.id) else {
+            toast.show("Für diese Aufzeichnung läuft bereits ein Download.")
+            return
+        }
         let probe = await library.probe(d.url)
         if probe.needsLogin {
             toast.show("Der Videoserver verlangt eine Anmeldung – laden ist nicht möglich, abspielen geht über Stud.IP.")
@@ -335,9 +346,11 @@ struct RecordingPlayerView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if case .player = mode, entry.video.downloads.count > 1 {
                     Menu {
+                        let have = library.qualities(course: entry.courseID, video: entry.video.id)
                         ForEach(entry.video.downloads, id: \.quality) { d in
+                            let text = d.quality + (have.contains(d.quality) ? " · geladen" : have.isEmpty ? "" : " · Stream")
                             Button { switchQuality(d.quality) } label: {
-                                if d.quality == currentQuality { Label(d.quality, systemImage: "checkmark") } else { Text(d.quality) }
+                                if d.quality == currentQuality { Label(text, systemImage: "checkmark") } else { Text(text) }
                             }
                         }
                     } label: {

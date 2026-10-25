@@ -7,6 +7,7 @@ import WebKit
 /// (Karten, Knoepfe, Icons wie die uebrigen Seiten), weil die leeren Zustaende ohne Server hierher fuehren.
 struct StudIPView: View {
     @EnvironmentObject private var studip: StudIPSync
+    @EnvironmentObject private var library: RecordingLibrary
     @State private var showLogin = false
     @State private var preview: URL?
     @State private var confirmSignOut = false
@@ -17,6 +18,7 @@ struct StudIPView: View {
             VStack(alignment: .leading, spacing: 16) {
                 accountCard
                 if !studip.courses.isEmpty { coursesCard }
+                if !orphanRecordings.isEmpty { orphanRecordingsCard(orphanRecordings) }
                 LazyVStack(alignment: .leading, spacing: 16) {
                     ForEach(groups) { g in groupCard(g) }
                 }
@@ -99,6 +101,27 @@ struct StudIPView: View {
             } else {
                 Text("Angemeldet.").ufFont(14.5).foregroundStyle(UF.text2)
             }
+        }
+    }
+
+    // MARK: Aufzeichnungen ohne Eintrag
+
+    /// erst nach einem Abgleich: sonst waere jede Datei "ohne Eintrag", nur weil der Index noch fehlt
+    private var orphanRecordings: [RecordingStoredFile] {
+        studip.lastRun == nil ? [] : library.orphans(in: studip.recordings)
+    }
+
+    /// Geladene Aufzeichnungen abgewaehlter Kurse oder aus Opencast entfernter Videos: sonst nirgends sichtbar
+    private func orphanRecordingsCard(_ files: [RecordingStoredFile]) -> some View {
+        UFCard {
+            UFCardHead("Aufzeichnungen ohne Eintrag", icon: "play") {
+                UFBadge(RecordingFilesLayout.megabytes(library.bytes(files)), tone: .neutral)
+            }
+            Text("\(files.count == 1 ? "Eine geladene Datei gehört" : "\(files.count) geladene Dateien gehören") zu abgewählten Kursen oder zu Aufzeichnungen, die es in Stud.IP nicht mehr gibt.")
+                .ufFont(14.5).foregroundStyle(UF.text2)
+                .fixedSize(horizontal: false, vertical: true)
+            UFButton("Entfernen", icon: "trash", kind: .danger) { library.removeOrphans(in: studip.recordings) }
+                .padding(.top, 12.8)
         }
     }
 

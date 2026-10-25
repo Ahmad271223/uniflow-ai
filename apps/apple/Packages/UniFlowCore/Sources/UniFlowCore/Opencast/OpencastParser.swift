@@ -120,7 +120,43 @@ public enum OpencastParser {
         (attrs["class"] ?? "").split(whereSeparator: \.isWhitespace).contains { $0 == cls }
     }
 
+    /// Videos der Tabelle. Player-Links nur auf dem Stud.IP-Host der Seite; Downloads und Vorschaubilder nur ueber
+    /// https und nur von einem Videoserver (der Host der meisten Download-Links), Vorschaubilder auch vom
+    /// Stud.IP-Host. Fremde Hosts aus der Seite bekommen so weder HEAD-Anfragen noch Bildabrufe noch die
+    /// Stud.IP-Webansicht.
     static func videos(in tokens: [HTMLToken], pageURL: URL?) -> [OpencastVideo] {
+        let raw = rawVideos(in: tokens, pageURL: pageURL)
+        let pageHost = pageURL?.host?.lowercased()
+        let mediaHost = mainHost(raw.flatMap(\.downloads).map(\.url).filter(isHTTPS))
+        func onMedia(_ u: URL) -> Bool { isHTTPS(u) && u.host?.lowercased() == mediaHost }
+        return raw.map { v in
+            let thumb = v.thumbnailURL.flatMap { u in onMedia(u) || (isHTTPS(u) && u.host?.lowercased() == pageHost) ? u : nil }
+            return OpencastVideo(id: v.id, title: v.title, description: v.description, duration: v.duration, author: v.author,
+                                 created: v.created, thumbnailURL: thumb, playerURL: v.playerURL,
+                                 downloads: v.downloads.filter { onMedia($0.url) })
+        }
+    }
+
+    static func isHTTPS(_ u: URL) -> Bool { u.scheme?.lowercased() == "https" }
+
+    /// haeufigster Host; bei Gleichstand der zuerst genannte
+    static func mainHost(_ urls: [URL]) -> String? {
+        var count: [String: Int] = [:], order: [String] = []
+        for h in urls.compactMap({ $0.host?.lowercased() }) {
+            if count[h] == nil { order.append(h) }
+            count[h, default: 0] += 1
+        }
+        return order.max { (count[$0] ?? 0, order.firstIndex(of: $1) ?? 0) < (count[$1] ?? 0, order.firstIndex(of: $0) ?? 0) }
+    }
+
+    /// Player-Link der Seite: derselbe Host und dasselbe Schema wie die Stud.IP-Seite (ohne Seite nur https)
+    static func isPlayerLink(_ u: URL, pageURL: URL?) -> Bool {
+        guard u.path.contains("/media/player/") else { return false }
+        guard let page = pageURL, let host = page.host?.lowercased() else { return isHTTPS(u) }
+        return u.host?.lowercased() == host && u.scheme?.lowercased() == page.scheme?.lowercased()
+    }
+
+    static func rawVideos(in tokens: [HTMLToken], pageURL: URL?) -> [OpencastVideo] {
         var out: [OpencastVideo] = []
         var seen = Set<String>()
         var i = 0
@@ -162,7 +198,8 @@ public enum OpencastParser {
             let text = QISParser.clean(a.parts.joined())
             guard let url = resolve(a.href, pageURL) else { return }
             if url.path.contains("/media/player/") {
-                if player == nil { player = stripFragment(url) }             // Vorschau-Link traegt "#ts="
+                // Vorschau-Link traegt "#ts="; Player fremder Hosts nie (Webansicht mit Stud.IP-Sitzung)
+                if player == nil, isPlayerLink(url, pageURL: pageURL) { player = stripFragment(url) }
             } else if let q = downloadQuality(text) {
                 if !downloads.contains(where: { $0.quality == q.label }) { downloads.append(OpencastDownload(quality: q.label, height: q.height, url: url)) }
             }

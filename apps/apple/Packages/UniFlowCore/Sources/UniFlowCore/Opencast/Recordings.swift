@@ -169,7 +169,9 @@ public enum RecordingPlayback {
     }
 
     /// Geladene Datei vor Stream (gewuenschte Fassung, sonst 720p, sonst irgendeine), Stream vor Webansicht.
+    /// Wurde ausdruecklich eine nicht geladene Fassung gewaehlt (Qualitaetsmenue), gilt der Stream dieser Fassung.
     public static func source(for video: OpencastVideo, downloaded: Set<String>, preferred: String? = nil) -> RecordingPlaybackSource {
+        if let p = preferred, !downloaded.contains(p), let d = video.download(p) { return .stream(d.url, quality: d.quality) }
         if !downloaded.isEmpty {
             for q in [preferred, preferredQuality].compactMap({ $0 }) where downloaded.contains(q) { return .local(quality: q) }
             if let q = video.downloads.map(\.quality).first(where: downloaded.contains) ?? downloaded.sorted().first { return .local(quality: q) }
@@ -187,6 +189,72 @@ public enum RecordingPlayback {
     }
 }
 
+/// Groessen der Videodateien (HEAD, Content-Length), gemerkt in recordings/sizes.json, damit nicht jeder App-Start
+/// jedes Video erneut fragt. Eintraege gelten 7 Tage; -1 = Server nannte keine Groesse.
+public struct RecordingSizeCache: Sendable, Equatable, Codable {
+    public struct Entry: Sendable, Equatable, Codable {
+        public let size: Int64
+        public let checked: Date
+    }
+
+    public static let file = "sizes.json"
+    public static let maxAge: TimeInterval = 7 * 24 * 3600
+    /// so viele Eintraege hoechstens (aelteste fallen weg)
+    public static let maxEntries = 2000
+
+    public var entries: [String: Entry] = [:]
+
+    public init(entries: [String: Entry] = [:]) { self.entries = entries }
+
+    /// gemerkte Groesse (-1 = unbekannt) oder nil, wenn nie gefragt bzw. aelter als 7 Tage
+    public func size(for url: URL, now: Date) -> Int64? {
+        guard let e = entries[url.absoluteString], now.timeIntervalSince(e.checked) < Self.maxAge, e.checked <= now else { return nil }
+        return e.size
+    }
+
+    public mutating func set(_ size: Int64?, for url: URL, now: Date) {
+        entries[url.absoluteString] = Entry(size: size ?? -1, checked: now)
+        if entries.count > Self.maxEntries {
+            let keep = entries.sorted { $0.value.checked > $1.value.checked }.prefix(Self.maxEntries)
+            entries = Dictionary(uniqueKeysWithValues: keep.map { ($0.key, $0.value) })
+        }
+    }
+
+    /// abgelaufene Eintraege entfernen
+    public mutating func prune(now: Date) {
+        entries = entries.filter { now.timeIntervalSince($0.value.checked) < Self.maxAge && $0.value.checked <= now }
+    }
+
+    public static func decode(_ data: Data) throws -> RecordingSizeCache {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .secondsSince1970
+        return try d.decode(RecordingSizeCache.self, from: data)
+    }
+
+    public func encoded() throws -> Data {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .secondsSince1970
+        e.outputFormatting = [.sortedKeys]
+        return try e.encode(self)
+    }
+}
+
+/// Eine Datei unter recordings/files: geladene Fassung oder Fortsetzungsdaten eines abgebrochenen Downloads.
+public struct RecordingStoredFile: Sendable, Equatable, Hashable {
+    /// Ordnername des Kurses und Video-Kennung, wie sie im Dateinamen stehen
+    public let course: String
+    public let video: String
+    public let quality: String
+    public let partial: Bool
+
+    public init(course: String, video: String, quality: String, partial: Bool) {
+        self.course = course
+        self.video = video
+        self.quality = quality
+        self.partial = partial
+    }
+}
+
 public enum RecordingFilesLayout {
     /// Ordner unter Application Support/UniFlow
     public static let folder = "recordings"
@@ -200,6 +268,30 @@ public enum RecordingFilesLayout {
     /// Fortsetzungsdaten eines abgebrochenen Downloads neben der Zieldatei
     public static func resumeDataPath(courseID: String, videoID: String, quality: String) -> String {
         relativePath(courseID: courseID, videoID: videoID, quality: quality) + ".resume"
+    }
+
+    /// Dateiname unter files/<Kurs>/ lesen: "<Video>-<Qualitaet>.mp4" bzw. ".mp4.resume" (Qualitaet ohne Bindestrich)
+    public static func storedFile(course: String, name: String) -> RecordingStoredFile? {
+        let partial = name.hasSuffix(".mp4.resume")
+        guard partial || name.hasSuffix(".mp4") else { return nil }
+        let stem = String(name.dropLast(partial ? 11 : 4))
+        guard let dash = stem.lastIndex(of: "-"), dash != stem.startIndex else { return nil }
+        let quality = String(stem[stem.index(after: dash)...])
+        guard !quality.isEmpty else { return nil }
+        return RecordingStoredFile(course: course, video: String(stem[..<dash]), quality: quality, partial: partial)
+    }
+
+    /// Dateien ohne Eintrag im Index: Kurs abgewaehlt (nicht mehr im Index) oder Video aus Opencast entfernt.
+    /// Verglichen wird ueber die Datei-Namen (`safeFileName`), wie `relativePath` sie bildet.
+    public static func orphans(_ files: [RecordingStoredFile], index: RecordingsIndex) -> [RecordingStoredFile] {
+        var known: [String: Set<String>] = [:]
+        for c in index.courses {
+            known[StudIPImport.safeFileName(c.courseID), default: []].formUnion(c.videos.map { StudIPImport.safeFileName($0.id) })
+        }
+        return files.filter { f in
+            guard let videos = known[f.course] else { return true }
+            return !videos.contains(f.video)
+        }
     }
 
     /// Hinweis vor dem Laden: zu wenig Platz (Datei passt nicht) oder danach weniger als 1 GB frei.

@@ -113,6 +113,36 @@ final class OpencastParserTests: XCTestCase {
         XCTAssertTrue(v[1].downloads.isEmpty)
     }
 
+    func testForeignAndPlainHTTPHostsAreIgnored() {
+        // Player fremder Hosts nie (Webansicht mit Stud.IP-Sitzung); Downloads und Vorschau nur https vom Videoserver
+        let page = """
+        <table class="media-table"><tbody>
+        <tr class="media-table-row" id="v1"><td><div class="thumb-container" style="background-image:url('https://oc.example.test/t1.jpg')"></div>
+          <td><div class="media-table-infos"><div><a href="https://studip.test/plugins.php/opencastpluginluh/media/player/v1">Eins</a></div></div>
+          <td class="actions"><a href="https://oc.example.test/v1-720.mp4">Download: 720p</a>
+            <a href="http://oc.example.test/v1-480.mp4">Download: 480p</a>
+            <a href="https://fremd.example.org/v1-1080.mp4">Download: 1080p</a>
+        <tr class="media-table-row" id="v2"><td><div class="thumb-container" style="background-image:url('https://fremd.example.org/t2.jpg')"></div>
+          <td><div class="media-table-infos"><div><a href="https://fremd.example.org/plugins.php/opencastpluginluh/media/player/v2">Zwei</a></div></div>
+          <td class="actions"><a href="https://oc.example.test/v2-720.mp4">Download: 720p</a>
+        <tr class="media-table-row" id="v3"><td><div class="thumb-container" style="background-image:url('http://oc.example.test/t3.jpg')"></div>
+          <td><div class="media-table-infos"><div><a href="http://studip.test/plugins.php/opencastpluginluh/media/player/v3">Drei</a></div></div>
+        </tbody></table>
+        """
+        guard case .videos(let v) = OpencastParser.parse(html: page, status: 200, pageURL: URL(string: "https://studip.test/plugins.php/opencastpluginluh/media/index?cid=k1")) else {
+            return XCTFail("keine Videos")
+        }
+        XCTAssertEqual(v.map(\.id), ["v1", "v2", "v3"])
+        XCTAssertEqual(v[0].downloads.map(\.url.absoluteString), ["https://oc.example.test/v1-720.mp4"])
+        XCTAssertEqual(v[0].thumbnailURL?.absoluteString, "https://oc.example.test/t1.jpg")
+        XCTAssertEqual(v[0].playerURL?.host, "studip.test")
+        XCTAssertNil(v[1].playerURL)                                                        // fremder Host
+        XCTAssertNil(v[1].thumbnailURL)
+        XCTAssertEqual(v[1].downloads.map(\.quality), ["720p"])
+        XCTAssertNil(v[2].playerURL)                                                        // http statt https
+        XCTAssertNil(v[2].thumbnailURL)
+    }
+
     func testOverviewNavigationAndLoginPage() throws {
         let withTab = """
         <ul id="tabs"><li><a href="/dispatch.php/course/overview?cid=k1">Übersicht</a></li>
@@ -180,6 +210,14 @@ final class LectureWeekTests: XCTestCase {
         XCTAssertEqual(g("Aufzeichnung 2026-10-20"), LectureWeekGuess(week: 2, source: .date))
         XCTAssertEqual(g("Grenzwerte und Stetigkeit", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date))
         XCTAssertEqual(g("Kapitel 2.1. Reihen", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date))
+        // Kapitel- oder Versionsnummer mit drei Teilen ist kein Datum (sonst 01.02.2010); es gilt das Erstelldatum
+        XCTAssertEqual(g("Kapitel 1.2.10 Reihen", created: day(2026, 11, 3)), LectureWeekGuess(week: 4, source: .date))
+        XCTAssertEqual(g("Version 2.3.11", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date))
+        XCTAssertEqual(g("Mitschnitt 6.11.26", created: day(2026, 12, 1)), LectureWeekGuess(week: 4, source: .date))   // Semesterjahr
+        XCTAssertEqual(g("Mitschnitt vom 6.11.26", created: day(2026, 12, 1)), LectureWeekGuess(week: 4, source: .date))
+        // zweistelliges Jahr nach "vom", aber vor Semesterbeginn: kein Hinweis auf altes Semester, Erstelldatum
+        XCTAssertEqual(g("Nachtrag vom 1.2.10", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date))
+        XCTAssertEqual(g("Kapitel 1.2.10 vom 06.11.2026"), LectureWeekGuess(week: 4, source: .date))   // erstes gueltiges Datum
         XCTAssertEqual(g("Prozess 12 Analyse", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date)) // kein "SS 12"
         // Zeitumstellung am 25.10.2026: Montag 26.10. bleibt Woche 3
         XCTAssertEqual(g("Montag", created: day(2026, 10, 26, hour: 0)), LectureWeekGuess(week: 3, source: .date))
@@ -417,16 +455,56 @@ final class RecordingSuggestionTests: XCTestCase {
         XCTAssertEqual(four?.reason, "Vorlesung der Woche davor")
     }
 
-    func testKeywordsOnlyNeedThreshold() throws {
-        let strong = RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Grenzwerte"), among: try candidates())
-        XCTAssertEqual(strong?.reason, "passt zu: Grenzwerte")
-        // ein kurzes Wort reicht nicht
+    func testKeywordsOnlyNeedTwoContentWords() throws {
+        let strong = RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Grenzwerte der Folgen"), among: try candidates())
+        XCTAssertEqual(strong?.video.id, "aaaaaaaa-0000-4000-8000-000000000001")
+        XCTAssertEqual(strong?.reason, "passt zu: Grenzwerte, Folgen")
+        XCTAssertEqual(strong?.score ?? 0, 2.0, accuracy: 0.001)
+        // ein einzelnes Wort reicht nicht, auch kein langes Fachwort
+        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Grenzwerte"), among: try candidates()))
         XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Berechnen Sie die Folgen"), among: try candidates()))
         // nur Allerweltswoerter des Titels ("Teil", "Ergänzung", "Vorlesungswoche") zaehlen nicht
         XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Teil 2 Ergänzung Vorlesungswoche Korrektur"), among: try candidates()))
-        // weit entfernte Woche: Stichwort allein hebt die Strafe nicht auf
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 9, text: "Grenzwerte"), among: try candidates()))
+        // weit entfernte Woche: Stichwoerter heben die Strafe nur auf, wenn sie deutlich sind
+        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 9, text: "Grenzwerte der Folgen"), among: try candidates()))
         XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 9, text: "nichts Passendes"), among: try candidates()))
+    }
+
+    /// Kopf eines Uebungsblatts mit Modulname; Video eines alten Semesters mit demselben Namen im Titel
+    private let oldVideo = OpencastVideo(id: "alt-1", title: "Testfach Analysis I – Komplexe Zahlen (2023)", created: day(2023, 11, 2))
+    private let sheet = "Übungsblatt 3 zur Vorlesung Testfach Analysis I\nAufgabe 1: Zeigen Sie per vollständiger Induktion"
+
+    func testModuleNameInSheetHeadAndVideoTitleIsNoMatch() {
+        let week = LectureWeek.guess(title: oldVideo.title, created: oldVideo.created, semesterStart: start).week
+        XCTAssertNil(week)                                                                  // altes Semester: Woche unbekannt
+        // Modulname als Name der Aufgabe
+        let c = RecordingCandidate(courseID: "c1", video: oldVideo, moduleID: 1, week: week)
+        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 3, text: sheet, names: ["Testfach Analysis I"]), among: [c]))
+        // Kurstitel des Videos genuegt ebenso
+        let titled = RecordingCandidate(courseID: "c1", video: oldVideo, moduleID: 1, week: week, courseTitle: "Testfach Analysis I")
+        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 3, text: sheet), among: [titled]))
+        // Uebungskurs mit "Übung zu …" im Titel
+        let exercise = RecordingCandidate(courseID: "c2", video: oldVideo, moduleID: 1, week: nil, courseTitle: "Übung zu Testfach Analysis I")
+        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: sheet), among: [exercise]))
+        // passt der Inhalt wirklich, bleibt der Vorschlag (Modulname zaehlt nicht mit)
+        let fitting = RecordingCandidate(courseID: "c1", video: OpencastVideo(id: "alt-2", title: "Testfach Analysis I – vollständige Induktion und Ungleichungen (2023)"),
+                                         moduleID: 1, week: nil, courseTitle: "Testfach Analysis I")
+        let s = RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 3, text: sheet + " und Ungleichungen", names: ["Testfach Analysis I"]),
+                                        among: [titled, fitting])
+        XCTAssertEqual(s?.video.id, "alt-2")
+        XCTAssertEqual(s?.reason, "passt zu: vollständige, Induktion, Ungleichungen")
+    }
+
+    func testGeneralWordsAreNoMatch() {
+        func one(_ title: String, _ text: String) -> RecordingSuggestion? {
+            RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: text),
+                                    among: [RecordingCandidate(courseID: "c1", video: OpencastVideo(id: "v", title: title), moduleID: 1, week: nil)])
+        }
+        XCTAssertNil(one("Zusammenfassung", "Zusammenfassung der Hinweise"))
+        XCTAssertNil(one("Einführung und Organisatorisches", "Einführung: Organisatorisches zur Übung"))
+        XCTAssertNil(one("Klausurvorbereitung – Fragestunde", "Fragestunde zur Klausurvorbereitung, Überblick"))
+        XCTAssertNil(one("Nachtrag zur Zusammenfassung", "Nachtrag Zusammenfassungen Überblick Grundlagen"))
+        XCTAssertNotNil(one("Zusammenfassung: Eigenwerte und Diagonalisierung", "Bestimmen Sie die Eigenwerte und prüfen Sie die Diagonalisierung"))
     }
 
     func testOtherOrUnknownModuleNever() throws {
@@ -466,6 +544,11 @@ final class RecordingPlaybackTests: XCTestCase {
         XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p", "720p"]), .local(quality: "720p"))
         XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p", "720p"], preferred: "480p"), .local(quality: "480p"))
         XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["1080p"]), .local(quality: "1080p"))  // offline vor Stream
+        // ausdruecklich gewaehlte, nicht geladene Fassung: deren Stream statt der geladenen Datei
+        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p"], preferred: "1080p"),
+                       .stream(URL(string: "https://oc.example.test/1080.mp4")!, quality: "1080p"))
+        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p"], preferred: "480p"), .local(quality: "480p"))
+        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p"], preferred: "360p"), .local(quality: "480p"))  // gibt es nicht
         XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: []), .stream(URL(string: "https://oc.example.test/720.mp4")!, quality: "720p"))
         XCTAssertEqual(RecordingPlayback.source(for: video([]), downloaded: []), .webPlayer(URL(string: "https://studip.test/plugins.php/opencastpluginluh/media/player/v1")!))
         XCTAssertEqual(RecordingPlayback.source(for: video([], player: false), downloaded: []), .unavailable)
@@ -496,6 +579,48 @@ final class RecordingPlaybackTests: XCTestCase {
         XCTAssertNil(RecordingFilesLayout.storageWarning(fileSize: nil, freeBytes: nil))
         XCTAssertEqual(RecordingFilesLayout.megabytes(412_300_000), "412 MB")
         XCTAssertEqual(RecordingFilesLayout.megabytes(1_240_000_000), "1,2 GB")
+    }
+}
+
+final class RecordingFilesTests: XCTestCase {
+    func testStoredFileNames() {
+        XCTAssertEqual(RecordingFilesLayout.storedFile(course: "c1", name: "Xyzab-12345-6789-720p.mp4"),
+                       RecordingStoredFile(course: "c1", video: "Xyzab-12345-6789", quality: "720p", partial: false))
+        XCTAssertEqual(RecordingFilesLayout.storedFile(course: "c1", name: "v1-1080p.mp4.resume"),
+                       RecordingStoredFile(course: "c1", video: "v1", quality: "1080p", partial: true))
+        XCTAssertNil(RecordingFilesLayout.storedFile(course: "c1", name: "notiz.txt"))
+        XCTAssertNil(RecordingFilesLayout.storedFile(course: "c1", name: "-720p.mp4"))
+        XCTAssertNil(RecordingFilesLayout.storedFile(course: "c1", name: "ohne.mp4"))
+    }
+
+    func testOrphansOfDeselectedCourseOrRemovedVideo() {
+        let index = RecordingsIndex(courses: [
+            RecordingCourse(courseID: "c1", courseTitle: "Testfach A", status: .available, videos: [OpencastVideo(id: "v1", title: "Vorlesung 1")], lastChecked: start),
+            RecordingCourse(courseID: "c3", courseTitle: "Testfach C", status: .noOpencast, lastChecked: start),
+        ])
+        let files = [RecordingStoredFile(course: "c1", video: "v1", quality: "720p", partial: false),
+                     RecordingStoredFile(course: "c1", video: "v2", quality: "720p", partial: false),     // aus Opencast entfernt
+                     RecordingStoredFile(course: "c2", video: "v7", quality: "480p", partial: true),      // Kurs abgewaehlt
+                     RecordingStoredFile(course: "c3", video: "v8", quality: "480p", partial: false)]     // Kurs ohne Opencast
+        XCTAssertEqual(RecordingFilesLayout.orphans(files, index: index).map(\.video), ["v2", "v7", "v8"])
+        XCTAssertEqual(RecordingFilesLayout.orphans(files, index: RecordingsIndex()).count, 4)
+    }
+
+    func testSizeCacheForSevenDays() throws {
+        let u = URL(string: "https://oc.example.test/a/res0720.mp4")!
+        var cache = RecordingSizeCache()
+        XCTAssertNil(cache.size(for: u, now: start))
+        cache.set(412_300_000, for: u, now: start)
+        XCTAssertEqual(cache.size(for: u, now: start.addingTimeInterval(6 * 86400)), 412_300_000)
+        XCTAssertNil(cache.size(for: u, now: start.addingTimeInterval(7 * 86400)))           // nach 7 Tagen neu fragen
+        XCTAssertNil(cache.size(for: u, now: start.addingTimeInterval(-60)))                // Uhr zurueckgestellt
+        let b = URL(string: "https://oc.example.test/b.mp4")!
+        cache.set(nil, for: b, now: start)
+        XCTAssertEqual(cache.size(for: b, now: start), -1)                                   // unbekannt, aber gefragt
+        let back = try RecordingSizeCache.decode(cache.encoded())
+        XCTAssertEqual(back, cache)
+        cache.prune(now: start.addingTimeInterval(8 * 86400))
+        XCTAssertTrue(cache.entries.isEmpty)
     }
 }
 

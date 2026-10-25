@@ -37,20 +37,26 @@ final class RecordingLibrary: ObservableObject {
     @Published private(set) var resumable: Set<String> = []
     /// Groesse per HEAD (nil = noch nicht gefragt, -1 = unbekannt)
     @Published private(set) var sizes: [URL: Int64] = [:]
+    /// alle Dateien unter files/ (geladen oder angefangen), fuer verwaiste Dateien
+    @Published private(set) var stored: [RecordingStoredFile] = []
 
     let root: URL
     private let session: URLSession
-    private let delegate: DownloadDelegate
+    let delegate: RecordingDownloadDelegate
     private var tasks: [String: URLSessionDownloadTask] = [:]
     private var pendingSizes: [URL] = []
     private var sizeTask: Task<Void, Never>?
+    /// gemerkte Groessen (recordings/sizes.json, 7 Tage), damit nicht jeder Start jedes Video neu fragt
+    private var sizeCache = RecordingSizeCache()
     private var observer: NSObjectProtocol?
     private static let positionsKey = "uniflow.recordings.positions"
+    /// Pause zwischen zwei HEAD-Anfragen an den Videoserver (wie die Pausen im StudIPClient)
+    static let headPauseNanos: UInt64 = 300_000_000
 
     init(root: URL? = nil) {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         self.root = root ?? StudIPSync.recordingsFolder(support: support)
-        let d = DownloadDelegate()
+        let d = RecordingDownloadDelegate()
         delegate = d
         let config = URLSessionConfiguration.default
         config.httpShouldSetCookies = false
@@ -59,9 +65,17 @@ final class RecordingLibrary: ObservableObject {
         config.timeoutIntervalForRequest = 60
         session = URLSession(configuration: config, delegate: d, delegateQueue: nil)
         d.owner = self
+        if let data = try? Data(contentsOf: sizesURL), var cache = try? RecordingSizeCache.decode(data) {
+            cache.prune(now: Date())
+            sizeCache = cache
+        }
         rescan()
+        // "Dateien löschen" in Stud.IP: laufende Downloads abbrechen (sie scheiterten sonst spaeter beim Verschieben)
         observer = NotificationCenter.default.addObserver(forName: .uniflowRecordingFilesChanged, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.rescan() }
+            MainActor.assumeIsolated {
+                self?.cancelAll()
+                self?.rescan()
+            }
         }
     }
 
@@ -74,6 +88,14 @@ final class RecordingLibrary: ObservableObject {
         root.appendingPathComponent(RecordingFilesLayout.relativePath(courseID: course, videoID: video, quality: quality))
     }
 
+    private var sizesURL: URL { root.appendingPathComponent(RecordingSizeCache.file) }
+
+    /// Ort einer Datei aus `stored`
+    func url(of f: RecordingStoredFile) -> URL {
+        root.appendingPathComponent("files").appendingPathComponent(f.course)
+            .appendingPathComponent("\(f.video)-\(f.quality).mp4" + (f.partial ? ".resume" : ""))
+    }
+
     private func resumeURL(course: String, video: String, quality: String) -> URL {
         root.appendingPathComponent(RecordingFilesLayout.resumeDataPath(courseID: course, videoID: video, quality: quality))
     }
@@ -81,6 +103,29 @@ final class RecordingLibrary: ObservableObject {
     func qualities(course: String, video: String) -> Set<String> { downloaded[Self.videoKey(course: course, video: video)] ?? [] }
 
     func state(course: String, video: String, quality: String) -> DownloadState? { states[Self.key(course: course, video: video, quality: quality)] }
+
+    func isResumable(course: String, video: String, quality: String) -> Bool {
+        resumable.contains(Self.key(course: course, video: video, quality: quality))
+    }
+
+    /// Laeuft fuer dieses Video gerade ein Download (gleich welche Fassung)?
+    func isLoading(course: String, video: String) -> Bool {
+        let prefix = Self.videoKey(course: course, video: video) + "|"
+        return tasks.keys.contains { $0.hasPrefix(prefix) }
+    }
+
+    /// Fassung, die die Zeile zeigen soll: laufender Download zuerst, dann abgebrochene oder gescheiterte
+    /// (Reihenfolge der Fassungen), sonst nil. Fuer alle Fassungen, nicht nur die Standardfassung.
+    static func pendingQuality(course: String, video: String, qualities: [String], states: [String: DownloadState],
+                               resumable: Set<String>) -> String? {
+        let keys = qualities.map { (quality: $0, key: key(course: course, video: video, quality: $0)) }
+        if let r = keys.first(where: { if case .running = states[$0.key] { return true }; return false }) { return r.quality }
+        return keys.first { states[$0.key] != nil || resumable.contains($0.key) }?.quality
+    }
+
+    func pendingQuality(course: String, video: String, qualities: [String]) -> String? {
+        Self.pendingQuality(course: course, video: video, qualities: qualities, states: states, resumable: resumable)
+    }
 
     // MARK: Ordner
 
@@ -101,34 +146,69 @@ final class RecordingLibrary: ObservableObject {
     func rescan() {
         var found: [String: Set<String>] = [:]
         var partial = Set<String>()
+        var all: [RecordingStoredFile] = []
         let files = root.appendingPathComponent("files")
         let fm = FileManager.default
-        for course in (try? fm.contentsOfDirectory(atPath: files.path)) ?? [] {
-            for name in (try? fm.contentsOfDirectory(atPath: files.appendingPathComponent(course).path)) ?? [] {
+        for course in ((try? fm.contentsOfDirectory(atPath: files.path)) ?? []).sorted() {
+            for name in ((try? fm.contentsOfDirectory(atPath: files.appendingPathComponent(course).path)) ?? []).sorted() {
                 // "<Video>-<Qualitaet>.mp4" bzw. ".mp4.resume"; die Qualitaet enthaelt keinen Bindestrich
-                let isResume = name.hasSuffix(".mp4.resume")
-                guard isResume || name.hasSuffix(".mp4") else { continue }
-                let stem = String(name.dropLast(isResume ? 11 : 4))
-                guard let dash = stem.lastIndex(of: "-") else { continue }
-                let video = String(stem[..<dash]), quality = String(stem[stem.index(after: dash)...])
-                if isResume { partial.insert(Self.key(course: course, video: video, quality: quality)) }
-                else { found[Self.videoKey(course: course, video: video), default: []].insert(quality) }
+                guard let f = RecordingFilesLayout.storedFile(course: course, name: name) else { continue }
+                all.append(f)
+                if f.partial { partial.insert(Self.key(course: course, video: f.video, quality: f.quality)) }
+                else { found[Self.videoKey(course: course, video: f.video), default: []].insert(f.quality) }
             }
         }
         downloaded = found
         resumable = partial
+        stored = all
+    }
+
+    // MARK: Verwaiste Dateien
+
+    /// Dateien ohne Video im Index (Kurs abgewaehlt oder Video aus Opencast entfernt)
+    func orphans(in index: RecordingsIndex) -> [RecordingStoredFile] { RecordingFilesLayout.orphans(stored, index: index) }
+
+    func bytes(_ files: [RecordingStoredFile]) -> Int64 {
+        files.reduce(0) { acc, f in
+            acc + Int64((try? url(of: f).resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        }
+    }
+
+    /// Verwaiste Dateien entfernen (auf Wunsch, in den Stud.IP-Einstellungen)
+    func removeOrphans(in index: RecordingsIndex) {
+        for f in orphans(in: index) {
+            let key = Self.key(course: f.course, video: f.video, quality: f.quality)
+            if let task = tasks.removeValue(forKey: key) { delegate.forget(task.taskIdentifier); task.cancel() }
+            states[key] = nil
+            try? FileManager.default.removeItem(at: url(of: f))
+        }
+        rescan()
+    }
+
+    /// Alle laufenden Downloads ohne Fortsetzungsdaten abbrechen (nach "Dateien löschen")
+    func cancelAll() {
+        for (key, task) in tasks {
+            delegate.forget(task.taskIdentifier)
+            task.cancel()
+            states[key] = nil
+        }
+        tasks = [:]
     }
 
     // MARK: Groesse und Erreichbarkeit
 
-    /// Groesse in die Warteschlange (HEAD nacheinander, nicht alle auf einmal)
+    /// Groesse in die Warteschlange: zuerst die gemerkte (7 Tage), sonst HEAD nacheinander mit Pause dazwischen
     func requestSize(_ url: URL) {
-        guard sizes[url] == nil, !pendingSizes.contains(url) else { return }
+        guard sizes[url] == nil, !pendingSizes.contains(url), !StudIPSync.isUnderTest() else { return }    // Tests: nie ans Netz
+        if let cached = sizeCache.size(for: url, now: Date()) { sizes[url] = cached; return }
         pendingSizes.append(url)
         if sizeTask == nil {
             sizeTask = Task { [weak self] in
+                var first = true
                 while let self, let u = self.pendingSizes.first {
                     self.pendingSizes.removeFirst()
+                    if !first { try? await Task.sleep(nanoseconds: Self.headPauseNanos) }
+                    first = false
                     let p = await self.probe(u)
                     self.sizes[u] = p.size ?? -1
                 }
@@ -136,6 +216,9 @@ final class RecordingLibrary: ObservableObject {
             }
         }
     }
+
+    /// gemerkte Groesse ohne Anfrage (nil = nicht gemerkt oder aelter als 7 Tage)
+    func cachedSize(_ url: URL, now: Date = Date()) -> Int64? { sizeCache.size(for: url, now: now) }
 
     func size(_ url: URL) -> Int64? { sizes[url].flatMap { $0 >= 0 ? $0 : nil } }
 
@@ -146,8 +229,17 @@ final class RecordingLibrary: ObservableObject {
         r.timeoutInterval = 20
         guard let (_, response) = try? await session.data(for: r), let http = response as? HTTPURLResponse else { return Probe(status: nil, size: nil) }
         let len = http.value(forHTTPHeaderField: "Content-Length").flatMap { Int64($0) } ?? (http.expectedContentLength > 0 ? http.expectedContentLength : nil)
-        if (200..<300).contains(http.statusCode), let len { sizes[url] = len }
-        return Probe(status: http.statusCode, size: (200..<300).contains(http.statusCode) ? len : nil)
+        let ok = (200..<300).contains(http.statusCode)
+        if ok, let len { sizes[url] = len }
+        if ok { rememberSize(len, for: url) }
+        return Probe(status: http.statusCode, size: ok ? len : nil)
+    }
+
+    private func rememberSize(_ size: Int64?, for url: URL) {
+        sizeCache.set(size, for: url, now: Date())
+        guard let data = try? sizeCache.encoded() else { return }
+        try? Self.prepareFolder(root)
+        try? data.write(to: sizesURL, options: .atomic)
     }
 
     /// freier Platz fuer wichtige Daten auf dem Datentraeger der App
@@ -162,7 +254,7 @@ final class RecordingLibrary: ObservableObject {
     /// Download starten bzw. fortsetzen (nur auf Wunsch des Nutzers).
     func start(course: String, video: String, download d: OpencastDownload) {
         let key = Self.key(course: course, video: video, quality: d.quality)
-        guard tasks[key] == nil else { return }
+        guard !isLoading(course: course, video: video) else { return }       // je Video nur ein Download
         let target = fileURL(course: course, video: video, quality: d.quality)
         let resume = resumeURL(course: course, video: video, quality: d.quality)
         do { try Self.prepareFolder(target.deletingLastPathComponent()) } catch {
@@ -190,7 +282,11 @@ final class RecordingLibrary: ObservableObject {
         states[key] = .paused
         task.cancel { [weak self] data in
             if let data { try? data.write(to: resume, options: .atomic); try? RecordingLibrary.excludeFromBackup(resume) }
-            Task { @MainActor in self?.rescan() }
+            else { try? FileManager.default.removeItem(at: resume) }          // alte Daten passen nicht mehr
+            Task { @MainActor in
+                if data == nil, self?.states[key] == .paused { self?.states[key] = nil }
+                self?.rescan()
+            }
         }
     }
 
@@ -207,12 +303,12 @@ final class RecordingLibrary: ObservableObject {
         rescan()
     }
 
-    fileprivate func progress(_ key: String, _ fraction: Double?) {
+    func progress(_ key: String, _ fraction: Double?) {
         guard tasks[key] != nil else { return }
         states[key] = .running(fraction)
     }
 
-    fileprivate func finished(_ key: String, error: String?, resumable: Bool) {
+    func finished(_ key: String, error: String?, resumable: Bool) {
         tasks[key] = nil
         if let error { states[key] = resumable ? .failed(error + " – „Fortsetzen“ lädt weiter.") : .failed(error) } else { states[key] = nil }
         rescan()
@@ -235,8 +331,15 @@ final class RecordingLibrary: ObservableObject {
 
 /// Delegat der Download-Sitzung. Die fertige Datei muss noch im Rueckruf verschoben werden (danach loescht das
 /// System sie), deshalb liegen Ziel und Schluessel hier unter einer Sperre statt auf dem MainActor.
-private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-    private struct Job { let key: String; let target: URL; let resume: URL }
+final class RecordingDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private struct Job {
+        let key: String
+        let target: URL
+        let resume: URL
+        /// zuletzt gemeldeter Anteil und Zeitpunkt (Fortschritt gedrosselt)
+        var reported: Double?
+        var reportedAt: Date?
+    }
     private let lock = NSLock()
     private var jobs: [Int: Job] = [:]
     weak var owner: RecordingLibrary?
@@ -245,26 +348,51 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unc
     func forget(_ id: Int) { lock.lock(); jobs[id] = nil; lock.unlock() }
     private func job(_ id: Int) -> Job? { lock.lock(); defer { lock.unlock() }; return jobs[id] }
 
+    /// Fortschritt melden? Erster Rueckruf immer; danach nur bei mindestens 1 % Aenderung, am Ende oder alle 0,5 s
+    /// (bei Dateien mit mehreren hundert MB sonst tausende Neuzeichnungen).
+    static func shouldReport(last: Double?, lastAt: Date?, fraction: Double?, now: Date) -> Bool {
+        guard let lastAt else { return true }
+        guard let f = fraction else { return false }                     // Groesse unbekannt: Anzeige bleibt gleich
+        guard let l = last else { return true }
+        return f >= 1 || abs(f - l) >= 0.01 - 1e-9 || now.timeIntervalSince(lastAt) >= 0.5      // 1e-9: Rundung
+    }
+
+    /// Fehlermeldung zur Antwort des Videoservers oder nil, wenn die Datei ein Video sein kann
+    static func failure(status: Int?, contentType: String?) -> String? {
+        if let s = status, !(200..<300).contains(s) {
+            return s == 401 || s == 403 ? "Der Videoserver verlangt eine Anmeldung (HTTP \(s))." : "Der Videoserver antwortet mit HTTP \(s)."
+        }
+        if (contentType ?? "").lowercased().contains("text/html") { return "Statt des Videos kam eine Webseite (vermutlich Anmeldung)." }
+        return nil
+    }
+
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64,
                     totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        guard let j = job(downloadTask.taskIdentifier) else { return }
         let f = totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : nil
-        Task { @MainActor [weak owner] in owner?.progress(j.key, f) }
+        let now = Date()
+        lock.lock()
+        guard var j = jobs[downloadTask.taskIdentifier], Self.shouldReport(last: j.reported, lastAt: j.reportedAt, fraction: f, now: now) else {
+            lock.unlock()
+            return
+        }
+        j.reported = f
+        j.reportedAt = now
+        jobs[downloadTask.taskIdentifier] = j
+        lock.unlock()
+        let key = j.key
+        Task { @MainActor [weak owner] in owner?.progress(key, f) }
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let j = job(downloadTask.taskIdentifier) else { return }
         forget(downloadTask.taskIdentifier)
         let http = downloadTask.response as? HTTPURLResponse
-        let type = (http?.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
-        var error: String?
-        if let s = http?.statusCode, !(200..<300).contains(s) {
-            error = s == 401 || s == 403 ? "Der Videoserver verlangt eine Anmeldung (HTTP \(s))." : "Der Videoserver antwortet mit HTTP \(s)."
-        } else if type.contains("text/html") {
-            error = "Statt des Videos kam eine Webseite (vermutlich Anmeldung)."
+        let fm = FileManager.default
+        var error = Self.failure(status: http?.statusCode, contentType: http?.value(forHTTPHeaderField: "Content-Type"))
+        if error != nil {
+            try? fm.removeItem(at: j.resume)                     // Fortsetzungsdaten fuehrten zu dieser Antwort: verwerfen
         } else {
             do {
-                let fm = FileManager.default
                 try? fm.removeItem(at: j.target)
                 try fm.moveItem(at: location, to: j.target)
                 try RecordingLibrary.excludeFromBackup(j.target)
@@ -285,6 +413,10 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unc
             try? data.write(to: j.resume, options: .atomic)
             try? RecordingLibrary.excludeFromBackup(j.resume)
             resumable = true
+        } else {
+            // ohne neue Fortsetzungsdaten sind die alten verbraucht oder ungueltig (Temp-Datei weg, Server ohne
+            // Range, neue URL): verwerfen, sonst scheitert jedes "Fortsetzen" erneut an denselben Daten
+            try? FileManager.default.removeItem(at: j.resume)
         }
         let message = (error as? URLError)?.code == .notConnectedToInternet ? "Keine Internetverbindung." : "Download unterbrochen."
         Task { @MainActor [weak owner] in owner?.finished(j.key, error: message, resumable: resumable) }

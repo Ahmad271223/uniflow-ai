@@ -253,7 +253,25 @@ final class StudIPSync: ObservableObject {
 
     // MARK: Abgleich
 
+    /// Laeuft der Prozess als Test-Host von XCTest? Dann nie Stud.IP/Opencast abrufen (auch wenn im Simulator eine
+    /// echte Sitzung im Schluesselbund liegt).
+    nonisolated static func isUnderTest(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+        environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil
+            || environment["XCTestSessionIdentifier"] != nil
+    }
+
+    /// Automatischer Abgleich beim Oeffnen erlaubt? Nicht unter XCTest, nicht mit -UFNoStudIPSync und nicht bei
+    /// Startargumenten fuer Bildvergleiche/Agenten (-UFRoute, -UFAction, -UFServer, -UFDisconnect). Der Knopf
+    /// "Jetzt abgleichen" bleibt ausserhalb von XCTest moeglich.
+    nonisolated static func automaticRunAllowed(environment: [String: String] = ProcessInfo.processInfo.environment,
+                                                defaults: UserDefaults = .standard) -> Bool {
+        if isUnderTest(environment: environment) { return false }
+        if defaults.bool(forKey: "UFNoStudIPSync") { return false }
+        return !DebugLaunch.skipTriggers.contains { defaults.object(forKey: $0) != nil }
+    }
+
     func runIfDue() {
+        guard Self.automaticRunAllowed() else { return }
         guard phase == .idle || isFailed else { return }
         if let last = lastRun, Date().timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
@@ -262,7 +280,7 @@ final class StudIPSync: ObservableObject {
     private var isFailed: Bool { if case .failed = phase { return true }; return false }
 
     func run() async {
-        guard !isRunning else { return }
+        guard !isRunning, !Self.isUnderTest() else { return }
         let cookies = StudIPKeychain.load()
         guard !cookies.isEmpty else { phase = .signedOut; return }
         await run(client: StudIPClient(base: Self.base, transport: URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")))
