@@ -13,19 +13,21 @@ struct UFButtonStyle: ButtonStyle {
     var size: UFButtonSize = .regular
     /// quadratisch (.btn.icon: 34 pt, .btn.icon.sm: 28 pt)
     var iconOnly = false
+    /// aktiver Bereichslink (.btn.ghost.active: --accent-soft / --accent-text)
+    var activeFill = false
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         let pressed = configuration.isPressed
         let side: CGFloat = size == .small ? 28 : 34
         return configuration.label
-            .font(.system(size: size == .small ? 13.12 : 14.5, weight: .medium))
+            .font(.uf(size == .small ? 13.12 : 14.5, 500))
             .lineLimit(1)
-            .foregroundStyle(foreground)
-            .padding(.vertical, iconOnly ? 0 : (size == .small ? 4.8 : 8))
-            .padding(.horizontal, iconOnly ? 0 : (size == .small ? 9.6 : 13.6))
+            .foregroundStyle(activeFill ? UF.accentText : foreground)
+            .padding(.vertical, iconOnly ? 0 : (size == .small ? 4.8 : 8) + ufB)          // .btn: padding + 1px Rand
+            .padding(.horizontal, iconOnly ? 0 : (size == .small ? 9.6 : 13.6) + ufB)
             .frame(width: iconOnly ? side : nil, height: iconOnly ? side : nil)
-            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(background(pressed: pressed)))
+            .background(RoundedRectangle(cornerRadius: UF.rSm).fill(activeFill ? UF.accentSoft : background(pressed: pressed)))
             .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(border, lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
             .offset(y: pressed ? 1 : 0)                                  // .btn:active { translateY(1px) }
@@ -105,11 +107,14 @@ struct UFCard<Content: View>: View {
         self.content = content()
     }
 
+    @Environment(\.ufFillsCell) private var fillsCell
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) { content }
-            .padding(.vertical, padded ? 17.6 : 0)
-            .padding(.horizontal, padded ? 19.2 : 0)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 0) { content.environment(\.ufFillsCell, false) }
+            .fixedSize(horizontal: false, vertical: true)                   // natuerliche Hoehe, Text nie gekuerzt
+            .padding(.vertical, (padded ? 17.6 : 0) + ufB)                               // .card: padding + 1px Rand
+            .padding(.horizontal, (padded ? 19.2 : 0) + ufB)
+            .frame(maxWidth: .infinity, maxHeight: fillsCell ? .infinity : nil, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
             .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
             .modifier(OptionalShadow(on: !flat))
@@ -139,7 +144,7 @@ struct UFCardHead<Trailing: View>: View {
         HStack(spacing: 9.6) {
             HStack(spacing: 7.2) {
                 if let icon { UFIcon(icon, size: 18) }
-                Text(title).font(UF.h2)
+                Text(title).ufFont(17.6, 650, em: -0.01)
             }
             .foregroundStyle(UF.text)
             Spacer(minLength: 0)
@@ -181,11 +186,14 @@ struct UFBadge: View {
     let text: String
     var tone: UFTone = .accent
     var icon: String?
+    /// eigene Farbe wie .badge.kind: Schrift = Farbe, Flaeche = color-mix(Farbe 18 %, --surface)
+    var tint: Color?
 
-    init(_ text: String, tone: UFTone = .accent, icon: String? = nil) {
+    init(_ text: String, tone: UFTone = .accent, icon: String? = nil, tint: Color? = nil) {
         self.text = text
         self.tone = tone
         self.icon = icon
+        self.tint = tint
     }
 
     var body: some View {
@@ -193,12 +201,12 @@ struct UFBadge: View {
             if let icon { UFIcon(icon, size: 12) }
             Text(text)
         }
-        .font(.system(size: 11.52, weight: .semibold))
+        .ufFont(11.52, 600)
         .lineLimit(1)
-        .foregroundStyle(tone.fg)
+        .foregroundStyle(tint ?? tone.fg)
         .padding(.vertical, 1.6)
         .padding(.horizontal, 8)
-        .background(Capsule().fill(tone.bg))
+        .background(Capsule().fill(tint.map { Color.mix($0, 0.18, UF.surface) } ?? tone.bg))
     }
 }
 
@@ -215,10 +223,10 @@ struct UFChip: View {
                 if let icon { UFIcon(icon, size: 13) }
                 Text(text)
             }
-            .font(.system(size: 12.8, weight: on ? .semibold : .regular))
+            .ufFont(12.8, on ? 600 : 400)
             .foregroundStyle(on ? UF.accentText : UF.text2)
-            .padding(.vertical, 4)
-            .padding(.horizontal, 10.4)
+            .padding(.vertical, 4 + ufB)
+            .padding(.horizontal, 10.4 + ufB)
             .background(Capsule().fill(on ? UF.accentSoft : UF.surface))
             .overlay(Capsule().strokeBorder(on ? Color.clear : UF.line, lineWidth: 1))
         }
@@ -255,7 +263,8 @@ struct UFStatusPill: View {
             UFIcon(Self.icons[status] ?? "circle", size: 12)
             Text(Self.labels[status] ?? status)
         }
-        .font(.system(size: 12, weight: .semibold))
+        .ufFont(12, 600)
+        .lineLimit(1)
         .foregroundStyle(tone.fg)
         .padding(.vertical, 1.6)
         .padding(.horizontal, 8)
@@ -300,7 +309,8 @@ struct UFSegmented<Value: Hashable>: View {
                 let active = o.value == selection
                 Button { withAnimation(UF.transition) { selection = o.value } } label: {
                     Text(o.label)
-                        .font(.system(size: 14.5, weight: .medium))
+                        .ufFont(14.5, 500)
+                        .fixedSize()
                         .foregroundStyle(active ? UF.text : UF.text2)
                         .padding(.vertical, 5.6)
                         .padding(.horizontal, 11.2)
@@ -328,9 +338,10 @@ struct UFTabs<Value: Hashable>: View {
                     let active = o.value == selection
                     Button { selection = o.value } label: {
                         Text(o.label)
-                            .font(.system(size: 14.5, weight: .medium))
+                            .font(.uf(14.5, 500))
                             .foregroundStyle(active ? UF.accentText : UF.text2)
                             .padding(.vertical, 9.6)
+                            .padding(.bottom, 2)                                // border-bottom: 2px (transparent, aktiv --accent)
                             .padding(.horizontal, 13.6)
                             .overlay(alignment: .bottom) { Rectangle().fill(active ? UF.accent : .clear).frame(height: 2) }
                     }
@@ -338,7 +349,7 @@ struct UFTabs<Value: Hashable>: View {
                 }
             }
         }
-        .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
+        .ufBorderBottom()
         .padding(.bottom, 16)
     }
 }
@@ -348,17 +359,20 @@ struct UFProgress: View {
     let value: Double          // 0…1
     var ok = false
     var color: Color?
+    /// .mod2 .progress: Spur in Modulfarbe 15 %, 7 pt hoch
+    var track: Color?
+    var height: CGFloat = 6
 
     var body: some View {
         GeometryReader { g in
             ZStack(alignment: .leading) {
-                Capsule().fill(UF.surface2)
+                Capsule().fill(track ?? UF.surface2)
                 Capsule().fill(color ?? (ok ? UF.ok : UF.accent))
                     .frame(width: max(0, min(1, value)) * g.size.width)
                     .animation(.easeInOut(duration: 0.3), value: value)
             }
         }
-        .frame(height: 6)
+        .frame(height: height)
     }
 }
 
@@ -368,13 +382,16 @@ struct UFProgress: View {
 struct UFItemRow<Leading: View, Trailing: View>: View {
     let title: String
     var sub: String?
+    /// `<a class="item">` im Web: Titel erbt die Linkfarbe --accent-text
+    var link = false
     @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
 
-    init(_ title: String, sub: String? = nil, @ViewBuilder leading: () -> Leading = { EmptyView() },
+    init(_ title: String, sub: String? = nil, link: Bool = false, @ViewBuilder leading: () -> Leading = { EmptyView() },
          @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
         self.title = title
         self.sub = sub
+        self.link = link
         self.leading = leading()
         self.trailing = trailing()
     }
@@ -382,9 +399,9 @@ struct UFItemRow<Leading: View, Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             leading
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 14.5, weight: .medium)).foregroundStyle(UF.text).lineLimit(1)
-                if let sub { Text(sub).font(.system(size: 12.8)).foregroundStyle(UF.muted).lineLimit(1) }
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title).ufFont(14.5, 550).foregroundStyle(link ? UF.accentText : UF.text).lineLimit(1)
+                if let sub { Text(sub).ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             trailing
@@ -402,8 +419,8 @@ struct UFKPI: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2.4) {
-            Text(value).font(.system(size: 21.6, weight: .bold)).foregroundStyle(UF.text)
-            Text(label).font(.system(size: 12.8)).foregroundStyle(UF.muted)
+            Text(value).ufFont(21.6, 700).foregroundStyle(UF.text)
+            Text(label).ufFont(12.8).foregroundStyle(UF.muted)
         }
     }
 }
@@ -423,7 +440,7 @@ struct UFEmpty<Actions: View>: View {
     var body: some View {
         VStack(spacing: 8) {
             UFIcon(icon, size: 36).foregroundStyle(UF.lineStrong)
-            Text(text).font(UF.body).foregroundStyle(UF.muted).multilineTextAlignment(.center)
+            Text(text).ufFont(14.5).foregroundStyle(UF.muted).multilineTextAlignment(.center)
             actions
         }
         .frame(maxWidth: .infinity)
@@ -446,16 +463,21 @@ struct UFPageHead<Actions: View>: View {
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(alignment: .bottom, spacing: 16) { titles; Spacer(minLength: 0); HStack(spacing: 8) { actions } }
-            VStack(alignment: .leading, spacing: 12) { titles; HStack(spacing: 8) { actions } }
+            // flex-wrap: nebeneinander nur, wenn Titel und Knoepfe in voller Breite passen (Knoepfe brechen nie um)
+            HStack(alignment: .bottom, spacing: 16) {
+                titles.fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 0)
+                HStack(spacing: 8) { actions }.fixedSize(horizontal: true, vertical: false)
+            }
+            VStack(alignment: .leading, spacing: 16) { titles; UFFlexWrap(gap: 8) { actions } }       // flex-wrap, gap 1rem
         }
         .padding(.bottom, 19.2)
     }
 
     private var titles: some View {
         VStack(alignment: .leading, spacing: 2.4) {
-            Text(title).font(UF.h1).foregroundStyle(UF.text)
-            if let sub { Text(sub).font(UF.body).foregroundStyle(UF.muted) }
+            Text(title).ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text)
+            if let sub { Text(sub).ufFont(14.5).foregroundStyle(UF.muted) }
         }
     }
 }
@@ -479,11 +501,11 @@ struct UFTextField: View {
         Group {
             if secure { SecureField(placeholder, text: $text) } else { TextField(placeholder, text: $text) }
         }
-        .font(UF.body)
+        .ufFont(14.5)
         .foregroundStyle(UF.text)
         .focused($focused)
-        .padding(.vertical, 8)
-        .padding(.horizontal, 11.2)
+        .padding(.vertical, 8 + ufB)
+        .padding(.horizontal, 11.2 + ufB)
         .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface))
         .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(focused ? UF.accent : UF.lineStrong, lineWidth: 1))
         .background(RoundedRectangle(cornerRadius: UF.rSm + 1.5).stroke(focused ? UF.accentSoft : .clear, lineWidth: 3).padding(-1.5))
@@ -496,20 +518,24 @@ struct UFTextField: View {
 /// Inhaltsbereich: Abstand 1.4rem 1.6rem 3rem, hoechstens 1480 pt breit, Hintergrund --bg
 struct UFContent<Content: View>: View {
     var wide = false
+    /// Inline-Stil der Ansicht (z. B. Lernkalender max-width:1600px; padding:1.3rem 1.5rem 3rem)
+    var maxWidth: CGFloat?
+    var insets: EdgeInsets?
     @ViewBuilder let content: Content
 
-    init(wide: Bool = false, @ViewBuilder content: () -> Content) {
+    init(wide: Bool = false, maxWidth: CGFloat? = nil, insets: EdgeInsets? = nil, @ViewBuilder content: () -> Content) {
         self.wide = wide
+        self.maxWidth = maxWidth
+        self.insets = insets
         self.content = content()
     }
 
     var body: some View {
+        let pad = insets ?? (wide ? EdgeInsets(top: 12.8, leading: 16, bottom: 16, trailing: 16) : EdgeInsets(top: 22.4, leading: 25.6, bottom: 48, trailing: 25.6))
         ScrollView {
             VStack(alignment: .leading, spacing: 0) { content }
-                .padding(.top, wide ? 12.8 : 22.4)
-                .padding(.horizontal, wide ? 16 : 25.6)
-                .padding(.bottom, wide ? 16 : 48)
-                .frame(maxWidth: wide ? .infinity : 1480, alignment: .leading)
+                .padding(pad)
+                .frame(maxWidth: maxWidth ?? (wide ? .infinity : 1480), alignment: .leading)
                 .frame(maxWidth: .infinity)
         }
         .background(UF.bg)
@@ -521,24 +547,30 @@ struct UFContent<Content: View>: View {
 /// Inhalt eines Dialogs wie modal() in core.js: Titel (h3), Inhalt, Fusszeile rechtsbuendig.
 struct UFDialog<Content: View, Foot: View>: View {
     let title: String
+    var icon: String?
     @ViewBuilder var content: Content
     @ViewBuilder var foot: Foot
 
-    init(_ title: String, @ViewBuilder content: () -> Content, @ViewBuilder foot: () -> Foot) {
+    init(_ title: String, icon: String? = nil, @ViewBuilder content: () -> Content, @ViewBuilder foot: () -> Foot) {
         self.title = title
+        self.icon = icon
         self.content = content()
         self.foot = foot()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title).font(UF.h3).foregroundStyle(UF.text).padding(.bottom, 9.6)
+            HStack(spacing: 7.2) {                                     // .modal-box h3 (mit Icon wie ${icon(…, 18)})
+                if let icon { UFIcon(icon, size: 18) }
+                Text(title)
+            }
+            .ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text).padding(.bottom, 9.6)
             content
-            HStack(spacing: 8) { Spacer(); foot }.padding(.top, 16)
+            if !(foot is EmptyView) { HStack(spacing: 8) { Spacer(); foot }.padding(.top, 16) }  // .modal-foot
         }
         .padding(.vertical, 20.8)
         .padding(.horizontal, 22.4)
-        .frame(maxWidth: 620)
+        .frame(maxWidth: .infinity, alignment: .leading)           // .modal-box: width min(620px, 100%)
         .background(RoundedRectangle(cornerRadius: UF.rLg).fill(UF.surface))
         .ufShadow(.lg)
     }
@@ -567,7 +599,7 @@ struct UFToastOverlay: ViewModifier {
         content.overlay(alignment: .bottom) {
             if let m = center.message {
                 Text(m)
-                    .font(.system(size: 14.4))
+                    .ufFont(14.4)
                     .foregroundStyle(UF.bg)
                     .padding(.vertical, 8.8)
                     .padding(.horizontal, 16)
@@ -616,7 +648,20 @@ extension EnvironmentValues {
     }
 }
 
-/// .grid.cols-3 / .grid.cols-2: Spaltenzahl nach Fensterbreite wie im Web (<= 1100: 2, <= 820: 1)
+/// Zellen im Raster fuellen die Zeilenhoehe (CSS-Grid: align-items stretch); UFCard liest das.
+private struct UFFillsCellKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var ufFillsCell: Bool {
+        get { self[UFFillsCellKey.self] }
+        set { self[UFFillsCellKey.self] = newValue }
+    }
+}
+
+/// .grid.cols-3 / .grid.cols-2: Spaltenzahl nach Fensterbreite wie im Web (<= 1100: 2, <= 820: 1).
+/// Alle Zellen einer Zeile werden so hoch wie die hoechste (CSS-Grid streckt Zellen).
 struct UFGrid<Content: View>: View {
     var columns = 3
     var spacing: CGFloat = 16
@@ -636,7 +681,54 @@ struct UFGrid<Content: View>: View {
     }
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing, alignment: .top), count: effective),
-                  alignment: .leading, spacing: spacing) { content }
+        UFGridLayout(columns: effective, spacing: spacing) { content }
+            .environment(\.ufFillsCell, true)
+    }
+}
+
+/// Gleich breite Spalten, Zeilenhoehe = hoechste Zelle der Zeile. Mit `minWidth` wie
+/// repeat(auto-fill, minmax(minWidth, 1fr)): Spaltenzahl aus der verfuegbaren Breite.
+struct UFGridLayout: Layout {
+    var columns: Int = 1
+    var spacing: CGFloat = 16
+    var minWidth: CGFloat?
+
+    private func count(_ w: CGFloat) -> Int {
+        if let m = minWidth { return max(1, Int((w + spacing) / (m + spacing))) }
+        return max(1, columns)
+    }
+
+    private func colWidth(_ w: CGFloat) -> CGFloat {
+        let n = count(w)
+        return max(0, (w - CGFloat(n - 1) * spacing) / CGFloat(n))
+    }
+
+    private func rowHeights(_ subviews: Subviews, width w: CGFloat) -> [CGFloat] {
+        let n = count(w), col = colWidth(w)
+        return stride(from: 0, to: subviews.count, by: n).map { start in
+            subviews[start..<min(subviews.count, start + n)]
+                .map { $0.sizeThatFits(ProposedViewSize(width: col, height: nil)).height }.max() ?? 0
+        }
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let w = proposal.width ?? 900
+        let rows = rowHeights(subviews, width: w)
+        return CGSize(width: w, height: rows.reduce(0, +) + CGFloat(max(0, rows.count - 1)) * spacing)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let n = count(bounds.width), col = colWidth(bounds.width)
+        let rows = rowHeights(subviews, width: bounds.width)
+        var y = bounds.minY
+        for (r, h) in rows.enumerated() {
+            for c in 0..<n {
+                let i = r * n + c
+                guard i < subviews.count else { break }
+                subviews[i].place(at: CGPoint(x: bounds.minX + CGFloat(c) * (col + spacing), y: y), anchor: .topLeading,
+                                  proposal: ProposedViewSize(width: col, height: h))
+            }
+            y += h + spacing
+        }
     }
 }

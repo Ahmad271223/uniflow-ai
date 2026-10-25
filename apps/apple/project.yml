@@ -49,6 +49,14 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSLocalNetworkUsageDescription: UniFlow verbindet sich mit deinem UniFlow-Server im WLAN.
+        # Schrift der Web-App (Inter, Google Fonts, SIL Open Font License: UniFlow/Resources/Fonts/Inter-OFL.txt)
+        UIAppFonts:
+          - Inter-Variable.ttf
+        # Deep Links mit den Hash-Routen der Web-App, z. B. uniflow://#/plan?view=week
+        CFBundleURLTypes:
+          - CFBundleURLName: de.uniflow.ai
+            CFBundleURLSchemes:
+              - uniflow
         # Nur fuer die Entwicklung (Server laeuft per http im WLAN). Vor TestFlight/App Store auf HTTPS umstellen und entfernen.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
