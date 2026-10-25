@@ -127,7 +127,7 @@ final class ShellState: ObservableObject {
     ]
 
     /// Wochentage kurz (DAYS in core.js)
-    static let days = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+    nonisolated static let days = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
     static func time(_ iso: String?) -> String {
         guard let iso, iso.count >= 16 else { return "–" }

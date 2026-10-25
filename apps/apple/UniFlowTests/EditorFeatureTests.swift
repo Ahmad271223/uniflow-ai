@@ -80,10 +80,15 @@ final class EditorFeatureTests: XCTestCase {
         let exported = try XCTUnwrap(PDFDocument(data: data))
         XCTAssertEqual(exported.pageCount, 2)
         XCTAssertEqual(exported.page(at: 0)?.bounds(for: .mediaBox).size, CGSize(width: 595, height: 842))
-        // Handschrift ist im Export sichtbar: dunkles Pixel auf dem Strich, weisses daneben
+        // Handschrift ist im Export sichtbar: dunkles Pixel auf dem Strich, weisses daneben. PencilKit glaettet die
+        // Ecke, deshalb das dunkelste Pixel in einem kleinen Fenster um die Sollstelle.
         let thumb = try XCTUnwrap(exported.page(at: 0)?.thumbnail(of: CGSize(width: 595, height: 842), for: .mediaBox))
-        XCTAssertLessThan(brightness(thumb, at: CGPoint(x: 200, y: 100)), 0.5)
+        XCTAssertLessThan(darkest(thumb, x: 200, ys: 94...110), 0.5)
         XCTAssertGreaterThan(brightness(thumb, at: CGPoint(x: 200, y: 500)), 0.9)
+    }
+
+    private func darkest(_ image: UIImage, x: CGFloat, ys: ClosedRange<Int>) -> CGFloat {
+        ys.map { brightness(image, at: CGPoint(x: x, y: CGFloat($0))) }.min() ?? 1
     }
 
     private func brightness(_ image: UIImage, at p: CGPoint) -> CGFloat {

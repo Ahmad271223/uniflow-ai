@@ -30,11 +30,11 @@ final class PurchaseStore: ObservableObject {
 
     deinit { updates?.cancel() }
 
-    static func plan(forProductID id: String) -> String? {
+    nonisolated static func plan(forProductID id: String) -> String? {
         ["de.uniflow.plus.monthly": "plus", "de.uniflow.pro.monthly": "pro"][id]
     }
 
-    static func rank(_ plan: String) -> Int { ["free": 0, "plus": 1, "pro": 2][plan] ?? 0 }
+    nonisolated static func rank(_ plan: String) -> Int { ["free": 0, "plus": 1, "pro": 2][plan] ?? 0 }
 
     func loadProducts() async {
         do {

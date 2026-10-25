@@ -368,14 +368,17 @@ final class DocumentStore: ObservableObject {
     }
 
     private func flushInBackground() async {
-        var taskID = UIBackgroundTaskIdentifier.invalid
-        taskID = UIApplication.shared.beginBackgroundTask(withName: "UniFlow speichern") {
-            UIApplication.shared.endBackgroundTask(taskID)
+        // Kennung in einer Box, damit der Ablauf-Handler den spaeter gesetzten Wert sieht
+        final class TaskBox: @unchecked Sendable { var id = UIBackgroundTaskIdentifier.invalid }
+        let box = TaskBox()
+        box.id = UIApplication.shared.beginBackgroundTask(withName: "UniFlow speichern") {
+            UIApplication.shared.endBackgroundTask(box.id)
+            box.id = .invalid
         }
         processTask?.cancel()
         await processPending()
         await engine.syncNow()
-        if taskID != .invalid { UIApplication.shared.endBackgroundTask(taskID) }
+        if box.id != .invalid { UIApplication.shared.endBackgroundTask(box.id); box.id = .invalid }
     }
 
     /// Ansicht verdeckt (Tabwechsel, anderes Dokument): Ausstehendes sichern und hochladen, Synchronisierung laeuft weiter.
