@@ -51,3 +51,26 @@ Folgerungen für den nativen Stundenplan-Import (fehlte bisher, siehe docs/IPAD-
 - Die Art (Vorlesung, Übung, Tutorium …) steht nicht in `categories` (immer „Sitzung“), sondern ergibt sich wie in
   `studip_sync.py`/`timetable.py` aus Kurstitel und `course-type`.
 - Abgesagte Einzeltermine: `is-cancelled` bei `course-events` bzw. `EXDATES` bei den Kurszeiten.
+
+## Opencast-Aufzeichnungen (LUH-Plugin, Stand 25.10.2026)
+
+Die Videos liegen **nicht** in den Datei-Ordnern der JSON:API, sondern im LUH-Opencast-Modul. Gelesen im Browser,
+festgehalten ist nur der Aufbau (keine Titel, Namen oder Kennungen). Nachbau mit erfundenen Werten:
+`apps/apple/Packages/UniFlowCore/Tests/UniFlowCoreTests/Fixtures/opencast/`, Parser `OpencastParser` im Kern.
+
+| Seite | Aufbau |
+|---|---|
+| `plugins.php/opencastpluginluh/media/index?cid=<Kurs-ID>` | serverseitig gerendertes HTML, Sitzung = Stud.IP-Cookie; Tabelle `table.media-table`, je Video `tr.media-table-row` mit `id` (UUID oder kurze Kennung wie `Xyzab-12345-6789`) |
+| Spalte Vorschau | `div.thumb-container` mit `style="background-image:url('…')"` (Bild auf dem Opencast-Host) |
+| Spalte Titel | `td div.media-table-infos > div > a` (Text = Titel, Link = Player), darunter optional ein `div` mit der Beschreibung |
+| Laufzeit | `td.media-table-duration`, `data-sort-value="HH:MM:SS"` |
+| Autor/-in | `td.media-table-lecturer`, „-“ = keine Angabe |
+| Erstellt am | `td.media-table-created`, `data-sort-value` = Unix-Zeit, Text `dd.mm.yyyy` |
+| Aktionen | „Zum Video“ → `plugins.php/opencastpluginluh/media/player/<id>?cid=…`; „Download: 1080p/720p/480p“ → direkte MP4-Links auf dem Opencast-Host (ohne Signatur-Parameter, nicht jede Fassung bei jedem Video); „Problem melden“ (`mailto:`) |
+| Kurs ohne Reiter | dieselbe Seite antwortet mit **HTTP 500** („navigation item '/course/opencast/index' not found“) – heißt „kein Opencast“, kein Fehler; im Kursüberblick `dispatch.php/course/overview?cid=…` fehlt dann der Navigationslink „Aufzeichnungen“ |
+| Kurs mit Reiter ohne Videos | Tabelle mit leerem `tbody` |
+
+Folgerungen für die App: je gewähltem Kurs eine Anfrage an `media/index` (Kurse ohne Opencast höchstens alle
+7 Tage), nur bei einer unklaren Antwort zusätzlich der Kursüberblick; Anmeldeseite statt Inhalt = Sitzung abgelaufen.
+Ob der Opencast-Host die MP4-Links ohne Anmeldung ausliefert, ist noch nicht am Gerät gemessen; die App fällt bei
+401/403 auf die Player-Seite in der Webansicht zurück. Videos gehören den Lehrenden: nur privat ansehen, nicht teilen.

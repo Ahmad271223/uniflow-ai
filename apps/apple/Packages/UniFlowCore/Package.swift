@@ -15,6 +15,6 @@ let package = Package(
     targets: [
         .systemLibrary(name: "CSQLite", path: "Sources/CSQLite", providers: [.apt(["libsqlite3-dev"])]),
         .target(name: "UniFlowCore", dependencies: [.target(name: "CSQLite", condition: .when(platforms: [.linux]))]),
-        .testTarget(name: "UniFlowCoreTests", dependencies: ["UniFlowCore"]),
+        .testTarget(name: "UniFlowCoreTests", dependencies: ["UniFlowCore"], exclude: ["Fixtures"]),   // HTML-Fixtures liest der Test ueber #filePath
     ]
 )
