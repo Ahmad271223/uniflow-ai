@@ -9,6 +9,8 @@ struct DashboardView: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var session: Session
     @State private var showGenerate = false
     @State private var suggestion: JSONValue?
     private let api: APIClient?
@@ -21,7 +23,7 @@ struct DashboardView: View {
     var body: some View {
         UFRemote(data: data) { d in content(d) }
             .task { await data.load() }
-            .onChange(of: shell.reloadToken) { _, _ in Task { await data.load() } }
+            .ufReload { await data.load() }
             .ufModal(isPresented: $showGenerate) {
                 GeneratePlanDialog(api: api, start: UFFmt.todayISO()) { showGenerate = false }
             }
@@ -70,7 +72,7 @@ struct DashboardView: View {
                 }
                 .padding(.bottom, 19.2)
 
-                twoColumns(left: {
+                twoColumns(rightMin: rightMinContent(d), left: {
                     todayCard(pk: pk)
                     if !evs.isEmpty { eventsCard(evs) }
                 }, right: {
@@ -105,13 +107,13 @@ struct DashboardView: View {
     private func backlogCard(_ backlog: Int) -> some View {
         UFCard {
             VStack(alignment: .leading, spacing: 2.4) {
-                Text("\(backlog)").font(.system(size: 21.6, weight: .bold)).foregroundStyle(backlog > 0 ? UF.bad : UF.text)
+                Text("\(backlog)").ufFont(21.6, 700).foregroundStyle(backlog > 0 ? UF.bad : UF.text)
                 HStack(spacing: 0) {
-                    Text("nachzuholen").font(.system(size: 12.8)).foregroundStyle(UF.muted)
+                    Text("nachzuholen").ufFont(12.8).foregroundStyle(UF.muted)
                     if backlog > 0 {
-                        Text(" · ").font(.system(size: 12.8)).foregroundStyle(UF.muted)
-                        Button("neu planen") { Task { await rescue() } }
-                            .font(.system(size: 12.8)).foregroundStyle(UF.accentText).buttonStyle(.plain)
+                        Text(" · ").ufFont(12.8).foregroundStyle(UF.muted)
+                        Button("neu planen") { Task { await rescue() } }          // .kpi a { font-weight: 600 }
+                            .ufFont(12.8, 600).foregroundStyle(UF.accentText).buttonStyle(.plain)
                     }
                 }
             }
@@ -120,8 +122,34 @@ struct DashboardView: View {
     }
 
     /// linke Spalte doppelt so breit wie die rechte (span-2), unter 1100 pt untereinander
-    private func twoColumns<L: View, R: View>(@ViewBuilder left: () -> L, @ViewBuilder right: () -> R) -> some View {
-        DashboardColumns(left: left(), right: right())
+    private func twoColumns<L: View, R: View>(rightMin: CGFloat, @ViewBuilder left: () -> L, @ViewBuilder right: () -> R) -> some View {
+        DashboardColumns(rightMin: rightMin, left: left(), right: right())
+    }
+
+    /// Min-Content-Breite der rechten Spalte wie im Browser: Titel und Unterzeilen der Listen brechen nicht um
+    /// (white-space: nowrap), und die 1fr-Spur (minmax(auto, 1fr)) waechst auf diese Breite.
+    private func rightMinContent(_ d: JSONValue) -> CGFloat {
+        let item: CGFloat = 16, card: CGFloat = 2 * 19.2 + 2             // .item padding .5rem, .card padding + Rand
+        var w: CGFloat = 0
+        for u in d.list("upcoming").prefix(6) {
+            let kind = u.s("kind") == "klausur" ? "Klausur" : u.s("kind") == "test" ? "Wochentest" : "Lernpaket"
+            let text = max(UFTypeface.width(UFFmt.shortName(u.s("title")), 14.5, 550), UFTypeface.width("\(UFFmt.short(u.s("date"))) · \(kind)", 12.8))
+            w = max(w, 10 + 12 + text + item)
+        }
+        var order: [String] = [], groups: [String: [JSONValue]] = [:]
+        for f in d.list("new_files") {
+            let s = f.s("subject") ?? "Sonstiges"
+            if groups[s] == nil { order.append(s) }
+            groups[s, default: []].append(f)
+        }
+        for s in order.prefix(4) {
+            let fs = groups[s] ?? []
+            let first = fs.first.map { $0.s("ai_title") ?? $0.s("name") ?? "" } ?? ""
+            let sub = "\(fs.count) neue \(fs.count == 1 ? "Datei" : "Dateien") · \(first)\(fs.count > 1 ? " …" : "")"
+            let text = max(UFTypeface.width(UFFmt.shortName(s), 14.5, 550), UFTypeface.width(sub, 12.8))
+            w = max(w, text + 12 + UFTypeface.width("\(fs.count)", 11.52, 600) + 16 + item)
+        }
+        return w + card
     }
 
     // MARK: Karten
@@ -143,21 +171,21 @@ struct DashboardView: View {
     private func eventsCard(_ evs: [JSONValue]) -> some View {
         UFCard {
             UFCardHead("Heute an der Uni", icon: "clock") {
-                Button("Stundenplan") { router.go(.timetable) }.font(UF.small).foregroundStyle(UF.accentText).buttonStyle(.plain)
+                Button("Stundenplan") { router.go(.timetable()) }.ufFont(13.12).foregroundStyle(UF.accentText).buttonStyle(.plain)
             }
             ForEach(Row.rows(evs, key: "event_id")) { row in
                 let e = row.value
                 let attending = e.s("status") == "teilnahme"
-                Button { router.go(.timetable) } label: {
+                Button { PlanEnv.make(session, overlay, toast, router).openEvent(e.i("event_id") ?? 0, date: e.s("date") ?? UFFmt.todayISO()) } label: {
                     HStack(spacing: 9.6) {
                         UFDot(color: Color(hex: e.s("color")))
-                        Text("\(e.s("start") ?? "")–\(e.s("end") ?? "")").font(.system(size: 13.12, weight: .bold)).frame(minWidth: 92, alignment: .leading)
-                        Text(e.s("title") ?? "").font(UF.small).strikethrough(!attending)
+                        Text("\(e.s("start") ?? "")–\(e.s("end") ?? "")").ufFont(13.12, 700).foregroundStyle(UF.text).frame(minWidth: 92, alignment: .leading)
+                        Text(e.s("title") ?? "").ufFont(13.12).strikethrough(!attending)
                             .foregroundStyle(attending ? UF.text : UF.muted).frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-                        Text(String((e.s("room") ?? "").prefix(22))).font(UF.small).foregroundStyle(UF.muted).lineLimit(1)
+                        Text(String((e.s("room") ?? "").prefix(22))).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1)
                     }
                     .padding(.vertical, 4.8)
-                    .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
+                    .ufBorderBottom()
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -169,21 +197,22 @@ struct DashboardView: View {
         UFCard {
             UFCardHead("Nächste Termine", icon: "flag")
             if up.isEmpty {
-                Text("Keine Termine.").font(UF.small).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
+                Text("Keine Termine.").ufFont(13.12).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
             } else {
-                ForEach(Row.rows(Array(up.prefix(6)), key: "date")) { row in
+                let rows = Row.rows(Array(up.prefix(6)), key: "date")
+                ForEach(rows) { row in
                     let u = row.value
                     let kind = u.s("kind") == "klausur" ? "Klausur" : u.s("kind") == "test" ? "Wochentest" : "Lernpaket"
                     Button {
                         if u["package_id"].map({ !$0.isNull }) == true { router.go(.plan(view: "day", date: u.s("date"))) }
                         else if let m = u.i("module_id") { router.go(.module(m)) } else { router.go(.plan()) }
                     } label: {
-                        UFItemRow(UFFmt.shortName(u.s("title")), sub: "\(UFFmt.short(u.s("date"))) · \(kind)") {
+                        UFItemRow(UFFmt.shortName(u.s("title")), sub: "\(UFFmt.short(u.s("date"))) · \(kind)", link: true, leading: {
                             UFDot(color: Color(hex: u.s("color")))
-                        }
+                        })
                     }
                     .buttonStyle(.plain)
-                    .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
+                    .ufBorderBottom(row.id != rows.last?.id)                     // .item:last-child { border-bottom: 0 }
                 }
             }
         }
@@ -192,19 +221,21 @@ struct DashboardView: View {
     private func weekCard(_ w: JSONValue, today: String) -> some View {
         let doneW = w.i("done") ?? 0, totalW = w.i("total") ?? 0
         return UFCard {
-            UFCardHead("Diese Woche", icon: "clock") { Text("\(doneW)/\(totalW)").font(UF.small).foregroundStyle(UF.muted) }
+            UFCardHead("Diese Woche", icon: "clock") { Text("\(doneW)/\(totalW)").ufFont(13.12).foregroundStyle(UF.muted) }
             UFProgress(value: totalW > 0 ? Double(doneW) / Double(totalW) : 0, ok: true).padding(.bottom, 11.2)
             HStack(spacing: 5.6) {                                          // .week-strip: 7 gleich breite Tage
                 ForEach(Row.rows(w.list("days"), key: "date")) { row in
                     let day = row.value
                     let isToday = day.s("date") == today
                     Button { router.go(.plan(view: "day", date: day.s("date"))) } label: {
-                        VStack(spacing: 3.2) {
-                            Text(UFFmt.weekdayShort(day.s("date"))).font(.system(size: 13.6, weight: .bold)).foregroundStyle(UF.text)
+                        VStack(spacing: 3.2) {                                   // .d: b .85rem, .sd, .m .7rem (bricht um)
+                            Text(UFFmt.weekdayShort(day.s("date"))).ufFont(13.6, 700).foregroundStyle(UF.text)
                             UFStatusDot(status: day.s("status") ?? "leer")
                             Text((day.n("minutes") ?? 0) > 0 ? UFFmt.min(day.n("minutes")) : "–")
-                                .font(.system(size: 11.2)).foregroundStyle(UF.muted).lineLimit(1).minimumScaleFactor(0.8)
+                                .ufFont(11.2).foregroundStyle(UF.muted).multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
+                        .frame(maxHeight: .infinity, alignment: .top)
                         .padding(.vertical, 6.4)
                         .padding(.horizontal, 3.2)
                         .frame(maxWidth: .infinity)
@@ -227,23 +258,23 @@ struct DashboardView: View {
             groups[s, default: []].append(f)
         }
         return UFCard {
-            UFCardHead("Neu aus Stud.IP", icon: "sparkles") { Text("\(total)").font(UF.small).foregroundStyle(UF.muted) }
+            UFCardHead("Neu aus Stud.IP", icon: "sparkles") { Text("\(total)").ufFont(13.12).foregroundStyle(UF.muted) }
             if total == 0 {
-                Text("Nichts Neues.").font(UF.small).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
+                Text("Nichts Neues.").ufFont(13.12).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
             } else {
                 ForEach(Array(order.prefix(4)), id: \.self) { s in
                     let fs = groups[s] ?? []
                     let first = fs.first.map { $0.s("ai_title") ?? $0.s("name") ?? "" } ?? ""
                     Button { router.go(.files(section: "new")) } label: {
-                        UFItemRow(UFFmt.shortName(s), sub: "\(fs.count) neue \(fs.count == 1 ? "Datei" : "Dateien") · \(first)\(fs.count > 1 ? " …" : "")") {
+                        UFItemRow(UFFmt.shortName(s), sub: "\(fs.count) neue \(fs.count == 1 ? "Datei" : "Dateien") · \(first)\(fs.count > 1 ? " …" : "")", link: true) {
                             EmptyView()
                         } trailing: { UFBadge("\(fs.count)") }
                     }
                     .buttonStyle(.plain)
-                    .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
+                    .ufBorderBottom()
                 }
                 HStack {
-                    Button("Alle anzeigen") { router.go(.files(section: "new")) }.font(UF.small).foregroundStyle(UF.accentText).buttonStyle(.plain)
+                    Button("Alle anzeigen") { router.go(.files(section: "new")) }.ufFont(13.12).foregroundStyle(UF.accentText).buttonStyle(.plain)
                     Spacer()
                     UFButton("Gesehen", kind: .ghost, size: .small) {
                         Task {
@@ -269,7 +300,7 @@ struct DashboardView: View {
     }
 }
 
-/// .page-head.greet: h1 1.6rem, Datum gedimmt; Aktionen rechts
+/// .page-head.greet: h1 wie .page-head h1 (1.9rem/700, -.02em; ueberschreibt .greet h1), Datum gedimmt; Aktionen rechts
 private struct UFPageHeadGreet<Actions: View>: View {
     let title: String
     let sub: String
@@ -277,29 +308,34 @@ private struct UFPageHeadGreet<Actions: View>: View {
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(alignment: .bottom, spacing: 16) { titles; Spacer(minLength: 0); HStack(spacing: 8) { actions } }
-            VStack(alignment: .leading, spacing: 12) { titles; HStack(spacing: 8) { actions } }
+            HStack(alignment: .bottom, spacing: 16) {
+                titles.fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 0)
+                HStack(spacing: 8) { actions }.fixedSize(horizontal: true, vertical: false)
+            }
+            VStack(alignment: .leading, spacing: 16) { titles; HStack(spacing: 8) { actions } }
         }
         .padding(.bottom, 19.2)
     }
 
     private var titles: some View {
-        VStack(alignment: .leading, spacing: 2.4) {
-            Text(title).font(.system(size: 25.6, weight: .semibold)).foregroundStyle(UF.text)
-            Text(sub).font(UF.body).foregroundStyle(UF.muted)
+        VStack(alignment: .leading, spacing: 0) {                             // .greet .date: ohne margin-top (anders als .sub)
+            Text(title).ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text)
+            Text(sub).ufFont(14.5).foregroundStyle(UF.muted)
         }
     }
 }
 
 /// .grid.cols-3 mit .span-2 links und .stack rechts; schmal untereinander
 private struct DashboardColumns<L: View, R: View>: View {
+    let rightMin: CGFloat
     let left: L
     let right: R
     @Environment(\.ufWindowWidth) private var width
 
     var body: some View {
         if width > 1100 {
-            TwoOneLayout(spacing: 16) {
+            TwoOneLayout(spacing: 16, rightMin: rightMin) {
                 VStack(alignment: .leading, spacing: 8) { left }
                 VStack(alignment: .leading, spacing: 8) { right }
             }
@@ -309,13 +345,16 @@ private struct DashboardColumns<L: View, R: View>: View {
     }
 }
 
-/// Zwei Spalten im Verhaeltnis 2:1 wie .span-2 in .grid.cols-3 (Spaltenbreite (B - 2 Abstaende) / 3)
+/// Zwei Spalten im Verhaeltnis 2:1 wie .span-2 in .grid.cols-3 (Spaltenbreite (B - 2 Abstaende) / 3);
+/// die rechte Spur waechst wie minmax(auto, 1fr) auf die Min-Content-Breite ihres Inhalts.
 private struct TwoOneLayout: Layout {
     var spacing: CGFloat = 16
+    var rightMin: CGFloat = 0
 
     private func widths(_ w: CGFloat) -> (CGFloat, CGFloat) {
         let col = max(0, (w - 2 * spacing) / 3)
-        return (col * 2 + spacing, col)
+        let right = min(max(col, rightMin), max(0, w - spacing - col))
+        return (w - spacing - right, right)
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
@@ -339,20 +378,23 @@ private struct TwoOneLayout: Layout {
 struct PackageCard: View {
     let p: JSONValue
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var toast: UFToastCenter
 
     var body: some View {
         let tasks = p.list("tasks")
         let done = tasks.filter { $0.s("status") == "erledigt" }.count
         let color = Color(hex: p.s("color"))
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3.2) {
                     HStack(spacing: 9.6) {
                         UFDot(color: color)
-                        Text(UFFmt.shortName(p.s("subject"))).font(.system(size: 14.5, weight: .bold)).foregroundStyle(UF.text)
-                        Text(timeText).font(UF.small).foregroundStyle(UF.muted)
+                        Text(UFFmt.shortName(p.s("subject"))).ufFont(14.5, 700).foregroundStyle(UF.text)
+                        Text(timeText).ufFont(13.12).foregroundStyle(UF.muted)
                     }
-                    Text(p.s("title") ?? "").font(UF.small).foregroundStyle(UF.text).padding(.leading, 17.6)
+                    Text(p.s("title") ?? "").ufFont(13.12).foregroundStyle(UF.text).padding(.leading, 17.6)
                 }
                 Spacer(minLength: 8)
                 UFStatusPill(status: p.s("status") ?? "geplant")
@@ -369,7 +411,7 @@ struct PackageCard: View {
                             Button("öffnen") { router.go(.doc(f, task: t.i("id"))) }.foregroundStyle(UF.accentText).buttonStyle(.plain)
                         }
                     }
-                    .font(UF.small)
+                    .ufFont(13.12)
                     .foregroundStyle(isDone ? UF.muted : UF.text)
                 }
             }
@@ -378,12 +420,13 @@ struct PackageCard: View {
             .padding(.bottom, 6.4)
             HStack(spacing: 9.6) {
                 UFProgress(value: tasks.isEmpty ? 0 : Double(done) / Double(tasks.count), ok: true)
-                UFButton("Lernpaket öffnen", size: .small) { router.go(.plan(view: "day", date: p.s("date") ?? UFFmt.todayISO())) }
+                UFButton("Lernpaket öffnen", size: .small) { PlanEnv.make(session, overlay, toast, router).openPackage(p.i("id") ?? 0) }
             }
             .padding(.leading, 17.6)
         }
-        .padding(.vertical, 11.2)
-        .padding(.horizontal, 14.4)
+        .padding(.vertical, 11.2 + ufB)                                      // .pkg-card: padding + Rand, links 4px
+        .padding(.trailing, 14.4 + ufB)
+        .padding(.leading, 14.4 + 4)
         .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
         .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
         .overlay(alignment: .leading) {
