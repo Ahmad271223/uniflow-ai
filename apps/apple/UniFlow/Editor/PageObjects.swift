@@ -48,9 +48,9 @@ enum ObjectGeometry {
             guard let p = polyline(pts, close: false), pts.count >= 4 else { return nil }
             let n = pts.count
             let tip = CGPoint(x: pts[n - 2], y: pts[n - 1]), from = CGPoint(x: pts[n - 4], y: pts[n - 3])
-            let sw = o["strokeWidth"]?.double ?? 2
-            let len = max(8, sw * 3), half = max(8, sw * 3) / 2
-            let angle = atan2(tip.y - from.y, tip.x - from.x)
+            let sw = CGFloat(o["strokeWidth"]?.double ?? 2)
+            let len: CGFloat = max(8, sw * 3), half: CGFloat = max(8, sw * 3) / 2
+            let angle: CGFloat = atan2(tip.y - from.y, tip.x - from.x)
             let back = CGPoint(x: tip.x - cos(angle) * len, y: tip.y - sin(angle) * len)
             let head = CGMutablePath()
             head.move(to: tip)
