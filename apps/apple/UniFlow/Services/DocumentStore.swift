@@ -28,9 +28,12 @@ enum LocalJournalName {
 actor InkProcessor {
     private var states: [String: InkPageState] = [:]
 
+    /// Zeichnung zum Neuladen. Der bisherige Zustand bleibt fuer die alte Canvas gueltig (`carryingOver`): ob und
+    /// wann die neue Zeichnung wirklich angezeigt wird, entscheidet der Editor (nicht waehrend eines Strichs).
     func drawing(key: String, page: JSONValue?) -> DrawingBox {
-        let (d, state) = StrokeConverter.drawing(fromPage: page)
-        states[key] = state
+        let older = states[key]
+        let (d, fresh) = StrokeConverter.drawing(fromPage: page, avoiding: older?.creationSlots ?? [])
+        states[key] = older.map { fresh.carryingOver($0) } ?? fresh
         return DrawingBox(drawing: d)
     }
 
@@ -41,6 +44,35 @@ actor InkProcessor {
         let update = StrokeConverter.update(from: drawing.drawing, previous: previous, state: state)
         states[key] = update.state
         return update
+    }
+}
+
+/// Notizen ueber `HTTPAnnotationTransport` mit austauschbarem `APIClient`: nach einer neuen PIN geht das schon
+/// geoeffnete Dokument ueber die neue Verbindung, ohne neu geoeffnet zu werden.
+final class SwitchableAnnotationTransport: AnnotationTransport, @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: HTTPAnnotationTransport
+
+    init(api: APIClient) { current = HTTPAnnotationTransport(api: api) }
+
+    func use(_ api: APIClient) {
+        lock.lock()
+        current = HTTPAnnotationTransport(api: api)
+        lock.unlock()
+    }
+
+    private var transport: HTTPAnnotationTransport {
+        lock.lock()
+        defer { lock.unlock() }
+        return current
+    }
+
+    func fetch(documentID: String) async throws -> ServerSnapshot {
+        try await transport.fetch(documentID: documentID)
+    }
+
+    func put(documentID: String, root: JSONValue, baseVersion: Int) async throws -> PutOutcome {
+        try await transport.put(documentID: documentID, root: root, baseVersion: baseVersion)
     }
 }
 
@@ -97,14 +129,20 @@ final class DocumentStore: ObservableObject {
     var pdf: PDFDocument? { layout?.pdf }
 
     let file: LibFile
-    private let api: APIClient
+    private var api: APIClient
+    private let transport: SwitchableAnnotationTransport
     private let engine: SyncEngine
     private let ink = InkProcessor()
     private var original: PDFDocument?
     private var document = AnnotationDocument.empty()
     private var structure = ""
     private var pendingDrawings: [String: DrawingBox] = [:]
+    /// Zaehlt je Seite jede Canvas-Aenderung: erkennt beim Neuladen, dass inzwischen geschrieben wurde.
+    private var canvasEdits: [String: Int] = [:]
     private var processing = false
+    /// Seite, deren Zeichnung gerade umgerechnet wird (aus `pendingDrawings` genommen, noch nicht gesichert).
+    private var processingKey: String?
+    private var processingWaiters: [CheckedContinuation<Void, Never>] = []
     private var processTask: Task<Void, Never>?
     private var monitor: NWPathMonitor?
     private var lifecycle: [NSObjectProtocol] = []
@@ -119,8 +157,10 @@ final class DocumentStore: ObservableObject {
     init(file: LibFile, api: APIClient) {
         self.file = file
         self.api = api
+        let transport = SwitchableAnnotationTransport(api: api)
+        self.transport = transport
         let journal = LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: file.id)
-        self.engine = SyncEngine(documentID: file.id, transport: HTTPAnnotationTransport(api: api), journal: journal)
+        self.engine = SyncEngine(documentID: file.id, transport: transport, journal: journal)
     }
 
     // MARK: Laden
@@ -185,11 +225,26 @@ final class DocumentStore: ObservableObject {
 
     func entry(forKey key: String) -> DisplayLayout.Entry? { layout?.entries.first { $0.key == key } }
 
-    /// Zeichnung einer Seite. Wird im Hintergrund aufgebaut.
+    /// Zeichnung einer Seite. Wird im Hintergrund aufgebaut. Wird waehrenddessen auf der Seite geschrieben, kommt
+    /// die neueste Zeichnung der Canvas zurueck (der Editor setzt das Ergebnis sofort, ein gerade beendeter Strich
+    /// darf dabei nicht verschwinden); neu geladen wird dann nach deren Umrechnung.
     func drawing(forPageKey key: String) async -> PKDrawing {
-        if let pending = pendingDrawings[key] { return pending.drawing }      // noch nicht verarbeitet: neuester Stand
-        let page = await engine.page(key)
-        return await ink.drawing(key: key, page: page).drawing
+        while true {
+            if let pending = pendingDrawings[key] { return pending.drawing }  // noch nicht verarbeitet: neuester Stand
+            if processingKey == key {                                         // Umrechnung laeuft: deren Ergebnis abwarten
+                await waitForProcessing()
+                continue
+            }
+            let edits = canvasEdits[key, default: 0]
+            let page = await engine.page(key)
+            let box = await ink.drawing(key: key, page: page)
+            if canvasEdits[key, default: 0] == edits && processingKey != key { return box.drawing }
+        }
+    }
+
+    private func waitForProcessing() async {
+        guard processing else { return }
+        await withCheckedContinuation { processingWaiters.append($0) }
     }
 
     /// Text, Formen, Bilder einer Seite.
@@ -214,6 +269,7 @@ final class DocumentStore: ObservableObject {
     func canvasChanged(pageKey key: String, drawing: PKDrawing) {
         guard !key.isEmpty else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
+        canvasEdits[key, default: 0] += 1
         processTask?.cancel()
         processTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 250_000_000)
@@ -232,10 +288,17 @@ final class DocumentStore: ObservableObject {
     private func processPending() async {
         guard !processing else { return }
         processing = true
-        defer { processing = false }
+        defer {
+            processing = false
+            processingKey = nil
+            let waiters = processingWaiters
+            processingWaiters = []
+            waiters.forEach { $0.resume() }
+        }
         var outdated: [String] = []
         while let (key, box) = pendingDrawings.first {
             pendingDrawings.removeValue(forKey: key)
+            processingKey = key
             let previous = await engine.page(key)
             let update = await ink.page(key: key, drawing: box, previous: previous)
             // hat eine Zusammenfuehrung die Seite waehrend der Umrechnung geaendert, wird zusammengefuehrt statt
@@ -243,6 +306,7 @@ final class DocumentStore: ObservableObject {
             let merged = await engine.updatePage(key, update.page, derivedFrom: previous)
             if update.canvasOutdated || merged { outdated.append(key) }
         }
+        processingKey = nil
         // Canvas zeigt anderswo geloeschte oder geaenderte Striche: aus dem gespeicherten Stand neu laden
         let reload = outdated.filter { pendingDrawings[$0] == nil }
         if !reload.isEmpty { onPagesChanged?(reload) }
@@ -253,8 +317,19 @@ final class DocumentStore: ObservableObject {
         await engine.acknowledgeMergedConflicts()
     }
 
-    /// Erneut hochladen (z. B. nach neuer PIN); bei 401/403 wird sonst nicht automatisch wiederholt.
+    /// Erneut versuchen; bei 401/403 wird sonst nicht automatisch wiederholt. Ist nichts ungesendet, prueft ein
+    /// leichter Abruf die Verbindung (der Hinweis verschwindet, spaetere Striche gehen wieder automatisch hoch).
+    /// Nach einer neuen PIN stattdessen `updateAPI` aufrufen, sonst geht die alte PIN mit.
     func retrySync() async {
+        await engine.requestUpload()
+    }
+
+    /// Neue Verbindung (z. B. korrigierte PIN, neuer `Session.api`): Laden und Speichern laufen ab sofort darueber,
+    /// danach wird sofort erneut versucht.
+    func updateAPI(_ api: APIClient) async {
+        guard api !== self.api else { return }
+        self.api = api
+        transport.use(api)
         await engine.requestUpload()
     }
 

@@ -18,11 +18,25 @@ import UniFlowCore
 /// Drei-Wege beim Speichern (Basis = Stand beim letzten Laden/Speichern, hier = Zeichnung, dort = aktuelle Seite):
 /// anderswo geloescht und hier unveraendert -> geloescht; anderswo geaendert und hier unveraendert -> dortiger Stand;
 /// hier geaendert -> Stand dieses Geraets; hier radiert, dort geaendert -> bleibt.
+///
+/// Neuladen der Canvas ist asynchron: bis die neue Zeichnung wirklich auf der Canvas liegt, koennen noch Zeichnungen
+/// der alten Canvas kommen. Der Zustand nach dem Neuladen (`carryingOver`) kennt deshalb beide Canvas-Staende und
+/// erkennt beim Speichern an den Strichen, welcher vorliegt. Fehlt ein Strich, der nur zum anderen Stand gehoert,
+/// gilt er nicht als radiert.
 struct InkPageState: Sendable {
     struct StrokeKey: Hashable, Sendable {
         let created: Double
         let count: Int
         let ink: String
+    }
+
+    /// Zu welchem Canvas-Stand ein Eintrag gehoert (nur zwischen Neuladen und naechster Umrechnung nicht `.both`).
+    enum Canvas: Sendable {
+        case both
+        /// nur auf der Canvas vor dem Neuladen
+        case older
+        /// nur auf der neu geladenen Canvas
+        case newer
     }
 
     struct Entry: Sendable {
@@ -35,12 +49,36 @@ struct InkPageState: Sendable {
         var deletedElsewhere = false
         /// Signatur von `objects` fuer `pkdrawing-v2` (einmal berechnet, solange der Strich unveraendert bleibt).
         var signature: String?
+        var canvas: Canvas = .both
     }
 
     var entries: [StrokeKey: [Entry]] = [:]
     /// IDs, die in der Zeichnung dargestellt sind. Andere Strich-Objekte der Seite (z. B. nicht darstellbar)
     /// werden beim Speichern unveraendert uebernommen.
     var represented: Set<String> = []
+    /// Nach dem Neuladen, solange noch keine Zeichnung umgerechnet wurde: dargestellte IDs der alten Canvas.
+    var olderRepresented: Set<String>?
+
+    /// Erstellzeiten (als Platz in `CreationSlots`), die Striche dieses Zustands tragen.
+    var creationSlots: Set<Int> {
+        Set(entries.keys.map { CreationSlots.slot(Date(timeIntervalSinceReferenceDate: $0.created)) })
+    }
+
+    /// Zustand nach dem Neuladen (`self` = frisch aus der Seite), der auch Zeichnungen der alten Canvas (`older`)
+    /// richtig zuordnet. Aus JSON aufgebaute Striche muessen dafuer andere Erstellzeiten tragen als die der alten
+    /// Canvas (`StrokeConverter.drawing(fromPage:avoiding:)`). Wird mit der naechsten Umrechnung wieder einfach.
+    func carryingOver(_ older: InkPageState) -> InkPageState {
+        var s = self
+        for (k, list) in entries where older.entries[k] == nil {
+            s.entries[k] = list.map { var e = $0; e.canvas = .newer; return e }
+        }
+        for (k, list) in older.entries where entries[k] == nil {
+            s.entries[k] = list.map { var e = $0; e.canvas = .older; return e }
+        }
+        // war schon die alte Canvas nicht eindeutig: nur IDs, die beide Staende darstellen (nichts zu viel loeschen)
+        s.olderRepresented = older.olderRepresented.map { older.represented.intersection($0) } ?? older.represented
+        return s
+    }
 }
 
 /// Ergebnis einer Umrechnung PencilKit -> Seite.
@@ -69,15 +107,16 @@ enum StrokeConverter {
 
     /// Zeichnung einer Seite: bevorzugt die gespeicherte native Zeichnung. v2: je Strich, solange dessen Objekte
     /// unveraendert sind; v1: nur als Ganzes, wenn sie noch zu allen Objekten passt. Alles andere wird aus den
-    /// Objekten aufgebaut.
-    static func drawing(fromPage page: JSONValue?) -> (PKDrawing, InkPageState) {
+    /// Objekten aufgebaut. `avoiding`: Erstellzeiten, die aufgebaute Striche nicht tragen duerfen (Striche der
+    /// Canvas vor dem Neuladen, siehe `InkPageState.carryingOver`).
+    static func drawing(fromPage page: JSONValue?, avoiding: Set<Int> = []) -> (PKDrawing, InkPageState) {
         let objects = page?["objects"]?.array ?? []
         guard let stored = StoredDrawing(page: page), let data = Data(base64Encoded: stored.data),
               let native = try? PKDrawing(data: data), native.strokes.count == stored.strokeIDs.count else {
-            return rebuild(objects: objects)
+            return rebuild(objects: objects, avoiding: avoiding)
         }
         if let sigs = stored.strokeSignatures, sigs.count == stored.strokeIDs.count {
-            return combine(native: native, strokeIDs: stored.strokeIDs, signatures: sigs, objects: objects)
+            return combine(native: native, strokeIDs: stored.strokeIDs, signatures: sigs, objects: objects, avoiding: avoiding)
         }
         if stored.signature == signature(objects) {
             var byID: [String: JSONValue] = [:]
@@ -93,25 +132,31 @@ enum StrokeConverter {
             }
             if complete { return (native, state) }
         }
-        return rebuild(objects: objects)
+        return rebuild(objects: objects, avoiding: avoiding)
     }
 
     /// v2: native Striche, deren Objekte unveraendert sind (Signatur je Strich), behalten ihr Aussehen; alle anderen
     /// Strich-Objekte werden aus dem JSON aufgebaut. Reihenfolge (Ueberdeckung) wie in `objects`.
-    static func combine(native: PKDrawing, strokeIDs: [[String]], signatures: [String], objects: [JSONValue]) -> (PKDrawing, InkPageState) {
+    static func combine(native: PKDrawing, strokeIDs: [[String]], signatures: [String], objects: [JSONValue],
+                        avoiding: Set<Int> = []) -> (PKDrawing, InkPageState) {
         var byID: [String: JSONValue] = [:]
         for o in objects { if let id = o["id"]?.string { byID[id] = o } }
         var valid: [Int: [JSONValue]] = [:]
         var nativeIndex: [String: Int] = [:]
-        var objectless: [Int] = []                                   // winzige Striche ohne Objekt (nur nativ)
+        var objectless: [Int] = []                                   // Striche ohne Objekt (aeltere Staende)
+        var anyInvalid = false
         for (i, ids) in strokeIDs.enumerated() {
             if ids.isEmpty { objectless.append(i); continue }
             let objs = ids.compactMap { byID[$0] }
-            guard objs.count == ids.count, strokeSignature(objs) == signatures[i] else { continue }   // geaendert/geloescht
+            guard objs.count == ids.count, strokeSignature(objs) == signatures[i] else { anyInvalid = true; continue }   // geaendert/geloescht
             valid[i] = objs
             for id in ids { nativeIndex[id] = i }
         }
-        var slots = CreationSlots(reserved: valid.keys.map { native.strokes[$0] } + objectless.map { native.strokes[$0] })
+        // Striche ohne Objekt sieht der Browser nicht und kann sie nicht loeschen: nur behalten, solange dort kein
+        // Strich der Seite geloescht oder geaendert wurde (sonst blieben z. B. i-Punkte eines geloeschten Worts stehen)
+        if anyInvalid { objectless = [] }
+        var slots = CreationSlots(reserved: valid.keys.map { native.strokes[$0] } + objectless.map { native.strokes[$0] },
+                                  avoiding: avoiding)
         var strokes: [PKStroke] = []
         var state = InkPageState()
         var emitted = Set<Int>()
@@ -138,10 +183,10 @@ enum StrokeConverter {
 
     /// Zeichnung aus den Objekten aufbauen. Jeder Strich bekommt eine eindeutige kuenstliche Erstellzeit, damit
     /// er spaeter eindeutig wiedererkannt wird.
-    static func rebuild(objects: [JSONValue]) -> (PKDrawing, InkPageState) {
+    static func rebuild(objects: [JSONValue], avoiding: Set<Int> = []) -> (PKDrawing, InkPageState) {
         var strokes: [PKStroke] = []
         var state = InkPageState()
-        var slots = CreationSlots(reserved: [])
+        var slots = CreationSlots(reserved: [], avoiding: avoiding)
         for o in objects {
             guard let id = o["id"]?.string else { continue }
             guard let s = stroke(from: o, created: slots.next()) else { continue }
@@ -241,6 +286,7 @@ enum StrokeConverter {
         var strokeSigs: [String] = []
         var current: [JSONValue] = []
         var outdated = false
+        var sawOlder = false, sawNewer = false
         for s in drawing.strokes {
             let k = key(s)
             let content = contentHash(s)
@@ -248,13 +294,16 @@ enum StrokeConverter {
             if var list = pool[k], !list.isEmpty {
                 let old = list.removeFirst()
                 pool[k] = list
-                if old.content == content {
+                if old.canvas == .older { sawOlder = true }
+                if old.canvas == .newer { sawNewer = true }
+                if old.content == content && !old.ids.isEmpty {
                     // hier unveraendert: fuer diese IDs gilt der aktuelle Seitenstand
                     let present = old.ids.filter { previousByID[$0] != nil }
-                    if present.isEmpty && !old.ids.isEmpty {
+                    if present.isEmpty {
                         // anderswo geloescht, hier unveraendert -> Loeschung gewinnt
                         var ghost = old
                         ghost.deletedElsewhere = true
+                        ghost.canvas = .both
                         next.entries[k, default: []].append(ghost)
                         outdated = true
                         continue
@@ -263,13 +312,15 @@ enum StrokeConverter {
                     if present.count == old.ids.count && objs == old.objects {
                         entry = old
                         entry.deletedElsewhere = false
+                        entry.canvas = .both
                     } else {
                         // anderswo geaendert oder teilweise geloescht: dortiger Stand, native Darstellung passt nicht mehr
                         entry = .init(ids: present, content: content, objects: objs, nativeMatches: false)
                         outdated = true
                     }
                 } else {
-                    // hier geaendert (Lasso, Radierer, Farbe): neu umrechnen, bisherige Zusatzfelder behalten
+                    // hier geaendert (Lasso, Radierer, Farbe) oder bisher ohne Objekt: neu umrechnen, bisherige
+                    // Zusatzfelder behalten
                     var oldByID: [String: JSONValue] = [:]
                     for o in old.objects { if let id = o["id"]?.string { oldByID[id] = o } }
                     let templates = old.ids.map { previousByID[$0] ?? oldByID[$0] }
@@ -292,10 +343,27 @@ enum StrokeConverter {
             current.append(contentsOf: entry.objects)
         }
 
-        // hier radiert: nur, wenn anderswo unveraendert (sonst bleibt der dortige Stand)
+        // Nach einem Neuladen: welcher Canvas-Stand liegt vor? Nicht eindeutig -> nur loeschen, was beide darstellen.
+        var represented = state.represented
+        var otherCanvas: InkPageState.Canvas?
+        if let olderRepresented = state.olderRepresented {
+            if sawOlder && !sawNewer {
+                represented = olderRepresented
+                otherCanvas = .newer
+            } else if sawNewer && !sawOlder {
+                otherCanvas = .older
+            } else {
+                represented = state.represented.intersection(olderRepresented)
+            }
+        }
+        // nur ein Canvas-Stand zeigt sie, ob hier radiert wurde ist offen: bleiben stehen
+        let uncertain = state.olderRepresented.map { state.represented.union($0).subtracting(represented) } ?? []
+
+        // hier radiert: nur, wenn anderswo unveraendert (sonst bleibt der dortige Stand). Striche, die nur der
+        // andere Canvas-Stand zeigt, fehlen hier nicht wegen Radierens.
         var keptDespiteErase = Set<String>()
         for list in pool.values {
-            for old in list where !old.deletedElsewhere {
+            for old in list where !old.deletedElsewhere && (otherCanvas == nil || old.canvas != otherCanvas) {
                 for o in old.objects {
                     guard let id = o["id"]?.string, let theirs = previousByID[id], theirs != o else { continue }
                     keptDespiteErase.insert(id)
@@ -310,7 +378,7 @@ enum StrokeConverter {
         var placed = Set<String>()
         for o in previousObjects {
             let id = o["id"]?.string ?? ""
-            if o["type"]?.string == "stroke", !id.isEmpty, state.represented.contains(id) || byID[id] != nil {
+            if o["type"]?.string == "stroke", !id.isEmpty, represented.contains(id) || byID[id] != nil {
                 if let updated = byID[id] {
                     if placed.insert(id).inserted { result.append(updated) }
                 } else if keptDespiteErase.contains(id), placed.insert(id).inserted {
@@ -319,6 +387,7 @@ enum StrokeConverter {
             } else {
                 result.append(o)                                                    // Text, Formen, Bilder ...
                 if !id.isEmpty { placed.insert(id) }
+                if uncertain.contains(id) { outdated = true }                       // bleibt, Canvas soll ihn zeigen
             }
         }
         for o in current {
@@ -366,6 +435,15 @@ enum StrokeConverter {
                 pts.append(.number(round2(Double(loc.x))))
                 pts.append(.number(round2(Double(loc.y))))
                 widths.append(round2(Double(p.size.width * scale)))
+            }
+            if pts.count < 4, !s.path.isEmpty {
+                // einzelner Punkt (z. B. i-Punkt): wie im Web-Editor als Mini-Strich, damit der Browser ihn sieht
+                // und loeschen kann
+                let p = s.path.interpolatedPoint(at: range.lowerBound)
+                let loc = p.location.applying(t)
+                let x = round2(Double(loc.x)), y = round2(Double(loc.y)), w = round2(Double(p.size.width * scale))
+                pts = [.number(x), .number(y), .number(round2(x + 0.05)), .number(round2(y + 0.05))]
+                widths = [w, w]
             }
             guard pts.count >= 4 else { continue }
             let id = i < ids.count ? ids[i] : newID()
@@ -450,8 +528,8 @@ struct CreationSlots {
     private var taken: Set<Int>
     private var n = 0
 
-    init(reserved: [PKStroke]) {
-        taken = Set(reserved.map { CreationSlots.slot($0.path.creationDate) })
+    init(reserved: [PKStroke], avoiding: Set<Int> = []) {
+        taken = Set(reserved.map { CreationSlots.slot($0.path.creationDate) }).union(avoiding)
     }
 
     static func slot(_ date: Date) -> Int {

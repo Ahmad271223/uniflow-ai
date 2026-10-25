@@ -117,7 +117,10 @@ public struct SyncStats: Equatable, Sendable {
 ///   erneut gesendet. Striche beider Geraete bleiben erhalten.
 /// - Ohne Netz: Wiederholung mit wachsendem Abstand (2 s … 60 s), lokale Daten bleiben ungesendet markiert.
 /// - 401/403 (PIN, Zugriff): keine automatische Wiederholung, erst wieder nach `requestUpload`/`syncNow`.
-///   5xx: Wiederholung mit wachsendem Abstand (2 s … 5 min). Den Grund meldet `issue` (nie "Offline").
+///   5xx: Wiederholung mit wachsendem Abstand (2 s … 5 min), auch wenn der Fehler schon beim Oeffnen kam. Den Grund
+///   meldet `issue` (nie "Offline").
+/// - Ist nach einem Fehler nichts zu senden, prueft ein leichter Abruf, ob der Server wieder antwortet (und holt
+///   dabei neuere Staende). So bleibt kein Fehlerzustand stehen, der spaetere Striche lokal festhaelt.
 public actor SyncEngine {
     public typealias Sleeper = @Sendable (Double) async -> Void
 
@@ -153,6 +156,8 @@ public actor SyncEngine {
     private var blockedBy: SyncIssue?                     // 401/403: wartet auf ausdrueckliche Anfrage
     private var serverErrorStatus: Int?
     private var serverRetryDelay = 2.0
+    private var serverRetryScheduled = false              // Wiederholung nach 5xx steht aus (nicht verkuerzen)
+    private var scheduleToken = 0
     private var mergedConflictCount = 0
     private var debounceTask: Task<Void, Never>?
     private var idleWaiters: [CheckedContinuation<Void, Never>] = []
@@ -227,7 +232,10 @@ public actor SyncEngine {
             noteTransportFailure(SyncIssue.classify(error))
         }
         refreshStatus()
-        if hasDirty && blockedBy == nil { scheduleUpload(after: 0) }
+        if blockedBy == nil {
+            if hasDirty { scheduleUpload(after: 0) }
+            else if serverErrorStatus != nil { scheduleServerRetry() }   // 5xx beim Oeffnen: spaeter erneut abrufen
+        }
         return OpenResult(document: currentDocument(), serverReachable: reachable,
                           restoredUnsentPages: restored, damagedFiles: snapshot?.damaged ?? [])
     }
@@ -308,6 +316,7 @@ public actor SyncEngine {
         isShutDown = true
         debounceTask?.cancel()
         debounceTask = nil
+        serverRetryScheduled = false
     }
 
     /// Sofort hochladen und warten, bis nichts mehr aussteht oder der Server nicht erreichbar ist.
@@ -320,22 +329,43 @@ public actor SyncEngine {
         await uploadLoop()
     }
 
-    /// Nach einer Aenderung: kurz warten und hochladen. Bei 401/403 nicht (wartet auf ausdrueckliche Anfrage), bei
-    /// einem Serverfehler bleibt die geplante Wiederholung mit wachsendem Abstand bestehen.
+    /// Nach einer Aenderung: kurz warten und hochladen. Bei 401/403 nicht (wartet auf ausdrueckliche Anfrage). Bei
+    /// einem Serverfehler bleibt eine geplante Wiederholung mit wachsendem Abstand bestehen; ist keine geplant (z. B.
+    /// 5xx beim Oeffnen ohne ungesendete Seiten), wird eine geplant.
     private func scheduleUploadAfterEdit() {
-        guard blockedBy == nil, serverErrorStatus == nil else { return }
+        guard blockedBy == nil else { return }
+        guard serverErrorStatus == nil else {
+            if !serverRetryScheduled && !uploading { scheduleServerRetry() }   // laufender Versuch plant selbst neu
+            return
+        }
         scheduleUpload(after: uploadDelay)
+    }
+
+    /// Naechster Versuch nach einem Serverfehler, Abstand waechst (2 s … 5 min).
+    private func scheduleServerRetry() {
+        let wait = serverRetryDelay
+        serverRetryDelay = min(serverRetryDelay * 2, 300)
+        scheduleUpload(after: wait)
+        serverRetryScheduled = !isShutDown
     }
 
     private func scheduleUpload(after delay: Double) {
         debounceTask?.cancel()
+        serverRetryScheduled = false
+        scheduleToken += 1
         guard !isShutDown else { return }
         let sleeper = self.sleeper
+        let token = scheduleToken
         debounceTask = Task { [weak self] in
             if delay > 0 { await sleeper(delay) }
             if Task.isCancelled { return }
-            await self?.startUploadLoop()
+            await self?.startScheduledUpload(token)
         }
+    }
+
+    private func startScheduledUpload(_ token: Int) {
+        if token == scheduleToken { serverRetryScheduled = false }       // sonst inzwischen neu geplant
+        startUploadLoop()
     }
 
     private func startUploadLoop() {
@@ -347,6 +377,19 @@ public actor SyncEngine {
     private func uploadLoop() async {
         if uploading { return }
         uploading = true
+        if !hasDirty && (serverErrorStatus != nil || blockedBy != nil || networkDown) {
+            // nichts zu senden, der letzte Versuch scheiterte aber: leichter Abruf, ob der Server wieder antwortet
+            do {
+                let server = try await transport.fetch(documentID: documentID)
+                noteReachable()
+                retryDelay = 2
+                serverRetryDelay = 2
+                if server.version != serverVersion || hasStalePages { merge(with: server) }
+            } catch {
+                handleTransportError(error)
+                return
+            }
+        }
         var conflictsInRow = 0
         rounds: while true {
             retryFailedWrites()
@@ -361,23 +404,7 @@ public actor SyncEngine {
             do {
                 outcome = try await transport.put(documentID: documentID, root: root, baseVersion: serverVersion)
             } catch {
-                let failure = SyncIssue.classify(error)
-                noteTransportFailure(failure)
-                uploading = false
-                refreshStatus()
-                switch failure {
-                case .pinFehlt, .zugriffVerweigert:
-                    break                                       // keine Wiederholung ohne ausdrueckliche Anfrage
-                case .serverfehler:
-                    let wait = serverRetryDelay
-                    serverRetryDelay = min(serverRetryDelay * 2, 300)
-                    scheduleUpload(after: wait)
-                default:
-                    let wait = retryDelay
-                    retryDelay = min(retryDelay * 2, 60)
-                    scheduleUpload(after: wait)
-                }
-                resumeIdleWaiters()
+                handleTransportError(error)
                 return
             }
             noteReachable()
@@ -410,6 +437,25 @@ public actor SyncEngine {
         }
         uploading = false
         refreshStatus()
+        resumeIdleWaiters()
+    }
+
+    /// Fehlgeschlagener Versuch (Abruf oder Speichern): Grund merken, Wiederholung planen, Wartende freigeben.
+    private func handleTransportError(_ error: Error) {
+        let failure = SyncIssue.classify(error)
+        noteTransportFailure(failure)
+        uploading = false
+        refreshStatus()
+        switch failure {
+        case .pinFehlt, .zugriffVerweigert:
+            break                                       // keine Wiederholung ohne ausdrueckliche Anfrage
+        case .serverfehler:
+            scheduleServerRetry()
+        default:
+            let wait = retryDelay
+            retryDelay = min(retryDelay * 2, 60)
+            scheduleUpload(after: wait)
+        }
         resumeIdleWaiters()
     }
 

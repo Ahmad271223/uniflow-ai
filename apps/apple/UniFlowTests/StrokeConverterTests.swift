@@ -338,4 +338,131 @@ final class StrokeConverterTests: XCTestCase {
         XCTAssertEqual(UIColor.black.uniflowRGBA.hex, "#000000")
         XCTAssertEqual(UIColor.white.withAlphaComponent(0.5).uniflowRGBA.alpha, 0.5, accuracy: 0.01)
     }
+
+    // MARK: Striche mit einem Punkt
+
+    private func dotStroke(created: Date) -> PKStroke {
+        let p = PKStrokePoint(location: CGPoint(x: 52, y: 90), timeOffset: 0, size: CGSize(width: 3, height: 3),
+                              opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2)
+        return PKStroke(ink: PKInk(.pen, color: .black), path: PKStrokePath(controlPoints: [p], creationDate: created))
+    }
+
+    func testSinglePointStrokeGetsObjectTheBrowserCanDelete() {
+        let created = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        var d = PKDrawing()
+        d.strokes.append(nativeStroke(at: 100, created: created))
+        d.strokes.append(dotStroke(created: created.addingTimeInterval(1)))          // i-Punkt
+        let saved = StrokeConverter.update(from: d, previous: ["objects": []], state: InkPageState()).page
+        let objs = saved["objects"]?.array ?? []
+        XCTAssertEqual(objs.count, 2, "Punkt hat ein eigenes Objekt")
+        XCTAssertEqual(objs[1]["points"]?.array?.count, 4, "wie im Web-Editor: Punkt + Punkt um 0,05 versetzt")
+        XCTAssertFalse(StoredDrawing(page: saved)?.strokeIDs.contains([]) ?? true, "kein Strich ohne Objekt")
+        var browser = saved
+        browser["objects"] = .array([])                                              // Browser loescht alles
+        XCTAssertEqual(StrokeConverter.drawing(fromPage: browser).0.strokes.count, 0, "Punkt bleibt nicht verwaist")
+        // unveraendert neu geladen und gespeichert: JSON bleibt gleich
+        let (reloaded, state) = StrokeConverter.drawing(fromPage: saved)
+        XCTAssertEqual(reloaded.strokes.count, 2)
+        let again = StrokeConverter.update(from: reloaded, previous: saved, state: state)
+        XCTAssertEqual(again.page["objects"], saved["objects"])
+    }
+
+    /// Aeltere v2-Staende mit Strich ohne Objekt (`strokeIds` []): bleibt nur, solange im Browser nichts geloescht
+    /// wurde, und bekommt beim naechsten Speichern ein Objekt.
+    func testLegacyObjectlessStrokeIsDroppedAfterBrowserDeletion() throws {
+        let created = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        var word = PKDrawing()
+        word.strokes.append(nativeStroke(at: 100, created: created))
+        let wordPage = StrokeConverter.update(from: word, previous: ["objects": []], state: InkPageState()).page
+        let wordStored = try XCTUnwrap(StoredDrawing(page: wordPage))
+        var both = word
+        both.strokes.append(dotStroke(created: created.addingTimeInterval(1)))
+        var legacy = wordPage
+        legacy["pkdrawing"] = StoredDrawing(data: both.dataRepresentation().base64EncodedString(), signature: "teilweise",
+                                            strokeIDs: wordStored.strokeIDs + [[]],
+                                            strokeSignatures: (wordStored.strokeSignatures ?? []) + [""]).json
+        let (kept, keptState) = StrokeConverter.drawing(fromPage: legacy)
+        XCTAssertEqual(kept.strokes.count, 2, "Seite unveraendert: Punkt bleibt")
+        let upgraded = StrokeConverter.update(from: kept, previous: legacy, state: keptState).page
+        XCTAssertEqual(upgraded["objects"]?.array?.count, 2, "Punkt bekommt ein Objekt")
+        var browser = legacy
+        browser["objects"] = .array([])
+        XCTAssertEqual(StrokeConverter.drawing(fromPage: browser).0.strokes.count, 0, "Wort geloescht: Punkt auch")
+    }
+
+    // MARK: Neuladen waehrend des Schreibens
+
+    /// Rennen beim Neuladen: der Zustand ist schon neu geladen (Browser hat a geloescht), die Canvas zeigt noch a,
+    /// und ein neuer Strich kommt dazu. a darf nicht mit neuer ID zurueckkommen, der neue Strich bleibt.
+    func testStaleCanvasAfterReloadDoesNotResurrectBrowserDeletion() async {
+        let ink = InkProcessor()
+        let page: JSONValue = ["objects": [webStroke("a"), webStroke("b", x: 100)]]
+        var canvas = await ink.drawing(key: "p1", page: page).drawing
+        let browser: JSONValue = ["objects": [webStroke("b", x: 100)]]
+        let reloaded = await ink.drawing(key: "p1", page: browser).drawing           // Neuladen, Canvas noch alt
+        canvas.strokes.append(nativeStroke(at: 300))
+        let first = await ink.page(key: "p1", drawing: DrawingBox(drawing: canvas), previous: browser)
+        XCTAssertEqual(ids(first.page).count, 2, "b und neuer Strich: \(ids(first.page))")
+        XCTAssertEqual(ids(first.page).first, "b")
+        XCTAssertFalse(ids(first.page).contains("a"))
+        XCTAssertTrue(first.canvasOutdated, "Canvas zeigt a noch: neu laden")
+        // noch ein Strich auf der alten Canvas: a bleibt weg, nichts geht verloren
+        canvas.strokes.append(nativeStroke(at: 340))
+        let second = await ink.page(key: "p1", drawing: DrawingBox(drawing: canvas), previous: first.page)
+        XCTAssertEqual(ids(second.page).count, 3)
+        XCTAssertEqual(Array(ids(second.page).prefix(2)), ids(first.page))
+        XCTAssertEqual(reloaded.strokes.count, 1)
+    }
+
+    /// Dasselbe mit nativen iPad-Strichen (pkdrawing-v2): im Browser geloeschter Strich kommt nicht zurueck.
+    func testStaleNativeCanvasAfterReloadKeepsBrowserDeletion() async throws {
+        let created = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        var d = PKDrawing()
+        d.strokes.append(nativeStroke(at: 100, created: created))
+        d.strokes.append(nativeStroke(at: 140, created: created.addingTimeInterval(1)))
+        let saved = StrokeConverter.update(from: d, previous: ["objects": []], state: InkPageState()).page
+        let ink = InkProcessor()
+        var canvas = await ink.drawing(key: "p1", page: saved).drawing
+        var browser = saved
+        let objs = try XCTUnwrap(saved["objects"]?.array)
+        browser["objects"] = .array([objs[1]])                                       // Browser loescht den ersten
+        _ = await ink.drawing(key: "p1", page: browser)
+        canvas.strokes.append(nativeStroke(at: 300, created: created.addingTimeInterval(5)))
+        let u = await ink.page(key: "p1", drawing: DrawingBox(drawing: canvas), previous: browser)
+        XCTAssertEqual(ids(u.page).count, 2)
+        XCTAssertEqual(ids(u.page).first, objs[1]["id"]?.string)
+        XCTAssertFalse(ids(u.page).contains(objs[0]["id"]?.string ?? "-"))
+        XCTAssertTrue(u.canvasOutdated)
+    }
+
+    /// Alte Canvas nach dem Neuladen, im Browser kam ein Strich dazu: er wird nicht als "hier radiert" geloescht.
+    func testStaleCanvasAfterReloadKeepsStrokeAddedInBrowser() async {
+        let ink = InkProcessor()
+        let page: JSONValue = ["objects": [webStroke("a")]]
+        var canvas = await ink.drawing(key: "p1", page: page).drawing
+        let browser: JSONValue = ["objects": [webStroke("a"), webStroke("web", x: 200)]]
+        _ = await ink.drawing(key: "p1", page: browser)
+        canvas.strokes.append(nativeStroke(at: 300))
+        let u = await ink.page(key: "p1", drawing: DrawingBox(drawing: canvas), previous: browser)
+        XCTAssertEqual(Array(ids(u.page).prefix(2)), ["a", "web"])
+        XCTAssertEqual(ids(u.page).count, 3)
+        XCTAssertTrue(u.canvasOutdated, "Canvas zeigt web noch nicht")
+    }
+
+    /// Neu geladene Canvas: alles wie gewohnt (Radieren wirkt, Browser-Striche bleiben, kein erneutes Neuladen).
+    func testFreshCanvasAfterReloadBehavesNormally() async {
+        let ink = InkProcessor()
+        let page: JSONValue = ["objects": [webStroke("a"), webStroke("b", x: 100)]]
+        _ = await ink.drawing(key: "p1", page: page)
+        let browser: JSONValue = ["objects": [webStroke("b", x: 100), webStroke("web", x: 200)]]
+        var canvas = await ink.drawing(key: "p1", page: browser).drawing
+        XCTAssertEqual(canvas.strokes.count, 2)
+        let unchanged = await ink.page(key: "p1", drawing: DrawingBox(drawing: canvas), previous: browser)
+        XCTAssertEqual(unchanged.page["objects"], browser["objects"])
+        XCTAssertFalse(unchanged.canvasOutdated)
+        canvas.strokes.remove(at: 0)                                                 // b hier radiert
+        let erased = await ink.page(key: "p1", drawing: DrawingBox(drawing: canvas), previous: unchanged.page)
+        XCTAssertEqual(ids(erased.page), ["web"])
+        XCTAssertFalse(erased.canvasOutdated)
+    }
 }

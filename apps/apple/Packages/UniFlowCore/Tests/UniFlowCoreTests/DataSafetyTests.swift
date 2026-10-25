@@ -223,6 +223,101 @@ final class SyncIssueTests: XCTestCase {
         await engine.shutdown()
     }
 
+    /// 5xx schon beim Oeffnen, nichts ungesendet: spaetere Striche werden trotzdem automatisch hochgeladen.
+    func testServerErrorOnOpenThenEditUploads() async {
+        let server = MockServer()
+        await server.setFailStatus(503)
+        let engine = makeEngine(server, MemoryBlobStore())
+        _ = await engine.open(pdfPageCount: 1)
+        let issue = await engine.issue
+        XCTAssertEqual(issue, .serverfehler(503))
+        await server.setFailStatus(nil)                                     // Server wieder in Ordnung
+        await engine.updatePage("p1", page(["a"]))
+        let saved = await waitUntil(timeout: 5) { await engine.status == .saved }
+        let puts = await server.putTimes.count
+        XCTAssertTrue(saved, "Aenderung nach 5xx beim Oeffnen hochgeladen (puts=\(puts))")
+        let cleared = await engine.issue
+        XCTAssertNil(cleared)
+        let ids = await server.objectIDs(page: "p1")
+        XCTAssertEqual(ids, ["a"])
+        await engine.shutdown()
+    }
+
+    /// 5xx beim Oeffnen, Server bleibt kaputt, dann wird geschrieben: Wiederholung mit wachsendem Abstand, bis es klappt.
+    func testServerErrorOnOpenThenEditRetriesUntilServerRecovers() async {
+        let server = MockServer()
+        await server.setFailStatus(503)
+        let engine = makeEngine(server, MemoryBlobStore())
+        _ = await engine.open(pdfPageCount: 1)
+        await engine.updatePage("p1", page(["a"]))
+        let tried = await waitUntil(timeout: 5) { await server.putTimes.count >= 3 }
+        XCTAssertTrue(tried, "wird wiederholt")
+        let status = await engine.status
+        XCTAssertTrue(status.isSafeLocally)
+        await server.setFailStatus(nil)
+        let saved = await waitUntil(timeout: 10) { await engine.status == .saved }
+        XCTAssertTrue(saved)
+        await engine.shutdown()
+    }
+
+    /// 5xx beim Oeffnen ohne Aenderungen: ein spaeterer Abruf holt den Serverstand, der Hinweis verschwindet.
+    func testServerErrorOnOpenRecoversAndFetchesServerState() async {
+        let server = MockServer()
+        await server.externalEdit { $0.pages["p1"] = page(["web"]) }
+        await server.setFailStatus(503)
+        let engine = makeEngine(server, MemoryBlobStore())
+        let changed = KeysBox()
+        await engine.setHandlers(onStatus: nil, onRemoteChange: { changed.add($0) })
+        _ = await engine.open(pdfPageCount: 1)
+        await server.setFailStatus(nil)
+        let cleared = await waitUntil(timeout: 5) { await engine.issue == nil }
+        XCTAssertTrue(cleared, "Serverfehler bleibt nicht stehen")
+        let ids = await engine.page("p1")?["objects"]?.array?.compactMap { $0["id"]?.string }
+        XCTAssertEqual(ids, ["web"], "Serverstand nachgeholt")
+        XCTAssertEqual(changed.keys, ["p1"], "Anzeige wird neu geladen")
+        let puts = await server.putTimes.count
+        XCTAssertEqual(puts, 0, "nichts zu senden")
+        await engine.shutdown()
+    }
+
+    /// 401 ohne ungesendete Seiten: nach ausdruecklicher Anfrage mit gueltiger PIN ist der Hinweis weg, spaetere
+    /// Striche gehen wieder automatisch hoch.
+    func testExplicitRequestWithoutUnsentPagesClearsBlocked() async {
+        let server = MockServer()
+        await server.setFailStatus(401)
+        let engine = makeEngine(server, MemoryBlobStore())
+        _ = await engine.open(pdfPageCount: 1)
+        let blocked = await engine.issue
+        XCTAssertEqual(blocked, .pinFehlt)
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        let attempts = await server.putTimes.count
+        XCTAssertEqual(attempts, 0, "kein automatischer Versuch")
+        await server.setFailStatus(nil)
+        await engine.requestUpload()
+        let cleared = await waitUntil { await engine.issue == nil }
+        XCTAssertTrue(cleared)
+        await engine.updatePage("p1", page(["a"]))
+        let saved = await waitUntil { await engine.status == .saved }
+        XCTAssertTrue(saved, "ohne weitere Anfrage hochgeladen")
+        let ids = await server.objectIDs(page: "p1")
+        XCTAssertEqual(ids, ["a"])
+    }
+
+    /// Ausdrueckliche Anfrage mit weiterhin falscher PIN: bleibt blockiert, keine Wiederholungen.
+    func testExplicitRequestWithStillWrongPinStaysBlocked() async {
+        let server = MockServer()
+        await server.setFailStatus(401)
+        let engine = makeEngine(server, MemoryBlobStore())
+        _ = await engine.open(pdfPageCount: 1)
+        await engine.syncNow()
+        let issue = await engine.issue
+        XCTAssertEqual(issue, .pinFehlt)
+        await engine.updatePage("p1", page(["a"]))
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        let attempts = await server.putTimes.count
+        XCTAssertEqual(attempts, 0)
+    }
+
     func testNetworkErrorStaysOffline() async {
         let server = MockServer()
         let engine = makeEngine(server, MemoryBlobStore())
@@ -264,6 +359,13 @@ final class SyncIssueTests: XCTestCase {
         XCTAssertTrue(SyncIssue.pinFehlt.needsUserAction)
         XCTAssertFalse(SyncIssue.serverfehler(500).needsUserAction)
     }
+}
+
+final class KeysBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [String] = []
+    func add(_ v: [String]) { lock.lock(); stored += v; lock.unlock() }
+    var keys: [String] { lock.lock(); defer { lock.unlock() }; return stored }
 }
 
 final class IssueBox: @unchecked Sendable {
