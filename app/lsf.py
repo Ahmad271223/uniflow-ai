@@ -113,7 +113,8 @@ def import_plan(conn, entries: list[dict]) -> dict:
         want.setdefault(_key(e), e)
     new = [e for k, e in want.items() if k not in ex_map]
     removed = [x["id"] for k, x in ex_map.items() if k not in want]
-    res = timetable.apply_import(conn, new, "lsf", remove_ids=removed)
+    # Ausfaelle legt import_plan unten selbst an (Notiz "laut LSF", auch fuer bestehende Serien), nicht apply_import
+    res = timetable.apply_import(conn, [{**e, "exdates": None} for e in new], "lsf", remove_ids=removed)
     # Vorlesungsfreie Tage (EXDATE) als Ausfall, fuer neue und bestehende Serien (ohne Doppelte)
     ids = {k: x["id"] for k, x in ex_map.items() if k in want}
     for e, new_id in zip(new, res["ids"]):

@@ -8,12 +8,14 @@ import difflib
 import json
 import re
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 from . import db
 
 WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 KIND_WORDS = {"uebung": ["übung", "uebung", "ü:", "exercise", "tutorium", "gruppenübung", "zentralübung"], "labor": ["labor", "praktikum", "lab"], "seminar": ["seminar"]}
+# TZID-Werte, die UTC bedeuten (ohne Zeitzonendatenbank erkannt, unter Windows fehlt sie ohne tzdata)
+UTC_TZIDS = {"UTC", "ETC/UTC", "GMT", "ETC/GMT", "Z", "UNIVERSAL", "ETC/UNIVERSAL", "ZULU", "ETC/ZULU", "UCT", "ETC/UCT"}
 
 
 def hm(t: str) -> int:
@@ -261,34 +263,35 @@ def parse_ics(text: str) -> list[dict]:
         elif cur is not None and ":" in ln:
             k, v = ln.split(":", 1)
             key = k.split(";")[0].upper()
-            if key == "EXDATE":   # kann mehrfach vorkommen und mehrere Daten enthalten
-                cur.setdefault("_EXDATES", []).extend(x for x in v.strip().split(",") if x)
-                continue
             cur[key] = v.strip()
             if key in ("DTSTART", "DTEND"):
                 cur[key + "_PARAMS"] = k
+            elif key == "EXDATE":
+                # mehrere EXDATE-Zeilen moeglich, jede mit eigener TZID
+                cur.setdefault("EXDATE_LIST", []).append((v.strip(), k))
     out = []
     for ev in events:
         try:
-            st = _ics_dt(ev.get("DTSTART", ""))
-            en = _ics_dt(ev.get("DTEND", "")) if ev.get("DTEND") else st + timedelta(minutes=90)
+            st = _ics_dt(ev.get("DTSTART", ""), ev.get("DTSTART_PARAMS", ""))
+            en = _ics_dt(ev.get("DTEND", ""), ev.get("DTEND_PARAMS", "")) if ev.get("DTEND") else st + timedelta(minutes=90)
         except ValueError:
             continue
         rr = ev.get("RRULE", "")
         weekly = "FREQ=WEEKLY" in rr
         interval = re.search(r"INTERVAL=(\d+)", rr)
-        until = re.search(r"UNTIL=(\d{8})", rr)
         title = ev.get("SUMMARY", "Veranstaltung").replace("\\,", ",")
         # BYDAY bestimmt den Wochentag; DTSTART ist z. B. im LSF der Semesterbeginn (Montag), auch fuer Donnerstags-Kurse
         byday = re.search(r"BYDAY=([A-Z,0-9+-]+)", rr) if weekly else None
         days = [ICS_DAYS[d[-2:]] for d in byday.group(1).split(",") if d[-2:] in ICS_DAYS] if byday else []
-        exd = {_ics_dt(x).date() for x in ev.get("_EXDATES", []) if _safe_ics_dt(x)}
+        exd = _ics_exdates(ev.get("EXDATE_LIST", []))
+        until = _ics_until(rr, st)
         for wd in days or [st.weekday()]:
             first = st.date() + timedelta(days=(wd - st.weekday()) % 7)
             out.append({"title": title, "kind": guess_kind(title), "weekday": wd, "start_time": st.strftime("%H:%M"), "end_time": en.strftime("%H:%M"),
                         "room": (ev.get("LOCATION") or "").replace("\\,", ","), "rrule": ("biweekly" if interval and interval.group(1) == "2" else "weekly") if weekly else "once",
-                        "date_from": first.isoformat(), "date_to": f"{until.group(1)[:4]}-{until.group(1)[4:6]}-{until.group(1)[6:]}" if until else None, "uncertain": False,
-                        "exdates": sorted(d.isoformat() for d in exd if d.weekday() == wd),
+                        "date_from": first.isoformat(), "date_to": until, "uncertain": False,
+                        # mehrere BYDAY: jede Serie bekommt nur die Ausfaelle an ihrem Wochentag
+                        "exdates": [d for d in exd if not days or date.fromisoformat(d).weekday() == wd],
                         "uid": ev.get("UID"), "description": (ev.get("DESCRIPTION") or "").replace("\\n", "\n").replace("\\,", ",")})
     return out
 
@@ -296,19 +299,80 @@ def parse_ics(text: str) -> list[dict]:
 ICS_DAYS = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
 
 
-def _safe_ics_dt(v: str) -> bool:
-    try:
-        _ics_dt(v)
-        return True
-    except ValueError:
-        return False
-
-
-def _ics_dt(v: str) -> datetime:
+def _ics_dt(v: str, params: str = "") -> datetime:
+    """Zeitpunkt aus DTSTART/DTEND/EXDATE als Ortszeit Europe/Berlin (ohne Zone). "...Z" ist UTC, TZID=... eine
+    Zeitzone: UTC-Namen und Europe/Berlin ohne Datenbank, andere ueber zoneinfo; unbekannte (z. B. Windows-Namen
+    wie "W. Europe Standard Time") und Zeiten ohne Angabe gelten als Berliner Zeit. Reine Daten beginnen um 00:00."""
     v = v.strip()
     if "T" in v:
-        return datetime.strptime(v[:15], "%Y%m%dT%H%M%S")
+        dt = datetime.strptime(v[:15], "%Y%m%dT%H%M%S")
+        if v[15:16].upper() == "Z":
+            return _berlin_from_utc(dt)
+        tz = _tzid(params)
+        if tz and tz.upper() in UTC_TZIDS:
+            return _berlin_from_utc(dt)
+        if tz and tz != "Europe/Berlin":
+            try:
+                from zoneinfo import ZoneInfo
+                return _berlin_from_utc(dt.replace(tzinfo=ZoneInfo(tz)).astimezone(timezone.utc).replace(tzinfo=None))
+            except Exception:  # noqa: BLE001 - unbekannte Zone oder keine Zeitzonendatenbank: Berliner Zeit
+                pass
+        return dt
     return datetime.strptime(v[:8], "%Y%m%d")
+
+
+def _tzid(params: str) -> str | None:
+    """TZID aus den Parametern einer Zeile ("DTSTART;TZID=Europe/Berlin"), ohne Anfuehrungszeichen."""
+    for p in params.split(";")[1:]:
+        if p.upper().startswith("TZID="):
+            return p[5:].strip().strip('"') or None
+    return None
+
+
+def _last_sunday(year: int, month: int) -> date:
+    last = (date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)) - timedelta(days=1)
+    return last - timedelta(days=(last.weekday() - 6) % 7)
+
+
+def _berlin_from_utc(u: datetime) -> datetime:
+    """UTC (ohne Zone) -> Ortszeit Europe/Berlin (ohne Zone), EU-Regel seit 1996 wie BerlinClock in der App:
+    Sommerzeit vom letzten Sonntag im Maerz bis zum letzten Sonntag im Oktober, jeweils ab 01:00 UTC."""
+    begin = datetime.combine(_last_sunday(u.year, 3), time(1))
+    end = datetime.combine(_last_sunday(u.year, 10), time(1))
+    return u + timedelta(hours=2 if begin <= u < end else 1)
+
+
+def _ics_until(rrule: str, start: datetime) -> str | None:
+    """Letzter Tag aus RRULE UNTIL (Ortszeit Berlin). Liegt UNTIL mit Uhrzeit vor dem Beginn des Termins
+    (z. B. 23:59:59Z = 00:59 Uhr am Folgetag), zaehlt der Vortag; Mitternacht und reine Daten zaehlen ganz."""
+    m = re.search(r"UNTIL=(\d{8})(T\d{6}Z?)?", rrule)
+    if not m:
+        return None
+    day = f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}"
+    if not m.group(2):
+        return day
+    try:
+        u = _ics_dt(m.group(1) + m.group(2))
+    except ValueError:
+        return day
+    minutes = u.hour * 60 + u.minute
+    last = u.date()
+    if minutes != 0 and minutes < start.hour * 60 + start.minute:
+        last -= timedelta(days=1)
+    return last.isoformat()
+
+
+def _ics_exdates(items: list[tuple[str, str]]) -> list[str]:
+    """Ausfaelle (EXDATE, auch mehrere Werte je Zeile) als ISO-Daten in Ortszeit Berlin, sortiert."""
+    out = set()
+    for value, params in items:
+        for part in value.split(","):
+            if part.strip():
+                try:
+                    out.add(_ics_dt(part, params).date().isoformat())
+                except ValueError:
+                    continue
+    return sorted(out)
 
 
 def merge_weekly(entries: list[dict]) -> list[dict]:
@@ -432,21 +496,39 @@ def diff_against_existing(conn, entries: list[dict]) -> dict:
 def apply_import(conn, entries: list[dict], source: str, remove_ids: list[int] | None = None) -> dict:
     n_new = n_upd = 0
     new_ids: list[int] = []
+    note = "Ausfall laut Stud.IP" if str(source).startswith("studip") else "Ausfall laut Kalender"
     for e in entries:
         if e.get("existing_id"):
             conn.execute("UPDATE course_events SET start_time=?, end_time=?, room=COALESCE(NULLIF(?,''), room), kind=?, module_id=COALESCE(?, module_id) WHERE id=?",
                          (e["start_time"], e["end_time"], e.get("room") or "", e.get("kind") or "vorlesung", e.get("module_id"), e["existing_id"]))
+            event_id = e["existing_id"]
             n_upd += 1
         else:
-            conn.execute("""INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, created_at)
+            cur = conn.execute("""INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule, date_from, date_to, attend, source, created_at)
                             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)""",
                          (e.get("module_id"), e.get("course_id"), e["title"], e.get("kind") or "vorlesung", int(e["weekday"]), e["start_time"], e["end_time"], e.get("room") or "", e.get("lecturer") or "",
                           e.get("rrule") or "weekly", e.get("date_from"), e.get("date_to"), source, db.now_iso()))
-            new_ids.append(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
+            event_id = cur.lastrowid
+            new_ids.append(event_id)
             n_new += 1
+        _add_cancellations(conn, event_id, e.get("exdates"), note)
     for rid in remove_ids or []:
         conn.execute("DELETE FROM course_events WHERE id=?", (rid,))
     return {"new": n_new, "updated": n_upd, "removed": len(remove_ids or []), "ids": new_ids}
+
+
+def _add_cancellations(conn, event_id, dates, note: str) -> None:
+    """Ausfaelle einer Serie (EXDATE aus Kalenderdateien, EXDATES der Stud.IP-Kurszeiten) als Ausnahme "cancelled".
+    Tage mit vorhandener Ausnahme (z. B. vom Nutzer verschoben) bleiben unveraendert."""
+    if not isinstance(dates, list) or not db.row(conn, "SELECT 1 FROM course_events WHERE id=?", (event_id,)):
+        return
+    for d in dates:
+        if not (isinstance(d, str) and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", d)):
+            continue
+        if db.row(conn, "SELECT 1 FROM event_exceptions WHERE event_id=? AND date=?", (event_id, d)):
+            continue
+        conn.execute("INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,'cancelled',NULL,NULL,NULL,?,?)",
+                     (event_id, d, note, db.now_iso()))
 
 
 def week_grid(conn, start: date) -> dict:
