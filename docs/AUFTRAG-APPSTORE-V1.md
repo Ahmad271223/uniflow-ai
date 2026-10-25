@@ -1,0 +1,136 @@
+# Auftrag: App-Store-Version 1 (iPad) und Abos
+
+Stand 25.10.2026, Vorgabe des Inhabers. **Dieses Dokument hat Vorrang** vor der Reihenfolge in
+`docs/UEBERGABE-MAC.md` und `docs/PRUEFBERICHT-IPAD.md`. Die Regeln aus der Übergabe gelten weiter (echte Daten,
+schreibende Tests nur mit Zustimmung, `[skip ci]`, kein `main`, keine Passwörter eintippen).
+
+## 1. Fahrplan
+
+| Phase | Wann | Plattformen | Editor | Anmeldung |
+|---|---|---|---|---|
+| **V1** | jetzt | **iPad im App Store** – noch kein Play Store, kein Windows | **Apple-Editor** (PencilKit + PDFKit, der vorhandene native Editor) | **Mit Apple anmelden** |
+| **V2** | ca. 1 Monat nach V1 | zusätzlich **Android (Play Store)** und **Windows** | **eigener UniFlow-Editor** (1:1 wie im Web). Auf Apple in den Einstellungen wählbar: „Apple-Editor“ oder „UniFlow-Editor“. Windows und Android: nur UniFlow-Editor | zusätzlich **Google** und **SMS** |
+
+Abos gibt es **von Anfang an**: 7 Tage kostenlos, danach **Free**, **Plus** oder **Pro** (Abschnitt 4).
+
+## 2. Was das für V1 bedeutet
+
+1. **V1 läuft ohne den PC-Server.** Wer die App aus dem App Store lädt, hat keinen UniFlow-Server. Alles, was heute
+   über `/api/...` vom PC kommt, muss in V1 auf dem iPad selbst entstehen:
+   - **Datenhaltung lokal** (SQLite, Schema aus `app/db.py`, mit Migrationen) – Prüfbericht F3.
+   - **Logik auf dem Gerät:** Swift-Port von `app/study.py` (Lernpakete, Zeitfenster, Machbarkeit, Kalender,
+     Nachholen, „Woche retten“, Übersicht), `app/timetable.py` (Termine, Ausnahmen, freie Fenster, ICS) und
+     `app/scriptsearch.py` (Skriptsuche ohne KI). Einordnung der Dateien ohne KI wie `study.effective_type`
+     (Stud.IP-Ordner, Dateiname).
+   - **Datenquelle Stud.IP direkt** (`StudIPClient`/`StudIPSync`, Anmeldung durch den Nutzer auf der echten Seite):
+     Kurse, Ordner, Dateien, dazu Termine und Kurszeiten (`seminar-cycle-dates`, siehe `docs/QIS-STUDIP-STRUKTUR.md`) –
+     Prüfbericht F5. Dateien bleiben nur auf dem Gerät (Urheberrecht, `docs/IPAD-STUDIP-SYNC.md`).
+   - Bewährter Weg: Das lokale Backend beantwortet dieselben Endpunkte mit derselben JSON-Form wie der Python-Server,
+     dann bleiben die fertigen 1:1-Ansichten unverändert. Antworten mit dem Python-Server auf derselben
+     Testdatenbank vergleichen.
+   - Der Verbindungsbildschirm zum PC-Server bleibt nur als Modus für den Inhaber (Entwicklung, eigene Daten).
+2. **Editor in V1 = Apple-Editor.** Der vorhandene PencilKit-Editor wird fertig und stabil gemacht, im neuen Design
+   (Dokumentansicht wie im Web: Kopfzeile, Tabs, geteilte Ansicht, Skript-Hinweis, Vollbild). Pflicht für V1:
+   Prüfbericht K3 (Dokument öffnen, Notizbücher, „gelesen“, Seite/Aufgabe) und K4 (Hochformat).
+   Der 1:1-Port des Web-Editors (Prüfbericht F1) wird zur **Editor-Version für V2**.
+3. **Ein Notizformat für beide Editoren:** Apple-Editor und UniFlow-Editor speichern in dasselbe Format
+   (`packages/shared-contracts/annotations.schema.json`, `StrokeConverter`), damit Notizen beim Editorwechsel und ab
+   V2 auf Windows/Android erhalten bleiben. Heute verlustbehaftet: PencilKit-Tinten außer Stift/Bleistift/Marker
+   werden als „Stift“ gespeichert, Text/Formen/Bilder sind im Apple-Editor nur sichtbar. Für V1 reicht: nichts geht
+   verloren, was in V1 entstehen kann.
+4. **KI in V1 ist offen** (Entscheidung des Inhabers, Abschnitt 6). Ohne Freigabe eines KI-Dienstes: KI-Funktionen
+   in V1 ausblenden oder klar als „bald“ kennzeichnen – nichts vortäuschen. Ein KI-Schlüssel darf nie in der App liegen.
+5. **iPad-only:** `TARGETED_DEVICE_FAMILY` auf `2` (heute `1,2` mit iPhone).
+
+## 3. Neue Reihenfolge für den Mac
+
+1. Prüfbericht **K2–K11** und **K3/K4** (K1 nur, wenn KI in V1 kommt).
+2. **Lokales Backend** (F3) mit **Stud.IP direkt** als Datenquelle (F5) – damit ist auch Offline (F2) erfüllt.
+3. **Mit Apple anmelden** + **Konto löschen** in der App (Apple-Richtlinie 5.1.1(v)).
+4. **Abos** (Abschnitt 4 und 5).
+5. **Apple-Editor** fertig und stabil (Dokumentansicht im neuen Design).
+6. **App-Store-Vorbereitung** (Abschnitt 7), Bildvergleich, Gerätetest mit Apple Pencil.
+7. Danach **V2**: UniFlow-Editor 1:1 (F1), Editor-Wahl in den Einstellungen, Windows/Android.
+
+## 4. Abos – was in welchem Tarif enthalten ist
+
+Grundlage: `docs/KONTEN-ABOS-PLAN.md` und `app/billing.py` (Free/Plus/Pro). **Preise und Umfang legt der Inhaber
+fest**; die Zielpreise stammen aus dem bestehenden Plan.
+
+| Funktion | Free | Plus | Pro |
+|---|:---:|:---:|:---:|
+| Mit Apple anmelden, Stud.IP verbinden, Kurse/Ordner/neue Dateien abgleichen | ✓ | ✓ | ✓ |
+| Dokumente lesen und durchsuchen, Bibliothek, Ordner, Favoriten | ✓ | ✓ | ✓ |
+| Meine Module, Stundenplan ansehen | ✓ | ✓ | ✓ |
+| Lernkalender ansehen, Aufgaben abhaken | ✓ | ✓ | ✓ |
+| Zeitmesser (Stoppuhr, Countdown, Pomodoro) | ✓ | ✓ | ✓ |
+| Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ | ✓ |
+| **Schreiben mit Apple Pencil** (Stift, Marker, Radierer, Lasso), Seiten einfügen/drehen, Lesezeichen | – | ✓ | ✓ |
+| **Übung und Skript nebeneinander** + Skriptsuche zur Aufgabe | – | ✓ | ✓ |
+| **Lernplanung**: Lernplan erstellen, Lernkombination, freie Zeitfenster, Nachholen, „Woche retten“ | – | ✓ | ✓ |
+| Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |
+| Uni & Noten (QIS: Notenspiegel, Bescheinigungen) – sobald nativ vorhanden (F4) | – | – | ✓ |
+| **KI** (nur mit freigegebenem KI-Dienst): Wochentests erstellen und bewerten | 1/Monat | 6/Monat | 40/Monat |
+| **KI** (nur mit freigegebenem KI-Dienst): Tutor im Editor, Zusammenfassungen, Karteikarten aus dem Skript, „Meine Lösung prüfen“ | – | – | ✓ |
+| ab V2: UniFlow-Editor (auf Apple wählbar) | – | ✓ | ✓ |
+| ab V2: Abgleich zwischen eigenen Geräten (iPad, Windows, Android) | – | ✓ | ✓ |
+| **Zielpreis** | 0 € | 1,99 €/Monat | 4,99 €/Monat |
+
+Regeln:
+- **Herabstufen:** Notizen bleiben vollständig erhalten, lesbar und exportierbar; nur Bearbeiten wird gesperrt.
+- **Sperren sichtbar machen:** Gesperrte Funktionen zeigen ein Schloss und führen zur Abo-Seite, statt zu
+  verschwinden oder still nichts zu tun.
+- **Ohne KI-Dienst** fallen die KI-Zeilen weg; dann unterscheidet sich Pro in V1 nur durch Uni & Noten. Das ist mit
+  dem Inhaber zu klären (Abschnitt 6).
+
+## 5. Abos technisch (V1)
+
+- **StoreKit 2**, eine Abo-Gruppe „UniFlow“: `de.uniflow.plus.monthly`, `de.uniflow.pro.monthly` (bereits in
+  `apps/apple/UniFlowTests/UniFlow.storekit` und `Purchases/PurchaseStore.swift`).
+- **7 Tage kostenlos – Empfehlung:** Apples Einführungsangebot „1 Woche gratis“ auf Plus **und** Pro
+  (StoreKit-Testkonfiguration: `introductoryOffer` mit `paymentMode: free`, `subscriptionPeriod: P1W`). Apple
+  prüft selbst, ob jemand das Angebot schon genutzt hat; danach verlängert sich das Abo kostenpflichtig, wenn es nicht
+  gekündigt wird. Preis, Laufzeit und Kündigungshinweis müssen vor dem Kauf klar sichtbar sein (Richtlinie 3.1.2).
+  Free bleibt ohne Abo dauerhaft nutzbar.
+  *Alternative, falls der Inhaber „7 Tage alles frei ohne Zahlungsdaten“ will:* nach der ersten Anmeldung 7 Tage
+  Pro-Umfang, danach Free; Startdatum im Schlüsselbund. Lässt sich auf weiteren Geräten wiederholen und ist bei der
+  App-Prüfung weniger üblich. **Nicht ohne Entscheidung des Inhabers bauen.**
+- **Berechtigung in V1 auf dem Gerät:** `Transaction.currentEntitlements` (von StoreKit signiert und geprüft),
+  `Transaction.updates` beobachten, „Käufe wiederherstellen“ (`AppStore.sync()`), „Abo verwalten“
+  (`manageSubscriptionsSheet`). Ab V2 prüft zusätzlich der Server (`/api/billing/apple/verify`,
+  App Store Server Notifications), weil das Abo dann auch auf Windows/Android gelten soll.
+- **Tests:** mit der StoreKit-Testkonfiguration im Simulator (kaufen, Probezeit, Ablauf, Verlängerung, Kündigung,
+  Erstattung, Wiederherstellen) und Unit-Tests für die Zuordnung Produkt → Tarif → Funktion.
+- **Keine echten Produkte, keine Preise in App Store Connect, keine Einreichung zur App-Prüfung** ohne ausdrückliche
+  Freigabe des Inhabers. Alles Kostenpflichtige (Developer Program, Produkte, Dienste) richtet der Inhaber selbst ein.
+
+## 6. Entscheidungen des Inhabers (offen)
+
+| Thema | Optionen / Hinweis |
+|---|---|
+| **KI in V1** | KI braucht ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App). Ohne KI hat Pro in V1 wenig Mehrwert |
+| **Art der 7 Tage** | Apple-Einführungsangebot (Empfehlung) oder 7 Tage frei ohne Zahlungsdaten |
+| **Preise** | Zielpreise 1,99 € / 4,99 € pro Monat; Jahresabo ja/nein |
+| **Server für V2** | Google- und SMS-Anmeldung, Abgleich zwischen Geräten und Abos über Plattformen hinweg brauchen einen gehosteten Dienst (Kosten, Betrieb, Datenschutz). SMS kostet pro Nachricht |
+| **Apple Developer Program** | 99 €/Jahr, Voraussetzung für „Mit Apple anmelden“, TestFlight, App Store und echte Abos |
+| **Rechtliches vor dem Start** | Datenschutzerklärung (URL in App Store Connect), Impressum, Abo-Bedingungen; rechtliche Prüfung des Stud.IP-Abrufs für andere Studierende (`docs/IPAD-STUDIP-SYNC.md`, Abschnitt 8) |
+
+## 7. App-Store-Vorbereitung (V1)
+
+- `NSAllowsArbitraryLoads` entfernen; Stud.IP läuft über HTTPS, der PC-Modus nur für lokale Adressen
+  (`NSAllowsLocalNetworking`).
+- Datenschutz-Manifest `PrivacyInfo.xcprivacy` und Datenschutzangaben in App Store Connect (gesammelte Daten:
+  Anmeldung, Käufe; keine Weitergabe; kein Tracking).
+- Anmeldung: „Mit Apple anmelden“ als Fähigkeit (braucht das Developer Program); **Konto löschen** in der App.
+  Hinweis Richtlinie 5.1.1(v): Eine Pflichtanmeldung ohne kontobezogene Funktionen kann abgelehnt werden – in V1 den
+  Nutzen der Anmeldung zeigen (Abo, später Abgleich) oder Nutzung ohne Konto erlauben.
+- Ab V2 mit Google-Anmeldung: Richtlinie 4.8 ist durch „Mit Apple anmelden“ erfüllt.
+- Texte, Bildschirmfotos (iPad 13"), Altersfreigabe, Support-URL; `docs/RELEASE-VORBEREITUNG.md`.
+- Gerätetest mit Apple Pencil (`docs/MAC-IPAD-CHECKLISTE.md`), TestFlight erst nach Freigabe.
+
+## Startnachricht für die Mac-Sitzung
+
+> Hol mit `git pull` den neuen Stand und lies zuerst `docs/AUFTRAG-APPSTORE-V1.md` – das hat Vorrang. V1 ist die
+> iPad-App im App Store mit Apple-Editor, „Mit Apple anmelden“ und Abos (7 Tage kostenlos, dann Free/Plus/Pro). Sie
+> muss ohne meinen PC-Server laufen. Arbeite nach der Reihenfolge in Abschnitt 3. Keine echten Produkte, keine
+> Einreichung, nichts Kostenpflichtiges ohne mich; offene Entscheidungen (Abschnitt 6) fragst du mich.

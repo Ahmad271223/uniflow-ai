@@ -10,6 +10,10 @@ eine Suche nach Platzhaltern, die Tests des Swift-Kerns und eine Syntaxprüfung 
 Linux-Container). **Nichts davon ist ein Test auf dem Gerät oder im Simulator.** Mit ✔ markierte Befunde habe ich
 zusätzlich selbst im Code nachgelesen; die übrigen stammen aus den Code-Prüfungen und sind beim Beheben zu bestätigen.
 
+> **Reihenfolge geändert:** Es gilt [`docs/AUFTRAG-APPSTORE-V1.md`](AUFTRAG-APPSTORE-V1.md), Abschnitt 3. V1 nutzt
+> den Apple-Editor; **F1 (UniFlow-Editor 1:1) gehört zu V2**. Für V1 vorrangig: K-Punkte, F3 (lokales Backend) mit F5
+> (Stud.IP direkt), damit auch F2 (Offline).
+
 **Für die Mac-Sitzung:** Bitte in der Reihenfolge K → F → A abarbeiten. Je Punkt: beheben, bauen, mit den **echten
 Daten** im Simulator prüfen (schreibende Aktionen nur nach Zustimmung des Inhabers, siehe `docs/UEBERGABE-MAC.md`),
 `docs/paritaet/status.json` aktualisieren, hier in der Spalte „Erledigt“ Commit und Prüfung eintragen, mit `[skip ci]`
