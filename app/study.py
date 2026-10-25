@@ -80,15 +80,21 @@ def semester_start(conn) -> date:
     return monday(t)
 
 
-def week_index(start: date, chdate: int | None) -> int:
-    if not chdate:
-        return 0
-    d = datetime.fromtimestamp(chdate).date()
+def day_week(start: date, d: date) -> int:
+    """Semesterwoche eines Tages: -1 vor dem Stichtag (aelteres Semester), 0 nach dem Stichtag, aber vor dem
+    Vorlesungsbeginn, sonst ab 1. Gilt fuer Dateien (week_index) und Termine (timetable.materials_for_event), damit
+    eine Datei und ein Termin am selben Tag immer in derselben Woche liegen."""
     if d < semester_cut(today()):
         return -1  # aelteres Semester
     # nach dem Stichtag, aber vor dem Vorlesungsbeginn: Woche 0 ("Vor Vorlesungsbeginn"); ohne max() wurden daraus
     # -1 und -2, also "Aeltere Unterlagen" bzw. "Klausuren & Altklausuren"
     return max(0, (monday(d) - start).days // 7 + 1)
+
+
+def week_index(start: date, chdate: int | None) -> int:
+    if not chdate:
+        return 0
+    return day_week(start, datetime.fromtimestamp(chdate).date())
 
 
 def week_label(start: date, w: int) -> str:
