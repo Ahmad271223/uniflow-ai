@@ -2,7 +2,7 @@ import SwiftUI
 import UniFlowCore
 
 /// Gemeinsamer Zustand der Kopfzeile wie in app.js: Sync-Chip (updateSyncChip), Sync starten und
-/// Hintergrundaufgabe beobachten (pollBg), globale Suche (globalSearch), Initialen (Avatar), Zeitmesser.
+/// Hintergrundaufgabe beobachten (pollBg), globale Suche (globalSearch), Initialen (Avatar).
 @MainActor
 final class ShellState: ObservableObject {
     struct SearchHit: Identifiable {
@@ -19,7 +19,6 @@ final class ShellState: ObservableObject {
     @Published private(set) var lastSyncOK = true
     @Published private(set) var searchHits: [SearchHit] = []
     @Published private(set) var initials = "AH"
-    @Published var timerOpen = false
     /// wird nach einem abgeschlossenen Sync erhoeht; Ansichten laden dann neu (route() im Web)
     @Published private(set) var reloadToken = 0
 

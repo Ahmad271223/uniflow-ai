@@ -311,6 +311,7 @@ struct UFHeader: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var timer: StudyTimer
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
     @State private var query = ""
     @FocusState private var searchFocused: Bool
@@ -341,7 +342,7 @@ struct UFHeader: View {
                 toast.show("Design: \(next.label)")
             }
             if !narrow {
-                UFButton(icon: "clock", kind: .ghost) { shell.timerOpen.toggle() }
+                UFButton(icon: "clock", kind: .ghost) { timer.toggle() }     // #profileBtn: Zeitmesser
             }
             Text(shell.initials)                                          // .avatar: 34 pt, accent-soft, .78rem fett
                 .font(.uf(12.48, 700))

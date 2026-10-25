@@ -56,11 +56,12 @@ final class Session: ObservableObject {
 ///   -UFDisconnect YES -UFServerHint <url>   trennt die Verbindung und traegt die Adresse vor; die PIN gibt der Inhaber ein
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
-///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>)
+///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,
+///                                     timer:<stopwatch|countdown|pomodoro>[:run|:pill])
 /// Die Darstellung laesst sich ueber -theme dark|light|auto setzen (AppStorage liest Startargumente).
 enum DebugLaunch {
     @MainActor
-    static func apply(session: Session, router: UFRouter, overlay: UFOverlay, toast: UFToastCenter) async {
+    static func apply(session: Session, router: UFRouter, overlay: UFOverlay, toast: UFToastCenter, timer: StudyTimer) async {
         #if DEBUG
         let d = UserDefaults.standard
         if d.bool(forKey: "UFDisconnect") {
@@ -88,6 +89,11 @@ enum DebugLaunch {
         case "task-menu": overlay.modal { TaskMenuDialog(id: Int(p[safe: 1] ?? "") ?? 0, title: "Aufgabe", refresh: {}) }
         case "free": a.useFreeWindow(date: UFFmt.todayISO(), start: 630, end: 735)
         case "tt-import": overlay.modal { TimetableImportDialog() }
+        case "timer":
+            timer.toggle(true)
+            if let m = StudyTimer.Mode(rawValue: p[safe: 1] ?? "") { timer.setMode(m) }
+            if p.contains("run") || p.contains("pill") { timer.startPause() }
+            if p.contains("pill") { timer.toggle(false) }
         case "tt-import-ics":
             // ICS aus dem Testbundle/Startargument UFFile, sonst ein kleines Beispiel
             let ics = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:Testkurs Physik – Vorlesung\nDTSTART:20261021T081500\nDTEND:20261021T094500\nRRULE:FREQ=WEEKLY\nLOCATION:P 101\nEND:VEVENT\nEND:VCALENDAR\n"
