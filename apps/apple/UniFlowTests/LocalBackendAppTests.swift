@@ -171,18 +171,55 @@ final class LocalBackendAppTests: XCTestCase {
         XCTAssertFalse(UFDataMode.server.isOnDevice)
     }
 
+    private func gate(_ spec: UFNoServerPage.Spec, _ mode: UFDataMode, _ phase: StudIPSync.Phase = .idle,
+                      files: Int = 0, courses: Int = 0) -> UFGatePresentation {
+        UFGatePresentation.resolve(spec: spec, mode: mode, phase: phase, files: files, courses: courses)
+    }
+
     func testGateShowsRealPageWithConnectCardAbove() {
-        typealias G = UFGatePresentation
-        // lokal: echte Seite, Karte oberhalb solange Stud.IP fehlt
-        XCTAssertEqual(G.resolve(spec: .plan, mode: .local(.notConnected)), .pageBelowConnectCard)
-        XCTAssertEqual(G.resolve(spec: .library, mode: .local(.expired)), .pageBelowConnectCard)
-        XCTAssertEqual(G.resolve(spec: .modules, mode: .local(.connected)), .page)
+        // lokal: echte Seite, Karte oberhalb solange Stud.IP fehlt (auch mit Dateien eines frueheren Abgleichs)
+        XCTAssertEqual(gate(.plan, .local(.notConnected), .signedOut), .pageBelowConnectCard)
+        XCTAssertEqual(gate(.library, .local(.expired), .needsLogin, files: 3), .pageBelowConnectCard)
+        XCTAssertEqual(gate(.modules, .local(.connected)), .page)
         // KI-Wochentests und QIS-Noten gibt es in V1 nicht: lokal der ehrliche leere Zustand
-        XCTAssertEqual(G.resolve(spec: .exams, mode: .local(.connected)), .empty)
-        XCTAssertEqual(G.resolve(spec: .services, mode: .local(.notConnected)), .empty)
+        XCTAssertEqual(gate(.exams, .local(.connected)), .empty)
+        XCTAssertEqual(gate(.services, .local(.notConnected)), .empty)
         // eigener Server wie bisher, ohne Datenquelle der leere Zustand
-        XCTAssertEqual(G.resolve(spec: .exams, mode: .server), .page)
-        XCTAssertEqual(G.resolve(spec: .plan, mode: .connectStudIP), .empty)
+        XCTAssertEqual(gate(.exams, .server, .running("x"), files: 4), .page)
+        XCTAssertEqual(gate(.plan, .connectStudIP), .empty)
+    }
+
+    /// Bis S3 kennen die lokalen Seiten die abgeglichenen Dateien nicht: Abgleichstand, Fehler und der Knopf zu den
+    /// Stud.IP-Dateien stehen dann oberhalb der Seite (vorher nur im leeren Zustand ohne Datenquelle)
+    func testGateShowsStudIPStatusWhileConnectedLocally() {
+        let connected = UFDataMode.local(.connected)
+        XCTAssertEqual(gate(.library, connected, .running("Dateien werden geladen …")), .pageBelowStudIPStatus)
+        XCTAssertEqual(gate(.plan, connected, .failed("offline")), .pageBelowStudIPStatus)
+        XCTAssertEqual(gate(.modules, connected, .idle, files: 12), .pageBelowStudIPStatus)
+        XCTAssertEqual(gate(.modules, connected, .idle, courses: 2), .pageBelowStudIPStatus)
+        XCTAssertEqual(gate(.timetable, connected, .idle), .page, "nichts abgeglichen, kein Fehler: keine Leiste")
+
+        let running = UFNoServerContent.resolve(kind: .library, mode: connected, phase: .running("Kurse werden geladen …"),
+                                                files: 0, courses: 0)
+        XCTAssertEqual(running.status, .syncing("Kurse werden geladen …"))
+        XCTAssertNil(running.filesButton)
+        XCTAssertTrue(running.showsStatusBar)
+        let failed = UFNoServerContent.resolve(kind: .dashboard, mode: connected, phase: .failed("offline"), files: 12, courses: 3)
+        XCTAssertEqual(failed.status, .failed("offline"))
+        XCTAssertEqual(failed.filesButton, "Stud.IP-Dateien ansehen (12)")
+        XCTAssertEqual(failed.filesSummary, "12 Dateien aus Stud.IP liegen auf diesem iPad.")
+        XCTAssertFalse(failed.showsConnectCard)
+        let courses = UFNoServerContent.resolve(kind: .modules, mode: connected, phase: .idle, files: 0, courses: 1)
+        XCTAssertEqual(courses.filesButton, "Stud.IP-Kurse ansehen (1)")
+        XCTAssertEqual(courses.filesSummary, "1 Kurs aus Stud.IP ist abgeglichen.")
+        // nicht verbunden bzw. eigener Server: keine Leiste
+        XCTAssertFalse(UFNoServerContent.resolve(kind: .library, mode: .local(.notConnected), phase: .failed("x"),
+                                                 files: 3, courses: 1).showsStatusBar)
+        XCTAssertFalse(UFNoServerContent.resolve(kind: .dashboard, mode: .server, phase: .running("x"),
+                                                 files: 3, courses: 1).showsStatusBar)
+        // Wochentests/Noten zeigen lokal den leeren Zustand, jetzt ebenfalls mit Abgleichstand
+        XCTAssertEqual(UFNoServerContent.resolve(kind: .exams, mode: connected, phase: .failed("offline"),
+                                                 files: 0, courses: 0).status, .failed("offline"))
     }
 
     // MARK: Umzug der alten Journale

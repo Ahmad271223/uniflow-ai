@@ -5,12 +5,13 @@ enum PendingOverviewEndpoints: LocalEndpointModule {
     static let name = "Übersicht (Platzhalter)"
 
     static func register(on router: LocalRouter) {
-        // study.dashboard bei leerer Datenbank: heute, Woche ab Montag, keine Pakete, Termine, Dateien
+        // study.dashboard bei leerer Datenbank: heute, Woche ab Montag, keine Pakete, Termine, Dateien; freie
+        // Fenster von heute schon aus den Einstellungen
         router.get("/api/dashboard", placeholder: true) { _, ctx in
             let s = try await LocalPending.settings(ctx)
             let t = LocalPending.today(ctx)
             var today = LocalPending.calendarDay(t, settings: s)
-            today["free"] = []
+            today["free"] = .array(try LocalFreeWindows.compute(day: t, settings: s))
             let monday = t - LocalPending.weekday(t)
             let days: [JSONValue] = (0..<7).map { i in
                 ["date": .string(LocalPending.iso(monday + i)), "status": .string(LocalPending.emptyStatus(monday + i, settings: s)), "minutes": 0]

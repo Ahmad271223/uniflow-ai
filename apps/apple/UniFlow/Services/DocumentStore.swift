@@ -363,7 +363,8 @@ final class DocumentStore: ObservableObject {
     /// danach wird sofort erneut versucht.
     func updateAPI(_ api: APIClient) async {
         // andere Datenquelle (Wechsel lokal <-> Server): nie gegen deren Stand hochladen; das Dokument bleibt bei
-        // seiner Quelle, die Ansicht oeffnet es fuer die neue Quelle neu
+        // seiner Quelle. LibraryView gibt DocumentView die Identitaet "Quelle/Datei", dadurch entsteht beim Wechsel
+        // ein neuer Store fuer die neue Quelle
         guard api !== self.api, api.namespace == namespace else { return }
         self.api = api
         transport.use(api)

@@ -1,7 +1,7 @@
 import Foundation
 
-/// Platzhalter: Stundenplan, Termine, Import, Konflikte (S5). Ohne Termine; freie Fenster folgen mit dem Port von
-/// `timetable.free_windows`, Sperrzeiten kommen schon aus den Einstellungen.
+/// Platzhalter: Stundenplan, Termine, Import, Konflikte (S5). Ohne Termine; freie Fenster und Sperrzeiten kommen
+/// schon aus den echten Einstellungen (LocalFreeWindows).
 enum PendingTimetableEndpoints: LocalEndpointModule {
     static let name = "Stundenplan (Platzhalter)"
 
@@ -10,10 +10,10 @@ enum PendingTimetableEndpoints: LocalEndpointModule {
             let start = try LocalPending.day(req, "start")
             let s = try await LocalPending.settings(ctx)
             let term = try await ctx.database.withConnection { try LocalTerms.current($0) }
-            let days: [JSONValue] = (0..<7).map { i in
-                let d = start + i
-                return ["date": .string(LocalPending.iso(d)), "weekday": .number(Double(LocalPending.weekday(d))), "events": [], "packages": [],
-                        "free": [], "blocked": LocalPending.blocked(d, settings: s)]
+            var days: [JSONValue] = []
+            for d in start..<(start + 7) {
+                days.append(["date": .string(LocalPending.iso(d)), "weekday": .number(Double(LocalPending.weekday(d))), "events": [], "packages": [],
+                             "free": .array(try LocalFreeWindows.compute(day: d, settings: s)), "blocked": LocalPending.blocked(d, settings: s)])
             }
             return .json(["start": .string(LocalPending.iso(start)), "end": .string(LocalPending.iso(start + 6)), "days": .array(days),
                           "learn_start": s["learn_start"] ?? .null, "learn_end": s["learn_end"] ?? .null, "term": term])
@@ -21,7 +21,8 @@ enum PendingTimetableEndpoints: LocalEndpointModule {
         router.get("/api/timetable/day", placeholder: true) { req, ctx in
             let d = try LocalPending.day(req, "date")
             let s = try await LocalPending.settings(ctx)
-            return .json(["date": .string(LocalPending.iso(d)), "events": [], "packages": [], "free": [],
+            return .json(["date": .string(LocalPending.iso(d)), "events": [], "packages": [],
+                          "free": .array(try LocalFreeWindows.compute(day: d, settings: s)),
                           "blocked": LocalPending.blocked(d, settings: s),
                           "learn_start": s["learn_start"] ?? .null, "learn_end": s["learn_end"] ?? .null])
         }

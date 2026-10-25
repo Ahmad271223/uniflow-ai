@@ -29,8 +29,10 @@ Pro und alle KI-Funktionen entfallen vorerst. Umgesetzt auf `develop` (Tarifwahl
 Stand nach **S2** (Zweig `wip/s2-weiche`): Die App startet im lokalen Modus. `session.api` zeigt auf das lokale
 Backend (`uniflow-local://device/`, Datenbank `Application Support/UniFlow/db/uniflow.sqlite`, Dateischutz
 `completeUntilFirstUserAuthentication`, im Backup). Alle Seiten laden ohne Fehler ihre echten, anfangs leeren
-Ansichten; solange Stud.IP nicht verbunden ist, steht „Stud.IP verbinden“ oberhalb der Seite. Der eigene PC-Server
-ist nur noch in Debug-Builds unter Einstellungen → Entwicklung erreichbar.
+Ansichten; solange Stud.IP nicht verbunden ist, steht „Stud.IP verbinden“ oberhalb der Seite. Ist Stud.IP verbunden,
+zeigt bis S3 eine Statusleiste oberhalb der Seiten (auch der Übersicht) den Abgleichstand, einen Abgleichfehler mit
+„Erneut versuchen“ und den Knopf „Stud.IP-Dateien ansehen (n)“, denn die lokalen Seiten kennen die abgeglichenen
+Dateien noch nicht. Der eigene PC-Server ist nur noch in Debug-Builds unter Einstellungen → Entwicklung erreichbar.
 
 | Bereich | Stand | Was fehlt |
 |---|---|---|
@@ -43,7 +45,7 @@ ist nur noch in Debug-Builds unter Einstellungen → Entwicklung erreichbar.
 | Kurszeiten (seminar-cycle-dates) | **Kern fertig**, nicht angebunden | Abruf in der App, lokale Ablage, Gruppenauswahl |
 | Einzeltermine (course-events) | **nur Server** | Swift-Abruf |
 | QIS (Noten) | **Kern fertig** (Parser), nicht angebunden | Webansicht, Ablage, Anzeige |
-| Übersicht, Lernkalender, Stundenplan, Module, Dokumente | **lokal leer (S2)**: Seiten laden, Antworten in Server-Form ohne Inhalte; Anlegen meldet „geht auf diesem iPad noch nicht“ (409) | Daten aus Stud.IP und Logik-Ports (S3–S6) |
+| Übersicht, Lernkalender, Stundenplan, Module, Dokumente | **lokal leer (S2)**: Seiten laden, Antworten in Server-Form ohne Inhalte; freie Zeitfenster schon aus den echten Einstellungen (Lernbeginn/-ende minus Sperrzeiten, gleich mit Python); Anlegen meldet „geht auf diesem iPad noch nicht“ (409); Stud.IP-Dateien bis S3 über die Statusleiste | Daten aus Stud.IP und Logik-Ports (S3–S6) |
 | PDF-Editor mit Apple Pencil | **nur Server** (`/api/files/{id}/content` und `/annotations`); lokal: leeres Dokument, Speichern 409 mit Meldung, Notizen bleiben im Journal | lokale Datei und lokale Notizablage (S3) |
 | Suche, Skriptsuche | **nur Server** | lokaler Index, Port von `scriptsearch.py` |
 | Geänderte Original-PDF bei vorhandenen Notizen | **fehlt** | Fingerabdruck, Neuzuordnung der Seiten, alte Fassung aufbewahren |
@@ -57,14 +59,19 @@ Die iPad-App ruft **76 verschiedene Endpunkte** auf (Methode + Pfad, Liste per g
 `packages/shared-contracts/fixtures/local-backend/app-paths.json`, erzeugt mit `tools/gen-local-backend-fixture.py`).
 Seit S2 beantwortet das lokale Backend **jeden** davon (`LocalBackendCoverageTests`):
 
-- **echt lokal:** `GET/PUT /api/settings`, `GET/PUT /api/terms`.
+- **echt lokal:** `GET/PUT /api/settings`, `GET/PUT /api/terms`; freie Zeitfenster in `/api/timetable/week`,
+  `/api/timetable/day` und `today.free` von `/api/dashboard` (Port von `timetable.free_windows` ohne Termine und
+  Lernpakete, `LocalFreeWindowsTests` gegen `timetable-free.json`); die feste Dienste-Liste in `GET /api/services`
+  (`SERVICES` aus `app/server.py`, exakt verglichen).
 - **Platzhalter in Server-Form** bis zur Portierung (leere Listen, leere Objekte mit denselben Feldern wie
   `app/server.py` bei leerer Datenbank, Datumsangaben aus der Uhr, Machbarkeit und Sperrzeiten schon aus den echten
   Einstellungen): Übersicht, Bibliothek, Module/Kurse, Lernkalender/Pakete/Aufgaben, Stundenplan, Karteikarten,
   Uni & Noten, Suche, Sync-Status. Einträge nach ID gibt es noch nicht (404 wie am PC), Ändern/Löschen fehlender
   Einträge antwortet wie der PC-Server, **Anlegen** (Lernpakete, Module, Ordner, Notizbücher, Termine, Import) und
   **Notizen speichern** antworten mit **409** und klarer Meldung. Ein echter Endpunkt ersetzt den Platzhalter
-  automatisch (`LocalRoute.placeholder`).
+  automatisch (`LocalRoute.placeholder`). Der Formvergleich meldet eine lokal leere Liste, die Python füllt; bewusst
+  leer bleibt bis S3 nur `GET /api/courses` (Python zeigt dort den Pseudokurs „Eigene Dokumente“,
+  `expect.empty_lists` im Fixture).
 - **bewusst entfallen:** KI (`/api/ai/tutor`), Wochentests (`/api/tests/*` außer der leeren Liste,
   `/api/tasks/{id}/start-test`), Zugänge (`PUT /api/credentials/*`; `GET` liefert „kein Zugang“): 404 mit Meldung.
   QIS-Abruf (`/api/grades/sync`) 404 „kommt in einer späteren Version“, `/api/sync` 409 (Stud.IP gleicht die App

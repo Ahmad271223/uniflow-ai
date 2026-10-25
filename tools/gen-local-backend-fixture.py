@@ -3,9 +3,13 @@
 - app-paths.json: alle /api/-Pfade, die die iPad-App aufruft (per grep in apps/apple/UniFlow), je mit einer
   Beispielanfrage, der Antwort von app/server.py bei leerer Datenbank (nur die Form: Typen und Schluessel, keine
   Werte) und dem Status, den das lokale Backend liefern soll. Der Swift-Kern (LocalBackendCoverageTests) schickt
-  jede Anfrage an den lokalen Router und vergleicht.
+  jede Anfrage an den lokalen Router und vergleicht. Eine lokal leere Liste gegen eine in Python gefuellte gilt
+  als Abweichung, ausser sie steht in "expect.empty_lists" (mit Begruendung). "expect.values" sind Werte, die
+  lokal exakt gleich sein muessen (z. B. die feste Dienste-Liste SERVICES aus app/server.py).
 - settings-terms.json: eine Folge von Anfragen an GET/PUT /api/settings und /api/terms mit den Antworten von
   app/server.py und dem Inhalt der Tabelle settings danach (exakter Text wie db.set_setting ihn schreibt).
+- timetable-free.json: freie Zeitfenster und Sperrzeiten aus GET /api/timetable/day und /week fuer mehrere
+  Einstellungen (erfundene Werte) ohne Termine und Lernpakete, wie timetable.free_windows sie berechnet.
 
 Der Server laeuft dabei nur gegen Dateien in einem Temp-Ordner (tools/schema_source.py), nie gegen data/.
 Pfade mit Netzwerk, KI oder Zugangsdaten (Sync, QIS, Tests, /api/credentials, /api/services) werden nicht
@@ -31,6 +35,8 @@ EXTRA = {
 
 # Beispielanfrage je Pfad. "python": False -> nicht gegen app/server.py ausfuehren (Netzwerk, KI, .env),
 # dann ist "expect" Pflicht. "expect" ueberschreibt sonst den Status von Python, "reason" erklaert warum.
+# "expect.empty_lists": Listen (Pfad ab "$"), die lokal bewusst leer bleiben, obwohl Python sie fuellt.
+# "values": Schluessel der Antwort -> Name eines Werts in app.server, der lokal exakt gleich sein muss.
 MP = "uniflow-fixture"
 SAMPLES: dict[str, dict] = {
     "GET /api/dashboard": {"path": "/api/dashboard"},
@@ -62,7 +68,9 @@ SAMPLES: dict[str, dict] = {
                           "expect": {"status": 409, "reason": "Module kommen mit S4"}},
     "PATCH /api/modules/{}": {"path": "/api/modules/1", "body": {"active": 1}},
     "POST /api/modules/auto-assign": {"path": "/api/modules/auto-assign"},
-    "GET /api/courses": {"path": "/api/courses"},
+    "GET /api/courses": {"path": "/api/courses",
+                         "expect": {"empty_lists": ["$"],
+                                    "reason": "Python zeigt den Pseudokurs __user__ (Eigene Dokumente); lokal kommen Kurse mit S3"}},
     "PATCH /api/courses/{}": {"path": "/api/courses/k1", "body": {"kind": "uebung"}},
     "POST /api/courses/{}/module": {"path": "/api/courses/k1/module", "body": {"module_id": None}},
     "GET /api/calendar": {"path": "/api/calendar?start=2026-10-26&end=2026-11-01"},
@@ -122,7 +130,7 @@ SAMPLES: dict[str, dict] = {
                                         "reason": "Zugaenge entfallen; Form wie server.py ohne .env"}},
     "PUT /api/credentials/{}": {"path": "/api/credentials/qis", "body": {"clear": True}, "python": False,
                                 "expect": {"status": 404, "reason": "keine Zugangsdaten auf dem iPad"}},
-    "GET /api/services": {"path": "/api/services", "python": False,
+    "GET /api/services": {"path": "/api/services", "python": False, "values": {"services": "SERVICES"},
                           "expect": {"status": 200, "type": "object", "keys": ["credentials", "qis", "services", "studip"],
                                      "reason": "Form wie server.py; liest dort die .env, darum nicht aufgerufen"}},
     "GET /api/grades": {"path": "/api/grades"},
@@ -270,7 +278,7 @@ def fresh_db(src: SchemaSource, name: str) -> None:
     src.db.init_db()
 
 
-def coverage(src: SchemaSource, app) -> dict:
+def coverage(src: SchemaSource, app, server) -> dict:
     calls = app_calls()
     missing = sorted(set(calls) - set(SAMPLES))
     stale = sorted(set(SAMPLES) - set(calls))
@@ -287,6 +295,8 @@ def coverage(src: SchemaSource, app) -> dict:
             status, value = asgi(app, method, s["path"], s.get("body"), s.get("form"))
             entry["python"] = {"status": status, "shape": shape(value)}
         expect = dict(s.get("expect") or {})
+        if "values" in s:
+            expect["values"] = {k: getattr(server, name) for k, name in s["values"].items()}
         if "status" not in expect:
             expect["status"] = entry["python"]["status"]
         entry["expect"] = expect
@@ -334,17 +344,68 @@ def settings_terms(src: SchemaSource, app) -> dict:
     return {"generator": "tools/gen-local-backend-fixture.py", "steps": steps, "settings_rows": rows}
 
 
+# Freie Zeitfenster ohne Termine und Lernpakete; erfundene Einstellungen. Woche ab Montag, 26.10.2026.
+FREE_START = "2026-10-26"
+FREE_SCENARIOS = [
+    ("Standard", None),
+    ("Sperrzeiten", {"blocked_times": [
+        {"weekday": 0, "start": "12:00", "end": "13:00", "title": "Mittag"},
+        {"weekday": 0, "start": "12:30", "end": "14:00"},                      # ueberlappend
+        {"weekday": 1, "start": "07:00", "end": "09:00"},                      # vor Lernbeginn
+        {"weekday": 2, "start": "20:30", "end": "22:00"},                      # ueber Lernende hinaus
+        {"weekday": 3, "start": "08:00", "end": "08:20"},
+        {"weekday": "4", "start": "10:00", "end": "11:00"},                    # Wochentag als Text
+        {"weekday": 4, "start": "11:20", "end": "12:00"},                      # Luecke unter min_slot
+        {"weekday": 5, "start": None, "end": "09:00"},                         # None zaehlt als 00:00
+        {"weekday": 6, "start": "08:00", "end": "21:00"},                      # ganzer Tag gesperrt
+    ]}),
+    ("Lernzeit und Mindestlaenge", {"learn_start": "09:15", "learn_end": "18:45", "min_slot_minutes": 45,
+                                    "blocked_times": [{"weekday": 0, "start": "10:00", "end": "10:50"},
+                                                      {"weekday": 0, "start": "11:30", "end": "12:15:00"},
+                                                      {"weekday": 2, "start": "17:30", "end": "18:00"}]}),
+    ("leere Lernzeit", {"learn_start": "07:00", "learn_end": "07:00"}),
+    ("Ende vor Beginn", {"learn_start": "20:00", "learn_end": "10:00",
+                         "blocked_times": [{"weekday": 0, "start": "12:00", "end": "13:00"}]}),
+]
+
+
+def timetable_free(src: SchemaSource, app) -> dict:
+    from datetime import date, timedelta
+    scenarios = []
+    for name, body in FREE_SCENARIOS:
+        fresh_db(src, "frei")
+        if body is not None:
+            status, _ = asgi(app, "PUT", "/api/settings", body)
+            assert status == 200, (name, status)
+        status, week = asgi(app, "GET", f"/api/timetable/week?start={FREE_START}")
+        assert status == 200, (name, status, week)
+        days = []
+        for i in range(7):
+            d = (date.fromisoformat(FREE_START) + timedelta(days=i)).isoformat()
+            status, day = asgi(app, "GET", f"/api/timetable/day?date={d}")
+            assert status == 200, (name, d, status)
+            wd = week["days"][i]
+            assert wd["date"] == d and wd["free"] == day["free"] and wd["blocked"] == day["blocked"], (name, d)
+            days.append({"date": d, "free": day["free"], "blocked": day["blocked"]})
+        scenarios.append({"name": name, "settings": body, "raw": json.dumps(body) if body is not None else None,
+                          "learn_start": week["learn_start"], "learn_end": week["learn_end"], "days": days})
+    return {"generator": "tools/gen-local-backend-fixture.py", "start": FREE_START, "scenarios": scenarios}
+
+
 def main() -> int:
     check = "--check" in sys.argv[1:]
     src = SchemaSource()
     try:
-        from app.server import app                       # nach SchemaSource: DB_PATH liegt im Temp-Ordner
-        cov = coverage(src, app)
+        from app import server                           # nach SchemaSource: DB_PATH liegt im Temp-Ordner
+        app = server.app
+        cov = coverage(src, app, server)
         st = settings_terms(src, app)
+        tf = timetable_free(src, app)
     finally:
         src.cleanup()
     out = {"app-paths.json": json.dumps(cov, ensure_ascii=False, indent=1) + "\n",
-           "settings-terms.json": json.dumps(st, ensure_ascii=False, indent=1) + "\n"}
+           "settings-terms.json": json.dumps(st, ensure_ascii=False, indent=1) + "\n",
+           "timetable-free.json": json.dumps(tf, ensure_ascii=False, indent=1) + "\n"}
     ok = all([write_or_check(OUT / name, content, check) for name, content in out.items()])
     return 0 if ok or not check else 1
 

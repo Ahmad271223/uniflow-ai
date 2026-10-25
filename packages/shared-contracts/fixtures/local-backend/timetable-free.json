@@ -1,0 +1,597 @@
+{
+ "generator": "tools/gen-local-backend-fixture.py",
+ "start": "2026-10-26",
+ "scenarios": [
+  {
+   "name": "Standard",
+   "settings": null,
+   "raw": null,
+   "learn_start": "08:00",
+   "learn_end": "21:00",
+   "days": [
+    {
+     "date": "2026-10-26",
+     "free": [
+      {
+       "start": 480,
+       "end": 1260,
+       "minutes": 780,
+       "start_hm": "08:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-27",
+     "free": [
+      {
+       "start": 480,
+       "end": 1260,
+       "minutes": 780,
+       "start_hm": "08:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-28",
+     "free": [
+      {
+       "start": 480,
+       "end": 1260,
+       "minutes": 780,
+       "start_hm": "08:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-29",
+     "free": [
+      {
+       "start": 480,
+       "end": 1260,
+       "minutes": 780,
+       "start_hm": "08:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-30",
+     "free": [
+      {
+       "start": 480,
+       "end": 1260,
+       "minutes": 780,
+       "start_hm": "08:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-31",
+     "free": [
+      {
+       "start": 480,
+       "end": 1260,
+       "minutes": 780,
+       "start_hm": "08:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-11-01",
+     "free": [
+      {
+       "start": 480,
+       "end": 1260,
+       "minutes": 780,
+       "start_hm": "08:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    }
+   ]
+  },
+  {
+   "name": "Sperrzeiten",
+   "settings": {
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00",
+      "title": "Mittag"
+     },
+     {
+      "weekday": 0,
+      "start": "12:30",
+      "end": "14:00"
+     },
+     {
+      "weekday": 1,
+      "start": "07:00",
+      "end": "09:00"
+     },
+     {
+      "weekday": 2,
+      "start": "20:30",
+      "end": "22:00"
+     },
+     {
+      "weekday": 3,
+      "start": "08:00",
+      "end": "08:20"
+     },
+     {
+      "weekday": "4",
+      "start": "10:00",
+      "end": "11:00"
+     },
+     {
+      "weekday": 4,
+      "start": "11:20",
+      "end": "12:00"
+     },
+     {
+      "weekday": 5,
+      "start": null,
+      "end": "09:00"
+     },
+     {
+      "weekday": 6,
+      "start": "08:00",
+      "end": "21:00"
+     }
+    ]
+   },
+   "raw": "{\"blocked_times\": [{\"weekday\": 0, \"start\": \"12:00\", \"end\": \"13:00\", \"title\": \"Mittag\"}, {\"weekday\": 0, \"start\": \"12:30\", \"end\": \"14:00\"}, {\"weekday\": 1, \"start\": \"07:00\", \"end\": \"09:00\"}, {\"weekday\": 2, \"start\": \"20:30\", \"end\": \"22:00\"}, {\"weekday\": 3, \"start\": \"08:00\", \"end\": \"08:20\"}, {\"weekday\": \"4\", \"start\": \"10:00\", \"end\": \"11:00\"}, {\"weekday\": 4, \"start\": \"11:20\", \"end\": \"12:00\"}, {\"weekday\": 5, \"start\": null, \"end\": \"09:00\"}, {\"weekday\": 6, \"start\": \"08:00\", \"end\": \"21:00\"}]}",
+   "learn_start": "08:00",
+   "learn_end": "21:00",
+   "days": [
+    {
+     "date": "2026-10-26",
+     "free": [
+      {
+       "start": 480,
+       "end": 720,
+       "minutes": 240,
+       "start_hm": "08:00",
+       "end_hm": "12:00",
+       "campus": false
+      },
+      {
+       "start": 840,
+       "end": 1260,
+       "minutes": 420,
+       "start_hm": "14:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": [
+      {
+       "weekday": 0,
+       "start": "12:00",
+       "end": "13:00",
+       "title": "Mittag"
+      },
+      {
+       "weekday": 0,
+       "start": "12:30",
+       "end": "14:00"
+      }
+     ]
+    },
+    {
+     "date": "2026-10-27",
+     "free": [
+      {
+       "start": 540,
+       "end": 1260,
+       "minutes": 720,
+       "start_hm": "09:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": [
+      {
+       "weekday": 1,
+       "start": "07:00",
+       "end": "09:00"
+      }
+     ]
+    },
+    {
+     "date": "2026-10-28",
+     "free": [
+      {
+       "start": 480,
+       "end": 1230,
+       "minutes": 750,
+       "start_hm": "08:00",
+       "end_hm": "20:30",
+       "campus": false
+      }
+     ],
+     "blocked": [
+      {
+       "weekday": 2,
+       "start": "20:30",
+       "end": "22:00"
+      }
+     ]
+    },
+    {
+     "date": "2026-10-29",
+     "free": [
+      {
+       "start": 500,
+       "end": 1260,
+       "minutes": 760,
+       "start_hm": "08:20",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": [
+      {
+       "weekday": 3,
+       "start": "08:00",
+       "end": "08:20"
+      }
+     ]
+    },
+    {
+     "date": "2026-10-30",
+     "free": [
+      {
+       "start": 480,
+       "end": 600,
+       "minutes": 120,
+       "start_hm": "08:00",
+       "end_hm": "10:00",
+       "campus": false
+      },
+      {
+       "start": 720,
+       "end": 1260,
+       "minutes": 540,
+       "start_hm": "12:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": [
+      {
+       "weekday": "4",
+       "start": "10:00",
+       "end": "11:00"
+      },
+      {
+       "weekday": 4,
+       "start": "11:20",
+       "end": "12:00"
+      }
+     ]
+    },
+    {
+     "date": "2026-10-31",
+     "free": [
+      {
+       "start": 540,
+       "end": 1260,
+       "minutes": 720,
+       "start_hm": "09:00",
+       "end_hm": "21:00",
+       "campus": false
+      }
+     ],
+     "blocked": [
+      {
+       "weekday": 5,
+       "start": null,
+       "end": "09:00"
+      }
+     ]
+    },
+    {
+     "date": "2026-11-01",
+     "free": [],
+     "blocked": [
+      {
+       "weekday": 6,
+       "start": "08:00",
+       "end": "21:00"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Lernzeit und Mindestlaenge",
+   "settings": {
+    "learn_start": "09:15",
+    "learn_end": "18:45",
+    "min_slot_minutes": 45,
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "10:00",
+      "end": "10:50"
+     },
+     {
+      "weekday": 0,
+      "start": "11:30",
+      "end": "12:15:00"
+     },
+     {
+      "weekday": 2,
+      "start": "17:30",
+      "end": "18:00"
+     }
+    ]
+   },
+   "raw": "{\"learn_start\": \"09:15\", \"learn_end\": \"18:45\", \"min_slot_minutes\": 45, \"blocked_times\": [{\"weekday\": 0, \"start\": \"10:00\", \"end\": \"10:50\"}, {\"weekday\": 0, \"start\": \"11:30\", \"end\": \"12:15:00\"}, {\"weekday\": 2, \"start\": \"17:30\", \"end\": \"18:00\"}]}",
+   "learn_start": "09:15",
+   "learn_end": "18:45",
+   "days": [
+    {
+     "date": "2026-10-26",
+     "free": [
+      {
+       "start": 555,
+       "end": 600,
+       "minutes": 45,
+       "start_hm": "09:15",
+       "end_hm": "10:00",
+       "campus": false
+      },
+      {
+       "start": 735,
+       "end": 1125,
+       "minutes": 390,
+       "start_hm": "12:15",
+       "end_hm": "18:45",
+       "campus": false
+      }
+     ],
+     "blocked": [
+      {
+       "weekday": 0,
+       "start": "10:00",
+       "end": "10:50"
+      },
+      {
+       "weekday": 0,
+       "start": "11:30",
+       "end": "12:15:00"
+      }
+     ]
+    },
+    {
+     "date": "2026-10-27",
+     "free": [
+      {
+       "start": 555,
+       "end": 1125,
+       "minutes": 570,
+       "start_hm": "09:15",
+       "end_hm": "18:45",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-28",
+     "free": [
+      {
+       "start": 555,
+       "end": 1050,
+       "minutes": 495,
+       "start_hm": "09:15",
+       "end_hm": "17:30",
+       "campus": false
+      },
+      {
+       "start": 1080,
+       "end": 1125,
+       "minutes": 45,
+       "start_hm": "18:00",
+       "end_hm": "18:45",
+       "campus": false
+      }
+     ],
+     "blocked": [
+      {
+       "weekday": 2,
+       "start": "17:30",
+       "end": "18:00"
+      }
+     ]
+    },
+    {
+     "date": "2026-10-29",
+     "free": [
+      {
+       "start": 555,
+       "end": 1125,
+       "minutes": 570,
+       "start_hm": "09:15",
+       "end_hm": "18:45",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-30",
+     "free": [
+      {
+       "start": 555,
+       "end": 1125,
+       "minutes": 570,
+       "start_hm": "09:15",
+       "end_hm": "18:45",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-31",
+     "free": [
+      {
+       "start": 555,
+       "end": 1125,
+       "minutes": 570,
+       "start_hm": "09:15",
+       "end_hm": "18:45",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    },
+    {
+     "date": "2026-11-01",
+     "free": [
+      {
+       "start": 555,
+       "end": 1125,
+       "minutes": 570,
+       "start_hm": "09:15",
+       "end_hm": "18:45",
+       "campus": false
+      }
+     ],
+     "blocked": []
+    }
+   ]
+  },
+  {
+   "name": "leere Lernzeit",
+   "settings": {
+    "learn_start": "07:00",
+    "learn_end": "07:00"
+   },
+   "raw": "{\"learn_start\": \"07:00\", \"learn_end\": \"07:00\"}",
+   "learn_start": "07:00",
+   "learn_end": "07:00",
+   "days": [
+    {
+     "date": "2026-10-26",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-27",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-28",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-29",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-30",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-31",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-11-01",
+     "free": [],
+     "blocked": []
+    }
+   ]
+  },
+  {
+   "name": "Ende vor Beginn",
+   "settings": {
+    "learn_start": "20:00",
+    "learn_end": "10:00",
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00"
+     }
+    ]
+   },
+   "raw": "{\"learn_start\": \"20:00\", \"learn_end\": \"10:00\", \"blocked_times\": [{\"weekday\": 0, \"start\": \"12:00\", \"end\": \"13:00\"}]}",
+   "learn_start": "20:00",
+   "learn_end": "10:00",
+   "days": [
+    {
+     "date": "2026-10-26",
+     "free": [],
+     "blocked": [
+      {
+       "weekday": 0,
+       "start": "12:00",
+       "end": "13:00"
+      }
+     ]
+    },
+    {
+     "date": "2026-10-27",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-28",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-29",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-30",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-10-31",
+     "free": [],
+     "blocked": []
+    },
+    {
+     "date": "2026-11-01",
+     "free": [],
+     "blocked": []
+    }
+   ]
+  }
+ ]
+}

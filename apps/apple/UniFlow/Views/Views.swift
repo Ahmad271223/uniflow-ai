@@ -79,7 +79,9 @@ struct LibraryView: View {
             VStack(spacing: 0) {
                 if !openTabs.isEmpty { tabStrip }
                 if let id = fileSelection, let f = file(id), let api = session.api {
-                    DocumentView(file: f, api: api).id(f.id)
+                    // Identitaet je Datenquelle: beim Wechsel lokal <-> Server entsteht der DocumentStore neu fuer
+                    // die neue Quelle (updateAPI uebernimmt nur Verbindungen derselben Quelle)
+                    DocumentView(file: f, api: api).id("\(api.namespace.id)/\(f.id)")
                 } else {
                     ContentUnavailableView("Dokument wählen", systemImage: "doc.richtext", description: Text("Links ein Modul und ein Dokument auswählen."))
                 }

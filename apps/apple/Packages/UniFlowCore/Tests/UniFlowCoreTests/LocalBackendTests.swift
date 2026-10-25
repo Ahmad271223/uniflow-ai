@@ -185,8 +185,12 @@ final class LocalBackendCoverageTests: XCTestCase {
         }
     }
 
-    /// Gleiche Form: gleicher Typ, gleiche Schluessel; Listen nur, wenn beide Eintraege haben.
-    private func compare(_ local: JSONValue, _ python: JSONValue, _ path: String, _ problems: inout [String]) {
+    /// Gleiche Form: gleicher Typ, gleiche Schluessel; Eintraege von Listen, wenn beide welche haben. Eine lokal
+    /// leere Liste gegen eine in Python gefuellte ist eine Abweichung, ausser sie steht in `emptyOK` (Pfad ab "$",
+    /// "expect.empty_lists" im Fixture). Eine lokal gefuellte Liste gegen eine in Python leere ist erlaubt (z. B.
+    /// Sperrzeiten aus den Einstellungen).
+    private func compare(_ local: JSONValue, _ python: JSONValue, _ path: String, emptyOK: Set<String> = [],
+                         _ problems: inout [String], at rel: String = "$") {
         let lt = local["type"]?.string ?? "", pt = python["type"]?.string ?? ""
         guard lt == pt else { problems.append("\(path): \(lt) statt \(pt)"); return }
         if lt == "object" {
@@ -195,11 +199,29 @@ final class LocalBackendCoverageTests: XCTestCase {
                 problems.append("\(path): Schlüssel \(lk.keys.sorted()) statt \(pk.keys.sorted())")
                 return
             }
-            for k in lk.keys.sorted() { compare(lk[k]!, pk[k]!, path + "." + k, &problems) }
+            for k in lk.keys.sorted() { compare(lk[k]!, pk[k]!, path + "." + k, emptyOK: emptyOK, &problems, at: rel + "." + k) }
         }
-        if lt == "array", let li = local["item"], let pi = python["item"], !li.isNull, !pi.isNull {
-            compare(li, pi, path + "[0]", &problems)
+        if lt == "array" {
+            let li = local["item"] ?? .null, pi = python["item"] ?? .null
+            if !li.isNull, !pi.isNull {
+                compare(li, pi, path + "[0]", emptyOK: emptyOK, &problems, at: rel + "[0]")
+            } else if li.isNull, !pi.isNull, !emptyOK.contains(rel) {
+                problems.append("\(path): lokal leer, in Python gefüllt (\(rel) bewusst? dann expect.empty_lists)")
+            }
         }
+    }
+
+    func testCompareReportsEmptyLocalList() {
+        let filled: JSONValue = ["type": "object", "keys": ["free": ["type": "array", "item": ["type": "number"]]]]
+        let empty: JSONValue = ["type": "object", "keys": ["free": ["type": "array", "item": .null]]]
+        var problems: [String] = []
+        compare(empty, filled, "GET /x", &problems)
+        XCTAssertEqual(problems.count, 1)
+        problems = []
+        compare(empty, filled, "GET /x", emptyOK: ["$.free"], &problems)
+        XCTAssertEqual(problems, [])
+        compare(filled, empty, "GET /x", &problems)
+        XCTAssertEqual(problems, [], "lokal gefuellt gegen Python leer ist erlaubt")
     }
 
     func testEveryAppPathGetsAValidAnswer() async throws {
@@ -232,7 +254,12 @@ final class LocalBackendCoverageTests: XCTestCase {
             XCTAssertNotEqual(r.status, 501, label)
             if r.isSuccess {
                 if let py = p["python"], (py["status"]?.int).map({ (200..<300).contains($0) }) == true, let pyShape = py["shape"] {
-                    compare(shape(body), pyShape, label, &problems)
+                    let emptyOK = Set(expect["empty_lists"]?.array?.compactMap(\.string) ?? [])
+                    compare(shape(body), pyShape, label, emptyOK: emptyOK, &problems)
+                }
+                // Werte, die exakt wie in app/server.py sein muessen (z. B. SERVICES)
+                for (k, v) in expect["values"]?.object ?? [:] where body[k] != v {
+                    problems.append("\(label): Wert von \(k) weicht von app/server.py ab")
                 }
                 if let type = expect["type"]?.string, shape(body)["type"]?.string != type { problems.append("\(label): Typ statt \(type)") }
                 if let keys = expect["keys"]?.array?.compactMap(\.string), Set(body.object?.keys.map { $0 } ?? []) != Set(keys) {
@@ -245,6 +272,17 @@ final class LocalBackendCoverageTests: XCTestCase {
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
         XCTAssertGreaterThan(placeholders, 40, "die meisten Pfade sind bis zur Portierung Platzhalter")
+    }
+
+    func testServicesListLikeServer() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let r = await backend.handle(LocalRequest(method: "GET", path: "/api/services"))
+        let services = try XCTUnwrap(r.json?["services"]?.array)
+        XCTAssertEqual(services.count, 12)
+        XCTAssertEqual(services.first?["key"], "studip")
+        for s in services {
+            for k in ["key", "name", "url", "desc", "login", "icon"] { XCTAssertNotNil(s[k]?.string, "\(k) in \(s)") }
+        }
     }
 
     func testSettingsAndTermsAreRealEndpoints() async throws {
@@ -287,5 +325,76 @@ final class LocalBackendCoverageTests: XCTestCase {
         XCTAssertEqual(f["per_day_need"], 300)
         XCTAssertEqual(f["open_minutes"], 0)
         XCTAssertNotNil(f["hint"]?.string, "300 > 240 Minuten")
+    }
+}
+
+// MARK: - Freie Zeitfenster gegen app/server.py
+
+final class LocalFreeWindowsTests: XCTestCase {
+
+    /// Dieselben Einstellungen wie FREE_SCENARIOS in tools/gen-local-backend-fixture.py: freie Fenster und
+    /// Sperrzeiten aus /api/timetable/day und /week exakt wie Python (ohne Termine und Lernpakete)
+    func testMatchesPythonServer() async throws {
+        let fx = try fixture("timetable-free.json")
+        let start = try XCTUnwrap(fx["start"]?.string)
+        let scenarios = fx["scenarios"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(scenarios.count, 5)
+        for sc in scenarios {
+            let name = sc["name"]?.string ?? ""
+            let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+            if let raw = sc["raw"]?.string {
+                let put = await backend.handle(LocalRequest(method: "PUT", path: "/api/settings", body: Data(raw.utf8)))
+                XCTAssertEqual(put.status, 200, name)
+            }
+            let weekResponse = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/week", query: [.init("start", start)]))
+            let week = try XCTUnwrap(weekResponse.json, name)
+            XCTAssertEqual(week["learn_start"], sc["learn_start"], name)
+            XCTAssertEqual(week["learn_end"], sc["learn_end"], name)
+            for (i, expected) in (sc["days"]?.array ?? []).enumerated() {
+                let date = expected["date"]?.string ?? ""
+                let dayResponse = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", date)]))
+                let day = try XCTUnwrap(dayResponse.json, "\(name) \(date)")
+                XCTAssertEqual(day["free"], expected["free"], "\(name) \(date) (Tag)")
+                XCTAssertEqual(day["blocked"], expected["blocked"], "\(name) \(date) (Tag)")
+                XCTAssertEqual(week["days"]?.array?[i]["date"]?.string, date, name)
+                XCTAssertEqual(week["days"]?.array?[i]["free"], expected["free"], "\(name) \(date) (Woche)")
+            }
+        }
+    }
+
+    /// Uebersicht: freie Fenster von heute wie GET /api/timetable/day fuer heute (study.dashboard)
+    func testDashboardShowsTodaysFreeWindows() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        _ = await backend.handle(LocalRequest(method: "PUT", path: "/api/settings",
+                                              body: Data(#"{"blocked_times": [{"weekday": 6, "start": "12:00", "end": "13:00"}]}"#.utf8)))
+        let dash = await backend.handle(LocalRequest(method: "GET", path: "/api/dashboard"))
+        let day = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", "2026-10-25")]))
+        let free = try XCTUnwrap(dash.json?["today"]?["free"]?.array)
+        XCTAssertEqual(free.map { $0["start_hm"]?.string ?? "" }, ["08:00", "13:00"])
+        XCTAssertEqual(dash.json?["today"]?["free"], day.json?["free"])
+    }
+
+    func testTimeConversionsLikePython() throws {
+        XCTAssertEqual(try LocalFreeWindows.hm("08:30", key: "t"), 510)
+        XCTAssertEqual(try LocalFreeWindows.hm("8:5:59", key: "t"), 485, "nur die ersten beiden Teile")
+        XCTAssertEqual(try LocalFreeWindows.hm(" 9 : 05", key: "t"), 545, "int() erlaubt Leerzeichen")
+        XCTAssertEqual(try LocalFreeWindows.hm(.null, key: "t"), 0)
+        XCTAssertEqual(try LocalFreeWindows.hm("", key: "t"), 0)
+        for bad: JSONValue in ["8", "08:xx", 830, true, "8.5:00"] {
+            XCTAssertThrowsError(try LocalFreeWindows.hm(bad, key: "t"), "\(bad)") { e in
+                XCTAssertEqual((e as? LocalHTTPError)?.status, 500)
+            }
+        }
+        XCTAssertEqual(LocalFreeWindows.mh(485), "08:05")
+        XCTAssertEqual(LocalFreeWindows.mh(-5), "00:00")
+        XCTAssertEqual(LocalFreeWindows.mh(1500), "25:00")
+    }
+
+    func testBrokenLearnTimeFailsLikePython() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        _ = await backend.handle(LocalRequest(method: "PUT", path: "/api/settings", body: Data(#"{"learn_start": "acht"}"#.utf8)))
+        let r = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", "2026-10-26")]))
+        XCTAssertEqual(r.status, 500)
+        XCTAssertNotNil(r.json?["detail"]?.string)
     }
 }

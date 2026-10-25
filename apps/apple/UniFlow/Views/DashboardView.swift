@@ -80,8 +80,10 @@ struct DashboardView: View {
                         }
                     }
                 }
-                // lokal: solange Stud.IP nicht verbunden ist, oben die Karte "Stud.IP verbinden" (Auftrag 2a)
+                // lokal: solange Stud.IP nicht verbunden ist, oben die Karte "Stud.IP verbinden" (Auftrag 2a); danach
+                // bis S3 Abgleichstand und Stud.IP-Dateien, die die lokale Uebersicht noch nicht kennt
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
+                if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
 
                 UFGrid(columns: 3) {
                     kpiCard(value: UFFmt.min(today.n("minutes")),
@@ -105,6 +107,11 @@ struct DashboardView: View {
             }
             .frame(maxWidth: 1120, alignment: .leading)
         }
+    }
+
+    private func statusBar(_ mode: UFDataMode) -> Bool {
+        UFNoServerContent.resolve(kind: .dashboard, mode: mode, phase: studip.phase,
+                                  files: studip.entries.count, courses: studip.courses.count).showsStatusBar
     }
 
     /// "Sonntag, 25. Oktober · heute 2 Lernpakete · 3 Uni-Termine"
