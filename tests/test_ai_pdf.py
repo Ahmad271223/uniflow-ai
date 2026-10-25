@@ -96,3 +96,29 @@ def test_weekly_test_falls_back_to_text(captured, tmp_path):
     mats = [{"name": "vl.pdf", "local_path": str(_pdf(tmp_path / "vl.pdf", 3)), "text": "Grenzwerte"}]
     res = ai.generate_test("Mathe I", 45, mats)
     assert res["_input"] == "text" and "Grenzwerte" in calls[1]["prompt"] and calls[1]["cwd"] is None
+
+
+def test_reanalyze_replaces_only_text_analyses(app, tmp_path, monkeypatch):
+    from app import ai, db, planner
+    pdf = str(_pdf(tmp_path / "vl.pdf", 3))
+    with db.cursor() as conn:
+        conn.execute("INSERT OR IGNORE INTO courses(id, title, kind, created_at) VALUES ('ra-c', 'Mathe RA', 'vorlesung', '2026-10-25')")
+        for fid in ("ra-1", "ra-2", "ra-3"):
+            conn.execute("INSERT OR REPLACE INTO files(id, course_id, name, local_path, kind) VALUES (?, 'ra-c', ?, ?, 'pdf')", (fid, f"{fid}.pdf", pdf))
+        conn.execute("INSERT OR REPLACE INTO analysis(file_id, doc_type, raw) VALUES ('ra-1', 'sonstiges', '{}')")              # aus Text
+        conn.execute("""INSERT OR REPLACE INTO analysis(file_id, doc_type, raw) VALUES ('ra-2', 'vorlesung', '{"_input": "pdf"}')""")  # schon PDF
+        conn.execute("INSERT OR REPLACE INTO analysis(file_id, doc_type, raw) VALUES ('ra-3', 'uebung', '{}')")                 # aus Text, scheitert
+
+    def fake(course, name, text, pdf_path=None):
+        if name.startswith("ra-3"):
+            return {"doc_type": "vorlesung", "_input": "text"}      # nur Text-Rueckfall -> alte Analyse behalten
+        return {"doc_type": "vorlesung", "title": "neu", "_input": "pdf"}
+
+    monkeypatch.setattr(ai, "analyze_file", fake)
+    r = planner.reanalyze_pdfs(workers=1, log=lambda *_: None)
+    with db.cursor() as conn:
+        types = dict(conn.execute("SELECT file_id, doc_type FROM analysis WHERE file_id LIKE 'ra-%'").fetchall())
+        conn.execute("DELETE FROM analysis WHERE file_id LIKE 'ra-%'"); conn.execute("DELETE FROM files WHERE id LIKE 'ra-%'")
+        conn.execute("DELETE FROM courses WHERE id='ra-c'")
+    assert r == {"gesamt": 2, "neu": 1, "behalten": 1, "typ_geaendert": 1}
+    assert types == {"ra-1": "vorlesung", "ra-2": "vorlesung", "ra-3": "uebung"}

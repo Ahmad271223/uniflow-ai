@@ -306,11 +306,24 @@ def stream_download(page, url: str, target: Path, shown_url: str | None = None, 
     if jar:
         headers["Cookie"] = "; ".join(f"{c['name']}={c['value']}" for c in jar)
     req = urllib.request.Request(url, headers=headers)
-    try:
-        resp = urllib.request.urlopen(req, timeout=timeout)  # noqa: S310 - URL stammt aus der Uni-Schnittstelle
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"Download fehlgeschlagen ({e.code}): {shown}") from None
-    with resp:
+    # Abgerissene Verbindungen (WLAN, Zeitueberschreitung) bis zu zweimal wiederholen; HTTP-Fehler und
+    # Anmeldeseiten nicht, die aendern sich durch Wiederholen nicht.
+    for attempt in range(3):
+        try:
+            _stream_once(req, target, shown, timeout)
+            return
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"Download fehlgeschlagen ({e.code}): {shown}") from None
+        except (ConnectionError, TimeoutError, urllib.error.URLError, OSError) as e:
+            if isinstance(e, urllib.error.HTTPError) or attempt == 2:
+                raise RuntimeError(f"Download abgebrochen ({type(e).__name__}): {shown}") from None
+            time.sleep(1.5 * (attempt + 1))
+
+
+def _stream_once(req, target: Path, shown: str, timeout: int) -> None:
+    import shutil
+    import urllib.request
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - URL stammt aus der Uni-Schnittstelle
         first = resp.read(65536)
         if first.lstrip()[:15].lower().startswith(HTML_STARTS) and target.suffix.lower() not in (".html", ".htm"):
             raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {shown}")

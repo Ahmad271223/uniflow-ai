@@ -84,6 +84,48 @@ def analyze_pending(limit: int = 80, workers: int = 4, log=print) -> int:
     return done
 
 
+def reanalyze_pdfs(workers: int = 4, limit: int | None = None, log=print) -> dict:
+    """Bestehende Analysen von PDFs, die noch aus dem Text-Weg stammen, neu mit PDF-Seiten erstellen.
+    Die alte Analyse bleibt, wenn die neue scheitert oder nicht ueber den PDF-Weg entstand."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from pathlib import Path
+
+    with db.cursor() as conn:
+        rows = db.rows(conn, """
+            SELECT f.id, f.name, f.local_path, c.title AS course_title, a.doc_type AS old_type
+            FROM analysis a JOIN files f ON f.id = a.file_id JOIN courses c ON c.id = f.course_id
+            WHERE lower(f.name) LIKE '%.pdf' AND f.local_path IS NOT NULL
+              AND COALESCE(a.raw, '') NOT LIKE '%"_input": "pdf"%'
+            ORDER BY f.chdate DESC""")
+    rows = [r for r in rows if Path(r["local_path"]).is_file()][:limit]
+    stats = {"gesamt": len(rows), "neu": 0, "behalten": 0, "typ_geaendert": 0}
+
+    def work(f):
+        text = extract_text(f["local_path"])
+        res = ai.analyze_file(f["course_title"], f["name"], text, pdf_path=f["local_path"])
+        return f, res, text
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
+        futures = [ex.submit(work, f) for f in rows]
+        for fut in as_completed(futures):
+            try:
+                f, res, text = fut.result()
+            except Exception as e:  # noqa: BLE001
+                stats["behalten"] += 1
+                log(f"Neu-Analyse fehlgeschlagen, alte bleibt: {e}")
+                continue
+            if not (isinstance(res, dict) and res.get("doc_type") and res.get("_input") == "pdf"):
+                stats["behalten"] += 1
+                log(f"Neu-Analyse ohne PDF-Ergebnis, alte bleibt: {f['name']}")
+                continue
+            _store_analysis(f["id"], res, text)
+            stats["neu"] += 1
+            if res.get("doc_type") != f["old_type"]:
+                stats["typ_geaendert"] += 1
+            log(f"Neu analysiert ({stats['neu']}/{stats['gesamt']}): {f['name']} -> {res.get('doc_type')} (vorher {f['old_type']})")
+    return stats
+
+
 # ----------------------------------------------------------------------------
 # Wochenplan
 # ----------------------------------------------------------------------------

@@ -5,6 +5,7 @@
   python sync.py --no-ai     -> nur synchronisieren
   python sync.py --plan      -> Wochenplan neu erzeugen (auch ohne neue Dateien)
   python sync.py --tests     -> fehlende Wochentests erzeugen
+  python sync.py --reanalyze -> vorhandene PDF-Analysen neu mit PDF-Seiten erstellen (ohne Sync)
 """
 from __future__ import annotations
 
@@ -17,6 +18,11 @@ from app.studip_sync import log, run_sync
 
 def main(argv: list[str]) -> int:
     db.init_db()
+    if "--reanalyze" in argv:
+        # Vorhandene PDF-Analysen aus dem Text-Weg neu mit PDF-Seiten erstellen (ohne Sync)
+        r = planner.reanalyze_pdfs(log=log)
+        log(f"Neu-Analyse: {r}")
+        return 0
     only_sync = "--no-ai" in argv
     force_plan = "--plan" in argv
     force_tests = "--tests" in argv
