@@ -51,7 +51,7 @@ jobs:
         run: |
           test ! -e .env || { echo ".env darf nicht eingecheckt sein"; exit 1; }
           ! git ls-files | grep -E '^(data|logs|backup)/' || { echo "data/, logs/, backup/ duerfen nicht eingecheckt sein"; exit 1; }
-          ! git grep -nIE '(STUDIP|QIS|IDM)_PASSWORD=.{4,}' -- ':!.env.example' ':!tests/' || { echo "Passwort im Code gefunden"; exit 1; }
+          ! git grep -nIE '(STUDIP|QIS|IDM|HILDESHEIM)_PASSWORD=.{4,}|LEARNWEB_TOKE[N]=.{8,}' -- ':!.env.example' ':!tests/' || { echo "Passwort im Code gefunden"; exit 1; }
 
   frontend:
     name: Weboberflaeche (Syntax)

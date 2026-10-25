@@ -338,6 +338,7 @@ DEFAULT_SETTINGS = {
     "min_slot_minutes": "30",
     "blocked_times": "[]",           # [{"weekday":0,"start":"12:00","end":"13:00","title":"Mittag"}]
     "pen_input": "all",              # all | pen_only
+    "university": "luh",             # luh | hildesheim (siehe app/universities.py)
     "hand": "right",                 # Schreibhand: right | left (geteilte Ansicht: Skript auf der freien Seite)
 }
 

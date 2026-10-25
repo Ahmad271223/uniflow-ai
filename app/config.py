@@ -103,5 +103,25 @@ def service_credentials(prefix: str, _depth: int = 0) -> tuple[str, str]:
     return credentials()
 
 
+def own_credentials(prefix: str, _depth: int = 0) -> tuple[str, str]:
+    """Nur der eigene Eintrag <PREFIX>_USER/_PASSWORD (oder <PREFIX>_SAME_AS), OHNE Rueckfall auf die LUH-ID.
+    Fuer andere Hochschulen waere der LUH-Rueckfall falsch (fremde Zugangsdaten an ein fremdes SSO)."""
+    v = _env()
+    same = (v.get(f"{prefix}_SAME_AS") or "").strip().upper()
+    if same and same != prefix and _depth < 5:
+        return own_credentials(same, _depth + 1) if same != "STUDIP" else credentials()
+    user = (v.get(f"{prefix}_USER") or "").strip()
+    pw = (v.get(f"{prefix}_PASSWORD") or "").strip()
+    if user and pw and user not in PLACEHOLDERS and pw not in PLACEHOLDERS:
+        return user, pw
+    return "", ""
+
+
+def secret(key: str) -> str:
+    """Einzelner geheimer Wert aus der .env (z. B. LEARNWEB_TOKEN), leer wenn nicht gesetzt."""
+    val = (_env().get(key) or "").strip()
+    return "" if val in PLACEHOLDERS else val
+
+
 # Dateitypen, deren Text fuer die KI extrahiert wird
 TEXT_EXTENSIONS = {".pdf", ".txt", ".md", ".py", ".c", ".h", ".java", ".tex", ".csv", ".pf"}

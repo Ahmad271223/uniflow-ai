@@ -258,6 +258,9 @@ def parse_ics(text: str) -> list[dict]:
         elif cur is not None and ":" in ln:
             k, v = ln.split(":", 1)
             key = k.split(";")[0].upper()
+            if key == "EXDATE":   # kann mehrfach vorkommen und mehrere Daten enthalten
+                cur.setdefault("_EXDATES", []).extend(x for x in v.strip().split(",") if x)
+                continue
             cur[key] = v.strip()
             if key in ("DTSTART", "DTEND"):
                 cur[key + "_PARAMS"] = k
@@ -273,10 +276,29 @@ def parse_ics(text: str) -> list[dict]:
         interval = re.search(r"INTERVAL=(\d+)", rr)
         until = re.search(r"UNTIL=(\d{8})", rr)
         title = ev.get("SUMMARY", "Veranstaltung").replace("\\,", ",")
-        out.append({"title": title, "kind": guess_kind(title), "weekday": st.weekday(), "start_time": st.strftime("%H:%M"), "end_time": en.strftime("%H:%M"),
-                    "room": (ev.get("LOCATION") or "").replace("\\,", ","), "rrule": ("biweekly" if interval and interval.group(1) == "2" else "weekly") if weekly else "once",
-                    "date_from": st.date().isoformat(), "date_to": f"{until.group(1)[:4]}-{until.group(1)[4:6]}-{until.group(1)[6:]}" if until else None, "uncertain": False})
+        # BYDAY bestimmt den Wochentag; DTSTART ist z. B. im LSF der Semesterbeginn (Montag), auch fuer Donnerstags-Kurse
+        byday = re.search(r"BYDAY=([A-Z,0-9+-]+)", rr) if weekly else None
+        days = [ICS_DAYS[d[-2:]] for d in byday.group(1).split(",") if d[-2:] in ICS_DAYS] if byday else []
+        exd = {_ics_dt(x).date() for x in ev.get("_EXDATES", []) if _safe_ics_dt(x)}
+        for wd in days or [st.weekday()]:
+            first = st.date() + timedelta(days=(wd - st.weekday()) % 7)
+            out.append({"title": title, "kind": guess_kind(title), "weekday": wd, "start_time": st.strftime("%H:%M"), "end_time": en.strftime("%H:%M"),
+                        "room": (ev.get("LOCATION") or "").replace("\\,", ","), "rrule": ("biweekly" if interval and interval.group(1) == "2" else "weekly") if weekly else "once",
+                        "date_from": first.isoformat(), "date_to": f"{until.group(1)[:4]}-{until.group(1)[4:6]}-{until.group(1)[6:]}" if until else None, "uncertain": False,
+                        "exdates": sorted(d.isoformat() for d in exd if d.weekday() == wd),
+                        "uid": ev.get("UID"), "description": (ev.get("DESCRIPTION") or "").replace("\\n", "\n").replace("\\,", ",")})
     return out
+
+
+ICS_DAYS = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+
+
+def _safe_ics_dt(v: str) -> bool:
+    try:
+        _ics_dt(v)
+        return True
+    except ValueError:
+        return False
 
 
 def _ics_dt(v: str) -> datetime:
@@ -406,6 +428,7 @@ def diff_against_existing(conn, entries: list[dict]) -> dict:
 
 def apply_import(conn, entries: list[dict], source: str, remove_ids: list[int] | None = None) -> dict:
     n_new = n_upd = 0
+    new_ids: list[int] = []
     for e in entries:
         if e.get("existing_id"):
             conn.execute("UPDATE course_events SET start_time=?, end_time=?, room=COALESCE(NULLIF(?,''), room), kind=?, module_id=COALESCE(?, module_id) WHERE id=?",
@@ -416,10 +439,11 @@ def apply_import(conn, entries: list[dict], source: str, remove_ids: list[int] |
                             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)""",
                          (e.get("module_id"), e.get("course_id"), e["title"], e.get("kind") or "vorlesung", int(e["weekday"]), e["start_time"], e["end_time"], e.get("room") or "", e.get("lecturer") or "",
                           e.get("rrule") or "weekly", e.get("date_from"), e.get("date_to"), source, db.now_iso()))
+            new_ids.append(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
             n_new += 1
     for rid in remove_ids or []:
         conn.execute("DELETE FROM course_events WHERE id=?", (rid,))
-    return {"new": n_new, "updated": n_upd, "removed": len(remove_ids or [])}
+    return {"new": n_new, "updated": n_upd, "removed": len(remove_ids or []), "ids": new_ids}
 
 
 def week_grid(conn, start: date) -> dict:

@@ -1,6 +1,6 @@
 """Einstieg fuer den automatischen Lauf (8:00 und 15:00 Uhr):
 
-  python sync.py             -> Stud.IP synchronisieren, neue Dateien analysieren, Plan/Tests aktualisieren
+  python sync.py             -> Uni synchronisieren (LUH: Stud.IP, Hildesheim: Learnweb + LSF), neue Dateien analysieren, Plan/Tests aktualisieren
   python sync.py --show      -> Browser sichtbar (zum Pruefen des Logins)
   python sync.py --no-ai     -> nur synchronisieren
   python sync.py --plan      -> Wochenplan neu erzeugen (auch ohne neue Dateien)
@@ -60,10 +60,10 @@ def main(argv: list[str]) -> int:
     except Exception as e:  # noqa: BLE001
         log(f"Skriptsuche-Index-Fehler: {e}")
 
-    # Notenspiegel & Bescheinigungen aus QIS (nur mit eigenem QIS-Zugang, hoechstens einmal pro 20 Stunden)
+    # Notenspiegel (LUH: QIS mit Bescheinigungen, Hildesheim: LSF) nur mit eigenem Zugang, hoechstens einmal pro 20 Stunden
     try:
-        from app import config, qis
-        if config.service_status("QIS")["own"]:
+        from app import qis
+        if qis.configured():
             from datetime import datetime, timedelta
             with db.cursor() as conn:
                 last = db.row(conn, "SELECT finished_at FROM qis_runs WHERE ok=1 ORDER BY id DESC LIMIT 1")

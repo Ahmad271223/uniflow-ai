@@ -19,6 +19,35 @@ from .config import DATA_DIR, LOG_DIR
 QIS_BASE = "https://qis.verwaltung.uni-hannover.de"
 QIS_START = f"{QIS_BASE}/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?state=user&type=0&application=lsf"
 PROFILE_DIR = DATA_DIR / "browser-profile-qis"
+
+# Gleiche HIS-QIS-Software an mehreren Hochschulen: Basis-URL, Login und Bescheinigungen je Uni.
+PROFILES = {
+    "luh": {"base": QIS_BASE, "start": QIS_START, "documents": True, "cred_prefix": "QIS", "profile_dir": PROFILE_DIR},
+    "hildesheim": {"base": "https://lsf.uni-hildesheim.de", "start": "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0",
+                   "documents": False, "cred_prefix": "HILDESHEIM", "profile_dir": DATA_DIR / "browser-profile-hildesheim"},
+}
+_P = dict(PROFILES["luh"], key="luh")      # aktives Profil waehrend eines Laufs
+
+
+def use_profile(key: str) -> dict:
+    _P.clear(); _P.update(PROFILES.get(key, PROFILES["luh"]), key=key if key in PROFILES else "luh")
+    return _P
+
+
+def credentials_for(key: str) -> tuple[str, str]:
+    """LUH: QIS-Zugang (mit Rueckfall auf die LUH-ID). Andere Unis: nur der eigene Uni-Account."""
+    if key == "luh":
+        return config.service_credentials("QIS")
+    return config.own_credentials(PROFILES[key]["cred_prefix"])
+
+
+def configured(key: str | None = None) -> bool:
+    from . import universities
+    key = key or universities.current_key()
+    if key == "luh":
+        return config.service_status("QIS")["own"]
+    u, p = credentials_for(key)
+    return bool(u and p)
 DOC_DIR = DATA_DIR / "qis"
 GRADE_HEADERS = {"prüfungsnr": "pruefungsnr", "nr": "pruefungsnr", "prüfungstext": "text", "text": "text", "semester": "semester", "note": "note",
                  "status": "status", "credits": "credits", "ects": "credits", "bonus": "credits", "versuch": "versuch", "vermerk": "status", "datum": "datum", "prüfungsdatum": "datum"}
@@ -46,7 +75,12 @@ def _click_text(page: Page, texts: list[str], timeout: int = 8000) -> bool:
 
 
 def login(page: Page, user: str, password: str) -> None:
-    page.goto(QIS_START, wait_until="domcontentloaded")
+    if _P.get("key") == "hildesheim":
+        from . import lsf
+        lsf.login(page, user, password, log)
+        log("QIS: Login erfolgreich (CAS)")
+        return
+    page.goto(_P["start"], wait_until="domcontentloaded")
     page.wait_for_timeout(800)
     if page.locator("a:has-text('Abmelden'), a:has-text('Logout')").count():
         log("QIS: bereits angemeldet")
@@ -91,7 +125,7 @@ def _parse_tables(page: Page, abschluss: str) -> list[dict]:
 
 def fetch_grades(page: Page) -> list[dict]:
     # LUH-QIS: Startseite "Meine Funktionen" mit Menue "Mein Studium" (Noten) und "Meine Bescheinigungen"
-    page.goto(QIS_START, wait_until="domcontentloaded"); page.wait_for_timeout(400)
+    page.goto(_P["start"], wait_until="domcontentloaded"); page.wait_for_timeout(400)
     _click_text(page, ["Meine Funktionen"], timeout=4000)
     found = False
     for menu in ("Mein Studium", "Prüfungsverwaltung", "Pruefungsverwaltung", "Studiumsverwaltung"):
@@ -330,7 +364,8 @@ def _click_pdf_links(page: Page, context: str) -> None:
 
 
 def _abs(href: str) -> str:
-    return href if href.startswith("http") else (QIS_BASE + href if href.startswith("/") else QIS_BASE + "/qisserver/" + href)
+    base = _P["base"]
+    return href if href.startswith("http") else (base + href if href.startswith("/") else base + "/qisserver/" + href)
 
 
 def _links(page: Page) -> list[tuple[str, str]]:
@@ -349,7 +384,7 @@ def _links(page: Page) -> list[tuple[str, str]]:
                 continue
             if not href or href.startswith(("javascript", "#", "mailto")) or "logout" in href.lower() or "logout" in text.lower() or "abmeld" in text.lower():
                 continue
-            if href.startswith("http") and not href.startswith(QIS_BASE):
+            if href.startswith("http") and not href.startswith(_P["base"]):
                 continue
             out.append((text, href))
     except Exception:  # noqa: BLE001
@@ -388,7 +423,7 @@ def fetch_documents(page: Page) -> list[dict]:
 
     for menu in ("Meine Funktionen", "Mein Studium", "Meine Bescheinigungen", "Prüfungsverwaltung", "Studiumsverwaltung", "Studienservice"):
         try:
-            page.goto(QIS_START, wait_until="domcontentloaded"); page.wait_for_timeout(300)
+            page.goto(_P["start"], wait_until="domcontentloaded"); page.wait_for_timeout(300)
             if _click_text(page, [menu], timeout=4000):
                 enqueue(_links(page), 1)
         except Exception:  # noqa: BLE001
@@ -425,18 +460,22 @@ def fetch_documents(page: Page) -> list[dict]:
     return list(DOCS)
 
 
-def run(show_browser: bool = False, with_documents: bool = True) -> dict:
+def run(show_browser: bool = False, with_documents: bool = True, university: str | None = None) -> dict:
+    from . import universities
     db.init_db()
+    key = university or universities.current_key()
+    prof = use_profile(key)
+    with_documents = with_documents and prof["documents"]
     started = db.now_iso()
     ok, msg, grades, docs = False, "", [], []
     DOCS.clear(); HASHES.clear()
-    user, pw = config.service_credentials("QIS")
+    user, pw = credentials_for(prof["key"])
     if not user or not pw:
-        msg = "Keine Zugangsdaten fuer QIS (Einstellungen > Zugang)."
+        msg = "Keine Zugangsdaten fuer QIS (Einstellungen > Zugang)." if prof["key"] == "luh" else             "Keine Zugangsdaten fuer das LSF (Einstellungen > Zugang: UNI-Account)."
     else:
         try:
             with sync_playwright() as p:
-                ctx = p.chromium.launch_persistent_context(str(PROFILE_DIR), headless=not show_browser, locale="de-DE")
+                ctx = p.chromium.launch_persistent_context(str(prof["profile_dir"]), headless=not show_browser, locale="de-DE")
                 page = ctx.new_page()
                 try:
                     login(page, user, pw)

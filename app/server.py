@@ -698,6 +698,9 @@ def get_settings():
 
 @app.put("/api/settings")
 def put_settings(body: dict = Body(...)):
+    from . import universities
+    if "university" in body and not universities.valid(body["university"]):
+        raise HTTPException(400, "Unbekannte Hochschule")
     with db.cursor() as conn:
         for k, v in body.items():
             db.set_setting(conn, k, v)
@@ -1246,7 +1249,8 @@ SERVICES = [
 ]
 
 
-CRED_SERVICES = {"studip": "STUDIP", "qis": "QIS", "idm": "IDM", "ilias": "ILIAS", "mail": "MAIL", "matrix": "MATRIX", "luhki": "LUHKI", "gitlab": "GITLAB"}
+CRED_SERVICES = {"studip": "STUDIP", "qis": "QIS", "idm": "IDM", "ilias": "ILIAS", "mail": "MAIL", "matrix": "MATRIX", "luhki": "LUHKI", "gitlab": "GITLAB",
+                 "hildesheim": "HILDESHEIM"}
 
 
 def _cred_overview() -> dict:
@@ -1258,16 +1262,41 @@ def _cred_overview() -> dict:
     return out
 
 
+def _hildesheim_creds() -> dict:
+    u, p = config.own_credentials("HILDESHEIM")
+    return {"own": bool(u and p), "same_as": None, "user": u or None, "configured": bool(u and p)}
+
+
 @app.get("/api/services")
 def api_services():
-    from . import qis
+    from . import qis, universities
     with db.cursor() as conn:
         s = qis.summary(conn)
+        uni = universities.current(conn)
     creds = _cred_overview()
+    creds["hildesheim"] = _hildesheim_creds()
     q = creds["qis"]
-    return {"services": SERVICES, "credentials": creds,
-            "qis": {"configured": q["configured"], "same_as_studip": q.get("same_as") == "studip" or (not q["configured"]), "last_run": s["last_run"]},
+    hi = uni["key"] == "hildesheim"
+    return {"services": universities.HILDESHEIM_SERVICES if hi else SERVICES, "credentials": creds,
+            "university": {k: uni[k] for k in ("key", "name", "short", "files_source", "grades_source", "login", "user_label")},
+            "universities": [{"key": k, "name": v["name"]} for k, v in universities.PROFILES.items()],
+            "learnweb": {"token_set": bool(config.secret("LEARNWEB_TOKEN"))},
+            "qis": {"configured": creds["hildesheim"]["configured"] if hi else q["configured"],
+                    "same_as_studip": False if hi else (q.get("same_as") == "studip" or (not q["configured"])), "last_run": s["last_run"]},
             "studip": {"configured": creds["studip"]["configured"]}}
+
+
+@app.put("/api/learnweb/token")
+def put_learnweb_token(body: dict = Body(...)):
+    """Learnweb-Sicherheitsschluessel (Moodle mobile web service) lokal in der .env speichern oder loeschen."""
+    if body.get("clear"):
+        config.set_env({"LEARNWEB_TOKEN": None})
+        return {"ok": True, "token_set": False}
+    token = (body.get("token") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9]{16,128}", token):
+        raise HTTPException(400, "Der Schlüssel besteht aus Buchstaben und Ziffern (meist 32 Zeichen).")
+    config.set_env({"LEARNWEB_TOKEN": token})
+    return {"ok": True, "token_set": True}
 
 
 @app.get("/api/grades")

@@ -308,11 +308,80 @@ def classify(title: str) -> tuple[str, str]:
     return s, kind
 
 
+
+# ----------------------------------------------------------------------------
+# Gemeinsames Speichern (Stud.IP und andere Quellen wie Learnweb)
+# ----------------------------------------------------------------------------
+
+def upsert_course(conn, c: dict, started: str) -> None:
+    """Kurs anlegen/aktualisieren; Fach und Art nur setzen, wenn noch leer (der Nutzer darf sie aendern)."""
+    subject, kind = classify(c["title"])
+    conn.execute(
+        """INSERT INTO courses(id, title, number, semester, subject, kind, created_at)
+           VALUES (?,?,?,?,?,?,?)
+           ON CONFLICT(id) DO UPDATE SET title=excluded.title, number=excluded.number,
+               semester=excluded.semester""",
+        (c["id"], c["title"], c["number"], c["semester"], subject, kind, started),
+    )
+    conn.execute("UPDATE courses SET subject=COALESCE(subject, ?), kind=COALESCE(kind, ?) WHERE id=?",
+                 (subject, kind, c["id"]))
+
+
+def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str, str], download_fn, started: str,
+                       new_files: list[str], pause: float = 0.2) -> None:
+    """Dateiliste eines Kurses speichern und neue/geaenderte Dateien mit download_fn(url, target) holen.
+    Geaendert = hoeherer chdate als gespeichert (Stud.IP: Aenderungszeit, Learnweb: timemodified bzw. Revision)."""
+    for f in files:
+        existing = db.row(conn, "SELECT chdate, local_path FROM files WHERE id=?", (f["id"],))
+        changed = existing is None or (existing["chdate"] or 0) < f["chdate"] or not existing["local_path"]             or not Path(existing["local_path"]).exists()
+        if existing is None:
+            conn.execute(
+                """INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind)
+                   VALUES (?,?,?,?,?,?,?,?,?, 'neu', ?)""",
+                (f["id"], c["id"], f["name"], f["size"], f["mime"], f["author"], f["chdate"],
+                 f["download_url"], started, file_kind(f["name"], f["mime"])),
+            )
+        else:
+            conn.execute(
+                "UPDATE files SET name=?, size=?, mime=?, author=?, chdate=?, download_url=? WHERE id=?",
+                (f["name"], f["size"], f["mime"], f["author"], f["chdate"], f["download_url"], f["id"]),
+            )
+        if f["id"] in folder_paths:
+            conn.execute("UPDATE files SET studip_folder=? WHERE id=?", (folder_paths[f["id"]], f["id"]))
+        if changed:
+            target = FILES_DIR / safe_name(subject_dir(c["title"])) / safe_name(f["name"])
+            other = db.row(conn, "SELECT id FROM files WHERE local_path=? AND id<>?", (str(target), f["id"]))
+            if other:
+                # Name-Kollision (gleicher Dateiname in zwei Ordnern): Dateiid anhaengen
+                suffix = safe_name(f["id"])[-8:] if str(f["id"]).startswith("lw-") else f["id"][:6]
+                target = target.with_name(f"{target.stem}_{suffix}{target.suffix}")
+            try:
+                download_fn(f["download_url"], target)
+                conn.execute("UPDATE files SET local_path=?, downloaded_at=? WHERE id=?",
+                             (str(target), db.now_iso(), f["id"]))
+                new_files.append(f["id"])
+                log(f"Neu: {c['title'][:40]} / {f['name']}")
+            except Exception as e:  # noqa: BLE001
+                log(f"Download-Fehler {f['name']}: {e}")
+            if pause:
+                time.sleep(pause)
+
+
 # ----------------------------------------------------------------------------
 # Hauptablauf
 # ----------------------------------------------------------------------------
 
 def run_sync(show_browser: bool = False) -> dict:
+    """Dateien, Kurse und Termine der gewaehlten Uni holen (LUH: Stud.IP, Hildesheim: Learnweb + LSF)."""
+    from . import universities
+    db.init_db()
+    if universities.current_key() == "hildesheim":
+        from . import hildesheim
+        return hildesheim.run_sync(show_browser=show_browser)
+    return run_studip_sync(show_browser=show_browser)
+
+
+def run_studip_sync(show_browser: bool = False) -> dict:
     db.init_db()
     started = db.now_iso()
     new_files: list[str] = []
@@ -339,17 +408,7 @@ def run_sync(show_browser: bool = False) -> dict:
                 except Exception as e:  # noqa: BLE001
                     log(f"Persoenlicher Stundenplan nicht gelesen: {e}")
                 for c in courses:
-                    subject, kind = classify(c["title"])
-                    conn.execute(
-                        """INSERT INTO courses(id, title, number, semester, subject, kind, created_at)
-                           VALUES (?,?,?,?,?,?,?)
-                           ON CONFLICT(id) DO UPDATE SET title=excluded.title, number=excluded.number,
-                               semester=excluded.semester""",
-                        (c["id"], c["title"], c["number"], c["semester"], subject, kind, started),
-                    )
-                    # Fach/Art nur setzen, wenn noch leer (Nutzer darf es aendern)
-                    conn.execute("UPDATE courses SET subject=COALESCE(subject, ?), kind=COALESCE(kind, ?) WHERE id=?",
-                                 (subject, kind, c["id"]))
+                    upsert_course(conn, c, started)
 
                 for c in courses:
                     try:
@@ -365,39 +424,7 @@ def run_sync(show_browser: bool = False) -> dict:
                         folder_paths = fetch_folder_paths(page, c["id"]) if files else {}
                     except Exception as e:  # noqa: BLE001
                         log(f"Ordnerstruktur nicht gelesen ({c['title']}): {e}"); folder_paths = {}
-                    for f in files:
-                        existing = db.row(conn, "SELECT chdate, local_path FROM files WHERE id=?", (f["id"],))
-                        changed = existing is None or (existing["chdate"] or 0) < f["chdate"] or not existing["local_path"] \
-                            or not Path(existing["local_path"]).exists()
-                        if existing is None:
-                            conn.execute(
-                                """INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind)
-                                   VALUES (?,?,?,?,?,?,?,?,?, 'neu', ?)""",
-                                (f["id"], c["id"], f["name"], f["size"], f["mime"], f["author"], f["chdate"],
-                                 f["download_url"], started, file_kind(f["name"], f["mime"])),
-                            )
-                        else:
-                            conn.execute(
-                                "UPDATE files SET name=?, size=?, mime=?, author=?, chdate=?, download_url=? WHERE id=?",
-                                (f["name"], f["size"], f["mime"], f["author"], f["chdate"], f["download_url"], f["id"]),
-                            )
-                        if f["id"] in folder_paths:
-                            conn.execute("UPDATE files SET studip_folder=? WHERE id=?", (folder_paths[f["id"]], f["id"]))
-                        if changed:
-                            target = FILES_DIR / safe_name(subject_dir(c["title"])) / safe_name(f["name"])
-                            other = db.row(conn, "SELECT id FROM files WHERE local_path=? AND id<>?", (str(target), f["id"]))
-                            if other:
-                                # Name-Kollision (gleicher Dateiname in zwei Ordnern): Dateiid anhaengen
-                                target = target.with_name(f"{target.stem}_{f['id'][:6]}{target.suffix}")
-                            try:
-                                download(page, f["download_url"], target)
-                                conn.execute("UPDATE files SET local_path=?, downloaded_at=? WHERE id=?",
-                                             (str(target), db.now_iso(), f["id"]))
-                                new_files.append(f["id"])
-                                log(f"Neu: {c['title'][:40]} / {f['name']}")
-                            except Exception as e:  # noqa: BLE001
-                                log(f"Download-Fehler {f['name']}: {e}")
-                        time.sleep(0.2)
+                    store_course_files(conn, c, files, folder_paths, lambda url, target: download(page, url, target), started, new_files)
             ctx.close()
         ok = True
         message = f"{len(new_files)} neue/geaenderte Dateien"
