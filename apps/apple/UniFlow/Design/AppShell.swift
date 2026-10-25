@@ -9,14 +9,14 @@ import UniFlowCore
 
 enum UFRoute: Hashable {
     case dashboard
-    case plan(view: String? = nil, date: String? = nil)
-    case timetable
+    case plan(view: String? = nil, date: String? = nil, module: String? = nil)
+    case timetable(date: String? = nil)
     case modules
     case module(Int)
-    case files(section: String? = nil)
+    case files(section: String? = nil, path: String? = nil, q: String? = nil)
     case doc(String, task: Int? = nil, page: Int? = nil)
     case exams
-    case exam(Int)
+    case exam(Int, task: Int? = nil)
     case cards
     case services
     case community
@@ -45,14 +45,14 @@ enum UFRoute: Hashable {
         }
         switch self {
         case .dashboard: return "#/dashboard"
-        case .plan(let v, let d): return "#/plan" + q([("view", v), ("date", d)])
-        case .timetable: return "#/timetable"
+        case .plan(let v, let d, let m): return "#/plan" + q([("view", v), ("date", d), ("module", m)])
+        case .timetable(let d): return "#/timetable" + q([("date", d)])
         case .modules: return "#/modules"
         case .module(let id): return "#/modules/\(id)"
-        case .files(let s): return "#/files" + q([("section", s)])
+        case .files(let s, let p, let qq): return "#/files" + q([("section", s), ("path", p), ("q", qq.map { $0.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? $0 })])
         case .doc(let id, let t, let p): return "#/doc/\(id)" + q([("task", t.map { "\($0)" }), ("page", p.map { "\($0)" })])
         case .exams: return "#/exams"
-        case .exam(let id): return "#/exams/\(id)"
+        case .exam(let id, let t): return "#/exams/\(id)" + q([("task", t.map { "\($0)" })])
         case .cards: return "#/cards"
         case .services: return "#/services"
         case .community: return "#/community"
@@ -77,19 +77,27 @@ enum UFRoute: Hashable {
         let first = parts.first ?? "dashboard"
         let second = parts.count > 1 ? parts[1] : nil
         switch first {
-        case "plan": self = .plan(view: q["view"], date: q["date"])
+        case "plan": self = .plan(view: q["view"], date: q["date"], module: q["module"])
         case "tasks": self = .plan(view: "list", date: q["date"])
-        case "timetable": self = .timetable
+        case "timetable": self = .timetable(date: q["date"])
         case "modules": self = second.flatMap(Int.init).map { .module($0) } ?? .modules
-        case "files": self = .files(section: q["section"])
+        case "files": self = .files(section: q["section"], path: q["path"].flatMap { $0.isEmpty ? nil : $0 }, q: q["q"].flatMap { $0.isEmpty ? nil : $0 })
         case "doc": self = second.map { .doc($0, task: q["task"].flatMap(Int.init), page: q["page"].flatMap(Int.init)) } ?? .files()
-        case "exams": self = second.flatMap(Int.init).map { .exam($0) } ?? .exams
+        case "exams": self = second.flatMap(Int.init).map { .exam($0, task: q["task"].flatMap(Int.init)) } ?? .exams
         case "cards": self = .cards
         case "services": self = .services
         case "community": self = .community
         case "settings": self = .settings(tab: q["tab"])
         default: self = .dashboard
         }
+    }
+
+    /// uniflow://#/plan?view=week oder uniflow://plan?view=week -> "#/plan?view=week"
+    static func hash(fromDeepLink url: URL) -> String? {
+        guard url.scheme == "uniflow" else { return nil }
+        if let f = url.fragment, !f.isEmpty { return "#" + f }
+        let path = (url.host ?? "") + url.path
+        return "#/" + path + (url.query.map { "?" + $0 } ?? "")
     }
 }
 
@@ -99,7 +107,11 @@ final class UFRouter: ObservableObject {
     @Published var drawerOpen = false
     @Published var fullscreenDoc = false
     @Published var examFocus = false
+    /// state.route(): aktuelle Ansicht neu laden (nach Aenderungen in Dialogen und Drawern)
+    @Published private(set) var reloadToken = 0
     private var history: [UFRoute] = []
+
+    func reload() { reloadToken += 1 }
 
     func go(_ r: UFRoute) {
         guard r != route else { return }
@@ -131,7 +143,7 @@ struct UFNavItem: Identifiable {
     static let main: [UFNavItem] = [
         UFNavItem(id: "dashboard", title: "Übersicht", icon: "home", route: .dashboard),
         UFNavItem(id: "plan", title: "Lernkalender", icon: "calendar", route: .plan()),
-        UFNavItem(id: "timetable", title: "Stundenplan", icon: "clock", route: .timetable),
+        UFNavItem(id: "timetable", title: "Stundenplan", icon: "clock", route: .timetable()),
         UFNavItem(id: "modules", title: "Meine Module", icon: "book", route: .modules),
         UFNavItem(id: "files", title: "Dokumente & Notizen", icon: "folder", route: .files()),
         UFNavItem(id: "exams", title: "Tests & Wiederholung", icon: "exam", route: .exams),
@@ -153,6 +165,7 @@ struct UFNavItem: Identifiable {
 
 struct AppShell<Content: View>: View {
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var overlay: UFOverlay
     @AppStorage("sidebar") private var sidebarMode = "full"          // localStorage "sidebar": "min" | "full"
     @ViewBuilder let content: (UFRoute) -> Content
 
@@ -174,6 +187,7 @@ struct AppShell<Content: View>: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         if narrow && !hideChrome && !docOpen { UFMobileNav() }
                     }
+                    .modifier(UFDrawerHost(overlay: overlay))
                 }
                 .background(UF.bg)
                 if narrow && router.drawerOpen {
@@ -204,7 +218,7 @@ struct UFSidebar: View {
                 RoundedRectangle(cornerRadius: 9).fill(UF.logoGradient)
                     .frame(width: 30, height: 30)
                     .overlay(UFIcon("graduation", size: 18).foregroundStyle(.white))
-                if !collapsed { Text("UniFlow AI").font(.system(size: 16.32, weight: .bold)).foregroundStyle(UF.text).lineLimit(1) }
+                if !collapsed { Text("UniFlow AI").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
             }
             .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 14.4, trailing: 8))
             .frame(maxWidth: .infinity, alignment: collapsed ? .center : .leading)
@@ -236,7 +250,7 @@ struct UFSidebar: View {
         Button(action: action) {
             HStack(spacing: 10.4) {
                 UFIcon(icon, size: 18)
-                if !collapsed { Text(title).font(.system(size: 14.5, weight: .medium)).lineLimit(1) }
+                if !collapsed { Text(title).font(.uf(14.5, 500)).lineLimit(1) }
             }
             .foregroundStyle(active ? UF.accentText : UF.text2)
             .padding(.vertical, collapsed ? 9.6 : 8.8)
@@ -262,7 +276,7 @@ struct UFMobileNav: View {
                 Button { router.go(item.route) } label: {
                     VStack(spacing: 1.6) {
                         UFIcon(item.icon, size: 20)
-                        Text(item.title).font(.system(size: 10.56))
+                        Text(item.title).font(.uf(10.56))
                     }
                     .foregroundStyle(active ? UF.accentText : UF.muted)
                     .padding(4)
@@ -306,15 +320,16 @@ struct UFHeader: View {
             if narrow {
                 UFButton(icon: "menu", kind: .ghost) { router.drawerOpen.toggle() }
             }
+            // .search { flex: 1; max-width: 520px } und .spacer { flex: 1 } teilen sich den freien Platz
             searchField
-            Spacer(minLength: 0)
+            Color.clear.frame(height: 1)
             if !narrow, let chip = shell.syncChip {
                 HStack(spacing: 6.4) {
                     UFIcon(shell.syncRunning ? "refresh" : (shell.lastSyncOK ? "check" : "info"), size: 14)
                         .foregroundStyle(shell.lastSyncOK && !shell.syncRunning ? UF.ok : UF.muted)
                     Text(chip)
                 }
-                .font(.system(size: 12.8))
+                .font(.uf(12.8))
                 .foregroundStyle(UF.muted)
                 .lineLimit(1)
             }
@@ -329,7 +344,7 @@ struct UFHeader: View {
                 UFButton(icon: "clock", kind: .ghost) { shell.timerOpen.toggle() }
             }
             Text(shell.initials)                                          // .avatar: 34 pt, accent-soft, .78rem fett
-                .font(.system(size: 12.48, weight: .bold))
+                .font(.uf(12.48, 700))
                 .foregroundStyle(UF.accentText)
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(UF.accentSoft))
@@ -339,7 +354,7 @@ struct UFHeader: View {
         .frame(height: UF.header)
         .background(.ultraThinMaterial)
         .background(UF.surface.opacity(0.88))
-        .overlay(alignment: .bottom) { Rectangle().fill(UF.line).frame(height: 1) }
+        .ufBorderBottom()
         .overlay(alignment: .topLeading) { searchResults }
         .zIndex(15)
     }
@@ -356,7 +371,7 @@ struct UFHeader: View {
                 .onSubmit { if let first = shell.searchHits.first { open(first.route) } }
             if !narrow && query.isEmpty {                                   // .kbd (Web: "Strg K"; iPad-Tastatur: Cmd)
                 Text("⌘ K")
-                    .font(.system(size: 10.88)).foregroundStyle(UF.muted)
+                    .font(.uf(10.88)).foregroundStyle(UF.muted)
                     .padding(.horizontal, 5.6)
                     .background(RoundedRectangle(cornerRadius: 5).fill(UF.surface))
                     .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(UF.line, lineWidth: 1))
@@ -382,7 +397,7 @@ struct UFHeader: View {
                             HStack(spacing: 8) {
                                 if let c = hit.color { UFDot(color: c) } else { UFIcon(hit.icon, size: 16).foregroundStyle(UF.text2) }
                                 VStack(alignment: .leading, spacing: 0) {
-                                    Text(hit.title).font(.system(size: 14.5, weight: hit.color == nil ? .regular : .semibold)).foregroundStyle(UF.text).lineLimit(1)
+                                    Text(hit.title).font(.uf(14.5, hit.color == nil ? 400 : 600)).foregroundStyle(UF.text).lineLimit(1)
                                     Text(hit.sub).font(UF.small).foregroundStyle(UF.muted).lineLimit(1)
                                 }
                                 Spacer(minLength: 0)

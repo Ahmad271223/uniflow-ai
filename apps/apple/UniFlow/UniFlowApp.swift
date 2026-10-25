@@ -9,20 +9,28 @@ struct UniFlowApp: App {
     @StateObject private var router = UFRouter()
     @StateObject private var shell = ShellState()
     @StateObject private var toast = UFToastCenter()
+    @StateObject private var overlay = UFOverlay()
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue     // wie localStorage "theme" im Web
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
+                .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
+                .modifier(UFToastOverlay(center: toast))
                 .environmentObject(session)
                 .environmentObject(studip)
                 .environmentObject(router)
                 .environmentObject(shell)
                 .environmentObject(toast)
-                .modifier(UFToastOverlay(center: toast))
+                .environmentObject(overlay)
                 .preferredColorScheme((UFThemeMode(rawValue: theme) ?? .light).scheme)
                 .tint(UF.accent)
+                .onOpenURL { url in
+                    // uniflow://#/plan?view=week -> dieselbe Hash-Route wie in der Web-App
+                    if let hash = UFRoute.hash(fromDeepLink: url) { router.go(hash: hash) }
+                }
+                .task { await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast) }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { studip.runIfDue() }      // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min

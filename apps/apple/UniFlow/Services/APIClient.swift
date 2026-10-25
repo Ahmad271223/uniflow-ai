@@ -4,7 +4,11 @@ import UniFlowCore
 struct APIError: LocalizedError {
     let status: Int
     let message: String
-    var errorDescription: String? { "Server-Fehler \(status): \(message)" }
+    /// wie api() in core.js: Text aus "detail" der Antwort, sonst der HTTP-Statustext (z. B. "Not Found")
+    var errorDescription: String? {
+        if let v = try? JSONValue.parse(message), let d = v["detail"]?.string, !d.isEmpty { return d }
+        return status > 0 ? HTTPURLResponse.localizedString(forStatusCode: status).capitalized : message
+    }
 }
 
 /// HTTP-Zugriff auf den bestehenden UniFlow-Server. Die PIN geht als Cookie mit (wie im Browser).
@@ -56,17 +60,25 @@ final class APIClient: @unchecked Sendable {
 
     /// Datei hochladen (multipart/form-data), z. B. PDF-Import ueber `POST /api/notebooks`.
     func upload(_ path: String, fields: [String: String], fileField: String, fileName: String, mimeType: String, data: Data) async throws -> JSONValue {
+        try await form(path, fields: fields, file: (fileField, fileName, mimeType, data))
+    }
+
+    /// Formular wie FormData im Web (multipart/form-data), Datei optional
+    func form(_ path: String, fields: [String: String], file: (field: String, name: String, mime: String, data: Data)? = nil) async throws -> JSONValue {
         let boundary = "uniflow-" + UUID().uuidString
         let crlf = "\r\n"
-        let safeName = fileName.components(separatedBy: CharacterSet(charactersIn: "\"\r\n")).joined(separator: "_")
         var body = Data()
         for (k, v) in fields.sorted(by: { $0.key < $1.key }) {
             body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + k + "\"" + crlf + crlf + v + crlf).utf8))
         }
-        body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + fileField + "\"; filename=\"" + safeName + "\"" + crlf
-                          + "Content-Type: " + mimeType + crlf + crlf).utf8))
-        body.append(data)
-        body.append(Data((crlf + "--" + boundary + "--" + crlf).utf8))
+        if let file {
+            let safeName = file.name.components(separatedBy: CharacterSet(charactersIn: "\"\r\n")).joined(separator: "_")
+            body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + file.field + "\"; filename=\"" + safeName + "\"" + crlf
+                              + "Content-Type: " + file.mime + crlf + crlf).utf8))
+            body.append(file.data)
+            body.append(Data(crlf.utf8))
+        }
+        body.append(Data(("--" + boundary + "--" + crlf).utf8))
         var r = try request(path, method: "POST", body: nil)
         r.httpBody = body
         r.setValue("multipart/form-data; boundary=" + boundary, forHTTPHeaderField: "Content-Type")
