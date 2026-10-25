@@ -338,7 +338,6 @@ DEFAULT_SETTINGS = {
     "min_slot_minutes": "30",
     "blocked_times": "[]",           # [{"weekday":0,"start":"12:00","end":"13:00","title":"Mittag"}]
     "pen_input": "all",              # all | pen_only
-    "university": "luh",             # luh | hildesheim (siehe app/universities.py)
     "hand": "right",                 # Schreibhand: right | left (geteilte Ansicht: Skript auf der freien Seite)
 }
 
@@ -355,9 +354,21 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
+class UniversityMismatch(RuntimeError):
+    """Der Datenordner gehoert zu einer anderen Hochschule: lieber nicht starten als Daten vermischen."""
+
+
 def init_db() -> None:
+    from . import config
     with connect() as conn:
         conn.executescript(SCHEMA)
+        # Jede Datenbank gehoert genau einer Hochschule (Schutz gegen vertauschte Datenordner)
+        owner = conn.execute("SELECT value FROM settings WHERE key='university'").fetchone()
+        if owner is None:
+            conn.execute("INSERT INTO settings(key, value) VALUES ('university', ?)", (config.UNIVERSITY,))
+        elif owner[0] != config.UNIVERSITY:
+            raise UniversityMismatch(f"Der Datenordner {config.DATA_DIR} gehoert zur Hochschule '{owner[0]}', "
+                                     f"die App laeuft fuer '{config.UNIVERSITY}'. Es werden keine Daten gemischt.")
         for k, v in DEFAULT_SETTINGS.items():
             conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
         # Migrationen fuer bestehende Datenbanken

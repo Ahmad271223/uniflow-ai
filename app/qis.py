@@ -49,13 +49,14 @@ def configured(key: str | None = None) -> bool:
     u, p = credentials_for(key)
     return bool(u and p)
 DOC_DIR = DATA_DIR / "qis"
-GRADE_HEADERS = {"prüfungsnr": "pruefungsnr", "nr": "pruefungsnr", "prüfungstext": "text", "text": "text", "semester": "semester", "note": "note",
+GRADE_HEADERS = {"bezeichnung": "text", "leistung": "text", "prüfungsnr": "pruefungsnr", "nr": "pruefungsnr", "prüfungstext": "text", "text": "text", "semester": "semester", "note": "note",
                  "status": "status", "credits": "credits", "ects": "credits", "bonus": "credits", "versuch": "versuch", "vermerk": "status", "datum": "datum", "prüfungsdatum": "datum"}
 
 
 def log(msg: str) -> None:
     line = f"[{db.now_iso()}] {msg}"
-    print(line, flush=True)
+    from .studip_sync import console_print
+    console_print(line)
     with open(LOG_DIR / "qis.log", "a", encoding="utf-8") as f:
         f.write(line + "\n")
 
@@ -100,26 +101,54 @@ def login(page: Page, user: str, password: str) -> None:
     log("QIS: Login erfolgreich")
 
 
+def _header_map(cells: list[str]) -> list[str | None]:
+    """Spaltenkoepfe -> Feldnamen. 'Prüfungsnr.' und 'Bezeichnung der Leistung / ...' werden ueber das erste Wort erkannt."""
+    out = []
+    for h in cells:
+        words = re.sub(r"[^\wäöüß]+", " ", (h or "").strip().lower()).split()
+        out.append(GRADE_HEADERS.get(words[0]) if words else None)
+    return out
+
+
+def parse_grade_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
+    """Zeilen einer Notenspiegel-Tabelle (Zellentexte) -> Leistungen. Ohne Browser, daher testbar.
+    - Die Kopfzeile darf irgendwo stehen (Hildesheim: davor eine Zeile 'Abschluss: ...'); mehrere Abschnitte je Tabelle.
+    - Modul-Ueberschriften und Summen ohne Note und ohne Status werden uebersprungen."""
+    out: list[dict] = []
+    mapped: list[str | None] | None = None
+    ab = abschluss
+    for raw_cells in rows:
+        cells = [re.sub(r"\s+", " ", c or "").strip() for c in raw_cells]
+        joined = " ".join(c for c in cells if c)
+        if joined.lower().startswith("abschluss:"):
+            m = re.match(r"(Abschluss:.*?PO-Version:\s*\d+)", joined, re.I)
+            ab = (m.group(1) if m else joined)[:160]
+            mapped = None
+            continue
+        hm = _header_map(cells)
+        if "text" in hm and "note" in hm:
+            mapped = hm
+            continue
+        if not mapped or len(cells) < 3:
+            continue
+        rec = {"abschluss": ab, "raw": " | ".join(cells)}
+        for k, v in zip(mapped, cells):
+            if k and k not in rec:
+                rec[k] = v
+        if (rec.get("status") or "").lower() == "prüfung vorhanden" and not rec.get("note"):
+            continue          # Modul-/Kontozeile ("Prüfung vorhanden"), keine eigene Leistung
+        if rec.get("text") and (rec.get("note") or rec.get("status")):
+            out.append(rec)
+    return out
+
+
 def _parse_tables(page: Page, abschluss: str) -> list[dict]:
     rows_out = []
     tables = page.locator("table")
     for ti in range(tables.count()):
-        t = tables.nth(ti)
-        headers = [h.strip().lower() for h in t.locator("tr").first.locator("th, td").all_inner_texts()]
-        mapped = [GRADE_HEADERS.get(h.split()[0] if h else "", None) if h else None for h in headers]
-        if not mapped or "text" not in mapped or "note" not in mapped:
-            continue
-        trs = t.locator("tr")
-        for ri in range(1, trs.count()):
-            cells = [c.strip() for c in trs.nth(ri).locator("td").all_inner_texts()]
-            if len(cells) < 3:
-                continue
-            rec = {"abschluss": abschluss, "raw": " | ".join(cells)}
-            for k, v in zip(mapped, cells):
-                if k and k not in rec:
-                    rec[k] = v
-            if rec.get("text"):
-                rows_out.append(rec)
+        trs = tables.nth(ti).locator("tr")
+        rows = [trs.nth(ri).locator("th, td").all_inner_texts() for ri in range(trs.count())]
+        rows_out += parse_grade_rows(rows, abschluss)
     return rows_out
 
 
@@ -150,7 +179,8 @@ def fetch_grades(page: Page) -> list[dict]:
 
     def expand(depth: int, title: str) -> None:
         nonlocal grades
-        _click_pdf_links(page, title or "Notenspiegel")
+        if _P.get("documents", True):          # Hildesheim: keine Bescheinigungen/Transcripts speichern
+            _click_pdf_links(page, title or "Notenspiegel")
         found = _parse_tables(page, title)
         if found:
             grades += found

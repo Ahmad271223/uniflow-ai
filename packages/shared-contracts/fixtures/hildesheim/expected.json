@@ -1,0 +1,103 @@
+{
+ "lsf-course.ics": [
+  {
+   "weekday": 3,
+   "start_time": "16:00",
+   "end_time": "18:00",
+   "rrule": "weekly",
+   "date_from": "2026-10-29",
+   "date_to": "2027-02-05",
+   "exdates": [
+    "2026-12-24",
+    "2026-12-31"
+   ]
+  }
+ ],
+ "lsf-plan.ics": [
+  {
+   "number": "0449",
+   "title": "Erinnerungen, Erzählungen & Diskurse um Erinnerungskulturen",
+   "lecturer": "Zimmermann",
+   "weekday": 0,
+   "start_time": "14:00",
+   "end_time": "16:00",
+   "rrule": "weekly",
+   "date_from": "2026-10-26",
+   "date_to": "2027-02-01",
+   "exdates": []
+  },
+  {
+   "number": "1528",
+   "title": "Mit Kunst und Kultur arbeiten",
+   "lecturer": "",
+   "weekday": 0,
+   "start_time": "10:00",
+   "end_time": "16:00",
+   "rrule": "once",
+   "date_from": "2027-01-18",
+   "date_to": null,
+   "exdates": []
+  },
+  {
+   "number": "1505",
+   "title": "Einführung in die Sozialpädagogik I",
+   "lecturer": "",
+   "weekday": 1,
+   "start_time": "10:00",
+   "end_time": "12:00",
+   "rrule": "weekly",
+   "date_from": "2026-10-27",
+   "date_to": "2027-02-05",
+   "exdates": [
+    "2026-12-22"
+   ]
+  },
+  {
+   "number": "1505",
+   "title": "Einführung in die Sozialpädagogik I",
+   "lecturer": "",
+   "weekday": 3,
+   "start_time": "10:00",
+   "end_time": "12:00",
+   "rrule": "weekly",
+   "date_from": "2026-10-29",
+   "date_to": "2027-02-05",
+   "exdates": [
+    "2026-12-24"
+   ]
+  }
+ ],
+ "learnweb-course-contents.json": [
+  {
+   "id": "lw-77-ce50f85d",
+   "name": "plan.pdf",
+   "chdate": 1760000000,
+   "download_url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/mod_resource/content/1/plan.pdf",
+   "folder": "Informationen"
+  },
+  {
+   "id": "lw-80-c0ee9bd7",
+   "name": "Einführung.pdf",
+   "chdate": 1760000001,
+   "download_url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/6/mod_folder/content/2/Teil%201/Einfu%CC%88hrung.pdf",
+   "folder": "Woche 1/Literatur/Teil 1"
+  }
+ ],
+ "course-titles": {
+  "SoSe 2026: 0406 Theorien der Erziehungswissenschaft": {
+   "semester": "SoSe 2026",
+   "number": "0406",
+   "title": "0406 Theorien der Erziehungswissenschaft"
+  },
+  "WiSe 2026/27:  1532   Klein(st)kinder": {
+   "semester": "WiSe 2026/27",
+   "number": "1532",
+   "title": "1532 Klein(st)kinder"
+  },
+  "Mathe-Vorkurs": {
+   "semester": "",
+   "number": null,
+   "title": "Mathe-Vorkurs"
+  }
+ }
+}

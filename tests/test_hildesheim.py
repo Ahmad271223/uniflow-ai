@@ -68,15 +68,13 @@ def tmp_env(monkeypatch, tmp_path):
 
 
 @pytest.fixture
-def uni(app):
-    """Hochschule fuer einen Test setzen und danach wieder auf LUH zuruecksetzen."""
-    from app import db
+def uni(app, monkeypatch):
+    """Hochschule der laufenden Instanz fuer einen Test setzen (wird danach automatisch zurueckgesetzt)."""
+    from app import config
 
     def set_uni(key):
-        with db.cursor() as conn:
-            db.set_setting(conn, "university", key)
-    yield set_uni
-    set_uni("luh")
+        monkeypatch.setattr(config, "UNIVERSITY", key)
+    return set_uni
 
 
 # ---------------------------------------------------------------- Uni-Profile & Zugangsdaten
@@ -108,11 +106,36 @@ def test_qis_profile_credentials(tmp_env):
     assert qis._abs("rds?state=x").startswith("https://qis.verwaltung.uni-hannover.de/")
 
 
-def test_settings_reject_unknown_university(app, uni):
+def test_settings_university_switch_needs_restart(app, uni, tmp_env):
     st, _, _ = asgi_call(app, "PUT", "/api/settings", body=json.dumps({"university": "nirgendwo"}))
     assert st == 400
     st, _, b = asgi_call(app, "PUT", "/api/settings", body=json.dumps({"university": "hildesheim"}))
-    assert st == 200 and json.loads(b)["university"] == "hildesheim"
+    d = json.loads(b)
+    # die laufende Instanz bleibt bei ihrer Uni; der Wechsel gilt erst nach dem Neustart
+    assert st == 200 and d["university"] == "luh" and d["university_next"] == "hildesheim"
+    assert 'UNIVERSITY="hildesheim"' in (tmp_env / ".env").read_text(encoding="utf-8")
+    from app import db
+    with db.cursor() as conn:
+        assert db.row(conn, "SELECT value FROM settings WHERE key='university'")["value"] == "luh"
+
+
+# ---------------------------------------------------------------- Trennung der Hochschulen
+
+def test_each_university_has_its_own_data_dir(tmp_path):
+    from app import config
+    assert config.data_dir_for(tmp_path, "luh") == tmp_path                     # bestehende LUH-Daten bleiben, wo sie sind
+    assert config.data_dir_for(tmp_path, "hildesheim") == tmp_path / "unis" / "hildesheim"
+    assert config.normalize_university(" Hildesheim ") == "hildesheim"
+    assert config.normalize_university("../etc") == "luh"                       # kein Pfad aus der .env
+    assert config.normalize_university(None) == "luh"
+
+
+def test_database_refuses_other_university(app, monkeypatch):
+    from app import config, db
+    db.init_db()                                                                # Test-DB gehoert der LUH
+    monkeypatch.setattr(config, "UNIVERSITY", "hildesheim")
+    with pytest.raises(db.UniversityMismatch, match="keine Daten gemischt"):
+        db.init_db()
 
 
 def test_services_follow_university(app, uni, tmp_env):
@@ -300,7 +323,8 @@ def test_hildesheim_sync_without_credentials(app, tmp_env):
 
 
 def test_run_sync_dispatches_by_university(app, uni, monkeypatch):
-    from app import hildesheim, studip_sync
+    from app import db, hildesheim, studip_sync
+    monkeypatch.setattr(db, "init_db", lambda: None)      # Test-DB gehoert der LUH; hier geht es nur um die Weiche
     monkeypatch.setattr(hildesheim, "run_sync", lambda show_browser=False: {"ok": True, "new_files": [], "message": "hildesheim"})
     monkeypatch.setattr(studip_sync, "run_studip_sync", lambda show_browser=False: {"ok": True, "new_files": [], "message": "studip"})
     assert studip_sync.run_sync()["message"] == "studip"
@@ -361,3 +385,100 @@ def test_lsf_import_plan_is_idempotent(app):
         assert db.row(conn, "SELECT 1 FROM course_events WHERE title='Eigener Termin' AND source='manual'")
         conn.execute("DELETE FROM course_events WHERE source IN ('lsf','manual')")
         conn.execute("DELETE FROM courses WHERE id IN ('lw-900','lw-901')")
+
+
+# ---------------------------------------------------------------- Live-Test 25.10.2026: Abbruch bei U+0308
+
+def test_log_survives_console_without_unicode(monkeypatch):
+    import io
+    import sys
+    from app import studip_sync
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252", errors="strict"))
+    studip_sync.log("Neu: Kurs / Einführung.pdf")          # brach vorher den ganzen Sync ab
+    sys.stdout.flush()
+    assert b"Einfu?hrung" in raw.getvalue()
+
+
+def test_names_are_nfc():
+    from app import learnweb
+    from app.studip_sync import safe_name
+    assert safe_name("Einführung.pdf") == "Einführung.pdf"
+    assert learnweb.file_id(1, "/", "Einführung.pdf") == learnweb.file_id(1, "/", "Einführung.pdf")
+    p = learnweb.parse_pluginfile("https://x/pluginfile.php/1/mod_resource/content/2/Einfu%CC%88hrung.pdf")
+    assert p["filename"] == "Einführung.pdf"
+
+
+def test_sync_learnweb_keeps_courses_before_an_error(app, monkeypatch):
+    from app import db, hildesheim, learnweb
+
+    class Client:
+        def files(self, mid):
+            if mid == 102:
+                raise RuntimeError("kaputt")
+            return [{"id": learnweb.file_id(mid, "/", "a.pdf"), "name": "a.pdf", "size": 1, "mime": "application/pdf", "author": None,
+                     "chdate": 1, "download_url": f"https://x/pluginfile.php/{mid}/mod_resource/content/1/a.pdf", "folder": "Woche 1"}]
+
+    def fake_dl(page, url, target, token=""):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"%PDF")
+
+    monkeypatch.setattr(hildesheim, "_download", fake_dl)
+    courses = [{"id": f"lw-{i}", "moodle_id": i, "title": f"Kurs {i}", "number": None, "semester": "SoSe 2026"} for i in (101, 102, 103)]
+    new = []
+    n = hildesheim.sync_learnweb(None, Client(), courses, "", "2026-10-25", new)
+    assert n == 3 and len(new) == 2
+    with db.cursor() as conn:
+        ids = {r["course_id"] for r in db.rows(conn, "SELECT course_id FROM files WHERE course_id IN ('lw-101','lw-102','lw-103')")}
+        assert ids == {"lw-101", "lw-103"}
+        conn.execute("DELETE FROM files WHERE course_id IN ('lw-101','lw-102','lw-103')")
+        conn.execute("DELETE FROM courses WHERE id IN ('lw-101','lw-102','lw-103')")
+
+
+def test_shared_hildesheim_fixtures_match_python():
+    """packages/shared-contracts/fixtures/hildesheim: dieselben Erwartungen prueft die iPad-App (UniFlowCore)."""
+    from pathlib import Path
+    from app import learnweb, lsf, timetable
+    d = Path(__file__).resolve().parents[1] / "packages" / "shared-contracts" / "fixtures" / "hildesheim"
+    exp = json.loads((d / "expected.json").read_text(encoding="utf-8"))
+    course = timetable.parse_ics((d / "lsf-course.ics").read_text(encoding="utf-8"))
+    assert [{k: e[k] for k in exp["lsf-course.ics"][0]} for e in course] == exp["lsf-course.ics"]
+    plan = lsf.plan_entries((d / "lsf-plan.ics").read_text(encoding="utf-8"))
+    assert [{k: e[k] for k in exp["lsf-plan.ics"][0]} for e in plan] == exp["lsf-plan.ics"]
+    files = learnweb.files_from_contents(json.loads((d / "learnweb-course-contents.json").read_text(encoding="utf-8")))
+    assert [{k: f[k] for k in exp["learnweb-course-contents.json"][0]} for f in files] == exp["learnweb-course-contents.json"]
+    assert {t: learnweb.parse_course_title(t) for t in exp["course-titles"]} == exp["course-titles"]
+
+
+def test_grade_rows_hildesheim_layout():
+    """Aufbau wie im LSF Hildesheim (Werte erfunden): 'Abschluss:'-Zeile vor der Kopfzeile, 'Prüfungsnr.' mit Punkt,
+    Modulzeilen ohne Note/Status, zwei Abschnitte in einer Tabelle."""
+    from app.qis import parse_grade_rows
+    rows = [
+        ["Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022 Prüfungsordnung Studienordnung"],
+        ["Prüfungsnr.", "Bezeichnung der Leistung / der Lehrveranstaltung", "Note", "Status", "Bonus"],
+        ["5010", "Modul 1: Einführung", "", "", "12"],
+        ["5011", "TM 1: Grundlagen /\n0424 Einführung", "1,7", "bestanden", "6"],
+        ["5013", "TM 3: Prozesse / 0503 Methodik", "", "bestanden", "3"],
+        ["5032", "TM 2: Kindheit / 0410 Kindheit", "", "angemeldet (SoSe 26)", "0"],
+        ["8000", "Gesamtkonto studienbegleitender Prüfungen", "", "", "44,5"],
+        ["Abschluss: [82] Bachelor Studiengang: [021] Begleitfach PO-Version: 2022"],
+        ["Prüfungsnr.", "Bezeichnung der Leistung / der Lehrveranstaltung", "Note", "Status", "Bonus"],
+        ["10010", "Pflichtmodule (mindestens 12 LP)", "", "Prüfung vorhanden", "6"],
+        ["4220", "Grundlagen I / 3200 Grundlagen 1", "2,3", "bestanden", "6"],
+    ]
+    g = parse_grade_rows(rows, "Fallback")
+    assert [(r["pruefungsnr"], r["note"], r["status"], r["credits"]) for r in g] == [
+        ("5011", "1,7", "bestanden", "6"), ("5013", "", "bestanden", "3"), ("5032", "", "angemeldet (SoSe 26)", "0"), ("4220", "2,3", "bestanden", "6")]
+    assert g[0]["text"] == "TM 1: Grundlagen / 0424 Einführung"
+    assert g[0]["abschluss"] == "Abschluss: [82] Bachelor Studiengang: [052] B.A. Testfach PO-Version: 2022"
+    assert g[-1]["abschluss"].endswith("[021] Begleitfach PO-Version: 2022")
+
+
+def test_grade_rows_luh_layout_still_works():
+    from app.qis import parse_grade_rows
+    rows = [["Prüfungsnr", "Prüfungstext", "Semester", "Note", "Status", "Credits", "Versuch"],
+            ["1001", "Mathematik I", "WiSe 26/27", "2,0", "bestanden", "8", "1"]]
+    (r,) = parse_grade_rows(rows, "Abschluss 82 Bachelor of Science")
+    assert (r["text"], r["semester"], r["note"], r["credits"], r["versuch"], r["abschluss"]) == \
+        ("Mathematik I", "WiSe 26/27", "2,0", "8", "1", "Abschluss 82 Bachelor of Science")

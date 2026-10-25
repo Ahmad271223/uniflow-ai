@@ -1,7 +1,16 @@
 # Uni Hildesheim in UniFlow
 
-Einstellung: **Einstellungen → Zugang & Darstellung → Hochschule → Universität Hildesheim**
-(Setting `university`, Werte `luh` | `hildesheim`, siehe `app/universities.py`).
+Hochschule: `UNIVERSITY=hildesheim` in der `.env` (oder **Einstellungen → Zugang & Darstellung → Hochschule**, gilt
+nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
+
+## Trennung der Hochschulen
+
+- Jede Uni hat einen eigenen Datenordner: LUH `data/` (wie bisher), Hildesheim `data/unis/hildesheim/`
+  (Datenbank, Dateien, Browser-Profile); Protokolle ebenso unter `logs/unis/hildesheim/`.
+- Eine laufende App arbeitet nur mit einer Uni. Ein Wechsel wird in der `.env` vorgemerkt und greift beim Neustart.
+- Jede Datenbank merkt sich ihre Uni (`settings.university`). Passt sie nicht zur laufenden Uni, bricht der Start mit
+  `UniversityMismatch` ab, statt Daten zu mischen.
+- Zugangsdaten: eigene Präfixe pro Uni in der `.env`, kein Rückfall von Hildesheim auf die LUH-ID.
 
 | Funktion | LUH | Hildesheim | Code |
 |---|---|---|---|
@@ -16,6 +25,8 @@ Einstellung: **Einstellungen → Zugang & Darstellung → Hochschule → Univers
 - `LEARNWEB_TOKEN` (optional): selbst erzeugter Sicherheitsschlüssel „Moodle mobile web service“
   (Learnweb → Profil → Einstellungen → Sicherheitsschlüssel). Wird nur beim Download an die URL gehängt,
   nie in DB oder Log geschrieben.
+- `HILDESHEIM_SEMESTER_FILTER` (optional): nur Learnweb-Kurse, deren Semester den Text enthaelt. Der LUH-Filter
+  `SEMESTER_FILTER` gilt fuer Hildesheim nicht (beim Live-Test filterte "WiSe 2026/27" alle 9 SoSe-Kurse weg).
 
 ## Learnweb
 
@@ -39,9 +50,14 @@ Einstellung: **Einstellungen → Zugang & Darstellung → Hochschule → Univers
   Kurszuordnung über Vst.-Nr. **und** Semester (Nummern wiederholen sich zwischen Semestern).
 - Nie auf „Anmelden/abmelden“ oder „Jetzt anmelden“ klicken (ändert echte Belegungen).
 
+## Live-Test 25.10.2026
+
+- CAS-Login ok, 9 Learnweb-Kurse, 539 Dateien (517 echte PDFs, keine fehlt), 24 LSF-Serien, zweiter Import ohne Doppelte,
+  Notenspiegel 17 Leistungen aus zwei Abschlüssen, keine PDFs gespeichert.
+- Dabei behoben: Absturz der Protokollausgabe bei U+0308 (Windows-Konsole), Dateinamen jetzt NFC, jeder Kurs in eigener
+  Transaktion, LUH-Semesterfilter galt fälschlich auch für Hildesheim, Notenspiegel-Kopfzeile nicht in der ersten Zeile.
+
 ## Offen
 
-- Live-Lauf mit echten Zugangsdaten: steht aus (Zugang muss der Nutzer selbst in der App eintragen).
 - Bescheinigungen (Immatrikulation): Quelle in Hildesheim unbekannt, im LSF-Menü nicht vorhanden.
 - Learnweb-Abgabetermine (Aufgaben/Quizze) sind noch nicht in den Kalender übernommen.
-- Ein Wechsel der Hochschule mischt Daten in derselben Datenbank; für Tests eigenen `LERNAPP_DATA_DIR` nutzen.

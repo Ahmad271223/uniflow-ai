@@ -7,17 +7,36 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env", interpolate=False)
+
+# Hochschule dieser App-Instanz (UNIVERSITY in der .env, Standard luh). Sie wird beim Start festgelegt:
+# jede Uni hat einen eigenen Datenordner (Datenbank, Dateien, Browser-Profile, Protokolle), damit sich
+# Daten verschiedener Hochschulen nie vermischen. Ein Wechsel greift nach einem Neustart.
+KNOWN_UNIVERSITIES = ("luh", "hildesheim")
+
+
+def normalize_university(key: str | None) -> str:
+    k = (key or "").strip().lower()
+    return k if k in KNOWN_UNIVERSITIES else "luh"
+
+
+def data_dir_for(base: Path, university: str) -> Path:
+    """LUH bleibt im bisherigen Ordner (bestehende Daten unveraendert), jede weitere Uni in base/unis/<key>."""
+    return base if university == "luh" else base / "unis" / university
+
+
+UNIVERSITY = normalize_university(os.getenv("UNIVERSITY"))
 # LERNAPP_DATA_DIR / LERNAPP_LOG_DIR: fuer Tests auf einen Temp-Ordner umlenken (echte Daten bleiben unberuehrt)
-DATA_DIR = Path(os.environ.get("LERNAPP_DATA_DIR") or ROOT / "data")
+BASE_DATA_DIR = Path(os.environ.get("LERNAPP_DATA_DIR") or ROOT / "data")
+BASE_LOG_DIR = Path(os.environ.get("LERNAPP_LOG_DIR") or ROOT / "logs")
+DATA_DIR = data_dir_for(BASE_DATA_DIR, UNIVERSITY)
+LOG_DIR = data_dir_for(BASE_LOG_DIR, UNIVERSITY)
 FILES_DIR = DATA_DIR / "files"
-LOG_DIR = Path(os.environ.get("LERNAPP_LOG_DIR") or ROOT / "logs")
 DB_PATH = DATA_DIR / "lernapp.db"
 STATIC_DIR = ROOT / "app" / "static"
 
 for d in (DATA_DIR, FILES_DIR, LOG_DIR):
     d.mkdir(parents=True, exist_ok=True)
-
-load_dotenv(ROOT / ".env", interpolate=False)
 
 STUDIP_BASE = os.getenv("STUDIP_BASE", "https://studip.uni-hannover.de").rstrip("/")
 STUDIP_USER = os.getenv("STUDIP_USER", "")
@@ -101,6 +120,12 @@ def service_credentials(prefix: str, _depth: int = 0) -> tuple[str, str]:
     if user and pw and user not in PLACEHOLDERS and pw not in PLACEHOLDERS:
         return user, pw
     return credentials()
+
+
+def configured_university() -> str:
+    """UNIVERSITY aus der .env, wie sie beim naechsten Start gilt (kann von der laufenden UNIVERSITY abweichen)."""
+    v = _env().get("UNIVERSITY")
+    return normalize_university(v) if v else UNIVERSITY       # nichts in der .env: kein Wechsel vorgemerkt
 
 
 def own_credentials(prefix: str, _depth: int = 0) -> tuple[str, str]:

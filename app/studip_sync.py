@@ -13,13 +13,14 @@ import json
 import re
 import sys
 import time
+import unicodedata
 from pathlib import Path
 from urllib.parse import quote
 
 from playwright.sync_api import BrowserContext, Page, sync_playwright
 
 from . import config, db
-from .config import FILES_DIR, LOG_DIR, SEMESTER_FILTER, STUDIP_BASE
+from .config import DATA_DIR, FILES_DIR, LOG_DIR, SEMESTER_FILTER, STUDIP_BASE
 
 LOGIN_URL = f"{STUDIP_BASE}/dispatch.php/login"
 # Direkter WebSSO-Einstieg (ueberspringt die Uni-Auswahl auf der Loginseite)
@@ -27,12 +28,23 @@ SSO_ENTITY_ID = "https://sso.idm.uni-hannover.de/idp/shibboleth"
 SHIB_LOGIN_URL = (f"{STUDIP_BASE}/Shibboleth.sso/Login?target="
                   + quote(f"{STUDIP_BASE}/dispatch.php/login?sso=shib&again=yes&cancel_login=1", safe="")
                   + "&entityID=" + quote(SSO_ENTITY_ID, safe=""))
-PROFILE_DIR = Path(__file__).resolve().parent.parent / "data" / "browser-profile"
+PROFILE_DIR = DATA_DIR / "browser-profile"       # LUH: data/browser-profile wie bisher
+
+
+def console_print(line: str) -> None:
+    """Konsolenausgabe, die nie abbricht: Die Windows-Konsole (cp1252) kennt z. B. U+0308 nicht."""
+    try:
+        print(line, flush=True)
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "ascii"
+        print(line.encode(enc, "replace").decode(enc, "replace"), flush=True)
+    except (OSError, ValueError):
+        pass   # keine Konsole (z. B. Hintergrunddienst)
 
 
 def log(msg: str) -> None:
     line = f"[{db.now_iso()}] {msg}"
-    print(line, flush=True)
+    console_print(line)
     with open(LOG_DIR / "sync.log", "a", encoding="utf-8") as f:
         f.write(line + "\n")
 
@@ -268,6 +280,7 @@ def file_kind(name: str, mime: str | None = None) -> str:
 
 
 def safe_name(s: str) -> str:
+    s = unicodedata.normalize("NFC", s or "")      # 'a' + U+0308 -> 'ä' (Mac-/Moodle-Dateinamen)
     s = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", s)
     return s.strip(" .")[:120] or "datei"
 

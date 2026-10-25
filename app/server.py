@@ -687,7 +687,10 @@ def delete_test(test_id: int):
 
 def _public_settings(s: dict) -> dict:
     """Einstellungen ohne die PIN (die steht nur in /api/network fuer die Anzeige am PC)."""
-    return {k: v for k, v in s.items() if k != "lan_pin"}
+    out = {k: v for k, v in s.items() if k != "lan_pin"}
+    out["university"] = config.UNIVERSITY
+    out["university_next"] = config.configured_university()
+    return out
 
 
 @app.get("/api/settings")
@@ -699,8 +702,13 @@ def get_settings():
 @app.put("/api/settings")
 def put_settings(body: dict = Body(...)):
     from . import universities
-    if "university" in body and not universities.valid(body["university"]):
-        raise HTTPException(400, "Unbekannte Hochschule")
+    body = dict(body)
+    if "university" in body:
+        uni = body.pop("university")
+        if not universities.valid(uni):
+            raise HTTPException(400, "Unbekannte Hochschule")
+        # Nur fuer den naechsten Start vormerken: jede Uni hat ihren eigenen Datenordner
+        config.set_env({"UNIVERSITY": uni})
     with db.cursor() as conn:
         for k, v in body.items():
             db.set_setting(conn, k, v)
@@ -1280,6 +1288,7 @@ def api_services():
     return {"services": universities.HILDESHEIM_SERVICES if hi else SERVICES, "credentials": creds,
             "university": {k: uni[k] for k in ("key", "name", "short", "files_source", "grades_source", "login", "user_label")},
             "universities": [{"key": k, "name": v["name"]} for k, v in universities.PROFILES.items()],
+            "university_next": config.configured_university(),
             "learnweb": {"token_set": bool(config.secret("LEARNWEB_TOKEN"))},
             "qis": {"configured": creds["hildesheim"]["configured"] if hi else q["configured"],
                     "same_as_studip": False if hi else (q.get("same_as") == "studip" or (not q["configured"])), "last_run": s["last_run"]},

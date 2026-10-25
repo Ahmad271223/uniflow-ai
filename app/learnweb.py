@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import unicodedata
 import mimetypes
 import re
 import urllib.parse
@@ -49,7 +50,12 @@ def parse_course_title(fullname: str) -> dict:
     return {"semester": sem, "number": m.group(1) if m else None, "title": t}
 
 
+def nfc(s: str | None) -> str:
+    return unicodedata.normalize("NFC", s or "")
+
+
 def file_id(cmid, filepath: str, filename: str) -> str:
+    filepath, filename = nfc(filepath), nfc(filename)
     h = hashlib.sha1(f"{filepath or '/'}{filename}".encode("utf-8")).hexdigest()[:8]
     return f"lw-{cmid}-{h}"
 
@@ -82,7 +88,7 @@ def parse_pluginfile(url: str) -> dict | None:
     m = PLUGINFILE_RE.search(path)
     if not m:
         return None
-    parts = [urllib.parse.unquote(p) for p in m.group(3).split("/") if p]
+    parts = [nfc(urllib.parse.unquote(p)) for p in m.group(3).split("/") if p]
     if not parts:
         return None
     filepath = "/" + "/".join(parts[:-1]) + ("/" if len(parts) > 1 else "")
@@ -107,7 +113,7 @@ def files_from_contents(sections: list[dict]) -> list[dict]:
                 if c.get("type") != "file" or not c.get("fileurl"):
                     continue
                 fp = c.get("filepath") or "/"
-                name = c.get("filename") or "datei"
+                name = nfc(c.get("filename")) or "datei"
                 out.append({
                     "id": file_id(mod["id"], fp, name),
                     "name": name,
@@ -116,7 +122,7 @@ def files_from_contents(sections: list[dict]) -> list[dict]:
                     "author": c.get("author"),
                     "chdate": int(c.get("timemodified") or 0),
                     "download_url": strip_forcedownload(c["fileurl"]),
-                    "folder": join_folder(base_folder, fp),
+                    "folder": nfc(join_folder(base_folder, fp)),
                     "module_name": mod.get("name"),
                 })
     return out

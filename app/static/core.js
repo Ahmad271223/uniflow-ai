@@ -1,5 +1,5 @@
 // Gemeinsame Helfer für alle Ansichten
-import { icon } from "./icons.js?v=28";
+import { icon } from "./icons.js?v=29";
 export { icon };
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];

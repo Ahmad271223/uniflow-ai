@@ -1,0 +1,57 @@
+[
+ {
+  "id": 1,
+  "section": 0,
+  "name": "Informationen",
+  "modules": [
+   {
+    "id": 77,
+    "name": "Seminarplan",
+    "modname": "resource",
+    "contents": [
+     {
+      "type": "file",
+      "filename": "plan.pdf",
+      "filepath": "/",
+      "filesize": 1200,
+      "timemodified": 1760000000,
+      "fileurl": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/mod_resource/content/1/plan.pdf?forcedownload=1",
+      "mimetype": "application/pdf"
+     }
+    ]
+   },
+   {
+    "id": 78,
+    "name": "Forum",
+    "modname": "forum"
+   }
+  ]
+ },
+ {
+  "id": 2,
+  "section": 1,
+  "name": "1",
+  "modules": [
+   {
+    "id": 80,
+    "name": "Literatur",
+    "modname": "folder",
+    "contents": [
+     {
+      "type": "file",
+      "filename": "Einführung.pdf",
+      "filepath": "/Teil 1/",
+      "filesize": 5,
+      "timemodified": 1760000001,
+      "fileurl": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/6/mod_folder/content/2/Teil%201/Einfu%CC%88hrung.pdf"
+     },
+     {
+      "type": "url",
+      "filename": "link",
+      "fileurl": "https://example.org"
+     }
+    ]
+   }
+  ]
+ }
+]

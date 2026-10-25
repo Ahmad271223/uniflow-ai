@@ -50,14 +50,9 @@ def valid(key: str | None) -> bool:
 
 
 def current_key(conn=None) -> str:
-    """Gewaehlte Uni aus den Einstellungen (Standard: LUH)."""
-    from . import db
-    if conn is None:
-        with db.cursor() as c:
-            return current_key(c)
-    r = db.row(conn, "SELECT value FROM settings WHERE key='university'")
-    k = (r or {}).get("value") or DEFAULT
-    return k if k in PROFILES else DEFAULT
+    """Uni dieser laufenden App-Instanz (beim Start aus UNIVERSITY in der .env festgelegt)."""
+    from . import config
+    return config.UNIVERSITY if config.UNIVERSITY in PROFILES else DEFAULT
 
 
 def current(conn=None) -> dict:

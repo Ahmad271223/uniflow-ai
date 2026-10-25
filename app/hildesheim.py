@@ -12,7 +12,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 from . import cas, config, db, learnweb, lsf
-from .config import DATA_DIR, SEMESTER_FILTER
+from .config import DATA_DIR
 from .studip_sync import log, store_course_files, upsert_course
 from .universities import HILDESHEIM_CAS, LEARNWEB_BASE
 
@@ -51,20 +51,28 @@ def _learnweb_client(page, user: str, pw: str, token: str):
 
 
 def sync_learnweb(page, client, courses: list[dict], token: str, started: str, new_files: list[str]) -> int:
-    if SEMESTER_FILTER:
-        courses = [c for c in courses if SEMESTER_FILTER.lower() in (c["semester"] or "").lower()]
     courses = [c for c in courses if not c.get("hidden")]
+    # Eigener Filter fuer Hildesheim; der LUH-Filter SEMESTER_FILTER gilt hier nicht (anderes Semester-Schema)
+    flt = config.secret("HILDESHEIM_SEMESTER_FILTER")
+    if flt:
+        kept = [c for c in courses if flt.lower() in (c["semester"] or "").lower()]
+        if len(kept) < len(courses):
+            log(f"Learnweb: {len(kept)} von {len(courses)} Kursen passen zum Semesterfilter '{flt}'.")
+        courses = kept
     with db.cursor() as conn:
         for c in courses:
             upsert_course(conn, c, started)
+        conn.commit()
+        # Jeder Kurs wird einzeln gespeichert: ein Fehler in einem Kurs verwirft nicht die schon geholten Dateien
         for c in courses:
             try:
                 files = client.files(c["moodle_id"])
+                folders = {f["id"]: f["folder"] for f in files if f.get("folder")}
+                store_course_files(conn, c, files, folders, lambda url, target: _download(page, url, target, token), started, new_files)
+                conn.commit()
             except Exception as e:  # noqa: BLE001
-                log(f"Fehler bei Dateiliste {c['title']}: {e}")
-                continue
-            folders = {f["id"]: f["folder"] for f in files if f.get("folder")}
-            store_course_files(conn, c, files, folders, lambda url, target: _download(page, url, target, token), started, new_files)
+                conn.commit()
+                log(f"Fehler im Kurs {c['title']}: {e}")
     return len(courses)
 
 
