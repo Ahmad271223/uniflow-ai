@@ -15,6 +15,7 @@ Thumbs.db
 apps/apple/*.xcodeproj/
 apps/apple/build/
 apps/apple/DerivedData/
+apps/apple/Packages/*/.build/
 # eigenes Apple-Team (bezahltes Developer Program), Vorlage Config/Team.xcconfig.example
 apps/apple/Config/Team.xcconfig
 xcuserdata/

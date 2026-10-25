@@ -107,7 +107,7 @@ Version (ganzzahlig und als `Int` darstellbar, sonst „Kopf: Formatversion“; 
 aktualisieren“ – nie ein Absturz bei Werten wie `1e300`), oberste Ebene genau `format`, `formatVersion`, `header`,
 `ciphertext` (jedes weitere Feld wird abgewiesen), Kopf genau in der Form von Version 1 (zusätzliche Felder abgewiesen),
 UUID, Datum, Hex-Fingerabdruck, Salz/Nonce-Länge, angegebene Größe = Chiffratgröße, alle Zahlen endlich
-(`1e999` wird abgewiesen), Grenzen (64 MB Datei, 48 MB Inhalt, 2 000 Seiten, 20 000 Objekte je Seite, 200 Bilder à
+(`1e999` wird abgewiesen), Grenzen (65 MB Datei, 48 MB Inhalt, 2 000 Seiten, 20 000 Objekte je Seite, 200 Bilder à
 10 MB), Seiten (Art, PDF-Seite im Bereich, Größe, Drehung Vielfaches von 90), Bilder (PNG/JPEG nach den ersten Bytes),
 Inhalt passt zum Kopf. In der App zusätzlich vor dem Anzeigen: Pixelmaße jedes Bildes aus dem Bildkopf
 (`CGImageSourceCopyPropertiesAtIndex`, ohne zu dekodieren) höchstens 8 192 Pixel je Kante und 16,7 Megapixel – ein

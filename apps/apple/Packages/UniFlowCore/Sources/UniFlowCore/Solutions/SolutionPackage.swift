@@ -203,8 +203,10 @@ public struct SolutionPage: Equatable, Sendable {
 
 /// Grenzen gegen zu grosse oder boesartige Pakete.
 public enum SolutionLimits {
-    public static let maxPackageBytes = 64 << 20
     public static let maxPlaintextBytes = 48 << 20
+    /// Dateigrenze beim Empfaenger: Base64 des groessten Chiffrats (Klartext plus 16 Byte Tag) und 1 MB fuer Kopf
+    /// und JSON-Rahmen. So laesst sich alles oeffnen, was `seal` an der Klartextgrenze erzeugt (rund 65 MB).
+    public static let maxPackageBytes = (maxPlaintextBytes + SolutionPackage.tagBytes + 2) / 3 * 4 + (1 << 20)
     public static let maxPages = 2_000
     public static let maxObjectsPerPage = 20_000
     public static let maxObjects = 200_000
