@@ -111,6 +111,11 @@ Datenbank (teurer).
 
 ### KI-Kosten (der größte Posten)
 
+Apple-Provision in der EU (Bedingungen seit August 2026): 15 % im Small Business Program (unter 1 Mio. $
+Erlös im Jahr) und bei Abos ab dem zweiten Jahr, sonst 26 %. Apple zieht vorher die Mehrwertsteuer ab
+(Deutschland 19 %). Quelle: [Apple Newsroom, August 2026](https://apple.com/newsroom/2026/08/apple-announces-changes-for-apps-in-the-european-union).
+
+
 Preise der Claude-API je 1 Mio. Token (Eingabe/Ausgabe): Haiku 5.5 0,10/0,50 $, Sonnet 5.5 2/10 $, Opus 5.5 4/20 $.
 Batch-Verarbeitung kostet die Hälfte.
 
@@ -119,14 +124,14 @@ Batch-Verarbeitung kostet die Hälfte.
 | Ein Wochentest | 0,004 $ | 0,07 $ | 0,14 $ |
 | Dateianalyse, 150 Dateien im Monat (Batch) | 0,04 $ | 0,75 $ | 1,50 $ |
 
-| Tarif (Tests/Monat) | Netto nach Apple (15 %) | KI-Kosten mit Haiku-Analyse und Sonnet-Tests | mit Haiku für beides |
+| Tarif (Tests/Monat) | Netto nach MwSt. (19 %) und Apple (15 %) | KI-Kosten mit Haiku-Analyse und Sonnet-Tests | mit Haiku für beides |
 | --- | --- | --- | --- |
 | Free (1) | 0 € | ca. 0,11 $ | ca. 0,05 $ |
-| Plus (6), 1,99 € | ca. 1,69 € | ca. 0,46 $ | ca. 0,06 $ |
-| Pro (40), 4,99 € | ca. 4,24 € | ca. 2,84 $ | ca. 0,20 $ |
+| Plus (6), 1,99 € | ca. 1,42 € | ca. 0,46 $ | ca. 0,06 $ |
+| Pro (40), 4,99 € | ca. 3,56 € | ca. 2,84 $ | ca. 0,20 $ |
 
 Beispiel 10.000 Nutzer (70 % Free, 20 % Plus, 10 % Pro), Analyse mit Haiku, Tests mit Sonnet:
-KI ca. 4.500 $ im Monat, Hosting ca. 100 €, Einnahmen netto ca. 7.600 €.
+KI ca. 4.500 $ im Monat, Hosting ca. 100 €, Einnahmen netto ca. 6.400 €.
 
 **Empfehlungen:**
 1. Dateianalyse mit Haiku 5.5 über die Batch-API (zeitunkritisch, 50 % günstiger).
