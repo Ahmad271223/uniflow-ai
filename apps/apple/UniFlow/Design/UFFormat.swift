@@ -61,13 +61,19 @@ enum UFFmt {
 }
 
 /// Laden/Fehler wie route() in app.js: Platzhalter-Balken beim Laden, Karte "Server nicht erreichbar" mit
-/// "Jetzt neu laden" und "Diagnose" bei Netzfehlern, sonst Karte "Fehler".
+/// "Jetzt neu laden" und "Diagnose" bei Netzfehlern, sonst Karte "Fehler". Ohne eigenen UniFlow-Server (V1)
+/// statt der Fehlerkarte der leere Zustand mit "Stud.IP verbinden" (Views/ConnectStudIPCard.swift).
 struct UFRemote<Content: View>: View {
     @ObservedObject var data: RemoteData
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var session: Session
     @ViewBuilder var content: (JSONValue) -> Content
 
     var body: some View {
+        if session.api == nil { UFNoServerPage(spec: .generic) } else { remote }
+    }
+
+    @ViewBuilder private var remote: some View {
         switch data.state {
         case .loading:
             UFContent {

@@ -21,9 +21,13 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        UFRemote(data: data) { d in content(d) }
-            .task { await data.load() }
-            .ufReload { await data.load() }
+        Group {
+            if api == nil { noServer } else {
+                UFRemote(data: data) { d in content(d) }
+                    .task { await data.load() }
+                    .ufReload { await data.load() }
+            }
+        }
             .ufModal(isPresented: $showGenerate) {
                 GeneratePlanDialog(api: api, start: UFFmt.todayISO()) { showGenerate = false }
             }
@@ -35,6 +39,20 @@ struct DashboardView: View {
                     }
                 }
             }
+    }
+
+    // MARK: Ohne Server
+
+    /// V1 ohne PC-Server: Begruessung, Karte "Stud.IP verbinden" (solange nicht verbunden) und ein ehrlicher
+    /// leerer Zustand – keine Beispieldaten.
+    private var noServer: some View {
+        UFContent {
+            VStack(alignment: .leading, spacing: 0) {
+                UFPageHeadGreet(title: "\(UFFmt.greeting())!", sub: UFFmt.longToday()) { EmptyView() }
+                UFNoServerBody(icon: "calendar", text: "Hier stehen deine Lernpakete, Uni-Termine und neuen Dateien – noch ist nichts da.")
+            }
+            .frame(maxWidth: 1120, alignment: .leading)
+        }
     }
 
     // MARK: Inhalt
