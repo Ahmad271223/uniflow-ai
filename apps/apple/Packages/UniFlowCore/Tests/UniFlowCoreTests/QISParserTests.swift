@@ -111,6 +111,33 @@ private let bescheinigungenHTML = """
 </body></html>
 """
 
+/// Baum mit zwei Abschluessen (Bachelor und Master im selben Konto). Aufgeklappte Knoten zeigen ihren Studiengang,
+/// ihr eigener Link klappt dann mit expand=1 wieder zu (andere Adresse als beim Aufklappen).
+private func twoAbschlussTree(expanded: Set<Int>, numbers: (Int, Int) = (82, 88)) -> String {
+    let nodes = [(numbers.0, "Bachelor of Science", "Bachelorfach"), (numbers.1, "Master of Science", "Masterfach")]
+    var html = "<html><body><h1>Notenspiegel</h1><ul class=\"treelist\">"
+    for (nr, name, fach) in nodes {
+        let open = expanded.contains(nr)
+        html += """
+        <li><a href="rds?state=notenspiegelStudent&amp;next=tree.vm&amp;nextdir=qispos/notenspiegel/student&amp;struct=auswahlBaum&amp;nodeID=auswahlBaum|abschluss:abschl=\(nr)&amp;expand=\(open ? 1 : 0)&amp;asi=SESSION.42#auswahlBaum|abschluss:abschl=\(nr)" title="\(open ? "Zuklappen" : "Ausklappen")">Abschluss \(nr) \(name)</a>
+        """
+        if open {
+            html += """
+            <ul><li><a href="rds?state=notenspiegelStudent&amp;next=list.vm&amp;nextdir=qispos/notenspiegel/student&amp;createInfos=Y&amp;struct=auswahlBaum&amp;nodeID=auswahlBaum%7Cabschluss%3Aabschl%3D\(nr)%2Cstgnr%3D1%7Cstudiengang%3Astg%3DX\(nr)%2Cpversion%3D2017%2Ckzfa%3DH&amp;expand=0&amp;asi=SESSION.42">Leistungen f&uuml;r \(fach) (PO-Version 2017) anzeigen</a></ul>
+            """
+        }
+    }
+    return html + "</ul><a href=\"rds?state=user&amp;type=4&amp;asi=SESSION.42\">Logout</a></body></html>"
+}
+
+private func gradeListHTML(_ nr: String, _ text: String) -> String {
+    """
+    <html><body><table><tr><th>Pr&uuml;fungsnr.</th><th>Pr&uuml;fungstext</th><th>Semester</th><th>Note</th><th>Status</th><th>Credits</th></tr>
+    <tr><td>\(nr)</td><td>\(text)</td><td>SoSe 26</td><td>1,7</td><td>bestanden</td><td>5</td></tr></table>
+    <a href="rds?state=user&amp;type=4&amp;asi=SESSION.42">Logout</a></body></html>
+    """
+}
+
 final class QISParserTests: XCTestCase {
 
     // MARK: Links und Sitzung
@@ -309,6 +336,22 @@ final class QISParserTests: XCTestCase {
         XCTAssertEqual(QISParser.summary([QISGrade(text: "X", note: "0x1p1", credits: "1")]).average, nil)
     }
 
+    func testSummaryRoundsTheExactBinaryValueLikePython() {
+        func avg(_ pairs: [(String, String)]) -> Double? {
+            QISParser.summary(pairs.enumerated().map { QISGrade(text: "M\($0.offset)", note: $0.element.0, credits: $0.element.1) }).average
+        }
+        // Werte aus Python: round((1.0*3 + 1.3*1) / 4, 2) usw.; x*100 gerundet gaebe 1.08 / 1.42 / 1.98
+        XCTAssertEqual(avg([("1,0", "3"), ("1,3", "1")]), 1.07)
+        XCTAssertEqual(avg([("1,0", "3"), ("2,7", "1")]), 1.43)
+        XCTAssertEqual(avg([("1,0", "1"), ("2,3", "3")]), 1.97)
+        XCTAssertEqual(avg([("1,3", "6"), ("2,0", "10"), ("5,0", "4")]), 2.39)
+        // Gleichstand auf dem exakten Wert: zur geraden Ziffer wie round()
+        XCTAssertEqual(QISParser.round2(0.125), 0.12)
+        XCTAssertEqual(QISParser.round2(2.675), 2.67)
+        XCTAssertEqual(QISParser.round2(1.005), 1.0)
+        XCTAssertEqual(QISParser.round2(2.0), 2.0)
+    }
+
     // MARK: Bescheinigungen
 
     func testDocumentsAreListedWithTitles() {
@@ -325,12 +368,53 @@ final class QISParserTests: XCTestCase {
         let json = QISParser.apiJSON(grades: [], documents: p.documents, fetchedAt: "2026-10-25T10:00:00")
         let docs = json["documents"]?.array ?? []
         XCTAssertEqual(docs.count, 2)
-        XCTAssertEqual(docs[0]["id"], 1)
-        XCTAssertEqual(docs[1]["title"], "Certificate of study period and enrolment")
+        // wie "ORDER BY id DESC": zuletzt gefunden zuerst; id als Text, damit sie nie als PC-id gilt
+        XCTAssertEqual(docs.map { $0["title"]?.string ?? "" }, [
+            "Certificate of study period and enrolment",
+            "Studienzeitbescheinigung / Immatrikulationsbescheinigung / Bescheinigung nach § 9 BAföG",
+        ])
+        XCTAssertEqual(docs.map { $0["id"] }, ["device-2", "device-1"])
+        for d in docs {
+            XCTAssertNil(d["id"]?.int)
+            XCTAssertEqual(d["source"], "device")
+            XCTAssertEqual(Set(d.object.map { Array($0.keys) } ?? []), ["id", "source", "title", "url", "fetched_at"])
+        }
+        XCTAssertEqual(docs[1]["url"]?.string, p.documents[0].link.address)
         XCTAssertEqual(docs[0]["fetched_at"], "2026-10-25T10:00:00")
         XCTAssertFalse(json.jsonString().contains("SESSION"))
         XCTAssertEqual(QISParser.cleanTitle("  PDF-Notenspiegel   zum Drucken "), "Notenspiegel")
         XCTAssertEqual(QISParser.cleanTitle("PDF"), "Dokument")
+    }
+
+    func testImageLinksInBlocksGetTitleFromBlock() {
+        let html = """
+        <html><body><h1>Meine Bescheinigungen</h1>
+        <ul class="liste">
+         <li>Studienzeitbescheinigung <a href="rds?state=verpublish&amp;moduleCall=Studienbescheinigung&amp;asi=SESSION.42"><img src="/QIS/images//pdf.svg" alt="PDF"></a>
+         <li>Immatrikulationsbescheinigung <a href="rds?state=verpublish&amp;moduleCall=Immatrikulation&amp;asi=SESSION.42"><img alt="PDF"></a></li>
+         <li>Datenkontrollblatt
+           <ul><li><span><a href="rds?state=verpublish&amp;moduleCall=Datenkontrollblatt&amp;asi=SESSION.42"><img alt="PDF"></a></span></ul>
+        </ul>
+        <div>Transcript of Records <span><a href="rds?state=verpublish&amp;moduleCall=Transcript&amp;asi=SESSION.42"><img alt="pdf"></a></span></div>
+        <p>Bescheinigung nach &sect; 9 BAf&ouml;G <a href="rds?state=verpublish&amp;moduleCall=Bafoeg&amp;asi=SESSION.42"><img alt="PDF"></a>
+        <p>Leistungs&uuml;bersicht <a href="rds?state=verpublish&amp;moduleCall=Leistungen&amp;asi=SESSION.42"><img alt="PDF"></a></p>
+        <table><tr><td>Kopfzeile <div>Notenbescheinigung <a href="rds?state=verpublish&amp;moduleCall=Noten&amp;asi=SESSION.42"><img alt="PDF"></a>
+          <td>Daneben</table>
+        <div><table summary="Liste der Stammdaten des Studierenden"><tr><th>Name des Studierenden</th><td>Max Muster</td></tr></table>
+         <a href="rds?state=verpublish&amp;moduleCall=Stammdatenblatt&amp;asi=SESSION.42"><img alt="PDF"></a></div>
+        <a href="rds?state=user&amp;type=4&amp;asi=SESSION.42">Logout</a>
+        </body></html>
+        """
+        let p = page(html, "state=change&type=1&moduleParameter=studentReportsMenu&asi=SESSION.42")
+        XCTAssertEqual(p.documents.map(\.title), [
+            "Studienzeitbescheinigung", "Immatrikulationsbescheinigung", "Datenkontrollblatt", "Transcript of Records",
+            "Bescheinigung nach § 9 BAföG", "Leistungsübersicht", "Notenbescheinigung", "Dokument",
+        ])
+        XCTAssertFalse(p.documents.contains { $0.title.contains("Max") || $0.title.contains("Muster") })
+        // Layout-Block um die ganze Seite ist kein Titel
+        let long = String(repeating: "Layout ", count: 40)
+        let q = page(#"<div>\#(long)<a href="rds?state=verpublish&amp;moduleCall=X"><img alt="PDF"></a></div>"#)
+        XCTAssertEqual(q.documents.map(\.title), ["Dokument"])
     }
 
     // MARK: Ablauf und Format
@@ -371,6 +455,46 @@ final class QISParserTests: XCTestCase {
         // Sammler laesst sich speichern und wieder laden
         let back = try JSONDecoder().decode(QISCollector.self, from: JSONEncoder().encode(c))
         XCTAssertEqual(back, c)
+    }
+
+    func testCollectorVisitsEveryAbschlussWithoutCollapsing() throws {
+        var c = QISCollector()
+        let start = page(twoAbschlussTree(expanded: []), "state=notenspiegelStudent&next=tree.vm&asi=SESSION.42")
+        c.absorb(start)
+        XCTAssertEqual(c.nextLinks(on: start).map(\.text), ["Abschluss 82 Bachelor of Science", "Abschluss 88 Master of Science"])
+
+        // 82 aufklappen: dort erst der Studiengang
+        let open82 = try XCTUnwrap(c.nextLinks(on: start).first)
+        let tree82 = QISPage.parse(html: twoAbschlussTree(expanded: [82]), url: try XCTUnwrap(start.url(for: open82)))
+        c.absorb(tree82, via: open82)
+        let l82 = c.nextLinks(on: tree82)
+        XCTAssertEqual(l82.map { $0.studiengang ?? "" }, ["Bachelorfach (PO-Version 2017)"])
+        let list82 = QISPage.parse(html: gradeListHTML("1001", "Mathematik I"), url: try XCTUnwrap(tree82.url(for: l82[0])))
+        c.absorb(list82, via: l82[0])
+
+        // zurueck auf dem Baum: 88 kommt dran, 82 nicht noch einmal (sein Link dort klappt nur zu)
+        XCTAssertTrue(tree82.links(.abschluss).contains { $0.text.hasPrefix("Abschluss 82") && $0.parameters["expand"] == "1" })
+        let next = c.nextLinks(on: tree82)
+        XCTAssertEqual(next.map(\.text), ["Abschluss 88 Master of Science"])
+        // ohne besuchte Adressen weiterhin der erste Schritt der Seite
+        XCTAssertEqual(tree82.nextLinksTowardGrades(), l82)
+
+        let tree88 = QISPage.parse(html: twoAbschlussTree(expanded: [82, 88]), url: try XCTUnwrap(tree82.url(for: next[0])))
+        c.absorb(tree88, via: next[0])
+        let l88 = c.nextLinks(on: tree88)
+        XCTAssertEqual(l88.map { $0.studiengang ?? "" }, ["Masterfach (PO-Version 2017)"])
+        let list88 = QISPage.parse(html: gradeListHTML("2001", "Seminar"), url: try XCTUnwrap(tree88.url(for: l88[0])))
+        c.absorb(list88, via: l88[0])
+        XCTAssertTrue(c.nextLinks(on: tree88).isEmpty)
+        XCTAssertTrue(c.nextLinks(on: tree82).isEmpty)
+        XCTAssertEqual(c.grades.map(\.text), ["Mathematik I", "Seminar"])
+        XCTAssertEqual(c.grades.map { $0.abschluss ?? "" }, ["Bachelorfach (PO-Version 2017)", "Masterfach (PO-Version 2017)"])
+
+        // Knotennummern mit gleichem Anfang (8 und 82) gelten nicht als derselbe Knoten
+        let similar = page(twoAbschlussTree(expanded: [], numbers: (82, 8)), "state=notenspiegelStudent&next=tree.vm&asi=SESSION.42")
+        var d = QISCollector()
+        d.absorb(similar, via: similar.links(.abschluss)[0])
+        XCTAssertEqual(d.nextLinks(on: similar).map(\.text), ["Abschluss 8 Master of Science"])
     }
 
     func testNullSemesterSortsLast() {

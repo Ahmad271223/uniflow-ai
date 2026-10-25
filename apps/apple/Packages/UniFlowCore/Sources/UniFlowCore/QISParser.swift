@@ -198,13 +198,22 @@ public struct QISPage: Sendable {
 
     /// Naechste Schritte Richtung Leistungen: Studiengaenge, sonst Abschluesse aufklappen, sonst Notenspiegel,
     /// sonst Mein Studium. Leer, wenn es auf dieser Seite nichts weiter gibt.
-    public func nextLinksTowardGrades() -> [QISLink] {
+    /// `visited` (Adressen ohne asi) wird je Gruppe vorher entfernt: sind die Studiengaenge eines Abschlusses schon
+    /// besucht, kommen die uebrigen Abschluesse dran. Ein Baumknoten, dessen nodeID schon besucht wurde oder unter
+    /// dem schon ein Knoten besucht wurde, gilt als aufgeklappt und wird nicht erneut angeboten (kein Zuklappen).
+    public func nextLinksTowardGrades(excluding visited: Set<String> = []) -> [QISLink] {
+        let visitedNodes = visited.compactMap { QISParser.parameters(of: $0)["nodeid"]?.lowercased() }.filter { !$0.isEmpty }
+        func isOpen(_ l: QISLink) -> Bool {
+            guard !visited.contains(l.address) else { return false }
+            guard let node = l.parameters["nodeid"]?.lowercased(), !node.isEmpty else { return true }
+            return !visitedNodes.contains { $0 == node || $0.hasPrefix(node + ",") || $0.hasPrefix(node + "|") }
+        }
         for t in [QISTarget.leistungen, .abschluss] {
-            let l = links(t)
+            let l = links(t).filter(isOpen)
             if !l.isEmpty { return Array(l.prefix(10)) }
         }
         for t in [QISTarget.notenspiegel, .meinStudium] {
-            if let l = link(t) { return [l] }
+            if let l = links(t).first(where: isOpen) { return [l] }
         }
         return []
     }
@@ -241,9 +250,9 @@ public struct QISCollector: Sendable, Equatable, Codable {
         for d in page.documents where known.insert(d.link.address).inserted { documents.append(d) }
     }
 
-    /// Noch nicht besuchte Links Richtung Leistungen auf dieser Seite.
+    /// Noch nicht besuchte Links Richtung Leistungen auf dieser Seite (besuchte schon vor der Wahl der Gruppe entfernt).
     public func nextLinks(on page: QISPage) -> [QISLink] {
-        page.nextLinksTowardGrades().filter { !visited.contains($0.address) }
+        page.nextLinksTowardGrades(excluding: visited)
     }
 
     public var summary: QISGradeSummary { QISParser.summary(grades) }
@@ -349,7 +358,6 @@ public enum QISParser {
             if n >= 1.0, n <= 5.0 { graded.append((n, c)) }
         }
         let cp = graded.reduce(0) { $0 + $1.c }
-        func round2(_ x: Double) -> Double { (x * 100).rounded(.toNearestOrEven) / 100 }
         let avg: Double?
         if cp != 0 { avg = round2(graded.reduce(0) { $0 + $1.n * $1.c } / cp) }
         else if !graded.isEmpty { avg = round2(graded.reduce(0) { $0 + $1.n } / Double(graded.count)) }
@@ -358,8 +366,19 @@ public enum QISParser {
         return QISGradeSummary(average: avg, credits: cp, passed: passed)
     }
 
+    /// Wie round(x, 2) in Python: rundet den exakten Binaerwert (1.075 ist binaer etwas kleiner -> 1.07), nicht x*100.
+    /// printf rundet ebenfalls den exakten Wert, Gleichstand zur geraden Ziffer (0.125 -> 0.12); ohne Locale immer ".".
+    static func round2(_ x: Double) -> Double {
+        guard x.isFinite else { return x }
+        return Double(String(format: "%.2f", x)) ?? x
+    }
+
     /// Ergebnis im Format von GET /api/grades des PC-Servers (grades sortiert wie "ORDER BY semester DESC, text"),
-    /// damit die Ansicht "Uni & Noten" es unveraendert anzeigen kann. Bescheinigungen mit Titel und Adresse ohne asi.
+    /// damit die Ansicht "Uni & Noten" es unveraendert anzeigen kann.
+    /// Bescheinigungen weichen bewusst ab: der PC liefert gespeicherte PDFs (id, title, local_path, fetched_at), hier
+    /// gibt es nur Links (QIS-Adresse ohne asi in "url", kein local_path). Reihenfolge wie "ORDER BY id DESC" (zuletzt
+    /// gefundene zuerst). Die id ist Text "device-<n>" (n = Fundreihenfolge ab 1) und dazu "source": "device", damit
+    /// sie nie mit einer PC-id verwechselt und nicht an /api/qis/documents/{id} geschickt wird.
     public static func apiJSON(grades: [QISGrade], documents: [QISDocumentLink] = [], fetchedAt: String? = nil,
                                lastRun: JSONValue = .null) -> JSONValue {
         func s(_ v: String?) -> JSONValue { v.map(JSONValue.string) ?? .null }
@@ -380,8 +399,9 @@ public enum QISParser {
              "abschluss": s(g.abschluss), "raw": .string(g.raw), "fetched_at": s(fetchedAt)]
         }
         var seen = Set<String>()
-        let docJSON: [JSONValue] = documents.filter { seen.insert($0.link.address).inserted }.enumerated().map { (i, d) in
-            ["id": .number(Double(i + 1)), "title": .string(d.title), "url": .string(d.link.address), "fetched_at": s(fetchedAt)]
+        let docJSON: [JSONValue] = documents.filter { seen.insert($0.link.address).inserted }.enumerated().reversed().map { (i, d) in
+            ["id": .string("device-\(i + 1)"), "source": "device", "title": .string(d.title), "url": .string(d.link.address),
+             "fetched_at": s(fetchedAt)]
         }
         let sum = summary(merge(grades))
         return ["grades": .array(gradeJSON), "average": sum.average.map(JSONValue.number) ?? .null,
@@ -522,8 +542,13 @@ public enum QISParser {
         return short.isEmpty ? "Dokument" : short
     }
 
+    /// Titel wie _click_pdf_links (Linktext, title, sonst Text von closest('td,li,p,div,span')): zuerst Linktext,
+    /// dann umgebende Bloecke innerhalb der Zelle (innerster zuerst), dann Zelle und Zeile, dann Bloecke um die
+    /// Tabelle. Sehr lange Bloecke (Layout um die ganze Seite) sind kein Titel.
     static func documentTitle(_ a: HTMLAnchor) -> String {
-        for candidate in [a.label, a.cellText, a.rowText] {
+        let inner = a.innerBlockTexts.filter { $0.count <= 200 }
+        let outer = a.outerBlockTexts.filter { $0.count <= 200 }
+        for candidate in [a.label] + inner + [a.cellText, a.rowText] + outer {
             let t = cleanTitle(candidate)
             if !["pdf", "dokument"].contains(t.lowercased()) { return t }
         }
@@ -606,6 +631,10 @@ struct HTMLAnchor: Sendable {
     /// Text der umgebenden Tabellenzelle und der ganzen Zeile (beides leer in Stammdaten-Tabellen)
     let cellText: String
     let rowText: String
+    /// Text der umgebenden Bloecke (li, p, div, span), innerster zuerst: innerhalb der Zelle des Links bzw. ausserhalb
+    /// jeder Tabelle (`inner`) und um die Tabelle herum (`outer`). Ohne Text aus Stammdaten-Tabellen.
+    var innerBlockTexts: [String] = []
+    var outerBlockTexts: [String] = []
 }
 
 struct HTMLScan: Sendable {
@@ -631,11 +660,13 @@ enum HTMLScanner {
     final class TableBuilder {
         let summary: String
         let order: Int
+        /// umgebende Tabelle (verschachtelte Layout-Tabellen)
+        let parent: TableBuilder?
         var rows: [[CellBuilder]] = []
         var rowOpen = false
         var cell: CellBuilder?
         var finished: HTMLTable?
-        init(summary: String, order: Int) { self.summary = summary; self.order = order }
+        init(summary: String, order: Int, parent: TableBuilder?) { self.summary = summary; self.order = order; self.parent = parent }
 
         func startRow() { endRow(); rowOpen = true; rows.append([]) }
         func endRow() { cell = nil; rowOpen = false }
@@ -663,10 +694,23 @@ enum HTMLScanner {
         let row: Int?
         var parts: [String] = []
         var images: [String] = []
+        /// offene Bloecke beim Start des Links, innerster zuerst (ohne ul/ol)
+        var blocks: [BlockBuilder] = []
         init(href: String, title: String, table: TableBuilder?) {
             self.href = href; self.title = title; self.cell = table?.cell; self.table = table
             row = table.flatMap { $0.rowOpen ? $0.rows.count - 1 : nil }
         }
+    }
+
+    /// Offenes li/p/div/span (und ul/ol, nur fuer das Schliessen von li). Sammelt allen Text darin, je Teil mit der
+    /// innersten Tabelle, damit Text aus Stammdaten-Tabellen spaeter verworfen werden kann.
+    final class BlockBuilder {
+        let name: String
+        /// Zelle, in der der Block geoeffnet wurde (nil ausserhalb von Zellen); endet die Zelle, endet auch der Block
+        let cell: CellBuilder?
+        var parts: [(text: String, table: TableBuilder?)] = []
+        init(name: String, cell: CellBuilder?) { self.name = name; self.cell = cell }
+        var isList: Bool { name == "ul" || name == "ol" }
     }
 
     final class Builder {
@@ -678,36 +722,82 @@ enum HTMLScanner {
         var open: AnchorBuilder?
         var h1Parts: [String]?
         var counter = 0
+        /// offene Bloecke, aeusserster zuerst
+        var blocks: [BlockBuilder] = []
 
         func text(_ raw: String) {
             let t = QISParser.decodeEntities(raw)
             stack.last?.cell?.parts.append(t)
             open?.parts.append(t)
             h1Parts?.append(t)
+            if !blocks.isEmpty {
+                let table = stack.last
+                for b in blocks { b.parts.append((t, table)) }
+            }
         }
 
         func space() { text(" ") }
 
+        func openBlock(_ name: String) {
+            guard blocks.count < 64 else { return }
+            blocks.append(BlockBuilder(name: name, cell: stack.last?.cell))
+        }
+
+        /// Zuletzt geoeffneten Block `name` samt allem darin schliessen, ausser danach wurde einer der `stoppers`
+        /// geoeffnet (ein li schliesst kein li einer aeusseren Liste).
+        func closeBlock(_ name: String, unless stoppers: Set<String> = []) {
+            guard let i = blocks.lastIndex(where: { $0.name == name }),
+                  !blocks[(i + 1)...].contains(where: { stoppers.contains($0.name) }) else { return }
+            blocks.removeSubrange(i...)
+        }
+
+        /// Zelle endet: darin geoeffnete Bloecke enden mit ihr (offene div/li in QIS-Tabellen).
+        func closeBlocks(in cell: CellBuilder?) {
+            guard let cell else { return }
+            blocks.removeAll { $0.cell === cell }
+        }
+
+        static let blockStoppers: Set<String> = ["div", "li", "ul", "ol"]
+
         func start(_ name: String, _ attrs: [String: String]) {
             switch name {
             case "table":
-                let t = TableBuilder(summary: attrs["summary"] ?? "", order: counter)
+                let t = TableBuilder(summary: attrs["summary"] ?? "", order: counter, parent: stack.last)
                 counter += 1
                 stack.append(t)
                 all.append(t)
-            case "tr": stack.last?.startRow()
+            case "tr":
+                let before = stack.last?.cell
+                stack.last?.startRow()
+                closeBlocks(in: before)
             case "td", "th":
+                let before = stack.last?.cell
                 stack.last?.startCell(header: name == "th", colspan: min(max(Int(attrs["colspan"] ?? "") ?? 1, 1), 20))
+                closeBlocks(in: before)
             case "a":
                 closeAnchor()
                 if let href = attrs["href"] {
                     let a = AnchorBuilder(href: href, title: attrs["title"] ?? "", table: stack.last)
+                    a.blocks = blocks.reversed().filter { !$0.isList }
                     anchors.append(a)
                     open = a
                 }
             case "img":
                 if let a = open { a.images.append(attrs["alt"] ?? attrs["title"] ?? "") }
-            case "br", "p", "div", "li", "hr":
+            case "li":
+                closeBlock("li", unless: ["ul", "ol"])
+                space()
+                openBlock("li")
+            case "p", "div":
+                closeBlock("p", unless: Builder.blockStoppers)
+                space()
+                openBlock(name)
+            case "ul", "ol":
+                closeBlock("p", unless: Builder.blockStoppers)
+                openBlock(name)
+            case "span":
+                openBlock("span")
+            case "br", "hr":
                 space()
             case "input":
                 let type = (attrs["type"] ?? "").lowercased()
@@ -727,11 +817,22 @@ enum HTMLScanner {
         func end(_ name: String) {
             switch name {
             case "table":
-                if let t = stack.popLast() { _ = t.finish(); done.append(t) }
-            case "tr": stack.last?.endRow()
-            case "td", "th": stack.last?.cell = nil
+                if let t = stack.popLast() { closeBlocks(in: t.cell); _ = t.finish(); done.append(t) }
+            case "tr":
+                closeBlocks(in: stack.last?.cell)
+                stack.last?.endRow()
+            case "td", "th":
+                closeBlocks(in: stack.last?.cell)
+                stack.last?.cell = nil
             case "a": closeAnchor()
-            case "p", "div", "li": space()
+            case "li":
+                space()
+                closeBlock("li", unless: ["ul", "ol"])
+            case "p", "div":
+                space()
+                closeBlock(name)
+            case "span", "ul", "ol":
+                closeBlock(name)
             case "h1":
                 if let p = h1Parts {
                     let t = QISParser.clean(p.joined())
@@ -747,15 +848,31 @@ enum HTMLScanner {
         func result() -> HTMLScan {
             while let t = stack.popLast() { _ = t.finish(); done.append(t) }
             scan.tables = done.sorted { $0.order < $1.order }.compactMap(\.finished)
+            // Stammdaten-Tabellen samt allen darin verschachtelten Tabellen
+            func inStammdaten(_ t: TableBuilder) -> Bool {
+                var x: TableBuilder? = t
+                while let y = x { if y.finished.map(QISParser.isStammdaten) ?? false { return true }; x = y.parent }
+                return false
+            }
+            let secret = Set(all.filter(inStammdaten).map(ObjectIdentifier.init))
+            func isSecret(_ t: TableBuilder?) -> Bool { t.map { secret.contains(ObjectIdentifier($0)) } ?? false }
             scan.anchors = anchors.map { a in
                 var label = QISParser.clean(a.parts.joined())
                 if label.isEmpty { label = QISParser.clean(a.title) }
                 if label.isEmpty { label = QISParser.clean(a.images.joined(separator: " ")) }
-                guard let t = a.table, !(t.finished.map(QISParser.isStammdaten) ?? false) else {
-                    return HTMLAnchor(href: a.href, label: label, cellText: "", rowText: "")
+                guard !isSecret(a.table) else { return HTMLAnchor(href: a.href, label: label, cellText: "", rowText: "") }
+                var inner: [String] = []
+                var outer: [String] = []
+                for b in a.blocks {
+                    let t = QISParser.clean(b.parts.filter { !isSecret($0.table) }.map(\.text).joined())
+                    if b.cell === a.cell { inner.append(t) } else { outer.append(t) }
+                }
+                guard let t = a.table else {
+                    return HTMLAnchor(href: a.href, label: label, cellText: "", rowText: "", innerBlockTexts: inner, outerBlockTexts: outer)
                 }
                 let row = a.row.map { QISParser.clean(t.rows[$0].map(\.text).joined(separator: " ")) } ?? ""
-                return HTMLAnchor(href: a.href, label: label, cellText: a.cell?.text ?? "", rowText: row)
+                return HTMLAnchor(href: a.href, label: label, cellText: a.cell?.text ?? "", rowText: row,
+                                  innerBlockTexts: inner, outerBlockTexts: outer)
             }
             return scan
         }
