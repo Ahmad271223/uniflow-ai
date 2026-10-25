@@ -77,7 +77,7 @@ final class StudIPScheduleArtTests: XCTestCase {
             ("Zentralübung Elektrotechnik", .hoersaaluebung, "uebung"),
             ("Übung zu Programmieren", .uebung, "uebung"),
             ("Signale und Systeme - Fragestunde", .uebung, "uebung"),
-            ("Mathematikübung", .uebung, "uebung"),                    // classify: kein Wortanfang, guess_kind: "übung"
+            ("Mathematikübung", .uebung, "uebung"),                    // classify: kein Wortanfang, guess_kind: "uebung"
             ("Ü: Lineare Algebra", .uebung, "uebung"),
             ("Tutorium Physik", .tutorium, "uebung"),
             ("Labor Messtechnik", .labor, "labor"),
@@ -112,6 +112,137 @@ final class StudIPScheduleArtTests: XCTestCase {
         XCTAssertEqual(StudIPSchedule.art(title: "Datenbanksysteme", courseType: 35, courseTypes: [35: .labor]), .labor)
         XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", courseType: 1, detail: "Übung Gruppe 2"), .uebung)
         XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", detail: "Begrüßung"), .vorlesung)
+    }
+
+    func testDetailUsesOnlyClearClassifyPatterns() {
+        // Freitext: keine Teilwortsuche wie guess_kind ("lab", "seminar", "ue:")
+        for d in ["im Seminarraum", "Folien available im Stud.IP", "siehe Syllabus", "Slides available online", "Laborgebäude",
+                  "Ü: siehe Aushang"] {
+            XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", detail: d), .vorlesung, d)
+        }
+        XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", detail: "Übung Gruppe 2"), .uebung)
+        XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", detail: "Gruppenübung 4"), .gruppenuebung)
+        XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", detail: "Zentralübung"), .hoersaaluebung)
+        XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", detail: "Tutorium B"), .tutorium)
+        XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", detail: "Fragestunde"), .uebung)
+    }
+
+    func testDetailNamingLectureStaysLecture() {
+        func guess(_ d: String, _ type: Int? = nil) -> StudIPSchedule.ArtGuess {
+            StudIPSchedule.artGuess(title: "Mathematik I", courseType: type, detail: d, courseTypes: StudIPSchedule.standardCourseTypes)
+        }
+        XCTAssertEqual(guess("Vorlesung/Übung"), StudIPSchedule.ArtGuess(art: .vorlesung, mixedWith: .uebung))
+        XCTAssertEqual(guess("Vorlesung mit integrierter Übung"), StudIPSchedule.ArtGuess(art: .vorlesung, mixedWith: .uebung))
+        XCTAssertEqual(guess("VL + Tutorium"), StudIPSchedule.ArtGuess(art: .vorlesung, mixedWith: .tutorium))
+        XCTAssertEqual(guess("Vorlesung"), StudIPSchedule.ArtGuess(art: .vorlesung))
+    }
+
+    func testCourseTypeNotOverExplicitLecture() {
+        XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", courseType: 3, detail: "Vorlesung"), .vorlesung)
+        XCTAssertEqual(StudIPSchedule.art(title: "Mathematik I", courseType: 3, detail: "VL"), .vorlesung)
+        XCTAssertEqual(StudIPSchedule.art(title: "Vorlesung Mathematik I", courseType: 3), .vorlesung)
+        XCTAssertEqual(StudIPSchedule.art(title: "Ringvorlesung Technik", courseType: 2), .vorlesung)
+        let g = StudIPSchedule.artGuess(title: "Mathematik I", courseType: 3, detail: "im Seminarraum",
+                                        courseTypes: StudIPSchedule.standardCourseTypes)
+        XCTAssertEqual(g, StudIPSchedule.ArtGuess(art: .uebung, fromCourseType: true))
+    }
+}
+
+final class StudIPScheduleEdgeTests: XCTestCase {
+
+    private func timetable(_ cycles: [String], courses: String) throws -> StudIPTimetable {
+        StudIPSchedule.timetable(scheduleDocument: try JSONValue.parse("{\"data\":[" + cycles.joined(separator: ",") + "]}"),
+                                 coursesDocument: try JSONValue.parse("{\"data\":[" + courses + "]}"))
+    }
+
+    private let neutral = #"{"id":"k-n","type":"courses","attributes":{"title":"Mathematik I","course-type":1}}"#
+    private let typed = #"{"id":"k-t","type":"courses","attributes":{"title":"Mathematik I","course-type":3}}"#
+
+    func testLectureDescribedAsVorlesungUebungIsNotAGroup() throws {
+        let t = try timetable([
+            cycle("a", course: "k-n", weekday: 1, start: "08:00", end: "09:30", description: "Vorlesung/Übung"),
+            cycle("b", course: "k-n", weekday: 3, start: "10:00", end: "11:30", description: "Vorlesung/Übung"),
+        ], courses: neutral)
+        XCTAssertEqual(t.entries.map(\.selected), [true, true], "wie studip_entries: zwei Termine = Vorlesung")
+        XCTAssertEqual(t.entries.map(\.kind), ["vorlesung", "vorlesung"])
+        XCTAssertTrue(t.entries.allSatisfy(\.uncertain))
+        XCTAssertEqual(t.entries.first?.hint, "Beschreibung nennt Vorlesung und Übung – bitte prüfen")
+        XCTAssertTrue(t.groups.isEmpty)
+    }
+
+    func testFreeTextDescriptionDoesNotMakeGroups() throws {
+        let t = try timetable([
+            cycle("a", course: "k-n", weekday: 1, start: "08:00", end: "09:30", description: "Slides available online"),
+            cycle("b", course: "k-n", weekday: 3, start: "10:00", end: "11:30", description: "im Seminarraum"),
+        ], courses: neutral)
+        XCTAssertEqual(t.entries.map(\.art), [.vorlesung, .vorlesung])
+        XCTAssertEqual(t.entries.map(\.selected), [true, true])
+        XCTAssertEqual(t.entries.map(\.uncertain), [false, false])
+    }
+
+    func testGroupsOnlyFromCourseTypeHaveOwnHint() throws {
+        let t = try timetable([
+            cycle("a", course: "k-t", weekday: 1, start: "08:00", end: "09:30"),
+            cycle("b", course: "k-t", weekday: 3, start: "10:00", end: "11:30"),
+        ], courses: typed)
+        XCTAssertEqual(t.pending.map(\.id), ["a", "b"])
+        XCTAssertTrue(t.entries.allSatisfy { $0.artFromCourseType && $0.uncertain })
+        XCTAssertEqual(t.entries.first?.hint, "2 Termine, Gruppen nur laut Veranstaltungsart in Stud.IP – bitte prüfen und auswählen")
+
+        // Beschreibung "Vorlesung" schlaegt course-type
+        let v = try timetable([
+            cycle("a", course: "k-t", weekday: 1, start: "08:00", end: "09:30", description: "Vorlesung"),
+            cycle("b", course: "k-t", weekday: 3, start: "10:00", end: "11:30", description: "Vorlesung"),
+        ], courses: typed)
+        XCTAssertEqual(v.entries.map(\.art), [.vorlesung, .vorlesung])
+        XCTAssertEqual(v.entries.map(\.selected), [true, true])
+        XCTAssertFalse(v.entries.contains(where: \.artFromCourseType))
+    }
+
+    func testImplausibleTimesAreDropped() throws {
+        let t = try timetable([
+            cycle("gleich", course: "k-n", weekday: 1, start: "09:00", end: "09:00"),
+            cycle("vertauscht", course: "k-n", weekday: 1, start: "10:00", end: "08:00"),
+            cycle("bis-mitternacht", course: "k-n", weekday: 5, start: "22:00", end: "00:00"),
+            cycle("ueber-nacht", course: "k-n", weekday: 6, start: "22:30", end: "01:00"),
+        ], courses: neutral)
+        XCTAssertEqual(Set(t.entries.map(\.id)), ["bis-mitternacht", "ueber-nacht"])
+
+        let m = try XCTUnwrap(t.entries.first { $0.id == "bis-mitternacht" })
+        let o = try XCTUnwrap(m.occurrences(from: "2026-10-16", to: "2026-10-16").first)
+        XCTAssertEqual(o.start, utc("2026-10-16T20:00:00Z"))
+        XCTAssertEqual(o.end, utc("2026-10-16T22:00:00Z"))
+        let n = try XCTUnwrap(t.entries.first { $0.id == "ueber-nacht" })
+        let p = try XCTUnwrap(n.occurrences(from: "2026-10-17", to: "2026-10-17").first)
+        XCTAssertEqual(p.end.timeIntervalSince(p.start), 2.5 * 3600)
+    }
+
+    func testDurationRules() {
+        XCTAssertEqual(StudIPSchedule.duration(startMinutes: 480, endMinutes: 570), 90)
+        XCTAssertEqual(StudIPSchedule.duration(startMinutes: 1320, endMinutes: 0), 120)
+        XCTAssertEqual(StudIPSchedule.duration(startMinutes: 1320, endMinutes: 60), 180)
+        XCTAssertEqual(StudIPSchedule.duration(startMinutes: 1200, endMinutes: 1440), 240)
+        XCTAssertNil(StudIPSchedule.duration(startMinutes: 540, endMinutes: 540))
+        XCTAssertNil(StudIPSchedule.duration(startMinutes: 600, endMinutes: 480))
+        XCTAssertNil(StudIPSchedule.duration(startMinutes: 0, endMinutes: 0))
+        XCTAssertNil(StudIPSchedule.duration(startMinutes: 1320, endMinutes: 420), "bis 07:00 ist kein glaubhafter Termin")
+    }
+
+    func testNumericICalendarDateIsADate() {
+        let d = BerlinClock.parseISODate
+        XCTAssertEqual(StudIPSchedule.moment(.number(20_261_012)), StudIPMoment(day: d("2026-10-12")!, minutes: nil))
+        XCTAssertEqual(StudIPSchedule.moment(.number(20_261_012)), StudIPSchedule.moment("20261012"))
+        XCTAssertNil(StudIPSchedule.moment(.number(20_261_332)), "kein gueltiges Datum")
+        XCTAssertNil(StudIPSchedule.moment(.number(1234)), "Unix-Zeit vor 2000")
+        XCTAssertNil(StudIPSchedule.moment(.number(-5)))
+        XCTAssertNil(StudIPSchedule.moment("123456789"), "1973")
+        XCTAssertEqual(StudIPSchedule.moment(.number(1_792_051_200.5)), StudIPSchedule.moment("2026-10-15T08:00:00Z"))
+        XCTAssertEqual(StudIPSchedule.exdates([20_261_224, 20_261_231]), ["2026-12-24", "2026-12-31"])
+        XCTAssertEqual(StudIPSchedule.exdates(.number(20_261_224)), ["2026-12-24"])
+
+        let r = StudIPSchedule.recurrence(["FREQ": "WEEKLY", "DTSTART": 20_261_012, "UNTIL": 20_270_129])
+        XCTAssertEqual(StudIPSchedule.moment(r["DTSTART"]).map { BerlinClock.isoDate($0.day) }, "2026-10-12")
+        XCTAssertEqual(StudIPSchedule.moment(r["UNTIL"]).map { BerlinClock.isoDate($0.day) }, "2027-01-29")
     }
 }
 

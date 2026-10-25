@@ -88,6 +88,8 @@ public struct StudIPScheduleEntry: Sendable, Equatable {
     public internal(set) var selected: Bool
     public internal(set) var uncertain: Bool
     public internal(set) var hint: String?
+    /// Art nur aus `course-type` (Titel und Beschreibung nennen keine Art); Gruppen daraus sind unsicher.
+    public internal(set) var artFromCourseType: Bool = false
 
     /// weekly | biweekly | once wie course_events.rrule. Andere Rhythmen bleiben "weekly", stehen aber in
     /// `interval` und werden als unsicher markiert.
@@ -132,7 +134,8 @@ public struct StudIPScheduleEntry: Sendable, Equatable {
     /// ersten Tag. Ausfaelle fehlen, mit `includeCancelled` kommen sie mit `cancelled = true`.
     public func occurrences(from: String, to: String, term: StudIPTerm? = nil, includeCancelled: Bool = false) -> [StudIPOccurrence] {
         guard let lo0 = BerlinClock.parseISODate(from), let hi0 = BerlinClock.parseISODate(to), lo0 <= hi0,
-              let startMin = StudIPSchedule.minutes(startTime), let endMin = StudIPSchedule.minutes(endTime) else { return [] }
+              let startMin = StudIPSchedule.minutes(startTime), let endMin = StudIPSchedule.minutes(endTime),
+              let length = StudIPSchedule.duration(startMinutes: startMin, endMinutes: endMin) else { return [] }
         let first = dateFrom.flatMap(BerlinClock.parseISODate) ?? term.flatMap { BerlinClock.parseISODate($0.start) }
         let last = dateTo.flatMap(BerlinClock.parseISODate) ?? term.flatMap { BerlinClock.parseISODate($0.end) }
         let lo = max(lo0, first ?? lo0), hi = min(hi0, last ?? hi0)
@@ -154,7 +157,7 @@ public struct StudIPScheduleEntry: Sendable, Equatable {
             let cancelled = skip.contains(iso)
             if cancelled && !includeCancelled { continue }
             let s = BerlinClock.utcSeconds(day: d, minutes: startMin)
-            let e = BerlinClock.utcSeconds(day: endMin > startMin ? d : d + 1, minutes: endMin)
+            let e = BerlinClock.utcSeconds(day: d, minutes: startMin + length)
             out.append(StudIPOccurrence(entry: self, date: iso, start: Date(timeIntervalSince1970: TimeInterval(s)),
                                         end: Date(timeIntervalSince1970: TimeInterval(e)), cancelled: cancelled))
         }
@@ -308,12 +311,16 @@ public enum StudIPSchedule {
             let n = idx.count
             let art = cycles[idx[0]].art
             let parallel = n > 2 || (n >= 2 && art.isGroupArt)
+            // Stammt die Art nur aus course-type, ist schon offen, ob es ueberhaupt Gruppen sind
+            let byType = idx.allSatisfy { cycles[$0].artFromCourseType }
             for i in idx {
                 cycles[i].groupSlots = n
                 guard parallel else { continue }
                 cycles[i].selected = false
                 cycles[i].uncertain = true
-                cycles[i].hint = "\(n) parallele Gruppen – nur deine Gruppe auswählen"
+                cycles[i].hint = byType
+                    ? "\(n) Termine, Gruppen nur laut Veranstaltungsart in Stud.IP – bitte prüfen und auswählen"
+                    : "\(n) parallele Gruppen – nur deine Gruppe auswählen"
             }
         }
         let all = (cycles + personal).sorted {
@@ -342,19 +349,25 @@ public enum StudIPSchedule {
 
     /// Art aus dem Kurstitel wie classify() in app/studip_sync.py (dieselben Muster in derselben Reihenfolge).
     static func courseArt(_ title: String) -> StudIPScheduleArt {
-        func has(_ pattern: String) -> Bool { title.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
-        var art = StudIPScheduleArt.vorlesung
-        if has("Gruppenübung|Gruppenuebung") {
-            art = .gruppenuebung
-        } else if has("Hörsaalübung|Hoersaaluebung|Zentralübung") {
-            art = .hoersaaluebung
-        } else if has("\\b(Übung|Uebung|Fragestunde)") {
-            art = .uebung
-        } else if has("Tutorium") {
-            art = .tutorium
-        }
-        if has("Begrüßung|Studiengänge|Einführungsveranstaltung|Erstsemester") { art = .sonstiges }
-        return art
+        if matches(title, "Begrüßung|Studiengänge|Einführungsveranstaltung|Erstsemester") { return .sonstiges }
+        return classifyPatterns(title)
+    }
+
+    /// Die Art-Muster von classify() ohne "sonstiges": Gruppen-, Hoersaal-/Zentraluebung, Uebung/Fragestunde
+    /// am Wortanfang, Tutorium; sonst Vorlesung.
+    static func classifyPatterns(_ s: String) -> StudIPScheduleArt {
+        if matches(s, "Gruppenübung|Gruppenuebung") { return .gruppenuebung }
+        if matches(s, "Hörsaalübung|Hoersaaluebung|Zentralübung") { return .hoersaaluebung }
+        if matches(s, "\\b(Übung|Uebung|Fragestunde)") { return .uebung }
+        if matches(s, "Tutorium") { return .tutorium }
+        return .vorlesung
+    }
+
+    /// Text nennt ausdruecklich eine Vorlesung ("Vorlesung", "Ringvorlesung", "VL").
+    static func mentionsLecture(_ s: String) -> Bool { matches(s, "Vorlesung|\\bVL\\b") }
+
+    static func matches(_ s: String, _ pattern: String) -> Bool {
+        s.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     /// guess_kind() in app/timetable.py (KIND_WORDS, Teilwortsuche ohne Gross-/Kleinschreibung):
@@ -371,16 +384,52 @@ public enum StudIPSchedule {
     }
 
     /// Art eines Termins: zuerst der Kurstitel (classify, danach guess_kind fuer Labor/Seminar), dann die
-    /// Beschreibung der Kurszeit (z. B. "Übung Gruppe 2" in einer Vorlesung), zuletzt `course-type`.
+    /// Beschreibung der Kurszeit (z. B. "Uebung Gruppe 2" in einer Vorlesung), zuletzt `course-type`.
     public static func art(title: String, courseType: Int? = nil, detail: String? = nil,
                            courseTypes: [Int: StudIPScheduleArt] = standardCourseTypes) -> StudIPScheduleArt {
-        var a = titleArt(title)
-        if a == .vorlesung, let d = detail?.trimmingCharacters(in: .whitespacesAndNewlines), !d.isEmpty {
-            let da = titleArt(d)
-            if da != .vorlesung && da != .sonstiges { a = da }
+        artGuess(title: title, courseType: courseType, detail: detail, courseTypes: courseTypes).art
+    }
+
+    /// Ergebnis von `artGuess`: die Art und woher sie stammt.
+    struct ArtGuess: Equatable {
+        let art: StudIPScheduleArt
+        /// Art nur aus `course-type`
+        var fromCourseType = false
+        /// Beschreibung nennt Vorlesung und zugleich diese Art ("Vorlesung/Uebung"); die Art bleibt Vorlesung.
+        var mixedWith: StudIPScheduleArt?
+    }
+
+    /// Die Beschreibung ist Freitext ("im Seminarraum", "Folien available im Stud.IP"), daher gelten dort nur die
+    /// klaren Muster von classify(), nicht die Teilwortsuche von guess_kind. Nennt sie auch eine Vorlesung, bleibt
+    /// es bei Vorlesung (nur unsicher). `course-type` zaehlt nur, wenn weder Titel noch Beschreibung eine Art
+    /// nennen, auch keine Vorlesung.
+    static func artGuess(title: String, courseType: Int?, detail: String?,
+                         courseTypes: [Int: StudIPScheduleArt]) -> ArtGuess {
+        let a = titleArt(title)
+        guard a == .vorlesung else { return ArtGuess(art: a) }
+        let d = detail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let da = d.isEmpty ? .vorlesung : classifyPatterns(d)
+        if da != .vorlesung {
+            return mentionsLecture(d) ? ArtGuess(art: .vorlesung, mixedWith: da) : ArtGuess(art: da)
         }
-        if a == .vorlesung, let t = courseType, let mapped = courseTypes[t] { a = mapped }
-        return a
+        if !mentionsLecture(title), !mentionsLecture(d), let t = courseType, let mapped = courseTypes[t], mapped != .vorlesung {
+            return ArtGuess(art: mapped, fromCourseType: true)
+        }
+        return ArtGuess(art: .vorlesung)
+    }
+
+    /// Name einer Art fuer Hinweise.
+    static func artLabel(_ a: StudIPScheduleArt) -> String {
+        switch a {
+        case .vorlesung: return "Vorlesung"
+        case .uebung: return "Übung"
+        case .hoersaaluebung: return "Hörsaalübung"
+        case .gruppenuebung: return "Gruppenübung"
+        case .tutorium: return "Tutorium"
+        case .labor: return "Labor"
+        case .seminar: return "Seminar"
+        case .sonstiges: return "Sonstiges"
+        }
     }
 
     static func titleArt(_ title: String) -> StudIPScheduleArt {
@@ -410,7 +459,8 @@ public enum StudIPSchedule {
     static func cycleEntry(_ r: JSONValue, courses: [String: StudIPScheduleCourse],
                            courseTypes: [Int: StudIPScheduleArt]) -> StudIPScheduleEntry? {
         guard let id = r["id"]?.string, let a = r["attributes"],
-              let startMin = minutes(a["start"]?.string), let endMin = minutes(a["end"]?.string) else { return nil }
+              let startMin = minutes(a["start"]?.string), let endMin = minutes(a["end"]?.string),
+              duration(startMinutes: startMin, endMinutes: endMin) != nil else { return nil }
         let rec = recurrence(a["recurrence"])
         let from = moment(rec["DTSTART"]), until = moment(rec["UNTIL"])
         guard let weekday = studipWeekday(a["weekday"]) ?? from.map({ BerlinClock.weekday($0.day) }) else { return nil }
@@ -420,7 +470,8 @@ public enum StudIPSchedule {
         let ownTitle = squash(a["title"]?.string ?? "")
         let title = course?.title ?? (ownTitle.isEmpty ? "Veranstaltung" : ownTitle)
         let description = (a["description"]?.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let art = Self.art(title: title, courseType: course?.courseType, detail: description, courseTypes: courseTypes)
+        let guess = artGuess(title: title, courseType: course?.courseType, detail: description, courseTypes: courseTypes)
+        let art = guess.art
         let (interval, rhythmHint) = rhythm(rec)
         let locations = locationList(a["locations"])
         var e = StudIPScheduleEntry(
@@ -428,10 +479,13 @@ public enum StudIPSchedule {
             art: art, kind: art.kind, weekday: weekday, startTime: hhmm(startMin), endTime: hhmm(endMin), interval: interval,
             dateFrom: from.map { BerlinClock.isoDate($0.day) }, dateTo: until.map { lastDay($0, startMinutes: startMin) },
             exdates: exdates(rec["EXDATES"]), locations: locations, room: room(locations), color: a["color"]?.string,
-            groupSlots: 1, selected: true, uncertain: false, hint: nil)
-        if let rhythmHint {
+            groupSlots: 1, selected: true, uncertain: false, hint: nil, artFromCourseType: guess.fromCourseType)
+        var hints: [String] = []
+        if let rhythmHint { hints.append(rhythmHint) }
+        if let other = guess.mixedWith { hints.append("Beschreibung nennt Vorlesung und \(artLabel(other)) – bitte prüfen") }
+        if !hints.isEmpty {
             e.uncertain = true
-            e.hint = rhythmHint
+            e.hint = hints.joined(separator: "; ")
         }
         return e
     }
@@ -441,6 +495,7 @@ public enum StudIPSchedule {
     static func personalEntry(_ r: JSONValue) -> StudIPScheduleEntry? {
         guard let id = r["id"]?.string, let a = r["attributes"],
               let startMin = minutes(a["start"]?.string), let endMin = minutes(a["end"]?.string),
+              duration(startMinutes: startMin, endMinutes: endMin) != nil,
               let weekday = studipWeekday(a["weekday"]) else { return nil }
         let raw = squash(a["title"]?.string ?? "")
         let title = raw.isEmpty ? "Termin" : raw
@@ -541,6 +596,16 @@ public enum StudIPSchedule {
         return h * 60 + m
     }
 
+    /// Dauer in Minuten. Ende nach Beginn: am selben Tag. Ende vor Beginn gilt nur als Termin ueber Mitternacht,
+    /// wenn das glaubhaft ist: Ende 00:00 oder Beginn ab 18:00 und Ende bis 06:00. Sonst (gleiche Zeiten,
+    /// vertauschte Zeiten wie 10:00-08:00) nil; solche Eintraege werden verworfen statt den Tag zu blockieren.
+    static func duration(startMinutes s: Int, endMinutes e: Int) -> Int? {
+        if e > s { return e - s }
+        if e == 0, s > 0 { return 1440 - s }
+        if e < s, s >= 18 * 60, e <= 6 * 60 { return 1440 - s + e }
+        return nil
+    }
+
     /// Minuten -> "HH:MM" (mh() in app/timetable.py).
     static func hhmm(_ m: Int) -> String {
         let v = max(0, m)
@@ -550,12 +615,19 @@ public enum StudIPSchedule {
 
     /// Zeitpunkt oder Datum aus Stud.IP: ISO 8601 ("2026-10-12", "2026-10-12T10:15:00+02:00"), iCalendar
     /// ("20261012", "20261012T081500Z") oder Unix-Sekunden. Ohne Zeitzone gilt Ortszeit Berlin.
+    /// Eine achtstellige Zahl 19000101-21001231 ist ein iCalendar-Datum ohne Anfuehrungszeichen, kein Zeitpunkt;
+    /// Unix-Zeiten vor 2000 sind fuer einen Stundenplan unglaubhaft und ergeben nil.
     static func moment(_ v: JSONValue?) -> StudIPMoment? {
         guard let v else { return nil }
-        if let d = v.double { return d.isFinite && abs(d) < 1e12 ? StudIPMoment(utc: Int(d)) : nil }
+        if let d = v.double {
+            guard d.isFinite, d >= 0, d < 1e12 else { return nil }
+            let n = Int(d.rounded(.down))
+            if Double(n) == d, (19_000_101...21_001_231).contains(n) { return moment(.string(String(n))) }
+            return unixMoment(n)
+        }
         guard let s = v.string?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
         let b = Array(s.utf8)
-        if b.allSatisfy({ $0 >= 0x30 && $0 <= 0x39 }) && (9...11).contains(b.count) { return Int(s).map { StudIPMoment(utc: $0) } }
+        if b.allSatisfy({ $0 >= 0x30 && $0 <= 0x39 }) && (9...11).contains(b.count) { return Int(s).flatMap(unixMoment) }
         var i = 0
         func num(_ n: Int) -> Int? {
             guard i + n <= b.count else { return nil }
@@ -599,6 +671,9 @@ public enum StudIPSchedule {
         guard i == b.count else { return nil }
         return StudIPMoment(utc: day * 86400 + local * 60 - offset)
     }
+
+    /// Unix-Sekunden ab 2000-01-01 (946684800).
+    static func unixMoment(_ n: Int) -> StudIPMoment? { n >= 946_684_800 ? StudIPMoment(utc: n) : nil }
 }
 
 /// Tag (Tage seit 1970-01-01) und Uhrzeit in Berlin; `minutes` fehlt bei reinen Daten.
