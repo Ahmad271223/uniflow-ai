@@ -13,6 +13,7 @@ Zwei Wege, beide nur lesend:
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import unicodedata
@@ -188,6 +189,36 @@ def discover_base(today=None, probe=None, override: str | None = None) -> str:
         return alive[0]
     raise LearnwebError("Keine Learnweb-Instanz erreichbar (Netz oder Adresse pruefen; "
                         "notfalls HILDESHEIM_LEARNWEB_URL in der .env setzen)")
+
+
+# ----------------------------------------------------------------------------
+# Moodle-Anmeldung fuer Apps (launch.php): liefert am Ende einen Schluessel, ohne dass jemand ihn abtippt
+# ----------------------------------------------------------------------------
+
+def launch_url(base: str, passport: str, scheme: str = "moodlemobile") -> str:
+    """Startseite der Moodle-App-Anmeldung. Nach dem Login (hier: CAS) leitet Moodle auf
+    <scheme>://token=<base64> weiter; die App faengt diese Adresse in der Webansicht ab."""
+    return (f"{base.rstrip('/')}/admin/tool/mobile/launch.php?service=moodle_mobile_app"
+            f"&passport={urllib.parse.quote(passport, safe='')}&urlscheme={urllib.parse.quote(scheme, safe='')}")
+
+
+def parse_launch_token(redirect_url: str, base: str, passport: str) -> dict | None:
+    """<scheme>://token=<base64(md5(wwwroot + passport) ':::' token [':::' privatetoken])>.
+    Prueft die Signatur gegen die eigene Learnweb-Adresse und den eigenen Passport; sonst None."""
+    m = re.search(r"token=([A-Za-z0-9+/=_-]+)", redirect_url or "")
+    if not m:
+        return None
+    raw = m.group(1).replace("-", "+").replace("_", "/")
+    try:
+        text = base64.b64decode(raw + "=" * (-len(raw) % 4)).decode("utf-8")
+    except Exception:  # noqa: BLE001
+        return None
+    parts = text.split(":::")
+    if len(parts) < 2 or not parts[1]:
+        return None
+    if parts[0] != hashlib.md5((base.rstrip("/") + passport).encode("utf-8")).hexdigest():  # noqa: S324 - Moodle-Format
+        return None
+    return {"token": parts[1], "private_token": parts[2] if len(parts) > 2 and parts[2] else None}
 
 
 # ----------------------------------------------------------------------------

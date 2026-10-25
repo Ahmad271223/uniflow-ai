@@ -600,3 +600,16 @@ def test_discover_learnweb_base_across_years():
     assert learnweb.discover_base(date(2027, 4, 10), probe_for(set()), override="https://x/lw/") == "https://x/lw"
     with pytest.raises(learnweb.LearnwebError, match="HILDESHEIM_LEARNWEB_URL"):
         learnweb.discover_base(date(2027, 4, 10), probe_for(set()))
+
+
+def test_moodle_launch_token():
+    import base64
+    import hashlib
+    from app import learnweb
+    base = "https://www.uni-hildesheim.de/learnweb2026"
+    sig = hashlib.md5((base + "pass123").encode()).hexdigest()
+    tok = base64.b64encode(f"{sig}:::abcdef0123456789:::priv99".encode()).decode()
+    assert learnweb.parse_launch_token(f"moodlemobile://token={tok}", base + "/", "pass123") == {"token": "abcdef0123456789", "private_token": "priv99"}
+    assert learnweb.parse_launch_token(f"moodlemobile://token={tok}", base, "falsch") is None        # fremder Passport
+    assert learnweb.parse_launch_token("moodlemobile://token=%%%", base, "pass123") is None
+    assert learnweb.launch_url(base, "p/1") == base + "/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=p%2F1&urlscheme=moodlemobile"

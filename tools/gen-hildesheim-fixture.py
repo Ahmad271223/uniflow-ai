@@ -23,7 +23,10 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from schema_source import write_or_check  # noqa: E402
 
-from app import cas, learnweb, lsf, qis, timetable  # noqa: E402
+import base64  # noqa: E402
+import hashlib  # noqa: E402
+
+from app import cas, learnweb, lsf, qis, studip_sync, timetable  # noqa: E402
 
 D = ROOT / "packages" / "shared-contracts" / "fixtures" / "hildesheim"
 BASE = "https://www.uni-hildesheim.de/learnweb2026"
@@ -110,8 +113,22 @@ def main(check: bool) -> bool:
                        "grades": [{k: g.get(k) for k in ("pruefungsnr", "text", "note", "status", "credits", "abschluss")}
                                   for g in qis.parse_grade_rows(grade_rows, "Fallback")]},
     }
-    # Erwartungen der alten Fassung beibehalten (Test in tests/test_hildesheim.py liest sie ebenfalls)
-    out["learnweb-course-contents.json"] = out["learnweb-course-contents.json"]
+    sig = hashlib.md5((BASE + "pass123").encode()).hexdigest()
+    good = base64.b64encode(f"{sig}:::abcdef0123456789:::priv99".encode()).decode()
+    only = base64.b64encode(f"{sig}:::tok42".encode()).decode()
+    out["moodle-launch"] = {
+        "base": BASE, "passport": "pass123", "launch_url": learnweb.launch_url(BASE, "pass123"),
+        "cases": [{"url": u, "passport": pp, "result": learnweb.parse_launch_token(u, BASE, pp)} for u, pp in (
+            (f"moodlemobile://token={good}", "pass123"), (f"moodlemobile://token={only}", "pass123"),
+            (f"moodlemobile://token={good}", "falsch"), ("moodlemobile://token=%%%", "pass123"), ("moodlemobile://nix", "pass123"))]}
+    titles_kind = ["Übung zu Mathematik I", "Gruppenübung Programmieren", "Hörsaalübung Mathe", "Tutorium Physik",
+                   "Seminar: Kindheit", "Labor Elektrotechnik", "0406 Theorien der Erziehungswissenschaft",
+                   "Begrüßung Erstsemester", "Mathematik I (Tranche A)", "Fragestunde Numerik"]
+    out["classify"] = [{"title": t, "subject": studip_sync.classify(t)[0], "kind": studip_sync.classify(t)[1],
+                        "event_kind": timetable.guess_kind(t)} for t in titles_kind]
+    out["file-kind"] = [{"name": n, "mime": m, "kind": studip_sync.file_kind(n, m)} for n, m in (
+        ("Folie.PDF", None), ("blatt.pdf", "application/pdf"), ("a.py", "text/x-python"), ("bild.JPG", None),
+        ("x.bin", "image/png"), ("archiv.zip", None), ("ohne", "application/pdf"))]
     text = json.dumps(out, ensure_ascii=False, indent=1, sort_keys=False) + "\n"
     return write_or_check(D / "expected.json", text, check)
 

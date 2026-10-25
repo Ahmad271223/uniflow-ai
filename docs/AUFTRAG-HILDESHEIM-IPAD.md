@@ -43,12 +43,37 @@ Fertig in `apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Hildesheim/`, unt
 | `TestShare.swift` | Schlüssel der gemeinsamen Wochentests, Inhalts-Hash |
 | `Store/Migrations.swift` | `tests.share_key`, `files.content_sha256`, Index wie `app/db.py` |
 
-**Für die Mac-Sitzung bleibt:** CAS-Anmeldung im `WKWebView` mit eigenem Datenspeicher je (Nutzer, Uni);
-Learnweb-Zugriff (Moodle-SSO-Token zuerst prüfen, sonst Schlüssel einfügen, sonst AJAX mit Cookies); LSF-Seiten mit
-den Cookies laden und an die Parser geben; Sync-Ablauf mit Wiederholungen und je Kurs eigener Transaktion;
-Speicher je (Nutzer, Uni); Uni-Auswahl im ersten Start; Oberfläche „Uni & Noten“ für Hildesheim; Gerätetest.
-Die Sitzungs-Dateiliste braucht pro Material-Link die Weiterleitung von `mod/resource/view.php?id=…&redirect=1`
-(ohne ihr zu folgen: Location-Header lesen) bzw. das HTML der Ordnerseite.
+**Schritt 2 (26.10.2026): Sync im Kern fertig**, 249 Swift-Tests grün unter Linux:
+
+| Datei | Inhalt |
+| --- | --- |
+| `UniTransport.swift` | Schnittstelle `UniTransport` (send, download in Datei, Weiterleitung abschaltbar), `UniRetry` (3 Versuche bei Netz/5xx/429), `HildesheimError` |
+| `LearnwebAPI.swift` | Learnweb mit Schlüssel (REST) oder Sitzung (sesskey + AJAX, Dateilinks über Location-Header); `Learnweb.discoverBase(…, transport:)` fragt die Instanz übers Netz |
+| `HildesheimRules.swift` | `MoodleSSO` (launch.php, Token prüfen mit MD5), `UniRules` (classify, fileKind, eventKind wie Python), `UniversityStorage` (Ordner, Schlüsselbund-Dienst, WebsiteDataStore-UUID je Nutzer und Uni) |
+| `HildesheimSync.swift` | `UniStore` (Kurs, Datei, LSF-Plan, Noten in die SQLite-DB, wie Python) und `HildesheimSync.run()`: Netz zuerst, je Kurs eine Transaktion, `.part` + `rename`, nie löschen bei Fehlern, Bericht mit `needsLogin` |
+| `MD5.swift` | nur für die Moodle-Signatur |
+
+`UniStore.upsertCourse`/`storeFile` sind quellenunabhängig und können für S3 (Stud.IP in die Datenbank) mitgenutzt werden.
+
+**Für die Mac-Sitzung bleibt nur die dünne Schicht:**
+
+1. `URLSessionUniTransport: UniTransport` in der App: eigene URLSession je (Nutzer, Uni) mit den Cookies aus
+   `WKWebsiteDataStore(forIdentifier: UniversityStorage.websiteDataStoreID(...))`; `followRedirects == false` über
+   `urlSession(_:task:willPerformHTTPRedirection:...)` → `completionHandler(nil)`; `download` mit
+   `URLSession.download(for:)` und Verschieben an `destination`; Kopfzeilen in `UniResponse` übernehmen.
+2. Anmeldung (WKWebView mit diesem Datenspeicher):
+   - LSF: `HildesheimCAS.lsfLoginURL` laden; fertig, wenn die Seite auf `lsf.uni-hildesheim.de` „Abmelden“ zeigt.
+   - Learnweb bevorzugt mit Schlüssel: `MoodleSSO.newPassport()`, `MoodleSSO.launchURL(base:passport:)` laden,
+     Weiterleitung auf `moodlemobile://…` in `decidePolicyFor` abfangen (`.cancel`), `MoodleSSO.parseLaunchToken`
+     → Schlüssel in den Schlüsselbund unter `UniversityStorage.keychainService(university: "hildesheim", purpose: "learnweb-token")`.
+     Erlaubt die Uni das Schema nicht, Sitzungs-Weg nutzen: `HildesheimCAS.learnwebLoginURL(base:)`.
+3. Ablauf: Datenbank im Ordner `UniversityStorage.containerPath(appleUserID:university:)` öffnen,
+   `migrate(university: "hildesheim")`; `Learnweb.discoverBase(year:month:transport:)`;
+   `HildesheimSync(db:root:learnweb:lsf:transport:hasher:)` mit CryptoKit-SHA-256 als `hasher` (schneller), beim Öffnen
+   der App und auf Knopfdruck `run()`; `report.needsLogin` → Anmeldung anbieten, `report.messages` in die Statusleiste.
+4. Oberfläche: Uni-Auswahl im ersten Start, „Uni & Noten“ für Hildesheim, Dateien in Dokumente & Notizen (S3-Endpunkte
+   lesen dieselben Tabellen; `files.local_path` ist **relativ** zum Uni-Ordner).
+5. Gerätetest mit einem echten Hildesheimer Konto.
 
 ## Fakten aus dem Live-Test (nicht neu herausfinden)
 

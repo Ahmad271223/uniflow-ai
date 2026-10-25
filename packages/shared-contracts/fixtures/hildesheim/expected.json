@@ -520,5 +520,142 @@
     "abschluss": "Abschluss: [82] Bachelor Studiengang: [021] Begleitfach PO-Version: 2022"
    }
   ]
- }
+ },
+ "moodle-launch": {
+  "base": "https://www.uni-hildesheim.de/learnweb2026",
+  "passport": "pass123",
+  "launch_url": "https://www.uni-hildesheim.de/learnweb2026/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=pass123&urlscheme=moodlemobile",
+  "cases": [
+   {
+    "url": "moodlemobile://token=YzIyYjM2MGRkMmE1YmM1Mzg3N2ZkNmRjYzZmODY4MjE6OjphYmNkZWYwMTIzNDU2Nzg5Ojo6cHJpdjk5",
+    "passport": "pass123",
+    "result": {
+     "token": "abcdef0123456789",
+     "private_token": "priv99"
+    }
+   },
+   {
+    "url": "moodlemobile://token=YzIyYjM2MGRkMmE1YmM1Mzg3N2ZkNmRjYzZmODY4MjE6Ojp0b2s0Mg==",
+    "passport": "pass123",
+    "result": {
+     "token": "tok42",
+     "private_token": null
+    }
+   },
+   {
+    "url": "moodlemobile://token=YzIyYjM2MGRkMmE1YmM1Mzg3N2ZkNmRjYzZmODY4MjE6OjphYmNkZWYwMTIzNDU2Nzg5Ojo6cHJpdjk5",
+    "passport": "falsch",
+    "result": null
+   },
+   {
+    "url": "moodlemobile://token=%%%",
+    "passport": "pass123",
+    "result": null
+   },
+   {
+    "url": "moodlemobile://nix",
+    "passport": "pass123",
+    "result": null
+   }
+  ]
+ },
+ "classify": [
+  {
+   "title": "Übung zu Mathematik I",
+   "subject": "Mathematik I",
+   "kind": "uebung",
+   "event_kind": "uebung"
+  },
+  {
+   "title": "Gruppenübung Programmieren",
+   "subject": "Programmieren",
+   "kind": "gruppenuebung",
+   "event_kind": "uebung"
+  },
+  {
+   "title": "Hörsaalübung Mathe",
+   "subject": "Hörsaalübung Mathe",
+   "kind": "hoersaaluebung",
+   "event_kind": "uebung"
+  },
+  {
+   "title": "Tutorium Physik",
+   "subject": "Physik",
+   "kind": "tutorium",
+   "event_kind": "uebung"
+  },
+  {
+   "title": "Seminar: Kindheit",
+   "subject": "Seminar: Kindheit",
+   "kind": "vorlesung",
+   "event_kind": "seminar"
+  },
+  {
+   "title": "Labor Elektrotechnik",
+   "subject": "Labor Elektrotechnik",
+   "kind": "vorlesung",
+   "event_kind": "labor"
+  },
+  {
+   "title": "0406 Theorien der Erziehungswissenschaft",
+   "subject": "Theorien der Erziehungswissenschaft",
+   "kind": "vorlesung",
+   "event_kind": "vorlesung"
+  },
+  {
+   "title": "Begrüßung Erstsemester",
+   "subject": "Begrüßung Erstsemester",
+   "kind": "sonstiges",
+   "event_kind": "vorlesung"
+  },
+  {
+   "title": "Mathematik I (Tranche A)",
+   "subject": "Mathematik I",
+   "kind": "vorlesung",
+   "event_kind": "vorlesung"
+  },
+  {
+   "title": "Fragestunde Numerik",
+   "subject": "Fragestunde Numerik",
+   "kind": "uebung",
+   "event_kind": "vorlesung"
+  }
+ ],
+ "file-kind": [
+  {
+   "name": "Folie.PDF",
+   "mime": null,
+   "kind": "pdf"
+  },
+  {
+   "name": "blatt.pdf",
+   "mime": "application/pdf",
+   "kind": "pdf"
+  },
+  {
+   "name": "a.py",
+   "mime": "text/x-python",
+   "kind": "file"
+  },
+  {
+   "name": "bild.JPG",
+   "mime": null,
+   "kind": "image"
+  },
+  {
+   "name": "x.bin",
+   "mime": "image/png",
+   "kind": "image"
+  },
+  {
+   "name": "archiv.zip",
+   "mime": null,
+   "kind": "file"
+  },
+  {
+   "name": "ohne",
+   "mime": "application/pdf",
+   "kind": "pdf"
+  }
+ ]
 }
