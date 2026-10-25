@@ -39,6 +39,8 @@ struct PageTemplate: Identifiable {
 struct ExportFile: Identifiable {
     let id = UUID()
     let url: URL
+    /// Hinweis ueber dem Teilen-Menue (z. B. fehlende Bilder).
+    var notice: String? = nil
 }
 
 /// Zweites Dokument der geteilten Ansicht (meist das Skript zur Uebung).
@@ -141,7 +143,18 @@ struct DocumentView: View {
                 companion = Companion(file: f, pdfPage: nil)
             }
         }
-        .sheet(item: $exportFile) { f in ActivityView(items: [f.url]) }
+        .sheet(item: $exportFile) { f in
+            VStack(spacing: 0) {
+                if let notice = f.notice {
+                    Label(notice, systemImage: "exclamationmark.triangle")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                    Divider()
+                }
+                ActivityView(items: [f.url])
+            }
+        }
         .alert("Text hinzufügen", isPresented: $addingText) {
             TextField("Text", text: $newText)
             Button("Hinzufügen") {
@@ -302,8 +315,8 @@ struct DocumentView: View {
         Task {
             defer { exporting = false }
             do {
-                let payload = try await store.sharePayload(scope)
-                exportFile = ExportFile(url: try ShareExport.writeFile(payload))
+                let payload = try await store.sharePayload(scope, loadImage: ShareExport.serverImageLoader(api))
+                exportFile = ExportFile(url: try ShareExport.writeFile(payload), notice: payload.missingImagesNotice)
             } catch {
                 actionError = "Teilen fehlgeschlagen: \(error.localizedDescription)"
             }
@@ -448,13 +461,19 @@ struct PageSidebar: View {
 }
 
 /// Seitenminiaturen mit Handschrift, Text und Formen (gleiche Zeichenroutine wie der PDF-Export).
-/// Eine Miniatur wird nur neu gezeichnet, wenn sich die Objekte ihrer Seite oder der Seitenaufbau geaendert haben.
+/// Eine Miniatur wird nur neu gezeichnet, wenn sich die Objekte ihrer Seite, ihre geladenen Bilder oder der
+/// Seitenaufbau geaendert haben. Geprueft wird beim Erscheinen, beim Seitenwechsel, bei Statuswechseln und in einer
+/// kurzen Schleife fuer die sichtbaren Zellen. Die Schleife ist noetig, weil der Speicherstatus offline (bzw. bei
+/// localSaveFailed/conflictUnresolved) gleich bleibt, waehrend weitere Striche dazukommen.
 struct ThumbnailStrip: View {
     @ObservedObject var store: DocumentStore
     @ObservedObject var bridge: EditorBridge
     @StateObject private var cache = ThumbnailCache()
+    @Environment(\.displayScale) private var displayScale
 
     static let width: CGFloat = 140
+    /// Abstand der Pruefschleife (Nanosekunden).
+    static let pollInterval: UInt64 = 1_500_000_000
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -464,19 +483,41 @@ struct ThumbnailStrip: View {
                         Button { bridge.controller?.goToPage(i) } label: { cell(i, entry) }
                             .buttonStyle(.plain)
                             .id(entry.key)
-                            .task(id: "\(entry.key)|\(store.layoutVersion)|\(cache.tick)") {
-                                await cache.update(index: i, entry: entry, store: store, layoutVersion: store.layoutVersion)
-                            }
+                            .onAppear { cache.visible.insert(entry.key) }
+                            .onDisappear { cache.visible.remove(entry.key) }
+                            .task(id: "\(entry.key)|\(store.layoutVersion)") { await refresh(entry.key) }
                     }
                 }
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity)
             }
-            .onChange(of: bridge.pageIndex) { _, i in
+            .onChange(of: bridge.pageIndex) { old, i in
                 if let key = store.layout?.key(at: i) { withAnimation { proxy.scrollTo(key, anchor: .center) } }
+                // Seite verlassen: dort zuletzt geschrieben, daher sofort pruefen
+                if let key = store.layout?.key(at: old) { Task { await refresh(key) } }
             }
         }
-        .onChange(of: store.status) { _, _ in cache.tick += 1 }
+        .onChange(of: store.status) { _, _ in Task { await refreshVisible() } }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: Self.pollInterval)
+                guard !Task.isCancelled else { break }
+                await refreshVisible()
+            }
+        }
+    }
+
+    private func refreshVisible() async {
+        for key in cache.visible.sorted() { await refresh(key) }
+    }
+
+    /// Miniatur einer Seite pruefen (Index aus dem aktuellen Seitenaufbau, er verschiebt sich beim Einfuegen).
+    private func refresh(_ key: String) async {
+        guard let layout = store.layout, let i = layout.index(ofKey: key), let entry = layout.entry(at: i) else { return }
+        let objects = await store.objects(forPageKey: key)
+        guard let current = store.layout, current.entry(at: i) == entry, let page = current.pdf.page(at: i) else { return }
+        await cache.refresh(key: key, page: page, entry: entry, objects: objects, images: store.images,
+                            layoutVersion: store.layoutVersion, width: Self.width, scale: max(1, displayScale))
     }
 
     private func cell(_ i: Int, _ entry: DisplayLayout.Entry) -> some View {
@@ -499,23 +540,75 @@ struct ThumbnailStrip: View {
     }
 }
 
-/// Gezeichnete Miniaturen je Seitenschluessel, mit Signatur des gezeichneten Stands.
+/// Gezeichnete Miniaturen je Seitenschluessel mit Hash-Signatur des gezeichneten Stands.
+/// Signatur und Zeichnen laufen ausserhalb des Hauptthreads (Stifteingabe hat Vorrang); nur das Ergebnis wird hier
+/// gesetzt. Hoechstens `limit` Miniaturen bleiben im Speicher (zuletzt benutzte zuerst behalten).
 @MainActor
 final class ThumbnailCache: ObservableObject {
     @Published private(set) var images: [String: UIImage] = [:]
-    /// Erhoeht bei jedem Speicherstatus-Wechsel: sichtbare Miniaturen pruefen dann ihre Signatur.
-    @Published var tick = 0
-    private var signatures: [String: String] = [:]
+    /// Sichtbare Zellen (Seitenschluessel); nicht veroeffentlicht, damit Scrollen keine Neuberechnung ausloest.
+    var visible: Set<String> = []
+    let limit: Int
+    /// Anzahl gezeichneter Miniaturen (fuer Tests und Diagnose).
+    private(set) var renderCount = 0
+    private var signatures: [String: Int] = [:]
+    private var recent: [String] = []                                            // aeltester zuerst
 
-    func update(index: Int, entry: DisplayLayout.Entry, store: DocumentStore, layoutVersion: Int) async {
-        let objects = await store.objects(forPageKey: entry.key)
-        guard !Task.isCancelled, let layout = store.layout, layout.entry(at: index) == entry,
-              let page = layout.pdf.page(at: index) else { return }
-        let sig = "\(layoutVersion)|\(store.images.count)|" + JSONValue.array(objects).jsonString(sortedKeys: true)
-        guard signatures[entry.key] != sig else { return }
-        signatures[entry.key] = sig
-        images[entry.key] = PageRenderer.thumbnail(page: page, entry: entry, objects: objects, images: store.images,
-                                                   width: ThumbnailStrip.width, scale: max(1, UITraitCollection.current.displayScale))
+    init(limit: Int = 60) { self.limit = max(1, limit) }
+
+    /// PDFPage-Kopie fuer das Zeichnen im Hintergrund (das Original gehoert dem Editor auf dem Hauptthread).
+    private struct PageBox: @unchecked Sendable { let page: PDFPage }
+
+    /// Signatur des gezeichneten Stands: Seitenaufbau, Seite, Objekte, Quellen der geladenen Bilder.
+    nonisolated static func signature(layoutVersion: Int, entry: DisplayLayout.Entry, rotation: Int,
+                                      objects: [JSONValue], loadedImages: [String]) -> Int {
+        var h = Hasher()
+        h.combine(layoutVersion)
+        h.combine(entry.key); h.combine(entry.kind); h.combine(entry.template); h.combine(entry.pdfIndex)
+        h.combine(rotation)
+        h.combine(objects)
+        h.combine(loadedImages)
+        return h.finalize()
+    }
+
+    /// Zeichnet die Miniatur neu, wenn sich die Signatur geaendert hat. `true` = neu gezeichnet.
+    @discardableResult
+    func refresh(key: String, page: PDFPage, entry: DisplayLayout.Entry, objects: [JSONValue], images: [String: UIImage],
+                 layoutVersion: Int, width: CGFloat, scale: CGFloat) async -> Bool {
+        // nur Bilder dieser Seite (kleiner Uebergabewert, Signatur aendert sich nur bei eigenen Bildern)
+        let srcs = Set(objects.compactMap { $0["type"]?.string == "image" ? $0["src"]?.string : nil })
+        let own = images.filter { srcs.contains($0.key) }
+        let rotation = page.rotation
+        let sig = await Task.detached(priority: .utility) {
+            Self.signature(layoutVersion: layoutVersion, entry: entry, rotation: rotation, objects: objects,
+                           loadedImages: own.keys.sorted())
+        }.value
+        guard signatures[key] != sig else { touch(key); return false }
+        signatures[key] = sig
+        let box = PageBox(page: page.copy() as? PDFPage ?? page)
+        let img = await Task.detached(priority: .utility) {
+            PageRenderer.thumbnail(page: box.page, entry: entry, objects: objects, images: own, width: width, scale: scale)
+        }.value
+        guard signatures[key] == sig else { return false }                       // inzwischen neuerer Stand unterwegs
+        self.images[key] = img
+        renderCount += 1
+        touch(key)
+        evict()
+        return true
+    }
+
+    private func touch(_ key: String) {
+        recent.removeAll { $0 == key }
+        recent.append(key)
+    }
+
+    /// Aelteste Miniaturen verwerfen (samt Signatur, damit sie beim naechsten Erscheinen neu gezeichnet werden).
+    private func evict() {
+        while recent.count > limit {
+            let old = recent.removeFirst()
+            images[old] = nil
+            signatures[old] = nil
+        }
     }
 }
 

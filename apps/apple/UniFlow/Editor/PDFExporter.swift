@@ -85,6 +85,11 @@ enum PageRenderer {
             cg.fillPath()
         }
 
+        // Notizobjekte als eigene Gruppe (wie die Konva-Ebene auf eigenem Canvas ueber pdf.js): der Textmarker
+        // multipliziert nur mit den Objekten darunter, die Gruppe liegt normal ueber Seite und Vorlage.
+        // Ohne Textmarker ergibt die Gruppe dasselbe Bild, daher nur dann (kleinere PDF, keine Formular-Objekte).
+        let group = objects.contains { InkRenderer.isMarker($0) }
+        if group { cg.beginTransparencyLayer(auxiliaryInfo: nil) }
         for o in objects {
             if o["type"]?.string == "stroke" {
                 InkRenderer.draw(o, in: cg)
@@ -92,6 +97,7 @@ enum PageRenderer {
                 ObjectGeometry.draw(objects: [o], images: images, in: cg)
             }
         }
+        if group { cg.endTransparencyLayer() }
     }
 
     /// Miniatur einer Seite in der angegebenen Breite (Punkte), weisser Hintergrund.
@@ -118,7 +124,8 @@ enum PageRenderer {
 ///   einziger Pfad mit der Durchschnittsbreite (sonst ueberlagern sich die Teilstuecke zu dunklen Punkten).
 /// - Bleistift gestrichelt (1,5 / 1,2).
 /// - Textmarker (`Konva.Line`, tension 0): gerader Linienzug in Strichbreite, halbtransparent, Mischmodus
-///   Multiplizieren (Text darunter bleibt lesbar).
+///   Multiplizieren (`globalCompositeOperation`). Wie im Web wirkt das nur innerhalb der Notizobjekte
+///   (Transparenzgruppe in `PageRenderer.draw`), nicht mit der PDF-Seite darunter.
 /// Transform wie bei allen Objekten: verschieben -> drehen -> skalieren; die Linienbreite skaliert mit (wie Konva).
 enum InkRenderer {
     /// Teilpfade mit gemeinsamer Linienbreite (Objektkoordinaten).
@@ -137,6 +144,8 @@ enum InkRenderer {
     }
 
     static let pencilDash: [CGFloat] = [1.5, 1.2]
+
+    static func isMarker(_ o: JSONValue) -> Bool { o["type"]?.string == "stroke" && o["tool"]?.string == "marker" }
 
     /// Teilstuecke, deren Breite sich weniger unterscheidet, landen in einem Pfad (kleinere PDF, gleiches Aussehen).
     static let widthTolerance: CGFloat = 0.05

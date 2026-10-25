@@ -711,7 +711,11 @@ actor UFThumbnails {
     /// Erste PDF-Seite mit den Notizen aus dem lokalen Journal (nur Dokumente, die auf diesem Geraet schon offen
     /// waren; ohne Netzwerk). Gleiche Zeichenroutine wie PDF-Export und Seitenminiaturen. `nil` = keine Notizen.
     private static func inkThumbnail(fileID: String, pdf: PDFDocument, width: CGFloat) -> UIImage? {
-        let journal = LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: fileID)
+        inkThumbnail(journal: LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: fileID), pdf: pdf, width: width)
+    }
+
+    /// Kern von `inkThumbnail` mit frei waehlbarem Journal (testbar mit eigenem Ordner).
+    static func inkThumbnail(journal: LocalJournal, pdf: PDFDocument, width: CGFloat) -> UIImage? {
         guard let snap = try? journal.load() else { return nil }
         let doc = AnnotationDocument(rootMeta: snap.rootMeta, pages: snap.pages.mapValues(\.page))
         let key = doc.pageKey(forPDFIndex: 1) ?? "p1"
