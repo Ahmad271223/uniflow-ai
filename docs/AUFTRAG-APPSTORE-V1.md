@@ -44,12 +44,51 @@ Apple-Einführungsangebot** („1 Woche gratis“, entschieden am 25.10.2026), d
    in V1 ausblenden oder klar als „bald“ kennzeichnen – nichts vortäuschen. Ein KI-Schlüssel darf nie in der App liegen.
 5. **iPad-only:** `TARGETED_DEVICE_FAMILY` auf `2` (heute `1,2` mit iPhone).
 
+## 2a. Erster Start – Vorgabe des Inhabers (25.10.2026, verbindlich)
+
+**App laden → mit Apple ID registrieren → Free, Plus oder Pro wählen → direkt die UniFlow-Oberfläche.**
+Keine PIN, keine Serveradresse, kein Verbindungsformular, keine weiteren Pflichtschritte.
+
+| Schritt | Bildschirm | Einzelheiten |
+|---|---|---|
+| 1 | **Begrüßung** im UniFlow-Design | Logo, ein Satz, Knopf „Mit Apple anmelden“ (`SignInWithAppleButton`, Umfang Name und E-Mail). Nutzerkennung (`credential.user`) im Schlüsselbund speichern |
+| 2 | **Tarif wählen** | Drei Karten Free / Plus / Pro mit den Inhalten aus Abschnitt 4; Preise aus `Product.displayPrice`, bei Anspruch „1 Woche gratis“ (Abschnitt 5). „Free nutzen“ → weiter. „Plus – 1 Woche gratis“ / „Pro – 1 Woche gratis“ → Apple-Kaufdialog → nach Erfolg weiter, bei Abbruch bleibt die Seite. Dazu „Käufe wiederherstellen“ und Links zu Nutzungsbedingungen und Datenschutzerklärung (Pflicht bei Abos) |
+| 3 | **UniFlow-Oberfläche** | App-Rahmen mit Seitenleiste, Übersicht – sofort, ohne Zwischenschritt |
+
+- **Stud.IP verbinden geschieht in der App**, nicht beim Start: Solange Stud.IP nicht verbunden ist, zeigt die
+  Übersicht oben eine Karte „Stud.IP verbinden“ (öffnet die echte Stud.IP-Anmeldung, `StudIPView`); ebenso in den
+  Einstellungen.
+- **Späterer Start:** angemeldet → direkt die Übersicht. Beim Start still
+  `ASAuthorizationAppleIDProvider().getCredentialState(forUserID:)` prüfen; bei `revoked` oder `notFound` zurück zur
+  Begrüßung (lokale Daten bleiben). Die Tarifwahl erscheint nur beim ersten Mal; danach Tarif wechseln, kündigen
+  (`manageSubscriptionsSheet`) und wiederherstellen in den Einstellungen.
+- **Nie im normalen Start:** das Formular „UniFlow-Server“ (Adresse, PIN), Hinweise auf den PC, `Start-iPad.cmd` oder
+  PINs. Die Verbindung zum eigenen PC-Server wandert in die Einstellungen unter „Entwicklung“ → „Mit eigenem
+  UniFlow-Server verbinden“ (nur für den Inhaber zum Prüfen mit seinen Daten).
+- **Ohne PC-Server:** Damit nach dem Start Daten erscheinen, braucht V1 das lokale Backend (Abschnitt 2, Punkt 1).
+  Bis es fertig ist, zeigt die App leere Zustände mit dem Weg zu „Stud.IP verbinden“ – **keine Beispieldaten**.
+- **Testen:** „Mit Apple anmelden“ braucht die Fähigkeit *Sign in with Apple*, die es nur mit dem bezahlten Apple
+  Developer Program gibt (richtet der Inhaber ein). Bis dahin den Ablauf bauen und alles außer der echten Anmeldung im
+  Simulator prüfen; nur in Debug-Builds darf ein deutlich beschrifteter Knopf „Anmeldung überspringen (Debug)“ die
+  Anmeldung überbrücken. „Mit Apple anmelden“ erst nach einer echten Anmeldung auf „Getestet“ setzen.
+- **Konto löschen** in den Einstellungen (Richtlinie 5.1.1(v)): lokale Kontodaten und Schlüsselbund-Einträge
+  entfernen, zurück zur Begrüßung; Abos kündigt der Nutzer bei Apple (Hinweis mit Link zur Abo-Verwaltung).
+
+**Abnahme:**
+1. Neuinstallation im Simulator: Begrüßung → Mit Apple anmelden → Tarifwahl → Übersicht. Nirgends Adresse oder PIN.
+2. „Free nutzen“ und „Plus – 1 Woche gratis“ (StoreKit-Testkonfiguration) führen beide zur Übersicht; mit Plus sind
+   die Plus-Funktionen frei, mit Free gesperrt (Schloss, Weg zur Abo-Seite).
+3. Zweiter Start: direkt die Übersicht.
+4. Konto löschen → Begrüßung.
+
 ## 3. Neue Reihenfolge für den Mac
 
-1. Prüfbericht **K2–K11** und **K3/K4** (K1 nur, wenn KI in V1 kommt).
-2. **Lokales Backend** (F3) mit **Stud.IP direkt** als Datenquelle (F5) – damit ist auch Offline (F2) erfüllt.
-3. **Mit Apple anmelden** + **Konto löschen** in der App (Apple-Richtlinie 5.1.1(v)).
-4. **Abos** (Abschnitt 4 und 5).
+1. **Erster Start** (Abschnitt 2a): Begrüßung, Mit Apple anmelden, Tarifwahl, danach direkt UniFlow; das
+   Verbindungsformular aus dem normalen Start entfernen.
+2. Prüfbericht **K2–K11** und **K3/K4** (K1 nur, wenn KI in V1 kommt).
+3. **Lokales Backend** (F3) mit **Stud.IP direkt** als Datenquelle (F5) – damit ist auch Offline (F2) erfüllt.
+4. **Abos vollständig** (Abschnitt 4 und 5: Sperren je Tarif, Probewoche, Wiederherstellen, Verwalten) und
+   **Konto löschen**.
 5. **Apple-Editor** fertig und stabil (Dokumentansicht im neuen Design).
 6. **App-Store-Vorbereitung** (Abschnitt 7), Bildvergleich, Gerätetest mit Apple Pencil.
 7. Danach **V2**: UniFlow-Editor 1:1 (F1), Editor-Wahl in den Einstellungen, Windows/Android.
@@ -130,8 +169,9 @@ Regeln:
 - Datenschutz-Manifest `PrivacyInfo.xcprivacy` und Datenschutzangaben in App Store Connect (gesammelte Daten:
   Anmeldung, Käufe; keine Weitergabe; kein Tracking).
 - Anmeldung: „Mit Apple anmelden“ als Fähigkeit (braucht das Developer Program); **Konto löschen** in der App.
-  Hinweis Richtlinie 5.1.1(v): Eine Pflichtanmeldung ohne kontobezogene Funktionen kann abgelehnt werden – in V1 den
-  Nutzen der Anmeldung zeigen (Abo, später Abgleich) oder Nutzung ohne Konto erlauben.
+  Vorgabe des Inhabers: Anmeldung beim ersten Start (Abschnitt 2a). Risiko bei der App-Prüfung (Richtlinie
+  5.1.1(v): Pflichtanmeldung ohne kontobezogene Funktionen) – auf der Begrüßung kurz zeigen, wofür das Konto dient
+  (Abo, Stud.IP-Zuordnung, ab V2 Abgleich zwischen Geräten); lehnt Apple ab, entscheidet der Inhaber.
 - Ab V2 mit Google-Anmeldung: Richtlinie 4.8 ist durch „Mit Apple anmelden“ erfüllt.
 - Texte, Bildschirmfotos (iPad 13"), Altersfreigabe, Support-URL; `docs/RELEASE-VORBEREITUNG.md`.
 - Gerätetest mit Apple Pencil (`docs/MAC-IPAD-CHECKLISTE.md`), TestFlight erst nach Freigabe.
@@ -140,5 +180,6 @@ Regeln:
 
 > Hol mit `git pull` den neuen Stand und lies zuerst `docs/AUFTRAG-APPSTORE-V1.md` – das hat Vorrang. V1 ist die
 > iPad-App im App Store mit Apple-Editor, „Mit Apple anmelden“ und Abos (Free dauerhaft; Plus und Pro mit 1 Woche gratis als Apple-Einführungsangebot). Sie
-> muss ohne meinen PC-Server laufen. Arbeite nach der Reihenfolge in Abschnitt 3. Keine echten Produkte, keine
+> muss ohne meinen PC-Server laufen. Beginne mit dem ersten Start (Abschnitt 2a: App laden → mit Apple ID registrieren
+> → Free/Plus/Pro wählen → direkt UniFlow, ohne PIN) und arbeite dann nach der Reihenfolge in Abschnitt 3. Keine echten Produkte, keine
 > Einreichung, nichts Kostenpflichtiges ohne mich; offene Entscheidungen (Abschnitt 6) fragst du mich.
