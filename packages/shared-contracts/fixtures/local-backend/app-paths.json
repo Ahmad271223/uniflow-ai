@@ -1,0 +1,2843 @@
+{
+ "generator": "tools/gen-local-backend-fixture.py",
+ "count": 76,
+ "paths": [
+  {
+   "method": "DELETE",
+   "shape": "/api/flashcards/{}",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcards/1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/folders/{}",
+   "sources": [
+    "UniFlow/Views/Library/LibraryDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/folders/1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/packages/{}",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/packages/1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/tasks/{}",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/tasks/1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/tests/{}",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/tests/1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "DELETE",
+   "shape": "/api/timetable/events/{}",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/events/1"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/assets/{}/{}",
+   "sources": [
+    "UniFlow/Services/DocumentStore.swift (Bilder aus Notizen, src)"
+   ],
+   "request": {
+    "path": "/api/assets/f1/bild.png"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/bg",
+   "sources": [
+    "UniFlow/Design/ShellState.swift"
+   ],
+   "request": {
+    "path": "/api/bg"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "message": {
+       "type": "string"
+      },
+      "running": {
+       "type": "bool"
+      },
+      "task": {
+       "type": "null"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/calendar",
+   "sources": [
+    "UniFlow/Views/Plan/PlanView.swift"
+   ],
+   "request": {
+    "path": "/api/calendar?start=2026-10-26&end=2026-11-01"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "days": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "date": {
+          "type": "string"
+         },
+         "events": {
+          "type": "array",
+          "item": null
+         },
+         "minutes": {
+          "type": "number"
+         },
+         "packages": {
+          "type": "array",
+          "item": null
+         },
+         "status": {
+          "type": "string"
+         },
+         "tasks_done": {
+          "type": "number"
+         },
+         "tasks_total": {
+          "type": "number"
+         },
+         "weekday": {
+          "type": "number"
+         }
+        }
+       }
+      },
+      "end": {
+       "type": "string"
+      },
+      "settings": {
+       "type": "object",
+       "keys": {
+        "auto_plan": {
+         "type": "bool"
+        },
+        "auto_suggest": {
+         "type": "bool"
+        },
+        "auto_tests": {
+         "type": "bool"
+        },
+        "blocked_times": {
+         "type": "array",
+         "item": null
+        },
+        "break_minutes": {
+         "type": "number"
+        },
+        "day_start": {
+         "type": "string"
+        },
+        "exam_priority": {
+         "type": "bool"
+        },
+        "free_days": {
+         "type": "array",
+         "item": {
+          "type": "number"
+         }
+        },
+        "hand": {
+         "type": "string"
+        },
+        "hours_per_day": {
+         "type": "number"
+        },
+        "learn_days": {
+         "type": "array",
+         "item": {
+          "type": "number"
+         }
+        },
+        "learn_end": {
+         "type": "string"
+        },
+        "learn_start": {
+         "type": "string"
+        },
+        "min_slot_minutes": {
+         "type": "number"
+        },
+        "minutes_per_day": {
+         "type": "number"
+        },
+        "parts_exercise": {
+         "type": "number"
+        },
+        "parts_lecture": {
+         "type": "number"
+        },
+        "pen_input": {
+         "type": "string"
+        },
+        "subjects_per_day": {
+         "type": "number"
+        },
+        "test_default_minutes": {
+         "type": "number"
+        },
+        "test_minutes": {
+         "type": "number"
+        },
+        "tests_per_subject": {
+         "type": "number"
+        },
+        "theme": {
+         "type": "string"
+        },
+        "travel_minutes": {
+         "type": "number"
+        },
+        "user_name": {
+         "type": "string"
+        }
+       }
+      },
+      "start": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/calendar/feasibility",
+   "sources": [
+    "UniFlow/Views/PlanDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/feasibility"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "available_minutes_4w": {
+       "type": "number"
+      },
+      "hint": {
+       "type": "string"
+      },
+      "open_minutes": {
+       "type": "number"
+      },
+      "per_day_available": {
+       "type": "number"
+      },
+      "per_day_need": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/courses",
+   "sources": [
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/courses"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": {
+      "type": "object",
+      "keys": {
+       "active": {
+        "type": "number"
+       },
+       "created_at": {
+        "type": "string"
+       },
+       "file_count": {
+        "type": "number"
+       },
+       "id": {
+        "type": "string"
+       },
+       "kind": {
+        "type": "string"
+       },
+       "module_id": {
+        "type": "null"
+       },
+       "new_count": {
+        "type": "number"
+       },
+       "number": {
+        "type": "null"
+       },
+       "semester": {
+        "type": "null"
+       },
+       "subject": {
+        "type": "null"
+       },
+       "test_minutes": {
+        "type": "number"
+       },
+       "title": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/credentials",
+   "sources": [
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/credentials"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "password_set",
+     "user"
+    ],
+    "reason": "Zugaenge entfallen; Form wie server.py ohne .env"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/dashboard",
+   "sources": [
+    "UniFlow/Views/DashboardView.swift"
+   ],
+   "request": {
+    "path": "/api/dashboard"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "backlog": {
+       "type": "number"
+      },
+      "bg": {
+       "type": "object",
+       "keys": {
+        "message": {
+         "type": "string"
+        },
+        "running": {
+         "type": "bool"
+        },
+        "task": {
+         "type": "null"
+        }
+       }
+      },
+      "last_sync": {
+       "type": "null"
+      },
+      "modules": {
+       "type": "array",
+       "item": null
+      },
+      "new_files": {
+       "type": "array",
+       "item": null
+      },
+      "new_total": {
+       "type": "number"
+      },
+      "settings": {
+       "type": "object",
+       "keys": {
+        "auto_plan": {
+         "type": "bool"
+        },
+        "auto_suggest": {
+         "type": "bool"
+        },
+        "auto_tests": {
+         "type": "bool"
+        },
+        "blocked_times": {
+         "type": "array",
+         "item": null
+        },
+        "break_minutes": {
+         "type": "number"
+        },
+        "day_start": {
+         "type": "string"
+        },
+        "exam_priority": {
+         "type": "bool"
+        },
+        "free_days": {
+         "type": "array",
+         "item": {
+          "type": "number"
+         }
+        },
+        "hand": {
+         "type": "string"
+        },
+        "hours_per_day": {
+         "type": "number"
+        },
+        "learn_days": {
+         "type": "array",
+         "item": {
+          "type": "number"
+         }
+        },
+        "learn_end": {
+         "type": "string"
+        },
+        "learn_start": {
+         "type": "string"
+        },
+        "min_slot_minutes": {
+         "type": "number"
+        },
+        "minutes_per_day": {
+         "type": "number"
+        },
+        "parts_exercise": {
+         "type": "number"
+        },
+        "parts_lecture": {
+         "type": "number"
+        },
+        "pen_input": {
+         "type": "string"
+        },
+        "subjects_per_day": {
+         "type": "number"
+        },
+        "test_default_minutes": {
+         "type": "number"
+        },
+        "test_minutes": {
+         "type": "number"
+        },
+        "tests_per_subject": {
+         "type": "number"
+        },
+        "theme": {
+         "type": "string"
+        },
+        "travel_minutes": {
+         "type": "number"
+        },
+        "user_name": {
+         "type": "string"
+        }
+       }
+      },
+      "today": {
+       "type": "object",
+       "keys": {
+        "date": {
+         "type": "string"
+        },
+        "events": {
+         "type": "array",
+         "item": null
+        },
+        "free": {
+         "type": "array",
+         "item": {
+          "type": "object",
+          "keys": {
+           "campus": {
+            "type": "bool"
+           },
+           "end": {
+            "type": "number"
+           },
+           "end_hm": {
+            "type": "string"
+           },
+           "minutes": {
+            "type": "number"
+           },
+           "start": {
+            "type": "number"
+           },
+           "start_hm": {
+            "type": "string"
+           }
+          }
+         }
+        },
+        "minutes": {
+         "type": "number"
+        },
+        "packages": {
+         "type": "array",
+         "item": null
+        },
+        "status": {
+         "type": "string"
+        },
+        "tasks_done": {
+         "type": "number"
+        },
+        "tasks_total": {
+         "type": "number"
+        },
+        "weekday": {
+         "type": "number"
+        }
+       }
+      },
+      "upcoming": {
+       "type": "array",
+       "item": null
+      },
+      "week": {
+       "type": "object",
+       "keys": {
+        "days": {
+         "type": "array",
+         "item": {
+          "type": "object",
+          "keys": {
+           "date": {
+            "type": "string"
+           },
+           "minutes": {
+            "type": "number"
+           },
+           "status": {
+            "type": "string"
+           }
+          }
+         }
+        },
+        "done": {
+         "type": "number"
+        },
+        "start": {
+         "type": "string"
+        },
+        "total": {
+         "type": "number"
+        }
+       }
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/files/{}/annotations",
+   "sources": [
+    "UniFlow/Services/APIClient.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/annotations"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "data": {
+       "type": "object",
+       "keys": {
+        "pages": {
+         "type": "object",
+         "keys": {}
+        },
+        "version": {
+         "type": "number"
+        },
+        "zoom": {
+         "type": "number"
+        }
+       }
+      },
+      "updated_at": {
+       "type": "null"
+      },
+      "version": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/files/{}/content",
+   "sources": [
+    "UniFlow/Services/DocumentStore.swift",
+    "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Library/LibraryPage.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/content"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/files/{}/pagetext",
+   "sources": [
+    "UniFlow/Views/Modules/ModulesPage.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/pagetext?page=1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/flashcards",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcards?due=true"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": null
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/grades",
+   "sources": [
+    "UniFlow/Views/Services/ServicesPage.swift"
+   ],
+   "request": {
+    "path": "/api/grades"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "average": {
+       "type": "null"
+      },
+      "credits": {
+       "type": "number"
+      },
+      "documents": {
+       "type": "array",
+       "item": null
+      },
+      "grades": {
+       "type": "array",
+       "item": null
+      },
+      "last_run": {
+       "type": "null"
+      },
+      "passed": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/library",
+   "sources": [
+    "UniFlow/Views/DocumentView.swift",
+    "UniFlow/Views/Library/LibraryPage.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Views.swift"
+   ],
+   "request": {
+    "path": "/api/library"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "files": {
+       "type": "array",
+       "item": null
+      },
+      "folders": {
+       "type": "array",
+       "item": null
+      },
+      "modules": {
+       "type": "array",
+       "item": null
+      },
+      "trash": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/modules",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift",
+    "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanView.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/modules"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": null
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/modules/{}",
+   "sources": [
+    "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/modules/1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/packages/{}",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/packages/1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/qis/documents/{}",
+   "sources": [
+    "UniFlow/Views/Services/ServicesPage.swift"
+   ],
+   "request": {
+    "path": "/api/qis/documents/1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/search",
+   "sources": [
+    "UniFlow/Design/ShellState.swift"
+   ],
+   "request": {
+    "path": "/api/search?q=algebra"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "files": {
+       "type": "array",
+       "item": null
+      },
+      "modules": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/services",
+   "sources": [
+    "UniFlow/Views/Services/ServicesPage.swift"
+   ],
+   "request": {
+    "path": "/api/services"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "credentials",
+     "qis",
+     "services",
+     "studip"
+    ],
+    "reason": "Form wie server.py; liest dort die .env, darum nicht aufgerufen"
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/settings",
+   "sources": [
+    "UniFlow/Design/ShellState.swift",
+    "UniFlow/Services/Session.swift",
+    "UniFlow/Views/PlanDialogs.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/settings"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "auto_plan": {
+       "type": "bool"
+      },
+      "auto_suggest": {
+       "type": "bool"
+      },
+      "auto_tests": {
+       "type": "bool"
+      },
+      "blocked_times": {
+       "type": "array",
+       "item": null
+      },
+      "break_minutes": {
+       "type": "number"
+      },
+      "day_start": {
+       "type": "string"
+      },
+      "exam_priority": {
+       "type": "bool"
+      },
+      "free_days": {
+       "type": "array",
+       "item": {
+        "type": "number"
+       }
+      },
+      "hand": {
+       "type": "string"
+      },
+      "hours_per_day": {
+       "type": "number"
+      },
+      "learn_days": {
+       "type": "array",
+       "item": {
+        "type": "number"
+       }
+      },
+      "learn_end": {
+       "type": "string"
+      },
+      "learn_start": {
+       "type": "string"
+      },
+      "min_slot_minutes": {
+       "type": "number"
+      },
+      "minutes_per_day": {
+       "type": "number"
+      },
+      "parts_exercise": {
+       "type": "number"
+      },
+      "parts_lecture": {
+       "type": "number"
+      },
+      "pen_input": {
+       "type": "string"
+      },
+      "subjects_per_day": {
+       "type": "number"
+      },
+      "test_default_minutes": {
+       "type": "number"
+      },
+      "test_minutes": {
+       "type": "number"
+      },
+      "tests_per_subject": {
+       "type": "number"
+      },
+      "theme": {
+       "type": "string"
+      },
+      "travel_minutes": {
+       "type": "number"
+      },
+      "user_name": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/sync/status",
+   "sources": [
+    "UniFlow/Design/ShellState.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/sync/status"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "bg": {
+       "type": "object",
+       "keys": {
+        "message": {
+         "type": "string"
+        },
+        "running": {
+         "type": "bool"
+        },
+        "task": {
+         "type": "null"
+        }
+       }
+      },
+      "log": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/tasks/open",
+   "sources": [
+    "UniFlow/Views/Plan/PlanView.swift"
+   ],
+   "request": {
+    "path": "/api/tasks/open"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": null
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/terms",
+   "sources": [
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/terms"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "active": {
+       "type": "number"
+      },
+      "end": {
+       "type": "string"
+      },
+      "id": {
+       "type": "number"
+      },
+      "name": {
+       "type": "string"
+      },
+      "start": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/tests",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/tests"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": null
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/tests/{}",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/tests/1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/timetable/auto-status",
+   "sources": [
+    "UniFlow/Views/Services/ServicesPage.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/auto-status"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "courses": {
+       "type": "array",
+       "item": null
+      },
+      "pending_groups": {
+       "type": "number"
+      },
+      "personal": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/timetable/conflicts",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableView.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/conflicts"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": null
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/timetable/day",
+   "sources": [
+    "UniFlow/Views/Plan/PlanView.swift",
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/day?date=2026-10-26"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "blocked": {
+       "type": "array",
+       "item": null
+      },
+      "date": {
+       "type": "string"
+      },
+      "events": {
+       "type": "array",
+       "item": null
+      },
+      "free": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "campus": {
+          "type": "bool"
+         },
+         "end": {
+          "type": "number"
+         },
+         "end_hm": {
+          "type": "string"
+         },
+         "minutes": {
+          "type": "number"
+         },
+         "start": {
+          "type": "number"
+         },
+         "start_hm": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "learn_end": {
+       "type": "string"
+      },
+      "learn_start": {
+       "type": "string"
+      },
+      "packages": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/timetable/event-materials/{}",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/event-materials/1?date=2026-10-26"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/timetable/events",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/events"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "array",
+     "item": null
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/timetable/week",
+   "sources": [
+    "UniFlow/Views/Plan/PlanView.swift",
+    "UniFlow/Views/Timetable/TimetableView.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/week?start=2026-10-26"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "days": {
+       "type": "array",
+       "item": {
+        "type": "object",
+        "keys": {
+         "blocked": {
+          "type": "array",
+          "item": null
+         },
+         "date": {
+          "type": "string"
+         },
+         "events": {
+          "type": "array",
+          "item": null
+         },
+         "free": {
+          "type": "array",
+          "item": {
+           "type": "object",
+           "keys": {
+            "campus": {
+             "type": "bool"
+            },
+            "end": {
+             "type": "number"
+            },
+            "end_hm": {
+             "type": "string"
+            },
+            "minutes": {
+             "type": "number"
+            },
+            "start": {
+             "type": "number"
+            },
+            "start_hm": {
+             "type": "string"
+            }
+           }
+          }
+         },
+         "packages": {
+          "type": "array",
+          "item": null
+         },
+         "weekday": {
+          "type": "number"
+         }
+        }
+       }
+      },
+      "end": {
+       "type": "string"
+      },
+      "learn_end": {
+       "type": "string"
+      },
+      "learn_start": {
+       "type": "string"
+      },
+      "start": {
+       "type": "string"
+      },
+      "term": {
+       "type": "object",
+       "keys": {
+        "active": {
+         "type": "number"
+        },
+        "end": {
+         "type": "string"
+        },
+        "id": {
+         "type": "number"
+        },
+        "name": {
+         "type": "string"
+        },
+        "start": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PATCH",
+   "shape": "/api/courses/{}",
+   "sources": [
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/courses/k1",
+    "body": {
+     "kind": "uebung"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "null"
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PATCH",
+   "shape": "/api/folders/{}",
+   "sources": [
+    "UniFlow/Views/Library/LibraryDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/folders/1",
+    "body": {
+     "name": "x"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "null"
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PATCH",
+   "shape": "/api/library/files/{}",
+   "sources": [
+    "UniFlow/Views/Library/LibraryDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/library/files/f1",
+    "body": {
+     "title": "Neu"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PATCH",
+   "shape": "/api/modules/{}",
+   "sources": [
+    "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/modules/1",
+    "body": {
+     "active": 1
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "null"
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PATCH",
+   "shape": "/api/packages/{}",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanGrids.swift"
+   ],
+   "request": {
+    "path": "/api/packages/1",
+    "body": {
+     "title": "x"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "null"
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PATCH",
+   "shape": "/api/tasks/{}",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/tasks/1",
+    "body": {
+     "title": "x"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "null"
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PATCH",
+   "shape": "/api/timetable/events/{}",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/events/1",
+    "body": {
+     "title": "x"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/ai/tutor",
+   "sources": [
+    "UniFlow/Views/Modules/ModulesPage.swift"
+   ],
+   "request": {
+    "path": "/api/ai/tutor",
+    "body": {
+     "mode": "explain"
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "KI entfaellt in V1"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/calendar/apply",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/PlanDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/apply",
+    "body": {
+     "moves": []
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "moved": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/calendar/generate",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/PlanDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/generate",
+    "body": {
+     "start": "2026-10-26",
+     "days": 1
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "created": {
+       "type": "number"
+      },
+      "message": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/calendar/suggest",
+   "sources": [
+    "UniFlow/Views/DashboardView.swift",
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/calendar/suggest",
+    "body": {
+     "rescue": true
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "message": {
+       "type": "string"
+      },
+      "moves": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/courses/{}/module",
+   "sources": [
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/courses/k1/module",
+    "body": {
+     "module_id": null
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/files/mark-seen",
+   "sources": [
+    "UniFlow/Views/DashboardView.swift"
+   ],
+   "request": {
+    "path": "/api/files/mark-seen"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/files/{}/favorite",
+   "sources": [
+    "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Library/LibraryPage.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/favorite",
+    "body": {
+     "favorite": true
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/flashcards/{}/review",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcards/1/review",
+    "body": {
+     "correct": true
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/folders",
+   "sources": [
+    "UniFlow/Views/Library/LibraryDialogs.swift"
+   ],
+   "request": {
+    "path": "/api/folders",
+    "body": {
+     "name": "Neuer Ordner"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "color": {
+       "type": "null"
+      },
+      "created_at": {
+       "type": "string"
+      },
+      "id": {
+       "type": "number"
+      },
+      "module_id": {
+       "type": "null"
+      },
+      "name": {
+       "type": "string"
+      },
+      "parent_id": {
+       "type": "null"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Anlegen kommt mit S3"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/grades/sync",
+   "sources": [
+    "UniFlow/Views/Services/ServicesPage.swift"
+   ],
+   "request": {
+    "path": "/api/grades/sync"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "QIS auf dem iPad folgt (F4)"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/modules",
+   "sources": [
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/modules",
+    "body": {
+     "name": "Testmodul"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "active": {
+       "type": "number"
+      },
+      "color": {
+       "type": "string"
+      },
+      "created_at": {
+       "type": "string"
+      },
+      "exam_date": {
+       "type": "null"
+      },
+      "icon": {
+       "type": "null"
+      },
+      "id": {
+       "type": "number"
+      },
+      "name": {
+       "type": "string"
+      },
+      "priority": {
+       "type": "number"
+      },
+      "semester": {
+       "type": "null"
+      },
+      "sort": {
+       "type": "number"
+      },
+      "test_minutes": {
+       "type": "null"
+      },
+      "weekly_test": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Module kommen mit S4"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/modules/auto-assign",
+   "sources": [
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/modules/auto-assign"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "assigned": {
+       "type": "number"
+      },
+      "uncertain": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/notebooks",
+   "sources": [
+    "UniFlow/Views/Library/LibraryDialogs.swift",
+    "UniFlow/Views/Views.swift"
+   ],
+   "request": {
+    "path": "/api/notebooks",
+    "form": {
+     "kind": "notebook",
+     "title": "Notizbuch"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "author": {
+       "type": "string"
+      },
+      "chdate": {
+       "type": "number"
+      },
+      "course_id": {
+       "type": "string"
+      },
+      "deleted_at": {
+       "type": "null"
+      },
+      "download_url": {
+       "type": "string"
+      },
+      "downloaded_at": {
+       "type": "string"
+      },
+      "favorite": {
+       "type": "number"
+      },
+      "first_seen": {
+       "type": "string"
+      },
+      "folder_id": {
+       "type": "null"
+      },
+      "id": {
+       "type": "string"
+      },
+      "kind": {
+       "type": "string"
+      },
+      "last_opened": {
+       "type": "null"
+      },
+      "last_page": {
+       "type": "number"
+      },
+      "local_path": {
+       "type": "null"
+      },
+      "mime": {
+       "type": "null"
+      },
+      "name": {
+       "type": "string"
+      },
+      "opened_count": {
+       "type": "number"
+      },
+      "page_count": {
+       "type": "null"
+      },
+      "seen_by_user": {
+       "type": "number"
+      },
+      "size": {
+       "type": "number"
+      },
+      "status": {
+       "type": "string"
+      },
+      "studip_folder": {
+       "type": "null"
+      },
+      "text_excerpt": {
+       "type": "null"
+      },
+      "title": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Eigene Dokumente kommen mit S3"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/packages",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/packages",
+    "body": {
+     "date": "2026-10-26",
+     "title": "Lernen"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "created_at": {
+       "type": "string"
+      },
+      "date": {
+       "type": "string"
+      },
+      "end_time": {
+       "type": "null"
+      },
+      "generated": {
+       "type": "number"
+      },
+      "id": {
+       "type": "number"
+      },
+      "module_id": {
+       "type": "null"
+      },
+      "planned_minutes": {
+       "type": "number"
+      },
+      "sort": {
+       "type": "number"
+      },
+      "start_time": {
+       "type": "null"
+      },
+      "status": {
+       "type": "string"
+      },
+      "subject": {
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      },
+      "week_no": {
+       "type": "null"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Lernpakete kommen mit S6"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/packages/{}/tasks",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/packages/1/tasks",
+    "body": {
+     "title": "x"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/related",
+   "sources": [
+    "UniFlow/Views/DocumentView.swift"
+   ],
+   "request": {
+    "path": "/api/related",
+    "body": {
+     "file_id": "f1",
+     "text": "Eigenwerte"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "note": {
+       "type": "string"
+      },
+      "results": {
+       "type": "array",
+       "item": null
+      },
+      "terms": {
+       "type": "array",
+       "item": null
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/sync",
+   "sources": [
+    "UniFlow/Design/ShellState.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/sync?ai=false"
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Stud.IP-Abgleich laeuft auf dem iPad direkt (StudIPSync)"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/tasks/skip",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanView.swift"
+   ],
+   "request": {
+    "path": "/api/tasks/skip",
+    "body": {
+     "task_ids": []
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/tasks/{}/start-test",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift"
+   ],
+   "request": {
+    "path": "/api/tasks/1/start-test"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "Wochentests (KI) entfallen in V1"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/tasks/{}/status",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift",
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanGrids.swift"
+   ],
+   "request": {
+    "path": "/api/tasks/1/status",
+    "body": {
+     "status": "erledigt"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/tests/generate",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/tests/generate",
+    "body": {
+     "module_id": 1,
+     "duration_min": 45
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "Wochentests (KI) entfallen in V1"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/tests/generate-week",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/tests/generate-week"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "Wochentests (KI) entfallen in V1"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/tests/{}/submit",
+   "sources": [
+    "UniFlow/Views/Exams/ExamsPage.swift"
+   ],
+   "request": {
+    "path": "/api/tests/1/submit",
+    "body": {
+     "answers": {}
+    }
+   },
+   "python": {
+    "status": 500,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "Python 500 (Test nicht gefunden); lokal 404, Tests entfallen"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/timetable/attendance",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/attendance",
+    "body": {
+     "event_id": 1,
+     "mode": "today_skip"
+    }
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/timetable/events",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/events",
+    "body": {
+     "title": "Testvorlesung",
+     "weekday": 0
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "attend": {
+       "type": "number"
+      },
+      "color": {
+       "type": "null"
+      },
+      "course_id": {
+       "type": "null"
+      },
+      "created_at": {
+       "type": "string"
+      },
+      "date_from": {
+       "type": "null"
+      },
+      "date_to": {
+       "type": "null"
+      },
+      "end_time": {
+       "type": "string"
+      },
+      "id": {
+       "type": "number"
+      },
+      "kind": {
+       "type": "string"
+      },
+      "lecturer": {
+       "type": "string"
+      },
+      "module_id": {
+       "type": "null"
+      },
+      "room": {
+       "type": "string"
+      },
+      "rrule": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "start_time": {
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      },
+      "weekday": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Termine kommen mit S5"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/timetable/import/confirm",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableView.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/import/confirm",
+    "body": {
+     "entries": []
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "conflicts": {
+       "type": "array",
+       "item": null
+      },
+      "new": {
+       "type": "number"
+      },
+      "removed": {
+       "type": "number"
+      },
+      "updated": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Import kommt mit S5"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/timetable/import/preview",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableView.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/import/preview",
+    "form": {
+     "source": "studip"
+    }
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Import kommt mit S5"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/timetable/reslot",
+   "sources": [
+    "UniFlow/Views/Plan/PlanActions.swift",
+    "UniFlow/Views/Plan/PlanGrids.swift",
+    "UniFlow/Views/Timetable/TimetableView.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/reslot",
+    "body": {
+     "dates": [
+      "2026-10-26"
+     ]
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "reslotted": {
+       "type": "array",
+       "item": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PUT",
+   "shape": "/api/credentials/{}",
+   "sources": [
+    "UniFlow/Views/Services/ServicesPage.swift"
+   ],
+   "request": {
+    "path": "/api/credentials/qis",
+    "body": {
+     "clear": true
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "keine Zugangsdaten auf dem iPad"
+   }
+  },
+  {
+   "method": "PUT",
+   "shape": "/api/files/{}/annotations",
+   "sources": [
+    "UniFlow/Services/APIClient.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/annotations?base_version=0",
+    "body": {
+     "version": 2,
+     "pages": {}
+    }
+   },
+   "python": {
+    "status": 500,
+    "shape": {
+     "type": "null"
+    }
+   },
+   "expect": {
+    "status": 409,
+    "reason": "Notizen lokal erst mit S3; Journal behaelt alles"
+   }
+  },
+  {
+   "method": "PUT",
+   "shape": "/api/settings",
+   "sources": [
+    "UniFlow/Views/PlanDialogs.swift",
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/settings",
+    "body": {
+     "user_name": "Testperson"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "auto_plan": {
+       "type": "bool"
+      },
+      "auto_suggest": {
+       "type": "bool"
+      },
+      "auto_tests": {
+       "type": "bool"
+      },
+      "blocked_times": {
+       "type": "array",
+       "item": null
+      },
+      "break_minutes": {
+       "type": "number"
+      },
+      "day_start": {
+       "type": "string"
+      },
+      "exam_priority": {
+       "type": "bool"
+      },
+      "free_days": {
+       "type": "array",
+       "item": {
+        "type": "number"
+       }
+      },
+      "hand": {
+       "type": "string"
+      },
+      "hours_per_day": {
+       "type": "number"
+      },
+      "learn_days": {
+       "type": "array",
+       "item": {
+        "type": "number"
+       }
+      },
+      "learn_end": {
+       "type": "string"
+      },
+      "learn_start": {
+       "type": "string"
+      },
+      "min_slot_minutes": {
+       "type": "number"
+      },
+      "minutes_per_day": {
+       "type": "number"
+      },
+      "parts_exercise": {
+       "type": "number"
+      },
+      "parts_lecture": {
+       "type": "number"
+      },
+      "pen_input": {
+       "type": "string"
+      },
+      "subjects_per_day": {
+       "type": "number"
+      },
+      "test_default_minutes": {
+       "type": "number"
+      },
+      "test_minutes": {
+       "type": "number"
+      },
+      "tests_per_subject": {
+       "type": "number"
+      },
+      "theme": {
+       "type": "string"
+      },
+      "travel_minutes": {
+       "type": "number"
+      },
+      "user_name": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "PUT",
+   "shape": "/api/terms",
+   "sources": [
+    "UniFlow/Views/Settings/SettingsPage.swift"
+   ],
+   "request": {
+    "path": "/api/terms",
+    "body": {
+     "name": "SoSe 2027",
+     "start": "2027-04-01",
+     "end": "2027-09-30"
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "active": {
+       "type": "number"
+      },
+      "end": {
+       "type": "string"
+      },
+      "id": {
+       "type": "number"
+      },
+      "name": {
+       "type": "string"
+      },
+      "start": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  }
+ ]
+}

@@ -307,9 +307,9 @@ enum UFThemeMode: String {
 }
 
 struct UFHeader: View {
-    /// Sync-Knopf: Server-Abgleich, Stud.IP-Abgleich oder der Weg zur Stud.IP-Anmeldung
+    /// Sync-Knopf: Abgleich des eigenen Servers, sonst Stud.IP direkt auf dem iPad oder der Weg zur Anmeldung
     private func sync() {
-        if session.api != nil { Task { await shell.startSync(toast: toast) }; return }
+        if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
         switch studip.phase {
         case .signedOut, .needsLogin:
             toast.show("Zuerst Stud.IP verbinden")

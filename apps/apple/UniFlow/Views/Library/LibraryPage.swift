@@ -687,7 +687,8 @@ actor UFThumbnails {
     private let dir = AppPaths.support.appendingPathComponent("thumbs", isDirectory: true)
 
     func image(fileID: String, version: String, image isImage: Bool, api: APIClient) async -> UIImage? {
-        let key = "\(fileID):\(version):220"
+        // je Datenquelle getrennt: lokal und ein Server koennen dieselbe Datei-ID haben
+        let key = "\(api.namespace.id):\(fileID):\(version):220"
         if let m = memory[key] { return m }
         let file = dir.appendingPathComponent(LocalJournalName.safe(key) + ".jpg")
         if let d = try? Data(contentsOf: file), let img = UIImage(data: d) { memory[key] = img; return img }
@@ -698,7 +699,7 @@ actor UFThumbnails {
         } else if let doc = PDFDocument(data: data), let page = doc.page(at: 0) {
             let b = page.bounds(for: .mediaBox)
             let w: CGFloat = 220
-            out = Self.inkThumbnail(fileID: fileID, pdf: doc, width: w)
+            out = Self.inkThumbnail(fileID: fileID, namespace: api.namespace, pdf: doc, width: w)
                 ?? page.thumbnail(of: CGSize(width: w, height: w * b.height / max(1, b.width)), for: .mediaBox)
         }
         guard let out else { return nil }
@@ -710,8 +711,8 @@ actor UFThumbnails {
 
     /// Erste PDF-Seite mit den Notizen aus dem lokalen Journal (nur Dokumente, die auf diesem Geraet schon offen
     /// waren; ohne Netzwerk). Gleiche Zeichenroutine wie PDF-Export und Seitenminiaturen. `nil` = keine Notizen.
-    private static func inkThumbnail(fileID: String, pdf: PDFDocument, width: CGFloat) -> UIImage? {
-        inkThumbnail(journal: LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: fileID), pdf: pdf, width: width)
+    private static func inkThumbnail(fileID: String, namespace: DataSourceNamespace, pdf: PDFDocument, width: CGFloat) -> UIImage? {
+        inkThumbnail(journal: LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: fileID, namespace: namespace), pdf: pdf, width: width)
     }
 
     /// Kern von `inkThumbnail` mit frei waehlbarem Journal (testbar mit eigenem Ordner).

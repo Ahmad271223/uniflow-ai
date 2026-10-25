@@ -24,8 +24,8 @@ struct DashboardView: View {
     var body: some View {
         Group {
             let mode = UFDataMode.current(api: api, studip: studip)
-            if mode != .server { noServer(mode) } else {
-                UFRemote(data: data) { d in content(d) }
+            if !mode.loadsPages { noServer(mode) } else {
+                UFRemote(data: data) { d in content(d, mode: mode) }
                     .task { await data.load() }
                     .ufReload { await data.load() }
             }
@@ -59,7 +59,7 @@ struct DashboardView: View {
 
     // MARK: Inhalt
 
-    @ViewBuilder private func content(_ d: JSONValue) -> some View {
+    @ViewBuilder private func content(_ d: JSONValue, mode: UFDataMode) -> some View {
         let today = d["today"] ?? .null
         let pk = today.list("packages")
         let evs = today.list("events").filter { $0.s("status") != "verschoben" }
@@ -80,6 +80,8 @@ struct DashboardView: View {
                         }
                     }
                 }
+                // lokal: solange Stud.IP nicht verbunden ist, oben die Karte "Stud.IP verbinden" (Auftrag 2a)
+                if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
 
                 UFGrid(columns: 3) {
                     kpiCard(value: UFFmt.min(today.n("minutes")),

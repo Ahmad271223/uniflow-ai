@@ -17,6 +17,7 @@ struct UniFlowApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        DataSourceMigration.run()                                         // alte Journale in den Server-Namensraum, vor dem ersten Dokument
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding vor dem ersten Bild
         _account = StateObject(wrappedValue: a)

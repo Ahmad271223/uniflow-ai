@@ -27,7 +27,8 @@ public struct JournalSnapshot: Equatable, Sendable {
     public var damaged: [String] = []
 }
 
-/// Ablage im Ordner `docs/<id>/`:
+/// Ablage im Ordner `spaces/<namensraum>/docs/<id>/` (ohne Namensraum wie vor S2 `docs/<id>/`, siehe
+/// `DataSourceNamespace` und `JournalNamespaceMigration`):
 /// - `meta.json`: Wurzelfelder ohne Seiten, `metaRev`, Basis der Wurzelfelder
 /// - `acks.json`: Serverversion und bestaetigte Revisionen
 /// - `pages/<key>.json`: Seite + `localRev`
@@ -36,9 +37,20 @@ public final class LocalJournal: @unchecked Sendable {
     private let store: BlobStore
     private let dir: String
 
-    public init(store: BlobStore, documentID: String) {
+    /// `namespace`: Datenquelle des Dokuments (lokal oder ein bestimmter Server); nil nur fuer den alten Ort.
+    public init(store: BlobStore, documentID: String, namespace: DataSourceNamespace? = nil) {
         self.store = store
-        self.dir = "docs/" + LocalJournal.safeName(documentID)
+        self.dir = (namespace.map { $0.journalPrefix + "/" } ?? "") + "docs/" + LocalJournal.safeName(documentID)
+    }
+
+    /// Ordner aller Journale eines Namensraums im Speicher (`spaces/<id>/docs`), z. B. fuer die Diagnose
+    public static func documentsDirectory(_ namespace: DataSourceNamespace?) -> String {
+        (namespace.map { $0.journalPrefix + "/" } ?? "") + "docs"
+    }
+
+    /// Dokument-ID zu einem Ordnernamen unter `documentsDirectory` (Umkehrung von `safeName`)
+    public static func documentID(forDirectory name: String) -> String {
+        unsafeName(name + ".json") ?? name
     }
 
     static func safeName(_ s: String) -> String {

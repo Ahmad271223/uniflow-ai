@@ -26,6 +26,12 @@ public enum PutOutcome: Equatable, Sendable {
 /// Fehler des Transports mit HTTP-Status (z. B. `APIError` der App). Fehler ohne Status gelten als Netzfehler.
 public protocol HTTPStatusError: Error {
     var httpStatus: Int { get }
+    /// Text aus "detail" der Antwort, falls vorhanden
+    var httpDetail: String? { get }
+}
+
+extension HTTPStatusError {
+    public var httpDetail: String? { nil }
 }
 
 // MARK: - Status
@@ -73,6 +79,9 @@ public enum SyncIssue: Equatable, Sendable {
     case serverfehler(Int)
     /// Bei der Zusammenfuehrung mit dem Server mussten so viele Objekte entschieden werden.
     case konflikteZusammengefuehrt(Int)
+    /// 409 ohne neueren Stand: Die Datenquelle kann (noch) nicht speichern, z. B. das lokale Backend vor S3. Keine
+    /// automatische Wiederholung; die Meldung kommt aus "detail".
+    case nichtVerfuegbar(String)
 
     /// Einordnung eines Transportfehlers: 401/403 sind nie "Offline", nur Fehler ohne HTTP-Antwort sind es.
     public static func classify(_ error: Error) -> SyncIssue {
@@ -80,12 +89,18 @@ public enum SyncIssue: Equatable, Sendable {
         switch e.httpStatus {
         case 401: return .pinFehlt
         case 403: return .zugriffVerweigert
+        case 409: return .nichtVerfuegbar(e.httpDetail ?? "Speichern ist hier noch nicht möglich")
         default: return .serverfehler(e.httpStatus)
         }
     }
 
     /// Wird erst nach einer ausdruecklichen Anfrage (`requestUpload`, `syncNow`) erneut versucht.
-    public var needsUserAction: Bool { self == .pinFehlt || self == .zugriffVerweigert }
+    public var needsUserAction: Bool {
+        switch self {
+        case .pinFehlt, .zugriffVerweigert, .nichtVerfuegbar: return true
+        default: return false
+        }
+    }
 
     public var label: String {
         switch self {
@@ -94,6 +109,7 @@ public enum SyncIssue: Equatable, Sendable {
         case .zugriffVerweigert: return "Zugriff verweigert – Änderungen sind lokal gesichert"
         case .serverfehler(let code): return "Serverfehler (\(code)) – neuer Versuch folgt"
         case .konflikteZusammengefuehrt(let n): return n == 1 ? "1 Konflikt zusammengeführt" : "\(n) Konflikte zusammengeführt"
+        case .nichtVerfuegbar(let m): return m
         }
     }
 }
@@ -116,7 +132,8 @@ public struct SyncStats: Equatable, Sendable {
 /// - Bei 409 wird objektweise mit dem Serverstand zusammengefuehrt (Basis = letzter bestaetigter Stand) und
 ///   erneut gesendet. Striche beider Geraete bleiben erhalten.
 /// - Ohne Netz: Wiederholung mit wachsendem Abstand (2 s … 60 s), lokale Daten bleiben ungesendet markiert.
-/// - 401/403 (PIN, Zugriff): keine automatische Wiederholung, erst wieder nach `requestUpload`/`syncNow`.
+/// - 401/403 (PIN, Zugriff) und 409 ohne neueren Stand (Quelle kann noch nicht speichern): keine automatische
+///   Wiederholung, erst wieder nach `requestUpload`/`syncNow`.
 ///   5xx: Wiederholung mit wachsendem Abstand (2 s … 5 min), auch wenn der Fehler schon beim Oeffnen kam. Den Grund
 ///   meldet `issue` (nie "Offline").
 /// - Ist nach einem Fehler nichts zu senden, prueft ein leichter Abruf, ob der Server wieder antwortet (und holt
@@ -153,7 +170,7 @@ public actor SyncEngine {
     private var uploading = false
     private var networkDown = false
     private var retryDelay = 2.0
-    private var blockedBy: SyncIssue?                     // 401/403: wartet auf ausdrueckliche Anfrage
+    private var blockedBy: SyncIssue?                     // 401/403/409: wartet auf ausdrueckliche Anfrage
     private var serverErrorStatus: Int?
     private var serverRetryDelay = 2.0
     private var serverRetryScheduled = false              // Wiederholung nach 5xx steht aus (nicht verkuerzen)
@@ -447,7 +464,7 @@ public actor SyncEngine {
         uploading = false
         refreshStatus()
         switch failure {
-        case .pinFehlt, .zugriffVerweigert:
+        case .pinFehlt, .zugriffVerweigert, .nichtVerfuegbar:
             break                                       // keine Wiederholung ohne ausdrueckliche Anfrage
         case .serverfehler:
             scheduleServerRetry()
@@ -592,7 +609,7 @@ public actor SyncEngine {
 
     private func noteTransportFailure(_ failure: SyncIssue) {
         switch failure {
-        case .pinFehlt, .zugriffVerweigert:
+        case .pinFehlt, .zugriffVerweigert, .nichtVerfuegbar:
             blockedBy = failure
             networkDown = false
             serverErrorStatus = nil

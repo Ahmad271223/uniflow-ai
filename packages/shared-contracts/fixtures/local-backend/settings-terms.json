@@ -1,0 +1,602 @@
+{
+ "generator": "tools/gen-local-backend-fixture.py",
+ "steps": [
+  {
+   "method": "GET",
+   "path": "/api/settings",
+   "body": null,
+   "raw": null,
+   "status": 200,
+   "response": {
+    "hours_per_day": 4.0,
+    "free_days": [
+     6
+    ],
+    "day_start": "09:00",
+    "test_default_minutes": 90,
+    "auto_plan": true,
+    "auto_tests": true,
+    "subjects_per_day": 2,
+    "parts_lecture": 1,
+    "parts_exercise": 1,
+    "tests_per_subject": 1,
+    "test_minutes": 45,
+    "break_minutes": 15,
+    "exam_priority": true,
+    "auto_suggest": true,
+    "theme": "auto",
+    "user_name": "",
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "travel_minutes": 30,
+    "min_slot_minutes": 30,
+    "blocked_times": [],
+    "pen_input": "all",
+    "hand": "right",
+    "minutes_per_day": 240,
+    "learn_days": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   }
+  },
+  {
+   "method": "PUT",
+   "path": "/api/settings",
+   "body": {
+    "hours_per_day": 4.5,
+    "free_days": [
+     5,
+     6
+    ],
+    "auto_plan": false,
+    "user_name": "Testperson Ä",
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00",
+      "title": "Mittag ü 😀"
+     }
+    ],
+    "eigener_schluessel": null,
+    "subjects_per_day": "x",
+    "test_minutes": 30.0,
+    "travel_minutes": " 25 ",
+    "x_int": 7,
+    "x_float": 1e-07,
+    "x_big": 1e+16,
+    "x_obj": {
+     "b": 1,
+     "a": [
+      true,
+      null,
+      2.5,
+      "\n\t\"\\"
+     ]
+    }
+   },
+   "raw": "{\"hours_per_day\": 4.5, \"free_days\": [5, 6], \"auto_plan\": false, \"user_name\": \"Testperson \\u00c4\", \"blocked_times\": [{\"weekday\": 0, \"start\": \"12:00\", \"end\": \"13:00\", \"title\": \"Mittag \\u00fc \\ud83d\\ude00\"}], \"eigener_schluessel\": null, \"subjects_per_day\": \"x\", \"test_minutes\": 30.0, \"travel_minutes\": \" 25 \", \"x_int\": 7, \"x_float\": 1e-07, \"x_big\": 1e+16, \"x_obj\": {\"b\": 1, \"a\": [true, null, 2.5, \"\\n\\t\\\"\\\\\"]}}",
+   "status": 200,
+   "response": {
+    "hours_per_day": 4.5,
+    "free_days": [
+     5,
+     6
+    ],
+    "day_start": "09:00",
+    "test_default_minutes": 90,
+    "auto_plan": false,
+    "auto_tests": true,
+    "subjects_per_day": 2,
+    "parts_lecture": 1,
+    "parts_exercise": 1,
+    "tests_per_subject": 1,
+    "test_minutes": 45,
+    "break_minutes": 15,
+    "exam_priority": true,
+    "auto_suggest": true,
+    "theme": "auto",
+    "user_name": "Testperson Ä",
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "travel_minutes": 25,
+    "min_slot_minutes": 30,
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00",
+      "title": "Mittag ü 😀"
+     }
+    ],
+    "pen_input": "all",
+    "hand": "right",
+    "eigener_schluessel": "None",
+    "x_int": "7",
+    "x_float": "1e-07",
+    "x_big": "1e+16",
+    "x_obj": "{\"b\": 1, \"a\": [true, null, 2.5, \"\\n\\t\\\"\\\\\"]}",
+    "minutes_per_day": 270,
+    "learn_days": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/settings",
+   "body": null,
+   "raw": null,
+   "status": 200,
+   "response": {
+    "hours_per_day": 4.5,
+    "free_days": [
+     5,
+     6
+    ],
+    "day_start": "09:00",
+    "test_default_minutes": 90,
+    "auto_plan": false,
+    "auto_tests": true,
+    "subjects_per_day": 2,
+    "parts_lecture": 1,
+    "parts_exercise": 1,
+    "tests_per_subject": 1,
+    "test_minutes": 45,
+    "break_minutes": 15,
+    "exam_priority": true,
+    "auto_suggest": true,
+    "theme": "auto",
+    "user_name": "Testperson Ä",
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "travel_minutes": 25,
+    "min_slot_minutes": 30,
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00",
+      "title": "Mittag ü 😀"
+     }
+    ],
+    "pen_input": "all",
+    "hand": "right",
+    "eigener_schluessel": "None",
+    "x_int": "7",
+    "x_float": "1e-07",
+    "x_big": "1e+16",
+    "x_obj": "{\"b\": 1, \"a\": [true, null, 2.5, \"\\n\\t\\\"\\\\\"]}",
+    "minutes_per_day": 270,
+    "learn_days": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ]
+   }
+  },
+  {
+   "method": "PUT",
+   "path": "/api/settings",
+   "body": {
+    "lan_pin": "123456",
+    "free_days": {
+     "6": true
+    }
+   },
+   "raw": "{\"lan_pin\": \"123456\", \"free_days\": {\"6\": true}}",
+   "status": 200,
+   "response": {
+    "hours_per_day": 4.5,
+    "free_days": {
+     "6": true
+    },
+    "day_start": "09:00",
+    "test_default_minutes": 90,
+    "auto_plan": false,
+    "auto_tests": true,
+    "subjects_per_day": 2,
+    "parts_lecture": 1,
+    "parts_exercise": 1,
+    "tests_per_subject": 1,
+    "test_minutes": 45,
+    "break_minutes": 15,
+    "exam_priority": true,
+    "auto_suggest": true,
+    "theme": "auto",
+    "user_name": "Testperson Ä",
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "travel_minutes": 25,
+    "min_slot_minutes": 30,
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00",
+      "title": "Mittag ü 😀"
+     }
+    ],
+    "pen_input": "all",
+    "hand": "right",
+    "eigener_schluessel": "None",
+    "x_int": "7",
+    "x_float": "1e-07",
+    "x_big": "1e+16",
+    "x_obj": "{\"b\": 1, \"a\": [true, null, 2.5, \"\\n\\t\\\"\\\\\"]}",
+    "minutes_per_day": 270,
+    "learn_days": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ]
+   }
+  },
+  {
+   "method": "PUT",
+   "path": "/api/settings",
+   "body": {
+    "free_days": [
+     true,
+     6.0
+    ],
+    "min_slot_minutes": "1_5",
+    "hours_per_day": "1_0"
+   },
+   "raw": "{\"free_days\": [true, 6.0], \"min_slot_minutes\": \"1_5\", \"hours_per_day\": \"1_0\"}",
+   "status": 200,
+   "response": {
+    "hours_per_day": 10.0,
+    "free_days": [
+     true,
+     6.0
+    ],
+    "day_start": "09:00",
+    "test_default_minutes": 90,
+    "auto_plan": false,
+    "auto_tests": true,
+    "subjects_per_day": 2,
+    "parts_lecture": 1,
+    "parts_exercise": 1,
+    "tests_per_subject": 1,
+    "test_minutes": 45,
+    "break_minutes": 15,
+    "exam_priority": true,
+    "auto_suggest": true,
+    "theme": "auto",
+    "user_name": "Testperson Ä",
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "travel_minutes": 25,
+    "min_slot_minutes": 15,
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00",
+      "title": "Mittag ü 😀"
+     }
+    ],
+    "pen_input": "all",
+    "hand": "right",
+    "eigener_schluessel": "None",
+    "x_int": "7",
+    "x_float": "1e-07",
+    "x_big": "1e+16",
+    "x_obj": "{\"b\": 1, \"a\": [true, null, 2.5, \"\\n\\t\\\"\\\\\"]}",
+    "minutes_per_day": 600,
+    "learn_days": [
+     0,
+     2,
+     3,
+     4,
+     5
+    ]
+   }
+  },
+  {
+   "method": "PUT",
+   "path": "/api/settings",
+   "body": [
+    1
+   ],
+   "raw": "[1]",
+   "status": 422,
+   "response": {
+    "detail": [
+     {
+      "type": "dict_type",
+      "loc": [
+       "body"
+      ],
+      "msg": "Input should be a valid dictionary",
+      "input": [
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "method": "PUT",
+   "path": "/api/settings",
+   "body": null,
+   "raw": null,
+   "status": 422,
+   "response": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "body"
+      ],
+      "msg": "Field required",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "method": "PUT",
+   "path": "/api/settings",
+   "body": {
+    "hours_per_day": "abc"
+   },
+   "raw": "{\"hours_per_day\": \"abc\"}",
+   "status": 500,
+   "response": null
+  },
+  {
+   "method": "GET",
+   "path": "/api/settings",
+   "body": null,
+   "raw": null,
+   "status": 200,
+   "response": {
+    "hours_per_day": 10.0,
+    "free_days": [
+     true,
+     6.0
+    ],
+    "day_start": "09:00",
+    "test_default_minutes": 90,
+    "auto_plan": false,
+    "auto_tests": true,
+    "subjects_per_day": 2,
+    "parts_lecture": 1,
+    "parts_exercise": 1,
+    "tests_per_subject": 1,
+    "test_minutes": 45,
+    "break_minutes": 15,
+    "exam_priority": true,
+    "auto_suggest": true,
+    "theme": "auto",
+    "user_name": "Testperson Ä",
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "travel_minutes": 25,
+    "min_slot_minutes": 15,
+    "blocked_times": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00",
+      "title": "Mittag ü 😀"
+     }
+    ],
+    "pen_input": "all",
+    "hand": "right",
+    "eigener_schluessel": "None",
+    "x_int": "7",
+    "x_float": "1e-07",
+    "x_big": "1e+16",
+    "x_obj": "{\"b\": 1, \"a\": [true, null, 2.5, \"\\n\\t\\\"\\\\\"]}",
+    "minutes_per_day": 600,
+    "learn_days": [
+     0,
+     2,
+     3,
+     4,
+     5
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/terms",
+   "body": null,
+   "raw": null,
+   "status": 200,
+   "response": {
+    "id": 1,
+    "name": "WiSe 2026/27",
+    "start": "2026-10-12",
+    "end": "2027-01-30",
+    "active": 1
+   }
+  },
+  {
+   "method": "PUT",
+   "path": "/api/terms",
+   "body": {
+    "name": "SoSe 2027",
+    "start": "2027-04-01",
+    "end": "2027-09-30"
+   },
+   "raw": "{\"name\": \"SoSe 2027\", \"start\": \"2027-04-01\", \"end\": \"2027-09-30\"}",
+   "status": 200,
+   "response": {
+    "id": 2,
+    "name": "SoSe 2027",
+    "start": "2027-04-01",
+    "end": "2027-09-30",
+    "active": 1
+   }
+  },
+  {
+   "method": "PUT",
+   "path": "/api/terms",
+   "body": {
+    "name": "",
+    "start": "2027-10-01",
+    "end": "2028-03-31"
+   },
+   "raw": "{\"name\": \"\", \"start\": \"2027-10-01\", \"end\": \"2028-03-31\"}",
+   "status": 200,
+   "response": {
+    "id": 3,
+    "name": "Semester",
+    "start": "2027-10-01",
+    "end": "2028-03-31",
+    "active": 1
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/terms",
+   "body": null,
+   "raw": null,
+   "status": 200,
+   "response": {
+    "id": 3,
+    "name": "Semester",
+    "start": "2027-10-01",
+    "end": "2028-03-31",
+    "active": 1
+   }
+  }
+ ],
+ "settings_rows": [
+  [
+   "auto_plan",
+   "0"
+  ],
+  [
+   "auto_suggest",
+   "1"
+  ],
+  [
+   "auto_tests",
+   "1"
+  ],
+  [
+   "blocked_times",
+   "[{\"weekday\": 0, \"start\": \"12:00\", \"end\": \"13:00\", \"title\": \"Mittag \\u00fc \\ud83d\\ude00\"}]"
+  ],
+  [
+   "break_minutes",
+   "15"
+  ],
+  [
+   "day_start",
+   "09:00"
+  ],
+  [
+   "eigener_schluessel",
+   "None"
+  ],
+  [
+   "exam_priority",
+   "1"
+  ],
+  [
+   "free_days",
+   "[true, 6.0]"
+  ],
+  [
+   "hand",
+   "right"
+  ],
+  [
+   "hours_per_day",
+   "1_0"
+  ],
+  [
+   "lan_pin",
+   "123456"
+  ],
+  [
+   "learn_end",
+   "21:00"
+  ],
+  [
+   "learn_start",
+   "08:00"
+  ],
+  [
+   "min_slot_minutes",
+   "1_5"
+  ],
+  [
+   "parts_exercise",
+   "1"
+  ],
+  [
+   "parts_lecture",
+   "1"
+  ],
+  [
+   "pen_input",
+   "all"
+  ],
+  [
+   "subjects_per_day",
+   "x"
+  ],
+  [
+   "test_default_minutes",
+   "90"
+  ],
+  [
+   "test_minutes",
+   "30.0"
+  ],
+  [
+   "tests_per_subject",
+   "1"
+  ],
+  [
+   "theme",
+   "auto"
+  ],
+  [
+   "travel_minutes",
+   " 25 "
+  ],
+  [
+   "user_name",
+   "Testperson Ä"
+  ],
+  [
+   "x_big",
+   "1e+16"
+  ],
+  [
+   "x_float",
+   "1e-07"
+  ],
+  [
+   "x_int",
+   "7"
+  ],
+  [
+   "x_obj",
+   "{\"b\": 1, \"a\": [true, null, 2.5, \"\\n\\t\\\"\\\\\"]}"
+  ]
+ ]
+}

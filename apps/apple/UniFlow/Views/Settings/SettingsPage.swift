@@ -6,7 +6,8 @@ import UniFlowCore
 // Bewusst anders (WEB-IPAD-PARITAET.md, W.B.11.3): kein Passwortfeld fuer Stud.IP; statt "Auf dem iPad benutzen"
 // (verbindet ein iPad mit dem PC) zeigt die Karte die Verbindung dieses iPads, Stud.IP direkt und den Tarif.
 // V1 (docs/AUFTRAG-APPSTORE-V1.md 2a): Die Seite funktioniert auch ohne Server. Oben stehen "Konto" (Mit Apple
-// angemeldet, Konto loeschen) und "Tarif"; die Verbindung zum eigenen PC-Server liegt unter "Entwicklung".
+// angemeldet, Konto loeschen) und "Tarif"; die Verbindung zum eigenen PC-Server liegt unter "Entwicklung" (nur in
+// Debug-Builds). Lokal kommen Lernzeit und Semester vom lokalen Backend (/api/settings, /api/terms).
 // Ist ein gespeicherter Server nicht erreichbar (PC aus, PIN gewechselt), zeigt die Seite dieselben Bereiche wie
 // ohne Server mit einem Hinweis oben, damit "Verbindung trennen" und "Konto loeschen" erreichbar bleiben.
 
@@ -21,6 +22,13 @@ struct SettingsPage: View {
     @State private var data: Loaded?
     @State private var error: String?
     @State private var tab = "modules"
+    /// lokal: Einstellungen und Semester aus dem lokalen Backend
+    @State private var local: LocalLoaded?
+
+    struct LocalLoaded {
+        var s: JSONValue
+        var term: JSONValue
+    }
 
     /// Antworten von /settings, /courses, /modules, /sync/status, /credentials, /terms
     struct Loaded {
@@ -34,19 +42,28 @@ struct SettingsPage: View {
 
     var body: some View {
         Group {
-            if session.api == nil { localContent(error: nil) } else if let data { content(data) } else if let error {
+            if !session.isOwnServer { localContent(error: nil) } else if let data { content(data) } else if let error {
                 localContent(error: error)
             } else {
                 UFContent(maxWidth: 1180) { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
             }
         }
-        .task { tab = initialTab == "diag" ? "advanced" : (initialTab ?? (session.api == nil ? "account" : "modules")) }
+        .task { tab = initialTab == "diag" ? "advanced" : (initialTab ?? (session.isOwnServer ? "modules" : "account")) }
         .task(id: session.api?.base) { await load() }                      // nach Verbinden/Trennen unter "Entwicklung"
         .ufReload { await load() }
     }
 
     private func load() async {
-        guard let api = session.api else { data = nil; error = nil; return }
+        guard let api = session.api else { data = nil; error = nil; local = nil; return }
+        guard session.isOwnServer else {
+            data = nil; error = nil
+            async let s = try? api.value("/api/settings")
+            async let t = try? api.value("/api/terms")
+            let (sv, tv) = await (s, t)
+            local = sv.map { LocalLoaded(s: $0, term: tv ?? .null) }
+            return
+        }
+        local = nil
         do {
             async let s = api.value("/api/settings")
             async let c = api.value("/api/courses")
@@ -70,12 +87,19 @@ struct SettingsPage: View {
     /// ohne Server (V1-Normalfall): Konto, Tarif, Stud.IP direkt, Darstellung auf dem Geraet und "Entwicklung".
     /// Mit `error` ist ein gespeicherter Server nicht erreichbar: Hinweis oben, Navigation bleibt nutzbar.
     @ViewBuilder private func localContent(error: String?) -> some View {
-        let current = SettingsNav.localKeys.contains(tab) ? tab : "account"
+        let keys = SettingsNav.localKeys(withPlan: local != nil)
+        let current = keys.contains(tab) ? tab : "account"
         UFContent(maxWidth: 1180) {
             UFPageHead("Einstellungen")
             if let error { unreachableBanner(error) }
-            layout(SettingsNav(tab: Binding(get: { current }, set: { tab = $0 }), horizontal: windowWidth <= 820, keys: SettingsNav.localKeys),
-                   Group { if current == "dev" { DevelopmentTab(error: error) } else { LocalAccountTab() } })
+            layout(SettingsNav(tab: Binding(get: { current }, set: { tab = $0 }), horizontal: windowWidth <= 820, keys: keys),
+                   Group {
+                       switch current {
+                       case "dev": DevelopmentTab(error: error)
+                       case "plan": if let local { PlanTab(s: local.s) }
+                       default: LocalAccountTab(term: local?.term, reload: { await load() })
+                       }
+                   })
         }
     }
 
@@ -114,10 +138,14 @@ private struct SettingsNav: View {
     static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
                                                     ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings"),
                                                     ("dev", "Entwicklung", "layers")]
-    static let localKeys = ["account", "dev"]
+    /// ohne eigenen Server: Zugang & Darstellung, Lernzeit (lokales Backend), Entwicklung (nur Debug)
+    static func localKeys(withPlan: Bool) -> [String] {
+        ["account"] + (withPlan ? ["plan"] : []) + (Session.ownServerAvailable ? ["dev"] : [])
+    }
 
     var body: some View {
-        let shown = Self.items.filter { keys?.contains($0.0) ?? true }
+        // "Entwicklung" (eigener Server) gibt es im Release-Build nicht
+        let shown = Self.items.filter { (keys?.contains($0.0) ?? true) && ($0.0 != "dev" || Session.ownServerAvailable) }
         let buttons = ForEach(shown, id: \.0) { item in
             let (k, l, i) = item
             Button { tab = k } label: {
@@ -696,8 +724,12 @@ private struct DeleteAccountDialog: View {
     }
 }
 
-/// "Zugang & Darstellung" ohne Server: Konto, Tarif, Stud.IP direkt und die Einstellungen dieses Geraets
+/// "Zugang & Darstellung" ohne Server: Konto, Tarif, Stud.IP direkt, Semester (lokales Backend) und die
+/// Einstellungen dieses Geraets
 private struct LocalAccountTab: View {
+    /// aktives Semester aus /api/terms; nil, solange nicht geladen
+    var term: JSONValue?
+    var reload: () async -> Void = {}
     @EnvironmentObject private var studip: StudIPSync
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
@@ -723,6 +755,7 @@ private struct LocalAccountTab: View {
                     .padding(.top, 9.6)
                 }
                 UFCard {
+                    if let term { SemesterFields(term: term, reload: reload).padding(.bottom, 16) }
                     UFCardHead("Darstellung", icon: "sun")
                     UFSegmented(options: [("auto", "Automatisch"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
                     UFCardHead("Stift & Touch", icon: "pen").padding(.top, 16)
@@ -737,6 +770,43 @@ private struct LocalAccountTab: View {
             .environment(\.ufFillsCell, true)
         }
         .sheet(isPresented: $studipSheet) { SettingsSheet(close: { studipSheet = false }) { StudIPView() } }
+    }
+}
+
+/// "Semester": Name, Beginn, Ende wie im Web (PUT /api/terms legt ein neues aktives Semester an)
+private struct SemesterFields: View {
+    let term: JSONValue
+    let reload: () async -> Void
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var router: UFRouter
+    @State private var name = ""
+    @State private var start = ""
+    @State private var end = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            UFCardHead("Semester", icon: "calendar")
+            HStack(alignment: .top, spacing: 9.6) {
+                UFField("Name") { UFTextInput(text: $name) }
+                UFField("Beginn") { UFDateField(iso: $start) }
+                UFField("Ende") { UFDateField(iso: $end) }
+            }
+            UFButton("Speichern", kind: .primary, size: .small) {
+                Task {
+                    let body: JSONValue = ["name": .string(name), "start": .string(start), "end": .string(end)]
+                    if await SettingsAPI(api: session.api, toast: toast, router: router)
+                        .send("/api/terms", method: "PUT", body: body, toast: "Semester gespeichert", reload: false) != nil {
+                        await reload()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            name = term.s("name") ?? ""
+            start = term.s("start") ?? ""
+            end = term.s("end") ?? ""
+        }
     }
 }
 
@@ -768,14 +838,14 @@ private struct DevelopmentTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if let api = session.api {
+            if session.isOwnServer, let api = session.api {
                 UFCard {
                     UFCardHead("Eigener UniFlow-Server", icon: "layers") {
                         error == nil ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht erreichbar", tone: .warn)
                     }
                     VStack(alignment: .leading, spacing: 7.2) {
                         (Text("Server: ").font(.uf(13.12, 700)) + Text(api.base.absoluteString))
-                        Text("Die Daten kommen von deinem UniFlow-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ läuft die App wieder ohne Server.")
+                        Text("Die Daten kommen von deinem UniFlow-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ kommen die Daten wieder vom iPad selbst; Notizen beider Quellen bleiben getrennt erhalten.")
                             .foregroundStyle(UF.muted)
                     }
                     .ufFont(13.12).foregroundStyle(UF.text)

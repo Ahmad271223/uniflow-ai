@@ -72,7 +72,7 @@ struct UFRemote<Content: View>: View {
 
     var body: some View {
         let mode = UFDataMode.current(api: session.api, studip: studip)
-        if mode == .server { remote } else { UFNoServerPage(spec: .generic, mode: mode) }
+        if mode.loadsPages { remote } else { UFNoServerPage(spec: .generic, mode: mode) }
     }
 
     @ViewBuilder private var remote: some View {

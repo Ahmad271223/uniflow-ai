@@ -26,16 +26,25 @@ Pro und alle KI-Funktionen entfallen vorerst. Umgesetzt auf `develop` (Tarifwahl
 
 ## 2. Stand heute: was ohne PC läuft
 
+Stand nach **S2** (Zweig `wip/s2-weiche`): Die App startet im lokalen Modus. `session.api` zeigt auf das lokale
+Backend (`uniflow-local://device/`, Datenbank `Application Support/UniFlow/db/uniflow.sqlite`, Dateischutz
+`completeUntilFirstUserAuthentication`, im Backup). Alle Seiten laden ohne Fehler ihre echten, anfangs leeren
+Ansichten; solange Stud.IP nicht verbunden ist, steht „Stud.IP verbinden“ oberhalb der Seite. Der eigene PC-Server
+ist nur noch in Debug-Builds unter Einstellungen → Entwicklung erreichbar.
+
 | Bereich | Stand | Was fehlt |
 |---|---|---|
+| Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**: alle 76 App-Pfade beantwortet, Form wie `app/server.py` geprüft | Portierung der Logik je Bereich (S3–S7) |
+| Einstellungen (Lernzeit, Lernkombination, Verfügbarkeit), Semester | **lokal echt (S2)**: `GET/PUT /api/settings`, `GET/PUT /api/terms`, gleiche abgeleitete Felder und gespeicherte Texte wie Python | – |
+| Notizen beim Wechsel PC ↔ lokal | **getrennt (S2)**: Journal und PDF-Zwischenspeicher je Datenquelle, alte Journale beim ersten Start in den Server-Namensraum umgezogen | lokales Speichern der Notizen (S3); Übernahme vom PC |
 | Erster Start (Mit Apple anmelden, Tarifwahl, Konto löschen) | **nativ fertig** (echte Apple-Anmeldung braucht das Developer Program) | – |
 | Stud.IP-Anmeldung auf der echten Seite, Sitzung im Schlüsselbund, Ablauf erkennen | **nativ fertig** | Navigationsgrenzen und Fehlermeldungen in der Webansicht; Logout beendet die Sitzung nicht beim Server; stilles Erneuern; OAuth2 (Freigabe LUH) |
 | Kurse, Ordnerbaum, Dateien laden | **nativ teilweise** | Dateien nur in einer eigenen Liste und QuickLook; ein Fehler bricht den ganzen Lauf ab; ganze Dateien im Arbeitsspeicher; kein ETag/If-Modified-Since; keine Einordnung (Fach, Art, Lehrwoche) |
 | Kurszeiten (seminar-cycle-dates) | **Kern fertig**, nicht angebunden | Abruf in der App, lokale Ablage, Gruppenauswahl |
 | Einzeltermine (course-events) | **nur Server** | Swift-Abruf |
 | QIS (Noten) | **Kern fertig** (Parser), nicht angebunden | Webansicht, Ablage, Anzeige |
-| Übersicht, Lernkalender, Stundenplan, Module, Dokumente, Einstellungen (Lernzeit, Semester) | **nur Server** | lokales Backend (Abschnitt 4) |
-| PDF-Editor mit Apple Pencil | **nur Server** (`/api/files/{id}/content` und `/annotations`) | lokale Datei und lokale Notizablage |
+| Übersicht, Lernkalender, Stundenplan, Module, Dokumente | **lokal leer (S2)**: Seiten laden, Antworten in Server-Form ohne Inhalte; Anlegen meldet „geht auf diesem iPad noch nicht“ (409) | Daten aus Stud.IP und Logik-Ports (S3–S6) |
+| PDF-Editor mit Apple Pencil | **nur Server** (`/api/files/{id}/content` und `/annotations`); lokal: leeres Dokument, Speichern 409 mit Meldung, Notizen bleiben im Journal | lokale Datei und lokale Notizablage (S3) |
 | Suche, Skriptsuche | **nur Server** | lokaler Index, Port von `scriptsearch.py` |
 | Geänderte Original-PDF bei vorhandenen Notizen | **fehlt** | Fingerabdruck, Neuzuordnung der Seiten, alte Fassung aufbewahren |
 | Hintergrundabgleich | **fehlt** | BGAppRefresh; vorher Sitzungsdauer messen bzw. OAuth2 |
@@ -44,8 +53,24 @@ Pro und alle KI-Funktionen entfallen vorerst. Umgesetzt auf `develop` (Tarifwahl
 
 ## 3. Serverabhängigkeiten
 
-Die iPad-App ruft heute **75 verschiedene Endpunkte an 129 Stellen in 19 Dateien** auf; **keiner** wird auf dem
-iPad selbst beantwortet. Ohne Server zeigen die Seiten deshalb leere Zustände mit „Stud.IP verbinden“.
+Die iPad-App ruft **76 verschiedene Endpunkte** auf (Methode + Pfad, Liste per grep über `apps/apple/UniFlow` in
+`packages/shared-contracts/fixtures/local-backend/app-paths.json`, erzeugt mit `tools/gen-local-backend-fixture.py`).
+Seit S2 beantwortet das lokale Backend **jeden** davon (`LocalBackendCoverageTests`):
+
+- **echt lokal:** `GET/PUT /api/settings`, `GET/PUT /api/terms`.
+- **Platzhalter in Server-Form** bis zur Portierung (leere Listen, leere Objekte mit denselben Feldern wie
+  `app/server.py` bei leerer Datenbank, Datumsangaben aus der Uhr, Machbarkeit und Sperrzeiten schon aus den echten
+  Einstellungen): Übersicht, Bibliothek, Module/Kurse, Lernkalender/Pakete/Aufgaben, Stundenplan, Karteikarten,
+  Uni & Noten, Suche, Sync-Status. Einträge nach ID gibt es noch nicht (404 wie am PC), Ändern/Löschen fehlender
+  Einträge antwortet wie der PC-Server, **Anlegen** (Lernpakete, Module, Ordner, Notizbücher, Termine, Import) und
+  **Notizen speichern** antworten mit **409** und klarer Meldung. Ein echter Endpunkt ersetzt den Platzhalter
+  automatisch (`LocalRoute.placeholder`).
+- **bewusst entfallen:** KI (`/api/ai/tutor`), Wochentests (`/api/tests/*` außer der leeren Liste,
+  `/api/tasks/{id}/start-test`), Zugänge (`PUT /api/credentials/*`; `GET` liefert „kein Zugang“): 404 mit Meldung.
+  QIS-Abruf (`/api/grades/sync`) 404 „kommt in einer späteren Version“, `/api/sync` 409 (Stud.IP gleicht die App
+  direkt ab).
+
+Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter den leeren Zustand (keine KI, QIS folgt).
 
 | Bereich | Endpunkte | Ziel |
 |---|---|---|
@@ -55,7 +80,7 @@ iPad selbst beantwortet. Ohne Server zeigen die Seiten deshalb leere Zustände m
 | Datei-Inhalt und Notizen | `/api/files/{id}/content`, `/annotations` (GET/PUT, Versionen) | lokal (Lesen Free, Schreiben Plus) |
 | Lernkalender, Pakete, Aufgaben, Zeitfenster | `/api/calendar*`, `/api/tasks*`, `/api/packages*`, `/api/timetable/reslot` (16) | lokal (Free) |
 | Stundenplan, Termine, Import, Konflikte | `/api/timetable/*` (12) | lokal (Free) |
-| Einstellungen, Semester | `/api/settings`, `/api/terms` | lokal |
+| Einstellungen, Semester | `/api/settings`, `/api/terms` | **lokal (S2)** |
 | Suche, Skriptsuche | `/api/search`, `/api/related` | lokal |
 | Abgleich und Status | `/api/sync`, `/api/sync/status`, `/api/bg` | lokal als Stud.IP-Abgleich |
 | Karteikarten | `/api/flashcards*` | lokal (Plus), eigenes Anlegen ohne KI |
@@ -100,7 +125,7 @@ Zuerst der größte Nutzen: Dokumente öffnen und mit dem Pencil schreiben ohne 
 | Schritt | Inhalt | Abnahme ohne PC |
 |---|---|---|
 | S1 | SQLite-Schicht, Schema, Migrationen, gemeinsame Uhr | Tests im Kern grün (macOS und Linux) |
-| S2 | Transport-Weiche und Router; Journal-Namensraum je Datenquelle; **Übernahme der eigenen Notizen und Pläne vom PC** (Entwicklung); gültige leere Antworten für noch nicht portierte Pfade | Seiten laden lokal ohne Fehler; Wechsel PC ↔ lokal verliert keine Notizen |
+| S2 | Transport-Weiche und Router; Journal-Namensraum je Datenquelle; **Übernahme der eigenen Notizen und Pläne vom PC** (Entwicklung, noch offen); gültige leere Antworten für noch nicht portierte Pfade | Seiten laden lokal ohne Fehler; Wechsel PC ↔ lokal verliert keine Notizen (**umgesetzt bis auf die Übernahme**) |
 | S3 | Stud.IP-Dateien in die Datenbank; Endpunkte Bibliothek, Datei-Inhalt, Notizen; Editor lokal | Stud.IP verbinden → Dokumente erscheinen → im Editor öffnen und schreiben, offline |
 | S4 | Fach, Art, Lehrwoche ohne KI (`classify`, `effective_type`, `week_hint`); Module-Endpunkte | Fächer geordnet, Moduldetail mit Wochen |
 | S5 | Stundenplan: Kurszeiten und Einzeltermine aus Stud.IP, `timetable.py`-Port | Stundenplan aus Stud.IP |

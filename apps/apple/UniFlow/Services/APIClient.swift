@@ -15,19 +15,26 @@ struct APIError: LocalizedError {
 /// (`status <= 0`) gilt der Fehler als Netzfehler.
 extension APIError: HTTPStatusError {
     var httpStatus: Int { status }
+    /// "detail" der Antwort (z. B. 409 "noch nicht moeglich" des lokalen Backends)
+    var httpDetail: String? {
+        guard let v = try? JSONValue.parse(message), let d = v["detail"]?.string, !d.isEmpty else { return nil }
+        return d
+    }
 }
 
-/// HTTP-Zugriff auf den bestehenden UniFlow-Server. Die PIN geht als Cookie mit (wie im Browser).
-/// Unveraenderlich nach dem Anlegen und daher sicher von mehreren Threads nutzbar.
-final class APIClient: @unchecked Sendable {
-    let base: URL
-    private let pin: String?
-    private let session: URLSession
-    /// PIN fuer eingebettete Web-Ansichten (Cookie lernapp_pin)
-    var pinValue: String? { pin }
+/// Weg einer Anfrage: ins Netz zum eigenen Server (`HTTPTransport`) oder an das lokale Backend des Geraets
+/// (`LocalTransport`, Services/LocalBackendHost.swift). Antworten kommen in beiden Faellen als HTTPURLResponse mit
+/// Status und JSON wie bei FastAPI, Fehler also auch lokal als `{"detail": ...}`.
+protocol APITransport: Sendable {
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse)
+}
 
-    init(base: URL, pin: String?) {
-        self.base = base
+/// Eigener UniFlow-Server ueber URLSession. Die PIN geht als Cookie mit (wie im Browser).
+struct HTTPTransport: APITransport {
+    let pin: String?
+    private let session: URLSession
+
+    init(pin: String?) {
         self.pin = pin
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 25
@@ -36,13 +43,52 @@ final class APIClient: @unchecked Sendable {
         session = URLSession(configuration: config)
     }
 
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        var r = request
+        if let pin, !pin.isEmpty { r.setValue("lernapp_pin=\(pin)", forHTTPHeaderField: "Cookie") }
+        let (d, resp) = try await session.data(for: r)
+        guard let http = resp as? HTTPURLResponse else { throw APIError(status: -1, message: "Keine HTTP-Antwort") }
+        return (d, http)
+    }
+}
+
+/// Zugriff auf die `/api/`-Pfade: beim eigenen Server ueber HTTP, sonst beim lokalen Backend (Basis
+/// `uniflow-local://device/`, trennt auch den Zwischenspeicher von Serverdaten). Die Ansichten sehen in beiden
+/// Faellen dieselben Antworten. Unveraenderlich nach dem Anlegen und daher sicher von mehreren Threads nutzbar.
+final class APIClient: @unchecked Sendable {
+    /// Basis-URL des lokalen Backends
+    static let localBase = URL(string: "uniflow-local://device/")!
+
+    let base: URL
+    let transport: APITransport
+    /// PIN fuer eingebettete Web-Ansichten (Cookie lernapp_pin); lokal nil
+    var pinValue: String? { (transport as? HTTPTransport)?.pin }
+    /// Antworten kommen vom lokalen Backend dieses Geraets
+    var isLocal: Bool { base.scheme == DataSourceNamespace.localScheme }
+    /// Datenquelle fuer Journal und Zwischenspeicher (lokal oder dieser Server)
+    var namespace: DataSourceNamespace { DataSourceNamespace(base: base) }
+
+    /// Eigener UniFlow-Server
+    convenience init(base: URL, pin: String?) {
+        self.init(base: base, transport: HTTPTransport(pin: pin))
+    }
+
+    init(base: URL, transport: APITransport) {
+        self.base = base
+        self.transport = transport
+    }
+
+    /// Lokales Backend des Geraets
+    static func local(_ host: LocalBackendHost = .shared) -> APIClient {
+        APIClient(base: localBase, transport: LocalTransport(host: host))
+    }
+
     private func request(_ path: String, method: String, body: Data?) throws -> URLRequest {
         guard let url = URL(string: path, relativeTo: base)?.absoluteURL else {
             throw APIError(status: -1, message: "Ungültiger Pfad \(path)")
         }
         var r = URLRequest(url: url)
         r.httpMethod = method
-        if let pin, !pin.isEmpty { r.setValue("lernapp_pin=\(pin)", forHTTPHeaderField: "Cookie") }
         if let body {
             r.httpBody = body
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -51,9 +97,7 @@ final class APIClient: @unchecked Sendable {
     }
 
     func data(_ path: String, method: String = "GET", body: Data? = nil) async throws -> (Data, HTTPURLResponse) {
-        let (d, resp) = try await session.data(for: try request(path, method: method, body: body))
-        guard let http = resp as? HTTPURLResponse else { throw APIError(status: -1, message: "Keine HTTP-Antwort") }
-        return (d, http)
+        try await transport.send(try request(path, method: method, body: body))
     }
 
     func json<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
@@ -88,8 +132,7 @@ final class APIClient: @unchecked Sendable {
         var r = try request(path, method: "POST", body: nil)
         r.httpBody = body
         r.setValue("multipart/form-data; boundary=" + boundary, forHTTPHeaderField: "Content-Type")
-        let (d, resp) = try await session.data(for: r)
-        guard let http = resp as? HTTPURLResponse else { throw APIError(status: -1, message: "Keine HTTP-Antwort") }
+        let (d, http) = try await transport.send(r)
         guard (200..<300).contains(http.statusCode) else {
             throw APIError(status: http.statusCode, message: String(decoding: d.prefix(400), as: UTF8.self))
         }
@@ -123,7 +166,10 @@ struct HTTPAnnotationTransport: AnnotationTransport {
             let v = try JSONValue.parse(d)
             return .saved(version: v["version"]?.int ?? baseVersion + 1)
         case 409:
+            // Konflikt nur mit neuerem Stand; 409 ohne "version" heisst "kann hier (noch) nicht speichern" (lokales
+            // Backend vor S3): Fehler mit Meldung, die Notizen bleiben im Journal
             let v = try JSONValue.parse(d)
+            guard v["version"] != nil else { throw APIError(status: 409, message: String(decoding: d.prefix(400), as: UTF8.self)) }
             return .conflict(ServerSnapshot(version: v["version"]?.int ?? 0, root: v["data"] ?? AnnotationDocument.emptyRoot))
         default:
             throw APIError(status: http.statusCode, message: String(decoding: d.prefix(300), as: UTF8.self))

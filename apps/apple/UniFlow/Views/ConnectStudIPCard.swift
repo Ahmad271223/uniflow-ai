@@ -1,11 +1,12 @@
 import SwiftUI
 import UniFlowCore
 
-// V1 ohne PC-Server (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a): Ohne eigenen UniFlow-Server zeigt jede Seite einen
-// ehrlichen leeren Zustand mit dem Weg zu "Stud.IP verbinden" – keine Beispieldaten, keine Hinweise auf PC oder PIN.
-// Mit Server (Entwicklungsmodus des Inhabers) laden die Seiten wie bisher.
+// V1 ohne PC-Server (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a): Die Seiten laden vom lokalen Backend des iPads
+// (dieselben /api/-Pfade wie der PC-Server, docs/IPAD-OHNE-PC.md) und zeigen ihre echten, anfangs leeren Zustaende.
+// Solange Stud.IP nicht verbunden ist, steht die Karte "Stud.IP verbinden" oberhalb der Seite – keine Beispieldaten,
+// keine Hinweise auf PC oder PIN. Mit eigenem Server (Entwicklungsmodus des Inhabers) laden die Seiten wie bisher.
 // Die Entscheidung trifft nur UFDataMode.current (Weiche fuer alle Seiten) und UFNoServerContent.resolve (was der
-// leere Zustand zeigt); beide sind reine Funktionen mit Unit-Tests (NoServerStateTests).
+// leere Zustand ohne Datenquelle zeigt); beide sind reine Funktionen mit Unit-Tests (NoServerStateTests).
 
 /// Stand der Stud.IP-Verbindung aus Sicht der Oberflaeche.
 enum StudIPLink: Equatable {
@@ -31,11 +32,14 @@ enum StudIPLink: Equatable {
 enum UFDataMode: Equatable {
     /// eigener UniFlow-Server verbunden: Seite laedt wie bisher
     case server
-    /// kein Server, Stud.IP nicht verbunden: leerer Zustand mit Karte "Stud.IP verbinden"
+    /// lokales Backend des iPads (Normalfall): Seite laedt wie mit Server; solange Stud.IP nicht verbunden bzw.
+    /// abgelaufen ist, steht die Karte "Stud.IP verbinden" oberhalb der Seite
+    case local(StudIPLink)
+    /// keine Datenquelle, Stud.IP nicht verbunden: leerer Zustand mit Karte "Stud.IP verbinden"
     case connectStudIP
-    /// kein Server, Stud.IP-Anmeldung abgelaufen: leerer Zustand mit Karte "Erneut anmelden"
+    /// keine Datenquelle, Stud.IP-Anmeldung abgelaufen: leerer Zustand mit Karte "Erneut anmelden"
     case reconnectStudIP
-    /// kein Server, Stud.IP verbunden: leerer Zustand ohne Karte (das lokale Backend fuellt die Seiten spaeter)
+    /// keine Datenquelle, Stud.IP verbunden: leerer Zustand ohne Karte
     case empty
 
     static func resolve(hasServer: Bool, studIP: StudIPLink) -> UFDataMode {
@@ -47,14 +51,40 @@ enum UFDataMode: Equatable {
         }
     }
 
-    /// Die eine Weiche fuer alle Seiten (UFServerGate, Uebersicht, UFRemote, Community): Server aus der Sitzung,
+    /// mit Datenquelle: lokal oder eigener Server
+    static func resolve(api: APIClient?, studIP: StudIPLink) -> UFDataMode {
+        if let api, api.isLocal { return .local(studIP) }
+        return resolve(hasServer: api != nil, studIP: studIP)
+    }
+
+    /// Die eine Weiche fuer alle Seiten (UFServerGate, Uebersicht, UFRemote, Community): Datenquelle aus der Sitzung,
     /// Stud.IP aus dem Abgleich. Den Schluesselbund liest sie nur bei einem Abgleichfehler.
     @MainActor static func current(api: APIClient?, studip: StudIPSync) -> UFDataMode {
-        resolve(hasServer: api != nil, studIP: StudIPLink(studip.phase, hasSession: !StudIPKeychain.load().isEmpty))
+        resolve(api: api, studIP: StudIPLink(studip.phase, hasSession: !StudIPKeychain.load().isEmpty))
     }
 
     /// Karte "Stud.IP verbinden" zeigen
-    var showsConnectCard: Bool { self == .connectStudIP || self == .reconnectStudIP }
+    var showsConnectCard: Bool {
+        switch self {
+        case .connectStudIP, .reconnectStudIP: return true
+        case .local(let link): return link != .connected
+        case .server, .empty: return false
+        }
+    }
+
+    /// Karte mit "Erneut anmelden" statt "Stud.IP verbinden"
+    var studIPExpired: Bool { self == .reconnectStudIP || self == .local(.expired) }
+
+    /// Seite laedt ihre Daten (eigener Server oder lokales Backend) statt den leeren Zustand ohne Datenquelle zu zeigen
+    var loadsPages: Bool {
+        switch self {
+        case .server, .local: return true
+        case .connectStudIP, .reconnectStudIP, .empty: return false
+        }
+    }
+
+    /// Ohne PC: lokales Backend oder gar keine Datenquelle (Texte ohne Hinweis auf den PC)
+    var isOnDevice: Bool { self != .server }
 }
 
 /// Was der leere Zustand einer Seite ohne Server zeigt: Abgleichstand, Text, Knopf zu den Stud.IP-Dateien.
@@ -132,7 +162,7 @@ struct ConnectStudIPCard: View {
 
     var body: some View {
         if mode.showsConnectCard {
-            let expired = mode == .reconnectStudIP
+            let expired = mode.studIPExpired
             UFCard {
                 UFCardHead(expired ? "Stud.IP-Anmeldung abgelaufen" : "Stud.IP verbinden", icon: "graduation")
                 Text(expired
@@ -193,6 +223,8 @@ struct UFNoServerPage: View {
         var sub: String?
         let kind: Kind
         var maxWidth: CGFloat?
+        /// Seite gibt es mit dem lokalen Backend (sonst lokal der leere Zustand, z. B. QIS-Noten, KI-Wochentests)
+        var local = true
     }
 
     let spec: Spec
@@ -273,18 +305,21 @@ extension UFNoServerPage.Spec {
                               kind: .modules, maxWidth: 1480)
     static let library = Self(title: "Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.",
                               kind: .library)
+    // Wochentests sind KI (entfallen in V1), Noten kommen erst mit QIS (F4): lokal der leere Zustand
     static let exams = Self(title: "Tests & Wiederholung", sub: "Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.",
-                            kind: .exams)
+                            kind: .exams, local: false)
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
     // ohne "Notenspiegel direkt in der App": Noten kommen erst mit QIS (F4)
     static let services = Self(title: "Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort.",
-                               kind: .services, maxWidth: 1120)
+                               kind: .services, maxWidth: 1120, local: false)
     /// Rueckfall fuer Ansichten ohne eigene Angaben (UFRemote)
     static let generic = Self(title: "UniFlow", kind: .generic)
 }
 
-/// Seite nur mit eigenem UniFlow-Server laden, sonst den leeren Zustand zeigen. Die Inhaltsansicht (und ihr
-/// .task zum Laden) entsteht nur mit Server.
+/// Seite mit Datenquelle laden (eigener Server oder lokales Backend), sonst den leeren Zustand zeigen. Lokal steht
+/// die Karte "Stud.IP verbinden" oberhalb der echten Seite, solange Stud.IP nicht verbunden ist. Seiten, deren
+/// Funktion es in V1 nicht gibt (KI-Wochentests, QIS-Noten), zeigen lokal weiter den ehrlichen leeren Zustand
+/// (`Spec.local == false`).
 struct UFServerGate<Content: View>: View {
     let spec: UFNoServerPage.Spec
     @ViewBuilder var content: () -> Content
@@ -298,6 +333,43 @@ struct UFServerGate<Content: View>: View {
 
     var body: some View {
         let mode = UFDataMode.current(api: session.api, studip: studip)
-        if mode == .server { content() } else { UFNoServerPage(spec: spec, mode: mode) }
+        switch UFGatePresentation.resolve(spec: spec, mode: mode) {
+        case .page: content()
+        case .pageBelowConnectCard: UFConnectCardAbove(mode: mode, maxWidth: spec.maxWidth) { content() }
+        case .empty: UFNoServerPage(spec: spec, mode: mode)
+        }
+    }
+}
+
+/// Was UFServerGate zeigt (reine Funktion, LocalBackendAppTests)
+enum UFGatePresentation: Equatable {
+    case page, pageBelowConnectCard, empty
+
+    static func resolve(spec: UFNoServerPage.Spec, mode: UFDataMode) -> UFGatePresentation {
+        guard mode.loadsPages else { return .empty }
+        if case .local = mode {
+            guard spec.local else { return .empty }
+            return mode.showsConnectCard ? .pageBelowConnectCard : .page
+        }
+        return .page
+    }
+}
+
+/// Karte "Stud.IP verbinden" als Leiste oberhalb einer Seite (lokaler Modus), in der Breite des Seiteninhalts.
+struct UFConnectCardAbove<Content: View>: View {
+    let mode: UFDataMode
+    var maxWidth: CGFloat?
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Abstaende und Breite wie UFContent (padding 1.4rem 1.6rem, max. 1480 px bzw. die der Seite)
+            ConnectStudIPCard(mode: mode)
+                .padding(EdgeInsets(top: 22.4, leading: 25.6, bottom: 0, trailing: 25.6))
+                .frame(maxWidth: maxWidth ?? 1480, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            content()
+        }
+        .background(UF.bg)
     }
 }

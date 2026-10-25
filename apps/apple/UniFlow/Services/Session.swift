@@ -1,32 +1,63 @@
 import Foundation
 import Security
 
-/// Verbindung zum eigenen UniFlow-Server (nur Entwicklung, Einstellungen -> Entwicklung):
-/// Adresse in UserDefaults, PIN im Schluesselbund. Ohne Verbindung bleibt `api` nil und die App laeuft trotzdem.
+/// Woher die Daten kommen: lokales Backend des Geraets (Standard, App Store) oder der eigene UniFlow-Server
+/// (nur Entwicklung, Einstellungen -> Entwicklung, nur in Debug-Builds).
+enum BackendMode: String {
+    case local
+    case ownServer
+}
+
+/// Datenquelle der App. Im lokalen Modus ist `api` immer gesetzt (lokales Backend, `uniflow-local://device/`);
+/// mit eigenem Server: Adresse in UserDefaults, PIN im Schluesselbund. Im Release-Build gibt es nur den lokalen Modus.
 @MainActor
 final class Session: ObservableObject {
+    @Published private(set) var mode: BackendMode = .local
     @Published private(set) var api: APIClient?
     @Published var lastError: String?
     @Published var connecting = false
 
-    private let urlKey = "uniflow.serverURL"
+    nonisolated static let urlKey = "uniflow.serverURL"
+    nonisolated static let modeKey = "uniflow.backendMode"
+    private let defaults: UserDefaults
+    private let localAPI: APIClient
 
-    init() {
+    /// Ist der eigene Server in diesem Build erreichbar? (Release: nie)
+    static var ownServerAvailable: Bool {
         #if DEBUG
-        // -UFNoServer YES: wie ein App-Store-Nutzer ohne Server starten, die gespeicherte Verbindung bleibt erhalten
-        if UserDefaults.standard.bool(forKey: "UFNoServer") { return }
+        return true
+        #else
+        return false
         #endif
-        if let s = UserDefaults.standard.string(forKey: urlKey), let url = URL(string: s),
-           let pin = Keychain.get("uniflow.pin") {
+    }
+
+    init(local: APIClient = .local(), defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        self.localAPI = local
+        api = local
+        #if DEBUG
+        // -UFNoServer YES: wie ein App-Store-Nutzer lokal starten, die gespeicherte Verbindung bleibt erhalten
+        if defaults.bool(forKey: "UFNoServer") { return }
+        // eigener Server nur, wenn er zuletzt gewaehlt war (aeltere Builds kannten keinen Modus: Adresse + PIN genuegen)
+        let saved = defaults.string(forKey: Self.modeKey).flatMap(BackendMode.init(rawValue:))
+        if saved != .local, let s = defaults.string(forKey: Self.urlKey), let url = URL(string: s), let pin = Keychain.get("uniflow.pin") {
             api = APIClient(base: url, pin: pin)
+            mode = .ownServer
         }
+        #endif
     }
 
     /// zuletzt verwendete oder per -UFServerHint vorgetragene Adresse; leer, wenn noch keine bekannt ist
-    var savedURL: String { UserDefaults.standard.string(forKey: urlKey) ?? "" }
+    var savedURL: String { defaults.string(forKey: Self.urlKey) ?? "" }
+
+    var isOwnServer: Bool { mode == .ownServer }
 
     func connect(urlString: String, pin: String) async {
         lastError = nil
+        guard Self.ownServerAvailable else {
+            lastError = "Der eigene UniFlow-Server ist nur in Entwicklungsversionen verfügbar."
+            return
+        }
         connecting = true
         defer { connecting = false }
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -39,9 +70,11 @@ final class Session: ObservableObject {
             let (_, response) = try await client.data("/api/settings")
             switch response.statusCode {
             case 200..<300:
-                UserDefaults.standard.set(url.absoluteString, forKey: urlKey)
+                defaults.set(url.absoluteString, forKey: Self.urlKey)
+                defaults.set(BackendMode.ownServer.rawValue, forKey: Self.modeKey)
                 Keychain.set(pin, for: "uniflow.pin")
                 api = client
+                mode = .ownServer
             case 401: lastError = "PIN ist falsch."
             case 429: lastError = "Zu viele falsche PIN-Eingaben. Bitte 10 Minuten warten."
             default: lastError = "Server antwortet mit Status \(response.statusCode)."
@@ -51,8 +84,11 @@ final class Session: ObservableObject {
         }
     }
 
+    /// Zurueck zum lokalen Backend (PIN geloescht, Adresse bleibt als Vorschlag)
     func disconnect() {
-        api = nil
+        api = localAPI
+        mode = .local
+        defaults.set(BackendMode.local.rawValue, forKey: Self.modeKey)
         Keychain.delete("uniflow.pin")
     }
 }
@@ -60,7 +96,7 @@ final class Session: ObservableObject {
 /// Nur Debug-Builds: Startargumente fuer Simulator und UI-Vergleiche.
 ///   -UFServer http://localhost:8765   verbindet ohne PIN (nur fuer einen lokalen Testserver, der keine PIN verlangt)
 ///   -UFDisconnect YES -UFServerHint <url>   trennt die Verbindung und traegt die Adresse vor; die PIN gibt der Inhaber ein
-///   -UFNoServer YES                   startet ohne Server (wie im App Store), ohne die gespeicherte PIN zu loeschen
+///   -UFNoServer YES                   startet lokal (wie im App Store), ohne die gespeicherte PIN zu loeschen
 ///                                     (Einstellungen -> Entwicklung -> Mit eigenem UniFlow-Server verbinden).
 ///                                     -UFServer wird dann nicht verbunden, -UFRoute/-UFAction gelten weiter, z. B.
 ///                                     -UFDisconnect YES -UFRoute "#/settings?tab=dev" zeigt das Verbindungsformular.
@@ -110,7 +146,7 @@ enum DebugLaunch {
             session.disconnect()
             if let hint = d.string(forKey: "UFServerHint") { d.set(hint, forKey: "uniflow.serverURL") }
         }
-        if !disconnect, let server = d.string(forKey: "UFServer"), session.api?.base.absoluteString != server {
+        if !disconnect, !d.bool(forKey: "UFNoServer"), let server = d.string(forKey: "UFServer"), session.api?.base.absoluteString != server {
             await session.connect(urlString: server, pin: "")
         }
         if let route = d.string(forKey: "UFRoute") { router.go(hash: route) }

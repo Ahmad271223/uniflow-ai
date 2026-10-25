@@ -16,7 +16,7 @@ struct CommunityPage: View {
             UFCard {
                 // span.badge steht in einer Textzeile (Zeilenhoehe 1.5)
                 UFBadge("Vorbereitet, noch nicht verbunden", tone: .warn, icon: "info").frame(height: 14.5 * 1.5)
-                Text(mode != .server
+                Text(mode.isOnDevice
                      ? "Eine Community braucht einen gemeinsamen Dienst mit Anmeldung, Moderation und Freigabe-Regeln. Es werden keine Inhalte geteilt, nichts verlässt dieses iPad."
                      : "Diese Installation läuft nur für dich auf deinem PC. Eine Community braucht einen gemeinsamen Server mit Anmeldung, Moderation und Freigabe-Regeln. Es werden keine Inhalte geteilt, nichts verlässt deinen Rechner.")
                     .ufFont(14.5).foregroundStyle(UF.text)

@@ -10,10 +10,42 @@ enum AppPaths {
     static var support: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("UniFlow", isDirectory: true)
     }
-    /// Journal aller Dokumente (Seiten, Revisionen, Basis fuer Konflikte).
+    /// Journal aller Dokumente (Seiten, Revisionen, Basis fuer Konflikte), darin je Datenquelle `spaces/<id>/docs`.
     static var journal: URL { support.appendingPathComponent("journal", isDirectory: true) }
-    static func pdf(_ fileID: String) -> URL {
-        support.appendingPathComponent("pdf", isDirectory: true).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf")
+    /// Zwischenspeicher der Original-PDFs je Datenquelle (Datei-IDs von lokal und Server koennen gleich sein)
+    static func pdf(_ fileID: String, namespace: DataSourceNamespace) -> URL {
+        pdfDirectory(namespace, root: support).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf")
+    }
+
+    static func pdfDirectory(_ namespace: DataSourceNamespace, root: URL) -> URL {
+        root.appendingPathComponent("sources", isDirectory: true).appendingPathComponent(namespace.id, isDirectory: true)
+            .appendingPathComponent("pdf", isDirectory: true)
+    }
+}
+
+/// Einmaliger Umzug in die Namensraeume je Datenquelle (S2): Journale und PDF-Zwischenspeicher aus der Zeit vor dem
+/// lokalen Backend gehoeren zum eigenen Server, mit dem sie entstanden sind (zuletzt gespeicherte Adresse). Laeuft
+/// beim Start vor dem ersten Dokument; ein zweiter Lauf tut nichts. Nichts wird geloescht oder ueberschrieben.
+enum DataSourceMigration {
+    /// Eigentuemer der alten Daten: der gespeicherte Server, ohne Adresse der allgemeine Server-Namensraum
+    static func legacyOwner(savedServerURL: String?) -> DataSourceNamespace {
+        if let s = savedServerURL, let url = URL(string: s), url.host != nil { return DataSourceNamespace(base: url) }
+        return .server(host: nil, port: nil)
+    }
+
+    @discardableResult
+    static func run(support: URL = AppPaths.support, savedServerURL: String? = UserDefaults.standard.string(forKey: Session.urlKey))
+        -> (journal: JournalNamespaceMigration.Report, pdf: JournalNamespaceMigration.Report)? {
+        let owner = legacyOwner(savedServerURL: savedServerURL)
+        do {
+            let journal = try JournalNamespaceMigration.run(root: support.appendingPathComponent("journal", isDirectory: true), owner: owner)
+            let pdf = try JournalNamespaceMigration.moveEntries(from: support.appendingPathComponent("pdf", isDirectory: true),
+                                                                to: AppPaths.pdfDirectory(owner, root: support))
+            return (journal, pdf)
+        } catch {
+            // nichts verloren: was nicht umzog, liegt am alten Ort; der naechste Start versucht es erneut
+            return nil
+        }
     }
 }
 
@@ -129,6 +161,8 @@ final class DocumentStore: ObservableObject {
     var pdf: PDFDocument? { layout?.pdf }
 
     let file: LibFile
+    /// Datenquelle (lokal oder Server-Host): bestimmt Journal und PDF-Zwischenspeicher, aendert sich nie
+    let namespace: DataSourceNamespace
     private var api: APIClient
     private let transport: SwitchableAnnotationTransport
     private let engine: SyncEngine
@@ -157,9 +191,10 @@ final class DocumentStore: ObservableObject {
     init(file: LibFile, api: APIClient) {
         self.file = file
         self.api = api
+        self.namespace = api.namespace
         let transport = SwitchableAnnotationTransport(api: api)
         self.transport = transport
-        let journal = LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: file.id)
+        let journal = LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: file.id, namespace: api.namespace)
         self.engine = SyncEngine(documentID: file.id, transport: transport, journal: journal)
     }
 
@@ -169,7 +204,7 @@ final class DocumentStore: ObservableObject {
         guard !loadStarted else { return }          // .task laeuft bei jedem Erscheinen erneut (z. B. Tabwechsel)
         loadStarted = true
         do {
-            let url = AppPaths.pdf(file.id)
+            let url = AppPaths.pdf(file.id, namespace: namespace)
             if !FileManager.default.fileExists(atPath: url.path) {
                 let (data, http) = try await api.data("/api/files/\(file.id)/content")
                 guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
@@ -327,7 +362,9 @@ final class DocumentStore: ObservableObject {
     /// Neue Verbindung (z. B. korrigierte PIN, neuer `Session.api`): Laden und Speichern laufen ab sofort darueber,
     /// danach wird sofort erneut versucht.
     func updateAPI(_ api: APIClient) async {
-        guard api !== self.api else { return }
+        // andere Datenquelle (Wechsel lokal <-> Server): nie gegen deren Stand hochladen; das Dokument bleibt bei
+        // seiner Quelle, die Ansicht oeffnet es fuer die neue Quelle neu
+        guard api !== self.api, api.namespace == namespace else { return }
         self.api = api
         transport.use(api)
         await engine.requestUpload()
