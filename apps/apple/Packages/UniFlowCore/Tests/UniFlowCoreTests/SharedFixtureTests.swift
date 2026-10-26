@@ -36,6 +36,36 @@ final class SharedFixtureTests: XCTestCase {
         }
     }
 
+    /// `documentCases`: dieselben 18 Faelle wie Web (tests/test_merge_contract.py) und Kotlin
+    /// (SharedFixtureTest.documentCasesMatchOtherPlatforms) fuer `mergeDocument`
+    func testDocumentCasesMatchOtherPlatforms() throws {
+        let fixture = try JSONValue.parse(repoFile("packages/shared-contracts/fixtures/merge/cases.json"))
+        let cases = fixture["documentCases"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 15)
+        XCTAssertTrue(cases.contains { $0["expectOrderConflict"] == true }, "mindestens ein sichtbarer Reihenfolge-Konflikt")
+        func doc(_ v: JSONValue?) -> JSONValue? { (v == nil || v == .null) ? nil : v }
+        for c in cases {
+            let name = c["name"]?.string ?? "?"
+            let r = AnnotationMerge.mergeDocument(base: doc(c["base"]), local: doc(c["local"]), server: doc(c["server"]))
+            let order = r.doc["pageOrder"]?.array?.compactMap(AnnotationMerge.keyOf) ?? []
+            XCTAssertEqual(order, c["expectOrder"]?.array?.compactMap(\.string) ?? [], name)
+            XCTAssertEqual(r.doc["deletedPages"]?.array?.compactMap(AnnotationMerge.keyOf) ?? [], c["expectTrash"]?.array?.compactMap(\.string) ?? [], name)
+            XCTAssertEqual(r.conflicts, c["expectConflicts"]?.int, name)
+            XCTAssertEqual(r.orderConflict, c["expectOrderConflict"]?.bool, name)
+            let pages = r.doc["pages"]?.object ?? [:]
+            XCTAssertTrue(order.allSatisfy { pages[$0] != nil }, "\(name): jede Seite der Reihenfolge hat Inhalt")
+            for (k, ids) in c["expectPageIds"]?.object ?? [:] {
+                XCTAssertEqual(pages[k]?["objects"]?.array?.map { $0["id"] ?? .null }, ids.array, "\(name): \(k)")
+            }
+            if let e = c["expectEntry"], let key = e["key"]?.string, let field = e["field"]?.string {
+                let entry = r.doc["pageOrder"]?.array?.first { AnnotationMerge.keyOf($0) == key }
+                XCTAssertEqual(entry?[field], e["value"], name)
+            }
+            if let note = c["expectNote"] { XCTAssertEqual(r.doc["note"], note, name) }
+            if let bm = c["expectBookmarks"] { XCTAssertEqual(r.doc["bookmarks"], bm, name) }
+        }
+    }
+
     func testWebEditorDocumentFixture() throws {
         let doc = AnnotationDocument(root: try JSONValue.parse(repoFile("packages/shared-contracts/fixtures/documents/web-editor.json")))
         XCTAssertEqual(doc.pageKey(forPDFIndex: 1), "p1")

@@ -274,6 +274,42 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(box.keys, ["p2"])
     }
 
+    /// Vertrag mergeDocument: beide Geraete sortieren die Seiten verschieden um -> die Reihenfolge dieses Geraets
+    /// gilt, die Oberflaeche erfaehrt es (`SyncIssue.seitenreihenfolge`), "Verstanden" raeumt den Hinweis weg
+    func testBothDevicesReorderingPagesIsShownAsOrderConflict() async {
+        let server = MockServer()
+        let engine = makeEngine(server, MemoryBlobStore())
+        let opened = await engine.open(pdfPageCount: 3)
+        func order(_ keys: [String]) -> JSONValue {
+            .array(keys.map { k in opened.document.pageOrder.first { $0["key"]?.string == k } ?? ["key": .string(k)] })
+        }
+        var meta = opened.document.rootMeta
+        meta["pageOrder"] = order(["p3", "p1", "p2"])
+        await server.externalEdit { $0.root["pageOrder"] = order(["p2", "p1", "p3"]) }   // Browser sortiert anders
+        await engine.updateRootMeta(meta)
+        await engine.syncNow()
+        let issue = await engine.issue
+        XCTAssertEqual(issue, .seitenreihenfolge)
+        let keys = await engine.currentDocument().pageOrder.compactMap { $0["key"]?.string }
+        XCTAssertEqual(keys, ["p3", "p1", "p2"], "dieses Geraet gewinnt")
+        let serverKeys = AnnotationDocument(root: await server.root).pageOrder.compactMap { $0["key"]?.string }
+        XCTAssertEqual(serverKeys, ["p3", "p1", "p2"])
+        await engine.acknowledgeMergedConflicts()
+        let after = await engine.issue
+        XCTAssertNil(after)
+
+        // nur ein Geraet sortiert um: kein Hinweis, die andere Seite bekommt die Reihenfolge
+        let b = makeEngine(server, MemoryBlobStore())
+        _ = await b.open(pdfPageCount: 3)
+        await server.externalEdit { $0.root["pageOrder"] = order(["p1", "p2", "p3"]) }
+        await b.updatePage("p1", page(["b"]))
+        await b.syncNow()
+        let issueB = await b.issue
+        XCTAssertNil(issueB)
+        let keysB = await b.currentDocument().pageOrder.compactMap { $0["key"]?.string }
+        XCTAssertEqual(keysB, ["p1", "p2", "p3"])
+    }
+
     /// Nur die Wurzel auf dem Server geaendert (Seitenliste und Herkunftsstempel einer neuen Original-Fassung): auch
     /// das wird gemeldet, mit leerer Liste, damit der Editor den Stempel prueft (vorher erfuhr er davon nichts)
     func testRootOnlyChangeIsReported() async {

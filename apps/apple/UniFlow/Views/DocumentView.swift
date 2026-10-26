@@ -1177,6 +1177,9 @@ struct SyncIssueBadge: View {
             Menu {
                 if case .konflikteZusammengefuehrt = issue {
                     Button("Verstanden") { Task { await store.acknowledgeSyncNotice() } }
+                } else if case .seitenreihenfolge = issue {
+                    // Vertrag mergeDocument: beide Geraete haben umsortiert, die Reihenfolge dieses Geraets gilt
+                    Button("Verstanden") { Task { await store.acknowledgeSyncNotice() } }
                 } else {
                     Button("Erneut versuchen") { Task { await store.retrySync() } }
                 }

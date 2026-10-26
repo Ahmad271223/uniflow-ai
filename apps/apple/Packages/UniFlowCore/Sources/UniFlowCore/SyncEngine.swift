@@ -79,6 +79,9 @@ public enum SyncIssue: Equatable, Sendable {
     case serverfehler(Int)
     /// Bei der Zusammenfuehrung mit dem Server mussten so viele Objekte entschieden werden.
     case konflikteZusammengefuehrt(Int)
+    /// Beide Geraete haben die Seiten verschieden umsortiert; die Reihenfolge dieses Geraets gilt (Vertrag
+    /// `mergeDocument`, Web: gleicher Status). Zaehlt auch in `konflikteZusammengefuehrt`.
+    case seitenreihenfolge
     /// 409 ohne neueren Stand: Die Datenquelle kann nicht speichern, z. B. das lokale Backend fuer ein Dokument, das
     /// es in seiner Datenbank nicht gibt. Keine
     /// automatische Wiederholung; die Meldung kommt aus "detail".
@@ -110,6 +113,7 @@ public enum SyncIssue: Equatable, Sendable {
         case .zugriffVerweigert: return "Zugriff verweigert – Änderungen sind lokal gesichert"
         case .serverfehler(let code): return "Serverfehler (\(code)) – neuer Versuch folgt"
         case .konflikteZusammengefuehrt(let n): return n == 1 ? "1 Konflikt zusammengeführt" : "\(n) Konflikte zusammengeführt"
+        case .seitenreihenfolge: return "Seitenreihenfolge auf beiden Geräten geändert – die Reihenfolge dieses Geräts gilt"
         case .nichtVerfuegbar(let m): return m
         }
     }
@@ -177,6 +181,7 @@ public actor SyncEngine {
     private var serverRetryScheduled = false              // Wiederholung nach 5xx steht aus (nicht verkuerzen)
     private var scheduleToken = 0
     private var mergedConflictCount = 0
+    private var orderConflict = false                     // Seitenreihenfolge auf beiden Geraeten geaendert (bis "Verstanden")
     private var debounceTask: Task<Void, Never>?
     private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     private var unresolvedConflict: String?
@@ -215,6 +220,7 @@ public actor SyncEngine {
     /// Hinweis "Konflikte zusammengefuehrt" gesehen: zuruecksetzen.
     public func acknowledgeMergedConflicts() {
         mergedConflictCount = 0
+        orderConflict = false
         refreshStatus()
     }
 
@@ -533,6 +539,17 @@ public actor SyncEngine {
         let doc = AnnotationDocument(root: server.root)
         let serverPages = doc.pages
         let metaBefore = rootMeta
+        // Stand dieses Geraets und Basis vor dem Seitenabgleich: `mergeRootMeta` entscheidet damit, welche Seiten in
+        // der Reihenfolge bleiben (geloescht gegen unveraendert -> weg, gegen geaendert -> bleibt)
+        var localPages: [String: JSONValue] = [:], basePages: [String: JSONValue] = [:]
+        for (key, p) in pages {
+            localPages[key] = p.page
+            if isDirty(key) {
+                if let b = bases[key], b != .null { basePages[key] = b }
+            } else {
+                basePages[key] = p.page                                // unveraendert: Basis = dieser Stand
+            }
+        }
         var changed: [String] = []
         var conflicts = 0
         for key in Set(pages.keys).union(serverPages.keys) {
@@ -582,8 +599,15 @@ public actor SyncEngine {
             rootMeta = serverMeta
             baseRootMeta = nil
         } else {
-            let (m, c) = AnnotationMerge.mergeRootMeta(base: baseRootMeta ?? rootMeta, local: rootMeta, server: serverMeta)
+            func withPages(_ meta: JSONValue, _ p: [String: JSONValue]) -> JSONValue {
+                var o = meta.object ?? [:]
+                o["pages"] = .object(p)
+                return .object(o)
+            }
+            let (m, c, order) = AnnotationMerge.mergeRootMeta(base: withPages(baseRootMeta ?? rootMeta, basePages),
+                                                              local: withPages(rootMeta, localPages), server: server.root)
             conflicts += c
+            if order { orderConflict = true }
             rootMeta = m
             metaRev += 1
             if m == serverMeta { metaAckedRev = metaRev; baseRootMeta = nil } else { baseRootMeta = serverMeta }
@@ -645,6 +669,7 @@ public actor SyncEngine {
         if let blockedBy { nextIssue = blockedBy }
         else if let code = serverErrorStatus { nextIssue = .serverfehler(code) }
         else if networkDown { nextIssue = .offline }
+        else if orderConflict { nextIssue = .seitenreihenfolge }
         else if mergedConflictCount > 0 { nextIssue = .konflikteZusammengefuehrt(mergedConflictCount) }
         else { nextIssue = nil }
         if nextIssue != issue {
