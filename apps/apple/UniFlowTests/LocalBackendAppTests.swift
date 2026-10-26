@@ -65,13 +65,21 @@ final class LocalBackendAppTests: XCTestCase {
             XCTAssertEqual(e.status, 404)
             XCTAssertEqual(e.errorDescription, "Datei nicht lokal vorhanden")
         }
+        // seit S6 legt das iPad Lernpakete selbst an; was es nicht gibt (Wochentests mit KI), meldet es klar
         do {
-            _ = try await api.value("/api/packages", method: "POST", body: ["date": "2026-10-26"])
-            XCTFail("409 erwartet")
+            _ = try await api.value("/api/tasks/1/start-test", method: "POST")
+            XCTFail("404 erwartet")
         } catch let e as APIError {
-            XCTAssertEqual(e.status, 409)
-            XCTAssertEqual(e.errorDescription, "Lernpakete anlegen geht auf diesem iPad noch nicht.")
+            XCTAssertEqual(e.status, 404)
+            XCTAssertEqual(e.errorDescription, "Wochentests gibt es in dieser Version nicht.")
             XCTAssertEqual(e.httpDetail, e.errorDescription)
+        }
+        do {
+            _ = try await api.value("/api/packages", method: "POST", body: ["date": "morgen"])
+            XCTFail("422 erwartet")
+        } catch let e as APIError {
+            XCTAssertEqual(e.status, 422)
+            XCTAssertEqual(e.errorDescription, "Ungültiges Datum in date: morgen")
         }
         do {
             _ = try await api.value("/api/ai/tutor", method: "POST", body: [:])
