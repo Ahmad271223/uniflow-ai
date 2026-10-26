@@ -1,6 +1,6 @@
-# Verträge G1 (UniFlow-Konto) und G2 (Geräte-Synchronisierung) – Python-Referenz, Stand 26.10.2026
+# Verträge G1 (UniFlow-Konto), G2 (Geräte-Synchronisierung) und G4 (Community) – Python-Referenz, Stand 26.10.2026
 
-Beide Verträge sind in Python umgesetzt und mit Fixtures festgehalten; Swift (iPad/Mac) und Kotlin (Android) bauen
+Die drei Verträge sind in Python umgesetzt und mit Fixtures festgehalten; Swift (iPad/Mac) und Kotlin (Android) bauen
 ihre Clients danach und prüfen gegen dieselben Dateien:
 
 - G1: `packages/shared-contracts/fixtures/account/contract.json` (Regeln, Prüf-Fälle, alle Endpunkte mit
@@ -8,6 +8,9 @@ ihre Clients danach und prüfen gegen dieselben Dateien:
   erzeugt mit `tools/gen-account-fixture.py`.
 - G2: `packages/shared-contracts/fixtures/sync/cases.json` (Regeln, fünf Fälle mit Push-Eingaben und erwarteten
   Antworten). Referenz `app/sync.py`, erzeugt mit `tools/gen-sync-fixture.py`.
+- G4: `packages/shared-contracts/fixtures/community/contract.json` (Regeln, Paket-Prüffälle, Fehlercodes, kompletter
+  Ablauf mit Anfrage und Antwort). Referenz `app/community.py`, `app/community_api.py`, erzeugt mit
+  `tools/gen-community-fixture.py`; Paketformat in `docs/LOESUNGEN-TEILEN.md`.
 - Dazu umgesetzt: G5 Download-Reihenfolge (`studip_sync.store_course_files`, `tests/test_rules_g5_g6.py`) und G6
   „kein Erfolg ohne Wirkung“ (404 statt `ok`/`null` bei unbekannter ID, 501 mit Grund für nicht verfügbare Pfade).
 
@@ -119,9 +122,53 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   - `settings`: `local_id` = Schlüssel, `data.value`; private Schlüssel → `ignored`.
 - Beide Endpunkte gibt es auch im Einzelplatzmodus (iPad ↔ PC im WLAN); im Dienst gelten sie je Konto.
 
+## G4 Community
+
+- **Nur gehostet** und nur mit Tarif Plus (`users.plan = plus`, optional `plan_until`; heute per `python -m
+  app.accounts plan <email> plus [bis]`, später aus den Store-Käufen), sonst 403 `plan_required`; im Einzelplatzmodus
+  501 `not_hosted`. Sitzung wie bei G1 (Bearer oder Cookie).
+- **Berechtigung „Datei aus dem eigenen Hochschul-Abgleich“**: Veröffentlichen, Suchen und Laden nur, wenn in der
+  Datenbank des Kontos eine Datei mit `content_sha256 = Fingerabdruck` liegt, die aus dem Abgleich stammt
+  (`course_id ≠ __user__`, `download_url` gesetzt, nicht gelöscht); sonst 403 `file_not_owned`. Treffer gibt es nur
+  innerhalb derselben Hochschule. Das ersetzt nicht den Beleg der Kursmitgliedschaft durch die Hochschule
+  (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7), beschränkt die Community aber auf Dateien, die das Konto selbst über
+  Stud.IP oder Learnweb bekommen hat – wer die PDF nicht hat, kann das Paket ohnehin nicht öffnen.
+- **Paket**: der Dienst speichert das Paket `uniflow-solution` Version 1 unverändert
+  (`community/<solutionId>.uniflowsolution` neben den Nutzerordnern) und prüft nur Form und Kopf wie
+  `SolutionPackage.decode`: genaue Feldmengen, UUID, Datum, `document.sha256` 64 Hex, `pages` 1…2000 (0 = „ohne eigene
+  Notizen“), `plaintextBytes` = Chiffrat − 16, Salz 32 B, Nonce 12 B, Grenze rund 65 MB (413 `too_large`); Fehlercodes
+  `not_a_solution`, `unsupported_version`, `package_invalid`. Er entschlüsselt nie (Schlüssel aus der Original-PDF).
+- **Pseudonym** `Studi-<8 hex>` = HMAC-SHA256(Dienst-Geheimnis, Konto-ID), stabil je Konto; Antworten enthalten nie
+  Konto-ID oder E-Mail.
+- **Ablage** `community.db` (`solutions`, `reports`, `blocks`, `bans`), Status `active | withdrawn | hidden |
+  removed`. Erneutes Veröffentlichen derselben `solutionId` durch den Autor aktualisiert (`republished: true`, Titel
+  bleibt ohne neuen), durch ein anderes Konto 409 `solution_exists`; verborgene oder entfernte Lösungen nimmt der
+  Dienst nicht erneut an (403 `solution_blocked`). Zurückziehen löscht die Paketdatei; `mine` zeigt sie weiter als
+  `withdrawn`.
+- **Melden**: Grund aus `foreignMaterial | gradedSubmission | offensive | spam | other`, Notiz bis 500 Zeichen, eine
+  Meldung je Konto und Lösung (409 `already_reported`), eigene Lösung 400 `own_solution`; ab 3 Meldungen verschiedener
+  Konten `hidden`, bis die Moderation entscheidet. **Sperren** (App-Store-Richtlinie 1.2): `block` blendet alle
+  Lösungen des Pseudonyms für dieses Konto aus, `unblock` hebt es auf. **Moderation** (`users.role = admin`,
+  `python -m app.accounts role <email> admin`): Warteschlange (gemeldet, verborgen, entfernt – mit Gründen), Aktionen
+  `hide | restore | remove | ban_author | unban_author`; `restore` löscht die Meldungen, `remove` und `ban_author`
+  löschen die Paketdateien, `ban_author` nimmt alle Lösungen des Autors aus der Suche und verhindert weiteres
+  Veröffentlichen (403 `author_banned`).
+- **Endpunkte**: `GET /api/community/info` → Regeln, eigenes Pseudonym, `plan_ok`, `admin`; `POST
+  /api/community/solutions {package, title?}` → 201 `{solution_id, published_at, pseudonym, republished}`; `GET
+  /api/community/solutions?fingerprint=<sha256>` → `{solutions: [Kopfdaten mit pseudonym, mine, reported_by_me,
+  downloads]}` (nur `active`, ohne gesperrte und verbannte Autoren); `GET /api/community/solutions/{id}` → `{package,
+  solution}` (zählt `downloads`, außer bei der eigenen); `DELETE /api/community/solutions/{id}` → `{withdrawn,
+  already}` (403 `not_owner`); `GET /api/community/mine`; `POST …/{id}/report {reason, note}` → `{reported, hidden,
+  reports}`; `POST …/{id}/block` → `{blocked}`; `DELETE /api/community/blocks/{pseudonym}`; `GET
+  /api/community/blocks`; `GET /api/community/moderation`; `POST …/{id}/moderate {action, reason?}`.
+- **Web**: die Seite „Community“ zeigt im Dienst die eigenen Veröffentlichungen (zurückziehen), gesperrte Autoren
+  (aufheben) und für Admins die Moderation; am PC erklärt sie, dass die Community nur im Dienst läuft. Veröffentlichen,
+  suchen, laden, melden und sperren macht der iPad-Client im Editor (M15).
+
 ## Noch offen (nächste Schritte der PC-Sitzung)
 
 - Mailversand für Reset und E-Mail-Bestätigung (`email_verified`).
 - Apple-/Google-Signaturprüfung, sobald Team-ID/Client-ID vorliegen.
 - Web-Oberfläche: Anmeldeseite für den gehosteten Modus (heute nur API; der PC-Modus braucht keine).
-- Sync für eigene Dokumente mit Inhalt; Abo-Prüfung serverseitig (StoreKit/Play) am Konto.
+- Sync für eigene Dokumente mit Inhalt; Abo-Prüfung serverseitig (StoreKit/Play) am Konto (setzt dann `plan`).
+- Community: Betrieb und Nutzungsbedingungen (Inhaber), Löschfristen, Beleg der Kursmitgliedschaft durch die Hochschule.

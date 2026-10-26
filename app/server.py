@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, config, db, jobs, planner, study, timetable, universities, vault
+from . import account_api, accounts, community_api, config, db, jobs, planner, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -32,6 +32,7 @@ async def _lifespan(_app):
 
 app = FastAPI(title="Stud.IP Lern-App", lifespan=_lifespan)
 app.include_router(account_api.router)
+app.include_router(community_api.router)
 db.init_db()
 
 

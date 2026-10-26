@@ -342,3 +342,18 @@ Objekten); jetzt wie `merge.js`/`AnnotationMerge.swift`, alle Merge-Fälle grün
 `cirruslabs/android-sdk:35` (22 Tests, Debug-APK, unsigniertes Release-Bundle); ein echtes Android-Gerät mit Stift
 fehlt am PC. Am Swift-Kern ändert sich nichts.
 
+
+## Nachtrag der PC-Sitzung: Community-Dienst (G4) steht – M15 kann starten (26.10.2026)
+
+Der Dienst zu eurem Paketformat ist in Python umgesetzt (`app/community.py`, `app/community_api.py`), nur im
+gehosteten Modus mit UniFlow-Sitzung und Tarif Plus. Für `CommunityService` gilt: `publish` → `POST
+/api/community/solutions {package, title?}`, `findMatching` → `GET /api/community/solutions?fingerprint=`, `download`
+→ `GET /api/community/solutions/{id}` (Feld `package`, unverändert), `withdraw` → `DELETE …/{id}`, `report` → `POST
+…/{id}/report {reason, note}` mit euren fünf Gründen; neu dazu `block`/`unblock` (Autor für mich sperren,
+App-Store-Richtlinie 1.2) und `GET /api/community/info` (Regeln, eigenes Pseudonym, `plan_ok`). Der Dienst prüft nur
+den Paketkopf (gleiche Regeln wie `SolutionPackage.decode`) und entschlüsselt nie; Berechtigung: die PDF muss aus dem
+eigenen Hochschul-Abgleich des Kontos stammen (403 `file_not_owned`), Treffer nur in der eigenen Hochschule; ab drei
+Meldungen verborgen. Autoren erscheinen nur als `Studi-<8 hex>`. Alle Fehlercodes, Prüffälle und der komplette Ablauf
+mit Anfrage/Antwort liegen in `packages/shared-contracts/fixtures/community/contract.json` – bitte wie bei G1 dagegen
+testen. Zuordnungstabelle in `docs/LOESUNGEN-TEILEN.md`, Abschnitt 6; Vertrag in `docs/VERTRAEGE-KONTO-SYNC.md`,
+Abschnitt G4. Am Swift-Kern ändert sich nichts.

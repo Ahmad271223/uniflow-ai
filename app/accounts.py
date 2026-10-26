@@ -429,6 +429,29 @@ def purge_deleted(days: int = 30) -> int:
     return n
 
 
+def set_plan(user_id: str, plan: str, until: str | None = None) -> dict:
+    """Tarif setzen (free | plus); spaeter aus den Store-Kaeufen, heute ueber die Kommandozeile."""
+    if plan not in ("free", "plus"):
+        raise AccountError("plan_invalid", "Unbekannter Tarif.")
+    with cursor() as conn:
+        conn.execute("UPDATE users SET plan=?, plan_until=? WHERE id=?", (plan, until, user_id))
+        return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
+
+
+def set_role(user_id: str, role: str) -> dict:
+    if role not in ("user", "admin"):
+        raise AccountError("role_invalid", "Unbekannte Rolle.")
+    with cursor() as conn:
+        conn.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
+        return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
+
+
+def user_by_email(email: str) -> dict | None:
+    with cursor() as conn:
+        u = conn.execute("SELECT * FROM users WHERE email=?", (normalize_email(email),)).fetchone()
+        return _public(u) if u else None
+
+
 def get_user(user_id: str) -> dict | None:
     with cursor() as conn:
         u = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
@@ -438,8 +461,16 @@ def get_user(user_id: str) -> dict | None:
 # ---------------------------------------------------------------- Kommandozeile (Betrieb)
 
 def main(argv: list[str]) -> int:
-    """python -m app.accounts reset-token <email> | purge | list"""
+    """python -m app.accounts reset-token <email> | purge | list | plan <email> free|plus [bis YYYY-MM-DD] | role <email> user|admin"""
     cmd = argv[0] if argv else ""
+    if cmd in ("plan", "role") and len(argv) >= 3:
+        u = user_by_email(argv[1])
+        if not u:
+            print("Kein Konto mit dieser Adresse.")
+            return 1
+        out = set_plan(u["id"], argv[2], argv[3] if len(argv) > 3 else None) if cmd == "plan" else set_role(u["id"], argv[2])
+        print(json.dumps({k: out[k] for k in ("email", "plan", "plan_until", "role")}, ensure_ascii=False))
+        return 0
     if cmd == "reset-token" and len(argv) == 2:
         tok = request_password_reset(argv[1])
         print(tok or "Kein aktives Konto mit dieser Adresse.")

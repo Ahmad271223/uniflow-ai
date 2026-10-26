@@ -188,7 +188,7 @@ weitergegebene Dateien kann UniFlow nicht zurückholen – das steht so im Blatt
   Test gleich. HKDF rechnet die App als HMAC-SHA256 in Blöcken (Extract) plus `HKDF.expand`; Test gegen RFC 5869
   (Testfall 1) und gegen CryptoKit `HKDF.deriveKey`.
 
-## 6. Community-Schnittstelle (vorbereitet, nicht verbunden)
+## 6. Community-Schnittstelle (Dienst umgesetzt, Client offen)
 
 `Solutions/CommunityService.swift`:
 
@@ -200,11 +200,33 @@ weitergegebene Dateien kann UniFlow nicht zurückholen – das steht so im Blatt
 | `withdraw(solutionID:)` | eigene Veröffentlichung zurückziehen |
 | `report(solutionID:reason:note:)` | melden (fremdes Material, bewertete Abgabe, beleidigend, Spam, sonstiges) |
 
-Einzige Umsetzung heute: `NotConnectedCommunityService` – jeder Aufruf wirft „Community-Dienst noch nicht
-verbunden.“, es wird nichts gesendet und kein Erfolg vorgetäuscht. Der Dienst bekäme nur das verschlüsselte Paket,
+Einzige Umsetzung in Swift heute: `NotConnectedCommunityService` – jeder Aufruf wirft „Community-Dienst noch nicht
+verbunden.“, es wird nichts gesendet und kein Erfolg vorgetäuscht. Der Dienst bekommt nur das verschlüsselte Paket,
 nie Stud.IP-Cookies, -Sitzungen oder -Tokens.
 
+**Der Dienst dazu ist seit 26.10.2026 in Python umgesetzt** (`app/community.py`, `app/community_api.py`; Vertrag G4
+in `docs/VERTRAEGE-KONTO-SYNC.md`, Fixture `packages/shared-contracts/fixtures/community/contract.json`). Zuordnung
+für den Client (M15), alle mit UniFlow-Sitzung und Tarif Plus:
+
+| Swift-Aufruf | Dienst |
+|---|---|
+| `publish` | `POST /api/community/solutions {package, title?}` → `{solution_id, published_at}` |
+| `findMatching(fingerprint:)` | `GET /api/community/solutions?fingerprint=` → `{solutions: [...]}` (`solution_id`, `fingerprint`, `display_name`, `created_at`, `page_count`, dazu `pseudonym`, `mine`, `reported_by_me`, `downloads`) |
+| `download(solutionID:)` | `GET /api/community/solutions/{id}` → Feld `package` (unverändertes Paket) |
+| `withdraw` | `DELETE /api/community/solutions/{id}` |
+| `report` | `POST /api/community/solutions/{id}/report {reason, note}` mit denselben fünf Gründen |
+| neu: Autor sperren | `POST /api/community/solutions/{id}/block`, `GET /api/community/blocks`, `DELETE /api/community/blocks/{pseudonym}` |
+
+Berechtigung auf dem Dienst: nur für PDFs aus dem eigenen Hochschul-Abgleich des Kontos (403 `file_not_owned`), nur
+innerhalb der eigenen Hochschule; ab drei Meldungen ist eine Lösung verborgen, Admins moderieren.
+
 ## 7. Was für die Online-Community fehlt
+
+Stand 26.10.2026: Punkt 1 ist als eigener Dienst in Python umgesetzt (Betrieb beim Inhaber), Punkt 3 über die
+UniFlow-Konten (G1) mit Sperren von Autoren, die Moderation aus Punkt 2 über Admin-Konten. Die Berechtigung prüft
+der Dienst heute als „Datei aus dem eigenen Hochschul-Abgleich“ (das Konto muss die PDF selbst über Stud.IP oder
+Learnweb erhalten haben); der signierte Beleg der Hochschule bleibt offen, ebenso 4, 5, 6 (Client M15) und die
+Nutzungsbedingungen.
 
 1. **Entscheidung und Betrieb des Dienstes** (CloudKit mit Developer Program oder Supabase; kostenpflichtig, Inhaber).
 2. **Echte Berechtigungsprüfung auf dem Dienst** – der Fingerabdruck reicht nicht. Optionen:

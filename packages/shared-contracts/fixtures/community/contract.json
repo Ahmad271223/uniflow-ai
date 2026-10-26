@@ -1,0 +1,970 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-community-fixture.py aus der Python-Referenz (app/community.py); nicht von Hand aendern.",
+ "rules": {
+  "plan_required": "plus",
+  "authorization": "Veroeffentlichen, Suchen und Laden nur fuer PDFs aus dem eigenen Hochschul-Abgleich (files.content_sha256 mit download_url)",
+  "reports_to_hide": 3,
+  "reasons": [
+   "foreignMaterial",
+   "gradedSubmission",
+   "offensive",
+   "spam",
+   "other"
+  ],
+  "format": "uniflow-solution",
+  "format_version": 1,
+  "max_package_bytes": 68157464,
+  "pseudonym": "Studi-<8 hex>, stabil je Konto, nie Konto-ID oder E-Mail",
+  "endpoints": [
+   "GET /api/community/info",
+   "POST /api/community/solutions",
+   "GET /api/community/solutions?fingerprint=",
+   "GET /api/community/solutions/{id}",
+   "DELETE /api/community/solutions/{id}",
+   "GET /api/community/mine",
+   "POST /api/community/solutions/{id}/report",
+   "POST /api/community/solutions/{id}/block",
+   "DELETE /api/community/blocks/{pseudonym}",
+   "GET /api/community/blocks",
+   "GET /api/community/moderation",
+   "POST /api/community/solutions/{id}/moderate"
+  ]
+ },
+ "package-checks": [
+  {
+   "case": "gueltig",
+   "ok": true,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "<solution-id>",
+     "createdAt": "2026-10-26T10:00:00Z",
+     "displayName": "Erika",
+     "document": {
+      "sha256": "<base64>",
+      "pageCount": 12
+     },
+     "contents": {
+      "pages": 2,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "<base64>",
+      "nonce": "<base64>",
+      "plaintextBytes": 32
+     }
+    },
+    "ciphertext": "<base64>"
+   }
+  },
+  {
+   "case": "formatVersion 2",
+   "ok": false,
+   "code": "unsupported_version",
+   "status": 400,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 2,
+    "header": {
+     "solutionId": "<solution-id>",
+     "createdAt": "2026-10-26T10:00:00Z",
+     "displayName": "Erika",
+     "document": {
+      "sha256": "<base64>",
+      "pageCount": 12
+     },
+     "contents": {
+      "pages": 2,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "<base64>",
+      "nonce": "<base64>",
+      "plaintextBytes": 32
+     }
+    },
+    "ciphertext": "<base64>"
+   }
+  },
+  {
+   "case": "Zusatzfeld oben",
+   "ok": false,
+   "code": "package_invalid",
+   "status": 400,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "<solution-id>",
+     "createdAt": "2026-10-26T10:00:00Z",
+     "displayName": "Erika",
+     "document": {
+      "sha256": "<base64>",
+      "pageCount": 12
+     },
+     "contents": {
+      "pages": 2,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "<base64>",
+      "nonce": "<base64>",
+      "plaintextBytes": 32
+     }
+    },
+    "ciphertext": "<base64>",
+    "extra": 1
+   }
+  },
+  {
+   "case": "pages 0",
+   "ok": false,
+   "code": "package_invalid",
+   "status": 400,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "<solution-id>",
+     "createdAt": "2026-10-26T10:00:00Z",
+     "displayName": "Erika",
+     "document": {
+      "sha256": "<base64>",
+      "pageCount": 12
+     },
+     "contents": {
+      "pages": 0,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "<base64>",
+      "nonce": "<base64>",
+      "plaintextBytes": 32
+     }
+    },
+    "ciphertext": "<base64>"
+   }
+  },
+  {
+   "case": "plaintextBytes passt nicht",
+   "ok": false,
+   "code": "package_invalid",
+   "status": 400,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "<solution-id>",
+     "createdAt": "2026-10-26T10:00:00Z",
+     "displayName": "Erika",
+     "document": {
+      "sha256": "<base64>",
+      "pageCount": 12
+     },
+     "contents": {
+      "pages": 2,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "<base64>",
+      "nonce": "<base64>",
+      "plaintextBytes": 1
+     }
+    },
+    "ciphertext": "<base64>"
+   }
+  },
+  {
+   "case": "kein Paket",
+   "ok": false,
+   "code": "not_a_solution",
+   "status": 400,
+   "package": {
+    "format": "x",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "<solution-id>",
+     "createdAt": "2026-10-26T10:00:00Z",
+     "displayName": "Erika",
+     "document": {
+      "sha256": "<base64>",
+      "pageCount": 12
+     },
+     "contents": {
+      "pages": 2,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "<base64>",
+      "nonce": "<base64>",
+      "plaintextBytes": 32
+     }
+    },
+    "ciphertext": "<base64>"
+   }
+  }
+ ],
+ "errors": {
+  "already_reported": {
+   "status": 409,
+   "message": "Du hast diese Lösung schon gemeldet."
+  },
+  "file_not_owned": {
+   "status": 403,
+   "message": "Diese PDF stammt nicht aus deinem Hochschul-Abgleich."
+  },
+  "forbidden": {
+   "status": 403,
+   "message": "Nur für Moderation."
+  },
+  "not_found": {
+   "status": 404,
+   "message": "Lösung nicht gefunden."
+  },
+  "not_hosted": {
+   "status": 501,
+   "message": "Die Community gibt es nur im gehosteten Dienst (LERNAPP_MODE=hosted)."
+  },
+  "not_owner": {
+   "status": 403,
+   "message": "Nur der Autor kann eine Lösung zurückziehen."
+  },
+  "own_solution": {
+   "status": 400,
+   "message": "Die eigene Lösung lässt sich nicht melden, aber zurückziehen."
+  },
+  "package_invalid": {
+   "status": 400,
+   "message": "Die Lösung ist beschädigt (Kopf: Felder)."
+  },
+  "plan_required": {
+   "status": 403,
+   "message": "Lösungen teilen und ansehen gibt es mit UniFlow Plus."
+  },
+  "solution_exists": {
+   "status": 409,
+   "message": "Diese Lösung wurde schon von einem anderen Konto veröffentlicht."
+  },
+  "unauthenticated": {
+   "status": 401,
+   "message": "Anmeldung erforderlich."
+  }
+ },
+ "flows": [
+  {
+   "step": "Konto autor anlegen",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "autor@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "luh"
+   },
+   "status": 201,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "autor@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   }
+  },
+  {
+   "step": "Konto leser anlegen",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "leser@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "luh"
+   },
+   "status": 201,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "leser@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   }
+  },
+  {
+   "step": "Konto free anlegen",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "free@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "luh"
+   },
+   "status": 201,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "free@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   }
+  },
+  {
+   "step": "Konto admin anlegen",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "admin@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "luh"
+   },
+   "status": 201,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "admin@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   }
+  },
+  {
+   "step": "Regeln des Dienstes",
+   "method": "GET",
+   "path": "/api/community/info",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "enabled": true,
+    "plan_required": "plus",
+    "plan_ok": true,
+    "reasons": [
+     "foreignMaterial",
+     "<base64>",
+     "offensive",
+     "spam",
+     "other"
+    ],
+    "reports_to_hide": 3,
+    "format": "uniflow-solution",
+    "format_version": 1,
+    "max_package_bytes": 68157464,
+    "pseudonym": "<pseudonym>",
+    "admin": false
+   }
+  },
+  {
+   "step": "Veroeffentlichen",
+   "method": "POST",
+   "path": "/api/community/solutions",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 1,
+     "header": {
+      "solutionId": "<solution-id>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "Erika",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 2,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "original-pdf-bytes",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 32
+      }
+     },
+     "ciphertext": "<base64>"
+    },
+    "title": "Blatt 3"
+   },
+   "status": 201,
+   "response": {
+    "solution_id": "<solution-id>",
+    "published_at": "<zeit-utc>",
+    "pseudonym": "<pseudonym>",
+    "republished": false
+   }
+  },
+  {
+   "step": "Veroeffentlichen ohne Plus",
+   "method": "POST",
+   "path": "/api/community/solutions",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 1,
+     "header": {
+      "solutionId": "<solution-id>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "Erika",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 2,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "original-pdf-bytes",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 32
+      }
+     },
+     "ciphertext": "<base64>"
+    }
+   },
+   "status": 403,
+   "response": {
+    "detail": "Lösungen teilen und ansehen gibt es mit UniFlow Plus.",
+    "code": "plan_required"
+   }
+  },
+  {
+   "step": "Veroeffentlichen fuer eine PDF, die nicht aus dem eigenen Abgleich stammt",
+   "method": "POST",
+   "path": "/api/community/solutions",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 1,
+     "header": {
+      "solutionId": "<solution-id-2>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "Erika",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 2,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "original-pdf-bytes",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 32
+      }
+     },
+     "ciphertext": "<base64>"
+    }
+   },
+   "status": 403,
+   "response": {
+    "detail": "Diese PDF stammt nicht aus deinem Hochschul-Abgleich.",
+    "code": "file_not_owned"
+   }
+  },
+  {
+   "step": "Veroeffentlichen: Paket beschaedigt",
+   "method": "POST",
+   "path": "/api/community/solutions",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 1,
+     "header": {
+      "solutionId": "<solution-id>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "Erika",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 2,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "original-pdf-bytes",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 32
+      }
+     },
+     "ciphertext": "<base64>",
+     "fremd": 1
+    }
+   },
+   "status": 400,
+   "response": {
+    "detail": "Die Lösung ist beschädigt (Kopf: Felder).",
+    "code": "package_invalid"
+   }
+  },
+  {
+   "step": "Veroeffentlichen durch ein anderes Konto (gleiche Loesung)",
+   "method": "POST",
+   "path": "/api/community/solutions",
+   "auth": true,
+   "request": {
+    "package": {
+     "format": "uniflow-solution",
+     "formatVersion": 1,
+     "header": {
+      "solutionId": "<solution-id>",
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "Erika",
+      "document": {
+       "sha256": "<base64>",
+       "pageCount": 12
+      },
+      "contents": {
+       "pages": 2,
+       "images": 0,
+       "missingImages": 0
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "original-pdf-bytes",
+       "salt": "<base64>",
+       "nonce": "<base64>",
+       "plaintextBytes": 32
+      }
+     },
+     "ciphertext": "<base64>"
+    }
+   },
+   "status": 409,
+   "response": {
+    "detail": "Diese Lösung wurde schon von einem anderen Konto veröffentlicht.",
+    "code": "solution_exists"
+   }
+  },
+  {
+   "step": "Suchen zur eigenen PDF",
+   "method": "GET",
+   "path": "/api/community/solutions?fingerprint=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "solutions": [
+     {
+      "solution_id": "<solution-id>",
+      "fingerprint": "<base64>",
+      "display_name": "Erika",
+      "pseudonym": "<pseudonym>",
+      "title": "Blatt 3",
+      "created_at": "2026-10-26T10:00:00Z",
+      "published_at": "<zeit-utc>",
+      "page_count": 12,
+      "pages": 2,
+      "downloads": 0,
+      "status": "active",
+      "mine": false,
+      "reported_by_me": false
+     }
+    ]
+   }
+  },
+  {
+   "step": "Suchen zu einer fremden PDF",
+   "method": "GET",
+   "path": "/api/community/solutions?fingerprint=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "auth": true,
+   "request": null,
+   "status": 403,
+   "response": {
+    "detail": "Diese PDF stammt nicht aus deinem Hochschul-Abgleich.",
+    "code": "file_not_owned"
+   }
+  },
+  {
+   "step": "Laden",
+   "method": "GET",
+   "path": "/api/community/solutions/<solution-id>",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "package": {
+     "ciphertext": "<base64>",
+     "format": "uniflow-solution",
+     "formatVersion": 1,
+     "header": {
+      "contents": {
+       "images": 0,
+       "missingImages": 0,
+       "pages": 2
+      },
+      "createdAt": "2026-10-26T10:00:00Z",
+      "displayName": "Erika",
+      "document": {
+       "pageCount": 12,
+       "sha256": "<base64>"
+      },
+      "encryption": {
+       "cipher": "AES-256-GCM",
+       "kdf": "HKDF-SHA256",
+       "keyMaterial": "original-pdf-bytes",
+       "nonce": "<base64>",
+       "plaintextBytes": 32,
+       "salt": "<base64>"
+      },
+      "solutionId": "<solution-id>"
+     }
+    },
+    "solution": {
+     "solution_id": "<solution-id>",
+     "fingerprint": "<base64>",
+     "display_name": "Erika",
+     "pseudonym": "<pseudonym>",
+     "title": "Blatt 3",
+     "created_at": "2026-10-26T10:00:00Z",
+     "published_at": "<zeit-utc>",
+     "page_count": 12,
+     "pages": 2,
+     "downloads": 0,
+     "status": "active",
+     "mine": false,
+     "reported_by_me": false
+    }
+   }
+  },
+  {
+   "step": "Meine Veroeffentlichungen",
+   "method": "GET",
+   "path": "/api/community/mine",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "solutions": [
+     {
+      "solution_id": "<solution-id>",
+      "fingerprint": "<base64>",
+      "display_name": "Erika",
+      "pseudonym": "<pseudonym>",
+      "title": "Blatt 3",
+      "created_at": "2026-10-26T10:00:00Z",
+      "published_at": "<zeit-utc>",
+      "page_count": 12,
+      "pages": 2,
+      "downloads": 1,
+      "status": "active",
+      "mine": true,
+      "reported_by_me": false
+     }
+    ]
+   }
+  },
+  {
+   "step": "Melden",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id>/report",
+   "auth": true,
+   "request": {
+    "reason": "foreignMaterial",
+    "note": "Folien enthalten"
+   },
+   "status": 200,
+   "response": {
+    "reported": true,
+    "hidden": false,
+    "reports": 1
+   }
+  },
+  {
+   "step": "Melden: schon gemeldet",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id>/report",
+   "auth": true,
+   "request": {
+    "reason": "spam"
+   },
+   "status": 409,
+   "response": {
+    "detail": "Du hast diese Lösung schon gemeldet.",
+    "code": "already_reported"
+   }
+  },
+  {
+   "step": "Melden: eigene Loesung",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id>/report",
+   "auth": true,
+   "request": {
+    "reason": "spam"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Die eigene Lösung lässt sich nicht melden, aber zurückziehen.",
+    "code": "own_solution"
+   }
+  },
+  {
+   "step": "Autor sperren (nur fuer mich)",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id>/block",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "blocked": "<pseudonym>"
+   }
+  },
+  {
+   "step": "Gesperrte Autoren",
+   "method": "GET",
+   "path": "/api/community/blocks",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "blocked": [
+     "<pseudonym>"
+    ]
+   }
+  },
+  {
+   "step": "Suchen nach dem Sperren: leer",
+   "method": "GET",
+   "path": "/api/community/solutions?fingerprint=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "solutions": []
+   }
+  },
+  {
+   "step": "Sperre aufheben",
+   "method": "DELETE",
+   "path": "/api/community/blocks/<pseudonym>",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "unblocked": "<pseudonym>"
+   }
+  },
+  {
+   "step": "Moderation ohne Rolle",
+   "method": "GET",
+   "path": "/api/community/moderation",
+   "auth": true,
+   "request": null,
+   "status": 403,
+   "response": {
+    "detail": "Nur für Moderation.",
+    "code": "forbidden"
+   }
+  },
+  {
+   "step": "Moderation: Warteschlange",
+   "method": "GET",
+   "path": "/api/community/moderation",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "solutions": [
+     {
+      "solution_id": "<solution-id>",
+      "fingerprint": "<base64>",
+      "display_name": "Erika",
+      "pseudonym": "<pseudonym>",
+      "title": "Blatt 3",
+      "created_at": "2026-10-26T10:00:00Z",
+      "published_at": "<zeit-utc>",
+      "page_count": 12,
+      "pages": 2,
+      "downloads": 1,
+      "status": "active",
+      "mine": false,
+      "reported_by_me": false,
+      "reports": [
+       {
+        "reason": "foreignMaterial",
+        "note": "Folien enthalten",
+        "created_at": "<zeit-utc>"
+       }
+      ],
+      "author_banned": false
+     }
+    ]
+   }
+  },
+  {
+   "step": "Moderation: verbergen",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id>/moderate",
+   "auth": true,
+   "request": {
+    "action": "hide",
+    "reason": "pruefen"
+   },
+   "status": 200,
+   "response": {
+    "action": "hide",
+    "solution": {
+     "solution_id": "<solution-id>",
+     "fingerprint": "<base64>",
+     "display_name": "Erika",
+     "pseudonym": "<pseudonym>",
+     "title": "Blatt 3",
+     "created_at": "2026-10-26T10:00:00Z",
+     "published_at": "<zeit-utc>",
+     "page_count": 12,
+     "pages": 2,
+     "downloads": 1,
+     "status": "hidden",
+     "mine": false,
+     "reported_by_me": false
+    }
+   }
+  },
+  {
+   "step": "Moderation: wiederherstellen",
+   "method": "POST",
+   "path": "/api/community/solutions/<solution-id>/moderate",
+   "auth": true,
+   "request": {
+    "action": "restore"
+   },
+   "status": 200,
+   "response": {
+    "action": "restore",
+    "solution": {
+     "solution_id": "<solution-id>",
+     "fingerprint": "<base64>",
+     "display_name": "Erika",
+     "pseudonym": "<pseudonym>",
+     "title": "Blatt 3",
+     "created_at": "2026-10-26T10:00:00Z",
+     "published_at": "<zeit-utc>",
+     "page_count": 12,
+     "pages": 2,
+     "downloads": 1,
+     "status": "active",
+     "mine": false,
+     "reported_by_me": false
+    }
+   }
+  },
+  {
+   "step": "Zurueckziehen durch ein anderes Konto",
+   "method": "DELETE",
+   "path": "/api/community/solutions/<solution-id>",
+   "auth": true,
+   "request": null,
+   "status": 403,
+   "response": {
+    "detail": "Nur der Autor kann eine Lösung zurückziehen.",
+    "code": "not_owner"
+   }
+  },
+  {
+   "step": "Zurueckziehen",
+   "method": "DELETE",
+   "path": "/api/community/solutions/<solution-id>",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "withdrawn": true,
+    "already": false
+   }
+  },
+  {
+   "step": "Laden nach dem Zurueckziehen",
+   "method": "GET",
+   "path": "/api/community/solutions/<solution-id>",
+   "auth": true,
+   "request": null,
+   "status": 404,
+   "response": {
+    "detail": "Lösung nicht gefunden.",
+    "code": "not_found"
+   }
+  },
+  {
+   "step": "Ohne Sitzung",
+   "method": "GET",
+   "path": "/api/community/info",
+   "auth": false,
+   "request": null,
+   "status": 401,
+   "response": {
+    "detail": "Anmeldung erforderlich.",
+    "code": "unauthenticated"
+   }
+  }
+ ]
+}
