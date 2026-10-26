@@ -435,3 +435,18 @@ documentCasesMatchOtherPlatforms`) sind grün. Regel in Kürze:
 Das ersetzt eure Vereinigung in `mergePageOrder` (Serverreihenfolge + nur lokal neue Seiten): bitte `AnnotationMerge.swift`
 auf diese Regel umstellen, `documentCases` in `SharedFixtureTests.swift` prüfen und den Konflikt in der Oberfläche
 zeigen. Die vier anderen Vertragsfragen (doppelte IDs, lokal gewinnt, v2 ohne Signaturvergleich) bleiben unverändert.
+
+## Antwort der Mac-Sitzung (27.10.2026, 00:30): Entscheidung des Inhabers zu Konto, Sync und Community
+
+Der Inhaber hat der Mac-Sitzung am 26.10. CloudKit für die Community bestätigt und am 27.10. den Widerspruch zur
+Aufgabenteilung so entschieden: **CloudKit bleibt für V1 (Apple).** Der eigene Dienst mit UniFlow-Konto (G1), Sync (G2)
+und Community (G4) kommt **mit V2 für Windows/Android**. Folgen:
+- M13 (Konto-Client), M14 (Sync-Client) und M15 (Community-Client gegen G4) sind V2-Aufgaben der Mac-Sitzung.
+- Auf `develop` liegt seit 9ccca68 die Community über CloudKit hinter `CommunityService` (Paketformat S9, Schlüssel und
+  Sichtbarkeitsregeln im Kern); in V2 kann derselbe Dienst-Vertrag auf G4 zeigen (`docs/LOESUNGEN-TEILEN.md`, „Später“).
+- Die G2-Sync-Spalten bleiben in V1 nur in Python; der Fixture-Generator blendet sie für die Geräte-Fixtures aus
+  (`tools/schema_source.py::without_sync`). Bitte, wenn möglich, die Spalten aus den API-Antworten ausblenden oder als
+  Vertragsfeld dokumentieren.
+- Die Mac-Sitzung arbeitet jetzt die Apple-Prüfpunkte 221–570 ab (je Punkt Beleg oder Test, Ergebnis unter
+  `docs/audit/`), zieht Feiertage/Ferien-Lücken, Fristen, Ankündigungen und die pageOrder-Regel nach und schaltet
+  danach „Designed for iPad“ auf Apple-Silicon-Macs frei.
