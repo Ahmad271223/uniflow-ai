@@ -111,6 +111,8 @@ final class DataSeparationAppTests: XCTestCase {
         m.sync(account: a)
         let c = try active(m)
         XCTAssertEqual(c.key, DataContainerKey(userID: user, university: .hildesheim))
+        XCTAssertEqual(a.stage, .universityLogin, "Container offen, zuerst die Anmeldeseiten der Hochschule")
+        a.markLoginDone()
         XCTAssertEqual(a.stage, .ready)
         XCTAssertEqual(try c.layout.manifest()?.university, "hildesheim")
         let s = try await c.api.value("/api/settings")
@@ -347,7 +349,7 @@ final class DataSeparationAppTests: XCTestCase {
         let m = manager()
         m.sync(account: a)
         XCTAssertEqual(a.university, .luh, "die alten Daten sind LUH-Daten: keine erneute Abfrage")
-        XCTAssertEqual(a.stage, .ready)
+        XCTAssertEqual(a.stage, .universityLogin, "einmal die Anmeldeseiten (Stud.IP ist schon verbunden und wird uebersprungen, QIS ist neu)")
         let c = try active(m)
         XCTAssertEqual(c.key, DataContainerKey(userID: user, university: .luh))
 

@@ -58,14 +58,22 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertEqual(s.stage, .universityPicker, "nach der Tarifwahl: Hochschule wählen")
         XCTAssertNil(s.containerKey)
         s.chooseUniversity(.luh)
+        XCTAssertEqual(s.stage, .universityLogin, "sofort die Anmeldeseiten der Hochschule (Entscheidung des Inhabers)")
+        XCTAssertEqual(s.containerKey, DataContainerKey(userID: "001.abc", university: .luh), "dafuer ist der Container schon offen")
+        XCTAssertFalse(s.loginDone)
+        s.markLoginDone()
         XCTAssertEqual(s.stage, .ready)
-        XCTAssertEqual(s.containerKey, DataContainerKey(userID: "001.abc", university: .luh))
+        XCTAssertFalse(AccountStore.Keys.loginDone("001.abc", .luh).contains("001.abc"), "nur die Kurzkennung in den UserDefaults")
 
         // zweiter Start: direkt die Oberflaeche
         let again = store(secrets)
         XCTAssertEqual(again.account?.userID, "001.abc")
         XCTAssertEqual(again.account?.name, "Ada Lovelace")
         XCTAssertEqual(again.stage, .ready)
+        // Debug: die Anmeldeseiten erneut zeigen
+        again.resetLoginStep()
+        XCTAssertEqual(again.stage, .universityLogin)
+        XCTAssertEqual(store(secrets).stage, .universityLogin, "der Merker ist je Nutzer und Hochschule gespeichert")
     }
 
     func testLaterSignInWithoutNameKeepsStoredValues() {
@@ -165,6 +173,7 @@ final class AccountStoreTests: XCTestCase {
         s.signIn(userID: "001.abc", name: "Ada", email: "ada@example.com")
         s.markPlanShown()
         s.chooseUniversity(.hildesheim)
+        s.markLoginDone()
         // Geraeteeinstellungen und Dateien ausserhalb der Container der App bleiben (die Container loescht ein Schritt)
         defaults.set("left", forKey: "uniflow.hand")
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-delete-\(UUID().uuidString).pdf")
@@ -200,6 +209,8 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertNil(s.university)
         XCTAssertEqual(s.stage, .universityPicker)
         s.chooseUniversity(.hildesheim)
+        XCTAssertEqual(s.stage, .universityLogin)
+        s.markLoginDone()
         XCTAssertEqual(s.stage, .ready)
         XCTAssertEqual(s.containerKey?.university, .hildesheim)
         XCTAssertFalse(AccountStore.Keys.university("001.abc").contains("001.abc"), "nur die Kurzkennung in den UserDefaults")
@@ -219,10 +230,39 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertEqual(s.university, .hildesheim)
         XCTAssertEqual(store(MemorySecrets()).university, nil, "ohne Anmeldung keine Hochschule")
 
-        // Wechsel in den Einstellungen
+        // Wechsel in den Einstellungen: die Anmeldeseiten der neuen Hochschule einmal, zurueck ohne
+        XCTAssertEqual(s.stage, .ready, "Hildesheim: Anmeldeseiten schon gezeigt")
         s.chooseUniversity(.luh)
         XCTAssertEqual(s.containerKey, DataContainerKey(userID: "001.abc", university: .luh))
+        XCTAssertEqual(s.stage, .universityLogin, "LUH dieses Nutzers noch nie angemeldet")
+        s.markLoginDone()
+        s.chooseUniversity(.hildesheim)
         XCTAssertEqual(s.stage, .ready)
+        s.chooseUniversity(.luh)
+        XCTAssertEqual(s.stage, .ready)
+        // Konto loeschen vergisst auch die Merker beider Hochschulen
+        s.deleteAccount()
+        s.signIn(userID: "001.abc", name: nil, email: nil)
+        s.markPlanShown()
+        s.chooseUniversity(.luh)
+        XCTAssertEqual(s.stage, .universityLogin)
+    }
+
+    func testPrepareLoginShowsTheUniversityLoginPages() {
+        let s = store(MemorySecrets())
+        defaults.set("login", forKey: "UFOnboarding")
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .universityLogin, "-UFOnboarding login zeigt die Anmeldeseiten")
+        XCTAssertEqual(s.university, .luh, "ohne -UFUniversity die LUH")
+        s.markLoginDone()
+        XCTAssertEqual(s.stage, .ready)
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .universityLogin, "bei jedem Start mit dem Argument erneut")
+        defaults.set("hildesheim", forKey: "UFUniversity")
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.university, .hildesheim)
+        XCTAssertEqual(s.stage, .universityLogin)
+        defaults.removeObject(forKey: "UFUniversity")
     }
 
     func testPrepareUniversityArguments() {

@@ -114,8 +114,15 @@ final class Session: ObservableObject {
 ///   -UFOnboarding skip                Debug-Konto ohne Apple-ID, Tarifwahl gilt als gezeigt -> direkt die Oberflaeche
 ///   -UFOnboarding plan                Debug-Konto, Tarifwahl noch nicht gezeigt -> Tarifwahl -> Hochschulwahl
 ///   -UFOnboarding university          Debug-Konto, Tarifwahl gezeigt, keine Hochschule -> Hochschulwahl
+///   -UFOnboarding login               Debug-Konto, Tarifwahl gezeigt, Hochschule aus -UFUniversity (sonst LUH),
+///                                     Anmeldeseiten noch nicht gezeigt -> Anmeldeseiten der Hochschule, Erstabgleich
 ///                                     Ohne -UFOnboarding gilt bei -UFServer/-UFDisconnect/-UFRoute/-UFAction "skip"
-///                                     (bisherige Bildvergleiche); "skip" waehlt ohne -UFUniversity die LUH.
+///                                     (bisherige Bildvergleiche); "skip" waehlt ohne -UFUniversity die LUH und
+///                                     ueberspringt die Anmeldeseiten.
+///   -UFLoginStub <ordner>             nur Debug: die Anmeldeansichten laden statt der Seiten der Hochschule lokale
+///                                     Nachbildungen aus <ordner> (studip.html, qis.html, learnweb.html, lsf.html;
+///                                     "<dienst>-angemeldet.html" gilt als angemeldet) und die Abgleiche antworten aus
+///                                     <ordner>/routes.json (DebugUniStub) - nie eine echte Uni-Seite, nie ein Netz
 ///   -UFUniversity hildesheim          Hochschule des Kontos festlegen (luh|hildesheim), wie nach der Hochschulwahl;
 ///                                     nur Debug, z. B. fuer Simulator-Ablaeufe mit der Universitaet Hildesheim
 ///   -UFPlan plus                      fester Tarif ohne Kauf (free|plus), z. B. fuer "Lösung teilen" im Simulator, wo
@@ -164,6 +171,11 @@ enum DebugLaunch {
             if account.account == nil { account.skipSignInForDebug() }
             account.markPlanShown()
             if account.university == nil { account.chooseUniversity(forcedUniversity(defaults: d) ?? .luh) }
+        case "login":
+            if account.account == nil { account.skipSignInForDebug() }
+            account.markPlanShown()
+            account.chooseUniversity(forcedUniversity(defaults: d) ?? .luh)
+            account.resetLoginStep()
         case "plan":
             account.deleteAccount()
             account.notice = nil
@@ -175,6 +187,8 @@ enum DebugLaunch {
         default: break
         }
         if let u = forcedUniversity(defaults: d), account.account != nil { account.chooseUniversity(u) }
+        // "skip" (auch die Bildvergleiche ohne -UFOnboarding): direkt die Oberflaeche, ohne die Anmeldeseiten
+        if mode == "skip" { account.markLoginDone() }
         #endif
     }
 

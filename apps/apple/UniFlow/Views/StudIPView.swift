@@ -187,16 +187,35 @@ struct StudIPView: View {
     }
 }
 
-/// Anmeldung auf der echten Stud.IP-Seite. Sobald Stud.IP die Sitzung bestaetigt (users/me), werden die Cookies
-/// an `onSignedIn` uebergeben. Auf den Anmeldeseiten der LUH (Stud.IP-Login, WebSSO) merkt sich die App mit dem
-/// Schalter "Auf diesem iPad merken" Benutzername und Passwort und fuellt sie beim naechsten Mal vor
-/// (UniversityLoginAutofill); abgeschickt wird nie automatisch.
+/// Anmeldung auf der echten Stud.IP-Seite als Blatt (Stud.IP-Seite, Karte "Stud.IP verbinden"): die Anmeldeansicht
+/// `StudIPLoginPane` mit Titel und "Abbrechen". Beim ersten Start steht dieselbe Anmeldeansicht im FirstLoginFlow.
 struct StudIPLoginView: View {
     let base: URL
     /// Datenspeicher des Containers (Apple-Nutzer, Hochschule), nie `.default()`
     let dataStore: WKWebsiteDataStore
     let onSignedIn: ([HTTPCookie]) -> Void
     @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            StudIPLoginPane(base: base, dataStore: dataStore, onSignedIn: onSignedIn) { EmptyView() }
+                .navigationTitle("Stud.IP-Anmeldung")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }
+        }
+    }
+}
+
+/// Anmeldung auf der echten Stud.IP-Seite. Sobald Stud.IP die Sitzung bestaetigt (users/me), werden die Cookies
+/// an `onSignedIn` uebergeben. Auf den Anmeldeseiten der LUH (Stud.IP-Login, WebSSO) merkt sich die App mit dem
+/// Schalter "Auf diesem iPad merken" Benutzername und Passwort und fuellt sie beim naechsten Mal vor
+/// (UniversityLoginAutofill); abgeschickt wird nie automatisch. `bottom` steht unter dem Schalter (erster Start:
+/// "Später anmelden"). Nur Debug mit -UFLoginStub: lokale Nachbildung statt der Stud.IP-Seite (DebugUniStub).
+struct StudIPLoginPane<Bottom: View>: View {
+    let base: URL
+    let dataStore: WKWebsiteDataStore
+    let onSignedIn: ([HTTPCookie]) -> Void
+    @ViewBuilder let bottom: Bottom
     @State private var checking = false
     @State private var done = false
     /// Sitzungspruefung scheiterte (z. B. Stud.IP kurz nicht erreichbar): Knopf "Anmeldung prüfen"
@@ -204,38 +223,54 @@ struct StudIPLoginView: View {
     @StateObject private var autofill = UniversityLoginAutofill(university: .luh, serviceKey: "studip")!
     @StateObject private var load = UFWebLoadState()
 
+    init(base: URL, dataStore: WKWebsiteDataStore, onSignedIn: @escaping ([HTTPCookie]) -> Void, @ViewBuilder bottom: () -> Bottom) {
+        self.base = base
+        self.dataStore = dataStore
+        self.onSignedIn = onSignedIn
+        self.bottom = bottom()
+    }
+
     var body: some View {
-        NavigationStack {
-            StudIPWebView(url: base.appendingPathComponent("dispatch.php/login"), dataStore: dataStore, autofill: autofill, load: load) { webView in check(webView) }
-                .ufWebLoadFailure(load)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    VStack(spacing: 0) {
-                        if checkFailed {
-                            HStack(spacing: 9.6) {
-                                Text("Die Anmeldung ließ sich nicht bestätigen.").ufFont(13.12).foregroundStyle(UF.text2)
-                                Spacer()
-                                UFButton("Anmeldung prüfen", icon: "refresh", size: .small) { if let w = load.webView { check(w, force: true) } }
-                            }
-                            .padding(.horizontal, 16).padding(.vertical, 8)
-                            .background(UF.warnSoft)
+        StudIPWebView(url: DebugUniStub.loginPage("studip", real: base.appendingPathComponent("dispatch.php/login")), dataStore: dataStore,
+                      autofill: autofill, load: load) { webView in check(webView) }
+            .ufWebLoadFailure(load)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 0) {
+                    if checking {
+                        HStack(spacing: 9.6) {
+                            ProgressView().controlSize(.small)
+                            Text("Anmeldung wird geprüft …").ufFont(13.12).foregroundStyle(UF.text2)
+                            Spacer()
                         }
-                        UniversityRememberBar(autofill: autofill)
+                        .padding(.horizontal, 16).padding(.vertical, 8)
+                        .background(UF.surface)
                     }
+                    if checkFailed {
+                        HStack(spacing: 9.6) {
+                            Text("Die Anmeldung ließ sich nicht bestätigen.").ufFont(13.12).foregroundStyle(UF.text2)
+                            Spacer()
+                            UFButton("Anmeldung prüfen", icon: "refresh", size: .small) { if let w = load.webView { check(w, force: true) } }
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 8)
+                        .background(UF.warnSoft)
+                    }
+                    UniversityRememberBar(autofill: autofill)
+                    bottom
                 }
-                .navigationTitle("Stud.IP-Anmeldung")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
-                    if checking { ToolbarItem(placement: .confirmationAction) { ProgressView() } }
-                }
-        }
+            }
     }
 
     /// Nach jedem geladenen Stud.IP-Seitenaufruf ausserhalb der Anmeldeseite pruefen, ob die Sitzung gilt. Scheitert die
     /// Pruefung, wird sie nach einer kurzen Pause einmal wiederholt; danach "Anmeldung prüfen" (vorher geschah nichts
     /// Sichtbares).
     private func check(_ webView: WKWebView, force: Bool = false) {
-        guard !done, !checking, let url = webView.url, url.host == base.host, force || !url.path.contains("/dispatch.php/login") else { return }
+        guard !done else { return }
+        if DebugUniStub.isSignedIn(webView.url, service: "studip") {
+            done = true
+            onSignedIn(DebugUniStub.studipCookies())
+            return
+        }
+        guard !checking, let url = webView.url, url.host == base.host, force || !url.path.contains("/dispatch.php/login") else { return }
         checking = true
         checkFailed = false
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
@@ -349,7 +384,8 @@ struct StudIPWebView: UIViewRepresentable {
         view.navigationDelegate = context.coordinator
         load?.webView = view
         load?.lastURL = url
-        view.load(URLRequest(url: url))
+        // nur Debug mit -UFLoginStub: lokale Nachbildung der Anmeldeseite (DebugUniStub), Lesezugriff auf ihren Ordner
+        if url.isFileURL { view.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent()) } else { view.load(URLRequest(url: url)) }
         return view
     }
 
