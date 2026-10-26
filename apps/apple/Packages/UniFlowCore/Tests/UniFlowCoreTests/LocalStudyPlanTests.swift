@@ -64,6 +64,31 @@ final class LocalStudyPlanTests: XCTestCase {
         let backend = try await seeded(fx, now: now)
         let steps = fx["steps"]?.array ?? []
         XCTAssertGreaterThanOrEqual(steps.count, 70)
+        let problems = try await replay(steps, on: backend, now: now)
+        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+        let t = try await tables(backend)
+        XCTAssertNil(jsonDiff(t, fx["tables_after"]), jsonDiff(t, fx["tables_after"]) ?? "")
+    }
+
+    /// Korrekturen nach der Pruefung von S6 (Szenario "nachgebessert", eigene Datenbank mit demselben Seed, Mittwoch
+    /// 28.10.): freies Fenster plant genau dort, Plan ab Montag ohne vergangene Tage, Uhrzeit von Hand endet nie vor
+    /// der letzten Aufgabe, Verschieben mit freiem Fenster, "Uhrzeiten vergeben" behaelt Uhrzeiten von Hand, leere
+    /// Pakete ohne Uhrzeit, Ersetzen nur automatischer, nicht begonnener und leerer Pakete
+    func testFixScenarioMatchesPythonServer() async throws {
+        let fx = try fixture()
+        let scenario = try XCTUnwrap(fx["scenarios"]?.array?.first { $0["name"] == "nachgebessert" })
+        let now = Now(try XCTUnwrap(scenario["now"]?.string))
+        let backend = try await seeded(fx, now: now)
+        let steps = scenario["steps"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(steps.count, 35)
+        let problems = try await replay(steps, on: backend, now: now)
+        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+        let t = try await tables(backend)
+        XCTAssertNil(jsonDiff(t, scenario["tables_after"]), jsonDiff(t, scenario["tables_after"]) ?? "")
+    }
+
+    /// Schritte nacheinander an das lokale Backend; liefert die Abweichungen von Status und Antwort
+    private func replay(_ steps: [JSONValue], on backend: LocalBackend, now: Now) async throws -> [String] {
         var problems: [String] = []
         for (i, s) in steps.enumerated() {
             if let t = s["now"]?.string {
@@ -82,9 +107,7 @@ final class LocalStudyPlanTests: XCTestCase {
             }
             if let d = jsonDiff(r.json, s["response"]) { problems.append("\(label): \(d)") }
         }
-        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
-        let t = try await tables(backend)
-        XCTAssertNil(jsonDiff(t, fx["tables_after"]), jsonDiff(t, fx["tables_after"]) ?? "")
+        return problems
     }
 
     /// `_derive_status` fuer alle Kombinationen der Aufgabenstatus, vergangen und nicht

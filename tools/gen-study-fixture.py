@@ -15,8 +15,11 @@ Inhalt:
   aufgeloest gespeichert: {pkg:DATUM:N} = ID des N-ten Pakets (nach ID) an diesem Tag, {task:DATUM:N:M} = ID der
   M-ten Aufgabe (nach sort, id) dieses Pakets, {new} = ID des zuletzt angelegten Pakets, {@name} = ID aus der
   benannten Antwort, {task:@name:M} = M-te Aufgabe dieses Pakets, "FROM:<name>" = moves der benannten Antwort. Schritte mit "now" stellen die Uhr weiter, Schritte mit "sql" aendern die Datenbank wie ein
-  Abgleich (neue Dateien).
+  Abgleich (neue Dateien) oder wie eine Aenderung am Modul.
 - tables_after: study_packages, study_tasks, task_history, modules und die Dateien (Status, gesehen)
+- scenarios: weitere Ablaeufe auf eigener, frischer Datenbank mit demselben Seed ("nachgebessert": Korrekturen nach
+  der Pruefung von S6 am 26.10.2026: freies Fenster, Plan ab Montag, Uhrzeit von Hand, Verschieben, "Uhrzeiten
+  vergeben", leere Pakete, Ersetzen), je mit now, steps und tables_after
 - derive_status: study._derive_status fuer alle Kombinationen der Aufgabenstatus
 
 Keine KI-Aufrufe. Der Server laeuft nur gegen Dateien in einem Temp-Ordner (tools/schema_source.py), nie gegen data/.
@@ -263,6 +266,61 @@ STEPS: list[dict] = [
     {"method": "GET", "path": "/api/modules"},
 ]
 
+# Korrekturen nach der Pruefung von S6 (26.10.2026): eigene Datenbank mit demselben Seed, Mittwoch 28.10.2026. An
+# diesem Tag liegen Physik 08:15-09:45 und die verlegte Uebung 10:00-11:30 (frei erst ab 11:50).
+FIXES_NOW = "2026-10-28T09:00:00"
+FIXES: list[dict] = [
+    # "Lerneinheit automatisch einplanen" im freien Fenster: ein Paket genau in dieses Fenster, auch an einem Tag mit
+    # Paket (die Planung fuer den Tag uebergeht ihn weiter); zu kleines Fenster; falsche Uhrzeiten 400
+    {"method": "POST", "path": "/api/packages", "name": "eigenes", "body": {"date": "2026-10-29", "title": "Eigenes Kapitel", "minutes": 30}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-29", "days": 1}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-29", "window_start": "14:00", "window_end": "15:30"}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-29", "window_start": "19:00", "window_end": "19:10"}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-29", "window_start": "15:30", "window_end": "15:00"}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"window_start": "kaputt", "window_end": "15:00"}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"window_end": "15:00"}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-29&end=2026-10-29"},
+    # "Plan erstellen" ab Montag: Montag und Dienstag liegen zurueck und werden nicht geplant
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-26", "days": 7}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-26&end=2026-11-01"},
+    # Uhrzeit von Hand: das Paket endet nie vor seiner letzten Aufgabe (Dialog: Ende = Beginn + geplante Dauer)
+    {"method": "POST", "path": "/api/packages", "name": "zwei", "body": {"date": "2026-11-02", "title": "Zwei Aufgaben", "tasks": [
+        {"type": "frei", "title": "Lesen", "est_minutes": 45}, {"type": "frei", "title": "Rechnen", "est_minutes": 30}]}},
+    {"method": "POST", "path": "/api/timetable/reslot", "body": {"dates": ["2026-11-02"], "only_unset": True}},
+    {"method": "PATCH", "path": "/api/packages/{@zwei}", "body": {"start_time": "16:00", "end_time": "17:15"}},
+    {"method": "PATCH", "path": "/api/packages/{@zwei}", "body": {"start_time": "10:30"}},
+    {"method": "GET", "path": "/api/packages/{@zwei}"},
+    # Verschieben: dieselbe Uhrzeit, wenn sie am neuen Tag frei ist (Donnerstag), sonst ein freies Fenster (Mittwoch:
+    # 10:30 liegt in der Uebung); ohne Uhrzeit bleibt es ohne
+    {"method": "PATCH", "path": "/api/packages/{@zwei}", "body": {"date": "2026-11-05"}},
+    {"method": "PATCH", "path": "/api/packages/{@zwei}", "body": {"date": "2026-10-28"}},
+    {"method": "GET", "path": "/api/packages/{@zwei}"},
+    {"method": "PATCH", "path": "/api/packages/{@zwei}", "body": {"date": "2026-11-06", "start_time": "17:00"}},
+    {"method": "PATCH", "path": "/api/packages/{@eigenes}", "body": {"date": "2026-11-03"}},
+    {"method": "GET", "path": "/api/timetable/conflicts"},
+    # "Uhrzeiten vergeben" (only_unset) behaelt Uhrzeiten von Hand, "Lernslots neu legen" legt alles neu
+    {"method": "POST", "path": "/api/packages", "name": "lose", "body": {"date": "2026-11-06", "title": "Ohne Uhrzeit", "minutes": 30}},
+    {"method": "POST", "path": "/api/timetable/reslot", "body": {"dates": ["2026-11-06"], "only_unset": True}},
+    {"method": "GET", "path": "/api/timetable/day?date=2026-11-06"},
+    {"method": "POST", "path": "/api/timetable/reslot", "body": {"dates": ["2026-11-06"]}},
+    {"method": "GET", "path": "/api/timetable/day?date=2026-11-06"},
+    # leeres Paket: keine Uhrzeit mehr, sein Fenster ist frei
+    {"method": "POST", "path": "/api/calendar/apply", "body": {"moves": [{"task_id": "{task:@lose:0}", "to": "2026-11-09"}]}},
+    {"method": "GET", "path": "/api/packages/{@lose}"},
+    {"method": "GET", "path": "/api/timetable/day?date=2026-11-06"},
+    # Ersetzen: eigene Pakete, neu eingeplante Aufgaben und Tage mit begonnenem Paket bleiben, leere Pakete gehen;
+    # gibt es nichts zu planen, wird nichts geloescht
+    {"method": "POST", "path": "/api/calendar/apply", "body": {"moves": [{"task_id": "{task:2026-10-30:0:0}", "to": "2026-11-01"}]}},
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/status", "body": {"status": "erledigt"}},
+    {"method": "POST", "path": "/api/calendar/apply", "body": {"moves": [{"task_id": "{task:2026-10-30:1:0}", "to": "2026-11-12"}]}},
+    {"now": FIXES_NOW, "sql": ["UPDATE modules SET active=0"]},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-28", "days": 7, "replace": True}},
+    {"now": FIXES_NOW, "sql": ["UPDATE modules SET active=1 WHERE name != 'Altmodul'"]},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-28", "days": 7, "replace": True}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-03"},
+    {"method": "GET", "path": "/api/dashboard"},
+]
+
 # study._derive_status: alle Teilmengen der Aufgabenstatus, je vergangen und nicht
 DERIVE_STATUSES = ["geplant", "in_bearbeitung", "erledigt", "nachholen", "uebersprungen", "verschoben"]
 
@@ -336,6 +394,40 @@ def tables(path: Path) -> dict:
     return out
 
 
+def run(src: SchemaSource, gen, name: str, now: str, seed: list, plan: list[dict]) -> tuple[list[dict], dict]:
+    """Frische Datenbank mit Seed, Uhr auf `now`, dann die Schritte; liefert die Schritte mit Antworten und die
+    Tabellen danach. Schritte mit "now" stellen die Uhr und fuehren SQL aus ("WEEK3" oder eine Liste)."""
+    from app import server
+    path = src.tmp / f"{name}.db"
+    src.use_db(path)
+    CLOCK["now"] = now
+    src.db.init_db()
+    with src.db.cursor() as conn:
+        for sql, params in seed:
+            conn.execute(sql, params)
+    steps, names = [], {}
+    for s in plan:
+        if "now" in s:
+            CLOCK["now"] = s["now"]
+            sql = _week3_files() if s["sql"] == "WEEK3" else [(q, []) for q in s["sql"]]
+            with src.db.cursor() as conn:
+                for q, params in sql:
+                    conn.execute(q, params)
+            steps.append({"now": s["now"], "sql": [{"sql": q, "params": p} for q, p in sql]})
+            continue
+        p = resolve(s["path"], path, names)
+        body = resolve(s["body"], path, names) if "body" in s else None
+        status, value = gen.asgi(server.app, s["method"], p, body)
+        assert status != 500, (s, value)
+        if s.get("name"):
+            names[s["name"]] = value
+        step = {"method": s["method"], "path": p, "status": status, "response": value}
+        if "body" in s:
+            step["body"] = body
+        steps.append(step)
+    return steps, tables(path)
+
+
 def main() -> int:
     check = "--check" in sys.argv[1:]
     saved_tz = os.environ.get("TZ")
@@ -344,40 +436,13 @@ def main() -> int:
     src = SchemaSource()
     try:
         seed = SEED + _files_seed()
-        week3 = _week3_files()
-        from app import server, study
+        from app import study
         frozen(src)
         spec = importlib.util.spec_from_file_location("gen_local_backend_fixture", Path(__file__).with_name("gen-local-backend-fixture.py"))
         gen = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(gen)
-
-        path = src.tmp / "lernplan.db"
-        src.use_db(path)
-        CLOCK["now"] = START
-        src.db.init_db()
-        with src.db.cursor() as conn:
-            for sql, params in seed:
-                conn.execute(sql, params)
-        steps, names = [], {}
-        for s in STEPS:
-            if "now" in s:
-                CLOCK["now"] = s["now"]
-                with src.db.cursor() as conn:
-                    for sql, params in week3:
-                        conn.execute(sql, params)
-                steps.append({"now": s["now"], "sql": [{"sql": q, "params": p} for q, p in week3]})
-                continue
-            p = resolve(s["path"], path, names)
-            body = resolve(s["body"], path, names) if "body" in s else None
-            status, value = gen.asgi(server.app, s["method"], p, body)
-            assert status != 500, (s, value)
-            if s.get("name"):
-                names[s["name"]] = value
-            step = {"method": s["method"], "path": p, "status": status, "response": value}
-            if "body" in s:
-                step["body"] = body
-            steps.append(step)
-        after = tables(path)
+        steps, after = run(src, gen, "lernplan", START, seed, STEPS)
+        fix_steps, fix_after = run(src, gen, "nachgebessert", FIXES_NOW, seed, FIXES)
         derive = [{"statuses": list(c), "past": past, "status": study._derive_status(list(c), past)}
                   for n in range(len(DERIVE_STATUSES) + 1) for c in itertools.combinations(DERIVE_STATUSES, n) for past in (False, True)]
     finally:
@@ -388,7 +453,9 @@ def main() -> int:
             os.environ["TZ"] = saved_tz
         time.tzset()
     out = {"generator": "tools/gen-study-fixture.py", "now": START, "timezone": "Europe/Berlin",
-           "seed": [{"sql": q, "params": p} for q, p in seed], "steps": steps, "tables_after": after, "derive_status": derive}
+           "seed": [{"sql": q, "params": p} for q, p in seed], "steps": steps, "tables_after": after,
+           "scenarios": [{"name": "nachgebessert", "now": FIXES_NOW, "steps": fix_steps, "tables_after": fix_after}],
+           "derive_status": derive}
     ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)
     return 0 if ok or not check else 1
 

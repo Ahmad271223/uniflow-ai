@@ -82,9 +82,9 @@ public enum Migrations {
         .sql("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"),
     ]
 
-    /// Reine Geraete-Umzuege ueber `PRAGMA user_version`: nur fuer kuenftige Aenderungen, die es in app/db.py nicht
-    /// gibt (etwa Tabellen nur fuer das Geraet). Alles aus Python laeuft oben ohne Versionsnummer, damit eine
-    /// Datenbank vom PC und eine vom Geraet gleich behandelt werden. Heute leer.
+    /// Reine Geraete-Umzuege ueber `PRAGMA user_version`: nur fuer Aenderungen, die es in app/db.py nicht gibt (etwa
+    /// Tabellen oder Werte nur fuer das Geraet). Alles aus Python laeuft oben ohne Versionsnummer, damit eine
+    /// Datenbank vom PC und eine vom Geraet gleich behandelt werden; jeder Schritt laeuft genau einmal je Datenbank.
     public struct DeviceStep: Sendable {
         public let version: Int32
         public let apply: @Sendable (SQLiteConnection) throws -> Void
@@ -95,7 +95,13 @@ public enum Migrations {
         }
     }
 
-    public static let deviceSteps: [DeviceStep] = []
+    public static let deviceSteps: [DeviceStep] = [
+        // 1: ohne PC keine Wochentests (Entscheidung 2 vom 25.10.2026). Der Standard 0 gilt ueber INSERT OR IGNORE nur
+        // fuer neue Datenbanken; eine aus einem Build vor S6 (oder vom PC) behielt '1': "Plan erstellen" legte
+        // Wochentest-Aufgaben an, deren "Test starten" mit 404 scheiterte (Korrektur vom 26.10.2026). Danach
+        // speichert die Lernkombination ohne PC immer 0.
+        DeviceStep(version: 1) { try $0.execute("UPDATE settings SET value='0' WHERE key='tests_per_subject'") },
+    ]
 
     /// Hochschule dieser App (V1 nur LUH, `config.UNIVERSITY` in Python)
     public static let defaultUniversity = "luh"

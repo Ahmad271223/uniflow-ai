@@ -125,7 +125,9 @@ enum StudyReschedule {
     }
 
     /// `move_package(conn, package_id, new_date)`: Paket auf einen anderen Tag; nachzuholende Aufgaben werden wieder
-    /// geplant. false, wenn es das Paket nicht gibt (Python: ValueError, seit dem 26.10.2026 404).
+    /// geplant. Mit Uhrzeit: bleibt sie am neuen Tag frei, bleibt sie, sonst ein freies Fenster des neuen Tags (vorher
+    /// blieb sie immer und konnte ueber einer Vorlesung liegen; Korrektur vom 26.10.2026, zuerst in Python). false,
+    /// wenn es das Paket nicht gibt (Python: ValueError, seit dem 26.10.2026 404).
     static func movePackage(_ c: SQLiteConnection, id: SQLiteValue, to newDate: SQLiteValue, clock: UniFlowClock) throws -> Bool {
         guard let p = try c.queryOne("SELECT * FROM study_packages WHERE id=?", [id]) else { return false }
         try c.execute("UPDATE study_packages SET date=? WHERE id=?", [newDate, id])
@@ -135,8 +137,26 @@ enum StudyReschedule {
             try c.execute("INSERT INTO task_history(task_id, package_id, old_status, new_status, old_date, new_date, note, at) VALUES (?,?,?,?,?,?,?,?)",
                           [t["id"] ?? .null, id, t["status"] ?? .null, t["status"] ?? .null, p["date"] ?? .null, newDate, "Paket verschoben", .text(clock.nowISO)])
         }
+        if StudyPlan.truthy(p["start_time"]) && StudyPlan.truthy(p["end_time"]) && newDate != (p["date"] ?? .null) {
+            try slotMovedPackage(c, id: id, p, to: newDate)
+        }
         try StudyPlan.refreshStatuses(c, today: T.today(clock))
         return true
+    }
+
+    /// `_slot_moved_package`: Uhrzeit behalten, wenn sie am neuen Tag ganz in einem freien Fenster liegt (andere
+    /// Pakete, Termine, Sperrzeiten, Fahrtzeit), sonst neu in ein freies Fenster; kein Datum: nur gespeichert
+    static func slotMovedPackage(_ c: SQLiteConnection, id: SQLiteValue, _ p: SQLiteRow, to newDate: SQLiteValue) throws {
+        guard let text = newDate.string, let d = BerlinClock.parseISODate(text) else { return }
+        let a = try LocalFreeWindows.hm(p["start_time"]?.json, key: "start_time"), b = try LocalFreeWindows.hm(p["end_time"]?.json, key: "end_time")
+        try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", [id])
+        let free = try LocalFreeWindows.compute(c, day: d, settings: try LocalSettings.read(c))
+        if free.contains(where: { ($0["start"]?.int ?? 0) <= a && b <= ($0["end"]?.int ?? 0) }) {
+            try c.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", [p["start_time"] ?? .null, p["end_time"] ?? .null, id])
+            return
+        }
+        try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=?", [id])
+        try StudyPlan.assignSlots(c, day: d, packageID: id)
     }
 
     /// `skip_tasks(conn, task_ids)`: bewusst ueberspringen; eine unbekannte Aufgabe bricht alles ab (404)

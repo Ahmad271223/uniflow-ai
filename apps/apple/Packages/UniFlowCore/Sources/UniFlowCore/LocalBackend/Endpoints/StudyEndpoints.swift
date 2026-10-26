@@ -6,7 +6,8 @@ import Foundation
 /// bleibt nichts geaendert). Ersetzt die Platzhalter aus S2.
 ///
 /// Abweichungen von Python: falsche Datumsangaben (Query, `date`, `start`, `dates`) geben 422 statt 500; Zeitraeume
-/// von Kalender und Planung und `horizon` hoechstens 3660 Tage; `suggest` erwartet `task_ids` als Liste.
+/// von Kalender und Planung und `horizon` hoechstens `LocalTimetable.maxDays` Tage; `suggest` erwartet `task_ids` als
+/// Liste.
 public enum StudyEndpoints: LocalEndpointModule {
     public static let name = "Lernkalender"
 
@@ -16,21 +17,9 @@ public enum StudyEndpoints: LocalEndpointModule {
     static let statuses: Set<String> = ["geplant", "in_bearbeitung", "erledigt", "nachholen", "uebersprungen"]
     /// Felder, die `PATCH /api/tasks/{id}` aendern darf
     static let taskFields: Set<String> = ["title", "est_minutes", "sort", "type"]
-    /// Laengster Zeitraum in Tagen (Schutz vor endlosen Schleifen; Python kennt keine Grenze)
-    static let maxDays = 3660
 
     /// `date.fromisoformat(v)` fuer Werte aus dem Rumpf (Python: 500, hier 422)
-    static func day(_ v: JSONValue?, _ field: String) throws -> Int {
-        guard let s = v?.string, let d = BerlinClock.parseISODate(s) else {
-            throw LocalHTTPError(status: 422, message: "Ungültiges Datum in \(field): \(T.text(v))")
-        }
-        return d
-    }
-
-    static func span(_ n: Int) throws -> Int {
-        guard n <= maxDays else { throw LocalHTTPError(status: 422, message: "Höchstens \(maxDays) Tage") }
-        return n
-    }
+    static func day(_ v: JSONValue?, _ field: String) throws -> Int { try T.day(v, field, status: 422) }
 
     /// Einstellungen in Antworten wie `_public_settings`
     static func publicSettings(_ o: [String: JSONValue]) -> [String: JSONValue] {
@@ -44,9 +33,11 @@ public enum StudyEndpoints: LocalEndpointModule {
         registerTasks(on: router)
         registerPackages(on: router)
 
-        // Lernslots der betroffenen Tage neu in freie Fenster legen (ohne Angabe: Tage mit Konflikten in 4 Wochen)
+        // Lernslots der betroffenen Tage neu in freie Fenster legen (ohne Angabe: Tage mit Konflikten in 4 Wochen). Mit
+        // only_unset ("Uhrzeiten vergeben") nur Pakete ohne Uhrzeit, von Hand gesetzte bleiben (seit dem 26.10.2026)
         router.post("/api/timetable/reslot") { req, ctx in
             let b = try req.objectBody(orEmpty: true)
+            let onlyUnset = T.truthy(b["only_unset"])
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { c -> JSONValue in
                 var dates = T.truthy(b["dates"]) ? b["dates"]! : .array([])
@@ -56,7 +47,9 @@ public enum StudyEndpoints: LocalEndpointModule {
                     dates = .array(found.sorted(by: PyText.less).map(JSONValue.string))
                 }
                 guard let list = dates.array else { throw LocalHTTPError(status: 422, message: "dates ist keine Liste") }
-                for d in list { try StudyPlan.reslotDay(c, day: try day(d, "dates")) }
+                for d in list {
+                    if onlyUnset { try StudyPlan.assignSlots(c, day: try day(d, "dates")) } else { try StudyPlan.reslotDay(c, day: try day(d, "dates")) }
+                }
                 return ["reslotted": dates]
             })
         }
@@ -74,7 +67,7 @@ public enum StudyEndpoints: LocalEndpointModule {
     static func registerCalendar(on router: LocalRouter) {
         router.get("/api/calendar") { req, ctx in
             let start = try T.queryDay(req, "start"), end = try T.queryDay(req, "end")
-            _ = try span(end - start)
+            _ = try T.span(end - start)
             let clock = ctx.clock
             let cal = try await ctx.database.transaction { try StudyCalendar.calendar($0, from: start, to: end, clock: clock) }
             return .json(.object(publicSettings(cal)))
@@ -83,9 +76,16 @@ public enum StudyEndpoints: LocalEndpointModule {
         router.post("/api/calendar/generate") { req, ctx in
             let b = try req.objectBody(orEmpty: true)
             let start: Int? = T.truthy(b["start"]) ? try day(b["start"], "start") : nil
-            let days = try span(try T.int(T.or(b["days"], 7), "days"))
-            let replace = T.truthy(b["replace"])
             let clock = ctx.clock
+            // "Lerneinheit automatisch einplanen" im freien Fenster: ein Paket genau in dieses Fenster
+            if T.truthy(b["window_start"]) || T.truthy(b["window_end"]) {
+                let from = b["window_start"], to = b["window_end"]
+                return .json(try await ctx.database.transaction { c in
+                    try StudyPlan.planWindow(c, day: start ?? T.today(clock), start: from, end: to, clock: clock)
+                })
+            }
+            let days = try T.span(try T.int(T.or(b["days"], 7), "days"))
+            let replace = T.truthy(b["replace"])
             return .json(try await ctx.database.transaction { c in
                 try StudyPlan.generatePackages(c, start: start, days: days, replace: replace, clock: clock)
             })
@@ -110,7 +110,7 @@ public enum StudyEndpoints: LocalEndpointModule {
             }
             var package: SQLiteValue?                  // `package_id is not None`
             if let p = b["package_id"], !p.isNull { package = try T.bind(p, "package_id") }
-            let horizon = try span(try T.int(T.or(b["horizon"], 10), "horizon"))
+            let horizon = try T.span(try T.int(T.or(b["horizon"], 10), "horizon"))
             let taskIDs = ids, packageID = package
             return .json(try await ctx.database.transaction { c in
                 try StudyReschedule.suggest(c, taskIDs: taskIDs, packageID: packageID, horizon: horizon, clock: clock)

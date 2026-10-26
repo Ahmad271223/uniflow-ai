@@ -844,6 +844,12 @@ def api_calendar(start: str, end: str):
 def api_calendar_generate(body: dict = Body(default={})):
     start = date.fromisoformat(body["start"]) if body.get("start") else None
     with db.cursor() as conn:
+        if body.get("window_start") or body.get("window_end"):
+            # "Lerneinheit automatisch einplanen" im freien Fenster: ein Paket genau in dieses Fenster
+            try:
+                return study.plan_window(conn, start or study.today(), body.get("window_start"), body.get("window_end"))
+            except ValueError as e:
+                raise HTTPException(400, str(e))
         return study.generate_packages(conn, start, int(body.get("days") or 7), bool(body.get("replace")))
 
 
@@ -1226,13 +1232,18 @@ def api_tt_conflicts(days: int = 28):
 
 @app.post("/api/timetable/reslot")
 def api_tt_reslot(body: dict = Body(default={})):
-    """Lernslots der betroffenen Tage neu in freie Fenster legen."""
+    """Lernslots der betroffenen Tage neu in freie Fenster legen. Mit only_unset ("Uhrzeiten vergeben") bekommen nur
+    Pakete ohne Uhrzeit eine; von Hand gesetzte Uhrzeiten bleiben (frueher wurden sie ohne Rueckfrage neu vergeben)."""
     days = body.get("dates") or []
+    only_unset = bool(body.get("only_unset"))
     with db.cursor() as conn:
         if not days:
             days = sorted({c["date"] for c in study.slot_conflicts(conn, date.today(), date.today() + timedelta(days=28))})
         for d in days:
-            study.reslot_day(conn, date.fromisoformat(d))
+            if only_unset:
+                study.assign_slots(conn, date.fromisoformat(d))
+            else:
+                study.reslot_day(conn, date.fromisoformat(d))
     return {"reslotted": days}
 
 

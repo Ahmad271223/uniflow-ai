@@ -10,11 +10,13 @@ enum StudyCalendar {
     /// Spalten einer Aufgabe im Kalender und im Paket (Datei, letzte Seite, Ergebnis des Wochentests)
     static let taskColumns = "t.*, f.name AS file_name, f.last_page, te.submitted_at AS test_submitted, te.score AS test_score, te.max_score AS test_max"
 
-    /// `calendar(conn, start, end)`: Tage mit Lernpaketen (samt Aufgaben), Terminen (bis 45 Tage) und Tagesstatus
-    static func calendar(_ c: SQLiteConnection, from start: Int, to end: Int, clock: UniFlowClock) throws -> [String: JSONValue] {
+    /// `calendar(conn, start, end)`: Tage mit Lernpaketen (samt Aufgaben), Terminen (bis 45 Tage) und Tagesstatus.
+    /// `refresh: false`, wenn `refreshStatuses` in derselben Transaktion schon lief (Uebersicht; ein zweiter Lauf
+    /// aendert nichts)
+    static func calendar(_ c: SQLiteConnection, from start: Int, to end: Int, clock: UniFlowClock, refresh: Bool = true) throws -> [String: JSONValue] {
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)
-        try StudyPlan.refreshStatuses(c, today: today)
+        if refresh { try StudyPlan.refreshStatuses(c, today: today) }
         let pkgs = try c.rows("""
             SELECT p.*, m.color, m.name AS module_name FROM study_packages p LEFT JOIN modules m ON m.id=p.module_id
                                          WHERE p.date BETWEEN ? AND ? ORDER BY p.date, p.sort, p.id
@@ -97,17 +99,17 @@ enum StudyCalendar {
 
     /// `dashboard(conn)`: heute (Pakete, Termine, freie Fenster), Module, neue Dateien, Woche, Nachholen, naechste
     /// Termine (Klausuren, Lernpakete, Wochentests), letzter Abgleich. Ohne `bg` und mit allen Einstellungen (die
-    /// oeffentliche Form setzt der Endpunkt).
+    /// oeffentliche Form setzt der Endpunkt). Die Status werden einmal abgeleitet, nicht je Kalender noch einmal.
     static func dashboard(_ c: SQLiteConnection, clock: UniFlowClock) throws -> [String: JSONValue] {
         try LocalModules.ensureModules(c, clock: clock)
         let t = T.today(clock)
         try StudyPlan.refreshStatuses(c, today: t)
-        let cal = try calendar(c, from: t, to: t, clock: clock)
+        let cal = try calendar(c, from: t, to: t, clock: clock, refresh: false)
         var today = cal["days"]?.array?.first?.object ?? [:]
         let mods = try LocalModules.overview(c, clock: clock)
         let newFiles = try LocalLibrary.newFiles(c)
-        let weekStart = t - BerlinClock.weekday(t)
-        let week = (try calendar(c, from: weekStart, to: weekStart + 6, clock: clock))["days"]?.array ?? []
+        let weekStart = StudyWeeks.monday(t)
+        let week = (try calendar(c, from: weekStart, to: weekStart + 6, clock: clock, refresh: false))["days"]?.array ?? []
         let wkTotal = week.reduce(0) { $0 + ($1["tasks_total"]?.int ?? 0) }
         let wkDone = week.reduce(0) { $0 + ($1["tasks_done"]?.int ?? 0) }
         let backlog = try c.scalar("SELECT COUNT(*) n FROM study_tasks WHERE status='nachholen'")?.int ?? 0
