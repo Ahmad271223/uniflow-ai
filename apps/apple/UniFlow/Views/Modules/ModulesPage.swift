@@ -62,6 +62,8 @@ struct ModulesPage: View {
                 .clipShape(RoundedRectangle(cornerRadius: UF.r))
                 .ufShadow(.sm)
             }
+            // Opencast-Aufzeichnungen aus Kursen ohne Modul (lokal; die uebrigen stehen im Moduldetail)
+            if session.api?.isLocal == true { RecordingsUnassignedSection().padding(.top, 24) }
         }
     }
 }
@@ -269,6 +271,10 @@ struct ModulePage: View {
     @State private var tab = "overview"                                   // nur im Speicher wie im Web
     @State private var mode = "list"
     @State private var collapsed: Set<Int> = []
+    /// Opencast-Aufzeichnungen je Block (nur lokal) und Woche, zu der aus der Uebersicht gesprungen wurde
+    @State private var recordingCounts: [Int: Int] = [:]
+    @State private var focusWeek: Int?
+    @EnvironmentObject private var studip: StudIPSync
 
     var body: some View {
         Group {
@@ -278,11 +284,13 @@ struct ModulePage: View {
         }
         .task(id: id) { await load() }
         .ufReload { await load() }
+        .onChange(of: tab) { _, t in if t != "recordings" { focusWeek = nil } }
     }
 
     private func load() async {
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
         do { d = try await api.value("/api/modules/\(id)"); error = nil } catch { if d == nil { self.error = error.localizedDescription } }
+        if api.isLocal { recordingCounts = await studip.recordings.weekCounts(moduleID: id) }
     }
 
     @ViewBuilder private func content(_ d: JSONValue) -> some View {
@@ -321,11 +329,15 @@ struct ModulePage: View {
                 }
             }
             .padding(.bottom, 16)
+            // Aufzeichnungen (Opencast) gibt es nur lokal: der Stud.IP-Abgleich des iPads holt sie
+            let recordings: [(value: String, label: String)] = session.api?.isLocal == true ? [("recordings", "Aufzeichnungen")] : []
             UFTabs(options: [("overview", "Übersicht"), ("lectures", "Vorlesungen"), ("exercises", "Übungen"), ("solutions", "Lösungen"),
-                             ("scripts", "Skripte"), ("exams", "Klausuren"), ("notes", "Notizen")], selection: $tab)
+                             ("scripts", "Skripte"), ("exams", "Klausuren")] + recordings + [("notes", "Notizen")], selection: $tab)
             if tab == "overview" {
                 if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Keine Dokumente.") } }
                 ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
+            } else if tab == "recordings" {
+                RecordingsPanel(moduleID: id, focusWeek: focusWeek)
             } else {
                 let key = ["lectures": "vorlesung", "exercises": "uebung", "solutions": "loesung", "scripts": "skript", "exams": "klausur"][tab]
                 let files = tab == "notes" ? d.list("notes")
@@ -380,6 +392,11 @@ struct ModulePage: View {
                 UFIcon("chevron-down", size: 16).foregroundStyle(UF.text)
                 Text("\(w.s("label") ?? "")\(w.s("topic").flatMap { $0.isEmpty ? nil : " – " + $0 } ?? "")").ufFont(15.2, 650, em: -0.01)
                     .foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
+                if let n = recordingCounts[wk], n > 0 {
+                    // Aufzeichnungen derselben Woche: Sprung in den Bereich "Aufzeichnungen"
+                    UFChip(text: RecordingText.count(n), icon: "play") { focusWeek = wk; tab = "recordings" }
+                        .accessibilityHint("Zeigt die Aufzeichnungen dieser Woche")
+                }
                 Text("\(w.i("count") ?? 0) Dokumente").ufFont(12.8).foregroundStyle(UF.muted)
                 // KI-Zusammenfassung nur mit dem PC-Server; ohne PC gibt es keine KI (AUFTRAG-APPSTORE-V1, 2.4)
                 if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true {

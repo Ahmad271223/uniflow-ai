@@ -266,6 +266,11 @@ struct DocumentView: View {
                 VStack(spacing: 6) {
                     versionBanner
                     suggestionBanner
+                    // passende Opencast-Aufzeichnung nur bei sicherem Treffer (lokal: der Abgleich des iPads holt sie);
+                    // nicht in der alten Fassung (S7, nur ansehen)
+                    if api.isLocal, !readOnly, companion == nil, let pdf = store.pdf {
+                        RecordingMatchBanner(fileID: store.file.id) { String((pdf.page(at: 0)?.string ?? "").prefix(1500)) }
+                    }
                 }
             }
     }

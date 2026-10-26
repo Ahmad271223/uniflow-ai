@@ -155,15 +155,27 @@ public actor StudIPClient {
         return try await perform(pathOrLink) { try await transport.get($0, accept: accept) }
     }
 
-    /// Eine Anfrage mit Pause und Anfragegrenze; abgelaufene Sitzung und HTTP-Fehler werden zu `StudIPError`.
-    private func perform(_ pathOrLink: String, _ call: (URL) async throws -> HTTPReply) async throws -> HTTPReply {
+    /// Eine Anfrage mit Pause und Anfragegrenze; abgelaufene Sitzung und HTTP-Fehler werden zu `StudIPError`. Mit
+    /// `anyStatus` kommt jeder andere HTTP-Status zurueck (serverseitig gerenderte Seiten wie die Aufzeichnungen).
+    private func perform(_ pathOrLink: String, anyStatus: Bool = false,
+                         _ call: (URL) async throws -> HTTPReply) async throws -> HTTPReply {
         guard requestCount < maxRequests else { throw StudIPError.requestLimit }
         if requestCount > 0, pauseNanos > 0 { try await Task.sleep(nanoseconds: pauseNanos) }
         requestCount += 1
         let reply = try await call(try url(pathOrLink))
         if reply.status == 401 || Self.looksLikeLogin(reply) { throw StudIPError.sessionExpired }
-        guard (200..<300).contains(reply.status) else { throw StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink)) }
+        guard anyStatus || (200..<300).contains(reply.status) else { throw StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink)) }
         return reply
+    }
+
+    /// Serverseitig gerenderte Stud.IP-Seite (z. B. Opencast-Aufzeichnungen) mit jedem HTTP-Status: das Plugin
+    /// antwortet in Kursen ohne Aufzeichnungen mit 500, das ist dort kein Fehler. Eine Anmeldeseite statt der Seite
+    /// heisst wie bei der JSON:API: Sitzung abgelaufen. Nur lesend, mit denselben Pausen wie die JSON:API.
+    public func htmlPage(_ pathOrLink: String) async throws -> HTTPReply {
+        let transport = self.transport
+        let r = try await perform(pathOrLink, anyStatus: true) { try await transport.get($0, accept: "text/html") }
+        if OpencastParser.looksLikeLoginPage(String(decoding: r.body.prefix(400_000), as: UTF8.self)) { throw StudIPError.sessionExpired }
+        return r
     }
 
     /// Abgelaufene Sitzung: Stud.IP leitet Seitenaufrufe auf die Anmeldung (bzw. die SSO-Seite) um.
