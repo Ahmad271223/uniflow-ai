@@ -249,7 +249,7 @@ final class SolutionSharingTests: XCTestCase {
         let mapped = CGPoint(x: 100, y: 100).applying(view.mapping)
         XCTAssertEqual(mapped.x, 742, accuracy: 1e-9)
         XCTAssertEqual(mapped.y, 100, accuracy: 1e-9)
-        XCTAssertEqual(view.strokeLayerCount, 1)
+        XCTAssertEqual(view.strokeCount, 1)
 
         let overlay = PageInkView(pageIndex: 0, pageKey: "p1", geometry: PageGeometry(boxSize: CGSize(width: 595, height: 842), rotation: 90))
         overlay.setForeign([view])
@@ -259,11 +259,7 @@ final class SolutionSharingTests: XCTestCase {
         XCTAssertLessThan(order.firstIndex(of: overlay.foreignView)!, order.firstIndex(of: overlay.objectsView)!)
         XCTAssertLessThan(order.firstIndex(of: overlay.objectsView)!, order.firstIndex(of: overlay.canvas)!)
         // Pixelprobe der fremden Schicht
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let img = UIGraphicsImageRenderer(size: overlay.foreignView.bounds.size, format: format).image { ctx in
-            overlay.foreignView.layer.render(in: ctx.cgContext)
-        }.cgImage!
+        let img = InkSnapshot.image(overlay.foreignView, size: overlay.foreignView.bounds.size).cgImage!
         XCTAssertGreaterThan(pixel(img, 742, 140).a, 200, "Tinte an der gedrehten Stelle")
         XCTAssertEqual(pixel(img, 140, 100).a, 0, "nicht an der ungedrehten Stelle")
 

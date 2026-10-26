@@ -512,7 +512,7 @@ final class RealSheetSolutionE2ETests: XCTestCase {
         XCTAssertTrue(expectedLabel.hasPrefix("Lösung von \(s.displayName) ("), expectedLabel)
         XCTAssertFalse(overlay.foreignView.isHidden)
         XCTAssertTrue(view.window === window, "im Fenster")
-        XCTAssertEqual(view.strokeLayerCount, 1)
+        XCTAssertEqual(view.strokeCount, 1)
         // Reihenfolge: fremde Schicht ueber der PDF, unter eigenen Objekten und der Canvas
         let order = overlay.content.subviews
         XCTAssertLessThan(order.firstIndex(of: overlay.foreignView) ?? 99, order.firstIndex(of: overlay.canvas) ?? -1)
@@ -529,6 +529,10 @@ final class RealSheetSolutionE2ETests: XCTestCase {
         XCTAssertTrue(view.mapping.isIdentity, "gleiche Drehung wie bei A")
         let inWindow = displayedBounds(view, in: window.layer).rect
         assertBounds(inWindow, wantWindow, 1.0, "fremder Strich im Fenster von B gegen Strich im Fenster von A")
+        let modelRect = rect(wantModel)
+        let pdfPage = try XCTUnwrap(editor.pdfView.document?.page(at: 0))
+        assertBounds(inWindow, rectJSON(pdfWindowRect(modelRect, page: pdfPage, in: editor.pdfView, window: window)), 1.0,
+                     "fremder Strich im Fenster auf der PDF-Seite (PDFKit)")
         let ownRect = try ownStrokeWindowRect(overlay, window: window)
         try await checkpoint("nachImport")
 
@@ -575,6 +579,10 @@ final class RealSheetSolutionE2ETests: XCTestCase {
         XCTAssertGreaterThan(redBoth, 20, "eigener Strich von B im Bild")
         XCTAssertGreaterThan(redOwnOnly, 20, "eigener Strich bleibt bei ausgeblendeter Loesung")
         XCTAssertLessThan(redForeignOnly * 4, max(redBoth, 1), "eigene Notizen aus: eigener Strich weg")
+        // gleiche Strichbreite wie bei A: gleiches Fenster, gleicher Zoom, gleiche Lage -> etwa gleich viele blaue Pixel
+        let blueA = try XCTUnwrap(s.values[1]?["blauePixelImBild"] as? Int)
+        XCTAssertEqual(Double(blueForeignOnly) / Double(max(blueA, 1)), 1, accuracy: 0.15,
+                       "fremder Strich bei B so breit wie bei A: \(blueForeignOnly) zu \(blueA) blaue Pixel")
 
         // Scrollen und Zoomen im Fenster: PDFKit gibt Overlays ab und setzt sie wieder ein
         let pages = editor.pdfView.document?.pageCount ?? 1
@@ -598,8 +606,53 @@ final class RealSheetSolutionE2ETests: XCTestCase {
             scroll.setContentOffset(.zero, animated: false)
             try await Task.sleep(nanoseconds: 700_000_000)
         }
+        // 2-fach-Zoom und Scrollen: die fremde Ebene liegt im Fenster weiter auf der PDF-Seite (nicht nur in den
+        // Koordinaten ihrer eigenen Schicht)
         editor.pdfView.scaleFactor = editor.pdfView.scaleFactor * 2
-        try await Task.sleep(nanoseconds: 700_000_000)
+        try await Task.sleep(nanoseconds: 900_000_000)
+        let zoomedOverlay = try await waitForOverlay(editor)
+        let zoomedView = try XCTUnwrap(zoomedOverlay.foreignLayerViews.first, "fremde Ebene nach dem Zoom")
+        let zoomed = displayedBounds(zoomedView, in: window.layer).rect
+        assertBounds(zoomed, rectJSON(pdfWindowRect(modelRect, page: pdfPage, in: editor.pdfView, window: window)), 1.0,
+                     "2-fach-Zoom: fremder Strich im Fenster auf der PDF-Seite")
+        XCTAssertEqual(Double(zoomed.width / max(inWindow.width, 0.001)), 2, accuracy: 0.05, "2-fach-Zoom: Strich doppelt so breit")
+        XCTAssertEqual(Double(zoomed.height / max(inWindow.height, 0.001)), 2, accuracy: 0.1, "2-fach-Zoom: Strich doppelt so hoch")
+        var scrolled = CGRect.null, centered = CGRect.null, scrolledBy = CGPoint.zero, blueZoomed = 0
+        if let scroll = firstScrollView(editor.pdfView) {
+            let start = scroll.contentOffset
+            let maxX = max(0, scroll.contentSize.width - scroll.bounds.width)
+            let maxY = max(0, scroll.contentSize.height - scroll.bounds.height)
+            scroll.setContentOffset(CGPoint(x: min(start.x + 120, maxX), y: min(start.y + 160, maxY)), animated: false)
+            try await Task.sleep(nanoseconds: 700_000_000)
+            scrolledBy = CGPoint(x: scroll.contentOffset.x - start.x, y: scroll.contentOffset.y - start.y)
+            XCTAssertGreaterThan(hypot(scrolledBy.x, scrolledBy.y), 50, "im 2-fach-Zoom gescrollt")
+            let scrolledOverlay = try await waitForOverlay(editor)
+            let scrolledView = try XCTUnwrap(scrolledOverlay.foreignLayerViews.first, "fremde Ebene nach dem Scrollen im Zoom")
+            scrolled = displayedBounds(scrolledView, in: window.layer).rect
+            assertBounds(scrolled, rectJSON(pdfWindowRect(modelRect, page: pdfPage, in: editor.pdfView, window: window)), 1.0,
+                         "2-fach-Zoom nach dem Scrollen: fremder Strich im Fenster auf der PDF-Seite")
+            XCTAssertEqual(Double(scrolled.minX), Double(zoomed.minX - scrolledBy.x), accuracy: 1.0, "verschoben um das Scrollen (x)")
+            XCTAssertEqual(Double(scrolled.minY), Double(zoomed.minY - scrolledBy.y), accuracy: 1.0, "verschoben um das Scrollen (y)")
+            // Strich in die Fenstermitte scrollen und im Bild an der erwarteten Fensterstelle suchen
+            let center = CGPoint(x: min(max(0, scroll.contentOffset.x + scrolled.midX - window.bounds.midX), maxX),
+                                 y: min(max(0, scroll.contentOffset.y + scrolled.midY - window.bounds.midY), maxY))
+            scroll.setContentOffset(center, animated: false)
+            try await Task.sleep(nanoseconds: 700_000_000)
+            let centeredOverlay = try await waitForOverlay(editor)
+            let centeredView = try XCTUnwrap(centeredOverlay.foreignLayerViews.first, "fremde Ebene nach dem Scrollen zur Mitte")
+            centered = displayedBounds(centeredView, in: window.layer).rect
+            assertBounds(centered, rectJSON(pdfWindowRect(modelRect, page: pdfPage, in: editor.pdfView, window: window)), 1.0,
+                         "2-fach-Zoom, Strich in der Fenstermitte: auf der PDF-Seite")
+            XCTAssertTrue(window.bounds.contains(centered.insetBy(dx: -3, dy: -3)), "Strich ganz im Fenster: \(centered)")
+            try await Task.sleep(nanoseconds: 600_000_000)
+            let shot = snapshot(window)
+            try save(shot, "B-seite1-zoom2-mitte.png", out: out, s)
+            blueZoomed = countPixels(shot, in: centered.insetBy(dx: -3, dy: -3), Self.isBlue)
+            XCTAssertGreaterThan(blueZoomed, 20, "fremder Strich im Bild an der erwarteten Fensterstelle (2-fach, gescrollt)")
+            // doppelt so lang und doppelt so breit wie bei A ohne Zoom: etwa viermal so viele blaue Pixel
+            XCTAssertEqual(Double(blueZoomed) / Double(4 * max(blueA, 1)), 1, accuracy: 0.2,
+                           "2-fach-Zoom: \(blueZoomed) blaue Pixel statt etwa \(4 * blueA)")
+        }
         editor.fitWidth()
         editor.goToPage(0)
         try await Task.sleep(nanoseconds: 900_000_000)
@@ -615,6 +668,9 @@ final class RealSheetSolutionE2ETests: XCTestCase {
             "erwartetNotizmodellA": wantModel, "pdfSeiten": pages,
             "pixel": ["blauBeide": blueBoth, "blauNurFremd": blueForeignOnly, "blauFremdAus": blueOwnOnly,
                       "rotBeide": redBoth, "rotNurFremd": redForeignOnly, "rotFremdAus": redOwnOnly],
+            "fensterZoom2": rectJSON(zoomed), "fensterZoom2Gescrollt": rectJSON(scrolled), "fensterZoom2Mitte": rectJSON(centered),
+            "blauePixelZoom2Mitte": blueZoomed,
+            "gescrolltUm": ["x": round4(Double(scrolledBy.x)), "y": round4(Double(scrolledBy.y))], "blauePixelA": blueA,
             "overlayNachScrollenNeu": back !== overlay, "seite1OverlayVonPDFKitAbgegeben": page1Released,
             "seite1AusserhalbDesFensters": page1Released || page1OutOfView, "notizenUnveraendert": unchanged,
         ]
@@ -970,20 +1026,21 @@ final class RealSheetSolutionE2ETests: XCTestCase {
     }
 
     /// Angezeigte Mittellinie der Striche einer fremden Ebene in den Koordinaten von `target` (Seitenpunkte: die
-    /// fremde Schicht des Overlays; Fensterpunkte: das Fenster). Gemessen an den CAShapeLayer-Pfaden, die Core
-    /// Animation zeichnet, ueber alle Transformationen dazwischen (Drehungsabbildung, Objekt, Zoom des Overlays).
+    /// fremde Schicht des Overlays; Fensterpunkte: das Fenster). Gemessen an den PencilKit-Strichen der fremden
+    /// Canvas (`ForeignLayerView.ink`), ueber alle Transformationen dazwischen (Drehungsabbildung, Zoom des Overlays).
     private func displayedBounds(_ view: ForeignLayerView, in target: CALayer) -> (rect: CGRect, layers: Int) {
         var rect = CGRect.null
-        var n = 0
-        func walk(_ l: CALayer) {
-            if let shape = l as? CAShapeLayer, let path = shape.path, shape.strokeColor != nil {
-                rect = rect.union(shape.convert(path.boundingBoxOfPath, to: target))
-                n += 1
-            }
-            l.sublayers?.forEach(walk)
-        }
-        walk(view.layer)
-        return (rect, n)
+        for s in view.ink.drawing.strokes { rect = rect.union(view.ink.layer.convert(centerline(s), to: target)) }
+        return (rect, view.ink.drawing.strokes.count)
+    }
+
+    /// Rechteck in Punkten der angezeigten Seite (Ursprung oben links, ohne Zoom) ueber PDFKit ins Fenster: so liegt
+    /// es auf der PDF-Seite selbst, unabhaengig vom Overlay (nur Seiten ohne Drehung)
+    private func pdfWindowRect(_ r: CGRect, page: PDFPage, in pdfView: PDFView, window: UIWindow) -> CGRect {
+        XCTAssertEqual(page.rotation, 0, "Pruefung gegen die PDF-Seite nur ohne /Rotate")
+        let box = page.bounds(for: pdfView.displayBox)
+        let inPage = CGRect(x: box.minX + r.minX, y: box.maxY - r.maxY, width: r.width, height: r.height)
+        return pdfView.convert(pdfView.convert(inPage, from: page), to: window)
     }
 
     /// Fensterlage des zuletzt gezeichneten eigenen Strichs (Mittellinie) auf der Canvas.
@@ -1084,6 +1141,12 @@ final class RealSheetSolutionE2ETests: XCTestCase {
     private func rectJSON(_ r: CGRect) -> [String: Double] {
         guard !r.isNull else { return [:] }
         return ["minX": round4(Double(r.minX)), "minY": round4(Double(r.minY)), "maxX": round4(Double(r.maxX)), "maxY": round4(Double(r.maxY))]
+    }
+
+    /// Umkehrung von `rectJSON` (Werte aus A-strich.json)
+    private func rect(_ d: [String: Any]) -> CGRect {
+        func v(_ k: String) -> CGFloat { CGFloat((d[k] as? NSNumber)?.doubleValue ?? .nan) }
+        return CGRect(x: v("minX"), y: v("minY"), width: v("maxX") - v("minX"), height: v("maxY") - v("minY"))
     }
 
     private func writeJSON(_ object: Any, to url: URL) throws {

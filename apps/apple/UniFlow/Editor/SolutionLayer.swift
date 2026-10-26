@@ -1,5 +1,6 @@
 import ImageIO
 import PDFKit
+import PencilKit
 import UIKit
 import UniFlowCore
 
@@ -97,42 +98,22 @@ enum SolutionPreview {
     }
 }
 
-extension InkRenderer {
-    /// Strich als Vektor-Ebenen (bleibt beim Zoomen scharf wie Vorlage und Formen), gleiche Regeln wie `draw`.
-    static func shapeLayer(_ o: JSONValue) -> CALayer? {
-        guard let plan = plan(o) else { return nil }
-        let group = CALayer()
-        group.anchorPoint = .zero
-        group.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
-        group.setAffineTransform(plan.transform)
-        group.opacity = Float(plan.alpha)
-        if plan.multiply { group.compositingFilter = "multiplyBlendMode" }
-        for piece in plan.pieces {
-            let l = CAShapeLayer()
-            l.path = piece.path
-            l.lineWidth = piece.width
-            l.strokeColor = plan.color.cgColor
-            l.fillColor = nil
-            l.lineCap = .round
-            l.lineJoin = .round
-            if !plan.dash.isEmpty { l.lineDashPattern = plan.dash.map { NSNumber(value: Double($0)) } }
-            group.addSublayer(l)
-        }
-        return group
-    }
-}
-
 /// Eine fremde Loesungsseite in der eigenen Schicht des Seiten-Overlays (ueber der PDF, unter den eigenen Notizen).
 /// Die Objekte stehen in Punkten der Seite, wie der Absender sie gedreht hatte; `mapping` bildet sie auf die
 /// angezeigte Seite des Betrachters ab (`SolutionGeometry.transform`). Zoom ist reine Anzeige (Skalierung des
 /// Overlays), die Koordinaten bleiben unveraendert.
+/// Striche zeichnet PencilKit wie auf der Canvas des Absenders (gleiche Umwandlung `StrokeConverter.stroke(from:)`,
+/// gleiche Tinte): PencilKit zeichnet einen Strich nicht in der gespeicherten Punktgroesse (im Simulator gemessen:
+/// Stift 3 pt -> 2 pt, 8 pt -> 12 pt), eine CAShapeLayer mit der gespeicherten Breite erschien beim Empfaenger
+/// deshalb sichtbar anders als beim Absender (ForeignInkWidthTests).
 final class ForeignLayerView: UIView {
     let solutionID: String
     /// Absender-Seite -> angezeigte Seite des Betrachters
     let mapping: CGAffineTransform
     private let content = UIView()
     private let objectsView: PageObjectsView
-    private let strokes = CALayer()
+    /// Striche der fremden Seite, nur Anzeige (keine Eingabe, kein Werkzeug)
+    let ink = PKCanvasView()
 
     /// Seitenlaenge fuer die Anzeige: endlich, 1...`SolutionLimits.maxPageSide` (geprueft ist das schon beim
     /// Oeffnen; hier zusaetzlich, damit keine Ebene mit NaN oder Unendlich entstehen kann).
@@ -154,6 +135,7 @@ final class ForeignLayerView: UIView {
         backgroundColor = .clear
         isOpaque = false
         isUserInteractionEnabled = false
+        overrideUserInterfaceStyle = .light            // wie die eigene Canvas: Tinte im Dunkelmodus nicht umkehren
         content.isUserInteractionEnabled = false
         content.layer.anchorPoint = .zero
         content.bounds = source
@@ -161,11 +143,19 @@ final class ForeignLayerView: UIView {
         content.transform = mapping
         content.addSubview(objectsView)
         objectsView.show(template: nil, placeholder: nil, objects: page.objects, images: images)
-        strokes.frame = source
-        for o in page.objects where o["type"]?.string == "stroke" {
-            if let l = InkRenderer.shapeLayer(o) { strokes.addSublayer(l) }
-        }
-        content.layer.addSublayer(strokes)
+        ink.frame = source
+        ink.backgroundColor = .clear
+        ink.isOpaque = false
+        ink.isUserInteractionEnabled = false
+        ink.drawingGestureRecognizer.isEnabled = false
+        ink.isScrollEnabled = false
+        ink.minimumZoomScale = 1
+        ink.maximumZoomScale = 1
+        ink.contentInsetAdjustmentBehavior = .never
+        ink.showsVerticalScrollIndicator = false
+        ink.showsHorizontalScrollIndicator = false
+        ink.drawing = Self.drawing(page.objects)
+        content.addSubview(ink)
         addSubview(content)
         isAccessibilityElement = true
         accessibilityLabel = label
@@ -175,6 +165,15 @@ final class ForeignLayerView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) wird nicht genutzt") }
 
+    /// Striche der Seite wie auf der Canvas des Absenders; Erstellzeiten nur zur Unterscheidung
+    static func drawing(_ objects: [JSONValue]) -> PKDrawing {
+        let start = Date(timeIntervalSince1970: 0)
+        let strokes = objects.filter { $0["type"]?.string == "stroke" }.enumerated().compactMap { i, o in
+            StrokeConverter.stroke(from: o, created: start.addingTimeInterval(TimeInterval(i)))
+        }
+        return PKDrawing(strokes: strokes)
+    }
+
     /// Anzahl gezeichneter Striche (Tests).
-    var strokeLayerCount: Int { strokes.sublayers?.count ?? 0 }
+    var strokeCount: Int { ink.drawing.strokes.count }
 }
