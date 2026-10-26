@@ -4,16 +4,18 @@ import UniFlowCore
 
 /// Konto der App (V1: "Mit Apple anmelden", docs/AUFTRAG-APPSTORE-V1.md Abschnitt 2a).
 ///
-/// Nutzerkennung (`credential.user`), Name und E-Mail liegen im Schluesselbund, der Merker "Tarifwahl schon gezeigt"
-/// und die gewaehlte Hochschule je Nutzer in UserDefaults (Hochschulwahl nach der Tarifwahl,
-/// docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 1; keine Erkennung aus E-Mail oder Name). Aus Nutzer und Hochschule
-/// folgt der Container aller Daten (`containerKey`, ContainerManager). Beim Start prueft `verifyCredential()` still den Stand bei Apple; bei `revoked`/`notFound`
+/// Nutzerkennung (`credential.user`), Name und E-Mail liegen im Schluesselbund, der Merker "Tarifwahl schon gezeigt",
+/// die gewaehlte Hochschule je Nutzer und der Merker "Anmeldeseiten der Hochschule gezeigt" je Nutzer und Hochschule
+/// in UserDefaults (Hochschulwahl nach der Tarifwahl, docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 1; keine Erkennung aus
+/// E-Mail oder Name; direkt danach die Anmeldeseiten der Hochschule, Views/Onboarding/FirstLoginFlow.swift). Aus Nutzer
+/// und Hochschule folgt der Container aller Daten (`containerKey`, ContainerManager). Beim Start prueft `verifyCredential()` still den Stand bei Apple; bei `revoked`/`notFound`
 /// geht es zurueck zur Begruessung, die lokalen Studiendaten bleiben. Die Pruefung bei Apple und der Speicher sind
 /// hinter Protokollen, damit die Logik ohne echte Apple-ID testbar ist (UniFlowTests/AccountStoreTests.swift).
 @MainActor
 final class AccountStore: ObservableObject {
-    /// Bildschirm beim Start: Begruessung -> (nur beim ersten Mal) Tarifwahl -> Hochschule waehlen -> UniFlow-Oberflaeche
-    enum Stage: Equatable { case welcome, planPicker, universityPicker, ready }
+    /// Bildschirm beim Start: Begruessung -> (nur beim ersten Mal) Tarifwahl -> Hochschule waehlen -> (einmal je
+    /// Hochschule) Anmeldeseiten der Hochschule mit Erstabgleich -> UniFlow-Oberflaeche
+    enum Stage: Equatable { case welcome, planPicker, universityPicker, universityLogin, ready }
 
     struct Account: Equatable {
         var userID: String
@@ -31,6 +33,10 @@ final class AccountStore: ObservableObject {
         static let planShown = "uniflow.onboarding.planShown"
         /// gewaehlte Hochschule je Apple-Nutzer (Kurzkennung, nie die Apple-ID selbst)
         static func university(_ userID: String) -> String { "uniflow.university." + DataContainerKey.userScope(userID) }
+        /// Anmeldeseiten dieser Hochschule beim ersten Start gezeigt (angemeldet oder "Später anmelden"), je Nutzer
+        static func loginDone(_ userID: String, _ u: UniversityKey) -> String {
+            "uniflow.onboarding.loginDone." + DataContainerKey.userScope(userID) + "." + u.rawValue
+        }
         /// gesetzt beim ersten Start dieser Installation (UserDefaults verschwinden mit der App, der Schluesselbund nicht)
         static let installed = "uniflow.account.installed"
     }
@@ -53,6 +59,8 @@ final class AccountStore: ObservableObject {
     @Published private(set) var planShown: Bool
     /// gewaehlte Hochschule des angemeldeten Nutzers; nil = noch nicht gewaehlt (Hochschulwahl)
     @Published private(set) var university: UniversityKey?
+    /// Anmeldeseiten der gewaehlten Hochschule schon gezeigt (sonst `Stage.universityLogin`)
+    @Published private(set) var loginDone = false
     @Published var lastError: String?
     /// einmaliger Hinweis auf der Begruessung, z. B. nach "Konto loeschen"
     @Published var notice: Notice?
@@ -78,6 +86,7 @@ final class AccountStore: ObservableObject {
         account = secrets.get(Keys.user).map { Account(userID: $0, name: secrets.get(Keys.name), email: secrets.get(Keys.email)) }
         planShown = defaults.bool(forKey: Keys.planShown)
         university = account.flatMap { Self.storedUniversity($0.userID, defaults) }
+        loginDone = Self.storedLoginDone(account?.userID, university, defaults)
         // Release/TestFlight ueber einem Debug-Build installiert: das Debug-Konto gilt nicht als Anmeldung,
         // sonst waere "Mit Apple anmelden" umgangen (verifyCredential prueft Debug-Konten nicht bei Apple).
         // Die Tarifwahl wurde dann nur im Debug-Build "gezeigt" und erscheint nach der echten Anmeldung erneut.
@@ -103,7 +112,8 @@ final class AccountStore: ObservableObject {
     var stage: Stage {
         guard account != nil else { return .welcome }
         guard planShown else { return .planPicker }
-        return university == nil ? .universityPicker : .ready
+        guard university != nil else { return .universityPicker }
+        return loginDone ? .ready : .universityLogin
     }
 
     /// Container aller Daten: (Apple-Nutzer, Hochschule); nil vor Anmeldung oder Hochschulwahl
@@ -146,6 +156,7 @@ final class AccountStore: ObservableObject {
         if let e = next.email { secrets.set(e, for: Keys.email) } else { secrets.delete(Keys.email) }
         account = next
         university = Self.storedUniversity(userID, defaults)
+        loginDone = Self.storedLoginDone(userID, university, defaults)
         lastError = nil
         notice = nil
     }
@@ -185,6 +196,7 @@ final class AccountStore: ObservableObject {
         Keys.secrets.forEach(secrets.delete)
         account = nil
         university = nil
+        loginDone = false
     }
 
     // MARK: Hochschule
@@ -195,6 +207,7 @@ final class AccountStore: ObservableObject {
         guard let a = account else { return }
         defaults.set(u.rawValue, forKey: Keys.university(a.userID))
         university = u
+        loginDone = Self.storedLoginDone(a.userID, u, defaults)
     }
 
     /// nur Debug (-UFOnboarding university): Hochschulwahl erneut zeigen
@@ -202,10 +215,33 @@ final class AccountStore: ObservableObject {
         guard let a = account else { return }
         defaults.removeObject(forKey: Keys.university(a.userID))
         university = nil
+        loginDone = false
     }
 
     private static func storedUniversity(_ userID: String, _ d: UserDefaults) -> UniversityKey? {
         d.string(forKey: Keys.university(userID)).flatMap(UniversityKey.init(rawValue:))
+    }
+
+    private static func storedLoginDone(_ userID: String?, _ u: UniversityKey?, _ d: UserDefaults) -> Bool {
+        guard let userID, let u else { return false }
+        return d.bool(forKey: Keys.loginDone(userID, u))
+    }
+
+    // MARK: Anmeldeseiten der Hochschule (erster Start)
+
+    /// Anmeldeseiten der gewaehlten Hochschule sind durch (angemeldet, Erstabgleich gesehen oder "Später anmelden"):
+    /// ab jetzt die Oberflaeche; die bisherigen Karten "… verbinden" bleiben der Weg fuer alles Offene
+    func markLoginDone() {
+        guard let a = account, let u = university else { return }
+        defaults.set(true, forKey: Keys.loginDone(a.userID, u))
+        loginDone = true
+    }
+
+    /// nur Debug (-UFOnboarding login): die Anmeldeseiten erneut zeigen
+    func resetLoginStep() {
+        guard let a = account, let u = university else { return }
+        defaults.removeObject(forKey: Keys.loginDone(a.userID, u))
+        loginDone = false
     }
 
     // MARK: Tarifwahl
@@ -220,7 +256,10 @@ final class AccountStore: ObservableObject {
     /// Richtlinie 5.1.1(v): Konto-Eintraege und Schluesselbund entfernen, zurueck zur Begruessung.
     /// Abos laufen bei Apple weiter, bis der Nutzer sie dort kuendigt (Hinweis mit `manageSubscriptionsURL`).
     func deleteAccount() {
-        if let a = account { defaults.removeObject(forKey: Keys.university(a.userID)) }
+        if let a = account {
+            defaults.removeObject(forKey: Keys.university(a.userID))
+            for u in UniversityKey.allCases { defaults.removeObject(forKey: Keys.loginDone(a.userID, u)) }
+        }
         signOut()
         planShown = false
         defaults.removeObject(forKey: Keys.planShown)

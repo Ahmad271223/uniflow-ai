@@ -470,6 +470,7 @@ final class HildesheimLogin: ObservableObject {
     func intercept(_ url: URL) -> Bool {
         let s = url.scheme?.lowercased() ?? ""
         if s == "https" || s == "http" || s == "about" { return false }
+        if s == "file", DebugUniStub.isActive { return false }                 // nur Debug: lokale Nachbildung der Anmeldeseite
         guard target == .learnweb, viaToken, let base, let passport,
               MoodleSSO.isTokenRedirect(url.absoluteString, scheme: scheme) else { return true }
         self.passport = nil                                              // jede Antwort gilt nur einmal
@@ -481,6 +482,20 @@ final class HildesheimLogin: ObservableObject {
         stage = connection.learnwebSignedIn(token: token, base: base)
             ? .done : .failed("Der Learnweb-Schlüssel ließ sich nicht im Schlüsselbund dieses iPads ablegen.")
         return true
+    }
+
+    /// Nur Debug mit -UFLoginStub (DebugUniStub): die Nachbildung zeigt "angemeldet" - verbunden wie nach der echten
+    /// Anmeldung (Learnweb mit erfundenem Schluessel fuer die gefundene Instanz, LSF ueber die Sitzung)
+    func stubSignedIn() {
+        guard DebugUniStub.isActive, stage != .done else { return }
+        switch target {
+        case .lsf:
+            connection.lsfSignedIn()
+            stage = .done
+        case .learnweb:
+            guard let base else { return }
+            stage = connection.learnwebSignedIn(token: viaToken ? LearnwebToken("StubSchluessel0001") : nil, base: base) ? .done : .failed("Stub")
+        }
     }
 
     /// Nach jeder geladenen Seite (Hauptrahmen): fertig? Fehlertext des CAS?

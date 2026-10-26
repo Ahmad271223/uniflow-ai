@@ -90,8 +90,9 @@ struct UniFlowApp: App {
     }
 }
 
-/// Begruessung -> Tarifwahl (nur beim ersten Mal) -> Hochschulwahl -> Oberflaeche; die Oberflaeche erscheint auch
-/// ohne Server, aber erst mit offenem Container der gewaehlten Hochschule
+/// Begruessung -> Tarifwahl (nur beim ersten Mal) -> Hochschulwahl -> (einmal je Hochschule) Anmeldeseiten der
+/// Hochschule mit Erstabgleich (FirstLoginFlow, braucht den offenen Container) -> Oberflaeche; die Oberflaeche
+/// erscheint auch ohne Server, aber erst mit offenem Container der gewaehlten Hochschule
 struct RootView: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var containers: ContainerManager
@@ -104,7 +105,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        OnboardingFlow { ContainerGate { MainView() } }
+        OnboardingFlow { ContainerGate { if account.stage == .universityLogin { FirstLoginFlow() } else { MainView() } } }
             .environment(\.ufSwitchPlan) { choosingPlan = true }            // "Tarif wechseln" in den Einstellungen
             .sheet(isPresented: $choosingPlan) {
                 PlanPickerView(context: .settings) { choosingPlan = false }
