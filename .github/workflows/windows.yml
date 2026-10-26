@@ -1,7 +1,15 @@
-# Windows-Desktop (Tauri + mitgeliefertes Python-Backend). Nur manuell starten: Windows-Minuten zaehlen doppelt.
+# Windows-Desktop (Tauri + mitgeliefertes Python-Backend). Windows-Minuten zaehlen doppelt: laeuft nur bei Aenderungen
+# an App oder Backend auf develop und sonst von Hand (workflow_dispatch).
 name: Windows
 
 on:
+  push:
+    branches: [develop]
+    paths:
+      - "apps/windows/**"
+      - "app/**"
+      - "requirements.txt"
+      - ".github/workflows/windows.yml"
   workflow_dispatch:
 
 permissions:
@@ -34,25 +42,19 @@ jobs:
       - name: Chromium ins Paket
         shell: pwsh
         run: |
-          Move-Item -Path "apps/windows/backend/ms-playwright" -Destination "apps/windows/backend/dist/uniflow-backend/ms-playwright"
+          # Playwright legt chromium-<build> (und chromium_headless_shell-<build>) unter PLAYWRIGHT_BROWSERS_PATH ab;
+          # ohne diesen Ordner wuerde das Paket spaeter still auf Playwrights Standardordner zurueckfallen.
+          $browsers = $env:PLAYWRIGHT_BROWSERS_PATH
+          $chromium = @(Get-ChildItem -Path $browsers -Directory -Filter "chromium-*" -ErrorAction SilentlyContinue)
+          if ($chromium.Count -eq 0) { throw "Kein Ordner chromium-* unter $browsers - 'playwright install chromium' hat nichts abgelegt?" }
+          Write-Host "Chromium: $($chromium.Name -join ', ')"
+          $target = "apps/windows/backend/dist/uniflow-backend/ms-playwright"
+          Move-Item -Path $browsers -Destination $target
+          if (-not (Get-ChildItem -Path $target -Directory -Filter "chromium-*")) { throw "Chromium fehlt nach dem Verschieben unter $target" }
           Get-ChildItem "apps/windows/backend/dist/uniflow-backend" | Select-Object Name, Length
       - name: Gepacktes Backend starten und abfragen
         shell: pwsh
-        run: |
-          $state = Join-Path $env:TEMP "uniflow-state.json"
-          $base = Join-Path $env:TEMP "uniflow-base"
-          $p = Start-Process -FilePath "apps/windows/backend/dist/uniflow-backend/uniflow-backend.exe" -ArgumentList "--state `"$state`" --base `"$base`"" -PassThru
-          $deadline = (Get-Date).AddSeconds(90)
-          while (-not (Test-Path $state) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 300 }
-          if (-not (Test-Path $state)) { Stop-Process -Id $p.Id -Force; throw "Backend hat keine Zustandsdatei geschrieben" }
-          $url = (Get-Content $state | ConvertFrom-Json).url
-          Start-Sleep -Seconds 2
-          $r = Invoke-WebRequest -Uri ($url + "api/account/info") -UseBasicParsing
-          if ($r.StatusCode -ne 200) { Stop-Process -Id $p.Id -Force; throw "Backend antwortet nicht: $($r.StatusCode)" }
-          Write-Host "Backend OK: $($r.Content)"
-          $h = Invoke-WebRequest -Uri $url -UseBasicParsing
-          if (-not $h.Headers["Content-Security-Policy"]) { Stop-Process -Id $p.Id -Force; throw "Oberflaeche ohne Content-Security-Policy" }
-          Stop-Process -Id $p.Id -Force
+        run: ./apps/windows/scripts/check-backend.ps1 -Exe apps/windows/backend/dist/uniflow-backend/uniflow-backend.exe
 
       - uses: actions/setup-node@v4
         with:
@@ -64,12 +66,15 @@ jobs:
       - name: Tauri-Abhaengigkeiten
         working-directory: apps/windows
         run: npm install
-      - name: Icons aus dem App-Icon erzeugen
+      - name: Icons aus dem App-Icon erzeugen (apps/windows/app-icon.png)
         working-directory: apps/windows
-        run: npx tauri icon ../apple/UniFlow/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png -o src-tauri/icons
+        run: npx tauri icon app-icon.png -o src-tauri/icons
       - name: Installer bauen
         working-directory: apps/windows
         run: npx tauri build
+      - name: Installer still installieren, installiertes Backend pruefen, deinstallieren
+        shell: pwsh
+        run: ./apps/windows/scripts/check-installer.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: uniflow-windows
