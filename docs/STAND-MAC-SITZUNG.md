@@ -247,3 +247,42 @@ Stud.IP-Absagen der eigenen Serien 66/66 als Ausfall, LSF 29/29 Terminzeilen. Ge
 `forum-view` + `learnweb-forum-view.html`, `forum-announcement`, `lsf-notes`, Frist mit `overdue`. Schema neu erzeugt
 (`announcements`, `event_notes`, `deadlines.overdue`). Tests: Python 150 grün, Swift-Kern 375 grün (Linux).
 
+## Übergabe der PC-Sitzung: externer Prüfbericht und Aufgabenteilung (26.10.2026) – bitte zuerst lesen
+
+Der Inhaber hat einen externen Prüfbericht mit 120 Punkten und einem neuen Ziel übergeben:
+**Apple V1 = vollständige App ohne generative KI, auf iPad und Apple-Silicon-MacBooks, ohne PC**; KI etwa eine
+Woche später als Update. Dazu seine Vorgabe: **ein UniFlow-Konto für alle Geräte** (Apple, Windows, Samsung-Tablet),
+Synchronisierung über unseren eigenen Dienst, nicht über iCloud.
+
+- Wortlaut des Berichts: `docs/PRUEFBERICHT-EXTERN-2026-10-26.md` (Teil A Ziel und Testliste, Teil B Nr. 1–120).
+- **Aufteilung, geprüfte Befunde, Verträge und Reihenfolge: `docs/AUFGABENTEILUNG-APPLE-PC.md`.** Die PC-Sitzung
+  hat die Behauptungen am Code geprüft (Abschnitt 2); was dort nicht bestätigt ist, ist keine Aufgabe.
+
+**Eure Aufgaben (Abschnitt 3, M1–M18), die kritischsten zuerst:**
+1. **M1 Platzhalter dürfen keinen Erfolg melden** – `DELETE /api/flashcards/{id}` antwortet heute `.ok`
+   (`PendingServicesEndpoints.swift:40`), Favorit ohne Treffer meldet Erfolg. Regel G6: 501 mit Meldung.
+2. **M5 Download-Reihenfolge** (`UniDownloads.swift:94` rename vor der Transaktion `:101`): alte Datei bis zum Commit
+   behalten. Dieselbe Reihenfolge steht in Python (`studip_sync.py:357/487`), die PC-Sitzung baut es dort parallel um
+   (Vertrag G5, gleiche Fehlerfälle in beiden Testsuiten).
+3. **M6 Notizen**: `base_version` für die App verpflichtend, Restore mit aktueller Version, SVG-Assets nur mit
+   `Content-Security-Policy: sandbox` (so liefert Python sie aus, `server.py:163`), Asset-Upload gegen die DB prüfen.
+4. **M7 Release-Konfiguration**: `NSAllowsArbitraryLoads` (`project.yml:87`) nur Debug, `PrivacyInfo.xcprivacy`
+   anlegen, Mac-Verfügbarkeit („Designed for iPad“ auf Apple Silicon) statt nur `TARGETED_DEVICE_FAMILY: "2"`.
+5. **M2 S6 und M3/M4 S7** – Lernplanung, Suche/Skriptsuche, neue PDF-Fassung mit Notizen. Fixtures für die
+   Skriptsuche liefert die PC-Sitzung (G3) in `packages/shared-contracts/fixtures/scriptsearch`.
+6. Danach M8–M18 (Karteikarten, robuster Hochschul-Sync inkl. 6-Seiten-Grenze im Notenspiegel
+   `LearnwebAPI.swift:329` und 1.500-Anfragen-Limit `StudIPClient.swift:123`, Hildesheim/LUH live, S8, Konto- und
+   Sync-Client nach G1/G2, Community-Client, Migrationen, Gerätetests).
+
+**Was die PC-Sitzung übernimmt (Abschnitt 4):** gehosteter Modus mit Konten und Nutzer-Trennung, Verträge G1 Konto
+und G2 Sync (bevor ihr den Client baut), Python-Datenintegrität, Skriptsuche-Referenz mit OCR und Fixtures,
+Windows-App mit mitgeliefertem Backend und CSP, Android-App, Community-Dienst, CI, Store-/Rechtstexte.
+
+**Was der Inhaber entscheidet (Abschnitt 6):** Apple-Entwicklerkonto und App Store Connect, Google Play,
+Windows-Zertifikat, Hosting/Domain, GitHub-Abrechnung (seit 25.10. gesperrt, daher `[skip ci]`), Hochschul-Freigaben,
+echte Geräte für die Tests.
+
+Bitte den Vertrag G1/G2 (Konto, Sync) nicht vorab eigenständig entwerfen: die PC-Sitzung legt ihn als
+Python-Referenz mit Fixtures fest, damit Web, iPad, Windows und Android dieselbe Form haben. Rückfragen und
+Ergebnisse wie bisher hier in diese Datei.
+
