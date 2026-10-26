@@ -228,8 +228,10 @@ struct RecordingDownloadControl: View {
             pending(state)
         } else if let d = RecordingPlayback.quality(for: entry.video) {
             HStack(spacing: 6) {
-                if library.hasResumeData(entry, quality: d.quality) {
-                    UFButton("Fortsetzen", icon: "download", size: .small) { Task { await load(d) } }
+                // abgebrochener Download (auch nach einem Neustart der App): in seiner Fassung fortsetzen
+                if let paused = library.pausedMedia(entry) {
+                    UFButton("Fortsetzen", icon: "download", size: .small) { Task { await load(paused) } }
+                        .accessibilityHint("Lädt die Fassung \(paused.quality) weiter")
                     UFButton("Verwerfen", icon: "trash", kind: .ghost, size: .small) { Task { await library.remove(entry) } }
                 } else {
                     UFButton(asking ? "Prüft …" : "Laden", icon: "download", size: .small) { Task { await load(d) } }
@@ -247,7 +249,7 @@ struct RecordingDownloadControl: View {
 
     @ViewBuilder private func pending(_ state: RecordingLibrary.DownloadState) -> some View {
         switch state {
-        case .running(let f):
+        case .running(let f, _):
             HStack(spacing: 8) {
                 UFProgress(value: f ?? 0).frame(width: 90)
                 Text(f.map { "\(Int(($0 * 100).rounded())) %" } ?? "…").ufFont(12.48).foregroundStyle(UF.muted)
@@ -259,7 +261,7 @@ struct RecordingDownloadControl: View {
                 UFButton("Fortsetzen", icon: "download", size: .small) { resume() }
                 UFButton("Verwerfen", icon: "trash", kind: .ghost, size: .small) { Task { await library.remove(entry) } }
             }
-        case .failed(let message):
+        case .failed(let message, _):
             HStack(spacing: 6) {
                 Text(message).ufFont(12.48).foregroundStyle(UF.bad).lineLimit(2).frame(maxWidth: 220, alignment: .leading)
                 UFButton("Erneut", icon: "refresh", size: .small) { resume() }
@@ -268,8 +270,9 @@ struct RecordingDownloadControl: View {
         }
     }
 
+    /// "Fortsetzen" und "Erneut": dieselbe Fassung wie der abgebrochene bzw. gescheiterte Download
     private func resume() {
-        guard let d = RecordingPlayback.quality(for: entry.video) else { return }
+        guard let d = library.resumeMedia(entry) ?? RecordingPlayback.quality(for: entry.video) else { return }
         Task { await load(d) }
     }
 
@@ -289,6 +292,11 @@ struct RecordingDownloadControl: View {
         asking = false
         if probe.needsLogin {
             toast.show("Der Videoserver verlangt eine Anmeldung – laden geht nicht, abspielen geht über Stud.IP.", seconds: 4)
+            return
+        }
+        // keine Antwort oder Fehlerstatus: der Download koennte gar nicht starten, also keine Rueckfrage zur Groesse
+        if let problem = probe.failure {
+            toast.show(problem, seconds: 4)
             return
         }
         switch RecordingDownloadPolicy.decide(title: entry.video.title, quality: d.quality, size: probe.size, freeBytes: library.freeBytes()) {

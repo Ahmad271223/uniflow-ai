@@ -12,12 +12,20 @@ import UniFlowCore
 
 @MainActor
 final class RecordingLibrary: ObservableObject {
+    /// Zustand eines Downloads mit seiner Fassung: "Fortsetzen" und "Erneut" setzen genau diese fort (z. B. 1080p aus
+    /// dem Kontextmenue), nicht die Standardfassung
     enum DownloadState: Equatable {
         /// laeuft; Anteil 0…1, nil solange die Groesse unbekannt ist
-        case running(Double?)
+        case running(Double?, quality: String)
         /// abgebrochen, laesst sich fortsetzen
-        case paused
-        case failed(String)
+        case paused(quality: String)
+        case failed(String, quality: String)
+
+        var quality: String {
+            switch self {
+            case .running(_, let q), .paused(let q), .failed(_, let q): return q
+            }
+        }
     }
 
     /// Ergebnis einer HEAD-Anfrage an den Videoserver
@@ -25,6 +33,17 @@ final class RecordingLibrary: ObservableObject {
         let status: Int?
         let size: Int64?
         var needsLogin: Bool { status == 401 || status == 403 }
+
+        /// Meldung statt der Rueckfrage zur unbekannten Groesse, wenn der Download gar nicht starten koennte: keine
+        /// Antwort oder ein Fehlerstatus (z. B. 404, weil Opencast das Video unter neuer Adresse angelegt hat und die
+        /// Liste bis zum naechsten Abgleich veraltet ist). nil bei Erfolg, bei Anmeldung (`needsLogin`, eigener Hinweis)
+        /// und wenn der Server nur HEAD nicht kennt (405, 501): dann bleibt es bei der Rueckfrage.
+        var failure: String? {
+            guard let s = status else { return "Der Videoserver ist nicht erreichbar. Prüfe die Internetverbindung." }
+            guard !needsLogin, s != 405, s != 501, let m = RecordingDownloadDelegate.failure(status: s, contentType: nil) else { return nil }
+            return m + (s == 404 || s == 410 ? " Die Liste ist vermutlich veraltet, der nächste Stud.IP-Abgleich aktualisiert sie."
+                                             : " Bitte später erneut versuchen.")
+        }
     }
 
     /// Ergebnis des Abrufs im Stud.IP-Abgleich
@@ -207,7 +226,7 @@ final class RecordingLibrary: ObservableObject {
             try Self.prepareFolder(target.deletingLastPathComponent())
             try Self.prepareFolder(partialFolder)
         } catch {
-            states[e.id] = .failed("Ordner nicht anlegbar: \(error.localizedDescription)")
+            states[e.id] = .failed("Ordner nicht anlegbar: \(error.localizedDescription)", quality: d.quality)
             return
         }
         let task: URLSessionDownloadTask
@@ -220,19 +239,20 @@ final class RecordingLibrary: ObservableObject {
         delegate.register(task.taskIdentifier, job: .init(key: e.id, courseID: e.courseID, videoID: e.video.id, quality: d.quality,
                                                           url: d.url, target: target, resume: resume, previous: localFile(e)?.url))
         tasks[e.id] = task
-        states[e.id] = .running(nil)
+        states[e.id] = .running(nil, quality: d.quality)
         task.resume()
     }
 
     /// Abbrechen; was schon geladen ist, bleibt fuer "Fortsetzen" liegen
     func cancel(_ e: OpencastEntry) {
         guard let task = tasks.removeValue(forKey: e.id), let job = delegate.forget(task.taskIdentifier) else { states[e.id] = nil; return }
-        states[e.id] = .paused
+        let paused = DownloadState.paused(quality: job.quality)
+        states[e.id] = paused
         let key = e.id
         task.cancel { [weak self] data in
             if let data { Self.saveResume(data, job: job) } else { Self.discardResume(job.resume) }
             Task { @MainActor in
-                if data == nil, self?.states[key] == .paused { self?.states[key] = nil }
+                if data == nil, self?.states[key] == paused { self?.states[key] = nil }
             }
         }
     }
@@ -240,6 +260,19 @@ final class RecordingLibrary: ObservableObject {
     /// Hat dieser Download Fortsetzungsdaten (abgebrochen)?
     func hasResumeData(_ e: OpencastEntry, quality: String) -> Bool {
         FileManager.default.fileExists(atPath: resumeURL(e, quality: quality).path)
+    }
+
+    /// Fassung fuer "Fortsetzen" und "Erneut": die des laufenden, abgebrochenen oder gescheiterten Downloads, sonst
+    /// (z. B. nach einem Neustart der App) die Fassung mit Fortsetzungsdaten; nil, wenn es keine gibt.
+    func resumeMedia(_ e: OpencastEntry) -> OpencastMedia? {
+        if let q = states[e.id]?.quality, let m = e.video.media(q) { return m }
+        return pausedMedia(e)
+    }
+
+    /// Fassung mit Fortsetzungsdaten; gibt es mehrere, die zuletzt abgebrochene
+    func pausedMedia(_ e: OpencastEntry) -> OpencastMedia? {
+        let paused = e.video.media.filter { hasResumeData(e, quality: $0.quality) }
+        return paused.max { Self.resumeSavedAt(resumeURL(e, quality: $0.quality)) < Self.resumeSavedAt(resumeURL(e, quality: $1.quality)) }
     }
 
     /// Geladene Datei und Reste eines Downloads entfernen
@@ -271,27 +304,27 @@ final class RecordingLibrary: ObservableObject {
 
     // MARK: Rueckmeldungen des Delegaten
 
-    func progress(_ key: String, _ fraction: Double?) {
+    func progress(_ key: String, _ fraction: Double?, quality: String) {
         guard tasks[key] != nil else { return }
-        states[key] = .running(fraction)
+        states[key] = .running(fraction, quality: quality)
     }
 
     /// Download beendet: Datei liegt am Ziel (`stored` = nil bei Fehler). Pfad in die Datenbank, alte Fassung weg.
     func finished(_ job: RecordingDownloadDelegate.Job, error: String?) async {
         tasks[job.key] = nil
         if let error {
-            states[job.key] = .failed(error)
+            states[job.key] = .failed(error, quality: job.quality)
             return
         }
         guard let stored = host.files?.stored(job.target) else {
             try? FileManager.default.removeItem(at: job.target)
-            states[job.key] = .failed("Auf diesem Gerät gibt es keinen Speicherort für Aufzeichnungen.")
+            states[job.key] = .failed("Auf diesem Gerät gibt es keinen Speicherort für Aufzeichnungen.", quality: job.quality)
             return
         }
         let ok = await write { try OpencastStore.setLocal($0, courseID: job.courseID, videoID: job.videoID, path: stored, quality: job.quality) }
         guard ok else {
             try? FileManager.default.removeItem(at: job.target)
-            states[job.key] = .failed("Die Aufzeichnung ließ sich nicht eintragen.")
+            states[job.key] = .failed("Die Aufzeichnung ließ sich nicht eintragen.", quality: job.quality)
             return
         }
         if let old = job.previous, old.standardizedFileURL != job.target.standardizedFileURL { try? FileManager.default.removeItem(at: old) }
@@ -299,9 +332,9 @@ final class RecordingLibrary: ObservableObject {
         revision += 1
     }
 
-    func failed(_ key: String, message: String) {
+    func failed(_ key: String, message: String, quality: String) {
         tasks[key] = nil
-        states[key] = .failed(message)
+        states[key] = .failed(message, quality: quality)
     }
 
     // MARK: Fortsetzungsdaten
@@ -309,11 +342,20 @@ final class RecordingLibrary: ObservableObject {
     /// Begleitdatei mit Adresse und Zeitpunkt der Fortsetzungsdaten
     nonisolated static func resumeInfoURL(_ resume: URL) -> URL { resume.appendingPathExtension("json") }
 
-    nonisolated static func saveResume(_ data: Data, job: RecordingDownloadDelegate.Job) {
+    nonisolated static func saveResume(_ data: Data, job: RecordingDownloadDelegate.Job, now: Date = Date()) {
         try? data.write(to: job.resume, options: .atomic)
-        let info: JSONValue = ["url": .string(job.url.absoluteString), "saved_at": .number(Date().timeIntervalSince1970)]
+        let info: JSONValue = ["url": .string(job.url.absoluteString), "saved_at": .number(now.timeIntervalSince1970)]
         try? Data(info.jsonString(sortedKeys: true).utf8).write(to: resumeInfoURL(job.resume), options: .atomic)
         try? excludeFromBackup(job.resume)
+    }
+
+    /// Zeitpunkt der Fortsetzungsdaten aus der Begleitdatei (0, wenn sie fehlt)
+    nonisolated static func resumeSavedAt(_ resume: URL) -> Double { resumeInfo(resume).savedAt?.timeIntervalSince1970 ?? 0 }
+
+    /// Adresse und Zeitpunkt aus der Begleitdatei der Fortsetzungsdaten (nil, wenn sie fehlt oder unlesbar ist)
+    nonisolated static func resumeInfo(_ resume: URL) -> (url: String?, savedAt: Date?) {
+        guard let data = try? Data(contentsOf: resumeInfoURL(resume)), let info = try? JSONValue.parse(data) else { return (nil, nil) }
+        return (info["url"]?.string, info["saved_at"]?.double.map { Date(timeIntervalSince1970: $0) })
     }
 
     nonisolated static func discardResume(_ resume: URL) {
@@ -322,9 +364,8 @@ final class RecordingLibrary: ObservableObject {
     }
 
     nonisolated static func resumeUsable(_ resume: URL, url: URL, now: Date = Date()) -> Bool {
-        guard let data = try? Data(contentsOf: resumeInfoURL(resume)), let info = try? JSONValue.parse(data) else { return false }
-        return RecordingResume.usable(savedURL: info["url"]?.string, savedAt: info["saved_at"]?.double.map { Date(timeIntervalSince1970: $0) },
-                                      currentURL: url, now: now)
+        let info = resumeInfo(resume)
+        return RecordingResume.usable(savedURL: info.url, savedAt: info.savedAt, currentURL: url, now: now)
     }
 }
 
@@ -386,8 +427,8 @@ final class RecordingDownloadDelegate: NSObject, URLSessionDownloadDelegate, @un
         j.reportedAt = now
         jobs[downloadTask.taskIdentifier] = j
         lock.unlock()
-        let key = j.key
-        Task { @MainActor [weak owner] in owner?.progress(key, f) }
+        let key = j.key, quality = j.quality
+        Task { @MainActor [weak owner] in owner?.progress(key, f, quality: quality) }
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
@@ -426,7 +467,7 @@ final class RecordingDownloadDelegate: NSObject, URLSessionDownloadDelegate, @un
             // Range, neue Adresse): verwerfen, sonst scheitert jedes "Fortsetzen" erneut an denselben Daten
             RecordingLibrary.discardResume(j.resume)
         }
-        let key = j.key
-        Task { @MainActor [weak owner] in owner?.failed(key, message: message) }
+        let key = j.key, quality = j.quality
+        Task { @MainActor [weak owner] in owner?.failed(key, message: message, quality: quality) }
     }
 }

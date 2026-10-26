@@ -209,7 +209,11 @@ public enum OpencastStore {
         for (i, c) in courses.enumerated() {
             if !needsCheck(known[c.id], now: now) { f.skipped.append(c.id); continue }
             do {
-                if let listing = try await client.opencastListing(courseID: c.id) { f.listings[c.id] = listing } else { f.failed.append(c.id) }
+                if let listing = try await client.opencastListing(courseID: c.id, knownAvailable: known[c.id]?.status == "available") {
+                    f.listings[c.id] = listing
+                } else {
+                    f.failed.append(c.id)
+                }
             } catch StudIPError.sessionExpired {
                 f.sessionExpired = true
                 break
@@ -357,18 +361,35 @@ public enum OpencastStore {
                              localQuality: r["local_quality"]?.string, gone: (r["gone"]?.int ?? 0) != 0)
     }
 
-    /// Datum und Uhrzeit im Titel ("vom 06.11.2026", "10:15") sind keine Nummern: sonst laese `weekHint` aus
-    /// "06.11." die Woche 6 (bei Dateinamen kommen Datumsangaben kaum vor, in Videotiteln oft).
-    private static let datesAndTimes = PyRegex(#"\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})?|\d{1,2}:\d{2}(?::\d{2})?"#)
+    /// Datum und Uhrzeit im Titel sind keine Nummern: sonst laese `weekHint` aus "06.11." bzw. "vom 06.11" die Woche 6,
+    /// aus "08.15 Uhr" oder "2026_11_06" eine Woche 8 bzw. 6 (bei Dateinamen kommen Datumsangaben kaum vor, in
+    /// Videotiteln oft). Reihenfolge: Uhrzeiten (auch "8–10 Uhr", "08.15 – 09.45"), Datum mit Jahr (2026-11-06,
+    /// 2026_11_06, 20261106, 06.11.2026, 06/11/2026, 06-11-26), Monatsnamen ("6. November"), "06.11." und "06.11".
+    /// "Kapitel 3.1.4" bleibt (keine Jahreszahl, Punkt vor einer Ziffer).
+    private static let datesAndTimes = PyRegex(
+        #"(?:\d{1,2}(?:[.:]\d{2})?\s*(?:-|–|—|bis)\s*)?\d{1,2}(?:[.:]\d{2})?\s*uhr\b"#
+        + #"|\d{1,2}[.:]\d{2}\s*(?:-|–|—|bis)\s*\d{1,2}[.:]\d{2}"#
+        + #"|\d{1,2}:\d{2}(?::\d{2})?"#
+        + #"|\d{4}[-_./]\d{1,2}[-_./]\d{1,2}"#
+        + #"|(?<!\d)(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?!\d)"#
+        + #"|\d{1,2}[-_./]\d{1,2}[-_./](?:\d{4}|\d{2})(?!\d)"#
+        + #"|\d{1,2}\.\s*(?:januar|jan|februar|feb|märz|maerz|mär|mrz|april|apr|mai|juni|jun|juli|jul|august|aug"#
+        + #"|september|sept|sep|oktober|okt|november|nov|dezember|dez)\b\.?(?:\s*\d{4})?"#
+        + #"|\d{1,2}\.\d{1,2}\.(?!\d)"#
+        + #"|(?<![\d.])\d{1,2}\.\d{2}(?!\.?\d)"#,
+        ignoreCase: true)
+
+    /// Titel ohne Datum und Uhrzeit (Grundlage fuer Art und Lehrwoche)
+    static func withoutDates(_ title: String) -> String { datesAndTimes.sub(title, " ") }
 
     /// Block eines Videos wie eine Datei im Moduldetail: Art und Lehrwoche aus dem Titel wie aus einem Dateinamen
-    /// (`StudyClassify`, ohne KI gilt ein Video als Vorlesung), Datum = "Erstellt am" statt der Aenderungszeit.
+    /// (`StudyClassify.enrichFile`, ohne KI gilt ein Video als Vorlesung), Datum = "Erstellt am" statt der Aenderungszeit.
     static func week(_ v: OpencastVideo, dates: LocalModules.Dates) throws -> (week: Int, kind: String, label: String) {
-        let name = datesAndTimes.sub(v.title, " ")
-        let (kind, label) = StudyClassify.effectiveType(name: name, folder: nil, aiType: "vorlesung")
-        let hint = ["vorlesung", "uebung", "loesung", "skript"].contains(kind) ? StudyClassify.weekHint(name: name, folder: nil) : nil
+        let f = StudyClassify.enrichFile(["name": .string(withoutDates(v.title)), "doc_type": .string("vorlesung")])
+        let kind = f["doc_type"]?.string ?? "vorlesung", label = f["sub_label"]?.string ?? "Vorlesung"
         let chdate: SQLiteValue = v.created.map { .integer(Int64($0)) } ?? .null
-        let w = try LocalModules.week(docType: kind, subLabel: label, weekHint: hint, chdate: chdate, start: dates.start, today: dates.today)
+        let w = try LocalModules.week(docType: kind, subLabel: label, weekHint: f["week_hint"]?.int, chdate: chdate,
+                                      start: dates.start, today: dates.today)
         return (w, kind, label)
     }
 
@@ -457,14 +478,18 @@ public enum OpencastStore {
     }
 
     /// Lieber kein Vorschlag als ein falscher:
-    /// 1. Lehrwoche des Dokuments bekannt (ab 1) und es gibt Videos derselben Lehrwoche im Modul: diese (bei einem Blatt
-    ///    die Uebungsaufzeichnungen, sonst die Vorlesungen, falls es beide gibt); passt das Thema genau eines davon,
-    ///    nur dieses. Hoechstens drei.
+    /// 0. Organisatorisches (Raumverteilung, Termine, Klausurergebnisse) gehoert zu keiner Aufzeichnung: nichts.
+    /// 1. Dokument einer Art mit Lehrwoche (`StudyClassify.lectureWeekTypes`, wie `week_hint`), Lehrwoche bekannt (ab 1)
+    ///    und es gibt Videos derselben Lehrwoche im Modul: diese (bei einem Blatt die Uebungsaufzeichnungen, sonst die
+    ///    Vorlesungen, falls es beide gibt); passt das Thema genau eines davon, nur dieses. Hoechstens drei. Bei
+    ///    anderen Arten ist die Woche nur die des Hochladens, kein sicherer Treffer.
     /// 2. Sonst nur, wenn genau ein Video des Moduls ein eindeutiges Thema hat, das vollstaendig im Dokument steht
-    ///    (`topicWords`, ohne Modul- und Kursnamen und ohne allgemeine Woerter wie "Vorlesung", "Teil", "Woche").
+    ///    (`topicWords`, ohne Modul- und Kursnamen, ohne Woerter einer Art wie "Vorlesung", "Exercise" und ohne
+    ///    allgemeine Woerter wie "Teil", "Woche").
     /// 3. Sonst nichts.
     static func best(_ entries: [OpencastEntry], documentWeek: Int, documentKind: String, documentText: String,
                      names: [String]) -> OpencastMatch? {
+        guard documentKind != "organisatorisch" else { return nil }
         let docWords = Set(words(documentText))
         let ignored = Set(names.flatMap(words))
         func topic(_ e: OpencastEntry) -> [String]? {
@@ -473,7 +498,7 @@ public enum OpencastStore {
                   t.allSatisfy({ w in docWords.contains { sameWord(w, $0) } }) else { return nil }
             return t
         }
-        if documentWeek >= 1 {
+        if documentWeek >= 1, StudyClassify.lectureWeekTypes.contains(documentKind) {
             var same = entries.filter { $0.week == documentWeek }
             if !same.isEmpty {
                 let exercise = ["uebung", "loesung"].contains(documentKind)
@@ -497,15 +522,14 @@ public enum OpencastStore {
         letters.findAll(PyText.lower(s.precomposedStringWithCanonicalMapping))
     }
 
-    /// Woerter in Videotiteln und Blattkoepfen, die nichts ueber das Thema sagen
+    /// Woerter in Videotiteln und Blattkoepfen, die nichts ueber das Thema sagen und keine Art nennen (Woerter einer Art
+    /// wie "Vorlesung", "Übungsblatt", "Lösung", "Klausur", "Exercise", "Slides" erkennt `namesKind` ueber die Einordnung)
     static let generic: Set<String> = Set("""
-        vorlesung vorlesungen vorlesungswoche woche wochen lehrwoche übung übungen uebung uebungen zentralübung hörsaalübung
-        gruppenübung tutorium tutorien teil teile video videos aufzeichnung aufzeichnungen mitschnitt livestream stream
-        ergänzung ergänzungen besprechung korrektur fortsetzung wiederholung sitzung termin übungsblatt übungsblatts blatt
-        blattes aufgabe aufgaben aufgabenblatt hausaufgabe hausübung lösung lösungen musterlösung lösungsvorschlag
-        zusammenfassung einführung organisatorisches organisation überblick fragestunde fragen klausur klausuren
-        klausurvorbereitung probeklausur altklausur vorbereitung nachtrag hinweis hinweise kapitel abschnitt thema themen
-        inhalt inhalte semester sommersemester wintersemester sose wise folien folie skript prof professor professorin live
+        woche wochen lehrwoche tutorien teil teile video videos aufzeichnung aufzeichnungen mitschnitt livestream stream
+        ergänzung ergänzungen besprechung korrektur fortsetzung wiederholung sitzung termin aufgabe hausaufgabe
+        zusammenfassung einführung überblick fragestunde fragen vorbereitung nachtrag hinweis hinweise kapitel abschnitt
+        thema themen inhalt inhalte semester sommersemester wintersemester sose wise folie prof professor professorin live
+        tutorial tutorials session sessions part parts chapter chapters week weeks introduction recording recordings
         und oder der die das den dem des von vom mit für fuer zur zum über ueber eine einer eines einem einen sowie auch
         nach ohne beim bei sind ist wird werden uhr heute montag dienstag mittwoch donnerstag freitag samstag sonntag januar
         februar märz april mai juni juli august september oktober november dezember seite seiten nummer beispiel
@@ -513,10 +537,16 @@ public enum OpencastStore {
         fakultät
         """.split(whereSeparator: \.isWhitespace).map(String.init))
 
-    /// Themenwoerter eines Videotitels: ab 4 Buchstaben, ohne allgemeine Woerter, Modul- und Kursnamen
+    /// Wort, das die Einordnung der Dokumente als Art erkennt ("Großübung", "Lösungsbesprechung", "Lecture", "Exercise")
+    static func namesKind(_ w: String) -> Bool {
+        StudyClassify.effectiveType(name: w, folder: nil, aiType: nil).type != "sonstiges"
+    }
+
+    /// Themenwoerter eines Videotitels: ab 4 Buchstaben, ohne allgemeine Woerter, Woerter einer Art, Modul- und Kursnamen
     static func topicWords(_ title: String, ignoring: Set<String>) -> [String] {
         var out: [String] = []
-        for w in words(title) where PyText.length(w) >= 4 && !generic.contains(w) && !ignoring.contains(w) && !out.contains(w) {
+        for w in words(title) where PyText.length(w) >= 4 && !generic.contains(w) && !ignoring.contains(w) && !out.contains(w)
+            && !namesKind(w) {
             out.append(w)
         }
         return out
@@ -535,17 +565,29 @@ public enum OpencastStore {
 
 extension StudIPClient {
     /// Aufzeichnungen eines Kurses (Seite media/index; nur bei einer unklaren Antwort zusaetzlich der Kursueberblick).
-    /// nil, wenn sich nichts sicher sagen laesst (alter Stand bleibt). Wirft `sessionExpired`, `requestLimit` und
-    /// Transportfehler. Nur lesend; Videos werden hier nie geladen.
-    public func opencastListing(courseID: String) async throws -> OpencastListing? {
+    /// nil, wenn sich nichts sicher sagen laesst (alter Stand bleibt). `knownAvailable`: der Kurs hatte beim letzten
+    /// Mal den Reiter; dann macht ihn nur die ausdrueckliche Meldung des Plugins zu "kein Opencast" (sonst loeschte
+    /// `OpencastStore.store` seine Videos und gemerkten Stellen), nie der Ersatzweg oder ein blosses 404. Wirft
+    /// `sessionExpired`, `requestLimit` und Transportfehler. Nur lesend; Videos werden hier nie geladen.
+    public func opencastListing(courseID: String, knownAvailable: Bool = false) async throws -> OpencastListing? {
         let r = try await htmlPage(OpencastParser.mediaIndexPath(courseID: courseID))
         // Links gegen die Stud.IP-Adresse aufloesen (nach einer Weiterleitung auf einen anderen Host nie gegen diesen)
         let page = r.finalURL.flatMap { $0.host?.lowercased() == base.host?.lowercased() ? $0 : nil } ?? base
-        let listing = OpencastParser.parse(html: String(decoding: r.body, as: UTF8.self), status: r.status, pageURL: page)
-        guard listing == .unrecognized else { return listing }
-        // Seite sagt nichts Eindeutiges: ohne Navigationslink "Aufzeichnungen" im Kursueberblick kein Opencast
-        let o = try await htmlPage(OpencastParser.overviewPath(courseID: courseID))
-        guard (200..<300).contains(o.status) else { return nil }
-        return OpencastParser.courseHasRecordings(overviewHTML: String(decoding: o.body, as: UTF8.self)) ? nil : .noOpencast
+        let html = String(decoding: r.body, as: UTF8.self)
+        switch OpencastParser.parse(html: html, status: r.status, pageURL: page) {
+        case .videos(let v):
+            return .videos(v)
+        case .noOpencast:
+            return knownAvailable && !OpencastParser.saysNavigationMissing(html) ? nil : .noOpencast
+        case .unrecognized:
+            guard !knownAvailable else { return nil }
+            // Seite sagt nichts Eindeutiges: nur der sichere Kursueberblick ohne Navigationslink "Aufzeichnungen" heisst
+            // kein Opencast; eine Zwischenseite mit 200 (Nutzungsbedingungen, Wartung) sagt nichts ueber den Kurs
+            let o = try await htmlPage(OpencastParser.overviewPath(courseID: courseID))
+            let overview = String(decoding: o.body, as: UTF8.self)
+            guard (200..<300).contains(o.status),
+                  OpencastParser.isCourseOverview(html: overview, finalURL: o.finalURL, courseID: courseID) else { return nil }
+            return OpencastParser.courseHasRecordings(overviewHTML: overview) ? nil : .noOpencast
+        }
     }
 }

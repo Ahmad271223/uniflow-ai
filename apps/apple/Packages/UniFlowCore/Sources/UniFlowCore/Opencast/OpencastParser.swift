@@ -82,10 +82,30 @@ public enum OpencastParser {
         let tokens = HTMLTokenizer.tokens(html)
         let hasTable = tokens.contains { if case .start("table", let a) = $0 { return hasClass(a, "media-table") }; return false }
         if hasTable, (200..<300).contains(status) { return .videos(videos(in: tokens, pageURL: pageURL)) }
-        let lower = html.lowercased()
-        let missingNavigation = lower.contains("navigation item") && lower.contains("not found")
-        if missingNavigation || status == 404 { return .noOpencast }
+        if saysNavigationMissing(html) || status == 404 { return .noOpencast }
         return .unrecognized
+    }
+
+    /// Die ausdrueckliche Meldung des Plugins in Kursen ohne Reiter ("navigation item ... not found")
+    public static func saysNavigationMissing(_ html: String) -> Bool {
+        let lower = html.lowercased()
+        return lower.contains("navigation item") && lower.contains("not found")
+    }
+
+    /// Ist die Antwort sicher der Kursueberblick dieses Kurses? Adresse (falls bekannt) dispatch.php/course/overview
+    /// dieses Kurses und in der Seite die Kursnavigation (Link auf Ueberblick oder Dateien dieses Kurses). Eine
+    /// Zwischenseite mit HTTP 200 (Nutzungsbedingungen, Wartung, Systemhinweis) ist es nicht.
+    public static func isCourseOverview(html: String, finalURL: URL?, courseID: String) -> Bool {
+        func cid(_ c: URLComponents) -> String? { c.queryItems?.first { $0.name == "cid" }?.value }
+        if let u = finalURL {
+            guard let c = URLComponents(url: u, resolvingAgainstBaseURL: false),
+                  c.path.lowercased().hasSuffix("/dispatch.php/course/overview"), cid(c) == nil || cid(c) == courseID else { return false }
+        }
+        return HTMLScanner.scan(html).anchors.contains { a in
+            guard let c = URLComponents(string: a.href.trimmingCharacters(in: .whitespacesAndNewlines)), cid(c) == courseID else { return false }
+            let p = c.path.lowercased()
+            return p.hasSuffix("dispatch.php/course/overview") || p.hasSuffix("dispatch.php/course/files")
+        }
     }
 
     /// Kursueberblick: gibt es in der Navigation einen Link "Aufzeichnungen" bzw. zum Opencast-Plugin?

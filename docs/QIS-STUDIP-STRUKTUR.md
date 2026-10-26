@@ -71,7 +71,10 @@ festgehalten ist nur der Aufbau (keine Titel, Namen oder Kennungen). Nachbau mit
 | Kurs mit Reiter ohne Videos | Tabelle mit leerem `tbody` |
 
 Folgerungen für die App: je gewähltem Kurs eine Anfrage an `media/index` (Kurse ohne Opencast höchstens alle
-7 Tage), nur bei einer unklaren Antwort zusätzlich der Kursüberblick; Anmeldeseite statt Inhalt = Sitzung abgelaufen.
+7 Tage), nur bei einer unklaren Antwort zusätzlich der Kursüberblick – und daraus „kein Opencast“ nur, wenn die
+Antwort sicher der Kursüberblick ist (Adresse `course/overview`, Kursnavigation mit `cid` des Kurses), nie aus einer
+Zwischenseite mit HTTP 200; ein Kurs mit Reiter wird nur durch die Meldung „navigation item … not found“ zu „kein
+Opencast“; Anmeldeseite statt Inhalt = Sitzung abgelaufen.
 BigBlueButton-Räume (Meetings) enthalten an der LUH keine Aufzeichnungen und werden nicht gelesen.
 Ob der Opencast-Host die MP4-Links ohne Anmeldung ausliefert, ist noch nicht am Gerät gemessen; die App fällt bei
 401/403 auf die Player-Seite in der Webansicht zurück. Videos gehören den Lehrenden: nur privat ansehen, nicht teilen.
