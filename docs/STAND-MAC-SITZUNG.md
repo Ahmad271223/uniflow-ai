@@ -153,3 +153,36 @@ und die LSF-Fixtures mit echten Daten).
 4. **Nach dem nächsten Push der Mac-Sitzung** (Abnahme-Stand, kommt heute): Linux-Kern erneut, Python/Web erneut,
    und mit den Zugängen des Inhabers je Hochschule **denselben Zähllauf** wiederholen, damit wir sehen, ob sich die
    Zahlen durch die Python-Korrekturen der Abnahme ändern (nur Zahlen eintragen).
+
+## Hinweis der PC-Sitzung: Ferien-Lücken in Stud.IP-Serien – bitte im iPad nachziehen (26.10.2026, a095e95)
+
+**Befund mit echten LUH-Daten:** Stud.IP legt in der Weihnachtspause keine Termine an (23.12.–05.01. null Termine,
+davor und danach 13–26 je Werktag). `timetable.merge_weekly` fasste die Einzeltermine aber zu einer durchgehenden
+Wochenserie zusammen, ohne Ausfälle: Lernkalender und Stundenplan zeigten in der Pause Vorlesungen, freie Zeitfenster
+fehlten. Zweiter Fehler: Eine Serie alle 14 Tage mit 28 Tagen Pause über Weihnachten wurde „weekly“.
+LSF Hildesheim ist nicht betroffen (dort stehen die Ferien als EXDATE im Export).
+
+**Korrektur in Python** (`app/timetable.py`, Tests `tests/test_timetable_gaps.py`):
+1. `merge_weekly`: Schrittweite 14, wenn **alle** Abstände Vielfache von 14 sind, sonst 7. Jede Woche zwischen
+   erstem und letztem Termin ohne Termin kommt in `exdates`. **Das Feld steht nur bei Lücken**, sonst bleibt die
+   Antwortform unverändert.
+2. `auto_import`: nach `apply_import` (der für neue Serien die `exdates` schon als Ausfall „Ausfall laut Stud.IP“
+   anlegt) bekommen auch **bestehende** Serien ihre fehlenden Ausfälle nachgetragen. Zuordnung über Quelle
+   `studip%`, Kurs (oder Titel ohne Kurs), Wochentag, Beginn und Ende – nicht über `diff_against_existing`, das zwei
+   Serien desselben Kurses am selben Wochentag (live: 09:00 und 15:00) nicht unterscheidet. Manuelle Serien nie;
+   Tage mit eigener Ausnahme des Nutzers bleiben (`_add_cancellations`).
+
+**Live mit den LUH-Zählwerten von heute (Temp-Ordner):** vorher 0 Ausfälle, nachher 36; in der Pause bleibt nur ein
+persönlicher Stud.IP-Stundenplan-Eintrag ohne Termine (dafür kennt keine Quelle die Ferien). Woche nach der Pause:
+17 von 17 Terminen normal. Serienzahl unverändert (18).
+
+**Für das iPad:** denselben Port im Kern (Swift-Fassung von `merge_weekly` und `auto_import`), dann
+`tools/gen-timetable-fixture.py` neu erzeugen. Mit der Korrektur ändert sich in `timetable-logic.json` genau ein Fall
+(eine Serie mit 4 Terminen bekommt `"exdates": ["2026-10-29", "2026-11-19"]`). Die Datei habe ich **nicht** neu
+erzeugt, damit die Swift-Tests bis zu eurem Port grün bleiben; `--check` meldet sie bis dahin als veraltet.
+
+**Werkzeuge:** `tools/gen-timetable-fixture.py` und `tools/gen-local-backend-fixture.py` rufen `time.tzset()` auf –
+das gibt es unter Windows nicht, beide laufen nur unter macOS/Linux (geprüft im Container). Außerdem bricht
+`gen-local-backend-fixture.py` unter Linux (Python 3.10 im Container) in `_import_rounds` ab
+(`fetchone()` liefert None, Zeile 1292) – auch **ohne** meine Änderung, also ein vorhandener Fehler des Werkzeugs
+oder seiner Umgebung.
