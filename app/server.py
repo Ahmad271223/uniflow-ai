@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -80,6 +80,14 @@ async def hosted_guard(request, call_next):
     if not config.is_hosted():
         return await call_next(request)
     path = request.url.path
+    if path in ("/", "/index.html", "/login"):
+        # Oberflaeche: ohne Sitzung zur Anmeldeseite, mit Sitzung nicht mehr dorthin
+        user = accounts.authenticate(account_api.token_of(request))
+        if path == "/login" and user:
+            return RedirectResponse("/", status_code=302)
+        if path != "/login" and not user:
+            return RedirectResponse("/login", status_code=302)
+        return await call_next(request)
     if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS:
         return await call_next(request)
     why = hosted_unavailable(request.method, path)
@@ -187,7 +195,7 @@ async def no_cache_static(request, call_next):
     HTML-Seiten bekommen die Content-Security-Policy."""
     response = await call_next(request)
     p = request.url.path
-    if not p.startswith("/api/") and (p == "/" or p.endswith((".js", ".mjs", ".css", ".html"))):
+    if not p.startswith("/api/") and (p in ("/", "/login") or p.endswith((".js", ".mjs", ".css", ".html"))):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
     ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
     if ctype == "text/html" and not _FILE_PATHS.match(p):
@@ -236,6 +244,15 @@ async def same_origin_guard(request, call_next):
             if origin == "null" or o.netloc.lower() != host.lower():
                 return JSONResponse({"detail": "Anfrage von fremder Seite abgelehnt"}, status_code=403)
     return await call_next(request)
+
+
+@app.get("/login", include_in_schema=False)
+def login_page():
+    """Anmeldeseite des gehosteten Dienstes (Anmelden, Konto anlegen, Passwort vergessen, /login?reset=TOKEN);
+    am eigenen PC gibt es keine Konten, dort geht es direkt zur App."""
+    if not config.is_hosted():
+        return RedirectResponse("/", status_code=302)
+    return FileResponse(STATIC_DIR / "login.html", media_type="text/html")
 
 
 _FILE_PATHS = re.compile(r"^/api/(files/[^/]+/content|assets/|qis/documents/)")

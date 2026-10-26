@@ -85,6 +85,12 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
 - **Sitzungen:** Token 32 Byte (urlsafe), gespeichert als SHA-256; 30 Tage gleitend; `logout`, `logout-all` (andere
   Geräte), Liste unter `/me`. Browser: Cookie `uniflow_session` (HttpOnly, SameSite=Lax, Secure bei HTTPS). Apps:
   `Authorization: Bearer <token>`.
+- **Web-Anmeldung** (`app/static/login.html`, `login.js`): `/login` mit Anmelden, Konto anlegen (Hochschule, Passwortregeln
+  aus `/api/account/info`), Passwort vergessen (Antwort immer gleich) und neues Passwort über den Link `/login?reset=TOKEN`
+  (danach alle Geräte abgemeldet). Nur die öffentlichen Kontopfade, kein Inline-Skript (gleiche CSP wie die App), das
+  Token bleibt im HttpOnly-Cookie. Im Dienst leitet `/` ohne Sitzung nach `/login`, `/login` mit Sitzung nach `/`; eine
+  abgelaufene Sitzung (401) führt in der App zur Anmeldeseite. Abmelden und „Andere Geräte abmelden“ im Konto-Menü
+  hinter dem Avatar. Am PC gibt es die Seite nicht (`/login` → `/`). Tests `tests/test_web_login.py`.
 - **Fehlversuche:** 8 je Konto und je Adresse → 10 Minuten `locked` (429), gezählt in der Datenbank.
 - **Reset:** Token 30 Minuten, einmalig, beendet alle Sitzungen; die Antwort auf `reset-request` ist immer gleich.
 - **Löschen:** sofort gesperrt (alle Sitzungen weg, Adresse frei), Nutzerordner nach `users-deleted/`, endgültig nach
@@ -169,6 +175,5 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
 
 - Mailversand für Reset und E-Mail-Bestätigung (`email_verified`).
 - Apple-/Google-Signaturprüfung, sobald Team-ID/Client-ID vorliegen.
-- Web-Oberfläche: Anmeldeseite für den gehosteten Modus (heute nur API; der PC-Modus braucht keine).
 - Sync für eigene Dokumente mit Inhalt; Abo-Prüfung serverseitig (StoreKit/Play) am Konto (setzt dann `plan`).
 - Community: Betrieb und Nutzungsbedingungen (Inhaber), Löschfristen, Beleg der Kursmitgliedschaft durch die Hochschule.

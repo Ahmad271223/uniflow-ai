@@ -52,7 +52,15 @@ state.errors = [];
 function noteError(msg, src) { const m = String(msg || "Unbekannter Fehler"); if (/ResizeObserver loop/i.test(m)) return; /* harmlose Browsermeldung */ state.errors.push({ t: new Date().toISOString(), msg: m, src: src || "" }); if (state.errors.length > 30) state.errors.shift(); if (!noteError._shown) { noteError._shown = true; toast("Fehler: " + m.slice(0, 120), 5000); setTimeout(() => noteError._shown = false, 8000); } }
 window.addEventListener("error", e => noteError(e.message, e.filename ? `${e.filename.split("/").pop()}:${e.lineno}` : ""));
 window.addEventListener("unhandledrejection", e => noteError(e.reason?.message || e.reason, "promise"));
-api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); }).catch(() => {});
+const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim" };
+function accountMenu() {
+  const a = state.account;
+  const m = modal(`<div class="card-head"><h2>${icon("user", 18)} UniFlow-Konto</h2><button class="btn ghost icon" data-close>${icon("x", 16)}</button></div>
+    <p style="margin:.2rem 0"><b>${esc(a.email)}</b></p><p class="muted small" style="margin:0 0 .9rem">${esc(UNI_NAMES[a.university] || a.university)} · Tarif ${a.plan === "plus" ? "Plus" : "Free"}${a.role === "admin" ? " · Moderation" : ""}</p>
+    <div class="row wrap"><button class="btn primary" id="accLogout">${icon("log-out", 15)} Abmelden</button><button class="btn" id="accLogoutAll" title="Alle anderen Geräte abmelden, dieses bleibt angemeldet">Andere Geräte abmelden</button><a class="btn" href="#/settings?tab=account" data-close>Hochschul-Zugang</a></div>`);
+  $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} location.replace("/login"); };
+  $("#accLogoutAll", m).onclick = async () => { try { const r = await api("/account/logout-all", { method: "POST" }); toast(r.revoked ? `${r.revoked} andere Sitzung(en) beendet` : "Keine anderen Geräte angemeldet"); } catch (e) { toast(e.message); } };
+}
 
 // ---------------------------------------------------------------- Router
 const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, doc: viewDoc, services: viewServices, tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
@@ -112,6 +120,17 @@ async function viewDashboard(_, __, view) {
 }
 
 // ---------------------------------------------------------------- Start
-buildShell(); setTheme((() => { try { return localStorage.getItem("theme") || "light"; } catch { return "light"; } })());
-window.__app = { route, api, state };
-route(); pollBg(); updateSyncChip();
+async function start() {
+  // Gehosteter Dienst: ohne gueltige Sitzung zur Anmeldeseite, sonst Konto hinter dem Avatar (Abmelden)
+  try { state.hosted = !!(await fetch("/api/account/info").then(r => r.json())).hosted; } catch {}
+  if (state.hosted) {
+    const r = await fetch("/api/account/me");
+    if (r.status === 401) { location.replace("/login"); return; }
+    if (r.ok) { state.account = (await r.json()).user; const av = $("#avatar"); av.textContent = state.account.email.slice(0, 2).toUpperCase(); av.title = `${state.account.email} – Konto und Abmelden`; av.style.cursor = "pointer"; av.onclick = accountMenu; }
+  }
+  buildShell(); setTheme((() => { try { return localStorage.getItem("theme") || "light"; } catch { return "light"; } })());
+  window.__app = { route, api, state };
+  api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); }).catch(() => {});
+  route(); pollBg(); updateSyncChip();
+}
+start();

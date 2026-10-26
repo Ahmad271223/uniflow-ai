@@ -14,6 +14,7 @@ export const KIND_TXT = { vorlesung: "Vorlesung", uebung: "Übung", hoersaaluebu
 
 export async function api(path, opts = {}) {
   const r = await fetch("/api" + path, { headers: opts.body instanceof FormData ? {} : { "Content-Type": "application/json" }, ...opts, body: opts.body && !(opts.body instanceof FormData) && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body });
+  if (r.status === 401 && state.hosted) { location.replace("/login"); }   // Sitzung im Dienst abgelaufen oder abgemeldet
   if (!r.ok) { let m = r.statusText; try { m = (await r.json()).detail || m; } catch {} throw new Error(m); }
   return r.json();
 }
@@ -46,4 +47,4 @@ export const diffBadge = d => d ? `<span class="badge ${d <= 2 ? "ok" : d >= 4 ?
 export const typeBadge = t => t ? `<span class="badge neutral">${esc(TYPE_TXT[t] || t)}</span>` : "";
 export const initial = s => (s || "?").replace(/^(Mathematik|Grundlagen|Einführung|Elektrotechnische|Datenstrukturen|Signale|Programmieren)\s*/i, m => m[0]).slice(0, 2).toUpperCase();
 export const shortName = s => (s || "").replace("Mathematik für die Ingenieurwissenschaften", "Mathematik").replace("Elektrotechnische Grundlagen der Informatik", "Elektrotechnik").replace("Datenstrukturen und Algorithmen", "Datenstrukturen & Algorithmen").replace("Grundlagen digitaler Systeme", "Digitale Systeme");
-export const state = { route: () => {}, editors: [] };
+export const state = { route: () => {}, editors: [], hosted: false, account: null };

@@ -27,7 +27,7 @@ def asgi_call(app, method, path, client=("127.0.0.1", 5000), body=None, cookies=
         hdrs.append((k.lower().encode(), v.encode()))
     raw = body if isinstance(body, bytes) else (body.encode() if isinstance(body, str) else b"")
     hdrs.append((b"content-length", str(len(raw)).encode()))
-    scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": method, "scheme": "http",
+    scope = {"type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"}, "http_version": "1.1", "method": method, "scheme": "http",
              "path": unquote(p), "raw_path": p.encode(), "query_string": q.encode(), "headers": hdrs,
              "client": client, "server": ("test", 80)}
     out = {"status": None, "headers": [], "body": b""}

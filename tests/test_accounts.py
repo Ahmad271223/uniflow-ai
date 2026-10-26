@@ -184,7 +184,9 @@ def test_hosted_requires_session_on_every_api_path(hosted):
             if st == 501:
                 assert b"not_available_hosted" in body
     assert asgi_call(hosted, "GET", "/api/account/info")[0] == 200
-    assert asgi_call(hosted, "GET", "/")[0] == 200
+    st, h, _ = asgi_call(hosted, "GET", "/")
+    assert st == 302 and [v for k, v in h if k == b"location"] == [b"/login"], "Oberflaeche ohne Sitzung: zur Anmeldeseite"
+    assert asgi_call(hosted, "GET", "/login")[0] == 200
 
 
 def test_hosted_register_login_me_logout(hosted):

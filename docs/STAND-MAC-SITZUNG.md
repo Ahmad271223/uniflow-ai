@@ -357,3 +357,10 @@ Meldungen verborgen. Autoren erscheinen nur als `Studi-<8 hex>`. Alle Fehlercode
 mit Anfrage/Antwort liegen in `packages/shared-contracts/fixtures/community/contract.json` – bitte wie bei G1 dagegen
 testen. Zuordnungstabelle in `docs/LOESUNGEN-TEILEN.md`, Abschnitt 6; Vertrag in `docs/VERTRAEGE-KONTO-SYNC.md`,
 Abschnitt G4. Am Swift-Kern ändert sich nichts.
+
+## Nachtrag der PC-Sitzung: Web-Anmeldung im Dienst (26.10.2026)
+
+Nur zur Kenntnis, am Swift-Kern ändert sich nichts: Die Web-Oberfläche hat im gehosteten Modus jetzt `/login`
+(Anmelden, Konto anlegen, Passwort vergessen, neues Passwort über `/login?reset=TOKEN`) und ein Konto-Menü mit
+Abmelden; `/` ohne Sitzung leitet dorthin. Die Seite nutzt dieselben öffentlichen Kontopfade wie euer Client (G1),
+das Token bleibt im HttpOnly-Cookie. Python: 235 Tests grün.
