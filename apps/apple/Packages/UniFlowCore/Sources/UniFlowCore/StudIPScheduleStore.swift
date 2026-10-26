@@ -49,6 +49,18 @@ extension StudIPClient {
         let (data, _) = try await list("jsonapi.php/v1/courses/\(courseID)/events?page[limit]=200")
         return StudIPCourseEvent.parse(data, courseID: courseID)
     }
+
+    /// Ankuendigungen (News) eines Kurses wie `fetch_news` (courses/{id}/news, eine Seite mit 100). Nur lesend.
+    public func courseNews(courseID: String) async throws -> [JSONValue] {
+        try await json("jsonapi.php/v1/courses/\(courseID)/news?page[limit]=100")["data"]?.array ?? []
+    }
+
+    /// Basis fuer Links in Ankuendigungen (STUDIP_BASE am PC, ohne "/" am Ende)
+    nonisolated var baseString: String {
+        var b = base.absoluteString
+        while b.hasSuffix("/") { b.removeLast() }
+        return b
+    }
 }
 
 /// Was der Stundenplan-Abruf geladen hat. nil bzw. fehlende Kurse: nicht geladen, das Gespeicherte bleibt.
@@ -63,6 +75,10 @@ public struct StudIPScheduleDownload: Sendable {
     public var personal: [JSONValue]?
     /// Einzeltermine je Kurs, nur vollstaendig geladene Kurse
     public var events: [String: [StudIPCourseEvent]] = [:]
+    /// Ankuendigungen (News) je Kurs, Rohdaten der JSON:API; fehlt ein Kurs, bleibt sein Bestand (wie `fetch_news` None)
+    public var news: [String: [JSONValue]] = [:]
+    /// Basis fuer Links in Ankuendigungen (STUDIP_BASE)
+    public var studipBase = ""
     /// Kurse, deren Termine nicht geladen werden konnten
     public var failedCourses: [String] = []
     /// Anmeldung abgelaufen (der Rest wurde nicht mehr abgefragt)
@@ -125,6 +141,7 @@ public enum StudIPScheduleStore {
     /// (30 s je Kurs), waehrend der Datei-Abgleich noch nicht fertig gemeldet ist.
     public static func fetch(client: StudIPClient, userID: String, courses: [StudIPCourse]) async -> StudIPScheduleDownload {
         var d = StudIPScheduleDownload(courses: courses)
+        d.studipBase = client.baseString
         do {
             let r = try await client.scheduleResources(userID: userID)
             d.cycles = r.schedule.filter { $0["type"]?.string == "seminar-cycle-dates" }
@@ -161,6 +178,9 @@ public enum StudIPScheduleStore {
         for (i, c) in courses.enumerated() {
             do {
                 d.events[c.id] = try await client.courseEvents(courseID: c.id)
+                // Ankuendigungen sind eine Ergaenzung (run_sync: "Ankuendigungen nicht gelesen"): ein Fehler laesst
+                // den Bestand des Kurses stehen; Abbruch und abgelaufene Sitzung behandelt der naechste Kurs
+                if let news = try? await client.courseNews(courseID: c.id) { d.news[c.id] = news }
             } catch StudIPError.sessionExpired {
                 d.sessionExpired = true
                 break
@@ -221,6 +241,12 @@ public enum StudIPScheduleStore {
                     """, [.text(id), .text(LocalTimetable.or(a["title"], "Termin").string ?? "Termin"), .integer(Int64(wd)),
                           .text(LocalFreeWindows.mh(s)), .text(LocalFreeWindows.mh(e)), .text(a["description"]?.string ?? ""), now])
             }
+        }
+        // Ankuendigungen je gelesenem Kurs (announcements.store mit course_ids=[c["id"]]: Geloeschtes verschwindet)
+        let today = BerlinClock.parseISODate(clock.today) ?? 0
+        for (courseID, list) in d.news.sorted(by: { $0.key < $1.key }) {
+            let items = list.compactMap { Announcements.fromStudIPNews($0, courseID: courseID, studipBase: d.studipBase, today: today) }
+            _ = try Announcements.store(c, items, source: "studip", fetchedAt: clock.nowISO, courseIDs: [courseID])
         }
         var cycles = 0
         if let list = d.cycles {

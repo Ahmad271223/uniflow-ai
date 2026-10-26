@@ -52,11 +52,14 @@ extension Learnweb {
     private static let sesskeyRE = HText.regex(#""sesskey"\s*:\s*"([A-Za-z0-9]+)""#)
     private static let bodyClassRE = HText.regex(#"<body\b[^>]*\bclass\s*=\s*["']([^"']*)["']"#, [.caseInsensitive])
 
+    /// Klasse des `<body>` einer Moodle-Seite (`document.body.className` am PC); nil ohne Klasse
+    static func bodyClass(html: String) -> String? { HText.match(bodyClassRE, html)?.groups[1] ?? nil }
+
     /// Angemeldet wie LOGGED_IN_JS am PC: sesskey vorhanden und `<body>` ohne Klasse "notloggedin" (auch die
     /// Anmeldeseite von Moodle hat einen sesskey).
     public static func isLoggedIn(html: String) -> Bool {
         guard html.contains("sesskey") else { return false }
-        if let cls = HText.match(bodyClassRE, html)?.groups[1] ?? nil, cls.split(separator: " ").contains("notloggedin") { return false }
+        if let cls = bodyClass(html: html), cls.split(separator: " ").contains("notloggedin") { return false }
         return true
     }
 
@@ -154,6 +157,88 @@ public actor LearnwebAPI {
         guard case .token(let t) = mode else { return UniRequest(url: url) }
         return UniRequest(url: url, method: "POST", headers: ["Content-Type": "application/x-www-form-urlencoded"],
                           body: HText.form([("token", t.token)]))
+    }
+
+    // MARK: Fristen und Ankuendigungen (learnweb.TokenClient/SessionClient.deadlines, .announcements)
+
+    /// `call(fn, args)` fuer `fetch_deadline_events`: REST mit Schluessel, sonst AJAX mit der Sitzung
+    private func call(_ function: String, _ args: [(String, JSONValue)]) async throws -> JSONValue {
+        switch mode {
+        case .token:
+            var params: [String: String] = [:]
+            for (k, v) in args { params[k] = v.string ?? (v.double.map(JSONValue.format) ?? v.jsonString()) }
+            return try await rest(function, params)
+        case .session:
+            var o: [String: JSONValue] = [:]
+            for (k, v) in args { o[k] = v }
+            return try await ajax(function, .object(o))
+        }
+    }
+
+    /// `deadlines(now)`: Fristen aus dem Learnweb-Kalender (120 Tage zurueck, 200 Tage voraus; zwei Quellen wie
+    /// `fetch_deadline_events`), nach Zeit sortiert. `now`: Unix-Sekunden.
+    public func deadlines(now: Int) async throws -> [Learnweb.Deadline] {
+        Learnweb.deadlinesFromEvents(try await Learnweb.fetchDeadlineEvents(now: now) { fn, args in try await self.call(fn, args) })
+    }
+
+    /// `announcements(courses, known, max_discussions)`: Ankuendigungsforen (Typ news) aller Kurse; liefert die
+    /// Ankuendigungen und je Kurs die gesehenen Diskussionen ("lw-d-<id>"). Mit Schluessel ueber REST
+    /// (mod_forum_get_forums_by_courses, mod_forum_get_forum_discussions); mit der Sitzung ueber die Forumsseiten
+    /// (die Foren-Dienste sind fuer AJAX gesperrt), schon gespeicherte Diskussionen (`known`) werden nicht erneut
+    /// geoeffnet. `today`: Tagesnummer fuer Beitraege ohne lesbaren Zeitpunkt.
+    public func announcements(courses: [Learnweb.Course], known: Set<String> = [], maxDiscussions: Int = 30,
+                              today: Int) async throws -> (items: [Announcements.Item], seen: [String: [String]]) {
+        var items: [Announcements.Item] = []
+        var seen: [String: [String]] = [:]
+        switch mode {
+        case .token:
+            var byMoodle: [Int: Learnweb.Course] = [:]
+            var params: [String: String] = [:]
+            for (i, c) in courses.enumerated() {
+                byMoodle[c.moodleID] = c
+                params["courseids[\(i)]"] = String(c.moodleID)
+                seen[c.id] = []
+            }
+            for f in try await rest("mod_forum_get_forums_by_courses", params).array ?? [] {
+                guard let c = f["course"]?.int.flatMap({ byMoodle[$0] }), f["type"]?.string == "news", let fid = f["id"]?.int else { continue }
+                let d = try await rest("mod_forum_get_forum_discussions", ["forumid": String(fid), "sortorder": "-1", "page": "0", "perpage": String(maxDiscussions)])
+                for x in d["discussions"]?.array ?? [] {
+                    guard let did = x["discussion"]?.int else { continue }
+                    seen[c.id, default: []].append("lw-d-\(did)")
+                    if let a = Announcements.fromMoodleDiscussion(x, courseID: c.id, base: base, today: today) { items.append(a) }
+                }
+            }
+        case .session:
+            for c in courses {
+                let data = try await ajax("core_courseformat_get_state", .object(["courseid": .number(Double(c.moodleID))]))
+                guard let text = data.string, let state = try? JSONValue.parse(text) else { throw HildesheimError.badResponse("core_courseformat_get_state") }
+                var ids: [String] = []
+                for cm in state["cm"]?.array ?? [] where cm["module"]?.string == "forum" && cm["uservisible"]?.bool != false {
+                    let cmid = cm["id"].map(Learnweb.idString) ?? ""
+                    guard Self.isDigits(cmid), let url = URL(string: "\(base)/mod/forum/view.php?id=\(cmid)") else { continue }
+                    let view = try await page(url)
+                    guard Announcements.isNewsForum(bodyClass: Learnweb.bodyClass(html: view)) else { continue }
+                    for did in Announcements.discussionLinks(view).prefix(maxDiscussions) {
+                        ids.append("lw-d-\(did)")
+                        if known.contains("lw-d-\(did)") { continue }
+                        guard let durl = URL(string: "\(base)/mod/forum/discuss.php?d=\(did)") else { continue }
+                        let posts = Announcements.parseDiscussionHTML(try await page(durl))
+                        // erster Beitrag = Ankuendigung
+                        items += posts.prefix(1).map { Announcements.fromForumPost($0, courseID: c.id, base: base, discussionID: did, today: today) }
+                    }
+                }
+                seen[c.id] = ids
+            }
+        }
+        return (items, seen)
+    }
+
+    /// Eine Seite der angemeldeten Sitzung (Forumsseiten); eine Anmeldeseite heisst: Sitzung abgelaufen
+    private func page(_ url: URL) async throws -> String {
+        let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
+        if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
+        guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: HText.withoutQuery(url.absoluteString)) }
+        return resp.text
     }
 
     // MARK: REST

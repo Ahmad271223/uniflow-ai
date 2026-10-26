@@ -23,6 +23,8 @@ public enum LSFCalendar {
         public var exdates: [String]        // Ausfall (vorlesungsfrei), nur Tage dieses Wochentags
         public var uid: String?
         public var description: String = ""
+        /// Bemerkung des LSF (`lsf.note_text` aus DESCRIPTION), leer ohne; `planEntries` setzt sie
+        public var note: String = ""
 
         /// Eintrag von `parse_ics` (`LocalTimetableImport.parseICS`)
         init(ics e: [String: JSONValue]) {
@@ -47,9 +49,21 @@ public enum LSFCalendar {
              "start_time": .string(startTime), "end_time": .string(endTime), "room": .string(room), "rrule": .string(rrule),
              "date_from": .string(dateFrom), "date_to": dateTo.map(JSONValue.string) ?? .null, "uncertain": false,
              "exdates": .array(exdates.map(JSONValue.string)), "uid": uid.map(JSONValue.string) ?? .null,
-             "description": .string(description), "number": number.map(JSONValue.string) ?? .null, "lecturer": .string(lecturer)]
+             "description": .string(description), "number": number.map(JSONValue.string) ?? .null, "lecturer": .string(lecturer),
+             "note": .string(note)]
         }
     }
+
+    private static let placeholderRE = PyRegex(#"nur\s+aus\s+technischen\s+Gr(?:ü|ue)nden\s+angezeigt"#, ignoreCase: true)
+    private static let noteBreakRE = PyRegex(#"\s*\n\s*"#)
+
+    /// `lsf.note_text(description)`: Bemerkung einer LSF-Veranstaltung (iCal DESCRIPTION, HTML) als kurzer Text
+    public static func noteText(_ description: String?) -> String {
+        PyText.slice(noteBreakRE.sub(Announcements.htmlToText(description ?? ""), " · "), 0, 400)
+    }
+
+    /// `lsf.is_placeholder(note)`: LSF-Termin, der laut Bemerkung "nur aus technischen Gruenden angezeigt" wird
+    public static func isPlaceholder(_ note: String?) -> Bool { placeholderRE.found(in: note ?? "") }
 
     private static let summaryRE = HText.regex("^\\s*(\\d{3,5})\\s*-\\s*(.+?)\\s*$")
     private static let lecturerRE = HText.regex("\\s*\\(([A-ZÄÖÜ][\\wäöüß\\-]+(?:\\s*[,/]\\s*[A-ZÄÖÜ][\\wäöüß\\-]+)*)\\)\\s*$")
@@ -82,12 +96,13 @@ public enum LSFCalendar {
         return Summary(number: num, title: s.isEmpty ? summary : s, lecturer: lecturer)
     }
 
-    /// Serien des persoenlichen Plans mit Nummer, Titel und Lehrperson
+    /// Serien des persoenlichen Plans mit Nummer, Titel, Lehrperson und Bemerkung (`lsf.plan_entries`)
     public static func planEntries(_ ics: String) -> [Entry] {
         parseICS(ics).map { e in
             var e = e
             let p = splitSummary(e.title)
             e.title = p.title; e.number = p.number; e.lecturer = p.lecturer
+            e.note = noteText(e.description)
             return e
         }
     }
