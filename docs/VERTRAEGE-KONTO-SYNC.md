@@ -65,6 +65,14 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   `LERNAPP_SYNC_TIMES` (Standard `08:00,15:00`, Ortszeit des Servers): je Uhrzeit einmal am Tag ein Job für jedes
   aktive Konto mit Zugangsdaten, auch nach Neustart nur einmal (`schedule_marks`). Beim Start werden verwaiste
   „laufende“ Jobs (älter als 6 h) als abgebrochen markiert.
+- **Löschfristen** (`app/retention.py`, täglich ab `LERNAPP_RETENTION_TIME`, Standard 04:00, im Zeitplan der Jobs):
+  eigenes Zugriffsprotokoll `logs/access/access-YYYY-MM-DD.log` (Zeit, IP, Methode, Pfad ohne Abfrageteil, Status,
+  Dauer, Browser-Kennung) 14 Tage (`LERNAPP_RETENTION_ACCESS_DAYS`); Abgleich-Protokolle und Fehlerbilder in
+  `users/<id>/logs` sowie `sync_log` je Konto 90 Tage (`LERNAPP_RETENTION_SYNC_DAYS`, Logdateien werden zeilenweise
+  gekürzt); `sync_jobs`/`schedule_marks` 90 Tage; abgelaufene oder beendete Sitzungen, verbrauchte Reset-Token und
+  Fehlversuchszähler täglich; gelöschte Konten nach 30 Tagen (`accounts.purge_deleted`). Ergebnis je Lauf in
+  `logs/retention.log`; von Hand `python -m app.retention [--dry-run]`. **uvicorn ohne eigenes Zugriffsprotokoll
+  starten** (`--no-access-log`), sonst gilt die Frist dort nicht; Protokolle des Hosters per Vertrag auf 14 Tage.
 - **Betrieb**: im API-Prozess (`LERNAPP_JOBS=inproc`, Standard) oder getrennt `python -m app.jobs` mit
   `LERNAPP_JOBS=off` für die API. `LERNAPP_JOB_WORKERS` (Standard 2) = gleichzeitige Browser, je etwa 300 MB; Playwright
   mit Chromium muss auf dem Server installiert sein (`playwright install chromium`).

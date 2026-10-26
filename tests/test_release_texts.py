@@ -75,6 +75,8 @@ def test_privacy_policy_matches_the_implementation():
     assert "scrypt" in t and "AES-256-GCM" in t and "SHA-256" in t
     assert f"Ab {'drei' if community.REPORTS_TO_HIDE == 3 else community.REPORTS_TO_HIDE} Meldungen" in t
     assert "uniflow_session" in t and "lernapp_pin" in t and "08:00" in t and "15:00" in t
+    from app import retention
+    assert f"gelöscht nach {retention.ACCESS_DAYS} Tagen" in t and f"gelöscht nach\n  {retention.SYNC_DAYS} Tagen" in t.replace("\r", "")
     assert "keine Schriften von Google" in t and "Google Fonts" not in t, "Schrift wird selbst ausgeliefert (tests/test_fonts.py)"
 
 

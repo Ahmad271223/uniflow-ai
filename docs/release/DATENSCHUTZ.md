@@ -133,9 +133,11 @@ Art. 6 Abs. 1 lit. b DSGVO.
 - **Lokaler Speicher des Browsers**: nur Einstellungen, die du selbst vornimmst (Hell/Dunkel, Seitenleiste,
   zuletzt geöffnete Ansicht). Keine Kennungen für Werbung oder Analyse.
 - **Zugriffsprotokolle des Servers**: IP-Adresse, Zeitpunkt, aufgerufene Adresse, Status, Browser-Kennung – zur
-  Abwehr von Angriffen und zur Fehlersuche (Art. 6 Abs. 1 lit. f DSGVO), gelöscht nach [[14 Tagen]].
-- **Protokolle des Abgleichs** je Konto: Zeitpunkt, Erfolg, Fehlermeldung ohne Inhalte und Passwörter, gelöscht
-  nach [[90 Tagen]].
+  Abwehr von Angriffen und zur Fehlersuche (Art. 6 Abs. 1 lit. f DSGVO), gelöscht nach 14 Tagen.
+- **Protokolle des Abgleichs** je Konto: Zeitpunkt, Erfolg, Fehlermeldung ohne Inhalte und Passwörter, bei
+  fehlgeschlagener Anmeldung ein Bildschirmfoto der Anmeldeseite deiner Hochschule zur Fehlersuche – gelöscht nach
+  90 Tagen. Abgelaufene oder beendete Sitzungen, verbrauchte Reset-Links und Fehlversuchszähler werden täglich
+  entfernt.
 - **Schriftart und andere Dateien der Oberfläche** liefert unser Server selbst aus; die Web-Oberfläche lädt nichts
   von Dritten (auch keine Schriften von Google), es werden keine Daten an Dritte übertragen.
 

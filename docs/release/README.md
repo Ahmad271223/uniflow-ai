@@ -31,8 +31,7 @@ Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröf
 (`tests/test_release_texts.py` listet sie auf):
 
 `[[Name]]`, `[[Anschrift]]`, `[[E-Mail]]`, `[[Telefon]]`, `[[Domain]]`, `[[Hosting-Anbieter]]`, `[[Serverstandort]]`,
-`[[Mail-Anbieter]]`, `[[Datum]]`, `[[USt-IdNr.]]` (nur falls vorhanden), `[[Aufsichtsbehörde]]`, Aufbewahrungsfristen
-`[[14 Tage]]` / `[[90 Tage]]` (müssen zur umgesetzten Löschung passen).
+`[[Mail-Anbieter]]`, `[[Datum]]`, `[[USt-IdNr.]]` (nur falls vorhanden), `[[Aufsichtsbehörde]]`.
 
 ## Was vor der Veröffentlichung noch zu tun ist
 
@@ -43,9 +42,10 @@ Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröf
    `app/static/fonts/` aus (Inter 4.1, SIL Open Font License, `LICENSE-Inter.txt`); die CSP (`UI_CSP`) erlaubt keine
    fremden Hosts mehr, `tests/test_fonts.py` prüft das. Hintergrund: Laden von Google Fonts überträgt die IP-Adresse
    an Google und ist in Deutschland ohne Einwilligung angreifbar (LG München I, 3 O 17493/20).
-3. **Löschfristen umsetzen**, die die Erklärung nennt: HTTP-Zugriffsprotokolle `[[14 Tage]]`, Abgleich-Protokolle
-   `[[90 Tage]]` (heute gibt es keine automatische Rotation der `logs/`-Dateien), Konto 30 Tage nach Löschung
-   (umgesetzt: `accounts.purge_deleted`).
+3. **Löschfristen – erledigt (26.10.2026):** `app/retention.py` läuft im Dienst täglich ab 04:00 (Zeitplan der
+   Jobs): eigenes Zugriffsprotokoll je Tag, 14 Tage; Abgleich-Protokolle und `sync_log` je Konto 90 Tage; abgelaufene
+   Sitzungen, Reset-Token, Fehlversuchszähler; Konten 30 Tage nach Löschung (`accounts.purge_deleted`). Der Dienst muss
+   ohne das uvicorn-Zugriffsprotokoll laufen (`--no-access-log`), siehe `docs/VERTRAEGE-KONTO-SYNC.md`, Betrieb.
 4. **Mailversand** für „Passwort vergessen“ und Konto-Bestätigung (`accounts.reset_sender`) – Anbieter in die
    Datenschutzerklärung (Abschnitt 11).
 5. **Öffentliche Seiten – erledigt (26.10.2026):** der Dienst liefert `/datenschutz`, `/nutzungsbedingungen`,

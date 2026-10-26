@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, community_api, config, db, jobs, legal, planner, study, timetable, universities, vault
+from . import account_api, accounts, community_api, config, db, jobs, legal, planner, retention, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -273,6 +273,23 @@ for _page in legal.PAGES:
 
 _FILE_PATHS = re.compile(r"^/api/(files/[^/]+/content|assets/|qis/documents/)")
 _INLINE_TYPES = ("application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp", "text/plain")
+
+
+@app.middleware("http")
+async def access_log(request, call_next):
+    """Gehosteter Modus: eigenes Zugriffsprotokoll je Tag (app/retention.py, 14 Tage), zuletzt registriert = aeusserste
+    Schicht, sieht also auch Umleitungen und Abweisungen der anderen Schichten. Pfad ohne Abfrageteil, keine Tokens."""
+    if not config.is_hosted():
+        return await call_next(request)
+    import time as _time
+    t0 = _time.perf_counter()
+    response = await call_next(request)
+    try:
+        retention.log_access(request.client.host if request.client else "-", request.method, request.url.path,
+                             response.status_code, (_time.perf_counter() - t0) * 1000, request.headers.get("user-agent", ""))
+    except OSError as e:
+        print(f"[access] Protokoll nicht schreibbar: {e}")
+    return response
 
 
 @app.middleware("http")

@@ -244,11 +244,16 @@ class Runner:
                 self._stop.wait(self.poll)
 
     def _scheduler(self) -> None:
+        from . import retention
         while not self._stop.is_set():
             try:
                 schedule_due()
             except Exception as e:  # noqa: BLE001
                 print(f"[jobs] Zeitplan-Fehler: {e}")
+            try:
+                retention.schedule_due()                   # Loeschfristen einmal taeglich (app/retention.py)
+            except Exception as e:  # noqa: BLE001
+                print(f"[jobs] Loeschfristen-Fehler: {e}")
             self._stop.wait(30)
 
     def start(self) -> None:
