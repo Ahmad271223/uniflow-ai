@@ -810,7 +810,7 @@ final class HardeningExportTests: XCTestCase {
         let p = try ShareExport.payload(layout: lay, pages: [:], images: [:], title: "Schreibschutz", fileID: "f",
                                         moduleID: nil, module: nil, scope: .document)
         let fm = FileManager.default
-        let root = fm.temporaryDirectory.appendingPathComponent("share", isDirectory: true)
+        let root = AppTemp.folder(container: ActiveContainer.current?.layout.identifier).appendingPathComponent("teilen", isDirectory: true)
         try? fm.removeItem(at: root)
         let old = root.appendingPathComponent("alt", isDirectory: true)
         try fm.createDirectory(at: old, withIntermediateDirectories: true)
@@ -837,23 +837,25 @@ final class HardeningExportTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), p.pdf)
     }
 
-    /// `PDFExporter.export`: Ziel nicht beschreibbar (an Stelle der Datei liegt ein Ordner) -> Fehler, keine
-    /// Reste im Ordner.
-    func testExporterWriteFailureLeavesNoPartialFile() throws {
+    /// Teilen-Dateien liegen je Container (`AppTemp`) und verschwinden mit ihm: vorher im gemeinsamen tmp-Ordner aller
+    /// Konten, auch nach "Konto löschen". Namen aus Stud.IP mit "/" oder ".." bleiben im eigenen Ordner.
+    func testShareFilesLiveInTheContainerFolderAndGoWithIt() throws {
         let lay = try blankLayout(templates: ["grid"])
-        let fm = FileManager.default
-        let dir = fm.temporaryDirectory.appendingPathComponent("export", isDirectory: true)
-        let title = "Kollision-\(UUID().uuidString.prefix(6))"
-        let target = dir.appendingPathComponent(PDFExporter.safeFileName(title) + " – Notizen.pdf", isDirectory: true)
-        try fm.createDirectory(at: target, withIntermediateDirectories: true)
-        try Data("x".utf8).write(to: target.appendingPathComponent("inhalt"))
-        addTeardownBlock { try? FileManager.default.removeItem(at: target) }
-        let before = Set((try? fm.contentsOfDirectory(atPath: dir.path)) ?? [])
-        XCTAssertThrowsError(try PDFExporter.export(layout: lay, pages: [:], images: [:], title: title)) { error in
-            XCTAssertFalse(error.localizedDescription.isEmpty)
+        let p = try ShareExport.payload(layout: lay, pages: [:], images: [:], title: "Ordner", fileID: "f",
+                                        moduleID: nil, module: nil, scope: .document)
+        let container = ActiveContainer.current?.layout.identifier
+        let url = try ShareExport.writeFile(p)
+        XCTAssertTrue(url.path.hasPrefix(AppTemp.folder(container: container).path), url.path)
+        let download = try AppTemp.file("download", name: "../../Library/../Blatt 1/2.pdf", container: container)
+        XCTAssertEqual(download.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent, "download")
+        XCTAssertFalse(download.lastPathComponent.contains("/"))
+        XCTAssertFalse(download.lastPathComponent.hasPrefix("."))
+        if let container {
+            AppTemp.remove(container: container)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
         }
-        let after = Set((try? fm.contentsOfDirectory(atPath: dir.path)) ?? [])
-        XCTAssertEqual(after, before, "keine halben oder temporaeren Dateien")
+        AppTemp.purgeAtLaunch()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: AppTemp.root.path))
     }
 
     /// Lange Titel mit Zeichen ausserhalb von ASCII (mathematische Buchstaben, Emoji, auch aus mehreren Zeichen
@@ -873,8 +875,6 @@ final class HardeningExportTests: XCTestCase {
                                             moduleID: nil, module: nil, scope: .document)
             let units = p.fileName.utf16.count
             XCTAssertNoThrow(try ShareExport.writeFile(p), "Titel \(n + 1): Teilen scheitert am Dateinamen (\(units) UTF-16-Einheiten)")
-            XCTAssertNoThrow(try PDFExporter.export(layout: lay, pages: [:], images: [:], title: title),
-                             "Titel \(n + 1): Export scheitert am Dateinamen")
         }
     }
 

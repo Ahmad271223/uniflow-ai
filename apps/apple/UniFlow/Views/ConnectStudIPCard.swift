@@ -354,10 +354,11 @@ struct UFStudIPStatusBar: View {
 }
 
 extension UFNoServerPage.Spec {
-    static let plan = Self(title: "Lernkalender", sub: "Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.",
+    // ohne PC keine Tests (KI, entfallen in V1): weder anbieten noch ankuendigen
+    static let plan = Self(title: "Lernkalender", sub: "Dein Wochenplan – abgestimmt auf Vorlesungen und Übungen.",
                            kind: .plan, maxWidth: 1600)
     static let timetable = Self(title: "Stundenplan", kind: .timetable, maxWidth: 1600)
-    static let modules = Self(title: "Meine Module", sub: "Alle Module deines Studiums – Vorlesungen, Übungen, Materialien und Tests an einem Ort.",
+    static let modules = Self(title: "Meine Module", sub: "Alle Module deines Studiums – Vorlesungen, Übungen und Materialien an einem Ort.",
                               kind: .modules, maxWidth: 1480)
     static let library = Self(title: "Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.",
                               kind: .library)
@@ -365,7 +366,7 @@ extension UFNoServerPage.Spec {
     static let document = Self(title: "Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.",
                                kind: .library, barAbove: false)
     // Wochentests sind KI (entfallen in V1), Noten kommen erst mit QIS (F4): lokal der leere Zustand
-    static let exams = Self(title: "Tests & Wiederholung", sub: "Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.",
+    static let exams = Self(title: "Tests & Wiederholung", sub: "Eigene Karteikarten zum Wiederholen kommen mit einem Update.",
                             kind: .exams, local: false)
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
     // ohne "Notenspiegel direkt in der App": Noten kommen erst mit QIS (F4)

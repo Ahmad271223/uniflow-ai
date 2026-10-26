@@ -53,8 +53,9 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertEqual(h.services[1].json["connector"], true)
         XCTAssertEqual(h.services[1].url, "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0")
         XCTAssertEqual(h.json["files_source"], "Learnweb")
-        XCTAssertEqual(h.json["cas_base"], "https://www.uni-hildesheim.de/sso")
-        XCTAssertNil(l.json["cas_base"])
+        // "university" in /api/services wie api_services: genau diese sieben Felder
+        XCTAssertEqual(Set(h.json.object?.keys.map { $0 } ?? []), ["key", "name", "short", "files_source", "grades_source", "login", "user_label"])
+        XCTAssertEqual(l.json["user_label"], "LUH-ID")
     }
 
     func testEntryPagesLikePython() {
@@ -189,6 +190,21 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertLessThanOrEqual(t.count, 200)
         XCTAssertFalse(t.contains("<"))
         XCTAssertNil(HildesheimCAS.errorText(html: "<div id=\"loginErrorsPanelX\">x</div>"))
+        // ueber HTMLTokenizer: Inhalt von script und style ist kein Text (vorher per Regex mitgelesen)
+        XCTAssertEqual(HildesheimCAS.errorText(html: "<div id='\(HildesheimCAS.errorPanelID)'>Falsch<script>var a = 1</script>"
+                                               + "<style>.x{color:red}</style><div>!</div></div><p>danach</p>"), "Falsch !")
+    }
+
+    /// LSF-Links: wurzelrelativ gegen die Basis (vorher "…/qisserver/qisserver/rds?…"), relativ zu /qisserver/, http(s)
+    /// bleibt; dieselben Faelle wie `lsf.absolute` (expected.json)
+    func testLSFAbsoluteLinks() throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let expected = try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/hildesheim/expected.json")))
+        let cases = expected["lsf-absolute"]?.array ?? []
+        XCTAssertEqual(cases.count, 4)
+        for c in cases { XCTAssertEqual(HildesheimCAS.lsfAbsolute(c["href"]?.string ?? ""), c["url"]?.string) }
+        XCTAssertEqual(HildesheimCAS.lsfAbsolute("/qisserver/rds?a=1"), "https://lsf.uni-hildesheim.de/qisserver/rds?a=1")
     }
 
     // MARK: Hashwerte

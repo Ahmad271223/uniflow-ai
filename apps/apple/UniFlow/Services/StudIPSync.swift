@@ -7,19 +7,35 @@ import WebKit
 // Anmeldung auf der echten Hochschulseite in einer eingebetteten Webansicht, danach Abgleich ueber die JSON:API
 // mit dem Sitzungs-Cookie. Passwort und Cookie verlassen das Geraet nie; das Cookie liegt nur im Schluesselbund.
 
-/// Sitzungs-Cookies im Schluesselbund (nur dieses Geraet, nicht in Backups/iCloud), je Container (Apple-Nutzer,
-/// Hochschule) ein eigener Eintrag: `session-cookies.<container-uuid>`. Kein Rueckfall auf einen anderen Container.
+/// Sitzungs-Cookies im Schluesselbund (`KeychainStore`, nur dieses Geraet, nicht in Backups/iCloud), je Container
+/// (Apple-Nutzer, Hochschule) ein eigener Eintrag: `session-cookies.<container-uuid>`. Kein Rueckfall auf einen
+/// anderen Container. Eine Neuinstallation leert den ganzen Dienst (`removeLeftoversOfEarlierInstallation`).
 struct StudIPCookieStore: Sendable {
     static let service = "de.uniflow.ai.studip"
     /// Eintrag aus der Zeit vor den Containern (zieht beim Umzug in den LUH-Container des Nutzers)
     static let legacyAccount = "session-cookies"
+    /// Merker dieser Installation (UserDefaults verschwinden mit der App, der Schluesselbund nicht)
+    static let installedKey = "uniflow.studip.installed"
 
     let service: String
     let account: String
+    private var store: KeychainStore { KeychainStore(service: service) }
 
     init(service: String = StudIPCookieStore.service, account: String) {
         self.service = service
         self.account = account
+    }
+
+    /// Neuinstallation: Sitzungen einer geloeschten App (Container-UUIDs folgen fest aus Apple-ID und Hochschule) nie
+    /// uebernehmen, sonst galt Stud.IP nach einer Neuinstallation sofort als verbunden. Ohne Merker wird der ganze
+    /// Dienst geleert (auch der Alt-Eintrag `session-cookies`); der Merker erst danach. Rueckgabe: geleert oder nicht
+    /// noetig (gesperrter Schluesselbund: false, beim naechsten Start erneut).
+    @discardableResult
+    static func removeLeftoversOfEarlierInstallation(service: String = StudIPCookieStore.service, defaults: UserDefaults) -> Bool {
+        guard !defaults.bool(forKey: installedKey) else { return true }
+        guard KeychainStore(service: service).removeAll() else { return false }
+        defaults.set(true, forKey: installedKey)
+        return true
     }
 
     /// Eintrag eines Containers
@@ -34,10 +50,6 @@ struct StudIPCookieStore: Sendable {
         let path: String
         let expires: Date?
         let secure: Bool
-    }
-
-    private var query: [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
     }
 
     func save(_ cookies: [HTTPCookie]) throws {
@@ -57,28 +69,12 @@ struct StudIPCookieStore: Sendable {
         }
     }
 
-    func clear() { SecItemDelete(query as CFDictionary) }
+    func clear() { store.remove(account) }
 
     /// Inhalt unveraendert (fuer den Umzug)
-    func loadRaw() -> Data? {
-        var q = query
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &item) == errSecSuccess else { return nil }
-        return item as? Data
-    }
+    func loadRaw() -> Data? { store.data(account) }
 
-    func saveRaw(_ data: Data) throws {
-        SecItemDelete(query as CFDictionary)
-        var add = query
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let status = SecItemAdd(add as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Schlüsselbund-Fehler \(status)"])
-        }
-    }
+    func saveRaw(_ data: Data) throws { try store.write(data, account: account) }
 
     /// Umzug: alten Eintrag in diesen verschieben (wiederholbar; ein vorhandener Eintrag wird nicht ueberschrieben)
     func adopt(_ legacy: StudIPCookieStore) throws {
@@ -125,15 +121,16 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 ///
 /// Seit S3 landen Kurse und Dateien wie bei app/studip_sync.py in der lokalen Datenbank (`StudIPLibrary` ueber
 /// `UniStore`, dieselbe Fassung wie fuer Learnweb), seit S4 mit Fach und Art je Kurs (`classify`), jede geladene
-/// Datei mit ihrem Inhalts-Hash fuer gemeinsame Wochentests (`content_sha256`): sie erscheinen nach Fach als Module
-/// in Dokumente (Modulordner mit Unterordnern nach Art) und Meine Module (Moduldetail nach Lehrwoche), dazu in der
-/// Kursliste und der Uebersicht, und oeffnen sich im Editor.
-/// Welche Dateien geladen werden, entscheidet die Datenbank (neu, in Stud.IP geaendert, lokal fehlend);
-/// `index.json` bleibt fuer die Liste in StudIPView. Was ein Abgleich vor S3 schon geladen hat, wird beim Start
-/// uebernommen, ohne neu zu laden.
+/// Datei mit ihrem Inhalts-Hash (`content_sha256`, neue Fassung mit gleichem Inhalt, S7): sie erscheinen nach Fach als
+/// Module in Dokumente (Modulordner mit Unterordnern nach Art) und Meine Module (Moduldetail nach Lehrwoche), dazu in
+/// der Kursliste und der Uebersicht, und oeffnen sich im Editor.
+/// Die Datenbank ist das eine Register: sie entscheidet, welche Dateien geladen werden (neu, in Stud.IP geaendert,
+/// lokal fehlend), und liefert die Liste in StudIPView (`entries`) sowie "nicht mehr vorhanden". Was ein Abgleich vor
+/// S3 geladen hat (index.json), wird einmal uebernommen, ohne neu zu laden; danach ist index.json weg.
+/// Welche Kurse abgeglichen werden: `StudIPImport.selection` (neue Kurse des juengsten Semesters kommen dazu).
 /// Wie in Python halten Fehler einzelner Kurse oder Dateien den Abgleich nicht an (`StudIPError.affectsOnlyItem`,
 /// bei Dateiliste und Download auch Transportfehler eines Kurses oder einer Datei wie eine Zeitueberschreitung); eine
-/// abgelaufene Sitzung, kein Netz und volle Platte brechen ab. Wie `stream_download` wiederholt der Download eine
+/// abgelaufene Sitzung, kein Netz und ein voller Speicher (`DeviceStorage`, vor jeder Datei geprueft) brechen ab. Wie `stream_download` wiederholt der Download eine
 /// abgerissene Verbindung bis zu zweimal (`UniRetry` im `StudIPClient`), und eine Webseite oder leere Antwort statt
 /// der Datei wird nicht gespeichert. Ablage, Hash und Eintrag jeder Datei laufen ueber `UniDownloads`, dieselbe
 /// Fassung wie fuer Learnweb, ebenso seit S7 die alte Fassung einer Datei mit Notizen (unter `Fassungen`, Notizen auf
@@ -149,7 +146,8 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// von Aufzeichnungen an.
 @MainActor
 final class StudIPSync: ObservableObject {
-    static let base = URL(string: "https://studip.uni-hannover.de")!
+    /// Stud.IP der LUH aus dem Hochschul-Profil (die eine Quelle der Adresse)
+    static let base = UniversityKey.luh.profile.studipBase!
 
     enum Phase: Equatable {
         case signedOut
@@ -161,7 +159,8 @@ final class StudIPSync: ObservableObject {
 
     @Published private(set) var phase: Phase = .signedOut
     @Published private(set) var courses: [StudIPCourse] = []
-    @Published private(set) var entries: [StudIPLocalEntry] = []
+    /// geladene Dateien aus der Datenbank (`StudIPLibrary.downloadedFiles`, das eine Register; vorher index.json)
+    @Published private(set) var entries: [StudIPLibrary.DownloadedFile] = []
     @Published private(set) var lastRun: Date?
     @Published private(set) var lastSummary: String?
     /// Zahl der beendeten Abgleiche dieses App-Laufs; Seiten mit `ufReload` laden bei jeder Aenderung neu
@@ -169,9 +168,14 @@ final class StudIPSync: ObservableObject {
     @Published var selectedCourses: Set<String> = [] {
         didSet { defaults.set(Array(selectedCourses), forKey: "uniflow.studip.courses") }
     }
+    /// Kurse, die der Abgleich schon gesehen hat (abgewaehlt = bekannt und nicht ausgewaehlt, `StudIPImport.selection`);
+    /// nil bis zum ersten Abgleich mit dieser Regel
+    private var knownCourses: Set<String>? {
+        didSet { defaults.set(knownCourses.map(Array.init), forKey: "uniflow.studip.knownCourses") }
+    }
 
     /// Einstellungen des Abgleichs (je Container in dessen UserDefaults-Suite)
-    static let defaultsKeys = ["uniflow.studip.courses", "uniflow.studip.lastRun", "uniflow.studip.lastSummary"]
+    static let defaultsKeys = ["uniflow.studip.courses", "uniflow.studip.knownCourses", "uniflow.studip.lastRun", "uniflow.studip.lastSummary"]
 
     let root: URL
     /// Hochschule des Containers; Stud.IP gibt es nur an der LUH
@@ -183,7 +187,8 @@ final class StudIPSync: ObservableObject {
     /// Opencast-Aufzeichnungen: Listen in derselben Datenbank des Containers, geladene Videos (nur auf Wunsch) unter
     /// `root/Aufzeichnungen` ohne Backup
     let recordings: RecordingLibrary
-    private var index: [String: StudIPLocalEntry] = [:]
+    /// Bestand eines Abgleichs von vor S3 (index.json): einmal in die Datenbank uebernehmen, danach geloescht
+    private var legacyIndex: [StudIPLocalEntry] = []
     /// Lokales Backend, in dessen Datenbank der Abgleich schreibt
     private let host: LocalBackendHost
     private let clock: UniFlowClock
@@ -219,33 +224,50 @@ final class StudIPSync: ObservableObject {
         recordings = RecordingLibrary(root: self.root.appendingPathComponent(RecordingFiles.folder, isDirectory: true), host: host,
                                       container: container)
         selectedCourses = Set(defaults.stringArray(forKey: "uniflow.studip.courses") ?? [])
+        knownCourses = defaults.stringArray(forKey: "uniflow.studip.knownCourses").map(Set.init)
         lastRun = defaults.object(forKey: "uniflow.studip.lastRun") as? Date
         lastSummary = defaults.string(forKey: "uniflow.studip.lastSummary")
-        if let d = try? Data(contentsOf: self.root.appendingPathComponent("index.json")),
-           let list = try? JSONDecoder().decode([StudIPLocalEntry].self, from: d) {
-            index = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        if let d = try? Data(contentsOf: legacyIndexURL), let list = try? JSONDecoder().decode([StudIPLocalEntry].self, from: d) {
+            legacyIndex = list
         }
         if let d = try? Data(contentsOf: self.root.appendingPathComponent("courses.json")),
            let list = try? JSONDecoder().decode([StudIPCourse].self, from: d) {
             courses = list
         }
-        entries = sortedEntries()
         phase = offersStudIP && !self.cookies.load().isEmpty ? .idle : .signedOut
-        if !index.isEmpty { adoption = Task { await adoptExistingDownloads() } }
+        // erst den alten Bestand uebernehmen (einmal), dann die Liste aus der Datenbank
+        adoption = Task {
+            if !legacyIndex.isEmpty { await adoptExistingDownloads() }
+            await refreshEntries()
+        }
     }
 
-    /// Dateien, die ein Abgleich vor S3 geladen hat (index.json), in die Datenbank uebernehmen, ohne neu zu laden.
-    /// Bekannte Dateien bleiben unberuehrt; ein zweiter Lauf tut nichts. Rueckgabe: Zahl der uebernommenen Dateien.
+    /// index.json aus der Zeit vor S3 (nur noch fuer die einmalige Uebernahme)
+    private var legacyIndexURL: URL { root.appendingPathComponent("index.json") }
+
+    /// Dateien, die ein Abgleich vor S3 geladen hat (index.json), in die Datenbank uebernehmen, ohne neu zu laden;
+    /// danach ist index.json weg (vorher lief die "einmalige" Uebernahme bei jedem Start). Bekannte Dateien bleiben
+    /// unberuehrt. Rueckgabe: Zahl der uebernommenen Dateien.
     @discardableResult
     func adoptExistingDownloads() async -> Int {
-        guard !index.isEmpty, let files = host.files, let backend = try? await host.backend() else { return 0 }
-        let entries = Array(index.values), courses = self.courses, root = self.root, now = clock.nowISO
-        return (try? await backend.context.database.transaction { c in
+        guard !legacyIndex.isEmpty, let files = host.files, let backend = try? await host.backend() else { return 0 }
+        let entries = legacyIndex, courses = self.courses, root = self.root, now = clock.nowISO
+        let adopted = try? await backend.context.database.transaction { c in
             try StudIPLibrary.adopt(c, entries: entries, courses: courses, at: now, base: Self.base, localPath: { e in
                 let url = root.appendingPathComponent(e.relativePath)
                 return FileManager.default.fileExists(atPath: url.path) ? files.stored(url) : nil
             })
-        }) ?? 0
+        }
+        guard let adopted else { return 0 }               // gescheitert: beim naechsten Start erneut
+        try? FileManager.default.removeItem(at: legacyIndexURL)
+        legacyIndex = []
+        return adopted
+    }
+
+    /// Liste der geladenen Dateien aus der Datenbank neu lesen
+    func refreshEntries() async {
+        guard let prefix = host.files?.stored(root), let backend = try? await host.backend() else { entries = []; return }
+        entries = (try? await backend.context.database.withConnection { try StudIPLibrary.downloadedFiles($0, under: prefix + "/") }) ?? []
     }
 
     var isRunning: Bool { if case .running = phase { return true }; return false }
@@ -256,7 +278,7 @@ final class StudIPSync: ObservableObject {
     /// Liegt ein Sitzungs-Cookie dieses Containers im Schluesselbund?
     var hasStoredSession: Bool { !cookies.load().isEmpty }
 
-    func fileURL(_ e: StudIPLocalEntry) -> URL { root.appendingPathComponent(e.relativePath) }
+    func fileURL(_ e: StudIPLibrary.DownloadedFile) -> URL? { host.files?.url(stored: e.localPath) }
 
     // MARK: Anmeldung
 
@@ -292,8 +314,8 @@ final class StudIPSync: ObservableObject {
     func removeDownloads() async {
         try? FileManager.default.removeItem(at: root.appendingPathComponent("files"))
         try? FileManager.default.removeItem(at: UniDownloads.partial(in: root))
-        index = [:]
-        saveIndex()
+        try? FileManager.default.removeItem(at: legacyIndexURL)
+        legacyIndex = []
         entries = []
         if let prefix = host.files?.stored(root), let backend = try? await host.backend() {
             let ids = (try? await backend.context.database.transaction { try StudIPLibrary.forgetDownloads($0, under: prefix + "/") }) ?? []
@@ -385,7 +407,10 @@ final class StudIPSync: ObservableObject {
             let list = try await client.courses(userID: uid)
             courses = list.sorted { ($0.semesterStart ?? "", $0.title) > ($1.semesterStart ?? "", $1.title) }
             try? JSONEncoder().encode(courses).write(to: root.appendingPathComponent("courses.json"), options: .atomic)
-            if selectedCourses.isEmpty { selectedCourses = StudIPImport.defaultSelection(list) }
+            // neue Kurse des juengsten Semesters kommen dazu, aeltere werden gemeldet; Abgewaehltes bleibt abgewaehlt
+            let selection = StudIPImport.selection(courses: list, selected: selectedCourses, known: knownCourses)
+            if selection.selected != selectedCourses { selectedCourses = selection.selected }
+            knownCourses = selection.known
 
             let chosen = courses.filter { selectedCourses.contains($0.id) }
             // Fach und Art wie upsert_course (classify); die Module legt ensure_modules beim naechsten Lesen an
@@ -419,23 +444,29 @@ final class StudIPSync: ObservableObject {
             }
             // kein einziger Kurs lesbar (z. B. Stud.IP gestoert): Fehlerlauf statt "0 neue Dateien"
             if let first = unreadable.first, unreadable.count == chosen.count { throw first }
-            let titles = Dictionary(courses.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
-            let root = self.root
-            let gone = StudIPImport.plan(remote: remote, local: index, checkedCourses: checked,
-                                         fileExists: { FileManager.default.fileExists(atPath: root.appendingPathComponent($0).path) }).goneRemotely
+            // in Stud.IP nicht mehr vorhanden: aus dem einen Register (`files`), nur in vollstaendig gelesenen Kursen
+            let prefix = (localFiles.stored(root) ?? "StudIP") + "/"
+            let remoteIDs = Set(remote.map(\.id))
+            let gone = try await db.withConnection {
+                try StudIPLibrary.goneRemotely($0, remoteIDs: remoteIDs, checkedCourses: checked, under: prefix)
+            }
             let download = wanted.filter(\.isDownloadable)
             var failed = 0
             // je Datei ueber `UniDownloads`: erst in den Zwischenordner, pruefen, Hash, alte Fassung einer Datei mit
             // Notizen aufbewahren (S7), an ihren Platz, eintragen, Seitentexte und Notizen der neuen Fassung; ein Abbruch
-            // hinterlaesst keine halbe Datei als "geladen"
+            // hinterlaesst keine halbe Datei als "geladen". Vor jeder Datei der freie Platz: ein voller Speicher haelt
+            // den Lauf an (`DeviceStorage.Full`), statt Datei fuer Datei zu scheitern
             for (i, f) in download.enumerated() {
                 try Task.checkCancellation()
+                guard DeviceStorage.fits(Int64(f.size), free: DeviceStorage.availableBytes(at: root)) else { throw DeviceStorage.Full() }
                 phase = .running("Lade \(i + 1) von \(download.count): \(f.name)")
                 let rel = StudIPImport.relativePath(for: f)
                 do {
                     try await downloads.load(StudIPLibrary.fileRow(f, base: Self.base), to: rel, db: db, clock: clock) { part in
                         try await client.download(fileID: f.id, to: part, name: f.name)
                     }
+                } catch where DeviceStorage.isFull(error) {
+                    throw DeviceStorage.Full()
                 } catch let e as StudIPError where e.affectsOnlyItem {
                     // wie run_sync ("Download-Fehler"): naechste Datei; der naechste Abgleich versucht es erneut
                     failed += 1
@@ -450,12 +481,9 @@ final class StudIPSync: ObservableObject {
                     failed += 1
                     continue
                 }
-                index[f.id] = StudIPLocalEntry(file: f, courseTitle: titles[f.courseID] ?? "Kurs", relativePath: rel,
-                                               downloadedAt: ISO8601DateFormatter().string(from: Date()))
-                saveIndex()                                   // nach jeder Datei: Abbruch verliert nichts
                 loaded += 1
             }
-            entries = sortedEntries()                         // Dateien schon zeigen, waehrend der Stundenplan laedt
+            await refreshEntries()                            // Dateien schon zeigen, waehrend der Stundenplan laedt
             try Task.checkCancellation()
             // Stundenplan aus Stud.IP (S5); Fehler dort brechen den Datei-Abgleich nicht ab
             let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
@@ -469,6 +497,7 @@ final class StudIPSync: ObservableObject {
             if failed > 0 { parts.append("\(failed) nicht geladen (Fehler)") }
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
+            if let n = Self.newCoursesNote(selection.newUnselected.count) { parts.append(n) }
             parts += timetable.summary
             parts += rec?.summary ?? []
             finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
@@ -478,17 +507,28 @@ final class StudIPSync: ObservableObject {
             phase = timetable.sessionExpired || rec?.sessionExpired == true ? .needsLogin : .idle
         } catch where Self.isCancellation(error) || Task.isCancelled {
             // angehalten (Container wird geloescht) oder abgebrochen: kein Fehler; was gelesen war, steht in der Datenbank
-            entries = sortedEntries()
+            await refreshEntries()
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure("Abgleich abgebrochen"))
             phase = hasStoredSession ? .idle : .signedOut
         } catch StudIPError.sessionExpired {
-            entries = sortedEntries()
+            await refreshEntries()
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(StudIPError.sessionExpired.description))
             phase = .needsLogin
         } catch {
-            entries = sortedEntries()
-            await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(error.localizedDescription))
-            phase = .failed(error.localizedDescription)
+            await refreshEntries()
+            // verstaendlich statt "…SQLiteError-Fehler 1." (LocalBackendHost.message, auch "Speicher voll")
+            let message = LocalBackendHost.message(for: error)
+            await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(message))
+            phase = .failed(message)
+        }
+    }
+
+    /// Hinweis auf neue Kurse aelterer Semester, die nicht von selbst dazukamen (`StudIPImport.selection`)
+    static func newCoursesNote(_ count: Int) -> String? {
+        switch count {
+        case 0: return nil
+        case 1: return "1 neuer Kurs nicht ausgewählt (Stud.IP → Kurse)"
+        default: return "\(count) neue Kurse nicht ausgewählt (Stud.IP → Kurse)"
         }
     }
 
@@ -497,7 +537,7 @@ final class StudIPSync: ObservableObject {
         guard let db else { return }
         let finished = clock.nowISO
         _ = try? await db.transaction {
-            try StudIPLibrary.log($0, startedAt: started, finishedAt: finished, ok: ok, newFiles: newFiles, message: message)
+            try UniStore.logSync($0, startedAt: started, finishedAt: finished, ok: ok, newFiles: newFiles, message: message)
         }
     }
 
@@ -513,15 +553,6 @@ final class StudIPSync: ObservableObject {
     /// oder die eine Datei (Download).
     nonisolated static func endsRun(_ e: URLError) -> Bool {
         [.notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff, .cannotFindHost, .cannotConnectToHost,
-         .dnsLookupFailed, .cancelled].contains(e.code)
-    }
-
-    private func saveIndex() {
-        let list = index.values.sorted { $0.id < $1.id }
-        try? JSONEncoder().encode(list).write(to: root.appendingPathComponent("index.json"), options: .atomic)
-    }
-
-    private func sortedEntries() -> [StudIPLocalEntry] {
-        index.values.sorted { ($0.courseTitle, $0.folderPath, $0.name) < ($1.courseTitle, $1.folderPath, $1.name) }
+         .dnsLookupFailed, .cancelled, .cannotWriteToFile, .cannotCreateFile].contains(e.code)
     }
 }

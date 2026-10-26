@@ -62,6 +62,12 @@ enum UFFmt {
     }
 }
 
+/// Quelle der Dateien in Beschriftungen: an der LUH "Neu aus Stud.IP", an der Uni Hildesheim "Neu aus Learnweb"
+/// (vorher ueberall "Stud.IP")
+enum UFSourceText {
+    static func newFiles(_ university: UniversityKey) -> String { "Neu aus \(university.profile.filesSource)" }
+}
+
 /// Laden/Fehler wie route() in app.js: Platzhalter-Balken beim Laden, Karte "Server nicht erreichbar" mit
 /// "Jetzt neu laden" und "Diagnose" bei Netzfehlern, sonst Karte "Fehler". Ohne eigenen UniFlow-Server (V1)
 /// statt der Fehlerkarte der leere Zustand mit "Stud.IP verbinden" (Views/ConnectStudIPCard.swift).

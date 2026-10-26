@@ -96,8 +96,7 @@ public enum LSFCalendar {
     /// (`/qisserver/rds?state=wplan&act=show&show=plan&P.subc=plan&week=-2`)
     public static func planICSLink(html: String) -> String? {
         guard let raw = HText.match(planLinkRE, html)?.groups[1] ?? nil else { return nil }
-        let href = raw.replacingOccurrences(of: "&amp;", with: "&")
-        if href.hasPrefix("http") { return href }
-        return "\(HildesheimCAS.lsfBase)/qisserver/" + String(href.drop(while: { $0 == "/" }))
+        // aus dem rohen HTML: einmal dekodieren
+        return HildesheimCAS.lsfAbsolute(raw.replacingOccurrences(of: "&amp;", with: "&"))
     }
 }

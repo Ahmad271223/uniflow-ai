@@ -21,19 +21,26 @@ final class EntitlementTests: XCTestCase {
         for f: UFFeature in [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .allowed, f.rawValue)
         }
-        for f: UFFeature in [.pencilWriting, .splitView, .flashcards] {
+        for f: UFFeature in [.pencilWriting, .splitView] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.plus), f.rawValue)
         }
+        // Karteikarten gibt es ohne PC noch nicht: "bald", sobald vorhanden Plus
+        XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .free), .comingSoon)
+        XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .free, flashcards: true), .locked(.plus))
         XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .free), .locked(.plus), "Lösung teilen: Schloss mit Weg zur Abo-Seite")
         // Uni & Noten liegt ausserhalb der Tarife: sobald nativ vorhanden, gleich in Free
         XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: true), .allowed)
     }
 
     func testMatrixPlus() {
-        for f: UFFeature in [.pencilWriting, .splitView, .flashcards, .studyPlanning, .readDocuments] {
+        for f: UFFeature in [.pencilWriting, .splitView, .studyPlanning, .readDocuments] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .plus), .allowed, f.rawValue)
         }
         XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .plus, community: true), .allowed)
+        // Plus-Karte fuehrt Karteikarten als "bald", nicht als enthalten (Anlegen und Wiederholen fehlen ohne PC)
+        XCTAssertFalse(UFFeatureMatrix.flashcardsOnDevice)
+        XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .plus), .comingSoon)
+        XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .plus, flashcards: true), .allowed)
     }
 
     /// Uni & Noten erst, "sobald nativ vorhanden (F4)": bis dahin "bald". Community laeuft auf dem Geraet (Loesung als
@@ -57,7 +64,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertTrue(UFFeature.community.detail?.contains("Online-Community folgt") == true)
     }
 
-    /// Plus bietet schon heute mehr als Free (Schreiben, Uebung und Skript, Karteikarten)
+    /// Plus bietet schon heute mehr als Free (Schreiben, Uebung und Skript, Loesung als Datei teilen)
     func testPlusHasExtras() {
         XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .free))
         XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .plus))
@@ -115,10 +122,13 @@ final class EntitlementTests: XCTestCase {
     func testEntitlementsObjectUsesMatrix() {
         let ent = Entitlements(observe: false, plan: .free)
         XCTAssertFalse(ent.loading)
-        XCTAssertEqual(ent.access(.flashcards), .locked(.plus))
+        XCTAssertEqual(ent.access(.splitView), .locked(.plus))
+        XCTAssertEqual(ent.access(.flashcards), .comingSoon)
         XCTAssertTrue(ent.allows(.studyPlanning), "Lernplanung gehoert zu Free")
         ent.setPlanForTesting(.plus)
-        XCTAssertTrue(ent.allows(.flashcards))
+        XCTAssertTrue(ent.allows(.splitView))
+        XCTAssertFalse(ent.allows(.flashcards), "auch mit Plus bald")
+        XCTAssertTrue(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Bald verfügbar"))
         let locked = UFLockedCard.message(.pencilWriting, access: .locked(.plus))
         XCTAssertTrue(locked.contains("Enthalten in Plus."))
         XCTAssertFalse(locked.contains("Pro"))

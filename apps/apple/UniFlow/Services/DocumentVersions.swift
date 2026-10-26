@@ -71,7 +71,7 @@ struct FileVersionInfo: Identifiable, Equatable {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// "Fassung vom 26.10.2026"
+    /// "Fassung bis 26.10.2026" (bis zu diesem Tag die aktuelle Fassung)
     var label: String {
         guard let r = replacedAt, r.count >= 10 else { return "Alte Fassung \(version)" }
         let d = r.prefix(10).split(separator: "-")
@@ -86,11 +86,10 @@ extension DocumentStore {
     /// Datei neben dem PDF-Zwischenspeicher mit dem Stand, aus dem er stammt
     var stampURL: URL { originalPDFURL.appendingPathExtension("stand") }
 
-    /// Stand der Original-PDF laut Quelle (Ladezeitpunkt und Inhalts-Hash wie `GET /api/files/{id}`); nil ohne Antwort
-    /// oder fuer eine alte Fassung (die sich nie aendert)
-    func contentStamp() async -> String? {
-        guard !isOldVersion, let f = try? await api.value("/api/files/\(file.id)") else { return nil }
-        return (f.s("downloaded_at") ?? "") + "|" + (f.s("content_sha256") ?? "")
+    /// Stand der Original-PDF laut Quelle: Ladezeitpunkt und Inhalts-Hash aus `GET /api/files/{id}` (fuer eine alte
+    /// Fassung, die sich nie aendert, fragt der Store nicht)
+    nonisolated static func stamp(_ meta: JSONValue) -> String {
+        (meta.s("downloaded_at") ?? "") + "|" + (meta.s("content_sha256") ?? "")
     }
 
     /// Alte Fassungen und Hinweis laden (am PC-Server gibt es den Pfad nicht: nichts anzeigen)
@@ -116,7 +115,7 @@ extension DocumentStore {
     /// Seitentexte fuer Suche und Skriptsuche beim Oeffnen bereitstellen (lokal: einmal mit PDFKit gelesen und
     /// gespeichert, danach aus der Datenbank); ohne Wirkung auf die Anzeige
     func indexPageTexts() {
-        guard api.isLocal, !isOldVersion else { return }
+        guard api.isLocal, !isOldVersion, !isNotebook else { return }
         let api = self.api, id = file.id
         Task.detached(priority: .utility) { _ = try? await api.value("/api/files/\(id)/pagetext?page=1") }
     }

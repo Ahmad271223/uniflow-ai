@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Datenschutz-Manifest der App (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 7; docs/RELEASE-VORBEREITUNG.md).
+  V1 laeuft ohne Server: Anmeldung mit Apple, Kaeufe (StoreKit), Stud.IP-/Learnweb-Daten, Notizen und Lernplan
+  bleiben auf dem Geraet; UniFlow erhebt nichts (nichts wird an UniFlow oder Dritte gesendet), kein Tracking.
+  Genutzte APIs mit Begruendungspflicht:
+  - UserDefaults (CA92.1): Einstellungen nur dieser App (je Container eine eigene Suite)
+  - Datei-Zeitstempel (C617.1): Alter der Antworten im Zwischenspeicher im App-Container (ResponseCache)
+  - Freier Speicher (E174.1): vor dem Laden einer Aufzeichnung pruefen, ob sie Platz hat (RecordingLibrary)
+  Aendert sich etwas daran (z. B. ab V2 Abgleich ueber einen Server), Manifest und Angaben in App Store Connect
+  gemeinsam anpassen.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>E174.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

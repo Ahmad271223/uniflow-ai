@@ -151,6 +151,12 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
 
+    /// Eintraege der Seitenleiste: ohne PC (lokales Backend) ohne "Tests & Wiederholung" – Wochentests entfallen in
+    /// V1 (KI), eigene Karteikarten gibt es noch nicht ("bald" auf der Plus-Karte); die Seite war immer leer
+    static func visible(local: Bool) -> [UFNavItem] {
+        local ? main.filter { $0.id != "exams" } : main
+    }
+
     /// untere Leiste (mobileNav in app.js)
     static let mobile: [UFNavItem] = [
         UFNavItem(id: "dashboard", title: "Start", icon: "home", route: .dashboard),
@@ -208,6 +214,7 @@ struct AppShell<Content: View>: View {
 
 struct UFSidebar: View {
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var session: Session
     @AppStorage("sidebar") private var sidebarMode = "full"
     let collapsed: Bool
     let allowCollapse: Bool
@@ -218,14 +225,14 @@ struct UFSidebar: View {
                 RoundedRectangle(cornerRadius: 9).fill(UF.logoGradient)
                     .frame(width: 30, height: 30)
                     .overlay(UFIcon("graduation", size: 18).foregroundStyle(.white))
-                if !collapsed { Text("UniFlow AI").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
+                if !collapsed { Text("UniFlow").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
             }
             .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 14.4, trailing: 8))
             .frame(maxWidth: .infinity, alignment: collapsed ? .center : .leading)
 
             ScrollView(showsIndicators: false) {                         // .nav scrollt selbst, Fuss bleibt fest
                 VStack(spacing: 4) {
-                    ForEach(UFNavItem.main) { item in
+                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true)) { item in
                         navRow(item.title, icon: item.icon, active: router.route.navKey == item.id) { router.go(item.route) }
                     }
                 }

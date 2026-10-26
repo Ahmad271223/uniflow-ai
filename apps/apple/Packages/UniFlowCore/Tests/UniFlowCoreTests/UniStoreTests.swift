@@ -123,6 +123,19 @@ final class UniStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: target.path), "nichts gespeichert")
         try await client.download(fileID: "f1", to: target, name: "Hinweise.html")
         XCTAssertTrue(FileManager.default.fileExists(atPath: target.path), "echte HTML-Datei bleibt")
+        // echte HTML-Datei mit "login" im Text: keine abgelaufene Sitzung (vorher brach jeder Abgleich an ihr ab)
+        let withLogin = HTTPReply(status: 200, contentType: "text/html", body: Data("<html><a href='login.php'>Login-Hilfe</a></html>".utf8))
+        let c2 = StudIPClient(base: URL(string: "https://studip.test")!, transport: FlakyStudIP(failures: [], reply: withLogin),
+                              pauseMillis: 0, retry: noWait)
+        let t2 = dir.appendingPathComponent("hilfe")
+        try await c2.download(fileID: "f2", to: t2, name: "Login-Hilfe.html")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: t2.path))
+        do {
+            try await c2.download(fileID: "f2", to: t2, name: "Skript.pdf")
+            XCTFail("Anmeldeseite statt PDF")
+        } catch let e as StudIPError {
+            XCTAssertEqual(e, .sessionExpired, "statt einer PDF weiter als abgelaufene Anmeldung erkannt")
+        }
     }
 
     // MARK: Eine Fassung fuer Kurse und Dateien

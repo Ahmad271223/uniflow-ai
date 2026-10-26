@@ -431,8 +431,30 @@
    "link": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&moduleCall=iCalendarPlan"
   },
   {
+   "html": "<a href=\"/qisserver/rds?state=wplan&amp;moduleCall=iCalendarPlan&amp;x=%26amp\">",
+   "link": "https://lsf.uni-hildesheim.de/qisserver/rds?state=wplan&moduleCall=iCalendarPlan&x=%26amp"
+  },
+  {
    "html": "<html>kein Plan</html>",
    "link": null
+  }
+ ],
+ "lsf-absolute": [
+  {
+   "href": "https://lsf.uni-hildesheim.de/qisserver/rds?state=a",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=a"
+  },
+  {
+   "href": "/qisserver/rds?state=notenspiegelStudent&nodeID=1",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=notenspiegelStudent&nodeID=1"
+  },
+  {
+   "href": "rds?state=user&type=0",
+   "url": "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0"
+  },
+  {
+   "href": "http://andere.example/x",
+   "url": "http://andere.example/x"
   }
  ],
  "grade-rows": {

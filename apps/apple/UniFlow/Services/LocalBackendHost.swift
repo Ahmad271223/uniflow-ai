@@ -84,10 +84,13 @@ final class LocalBackendHost: @unchecked Sendable {
 
     /// Verstaendliche Meldung (UniversityMismatch, DataContainerError haben eigene Texte)
     static func message(for error: Error) -> String {
+        if DeviceStorage.isFull(error) { return DeviceStorage.fullMessage }
         switch error {
         case let e as UniversityMismatch: return e.description
         case let e as DataContainerError: return e.description
         case let e as LocalHTTPError: return e.detail.string ?? e.description
+        // SQLiteError ist kein LocalizedError ("…SQLiteError-Fehler 1."): verstaendlich, mit Code
+        case let e as SQLiteError: return "Die Datenbank auf diesem iPad meldet einen Fehler (\(e.code)). Versuche es erneut."
         default: return error.localizedDescription
         }
     }

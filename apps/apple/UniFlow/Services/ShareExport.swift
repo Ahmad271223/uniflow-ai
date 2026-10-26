@@ -156,15 +156,10 @@ enum ShareExport {
                            moduleID: moduleID, module: module, scope: scope, missingImages: loaded.missing.count)
     }
 
-    /// Schreibt die PDF als `Titel.pdf` in einen eigenen temporaeren Ordner (fuer das Teilen-Menue).
-    /// Vorherige Teilen-Dateien werden dabei entfernt.
+    /// Schreibt die PDF als `Titel.pdf` in einen eigenen temporaeren Ordner des Containers (fuer das Teilen-Menue,
+    /// `AppTemp`). Vorherige Teilen-Dateien werden dabei entfernt.
     static func writeFile(_ payload: SharePayload) throws -> URL {
-        let fm = FileManager.default
-        let root = fm.temporaryDirectory.appendingPathComponent("share", isDirectory: true)
-        try? fm.removeItem(at: root)
-        let dir = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent(payload.fileName)
+        let url = try AppTemp.fresh("teilen").appendingPathComponent(payload.fileName)
         try payload.pdf.write(to: url, options: .atomic)
         return url
     }

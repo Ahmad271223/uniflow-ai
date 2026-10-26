@@ -277,7 +277,10 @@ public actor StudIPClient {
         let path = "jsonapi.php/v1/file-refs/\(fileID)/content"
         do {
             let r = try await retry.run { try await perform(path) { try await transport.download($0, to: file) } }
-            if r.contentType.lowercased().contains("text/html"), Self.head(of: file).lowercased().contains("login") {
+            // eine echte HTML-Datei (.html/.htm) mit "login" im Text ist keine Anmeldeseite: sonst brach jeder Abgleich
+            // an ihr mit "Erneut anmelden" ab (die Anmeldeseite selbst erkennt `perform` an 401 bzw. der Weiterleitung)
+            if !Self.isHTMLFileName(name), r.contentType.lowercased().contains("text/html"),
+               Self.head(of: file).lowercased().contains("login") {
                 throw StudIPError.sessionExpired
             }
             if UniStore.isWebPage(file: file, name: name) {
@@ -287,6 +290,12 @@ public actor StudIPClient {
             try? FileManager.default.removeItem(at: file)
             throw error
         }
+    }
+
+    /// Dateiname einer Webseite (dieselbe Regel wie `UniStore.isWebPage`)
+    static func isHTMLFileName(_ name: String) -> Bool {
+        let n = name.lowercased()
+        return n.hasSuffix(".html") || n.hasSuffix(".htm")
     }
 
     /// Anfang einer Datei als Text (Erkennen der Anmeldeseite, ohne die ganze Datei zu lesen)

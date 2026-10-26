@@ -123,12 +123,45 @@ struct DocumentView: View {
     let readOnly: Bool
     /// PDF-Seite beim Oeffnen (1-basiert, Treffer der Suche), nil = wie zuletzt
     let initialPDFPage: Int?
+    /// Aufgabe des Lernplans, aus der das Dokument geoeffnet wurde: Knopf "Erledigt" wie im Web (views-doc.js)
+    let task: Int?
+    @State private var taskDone = false
+    /// zuletzt gelesene Seite merken (`last_page`, wie onPage im Web), entprellt
+    @State private var lastPageTask: Task<Void, Never>?
 
-    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil) {
+    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil) {
         self.api = api
         self.readOnly = readOnly
         self.initialPDFPage = initialPDFPage
+        self.task = task
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
+    }
+
+    /// PDF-Seite (1-basiert) der angezeigten Seite, nil fuer eingefuegte Seiten
+    private func pdfPage(at index: Int) -> Int? { store.entry(forPageIndex: index)?.pdfIndex }
+
+    /// Seite gewechselt: nach 0,8 s Ruhe als zuletzt gelesene Seite speichern (POST /api/files/{id}/opened). Als
+    /// PDF-Seite, so wie "Weiterlernen" sie wieder oeffnet (`initialPDFPage`)
+    private func rememberPage(_ index: Int) {
+        guard !readOnly, !store.isOldVersion, let page = pdfPage(at: index) else { return }
+        lastPageTask?.cancel()
+        let api = self.api, id = store.file.id
+        lastPageTask = Task {
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            guard !Task.isCancelled else { return }
+            _ = try? await api.value("/api/files/\(id)/opened", method: "POST", body: ["last_page": .number(Double(page))])
+        }
+    }
+
+    /// "Erledigt": Aufgabe abhaken (POST /api/tasks/{id}/status), danach zeigt der Knopf den Stand
+    private func markTaskDone() async {
+        guard let task else { return }
+        do {
+            _ = try await api.value("/api/tasks/\(task)/status", method: "POST", body: ["status": "erledigt"])
+            taskDone = true
+        } catch {
+            actionError = "Aufgabe ließ sich nicht abhaken: \(error.localizedDescription)"
+        }
     }
 
     /// Skript auf der Seite der freien Hand: Rechtshaender -> links.
@@ -244,7 +277,10 @@ struct DocumentView: View {
         .alert("Hinweis", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(actionError ?? "") }
-        .onChange(of: bridge.pageIndex) { _, page in scheduleSuggestion(page) }
+        .onChange(of: bridge.pageIndex) { _, page in
+            scheduleSuggestion(page)
+            rememberPage(page)
+        }
         .task {
             await store.load()
             scheduleSuggestion(bridge.pageIndex)
@@ -397,6 +433,14 @@ struct DocumentView: View {
             }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
+            if task != nil, !readOnly {
+                Button { Task { await markTaskDone() } } label: {
+                    Label(taskDone ? "Erledigt ✓" : "Erledigt", systemImage: taskDone ? "checkmark.circle.fill" : "checkmark.circle")
+                        .labelStyle(.titleAndIcon)
+                }
+                .disabled(taskDone)
+                .accessibilityIdentifier("doc.task.done")
+            }
             StatusLabel(status: store.status)
             SyncIssueBadge(store: store)
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }

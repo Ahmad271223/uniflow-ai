@@ -108,7 +108,11 @@ def main(check: bool) -> bool:
                          "Ohne Nummer (Muster, Beispiel)", "9072 - Das Testzimmer. Wohnen als Beispiel")],
         "lsf-plan-link": [{"html": h, "link": lsf.plan_ics_link(h)} for h in (
             '<a href="https://lsf.uni-hildesheim.de/qisserver/rds?state=verpublish&amp;status=transform&amp;termine=1,2&amp;moduleCall=iCalendarPlan">',
-            '<a href="rds?state=wplan&amp;moduleCall=iCalendarPlan">', "<html>kein Plan</html>")],
+            '<a href="rds?state=wplan&amp;moduleCall=iCalendarPlan">',
+            '<a href="/qisserver/rds?state=wplan&amp;moduleCall=iCalendarPlan&amp;x=%26amp">', "<html>kein Plan</html>")],
+        "lsf-absolute": [{"href": h, "url": lsf.absolute(h)} for h in (
+            "https://lsf.uni-hildesheim.de/qisserver/rds?state=a", "/qisserver/rds?state=notenspiegelStudent&nodeID=1",
+            "rds?state=user&type=0", "http://andere.example/x")],
         "grade-rows": {"abschluss": "Fallback", "rows": grade_rows,
                        "grades": [{k: g.get(k) for k in ("pruefungsnr", "text", "note", "status", "credits", "abschluss")}
                                   for g in qis.parse_grade_rows(grade_rows, "Fallback")]},

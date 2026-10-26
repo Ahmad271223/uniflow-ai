@@ -141,6 +141,8 @@ final class ContainerManager: ObservableObject {
         self.clock = clock
         self.publishesCurrent = publishesCurrent
         self.hildesheimTransport = hildesheimTransport
+        // Neuinstallation: Stud.IP-Sitzungen der geloeschten App nicht als Anmeldung uebernehmen (vor jedem Lesen)
+        StudIPCookieStore.removeLeftoversOfEarlierInstallation(service: cookieService, defaults: defaults)
         studip = Self.idleSync()
         DataContainerLayout.purgeTrash(base: base)
     }
@@ -265,6 +267,10 @@ final class ContainerManager: ObservableObject {
         onChange?(c)
         Task { await checkDatabase(c) }
         Task { await moveLegacyWebData(into: c) }
+        // gleich abgleichen, wenn faellig (vorher erst beim naechsten Wechsel in den Vordergrund): eine abgelaufene
+        // Sitzung zeigt sich so sofort
+        studip.runIfDue()
+        hildesheim?.runIfDue()
     }
 
     /// Datenbank gleich pruefen: gehoert sie einer anderen Hochschule (`UniversityMismatch`), nicht weiterarbeiten
@@ -331,6 +337,8 @@ final class ContainerManager: ObservableObject {
         UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: DataContainerKey.userScope(userID)).deleteAll()
         // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
         appDefaults.removeObject(forKey: SolutionDisplayName.key)
+        // empfangene Loesungen, die noch ausserhalb der Container lagen (Documents/Inbox)
+        SolutionSharing.purgeInbox()
     }
 
     /// Abgleiche eines Containers anhalten und auf ihr Ende warten (danach schreibt keiner mehr hinein)
@@ -346,6 +354,7 @@ final class ContainerManager: ObservableObject {
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
         UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
         await removeWebsiteData(key.websiteDataStoreID)
+        AppTemp.remove(container: layout.identifier)                       // Teilen-Dateien dieses Containers in tmp
         let suite = ActiveContainer.defaultsSuite(layout.identifier)
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
         try? layout.remove()

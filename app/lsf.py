@@ -40,8 +40,17 @@ def plan_ics_link(html_text: str) -> str | None:
     m = re.search(r'href="([^"]*moduleCall=iCalendarPlan[^"]*)"', html_text or "")
     if not m:
         return None
-    href = m.group(1).replace("&amp;", "&")
-    return href if href.startswith("http") else f"{LSF_BASE}/qisserver/{href.lstrip('/')}"
+    return absolute(m.group(1).replace("&amp;", "&"))
+
+
+def absolute(href: str) -> str:
+    """Link einer LSF-Seite als volle Adresse: http(s) bleibt, "/qisserver/rds?..." gegen die Basis, "rds?..." relativ
+    zu /qisserver/ (vorher wurde ein wurzelrelativer Link zu ".../qisserver/qisserver/rds?...")."""
+    if href.startswith(("http://", "https://")):
+        return href
+    if href.startswith("/"):
+        return LSF_BASE + href
+    return f"{LSF_BASE}/qisserver/{href}"
 
 
 def fetch_plan_ics(page) -> str | None:

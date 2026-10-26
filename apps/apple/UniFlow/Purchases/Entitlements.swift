@@ -153,8 +153,9 @@ enum UFAccess: Equatable {
 
 /// Regeln aus Abschnitt 4, ohne StoreKit (testbar)
 enum UFFeatureMatrix {
-    /// Uni & Noten laeuft heute ueber den PC-Server; direkt auf dem iPad erst mit F4 (Pruefbericht). Bis dahin ist
-    /// die Funktion in keinem Tarif freigeschaltet ("bald" bei Free, Abschnitt 4).
+    /// Uni & Noten: an der Uni Hildesheim liest der Abgleich den LSF-Notenspiegel auf dem Geraet, an der LUH (QIS)
+    /// kommt das erst mit F4 (Pruefbericht). Die Tarifkarte erscheint vor der Hochschulwahl und verkauft die Funktion
+    /// nicht: in keinem Tarif als enthalten gefuehrt ("bald" bei Free, Abschnitt 4).
     static let uniGradesOnDevice = false
 
     /// Community-Funktionen auf dem Geraet: eigene Loesung als Datei teilen (nur eigene Notizen, verschluesselt) und
@@ -163,18 +164,25 @@ enum UFFeatureMatrix {
     /// ("Community-Dienst noch nicht verbunden").
     static let communityAvailable = true
 
+    /// Eigene Karteikarten ohne PC: Anlegen und Wiederholen gibt es im lokalen Backend noch nicht (`/api/flashcards`
+    /// ist ein Platzhalter, PendingServicesEndpoints). Bis dahin "bald" auf der Plus-Karte, nicht "enthalten"
+    /// (nichts vortaeuschen, Richtlinie 3.1.2).
+    static let flashcardsOnDevice = false
+
     static func access(_ f: UFFeature, plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
-                       community: Bool = communityAvailable) -> UFAccess {
-        if f.isV2 || (f == .uniGrades && !uniGrades) || (f == .community && !community) { return .comingSoon }
+                       community: Bool = communityAvailable, flashcards: Bool = flashcardsOnDevice) -> UFAccess {
+        if f.isV2 || (f == .uniGrades && !uniGrades) || (f == .community && !community) || (f == .flashcards && !flashcards) {
+            return .comingSoon
+        }
         return plan >= f.minimumPlan ? .allowed : .locked(f.minimumPlan)
     }
 
     /// Bietet der Tarif heute schon etwas, das der naechstkleinere nicht hat? Sonst sagt die Tarifkarte das offen.
     static func hasAvailableExtras(in plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
-                                   community: Bool = communityAvailable) -> Bool {
+                                   community: Bool = communityAvailable, flashcards: Bool = flashcardsOnDevice) -> Bool {
         if plan == .free { return true }
         return UFFeature.allCases.contains {
-            $0.minimumPlan == plan && access($0, plan: plan, uniGrades: uniGrades, community: community) == .allowed
+            $0.minimumPlan == plan && access($0, plan: plan, uniGrades: uniGrades, community: community, flashcards: flashcards) == .allowed
         }
     }
 

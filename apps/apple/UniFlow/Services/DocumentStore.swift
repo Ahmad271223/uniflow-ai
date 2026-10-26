@@ -265,33 +265,20 @@ final class DocumentStore: ObservableObject {
 
     // MARK: Laden
 
+    /// Notizbuch oder Whiteboard: keine Datei, nur Seiten aus `pageOrder` (Leerseiten mit Vorlage)
+    var isNotebook: Bool { ["notebook", "whiteboard"].contains(file.kind ?? "") }
+
     func load() async {
         guard !loadStarted else { return }          // .task laeuft bei jedem Erscheinen erneut (z. B. Tabwechsel)
         loadStarted = true
         do {
-            let url = originalPDFURL
-            // neue Fassung seit dem Zwischenspeichern (S7): Stand der Datei laut Quelle; ohne Antwort (offline am
-            // PC-Server) gilt der Zwischenspeicher
-            let stamp = await contentStamp()
-            if let stamp, FileManager.default.fileExists(atPath: url.path), (try? String(contentsOf: stampURL, encoding: .utf8)) != stamp {
-                try? FileManager.default.removeItem(at: url)
-            }
-            if !FileManager.default.fileExists(atPath: url.path) {
-                let (data, http) = try await api.data("/api/files/\(file.id)/content")
-                guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
-                    throw APIError(status: http.statusCode, message: "Keine PDF-Datei erhalten")
-                }
-                // grosse Skripte: Schreiben nicht auf dem Hauptthread (die Oberflaeche bliebe so lange stehen)
-                let stampURL = self.stampURL
-                try await Task.detached(priority: .userInitiated) {
-                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    AppPaths.excludeFromBackup(url.deletingLastPathComponent())
-                    try data.write(to: url, options: .atomic)
-                    if let stamp { try? stamp.write(to: stampURL, atomically: true, encoding: .utf8) }
-                }.value
-            }
-            guard let pdfDocument = PDFDocument(url: url) else {
-                throw APIError(status: 0, message: "PDF lässt sich nicht öffnen")
+            let pdfDocument: PDFDocument
+            if isNotebook {
+                // ohne Original-PDF: die Anzeige besteht nur aus den Seiten des Modells (DisplayLayout, wie im
+                // Web-Editor). Vorher verlangte der Editor /content und zeigte "Not Found" (Pruefbericht K3)
+                pdfDocument = PDFDocument()
+            } else {
+                pdfDocument = try await loadOriginal()
             }
             original = pdfDocument
             await engine.setHandlers(
@@ -312,6 +299,64 @@ final class DocumentStore: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Original-PDF in den Zwischenspeicher des Editors legen und oeffnen. Der Zwischenspeicher ist der feste Stand der
+    /// angezeigten Fassung fuer die ganze Sitzung (legt der Abgleich waehrenddessen eine neue Fassung ab, bleiben Anzeige
+    /// und Fingerabdruck der Loesungen bei der alten, S7). Lokal ein Klon der Datei im Container (auf APFS ohne
+    /// zusaetzlichen Platz; vorher eine zweite Kopie ueber /content), am eigenen Server ein Download von /content.
+    /// Neue Fassung seit dem Zwischenspeichern: Stand laut Quelle (`stamp`); ohne Antwort gilt der Zwischenspeicher.
+    private func loadOriginal() async throws -> PDFDocument {
+        let url = originalPDFURL
+        let meta = isOldVersion ? nil : try? await api.value("/api/files/\(file.id)")
+        let stamp = meta.map(Self.stamp)
+        if let stamp, FileManager.default.fileExists(atPath: url.path), (try? String(contentsOf: stampURL, encoding: .utf8)) != stamp {
+            try? FileManager.default.removeItem(at: url)
+        }
+        if !FileManager.default.fileExists(atPath: url.path) {
+            let stampURL = self.stampURL
+            if let source = containerFile(meta) {
+                guard Self.startsAsPDF(source) else { throw APIError(status: 200, message: "", text: DocumentOpenText.notPDF) }
+                try await Task.detached(priority: .userInitiated) {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    AppPaths.excludeFromBackup(url.deletingLastPathComponent())
+                    try? FileManager.default.removeItem(at: url)
+                    try FileManager.default.copyItem(at: source, to: url)
+                    if let stamp { try? stamp.write(to: stampURL, atomically: true, encoding: .utf8) }
+                }.value
+            } else {
+                let (data, http) = try await api.data("/api/files/\(file.id)/content")
+                guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
+                    throw APIError(status: http.statusCode, message: String(decoding: data.prefix(300), as: UTF8.self),
+                                   text: DocumentOpenText.problem(status: http.statusCode))
+                }
+                // grosse Skripte: Schreiben nicht auf dem Hauptthread (die Oberflaeche bliebe so lange stehen)
+                try await Task.detached(priority: .userInitiated) {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    AppPaths.excludeFromBackup(url.deletingLastPathComponent())
+                    try data.write(to: url, options: .atomic)
+                    if let stamp { try? stamp.write(to: stampURL, atomically: true, encoding: .utf8) }
+                }.value
+            }
+        }
+        guard let pdfDocument = PDFDocument(url: url) else {
+            throw APIError(status: 0, message: "", text: "Die PDF lässt sich nicht öffnen.")
+        }
+        return pdfDocument
+    }
+
+    /// Datei im Container (lokales Backend, `local_path` laut Datenbank); nil am eigenen Server oder ohne Datei
+    private func containerFile(_ meta: JSONValue?) -> URL? {
+        guard api.isLocal, let path = meta?.s("local_path"), let files = (api.transport as? LocalTransport)?.host.files,
+              files.exists(stored: path) else { return nil }
+        return files.url(stored: path)
+    }
+
+    /// Beginnt die Datei wie eine PDF ("%PDF")?
+    nonisolated static func startsAsPDF(_ url: URL) -> Bool {
+        guard let h = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? h.close() }
+        return (try? h.read(upToCount: 4)) == Data("%PDF".utf8)
     }
 
     /// Neuen Modellstand uebernehmen; Anzeige-PDF nur neu aufbauen, wenn sich die Seitenstruktur geaendert hat.
@@ -561,17 +606,7 @@ final class DocumentStore: ObservableObject {
         }
     }
 
-    func exportPDF() async throws -> URL {
-        await settlePending()
-        guard let layout else { throw APIError(status: 0, message: "Dokument nicht geladen") }
-        let doc = await engine.currentDocument()
-        var srcs = Set<String>()
-        for p in doc.pages.values { for o in p["objects"]?.array ?? [] where o["type"]?.string == "image" { if let s = o["src"]?.string { srcs.insert(s) } } }
-        for s in srcs where images[s] == nil {
-            if let (data, http) = try? await api.data(s), http.statusCode == 200, let img = UIImage(data: data) { images[s] = img }
-        }
-        return try PDFExporter.export(layout: layout, pages: doc.pages, images: images, title: file.displayTitle)
-    }
+    // Export und Teilen der PDF mit Notizen: ShareExport (sharePayload, writeFile); einen zweiten Weg gibt es nicht
 
     /// Unveraenderte Bytes der Original-PDF (die Datei, aus der der Editor sie laedt; nie `dataRepresentation()`).
     func originalPDFData() throws -> Data {

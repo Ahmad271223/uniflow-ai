@@ -746,7 +746,8 @@ struct PlanSide: View {
             UFGridLayout(columns: 2, spacing: 8) {
                 quick("Lernpaket", icon: "book") { actions.addPackage(date: Fmt.isoDay(d.date)) }
                 quick("Freie Zeit", icon: "calendar") { actions.availability() }
-                quick("Testtermin", icon: "exam") { router.go(.exams) }
+                // Tests (KI) nur am eigenen Server
+                if session.api?.isLocal == false { quick("Testtermin", icon: "exam") { router.go(.exams) } }
                 quick("Persönlich", icon: "user") {
                     actions.eventDialog(nil, preset: ["date_from": .string(Fmt.isoDay(d.date)), "kind": "persoenlich"])
                 }

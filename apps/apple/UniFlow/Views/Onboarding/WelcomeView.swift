@@ -7,11 +7,12 @@ struct WelcomeView: View {
     @EnvironmentObject private var account: AccountStore
     @Environment(\.colorScheme) private var scheme
 
-    /// wofuer das Konto dient: Icon, Titel, Erklaerung
-    private static let reasons: [(String, String, String)] = [
-        ("star", "Abo", "Dein Tarif (Free oder Plus) wird deinem Konto zugeordnet."),
+    /// wofuer das Konto dient: Icon, Titel, Erklaerung. Nur was V1 wirklich tut: Das Abo haengt an der Apple-ID im App
+    /// Store (StoreKit, ohne appAccountToken), nicht an dieser Anmeldung; einen Abgleich zwischen Geraeten gibt es nicht.
+    static let reasons: [(String, String, String)] = [
         ("graduation", "Hochschul-Zuordnung", "Deine Hochschule, ihre Verbindungen (z. B. Stud.IP) und deine Kurse werden deinem Konto zugeordnet – getrennt je Hochschule."),
-        ("sync", "Später: Abgleich", "In einer späteren Version gleichen sich deine Notizen zwischen deinen Geräten ab."),
+        ("user", "Getrennte Daten", "Dateien, Notizen und Anmeldungen liegen je Konto und Hochschule getrennt auf diesem iPad. Nichts davon wird an UniFlow gesendet."),
+        ("star", "Abo", "Ein Abo läuft über deine Apple-ID im App Store, unabhängig von der Anmeldung in UniFlow."),
     ]
 
     var body: some View {

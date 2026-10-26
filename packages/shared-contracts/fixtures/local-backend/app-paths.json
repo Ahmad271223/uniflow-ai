@@ -712,7 +712,8 @@
    "method": "GET",
    "shape": "/api/files/{}",
    "sources": [
-    "UniFlow/Services/DocumentVersions.swift"
+    "UniFlow/Services/DocumentStore.swift",
+    "UniFlow/Views/Views.swift"
    ],
    "request": {
     "path": "/api/files/f1"
@@ -781,7 +782,8 @@
     "UniFlow/Services/DocumentStore.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
     "UniFlow/Views/Library/LibraryPage.swift",
-    "UniFlow/Views/Settings/SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Views.swift"
    ],
    "request": {
     "path": "/api/files/f1/content"
@@ -1098,7 +1100,9 @@
      "credentials",
      "qis",
      "services",
-     "studip"
+     "studip",
+     "universities",
+     "university"
     ],
     "reason": "Form wie server.py; liest dort die .env, darum nicht aufgerufen",
     "values": {
@@ -1462,7 +1466,8 @@
    "method": "GET",
    "shape": "/api/timetable/auto-status",
    "sources": [
-    "UniFlow/Views/Services/ServicesPage.swift"
+    "UniFlow/Views/Services/ServicesPage.swift",
+    "UniFlow/Views/Timetable/TimetableView.swift"
    ],
    "request": {
     "path": "/api/timetable/auto-status"
@@ -2087,6 +2092,7 @@
    "method": "POST",
    "shape": "/api/files/{}/opened",
    "sources": [
+    "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Views.swift"
    ],
    "request": {
@@ -2589,6 +2595,7 @@
    "method": "POST",
    "shape": "/api/tasks/{}/status",
    "sources": [
+    "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Exams/ExamsPage.swift",
     "UniFlow/Views/Plan/PlanActions.swift",
     "UniFlow/Views/Plan/PlanGrids.swift"

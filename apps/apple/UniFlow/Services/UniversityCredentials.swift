@@ -51,65 +51,31 @@ extension UniversitySecretStoring {
     }
 }
 
-/// Generic-Password-Eintraege unter einem eigenen Dienst, nur dieses Geraet, nur entsperrt lesbar, nicht synchronisiert.
+/// Gemerkte Zugangsdaten im Schluesselbund (`KeychainStore`): eigener Dienst, nur dieses Geraet, nur entsperrt lesbar
+/// (`WhenUnlockedThisDeviceOnly`), nicht synchronisiert.
 struct UniversityKeychain: UniversitySecretStoring {
     static let defaultService = DataContainerKey.keychainService
-    let service: String
+    let store: KeychainStore
+    var service: String { store.service }
 
-    init(service: String = UniversityKeychain.defaultService) { self.service = service }
-
-    private func query(_ account: String?) -> [String: Any] {
-        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                kSecAttrSynchronizable as String: kCFBooleanFalse as Any]
-        if let account { q[kSecAttrAccount as String] = account }
-        return q
+    init(service: String = UniversityKeychain.defaultService) {
+        store = KeychainStore(service: service, accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
     }
 
-    func read(_ account: String) -> String? {
-        var q = query(account)
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
+    func read(_ account: String) -> String? { store.string(account) }
 
     @discardableResult
-    func write(_ value: String, account: String) -> Bool {
-        SecItemDelete(query(account) as CFDictionary)
-        var add = query(account)
-        add[kSecValueData as String] = Data(value.utf8)
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
-    }
+    func write(_ value: String, account: String) -> Bool { (try? store.write(value, account: account)) != nil }
 
-    func remove(_ account: String) { SecItemDelete(query(account) as CFDictionary) }
+    func remove(_ account: String) { store.remove(account) }
 
     /// Ein Aufruf fuer den ganzen Dienst; "nichts da" gilt als Erfolg, ein gesperrter Schluesselbund nicht.
-    func removeAll() -> Bool {
-        let status = SecItemDelete(query(nil) as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
+    func removeAll() -> Bool { store.removeAll() }
 
-    func accounts() -> [String] {
-        var q = query(nil)
-        q[kSecReturnAttributes as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitAll
-        var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let items = out as? [[String: Any]] else { return [] }
-        return items.compactMap { $0[kSecAttrAccount as String] as? String }
-    }
+    func accounts() -> [String] { store.accounts() }
 
     /// Schutzklasse und Synchronisation eines Eintrags (fuer Tests)
-    func attributes(_ account: String) -> (accessible: String?, synchronizable: Bool?)? {
-        var q = query(account)
-        q[kSecReturnAttributes as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let a = out as? [String: Any] else { return nil }
-        let sync = (a[kSecAttrSynchronizable as String] as? NSNumber)?.boolValue
-        return (a[kSecAttrAccessible as String] as? String, sync)
-    }
+    func attributes(_ account: String) -> (accessible: String?, synchronizable: Bool?)? { store.attributes(account) }
 }
 
 /// Zugangsdaten je (Apple-Nutzer, Hochschule, Dienst). Ein Dienst, der nicht zur Hochschule gehoert, hat nie

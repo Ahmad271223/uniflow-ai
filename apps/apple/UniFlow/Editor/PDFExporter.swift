@@ -3,18 +3,9 @@ import UIKit
 import UniFlowCore
 
 /// PDF-Export mit Notizen (Seiten in der Reihenfolge des Notizmodells, wie im Web-Editor).
-/// Handschrift, Formen und Vorlagen landen als Vektoren in der PDF (kein Rasterbild ueber der Seite).
+/// Handschrift, Formen und Vorlagen landen als Vektoren in der PDF (kein Rasterbild ueber der Seite). Die Datei fuer
+/// das Teilen-Menue schreibt `ShareExport.writeFile` (der einzige Weg).
 enum PDFExporter {
-
-    /// Schreibt die PDF in einen temporaeren Ordner und gibt die Datei zurueck.
-    static func export(layout: DisplayLayout, pages: [String: JSONValue], images: [String: UIImage], title: String) throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent(fileName(title, suffix: " – Notizen.pdf"))
-        let data = render(layout: layout, pages: pages, images: images, title: title)
-        try data.write(to: url, options: .atomic)
-        return url
-    }
 
     /// - Parameters:
     ///   - pageIndices: angezeigte Seiten (0-basiert, Reihenfolge des Notizmodells); `nil` = alle.

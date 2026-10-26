@@ -21,14 +21,18 @@ struct MainView: View {
                 UFServerGate(.modules) { ModulePage(id: id) }                                 // 1:1
             case .files(let s, let p, let q):
                 UFServerGate(.library) { LibraryPage(section: s, path: p, q: q) }             // 1:1
-            case .doc(let id, _, let page):
-                UFServerGate(.document) { LibraryView(openFile: id, openPage: page) }         // Editor ohne Leiste darueber
+            case .doc(let id, let task, let page):
+                // mit der Aufgabe des Lernplans ("Erledigt" im Editor, wie views-doc.js)
+                UFServerGate(.document) { LibraryView(openFile: id, openPage: page, openTask: task) }  // Editor ohne Leiste darueber
             case .exams:
                 UFServerGate(.exams) { ExamsPage() }                                          // 1:1
             case .exam(let id, let task):
                 UFServerGate(.exams) { ExamRunPage(id: id, task: task) }                      // 1:1
             case .cards:
-                UFServerGate(.cards) { CardsPage() }                                          // 1:1
+                // ohne PC "bald" (UFFeatureMatrix.flashcardsOnDevice), sobald vorhanden nur mit Plus
+                UFServerGate(.cards) {
+                    if session.api?.isLocal == false { CardsPage() } else { UFGate(.flashcards) { CardsPage() } }
+                }                                                                               // 1:1
             case .settings(let t):
                 SettingsPage(initialTab: t)
             case .timetable(let d):

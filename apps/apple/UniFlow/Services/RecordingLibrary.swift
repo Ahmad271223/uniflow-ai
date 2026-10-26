@@ -198,12 +198,8 @@ final class RecordingLibrary: ObservableObject {
         return Probe(status: http.statusCode, size: (200..<300).contains(http.statusCode) ? len : nil)
     }
 
-    /// freier Platz fuer wichtige Daten auf dem Datentraeger der App
-    func freeBytes() -> Int64? {
-        var probe = root
-        while !FileManager.default.fileExists(atPath: probe.path), probe.pathComponents.count > 1 { probe.deleteLastPathComponent() }
-        return (try? probe.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?.volumeAvailableCapacityForImportantUsage
-    }
+    /// freier Platz fuer wichtige Daten auf dem Datentraeger der App (`DeviceStorage`, wie der Stud.IP-Abgleich)
+    func freeBytes() -> Int64? { DeviceStorage.availableBytes(at: root) }
 
     // MARK: Ordner
 

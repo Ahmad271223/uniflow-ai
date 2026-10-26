@@ -134,6 +134,9 @@ struct ModuleCard: View {
     let m: JSONValue
     let open: () -> Void
     @Environment(\.ufFillsCell) private var fills
+    @EnvironmentObject private var session: Session
+    /// Wochentests gibt es nur am eigenen Server (KI); ohne PC weder anbieten noch ankuendigen ("0 Wochentests")
+    private var showsTests: Bool { session.api?.isLocal == false }
 
     var body: some View {
         let mc = Color(hex: m.s("color"))
@@ -170,9 +173,11 @@ struct ModuleCard: View {
                     stat("file-text", m.i("file_count") ?? 0, "Dateien")
                     Spacer(minLength: 8)
                     stat("tasks", m.i("task_count") ?? m.i("open_tasks") ?? 0, "Aufgaben")
-                    Spacer(minLength: 8)
-                    let t = m.i("test_count") ?? 0
-                    stat("exam", t, "Wochentest\(t == 1 ? "" : "s")")
+                    if showsTests {
+                        Spacer(minLength: 8)
+                        let t = m.i("test_count") ?? 0
+                        stat("exam", t, "Wochentest\(t == 1 ? "" : "s")")
+                    }
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -550,8 +555,11 @@ struct ModuleEditDialog: View {
             }
             HStack(alignment: .top, spacing: 9.6) {
                 UFCheckbox("Modul aktiv (wird eingeplant)", isOn: $active).frame(maxWidth: .infinity, alignment: .leading)
-                UFCheckbox("Gemeinsamer Wochentest", isOn: $weekly).frame(maxWidth: .infinity, alignment: .leading)
-                UFField("Abweichende Testdauer") { UFSelect(options: [(0, "Standard")] + [15, 30, 45, 60, 90].map { ($0, "\($0) min") }, selection: $tmin, fill: true) }
+                // Wochentests (KI) nur am eigenen Server; ohne PC weder anbieten noch ankuendigen
+                if session.api?.isLocal == false {
+                    UFCheckbox("Gemeinsamer Wochentest", isOn: $weekly).frame(maxWidth: .infinity, alignment: .leading)
+                    UFField("Abweichende Testdauer") { UFSelect(options: [(0, "Standard")] + [15, 30, 45, 60, 90].map { ($0, "\($0) min") }, selection: $tmin, fill: true) }
+                }
             }
         } foot: {
             UFButton("Abbrechen") { close() }

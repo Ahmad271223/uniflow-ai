@@ -156,22 +156,59 @@ final class StudIPImportTests: XCTestCase {
         StudIPFile(id: id, courseID: course, name: "\(id).pdf", size: size, changed: changed, isDownloadable: downloadable)
     }
 
-    private func entry(_ id: String, course: String = "k1", size: Int = 100, changed: String = "t1") -> StudIPLocalEntry {
-        StudIPLocalEntry(file: file(id, course: course, size: size, changed: changed), courseTitle: "Kurs",
-                         relativePath: "files/\(id)/\(id).pdf", downloadedAt: "2026-10-25T08:00:00Z")
+    /// Das eine Register der geladenen Dateien ist `files`: Liste fuer StudIPView ohne Kopien und eigene Dokumente,
+    /// "nicht mehr vorhanden" nur in vollstaendig gelesenen Kursen (vorher aus index.json)
+    func testDownloadedFilesAndGoneComeFromTheDatabase() async throws {
+        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+        try await db.migrate(clock: .fixed(berlin: "2026-10-26T09:00:00")!, university: "luh")
+        let base = URL(string: "https://studip.test")!
+        let files = [file("weg"), file("da"), file("anderer", course: "k2")]
+        try await db.transaction { c in
+            try StudIPLibrary.storeCourses(c, [StudIPCourse(id: "k1", title: "Kurs A"), StudIPCourse(id: "k2", title: "Kurs B")], startedAt: "2026-10-26T09:00:00")
+            _ = try StudIPLibrary.storeFiles(c, files, startedAt: "2026-10-26T09:00:00", base: base, localFiles: nil)
+            for f in files {
+                try UniStore.markDownloaded(c, StudIPLibrary.fileRow(f, base: base), localPath: "StudIP/files/\(f.id)/\(f.id).pdf", sha256: nil, now: "2026-10-26T09:00:00")
+            }
+            // Kopie ("Duplizieren") teilt Ablageort und Adresse; eigene Dokumente liegen woanders
+            try c.execute("""
+                INSERT INTO files(id, course_id, name, download_url, local_path, kind) SELECT 'u0123456789abcdef0123456', course_id,
+                       name, download_url, local_path, kind FROM files WHERE id='da'
+                """)
+            try c.execute("UPDATE files SET name='da neu.pdf', studip_folder='Woche 2' WHERE id='da'")
+        }
+        let listed = try await db.withConnection { try StudIPLibrary.downloadedFiles($0, under: "StudIP/") }
+        XCTAssertEqual(listed.map(\.id), ["weg", "da", "anderer"], "nach Kurs, Ordner und Name, ohne die Kopie")
+        let da = try XCTUnwrap(listed.first { $0.id == "da" })
+        XCTAssertEqual(da.name, "da neu.pdf", "Name und Ordner wie in der Datenbank, auch nach einer Umbenennung")
+        XCTAssertEqual(da.folder, "Woche 2")
+        XCTAssertEqual(da.courseTitle, "Kurs A")
+        XCTAssertEqual(da.localPath, "StudIP/files/da/da.pdf")
+        let gone = try await db.withConnection {
+            try StudIPLibrary.goneRemotely($0, remoteIDs: ["da"], checkedCourses: ["k1"], under: "StudIP/")
+        }
+        XCTAssertEqual(gone, ["weg"], "nur in abgeglichenen Kursen, ohne Kopie")
     }
 
-    func testPlanSortsNewChangedUnchangedAndGone() {
-        let remote = [file("neu"), file("gleich"), file("groesser", size: 200), file("neuer", changed: "t2"),
-                      file("fehlt-lokal"), file("gesperrt", downloadable: false)]
-        let local = ["gleich": entry("gleich"), "groesser": entry("groesser"), "neuer": entry("neuer"),
-                     "fehlt-lokal": entry("fehlt-lokal"), "weg": entry("weg"), "anderer-kurs": entry("anderer-kurs", course: "k2")]
-        let p = StudIPImport.plan(remote: remote, local: local, checkedCourses: ["k1"],
-                                  fileExists: { !$0.contains("fehlt-lokal") })
-        XCTAssertEqual(p.download.map(\.id), ["neu", "groesser", "neuer", "fehlt-lokal"])
-        XCTAssertEqual(p.unchanged, 1)
-        XCTAssertEqual(p.notDownloadable.map(\.id), ["gesperrt"])
-        XCTAssertEqual(p.goneRemotely, ["weg"], "nur in abgeglichenen Kursen als entfernt melden")
+    /// Neue Kurse des juengsten Semesters kommen von selbst dazu, aeltere werden gemeldet; abgewaehlte bleiben
+    /// abgewaehlt, eine leere Auswahl bleibt leer (vorher galt nur die Auswahl des ersten Abgleichs)
+    func testCourseSelectionTakesNewCoursesAndKeepsChoices() {
+        let wise = [StudIPCourse(id: "a", title: "A", semesterStart: "2026-10-01"), StudIPCourse(id: "b", title: "B", semesterStart: "2026-10-01"),
+                    StudIPCourse(id: "alt", title: "Alt", semesterStart: "2026-04-01")]
+        let first = StudIPImport.selection(courses: wise, selected: [], known: nil)
+        XCTAssertEqual(first.selected, ["a", "b"])
+        XCTAssertEqual(first.known, ["a", "b", "alt"])
+        // b abgewaehlt; spaeter belegt: c (jetziges Semester) kommt dazu, ein altes Semester nur als Hinweis
+        let later = wise + [StudIPCourse(id: "c", title: "C", semesterStart: "2026-10-01"), StudIPCourse(id: "alt2", title: "Alt 2", semesterStart: "2026-04-01")]
+        let second = StudIPImport.selection(courses: later, selected: ["a"], known: first.known)
+        XCTAssertEqual(second.selected, ["a", "c"])
+        XCTAssertEqual(second.newUnselected.map(\.id), ["alt2"])
+        // naechstes Semester: neue Kurse des neuen juengsten Semesters
+        let summer = later + [StudIPCourse(id: "s1", title: "S1", semesterStart: "2027-04-01")]
+        XCTAssertEqual(StudIPImport.selection(courses: summer, selected: ["a", "c"], known: second.known).selected, ["a", "c", "s1"])
+        // alles abgewaehlt: bleibt leer
+        XCTAssertEqual(StudIPImport.selection(courses: later, selected: [], known: second.known).selected, [])
+        // eine Auswahl von vor dieser Regel bleibt, nichts kommt still dazu
+        XCTAssertEqual(StudIPImport.selection(courses: later, selected: ["alt"], known: nil).selected, ["alt"])
     }
 
     func testSafeFileName() {

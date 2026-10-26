@@ -76,7 +76,11 @@ struct DashboardView: View {
                     UFButton("Tagesansicht", icon: "calendar") { router.go(.plan(view: "day", date: todayDate)) }
                     if let n = nextOpen {
                         UFButton("Weiterlernen", icon: "play", kind: .primary) {
-                            if let f = n.s("file_id") { router.go(.doc(f, task: n.i("id"))) } else { router.go(.plan(view: "day", date: todayDate)) }
+                            // an der zuletzt gelesenen Seite weiter (wie "Öffnen" im Lernplan)
+                            if let f = n.s("file_id") {
+                                let lp = n.i("last_page") ?? 1
+                                router.go(.doc(f, task: n.i("id"), page: lp > 1 ? lp : nil))
+                            } else { router.go(.plan(view: "day", date: todayDate)) }
                         }
                     }
                 }
@@ -287,7 +291,7 @@ struct DashboardView: View {
             groups[s, default: []].append(f)
         }
         return UFCard {
-            UFCardHead("Neu aus Stud.IP", icon: "sparkles") { Text("\(total)").ufFont(13.12).foregroundStyle(UF.muted) }
+            UFCardHead(UFSourceText.newFiles(studip.university), icon: "sparkles") { Text("\(total)").ufFont(13.12).foregroundStyle(UF.muted) }
             if total == 0 {
                 Text("Nichts Neues.").ufFont(13.12).foregroundStyle(UF.muted).frame(maxWidth: .infinity).padding(.vertical, 32)
             } else {

@@ -19,6 +19,10 @@ struct UniFlowApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        // Teilen-Dateien und empfangene Kopien frueherer Laeufe liegen ausserhalb der Container: weg (AppTemp; von
+        // der Inbox nur alte Kopien, die eben empfangene oeffnet onOpenURL gleich)
+        AppTemp.purgeAtLaunch()
+        SolutionSharing.purgeStaleInbox()
         DataSourceMigration.run()                                         // alte Journale in den Server-Namensraum, am alten Ort vor dem Umzug
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
@@ -53,6 +57,8 @@ struct UniFlowApp: App {
                     // Datei *.uniflowsolution (AirDrop, Dateien, "Öffnen in"): verschluesselt ablegen; sie erscheint im
                     // passenden Dokument unter "Ebenen" (docs/LOESUNGEN-TEILEN.md)
                     if SolutionSharing.isSolutionFile(url) {
+                        // die Kopie in Documents/Inbox gehoert zu keinem Container: danach immer weg
+                        defer { SolutionSharing.discardReceivedCopy(url) }
                         // Loesungen gehoeren in den Container des Kontos und der Hochschule
                         guard containers.active != nil else {
                             toast.show("Melde dich zuerst an und wähle deine Hochschule. Öffne die Lösung danach erneut.", seconds: 4)
@@ -61,7 +67,7 @@ struct UniFlowApp: App {
                         do {
                             let e = try SolutionSharing.importFile(url)
                             let label = ForeignSolutionLayer.label(displayName: e.displayName, createdAt: e.createdAt)
-                            toast.show("\(label) gespeichert – sie erscheint in der passenden PDF unter „Ebenen“.", seconds: 4)
+                            toast.show(SolutionSharing.receivedMessage(label: label, canView: Entitlements.shared.allows(.community)), seconds: 5)
                         } catch {
                             toast.show((error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht öffnen.", seconds: 4)
                         }

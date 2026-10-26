@@ -158,7 +158,7 @@ struct StudIPView: View {
 
     private struct EntryGroup: Identifiable {
         let id: String
-        let entries: [StudIPLocalEntry]
+        let entries: [StudIPLibrary.DownloadedFile]
     }
 
     private var groups: [EntryGroup] {
@@ -172,8 +172,8 @@ struct StudIPView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(g.entries, id: \.id) { e in
                     Button { preview = studip.fileURL(e) } label: {
-                        UFItemRow(e.name, sub: e.folderPath.isEmpty ? nil : e.folderPath) {
-                            UFIcon(e.mimeType == "application/pdf" || e.name.lowercased().hasSuffix(".pdf") ? "file-text" : "file", size: 18)
+                        UFItemRow(e.name, sub: e.folder.isEmpty ? nil : e.folder) {
+                            UFIcon(e.mime == "application/pdf" || e.name.lowercased().hasSuffix(".pdf") ? "file-text" : "file", size: 18)
                                 .foregroundStyle(UF.muted)
                         } trailing: {
                             Text(ByteCountFormatter.string(fromByteCount: Int64(e.size), countStyle: .file))
@@ -199,12 +199,29 @@ struct StudIPLoginView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var checking = false
     @State private var done = false
+    /// Sitzungspruefung scheiterte (z. B. Stud.IP kurz nicht erreichbar): Knopf "Anmeldung prüfen"
+    @State private var checkFailed = false
     @StateObject private var autofill = UniversityLoginAutofill(university: .luh, serviceKey: "studip")!
+    @StateObject private var load = UFWebLoadState()
 
     var body: some View {
         NavigationStack {
-            StudIPWebView(url: base.appendingPathComponent("dispatch.php/login"), dataStore: dataStore, autofill: autofill) { webView in check(webView) }
-                .safeAreaInset(edge: .bottom, spacing: 0) { UniversityRememberBar(autofill: autofill) }
+            StudIPWebView(url: base.appendingPathComponent("dispatch.php/login"), dataStore: dataStore, autofill: autofill, load: load) { webView in check(webView) }
+                .ufWebLoadFailure(load)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: 0) {
+                        if checkFailed {
+                            HStack(spacing: 9.6) {
+                                Text("Die Anmeldung ließ sich nicht bestätigen.").ufFont(13.12).foregroundStyle(UF.text2)
+                                Spacer()
+                                UFButton("Anmeldung prüfen", icon: "refresh", size: .small) { if let w = load.webView { check(w, force: true) } }
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 8)
+                            .background(UF.warnSoft)
+                        }
+                        UniversityRememberBar(autofill: autofill)
+                    }
+                }
                 .navigationTitle("Stud.IP-Anmeldung")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -214,17 +231,88 @@ struct StudIPLoginView: View {
         }
     }
 
-    /// Nach jedem geladenen Stud.IP-Seitenaufruf ausserhalb der Anmeldeseite pruefen, ob die Sitzung gilt.
-    private func check(_ webView: WKWebView) {
-        guard !done, !checking, let url = webView.url, url.host == base.host, !url.path.contains("/dispatch.php/login") else { return }
+    /// Nach jedem geladenen Stud.IP-Seitenaufruf ausserhalb der Anmeldeseite pruefen, ob die Sitzung gilt. Scheitert die
+    /// Pruefung, wird sie nach einer kurzen Pause einmal wiederholt; danach "Anmeldung prüfen" (vorher geschah nichts
+    /// Sichtbares).
+    private func check(_ webView: WKWebView, force: Bool = false) {
+        guard !done, !checking, let url = webView.url, url.host == base.host, force || !url.path.contains("/dispatch.php/login") else { return }
         checking = true
+        checkFailed = false
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
             let host = base.host ?? ""
             let mine = cookies.filter { host.hasSuffix($0.domain.hasPrefix(".") ? String($0.domain.dropFirst()) : $0.domain) }
             Task { @MainActor in
-                let ok = await StudIPSync.sessionIsValid(mine)
+                var ok = await StudIPSync.sessionIsValid(mine)
+                if !ok {
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    ok = await StudIPSync.sessionIsValid(mine)
+                }
                 checking = false
-                if ok, !done { done = true; onSignedIn(mine) }
+                if ok, !done { done = true; onSignedIn(mine) } else if !ok { checkFailed = true }
+            }
+        }
+    }
+}
+
+/// Ladezustand einer Anmelde-Webansicht: Fehler beim Laden (kein Netz, Zeitueberschreitung, Hochschulseite nicht
+/// erreichbar) und die Webansicht fuer "Erneut versuchen". Vorher blieb die Seite dann leer oder stehen.
+@MainActor
+final class UFWebLoadState: ObservableObject {
+    @Published var failure: String?
+    weak var webView: WKWebView?
+    /// zuletzt angeforderte Seite (bei einem Fehler vor dem ersten Laden hat die Webansicht noch keine Adresse)
+    var lastURL: URL?
+
+    /// Fehler einer Navigation; Abbrueche (eigene, Moodle-Antwort) sind keiner
+    func failed(_ error: Error) {
+        guard let text = Self.message(for: error) else { return }
+        failure = text
+    }
+
+    func retry() {
+        failure = nil
+        guard let webView else { return }
+        if webView.url != nil { webView.reload() } else if let lastURL { webView.load(URLRequest(url: lastURL)) }
+    }
+
+    /// Verstaendliche Meldung oder nil, wenn es kein Fehler ist (abgebrochen, von der App selbst angehalten)
+    nonisolated static func message(for error: Error) -> String? {
+        let e = error as NSError
+        if e.domain == NSURLErrorDomain, e.code == NSURLErrorCancelled { return nil }
+        // WebKitErrorFrameLoadInterruptedByPolicyChange: Navigation von der App angehalten (z. B. Moodle-Antwort)
+        if e.domain == "WebKitErrorDomain", e.code == 102 { return nil }
+        if e.domain == NSURLErrorDomain, [NSURLErrorNotConnectedToInternet, NSURLErrorDataNotAllowed, NSURLErrorNetworkConnectionLost].contains(e.code) {
+            return "Keine Internetverbindung. Prüfe WLAN oder mobile Daten und versuche es erneut."
+        }
+        return "Die Seite der Universität ist gerade nicht erreichbar. Prüfe die Verbindung und versuche es erneut."
+    }
+}
+
+extension View {
+    /// Karte "Seite der Universität nicht erreichbar" mit "Erneut versuchen" ueber einer Anmelde-Webansicht
+    func ufWebLoadFailure(_ load: UFWebLoadState) -> some View {
+        modifier(UFWebLoadFailureCard(load: load))
+    }
+}
+
+private struct UFWebLoadFailureCard: ViewModifier {
+    @ObservedObject var load: UFWebLoadState
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if let failure = load.failure {
+                VStack {
+                    UFCard {
+                        UFCardHead("Seite nicht erreichbar", icon: "alert")
+                        Text(failure).ufFont(14.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                        UFButton("Erneut versuchen", icon: "refresh", kind: .primary) { load.retry() }
+                            .padding(.top, 12.8)
+                    }
+                    .frame(maxWidth: 560)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(UF.bg)
             }
         }
     }
@@ -237,17 +325,20 @@ struct StudIPLoginView: View {
 /// keines ihrer Cookies. Eigene Skripte nur ueber `autofill`
 /// (eigene Inhaltswelt, nur auf den Anmeldeseiten der Hochschule, gebunden an die echten Navigationen des
 /// Hauptrahmens, die der Coordinator meldet). `interceptNavigation` sieht jede Navigation vor dem Laden und bricht
-/// sie mit `true` ab (Moodle-SSO: `moodlemobile://token=…` nie an das System). Nur fuer die Anmeldung verwenden, nie
-/// fuer Inhalte.
+/// sie mit `true` ab (Moodle-SSO: `moodlemobile://token=…` nie an das System). Der Hauptrahmen laedt nur HTTPS (und
+/// about:blank): eine auf http herabgestufte Anmeldeseite wird nie angezeigt, auch nicht im Debug-Build mit
+/// ATS-Ausnahme fuer das lokale Netz. Ladefehler meldet `load` (Karte mit "Erneut versuchen"). Nur fuer die Anmeldung
+/// verwenden, nie fuer Inhalte.
 struct StudIPWebView: UIViewRepresentable {
     let url: URL
     let dataStore: WKWebsiteDataStore
     var autofill: UniversityLoginAutofill? = nil
     var interceptNavigation: (@MainActor (URL) -> Bool)? = nil
+    var load: UFWebLoadState? = nil
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onPageLoaded: onPageLoaded, autofill: autofill, intercept: interceptNavigation)
+        Coordinator(onPageLoaded: onPageLoaded, autofill: autofill, intercept: interceptNavigation, load: load)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -256,9 +347,14 @@ struct StudIPWebView: UIViewRepresentable {
         autofill?.install(into: config.userContentController)
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
+        load?.webView = view
+        load?.lastURL = url
         view.load(URLRequest(url: url))
         return view
     }
+
+    /// Hauptrahmen nur ueber HTTPS oder about:blank; andere Schemata (Moodle-Antwort) entscheidet `intercept`
+    nonisolated static func blocksMainFrame(_ url: URL) -> Bool { url.scheme?.lowercased() == "http" }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
@@ -270,21 +366,33 @@ struct StudIPWebView: UIViewRepresentable {
         let onPageLoaded: (WKWebView) -> Void
         let autofill: UniversityLoginAutofill?
         let intercept: (@MainActor (URL) -> Bool)?
-        init(onPageLoaded: @escaping (WKWebView) -> Void, autofill: UniversityLoginAutofill?, intercept: (@MainActor (URL) -> Bool)? = nil) {
+        let load: UFWebLoadState?
+        init(onPageLoaded: @escaping (WKWebView) -> Void, autofill: UniversityLoginAutofill?, intercept: (@MainActor (URL) -> Bool)? = nil,
+             load: UFWebLoadState? = nil) {
             self.onPageLoaded = onPageLoaded
             self.autofill = autofill
             self.intercept = intercept
+            self.load = load
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             autofill?.navigationStarts(navigationAction)
-            if let url = navigationAction.request.url, intercept?(url) == true {
-                decisionHandler(.cancel)
-                return
+            if let url = navigationAction.request.url {
+                if intercept?(url) == true || (navigationAction.targetFrame?.isMainFrame != false && StudIPWebView.blocksMainFrame(url)) {
+                    decisionHandler(.cancel)
+                    return
+                }
+                if navigationAction.targetFrame?.isMainFrame != false { load?.lastURL = url }
             }
             decisionHandler(.allow)
         }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            load?.failed(error)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { load?.failed(error) }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
                      decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {

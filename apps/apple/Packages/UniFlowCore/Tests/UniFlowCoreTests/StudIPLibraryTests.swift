@@ -24,7 +24,7 @@ final class StudIPLibraryTests: XCTestCase {
                      lists: [(String, [StudIPFile])], error: String? = nil, failing: Set<String> = [],
                      abortBeforeDownloads: Bool = false) async throws -> (wanted: [String], loaded: [String]) {
         if let error {
-            try await db.transaction { try StudIPLibrary.log($0, startedAt: now, finishedAt: now, ok: false, newFiles: 0, message: StudIPLibrary.failure(error)) }
+            try await db.transaction { try UniStore.logSync($0, startedAt: now, finishedAt: now, ok: false, newFiles: 0, message: StudIPLibrary.failure(error)) }
             return ([], [])
         }
         try await db.transaction { try StudIPLibrary.storeCourses($0, courses, startedAt: now) }
@@ -42,7 +42,7 @@ final class StudIPLibraryTests: XCTestCase {
             loaded.append(f.id)
         }
         let n = loaded.count
-        try await db.transaction { try StudIPLibrary.log($0, startedAt: now, finishedAt: now, ok: true, newFiles: n, message: StudIPLibrary.summary(newFiles: n)) }
+        try await db.transaction { try UniStore.logSync($0, startedAt: now, finishedAt: now, ok: true, newFiles: n, message: StudIPLibrary.summary(newFiles: n)) }
         return (wanted.map(\.id), loaded)
     }
 

@@ -73,10 +73,50 @@ public enum StudIPLibrary {
         try UniStore.markDownloaded(c, fileRow(f, base: base), localPath: localPath, sha256: sha256, now: at)
     }
 
-    /// Eintrag in `sync_log` wie im `finally` von run_sync
-    public static func log(_ c: SQLiteConnection, startedAt: String, finishedAt: String, ok: Bool, newFiles: Int, message: String) throws {
-        try c.execute("INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES (?,?,?,?,?)",
-                      [.text(startedAt), .text(finishedAt), .integer(ok ? 1 : 0), .integer(Int64(newFiles)), .text(message)])
+    // MARK: Lesen (das eine Register der geladenen Dateien ist `files`)
+
+    /// Geladene Stud.IP-Datei fuer die Liste in StudIPView und die Zaehler. Vorher stand jede Datei zusaetzlich in
+    /// index.json, das nur nach einem Download nachgefuehrt wurde (Name und Ordner nach einer Umbenennung veraltet).
+    public struct DownloadedFile: Sendable, Equatable, Identifiable {
+        public let id: String
+        public let courseID: String
+        public let courseTitle: String
+        /// Ordnerpfad im Kurs ("" = Wurzelordner)
+        public let folder: String
+        public let name: String
+        public let size: Int
+        public let mime: String?
+        /// Ablageort relativ zum Container (`files.local_path`)
+        public let localPath: String
+    }
+
+    /// Bedingung "Stud.IP-Datei unter `prefix`, keine Kopie": Kopien ("Duplizieren") teilen sich Ablageort und
+    /// Download-Adresse des Originals, ihre ID steht aber nicht in der Adresse (`…/file-refs/<id>/content`)
+    private static let originalUnderPrefix = """
+        f.course_id <> '__user__' AND substr(f.local_path, 1, ?) = ? AND instr(COALESCE(f.download_url, ''), '/file-refs/' || f.id || '/') > 0
+        """
+
+    /// Geladene Stud.IP-Dateien unter `prefix` (Stud.IP-Ordner des Containers mit "/" am Ende), nach Kurs, Ordner
+    /// und Name
+    public static func downloadedFiles(_ c: SQLiteConnection, under prefix: String) throws -> [DownloadedFile] {
+        try c.query("""
+            SELECT f.id, f.course_id, COALESCE(c.title, 'Kurs') AS course_title, COALESCE(f.studip_folder, '') AS folder, f.name,
+                   f.size, f.mime, f.local_path FROM files f LEFT JOIN courses c ON c.id=f.course_id
+            WHERE \(originalUnderPrefix) ORDER BY course_title, folder, f.name, f.id
+            """, [.integer(Int64(prefix.count)), .text(prefix)]).compactMap { r in
+            guard let id = r["id"]?.string, let path = r["local_path"]?.string else { return nil }
+            return DownloadedFile(id: id, courseID: r["course_id"]?.string ?? "", courseTitle: r["course_title"]?.string ?? "Kurs",
+                                  folder: r["folder"]?.string ?? "", name: r["name"]?.string ?? "", size: Int(r["size"]?.double ?? 0),
+                                  mime: r["mime"]?.string, localPath: path)
+        }
+    }
+
+    /// Geladene Dateien vollstaendig gelesener Kurse (`checkedCourses`), die Stud.IP nicht mehr liefert. Wird nur
+    /// gemeldet, nie geloescht (die Notizen bleiben).
+    public static func goneRemotely(_ c: SQLiteConnection, remoteIDs: Set<String>, checkedCourses: Set<String>,
+                                    under prefix: String) throws -> [String] {
+        try downloadedFiles(c, under: prefix).filter { checkedCourses.contains($0.courseID) && !remoteIDs.contains($0.id) }
+            .map(\.id).sorted()
     }
 
     /// Lokale Datei entfernt (z. B. "Abmelden und Dateien löschen"): Eintrag und Notizen bleiben, nur der Ablageort

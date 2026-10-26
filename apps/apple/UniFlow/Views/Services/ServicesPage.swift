@@ -274,8 +274,7 @@ struct ServicesPage: View {
         guard let api = session.api, let id = d.i("id") else { return }
         do {
             let (data, _) = try await api.data("/api/qis/documents/\(id)")
-            let name = (d.s("title") ?? "Bescheinigung").replacingOccurrences(of: "/", with: "-")
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).pdf")
+            let url = try AppTemp.file("bescheinigung", name: (d.s("title") ?? "Bescheinigung") + ".pdf")
             try data.write(to: url)
             preview = url
         } catch { toast.show(error.localizedDescription, seconds: 4) }

@@ -73,6 +73,13 @@ public enum UniStore {
         return (old != 0 ? old : now, false)
     }
 
+    /// Eintrag in `sync_log` wie im `finally` von run_sync bzw. hildesheim.run_sync: die eine Fassung fuer den
+    /// Stud.IP- und den Learnweb-Abgleich
+    public static func logSync(_ c: SQLiteConnection, startedAt: String, finishedAt: String, ok: Bool, newFiles: Int, message: String) throws {
+        try c.execute("INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES (?,?,?,?,?)",
+                      [.text(startedAt), .text(finishedAt), .integer(ok ? 1 : 0), .integer(Int64(newFiles)), .text(message)])
+    }
+
     /// `upsert_course`: Kurs anlegen/aktualisieren; Fach und Art nur setzen, wenn noch leer (der Nutzer darf sie aendern).
     public static func upsertCourse(_ conn: SQLiteConnection, _ c: CourseRow, now: String) throws {
         let (subject, kind) = UniRules.classify(c.title)
@@ -169,8 +176,7 @@ public enum UniStore {
     /// app/studip_sync.py: Anfang ohne Leerraum beginnt mit "<!doctype html" oder "<html" und der Dateiname endet
     /// nicht auf .html/.htm. Dann wird nichts gespeichert.
     public static func isWebPage(file url: URL, name: String) -> Bool {
-        let n = name.lowercased()
-        if n.hasSuffix(".html") || n.hasSuffix(".htm") { return false }
+        if StudIPClient.isHTMLFileName(name) { return false }
         guard let h = try? FileHandle(forReadingFrom: url) else { return false }
         defer { try? h.close() }
         return startsLikeWebPage((try? h.read(upToCount: 65536)) ?? Data())
