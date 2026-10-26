@@ -361,8 +361,8 @@ final class LocalAnnotationsTests: XCTestCase {
             let route = try XCTUnwrap(b.route(method: m, path: p), "\(m) \(p)")
             XCTAssertFalse(route.placeholder, "\(m) \(p)")
         }
-        // Uebersicht bleibt Platzhalter bis S6, kennt aber schon die neuen Dateien
-        XCTAssertEqual(b.route(method: "GET", path: "/api/dashboard")?.placeholder, true)
+        // Uebersicht seit S6 echt (StudyEndpoints), mit den neuen Dateien aus S3
+        XCTAssertEqual(b.route(method: "GET", path: "/api/dashboard")?.placeholder, false)
         let dash = await b.handle(LocalRequest(method: "GET", path: "/api/dashboard"))
         XCTAssertEqual(dash.json?["new_total"], 1)
         XCTAssertEqual(dash.json?["new_files"]?.array?.first?["id"], "d1")

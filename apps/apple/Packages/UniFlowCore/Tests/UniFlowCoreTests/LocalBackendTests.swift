@@ -271,10 +271,10 @@ final class LocalBackendCoverageTests: XCTestCase {
             }
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
-        // Nach S2 bis S5 (Einstellungen, Bibliothek und Dateien, Module, Stundenplan) bleiben 29 Pfade Platzhalter bis
-        // zu ihrer Portierung (Lernkalender, Pakete, Aufgaben, reslot: S6; Suche: S7; Karteikarten, Uni & Noten, ...).
-        // Jeder weitere Port senkt die Zahl; dann hier nachziehen.
-        XCTAssertEqual(placeholders, 29, "Platzhalter nach S2–S5")
+        // Nach S2 bis S6 (Einstellungen, Bibliothek und Dateien, Module, Stundenplan, Lernkalender mit Paketen, Aufgaben,
+        // reslot und Uebersicht) bleiben 12 Pfade Platzhalter bis zu ihrer Portierung (Suche und Skriptsuche: S7;
+        // Karteikarten, Uni & Noten, Hintergrund, ...). Jeder weitere Port senkt die Zahl; dann hier nachziehen.
+        XCTAssertEqual(placeholders, 12, "Platzhalter nach S2–S6")
     }
 
     func testServicesListLikeServer() async throws {
@@ -296,7 +296,7 @@ final class LocalBackendCoverageTests: XCTestCase {
         }
     }
 
-    func testPlaceholdersUseClockAndSettings() async throws {
+    func testPagesUseClockAndSettings() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
         _ = await backend.handle(LocalRequest(method: "PUT", path: "/api/settings",
                                               body: Data(#"{"free_days": [5, 6], "blocked_times": [{"weekday": 0, "start": "12:00", "end": "13:00"}]}"#.utf8)))
