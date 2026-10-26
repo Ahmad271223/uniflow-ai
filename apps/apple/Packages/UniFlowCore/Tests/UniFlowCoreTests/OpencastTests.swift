@@ -2,24 +2,56 @@ import Foundation
 import XCTest
 @testable import UniFlowCore
 
-// Opencast-Aufzeichnungen: Fixtures mit erfundenen Werten nach dem Aufbau der LUH-Seite media/index
-// (docs/QIS-STUDIP-STRUKTUR.md, Abschnitt Opencast). Rechner studip.test / oc.example.test, keine echten Namen.
+// Opencast-Aufzeichnungen: erfundene Seiten nach dem Aufbau der LUH-Seite media/index (docs/QIS-STUDIP-STRUKTUR.md,
+// Abschnitt Opencast) aus packages/shared-contracts/fixtures/opencast, Rechner *.example.test, keine echten Namen,
+// Titel oder Kennungen. Abruf mit festen Antworten, Ablage in einer Datenbank im Arbeitsspeicher, Ordnung nach Fach
+// (Modul) und Lehrwoche wie im Moduldetail, Vorschlag zu Dokument und Lernpaket nur bei sicherem Treffer, Laden nur
+// auf Wunsch. Uhr eingefroren: Dienstag, 10.11.2026 (Semesterbeginn der Daten: Montag, 12.10.2026).
 
 private func fixture(_ name: String) throws -> String {
-    let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/opencast/\(name)")
-    return try String(contentsOf: url, encoding: .utf8)
+    // .../apps/apple/Packages/UniFlowCore/Tests/UniFlowCoreTests/OpencastTests.swift -> Repository-Wurzel
+    var url = URL(fileURLWithPath: #filePath)
+    for _ in 0..<7 { url.deleteLastPathComponent() }
+    return try String(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/opencast/\(name)"), encoding: .utf8)
 }
 
-private let cal = LectureWeek.calendar
-private func day(_ y: Int, _ m: Int, _ d: Int, hour: Int = 12) -> Date {
-    cal.date(from: DateComponents(year: y, month: m, day: d, hour: hour))!
-}
-/// Semesterbeginn der Tests: Montag, 12.10.2026 (Woche 4 = 02.11. – 08.11.)
-private let start = day(2026, 10, 12, hour: 0)
+private let clock = UniFlowClock.fixed(berlin: "2026-11-10T12:00:00")!
+private let base = URL(string: "https://studip.example.test")!
 
-private func html(_ s: String, status: Int = 200, finalURL: String? = nil) -> HTTPReply {
-    HTTPReply(status: status, contentType: "text/html; charset=UTF-8", finalURL: finalURL.flatMap(URL.init(string:)), body: Data(s.utf8))
+/// Unix-Zeit eines Tages in Berlin (Mittag)
+private func unix(_ y: Int, _ m: Int, _ d: Int, hour: Int = 12) -> Int {
+    BerlinClock.utcSeconds(day: BerlinClock.dayNumber(year: y, month: m, day: d), minutes: hour * 60)
 }
+
+private func page(_ html: String, status: Int = 200, path: String? = nil) -> HTTPReply {
+    HTTPReply(status: status, contentType: "text/html; charset=UTF-8", finalURL: path.flatMap { URL(string: "https://studip.example.test/" + $0) },
+              body: Data(html.utf8))
+}
+
+/// Feste Seiten je Pfad mit Abfrage (ohne Host); andere Pfade 404. Merkt sich jede angefragte Adresse.
+private final class PageTransport: StudIPTransport, @unchecked Sendable {
+    private let lock = NSLock()
+    private let routes: [String: HTTPReply]
+    private var log: [URL] = []
+
+    init(_ routes: [String: HTTPReply]) { self.routes = routes }
+
+    var requested: [URL] { lock.lock(); defer { lock.unlock() }; return log }
+
+    func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+        record(url)
+        var key = url.path
+        if let q = url.query { key += "?" + q }
+        return routes[key] ?? HTTPReply(status: 404, contentType: "text/html", body: Data("<html>Nicht gefunden</html>".utf8))
+    }
+
+    private func record(_ url: URL) { lock.lock(); log.append(url); lock.unlock() }   // synchron: Sperre nicht ueber await
+}
+
+private func mediaPath(_ course: String) -> String { "/" + OpencastParser.mediaIndexPath(courseID: course) }
+private func overviewPath(_ course: String) -> String { "/" + OpencastParser.overviewPath(courseID: course) }
+
+// MARK: - Seite lesen
 
 final class OpencastParserTests: XCTestCase {
 
@@ -35,29 +67,30 @@ final class OpencastParserTests: XCTestCase {
         XCTAssertNil(a.description)                                                          // leerer div
         XCTAssertEqual(a.duration, 1 * 3600 + 28 * 60 + 59)
         XCTAssertEqual(a.author, "Prof. Dr. Erika Beispiel")
-        XCTAssertEqual(a.created, Date(timeIntervalSince1970: 1_794_045_600))
+        XCTAssertEqual(a.created, 1_793_955_600)                                             // data-sort-value
+        XCTAssertEqual(BerlinClock.isoDate(BerlinClock.local(utc: a.created!).day), "2026-11-06")
         XCTAssertEqual(a.thumbnailURL?.absoluteString,
                        "https://oc.example.test/static/org/engage-player/aaaaaaaa-0000-4000-8000-000000000001/bbbbbbbb-0000-4000-8000-000000000001/vorschau_3.000s-player.jpg")
         XCTAssertEqual(a.playerURL?.absoluteString,                                          // ohne "#ts="
                        "https://studip.example.test/plugins.php/opencastpluginluh/media/player/aaaaaaaa-0000-4000-8000-000000000001?cid=0123456789abcdef0123456789abcdef")
-        XCTAssertEqual(a.downloads.map(\.quality), ["1080p", "720p", "480p"])
-        XCTAssertEqual(a.downloads.map(\.height), [1080, 720, 480])
-        XCTAssertEqual(a.download("720p")?.url.lastPathComponent, "res0720.mp4")
+        XCTAssertEqual(a.media.map(\.quality), ["1080p", "720p", "480p"])
+        XCTAssertEqual(a.media.map(\.height), [1080, 720, 480])
+        XCTAssertEqual(a.media("720p")?.url.lastPathComponent, "res0720.mp4")
 
         let b = v[1]
         XCTAssertEqual(b.title, "Zentralübung 02")
         XCTAssertEqual(b.description, "Besprechung von Übungsblatt 2: Induktion und Ungleichungen")
         XCTAssertNil(b.author)                                                               // "-"
         XCTAssertEqual(b.duration, 35 * 60 + 48)
-        XCTAssertEqual(b.downloads.map(\.quality), ["720p", "480p"])                          // 1080p fehlt
-        XCTAssertNil(b.download("1080p"))
+        XCTAssertEqual(b.media.map(\.quality), ["720p", "480p"])                              // 1080p fehlt
+        XCTAssertNil(b.media("1080p"))
 
         let c = v[2]
         XCTAssertEqual(c.id, "Xyzab-12345-6789")                                             // kurze Kennung
         XCTAssertEqual(c.title, "02. Vorlesungswoche - Ergänzung zu Teil 2 (Video aus SoSe 21)")
         XCTAssertEqual(c.description, "Korrektur eines Rechenfehlers bei der LR-Zerlegung")
         XCTAssertEqual(c.author, "Dr. Max Muster")
-        XCTAssertEqual(c.created, Date(timeIntervalSince1970: 1_649_932_712))
+        XCTAssertEqual(c.created, 1_649_932_712)
         XCTAssertEqual(c.thumbnailURL?.pathExtension, "png")
         XCTAssertTrue(c.playerURL?.path.hasSuffix("/media/player/Xyzab-12345-6789") ?? false)
     }
@@ -67,9 +100,9 @@ final class OpencastParserTests: XCTestCase {
     }
 
     func testMissingNavigationIsNoOpencast() throws {
-        let page = try fixture("media-index-no-plugin.html")
-        XCTAssertEqual(OpencastParser.parse(html: page, status: 500), .noOpencast)
-        XCTAssertEqual(OpencastParser.parse(html: page, status: 200), .noOpencast)
+        let p = try fixture("media-index-no-plugin.html")
+        XCTAssertEqual(OpencastParser.parse(html: p, status: 500), .noOpencast)
+        XCTAssertEqual(OpencastParser.parse(html: p, status: 200), .noOpencast)
         XCTAssertEqual(OpencastParser.parse(html: "<html><body>Nicht gefunden</body></html>", status: 404), .noOpencast)
         // andere Fehlerseiten sagen nichts ueber den Kurs
         XCTAssertEqual(OpencastParser.parse(html: "<html><body>Wartungsarbeiten</body></html>", status: 503), .unrecognized)
@@ -80,7 +113,7 @@ final class OpencastParserTests: XCTestCase {
     func testMalformedHTML() {
         // offene tr/td, Grossbuchstaben, Attribute ohne Anfuehrungszeichen, relative Links, Entities in Attributen,
         // Kommentar und Skript mit Tabellen-Text
-        let page = """
+        let p = """
         <TABLE class="default media-table"><TBODY>
         <!-- <tr class="media-table-row" id="kommentar"> -->
         <script>var s = '<tr class="media-table-row" id="skript">';</script>
@@ -96,7 +129,7 @@ final class OpencastParserTests: XCTestCase {
         <TR class="media-table-row" id="Abc-2"><td><div class="media-table-infos"><div><a href="player/Abc-2">Zweites</a></div></div>
         </TBODY></TABLE>
         """
-        guard case .videos(let v) = OpencastParser.parse(html: page, status: 200, pageURL: URL(string: "https://studip.test/plugins.php/opencastpluginluh/media/index?cid=k1")) else {
+        guard case .videos(let v) = OpencastParser.parse(html: p, status: 200, pageURL: URL(string: "https://studip.example.test/plugins.php/opencastpluginluh/media/index?cid=k1")) else {
             return XCTFail("keine Videos")
         }
         XCTAssertEqual(v.map(\.id), ["Abc-1", "Abc-2"])
@@ -104,21 +137,21 @@ final class OpencastParserTests: XCTestCase {
         XCTAssertEqual(v[0].description, "Zeile eins\nZeile \"zwei\"")
         XCTAssertEqual(v[0].duration, 45 * 60 + 10)
         XCTAssertEqual(v[0].author, "Dr. Erika Beispiel")
-        XCTAssertEqual(v[0].created, day(2026, 11, 13))                                    // Text, ohne data-sort-value
-        XCTAssertEqual(v[0].thumbnailURL?.absoluteString, "https://studip.test/thumb/a.jpg")
-        XCTAssertEqual(v[0].playerURL?.absoluteString, "https://studip.test/plugins.php/opencastpluginluh/media/player/Abc-1?cid=k1&x=1")
-        XCTAssertEqual(v[0].downloads.map(\.quality), ["720p"])                             // Audio ist keine Videofassung
+        XCTAssertEqual(v[0].created, unix(2026, 11, 13))                                      // Text, ohne data-sort-value
+        XCTAssertEqual(v[0].thumbnailURL?.absoluteString, "https://studip.example.test/thumb/a.jpg")
+        XCTAssertEqual(v[0].playerURL?.absoluteString, "https://studip.example.test/plugins.php/opencastpluginluh/media/player/Abc-1?cid=k1&x=1")
+        XCTAssertEqual(v[0].media.map(\.quality), ["720p"])                                   // Audio ist keine Videodatei
         XCTAssertNil(v[1].duration)
-        XCTAssertEqual(v[1].playerURL?.absoluteString, "https://studip.test/plugins.php/opencastpluginluh/media/player/Abc-2")
-        XCTAssertTrue(v[1].downloads.isEmpty)
+        XCTAssertEqual(v[1].playerURL?.absoluteString, "https://studip.example.test/plugins.php/opencastpluginluh/media/player/Abc-2")
+        XCTAssertTrue(v[1].media.isEmpty)
     }
 
     func testForeignAndPlainHTTPHostsAreIgnored() {
-        // Player fremder Hosts nie (Webansicht mit Stud.IP-Sitzung); Downloads und Vorschau nur https vom Videoserver
-        let page = """
+        // Player fremder Hosts nie (Webansicht mit Stud.IP-Sitzung); Videodateien und Vorschau nur https vom Videoserver
+        let p = """
         <table class="media-table"><tbody>
         <tr class="media-table-row" id="v1"><td><div class="thumb-container" style="background-image:url('https://oc.example.test/t1.jpg')"></div>
-          <td><div class="media-table-infos"><div><a href="https://studip.test/plugins.php/opencastpluginluh/media/player/v1">Eins</a></div></div>
+          <td><div class="media-table-infos"><div><a href="https://studip.example.test/plugins.php/opencastpluginluh/media/player/v1">Eins</a></div></div>
           <td class="actions"><a href="https://oc.example.test/v1-720.mp4">Download: 720p</a>
             <a href="http://oc.example.test/v1-480.mp4">Download: 480p</a>
             <a href="https://fremd.example.org/v1-1080.mp4">Download: 1080p</a>
@@ -126,19 +159,19 @@ final class OpencastParserTests: XCTestCase {
           <td><div class="media-table-infos"><div><a href="https://fremd.example.org/plugins.php/opencastpluginluh/media/player/v2">Zwei</a></div></div>
           <td class="actions"><a href="https://oc.example.test/v2-720.mp4">Download: 720p</a>
         <tr class="media-table-row" id="v3"><td><div class="thumb-container" style="background-image:url('http://oc.example.test/t3.jpg')"></div>
-          <td><div class="media-table-infos"><div><a href="http://studip.test/plugins.php/opencastpluginluh/media/player/v3">Drei</a></div></div>
+          <td><div class="media-table-infos"><div><a href="http://studip.example.test/plugins.php/opencastpluginluh/media/player/v3">Drei</a></div></div>
         </tbody></table>
         """
-        guard case .videos(let v) = OpencastParser.parse(html: page, status: 200, pageURL: URL(string: "https://studip.test/plugins.php/opencastpluginluh/media/index?cid=k1")) else {
+        guard case .videos(let v) = OpencastParser.parse(html: p, status: 200, pageURL: URL(string: "https://studip.example.test/plugins.php/opencastpluginluh/media/index?cid=k1")) else {
             return XCTFail("keine Videos")
         }
         XCTAssertEqual(v.map(\.id), ["v1", "v2", "v3"])
-        XCTAssertEqual(v[0].downloads.map(\.url.absoluteString), ["https://oc.example.test/v1-720.mp4"])
+        XCTAssertEqual(v[0].media.map(\.url.absoluteString), ["https://oc.example.test/v1-720.mp4"])
         XCTAssertEqual(v[0].thumbnailURL?.absoluteString, "https://oc.example.test/t1.jpg")
-        XCTAssertEqual(v[0].playerURL?.host, "studip.test")
+        XCTAssertEqual(v[0].playerURL?.host, "studip.example.test")
         XCTAssertNil(v[1].playerURL)                                                        // fremder Host
         XCTAssertNil(v[1].thumbnailURL)
-        XCTAssertEqual(v[1].downloads.map(\.quality), ["720p"])
+        XCTAssertEqual(v[1].media.map(\.quality), ["720p"])
         XCTAssertNil(v[2].playerURL)                                                        // http statt https
         XCTAssertNil(v[2].thumbnailURL)
     }
@@ -152,8 +185,8 @@ final class OpencastParserTests: XCTestCase {
         XCTAssertTrue(OpencastParser.courseHasRecordings(overviewHTML: #"<nav><a href="/x">Aufzeichnungen</a></nav>"#))
         XCTAssertFalse(OpencastParser.courseHasRecordings(overviewHTML: #"<ul><li><a href="/dispatch.php/course/files?cid=k1">Dateien</a></li></ul>"#))
 
-        XCTAssertTrue(OpencastParser.looksLikeLoginPage(#"<form action="https://studip.test/dispatch.php/login" method=post><input type="text" name="loginname"><INPUT TYPE=PASSWORD name=password></form>"#))
-        XCTAssertTrue(OpencastParser.looksLikeLoginPage(#"<form action="https://sso.test/idp/profile/SAML2/Redirect/SSO"></form>"#))
+        XCTAssertTrue(OpencastParser.looksLikeLoginPage(#"<form action="https://studip.example.test/dispatch.php/login" method=post><input type="text" name="loginname"><INPUT TYPE=PASSWORD name=password></form>"#))
+        XCTAssertTrue(OpencastParser.looksLikeLoginPage(#"<form action="https://sso.example.test/idp/profile/SAML2/Redirect/SSO"></form>"#))
         XCTAssertFalse(OpencastParser.looksLikeLoginPage(try fixture("media-index-videos.html")))
         XCTAssertFalse(OpencastParser.looksLikeLoginPage(try fixture("media-index-no-plugin.html")))
     }
@@ -163,481 +196,420 @@ final class OpencastParserTests: XCTestCase {
         XCTAssertEqual(OpencastParser.seconds("05:46"), 346)
         XCTAssertNil(OpencastParser.seconds("lang"))
         XCTAssertNil(OpencastParser.seconds("1:-2:3"))
+        XCTAssertNil(OpencastParser.seconds("1::3"))
+    }
+
+    /// Derselbe Leser fuer QIS und Opencast: Rohtext von script/style/title, Kommentare weg, Entities dekodiert
+    func testSharedTokenizer() {
+        let t = HTMLTokenizer.tokens(#"<P CLASS=a>x &amp; y<!-- <b>nein</b> --><script>if (a<b) {}</script><title>A &amp; B</title></p><BR/>"#)
+        XCTAssertEqual(t, [.start("p", ["class": "a"]), .text("x & y"), .raw("script", "if (a<b) {}"), .raw("title", "A &amp; B"),
+                           .end("p"), .start("br", [:])])
+        XCTAssertEqual(HTMLScanner.scan("<title>A &amp; B</title><table><tr><td>1</td></tr></table>").title, "A & B")
     }
 }
 
-final class LectureWeekTests: XCTestCase {
-    private func g(_ title: String, _ desc: String? = nil, created: Date? = nil, start s: Date? = start) -> LectureWeekGuess {
-        LectureWeek.guess(title: title, description: desc, created: created, semesterStart: s)
-    }
+// MARK: - Abruf im Stud.IP-Abgleich
 
-    func testExplicitWeek() {
-        XCTAssertEqual(g("02. Vorlesungswoche - Ergänzung zu Teil 2 (Video aus SoSe 21)", created: day(2022, 4, 14)),
-                       LectureWeekGuess(week: 2, source: .title))                         // Angabe schlaegt altes Semester
-        XCTAssertEqual(g("Woche 3: Zusammenfassung"), LectureWeekGuess(week: 3, source: .title))
-        XCTAssertEqual(g("Lehrwoche 04 – Reihen"), LectureWeekGuess(week: 4, source: .title))
-        XCTAssertEqual(g("5. Woche"), LectureWeekGuess(week: 5, source: .title))
-        XCTAssertEqual(g("Nachtrag", "Material zur Vorlesungswoche 6"), LectureWeekGuess(week: 6, source: .title))
-        XCTAssertEqual(g("VL-Woche 2"), LectureWeekGuess(week: 2, source: .title))
-    }
+private let courses = [
+    StudIPCourse(id: "c-ana", title: "Testanalysis I", semesterTitle: "WiSe 2026/27"),
+    StudIPCourse(id: "c-ana-ue", title: "Übung Testanalysis I", semesterTitle: "WiSe 2026/27"),
+    StudIPCourse(id: "c-prog", title: "Testprogrammierung", semesterTitle: "WiSe 2026/27"),
+    StudIPCourse(id: "c-erst", title: "Begrüßung der Erstsemester", semesterTitle: "WiSe 2026/27"),
+]
 
-    func testCalendarWeekIsNotLectureWeek() {
-        // KW 45 ist die Kalenderwoche; die Lehrwoche kommt aus dem Erstelldatum (03.11.2026 = Woche 4)
-        XCTAssertEqual(g("Aufzeichnung KW 45", created: day(2026, 11, 3)), LectureWeekGuess(week: 4, source: .date))
-        XCTAssertEqual(g("Mitschnitt aus Kalenderwoche 44", created: day(2026, 10, 27)), LectureWeekGuess(week: 3, source: .date))
-        XCTAssertEqual(g("44. KW", created: day(2026, 10, 27)), LectureWeekGuess(week: 3, source: .date))
-        XCTAssertEqual(g("KW 45"), .unknown)
-    }
-
-    func testNumberedSessions() {
-        XCTAssertEqual(g("3. Vorlesung vom 06.11.2026 – Grenzwerte & Folgen"), LectureWeekGuess(week: 3, source: .title))
-        XCTAssertEqual(g("Vorlesung 5"), LectureWeekGuess(week: 5, source: .title))
-        XCTAssertEqual(g("Analysis VL03"), LectureWeekGuess(week: 3, source: .title))
-        XCTAssertEqual(g("Zentralübung 02"), LectureWeekGuess(week: 2, source: .title))
-        XCTAssertEqual(g("Zentraluebung 7"), LectureWeekGuess(week: 7, source: .title))
-        XCTAssertEqual(g("Übung 6"), LectureWeekGuess(week: 6, source: .title))
-        XCTAssertEqual(g("2. Übung"), LectureWeekGuess(week: 2, source: .title))
-        XCTAssertEqual(g("Hörsaalübung Nr. 4"), LectureWeekGuess(week: 4, source: .title))
-        XCTAssertEqual(g("Vorlesung 4 (2023)"), LectureWeekGuess(week: 4, source: .title))  // Nummer trotz altem Jahr
-        // keine Nummer: "Übungsblatt 2", "Gruppenübung 3", Datum hinter "Vorlesung"
-        XCTAssertEqual(g("Besprechung Übungsblatt 2"), .unknown)
-        XCTAssertEqual(g("Vorlesung 06.11.2026"), LectureWeekGuess(week: 4, source: .date))
-    }
-
-    func testDateInTitleOrCreated() {
-        XCTAssertEqual(g("Vorlesung vom 06.11.2026", created: day(2026, 11, 20)), LectureWeekGuess(week: 4, source: .date))
-        XCTAssertEqual(g("Vorlesung am 13.11.", created: day(2026, 12, 1)), LectureWeekGuess(week: 5, source: .date))
-        XCTAssertEqual(g("Aufzeichnung 2026-10-20"), LectureWeekGuess(week: 2, source: .date))
-        XCTAssertEqual(g("Grenzwerte und Stetigkeit", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date))
-        XCTAssertEqual(g("Kapitel 2.1. Reihen", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date))
-        // Kapitel- oder Versionsnummer mit drei Teilen ist kein Datum (sonst 01.02.2010); es gilt das Erstelldatum
-        XCTAssertEqual(g("Kapitel 1.2.10 Reihen", created: day(2026, 11, 3)), LectureWeekGuess(week: 4, source: .date))
-        XCTAssertEqual(g("Version 2.3.11", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date))
-        XCTAssertEqual(g("Mitschnitt 6.11.26", created: day(2026, 12, 1)), LectureWeekGuess(week: 4, source: .date))   // Semesterjahr
-        XCTAssertEqual(g("Mitschnitt vom 6.11.26", created: day(2026, 12, 1)), LectureWeekGuess(week: 4, source: .date))
-        // zweistelliges Jahr nach "vom", aber vor Semesterbeginn: kein Hinweis auf altes Semester, Erstelldatum
-        XCTAssertEqual(g("Nachtrag vom 1.2.10", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date))
-        XCTAssertEqual(g("Kapitel 1.2.10 vom 06.11.2026"), LectureWeekGuess(week: 4, source: .date))   // erstes gueltiges Datum
-        XCTAssertEqual(g("Prozess 12 Analyse", created: day(2026, 10, 20)), LectureWeekGuess(week: 2, source: .date)) // kein "SS 12"
-        // Zeitumstellung am 25.10.2026: Montag 26.10. bleibt Woche 3
-        XCTAssertEqual(g("Montag", created: day(2026, 10, 26, hour: 0)), LectureWeekGuess(week: 3, source: .date))
-        XCTAssertEqual(g("Begrüßung", created: day(2026, 10, 12, hour: 0)), LectureWeekGuess(week: 1, source: .date))
-        XCTAssertEqual(g("WiSe 2026/27 – Einführung", created: day(2026, 10, 14)), LectureWeekGuess(week: 1, source: .date))
-        XCTAssertEqual(g("Wiederholung", created: day(2027, 6, 1)), .unknown)               // nach Woche 20
-    }
-
-    func testEarlierSemesterIsUnknown() {
-        XCTAssertEqual(g("Grenzwerte (2023)", created: day(2026, 10, 20)), .unknown)
-        XCTAssertEqual(g("Analysis SoSe 21", created: day(2026, 10, 20)), .unknown)
-        XCTAssertEqual(g("Integration WS 22/23", created: day(2026, 10, 20)), .unknown)
-        XCTAssertEqual(g("Sommersemester 2025: Reihen", created: day(2026, 10, 20)), .unknown)
-        XCTAssertEqual(g("Grenzwerte", "aus dem Wintersemester 2023/24", created: day(2026, 10, 20)), .unknown)
-        XCTAssertEqual(g("Grenzwerte vom 06.11.2023"), .unknown)                            // Datum vor Semesterbeginn
-        XCTAssertEqual(g("Ergänzung zu Teil 2", created: day(2022, 4, 14)), .unknown)       // erstellt vor Semesterbeginn
-        XCTAssertEqual(g("Vorab", created: day(2026, 10, 9)), .unknown)                     // Freitag vor Woche 1
-    }
-
-    func testWithoutSemesterStartOnlyTitleCounts() {
-        XCTAssertEqual(g("Vorlesung 5", start: nil), LectureWeekGuess(week: 5, source: .title))
-        XCTAssertEqual(g("Vorlesung vom 06.11.2026", created: day(2026, 11, 6), start: nil), .unknown)
-        XCTAssertNil(LectureWeekGuess(week: nil, source: .date).week)
-        XCTAssertEqual(LectureWeekGuess(week: nil, source: .date).source, .unknown)
-    }
-
-    func testSemesterStartAndLabels() {
-        let labels: [(week: Int, label: String)] = [(-2, "Klausuren & Altklausuren"), (0, "Vor Vorlesungsbeginn"), (3, "Woche 3 · 26.10. – 01.11.")]
-        XCTAssertEqual(LectureWeek.semesterStart(fromWeekLabels: labels, reference: day(2026, 11, 1)), start)
-        // Wintersemester ueber Neujahr: Woche 13 beginnt am 04.01.2027
-        XCTAssertEqual(LectureWeek.semesterStart(fromWeekLabels: [(13, "Woche 13 · 04.01. – 10.01.")], reference: day(2027, 1, 5)), start)
-        XCTAssertNil(LectureWeek.semesterStart(fromWeekLabels: [(-1, "Ältere Unterlagen")], reference: day(2026, 11, 1)))
-        XCTAssertEqual(LectureWeek.semesterStart(isoDay: "2026-10-14"), start)
-        XCTAssertEqual(LectureWeek.semesterStart(isoDay: "2026-10-12T00:00:00+02:00"), start)
-        XCTAssertNil(LectureWeek.semesterStart(isoDay: "bald"))
-        XCTAssertEqual(LectureWeek.label(3, semesterStart: start), "Woche 3 · 26.10. – 01.11.")
-        XCTAssertEqual(LectureWeek.label(3, semesterStart: nil), "Woche 3")
-        XCTAssertEqual(LectureWeek.weekIndex(start: start, date: day(2026, 11, 8, hour: 23)), 4)
-    }
+/// Seiten der vier Kurse: Analysis mit Videos, Uebung ohne Videos, Programmierung ohne Opencast (500), Begruessung
+/// unklar (Wartungsseite, Kursueberblick mit Reiter)
+private func routes(_ replace: [String: HTTPReply] = [:]) throws -> [String: HTTPReply] {
+    var r: [String: HTTPReply] = [
+        mediaPath("c-ana"): page(try fixture("media-index-videos.html"), path: OpencastParser.mediaIndexPath(courseID: "c-ana")),
+        mediaPath("c-ana-ue"): page(try fixture("media-index-empty.html")),
+        mediaPath("c-prog"): page(try fixture("media-index-no-plugin.html"), status: 500),
+        mediaPath("c-erst"): page("<html><body>Wartungsarbeiten</body></html>", status: 503),
+        overviewPath("c-erst"): page(#"<ul><li><a href="/plugins.php/opencastpluginluh/media/index?cid=c-erst">Aufzeichnungen</a></li></ul>"#),
+    ]
+    for (k, v) in replace { r[k] = v }
+    return r
 }
 
-final class RecordingAssignmentTests: XCTestCase {
-
-    func testClassifyLikePython() {
-        XCTAssertEqual(StudIPSubject.classify("Übung zu Testfach Analysis (Tranche A)").subject, "Testfach Analysis")
-        XCTAssertEqual(StudIPSubject.classify("Übung zu Testfach Analysis (Tranche A)").kind, "uebung")
-        XCTAssertEqual(StudIPSubject.classify("Testfach Analysis").kind, "vorlesung")
-        XCTAssertEqual(StudIPSubject.classify("Zentralübung Testfach Analysis").kind, "hoersaaluebung")
-        XCTAssertEqual(StudIPSubject.classify("12345 Testfach Physik - Fragestunden").subject, "Testfach Physik")
-        XCTAssertEqual(StudIPSubject.classify("Begrüßung der Erstsemester").kind, "sonstiges")
-    }
-
-    func testCourseToModule() {
-        let modules = [RecordingModuleRef(id: 1, name: "Testfach Analysis"), RecordingModuleRef(id: 2, name: "Testfach Physik")]
-        let courses = [RecordingCourseRef(id: "c1", moduleID: 1, subject: "Testfach Analysis"),
-                       RecordingCourseRef(id: "c2", moduleID: nil, subject: "Testfach  physik"),
-                       RecordingCourseRef(id: "c3", moduleID: 2, subject: "Testfach Analysis")]
-        // Zuordnung der App gilt
-        XCTAssertEqual(RecordingAssignment.moduleID(courseID: "c1", courseTitle: "egal", courses: courses, modules: modules), 1)
-        XCTAssertEqual(RecordingAssignment.moduleID(courseID: "c3", courseTitle: "Testfach Analysis", courses: courses, modules: modules), 2)
-        // ohne Modul: gespeichertes Fach
-        XCTAssertEqual(RecordingAssignment.moduleID(courseID: "c2", courseTitle: "Anderer Titel", courses: courses, modules: modules), 2)
-        // unbekannter Kurs (lokaler Modus): Fach aus dem Kurstitel
-        XCTAssertEqual(RecordingAssignment.moduleID(courseID: "neu", courseTitle: "Übung zu Testfach Analysis", courses: [], modules: modules), 1)
-        XCTAssertNil(RecordingAssignment.moduleID(courseID: "neu", courseTitle: "Testfach Chemie", courses: [], modules: modules))
-        XCTAssertNil(RecordingAssignment.moduleID(courseID: "neu", courseTitle: "Begrüßung der Erstsemester Testfach Analysis", courses: [], modules: modules))
-    }
-
-    func testGroupBySubjectWithoutModules() {
-        let now = day(2026, 11, 1)
-        let v = OpencastVideo(id: "v", title: "Vorlesung 1")
-        let index = RecordingsIndex(courses: [
-            RecordingCourse(courseID: "c1", courseTitle: "Testfach Analysis", status: .available, videos: [v], lastChecked: now),
-            RecordingCourse(courseID: "c2", courseTitle: "Übung zu Testfach Analysis", status: .available, videos: [v], lastChecked: now),
-            RecordingCourse(courseID: "c3", courseTitle: "Testfach Physik", status: .available, videos: [v], lastChecked: now),
-            RecordingCourse(courseID: "c4", courseTitle: "Testfach Chemie", status: .available, videos: [], lastChecked: now),
-            RecordingCourse(courseID: "c5", courseTitle: "Testfach Biologie", status: .noOpencast, lastChecked: now),
-        ])
-        let local = RecordingAssignment.group(index, courses: [], modules: [])
-        XCTAssertTrue(local.byModule.isEmpty)
-        XCTAssertEqual(local.bySubject.map(\.subject), ["Testfach Analysis", "Testfach Physik"])
-        XCTAssertEqual(local.bySubject[0].courses.map(\.courseID), ["c1", "c2"])          // Vorlesung und Uebung zusammen
-
-        let withModule = RecordingAssignment.group(index, courses: [], modules: [RecordingModuleRef(id: 7, name: "testfach analysis")])
-        XCTAssertEqual(withModule.byModule[7]?.map(\.courseID), ["c1", "c2"])
-        XCTAssertEqual(withModule.bySubject.map(\.subject), ["Testfach Physik"])
-    }
-
-    func testWeekHintOfSheet() {
-        XCTAssertEqual(StudIPWeekHint.weekHint(name: "Blatt03.pdf", folder: nil), 3)
-        XCTAssertEqual(StudIPWeekHint.weekHint(name: "uebung_2.pdf", folder: "Übungen"), 2)
-        XCTAssertEqual(StudIPWeekHint.weekHint(name: "Aufgaben.pdf", folder: "Übungen/Woche 5"), 5)
-        XCTAssertEqual(StudIPWeekHint.weekHint(name: "02A.pdf", folder: nil), 2)
-        XCTAssertNil(StudIPWeekHint.weekHint(name: "Skript.pdf", folder: "Vorlesung"))
-    }
+private func fetch(_ replace: [String: HTTPReply] = [:], known: [String: OpencastCourseState] = [:],
+                   transport: StudIPTransport? = nil) async throws -> (OpencastFetch, PageTransport?) {
+    let t = try PageTransport(routes(replace))
+    let client = StudIPClient(base: base, transport: transport ?? t, pauseMillis: 0)
+    return (await OpencastStore.fetch(client: client, courses: courses, known: known, now: unix(2026, 11, 10)), transport == nil ? t : nil)
 }
 
-final class RecordingsRefreshTests: XCTestCase {
-    private let base = URL(string: "https://studip.test")!
-    private let now = day(2026, 11, 1)
-    private let courses = [StudIPCourse(id: "c1", title: "Testfach Analysis"), StudIPCourse(id: "c2", title: "Testfach Begrüßung"),
-                           StudIPCourse(id: "c3", title: "Testfach Physik")]
+final class OpencastFetchTests: XCTestCase {
 
-    private func media(_ id: String) -> String { "/plugins.php/opencastpluginluh/media/index?cid=\(id)" }
-    private func overview(_ id: String) -> String { "/dispatch.php/course/overview?cid=\(id)" }
-
-    func testFetchesEachCourseAndTreats500AsNoOpencast() async throws {
-        let t = StubTransport([media("c1"): html(try fixture("media-index-videos.html")),
-                               media("c2"): html(try fixture("media-index-no-plugin.html"), status: 500),
-                               media("c3"): html(try fixture("media-index-empty.html"))])
-        let client = StudIPClient(base: base, transport: t, pauseMillis: 0)
-        let r = try await client.refreshRecordings(courses: courses, index: RecordingsIndex(), now: now)
-        XCTAssertEqual(r.index.courses.map(\.courseID), ["c1", "c2", "c3"])
-        XCTAssertEqual(r.index.course("c1")?.status, .available)
-        XCTAssertEqual(r.index.course("c1")?.videos.count, 3)
-        XCTAssertEqual(r.index.course("c2")?.status, .noOpencast)                               // 500 ist kein Fehler
-        XCTAssertEqual(r.index.course("c3")?.status, .available)
-        XCTAssertEqual(r.index.course("c3")?.videos, [])
-        XCTAssertEqual(r.checked, 3)
-        XCTAssertTrue(r.failed.isEmpty)
-        XCTAssertEqual(t.requested, [media("c1"), media("c2"), media("c3")])               // kein Umweg ueber den Ueberblick
-        XCTAssertEqual(r.index.course("c1")?.lastChecked, now)
-        XCTAssertEqual(r.summary, "3 Aufzeichnungen")
+    func testFetchReadsEachCourseAndSkipsErrorsQuietly() async throws {
+        let (f, t) = try await fetch()
+        guard case .videos(let v)? = f.listings["c-ana"] else { return XCTFail("Analysis ohne Videos") }
+        XCTAssertEqual(v.count, 3)
+        XCTAssertNotNil(v[0].playerURL, "Player auf dem Stud.IP-Host bleibt")
+        XCTAssertEqual(f.listings["c-ana-ue"], .videos([]))
+        XCTAssertEqual(f.listings["c-prog"], .noOpencast, "HTTP 500 'navigation item not found' ist kein Fehler")
+        XCTAssertNil(f.listings["c-erst"], "unklare Seite mit Reiter im Kursueberblick: alter Stand bleibt")
+        XCTAssertEqual(f.failed, ["c-erst"])
+        XCTAssertFalse(f.sessionExpired)
+        XCTAssertFalse(f.unreachable)
+        // nur die Listen: nie eine Videodatei, nie der Videoserver (Laden nur auf Wunsch)
+        let urls = try XCTUnwrap(t).requested
+        XCTAssertEqual(urls.map(\.path), ["/plugins.php/opencastpluginluh/media/index", "/plugins.php/opencastpluginluh/media/index",
+                                          "/plugins.php/opencastpluginluh/media/index", "/plugins.php/opencastpluginluh/media/index",
+                                          "/dispatch.php/course/overview"])
+        XCTAssertTrue(urls.allSatisfy { $0.host == "studip.example.test" && $0.pathExtension != "mp4" })
     }
 
-    func testNoOpencastRememberedForSevenDays() async throws {
-        let old = RecordingsIndex(courses: [
-            RecordingCourse(courseID: "c2", courseTitle: "Alt", status: .noOpencast, lastChecked: now.addingTimeInterval(-3 * 86400)),
-            RecordingCourse(courseID: "c3", courseTitle: "Testfach Physik", status: .noOpencast, lastChecked: now.addingTimeInterval(-8 * 86400)),
-        ])
-        let t = StubTransport([media("c1"): html(try fixture("media-index-empty.html")),
-                               media("c3"): html(try fixture("media-index-videos.html"))])
-        let r = try await StudIPClient(base: base, transport: t, pauseMillis: 0)
-            .refreshRecordings(courses: courses, index: old, now: now)
-        XCTAssertEqual(t.requested, [media("c1"), media("c3")])                            // c2 erst nach 7 Tagen wieder
-        XCTAssertEqual(r.skipped, 1)
-        XCTAssertEqual(r.index.course("c2")?.status, .noOpencast)
-        XCTAssertEqual(r.index.course("c2")?.courseTitle, "Testfach Begrüßung")             // Titel aktualisiert
-        XCTAssertEqual(r.index.course("c2")?.lastChecked, old.course("c2")?.lastChecked)
-        XCTAssertEqual(r.index.course("c3")?.status, .available)                            // nach 8 Tagen neu geprueft
-
-        XCTAssertFalse(RecordingsRefresh.needsCheck(old.course("c2"), now: now))
-        XCTAssertTrue(RecordingsRefresh.needsCheck(old.course("c2"), now: now.addingTimeInterval(4 * 86400)))
-        XCTAssertTrue(RecordingsRefresh.needsCheck(nil, now: now))
-        XCTAssertTrue(RecordingsRefresh.needsCheck(RecordingCourse(courseID: "x", courseTitle: "x", status: .available, lastChecked: now), now: now))
+    func testCourseWithoutOpencastIsRecheckedOnlyAfterSevenDays() async throws {
+        let now = unix(2026, 11, 10)
+        let (f, t) = try await fetch(known: ["c-prog": OpencastCourseState(status: "none", checkedAt: now - 2 * 86400),
+                                             "c-ana": OpencastCourseState(status: "available", checkedAt: now - 60)])
+        XCTAssertEqual(f.skipped, ["c-prog"])
+        XCTAssertFalse(try XCTUnwrap(t).requested.contains { $0.query?.contains("cid=c-prog") ?? false })
+        XCTAssertNotNil(f.listings["c-ana"], "Kurs mit Reiter jedes Mal")
+        XCTAssertTrue(OpencastStore.needsCheck(OpencastCourseState(status: "none", checkedAt: now - 7 * 86400), now: now))
+        XCTAssertTrue(OpencastStore.needsCheck(OpencastCourseState(status: "none", checkedAt: now + 3600), now: now), "Uhr zurueckgestellt")
+        XCTAssertTrue(OpencastStore.needsCheck(nil, now: now))
     }
 
     func testLoginPageMeansSessionExpired() async throws {
-        let login = #"<html><body><form action="/dispatch.php/login" method="post"><input type="password" name="password"></form></body></html>"#
-        for reply in [html(login), html("<html></html>", finalURL: "https://studip.test/dispatch.php/login?cancel_login=1"),
-                      html("", status: 401), html("<html></html>", finalURL: "https://sso.test/idp/profile/SAML2/Redirect/SSO")] {
-            let t = StubTransport([media("c1"): reply])
-            do {
-                _ = try await StudIPClient(base: base, transport: t, pauseMillis: 0).refreshRecordings(courses: courses, index: RecordingsIndex(), now: now)
-                XCTFail("Sitzungsablauf nicht erkannt")
-            } catch let e as StudIPError {
-                XCTAssertEqual(e, .sessionExpired)
-            }
-        }
+        let login = page(#"<form action="/dispatch.php/login" method="post"><input type="password" name="password"></form>"#)
+        let (f, t) = try await fetch([mediaPath("c-ana-ue"): login])
+        XCTAssertTrue(f.sessionExpired)
+        XCTAssertNotNil(f.listings["c-ana"], "schon gelesene Kurse bleiben")
+        XCTAssertEqual(try XCTUnwrap(t).requested.count, 2, "danach keine Anfrage mehr")
     }
 
-    func testUnclearPageAsksOverviewAndKeepsOldStateOnErrors() async throws {
-        let video = OpencastVideo(id: "alt", title: "Alt")
-        let old = RecordingsIndex(courses: [RecordingCourse(courseID: "c1", courseTitle: "Testfach Analysis", status: .available,
-                                                            videos: [video], lastChecked: now.addingTimeInterval(-3600))])
-        let maintenance = html("<html><body>Wartungsarbeiten</body></html>", status: 503)
-        let t = StubTransport([
-            media("c1"): maintenance, overview("c1"): html(#"<a href="/plugins.php/opencastpluginluh/media/index?cid=c1">Aufzeichnungen</a>"#),
-            media("c2"): maintenance, overview("c2"): html(#"<a href="/dispatch.php/course/files?cid=c2">Dateien</a>"#),
-            media("c3"): maintenance, overview("c3"): maintenance,
+    func testNetworkErrorStopsTheFetch() async throws {
+        let failing = FailingTransport(URLError(.timedOut))
+        let (f, _) = try await fetch(known: ["c-prog": OpencastCourseState(status: "none", checkedAt: unix(2026, 11, 9))], transport: failing)
+        XCTAssertTrue(f.unreachable)
+        XCTAssertEqual(f.failed, ["c-ana", "c-ana-ue", "c-erst"], "der Rest gilt als nicht gelesen, c-prog war nicht dran")
+        XCTAssertEqual(failing.requested.count, 1, "nach dem Zeitlimit keine weitere Anfrage")
+        XCTAssertTrue(f.listings.isEmpty)
+    }
+}
+
+// MARK: - Ablage, Ordnung nach Fach und Lehrwoche, Vorschlag
+
+/// Datenbank wie nach einem Stud.IP-Abgleich: vier Kurse (Analysis mit Uebung = ein Modul, Programmierung, Begruessung
+/// ohne Modul) und Dateien ab dem 12.10.2026; dazu die Aufzeichnungen aus den erfundenen Seiten.
+private func seededBackend(extraVideos: [String: [OpencastVideo]] = [:]) async throws -> LocalBackend {
+    let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+    let files: [(String, String, String, Int)] = [
+        ("f-orga", "c-ana", "Organisatorisches.pdf", unix(2026, 10, 13)),
+        ("f-ue-intro", "c-ana-ue", "Hinweise zur Übung.pdf", unix(2026, 10, 14)),
+        ("f-prog-1", "c-prog", "Folien 01.pdf", unix(2026, 10, 14)),
+        ("f-blatt2", "c-ana-ue", "Blatt02.pdf", unix(2026, 10, 23)),
+        ("f-vl4", "c-ana", "VL04 Analysis.pdf", unix(2026, 11, 3)),
+        ("f-blatt6", "c-ana-ue", "Uebungsblatt 6.pdf", unix(2026, 11, 9)),
+        ("f-prog-4", "c-prog", "Folien 04.pdf", unix(2026, 11, 3)),
+        ("f-erst", "c-erst", "Infos.pdf", unix(2026, 10, 12)),
+    ]
+    try await backend.context.database.transaction { c in
+        try StudIPLibrary.storeCourses(c, courses, startedAt: clock.nowISO)
+        for (id, course, name, chdate) in files {
+            try c.execute("INSERT INTO files(id, course_id, name, chdate, kind) VALUES (?,?,?,?,'pdf')",
+                          [.text(id), .text(course), .text(name), .integer(Int64(chdate))])
+        }
+        try LocalModules.ensureModules(c, clock: clock)
+    }
+    var (fetched, _) = try await fetch()
+    for (course, list) in extraVideos { fetched.listings[course] = .videos(list) }
+    let f = fetched
+    _ = try await backend.context.database.transaction { try OpencastStore.store(f, in: $0, clock: clock) }
+    return backend
+}
+
+private func moduleID(_ backend: LocalBackend, _ name: String) async throws -> Int {
+    let id = try await backend.context.database.scalar("SELECT id FROM modules WHERE name=?", [.text(name)])?.int
+    return try XCTUnwrap(id, name)
+}
+
+private func titles(_ blocks: [OpencastWeekBlock]) -> [String] {
+    blocks.map { b in "\(b.week) \(b.label): " + b.entries.map(\.video.title).joined(separator: " | ") }
+}
+
+private func match(_ backend: LocalBackend, _ file: String, _ text: String = "") async throws -> OpencastMatch? {
+    try await backend.context.database.withConnection { try OpencastStore.match($0, fileID: file, text: text, clock: clock) }
+}
+
+private func video(_ id: String, _ title: String, created: Int, media: [OpencastMedia] = []) -> OpencastVideo {
+    OpencastVideo(id: id, title: title, created: created, media: media)
+}
+
+final class OpencastStoreTests: XCTestCase {
+
+    func testStoreIsIdempotentAndKeepsUserState() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let db = backend.context.database
+        try await db.transaction { try StudIPLibrary.storeCourses($0, courses, startedAt: clock.nowISO) }
+        let (f, _) = try await fetch()
+        let first = try await db.transaction { try OpencastStore.store(f, in: $0, clock: clock) }
+        XCTAssertEqual(first, OpencastStoreResult(newVideos: 3, videos: 3))
+        let states = try await db.withConnection { try OpencastStore.courseStates($0) }
+        XCTAssertEqual(states["c-ana"]?.status, "available")
+        XCTAssertEqual(states["c-ana-ue"]?.status, "available")
+        XCTAssertEqual(states["c-prog"], OpencastCourseState(status: "none", checkedAt: unix(2026, 11, 10)))
+        XCTAssertNil(states["c-erst"], "nicht gelesen")
+
+        // gemerkte Stelle und geladene Datei bleiben beim naechsten Abgleich
+        try await db.transaction { c in
+            try OpencastStore.savePosition(c, courseID: "c-ana", videoID: "Xyzab-12345-6789", seconds: 120.5)
+            try OpencastStore.setLocal(c, courseID: "c-ana", videoID: "aaaaaaaa-0000-4000-8000-000000000002",
+                                       path: "StudIP/Aufzeichnungen/c-ana/aaaaaaaa-0000-4000-8000-000000000002-480p.mp4", quality: "480p")
+        }
+        let second = try await db.transaction { try OpencastStore.store(f, in: $0, clock: clock) }
+        XCTAssertEqual(second, OpencastStoreResult(newVideos: 0, videos: 3))
+        let e = try await db.withConnection { try OpencastStore.entry($0, courseID: "c-ana", videoID: "Xyzab-12345-6789", clock: clock) }
+        XCTAssertEqual(e?.position, 120.5)
+        let count = try await db.scalar("SELECT COUNT(*) FROM opencast_videos")?.int
+        XCTAssertEqual(count, 3)
+
+        // in Opencast entfernt: ohne geladene Datei weg, mit geladener Datei sichtbar als "nicht mehr vorhanden"
+        var removed = f
+        removed.listings = ["c-ana": .videos([])]
+        let g = removed
+        _ = try await db.transaction { try OpencastStore.store(g, in: $0, clock: clock) }
+        let rows = try await db.rows("SELECT id, gone, local_quality FROM opencast_videos ORDER BY id")
+        XCTAssertEqual(rows.map { $0["id"]?.string ?? "" }, ["aaaaaaaa-0000-4000-8000-000000000002"])
+        XCTAssertEqual(rows.first?["gone"], 1)
+        XCTAssertEqual(rows.first?["local_quality"], "480p")
+        // entfernt der Nutzer die Datei, verschwindet auch der Eintrag
+        try await db.transaction { try OpencastStore.setLocal($0, courseID: "c-ana", videoID: "aaaaaaaa-0000-4000-8000-000000000002", path: nil, quality: nil) }
+        let left = try await db.scalar("SELECT COUNT(*) FROM opencast_videos")?.int
+        XCTAssertEqual(left, 0)
+    }
+
+    func testForgetLocalFilesKeepsTheLists() async throws {
+        let backend = try await seededBackend()
+        let db = backend.context.database
+        try await db.transaction { c in
+            try OpencastStore.setLocal(c, courseID: "c-ana", videoID: "Xyzab-12345-6789", path: "StudIP/Aufzeichnungen/x.mp4", quality: "720p")
+        }
+        let before = try await db.withConnection { try OpencastStore.localPaths($0) }
+        XCTAssertEqual(before, ["StudIP/Aufzeichnungen/x.mp4"])
+        try await db.transaction { try OpencastStore.forgetLocalFiles($0) }
+        let after = try await db.withConnection { try OpencastStore.localPaths($0) }
+        XCTAssertEqual(after, [])
+        let count = try await db.scalar("SELECT COUNT(*) FROM opencast_videos")?.int
+        XCTAssertEqual(count, 3)
+    }
+
+    func testWithoutTablesEverythingIsEmpty() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let r = try await backend.context.database.withConnection { c in
+            (try OpencastStore.moduleBlocks(c, moduleID: 1, clock: clock), try OpencastStore.unassigned(c, clock: clock),
+             try OpencastStore.courseStates(c), try OpencastStore.match(c, fileID: "x", clock: clock),
+             try OpencastStore.packageMatches(c, packageID: 1, clock: clock))
+        }
+        XCTAssertTrue(r.0.isEmpty && r.1.isEmpty && r.2.isEmpty && r.3 == nil && r.4.isEmpty)
+    }
+
+    /// Fach = Modul (Vorlesung und Uebung eines Fachs zusammen), Lehrwoche = derselbe Block wie im Moduldetail
+    func testOrderedBySubjectAndLectureWeekLikeTheModuleDetail() async throws {
+        let backend = try await seededBackend()
+        let db = backend.context.database
+        let ana = try await moduleID(backend, "Testanalysis I")
+        let blocks = try await db.withConnection { try OpencastStore.moduleBlocks($0, moduleID: ana, clock: clock) }
+        XCTAssertEqual(titles(blocks), [
+            "2 Woche 2 · 19.10. – 25.10.: Zentralübung 02",                                     // "02" wie Blatt02
+            "4 Woche 4 · 02.11. – 08.11.: 3. Vorlesung vom 06.11.2026 – Grenzwerte & Folgen",    // Datum ist keine Woche
+            "-1 Ältere Unterlagen: 02. Vorlesungswoche - Ergänzung zu Teil 2 (Video aus SoSe 21)", // aus 2022
         ])
-        let r = try await StudIPClient(base: base, transport: t, pauseMillis: 0).refreshRecordings(courses: courses, index: old, now: now)
-        XCTAssertEqual(r.index.course("c1")?.videos, [video])                              // Reiter da, Seite gestoert: alter Stand
-        XCTAssertEqual(r.index.course("c2")?.status, .noOpencast)                                 // kein Reiter im Ueberblick
-        XCTAssertNil(r.index.course("c3"))                                                  // Fehler, nichts bekannt
-        XCTAssertEqual(r.failed, ["Testfach Analysis", "Testfach Physik"])
-        XCTAssertEqual(r.summary, "1 Aufzeichnung, 2 Kurse nicht erreichbar")
+        XCTAssertEqual(blocks[0].entries[0].label, "Hörsaalübung")
+        XCTAssertEqual(blocks[0].entries[0].kind, "uebung")
+        XCTAssertEqual(blocks[1].entries[0].kind, "vorlesung")
+
+        // dieselben Bloecke und Beschriftungen wie die Dateien im Moduldetail
+        let detail = try await db.withConnection { try LocalModules.detail($0, moduleID: .integer(Int64(ana)), clock: clock) }
+        let fileWeeks = Dictionary(uniqueKeysWithValues: (detail?["weeks"]?.array ?? []).compactMap { w -> (Int, String)? in
+            guard let n = w["week"]?.int, let l = w["label"]?.string else { return nil }
+            return (n, l)
+        })
+        XCTAssertEqual(fileWeeks[2], blocks[0].label, "Blatt02 und Zentralübung 02 in derselben Woche")
+        XCTAssertEqual(fileWeeks[4], blocks[1].label, "VL04 und die Vorlesung vom 06.11. in derselben Woche")
+
+        let counts = try await db.withConnection { try OpencastStore.weekCounts($0, moduleID: ana, clock: clock) }
+        XCTAssertEqual(counts, [2: 1, 4: 1, -1: 1])
+        let prog = try await moduleID(backend, "Testprogrammierung")
+        let progBlocks = try await db.withConnection { try OpencastStore.moduleBlocks($0, moduleID: prog, clock: clock) }
+        XCTAssertTrue(progBlocks.isEmpty)
     }
 
-    func testRequestLimitStopsAndKeepsRest() async throws {
-        let old = RecordingsIndex(courses: [RecordingCourse(courseID: "c3", courseTitle: "Testfach Physik", status: .available,
-                                                            videos: [OpencastVideo(id: "v", title: "V")], lastChecked: now)])
-        let t = StubTransport([media("c1"): html(try fixture("media-index-empty.html"))])
-        let r = try await StudIPClient(base: base, transport: t, pauseMillis: 0, maxRequests: 1)
-            .refreshRecordings(courses: courses, index: old, now: now)
-        XCTAssertTrue(r.stoppedEarly)
-        XCTAssertEqual(r.index.courses.map(\.courseID), ["c1", "c3"])
-        XCTAssertEqual(t.requested.count, 1)
+    func testCoursesWithoutModuleHaveTheirOwnSection() async throws {
+        let backend = try await seededBackend(extraVideos: ["c-erst": [video("e1", "Begrüßung und Rundgang", created: unix(2026, 10, 12))]])
+        let groups = try await backend.context.database.withConnection { try OpencastStore.unassigned($0, clock: clock) }
+        XCTAssertEqual(groups.map(\.courseTitle), ["Begrüßung der Erstsemester"])
+        XCTAssertEqual(groups.first.map { titles($0.blocks) }, ["1 Woche 1 · 12.10. – 18.10.: Begrüßung und Rundgang"])
+        XCTAssertEqual(groups.first?.count, 1)
     }
 
-    func testPausesBetweenRequests() async throws {
-        let t = StubTransport([media("c1"): html(try fixture("media-index-empty.html")), media("c2"): html(try fixture("media-index-empty.html"))])
-        let started = Date()
-        _ = try await StudIPClient(base: base, transport: t, pauseMillis: 120)
-            .refreshRecordings(courses: Array(courses.prefix(2)), index: RecordingsIndex(), now: now)
-        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 0.11)
+    // MARK: Vorschlag nur bei sicherem Treffer
+
+    func testSameSubjectAndSameWeekIsOffered() async throws {
+        let backend = try await seededBackend()
+        let sheet = try await match(backend, "f-blatt2")
+        XCTAssertEqual(sheet?.reason, .sameWeek(2))
+        XCTAssertEqual(sheet?.entries.map(\.video.title), ["Zentralübung 02"])
+        XCTAssertEqual(sheet?.reasonText, "Aufzeichnung derselben Lehrwoche (Woche 2)")
+        let slides = try await match(backend, "f-vl4")
+        XCTAssertEqual(slides?.reason, .sameWeek(4))
+        XCTAssertEqual(slides?.entries.map(\.video.id), ["aaaaaaaa-0000-4000-8000-000000000001"])
     }
 
-    func testIndexRoundTrip() throws {
-        guard case .videos(let v) = OpencastParser.parse(html: try fixture("media-index-videos.html"), status: 200) else { return XCTFail() }
-        let index = RecordingsIndex(courses: [RecordingCourse(courseID: "c1", courseTitle: "Testfach Analysis", status: .available, videos: v, lastChecked: now)])
-        XCTAssertEqual(try RecordingsIndex.decode(index.encoded()), index)
-        XCTAssertEqual(index.videoCount, 3)
-    }
-}
-
-final class RecordingSuggestionTests: XCTestCase {
-    private func candidates(module: Int = 1) throws -> [RecordingCandidate] {
-        guard case .videos(let v) = OpencastParser.parse(html: try fixture("media-index-videos.html"), status: 200) else { return [] }
-        return v.map { RecordingCandidate(courseID: "c1", video: $0, moduleID: module,
-                                          week: LectureWeek.guess(title: $0.title, description: $0.description, created: $0.created, semesterStart: start).week) }
-    }
-
-    func testCandidateWeeks() throws {
-        XCTAssertEqual(try candidates().map(\.week), [3, 2, 2])
+    func testNothingWithoutWeekOrUniqueTopic() async throws {
+        let backend = try await seededBackend()
+        // Blatt 6: keine Aufzeichnung in Woche 6, kein Thema im Text
+        let none = try await match(backend, "f-blatt6", "Aufgabe 1: Zeigen Sie die Aussage. Aufgabe 2: Berechnen Sie.")
+        XCTAssertNil(none)
+        // anderes Fach in derselben Woche: nie
+        let prog = try await match(backend, "f-prog-4", "Grenzwerte und Folgen")
+        XCTAssertNil(prog)
+        // Kurs ohne Modul (Begruessung): nie
+        let erst = try await match(backend, "f-erst", "Grenzwerte und Folgen")
+        XCTAssertNil(erst)
+        // unbekanntes Dokument
+        let unknown = try await match(backend, "gibt-es-nicht")
+        XCTAssertNil(unknown)
     }
 
-    func testSameWeekAndKeywords() throws {
-        let s = RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 3,
-                                                                  text: "Aufgabe 1: Bestimmen Sie die Grenzwerte der folgenden Folgen."),
-                                        among: try candidates())
-        XCTAssertEqual(s?.video.id, "aaaaaaaa-0000-4000-8000-000000000001")
-        XCTAssertEqual(s?.reason, "Vorlesung derselben Woche · passt zu: Grenzwerte, Folgen")
-        XCTAssertEqual(s?.score ?? 0, 4.0, accuracy: 0.001)
+    func testUniqueTopicIsOfferedAmbiguousIsNot() async throws {
+        let backend = try await seededBackend()
+        let topic = try await match(backend, "f-blatt6", "Übungsblatt 6\nAufgabe 1 (Grenzwerte): Untersuchen Sie die Folgen auf Konvergenz.")
+        XCTAssertEqual(topic?.reason, .topic(["grenzwerte", "folgen"]))
+        XCTAssertEqual(topic?.entries.map(\.video.id), ["aaaaaaaa-0000-4000-8000-000000000001"])
+        XCTAssertEqual(topic?.reasonText, "Gleiches Thema: Grenzwerte, Folgen")
+        // nur ein Teil des Themas steht im Blatt: kein Vorschlag
+        let half = try await match(backend, "f-blatt6", "Aufgabe 1: Grenzwerte von Funktionen")
+        XCTAssertNil(half)
+
+        // zwei Videos mit demselben Thema: nicht eindeutig, kein Vorschlag
+        let twice = try await seededBackend(extraVideos: ["c-ana-ue": [video("w1", "Grenzwerte und Folgen – Wiederholung", created: unix(2026, 11, 9))]])
+        let ambiguous = try await match(twice, "f-blatt6", "Aufgabe 1 (Grenzwerte): Untersuchen Sie die Folgen auf Konvergenz.")
+        XCTAssertNil(ambiguous)
     }
 
-    func testSameWeekAloneAndWeekBefore() throws {
-        // Blatt 2: Zentraluebung 02 und die Ergaenzung liegen in Woche 2; die Uebung passt zusaetzlich ueber "Induktion"
-        let two = RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 2, text: "Zeigen Sie per Induktion"), among: try candidates())
-        XCTAssertEqual(two?.video.title, "Zentralübung 02")
-        XCTAssertEqual(two?.reason, "Übung derselben Woche · passt zu: Induktion")
-        // Blatt 4: nur die Vorlesung der Woche davor
-        let four = RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 4, text: "Konvergenz von Reihen"), among: try candidates())
-        XCTAssertEqual(four?.video.id, "aaaaaaaa-0000-4000-8000-000000000001")
-        XCTAssertEqual(four?.reason, "Vorlesung der Woche davor")
+    func testGenericAndCourseWordsAreNoTopic() {
+        let e = OpencastEntry(courseID: "c", courseTitle: "Testanalysis I", moduleID: 1,
+                              video: video("v", "Testanalysis I – Vorlesung 7 (Teil 2), Wiederholung", created: 0), week: 7)
+        // Fach, "Vorlesung", "Teil", "Wiederholung" sagen nichts ueber das Thema
+        XCTAssertNil(OpencastStore.best([e], documentWeek: 3, documentKind: "uebung",
+                                        documentText: "Testanalysis I Vorlesung Teil Wiederholung", names: ["Testanalysis I"]))
+        XCTAssertEqual(OpencastStore.topicWords("Zentralübung 02", ignoring: []), [])
+        XCTAssertEqual(OpencastStore.topicWords("VL 05 – Fourier-Reihen", ignoring: []), ["fourier", "reihen"])
+        XCTAssertTrue(OpencastStore.sameWord("reihen", "reihe"))
+        XCTAssertTrue(OpencastStore.sameWord("grenzwert", "grenzwerte"))
+        XCTAssertFalse(OpencastStore.sameWord("ring", "ringe"), "zu kurz fuer eine Endung")
+        XCTAssertFalse(OpencastStore.sameWord("folgen", "folgerungen"))
+        // zerlegte Umlaute aus PDF-Text
+        XCTAssertEqual(OpencastStore.words("Gleichma\u{0308}ßige Stetigkeit"), ["gleichmäßige", "stetigkeit"])
     }
 
-    func testKeywordsOnlyNeedTwoContentWords() throws {
-        let strong = RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Grenzwerte der Folgen"), among: try candidates())
-        XCTAssertEqual(strong?.video.id, "aaaaaaaa-0000-4000-8000-000000000001")
-        XCTAssertEqual(strong?.reason, "passt zu: Grenzwerte, Folgen")
-        XCTAssertEqual(strong?.score ?? 0, 2.0, accuracy: 0.001)
-        // ein einzelnes Wort reicht nicht, auch kein langes Fachwort
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Grenzwerte"), among: try candidates()))
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Berechnen Sie die Folgen"), among: try candidates()))
-        // nur Allerweltswoerter des Titels ("Teil", "Ergänzung", "Vorlesungswoche") zaehlen nicht
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: "Teil 2 Ergänzung Vorlesungswoche Korrektur"), among: try candidates()))
-        // weit entfernte Woche: Stichwoerter heben die Strafe nur auf, wenn sie deutlich sind
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 9, text: "Grenzwerte der Folgen"), among: try candidates()))
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 9, text: "nichts Passendes"), among: try candidates()))
-    }
-
-    /// Kopf eines Uebungsblatts mit Modulname; Video eines alten Semesters mit demselben Namen im Titel
-    private let oldVideo = OpencastVideo(id: "alt-1", title: "Testfach Analysis I – Komplexe Zahlen (2023)", created: day(2023, 11, 2))
-    private let sheet = "Übungsblatt 3 zur Vorlesung Testfach Analysis I\nAufgabe 1: Zeigen Sie per vollständiger Induktion"
-
-    func testModuleNameInSheetHeadAndVideoTitleIsNoMatch() {
-        let week = LectureWeek.guess(title: oldVideo.title, created: oldVideo.created, semesterStart: start).week
-        XCTAssertNil(week)                                                                  // altes Semester: Woche unbekannt
-        // Modulname als Name der Aufgabe
-        let c = RecordingCandidate(courseID: "c1", video: oldVideo, moduleID: 1, week: week)
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 3, text: sheet, names: ["Testfach Analysis I"]), among: [c]))
-        // Kurstitel des Videos genuegt ebenso
-        let titled = RecordingCandidate(courseID: "c1", video: oldVideo, moduleID: 1, week: week, courseTitle: "Testfach Analysis I")
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 3, text: sheet), among: [titled]))
-        // Uebungskurs mit "Übung zu …" im Titel
-        let exercise = RecordingCandidate(courseID: "c2", video: oldVideo, moduleID: 1, week: nil, courseTitle: "Übung zu Testfach Analysis I")
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: sheet), among: [exercise]))
-        // passt der Inhalt wirklich, bleibt der Vorschlag (Modulname zaehlt nicht mit)
-        let fitting = RecordingCandidate(courseID: "c1", video: OpencastVideo(id: "alt-2", title: "Testfach Analysis I – vollständige Induktion und Ungleichungen (2023)"),
-                                         moduleID: 1, week: nil, courseTitle: "Testfach Analysis I")
-        let s = RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 3, text: sheet + " und Ungleichungen", names: ["Testfach Analysis I"]),
-                                        among: [titled, fitting])
-        XCTAssertEqual(s?.video.id, "alt-2")
-        XCTAssertEqual(s?.reason, "passt zu: vollständige, Induktion, Ungleichungen")
-    }
-
-    func testGeneralWordsAreNoMatch() {
-        func one(_ title: String, _ text: String) -> RecordingSuggestion? {
-            RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: nil, text: text),
-                                    among: [RecordingCandidate(courseID: "c1", video: OpencastVideo(id: "v", title: title), moduleID: 1, week: nil)])
+    func testSameWeekPrefersMatchingKindAndTopic() {
+        func e(_ id: String, _ title: String, kind: String) -> OpencastEntry {
+            OpencastEntry(courseID: "c", courseTitle: "Fach", moduleID: 1, video: video(id, title, created: 0), week: 5, kind: kind)
         }
-        XCTAssertNil(one("Zusammenfassung", "Zusammenfassung der Hinweise"))
-        XCTAssertNil(one("Einführung und Organisatorisches", "Einführung: Organisatorisches zur Übung"))
-        XCTAssertNil(one("Klausurvorbereitung – Fragestunde", "Fragestunde zur Klausurvorbereitung, Überblick"))
-        XCTAssertNil(one("Nachtrag zur Zusammenfassung", "Nachtrag Zusammenfassungen Überblick Grundlagen"))
-        XCTAssertNotNil(one("Zusammenfassung: Eigenwerte und Diagonalisierung", "Bestimmen Sie die Eigenwerte und prüfen Sie die Diagonalisierung"))
+        let list = [e("v1", "Vorlesung: Eigenwerte", kind: "vorlesung"), e("v2", "Vorlesung: Diagonalisierung", kind: "vorlesung"),
+                    e("u1", "Zentralübung 05", kind: "uebung")]
+        // Blatt: die Uebungsaufzeichnung der Woche
+        XCTAssertEqual(OpencastStore.best(list, documentWeek: 5, documentKind: "uebung", documentText: "Blatt 5", names: [])?.entries.map(\.video.id), ["u1"])
+        // Folien: die Vorlesungen der Woche, mit eindeutigem Thema nur diese
+        XCTAssertEqual(OpencastStore.best(list, documentWeek: 5, documentKind: "vorlesung", documentText: "VL 5", names: [])?.entries.map(\.video.id), ["v1", "v2"])
+        XCTAssertEqual(OpencastStore.best(list, documentWeek: 5, documentKind: "vorlesung", documentText: "Kapitel Diagonalisierung", names: [])?.entries.map(\.video.id), ["v2"])
+        // Klausuren-Block (-2) und aeltere Unterlagen (-1) sind keine Lehrwochen
+        XCTAssertNil(OpencastStore.best(list.map { _ in e("k", "Fragestunde", kind: "vorlesung") }, documentWeek: -2, documentKind: "klausur", documentText: "", names: []))
     }
 
-    func testOtherOrUnknownModuleNever() throws {
-        let text = "Bestimmen Sie die Grenzwerte der Folgen, Induktion und LR-Zerlegung"
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 2, sheetWeek: 3, text: text), among: try candidates(module: 1)))
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: nil, sheetWeek: 3, text: text), among: try candidates(module: 1)))
-        let unassigned = try candidates().map { RecordingCandidate(courseID: $0.courseID, video: $0.video, moduleID: nil, week: $0.week) }
-        XCTAssertNil(RecordingSuggester.best(for: RecordingTaskContext(moduleID: 1, sheetWeek: 3, text: text), among: unassigned))
-        XCTAssertEqual(RecordingSuggester.threshold, 1.5)
-    }
-
-    func testScriptSearchTokens() {
-        XCTAssertEqual(ScriptSearchText.tokens("Bestimmen Sie die Grenzwerte der folgenden Folgen"), ["grenzwert", "folg"])
-        XCTAssertEqual(ScriptSearchText.normalize("Unabh¨ angigkeit"), "Unabhängigkeit")
-        XCTAssertEqual(ScriptSearchText.tokens("Unabh¨ angigkeit"), ["unabhängigkeit"])
+    func testPackageShowsMatchesOfItsTasksOnce() async throws {
+        let backend = try await seededBackend()
+        let db = backend.context.database
+        let ana = try await moduleID(backend, "Testanalysis I")
+        let pid = try await db.transaction { c -> Int in
+            try c.execute("INSERT INTO study_packages(date, module_id, subject, title) VALUES ('2026-11-11', ?, 'Testanalysis I', 'Übung bearbeiten')",
+                          [.integer(Int64(ana))])
+            let p = Int(c.lastInsertRowID)
+            for (title, file) in [("Blatt 2 bearbeiten", "f-blatt2"), ("Blatt 2 nachbereiten", "f-blatt2"), ("Blatt 6", "f-blatt6"),
+                                  ("Freies Lernen", nil)] as [(String, String?)] {
+                try c.execute("INSERT INTO study_tasks(package_id, type, file_id, title) VALUES (?, 'uebung', ?, ?)",
+                              [.integer(Int64(p)), SQLiteValue(file), .text(title)])
+            }
+            return p
+        }
+        let m = try await db.withConnection { try OpencastStore.packageMatches($0, packageID: pid, clock: clock) }
+        XCTAssertEqual(m.map(\.taskTitle), ["Blatt 2 bearbeiten"], "dasselbe Video nur einmal, Blatt 6 ohne Treffer")
+        XCTAssertEqual(m.first?.match.entries.map(\.video.title), ["Zentralübung 02"])
     }
 }
 
-final class RecordingPlaybackTests: XCTestCase {
-    private let u = URL(string: "https://oc.example.test/v.mp4")!
-    private func video(_ qualities: [Int], player: Bool = true) -> OpencastVideo {
-        OpencastVideo(id: "v1", title: "V", playerURL: player ? URL(string: "https://studip.test/plugins.php/opencastpluginluh/media/player/v1") : nil,
-                      downloads: qualities.map { OpencastDownload(quality: "\($0)p", height: $0, url: URL(string: "https://oc.example.test/\($0).mp4")!) })
-    }
+// MARK: - Abspielen und Laden nur auf Wunsch
 
-    func testQualityChoice() {
-        XCTAssertEqual(RecordingPlayback.quality(for: video([1080, 720, 480]))?.quality, "720p")
-        XCTAssertEqual(RecordingPlayback.quality(for: video([1080, 480, 360]))?.quality, "480p")   // beste unter 1080p
-        XCTAssertEqual(RecordingPlayback.quality(for: video([1080]))?.quality, "1080p")
-        XCTAssertEqual(RecordingPlayback.quality(for: video([1080, 720, 480]), preferred: "1080p")?.quality, "1080p")
-        XCTAssertEqual(RecordingPlayback.quality(for: video([720, 480]), preferred: "1080p")?.quality, "720p")
-        XCTAssertNil(RecordingPlayback.quality(for: video([])))
-    }
+final class OpencastPlaybackTests: XCTestCase {
+    private let v = OpencastVideo(id: "v1", title: "3. Vorlesung", playerURL: URL(string: "https://studip.example.test/plugins.php/opencastpluginluh/media/player/v1"),
+                                  media: [OpencastMedia(quality: "1080p", height: 1080, url: URL(string: "https://oc.example.test/1080.mp4")!),
+                                          OpencastMedia(quality: "720p", height: 720, url: URL(string: "https://oc.example.test/720.mp4")!),
+                                          OpencastMedia(quality: "480p", height: 480, url: URL(string: "https://oc.example.test/480.mp4")!)])
+    private let file = URL(fileURLWithPath: "/tmp/v1-480p.mp4")
 
-    func testLocalBeforeStreamBeforeWeb() {
-        let v = video([1080, 720, 480])
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p", "720p"]), .local(quality: "720p"))
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p", "720p"], preferred: "480p"), .local(quality: "480p"))
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["1080p"]), .local(quality: "1080p"))  // offline vor Stream
-        // ausdruecklich gewaehlte, nicht geladene Fassung: deren Stream statt der geladenen Datei
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p"], preferred: "1080p"),
-                       .stream(URL(string: "https://oc.example.test/1080.mp4")!, quality: "1080p"))
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p"], preferred: "480p"), .local(quality: "480p"))
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: ["480p"], preferred: "360p"), .local(quality: "480p"))  // gibt es nicht
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: []), .stream(URL(string: "https://oc.example.test/720.mp4")!, quality: "720p"))
-        XCTAssertEqual(RecordingPlayback.source(for: video([]), downloaded: []), .webPlayer(URL(string: "https://studip.test/plugins.php/opencastpluginluh/media/player/v1")!))
-        XCTAssertEqual(RecordingPlayback.source(for: video([], player: false), downloaded: []), .unavailable)
+    func testSource() {
+        XCTAssertEqual(RecordingPlayback.source(for: v, local: nil), .stream(URL(string: "https://oc.example.test/720.mp4")!, quality: "720p"))
+        XCTAssertEqual(RecordingPlayback.source(for: v, local: (file, "480p")), .local(file, quality: "480p"), "geladene Datei vor Stream")
+        XCTAssertEqual(RecordingPlayback.source(for: v, local: (file, "480p"), preferred: "1080p"),
+                       .stream(URL(string: "https://oc.example.test/1080.mp4")!, quality: "1080p"), "ausdruecklich andere Fassung")
+        let bare = OpencastVideo(id: "v2", title: "Ohne Datei", playerURL: v.playerURL)
+        XCTAssertEqual(RecordingPlayback.source(for: bare, local: nil), .webPlayer(v.playerURL!))
+        XCTAssertEqual(RecordingPlayback.source(for: OpencastVideo(id: "v3", title: "Nichts"), local: nil), .unavailable)
+        XCTAssertEqual(RecordingPlayback.source(for: OpencastVideo(id: "v4", title: "Weg"), local: (file, "480p")), .local(file, quality: "480p"))
+        XCTAssertEqual(RecordingPlayback.quality(for: OpencastVideo(id: "x", title: "x", media: [v.media[0], v.media[2]]))?.quality, "480p")
     }
 
     func testResumePosition() {
-        XCTAssertNil(RecordingPlayback.resumePosition(saved: nil, duration: 3600))
-        XCTAssertNil(RecordingPlayback.resumePosition(saved: 4, duration: 3600))
-        XCTAssertEqual(RecordingPlayback.resumePosition(saved: 1234, duration: 3600), 1234)
-        XCTAssertNil(RecordingPlayback.resumePosition(saved: 3590, duration: 3600))               // fast zu Ende: von vorn
-        XCTAssertEqual(RecordingPlayback.resumePosition(saved: 300, duration: nil), 300)
-        XCTAssertNil(RecordingPlayback.resumePosition(saved: .nan, duration: nil))
+        XCTAssertEqual(RecordingPlayback.resumePosition(saved: 1234.5, duration: 5339), 1234.5)
+        XCTAssertNil(RecordingPlayback.resumePosition(saved: 5, duration: 5339), "erste 10 s: von vorn")
+        XCTAssertNil(RecordingPlayback.resumePosition(saved: 5330, duration: 5339), "letzte 15 s: von vorn")
+        XCTAssertNil(RecordingPlayback.resumePosition(saved: .infinity, duration: nil))
+        XCTAssertEqual(RecordingPlayback.resumePosition(saved: 60, duration: .nan), 60)
     }
 
-    func testFilePathsAndStorage() {
-        XCTAssertEqual(RecordingFilesLayout.relativePath(courseID: "0123456789abcdef0123456789abcdef", videoID: "Xyzab-12345-6789", quality: "720p"),
-                       "files/0123456789abcdef0123456789abcdef/Xyzab-12345-6789-720p.mp4")
-        let evil = RecordingFilesLayout.relativePath(courseID: "../..", videoID: "a/b", quality: "720p")
-        XCTAssertFalse(evil.split(separator: "/").contains(".."))                        // kein Weg aus dem Ordner
-        XCTAssertEqual(evil.split(separator: "/").count, 3)
-        XCTAssertEqual(RecordingFilesLayout.resumeDataPath(courseID: "c", videoID: "v", quality: "480p"), "files/c/v-480p.mp4.resume")
-
-        XCTAssertEqual(RecordingFilesLayout.storageWarning(fileSize: 1_000_000_000, freeBytes: 500_000_000),
-                       "Nicht genug Speicherplatz: Die Aufzeichnung braucht 1,0 GB, frei sind 500 MB.")
-        XCTAssertEqual(RecordingFilesLayout.storageWarning(fileSize: 800_000_000, freeBytes: 1_500_000_000),
-                       "Wenig Speicherplatz: Nach dem Laden sind nur noch 700 MB frei.")
-        XCTAssertNil(RecordingFilesLayout.storageWarning(fileSize: 800_000_000, freeBytes: 10_000_000_000))
-        XCTAssertNil(RecordingFilesLayout.storageWarning(fileSize: nil, freeBytes: nil))
-        XCTAssertEqual(RecordingFilesLayout.megabytes(412_300_000), "412 MB")
-        XCTAssertEqual(RecordingFilesLayout.megabytes(1_240_000_000), "1,2 GB")
-    }
-}
-
-final class RecordingFilesTests: XCTestCase {
-    func testStoredFileNames() {
-        XCTAssertEqual(RecordingFilesLayout.storedFile(course: "c1", name: "Xyzab-12345-6789-720p.mp4"),
-                       RecordingStoredFile(course: "c1", video: "Xyzab-12345-6789", quality: "720p", partial: false))
-        XCTAssertEqual(RecordingFilesLayout.storedFile(course: "c1", name: "v1-1080p.mp4.resume"),
-                       RecordingStoredFile(course: "c1", video: "v1", quality: "1080p", partial: true))
-        XCTAssertNil(RecordingFilesLayout.storedFile(course: "c1", name: "notiz.txt"))
-        XCTAssertNil(RecordingFilesLayout.storedFile(course: "c1", name: "-720p.mp4"))
-        XCTAssertNil(RecordingFilesLayout.storedFile(course: "c1", name: "ohne.mp4"))
+    /// Entscheidung 7: grosse Dateien nur auf ausdruecklichen Wunsch; der Abgleich laedt nie ein Video
+    func testDownloadOnlyOnRequestLargeFilesNeedConfirmation() {
+        let free: Int64 = 50_000_000_000
+        XCTAssertEqual(RecordingDownloadPolicy.decide(title: "Kurz", quality: "480p", size: 80_000_000, freeBytes: free), .start)
+        XCTAssertEqual(RecordingDownloadPolicy.decide(title: "Kurz", quality: "480p", size: 100_000_000, freeBytes: free), .start)
+        guard case .confirm(let big) = RecordingDownloadPolicy.decide(title: "3. Vorlesung", quality: "720p", size: 412_000_000, freeBytes: free) else {
+            return XCTFail("ueber 100 MB nur mit Bestaetigung")
+        }
+        XCTAssertTrue(big.contains("412 MB") && big.contains("„3. Vorlesung“") && big.contains("privat"), big)
+        guard case .confirm(let unknown) = RecordingDownloadPolicy.decide(title: "x", quality: "720p", size: nil, freeBytes: free) else {
+            return XCTFail("unbekannte Groesse nur mit Bestaetigung")
+        }
+        XCTAssertTrue(unknown.contains("unbekannt"), unknown)
+        guard case .confirm(let low) = RecordingDownloadPolicy.decide(title: "x", quality: "480p", size: 50_000_000, freeBytes: 1_020_000_000) else {
+            return XCTFail("wenig Platz: Warnung")
+        }
+        XCTAssertTrue(low.hasPrefix("Wenig Speicherplatz: Danach sind nur noch 970 MB frei."), low)
+        guard case .refuse(let full) = RecordingDownloadPolicy.decide(title: "x", quality: "1080p", size: 2_400_000_000, freeBytes: 2_000_000_000) else {
+            return XCTFail("passt nicht")
+        }
+        XCTAssertEqual(full, "Nicht genug Speicherplatz: Die Aufzeichnung braucht 2,4 GB, frei sind 2,0 GB.")
+        XCTAssertEqual(RecordingDownloadPolicy.decide(title: "x", quality: "480p", size: 10_000_000, freeBytes: nil), .start)
     }
 
-    func testOrphansOfDeselectedCourseOrRemovedVideo() {
-        let index = RecordingsIndex(courses: [
-            RecordingCourse(courseID: "c1", courseTitle: "Testfach A", status: .available, videos: [OpencastVideo(id: "v1", title: "Vorlesung 1")], lastChecked: start),
-            RecordingCourse(courseID: "c3", courseTitle: "Testfach C", status: .noOpencast, lastChecked: start),
-        ])
-        let files = [RecordingStoredFile(course: "c1", video: "v1", quality: "720p", partial: false),
-                     RecordingStoredFile(course: "c1", video: "v2", quality: "720p", partial: false),     // aus Opencast entfernt
-                     RecordingStoredFile(course: "c2", video: "v7", quality: "480p", partial: true),      // Kurs abgewaehlt
-                     RecordingStoredFile(course: "c3", video: "v8", quality: "480p", partial: false)]     // Kurs ohne Opencast
-        XCTAssertEqual(RecordingFilesLayout.orphans(files, index: index).map(\.video), ["v2", "v7", "v8"])
-        XCTAssertEqual(RecordingFilesLayout.orphans(files, index: RecordingsIndex()).count, 4)
+    func testFilesAndFormat() {
+        XCTAssertEqual(RecordingFiles.relativePath(courseID: "c-ana", videoID: "Xyzab-12345-6789", quality: "720p"), "c-ana/Xyzab-12345-6789-720p.mp4")
+        XCTAssertEqual(RecordingFiles.relativePath(courseID: "../c", videoID: "a/b", quality: "720p"), "_c/a_b-720p.mp4", "kein Pfad aus der Seite")
+        XCTAssertEqual(RecordingFiles.megabytes(412_400_000), "412 MB")
+        XCTAssertEqual(RecordingFiles.megabytes(1_250_000_000), "1,3 GB")
+        XCTAssertEqual(RecordingFiles.megabytes(20_000), "1 MB")
     }
 
-    func testSizeCacheForSevenDays() throws {
-        let u = URL(string: "https://oc.example.test/a/res0720.mp4")!
-        var cache = RecordingSizeCache()
-        XCTAssertNil(cache.size(for: u, now: start))
-        cache.set(412_300_000, for: u, now: start)
-        XCTAssertEqual(cache.size(for: u, now: start.addingTimeInterval(6 * 86400)), 412_300_000)
-        XCTAssertNil(cache.size(for: u, now: start.addingTimeInterval(7 * 86400)))           // nach 7 Tagen neu fragen
-        XCTAssertNil(cache.size(for: u, now: start.addingTimeInterval(-60)))                // Uhr zurueckgestellt
-        let b = URL(string: "https://oc.example.test/b.mp4")!
-        cache.set(nil, for: b, now: start)
-        XCTAssertEqual(cache.size(for: b, now: start), -1)                                   // unbekannt, aber gefragt
-        let back = try RecordingSizeCache.decode(cache.encoded())
-        XCTAssertEqual(back, cache)
-        cache.prune(now: start.addingTimeInterval(8 * 86400))
-        XCTAssertTrue(cache.entries.isEmpty)
-    }
-}
-
-final class RecordingWeeksTests: XCTestCase {
-    func testGroupedLikeWeekBlocks() throws {
-        guard case .videos(let v) = OpencastParser.parse(html: try fixture("media-index-videos.html"), status: 200) else { return XCTFail() }
-        let extra = OpencastVideo(id: "ohne", title: "Gastvortrag", created: day(2022, 5, 1))
-        let courses = [RecordingCourse(courseID: "c1", courseTitle: "Testfach Analysis", status: .available, videos: v, lastChecked: start),
-                       RecordingCourse(courseID: "c2", courseTitle: "Übung zu Testfach Analysis", status: .available, videos: [extra], lastChecked: start),
-                       RecordingCourse(courseID: "c3", courseTitle: "Testfach Physik", status: .noOpencast, lastChecked: start)]
-        let entries = RecordingWeeks.entries(courses, semesterStart: start)
-        let groups = RecordingWeeks.grouped(entries)
-        XCTAssertEqual(groups.map(\.week), [2, 3, nil])                                     // "Ohne Woche" zuletzt
-        // Woche 2: Ergaenzung (erstellt 2022) vor der Zentraluebung (2026)
-        XCTAssertEqual(groups[0].entries.map(\.video.id), ["Xyzab-12345-6789", "aaaaaaaa-0000-4000-8000-000000000002"])
-        XCTAssertEqual(groups[2].entries.map(\.id), ["c2|ohne"])
-        XCTAssertEqual(RecordingWeeks.counts(entries), [2: 2, 3: 1])
-        XCTAssertEqual(entries.first?.week.source, .title)
+    /// veraltete Fortsetzungsdaten blockieren nichts: andere Adresse, aelter als 3 Tage oder ohne Angaben -> frisch laden
+    func testStaleResumeDataIsNotUsed() {
+        let url = URL(string: "https://oc.example.test/720.mp4")!
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertTrue(RecordingResume.usable(savedURL: url.absoluteString, savedAt: now.addingTimeInterval(-3600), currentURL: url, now: now))
+        XCTAssertFalse(RecordingResume.usable(savedURL: "https://oc.example.test/neu.mp4", savedAt: now, currentURL: url, now: now))
+        XCTAssertFalse(RecordingResume.usable(savedURL: url.absoluteString, savedAt: now.addingTimeInterval(-4 * 86400), currentURL: url, now: now))
+        XCTAssertFalse(RecordingResume.usable(savedURL: url.absoluteString, savedAt: now.addingTimeInterval(3600), currentURL: url, now: now))
+        XCTAssertFalse(RecordingResume.usable(savedURL: nil, savedAt: now, currentURL: url, now: now))
     }
 }

@@ -127,6 +127,7 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// beim Stundenplan ab, bleiben die Dateien, der Lauf endet aber mit "Erneut anmelden" (`.needsLogin`).
 /// Am Ende jedes Laufs (auch eines gescheiterten: was bis dahin gelesen war, steht in der Datenbank) zaehlt
 /// `finishedRuns` hoch; offene Seiten laden dann neu (`ufReload`), wie nach einem Sync des PC-Servers.
+/// Nach dem Stundenplan kommen die Listen der Opencast-Aufzeichnungen (`recordings`, nur die Listen, nie ein Video).
 @MainActor
 final class StudIPSync: ObservableObject {
     static let base = URL(string: "https://studip.uni-hannover.de")!
@@ -151,6 +152,9 @@ final class StudIPSync: ObservableObject {
     }
 
     let root: URL
+    /// Opencast-Aufzeichnungen: Listen in derselben Datenbank, geladene Videos (nur auf Wunsch) unter
+    /// `root/Aufzeichnungen` ohne Backup
+    let recordings: RecordingLibrary
     private var index: [String: StudIPLocalEntry] = [:]
     /// Lokales Backend, in dessen Datenbank der Abgleich schreibt
     private let host: LocalBackendHost
@@ -171,6 +175,7 @@ final class StudIPSync: ObservableObject {
         self.clock = clock
         self.defaults = defaults
         self.support = support
+        recordings = RecordingLibrary(root: self.root.appendingPathComponent(RecordingFiles.folder, isDirectory: true), host: host)
         selectedCourses = Set(defaults.stringArray(forKey: "uniflow.studip.courses") ?? [])
         lastRun = defaults.object(forKey: "uniflow.studip.lastRun") as? Date
         lastSummary = defaults.string(forKey: "uniflow.studip.lastSummary")
@@ -249,6 +254,7 @@ final class StudIPSync: ObservableObject {
             for id in ids { try? FileManager.default.removeItem(at: cache.appendingPathComponent(LocalJournalName.safe(id) + ".pdf")) }
             AppPaths.removeThumbnails(fileIDs: ids, namespace: .local, root: support)
         }
+        await recordings.removeAll()                      // geladene Aufzeichnungen ebenso, die Listen bleiben
     }
 
     // MARK: Abgleich
@@ -387,6 +393,9 @@ final class StudIPSync: ObservableObject {
             entries = sortedEntries()                         // Dateien schon zeigen, waehrend der Stundenplan laedt
             // Stundenplan aus Stud.IP (S5); Fehler dort brechen den Datei-Abgleich nicht ab
             let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
+            // Aufzeichnungen (Opencast): je Kurs eine Seite; Fehler eines Kurses ueberspringen nur diesen, Kurse ohne
+            // Opencast sind kein Fehler; Videos laedt nur der Nutzer. Nach abgelaufener Sitzung nicht mehr fragen
+            let rec = timetable.sessionExpired ? nil : await recordings.refresh(client: client, courses: chosen) { phase = .running($0) }
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
             var parts = ["\(loaded) neu/geändert", "\(remote.count - notDownloadable - download.count) unverändert"]
             if notDownloadable > 0 { parts.append("\(notDownloadable) nicht herunterladbar") }
@@ -394,11 +403,12 @@ final class StudIPSync: ObservableObject {
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
             parts += timetable.summary
+            parts += rec?.summary ?? []
             finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
             await log(database, started: started, ok: true, newFiles: loaded,
                       message: StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0))
-            // Sitzung erst beim Stundenplan abgelaufen: Dateien sind da, die Anmeldung muss trotzdem neu
-            phase = timetable.sessionExpired ? .needsLogin : .idle
+            // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu
+            phase = timetable.sessionExpired || rec?.sessionExpired == true ? .needsLogin : .idle
         } catch StudIPError.sessionExpired {
             entries = sortedEntries()
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(StudIPError.sessionExpired.description))

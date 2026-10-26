@@ -2,240 +2,374 @@ import XCTest
 import UniFlowCore
 @testable import UniFlow
 
-/// Aufzeichnungen in der App: Ablage der geladenen Videos (Pfade, kein Backup), Erkennen geladener und
-/// abgebrochener Downloads, Wiedergabe-Auswahl mit lokaler Datei, gemerkte Stelle. Ohne Netz: kein Download und kein
-/// Streaming in diesen Tests (siehe Bericht).
+/// Opencast-Aufzeichnungen in der App ohne PC: Abruf im Stud.IP-Abgleich (feste, erfundene Seiten aus
+/// packages/shared-contracts/fixtures/opencast, kein Netz) in die lokale Datenbank des Geraets, Ordnung nach Fach und
+/// Lehrwoche, Laden nur auf Wunsch (die Downloads selbst ohne Netz: der Delegat wird direkt aufgerufen), Ablage im
+/// Stud.IP-Ordner ohne Backup, Fortsetzungsdaten, "Dateien loeschen", gemerkte Stelle, passende Aufzeichnung.
 @MainActor
 final class RecordingsAppTests: XCTestCase {
-    private var root: URL!
 
-    override func setUp() async throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent("recordings-test-\(UUID().uuidString)", isDirectory: true)
+    // MARK: Umgebung
+
+    private struct Device {
+        let container: URL
+        let host: LocalBackendHost
+        let studipRoot: URL
+        var support: URL { container.appendingPathComponent("Library/Application Support/UniFlow", isDirectory: true) }
     }
 
-    override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: root)
+    private static let clock = UniFlowClock.fixed(berlin: "2026-11-10T12:00:00")!
+
+    private func device() throws -> Device {
+        let c = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-oc-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: c, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: c) }
+        let host = LocalBackendHost(directory: c.appendingPathComponent("Library/Application Support/UniFlow/db", isDirectory: true),
+                                    clock: Self.clock,
+                                    files: LocalFiles(container: c, dataDirectory: "Library/Application Support/UniFlow", tools: AppDocumentTools()))
+        return Device(container: c, host: host, studipRoot: c.appendingPathComponent("Library/Application Support/StudIP", isDirectory: true))
+    }
+
+    private func defaults() throws -> UserDefaults {
+        let suite = "uniflow-oc-\(UUID().uuidString)"
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        return try XCTUnwrap(UserDefaults(suiteName: suite))
+    }
+
+    private func sync(_ dev: Device) throws -> StudIPSync {
+        StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+    }
+
+    private static func fixture(_ name: String) throws -> String {
+        // .../apps/apple/UniFlowTests/RecordingsAppTests.swift -> Repository-Wurzel
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<4 { url.deleteLastPathComponent() }
+        return try String(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/opencast/\(name)"), encoding: .utf8)
+    }
+
+    private static func page(_ html: String, status: Int = 200) -> HTTPReply {
+        HTTPReply(status: status, contentType: "text/html; charset=UTF-8", body: Data(html.utf8))
+    }
+
+    /// Stud.IP mit festen Antworten: zwei Kurse (Analysis mit Datei und Aufzeichnungen, Programmierung ohne Opencast)
+    private final class FakeStudIP: StudIPTransport, @unchecked Sendable {
+        private let lock = NSLock()
+        private var routes: [String: HTTPReply] = [:]
+        private var log: [URL] = []
+
+        var requested: [URL] { lock.lock(); defer { lock.unlock() }; return log }
+
+        func set(_ path: String, _ reply: HTTPReply) { lock.lock(); routes[path] = reply; lock.unlock() }
+
+        func json(_ path: String, _ text: String) {
+            set(path, HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(text.utf8)))
+        }
+
+        /// wie `StudIPSync.base` (hier ohne MainActor)
+        private static let base = "https://studip.uni-hannover.de"
+
+        func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+            let key = url.absoluteString.replacingOccurrences(of: Self.base, with: "")
+                .replacingOccurrences(of: "%5B", with: "[").replacingOccurrences(of: "%5D", with: "]")
+            return reply(url, key)
+        }
+
+        private func reply(_ url: URL, _ key: String) -> HTTPReply {
+            lock.lock(); defer { lock.unlock() }
+            log.append(url)
+            return routes[key] ?? HTTPReply(status: 404, contentType: "application/vnd.api+json", body: Data(#"{"errors":[]}"#.utf8))
+        }
+    }
+
+    private func fakeStudIP() throws -> FakeStudIP {
+        let t = FakeStudIP()
+        t.json("/jsonapi.php/v1/users/me", #"{"data":{"id":"u1","type":"users"}}"#)
+        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+            {"data":[{"id":"c-ana","type":"courses","attributes":{"title":"Testanalysis I"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
+                     {"id":"c-prog","type":"courses","attributes":{"title":"Testprogrammierung"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
+             "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}
+            """#)
+        for c in ["c-ana", "c-prog"] {
+            t.json("/jsonapi.php/v1/courses/\(c)/folders?page[limit]=200", #"{"data":[{"id":"r-\#(c)","attributes":{"folder-type":"RootFolder","name":""}}]}"#)
+            t.json("/jsonapi.php/v1/folders/r-\(c)/folders?page[limit]=200", #"{"data":[]}"#)
+        }
+        t.json("/jsonapi.php/v1/folders/r-c-ana/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"f-orga","attributes":{"name":"Organisatorisches.pdf","filesize":3,"mime-type":"application/pdf","chdate":"2026-10-13T10:00:00+02:00","is-downloadable":false}},
+                     {"id":"f-blatt2","attributes":{"name":"Blatt02.pdf","filesize":3,"mime-type":"application/pdf","chdate":"2026-10-23T10:00:00+02:00","is-downloadable":false}}]}
+            """#)
+        t.json("/jsonapi.php/v1/folders/r-c-prog/file-refs?page[limit]=500", #"""
+            {"data":[{"id":"f-prog","attributes":{"name":"Folien 01.pdf","filesize":3,"mime-type":"application/pdf","chdate":"2026-10-14T10:00:00+02:00","is-downloadable":false}}]}
+            """#)
+        t.set("/plugins.php/opencastpluginluh/media/index?cid=c-ana", Self.page(try Self.fixture("media-index-videos.html")))
+        t.set("/plugins.php/opencastpluginluh/media/index?cid=c-prog", Self.page(try Self.fixture("media-index-no-plugin.html"), status: 500))
+        return t
+    }
+
+    private func client(_ t: FakeStudIP) -> StudIPClient {
+        StudIPClient(base: StudIPSync.base, transport: t, pauseMillis: 0, retry: UniRetry(attempts: 1, delayNanos: { _ in 0 }))
+    }
+
+    private func moduleID(_ dev: Device, _ name: String) async throws -> Int {
+        let id = try await dev.host.backend().context.database.scalar("SELECT id FROM modules WHERE name=?", [.text(name)])?.int
+        return try XCTUnwrap(id, name)
+    }
+
+    /// Module wie beim ersten Lesen von "Meine Module" (`ensure_modules`)
+    private func ensureModules(_ dev: Device) async throws {
+        let backend = try await dev.host.backend()
+        let clock = backend.context.clock
+        try await backend.context.database.transaction { try LocalModules.ensureModules($0, clock: clock) }
+    }
+
+    private func waitUntil(_ timeout: Double = 5, _ condition: () async -> Bool) async -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        while Date() < end {
+            if await condition() { return true }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        return await condition()
     }
 
     private func excluded(_ url: URL) throws -> Bool {
         try url.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup ?? false
     }
 
-    func testFolderUnderApplicationSupportAndNotInBackup() throws {
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        XCTAssertEqual(StudIPSync.recordingsFolder(support: support).path, support.path + "/UniFlow/recordings")
-
-        let folder = root.appendingPathComponent("files/c1", isDirectory: true)
-        try RecordingLibrary.prepareFolder(folder)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
-        XCTAssertTrue(try excluded(folder))
-
-        let file = folder.appendingPathComponent("v1-720p.mp4")
-        try Data("mp4".utf8).write(to: file)
-        XCTAssertFalse(try excluded(file))
-        try RecordingLibrary.excludeFromBackup(file)
-        XCTAssertTrue(try excluded(file))
+    /// Abgleich mit festen Antworten, Module angelegt; Rueckgabe: Abgleich, Transport, Analysis-Modul
+    private func synced(_ dev: Device, _ t: FakeStudIP? = nil) async throws -> (StudIPSync, FakeStudIP, Int) {
+        let stud = try t ?? fakeStudIP()
+        let s = try sync(dev)
+        await s.run(client: client(stud))
+        try await ensureModules(dev)
+        return (s, stud, try await moduleID(dev, "Testanalysis I"))
     }
 
-    func testFilePathsAndRescan() throws {
-        let lib = RecordingLibrary(root: root)
-        let video = "aaaaaaaa-0000-4000-8000-000000000001"
-        let target = lib.fileURL(course: "c1", video: video, quality: "720p")
-        XCTAssertEqual(target.path, root.path + "/files/c1/\(video)-720p.mp4")
-        XCTAssertTrue(lib.qualities(course: "c1", video: video).isEmpty)
+    // MARK: Abruf im Stud.IP-Abgleich
 
-        try RecordingLibrary.prepareFolder(target.deletingLastPathComponent())
-        try Data("mp4".utf8).write(to: target)
-        try Data("resume".utf8).write(to: root.appendingPathComponent(RecordingFilesLayout.resumeDataPath(courseID: "c1", videoID: "Xyzab-12345-6789", quality: "480p")))
-        lib.rescan()
-        XCTAssertEqual(lib.qualities(course: "c1", video: video), ["720p"])
-        XCTAssertTrue(lib.resumable.contains(RecordingLibrary.key(course: "c1", video: "Xyzab-12345-6789", quality: "480p")))
-        XCTAssertTrue(lib.qualities(course: "c1", video: "Xyzab-12345-6789").isEmpty)    // nur angefangen, nicht geladen
+    func testSyncStoresRecordingsBySubjectAndWeekWithoutLoadingVideos() async throws {
+        let dev = try device()
+        let (s, stud, ana) = try await synced(dev)
+        XCTAssertEqual(s.phase, .idle)
+        XCTAssertTrue(s.lastSummary?.contains("3 neue Aufzeichnungen") ?? false, s.lastSummary ?? "")
+        XCTAssertFalse(s.lastSummary?.contains("Aufzeichnungen von") ?? true, "Kurs ohne Opencast ist kein Fehler: \(s.lastSummary ?? "")")
 
-        // geladene Datei vor Stream
-        let v = OpencastVideo(id: video, title: "3. Vorlesung", downloads: [
-            OpencastDownload(quality: "1080p", height: 1080, url: URL(string: "https://oc.example.test/1080.mp4")!),
-            OpencastDownload(quality: "720p", height: 720, url: URL(string: "https://oc.example.test/720.mp4")!),
-        ])
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: lib.qualities(course: "c1", video: video)), .local(quality: "720p"))
+        let blocks = await s.recordings.blocks(moduleID: ana)
+        XCTAssertEqual(blocks.map(\.label), ["Woche 2 · 19.10. – 25.10.", "Woche 4 · 02.11. – 08.11.", "Ältere Unterlagen"])
+        XCTAssertEqual(blocks.flatMap(\.entries).map(\.video.title),
+                       ["Zentralübung 02", "3. Vorlesung vom 06.11.2026 – Grenzwerte & Folgen", "02. Vorlesungswoche - Ergänzung zu Teil 2 (Video aus SoSe 21)"])
+        let counts = await s.recordings.weekCounts(moduleID: ana)
+        XCTAssertEqual(counts, [2: 1, 4: 1, -1: 1])
+        let prog = try await moduleID(dev, "Testprogrammierung")
+        let progBlocks = await s.recordings.blocks(moduleID: prog)
+        XCTAssertTrue(progBlocks.isEmpty)
 
-        lib.remove(course: "c1", video: video, quality: "720p")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
-        XCTAssertTrue(lib.qualities(course: "c1", video: video).isEmpty)
-        XCTAssertEqual(RecordingPlayback.source(for: v, downloaded: lib.qualities(course: "c1", video: video)),
-                       .stream(URL(string: "https://oc.example.test/720.mp4")!, quality: "720p"))
+        // Laden nur auf Wunsch: keine Anfrage an den Videoserver, kein Download gestartet, keine Datei
+        XCTAssertTrue(stud.requested.allSatisfy { $0.host == StudIPSync.base.host && $0.pathExtension != "mp4" })
+        XCTAssertEqual(stud.requested.filter { $0.path.hasSuffix("/media/index") }.count, 2)
+        XCTAssertTrue(s.recordings.states.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: s.recordings.root.path))
+
+        // zweiter Abgleich: nichts Neues, Programmierung (ohne Opencast) erst nach 7 Tagen wieder
+        await s.run(client: client(stud))
+        XCTAssertFalse(s.lastSummary?.contains("neue Aufzeichnung") ?? true, s.lastSummary ?? "")
+        XCTAssertEqual(stud.requested.filter { $0.path.hasSuffix("/media/index") }.count, 3)
     }
 
-    func testRemovingStudIPDownloadsAlsoRefreshesLibrary() async throws {
-        let lib = RecordingLibrary(root: root)
-        let target = lib.fileURL(course: "c2", video: "v9", quality: "480p")
-        try RecordingLibrary.prepareFolder(target.deletingLastPathComponent())
-        try Data("mp4".utf8).write(to: target)
-        lib.rescan()
-        XCTAssertEqual(lib.qualities(course: "c2", video: "v9"), ["480p"])
-        try FileManager.default.removeItem(at: root.appendingPathComponent("files"))
-        NotificationCenter.default.post(name: .uniflowRecordingFilesChanged, object: nil)
-        for _ in 0..<20 where !lib.qualities(course: "c2", video: "v9").isEmpty { try await Task.sleep(nanoseconds: 50_000_000) }
-        XCTAssertTrue(lib.qualities(course: "c2", video: "v9").isEmpty)
+    func testUnreadableCourseIsSkippedAndLoginPageMeansReLogin() async throws {
+        let dev = try device()
+        let stud = try fakeStudIP()
+        // Wartungsseite, im Kursueberblick aber der Reiter: nicht lesbar, Dateien und Stundenplan kommen trotzdem
+        stud.set("/plugins.php/opencastpluginluh/media/index?cid=c-ana", Self.page("<html><body>Wartungsarbeiten</body></html>", status: 503))
+        stud.set("/dispatch.php/course/overview?cid=c-ana", Self.page(#"<a href="/plugins.php/opencastpluginluh/media/index?cid=c-ana">Aufzeichnungen</a>"#))
+        let (s, _, ana) = try await synced(dev, stud)
+        XCTAssertEqual(s.phase, .idle)
+        XCTAssertTrue(s.lastSummary?.contains("Aufzeichnungen von 1 Kurs nicht lesbar") ?? false, s.lastSummary ?? "")
+        let empty = await s.recordings.blocks(moduleID: ana)
+        XCTAssertTrue(empty.isEmpty)
+
+        // Anmeldeseite statt der Liste: Sitzung abgelaufen, die Dateien bleiben
+        stud.set("/plugins.php/opencastpluginluh/media/index?cid=c-ana",
+                 Self.page(#"<form action="/dispatch.php/login" method="post"><input type="password" name="password"></form>"#))
+        await s.run(client: client(stud))
+        XCTAssertEqual(s.phase, .needsLogin)
+        let files = try await dev.host.backend().context.database.scalar("SELECT COUNT(*) FROM files")?.int
+        XCTAssertEqual(files, 3)
     }
 
-    func testRememberedPosition() {
-        let lib = RecordingLibrary(root: root)
-        let id = "test-\(UUID().uuidString)"
-        XCTAssertNil(lib.position(video: id))
-        lib.savePosition(1234.5, video: id)
-        XCTAssertEqual(lib.position(video: id), 1234.5)
-        lib.savePosition(.infinity, video: id)                                                 // ungueltig: bleibt
-        XCTAssertEqual(lib.position(video: id), 1234.5)
-        XCTAssertEqual(RecordingPlayback.resumePosition(saved: lib.position(video: id), duration: 5339), 1234.5)
-        var all = UserDefaults.standard.dictionary(forKey: "uniflow.recordings.positions") ?? [:]
-        all[id] = nil
-        UserDefaults.standard.set(all, forKey: "uniflow.recordings.positions")
+    // MARK: Passende Aufzeichnung
+
+    func testMatchOnlyForSameSubjectAndWeek() async throws {
+        let dev = try device()
+        let (s, _, _) = try await synced(dev)
+        let sheet = await s.recordings.match(fileID: "f-blatt2", text: "")
+        XCTAssertEqual(sheet?.reason, .sameWeek(2))
+        XCTAssertEqual(sheet?.entries.map(\.video.title), ["Zentralübung 02"])
+        let other = await s.recordings.match(fileID: "f-prog", text: "Grenzwerte & Folgen")
+        XCTAssertNil(other, "anderes Fach: nie")
+        let orga = await s.recordings.match(fileID: "f-orga", text: "")
+        XCTAssertNil(orga, "Woche 1 ohne Aufzeichnung, kein Thema: nichts")
     }
 
-    // MARK: Download-Zustand (ohne Netz: Tasks werden nie gestartet, der Delegat wird direkt aufgerufen)
+    // MARK: Laden, Ablage, Entfernen
 
-    private func waitForState(_ lib: RecordingLibrary, _ key: (String, String, String)) async throws {
-        for _ in 0..<40 where lib.state(course: key.0, video: key.1, quality: key.2) == nil { try await Task.sleep(nanoseconds: 25_000_000) }
+    private func entry(_ s: StudIPSync, _ ana: Int, _ title: String) async throws -> OpencastEntry {
+        let blocks = await s.recordings.blocks(moduleID: ana)
+        return try XCTUnwrap(blocks.flatMap(\.entries).first { $0.video.title == title }, title)
     }
 
-    func testStaleResumeDataIsDiscardedWhenResumeFails() async throws {
-        let lib = RecordingLibrary(root: root)
-        let target = lib.fileURL(course: "c1", video: "v1", quality: "720p")
-        let resume = root.appendingPathComponent(RecordingFilesLayout.resumeDataPath(courseID: "c1", videoID: "v1", quality: "720p"))
-        try RecordingLibrary.prepareFolder(target.deletingLastPathComponent())
-        try Data("alte Fortsetzungsdaten".utf8).write(to: resume)
-        lib.rescan()
-        XCTAssertTrue(lib.isResumable(course: "c1", video: "v1", quality: "720p"))
+    private func job(_ lib: RecordingLibrary, _ e: OpencastEntry, _ quality: String) throws -> RecordingDownloadDelegate.Job {
+        let m = try XCTUnwrap(e.video.media(quality))
+        return .init(key: e.id, courseID: e.courseID, videoID: e.video.id, quality: quality, url: m.url,
+                     target: lib.target(e, quality: quality), resume: lib.resumeURL(e, quality: quality), previous: lib.localFile(e)?.url)
+    }
 
+    func testFinishedDownloadIsStoredWithoutBackupAndCanBeRemoved() async throws {
+        let dev = try device()
+        let (s, _, ana) = try await synced(dev)
+        let lib = s.recordings
+        let e = try await entry(s, ana, "Zentralübung 02")
+        XCTAssertNil(lib.localFile(e))
+
+        // wie didFinishDownloadingTo: Datei aus dem Temp-Ordner des Systems an ihren Platz
+        let j = try job(lib, e, "480p")
+        try RecordingLibrary.prepareFolder(j.target.deletingLastPathComponent())
+        try RecordingLibrary.prepareFolder(lib.partialFolder)
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent("oc-\(UUID().uuidString).tmp")
+        try Data("mp4".utf8).write(to: temp)
+        lib.delegate.register(901, job: j)
+        lib.delegate.finish(901, location: temp, status: 200, contentType: "video/mp4")
+        var loaded: OpencastEntry?
+        let ok = await waitUntil {
+            loaded = await lib.reload(e)
+            return loaded?.localPath != nil
+        }
+        XCTAssertTrue(ok)
+        let le = try XCTUnwrap(loaded)
+        XCTAssertEqual(le.localQuality, "480p")
+        XCTAssertEqual(le.localPath, "Library/Application Support/StudIP/Aufzeichnungen/c-ana/aaaaaaaa-0000-4000-8000-000000000002-480p.mp4",
+                       "relativ zum Container, im Stud.IP-Ordner")
+        let file = try XCTUnwrap(lib.localFile(le))
+        XCTAssertTrue(try excluded(file.url), "nicht im iCloud-Backup")
+        XCTAssertTrue(try excluded(dev.studipRoot), "der ganze Stud.IP-Ordner ohne Backup")
+        XCTAssertEqual(RecordingPlayback.source(for: le.video, local: lib.localFile(le)), .local(file.url, quality: "480p"))
+
+        await lib.remove(le)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.url.path))
+        let removed = await lib.reload(e)
+        XCTAssertNil(removed?.localPath)
+        XCTAssertNotNil(removed, "die Liste bleibt")
+    }
+
+    func testWebPageInsteadOfVideoIsNotStored() async throws {
+        let dev = try device()
+        let (s, _, ana) = try await synced(dev)
+        let lib = s.recordings
+        let e = try await entry(s, ana, "Zentralübung 02")
+        let j = try job(lib, e, "720p")
+        try RecordingLibrary.prepareFolder(j.target.deletingLastPathComponent())
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent("oc-\(UUID().uuidString).tmp")
+        try Data("<html>Anmeldung</html>".utf8).write(to: temp)
+        lib.delegate.register(902, job: j)
+        lib.delegate.finish(902, location: temp, status: 200, contentType: "text/html; charset=utf-8")
+        let failed = await waitUntil { lib.state(e) != nil }
+        XCTAssertTrue(failed)
+        XCTAssertEqual(lib.state(e), .failed("Statt des Videos kam eine Webseite (vermutlich Anmeldung)."))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: j.target.path))
+        let after = await lib.reload(e)
+        XCTAssertNil(after?.localPath)
+    }
+
+    /// Pruefpunkt: veraltete Fortsetzungsdaten blockieren nichts; ohne neue Daten werden die alten verworfen
+    func testStaleResumeDataIsDiscarded() async throws {
+        let dev = try device()
+        let (s, _, ana) = try await synced(dev)
+        let lib = s.recordings
+        let e = try await entry(s, ana, "3. Vorlesung vom 06.11.2026 – Grenzwerte & Folgen")
+        let j = try job(lib, e, "720p")
+        try RecordingLibrary.prepareFolder(lib.partialFolder)
+
+        // neue Fortsetzungsdaten (Verbindung abgerissen): gespeichert mit Adresse und Zeit, ohne Backup
         let session = URLSession(configuration: .ephemeral)
         defer { session.invalidateAndCancel() }
-        let task = session.downloadTask(with: URL(string: "https://oc.example.test/v1-720.mp4")!)   // nie gestartet
-        let key = RecordingLibrary.key(course: "c1", video: "v1", quality: "720p")
-        lib.delegate.register(task.taskIdentifier, key: key, target: target, resume: resume)
-        // fortgesetzter Download scheitert ohne neue Fortsetzungsdaten (z. B. 416 oder Temp-Datei weg)
-        lib.delegate.urlSession(session, task: task, didCompleteWithError: URLError(.cannotParseResponse))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: resume.path))
-        try await waitForState(lib, ("c1", "v1", "720p"))
-        XCTAssertEqual(lib.state(course: "c1", video: "v1", quality: "720p"), .failed("Download unterbrochen."))
-        XCTAssertFalse(lib.isResumable(course: "c1", video: "v1", quality: "720p"))           // "Erneut" startet frisch
-        XCTAssertEqual(lib.pendingQuality(course: "c1", video: "v1", qualities: ["1080p", "720p", "480p"]), "720p")
-        lib.remove(course: "c1", video: "v1", quality: "720p")                                  // "Verwerfen"
-        XCTAssertNil(lib.state(course: "c1", video: "v1", quality: "720p"))
-        XCTAssertNil(lib.pendingQuality(course: "c1", video: "v1", qualities: ["1080p", "720p", "480p"]))
-    }
-
-    func testNewResumeDataIsKept() async throws {
-        let lib = RecordingLibrary(root: root)
-        let target = lib.fileURL(course: "c1", video: "v2", quality: "1080p")
-        let resume = root.appendingPathComponent(RecordingFilesLayout.resumeDataPath(courseID: "c1", videoID: "v2", quality: "1080p"))
-        try RecordingLibrary.prepareFolder(target.deletingLastPathComponent())
-        let session = URLSession(configuration: .ephemeral)
-        defer { session.invalidateAndCancel() }
-        let task = session.downloadTask(with: URL(string: "https://oc.example.test/v2-1080.mp4")!)
-        lib.delegate.register(task.taskIdentifier, key: RecordingLibrary.key(course: "c1", video: "v2", quality: "1080p"), target: target, resume: resume)
+        let task = session.downloadTask(with: j.url)                                       // nie gestartet
+        lib.delegate.register(task.taskIdentifier, job: j)
         lib.delegate.urlSession(session, task: task, didCompleteWithError: URLError(.networkConnectionLost, userInfo: [NSURLSessionDownloadTaskResumeData: Data("neu".utf8)]))
-        XCTAssertEqual(try Data(contentsOf: resume), Data("neu".utf8))
-        XCTAssertTrue(try excluded(resume))
-        try await waitForState(lib, ("c1", "v2", "1080p"))
-        XCTAssertTrue(lib.isResumable(course: "c1", video: "v2", quality: "1080p"))
-        // die Zeile zeigt den 1080p-Rest, nicht die Standardfassung 720p
-        XCTAssertEqual(lib.pendingQuality(course: "c1", video: "v2", qualities: ["1080p", "720p", "480p"]), "1080p")
-        if case .failed(let m)? = lib.state(course: "c1", video: "v2", quality: "1080p") { XCTAssertTrue(m.contains("Fortsetzen")) } else { XCTFail("kein Fehlerzustand") }
+        XCTAssertEqual(try Data(contentsOf: j.resume), Data("neu".utf8))
+        XCTAssertTrue(try excluded(j.resume))
+        XCTAssertTrue(lib.hasResumeData(e, quality: "720p"))
+        XCTAssertTrue(RecordingLibrary.resumeUsable(j.resume, url: j.url))
+        XCTAssertFalse(RecordingLibrary.resumeUsable(j.resume, url: URL(string: "https://oc.example.test/andere.mp4")!), "andere Adresse")
+        XCTAssertFalse(RecordingLibrary.resumeUsable(j.resume, url: j.url, now: Date().addingTimeInterval(4 * 86400)), "zu alt")
+        let failed = await waitUntil { lib.state(e) != nil }
+        XCTAssertTrue(failed)
+        XCTAssertEqual(lib.state(e), .failed("Download unterbrochen. „Fortsetzen“ lädt weiter."))
+
+        // fortgesetzter Download scheitert ohne neue Daten (Temp-Datei weg, Server ohne Range): alte Daten weg
+        let again = session.downloadTask(with: j.url)
+        lib.delegate.register(again.taskIdentifier, job: j)
+        lib.delegate.urlSession(session, task: again, didCompleteWithError: URLError(.cannotParseResponse))
+        XCTAssertFalse(lib.hasResumeData(e, quality: "720p"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecordingLibrary.resumeInfoURL(j.resume).path))
+        _ = await waitUntil { lib.state(e) == .failed("Download unterbrochen.") }
+        XCTAssertEqual(lib.state(e), .failed("Download unterbrochen."))
+        await lib.remove(e)                                                                  // "Verwerfen"
+        XCTAssertNil(lib.state(e))
     }
 
-    func testPendingQualityAcrossVersions() {
-        let k = { (q: String) in RecordingLibrary.key(course: "c", video: "v", quality: q) }
-        let qs = ["1080p", "720p", "480p"]
-        XCTAssertNil(RecordingLibrary.pendingQuality(course: "c", video: "v", qualities: qs, states: [:], resumable: []))
-        XCTAssertEqual(RecordingLibrary.pendingQuality(course: "c", video: "v", qualities: qs, states: [k("1080p"): .running(0.4)], resumable: []), "1080p")
-        // laufend vor abgebrochen
-        XCTAssertEqual(RecordingLibrary.pendingQuality(course: "c", video: "v", qualities: qs,
-                                                       states: [k("1080p"): .paused, k("480p"): .running(nil)], resumable: [k("720p")]), "480p")
-        XCTAssertEqual(RecordingLibrary.pendingQuality(course: "c", video: "v", qualities: qs, states: [:], resumable: [k("480p")]), "480p")
-        // anderes Video zaehlt nicht
-        XCTAssertNil(RecordingLibrary.pendingQuality(course: "c", video: "w", qualities: qs, states: [k("720p"): .running(0.1)], resumable: [k("720p")]))
+    func testRemoveDownloadsAlsoRemovesRecordingsButKeepsTheLists() async throws {
+        let dev = try device()
+        let (s, _, ana) = try await synced(dev)
+        let lib = s.recordings
+        let e = try await entry(s, ana, "Zentralübung 02")
+        let j = try job(lib, e, "480p")
+        try RecordingLibrary.prepareFolder(j.target.deletingLastPathComponent())
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent("oc-\(UUID().uuidString).tmp")
+        try Data("mp4".utf8).write(to: temp)
+        lib.delegate.register(904, job: j)
+        lib.delegate.finish(904, location: temp, status: 200, contentType: "video/mp4")
+        _ = await waitUntil { await lib.reload(e)?.localPath != nil }
+
+        await s.removeDownloads()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: lib.root.path))
+        let after = await lib.reload(e)
+        XCTAssertNil(after?.localPath)
+        let blocks = await lib.blocks(moduleID: ana)
+        XCTAssertEqual(blocks.flatMap(\.entries).count, 3)
     }
 
-    func testServerAnswersAndProgressThrottle() {
-        XCTAssertNil(RecordingDownloadDelegate.failure(status: 200, contentType: "video/mp4"))
-        XCTAssertNil(RecordingDownloadDelegate.failure(status: 206, contentType: nil))
-        XCTAssertEqual(RecordingDownloadDelegate.failure(status: 403, contentType: "text/html"), "Der Videoserver verlangt eine Anmeldung (HTTP 403).")
-        XCTAssertEqual(RecordingDownloadDelegate.failure(status: 416, contentType: nil), "Der Videoserver antwortet mit HTTP 416.")
-        XCTAssertEqual(RecordingDownloadDelegate.failure(status: 200, contentType: "text/html; charset=utf-8"), "Statt des Videos kam eine Webseite (vermutlich Anmeldung).")
-
-        let t0 = Date(timeIntervalSince1970: 1_000_000)
-        XCTAssertTrue(RecordingDownloadDelegate.shouldReport(last: nil, lastAt: nil, fraction: 0.001, now: t0))          // erster Rueckruf
-        XCTAssertFalse(RecordingDownloadDelegate.shouldReport(last: 0.10, lastAt: t0, fraction: 0.105, now: t0.addingTimeInterval(0.1)))
-        XCTAssertTrue(RecordingDownloadDelegate.shouldReport(last: 0.10, lastAt: t0, fraction: 0.11, now: t0.addingTimeInterval(0.1)))   // 1 %
-        XCTAssertTrue(RecordingDownloadDelegate.shouldReport(last: 0.10, lastAt: t0, fraction: 0.101, now: t0.addingTimeInterval(0.6)))  // 0,5 s
-        XCTAssertTrue(RecordingDownloadDelegate.shouldReport(last: 0.995, lastAt: t0, fraction: 1, now: t0))                            // Ende
-        XCTAssertFalse(RecordingDownloadDelegate.shouldReport(last: nil, lastAt: t0, fraction: nil, now: t0.addingTimeInterval(5)))    // Groesse unbekannt
-        // 10 000 Rueckrufe ueber 0 … 100 % in 2 s ergeben hoechstens gut 100 Meldungen
-        var last: Double?, lastAt: Date?, reports = 0
-        for i in 0...10_000 {
-            let f = Double(i) / 10_000, now = t0.addingTimeInterval(Double(i) * 0.0002)
-            if RecordingDownloadDelegate.shouldReport(last: last, lastAt: lastAt, fraction: f, now: now) { reports += 1; last = f; lastAt = now }
-        }
-        XCTAssertLessThanOrEqual(reports, 110)
+    func testRememberedPositionLivesInTheDatabase() async throws {
+        let dev = try device()
+        let (s, _, ana) = try await synced(dev)
+        let e = try await entry(s, ana, "3. Vorlesung vom 06.11.2026 – Grenzwerte & Folgen")
+        XCTAssertNil(e.position)
+        await s.recordings.savePosition(e, seconds: 1234.5)
+        await s.recordings.savePosition(e, seconds: .infinity)                                // ungueltig: bleibt
+        let later = await s.recordings.reload(e)
+        XCTAssertEqual(later?.position, 1234.5)
+        XCTAssertEqual(RecordingPlayback.resumePosition(saved: later?.position, duration: Double(e.video.duration ?? 0)), 1234.5)
+        // ein neuer Abgleich behaelt die Stelle
+        await s.run(client: client(try fakeStudIP()))
+        let synced = await s.recordings.reload(e)
+        XCTAssertEqual(synced?.position, 1234.5)
     }
 
-    func testOrphansShownAndRemoved() throws {
-        let lib = RecordingLibrary(root: root)
-        let keep = lib.fileURL(course: "c1", video: "v1", quality: "720p")
-        let gone = lib.fileURL(course: "c1", video: "v2", quality: "480p")
-        let deselected = lib.fileURL(course: "c9", video: "v5", quality: "720p")
-        for u in [keep, gone, deselected] {
-            try RecordingLibrary.prepareFolder(u.deletingLastPathComponent())
-            try Data(count: 1_500_000).write(to: u)
-        }
-        try Data("r".utf8).write(to: root.appendingPathComponent(RecordingFilesLayout.resumeDataPath(courseID: "c9", videoID: "v6", quality: "1080p")))
-        lib.rescan()
-        let index = RecordingsIndex(courses: [RecordingCourse(courseID: "c1", courseTitle: "Testfach A", status: .available,
-                                                              videos: [OpencastVideo(id: "v1", title: "Vorlesung 1")], lastChecked: Date())])
-        let orphans = lib.orphans(in: index)
-        XCTAssertEqual(Set(orphans.map(\.video)), ["v2", "v5", "v6"])
-        XCTAssertEqual(lib.bytes(orphans), 3_000_001)
-        lib.removeOrphans(in: index)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: keep.path))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: gone.path))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: deselected.path))
-        XCTAssertTrue(lib.orphans(in: index).isEmpty)
-        XCTAssertEqual(lib.qualities(course: "c1", video: "v1"), ["720p"])
+    func testOutcomeSummary() {
+        XCTAssertEqual(RecordingLibrary.Outcome(result: OpencastStoreResult(newVideos: 1, videos: 4)).summary, ["1 neue Aufzeichnung"])
+        XCTAssertEqual(RecordingLibrary.Outcome(result: OpencastStoreResult(newVideos: 0, videos: 4)).summary, [])
+        XCTAssertEqual(RecordingLibrary.Outcome(result: OpencastStoreResult(newVideos: 0, videos: 0), failedCourses: 2).summary,
+                       ["Aufzeichnungen von 2 Kursen nicht lesbar"])
+        XCTAssertEqual(RecordingLibrary.Outcome(result: nil, unreachable: true).summary,
+                       ["Aufzeichnungen nicht gespeichert", "Aufzeichnungen: Stud.IP nicht erreichbar"])
     }
 
-    // MARK: Kein Stud.IP-Abgleich in Tests
-
-    func testNoAutomaticStudIPSyncUnderXCTest() async throws {
-        XCTAssertTrue(StudIPSync.isUnderTest())                                                // dieser Lauf
+    func testAutomaticSyncNeverRunsUnderXCTest() throws {
+        XCTAssertTrue(StudIPSync.isUnderTest())
         XCTAssertFalse(StudIPSync.automaticRunAllowed())
-        let suite = "recordings-test-\(UUID().uuidString)"
-        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { d.removePersistentDomain(forName: suite) }
+        XCTAssertFalse(StudIPSync.isUnderTest(environment: [:]))
+        let d = try defaults()
         XCTAssertTrue(StudIPSync.automaticRunAllowed(environment: [:], defaults: d))
-        XCTAssertFalse(StudIPSync.automaticRunAllowed(environment: ["XCTestConfigurationFilePath": "/x.xctestconfiguration"], defaults: d))
         d.set(true, forKey: "UFNoStudIPSync")
         XCTAssertFalse(StudIPSync.automaticRunAllowed(environment: [:], defaults: d))
-        d.removeObject(forKey: "UFNoStudIPSync")
-        d.set("#/modules", forKey: "UFRoute")
-        XCTAssertFalse(StudIPSync.automaticRunAllowed(environment: [:], defaults: d))
-
-        // auch mit Sitzung im Schluesselbund: weder runIfDue noch run starten einen Abgleich
-        let studip = StudIPSync()
-        let before = studip.lastRun
-        studip.runIfDue()
-        await studip.run()
-        try await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertFalse(studip.isRunning)
-        XCTAssertEqual(studip.lastRun, before)
-    }
-
-    func testFormatting() {
-        XCTAssertEqual(RecordingFormat.duration(5339), "1:28 h")
-        XCTAssertEqual(RecordingFormat.duration(2148), "36 min")
-        XCTAssertNil(RecordingFormat.duration(nil))
-        XCTAssertEqual(RecordingFormat.date(Date(timeIntervalSince1970: 1_794_045_600)), "07.11.2026")
-        XCTAssertEqual(RecordingWeekBlocks.count(1), "1 Aufzeichnung")
-        XCTAssertEqual(RecordingWeekBlocks.count(3), "3 Aufzeichnungen")
     }
 }

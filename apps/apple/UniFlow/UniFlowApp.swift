@@ -9,7 +9,6 @@ struct UniFlowApp: App {
     @StateObject private var account: AccountStore
     @StateObject private var session = Session()
     @StateObject private var studip = StudIPSync()
-    @StateObject private var recordingLibrary = RecordingLibrary()          // geladene Aufzeichnungen (nur auf Wunsch)
     @StateObject private var router = UFRouter()
     @StateObject private var shell = ShellState()
     @StateObject private var toast = UFToastCenter()
@@ -34,7 +33,6 @@ struct UniFlowApp: App {
                 .environmentObject(account)
                 .environmentObject(session)
                 .environmentObject(studip)
-                .environmentObject(recordingLibrary)
                 .environmentObject(router)
                 .environmentObject(shell)
                 .environmentObject(toast)
@@ -61,8 +59,7 @@ struct UniFlowApp: App {
                 .task { await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer) }
         }
         .onChange(of: scenePhase) { _, phase in
-            // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min; nie unter XCTest oder mit Debug-Startargumenten
-            if phase == .active { studip.runIfDue() }
+            if phase == .active { studip.runIfDue() }      // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min
         }
     }
 }

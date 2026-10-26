@@ -147,6 +147,8 @@ struct PackageDrawer: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Row.rows(tasks)) { row in TaskRow(t: row.value) { Task { await load(first: false) } } }
             }
+            // passende Opencast-Aufzeichnungen zu den Aufgaben, nur bei sicherem Treffer (lokal)
+            if session.api?.isLocal == true { RecordingPackageHints(packageID: id) }
             if status == "nachholen" || status == "teilweise" {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("\(late.count) Aufgaben müssen nachgeholt werden.").ufFont(14.5, 700).foregroundStyle(UF.text)

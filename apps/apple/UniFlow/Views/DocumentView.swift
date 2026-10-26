@@ -243,7 +243,15 @@ struct DocumentView: View {
                       foreignLayers: foreignLayers, ownNotesVisible: ownNotesVisible, canEdit: canWrite)
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { pageInfo }
-            .overlay(alignment: .top) { suggestionBanner }
+            .overlay(alignment: .top) {
+                VStack(spacing: 6) {
+                    suggestionBanner
+                    // passende Opencast-Aufzeichnung nur bei sicherem Treffer (lokal: der Abgleich des iPads holt sie)
+                    if api.isLocal, companion == nil, let pdf = store.pdf {
+                        RecordingMatchBanner(fileID: store.file.id) { String((pdf.page(at: 0)?.string ?? "").prefix(1500)) }
+                    }
+                }
+            }
     }
 
     private func companionPane(_ c: Companion) -> some View {

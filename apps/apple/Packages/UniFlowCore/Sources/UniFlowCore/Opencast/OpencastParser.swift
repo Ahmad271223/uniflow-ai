@@ -5,10 +5,10 @@ import Foundation
 // (Aufbau in docs/QIS-STUDIP-STRUKTUR.md, Abschnitt Opencast). Gelesen wird nur die Tabelle table.media-table:
 // je Zeile tr.media-table-row Vorschau, Titel, Beschreibung, Laufzeit, Autor, Erstelldatum, Player- und
 // Download-Links. Kurse ohne den Reiter antworten mit HTTP 500 ("navigation item ... not found") – das heisst
-// "kein Opencast", nicht Fehler.
+// "kein Opencast", nicht Fehler. Die Seite zerlegt `HTMLTokenizer` (derselbe Leser wie fuer QIS).
 
-/// Eine Download-Fassung eines Videos, z. B. 720p.
-public struct OpencastDownload: Sendable, Equatable, Codable {
+/// Eine Videodatei eines Videos, z. B. 720p (direkter MP4-Link auf dem Opencast-Host).
+public struct OpencastMedia: Sendable, Equatable, Codable {
     /// Bezeichnung wie auf der Seite, z. B. "720p"
     public let quality: String
     /// Bildhoehe aus der Bezeichnung (720), 0 wenn unbekannt
@@ -32,15 +32,16 @@ public struct OpencastVideo: Sendable, Equatable, Codable, Identifiable {
     public let duration: Int?
     /// nil, wenn die Seite "-" zeigt
     public let author: String?
-    public let created: Date?
+    /// Erstellt am, Unix-Zeit (wie `files.chdate`)
+    public let created: Int?
     public let thumbnailURL: URL?
     /// Stud.IP-Player-Seite (Ersatzweg zum Abspielen in der Webansicht)
     public let playerURL: URL?
     /// nach Bildhoehe absteigend (1080p, 720p, 480p)
-    public let downloads: [OpencastDownload]
+    public let media: [OpencastMedia]
 
     public init(id: String, title: String, description: String? = nil, duration: Int? = nil, author: String? = nil,
-                created: Date? = nil, thumbnailURL: URL? = nil, playerURL: URL? = nil, downloads: [OpencastDownload] = []) {
+                created: Int? = nil, thumbnailURL: URL? = nil, playerURL: URL? = nil, media: [OpencastMedia] = []) {
         self.id = id
         self.title = title
         self.description = description
@@ -49,10 +50,10 @@ public struct OpencastVideo: Sendable, Equatable, Codable, Identifiable {
         self.created = created
         self.thumbnailURL = thumbnailURL
         self.playerURL = playerURL
-        self.downloads = downloads
+        self.media = media
     }
 
-    public func download(_ quality: String) -> OpencastDownload? { downloads.first { $0.quality == quality } }
+    public func media(_ quality: String) -> OpencastMedia? { media.first { $0.quality == quality } }
 }
 
 /// Ergebnis der Seite media/index eines Kurses.
@@ -89,27 +90,25 @@ public enum OpencastParser {
 
     /// Kursueberblick: gibt es in der Navigation einen Link "Aufzeichnungen" bzw. zum Opencast-Plugin?
     public static func courseHasRecordings(overviewHTML: String) -> Bool {
-        anchors(HTMLTokenizer.tokens(overviewHTML)).contains { a in
+        HTMLScanner.scan(overviewHTML).anchors.contains { a in
             let href = a.href.lowercased()
-            return a.text.caseInsensitiveCompare("Aufzeichnungen") == .orderedSame
+            return a.label.caseInsensitiveCompare("Aufzeichnungen") == .orderedSame
                 || href.contains("opencastpluginluh") || href.contains("/course/opencast")
         }
     }
 
     /// Anmeldeseite statt Inhalt: Passwortfeld oder Formular zur Anmeldung (Stud.IP-Login, WebSSO).
     public static func looksLikeLoginPage(_ html: String) -> Bool {
-        for t in HTMLTokenizer.tokens(html) {
-            guard case .start(let name, let a) = t else { continue }
-            if name == "input", (a["type"] ?? "").lowercased() == "password" { return true }
-            if name == "form", let action = a["action"]?.lowercased(),
-               action.contains("dispatch.php/login") || action.contains("/idp/") { return true }
+        let scan = HTMLScanner.scan(html)
+        return scan.hasPassword || scan.formActions.contains { a in
+            let l = a.lowercased()
+            return l.contains("dispatch.php/login") || l.contains("/idp/")
         }
-        return false
     }
 
     /// "01:28:59" bzw. "35:48" -> Sekunden
     public static func seconds(_ s: String) -> Int? {
-        let parts = s.trimmingCharacters(in: .whitespaces).split(separator: ":").map { Int($0) }
+        let parts = s.trimmingCharacters(in: .whitespaces).split(separator: ":", omittingEmptySubsequences: false).map { Int($0) }
         guard (2...3).contains(parts.count), !parts.contains(where: { $0 == nil || $0! < 0 }) else { return nil }
         return parts.reduce(0) { $0 * 60 + $1! }
     }
@@ -120,20 +119,19 @@ public enum OpencastParser {
         (attrs["class"] ?? "").split(whereSeparator: \.isWhitespace).contains { $0 == cls }
     }
 
-    /// Videos der Tabelle. Player-Links nur auf dem Stud.IP-Host der Seite; Downloads und Vorschaubilder nur ueber
+    /// Videos der Tabelle. Player-Links nur auf dem Stud.IP-Host der Seite; Videodateien und Vorschaubilder nur ueber
     /// https und nur von einem Videoserver (der Host der meisten Download-Links), Vorschaubilder auch vom
-    /// Stud.IP-Host. Fremde Hosts aus der Seite bekommen so weder HEAD-Anfragen noch Bildabrufe noch die
-    /// Stud.IP-Webansicht.
+    /// Stud.IP-Host. Fremde Hosts aus der Seite bekommen so weder Anfragen noch die Stud.IP-Webansicht.
     static func videos(in tokens: [HTMLToken], pageURL: URL?) -> [OpencastVideo] {
         let raw = rawVideos(in: tokens, pageURL: pageURL)
         let pageHost = pageURL?.host?.lowercased()
-        let mediaHost = mainHost(raw.flatMap(\.downloads).map(\.url).filter(isHTTPS))
+        let mediaHost = mainHost(raw.flatMap(\.media).map(\.url).filter(isHTTPS))
         func onMedia(_ u: URL) -> Bool { isHTTPS(u) && u.host?.lowercased() == mediaHost }
         return raw.map { v in
             let thumb = v.thumbnailURL.flatMap { u in onMedia(u) || (isHTTPS(u) && u.host?.lowercased() == pageHost) ? u : nil }
             return OpencastVideo(id: v.id, title: v.title, description: v.description, duration: v.duration, author: v.author,
                                  created: v.created, thumbnailURL: thumb, playerURL: v.playerURL,
-                                 downloads: v.downloads.filter { onMedia($0.url) })
+                                 media: v.media.filter { onMedia($0.url) })
         }
     }
 
@@ -146,7 +144,9 @@ public enum OpencastParser {
             if count[h] == nil { order.append(h) }
             count[h, default: 0] += 1
         }
-        return order.max { (count[$0] ?? 0, order.firstIndex(of: $1) ?? 0) < (count[$1] ?? 0, order.firstIndex(of: $0) ?? 0) }
+        var best: String?
+        for h in order where best == nil || (count[h] ?? 0) > (count[best!] ?? 0) { best = h }
+        return best
     }
 
     /// Player-Link der Seite: derselbe Host und dasselbe Schema wie die Stud.IP-Seite (ohne Seite nur https)
@@ -183,9 +183,9 @@ public enum OpencastParser {
         var titleParts: [String] = [], descriptionParts: [String] = []
         var duration: Int?, durationText: [String] = []
         var author: [String] = [], createdText: [String] = []
-        var created: Date?
+        var created: Int?
         var player: URL?
-        var downloads: [OpencastDownload] = []
+        var media: [OpencastMedia] = []
 
         // offene Zelle (Klasse) und Stand in div.media-table-infos (Tiefe, Nummer des Kind-Blocks)
         var cell: String?
@@ -200,8 +200,8 @@ public enum OpencastParser {
             if url.path.contains("/media/player/") {
                 // Vorschau-Link traegt "#ts="; Player fremder Hosts nie (Webansicht mit Stud.IP-Sitzung)
                 if player == nil, isPlayerLink(url, pageURL: pageURL) { player = stripFragment(url) }
-            } else if let q = downloadQuality(text) {
-                if !downloads.contains(where: { $0.quality == q.label }) { downloads.append(OpencastDownload(quality: q.label, height: q.height, url: url)) }
+            } else if let q = mediaQuality(text) {
+                if !media.contains(where: { $0.quality == q.label }) { media.append(OpencastMedia(quality: q.label, height: q.height, url: url)) }
             }
         }
 
@@ -214,8 +214,8 @@ public enum OpencastParser {
                     cell = (a["class"] ?? "").split(whereSeparator: \.isWhitespace).first { $0.hasPrefix("media-table-") }.map(String.init) ?? ""
                     infosDepth = nil
                     if cell == "media-table-duration", let v = a["data-sort-value"] { duration = seconds(v) }
-                    if cell == "media-table-created", let v = a["data-sort-value"], let unix = Double(v.trimmingCharacters(in: .whitespaces)), unix > 0 {
-                        created = Date(timeIntervalSince1970: unix)
+                    if cell == "media-table-created", let v = a["data-sort-value"], let unix = Int(v.trimmingCharacters(in: .whitespaces)), unix > 0 {
+                        created = unix
                     }
                 case "div":
                     divDepth += 1
@@ -252,6 +252,7 @@ public enum OpencastParser {
                 case "media-table-created": createdText.append(s)
                 default: break
                 }
+            case .raw: break
             }
         }
         finishAnchor()
@@ -266,11 +267,11 @@ public enum OpencastParser {
         return OpencastVideo(id: id, title: title, description: desc.isEmpty ? nil : desc, duration: duration,
                              author: who.isEmpty || who == "-" || who == "–" ? nil : who, created: created,
                              thumbnailURL: thumbnail, playerURL: player,
-                             downloads: downloads.sorted { ($0.height, $0.quality) > ($1.height, $1.quality) })
+                             media: media.sorted { ($0.height, $0.quality) > ($1.height, $1.quality) })
     }
 
-    /// "Download: 720p" -> ("720p", 720); andere Eintraege (Audio, Folien) zaehlen nicht als Videofassung
-    static func downloadQuality(_ text: String) -> (label: String, height: Int)? {
+    /// "Download: 720p" -> ("720p", 720); andere Eintraege (Audio, Folien) zaehlen nicht als Videodatei
+    static func mediaQuality(_ text: String) -> (label: String, height: Int)? {
         guard text.lowercased().hasPrefix("download") else { return nil }
         let rest = text.drop { $0 != ":" }.dropFirst().trimmingCharacters(in: .whitespaces)
         guard let r = rest.range(of: "^[0-9]{3,4}p$", options: [.regularExpression, .caseInsensitive]) else { return nil }
@@ -303,146 +304,11 @@ public enum OpencastParser {
         return c.url ?? u
     }
 
-    /// "06.11.2026" (Text der Spalte, falls data-sort-value fehlt) als Mittag in Deutschland
-    static func germanDate(_ s: String) -> Date? {
+    /// "06.11.2026" (Text der Spalte, falls data-sort-value fehlt) als Mittag in Berlin, Unix-Zeit
+    static func germanDate(_ s: String) -> Int? {
         let p = s.split(separator: ".").map { Int($0.trimmingCharacters(in: .whitespaces)) }
-        guard p.count == 3, let d = p[0], let m = p[1], let y = p[2], (1...31).contains(d), (1...12).contains(m), y > 1990 else { return nil }
-        return LectureWeek.calendar.date(from: DateComponents(year: y, month: m, day: d, hour: 12))
-    }
-
-    static func anchors(_ tokens: [HTMLToken]) -> [(href: String, text: String)] {
-        var out: [(String, String)] = []
-        var open: (String, [String])?
-        for t in tokens {
-            switch t {
-            case .start("a", let a):
-                if let o = open { out.append((o.0, QISParser.clean(o.1.joined()))) }
-                open = a["href"].map { ($0, []) }
-            case .end("a"):
-                if let o = open { out.append((o.0, QISParser.clean(o.1.joined()))) }
-                open = nil
-            case .text(let s): open?.1.append(s)
-            default: break
-            }
-        }
-        if let o = open { out.append((o.0, QISParser.clean(o.1.joined()))) }
-        return out
-    }
-}
-
-// MARK: - HTML in Bausteine
-
-/// Start-Tag (Name klein, Attribute dekodiert), End-Tag oder Text (Entities dekodiert).
-enum HTMLToken: Equatable {
-    case start(String, [String: String])
-    case end(String)
-    case text(String)
-}
-
-/// Durchlauf ueber die Bytes ohne Annahmen ueber wohlgeformtes HTML (offene Tags, Gross-/Kleinschreibung,
-/// Attribute ohne Anfuehrungszeichen); Kommentare, Doctype und Inhalt von script/style werden uebersprungen.
-enum HTMLTokenizer {
-    static func tokens(_ html: String) -> [HTMLToken] {
-        let b = Array(html.utf8)
-        let n = b.count
-        var out: [HTMLToken] = []
-        var i = 0
-        var textStart = 0
-
-        func isAlpha(_ c: UInt8) -> Bool { (c | 0x20) >= 0x61 && (c | 0x20) <= 0x7A }
-        func isNameChar(_ c: UInt8) -> Bool { isAlpha(c) || (c >= 0x30 && c <= 0x39) || c == UInt8(ascii: "-") || c == UInt8(ascii: ":") }
-        func isSpace(_ c: UInt8) -> Bool { c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D || c == 0x0C }
-        func lower(_ s: ArraySlice<UInt8>) -> String { String(decoding: s.map { isAlpha($0) ? $0 | 0x20 : $0 }, as: UTF8.self) }
-        func find(_ needle: [UInt8], from: Int, caseless: Bool = false) -> Int? {
-            var k = from
-            while k + needle.count <= n {
-                var hit = true
-                for (o, c) in needle.enumerated() {
-                    let x = b[k + o]
-                    if (caseless && isAlpha(x) ? x | 0x20 : x) != c { hit = false; break }
-                }
-                if hit { return k }
-                k += 1
-            }
-            return nil
-        }
-        func flush(_ end: Int) {
-            if end > textStart { out.append(.text(QISParser.decodeEntities(String(decoding: b[textStart..<end], as: UTF8.self)))) }
-        }
-
-        while i < n {
-            guard b[i] == UInt8(ascii: "<"), i + 1 < n else { i += 1; continue }
-            let c = b[i + 1]
-            if c == UInt8(ascii: "!") || c == UInt8(ascii: "?") {
-                flush(i)
-                if c == UInt8(ascii: "!"), i + 3 < n, b[i + 2] == UInt8(ascii: "-"), b[i + 3] == UInt8(ascii: "-") {
-                    i = find(Array("-->".utf8), from: i + 4).map { $0 + 3 } ?? n
-                } else {
-                    i = find([UInt8(ascii: ">")], from: i + 2).map { $0 + 1 } ?? n
-                }
-                textStart = i
-                continue
-            }
-            if c == UInt8(ascii: "/"), i + 2 < n, isAlpha(b[i + 2]) {
-                flush(i)
-                var j = i + 2
-                while j < n, isNameChar(b[j]) { j += 1 }
-                out.append(.end(lower(b[(i + 2)..<j])))
-                i = find([UInt8(ascii: ">")], from: j).map { $0 + 1 } ?? n
-                textStart = i
-                continue
-            }
-            guard isAlpha(c) else { i += 1; continue }
-            flush(i)
-            var j = i + 1
-            while j < n, isNameChar(b[j]) { j += 1 }
-            let name = lower(b[(i + 1)..<j])
-            var attrs: [String: String] = [:]
-            while j < n {
-                while j < n, isSpace(b[j]) { j += 1 }
-                guard j < n else { break }
-                if b[j] == UInt8(ascii: ">") { j += 1; break }
-                if b[j] == UInt8(ascii: "/") { j += 1; continue }
-                let ns = j
-                while j < n, !isSpace(b[j]), b[j] != UInt8(ascii: "="), b[j] != UInt8(ascii: ">"),
-                      !(b[j] == UInt8(ascii: "/") && j + 1 < n && b[j + 1] == UInt8(ascii: ">")) { j += 1 }
-                if j == ns { j += 1; continue }
-                let attr = lower(b[ns..<j])
-                while j < n, isSpace(b[j]) { j += 1 }
-                var value = ""
-                if j < n, b[j] == UInt8(ascii: "=") {
-                    j += 1
-                    while j < n, isSpace(b[j]) { j += 1 }
-                    if j < n, b[j] == UInt8(ascii: "\"") || b[j] == UInt8(ascii: "'") {
-                        let q = b[j]
-                        j += 1
-                        let vs = j
-                        while j < n, b[j] != q { j += 1 }
-                        value = String(decoding: b[vs..<j], as: UTF8.self)
-                        if j < n { j += 1 }
-                    } else {
-                        let vs = j
-                        while j < n, !isSpace(b[j]), b[j] != UInt8(ascii: ">") { j += 1 }
-                        value = String(decoding: b[vs..<j], as: UTF8.self)
-                    }
-                }
-                if attrs[attr] == nil { attrs[attr] = QISParser.decodeEntities(value) }
-            }
-            i = j
-            textStart = i
-            if name == "script" || name == "style" || name == "textarea" || name == "title" {
-                // Rohtext bis zum passenden End-Tag; nur der Titel bleibt als Text erhalten
-                let close = find(Array("</\(name)".utf8), from: i, caseless: true) ?? n
-                out.append(.start(name, attrs))
-                if name == "title", close > i { out.append(.text(QISParser.decodeEntities(String(decoding: b[i..<close], as: UTF8.self)))) }
-                out.append(.end(name))
-                i = close < n ? (find([UInt8(ascii: ">")], from: close).map { $0 + 1 } ?? n) : n
-                textStart = i
-                continue
-            }
-            out.append(.start(name, attrs))
-        }
-        flush(n)
-        return out
+        guard p.count == 3, let d = p[0], let m = p[1], let y = p[2], (1...12).contains(m), y > 1990,
+              d >= 1, d <= BerlinClock.daysInMonth(year: y, month: m) else { return nil }
+        return BerlinClock.utcSeconds(day: BerlinClock.dayNumber(year: y, month: m, day: d), minutes: 12 * 60)
     }
 }
