@@ -209,9 +209,12 @@ final class LocalBackendAppTests: XCTestCase {
         // im Editor keine Karte und keine Statusleiste oberhalb, die Seite bekommt die ganze Hoehe
         XCTAssertEqual(gate(.document, .local(.notConnected), .signedOut), .page)
         XCTAssertEqual(gate(.document, .local(.connected), .running("Lade 1 von 3")), .page)
-        // KI-Wochentests und QIS-Noten gibt es in V1 nicht: lokal der ehrliche leere Zustand
+        // KI-Wochentests gibt es in V1 nicht: lokal der ehrliche leere Zustand
         XCTAssertEqual(gate(.exams, .local(.connected)), .empty)
-        XCTAssertEqual(gate(.services, .local(.notConnected)), .empty)
+        // Uni & Noten an der LUH: Notenspiegel aus dem QIS auf dem Geraet, die echte Seite (Karte oberhalb, solange
+        // Stud.IP fehlt)
+        XCTAssertEqual(gate(.services, .local(.notConnected)), .pageBelowConnectCard)
+        XCTAssertEqual(gate(.services, .local(.connected)), .page)
         // eigener Server wie bisher
         XCTAssertEqual(gate(.exams, .server, .running("x")), .page)
         // Uni & Noten an der Uni Hildesheim: Notenspiegel aus dem LSF, die echte Seite

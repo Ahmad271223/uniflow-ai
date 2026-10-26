@@ -58,7 +58,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
     case studyPlanning       // Lernplan, Lernkombination, freie Zeitfenster, Nachholen, "Woche retten"
     case timer               // Stoppuhr, Countdown, Pomodoro
     case viewNotes           // vorhandene Notizen ansehen und als PDF exportieren
-    case uniGrades           // Uni & Noten (QIS), vorerst ausserhalb der Tarife: "bald", bis nativ vorhanden (F4)
+    case uniGrades           // Uni & Noten (QIS bzw. LSF auf dem Geraet, F4), Free
     // Plus
     case pencilWriting       // Stift, Marker, Radierer, Lasso, Seiten einfuegen/drehen/Papierkorb, Lesezeichen
     case community           // Loesungen als Datei teilen, in der Community veroeffentlichen und im Editor ansehen
@@ -109,7 +109,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         switch self {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Lernplan, Lernkombination, freie Zeitfenster, Nachholen, „Woche retten“"
-        case .uniGrades: return "Notenspiegel und Bescheinigungen aus QIS"
+        case .uniGrades: return "Notenspiegel aus QIS bzw. LSF direkt in der App"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
         case .community: return "Lösungen als Datei teilen, in der Community veröffentlichen und Lösungen anderer im Editor ansehen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
@@ -153,10 +153,9 @@ enum UFAccess: Equatable {
 
 /// Regeln aus Abschnitt 4, ohne StoreKit (testbar)
 enum UFFeatureMatrix {
-    /// Uni & Noten: an der Uni Hildesheim liest der Abgleich den LSF-Notenspiegel auf dem Geraet, an der LUH (QIS)
-    /// kommt das erst mit F4 (Pruefbericht). Die Tarifkarte erscheint vor der Hochschulwahl und verkauft die Funktion
-    /// nicht: in keinem Tarif als enthalten gefuehrt ("bald" bei Free, Abschnitt 4).
-    static let uniGradesOnDevice = false
+    /// Uni & Noten: an der Uni Hildesheim liest der Abgleich den LSF-Notenspiegel auf dem Geraet, an der LUH liest
+    /// `QISConnection` das QIS (F4) - in beiden Faellen vorhanden, Teil von Free (Abschnitt 4, "bald" entfaellt).
+    static let uniGradesOnDevice = true
 
     /// Community-Funktionen: eigene Loesung als Datei teilen (nur eigene Notizen, verschluesselt), empfangene Loesungen
     /// im Editor ansehen und die Online-Community ueber CloudKit (docs/LOESUNGEN-TEILEN.md, Abschnitt 7). Ohne

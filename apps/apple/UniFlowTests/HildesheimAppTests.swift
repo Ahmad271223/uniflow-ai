@@ -611,7 +611,9 @@ final class HildesheimAppTests: XCTestCase {
         XCTAssertTrue(luhCookies.isEmpty, "keine Hildesheimer Sitzung in der Webansicht der LUH")
         XCTAssertNil(luh.credentials.token(.hildesheim, service: "learnweb"), "kein Rueckfall auf den Hildesheimer Schluessel")
         XCTAssertEqual(UFGatePresentation.resolve(spec: .services, mode: .local(.notConnected), phase: m.studip.phase),
-                       .empty, "Uni & Noten der LUH unveraendert: QIS folgt")
+                       .pageBelowConnectCard, "Uni & Noten der LUH: Notenspiegel aus dem QIS auf dem Geraet")
+        XCTAssertNotNil(m.qis, "QIS-Verbindung des LUH-Containers")
+        XCTAssertFalse(m.qis?.isConnected ?? true, "nichts aus Hildesheim")
 
         // zurueck nach Hildesheim: Stand und Daten noch da
         a.chooseUniversity(.hildesheim)

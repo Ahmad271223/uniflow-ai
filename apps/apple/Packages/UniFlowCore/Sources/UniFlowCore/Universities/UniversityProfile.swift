@@ -170,7 +170,8 @@ public struct UniversityProfile: Sendable, Hashable {
 extension UniversityProfile {
     // Adressen wie app/universities.py, app/config.py (STUDIP_BASE), app/qis.py (QIS_BASE, QIS_START)
     static let luhStudIP = URL(string: "https://studip.uni-hannover.de")!
-    static let luhQISStart = URL(string: "https://qis.verwaltung.uni-hannover.de/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?state=user&type=0&application=lsf")!
+    /// Startseite des QIS (QIS_START in app/qis.py): Anmeldung in der App und Einstieg fuer `QISClient`
+    public static let luhQISStart = URL(string: "https://qis.verwaltung.uni-hannover.de/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?state=user&type=0&application=lsf")!
     /// WebSSO (Shibboleth-IdP) der LUH, entityID in app/studip_sync.py
     static let luhSSOHost = "sso.idm.uni-hannover.de"
 

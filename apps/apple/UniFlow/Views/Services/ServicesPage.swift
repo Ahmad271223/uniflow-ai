@@ -6,6 +6,8 @@ import UniFlowCore
 // Bewusst anders (WEB-IPAD-PARITAET.md, W.B.9.1): Auf dem iPad wird kein Passwort eingegeben oder gespeichert.
 // Universitaet Hildesheim ohne PC (lokales Backend): dieselben Kennzahlen und Uni-Dienste, dazu der Notenspiegel aus
 // dem LSF (nur die Leistungstabelle, HildesheimSync) und die Karte "Learnweb & LSF" statt der Zugaenge der LUH.
+// LUH ohne PC: Notenspiegel aus dem QIS auf dem Geraet (QISConnection, Views/QISViews.swift) und die Karte
+// "Stud.IP & QIS" statt der Zugaenge des PC-Servers.
 
 /// Uni & Noten: Kennzahlen, Notenspiegel (QIS), Bescheinigungen, Stundenplan-Status, Zugaenge, Uni-Dienste.
 struct ServicesPage: View {
@@ -17,6 +19,7 @@ struct ServicesPage: View {
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.openURL) private var openURL
     @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.qis) private var qisConnection
     @State private var svc: JSONValue?
     @State private var grades: JSONValue = .null
     @State private var tt: JSONValue?
@@ -72,11 +75,13 @@ struct ServicesPage: View {
         let creds = svc["credentials"] ?? .null
         let qis = creds["qis"] ?? .null
         let cols = windowWidth <= 820 ? 1 : windowWidth <= 1100 ? 2 : 3
-        // Uni Hildesheim auf dem Geraet: Notenspiegel aus dem LSF, Zugaenge ueber Learnweb & LSF
+        // Uni Hildesheim auf dem Geraet: Notenspiegel aus dem LSF, Zugaenge ueber Learnweb & LSF; LUH auf dem Geraet:
+        // Notenspiegel aus dem QIS, Zugaenge ueber Stud.IP & QIS
         let lsf = session.api?.isLocal == true ? hildesheim : nil
+        let qisLocal = session.api?.isLocal == true ? qisConnection : nil
         UFContent(maxWidth: 1120) {
             UFPageHead("Uni & Noten", sub: lsf == nil
-                       ? "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel direkt in der App."
+                       ? "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel" + (qisLocal == nil ? "" : " aus dem QIS") + " direkt in der App."
                        : "Alle Dienste der Universität Hildesheim an einem Ort, Notenspiegel aus dem LSF direkt in der App.")
             UFGrid(columns: 3) {
                 UFCard { UFKPI(value: g.n("average").map { Self.js($0).replacingOccurrences(of: ".", with: ",") } ?? "–",
@@ -93,6 +98,12 @@ struct ServicesPage: View {
                     VStack(alignment: .leading, spacing: 8) {                              // .stack
                         lsfTimetableCard
                         HildesheimSourcesCard()
+                    }
+                } else if let qisLocal {
+                    QISGradesCard(connection: qisLocal, rows: rows, last: last, lastOK: lastOK).environment(\.ufFillsCell, true)
+                    VStack(alignment: .leading, spacing: 8) {                              // .stack
+                        timetableCard
+                        LUHSourcesCard()
                     }
                 } else {
                     gradesCard(rows: rows, last: last, lastOK: lastOK, qis: qis).environment(\.ufFillsCell, true)
@@ -365,8 +376,8 @@ private struct LSFGradesCard: View {
     }
 }
 
-/// table.tbl: Prüfung (+ Nr · Abschluss), Semester, Note, LP, Status-Badge, Versuch
-private struct GradesTable: View {
+/// table.tbl: Prüfung (+ Nr · Abschluss), Semester, Note, LP, Status-Badge, Versuch (auch QISGradesCard)
+struct GradesTable: View {
     let rows: [JSONValue]
 
     var body: some View {

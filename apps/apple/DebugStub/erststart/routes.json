@@ -1,0 +1,169 @@
+[
+ {
+  "match": "jsonapi.php/v1/users/me",
+  "file": "studip-me.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/u-demo/courses",
+  "file": "studip-courses.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/u-demo/schedule",
+  "file": "studip-schedule.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-ma/folders",
+  "file": "studip-folders-c-ma.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/r-c-ma/file-refs",
+  "file": "studip-files-c-ma.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/r-c-ma/folders",
+  "file": "studip-empty.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-ma/events",
+  "file": "studip-events-c-ma.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-ma-ue/folders",
+  "file": "studip-folders-c-ma-ue.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/r-c-ma-ue/file-refs",
+  "file": "studip-files-c-ma-ue.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/r-c-ma-ue/folders",
+  "file": "studip-empty.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-ma-ue/events",
+  "file": "studip-events-c-ma-ue.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-prog/folders",
+  "file": "studip-folders-c-prog.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/r-c-prog/file-refs",
+  "file": "studip-files-c-prog.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/r-c-prog/folders",
+  "file": "studip-empty.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/c-prog/events",
+  "file": "studip-events-c-prog.json"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/d-ma-1/content",
+  "file": "ma-vl1.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/d-ma-2/content",
+  "file": "ma-vl2.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/d-ma-ue-1/content",
+  "file": "ma-ue1.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/d-prog-1/content",
+  "file": "prog-vl1.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/d-prog-2/content",
+  "file": "prog-ue1.pdf"
+ },
+ {
+  "match": "opencastpluginluh/media/index",
+  "file": "studip-opencast-none.html",
+  "status": 500
+ },
+ {
+  "match": "qis.verwaltung.uni-hannover.de/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?state=user&type=0&application=lsf",
+  "file": "qis-start.html"
+ },
+ {
+  "match": "qis.verwaltung.uni-hannover.de/qisserver/rds?state=change&type=1&moduleParameter=studyPOSMenu",
+  "file": "qis-studium.html"
+ },
+ {
+  "match": "qis.verwaltung.uni-hannover.de/qisserver/rds?state=notenspiegelStudent&next=list.vm",
+  "file": "qis-leistungen.html"
+ },
+ {
+  "match": "qis.verwaltung.uni-hannover.de/qisserver/rds?state=notenspiegelStudent&next=tree.vm&nextdir=qispos/notenspiegel/student&nodeID=auswahlBaum|abschluss",
+  "file": "qis-abschluss.html"
+ },
+ {
+  "match": "qis.verwaltung.uni-hannover.de/qisserver/rds?state=notenspiegelStudent",
+  "file": "qis-notenspiegel.html"
+ },
+ {
+  "match": "learnweb2026/lib/ajax/service-nologin.php",
+  "file": "learnweb-config.json",
+  "contentType": "application/json"
+ },
+ {
+  "match": "learnweb2026/webservice/rest/server.php",
+  "bodyMatch": "wsfunction=core_webservice_get_site_info",
+  "file": "learnweb-siteinfo.json",
+  "contentType": "application/json"
+ },
+ {
+  "match": "learnweb2026/webservice/rest/server.php",
+  "bodyMatch": "wsfunction=core_enrol_get_users_courses",
+  "file": "learnweb-courses.json",
+  "contentType": "application/json"
+ },
+ {
+  "match": "learnweb2026/webservice/rest/server.php",
+  "bodyMatch": "courseid=35",
+  "file": "learnweb-contents-35.json",
+  "contentType": "application/json"
+ },
+ {
+  "match": "learnweb2026/webservice/rest/server.php",
+  "bodyMatch": "courseid=36",
+  "file": "learnweb-contents-36.json",
+  "contentType": "application/json"
+ },
+ {
+  "match": "learnweb2026/webservice/pluginfile.php/501/",
+  "file": "lw-ew-plan.pdf"
+ },
+ {
+  "match": "learnweb2026/webservice/pluginfile.php/502/",
+  "file": "lw-ew-w1.pdf"
+ },
+ {
+  "match": "learnweb2026/webservice/pluginfile.php/503/",
+  "file": "lw-ew-w2.pdf"
+ },
+ {
+  "match": "learnweb2026/webservice/pluginfile.php/601/",
+  "file": "lw-bs-w1.pdf"
+ },
+ {
+  "match": "lsf.uni-hildesheim.de/qisserver/rds?state=wplan",
+  "file": "lsf-plan.html"
+ },
+ {
+  "match": "moduleCall=iCalendarPlan",
+  "file": "lsf-plan.ics",
+  "contentType": "text/calendar"
+ },
+ {
+  "match": "lsf.uni-hildesheim.de/qisserver/rds?state=notenspiegelStudent",
+  "file": "lsf-noten.html"
+ },
+ {
+  "match": "lsf.uni-hildesheim.de/qisserver/rds?state=user",
+  "file": "lsf-start.html"
+ }
+]
