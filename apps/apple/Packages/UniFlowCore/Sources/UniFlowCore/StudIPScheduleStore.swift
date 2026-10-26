@@ -37,8 +37,8 @@ public struct StudIPCourseEvent: Sendable, Equatable {
             if LocalModules.truthy(a?["is-cancelled"]) { return nil }
             func text(_ k: String) -> String { a?[k]?.string ?? "" }
             let room = text("location").split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
-            return StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: LocalTimetableImport.slice(text("start"), 0, 19),
-                                     end: LocalTimetableImport.slice(text("end"), 0, 19), room: PyText.strip(room))
+            return StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: PyText.slice(text("start"), 0, 19),
+                                     end: PyText.slice(text("end"), 0, 19), room: PyText.strip(room))
         }
     }
 }

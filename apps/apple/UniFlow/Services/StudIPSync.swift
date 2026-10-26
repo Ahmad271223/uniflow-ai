@@ -355,21 +355,35 @@ final class StudIPSync: ObservableObject {
                 // Inhalts-Hash fuer gemeinsame Wochentests wie store_course_files am PC (vor dem Ersetzen, dieselben
                 // Bytes); grosse Dateien nicht auf dem Hauptthread und nicht in der Transaktion
                 let sha = await Task.detached(priority: .utility) { TestShare.contentHash(file: temp) }.value
-                // S7: die alte Fassung einer Datei mit Notizen aufbewahren, bevor die neue sie ersetzt; laesst sie sich
-                // nicht sichern, bleibt die alte Datei und der naechste Abgleich versucht es erneut
+                let stored = localFiles?.stored(target)
+                // S7: Seitentexte der neuen Fassung aus der geladenen Datei; die alte Fassung einer Datei mit Notizen
+                // aufbewahren und die Seiten zuordnen, bevor die neue sie ersetzt. Laesst sie sich nicht sichern, bleibt
+                // die alte Datei und der naechste Abgleich versucht es erneut
                 let prepared: FileVersionKeeper.Prepared?
-                do { prepared = try await versions?.prepare(fileID: f.id, newSHA: sha) } catch { failed += 1; continue }
+                do {
+                    prepared = try await versions?.prepare(fileID: f.id, newSHA: sha, newFile: temp, newPath: stored)
+                } catch {
+                    failed += 1
+                    continue
+                }
                 try Self.place(temp, at: target)
                 index[f.id] = StudIPLocalEntry(file: f, courseTitle: titles[f.courseID] ?? "Kurs", relativePath: rel,
                                                downloadedAt: ISO8601DateFormatter().string(from: Date()))
                 saveIndex()                                   // nach jeder Datei: Abbruch verliert nichts
-                if let stored = localFiles?.stored(target) {
+                if let stored {
                     let now = clock.nowISO, base = Self.base
-                    try await db.transaction {
+                    let mark: @Sendable (SQLiteConnection) throws -> Void = {
                         try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, sha256: sha, at: now, base: base)
                     }
-                    // Seitentexte fuer Suche und Skriptsuche; mit Notizen: Seiten zuordnen, Notizen umhaengen
-                    if let prepared { await versions?.finish(prepared) }
+                    // eine Transaktion: neue Fassung, Seitentexte, alte Fassung und umgehaengte Notizen. Scheitert sie
+                    // (oder endet die App vorher), bleibt die Datenbank beim alten Stand und der naechste Abgleich laedt
+                    // die Datei erneut (die alte PDF ist schon aufbewahrt)
+                    do {
+                        if let versions, let prepared { try await versions.commit(prepared, download: mark) } else { try await db.transaction(mark) }
+                    } catch {
+                        failed += 1
+                        continue
+                    }
                 }
                 loaded += 1
             }

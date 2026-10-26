@@ -218,8 +218,11 @@ public actor HildesheimSync {
                         guard let req = await api.downloadRequest(f) else { continue }
                         let (rel, sha, prepared) = try await download(req, fileID: row.id, name: row.name, shownURL: row.downloadURL)
                         let at = clock.nowISO
-                        try await db.transaction { try UniStore.markDownloaded($0, row, localPath: rel, sha256: sha, now: at) }
-                        if let prepared { await versions?.finish(prepared) }
+                        let mark: @Sendable (SQLiteConnection) throws -> Void = {
+                            try UniStore.markDownloaded($0, row, localPath: rel, sha256: sha, now: at)
+                        }
+                        // mit `versions` in einer Transaktion mit Seitentexten, alter Fassung und umgehaengten Notizen
+                        if let versions, let prepared { try await versions.commit(prepared, download: mark) } else { try await db.transaction(mark) }
                         report.newFiles.append(row.id)
                     } catch {
                         report.failedFiles.append(row.name)
@@ -252,7 +255,7 @@ public actor HildesheimSync {
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: shownURL) }
         if UniStore.isWebPage(file: part, name: name) { throw HildesheimError.htmlInsteadOfFile(shownURL) }
         let sha = hasher(part)
-        let prepared = try await versions?.prepare(fileID: fileID, newSHA: sha)
+        let prepared = try await versions?.prepare(fileID: fileID, newSHA: sha, newFile: part, newPath: rel)
         // rename ersetzt atomar: entweder die alte oder die neue Datei, nie eine halbe
         guard rename(part.path, target.path) == 0 else { throw HildesheimError.badResponse("Datei nicht gespeichert: \(name)") }
         return (rel, sha, prepared)

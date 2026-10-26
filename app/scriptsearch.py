@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import re
 import threading
+import unicodedata
 from collections import Counter
 from pathlib import Path
 
@@ -39,6 +40,12 @@ def normalize(text: str) -> str:
     return t
 
 
+def search_form(text: str) -> str:
+    """Suchform eines Seitentexts fuer find_pages: normalize, klein, NFC. SQLite lower() und LIKE kennen nur ASCII
+    ("Übung" passte nicht auf "übung"), und zerlegte Umlaute passten nicht auf die Anfrage."""
+    return unicodedata.normalize("NFC", normalize(text).lower())
+
+
 def tokens(text: str) -> list[str]:
     out = []
     for w in re.findall(r"[a-zäöüß]{3,}", normalize(text).lower()):
@@ -57,8 +64,11 @@ def tokens(text: str) -> list[str]:
 
 def ensure_table(conn) -> None:
     conn.execute("""CREATE TABLE IF NOT EXISTS page_texts (
-        file_id TEXT NOT NULL, page INTEGER NOT NULL, text TEXT, chdate INTEGER,
+        file_id TEXT NOT NULL, page INTEGER NOT NULL, text TEXT, chdate INTEGER, search TEXT,
         PRIMARY KEY (file_id, page))""")
+    # Suchform (search_form) kam spaeter dazu; aeltere Zeilen bekommen sie in find_pages
+    if "search" not in {r[1] for r in conn.execute("PRAGMA table_info(page_texts)")}:
+        conn.execute("ALTER TABLE page_texts ADD COLUMN search TEXT")
 
 
 def _extract_pages(path: str) -> list[str]:
@@ -87,8 +97,8 @@ def page_texts(conn, file_id: str) -> list[str]:
     except Exception:  # noqa: BLE001
         return []
     conn.execute("DELETE FROM page_texts WHERE file_id=?", (file_id,))
-    conn.executemany("INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
-                     [(file_id, i + 1, t, f["chdate"] or 0) for i, t in enumerate(pages)])
+    conn.executemany("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
+                     [(file_id, i + 1, t, f["chdate"] or 0, search_form(t)) for i, t in enumerate(pages)])
     return pages
 
 
@@ -187,13 +197,18 @@ def search(conn, module_id: int, query: str, exclude: str | None = None, limit: 
 
 def find_pages(conn, q: str, limit: int = 10) -> list[dict]:
     """Seiten, deren gespeicherter Text den Suchtext enthaelt (globale Suche). Nur Seitentexte der aktuellen Fassung
-    (gleiche Aenderungszeit wie die Datei); gelesen wird dabei nichts neu. `q` ist schon klein geschrieben."""
+    (gleiche Aenderungszeit wie die Datei) von Dateien, die vorhanden sind (nach "Dateien löschen" kein Treffer, der
+    sich nicht oeffnen laesst); gelesen wird dabei nichts neu. `q` ist schon klein geschrieben. Verglichen wird die
+    Suchform von Text und Anfrage (search_form); Zeilen von vor der Suchform bekommen sie hier."""
     ensure_table(conn)
+    for r in db.rows(conn, "SELECT file_id, page, text FROM page_texts WHERE search IS NULL"):
+        conn.execute("UPDATE page_texts SET search=? WHERE file_id=? AND page=?", (search_form(r["text"]), r["file_id"], r["page"]))
     rows = db.rows(conn, """SELECT p.file_id, p.page, p.text, f.name, a.title AS ai_title, c.subject, c.module_id
                              FROM page_texts p JOIN files f ON f.id=p.file_id JOIN courses c ON c.id=f.course_id
                              LEFT JOIN analysis a ON a.file_id=f.id
-                             WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND lower(COALESCE(p.text, '')) LIKE ?
-                             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?""", (f"%{q}%", limit))
+                             WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND COALESCE(f.local_path, '')<>''
+                               AND p.search LIKE ?
+                             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?""", (f"%{search_form(q)}%", limit))
     return [{"file_id": r["file_id"], "page": r["page"], "name": r["name"], "ai_title": r["ai_title"], "subject": r["subject"],
              "module_id": r["module_id"], "snippet": _snippet(normalize(r["text"]), [q])} for r in rows]
 
