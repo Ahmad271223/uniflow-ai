@@ -141,3 +141,30 @@ def test_plan_without_test_tasks_by_default(fresh):
     call(fresh, "POST", "/api/calendar/generate", {"start": "2026-10-27", "days": 1, "replace": True})
     st, cal = call(fresh, "GET", "/api/calendar?start=2026-10-27&end=2026-10-27")
     assert [t["type"] for p in cal["days"][0]["packages"] for t in p["tasks"]] == ["vorlesung", "uebung", "test"]
+
+
+def test_package_stays_in_one_window_next_to_lecture(fresh):
+    """Lernslots: Ein Paket liegt am Stueck im ersten freien Fenster mit genug Platz. Vorher begann es vor der
+    Vorlesung und endete danach (08:00-13:00 ueber 10:00-11:30): Konflikt im Stundenplan, den "Lernslots neu legen"
+    nicht aufloesen konnte; ein kurzes Paket danach nutzte die Luecke vor der Vorlesung nicht mehr."""
+    from app import db, study
+    with db.cursor() as conn:
+        conn.execute("""INSERT INTO course_events(title, kind, weekday, start_time, end_time, rrule, attend, source, created_at)
+                        VALUES ('Testvorlesung Slots', 'vorlesung', 1, '10:00', '11:30', 'weekly', 1, 'manual', '2026-10-01')""")
+    early, _ = _package(fresh, "2026-10-27", [45, 60], "passt nicht vor die Vorlesung")
+    late, _ = _package(fresh, "2026-10-27", [30], "danach")
+    big, _ = _package(fresh, "2026-10-27", [400, 400], "zu gross fuer jedes Fenster")
+    assert call(fresh, "POST", "/api/timetable/reslot", {"dates": ["2026-10-27"]})[0] == 200
+    st, day = call(fresh, "GET", "/api/timetable/day?date=2026-10-27")
+    slots = {p["id"]: (p["start_time"], p["end_time"]) for p in day["packages"]}
+    # frei 08:00-09:30 (30 Minuten Fahrt vor 10:00) und ab 12:00; 45 + 15 Pause + 60 = 120 Minuten passen erst ab 12:00
+    assert slots[early] == ("12:00", "14:00")
+    assert slots[late] == ("08:00", "08:30"), "kurzes Paket in die Luecke vor der Vorlesung"
+    st, full = call(fresh, "GET", f"/api/packages/{early}")
+    assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("12:00", "12:45"), ("13:00", "14:00")]
+    # passt in kein Fenster: Aufgaben wie bisher der Reihe nach verteilt (die zweite hinter das Tagesende)
+    assert slots[big] == ("14:15", "27:50")
+    st, full = call(fresh, "GET", f"/api/packages/{big}")
+    assert [(t["start_time"], t["end_time"]) for t in full["tasks"]] == [("14:15", "20:55"), ("21:10", "27:50")]
+    with db.cursor() as conn:
+        assert study.slot_conflicts(conn, date(2026, 10, 27), date(2026, 10, 27)) == []

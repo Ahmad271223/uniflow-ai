@@ -432,7 +432,8 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
 
 def assign_slots(conn, d: date, only_unset: bool = True) -> None:
     """Weist den Lernpaketen eines Tages Uhrzeiten in den freien Fenstern zu (Hochschultermine, Sperrzeiten,
-    Fahrtzeit beruecksichtigt). Aufgaben eines Pakets koennen auf mehrere Fenster verteilt werden."""
+    Fahrtzeit beruecksichtigt). Ein Paket liegt am Stueck im ersten Fenster mit genug Platz; passt es in keines,
+    werden seine Aufgaben auf mehrere Fenster verteilt."""
     from . import timetable
     s = db.get_settings(conn)
     pkgs = db.rows(conn, "SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id", (d.isoformat(),))
@@ -444,36 +445,37 @@ def assign_slots(conn, d: date, only_unset: bool = True) -> None:
     if not windows:  # kein freies Fenster: Lernbeginn als Fallback, hintereinander
         windows = [{"start": timetable.hm(s["learn_start"]), "end": timetable.hm(s["learn_end"])}]
     brk = s["break_minutes"]
-    wi = 0
-    cur = windows[0]["start"]
+    free = [w["start"] for w in windows]          # naechste freie Minute je Fenster
     for p in pkgs:
         tasks = db.rows(conn, "SELECT id, est_minutes FROM study_tasks WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben') ORDER BY sort", (p["id"],))
+        needs = [int(t["est_minutes"] or 45) for t in tasks]
+        # Ein Paket kommt am Stueck in das erste freie Fenster, in dem es Platz hat. Frueher begann es im aktuellen
+        # Fenster und endete hinter dem naechsten Termin: der Lernblock lag ueber der Vorlesung, der Stundenplan meldete
+        # einen Konflikt, und "Lernslots neu legen" ergab wieder dasselbe; ein spaeteres kurzes Paket konnte die Luecke
+        # davor nicht mehr nutzen (Korrektur vom 26.10.2026). Passt es in kein Fenster, werden seine Aufgaben wie
+        # bisher der Reihe nach auf die Fenster verteilt.
+        total = sum(needs) + brk * max(0, len(needs) - 1)
+        k = next((j for j, w in enumerate(windows) if free[j] + total <= w["end"]), 0)
         first, last = None, None
-        for t in tasks:
-            need = int(t["est_minutes"] or 45)
+        for t, need in zip(tasks, needs):
             placed = False
-            for _ in range(len(windows) + 1):
-                if wi >= len(windows):
-                    break
-                w = windows[wi]
-                if cur < w["start"]:
-                    cur = w["start"]
+            while k < len(windows):
+                w, cur = windows[k], free[k]
                 if cur + need <= w["end"] or (w["end"] - w["start"] < need and cur == w["start"]):
                     st, en = cur, min(cur + need, w["end"]) if cur + need > w["end"] else cur + need
                     conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?", (timetable.mh(st), timetable.mh(en), t["id"]))
                     first = first if first is not None else st
                     last = en
-                    cur = en + brk
+                    free[k] = en + brk
                     placed = True
                     break
-                wi += 1
-                cur = windows[wi]["start"] if wi < len(windows) else cur
-            if not placed:  # ueber das Tagesende hinaus
-                st = cur
+                k += 1
+            if not placed:  # ueber das Tagesende hinaus (hinter das letzte Fenster)
+                st = free[-1]
                 conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?", (timetable.mh(st), timetable.mh(st + need), t["id"]))
                 first = first if first is not None else st
                 last = st + need
-                cur = st + need + brk
+                free[-1] = st + need + brk
         if first is not None:
             conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(first), timetable.mh(last), p["id"]))
 
