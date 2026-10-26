@@ -450,8 +450,7 @@ public enum OpencastStore {
         let f = LocalModules.FileRow(json: StudyClassify.enrichFile(r.json), chdate: r["chdate"] ?? .null)
         guard let module = f.json["module_id"]?.int else { return nil }
         let dates = try LocalModules.Dates(c, clock: clock)
-        let week = try LocalModules.week(docType: f.docType, subLabel: f.json["sub_label"]?.string, weekHint: f.json["week_hint"]?.int,
-                                         chdate: f.chdate, start: dates.start, today: dates.today)
+        let week = try LocalModules.week(f, dates: dates)
         let entries = try entries(c, moduleID: .integer(Int64(module)), dates: dates)
         guard !entries.isEmpty else { return nil }
         let title = try c.scalar("SELECT title FROM files WHERE id=?", [.text(fileID)])?.string

@@ -142,10 +142,17 @@ public enum LocalModules {
         }
     }
 
-    /// Block einer Datei im Moduldetail wie `module_detail`: Klausuren und Klausur-Loesungen eigener Block (-2, keine
-    /// Lehrwoche), sonst der Hinweis aus Name/Ordner (Blatt 3 / VL03 -> Lehrwoche 3), wenn die Datei aus diesem
-    /// Semester ist, sonst die Woche der Aenderung (`StudyWeeks.weekIndex`). Dieselbe Regel gilt fuer Aufzeichnungen
-    /// (`OpencastStore`), damit Blatt, Folien und Video einer Woche im selben Block stehen.
+    /// Lehrwoche einer Datei wie `file_week` in app/study.py, eine Regel fuer Moduldetail, Lernplan (`StudyPlan.units`),
+    /// Unterlagen zum Termin (`eventMaterials`) und Aufzeichnungen (`OpencastStore`): Klausuren und Klausur-Loesungen
+    /// eigener Block (-2, keine Lehrwoche), sonst der Hinweis aus Name/Ordner (Blatt 3 / VL03 -> Lehrwoche 3), wenn die
+    /// Datei aus diesem Semester ist, sonst die Woche der Aenderung (`StudyWeeks.weekIndex`). Vorher nahmen Lernplan und
+    /// Termin nur die Woche der Aenderung ("Blatt 3", in Woche 5 hochgeladen: Moduldetail Woche 3, Lernplan Woche 5).
+    static func week(_ f: FileRow, dates: Dates) throws -> Int {
+        try week(docType: f.docType, subLabel: f.json["sub_label"]?.string, weekHint: f.json["week_hint"]?.int, chdate: f.chdate,
+                 start: dates.start, today: dates.today)
+    }
+
+    /// Wie oben, mit den Feldern einzeln (Aufzeichnungen ohne Dateizeile)
     static func week(docType: String?, subLabel: String?, weekHint: Int?, chdate: SQLiteValue, start: Int, today: Int) throws -> Int {
         if docType == "klausur" || subLabel == "Klausur-Lösung" { return -2 }
         let index = try StudyWeeks.weekIndex(start: start, chdate: chdate, today: today)
@@ -169,11 +176,7 @@ public enum LocalModules {
         let start = dates.start
         let files = try fileRows(c, moduleID: moduleID)
         var weeks: [Int: [FileRow]] = [:]
-        for f in files {
-            let w = try week(docType: f.docType, subLabel: f.json["sub_label"]?.string, weekHint: f.json["week_hint"]?.int,
-                             chdate: f.chdate, start: start, today: dates.today)
-            weeks[w, default: []].append(f)
-        }
+        for f in files { weeks[try week(f, dates: dates), default: []].append(f) }
         let order = weeks.keys.sorted(by: weekOrder)
         var outWeeks: [JSONValue] = []
         for w in order {

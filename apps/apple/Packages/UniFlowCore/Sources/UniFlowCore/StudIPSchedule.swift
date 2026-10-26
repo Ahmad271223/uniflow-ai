@@ -2,10 +2,11 @@ import Foundation
 
 // Stundenplan aus Stud.IP direkt vom Geraet. users/{id}/schedule liefert die regelmaessigen Kurszeiten
 // (seminar-cycle-dates) und die eigenen Eintraege (schedule-entries), users/{id}/courses Titel, Nummer und
-// course-type (Aufbau: docs/QIS-STUDIP-STRUKTUR.md). Ergebnis in derselben Form wie auf dem PC-Server:
-// app/timetable.py studip_entries/auto_import, /api/timetable/auto-status in app/server.py und die Tabellen
-// course_events/event_exceptions in app/db.py. Anders als der PC, der die Serien aus Einzelterminen ableitet
-// (merge_weekly), stehen Rhythmus, Zeitraum und Ausfaelle hier direkt in der Antwort.
+// course-type (Aufbau: docs/QIS-STUDIP-STRUKTUR.md). Hier werden die Kurszeiten gelesen (`timetable`), in der Form von
+// app/timetable.py studip_entries; StudIPScheduleStore speichert sie, LocalTimetableImport.studipEntries und
+// StudIPScheduleImport uebernehmen sie. Eigene Eintraege speichert StudIPScheduleStore wie store_schedule_entries
+// (studip_schedule_entries), LocalTimetableImport.studipEntries liest sie wie Python. Anders als der PC, der die
+// Serien aus Einzelterminen ableitet (merge_weekly), stehen Rhythmus, Zeitraum und Ausfaelle hier direkt in der Antwort.
 
 /// Art einer Veranstaltung. Feiner als `kind` in course_events; `kind` folgt dem PC.
 public enum StudIPScheduleArt: String, Sendable, Codable, CaseIterable {
@@ -54,11 +55,10 @@ public struct StudIPTerm: Sendable, Equatable {
     }
 }
 
-/// Regelmaessiger Stundenplan-Eintrag: eine Kurszeit (seminar-cycle-date) oder ein eigener Eintrag.
+/// Regelmaessiger Stundenplan-Eintrag: eine Kurszeit (seminar-cycle-date).
 public struct StudIPScheduleEntry: Sendable, Equatable {
-    /// Stud.IP-ID der Kurszeit bzw. des eigenen Eintrags.
+    /// Stud.IP-ID der Kurszeit
     public let id: String
-    public let isPersonal: Bool
     public let courseID: String?
     public let courseNumber: String?
     public let title: String
@@ -99,7 +99,7 @@ public struct StudIPScheduleEntry: Sendable, Equatable {
     }
 
     /// Eintrag in der Form von app/timetable.py studip_entries (Felder von course_events, dazu uncertain,
-    /// selected, group_slots, hint, personal). Ergaenzt um studip_id, art, interval, exdates, locations und
+    /// selected, group_slots, hint). Ergaenzt um studip_id, art, interval, exdates, locations und
     /// course_number; module_id bleibt leer (die Modulzuordnung, guess_module, macht der Empfaenger).
     public var json: JSONValue {
         var o: [String: JSONValue] = [
@@ -113,16 +113,7 @@ public struct StudIPScheduleEntry: Sendable, Equatable {
             "course_number": Self.optional(courseNumber),
         ]
         if let hint { o["hint"] = .string(hint) }
-        if isPersonal { o["personal"] = true }
         return .object(o)
-    }
-
-    /// Ausfaelle als Zeilen von event_exceptions (ohne event_id, die vergibt der Server beim Import).
-    public var exceptionsJSON: [JSONValue] {
-        exdates.map { d -> JSONValue in
-            ["date": .string(d), "type": "cancelled", "new_date": .null, "new_start": .null, "new_end": .null,
-             "note": "Ausfall laut Stud.IP"]
-        }
     }
 
     static func optional(_ s: String?) -> JSONValue { s.map(JSONValue.string) ?? .null }
@@ -163,14 +154,6 @@ public struct StudIPScheduleEntry: Sendable, Equatable {
         }
         return out
     }
-
-    /// Termine, die das Zeitintervall beruehren (Beginn vor dessen Ende, Ende nach dessen Beginn).
-    public func occurrences(in interval: DateInterval, term: StudIPTerm? = nil, includeCancelled: Bool = false) -> [StudIPOccurrence] {
-        let lo = BerlinClock.local(utc: Int(interval.start.timeIntervalSince1970.rounded(.down))).day - 1
-        let hi = BerlinClock.local(utc: Int(interval.end.timeIntervalSince1970.rounded(.up))).day
-        return occurrences(from: BerlinClock.isoDate(lo), to: BerlinClock.isoDate(hi), term: term, includeCancelled: includeCancelled)
-            .filter { $0.start < interval.end && $0.end > interval.start }
-    }
 }
 
 /// Ein konkreter Termin eines Stundenplan-Eintrags.
@@ -183,11 +166,6 @@ public struct StudIPOccurrence: Sendable, Equatable {
     public let start: Date
     public let end: Date
     public let cancelled: Bool
-    let title: String
-    let kind: String
-    let color: String?
-    let room: String
-    let courseID: String?
 
     init(entry e: StudIPScheduleEntry, date: String, start: Date, end: Date, cancelled: Bool) {
         entryID = e.id
@@ -197,86 +175,13 @@ public struct StudIPOccurrence: Sendable, Equatable {
         self.start = start
         self.end = end
         self.cancelled = cancelled
-        title = e.title
-        kind = e.kind
-        color = e.color
-        room = e.room
-        courseID = e.courseID
-    }
-
-    /// Form von occurrences() in app/timetable.py; event_id ist hier die Stud.IP-ID, Ausfall = status "ausfall".
-    public var json: JSONValue {
-        [
-            "event_id": .string(entryID), "date": .string(date), "start": .string(startTime), "end": .string(endTime),
-            "title": .string(title), "kind": .string(kind), "module_id": .null, "module_name": .null,
-            "color": .string(color ?? "#4f5bd5"), "room": .string(room), "lecturer": "",
-            "course_id": StudIPScheduleEntry.optional(courseID), "status": cancelled ? "ausfall" : "teilnahme",
-            "permanent_skip": false, "exception": cancelled ? "cancelled" : .null,
-        ]
     }
 }
 
-/// Parallele Uebungsgruppen eines Kurses: der Nutzer waehlt seine Gruppe.
-public struct StudIPGroupChoice: Sendable, Equatable {
-    public let courseID: String?
-    public let title: String
-    public let art: StudIPScheduleArt
-    public let options: [StudIPScheduleEntry]
-}
-
-/// Ergebnis des Stundenplan-Abrufs.
+/// Ergebnis des Stundenplan-Abrufs: die Kurszeiten, nach Wochentag und Beginn sortiert (wie studip_entries).
+/// Kurse der Art "sonstiges" (Begruessung, Erstsemester ...) fehlen wie auf dem PC.
 public struct StudIPTimetable: Sendable, Equatable {
-    /// nach Wochentag und Beginn sortiert (wie studip_entries)
     public let entries: [StudIPScheduleEntry]
-    /// Kurse der Art "sonstiges" (Begruessung, Erstsemester ...), wie auf dem PC nicht im Stundenplan.
-    public let skippedCourseIDs: [String]
-
-    public var selected: [StudIPScheduleEntry] { entries.filter(\.selected) }
-    public var pending: [StudIPScheduleEntry] { entries.filter { !$0.selected } }
-    public var personal: [StudIPScheduleEntry] { entries.filter(\.isPersonal) }
-
-    /// Offene Gruppen je Kurs und Art, nach Titel sortiert.
-    public var groups: [StudIPGroupChoice] {
-        var order: [String] = []
-        var byKey: [String: [StudIPScheduleEntry]] = [:]
-        for e in pending {
-            let k = StudIPSchedule.groupKey(e)
-            if byKey[k] == nil { order.append(k) }
-            byKey[k, default: []].append(e)
-        }
-        return order.compactMap { k in
-            guard let opts = byKey[k], let f = opts.first else { return nil }
-            return StudIPGroupChoice(courseID: f.courseID, title: f.title, art: f.art, options: opts)
-        }.sorted { ($0.title, $0.art.rawValue) < ($1.title, $1.art.rawValue) }
-    }
-
-    /// Alle Eintraege als Liste in der Form von studip_entries.
-    public var entriesJSON: JSONValue { .array(entries.map(\.json)) }
-
-    /// Form von GET /api/timetable/auto-status (app/server.py): Zahl der offenen Eintraege, deren Kurstitel,
-    /// eigene Eintraege.
-    public var autoStatusJSON: JSONValue {
-        let p = pending
-        return [
-            "pending_groups": .number(Double(p.count)),
-            "courses": .array(Set(p.map(\.title)).sorted().map(JSONValue.string)),
-            "personal": .array(personal.map(\.json)),
-        ]
-    }
-
-    /// Eintraege fuer den Import (wie auto_import: alle eindeutigen) plus die gewaehlten Gruppen (`chosen` sind
-    /// Stud.IP-IDs). Gewaehlte Gruppen gelten danach als ausgewaehlt und sicher.
-    public func importEntries(choosing chosen: Set<String> = []) -> [StudIPScheduleEntry] {
-        entries.compactMap { e in
-            if e.selected { return e }
-            guard chosen.contains(e.id) else { return nil }
-            var c = e
-            c.selected = true
-            c.uncertain = false
-            c.hint = nil
-            return c
-        }
-    }
 }
 
 public enum StudIPSchedule {
@@ -285,23 +190,16 @@ public enum StudIPSchedule {
     /// keine Art erkennen laesst; die LUH-eigenen Nummern (7, 10, 35, 40 ...) sind unbekannt und bleiben aussen vor.
     public static let standardCourseTypes: [Int: StudIPScheduleArt] = [2: .seminar, 3: .uebung, 4: .labor]
 
-    /// Stundenplan aus den `data`-Listen von users/{id}/schedule und users/{id}/courses.
+    /// Kurszeiten aus den `data`-Listen von users/{id}/schedule und users/{id}/courses (eigene Eintraege bleiben
+    /// aussen vor, siehe oben).
     public static func timetable(schedule: [JSONValue], courses: [JSONValue],
                                  courseTypes: [Int: StudIPScheduleArt] = standardCourseTypes) -> StudIPTimetable {
         var byID: [String: StudIPScheduleCourse] = [:]
         for c in parseCourses(courses) where byID[c.id] == nil { byID[c.id] = c }
-        var cycles: [StudIPScheduleEntry] = [], personal: [StudIPScheduleEntry] = []
-        var skipped = Set<String>()
-        for r in schedule {
-            switch r["type"]?.string {
-            case "seminar-cycle-dates":
-                guard let e = cycleEntry(r, courses: byID, courseTypes: courseTypes) else { continue }
-                if e.art == .sonstiges { skipped.insert(e.courseID ?? e.id) } else { cycles.append(e) }
-            case "schedule-entries":
-                if let e = personalEntry(r) { personal.append(e) }
-            default:
-                continue
-            }
+        var cycles: [StudIPScheduleEntry] = []
+        for r in schedule where r["type"]?.string == "seminar-cycle-dates" {
+            guard let e = cycleEntry(r, courses: byID, courseTypes: courseTypes), e.art != .sonstiges else { continue }
+            cycles.append(e)
         }
         // Parallele Gruppen: Kurszeiten eines Kurses gleicher Art. Wie studip_entries (per_course > 2) gelten mehr
         // als zwei als Gruppen; bei Uebung, Gruppenuebung, Tutorium und Labor schon zwei, da man nur eine besucht.
@@ -323,24 +221,10 @@ public enum StudIPSchedule {
                     : "\(n) parallele Gruppen – nur deine Gruppe auswählen"
             }
         }
-        let all = (cycles + personal).sorted {
+        let all = cycles.sorted {
             ($0.weekday, $0.startTime, $0.title, $0.id) < ($1.weekday, $1.startTime, $1.title, $1.id)
         }
-        return StudIPTimetable(entries: all, skippedCourseIDs: skipped.sorted())
-    }
-
-    /// Wie oben, mit den ganzen JSON:API-Antworten (Feld `data`).
-    public static func timetable(scheduleDocument: JSONValue, coursesDocument: JSONValue,
-                                 courseTypes: [Int: StudIPScheduleArt] = standardCourseTypes) -> StudIPTimetable {
-        timetable(schedule: scheduleDocument["data"]?.array ?? [], courses: coursesDocument["data"]?.array ?? [],
-                  courseTypes: courseTypes)
-    }
-
-    /// Alle Termine mehrerer Eintraege im Zeitraum, nach Datum und Beginn sortiert.
-    public static func occurrences(of entries: [StudIPScheduleEntry], from: String, to: String, term: StudIPTerm? = nil,
-                                   includeCancelled: Bool = false) -> [StudIPOccurrence] {
-        entries.flatMap { $0.occurrences(from: from, to: to, term: term, includeCancelled: includeCancelled) }
-            .sorted { ($0.date, $0.startTime, $0.title, $0.entryID) < ($1.date, $1.startTime, $1.title, $1.entryID) }
+        return StudIPTimetable(entries: all)
     }
 
     static func groupKey(_ e: StudIPScheduleEntry) -> String { "\(e.courseID ?? e.id)|\(e.art.rawValue)" }
@@ -457,7 +341,7 @@ public enum StudIPSchedule {
         let (interval, rhythmHint) = rhythm(rec)
         let locations = locationList(a["locations"])
         var e = StudIPScheduleEntry(
-            id: id, isPersonal: false, courseID: courseID, courseNumber: course?.number, title: title, description: description,
+            id: id, courseID: courseID, courseNumber: course?.number, title: title, description: description,
             art: art, kind: art.kind, weekday: weekday, startTime: hhmm(startMin), endTime: hhmm(endMin), interval: interval,
             dateFrom: from.map { BerlinClock.isoDate($0.day) }, dateTo: until.map { lastDay($0, startMinutes: startMin) },
             exdates: exdates(rec["EXDATES"]), locations: locations, room: room(locations), color: a["color"]?.string,
@@ -470,35 +354,6 @@ public enum StudIPSchedule {
             e.hint = hints.joined(separator: "; ")
         }
         return e
-    }
-
-    /// Eigener Eintrag wie fetch_schedule_entries (app/studip_sync.py) und der Teil "Persoenliche Eintraege" in
-    /// studip_entries (app/timetable.py): Art aus dem Titel, alle zwei Wochen nur laut Titel/Beschreibung.
-    static func personalEntry(_ r: JSONValue) -> StudIPScheduleEntry? {
-        guard let id = r["id"]?.string, let a = r["attributes"],
-              let startMin = minutes(a["start"]?.string), let endMin = minutes(a["end"]?.string),
-              duration(startMinutes: startMin, endMinutes: endMin) != nil,
-              let weekday = studipWeekday(a["weekday"]) else { return nil }
-        let raw = squash(a["title"]?.string ?? "")
-        let title = raw.isEmpty ? "Termin" : raw
-        let description = a["description"]?.string ?? ""
-        let rec = recurrence(a["recurrence"])
-        let (ruleInterval, rhythmHint) = rhythm(rec)
-        var interval = ruleInterval
-        if rec["INTERVAL"] == nil,
-           (title + " " + description).range(of: "alle 2 Wochen|zweiw[öo]chentlich|14-?t[äa]g",
-                                              options: [.regularExpression, .caseInsensitive]) != nil {
-            interval = 2
-        }
-        let from = moment(rec["DTSTART"]), until = moment(rec["UNTIL"])
-        let locations = locationList(a["locations"])
-        return StudIPScheduleEntry(
-            id: id, isPersonal: true, courseID: nil, courseNumber: nil, title: title, description: description,
-            art: art(title: title), kind: UniRules.eventKind(title), weekday: weekday, startTime: hhmm(startMin), endTime: hhmm(endMin),
-            interval: interval, dateFrom: from.map { BerlinClock.isoDate($0.day) },
-            dateTo: until.map { lastDay($0, startMinutes: startMin) }, exdates: exdates(rec["EXDATES"]), locations: locations,
-            room: room(locations), color: a["color"]?.string, groupSlots: 1, selected: true, uncertain: rhythmHint != nil,
-            hint: rhythmHint ?? "persönlicher Eintrag aus deinem Stud.IP-Stundenplan")
     }
 
     /// Stud.IP zaehlt 1-5 = Mo-Fr (Python: weekday - 1), 6 = Sa, 0 oder 7 = So. Ergebnis 0 = Montag.
@@ -760,11 +615,5 @@ extension StudIPClient {
         let (schedule, _) = try await list("jsonapi.php/v1/users/\(userID)/schedule")
         let (courses, _) = try await list("jsonapi.php/v1/users/\(userID)/courses?page[limit]=100&include=start-semester")
         return (schedule, courses)
-    }
-
-    public func timetable(userID: String,
-                          courseTypes: [Int: StudIPScheduleArt] = StudIPSchedule.standardCourseTypes) async throws -> StudIPTimetable {
-        let r = try await scheduleResources(userID: userID)
-        return StudIPSchedule.timetable(schedule: r.schedule, courses: r.courses, courseTypes: courseTypes)
     }
 }

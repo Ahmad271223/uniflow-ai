@@ -172,8 +172,8 @@ enum StudyPlan {
         for f in try LocalModules.fileRows(c, moduleID: moduleID) {
             if let id = f.id.string, exclude.contains(id) { continue }
             if f.json["status"]?.string == "erledigt" { continue }
-            let w = try StudyWeeks.weekIndex(start: dates.start, chdate: f.chdate, today: dates.today)
-            if w < 1 { continue }                    // alte und vorsemesterliche Unterlagen nicht automatisch einplanen
+            let w = try LocalModules.week(f, dates: dates)
+            if w < 1 { continue }                    // alte und vorsemesterliche Unterlagen und Klausuren nicht automatisch einplanen
             weeks[w, default: ([], [], [])].files.append(f)
             if f.docType == "vorlesung" { weeks[w]!.lectures.append(f) } else if f.docType == "uebung" { weeks[w]!.exercises.append(f) }
         }

@@ -241,8 +241,8 @@ def _materials_for_test(conn, subject: str, limit: int = 8, module_id: int | Non
     if module_id and week_no:
         from . import study
         start = study.semester_start(conn)
-        files = [f for f in study._file_rows(conn, module_id) if study.week_index(start, f["chdate"]) == week_no
-                 and (f.get("doc_type") in ("vorlesung", "uebung", "skript", "loesung"))]
+        files = [f for f in study._file_rows(conn, module_id) if study.file_week(start, f) == week_no
+                 and f.get("doc_type") in study.LECTURE_WEEK_TYPES]
         files.sort(key=lambda f: ({"vorlesung": 0, "skript": 1, "uebung": 2, "loesung": 3}.get(f.get("doc_type"), 4), f["chdate"]))
         rows = [{"id": f["id"], "name": f["name"], "title": f.get("ai_title"), "doc_type": f.get("doc_type"), "difficulty": f.get("difficulty"), "text": None} for f in files[:10]]
         for r in rows:
@@ -327,7 +327,7 @@ def create_weekly_tests(week_start: date | None = None, log=print) -> list[int]:
         s = db.get_settings(conn)
         todo = []
         for m in db.rows(conn, "SELECT * FROM modules WHERE active=1 AND weekly_test=1"):
-            weeks = sorted({study.week_index(start, f["chdate"]) for f in study._file_rows(conn, m["id"]) if f.get("doc_type") in ("vorlesung", "uebung") and study.week_index(start, f["chdate"]) >= 1})
+            weeks = sorted({w for f in study._file_rows(conn, m["id"]) if f.get("doc_type") in ("vorlesung", "uebung") and (w := study.file_week(start, f)) >= 1})
             for w in weeks[-2:]:  # die beiden juengsten Lehrwochen mit Inhalten
                 if db.row(conn, "SELECT 1 FROM tests WHERE module_id=? AND week_no=? AND auto=1", (m["id"], w)):
                     continue

@@ -196,11 +196,12 @@ def materials_for_event(conn, event: dict, d: date) -> list[dict]:
     from . import study
     start = study.semester_start(conn)
     files = study._file_rows(conn, event["module_id"])
-    # Woche des Termins nach derselben Regel wie die der Dateien (study.week_index): vor dem Vorlesungsbeginn Woche
+    # Woche des Termins nach derselben Regel wie die der Dateien (study.day_week): vor dem Vorlesungsbeginn Woche
     # 0, vor dem Stichtag -1. Ohne Begrenzung fand ein Termin zwischen Stichtag und Vorlesungsbeginn (Woche -1, -2,
-    # ...) die Unterlagen seiner Woche (0) nie, bei -1 stattdessen die des aelteren Semesters.
+    # ...) die Unterlagen seiner Woche (0) nie, bei -1 stattdessen die des aelteren Semesters. Die Datei steht in
+    # ihrer Lehrwoche wie im Moduldetail (study.file_week, "Blatt 3" in Woche 3).
     w = study.day_week(start, d)
-    same = [f for f in files if study.week_index(start, f["chdate"]) == w and f.get("doc_type") in ("vorlesung", "uebung", "skript", "loesung")]
+    same = [f for f in files if study.file_week(start, f) == w and f.get("doc_type") in study.LECTURE_WEEK_TYPES]
     if not same:
         same = [f for f in files if f.get("doc_type") in ("vorlesung", "uebung")][-4:]
     return same[:8]

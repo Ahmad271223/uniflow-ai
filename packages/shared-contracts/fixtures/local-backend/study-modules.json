@@ -3392,7 +3392,8 @@
      "week": 1,
      "ids": [
       "f-ma-01",
-      "f-ma-05"
+      "f-ma-05",
+      "f-ma-06"
      ]
     },
     {
@@ -3400,7 +3401,8 @@
      "week": 1,
      "ids": [
       "f-ma-01",
-      "f-ma-05"
+      "f-ma-05",
+      "f-ma-06"
      ]
     },
     {
@@ -3408,7 +3410,6 @@
      "week": 2,
      "ids": [
       "f-ma-02",
-      "f-ma-06",
       "f-ma-07"
      ]
     },
@@ -3431,7 +3432,10 @@
      "day": "2026-11-11",
      "week": 5,
      "ids": [
-      "f-ma-09"
+      "f-ma-07",
+      "f-ma-03",
+      "f-ma-13",
+      "f-ma-14"
      ]
     },
     {
@@ -3464,42 +3468,60 @@
      "day": "2026-04-20",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-09-20",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-09-30",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-10-01",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-10-02",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-10-09",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
@@ -3508,7 +3530,8 @@
      "ids": [
       "f-bt-01",
       "f-bt-06",
-      "f-bt-02"
+      "f-bt-02",
+      "f-bt-04"
      ]
     },
     {
@@ -3517,7 +3540,8 @@
      "ids": [
       "f-bt-01",
       "f-bt-06",
-      "f-bt-02"
+      "f-bt-02",
+      "f-bt-04"
      ]
     },
     {
@@ -3533,13 +3557,17 @@
      "day": "2026-10-28",
      "week": 3,
      "ids": [
-      "f-bt-04"
+      "f-bt-08",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-11-04",
      "week": 4,
      "ids": [
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
       "f-bt-09"
      ]
     },
@@ -4524,7 +4552,8 @@
      "week": 1,
      "ids": [
       "f-ma-01",
-      "f-ma-05"
+      "f-ma-05",
+      "f-ma-06"
      ]
     },
     {
@@ -4532,7 +4561,8 @@
      "week": 1,
      "ids": [
       "f-ma-01",
-      "f-ma-05"
+      "f-ma-05",
+      "f-ma-06"
      ]
     },
     {
@@ -4540,7 +4570,6 @@
      "week": 2,
      "ids": [
       "f-ma-02",
-      "f-ma-06",
       "f-ma-07"
      ]
     },
@@ -4563,7 +4592,10 @@
      "day": "2026-11-11",
      "week": 5,
      "ids": [
-      "f-ma-09"
+      "f-ma-07",
+      "f-ma-03",
+      "f-ma-13",
+      "f-ma-14"
      ]
     },
     {
@@ -4649,7 +4681,8 @@
      "ids": [
       "f-bt-01",
       "f-bt-06",
-      "f-bt-02"
+      "f-bt-02",
+      "f-bt-04"
      ]
     },
     {
@@ -4658,7 +4691,8 @@
      "ids": [
       "f-bt-01",
       "f-bt-06",
-      "f-bt-02"
+      "f-bt-02",
+      "f-bt-04"
      ]
     },
     {
@@ -4674,13 +4708,16 @@
      "day": "2026-10-28",
      "week": 3,
      "ids": [
-      "f-bt-04"
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-11-04",
      "week": 4,
      "ids": [
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
       "f-bt-09"
      ]
     },
@@ -6915,31 +6952,6 @@
     "ai_doc_type": null,
     "sub_label": "Vorlesung",
     "week_hint": 2
-   },
-   {
-    "id": "f-ma-06",
-    "name": "GU01_lsg.pdf",
-    "chdate": 1792569600,
-    "status": "neu",
-    "favorite": 0,
-    "last_opened": null,
-    "size": 1000,
-    "course_id": "k-ma-gu",
-    "studip_folder": "Gruppenübung/Lösungen",
-    "course_title": "Gruppenübung Testmathematik I",
-    "course_kind": "gruppenuebung",
-    "subject": "Testmathematik I",
-    "module_id": 1,
-    "doc_type": "loesung",
-    "ai_title": null,
-    "difficulty": null,
-    "est_minutes": null,
-    "topics": null,
-    "summary": null,
-    "has_notes": null,
-    "ai_doc_type": null,
-    "sub_label": "Lösung",
-    "week_hint": 1
    },
    {
     "id": "f-ma-07",

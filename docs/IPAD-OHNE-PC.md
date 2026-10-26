@@ -65,7 +65,9 @@ mit dem Apple Pencil in der Oberfläche (im Simulator nur per Test auf `Document
 Stand nach **S4** (Zweig `wip/s4-module-3`, nachgebessert in `wip/s4-module-3-fix`, gebaut auf dem Stand nach S9 ohne
 S3 und S5): Fach und Art eines Kurses
 (`studip_sync.classify`), Art und Lehrwoche einer Datei (`study.effective_type`, `week_hint`, `enrich_file`) und die
-Semesterwochen (`semester_start`, `week_index`, `week_label`) sind ohne KI nach Swift portiert
+Semesterwochen (`semester_start`, `week_index`, `week_label`; die Lehrwoche einer Datei seit der Abnahme vom 26.10.2026
+an einer Stelle, `study.file_week` bzw. `LocalModules.week`, für Moduldetail, Lernplan, Unterlagen zum Termin und
+Aufzeichnungen) sind ohne KI nach Swift portiert
 (`UniFlowCore/LocalBackend/Study`), dazu `ensure_modules`, `module_detail`, `modules_overview` und alle
 Module-Endpunkte. „Meine Module“ und das Moduldetail mit Wochen kommen damit aus der lokalen Datenbank. Geprüft: im Kern
 gegen Ausgaben von Python (`study-modules.json`: 59 Kurstitel, 67 Dateien für die Art, 43 für die Lehrwoche,

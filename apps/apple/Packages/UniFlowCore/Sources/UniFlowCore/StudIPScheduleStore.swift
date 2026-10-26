@@ -245,7 +245,7 @@ public enum StudIPScheduleStore {
         let tt = StudIPSchedule.timetable(schedule: schedule, courses: courses.keys.sorted().compactMap { courses[$0] })
         let t = try LocalTimetable.term(c)
         let term = StudIPTerm(start: t["start"]?.string ?? "", end: t["end"]?.string ?? "")
-        return tt.entries.filter { !$0.isPersonal }.map { e in
+        return tt.entries.map { e in
             var o = e.json.object ?? [:]
             if let course = e.courseID, let i = info[course] {
                 o["module_id"] = i.module

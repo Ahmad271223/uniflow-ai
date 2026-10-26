@@ -116,3 +116,47 @@ def test_semester_start_in_january(app, monkeypatch):
         with db.cursor() as conn:
             conn.execute(f"DELETE FROM files WHERE id IN ({','.join('?' * 5)})", [f"sw-f{i}" for i in range(5)])
             conn.execute(f"DELETE FROM courses WHERE id IN ({','.join('?' * 5)})", ids)
+
+
+def test_file_week_is_one_rule_for_detail_plan_and_event(app, monkeypatch):
+    """study.file_week: "Blatt 3", in Woche 5 hochgeladen, steht im Moduldetail, im Lernplan (_units) und bei den
+    Unterlagen zum Termin in Woche 3; vorher nahmen Lernplan und Termin die Woche der Aenderung (Abnahme 26.10.2026)."""
+    from app import db, study, timetable
+    ids = [f"fw-k{i}" for i in range(5)]
+    files = [(f"fw-w1-{i}", ids[i], f"Folien Einfuehrung {i}.pdf", "Vorlesung", _ts(2026, 10, 13, 8 + i)) for i in range(5)]
+    files += [("fw-blatt3", ids[0], "Blatt 3.pdf", "Uebungen", _ts(2026, 11, 10)),
+              ("fw-vl5", ids[1], "Folien Integrale.pdf", "Vorlesung", _ts(2026, 11, 10)),
+              ("fw-klausur", ids[2], "Probeklausur.pdf", "Klausuren", _ts(2026, 11, 10))]
+    with db.cursor() as conn:
+        mid = conn.execute("INSERT INTO modules(name, color, sort, created_at) VALUES ('Testfach Lehrwoche', '#000', 0, '2026-10-01')").lastrowid
+        for i, cid in enumerate(ids):
+            conn.execute("INSERT INTO courses(id, title, subject, kind, module_id, created_at) VALUES (?, ?, 'Testfach Lehrwoche', 'vorlesung', ?, '2026-10-01')",
+                         (cid, f"Testkurs Lehrwoche {i}", mid))
+        for fid, cid, name, folder, ts in files:
+            conn.execute("INSERT INTO files(id, course_id, name, chdate, studip_folder) VALUES (?, ?, ?, ?, ?)", (fid, cid, name, ts, folder))
+    try:
+        monkeypatch.setattr(study, "today", lambda: date(2026, 11, 20))
+        with db.cursor() as conn:
+            start = study.semester_start(conn)
+            assert start == date(2026, 10, 12)
+            rows = {f["id"]: f for f in study._file_rows(conn, mid)}
+            assert study.week_index(start, rows["fw-blatt3"]["chdate"]) == 5
+            assert study.file_week(start, rows["fw-blatt3"]) == 3
+            assert study.file_week(start, rows["fw-vl5"]) == 5
+            assert study.file_week(start, rows["fw-klausur"]) == -2
+            detail = {w["week"]: w for w in study.module_detail(conn, mid)["weeks"]}
+            assert [f["id"] for f in detail[3]["uebungen"]] == ["fw-blatt3"]
+            units = {u["week"]: u for u in study._units(conn, mid, set())}
+            assert [f["id"] for f in units[3]["uebungen"]] == ["fw-blatt3"], "Lernplan: Woche 3 wie im Moduldetail"
+            assert [f["id"] for f in units[5]["vorlesungen"]] == ["fw-vl5"]
+            assert -2 not in units
+
+            def mats(d):
+                return [f["id"] for f in timetable.materials_for_event(conn, {"module_id": mid}, d)]
+            assert mats(date(2026, 10, 28)) == ["fw-blatt3"], "Termin in Woche 3"
+            assert mats(date(2026, 11, 11)) == ["fw-vl5"], "Termin in Woche 5: ohne Blatt 3 und Klausur"
+    finally:
+        with db.cursor() as conn:
+            conn.execute(f"DELETE FROM files WHERE id IN ({','.join('?' * len(files))})", [f[0] for f in files])
+            conn.execute(f"DELETE FROM courses WHERE id IN ({','.join('?' * len(ids))})", ids)
+            conn.execute("DELETE FROM modules WHERE id=?", (mid,))

@@ -18,6 +18,8 @@ from . import db
 PALETTE = ["#4f6df5", "#0ea5a0", "#e0803a", "#9b59d9", "#d94f6b", "#2f9e5a", "#c7891a", "#3b82c4", "#7c5cd6", "#1aa39a"]
 DEFAULT_EST = {"vorlesung": 45, "skript": 60, "uebung": 60, "loesung": 30, "test": 45, "wiederholung": 30}
 OPEN = ("geplant", "in_bearbeitung", "nachholen")
+# Arten, die zu einer Lehrwoche gehoeren (Wochenhinweis aus dem Namen, Unterlagen zum Termin, Wochentest)
+LECTURE_WEEK_TYPES = ("vorlesung", "uebung", "skript", "loesung")
 
 
 def today() -> date:
@@ -99,6 +101,20 @@ def week_index(start: date, chdate: int | None) -> int:
     return day_week(start, datetime.fromtimestamp(chdate).date())
 
 
+def file_week(start: date, f: dict) -> int:
+    """Lehrwoche einer Datei (nach enrich_file), eine Regel fuer Moduldetail, Lernplan (_units), Unterlagen zum Termin
+    (timetable.materials_for_event), Wochentests und Aufzeichnungen: Klausuren und Klausur-Loesungen -2 (eigener
+    Block), sonst die Woche aus Name/Ordner (Blatt 3 / VL03 -> 3), wenn die Datei aus diesem Semester ist, sonst die
+    Woche der Aenderung. Vorher nahmen Lernplan und Termin nur die Woche der Aenderung: "Blatt 3", in Woche 5
+    hochgeladen, stand im Moduldetail in Woche 3, im Lernplan in Woche 5."""
+    if f.get("doc_type") == "klausur" or f.get("sub_label") == "Klausur-Lösung":
+        return -2
+    w = week_index(start, f.get("chdate"))
+    if f.get("week_hint") and w >= 0:
+        return f["week_hint"]
+    return w
+
+
 def week_label(start: date, w: int) -> str:
     if w == -2:
         return "Klausuren & Altklausuren"
@@ -163,7 +179,7 @@ def week_hint(name: str, folder: str | None) -> int | None:
 def enrich_file(f: dict) -> dict:
     t, lab = effective_type(f.get("name"), f.get("studip_folder"), f.get("doc_type"))
     f["ai_doc_type"] = f.get("doc_type"); f["doc_type"] = t; f["sub_label"] = lab
-    f["week_hint"] = week_hint(f.get("name"), f.get("studip_folder")) if t in ("vorlesung", "uebung", "loesung", "skript") else None
+    f["week_hint"] = week_hint(f.get("name"), f.get("studip_folder")) if t in LECTURE_WEEK_TYPES else None
     return f
 
 
@@ -206,13 +222,7 @@ def module_detail(conn, module_id: int) -> dict:
     files = _file_rows(conn, module_id)
     weeks: dict[int, list] = defaultdict(list)
     for f in files:
-        if f["doc_type"] == "klausur" or f.get("sub_label") == "Klausur-Lösung":
-            w = -2                                   # Klausuren & Altklausuren: eigener Block, keine Lehrwoche
-        elif f.get("week_hint") and week_index(start, f["chdate"]) >= 0:
-            w = f["week_hint"]                       # Blatt 3 / VL03 -> Lehrwoche 3
-        else:
-            w = week_index(start, f["chdate"])
-        weeks[w].append(f)
+        weeks[file_week(start, f)].append(f)
     order = sorted(weeks, key=lambda w: (w == -2, w == -1, w))
     out_weeks = []
     for w in order:
@@ -328,9 +338,9 @@ def _units(conn, module_id: int, exclude_files: set[str]) -> list[dict]:
     for f in files:
         if f["id"] in exclude_files or f["status"] == "erledigt":
             continue
-        w = week_index(start, f["chdate"])
+        w = file_week(start, f)
         if w < 1:
-            continue  # alte und vorsemesterliche Unterlagen nicht automatisch einplanen
+            continue  # alte und vorsemesterliche Unterlagen und Klausuren nicht automatisch einplanen
         weeks[w]["files"].append(f)
         if f.get("doc_type") == "vorlesung":
             weeks[w]["vorlesungen"].append(f)

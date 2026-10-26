@@ -58,9 +58,15 @@ private let scheduleJSON = "{\"data\":[" + [
     #"{"id":"x-1","type":"course-events","attributes":{"title":"Sitzung"}}"#,
 ].joined(separator: ",") + "]}"
 
-private func fixture() throws -> StudIPTimetable {
-    StudIPSchedule.timetable(scheduleDocument: try JSONValue.parse(scheduleJSON), coursesDocument: try JSONValue.parse(coursesJSON))
+/// Kurszeiten aus den Antworten (Feld `data`), wie StudIPScheduleStore sie liest
+private func timetable(_ schedule: String, _ courses: String) throws -> StudIPTimetable {
+    StudIPSchedule.timetable(schedule: try JSONValue.parse(schedule)["data"]?.array ?? [],
+                             courses: try JSONValue.parse(courses)["data"]?.array ?? [])
 }
+
+private func fixture() throws -> StudIPTimetable { try timetable(scheduleJSON, coursesJSON) }
+
+private func pending(_ t: StudIPTimetable) -> [StudIPScheduleEntry] { t.entries.filter { !$0.selected } }
 
 private func entry(_ t: StudIPTimetable, _ id: String) -> StudIPScheduleEntry? { t.entries.first { $0.id == id } }
 
@@ -151,8 +157,7 @@ final class StudIPScheduleArtTests: XCTestCase {
 final class StudIPScheduleEdgeTests: XCTestCase {
 
     private func timetable(_ cycles: [String], courses: String) throws -> StudIPTimetable {
-        StudIPSchedule.timetable(scheduleDocument: try JSONValue.parse("{\"data\":[" + cycles.joined(separator: ",") + "]}"),
-                                 coursesDocument: try JSONValue.parse("{\"data\":[" + courses + "]}"))
+        try UniFlowCoreTests.timetable("{\"data\":[" + cycles.joined(separator: ",") + "]}", "{\"data\":[" + courses + "]}")
     }
 
     private let neutral = #"{"id":"k-n","type":"courses","attributes":{"title":"Mathematik I","course-type":1}}"#
@@ -167,7 +172,6 @@ final class StudIPScheduleEdgeTests: XCTestCase {
         XCTAssertEqual(t.entries.map(\.kind), ["vorlesung", "vorlesung"])
         XCTAssertTrue(t.entries.allSatisfy(\.uncertain))
         XCTAssertEqual(t.entries.first?.hint, "Beschreibung nennt Vorlesung und Übung – bitte prüfen")
-        XCTAssertTrue(t.groups.isEmpty)
     }
 
     func testFreeTextDescriptionDoesNotMakeGroups() throws {
@@ -185,7 +189,7 @@ final class StudIPScheduleEdgeTests: XCTestCase {
             cycle("a", course: "k-t", weekday: 1, start: "08:00", end: "09:30"),
             cycle("b", course: "k-t", weekday: 3, start: "10:00", end: "11:30"),
         ], courses: typed)
-        XCTAssertEqual(t.pending.map(\.id), ["a", "b"])
+        XCTAssertEqual(pending(t).map(\.id), ["a", "b"])
         XCTAssertTrue(t.entries.allSatisfy { $0.artFromCourseType && $0.uncertain })
         XCTAssertEqual(t.entries.first?.hint, "2 Termine, Gruppen nur laut Veranstaltungsart in Stud.IP – bitte prüfen und auswählen")
 
@@ -291,8 +295,9 @@ final class StudIPScheduleTests: XCTestCase {
         XCTAssertEqual(entry(t, "cy-db")?.art, .seminar, "course-type 2, Titel ohne Hinweis")
         XCTAssertEqual(entry(t, "cy-mess")?.art, .labor)
         XCTAssertNil(entry(t, "cy-erst"), "Begrüßung bleibt wie auf dem PC draussen")
-        XCTAssertEqual(t.skippedCourseIDs, ["k-erst"])
+        XCTAssertFalse(t.entries.contains { $0.courseID == "k-erst" })
         XCTAssertNil(entry(t, "x-1"))
+        XCTAssertNil(entry(t, "se-1"), "eigene Eintraege speichert StudIPScheduleStore getrennt (studip_schedule_entries)")
     }
 
     func testUnusualRhythmIsKeptButUncertain() throws {
@@ -308,9 +313,9 @@ final class StudIPScheduleTests: XCTestCase {
 
     func testParallelGroupsArePendingAndUniqueEntriesSelected() throws {
         let t = try fixture()
-        XCTAssertEqual(Set(t.pending.map(\.id)),
+        XCTAssertEqual(Set(pending(t).map(\.id)),
                        ["cy-gue-1", "cy-gue-2", "cy-gue-3", "cy-tut-1", "cy-tut-2", "cy-math-ue1", "cy-math-ue2", "cy-math-ue3"])
-        for id in ["cy-et-1", "cy-et-2", "cy-mech", "cy-db", "cy-mess", "cy-math-vl1", "cy-math-vl2", "se-1"] {
+        for id in ["cy-et-1", "cy-et-2", "cy-mech", "cy-db", "cy-mess", "cy-math-vl1", "cy-math-vl2"] {
             XCTAssertEqual(entry(t, id)?.selected, true, id)
         }
         let gue = try XCTUnwrap(entry(t, "cy-gue-1"))
@@ -320,19 +325,8 @@ final class StudIPScheduleTests: XCTestCase {
         XCTAssertEqual(entry(t, "cy-tut-2")?.hint, "2 parallele Gruppen – nur deine Gruppe auswählen")
         XCTAssertEqual(entry(t, "cy-math-ue1")?.art, .uebung, "Beschreibung der Kurszeit zaehlt")
         XCTAssertEqual(entry(t, "cy-math-vl1")?.groupSlots, 2)
-
-        let groups = t.groups
-        XCTAssertEqual(groups.map(\.title), ["Gruppenübung Mathematik I", "Mathematik I", "Tutorium Physik"])
-        XCTAssertEqual(groups[1].art, .uebung)
-        XCTAssertEqual(groups[1].options.map(\.id), ["cy-math-ue1", "cy-math-ue2", "cy-math-ue3"])
-
-        let imported = t.importEntries(choosing: ["cy-math-ue2", "cy-tut-1"])
-        XCTAssertEqual(imported.count, t.selected.count + 2)
-        let chosen = try XCTUnwrap(imported.first { $0.id == "cy-math-ue2" })
-        XCTAssertTrue(chosen.selected)
-        XCTAssertFalse(chosen.uncertain)
-        XCTAssertNil(chosen.hint)
-        XCTAssertFalse(imported.contains { $0.id == "cy-math-ue1" })
+        // Gruppe je Kurs und Art (StudIPScheduleImport.group liest dieselben Felder aus dem JSON)
+        XCTAssertEqual(Set(pending(t).filter { $0.courseID == "k-math" }.map(StudIPSchedule.groupKey)), ["k-math|uebung"])
     }
 
     func testEntriesSortedByWeekdayAndStart() throws {
@@ -340,19 +334,6 @@ final class StudIPScheduleTests: XCTestCase {
         let keys = t.entries.map { "\($0.weekday) \($0.startTime)" }
         XCTAssertEqual(keys, keys.sorted())
         XCTAssertEqual(t.entries.first?.id, "cy-math-vl1")
-    }
-
-    func testPersonalEntryLikeStudipEntries() throws {
-        let t = try fixture()
-        let p = try XCTUnwrap(entry(t, "se-1"))
-        XCTAssertTrue(p.isPersonal)
-        XCTAssertEqual(p.weekday, 2)
-        XCTAssertEqual(p.rrule, "biweekly", "alle 2 Wochen laut Beschreibung")
-        XCTAssertNil(p.courseID)
-        XCTAssertNil(p.dateFrom)
-        XCTAssertEqual(p.kind, "vorlesung")
-        XCTAssertEqual(p.hint, "persönlicher Eintrag aus deinem Stud.IP-Stundenplan")
-        XCTAssertEqual(t.personal.map(\.id), ["se-1"])
     }
 
     func testEntryJSONUsesServerFieldNames() throws {
@@ -374,36 +355,14 @@ final class StudIPScheduleTests: XCTestCase {
         XCTAssertNil(j["personal"])
         XCTAssertNil(j["hint"])
 
-        let p = try XCTUnwrap(entry(t, "se-1")).json
-        XCTAssertEqual(p["personal"], true)
-        XCTAssertEqual(p["date_from"], .null)
-        XCTAssertEqual(p["selected"], true)
-        XCTAssertEqual(p["group_slots"], 1)
-
         let g = try XCTUnwrap(entry(t, "cy-gue-2")).json
         XCTAssertEqual(g["selected"], false)
         XCTAssertEqual(g["uncertain"], true)
         XCTAssertEqual(g["hint"], "3 parallele Gruppen – nur deine Gruppe auswählen")
 
         // Rundlauf durch den eigenen JSON-Schreiber und -Leser
-        XCTAssertEqual(try JSONValue.parse(t.entriesJSON.serialized(sortedKeys: true)), t.entriesJSON)
-    }
-
-    func testAutoStatusShape() throws {
-        let s = try fixture().autoStatusJSON
-        XCTAssertEqual(Set(s.object.map { Array($0.keys) } ?? []), ["pending_groups", "courses", "personal"])
-        XCTAssertEqual(s["pending_groups"], 8)
-        XCTAssertEqual(s["courses"], ["Gruppenübung Mathematik I", "Mathematik I", "Tutorium Physik"])
-        XCTAssertEqual(s["personal"]?.array?.count, 1)
-        XCTAssertEqual(s["personal"]?.array?.first?["title"], "Lerngruppe mit Max Muster")
-    }
-
-    func testExceptionsJSONAsEventExceptions() throws {
-        let ex = try XCTUnwrap(entry(try fixture(), "cy-et-1")).exceptionsJSON
-        XCTAssertEqual(ex.count, 1)
-        XCTAssertEqual(ex[0]["date"], "2026-11-02")
-        XCTAssertEqual(ex[0]["type"], "cancelled")
-        XCTAssertEqual(ex[0]["new_date"], .null)
+        let all = JSONValue.array(t.entries.map(\.json))
+        XCTAssertEqual(try JSONValue.parse(all.serialized(sortedKeys: true)), all)
     }
 
     // MARK: Einzeltermine
@@ -418,11 +377,7 @@ final class StudIPScheduleTests: XCTestCase {
         let withCancelled = e.occurrences(from: "2026-11-01", to: "2026-11-10", includeCancelled: true)
         XCTAssertEqual(withCancelled.map(\.date), ["2026-11-02", "2026-11-09"])
         XCTAssertEqual(withCancelled.map(\.cancelled), [true, false])
-        XCTAssertEqual(withCancelled[0].json["status"], "ausfall")
-        XCTAssertEqual(withCancelled[0].json["exception"], "cancelled")
-        XCTAssertEqual(withCancelled[1].json["status"], "teilnahme")
-        XCTAssertEqual(withCancelled[1].json["color"], "#ff8800")
-        XCTAssertEqual(withCancelled[1].json["event_id"], "cy-et-1")
+        XCTAssertEqual(withCancelled.map(\.entryID), ["cy-et-1", "cy-et-1"])
         XCTAssertTrue(e.occurrences(from: "2026-11-10", to: "2026-11-01").isEmpty)
         XCTAssertTrue(e.occurrences(from: "kein Datum", to: "2026-11-01").isEmpty)
     }
@@ -444,37 +399,26 @@ final class StudIPScheduleTests: XCTestCase {
         XCTAssertEqual(o[1].start, utc("2026-10-26T09:00:00Z"), "Winterzeit UTC+1")
     }
 
-    func testPersonalEntryUsesTermWhenNoRange() throws {
-        let p = try XCTUnwrap(entry(try fixture(), "se-1"))
+    /// Kurszeit ohne eigenen Zeitraum (kein DTSTART/UNTIL): Semester verankert den Rhythmus
+    func testEntryWithoutRangeUsesTerm() throws {
+        let t = try timetable("{\"data\":[" + cycle("ohne", course: "k-db", weekday: 3, start: "18:00", end: "19:30",
+                                                     recurrence: #"{"FREQ":"WEEKLY","INTERVAL":2}"#) + "]}", coursesJSON)
+        let p = try XCTUnwrap(t.entries.first)
+        XCTAssertNil(p.dateFrom)
+        XCTAssertEqual(p.rrule, "biweekly")
         let term = StudIPTerm(start: "2026-10-12", end: "2026-11-15")
         XCTAssertEqual(p.occurrences(from: "2026-10-01", to: "2026-12-31", term: term).map(\.date),
                        ["2026-10-14", "2026-10-28", "2026-11-11"])
         XCTAssertEqual(p.occurrences(from: "2026-10-01", to: "2026-10-31").count, 4, "ohne Semester: Rhythmus nicht verankert")
     }
 
-    func testOccurrencesInDateInterval() throws {
-        let e = try XCTUnwrap(entry(try fixture(), "cy-et-1"))
-        let i = DateInterval(start: utc("2026-10-19T09:00:00Z"), end: utc("2026-10-26T08:30:00Z"))
-        XCTAssertEqual(e.occurrences(in: i).map(\.date), ["2026-10-19"], "laeuft noch um 11:00 Uhr, 26.10. beginnt erst 10:00 Uhr")
-    }
-
-    func testCombinedOccurrencesSorted() throws {
-        let t = try fixture()
-        let o = StudIPSchedule.occurrences(of: t.selected, from: "2026-10-12", to: "2026-10-18")
-        XCTAssertEqual(o.first?.entryID, "cy-math-vl1")
-        let keys = o.map { "\($0.date) \($0.startTime)" }
-        XCTAssertEqual(keys, keys.sorted())
-        XCTAssertTrue(o.contains { $0.entryID == "cy-et-2" && $0.date == "2026-10-15" })
-        XCTAssertFalse(o.contains { $0.entryID.hasPrefix("cy-gue") })
-    }
-
     func testOnceWhenStartEqualsEnd() throws {
-        let doc: JSONValue = ["data": [[
+        let block: JSONValue = [
             "id": "c1", "type": "seminar-cycle-dates",
             "attributes": ["title": "Block", "start": "09:00", "end": "17:00", "weekday": 6,
                            "recurrence": ["DTSTART": "2026-11-14T09:00:00+01:00", "UNTIL": "2026-11-14T17:00:00+01:00"]],
-        ]]]
-        let t = StudIPSchedule.timetable(scheduleDocument: doc, coursesDocument: ["data": []])
+        ]
+        let t = StudIPSchedule.timetable(schedule: [block], courses: [])
         let e = try XCTUnwrap(t.entries.first)
         XCTAssertEqual(e.weekday, 5, "Stud.IP 6 = Samstag")
         XCTAssertEqual(e.title, "Block", "ohne bekannten Kurs gilt der eigene Titel")
@@ -564,8 +508,8 @@ final class StudIPScheduleClientTests: XCTestCase {
             "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester": reply(coursesJSON),
         ])
         let c = StudIPClient(base: URL(string: "https://studip.test")!, transport: t, pauseMillis: 0)
-        let tt = try await c.timetable(userID: "u1")
-        XCTAssertEqual(tt, try fixture())
+        let r = try await c.scheduleResources(userID: "u1")
+        XCTAssertEqual(StudIPSchedule.timetable(schedule: r.schedule, courses: r.courses), try fixture())
         XCTAssertEqual(t.requested, ["/jsonapi.php/v1/users/u1/schedule",
                                      "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester"])
     }

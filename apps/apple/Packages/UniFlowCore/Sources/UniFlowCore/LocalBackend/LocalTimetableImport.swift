@@ -403,22 +403,6 @@ enum LocalTimetableImport {
         }
     }
 
-    /// `auto_import(conn)`: alle eindeutigen Stud.IP-Termine uebernehmen; parallele Gruppen bleiben zur Auswahl.
-    /// Zuerst `ensure_modules`, damit Termine neuer Kurse das Modul ihres Fachs bekommen (Korrektur vom 26.10.2026,
-    /// zuerst in Python, tests/test_timetable.py)
-    static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> JSONValue {
-        try LocalModules.ensureModules(c, clock: clock)
-        let all = try studipEntries(c)
-        let entries = try enrich(c, all.filter { LocalModules.truthy($0["selected"]) })
-        let diff = try diffAgainstExisting(c, entries)
-        let new = diff["new"]?.array ?? []
-        let res = try applyImport(c, new, source: "studip", clock: clock)
-        try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('studip-auto', ?, 'auto', '', ?, 1)",
-                      [.text(clock.nowISO), .text(JSONValue.array(new).jsonString(sortedKeys: true))])
-        let pending = try studipEntries(c).filter { !LocalModules.truthy($0["selected"]) }.count
-        return ["new": res["new"] ?? 0, "pending_groups": .number(Double(pending))]
-    }
-
     // MARK: Vorschau und Uebernahme
 
     /// `enrich(conn, entries)`: Modul raten, wo keines gesetzt ist

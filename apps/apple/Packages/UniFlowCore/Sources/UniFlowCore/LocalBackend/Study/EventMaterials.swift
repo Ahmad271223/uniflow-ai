@@ -6,8 +6,6 @@ import Foundation
 /// Die Woche des Termins folgt derselben Regel wie die der Dateien (`StudyWeeks.dayWeek`): vor dem Vorlesungsbeginn
 /// Woche 0, vor dem Stichtag -1 (Korrektur vom 25.10.2026, zuerst in Python, tests/test_study_weeks.py).
 extension LocalModules {
-    /// Arten, die zu einer Semesterwoche passen
-    static let weekMaterialTypes: Set<String> = ["vorlesung", "uebung", "skript", "loesung"]
     /// Arten fuer den Rueckfall auf die neuesten Unterlagen
     static let latestMaterialTypes: Set<String> = ["vorlesung", "uebung"]
 
@@ -22,10 +20,10 @@ extension LocalModules {
         let dates = try Dates(c, clock: clock)
         let files = try fileRows(c, moduleID: moduleID)
         let w = StudyWeeks.dayWeek(start: dates.start, day: day, today: dates.today)
-        // week_index zuerst wie in Python (`... == w and doc_type in ...`): ein ungueltiges Datum scheitert immer
+        // Lehrwoche der Datei zuerst wie in Python (`file_week(...) == w and doc_type in ...`): ein ungueltiges Datum
+        // scheitert ausser bei Klausuren immer; die Datei steht in ihrer Lehrwoche wie im Moduldetail ("Blatt 3" in Woche 3)
         var same = try files.filter {
-            try StudyWeeks.weekIndex(start: dates.start, chdate: $0.chdate, today: dates.today) == w
-                && weekMaterialTypes.contains($0.docType ?? "")
+            try week($0, dates: dates) == w && StudyClassify.lectureWeekTypes.contains($0.docType ?? "")
         }
         if same.isEmpty {
             same = Array(files.filter { latestMaterialTypes.contains($0.docType ?? "") }.suffix(4))
