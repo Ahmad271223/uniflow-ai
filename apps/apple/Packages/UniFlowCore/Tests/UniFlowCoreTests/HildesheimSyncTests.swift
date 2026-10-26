@@ -261,6 +261,28 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertEqual(r2.plan, UniStore.PlanResult(new: 0, removed: 0, kept: 4, cancelledDates: 0))
     }
 
+    /// Wie hildesheim.sync_learnweb: erst alle Kurse (upsert_course), dann je Kurs die Dateien. Eine unlesbare
+    /// Dateiliste betrifft nur ihren Kurs; der Kurs selbst steht trotzdem in der Datenbank.
+    func testCourseWithUnreadableFileListIsStoredOthersLoad() async throws {
+        let db = try await database()
+        let root = try tempDir()
+        let t = FakeUniTransport()
+        let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
+        restRoutes(t, contentsByCourse: [35: contents], courses: [35, 39])
+        t.on("\(base)/webservice/rest/server.php", body: "courseid=39&moodlewsrestformat=json&wsfunction=core_course_get_contents",
+             UniResponse(status: 503))
+        t.on("\(base)/webservice/pluginfile.php", ok("%PDF-1.7"))
+        let r = await HildesheimSync(db: db, root: root, learnweb: LearnwebAPI(base: base, mode: .token("TOK"), transport: t, retry: noWait),
+                                     lsf: nil, transport: t, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)), retry: noWait).run()
+        XCTAssertEqual(r.failedCourses, ["0439 Kurs 39"])
+        XCTAssertEqual(r.newFiles.count, 2, "Dateien des lesbaren Kurses kommen an")
+        let courses = try await db.rows("SELECT id, subject, kind FROM courses WHERE id LIKE 'lw-%' ORDER BY id")
+        XCTAssertEqual(courses.compactMap { $0["id"]?.string }, ["lw-35", "lw-39"])
+        XCTAssertEqual(courses.last?["subject"]?.string, "Kurs 39", "Fach wie classify")
+        let hashes = try await db.scalar("SELECT COUNT(*) FROM files WHERE course_id='lw-35' AND content_sha256 IS NOT NULL")?.int
+        XCTAssertEqual(hashes, 2)
+    }
+
     func testFailuresStayLocalAndNeverDeleteData() async throws {
         let db = try await database()
         let root = try tempDir()

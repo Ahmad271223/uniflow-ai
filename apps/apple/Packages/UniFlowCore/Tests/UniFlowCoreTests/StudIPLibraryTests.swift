@@ -36,8 +36,9 @@ final class StudIPLibraryTests: XCTestCase {
         var loaded: [String] = []
         for f in wanted where f.isDownloadable && !failing.contains(f.id) {
             let rel = "studip/" + StudIPImport.relativePath(for: f)
-            _ = try files.write(Data("Inhalt \(f.id)".utf8), to: rel)
-            try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: rel, at: now) }
+            // Inhalts-Hash nach dem Download wie store_course_files (testshare.file_sha256), ausserhalb der Transaktion
+            let sha = TestShare.contentHash(file: try files.write(Data("Inhalt \(f.id)".utf8), to: rel))
+            try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: rel, sha256: sha, at: now, base: base) }
             loaded.append(f.id)
         }
         let n = loaded.count
@@ -199,7 +200,9 @@ final class StudIPLibraryTests: XCTestCase {
         XCTAssertEqual(wanted.map(\.id), ["a1"])
         let target = try files.write(Data("Inhalt a1".utf8), to: "studip/" + StudIPImport.relativePath(for: f))
         let stored = try XCTUnwrap(files.stored(target))
-        try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, at: "2026-10-20T08:00:00") }
+        try await db.transaction {
+            try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, sha256: nil, at: "2026-10-20T08:00:00", base: base)
+        }
         let row = try await db.queryOne("SELECT name, local_path FROM files WHERE id='a1'")
         XCTAssertEqual(hex(row?["name"]?.string ?? ""), hex(nfd), "Name wie geliefert")
         XCTAssertEqual(row?["local_path"]?.string, "studip/files/a1/" + nfc, "kanonisch gleich (Swift vergleicht so)")
@@ -225,11 +228,11 @@ final class StudIPLibraryTests: XCTestCase {
     }
 
     func testFileKindLikePython() {
-        XCTAssertEqual(StudIPLibrary.fileKind(name: "uebung01.py", mime: "text/x-python"), "file")
-        XCTAssertEqual(StudIPLibrary.fileKind(name: "Folie.PDF", mime: nil), "pdf")
-        XCTAssertEqual(StudIPLibrary.fileKind(name: "ohne", mime: "application/pdf"), "pdf")
-        XCTAssertEqual(StudIPLibrary.fileKind(name: "plot.gif", mime: "image/gif"), "image")
-        XCTAssertEqual(StudIPLibrary.fileKind(name: "scan", mime: "image/heic"), "image")
+        XCTAssertEqual(UniRules.fileKind(name: "uebung01.py", mime: "text/x-python"), "file")
+        XCTAssertEqual(UniRules.fileKind(name: "Folie.PDF", mime: nil), "pdf")
+        XCTAssertEqual(UniRules.fileKind(name: "ohne", mime: "application/pdf"), "pdf")
+        XCTAssertEqual(UniRules.fileKind(name: "plot.gif", mime: "image/gif"), "image")
+        XCTAssertEqual(UniRules.fileKind(name: "scan", mime: "image/heic"), "image")
     }
 
     /// Zweiter Abgleich mit derselben Liste: nichts zu laden, nichts doppelt, Nutzerfelder und Notizen bleiben

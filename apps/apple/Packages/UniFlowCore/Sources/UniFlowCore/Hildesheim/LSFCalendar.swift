@@ -3,7 +3,9 @@ import Foundation
 /// LSF der Uni Hildesheim: iCal-Export des persoenlichen Stundenplans (`app/lsf.py`, `timetable.parse_ics`).
 ///
 /// Eigenheiten des LSF-Exports: DTSTART ist der Semesterbeginn (Montag), der echte Wochentag steht nur in BYDAY
-/// (auch mehrere Tage); vorlesungsfreie Tage stehen als EXDATE (mehrere Zeilen, Komma-Listen).
+/// (auch mehrere Tage); vorlesungsfreie Tage stehen als EXDATE (mehrere Zeilen, Komma-Listen). Gelesen wird die Datei
+/// mit demselben Port von `timetable.parse_ics` wie jeder Kalender-Import (`LocalTimetableImport.parseICS`, mit
+/// UTC/TZID, UNTIL mit Uhrzeit); hier steht nur, was das LSF eigen ist (Titel "0449 - Titel (Lehrperson)", Link).
 public enum LSFCalendar {
 
     /// Eine Serie wie in `course_events` (weekday 0 = Montag, Zeiten "HH:MM", Daten "YYYY-MM-DD").
@@ -20,119 +22,42 @@ public enum LSFCalendar {
         public var dateTo: String?
         public var exdates: [String]        // Ausfall (vorlesungsfrei), nur Tage dieses Wochentags
         public var uid: String?
+        public var description: String = ""
+
+        /// Eintrag von `parse_ics` (`LocalTimetableImport.parseICS`)
+        init(ics e: [String: JSONValue]) {
+            title = e["title"]?.string ?? "Veranstaltung"
+            number = nil
+            lecturer = ""
+            weekday = e["weekday"]?.int ?? 0
+            startTime = e["start_time"]?.string ?? ""
+            endTime = e["end_time"]?.string ?? ""
+            room = e["room"]?.string ?? ""
+            rrule = e["rrule"]?.string ?? "weekly"
+            dateFrom = e["date_from"]?.string ?? ""
+            dateTo = e["date_to"]?.string
+            exdates = e["exdates"]?.array?.compactMap(\.string) ?? []
+            uid = e["uid"]?.string
+            description = e["description"]?.string ?? ""
+        }
+
+        /// Eintrag in der Form von `lsf.plan_entries` (Art aus dem Titel wie `guess_kind`), fuer `UniStore.importPlan`
+        var json: [String: JSONValue] {
+            ["title": .string(title), "kind": .string(UniRules.eventKind(title)), "weekday": .number(Double(weekday)),
+             "start_time": .string(startTime), "end_time": .string(endTime), "room": .string(room), "rrule": .string(rrule),
+             "date_from": .string(dateFrom), "date_to": dateTo.map(JSONValue.string) ?? .null, "uncertain": false,
+             "exdates": .array(exdates.map(JSONValue.string)), "uid": uid.map(JSONValue.string) ?? .null,
+             "description": .string(description), "number": number.map(JSONValue.string) ?? .null, "lecturer": .string(lecturer)]
+        }
     }
 
-    static let icsDays = ["MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6]
-    private static let intervalRE = HText.regex("INTERVAL=(\\d+)")
-    private static let untilRE = HText.regex("UNTIL=(\\d{8})")
-    private static let bydayRE = HText.regex("BYDAY=([A-Z,0-9+-]+)")
     private static let summaryRE = HText.regex("^\\s*(\\d{3,5})\\s*-\\s*(.+?)\\s*$")
     private static let lecturerRE = HText.regex("\\s*\\(([A-ZÄÖÜ][\\wäöüß\\-]+(?:\\s*[,/]\\s*[A-ZÄÖÜ][\\wäöüß\\-]+)*)\\)\\s*$")
     private static let planLinkRE = HText.regex("href=\"([^\"]*moduleCall=iCalendarPlan[^\"]*)\"")
 
-    /// Datum/Zeit eines ICS-Werts (ohne Zeitzonen-Umrechnung, wie in Python)
-    struct DT { var y, m, d, hh, mm: Int }
-
-    static func parseDT(_ v: String) -> DT? {
-        let s = v.trimmingCharacters(in: .whitespaces)
-        let digits = Array(s)
-        func num(_ a: Int, _ n: Int) -> Int? {
-            guard digits.count >= a + n else { return nil }
-            return Int(String(digits[a..<(a + n)]))
-        }
-        guard let y = num(0, 4), let m = num(4, 2), let d = num(6, 2), (1...12).contains(m), (1...31).contains(d) else { return nil }
-        if s.contains("T") {
-            guard digits.count >= 15, digits[8] == "T", let hh = num(9, 2), let mm = num(11, 2), num(13, 2) != nil else { return nil }
-            return DT(y: y, m: m, d: d, hh: hh, mm: mm)
-        }
-        return DT(y: y, m: m, d: d, hh: 0, mm: 0)
-    }
-
-    static var gregorian: Calendar {
-        var c = Calendar(identifier: .gregorian)
-        c.timeZone = TimeZone(identifier: "UTC")!
-        return c
-    }
-
-    static func date(_ dt: DT) -> Date {
-        gregorian.date(from: DateComponents(year: dt.y, month: dt.m, day: dt.d, hour: dt.hh, minute: dt.mm))!
-    }
-
-    /// 0 = Montag
-    static func weekday(_ d: Date) -> Int { (gregorian.component(.weekday, from: d) + 5) % 7 }
-
-    static func iso(_ d: Date) -> String {
-        let c = gregorian.dateComponents([.year, .month, .day], from: d)
-        return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
-    }
-
-    static func hm(_ d: Date) -> String {
-        let c = gregorian.dateComponents([.hour, .minute], from: d)
-        return String(format: "%02d:%02d", c.hour!, c.minute!)
-    }
-
-    /// Minimaler ICS-Parser (VEVENT mit DTSTART/DTEND/SUMMARY/LOCATION/RRULE/EXDATE/UID)
+    /// `timetable.parse_ics`: VEVENT mit DTSTART/DTEND/SUMMARY/LOCATION/RRULE (BYDAY)/EXDATE/UID
     public static func parseICS(_ text: String) -> [Entry] {
-        var lines: [String] = []
-        for ln in text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
-            if (ln.hasPrefix(" ") || ln.hasPrefix("\t")), !lines.isEmpty {
-                lines[lines.count - 1] += String(ln.dropFirst())
-            } else {
-                lines.append(ln)
-            }
-        }
-        var events: [[String: String]] = [], exdates: [[String]] = []
-        var cur: [String: String]?, curEx: [String] = []
-        for ln in lines {
-            if ln.hasPrefix("BEGIN:VEVENT") {
-                cur = [:]; curEx = []
-            } else if ln.hasPrefix("END:VEVENT"), let c = cur {
-                events.append(c); exdates.append(curEx); cur = nil
-            } else if cur != nil, let colon = ln.firstIndex(of: ":") {
-                let k = String(ln[..<colon]), v = String(ln[ln.index(after: colon)...])
-                let key = (k.split(separator: ";", maxSplits: 1).first.map(String.init) ?? k).uppercased()
-                if key == "EXDATE" {
-                    curEx += v.trimmingCharacters(in: .whitespaces).split(separator: ",").map(String.init).filter { !$0.isEmpty }
-                    continue
-                }
-                cur?[key] = v.trimmingCharacters(in: .whitespaces)
-            }
-        }
-        var out: [Entry] = []
-        for (ev, exd) in zip(events, exdates) {
-            guard let stDT = parseDT(ev["DTSTART"] ?? "") else { continue }
-            let st = date(stDT)
-            let en: Date
-            if let e = ev["DTEND"] {
-                guard let enDT = parseDT(e) else { continue }
-                en = date(enDT)
-            } else {
-                en = st.addingTimeInterval(90 * 60)
-            }
-            let rr = ev["RRULE"] ?? ""
-            let weekly = rr.contains("FREQ=WEEKLY")
-            let interval = HText.match(intervalRE, rr)?.groups[1] ?? nil
-            let until = HText.match(untilRE, rr)?.groups[1] ?? nil
-            let title = (ev["SUMMARY"] ?? "Veranstaltung").replacingOccurrences(of: "\\,", with: ",")
-            var days: [Int] = []
-            if weekly, let by = HText.match(bydayRE, rr)?.groups[1] ?? nil {
-                days = by.split(separator: ",").compactMap { icsDays[String($0.suffix(2))] }
-            }
-            let exDays = Set(exd.compactMap(parseDT).map { date(DT(y: $0.y, m: $0.m, d: $0.d, hh: 0, mm: 0)) })
-            let stWD = weekday(st)
-            for wd in days.isEmpty ? [stWD] : days {
-                let first = gregorian.date(byAdding: .day, value: ((wd - stWD) % 7 + 7) % 7, to: st)!
-                out.append(Entry(
-                    title: title, number: nil, lecturer: "", weekday: wd, startTime: hm(st), endTime: hm(en),
-                    room: (ev["LOCATION"] ?? "").replacingOccurrences(of: "\\,", with: ","),
-                    rrule: weekly ? (interval == "2" ? "biweekly" : "weekly") : "once",
-                    dateFrom: iso(first),
-                    dateTo: until.map { "\($0.prefix(4))-\($0.dropFirst(4).prefix(2))-\($0.dropFirst(6).prefix(2))" },
-                    exdates: exDays.filter { weekday($0) == wd }.map(iso).sorted(),
-                    uid: ev["UID"]))
-            }
-        }
-        return out
+        LocalTimetableImport.parseICS(text).map(Entry.init(ics:))
     }
 
     public struct Summary: Sendable, Equatable {

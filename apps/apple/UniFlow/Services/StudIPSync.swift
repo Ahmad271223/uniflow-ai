@@ -111,18 +111,20 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// Abgleich der eigenen Stud.IP-Dateien aufs iPad. Laeuft beim Oeffnen der App (hoechstens alle 30 Minuten)
 /// und auf Knopfdruck; Dateien liegen unter Application Support/StudIP, ausgenommen vom iCloud-Backup.
 ///
-/// Seit S3 landen Kurse und Dateien wie bei app/studip_sync.py in der lokalen Datenbank (`StudIPLibrary`), seit S4
-/// mit Fach und Art je Kurs (`classify`): sie erscheinen nach Fach als Module in Dokumente (Modulordner mit
-/// Unterordnern nach Art) und Meine Module (Moduldetail nach Lehrwoche), dazu in der Kursliste und der Uebersicht,
-/// und oeffnen sich im Editor.
+/// Seit S3 landen Kurse und Dateien wie bei app/studip_sync.py in der lokalen Datenbank (`StudIPLibrary` ueber
+/// `UniStore`, dieselbe Fassung wie fuer Learnweb), seit S4 mit Fach und Art je Kurs (`classify`), jede geladene
+/// Datei mit ihrem Inhalts-Hash fuer gemeinsame Wochentests (`content_sha256`): sie erscheinen nach Fach als Module
+/// in Dokumente (Modulordner mit Unterordnern nach Art) und Meine Module (Moduldetail nach Lehrwoche), dazu in der
+/// Kursliste und der Uebersicht, und oeffnen sich im Editor.
 /// Welche Dateien geladen werden, entscheidet die Datenbank (neu, in Stud.IP geaendert, lokal fehlend);
 /// `index.json` bleibt fuer die Liste in StudIPView. Was ein Abgleich vor S3 schon geladen hat, wird beim Start
 /// uebernommen, ohne neu zu laden.
 /// Wie in Python halten Fehler einzelner Kurse oder Dateien den Abgleich nicht an (`StudIPError.affectsOnlyItem`,
 /// bei Dateiliste und Download auch Transportfehler eines Kurses oder einer Datei wie eine Zeitueberschreitung); eine
-/// abgelaufene Sitzung, kein Netz und volle Platte brechen ab. Eine neue Fassung, die nicht ankam, laedt der naechste
-/// Abgleich (`StudIPLibrary`). Laeuft die Sitzung erst beim Stundenplan ab, bleiben die Dateien, der Lauf endet aber
-/// mit "Erneut anmelden" (`.needsLogin`).
+/// abgelaufene Sitzung, kein Netz und volle Platte brechen ab. Wie `stream_download` wiederholt der Download eine
+/// abgerissene Verbindung bis zu zweimal (`UniRetry` im `StudIPClient`), und eine Webseite statt der Datei wird nicht
+/// gespeichert. Eine neue Fassung, die nicht ankam, laedt der naechste Abgleich (`UniStore`). Laeuft die Sitzung erst
+/// beim Stundenplan ab, bleiben die Dateien, der Lauf endet aber mit "Erneut anmelden" (`.needsLogin`).
 /// Am Ende jedes Laufs (auch eines gescheiterten: was bis dahin gelesen war, steht in der Datenbank) zaehlt
 /// `finishedRuns` hoch; offene Seiten laden dann neu (`ufReload`), wie nach einem Sync des PC-Servers.
 @MainActor
@@ -291,7 +293,7 @@ final class StudIPSync: ObservableObject {
 
             let chosen = courses.filter { selectedCourses.contains($0.id) }
             // Fach und Art wie upsert_course (classify); die Module legt ensure_modules beim naechsten Lesen an
-            try await db.transaction { try StudIPLibrary.storeCourses($0, chosen, startedAt: started, classify: StudIPLibrary.classify) }
+            try await db.transaction { try StudIPLibrary.storeCourses($0, chosen, startedAt: started) }
             var remote: [StudIPFile] = []
             var wanted: [StudIPFile] = []
             var checked = Set<String>()
@@ -336,7 +338,7 @@ final class StudIPSync: ObservableObject {
                 phase = .running("Lade \(i + 1) von \(download.count): \(f.name)")
                 let temp = partial.appendingPathComponent(UUID().uuidString)
                 do {
-                    try await client.download(fileID: f.id, to: temp)
+                    try await client.download(fileID: f.id, to: temp, name: f.name)
                 } catch let e as StudIPError where e.affectsOnlyItem {
                     // wie run_sync ("Download-Fehler"): naechste Datei; der naechste Abgleich versucht es erneut
                     failed += 1
@@ -354,8 +356,13 @@ final class StudIPSync: ObservableObject {
                                                downloadedAt: ISO8601DateFormatter().string(from: Date()))
                 saveIndex()                                   // nach jeder Datei: Abbruch verliert nichts
                 if let stored = localFiles?.stored(target) {
-                    let now = clock.nowISO
-                    try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, at: now) }
+                    // Inhalts-Hash fuer gemeinsame Wochentests wie store_course_files am PC; grosse Dateien nicht auf
+                    // dem Hauptthread und nicht in der Transaktion
+                    let sha = await Task.detached(priority: .utility) { TestShare.contentHash(file: target) }.value
+                    let now = clock.nowISO, base = Self.base
+                    try await db.transaction {
+                        try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, sha256: sha, at: now, base: base)
+                    }
                 }
                 loaded += 1
             }

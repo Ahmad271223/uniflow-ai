@@ -1,6 +1,8 @@
 import Foundation
 
-/// Kleine Text-Helfer fuer die Hildesheim-Parser: dieselben regulaeren Ausdruecke wie in Python (ICU statt `re`).
+/// Kleine Text-Helfer fuer die Parser (Hildesheim, Kalenderdateien im Stundenplan-Import): dieselben regulaeren
+/// Ausdruecke wie in Python, mit ICU statt `re`. Wo es auf Pythons Bedeutung von `\b`, `\w`, `\s` und re.I ankommt
+/// (Titel, Dateinamen), gilt `PyRegex`.
 enum HText {
     static func regex(_ pattern: String, _ options: NSRegularExpression.Options = []) -> NSRegularExpression {
         // Muster sind fest im Code; ein Fehler ist ein Programmierfehler
@@ -32,21 +34,10 @@ enum HText {
         re.stringByReplacingMatches(in: s, range: NSRange(location: 0, length: (s as NSString).length), withTemplate: template)
     }
 
-    /// `re.sub(r"\s+", " ", s).strip()`
-    static func collapse(_ s: String) -> String {
-        replace(whitespace, in: s, with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-    }
+    /// `re.sub(r"\s+", " ", s).strip()` mit Pythons Leerraum (`PyRegex`, `PyText.strip`)
+    static func collapse(_ s: String) -> String { PyText.strip(whitespace.sub(s, " ")) }
 
-    static let whitespace = regex("\\s+")
-
-    /// Python `str.strip(chars)`: entfernt die Zeichen aus `chars` an beiden Enden.
-    static func strip(_ s: String, _ chars: String) -> String {
-        let set = Set(chars)
-        var sub = Substring(s)
-        while let f = sub.first, set.contains(f) { sub = sub.dropFirst() }
-        while let l = sub.last, set.contains(l) { sub = sub.dropLast() }
-        return String(sub)
-    }
+    private static let whitespace = PyRegex(#"\s+"#)
 
     /// NFC-Normalform (Dateinamen aus Moodle kommen teils zerlegt: "u" + U+0308)
     static func nfc(_ s: String) -> String { s.precomposedStringWithCanonicalMapping }

@@ -1,10 +1,11 @@
 import Foundation
 
-/// Stundenplan-Import wie app/timetable.py: Art und Modul raten (`guess_kind`, `guess_module`), Kalenderdateien
-/// (`parse_ics`, `_ics_dt` mit UTC/TZID und EXDATE, Korrektur vom 25.10.2026 zuerst in Python; BYDAY wie der
-/// LSF-Export der Uni Hildesheim), Einzeltermine zu
-/// Serien (`merge_weekly`), Stud.IP-Termine (`studip_entries`, `auto_import`), Vorschau (`enrich`,
-/// `diff_against_existing`) und Uebernahme (`apply_import`). Eintraege sind JSON-Objekte in der Form von Python.
+/// Stundenplan-Import wie app/timetable.py: Art und Modul raten (`guess_kind` = `UniRules.eventKind`, `guess_module`),
+/// Kalenderdateien (`parse_ics`, `_ics_dt` mit UTC/TZID und EXDATE, Korrektur vom 25.10.2026 zuerst in Python; BYDAY wie
+/// der LSF-Export der Uni Hildesheim, den `LSFCalendar` hierueber liest), Einzeltermine zu Serien (`merge_weekly`),
+/// Stud.IP-Termine (`studip_entries`, `auto_import`), Vorschau (`enrich`, `diff_against_existing`) und Uebernahme
+/// (`apply_import`, auch fuer `lsf.import_plan` in `UniStore.importPlan`). Eintraege sind JSON-Objekte in der Form
+/// von Python.
 ///
 /// Erweiterung auf dem Geraet: Kurszeiten aus Stud.IP (seminar-cycle-dates, `StudIPScheduleStore`) ersetzen fuer
 /// ihren Kurs die aus Einzelterminen abgeleiteten Serien; Einzeltermine, die zu keiner Kurszeit passen (z. B.
@@ -23,22 +24,7 @@ enum LocalTimetableImport {
         }
     }
 
-    static func regex(_ pattern: String, caseInsensitive: Bool = false) -> NSRegularExpression {
-        // feste Muster, Fehler waeren Programmierfehler
-        try! NSRegularExpression(pattern: pattern, options: caseInsensitive ? [.caseInsensitive] : [])
-    }
-
-    /// Erste Gruppen eines Treffers irgendwo im Text (`re.search`); fehlende Gruppen als nil
-    static func search(_ re: NSRegularExpression, _ s: String) -> [String?]? {
-        let ns = s as NSString
-        guard let m = re.firstMatch(in: s, range: NSRange(location: 0, length: ns.length)) else { return nil }
-        return (0..<m.numberOfRanges).map { m.range(at: $0).location == NSNotFound ? nil : ns.substring(with: m.range(at: $0)) }
-    }
-
     // MARK: Art und Modul
-
-    /// `guess_kind(title)`
-    static func guessKind(_ title: String) -> String { StudIPSchedule.guessKind(title) }
 
     /// `guess_module(conn, title)`: Modul, dessen Name (oder Kurstitel) am besten zum Titel passt, ab 0,55. Eine
     /// Fassung fuer Stundenplan und Module (`ModuleGuess`, S4), hier als JSON-Wert fuer die Eintraege.
@@ -64,9 +50,8 @@ enum LocalTimetableImport {
 
     // strptime("%Y%m%dT%H%M%S") bzw. ("%Y%m%d") mit den Mustern aus Pythons _strptime: erster Treffer ab dem Anfang
     // (ohne Suche nach einem laengeren), danach muss der Text zu Ende sein ("20261021T0815" ergibt 08:01:05)
-    private static let strptimeDateTime = regex("([0-9]{4})(1[0-2]|0[1-9]|[1-9])(3[01]|[12][0-9]|0[1-9]|[1-9]| [1-9])T(2[0-3]|[0-1][0-9]|[0-9])([0-5][0-9]|[0-9])(6[0-1]|[0-5][0-9]|[0-9])",
-                                                caseInsensitive: true)
-    private static let strptimeDate = regex("([0-9]{4})(1[0-2]|0[1-9]|[1-9])(3[01]|[12][0-9]|0[1-9]|[1-9]| [1-9])")
+    private static let strptimeDateTime = HText.regex("([0-9]{4})(1[0-2]|0[1-9]|[1-9])(3[01]|[12][0-9]|0[1-9]|[1-9]| [1-9])T(2[0-3]|[0-1][0-9]|[0-9])([0-5][0-9]|[0-9])(6[0-1]|[0-5][0-9]|[0-9])", [.caseInsensitive])
+    private static let strptimeDate = HText.regex("([0-9]{4})(1[0-2]|0[1-9]|[1-9])(3[01]|[12][0-9]|0[1-9]|[1-9]| [1-9])")
 
     /// Gruppen eines Treffers ab dem Anfang, der den ganzen Text abdeckt, als Zahlen
     private static func strptime(_ re: NSRegularExpression, _ s: String) -> [Int]? {
@@ -130,12 +115,12 @@ enum LocalTimetableImport {
         return nil
     }
 
-    private static let untilRule = regex("UNTIL=([0-9]{8})(T[0-9]{6}Z?)?")
-    private static let intervalRule = regex("INTERVAL=([0-9]+)")
+    private static let untilRule = HText.regex("UNTIL=([0-9]{8})(T[0-9]{6}Z?)?")
+    private static let intervalRule = HText.regex("INTERVAL=([0-9]+)")
 
     /// `_ics_until(rrule, start)`: letzter Tag; UNTIL mit Uhrzeit vor dem Beginn des Termins zaehlt den Vortag
     static func icsUntil(_ rrule: String, start: LocalTime) -> String? {
-        guard let g = search(untilRule, rrule), let d = g[1] else { return nil }
+        guard let g = HText.match(untilRule, rrule)?.groups, let d = g[1] else { return nil }
         let day = slice(d, 0, 4) + "-" + slice(d, 4, 6) + "-" + slice(d, 6, 8)
         guard let t = g[2] else { return day }
         guard let u = icsDate(d + t) else { return day }
@@ -213,7 +198,7 @@ enum LocalTimetableImport {
             }
             let rr = ev.props["RRULE"] ?? ""
             let weekly = PyText.contains(rr, "FREQ=WEEKLY")
-            let interval = search(intervalRule, rr)?[1]
+            let interval = HText.match(intervalRule, rr)?.groups[1]
             let title = (ev.props["SUMMARY"] ?? "Veranstaltung").replacingOccurrences(of: "\\,", with: ",")
             let room = (ev.props["LOCATION"] ?? "").replacingOccurrences(of: "\\,", with: ",")
             // BYDAY bestimmt den Wochentag (im LSF ist DTSTART der Semesterbeginn, auch fuer Donnerstags-Kurse); bei
@@ -227,7 +212,7 @@ enum LocalTimetableImport {
                 let first = st.day + ((wd - startWeekday) % 7 + 7) % 7
                 let own = exdates.filter { d in days.isEmpty || BerlinClock.parseISODate(d).map(BerlinClock.weekday) == wd }
                 out.append([
-                    "title": .string(title), "kind": .string(guessKind(title)), "weekday": .number(Double(wd)),
+                    "title": .string(title), "kind": .string(UniRules.eventKind(title)), "weekday": .number(Double(wd)),
                     "start_time": .string(LocalFreeWindows.mh(st.minutes)), "end_time": .string(LocalFreeWindows.mh(en.minutes)),
                     "room": .string(room), "rrule": .string(weekly ? (interval == "2" ? "biweekly" : "weekly") : "once"),
                     "date_from": .string(BerlinClock.isoDate(first)), "date_to": until,
@@ -241,12 +226,12 @@ enum LocalTimetableImport {
 
     /// Wochentage wie `ICS_DAYS`
     static let icsDays: [String: Int] = ["MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6]
-    private static let byDayRule = regex("BYDAY=([A-Z,0-9+-]+)")
+    private static let byDayRule = HText.regex("BYDAY=([A-Z,0-9+-]+)")
 
     /// Wochentage aus BYDAY (`[ICS_DAYS[d[-2:]] for d in ... if d[-2:] in ICS_DAYS]`, z. B. "-1SU" -> 6); doppelte
     /// bleiben doppelt wie in Python
     static func byDays(_ rrule: String) -> [Int] {
-        guard let g = search(byDayRule, rrule), let list = g[1] else { return [] }
+        guard let g = HText.match(byDayRule, rrule)?.groups, let list = g[1] else { return [] }
         return list.split(separator: ",", omittingEmptySubsequences: false).compactMap { d in icsDays[String(d.suffix(2))] }
     }
 
@@ -287,7 +272,7 @@ enum LocalTimetableImport {
 
     // MARK: Stud.IP
 
-    private static let biweeklyWords = regex("alle 2 Wochen|zweiw[öo]chentlich|14-?t[äa]g", caseInsensitive: true)
+    private static let biweeklyWords = HText.regex("alle 2 Wochen|zweiw[öo]chentlich|14-?t[äa]g", [.caseInsensitive])
 
     /// `datetime.fromisoformat(v)` fuer gespeicherte Stud.IP-Termine: Tag und Uhrzeit, wie sie im Text stehen
     /// (eine Zeitzone am Ende aendert sie nicht). nil, wo Python mit ValueError/TypeError scheitert.
@@ -380,7 +365,7 @@ enum LocalTimetableImport {
             let title = r["course_title"] ?? .null
             let date: JSONValue = .string(BerlinClock.isoDate(st.day))
             entries.append([
-                "title": title, "kind": .string(r["course_kind"] == "uebung" ? "uebung" : guessKind(title.string ?? "")),
+                "title": title, "kind": .string(r["course_kind"] == "uebung" ? "uebung" : UniRules.eventKind(title.string ?? "")),
                 "weekday": .number(Double(BerlinClock.weekday(st.day))), "start_time": .string(LocalFreeWindows.mh(st.minutes)),
                 "end_time": .string(LocalFreeWindows.mh(en.minutes)), "room": LocalTimetable.or(r["room"], ""), "rrule": "once",
                 "date_from": date, "date_to": date, "module_id": r["module_id"] ?? .null, "course_id": r["course_id"] ?? .null,
@@ -406,9 +391,9 @@ enum LocalTimetableImport {
             guard let title = titleValue.string else { throw LocalHTTPError(status: 500, message: "Titel eines Stundenplan-Eintrags ist kein Text") }
             let desc = LocalTimetable.or(r["description"], "")
             guard let descText = desc.string else { throw LocalHTTPError(status: 500, message: "Beschreibung ist kein Text") }
-            let biweekly = search(biweeklyWords, title + " " + descText) != nil
+            let biweekly = HText.match(biweeklyWords, title + " " + descText) != nil
             merged.append([
-                "title": .string(title), "kind": .string(guessKind(title)), "weekday": .number(Double(try LocalTimetable.int(r["weekday"], "weekday"))),
+                "title": .string(title), "kind": .string(UniRules.eventKind(title)), "weekday": .number(Double(try LocalTimetable.int(r["weekday"], "weekday"))),
                 "start_time": r["start"] ?? .null, "end_time": r["end"] ?? .null, "room": "", "rrule": biweekly ? "biweekly" : "weekly",
                 "date_from": .null, "date_to": .null, "module_id": try guessModule(c, title: title), "course_id": .null,
                 "uncertain": false, "selected": true, "group_slots": 1, "personal": true,

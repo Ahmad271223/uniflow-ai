@@ -1,4 +1,5 @@
 """Regressionstests fuer die am 24.10.2026 gefundenen Live-Blocker."""
+import hashlib
 import json
 
 from conftest import asgi_call
@@ -135,7 +136,8 @@ def test_delete_forever_of_duplicate_keeps_shared_file(app, tmp_path):
 
 
 # -- Abgleich: eine neue Fassung ging still verloren, wenn ihr Download scheiterte (chdate stand schon in der Datenbank,
-#    der naechste Abgleich hielt die alte Datei fuer aktuell)
+#    der naechste Abgleich hielt die alte Datei fuer aktuell). Seit dem Zusammenfuehren mit dem PC-Stand kommt der
+#    Inhalts-Hash (content_sha256) im selben Schritt wie die neue Fassung.
 def test_failed_download_of_new_version_is_retried(app, monkeypatch, tmp_path):
     from app import db, studip_sync, timetable
     remote = {"f-sync-1": {"name": "Folien.pdf", "size": 10, "chdate": 1792000000}}
@@ -197,18 +199,23 @@ def test_failed_download_of_new_version_is_retried(app, monkeypatch, tmp_path):
 
     def row():
         with db.cursor() as conn:
-            return dict(db.row(conn, "SELECT chdate, size, local_path FROM files WHERE id='f-sync-1'"))
+            return dict(db.row(conn, "SELECT chdate, size, local_path, content_sha256 FROM files WHERE id='f-sync-1'"))
+
+    def sha(chdate):
+        return hashlib.sha256(b"%PDF Fassung " + str(chdate).encode()).hexdigest()
 
     assert studip_sync.run_sync()["ok"] and loaded == ["f-sync-1"]
+    assert row()["content_sha256"] == sha(1792000000), "Inhalts-Hash mit dem Download (gemeinsame Wochentests)"
     remote["f-sync-1"].update(size=12, chdate=1792100000)
     failing.add("f-sync-1")
     assert studip_sync.run_sync()["ok"]
     r = row()
     assert (r["chdate"], r["size"]) == (1792000000, 10), "neue Fassung erst mit ihrem Download"
+    assert r["content_sha256"] == sha(1792000000), "Hash gehoert zur Datei auf der Platte"
     failing.clear()
     assert studip_sync.run_sync()["new_files"] == ["f-sync-1"], "naechster Abgleich laedt die neue Fassung"
     r = row()
-    assert (r["chdate"], r["size"]) == (1792100000, 12)
+    assert (r["chdate"], r["size"], r["content_sha256"]) == (1792100000, 12, sha(1792100000))
     with open(r["local_path"], "rb") as fh:
         assert fh.read() == b"%PDF Fassung 1792100000"
     assert studip_sync.run_sync()["new_files"] == [], "danach unveraendert"

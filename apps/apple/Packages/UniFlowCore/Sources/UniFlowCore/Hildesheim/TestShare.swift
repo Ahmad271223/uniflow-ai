@@ -14,6 +14,24 @@ public enum TestShare {
     /// Inhalts-Hash einer Datei (beim Download einmal berechnen und speichern)
     public static func contentHash(_ data: Data) -> String { SolutionSHA256.hex(data) }
 
+    /// `testshare.file_sha256(path)`: Inhalts-Hash einer Datei auf der Platte in 1-MB-Bloecken (konstanter Speicher,
+    /// auch fuer Vorlesungsvideos); nil, wenn die Datei fehlt oder nicht lesbar ist. Synchron und je nach Groesse
+    /// langsam: nicht auf dem Hauptthread und nicht in einer Datenbank-Transaktion aufrufen.
+    public static func contentHash(file url: URL) -> String? {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue,
+              let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        var hasher = SolutionSHA256.Hasher()
+        do {
+            // nil oder leer: Dateiende
+            while let block = try handle.read(upToCount: 1 << 20), !block.isEmpty { hasher.update(block) }
+        } catch {
+            return nil
+        }
+        return SolutionSHA256.hexString(hasher.finalize())
+    }
+
     /// Schluessel oder nil, wenn eine Datei keinen Inhalts-Hash hat (dann nicht teilen).
     /// Kanonisch wie `json.dumps(..., sort_keys=True, separators=(",", ":"))` in Python.
     public static func shareKey(university: String, minutes: Int?, contentHashes: [String?]) -> String? {

@@ -107,7 +107,10 @@ final class LocalDocumentsAppTests: XCTestCase {
         return t
     }
 
-    private func client(_ t: FakeStudIP) -> StudIPClient { StudIPClient(base: StudIPSync.base, transport: t, pauseMillis: 0) }
+    /// Wiederholungen wie in der App (abgerissene Verbindung bis zu dreimal), nur ohne Wartezeit
+    private func client(_ t: FakeStudIP) -> StudIPClient {
+        StudIPClient(base: StudIPSync.base, transport: t, pauseMillis: 0, retry: UniRetry(attempts: 3, delayNanos: { _ in 0 }))
+    }
 
     /// Strich wie von der PencilKit-Canvas (waagrecht, in Seitenpunkten)
     private func drawing(y: CGFloat, x0: CGFloat = 100, step: CGFloat = 20) -> PKDrawing {
@@ -494,8 +497,12 @@ final class LocalDocumentsAppTests: XCTestCase {
         let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
         await sync.run(client: client(fakeStudIP(pdf: v1)))
         func content() async throws -> Data { try await dev.api.data("/api/files/d1/content").0 }
+        // Inhalts-Hash fuer gemeinsame Wochentests gehoert immer zur Datei auf der Platte (store_course_files)
+        func hash() async throws -> String? { try await dev.api.value("/api/files/d1")["content_sha256"]?.string }
         let first = try await content()
         XCTAssertEqual(first, v1)
+        let firstHash = try await hash()
+        XCTAssertEqual(firstHash, SolutionSHA256.hex(v1))
 
         let broken = fakeStudIP(pdf: v2, changed: changed)
         broken.set("/jsonapi.php/v1/file-refs/d1/content", HTTPReply(status: 500, contentType: "text/plain"))
@@ -510,6 +517,8 @@ final class LocalDocumentsAppTests: XCTestCase {
         guard case .failed = sync.phase else { return XCTFail("kein Netz bricht den Lauf ab: \(sync.phase)") }
         let afterAbort = try await content()
         XCTAssertEqual(afterAbort, v1)
+        let abortHash = try await hash()
+        XCTAssertEqual(abortHash, SolutionSHA256.hex(v1), "Hash der alten Fassung bleibt")
 
         let ok = fakeStudIP(pdf: v2, changed: changed)
         await sync.run(client: client(ok))
@@ -517,6 +526,8 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(ok.downloads, ["/jsonapi.php/v1/file-refs/d1/content"], "naechster Abgleich laedt die neue Fassung")
         let latest = try await content()
         XCTAssertEqual(latest, v2)
+        let latestHash = try await hash()
+        XCTAssertEqual(latestHash, SolutionSHA256.hex(v2))
         let meta = try await dev.api.value("/api/files/d1")
         XCTAssertEqual(meta["chdate"]?.int, StudIPLibrary.unixTime(changed))
         XCTAssertEqual(meta["size"]?.int, v2.count)

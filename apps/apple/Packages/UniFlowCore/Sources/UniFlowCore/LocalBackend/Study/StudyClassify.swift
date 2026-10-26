@@ -1,52 +1,12 @@
 import Foundation
 
-/// Einordnung ohne KI wie app/studip_sync.py und app/study.py (docs/IPAD-OHNE-PC.md, S4):
-/// - `classify`: Fach und Art eines Stud.IP-Kurses aus dem Titel (Vorlesung und Uebung werden ein Fach)
+/// Einordnung ohne KI wie app/study.py (docs/IPAD-OHNE-PC.md, S4):
 /// - `effectiveType`: Dokumenttyp aus Stud.IP-Ordner und Dateiname (schlaegt die KI-Einschaetzung, wenn eindeutig)
 /// - `weekHint`: Lehrwoche aus Dateiname/Ordner ("Blatt 3", "VL03", "02A")
+/// Fach und Art eines Kurses (`studip_sync.classify`) stehen mit den uebrigen Regeln aller Quellen in `UniRules`.
 /// Dieselben Muster in derselben Reihenfolge; `PyRegex` sorgt fuer dieselbe Bedeutung wie Pythons `re`.
 /// Gegen Python geprueft mit packages/shared-contracts/fixtures/local-backend/study-modules.json.
 public enum StudyClassify {
-    // MARK: studip_sync.classify
-
-    private static let kindGroup = PyRegex("Gruppenübung|Gruppenuebung", ignoreCase: true)
-    private static let kindLectureHall = PyRegex("Hörsaalübung|Hoersaaluebung|Zentralübung", ignoreCase: true)
-    private static let kindExercise = PyRegex(#"\b(Übung|Uebung|Fragestunde)"#, ignoreCase: true)
-    private static let kindTutorial = PyRegex("Tutorium", ignoreCase: true)
-    // "ß" passt mit re.I auf "ẞ", nie auf "ss" (PyRegex.caseVariants)
-    private static let kindOther = PyRegex("Begrüßung|Studiengänge|Einführungsveranstaltung|Erstsemester", ignoreCase: true)
-    private static let leadingNumber = PyRegex(#"^\d+\s+"#)
-    private static let leadingKind = PyRegex(#"^(Gruppenübung|Übung|Uebung|Tutorium)\s*(zu|zur|:)?\s*"#, ignoreCase: true)
-    private static let trailingQuestions = PyRegex(#"\s*[-–]\s*(Fragestunden|Tutorium).*$"#, ignoreCase: true)
-    private static let bracketNote = PyRegex(#"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik)\)"#, ignoreCase: true)
-    private static let trailingTranche = PyRegex(#",?\s*Tranche\s*\w+.*$"#, ignoreCase: true)
-    private static let spaces = PyRegex(#"\s+"#)
-
-    /// `classify(title) -> (subject, kind)`; kind: vorlesung | gruppenuebung | hoersaaluebung | uebung | tutorium |
-    /// sonstiges (Begruessung, Einfuehrung, Erstsemester).
-    public static func classify(_ title: String) -> (subject: String, kind: String) {
-        let t = title
-        var kind = "vorlesung"
-        if kindGroup.found(in: t) {
-            kind = "gruppenuebung"
-        } else if kindLectureHall.found(in: t) {
-            kind = "hoersaaluebung"
-        } else if kindExercise.found(in: t) {
-            kind = "uebung"
-        } else if kindTutorial.found(in: t) {
-            kind = "tutorium"
-        }
-        if kindOther.found(in: t) { kind = "sonstiges" }
-        var s = t
-        s = leadingNumber.sub(s)                                                  // Nummer vorne
-        s = leadingKind.sub(s)
-        s = trailingQuestions.sub(s)
-        s = bracketNote.sub(s)
-        s = trailingTranche.sub(s)
-        s = PyText.strip(spaces.sub(s, " "), chars: " -:,(")
-        return (s, kind)
-    }
-
     // MARK: study.effective_type
 
     /// Bezeichnungen fuer die Einschaetzung der KI (`lab` in effective_type)

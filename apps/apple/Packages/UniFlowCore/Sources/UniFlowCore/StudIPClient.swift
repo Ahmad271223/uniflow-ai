@@ -114,15 +114,18 @@ public actor StudIPClient {
     private let transport: StudIPTransport
     private let pauseNanos: UInt64
     private let maxRequests: Int
+    /// Downloads: abgerissene Verbindungen wiederholen wie `stream_download` (dieselbe Regel wie fuer Learnweb)
+    private let retry: UniRetry
     public private(set) var requestCount = 0
 
     static let jsonAPI = "application/vnd.api+json"
 
-    public init(base: URL, transport: StudIPTransport, pauseMillis: UInt64 = 250, maxRequests: Int = 1500) {
+    public init(base: URL, transport: StudIPTransport, pauseMillis: UInt64 = 250, maxRequests: Int = 1500, retry: UniRetry = UniRetry()) {
         self.base = base
         self.transport = transport
         self.pauseNanos = pauseMillis * 1_000_000
         self.maxRequests = maxRequests
+        self.retry = retry
     }
 
     // MARK: Anfragen
@@ -252,14 +255,21 @@ public actor StudIPClient {
         }
     }
 
-    /// Inhalt einer Datei direkt nach `file` (grosse Dateien nicht im Arbeitsspeicher). Liefert Stud.IP statt der
-    /// Datei eine HTML-Anmeldeseite, ist die Sitzung abgelaufen. Bei jedem Fehler bleibt keine halbe Datei liegen.
-    public func download(fileID: String, to file: URL) async throws {
+    /// Inhalt einer Datei direkt nach `file` (grosse Dateien nicht im Arbeitsspeicher), wie `stream_download` in
+    /// app/studip_sync.py: eine abgerissene Verbindung oder Zeitueberschreitung wird bis zu zweimal wiederholt
+    /// (`UniRetry`), HTTP-Fehler nicht. Liefert Stud.IP statt der Datei eine HTML-Anmeldeseite, ist die Sitzung
+    /// abgelaufen; eine andere Webseite statt der Datei `name` (`UniStore.isWebPage`) betrifft nur diese Datei. Bei
+    /// jedem Fehler bleibt keine halbe Datei liegen.
+    public func download(fileID: String, to file: URL, name: String = "") async throws {
         let transport = self.transport
+        let path = "jsonapi.php/v1/file-refs/\(fileID)/content"
         do {
-            let r = try await perform("jsonapi.php/v1/file-refs/\(fileID)/content") { try await transport.download($0, to: file) }
+            let r = try await retry.run { try await perform(path) { try await transport.download($0, to: file) } }
             if r.contentType.lowercased().contains("text/html"), Self.head(of: file).lowercased().contains("login") {
                 throw StudIPError.sessionExpired
+            }
+            if UniStore.isWebPage(file: file, name: name) {
+                throw StudIPError.badResponse("Statt der Datei kam eine Webseite zurück (Anmeldung abgelaufen?): \(Self.scrub(path))")
             }
         } catch {
             try? FileManager.default.removeItem(at: file)

@@ -17,26 +17,60 @@ public enum SolutionSHA256 {
 
     /// Hashwert (32 Byte).
     public static func hash(_ data: Data) -> [UInt8] {
-        var h: [UInt32] = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
-        var w = [UInt32](repeating: 0, count: 64)
-        let count = data.count
-        data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
-            let bytes = raw.bindMemory(to: UInt8.self)
-            // volle Bloecke direkt aus den Daten (keine Kopie grosser PDFs)
-            let full = count / 64
-            for block in 0..<full { compress(&h, &w) { bytes[block * 64 + $0] } }
-            // Rest + 0x80 + Nullen + Laenge in Bit (64 Bit, gross-endian): ein oder zwei Bloecke
-            var tail = [UInt8](bytes[(full * 64)..<count])
+        var hasher = Hasher()
+        hasher.update(data)
+        return hasher.finalize()
+    }
+
+    /// Fortlaufender Hashwert: Daten stueckweise (z. B. eine grosse Datei in 1-MB-Bloecken, `TestShare.contentHash(file:)`),
+    /// derselbe Wert wie `hash` ueber alles zusammen.
+    public struct Hasher: Sendable {
+        private var h: [UInt32] = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
+        private var w = [UInt32](repeating: 0, count: 64)
+        /// angefangener Block (unter 64 Byte)
+        private var pending: [UInt8] = []
+        private var count: UInt64 = 0
+
+        public init() {}
+
+        public mutating func update(_ data: Data) {
+            count &+= UInt64(data.count)
+            var hs = h, ws = w, rest = pending
+            data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+                let bytes = raw.bindMemory(to: UInt8.self)
+                var i = 0
+                if !rest.isEmpty {
+                    i = min(64 - rest.count, bytes.count)
+                    rest += bytes[0..<i]
+                    guard rest.count == 64 else { return }
+                    SolutionSHA256.compress(&hs, &ws) { rest[$0] }
+                    rest.removeAll(keepingCapacity: true)
+                }
+                // volle Bloecke direkt aus den Daten (keine Kopie grosser PDFs)
+                while i + 64 <= bytes.count {
+                    let start = i
+                    SolutionSHA256.compress(&hs, &ws) { bytes[start + $0] }
+                    i += 64
+                }
+                rest += bytes[i..<bytes.count]
+            }
+            h = hs; w = ws; pending = rest
+        }
+
+        /// Rest + 0x80 + Nullen + Laenge in Bit (64 Bit, gross-endian): ein oder zwei Bloecke
+        public mutating func finalize() -> [UInt8] {
+            var tail = pending
             tail.append(0x80)
             while tail.count % 64 != 56 { tail.append(0) }
-            let bits = UInt64(count) &* 8
+            let bits = count &* 8
             for i in (0..<8).reversed() { tail.append(UInt8(truncatingIfNeeded: bits >> (UInt64(i) * 8))) }
-            for block in 0..<(tail.count / 64) { compress(&h, &w) { tail[block * 64 + $0] } }
+            var hs = h, ws = w
+            for block in 0..<(tail.count / 64) { SolutionSHA256.compress(&hs, &ws) { tail[block * 64 + $0] } }
+            var out: [UInt8] = []
+            out.reserveCapacity(32)
+            for v in hs { for s in [24, 16, 8, 0] { out.append(UInt8(truncatingIfNeeded: v >> UInt32(s))) } }
+            return out
         }
-        var out: [UInt8] = []
-        out.reserveCapacity(32)
-        for v in h { for s in [24, 16, 8, 0] { out.append(UInt8(truncatingIfNeeded: v >> UInt32(s))) } }
-        return out
     }
 
     /// Hashwert als 64 Kleinbuchstaben-Hexziffern (Form des Fingerabdrucks im Loesungspaket).
@@ -52,7 +86,7 @@ public enum SolutionSHA256 {
 
     @inline(__always) private static func rotr(_ x: UInt32, _ n: UInt32) -> UInt32 { (x >> n) | (x << (32 - n)) }
 
-    private static func compress(_ h: inout [UInt32], _ w: inout [UInt32], _ byte: (Int) -> UInt8) {
+    fileprivate static func compress(_ h: inout [UInt32], _ w: inout [UInt32], _ byte: (Int) -> UInt8) {
         for i in 0..<16 {
             w[i] = UInt32(byte(4 * i)) << 24 | UInt32(byte(4 * i + 1)) << 16 | UInt32(byte(4 * i + 2)) << 8 | UInt32(byte(4 * i + 3))
         }

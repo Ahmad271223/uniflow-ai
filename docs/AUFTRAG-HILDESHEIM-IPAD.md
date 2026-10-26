@@ -50,10 +50,12 @@ Fertig in `apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Hildesheim/`, unt
 | `UniTransport.swift` | Schnittstelle `UniTransport` (send, download in Datei, Weiterleitung abschaltbar), `UniRetry` (3 Versuche bei Netz/5xx/429), `HildesheimError` |
 | `LearnwebAPI.swift` | Learnweb mit Schlüssel (REST) oder Sitzung (sesskey + AJAX, Dateilinks über Location-Header); `Learnweb.discoverBase(…, transport:)` fragt die Instanz übers Netz |
 | `HildesheimRules.swift` | `MoodleSSO` (launch.php, Token prüfen mit MD5), `UniRules` (classify, fileKind, eventKind wie Python), `UniversityStorage` (Ordner, Schlüsselbund-Dienst, WebsiteDataStore-UUID je Nutzer und Uni) |
-| `HildesheimSync.swift` | `UniStore` (Kurs, Datei, LSF-Plan, Noten in die SQLite-DB, wie Python) und `HildesheimSync.run()`: Netz zuerst, je Kurs eine Transaktion, `.part` + `rename`, nie löschen bei Fehlern, Bericht mit `needsLogin` |
+| `HildesheimSync.swift` | `UniStore` (LSF-Plan, Noten in die SQLite-DB, wie Python; Kurs und Datei seit `wip/v1-pc` in `UniStore.swift`) und `HildesheimSync.run()`: kein Netz in einer Transaktion, je Kurs eine Transaktion, `.part` + `rename`, nie löschen bei Fehlern, Bericht mit `needsLogin` |
 | `MD5.swift` | nur für die Moodle-Signatur |
 
-`UniStore.upsertCourse`/`storeFile` sind quellenunabhängig und können für S3 (Stud.IP in die Datenbank) mitgenutzt werden.
+`UniStore` ist quellenunabhängig; seit dem Zusammenführen mit der Mac-Sitzung (`wip/v1-pc`) steht der Teil für Kurse
+und Dateien in `UniFlowCore/UniStore.swift` (`upsertCourse`, `storeFiles`, `markDownloaded` mit `content_sha256`), und
+Stud.IP (S3) und Learnweb schreiben beide darüber.
 
 **Für die Mac-Sitzung bleibt nur die dünne Schicht:**
 

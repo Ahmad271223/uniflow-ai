@@ -6,7 +6,7 @@ import UniFlowCore
 @testable import UniFlow
 
 /// S4 im lokalen Modus ohne PC: "Meine Module" und das Moduldetail laden aus der Datenbank des Geraets (Seed mit
-/// erfundenen Kursen und Dateien, Fach und Art wie beim Abgleich aus `StudyClassify.classify`).
+/// erfundenen Kursen und Dateien, Fach und Art wie beim Abgleich aus `UniRules.classify`).
 @MainActor
 final class LocalModulesAppTests: XCTestCase {
 
@@ -71,7 +71,7 @@ final class LocalModulesAppTests: XCTestCase {
         let rows = files.map { f in [SQLiteValue.text(f.0), .text(f.1), .text(f.2), f.3.map(SQLiteValue.text) ?? .null, ts(f.4)] }
         try await backend.context.database.transaction { c in
             for (id, title) in courses {
-                let (subject, kind) = StudyClassify.classify(title)
+                let (subject, kind) = UniRules.classify(title)
                 try c.execute("INSERT INTO courses(id, title, semester, subject, kind, created_at) VALUES (?,?,?,?,?,?)",
                               [.text(id), .text(title), .text("WiSe 2026/27"), .text(subject), .text(kind), .text("2026-10-01T08:00:00")])
             }

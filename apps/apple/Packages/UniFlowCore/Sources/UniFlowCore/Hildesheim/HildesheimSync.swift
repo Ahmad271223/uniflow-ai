@@ -1,75 +1,9 @@
 import Foundation
 
-/// Schreibt Hochschul-Daten in die lokale Datenbank, wie `studip_sync.upsert_course` / `store_course_files`,
-/// `lsf.import_plan` und `qis.run` am PC. Alle Funktionen laufen innerhalb einer Transaktion (synchron, kein await).
-/// Auch fuer den Stud.IP-Abgleich (S3) gedacht: Kurs anlegen und Dateizeilen schreiben sind quellenunabhaengig.
-public enum UniStore {
-
-    public struct CourseRow: Sendable, Equatable {
-        public let id: String
-        public let title: String
-        public let number: String?
-        public let semester: String?
-        public init(id: String, title: String, number: String?, semester: String?) {
-            self.id = id; self.title = title; self.number = number; self.semester = semester
-        }
-    }
-
-    public struct FileRow: Sendable, Equatable {
-        public let id: String
-        public let name: String
-        public let size: Int
-        public let mime: String?
-        public let chdate: Int
-        public let downloadURL: String
-        public let folder: String?
-        public init(id: String, name: String, size: Int, mime: String?, chdate: Int, downloadURL: String, folder: String?) {
-            self.id = id; self.name = name; self.size = size; self.mime = mime; self.chdate = chdate
-            self.downloadURL = downloadURL; self.folder = folder
-        }
-    }
-
-    /// Kurs anlegen/aktualisieren; Fach und Art nur setzen, wenn noch leer (der Nutzer darf sie aendern).
-    public static func upsertCourse(_ conn: SQLiteConnection, _ c: CourseRow, now: String) throws {
-        let (subject, kind) = UniRules.classify(c.title)
-        try conn.execute("""
-            INSERT INTO courses(id, title, number, semester, subject, kind, created_at) VALUES (?,?,?,?,?,?,?)
-            ON CONFLICT(id) DO UPDATE SET title=excluded.title, number=excluded.number, semester=excluded.semester
-            """, [.text(c.id), .text(c.title), SQLiteValue(c.number), SQLiteValue(c.semester), .text(subject), .text(kind), .text(now)])
-        try conn.execute("UPDATE courses SET subject=COALESCE(subject, ?), kind=COALESCE(kind, ?) WHERE id=?",
-                         [.text(subject), .text(kind), .text(c.id)])
-    }
-
-    /// Muss die Datei (neu) geladen werden? Neu, hoeherer chdate oder lokale Datei fehlt.
-    public static func needsDownload(_ conn: SQLiteConnection, _ f: FileRow, fileExists: (String) -> Bool) throws -> Bool {
-        guard let row = try conn.queryOne("SELECT chdate, local_path FROM files WHERE id=?", [.text(f.id)]) else { return true }
-        let chdate = row["chdate"].flatMap { $0.int } ?? 0
-        guard let path = row["local_path"]?.string, !path.isEmpty else { return true }
-        return chdate < f.chdate || !fileExists(path)
-    }
-
-    /// Dateizeile schreiben. `localPath`/`sha256` nur nach erfolgreichem Download (relativ zum Ordner der Hochschule).
-    public static func storeFile(_ conn: SQLiteConnection, courseID: String, _ f: FileRow, localPath: String?,
-                                 sha256: String?, now: String) throws {
-        let exists = try conn.queryOne("SELECT 1 FROM files WHERE id=?", [.text(f.id)]) != nil
-        if exists {
-            try conn.execute("UPDATE files SET name=?, size=?, mime=?, chdate=?, download_url=? WHERE id=?",
-                             [.text(f.name), SQLiteValue(f.size), SQLiteValue(f.mime), SQLiteValue(f.chdate), .text(f.downloadURL), .text(f.id)])
-        } else {
-            try conn.execute("""
-                INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind)
-                VALUES (?,?,?,?,?,NULL,?,?,?, 'neu', ?)
-                """, [.text(f.id), .text(courseID), .text(f.name), SQLiteValue(f.size), SQLiteValue(f.mime), SQLiteValue(f.chdate),
-                      .text(f.downloadURL), .text(now), .text(UniRules.fileKind(name: f.name, mime: f.mime))])
-        }
-        if let folder = f.folder, !folder.isEmpty {
-            try conn.execute("UPDATE files SET studip_folder=? WHERE id=?", [.text(folder), .text(f.id)])
-        }
-        if let localPath {
-            try conn.execute("UPDATE files SET local_path=?, downloaded_at=?, content_sha256=? WHERE id=?",
-                             [.text(localPath), .text(now), SQLiteValue(sha256), .text(f.id)])
-        }
-    }
+/// LSF-Stundenplan und Notenspiegel in die lokale Datenbank, wie `lsf.import_plan` und `qis.run` am PC. Kurse und
+/// Dateien schreibt `UniStore` in UniStore.swift (dieselbe Fassung fuer Stud.IP und Learnweb). Alle Funktionen laufen
+/// innerhalb einer Transaktion (synchron, kein await).
+extension UniStore {
 
     // MARK: LSF-Stundenplan (lsf.import_plan)
 
@@ -77,71 +11,76 @@ public enum UniStore {
         public var new = 0, removed = 0, kept = 0, cancelledDates = 0
     }
 
+    /// `_norm_sem`: klein, ohne Leerraum und Punkte, "wintersemester" -> "wise", "sommersemester" -> "sose"
     static func normSemester(_ s: String?) -> String {
-        (s ?? "").lowercased().filter { !$0.isWhitespace && $0 != "." }
-            .replacingOccurrences(of: "wintersemester", with: "wise").replacingOccurrences(of: "sommersemester", with: "sose")
+        var v = String.UnicodeScalarView()
+        v.append(contentsOf: PyText.lower(s ?? "").unicodeScalars.filter { !PyText.isSpace($0) && $0 != "." })
+        return String(v).replacingOccurrences(of: "wintersemester", with: "wise").replacingOccurrences(of: "sommersemester", with: "sose")
     }
 
-    private static let nonWordRE = HText.regex("\\W+")
-
-    static func planKey(_ title: String, _ weekday: Int, _ start: String, _ end: String, _ rrule: String, _ from: String) -> String {
-        [String(HText.replace(nonWordRE, in: title.lowercased(), with: "").prefix(40)), String(weekday), start, end, rrule, from]
+    /// `_key(e)`: Titel ohne Nicht-Wortzeichen (klein, hoechstens 40 Zeichen), Wochentag, Beginn, Ende, Rhythmus, erster Tag
+    static func planKey(_ e: [String: JSONValue]) -> String {
+        var title = String.UnicodeScalarView()
+        title.append(contentsOf: PyText.lower(e["title"]?.string ?? "").unicodeScalars.filter(LocalTimetableImport.isWordChar).prefix(40))
+        let rrule = LocalTimetable.or(e["rrule"], "weekly").string ?? "weekly"
+        let from = LocalTimetable.or(e["date_from"], "").string ?? ""
+        return [String(title), String(e["weekday"]?.int ?? 0), e["start_time"]?.string ?? "", e["end_time"]?.string ?? "", rrule, from]
             .joined(separator: "|")
     }
 
-    /// LSF-Serien (Quelle 'lsf') abgleichen: neue anlegen, nicht mehr vorhandene entfernen, bestehende samt Ausnahmen
-    /// behalten; vorlesungsfreie Tage (EXDATE) als Ausfall. Andere Quellen bleiben unberuehrt.
-    public static func importPlan(_ conn: SQLiteConnection, _ entries: [LSFCalendar.Entry], now: String) throws -> PlanResult {
-        let termName = normSemester(try conn.queryOne("SELECT name FROM terms WHERE active=1 ORDER BY id DESC LIMIT 1")?["name"]?.string)
-        var existing: [String: Int64] = [:]
-        for r in try conn.query("SELECT * FROM course_events WHERE source='lsf'") {
-            let key = planKey(r["title"]?.string ?? "", r["weekday"]?.int ?? 0, r["start_time"]?.string ?? "",
-                              r["end_time"]?.string ?? "", r["rrule"]?.string ?? "weekly", r["date_from"]?.string ?? "")
-            existing[key] = r["id"]?.int64
-        }
-        var want: [(String, LSFCalendar.Entry)] = []
-        var wantKeys = Set<String>()
-        for e in entries {
-            let k = planKey(e.title, e.weekday, e.startTime, e.endTime, e.rrule, e.dateFrom)
-            if wantKeys.insert(k).inserted { want.append((k, e)) }
-        }
-        var res = PlanResult()
-        var ids: [String: Int64] = [:]
-        for (k, e) in want {
-            if let id = existing[k] { ids[k] = id; res.kept += 1; continue }
-            var courseID: String?, moduleID: Int64?
-            if let num = e.number {
-                for r in try conn.query("SELECT id, module_id, semester FROM courses WHERE number=?", [.text(num)])
+    /// LSF-Serien (Quelle 'lsf') uebernehmen wie `lsf.import_plan`: Kurs ueber Nummer und Semester, Modul wie beim
+    /// Stundenplan-Import geraten (`enrich`), neue Serien ueber `apply_import` (`LocalTimetableImport.applyImport`),
+    /// nicht mehr vorhandene entfernen, bestehende samt Ausnahmen und Teilnahme behalten; vorlesungsfreie Tage
+    /// (EXDATE) als Ausfall "fällt aus laut LSF" fuer neue und bestehende Serien, ohne Doppelte. Andere Quellen
+    /// (manuell, Stud.IP, ICS-Import) bleiben unberuehrt.
+    public static func importPlan(_ conn: SQLiteConnection, _ plan: [LSFCalendar.Entry], clock: UniFlowClock) throws -> PlanResult {
+        let termName = normSemester(try LocalTimetable.term(conn)["name"]?.string)
+        var entries: [[String: JSONValue]] = []
+        for p in plan {
+            var e = p.json
+            var course: [String: JSONValue]?
+            if let number = p.number, !number.isEmpty {
+                for r in try conn.rows("SELECT id, module_id, semester FROM courses WHERE number=?", [.text(number)])
                 where normSemester(r["semester"]?.string) == termName {
-                    courseID = r["id"]?.string; moduleID = r["module_id"]?.int64
+                    course = r
                     break
                 }
             }
-            try conn.execute("""
-                INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, lecturer, rrule,
-                                          date_from, date_to, attend, source, created_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'lsf',?)
-                """, [SQLiteValue(moduleID), SQLiteValue(courseID), .text(e.title), .text(UniRules.eventKind(e.title)), SQLiteValue(e.weekday),
-                      .text(e.startTime), .text(e.endTime), .text(e.room), .text(e.lecturer), .text(e.rrule), .text(e.dateFrom),
-                      SQLiteValue(e.dateTo), .text(now)])
-            ids[k] = conn.lastInsertRowID
-            res.new += 1
+            e["course_id"] = course?["id"] ?? .null
+            e["module_id"] = course?["module_id"] ?? .null
+            entries.append(e)
         }
-        for (k, id) in existing where !wantKeys.contains(k) {
-            try conn.execute("DELETE FROM course_events WHERE id=?", [.integer(id)])
-            res.removed += 1
+        entries = try LocalTimetableImport.enrich(conn, entries)
+        var existing: [String: [String: JSONValue]] = [:]
+        for x in try conn.rows("SELECT * FROM course_events WHERE source='lsf' ORDER BY id") { existing[planKey(x)] = x }
+        var want: [(key: String, entry: [String: JSONValue])] = []
+        var wantKeys = Set<String>()
+        for e in entries {
+            let k = planKey(e)
+            if wantKeys.insert(k).inserted { want.append((k, e)) }
         }
+        let new = want.filter { existing[$0.key] == nil }
+        let removed = existing.filter { !wantKeys.contains($0.key) }.compactMap { $0.value["id"] }
+        // Ausfaelle legt import_plan unten selbst an (Notiz "laut LSF", auch fuer bestehende Serien), nicht apply_import
+        let res = try LocalTimetableImport.applyImport(conn, new.map { n in var e = n.entry; e["exdates"] = .null; return .object(e) },
+                                                       source: "lsf", removeIDs: removed, clock: clock)
+        var ids: [String: JSONValue] = [:]
+        for (k, x) in existing where wantKeys.contains(k) { ids[k] = x["id"] ?? .null }
+        for (n, id) in zip(new, res["ids"]?.array ?? []) { ids[n.key] = id }
+        var cancelled = 0
         for (k, e) in want {
-            guard let eid = ids[k] else { continue }
-            for d in e.exdates where try conn.queryOne("SELECT 1 FROM event_exceptions WHERE event_id=? AND date=?", [.integer(eid), .text(d)]) == nil {
+            guard let eid = ids[k], LocalModules.truthy(eid) else { continue }
+            let event = try LocalTimetable.bind(eid, "event_id")
+            for d in e["exdates"]?.array?.compactMap(\.string) ?? []
+            where try conn.queryOne("SELECT 1 FROM event_exceptions WHERE event_id=? AND date=?", [event, .text(d)]) == nil {
                 try conn.execute("INSERT INTO event_exceptions(event_id, date, type, note, created_at) VALUES (?,?, 'cancelled', ?, ?)",
-                                 [.integer(eid), .text(d), .text("fällt aus laut LSF"), .text(now)])
-                res.cancelledDates += 1
+                                 [event, .text(d), .text("fällt aus laut LSF"), .text(clock.nowISO)])
+                cancelled += 1
             }
         }
         try conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('lsf-auto', ?, 'auto', '', ?, 1)",
-                         [.text(now), .text("{\"neu\": \(res.new), \"entfernt\": \(res.removed)}")])
-        return res
+                         [.text(clock.nowISO), .text(JSONValue.array(new.map { .object($0.entry) }).jsonString(sortedKeys: true))])
+        return PlanResult(new: res["new"]?.int ?? 0, removed: removed.count, kept: want.count - new.count, cancelledDates: cancelled)
     }
 
     // MARK: Notenspiegel (qis.run)
@@ -162,9 +101,12 @@ public enum UniStore {
 
 /// Abgleich Uni Hildesheim auf dem Geraet: Learnweb (Kurse, Dateien), LSF (Stundenplan, Noten).
 ///
-/// Ausfallsicher: Netz zuerst, dann je Kurs eine kurze Transaktion; ein Fehler betrifft nur diesen Kurs bzw. diese
-/// Datei. Nichts wird geloescht, weil die Gegenseite nicht antwortet; LSF-Serien verschwinden nur nach einem
-/// vollstaendig gelesenen Plan. Downloads gehen erst in eine .part-Datei und ersetzen eine gute Datei nie halb.
+/// Ablauf wie `hildesheim.sync_learnweb` am PC: alle Kurse (`UniStore.upsertCourse`), dann je Kurs Dateiliste
+/// (`UniStore.storeFiles`), Downloads und je geladene Datei `UniStore.markDownloaded`, dieselben Funktionen wie der
+/// Stud.IP-Abgleich. Ausfallsicher: kein Netz in einer Transaktion, jede Transaktion kurz; ein Fehler betrifft nur
+/// diesen Kurs bzw. diese Datei. Nichts wird geloescht, weil die Gegenseite nicht antwortet; LSF-Serien verschwinden
+/// nur nach einem vollstaendig gelesenen Plan. Downloads gehen erst in eine .part-Datei und ersetzen eine gute Datei
+/// nie halb; eine neue Fassung, die nicht ankam, laedt der naechste Abgleich.
 public actor HildesheimSync {
 
     public struct Report: Sendable, Equatable {
@@ -188,17 +130,20 @@ public actor HildesheimSync {
     private let lsf: LSFClient?
     private let transport: UniTransport
     private let clock: UniFlowClock
-    private let hasher: @Sendable (URL) throws -> String
+    /// Inhalts-Hash einer geladenen Datei (`content_sha256`); die App darf CryptoKit einsetzen (schneller)
+    private let hasher: @Sendable (URL) -> String?
+    private let retry: UniRetry
 
     public init(db: SQLiteDatabase, root: URL, learnweb: LearnwebAPI?, lsf: LSFClient?, transport: UniTransport,
-                clock: UniFlowClock = .system,
-                hasher: @escaping @Sendable (URL) throws -> String = { try SolutionSHA256.hex(Data(contentsOf: $0)) }) {
+                clock: UniFlowClock = .system, retry: UniRetry = UniRetry(),
+                hasher: @escaping @Sendable (URL) -> String? = { TestShare.contentHash(file: $0) }) {
         self.db = db
         self.root = root
         self.learnweb = learnweb
         self.lsf = lsf
         self.transport = transport
         self.clock = clock
+        self.retry = retry
         self.hasher = hasher
     }
 
@@ -236,6 +181,12 @@ public actor HildesheimSync {
             courses = try await api.courses().filter { c in
                 !c.hidden && (filter.map { f in f.isEmpty || c.semester.lowercased().contains(f.lowercased()) } ?? true)
             }
+            let now = clock.nowISO
+            try await db.transaction { conn in
+                for c in courses {
+                    try UniStore.upsertCourse(conn, UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semester), now: now)
+                }
+            }
         } catch let e as HildesheimError {
             if Self.isLoginError(e) { report.needsLogin.append("Learnweb") }
             report.messages.append("Learnweb: \(e.description)")
@@ -245,35 +196,27 @@ public actor HildesheimSync {
             return
         }
         report.courses = courses.count
+        let rootPath = root.path
+        // Jeder Kurs einzeln: ein Fehler in einem Kurs verwirft nicht die schon geholten Dateien
         for c in courses {
             do {
                 let files = try await api.files(moodleID: c.moodleID)
-                // Netz: noetige Downloads vor der Transaktion
-                let rows = files.map { UniStore.FileRow(id: $0.id, name: $0.name, size: $0.size, mime: $0.mime, chdate: $0.chdate,
-                                                         downloadURL: $0.downloadURL, folder: $0.folder) }
-                let rootPath = root.path
-                let todo = try await db.withConnection { conn in
-                    try rows.filter { try UniStore.needsDownload(conn, $0, fileExists: { FileManager.default.fileExists(atPath: rootPath + "/" + $0) }) }
+                let now = clock.nowISO
+                let todo = try await db.transaction { conn in
+                    try UniStore.storeFiles(conn, courseID: c.id, files.map(\.row), now: now,
+                                            fileExists: { FileManager.default.fileExists(atPath: rootPath + "/" + $0) })
                 }
-                var stored: [String: (String, String?)] = [:]
-                for (f, row) in zip(files, rows) where todo.contains(row) {
+                for row in todo {
+                    guard let f = files.first(where: { $0.id == row.id }) else { continue }
                     do {
                         guard let req = await api.downloadRequest(f) else { continue }
-                        stored[row.id] = try await download(req, fileID: row.id, name: row.name, shownURL: row.downloadURL)
+                        let (rel, sha) = try await download(req, fileID: row.id, name: row.name, shownURL: row.downloadURL)
+                        let at = clock.nowISO
+                        try await db.transaction { try UniStore.markDownloaded($0, row, localPath: rel, sha256: sha, now: at) }
                         report.newFiles.append(row.id)
                     } catch {
                         report.failedFiles.append(row.name)
                         if Self.isLoginError(error), !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
-                    }
-                }
-                let now = clock.nowISO
-                let course = UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semester)
-                let snapshot = stored
-                try await db.transaction { conn in
-                    try UniStore.upsertCourse(conn, course, now: now)
-                    for row in rows {
-                        let s = snapshot[row.id]
-                        try UniStore.storeFile(conn, courseID: course.id, row, localPath: s?.0, sha256: s?.1, now: now)
                     }
                 }
             } catch {
@@ -285,7 +228,9 @@ public actor HildesheimSync {
                                + (report.failedFiles.isEmpty ? "" : ", \(report.failedFiles.count) Dateien später erneut"))
     }
 
-    /// Download in eine .part-Datei, Pruefung (keine Webseite), dann atomar ersetzen; Rueckgabe (Pfad, SHA-256)
+    /// Download wie `stream_download` am PC: in eine .part-Datei (Wiederholung bei abgerissener Verbindung),
+    /// Pruefung (keine Anmelde- oder andere Webseite, `UniStore.isWebPage`), dann atomar ersetzen.
+    /// Rueckgabe (Pfad relativ zum Ordner der Hochschule, Inhalts-Hash)
     private func download(_ req: UniRequest, fileID: String, name: String, shownURL: String) async throws -> (String, String?) {
         let rel = Self.relativePath(fileID: fileID, name: name)
         let target = root.appendingPathComponent(rel)
@@ -293,18 +238,13 @@ public actor HildesheimSync {
         let fm = FileManager.default
         try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: part) }
-        let resp = try await UniRetry().run { try await transport.download(req, to: part) }
+        let resp = try await retry.run { try await transport.download(req, to: part) }
         if HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: shownURL) }
-        let handle = try? FileHandle(forReadingFrom: part)
-        let head = handle?.readData(ofLength: 64) ?? Data()
-        try? handle?.close()
-        let start = String(decoding: head, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let isHTMLName = name.lowercased().hasSuffix(".html") || name.lowercased().hasSuffix(".htm")
-        if !isHTMLName && (start.hasPrefix("<!doctype html") || start.hasPrefix("<html")) { throw HildesheimError.htmlInsteadOfFile(shownURL) }
+        if UniStore.isWebPage(file: part, name: name) { throw HildesheimError.htmlInsteadOfFile(shownURL) }
         // rename ersetzt atomar: entweder die alte oder die neue Datei, nie eine halbe
         guard rename(part.path, target.path) == 0 else { throw HildesheimError.badResponse("Datei nicht gespeichert: \(name)") }
-        return (rel, try? hasher(target))
+        return (rel, hasher(target))
     }
 
     private func syncPlan(_ lsf: LSFClient, into report: inout Report) async {
@@ -313,8 +253,8 @@ public actor HildesheimSync {
                 report.messages.append("LSF-Stundenplan ist leer")
                 return
             }
-            let now = clock.nowISO
-            let r = try await db.transaction { conn in try UniStore.importPlan(conn, entries, now: now) }
+            let clock = self.clock
+            let r = try await db.transaction { conn in try UniStore.importPlan(conn, entries, clock: clock) }
             report.plan = r
             report.messages.append("Stundenplan: \(r.new) neu, \(r.kept) unverändert, \(r.removed) entfernt")
         } catch {

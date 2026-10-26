@@ -36,7 +36,7 @@ final class StudyClassifyTests: XCTestCase {
         var problems: [String] = []
         for c in cases {
             let title = c["title"]?.string ?? ""
-            let (subject, kind) = StudyClassify.classify(title)
+            let (subject, kind) = UniRules.classify(title)
             if !sameScalars(subject, c["subject"]?.string) || kind != c["kind"]?.string {
                 problems.append("\(title.debugDescription): (\(subject.debugDescription), \(kind)) statt (\(c["subject"]?.string?.debugDescription ?? "-"), \(c["kind"]?.string ?? "-"))")
             }
@@ -81,8 +81,8 @@ final class StudyClassifyTests: XCTestCase {
         // \s mit \v und U+001C
         XCTAssertEqual(PyRegex(#"\s+"#).sub("a\u{0B}b\u{1C}c", " "), "a b c")
         // "ß" faltet nicht zu "ss", aber zu "ẞ"
-        XCTAssertEqual(StudyClassify.classify("BEGRÜSSUNG neuer Studierender").kind, "vorlesung")
-        XCTAssertEqual(StudyClassify.classify("Begrüßung der Erstsemester").kind, "sonstiges")
+        XCTAssertEqual(UniRules.classify("BEGRÜSSUNG neuer Studierender").kind, "vorlesung")
+        XCTAssertEqual(UniRules.classify("Begrüßung der Erstsemester").kind, "sonstiges")
         // "." und "$": nur "\n" beendet eine Zeile
         XCTAssertEqual(PyRegex(#"x.*$"#).sub("ax\rb"), "a")
         XCTAssertEqual(PyRegex(#"\.[a-z]+$"#).sub("a.pdf\n"), "a\n")

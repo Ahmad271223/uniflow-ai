@@ -347,20 +347,15 @@ public enum StudIPSchedule {
 
     // MARK: Art
 
-    /// Art aus dem Kurstitel wie classify() in app/studip_sync.py (dieselben Muster in derselben Reihenfolge).
+    /// Art aus dem Kurstitel wie classify() in app/studip_sync.py (`UniRules.classify`, eine Fassung fuer alle Quellen).
     static func courseArt(_ title: String) -> StudIPScheduleArt {
-        if matches(title, "Begrüßung|Studiengänge|Einführungsveranstaltung|Erstsemester") { return .sonstiges }
-        return classifyPatterns(title)
+        StudIPScheduleArt(rawValue: UniRules.classify(title).kind) ?? .vorlesung
     }
 
-    /// Die Art-Muster von classify() ohne "sonstiges": Gruppen-, Hoersaal-/Zentraluebung, Uebung/Fragestunde
-    /// am Wortanfang, Tutorium; sonst Vorlesung.
+    /// Die Art-Muster von classify() ohne "sonstiges" (`UniRules.kindPattern`): Gruppen-, Hoersaal-/Zentraluebung,
+    /// Uebung/Fragestunde am Wortanfang, Tutorium; sonst Vorlesung.
     static func classifyPatterns(_ s: String) -> StudIPScheduleArt {
-        if matches(s, "Gruppenübung|Gruppenuebung") { return .gruppenuebung }
-        if matches(s, "Hörsaalübung|Hoersaaluebung|Zentralübung") { return .hoersaaluebung }
-        if matches(s, "\\b(Übung|Uebung|Fragestunde)") { return .uebung }
-        if matches(s, "Tutorium") { return .tutorium }
-        return .vorlesung
+        StudIPScheduleArt(rawValue: UniRules.kindPattern(s)) ?? .vorlesung
     }
 
     /// Text nennt ausdruecklich eine Vorlesung ("Vorlesung", "Ringvorlesung", "VL").
@@ -368,19 +363,6 @@ public enum StudIPSchedule {
 
     static func matches(_ s: String, _ pattern: String) -> Bool {
         s.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
-    }
-
-    /// guess_kind() in app/timetable.py (KIND_WORDS, Teilwortsuche ohne Gross-/Kleinschreibung):
-    /// vorlesung | uebung | labor | seminar. "lab" trifft wie dort auch Woerter wie "Kollaboration".
-    static func guessKind(_ title: String) -> String {
-        let t = title.lowercased()
-        let words: [(String, [String])] = [
-            ("uebung", ["übung", "uebung", "ü:", "exercise", "tutorium", "gruppenübung", "zentralübung"]),
-            ("labor", ["labor", "praktikum", "lab"]),
-            ("seminar", ["seminar"]),
-        ]
-        for (kind, list) in words where list.contains(where: { t.contains($0) }) { return kind }
-        return "vorlesung"
     }
 
     /// Art eines Termins: zuerst der Kurstitel (classify, danach guess_kind fuer Labor/Seminar), dann die
@@ -435,7 +417,7 @@ public enum StudIPSchedule {
     static func titleArt(_ title: String) -> StudIPScheduleArt {
         let a = courseArt(title)
         guard a == .vorlesung else { return a }
-        switch guessKind(title) {
+        switch UniRules.eventKind(title) {
         case "uebung": return .uebung
         case "labor": return .labor
         case "seminar": return .seminar
@@ -512,7 +494,7 @@ public enum StudIPSchedule {
         let locations = locationList(a["locations"])
         return StudIPScheduleEntry(
             id: id, isPersonal: true, courseID: nil, courseNumber: nil, title: title, description: description,
-            art: art(title: title), kind: guessKind(title), weekday: weekday, startTime: hhmm(startMin), endTime: hhmm(endMin),
+            art: art(title: title), kind: UniRules.eventKind(title), weekday: weekday, startTime: hhmm(startMin), endTime: hhmm(endMin),
             interval: interval, dateFrom: from.map { BerlinClock.isoDate($0.day) },
             dateTo: until.map { lastDay($0, startMinutes: startMin) }, exdates: exdates(rec["EXDATES"]), locations: locations,
             room: room(locations), color: a["color"]?.string, groupSlots: 1, selected: true, uncertain: rhythmHint != nil,

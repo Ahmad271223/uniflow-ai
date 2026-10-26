@@ -217,7 +217,8 @@ def app_calls() -> dict[str, list[str]]:
                 method = "POST"
             else:
                 method = mm.group(1) if mm else "GET"
-            calls.setdefault(f"{method} {shape}", set()).add(str(f.relative_to(APP.parent)))
+            # immer mit "/" (unter Windows sonst "\\": dieselbe Datei ergaebe dort eine andere Fixture)
+            calls.setdefault(f"{method} {shape}", set()).add(f.relative_to(APP.parent).as_posix())
     for key, src in EXTRA.items():
         calls.setdefault(key, set()).add(src)
     return {k: sorted(v) for k, v in sorted(calls.items())}
@@ -1121,7 +1122,7 @@ def library_files(src: SchemaSource, server) -> dict:
             tables = _tables(conn, prefix)
         finally:
             conn.close()
-        disk = sorted(str(p.relative_to(data_dir)) for p in data_dir.rglob("*")
+        disk = sorted(p.relative_to(data_dir).as_posix() for p in data_dir.rglob("*")
                       if p.is_file() and not p.name.startswith("lernapp.db"))
     guesses = {n: mimetypes.guess_type(n)[0] for n in ("a.pdf", "a.PNG", "a.jpg", "a.jpeg", "a.gif", "a.webp", "a.svg", "a.txt",
                                                       "a.html", "a.zip", "a.docx", "ohne", ".png", "a.")}

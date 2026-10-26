@@ -97,7 +97,7 @@ final class StudIPScheduleArtTests: XCTestCase {
         // studip_entries: "uebung" wenn classify() "uebung" liefert, sonst guess_kind(title)
         for title in ["Mathematik I", "Gruppenübung Mathe", "Hörsaalübung Mechanik", "Tutorium Physik", "Labor Messtechnik",
                       "Seminar Ethik", "Mathematikübung", "Fragestunde Analysis", "Exercise Algorithms", "Kollaboration"] {
-            let python = StudIPSchedule.courseArt(title) == .uebung ? "uebung" : StudIPSchedule.guessKind(title)
+            let python = StudIPSchedule.courseArt(title) == .uebung ? "uebung" : UniRules.eventKind(title)
             XCTAssertEqual(StudIPSchedule.art(title: title).kind, python, title)
         }
     }

@@ -2,34 +2,23 @@ import Foundation
 
 /// Stud.IP-Abgleich in die lokale Datenbank wie `run_sync` in app/studip_sync.py: dieselben Tabellen (`courses`,
 /// `files`, `sync_log`), dieselben IDs (Kurs- und Datei-ID aus Stud.IP, die Datei-ID ist die FileRef-ID), dieselben
-/// Felder und Standardwerte. Neue Dateien bekommen Status "neu" und `seen_by_user = 0`; beim erneuten Abgleich
-/// aendert sich nur, was aus Stud.IP kommt (Name, Groesse, Typ, Aenderungszeit, Download-Adresse, Ordner; eine neue
-/// Fassung erst mit ihrem Download) – Status, gesehen, Favorit, Ordner in UniFlow, Titel und Notizen bleiben.
-/// Duplikate von Stud.IP-Dateien teilen sich deren lokale Datei. In Stud.IP geloeschte Dateien bleiben wie
-/// in Python stehen (mit ihren Notizen), eine umbenannte Datei behaelt ihre ID und damit ihre Notizen.
+/// Felder und Standardwerte. Geschrieben wird ueber `UniStore` (`upsert_course`, `store_course_files`), dieselbe
+/// Fassung wie fuer Learnweb; hier steht nur, was Stud.IP-eigen ist: Kurse und Dateien der JSON:API als Zeilen,
+/// Download-Adresse, Aenderungszeit, Protokoll, Abmelden und die Uebernahme des Bestands von vor S3.
+/// Neue Dateien bekommen Status "neu" und `seen_by_user = 0`; beim erneuten Abgleich aendert sich nur, was aus
+/// Stud.IP kommt (Name, Groesse, Typ, Aenderungszeit, Download-Adresse, Ordner; eine neue Fassung erst mit ihrem
+/// Download) – Status, gesehen, Favorit, Ordner in UniFlow, Titel und Notizen bleiben. Duplikate von Stud.IP-Dateien
+/// teilen sich deren lokale Datei. In Stud.IP geloeschte Dateien bleiben wie in Python stehen (mit ihren Notizen),
+/// eine umbenannte Datei behaelt ihre ID und damit ihre Notizen.
 ///
 /// Abweichungen von Python: `author` kennt die JSON:API nicht (bleibt leer bzw. unveraendert), `download_url` ist die
 /// JSON:API-Adresse, aus der die App laedt, `local_path` ist relativ zum App-Container (`LocalFiles`).
-/// Fach und Art eines Kurses kommen wie in `upsert_course` aus `classify` (`StudyClassify.classify`, S4) und werden
-/// nur gesetzt, solange sie leer sind (der Nutzer darf sie aendern); die Module dazu legt `ensure_modules` beim
-/// naechsten Lesen an (`LocalModules.ensureModules`, wie Python in `/api/library`, `/api/modules` und der Uebersicht).
+/// Fach und Art eines Kurses kommen wie in `upsert_course` aus `classify` (`UniRules.classify`) und werden nur
+/// gesetzt, solange sie leer sind (der Nutzer darf sie aendern); die Module dazu legt `ensure_modules` beim naechsten
+/// Lesen an (`LocalModules.ensureModules`, wie Python in `/api/library`, `/api/modules` und der Uebersicht).
 ///
 /// Alles hier ist synchron und fuer `SQLiteDatabase.transaction` gedacht (kein Netz, kein `await` darin).
 public enum StudIPLibrary {
-    /// `classify(title) -> (subject, kind)` aus app/studip_sync.py
-    public typealias Classifier = @Sendable (_ courseTitle: String) -> (subject: String?, kind: String?)
-
-    /// `studip_sync.classify` (Port in `StudyClassify`); Vorgabe fuer jeden Abgleich und die Uebernahme
-    public static let classify: Classifier = { let r = StudyClassify.classify($0); return (r.subject, r.kind) }
-
-    /// `file_kind(name, mime)`: nur echte PDFs gehen in den PDF-Editor
-    public static func fileKind(name: String, mime: String?) -> String {
-        let n = name.lowercased(), m = (mime ?? "").lowercased()
-        if n.hasSuffix(".pdf") || m == "application/pdf" { return "pdf" }
-        if [".png", ".jpg", ".jpeg", ".gif", ".webp"].contains(where: { n.hasSuffix($0) }) || m.hasPrefix("image/") { return "image" }
-        return "file"
-    }
-
     /// Download-Adresse einer Datei (JSON:API, wie `StudIPClient.download`)
     public static func downloadURL(base: URL, fileID: String) -> String {
         var b = base.absoluteString
@@ -44,82 +33,44 @@ public enum StudIPLibrary {
     }
     public static func failure(_ message: String) -> String { "FEHLER: \(message)" }
 
+    // MARK: Zeilen fuer UniStore
+
+    /// Kurs wie in `courses()` von app/studip_sync.py: Semester als Text, ohne Semester ""
+    public static func courseRow(_ c: StudIPCourse) -> UniStore.CourseRow {
+        UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semesterTitle ?? "")
+    }
+
+    /// Datei mit Aenderungszeit als Unix-Zeit, Download-Adresse der JSON:API und Ordnerpfad im Kurs ("" = Wurzelordner,
+    /// wie `fetch_folder_paths`)
+    public static func fileRow(_ f: StudIPFile, base: URL) -> UniStore.FileRow {
+        UniStore.FileRow(id: f.id, name: f.name, size: f.size, mime: f.mimeType, author: nil, chdate: unixTime(f.changed) ?? 0,
+                         downloadURL: downloadURL(base: base, fileID: f.id), folder: f.folderPath)
+    }
+
     // MARK: Schreiben
 
-    /// Kurse eines Durchgangs wie `upsert_course`: neu anlegen oder Titel, Nummer und Semester aktualisieren; Fach und
-    /// Art aus `classify`
-    public static func storeCourses(_ c: SQLiteConnection, _ courses: [StudIPCourse], startedAt: String,
-                                    classify: Classifier = StudIPLibrary.classify) throws {
-        for course in courses {
-            let (subject, kind) = classify(course.title)
-            try c.execute("""
-                INSERT INTO courses(id, title, number, semester, subject, kind, created_at)
-                VALUES (?,?,?,?,?,?,?)
-                ON CONFLICT(id) DO UPDATE SET title=excluded.title, number=excluded.number,
-                    semester=excluded.semester
-                """, [.text(course.id), .text(course.title), SQLiteValue(course.number), .text(course.semesterTitle ?? ""),
-                      SQLiteValue(subject), SQLiteValue(kind), .text(startedAt)])
-            // Fach/Art nur setzen, wenn noch leer (Nutzer darf es aendern)
-            try c.execute("UPDATE courses SET subject=COALESCE(subject, ?), kind=COALESCE(kind, ?) WHERE id=?",
-                          [SQLiteValue(subject), SQLiteValue(kind), .text(course.id)])
-        }
+    /// Kurse eines Durchgangs wie `upsert_course` (`UniStore.upsertCourse`)
+    public static func storeCourses(_ c: SQLiteConnection, _ courses: [StudIPCourse], startedAt: String) throws {
+        for course in courses { try UniStore.upsertCourse(c, courseRow(course), now: startedAt) }
     }
 
-    /// Vollstaendige Dateiliste eines Kurses. Rueckgabe: Dateien, die wie in Python geladen werden muessen (neu, in
-    /// Stud.IP juenger als der gespeicherte Stand, ohne lokale Datei oder lokale Datei fehlt). Ob sie sich laden
-    /// lassen (`isDownloadable`), entscheidet der Aufrufer.
-    ///
-    /// Die neue Fassung einer bekannten Datei (Groesse, Typ, Aenderungszeit) gilt erst mit dem Download
-    /// (`markDownloaded`): Bricht der Lauf vorher ab oder scheitert der Download, bleibt die Datei beim naechsten
-    /// Abgleich "geaendert" und wird erneut geladen. Name, Download-Adresse und Ordner kommen sofort.
+    /// Vollstaendige Dateiliste eines Kurses (`UniStore.storeFiles`). Rueckgabe: Dateien, die wie in Python geladen
+    /// werden muessen (neu, in Stud.IP juenger als der gespeicherte Stand, ohne lokale Datei oder lokale Datei fehlt).
+    /// Ob sie sich laden lassen (`isDownloadable`), entscheidet der Aufrufer. Die neue Fassung einer bekannten Datei
+    /// gilt erst mit dem Download (`markDownloaded`).
     public static func storeFiles(_ c: SQLiteConnection, _ files: [StudIPFile], startedAt: String, base: URL,
                                   localFiles: LocalFiles?) throws -> [StudIPFile] {
-        var download: [StudIPFile] = []
-        for f in files {
-            let id = SQLiteValue.text(f.id)
-            let chdate = Int64(unixTime(f.changed) ?? 0)
-            let existing = try c.queryOne("SELECT chdate, local_path FROM files WHERE id=?", [id])
-            var changed = true
-            if let e = existing {
-                let old = e["chdate"]?.double ?? 0
-                let path = e["local_path"]?.string
-                changed = old < Double(chdate) || (path ?? "").isEmpty || !(localFiles?.exists(stored: path) ?? false)
-                if changed {
-                    try c.execute("UPDATE files SET name=?, download_url=? WHERE id=?",
-                                  [.text(f.name), .text(downloadURL(base: base, fileID: f.id)), id])
-                } else {
-                    try c.execute("UPDATE files SET name=?, size=?, mime=?, chdate=?, download_url=? WHERE id=?",
-                                  [.text(f.name), .integer(Int64(f.size)), SQLiteValue(f.mimeType), .integer(chdate),
-                                   .text(downloadURL(base: base, fileID: f.id)), id])
-                }
-            } else {
-                try c.execute("""
-                    INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind)
-                    VALUES (?,?,?,?,?,?,?,?,?, 'neu', ?)
-                    """, [id, .text(f.courseID), .text(f.name), .integer(Int64(f.size)), SQLiteValue(f.mimeType), .null, .integer(chdate),
-                          .text(downloadURL(base: base, fileID: f.id)), .text(startedAt), .text(fileKind(name: f.name, mime: f.mimeType))])
-            }
-            // Ordnerpfad im Kurs ("" = Wurzelordner), wie fetch_folder_paths
-            try c.execute("UPDATE files SET studip_folder=? WHERE id=?", [.text(f.folderPath), id])
-            if changed { download.append(f) }
+        try files.filter { f in
+            try !UniStore.storeFiles(c, courseID: f.courseID, [fileRow(f, base: base)], now: startedAt,
+                                     fileExists: { localFiles?.exists(stored: $0) ?? false }).isEmpty
         }
-        return download
     }
 
-    /// Datei heruntergeladen: Ablageort relativ zum App-Container, Zeitpunkt wie `db.now_iso()`, dazu die geladene
-    /// Fassung (Groesse, Typ, Aenderungszeit, siehe `storeFiles`) in einem Schritt.
-    /// Kopien ("Duplizieren") teilen sich die Datei des Originals; wer seinen Ablageort verloren hat (z. B. nach
-    /// "Abmelden und Dateien löschen", `forgetDownloads`), bekommt ihn hier mit zurueck, sonst oeffnete sich die
-    /// Kopie samt Notizen nicht mehr.
-    public static func markDownloaded(_ c: SQLiteConnection, file f: StudIPFile, localPath: String, at: String) throws {
-        let chdate = Int64(unixTime(f.changed) ?? 0)
-        try c.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=? WHERE id=?",
-                      [.text(localPath), .text(at), .integer(Int64(f.size)), SQLiteValue(f.mimeType), .integer(chdate), .text(f.id)])
-        try c.execute("""
-            UPDATE files SET local_path=?, downloaded_at=?
-            WHERE id<>? AND course_id<>'__user__' AND COALESCE(local_path, '')=''
-              AND download_url=(SELECT download_url FROM files WHERE id=?)
-            """, [.text(localPath), .text(at), .text(f.id), .text(f.id)])
+    /// Datei heruntergeladen (`UniStore.markDownloaded`): Ablageort relativ zum App-Container, Zeitpunkt wie
+    /// `db.now_iso()`, die geladene Fassung und der Inhalts-Hash (`TestShare.contentHash(file:)`) in einem Schritt.
+    public static func markDownloaded(_ c: SQLiteConnection, file f: StudIPFile, localPath: String, sha256: String?, at: String,
+                                      base: URL) throws {
+        try UniStore.markDownloaded(c, fileRow(f, base: base), localPath: localPath, sha256: sha256, now: at)
     }
 
     /// Eintrag in `sync_log` wie im `finally` von run_sync
@@ -163,7 +114,9 @@ public enum StudIPLibrary {
                                folderPath: e.folderPath)
             _ = try storeFiles(c, [f], startedAt: at, base: base, localFiles: nil)
             let loaded = unixTime(e.downloadedAt).map { BerlinClock.localISO(utc: $0) } ?? at
-            try markDownloaded(c, file: f, localPath: path, at: loaded)
+            // ohne Inhalts-Hash (die Dateien nicht beim Start lesen); gemeinsame Wochentests lesen dann die Datei selbst
+            // wie `material_fingerprint` in app/testshare.py
+            try markDownloaded(c, file: f, localPath: path, sha256: nil, at: loaded, base: base)
             adopted += 1
         }
         return adopted

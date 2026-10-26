@@ -67,14 +67,17 @@ public enum HildesheimError: Error, Equatable, CustomStringConvertible, Localize
 
     public var errorDescription: String? { description }
 
-    /// Lohnt ein zweiter Versuch? (Netz, Zeitueberschreitung, 5xx, 429 ja; Anmeldung und Inhalt nein)
+    /// Lohnt ein zweiter Versuch? (5xx, 429 ja; Anmeldung und Inhalt nein; Netzfehler siehe `UniRetry.isTransient`)
     var isTransient: Bool {
         if case .http(let s, _) = self { return s == 429 || s >= 500 }
         return false
     }
 }
 
-/// Wiederholungen bei Netzfehlern: abgerissene Verbindung, Zeitueberschreitung, 5xx und 429.
+/// Wiederholungen bei Netzfehlern: abgerissene Verbindung, Zeitueberschreitung, 5xx und 429. Wie `stream_download`
+/// in app/studip_sync.py fuer alle Hochschul-Abgleiche (Learnweb, LSF, Stud.IP-Downloads): hoechstens 3 Versuche,
+/// davor 1,5 s bzw. 3 s Pause. Abbruch, Anmeldung, andere HTTP-Fehler, Inhalt (Webseite statt Datei) und Fehler
+/// beim Schreiben aendern sich durch Wiederholen nicht und gehen sofort weiter.
 public struct UniRetry: Sendable {
     public var attempts: Int
     /// Wartezeit vor Versuch n (n ab 1) in Nanosekunden; Tests setzen 0
@@ -87,19 +90,24 @@ public struct UniRetry: Sendable {
 
     public static let none = UniRetry(attempts: 1, delayNanos: { _ in 0 })
 
+    /// Lohnt ein neuer Versuch? Netzfehler (`URLError` ausser Abbruch) und `HildesheimError.isTransient` (5xx, 429)
+    public static func isTransient(_ error: Error) -> Bool {
+        if let e = error as? HildesheimError { return e.isTransient }
+        if let e = error as? URLError { return e.code != .cancelled }
+        return false
+    }
+
     func run<T>(_ body: () async throws -> T) async throws -> T {
-        var last: Error?
-        for n in 0..<max(1, attempts) {
-            if n > 0 { try? await Task.sleep(nanoseconds: delayNanos(n)) }
+        var n = 0
+        while true {
             do {
                 return try await body()
-            } catch let e as HildesheimError where !e.isTransient {
-                throw e
             } catch {
-                last = error
+                n += 1
+                guard n < max(1, attempts), Self.isTransient(error) else { throw error }
+                try? await Task.sleep(nanoseconds: delayNanos(n))
             }
         }
-        throw last ?? HildesheimError.badResponse("unbekannter Fehler")
     }
 }
 

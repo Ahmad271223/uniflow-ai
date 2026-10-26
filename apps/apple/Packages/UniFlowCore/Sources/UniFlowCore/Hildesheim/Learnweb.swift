@@ -11,14 +11,22 @@ public enum Learnweb {
     }
 
     /// Eine Datei im Format, das der Sync speichert. `chdate`: Aenderungszeit (REST) oder Revision (Sitzung).
+    /// `author` nur mit Schluessel (REST), wie `files_from_contents`.
     public struct File: Sendable, Equatable {
         public let id: String
         public let name: String
         public let size: Int
         public let mime: String?
+        public var author: String? = nil
         public let chdate: Int
         public let downloadURL: String
         public let folder: String
+
+        /// Zeile fuer `UniStore.storeFiles`; Ordner nur, wenn vorhanden (wie `folders` in hildesheim.sync_learnweb)
+        public var row: UniStore.FileRow {
+            UniStore.FileRow(id: id, name: name, size: size, mime: mime, author: author, chdate: chdate, downloadURL: downloadURL,
+                             folder: folder.isEmpty ? nil : folder)
+        }
     }
 
     public struct Pluginfile: Sendable, Equatable {
@@ -65,7 +73,7 @@ public enum Learnweb {
 
     /// Python `join_folder`: Teile ohne fuehrende/abschliessende "/" und Leerzeichen, leere weglassen.
     public static func joinFolder(_ parts: String...) -> String {
-        parts.map { HText.strip($0, "/ ") }.filter { !$0.isEmpty }.joined(separator: "/")
+        parts.map { PyText.strip($0, chars: "/ ") }.filter { !$0.isEmpty }.joined(separator: "/")
     }
 
     public static func stripForceDownload(_ url: String) -> String { HText.replace(forceDownloadRE, in: url, with: "") }
@@ -111,7 +119,7 @@ public enum Learnweb {
                     let name = raw.isEmpty ? "datei" : raw
                     out.append(File(id: fileID(cmid: cmid, filepath: fp, filename: name), name: name,
                                     size: c["filesize"]?.int ?? 0, mime: (c["mimetype"]?.string).flatMap { $0.isEmpty ? nil : $0 } ?? guessMime(name),
-                                    chdate: c["timemodified"]?.int ?? 0, downloadURL: stripForceDownload(fileurl),
+                                    author: c["author"]?.string, chdate: c["timemodified"]?.int ?? 0, downloadURL: stripForceDownload(fileurl),
                                     folder: HText.nfc(joinFolder(base, fp))))
                 }
             }
