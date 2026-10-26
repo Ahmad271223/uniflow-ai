@@ -176,7 +176,7 @@ struct PackageDrawer: View {
                 }
             }
             UFButton("Uhrzeit", icon: "clock", size: .small) {
-                overlay.modal { PackageTimeDialog(id: id, start: p.s("start_time") ?? "09:00", minutes: p.i("planned_minutes") ?? 60) }
+                overlay.modal { PackageTimeDialog(id: id, start: p.s("start_time") ?? "09:00", minutes: PackageTimeDialog.minutes(p)) }
             }
             UFButton("Aufgabe", icon: "plus", size: .small) { overlay.modal { AddTaskDialog(package: p) } }
             UFFlexSpacer()
@@ -239,7 +239,7 @@ struct TaskRow: View {
                     let lp = t.i("last_page") ?? 1
                     router.go(.doc(f, task: t.i("id"), page: lp > 1 ? lp : nil))
                 }
-            } else if t.s("type") == "test" {
+            } else if t.s("type") == "test" && session.api?.isLocal != true {     // ohne PC keine Wochentests (KI)
                 let submitted = t["test_submitted"].map { !$0.isNull } ?? false
                 let label = creatingTest ? "Test wird erstellt…" : (t.i("test_id") != nil ? (submitted ? "Ergebnis" : "Fortsetzen") : "Test starten")
                 UFButton(label, icon: creatingTest ? nil : "play", kind: submitted ? .normal : .primary, size: .small) { Task { await startTest() } }
@@ -411,6 +411,13 @@ struct PackageTimeDialog: View {
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
 
+    /// Dauer zum Vorbelegen: bei einem gelegten Paket Ende - Beginn (mit den Pausen zwischen den Aufgaben), sonst die
+    /// geplanten Minuten. Frueher immer die geplanten Minuten: unveraendert gespeichert wurde das Paket kuerzer.
+    static func minutes(_ p: JSONValue) -> Int {
+        if let s = p.s("start_time"), let e = p.s("end_time"), UFTime.hm(e) > UFTime.hm(s) { return UFTime.hm(e) - UFTime.hm(s) }
+        return p.i("planned_minutes") ?? 60
+    }
+
     var body: some View {
         UFDialog("Uhrzeit") {
             HStack(spacing: 9.6) {
@@ -561,7 +568,9 @@ struct FreeWindowDialog: View {
                     choice("Vorlesung selbstständig nacharbeiten", icon: "book") { await material(lecture: true, mins: mins) }
                 }
                 choice("Lerneinheit automatisch einplanen", icon: "sparkles") {
-                    if let r = try? await session.api?.value("/api/calendar/generate", method: "POST", body: ["start": .string(date), "days": 1]) {
+                    // genau in dieses Fenster (die Planung fuer den Tag uebersprang jeden Tag mit einem Paket)
+                    if let r = try? await session.api?.value("/api/calendar/generate", method: "POST",
+                                                             body: ["start": .string(date), "window_start": .string(UFTime.mh(start)), "window_end": .string(UFTime.mh(end))]) {
                         toast.show(r.s("message") ?? "")
                     }
                     router.reload()
@@ -584,7 +593,9 @@ struct FreeWindowDialog: View {
         .buttonStyle(UFButtonStyle())
     }
 
-    /// "Passende Übung bearbeiten" / "Vorlesung nacharbeiten": Paket aus den Unterlagen, danach Uhrzeiten vergeben
+    /// "Passende Übung bearbeiten" / "Vorlesung nacharbeiten": Paket aus den Unterlagen mit dem Beginn des angetippten
+    /// Fensters. Frueher wurde danach der ganze Tag neu gelegt: von Hand gesetzte Uhrzeiten gingen verloren, und das
+    /// neue Paket landete nicht unbedingt in diesem Fenster.
     private func material(lecture: Bool, mins: Int) async {
         guard let api = session.api else { return }
         let lec = materials.filter { $0.s("doc_type") == "vorlesung" }, ex = materials.filter { $0.s("doc_type") == "uebung" }
@@ -602,8 +613,9 @@ struct FreeWindowDialog: View {
         let body: JSONValue = ["date": .string(date), "module_id": moduleID.map { .number(Double($0)) } ?? .null,
                                "title": .string(lecture ? "Vorlesung nacharbeiten" : "Übung bearbeiten"),
                                "tasks": .array(tasks.filter { ($0["est_minutes"]?.double ?? 0) > 0 })]
-        _ = try? await api.value("/api/packages", method: "POST", body: body)
-        _ = try? await api.value("/api/timetable/reslot", method: "POST", body: ["dates": [.string(date)]])
+        if let p = try? await api.value("/api/packages", method: "POST", body: body), let id = p.i("id") {
+            _ = try? await api.value("/api/packages/\(id)", method: "PATCH", body: ["start_time": .string(UFTime.mh(start))])
+        }
         toast.show("Lernblock angelegt")
         router.reload()
     }

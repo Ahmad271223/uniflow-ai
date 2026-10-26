@@ -236,8 +236,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
                     throw LocalHTTPError.validation(type: "int_parsing", loc: ["query", "days"],
                                                     msg: "Input should be a valid integer, unable to parse string as an integer", input: .string(raw))
                 }
-                guard n <= 3660 else { throw LocalHTTPError(status: 422, message: "Höchstens 3660 Tage") }
-                days = n
+                days = try T.span(n)
             }
             let t = T.today(ctx.clock)
             let span = days

@@ -4190,8 +4190,8 @@
         "sort": 0,
         "generated": 1,
         "created_at": "2026-10-19T08:00:00",
-        "start_time": "09:00",
-        "end_time": "10:45",
+        "start_time": null,
+        "end_time": null,
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": []
@@ -4237,8 +4237,8 @@
         "sort": 0,
         "generated": 1,
         "created_at": "2026-10-19T08:00:00",
-        "start_time": "10:00",
-        "end_time": "10:45",
+        "start_time": null,
+        "end_time": null,
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": []
@@ -5207,8 +5207,8 @@
     "sort": 0,
     "generated": 1,
     "created_at": "2026-10-19T08:00:00",
-    "start_time": "09:00",
-    "end_time": "10:45",
+    "start_time": null,
+    "end_time": null,
     "color": "#111111",
     "module_name": "Testmathematik I",
     "tasks": []
@@ -5403,15 +5403,8 @@
    "path": "/api/calendar/generate",
    "status": 200,
    "response": {
-    "created": 3,
-    "message": "3 Lernpakete erstellt",
-    "feasibility": {
-     "open_minutes": 420,
-     "available_minutes_4w": 5760,
-     "per_day_need": 210,
-     "per_day_available": 240,
-     "hint": null
-    }
+    "created": 0,
+    "message": "Keine offenen Vorlesungen oder Übungen für die Planung."
    },
    "body": {
     "start": "2026-10-26",
@@ -5430,10 +5423,10 @@
      {
       "date": "2026-10-26",
       "weekday": 0,
-      "status": "erledigt",
-      "minutes": 45,
+      "status": "geplant",
+      "minutes": 150,
       "tasks_done": 1,
-      "tasks_total": 1,
+      "tasks_total": 3,
       "packages": [
        {
         "id": 8,
@@ -5475,6 +5468,88 @@
           "test_max": null
          }
         ]
+       },
+       {
+        "id": 9,
+        "date": "2026-10-26",
+        "module_id": 3,
+        "subject": "Programmierkurs Beispiel",
+        "title": "Woche 2 · 19.10. – 25.10.",
+        "week_no": 2,
+        "planned_minutes": 60,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-23T09:15:00",
+        "start_time": "13:00",
+        "end_time": "14:00",
+        "color": "#333333",
+        "module_name": "Programmierkurs Beispiel",
+        "tasks": [
+         {
+          "id": 11,
+          "package_id": 9,
+          "type": "uebung",
+          "file_id": "f-pg-u2",
+          "test_id": null,
+          "title": "Blatt 2.pdf",
+          "sort": 0,
+          "est_minutes": 60,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-23T09:15:00",
+          "start_time": "13:00",
+          "end_time": "14:00",
+          "file_name": "Blatt 2.pdf",
+          "last_page": 1,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
+       },
+       {
+        "id": 17,
+        "date": "2026-10-26",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Einführung Physik",
+        "week_no": 1,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-23T09:15:00",
+        "start_time": null,
+        "end_time": null,
+        "color": "#222222",
+        "module_name": "Testphysik",
+        "tasks": [
+         {
+          "id": 3,
+          "package_id": 17,
+          "type": "vorlesung",
+          "file_id": "f-ph-v1",
+          "test_id": null,
+          "title": "Einführung Physik",
+          "sort": 0,
+          "est_minutes": 45,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": "2026-10-21",
+          "created_at": "2026-10-19T08:00:00",
+          "start_time": "10:00",
+          "end_time": "10:45",
+          "file_name": "Folien Einführung.pdf",
+          "last_page": 1,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
        }
       ],
       "events": [
@@ -5501,89 +5576,48 @@
       "date": "2026-10-27",
       "weekday": 1,
       "status": "geplant",
-      "minutes": 105,
+      "minutes": 30,
       "tasks_done": 0,
-      "tasks_total": 2,
+      "tasks_total": 1,
       "packages": [
        {
-        "id": 18,
+        "id": 5,
         "date": "2026-10-27",
         "module_id": 1,
         "subject": "Testmathematik I",
-        "title": "Woche 2 · 19.10. – 25.10.",
-        "week_no": 2,
-        "planned_minutes": 60,
+        "title": "Wochentest",
+        "week_no": 1,
+        "planned_minutes": 30,
         "status": "geplant",
-        "sort": 0,
+        "sort": 1,
         "generated": 1,
-        "created_at": "2026-10-23T09:15:00",
+        "created_at": "2026-10-19T08:00:00",
         "start_time": "08:00",
-        "end_time": "09:00",
+        "end_time": "08:30",
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
          {
-          "id": 21,
-          "package_id": 18,
-          "type": "uebung",
-          "file_id": "f-ma-u2",
-          "test_id": null,
-          "title": "Blatt 2.pdf",
+          "id": 6,
+          "package_id": 5,
+          "type": "test",
+          "file_id": null,
+          "test_id": 1,
+          "title": "Gemeinsamer Wochentest Lehrwoche 1",
           "sort": 0,
-          "est_minutes": 60,
+          "est_minutes": 30,
           "actual_minutes": null,
           "status": "geplant",
           "done_at": null,
           "moved_from": null,
-          "created_at": "2026-10-23T09:15:00",
+          "created_at": "2026-10-19T08:00:00",
           "start_time": "08:00",
-          "end_time": "09:00",
-          "file_name": "Blatt 2.pdf",
-          "last_page": 1,
-          "test_submitted": null,
-          "test_score": null,
-          "test_max": null
-         }
-        ]
-       },
-       {
-        "id": 19,
-        "date": "2026-10-27",
-        "module_id": 2,
-        "subject": "Testphysik",
-        "title": "Einführung Physik",
-        "week_no": 1,
-        "planned_minutes": 45,
-        "status": "geplant",
-        "sort": 0,
-        "generated": 1,
-        "created_at": "2026-10-23T09:15:00",
-        "start_time": "09:10",
-        "end_time": "09:55",
-        "color": "#222222",
-        "module_name": "Testphysik",
-        "tasks": [
-         {
-          "id": 22,
-          "package_id": 19,
-          "type": "vorlesung",
-          "file_id": "f-ph-v1",
-          "test_id": null,
-          "title": "Einführung Physik",
-          "sort": 0,
-          "est_minutes": 45,
-          "actual_minutes": null,
-          "status": "geplant",
-          "done_at": null,
-          "moved_from": null,
-          "created_at": "2026-10-23T09:15:00",
-          "start_time": "09:10",
-          "end_time": "09:55",
-          "file_name": "Folien Einführung.pdf",
-          "last_page": 1,
-          "test_submitted": null,
-          "test_score": null,
-          "test_max": null
+          "end_time": "08:30",
+          "file_name": null,
+          "last_page": null,
+          "test_submitted": "2026-10-22T10:00:00",
+          "test_score": 7.5,
+          "test_max": 10.0
          }
         ]
        }
@@ -5613,32 +5647,32 @@
       "date": "2026-10-28",
       "weekday": 2,
       "status": "geplant",
-      "minutes": 60,
+      "minutes": 235,
       "tasks_done": 0,
-      "tasks_total": 1,
+      "tasks_total": 5,
       "packages": [
        {
-        "id": 20,
+        "id": 10,
         "date": "2026-10-28",
-        "module_id": 3,
-        "subject": "Programmierkurs Beispiel",
-        "title": "Woche 2 · 19.10. – 25.10.",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Grenzwerte",
         "week_no": 2,
-        "planned_minutes": 60,
+        "planned_minutes": 120,
         "status": "geplant",
         "sort": 0,
         "generated": 1,
         "created_at": "2026-10-23T09:15:00",
         "start_time": "11:50",
         "end_time": "12:50",
-        "color": "#333333",
-        "module_name": "Programmierkurs Beispiel",
+        "color": "#111111",
+        "module_name": "Testmathematik I",
         "tasks": [
          {
-          "id": 23,
-          "package_id": 20,
+          "id": 12,
+          "package_id": 10,
           "type": "uebung",
-          "file_id": "f-pg-u2",
+          "file_id": "f-ma-u2",
           "test_id": null,
           "title": "Blatt 2.pdf",
           "sort": 0,
@@ -5650,6 +5684,132 @@
           "created_at": "2026-10-23T09:15:00",
           "start_time": "11:50",
           "end_time": "12:50",
+          "file_name": "Blatt 2.pdf",
+          "last_page": 1,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         },
+         {
+          "id": 2,
+          "package_id": 10,
+          "type": "uebung",
+          "file_id": "f-ma-u1",
+          "test_id": null,
+          "title": "Blatt 1.pdf",
+          "sort": 1,
+          "est_minutes": 60,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": "2026-10-23",
+          "created_at": "2026-10-19T08:00:00",
+          "start_time": "09:55",
+          "end_time": "10:55",
+          "file_name": "Blatt 1.pdf",
+          "last_page": 1,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
+       },
+       {
+        "id": 11,
+        "date": "2026-10-28",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Physik wiederholen",
+        "week_no": null,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-23T09:15:00",
+        "start_time": "16:00",
+        "end_time": "16:50",
+        "color": "#222222",
+        "module_name": "Testphysik",
+        "tasks": [
+         {
+          "id": 13,
+          "package_id": 11,
+          "type": "frei",
+          "file_id": null,
+          "test_id": null,
+          "title": "Physik wiederholen",
+          "sort": 0,
+          "est_minutes": 50,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-23T09:15:00",
+          "start_time": null,
+          "end_time": null,
+          "file_name": null,
+          "last_page": null,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         },
+         {
+          "id": 14,
+          "package_id": 11,
+          "type": "frei",
+          "file_id": null,
+          "test_id": null,
+          "title": "Formeln",
+          "sort": 1,
+          "est_minutes": 25,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-23T09:15:00",
+          "start_time": null,
+          "end_time": null,
+          "file_name": null,
+          "last_page": null,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
+       },
+       {
+        "id": 12,
+        "date": "2026-10-28",
+        "module_id": null,
+        "subject": "Eigenes",
+        "title": "Eigenes",
+        "week_no": null,
+        "planned_minutes": 40,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-23T09:15:00",
+        "start_time": null,
+        "end_time": null,
+        "color": null,
+        "module_name": null,
+        "tasks": [
+         {
+          "id": 15,
+          "package_id": 12,
+          "type": "uebung",
+          "file_id": "f-ma-u2",
+          "test_id": null,
+          "title": "Blatt 2 rechnen",
+          "sort": 0,
+          "est_minutes": 40,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-23T09:15:00",
+          "start_time": null,
+          "end_time": null,
           "file_name": "Blatt 2.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -5728,11 +5888,53 @@
      {
       "date": "2026-10-30",
       "weekday": 4,
-      "status": "leer",
-      "minutes": 0,
+      "status": "geplant",
+      "minutes": 30,
       "tasks_done": 0,
-      "tasks_total": 0,
-      "packages": [],
+      "tasks_total": 1,
+      "packages": [
+       {
+        "id": 4,
+        "date": "2026-10-30",
+        "module_id": null,
+        "subject": "Allgemein",
+        "title": "Lesen (verschoben)",
+        "week_no": null,
+        "planned_minutes": 30,
+        "status": "geplant",
+        "sort": 1,
+        "generated": 0,
+        "created_at": "2026-10-19T08:00:00",
+        "start_time": "19:30",
+        "end_time": "20:00",
+        "color": null,
+        "module_name": null,
+        "tasks": [
+         {
+          "id": 5,
+          "package_id": 4,
+          "type": "frei",
+          "file_id": null,
+          "test_id": null,
+          "title": "Lesen Kapitel 3",
+          "sort": 0,
+          "est_minutes": 30,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": "2026-10-23",
+          "created_at": "2026-10-19T08:00:00",
+          "start_time": null,
+          "end_time": null,
+          "file_name": null,
+          "last_page": null,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
+       }
+      ],
       "events": [
        {
         "event_id": 5,
@@ -5953,7 +6155,7 @@
       "test_minutes": null,
       "file_count": 8,
       "new_count": 6,
-      "open_tasks": 6,
+      "open_tasks": 8,
       "progress": 17,
       "next_package": {
        "date": "2026-10-23",
@@ -5976,7 +6178,7 @@
        "permanent_skip": false,
        "exception": null
       },
-      "task_count": 6,
+      "task_count": 8,
       "test_count": 1,
       "topics": [
        "Grenzwerte"
@@ -5999,7 +6201,7 @@
       "test_minutes": 30,
       "file_count": 3,
       "new_count": 2,
-      "open_tasks": 2,
+      "open_tasks": 4,
       "progress": 33,
       "next_package": {
        "date": "2026-10-25",
@@ -6022,7 +6224,7 @@
        "permanent_skip": false,
        "exception": null
       },
-      "task_count": 2,
+      "task_count": 4,
       "test_count": 0,
       "topics": [
        "Einführung Physik"
@@ -6048,7 +6250,7 @@
       "open_tasks": 1,
       "progress": 50,
       "next_package": {
-       "date": "2026-10-28",
+       "date": "2026-10-26",
        "title": "Woche 2 · 19.10. – 25.10."
       },
       "next_event": {
@@ -6301,44 +6503,50 @@
       "package_id": 6
      },
      {
-      "date": "2026-10-27",
-      "kind": "lernpaket",
-      "title": "Testmathematik I: Woche 2 · 19.10. – 25.10.",
-      "module_id": 1,
-      "color": "#111111",
-      "package_id": 18
-     },
-     {
-      "date": "2026-10-27",
-      "kind": "lernpaket",
-      "title": "Testphysik: Einführung Physik",
-      "module_id": 2,
-      "color": "#222222",
-      "package_id": 19
-     },
-     {
-      "date": "2026-10-28",
+      "date": "2026-10-26",
       "kind": "lernpaket",
       "title": "Programmierkurs Beispiel: Woche 2 · 19.10. – 25.10.",
       "module_id": 3,
       "color": "#333333",
-      "package_id": 20
+      "package_id": 9
      },
      {
-      "date": "2026-11-09",
+      "date": "2026-10-26",
       "kind": "lernpaket",
-      "title": "Testmathematik I: Zwei Stunden",
+      "title": "Testphysik: Einführung Physik",
+      "module_id": 2,
+      "color": "#222222",
+      "package_id": 17
+     },
+     {
+      "date": "2026-10-27",
+      "kind": "lernpaket",
+      "title": "Testmathematik I: Wochentest",
       "module_id": 1,
       "color": "#111111",
-      "package_id": 14
+      "package_id": 5
      },
      {
-      "date": "2026-11-09",
+      "date": "2026-10-27",
+      "kind": "test",
+      "title": "Testmathematik I: Gemeinsamer Wochentest Lehrwoche 1",
+      "task_id": 6
+     },
+     {
+      "date": "2026-10-28",
       "kind": "lernpaket",
-      "title": "Allgemein: Kurz",
-      "module_id": null,
-      "color": null,
-      "package_id": 15
+      "title": "Testmathematik I: Grenzwerte",
+      "module_id": 1,
+      "color": "#111111",
+      "package_id": 10
+     },
+     {
+      "date": "2026-10-28",
+      "kind": "lernpaket",
+      "title": "Testphysik: Physik wiederholen",
+      "module_id": 2,
+      "color": "#222222",
+      "package_id": 11
      },
      {
       "date": "2026-11-20",
@@ -6426,7 +6634,7 @@
      "test_minutes": null,
      "file_count": 8,
      "new_count": 6,
-     "open_tasks": 6,
+     "open_tasks": 8,
      "progress": 17,
      "next_package": {
       "date": "2026-10-23",
@@ -6449,7 +6657,7 @@
       "permanent_skip": false,
       "exception": null
      },
-     "task_count": 6,
+     "task_count": 8,
      "test_count": 1,
      "topics": [
       "Grenzwerte"
@@ -6472,7 +6680,7 @@
      "test_minutes": 30,
      "file_count": 3,
      "new_count": 2,
-     "open_tasks": 2,
+     "open_tasks": 4,
      "progress": 33,
      "next_package": {
       "date": "2026-10-25",
@@ -6495,7 +6703,7 @@
       "permanent_skip": false,
       "exception": null
      },
-     "task_count": 2,
+     "task_count": 4,
      "test_count": 0,
      "topics": [
       "Einführung Physik"
@@ -6521,7 +6729,7 @@
      "open_tasks": 1,
      "progress": 50,
      "next_package": {
-      "date": "2026-10-28",
+      "date": "2026-10-26",
       "title": "Woche 2 · 19.10. – 25.10."
      },
      "next_event": {
@@ -7100,7 +7308,7 @@
     ],
     "progress": 17,
     "new_count": 6,
-    "open_tasks": 6,
+    "open_tasks": 8,
     "next_package": {
      "date": "2026-10-23",
      "title": "Woche 1 · 12.10. – 18.10."
@@ -7908,32 +8116,32 @@
      "date": "2026-10-28",
      "weekday": 2,
      "status": "geplant",
-     "minutes": 60,
+     "minutes": 235,
      "tasks_done": 0,
-     "tasks_total": 1,
+     "tasks_total": 5,
      "packages": [
       {
-       "id": 20,
+       "id": 10,
        "date": "2026-10-28",
-       "module_id": 3,
-       "subject": "Programmierkurs Beispiel",
-       "title": "Woche 2 · 19.10. – 25.10.",
+       "module_id": 1,
+       "subject": "Testmathematik I",
+       "title": "Grenzwerte",
        "week_no": 2,
-       "planned_minutes": 60,
+       "planned_minutes": 120,
        "status": "geplant",
        "sort": 0,
        "generated": 1,
        "created_at": "2026-10-23T09:15:00",
        "start_time": "11:50",
        "end_time": "12:50",
-       "color": "#333333",
-       "module_name": "Programmierkurs Beispiel",
+       "color": "#111111",
+       "module_name": "Testmathematik I",
        "tasks": [
         {
-         "id": 23,
-         "package_id": 20,
+         "id": 12,
+         "package_id": 10,
          "type": "uebung",
-         "file_id": "f-pg-u2",
+         "file_id": "f-ma-u2",
          "test_id": null,
          "title": "Blatt 2.pdf",
          "sort": 0,
@@ -7945,6 +8153,132 @@
          "created_at": "2026-10-23T09:15:00",
          "start_time": "11:50",
          "end_time": "12:50",
+         "file_name": "Blatt 2.pdf",
+         "last_page": 1,
+         "test_submitted": null,
+         "test_score": null,
+         "test_max": null
+        },
+        {
+         "id": 2,
+         "package_id": 10,
+         "type": "uebung",
+         "file_id": "f-ma-u1",
+         "test_id": null,
+         "title": "Blatt 1.pdf",
+         "sort": 1,
+         "est_minutes": 60,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": "2026-10-23",
+         "created_at": "2026-10-19T08:00:00",
+         "start_time": "09:55",
+         "end_time": "10:55",
+         "file_name": "Blatt 1.pdf",
+         "last_page": 1,
+         "test_submitted": null,
+         "test_score": null,
+         "test_max": null
+        }
+       ]
+      },
+      {
+       "id": 11,
+       "date": "2026-10-28",
+       "module_id": 2,
+       "subject": "Testphysik",
+       "title": "Physik wiederholen",
+       "week_no": null,
+       "planned_minutes": 75,
+       "status": "geplant",
+       "sort": 0,
+       "generated": 0,
+       "created_at": "2026-10-23T09:15:00",
+       "start_time": "16:00",
+       "end_time": "16:50",
+       "color": "#222222",
+       "module_name": "Testphysik",
+       "tasks": [
+        {
+         "id": 13,
+         "package_id": 11,
+         "type": "frei",
+         "file_id": null,
+         "test_id": null,
+         "title": "Physik wiederholen",
+         "sort": 0,
+         "est_minutes": 50,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": null,
+         "created_at": "2026-10-23T09:15:00",
+         "start_time": null,
+         "end_time": null,
+         "file_name": null,
+         "last_page": null,
+         "test_submitted": null,
+         "test_score": null,
+         "test_max": null
+        },
+        {
+         "id": 14,
+         "package_id": 11,
+         "type": "frei",
+         "file_id": null,
+         "test_id": null,
+         "title": "Formeln",
+         "sort": 1,
+         "est_minutes": 25,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": null,
+         "created_at": "2026-10-23T09:15:00",
+         "start_time": null,
+         "end_time": null,
+         "file_name": null,
+         "last_page": null,
+         "test_submitted": null,
+         "test_score": null,
+         "test_max": null
+        }
+       ]
+      },
+      {
+       "id": 12,
+       "date": "2026-10-28",
+       "module_id": null,
+       "subject": "Eigenes",
+       "title": "Eigenes",
+       "week_no": null,
+       "planned_minutes": 40,
+       "status": "geplant",
+       "sort": 0,
+       "generated": 0,
+       "created_at": "2026-10-23T09:15:00",
+       "start_time": null,
+       "end_time": null,
+       "color": null,
+       "module_name": null,
+       "tasks": [
+        {
+         "id": 15,
+         "package_id": 12,
+         "type": "uebung",
+         "file_id": "f-ma-u2",
+         "test_id": null,
+         "title": "Blatt 2 rechnen",
+         "sort": 0,
+         "est_minutes": 40,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": null,
+         "created_at": "2026-10-23T09:15:00",
+         "start_time": null,
+         "end_time": null,
          "file_name": "Blatt 2.pdf",
          "last_page": 1,
          "test_submitted": null,
@@ -7994,9 +8328,17 @@
      "free": [
       {
        "start": 770,
-       "end": 1200,
-       "minutes": 430,
+       "end": 960,
+       "minutes": 190,
        "start_hm": "12:50",
+       "end_hm": "16:00",
+       "campus": false
+      },
+      {
+       "start": 1010,
+       "end": 1200,
+       "minutes": 190,
+       "start_hm": "16:50",
        "end_hm": "20:00",
        "campus": false
       }
@@ -8018,11 +8360,11 @@
       "test_minutes": null,
       "file_count": 10,
       "new_count": 8,
-      "open_tasks": 6,
+      "open_tasks": 8,
       "progress": 12,
       "next_package": {
-       "date": "2026-11-09",
-       "title": "Zwei Stunden"
+       "date": "2026-10-28",
+       "title": "Grenzwerte"
       },
       "next_event": {
        "event_id": 2,
@@ -8042,7 +8384,7 @@
        "exception": "moved_here",
        "moved_from": "2026-10-27"
       },
-      "task_count": 6,
+      "task_count": 8,
       "test_count": 1,
       "topics": [
        "Grenzwerte"
@@ -8065,9 +8407,12 @@
       "test_minutes": 30,
       "file_count": 4,
       "new_count": 3,
-      "open_tasks": 2,
+      "open_tasks": 4,
       "progress": 25,
-      "next_package": null,
+      "next_package": {
+       "date": "2026-10-28",
+       "title": "Physik wiederholen"
+      },
       "next_event": {
        "event_id": 3,
        "date": "2026-10-28",
@@ -8085,7 +8430,7 @@
        "permanent_skip": false,
        "exception": null
       },
-      "task_count": 2,
+      "task_count": 4,
       "test_count": 0,
       "topics": [
        "Einführung Physik"
@@ -8110,10 +8455,7 @@
       "new_count": 1,
       "open_tasks": 1,
       "progress": 50,
-      "next_package": {
-       "date": "2026-10-28",
-       "title": "Woche 2 · 19.10. – 25.10."
-      },
+      "next_package": null,
       "next_event": {
        "event_id": 5,
        "date": "2026-10-30",
@@ -8362,22 +8704,22 @@
     "week": {
      "start": "2026-10-26",
      "done": 1,
-     "total": 4,
+     "total": 10,
      "days": [
       {
        "date": "2026-10-26",
-       "status": "erledigt",
-       "minutes": 45
+       "status": "teilweise",
+       "minutes": 150
       },
       {
        "date": "2026-10-27",
        "status": "nachholen",
-       "minutes": 105
+       "minutes": 30
       },
       {
        "date": "2026-10-28",
        "status": "geplant",
-       "minutes": 60
+       "minutes": 235
       },
       {
        "date": "2026-10-29",
@@ -8386,8 +8728,8 @@
       },
       {
        "date": "2026-10-30",
-       "status": "leer",
-       "minutes": 0
+       "status": "geplant",
+       "minutes": 30
       },
       {
        "date": "2026-10-31",
@@ -8401,8 +8743,16 @@
       }
      ]
     },
-    "backlog": 6,
+    "backlog": 7,
     "upcoming": [
+     {
+      "date": "2026-10-30",
+      "kind": "lernpaket",
+      "title": "Allgemein: Lesen (verschoben)",
+      "module_id": null,
+      "color": null,
+      "package_id": 4
+     },
      {
       "date": "2026-11-09",
       "kind": "lernpaket",
@@ -8511,7 +8861,7 @@
       "module_id": 1,
       "est_minutes": 45,
       "from": "2026-10-23",
-      "to": "2026-10-28"
+      "to": "2026-10-29"
      },
      {
       "task_id": 7,
@@ -8531,7 +8881,7 @@
       "module_id": 2,
       "est_minutes": 60,
       "from": "2026-10-25",
-      "to": "2026-10-28"
+      "to": "2026-10-30"
      },
      {
       "task_id": 9,
@@ -8541,30 +8891,40 @@
       "module_id": 1,
       "est_minutes": 75,
       "from": "2026-10-25",
-      "to": "2026-10-30"
+      "to": "2026-11-01"
      },
      {
-      "task_id": 21,
-      "title": "Blatt 2.pdf",
-      "type": "uebung",
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "est_minutes": 60,
-      "from": "2026-10-27",
-      "to": "2026-10-29"
-     },
-     {
-      "task_id": 22,
+      "task_id": 3,
       "title": "Einführung Physik",
       "type": "vorlesung",
       "subject": "Testphysik",
       "module_id": 2,
       "est_minutes": 45,
-      "from": "2026-10-27",
+      "from": "2026-10-26",
       "to": "2026-10-30"
+     },
+     {
+      "task_id": 11,
+      "title": "Blatt 2.pdf",
+      "type": "uebung",
+      "subject": "Programmierkurs Beispiel",
+      "module_id": 3,
+      "est_minutes": 60,
+      "from": "2026-10-26",
+      "to": "2026-11-01"
+     },
+     {
+      "task_id": 6,
+      "title": "Gemeinsamer Wochentest Lehrwoche 1",
+      "type": "test",
+      "subject": "Testmathematik I",
+      "module_id": 1,
+      "est_minutes": 30,
+      "from": "2026-10-27",
+      "to": "2026-11-02"
      }
     ],
-    "message": "6 offene Aufgaben (Testmathematik I, Testphysik) können auf Mi 28.10., Do 29.10., Fr 30.10. verteilt werden."
+    "message": "7 offene Aufgaben (Programmierkurs Beispiel, Testmathematik I, Testphysik) können auf Do 29.10., Fr 30.10., So 01.11., Mo 02.11. verteilt werden."
    },
    "body": {
     "rescue": true
@@ -8682,27 +9042,37 @@
       "to": null
      },
      {
-      "task_id": 21,
-      "title": "Blatt 2.pdf",
-      "type": "uebung",
-      "subject": "Testmathematik I",
-      "module_id": 1,
-      "est_minutes": 60,
-      "from": "2026-10-27",
-      "to": null
-     },
-     {
-      "task_id": 22,
+      "task_id": 3,
       "title": "Einführung Physik",
       "type": "vorlesung",
       "subject": "Testphysik",
       "module_id": 2,
       "est_minutes": 45,
+      "from": "2026-10-26",
+      "to": null
+     },
+     {
+      "task_id": 11,
+      "title": "Blatt 2.pdf",
+      "type": "uebung",
+      "subject": "Programmierkurs Beispiel",
+      "module_id": 3,
+      "est_minutes": 60,
+      "from": "2026-10-26",
+      "to": null
+     },
+     {
+      "task_id": 6,
+      "title": "Gemeinsamer Wochentest Lehrwoche 1",
+      "type": "test",
+      "subject": "Testmathematik I",
+      "module_id": 1,
+      "est_minutes": 30,
       "from": "2026-10-27",
       "to": null
      }
     ],
-    "message": "6 offene Aufgaben (Testmathematik I, Testphysik) können auf  verteilt werden."
+    "message": "7 offene Aufgaben (Programmierkurs Beispiel, Testmathematik I, Testphysik) können auf  verteilt werden."
    },
    "body": {
     "rescue": true
@@ -8835,32 +9205,32 @@
       "date": "2026-10-28",
       "weekday": 2,
       "status": "geplant",
-      "minutes": 60,
+      "minutes": 235,
       "tasks_done": 0,
-      "tasks_total": 1,
+      "tasks_total": 5,
       "packages": [
        {
-        "id": 20,
+        "id": 10,
         "date": "2026-10-28",
-        "module_id": 3,
-        "subject": "Programmierkurs Beispiel",
-        "title": "Woche 2 · 19.10. – 25.10.",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Grenzwerte",
         "week_no": 2,
-        "planned_minutes": 60,
+        "planned_minutes": 120,
         "status": "geplant",
         "sort": 0,
         "generated": 1,
         "created_at": "2026-10-23T09:15:00",
         "start_time": "11:50",
         "end_time": "12:50",
-        "color": "#333333",
-        "module_name": "Programmierkurs Beispiel",
+        "color": "#111111",
+        "module_name": "Testmathematik I",
         "tasks": [
          {
-          "id": 23,
-          "package_id": 20,
+          "id": 12,
+          "package_id": 10,
           "type": "uebung",
-          "file_id": "f-pg-u2",
+          "file_id": "f-ma-u2",
           "test_id": null,
           "title": "Blatt 2.pdf",
           "sort": 0,
@@ -8872,6 +9242,132 @@
           "created_at": "2026-10-23T09:15:00",
           "start_time": "11:50",
           "end_time": "12:50",
+          "file_name": "Blatt 2.pdf",
+          "last_page": 1,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         },
+         {
+          "id": 2,
+          "package_id": 10,
+          "type": "uebung",
+          "file_id": "f-ma-u1",
+          "test_id": null,
+          "title": "Blatt 1.pdf",
+          "sort": 1,
+          "est_minutes": 60,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": "2026-10-23",
+          "created_at": "2026-10-19T08:00:00",
+          "start_time": "09:55",
+          "end_time": "10:55",
+          "file_name": "Blatt 1.pdf",
+          "last_page": 1,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
+       },
+       {
+        "id": 11,
+        "date": "2026-10-28",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Physik wiederholen",
+        "week_no": null,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-23T09:15:00",
+        "start_time": "16:00",
+        "end_time": "16:50",
+        "color": "#222222",
+        "module_name": "Testphysik",
+        "tasks": [
+         {
+          "id": 13,
+          "package_id": 11,
+          "type": "frei",
+          "file_id": null,
+          "test_id": null,
+          "title": "Physik wiederholen",
+          "sort": 0,
+          "est_minutes": 50,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-23T09:15:00",
+          "start_time": null,
+          "end_time": null,
+          "file_name": null,
+          "last_page": null,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         },
+         {
+          "id": 14,
+          "package_id": 11,
+          "type": "frei",
+          "file_id": null,
+          "test_id": null,
+          "title": "Formeln",
+          "sort": 1,
+          "est_minutes": 25,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-23T09:15:00",
+          "start_time": null,
+          "end_time": null,
+          "file_name": null,
+          "last_page": null,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
+       },
+       {
+        "id": 12,
+        "date": "2026-10-28",
+        "module_id": null,
+        "subject": "Eigenes",
+        "title": "Eigenes",
+        "week_no": null,
+        "planned_minutes": 40,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-23T09:15:00",
+        "start_time": "12:50",
+        "end_time": "13:30",
+        "color": null,
+        "module_name": null,
+        "tasks": [
+         {
+          "id": 15,
+          "package_id": 12,
+          "type": "uebung",
+          "file_id": "f-ma-u2",
+          "test_id": null,
+          "title": "Blatt 2 rechnen",
+          "sort": 0,
+          "est_minutes": 40,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-23T09:15:00",
+          "start_time": "12:50",
+          "end_time": "13:30",
           "file_name": "Blatt 2.pdf",
           "last_page": 1,
           "test_submitted": null,
@@ -8928,7 +9424,7 @@
       "tasks_total": 3,
       "packages": [
        {
-        "id": 21,
+        "id": 18,
         "date": "2026-10-29",
         "module_id": 1,
         "subject": "Testmathematik I",
@@ -8945,8 +9441,8 @@
         "module_name": "Testmathematik I",
         "tasks": [
          {
-          "id": 24,
-          "package_id": 21,
+          "id": 21,
+          "package_id": 18,
           "type": "vorlesung",
           "file_id": "f-ma-v3",
           "test_id": null,
@@ -8969,7 +9465,7 @@
         ]
        },
        {
-        "id": 22,
+        "id": 19,
         "date": "2026-10-29",
         "module_id": 2,
         "subject": "Testphysik",
@@ -8986,8 +9482,8 @@
         "module_name": "Testphysik",
         "tasks": [
          {
-          "id": 25,
-          "package_id": 22,
+          "id": 22,
+          "package_id": 19,
           "type": "vorlesung",
           "file_id": "f-ph-v3",
           "test_id": null,
@@ -9010,7 +9506,7 @@
         ]
        },
        {
-        "id": 23,
+        "id": 20,
         "date": "2026-10-29",
         "module_id": 5,
         "subject": "Testchemie",
@@ -9027,8 +9523,8 @@
         "module_name": "Testchemie",
         "tasks": [
          {
-          "id": 26,
-          "package_id": 23,
+          "id": 23,
+          "package_id": 20,
           "type": "uebung",
           "file_id": "f-ch-u3",
           "test_id": null,
@@ -9075,127 +9571,45 @@
       "date": "2026-10-30",
       "weekday": 4,
       "status": "geplant",
-      "minutes": 76,
+      "minutes": 30,
       "tasks_done": 0,
-      "tasks_total": 3,
+      "tasks_total": 1,
       "packages": [
        {
-        "id": 24,
+        "id": 4,
         "date": "2026-10-30",
-        "module_id": 1,
-        "subject": "Testmathematik I",
-        "title": "Woche 3 · 26.10. – 01.11.",
-        "week_no": 3,
-        "planned_minutes": 23,
-        "status": "geplant",
-        "sort": 0,
-        "generated": 1,
-        "created_at": "2026-10-28T07:45:00",
-        "start_time": "08:00",
-        "end_time": "08:23",
-        "color": "#111111",
-        "module_name": "Testmathematik I",
-        "tasks": [
-         {
-          "id": 27,
-          "package_id": 24,
-          "type": "vorlesung",
-          "file_id": "f-ma-v3",
-          "test_id": null,
-          "title": "VL03.pdf (Teil 2/2)",
-          "sort": 0,
-          "est_minutes": 23,
-          "actual_minutes": null,
-          "status": "geplant",
-          "done_at": null,
-          "moved_from": null,
-          "created_at": "2026-10-28T07:45:00",
-          "start_time": "08:00",
-          "end_time": "08:23",
-          "file_name": "VL03.pdf",
-          "last_page": 1,
-          "test_submitted": null,
-          "test_score": null,
-          "test_max": null
-         }
-        ]
-       },
-       {
-        "id": 25,
-        "date": "2026-10-30",
-        "module_id": 2,
-        "subject": "Testphysik",
-        "title": "Woche 3 · 26.10. – 01.11.",
-        "week_no": 3,
-        "planned_minutes": 23,
-        "status": "geplant",
-        "sort": 0,
-        "generated": 1,
-        "created_at": "2026-10-28T07:45:00",
-        "start_time": "08:33",
-        "end_time": "08:56",
-        "color": "#222222",
-        "module_name": "Testphysik",
-        "tasks": [
-         {
-          "id": 28,
-          "package_id": 25,
-          "type": "vorlesung",
-          "file_id": "f-ph-v3",
-          "test_id": null,
-          "title": "Folien Kapitel 3.pdf (Teil 2/2)",
-          "sort": 0,
-          "est_minutes": 23,
-          "actual_minutes": null,
-          "status": "geplant",
-          "done_at": null,
-          "moved_from": null,
-          "created_at": "2026-10-28T07:45:00",
-          "start_time": "08:33",
-          "end_time": "08:56",
-          "file_name": "Folien Kapitel 3.pdf",
-          "last_page": 1,
-          "test_submitted": null,
-          "test_score": null,
-          "test_max": null
-         }
-        ]
-       },
-       {
-        "id": 26,
-        "date": "2026-10-30",
-        "module_id": 5,
-        "subject": "Testchemie",
-        "title": "Woche 3 · 26.10. – 01.11.",
-        "week_no": 3,
+        "module_id": null,
+        "subject": "Allgemein",
+        "title": "Lesen (verschoben)",
+        "week_no": null,
         "planned_minutes": 30,
         "status": "geplant",
-        "sort": 0,
-        "generated": 1,
-        "created_at": "2026-10-28T07:45:00",
-        "start_time": "09:06",
-        "end_time": "09:36",
-        "color": "#d94f6b",
-        "module_name": "Testchemie",
+        "sort": 1,
+        "generated": 0,
+        "created_at": "2026-10-19T08:00:00",
+        "start_time": "19:30",
+        "end_time": "20:00",
+        "color": null,
+        "module_name": null,
         "tasks": [
          {
-          "id": 29,
-          "package_id": 26,
-          "type": "uebung",
-          "file_id": "f-ch-u3",
+          "id": 5,
+          "package_id": 4,
+          "type": "frei",
+          "file_id": null,
           "test_id": null,
-          "title": "Übung 3.pdf (Teil 2/2)",
+          "title": "Lesen Kapitel 3",
           "sort": 0,
           "est_minutes": 30,
           "actual_minutes": null,
           "status": "geplant",
           "done_at": null,
-          "moved_from": null,
-          "created_at": "2026-10-28T07:45:00",
-          "start_time": "09:06",
-          "end_time": "09:36",
-          "file_name": "Übung 3.pdf",
-          "last_page": 1,
+          "moved_from": "2026-10-23",
+          "created_at": "2026-10-19T08:00:00",
+          "start_time": null,
+          "end_time": null,
+          "file_name": null,
+          "last_page": null,
           "test_submitted": null,
           "test_score": null,
           "test_max": null
@@ -9237,44 +9651,44 @@
       "date": "2026-11-01",
       "weekday": 6,
       "status": "geplant",
-      "minutes": 90,
+      "minutes": 76,
       "tasks_done": 0,
       "tasks_total": 3,
       "packages": [
        {
-        "id": 27,
+        "id": 21,
         "date": "2026-11-01",
         "module_id": 1,
         "subject": "Testmathematik I",
         "title": "Woche 3 · 26.10. – 01.11.",
         "week_no": 3,
-        "planned_minutes": 30,
+        "planned_minutes": 23,
         "status": "geplant",
         "sort": 0,
         "generated": 1,
         "created_at": "2026-10-28T07:45:00",
         "start_time": "10:30",
-        "end_time": "11:00",
+        "end_time": "10:53",
         "color": "#111111",
         "module_name": "Testmathematik I",
         "tasks": [
          {
-          "id": 30,
-          "package_id": 27,
-          "type": "uebung",
-          "file_id": "f-ma-u3",
+          "id": 24,
+          "package_id": 21,
+          "type": "vorlesung",
+          "file_id": "f-ma-v3",
           "test_id": null,
-          "title": "Blatt 3.pdf (Teil 1/2)",
+          "title": "VL03.pdf (Teil 2/2)",
           "sort": 0,
-          "est_minutes": 30,
+          "est_minutes": 23,
           "actual_minutes": null,
           "status": "geplant",
           "done_at": null,
           "moved_from": null,
           "created_at": "2026-10-28T07:45:00",
           "start_time": "10:30",
-          "end_time": "11:00",
-          "file_name": "Blatt 3.pdf",
+          "end_time": "10:53",
+          "file_name": "VL03.pdf",
           "last_page": 1,
           "test_submitted": null,
           "test_score": null,
@@ -9283,40 +9697,40 @@
         ]
        },
        {
-        "id": 28,
+        "id": 22,
         "date": "2026-11-01",
         "module_id": 2,
         "subject": "Testphysik",
         "title": "Woche 3 · 26.10. – 01.11.",
         "week_no": 3,
-        "planned_minutes": 15,
+        "planned_minutes": 23,
         "status": "geplant",
         "sort": 0,
         "generated": 1,
         "created_at": "2026-10-28T07:45:00",
-        "start_time": "11:10",
-        "end_time": "11:25",
+        "start_time": "11:03",
+        "end_time": "11:26",
         "color": "#222222",
         "module_name": "Testphysik",
         "tasks": [
          {
-          "id": 31,
-          "package_id": 28,
-          "type": "wiederholung",
-          "file_id": null,
+          "id": 25,
+          "package_id": 22,
+          "type": "vorlesung",
+          "file_id": "f-ph-v3",
           "test_id": null,
-          "title": "Wiederholung Lehrwoche 3 (Karteikarten, Fehler aus dem Test)",
+          "title": "Folien Kapitel 3.pdf (Teil 2/2)",
           "sort": 0,
-          "est_minutes": 15,
+          "est_minutes": 23,
           "actual_minutes": null,
           "status": "geplant",
           "done_at": null,
           "moved_from": null,
           "created_at": "2026-10-28T07:45:00",
-          "start_time": "11:10",
-          "end_time": "11:25",
-          "file_name": null,
-          "last_page": null,
+          "start_time": "11:03",
+          "end_time": "11:26",
+          "file_name": "Folien Kapitel 3.pdf",
+          "last_page": 1,
           "test_submitted": null,
           "test_score": null,
           "test_max": null
@@ -9324,40 +9738,40 @@
         ]
        },
        {
-        "id": 29,
+        "id": 23,
         "date": "2026-11-01",
         "module_id": 5,
         "subject": "Testchemie",
         "title": "Woche 3 · 26.10. – 01.11.",
         "week_no": 3,
-        "planned_minutes": 45,
+        "planned_minutes": 30,
         "status": "geplant",
         "sort": 0,
         "generated": 1,
         "created_at": "2026-10-28T07:45:00",
-        "start_time": "11:35",
-        "end_time": "12:20",
+        "start_time": "11:36",
+        "end_time": "12:06",
         "color": "#d94f6b",
         "module_name": "Testchemie",
         "tasks": [
          {
-          "id": 32,
-          "package_id": 29,
-          "type": "test",
-          "file_id": null,
+          "id": 26,
+          "package_id": 23,
+          "type": "uebung",
+          "file_id": "f-ch-u3",
           "test_id": null,
-          "title": "Gemeinsamer Wochentest Lehrwoche 3",
+          "title": "Übung 3.pdf (Teil 2/2)",
           "sort": 0,
-          "est_minutes": 45,
+          "est_minutes": 30,
           "actual_minutes": null,
           "status": "geplant",
           "done_at": null,
           "moved_from": null,
           "created_at": "2026-10-28T07:45:00",
-          "start_time": "11:35",
-          "end_time": "12:20",
-          "file_name": null,
-          "last_page": null,
+          "start_time": "11:36",
+          "end_time": "12:06",
+          "file_name": "Übung 3.pdf",
+          "last_page": 1,
           "test_submitted": null,
           "test_score": null,
           "test_max": null
@@ -9394,7 +9808,7 @@
       "tasks_total": 3,
       "packages": [
        {
-        "id": 30,
+        "id": 24,
         "date": "2026-11-02",
         "module_id": 1,
         "subject": "Testmathematik I",
@@ -9411,12 +9825,12 @@
         "module_name": "Testmathematik I",
         "tasks": [
          {
-          "id": 33,
-          "package_id": 30,
+          "id": 27,
+          "package_id": 24,
           "type": "uebung",
           "file_id": "f-ma-u3",
           "test_id": null,
-          "title": "Blatt 3.pdf (Teil 2/2)",
+          "title": "Blatt 3.pdf (Teil 1/2)",
           "sort": 0,
           "est_minutes": 30,
           "actual_minutes": null,
@@ -9435,10 +9849,10 @@
         ]
        },
        {
-        "id": 31,
+        "id": 25,
         "date": "2026-11-02",
-        "module_id": 5,
-        "subject": "Testchemie",
+        "module_id": 2,
+        "subject": "Testphysik",
         "title": "Woche 3 · 26.10. – 01.11.",
         "week_no": 3,
         "planned_minutes": 15,
@@ -9448,12 +9862,12 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "08:40",
         "end_time": "08:55",
-        "color": "#d94f6b",
-        "module_name": "Testchemie",
+        "color": "#222222",
+        "module_name": "Testphysik",
         "tasks": [
          {
-          "id": 34,
-          "package_id": 31,
+          "id": 28,
+          "package_id": 25,
           "type": "wiederholung",
           "file_id": null,
           "test_id": null,
@@ -9476,10 +9890,10 @@
         ]
        },
        {
-        "id": 32,
+        "id": 26,
         "date": "2026-11-02",
-        "module_id": 1,
-        "subject": "Testmathematik I",
+        "module_id": 5,
+        "subject": "Testchemie",
         "title": "Woche 3 · 26.10. – 01.11.",
         "week_no": 3,
         "planned_minutes": 45,
@@ -9489,12 +9903,12 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "09:05",
         "end_time": "09:50",
-        "color": "#111111",
-        "module_name": "Testmathematik I",
+        "color": "#d94f6b",
+        "module_name": "Testchemie",
         "tasks": [
          {
-          "id": 35,
-          "package_id": 32,
+          "id": 29,
+          "package_id": 26,
           "type": "test",
           "file_id": null,
           "test_id": null,
@@ -9541,15 +9955,56 @@
       "date": "2026-11-03",
       "weekday": 1,
       "status": "geplant",
-      "minutes": 15,
+      "minutes": 90,
       "tasks_done": 0,
-      "tasks_total": 1,
+      "tasks_total": 3,
       "packages": [
        {
-        "id": 33,
+        "id": 27,
         "date": "2026-11-03",
         "module_id": 1,
         "subject": "Testmathematik I",
+        "title": "Woche 3 · 26.10. – 01.11.",
+        "week_no": 3,
+        "planned_minutes": 30,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-28T07:45:00",
+        "start_time": "08:00",
+        "end_time": "08:30",
+        "color": "#111111",
+        "module_name": "Testmathematik I",
+        "tasks": [
+         {
+          "id": 30,
+          "package_id": 27,
+          "type": "uebung",
+          "file_id": "f-ma-u3",
+          "test_id": null,
+          "title": "Blatt 3.pdf (Teil 2/2)",
+          "sort": 0,
+          "est_minutes": 30,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-28T07:45:00",
+          "start_time": "08:00",
+          "end_time": "08:30",
+          "file_name": "Blatt 3.pdf",
+          "last_page": 1,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
+       },
+       {
+        "id": 28,
+        "date": "2026-11-03",
+        "module_id": 5,
+        "subject": "Testchemie",
         "title": "Woche 3 · 26.10. – 01.11.",
         "week_no": 3,
         "planned_minutes": 15,
@@ -9557,14 +10012,14 @@
         "sort": 0,
         "generated": 1,
         "created_at": "2026-10-28T07:45:00",
-        "start_time": "08:00",
-        "end_time": "08:15",
-        "color": "#111111",
-        "module_name": "Testmathematik I",
+        "start_time": "08:40",
+        "end_time": "08:55",
+        "color": "#d94f6b",
+        "module_name": "Testchemie",
         "tasks": [
          {
-          "id": 36,
-          "package_id": 33,
+          "id": 31,
+          "package_id": 28,
           "type": "wiederholung",
           "file_id": null,
           "test_id": null,
@@ -9576,8 +10031,49 @@
           "done_at": null,
           "moved_from": null,
           "created_at": "2026-10-28T07:45:00",
-          "start_time": "08:00",
-          "end_time": "08:15",
+          "start_time": "08:40",
+          "end_time": "08:55",
+          "file_name": null,
+          "last_page": null,
+          "test_submitted": null,
+          "test_score": null,
+          "test_max": null
+         }
+        ]
+       },
+       {
+        "id": 29,
+        "date": "2026-11-03",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Woche 3 · 26.10. – 01.11.",
+        "week_no": 3,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-28T07:45:00",
+        "start_time": "09:05",
+        "end_time": "09:50",
+        "color": "#111111",
+        "module_name": "Testmathematik I",
+        "tasks": [
+         {
+          "id": 32,
+          "package_id": 29,
+          "type": "test",
+          "file_id": null,
+          "test_id": null,
+          "title": "Gemeinsamer Wochentest Lehrwoche 3",
+          "sort": 0,
+          "est_minutes": 45,
+          "actual_minutes": null,
+          "status": "geplant",
+          "done_at": null,
+          "moved_from": null,
+          "created_at": "2026-10-28T07:45:00",
+          "start_time": "09:05",
+          "end_time": "09:50",
           "file_name": null,
           "last_page": null,
           "test_submitted": null,
@@ -9758,31 +10254,8 @@
      "file_name": "VL02.pdf"
     },
     {
-     "id": 21,
-     "package_id": 18,
-     "type": "uebung",
-     "file_id": "f-ma-u2",
-     "test_id": null,
-     "title": "Blatt 2.pdf",
-     "sort": 0,
-     "est_minutes": 60,
-     "actual_minutes": null,
-     "status": "nachholen",
-     "done_at": null,
-     "moved_from": null,
-     "created_at": "2026-10-23T09:15:00",
-     "start_time": "08:00",
-     "end_time": "09:00",
-     "date": "2026-10-27",
-     "subject": "Testmathematik I",
-     "package_title": "Woche 2 · 19.10. – 25.10.",
-     "module_id": 1,
-     "color": "#111111",
-     "file_name": "Blatt 2.pdf"
-    },
-    {
-     "id": 22,
-     "package_id": 19,
+     "id": 3,
+     "package_id": 17,
      "type": "vorlesung",
      "file_id": "f-ph-v1",
      "test_id": null,
@@ -9792,11 +10265,11 @@
      "actual_minutes": null,
      "status": "nachholen",
      "done_at": null,
-     "moved_from": null,
-     "created_at": "2026-10-23T09:15:00",
-     "start_time": "09:10",
-     "end_time": "09:55",
-     "date": "2026-10-27",
+     "moved_from": "2026-10-21",
+     "created_at": "2026-10-19T08:00:00",
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date": "2026-10-26",
      "subject": "Testphysik",
      "package_title": "Einführung Physik",
      "module_id": 2,
@@ -9804,10 +10277,56 @@
      "file_name": "Folien Einführung.pdf"
     },
     {
-     "id": 23,
-     "package_id": 20,
+     "id": 11,
+     "package_id": 9,
      "type": "uebung",
      "file_id": "f-pg-u2",
+     "test_id": null,
+     "title": "Blatt 2.pdf",
+     "sort": 0,
+     "est_minutes": 60,
+     "actual_minutes": null,
+     "status": "nachholen",
+     "done_at": null,
+     "moved_from": null,
+     "created_at": "2026-10-23T09:15:00",
+     "start_time": "13:00",
+     "end_time": "14:00",
+     "date": "2026-10-26",
+     "subject": "Programmierkurs Beispiel",
+     "package_title": "Woche 2 · 19.10. – 25.10.",
+     "module_id": 3,
+     "color": "#333333",
+     "file_name": "Blatt 2.pdf"
+    },
+    {
+     "id": 6,
+     "package_id": 5,
+     "type": "test",
+     "file_id": null,
+     "test_id": 1,
+     "title": "Gemeinsamer Wochentest Lehrwoche 1",
+     "sort": 0,
+     "est_minutes": 30,
+     "actual_minutes": null,
+     "status": "nachholen",
+     "done_at": null,
+     "moved_from": null,
+     "created_at": "2026-10-19T08:00:00",
+     "start_time": "08:00",
+     "end_time": "08:30",
+     "date": "2026-10-27",
+     "subject": "Testmathematik I",
+     "package_title": "Wochentest",
+     "module_id": 1,
+     "color": "#111111",
+     "file_name": null
+    },
+    {
+     "id": 12,
+     "package_id": 10,
+     "type": "uebung",
+     "file_id": "f-ma-u2",
      "test_id": null,
      "title": "Blatt 2.pdf",
      "sort": 0,
@@ -9820,15 +10339,107 @@
      "start_time": "11:50",
      "end_time": "12:50",
      "date": "2026-10-28",
-     "subject": "Programmierkurs Beispiel",
-     "package_title": "Woche 2 · 19.10. – 25.10.",
-     "module_id": 3,
-     "color": "#333333",
+     "subject": "Testmathematik I",
+     "package_title": "Grenzwerte",
+     "module_id": 1,
+     "color": "#111111",
      "file_name": "Blatt 2.pdf"
     },
     {
-     "id": 24,
-     "package_id": 21,
+     "id": 13,
+     "package_id": 11,
+     "type": "frei",
+     "file_id": null,
+     "test_id": null,
+     "title": "Physik wiederholen",
+     "sort": 0,
+     "est_minutes": 50,
+     "actual_minutes": null,
+     "status": "geplant",
+     "done_at": null,
+     "moved_from": null,
+     "created_at": "2026-10-23T09:15:00",
+     "start_time": null,
+     "end_time": null,
+     "date": "2026-10-28",
+     "subject": "Testphysik",
+     "package_title": "Physik wiederholen",
+     "module_id": 2,
+     "color": "#222222",
+     "file_name": null
+    },
+    {
+     "id": 15,
+     "package_id": 12,
+     "type": "uebung",
+     "file_id": "f-ma-u2",
+     "test_id": null,
+     "title": "Blatt 2 rechnen",
+     "sort": 0,
+     "est_minutes": 40,
+     "actual_minutes": null,
+     "status": "geplant",
+     "done_at": null,
+     "moved_from": null,
+     "created_at": "2026-10-23T09:15:00",
+     "start_time": "12:50",
+     "end_time": "13:30",
+     "date": "2026-10-28",
+     "subject": "Eigenes",
+     "package_title": "Eigenes",
+     "module_id": null,
+     "color": null,
+     "file_name": "Blatt 2.pdf"
+    },
+    {
+     "id": 2,
+     "package_id": 10,
+     "type": "uebung",
+     "file_id": "f-ma-u1",
+     "test_id": null,
+     "title": "Blatt 1.pdf",
+     "sort": 1,
+     "est_minutes": 60,
+     "actual_minutes": null,
+     "status": "geplant",
+     "done_at": null,
+     "moved_from": "2026-10-23",
+     "created_at": "2026-10-19T08:00:00",
+     "start_time": "09:55",
+     "end_time": "10:55",
+     "date": "2026-10-28",
+     "subject": "Testmathematik I",
+     "package_title": "Grenzwerte",
+     "module_id": 1,
+     "color": "#111111",
+     "file_name": "Blatt 1.pdf"
+    },
+    {
+     "id": 14,
+     "package_id": 11,
+     "type": "frei",
+     "file_id": null,
+     "test_id": null,
+     "title": "Formeln",
+     "sort": 1,
+     "est_minutes": 25,
+     "actual_minutes": null,
+     "status": "geplant",
+     "done_at": null,
+     "moved_from": null,
+     "created_at": "2026-10-23T09:15:00",
+     "start_time": null,
+     "end_time": null,
+     "date": "2026-10-28",
+     "subject": "Testphysik",
+     "package_title": "Physik wiederholen",
+     "module_id": 2,
+     "color": "#222222",
+     "file_name": null
+    },
+    {
+     "id": 21,
+     "package_id": 18,
      "type": "vorlesung",
      "file_id": "f-ma-v3",
      "test_id": null,
@@ -9850,8 +10461,8 @@
      "file_name": "VL03.pdf"
     },
     {
-     "id": 25,
-     "package_id": 22,
+     "id": 22,
+     "package_id": 19,
      "type": "vorlesung",
      "file_id": "f-ph-v3",
      "test_id": null,
@@ -9873,8 +10484,8 @@
      "file_name": "Folien Kapitel 3.pdf"
     },
     {
-     "id": 26,
-     "package_id": 23,
+     "id": 23,
+     "package_id": 20,
      "type": "uebung",
      "file_id": "f-ch-u3",
      "test_id": null,
@@ -9896,8 +10507,31 @@
      "file_name": "Übung 3.pdf"
     },
     {
-     "id": 27,
-     "package_id": 24,
+     "id": 5,
+     "package_id": 4,
+     "type": "frei",
+     "file_id": null,
+     "test_id": null,
+     "title": "Lesen Kapitel 3",
+     "sort": 0,
+     "est_minutes": 30,
+     "actual_minutes": null,
+     "status": "geplant",
+     "done_at": null,
+     "moved_from": "2026-10-23",
+     "created_at": "2026-10-19T08:00:00",
+     "start_time": null,
+     "end_time": null,
+     "date": "2026-10-30",
+     "subject": "Allgemein",
+     "package_title": "Lesen (verschoben)",
+     "module_id": null,
+     "color": null,
+     "file_name": null
+    },
+    {
+     "id": 24,
+     "package_id": 21,
      "type": "vorlesung",
      "file_id": "f-ma-v3",
      "test_id": null,
@@ -9909,9 +10543,9 @@
      "done_at": null,
      "moved_from": null,
      "created_at": "2026-10-28T07:45:00",
-     "start_time": "08:00",
-     "end_time": "08:23",
-     "date": "2026-10-30",
+     "start_time": "10:30",
+     "end_time": "10:53",
+     "date": "2026-11-01",
      "subject": "Testmathematik I",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 1,
@@ -9919,8 +10553,8 @@
      "file_name": "VL03.pdf"
     },
     {
-     "id": 28,
-     "package_id": 25,
+     "id": 25,
+     "package_id": 22,
      "type": "vorlesung",
      "file_id": "f-ph-v3",
      "test_id": null,
@@ -9932,9 +10566,9 @@
      "done_at": null,
      "moved_from": null,
      "created_at": "2026-10-28T07:45:00",
-     "start_time": "08:33",
-     "end_time": "08:56",
-     "date": "2026-10-30",
+     "start_time": "11:03",
+     "end_time": "11:26",
+     "date": "2026-11-01",
      "subject": "Testphysik",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 2,
@@ -9942,8 +10576,8 @@
      "file_name": "Folien Kapitel 3.pdf"
     },
     {
-     "id": 29,
-     "package_id": 26,
+     "id": 26,
+     "package_id": 23,
      "type": "uebung",
      "file_id": "f-ch-u3",
      "test_id": null,
@@ -9955,9 +10589,9 @@
      "done_at": null,
      "moved_from": null,
      "created_at": "2026-10-28T07:45:00",
-     "start_time": "09:06",
-     "end_time": "09:36",
-     "date": "2026-10-30",
+     "start_time": "11:36",
+     "end_time": "12:06",
+     "date": "2026-11-01",
      "subject": "Testchemie",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 5,
@@ -9965,8 +10599,8 @@
      "file_name": "Übung 3.pdf"
     },
     {
-     "id": 30,
-     "package_id": 27,
+     "id": 27,
+     "package_id": 24,
      "type": "uebung",
      "file_id": "f-ma-u3",
      "test_id": null,
@@ -9978,9 +10612,78 @@
      "done_at": null,
      "moved_from": null,
      "created_at": "2026-10-28T07:45:00",
-     "start_time": "10:30",
-     "end_time": "11:00",
-     "date": "2026-11-01",
+     "start_time": "08:00",
+     "end_time": "08:30",
+     "date": "2026-11-02",
+     "subject": "Testmathematik I",
+     "package_title": "Woche 3 · 26.10. – 01.11.",
+     "module_id": 1,
+     "color": "#111111",
+     "file_name": "Blatt 3.pdf"
+    },
+    {
+     "id": 28,
+     "package_id": 25,
+     "type": "wiederholung",
+     "file_id": null,
+     "test_id": null,
+     "title": "Wiederholung Lehrwoche 3 (Karteikarten, Fehler aus dem Test)",
+     "sort": 0,
+     "est_minutes": 15,
+     "actual_minutes": null,
+     "status": "geplant",
+     "done_at": null,
+     "moved_from": null,
+     "created_at": "2026-10-28T07:45:00",
+     "start_time": "08:40",
+     "end_time": "08:55",
+     "date": "2026-11-02",
+     "subject": "Testphysik",
+     "package_title": "Woche 3 · 26.10. – 01.11.",
+     "module_id": 2,
+     "color": "#222222",
+     "file_name": null
+    },
+    {
+     "id": 29,
+     "package_id": 26,
+     "type": "test",
+     "file_id": null,
+     "test_id": null,
+     "title": "Gemeinsamer Wochentest Lehrwoche 3",
+     "sort": 0,
+     "est_minutes": 45,
+     "actual_minutes": null,
+     "status": "geplant",
+     "done_at": null,
+     "moved_from": null,
+     "created_at": "2026-10-28T07:45:00",
+     "start_time": "09:05",
+     "end_time": "09:50",
+     "date": "2026-11-02",
+     "subject": "Testchemie",
+     "package_title": "Woche 3 · 26.10. – 01.11.",
+     "module_id": 5,
+     "color": "#d94f6b",
+     "file_name": null
+    },
+    {
+     "id": 30,
+     "package_id": 27,
+     "type": "uebung",
+     "file_id": "f-ma-u3",
+     "test_id": null,
+     "title": "Blatt 3.pdf (Teil 2/2)",
+     "sort": 0,
+     "est_minutes": 30,
+     "actual_minutes": null,
+     "status": "geplant",
+     "done_at": null,
+     "moved_from": null,
+     "created_at": "2026-10-28T07:45:00",
+     "start_time": "08:00",
+     "end_time": "08:30",
+     "date": "2026-11-03",
      "subject": "Testmathematik I",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 1,
@@ -10001,13 +10704,13 @@
      "done_at": null,
      "moved_from": null,
      "created_at": "2026-10-28T07:45:00",
-     "start_time": "11:10",
-     "end_time": "11:25",
-     "date": "2026-11-01",
-     "subject": "Testphysik",
+     "start_time": "08:40",
+     "end_time": "08:55",
+     "date": "2026-11-03",
+     "subject": "Testchemie",
      "package_title": "Woche 3 · 26.10. – 01.11.",
-     "module_id": 2,
-     "color": "#222222",
+     "module_id": 5,
+     "color": "#d94f6b",
      "file_name": null
     },
     {
@@ -10024,87 +10727,18 @@
      "done_at": null,
      "moved_from": null,
      "created_at": "2026-10-28T07:45:00",
-     "start_time": "11:35",
-     "end_time": "12:20",
-     "date": "2026-11-01",
-     "subject": "Testchemie",
+     "start_time": "09:05",
+     "end_time": "09:50",
+     "date": "2026-11-03",
+     "subject": "Testmathematik I",
      "package_title": "Woche 3 · 26.10. – 01.11.",
-     "module_id": 5,
-     "color": "#d94f6b",
+     "module_id": 1,
+     "color": "#111111",
      "file_name": null
     },
     {
      "id": 33,
      "package_id": 30,
-     "type": "uebung",
-     "file_id": "f-ma-u3",
-     "test_id": null,
-     "title": "Blatt 3.pdf (Teil 2/2)",
-     "sort": 0,
-     "est_minutes": 30,
-     "actual_minutes": null,
-     "status": "geplant",
-     "done_at": null,
-     "moved_from": null,
-     "created_at": "2026-10-28T07:45:00",
-     "start_time": "08:00",
-     "end_time": "08:30",
-     "date": "2026-11-02",
-     "subject": "Testmathematik I",
-     "package_title": "Woche 3 · 26.10. – 01.11.",
-     "module_id": 1,
-     "color": "#111111",
-     "file_name": "Blatt 3.pdf"
-    },
-    {
-     "id": 34,
-     "package_id": 31,
-     "type": "wiederholung",
-     "file_id": null,
-     "test_id": null,
-     "title": "Wiederholung Lehrwoche 3 (Karteikarten, Fehler aus dem Test)",
-     "sort": 0,
-     "est_minutes": 15,
-     "actual_minutes": null,
-     "status": "geplant",
-     "done_at": null,
-     "moved_from": null,
-     "created_at": "2026-10-28T07:45:00",
-     "start_time": "08:40",
-     "end_time": "08:55",
-     "date": "2026-11-02",
-     "subject": "Testchemie",
-     "package_title": "Woche 3 · 26.10. – 01.11.",
-     "module_id": 5,
-     "color": "#d94f6b",
-     "file_name": null
-    },
-    {
-     "id": 35,
-     "package_id": 32,
-     "type": "test",
-     "file_id": null,
-     "test_id": null,
-     "title": "Gemeinsamer Wochentest Lehrwoche 3",
-     "sort": 0,
-     "est_minutes": 45,
-     "actual_minutes": null,
-     "status": "geplant",
-     "done_at": null,
-     "moved_from": null,
-     "created_at": "2026-10-28T07:45:00",
-     "start_time": "09:05",
-     "end_time": "09:50",
-     "date": "2026-11-02",
-     "subject": "Testmathematik I",
-     "package_title": "Woche 3 · 26.10. – 01.11.",
-     "module_id": 1,
-     "color": "#111111",
-     "file_name": null
-    },
-    {
-     "id": 36,
-     "package_id": 33,
      "type": "wiederholung",
      "file_id": null,
      "test_id": null,
@@ -10118,7 +10752,7 @@
      "created_at": "2026-10-28T07:45:00",
      "start_time": "08:00",
      "end_time": "08:15",
-     "date": "2026-11-03",
+     "date": "2026-11-04",
      "subject": "Testmathematik I",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 1,
@@ -10290,32 +10924,32 @@
      "date": "2026-10-28",
      "weekday": 2,
      "status": "geplant",
-     "minutes": 60,
+     "minutes": 235,
      "tasks_done": 0,
-     "tasks_total": 1,
+     "tasks_total": 5,
      "packages": [
       {
-       "id": 20,
+       "id": 10,
        "date": "2026-10-28",
-       "module_id": 3,
-       "subject": "Programmierkurs Beispiel",
-       "title": "Woche 2 · 19.10. – 25.10.",
+       "module_id": 1,
+       "subject": "Testmathematik I",
+       "title": "Grenzwerte",
        "week_no": 2,
-       "planned_minutes": 60,
+       "planned_minutes": 120,
        "status": "geplant",
        "sort": 0,
        "generated": 1,
        "created_at": "2026-10-23T09:15:00",
        "start_time": "11:50",
        "end_time": "12:50",
-       "color": "#333333",
-       "module_name": "Programmierkurs Beispiel",
+       "color": "#111111",
+       "module_name": "Testmathematik I",
        "tasks": [
         {
-         "id": 23,
-         "package_id": 20,
+         "id": 12,
+         "package_id": 10,
          "type": "uebung",
-         "file_id": "f-pg-u2",
+         "file_id": "f-ma-u2",
          "test_id": null,
          "title": "Blatt 2.pdf",
          "sort": 0,
@@ -10327,6 +10961,132 @@
          "created_at": "2026-10-23T09:15:00",
          "start_time": "11:50",
          "end_time": "12:50",
+         "file_name": "Blatt 2.pdf",
+         "last_page": 1,
+         "test_submitted": null,
+         "test_score": null,
+         "test_max": null
+        },
+        {
+         "id": 2,
+         "package_id": 10,
+         "type": "uebung",
+         "file_id": "f-ma-u1",
+         "test_id": null,
+         "title": "Blatt 1.pdf",
+         "sort": 1,
+         "est_minutes": 60,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": "2026-10-23",
+         "created_at": "2026-10-19T08:00:00",
+         "start_time": "09:55",
+         "end_time": "10:55",
+         "file_name": "Blatt 1.pdf",
+         "last_page": 1,
+         "test_submitted": null,
+         "test_score": null,
+         "test_max": null
+        }
+       ]
+      },
+      {
+       "id": 11,
+       "date": "2026-10-28",
+       "module_id": 2,
+       "subject": "Testphysik",
+       "title": "Physik wiederholen",
+       "week_no": null,
+       "planned_minutes": 75,
+       "status": "geplant",
+       "sort": 0,
+       "generated": 0,
+       "created_at": "2026-10-23T09:15:00",
+       "start_time": "16:00",
+       "end_time": "16:50",
+       "color": "#222222",
+       "module_name": "Testphysik",
+       "tasks": [
+        {
+         "id": 13,
+         "package_id": 11,
+         "type": "frei",
+         "file_id": null,
+         "test_id": null,
+         "title": "Physik wiederholen",
+         "sort": 0,
+         "est_minutes": 50,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": null,
+         "created_at": "2026-10-23T09:15:00",
+         "start_time": null,
+         "end_time": null,
+         "file_name": null,
+         "last_page": null,
+         "test_submitted": null,
+         "test_score": null,
+         "test_max": null
+        },
+        {
+         "id": 14,
+         "package_id": 11,
+         "type": "frei",
+         "file_id": null,
+         "test_id": null,
+         "title": "Formeln",
+         "sort": 1,
+         "est_minutes": 25,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": null,
+         "created_at": "2026-10-23T09:15:00",
+         "start_time": null,
+         "end_time": null,
+         "file_name": null,
+         "last_page": null,
+         "test_submitted": null,
+         "test_score": null,
+         "test_max": null
+        }
+       ]
+      },
+      {
+       "id": 12,
+       "date": "2026-10-28",
+       "module_id": null,
+       "subject": "Eigenes",
+       "title": "Eigenes",
+       "week_no": null,
+       "planned_minutes": 40,
+       "status": "geplant",
+       "sort": 0,
+       "generated": 0,
+       "created_at": "2026-10-23T09:15:00",
+       "start_time": "12:50",
+       "end_time": "13:30",
+       "color": null,
+       "module_name": null,
+       "tasks": [
+        {
+         "id": 15,
+         "package_id": 12,
+         "type": "uebung",
+         "file_id": "f-ma-u2",
+         "test_id": null,
+         "title": "Blatt 2 rechnen",
+         "sort": 0,
+         "est_minutes": 40,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": null,
+         "created_at": "2026-10-23T09:15:00",
+         "start_time": "12:50",
+         "end_time": "13:30",
          "file_name": "Blatt 2.pdf",
          "last_page": 1,
          "test_submitted": null,
@@ -10375,10 +11135,18 @@
      ],
      "free": [
       {
-       "start": 770,
+       "start": 810,
+       "end": 960,
+       "minutes": 150,
+       "start_hm": "13:30",
+       "end_hm": "16:00",
+       "campus": false
+      },
+      {
+       "start": 1010,
        "end": 1200,
-       "minutes": 430,
-       "start_hm": "12:50",
+       "minutes": 190,
+       "start_hm": "16:50",
        "end_hm": "20:00",
        "campus": false
       }
@@ -10400,11 +11168,11 @@
       "test_minutes": null,
       "file_count": 10,
       "new_count": 8,
-      "open_tasks": 12,
+      "open_tasks": 14,
       "progress": 12,
       "next_package": {
-       "date": "2026-10-29",
-       "title": "Woche 3 · 26.10. – 01.11."
+       "date": "2026-10-28",
+       "title": "Grenzwerte"
       },
       "next_event": {
        "event_id": 2,
@@ -10424,7 +11192,7 @@
        "exception": "moved_here",
        "moved_from": "2026-10-27"
       },
-      "task_count": 12,
+      "task_count": 14,
       "test_count": 1,
       "topics": [
        "Grenzwerte"
@@ -10447,11 +11215,11 @@
       "test_minutes": 30,
       "file_count": 4,
       "new_count": 3,
-      "open_tasks": 5,
+      "open_tasks": 7,
       "progress": 25,
       "next_package": {
-       "date": "2026-10-29",
-       "title": "Woche 3 · 26.10. – 01.11."
+       "date": "2026-10-28",
+       "title": "Physik wiederholen"
       },
       "next_event": {
        "event_id": 3,
@@ -10470,7 +11238,7 @@
        "permanent_skip": false,
        "exception": null
       },
-      "task_count": 5,
+      "task_count": 7,
       "test_count": 0,
       "topics": [
        "Einführung Physik"
@@ -10495,10 +11263,7 @@
       "new_count": 1,
       "open_tasks": 1,
       "progress": 50,
-      "next_package": {
-       "date": "2026-10-28",
-       "title": "Woche 2 · 19.10. – 25.10."
-      },
+      "next_package": null,
       "next_event": {
        "event_id": 5,
        "date": "2026-10-30",
@@ -10750,22 +11515,22 @@
     "week": {
      "start": "2026-10-26",
      "done": 1,
-     "total": 13,
+     "total": 16,
      "days": [
       {
        "date": "2026-10-26",
-       "status": "erledigt",
-       "minutes": 45
+       "status": "teilweise",
+       "minutes": 150
       },
       {
        "date": "2026-10-27",
        "status": "nachholen",
-       "minutes": 105
+       "minutes": 30
       },
       {
        "date": "2026-10-28",
        "status": "geplant",
-       "minutes": 60
+       "minutes": 235
       },
       {
        "date": "2026-10-29",
@@ -10775,7 +11540,7 @@
       {
        "date": "2026-10-30",
        "status": "geplant",
-       "minutes": 76
+       "minutes": 30
       },
       {
        "date": "2026-10-31",
@@ -10785,11 +11550,11 @@
       {
        "date": "2026-11-01",
        "status": "geplant",
-       "minutes": 90
+       "minutes": 76
       }
      ]
     },
-    "backlog": 6,
+    "backlog": 7,
     "upcoming": [
      {
       "date": "2026-10-29",
@@ -10797,10 +11562,42 @@
       "title": "Testmathematik I: Woche 3 · 26.10. – 01.11.",
       "module_id": 1,
       "color": "#111111",
-      "package_id": 21
+      "package_id": 18
      },
      {
       "date": "2026-10-29",
+      "kind": "lernpaket",
+      "title": "Testphysik: Woche 3 · 26.10. – 01.11.",
+      "module_id": 2,
+      "color": "#222222",
+      "package_id": 19
+     },
+     {
+      "date": "2026-10-29",
+      "kind": "lernpaket",
+      "title": "Testchemie: Woche 3 · 26.10. – 01.11.",
+      "module_id": 5,
+      "color": "#d94f6b",
+      "package_id": 20
+     },
+     {
+      "date": "2026-10-30",
+      "kind": "lernpaket",
+      "title": "Allgemein: Lesen (verschoben)",
+      "module_id": null,
+      "color": null,
+      "package_id": 4
+     },
+     {
+      "date": "2026-11-01",
+      "kind": "lernpaket",
+      "title": "Testmathematik I: Woche 3 · 26.10. – 01.11.",
+      "module_id": 1,
+      "color": "#111111",
+      "package_id": 21
+     },
+     {
+      "date": "2026-11-01",
       "kind": "lernpaket",
       "title": "Testphysik: Woche 3 · 26.10. – 01.11.",
       "module_id": 2,
@@ -10808,48 +11605,16 @@
       "package_id": 22
      },
      {
-      "date": "2026-10-29",
-      "kind": "lernpaket",
-      "title": "Testchemie: Woche 3 · 26.10. – 01.11.",
-      "module_id": 5,
-      "color": "#d94f6b",
-      "package_id": 23
-     },
-     {
-      "date": "2026-10-30",
-      "kind": "lernpaket",
-      "title": "Testmathematik I: Woche 3 · 26.10. – 01.11.",
-      "module_id": 1,
-      "color": "#111111",
-      "package_id": 24
-     },
-     {
-      "date": "2026-10-30",
-      "kind": "lernpaket",
-      "title": "Testphysik: Woche 3 · 26.10. – 01.11.",
-      "module_id": 2,
-      "color": "#222222",
-      "package_id": 25
-     },
-     {
-      "date": "2026-10-30",
-      "kind": "lernpaket",
-      "title": "Testchemie: Woche 3 · 26.10. – 01.11.",
-      "module_id": 5,
-      "color": "#d94f6b",
-      "package_id": 26
-     },
-     {
-      "date": "2026-11-01",
-      "kind": "test",
-      "title": "Testchemie: Gemeinsamer Wochentest Lehrwoche 3",
-      "task_id": 32
-     },
-     {
       "date": "2026-11-02",
       "kind": "test",
+      "title": "Testchemie: Gemeinsamer Wochentest Lehrwoche 3",
+      "task_id": 29
+     },
+     {
+      "date": "2026-11-03",
+      "kind": "test",
       "title": "Testmathematik I: Gemeinsamer Wochentest Lehrwoche 3",
-      "task_id": 35
+      "task_id": 32
      }
     ],
     "last_sync": null,
@@ -10930,11 +11695,11 @@
      "test_minutes": null,
      "file_count": 10,
      "new_count": 8,
-     "open_tasks": 12,
+     "open_tasks": 14,
      "progress": 12,
      "next_package": {
-      "date": "2026-10-29",
-      "title": "Woche 3 · 26.10. – 01.11."
+      "date": "2026-10-28",
+      "title": "Grenzwerte"
      },
      "next_event": {
       "event_id": 2,
@@ -10954,7 +11719,7 @@
       "exception": "moved_here",
       "moved_from": "2026-10-27"
      },
-     "task_count": 12,
+     "task_count": 14,
      "test_count": 1,
      "topics": [
       "Grenzwerte"
@@ -10977,11 +11742,11 @@
      "test_minutes": 30,
      "file_count": 4,
      "new_count": 3,
-     "open_tasks": 5,
+     "open_tasks": 7,
      "progress": 25,
      "next_package": {
-      "date": "2026-10-29",
-      "title": "Woche 3 · 26.10. – 01.11."
+      "date": "2026-10-28",
+      "title": "Physik wiederholen"
      },
      "next_event": {
       "event_id": 3,
@@ -11000,7 +11765,7 @@
       "permanent_skip": false,
       "exception": null
      },
-     "task_count": 5,
+     "task_count": 7,
      "test_count": 0,
      "topics": [
       "Einführung Physik"
@@ -11025,10 +11790,7 @@
      "new_count": 1,
      "open_tasks": 1,
      "progress": 50,
-     "next_package": {
-      "date": "2026-10-28",
-      "title": "Woche 2 · 19.10. – 25.10."
-     },
+     "next_package": null,
      "next_event": {
       "event_id": 5,
       "date": "2026-10-30",
@@ -11122,8 +11884,8 @@
     "sort": 0,
     "generated": 1,
     "created_at": "2026-10-19T08:00:00",
-    "start_time": "09:00",
-    "end_time": "10:45"
+    "start_time": null,
+    "end_time": null
    },
    {
     "id": 2,
@@ -11137,8 +11899,8 @@
     "sort": 0,
     "generated": 1,
     "created_at": "2026-10-19T08:00:00",
-    "start_time": "10:00",
-    "end_time": "10:45"
+    "start_time": null,
+    "end_time": null
    },
    {
     "id": 3,
@@ -11154,6 +11916,36 @@
     "created_at": "2026-10-19T08:00:00",
     "start_time": null,
     "end_time": null
+   },
+   {
+    "id": 4,
+    "date": "2026-10-30",
+    "module_id": null,
+    "subject": "Allgemein",
+    "title": "Lesen (verschoben)",
+    "week_no": null,
+    "planned_minutes": 30,
+    "status": "geplant",
+    "sort": 1,
+    "generated": 0,
+    "created_at": "2026-10-19T08:00:00",
+    "start_time": "19:30",
+    "end_time": "20:00"
+   },
+   {
+    "id": 5,
+    "date": "2026-10-27",
+    "module_id": 1,
+    "subject": "Testmathematik I",
+    "title": "Wochentest",
+    "week_no": 1,
+    "planned_minutes": 30,
+    "status": "nachholen",
+    "sort": 1,
+    "generated": 1,
+    "created_at": "2026-10-19T08:00:00",
+    "start_time": "08:00",
+    "end_time": "08:30"
    },
    {
     "id": 6,
@@ -11201,6 +11993,66 @@
     "end_time": "08:45"
    },
    {
+    "id": 9,
+    "date": "2026-10-26",
+    "module_id": 3,
+    "subject": "Programmierkurs Beispiel",
+    "title": "Woche 2 · 19.10. – 25.10.",
+    "week_no": 2,
+    "planned_minutes": 60,
+    "status": "nachholen",
+    "sort": 0,
+    "generated": 1,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": "13:00",
+    "end_time": "14:00"
+   },
+   {
+    "id": 10,
+    "date": "2026-10-28",
+    "module_id": 1,
+    "subject": "Testmathematik I",
+    "title": "Grenzwerte",
+    "week_no": 2,
+    "planned_minutes": 120,
+    "status": "geplant",
+    "sort": 0,
+    "generated": 1,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": "11:50",
+    "end_time": "12:50"
+   },
+   {
+    "id": 11,
+    "date": "2026-10-28",
+    "module_id": 2,
+    "subject": "Testphysik",
+    "title": "Physik wiederholen",
+    "week_no": null,
+    "planned_minutes": 75,
+    "status": "geplant",
+    "sort": 0,
+    "generated": 0,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": "16:00",
+    "end_time": "16:50"
+   },
+   {
+    "id": 12,
+    "date": "2026-10-28",
+    "module_id": null,
+    "subject": "Eigenes",
+    "title": "Eigenes",
+    "week_no": null,
+    "planned_minutes": 40,
+    "status": "geplant",
+    "sort": 0,
+    "generated": 0,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": "12:50",
+    "end_time": "13:30"
+   },
+   {
     "id": 14,
     "date": "2026-11-09",
     "module_id": 1,
@@ -11246,23 +12098,8 @@
     "end_time": null
    },
    {
-    "id": 18,
-    "date": "2026-10-27",
-    "module_id": 1,
-    "subject": "Testmathematik I",
-    "title": "Woche 2 · 19.10. – 25.10.",
-    "week_no": 2,
-    "planned_minutes": 60,
-    "status": "nachholen",
-    "sort": 0,
-    "generated": 1,
-    "created_at": "2026-10-23T09:15:00",
-    "start_time": "08:00",
-    "end_time": "09:00"
-   },
-   {
-    "id": 19,
-    "date": "2026-10-27",
+    "id": 17,
+    "date": "2026-10-26",
     "module_id": 2,
     "subject": "Testphysik",
     "title": "Einführung Physik",
@@ -11270,163 +12107,103 @@
     "planned_minutes": 45,
     "status": "nachholen",
     "sort": 0,
-    "generated": 1,
+    "generated": 0,
     "created_at": "2026-10-23T09:15:00",
-    "start_time": "09:10",
-    "end_time": "09:55"
+    "start_time": null,
+    "end_time": null
+   },
+   {
+    "id": 18,
+    "date": "2026-10-29",
+    "module_id": 1,
+    "subject": "Testmathematik I",
+    "title": "Woche 3 · 26.10. – 01.11.",
+    "week_no": 3,
+    "planned_minutes": 23,
+    "status": "geplant",
+    "sort": 0,
+    "generated": 1,
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "08:00",
+    "end_time": "08:23"
+   },
+   {
+    "id": 19,
+    "date": "2026-10-29",
+    "module_id": 2,
+    "subject": "Testphysik",
+    "title": "Woche 3 · 26.10. – 01.11.",
+    "week_no": 3,
+    "planned_minutes": 23,
+    "status": "geplant",
+    "sort": 0,
+    "generated": 1,
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "08:33",
+    "end_time": "08:56"
    },
    {
     "id": 20,
-    "date": "2026-10-28",
-    "module_id": 3,
-    "subject": "Programmierkurs Beispiel",
-    "title": "Woche 2 · 19.10. – 25.10.",
-    "week_no": 2,
-    "planned_minutes": 60,
+    "date": "2026-10-29",
+    "module_id": 5,
+    "subject": "Testchemie",
+    "title": "Woche 3 · 26.10. – 01.11.",
+    "week_no": 3,
+    "planned_minutes": 30,
     "status": "geplant",
     "sort": 0,
     "generated": 1,
-    "created_at": "2026-10-23T09:15:00",
-    "start_time": "11:50",
-    "end_time": "12:50"
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "09:06",
+    "end_time": "09:36"
    },
    {
     "id": 21,
-    "date": "2026-10-29",
-    "module_id": 1,
-    "subject": "Testmathematik I",
-    "title": "Woche 3 · 26.10. – 01.11.",
-    "week_no": 3,
-    "planned_minutes": 23,
-    "status": "geplant",
-    "sort": 0,
-    "generated": 1,
-    "created_at": "2026-10-28T07:45:00",
-    "start_time": "08:00",
-    "end_time": "08:23"
-   },
-   {
-    "id": 22,
-    "date": "2026-10-29",
-    "module_id": 2,
-    "subject": "Testphysik",
-    "title": "Woche 3 · 26.10. – 01.11.",
-    "week_no": 3,
-    "planned_minutes": 23,
-    "status": "geplant",
-    "sort": 0,
-    "generated": 1,
-    "created_at": "2026-10-28T07:45:00",
-    "start_time": "08:33",
-    "end_time": "08:56"
-   },
-   {
-    "id": 23,
-    "date": "2026-10-29",
-    "module_id": 5,
-    "subject": "Testchemie",
-    "title": "Woche 3 · 26.10. – 01.11.",
-    "week_no": 3,
-    "planned_minutes": 30,
-    "status": "geplant",
-    "sort": 0,
-    "generated": 1,
-    "created_at": "2026-10-28T07:45:00",
-    "start_time": "09:06",
-    "end_time": "09:36"
-   },
-   {
-    "id": 24,
-    "date": "2026-10-30",
-    "module_id": 1,
-    "subject": "Testmathematik I",
-    "title": "Woche 3 · 26.10. – 01.11.",
-    "week_no": 3,
-    "planned_minutes": 23,
-    "status": "geplant",
-    "sort": 0,
-    "generated": 1,
-    "created_at": "2026-10-28T07:45:00",
-    "start_time": "08:00",
-    "end_time": "08:23"
-   },
-   {
-    "id": 25,
-    "date": "2026-10-30",
-    "module_id": 2,
-    "subject": "Testphysik",
-    "title": "Woche 3 · 26.10. – 01.11.",
-    "week_no": 3,
-    "planned_minutes": 23,
-    "status": "geplant",
-    "sort": 0,
-    "generated": 1,
-    "created_at": "2026-10-28T07:45:00",
-    "start_time": "08:33",
-    "end_time": "08:56"
-   },
-   {
-    "id": 26,
-    "date": "2026-10-30",
-    "module_id": 5,
-    "subject": "Testchemie",
-    "title": "Woche 3 · 26.10. – 01.11.",
-    "week_no": 3,
-    "planned_minutes": 30,
-    "status": "geplant",
-    "sort": 0,
-    "generated": 1,
-    "created_at": "2026-10-28T07:45:00",
-    "start_time": "09:06",
-    "end_time": "09:36"
-   },
-   {
-    "id": 27,
     "date": "2026-11-01",
     "module_id": 1,
     "subject": "Testmathematik I",
     "title": "Woche 3 · 26.10. – 01.11.",
     "week_no": 3,
-    "planned_minutes": 30,
+    "planned_minutes": 23,
     "status": "geplant",
     "sort": 0,
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
     "start_time": "10:30",
-    "end_time": "11:00"
+    "end_time": "10:53"
    },
    {
-    "id": 28,
+    "id": 22,
     "date": "2026-11-01",
     "module_id": 2,
     "subject": "Testphysik",
     "title": "Woche 3 · 26.10. – 01.11.",
     "week_no": 3,
-    "planned_minutes": 15,
+    "planned_minutes": 23,
     "status": "geplant",
     "sort": 0,
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
-    "start_time": "11:10",
-    "end_time": "11:25"
+    "start_time": "11:03",
+    "end_time": "11:26"
    },
    {
-    "id": 29,
+    "id": 23,
     "date": "2026-11-01",
     "module_id": 5,
     "subject": "Testchemie",
     "title": "Woche 3 · 26.10. – 01.11.",
     "week_no": 3,
-    "planned_minutes": 45,
+    "planned_minutes": 30,
     "status": "geplant",
     "sort": 0,
     "generated": 1,
     "created_at": "2026-10-28T07:45:00",
-    "start_time": "11:35",
-    "end_time": "12:20"
+    "start_time": "11:36",
+    "end_time": "12:06"
    },
    {
-    "id": 30,
+    "id": 24,
     "date": "2026-11-02",
     "module_id": 1,
     "subject": "Testmathematik I",
@@ -11441,8 +12218,53 @@
     "end_time": "08:30"
    },
    {
-    "id": 31,
+    "id": 25,
     "date": "2026-11-02",
+    "module_id": 2,
+    "subject": "Testphysik",
+    "title": "Woche 3 · 26.10. – 01.11.",
+    "week_no": 3,
+    "planned_minutes": 15,
+    "status": "geplant",
+    "sort": 0,
+    "generated": 1,
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "08:40",
+    "end_time": "08:55"
+   },
+   {
+    "id": 26,
+    "date": "2026-11-02",
+    "module_id": 5,
+    "subject": "Testchemie",
+    "title": "Woche 3 · 26.10. – 01.11.",
+    "week_no": 3,
+    "planned_minutes": 45,
+    "status": "geplant",
+    "sort": 0,
+    "generated": 1,
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "09:05",
+    "end_time": "09:50"
+   },
+   {
+    "id": 27,
+    "date": "2026-11-03",
+    "module_id": 1,
+    "subject": "Testmathematik I",
+    "title": "Woche 3 · 26.10. – 01.11.",
+    "week_no": 3,
+    "planned_minutes": 30,
+    "status": "geplant",
+    "sort": 0,
+    "generated": 1,
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "08:00",
+    "end_time": "08:30"
+   },
+   {
+    "id": 28,
+    "date": "2026-11-03",
     "module_id": 5,
     "subject": "Testchemie",
     "title": "Woche 3 · 26.10. – 01.11.",
@@ -11456,8 +12278,8 @@
     "end_time": "08:55"
    },
    {
-    "id": 32,
-    "date": "2026-11-02",
+    "id": 29,
+    "date": "2026-11-03",
     "module_id": 1,
     "subject": "Testmathematik I",
     "title": "Woche 3 · 26.10. – 01.11.",
@@ -11471,8 +12293,8 @@
     "end_time": "09:50"
    },
    {
-    "id": 33,
-    "date": "2026-11-03",
+    "id": 30,
+    "date": "2026-11-04",
     "module_id": 1,
     "subject": "Testmathematik I",
     "title": "Woche 3 · 26.10. – 01.11.",
@@ -11505,6 +12327,40 @@
     "end_time": "09:45"
    },
    {
+    "id": 2,
+    "package_id": 10,
+    "type": "uebung",
+    "file_id": "f-ma-u1",
+    "test_id": null,
+    "title": "Blatt 1.pdf",
+    "sort": 1,
+    "est_minutes": 60,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": "2026-10-23",
+    "created_at": "2026-10-19T08:00:00",
+    "start_time": "09:55",
+    "end_time": "10:55"
+   },
+   {
+    "id": 3,
+    "package_id": 17,
+    "type": "vorlesung",
+    "file_id": "f-ph-v1",
+    "test_id": null,
+    "title": "Einführung Physik",
+    "sort": 0,
+    "est_minutes": 45,
+    "actual_minutes": null,
+    "status": "nachholen",
+    "done_at": null,
+    "moved_from": "2026-10-21",
+    "created_at": "2026-10-19T08:00:00",
+    "start_time": "10:00",
+    "end_time": "10:45"
+   },
+   {
     "id": 4,
     "package_id": 3,
     "type": "uebung",
@@ -11520,6 +12376,40 @@
     "created_at": "2026-10-19T08:00:00",
     "start_time": null,
     "end_time": null
+   },
+   {
+    "id": 5,
+    "package_id": 4,
+    "type": "frei",
+    "file_id": null,
+    "test_id": null,
+    "title": "Lesen Kapitel 3",
+    "sort": 0,
+    "est_minutes": 30,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": "2026-10-23",
+    "created_at": "2026-10-19T08:00:00",
+    "start_time": null,
+    "end_time": null
+   },
+   {
+    "id": 6,
+    "package_id": 5,
+    "type": "test",
+    "file_id": null,
+    "test_id": 1,
+    "title": "Gemeinsamer Wochentest Lehrwoche 1",
+    "sort": 0,
+    "est_minutes": 30,
+    "actual_minutes": null,
+    "status": "nachholen",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-19T08:00:00",
+    "start_time": "08:00",
+    "end_time": "08:30"
    },
    {
     "id": 7,
@@ -11590,6 +12480,91 @@
     "end_time": "08:45"
    },
    {
+    "id": 11,
+    "package_id": 9,
+    "type": "uebung",
+    "file_id": "f-pg-u2",
+    "test_id": null,
+    "title": "Blatt 2.pdf",
+    "sort": 0,
+    "est_minutes": 60,
+    "actual_minutes": null,
+    "status": "nachholen",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": "13:00",
+    "end_time": "14:00"
+   },
+   {
+    "id": 12,
+    "package_id": 10,
+    "type": "uebung",
+    "file_id": "f-ma-u2",
+    "test_id": null,
+    "title": "Blatt 2.pdf",
+    "sort": 0,
+    "est_minutes": 60,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": "11:50",
+    "end_time": "12:50"
+   },
+   {
+    "id": 13,
+    "package_id": 11,
+    "type": "frei",
+    "file_id": null,
+    "test_id": null,
+    "title": "Physik wiederholen",
+    "sort": 0,
+    "est_minutes": 50,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": null,
+    "end_time": null
+   },
+   {
+    "id": 14,
+    "package_id": 11,
+    "type": "frei",
+    "file_id": null,
+    "test_id": null,
+    "title": "Formeln",
+    "sort": 1,
+    "est_minutes": 25,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": null,
+    "end_time": null
+   },
+   {
+    "id": 15,
+    "package_id": 12,
+    "type": "uebung",
+    "file_id": "f-ma-u2",
+    "test_id": null,
+    "title": "Blatt 2 rechnen",
+    "sort": 0,
+    "est_minutes": 40,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-23T09:15:00",
+    "start_time": "12:50",
+    "end_time": "13:30"
+   },
+   {
     "id": 18,
     "package_id": 14,
     "type": "uebung",
@@ -11643,57 +12618,6 @@
    {
     "id": 21,
     "package_id": 18,
-    "type": "uebung",
-    "file_id": "f-ma-u2",
-    "test_id": null,
-    "title": "Blatt 2.pdf",
-    "sort": 0,
-    "est_minutes": 60,
-    "actual_minutes": null,
-    "status": "nachholen",
-    "done_at": null,
-    "moved_from": null,
-    "created_at": "2026-10-23T09:15:00",
-    "start_time": "08:00",
-    "end_time": "09:00"
-   },
-   {
-    "id": 22,
-    "package_id": 19,
-    "type": "vorlesung",
-    "file_id": "f-ph-v1",
-    "test_id": null,
-    "title": "Einführung Physik",
-    "sort": 0,
-    "est_minutes": 45,
-    "actual_minutes": null,
-    "status": "nachholen",
-    "done_at": null,
-    "moved_from": null,
-    "created_at": "2026-10-23T09:15:00",
-    "start_time": "09:10",
-    "end_time": "09:55"
-   },
-   {
-    "id": 23,
-    "package_id": 20,
-    "type": "uebung",
-    "file_id": "f-pg-u2",
-    "test_id": null,
-    "title": "Blatt 2.pdf",
-    "sort": 0,
-    "est_minutes": 60,
-    "actual_minutes": null,
-    "status": "geplant",
-    "done_at": null,
-    "moved_from": null,
-    "created_at": "2026-10-23T09:15:00",
-    "start_time": "11:50",
-    "end_time": "12:50"
-   },
-   {
-    "id": 24,
-    "package_id": 21,
     "type": "vorlesung",
     "file_id": "f-ma-v3",
     "test_id": null,
@@ -11709,8 +12633,8 @@
     "end_time": "08:23"
    },
    {
-    "id": 25,
-    "package_id": 22,
+    "id": 22,
+    "package_id": 19,
     "type": "vorlesung",
     "file_id": "f-ph-v3",
     "test_id": null,
@@ -11726,8 +12650,8 @@
     "end_time": "08:56"
    },
    {
-    "id": 26,
-    "package_id": 23,
+    "id": 23,
+    "package_id": 20,
     "type": "uebung",
     "file_id": "f-ch-u3",
     "test_id": null,
@@ -11743,8 +12667,8 @@
     "end_time": "09:36"
    },
    {
-    "id": 27,
-    "package_id": 24,
+    "id": 24,
+    "package_id": 21,
     "type": "vorlesung",
     "file_id": "f-ma-v3",
     "test_id": null,
@@ -11756,12 +12680,12 @@
     "done_at": null,
     "moved_from": null,
     "created_at": "2026-10-28T07:45:00",
-    "start_time": "08:00",
-    "end_time": "08:23"
+    "start_time": "10:30",
+    "end_time": "10:53"
    },
    {
-    "id": 28,
-    "package_id": 25,
+    "id": 25,
+    "package_id": 22,
     "type": "vorlesung",
     "file_id": "f-ph-v3",
     "test_id": null,
@@ -11773,12 +12697,12 @@
     "done_at": null,
     "moved_from": null,
     "created_at": "2026-10-28T07:45:00",
-    "start_time": "08:33",
-    "end_time": "08:56"
+    "start_time": "11:03",
+    "end_time": "11:26"
    },
    {
-    "id": 29,
-    "package_id": 26,
+    "id": 26,
+    "package_id": 23,
     "type": "uebung",
     "file_id": "f-ch-u3",
     "test_id": null,
@@ -11790,12 +12714,12 @@
     "done_at": null,
     "moved_from": null,
     "created_at": "2026-10-28T07:45:00",
-    "start_time": "09:06",
-    "end_time": "09:36"
+    "start_time": "11:36",
+    "end_time": "12:06"
    },
    {
-    "id": 30,
-    "package_id": 27,
+    "id": 27,
+    "package_id": 24,
     "type": "uebung",
     "file_id": "f-ma-u3",
     "test_id": null,
@@ -11807,63 +12731,12 @@
     "done_at": null,
     "moved_from": null,
     "created_at": "2026-10-28T07:45:00",
-    "start_time": "10:30",
-    "end_time": "11:00"
-   },
-   {
-    "id": 31,
-    "package_id": 28,
-    "type": "wiederholung",
-    "file_id": null,
-    "test_id": null,
-    "title": "Wiederholung Lehrwoche 3 (Karteikarten, Fehler aus dem Test)",
-    "sort": 0,
-    "est_minutes": 15,
-    "actual_minutes": null,
-    "status": "geplant",
-    "done_at": null,
-    "moved_from": null,
-    "created_at": "2026-10-28T07:45:00",
-    "start_time": "11:10",
-    "end_time": "11:25"
-   },
-   {
-    "id": 32,
-    "package_id": 29,
-    "type": "test",
-    "file_id": null,
-    "test_id": null,
-    "title": "Gemeinsamer Wochentest Lehrwoche 3",
-    "sort": 0,
-    "est_minutes": 45,
-    "actual_minutes": null,
-    "status": "geplant",
-    "done_at": null,
-    "moved_from": null,
-    "created_at": "2026-10-28T07:45:00",
-    "start_time": "11:35",
-    "end_time": "12:20"
-   },
-   {
-    "id": 33,
-    "package_id": 30,
-    "type": "uebung",
-    "file_id": "f-ma-u3",
-    "test_id": null,
-    "title": "Blatt 3.pdf (Teil 2/2)",
-    "sort": 0,
-    "est_minutes": 30,
-    "actual_minutes": null,
-    "status": "geplant",
-    "done_at": null,
-    "moved_from": null,
-    "created_at": "2026-10-28T07:45:00",
     "start_time": "08:00",
     "end_time": "08:30"
    },
    {
-    "id": 34,
-    "package_id": 31,
+    "id": 28,
+    "package_id": 25,
     "type": "wiederholung",
     "file_id": null,
     "test_id": null,
@@ -11879,8 +12752,8 @@
     "end_time": "08:55"
    },
    {
-    "id": 35,
-    "package_id": 32,
+    "id": 29,
+    "package_id": 26,
     "type": "test",
     "file_id": null,
     "test_id": null,
@@ -11896,8 +12769,59 @@
     "end_time": "09:50"
    },
    {
-    "id": 36,
-    "package_id": 33,
+    "id": 30,
+    "package_id": 27,
+    "type": "uebung",
+    "file_id": "f-ma-u3",
+    "test_id": null,
+    "title": "Blatt 3.pdf (Teil 2/2)",
+    "sort": 0,
+    "est_minutes": 30,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "08:00",
+    "end_time": "08:30"
+   },
+   {
+    "id": 31,
+    "package_id": 28,
+    "type": "wiederholung",
+    "file_id": null,
+    "test_id": null,
+    "title": "Wiederholung Lehrwoche 3 (Karteikarten, Fehler aus dem Test)",
+    "sort": 0,
+    "est_minutes": 15,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "08:40",
+    "end_time": "08:55"
+   },
+   {
+    "id": 32,
+    "package_id": 29,
+    "type": "test",
+    "file_id": null,
+    "test_id": null,
+    "title": "Gemeinsamer Wochentest Lehrwoche 3",
+    "sort": 0,
+    "est_minutes": 45,
+    "actual_minutes": null,
+    "status": "geplant",
+    "done_at": null,
+    "moved_from": null,
+    "created_at": "2026-10-28T07:45:00",
+    "start_time": "09:05",
+    "end_time": "09:50"
+   },
+   {
+    "id": 33,
+    "package_id": 30,
     "type": "wiederholung",
     "file_id": null,
     "test_id": null,
@@ -12189,6 +13113,3578 @@
    }
   ]
  },
+ "scenarios": [
+  {
+   "name": "nachgebessert",
+   "now": "2026-10-28T09:00:00",
+   "steps": [
+    {
+     "method": "POST",
+     "path": "/api/packages",
+     "status": 200,
+     "response": {
+      "id": 6,
+      "date": "2026-10-29",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Eigenes Kapitel",
+      "week_no": null,
+      "planned_minutes": 30,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     "body": {
+      "date": "2026-10-29",
+      "title": "Eigenes Kapitel",
+      "minutes": 30
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 200,
+     "response": {
+      "created": 0,
+      "message": "0 Lernpakete erstellt",
+      "feasibility": {
+       "open_minutes": 465,
+       "available_minutes_4w": 5760,
+       "per_day_need": 210,
+       "per_day_available": 240,
+       "hint": null
+      }
+     },
+     "body": {
+      "start": "2026-10-29",
+      "days": 1
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 200,
+     "response": {
+      "created": 1,
+      "message": "1 Lernpaket erstellt",
+      "feasibility": {
+       "open_minutes": 465,
+       "available_minutes_4w": 5760,
+       "per_day_need": 210,
+       "per_day_available": 240,
+       "hint": null
+      }
+     },
+     "body": {
+      "start": "2026-10-29",
+      "window_start": "14:00",
+      "window_end": "15:30"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 200,
+     "response": {
+      "created": 0,
+      "message": "Keine Lerneinheit passt in 10 Minuten."
+     },
+     "body": {
+      "start": "2026-10-29",
+      "window_start": "19:00",
+      "window_end": "19:10"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 400,
+     "response": {
+      "detail": "Das Ende muss nach dem Beginn liegen."
+     },
+     "body": {
+      "start": "2026-10-29",
+      "window_start": "15:30",
+      "window_end": "15:00"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 400,
+     "response": {
+      "detail": "Ungültige Uhrzeit: kaputt"
+     },
+     "body": {
+      "window_start": "kaputt",
+      "window_end": "15:00"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 400,
+     "response": {
+      "detail": "Ungültige Uhrzeit: None"
+     },
+     "body": {
+      "window_end": "15:00"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/calendar?start=2026-10-29&end=2026-10-29",
+     "status": 200,
+     "response": {
+      "start": "2026-10-29",
+      "end": "2026-10-29",
+      "days": [
+       {
+        "date": "2026-10-29",
+        "weekday": 3,
+        "status": "geplant",
+        "minutes": 90,
+        "tasks_done": 0,
+        "tasks_total": 2,
+        "packages": [
+         {
+          "id": 6,
+          "date": "2026-10-29",
+          "module_id": null,
+          "subject": "Allgemein",
+          "title": "Eigenes Kapitel",
+          "week_no": null,
+          "planned_minutes": 30,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 0,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "08:00",
+          "end_time": "08:30",
+          "color": null,
+          "module_name": null,
+          "tasks": [
+           {
+            "id": 7,
+            "package_id": 6,
+            "type": "frei",
+            "file_id": null,
+            "test_id": null,
+            "title": "Eigenes Kapitel",
+            "sort": 0,
+            "est_minutes": 30,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "08:00",
+            "end_time": "08:30",
+            "file_name": null,
+            "last_page": null,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         },
+         {
+          "id": 7,
+          "date": "2026-10-29",
+          "module_id": 2,
+          "subject": "Testphysik",
+          "title": "Woche 2 · 19.10. – 25.10.",
+          "week_no": 2,
+          "planned_minutes": 60,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "14:00",
+          "end_time": "15:00",
+          "color": "#222222",
+          "module_name": "Testphysik",
+          "tasks": [
+           {
+            "id": 8,
+            "package_id": 7,
+            "type": "uebung",
+            "file_id": "f-ph-u2",
+            "test_id": null,
+            "title": "Übungsblatt 2.pdf",
+            "sort": 0,
+            "est_minutes": 60,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "14:00",
+            "end_time": "15:00",
+            "file_name": "Übungsblatt 2.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 4,
+          "date": "2026-10-29",
+          "start": "18:00",
+          "end": "19:30",
+          "title": "Sport (nicht besucht)",
+          "kind": "sonstiges",
+          "module_id": null,
+          "module_name": null,
+          "color": "#4f5bd5",
+          "room": "",
+          "lecturer": "",
+          "course_id": null,
+          "status": "nicht_teilnahme",
+          "permanent_skip": true,
+          "exception": null
+         }
+        ]
+       }
+      ],
+      "settings": {
+       "university": "luh",
+       "hours_per_day": 4.0,
+       "free_days": [
+        5
+       ],
+       "day_start": "09:00",
+       "test_default_minutes": 90,
+       "auto_plan": true,
+       "auto_tests": true,
+       "subjects_per_day": 2,
+       "parts_lecture": 1,
+       "parts_exercise": 1,
+       "tests_per_subject": 0,
+       "test_minutes": 45,
+       "break_minutes": 10,
+       "exam_priority": true,
+       "auto_suggest": true,
+       "theme": "auto",
+       "user_name": "",
+       "learn_start": "08:00",
+       "learn_end": "20:00",
+       "travel_minutes": 20,
+       "min_slot_minutes": 30,
+       "blocked_times": [
+        {
+         "weekday": 0,
+         "start": "12:00",
+         "end": "13:00",
+         "title": "Mittag"
+        },
+        {
+         "weekday": 6,
+         "start": "08:00",
+         "end": "10:30"
+        }
+       ],
+       "pen_input": "all",
+       "hand": "right",
+       "minutes_per_day": 240,
+       "learn_days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+       ],
+       "university_next": "luh"
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 200,
+     "response": {
+      "created": 4,
+      "message": "4 Lernpakete erstellt",
+      "feasibility": {
+       "open_minutes": 465,
+       "available_minutes_4w": 5760,
+       "per_day_need": 210,
+       "per_day_available": 240,
+       "hint": null
+      }
+     },
+     "body": {
+      "start": "2026-10-26",
+      "days": 7
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/calendar?start=2026-10-26&end=2026-11-01",
+     "status": 200,
+     "response": {
+      "start": "2026-10-26",
+      "end": "2026-11-01",
+      "days": [
+       {
+        "date": "2026-10-26",
+        "weekday": 0,
+        "status": "leer",
+        "minutes": 0,
+        "tasks_done": 0,
+        "tasks_total": 0,
+        "packages": [],
+        "events": [
+         {
+          "event_id": 1,
+          "date": "2026-10-26",
+          "start": "10:00",
+          "end": "11:30",
+          "title": "Testmathematik I",
+          "kind": "vorlesung",
+          "module_id": 1,
+          "module_name": "Testmathematik I",
+          "color": "#111111",
+          "room": "Raum A",
+          "lecturer": "",
+          "course_id": "k-ma-vl",
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": null
+         }
+        ]
+       },
+       {
+        "date": "2026-10-27",
+        "weekday": 1,
+        "status": "nachholen",
+        "minutes": 30,
+        "tasks_done": 0,
+        "tasks_total": 1,
+        "packages": [
+         {
+          "id": 5,
+          "date": "2026-10-27",
+          "module_id": 1,
+          "subject": "Testmathematik I",
+          "title": "Wochentest",
+          "week_no": 1,
+          "planned_minutes": 30,
+          "status": "nachholen",
+          "sort": 1,
+          "generated": 1,
+          "created_at": "2026-10-19T08:00:00",
+          "start_time": "08:00",
+          "end_time": "08:30",
+          "color": "#111111",
+          "module_name": "Testmathematik I",
+          "tasks": [
+           {
+            "id": 6,
+            "package_id": 5,
+            "type": "test",
+            "file_id": null,
+            "test_id": 1,
+            "title": "Gemeinsamer Wochentest Lehrwoche 1",
+            "sort": 0,
+            "est_minutes": 30,
+            "actual_minutes": null,
+            "status": "nachholen",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-19T08:00:00",
+            "start_time": "08:00",
+            "end_time": "08:30",
+            "file_name": null,
+            "last_page": null,
+            "test_submitted": "2026-10-22T10:00:00",
+            "test_score": 7.5,
+            "test_max": 10.0
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 2,
+          "date": "2026-10-27",
+          "start": "10:00",
+          "end": "11:30",
+          "title": "Übung zu Testmathematik I",
+          "kind": "uebung",
+          "module_id": 1,
+          "module_name": "Testmathematik I",
+          "color": "#111111",
+          "room": "Raum B",
+          "lecturer": "",
+          "course_id": "k-ma-ue",
+          "status": "verschoben",
+          "permanent_skip": false,
+          "exception": "moved",
+          "moved_to": "2026-10-28"
+         }
+        ]
+       },
+       {
+        "date": "2026-10-28",
+        "weekday": 2,
+        "status": "geplant",
+        "minutes": 195,
+        "tasks_done": 0,
+        "tasks_total": 3,
+        "packages": [
+         {
+          "id": 8,
+          "date": "2026-10-28",
+          "module_id": 1,
+          "subject": "Testmathematik I",
+          "title": "Grenzwerte",
+          "week_no": 2,
+          "planned_minutes": 150,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "11:50",
+          "end_time": "14:30",
+          "color": "#111111",
+          "module_name": "Testmathematik I",
+          "tasks": [
+           {
+            "id": 9,
+            "package_id": 8,
+            "type": "vorlesung",
+            "file_id": "f-ma-v2",
+            "test_id": null,
+            "title": "Grenzwerte und Stetigkeit (Teil 1/2)",
+            "sort": 0,
+            "est_minutes": 75,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "11:50",
+            "end_time": "13:05",
+            "file_name": "VL02.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           },
+           {
+            "id": 11,
+            "package_id": 8,
+            "type": "vorlesung",
+            "file_id": "f-ma-v2",
+            "test_id": null,
+            "title": "Grenzwerte und Stetigkeit (Teil 2/2)",
+            "sort": 1,
+            "est_minutes": 75,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "13:15",
+            "end_time": "14:30",
+            "file_name": "VL02.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         },
+         {
+          "id": 9,
+          "date": "2026-10-28",
+          "module_id": 5,
+          "subject": "Testchemie",
+          "title": "Woche 1 · 12.10. – 18.10.",
+          "week_no": 1,
+          "planned_minutes": 45,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "14:40",
+          "end_time": "15:25",
+          "color": "#d94f6b",
+          "module_name": "Testchemie",
+          "tasks": [
+           {
+            "id": 10,
+            "package_id": 9,
+            "type": "vorlesung",
+            "file_id": "f-ch-v1",
+            "test_id": null,
+            "title": "Vorlesung 1.pdf",
+            "sort": 0,
+            "est_minutes": 45,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "14:40",
+            "end_time": "15:25",
+            "file_name": "Vorlesung 1.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 3,
+          "date": "2026-10-28",
+          "start": "08:15",
+          "end": "09:45",
+          "title": "Testphysik",
+          "kind": "vorlesung",
+          "module_id": 2,
+          "module_name": "Testphysik",
+          "color": "#222222",
+          "room": "Raum C",
+          "lecturer": "",
+          "course_id": "k-ph",
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": null
+         },
+         {
+          "event_id": 2,
+          "date": "2026-10-28",
+          "start": "10:00",
+          "end": "11:30",
+          "title": "Übung zu Testmathematik I",
+          "kind": "uebung",
+          "module_id": 1,
+          "module_name": "Testmathematik I",
+          "color": "#111111",
+          "room": "Raum B",
+          "lecturer": "",
+          "course_id": "k-ma-ue",
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": "moved_here",
+          "moved_from": "2026-10-27"
+         }
+        ]
+       },
+       {
+        "date": "2026-10-29",
+        "weekday": 3,
+        "status": "geplant",
+        "minutes": 90,
+        "tasks_done": 0,
+        "tasks_total": 2,
+        "packages": [
+         {
+          "id": 6,
+          "date": "2026-10-29",
+          "module_id": null,
+          "subject": "Allgemein",
+          "title": "Eigenes Kapitel",
+          "week_no": null,
+          "planned_minutes": 30,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 0,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "08:00",
+          "end_time": "08:30",
+          "color": null,
+          "module_name": null,
+          "tasks": [
+           {
+            "id": 7,
+            "package_id": 6,
+            "type": "frei",
+            "file_id": null,
+            "test_id": null,
+            "title": "Eigenes Kapitel",
+            "sort": 0,
+            "est_minutes": 30,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "08:00",
+            "end_time": "08:30",
+            "file_name": null,
+            "last_page": null,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         },
+         {
+          "id": 7,
+          "date": "2026-10-29",
+          "module_id": 2,
+          "subject": "Testphysik",
+          "title": "Woche 2 · 19.10. – 25.10.",
+          "week_no": 2,
+          "planned_minutes": 60,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "14:00",
+          "end_time": "15:00",
+          "color": "#222222",
+          "module_name": "Testphysik",
+          "tasks": [
+           {
+            "id": 8,
+            "package_id": 7,
+            "type": "uebung",
+            "file_id": "f-ph-u2",
+            "test_id": null,
+            "title": "Übungsblatt 2.pdf",
+            "sort": 0,
+            "est_minutes": 60,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "14:00",
+            "end_time": "15:00",
+            "file_name": "Übungsblatt 2.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 4,
+          "date": "2026-10-29",
+          "start": "18:00",
+          "end": "19:30",
+          "title": "Sport (nicht besucht)",
+          "kind": "sonstiges",
+          "module_id": null,
+          "module_name": null,
+          "color": "#4f5bd5",
+          "room": "",
+          "lecturer": "",
+          "course_id": null,
+          "status": "nicht_teilnahme",
+          "permanent_skip": true,
+          "exception": null
+         }
+        ]
+       },
+       {
+        "date": "2026-10-30",
+        "weekday": 4,
+        "status": "geplant",
+        "minutes": 120,
+        "tasks_done": 0,
+        "tasks_total": 2,
+        "packages": [
+         {
+          "id": 10,
+          "date": "2026-10-30",
+          "module_id": 3,
+          "subject": "Programmierkurs Beispiel",
+          "title": "Woche 2 · 19.10. – 25.10.",
+          "week_no": 2,
+          "planned_minutes": 60,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "08:00",
+          "end_time": "09:00",
+          "color": "#333333",
+          "module_name": "Programmierkurs Beispiel",
+          "tasks": [
+           {
+            "id": 12,
+            "package_id": 10,
+            "type": "uebung",
+            "file_id": "f-pg-u2",
+            "test_id": null,
+            "title": "Blatt 2.pdf",
+            "sort": 0,
+            "est_minutes": 60,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "08:00",
+            "end_time": "09:00",
+            "file_name": "Blatt 2.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         },
+         {
+          "id": 11,
+          "date": "2026-10-30",
+          "module_id": 1,
+          "subject": "Testmathematik I",
+          "title": "Grenzwerte",
+          "week_no": 2,
+          "planned_minutes": 60,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "09:10",
+          "end_time": "10:10",
+          "color": "#111111",
+          "module_name": "Testmathematik I",
+          "tasks": [
+           {
+            "id": 13,
+            "package_id": 11,
+            "type": "uebung",
+            "file_id": "f-ma-u2",
+            "test_id": null,
+            "title": "Blatt 2.pdf",
+            "sort": 0,
+            "est_minutes": 60,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "09:10",
+            "end_time": "10:10",
+            "file_name": "Blatt 2.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 5,
+          "date": "2026-10-30",
+          "start": "12:00",
+          "end": "13:30",
+          "title": "Programmierkurs Übung",
+          "kind": "gruppenuebung",
+          "module_id": 3,
+          "module_name": "Programmierkurs Beispiel",
+          "color": "#333333",
+          "room": "Pool 1",
+          "lecturer": "",
+          "course_id": "k-pg",
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": null
+         }
+        ]
+       },
+       {
+        "date": "2026-10-31",
+        "weekday": 5,
+        "status": "frei",
+        "minutes": 0,
+        "tasks_done": 0,
+        "tasks_total": 0,
+        "packages": [],
+        "events": []
+       },
+       {
+        "date": "2026-11-01",
+        "weekday": 6,
+        "status": "leer",
+        "minutes": 0,
+        "tasks_done": 0,
+        "tasks_total": 0,
+        "packages": [],
+        "events": [
+         {
+          "event_id": 6,
+          "date": "2026-11-01",
+          "start": "16:00",
+          "end": "17:00",
+          "title": "Sonntagstermin",
+          "kind": "sonstiges",
+          "module_id": null,
+          "module_name": null,
+          "color": "#4f5bd5",
+          "room": "",
+          "lecturer": "",
+          "course_id": null,
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": null
+         }
+        ]
+       }
+      ],
+      "settings": {
+       "university": "luh",
+       "hours_per_day": 4.0,
+       "free_days": [
+        5
+       ],
+       "day_start": "09:00",
+       "test_default_minutes": 90,
+       "auto_plan": true,
+       "auto_tests": true,
+       "subjects_per_day": 2,
+       "parts_lecture": 1,
+       "parts_exercise": 1,
+       "tests_per_subject": 0,
+       "test_minutes": 45,
+       "break_minutes": 10,
+       "exam_priority": true,
+       "auto_suggest": true,
+       "theme": "auto",
+       "user_name": "",
+       "learn_start": "08:00",
+       "learn_end": "20:00",
+       "travel_minutes": 20,
+       "min_slot_minutes": 30,
+       "blocked_times": [
+        {
+         "weekday": 0,
+         "start": "12:00",
+         "end": "13:00",
+         "title": "Mittag"
+        },
+        {
+         "weekday": 6,
+         "start": "08:00",
+         "end": "10:30"
+        }
+       ],
+       "pen_input": "all",
+       "hand": "right",
+       "minutes_per_day": 240,
+       "learn_days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+       ],
+       "university_next": "luh"
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/packages",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "date": "2026-11-02",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     "body": {
+      "date": "2026-11-02",
+      "title": "Zwei Aufgaben",
+      "tasks": [
+       {
+        "type": "frei",
+        "title": "Lesen",
+        "est_minutes": 45
+       },
+       {
+        "type": "frei",
+        "title": "Rechnen",
+        "est_minutes": 30
+       }
+      ]
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/timetable/reslot",
+     "status": 200,
+     "response": {
+      "reslotted": [
+       "2026-11-02"
+      ]
+     },
+     "body": {
+      "dates": [
+       "2026-11-02"
+      ],
+      "only_unset": true
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/packages/12",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "date": "2026-11-02",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "16:00",
+      "end_time": "17:25"
+     },
+     "body": {
+      "start_time": "16:00",
+      "end_time": "17:15"
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/packages/12",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "date": "2026-11-02",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "10:30",
+      "end_time": "11:55"
+     },
+     "body": {
+      "start_time": "10:30"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/packages/12",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "date": "2026-11-02",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "10:30",
+      "end_time": "11:55",
+      "color": null,
+      "module_name": null,
+      "tasks": [
+       {
+        "id": 14,
+        "package_id": 12,
+        "type": "frei",
+        "file_id": null,
+        "test_id": null,
+        "title": "Lesen",
+        "sort": 0,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "10:30",
+        "end_time": "11:15",
+        "file_name": null,
+        "last_page": null,
+        "test_submitted": null,
+        "test_score": null,
+        "test_max": null
+       },
+       {
+        "id": 15,
+        "package_id": 12,
+        "type": "frei",
+        "file_id": null,
+        "test_id": null,
+        "title": "Rechnen",
+        "sort": 1,
+        "est_minutes": 30,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "11:25",
+        "end_time": "11:55",
+        "file_name": null,
+        "last_page": null,
+        "test_submitted": null,
+        "test_score": null,
+        "test_max": null
+       }
+      ]
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/packages/12",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "date": "2026-11-05",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "10:30",
+      "end_time": "11:55"
+     },
+     "body": {
+      "date": "2026-11-05"
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/packages/12",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "date": "2026-10-28",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "15:25",
+      "end_time": "16:50"
+     },
+     "body": {
+      "date": "2026-10-28"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/packages/12",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "date": "2026-10-28",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "15:25",
+      "end_time": "16:50",
+      "color": null,
+      "module_name": null,
+      "tasks": [
+       {
+        "id": 14,
+        "package_id": 12,
+        "type": "frei",
+        "file_id": null,
+        "test_id": null,
+        "title": "Lesen",
+        "sort": 0,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": "2026-11-05",
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "15:25",
+        "end_time": "16:10",
+        "file_name": null,
+        "last_page": null,
+        "test_submitted": null,
+        "test_score": null,
+        "test_max": null
+       },
+       {
+        "id": 15,
+        "package_id": 12,
+        "type": "frei",
+        "file_id": null,
+        "test_id": null,
+        "title": "Rechnen",
+        "sort": 1,
+        "est_minutes": 30,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": "2026-11-05",
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "16:20",
+        "end_time": "16:50",
+        "file_name": null,
+        "last_page": null,
+        "test_submitted": null,
+        "test_score": null,
+        "test_max": null
+       }
+      ]
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/packages/12",
+     "status": 200,
+     "response": {
+      "id": 12,
+      "date": "2026-11-06",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "17:00",
+      "end_time": "18:25"
+     },
+     "body": {
+      "date": "2026-11-06",
+      "start_time": "17:00"
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/packages/6",
+     "status": 200,
+     "response": {
+      "id": 6,
+      "date": "2026-11-03",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Eigenes Kapitel",
+      "week_no": null,
+      "planned_minutes": 30,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "08:00",
+      "end_time": "08:30"
+     },
+     "body": {
+      "date": "2026-11-03"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/timetable/conflicts",
+     "status": 200,
+     "response": []
+    },
+    {
+     "method": "POST",
+     "path": "/api/packages",
+     "status": 200,
+     "response": {
+      "id": 13,
+      "date": "2026-11-06",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Ohne Uhrzeit",
+      "week_no": null,
+      "planned_minutes": 30,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     "body": {
+      "date": "2026-11-06",
+      "title": "Ohne Uhrzeit",
+      "minutes": 30
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/timetable/reslot",
+     "status": 200,
+     "response": {
+      "reslotted": [
+       "2026-11-06"
+      ]
+     },
+     "body": {
+      "dates": [
+       "2026-11-06"
+      ],
+      "only_unset": true
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/timetable/day?date=2026-11-06",
+     "status": 200,
+     "response": {
+      "date": "2026-11-06",
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-11-06",
+        "start": "12:00",
+        "end": "13:30",
+        "title": "Programmierkurs Übung",
+        "kind": "gruppenuebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": "",
+        "course_id": "k-pg",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 13,
+        "date": "2026-11-06",
+        "module_id": null,
+        "subject": "Allgemein",
+        "title": "Ohne Uhrzeit",
+        "week_no": null,
+        "planned_minutes": 30,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "08:00",
+        "end_time": "08:30",
+        "color": null
+       },
+       {
+        "id": 12,
+        "date": "2026-11-06",
+        "module_id": null,
+        "subject": "Allgemein",
+        "title": "Zwei Aufgaben",
+        "week_no": null,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "17:00",
+        "end_time": "18:25",
+        "color": null
+       }
+      ],
+      "free": [
+       {
+        "start": 510,
+        "end": 700,
+        "minutes": 190,
+        "start_hm": "08:30",
+        "end_hm": "11:40",
+        "campus": false
+       },
+       {
+        "start": 830,
+        "end": 1020,
+        "minutes": 190,
+        "start_hm": "13:50",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1105,
+        "end": 1200,
+        "minutes": 95,
+        "start_hm": "18:25",
+        "end_hm": "20:00",
+        "campus": false
+       }
+      ],
+      "blocked": [],
+      "learn_start": "08:00",
+      "learn_end": "20:00"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/timetable/reslot",
+     "status": 200,
+     "response": {
+      "reslotted": [
+       "2026-11-06"
+      ]
+     },
+     "body": {
+      "dates": [
+       "2026-11-06"
+      ]
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/timetable/day?date=2026-11-06",
+     "status": 200,
+     "response": {
+      "date": "2026-11-06",
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-11-06",
+        "start": "12:00",
+        "end": "13:30",
+        "title": "Programmierkurs Übung",
+        "kind": "gruppenuebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": "",
+        "course_id": "k-pg",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 12,
+        "date": "2026-11-06",
+        "module_id": null,
+        "subject": "Allgemein",
+        "title": "Zwei Aufgaben",
+        "week_no": null,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "08:00",
+        "end_time": "09:25",
+        "color": null
+       },
+       {
+        "id": 13,
+        "date": "2026-11-06",
+        "module_id": null,
+        "subject": "Allgemein",
+        "title": "Ohne Uhrzeit",
+        "week_no": null,
+        "planned_minutes": 30,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "09:35",
+        "end_time": "10:05",
+        "color": null
+       }
+      ],
+      "free": [
+       {
+        "start": 605,
+        "end": 700,
+        "minutes": 95,
+        "start_hm": "10:05",
+        "end_hm": "11:40",
+        "campus": false
+       },
+       {
+        "start": 830,
+        "end": 1200,
+        "minutes": 370,
+        "start_hm": "13:50",
+        "end_hm": "20:00",
+        "campus": false
+       }
+      ],
+      "blocked": [],
+      "learn_start": "08:00",
+      "learn_end": "20:00"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/apply",
+     "status": 200,
+     "response": {
+      "moved": 1
+     },
+     "body": {
+      "moves": [
+       {
+        "task_id": 16,
+        "to": "2026-11-09"
+       }
+      ]
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/packages/13",
+     "status": 200,
+     "response": {
+      "id": 13,
+      "date": "2026-11-06",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Ohne Uhrzeit",
+      "week_no": null,
+      "planned_minutes": 0,
+      "status": "verschoben",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": null,
+      "end_time": null,
+      "color": null,
+      "module_name": null,
+      "tasks": []
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/timetable/day?date=2026-11-06",
+     "status": 200,
+     "response": {
+      "date": "2026-11-06",
+      "events": [
+       {
+        "event_id": 5,
+        "date": "2026-11-06",
+        "start": "12:00",
+        "end": "13:30",
+        "title": "Programmierkurs Übung",
+        "kind": "gruppenuebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": "",
+        "course_id": "k-pg",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 13,
+        "date": "2026-11-06",
+        "module_id": null,
+        "subject": "Allgemein",
+        "title": "Ohne Uhrzeit",
+        "week_no": null,
+        "planned_minutes": 0,
+        "status": "verschoben",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": null,
+        "end_time": null,
+        "color": null
+       },
+       {
+        "id": 12,
+        "date": "2026-11-06",
+        "module_id": null,
+        "subject": "Allgemein",
+        "title": "Zwei Aufgaben",
+        "week_no": null,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:00:00",
+        "start_time": "08:00",
+        "end_time": "09:25",
+        "color": null
+       }
+      ],
+      "free": [
+       {
+        "start": 565,
+        "end": 700,
+        "minutes": 135,
+        "start_hm": "09:25",
+        "end_hm": "11:40",
+        "campus": false
+       },
+       {
+        "start": 830,
+        "end": 1200,
+        "minutes": 370,
+        "start_hm": "13:50",
+        "end_hm": "20:00",
+        "campus": false
+       }
+      ],
+      "blocked": [],
+      "learn_start": "08:00",
+      "learn_end": "20:00"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/apply",
+     "status": 200,
+     "response": {
+      "moved": 1
+     },
+     "body": {
+      "moves": [
+       {
+        "task_id": 12,
+        "to": "2026-11-01"
+       }
+      ]
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/tasks/9/status",
+     "status": 200,
+     "response": {
+      "id": 9,
+      "package_id": 8,
+      "type": "vorlesung",
+      "file_id": "f-ma-v2",
+      "test_id": null,
+      "title": "Grenzwerte und Stetigkeit (Teil 1/2)",
+      "sort": 0,
+      "est_minutes": 75,
+      "actual_minutes": null,
+      "status": "erledigt",
+      "done_at": "2026-10-28T09:00:00",
+      "moved_from": null,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "11:50",
+      "end_time": "13:05"
+     },
+     "body": {
+      "status": "erledigt"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/apply",
+     "status": 200,
+     "response": {
+      "moved": 1
+     },
+     "body": {
+      "moves": [
+       {
+        "task_id": 13,
+        "to": "2026-11-12"
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-10-28T09:00:00",
+     "sql": [
+      {
+       "sql": "UPDATE modules SET active=0",
+       "params": []
+      }
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 200,
+     "response": {
+      "created": 0,
+      "message": "Keine offenen Vorlesungen oder Übungen für die Planung."
+     },
+     "body": {
+      "start": "2026-10-28",
+      "days": 7,
+      "replace": true
+     }
+    },
+    {
+     "now": "2026-10-28T09:00:00",
+     "sql": [
+      {
+       "sql": "UPDATE modules SET active=1 WHERE name != 'Altmodul'",
+       "params": []
+      }
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/calendar/generate",
+     "status": 200,
+     "response": {
+      "created": 1,
+      "message": "1 Lernpakete erstellt",
+      "feasibility": {
+       "open_minutes": 315,
+       "available_minutes_4w": 5760,
+       "per_day_need": 210,
+       "per_day_available": 240,
+       "hint": null
+      }
+     },
+     "body": {
+      "start": "2026-10-28",
+      "days": 7,
+      "replace": true
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/calendar?start=2026-10-28&end=2026-11-03",
+     "status": 200,
+     "response": {
+      "start": "2026-10-28",
+      "end": "2026-11-03",
+      "days": [
+       {
+        "date": "2026-10-28",
+        "weekday": 2,
+        "status": "geplant",
+        "minutes": 195,
+        "tasks_done": 1,
+        "tasks_total": 3,
+        "packages": [
+         {
+          "id": 8,
+          "date": "2026-10-28",
+          "module_id": 1,
+          "subject": "Testmathematik I",
+          "title": "Grenzwerte",
+          "week_no": 2,
+          "planned_minutes": 150,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "11:50",
+          "end_time": "14:30",
+          "color": "#111111",
+          "module_name": "Testmathematik I",
+          "tasks": [
+           {
+            "id": 9,
+            "package_id": 8,
+            "type": "vorlesung",
+            "file_id": "f-ma-v2",
+            "test_id": null,
+            "title": "Grenzwerte und Stetigkeit (Teil 1/2)",
+            "sort": 0,
+            "est_minutes": 75,
+            "actual_minutes": null,
+            "status": "erledigt",
+            "done_at": "2026-10-28T09:00:00",
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "11:50",
+            "end_time": "13:05",
+            "file_name": "VL02.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           },
+           {
+            "id": 11,
+            "package_id": 8,
+            "type": "vorlesung",
+            "file_id": "f-ma-v2",
+            "test_id": null,
+            "title": "Grenzwerte und Stetigkeit (Teil 2/2)",
+            "sort": 1,
+            "est_minutes": 75,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "13:15",
+            "end_time": "14:30",
+            "file_name": "VL02.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         },
+         {
+          "id": 9,
+          "date": "2026-10-28",
+          "module_id": 5,
+          "subject": "Testchemie",
+          "title": "Woche 1 · 12.10. – 18.10.",
+          "week_no": 1,
+          "planned_minutes": 45,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "14:40",
+          "end_time": "15:25",
+          "color": "#d94f6b",
+          "module_name": "Testchemie",
+          "tasks": [
+           {
+            "id": 10,
+            "package_id": 9,
+            "type": "vorlesung",
+            "file_id": "f-ch-v1",
+            "test_id": null,
+            "title": "Vorlesung 1.pdf",
+            "sort": 0,
+            "est_minutes": 45,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "14:40",
+            "end_time": "15:25",
+            "file_name": "Vorlesung 1.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 3,
+          "date": "2026-10-28",
+          "start": "08:15",
+          "end": "09:45",
+          "title": "Testphysik",
+          "kind": "vorlesung",
+          "module_id": 2,
+          "module_name": "Testphysik",
+          "color": "#222222",
+          "room": "Raum C",
+          "lecturer": "",
+          "course_id": "k-ph",
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": null
+         },
+         {
+          "event_id": 2,
+          "date": "2026-10-28",
+          "start": "10:00",
+          "end": "11:30",
+          "title": "Übung zu Testmathematik I",
+          "kind": "uebung",
+          "module_id": 1,
+          "module_name": "Testmathematik I",
+          "color": "#111111",
+          "room": "Raum B",
+          "lecturer": "",
+          "course_id": "k-ma-ue",
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": "moved_here",
+          "moved_from": "2026-10-27"
+         }
+        ]
+       },
+       {
+        "date": "2026-10-29",
+        "weekday": 3,
+        "status": "geplant",
+        "minutes": 60,
+        "tasks_done": 0,
+        "tasks_total": 1,
+        "packages": [
+         {
+          "id": 17,
+          "date": "2026-10-29",
+          "module_id": 2,
+          "subject": "Testphysik",
+          "title": "Woche 2 · 19.10. – 25.10.",
+          "week_no": 2,
+          "planned_minutes": 60,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 1,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "08:00",
+          "end_time": "09:00",
+          "color": "#222222",
+          "module_name": "Testphysik",
+          "tasks": [
+           {
+            "id": 17,
+            "package_id": 17,
+            "type": "uebung",
+            "file_id": "f-ph-u2",
+            "test_id": null,
+            "title": "Übungsblatt 2.pdf",
+            "sort": 0,
+            "est_minutes": 60,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": null,
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "08:00",
+            "end_time": "09:00",
+            "file_name": "Übungsblatt 2.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 4,
+          "date": "2026-10-29",
+          "start": "18:00",
+          "end": "19:30",
+          "title": "Sport (nicht besucht)",
+          "kind": "sonstiges",
+          "module_id": null,
+          "module_name": null,
+          "color": "#4f5bd5",
+          "room": "",
+          "lecturer": "",
+          "course_id": null,
+          "status": "nicht_teilnahme",
+          "permanent_skip": true,
+          "exception": null
+         }
+        ]
+       },
+       {
+        "date": "2026-10-30",
+        "weekday": 4,
+        "status": "leer",
+        "minutes": 0,
+        "tasks_done": 0,
+        "tasks_total": 0,
+        "packages": [],
+        "events": [
+         {
+          "event_id": 5,
+          "date": "2026-10-30",
+          "start": "12:00",
+          "end": "13:30",
+          "title": "Programmierkurs Übung",
+          "kind": "gruppenuebung",
+          "module_id": 3,
+          "module_name": "Programmierkurs Beispiel",
+          "color": "#333333",
+          "room": "Pool 1",
+          "lecturer": "",
+          "course_id": "k-pg",
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": null
+         }
+        ]
+       },
+       {
+        "date": "2026-10-31",
+        "weekday": 5,
+        "status": "frei",
+        "minutes": 0,
+        "tasks_done": 0,
+        "tasks_total": 0,
+        "packages": [],
+        "events": []
+       },
+       {
+        "date": "2026-11-01",
+        "weekday": 6,
+        "status": "geplant",
+        "minutes": 60,
+        "tasks_done": 0,
+        "tasks_total": 1,
+        "packages": [
+         {
+          "id": 15,
+          "date": "2026-11-01",
+          "module_id": 3,
+          "subject": "Programmierkurs Beispiel",
+          "title": "Woche 2 · 19.10. – 25.10.",
+          "week_no": 2,
+          "planned_minutes": 60,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 0,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "10:30",
+          "end_time": "11:30",
+          "color": "#333333",
+          "module_name": "Programmierkurs Beispiel",
+          "tasks": [
+           {
+            "id": 12,
+            "package_id": 15,
+            "type": "uebung",
+            "file_id": "f-pg-u2",
+            "test_id": null,
+            "title": "Blatt 2.pdf",
+            "sort": 0,
+            "est_minutes": 60,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": "2026-10-30",
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "10:30",
+            "end_time": "11:30",
+            "file_name": "Blatt 2.pdf",
+            "last_page": 1,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 6,
+          "date": "2026-11-01",
+          "start": "16:00",
+          "end": "17:00",
+          "title": "Sonntagstermin",
+          "kind": "sonstiges",
+          "module_id": null,
+          "module_name": null,
+          "color": "#4f5bd5",
+          "room": "",
+          "lecturer": "",
+          "course_id": null,
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": null
+         }
+        ]
+       },
+       {
+        "date": "2026-11-02",
+        "weekday": 0,
+        "status": "leer",
+        "minutes": 0,
+        "tasks_done": 0,
+        "tasks_total": 0,
+        "packages": [],
+        "events": [
+         {
+          "event_id": 1,
+          "date": "2026-11-02",
+          "start": "10:00",
+          "end": "11:30",
+          "title": "Testmathematik I",
+          "kind": "vorlesung",
+          "module_id": 1,
+          "module_name": "Testmathematik I",
+          "color": "#111111",
+          "room": "Raum A",
+          "lecturer": "",
+          "course_id": "k-ma-vl",
+          "status": "ausfall",
+          "permanent_skip": false,
+          "exception": "cancelled"
+         }
+        ]
+       },
+       {
+        "date": "2026-11-03",
+        "weekday": 1,
+        "status": "geplant",
+        "minutes": 30,
+        "tasks_done": 0,
+        "tasks_total": 1,
+        "packages": [
+         {
+          "id": 6,
+          "date": "2026-11-03",
+          "module_id": null,
+          "subject": "Allgemein",
+          "title": "Eigenes Kapitel",
+          "week_no": null,
+          "planned_minutes": 30,
+          "status": "geplant",
+          "sort": 0,
+          "generated": 0,
+          "created_at": "2026-10-28T09:00:00",
+          "start_time": "08:00",
+          "end_time": "08:30",
+          "color": null,
+          "module_name": null,
+          "tasks": [
+           {
+            "id": 7,
+            "package_id": 6,
+            "type": "frei",
+            "file_id": null,
+            "test_id": null,
+            "title": "Eigenes Kapitel",
+            "sort": 0,
+            "est_minutes": 30,
+            "actual_minutes": null,
+            "status": "geplant",
+            "done_at": null,
+            "moved_from": "2026-10-29",
+            "created_at": "2026-10-28T09:00:00",
+            "start_time": "08:00",
+            "end_time": "08:30",
+            "file_name": null,
+            "last_page": null,
+            "test_submitted": null,
+            "test_score": null,
+            "test_max": null
+           }
+          ]
+         }
+        ],
+        "events": [
+         {
+          "event_id": 2,
+          "date": "2026-11-03",
+          "start": "14:00",
+          "end": "15:30",
+          "title": "Übung zu Testmathematik I",
+          "kind": "uebung",
+          "module_id": 1,
+          "module_name": "Testmathematik I",
+          "color": "#111111",
+          "room": "Raum B",
+          "lecturer": "",
+          "course_id": "k-ma-ue",
+          "status": "teilnahme",
+          "permanent_skip": false,
+          "exception": null
+         }
+        ]
+       }
+      ],
+      "settings": {
+       "university": "luh",
+       "hours_per_day": 4.0,
+       "free_days": [
+        5
+       ],
+       "day_start": "09:00",
+       "test_default_minutes": 90,
+       "auto_plan": true,
+       "auto_tests": true,
+       "subjects_per_day": 2,
+       "parts_lecture": 1,
+       "parts_exercise": 1,
+       "tests_per_subject": 0,
+       "test_minutes": 45,
+       "break_minutes": 10,
+       "exam_priority": true,
+       "auto_suggest": true,
+       "theme": "auto",
+       "user_name": "",
+       "learn_start": "08:00",
+       "learn_end": "20:00",
+       "travel_minutes": 20,
+       "min_slot_minutes": 30,
+       "blocked_times": [
+        {
+         "weekday": 0,
+         "start": "12:00",
+         "end": "13:00",
+         "title": "Mittag"
+        },
+        {
+         "weekday": 6,
+         "start": "08:00",
+         "end": "10:30"
+        }
+       ],
+       "pen_input": "all",
+       "hand": "right",
+       "minutes_per_day": 240,
+       "learn_days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+       ],
+       "university_next": "luh"
+      }
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/dashboard",
+     "status": 200,
+     "response": {
+      "today": {
+       "date": "2026-10-28",
+       "weekday": 2,
+       "status": "geplant",
+       "minutes": 195,
+       "tasks_done": 1,
+       "tasks_total": 3,
+       "packages": [
+        {
+         "id": 8,
+         "date": "2026-10-28",
+         "module_id": 1,
+         "subject": "Testmathematik I",
+         "title": "Grenzwerte",
+         "week_no": 2,
+         "planned_minutes": 150,
+         "status": "geplant",
+         "sort": 0,
+         "generated": 1,
+         "created_at": "2026-10-28T09:00:00",
+         "start_time": "11:50",
+         "end_time": "14:30",
+         "color": "#111111",
+         "module_name": "Testmathematik I",
+         "tasks": [
+          {
+           "id": 9,
+           "package_id": 8,
+           "type": "vorlesung",
+           "file_id": "f-ma-v2",
+           "test_id": null,
+           "title": "Grenzwerte und Stetigkeit (Teil 1/2)",
+           "sort": 0,
+           "est_minutes": 75,
+           "actual_minutes": null,
+           "status": "erledigt",
+           "done_at": "2026-10-28T09:00:00",
+           "moved_from": null,
+           "created_at": "2026-10-28T09:00:00",
+           "start_time": "11:50",
+           "end_time": "13:05",
+           "file_name": "VL02.pdf",
+           "last_page": 1,
+           "test_submitted": null,
+           "test_score": null,
+           "test_max": null
+          },
+          {
+           "id": 11,
+           "package_id": 8,
+           "type": "vorlesung",
+           "file_id": "f-ma-v2",
+           "test_id": null,
+           "title": "Grenzwerte und Stetigkeit (Teil 2/2)",
+           "sort": 1,
+           "est_minutes": 75,
+           "actual_minutes": null,
+           "status": "geplant",
+           "done_at": null,
+           "moved_from": null,
+           "created_at": "2026-10-28T09:00:00",
+           "start_time": "13:15",
+           "end_time": "14:30",
+           "file_name": "VL02.pdf",
+           "last_page": 1,
+           "test_submitted": null,
+           "test_score": null,
+           "test_max": null
+          }
+         ]
+        },
+        {
+         "id": 9,
+         "date": "2026-10-28",
+         "module_id": 5,
+         "subject": "Testchemie",
+         "title": "Woche 1 · 12.10. – 18.10.",
+         "week_no": 1,
+         "planned_minutes": 45,
+         "status": "geplant",
+         "sort": 0,
+         "generated": 1,
+         "created_at": "2026-10-28T09:00:00",
+         "start_time": "14:40",
+         "end_time": "15:25",
+         "color": "#d94f6b",
+         "module_name": "Testchemie",
+         "tasks": [
+          {
+           "id": 10,
+           "package_id": 9,
+           "type": "vorlesung",
+           "file_id": "f-ch-v1",
+           "test_id": null,
+           "title": "Vorlesung 1.pdf",
+           "sort": 0,
+           "est_minutes": 45,
+           "actual_minutes": null,
+           "status": "geplant",
+           "done_at": null,
+           "moved_from": null,
+           "created_at": "2026-10-28T09:00:00",
+           "start_time": "14:40",
+           "end_time": "15:25",
+           "file_name": "Vorlesung 1.pdf",
+           "last_page": 1,
+           "test_submitted": null,
+           "test_score": null,
+           "test_max": null
+          }
+         ]
+        }
+       ],
+       "events": [
+        {
+         "event_id": 3,
+         "date": "2026-10-28",
+         "start": "08:15",
+         "end": "09:45",
+         "title": "Testphysik",
+         "kind": "vorlesung",
+         "module_id": 2,
+         "module_name": "Testphysik",
+         "color": "#222222",
+         "room": "Raum C",
+         "lecturer": "",
+         "course_id": "k-ph",
+         "status": "teilnahme",
+         "permanent_skip": false,
+         "exception": null
+        },
+        {
+         "event_id": 2,
+         "date": "2026-10-28",
+         "start": "10:00",
+         "end": "11:30",
+         "title": "Übung zu Testmathematik I",
+         "kind": "uebung",
+         "module_id": 1,
+         "module_name": "Testmathematik I",
+         "color": "#111111",
+         "room": "Raum B",
+         "lecturer": "",
+         "course_id": "k-ma-ue",
+         "status": "teilnahme",
+         "permanent_skip": false,
+         "exception": "moved_here",
+         "moved_from": "2026-10-27"
+        }
+       ],
+       "free": [
+        {
+         "start": 925,
+         "end": 1200,
+         "minutes": 275,
+         "start_hm": "15:25",
+         "end_hm": "20:00",
+         "campus": false
+        }
+       ]
+      },
+      "modules": [
+       {
+        "id": 1,
+        "name": "Testmathematik I",
+        "semester": "WiSe 2026/27",
+        "color": "#111111",
+        "icon": null,
+        "priority": 3,
+        "exam_date": "2026-11-20",
+        "sort": 0,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "file_count": 8,
+        "new_count": 5,
+        "open_tasks": 4,
+        "progress": 33,
+        "next_package": {
+         "date": "2026-10-28",
+         "title": "Grenzwerte"
+        },
+        "next_event": {
+         "event_id": 2,
+         "date": "2026-10-28",
+         "start": "10:00",
+         "end": "11:30",
+         "title": "Übung zu Testmathematik I",
+         "kind": "uebung",
+         "module_id": 1,
+         "module_name": "Testmathematik I",
+         "color": "#111111",
+         "room": "Raum B",
+         "lecturer": "",
+         "course_id": "k-ma-ue",
+         "status": "teilnahme",
+         "permanent_skip": false,
+         "exception": "moved_here",
+         "moved_from": "2026-10-27"
+        },
+        "task_count": 6,
+        "test_count": 1,
+        "topics": [
+         "Grenzwerte"
+        ],
+        "courses": 3,
+        "weeks": 2
+       },
+       {
+        "id": 2,
+        "name": "Testphysik",
+        "semester": "WiSe 2026/27",
+        "color": "#222222",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 0,
+        "test_minutes": 30,
+        "file_count": 3,
+        "new_count": 2,
+        "open_tasks": 2,
+        "progress": 33,
+        "next_package": {
+         "date": "2026-10-29",
+         "title": "Woche 2 · 19.10. – 25.10."
+        },
+        "next_event": {
+         "event_id": 3,
+         "date": "2026-10-28",
+         "start": "08:15",
+         "end": "09:45",
+         "title": "Testphysik",
+         "kind": "vorlesung",
+         "module_id": 2,
+         "module_name": "Testphysik",
+         "color": "#222222",
+         "room": "Raum C",
+         "lecturer": "",
+         "course_id": "k-ph",
+         "status": "teilnahme",
+         "permanent_skip": false,
+         "exception": null
+        },
+        "task_count": 2,
+        "test_count": 0,
+        "topics": [
+         "Einführung Physik"
+        ],
+        "courses": 1,
+        "weeks": 2
+       },
+       {
+        "id": 3,
+        "name": "Programmierkurs Beispiel",
+        "semester": "WiSe 2026/27",
+        "color": "#333333",
+        "icon": null,
+        "priority": 1,
+        "exam_date": "2026-09-01",
+        "sort": 2,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": 20,
+        "file_count": 2,
+        "new_count": 1,
+        "open_tasks": 1,
+        "progress": 50,
+        "next_package": {
+         "date": "2026-11-01",
+         "title": "Woche 2 · 19.10. – 25.10."
+        },
+        "next_event": {
+         "event_id": 5,
+         "date": "2026-10-30",
+         "start": "12:00",
+         "end": "13:30",
+         "title": "Programmierkurs Übung",
+         "kind": "gruppenuebung",
+         "module_id": 3,
+         "module_name": "Programmierkurs Beispiel",
+         "color": "#333333",
+         "room": "Pool 1",
+         "lecturer": "",
+         "course_id": "k-pg",
+         "status": "teilnahme",
+         "permanent_skip": false,
+         "exception": null
+        },
+        "task_count": 2,
+        "test_count": 0,
+        "topics": [],
+        "courses": 1,
+        "weeks": 2
+       },
+       {
+        "id": 4,
+        "name": "Altmodul",
+        "semester": "WiSe 2026/27",
+        "color": "#444444",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 3,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 0,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "file_count": 1,
+        "new_count": 1,
+        "open_tasks": 0,
+        "progress": 0,
+        "next_package": null,
+        "next_event": null,
+        "task_count": 0,
+        "test_count": 0,
+        "topics": [],
+        "courses": 1,
+        "weeks": 1
+       },
+       {
+        "id": 5,
+        "name": "Testchemie",
+        "semester": "WiSe 2026/27",
+        "color": "#d94f6b",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 4,
+        "created_at": "2026-10-28T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "file_count": 1,
+        "new_count": 1,
+        "open_tasks": 1,
+        "progress": 0,
+        "next_package": {
+         "date": "2026-10-28",
+         "title": "Woche 1 · 12.10. – 18.10."
+        },
+        "next_event": null,
+        "task_count": 1,
+        "test_count": 0,
+        "topics": [],
+        "courses": 1,
+        "weeks": 1
+       }
+      ],
+      "new_files": [
+       {
+        "id": "f-ph-u2",
+        "name": "Übungsblatt 2.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1792888200,
+        "subject": "Testphysik",
+        "module_id": 2,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-pg-u2",
+        "name": "Blatt 2.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1792877400,
+        "subject": "Programmierkurs Beispiel",
+        "module_id": 3,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-ma-s",
+        "name": "Skript Testmathematik.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1792569600,
+        "subject": "Testmathematik I",
+        "module_id": 1,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-ma-l1",
+        "name": "Lösung Blatt 1.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1792512000,
+        "subject": "Testmathematik I",
+        "module_id": 1,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-ma-u2",
+        "name": "Blatt 2.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1792479600,
+        "subject": "Testmathematik I",
+        "module_id": 1,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-ch-v1",
+        "name": "Vorlesung 1.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1792130400,
+        "subject": "Testchemie",
+        "module_id": 5,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-ph-v1",
+        "name": "Folien Einführung.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1791972000,
+        "subject": "Testphysik",
+        "module_id": 2,
+        "doc_type": "vorlesung",
+        "ai_title": "Einführung Physik",
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-alt-v1",
+        "name": "VL01.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1791784800,
+        "subject": "Altmodul",
+        "module_id": 4,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-ma-vk",
+        "name": "Vorkurs Folien.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1791187200,
+        "subject": "Testmathematik I",
+        "module_id": 1,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       },
+       {
+        "id": "f-ma-alt",
+        "name": "Altklausur 2025.pdf",
+        "first_seen": "2026-10-22T08:00:00",
+        "chdate": 1789891200,
+        "subject": "Testmathematik I",
+        "module_id": 1,
+        "doc_type": null,
+        "ai_title": null,
+        "difficulty": null,
+        "est_minutes": null
+       }
+      ],
+      "new_total": 10,
+      "week": {
+       "start": "2026-10-26",
+       "done": 1,
+       "total": 6,
+       "days": [
+        {
+         "date": "2026-10-26",
+         "status": "leer",
+         "minutes": 0
+        },
+        {
+         "date": "2026-10-27",
+         "status": "nachholen",
+         "minutes": 30
+        },
+        {
+         "date": "2026-10-28",
+         "status": "geplant",
+         "minutes": 195
+        },
+        {
+         "date": "2026-10-29",
+         "status": "geplant",
+         "minutes": 60
+        },
+        {
+         "date": "2026-10-30",
+         "status": "leer",
+         "minutes": 0
+        },
+        {
+         "date": "2026-10-31",
+         "status": "frei",
+         "minutes": 0
+        },
+        {
+         "date": "2026-11-01",
+         "status": "geplant",
+         "minutes": 60
+        }
+       ]
+      },
+      "backlog": 4,
+      "upcoming": [
+       {
+        "date": "2026-10-29",
+        "kind": "lernpaket",
+        "title": "Testphysik: Woche 2 · 19.10. – 25.10.",
+        "module_id": 2,
+        "color": "#222222",
+        "package_id": 17
+       },
+       {
+        "date": "2026-11-01",
+        "kind": "lernpaket",
+        "title": "Programmierkurs Beispiel: Woche 2 · 19.10. – 25.10.",
+        "module_id": 3,
+        "color": "#333333",
+        "package_id": 15
+       },
+       {
+        "date": "2026-11-03",
+        "kind": "lernpaket",
+        "title": "Allgemein: Eigenes Kapitel",
+        "module_id": null,
+        "color": null,
+        "package_id": 6
+       },
+       {
+        "date": "2026-11-06",
+        "kind": "lernpaket",
+        "title": "Allgemein: Zwei Aufgaben",
+        "module_id": null,
+        "color": null,
+        "package_id": 12
+       },
+       {
+        "date": "2026-11-09",
+        "kind": "lernpaket",
+        "title": "Allgemein: Ohne Uhrzeit",
+        "module_id": null,
+        "color": null,
+        "package_id": 14
+       },
+       {
+        "date": "2026-11-12",
+        "kind": "lernpaket",
+        "title": "Testmathematik I: Grenzwerte",
+        "module_id": 1,
+        "color": "#111111",
+        "package_id": 16
+       },
+       {
+        "date": "2026-11-20",
+        "kind": "klausur",
+        "title": "Klausur Testmathematik I",
+        "module_id": 1,
+        "color": "#111111"
+       }
+      ],
+      "last_sync": null,
+      "settings": {
+       "university": "luh",
+       "hours_per_day": 4.0,
+       "free_days": [
+        5
+       ],
+       "day_start": "09:00",
+       "test_default_minutes": 90,
+       "auto_plan": true,
+       "auto_tests": true,
+       "subjects_per_day": 2,
+       "parts_lecture": 1,
+       "parts_exercise": 1,
+       "tests_per_subject": 0,
+       "test_minutes": 45,
+       "break_minutes": 10,
+       "exam_priority": true,
+       "auto_suggest": true,
+       "theme": "auto",
+       "user_name": "",
+       "learn_start": "08:00",
+       "learn_end": "20:00",
+       "travel_minutes": 20,
+       "min_slot_minutes": 30,
+       "blocked_times": [
+        {
+         "weekday": 0,
+         "start": "12:00",
+         "end": "13:00",
+         "title": "Mittag"
+        },
+        {
+         "weekday": 6,
+         "start": "08:00",
+         "end": "10:30"
+        }
+       ],
+       "pen_input": "all",
+       "hand": "right",
+       "minutes_per_day": 240,
+       "learn_days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+       ],
+       "university_next": "luh"
+      },
+      "bg": {
+       "running": false,
+       "task": null,
+       "message": ""
+      }
+     }
+    }
+   ],
+   "tables_after": {
+    "study_packages": [
+     {
+      "id": 1,
+      "date": "2026-10-20",
+      "module_id": 1,
+      "subject": "Testmathematik I",
+      "title": "Woche 1 · 12.10. – 18.10.",
+      "week_no": 1,
+      "planned_minutes": 105,
+      "status": "teilweise",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": "09:00",
+      "end_time": "10:45"
+     },
+     {
+      "id": 2,
+      "date": "2026-10-21",
+      "module_id": 2,
+      "subject": "Testphysik",
+      "title": "Einführung Physik",
+      "week_no": 1,
+      "planned_minutes": 45,
+      "status": "nachholen",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": "10:00",
+      "end_time": "10:45"
+     },
+     {
+      "id": 3,
+      "date": "2026-10-22",
+      "module_id": 3,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Woche 1 · 12.10. – 18.10.",
+      "week_no": 1,
+      "planned_minutes": 20,
+      "status": "erledigt",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     {
+      "id": 4,
+      "date": "2026-10-23",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Lesen",
+      "week_no": null,
+      "planned_minutes": 60,
+      "status": "nachholen",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": "17:00",
+      "end_time": "18:00"
+     },
+     {
+      "id": 5,
+      "date": "2026-10-27",
+      "module_id": 1,
+      "subject": "Testmathematik I",
+      "title": "Wochentest",
+      "week_no": 1,
+      "planned_minutes": 30,
+      "status": "nachholen",
+      "sort": 1,
+      "generated": 1,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": "08:00",
+      "end_time": "08:30"
+     },
+     {
+      "id": 6,
+      "date": "2026-11-03",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Eigenes Kapitel",
+      "week_no": null,
+      "planned_minutes": 30,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "08:00",
+      "end_time": "08:30"
+     },
+     {
+      "id": 8,
+      "date": "2026-10-28",
+      "module_id": 1,
+      "subject": "Testmathematik I",
+      "title": "Grenzwerte",
+      "week_no": 2,
+      "planned_minutes": 150,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "11:50",
+      "end_time": "14:30"
+     },
+     {
+      "id": 9,
+      "date": "2026-10-28",
+      "module_id": 5,
+      "subject": "Testchemie",
+      "title": "Woche 1 · 12.10. – 18.10.",
+      "week_no": 1,
+      "planned_minutes": 45,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "14:40",
+      "end_time": "15:25"
+     },
+     {
+      "id": 12,
+      "date": "2026-11-06",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Zwei Aufgaben",
+      "week_no": null,
+      "planned_minutes": 75,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "08:00",
+      "end_time": "09:25"
+     },
+     {
+      "id": 13,
+      "date": "2026-11-06",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Ohne Uhrzeit",
+      "week_no": null,
+      "planned_minutes": 0,
+      "status": "verschoben",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     {
+      "id": 14,
+      "date": "2026-11-09",
+      "module_id": null,
+      "subject": "Allgemein",
+      "title": "Ohne Uhrzeit",
+      "week_no": null,
+      "planned_minutes": 30,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     {
+      "id": 15,
+      "date": "2026-11-01",
+      "module_id": 3,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Woche 2 · 19.10. – 25.10.",
+      "week_no": 2,
+      "planned_minutes": 60,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "10:30",
+      "end_time": "11:30"
+     },
+     {
+      "id": 16,
+      "date": "2026-11-12",
+      "module_id": 1,
+      "subject": "Testmathematik I",
+      "title": "Grenzwerte",
+      "week_no": 2,
+      "planned_minutes": 60,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 0,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     {
+      "id": 17,
+      "date": "2026-10-29",
+      "module_id": 2,
+      "subject": "Testphysik",
+      "title": "Woche 2 · 19.10. – 25.10.",
+      "week_no": 2,
+      "planned_minutes": 60,
+      "status": "geplant",
+      "sort": 0,
+      "generated": 1,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "08:00",
+      "end_time": "09:00"
+     }
+    ],
+    "study_tasks": [
+     {
+      "id": 1,
+      "package_id": 1,
+      "type": "vorlesung",
+      "file_id": "f-ma-v1",
+      "test_id": null,
+      "title": "VL01 Einführung.pdf",
+      "sort": 0,
+      "est_minutes": 45,
+      "actual_minutes": null,
+      "status": "nachholen",
+      "done_at": null,
+      "moved_from": null,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": "09:00",
+      "end_time": "09:45"
+     },
+     {
+      "id": 2,
+      "package_id": 1,
+      "type": "uebung",
+      "file_id": "f-ma-u1",
+      "test_id": null,
+      "title": "Blatt 1.pdf",
+      "sort": 1,
+      "est_minutes": 60,
+      "actual_minutes": null,
+      "status": "erledigt",
+      "done_at": "2026-10-20T11:00:00",
+      "moved_from": null,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": "09:55",
+      "end_time": "10:55"
+     },
+     {
+      "id": 3,
+      "package_id": 2,
+      "type": "vorlesung",
+      "file_id": "f-ph-v1",
+      "test_id": null,
+      "title": "Einführung Physik",
+      "sort": 0,
+      "est_minutes": 45,
+      "actual_minutes": null,
+      "status": "nachholen",
+      "done_at": null,
+      "moved_from": null,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": "10:00",
+      "end_time": "10:45"
+     },
+     {
+      "id": 4,
+      "package_id": 3,
+      "type": "uebung",
+      "file_id": "f-pg-u1",
+      "test_id": null,
+      "title": "Blatt 1.pdf",
+      "sort": 0,
+      "est_minutes": 20,
+      "actual_minutes": null,
+      "status": "erledigt",
+      "done_at": "2026-10-22T16:00:00",
+      "moved_from": "2026-10-21",
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     {
+      "id": 5,
+      "package_id": 4,
+      "type": "frei",
+      "file_id": null,
+      "test_id": null,
+      "title": "Lesen",
+      "sort": 0,
+      "est_minutes": 60,
+      "actual_minutes": null,
+      "status": "nachholen",
+      "done_at": null,
+      "moved_from": null,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": null,
+      "end_time": null
+     },
+     {
+      "id": 6,
+      "package_id": 5,
+      "type": "test",
+      "file_id": null,
+      "test_id": 1,
+      "title": "Gemeinsamer Wochentest Lehrwoche 1",
+      "sort": 0,
+      "est_minutes": 30,
+      "actual_minutes": null,
+      "status": "nachholen",
+      "done_at": null,
+      "moved_from": null,
+      "created_at": "2026-10-19T08:00:00",
+      "start_time": "08:00",
+      "end_time": "08:30"
+     },
+     {
+      "id": 7,
+      "package_id": 6,
+      "type": "frei",
+      "file_id": null,
+      "test_id": null,
+      "title": "Eigenes Kapitel",
+      "sort": 0,
+      "est_minutes": 30,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": "2026-10-29",
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "08:00",
+      "end_time": "08:30"
+     },
+     {
+      "id": 9,
+      "package_id": 8,
+      "type": "vorlesung",
+      "file_id": "f-ma-v2",
+      "test_id": null,
+      "title": "Grenzwerte und Stetigkeit (Teil 1/2)",
+      "sort": 0,
+      "est_minutes": 75,
+      "actual_minutes": null,
+      "status": "erledigt",
+      "done_at": "2026-10-28T09:00:00",
+      "moved_from": null,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "11:50",
+      "end_time": "13:05"
+     },
+     {
+      "id": 10,
+      "package_id": 9,
+      "type": "vorlesung",
+      "file_id": "f-ch-v1",
+      "test_id": null,
+      "title": "Vorlesung 1.pdf",
+      "sort": 0,
+      "est_minutes": 45,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": null,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "14:40",
+      "end_time": "15:25"
+     },
+     {
+      "id": 11,
+      "package_id": 8,
+      "type": "vorlesung",
+      "file_id": "f-ma-v2",
+      "test_id": null,
+      "title": "Grenzwerte und Stetigkeit (Teil 2/2)",
+      "sort": 1,
+      "est_minutes": 75,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": null,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "13:15",
+      "end_time": "14:30"
+     },
+     {
+      "id": 12,
+      "package_id": 15,
+      "type": "uebung",
+      "file_id": "f-pg-u2",
+      "test_id": null,
+      "title": "Blatt 2.pdf",
+      "sort": 0,
+      "est_minutes": 60,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": "2026-10-30",
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "10:30",
+      "end_time": "11:30"
+     },
+     {
+      "id": 13,
+      "package_id": 16,
+      "type": "uebung",
+      "file_id": "f-ma-u2",
+      "test_id": null,
+      "title": "Blatt 2.pdf",
+      "sort": 0,
+      "est_minutes": 60,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": "2026-10-30",
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "09:10",
+      "end_time": "10:10"
+     },
+     {
+      "id": 14,
+      "package_id": 12,
+      "type": "frei",
+      "file_id": null,
+      "test_id": null,
+      "title": "Lesen",
+      "sort": 0,
+      "est_minutes": 45,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": "2026-10-28",
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "08:00",
+      "end_time": "08:45"
+     },
+     {
+      "id": 15,
+      "package_id": 12,
+      "type": "frei",
+      "file_id": null,
+      "test_id": null,
+      "title": "Rechnen",
+      "sort": 1,
+      "est_minutes": 30,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": "2026-10-28",
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "08:55",
+      "end_time": "09:25"
+     },
+     {
+      "id": 16,
+      "package_id": 14,
+      "type": "frei",
+      "file_id": null,
+      "test_id": null,
+      "title": "Ohne Uhrzeit",
+      "sort": 0,
+      "est_minutes": 30,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": "2026-11-06",
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "09:35",
+      "end_time": "10:05"
+     },
+     {
+      "id": 17,
+      "package_id": 17,
+      "type": "uebung",
+      "file_id": "f-ph-u2",
+      "test_id": null,
+      "title": "Übungsblatt 2.pdf",
+      "sort": 0,
+      "est_minutes": 60,
+      "actual_minutes": null,
+      "status": "geplant",
+      "done_at": null,
+      "moved_from": null,
+      "created_at": "2026-10-28T09:00:00",
+      "start_time": "08:00",
+      "end_time": "09:00"
+     }
+    ],
+    "task_history": [
+     {
+      "id": 1,
+      "task_id": 14,
+      "package_id": 12,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-11-02",
+      "new_date": "2026-11-05",
+      "note": "Paket verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 2,
+      "task_id": 15,
+      "package_id": 12,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-11-02",
+      "new_date": "2026-11-05",
+      "note": "Paket verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 3,
+      "task_id": 14,
+      "package_id": 12,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-11-05",
+      "new_date": "2026-10-28",
+      "note": "Paket verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 4,
+      "task_id": 15,
+      "package_id": 12,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-11-05",
+      "new_date": "2026-10-28",
+      "note": "Paket verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 5,
+      "task_id": 14,
+      "package_id": 12,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-10-28",
+      "new_date": "2026-11-06",
+      "note": "Paket verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 6,
+      "task_id": 15,
+      "package_id": 12,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-10-28",
+      "new_date": "2026-11-06",
+      "note": "Paket verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 7,
+      "task_id": 7,
+      "package_id": 6,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-10-29",
+      "new_date": "2026-11-03",
+      "note": "Paket verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 8,
+      "task_id": 16,
+      "package_id": 14,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-11-06",
+      "new_date": "2026-11-09",
+      "note": "verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 9,
+      "task_id": 12,
+      "package_id": 15,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-10-30",
+      "new_date": "2026-11-01",
+      "note": "verschoben",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 10,
+      "task_id": 9,
+      "package_id": 8,
+      "old_status": "geplant",
+      "new_status": "erledigt",
+      "old_date": "2026-10-28",
+      "new_date": "2026-10-28",
+      "note": "",
+      "at": "2026-10-28T09:00:00"
+     },
+     {
+      "id": 11,
+      "task_id": 13,
+      "package_id": 16,
+      "old_status": "geplant",
+      "new_status": "geplant",
+      "old_date": "2026-10-30",
+      "new_date": "2026-11-12",
+      "note": "verschoben",
+      "at": "2026-10-28T09:00:00"
+     }
+    ],
+    "modules": [
+     {
+      "id": 1,
+      "name": "Testmathematik I",
+      "semester": "WiSe 2026/27",
+      "color": "#111111",
+      "icon": null,
+      "priority": 3,
+      "exam_date": "2026-11-20",
+      "sort": 0,
+      "created_at": "2026-10-01T09:00:00",
+      "active": 1,
+      "weekly_test": 1,
+      "test_minutes": null
+     },
+     {
+      "id": 2,
+      "name": "Testphysik",
+      "semester": "WiSe 2026/27",
+      "color": "#222222",
+      "icon": null,
+      "priority": 2,
+      "exam_date": null,
+      "sort": 1,
+      "created_at": "2026-10-01T09:00:00",
+      "active": 1,
+      "weekly_test": 0,
+      "test_minutes": 30
+     },
+     {
+      "id": 3,
+      "name": "Programmierkurs Beispiel",
+      "semester": "WiSe 2026/27",
+      "color": "#333333",
+      "icon": null,
+      "priority": 1,
+      "exam_date": "2026-09-01",
+      "sort": 2,
+      "created_at": "2026-10-01T09:00:00",
+      "active": 1,
+      "weekly_test": 1,
+      "test_minutes": 20
+     },
+     {
+      "id": 4,
+      "name": "Altmodul",
+      "semester": "WiSe 2026/27",
+      "color": "#444444",
+      "icon": null,
+      "priority": 2,
+      "exam_date": null,
+      "sort": 3,
+      "created_at": "2026-10-01T09:00:00",
+      "active": 0,
+      "weekly_test": 1,
+      "test_minutes": null
+     },
+     {
+      "id": 5,
+      "name": "Testchemie",
+      "semester": "WiSe 2026/27",
+      "color": "#d94f6b",
+      "icon": null,
+      "priority": 2,
+      "exam_date": null,
+      "sort": 4,
+      "created_at": "2026-10-28T09:00:00",
+      "active": 1,
+      "weekly_test": 1,
+      "test_minutes": null
+     }
+    ],
+    "files": [
+     {
+      "id": "f-alt-v1",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ch-v1",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-inaktiv",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ma-alt",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ma-l1",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ma-s",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ma-u1",
+      "status": "erledigt",
+      "seen_by_user": 1
+     },
+     {
+      "id": "f-ma-u2",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ma-v1",
+      "status": "gelesen",
+      "seen_by_user": 1
+     },
+     {
+      "id": "f-ma-v2",
+      "status": "erledigt",
+      "seen_by_user": 1
+     },
+     {
+      "id": "f-ma-vk",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-pg-u1",
+      "status": "erledigt",
+      "seen_by_user": 1
+     },
+     {
+      "id": "f-pg-u2",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ph-u2",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ph-v1",
+      "status": "neu",
+      "seen_by_user": 0
+     },
+     {
+      "id": "f-ph-v2",
+      "status": "erledigt",
+      "seen_by_user": 1
+     }
+    ]
+   }
+  }
+ ],
  "derive_status": [
   {
    "statuses": [],

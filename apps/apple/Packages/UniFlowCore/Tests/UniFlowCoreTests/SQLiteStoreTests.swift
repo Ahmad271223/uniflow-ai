@@ -88,10 +88,17 @@ final class SQLiteStoreTests: XCTestCase {
 
     // MARK: - Schema und Migrationen
 
+    /// Schema der Fixtures mit der user_version, die die Geraete-Schritte setzen (Python kennt sie nicht: 0)
+    private func onDevice(_ schema: JSONValue?) -> JSONValue {
+        var s = schema?.object ?? [:]
+        s["user_version"] = .number(Double(Migrations.deviceSteps.map(\.version).max() ?? 0))
+        return .object(s)
+    }
+
     func testFreshDatabaseMatchesPythonInitDB() throws {
         let fx = try fixture("schema.json")
         let c = try SQLiteConnection(path: SQLiteDatabase.inMemory)
-        try Migrations.migrate(c, clock: clock)
+        try Migrations.migrate(c, clock: clock, deviceSteps: [])          // genau wie init_db
 
         assertSchema(try snapshot(c), fx["schema"])
         let settings: [JSONValue] = try c.query("SELECT key, value FROM settings ORDER BY rowid").map { [json($0[0]), json($0[1])] }
@@ -103,6 +110,26 @@ final class SQLiteStoreTests: XCTestCase {
         for i in courses.indices { courses[i]["created_at"] = nil }
         XCTAssertEqual(courses.map { JSONValue.object($0) }, fx["courses"]?.array)
         XCTAssertEqual(try tableRows(c, "terms"), fx["terms"]?.array)
+
+        // auf dem Geraet (mit den Geraete-Schritten): dieselben Tabellen und Einstellungen, nur user_version gesetzt
+        let device = try SQLiteConnection(path: SQLiteDatabase.inMemory)
+        try Migrations.migrate(device, clock: clock)
+        assertSchema(try snapshot(device), onDevice(fx["schema"]))
+        XCTAssertEqual(try device.query("SELECT key, value FROM settings ORDER BY rowid").map { [json($0[0]), json($0[1])] }, fx["settings"]?.array)
+    }
+
+    /// Geraete-Schritt 1: eine Datenbank aus einem Build vor S6 (tests_per_subject '1', Standard damals) plant auf
+    /// dem iPad ohne Wochentests; der Schritt laeuft nur einmal, eine spaetere Wahl bleibt
+    func testDeviceStepResetsWeeklyTestsOnce() throws {
+        let c = try SQLiteConnection(path: SQLiteDatabase.inMemory)
+        try Migrations.migrate(c, clock: clock, deviceSteps: [])          // Stand vor S6: ohne Geraete-Schritt
+        try c.execute("UPDATE settings SET value='1' WHERE key='tests_per_subject'")
+        try Migrations.migrate(c, clock: clock)
+        XCTAssertEqual(try c.scalar("SELECT value FROM settings WHERE key='tests_per_subject'")?.string, "0")
+        XCTAssertEqual(try c.scalar("PRAGMA user_version")?.int, 1)
+        try c.execute("UPDATE settings SET value='2' WHERE key='tests_per_subject'")
+        try Migrations.migrate(c, clock: clock)
+        XCTAssertEqual(try c.scalar("SELECT value FROM settings WHERE key='tests_per_subject'")?.string, "2", "nur einmal")
     }
 
     func testMigrationsAreIdempotent() throws {
@@ -138,9 +165,8 @@ final class SQLiteStoreTests: XCTestCase {
         try await db.migrate(clock: clock)
 
         let c = try SQLiteConnection(path: path)
-        let expected = fx["schema"]
-        assertSchema(try snapshot(c), expected)
-        assertSchema(try snapshot(c), try fixture("schema.json")["schema"])      // alt migriert == neu angelegt
+        assertSchema(try snapshot(c), onDevice(fx["schema"]))
+        assertSchema(try snapshot(c), onDevice(try fixture("schema.json")["schema"]))      // alt migriert == neu angelegt
         for (table, rows) in fx["rows"]?.object ?? [:] {
             XCTAssertEqual(try tableRows(c, table), rows.array, table)
         }
@@ -194,7 +220,7 @@ final class SQLiteStoreTests: XCTestCase {
         XCTAssertEqual(try c.scalar("PRAGMA user_version")?.int, 3)
         // ohne Geraete-Schritte bleibt user_version 0 (wie eine Datenbank vom PC)
         let fresh = try SQLiteConnection(path: SQLiteDatabase.inMemory)
-        try Migrations.migrate(fresh, clock: clock)
+        try Migrations.migrate(fresh, clock: clock, deviceSteps: [])
         XCTAssertEqual(try fresh.scalar("PRAGMA user_version")?.int, 0)
     }
 
