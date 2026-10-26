@@ -1,0 +1,761 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-account-fixture.py aus der Python-Referenz (app/accounts.py, app/account_api.py); nicht von Hand aendern.",
+ "rules": {
+  "password_min": 10,
+  "password_max": 200,
+  "session_days": 30,
+  "reset_minutes": 30,
+  "max_fails": 8,
+  "lock_minutes": 10,
+  "email_regex": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]{2,}$",
+  "universities": [
+   "luh",
+   "hildesheim"
+  ],
+  "auth": "Authorization: Bearer <token> (Apps) oder Cookie uniflow_session (Browser)",
+  "error_shape": {
+   "detail": "<Meldung fuer den Nutzer>",
+   "code": "<stabiler Code>"
+  },
+  "identity": "Apple/Google sind Anmeldewege zum UniFlow-Konto; Verknuepfung ueber die Anbieter-Kennung (subject), nie ueber die E-Mail"
+ },
+ "email-cases": [
+  {
+   "input": "A.B@Example.DE ",
+   "normalized": "a.b@example.de",
+   "valid": true
+  },
+  {
+   "input": "kein-at",
+   "normalized": "kein-at",
+   "valid": false,
+   "code": "email_invalid"
+  },
+  {
+   "input": "a@b",
+   "normalized": "a@b",
+   "valid": false,
+   "code": "email_invalid"
+  },
+  {
+   "input": "",
+   "normalized": "",
+   "valid": false,
+   "code": "email_invalid"
+  },
+  {
+   "input": "x@y.de",
+   "normalized": "x@y.de",
+   "valid": true
+  },
+  {
+   "input": "ä@umlaut.de",
+   "normalized": "ä@umlaut.de",
+   "valid": true
+  }
+ ],
+ "password-cases": [
+  {
+   "password": "kurz",
+   "email": "",
+   "code": "password_short"
+  },
+  {
+   "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "email": "",
+   "code": "password_long"
+  },
+  {
+   "password": "max@beispiel.de",
+   "email": "max@beispiel.de",
+   "code": "password_is_email"
+  },
+  {
+   "password": "zehnzeichen",
+   "email": "",
+   "code": null
+  },
+  {
+   "password": "  mit leerzeichen ",
+   "email": "",
+   "code": null
+  }
+ ],
+ "endpoints": [
+  {
+   "method": "POST",
+   "path": "/api/account/delete",
+   "public": false,
+   "summary": "Konto loeschen: sofort gesperrt und abgemeldet, Daten nach 30 Tagen endgueltig weg."
+  },
+  {
+   "method": "GET",
+   "path": "/api/account/info",
+   "public": true,
+   "summary": "Oeffentlich: Betriebsart und Regeln, damit Clients das Formular passend bauen."
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/link/{provider}",
+   "public": false,
+   "summary": ""
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/login",
+   "public": true,
+   "summary": ""
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/login/{provider}",
+   "public": false,
+   "summary": "Anmelden mit Apple/Google: `identity_token` vom Anbieter; neues Konto braucht `university`."
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/logout",
+   "public": false,
+   "summary": ""
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/logout-all",
+   "public": false,
+   "summary": "Alle anderen Sitzungen beenden (diese bleibt)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/account/me",
+   "public": false,
+   "summary": ""
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/password",
+   "public": false,
+   "summary": ""
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/password/reset",
+   "public": true,
+   "summary": ""
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/password/reset-request",
+   "public": true,
+   "summary": "Antwort immer gleich: verraet nicht, ob es das Konto gibt. Das Token geht nur ueber den Versandweg."
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/register",
+   "public": true,
+   "summary": ""
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/university",
+   "public": false,
+   "summary": "Hochschule wechseln: die Daten jeder Hochschule bleiben in ihrem eigenen Ordner erhalten."
+  }
+ ],
+ "errors": {
+  "credentials_invalid": {
+   "status": 401,
+   "message": "E-Mail-Adresse oder Passwort stimmt nicht."
+  },
+  "email_taken": {
+   "status": 409,
+   "message": "Für diese E-Mail-Adresse gibt es schon ein Konto."
+  },
+  "identity_invalid": {
+   "status": 401,
+   "message": "Die Anmeldung bei Apple konnte nicht geprüft werden."
+  },
+  "locked": {
+   "status": 429,
+   "message": "Zu viele Fehlversuche. Bitte 10 Minuten warten."
+  },
+  "not_available_hosted": {
+   "status": 501,
+   "message": "Der Hochschul-Abgleich im Dienst kommt mit dem naechsten Schritt (Zugangsdaten je Konto)."
+  },
+  "not_hosted": {
+   "status": 501,
+   "message": "Konten gibt es nur im gehosteten Dienst (LERNAPP_MODE=hosted)."
+  },
+  "password_short": {
+   "status": 400,
+   "message": "Das Passwort braucht mindestens 10 Zeichen."
+  },
+  "provider_not_configured": {
+   "status": 501,
+   "message": "Anmeldung mit Google ist noch nicht eingerichtet (Prüfung der Signatur fehlt)."
+  },
+  "reset_invalid": {
+   "status": 400,
+   "message": "Der Link ist ungültig oder abgelaufen."
+  },
+  "unauthenticated": {
+   "status": 401,
+   "message": "Anmeldung erforderlich."
+  },
+  "university_unknown": {
+   "status": 400,
+   "message": "Unbekannte Hochschule."
+  },
+  "use_account": {
+   "status": 400,
+   "message": "Die Hochschule gehoert zum Konto: POST /api/account/university"
+  }
+ },
+ "flows": [
+  {
+   "step": "Konto anlegen",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "Erika@Beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "hildesheim",
+    "device_id": "ipad-1",
+    "device_name": "iPad"
+   },
+   "status": 201,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "erika@beispiel.de",
+     "email_verified": false,
+     "university": "hildesheim",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   },
+   "set_cookie": "uniflow_session=<token>; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax"
+  },
+  {
+   "step": "Konto anlegen: Adresse schon vergeben",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "erika@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "luh"
+   },
+   "status": 409,
+   "response": {
+    "detail": "Für diese E-Mail-Adresse gibt es schon ein Konto.",
+    "code": "email_taken"
+   }
+  },
+  {
+   "step": "Konto anlegen: Passwort zu kurz",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "neu@beispiel.de",
+    "password": "kurz",
+    "university": "luh"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Das Passwort braucht mindestens 10 Zeichen.",
+    "code": "password_short"
+   }
+  },
+  {
+   "step": "Konto anlegen: Hochschule unbekannt",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "neu@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "tum"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Unbekannte Hochschule.",
+    "code": "university_unknown"
+   }
+  },
+  {
+   "step": "Oeffentliche Info",
+   "method": "GET",
+   "path": "/api/account/info",
+   "auth": false,
+   "request": null,
+   "status": 200,
+   "response": {
+    "mode": "hosted",
+    "hosted": true,
+    "password_min": 10,
+    "session_days": 30,
+    "universities": [
+     "luh",
+     "hildesheim"
+    ],
+    "providers": [
+     "apple"
+    ]
+   }
+  },
+  {
+   "step": "Wer bin ich",
+   "method": "GET",
+   "path": "/api/account/me",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "erika@beispiel.de",
+     "email_verified": false,
+     "university": "hildesheim",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "sessions": [
+     {
+      "id": 1,
+      "device_id": "ipad-1",
+      "device_name": "iPad",
+      "created_at": "<zeit-utc>",
+      "last_seen_at": "<zeit-utc>",
+      "expires_at": "<zeit-utc>",
+      "current": true
+     }
+    ]
+   }
+  },
+  {
+   "step": "Ohne Sitzung",
+   "method": "GET",
+   "path": "/api/account/me",
+   "auth": false,
+   "request": null,
+   "status": 401,
+   "response": {
+    "detail": "Anmeldung erforderlich.",
+    "code": "unauthenticated"
+   }
+  },
+  {
+   "step": "Daten-Endpunkt ohne Sitzung",
+   "method": "GET",
+   "path": "/api/modules",
+   "auth": false,
+   "request": null,
+   "status": 401,
+   "response": {
+    "detail": "Anmeldung erforderlich.",
+    "code": "unauthenticated"
+   }
+  },
+  {
+   "step": "Daten-Endpunkt mit Sitzung (leere Datenbank des Kontos)",
+   "method": "GET",
+   "path": "/api/modules",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": []
+  },
+  {
+   "step": "Im Dienst nicht verfuegbar",
+   "method": "POST",
+   "path": "/api/sync",
+   "auth": true,
+   "request": null,
+   "status": 501,
+   "response": {
+    "detail": "Der Hochschul-Abgleich im Dienst kommt mit dem naechsten Schritt (Zugangsdaten je Konto).",
+    "code": "not_available_hosted"
+   }
+  },
+  {
+   "step": "Anmelden auf zweitem Geraet",
+   "method": "POST",
+   "path": "/api/account/login",
+   "auth": false,
+   "request": {
+    "email": "erika@beispiel.de",
+    "password": "sehr-geheim-123",
+    "device_id": "mac-1",
+    "device_name": "MacBook"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "erika@beispiel.de",
+     "email_verified": false,
+     "university": "hildesheim",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   },
+   "set_cookie": "uniflow_session=<token>; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax"
+  },
+  {
+   "step": "Anmelden: falsches Passwort",
+   "method": "POST",
+   "path": "/api/account/login",
+   "auth": false,
+   "request": {
+    "email": "erika@beispiel.de",
+    "password": "falsch"
+   },
+   "status": 401,
+   "response": {
+    "detail": "E-Mail-Adresse oder Passwort stimmt nicht.",
+    "code": "credentials_invalid"
+   }
+  },
+  {
+   "step": "Sitzungen des Kontos",
+   "method": "GET",
+   "path": "/api/account/me",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "erika@beispiel.de",
+     "email_verified": false,
+     "university": "hildesheim",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "sessions": [
+     {
+      "id": 1,
+      "device_id": "ipad-1",
+      "device_name": "iPad",
+      "created_at": "<zeit-utc>",
+      "last_seen_at": "<zeit-utc>",
+      "expires_at": "<zeit-utc>",
+      "current": false
+     },
+     {
+      "id": 2,
+      "device_id": "mac-1",
+      "device_name": "MacBook",
+      "created_at": "<zeit-utc>",
+      "last_seen_at": "<zeit-utc>",
+      "expires_at": "<zeit-utc>",
+      "current": true
+     }
+    ]
+   }
+  },
+  {
+   "step": "Andere Sitzungen beenden",
+   "method": "POST",
+   "path": "/api/account/logout-all",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "revoked": 1
+   }
+  },
+  {
+   "step": "Beendete Sitzung",
+   "method": "GET",
+   "path": "/api/account/me",
+   "auth": true,
+   "request": null,
+   "status": 401,
+   "response": {
+    "detail": "Anmeldung erforderlich.",
+    "code": "unauthenticated"
+   }
+  },
+  {
+   "step": "Passwort aendern",
+   "method": "POST",
+   "path": "/api/account/password",
+   "auth": true,
+   "request": {
+    "old_password": "sehr-geheim-123",
+    "new_password": "noch-geheimer-456"
+   },
+   "status": 200,
+   "response": {
+    "ok": true
+   }
+  },
+  {
+   "step": "Passwort aendern: altes falsch",
+   "method": "POST",
+   "path": "/api/account/password",
+   "auth": true,
+   "request": {
+    "old_password": "falsch",
+    "new_password": "noch-geheimer-456"
+   },
+   "status": 401,
+   "response": {
+    "detail": "Das bisherige Passwort stimmt nicht.",
+    "code": "credentials_invalid"
+   }
+  },
+  {
+   "step": "Reset anfordern (Antwort immer gleich)",
+   "method": "POST",
+   "path": "/api/account/password/reset-request",
+   "auth": false,
+   "request": {
+    "email": "erika@beispiel.de"
+   },
+   "status": 200,
+   "response": {
+    "ok": true,
+    "message": "Wenn es ein Konto mit dieser Adresse gibt, wurde ein Link zum Zurücksetzen verschickt."
+   }
+  },
+  {
+   "step": "Reset anfordern: unbekannte Adresse",
+   "method": "POST",
+   "path": "/api/account/password/reset-request",
+   "auth": false,
+   "request": {
+    "email": "niemand@beispiel.de"
+   },
+   "status": 200,
+   "response": {
+    "ok": true,
+    "message": "Wenn es ein Konto mit dieser Adresse gibt, wurde ein Link zum Zurücksetzen verschickt."
+   }
+  },
+  {
+   "step": "Reset mit ungueltigem Token",
+   "method": "POST",
+   "path": "/api/account/password/reset",
+   "auth": false,
+   "request": {
+    "token": "abgelaufen",
+    "new_password": "noch-geheimer-456"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Der Link ist ungültig oder abgelaufen.",
+    "code": "reset_invalid"
+   }
+  },
+  {
+   "step": "Hochschule wechseln",
+   "method": "POST",
+   "path": "/api/account/university",
+   "auth": true,
+   "request": {
+    "university": "luh"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "erika@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    }
+   }
+  },
+  {
+   "step": "Hochschule ueber Einstellungen (nicht erlaubt)",
+   "method": "PUT",
+   "path": "/api/settings",
+   "auth": true,
+   "request": {
+    "university": "hildesheim"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Die Hochschule gehoert zum Konto: POST /api/account/university",
+    "code": "use_account"
+   }
+  },
+  {
+   "step": "Apple verknuepfen",
+   "method": "POST",
+   "path": "/api/account/link/apple",
+   "auth": true,
+   "request": {
+    "identity_token": "<apple-identity-token>"
+   },
+   "status": 200,
+   "response": {
+    "provider": "apple",
+    "linked": true
+   }
+  },
+  {
+   "step": "Apple verknuepfen: Token ungueltig",
+   "method": "POST",
+   "path": "/api/account/link/apple",
+   "auth": true,
+   "request": {
+    "identity_token": "kaputt"
+   },
+   "status": 401,
+   "response": {
+    "detail": "Die Anmeldung bei Apple konnte nicht geprüft werden.",
+    "code": "identity_invalid"
+   }
+  },
+  {
+   "step": "Google verknuepfen: Anbieter nicht eingerichtet",
+   "method": "POST",
+   "path": "/api/account/link/google",
+   "auth": true,
+   "request": {
+    "identity_token": "x"
+   },
+   "status": 501,
+   "response": {
+    "detail": "Anmeldung mit Google ist noch nicht eingerichtet (Prüfung der Signatur fehlt).",
+    "code": "provider_not_configured"
+   }
+  },
+  {
+   "step": "Anmelden mit Apple (bekannte Kennung)",
+   "method": "POST",
+   "path": "/api/account/login/apple",
+   "auth": false,
+   "request": {
+    "identity_token": "<apple-identity-token>",
+    "device_id": "ipad-1"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "erika@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>",
+    "created": false
+   },
+   "set_cookie": "uniflow_session=<token>; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax"
+  },
+  {
+   "step": "Abmelden",
+   "method": "POST",
+   "path": "/api/account/logout",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "ok": true
+   },
+   "set_cookie": "uniflow_session=<token>; expires=<datum>; Max-Age=0; Path=/; SameSite=lax"
+  },
+  {
+   "step": "Anmelden mit neuem Passwort",
+   "method": "POST",
+   "path": "/api/account/login",
+   "auth": false,
+   "request": {
+    "email": "erika@beispiel.de",
+    "password": "noch-geheimer-456"
+   },
+   "status": 200,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "erika@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   },
+   "set_cookie": "uniflow_session=<token>; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax"
+  },
+  {
+   "step": "Konto loeschen: Passwort fehlt",
+   "method": "POST",
+   "path": "/api/account/delete",
+   "auth": true,
+   "request": {},
+   "status": 401,
+   "response": {
+    "detail": "Zum Löschen bitte das Passwort angeben.",
+    "code": "credentials_invalid"
+   }
+  },
+  {
+   "step": "Konto loeschen",
+   "method": "POST",
+   "path": "/api/account/delete",
+   "auth": true,
+   "request": {
+    "password": "noch-geheimer-456"
+   },
+   "status": 200,
+   "response": {
+    "deleted": true,
+    "purge_after_days": 30
+   },
+   "set_cookie": "uniflow_session=<token>; expires=<datum>; Max-Age=0; Path=/; SameSite=lax"
+  },
+  {
+   "step": "Nach dem Loeschen",
+   "method": "GET",
+   "path": "/api/account/me",
+   "auth": true,
+   "request": null,
+   "status": 401,
+   "response": {
+    "detail": "Anmeldung erforderlich.",
+    "code": "unauthenticated"
+   }
+  },
+  {
+   "step": "Nach 8 Fehlversuchen gesperrt",
+   "method": "POST",
+   "path": "/api/account/login",
+   "auth": false,
+   "request": {
+    "email": "sperre@beispiel.de",
+    "password": "egal"
+   },
+   "status": 429,
+   "response": {
+    "detail": "Zu viele Fehlversuche. Bitte 10 Minuten warten.",
+    "code": "locked"
+   }
+  }
+ ]
+}

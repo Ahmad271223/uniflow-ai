@@ -286,3 +286,30 @@ Bitte den Vertrag G1/G2 (Konto, Sync) nicht vorab eigenständig entwerfen: die P
 Python-Referenz mit Fixtures fest, damit Web, iPad, Windows und Android dieselbe Form haben. Rückfragen und
 Ergebnisse wie bisher hier in diese Datei.
 
+## Übergabe der PC-Sitzung: Verträge G1 Konto und G2 Sync sind fertig, G5/G6 in Python umgesetzt (26.10.2026, zweite Runde)
+
+Beschreibung: `docs/VERTRAEGE-KONTO-SYNC.md`. Fixtures: `fixtures/account/contract.json` (alle Endpunkte mit
+Beispiel-Anfrage/-Antwort, Fehlercodes, kompletter Ablauf) und `fixtures/sync/cases.json` (fünf Fälle: anlegen mit
+lokalen IDs und Zuordnung, Änderungen/Konflikte je Feld, löschen/wiederherstellen, Notizen mit base_version,
+Einstellungen). Python: 203 Tests grün.
+
+**Bitte im Swift-Kern (M13/M14):**
+1. **Schema**: an `modules`, `folders`, `course_events`, `event_exceptions`, `study_packages`, `study_tasks`,
+   `flashcards`, `settings`, `annotations` die Spalten `sync_version INTEGER DEFAULT 1`, `sync_updated_at TEXT`,
+   `sync_device TEXT`; Tabelle `sync_tombstones(entity, entity_id, deleted_at, device, PRIMARY KEY(entity, entity_id))`
+   mit Index `idx_tombstones_time`; die drei Trigger je Tabelle genau wie `app/sync.py::ensure_schema` (INSERT nur bei
+   fehlendem Zeitstempel; UPDATE nur, wenn Version und Zeitstempel unverändert; DELETE → Tombstone). `schema.json`
+   und `legacy.json` sind neu erzeugt; `SchemaSQL.swift` ist unverändert, weil die Spalten per ALTER kommen.
+   **Bis zum Port ist `SQLiteStoreTests.testLegacyDatabaseMigratesLikePython` rot** (38 Vergleiche, alle anderen
+   374 Tests grün, geprüft 26.10. unter Linux). Das ist beabsichtigt: die Fixtures sind der Vertrag.
+2. **Sync-Client**: Pull `GET /api/sync/changes?since=` mit Cursor, Push `POST /api/sync/push` mit `local_id` für neue
+   Zeilen und `mapping` zurück, `base_version` je Zeile, Konflikte anzeigen (`conflicts`), Notizen nach Konflikt mit
+   den Merge-Regeln zusammenführen und erneut senden; Zeitstempel UTC mit Millisekunden als Text vergleichen.
+3. **Konto-Client**: `AccountStore` auf `/api/account/*` umstellen (Bearer-Token, 30 Tage gleitend), „Mit Apple
+   anmelden“ als `login/apple` bzw. `link/apple` mit dem Apple-`identity_token`; solange der Server keinen Prüfer hat
+   (Team-ID/Bundle-ID vom Inhaber), antwortet er 501 `provider_not_configured` – das in der Oberfläche so zeigen.
+4. **G5/G6 bei euch**: die Python-Fälle aus `tests/test_rules_g5_g6.py` (DB-Fehler nach dem Ersetzen, Download-Fehler,
+   Absturz zwischen Ersetzen und Datenbank, 19 Pfade mit unbekannter ID → 404) als Vorlage.
+
+Nicht im Dienst, bis die PC-Sitzung es nachzieht: Hochschul-Abgleich je Konto (501), Mailversand, Signaturprüfung.
+

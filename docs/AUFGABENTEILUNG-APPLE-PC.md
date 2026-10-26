@@ -97,6 +97,11 @@ Reihenfolge nach Wirkung. P0 = vor jeder Abgabe an Tester, P1 = vor dem Store.
 
 ## 4. Aufgaben der PC-Sitzung (Web, Dienst, Windows, Android)
 
+Stand 26.10.2026 (zweite Runde): **P1, P2, P3 umgesetzt** (Konten, gehosteter Modus mit Trennung je Konto, Verträge
+G1/G2 mit Fixtures, Download-Reihenfolge und Platzhalter-Regel in Python), Details in `docs/VERTRAEGE-KONTO-SYNC.md`.
+Offen aus P1: Hochschul-Zugangsdaten je Konto und der Abgleich als Dienst-Job, Mailversand, Signaturprüfung Apple/Google,
+Anmeldeseite der Web-Oberfläche.
+
 | # | Prio | Aufgabe | Bericht |
 | --- | --- | --- | --- |
 | P1 | P0 | **Gehosteter Modus mit Konten** (`LERNAPP_MODE=hosted`): Registrierung, Anmeldung, Sitzungen (gehashte Tokens, Ablauf, Abmelden überall), Passwort-Reset; `user_id` an jeder Tabelle und jeder Abfrage; Tests „A sieht nichts von B“ für jeden Endpunkt; PIN nur im lokalen Modus; HTTPS-Betrieb dokumentiert. Grundlage `docs/KONTEN-ABOS-PLAN.md`, `docs/SICHERHEITSKONZEPT-KONTEN.md` | 6, 7, 10–14 |
@@ -116,12 +121,12 @@ Reihenfolge nach Wirkung. P0 = vor jeder Abgabe an Tester, P1 = vor dem Store.
 
 | # | Vertrag | Inhalt |
 | --- | --- | --- |
-| G1 | **Konto** | `POST /api/account/register`, `/login`, `/logout`, `/link/apple`, `/link/google`, `/delete`; Antworten mit UniFlow-Nutzer-ID, Sitzungstoken, Hochschule, Tarif; Fixtures `fixtures/account/` |
-| G2 | **Sync** | je Datensatz `user_id`, `updated_at`, `version`, `device_id`; Notizen behalten `base_version`/409 und die vorhandenen Zusammenführungsregeln (`fixtures/merge/cases.json`, Swift und Kotlin schon dagegen geprüft); Pläne/Pakete/Aufgaben/Module/Karteikarten/Einstellungen „letzter Schreiber gewinnt je Feld“ mit Konfliktliste für den Nutzer; Löschungen als Markierung; Fixtures `fixtures/sync/` |
+| G1 | **Konto** | **umgesetzt**: `/api/account/*` (register, login, login/{apple,google}, link/{apple,google}, me, logout, logout-all, password, password/reset-request, password/reset, university, delete, info); Fixture `fixtures/account/contract.json`; Doku `docs/VERTRAEGE-KONTO-SYNC.md` |
+| G2 | **Sync** | **umgesetzt**: Spalten `sync_version`, `sync_updated_at`, `sync_device` + Trigger + `sync_tombstones` (`app/sync.py::ensure_schema`), `GET /api/sync/changes`, `POST /api/sync/push` (Server-IDs mit `mapping`, je Feld letzter Schreiber, Löschen/Wiederherstellen, Notizen mit `base_version`/Konflikt); Fixture `fixtures/sync/cases.json`; Doku `docs/VERTRAEGE-KONTO-SYNC.md` |
 | G3 | **Skriptsuche** | Tokenisierung, BM25-Parameter, Snippet-Regel, Antwortform von `/api/search` und `/api/related` inkl. `unreadable: true`; Fixtures mit Beispiel-PDFs |
 | G4 | **Community** | Paketformat ist fertig (S9, `docs/LOESUNGEN-TEILEN.md`); dazu Dienst-API: veröffentlichen, suchen nach Datei-Fingerabdruck, laden, zurückziehen, melden |
-| G5 | **Download-Reihenfolge** | alte Datei behalten → neue schreiben (`.part`) → Hash → Transaktion → erst dann alte Datei entfernen; gleiche Fehlerfälle in beiden Testsuiten |
-| G6 | **Platzhalter-Regel** | eine nicht umgesetzte Funktion antwortet 501 mit Meldung; niemals 200/`ok`, niemals eine leere Liste ohne `pending: true` |
+| G5 | **Download-Reihenfolge** | alte Datei behalten → neue schreiben (`.part`) → Hash → Transaktion → erst dann alte Datei entfernen; **Python umgesetzt** (`studip_sync.keep_previous/restore_previous/reconcile_backup`, Tests `tests/test_rules_g5_g6.py`: DB-Fehler nach dem Ersetzen, Download-Fehler, Absturz dazwischen) – gleiche Fälle im Swift-Kern |
+| G6 | **Platzhalter-Regel** | eine nicht umgesetzte Funktion antwortet 501 mit Meldung; niemals 200/`ok`, niemals eine leere Liste ohne `pending: true`; **Python umgesetzt**: Änderung/Löschung nach unbekannter ID → 404 (19 Pfade getestet), nicht verfügbare Pfade im Dienst → 501 `not_available_hosted` |
 
 ## 6. Was nur der Inhaber entscheiden oder kaufen kann
 

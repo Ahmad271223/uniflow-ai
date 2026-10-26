@@ -38,7 +38,10 @@
           {"name": "file_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
           {"name": "data", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
           {"name": "updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0}
+          {"name": "version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "files", "from": "file_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
@@ -85,7 +88,10 @@
           {"name": "attend", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "source", "type": "TEXT", "notnull": 0, "default": "'manual'", "pk": 0},
           {"name": "color", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": []
@@ -149,7 +155,10 @@
           {"name": "new_start", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "new_end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "course_events", "from": "event_id", "to": "id", "on_update": "NO ACTION", "on_delete": "CASCADE"}
@@ -212,7 +221,10 @@
           {"name": "answer", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "box", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
-          {"name": "due", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "due", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": []
@@ -224,7 +236,10 @@
           {"name": "parent_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "color", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": []
@@ -262,7 +277,10 @@
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "weekly_test", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
-          {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": []
@@ -364,7 +382,10 @@
       "settings": {
         "columns": [
           {"name": "key", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
-          {"name": "value", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "value", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -415,7 +436,10 @@
           {"name": "generated", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "modules", "from": "module_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
@@ -438,7 +462,10 @@
           {"name": "moved_from", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "study_packages", "from": "package_id", "to": "id", "on_update": "NO ACTION", "on_delete": "CASCADE"}
@@ -456,6 +483,19 @@
         ],
         "foreign_keys": [],
         "indexes": []
+      },
+      "sync_tombstones": {
+        "columns": [
+          {"name": "entity", "type": "TEXT", "notnull": 1, "default": null, "pk": 1},
+          {"name": "entity_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 2},
+          {"name": "deleted_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "idx_tombstones_time", "unique": 0, "origin": "c", "partial": 0, "columns": ["deleted_at"]},
+          {"name": "sqlite_autoindex_sync_tombstones_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["entity", "entity_id"]}
+        ]
       },
       "task_history": {
         "columns": [
@@ -510,7 +550,7 @@
         ]
       }
     },
-    "index_sql": {"idx_announcements_course": "CREATE INDEX idx_announcements_course ON announcements(course_id)", "idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
+    "index_sql": {"idx_announcements_course": "CREATE INDEX idx_announcements_course ON announcements(course_id)", "idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "idx_tombstones_time": "CREATE INDEX idx_tombstones_time ON sync_tombstones(deleted_at)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
     "user_version": 0
   },
   "settings": [

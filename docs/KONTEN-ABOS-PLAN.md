@@ -1,5 +1,10 @@
 # Benutzerkonten und Abonnements: Ausgangslage und Migrationsplan
 
+> **Stand 26.10.2026:** Konten und gehosteter Modus sind umgesetzt (`app/accounts.py`, `app/account_api.py`,
+> `LERNAPP_MODE=hosted`), Trennung je Konto über eigene Datenbank und eigenen Ordner statt `user_id`-Spalten;
+> Sitzungen 30 Tage gleitend, Reset-Token 30 min, Löschen mit 30 Tagen Frist. Beschreibung und offene Punkte:
+> `docs/VERTRAEGE-KONTO-SYNC.md`. Abos, Kontingente und E-Mail-Versand sind noch Plan.
+
 Stand 25.10.2026. **Noch nicht umgesetzt**: Konten, Anmeldung und Tarifprüfung am Server. Vorbereitet sind die
 Kontingent-Logik (getestet, nicht eingebunden) und der StoreKit-2-Code mit Testkonfiguration (keine echten
 Produkte). Der Grund steht in Abschnitt 2: Die Umstellung ist eine Architekturentscheidung mit laufenden Kosten.

@@ -335,6 +335,26 @@ def sync_now(ai: bool = True):
     return _run_bg("Sync", _full_sync if ai else lambda: run_sync()["message"])
 
 
+@app.get("/api/sync/changes")
+def api_sync_changes(since: str | None = None, device_id: str | None = None):
+    """Vertrag G2: alle Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones."""
+    from . import sync
+    with db.cursor() as conn:
+        return sync.changes(conn, since)
+
+
+@app.post("/api/sync/push")
+def api_sync_push(body: dict = Body(...)):
+    """Vertrag G2: Aenderungen eines Geraets uebernehmen; Antwort mit Ergebnis je Eintrag, ID-Zuordnung, Konflikten."""
+    from . import sync
+    items, deletes = body.get("items") or [], body.get("deletes") or []
+    if not isinstance(items, list) or not isinstance(deletes, list):
+        raise HTTPException(400, "items und deletes muessen Listen sein")
+    with db.cursor() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        return sync.push(conn, body.get("device_id"), items, deletes)
+
+
 @app.get("/api/sync/status")
 def sync_status():
     with db.cursor() as conn:

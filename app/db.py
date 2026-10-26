@@ -466,6 +466,8 @@ def _init_db(conn) -> None:
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                     VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))
     ensure_term(conn, uni)
+    from . import sync
+    sync.ensure_schema(conn)        # Versionsspalten, Trigger und Tombstones fuer die Geraete-Synchronisierung (G2)
 
 
 def ensure_term(conn, university: str) -> None:

@@ -1,0 +1,1750 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-sync-fixture.py aus der Python-Referenz (app/sync.py); nicht von Hand aendern. Zeitstempel des Servers sind '<zeit>'; Entscheidungen haengen nur von den Client-Zeitstempeln ab.",
+ "rules": {
+  "entities": [
+   "modules",
+   "folders",
+   "course_events",
+   "event_exceptions",
+   "study_packages",
+   "study_tasks",
+   "flashcards",
+   "settings",
+   "annotations"
+  ],
+  "order": "Eltern vor Kindern (Reihenfolge der entities)",
+  "columns": [
+   "sync_version",
+   "sync_updated_at",
+   "sync_device"
+  ],
+  "private_settings": [
+   "lan_pin",
+   "university"
+  ],
+  "timestamp": "UTC, YYYY-MM-DDTHH:MM:SS.mmmZ, Vergleich als Text",
+  "new_rows": "id weglassen, local_id negativ; Antwort mapping; Fremdschluessel mit negativen IDs werden im selben Push aufgeloest",
+  "update": "base_version == Serverversion -> applied; sonst conflict: je Feld gewinnt der spaetere Schreiber (updated_at vs sync_updated_at)",
+  "delete": "deleted_at >= sync_updated_at des Servers -> deleted (Tombstone); sonst edit_wins; spaetere Aenderung nach Tombstone -> resurrected",
+  "annotations": "wie PUT /api/files/{id}/annotations: base_version muss der Serverversion entsprechen, sonst conflict mit data/version",
+  "endpoints": {
+   "pull": "GET /api/sync/changes?since=<cursor>&device_id=",
+   "push": "POST /api/sync/push {device_id, items, deletes}"
+  }
+ },
+ "cases": [
+  {
+   "name": "neu-anlegen-und-abrufen",
+   "steps": [
+    {
+     "op": "push",
+     "label": "Erstes Geraet legt Modul, Paket und Aufgabe an (lokale IDs negativ, Eltern vor Kindern)",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "modules",
+       "local_id": -1,
+       "data": {
+        "name": "Mathe I",
+        "color": "#4f5bd5",
+        "priority": 2
+       }
+      },
+      {
+       "entity": "study_packages",
+       "local_id": -2,
+       "data": {
+        "date": "2026-11-02",
+        "module_id": -1,
+        "subject": "Mathe I",
+        "title": "Woche 3",
+        "planned_minutes": 60
+       }
+      },
+      {
+       "entity": "study_tasks",
+       "local_id": -3,
+       "data": {
+        "package_id": -2,
+        "type": "uebung",
+        "title": "Blatt 3",
+        "est_minutes": 30
+       }
+      },
+      {
+       "entity": "study_tasks",
+       "local_id": -4,
+       "data": {
+        "package_id": -99,
+        "type": "uebung",
+        "title": "kaputt"
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "modules",
+        "local_id": -1,
+        "id": 1,
+        "status": "created",
+        "version": 1
+       },
+       {
+        "entity": "study_packages",
+        "local_id": -2,
+        "id": 1,
+        "status": "created",
+        "version": 1
+       },
+       {
+        "entity": "study_tasks",
+        "local_id": -3,
+        "id": 1,
+        "status": "created",
+        "version": 1
+       },
+       {
+        "entity": "study_tasks",
+        "local_id": -4,
+        "status": "error",
+        "message": "study_tasks.package_id verweist auf eine unbekannte neue Zeile -99"
+       }
+      ],
+      "mapping": [
+       {
+        "entity": "modules",
+        "local_id": -1,
+        "id": 1
+       },
+       {
+        "entity": "study_packages",
+        "local_id": -2,
+        "id": 1
+       },
+       {
+        "entity": "study_tasks",
+        "local_id": -3,
+        "id": 1
+       }
+      ],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "pull",
+     "label": "Zweites Geraet holt alles (ohne Cursor)",
+     "since": null,
+     "expect": {
+      "cursor": "<zeit>",
+      "changes": {
+       "modules": [
+        {
+         "id": 1,
+         "name": "Mathe I",
+         "semester": null,
+         "color": "#4f5bd5",
+         "icon": null,
+         "priority": 2,
+         "exam_date": null,
+         "sort": 0,
+         "created_at": null,
+         "active": 1,
+         "weekly_test": 1,
+         "test_minutes": null,
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        }
+       ],
+       "study_packages": [
+        {
+         "id": 1,
+         "date": "2026-11-02",
+         "module_id": 1,
+         "subject": "Mathe I",
+         "title": "Woche 3",
+         "week_no": null,
+         "planned_minutes": 60,
+         "status": "geplant",
+         "sort": 0,
+         "generated": 1,
+         "created_at": null,
+         "start_time": null,
+         "end_time": null,
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        }
+       ],
+       "study_tasks": [
+        {
+         "id": 1,
+         "package_id": 1,
+         "type": "uebung",
+         "file_id": null,
+         "test_id": null,
+         "title": "Blatt 3",
+         "sort": 0,
+         "est_minutes": 30,
+         "actual_minutes": null,
+         "status": "geplant",
+         "done_at": null,
+         "moved_from": null,
+         "created_at": null,
+         "start_time": null,
+         "end_time": null,
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        }
+       ],
+       "settings": [
+        {
+         "key": "auto_plan",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_suggest",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_tests",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "blocked_times",
+         "value": "[]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "break_minutes",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "day_start",
+         "value": "09:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "exam_priority",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "free_days",
+         "value": "[6]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hand",
+         "value": "right",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hours_per_day",
+         "value": "4",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_end",
+         "value": "21:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_start",
+         "value": "08:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "min_slot_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_exercise",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_lecture",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "pen_input",
+         "value": "all",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "subjects_per_day",
+         "value": "2",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_default_minutes",
+         "value": "90",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_minutes",
+         "value": "45",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "tests_per_subject",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "theme",
+         "value": "auto",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "travel_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "user_name",
+         "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        }
+       ]
+      },
+      "tombstones": []
+     }
+    },
+    {
+     "op": "pull",
+     "label": "Mit dem Cursor der letzten Antwort: nichts Neues",
+     "since": "<cursor>",
+     "expect": {
+      "cursor": "<zeit>",
+      "changes": {},
+      "tombstones": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "aenderungen-und-konflikte",
+   "steps": [
+    {
+     "op": "push",
+     "label": "Anlegen",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "modules",
+       "local_id": -1,
+       "data": {
+        "name": "Physik",
+        "color": "#111111"
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "modules",
+        "local_id": -1,
+        "id": 1,
+        "status": "created",
+        "version": 1
+       }
+      ],
+      "mapping": [
+       {
+        "entity": "modules",
+        "local_id": -1,
+        "id": 1
+       }
+      ],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Aenderung mit passender Version: uebernommen",
+     "device": "mac-1",
+     "items": [
+      {
+       "entity": "modules",
+       "id": 1,
+       "base_version": 1,
+       "updated_at": "2099-01-01T00:00:00.000Z",
+       "data": {
+        "name": "Physik I"
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "modules",
+        "id": 1,
+        "status": "applied",
+        "version": 2,
+        "client_won": [
+         "name"
+        ]
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Veraltete Version, Client spaeter: Client gewinnt die geaenderten Felder",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "modules",
+       "id": 1,
+       "base_version": 1,
+       "updated_at": "2099-01-01T00:00:00.000Z",
+       "data": {
+        "name": "Physik 1",
+        "priority": 3
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "modules",
+        "id": 1,
+        "status": "conflict",
+        "version": 3,
+        "client_won": [
+         "name",
+         "priority"
+        ]
+       }
+      ],
+      "mapping": [],
+      "conflicts": [
+       {
+        "entity": "modules",
+        "id": 1,
+        "server": {
+         "id": 1,
+         "name": "Physik I",
+         "semester": null,
+         "color": "#111111",
+         "icon": null,
+         "priority": 2,
+         "exam_date": null,
+         "sort": 0,
+         "created_at": null,
+         "active": 1,
+         "weekly_test": 1,
+         "test_minutes": null,
+         "sync_version": 2,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "mac-1"
+        },
+        "client": {
+         "name": "Physik 1",
+         "priority": 3
+        },
+        "client_won": [
+         "name",
+         "priority"
+        ]
+       }
+      ],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Veraltete Version, Client frueher: Server bleibt, Konflikt gemeldet",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "modules",
+       "id": 1,
+       "base_version": 1,
+       "updated_at": "2000-01-01T00:00:00.000Z",
+       "data": {
+        "name": "uralt"
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "modules",
+        "id": 1,
+        "status": "conflict",
+        "version": 3,
+        "client_won": []
+       }
+      ],
+      "mapping": [],
+      "conflicts": [
+       {
+        "entity": "modules",
+        "id": 1,
+        "server": {
+         "id": 1,
+         "name": "Physik 1",
+         "semester": null,
+         "color": "#111111",
+         "icon": null,
+         "priority": 3,
+         "exam_date": null,
+         "sort": 0,
+         "created_at": null,
+         "active": 1,
+         "weekly_test": 1,
+         "test_minutes": null,
+         "sync_version": 3,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        },
+        "client": {
+         "name": "uralt"
+        },
+        "client_won": []
+       }
+      ],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "pull",
+     "label": "Stand danach",
+     "since": null,
+     "expect": {
+      "cursor": "<zeit>",
+      "changes": {
+       "modules": [
+        {
+         "id": 1,
+         "name": "Physik 1",
+         "semester": null,
+         "color": "#111111",
+         "icon": null,
+         "priority": 3,
+         "exam_date": null,
+         "sort": 0,
+         "created_at": null,
+         "active": 1,
+         "weekly_test": 1,
+         "test_minutes": null,
+         "sync_version": 3,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        }
+       ],
+       "settings": [
+        {
+         "key": "auto_plan",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_suggest",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_tests",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "blocked_times",
+         "value": "[]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "break_minutes",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "day_start",
+         "value": "09:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "exam_priority",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "free_days",
+         "value": "[6]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hand",
+         "value": "right",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hours_per_day",
+         "value": "4",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_end",
+         "value": "21:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_start",
+         "value": "08:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "min_slot_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_exercise",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_lecture",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "pen_input",
+         "value": "all",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "subjects_per_day",
+         "value": "2",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_default_minutes",
+         "value": "90",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_minutes",
+         "value": "45",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "tests_per_subject",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "theme",
+         "value": "auto",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "travel_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "user_name",
+         "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        }
+       ]
+      },
+      "tombstones": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "loeschen-und-wiederherstellen",
+   "steps": [
+    {
+     "op": "push",
+     "label": "Anlegen",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "flashcards",
+       "local_id": -1,
+       "data": {
+        "question": "Q",
+        "answer": "A",
+        "box": 1
+       }
+      },
+      {
+       "entity": "flashcards",
+       "local_id": -2,
+       "data": {
+        "question": "Q2",
+        "answer": "A2",
+        "box": 1
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "flashcards",
+        "local_id": -1,
+        "id": 1,
+        "status": "created",
+        "version": 1
+       },
+       {
+        "entity": "flashcards",
+        "local_id": -2,
+        "id": 2,
+        "status": "created",
+        "version": 1
+       }
+      ],
+      "mapping": [
+       {
+        "entity": "flashcards",
+        "local_id": -1,
+        "id": 1
+       },
+       {
+        "entity": "flashcards",
+        "local_id": -2,
+        "id": 2
+       }
+      ],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Loeschen nach der letzten Aenderung: geloescht, Tombstone",
+     "device": "mac-1",
+     "items": [],
+     "deletes": [
+      {
+       "entity": "flashcards",
+       "id": 1,
+       "deleted_at": "2099-01-01T00:00:00.000Z"
+      }
+     ],
+     "expect": {
+      "results": [
+       {
+        "entity": "flashcards",
+        "id": 1,
+        "status": "deleted"
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Loeschen vor der letzten Aenderung: Aenderung gewinnt",
+     "device": "mac-1",
+     "items": [],
+     "deletes": [
+      {
+       "entity": "flashcards",
+       "id": 2,
+       "deleted_at": "2000-01-01T00:00:00.000Z"
+      }
+     ],
+     "expect": {
+      "results": [
+       {
+        "entity": "flashcards",
+        "id": 2,
+        "status": "edit_wins",
+        "version": 1
+       }
+      ],
+      "mapping": [],
+      "conflicts": [
+       {
+        "entity": "flashcards",
+        "id": 2,
+        "server": {
+         "id": 2,
+         "file_id": null,
+         "subject": null,
+         "question": "Q2",
+         "answer": "A2",
+         "created_at": null,
+         "box": 1,
+         "due": null,
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        },
+        "client": null,
+        "client_won": []
+       }
+      ],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Aenderung aelter als der Tombstone: bleibt geloescht",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "flashcards",
+       "id": 1,
+       "base_version": 1,
+       "updated_at": "2000-01-01T00:00:00.000Z",
+       "data": {
+        "box": 2
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "flashcards",
+        "id": 1,
+        "status": "deleted",
+        "deleted_at": "<zeit>"
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Aenderung juenger als der Tombstone: wiederhergestellt",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "flashcards",
+       "id": 1,
+       "base_version": 1,
+       "updated_at": "2099-06-01T00:00:00.000Z",
+       "data": {
+        "question": "Q",
+        "answer": "A",
+        "box": 2
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "flashcards",
+        "id": 1,
+        "status": "resurrected",
+        "version": 1
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "pull",
+     "label": "Stand danach: Tombstone und wiederhergestellte Karte",
+     "since": null,
+     "expect": {
+      "cursor": "<zeit>",
+      "changes": {
+       "flashcards": [
+        {
+         "id": 2,
+         "file_id": null,
+         "subject": null,
+         "question": "Q2",
+         "answer": "A2",
+         "created_at": null,
+         "box": 1,
+         "due": null,
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        },
+        {
+         "id": 1,
+         "file_id": null,
+         "subject": null,
+         "question": "Q",
+         "answer": "A",
+         "created_at": null,
+         "box": 2,
+         "due": null,
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        }
+       ],
+       "settings": [
+        {
+         "key": "auto_plan",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_suggest",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_tests",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "blocked_times",
+         "value": "[]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "break_minutes",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "day_start",
+         "value": "09:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "exam_priority",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "free_days",
+         "value": "[6]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hand",
+         "value": "right",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hours_per_day",
+         "value": "4",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_end",
+         "value": "21:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_start",
+         "value": "08:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "min_slot_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_exercise",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_lecture",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "pen_input",
+         "value": "all",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "subjects_per_day",
+         "value": "2",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_default_minutes",
+         "value": "90",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_minutes",
+         "value": "45",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "tests_per_subject",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "theme",
+         "value": "auto",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "travel_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "user_name",
+         "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        }
+       ]
+      },
+      "tombstones": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "notizen-base-version",
+   "steps": [
+    {
+     "op": "push",
+     "label": "Erste Notizen ohne base_version",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "annotations",
+       "id": "f1",
+       "data": {
+        "pages": {
+         "1": {
+          "objects": [
+           {
+            "id": "s1",
+            "type": "stroke"
+           }
+          ]
+         }
+        }
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "annotations",
+        "id": "f1",
+        "status": "applied",
+        "version": 1
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Mit passender base_version: Version 2",
+     "device": "mac-1",
+     "items": [
+      {
+       "entity": "annotations",
+       "id": "f1",
+       "base_version": 1,
+       "data": {
+        "pages": {
+         "1": {
+          "objects": [
+           {
+            "id": "s1"
+           },
+           {
+            "id": "s2"
+           }
+          ]
+         }
+        }
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "annotations",
+        "id": "f1",
+        "status": "applied",
+        "version": 2
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Veraltete base_version: Konflikt mit Serverstand (Client fuehrt zusammen und sendet erneut)",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "annotations",
+       "id": "f1",
+       "base_version": 1,
+       "data": {
+        "pages": {
+         "1": {
+          "objects": [
+           {
+            "id": "s1"
+           },
+           {
+            "id": "s3"
+           }
+          ]
+         }
+        }
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "annotations",
+        "id": "f1",
+        "status": "conflict",
+        "version": 2,
+        "data": {
+         "pages": {
+          "1": {
+           "objects": [
+            {
+             "id": "s1"
+            },
+            {
+             "id": "s2"
+            }
+           ]
+          }
+         }
+        }
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "push",
+     "label": "Unbekannte Datei",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "annotations",
+       "id": "gibt-es-nicht",
+       "base_version": 0,
+       "data": {}
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "annotations",
+        "id": "gibt-es-nicht",
+        "status": "unknown_file"
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "pull",
+     "label": "Stand danach",
+     "since": null,
+     "expect": {
+      "cursor": "<zeit>",
+      "changes": {
+       "settings": [
+        {
+         "key": "auto_plan",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_suggest",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_tests",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "blocked_times",
+         "value": "[]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "break_minutes",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "day_start",
+         "value": "09:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "exam_priority",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "free_days",
+         "value": "[6]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hand",
+         "value": "right",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hours_per_day",
+         "value": "4",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_end",
+         "value": "21:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_start",
+         "value": "08:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "min_slot_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_exercise",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_lecture",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "pen_input",
+         "value": "all",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "subjects_per_day",
+         "value": "2",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_default_minutes",
+         "value": "90",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_minutes",
+         "value": "45",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "tests_per_subject",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "theme",
+         "value": "auto",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "travel_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "user_name",
+         "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        }
+       ],
+       "annotations": [
+        {
+         "file_id": "f1",
+         "data": {
+          "pages": {
+           "1": {
+            "objects": [
+             {
+              "id": "s1"
+             },
+             {
+              "id": "s2"
+             }
+            ]
+           }
+          }
+         },
+         "updated_at": "<zeit>",
+         "version": 2,
+         "sync_version": 2,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "mac-1"
+        }
+       ]
+      },
+      "tombstones": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "einstellungen",
+   "steps": [
+    {
+     "op": "push",
+     "label": "Einstellung setzen; lan_pin wird nie synchronisiert",
+     "device": "ipad-1",
+     "items": [
+      {
+       "entity": "settings",
+       "local_id": "hours_per_day",
+       "data": {
+        "value": "6"
+       }
+      },
+      {
+       "entity": "settings",
+       "local_id": "lan_pin",
+       "data": {
+        "value": "123456"
+       }
+      }
+     ],
+     "deletes": [],
+     "expect": {
+      "results": [
+       {
+        "entity": "settings",
+        "id": "hours_per_day",
+        "status": "applied",
+        "version": 2
+       },
+       {
+        "entity": "settings",
+        "id": "lan_pin",
+        "status": "ignored"
+       }
+      ],
+      "mapping": [],
+      "conflicts": [],
+      "server_time": "<zeit>"
+     }
+    },
+    {
+     "op": "pull",
+     "label": "Abruf enthaelt hours_per_day, nie lan_pin oder university",
+     "since": null,
+     "expect": {
+      "cursor": "<zeit>",
+      "changes": {
+       "settings": [
+        {
+         "key": "auto_plan",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_suggest",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "auto_tests",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "blocked_times",
+         "value": "[]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "break_minutes",
+         "value": "15",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "day_start",
+         "value": "09:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "exam_priority",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "free_days",
+         "value": "[6]",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hand",
+         "value": "right",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_end",
+         "value": "21:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "learn_start",
+         "value": "08:00",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "min_slot_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_exercise",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "parts_lecture",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "pen_input",
+         "value": "all",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "subjects_per_day",
+         "value": "2",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_default_minutes",
+         "value": "90",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "test_minutes",
+         "value": "45",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "tests_per_subject",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "theme",
+         "value": "auto",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "travel_minutes",
+         "value": "30",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "user_name",
+         "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "hours_per_day",
+         "value": "6",
+         "sync_version": 2,
+         "sync_updated_at": "<zeit>",
+         "sync_device": "ipad-1"
+        }
+       ]
+      },
+      "tombstones": []
+     }
+    }
+   ]
+  }
+ ]
+}

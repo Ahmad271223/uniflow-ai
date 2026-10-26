@@ -69,7 +69,10 @@
           {"name": "file_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
           {"name": "data", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
           {"name": "updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0}
+          {"name": "version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "files", "from": "file_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
@@ -116,7 +119,10 @@
           {"name": "attend", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "source", "type": "TEXT", "notnull": 0, "default": "'manual'", "pk": 0},
           {"name": "color", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": []
@@ -180,7 +186,10 @@
           {"name": "new_start", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "new_end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "course_events", "from": "event_id", "to": "id", "on_update": "NO ACTION", "on_delete": "CASCADE"}
@@ -243,7 +252,10 @@
           {"name": "answer", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "box", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
-          {"name": "due", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "due", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": []
@@ -255,7 +267,10 @@
           {"name": "parent_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
           {"name": "color", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": []
@@ -293,7 +308,10 @@
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "weekly_test", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
-          {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": []
@@ -395,7 +413,10 @@
       "settings": {
         "columns": [
           {"name": "key", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
-          {"name": "value", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "value", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -446,7 +467,10 @@
           {"name": "generated", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "modules", "from": "module_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
@@ -469,7 +493,10 @@
           {"name": "moved_from", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "start_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "end_time", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
+          {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "study_packages", "from": "package_id", "to": "id", "on_update": "NO ACTION", "on_delete": "CASCADE"}
@@ -487,6 +514,19 @@
         ],
         "foreign_keys": [],
         "indexes": []
+      },
+      "sync_tombstones": {
+        "columns": [
+          {"name": "entity", "type": "TEXT", "notnull": 1, "default": null, "pk": 1},
+          {"name": "entity_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 2},
+          {"name": "deleted_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "idx_tombstones_time", "unique": 0, "origin": "c", "partial": 0, "columns": ["deleted_at"]},
+          {"name": "sqlite_autoindex_sync_tombstones_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["entity", "entity_id"]}
+        ]
       },
       "task_history": {
         "columns": [
@@ -541,7 +581,7 @@
         ]
       }
     },
-    "index_sql": {"idx_announcements_course": "CREATE INDEX idx_announcements_course ON announcements(course_id)", "idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
+    "index_sql": {"idx_announcements_course": "CREATE INDEX idx_announcements_course ON announcements(course_id)", "idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "idx_tombstones_time": "CREATE INDEX idx_tombstones_time ON sync_tombstones(deleted_at)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
     "user_version": 0
   },
   "rows": {
@@ -560,39 +600,39 @@
       {"id": "u1", "course_id": "__user__", "name": "Mein Notizbuch", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null}
     ],
     "annotations": [
-      {"file_id": "f1", "data": "{\"version\":2,\"pages\":{}}", "updated_at": "2026-10-02T10:00:00", "version": 3},
-      {"file_id": "f6", "data": "{\"version\":2,\"pages\":{\"p1\":{\"objects\":[]}}}", "updated_at": "2026-10-03T11:00:00", "version": 1}
+      {"file_id": "f1", "data": "{\"version\":2,\"pages\":{}}", "updated_at": "2026-10-02T10:00:00", "version": 3, "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.827Z", "sync_device": null},
+      {"file_id": "f6", "data": "{\"version\":2,\"pages\":{\"p1\":{\"objects\":[]}}}", "updated_at": "2026-10-03T11:00:00", "version": 1, "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.827Z", "sync_device": null}
     ],
     "tests": [
       {"id": 1, "subject": "Algebra", "week_start": null, "title": "Probetest", "duration_min": 45, "questions": "[]", "created_at": null, "started_at": null, "submitted_at": null, "answers": null, "score": 7.5, "max_score": null, "feedback": null, "module_id": null, "week_no": null, "auto": 0, "share_key": null}
     ],
     "settings": [
-      {"key": "hours_per_day", "value": "6"},
-      {"key": "user_name", "value": "Testperson"},
-      {"key": "eigener_schluessel", "value": "x"},
-      {"key": "university", "value": "luh"},
-      {"key": "free_days", "value": "[6]"},
-      {"key": "day_start", "value": "09:00"},
-      {"key": "test_default_minutes", "value": "90"},
-      {"key": "auto_plan", "value": "1"},
-      {"key": "auto_tests", "value": "1"},
-      {"key": "subjects_per_day", "value": "2"},
-      {"key": "parts_lecture", "value": "1"},
-      {"key": "parts_exercise", "value": "1"},
-      {"key": "tests_per_subject", "value": "1"},
-      {"key": "test_minutes", "value": "45"},
-      {"key": "break_minutes", "value": "15"},
-      {"key": "exam_priority", "value": "1"},
-      {"key": "auto_suggest", "value": "1"},
-      {"key": "theme", "value": "auto"},
-      {"key": "lan_pin", "value": ""},
-      {"key": "learn_start", "value": "08:00"},
-      {"key": "learn_end", "value": "21:00"},
-      {"key": "travel_minutes", "value": "30"},
-      {"key": "min_slot_minutes", "value": "30"},
-      {"key": "blocked_times", "value": "[]"},
-      {"key": "pen_input", "value": "all"},
-      {"key": "hand", "value": "right"}
+      {"key": "hours_per_day", "value": "6", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "user_name", "value": "Testperson", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "eigener_schluessel", "value": "x", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "university", "value": "luh", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "free_days", "value": "[6]", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "day_start", "value": "09:00", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "test_default_minutes", "value": "90", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "auto_plan", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "auto_tests", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "subjects_per_day", "value": "2", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "parts_lecture", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "parts_exercise", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "tests_per_subject", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "test_minutes", "value": "45", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "break_minutes", "value": "15", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "exam_priority", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "auto_suggest", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "theme", "value": "auto", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "lan_pin", "value": "", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "learn_start", "value": "08:00", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "learn_end", "value": "21:00", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "travel_minutes", "value": "30", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "min_slot_minutes", "value": "30", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "blocked_times", "value": "[]", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "pen_input", "value": "all", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
+      {"key": "hand", "value": "right", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null}
     ],
     "terms": [
       {"id": 1, "name": "WiSe 2026/27", "start": "2026-10-12", "end": "2027-01-30", "active": 1}
