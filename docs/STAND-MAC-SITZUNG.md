@@ -82,4 +82,44 @@ die LUH (Learnweb-Folien, LSF-Stundenplan, Noten, Lernplan, Editor, Teilen).
 
 ### Ergebnisse der PC-Sitzung
 
-(hier anhängen)
+**26.10.2026, 10:30, Stand `develop` 7966574 (Code wie ac17280).** Nur anonyme Zahlen; Zählläufe in Temp-Datenordnern
+(nie gegen `data/`), Datei-Downloads abgeschaltet (Listen und Datenbankzeilen wie beim echten Abgleich).
+
+**1. Linux-Kern** (`swift:6.0-jammy`, wie `apple.yml` nur mit `libsqlite3-dev`): **375 Tests, 0 Fehler.** Vorher baute
+der Kern unter Linux nicht: `TestShare.FileHasher.hex()` rief im Linux-Zweig das verändernde `finalize()` auf
+(behoben in ac17280, nur dieser Zweig). Das Abbild bringt die Zeitzonen mit; `tzdata` ist im Container nicht nötig.
+
+**2. Python und Web:** `pytest -q tests` **116 bestanden**; JS-Tests 12 bestanden; alle 10 Web-Module ohne Syntaxfehler;
+`tools/gen-*-fixture.py --check` alle aktuell. Web-App mit einer Kopie der LUH-Datenbank (Testserver): Lernkalender
+(Woche und Liste), Stundenplan, Übersicht und Module laden ohne Fehler, mit Terminen und Lernpaketen; die Suche
+zeigt passende Übungsblätter mit Kurs. **Befund:** In der Python-Umgebung des PCs fehlte `tzdata` (neu in
+`requirements.txt`); unter Windows gibt es keine Zeitzonen-Datenbank, `ZoneInfo("Europe/Berlin")` scheiterte, der
+nächste Abgleich wäre abgebrochen. Installiert (2026.5). Auf anderen Windows-Rechnern beim Einrichten nötig.
+
+**3. Echte Zahlen mit dem Python-Stand von `develop`:**
+
+| LUH | Anzahl |
+| --- | --- |
+| Stud.IP-Kurse | 19 |
+| Stud.IP-Dateien (davon PDF) | 155 (147) |
+| Stundenplan: wöchentliche Serien / Einzeltermine (nach `auto_import`) | 18 / 0 |
+| Stud.IP-Termine roh (`studip_events`) / persönliche Einträge | 1217 / 1 |
+| Leistungen im QIS-Notenspiegel | 0 (noch keine veröffentlicht, Lauf ok) |
+| Kurse mit Opencast / Videos gesamt | 5 / 12 |
+| Videos je Kurs mit Opencast | 1, 3, 0, 5, 3 |
+
+Opencast-Zählung: Python kann Opencast noch nicht. Gezählt über die Kursnavigation
+(`plugins.php/opencastpluginluh/media/index?cid=…`) und die Zeilen `class="media-table-row"` der Medienliste,
+ohne Seitenwechsel und ohne Wiedergabe.
+
+| Uni Hildesheim | Anzahl |
+| --- | --- |
+| Learnweb-Kurse | 9 |
+| Learnweb-Dateien (davon PDF) | 539 (517) |
+| LSF-Serien: gesamt / wöchentlich / Einzeltermine | 24 / 15 / 9 |
+| Ausfalltage aus EXDATE | 17 |
+| Leistungen / davon mit Note | 16 / 5 (zwei Studiengänge) |
+
+Hinweise: Am 25.10. waren es 17 Leistungen; die 17. war die Modulzeile „Prüfung vorhanden“, die seitdem gefiltert
+wird. Learnweb lief ohne Schlüssel (Sitzung); Moodle verbucht dabei je Material einen Aufruf. Zweiter
+Stundenplan-Abruf am 25.10.: 0 neu, 24 unverändert.
