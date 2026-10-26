@@ -66,8 +66,11 @@ public enum StudyClassify {
 
     // MARK: study.enrich_file
 
+    /// Arten mit Lehrwoche aus Name/Ordner (`week_hint`); bei allen anderen ist die Woche nur die der Aenderung
+    public static let lectureWeekTypes: Set<String> = ["vorlesung", "uebung", "loesung", "skript"]
+
     /// `enrich_file(f)`: `ai_doc_type` = Einschaetzung aus `analysis`, `doc_type`/`sub_label` aus `effectiveType`,
-    /// `week_hint` nur fuer Vorlesung, Uebung, Loesung und Skript.
+    /// `week_hint` nur fuer Vorlesung, Uebung, Loesung und Skript (`lectureWeekTypes`).
     public static func enrichFile(_ f: [String: JSONValue]) -> [String: JSONValue] {
         var out = f
         let ai = f["doc_type"] ?? .null
@@ -75,7 +78,7 @@ public enum StudyClassify {
         out["ai_doc_type"] = ai
         out["doc_type"] = .string(t)
         out["sub_label"] = .string(label)
-        let hint = ["vorlesung", "uebung", "loesung", "skript"].contains(t) ? weekHint(name: f["name"]?.string, folder: f["studip_folder"]?.string) : nil
+        let hint = lectureWeekTypes.contains(t) ? weekHint(name: f["name"]?.string, folder: f["studip_folder"]?.string) : nil
         out["week_hint"] = hint.map { .number(Double($0)) } ?? .null
         return out
     }

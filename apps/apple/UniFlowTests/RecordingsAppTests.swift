@@ -274,7 +274,7 @@ final class RecordingsAppTests: XCTestCase {
         lib.delegate.finish(902, location: temp, status: 200, contentType: "text/html; charset=utf-8")
         let failed = await waitUntil { lib.state(e) != nil }
         XCTAssertTrue(failed)
-        XCTAssertEqual(lib.state(e), .failed("Statt des Videos kam eine Webseite (vermutlich Anmeldung)."))
+        XCTAssertEqual(lib.state(e), .failed("Statt des Videos kam eine Webseite (vermutlich Anmeldung).", quality: "720p"))
         XCTAssertFalse(FileManager.default.fileExists(atPath: j.target.path))
         let after = await lib.reload(e)
         XCTAssertNil(after?.localPath)
@@ -303,7 +303,7 @@ final class RecordingsAppTests: XCTestCase {
         XCTAssertFalse(RecordingLibrary.resumeUsable(j.resume, url: j.url, now: Date().addingTimeInterval(4 * 86400)), "zu alt")
         let failed = await waitUntil { lib.state(e) != nil }
         XCTAssertTrue(failed)
-        XCTAssertEqual(lib.state(e), .failed("Download unterbrochen. „Fortsetzen“ lädt weiter."))
+        XCTAssertEqual(lib.state(e), .failed("Download unterbrochen. „Fortsetzen“ lädt weiter.", quality: "720p"))
 
         // fortgesetzter Download scheitert ohne neue Daten (Temp-Datei weg, Server ohne Range): alte Daten weg
         let again = session.downloadTask(with: j.url)
@@ -311,10 +311,66 @@ final class RecordingsAppTests: XCTestCase {
         lib.delegate.urlSession(session, task: again, didCompleteWithError: URLError(.cannotParseResponse))
         XCTAssertFalse(lib.hasResumeData(e, quality: "720p"))
         XCTAssertFalse(FileManager.default.fileExists(atPath: RecordingLibrary.resumeInfoURL(j.resume).path))
-        _ = await waitUntil { lib.state(e) == .failed("Download unterbrochen.") }
-        XCTAssertEqual(lib.state(e), .failed("Download unterbrochen."))
+        _ = await waitUntil { lib.state(e) == .failed("Download unterbrochen.", quality: "720p") }
+        XCTAssertEqual(lib.state(e), .failed("Download unterbrochen.", quality: "720p"))
         await lib.remove(e)                                                                  // "Verwerfen"
         XCTAssertNil(lib.state(e))
+    }
+
+    /// "Fortsetzen" und "Erneut" setzen die Fassung des abgebrochenen Downloads fort (hier 1080p aus dem Kontextmenue),
+    /// auch nach einem Neustart der App; die Standardfassung (720p) startet nicht nach neuer Rueckfrage von vorn
+    func testResumeUsesTheQualityOfTheAbortedDownload() async throws {
+        let dev = try device()
+        let (s, _, ana) = try await synced(dev)
+        let lib = s.recordings
+        let e = try await entry(s, ana, "3. Vorlesung vom 06.11.2026 – Grenzwerte & Folgen")
+        XCTAssertEqual(RecordingPlayback.quality(for: e.video)?.quality, "720p", "Standardfassung")
+        XCTAssertNil(lib.resumeMedia(e))
+        let j = try job(lib, e, "1080p")
+        try RecordingLibrary.prepareFolder(lib.partialFolder)
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let task = session.downloadTask(with: j.url)                                       // nie gestartet
+        lib.delegate.register(task.taskIdentifier, job: j)
+        lib.delegate.urlSession(session, task: task, didCompleteWithError: URLError(.networkConnectionLost, userInfo: [NSURLSessionDownloadTaskResumeData: Data("teil".utf8)]))
+        _ = await waitUntil { lib.state(e) != nil }
+        XCTAssertEqual(lib.state(e), .failed("Download unterbrochen. „Fortsetzen“ lädt weiter.", quality: "1080p"))
+        XCTAssertEqual(lib.resumeMedia(e)?.quality, "1080p", "„Erneut“ setzt 1080p fort")
+        XCTAssertFalse(lib.hasResumeData(e, quality: "720p"))
+        XCTAssertTrue(RecordingLibrary.resumeUsable(lib.resumeURL(e, quality: "1080p"), url: j.url), "ohne neue Rückfrage")
+
+        // nach einem Neustart der App: kein Zustand, die Zeile zeigt "Fortsetzen" fuer 1080p
+        let restarted = try sync(dev).recordings
+        XCTAssertNil(restarted.state(e))
+        XCTAssertEqual(restarted.pausedMedia(e)?.quality, "1080p")
+        XCTAssertEqual(restarted.resumeMedia(e)?.quality, "1080p")
+
+        // zwei abgebrochene Fassungen: die zuletzt abgebrochene
+        let other = try job(lib, e, "480p")
+        RecordingLibrary.saveResume(Data("alt".utf8), job: other, now: Date().addingTimeInterval(-3600))
+        XCTAssertEqual(restarted.pausedMedia(e)?.quality, "1080p")
+        RecordingLibrary.saveResume(Data("neu".utf8), job: other, now: Date().addingTimeInterval(60))
+        XCTAssertEqual(restarted.pausedMedia(e)?.quality, "480p")
+
+        // "Verwerfen" entfernt alle Fortsetzungsdaten
+        await restarted.remove(e)
+        XCTAssertNil(restarted.pausedMedia(e))
+        XCTAssertNil(restarted.resumeMedia(e))
+    }
+
+    /// HEAD ohne Antwort oder mit Fehlerstatus: Meldung statt Rueckfrage zu einem Download, der nicht starten kann
+    func testProbeFailureInsteadOfConfirmingAnUnstartableDownload() {
+        typealias Probe = RecordingLibrary.Probe
+        XCTAssertEqual(Probe(status: nil, size: nil).failure, "Der Videoserver ist nicht erreichbar. Prüfe die Internetverbindung.")
+        XCTAssertEqual(Probe(status: 404, size: nil).failure,
+                       "Der Videoserver antwortet mit HTTP 404. Die Liste ist vermutlich veraltet, der nächste Stud.IP-Abgleich aktualisiert sie.")
+        XCTAssertEqual(Probe(status: 410, size: nil).failure?.contains("Abgleich"), true)
+        XCTAssertEqual(Probe(status: 503, size: nil).failure, "Der Videoserver antwortet mit HTTP 503. Bitte später erneut versuchen.")
+        // Erfolg, Anmeldung (eigener Hinweis) und HEAD unbekannt (dann Rueckfrage zur Groesse): keine Meldung
+        for s in [200, 206, 401, 403, 405, 501] { XCTAssertNil(Probe(status: s, size: nil).failure, "\(s)") }
+        guard case .confirm(let q) = RecordingDownloadPolicy.decide(title: "x", quality: "720p", size: Probe(status: 405, size: nil).size,
+                                                                   freeBytes: 50_000_000_000) else { return XCTFail("405: Rückfrage") }
+        XCTAssertTrue(q.contains("unbekannt"), q)
     }
 
     func testRemoveDownloadsAlsoRemovesRecordingsButKeepsTheLists() async throws {
