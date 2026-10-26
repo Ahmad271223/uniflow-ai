@@ -273,7 +273,7 @@ def sessions(user_id: str, current_token: str | None = None) -> list[dict]:
     with cursor() as conn:
         return [{"id": r["id"], "device_id": r["device_id"], "device_name": r["device_name"], "created_at": r["created_at"],
                  "last_seen_at": r["last_seen_at"], "expires_at": r["expires_at"], "current": r["token_hash"] == cur}
-                for r in conn.execute("SELECT * FROM sessions WHERE user_id=? AND revoked_at IS NULL AND expires_at>? ORDER BY last_seen_at DESC",
+                for r in conn.execute("SELECT * FROM sessions WHERE user_id=? AND revoked_at IS NULL AND expires_at>? ORDER BY last_seen_at DESC, id DESC",
                                       (user_id, iso(now())))]
 
 

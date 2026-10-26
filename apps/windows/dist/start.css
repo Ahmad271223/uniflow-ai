@@ -1,0 +1,6 @@
+body { font: 16px/1.5 system-ui, "Segoe UI", sans-serif; margin: 0; display: grid; place-items: center; min-height: 100vh; background: #f6f7fb; color: #171a26; }
+@media (prefers-color-scheme: dark) { body { background: #14151c; color: #e8e9f0; } .card { background: #1d1f29; border-color: #2c2f3d; } }
+.card { background: #fff; border: 1px solid #e5e8f0; border-radius: 16px; padding: 1.6rem 2rem; max-width: 460px; }
+h1 { font-size: 1.3rem; margin: 0 0 .4rem; color: #6d4ae0; }
+code { background: rgba(109, 74, 224, .1); padding: .1rem .35rem; border-radius: 6px; }
+button { margin-top: 1rem; padding: .6rem 1.2rem; border: 0; border-radius: 10px; background: #6d4ae0; color: #fff; font-weight: 600; cursor: pointer; }

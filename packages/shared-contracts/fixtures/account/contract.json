@@ -465,15 +465,6 @@
     },
     "sessions": [
      {
-      "id": 1,
-      "device_id": "ipad-1",
-      "device_name": "iPad",
-      "created_at": "<zeit-utc>",
-      "last_seen_at": "<zeit-utc>",
-      "expires_at": "<zeit-utc>",
-      "current": false
-     },
-     {
       "id": 2,
       "device_id": "mac-1",
       "device_name": "MacBook",
@@ -481,6 +472,15 @@
       "last_seen_at": "<zeit-utc>",
       "expires_at": "<zeit-utc>",
       "current": true
+     },
+     {
+      "id": 1,
+      "device_id": "ipad-1",
+      "device_name": "iPad",
+      "created_at": "<zeit-utc>",
+      "last_seen_at": "<zeit-utc>",
+      "expires_at": "<zeit-utc>",
+      "current": false
      }
     ]
    }

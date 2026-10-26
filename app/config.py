@@ -9,7 +9,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env", interpolate=False)
+
+
+def env_file() -> Path:
+    """Die .env: im Projektordner; die Windows-App (app/desktop.py) legt sie im Benutzerprofil ab
+    (LERNAPP_ENV_FILE), weil der Programmordner nicht beschreibbar ist."""
+    return Path(os.environ["LERNAPP_ENV_FILE"]) if os.environ.get("LERNAPP_ENV_FILE") else ROOT / ".env"
+
+
+load_dotenv(env_file(), interpolate=False)
 
 # Hochschule dieser App-Instanz (UNIVERSITY in der .env, Standard luh). Sie wird beim Start festgelegt:
 # jede Uni hat einen eigenen Datenordner (Datenbank, Dateien, Browser-Profile, Protokolle), damit sich
@@ -170,7 +178,8 @@ def set_env(values: dict) -> None:
         if _ctx_env.get() is not None:
             _ctx_env.set(vault.env_for(uid))
         return
-    path = ROOT / ".env"
+    path = env_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else \
         ((ROOT / ".env.example").read_text(encoding="utf-8").splitlines() if (ROOT / ".env.example").exists() else [])
     for k, v in values.items():
@@ -214,7 +223,7 @@ def _env() -> dict:
         from . import vault
         return vault.env_for(uid)
     from dotenv import dotenv_values
-    return dotenv_values(ROOT / ".env", interpolate=False) if (ROOT / ".env").exists() else {}
+    return dotenv_values(env_file(), interpolate=False) if env_file().exists() else {}
 
 
 def service_status(prefix: str) -> dict:

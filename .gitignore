@@ -29,3 +29,6 @@ apps/windows/src-tauri/target/
 apps/windows/src-tauri/icons/
 apps/android/.gradle/
 apps/android/**/build/
+apps/windows/backend/dist/
+apps/windows/backend/build/
+apps/windows/backend/ms-playwright/

@@ -171,13 +171,28 @@ async def lan_pin_guard(request, call_next):
     return HTMLResponse(PIN_PAGE, status_code=401)
 
 
+# Content-Security-Policy der Oberflaeche: nur eigene Skripte (kein Inline, kein eval), Stile auch inline (die
+# Oberflaeche setzt style-Attribute), Bilder/Medien auch aus Daten-URLs und Blobs (PDF-Vorschau, Aufnahmen),
+# Worker fuer pdf.js, nichts Fremdes einbetten, nie selbst eingebettet. Gilt im Browser und im Fenster der Windows-App.
+UI_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+          "img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; "
+          "font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; frame-src 'self' blob:; "
+          "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+
+
 @app.middleware("http")
 async def no_cache_static(request, call_next):
-    """Oberflaechendateien (JS/CSS/HTML) nie zwischenspeichern, damit nach Updates nichts Altes haengen bleibt."""
+    """Oberflaechendateien (JS/CSS/HTML) nie zwischenspeichern, damit nach Updates nichts Altes haengen bleibt;
+    HTML-Seiten bekommen die Content-Security-Policy."""
     response = await call_next(request)
     p = request.url.path
     if not p.startswith("/api/") and (p == "/" or p.endswith((".js", ".mjs", ".css", ".html"))):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if ctype == "text/html" and not _FILE_PATHS.match(p):
+        response.headers["Content-Security-Policy"] = UI_CSP
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "same-origin"
     return response
 
 

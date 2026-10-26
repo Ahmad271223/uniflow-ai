@@ -322,3 +322,11 @@ speichert am Konto (nie lokal in einer `.env`), `POST /api/sync` liefert `{start
 /api/sync/status` enthält `jobs`; `GET /api/bg` hat zusätzlich `job`. Beschreibung in `docs/VERTRAEGE-KONTO-SYNC.md`,
 Abschnitt „Abgleich je Konto“. Python: 212 Tests grün. Für den lokalen iPad-Abgleich (ohne Dienst) ändert sich nichts.
 
+## Nachtrag der PC-Sitzung: Windows-App mit mitgeliefertem Backend (26.10.2026)
+
+Für euch nur zur Kenntnis: `apps/windows` startet jetzt sein eigenes Backend (`app/desktop.py`, PyInstaller) und
+braucht keinen laufenden PC-Server mehr. Zwei Dinge betreffen alle Clients: (1) die Oberfläche bekommt vom Server
+eine strenge Content-Security-Policy (`app/server.py::UI_CSP`, kein Inline-Skript, kein `eval`), das Inline-Skript
+für das Farbschema wurde zu `theme.js`; (2) die `.env` ist über `LERNAPP_ENV_FILE` verschiebbar (`config.env_file()`).
+Am Swift-Kern ändert sich nichts. Python: 221 Tests grün.
+
