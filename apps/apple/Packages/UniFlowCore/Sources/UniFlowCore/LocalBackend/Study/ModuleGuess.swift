@@ -35,17 +35,19 @@ public enum ModuleGuess {
     }
 }
 
-/// `difflib.SequenceMatcher(None, a, b)` aus Pythons Standardbibliothek, soweit `ratio()` es braucht: Codepunkte,
-/// kein Muell-Filter, "autojunk" (haeufige Zeichen ab 200 Zeichen in b) wie dort. Gleiche Suche nach dem laengsten
-/// gemeinsamen Block (frueheste Stelle in a, dann in b), also auch dieselben Bloecke und dasselbe Ergebnis.
-struct SequenceMatcher {
-    let a: [Unicode.Scalar]
-    let b: [Unicode.Scalar]
-    private var b2j: [Unicode.Scalar: [Int]] = [:]
+/// `difflib.SequenceMatcher(None, a, b)` aus Pythons Standardbibliothek, soweit `ratio()`, `quick_ratio()` und
+/// `real_quick_ratio()` es brauchen: Folgen beliebiger Elemente (Texte als Codepunkte, Seitentexte als Woerter),
+/// kein Muell-Filter, "autojunk" (haeufige Elemente ab 200 Elementen in b) wie dort. Gleiche Suche nach dem laengsten
+/// gemeinsamen Block (frueheste Stelle in a, dann in b), also auch dieselben Bloecke und dasselbe Ergebnis. Die eine
+/// Fassung fuer Modulnamen (`ModuleGuess`, Stundenplan) und die Seitenzuordnung einer neuen Fassung (`PageMatch`).
+struct SequenceMatcher<Element: Hashable> {
+    let a: [Element]
+    let b: [Element]
+    private var b2j: [Element: [Int]] = [:]
 
-    init(_ a: String, _ b: String) {
-        self.a = Array(a.unicodeScalars)
-        self.b = Array(b.unicodeScalars)
+    init(_ a: [Element], _ b: [Element]) {
+        self.a = a
+        self.b = b
         for (i, elt) in self.b.enumerated() { b2j[elt, default: []].append(i) }
         let n = self.b.count
         if n >= 200 {
@@ -93,8 +95,31 @@ struct SequenceMatcher {
     }
 
     /// `ratio()`: 2 * Treffer / (len(a) + len(b)), 1.0 fuer zwei leere Folgen
-    func ratio() -> Double {
-        let length = a.count + b.count
-        return length > 0 ? 2.0 * Double(matches()) / Double(length) : 1.0
+    func ratio() -> Double { Self.ratio(matches(), a.count + b.count) }
+
+    /// `quick_ratio()`: obere Schranke von `ratio()` ueber die Schnittmenge als Multimengen
+    func quickRatio() -> Double {
+        var avail: [Element: Int] = [:]
+        for elt in b { avail[elt, default: 0] += 1 }
+        var matches = 0
+        for elt in a {
+            let numb = avail[elt, default: 0]
+            avail[elt] = numb - 1
+            if numb > 0 { matches += 1 }
+        }
+        return Self.ratio(matches, a.count + b.count)
     }
+
+    /// `real_quick_ratio()`: obere Schranke nur aus den Laengen
+    func realQuickRatio() -> Double { Self.ratio(min(a.count, b.count), a.count + b.count) }
+
+    /// `_calculate_ratio(matches, length)`
+    private static func ratio(_ matches: Int, _ length: Int) -> Double {
+        length > 0 ? 2.0 * Double(matches) / Double(length) : 1.0
+    }
+}
+
+extension SequenceMatcher where Element == Unicode.Scalar {
+    /// Texte als Folgen von Codepunkten wie `SequenceMatcher(None, str_a, str_b)`
+    init(_ a: String, _ b: String) { self.init(Array(a.unicodeScalars), Array(b.unicodeScalars)) }
 }

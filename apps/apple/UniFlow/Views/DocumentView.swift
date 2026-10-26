@@ -117,9 +117,17 @@ struct DocumentView: View {
     @ObservedObject private var entitlements = Entitlements.shared
     /// gesperrte Plus-Funktion, deren Sperrkarte gerade offen ist (Schreiben, geteilte Ansicht)
     @State private var lockedFeature: UFFeature?
+    /// geoeffnete alte Fassung (S7, nur zum Ansehen)
+    @State private var openedVersion: FileVersionInfo?
+    /// alte Original-Fassung: nur ansehen (S7)
+    let readOnly: Bool
+    /// PDF-Seite beim Oeffnen (1-basiert, Treffer der Suche), nil = wie zuletzt
+    let initialPDFPage: Int?
 
-    init(file: LibFile, api: APIClient) {
+    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil) {
         self.api = api
+        self.readOnly = readOnly
+        self.initialPDFPage = initialPDFPage
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
     }
 
@@ -128,7 +136,10 @@ struct DocumentView: View {
 
     /// Schreiben mit dem Pencil, Seiten und Lesezeichen nur mit Plus; Free und nach dem Herabstufen nur ansehen
     /// (Notizen bleiben sichtbar und exportierbar, docs/AUFTRAG-APPSTORE-V1.md Abschnitt 4)
-    private var canWrite: Bool { entitlements.notes.canEdit }
+    private var canWrite: Bool { planAllowsWriting && !readOnly && !store.outdatedByNewVersion }
+
+    /// Tarif mit Schreiben (sonst Schloss mit Weg zur Abo-Seite)
+    private var planAllowsWriting: Bool { entitlements.notes.canEdit }
 
     private var isExercise: Bool {
         let f = store.file
@@ -185,6 +196,14 @@ struct DocumentView: View {
         }
         .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
         .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
+        .fullScreenCover(item: $openedVersion) { v in
+            NavigationStack {
+                DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("Schließen") { openedVersion = nil } }
+                    }
+            }
+        }
         .fileImporter(isPresented: $importingSolution, allowedContentTypes: [Self.solutionType]) { result in
             importSolution(result)
         }
@@ -239,11 +258,42 @@ struct DocumentView: View {
 
     private var primaryPane: some View {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
-                      toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: nil,
+                      toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
                       foreignLayers: foreignLayers, ownNotesVisible: ownNotesVisible, canEdit: canWrite)
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { pageInfo }
-            .overlay(alignment: .top) { suggestionBanner }
+            .overlay(alignment: .top) {
+                VStack(spacing: 6) {
+                    versionBanner
+                    suggestionBanner
+                }
+            }
+    }
+
+    /// Hinweis nach einer neuen Original-Fassung mit Notizen (S7): uebernommen, welche Seiten zu pruefen sind, Weg zur
+    /// alten Fassung
+    @ViewBuilder
+    private var versionBanner: some View {
+        if let v = store.versionNotice {
+            HStack(spacing: 10) {
+                Image(systemName: "doc.badge.clock")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(v.noticeTitle).font(.caption).bold()
+                    if let detail = v.noticeDetail { Text(detail).font(.caption).lineLimit(2) }
+                }
+                if v.available {
+                    Button("Alte Fassung") { openedVersion = v }
+                        .buttonStyle(.bordered).controlSize(.small)
+                }
+                Button("OK") { Task { await store.dismissVersionNotice() } }
+                    .buttonStyle(.borderedProminent).controlSize(.small)
+            }
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.top, 8)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("versionNotice")
+        }
     }
 
     private func companionPane(_ c: Companion) -> some View {
@@ -335,7 +385,7 @@ struct DocumentView: View {
                 .disabled(!canWrite)
             Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
                 .disabled(!canWrite)
-            if !canWrite {
+            if !planAllowsWriting && !readOnly {
                 // Free: Schloss mit Weg zur Abo-Seite statt still nicht schreibender Stift
                 Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (Plus)", systemImage: "lock") }
                     .labelStyle(.titleAndIcon)
@@ -374,7 +424,7 @@ struct DocumentView: View {
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
             Menu {
-                if !canWrite {
+                if !planAllowsWriting && !readOnly {
                     // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
                     Button { lockedFeature = .pencilWriting } label: {
                         Label("Schreiben, Seiten und Lesezeichen mit Plus", systemImage: "lock")
@@ -421,6 +471,15 @@ struct DocumentView: View {
                 Button {
                     if entitlements.allows(.community) { importingSolution = true } else { solutionSheet = .locked }
                 } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
+                if !store.versions.isEmpty {
+                    // S7: aufbewahrte alte Fassungen mit ihren Notizen (nur zum Ansehen)
+                    Section("Alte Fassungen") {
+                        ForEach(store.versions) { v in
+                            Button { openedVersion = v } label: { Label(v.label, systemImage: "doc.badge.clock") }
+                                .disabled(!v.available)
+                        }
+                    }
+                }
                 Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
                 Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
             } label: { Label("Mehr", systemImage: "ellipsis.circle") }
@@ -570,7 +629,13 @@ struct DocumentView: View {
             Divider().frame(height: 14)
             Button("\(bridge.zoomPercent) %") { bridge.fitWidth() }
                 .accessibilityHint("Seite einpassen")
-            if !canWrite {
+            if readOnly {
+                Divider().frame(height: 14)
+                Label("Alte Fassung – nur ansehen", systemImage: "doc.badge.clock").lineLimit(1)
+            } else if store.outdatedByNewVersion {
+                Divider().frame(height: 14)
+                Label("Neue Fassung angekommen – Dokument neu öffnen", systemImage: "arrow.triangle.2.circlepath").lineLimit(1)
+            } else if !planAllowsWriting {
                 Divider().frame(height: 14)
                 Button { lockedFeature = .pencilWriting } label: {
                     Label("Nur ansehen – Schreiben mit Plus", systemImage: "lock").lineLimit(1)

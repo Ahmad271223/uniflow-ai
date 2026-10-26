@@ -1,12 +1,21 @@
 import Foundation
 
-/// Werkzeuge fuer eigene Dokumente, die der Kern ohne PDFKit/UIKit nicht hat (unter Linux gibt es beides nicht).
-/// app/server.py nutzt dafuer pypdf (Seitenzahl) und Pillow (Bild als PDF-Seite); die App setzt PDFKit und UIKit ein.
+/// Werkzeuge fuer Dokumente, die der Kern ohne PDFKit/UIKit nicht hat (unter Linux gibt es beides nicht).
+/// app/server.py nutzt dafuer pypdf (Seitenzahl, Seitentexte) und Pillow (Bild als PDF-Seite); die App setzt PDFKit
+/// und UIKit ein.
 public protocol LocalDocumentTools: Sendable {
     /// Seitenzahl einer PDF; nil, wenn sie sich nicht lesen laesst (Python: `page_count = None`)
     func pdfPageCount(_ data: Data) -> Int?
     /// Bild als einseitige PDF; nil ohne Umwandlung -> das Bild bleibt ein Bild (wie Python ohne Pillow)
     func pdfFromImage(_ data: Data) -> Data?
+    /// Text je Seite einer PDF (am PC pypdf `extract_text`, in der App PDFKit), eine nicht lesbare Seite als "";
+    /// nil, wenn sich die Datei nicht lesen laesst (Python: `page_texts` liefert [])
+    func pdfPageTexts(_ url: URL) -> [String]?
+}
+
+extension LocalDocumentTools {
+    /// Ohne Werkzeug (Kern unter Linux, Tests): keine Seitentexte, die Skriptsuche nutzt nur gespeicherte
+    public func pdfPageTexts(_ url: URL) -> [String]? { nil }
 }
 
 /// Ohne Werkzeuge: keine Seitenzahl, Bilder bleiben Bilder.

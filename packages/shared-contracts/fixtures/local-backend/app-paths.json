@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 77,
+ "count": 80,
  "paths": [
   {
    "method": "DELETE",
@@ -710,6 +710,30 @@
   },
   {
    "method": "GET",
+   "shape": "/api/files/{}",
+   "sources": [
+    "UniFlow/Services/DocumentVersions.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/files/{}/annotations",
    "sources": [
     "UniFlow/Services/APIClient.swift"
@@ -781,6 +805,7 @@
    "method": "GET",
    "shape": "/api/files/{}/pagetext",
    "sources": [
+    "UniFlow/Services/DocumentVersions.swift",
     "UniFlow/Views/Modules/ModulesPage.swift"
    ],
    "request": {
@@ -799,6 +824,25 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/files/{}/versions",
+   "sources": [
+    "UniFlow/Services/DocumentVersions.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/versions"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "notice",
+     "versions"
+    ],
+    "reason": "nur auf dem Geraet (FileVersionEndpoints)"
    }
   },
   {
@@ -1020,6 +1064,14 @@
        "item": null
       },
       "modules": {
+       "type": "array",
+       "item": null
+      },
+      "pages": {
+       "type": "array",
+       "item": null
+      },
+      "tasks": {
        "type": "array",
        "item": null
       }
@@ -2054,6 +2106,24 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/files/{}/versions/seen",
+   "sources": [
+    "UniFlow/Services/DocumentVersions.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/versions/seen"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "ok"
+    ],
+    "reason": "nur auf dem Geraet (FileVersionEndpoints)"
    }
   },
   {

@@ -118,6 +118,25 @@ public enum AnnotationEndpoints: LocalEndpointModule {
         do { return try JSONValue.parse(text) } catch { throw LocalHTTPError(status: 500, message: "Gespeicherte Notizen sind kein gültiges JSON") }
     }
 
+    /// Schreiben wie `put_annotations` nach der Versionspruefung (in einer Transaktion): Stand, Versionsverlauf, die
+    /// letzten `keptVersions` Versionen bleiben. Auch fuer Notizen, die eine neue Original-Fassung umhaengt
+    /// (`FileVersionKeeper`). Rueckgabe: die geschriebene Version.
+    @discardableResult
+    static func write(_ c: SQLiteConnection, fileID: String, payload: String, version: Int, now: String) throws -> Int {
+        let id = SQLiteValue.text(fileID)
+        let newV = Int64(version)
+        try c.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?) "
+                      + "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version",
+                      [id, .text(payload), .text(now), .integer(newV)])
+        try c.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
+                      [id, .integer(newV), .text(payload), .text(now)])
+        try c.execute("""
+            DELETE FROM annotation_versions WHERE file_id=? AND id NOT IN (
+                SELECT id FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT \(keptVersions))
+            """, [id, id])
+        return version
+    }
+
     /// `put_annotations(file_id, body, base_version)`: Versionspruefung und Schreiben in einer Transaktion
     static func save(fileID: String, body: PyJSON, baseVersion: Int?, _ ctx: LocalContext) async throws -> LocalResponse {
         let payload = body.dumps(ensureASCII: false)
@@ -131,17 +150,7 @@ public enum AnnotationEndpoints: LocalEndpointModule {
                 return .conflict(curV, cur["data"]?.string ?? "null")
             }
             guard try c.queryOne("SELECT 1 FROM files WHERE id=?", [id]) != nil else { return .unknownFile }
-            let newV = Int64(curV + 1)
-            try c.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?) "
-                          + "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version",
-                          [id, .text(payload), .text(now), .integer(newV)])
-            try c.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
-                          [id, .integer(newV), .text(payload), .text(now)])
-            try c.execute("""
-                DELETE FROM annotation_versions WHERE file_id=? AND id NOT IN (
-                    SELECT id FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT \(keptVersions))
-                """, [id, id])
-            return .saved(Int(newV))
+            return .saved(try write(c, fileID: fileID, payload: payload, version: curV + 1, now: now))
         }
         switch outcome {
         case .saved(let v):
