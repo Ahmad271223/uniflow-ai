@@ -9,7 +9,7 @@ enum PendingTimetableEndpoints: LocalEndpointModule {
         // Lernslots der Tage neu legen: ohne Pakete gibt es nichts zu verschieben; Antwort wie Python
         router.post("/api/timetable/reslot", placeholder: true) { req, _ in
             let dates = try req.objectBody(orEmpty: true)["dates"]
-            return .json(["reslotted": dates.map { LocalPending.truthy($0) ? $0 : [] } ?? []])
+            return .json(["reslotted": LocalTimetable.or(dates, [])])
         }
     }
 }

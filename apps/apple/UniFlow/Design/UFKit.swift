@@ -486,7 +486,8 @@ struct UFDrawerFrame<Head: View, Body: View, Foot: View>: View {
 // MARK: - Neu laden wie state.route()
 
 extension View {
-    /// Ansicht neu laden, wenn die Route neu gerendert wird (state.route()) oder ein Sync fertig ist
+    /// Ansicht neu laden, wenn die Route neu gerendert wird (state.route()), ein Sync des eigenen Servers fertig ist
+    /// oder ein Stud.IP-Abgleich auf dem Geraet endet (lokal fuellt nur er die Datenbank der Seiten)
     func ufReload(_ action: @escaping () async -> Void) -> some View {
         modifier(UFReloadModifier(action: action))
     }
@@ -495,12 +496,14 @@ extension View {
 private struct UFReloadModifier: ViewModifier {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
+    @EnvironmentObject private var studip: StudIPSync
     let action: () async -> Void
 
     func body(content: Content) -> some View {
         content
             .onChange(of: router.reloadToken) { _, _ in Task { await action() } }
             .onChange(of: shell.reloadToken) { _, _ in Task { await action() } }
+            .onChange(of: studip.finishedRuns) { _, _ in Task { await action() } }
     }
 }
 

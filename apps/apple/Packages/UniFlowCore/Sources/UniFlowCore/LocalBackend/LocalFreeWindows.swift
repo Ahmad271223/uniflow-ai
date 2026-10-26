@@ -90,7 +90,7 @@ enum LocalFreeWindows {
     static func hm(_ value: JSONValue?, key: String) throws -> Int {
         let v = value ?? .null
         let text: String
-        if !LocalTimetable.truthy(v) {
+        if !LocalModules.truthy(v) {
             text = "00:00"
         } else if let s = v.string {
             text = s

@@ -12,20 +12,10 @@ enum LocalTimetable {
 
     // MARK: Python-Werte
 
-    /// Wahrheitswert wie in Python (`x or y`, `if x`)
-    static func truthy(_ v: JSONValue?) -> Bool {
-        switch v {
-        case nil, .null?: return false
-        case .bool(let b)?: return b
-        case .number(let n)?: return n != 0
-        case .string(let s)?: return !s.isEmpty
-        case .array(let a)?: return !a.isEmpty
-        case .object(let o)?: return !o.isEmpty
-        }
-    }
+    // Wahrheitswert wie in Python (`x or y`, `if x`): LocalModules.truthy
 
     /// `a or b`
-    static func or(_ a: JSONValue?, _ b: JSONValue) -> JSONValue { truthy(a) ? a! : b }
+    static func or(_ a: JSONValue?, _ b: JSONValue) -> JSONValue { LocalModules.truthy(a) ? a! : b }
 
     /// `int(v)`: Zahl (abgeschnitten), Wahrheitswert, Text mit ganzer Zahl. Was Python scheitern laesst, wird 500.
     static func int(_ v: JSONValue?, _ field: String) throws -> Int {
@@ -146,7 +136,7 @@ enum LocalTimetable {
                     "module_name": e["module_name"] ?? .null,
                     "color": or(e["color"], or(e["module_color"], "#4f5bd5")), "room": e["room"] ?? .null,
                     "lecturer": e["lecturer"] ?? .null, "course_id": e["course_id"] ?? .null,
-                    "status": truthy(e["attend"]) ? "teilnahme" : "nicht_teilnahme", "permanent_skip": .bool(!truthy(e["attend"])),
+                    "status": LocalModules.truthy(e["attend"]) ? "teilnahme" : "nicht_teilnahme", "permanent_skip": .bool(!LocalModules.truthy(e["attend"])),
                     "exception": .null,
                 ]
                 if let x {
@@ -159,7 +149,7 @@ enum LocalTimetable {
                     case "moved", "edit":
                         occ["start"] = or(x["new_start"], occ["start"] ?? .null)
                         occ["end"] = or(x["new_end"], occ["end"] ?? .null)
-                        if type.string == "moved", truthy(x["new_date"]), x["new_date"] != .string(di) {
+                        if type.string == "moved", LocalModules.truthy(x["new_date"]), x["new_date"] != .string(di) {
                             occ["moved_to"] = x["new_date"]
                             occ["status"] = "verschoben"
                         }
@@ -172,7 +162,7 @@ enum LocalTimetable {
             // Hierher verschobene Termine anderer Tage
             for x in try c.rows("SELECT x.*, e.* , x.id AS xid FROM event_exceptions x JOIN course_events e ON e.id=x.event_id WHERE x.type='moved' AND x.new_date=? AND x.date!=?",
                                 [.text(di), .text(di)]) {
-                let m = truthy(x["module_id"]) ? try c.rows("SELECT name, color FROM modules WHERE id=?", [try bind(x["module_id"], "module_id")]).first : nil
+                let m = LocalModules.truthy(x["module_id"]) ? try c.rows("SELECT name, color FROM modules WHERE id=?", [try bind(x["module_id"], "module_id")]).first : nil
                 out.append([
                     "event_id": x["event_id"] ?? .null, "date": .string(di), "start": or(x["new_start"], x["start_time"] ?? .null),
                     "end": or(x["new_end"], x["end_time"] ?? .null), "title": x["title"] ?? .null, "kind": x["kind"] ?? .null,

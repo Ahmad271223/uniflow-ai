@@ -242,10 +242,11 @@ final class TimetableLocalAppTests: XCTestCase {
         return true
     }
 
-    /// Hostet eine Ansicht mit den Umgebungsobjekten der App, wartet auf die Anfragen und liefert die sichtbaren Texte
-    /// `expected`: Texte, auf die hoechstens bis zum Ende der Wartezeit gewartet wird (der Test prueft sie danach)
-    private func render<V: View>(_ view: V, api: APIClient, recorder: RecordingTransport, expected: [String] = [],
-                                 until done: ([(path: String, status: Int)]) -> Bool) throws -> [String] {
+    /// Hostet eine Ansicht mit den Umgebungsobjekten der App (`studip`: Abgleich der Ansicht, sonst ein neuer) und gibt
+    /// `body` die Funktion `look`: wartet hoechstens `timeout` Sekunden, bis `done` gilt und die Texte `expected`
+    /// erscheinen (der Test prueft sie danach), und liefert die sichtbaren Texte. Das Fenster bleibt fuer `body` offen.
+    private func hosted<V: View>(_ view: V, api: APIClient, studip: StudIPSync? = nil,
+                                 _ body: (_ look: (_ expected: [String], _ timeout: Double, _ done: () -> Bool) -> [String]) throws -> Void) throws {
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }
         let suite = "uniflow-s5-\(UUID().uuidString)"
@@ -257,7 +258,7 @@ final class TimetableLocalAppTests: XCTestCase {
             .environmentObject(ShellState())
             .environmentObject(UFOverlay())
             .environmentObject(UFToastCenter())
-            .environmentObject(StudIPSync())
+            .environmentObject(studip ?? StudIPSync())
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: CGRect(x: 0, y: 0, width: 1180, height: 820))
         window.frame = CGRect(x: 0, y: 0, width: 1180, height: 820)
@@ -265,17 +266,28 @@ final class TimetableLocalAppTests: XCTestCase {
         window.rootViewController = hosting
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
-        let end = Date().addingTimeInterval(10)
-        while !done(recorder.calls) && Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
-        RunLoop.main.run(until: Date().addingTimeInterval(0.5))                   // Antwort in die Ansicht uebernehmen
-        hosting.view.layoutIfNeeded()
-        // erwartete Texte koennen spaeter erscheinen (Zustand aus .onAppear, Bedienungshilfen-Baum wird nachgezogen)
-        var shown = texts(in: hosting.view)
-        while !expected.allSatisfy({ e in shown.contains { $0.contains(e) } }) && Date() < end {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        try body { expected, timeout, done in
+            let end = Date().addingTimeInterval(timeout)
+            while !done() && Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+            RunLoop.main.run(until: Date().addingTimeInterval(0.5))               // Antwort in die Ansicht uebernehmen
             hosting.view.layoutIfNeeded()
-            shown = texts(in: hosting.view)
+            // erwartete Texte koennen spaeter erscheinen (Zustand aus .onAppear, Bedienungshilfen-Baum wird nachgezogen)
+            var shown = texts(in: hosting.view)
+            while !expected.allSatisfy({ e in shown.contains { $0.contains(e) } }) && Date() < end {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+                hosting.view.layoutIfNeeded()
+                shown = texts(in: hosting.view)
+            }
+            return shown
         }
+    }
+
+    /// Hostet eine Ansicht, wartet auf die Anfragen und liefert die sichtbaren Texte
+    /// `expected`: Texte, auf die hoechstens bis zum Ende der Wartezeit gewartet wird (der Test prueft sie danach)
+    private func render<V: View>(_ view: V, api: APIClient, recorder: RecordingTransport, expected: [String] = [],
+                                 until done: @escaping ([(path: String, status: Int)]) -> Bool) throws -> [String] {
+        var shown: [String] = []
+        try hosted(view, api: api) { look in shown = look(expected, 10) { done(recorder.calls) } }
         return shown
     }
 
@@ -436,6 +448,14 @@ final class TimetableLocalAppTests: XCTestCase {
     /// Geraet mit lokalem Backend und Dateiablage im Temp-Ordner, Abgleich ueber `StudIPSync` wie in der App
     private func syncedDevice() async throws -> (api: APIClient, recorder: RecordingTransport, sync: StudIPSync, stud: FixtureTransport,
                                                  client: StudIPClient) {
+        let d = try freshDevice()
+        await d.sync.run(client: d.client)
+        return d
+    }
+
+    /// Dasselbe Geraet vor dem ersten Abgleich (frisch installiert, Datenbank leer)
+    private func freshDevice() throws -> (api: APIClient, recorder: RecordingTransport, sync: StudIPSync, stud: FixtureTransport,
+                                          client: StudIPClient) {
         let c = try tempDir()
         let h = LocalBackendHost(directory: c.appendingPathComponent("Library/Application Support/UniFlow/db", isDirectory: true),
                                  clock: .fixed(berlin: "2026-10-25T14:30:05")!,
@@ -448,7 +468,6 @@ final class TimetableLocalAppTests: XCTestCase {
                               support: c.appendingPathComponent("Library/Application Support/UniFlow", isDirectory: true))
         let stud = fullStudIP()
         let client = StudIPClient(base: URL(string: "https://studip.test")!, transport: stud, pauseMillis: 0)
-        await sync.run(client: client)
         let recorder = RecordingTransport(LocalTransport(host: h))
         return (APIClient(base: APIClient.localBase, transport: recorder), recorder, sync, stud, client)
     }
@@ -570,6 +589,35 @@ final class TimetableLocalAppTests: XCTestCase {
             XCTAssertFalse(summary.contains("Stundenplan-Termine"), summary)
             let mats = try await api.value("/api/timetable/event-materials/\(series)?date=2026-10-19").items.compactMap { $0.s("id") }
             XCTAssertEqual(mats, ["fv2", "fu2", "fl1"])
+        }
+    }
+
+    /// Erste Verbindung bei offener Seite: Dokumente & Notizen und Stundenplan sind leer, der Abgleich fuellt die
+    /// Datenbank, und die offene Seite laedt danach von selbst neu (ohne Seitenwechsel), wie nach einem Sync des PCs.
+    /// Vorher blieb die Seite leer, bis man sie verliess und wieder oeffnete.
+    func testOpenPageReloadsWhenStudIPSyncEnds() throws {
+        let pages: [(name: String, view: AnyView, path: String, expected: [String])] = [
+            ("Dokumente & Notizen", AnyView(LibraryPage(section: nil, path: nil, q: nil)), "/api/library",
+             ["Testmathematik I", "Begrüßung der Testsemester"]),
+            ("Stundenplan", AnyView(TimetableView(date: "2026-10-26")), "/api/timetable/week", ["Übung zu Testmathematik I", "Chorprobe"]),
+        ]
+        for page in pages {
+            let (api, recorder, sync, _, client) = try freshDevice()
+            func loads() -> Int { recorder.calls.filter { $0.path == page.path }.count }
+            try hosted(page.view, api: api, studip: sync) { look in
+                let before = look([], 10) { loads() >= 1 }.joined(separator: "\n")
+                let initial = loads()
+                XCTAssertGreaterThanOrEqual(initial, 1, page.name)
+                for e in page.expected { XCTAssertFalse(before.contains(e), "\(page.name) vor dem Abgleich: \(before)") }
+
+                Task { @MainActor in await sync.run(client: client) }
+                let after = look(page.expected, 60) { sync.finishedRuns == 1 && loads() > initial }.joined(separator: "\n")
+                XCTAssertEqual(sync.phase, .idle, "\(page.name): \(sync.phase)")
+                XCTAssertEqual(sync.finishedRuns, 1)
+                XCTAssertGreaterThan(loads(), initial, "\(page.name) lädt nach dem Abgleich neu")
+                for e in page.expected { XCTAssertTrue(after.contains(e), "\(page.name): \(e) fehlt: \(after)") }
+                XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
+            }
         }
     }
 }

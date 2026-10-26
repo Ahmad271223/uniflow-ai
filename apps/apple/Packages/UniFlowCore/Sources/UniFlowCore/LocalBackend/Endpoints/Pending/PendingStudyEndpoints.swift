@@ -69,7 +69,7 @@ enum PendingStudyEndpoints: LocalEndpointModule {
         // Python scheitert beim Verschieben eines fehlenden Pakets mit 500 (ValueError); hier 404 mit Meldung
         router.patch("/api/packages/{package_id:int}", placeholder: true) { req, _ in
             let body = try req.objectBody()
-            if body["date"].map(LocalPending.truthy) == true { throw LocalHTTPError.notFound("Paket nicht gefunden") }
+            if LocalModules.truthy(body["date"]) { throw LocalHTTPError.notFound("Paket nicht gefunden") }
             return .json(.null)
         }
         router.delete("/api/packages/{package_id:int}", placeholder: true) { _, _ in .ok }

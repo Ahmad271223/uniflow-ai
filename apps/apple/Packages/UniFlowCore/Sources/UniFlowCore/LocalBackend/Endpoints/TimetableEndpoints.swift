@@ -58,19 +58,19 @@ public enum TimetableEndpoints: LocalEndpointModule {
             let patch = body
             return .json(try await ctx.database.transaction { c -> JSONValue in
                 guard let e = try c.queryOne("SELECT * FROM course_events WHERE id=?", [id]) else { throw LocalHTTPError.notFound() }
-                if scope == "single" && T.truthy(d) {
+                if scope == "single" && LocalModules.truthy(d) {
                     let date = try T.bind(d, "date")
                     try T.setException(c, eventID: id, date: date, type: "edit", newStart: try T.bind(patch["start_time"], "start_time"),
                                        newEnd: try T.bind(patch["end_time"], "end_time"), note: "einzeln bearbeitet", clock: clock)
                     // "date" ist oben schon entnommen: verschoben wird nur mit new_date (wie in Python)
-                    if T.truthy(patch["date"]) || T.truthy(patch["new_date"]) {
+                    if LocalModules.truthy(patch["date"]) || LocalModules.truthy(patch["new_date"]) {
                         try T.setException(c, eventID: id, date: date, type: "moved", newDate: try T.bind(patch["new_date"], "new_date"),
                                            newStart: try T.bind(patch["start_time"], "start_time"), newEnd: try T.bind(patch["end_time"], "end_time"),
                                            clock: clock)
                     }
                     return ["ok": true, "scope": "single"]
                 }
-                if scope == "future" && T.truthy(d) {
+                if scope == "future" && LocalModules.truthy(d) {
                     let prevEnd = T.iso(try T.day(d, "date") - 1)
                     try c.execute("UPDATE course_events SET date_to=? WHERE id=?", [.text(prevEnd), id])
                     var merged: [String: SQLiteValue] = [:]
@@ -220,7 +220,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
                 let src = source.string ?? T.text(source)
                 var res = try LocalTimetableImport.applyImport(c, entries, source: src, removeIDs: removeIDs, clock: clock,
                                                                imported: StudIPScheduleImport.confirmed(c, source: src, clock: clock))
-                if T.truthy(b["import_id"]) {
+                if LocalModules.truthy(b["import_id"]) {
                     try c.execute("UPDATE schedule_imports SET confirmed=1, status='confirmed' WHERE id=?", [try T.bind(b["import_id"], "import_id")])
                 }
                 let t = T.today(clock)
@@ -251,7 +251,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
                 let pending = try StudIPScheduleImport.openGroups(c, entries)
                 let groups = Set(pending.compactMap { $0["title"]?.string }).sorted { $0.unicodeScalars.lexicographicallyPrecedes($1.unicodeScalars) }
                 return ["pending_groups": .number(Double(pending.count)), "courses": .array(groups.map(JSONValue.string)),
-                        "personal": .array(entries.filter { T.truthy($0["personal"]) }.map(JSONValue.object))]
+                        "personal": .array(entries.filter { LocalModules.truthy($0["personal"]) }.map(JSONValue.object))]
             })
         }
     }
@@ -264,7 +264,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
     /// `x or []` und danach `for v in x`: Listen ihre Eintraege; Text seine Zeichen und Objekte ihre Schluessel
     /// (wie Python; bei `entries` scheitert beides spaeter mit 500, darum `strict`); andere Werte 500.
     static func iterable(_ v: JSONValue?, _ field: String, strict: Bool) throws -> [JSONValue] {
-        guard T.truthy(v), let v else { return [] }
+        guard LocalModules.truthy(v), let v else { return [] }
         switch v {
         case .array(let a): return a
         case .string(let s) where !strict: return s.unicodeScalars.map { .string(String($0)) }

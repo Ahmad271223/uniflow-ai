@@ -119,8 +119,12 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// `index.json` bleibt fuer die Liste in StudIPView. Was ein Abgleich vor S3 schon geladen hat, wird beim Start
 /// uebernommen, ohne neu zu laden.
 /// Wie in Python halten Fehler einzelner Kurse oder Dateien den Abgleich nicht an (`StudIPError.affectsOnlyItem`,
-/// beim Download auch Transportfehler einer Datei wie eine Zeitueberschreitung); eine abgelaufene Sitzung, kein Netz
-/// und volle Platte brechen ab. Eine neue Fassung, die nicht ankam, laedt der naechste Abgleich (`StudIPLibrary`).
+/// bei Dateiliste und Download auch Transportfehler eines Kurses oder einer Datei wie eine Zeitueberschreitung); eine
+/// abgelaufene Sitzung, kein Netz und volle Platte brechen ab. Eine neue Fassung, die nicht ankam, laedt der naechste
+/// Abgleich (`StudIPLibrary`). Laeuft die Sitzung erst beim Stundenplan ab, bleiben die Dateien, der Lauf endet aber
+/// mit "Erneut anmelden" (`.needsLogin`).
+/// Am Ende jedes Laufs (auch eines gescheiterten: was bis dahin gelesen war, steht in der Datenbank) zaehlt
+/// `finishedRuns` hoch; offene Seiten laden dann neu (`ufReload`), wie nach einem Sync des PC-Servers.
 @MainActor
 final class StudIPSync: ObservableObject {
     static let base = URL(string: "https://studip.uni-hannover.de")!
@@ -138,6 +142,8 @@ final class StudIPSync: ObservableObject {
     @Published private(set) var entries: [StudIPLocalEntry] = []
     @Published private(set) var lastRun: Date?
     @Published private(set) var lastSummary: String?
+    /// Zahl der beendeten Abgleiche dieses App-Laufs; Seiten mit `ufReload` laden bei jeder Aenderung neu
+    @Published private(set) var finishedRuns = 0
     @Published var selectedCourses: Set<String> = [] {
         didSet { defaults.set(Array(selectedCourses), forKey: "uniflow.studip.courses") }
     }
@@ -267,6 +273,7 @@ final class StudIPSync: ObservableObject {
     func run(client: StudIPClient) async {
         guard !isRunning else { return }
         phase = .running("Kurse werden geladen …")
+        defer { finishedRuns += 1 }                       // nach der letzten Phase: Seiten laden neu
         await adoption?.value
         let started = clock.nowISO
         var loaded = 0
@@ -288,7 +295,7 @@ final class StudIPSync: ObservableObject {
             var remote: [StudIPFile] = []
             var wanted: [StudIPFile] = []
             var checked = Set<String>()
-            var unreadable: [StudIPError] = []
+            var unreadable: [Error] = []
             for (i, c) in chosen.enumerated() {
                 phase = .running("Dateiliste \(i + 1) von \(chosen.count): \(c.title)")
                 let files: [StudIPFile]
@@ -296,6 +303,11 @@ final class StudIPSync: ObservableObject {
                     files = try await client.files(courseID: c.id)
                 } catch let e as StudIPError where e.affectsOnlyItem {
                     // wie run_sync ("Fehler bei Dateiliste"): naechster Kurs; seine Dateien bleiben unveraendert
+                    unreadable.append(e)
+                    continue
+                } catch let e as URLError where !Self.endsRun(e) {
+                    // z. B. Zeitueberschreitung oder WLAN-Wechsel bei diesem Kurs: wie oben, die uebrigen Kurse, ihre
+                    // Downloads und der Stundenplan kommen trotzdem
                     unreadable.append(e)
                     continue
                 }
@@ -360,7 +372,8 @@ final class StudIPSync: ObservableObject {
             finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
             await log(database, started: started, ok: true, newFiles: loaded,
                       message: StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0))
-            phase = .idle
+            // Sitzung erst beim Stundenplan abgelaufen: Dateien sind da, die Anmeldung muss trotzdem neu
+            phase = timetable.sessionExpired ? .needsLogin : .idle
         } catch StudIPError.sessionExpired {
             entries = sortedEntries()
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(StudIPError.sessionExpired.description))
@@ -392,7 +405,8 @@ final class StudIPSync: ObservableObject {
     private var partialFolder: URL { root.appendingPathComponent(".laden", isDirectory: true) }
 
     /// Transportfehler, nach dem keine weitere Datei ankaeme (kein Netz, Stud.IP nicht erreichbar, abgebrochen):
-    /// der Lauf endet als Fehler. Alles andere (z. B. Zeitueberschreitung) betrifft nur die eine Datei.
+    /// der Lauf endet als Fehler. Alles andere (z. B. Zeitueberschreitung) betrifft nur den einen Kurs (Dateiliste)
+    /// oder die eine Datei (Download).
     nonisolated static func endsRun(_ e: URLError) -> Bool {
         [.notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff, .cannotFindHost, .cannotConnectToHost,
          .dnsLookupFailed, .cancelled].contains(e.code)

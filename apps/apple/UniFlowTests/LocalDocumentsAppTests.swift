@@ -560,6 +560,95 @@ final class LocalDocumentsAppTests: XCTestCase {
         XCTAssertEqual(again["exists"], true)
     }
 
+    /// Zeitueberschreitung oder WLAN-Wechsel beim Lesen der Dateiliste eines Kurses: wie run_sync ("Fehler bei
+    /// Dateiliste") geht es mit dem naechsten Kurs weiter; dessen Downloads und der Stundenplan laufen, die Dateien des
+    /// haengenden Kurses bleiben (nicht "in Stud.IP nicht mehr vorhanden"). Erst wenn kein Kurs lesbar ist, scheitert
+    /// der Lauf. Jeder beendete Lauf zaehlt `finishedRuns` hoch (Seiten laden neu).
+    func testTransportErrorWhileListingOneCourseDoesNotStopTheSync() async throws {
+        let dev = try device()
+        let pdf = makePDF("Blatt")
+        let stud = fakeStudIP(pdf: pdf)
+        stud.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+            {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
+                     {"id":"c2","type":"courses","attributes":{"title":"Testkurs Optik","course-number":"T-43"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
+             "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}
+            """#)
+        func optik(_ ids: [String]) {
+            let refs = ids.map { #"{"id":"\#($0)","attributes":{"name":"Skript \#($0).pdf","filesize":\#(pdf.count),"mime-type":"application/pdf","chdate":"2026-10-20T09:00:00+02:00"}}"# }
+            stud.json("/jsonapi.php/v1/folders/r2/file-refs?page[limit]=500", #"{"data":[\#(refs.joined(separator: ","))]}"#)
+            for id in ids { stud.set("/jsonapi.php/v1/file-refs/\(id)/content", HTTPReply(status: 200, contentType: "application/pdf", body: pdf)) }
+        }
+        stud.json("/jsonapi.php/v1/courses/c2/folders?page[limit]=200", #"{"data":[{"id":"r2","attributes":{"folder-type":"RootFolder","name":""}}]}"#)
+        stud.json("/jsonapi.php/v1/folders/r2/folders?page[limit]=200", #"{"data":[]}"#)
+        optik(["d5"])
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        XCTAssertEqual(sync.finishedRuns, 0)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertEqual(Set(stud.downloads), ["/jsonapi.php/v1/file-refs/d1/content", "/jsonapi.php/v1/file-refs/d5/content"])
+        XCTAssertEqual(sync.finishedRuns, 1)
+
+        // Kurs 1 haengt (Zeitlimit), Kurs 2 hat eine neue Datei
+        stud.fail("/jsonapi.php/v1/courses/c1/folders?page[limit]=200", URLError(.timedOut))
+        optik(["d5", "d6"])
+        let before = stud.requested.count
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertEqual(sync.finishedRuns, 2)
+        let later = Array(stud.requested.dropFirst(before))
+        XCTAssertEqual(later.filter { $0.hasSuffix("/content") }, ["/jsonapi.php/v1/file-refs/d6/content"])
+        XCTAssertTrue(later.contains("/jsonapi.php/v1/users/u1/schedule"), "Stundenplan trotzdem abgefragt: \(later)")
+        let summary = try XCTUnwrap(sync.lastSummary)
+        XCTAssertTrue(summary.contains("1 Kurs nicht lesbar"), summary)
+        XCTAssertFalse(summary.contains("nicht mehr vorhanden"), summary)
+        let d6 = try await dev.api.value("/api/files/d6")
+        XCTAssertEqual(d6["exists"], true, "Datei des lesbaren Kurses kommt an")
+        let d1 = try await dev.api.value("/api/files/d1")
+        XCTAssertEqual(d1["exists"], true, "Datei des haengenden Kurses bleibt")
+        let log = try await dev.api.value("/api/sync/status")["log"]?.array ?? []
+        XCTAssertEqual(log.first?["ok"], 1)
+
+        // WLAN-Wechsel bei beiden Kursen: kein Kurs lesbar -> Fehlerlauf mit "Erneut versuchen"
+        stud.fail("/jsonapi.php/v1/courses/c1/folders?page[limit]=200", URLError(.networkConnectionLost))
+        stud.fail("/jsonapi.php/v1/courses/c2/folders?page[limit]=200", URLError(.networkConnectionLost))
+        await sync.run(client: client(stud))
+        guard case .failed = sync.phase else { return XCTFail("\(sync.phase)") }
+        XCTAssertEqual(sync.finishedRuns, 3)
+    }
+
+    /// Laeuft die Stud.IP-Sitzung erst beim Stundenplan ab (nach den Downloads), bleiben die Dateien und das
+    /// Protokoll meldet den Datei-Abgleich als gelungen; der Lauf endet aber mit "Erneut anmelden" statt still als
+    /// fertig. Nach der neuen Anmeldung ist alles wieder normal.
+    func testSessionExpiringDuringTimetableAsksForLogin() async throws {
+        let dev = try device()
+        let pdf = makePDF("Blatt")
+        let stud = fakeStudIP(pdf: pdf)
+        stud.set("/jsonapi.php/v1/users/u1/schedule", HTTPReply(status: 401, contentType: "application/vnd.api+json"))
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .needsLogin)
+        XCTAssertEqual(sync.finishedRuns, 1)
+        XCTAssertEqual(UFDataMode.resolve(api: dev.api, studIP: StudIPLink(sync.phase, hasSession: true)), .local(.expired))
+        XCTAssertTrue(UFDataMode.resolve(api: dev.api, studIP: StudIPLink(sync.phase, hasSession: true)).showsConnectCard, "Karte „Erneut anmelden“")
+        XCTAssertEqual(stud.downloads, ["/jsonapi.php/v1/file-refs/d1/content"])
+        let d1 = try await dev.api.value("/api/files/d1")
+        XCTAssertEqual(d1["exists"], true, "Dateien bleiben")
+        let summary = try XCTUnwrap(sync.lastSummary)
+        XCTAssertTrue(summary.hasPrefix("1 neu/geändert"), summary)
+        XCTAssertTrue(summary.contains("Stundenplan: Stud.IP-Anmeldung abgelaufen"), summary)
+        let log = try await dev.api.value("/api/sync/status")["log"]?.array ?? []
+        XCTAssertEqual(log.first?["ok"], 1)
+        XCTAssertEqual(log.first?["message"], "1 neue/geaenderte Dateien")
+
+        // neu angemeldet: Stundenplan wieder lesbar
+        stud.json("/jsonapi.php/v1/users/u1/schedule", #"{"data":[],"links":{}}"#)
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertEqual(sync.finishedRuns, 2)
+    }
+
     /// Kopie ("Duplizieren") einer Stud.IP-Datei mit Notizen: nach "Abmelden und Dateien löschen" und erneutem
     /// Abgleich oeffnet sie sich wieder im Editor, mit ihren Notizen. Vorschaubilder der Stud.IP-Dateien gehen beim
     /// Loeschen mit.

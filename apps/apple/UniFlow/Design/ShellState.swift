@@ -48,7 +48,8 @@ final class ShellState: ObservableObject {
         if let s = try? await api.value("/api/settings"), let name = s.s("user_name")?.trimmingCharacters(in: .whitespaces), !name.isEmpty {
             initials = Self.initials(of: name)
         }
-        // lokal gleicht StudIPSync direkt ab und zeigt den Fortschritt selbst (Statusleiste); kein Sync-Chip
+        // lokal gleicht StudIPSync direkt ab und zeigt den Fortschritt selbst (Statusleiste); kein Sync-Chip. Neu laden
+        // danach ueber StudIPSync.finishedRuns (ufReload), nicht ueber reloadToken
         guard !api.isLocal else { syncChip = nil; return }
         await updateSyncChip()
         if let bg = try? await api.value("/api/bg"), bg["running"]?.bool == true { await poll() }

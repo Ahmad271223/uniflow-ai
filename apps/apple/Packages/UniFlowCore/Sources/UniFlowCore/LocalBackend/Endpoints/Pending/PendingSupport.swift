@@ -51,17 +51,6 @@ enum LocalPending {
          "minutes": 0, "tasks_done": 0, "tasks_total": 0, "packages": [], "events": []]
     }
 
-    /// Sperrzeiten eines Wochentags aus den Einstellungen (`int(b.get("weekday", -1)) == d.weekday()`)
-    static func blocked(_ day: Int, settings s: [String: JSONValue]) -> JSONValue {
-        let wd = weekday(day)
-        return .array((s["blocked_times"]?.array ?? []).filter { b in
-            guard let w = b["weekday"] else { return false }
-            if let n = w.int { return n == wd }
-            if let t = w.string, let n = PyConvert.int(t) { return n == wd }
-            return false
-        })
-    }
-
     /// Leerer Rumpf von `GET /api/files/{id}/annotations`, wenn es noch keine Notizen gibt
     static let emptyAnnotations: JSONValue = ["data": ["version": 2, "pages": [:], "zoom": 1.2], "updated_at": .null, "version": 0]
 }

@@ -15,17 +15,3 @@ enum PendingLibraryEndpoints: LocalEndpointModule {
         }
     }
 }
-
-extension LocalPending {
-    /// Wahrheitswert wie Pythons `if body.get(...)`
-    static func truthy(_ v: JSONValue) -> Bool {
-        switch v {
-        case .null: return false
-        case .bool(let b): return b
-        case .number(let n): return n != 0
-        case .string(let s): return !s.isEmpty
-        case .array(let a): return !a.isEmpty
-        case .object(let o): return !o.isEmpty
-        }
-    }
-}

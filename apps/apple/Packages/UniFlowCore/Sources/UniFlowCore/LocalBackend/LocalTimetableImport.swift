@@ -12,26 +12,7 @@ import Foundation
 enum LocalTimetableImport {
     typealias Entry = [String: JSONValue]
 
-    // MARK: Text wie Python
-
-    /// `needle in hay` nach Codepunkten (ein leerer Text ist in jedem enthalten)
-    static func contains(_ hay: String, _ needle: String) -> Bool {
-        let h = Array(hay.unicodeScalars), n = Array(needle.unicodeScalars)
-        guard !n.isEmpty else { return true }
-        guard n.count <= h.count else { return false }
-        for i in 0...(h.count - n.count) where h[i] == n[0] && Array(h[i..<(i + n.count)]) == n { return true }
-        return false
-    }
-
-    /// `str.strip()`: Leerraum wie `str.isspace` (Unicode White_Space und die Trennzeichen 0x1C-0x1F)
-    static func strip(_ s: String) -> String {
-        func space(_ u: Unicode.Scalar) -> Bool { u.properties.isWhitespace || (0x1C...0x1F).contains(u.value) }
-        let u = Array(s.unicodeScalars)
-        guard let first = u.firstIndex(where: { !space($0) }), let last = u.lastIndex(where: { !space($0) }) else { return "" }
-        var out = String.UnicodeScalarView()
-        out.append(contentsOf: u[first...last])
-        return String(out)
-    }
+    // MARK: Text wie Python (`needle in hay` und `str.strip()` aus PyText)
 
     /// Wortzeichen wie `\w` in Pythons `re` (Buchstaben, Zahlzeichen, Unterstrich)
     static func isWordChar(_ u: Unicode.Scalar) -> Bool {
@@ -108,7 +89,7 @@ enum LocalTimetableImport {
     /// Europe/Berlin ohne Datenbank, andere aus den bekannten Zonen des Systems); unbekannte und Zeiten ohne Angabe
     /// gelten als Berliner Zeit. Reine Daten beginnen um 00:00. nil, wo Python mit ValueError scheitert.
     static func icsDate(_ raw: String, params: String = "") -> LocalTime? {
-        let v = strip(raw)
+        let v = PyText.strip(raw)
         if v.unicodeScalars.contains("T") {
             guard let p = strptime(strptimeDateTime, slice(v, 0, 15)), p.count == 6, p[0] >= 1,
                   (1...BerlinClock.daysInMonth(year: p[0], month: p[1])).contains(p[2]), p[5] < 60 else { return nil }
@@ -143,7 +124,7 @@ enum LocalTimetableImport {
     /// `_tzid(params)`: TZID aus "DTSTART;TZID=Europe/Berlin", ohne Anfuehrungszeichen
     static func tzid(_ params: String) -> String? {
         for p in params.split(separator: ";", omittingEmptySubsequences: false).dropFirst() where p.uppercased().hasPrefix("TZID=") {
-            let v = strip(String(p.dropFirst(5))).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            let v = PyText.strip(String(p.dropFirst(5))).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
             return v.isEmpty ? nil : v
         }
         return nil
@@ -167,7 +148,7 @@ enum LocalTimetableImport {
     static func icsExdates(_ items: [(value: String, params: String)]) -> [String] {
         var out = Set<String>()
         for (value, params) in items {
-            for part in value.split(separator: ",", omittingEmptySubsequences: false) where !strip(String(part)).isEmpty {
+            for part in value.split(separator: ",", omittingEmptySubsequences: false) where !PyText.strip(String(part)).isEmpty {
                 if let t = icsDate(String(part), params: params) { out.insert(BerlinClock.isoDate(t.day)) }
             }
         }
@@ -212,11 +193,11 @@ enum LocalTimetableImport {
             } else if cur != nil, let colon = ln.firstIndex(of: ":") {
                 let k = string(ln[..<colon]), v = string(ln[(colon + 1)...])
                 let key = (k.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? "").uppercased()
-                cur?.props[key] = strip(v)
+                cur?.props[key] = PyText.strip(v)
                 if key == "DTSTART" || key == "DTEND" {
                     cur?.props[key + "_PARAMS"] = k
                 } else if key == "EXDATE" {
-                    cur?.exdates.append((strip(v), k))      // mehrere EXDATE-Zeilen moeglich, jede mit eigener TZID
+                    cur?.exdates.append((PyText.strip(v), k))      // mehrere EXDATE-Zeilen moeglich, jede mit eigener TZID
                 }
             }
         }
@@ -231,7 +212,7 @@ enum LocalTimetableImport {
                 en = st.adding(minutes: 90)
             }
             let rr = ev.props["RRULE"] ?? ""
-            let weekly = contains(rr, "FREQ=WEEKLY")
+            let weekly = PyText.contains(rr, "FREQ=WEEKLY")
             let interval = search(intervalRule, rr)?[1]
             let title = (ev.props["SUMMARY"] ?? "Veranstaltung").replacingOccurrences(of: "\\,", with: ",")
             let room = (ev.props["LOCATION"] ?? "").replacingOccurrences(of: "\\,", with: ",")
@@ -285,7 +266,7 @@ enum LocalTimetableImport {
         for k in order {
             let list = groups[k] ?? []
             guard list.count >= 3 else { out += list; continue }
-            let dates = list.compactMap { LocalTimetable.truthy($0["date_from"]) ? $0["date_from"]?.string : nil }
+            let dates = list.compactMap { LocalModules.truthy($0["date_from"]) ? $0["date_from"]?.string : nil }
                 .sorted { $0.unicodeScalars.lexicographicallyPrecedes($1.unicodeScalars) }
             guard let firstDate = dates.first, let lastDate = dates.last else {
                 throw LocalHTTPError(status: 500, message: "Termine ohne Datum")
@@ -452,13 +433,13 @@ enum LocalTimetableImport {
     static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> JSONValue {
         try LocalModules.ensureModules(c, clock: clock)
         let all = try studipEntries(c)
-        let entries = try enrich(c, all.filter { LocalTimetable.truthy($0["selected"]) })
+        let entries = try enrich(c, all.filter { LocalModules.truthy($0["selected"]) })
         let diff = try diffAgainstExisting(c, entries)
         let new = diff["new"]?.array ?? []
         let res = try applyImport(c, new, source: "studip", clock: clock)
         try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('studip-auto', ?, 'auto', '', ?, 1)",
                       [.text(clock.nowISO), .text(JSONValue.array(new).jsonString(sortedKeys: true))])
-        let pending = try studipEntries(c).filter { !LocalTimetable.truthy($0["selected"]) }.count
+        let pending = try studipEntries(c).filter { !LocalModules.truthy($0["selected"]) }.count
         return ["new": res["new"] ?? 0, "pending_groups": .number(Double(pending))]
     }
 
@@ -468,9 +449,9 @@ enum LocalTimetableImport {
     static func enrich(_ c: SQLiteConnection, _ entries: [Entry]) throws -> [Entry] {
         try entries.map { e in
             var e = e
-            if !LocalTimetable.truthy(e["module_id"]) {
+            if !LocalModules.truthy(e["module_id"]) {
                 guard let title = e["title"] else { throw LocalHTTPError(status: 500, message: "Eintrag ohne Titel") }
-                e["module_id"] = try guessModule(c, title: LocalTimetable.truthy(title) ? (title.string ?? LocalTimetable.text(title)) : "")
+                e["module_id"] = try guessModule(c, title: LocalModules.truthy(title) ? (title.string ?? LocalTimetable.text(title)) : "")
             }
             e["module_guess_uncertain"] = .bool(e["module_id"] == nil || e["module_id"] == .null)
             return e
@@ -535,7 +516,7 @@ enum LocalTimetableImport {
         for item in entries {
             guard let e = item.object else { throw LocalHTTPError(status: 500, message: "Eintrag ist kein Objekt") }
             let eventID: SQLiteValue
-            if LocalTimetable.truthy(e["existing_id"]) {
+            if LocalModules.truthy(e["existing_id"]) {
                 eventID = try LocalTimetable.bind(e["existing_id"], "existing_id")
                 try c.execute("UPDATE course_events SET start_time=?, end_time=?, room=COALESCE(NULLIF(?,''), room), kind=?, module_id=COALESCE(?, module_id) WHERE id=?",
                               [try LocalTimetable.bind(try required(e, "start_time"), "start_time"), try LocalTimetable.bind(try required(e, "end_time"), "end_time"),

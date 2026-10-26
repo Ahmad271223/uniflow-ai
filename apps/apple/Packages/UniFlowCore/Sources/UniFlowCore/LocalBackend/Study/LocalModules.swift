@@ -21,7 +21,8 @@ public enum LocalModules {
         }
     }
 
-    /// Wahrheitswert eines JSON-Werts aus der Datenbank (`if f["has_notes"]`)
+    /// Wahrheitswert eines JSON-Werts wie in Python (`if f["has_notes"]`, `x or y`); die einzige Fassung fuer Zeilen,
+    /// Anfragen und Stundenplan (LocalTimetable, Import, Platzhalter)
     static func truthy(_ v: JSONValue?) -> Bool {
         switch v {
         case nil, .null?: return false

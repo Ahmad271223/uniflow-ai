@@ -310,6 +310,32 @@ final class LocalTimetableTests: XCTestCase {
         XCTAssertEqual(none.json, [])
     }
 
+    /// Sperrzeiten gibt es nur noch in einer Fassung (`LocalTimetable.blocked`, auch fuer die freien Fenster), mit
+    /// `int(b.get("weekday", -1))` wie Python: 2.5 und " 2 " zaehlen fuer Mittwoch, ohne Wochentag nie, "x" wird 500
+    func testBlockedTimesConvertWeekdayLikePython() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        func setBlocked(_ list: JSONValue) async throws {
+            try await backend.context.database.transaction { c in
+                try c.execute("UPDATE settings SET value=? WHERE key='blocked_times'", [.text(String(decoding: list.serialized(), as: UTF8.self))])
+            }
+        }
+        try await setBlocked([["weekday": 2.5, "start": "12:00", "end": "13:00", "title": "Halb"],
+                              ["weekday": "2", "start": "15:00", "end": "16:00", "title": "Text"],
+                              ["weekday": " 2 ", "start": "17:00", "end": "18:00", "title": "Leerraum"],
+                              ["start": "08:00", "end": "09:00", "title": "Ohne Tag"],
+                              ["weekday": 1, "start": "10:00", "end": "11:00", "title": "Dienstag"]])
+        let day = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", "2026-10-28")]))
+        XCTAssertEqual(day.status, 200)
+        XCTAssertEqual(day.json?["blocked"]?.array?.compactMap { $0["title"]?.string }, ["Halb", "Text", "Leerraum"])
+        let free = day.json?["free"]?.array ?? []
+        XCTAssertFalse(free.isEmpty)
+        XCTAssertFalse(free.contains { ($0["start"]?.int ?? 0) < 13 * 60 && ($0["end"]?.int ?? 0) > 12 * 60 }, "Sperrzeit 2.5 blockiert: \(free)")
+
+        try await setBlocked([["weekday": "x", "start": "12:00", "end": "13:00"]])
+        let bad = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", "2026-10-28")]))
+        XCTAssertEqual(bad.status, 500)
+    }
+
     func testOnlyReslotStaysPlaceholder() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
         let timetable = backend.router.allRoutes.filter { $0.pattern.template.hasPrefix("/api/timetable/") }

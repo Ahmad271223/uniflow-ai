@@ -46,7 +46,7 @@ enum StudIPScheduleImport {
         var links = try readLinks(c)
         var taken = Set(links.values.map(\.eventID))
         var fresh: [Entry] = []
-        for e in all where LocalTimetable.truthy(e["selected"]) {
+        for e in all where LocalModules.truthy(e["selected"]) {
             let k = key(e)
             guard links[k] == nil else { continue }
             if let id = try sameSeries(c, e, except: taken) {
@@ -103,7 +103,7 @@ enum StudIPScheduleImport {
                 let k = key(o)
                 var target = try row(links[k]?.eventID)
                 // Gruppe wechseln nur bei Optionen paralleler Gruppen (eindeutige Kurszeiten haben ihre eigene Serie)
-                if target == nil, !LocalTimetable.truthy(o["selected"]), let g = groupOf[k] {
+                if target == nil, !LocalModules.truthy(o["selected"]), let g = groupOf[k] {
                     for (k2, l2) in links.sorted(by: { $0.key < $1.key }) where k2 != k && groupOf[k2] == g {
                         if let r = try row(l2.eventID), r["weekday"]?.int == o["weekday"]?.int { target = r; break }
                     }
@@ -133,7 +133,7 @@ enum StudIPScheduleImport {
     /// mehr, sobald eine ihrer Kurszeiten im Stundenplan steht: verknuepft oder mit gleichem Kurs, Wochentag und
     /// Beginn (so gewaehlt, bevor es die Verknuepfung gab). Ohne Kurszeiten wie in Python.
     static func openGroups(_ c: SQLiteConnection, _ all: [Entry]) throws -> [Entry] {
-        let pending = all.filter { !LocalTimetable.truthy($0["selected"]) }
+        let pending = all.filter { !LocalModules.truthy($0["selected"]) }
         guard pending.contains(where: { $0["studip_id"]?.string != nil }) else { return pending }
         let links = try readLinks(c)
         var decided = Set<String>()
@@ -161,7 +161,7 @@ enum StudIPScheduleImport {
         if let id = e["studip_id"]?.string { return "cycle:" + id }
         var parts = ["course_id", "title", "weekday", "start_time", "end_time", "rrule"].map { LocalTimetable.text(e[$0]) }
         if e["rrule"]?.string == "once" { parts.append(LocalTimetable.text(e["date_from"])) }
-        return (LocalTimetable.truthy(e["personal"]) ? "personal:" : "series:") + parts.joined(separator: "|")
+        return (LocalModules.truthy(e["personal"]) ? "personal:" : "series:") + parts.joined(separator: "|")
     }
 
     /// Gespeicherte Verknuepfungen; leer, solange es die Tabelle nicht gibt

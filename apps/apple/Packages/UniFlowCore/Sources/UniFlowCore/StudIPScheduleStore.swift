@@ -34,11 +34,11 @@ public struct StudIPCourseEvent: Sendable, Equatable {
         data.compactMap { e in
             guard let id = e["id"]?.string else { return nil }
             let a = e["attributes"]
-            if LocalTimetable.truthy(a?["is-cancelled"]) { return nil }
+            if LocalModules.truthy(a?["is-cancelled"]) { return nil }
             func text(_ k: String) -> String { a?[k]?.string ?? "" }
             let room = text("location").split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
             return StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: LocalTimetableImport.slice(text("start"), 0, 19),
-                                     end: LocalTimetableImport.slice(text("end"), 0, 19), room: LocalTimetableImport.strip(room))
+                                     end: LocalTimetableImport.slice(text("end"), 0, 19), room: PyText.strip(room))
         }
     }
 }
