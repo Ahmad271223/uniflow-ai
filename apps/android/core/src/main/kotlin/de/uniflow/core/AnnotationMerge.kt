@@ -15,7 +15,11 @@ object AnnotationMerge {
 
     data class Result(val page: JsonObject?, val conflicts: Int)
 
-    /** Kanonisches JSON (Schluessel sortiert, Zahlen einheitlich) fuer Vergleiche unabhaengig von der Feldreihenfolge. */
+    /**
+     * Kanonisches JSON wie stableStringify in merge.js: Schluessel sortiert, Zahlen in der Form von JSON.stringify.
+     * Vergleiche sind damit unabhaengig von der Feldreihenfolge, und die aus dem Inhalt abgeleitete Kennung
+     * (objectId) ist fuer dieselbe Eingabe zeichengleich mit der des Web-Editors.
+     */
     fun canonical(e: JsonElement?): String = when (e) {
         null, is JsonNull -> "null"
         is JsonObject -> e.keys.sorted().joinToString(",", "{", "}") { k -> quote(k) + ":" + canonical(e[k]) }
@@ -23,10 +27,32 @@ object AnnotationMerge {
         is JsonPrimitive -> when {
             e.isString -> quote(e.content)
             e.content == "true" || e.content == "false" -> e.content
-            else -> e.content.toDoubleOrNull()?.let { d ->
-                if (d == Math.rint(d) && Math.abs(d) < 1e15) d.toLong().toString() else d.toString()
-            } ?: e.content
+            else -> e.content.toDoubleOrNull()?.let { number(it) } ?: e.content
         }
+    }
+
+    /**
+     * Zahl wie Number::toString in JavaScript (ECMAScript 6.1.6.1.20), also wie JSON.stringify nach JSON.parse:
+     * JavaScript rechnet jede JSON-Zahl in ein Double um (9007199254740993 wird dort wie hier zu 9007199254740992),
+     * schreibt ganze Zahlen bis 1e21 ausgeschrieben, darueber und unter 1e-6 mit Exponent ("1e+21", "1e-7").
+     * Die Ziffernfolge stammt aus Double.toString (kuerzeste eindeutige Darstellung; JDK 17 weicht in seltenen
+     * Faellen um eine Ziffer ab, bleibt aber je Wert eindeutig, Gleichheit ist also nicht betroffen).
+     */
+    private fun number(d: Double): String {
+        if (d.isNaN() || d.isInfinite()) return "null"                   // JSON.stringify(Infinity) === "null"
+        if (d == 0.0) return "0"                                          // auch -0
+        val bd = java.math.BigDecimal(Math.abs(d).toString()).stripTrailingZeros()
+        val digits = bd.unscaledValue().toString()
+        val k = digits.length
+        val n = k - bd.scale()                                            // Wert = digits * 10^(n-k)
+        val body = when {
+            n in k..21 -> digits + "0".repeat(n - k)
+            n in 1..21 -> digits.substring(0, n) + "." + digits.substring(n)
+            n in -5..0 -> "0." + "0".repeat(-n) + digits
+            else -> (if (k == 1) digits else digits.substring(0, 1) + "." + digits.substring(1)) +
+                "e" + (if (n - 1 < 0) "-" else "+") + Math.abs(n - 1)
+        }
+        return if (d < 0) "-$body" else body
     }
 
     private fun quote(s: String) = JsonPrimitive(s).toString()

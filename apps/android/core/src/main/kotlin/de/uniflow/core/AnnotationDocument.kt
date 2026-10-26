@@ -70,7 +70,13 @@ object AnnotationDocument {
     private const val HEX = "0123456789abcdef"
     private fun round2(f: Float): Double = Math.round(f * 100.0) / 100.0
 
-    /** Vollstaendige Zusammenfuehrung zweier Dokumente auf Basis des letzten bestaetigten Standes (je Seite AnnotationMerge). */
+    /**
+     * Vollstaendige Zusammenfuehrung zweier Dokumente auf Basis des letzten bestaetigten Standes: je Seite
+     * AnnotationMerge.mergePage, die Wurzelfelder (pageOrder, deletedPages, note, bookmarks, outline, zoom, unbekannte)
+     * nach derselben Feldregel wie die Seitenfelder in merge.js: nur hier geaendert -> hier, nur dort -> dort,
+     * beidseitig verschieden -> hier (Konflikt). So bleiben der Papierkorb (deletedPages) und die Dokument-Notizen
+     * eines Geraets erhalten, wenn das andere sie nicht angefasst hat (wie AnnotationMerge.mergeRootMeta auf dem iPad).
+     */
     fun merge(base: JsonObject?, local: JsonObject, server: JsonObject): Pair<JsonObject, Int> {
         val keys = LinkedHashSet<String>()
         keys += pages(server).keys; keys += pages(local).keys; if (base != null) keys += pages(base).keys
@@ -81,11 +87,20 @@ object AnnotationDocument {
             if (r.page != null) mergedPages[k] = r.page
             conflicts += r.conflicts
         }
-        // Dokumentfelder: Serverstand als Grundlage (unbekannte Felder bleiben), eigene Anzeigefelder darueber
-        val out = server.toMutableMap()
-        out["pages"] = JsonObject(mergedPages)
-        local["zoom"]?.let { out["zoom"] = it }
-        if (base != null && !sameElement(local["pageOrder"], base["pageOrder"]) && local["pageOrder"] != null) out["pageOrder"] = local["pageOrder"]!!
+        val out = LinkedHashMap<String, JsonElement>()
+        for (k in server.keys + local.keys + (base?.keys ?: emptySet())) {        // Serverreihenfolge zuerst, unbekannte Felder bleiben
+            if (k == "pages") { out[k] = JsonObject(mergedPages); continue }
+            val bv = base?.get(k)
+            val lv = local[k]
+            val sv = server[k]
+            val v = when {
+                sameElement(lv, bv) -> sv
+                sameElement(sv, bv) || sameElement(sv, lv) -> lv
+                else -> { conflicts++; lv }
+            }
+            if (v != null) out[k] = v
+        }
+        if ("pages" !in out) out["pages"] = JsonObject(mergedPages)
         return JsonObject(out) to conflicts
     }
 

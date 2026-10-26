@@ -2,6 +2,7 @@ package de.uniflow.core
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -56,24 +57,53 @@ class SyncApi(private val client: ApiClient) {
         }))
 
     companion object {
+        /**
+         * Antworten werden strikt gelesen: ein Eintrag, der nicht zum Vertrag passt, ist ein Fehler mit Position
+         * (SyncFormatError) und wird nicht still uebersprungen, sonst gingen Aenderungen oder ID-Zuordnungen verloren.
+         * Fehlende Listen gelten als leer.
+         */
         fun parsePull(j: JsonElement): PullResult {
-            val changes = (j.o("changes") ?: JsonObject(emptyMap())).mapValues { (_, v) -> (v as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList() }
-            return PullResult(j.s("cursor"), changes, j.list("tombstones"))
+            val root = j as? JsonObject ?: throw SyncFormatError("Antwort", "ist kein Objekt")
+            val changes = LinkedHashMap<String, List<JsonObject>>()
+            root["changes"]?.takeIf { it !is JsonNull }?.let { c ->
+                val byEntity = c as? JsonObject ?: throw SyncFormatError("changes", "ist kein Objekt")
+                for ((entity, v) in byEntity) changes[entity] = objects(v, "changes.$entity")
+            }
+            return PullResult(root.s("cursor"), changes, objects(root["tombstones"], "tombstones"))
         }
 
         fun parsePush(j: JsonElement): PushResult {
-            val results = j.list("results").map {
-                PushResultItem(it.s("entity"), it["id"], it["local_id"], it.s("status") ?: "unknown", it.i("version"),
-                    ApiClient.arr(it, "client_won").mapNotNull { c -> (c as? JsonPrimitive)?.content }, it.o("data"))
+            val root = j as? JsonObject ?: throw SyncFormatError("Antwort", "ist kein Objekt")
+            val results = objects(root["results"], "results").mapIndexed { i, r ->
+                PushResultItem(r.s("entity"), r["id"], r["local_id"], string(r["status"]) ?: throw SyncFormatError("results[$i].status", "fehlt"),
+                    r.i("version"), ApiClient.arr(r, "client_won").mapNotNull { c -> (c as? JsonPrimitive)?.content }, r.o("data"))
             }
             val mapping = HashMap<Pair<String, Long>, Long>()
-            for (m in j.list("mapping")) {
-                val e = m.s("entity") ?: continue
-                val l = (m["local_id"] as? JsonPrimitive)?.content?.toLongOrNull() ?: continue
-                val id = (m["id"] as? JsonPrimitive)?.content?.toLongOrNull() ?: continue
-                mapping[e to l] = id
+            objects(root["mapping"], "mapping").forEachIndexed { i, m ->
+                val e = string(m["entity"])?.takeIf { it.isNotEmpty() } ?: throw SyncFormatError("mapping[$i].entity", "fehlt")
+                val l = integer(m["local_id"], "mapping[$i].local_id")
+                val id = integer(m["id"], "mapping[$i].id")
+                if (mapping.put(e to l, id) != null) throw SyncFormatError("mapping[$i]", "ordnet $e/$l doppelt zu")
             }
-            return PushResult(results, mapping, j.list("conflicts"), j.s("server_time"))
+            return PushResult(results, mapping, objects(root["conflicts"], "conflicts"), root.s("server_time"))
+        }
+
+        /** Liste von Objekten an `position`; fehlt sie, ist sie leer. Andere Formen sind ein Fehler. */
+        private fun objects(e: JsonElement?, position: String): List<JsonObject> {
+            if (e == null || e is JsonNull) return emptyList()
+            val arr = e as? JsonArray ?: throw SyncFormatError(position, "ist keine Liste")
+            return arr.mapIndexed { i, x -> x as? JsonObject ?: throw SyncFormatError("$position[$i]", "ist kein Objekt") }
+        }
+
+        private fun string(e: JsonElement?): String? = (e as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+        private fun integer(e: JsonElement?, position: String): Long {
+            val p = e as? JsonPrimitive ?: throw SyncFormatError(position, "fehlt oder ist keine ganze Zahl")
+            if (p.isString) throw SyncFormatError(position, "ist keine ganze Zahl")
+            return p.content.toLongOrNull() ?: throw SyncFormatError(position, "ist keine ganze Zahl")
         }
     }
 }
+
+/** Antwort des Servers passt nicht zum Vertrag G2; `position` nennt den Eintrag (z. B. changes.modules[2], mapping[0].id). */
+class SyncFormatError(val position: String, reason: String) : Exception("Ungueltige Sync-Antwort: $position $reason")

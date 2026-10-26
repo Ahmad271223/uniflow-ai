@@ -82,7 +82,9 @@ class ApiClient(baseUrl: String, private val transport: HttpTransport, var auth:
         } catch (e: Exception) {
             throw ApiError(0, "network", e.message ?: "Keine Verbindung")
         }
-        if (resp.status >= 400 && resp.status !in allowStatus) throw errorOf(resp)
+        // Nur 2xx ist Erfolg: Weiterleitungen (3xx) folgt der Transport nicht, ihre leere oder HTML-Antwort darf nicht
+        // als Ergebnis durchgehen; andere Status nur, wenn der Aufrufer sie ausdruecklich erwartet (z. B. 409 bei Notizen)
+        if (resp.status !in 200..299 && resp.status !in allowStatus) throw errorOf(resp)
         return resp
     }
 
@@ -96,7 +98,12 @@ class ApiClient(baseUrl: String, private val transport: HttpTransport, var auth:
         val message = when (detail) {
             is JsonPrimitive -> detail.content
             is JsonObject -> (detail["detail"] as? JsonPrimitive)?.content ?: detail.toString()
-            null -> if (resp.status == 401) "Anmeldung erforderlich." else "Fehler ${resp.status}"
+            null -> when {
+                resp.status == 401 -> "Anmeldung erforderlich."
+                resp.status in 300..399 -> "Unerwartete Weiterleitung (${resp.status})" +
+                    (resp.headers.entries.firstOrNull { it.key.equals("location", ignoreCase = true) }?.let { " nach ${it.value}" } ?: "")
+                else -> "Fehler ${resp.status}"
+            }
             else -> detail.toString()
         }
         val codeFromDetail = ((detail as? JsonObject)?.get("code") as? JsonPrimitive)?.content

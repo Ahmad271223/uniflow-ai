@@ -73,4 +73,40 @@ class AnnotationDocumentTest {
         assertTrue((m2["pages"] as JsonObject).keys.containsAll(listOf("p1", "b7x2k9", "p2")))
         assertTrue(AnnotationDocument.pages(m2)["b7x2k9"] is JsonObject && (AnnotationDocument.pages(m2)["b7x2k9"] as JsonObject)["objects"] is JsonArray)
     }
+
+    @Test
+    fun rootFieldsMergeLikePageFields() {
+        val base = webDoc
+        // nur hier geaendert: Notiz, Lesezeichen, Seite in den Papierkorb (aus pageOrder nach deletedPages) -> bleibt alles
+        val trash = Json.parseToJsonElement("""[{"entry":{"key":"b7x2k9","type":"blank","template":"lined","w":595,"h":842},"objects":[],"at":1,"pos":1}]""")
+        val local = JsonObject(base.toMutableMap().apply {
+            this["note"] = JsonPrimitive("meine Notiz")
+            this["bookmarks"] = JsonArray(emptyList())
+            this["pageOrder"] = JsonArray(AnnotationDocument.pageOrder(base).filter { it.s("key") != "b7x2k9" })
+            this["deletedPages"] = trash
+        })
+        // nur dort geaendert: Zoom und Gliederung -> vom Server
+        val outline = Json.parseToJsonElement("""[{"key":"p1","title":"Kapitel 1"}]""")
+        val server = JsonObject(base.toMutableMap().apply { this["zoom"] = JsonPrimitive(1.5); this["outline"] = outline })
+        val (m, c) = AnnotationDocument.merge(base, local, server)
+        assertEquals(0, c)
+        assertEquals("meine Notiz", m["note"]!!.jsonPrimitive.content)
+        assertEquals(JsonArray(emptyList()), m["bookmarks"])
+        assertEquals(local["pageOrder"], m["pageOrder"])
+        assertEquals(trash, m["deletedPages"], "Papierkorb wandert mit der Seitenreihenfolge")
+        assertEquals(JsonPrimitive(1.5), m["zoom"]); assertEquals(outline, m["outline"])
+        assertEquals(webDoc["zukunftsFeld"], m["zukunftsFeld"]); assertEquals(webDoc["version"], m["version"])
+        assertEquals(listOf("p1", "p2"), AnnotationDocument.orderedPages(m, 2).map { it.first })
+        // beidseitig verschieden: dieses Geraet gewinnt, ein Konflikt
+        val server2 = JsonObject(base.toMutableMap().apply { this["note"] = JsonPrimitive("vom iPad") })
+        val (m2, c2) = AnnotationDocument.merge(base, local, server2)
+        assertEquals(1, c2); assertEquals("meine Notiz", m2["note"]!!.jsonPrimitive.content)
+        // Feld hier entfernt, dort unveraendert -> bleibt entfernt; dort entfernt, hier unveraendert -> ebenso
+        val ohneNotiz = JsonObject(base.toMutableMap().apply { remove("note") })
+        assertEquals(null, AnnotationDocument.merge(base, ohneNotiz, base).first["note"])
+        assertEquals(null, AnnotationDocument.merge(base, base, ohneNotiz).first["note"])
+        // ohne Basis (erstes Speichern): gleiche Felder ohne Konflikt, eigene Seitenreihenfolge gilt
+        val (m3, c3) = AnnotationDocument.merge(null, local, base)
+        assertEquals(local["pageOrder"], m3["pageOrder"]); assertTrue(c3 >= 1)
+    }
 }
