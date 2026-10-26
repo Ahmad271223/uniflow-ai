@@ -30,8 +30,10 @@ def learnweb_base() -> str:
 
 
 def _download(page, url: str, target: Path, token: str = "", size: int = 0) -> None:
-    # gestreamt (konstanter Speicher); Fehlermeldungen zeigen die URL ohne Token; leere Antwort ersetzt nichts
-    stream_download(page, learnweb.with_token(url, token) if token else url, target, shown_url=url, expected_size=size)
+    # gestreamt (konstanter Speicher); der Schluessel geht im POST-Koerper mit, nie in der Adresse
+    # (learnweb.token_request, wie auf dem iPad); leere Antwort ersetzt nichts
+    req = learnweb.token_request(url, token) if token else {"url": url, "form": None}
+    stream_download(page, req["url"], target, shown_url=url, expected_size=size, form=req["form"])
 
 
 def _learnweb_client(page, user: str, pw: str, token: str):

@@ -44,7 +44,9 @@ public enum LibraryEndpoints: LocalEndpointModule {
             let changes = updates
             let row = try await ctx.database.transaction { c -> JSONValue in
                 for (k, v) in changes { try c.execute("UPDATE folders SET \(k)=? WHERE id=?", [v, id]) }
-                return try c.queryOne("SELECT * FROM folders WHERE id=?", [id]).map { .object($0.json) } ?? .null
+                // Regel G6 (server._found): kein Datensatz -> 404
+                guard let row = try c.queryOne("SELECT * FROM folders WHERE id=?", [id]) else { throw LocalHTTPError.notFound("Ordner nicht gefunden") }
+                return .object(row.json)
             }
             return .json(row)
         }
@@ -56,6 +58,7 @@ public enum LibraryEndpoints: LocalEndpointModule {
                 try c.execute("UPDATE files SET folder_id=(SELECT parent_id FROM folders WHERE id=?) WHERE folder_id=?", [id, id])
                 try c.execute("UPDATE folders SET parent_id=(SELECT parent_id FROM folders WHERE id=?) WHERE parent_id=?", [id, id])
                 try c.execute("DELETE FROM folders WHERE id=?", [id])
+                if c.changes == 0 { throw LocalHTTPError.notFound("Ordner nicht gefunden") }      // Regel G6 (server._changed)
             }
             return .ok
         }

@@ -11,46 +11,13 @@ struct OnboardingFlow<Main: View>: View {
         Group {
             switch account.stage {
             case .welcome: WelcomeView()
-            case .planPicker: OnboardingPlanStep.current.make { account.markPlanShown() }
+            case .planPicker: PlanPickerView { account.markPlanShown() }
             case .universityPicker: UniversityPickerView { account.chooseUniversity($0) }
             case .ready: main()
             }
         }
         .animation(UF.transition, value: account.stage)
         .task { await account.verifyCredential() }          // still beim Start: widerrufen -> Begruessung
-    }
-}
-
-// MARK: - Bruecke zur Tarifwahl
-
-/// Schritt "Tarif waehlen" im ersten Start: `PlanPickerView(onDone:)` (Views/Onboarding/PlanPickerView.swift).
-/// Der Platzhalter bleibt fuer Tests ohne StoreKit.
-struct OnboardingPlanStep {
-    /// baut den Bildschirm; `onDone` fuehrt weiter zur Oberflaeche (Free gewaehlt oder Kauf erfolgreich)
-    let make: @MainActor (@escaping () -> Void) -> AnyView
-
-    static let current = OnboardingPlanStep { @MainActor onDone in AnyView(PlanPickerView(onDone: onDone)) }
-
-    static let placeholder = OnboardingPlanStep { onDone in AnyView(PlanStepPlaceholder(onDone: onDone)) }
-}
-
-/// Platzhalter fuer die Tarifwahl: nur Titel und "Weiter", keine erfundenen Tarife oder Preise
-private struct PlanStepPlaceholder: View {
-    let onDone: () -> Void
-
-    var body: some View {
-        OnboardingPage {
-            UFCard {
-                UFCardHead("Tarif wählen", icon: "star")
-                Text("Die Auswahl zwischen Free und Plus folgt hier. Du kannst den Tarif später jederzeit in den Einstellungen wechseln.")
-                    .ufFont(14.5).foregroundStyle(UF.muted)
-                HStack {
-                    Spacer()
-                    UFButton("Weiter", icon: "arrow-right", kind: .primary, action: onDone)
-                }
-                .padding(.top, 16)
-            }
-        }
     }
 }
 

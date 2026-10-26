@@ -4,14 +4,14 @@ BEGIN:VEVENT
 DTSTART;TZID=Europe/Berlin:20261026T140000
 DTEND;TZID=Europe/Berlin:20261026T160000
 RRULE:FREQ=WEEKLY;UNTIL=20270201T235900Z;INTERVAL=1;BYDAY=MO
-LOCATION:Gebäude G (Hauptcampus) - HC.G.3.09 (Kleiner Seminarraum)
-SUMMARY:0449 - Erinnerungen\, Erzählungen & Diskurse um Erinnerungskulturen (Zimmermann)
+LOCATION:Gebäude T (Testcampus) - TC.T.1.01 (Kleiner Testraum)
+SUMMARY:9449 - Erinnerungen\, Erzählungen & Beispiele (Muster)
 END:VEVENT
 BEGIN:VEVENT
 DTSTART;TZID=Europe/Berlin:20270118T100000
 DTEND;TZID=Europe/Berlin:20270118T160000
 LOCATION:
-SUMMARY:1528 - Mit Kunst und Kultur arbeiten
+SUMMARY:9528 - Mit Beispielen arbeiten
 END:VEVENT
 BEGIN:VEVENT
 DTSTART;TZID=Europe/Berlin:20261026T100000
@@ -19,6 +19,6 @@ DTEND;TZID=Europe/Berlin:20261026T120000
 RRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TU,TH
 EXDATE;TZID=Europe/Berlin:20261222T100000
 EXDATE;TZID=Europe/Berlin:20261224T100000
-SUMMARY:1505 - Einführung in die Sozialpädagogik I
+SUMMARY:9505 - Einführung in die Testpädagogik I
 END:VEVENT
 END:VCALENDAR

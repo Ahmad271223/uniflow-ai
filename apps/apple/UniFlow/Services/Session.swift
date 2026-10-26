@@ -124,6 +124,8 @@ final class Session: ObservableObject {
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,
 ///                                     timer:<stopwatch|countdown|pomodoro>[:run|:pill])
+///   -UFNoStudIPSync YES               kein automatischer Stud.IP-Abgleich beim Oeffnen (ebenso bei -UFServer,
+///                                     -UFDisconnect, -UFRoute, -UFAction und immer unter XCTest)
 /// Die Darstellung laesst sich ueber -theme dark|light|auto setzen (AppStorage liest Startargumente).
 enum DebugLaunch {
     /// Tarif aus -UFPlan (nur Debug); nil = Tarif aus StoreKit
@@ -224,26 +226,28 @@ extension Array {
     subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }
 }
 
-/// Minimaler Schluesselbund-Zugriff (generic password).
+/// Konto (Apple-Benutzerkennung, Name, E-Mail) und Server-PIN im Schluesselbund: eigener Dienst, nur dieses Geraet
+/// (`AfterFirstUnlockThisDeviceOnly`, nicht in Backups auf andere Geraete). Eintraege von vor dem 26.10.2026 lagen
+/// ohne Dienst und mit Backup; sie ziehen beim ersten Lesen hierher um.
 enum Keychain {
-    static func set(_ value: String, for key: String) {
-        delete(key)
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrAccount as String: key,
-                                    kSecValueData as String: Data(value.utf8),
-                                    kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock]
-        SecItemAdd(query as CFDictionary, nil)
+    static let store = KeychainStore(service: "de.uniflow.ai.app")
+
+    /// Schreibt den Wert; false, wenn der Schluesselbund ihn nicht annahm (vorher still verworfen)
+    @discardableResult
+    static func set(_ value: String, for key: String) -> Bool {
+        KeychainStore.removeLegacy(account: key)
+        return (try? store.write(value, account: key)) != nil
     }
 
     static func get(_ key: String) -> String? {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrAccount as String: key,
-                                    kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
-        var out: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        if let v = store.string(key) { return v }
+        guard let old = KeychainStore.legacyData(account: key), let v = String(data: old, encoding: .utf8) else { return nil }
+        if (try? store.write(old, account: key)) != nil { KeychainStore.removeLegacy(account: key) }
+        return v
     }
 
     static func delete(_ key: String) {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrAccount as String: key]
-        SecItemDelete(query as CFDictionary)
+        store.remove(key)
+        KeychainStore.removeLegacy(account: key)
     }
 }

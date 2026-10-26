@@ -14,9 +14,19 @@ struct TimetableView: View {
     @State private var week: JSONValue?
     @State private var conflicts: [JSONValue] = []
     @State private var error: String?
+    /// noch nicht uebernommene Stud.IP-Termine (`pending_groups` aus /api/timetable/auto-status)
+    @State private var studipPending = 0
 
     /// ttDate im Web: bleibt fuer die Sitzung erhalten
     @MainActor static var ttDate = UFFmt.todayISO()
+
+    /// Hinweis "Noch kein Stundenplan" wie im Web (views-tt.js): "haben bereits Termine" nur, wenn wirklich
+    /// Stud.IP-Termine zum Uebernehmen vorliegen, sonst der ehrliche Stand
+    static func emptyHint(studipPending: Int) -> String {
+        studipPending > 0
+            ? "Deine Stud.IP-Kurse haben bereits Termine. Mit „Stundenplan importieren → aus Stud.IP“ übernimmst du sie in einer Vorschau, wählst deine Übungsgruppen und bestätigst."
+            : "Noch sind keine Termine deiner Kurse abgeholt; sie kommen mit dem nächsten Abgleich. Bis dahin kannst du eine Kalenderdatei (ICS) importieren oder Termine selbst eintragen."
+    }
 
     private let H: CGFloat = 56
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
@@ -39,6 +49,7 @@ struct TimetableView: View {
         do {
             let w = try await api.value("/api/timetable/week?start=\(Fmt.isoDay(start))")
             conflicts = (try? await api.value("/api/timetable/conflicts"))?.items ?? []
+            studipPending = (try? await api.value("/api/timetable/auto-status"))?.i("pending_groups") ?? 0
             week = w
             error = nil
         } catch { if week == nil { self.error = error.localizedDescription } }
@@ -61,7 +72,7 @@ struct TimetableView: View {
             if allEv.isEmpty {
                 UFCard {
                     (Text("Noch kein Stundenplan. ").font(.uf(14.5, 700)).foregroundColor(UF.text)
-                     + Text("Deine Stud.IP-Kurse haben bereits Termine. Mit „Stundenplan importieren → aus Stud.IP“ übernimmst du sie in einer Vorschau, wählst deine Übungsgruppen und bestätigst.").foregroundColor(UF.muted))
+                     + Text(Self.emptyHint(studipPending: studipPending)).foregroundColor(UF.muted))
                         .ufFont(14.5)
                 }
                 .padding(.bottom, 12.8)
@@ -108,9 +119,7 @@ struct TimetableView: View {
     /// Wochennavigation und Legende (.row.wrap)
     private var nav: some View {
         let s = start, e = PlanData.add(start, 6)
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "d. MMMM"
+        let f = Fmt.formatter("d. MMMM")
         let a = f.string(from: s)
         f.dateFormat = "d. MMMM y"
         let label = "\(a) – \(f.string(from: e))"
@@ -321,20 +330,39 @@ struct TimetableImportDialog: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufClose) private var close
     @State private var picking: String?
+
+    /// Eine Quelle des Imports: Kennung, Icon, Beschriftung, Hauptweg
+    struct Source: Equatable {
+        let id: String, icon: String, text: String, primary: Bool
+    }
+
+    /// Angebotene Quellen. Ohne PC (lokales Backend) keine KI-Wege (PDF, Bild, Text): sie endeten nach der
+    /// Dateiauswahl nur mit "KI-Funktionen gibt es in dieser Version nicht" (AUFTRAG §2 Punkt 4). "Aus Stud.IP" nur
+    /// an einer Hochschule mit Stud.IP; an der Uni Hildesheim kommt der LSF-Stundenplan mit dem Abgleich.
+    static func sources(local: Bool, offersStudIP: Bool) -> [Source] {
+        var out: [Source] = []
+        if offersStudIP { out.append(Source(id: "studip", icon: "sync", text: "Aus Stud.IP übernehmen (Termine deiner Kurse)", primary: true)) }
+        out.append(Source(id: "ics", icon: "calendar", text: "Kalenderdatei (ICS)", primary: !offersStudIP))
+        if !local {
+            out.append(Source(id: "pdf", icon: "file-text", text: "PDF-Stundenplan (Texterkennung + KI)", primary: false))
+            out.append(Source(id: "image", icon: "image", text: "Screenshot / Foto (KI-Bildanalyse)", primary: false))
+            out.append(Source(id: "text", icon: "type", text: "Text einfügen (KI)", primary: false))
+        }
+        out.append(Source(id: "manual", icon: "plus", text: "Manuell eingeben", primary: false))
+        return out
+    }
 
     var body: some View {
         UFDialog("Stundenplan importieren", icon: "download") {
             Text("Du siehst zuerst eine bearbeitbare Vorschau. Erst nach Bestätigung werden die Termine übernommen.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
             VStack(spacing: 8) {
-                source("studip", "sync", "Aus Stud.IP übernehmen (Termine deiner Kurse)", primary: true)
-                source("ics", "calendar", "Kalenderdatei (ICS)")
-                source("pdf", "file-text", "PDF-Stundenplan (Texterkennung + KI)")
-                source("image", "image", "Screenshot / Foto (KI-Bildanalyse)")
-                source("text", "type", "Text einfügen (KI)")
-                source("manual", "plus", "Manuell eingeben")
+                ForEach(Self.sources(local: session.api?.isLocal ?? true, offersStudIP: studip.offersStudIP), id: \.id) { s in
+                    source(s.id, s.icon, s.text, primary: s.primary)
+                }
             }
         } foot: {
             UFButton("Abbrechen") { close() }
@@ -407,14 +435,22 @@ struct TimetableImportTextDialog: View {
 
 @MainActor
 enum TimetableImport {
+    /// Text im Wartedialog je Quelle: von der KI nur bei den KI-Wegen des eigenen Servers (vorher auch beim ICS-Import)
+    nonisolated static func waitText(_ source: String) -> String {
+        switch source {
+        case "studip": return "Termine werden zusammengefasst."
+        case "ics": return "Kalenderdatei wird gelesen."
+        default: return "Die KI liest den Stundenplan. Das dauert etwa eine halbe Minute."
+        }
+    }
+
     /// runImport: Wartedialog, POST /api/timetable/import/preview (Formular), dann die Vorschau
     static func run(source: String, text: String? = nil, file: (name: String, mime: String, data: Data)? = nil,
                     session: Session, overlay: UFOverlay, toast: UFToastCenter, router: UFRouter) {
         guard let api = session.api else { return }
         let wait = overlay.modal {
             UFDialog("Import läuft…") {
-                Text(source == "studip" ? "Termine werden zusammengefasst." : "Die KI liest den Stundenplan. Das dauert etwa eine halbe Minute.")
-                    .ufFont(14.5).foregroundStyle(UF.muted)
+                Text(waitText(source)).ufFont(14.5).foregroundStyle(UF.muted)
             } foot: { EmptyView() }
         }
         Task {

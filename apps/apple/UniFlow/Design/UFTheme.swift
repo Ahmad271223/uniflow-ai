@@ -61,7 +61,6 @@ enum UF {
     static let h4 = Font.uf(13.6, 650)
     static let small = Font.uf(13.12)
     static let tiny = Font.uf(11.84)
-    static let lineSpacingBody: CGFloat = 14.5 * 0.5   // line-height 1.5
 }
 
 // MARK: Schrift mit CSS-Zeilenhoehe

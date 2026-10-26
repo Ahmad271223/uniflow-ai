@@ -8,7 +8,9 @@ import Foundation
 ///
 /// Abweichung: Fuer ein Dokument, das es in der lokalen Datenbank nicht gibt, scheitert Python mit 500 (Fremdschluessel
 /// `annotations.file_id`); hier 409 mit Meldung und ohne `version` – die App wertet das als "kann hier nicht
-/// speichern" und behaelt die Notizen im Journal, statt ohne Ende zu wiederholen.
+/// speichern" und behaelt die Notizen im Journal, statt ohne Ende zu wiederholen. Nur auf dem Geraet: Striche auf
+/// Seiten, die eine neue Original-Fassung entfernt hat, kommen zusaetzlich zur alten Fassung
+/// (`FileVersions.keepLateNotes`; die Antwort bleibt wie in Python).
 public enum AnnotationEndpoints: LocalEndpointModule {
     public static let name = "Notizen"
 
@@ -38,7 +40,12 @@ public enum AnnotationEndpoints: LocalEndpointModule {
 
     public static func register(on router: LocalRouter) {
         router.get("/api/files/{file_id}/annotations") { req, ctx in
-            let r = try await ctx.database.queryOne("SELECT data, updated_at, version FROM annotations WHERE file_id=?", [.text(req.param("file_id"))])
+            let fileID = SQLiteValue.text(req.param("file_id"))
+            // Regel G6 (server._found): unbekannte Datei -> 404 statt leerer Notizen
+            guard try await ctx.database.queryOne("SELECT 1 FROM files WHERE id=?", [fileID]) != nil else {
+                throw LocalHTTPError.notFound("Datei nicht gefunden")
+            }
+            let r = try await ctx.database.queryOne("SELECT data, updated_at, version FROM annotations WHERE file_id=?", [fileID])
             guard let r else { return .json(LocalPending.emptyAnnotations) }
             return .json(["data": try parseStored(r["data"]), "updated_at": r["updated_at"]?.json ?? .null,
                           "version": .number(Double(version(r["version"])))])
@@ -118,6 +125,25 @@ public enum AnnotationEndpoints: LocalEndpointModule {
         do { return try JSONValue.parse(text) } catch { throw LocalHTTPError(status: 500, message: "Gespeicherte Notizen sind kein gültiges JSON") }
     }
 
+    /// Schreiben wie `put_annotations` nach der Versionspruefung (in einer Transaktion): Stand, Versionsverlauf, die
+    /// letzten `keptVersions` Versionen bleiben. Auch fuer Notizen, die eine neue Original-Fassung umhaengt
+    /// (`FileVersionKeeper`). Rueckgabe: die geschriebene Version.
+    @discardableResult
+    static func write(_ c: SQLiteConnection, fileID: String, payload: String, version: Int, now: String) throws -> Int {
+        let id = SQLiteValue.text(fileID)
+        let newV = Int64(version)
+        try c.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?) "
+                      + "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version",
+                      [id, .text(payload), .text(now), .integer(newV)])
+        try c.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
+                      [id, .integer(newV), .text(payload), .text(now)])
+        try c.execute("""
+            DELETE FROM annotation_versions WHERE file_id=? AND id NOT IN (
+                SELECT id FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT \(keptVersions))
+            """, [id, id])
+        return version
+    }
+
     /// `put_annotations(file_id, body, base_version)`: Versionspruefung und Schreiben in einer Transaktion
     static func save(fileID: String, body: PyJSON, baseVersion: Int?, _ ctx: LocalContext) async throws -> LocalResponse {
         let payload = body.dumps(ensureASCII: false)
@@ -131,17 +157,10 @@ public enum AnnotationEndpoints: LocalEndpointModule {
                 return .conflict(curV, cur["data"]?.string ?? "null")
             }
             guard try c.queryOne("SELECT 1 FROM files WHERE id=?", [id]) != nil else { return .unknownFile }
-            let newV = Int64(curV + 1)
-            try c.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?) "
-                          + "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version",
-                          [id, .text(payload), .text(now), .integer(newV)])
-            try c.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
-                          [id, .integer(newV), .text(payload), .text(now)])
-            try c.execute("""
-                DELETE FROM annotation_versions WHERE file_id=? AND id NOT IN (
-                    SELECT id FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT \(keptVersions))
-                """, [id, id])
-            return .saved(Int(newV))
+            let v = try write(c, fileID: fileID, payload: payload, version: curV + 1, now: now)
+            // nur auf dem Geraet (S7): spaete Striche auf Seiten, die eine neue Fassung entfernt hat, zur alten Fassung
+            try FileVersions.keepLateNotes(c, fileID: fileID, payload: payload)
+            return .saved(v)
         }
         switch outcome {
         case .saved(let v):

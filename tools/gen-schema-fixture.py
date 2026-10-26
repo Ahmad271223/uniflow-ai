@@ -4,7 +4,8 @@
   Tabellen mit Spalten (Typ, Default, NotNull, PK), Fremdschluesseln und Indizes, SQL der eigenen Indizes,
   settings-Standardwerte, Pseudokurs __user__ und Standardsemester.
 - legacy.json: eine aeltere Datenbank (Grundschema ohne die per add_col nachgetragenen Spalten, teils schon halb
-  migriert, mit erfundenen Zeilen), dazu Schema und Zeilen, wie init_db() sie daraus macht.
+  migriert, mit erfundenen Zeilen), dazu Schema und Zeilen, wie init_db() sie daraus macht (sync_updated_at der
+  Geraete-Synchronisierung als "<zeit>", die SQLite-Uhr laesst sich nicht einfrieren).
 
 Der Swift-Kern (SQLiteStoreTests) legt dieselben Datenbanken mit Schema und Migrationen an und vergleicht.
 init_db() laeuft nur gegen Dateien in einem Temp-Ordner, nie gegen data/.
@@ -81,10 +82,19 @@ def snapshot(conn: sqlite3.Connection) -> dict:
             "user_version": conn.execute("PRAGMA user_version").fetchone()[0]}
 
 
+# sync.ensure_schema setzt sync_updated_at mit der SQLite-Uhr (strftime 'now'): nicht einfrierbar, darum wie in
+# tools/gen-sync-fixture.py durch "<zeit>" ersetzt (SQLiteStoreTests maskiert die Spalte genauso)
+SYNC_TIME = "<zeit>"
+
+
 def rows(conn: sqlite3.Connection, table: str) -> list[dict]:
     conn.row_factory = sqlite3.Row
     try:
-        return [dict(r) for r in conn.execute(f'SELECT * FROM "{table}" ORDER BY rowid')]
+        out = [dict(r) for r in conn.execute(f'SELECT * FROM "{table}" ORDER BY rowid')]
+        for r in out:
+            if isinstance(r.get("sync_updated_at"), str):
+                r["sync_updated_at"] = SYNC_TIME
+        return out
     finally:
         conn.row_factory = None
 

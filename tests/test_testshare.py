@@ -27,7 +27,7 @@ def test_share_key_rules():
     assert k != testshare.share_key("hildesheim", 45, [a, b])    # Unis werden nie gemischt
     assert testshare.share_key("luh", 45, [a, {"content_sha256": None, "local_path": None}]) is None   # unsicher -> nicht teilen
     assert testshare.share_key("luh", 45, []) is None
-    assert [testshare.minutes_bucket(m) for m in (10, 15, 16, 45, 61, 500, None)] == [15, 15, 30, 45, 90, 120, 45]
+    assert [testshare.minutes_bucket(m) for m in (10, 15, 16, 45, 61, 500, None, 0)] == [15, 15, 30, 45, 90, 120, 45, 45]
 
 
 def test_file_hash_is_stored_on_download(app, tmp_path):

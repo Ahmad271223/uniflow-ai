@@ -84,10 +84,13 @@ final class LocalBackendHost: @unchecked Sendable {
 
     /// Verstaendliche Meldung (UniversityMismatch, DataContainerError haben eigene Texte)
     static func message(for error: Error) -> String {
+        if DeviceStorage.isFull(error) { return DeviceStorage.fullMessage }
         switch error {
         case let e as UniversityMismatch: return e.description
         case let e as DataContainerError: return e.description
         case let e as LocalHTTPError: return e.detail.string ?? e.description
+        // SQLiteError ist kein LocalizedError ("…SQLiteError-Fehler 1."): verstaendlich, mit Code
+        case let e as SQLiteError: return "Die Datenbank auf diesem iPad meldet einen Fehler (\(e.code)). Versuche es erneut."
         default: return error.localizedDescription
         }
     }
@@ -99,10 +102,7 @@ final class LocalBackendHost: @unchecked Sendable {
         let protection: [FileAttributeKey: Any] = [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]
         try fm.createDirectory(at: directory, withIntermediateDirectories: true, attributes: protection)
         try? fm.setAttributes(protection, ofItemAtPath: directory.path)
-        var dir = directory
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = false                                    // ausdruecklich ins Backup
-        try? dir.setResourceValues(values)
+        try? DataContainerLayout.setExcludedFromBackup(directory, false)        // ausdruecklich ins Backup
         let backend = try await LocalBackend.open(path: database.path, clock: clock, files: files, university: university)
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend
@@ -115,9 +115,16 @@ extension LocalFiles {
     static func container(_ layout: DataContainerLayout) -> LocalFiles { layout.files(tools: AppDocumentTools()) }
 }
 
-/// Seitenzahl (PDFKit) und Bild als einseitige PDF (UIKit) fuer eigene Dokumente, wie pypdf und Pillow am PC.
+/// Seitenzahl und Seitentexte (PDFKit) und Bild als einseitige PDF (UIKit), wie pypdf und Pillow am PC.
 struct AppDocumentTools: LocalDocumentTools {
     func pdfPageCount(_ data: Data) -> Int? { PDFDocument(data: data)?.pageCount }
+
+    /// Text je Seite (Skriptsuche, Suche, Seitenzuordnung einer neuen Fassung); laeuft nie auf dem Hauptthread
+    /// (lokales Backend, Abgleich)
+    func pdfPageTexts(_ url: URL) -> [String]? {
+        guard let doc = PDFDocument(url: url), !doc.isLocked else { return nil }
+        return (0..<doc.pageCount).map { doc.page(at: $0)?.string ?? "" }
+    }
 
     func pdfFromImage(_ data: Data) -> Data? {
         guard let image = UIImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }

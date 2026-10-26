@@ -19,7 +19,6 @@ enum LibraryStyle {
                                                   ("klausur", "Klausuren"), ("sonstiges", "Sonstiges")]
     static let chips: [(String, String)] = [("all", "Alle"), ("vorlesung", "Vorlesungen"), ("uebung", "Übungen"), ("skript", "Skripte"),
                                             ("klausur", "Klausuren"), ("notes", "Notizen"), ("sonstiges", "Sonstiges")]
-    static let templates: [(String, String)] = [("blank", "Leer"), ("lined", "Liniert"), ("grid", "Kariert"), ("dotted", "Gepunktet"), ("mm", "Millimeter"), ("cornell", "Cornell")]
 
     /// fileType(f): PDFs nach Dokumenttyp, sonst die Art (notebook, whiteboard, image)
     static func fileType(_ f: JSONValue) -> String { f.s("kind") == "pdf" ? (f.s("doc_type") ?? "sonstiges") : (f.s("kind") ?? "file") }
@@ -90,6 +89,10 @@ struct LibraryPage: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
+    /// Hochschule des Containers: Quelle der Dateien ("Stud.IP" bzw. "Learnweb") in den Beschriftungen
+    @EnvironmentObject private var studip: StudIPSync
+
+    private var newTitle: String { UFSourceText.newFiles(studip.university) }
     @AppStorage("lib-mode") private var mode = "grid"
     @State private var lib: JSONValue?
     /// lokal: Kursliste fuer die Kursordner (`LibraryCourses`); mit eigenem Server leer
@@ -256,7 +259,7 @@ struct LibraryPage: View {
         // im Kursordner entsteht Neues auf der Stammebene (ein Kurs ist kein Ablageort eigener Dokumente)
         let inCourse = LibraryCourses.courseID(path) != nil
         let newCount = lib.list("files").filter { $0.s("status") == "neu" }.count
-        let sectionTitle = ["fav": "Favoriten", "recent": "Zuletzt bearbeitet", "new": "Neu aus Stud.IP", "trash": "Papierkorb"][section]
+        let sectionTitle = ["fav": "Favoriten", "recent": "Zuletzt bearbeitet", "new": newTitle, "trash": "Papierkorb"][section]
         UFContent(maxWidth: 1480) {
             UFPageHead("Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.") {
                 searchField(section: section, path: path)
@@ -280,14 +283,14 @@ struct LibraryPage: View {
                 HStack(spacing: 4.8) {
                     sectionLink("fav", "Favoriten", "star", section: section)
                     sectionLink("recent", "Zuletzt", "clock", section: section)
-                    sectionLink("new", "Neu aus Stud.IP", "sparkles", section: section, badge: newCount)
+                    sectionLink("new", newTitle, "sparkles", section: section, badge: newCount)
                     sectionLink("trash", "Papierkorb", "trash", section: section)
                 }
             }
             .padding(.bottom, 19.2)
             if !b.root { crumbs(b, section: section, title: sectionTitle).padding(.bottom, 16) }
             if section == "trash" {
-                Text("Dokumente im Papierkorb lassen sich wiederherstellen. Stud.IP-Dokumente bleiben erhalten, eigene Dokumente können endgültig gelöscht werden.")
+                Text("Dokumente im Papierkorb lassen sich wiederherstellen. \(studip.university.profile.filesSource)-Dokumente bleiben erhalten, eigene Dokumente können endgültig gelöscht werden.")
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
             }
             if b.root {
@@ -756,8 +759,8 @@ actor UFThumbnails {
     private let journalRoot: URL
 
     init(root: URL) {
-        dir = root.appendingPathComponent("thumbs", isDirectory: true)
-        journalRoot = root.appendingPathComponent("journal", isDirectory: true)
+        dir = DataContainerLayout.Folder.thumbs.url(in: root)
+        journalRoot = DataContainerLayout.Folder.journal.url(in: root)
     }
 
     /// Schluessel einer Vorschau: je Datenquelle getrennt (lokal und ein Server koennen dieselbe Datei-ID haben)
@@ -789,8 +792,9 @@ actor UFThumbnails {
         }
         guard let out else { return nil }
         memory[key] = out
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        AppPaths.excludeFromBackup(dir)                                 // Vorschauen von Stud.IP-Dateien: nur auf dem Geraet
+        // nur im bestehenden Container (wie ResponseCache.store): nach dem Loeschen kein neuer Ordner ohne Kennzeichnung
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: false)
+        try? DataContainerLayout.setExcludedFromBackup(dir)                               // Vorschauen von Stud.IP-Dateien: nur auf dem Geraet
         try? out.jpegData(compressionQuality: 0.75)?.write(to: file, options: .atomic)
         return out
     }

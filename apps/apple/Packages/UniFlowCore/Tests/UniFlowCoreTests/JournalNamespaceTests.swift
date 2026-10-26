@@ -186,7 +186,9 @@ final class LocalAnnotationPlaceholderTests: XCTestCase {
         let engine = SyncEngine(documentID: "f1", transport: transport, journal: LocalJournal(store: store, documentID: "f1", namespace: .local),
                                 uploadDelay: 0, sleeper: fastSleeper)
         let opened = await engine.open(pdfPageCount: 2)
-        XCTAssertTrue(opened.serverReachable, "leeres gueltiges Dokument")
+        // Regel G6 (seit dem PC-Stand 26.10.2026): ein Dokument, das es lokal nicht gibt, antwortet beim Abruf mit 404
+        // statt mit leeren Notizen; das Journal bleibt die Sicherung
+        XCTAssertFalse(opened.serverReachable, "unbekanntes Dokument: 404")
         await engine.updatePage("p1", page(["a"]))
         await engine.syncNow()
         let issue = await engine.issue

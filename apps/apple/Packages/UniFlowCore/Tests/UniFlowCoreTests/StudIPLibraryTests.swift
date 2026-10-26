@@ -15,7 +15,8 @@ private let base = URL(string: "https://studip.test")!
 /// Nutzerfelder, relative Pfade, Uebernahme des alten Index.
 final class StudIPLibraryTests: XCTestCase {
 
-    /// Ein Durchgang wie StudIPSync.run in der App: Kurse, je Kurs die Dateiliste, Downloads, Protokoll.
+    /// Ein Durchgang wie StudIPSync.run in der App: Kurse, je Kurs die Dateiliste, Downloads ueber `UniDownloads.load`
+    /// (Zwischenordner, Pruefung leerer Antworten, Hash, Fassungen, Eintrag), Protokoll.
     /// `failing`: Downloads, die scheitern (Datei bleibt wie bei einem Netzfehler ungeladen), `abortBeforeDownloads`:
     /// Lauf bricht nach den Dateilisten ab (Netz weg, App beendet), ohne Protokoll.
     /// Rueckgabe: Dateien, die geladen werden muessten, und die geladenen.
@@ -24,7 +25,7 @@ final class StudIPLibraryTests: XCTestCase {
                      lists: [(String, [StudIPFile])], error: String? = nil, failing: Set<String> = [],
                      abortBeforeDownloads: Bool = false) async throws -> (wanted: [String], loaded: [String]) {
         if let error {
-            try await db.transaction { try StudIPLibrary.log($0, startedAt: now, finishedAt: now, ok: false, newFiles: 0, message: StudIPLibrary.failure(error)) }
+            try await db.transaction { try UniStore.logSync($0, startedAt: now, finishedAt: now, ok: false, newFiles: 0, message: StudIPLibrary.failure(error)) }
             return ([], [])
         }
         try await db.transaction { try StudIPLibrary.storeCourses($0, courses, startedAt: now) }
@@ -34,15 +35,20 @@ final class StudIPLibraryTests: XCTestCase {
         }
         if abortBeforeDownloads { return (wanted.map(\.id), []) }
         var loaded: [String] = []
+        let downloads = UniDownloads(folder: files.container.appendingPathComponent("studip", isDirectory: true), files: files,
+                                     container: nil, source: "Stud.IP")
+        try downloads.begin()
+        defer { downloads.end() }
+        let at = try XCTUnwrap(UniFlowClock.fixed(berlin: now))
         for f in wanted where f.isDownloadable && !failing.contains(f.id) {
-            let rel = "studip/" + StudIPImport.relativePath(for: f)
-            // Inhalts-Hash nach dem Download wie store_course_files (testshare.file_sha256), ausserhalb der Transaktion
-            let sha = TestShare.contentHash(file: try files.write(Data("Inhalt \(f.id)".utf8), to: rel))
-            try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: rel, sha256: sha, at: now, base: base) }
+            let body = Data("Inhalt \(f.id)".utf8)
+            try await downloads.load(StudIPLibrary.fileRow(f, base: base), to: StudIPImport.relativePath(for: f), db: db, clock: at) { part in
+                try body.write(to: part)
+            }
             loaded.append(f.id)
         }
         let n = loaded.count
-        try await db.transaction { try StudIPLibrary.log($0, startedAt: now, finishedAt: now, ok: true, newFiles: n, message: StudIPLibrary.summary(newFiles: n)) }
+        try await db.transaction { try UniStore.logSync($0, startedAt: now, finishedAt: now, ok: true, newFiles: n, message: StudIPLibrary.summary(newFiles: n)) }
         return (wanted.map(\.id), loaded)
     }
 
@@ -161,8 +167,15 @@ final class StudIPLibraryTests: XCTestCase {
         }
         XCTAssertEqual(StudIPLibrary.unixTime("2026-10-25T02:30:00+02:00"), StudIPLibrary.unixTime("2026-10-25T00:30:00Z"))
         XCTAssertEqual(StudIPLibrary.unixTime("2026-10-25"), BerlinClock.utcSeconds(day: BerlinClock.parseISODate("2026-10-25")!, minutes: 0))
-        for bad in ["", "gestern", "2026-13-01T00:00:00Z", "2026-10-25T25:00:00Z", "2026-10-25T10:00:00+0x:00", "2026-10-25T10:00:00Zx"] {
+        for bad in ["", "gestern", "2026-13-01T00:00:00Z", "2026-10-25T25:00:00Z", "2026-10-25T10:00:00+0x:00", "2026-10-25T10:00:00Zx",
+                    "2026-10-25T24:30:00Z"] {
             XCTAssertNil(StudIPLibrary.unixTime(bad), bad)
+        }
+        // ein Leser fuer Aenderungszeit und Stundenplan (StudIPTimestamp): iCalendar-Form, 24:00 = Folgetag 00:00
+        XCTAssertEqual(StudIPLibrary.unixTime("20261015T080000Z"), StudIPLibrary.unixTime("2026-10-15T08:00:00Z"))
+        XCTAssertEqual(StudIPLibrary.unixTime("2026-10-25T24:00:00+01:00"), StudIPLibrary.unixTime("2026-10-26T00:00:00+01:00"))
+        for s in ["2026-10-20T10:00:00+02:00", "20261020T080000Z", "2026-10-25T02:30:00+02:00", "2026-12-23T23:30:00Z"] {
+            XCTAssertEqual(StudIPSchedule.moment(.string(s)), StudIPLibrary.unixTime(s).map { StudIPMoment(utc: $0) }, s)
         }
     }
 
@@ -201,7 +214,7 @@ final class StudIPLibraryTests: XCTestCase {
         let target = try files.write(Data("Inhalt a1".utf8), to: "studip/" + StudIPImport.relativePath(for: f))
         let stored = try XCTUnwrap(files.stored(target))
         try await db.transaction {
-            try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, sha256: nil, at: "2026-10-20T08:00:00", base: base)
+            try UniStore.markDownloaded($0, StudIPLibrary.fileRow(f, base: base), localPath: stored, sha256: nil, now: "2026-10-20T08:00:00")
         }
         let row = try await db.queryOne("SELECT name, local_path FROM files WHERE id='a1'")
         XCTAssertEqual(hex(row?["name"]?.string ?? ""), hex(nfd), "Name wie geliefert")

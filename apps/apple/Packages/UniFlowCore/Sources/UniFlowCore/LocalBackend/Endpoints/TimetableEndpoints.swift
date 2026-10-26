@@ -2,7 +2,7 @@ import Foundation
 
 /// `/api/timetable/*` wie app/server.py (Abschnitt "Stundenplan" und `/api/timetable/auto-status`), Logik in
 /// `LocalTimetable`, `LocalFreeWindows` und `LocalTimetableImport`. `/api/timetable/reslot` gehoert zur Lernlogik
-/// (S6) und bleibt bis dahin Platzhalter. Abweichungen: falsche Datumsangaben in der Query geben 422 statt 500;
+/// (S6, `StudyEndpoints`). Abweichungen: falsche Datumsangaben in der Query geben 422 statt 500;
 /// Import aus PDF, Bild oder Text braucht KI und antwortet wie die anderen KI-Pfade (404 mit Meldung);
 /// `conflicts?days=` hoechstens zehn Jahre.
 public enum TimetableEndpoints: LocalEndpointModule {
@@ -202,7 +202,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
                 if source == "studip" { diff = try StudIPScheduleImport.previewDiff(c, diff, entries: entries) }
                 let list: JSONValue = .array(entries.map(JSONValue.object))
                 try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES (?,?,?,?,?,0)",
-                              [.text(source), .text(clock.nowISO), "preview", .text(LocalTimetableImport.slice(text, 0, 20000)),
+                              [.text(source), .text(clock.nowISO), "preview", .text(PyText.slice(text, 0, 20000)),
                                .text(list.jsonString(sortedKeys: true))])
                 let importID = c.lastInsertRowID
                 let modules = try c.rows("SELECT id, name, color FROM modules ORDER BY name")
@@ -236,8 +236,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
                     throw LocalHTTPError.validation(type: "int_parsing", loc: ["query", "days"],
                                                     msg: "Input should be a valid integer, unable to parse string as an integer", input: .string(raw))
                 }
-                guard n <= 3660 else { throw LocalHTTPError(status: 422, message: "Höchstens 3660 Tage") }
-                days = n
+                days = try T.span(n)
             }
             let t = T.today(ctx.clock)
             let span = days

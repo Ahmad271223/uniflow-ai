@@ -106,17 +106,24 @@ struct UniversitySwitchDialog: View {
                         .padding(.top, 4)
                         .accessibilityIdentifier("university.switch.notice")
                 }
+                ContainerSyncGate { syncing in
+                    if syncing { ContainerSyncNotice(action: "Wechseln") }
+                }
             }
         } foot: {
             UFButton("Abbrechen") { close() }
-            UFButton("Wechseln", icon: "arrow-right", kind: .primary) {
-                guard let target, target != current else { return }
-                overlay.closeAll()
-                account.chooseUniversity(target)                       // RootView oeffnet den Container der neuen Hochschule
-                toast.show("Jetzt mit dem Speicher der \(target.profile.name).", seconds: 3)
+            // gesperrt, solange ein Abgleich laeuft: sonst liefe er im abgeloesten Speicher weiter, und nach dem
+            // Zurueckwechseln liesse sich ein zweiter Abgleich desselben Speichers starten (gemeinsamer Zwischenordner)
+            ContainerSyncGate { syncing in
+                UFButton("Wechseln", icon: "arrow-right", kind: .primary) {
+                    guard let target, target != current, !syncing else { return }
+                    overlay.closeAll()
+                    account.chooseUniversity(target)                   // RootView oeffnet den Container der neuen Hochschule
+                    toast.show("Jetzt mit dem Speicher der \(target.profile.name).", seconds: 3)
+                }
+                .disabled(target == nil || target == current || syncing)
+                .accessibilityIdentifier("university.switch.confirm")
             }
-            .disabled(target == nil || target == current)
-            .accessibilityIdentifier("university.switch.confirm")
         }
     }
 
@@ -164,8 +171,11 @@ struct ContainerSyncGate<Content: View>: View {
 
 /// Hinweis in den Loeschdialogen, solange ein Abgleich laeuft
 struct ContainerSyncNotice: View {
+    /// "Löschen" bzw. "Wechseln"
+    var action = "Löschen"
+
     var body: some View {
-        Text("Gerade läuft ein Abgleich. Löschen ist möglich, sobald er fertig ist.")
+        Text("Gerade läuft ein Abgleich. \(action) ist möglich, sobald er fertig ist.")
             .ufFont(13.12, 600).foregroundStyle(UF.warn)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("container.delete.syncing")

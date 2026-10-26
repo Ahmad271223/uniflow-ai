@@ -224,9 +224,17 @@ final class LocalLibraryFixtureTests: XCTestCase {
     }
 
     func testContentDispositionLikeStarlette() {
-        XCTAssertEqual(LocalFileResponse.quote("Folien 1.pdf"), "Folien%201.pdf")
-        XCTAssertEqual(LocalFileResponse.quote("a/b_c-d.e~f"), "a/b_c-d.e~f")
-        XCTAssertEqual(LocalFileResponse.quote("ä\""), "%C3%A4%22")
+        XCTAssertEqual(PyText.quote("Folien 1.pdf"), "Folien%201.pdf")
+        XCTAssertEqual(PyText.quote("a/b_c-d.e~f"), "a/b_c-d.e~f")
+        XCTAssertEqual(PyText.quote("ä\""), "%C3%A4%22")
+        // eine Prozent-Kodierung fuer quote(safe=""), quote_plus, encodeURIComponent und unquote(_plus) wie urllib.parse
+        XCTAssertEqual(PyText.quote("a/b c+&", safe: ""), "a%2Fb%20c%2B%26")
+        XCTAssertEqual(PyText.quote("a b+ü", safe: "", plus: true), "a+b%2B%C3%BC")
+        XCTAssertEqual(PyText.quote("C++ (x)!*'~", safe: "!*'()"), "C%2B%2B%20(x)!*'~")
+        XCTAssertEqual(PyText.unquote("%C3%BC%zz%4"), "ü%zz%4")
+        XCTAssertEqual(PyText.unquotePlus("a+b%2B"), "a b+")
+        XCTAssertEqual(LocalRequest.parseQuery("q=%ZZ+a%C3%BC&x").map { [$0.name, $0.value] }, [["q", "%ZZ aü"], ["x", ""]],
+                       "kaputte %-Folge bleibt, der Rest wird dekodiert (parse_qsl)")
         XCTAssertEqual(LocalFileResponse.suffix("x.tar.gz"), ".gz")
         XCTAssertNil(LocalFileResponse.suffix(".png"))
         XCTAssertNil(LocalFileResponse.suffix("a."))
@@ -361,8 +369,8 @@ final class LocalAnnotationsTests: XCTestCase {
             let route = try XCTUnwrap(b.route(method: m, path: p), "\(m) \(p)")
             XCTAssertFalse(route.placeholder, "\(m) \(p)")
         }
-        // Uebersicht bleibt Platzhalter bis S6, kennt aber schon die neuen Dateien
-        XCTAssertEqual(b.route(method: "GET", path: "/api/dashboard")?.placeholder, true)
+        // Uebersicht seit S6 echt (StudyEndpoints), mit den neuen Dateien aus S3
+        XCTAssertEqual(b.route(method: "GET", path: "/api/dashboard")?.placeholder, false)
         let dash = await b.handle(LocalRequest(method: "GET", path: "/api/dashboard"))
         XCTAssertEqual(dash.json?["new_total"], 1)
         XCTAssertEqual(dash.json?["new_files"]?.array?.first?["id"], "d1")

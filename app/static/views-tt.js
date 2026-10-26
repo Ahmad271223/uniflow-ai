@@ -6,6 +6,11 @@ let ttDate = todayISO();
 export async function viewTimetable(_, params, view) {
   if (params.date) ttDate = params.date;
   const start = mondayOf(parseISO(ttDate)); const w = await api(`/timetable/week?start=${iso(start)}`); const conflicts = await api("/timetable/conflicts").catch(() => []);
+  // "haben bereits Termine" nur, wenn wirklich Stud.IP-Termine zum Uebernehmen vorliegen (sonst der ehrliche Stand)
+  const auto = await api("/timetable/auto-status").catch(() => null);
+  const emptyHint = auto && auto.pending_groups > 0
+    ? "Deine Stud.IP-Kurse haben bereits Termine. Mit „Stundenplan importieren → aus Stud.IP“ übernimmst du sie in einer Vorschau, wählst deine Übungsgruppen und bestätigst."
+    : "Noch sind keine Termine deiner Kurse abgeholt; sie kommen mit dem nächsten Abgleich. Bis dahin kannst du eine Kalenderdatei (ICS) importieren oder Termine selbst eintragen.";
   const allEv = w.days.flatMap(d => d.events); const lo = Math.min(hm(w.learn_start), 8 * 60, ...allEv.map(e => hm(e.start))) - 60, hi = Math.max(hm(w.learn_end), 18 * 60, ...allEv.map(e => hm(e.end))) + 60; const H = 56; const px = m => (m - lo) / 60 * H;
   const hasEvents = allEv.length > 0;
   view.innerHTML = `<div class="content wide" style="max-width:1600px;margin:0 auto;padding:1.2rem 1.4rem">
@@ -14,7 +19,7 @@ export async function viewTimetable(_, params, view) {
     ${conflicts.length ? `<div class="card" style="border-color:var(--warn);background:var(--warn-soft);margin-bottom:.8rem"><div class="row wrap"><b>${icon("alert", 16)} ${conflicts.length} Lernslot${conflicts.length > 1 ? "s überschneiden" : " überschneidet"} sich mit Hochschulterminen</b><span class="spacer"></span><button class="btn sm primary" id="ttReslot">Lernslots neu legen</button></div><div class="small muted" style="margin-top:.3rem">${conflicts.slice(0, 4).map(c => `${fmtShort(c.date)}: ${esc(shortName(c.subject))} ${c.slot} ↔ ${esc(c.event)} ${c.event_time}`).join(" · ")}</div></div>` : ""}
     <div class="row wrap" style="margin-bottom:.7rem"><button class="btn icon sm" id="ttPrev">${icon("chevron-left", 16)}</button><b style="min-width:220px;text-align:center">${fmtDate(start, { day: "numeric", month: "long" })} – ${fmtDate(addDays(start, 6), { day: "numeric", month: "long", year: "numeric" })}</b><button class="btn icon sm" id="ttNext">${icon("chevron-right", 16)}</button><button class="btn sm ghost" id="ttToday">Heute</button><span class="spacer"></span>
       <div class="tt-legend"><span><i style="background:var(--accent)"></i> Vorlesung/Übung</span><span><i style="background:var(--surface);border:1px solid var(--accent)"></i> Lernslot</span><span><i style="background:repeating-linear-gradient(135deg,transparent 0 3px,var(--ok) 3px 4px)"></i> Frei</span><span><i style="background:repeating-linear-gradient(45deg,transparent 0 3px,#999 3px 4px)"></i> Sperrzeit</span><span><i style="background:var(--ok-soft);border:1px solid var(--ok)"></i> Feiertag / vorlesungsfrei</span></div></div>
-    ${hasEvents ? "" : `<div class="card" style="margin-bottom:.8rem"><b>Noch kein Stundenplan.</b> <span class="muted">Deine Stud.IP-Kurse haben bereits Termine. Mit „Stundenplan importieren → aus Stud.IP“ übernimmst du sie in einer Vorschau, wählst deine Übungsgruppen und bestätigst.</span></div>`}
+    ${hasEvents ? "" : `<div class="card" style="margin-bottom:.8rem"><b>Noch kein Stundenplan.</b> <span class="muted">${emptyHint}</span></div>`}
     <div class="tt-wrap"><div class="tt-grid"><div class="tt-head"></div>${w.days.map(d => `<div class="tt-head ${d.date === todayISO() ? "today" : ""} ${holClass(d)}">${DAYS_LONG[d.weekday]}<span class="d">${fmtDate(d.date, { day: "2-digit", month: "2-digit" })}</span>${holChips(d, true)}${dlChips(d, true)}${noteChips(d, true)}</div>`).join("")}
       <div class="tt-axis" style="height:${px(hi)}px">${Array.from({ length: Math.floor((hi - lo) / 60) + 1 }, (_, i) => `<span style="top:${px(lo + i * 60)}px">${mh(lo + i * 60)}</span>`).join("")}</div>
       ${w.days.map(d => `<div class="tt-col ${d.date === todayISO() ? "today" : ""} ${holClass(d)}" style="height:${px(hi)}px;--hour:${H}px" data-date="${d.date}">

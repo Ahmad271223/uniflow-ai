@@ -16,27 +16,13 @@ enum AppPaths {
     static var legacySupport: URL { ContainerPaths.legacy.support }
 
     /// Journal aller Dokumente (Seiten, Revisionen, Basis fuer Konflikte), darin je Datenquelle `spaces/<id>/docs`.
-    static var journal: URL { support.appendingPathComponent("journal", isDirectory: true) }
-    /// Zwischenspeicher der Original-PDFs je Datenquelle (Datei-IDs von lokal und Server koennen gleich sein)
-    static func pdf(_ fileID: String, namespace: DataSourceNamespace) -> URL {
-        pdfDirectory(namespace, root: support).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf")
-    }
+    static var journal: URL { DataContainerLayout.Folder.journal.url(in: support) }
 
-    /// Geteilte und empfangene Loesungen (nur eigene Notizen anderer, verschluesselt), siehe `SolutionLibrary`.
-    static var solutions: URL { support.appendingPathComponent("solutions", isDirectory: true) }
-
-    static func pdfDirectory(_ namespace: DataSourceNamespace, root: URL) -> URL {
-        root.appendingPathComponent("sources", isDirectory: true).appendingPathComponent(namespace.id, isDirectory: true)
-            .appendingPathComponent("pdf", isDirectory: true)
-    }
-
-    /// Zwischenspeicher (Original-PDFs, Vorschaubilder) nicht ins iCloud-Backup: Stud.IP-Dateien bleiben nur auf dem
+    /// Original-PDF einer Datei im Zwischenspeicher ihrer Datenquelle (die eine Stelle fuer diesen Pfad). Der
+    /// Zwischenspeicher (wie die Vorschaubilder) kommt nicht ins iCloud-Backup: Stud.IP-Dateien bleiben nur auf dem
     /// Geraet (Entscheidung 6 in docs/IPAD-OHNE-PC.md), und alles darin laesst sich aus der Datenquelle neu laden.
-    static func excludeFromBackup(_ directory: URL) {
-        var dir = directory
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        try? dir.setResourceValues(values)
+    static func pdf(_ fileID: String, namespace: DataSourceNamespace, root: URL = support) -> URL {
+        DataContainerLayout.pdfDirectory(namespace, in: root).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf")
     }
 
     /// Kopien eines endgueltig geloeschten Dokuments auf dem Geraet entfernen: Original-PDF im Zwischenspeicher,
@@ -44,8 +30,8 @@ enum AppPaths {
     /// blieben sie fuer immer liegen (die Kennung kommt nie wieder).
     static func removeDocumentCopies(fileID: String, namespace: DataSourceNamespace, root: URL = support) {
         let fm = FileManager.default
-        try? fm.removeItem(at: pdfDirectory(namespace, root: root).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf"))
-        let journal = root.appendingPathComponent("journal", isDirectory: true)
+        try? fm.removeItem(at: pdf(fileID, namespace: namespace, root: root))
+        let journal = DataContainerLayout.Folder.journal.url(in: root)
             .appendingPathComponent(LocalJournal.directory(documentID: fileID, namespace: namespace), isDirectory: true)
         try? fm.removeItem(at: journal)
         removeThumbnails(fileIDs: [fileID], namespace: namespace, root: root)
@@ -55,7 +41,7 @@ enum AppPaths {
     static func removeThumbnails(fileIDs: [String], namespace: DataSourceNamespace, root: URL = support) {
         guard !fileIDs.isEmpty else { return }
         let fm = FileManager.default
-        let thumbs = root.appendingPathComponent("thumbs", isDirectory: true)
+        let thumbs = DataContainerLayout.Folder.thumbs.url(in: root)
         let prefixes = fileIDs.map { UFThumbnails.fileNamePrefix(fileID: $0, namespace: namespace) }
         for name in (try? fm.contentsOfDirectory(atPath: thumbs.path)) ?? [] where prefixes.contains(where: { name.hasPrefix($0) }) {
             try? fm.removeItem(at: thumbs.appendingPathComponent(name))
@@ -79,9 +65,9 @@ enum DataSourceMigration {
         -> (journal: JournalNamespaceMigration.Report, pdf: JournalNamespaceMigration.Report)? {
         let owner = legacyOwner(savedServerURL: savedServerURL)
         do {
-            let journal = try JournalNamespaceMigration.run(root: support.appendingPathComponent("journal", isDirectory: true), owner: owner)
+            let journal = try JournalNamespaceMigration.run(root: DataContainerLayout.Folder.journal.url(in: support), owner: owner)
             let pdf = try JournalNamespaceMigration.moveEntries(from: support.appendingPathComponent("pdf", isDirectory: true),
-                                                                to: AppPaths.pdfDirectory(owner, root: support))
+                                                                to: DataContainerLayout.pdfDirectory(owner, in: support))
             return (journal, pdf)
         } catch {
             // nichts verloren: was nicht umzog, liegt am alten Ort; der naechste Start versucht es erneut
@@ -93,7 +79,7 @@ enum DataSourceMigration {
 enum LocalJournalName {
     static func safe(_ s: String) -> String {
         let ok = s.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || $0 == "_" || $0 == "-" }
-        return ok && !s.isEmpty ? s : s.utf8.map { String(format: "%02x", $0) }.joined()
+        return ok && !s.isEmpty ? s : SolutionSHA256.hexString(Array(s.utf8))
     }
 }
 
@@ -198,13 +184,20 @@ final class DocumentStore: ObservableObject {
     @Published private(set) var insertedPages = 0
     @Published private(set) var removedPDFPages: [Int] = []
     @Published private(set) var bookmarks: [Bookmark] = []
+    /// Alte Original-Fassungen dieser Datei (S7, lokales Backend; am PC-Server keine), neueste zuerst
+    @Published var versions: [FileVersionInfo] = []
+    /// Hinweis "Neue Fassung aus Stud.IP – Notizen übernommen": neueste alte Fassung, solange nicht gesehen
+    @Published var versionNotice: FileVersionInfo?
+    /// Waehrend das Dokument offen war, kam eine neue Fassung an: die Notizen gehoeren jetzt zu ihr, angezeigt ist noch
+    /// die alte PDF. Bis zum erneuten Oeffnen nur ansehen.
+    @Published private(set) var outdatedByNewVersion = false
 
     var pdf: PDFDocument? { layout?.pdf }
 
     let file: LibFile
     /// Datenquelle (lokal oder Server-Host): bestimmt Journal und PDF-Zwischenspeicher, aendert sich nie
     let namespace: DataSourceNamespace
-    private var api: APIClient
+    private(set) var api: APIClient
     private let transport: SwitchableAnnotationTransport
     private let engine: SyncEngine
     private let ink = InkProcessor()
@@ -239,44 +232,38 @@ final class DocumentStore: ObservableObject {
     /// nur ansehen wie bei ausgeblendeten Notizen, dazu nimmt der Store keine neuen Zeichnungen an. Die eigenen
     /// Notizen bleiben sichtbar und exportierbar; was vorher gezeichnet wurde und noch aussteht, wird gesichert.
     var canEdit = true
-    /// Schreibende Aktionen erlaubt (Notizen eingeblendet und Tarif mit Schreiben)
-    var isWritable: Bool { canEdit && !ownNotesReadOnly }
+    /// Schreibende Aktionen erlaubt (Notizen eingeblendet, Tarif mit Schreiben, keine neue Fassung seit dem Oeffnen)
+    var isWritable: Bool { canEdit && !ownNotesReadOnly && !outdatedByNewVersion }
 
     /// - Parameter root: Ordner fuer Journal und PDF-Zwischenspeicher (Standard: App-Container; Tests: Temp-Ordner).
     init(file: LibFile, api: APIClient, root: URL = AppPaths.support) {
         self.file = file
         self.api = api
         self.namespace = api.namespace
-        self.originalPDFURL = AppPaths.pdfDirectory(api.namespace, root: root)
-            .appendingPathComponent(LocalJournalName.safe(file.id) + ".pdf")
+        self.originalPDFURL = AppPaths.pdf(file.id, namespace: api.namespace, root: root)
         let transport = SwitchableAnnotationTransport(api: api)
         self.transport = transport
-        let journal = LocalJournal(store: FileBlobStore(root: root.appendingPathComponent("journal", isDirectory: true)),
+        let journal = LocalJournal(store: FileBlobStore(root: DataContainerLayout.Folder.journal.url(in: root)),
                                    documentID: file.id, namespace: api.namespace)
         self.engine = SyncEngine(documentID: file.id, transport: transport, journal: journal)
     }
 
     // MARK: Laden
 
+    /// Notizbuch oder Whiteboard: keine Datei, nur Seiten aus `pageOrder` (Leerseiten mit Vorlage)
+    var isNotebook: Bool { ["notebook", "whiteboard"].contains(file.kind ?? "") }
+
     func load() async {
         guard !loadStarted else { return }          // .task laeuft bei jedem Erscheinen erneut (z. B. Tabwechsel)
         loadStarted = true
         do {
-            let url = originalPDFURL
-            if !FileManager.default.fileExists(atPath: url.path) {
-                let (data, http) = try await api.data("/api/files/\(file.id)/content")
-                guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
-                    throw APIError(status: http.statusCode, message: "Keine PDF-Datei erhalten")
-                }
-                // grosse Skripte: Schreiben nicht auf dem Hauptthread (die Oberflaeche bliebe so lange stehen)
-                try await Task.detached(priority: .userInitiated) {
-                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    AppPaths.excludeFromBackup(url.deletingLastPathComponent())
-                    try data.write(to: url, options: .atomic)
-                }.value
-            }
-            guard let pdfDocument = PDFDocument(url: url) else {
-                throw APIError(status: 0, message: "PDF lässt sich nicht öffnen")
+            let pdfDocument: PDFDocument
+            if isNotebook {
+                // ohne Original-PDF: die Anzeige besteht nur aus den Seiten des Modells (DisplayLayout, wie im
+                // Web-Editor). Vorher verlangte der Editor /content und zeigte "Not Found" (Pruefbericht K3)
+                pdfDocument = PDFDocument()
+            } else {
+                pdfDocument = try await loadOriginal()
             }
             original = pdfDocument
             await engine.setHandlers(
@@ -291,9 +278,70 @@ final class DocumentStore: ObservableObject {
                 notice = "\(opened.restoredUnsentPages) ungesendete Seite(n) wiederhergestellt."
             }
             startMonitoring()
+            await checkOrigin(opened.document)
+            await loadVersions()
+            indexPageTexts()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Original-PDF in den Zwischenspeicher des Editors legen und oeffnen. Der Zwischenspeicher ist der feste Stand der
+    /// angezeigten Fassung fuer die ganze Sitzung (legt der Abgleich waehrenddessen eine neue Fassung ab, bleiben Anzeige
+    /// und Fingerabdruck der Loesungen bei der alten, S7). Lokal ein Klon der Datei im Container (auf APFS ohne
+    /// zusaetzlichen Platz; vorher eine zweite Kopie ueber /content), am eigenen Server ein Download von /content.
+    /// Neue Fassung seit dem Zwischenspeichern: Stand laut Quelle (`stamp`); ohne Antwort gilt der Zwischenspeicher.
+    private func loadOriginal() async throws -> PDFDocument {
+        let url = originalPDFURL
+        let meta = isOldVersion ? nil : try? await api.value("/api/files/\(file.id)")
+        let stamp = meta.map(Self.stamp)
+        if let stamp, FileManager.default.fileExists(atPath: url.path), (try? String(contentsOf: stampURL, encoding: .utf8)) != stamp {
+            try? FileManager.default.removeItem(at: url)
+        }
+        if !FileManager.default.fileExists(atPath: url.path) {
+            let stampURL = self.stampURL
+            if let source = containerFile(meta) {
+                guard Self.startsAsPDF(source) else { throw APIError(status: 200, message: "", text: DocumentOpenText.notPDF) }
+                try await Task.detached(priority: .userInitiated) {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try? DataContainerLayout.setExcludedFromBackup(url.deletingLastPathComponent())
+                    try? FileManager.default.removeItem(at: url)
+                    try FileManager.default.copyItem(at: source, to: url)
+                    if let stamp { try? stamp.write(to: stampURL, atomically: true, encoding: .utf8) }
+                }.value
+            } else {
+                let (data, http) = try await api.data("/api/files/\(file.id)/content")
+                guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
+                    throw APIError(status: http.statusCode, message: String(decoding: data.prefix(300), as: UTF8.self),
+                                   text: DocumentOpenText.problem(status: http.statusCode))
+                }
+                // grosse Skripte: Schreiben nicht auf dem Hauptthread (die Oberflaeche bliebe so lange stehen)
+                try await Task.detached(priority: .userInitiated) {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try? DataContainerLayout.setExcludedFromBackup(url.deletingLastPathComponent())
+                    try data.write(to: url, options: .atomic)
+                    if let stamp { try? stamp.write(to: stampURL, atomically: true, encoding: .utf8) }
+                }.value
+            }
+        }
+        guard let pdfDocument = PDFDocument(url: url) else {
+            throw APIError(status: 0, message: "", text: "Die PDF lässt sich nicht öffnen.")
+        }
+        return pdfDocument
+    }
+
+    /// Datei im Container (lokales Backend, `local_path` laut Datenbank); nil am eigenen Server oder ohne Datei
+    private func containerFile(_ meta: JSONValue?) -> URL? {
+        guard api.isLocal, let path = meta?.s("local_path"), let files = (api.transport as? LocalTransport)?.host.files,
+              files.exists(stored: path) else { return nil }
+        return files.url(stored: path)
+    }
+
+    /// Beginnt die Datei wie eine PDF ("%PDF")?
+    nonisolated static func startsAsPDF(_ url: URL) -> Bool {
+        guard let h = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? h.close() }
+        return (try? h.read(upToCount: 4)) == Data("%PDF".utf8)
     }
 
     /// Neuen Modellstand uebernehmen; Anzeige-PDF nur neu aufbauen, wenn sich die Seitenstruktur geaendert hat.
@@ -365,7 +413,7 @@ final class DocumentStore: ObservableObject {
     /// Seitenaufbau, mit dem die Canvas angelegt wurde (bleibt richtig, auch wenn sich die Reihenfolge aendert).
     func canvasChanged(pageKey key: String, drawing: PKDrawing) {
         // ohne Schreiben im Tarif keine neuen Zeichnungen (auch nicht ueber Rueckgaengig); Ausstehendes bleibt
-        guard !key.isEmpty, canEdit else { return }
+        guard !key.isEmpty, canEdit, !outdatedByNewVersion else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
         canvasEdits[key, default: 0] += 1
         processTask?.cancel()
@@ -436,8 +484,22 @@ final class DocumentStore: ObservableObject {
     }
 
     private func remoteChanged(_ keys: [String]) async {
-        apply(document: await engine.currentDocument())
+        let doc = await engine.currentDocument()
+        // zuerst der Herkunftsstempel (S7): gehoeren die Notizen inzwischen zu einer neuen Fassung, passt ihre
+        // Seitenliste nicht zur angezeigten PDF (Notizen stuenden auf falschen Folien, Seiten ueber die alte Seitenzahl
+        // hinaus fehlten). Dann bleibt die Anzeige, wie sie ist, nur zum Ansehen, bis das Dokument neu geoeffnet wird.
+        await checkOrigin(doc)
+        guard !outdatedByNewVersion else { return }
+        apply(document: doc)
         if !keys.isEmpty { onPagesChanged?(keys) }
+    }
+
+    /// Gehoeren die Notizen zu einer anderen Original-PDF als der angezeigten (Herkunftsstempel `origin` einer neuen
+    /// Fassung, S7)? Dann nur noch ansehen, bis das Dokument neu geoeffnet ist.
+    private func checkOrigin(_ doc: AnnotationDocument) async {
+        guard !outdatedByNewVersion, let sha = doc.root["origin"]?["sha256"]?.string,
+              let fp = await originalFingerprint(), fp != sha else { return }
+        outdatedByNewVersion = true
     }
 
     // MARK: Bearbeiten der Struktur (gleiches Format wie der Web-Editor)
@@ -529,17 +591,7 @@ final class DocumentStore: ObservableObject {
         }
     }
 
-    func exportPDF() async throws -> URL {
-        await settlePending()
-        guard let layout else { throw APIError(status: 0, message: "Dokument nicht geladen") }
-        let doc = await engine.currentDocument()
-        var srcs = Set<String>()
-        for p in doc.pages.values { for o in p["objects"]?.array ?? [] where o["type"]?.string == "image" { if let s = o["src"]?.string { srcs.insert(s) } } }
-        for s in srcs where images[s] == nil {
-            if let (data, http) = try? await api.data(s), http.statusCode == 200, let img = UIImage(data: data) { images[s] = img }
-        }
-        return try PDFExporter.export(layout: layout, pages: doc.pages, images: images, title: file.displayTitle)
-    }
+    // Export und Teilen der PDF mit Notizen: ShareExport (sharePayload, writeFile); einen zweiten Weg gibt es nicht
 
     /// Unveraenderte Bytes der Original-PDF (die Datei, aus der der Editor sie laedt; nie `dataRepresentation()`).
     func originalPDFData() throws -> Data {
@@ -547,11 +599,14 @@ final class DocumentStore: ObservableObject {
         return try Data(contentsOf: originalPDFURL, options: .mappedIfSafe)
     }
 
-    /// SHA-256 der Original-PDF-Datei (Zuordnung geteilter Loesungen), einmal je Dokument berechnet.
-    func originalFingerprint(cipher: SolutionCipher = CryptoKitSolutionCipher()) async -> String? {
+    /// SHA-256 der Original-PDF-Datei (Zuordnung geteilter Loesungen, Herkunft der Notizen), einmal je Dokument
+    /// berechnet; derselbe Weg wie `content_sha256` beim Download (`ContentHash.file`, in Bloecken statt der ganzen
+    /// Datei im Speicher).
+    func originalFingerprint() async -> String? {
         if let fingerprintCache { return fingerprintCache }
-        guard let data = try? originalPDFData() else { return nil }
-        let fp = await Task.detached(priority: .userInitiated) { cipher.sha256Hex(data) }.value
+        guard original != nil else { return nil }
+        let url = originalPDFURL
+        let fp = await Task.detached(priority: .userInitiated) { ContentHash.file(url) }.value
         fingerprintCache = fp
         return fp
     }

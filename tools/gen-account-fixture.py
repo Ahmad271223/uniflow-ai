@@ -146,7 +146,7 @@ def build() -> dict:
         "_hinweis": "Erzeugt mit tools/gen-account-fixture.py aus der Python-Referenz (app/accounts.py, app/account_api.py); nicht von Hand aendern.",
         "rules": {"password_min": accounts.PASSWORD_MIN, "password_max": accounts.PASSWORD_MAX, "session_days": accounts.SESSION_DAYS,
                   "reset_minutes": accounts.RESET_MINUTES, "max_fails": accounts.MAX_FAILS, "lock_minutes": accounts.LOCK_MINUTES,
-                  "email_regex": accounts.EMAIL_RE.pattern, "universities": list(config.KNOWN_UNIVERSITIES),
+                  "email_regex": accounts.EMAIL_RE.pattern, "universities": list(config.known_universities()),
                   "auth": "Authorization: Bearer <token> (Apps) oder Cookie uniflow_session (Browser)",
                   "error_shape": {"detail": "<Meldung fuer den Nutzer>", "code": "<stabiler Code>"},
                   "identity": "Apple/Google sind Anmeldewege zum UniFlow-Konto; Verknuepfung ueber die Anbieter-Kennung (subject), nie ueber die E-Mail"},

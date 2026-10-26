@@ -21,7 +21,7 @@ public enum HildesheimCAS {
     public static func loginURL(casBase: String = casBase, service: String) -> String {
         var b = casBase
         while b.hasSuffix("/") { b.removeLast() }
-        return "\(b)/login?service=\(HText.quoteAll(service))"
+        return "\(b)/login?service=\(PyText.quote(service, safe: ""))"
     }
 
     /// Zeigt die URL auf die CAS-Loginseite (`cas.is_cas_page`)? Dann fehlt die Anmeldung bzw. die Sitzung ist
@@ -44,24 +44,43 @@ public enum HildesheimCAS {
     /// Einstieg fuer das Learnweb einer Instanz (`https://www.uni-hildesheim.de/learnweb2026`, LEARNWEB_LOGIN)
     public static func learnwebLoginURL(base: String) -> String { "\(base)/login/index.php?authCAS=CAS" }
 
-    /// Text in #loginErrorsPanel (ohne Tags, Leerraum zusammengefasst, hoechstens 200 Zeichen wie `[:200]` in
-    /// app/cas.py), sonst nil.
+    /// Text im Element mit der ID `errorPanelID` (ohne Tags, Leerraum zusammengefasst, hoechstens 200 Zeichen wie
+    /// `[:200]` in app/cas.py), sonst nil. Ueber `HTMLTokenizer` wie die uebrigen Seiten: der Inhalt von script und
+    /// style zaehlt nicht als Text (vorher per Regex mitgelesen).
     public static func errorText(html: String) -> String? {
-        guard let open = html.range(of: #"<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*\bid\s*=\s*["']?loginErrorsPanel\b[^>]*>"#,
-                                    options: [.regularExpression, .caseInsensitive]) else { return nil }
-        let name = String(html[open].dropFirst().prefix { $0.isLetter || $0.isNumber }).lowercased()
-        // bis zum passenden End-Tag; gleichnamige Tags darin mitzaehlen
-        var depth = 1
-        var from = open.upperBound
-        var end = html.endIndex
-        while let r = html.range(of: "</?\(name)\\b[^>]*>", options: [.regularExpression, .caseInsensitive],
-                                 range: from..<html.endIndex) {
-            if html[r].hasPrefix("</") { depth -= 1 } else if !html[r].hasSuffix("/>") { depth += 1 }
-            if depth == 0 { end = r.lowerBound; break }
-            from = r.upperBound
+        var inside: String?
+        var depth = 0
+        var text: [String] = []
+        for t in HTMLTokenizer.tokens(html) {
+            switch t {
+            case .start(let name, let attrs):
+                if let open = inside {
+                    if name == open { depth += 1 }
+                } else if attrs["id"] == errorPanelID {
+                    inside = name
+                    depth = 1
+                }
+            case .end(let name):
+                guard let open = inside, name == open else { continue }
+                depth -= 1
+                if depth == 0 { inside = nil }
+            case .text(let s):
+                if inside != nil { text.append(s) }
+            case .raw:
+                continue
+            }
+            if inside == nil, !text.isEmpty { break }
         }
-        let text = String(html[open.upperBound..<end]).replacingOccurrences(of: "<[^>]*>", with: " ", options: .regularExpression)
-        let clean = QISParser.clean(QISParser.decodeEntities(text))
+        let clean = QISParser.clean(text.joined(separator: " "))
         return clean.isEmpty ? nil : String(clean.prefix(200))
+    }
+
+    /// Link einer LSF-Seite als volle Adresse: http(s) bleibt, "/qisserver/rds?…" gegen die Basis, "rds?…" relativ zu
+    /// /qisserver/. Der Link ist schon dekodiert (aus `HTMLScanner` bzw. einmal in `LSFCalendar.planICSLink`). Vorher an
+    /// zwei Stellen nachgebaut, mit "…/qisserver/qisserver/rds?…" fuer wurzelrelative Links und zweitem Dekodieren.
+    public static func lsfAbsolute(_ href: String, base: String = lsfBase) -> String {
+        if href.hasPrefix("http://") || href.hasPrefix("https://") { return href }
+        if href.hasPrefix("/") { return base + href }
+        return "\(base)/qisserver/" + href
     }
 }

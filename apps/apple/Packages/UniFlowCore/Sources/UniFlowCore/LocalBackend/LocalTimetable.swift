@@ -69,12 +69,23 @@ enum LocalTimetable {
         return d
     }
 
-    /// `date.fromisoformat(v)` fuer Werte aus Anfragen und der Datenbank (500 wie in Python)
-    static func day(_ v: JSONValue?, _ field: String) throws -> Int {
+    /// `date.fromisoformat(v)` fuer Werte aus Anfragen und der Datenbank (500 wie in Python; die Lernpfade antworten
+    /// mit 422, `status`)
+    static func day(_ v: JSONValue?, _ field: String, status: Int = 500) throws -> Int {
         guard let s = v?.string, let d = BerlinClock.parseISODate(s) else {
-            throw LocalHTTPError(status: 500, message: "Ungültiges Datum in \(field): \(text(v))")
+            throw LocalHTTPError(status: status, message: "Ungültiges Datum in \(field): \(text(v))")
         }
         return d
+    }
+
+    /// Laengster Zeitraum in Tagen fuer Stundenplan, Konflikte, Lernkalender und Planung (Schutz vor endlosen
+    /// Schleifen; Python kennt keine Grenze)
+    static let maxDays = 3660
+
+    /// Zeitraum pruefen: hoechstens `maxDays` Tage, sonst 422
+    static func span(_ n: Int) throws -> Int {
+        guard n <= maxDays else { throw LocalHTTPError(status: 422, message: "Höchstens \(maxDays) Tage") }
+        return n
     }
 
     static func iso(_ day: Int) -> String { BerlinClock.isoDate(day) }

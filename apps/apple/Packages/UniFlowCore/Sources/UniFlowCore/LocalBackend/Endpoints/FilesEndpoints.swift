@@ -30,7 +30,9 @@ public enum FilesEndpoints: LocalEndpointModule {
             let changes = updates
             let row = try await ctx.database.transaction { c -> JSONValue in
                 for (k, v) in changes { try c.execute("UPDATE courses SET \(k)=? WHERE id=?", [v, id]) }
-                return try c.queryOne("SELECT * FROM courses WHERE id=?", [id]).map { .object($0.json) } ?? .null
+                // Regel G6 (server._found): kein Datensatz -> 404, nie `null` mit 200
+                guard let row = try c.queryOne("SELECT * FROM courses WHERE id=?", [id]) else { throw LocalHTTPError.notFound("Kurs nicht gefunden") }
+                return .object(row.json)
             }
             return .json(row)
         }
@@ -93,7 +95,9 @@ public enum FilesEndpoints: LocalEndpointModule {
             let row = try await ctx.database.transaction { c -> JSONValue in
                 if let newStatus { try c.execute("UPDATE files SET status=?, seen_by_user=1 WHERE id=?", [.text(newStatus), id]) }
                 if let difficulty { try c.execute("UPDATE analysis SET difficulty=? WHERE file_id=?", [.integer(Int64(difficulty)), id]) }
-                return try c.queryOne("SELECT * FROM files WHERE id=?", [id]).map { .object($0.json) } ?? .null
+                // Regel G6 (server._changed/_found): unbekannte Datei -> 404
+                guard let row = try c.queryOne("SELECT * FROM files WHERE id=?", [id]) else { throw LocalHTTPError.notFound("Datei nicht gefunden") }
+                return .object(row.json)
             }
             return .json(row)
         }
@@ -110,6 +114,7 @@ public enum FilesEndpoints: LocalEndpointModule {
                 } else {
                     try c.execute("UPDATE files SET last_opened=?, opened_count=COALESCE(opened_count,0)+1, seen_by_user=1 WHERE id=?", [.text(now), id])
                 }
+                if c.changes == 0 { throw LocalHTTPError.notFound("Datei nicht gefunden") }     // Regel G6 (server._changed)
             }
             return .ok
         }
@@ -118,7 +123,10 @@ public enum FilesEndpoints: LocalEndpointModule {
             let body = try req.pythonObjectBody()
             let fav: Int64 = LocalTerms.truthy(body.value("favorite")) ? 1 : 0
             let id = SQLiteValue.text(req.param("file_id"))
-            try await ctx.database.transaction { c in try c.execute("UPDATE files SET favorite=? WHERE id=?", [.integer(fav), id]) }
+            try await ctx.database.transaction { c in
+                try c.execute("UPDATE files SET favorite=? WHERE id=?", [.integer(fav), id])
+                if c.changes == 0 { throw LocalHTTPError.notFound("Datei nicht gefunden") }     // Regel G6 (server._changed)
+            }
             return .ok
         }
 

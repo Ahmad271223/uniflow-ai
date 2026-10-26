@@ -7,8 +7,8 @@ import XCTest
 // Ablage (doppelter Import, zwei Personen, spaeter geoeffnete PDF, kaputte Ablage) und Groessengrenzen.
 // Verschluesselung: `TestHMACCipher` aus SolutionPackageTests (nur Tests); die App-Tests nehmen AES-GCM.
 
-/// SplitMix64 mit festem Seed (deterministisch).
-private struct KernSeedRNG: RandomNumberGenerator {
+/// SplitMix64 mit festem Seed (deterministisch; auch fuer FileVersionTests).
+struct KernSeedRNG: RandomNumberGenerator {
     private var state: UInt64
     init(seed: UInt64) { state = seed }
     mutating func next() -> UInt64 {

@@ -70,6 +70,16 @@
     "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f"
    ],
    "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
+  },
+  {
+   "name": "Dauer 0 gilt als 45 (int(minutes or 45))",
+   "university": "hildesheim",
+   "minutes": 0,
+   "materials": [
+    "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
+    "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36"
+   ],
+   "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
   }
  ]
 }

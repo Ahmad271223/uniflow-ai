@@ -1,10 +1,15 @@
 import Foundation
 
-// QIS (HIS QIS der LUH) direkt vom Geraet lesen: die App zeigt die echte QIS-Seite in einer Webansicht, der Nutzer
-// meldet sich selbst an. Danach gibt die App das HTML der jeweils angezeigten Seite an `QISPage.parse` und folgt den
-// gefundenen Links (Mein Studium -> Notenspiegel -> Abschluss -> Studiengang -> Leistungen). Dieselben Regeln wie
-// app/qis.py (Kopfzeilen der Leistungstabelle, Zusammenfassung), Aufbau der Seiten in docs/QIS-STUDIP-STRUKTUR.md.
-// Der Kern ruft selbst keine Seite auf und oeffnet keine Bescheinigung (jeder verpublish-Aufruf erzeugt ein Dokument).
+// Noten aus HIS QIS/LSF: in V1 genutzt sind `QISGrade`, `QISParser.merge`, `QISParser.summary`, `QISParser.isStammdaten`
+// und der HTML-Leser (`HTMLScanner`), alle fuer den Notenspiegel des LSF Hildesheim (`LSFClient.grades` mit
+// `GradeRows`, der einen Fassung von qis.parse_grade_rows).
+//
+// Erst fuer V2 (F4, QIS der LUH auf dem Geraet, ohne Aufrufer in der App): `QISSession`, `QISLink`, `QISTarget`,
+// `QISDocumentLink`, `QISPage`, `QISCollector` und `QISParser.apiJSON`. Die App zeigt dann die echte QIS-Seite in einer
+// Webansicht, der Nutzer meldet sich selbst an; die App gibt das HTML der angezeigten Seite an `QISPage.parse` und folgt
+// den gefundenen Links (Mein Studium -> Notenspiegel -> Abschluss -> Studiengang -> Leistungen). Die Leistungen liest
+// auch dort `GradeRows` (Regeln wie app/qis.py), Aufbau der Seiten in docs/QIS-STUDIP-STRUKTUR.md. Der Kern ruft selbst
+// keine Seite auf und oeffnet keine Bescheinigung (jeder verpublish-Aufruf erzeugt ein Dokument).
 
 // MARK: - Sitzung
 
@@ -219,12 +224,14 @@ public struct QISPage: Sendable {
     }
 
     /// Anzahl der erkannten Leistungstabellen (Kopfzeile mit Pruefungstext und Note); 0 bei "keine Leistungen".
-    public var gradeTableCount: Int { tables.filter { QISParser.headerRow(of: $0) != nil }.count }
+    public var gradeTableCount: Int {
+        tables.filter { t in t.rows.contains { GradeRows.isHeader(GradeRows.headerMap($0.map(\.text))) } }.count
+    }
 
-    /// Leistungen aller Tabellen der Seite. `abschluss` wie in qis.py: Text des Links, ueber den die Seite erreicht
-    /// wurde (eine eigene Spalte "Abschluss" hat Vorrang).
+    /// Leistungen aller Tabellen der Seite wie `LSFClient.grades` (`GradeRows`, qis.parse_grade_rows). `abschluss` wie
+    /// in qis.py: Text des Links, ueber den die Seite erreicht wurde.
     public func grades(abschluss: String = "") -> [QISGrade] {
-        QISParser.merge(tables.flatMap { QISParser.grades(in: $0, abschluss: abschluss) })
+        QISParser.merge(tables.flatMap { GradeRows.parse(rows: $0.rows.map { $0.map(\.text) }, abschluss: abschluss) })
     }
 }
 
@@ -265,20 +272,6 @@ public struct QISCollector: Sendable, Equatable, Codable {
 // MARK: - Regeln
 
 public enum QISParser {
-    /// Kopfzeilen der Leistungstabelle wie GRADE_HEADERS in qis.py (erstes Wort, ohne Satzzeichen), dazu die
-    /// Schreibweisen ohne Umlaut und die Spalte "Abschluss".
-    static let gradeHeaders: [String: String] = [
-        "prüfungsnr": "pruefungsnr", "pruefungsnr": "pruefungsnr", "prüfungsnummer": "pruefungsnr", "pruefungsnummer": "pruefungsnr",
-        "nr": "pruefungsnr",
-        "prüfungstext": "text", "pruefungstext": "text", "text": "text",
-        "semester": "semester", "note": "note",
-        "status": "status", "vermerk": "status",
-        "credits": "credits", "ects": "credits", "bonus": "credits",
-        "versuch": "versuch",
-        "datum": "datum", "prüfungsdatum": "datum", "pruefungsdatum": "datum",
-        "abschluss": "abschluss",
-    ]
-
     /// Leerraum zusammenfassen (auch geschuetzte Leerzeichen), weiche Trennzeichen entfernen.
     public static func clean(_ s: String) -> String {
         s.unicodeScalars.contains { $0 == "\u{AD}" || $0 == "\u{200B}" }
@@ -287,51 +280,9 @@ public enum QISParser {
     }
 
     /// Stammdaten (Name, Geburtsdatum, Matrikelnummer, Anschrift) werden nie gelesen: Tabelle mit diesem summary
-    /// oder mit typischen Stammdaten-Zeilen.
+    /// oder mit typischen Stammdaten-Zeilen (`GradeRows.isStammdatenRow`).
     static func isStammdaten(_ t: HTMLTable) -> Bool {
-        if t.summary.lowercased().contains("stammdaten") { return true }
-        let labels = ["matrikelnummer", "matrikelnr", "geburtsdatum", "geburtsort", "anschrift"]
-        return t.rows.contains { row in row.contains { c in let l = c.text.lowercased(); return labels.contains { l.hasPrefix($0) } } }
-    }
-
-    static func headerKey(_ cell: String) -> String? {
-        guard let first = cell.lowercased().split(separator: " ").first else { return nil }
-        let word = String(first).filter { !".:;,*()-".contains($0) }
-        return gradeHeaders[word]
-    }
-
-    /// Zellen mit colspan aufgefaechert, damit die Spalten zur Kopfzeile passen.
-    static func spread(_ cells: [HTMLTableCell]) -> [String] {
-        cells.flatMap { [$0.text] + Array(repeating: "", count: $0.colspan - 1) }
-    }
-
-    /// Kopfzeile (Index und Spaltenzuordnung) innerhalb der ersten Zeilen; qis.py prueft nur die erste Zeile,
-    /// hier darf eine Ueberschrift-Zeile davor stehen.
-    static func headerRow(of t: HTMLTable) -> (index: Int, keys: [String?], labels: [String])? {
-        for (i, row) in t.rows.prefix(6).enumerated() {
-            let labels = spread(row)
-            let keys = labels.map(headerKey)
-            if keys.contains("text"), keys.contains("note") { return (i, keys, labels) }
-        }
-        return nil
-    }
-
-    static func grades(in t: HTMLTable, abschluss: String) -> [QISGrade] {
-        guard let header = headerRow(of: t) else { return [] }
-        let textLabel = header.keys.firstIndex(of: "text").map { header.labels[$0].lowercased() }
-        var out: [QISGrade] = []
-        for row in t.rows.dropFirst(header.index + 1) {
-            let tds = row.filter { !$0.isHeader }
-            guard tds.count >= 3 else { continue }
-            var rec: [String: String] = [:]
-            for (k, v) in zip(header.keys, spread(tds)) { if let k, rec[k] == nil { rec[k] = v } }
-            guard let text = rec["text"], !text.isEmpty, text.lowercased() != textLabel else { continue }
-            let own = rec["abschluss"].flatMap { $0.isEmpty ? nil : $0 }
-            out.append(QISGrade(pruefungsnr: rec["pruefungsnr"], text: text, semester: rec["semester"], note: rec["note"],
-                                status: rec["status"], credits: rec["credits"], versuch: rec["versuch"], datum: rec["datum"],
-                                abschluss: own ?? abschluss, raw: tds.map(\.text).joined(separator: " | ")))
-        }
-        return out
+        t.summary.lowercased().contains("stammdaten") || t.rows.contains { GradeRows.isStammdatenRow($0.map(\.text)) }
     }
 
     /// Doppelte entfernen wie fetch_grades: gleiche Pruefungsnr., Text, Semester und Versuch; die erste bleibt.
@@ -348,7 +299,9 @@ public enum QISParser {
     }
 
     /// Wie qis.summary(): jede Note von 1,0 bis 5,0 zaehlt (die Status-Bedingung dort trifft immer zu), gewichtet
-    /// nach Credits; ohne Credits einfacher Mittelwert. Gerundet auf zwei Stellen wie round(x, 2).
+    /// nach Credits; ohne Credits einfacher Mittelwert. Gerundet auf zwei Stellen wie round(x, 2). Summen wie Pythons
+    /// `sum()` (kompensiert, `PyMath.sum`) in Zeilenreihenfolge: mit einfacher Summe lag der Schnitt an Rundungsgrenzen
+    /// x,xx5 um 0,01 neben dem PC (2,7249999… statt 2,725).
     public static func summary(_ grades: [QISGrade]) -> QISGradeSummary {
         var graded: [(n: Double, c: Double)] = []
         for g in grades {
@@ -357,10 +310,10 @@ public enum QISParser {
             guard let c = number(cs) else { continue }
             if n >= 1.0, n <= 5.0 { graded.append((n, c)) }
         }
-        let cp = graded.reduce(0) { $0 + $1.c }
+        let cp = PyMath.sum(graded.map(\.c))
         let avg: Double?
-        if cp != 0 { avg = round2(graded.reduce(0) { $0 + $1.n * $1.c } / cp) }
-        else if !graded.isEmpty { avg = round2(graded.reduce(0) { $0 + $1.n } / Double(graded.count)) }
+        if cp != 0 { avg = round2(PyMath.sum(graded.map { $0.n * $0.c }) / cp) }
+        else if !graded.isEmpty { avg = round2(PyMath.sum(graded.map(\.n)) / Double(graded.count)) }
         else { avg = nil }
         let passed = grades.filter { ($0.status ?? "").lowercased().hasPrefix("be") }.count
         return QISGradeSummary(average: avg, credits: cp, passed: passed)
@@ -498,9 +451,9 @@ public enum QISParser {
         var asi: String?
         var kept: [Substring] = []
         for item in query?.split(separator: "&") ?? [] {
-            let name = decode(String(item.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)[0])).lowercased()
+            let name = PyText.unquotePlus(String(item.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)[0])).lowercased()
             if name == "asi" {
-                if asi == nil, let eq = item.firstIndex(of: "=") { asi = decode(String(item[item.index(after: eq)...])) }
+                if asi == nil, let eq = item.firstIndex(of: "=") { asi = PyText.unquotePlus(String(item[item.index(after: eq)...])) }
             } else if name != "jsessionid" {
                 kept.append(item)
             }
@@ -508,18 +461,13 @@ public enum QISParser {
         return (kept.isEmpty ? s : s + "?" + kept.joined(separator: "&"), asi)
     }
 
-    static func decode(_ s: String) -> String {
-        let plus = s.replacingOccurrences(of: "+", with: " ")
-        return plus.removingPercentEncoding ?? plus
-    }
-
     static func parameters(of address: String) -> [String: String] {
         guard let q = address.firstIndex(of: "?") else { return [:] }
         var out: [String: String] = [:]
         for item in address[address.index(after: q)...].split(separator: "&") {
             let kv = item.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-            let name = decode(String(kv[0])).lowercased()
-            if !name.isEmpty, out[name] == nil { out[name] = kv.count > 1 ? decode(String(kv[1])) : "" }
+            let name = PyText.unquotePlus(String(kv[0])).lowercased()
+            if !name.isEmpty, out[name] == nil { out[name] = kv.count > 1 ? PyText.unquotePlus(String(kv[1])) : "" }
         }
         return out
     }
@@ -607,11 +555,11 @@ public enum QISParser {
     }
 }
 
-// MARK: - Kleiner HTML-Leser
+// MARK: - Tabellen und Links einer Seite
 
-// QIS liefert kein wohlgeformtes HTML (offene td/tr, Layout-Tabellen ineinander). Statt eines Parsers ein Durchlauf
-// ueber die Bytes: Tags mit Attributen, Text, Kommentare; Inhalt von script/style wird uebersprungen. Daraus entstehen
-// die Tabellen (Text je Zelle, innerste Tabelle bekommt den Text) und die Links.
+// QIS liefert kein wohlgeformtes HTML (offene td/tr, Layout-Tabellen ineinander). Aus den Bausteinen von
+// `HTMLTokenizer` entstehen die Tabellen (Text je Zelle, innerste Tabelle bekommt den Text) und die Links; Inhalt von
+// script/style faellt weg, der Seitentitel bleibt.
 
 struct HTMLTableCell: Sendable, Equatable {
     let text: String
@@ -725,8 +673,8 @@ enum HTMLScanner {
         /// offene Bloecke, aeusserster zuerst
         var blocks: [BlockBuilder] = []
 
-        func text(_ raw: String) {
-            let t = QISParser.decodeEntities(raw)
+        /// Text mit dekodierten Entities (`HTMLToken.text`)
+        func text(_ t: String) {
             stack.last?.cell?.parts.append(t)
             open?.parts.append(t)
             h1Parts?.append(t)
@@ -879,106 +827,16 @@ enum HTMLScanner {
     }
 
     static func scan(_ html: String) -> HTMLScan {
-        let b = Array(html.utf8)
-        let n = b.count
         let builder = Builder()
-        var i = 0
-        var textStart = 0
-
-        func isAlpha(_ c: UInt8) -> Bool { (c | 0x20) >= 0x61 && (c | 0x20) <= 0x7A }
-        func isSpace(_ c: UInt8) -> Bool { c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D || c == 0x0C }
-        func lower(_ s: ArraySlice<UInt8>) -> String { String(decoding: s.map { isAlpha($0) ? $0 | 0x20 : $0 }, as: UTF8.self) }
-        func find(_ needle: [UInt8], from: Int, caseless: Bool = false) -> Int? {
-            guard needle.count <= n else { return nil }
-            var k = from
-            while k + needle.count <= n {
-                var hit = true
-                for (o, c) in needle.enumerated() {
-                    let x = b[k + o]
-                    if caseless ? (isAlpha(x) ? x | 0x20 : x) != c : x != c { hit = false; break }
-                }
-                if hit { return k }
-                k += 1
+        for t in HTMLTokenizer.tokens(html) {
+            switch t {
+            case .start(let name, let attrs): builder.start(name, attrs)
+            case .end(let name): builder.end(name)
+            case .text(let s): builder.text(s)
+            case .raw(let name, let s):
+                if name == "title", builder.scan.title.isEmpty { builder.scan.title = QISParser.clean(QISParser.decodeEntities(s)) }
             }
-            return nil
         }
-        func flush(_ end: Int) {
-            if end > textStart { builder.text(String(decoding: b[textStart..<end], as: UTF8.self)) }
-        }
-
-        while i < n {
-            guard b[i] == UInt8(ascii: "<"), i + 1 < n else { i += 1; continue }
-            let c = b[i + 1]
-            if c == UInt8(ascii: "!") || c == UInt8(ascii: "?") {
-                flush(i)
-                if c == UInt8(ascii: "!"), i + 3 < n, b[i + 2] == UInt8(ascii: "-"), b[i + 3] == UInt8(ascii: "-") {
-                    i = find(Array("-->".utf8), from: i + 4).map { $0 + 3 } ?? n
-                } else {
-                    i = find([UInt8(ascii: ">")], from: i + 2).map { $0 + 1 } ?? n
-                }
-                textStart = i
-                continue
-            }
-            if c == UInt8(ascii: "/"), i + 2 < n, isAlpha(b[i + 2]) {
-                flush(i)
-                var j = i + 2
-                while j < n, isAlpha(b[j]) || (b[j] >= 0x30 && b[j] <= 0x39) { j += 1 }
-                builder.end(lower(b[(i + 2)..<j]))
-                i = find([UInt8(ascii: ">")], from: j).map { $0 + 1 } ?? n
-                textStart = i
-                continue
-            }
-            guard isAlpha(c) else { i += 1; continue }
-            flush(i)
-            var j = i + 1
-            while j < n, isAlpha(b[j]) || (b[j] >= 0x30 && b[j] <= 0x39) || b[j] == UInt8(ascii: "-") || b[j] == UInt8(ascii: ":") { j += 1 }
-            let name = lower(b[(i + 1)..<j])
-            var attrs: [String: String] = [:]
-            attrLoop: while j < n {
-                while j < n, isSpace(b[j]) { j += 1 }
-                guard j < n else { break }
-                if b[j] == UInt8(ascii: ">") { j += 1; break }
-                if b[j] == UInt8(ascii: "/") { j += 1; continue }
-                let ns = j
-                while j < n, !isSpace(b[j]), b[j] != UInt8(ascii: "="), b[j] != UInt8(ascii: ">"),
-                      !(b[j] == UInt8(ascii: "/") && j + 1 < n && b[j + 1] == UInt8(ascii: ">")) { j += 1 }
-                if j == ns { j += 1; continue attrLoop }
-                let attr = lower(b[ns..<j])
-                while j < n, isSpace(b[j]) { j += 1 }
-                var value = ""
-                if j < n, b[j] == UInt8(ascii: "=") {
-                    j += 1
-                    while j < n, isSpace(b[j]) { j += 1 }
-                    if j < n, b[j] == UInt8(ascii: "\"") || b[j] == UInt8(ascii: "'") {
-                        let q = b[j]
-                        j += 1
-                        let vs = j
-                        while j < n, b[j] != q { j += 1 }
-                        value = String(decoding: b[vs..<j], as: UTF8.self)
-                        if j < n { j += 1 }
-                    } else {
-                        let vs = j
-                        while j < n, !isSpace(b[j]), b[j] != UInt8(ascii: ">") { j += 1 }
-                        value = String(decoding: b[vs..<j], as: UTF8.self)
-                    }
-                }
-                if attrs[attr] == nil { attrs[attr] = QISParser.decodeEntities(value) }
-            }
-            i = j
-            textStart = i
-            if name == "script" || name == "style" || name == "title" || name == "textarea" {
-                // Rohtext bis zum passenden End-Tag
-                let close = find(Array("</\(name)".utf8), from: i, caseless: true) ?? n
-                if name == "title", builder.scan.title.isEmpty {
-                    builder.scan.title = QISParser.clean(QISParser.decodeEntities(String(decoding: b[i..<close], as: UTF8.self)))
-                }
-                i = close < n ? (find([UInt8(ascii: ">")], from: close).map { $0 + 1 } ?? n) : n
-                textStart = i
-                continue
-            }
-            builder.start(name, attrs)
-        }
-        flush(n)
         return builder.result()
     }
 }

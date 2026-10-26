@@ -1056,6 +1056,61 @@
    "a": "grundlagen der beispieltechnik",
    "b": "übung zu grundlagen der beispieltechnik",
    "ratio": 0.8695652173913043
+  },
+  {
+   "a": "testkurs mathematik i",
+   "b": "mathematik i",
+   "ratio": 0.7272727272727273
+  },
+  {
+   "a": "abc",
+   "b": "",
+   "ratio": 0.0
+  },
+  {
+   "a": "übung zu testmathematik i",
+   "b": "testmathematik i",
+   "ratio": 0.7804878048780488
+  },
+  {
+   "a": "programmierkurs beispiel",
+   "b": "gruppenübung programmierkurs beispiel",
+   "ratio": 0.7868852459016393
+  },
+  {
+   "a": "abcd",
+   "b": "bcda",
+   "ratio": 0.75
+  },
+  {
+   "a": "aaaa",
+   "b": "aa",
+   "ratio": 0.6666666666666666
+  },
+  {
+   "a": "einführung in die testphysik",
+   "b": "testphysik für ingenieure",
+   "ratio": 0.37735849056603776
+  },
+  {
+   "a": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxabc",
+   "b": "yxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxabc",
+   "ratio": 0.985781990521327
+  },
+  {
+   "a": "abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab",
+   "b": "babababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababa",
+   "ratio": 0.0
+  },
+  {
+   "a": "é",
+   "b": "é",
+   "ratio": 0.0
+  },
+  {
+   "a": "qwertzuiop",
+   "b": "poiuztrewq",
+   "ratio": 0.1
   }
  ],
  "lower": [
@@ -3337,7 +3392,8 @@
      "week": 1,
      "ids": [
       "f-ma-01",
-      "f-ma-05"
+      "f-ma-05",
+      "f-ma-06"
      ]
     },
     {
@@ -3345,7 +3401,8 @@
      "week": 1,
      "ids": [
       "f-ma-01",
-      "f-ma-05"
+      "f-ma-05",
+      "f-ma-06"
      ]
     },
     {
@@ -3353,7 +3410,6 @@
      "week": 2,
      "ids": [
       "f-ma-02",
-      "f-ma-06",
       "f-ma-07"
      ]
     },
@@ -3376,7 +3432,10 @@
      "day": "2026-11-11",
      "week": 5,
      "ids": [
-      "f-ma-09"
+      "f-ma-07",
+      "f-ma-03",
+      "f-ma-13",
+      "f-ma-14"
      ]
     },
     {
@@ -3409,42 +3468,60 @@
      "day": "2026-04-20",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-09-20",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-09-30",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-10-01",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-10-02",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-10-09",
      "week": 0,
      "ids": [
-      "f-bt-08"
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
+      "f-bt-09"
      ]
     },
     {
@@ -3453,7 +3530,8 @@
      "ids": [
       "f-bt-01",
       "f-bt-06",
-      "f-bt-02"
+      "f-bt-02",
+      "f-bt-04"
      ]
     },
     {
@@ -3462,7 +3540,8 @@
      "ids": [
       "f-bt-01",
       "f-bt-06",
-      "f-bt-02"
+      "f-bt-02",
+      "f-bt-04"
      ]
     },
     {
@@ -3478,13 +3557,17 @@
      "day": "2026-10-28",
      "week": 3,
      "ids": [
-      "f-bt-04"
+      "f-bt-08",
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-11-04",
      "week": 4,
      "ids": [
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
       "f-bt-09"
      ]
     },
@@ -4469,7 +4552,8 @@
      "week": 1,
      "ids": [
       "f-ma-01",
-      "f-ma-05"
+      "f-ma-05",
+      "f-ma-06"
      ]
     },
     {
@@ -4477,7 +4561,8 @@
      "week": 1,
      "ids": [
       "f-ma-01",
-      "f-ma-05"
+      "f-ma-05",
+      "f-ma-06"
      ]
     },
     {
@@ -4485,7 +4570,6 @@
      "week": 2,
      "ids": [
       "f-ma-02",
-      "f-ma-06",
       "f-ma-07"
      ]
     },
@@ -4508,7 +4592,10 @@
      "day": "2026-11-11",
      "week": 5,
      "ids": [
-      "f-ma-09"
+      "f-ma-07",
+      "f-ma-03",
+      "f-ma-13",
+      "f-ma-14"
      ]
     },
     {
@@ -4594,7 +4681,8 @@
      "ids": [
       "f-bt-01",
       "f-bt-06",
-      "f-bt-02"
+      "f-bt-02",
+      "f-bt-04"
      ]
     },
     {
@@ -4603,7 +4691,8 @@
      "ids": [
       "f-bt-01",
       "f-bt-06",
-      "f-bt-02"
+      "f-bt-02",
+      "f-bt-04"
      ]
     },
     {
@@ -4619,13 +4708,16 @@
      "day": "2026-10-28",
      "week": 3,
      "ids": [
-      "f-bt-04"
+      "f-bt-09"
      ]
     },
     {
      "day": "2026-11-04",
      "week": 4,
      "ids": [
+      "f-bt-02",
+      "f-bt-07",
+      "f-bt-03",
       "f-bt-09"
      ]
     },
@@ -6860,31 +6952,6 @@
     "ai_doc_type": null,
     "sub_label": "Vorlesung",
     "week_hint": 2
-   },
-   {
-    "id": "f-ma-06",
-    "name": "GU01_lsg.pdf",
-    "chdate": 1792569600,
-    "status": "neu",
-    "favorite": 0,
-    "last_opened": null,
-    "size": 1000,
-    "course_id": "k-ma-gu",
-    "studip_folder": "Gruppenübung/Lösungen",
-    "course_title": "Gruppenübung Testmathematik I",
-    "course_kind": "gruppenuebung",
-    "subject": "Testmathematik I",
-    "module_id": 1,
-    "doc_type": "loesung",
-    "ai_title": null,
-    "difficulty": null,
-    "est_minutes": null,
-    "topics": null,
-    "summary": null,
-    "has_notes": null,
-    "ai_doc_type": null,
-    "sub_label": "Lösung",
-    "week_hint": 1
    },
    {
     "id": "f-ma-07",
@@ -11953,8 +12020,10 @@
      "method": "PATCH",
      "path": "/api/modules/99",
      "raw": "{\"name\": \"gibt es nicht\"}",
-     "status": 200,
-     "response": null
+     "status": 404,
+     "response": {
+      "detail": "Modul nicht gefunden"
+     }
     },
     {
      "method": "PATCH",
@@ -12043,9 +12112,9 @@
      "method": "DELETE",
      "path": "/api/modules/98",
      "raw": null,
-     "status": 200,
+     "status": 404,
      "response": {
-      "ok": true
+      "detail": "Modul nicht gefunden"
      }
     },
     {

@@ -53,12 +53,12 @@ def valid(key: str | None) -> bool:
     return (key or "") in PROFILES
 
 
-def current_key(conn=None) -> str:
+def current_key() -> str:
     """Uni dieser laufenden App-Instanz (beim Start aus UNIVERSITY in der .env festgelegt)."""
     from . import config
     key = config.university()
     return key if key in PROFILES else DEFAULT
 
 
-def current(conn=None) -> dict:
-    return PROFILES[current_key(conn)]
+def current() -> dict:
+    return PROFILES[current_key()]

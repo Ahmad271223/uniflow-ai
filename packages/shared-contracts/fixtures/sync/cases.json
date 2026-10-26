@@ -337,7 +337,7 @@
         },
         {
          "key": "tests_per_subject",
-         "value": "1",
+         "value": "0",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -736,7 +736,7 @@
         },
         {
          "key": "tests_per_subject",
-         "value": "1",
+         "value": "0",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -1134,7 +1134,7 @@
         },
         {
          "key": "tests_per_subject",
-         "value": "1",
+         "value": "0",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -1470,7 +1470,7 @@
         },
         {
          "key": "tests_per_subject",
-         "value": "1",
+         "value": "0",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -1706,7 +1706,7 @@
         },
         {
          "key": "tests_per_subject",
-         "value": "1",
+         "value": "0",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null

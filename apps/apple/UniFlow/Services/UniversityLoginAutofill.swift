@@ -89,8 +89,6 @@ final class UniversityLoginAutofill: NSObject, ObservableObject, WKScriptMessage
         self.init(university: university, service: s, store: store)
     }
 
-    var hasSavedCredential: Bool { store.hasCredential(university, service: service.key) }
-
     /// Name des Dienstes derselben Hochschule, dessen Zugangsdaten ohne eigene vorausgefuellt werden (LUH-QIS:
     /// "Stud.IP"), sonst nil
     var fallbackLoginName: String? {

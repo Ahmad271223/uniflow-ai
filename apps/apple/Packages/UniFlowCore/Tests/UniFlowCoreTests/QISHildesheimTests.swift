@@ -130,7 +130,9 @@ final class QISHildesheimTests: XCTestCase {
         """
         let p = QISPage.parse(html: luh, url: URL(string: "https://qis.test/qisserver/rds?state=notenspiegelStudent")!)
         let old = p.grades(abschluss: "Abschluss 82 Bachelor of Science")
-        XCTAssertEqual(old.map(\.text), ["Mathematik I", "Nur Text ohne Note"], "LUH-Regeln wie bisher (Zeilen ohne Note bleiben)")
+        // eine Fassung von qis.parse_grade_rows (GradeRows) auch fuer das QIS der LUH: eine Zeile ohne Note und Status ist
+        // keine Leistung (vorher eigene LUH-Regel, die sie behielt)
+        XCTAssertEqual(old.map(\.text), ["Mathematik I"])
         XCTAssertEqual(old[0].semester, "WiSe 26/27")
         XCTAssertEqual(old[0].credits, "8")
         XCTAssertEqual(old[0].versuch, "1")
@@ -139,7 +141,7 @@ final class QISHildesheimTests: XCTestCase {
         var c = QISCollector()
         c.absorb(p)
         XCTAssertEqual(c.grades, p.grades(), "QISCollector ist der Weg der LUH")
-        // Python-Regeln fuer dieselbe Tabelle (Hildesheim, GradeRows): Zeile ohne Note und Status ist keine Leistung
+        // dieselbe Tabelle als Zellen direkt an GradeRows: gleiches Ergebnis
         let cells = [["Prüfungsnr", "Prüfungstext", "Semester", "Note", "Status", "Credits", "Versuch"],
                      ["1001", "Mathematik I", "WiSe 26/27", "2,0", "bestanden", "8", "1"],
                      ["1002", "Nur Text ohne Note", "WiSe 26/27", "", "", "", "1"]]

@@ -717,6 +717,19 @@ private struct AppAccountCards: View {
     }
 }
 
+/// Texte der Rueckfrage "Konto loeschen": die Server-PIN gibt es nur im Debug-Build mit eigenem Server
+/// (`Session.ownServerAvailable`), im Release kein Hinweis auf PC, Server oder PIN. V1 loest keine Apple-Token ein
+/// (kein Server), darum kann die App die Verknuepfung "Mit Apple anmelden" nicht selbst widerrufen; der Nutzer loest
+/// sie in den Einstellungen des iPads.
+enum DeleteAccountText {
+    static func removed(ownServer: Bool) -> String {
+        "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von UniFlow (Stud.IP-Sitzung, "
+            + (ownServer ? "Server-PIN, " : "") + "gemerkte Hochschul-Zugangsdaten) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung."
+    }
+
+    static let appleID = "UniFlow speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → UniFlow."
+}
+
 /// Rueckfrage "Konto loeschen" (Richtlinie 5.1.1(v)) mit Hinweis auf die Abo-Verwaltung bei Apple
 private struct DeleteAccountDialog: View {
     @EnvironmentObject private var account: AccountStore
@@ -727,15 +740,17 @@ private struct DeleteAccountDialog: View {
     @Environment(\.ufClose) private var close
     @State private var busy = false
 
+
     var body: some View {
         UFDialog("Konto löschen?", icon: "trash") {
             VStack(alignment: .leading, spacing: 9.6) {
-                Text("Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von UniFlow (Stud.IP-Sitzung, Server-PIN, gemerkte Hochschul-Zugangsdaten) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung.")
+                Text(DeleteAccountText.removed(ownServer: Session.ownServerAvailable))
                 Text("Ebenso werden alle Daten deines Kontos auf diesem iPad gelöscht, für jede Hochschule: heruntergeladene Dateien, eigene Dokumente, Notizen, Lernplan, Einstellungen und die Anmeldungen in den Webansichten. Das lässt sich nicht rückgängig machen.")
                     .font(.uf(13.12, 600)).foregroundStyle(UF.bad)
                 Text("Ein Abo wird dadurch nicht gekündigt. Abos kündigst du bei Apple:").font(.uf(13.12, 700)).foregroundStyle(UF.text)
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
                     .ufFont(13.12, 600).foregroundStyle(UF.accentText)
+                Text(DeleteAccountText.appleID)
                 ContainerSyncGate { syncing in
                     if syncing { ContainerSyncNotice() }
                 }

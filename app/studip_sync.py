@@ -15,6 +15,7 @@ import re
 import sys
 import time
 import unicodedata
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -312,14 +313,16 @@ def empty_download(first: bytes, target: Path, expected_size: int = 0) -> bool:
 
 
 def stream_download(page, url: str, target: Path, shown_url: str | None = None, timeout: int = 180,
-                    expected_size: int = 0) -> None:
+                    expected_size: int = 0, form: dict | None = None) -> None:
     """Datei direkt auf die Platte streamen, mit den Cookies der angemeldeten Browsersitzung.
     Playwright (page.request) haelt jede Antwort komplett im Speicher; beim Live-Test mit 539 Dateien (1 GB)
     wuchs der Serverprozess so auf 2,7 GB. Hier bleibt der Speicher konstant (1-MB-Bloecke).
     Schreibt erst in <name>.part und ersetzt dann atomar: ein Abbruch zerstoert nie eine gute Datei.
     Kommt eine HTML-Seite statt der Datei (abgelaufene Anmeldung) oder eine leere Antwort (`empty_download`,
-    `expected_size` = Groesse laut Quelle), wird nichts gespeichert."""
+    `expected_size` = Groesse laut Quelle), wird nichts gespeichert. Mit `form` als POST mit diesem Formular
+    (Learnweb-Schluessel im Koerper statt in der Adresse)."""
     import shutil
+    import urllib.parse
     import urllib.request
     shown = shown_url or url
     headers = {"User-Agent": _user_agent(page), "Accept": "*/*"}
@@ -329,7 +332,11 @@ def stream_download(page, url: str, target: Path, shown_url: str | None = None, 
         jar = []
     if jar:
         headers["Cookie"] = "; ".join(f"{c['name']}={c['value']}" for c in jar)
-    req = urllib.request.Request(url, headers=headers)
+    data = None
+    if form:
+        data = urllib.parse.urlencode(form).encode()
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST" if form else "GET")
     # Abgerissene Verbindungen (WLAN, Zeitueberschreitung) bis zu zweimal wiederholen; HTTP-Fehler und
     # Anmeldeseiten nicht, die aendern sich durch Wiederholen nicht.
     for attempt in range(3):
@@ -497,35 +504,74 @@ def reconcile_backup(conn, file_id: str, target: Path) -> None:
         log(f"Alte Fassung wiederhergestellt (Abbruch beim letzten Abgleich): {target.name}")
 
 
+# chdate unter dieser Grenze ist keine Unix-Zeit (vor 2001), sondern eine Learnweb-Revision der Sitzung, die vor der
+# Spalte files.revision in chdate stand
+LEGACY_REVISION_MAX = 1_000_000_000
+
+
+def _unix(iso: str | None) -> int | None:
+    """Ortszeit wie db.now_iso() -> Unix-Zeit (wie datetime.fromtimestamp in study.py zurueck)"""
+    try:
+        return int(datetime.fromisoformat(iso).timestamp()) if iso else None
+    except ValueError:
+        return None
+
+
+def version_stamp(existing: dict | None, f: dict, now: int) -> tuple[int, bool]:
+    """(chdate, neuere Fassung?) einer Datei der Quelle gegen den gespeicherten Stand. chdate ist immer eine Unix-Zeit:
+    Lehrwoche, Lernplan und Semesterbeginn lesen sie so (study.week_index).
+    - Mit Aenderungszeit (Stud.IP, Learnweb mit Schluessel): sie gilt, neuer = hoeher als gespeichert.
+    - Ohne (Learnweb ueber die Sitzung, chdate None) entscheidet die Pluginfile-Revision (files.revision): eine neue
+      Datei bekommt den Zeitpunkt des Abgleichs `now`, eine hoehere Revision ebenso (mindestens eine Sekunde nach dem
+      gespeicherten, damit sie als neuer gilt), sonst bleibt der gespeicherte Zeitpunkt. Zeilen von vor files.revision
+      (Revision stand in chdate) werden dabei repariert: Zeitpunkt first_seen. Ohne gespeicherte Revision (Zeile des
+      Schluessel-Abgleichs von vorher) gilt die Datei als unveraendert; die Revision kommt mit diesem Lauf dazu."""
+    if f.get("chdate") is not None:
+        return f["chdate"], existing is not None and (existing["chdate"] or 0) < f["chdate"]
+    if existing is None:
+        return now, False
+    old, rev = existing["chdate"] or 0, existing["revision"]
+    if rev is None and 0 < old < LEGACY_REVISION_MAX:
+        rev, old = old, _unix(existing["first_seen"]) or now
+    if rev is not None and (f.get("revision") or 0) > rev:
+        return max(now, old + 1), True
+    return old or now, False
+
+
 def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str, str], download_fn, started: str,
-                       new_files: list[str], pause: float = 0.2) -> None:
+                       new_files: list[str], pause: float = 0.2, now: int | None = None) -> None:
     """Dateiliste eines Kurses speichern und neue/geaenderte Dateien mit download_fn(url, target, size) holen
     (size = Groesse laut Quelle, fuer `empty_download`).
-    Geaendert = hoeherer chdate als gespeichert (Stud.IP: Aenderungszeit, Learnweb: timemodified bzw. Revision).
+    Geaendert = neuere Fassung (version_stamp: Aenderungszeit, beim Learnweb ueber die Sitzung die Revision), ohne
+    Ablageort oder lokal verschwunden. Kennt die Quelle die Groesse nicht (size None), bleibt die gespeicherte und
+    nach dem Download gilt die der geladenen Datei.
     Reihenfolge je Datei (Vertrag G5, gleich im Swift-Kern): alte Datei behalten -> neue schreiben (.part) -> Hash ->
     Datenbank bestaetigen (Commit) -> erst dann die alte Datei entfernen. Scheitert etwas dazwischen, kommt die alte
     Datei zurueck und die Datenbank bleibt bei der alten Fassung."""
+    now = int(time.time()) if now is None else now
     for f in files:
-        existing = db.row(conn, "SELECT chdate, local_path FROM files WHERE id=?", (f["id"],))
+        existing = db.row(conn, "SELECT chdate, local_path, revision, first_seen FROM files WHERE id=?", (f["id"],))
         if existing and existing["local_path"]:
             reconcile_backup(conn, f["id"], Path(existing["local_path"]))
-        changed = existing is None or (existing["chdate"] or 0) < f["chdate"] or not existing["local_path"]             or not Path(existing["local_path"]).exists()
+        chdate, newer = version_stamp(existing, f, now)
+        f = {**f, "chdate": chdate, "revision": f.get("revision")}
+        changed = existing is None or newer or not existing["local_path"] or not Path(existing["local_path"]).exists()
         if existing is None:
             conn.execute(
-                """INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind)
-                   VALUES (?,?,?,?,?,?,?,?,?, 'neu', ?)""",
-                (f["id"], c["id"], f["name"], f["size"], f["mime"], f["author"], f["chdate"],
-                 f["download_url"], started, file_kind(f["name"], f["mime"])),
+                """INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind, revision)
+                   VALUES (?,?,?,?,?,?,?,?,?, 'neu', ?, ?)""",
+                (f["id"], c["id"], f["name"], f["size"] or 0, f["mime"], f["author"], f["chdate"],
+                 f["download_url"], started, file_kind(f["name"], f["mime"]), f["revision"]),
             )
         elif changed:
-            # neue Fassung (Groesse, Typ, Aenderungszeit) erst mit dem Download uebernehmen: scheitert
+            # neue Fassung (Groesse, Typ, Aenderungszeit, Revision) erst mit dem Download uebernehmen: scheitert
             # er, gilt die Datei beim naechsten Abgleich weiter als geaendert und wird erneut geladen
             conn.execute("UPDATE files SET name=?, author=?, download_url=? WHERE id=?",
                          (f["name"], f["author"], f["download_url"], f["id"]))
         else:
             conn.execute(
-                "UPDATE files SET name=?, size=?, mime=?, author=?, chdate=?, download_url=? WHERE id=?",
-                (f["name"], f["size"], f["mime"], f["author"], f["chdate"], f["download_url"], f["id"]),
+                "UPDATE files SET name=?, size=COALESCE(?, size), mime=?, author=?, chdate=?, download_url=?, revision=? WHERE id=?",
+                (f["name"], f["size"], f["mime"], f["author"], f["chdate"], f["download_url"], f["revision"], f["id"]),
             )
         if f["id"] in folder_paths:
             conn.execute("UPDATE files SET studip_folder=? WHERE id=?", (folder_paths[f["id"]], f["id"]))
@@ -544,10 +590,11 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 sha = file_sha256(target)
                 if not sha:
                     raise RuntimeError("Datei nach dem Download nicht lesbar")
+                size = f["size"] if f["size"] is not None else target.stat().st_size
                 conn.execute("SAVEPOINT dl")
-                conn.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=?, content_sha256=? "
-                             "WHERE id=?",
-                             (str(target), db.now_iso(), f["size"], f["mime"], f["chdate"], sha, f["id"]))
+                conn.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=?, revision=?, "
+                             "content_sha256=? WHERE id=?",
+                             (str(target), db.now_iso(), size, f["mime"], f["chdate"], f["revision"], sha, f["id"]))
                 conn.execute("RELEASE dl")
                 conn.commit()                      # erst jetzt ist die neue Fassung gueltig
                 if backup:

@@ -1,6 +1,7 @@
 # Stand der Mac-Sitzung (Abstimmung mit der PC-Sitzung)
 
-Stand 26.10.2026 (Zusammenführen mit dem PC-Kern ergänzt, Hildesheim in der App). Damit nichts doppelt entsteht: Daran arbeitet die Mac-Sitzung gerade (Zweige nur lokal,
+Stand 26.10.2026 (Zusammenführen mit dem PC-Kern ergänzt, Hildesheim in der App; Endstand V1 mit S6, S7, Opencast
+und dem Ende-zu-Ende-Test auf `develop` in `wip/v1-final`). Damit nichts doppelt entsteht: Daran arbeitet die Mac-Sitzung gerade (Zweige nur lokal,
 kommen nach vollständiger Prüfung auf `develop`).
 
 | Teil | Stand | Zweig (lokal) |
@@ -8,11 +9,14 @@ kommen nach vollständiger Prüfung auf `develop`).
 | S3 Stud.IP-Dateien in die lokale Datenbank, Bibliothek, Notizen, Editor offline | fertig, geprüft, mit dem PC-Kern zusammengeführt | `wip/v1-pc` |
 | S4 Fach, Art, Lehrwoche, Module | fertig, geprüft, mit dem PC-Kern zusammengeführt | `wip/v1-pc` |
 | S5 Stundenplan aus Stud.IP (Kurszeiten, Einzeltermine, ICS, Gruppenwahl) | fertig, geprüft, mit dem PC-Kern zusammengeführt | `wip/v1-pc` |
-| S6 Lernlogik (study.py: Pakete, Lernplan, Woche retten, Übersicht) | im Bau | `wip/s6-lernplan-2` |
+| S6 Lernlogik (study.py: Pakete, Lernplan, Woche retten, Übersicht) | fertig, geprüft, auf dem Stand mit dem PC-Kern, Daten in der Datenbank des Containers | `wip/v1-final` |
 | Hochschulwahl im ersten Start, Datentrennung je (Apple-Nutzer, Uni), Umzug alter LUH-Daten | gebaut, geprüft, mit dem PC-Kern entdoppelt | `wip/v1-pc-uni` |
 | Zugangsdaten je Uni im Schlüsselbund, Anmeldeseite **nur vorausfüllen** (Entscheidung des Inhabers) | fertig, geprüft, mit dem PC-Kern entdoppelt | `wip/v1-pc-uni` |
 | Hildesheim: dünne Schicht über dem Kern der PC-Sitzung (URLSessionUniTransport, Anmeldung LSF/Learnweb-SSO, Ablauf, Uni & Noten) | gebaut, ohne Netz geprüft (Stub, lokale Seiten); Gerätetest mit echtem Konto offen | `wip/v1-pc-hi` |
 | Zusammenführen nachgebessert: ein Inhalts-Hash, ein Download-Ablauf (`UniDownloads`) für Stud.IP und Learnweb, leere Antworten und leere LSF-Kalender löschen nichts (Python und Kern), Löschen hält laufende Abgleiche an, zweite Quelle während eines Laufs, Anzeigename je Container | gebaut, ohne Netz geprüft; jeder neue Test ohne die Korrektur rot | `wip/v1-pc-fix` |
+| S7 Suche und Skriptsuche offline, neue Original-Fassung mit erhaltenen Notizen (Stud.IP und Learnweb über `UniDownloads`, alte Fassungen und Seitentexte im Container) | fertig, ohne Netz geprüft | `wip/v1-final` |
+| Opencast-Aufzeichnungen (nur LUH): Listen im Stud.IP-Abgleich, Abspielen, Download nur auf Wunsch, Ablage im Container | fertig, ohne Netz geprüft; Streaming und Player-Seite am Gerät offen | `wip/v1-final` |
+| Ende-zu-Ende-Test „Lösung teilen“ mit echter PDF (nur mit Umgebungsvariablen, PDF nur zur Laufzeit) | mit echter PDF gelaufen, alle 8 Punkte bestanden | `wip/v1-final` |
 
 Die Mac-Sitzung hat den Hildesheim-Kern der PC-Sitzung (`UniFlowCore/Hildesheim/`) übernommen und ihre eigenen
 doppelten Fassungen entfernt (`wip/v1-pc` auf `develop` bc407b9, Einzelheiten in `docs/IPAD-OHNE-PC.md`, Abschnitt

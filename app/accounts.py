@@ -201,7 +201,7 @@ def register(email: str, password: str, university: str) -> dict:
     email = normalize_email(email)
     validate_email(email)
     validate_password(password, email)
-    if university not in config.KNOWN_UNIVERSITIES:
+    if university not in config.known_universities():
         raise AccountError("university_unknown", "Unbekannte Hochschule.")
     with cursor() as conn:
         if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
@@ -372,7 +372,7 @@ def login_with_identity(provider: str, identity_token: str, device_id: str | Non
             if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
                 raise AccountError("email_taken", "Für diese E-Mail-Adresse gibt es schon ein Konto. Bitte dort anmelden und die "
                                                   f"{provider.capitalize()}-Anmeldung verknüpfen.", 409)
-            if university not in config.KNOWN_UNIVERSITIES:
+            if university not in config.known_universities():
                 raise AccountError("university_unknown", "Bitte die Hochschule angeben.")
             uid = uuid.uuid4().hex
             conn.execute("INSERT INTO users(id, email, email_verified, pw_hash, university, created_at) VALUES (?,?,?,?,?,?)",
@@ -388,7 +388,7 @@ def login_with_identity(provider: str, identity_token: str, device_id: str | Non
 # ---------------------------------------------------------------- Hochschule, Loeschen
 
 def set_university(user_id: str, university: str) -> dict:
-    if university not in config.KNOWN_UNIVERSITIES:
+    if university not in config.known_universities():
         raise AccountError("university_unknown", "Unbekannte Hochschule.")
     with cursor() as conn:
         conn.execute("UPDATE users SET university=? WHERE id=? AND status='active'", (university, user_id))

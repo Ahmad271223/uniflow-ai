@@ -1,8 +1,8 @@
 import Foundation
 
-/// SHA-256 (FIPS 180-4) ohne CryptoKit, damit der Kern auch unter Linux baut und testet. Die App rechnet den
-/// Fingerabdruck grosser PDFs schneller mit CryptoKit (`SolutionCipher.sha256Hex`); beide Wege ergeben denselben Wert
-/// (App-Test vergleicht sie).
+/// SHA-256 (FIPS 180-4) ohne CryptoKit, damit der Kern auch unter Linux baut und testet. Grosse Dateien hasht
+/// `ContentHash.file` (auch der Fingerabdruck der Original-PDF im Editor), dort wo vorhanden mit CryptoKit; beide Wege
+/// ergeben denselben Wert (UniStoreTests vergleicht sie). `hexString` ist die eine Hex-Schreibweise (Kleinbuchstaben).
 public enum SolutionSHA256 {
     private static let k: [UInt32] = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -22,7 +22,7 @@ public enum SolutionSHA256 {
         return hasher.finalize()
     }
 
-    /// Fortlaufender Hashwert: Daten stueckweise (z. B. eine grosse Datei in 1-MB-Bloecken, `TestShare.contentHash(file:)`),
+    /// Fortlaufender Hashwert: Daten stueckweise (z. B. eine grosse Datei in 1-MB-Bloecken, `ContentHash.file`),
     /// derselbe Wert wie `hash` ueber alles zusammen.
     public struct Hasher: Sendable {
         private var h: [UInt32] = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]

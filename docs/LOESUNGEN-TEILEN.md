@@ -149,7 +149,11 @@ die ganze Lösung abgewiesen.
 5. Anzeige: eigene, nicht bearbeitbare Schicht `PageInkView.foreignView` über der PDF und unter den eigenen Objekten
    und der Zeichenfläche (`PDFEditorController.applyForeign`, `ForeignLayerView`). Zuordnung über den PDF-Seitenindex.
    Hat der Empfänger die Seite anders gedreht als der Absender, bildet `SolutionGeometry.transform` die Anzeige um –
-   die Objekte selbst werden nie umgerechnet. Zoom ist reine Anzeige. Eigene Leerseiten des Absenders gibt es beim
+   die Objekte selbst werden nie umgerechnet. Zoom ist reine Anzeige. Striche zeichnet PencilKit in einer nicht
+   bedienbaren Canvas der Ebene (`ForeignLayerView.ink`), wie auf der Canvas des Absenders; so sind Breite und Tinte
+   gleich (vorher CAShapeLayer mit der gespeicherten Breite, beim Empfänger sichtbar dicker, `ForeignInkWidthTests`).
+   Der Ende-zu-Ende-Test prüft die Lage auch nach 2-fach-Zoom und Scrollen in Fensterkoordinaten gegen die PDF-Seite
+   (PDFKit) und die Strichbreite über die Pixel im Bild. Eigene Leerseiten des Absenders gibt es beim
    Empfänger nicht; sie sind nur in der Vorschau zu sehen. Zahlen der Objekte werden vor dem Anzeigen endlich und
    begrenzt gelesen (`ObjectGeometry.number`: Lage und Größe ±100 000 Punkte, Skalierung ±100, Drehung modulo 360),
    so entsteht auch bei Werten wie `1e300` keine Ebene mit NaN oder Unendlich. Nach einer Speicherwarnung werden die

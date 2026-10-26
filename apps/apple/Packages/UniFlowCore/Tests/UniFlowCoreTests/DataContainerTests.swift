@@ -37,6 +37,19 @@ final class DataContainerTests: XCTestCase {
 
     // MARK: Schluessel
 
+    /// Die eine Fassung der Unterordner: Namen wie bisher in Application Support/UniFlow, PDF-Zwischenspeicher je Datenquelle
+    func testFolderNamesAreDefinedOnce() {
+        let layout = DataContainerLayout(base: URL(fileURLWithPath: "/tmp/c", isDirectory: true),
+                                         key: DataContainerKey(userID: "nutzer-erfunden", university: .luh))
+        let names = DataContainerLayout.Folder.allCases.map { layout.url($0).lastPathComponent }
+        XCTAssertEqual(names, ["db", "journal", "sources", "thumbs", "cache", "solutions", "StudIP", "Learnweb"])
+        XCTAssertEqual(layout.journal, layout.root.appendingPathComponent("journal", isDirectory: true))
+        XCTAssertEqual(layout.databaseURL.deletingLastPathComponent().lastPathComponent, "db")
+        XCTAssertTrue(DataContainerLayout.pdfDirectory(.local, in: layout.root).path.hasSuffix("/sources/local/pdf"))
+        XCTAssertEqual(StudIPImport.relativePath(fileID: "../a", name: "Blatt/1.pdf"),
+                       "files/\(StudIPImport.safeFileName("../a"))/\(StudIPImport.safeFileName("Blatt/1.pdf"))")
+    }
+
     func testKeyIsFixedPerUserAndUniversityAndHidesTheAppleID() {
         let luh = DataContainerKey(userID: user, university: .luh)
         let hi = DataContainerKey(userID: user, university: .hildesheim)
@@ -226,14 +239,15 @@ final class DataContainerTests: XCTestCase {
         XCTAssertNotEqual(hi.websiteDataStoreID, DataContainerKey(userID: other, university: .hildesheim).websiteDataStoreID)
         // Schluesselbund: ein Dienst, Eintraege mit Nutzer-Kurzkennung und Hochschule
         XCTAssertEqual(DataContainerKey.keychainService, "de.uniflow.ai.university")
-        XCTAssertEqual(hi.keychainAccount(service: "learnweb", field: "token"), "\(hi.userScope).hildesheim.learnweb.token")
-        XCTAssertEqual(hi.keychainAccount(service: "cas", field: "password"), "\(hi.userScope).hildesheim.cas.password")
-        XCTAssertEqual(luh.keychainAccount(service: "studip", field: "user"), "\(luh.userScope).luh.studip.user")
-        XCTAssertNil(hi.keychainAccount(service: "studip", field: "user"), "kein Rueckfall auf die andere Hochschule")
-        XCTAssertNil(luh.keychainAccount(service: "learnweb", field: "token"))
-        XCTAssertNotEqual(hi.keychainAccount(service: "cas", field: "user"),
-                          DataContainerKey(userID: other, university: .hildesheim).keychainAccount(service: "cas", field: "user"))
-        for name in [hi.keychainAccount(service: "cas", field: "user") ?? "", hi.websiteDataStoreID.uuidString, "\(hi)"] {
+        XCTAssertEqual(hi.university.profile.keychainAccount(service: "learnweb", field: "token", userScope: hi.userScope), "\(hi.userScope).hildesheim.learnweb.token")
+        XCTAssertEqual(hi.university.profile.keychainAccount(service: "cas", field: "password", userScope: hi.userScope), "\(hi.userScope).hildesheim.cas.password")
+        XCTAssertEqual(luh.university.profile.keychainAccount(service: "studip", field: "user", userScope: luh.userScope), "\(luh.userScope).luh.studip.user")
+        XCTAssertNil(hi.university.profile.keychainAccount(service: "studip", field: "user", userScope: hi.userScope), "kein Rueckfall auf die andere Hochschule")
+        XCTAssertNil(luh.university.profile.keychainAccount(service: "learnweb", field: "token", userScope: luh.userScope))
+        XCTAssertNotEqual(hi.university.profile.keychainAccount(service: "cas", field: "user", userScope: hi.userScope),
+                          UniversityProfile.hildesheim.keychainAccount(service: "cas", field: "user",
+                                                                       userScope: DataContainerKey(userID: other, university: .hildesheim).userScope))
+        for name in [hi.university.profile.keychainAccount(service: "cas", field: "user", userScope: hi.userScope) ?? "", hi.websiteDataStoreID.uuidString, "\(hi)"] {
             XCTAssertFalse(name.contains("erfunden"), name)
             XCTAssertFalse(name.contains("001234"), name)
         }

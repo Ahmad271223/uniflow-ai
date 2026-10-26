@@ -136,19 +136,15 @@ final class HardeningSolutionEditorTests: XCTestCase {
         }.cgImage!
     }
 
-    /// Overlay so gross wie die Seite bei `zoom` (wie PDFKit es beim Zoomen anpasst) und als Bild.
+    /// Overlay so gross wie die Seite bei `zoom` (wie PDFKit es beim Zoomen anpasst) und als Bild, mit den von
+    /// PencilKit gezeichneten Strichen (`InkSnapshot`).
     private func renderOverlay(_ overlay: PageInkView, zoom: CGFloat) -> CGImage {
         let size = overlay.geometry.pageSize
         let out = CGSize(width: size.width * zoom, height: size.height * zoom)
         overlay.frame = CGRect(origin: .zero, size: out)
         overlay.setNeedsLayout()
         overlay.layoutIfNeeded()
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = false
-        return UIGraphicsImageRenderer(size: out, format: format).image { ctx in
-            overlay.layer.render(in: ctx.cgContext)
-        }.cgImage!
+        return InkSnapshot.image(overlay, size: out).cgImage!
     }
 
     /// Erwartete Lage der Marke auf der angezeigten Seite, von Hand gerechnet (ohne App- und Kerncode).
@@ -179,7 +175,7 @@ final class HardeningSolutionEditorTests: XCTestCase {
                                     clock: .fixed(berlin: "2026-10-25T14:30:05")!)
         let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
         let fileID = "haerte-editor-" + UUID().uuidString.prefix(8).lowercased()
-        let pdfURL = AppPaths.pdfDirectory(api.namespace, root: root).appendingPathComponent(fileID + ".pdf")
+        let pdfURL = AppPaths.pdf(fileID, namespace: api.namespace, root: root)
         try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try pdf.write(to: pdfURL)
         let file = LibFile(id: fileID, name: "Blatt7.pdf", title: "Blatt 7", kind: "pdf", module_id: nil, subject: nil, doc_type: nil,
@@ -295,7 +291,7 @@ final class HardeningSolutionEditorTests: XCTestCase {
             order.append(.object(entry))
             let object: JSONValue
             if i < 2 {
-                // Strich (Vektor-Ebene der fremden Schicht)
+                // Strich (PencilKit-Canvas der fremden Schicht)
                 object = ["id": .string("s\(i)"), "type": "stroke", "tool": "pen", "color": "#000000", "width": 8, "opacity": 1,
                           "points": [.number(Double(m.x) - 2), .number(Double(m.y)), .number(Double(m.x) + 2), .number(Double(m.y))]]
             } else {

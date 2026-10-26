@@ -22,6 +22,7 @@ enum UFFmt {
     private static func formatter(_ pattern: String) -> DateFormatter {
         let f = DateFormatter()
         f.locale = Locale(identifier: "de_DE")
+        f.timeZone = Fmt.zone
         f.setLocalizedDateFormatFromTemplate(pattern)
         return f
     }
@@ -50,32 +51,31 @@ enum UFFmt {
         return h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend"
     }
 
+    /// Heute in Berlin wie das lokale Backend (`UniFlowClock.today`), nicht in der Zeitzone des Geraets
     static func todayISO() -> String { Fmt.isoDay(Date()) }
 
     /// DAYS[(getDay()+6)%7]: Mo…So zum ISO-Datum
     static func weekdayShort(_ iso: String?) -> String {
         guard let d = Fmt.date(iso) else { return "" }
-        let w = Calendar(identifier: .gregorian).component(.weekday, from: d)   // 1 = Sonntag
+        let w = Fmt.calendar.component(.weekday, from: d)   // 1 = Sonntag
         return ShellState.days[(w + 5) % 7]
     }
 }
 
+/// Quelle der Dateien in Beschriftungen: an der LUH "Neu aus Stud.IP", an der Uni Hildesheim "Neu aus Learnweb"
+/// (vorher ueberall "Stud.IP")
+enum UFSourceText {
+    static func newFiles(_ university: UniversityKey) -> String { "Neu aus \(university.profile.filesSource)" }
+}
+
 /// Laden/Fehler wie route() in app.js: Platzhalter-Balken beim Laden, Karte "Server nicht erreichbar" mit
-/// "Jetzt neu laden" und "Diagnose" bei Netzfehlern, sonst Karte "Fehler". Ohne eigenen UniFlow-Server (V1)
-/// statt der Fehlerkarte der leere Zustand mit "Stud.IP verbinden" (Views/ConnectStudIPCard.swift).
+/// "Jetzt neu laden" und "Diagnose" bei Netzfehlern, sonst Karte "Fehler" (auch vom lokalen Backend).
 struct UFRemote<Content: View>: View {
     @ObservedObject var data: RemoteData
     @EnvironmentObject private var router: UFRouter
-    @EnvironmentObject private var session: Session
-    @EnvironmentObject private var studip: StudIPSync
     @ViewBuilder var content: (JSONValue) -> Content
 
-    var body: some View {
-        let mode = UFDataMode.current(api: session.api, studip: studip)
-        if mode.loadsPages { remote } else { UFNoServerPage(spec: .generic, mode: mode) }
-    }
-
-    @ViewBuilder private var remote: some View {
+    @ViewBuilder var body: some View {
         switch data.state {
         case .loading:
             UFContent {

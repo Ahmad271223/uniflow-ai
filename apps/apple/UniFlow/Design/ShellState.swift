@@ -103,7 +103,8 @@ final class ShellState: ObservableObject {
         await updateSyncChip()
     }
 
-    /// GET /api/search?q= ab 2 Zeichen, 220 ms entprellt (debounce in app.js)
+    /// GET /api/search?q= ab 2 Zeichen, 220 ms entprellt (debounce in app.js): Module, Dateien, Aufgaben des Lernplans
+    /// und Seiten mit dem Text (seit S7, offline aus dem lokalen Backend)
     func search(_ q: String) {
         searchTask?.cancel()
         let text = q.trimmingCharacters(in: .whitespaces)
@@ -111,8 +112,7 @@ final class ShellState: ObservableObject {
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 220_000_000)
             guard !Task.isCancelled else { return }
-            let enc = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
-            guard let r = try? await api.value("/api/search?q=\(enc)"), !Task.isCancelled else { return }
+            guard let r = try? await api.value("/api/search?q=\(APIClient.queryValue(text))"), !Task.isCancelled else { return }
             var hits: [SearchHit] = []
             for m in r["modules"]?.array ?? [] {
                 guard let id = m.i("id") else { continue }
@@ -126,8 +126,27 @@ final class ShellState: ObservableObject {
                 hits.append(SearchHit(id: "f\(id)", title: f.s("ai_title") ?? f.s("name") ?? "Datei", sub: sub,
                                       icon: Self.typeIcon[type] ?? "file", color: nil, route: .doc(id)))
             }
+            hits += Self.taskAndPageHits(r)
             searchHits = hits
         }
+    }
+
+    /// Treffer in Aufgaben (Tagesansicht des Lernplans) und Seitentexten (Dokument an der Seite) wie globalSearch in app.js
+    static func taskAndPageHits(_ r: JSONValue) -> [SearchHit] {
+        var hits: [SearchHit] = []
+        for t in r["tasks"]?.array ?? [] {
+            guard let id = t.i("id") else { continue }
+            let date = t.s("date") ?? ""
+            let sub = [t.s("subject") ?? "", "Aufgabe", UFFmt.short(date)].filter { !$0.isEmpty }.joined(separator: " · ")
+            hits.append(SearchHit(id: "t\(id)", title: t.s("title") ?? "Aufgabe", sub: sub, icon: typeIcon[t.s("type") ?? ""] ?? "check",
+                                  color: nil, route: .plan(view: "day", date: date)))
+        }
+        for p in r["pages"]?.array ?? [] {
+            guard let id = p.s("file_id"), let page = p.i("page") else { continue }
+            hits.append(SearchHit(id: "p\(id)-\(page)", title: "\(p.s("ai_title") ?? p.s("name") ?? "Dokument") · Seite \(page)",
+                                  sub: p.s("snippet") ?? "", icon: "file-text", color: nil, route: .doc(id, page: page)))
+        }
+        return hits
     }
 
     /// Bezeichnung je Dokument-/Aufgabentyp (TYPE_TXT in core.js)

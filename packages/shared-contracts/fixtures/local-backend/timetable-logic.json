@@ -965,6 +965,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1015,6 +1018,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1032,6 +1038,9 @@
       "weekday": 2,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1067,6 +1076,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1098,6 +1110,9 @@
       "weekday": 4,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1115,6 +1130,9 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1167,6 +1185,9 @@
         "color": "#333333"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1238,6 +1259,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1305,6 +1329,9 @@
         "color": "#111111"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1348,6 +1375,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 620,
@@ -1416,6 +1446,9 @@
         "color": "#222222"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1498,6 +1531,9 @@
         "color": "#222222"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1523,6 +1559,14 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "Reformationstag"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1558,6 +1602,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1614,6 +1661,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1699,6 +1749,9 @@
         "color": "#333333"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1724,6 +1777,9 @@
       "weekday": 2,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1759,6 +1815,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1798,6 +1857,9 @@
       "weekday": 4,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1815,6 +1877,9 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1850,6 +1915,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1913,6 +1981,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1963,6 +2034,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1980,6 +2054,9 @@
       "weekday": 2,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -1997,6 +2074,9 @@
       "weekday": 3,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -2028,6 +2108,9 @@
       "weekday": 4,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -2045,6 +2128,9 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -2062,6 +2148,14 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "vorlesungsfrei",
+        "label": "Vorlesungsfreie Zeit"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -2595,81 +2689,6 @@
    "status": 200,
    "response": [
     {
-     "id": "tf-ma-1",
-     "name": "Vorlesung_01.pdf",
-     "chdate": 1791878400,
-     "status": "neu",
-     "favorite": 0,
-     "last_opened": null,
-     "size": 1002,
-     "course_id": "k-ma-vl",
-     "studip_folder": "Vorlesung",
-     "course_title": "Testmathematik I",
-     "course_kind": "vorlesung",
-     "subject": null,
-     "module_id": 1,
-     "doc_type": "vorlesung",
-     "ai_title": null,
-     "difficulty": null,
-     "est_minutes": null,
-     "topics": null,
-     "summary": null,
-     "has_notes": null,
-     "ai_doc_type": null,
-     "sub_label": "Vorlesung",
-     "week_hint": 1
-    },
-    {
-     "id": "tf-ue-1",
-     "name": "Übungsblatt 1.pdf",
-     "chdate": 1791961200,
-     "status": "gelesen",
-     "favorite": 0,
-     "last_opened": null,
-     "size": 1003,
-     "course_id": "k-ma-ue",
-     "studip_folder": "Übungsblätter",
-     "course_title": "Übung zu Testmathematik I",
-     "course_kind": "uebung",
-     "subject": null,
-     "module_id": 1,
-     "doc_type": "uebung",
-     "ai_title": null,
-     "difficulty": null,
-     "est_minutes": null,
-     "topics": null,
-     "summary": null,
-     "has_notes": null,
-     "ai_doc_type": null,
-     "sub_label": "Übung",
-     "week_hint": 1
-    },
-    {
-     "id": "tf-ma-2",
-     "name": "Vorlesung_02.pdf",
-     "chdate": 1792483200,
-     "status": "gelesen",
-     "favorite": 0,
-     "last_opened": null,
-     "size": 1006,
-     "course_id": "k-ma-vl",
-     "studip_folder": "Vorlesung",
-     "course_title": "Testmathematik I",
-     "course_kind": "vorlesung",
-     "subject": null,
-     "module_id": 1,
-     "doc_type": "vorlesung",
-     "ai_title": null,
-     "difficulty": null,
-     "est_minutes": null,
-     "topics": null,
-     "summary": null,
-     "has_notes": null,
-     "ai_doc_type": null,
-     "sub_label": "Vorlesung",
-     "week_hint": 2
-    },
-    {
      "id": "tf-ma-3",
      "name": "Vorlesung_03.pdf",
      "chdate": 1792877400,
@@ -2725,56 +2744,6 @@
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
      "week_hint": 2
-    },
-    {
-     "id": "tf-ue-2",
-     "name": "Lösung Blatt 1.pdf",
-     "chdate": 1792598400,
-     "status": "neu",
-     "favorite": 0,
-     "last_opened": null,
-     "size": 1007,
-     "course_id": "k-ma-ue",
-     "studip_folder": "Lösungen",
-     "course_title": "Übung zu Testmathematik I",
-     "course_kind": "uebung",
-     "subject": null,
-     "module_id": 1,
-     "doc_type": "loesung",
-     "ai_title": null,
-     "difficulty": null,
-     "est_minutes": null,
-     "topics": null,
-     "summary": null,
-     "has_notes": null,
-     "ai_doc_type": null,
-     "sub_label": "Lösung",
-     "week_hint": 1
-    },
-    {
-     "id": "tf-ma-3",
-     "name": "Vorlesung_03.pdf",
-     "chdate": 1792877400,
-     "status": "neu",
-     "favorite": 0,
-     "last_opened": null,
-     "size": 1008,
-     "course_id": "k-ma-vl",
-     "studip_folder": "Vorlesung",
-     "course_title": "Testmathematik I",
-     "course_kind": "vorlesung",
-     "subject": null,
-     "module_id": 1,
-     "doc_type": "vorlesung",
-     "ai_title": null,
-     "difficulty": null,
-     "est_minutes": null,
-     "topics": null,
-     "summary": null,
-     "has_notes": null,
-     "ai_doc_type": null,
-     "sub_label": "Vorlesung",
-     "week_hint": 3
     }
    ]
   },
@@ -4391,6 +4360,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -4492,6 +4464,9 @@
         "color": "#111111"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -4577,6 +4552,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 620,
@@ -4645,6 +4623,9 @@
         "color": "#222222"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -4744,6 +4725,9 @@
         "color": "#222222"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -4777,6 +4761,14 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "Reformationstag"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -4794,6 +4786,9 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -5217,56 +5212,6 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": 2
-     },
-     {
-      "id": "tf-ue-2",
-      "name": "Lösung Blatt 1.pdf",
-      "chdate": 1792598400,
-      "status": "neu",
-      "favorite": 0,
-      "last_opened": null,
-      "size": 1007,
-      "course_id": "k-ma-ue",
-      "studip_folder": "Lösungen",
-      "course_title": "Übung zu Testmathematik I",
-      "course_kind": "uebung",
-      "subject": null,
-      "module_id": 1,
-      "doc_type": "loesung",
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null,
-      "topics": null,
-      "summary": null,
-      "has_notes": null,
-      "ai_doc_type": null,
-      "sub_label": "Lösung",
-      "week_hint": 1
-     },
-     {
-      "id": "tf-ma-3",
-      "name": "Vorlesung_03.pdf",
-      "chdate": 1792877400,
-      "status": "neu",
-      "favorite": 0,
-      "last_opened": null,
-      "size": 1008,
-      "course_id": "k-ma-vl",
-      "studip_folder": "Vorlesung",
-      "course_title": "Testmathematik I",
-      "course_kind": "vorlesung",
-      "subject": null,
-      "module_id": 1,
-      "doc_type": "vorlesung",
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null,
-      "topics": null,
-      "summary": null,
-      "has_notes": null,
-      "ai_doc_type": null,
-      "sub_label": "Vorlesung",
-      "week_hint": 3
      }
     ],
     "event": {
@@ -5344,56 +5289,6 @@
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
       "week_hint": 2
-     },
-     {
-      "id": "tf-ue-2",
-      "name": "Lösung Blatt 1.pdf",
-      "chdate": 1792598400,
-      "status": "neu",
-      "favorite": 0,
-      "last_opened": null,
-      "size": 1007,
-      "course_id": "k-ma-ue",
-      "studip_folder": "Lösungen",
-      "course_title": "Übung zu Testmathematik I",
-      "course_kind": "uebung",
-      "subject": null,
-      "module_id": 1,
-      "doc_type": "loesung",
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null,
-      "topics": null,
-      "summary": null,
-      "has_notes": null,
-      "ai_doc_type": null,
-      "sub_label": "Lösung",
-      "week_hint": 1
-     },
-     {
-      "id": "tf-ma-3",
-      "name": "Vorlesung_03.pdf",
-      "chdate": 1792877400,
-      "status": "neu",
-      "favorite": 0,
-      "last_opened": null,
-      "size": 1008,
-      "course_id": "k-ma-vl",
-      "studip_folder": "Vorlesung",
-      "course_title": "Testmathematik I",
-      "course_kind": "vorlesung",
-      "subject": null,
-      "module_id": 1,
-      "doc_type": "vorlesung",
-      "ai_title": null,
-      "difficulty": null,
-      "est_minutes": null,
-      "topics": null,
-      "summary": null,
-      "has_notes": null,
-      "ai_doc_type": null,
-      "sub_label": "Vorlesung",
-      "week_hint": 3
      }
     ],
     "event": {
@@ -5657,6 +5552,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 590,
@@ -5758,6 +5656,9 @@
         "color": "#111111"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -5843,6 +5744,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 620,
@@ -5911,6 +5815,9 @@
         "color": "#222222"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6028,6 +5935,9 @@
         "color": "#222222"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6080,6 +5990,14 @@
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "Reformationstag"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6105,6 +6023,9 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6177,6 +6098,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -6244,6 +6168,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6329,6 +6256,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 605,
@@ -6365,6 +6295,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6449,6 +6382,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 630,
@@ -6474,6 +6410,9 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6491,6 +6430,9 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6563,6 +6505,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -6613,6 +6558,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6656,6 +6604,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 485,
@@ -6691,6 +6642,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6740,6 +6694,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6765,6 +6722,9 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -6782,6 +6742,9 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -7429,6 +7392,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 590,
@@ -7513,6 +7479,9 @@
         "color": "#333333"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -7598,6 +7567,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 620,
@@ -7633,6 +7605,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -7682,6 +7657,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -7707,6 +7685,9 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -7724,6 +7705,9 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -8409,6 +8393,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -8535,6 +8522,9 @@
         "color": "#111111"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -8628,6 +8618,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 620,
@@ -8730,6 +8723,9 @@
         "color": "#222222"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -8821,6 +8817,9 @@
         "color": "#222222"
        }
       ],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -8854,6 +8853,14 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "Reformationstag"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -8871,6 +8878,9 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -8960,6 +8970,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -9052,6 +9065,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -9097,9 +9113,10 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "Weihnachtspause"
        },
        {
         "event_id": 17,
@@ -9120,15 +9137,15 @@
        }
       ],
       "packages": [],
-      "free": [
+      "marks": [
        {
-        "start": 480,
-        "end": 510,
-        "minutes": 30,
-        "start_hm": "08:00",
-        "end_hm": "08:30",
-        "campus": true
-       },
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
+      "free": [
        {
         "start": 620,
         "end": 1260,
@@ -9180,6 +9197,14 @@
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -9223,9 +9248,10 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "1. Weihnachtstag / Weihnachtspause"
        },
        {
         "event_id": 12,
@@ -9240,34 +9266,31 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "1. Weihnachtstag / Weihnachtspause"
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "1. Weihnachtstag"
+       },
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
-        "end": 520,
-        "minutes": 40,
-        "start_hm": "08:00",
-        "end_hm": "08:40",
-        "campus": false
-       },
-       {
-        "start": 630,
-        "end": 1080,
-        "minutes": 450,
-        "start_hm": "10:30",
-        "end_hm": "18:00",
-        "campus": true
-       },
-       {
-        "start": 1220,
         "end": 1260,
-        "minutes": 40,
-        "start_hm": "20:20",
+        "minutes": 780,
+        "start_hm": "08:00",
         "end_hm": "21:00",
         "campus": false
        }
@@ -9279,6 +9302,18 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "2. Weihnachtstag"
+       },
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -9296,6 +9331,14 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -9345,9 +9388,10 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "Weihnachtspause"
        },
        {
         "event_id": 16,
@@ -9385,14 +9429,22 @@
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
-        "start": 570,
-        "end": 615,
-        "minutes": 45,
-        "start_hm": "09:30",
-        "end_hm": "10:15",
-        "campus": true
+        "start": 480,
+        "end": 595,
+        "minutes": 115,
+        "start_hm": "08:00",
+        "end_hm": "09:55",
+        "campus": false
        },
        {
         "start": 780,
@@ -9460,6 +9512,14 @@
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -9505,9 +9565,10 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "Weihnachtspause"
        },
        {
         "event_id": 17,
@@ -9528,15 +9589,15 @@
        }
       ],
       "packages": [],
-      "free": [
+      "marks": [
        {
-        "start": 480,
-        "end": 510,
-        "minutes": 30,
-        "start_hm": "08:00",
-        "end_hm": "08:30",
-        "campus": true
-       },
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
+      "free": [
        {
         "start": 620,
         "end": 1260,
@@ -9588,6 +9649,14 @@
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -9639,26 +9708,31 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "Neujahr / Weihnachtspause"
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "Neujahr"
+       },
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
-        "end": 520,
-        "minutes": 40,
-        "start_hm": "08:00",
-        "end_hm": "08:40",
-        "campus": false
-       },
-       {
-        "start": 650,
         "end": 1260,
-        "minutes": 610,
-        "start_hm": "10:50",
+        "minutes": 780,
+        "start_hm": "08:00",
         "end_hm": "21:00",
         "campus": false
        }
@@ -9670,6 +9744,14 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -9687,6 +9769,14 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -10470,6 +10560,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 570,
@@ -10562,6 +10655,9 @@
        }
       ],
       "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -10607,9 +10703,10 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "Weihnachtspause"
        },
        {
         "event_id": 17,
@@ -10630,15 +10727,15 @@
        }
       ],
       "packages": [],
-      "free": [
+      "marks": [
        {
-        "start": 480,
-        "end": 510,
-        "minutes": 30,
-        "start_hm": "08:00",
-        "end_hm": "08:30",
-        "campus": true
-       },
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
+      "free": [
        {
         "start": 620,
         "end": 1260,
@@ -10690,6 +10787,14 @@
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -10733,9 +10838,10 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "1. Weihnachtstag / Weihnachtspause"
        },
        {
         "event_id": 12,
@@ -10750,34 +10856,31 @@
         "room": "",
         "lecturer": "",
         "course_id": null,
-        "status": "teilnahme",
+        "status": "ausfall",
         "permanent_skip": false,
-        "exception": null
+        "exception": "vorlesungsfrei",
+        "note": "1. Weihnachtstag / Weihnachtspause"
        }
       ],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "1. Weihnachtstag"
+       },
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
-        "end": 520,
-        "minutes": 40,
-        "start_hm": "08:00",
-        "end_hm": "08:40",
-        "campus": false
-       },
-       {
-        "start": 630,
-        "end": 1080,
-        "minutes": 450,
-        "start_hm": "10:30",
-        "end_hm": "18:00",
-        "campus": true
-       },
-       {
-        "start": 1220,
         "end": 1260,
-        "minutes": 40,
-        "start_hm": "20:20",
+        "minutes": 780,
+        "start_hm": "08:00",
         "end_hm": "21:00",
         "campus": false
        }
@@ -10789,6 +10892,18 @@
       "weekday": 5,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "feiertag",
+        "label": "2. Weihnachtstag"
+       },
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -10806,6 +10921,14 @@
       "weekday": 6,
       "events": [],
       "packages": [],
+      "marks": [
+       {
+        "kind": "pause",
+        "label": "Weihnachtspause"
+       }
+      ],
+      "deadlines": [],
+      "notices": [],
       "free": [
        {
         "start": 480,
@@ -12583,68 +12706,6 @@
    ]
   }
  ],
- "matcher": [
-  {
-   "a": "testkurs mathematik i",
-   "b": "mathematik i",
-   "ratio": 0.7272727272727273
-  },
-  {
-   "a": "",
-   "b": "",
-   "ratio": 1.0
-  },
-  {
-   "a": "abc",
-   "b": "",
-   "ratio": 0.0
-  },
-  {
-   "a": "übung zu testmathematik i",
-   "b": "testmathematik i",
-   "ratio": 0.7804878048780488
-  },
-  {
-   "a": "programmierkurs beispiel",
-   "b": "gruppenübung programmierkurs beispiel",
-   "ratio": 0.7868852459016393
-  },
-  {
-   "a": "abcd",
-   "b": "bcda",
-   "ratio": 0.75
-  },
-  {
-   "a": "aaaa",
-   "b": "aa",
-   "ratio": 0.6666666666666666
-  },
-  {
-   "a": "einführung in die testphysik",
-   "b": "testphysik für ingenieure",
-   "ratio": 0.37735849056603776
-  },
-  {
-   "a": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxabc",
-   "b": "yxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxabc",
-   "ratio": 0.985781990521327
-  },
-  {
-   "a": "abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab",
-   "b": "babababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababa",
-   "ratio": 0.0
-  },
-  {
-   "a": "é",
-   "b": "é",
-   "ratio": 0.0
-  },
-  {
-   "a": "qwertzuiop",
-   "b": "poiuztrewq",
-   "ratio": 0.1
-  }
- ],
  "guess_module": [
   {
    "title": "Testmathematik I",
@@ -12879,7 +12940,11 @@
      "date_from": "2026-10-22",
      "rrule": "weekly",
      "date_to": "2026-11-26",
-     "count": 4
+     "count": 4,
+     "exdates": [
+      "2026-10-29",
+      "2026-11-19"
+     ]
     }
    ]
   }

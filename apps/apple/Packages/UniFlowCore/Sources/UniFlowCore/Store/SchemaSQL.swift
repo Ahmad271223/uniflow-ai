@@ -357,7 +357,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
     /// `app.scriptsearch.ensure_table` (in Python erst bei der ersten Skriptsuche angelegt)
     static let pageTexts = #"""
 CREATE TABLE IF NOT EXISTS page_texts (
-        file_id TEXT NOT NULL, page INTEGER NOT NULL, text TEXT, chdate INTEGER,
+        file_id TEXT NOT NULL, page INTEGER NOT NULL, text TEXT, chdate INTEGER, search TEXT,
         PRIMARY KEY (file_id, page))
 """#
 }

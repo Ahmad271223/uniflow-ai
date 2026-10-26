@@ -84,8 +84,9 @@ your spending limit needs to be increased“. Alles, was danach geändert wurde,
 ## Phase 10 – Release
 - **Fertig:** `RELEASE-VORBEREITUNG.md` (Umgebungen, Kennungen, Datenschutz, TestFlight, Metadaten, Bildschirmfotos),
   `MAC-IPAD-CHECKLISTE.md`.
-- **Offen:** Release-Konfiguration ohne `NSAllowsArbitraryLoads` (erst mit HTTPS-Server sinnvoll), Privacy Manifest
-  (am Mac prüfen), Signierung.
+- **Erledigt (Abnahme 26.10.2026):** Info.plist ohne `NSAllowsArbitraryLoads`, lokales Netz nur im Debug-Build,
+  Privacy Manifest `PrivacyInfo.xcprivacy`, Release-Prüfung von Team und „Mit Apple anmelden“.
+- **Offen:** Signierung (Team des Inhabers), Rechtstexte, Exportkontrolle; Checkliste in `RELEASE-VORBEREITUNG.md`.
 
 ## Nächster Schritt
 

@@ -136,10 +136,8 @@ enum SolutionSharing {
     static let cipher = CryptoKitSolutionCipher()
     /// Ablage auf diesem Geraet im aktiven Container (<Container>/solutions/, je Apple-Nutzer und Hochschule)
     static var library: SolutionLibrary {
-        ActiveContainer.current?.solutions ?? SolutionLibrary(root: ContainerPaths.none.appendingPathComponent("solutions", isDirectory: true))
+        ActiveContainer.current?.solutions ?? SolutionLibrary(root: DataContainerLayout.Folder.solutions.url(in: ContainerPaths.none))
     }
-    /// Online-Community: noch kein Dienst (wirft "nicht verbunden", sendet nichts)
-    static let community: CommunityService = NotConnectedCommunityService()
 
     /// Meldung "Die Datei passt nicht zu dieser PDF oder wurde verändert" (Import mit passendem Fingerabdruck, der
     /// sich nicht oeffnen laesst).
@@ -210,14 +208,10 @@ enum SolutionSharing {
         try SolutionPackage.seal(content, originalPDF: originalPDF, cipher: cipher)
     }
 
-    /// Schreibt das Paket als `Titel – Lösung.uniflowsolution` in einen eigenen temporaeren Ordner (Teilen-Menue).
+    /// Schreibt das Paket als `Titel – Lösung.uniflowsolution` in einen eigenen temporaeren Ordner des Containers
+    /// (Teilen-Menue, `AppTemp`).
     static func writeFile(_ package: SolutionPackage, title: String) throws -> URL {
-        let fm = FileManager.default
-        let root = fm.temporaryDirectory.appendingPathComponent("solution-share", isDirectory: true)
-        try? fm.removeItem(at: root)
-        let dir = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent(PDFExporter.fileName(title, suffix: " – Lösung." + SolutionPackage.fileExtension))
+        let url = try AppTemp.fresh("loesung").appendingPathComponent(PDFExporter.fileName(title, suffix: " – Lösung." + SolutionPackage.fileExtension))
         try package.encoded().write(to: url, options: .atomic)
         return url
     }
@@ -288,6 +282,41 @@ enum SolutionSharing {
 
     static func message(_ error: Error) -> String {
         (error as? SolutionError)?.description ?? error.localizedDescription
+    }
+
+    /// Hierher kopiert iOS empfangene Dateien ("Öffnen in", AirDrop; `LSSupportsOpeningDocumentsInPlace` = false):
+    /// Documents/Inbox, ausserhalb jedes Containers, fuer alle Konten gleich und im iCloud-Backup
+    static var inbox: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Inbox", isDirectory: true)
+    }
+
+    /// Empfangene Kopie entfernen, sobald die Loesung im Container liegt oder sich nicht oeffnen liess (nur Dateien in
+    /// `inbox`; eine Datei aus "Dateien" bleibt, wo sie ist)
+    static func discardReceivedCopy(_ url: URL, inbox: URL = inbox) {
+        let dir = inbox.resolvingSymlinksInPath().path
+        guard url.resolvingSymlinksInPath().path.hasPrefix(dir.hasSuffix("/") ? dir : dir + "/") else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    /// Alle empfangenen Kopien entfernen ("Konto löschen")
+    static func purgeInbox(_ inbox: URL = inbox) { try? FileManager.default.removeItem(at: inbox) }
+
+    /// Beim Start nur alte Kopien (laenger als `age` Sekunden da): startet die App gerade wegen einer empfangenen
+    /// Datei, liegt diese schon in der Inbox und wird erst danach geoeffnet (`onOpenURL`)
+    static func purgeStaleInbox(_ inbox: URL = inbox, age: TimeInterval = 600, now: Date = Date()) {
+        let fm = FileManager.default
+        for name in (try? fm.contentsOfDirectory(atPath: inbox.path)) ?? [] {
+            let url = inbox.appendingPathComponent(name)
+            let date = (try? fm.attributesOfItem(atPath: url.path)[.modificationDate] as? Date) ?? .distantPast
+            if now.timeIntervalSince(date) > age { try? fm.removeItem(at: url) }
+        }
+    }
+
+    /// Meldung nach dem Ablegen einer empfangenen Loesung. Ansehen geht nur mit Plus (im Editor gesperrt): mit Free
+    /// steht das dabei, statt "erscheint unter Ebenen" zu versprechen.
+    static func receivedMessage(label: String, canView: Bool) -> String {
+        canView ? "\(label) gespeichert – sie erscheint in der passenden PDF unter „Ebenen“."
+            : "\(label) gespeichert – ansehen kannst du sie mit Plus (Einstellungen → Zugang & Darstellung → Tarif)."
     }
 
     /// Datei *.uniflowsolution uebernehmen (Teilen-Menue, Dateien-App, AirDrop): Kopf pruefen, verschluesselt ablegen.

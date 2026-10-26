@@ -114,8 +114,6 @@ public struct UniversityProfile: Sendable, Hashable {
 
     // Datenadressen (nil, wenn die Hochschule den Dienst nicht hat)
     public let studipBase: URL?
-    public let qisBase: URL?
-    public let qisStart: URL?
     public let casBase: URL?
     public let learnwebBase: URL?
     public let lsfBase: URL?
@@ -136,22 +134,22 @@ public struct UniversityProfile: Sendable, Hashable {
         default: known = false
         }
         guard known else { return nil }
-        let account = "\(keychainPrefix).\(service).\(field)"
-        return userScope.map { "\($0).\(account)" } ?? account
+        return Self.scoped("\(keychainPrefix).\(service).\(field)", userScope: userScope)
+    }
+
+    /// Nutzer-Praefix vor einem Schluesselbund-Namen ("u1a2b…." + Name); ohne `userScope` der Name selbst. Die eine
+    /// Stelle fuer das Praefix, auch fuer den Umzug alter Eintraege (`UniversityCredentialStore`).
+    public static func scoped(_ account: String, userScope: String?) -> String {
+        userScope.map { "\($0).\(account)" } ?? account
     }
 
     /// Alle Schluesselbund-Eintraege, die zu dieser Hochschule gehoeren koennen (zum Loeschen je Hochschule).
     public func ownsKeychainAccount(_ account: String) -> Bool { account.hasPrefix(keychainPrefix + ".") }
 
-    /// Wie `{"key", "name", ...}` aus `universities.PROFILES` fuer `/api/services`
+    /// `"university"` in `/api/services` wie api_services in app/server.py (diese sieben Felder aus `universities.PROFILES`)
     public var json: JSONValue {
-        var o: [String: JSONValue] = ["key": .string(key.rawValue), "name": .string(name), "short": .string(short),
-                                      "files_source": .string(filesSource), "grades_source": .string(gradesSource),
-                                      "login": .string(login), "user_label": .string(userLabel)]
-        if let casBase { o["cas_base"] = .string(casBase.absoluteString) }
-        if let learnwebBase { o["learnweb_base"] = .string(learnwebBase.absoluteString) }
-        if let lsfBase { o["lsf_base"] = .string(lsfBase.absoluteString) }
-        return .object(o)
+        ["key": .string(key.rawValue), "name": .string(name), "short": .string(short), "files_source": .string(filesSource),
+         "grades_source": .string(gradesSource), "login": .string(login), "user_label": .string(userLabel)]
     }
 
     public static let all: [UniversityProfile] = [luh, hildesheim]
@@ -172,7 +170,6 @@ public struct UniversityProfile: Sendable, Hashable {
 extension UniversityProfile {
     // Adressen wie app/universities.py, app/config.py (STUDIP_BASE), app/qis.py (QIS_BASE, QIS_START)
     static let luhStudIP = URL(string: "https://studip.uni-hannover.de")!
-    static let luhQIS = URL(string: "https://qis.verwaltung.uni-hannover.de")!
     static let luhQISStart = URL(string: "https://qis.verwaltung.uni-hannover.de/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?state=user&type=0&application=lsf")!
     /// WebSSO (Shibboleth-IdP) der LUH, entityID in app/studip_sync.py
     static let luhSSOHost = "sso.idm.uni-hannover.de"
@@ -183,6 +180,8 @@ extension UniversityProfile {
     /// Semesters selbst (`Learnweb.discoverBase`, jaehrlicher Wechsel learnweb2026 -> learnweb2027)
     public static let hildesheimLearnweb = URL(string: Learnweb.root + "/learnweb2026")!
     public static let hildesheimLSF = URL(string: "https://lsf.uni-hildesheim.de")!
+    /// Startseite des LSF (LSF_START in app/lsf.py), aus der Basis
+    public static let hildesheimLSFStart = URL(string: hildesheimLSF.absoluteString + "/qisserver/rds?state=user&type=0")!
 
     public static let luh = UniversityProfile(
         key: .luh, name: "Leibniz Universität Hannover", short: "LUH", filesSource: "Stud.IP", gradesSource: "QIS",
@@ -193,7 +192,7 @@ extension UniversityProfile {
                 entryURLs: [luhStudIP.appendingPathComponent("dispatch.php/login")],
                 // Stud.IP-Anmeldeseite und das WebSSO der LUH (Felder 'loginname' und 'password', app/studip_sync.py)
                 targets: [UniversityLoginTarget(host: luhSSOHost, pathPrefix: "/idp/"),
-                          UniversityLoginTarget(host: "studip.uni-hannover.de", pathPrefix: "/dispatch.php/login")],
+                          UniversityLoginTarget(host: luhStudIP.host ?? "", pathPrefix: "/dispatch.php/login")],
                 userSelectors: ["input[name='loginname']", "#loginname", "input[name='j_username']", "#username",
                                 "input[autocomplete='username']"],
                 passwordSelectors: ["input[name='password']", "#password"], prefillFallback: nil),
@@ -210,7 +209,7 @@ extension UniversityProfile {
         tokenServices: [],
         // SERVICES in app/server.py (gleich mit Python laut Fixture app-paths.json)
         services: [
-            UniversityServiceLink(key: "studip", name: "Stud.IP", url: "https://studip.uni-hannover.de/",
+            UniversityServiceLink(key: "studip", name: "Stud.IP", url: luhStudIP.absoluteString + "/",
                                   desc: "Kurse, Dateien, Termine, Ankündigungen", login: "WebSSO (LUH-ID)", icon: "book",
                                   connected: true, connector: false),
             UniversityServiceLink(key: "ilias", name: "ILIAS", url: "https://ilias.uni-hannover.de/",
@@ -246,7 +245,7 @@ extension UniversityProfile {
                                   url: "https://www.luis.uni-hannover.de/de/services/kurse-beratung-und-support/it-support",
                                   desc: "WLAN, VPN, Software, Zugänge", login: "–", icon: "settings", connected: false, connector: false),
         ],
-        studipBase: luhStudIP, qisBase: luhQIS, qisStart: luhQISStart, casBase: nil, learnwebBase: nil, lsfBase: nil)
+        studipBase: luhStudIP, casBase: nil, learnwebBase: nil, lsfBase: nil)
 
     public static let hildesheim = UniversityProfile(
         key: .hildesheim, name: "Universität Hildesheim", short: "Uni Hildesheim", filesSource: "Learnweb",
@@ -270,7 +269,7 @@ extension UniversityProfile {
             UniversityServiceLink(key: "learnweb", name: "Learnweb", url: hildesheimLearnweb.absoluteString + "/my/courses.php",
                                   desc: "Kurse, Folien, Skripte, Aufgaben (Moodle)", login: "UNI-Account (CAS)", icon: "book",
                                   connected: true, connector: false),
-            UniversityServiceLink(key: "lsf", name: "LSF", url: hildesheimLSF.absoluteString + "/qisserver/rds?state=user&type=0",
+            UniversityServiceLink(key: "lsf", name: "LSF", url: hildesheimLSFStart.absoluteString,
                                   desc: "Vorlesungsverzeichnis, Stundenplan, Notenspiegel, Prüfungsanmeldung",
                                   login: "UNI-Account (CAS)", icon: "exam", connected: false, connector: true),
             UniversityServiceLink(key: "lsf-ausfall", name: "Ausfälle & Raumwechsel",
@@ -280,6 +279,6 @@ extension UniversityProfile {
             UniversityServiceLink(key: "uni", name: "Uni Hildesheim", url: "https://www.uni-hildesheim.de/",
                                   desc: "Webseite der Universität", login: "–", icon: "info", connected: false, connector: false),
         ],
-        studipBase: nil, qisBase: hildesheimLSF, qisStart: URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0")!,
+        studipBase: nil,
         casBase: hildesheimCAS, learnwebBase: hildesheimLearnweb, lsfBase: hildesheimLSF)
 }

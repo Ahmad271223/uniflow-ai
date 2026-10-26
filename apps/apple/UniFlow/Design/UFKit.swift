@@ -525,14 +525,6 @@ struct UFDiffBadge: View {
     }
 }
 
-/// typeBadge(t): neutrale Badge mit Dokumenttyp
-struct UFTypeBadge: View {
-    let type: String?
-    var body: some View {
-        if let t = type, !t.isEmpty { UFBadge(ShellState.typeText[t] ?? t, tone: .neutral) }
-    }
-}
-
 extension UFFmt {
     /// initial(): "Mathematik für …" -> "MF", sonst die ersten zwei Zeichen gross
     static func initial(_ s: String?) -> String {
@@ -587,6 +579,9 @@ struct UFDateField: View {
                            displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .environment(\.locale, Locale(identifier: "de_DE"))
+                    // Tage in derselben Zeitzone wie Fmt.iso (Berlin), sonst zeigte er auf einem iPad in London den Vortag
+                    .environment(\.timeZone, Fmt.zone)
+                    .environment(\.calendar, Fmt.calendar)
                     .frame(width: 320)
                 HStack {
                     if allowEmpty { Button("Löschen") { iso = ""; open = false } }

@@ -42,46 +42,7 @@ enum HText {
     /// NFC-Normalform (Dateinamen aus Moodle kommen teils zerlegt: "u" + U+0308)
     static func nfc(_ s: String) -> String { s.precomposedStringWithCanonicalMapping }
 
-    /// Python `urllib.parse.quote(s, safe="")`: alles ausser A-Z a-z 0-9 _ . - ~ prozentkodiert (UTF-8).
-    static func quoteAll(_ s: String) -> String {
-        var out = ""
-        for b in s.utf8 {
-            switch b {
-            case 0x41...0x5A, 0x61...0x7A, 0x30...0x39, 0x5F, 0x2E, 0x2D, 0x7E: out.append(Character(UnicodeScalar(b)))
-            default: out += String(format: "%%%02X", b)
-            }
-        }
-        return out
-    }
-
     static func sha256Hex(_ s: String) -> String { SolutionSHA256.hex(Data(s.utf8)) }
-
-    /// Python `urllib.parse.unquote`: gueltige %XX-Folgen dekodieren, alles andere bleibt; ungueltiges UTF-8 wird
-    /// U+FFFD (nie ein Absturz bei kaputten Adressen).
-    static func unquote(_ s: String) -> String {
-        guard s.contains("%") else { return s }
-        func hex(_ c: UInt8) -> UInt8? {
-            switch c {
-            case 0x30...0x39: return c - 0x30
-            case 0x41...0x46: return c - 0x41 + 10
-            case 0x61...0x66: return c - 0x61 + 10
-            default: return nil
-            }
-        }
-        let b = Array(s.utf8)
-        var out: [UInt8] = []
-        var i = 0
-        while i < b.count {
-            if b[i] == 0x25, i + 2 < b.count, let h = hex(b[i + 1]), let l = hex(b[i + 2]) {
-                out.append(h << 4 | l)
-                i += 3
-            } else {
-                out.append(b[i])
-                i += 1
-            }
-        }
-        return String(decoding: out, as: UTF8.self)
-    }
 
     /// Pfad wie `urllib.parse.urlparse(url).path` (prozentkodiert, ohne Abfrage und Anker); auch fuer Adressen, die
     /// `URLComponents` ablehnt (Leerzeichen, kaputte Prozent-Folgen).
@@ -105,17 +66,7 @@ enum HText {
     /// `application/x-www-form-urlencoded` wie `urllib.parse.urlencode` (quote_plus: Leerzeichen als "+"), Reihenfolge
     /// wie uebergeben
     static func form(_ pairs: [(String, String)]) -> Data {
-        func enc(_ s: String) -> String {
-            var out = ""
-            for byte in s.utf8 {
-                switch byte {
-                case 0x41...0x5A, 0x61...0x7A, 0x30...0x39, 0x5F, 0x2E, 0x2D, 0x7E: out.append(Character(Unicode.Scalar(byte)))
-                case 0x20: out.append("+")
-                default: out += String(format: "%%%02X", byte)
-                }
-            }
-            return out
-        }
+        func enc(_ s: String) -> String { PyText.quote(s, safe: "", plus: true) }
         return Data(pairs.map { "\(enc($0.0))=\(enc($0.1))" }.joined(separator: "&").utf8)
     }
 }

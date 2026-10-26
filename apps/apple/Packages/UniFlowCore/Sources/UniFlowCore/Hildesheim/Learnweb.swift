@@ -10,24 +10,27 @@ public enum Learnweb {
         public let title: String
     }
 
-    /// Eine Datei im Format, das der Sync speichert. `chdate`: Aenderungszeit (REST) oder Revision (Sitzung).
+    /// Eine Datei im Format, das der Sync speichert. `chdate`: Aenderungszeit (REST); ueber die Sitzung nil, wie auch
+    /// `size`: dort gibt es nur die Pluginfile-Revision (`revision`, steigt beim Ersetzen), den Zeitpunkt bestimmt
+    /// `UniStore.versionStamp`. Frueher stand die Revision in `chdate`, das alle als Unix-Zeit lesen (Lehrwoche 1970).
     /// `author` nur mit Schluessel (REST), wie `files_from_contents`; `moduleName` wie `module_name` (Name der
     /// Ressource bzw. des Ordners im Kurs). `downloadURL` nie mit Schluessel (der kommt erst beim Abruf dazu).
     public struct File: Sendable, Equatable {
         public let id: String
         public let name: String
-        public let size: Int
+        public let size: Int?
         public let mime: String?
         public var author: String? = nil
-        public let chdate: Int
+        public let chdate: Int?
+        public var revision: Int? = nil
         public let downloadURL: String
         public let folder: String
         public var moduleName: String? = nil
 
         /// Zeile fuer `UniStore.storeFiles`; Ordner nur, wenn vorhanden (wie `folders` in hildesheim.sync_learnweb)
         public var row: UniStore.FileRow {
-            UniStore.FileRow(id: id, name: name, size: size, mime: mime, author: author, chdate: chdate, downloadURL: downloadURL,
-                             folder: folder.isEmpty ? nil : folder)
+            UniStore.FileRow(id: id, name: name, size: size, mime: mime, author: author, chdate: chdate, revision: revision,
+                             downloadURL: downloadURL, folder: folder.isEmpty ? nil : folder)
         }
     }
 
@@ -47,7 +50,7 @@ public enum Learnweb {
     private static let forceDownloadRE = HText.regex("[?&]forcedownload=1")
     private static let twoDigitsRE = HText.regex("^\\d{1,2}$")
 
-    /// "SoSe 2026: 0406 Theorien ..." -> Semester, Veranstaltungsnummer (wie im LSF), Titel (mit Nummer)
+    /// "SoSe 2026: 9406 Theorien ..." -> Semester, Veranstaltungsnummer (wie im LSF), Titel (mit Nummer)
     public static func parseCourseTitle(_ fullname: String) -> CourseTitle {
         var t = HText.collapse(fullname)
         var sem = ""
@@ -83,24 +86,8 @@ public enum Learnweb {
     // Den Schluessel haengt der Abruf nicht an die Adresse (`with_token` am PC), sondern schickt ihn im Koerper
     // (`LearnwebAPI.downloadRequest`): Schluessel nie in Adressen.
 
-    /// `mimetypes.guess_type` fuer die ueblichen Dateien in Lernplattformen; sonst nil
-    public static func guessMime(_ name: String) -> String? {
-        guard let dot = name.lastIndex(of: "."), dot != name.startIndex else { return nil }
-        return mimeTypes[name[name.index(after: dot)...].lowercased()]
-    }
-
-    static let mimeTypes: [String: String] = [
-        "pdf": "application/pdf", "txt": "text/plain", "csv": "text/csv", "html": "text/html", "htm": "text/html",
-        "json": "application/json", "xml": "text/xml", "zip": "application/zip", "py": "text/x-python",
-        "doc": "application/msword", "dot": "application/msword",
-        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "ppt": "application/vnd.ms-powerpoint",
-        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "xls": "application/vnd.ms-excel",
-        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "svg": "image/svg+xml",
-        "mp3": "audio/mpeg", "mp4": "video/mp4",
-    ]
+    /// `mimetypes.guess_type(name)[0]`: die eine Tabelle des Kerns (`LocalFileResponse.guess`); sonst nil
+    public static func guessMime(_ name: String) -> String? { LocalFileResponse.guess(name) }
 
     /// Pluginfile-Link -> Bereich, Revision (steigt beim Ersetzen), Pfad und Dateiname (dekodiert wie
     /// `urllib.parse.unquote`, NFC). Pfad wie `urlparse(url).path`, auch bei Adressen, die `URLComponents` ablehnt.
@@ -108,7 +95,7 @@ public enum Learnweb {
         let path = HText.urlPath(url)
         guard let m = HText.match(pluginRE, path), let area = m.groups[1], let revText = m.groups[2], let rev = Int(revText),
               let rest = m.groups[3] else { return nil }
-        let parts = rest.split(separator: "/").map { HText.nfc(HText.unquote(String($0))) }
+        let parts = rest.split(separator: "/").map { HText.nfc(PyText.unquote(String($0))) }
         guard let filename = parts.last else { return nil }
         let filepath = "/" + parts.dropLast().joined(separator: "/") + (parts.count > 1 ? "/" : "")
         return Pluginfile(area: area, revision: rev, filepath: filepath, filename: filename)
@@ -129,9 +116,11 @@ public enum Learnweb {
                     let fp = (c["filepath"]?.string).flatMap { $0.isEmpty ? nil : $0 } ?? "/"
                     let raw = HText.nfc(c["filename"]?.string ?? "")
                     let name = raw.isEmpty ? "datei" : raw
+                    // Revision mitspeichern: wechselt der Abgleich zur Sitzung, vergleicht er sie (`UniStore.versionStamp`)
                     out.append(File(id: fileID(cmid: cmid, filepath: fp, filename: name), name: name,
                                     size: c["filesize"]?.int ?? 0, mime: (c["mimetype"]?.string).flatMap { $0.isEmpty ? nil : $0 } ?? guessMime(name),
-                                    author: c["author"]?.string, chdate: c["timemodified"]?.int ?? 0, downloadURL: stripForceDownload(fileurl),
+                                    author: c["author"]?.string, chdate: c["timemodified"]?.int ?? 0,
+                                    revision: parsePluginfile(fileurl)?.revision, downloadURL: stripForceDownload(fileurl),
                                     folder: HText.nfc(joinFolder(base, fp)), moduleName: mod["name"]?.string))
                 }
             }
@@ -139,7 +128,8 @@ public enum Learnweb {
         return out
     }
 
-    /// `core_courseformat_get_state` (Sitzung) -> Dateien; Links liefern die Callbacks je cmid.
+    /// `core_courseformat_get_state` (Sitzung) -> Dateien; Links liefern die Callbacks je cmid. Ohne Aenderungszeit
+    /// und Groesse, mit der Revision (siehe `File`).
     public static func filesFromState(_ state: JSONValue, resourceLinks: (String) -> [String], folderLinks: (String) -> [String]) -> [File] {
         var sections: [String: JSONValue] = [:]
         for s in state["section"]?.array ?? [] { sections[s["id"].map(idString) ?? ""] = s }
@@ -154,8 +144,8 @@ public enum Learnweb {
             let base = module == "resource" ? secName : joinFolder(secName, cm["name"]?.string ?? "")
             for url in links {
                 guard let p = parsePluginfile(url) else { continue }
-                out.append(File(id: fileID(cmid: cmid, filepath: p.filepath, filename: p.filename), name: p.filename, size: 0,
-                                mime: guessMime(p.filename), chdate: p.revision, downloadURL: stripForceDownload(url),
+                out.append(File(id: fileID(cmid: cmid, filepath: p.filepath, filename: p.filename), name: p.filename, size: nil,
+                                mime: guessMime(p.filename), chdate: nil, revision: p.revision, downloadURL: stripForceDownload(url),
                                 folder: joinFolder(base, p.filepath), moduleName: cm["name"]?.string))
             }
         }

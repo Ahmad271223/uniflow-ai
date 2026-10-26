@@ -6,16 +6,18 @@ import UniFlowCore
 /// Letzte erfolgreiche Serverantwort je Pfad, damit Ansichten auch ohne WLAN etwas zeigen.
 struct ResponseCache {
     /// Zwischenspeicher des aktiven Containers (je Apple-Nutzer und Hochschule getrennt)
-    static var shared: ResponseCache { ActiveContainer.current?.cache ?? ResponseCache(root: ContainerPaths.none.appendingPathComponent("cache", isDirectory: true)) }
+    static var shared: ResponseCache { ActiveContainer.current?.cache ?? ResponseCache(root: DataContainerLayout.Folder.cache.url(in: ContainerPaths.none)) }
     let root: URL
 
     private func url(_ path: String) -> URL {
-        let name = SHA256.hash(data: Data(path.utf8)).prefix(16).map { String(format: "%02x", $0) }.joined()
+        let name = SolutionSHA256.hexString(Array(SHA256.hash(data: Data(path.utf8)).prefix(16)))
         return root.appendingPathComponent(name + ".json")
     }
 
     func store(_ value: JSONValue, for path: String) {
-        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        // nur im bestehenden Container: ist er inzwischen geloescht ("Konto löschen", "Daten dieser Hochschule
+        // löschen", waehrend die Antwort unterwegs war), entsteht kein Ordner <Container>/cache ohne Kennzeichnung
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         try? value.serialized().write(to: url(path), options: .atomic)     // nur Zwischenspeicher: Fehler sind unkritisch
     }
 
@@ -113,30 +115,33 @@ struct Row: Identifiable {
 }
 
 enum Fmt {
-    static let iso: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
+    /// Zeitzone aller Tage der Oberflaeche: dieselbe wie im lokalen Backend (`UniFlowClock`, Europe/Berlin) und am
+    /// PC-Server. Mit der Zeitzone des Geraets lag "heute" auf einem iPad ausserhalb Berlins um Mitternacht einen Tag
+    /// neben dem Backend (Lernplan ab gestern, Tagesmarkierung am Vortag).
+    static let zone = TimeZone(identifier: "Europe/Berlin") ?? .current
+
+    /// Kalender fuer Tagesrechnungen (Woche ab Montag) in `zone`
+    static let calendar: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = zone
+        c.firstWeekday = 2
+        return c
     }()
+
+    /// Datumsformat in `zone` (deutsche Namen, sonst `locale`)
+    static func formatter(_ format: String, locale: String = "de_DE") -> DateFormatter {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: locale)
+        f.timeZone = zone
+        f.dateFormat = format
+        return f
+    }
+
+    static let iso = formatter("yyyy-MM-dd", locale: "en_US_POSIX")
 
     static func date(_ s: String?) -> Date? { s.flatMap { iso.date(from: String($0.prefix(10))) } }
 
-    static func day(_ s: String?, style: String = "EEEE, d. MMMM") -> String {
-        guard let d = date(s) else { return s ?? "" }
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = style
-        return f.string(from: d)
-    }
-
     static func isoDay(_ d: Date) -> String { iso.string(from: d) }
-
-    static func minutes(_ m: Double?) -> String {
-        guard let m, m > 0 else { return "–" }
-        let h = Int(m) / 60, r = Int(m) % 60
-        return h > 0 ? (r > 0 ? "\(h) h \(r) min" : "\(h) h") : "\(r) min"
-    }
 
     static func relative(_ d: Date) -> String {
         let f = RelativeDateTimeFormatter()

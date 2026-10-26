@@ -366,7 +366,7 @@ DEFAULT_SETTINGS = {
     "subjects_per_day": "2",
     "parts_lecture": "1",
     "parts_exercise": "1",
-    "tests_per_subject": "1",
+    "tests_per_subject": "0",      # ohne Testaufgaben (Entscheidung 2 vom 25.10.2026, keine KI noetig)
     "test_minutes": "45",
     "break_minutes": "15",
     "exam_priority": "1",
@@ -462,6 +462,9 @@ def _init_db(conn) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS ix_tests_share_key ON tests(share_key)")
     # Hoechstens ein automatischer Wochentest pro Modul und Lehrwoche
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1")
+    # Learnweb: Pluginfile-Revision (steigt beim Ersetzen); erkennt ueber die Sitzung eine neue Fassung, chdate bleibt
+    # eine Unix-Zeit (studip_sync.version_stamp)
+    add_col("files", "revision", "INTEGER")
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                     VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))
@@ -510,7 +513,7 @@ def get_settings(conn: sqlite3.Connection) -> dict:
     out["test_default_minutes"] = int(s.get("test_default_minutes", 90))
     out["auto_plan"] = s.get("auto_plan", "1") == "1"
     out["auto_tests"] = s.get("auto_tests", "1") == "1"
-    for k, d in (("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 1),
+    for k, d in (("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 0),
                  ("test_minutes", 45), ("break_minutes", 15)):
         try:
             out[k] = int(s.get(k, d))

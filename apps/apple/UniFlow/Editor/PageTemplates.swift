@@ -6,11 +6,12 @@ import UniFlowCore
 /// Liegt in `PageObjectsView` ganz unten, also unter Text, Formen und der Tinte.
 /// Der PDF-Export nutzt weiter `ObjectGeometry.templatePath` (entspricht `drawTemplatePdf` im Web).
 enum PaperTemplate {
-    /// Auswahl beim Einfuegen (gleiche Schluessel und Namen wie TEMPLATES im Web-Editor).
-    static let choices: [(id: String, name: String)] = [
-        ("blank", "Leer"), ("lined", "Liniert"), ("grid", "Kariert"),
-        ("dotted", "Gepunktet"), ("mm", "Millimeter"), ("cornell", "Cornell"),
-    ]
+    /// Namen wie TEMPLATES im Web-Editor
+    static let names = ["blank": "Leer", "lined": "Liniert", "grid": "Kariert", "dotted": "Gepunktet", "mm": "Millimeter",
+                        "cornell": "Cornell"]
+
+    /// Die eine Auswahl der Vorlagen (Leere Seite im Editor, neues Notizbuch): Kennungen aus `PageOrder.templates`
+    static let choices: [(id: String, name: String)] = PageOrder.templates.map { ($0, names[$0] ?? $0) }
 
     static func isKnown(_ template: String) -> Bool { PageOrder.templates.contains(template) }
 

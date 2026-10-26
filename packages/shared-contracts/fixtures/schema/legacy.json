@@ -234,7 +234,8 @@
           {"name": "deleted_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "page_count", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
-          {"name": "content_sha256", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "content_sha256", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "revision", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "courses", "from": "course_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
@@ -321,7 +322,8 @@
           {"name": "file_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 1},
           {"name": "page", "type": "INTEGER", "notnull": 1, "default": null, "pk": 2},
           {"name": "text", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "search", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -591,48 +593,48 @@
       {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "created_at": "2026-09-01T07:00:00", "module_id": null}
     ],
     "files": [
-      {"id": "f1", "course_id": "k1", "name": "Folien_01.pdf", "size": 1024, "mime": "application/pdf", "author": null, "chdate": 1760000000, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "gelesen", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
-      {"id": "f2", "course_id": "k2", "name": "blatt1.py", "size": null, "mime": "text/x-python", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": "Uebungen", "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
-      {"id": "f3", "course_id": "k2", "name": "Skizze.PNG", "size": null, "mime": "image/png", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
-      {"id": "f4", "course_id": "k1", "name": "archiv.zip", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
-      {"id": "f5", "course_id": "k1", "name": "Tafel.JPeG", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
-      {"id": "f6", "course_id": "k1", "name": "Altklausur.PDF", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null},
-      {"id": "u1", "course_id": "__user__", "name": "Mein Notizbuch", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null}
+      {"id": "f1", "course_id": "k1", "name": "Folien_01.pdf", "size": 1024, "mime": "application/pdf", "author": null, "chdate": 1760000000, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "gelesen", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
+      {"id": "f2", "course_id": "k2", "name": "blatt1.py", "size": null, "mime": "text/x-python", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": "Uebungen", "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
+      {"id": "f3", "course_id": "k2", "name": "Skizze.PNG", "size": null, "mime": "image/png", "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
+      {"id": "f4", "course_id": "k1", "name": "archiv.zip", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "file", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
+      {"id": "f5", "course_id": "k1", "name": "Tafel.JPeG", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "image", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
+      {"id": "f6", "course_id": "k1", "name": "Altklausur.PDF", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
+      {"id": "u1", "course_id": "__user__", "name": "Mein Notizbuch", "size": null, "mime": null, "author": null, "chdate": null, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "neu", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null}
     ],
     "annotations": [
-      {"file_id": "f1", "data": "{\"version\":2,\"pages\":{}}", "updated_at": "2026-10-02T10:00:00", "version": 3, "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.827Z", "sync_device": null},
-      {"file_id": "f6", "data": "{\"version\":2,\"pages\":{\"p1\":{\"objects\":[]}}}", "updated_at": "2026-10-03T11:00:00", "version": 1, "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.827Z", "sync_device": null}
+      {"file_id": "f1", "data": "{\"version\":2,\"pages\":{}}", "updated_at": "2026-10-02T10:00:00", "version": 3, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"file_id": "f6", "data": "{\"version\":2,\"pages\":{\"p1\":{\"objects\":[]}}}", "updated_at": "2026-10-03T11:00:00", "version": 1, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null}
     ],
     "tests": [
       {"id": 1, "subject": "Algebra", "week_start": null, "title": "Probetest", "duration_min": 45, "questions": "[]", "created_at": null, "started_at": null, "submitted_at": null, "answers": null, "score": 7.5, "max_score": null, "feedback": null, "module_id": null, "week_no": null, "auto": 0, "share_key": null}
     ],
     "settings": [
-      {"key": "hours_per_day", "value": "6", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "user_name", "value": "Testperson", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "eigener_schluessel", "value": "x", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "university", "value": "luh", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "free_days", "value": "[6]", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "day_start", "value": "09:00", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "test_default_minutes", "value": "90", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "auto_plan", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "auto_tests", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "subjects_per_day", "value": "2", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "parts_lecture", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "parts_exercise", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "tests_per_subject", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "test_minutes", "value": "45", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "break_minutes", "value": "15", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "exam_priority", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "auto_suggest", "value": "1", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "theme", "value": "auto", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "lan_pin", "value": "", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "learn_start", "value": "08:00", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "learn_end", "value": "21:00", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "travel_minutes", "value": "30", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "min_slot_minutes", "value": "30", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "blocked_times", "value": "[]", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "pen_input", "value": "all", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null},
-      {"key": "hand", "value": "right", "sync_version": 1, "sync_updated_at": "2026-10-26T12:00:19.825Z", "sync_device": null}
+      {"key": "hours_per_day", "value": "6", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "user_name", "value": "Testperson", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "eigener_schluessel", "value": "x", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "university", "value": "luh", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "free_days", "value": "[6]", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "day_start", "value": "09:00", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "test_default_minutes", "value": "90", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "auto_plan", "value": "1", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "auto_tests", "value": "1", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "subjects_per_day", "value": "2", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "parts_lecture", "value": "1", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "parts_exercise", "value": "1", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "tests_per_subject", "value": "0", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "test_minutes", "value": "45", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "break_minutes", "value": "15", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "exam_priority", "value": "1", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "auto_suggest", "value": "1", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "theme", "value": "auto", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "lan_pin", "value": "", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "learn_start", "value": "08:00", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "learn_end", "value": "21:00", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "travel_minutes", "value": "30", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "min_slot_minutes", "value": "30", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "blocked_times", "value": "[]", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "pen_input", "value": "all", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "hand", "value": "right", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null}
     ],
     "terms": [
       {"id": 1, "name": "WiSe 2026/27", "start": "2026-10-12", "end": "2027-01-30", "active": 1}

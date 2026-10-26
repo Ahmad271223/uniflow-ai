@@ -125,8 +125,6 @@ final class UFRouter: ObservableObject {
 
     func go(hash: String) { go(UFRoute(hash: hash)) }
 
-    var canGoBack: Bool { !history.isEmpty }
-
     func back() {
         if let r = history.popLast() { route = r }
     }
@@ -150,6 +148,15 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "services", title: "Uni & Noten", icon: "graduation", route: .services),
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
+
+    /// Eintraege der Seitenleiste. Ohne PC (lokales Backend) nur Bereiche mit Funktion (App Review 2.1/2.2): ohne
+    /// "Tests & Wiederholung" (Wochentests entfallen in V1, eigene Karteikarten "bald"), ohne "Community" (kein Dienst;
+    /// Loesungen teilt man im Editor als Datei) und "Uni & Noten" nur, wo der Notenspiegel auf dem Geraet ankommt
+    /// (`gradesOnDevice`: Uni Hildesheim, LSF); an der LUH zeigte die Seite bis F4 nur "spätere Version".
+    static func visible(local: Bool, gradesOnDevice: Bool) -> [UFNavItem] {
+        guard local else { return main }
+        return main.filter { $0.id != "exams" && $0.id != "community" && ($0.id != "services" || gradesOnDevice) }
+    }
 
     /// untere Leiste (mobileNav in app.js)
     static let mobile: [UFNavItem] = [
@@ -208,6 +215,8 @@ struct AppShell<Content: View>: View {
 
 struct UFSidebar: View {
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
     @AppStorage("sidebar") private var sidebarMode = "full"
     let collapsed: Bool
     let allowCollapse: Bool
@@ -218,14 +227,15 @@ struct UFSidebar: View {
                 RoundedRectangle(cornerRadius: 9).fill(UF.logoGradient)
                     .frame(width: 30, height: 30)
                     .overlay(UFIcon("graduation", size: 18).foregroundStyle(.white))
-                if !collapsed { Text("UniFlow AI").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
+                if !collapsed { Text("UniFlow").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
             }
             .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 14.4, trailing: 8))
             .frame(maxWidth: .infinity, alignment: collapsed ? .center : .leading)
 
             ScrollView(showsIndicators: false) {                         // .nav scrollt selbst, Fuss bleibt fest
                 VStack(spacing: 4) {
-                    ForEach(UFNavItem.main) { item in
+                    // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): Hochschule ohne Stud.IP
+                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: !studip.offersStudIP)) { item in
                         navRow(item.title, icon: item.icon, active: router.route.navKey == item.id) { router.go(item.route) }
                     }
                 }

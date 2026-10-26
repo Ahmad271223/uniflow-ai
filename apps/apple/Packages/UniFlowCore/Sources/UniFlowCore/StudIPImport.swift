@@ -34,38 +34,39 @@ public struct StudIPLocalEntry: Sendable, Equatable, Codable {
     }
 }
 
-public struct StudIPImportPlan: Sendable, Equatable {
-    /// neu in Stud.IP oder seit dem letzten Download geaendert (Groesse, Aenderungszeit) oder lokal verschwunden
-    public var download: [StudIPFile] = []
-    public var unchanged = 0
-    /// in Stud.IP sichtbar, aber nicht herunterladbar (z. B. gesperrt)
-    public var notDownloadable: [StudIPFile] = []
-    /// lokal vorhanden, in einem abgeglichenen Kurs aber nicht mehr gefunden. Wird nur gemeldet, nie geloescht.
-    public var goneRemotely: [String] = []
-
-    public init() {}
-}
+// Welche Dateien geladen werden, entscheidet die Datenbank (`UniStore.storeFiles`); "in Stud.IP nicht mehr
+// vorhanden" ebenso (`StudIPLibrary.goneRemotely`). Die frueheren eigenen Regeln (`plan`, nach Groesse und
+// Aenderungstext aus index.json) gibt es nicht mehr.
 
 public enum StudIPImport {
-    /// Vergleicht die Dateiliste aus Stud.IP mit dem lokalen Stand. `checkedCourses` sind die Kurse, deren Liste in
-    /// diesem Durchgang vollstaendig geladen wurde; nur dort gilt "nicht mehr gefunden".
-    public static func plan(remote: [StudIPFile], local: [String: StudIPLocalEntry], checkedCourses: Set<String>,
-                            fileExists: (String) -> Bool) -> StudIPImportPlan {
-        var p = StudIPImportPlan()
-        var remoteIDs = Set<String>()
-        for f in remote {
-            remoteIDs.insert(f.id)
-            guard f.isDownloadable else { p.notDownloadable.append(f); continue }
-            if let l = local[f.id], l.size == f.size, l.changed == f.changed, fileExists(l.relativePath) {
-                p.unchanged += 1
-            } else {
-                p.download.append(f)
-            }
+    /// Auswahl der abzugleichenden Kurse nach einer Kursliste aus Stud.IP
+    public struct Selection: Sendable, Equatable {
+        /// abzugleichende Kurse
+        public var selected: Set<String>
+        /// alle Kurse, die der Abgleich je gesehen hat (abgewaehlt = bekannt und nicht ausgewaehlt)
+        public var known: Set<String>
+        /// neue Kurse aelterer Semester, die nicht von selbst dazukamen ("n neue Kurse – auswählen")
+        public var newUnselected: [StudIPCourse]
+    }
+
+    /// Kursauswahl wie run_sync (Python gleicht alle Kurse ab, gefiltert nur mit SEMESTER_FILTER), aber mit Wahl:
+    /// - erster Abgleich (`known` nil): Vorauswahl des juengsten Semesters (`defaultSelection`), eine schon getroffene
+    ///   Auswahl bleibt; alle Kurse gelten danach als bekannt
+    /// - danach kommen neue Kurse des juengsten Semesters von selbst dazu (spaeter belegt, naechstes Semester), neue
+    ///   aeltere werden nur gemeldet; abgewaehlte bleiben abgewaehlt, eine leere Auswahl bleibt leer
+    /// Vorher legte nur der erste Abgleich die Auswahl fest: neue Kurse kamen still nie an, und wer alles abwaehlte,
+    /// bekam beim naechsten Lauf wieder die Vorauswahl.
+    public static func selection(courses: [StudIPCourse], selected: Set<String>, known: Set<String>?) -> Selection {
+        let ids = Set(courses.map(\.id))
+        guard let known else {
+            return Selection(selected: selected.isEmpty ? defaultSelection(courses) : selected, known: ids, newUnselected: [])
         }
-        p.goneRemotely = local.values
-            .filter { checkedCourses.contains($0.courseID) && !remoteIDs.contains($0.id) }
-            .map(\.id).sorted()
-        return p
+        let newest = courses.compactMap(\.semesterStart).max()
+        var out = Selection(selected: selected, known: known.union(ids), newUnselected: [])
+        for c in courses where !known.contains(c.id) {
+            if newest == nil || c.semesterStart == nil || c.semesterStart == newest { out.selected.insert(c.id) } else { out.newUnselected.append(c) }
+        }
+        return out
     }
 
     /// Dateiname ohne Pfadtrenner und Steuerzeichen, hoechstens 120 Zeichen, Endung bleibt erhalten.
@@ -93,8 +94,11 @@ public enum StudIPImport {
     }
 
     /// Ablageort einer Datei: je Datei-ID ein eigener Ordner, damit gleich benannte Dateien sich nicht ueberschreiben.
-    public static func relativePath(for f: StudIPFile) -> String {
-        "files/\(safeFileName(f.id))/\(safeFileName(f.name))"
+    public static func relativePath(for f: StudIPFile) -> String { relativePath(fileID: f.id, name: f.name) }
+
+    /// Ablageort einer Datei im Ordner ihrer Quelle (Stud.IP, Learnweb): "files/<id>/<Name>", beides bereinigt
+    public static func relativePath(fileID: String, name: String) -> String {
+        "files/\(safeFileName(fileID))/\(safeFileName(name))"
     }
 
     /// Vorauswahl beim ersten Abgleich: Kurse des juengsten Startsemesters (aeltere Semester bleiben aus).

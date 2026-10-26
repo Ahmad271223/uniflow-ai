@@ -5,9 +5,14 @@ import Foundation
 /// IF NOT EXISTS / OR IGNORE), also bei jedem Start gefahrlos.
 ///
 /// Reihenfolge wie in Python: Schema, Hochschule der Datenbank, Standardeinstellungen, die add_col-Folge mit der Korrektur der Dateiart
-/// mittendrin, Index, Pseudokurs `__user__`, Standardsemester. Dazu `page_texts`, die Python erst bei der ersten
-/// Skriptsuche anlegt. Aenderungen immer zuerst in app/db.py, dann hier und in den Fixtures
+/// mittendrin, Index, Pseudokurs `__user__`, Standardsemester (`ensure_term`). Dazu `page_texts`, die Python erst bei
+/// der ersten Skriptsuche anlegt. Aenderungen immer zuerst in app/db.py, dann hier und in den Fixtures
 /// (tools/gen-swift-schema.py, tools/gen-schema-fixture.py).
+///
+/// Bekannte Abweichung: `sync.ensure_schema` (Vertrag G2, Geraete-Synchronisierung ueber UniFlow-Konten: Spalten
+/// sync_version/sync_updated_at/sync_device, Trigger, Tabelle sync_tombstones) laeuft am PC am Ende von `init_db`.
+/// Das iPad V1 hat keine Konten und keinen Geraete-Sync; die Spalten kommen mit G2 (SQLiteStoreTests markiert den
+/// Unterschied als erwartete Abweichung).
 public enum Migrations {
     /// `DEFAULT_SETTINGS` aus app/db.py, in derselben Reihenfolge (gleiche rowid-Folge in `settings`).
     public static let defaultSettings: [(key: String, value: String)] = [
@@ -21,7 +26,7 @@ public enum Migrations {
         ("subjects_per_day", "2"),
         ("parts_lecture", "1"),
         ("parts_exercise", "1"),
-        ("tests_per_subject", "1"),
+        ("tests_per_subject", "0"),      // ohne Testaufgaben (Entscheidung 2 vom 25.10.2026, keine KI noetig)
         ("test_minutes", "45"),
         ("break_minutes", "15"),
         ("exam_priority", "1"),
@@ -77,14 +82,19 @@ public enum Migrations {
         .addColumn("tests", "auto", "INTEGER DEFAULT 0"),
         .addColumn("tests", "share_key", "TEXT"),               // gemeinsamer Wochentest (app/testshare.py)
         .addColumn("files", "content_sha256", "TEXT"),          // Inhalts-Hash fuer gemeinsame Tests
+        .addColumn("deadlines", "full_title", "TEXT"),          // Learnweb-Name mit Zeitangabe (Tooltip)
+        .addColumn("deadlines", "overdue", "INTEGER DEFAULT 0"),  // laut Learnweb ueberfaellig und nicht erledigt
         .sql("CREATE INDEX IF NOT EXISTS ix_tests_share_key ON tests(share_key)"),
         // Hoechstens ein automatischer Wochentest pro Modul und Lehrwoche
         .sql("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"),
+        // Learnweb: Pluginfile-Revision (steigt beim Ersetzen); erkennt ueber die Sitzung eine neue Fassung, chdate bleibt
+        // eine Unix-Zeit (studip_sync.version_stamp, UniStore.versionStamp)
+        .addColumn("files", "revision", "INTEGER"),
     ]
 
-    /// Reine Geraete-Umzuege ueber `PRAGMA user_version`: nur fuer kuenftige Aenderungen, die es in app/db.py nicht
-    /// gibt (etwa Tabellen nur fuer das Geraet). Alles aus Python laeuft oben ohne Versionsnummer, damit eine
-    /// Datenbank vom PC und eine vom Geraet gleich behandelt werden. Heute leer.
+    /// Reine Geraete-Umzuege ueber `PRAGMA user_version`: nur fuer Aenderungen, die es in app/db.py nicht gibt (etwa
+    /// Tabellen oder Werte nur fuer das Geraet). Alles aus Python laeuft oben ohne Versionsnummer, damit eine
+    /// Datenbank vom PC und eine vom Geraet gleich behandelt werden; jeder Schritt laeuft genau einmal je Datenbank.
     public struct DeviceStep: Sendable {
         public let version: Int32
         public let apply: @Sendable (SQLiteConnection) throws -> Void
@@ -95,7 +105,58 @@ public enum Migrations {
         }
     }
 
-    public static let deviceSteps: [DeviceStep] = []
+    public static let deviceSteps: [DeviceStep] = [
+        // 1: ohne PC keine Wochentests (Entscheidung 2 vom 25.10.2026). Der Standard 0 gilt ueber INSERT OR IGNORE nur
+        // fuer neue Datenbanken; eine aus einem Build vor S6 (oder vom PC) behielt '1': "Plan erstellen" legte
+        // Wochentest-Aufgaben an, deren "Test starten" mit 404 scheiterte (Korrektur vom 26.10.2026). Danach
+        // speichert die Lernkombination ohne PC immer 0.
+        DeviceStep(version: 1) { try $0.execute("UPDATE settings SET value='0' WHERE key='tests_per_subject'") },
+    ]
+
+    /// Vorlesungszeiten je Hochschule wie `holidays.SEMESTERS` in app/holidays.py (Name, Beginn, Ende; die Pausen
+    /// darin braucht die Migration nicht). Erweiterungen zuerst dort, dann hier.
+    static let semesters: [String: [(name: String, start: String, end: String)]] = [
+        "luh": [
+            ("SoSe 2026", "2026-04-07", "2026-07-18"),
+            ("WiSe 2026/27", "2026-10-12", "2027-01-30"),
+            ("SoSe 2027", "2027-04-05", "2027-07-17"),
+            ("WiSe 2027/28", "2027-10-11", "2028-01-29"),
+            ("SoSe 2028", "2028-04-18", "2028-07-29"),
+            ("WiSe 2028/29", "2028-10-09", "2029-01-27"),
+        ],
+        "hildesheim": [
+            ("SoSe 2026", "2026-04-07", "2026-07-17"),
+            ("WiSe 2026/27", "2026-10-19", "2027-02-05"),
+            ("SoSe 2027", "2027-04-05", "2027-07-16"),
+            ("WiSe 2027/28", "2027-10-11", "2028-02-04"),
+            ("SoSe 2028", "2028-04-18", "2028-07-28"),
+            ("WiSe 2028/29", "2028-10-09", "2029-02-02"),
+            ("SoSe 2029", "2029-04-09", "2029-07-20"),
+            ("WiSe 2029/30", "2029-10-08", "2030-02-01"),
+            ("SoSe 2030", "2030-04-15", "2030-07-26"),
+        ],
+    ]
+
+    /// `holidays.default_term`: laufendes oder naechstes Semester laut Zeitplan; nil, wenn der Zeitplan nichts
+    /// (mehr) kennt.
+    static func defaultTerm(university: String, today: String) -> (name: String, start: String, end: String)? {
+        semesters[university]?.first { $0.end >= today }
+    }
+
+    /// `db.ensure_term`: Semester fuer den Stundenplan. Frueher stand hier fuer alle Hochschulen die LUH-Vorlesungszeit;
+    /// diese unveraenderte Vorgabe wird bei anderen Hochschulen korrigiert. Ein vom Nutzer eingetragenes Semester bleibt.
+    static func ensureTerm(_ conn: SQLiteConnection, university: String, today: String) throws {
+        let term = defaultTerm(university: university, today: today) ?? ("WiSe 2026/27", "2026-10-12", "2027-01-30")
+        let values: [SQLiteValue] = [.text(term.name), .text(term.start), .text(term.end)]
+        if try conn.queryOne("SELECT 1 FROM terms") == nil {
+            try conn.execute("INSERT INTO terms(name, start, end, active) VALUES (?, ?, ?, 1)", values)
+        } else if university != "luh" {
+            try conn.execute("""
+                UPDATE terms SET name=?, start=?, end=? WHERE name='WiSe 2026/27' AND start='2026-10-12' AND end='2027-01-30'
+                AND (SELECT COUNT(*) FROM terms)=1
+                """, values)
+        }
+    }
 
     /// Hochschule ohne Wahl (`universities.DEFAULT`, `config.UNIVERSITY` in Python; eine Quelle: `UniversityKey`)
     public static let defaultUniversity = UniversityKey.default.rawValue
@@ -133,10 +194,12 @@ public enum Migrations {
                 INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                 VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)
                 """, [.text(clock.nowISO)])
-            if try conn.queryOne("SELECT 1 FROM terms") == nil {
-                try conn.execute("INSERT INTO terms(name, start, end, active) VALUES ('WiSe 2026/27', '2026-10-12', '2027-01-30', 1)")
-            }
+            try ensureTerm(conn, university: university, today: clock.today)
             try conn.executeScript(SchemaSQL.pageTexts)
+            // wie ensure_table: Suchform der Seitentexte (kam spaeter dazu; aeltere Zeilen fuellt `ScriptSearch.findPages`)
+            if !(try conn.columnNames("page_texts")).contains("search") {
+                try conn.execute("ALTER TABLE page_texts ADD COLUMN search TEXT")
+            }
 
             var version = try conn.scalar("PRAGMA user_version")?.int64 ?? 0
             for step in deviceSteps.sorted(by: { $0.version < $1.version }) where Int64(step.version) > version {

@@ -89,12 +89,18 @@ final class LearnwebTests: XCTestCase {
         XCTAssertEqual(Learnweb.guessMime("Vorlesung.mp4"), "video/mp4")
         XCTAssertNil(Learnweb.guessMime("ohne-endung"))
         XCTAssertNil(Learnweb.guessMime(".versteckt"))
+        // dieselbe Tabelle wie die Dateiantworten (mimetypes): Bilder wie .bmp/.tif/.heic werden Art "image" wie am PC
+        for (name, mime) in [("Skizze.bmp", "image/bmp"), ("Scan.tif", "image/tiff"), ("Foto.HEIC", "image/heic"), ("a.avif", "image/avif"),
+                             ("b.webp", "image/webp"), ("Notizen.md", "text/markdown"), ("Clip.mov", "video/quicktime"), ("Vorlage.dot", "application/msword")] {
+            XCTAssertEqual(Learnweb.guessMime(name), mime, name)
+        }
+        XCTAssertEqual(UniRules.fileKind(name: "Skizze.bmp", mime: Learnweb.guessMime("Skizze.bmp")), "image")
         XCTAssertEqual(Learnweb.stripForceDownload("https://x/a.pdf?forcedownload=1"), "https://x/a.pdf")
     }
 
     func testParsePluginfileLikePython() {
-        let p = Learnweb.parsePluginfile("https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/4711/mod_resource/content/3/01%20KP%20Garbade.pdf?forcedownload=1")
-        XCTAssertEqual(p, .init(area: "resource", revision: 3, filepath: "/", filename: "01 KP Garbade.pdf"))
+        let p = Learnweb.parsePluginfile("https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/4711/mod_resource/content/3/01%20KP%20Muster.pdf?forcedownload=1")
+        XCTAssertEqual(p, .init(area: "resource", revision: 3, filepath: "/", filename: "01 KP Muster.pdf"))
         let q = Learnweb.parsePluginfile("https://x/learnweb2026/pluginfile.php/9/mod_folder/content/12/Kapitel%201/Text.pdf")
         XCTAssertEqual(q?.filepath, "/Kapitel 1/")
         XCTAssertEqual(q?.filename, "Text.pdf")
@@ -157,14 +163,16 @@ final class LearnwebTests: XCTestCase {
                                             folderLinks: { _ in Learnweb.folderLinks(html: html) })
         XCTAssertEqual(files.map(\.name), ["Folien 1.pdf", "x.pdf"])
         XCTAssertEqual(files.map(\.folder), ["Woche 1", "Informationen/Texte"])
-        XCTAssertEqual(files.map(\.chdate), [4, 2])
+        XCTAssertEqual(files.map(\.revision), [4, 2])
+        XCTAssertEqual(files.map(\.chdate), [nil, nil], "die Sitzung kennt keine Aenderungszeit (versionStamp)")
+        XCTAssertEqual(files.map(\.size), [nil, nil])
         XCTAssertEqual(files[1].downloadURL, "\(pf)/6/mod_folder/content/2/x.pdf")
         XCTAssertEqual(files.map(\.moduleName), ["Folien 1", "Texte"])
     }
 
     func testCourseTitlesAndHiddenFlag() throws {
-        let c = Learnweb.course(try JSONValue.parse(#"{"id": 35, "fullname": "SoSe 2026: 0406 Theorien der Erziehungswissenschaft", "hidden": 0}"#))
-        XCTAssertEqual(c, Learnweb.Course(id: "lw-35", moodleID: 35, title: "0406 Theorien der Erziehungswissenschaft", number: "0406",
+        let c = Learnweb.course(try JSONValue.parse(#"{"id": 35, "fullname": "SoSe 2026: 9406 Theorien der Testwissenschaft", "hidden": 0}"#))
+        XCTAssertEqual(c, Learnweb.Course(id: "lw-35", moodleID: 35, title: "9406 Theorien der Testwissenschaft", number: "9406",
                                           semester: "SoSe 2026", hidden: false))
         XCTAssertEqual(Learnweb.course(try JSONValue.parse(#"{"id": 9, "displayname": "WS 26: Mathe", "hidden": true}"#))?.hidden, true)
         // wie int(c["id"]) und bool(c.get("hidden")) in Python
@@ -210,14 +218,14 @@ final class LearnwebTests: XCTestCase {
             switch f["wsfunction"] {
             case "core_webservice_get_site_info": return self.json(#"{"userid": 42, "sitename": "Learnweb"}"#)
             case "core_enrol_get_users_courses":
-                return self.json(#"[{"id": 35, "fullname": "SoSe 2026: 0406 Theorien der Erziehungswissenschaft", "hidden": 0}, {"id": 36, "fullname": "Alt", "hidden": 1}]"#)
+                return self.json(#"[{"id": 35, "fullname": "SoSe 2026: 9406 Theorien der Testwissenschaft", "hidden": 0}, {"id": 36, "fullname": "Alt", "hidden": 1}]"#)
             default: return self.json(#"{"exception": "moodle_exception", "errorcode": "invalidrecord", "message": "Kurs fehlt TOKEN123abcdef0123456789"}"#)
             }
         }
         let c = LearnwebAPI(base: base + "/", mode: .token(token), transport: net, retry: noWait)
         let courses = try await c.courses()
         XCTAssertEqual(courses.map(\.id), ["lw-35", "lw-36"])
-        XCTAssertEqual(courses[0].number, "0406")
+        XCTAssertEqual(courses[0].number, "9406")
         let reqs = net.requests
         XCTAssertEqual(reqs[0].url.absoluteString, "https://www.uni-hildesheim.de/learnweb2026/webservice/rest/server.php")
         XCTAssertEqual(reqs[0].method, "POST")
@@ -242,15 +250,18 @@ final class LearnwebTests: XCTestCase {
         XCTAssertNil(LearnwebToken(String(repeating: "a", count: 257)))
     }
 
-    /// Dieselben Adressen wie `with-token` in expected.json: der Schluessel geht nie in eine Adresse, nur in den Koerper,
-    /// und nur an den eigenen Rechner ueber HTTPS.
+    /// Dieselben Adressen wie `token-download` in expected.json (`learnweb.token_request`, am PC ebenso): der Schluessel
+    /// geht nie in eine Adresse, nur in den POST-Koerper, und nur an den eigenen Rechner ueber HTTPS.
     func testDownloadKeepsTokenOutOfEveryAddress() async throws {
         let expected = try JSONValue.parse(repoFile("packages/shared-contracts/fixtures/hildesheim/expected.json"))
         let api = LearnwebAPI(base: base, mode: .token(token), transport: FakeUniTransport(), retry: noWait)
-        let cases = expected["with-token"]?.array ?? []
+        let cases = expected["token-download"]?.array ?? []
         XCTAssertFalse(cases.isEmpty)
         for c in cases {
             let url = c["url"]?.string ?? ""
+            XCTAssertEqual(c["request"]?["url"]?.string, url, "am PC ebenso: Adresse unveraendert")
+            XCTAssertEqual(c["request"]?["method"]?.string, "POST")
+            XCTAssertEqual(c["request"]?["form"]?["token"]?.string, c["token"]?.string)
             let f = Learnweb.File(id: "lw-1-x", name: "a.pdf", size: 0, mime: nil, chdate: 1, downloadURL: url, folder: "")
             let r = try await api.downloadRequest(f)
             XCTAssertEqual(r.url.absoluteString, url, "Adresse unveraendert, ohne Schluessel")
@@ -472,7 +483,7 @@ final class LearnwebTests: XCTestCase {
             let u = req.url.absoluteString
             if u.hasPrefix("\(self.base)/my/courses.php") { return self.json(self.sessionPage) }
             if u.contains("info=core_course_get_enrolled_courses_by_timeline_classification") {
-                return self.ajax(#"{"courses": [{"id": 35, "fullname": "SoSe 2026: 0406 Theorien"}, {"id": 36, "fullname": "SoSe 2026: 0407 Praxis"}]}"#)
+                return self.ajax(#"{"courses": [{"id": 35, "fullname": "SoSe 2026: 9406 Theorien"}, {"id": 36, "fullname": "SoSe 2026: 0407 Praxis"}]}"#)
             }
             if u.contains("info=core_courseformat_get_state") {
                 let id = (try? JSONValue.parse(req.body ?? Data()))?.array?.first?["args"]?["courseid"]?.int ?? 0
@@ -487,7 +498,7 @@ final class LearnwebTests: XCTestCase {
         let (db, layout) = try await container()
         let api = LearnwebAPI(base: base, mode: .session, transport: net, retry: noWait)
         let r = await HildesheimSync(db: db, container: layout, learnweb: api, lsf: nil, transport: net, clock: clock, retry: noWait).run()
-        XCTAssertEqual(r.failedCourses, ["0406 Theorien"], "unvollstaendige Dateiliste gilt nicht als Ergebnis")
+        XCTAssertEqual(r.failedCourses, ["9406 Theorien"], "unvollstaendige Dateiliste gilt nicht als Ergebnis")
         let files = try await db.rows("SELECT name FROM files ORDER BY name")
         XCTAssertEqual(files.compactMap { $0["name"]?.string }, ["Praxis.pdf"], "404 (nicht sichtbar) bleibt eine leere Ordnerliste")
         XCTAssertTrue(r.needsLogin.isEmpty)
@@ -520,7 +531,7 @@ final class LearnwebTests: XCTestCase {
             if u.hasPrefix("\(self.base)/my/courses.php") { return self.json(self.sessionPage) }
             if u.contains("/lib/ajax/service.php") {
                 if u.contains("info=core_courseformat_get_state") { return self.ajax(.string(state)) }
-                return self.ajax(#"{"courses": [{"id": 35, "fullname": "SoSe 2026: 0406 Theorien", "hidden": false}]}"#)
+                return self.ajax(#"{"courses": [{"id": 35, "fullname": "SoSe 2026: 9406 Theorien", "hidden": false}]}"#)
             }
             if u.contains("mod/resource/view.php?id=7&redirect=1") {
                 XCTAssertFalse(req.followRedirects)
@@ -536,7 +547,7 @@ final class LearnwebTests: XCTestCase {
         }
         let c = LearnwebAPI(base: base, mode: .session, transport: net, retry: noWait)
         let courses = try await c.courses()
-        XCTAssertEqual(courses.map(\.title), ["0406 Theorien"])
+        XCTAssertEqual(courses.map(\.title), ["9406 Theorien"])
         let first = net.requests[1]
         XCTAssertEqual(first.url.absoluteString, "\(base)/lib/ajax/service.php?sesskey=abcSESS1&info=core_course_get_enrolled_courses_by_timeline_classification")
         XCTAssertEqual(first.headers["Content-Type"], "application/json")
@@ -552,7 +563,7 @@ final class LearnwebTests: XCTestCase {
         let files = try await c.files(moodleID: 35)
         XCTAssertEqual(files.map(\.name), ["Folien.pdf", "x.pdf", "Eingebettet.pdf"])
         XCTAssertEqual(files.map(\.folder), ["Woche 1", "Woche 1/Texte/Kap 1", "Woche 1"])
-        XCTAssertEqual(files.map(\.chdate), [4, 3, 2], "Revision im Pluginfile-Pfad")
+        XCTAssertEqual(files.map(\.revision), [4, 3, 2], "Revision im Pluginfile-Pfad")
         XCTAssertFalse(net.requests.contains { $0.url.absoluteString.contains("id=x1") }, "cmid nur aus Ziffern in Adressen")
     }
 

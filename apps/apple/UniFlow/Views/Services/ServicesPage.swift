@@ -60,7 +60,7 @@ struct ServicesPage: View {
     /// toLocaleDateString("de-DE") ohne Optionen: T.M.JJJJ
     static func plainDate(_ s: String?) -> String {
         guard let d = Fmt.date(s) else { return s ?? "" }
-        let c = Calendar(identifier: .gregorian).dateComponents([.day, .month, .year], from: d)
+        let c = Fmt.calendar.dateComponents([.day, .month, .year], from: d)
         return "\(c.day ?? 0).\(c.month ?? 0).\(c.year ?? 0)"
     }
 
@@ -274,8 +274,7 @@ struct ServicesPage: View {
         guard let api = session.api, let id = d.i("id") else { return }
         do {
             let (data, _) = try await api.data("/api/qis/documents/\(id)")
-            let name = (d.s("title") ?? "Bescheinigung").replacingOccurrences(of: "/", with: "-")
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).pdf")
+            let url = try AppTemp.file("bescheinigung", name: (d.s("title") ?? "Bescheinigung") + ".pdf")
             try data.write(to: url)
             preview = url
         } catch { toast.show(error.localizedDescription, seconds: 4) }

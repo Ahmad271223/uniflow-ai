@@ -37,7 +37,6 @@ enum MD5 {
             }
             a0 = a0 &+ a; b0 = b0 &+ b; c0 = c0 &+ c; d0 = d0 &+ d
         }
-        return [a0, b0, c0, d0].flatMap { v in (0..<4).map { UInt8(truncatingIfNeeded: v >> (8 * UInt32($0))) } }
-            .map { String(format: "%02x", $0) }.joined()
+        return SolutionSHA256.hexString([a0, b0, c0, d0].flatMap { v in (0..<4).map { UInt8(truncatingIfNeeded: v >> (8 * UInt32($0))) } })
     }
 }

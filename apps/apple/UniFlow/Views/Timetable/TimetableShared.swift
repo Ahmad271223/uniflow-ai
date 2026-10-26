@@ -35,6 +35,18 @@ struct EventDrawer: View {
 
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
 
+    /// Herkunft einer Serie lesbar (vorher stand die interne Kennung da: "· lsf", "· manual", "· ics")
+    static func sourceText(_ source: String?) -> String? {
+        switch source {
+        case "studip", "studip-auto": return "aus Stud.IP"
+        case "lsf", "lsf-auto": return "aus dem LSF"
+        case "ics": return "aus einer Kalenderdatei"
+        case "manual": return "eigener Termin"
+        case "pdf", "image", "text": return "aus dem Import"
+        default: return nil
+        }
+    }
+
     var body: some View {
         Group {
             if let e { content(e) } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
@@ -71,7 +83,8 @@ struct EventDrawer: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Teilnahme: \(attendText(st, attend: attend))").ufFont(14.5, 700).foregroundStyle(UF.text)
                 if e.s("rrule") != "once" {
-                    Text("\(e.s("rrule") == "biweekly" ? "Alle zwei Wochen" : "Wöchentlich") · \(e.s("source") == "studip" ? "aus Stud.IP" : (e.s("source") ?? ""))")
+                    Text(([e.s("rrule") == "biweekly" ? "Alle zwei Wochen" : "Wöchentlich"] + [Self.sourceText(e.s("source"))].compactMap { $0 })
+                            .joined(separator: " · "))
                         .ufFont(11.84).foregroundStyle(UF.muted)
                 }
                 VStack(spacing: 8) {

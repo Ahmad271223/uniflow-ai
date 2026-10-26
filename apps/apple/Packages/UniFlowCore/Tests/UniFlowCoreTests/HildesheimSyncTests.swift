@@ -166,18 +166,18 @@ final class HildesheimSyncTests: XCTestCase {
             "cm": .array([.object(["id": .string("7"), "module": .string("resource"), "name": .string("Folien"), "sectionid": .string("11")]),
                           .object(["id": .string("8"), "module": .string("folder"), "name": .string("Texte"), "sectionid": .string("11")])])])
         t.on("\(base)/lib/ajax/service.php?sesskey=abc123&info=core_course_get_enrolled_courses_by_timeline_classification",
-             okJSON(.array([.object(["error": .bool(false), "data": .object(["courses": .array([.object(["id": .number(264), "fullname": .string("SoSe 2026: 0883 Sozialpsychologie")])])])])])))
+             okJSON(.array([.object(["error": .bool(false), "data": .object(["courses": .array([.object(["id": .number(264), "fullname": .string("SoSe 2026: 9883 Testpsychologie")])])])])])))
         t.on("\(base)/lib/ajax/service.php?sesskey=abc123&info=core_courseformat_get_state",
              okJSON(.array([.object(["error": .bool(false), "data": .string(state.jsonString())])])))
         t.on("\(base)/mod/resource/view.php?id=7", UniResponse(status: 303, headers: ["Location": "\(base)/pluginfile.php/5/mod_resource/content/4/Folien%201.pdf"]))
         t.on("\(base)/mod/folder/view.php?id=8", ok(#"<a href="\#(base)/pluginfile.php/6/mod_folder/content/2/a.pdf?forcedownload=1">a</a>"#))
         let api = LearnwebAPI(base: base, mode: .session, transport: t, retry: noWait)
         let got1 = try await api.courses().map(\.number)
-        XCTAssertEqual(got1, ["0883"])
+        XCTAssertEqual(got1, ["9883"])
         let files = try await api.files(moodleID: 264)
         XCTAssertEqual(files.map(\.name), ["Folien 1.pdf", "a.pdf"])
         XCTAssertEqual(files.map(\.folder), ["Woche 1", "Woche 1/Texte"])
-        XCTAssertEqual(files.map(\.chdate), [4, 2])
+        XCTAssertEqual(files.map(\.revision), [4, 2])
         XCTAssertEqual(t.requests.first { $0.url.absoluteString.contains("view.php?id=7") }?.followRedirects, false)
     }
 
@@ -281,12 +281,32 @@ final class HildesheimSyncTests: XCTestCase {
                                      lsf: nil, transport: t, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)), retry: noWait).run()
         XCTAssertEqual(r.failedCourses, ["0439 Kurs 39"])
         XCTAssertEqual(r.completed, ["Learnweb"], "ein Kursfehler beendet den Learnweb-Teil nicht")
+        XCTAssertTrue(r.messages.contains { $0.hasSuffix("1 Learnweb-Kurs nicht lesbar") }, "\(r.messages)")
         XCTAssertEqual(r.newFiles.count, 2, "Dateien des lesbaren Kurses kommen an")
         let courses = try await db.rows("SELECT id, subject, kind FROM courses WHERE id LIKE 'lw-%' ORDER BY id")
         XCTAssertEqual(courses.compactMap { $0["id"]?.string }, ["lw-35", "lw-39"])
         XCTAssertEqual(courses.last?["subject"]?.string, "Kurs 39", "Fach wie classify")
         let hashes = try await db.scalar("SELECT COUNT(*) FROM files WHERE course_id='lw-35' AND content_sha256 IS NOT NULL")?.int
         XCTAssertEqual(hashes, 2)
+    }
+
+    /// Kein Kurs lesbar: kein "Learnweb: 16:30 ok", sondern ein Fehler mit Meldung (vorher galt der Lauf als fertig
+    /// und die unlesbaren Kurse nannte niemand)
+    func testNoReadableCourseIsAFailure() async throws {
+        let (db, layout) = try await container()
+        let t = FakeUniTransport()
+        restRoutes(t, contentsByCourse: [:], courses: [35, 39])
+        for id in [35, 39] {
+            t.on("\(base)/webservice/rest/server.php", body: "courseid=\(id)&moodlewsrestformat=json&wsfunction=core_course_get_contents",
+                 UniResponse(status: 503))
+        }
+        let r = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                     lsf: nil, transport: t, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)), retry: noWait).run()
+        XCTAssertEqual(r.failedCourses.count, 2)
+        XCTAssertEqual(r.completed, [])
+        XCTAssertEqual(r.messages, ["Learnweb: kein Kurs lesbar (2 Kurse), später erneut"])
+        XCTAssertEqual(HildesheimSync.learnwebMessage(courses: 3, newFiles: 2, failedFiles: 1, failedCourses: 2),
+                       "2 neue/geänderte Dateien aus 3 Learnweb-Kursen, 1 Dateien später erneut, 2 Learnweb-Kurse nicht lesbar")
     }
 
     func testFailuresStayLocalAndNeverDeleteData() async throws {
@@ -460,5 +480,59 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertEqual(refused.refused, DataContainerError.missing.description)
         XCTAssertTrue(none.requests.isEmpty, "ohne Kennzeichnung keine Anfrage")
         XCTAssertFalse(FileManager.default.fileExists(atPath: missing.root.path))
+    }
+
+    // MARK: Neue Fassung (S7)
+
+    /// S7 fuer Learnweb: liefert Learnweb fuer eine Datei mit Notizen eine neue Fassung (hoeheres timemodified, anderer
+    /// Inhalt), bleibt die alte PDF im Container aufbewahrt (`Learnweb/Fassungen`, derselbe Weg `UniDownloads` wie bei
+    /// Stud.IP) und die Notizen kommen auf die passende Seite der neuen (eine Seite davor eingefuegt); die Seitentexte
+    /// stehen fuer die Suche bereit
+    func testNewLearnwebVersionKeepsOldVersionAndMovesNotes() async throws {
+        let (db, layout) = try await container()
+        let root = layout.root
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
+        let v1 = "Seminarplan Wintersemester\u{C}Termine im Oktober mit Referaten\u{C}Termine im November mit Klausur"
+        let v2 = "Seminarplan Wintersemester\u{C}Neu: Hinweise zur Anmeldung im Portal\u{C}Termine im Oktober mit Referaten\u{C}Termine im November mit Klausur"
+        let t = FakeUniTransport()
+        restRoutes(t, contentsByCourse: [35: contents], courses: [35])
+        t.on("\(base)/webservice/pluginfile.php/5", ok(v1))
+        t.on("\(base)/webservice/pluginfile.php/6", ok("%PDF-1.7 einfuehrung"))
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                  lsf: nil, transport: t, clock: clock, retry: noWait, tools: FormFeedTools())
+        _ = await sync.run()
+        let idValue = try await db.scalar("SELECT id FROM files WHERE name='plan.pdf'")?.string
+        let id = try XCTUnwrap(idValue)
+        let indexed = try await db.scalar("SELECT COUNT(*) FROM page_texts WHERE file_id=?", [.text(id)])?.int
+        XCTAssertEqual(indexed, 3, "Seitentexte beim Download")
+        let notes: JSONValue = ["version": 2, "pageOrder": [["key": "p1", "type": "pdf", "index": 1], ["key": "p2", "type": "pdf", "index": 2],
+                                                            ["key": "p3", "type": "pdf", "index": 3]],
+                                "pages": ["p1": ["objects": []], "p2": ["objects": []], "p3": page(["klausur-merken"])]]
+        try await db.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,1)", [.text(id), .text(notes.jsonString()), "x"])
+
+        // zweiter Abgleich: neue Fassung von plan.pdf
+        let newer = try JSONValue.parse(contents.jsonString().replacingOccurrences(of: "1760000000", with: "1760100000"))
+        let t2 = FakeUniTransport()
+        restRoutes(t2, contentsByCourse: [35: newer], courses: [35])
+        t2.on("\(base)/webservice/pluginfile.php/5", ok(v2))
+        let r2 = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t2, retry: noWait),
+                                      lsf: nil, transport: t2, clock: clock, retry: noWait, tools: FormFeedTools()).run()
+        XCTAssertEqual(r2.newFiles, [id])
+        let stored = try await db.scalar("SELECT data FROM annotations WHERE file_id=?", [.text(id)])?.string
+        let data = try XCTUnwrap(stored)
+        let doc = AnnotationDocument(root: try JSONValue.parse(data))
+        XCTAssertEqual(doc.pdfIndex(forPageKey: "p3"), 4)
+        XCTAssertEqual(doc.objects(page: "p3").compactMap { $0["id"]?.string }, ["klausur-merken"])
+        let version = try await db.rows("SELECT version, source, local_path, content_sha256 FROM file_versions WHERE file_id=?", [.text(id)])
+        XCTAssertEqual(version.count, 1)
+        XCTAssertEqual(version.first?["source"], "Learnweb")
+        XCTAssertEqual(version.first?["content_sha256"]?.string, SolutionSHA256.hex(Data(v1.utf8)))
+        let kept = try XCTUnwrap(version.first?["local_path"]?.string)
+        XCTAssertTrue(kept.hasPrefix("Learnweb/Fassungen/"), kept)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(kept), encoding: .utf8), v1, "alte Fassung aufbewahrt")
+        let current = try await db.scalar("SELECT local_path FROM files WHERE id=?", [.text(id)])?.string
+        let path = try XCTUnwrap(current)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), v2)
     }
 }

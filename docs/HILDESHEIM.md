@@ -41,7 +41,7 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
   `core_course_get_contents` ist für AJAX gesperrt (geprüft 25.10.2026), daher Dateilinks über
   `mod/resource/view.php?redirect=1` (nur Weiterleitung) und die Ordnerseite. Änderung = Revision im Pluginfile-Pfad.
   Moodle verbucht dabei einen Aufruf je Material.
-- Kurs-IDs `lw-<moodle-id>`, Datei-IDs `lw-<cmid>-<hash>`. Kursname „SoSe 2026: 0406 Titel“ → Semester + Vst.-Nr.
+- Kurs-IDs `lw-<moodle-id>`, Datei-IDs `lw-<cmid>-<hash>`. Kursname „SoSe 2026: 9406 Titel“ → Semester + Vst.-Nr.
 - Abschnitte mit reiner Zahl werden zu „Woche N“ (Wochenerkennung im Lernplan).
 
 ## Learnweb-Fristen (Abgaben, Tests)

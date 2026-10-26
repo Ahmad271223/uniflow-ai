@@ -9,8 +9,10 @@ enum PendingServicesEndpoints: LocalEndpointModule {
     private static let noCredential: JSONValue = ["own": false, "same_as": .null, "user": .null, "configured": false]
 
     static func register(on router: LocalRouter) {
-        // /api/services: Dienste wie am PC; auf dem iPad gibt es keine gespeicherten Zugaenge (keine Passwoerter in
-        // der App), der letzte QIS-Abruf kommt mit QIS auf dem Geraet (F4)
+        // /api/services: Dienste und Hochschule wie api_services am PC. Zugaenge ueber diese Schnittstelle gibt es
+        // auf dem iPad nicht: Benutzername und Passwort merkt sich die App (auf Wunsch) im Schluesselbund dieses
+        // iPads und fuellt sie nur auf der Anmeldeseite der Hochschule vor (UniversityCredentialStore); der letzte
+        // QIS-Abruf kommt mit QIS auf dem Geraet (F4)
         router.get("/api/services", placeholder: true) { _, ctx in
             var creds: [String: JSONValue] = [:]
             for k in ["studip", "qis", "idm", "ilias", "mail", "matrix", "luhki", "gitlab"] { creds[k] = noCredential }
@@ -19,11 +21,14 @@ enum PendingServicesEndpoints: LocalEndpointModule {
             let uni = try await ctx.database.withConnection { try $0.scalar("SELECT value FROM settings WHERE key='university'")?.string }
             let profile = UniversityProfile.profile(forKey: uni) ?? UniversityKey.default.profile
             return .json(["services": .array(profile.services.map(\.json)), "credentials": .object(creds),
+                          "university": profile.json,
+                          "universities": .array(UniversityProfile.all.map { ["key": .string($0.key.rawValue), "name": .string($0.name)] }),
                           "qis": ["configured": false, "same_as_studip": true, "last_run": .null],
                           "studip": ["configured": false]])
         }
-        // GET /api/grades liest die Tabelle grades (GradesEndpoints); den Abruf auf dem Geraet macht an der Uni
-        // Hildesheim der Abgleich der App (HildesheimSync), an der LUH folgt QIS (F4)
+        // Nur am eigenen Server: Notenabruf aus QIS und Bescheinigungen. GET /api/grades liest die Tabelle grades
+        // (GradesEndpoints); den Abruf auf dem Geraet macht an der Uni Hildesheim der Abgleich der App
+        // (HildesheimSync), an der LUH folgt QIS (F4)
         router.post("/api/grades/sync", placeholder: true) { _, _ in
             throw LocalHTTPError.notFound("Noten aus QIS kommen in einer späteren Version.")
         }
@@ -37,12 +42,14 @@ enum PendingServicesEndpoints: LocalEndpointModule {
             _ = try req.objectBody()
             throw LocalHTTPError.notFound()
         }
-        router.delete("/api/flashcards/{card_id:int}", placeholder: true) { _, _ in .ok }
+        // Regel G6: ohne Karteikarten gibt es nichts zu loeschen -> 404 wie server._changed
+        router.delete("/api/flashcards/{card_id:int}", placeholder: true) { _, _ in throw LocalHTTPError.notFound("Karteikarte nicht gefunden") }
     }
 }
 
-/// Bewusst entfallen in V1 (Entscheidung des Inhabers vom 25.10.2026): KI, Wochentests mit KI, gespeicherte
-/// Zugangsdaten. Listen antworten leer, alles andere mit 404 und klarer Meldung – nichts wird vorgetaeuscht.
+/// Bewusst entfallen in V1 (Entscheidung des Inhabers vom 25.10.2026): KI, Wochentests mit KI und das Speichern von
+/// Zugangsdaten ueber die Schnittstelle (nur am eigenen Server; die App merkt sie sich selbst im Schluesselbund).
+/// Listen antworten leer, alles andere mit 404 und klarer Meldung – nichts wird vorgetaeuscht.
 enum DroppedEndpoints: LocalEndpointModule {
     static let name = "Entfallen (KI, Tests, Zugänge)"
 
@@ -57,12 +64,12 @@ enum DroppedEndpoints: LocalEndpointModule {
         router.post("/api/tests/generate") { _, _ in throw LocalHTTPError.notFound(noTests) }
         router.post("/api/tests/generate-week") { _, _ in throw LocalHTTPError.notFound(noTests) }
         router.post("/api/tests/{test_id:int}/submit") { _, _ in throw LocalHTTPError.notFound(noTests) }
-        router.delete("/api/tests/{test_id:int}") { _, _ in .ok }
+        router.delete("/api/tests/{test_id:int}") { _, _ in throw LocalHTTPError.notFound("Test nicht gefunden") }   // Regel G6
         router.post("/api/tasks/{task_id:int}/start-test") { _, _ in throw LocalHTTPError.notFound(noTests) }
 
         router.get("/api/credentials") { _, _ in .json(["user": .null, "password_set": false]) }
         router.put("/api/credentials/{service}") { _, _ in
-            throw LocalHTTPError.notFound("Auf dem iPad werden keine Zugangsdaten gespeichert.")
+            throw LocalHTTPError.notFound("Zugangsdaten merkt sich die App nur im Schlüsselbund dieses iPads, auf der Anmeldeseite der Hochschule.")
         }
     }
 }

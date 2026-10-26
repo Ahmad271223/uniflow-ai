@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 77,
+ "count": 80,
  "paths": [
   {
    "method": "DELETE",
@@ -12,18 +12,18 @@
     "path": "/api/flashcards/1"
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
      "type": "object",
      "keys": {
-      "ok": {
-       "type": "bool"
+      "detail": {
+       "type": "string"
       }
      }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -36,18 +36,18 @@
     "path": "/api/folders/1"
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
      "type": "object",
      "keys": {
-      "ok": {
-       "type": "bool"
+      "detail": {
+       "type": "string"
       }
      }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -60,18 +60,18 @@
     "path": "/api/packages/1"
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
      "type": "object",
      "keys": {
-      "ok": {
-       "type": "bool"
+      "detail": {
+       "type": "string"
       }
      }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -84,18 +84,18 @@
     "path": "/api/tasks/1"
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
      "type": "object",
      "keys": {
-      "ok": {
-       "type": "bool"
+      "detail": {
+       "type": "string"
       }
      }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -108,18 +108,18 @@
     "path": "/api/tests/1"
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
      "type": "object",
      "keys": {
-      "ok": {
-       "type": "bool"
+      "detail": {
+       "type": "string"
       }
      }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -222,12 +222,24 @@
          "date": {
           "type": "string"
          },
+         "deadlines": {
+          "type": "array",
+          "item": null
+         },
          "events": {
+          "type": "array",
+          "item": null
+         },
+         "marks": {
           "type": "array",
           "item": null
          },
          "minutes": {
           "type": "number"
+         },
+         "notices": {
+          "type": "array",
+          "item": null
          },
          "packages": {
           "type": "array",
@@ -276,6 +288,9 @@
         "exam_priority": {
          "type": "bool"
         },
+        "files_source": {
+         "type": "string"
+        },
         "free_days": {
          "type": "array",
          "item": {
@@ -305,6 +320,9 @@
         },
         "minutes_per_day": {
          "type": "number"
+        },
+        "mode": {
+         "type": "string"
         },
         "parts_exercise": {
          "type": "number"
@@ -372,7 +390,7 @@
        "type": "number"
       },
       "hint": {
-       "type": "string"
+       "type": "null"
       },
       "open_minutes": {
        "type": "number"
@@ -485,6 +503,10 @@
     "shape": {
      "type": "object",
      "keys": {
+      "announcements": {
+       "type": "array",
+       "item": null
+      },
       "backlog": {
        "type": "number"
       },
@@ -541,6 +563,9 @@
         "exam_priority": {
          "type": "bool"
         },
+        "files_source": {
+         "type": "string"
+        },
         "free_days": {
          "type": "array",
          "item": {
@@ -570,6 +595,9 @@
         },
         "minutes_per_day": {
          "type": "number"
+        },
+        "mode": {
+         "type": "string"
         },
         "parts_exercise": {
          "type": "number"
@@ -615,6 +643,10 @@
         "date": {
          "type": "string"
         },
+        "deadlines": {
+         "type": "array",
+         "item": null
+        },
         "events": {
          "type": "array",
          "item": null
@@ -645,8 +677,16 @@
           }
          }
         },
+        "marks": {
+         "type": "array",
+         "item": null
+        },
         "minutes": {
          "type": "number"
+        },
+        "notices": {
+         "type": "array",
+         "item": null
         },
         "packages": {
          "type": "array",
@@ -710,6 +750,31 @@
   },
   {
    "method": "GET",
+   "shape": "/api/files/{}",
+   "sources": [
+    "UniFlow/Services/DocumentStore.swift",
+    "UniFlow/Views/Views.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1"
+   },
+   "python": {
+    "status": 404,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 404
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/files/{}/annotations",
    "sources": [
     "UniFlow/Services/APIClient.swift"
@@ -718,36 +783,18 @@
     "path": "/api/files/f1/annotations"
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
      "type": "object",
      "keys": {
-      "data": {
-       "type": "object",
-       "keys": {
-        "pages": {
-         "type": "object",
-         "keys": {}
-        },
-        "version": {
-         "type": "number"
-        },
-        "zoom": {
-         "type": "number"
-        }
-       }
-      },
-      "updated_at": {
-       "type": "null"
-      },
-      "version": {
-       "type": "number"
+      "detail": {
+       "type": "string"
       }
      }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -757,7 +804,8 @@
     "UniFlow/Services/DocumentStore.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
     "UniFlow/Views/Library/LibraryPage.swift",
-    "UniFlow/Views/Settings/SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Views.swift"
    ],
    "request": {
     "path": "/api/files/f1/content"
@@ -781,6 +829,7 @@
    "method": "GET",
    "shape": "/api/files/{}/pagetext",
    "sources": [
+    "UniFlow/Services/DocumentVersions.swift",
     "UniFlow/Views/Modules/ModulesPage.swift"
    ],
    "request": {
@@ -799,6 +848,25 @@
    },
    "expect": {
     "status": 404
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/files/{}/versions",
+   "sources": [
+    "UniFlow/Services/DocumentVersions.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/versions"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "notice",
+     "versions"
+    ],
+    "reason": "nur auf dem Geraet (FileVersionEndpoints)"
    }
   },
   {
@@ -1022,6 +1090,14 @@
       "modules": {
        "type": "array",
        "item": null
+      },
+      "pages": {
+       "type": "array",
+       "item": null
+      },
+      "tasks": {
+       "type": "array",
+       "item": null
       }
      }
     }
@@ -1046,7 +1122,9 @@
      "credentials",
      "qis",
      "services",
-     "studip"
+     "studip",
+     "universities",
+     "university"
     ],
     "reason": "Form wie server.py; liest dort die .env, darum nicht aufgerufen",
     "values": {
@@ -1193,6 +1271,9 @@
       "exam_priority": {
        "type": "bool"
       },
+      "files_source": {
+       "type": "string"
+      },
       "free_days": {
        "type": "array",
        "item": {
@@ -1222,6 +1303,9 @@
       },
       "minutes_per_day": {
        "type": "number"
+      },
+      "mode": {
+       "type": "string"
       },
       "parts_exercise": {
        "type": "number"
@@ -1410,7 +1494,8 @@
    "method": "GET",
    "shape": "/api/timetable/auto-status",
    "sources": [
-    "UniFlow/Views/Services/ServicesPage.swift"
+    "UniFlow/Views/Services/ServicesPage.swift",
+    "UniFlow/Views/Timetable/TimetableView.swift"
    ],
    "request": {
     "path": "/api/timetable/auto-status"
@@ -1598,6 +1683,10 @@
          "date": {
           "type": "string"
          },
+         "deadlines": {
+          "type": "array",
+          "item": null
+         },
          "events": {
           "type": "array",
           "item": null
@@ -1627,6 +1716,14 @@
             }
            }
           }
+         },
+         "marks": {
+          "type": "array",
+          "item": null
+         },
+         "notices": {
+          "type": "array",
+          "item": null
          },
          "packages": {
           "type": "array",
@@ -1690,13 +1787,18 @@
     }
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
-     "type": "null"
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -1712,13 +1814,18 @@
     }
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
-     "type": "null"
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -1762,13 +1869,18 @@
     }
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
-     "type": "null"
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -1785,13 +1897,18 @@
     }
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
-     "type": "null"
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -1807,13 +1924,18 @@
     }
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
-     "type": "null"
+     "type": "object",
+     "keys": {
+      "detail": {
+       "type": "string"
+      }
+     }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
@@ -2017,24 +2139,25 @@
     }
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
      "type": "object",
      "keys": {
-      "ok": {
-       "type": "bool"
+      "detail": {
+       "type": "string"
       }
      }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
    }
   },
   {
    "method": "POST",
    "shape": "/api/files/{}/opened",
    "sources": [
+    "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Views.swift"
    ],
    "request": {
@@ -2042,18 +2165,36 @@
     "body": {}
    },
    "python": {
-    "status": 200,
+    "status": 404,
     "shape": {
      "type": "object",
      "keys": {
-      "ok": {
-       "type": "bool"
+      "detail": {
+       "type": "string"
       }
      }
     }
    },
    "expect": {
-    "status": 200
+    "status": 404
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/files/{}/versions/seen",
+   "sources": [
+    "UniFlow/Services/DocumentVersions.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/versions/seen"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "ok"
+    ],
+    "reason": "nur auf dem Geraet (FileVersionEndpoints)"
    }
   },
   {
@@ -2303,6 +2444,9 @@
       "page_count": {
        "type": "null"
       },
+      "revision": {
+       "type": "null"
+      },
       "seen_by_user": {
        "type": "number"
       },
@@ -2389,8 +2533,7 @@
     }
    },
    "expect": {
-    "status": 409,
-    "reason": "Lernpakete kommen mit S6"
+    "status": 200
    }
   },
   {
@@ -2517,6 +2660,7 @@
    "method": "POST",
    "shape": "/api/tasks/{}/status",
    "sources": [
+    "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Exams/ExamsPage.swift",
     "UniFlow/Views/Plan/PlanActions.swift",
     "UniFlow/Views/Plan/PlanGrids.swift"
@@ -2807,7 +2951,6 @@
    "method": "POST",
    "shape": "/api/timetable/reslot",
    "sources": [
-    "UniFlow/Views/Plan/PlanActions.swift",
     "UniFlow/Views/Plan/PlanGrids.swift",
     "UniFlow/Views/Timetable/TimetableView.swift"
    ],
@@ -2919,6 +3062,9 @@
       "exam_priority": {
        "type": "bool"
       },
+      "files_source": {
+       "type": "string"
+      },
       "free_days": {
        "type": "array",
        "item": {
@@ -2948,6 +3094,9 @@
       },
       "minutes_per_day": {
        "type": "number"
+      },
+      "mode": {
+       "type": "string"
       },
       "parts_exercise": {
        "type": "number"

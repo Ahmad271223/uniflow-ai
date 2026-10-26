@@ -203,6 +203,8 @@ struct HildesheimSourcesCard: View {
 struct HildesheimLoginView: View {
     @StateObject private var login: HildesheimLogin
     @StateObject private var autofill: UniversityLoginAutofill
+    /// Ladefehler der Seite (kein Netz, LSF/CAS nicht erreichbar): Karte mit "Erneut versuchen"
+    @StateObject private var load = UFWebLoadState()
     @Environment(\.dismiss) private var dismiss
 
     init(target: HildesheimConnection.Source, connection: HildesheimConnection) {
@@ -229,11 +231,12 @@ struct HildesheimLoginView: View {
                 .background(UF.bg)
         case .page(let url):
             StudIPWebView(url: url, dataStore: login.connection.websiteDataStore, autofill: autofill,
-                          interceptNavigation: { login.intercept($0) }) { webView in
+                          interceptNavigation: { login.intercept($0) }, load: load) { webView in
                 webView.evaluateJavaScript("document.documentElement.outerHTML", in: nil, in: .defaultClient) { result in
                     login.pageLoaded(url: webView.url, html: (try? result.get()) as? String ?? "")
                 }
             }
+            .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
                     if let error = login.casError {

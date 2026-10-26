@@ -494,7 +494,9 @@ struct CardsPage: View {
             UFCard {
                 UFCardHead("Alle Karten") { Text("\(all.count)").ufFont(13.12).foregroundStyle(UF.muted) }
                 if all.isEmpty {
-                    Text("Noch keine Karten. Erstelle welche im Editor über die KI-Seitenleiste.").ufFont(13.12).foregroundStyle(UF.muted)
+                    // KI-Seitenleiste nur am eigenen Server (keine KI in V1)
+                    Text(session.api?.isLocal == false ? "Noch keine Karten. Erstelle welche im Editor über die KI-Seitenleiste." : "Noch keine Karten.")
+                        .ufFont(13.12).foregroundStyle(UF.muted)
                         .frame(maxWidth: .infinity).padding(.vertical, 32)
                 } else {
                     let rows = Row.rows(all)

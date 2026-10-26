@@ -37,8 +37,8 @@ public struct StudIPCourseEvent: Sendable, Equatable {
             if LocalModules.truthy(a?["is-cancelled"]) { return nil }
             func text(_ k: String) -> String { a?[k]?.string ?? "" }
             let room = text("location").split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
-            return StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: LocalTimetableImport.slice(text("start"), 0, 19),
-                                     end: LocalTimetableImport.slice(text("end"), 0, 19), room: PyText.strip(room))
+            return StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: PyText.slice(text("start"), 0, 19),
+                                     end: PyText.slice(text("end"), 0, 19), room: PyText.strip(room))
         }
     }
 }
@@ -194,7 +194,7 @@ public enum StudIPScheduleStore {
                     INSERT INTO studip_schedule_entries(id, title, weekday, start, end, description, fetched_at) VALUES (?,?,?,?,?,?,?)
                     ON CONFLICT(id) DO UPDATE SET title=excluded.title, weekday=excluded.weekday, start=excluded.start, end=excluded.end, description=excluded.description, fetched_at=excluded.fetched_at
                     """, [.text(id), .text(LocalTimetable.or(a["title"], "Termin").string ?? "Termin"), .integer(Int64(wd)),
-                          .text(StudIPSchedule.hhmm(s)), .text(StudIPSchedule.hhmm(e)), .text(a["description"]?.string ?? ""), now])
+                          .text(LocalFreeWindows.mh(s)), .text(LocalFreeWindows.mh(e)), .text(a["description"]?.string ?? ""), now])
             }
         }
         var cycles = 0
@@ -245,7 +245,7 @@ public enum StudIPScheduleStore {
         let tt = StudIPSchedule.timetable(schedule: schedule, courses: courses.keys.sorted().compactMap { courses[$0] })
         let t = try LocalTimetable.term(c)
         let term = StudIPTerm(start: t["start"]?.string ?? "", end: t["end"]?.string ?? "")
-        return tt.entries.filter { !$0.isPersonal }.map { e in
+        return tt.entries.map { e in
             var o = e.json.object ?? [:]
             if let course = e.courseID, let i = info[course] {
                 o["module_id"] = i.module

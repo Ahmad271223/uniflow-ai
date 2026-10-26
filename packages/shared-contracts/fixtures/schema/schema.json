@@ -203,7 +203,8 @@
           {"name": "deleted_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "page_count", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
-          {"name": "content_sha256", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+          {"name": "content_sha256", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "revision", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [
           {"table": "courses", "from": "course_id", "to": "id", "on_update": "NO ACTION", "on_delete": "NO ACTION"}
@@ -290,7 +291,8 @@
           {"name": "file_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 1},
           {"name": "page", "type": "INTEGER", "notnull": 1, "default": null, "pk": 2},
           {"name": "text", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "search", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -564,7 +566,7 @@
     ["subjects_per_day", "2"],
     ["parts_lecture", "1"],
     ["parts_exercise", "1"],
-    ["tests_per_subject", "1"],
+    ["tests_per_subject", "0"],
     ["test_minutes", "45"],
     ["break_minutes", "15"],
     ["exam_priority", "1"],

@@ -1,12 +1,21 @@
 import Foundation
 
-/// Werkzeuge fuer eigene Dokumente, die der Kern ohne PDFKit/UIKit nicht hat (unter Linux gibt es beides nicht).
-/// app/server.py nutzt dafuer pypdf (Seitenzahl) und Pillow (Bild als PDF-Seite); die App setzt PDFKit und UIKit ein.
+/// Werkzeuge fuer Dokumente, die der Kern ohne PDFKit/UIKit nicht hat (unter Linux gibt es beides nicht).
+/// app/server.py nutzt dafuer pypdf (Seitenzahl, Seitentexte) und Pillow (Bild als PDF-Seite); die App setzt PDFKit
+/// und UIKit ein.
 public protocol LocalDocumentTools: Sendable {
     /// Seitenzahl einer PDF; nil, wenn sie sich nicht lesen laesst (Python: `page_count = None`)
     func pdfPageCount(_ data: Data) -> Int?
     /// Bild als einseitige PDF; nil ohne Umwandlung -> das Bild bleibt ein Bild (wie Python ohne Pillow)
     func pdfFromImage(_ data: Data) -> Data?
+    /// Text je Seite einer PDF (am PC pypdf `extract_text`, in der App PDFKit), eine nicht lesbare Seite als "";
+    /// nil, wenn sich die Datei nicht lesen laesst (Python: `page_texts` liefert [])
+    func pdfPageTexts(_ url: URL) -> [String]?
+}
+
+extension LocalDocumentTools {
+    /// Ohne Werkzeug (Kern unter Linux, Tests): keine Seitentexte, die Skriptsuche nutzt nur gespeicherte
+    public func pdfPageTexts(_ url: URL) -> [String]? { nil }
 }
 
 /// Ohne Werkzeuge: keine Seitenzahl, Bilder bleiben Bilder.
@@ -119,17 +128,24 @@ enum LocalFileResponse {
     /// `_INLINE_TYPES` in app/server.py: diese Typen zeigt die App direkt, alles andere wird heruntergeladen
     static let inlineTypes: Set<String> = ["application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp", "text/plain"]
 
-    /// `mimetypes.guess_type(name)[0]` fuer die Endungen, die in Stud.IP-Kursen vorkommen (Standardtabelle von
-    /// Python; die Systemtabellen des PCs koennen weitere Endungen kennen, die aber nie inline gezeigt werden).
+    /// `mimetypes.guess_type(name)[0]` fuer die Endungen, die in Stud.IP- und Learnweb-Kursen vorkommen
+    /// (Standardtabelle von Python; die Systemtabellen des PCs koennen weitere Endungen kennen, die aber nie inline
+    /// gezeigt werden). Die eine Tabelle des Kerns: Dateiantworten und Learnweb ueber die Sitzung (`Learnweb.guessMime`,
+    /// davon haengt `file_kind` "image" ab, z. B. bei .bmp, .tif, .heic).
     static let types: [String: String] = [
         "pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg", "jpe": "image/jpeg", "jpeg": "image/jpeg",
         "gif": "image/gif", "webp": "image/webp", "svg": "image/svg+xml", "bmp": "image/bmp", "ico": "image/vnd.microsoft.icon",
-        "tif": "image/tiff", "tiff": "image/tiff", "txt": "text/plain", "text": "text/plain", "c": "text/plain", "h": "text/plain",
+        "tif": "image/tiff", "tiff": "image/tiff", "heic": "image/heic", "heif": "image/heif", "avif": "image/avif",
+        "txt": "text/plain", "text": "text/plain", "c": "text/plain", "h": "text/plain",
         "bat": "text/plain", "pl": "text/plain", "ksh": "text/plain", "srt": "text/plain", "csv": "text/csv",
         "html": "text/html", "htm": "text/html", "css": "text/css", "js": "text/javascript", "mjs": "text/javascript",
-        "md": "text/markdown", "xml": "text/xml", "json": "application/json", "zip": "application/zip",
+        "md": "text/markdown", "markdown": "text/markdown", "rtf": "text/rtf", "tex": "application/x-tex",
+        "xml": "text/xml", "json": "application/json", "zip": "application/zip",
         "gz": "application/gzip", "tar": "application/x-tar", "py": "text/x-python", "doc": "application/msword",
-        "xls": "application/vnd.ms-excel", "ppt": "application/vnd.ms-powerpoint",
+        "dot": "application/msword", "xls": "application/vnd.ms-excel", "ppt": "application/vnd.ms-powerpoint",
+        "pps": "application/vnd.ms-powerpoint", "pot": "application/vnd.ms-powerpoint",
+        "eps": "application/postscript", "ps": "application/postscript",
+        "avi": "video/x-msvideo", "mpg": "video/mpeg", "mpeg": "video/mpeg", "aac": "audio/aac", "opus": "audio/opus",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -149,18 +165,6 @@ enum LocalFileResponse {
         return String(last[dot...])
     }
 
-    /// `urllib.parse.quote(s)` (sicher: Buchstaben, Ziffern, "_.-~" und "/"), UTF-8
-    static func quote(_ s: String) -> String {
-        var out = ""
-        for b in s.utf8 {
-            switch b {
-            case 0x41...0x5A, 0x61...0x7A, 0x30...0x39, 0x5F, 0x2E, 0x2D, 0x7E, 0x2F: out.unicodeScalars.append(Unicode.Scalar(b))
-            default: out += String(format: "%%%02X", b)
-            }
-        }
-        return out
-    }
-
     /// Antwort wie `FileResponse(path, media_type=..., filename=..., content_disposition_type=...)` mit den Kopfzeilen
     /// der Middleware: `nosniff` immer, Sandbox-CSP fuer alles ausser PDF.
     static func response(_ data: Data, mediaType: String, filename: String?, disposition: String) -> LocalResponse {
@@ -168,7 +172,7 @@ enum LocalFileResponse {
         let ctype = mediaType.hasPrefix("text/") && !mediaType.lowercased().contains("charset=") ? mediaType + "; charset=utf-8" : mediaType
         var headers = ["Content-Type": ctype, "Content-Length": String(data.count), "X-Content-Type-Options": "nosniff"]
         if let filename {
-            let q = quote(filename)
+            let q = PyText.quote(filename)
             headers["Content-Disposition"] = q != filename ? "\(disposition); filename*=utf-8''\(q)" : "\(disposition); filename=\"\(filename)\""
         }
         if mediaType.split(separator: ";").first?.trimmingCharacters(in: .whitespaces).lowercased() != "application/pdf" {

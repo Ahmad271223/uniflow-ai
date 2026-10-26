@@ -234,8 +234,10 @@ final class LocalRouterTests: XCTestCase {
 
     func testAnnotationsPlaceholderKeepsNotesUnsaved() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory)
+        // Regel G6 (PC-Stand 26.10.2026): unbekannte Datei -> 404 statt leerer Notizen; das Speichern bleibt 409
         let get = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f1/annotations"))
-        XCTAssertEqual(get.json, ["data": ["version": 2, "pages": [:], "zoom": 1.2], "updated_at": .null, "version": 0])
+        XCTAssertEqual(get.status, 404)
+        XCTAssertEqual(get.json?["detail"], "Datei nicht gefunden")
         let put = await backend.handle(LocalRequest(method: "PUT", path: "/api/files/f1/annotations",
                                                     query: [.init("base_version", "0")], body: Data(#"{"version":2,"pages":{}}"#.utf8)))
         XCTAssertEqual(put.status, 409)

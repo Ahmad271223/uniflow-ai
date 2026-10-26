@@ -84,7 +84,9 @@ struct PlanView: View {
         let wk = d.view == "week" || d.view == "3days"
         let sideOff = wk && (calSide.isEmpty ? windowWidth < 1400 : calSide == "off")
         UFContent(wide: true, maxWidth: 1600, insets: EdgeInsets(top: 20.8, leading: 24, bottom: 48, trailing: 24)) {
-            UFPageHead("Lernkalender", sub: "Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.") {
+            // ohne PC keine Wochentests (KI, entfallen in V1): nicht ankuendigen
+            UFPageHead("Lernkalender", sub: session.api?.isLocal == true ? "Dein Wochenplan – perfekt auf Vorlesungen und Übungen abgestimmt."
+                                                                       : "Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt.") {
                 UFButton("Lernpaket", icon: "plus") { actions.addPackage(date: Fmt.isoDay(d.view == "day" ? d.date : d.start)) }
                 UFButton("Lernkombination", icon: "settings") { actions.config() }
                 UFButton("Woche retten", icon: "life-buoy") { Task { await actions.suggest(["rescue": true]) } }
@@ -203,11 +205,8 @@ struct PlanData {
         self.cal = cal; self.open = open.items; self.modules = modules.items; self.month = month
     }
 
-    static var cal: Calendar {
-        var c = Calendar(identifier: .gregorian)
-        c.firstWeekday = 2
-        return c
-    }
+    /// Woche ab Montag, Zeitzone wie das Backend (`Fmt.calendar`)
+    static var cal: Calendar { Fmt.calendar }
 
     static func add(_ d: Date, _ n: Int) -> Date { cal.date(byAdding: .day, value: n, to: d) ?? d }
     static func monday(_ d: Date) -> Date { add(cal.startOfDay(for: d), -((cal.component(.weekday, from: d) + 5) % 7)) }
@@ -242,8 +241,7 @@ struct PlanData {
 
     /// Zeitraum-Titel
     var label: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
+        let f = Fmt.formatter("d. MMMM")
         switch view {
         case "week", "3days":
             f.dateFormat = "d. MMMM"

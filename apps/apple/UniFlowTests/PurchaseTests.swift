@@ -100,7 +100,6 @@ final class PurchaseTests: XCTestCase {
         let outcome = await store.purchase(plus)
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
         XCTAssertEqual(ent.plan, .plus)
-        XCTAssertEqual(store.activePlan, "plus")
         XCTAssertTrue(ent.inIntroOffer, "Während der Gratiswoche gilt Plus mit Einführungsangebot")
         XCTAssertTrue(ent.allows(.pencilWriting))
         XCTAssertTrue(ent.allows(.splitView))

@@ -3,11 +3,34 @@ import UniFlowCore
 
 struct APIError: LocalizedError {
     let status: Int
+    /// Antworttext (bei FastAPI und dem lokalen Backend JSON mit "detail")
     let message: String
-    /// wie api() in core.js: Text aus "detail" der Antwort, sonst der HTTP-Statustext (z. B. "Not Found")
+    /// eigene, verstaendliche Meldung der App (z. B. "Noch nicht geladen" im Editor); geht vor
+    var text: String? = nil
+
+    /// wie api() in core.js: Text aus "detail" der Antwort, sonst der HTTP-Statustext (z. B. "Not Found"). Eine eigene
+    /// Meldung (`text`) geht vor: vorher zeigte der Editor fuer eine Nicht-PDF "No Error" und fuer eine nicht geladene
+    /// Datei "Not Found".
     var errorDescription: String? {
+        if let text { return text }
         if let v = try? JSONValue.parse(message), let d = v["detail"]?.string, !d.isEmpty { return d }
         return status > 0 ? HTTPURLResponse.localizedString(forStatusCode: status).capitalized : message
+    }
+}
+
+/// Meldungen, wenn sich eine Datei nicht im Editor oeffnen laesst
+enum DocumentOpenText {
+    static let notLoaded = "Diese Datei ist noch nicht geladen. Der nächste Abgleich lädt sie auf dieses iPad."
+    static let notPDF = "Diese Datei ist keine PDF und öffnet sich nicht im Editor. Mit „Öffnen in …“ zeigst du sie in einer passenden App."
+    static let notFound = "Dokument nicht gefunden. Es liegt im Papierkorb oder gehört zu einem abgewählten Kurs."
+
+    /// Antwort von /content ohne PDF
+    static func problem(status: Int) -> String {
+        switch status {
+        case 404: return notLoaded
+        case 200: return notPDF
+        default: return "Das Dokument ist gerade nicht verfügbar (Fehler \(status))."
+        }
     }
 }
 
@@ -77,6 +100,11 @@ final class APIClient: @unchecked Sendable {
         self.base = base
         self.transport = transport
     }
+
+    /// Wert eines Query-Parameters wie `encodeURIComponent` im Web (unkodiert bleiben Buchstaben, Ziffern und
+    /// "-_.!~*'()", ueber die eine Prozent-Kodierung `PyText.quote`). `.urlQueryAllowed` liess "+", "&" und "=" stehen:
+    /// das lokale Backend (wie `parse_qsl`) und Starlette machten aus "C++" "C  " und schnitten "A & B" nach "A " ab.
+    static func queryValue(_ s: String) -> String { PyText.quote(s, safe: "!*'()") }
 
     /// Lokales Backend des Geraets
     static func local(_ host: LocalBackendHost = .shared) -> APIClient {
@@ -206,5 +234,12 @@ struct LibFile: Decodable, Identifiable, Hashable {
     let studip_folder: String?
 
     var displayTitle: String { ai_title ?? title ?? name }
-    var isPDF: Bool { name.lowercased().hasSuffix(".pdf") && downloaded_at != nil }
+    /// Geladene PDF: dieselbe Regel wie die Bibliothek (`kind == "pdf"`, das `UniRules.fileKind` auch bei mime
+    /// application/pdf ohne Endung setzt); vorher nur die Endung .pdf. Ein importiertes Bild bleibt `kind == "image"`,
+    /// liegt nach der Umwandlung aber als einseitige PDF vor (`page_count` gesetzt; ohne Umwandlung nil)
+    var isPDF: Bool { downloaded_at != nil && (kind == "pdf" || (kind == "image" && page_count != nil)) }
+    /// Notizbuch oder Whiteboard (keine Datei, nur Seiten des Modells)
+    var isNotebook: Bool { kind == "notebook" || kind == "whiteboard" }
+    /// Oeffnet sich im Editor (geladene PDF, Notizbuch, Whiteboard); sonst `DocumentOpenText`
+    var opensInEditor: Bool { isPDF || isNotebook }
 }

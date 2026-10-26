@@ -103,10 +103,11 @@ public struct UniRetry: Sendable {
 
     public static let none = UniRetry(attempts: 1, delayNanos: { _ in 0 })
 
-    /// Lohnt ein neuer Versuch? Netzfehler (`URLError` ausser Abbruch) und `HildesheimError.isTransient` (5xx, 429)
+    /// Lohnt ein neuer Versuch? Netzfehler (`URLError` ausser Abbruch und Schreibfehlern wie voller Speicher) und
+    /// `HildesheimError.isTransient` (5xx, 429)
     public static func isTransient(_ error: Error) -> Bool {
         if let e = error as? HildesheimError { return e.isTransient }
-        if let e = error as? URLError { return e.code != .cancelled }
+        if let e = error as? URLError { return ![.cancelled, .cannotWriteToFile, .cannotCreateFile].contains(e.code) }
         return false
     }
 

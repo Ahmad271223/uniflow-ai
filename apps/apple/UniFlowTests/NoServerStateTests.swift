@@ -1,39 +1,35 @@
 import XCTest
 @testable import UniFlow
 
-/// V1 ohne PC-Server: welcher Zustand eine Seite zeigt (Server / kein Server / Stud.IP verbunden) und was der
-/// leere Zustand dann anzeigt.
+/// V1 ohne PC-Server: welcher Zustand eine Seite zeigt (eigener Server / lokales Backend mit Stud.IP-Stand) und was
+/// der leere Zustand einer Seite zeigt, die es in V1 nicht gibt. Eine Datenquelle gibt es immer (`Session.api`).
 @MainActor
 final class NoServerStateTests: XCTestCase {
 
-    func testServerWinsAlways() {
+    func testServerOnlyWithOwnServer() {
         // Entwicklungsmodus des Inhabers: mit Server bleibt alles wie bisher, egal wie Stud.IP steht
+        let server = APIClient(base: URL(string: "http://127.0.0.1:8765")!, pin: nil)
         for link in [StudIPLink.notConnected, .expired, .connected] {
-            XCTAssertEqual(UFDataMode.resolve(hasServer: true, studIP: link), .server)
+            XCTAssertEqual(UFDataMode.resolve(api: server, studIP: link), .server)
         }
         XCTAssertFalse(UFDataMode.server.showsConnectCard)
+        XCTAssertEqual(UFDataMode.resolve(api: nil, studIP: .expired), .local(.expired), "ohne Server immer das Geraet")
     }
 
-    func testWithoutServer() {
-        XCTAssertEqual(UFDataMode.resolve(hasServer: false, studIP: .notConnected), .connectStudIP)
-        XCTAssertEqual(UFDataMode.resolve(hasServer: false, studIP: .expired), .reconnectStudIP)
-        XCTAssertEqual(UFDataMode.resolve(hasServer: false, studIP: .connected), .empty)
-    }
-
-    /// Die Weiche, die UFServerGate, Uebersicht, UFRemote und Community wirklich aufrufen
+    /// Die Weiche, die UFServerGate, Uebersicht und Community wirklich aufrufen
     func testCurrentUsesSessionServer() {
         let studip = StudIPSync()
         let api = APIClient(base: URL(string: "http://127.0.0.1:8765")!, pin: nil)
         XCTAssertEqual(UFDataMode.current(api: api, studip: studip), .server)
-        XCTAssertNotEqual(UFDataMode.current(api: nil, studip: studip), .server)
-        XCTAssertEqual(UFDataMode.current(api: nil, studip: studip),
-                       UFDataMode.resolve(hasServer: false, studIP: StudIPLink(studip.phase, hasSession: !StudIPKeychain.load().isEmpty)))
+        XCTAssertEqual(UFDataMode.current(api: .local(), studip: studip),
+                       .local(StudIPLink(studip.phase, hasSession: studip.hasStoredSession)))
     }
 
     func testConnectCardOnlyWhileStudIPMissing() {
-        XCTAssertTrue(UFDataMode.connectStudIP.showsConnectCard)
-        XCTAssertTrue(UFDataMode.reconnectStudIP.showsConnectCard)
-        XCTAssertFalse(UFDataMode.empty.showsConnectCard)                // nach erfolgreicher Verbindung weg
+        XCTAssertTrue(UFDataMode.local(.notConnected).showsConnectCard)
+        XCTAssertTrue(UFDataMode.local(.expired).showsConnectCard)
+        XCTAssertTrue(UFDataMode.local(.otherSources).showsConnectCard, "Karten der eigenen Quellen")
+        XCTAssertFalse(UFDataMode.local(.connected).showsConnectCard)    // nach erfolgreicher Verbindung weg
     }
 
     func testLinkFromSyncPhase() {
@@ -58,44 +54,30 @@ final class NoServerStateTests: XCTestCase {
 
     // MARK: Leerer Zustand
 
-    private func content(_ kind: UFNoServerPage.Kind, _ mode: UFDataMode, _ phase: StudIPSync.Phase = .idle,
-                         files: Int = 0, courses: Int = 0) -> UFNoServerContent {
-        UFNoServerContent.resolve(kind: kind, mode: mode, phase: phase, files: files, courses: courses)
+    private func content(_ kind: UFNoServerPage.Kind, _ mode: UFDataMode, _ phase: StudIPSync.Phase = .idle) -> UFNoServerContent {
+        UFNoServerContent.resolve(kind: kind, mode: mode, phase: phase)
     }
 
     func testNotConnectedShowsCardAndPlainText() {
-        let c = content(.library, .connectStudIP, .signedOut, files: 3)
+        let c = content(.exams, .local(.notConnected), .signedOut)
         XCTAssertTrue(c.showsConnectCard)
         XCTAssertNil(c.status)
-        XCTAssertNil(c.filesButton)                                      // ohne Verbindung keine Dateien zeigen
-        XCTAssertEqual(c.text, "Noch keine Dokumente.")
+        XCTAssertEqual(c.text, "Noch keine Tests.")
     }
 
     func testSyncStatusWhileConnected() {
-        XCTAssertEqual(content(.plan, .empty, .running("Kurse werden geladen …")).status, .syncing("Kurse werden geladen …"))
-        XCTAssertEqual(content(.plan, .empty, .failed("offline")).status, .failed("offline"))
-        XCTAssertNil(content(.plan, .empty, .idle).status)
-        XCTAssertFalse(content(.plan, .empty, .running("x")).showsConnectCard)
-    }
-
-    func testLibraryAndModulesNameRealCounts() {
-        let lib = content(.library, .empty, files: 12)
-        XCTAssertEqual(lib.text, "12 Dateien aus Stud.IP liegen auf diesem iPad.")
-        XCTAssertEqual(lib.filesButton, "Stud.IP-Dateien ansehen (12)")
-        XCTAssertEqual(content(.library, .empty, files: 1).text, "1 Datei aus Stud.IP liegt auf diesem iPad.")
-        XCTAssertEqual(content(.library, .empty).text, "Noch keine Dokumente.")
-        XCTAssertNil(content(.library, .empty).filesButton)
-
-        XCTAssertEqual(content(.modules, .empty, courses: 5).text, "5 Kurse aus Stud.IP sind abgeglichen.")
-        XCTAssertEqual(content(.modules, .empty, courses: 5).filesButton, "Stud.IP-Kurse ansehen (5)")
-        XCTAssertEqual(content(.modules, .empty, courses: 1).text, "1 Kurs aus Stud.IP ist abgeglichen.")
-        XCTAssertEqual(content(.modules, .empty).text, "Noch keine Module.")
-        XCTAssertFalse(content(.dashboard, .empty, files: 4).text.contains("noch ist nichts da"))
+        let connected = UFDataMode.local(.connected)
+        XCTAssertEqual(content(.plan, connected, .running("Kurse werden geladen …")).status, .syncing("Kurse werden geladen …"))
+        XCTAssertEqual(content(.plan, connected, .failed("offline")).status, .failed("offline"))
+        XCTAssertNil(content(.plan, connected, .idle).status)
+        XCTAssertFalse(content(.plan, connected, .running("x")).showsConnectCard)
+        XCTAssertNil(content(.plan, .local(.notConnected), .failed("x")).status, "nicht verbunden: Karte statt Stand")
+        XCTAssertNil(content(.plan, .server, .running("x")).status)
     }
 
     func testNoPromisesForGradesAndWeeklyTests() {
-        for mode in [UFDataMode.connectStudIP, .empty] {
-            let services = content(.services, mode, files: 2)
+        for mode in [UFDataMode.local(.notConnected), .local(.connected)] {
+            let services = content(.services, mode)
             XCTAssertEqual(services.text, "Noten aus QIS kommen in einer späteren Version.")
             XCTAssertTrue(services.soon)
             // keine KI in V1: Wochentests werden weder angeboten noch angekuendigt
@@ -103,7 +85,7 @@ final class NoServerStateTests: XCTestCase {
             XCTAssertEqual(exams.text, "Noch keine Tests.")
             XCTAssertFalse(exams.soon)
         }
-        XCTAssertFalse(content(.library, .empty).soon)
+        XCTAssertFalse(content(.library, .local(.connected)).soon)
         XCTAssertNil(UFNoServerPage.Spec.services.sub?.range(of: "Notenspiegel"))
     }
 }

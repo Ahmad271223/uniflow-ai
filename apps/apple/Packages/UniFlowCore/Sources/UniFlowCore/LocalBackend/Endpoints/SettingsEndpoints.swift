@@ -21,7 +21,7 @@ public enum LocalSettings {
         out["test_default_minutes"] = .number(Double(try strictInt(s["test_default_minutes"], default: 90, key: "test_default_minutes")))
         out["auto_plan"] = .bool(flag(s["auto_plan"], default: "1"))
         out["auto_tests"] = .bool(flag(s["auto_tests"], default: "1"))
-        for (k, d) in [("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 1),
+        for (k, d) in [("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 0),
                        ("test_minutes", 45), ("break_minutes", 15)] {
             out[k] = .number(Double(try lenientInt(s[k], default: d, key: k)))
         }
@@ -51,13 +51,17 @@ public enum LocalSettings {
     }
 
     /// `_public_settings`: ohne die PIN des PC-Servers, dazu die Hochschule. `university_next` ist in Python die Uni
-    /// des naechsten Starts; einen Hochschulwechsel gibt es auf dem iPad in V1 nicht, darum dieselbe.
+    /// des naechsten Starts; einen Hochschulwechsel gibt es auf dem iPad in V1 nicht, darum dieselbe. `files_source`
+    /// ist die Dateiquelle des Hochschulprofils, `mode` wie config.MODE am PC: das iPad laeuft immer "local" (ohne
+    /// UniFlow-Konto, gehosteter Modus ist PC-Sache).
     public static func publicSettings(_ s: [String: JSONValue]) -> [String: JSONValue] {
         var p = s
         p["lan_pin"] = nil
         let uni = s["university"] ?? .string(Migrations.defaultUniversity)
         p["university"] = uni
         p["university_next"] = uni
+        p["files_source"] = .string(UniversityProfile.profile(forKey: uni.string)?.filesSource ?? "Stud.IP")
+        p["mode"] = "local"
         return p
     }
 

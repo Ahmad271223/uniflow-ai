@@ -402,7 +402,7 @@ def overview():
                                         (SELECT COUNT(*) FROM analysis) AS analyzed,
                                         (SELECT COUNT(*) FROM files WHERE status!='erledigt') AS open""")
         today = date.today()
-        ws = planner.monday(today).isoformat()
+        ws = study.monday(today).isoformat()
         today_items = db.rows(conn, "SELECT * FROM plan_items WHERE week_start=? AND day=? ORDER BY start_time",
                               (ws, today.weekday()))
     return {"new_files": new_files, "recent": recent, "last_sync": last_sync, "counts": counts,
@@ -1051,6 +1051,12 @@ def api_calendar(start: str, end: str):
 def api_calendar_generate(body: dict = Body(default={})):
     start = date.fromisoformat(body["start"]) if body.get("start") else None
     with db.cursor() as conn:
+        if body.get("window_start") or body.get("window_end"):
+            # "Lerneinheit automatisch einplanen" im freien Fenster: ein Paket genau in dieses Fenster
+            try:
+                return study.plan_window(conn, start or study.today(), body.get("window_start"), body.get("window_end"))
+            except ValueError as e:
+                raise HTTPException(400, str(e))
         return study.generate_packages(conn, start, int(body.get("days") or 7), bool(body.get("replace")))
 
 
@@ -1164,10 +1170,19 @@ def api_package_add_task(package_id: int, body: dict = Body(...)):
 def api_package_patch(package_id: int, body: dict = Body(...)):
     with db.cursor() as conn:
         if body.get("date"):
-            study.move_package(conn, package_id, body["date"])
+            try:
+                study.move_package(conn, package_id, body["date"])
+            except ValueError as e:                      # frueher 500
+                raise HTTPException(404, str(e))
         for k in ("title", "sort"):
             if k in body:
                 conn.execute(f"UPDATE study_packages SET {k}=? WHERE id=?", (body[k], package_id))
+        # Uhrzeit ("Uhrzeit" im Lernpaket, "Beginn" beim Anlegen): wurde frueher nicht gespeichert
+        if "start_time" in body or "end_time" in body:
+            try:
+                study.set_package_time(conn, package_id, body.get("start_time"), body.get("end_time"))
+            except ValueError as e:
+                raise HTTPException(400, str(e))
         return _found(db.row(conn, "SELECT * FROM study_packages WHERE id=?", (package_id,)), "Lernpaket")
 
 
@@ -1196,8 +1211,12 @@ def api_apply(body: dict = Body(...)):
 
 @app.post("/api/tasks/skip")
 def api_skip(body: dict = Body(...)):
+    ids = [int(x) for x in body.get("task_ids") or []]
     with db.cursor() as conn:
-        study.skip_tasks(conn, [int(x) for x in body.get("task_ids") or []])
+        try:
+            study.skip_tasks(conn, ids)
+        except ValueError as e:                          # unbekannte Aufgabe: frueher 500, nichts wird uebersprungen
+            raise HTTPException(404, str(e))
     return {"ok": True}
 
 
@@ -1227,17 +1246,26 @@ def api_file_favorite(file_id: str, body: dict = Body(...)):
 
 @app.get("/api/search")
 def api_search(q: str):
+    """Globale Suche: Dateien, Module, Aufgaben des Lernplans und Seitentexte (gespeichert von der Skriptsuche).
+    Verglichen wird die Suchform (scriptsearch.contains: klein, NFC) als Teiltext. Frueher lower() und LIKE in SQLite:
+    die kennen nur ASCII ("übung" fand "Übung 1.pdf" nicht), und % oder _ in der Anfrage waren Platzhalter ("%%" fand
+    alle Dateien). Dateien im Papierkorb und aus abgewaehlten Kursen fehlen wie in der Bibliothek (der Treffer liess
+    sich nicht oeffnen)."""
+    from . import scriptsearch
     q = (q or "").strip().lower()
     if len(q) < 2:
-        return {"files": [], "modules": []}
-    like = f"%{q}%"
+        return {"files": [], "modules": [], "tasks": [], "pages": []}
     with db.cursor() as conn:
         files = db.rows(conn, """SELECT f.id, f.name, c.subject, c.module_id, a.title AS ai_title, a.doc_type, a.topics FROM files f
                                  JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-                                 WHERE lower(f.name) LIKE ? OR lower(COALESCE(a.title,'')) LIKE ? OR lower(COALESCE(a.topics,'')) LIKE ? OR lower(c.subject) LIKE ?
-                                 ORDER BY f.chdate DESC LIMIT 20""", (like, like, like, like))
-        mods = db.rows(conn, "SELECT id, name, color FROM modules WHERE lower(name) LIKE ? LIMIT 5", (like,))
-    return {"files": files, "modules": mods}
+                                 WHERE f.deleted_at IS NULL AND c.active=1 ORDER BY f.chdate DESC""")
+        files = [r for r in files if scriptsearch.contains(q, r["name"], r["ai_title"], r["topics"], r["subject"])][:20]
+        mods = [r for r in db.rows(conn, "SELECT id, name, color FROM modules") if scriptsearch.contains(q, r["name"])][:5]
+        tasks = db.rows(conn, """SELECT t.id, t.title, t.type, t.status, t.file_id, t.package_id, p.date, p.subject, p.module_id
+                                 FROM study_tasks t JOIN study_packages p ON p.id=t.package_id ORDER BY p.date DESC, t.id""")
+        tasks = [r for r in tasks if scriptsearch.contains(q, r["title"])][:10]
+        pages = scriptsearch.find_pages(conn, q)
+    return {"files": files, "modules": mods, "tasks": tasks, "pages": pages}
 
 
 # ----------------------------------------------------------------------------
@@ -1420,13 +1448,18 @@ def api_tt_conflicts(days: int = 28):
 
 @app.post("/api/timetable/reslot")
 def api_tt_reslot(body: dict = Body(default={})):
-    """Lernslots der betroffenen Tage neu in freie Fenster legen."""
+    """Lernslots der betroffenen Tage neu in freie Fenster legen. Mit only_unset ("Uhrzeiten vergeben") bekommen nur
+    Pakete ohne Uhrzeit eine; von Hand gesetzte Uhrzeiten bleiben (frueher wurden sie ohne Rueckfrage neu vergeben)."""
     days = body.get("dates") or []
+    only_unset = bool(body.get("only_unset"))
     with db.cursor() as conn:
         if not days:
             days = sorted({c["date"] for c in study.slot_conflicts(conn, date.today(), date.today() + timedelta(days=28))})
         for d in days:
-            study.reslot_day(conn, date.fromisoformat(d))
+            if only_unset:
+                study.assign_slots(conn, date.fromisoformat(d))
+            else:
+                study.reslot_day(conn, date.fromisoformat(d))
     return {"reslotted": days}
 
 
@@ -1487,7 +1520,7 @@ def api_services():
     from . import qis, universities
     with db.cursor() as conn:
         s = qis.summary(conn)
-        uni = universities.current(conn)
+        uni = universities.current()
     creds = _cred_overview()
     creds["hildesheim"] = _hildesheim_creds()
     q = creds["qis"]

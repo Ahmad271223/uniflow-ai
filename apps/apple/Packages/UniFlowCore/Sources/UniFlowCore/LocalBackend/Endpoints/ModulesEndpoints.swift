@@ -73,7 +73,9 @@ public enum ModulesEndpoints: LocalEndpointModule {
                     try c.execute("UPDATE courses SET subject=? WHERE module_id=?", [rename, id])
                     try c.execute("UPDATE study_packages SET subject=? WHERE module_id=?", [rename, id])
                 }
-                return try c.queryOne("SELECT * FROM modules WHERE id=?", [id]).map { .object($0.json) } ?? .null
+                // Regel G6 (server._found): kein Datensatz -> 404
+                guard let row = try c.queryOne("SELECT * FROM modules WHERE id=?", [id]) else { throw LocalHTTPError.notFound("Modul nicht gefunden") }
+                return .object(row.json)
             }
             return .json(row)
         }
@@ -112,6 +114,7 @@ public enum ModulesEndpoints: LocalEndpointModule {
                     throw LocalHTTPError(status: 400, message: "Modul enthält noch Kurse. Erst Kurse einem anderen Modul zuordnen.")
                 }
                 try c.execute("DELETE FROM modules WHERE id=?", [id])
+                if c.changes == 0 { throw LocalHTTPError.notFound("Modul nicht gefunden") }       // Regel G6 (server._changed)
             }
             return .ok
         }

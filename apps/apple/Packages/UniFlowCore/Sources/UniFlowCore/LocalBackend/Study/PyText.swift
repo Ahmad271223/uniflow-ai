@@ -137,6 +137,55 @@ public struct PyMatch {
 
 /// Zeichenketten wie Python (`str` arbeitet mit Codepunkten, Swift mit Graphemen).
 public enum PyText {
+    // MARK: urllib.parse
+
+    /// `urllib.parse.quote(s, safe)` bzw. `quote_plus` (`plus`: Leerzeichen als "+"): Buchstaben, Ziffern, "_.-~" und
+    /// die Zeichen aus `safe` (nur ASCII) bleiben, alles andere wird %XX (UTF-8). Die eine Prozent-Kodierung des Kerns
+    /// (Dateinamen in Antworten, Adressen der Anmeldung, Formulare an Moodle).
+    public static func quote(_ s: String, safe: String = "/", plus: Bool = false) -> String {
+        let keep = Set(safe.utf8)
+        var out = ""
+        for b in s.utf8 {
+            switch b {
+            case 0x41...0x5A, 0x61...0x7A, 0x30...0x39, 0x5F, 0x2E, 0x2D, 0x7E: out.unicodeScalars.append(Unicode.Scalar(b))
+            case 0x20 where plus: out.append("+")
+            case _ where keep.contains(b) && b < 0x80: out.unicodeScalars.append(Unicode.Scalar(b))
+            default: out += String(format: "%%%02X", b)
+            }
+        }
+        return out
+    }
+
+    /// `urllib.parse.unquote`: gueltige %XX-Folgen dekodieren, alles andere bleibt; ungueltiges UTF-8 wird U+FFFD
+    /// (nie ein Absturz bei kaputten Adressen).
+    public static func unquote(_ s: String) -> String {
+        guard s.contains("%") else { return s }
+        func hex(_ c: UInt8) -> UInt8? {
+            switch c {
+            case 0x30...0x39: return c - 0x30
+            case 0x41...0x46: return c - 0x41 + 10
+            case 0x61...0x66: return c - 0x61 + 10
+            default: return nil
+            }
+        }
+        let b = Array(s.utf8)
+        var out: [UInt8] = []
+        var i = 0
+        while i < b.count {
+            if b[i] == 0x25, i + 2 < b.count, let h = hex(b[i + 1]), let l = hex(b[i + 2]) {
+                out.append(h << 4 | l)
+                i += 3
+            } else {
+                out.append(b[i])
+                i += 1
+            }
+        }
+        return String(decoding: out, as: UTF8.self)
+    }
+
+    /// `urllib.parse.unquote_plus` (Abfrage und Formular, `parse_qsl`): "+" als Leerzeichen, dann wie `unquote`
+    public static func unquotePlus(_ s: String) -> String { unquote(s.replacingOccurrences(of: "+", with: " ")) }
+
     /// `str.isspace()` je Codepunkt
     static func isSpace(_ u: Unicode.Scalar) -> Bool {
         switch u.value {
@@ -201,13 +250,26 @@ public enum PyText {
 
     /// `needle in hay` (Teilfolge von Codepunkten)
     public static func contains(_ hay: String, _ needle: String) -> Bool {
-        let h = Array(hay.unicodeScalars), n = Array(needle.unicodeScalars)
-        if n.isEmpty { return true }
-        guard n.count <= h.count else { return false }
-        for i in 0...(h.count - n.count) where h[i] == n[0] {
-            if Array(h[i..<(i + n.count)]) == n { return true }
+        find(Array(hay.unicodeScalars), Array(needle.unicodeScalars)) != nil
+    }
+
+    /// `hay.find(needle)` nach Codepunkten; nil statt -1
+    static func find(_ hay: [Unicode.Scalar], _ needle: [Unicode.Scalar]) -> Int? {
+        if needle.isEmpty { return 0 }
+        guard needle.count <= hay.count else { return nil }
+        for i in 0...(hay.count - needle.count) where hay[i] == needle[0] {
+            if hay[i..<(i + needle.count)].elementsEqual(needle) { return i }
         }
-        return false
+        return nil
+    }
+
+    /// `s[from:to]` nach Codepunkten wie Pythons Slicing (nicht negative Grenzen, zu grosse werden gekappt)
+    static func slice(_ s: String, _ from: Int, _ to: Int) -> String {
+        let u = Array(s.unicodeScalars)
+        let lo = min(max(0, from), u.count), hi = min(max(lo, to), u.count)
+        var out = String.UnicodeScalarView()
+        out.append(contentsOf: u[lo..<hi])
+        return String(out)
     }
 
     /// `a < b` fuer `str`: Codepunkte der Reihe nach (Swift vergleicht kanonisch aequivalent)
@@ -288,5 +350,21 @@ public enum PyText {
     private static func hex(_ v: UInt32, _ width: Int) -> String {
         let s = String(v, radix: 16)
         return String(repeating: "0", count: max(0, width - s.count)) + s
+    }
+}
+
+/// Rechnen wie Python, wo das Ergebnis bitgenau gleich sein muss
+enum PyMath {
+    /// `sum(values)` fuer Gleitkommazahlen wie CPython ab 3.12 (bltinmodule.c): kompensierte Summe nach Neumaier in
+    /// der gegebenen Reihenfolge, der Ausgleich kommt am Ende dazu, wenn er endlich und nicht 0 ist
+    static func sum(_ values: [Double]) -> Double {
+        var total = 0.0, c = 0.0
+        for x in values {
+            let t = total + x
+            if abs(total) >= abs(x) { c += (total - t) + x } else { c += (x - t) + total }
+            total = t
+        }
+        if c != 0, c.isFinite { total += c }
+        return total
     }
 }

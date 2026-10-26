@@ -88,12 +88,51 @@ final class SQLiteStoreTests: XCTestCase {
 
     // MARK: - Schema und Migrationen
 
+    /// Vertrag G2 (Geraete-Synchronisierung ueber UniFlow-Konten, app/sync.py) haengt am PC an jede synchronisierte
+    /// Tabelle die Spalten sync_version/sync_updated_at/sync_device und legt sync_tombstones an. Das iPad V1 hat keine
+    /// Konten und keinen Geraete-Sync: Fixture ohne diese Teile, der strenge Vergleich steht als erwartete Abweichung
+    /// in den Tests (XCTExpectFailure), damit er mit G2 wieder greift.
+    private static let syncColumns: Set<String> = ["sync_version", "sync_updated_at", "sync_device"]
+
+    private func withoutSync(_ value: JSONValue?) -> JSONValue? {
+        guard let value else { return nil }
+        switch value {
+        case .object(let o):
+            var out: [String: JSONValue] = [:]
+            for (k, v) in o where !Self.syncColumns.contains(k) && k != "sync_tombstones" && k != "idx_tombstones_time" {
+                out[k] = withoutSync(v)
+            }
+            return .object(out)
+        case .array(let a):
+            return .array(a.compactMap { item -> JSONValue? in
+                if let name = item["name"]?.string, Self.syncColumns.contains(name) { return nil }      // Spaltenliste
+                return withoutSync(item)
+            })
+        default:
+            return value
+        }
+    }
+
+    private func assertSchemaExceptSync(_ actual: JSONValue, _ expected: JSONValue?, file: StaticString = #filePath, line: UInt = #line) {
+        XCTExpectFailure("G2-Sync-Spalten und sync_tombstones (PC-Stand 26.10.2026) fehlen im iPad V1 ohne Konten", strict: true) {
+            assertSchema(actual, expected, file: file, line: line)
+        }
+        assertSchema(actual, withoutSync(expected), file: file, line: line)
+    }
+
+    /// Schema der Fixtures mit der user_version, die die Geraete-Schritte setzen (Python kennt sie nicht: 0)
+    private func onDevice(_ schema: JSONValue?) -> JSONValue {
+        var s = schema?.object ?? [:]
+        s["user_version"] = .number(Double(Migrations.deviceSteps.map(\.version).max() ?? 0))
+        return .object(s)
+    }
+
     func testFreshDatabaseMatchesPythonInitDB() throws {
         let fx = try fixture("schema.json")
         let c = try SQLiteConnection(path: SQLiteDatabase.inMemory)
-        try Migrations.migrate(c, clock: clock)
+        try Migrations.migrate(c, clock: clock, deviceSteps: [])          // genau wie init_db
 
-        assertSchema(try snapshot(c), fx["schema"])
+        assertSchemaExceptSync(try snapshot(c), fx["schema"])
         let settings: [JSONValue] = try c.query("SELECT key, value FROM settings ORDER BY rowid").map { [json($0[0]), json($0[1])] }
         XCTAssertEqual(settings, fx["settings"]?.array)
         XCTAssertEqual(Migrations.defaultSettings.count + 1, fx["settings"]?.array?.count, "Standardwerte und Hochschule")
@@ -103,6 +142,26 @@ final class SQLiteStoreTests: XCTestCase {
         for i in courses.indices { courses[i]["created_at"] = nil }
         XCTAssertEqual(courses.map { JSONValue.object($0) }, fx["courses"]?.array)
         XCTAssertEqual(try tableRows(c, "terms"), fx["terms"]?.array)
+
+        // auf dem Geraet (mit den Geraete-Schritten): dieselben Tabellen und Einstellungen, nur user_version gesetzt
+        let device = try SQLiteConnection(path: SQLiteDatabase.inMemory)
+        try Migrations.migrate(device, clock: clock)
+        assertSchemaExceptSync(try snapshot(device), onDevice(fx["schema"]))
+        XCTAssertEqual(try device.query("SELECT key, value FROM settings ORDER BY rowid").map { [json($0[0]), json($0[1])] }, fx["settings"]?.array)
+    }
+
+    /// Geraete-Schritt 1: eine Datenbank aus einem Build vor S6 (tests_per_subject '1', Standard damals) plant auf
+    /// dem iPad ohne Wochentests; der Schritt laeuft nur einmal, eine spaetere Wahl bleibt
+    func testDeviceStepResetsWeeklyTestsOnce() throws {
+        let c = try SQLiteConnection(path: SQLiteDatabase.inMemory)
+        try Migrations.migrate(c, clock: clock, deviceSteps: [])          // Stand vor S6: ohne Geraete-Schritt
+        try c.execute("UPDATE settings SET value='1' WHERE key='tests_per_subject'")
+        try Migrations.migrate(c, clock: clock)
+        XCTAssertEqual(try c.scalar("SELECT value FROM settings WHERE key='tests_per_subject'")?.string, "0")
+        XCTAssertEqual(try c.scalar("PRAGMA user_version")?.int, 1)
+        try c.execute("UPDATE settings SET value='2' WHERE key='tests_per_subject'")
+        try Migrations.migrate(c, clock: clock)
+        XCTAssertEqual(try c.scalar("SELECT value FROM settings WHERE key='tests_per_subject'")?.string, "2", "nur einmal")
     }
 
     func testMigrationsAreIdempotent() throws {
@@ -138,11 +197,15 @@ final class SQLiteStoreTests: XCTestCase {
         try await db.migrate(clock: clock)
 
         let c = try SQLiteConnection(path: path)
-        let expected = fx["schema"]
-        assertSchema(try snapshot(c), expected)
-        assertSchema(try snapshot(c), try fixture("schema.json")["schema"])      // alt migriert == neu angelegt
+        assertSchemaExceptSync(try snapshot(c), onDevice(fx["schema"]))
+        assertSchemaExceptSync(try snapshot(c), onDevice(try fixture("schema.json")["schema"]))      // alt migriert == neu angelegt
         for (table, rows) in fx["rows"]?.object ?? [:] {
-            XCTAssertEqual(try tableRows(c, table), rows.array, table)
+            if rows.jsonString().contains("sync_version") {
+                XCTExpectFailure("G2-Sync-Spalten in den Zeilen von \(table) (PC-Stand) fehlen im iPad V1", strict: true) {
+                    XCTAssertEqual(try? tableRows(c, table), rows.array, table)
+                }
+            }
+            XCTAssertEqual(try tableRows(c, table), withoutSync(rows)?.array, table)
         }
         XCTAssertEqual(try c.scalar("PRAGMA integrity_check")?.string, "ok")
         XCTAssertNil(try c.queryOne("PRAGMA foreign_key_check"))
@@ -194,7 +257,7 @@ final class SQLiteStoreTests: XCTestCase {
         XCTAssertEqual(try c.scalar("PRAGMA user_version")?.int, 3)
         // ohne Geraete-Schritte bleibt user_version 0 (wie eine Datenbank vom PC)
         let fresh = try SQLiteConnection(path: SQLiteDatabase.inMemory)
-        try Migrations.migrate(fresh, clock: clock)
+        try Migrations.migrate(fresh, clock: clock, deviceSteps: [])
         XCTAssertEqual(try fresh.scalar("PRAGMA user_version")?.int, 0)
     }
 

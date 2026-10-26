@@ -249,7 +249,7 @@ final class SolutionSharingTests: XCTestCase {
         let mapped = CGPoint(x: 100, y: 100).applying(view.mapping)
         XCTAssertEqual(mapped.x, 742, accuracy: 1e-9)
         XCTAssertEqual(mapped.y, 100, accuracy: 1e-9)
-        XCTAssertEqual(view.strokeLayerCount, 1)
+        XCTAssertEqual(view.strokeCount, 1)
 
         let overlay = PageInkView(pageIndex: 0, pageKey: "p1", geometry: PageGeometry(boxSize: CGSize(width: 595, height: 842), rotation: 90))
         overlay.setForeign([view])
@@ -259,11 +259,7 @@ final class SolutionSharingTests: XCTestCase {
         XCTAssertLessThan(order.firstIndex(of: overlay.foreignView)!, order.firstIndex(of: overlay.objectsView)!)
         XCTAssertLessThan(order.firstIndex(of: overlay.objectsView)!, order.firstIndex(of: overlay.canvas)!)
         // Pixelprobe der fremden Schicht
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let img = UIGraphicsImageRenderer(size: overlay.foreignView.bounds.size, format: format).image { ctx in
-            overlay.foreignView.layer.render(in: ctx.cgContext)
-        }.cgImage!
+        let img = InkSnapshot.image(overlay.foreignView, size: overlay.foreignView.bounds.size).cgImage!
         XCTAssertGreaterThan(pixel(img, 742, 140).a, 200, "Tinte an der gedrehten Stelle")
         XCTAssertEqual(pixel(img, 140, 100).a, 0, "nicht an der ungedrehten Stelle")
 
@@ -422,7 +418,7 @@ final class SolutionSharingTests: XCTestCase {
                                     clock: .fixed(berlin: "2026-10-25T14:30:05")!)
         let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
         let fileID = "loesung-test-" + UUID().uuidString.prefix(8).lowercased()
-        let pdfURL = AppPaths.pdfDirectory(api.namespace, root: root).appendingPathComponent(fileID + ".pdf")
+        let pdfURL = AppPaths.pdf(fileID, namespace: api.namespace, root: root)
         try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try pdf.write(to: pdfURL)
         let file = LibFile(id: fileID, name: "Blatt.pdf", title: "Blatt", kind: "pdf", module_id: nil, subject: nil, doc_type: nil,
@@ -742,8 +738,6 @@ final class SolutionSharingTests: XCTestCase {
         XCTAssertEqual(SolutionTexts.ownNotesOnly,
                        "Geteilt werden nur deine eigenen Notizen – keine Folien, keine Aufgabenstellungen, keine PDF. Teile nur, was du selbst erstellt hast.")
         XCTAssertTrue(SolutionTexts.examRules.contains("Prüfungsordnung"))
-        XCTAssertEqual(SolutionTexts.communityNotConnected, "Community-Dienst noch nicht verbunden")
         XCTAssertTrue(SolutionTexts.pdfExportPrivate.contains("Originalmaterial"))
-        XCTAssertFalse(SolutionSharing.community.isConnected)
     }
 }

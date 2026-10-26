@@ -194,7 +194,8 @@ final class LocalBackendCoverageTests: XCTestCase {
         let lt = local["type"]?.string ?? "", pt = python["type"]?.string ?? ""
         guard lt == pt else { problems.append("\(path): \(lt) statt \(pt)"); return }
         if lt == "object" {
-            let lk = local["keys"]?.object ?? [:], pk = python["keys"]?.object ?? [:]
+            let lk = local["keys"]?.object ?? [:]
+            let pk = (python["keys"]?.object ?? [:]).filter { !(pcOnlyKeys.contains($0.key) && local["keys"]?[$0.key] == nil) }
             if Set(lk.keys) != Set(pk.keys) {
                 problems.append("\(path): Schlüssel \(lk.keys.sorted()) statt \(pk.keys.sorted())")
                 return
@@ -262,7 +263,8 @@ final class LocalBackendCoverageTests: XCTestCase {
                     problems.append("\(label): Wert von \(k) weicht von app/server.py ab")
                 }
                 if let type = expect["type"]?.string, shape(body)["type"]?.string != type { problems.append("\(label): Typ statt \(type)") }
-                if let keys = expect["keys"]?.array?.compactMap(\.string), Set(body.object?.keys.map { $0 } ?? []) != Set(keys) {
+                if let keys = expect["keys"]?.array?.compactMap(\.string),
+                   Set(body.object?.keys.map { $0 } ?? []) != Set(keys).subtracting(pcOnlyKeys.filter { body[$0] == nil }) {
                     problems.append("\(label): Schlüssel \(body.object?.keys.sorted() ?? [])")
                 }
             } else {
@@ -271,10 +273,11 @@ final class LocalBackendCoverageTests: XCTestCase {
             }
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
-        // Nach S2 bis S5 (Einstellungen, Bibliothek und Dateien, Module, Stundenplan) und den Noten (GET /api/grades,
-        // Hildesheim) bleiben 28 Pfade Platzhalter bis zu ihrer Portierung (Lernkalender, Pakete, Aufgaben, reslot: S6;
-        // Suche: S7; Karteikarten, Uni & Noten, ...). Jeder weitere Port senkt die Zahl; dann hier nachziehen.
-        XCTAssertEqual(placeholders, 28, "Platzhalter nach S2–S5 und /api/grades")
+        // Nach S2 bis S7 (Einstellungen, Bibliothek und Dateien, Module, Stundenplan, Lernkalender mit Paketen, Aufgaben,
+        // reslot und Uebersicht, Suche und Skriptsuche) und den Noten (GET /api/grades, Hildesheim) bleiben 8 Pfade
+        // Platzhalter bis zu ihrer Portierung (Karteikarten, Uni & Noten, Hintergrund). Jeder weitere Port senkt die Zahl;
+        // dann hier nachziehen.
+        XCTAssertEqual(placeholders, 8, "Platzhalter nach S2–S7 und /api/grades")
     }
 
     func testServicesListLikeServer() async throws {
@@ -296,7 +299,7 @@ final class LocalBackendCoverageTests: XCTestCase {
         }
     }
 
-    func testPlaceholdersUseClockAndSettings() async throws {
+    func testPagesUseClockAndSettings() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
         _ = await backend.handle(LocalRequest(method: "PUT", path: "/api/settings",
                                               body: Data(#"{"free_days": [5, 6], "blocked_times": [{"weekday": 0, "start": "12:00", "end": "13:00"}]}"#.utf8)))
@@ -325,9 +328,9 @@ final class LocalBackendCoverageTests: XCTestCase {
         let fResponse = await backend.handle(LocalRequest(method: "GET", path: "/api/calendar/feasibility"))
         let f = try XCTUnwrap(fResponse.json)
         XCTAssertEqual(f["available_minutes_4w"], 4800)
-        XCTAssertEqual(f["per_day_need"], 300)
+        XCTAssertEqual(f["per_day_need"], 210, "2 Fächer · (Vorlesung 45 + Übung 60), ohne Wochentest (Standard)")
         XCTAssertEqual(f["open_minutes"], 0)
-        XCTAssertNotNil(f["hint"]?.string, "300 > 240 Minuten")
+        XCTAssertEqual(f["hint"], .null, "210 <= 240 Minuten")
     }
 }
 
@@ -399,5 +402,28 @@ final class LocalFreeWindowsTests: XCTestCase {
         let r = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", "2026-10-26")]))
         XCTAssertEqual(r.status, 500)
         XCTAssertNotNil(r.json?["detail"]?.string)
+    }
+}
+
+// MARK: - Bekannte Abweichungen vom PC-Stand
+
+/// Haelt fest, was der PC-Stand vom 26.10.2026 in den Antworten mehr hat als das iPad (siehe `pcOnlyKeys`):
+/// Learnweb-Fristen (`deadlines`), Feiertage und vorlesungsfreie Zeit (`marks`, Ausfall "vorlesungsfrei"),
+/// Ankuendigungen (`notices`, `announcements`) und LSF-Bemerkungen (`note`). Sobald das iPad die Logik nachzieht,
+/// schlaegt die erwartete Abweichung fehl und `pcOnlyKeys` wird geleert.
+final class KnownDeviationTests: XCTestCase {
+    func testCalendarAndDashboardLackPCOnlyKeys() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let cal = await backend.handle(request("GET", ["path": "/api/calendar?start=2026-10-19&end=2026-10-25"]))
+        let day = cal.json?["days"]?.array?.first
+        XCTExpectFailure("Fristen, Feiertage und Ankuendigungen (PC-Stand 26.10.2026) fehlen im iPad V1", strict: true) {
+            XCTAssertNotNil(day?["deadlines"])
+            XCTAssertNotNil(day?["marks"])
+            XCTAssertNotNil(day?["notices"])
+        }
+        let dash = await backend.handle(request("GET", ["path": "/api/dashboard"]))
+        XCTExpectFailure("Ankuendigungen der Lehrenden (PC-Stand 26.10.2026) fehlen im iPad V1", strict: true) {
+            XCTAssertNotNil(dash.json?["announcements"])
+        }
     }
 }

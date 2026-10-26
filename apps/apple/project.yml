@@ -35,6 +35,39 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
         ENABLE_PREVIEWS: YES
+        # die Skriptphase "Nur Debug: lokales Netz" schreibt in die Info.plist des Bundles (unten)
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # Release fuer ein Geraet (Archiv fuer TestFlight/App Store) nur mit Team und Berechtigung "Mit Apple anmelden":
+    # ohne Config/Team.xcconfig baute das Archiv still ohne die Berechtigung und die App blieb an der Begruessung haengen
+    preBuildScripts:
+      - name: "Release: Team und Mit Apple anmelden pruefen"
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${CONFIGURATION}" = "Release" ] && [ "${PLATFORM_NAME}" = "iphoneos" ]; then
+            if [ -z "${DEVELOPMENT_TEAM}" ] || [ -z "${CODE_SIGN_ENTITLEMENTS}" ]; then
+              echo "error: Release ohne DEVELOPMENT_TEAM oder CODE_SIGN_ENTITLEMENTS. Config/Team.xcconfig anlegen (Vorlage Team.xcconfig.example) und xcodegen generate ausfuehren."
+              exit 1
+            fi
+          fi
+    # Klartext-HTTP ins lokale Netz (eigener UniFlow-Server, nur Debug: Session.ownServerAvailable) und die Frage nach
+    # dem lokalen Netz gibt es nur im Debug-Build. Release, TestFlight und App Store haben keine ATS-Ausnahme und keinen
+    # Hinweis auf einen Server (docs/RELEASE-VORBEREITUNG.md, Abnahme: plutil -p auf die Info.plist im Archiv).
+    postBuildScripts:
+      - name: "Nur Debug: lokales Netz fuer den eigenen Server"
+        basedOnDependencyAnalysis: false
+        # Die Info.plist als Eingabe: so laeuft die Phase erst nach ProcessInfoPlistFile. Ohne diese Angabe hat Xcode
+        # sie bei einem zweiten Testlauf in Folge davor eingeplant, die Plist wurde danach neu erzeugt und der
+        # App-Test zum lokalen Netz schlug fehl (Befund 26.10.2026).
+        inputFiles:
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        script: |
+          if [ "${CONFIGURATION}" = "Debug" ]; then
+            P="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+            /usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" "$P" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$P"
+            /usr/libexec/PlistBuddy -c "Delete :NSLocalNetworkUsageDescription" "$P" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string UniFlow verbindet sich mit deinem UniFlow-Server im WLAN (nur Entwicklung)." "$P"
+          fi
     info:
       path: UniFlow/Info.plist
       properties:
@@ -52,7 +85,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        NSLocalNetworkUsageDescription: UniFlow verbindet sich mit deinem UniFlow-Server im WLAN.
         # Schrift der Web-App (Inter, Google Fonts, SIL Open Font License: UniFlow/Resources/Fonts/Inter-OFL.txt)
         UIAppFonts:
           - Inter-Variable.ttf
@@ -81,10 +113,7 @@ targets:
                 - application/vnd.uniflow.solution+json
         # Dateien aus "Öffnen in" werden in die App kopiert (nicht an Ort und Stelle bearbeitet)
         LSSupportsOpeningDocumentsInPlace: false
-        # Nur fuer die Entwicklung (Server laeuft per http im WLAN). Vor TestFlight/App Store auf HTTPS umstellen und entfernen.
-        NSAppTransportSecurity:
-          NSAllowsLocalNetworking: true
-          NSAllowsArbitraryLoads: true
+        # kein NSAppTransportSecurity: nur HTTPS (Stud.IP, Learnweb, LSF, Opencast); Debug siehe postBuildScripts
   UniFlowTests:
     type: bundle.unit-test
     platform: iOS

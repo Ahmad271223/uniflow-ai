@@ -142,6 +142,30 @@ public enum LocalModules {
         }
     }
 
+    /// Lehrwoche einer Datei wie `file_week` in app/study.py, eine Regel fuer Moduldetail, Lernplan (`StudyPlan.units`),
+    /// Unterlagen zum Termin (`eventMaterials`) und Aufzeichnungen (`OpencastStore`): Klausuren und Klausur-Loesungen
+    /// eigener Block (-2, keine Lehrwoche), sonst der Hinweis aus Name/Ordner (Blatt 3 / VL03 -> Lehrwoche 3), wenn die
+    /// Datei aus diesem Semester ist, sonst die Woche der Aenderung (`StudyWeeks.weekIndex`). Vorher nahmen Lernplan und
+    /// Termin nur die Woche der Aenderung ("Blatt 3", in Woche 5 hochgeladen: Moduldetail Woche 3, Lernplan Woche 5).
+    static func week(_ f: FileRow, dates: Dates) throws -> Int {
+        try week(docType: f.docType, subLabel: f.json["sub_label"]?.string, weekHint: f.json["week_hint"]?.int, chdate: f.chdate,
+                 start: dates.start, today: dates.today)
+    }
+
+    /// Wie oben, mit den Feldern einzeln (Aufzeichnungen ohne Dateizeile)
+    static func week(docType: String?, subLabel: String?, weekHint: Int?, chdate: SQLiteValue, start: Int, today: Int) throws -> Int {
+        if docType == "klausur" || subLabel == "Klausur-Lösung" { return -2 }
+        let index = try StudyWeeks.weekIndex(start: start, chdate: chdate, today: today)
+        if let hint = weekHint, hint != 0, index >= 0 { return hint }
+        return index
+    }
+
+    /// `sorted(weeks, key=lambda w: (w == -2, w == -1, w))`: Lehrwochen, dann aeltere Unterlagen, dann Klausuren
+    static func weekOrder(_ a: Int, _ b: Int) -> Bool {
+        let ka = (a == -2 ? 1 : 0, a == -1 ? 1 : 0, a), kb = (b == -2 ? 1 : 0, b == -1 ? 1 : 0, b)
+        return ka < kb
+    }
+
     /// `module_detail(conn, module_id)`; nil, wenn es das Modul nicht gibt (Python: `{}` und 404)
     public static func detail(_ c: SQLiteConnection, moduleID: SQLiteValue, clock: UniFlowClock) throws -> [String: JSONValue]? {
         try detail(c, moduleID: moduleID, dates: Dates(c, clock: clock))
@@ -152,23 +176,8 @@ public enum LocalModules {
         let start = dates.start
         let files = try fileRows(c, moduleID: moduleID)
         var weeks: [Int: [FileRow]] = [:]
-        for f in files {
-            let w: Int
-            if f.docType == "klausur" || f.json["sub_label"]?.string == "Klausur-Lösung" {
-                w = -2                                         // Klausuren & Altklausuren: eigener Block, keine Lehrwoche
-            } else if let hint = f.json["week_hint"]?.int, hint != 0,
-                      try StudyWeeks.weekIndex(start: start, chdate: f.chdate, today: dates.today) >= 0 {
-                w = hint                                       // Blatt 3 / VL03 -> Lehrwoche 3
-            } else {
-                w = try StudyWeeks.weekIndex(start: start, chdate: f.chdate, today: dates.today)
-            }
-            weeks[w, default: []].append(f)
-        }
-        // sorted(weeks, key=lambda w: (w == -2, w == -1, w)): Lehrwochen, dann aeltere Unterlagen, dann Klausuren
-        let order = weeks.keys.sorted { a, b in
-            let ka = (a == -2 ? 1 : 0, a == -1 ? 1 : 0, a), kb = (b == -2 ? 1 : 0, b == -1 ? 1 : 0, b)
-            return ka < kb
-        }
+        for f in files { weeks[try week(f, dates: dates), default: []].append(f) }
+        let order = weeks.keys.sorted(by: weekOrder)
         var outWeeks: [JSONValue] = []
         for w in order {
             let fl = weeks[w]!

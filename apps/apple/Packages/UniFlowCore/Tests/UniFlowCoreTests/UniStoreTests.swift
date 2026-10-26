@@ -60,10 +60,10 @@ final class UniStoreTests: XCTestCase {
             XCTAssertEqual(SolutionSHA256.hexString(h.finalize()), SolutionSHA256.hex(data), "\(size) Byte")
             let file = dir.appendingPathComponent("f\(size)")
             try data.write(to: file)
-            XCTAssertEqual(TestShare.contentHash(file: file), SolutionSHA256.hex(data), "Datei mit \(size) Byte")
+            XCTAssertEqual(ContentHash.file(file), SolutionSHA256.hex(data), "Datei mit \(size) Byte")
         }
-        XCTAssertNil(TestShare.contentHash(file: dir.appendingPathComponent("fehlt")))
-        XCTAssertNil(TestShare.contentHash(file: dir), "Ordner ist keine Datei")
+        XCTAssertNil(ContentHash.file(dir.appendingPathComponent("fehlt")))
+        XCTAssertNil(ContentHash.file(dir), "Ordner ist keine Datei")
     }
 
     // MARK: Stud.IP-Download wie stream_download
@@ -123,6 +123,19 @@ final class UniStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: target.path), "nichts gespeichert")
         try await client.download(fileID: "f1", to: target, name: "Hinweise.html")
         XCTAssertTrue(FileManager.default.fileExists(atPath: target.path), "echte HTML-Datei bleibt")
+        // echte HTML-Datei mit "login" im Text: keine abgelaufene Sitzung (vorher brach jeder Abgleich an ihr ab)
+        let withLogin = HTTPReply(status: 200, contentType: "text/html", body: Data("<html><a href='login.php'>Login-Hilfe</a></html>".utf8))
+        let c2 = StudIPClient(base: URL(string: "https://studip.test")!, transport: FlakyStudIP(failures: [], reply: withLogin),
+                              pauseMillis: 0, retry: noWait)
+        let t2 = dir.appendingPathComponent("hilfe")
+        try await c2.download(fileID: "f2", to: t2, name: "Login-Hilfe.html")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: t2.path))
+        do {
+            try await c2.download(fileID: "f2", to: t2, name: "Skript.pdf")
+            XCTFail("Anmeldeseite statt PDF")
+        } catch let e as StudIPError {
+            XCTAssertEqual(e, .sessionExpired, "statt einer PDF weiter als abgelaufene Anmeldung erkannt")
+        }
     }
 
     // MARK: Eine Fassung fuer Kurse und Dateien
@@ -177,7 +190,7 @@ final class UniStoreTests: XCTestCase {
             let file = dir.appendingPathComponent("files/lw-1-aa/Folien.pdf")
             try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data(text.utf8).write(to: file)
-            let sha = TestShare.contentHash(file: file)
+            let sha = ContentHash.file(file)
             try await db.transaction { try UniStore.markDownloaded($0, r, localPath: "files/lw-1-aa/Folien.pdf", sha256: sha, now: "2026-10-26T09:00:00") }
         }
         func current() async throws -> [String: JSONValue] {
@@ -206,6 +219,111 @@ final class UniStoreTests: XCTestCase {
         XCTAssertEqual(r["studip_folder"]?.string, "Woche 1")
     }
 
+    /// Learnweb ueber die Sitzung wie studip_sync.version_stamp: chdate ist eine Unix-Zeit (erste Sichtung, neue
+    /// Revision = Zeitpunkt des Abgleichs), nie die Revision (vorher Lehrwoche 1970, Block "Ältere Unterlagen").
+    /// Wechsel Schluessel <-> Sitzung: gleiche Revision bleibt unveraendert (kein Download, Groesse bleibt), eine
+    /// hoehere wird geladen; alte Zeilen mit der Revision in chdate werden auf first_seen repariert.
+    func testSessionFilesGetRealTimesAcrossKeyAndSession() async throws {
+        let db = try await database(university: "hildesheim")
+        let base = "https://www.uni-hildesheim.de/learnweb2026"
+        func key(_ rev: Int, _ t: Int) -> UniStore.FileRow {
+            UniStore.FileRow(id: "lw-9-bb", name: "Blatt 3.pdf", size: 900, mime: "application/pdf", author: "Muster", chdate: t,
+                             revision: rev, downloadURL: "\(base)/webservice/pluginfile.php/7/mod_resource/content/\(rev)/Blatt%203.pdf", folder: nil)
+        }
+        func session(_ rev: Int) -> UniStore.FileRow {
+            UniStore.FileRow(id: "lw-9-bb", name: "Blatt 3.pdf", size: nil, mime: "application/pdf", chdate: nil, revision: rev,
+                             downloadURL: "\(base)/pluginfile.php/7/mod_resource/content/\(rev)/Blatt%203.pdf", folder: nil)
+        }
+        func store(_ r: UniStore.FileRow, at now: String) async throws -> [UniStore.FileRow] {
+            try await db.transaction { c in
+                try UniStore.upsertCourse(c, UniStore.CourseRow(id: "lw-9", title: "0407 Methoden", number: "0407", semester: "SoSe 2026"),
+                                          now: now)
+                return try UniStore.storeFiles(c, courseID: "lw-9", [r], now: now, fileExists: { _ in true })
+            }
+        }
+        func loaded(_ r: UniStore.FileRow, at now: String) async throws {
+            var r = r
+            if r.size == nil { r.size = 77 }                                  // wie UniDownloads: Groesse der geladenen Datei
+            try await db.transaction { [r] in try UniStore.markDownloaded($0, r, localPath: "files/lw-9-bb/Blatt 3.pdf", sha256: "x", now: now) }
+        }
+        func row() async throws -> [JSONValue] {
+            let r = try await db.rows("SELECT chdate, size, revision FROM files WHERE id='lw-9-bb'")[0]
+            return [r["chdate"] ?? .null, r["size"] ?? .null, r["revision"] ?? .null]
+        }
+        let t0 = try XCTUnwrap(BerlinClock.utcSeconds(localISO: "2026-10-20T08:00:00"))
+        // Sitzung, erste Sichtung: Zeitpunkt des Abgleichs
+        let first = try await store(session(2), at: "2026-10-20T08:00:00")
+        XCTAssertEqual(first.map(\.chdate), [t0])
+        try await loaded(try XCTUnwrap(first.first), at: "2026-10-20T08:00:00")
+        var r = try await row()
+        XCTAssertEqual(r, [.number(Double(t0)), 77, 2])
+        // gleiche Revision: kein Download, Zeitpunkt und Groesse bleiben
+        var todo = try await store(session(2), at: "2026-10-21T08:00:00")
+        XCTAssertEqual(todo, [])
+        r = try await row()
+        XCTAssertEqual(r, [.number(Double(t0)), 77, 2])
+        // Wechsel zum Schluessel, gleiche Revision: echte Aenderungszeit, kein Download
+        todo = try await store(key(2, 1_760_900_000), at: "2026-10-22T08:00:00")
+        XCTAssertEqual(todo, [])
+        r = try await row()
+        XCTAssertEqual(r, [1_760_900_000, 900, 2])
+        // zurueck zur Sitzung, gleiche Revision: unveraendert (vorher chdate = 2, size = 0)
+        todo = try await store(session(2), at: "2026-10-23T08:00:00")
+        XCTAssertEqual(todo, [])
+        r = try await row()
+        XCTAssertEqual(r, [1_760_900_000, 900, 2])
+        // hoehere Revision ueber die Sitzung: geladen, Zeitpunkt des Abgleichs
+        todo = try await store(session(3), at: "2026-10-24T08:00:00")
+        let t4 = try XCTUnwrap(BerlinClock.utcSeconds(localISO: "2026-10-24T08:00:00"))
+        XCTAssertEqual(todo.map(\.chdate), [t4])
+        try await loaded(try XCTUnwrap(todo.first), at: "2026-10-24T08:00:00")
+        r = try await row()
+        XCTAssertEqual(r, [.number(Double(t4)), 77, 3])
+        // Zeile von vor files.revision (Revision 3 in chdate): repariert auf first_seen, ohne Download
+        try await db.execute("UPDATE files SET chdate=3, revision=NULL, first_seen='2026-10-19T10:00:00' WHERE id='lw-9-bb'")
+        todo = try await store(session(3), at: "2026-10-25T08:00:00")
+        XCTAssertEqual(todo, [])
+        r = try await row()
+        XCTAssertEqual(r, [.number(Double(try XCTUnwrap(BerlinClock.utcSeconds(localISO: "2026-10-19T10:00:00")))), 77, 3])
+    }
+
+    /// Scheitert nach dem Ersetzen der Eintrag in die Datenbank, liegt wieder die bisherige Datei am Platz (vorher die
+    /// neue Fassung unter Hash und Seitentexten der alten); eine neue Datei ohne Eintrag wird wieder entfernt
+    func testFailedEntryPutsThePreviousFileBack() async throws {
+        let db = try await database(university: "hildesheim")
+        let dir = try tempDir()
+        let downloads = UniDownloads(folder: dir.appendingPathComponent("Learnweb"), files: LocalFiles(container: dir, dataDirectory: ""),
+                                     container: nil, source: "Learnweb")
+        try downloads.begin()
+        let row = UniStore.FileRow(id: "lw-1-cc", name: "VL.pdf", size: 9, mime: "application/pdf", chdate: 10,
+                                   downloadURL: "https://lw.test/pluginfile.php/1/mod_resource/content/1/VL.pdf", folder: nil)
+        try await db.transaction { c in
+            try UniStore.upsertCourse(c, UniStore.CourseRow(id: "lw-1", title: "0401 Testkurs", number: "0401", semester: nil), now: "2026-10-26T09:00:00")
+            _ = try UniStore.storeFiles(c, courseID: "lw-1", [row], now: "2026-10-26T09:00:00", fileExists: { _ in false })
+        }
+        func fetch(_ text: String) -> @Sendable (URL) async throws -> Void { { try Data(text.utf8).write(to: $0) } }
+        let stored = try await downloads.load(row, to: "files/lw-1-cc/VL.pdf", db: db, clock: clock, fetch: fetch("%PDF alt"))
+        let file = dir.appendingPathComponent(stored)
+        try await db.execute("CREATE TRIGGER kein_eintrag BEFORE UPDATE OF local_path ON files BEGIN SELECT RAISE(ABORT, 'voll'); END")
+        do {
+            _ = try await downloads.load(row, to: "files/lw-1-cc/VL.pdf", db: db, clock: clock, fetch: fetch("%PDF neu"))
+            XCTFail("Eintrag sollte scheitern")
+        } catch let e as UniDownloads.Failure {
+            XCTAssertEqual(e, .notRecorded("VL.pdf"))
+        }
+        XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "%PDF alt", "bisherige Datei wieder am Platz")
+        do {
+            _ = try await downloads.load(row, to: "files/lw-1-cc/Neu.pdf", db: db, clock: clock, fetch: fetch("%PDF neu"))
+            XCTFail("Eintrag sollte scheitern")
+        } catch let e as UniDownloads.Failure {
+            XCTAssertEqual(e, .notRecorded("VL.pdf"))
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.appendingPathComponent("Learnweb/files/lw-1-cc/Neu.pdf").path))
+        let sha = try await db.scalar("SELECT content_sha256 FROM files WHERE id='lw-1-cc'")?.string
+        XCTAssertEqual(sha, SolutionSHA256.hex(Data("%PDF alt".utf8)))
+        downloads.end()
+    }
+
     // MARK: LSF-Stundenplan (lsf.import_plan)
 
     private func lsfPlan() throws -> [LSFCalendar.Entry] {
@@ -219,12 +337,12 @@ final class UniStoreTests: XCTestCase {
     /// Serien anderer Quellen und Ausnahmen des Nutzers bleiben, verschwundene LSF-Serien gehen.
     func testLSFImportLikePython() async throws {
         let db = try await database(university: "hildesheim")
-        try await db.execute("INSERT INTO modules(name) VALUES ('Mit Kunst und Kultur arbeiten')")
-        try await db.execute("INSERT INTO modules(name) VALUES ('Sozialpädagogik')")
+        try await db.execute("INSERT INTO modules(name) VALUES ('Mit Beispielen arbeiten')")
+        try await db.execute("INSERT INTO modules(name) VALUES ('Testpädagogik')")
         try await db.execute("""
             INSERT INTO courses(id, title, number, semester, module_id) VALUES
-              ('lw-1505', '1505 Einführung in die Sozialpädagogik I', '1505', 'WiSe 2026/27', 2),
-              ('lw-old', '0449 Erinnerungen', '0449', 'SoSe 2026', 2)
+              ('lw-9505', '9505 Einführung in die Testpädagogik I', '9505', 'WiSe 2026/27', 2),
+              ('lw-old', '9449 Erinnerungen', '9449', 'SoSe 2026', 2)
             """)
         try await db.execute("""
             INSERT INTO course_events(title, kind, weekday, start_time, end_time, rrule, attend, source, created_at)
@@ -236,16 +354,16 @@ final class UniStoreTests: XCTestCase {
         XCTAssertEqual(r1, UniStore.PlanResult(new: 4, removed: 0, kept: 0, cancelledDates: 2))
         let events = try await db.rows("SELECT title, kind, weekday, course_id, module_id, lecturer FROM course_events WHERE source='lsf' ORDER BY title, weekday")
         let byTitle = Dictionary(grouping: events) { $0["title"]?.string ?? "" }
-        let kunst = try XCTUnwrap(byTitle["Mit Kunst und Kultur arbeiten"]?.first)
+        let kunst = try XCTUnwrap(byTitle["Mit Beispielen arbeiten"]?.first)
         XCTAssertEqual(kunst["module_id"]?.int, 1, "Modul wie guess_module")
         XCTAssertEqual(kunst["course_id"], .null)
-        let sozial = byTitle["Einführung in die Sozialpädagogik I"] ?? []
+        let sozial = byTitle["Einführung in die Testpädagogik I"] ?? []
         XCTAssertEqual(sozial.count, 2, "BYDAY=TU,TH: zwei Serien")
-        XCTAssertEqual(sozial.compactMap { $0["course_id"]?.string }, ["lw-1505", "lw-1505"], "Kurs ueber Nummer und Semester")
+        XCTAssertEqual(sozial.compactMap { $0["course_id"]?.string }, ["lw-9505", "lw-9505"], "Kurs ueber Nummer und Semester")
         XCTAssertEqual(sozial.compactMap { $0["module_id"]?.int }, [2, 2])
         let erinnerung = try XCTUnwrap(byTitle.first { $0.key.hasPrefix("Erinnerungen") }?.value.first)
         XCTAssertEqual(erinnerung["course_id"], .null, "Nummer aus einem anderen Semester zaehlt nicht")
-        XCTAssertEqual(erinnerung["lecturer"]?.string, "Zimmermann")
+        XCTAssertEqual(erinnerung["lecturer"]?.string, "Muster")
         let notes = try await db.rows("SELECT note FROM event_exceptions ORDER BY date")
         XCTAssertEqual(notes.compactMap { $0["note"]?.string }, ["fällt aus laut LSF", "fällt aus laut LSF"])
         let parsed = try await db.scalar("SELECT parsed FROM schedule_imports WHERE source='lsf-auto'")?.string ?? ""
@@ -256,7 +374,7 @@ final class UniStoreTests: XCTestCase {
         XCTAssertEqual(r2, UniStore.PlanResult(new: 0, removed: 0, kept: 4, cancelledDates: 0))
 
         // eine Serie verschwindet aus dem LSF: nur sie geht, der eigene Termin bleibt
-        let shorter = plan.filter { $0.title != "Mit Kunst und Kultur arbeiten" }
+        let shorter = plan.filter { $0.title != "Mit Beispielen arbeiten" }
         let r3 = try await db.transaction { try UniStore.importPlan($0, shorter, clock: clock) }
         XCTAssertEqual(r3.removed, 1)
         let manual = try await db.scalar("SELECT COUNT(*) FROM course_events WHERE source='manual'")?.int

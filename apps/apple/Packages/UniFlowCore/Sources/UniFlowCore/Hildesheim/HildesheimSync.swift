@@ -117,6 +117,9 @@ extension UniStore {
 /// gehen erst in eine .part-Datei und ersetzen eine gute Datei nie halb und nie durch eine leere; eine neue Fassung,
 /// die nicht ankam, laedt der naechste Abgleich. Laeuft die Anmeldung ab oder wird der Lauf abgebrochen
 /// (`Task.cancel`), endet der Learnweb-Teil; die uebrigen Kurse stehen in `notAttempted` und gelten nicht als Fehler.
+/// Wie beim Stud.IP-Abgleich bleibt ueber `UniDownloads` (S7) die alte Fassung einer Datei mit Notizen erhalten und
+/// die Notizen kommen auf die passenden Seiten der neuen (`FileVersionKeeper`, alte Fassungen unter
+/// `Learnweb/Fassungen`); die Seitentexte jeder geladenen PDF fuellen den Suchindex (`tools`, in der App PDFKit).
 ///
 /// Speicher: der Container (Apple-Nutzer, Uni Hildesheim) wie beim Stud.IP-Abgleich der LUH (`DataContainerLayout`).
 /// Downloads unter `Learnweb/files/<id>/<name>`, `files.local_path` relativ zum Container. Passt der Container oder
@@ -143,7 +146,8 @@ public actor HildesheimSync {
         public var refused: String?
         /// Teile, die ohne Fehler zu Ende gelaufen sind (`Part`), in dieser Reihenfolge; fuer den Stand je Quelle in
         /// der Statusleiste der App ("Learnweb: 16:30 ok"). Ein Learnweb-Lauf mit einzelnen Kursfehlern zaehlt mit
-        /// (die Kurse stehen in `failedCourses`), ein abgebrochener oder an der Anmeldung gescheiterter nicht.
+        /// (die Kurse stehen in `failedCourses` und in der Meldung), einer ohne lesbaren Kurs, ein abgebrochener oder
+        /// an der Anmeldung gescheiterter nicht.
         public var completed: [String] = []
         public var ok: Bool { failedCourses.isEmpty && needsLogin.isEmpty && !cancelled && refused == nil }
 
@@ -166,9 +170,11 @@ public actor HildesheimSync {
     private let transport: UniTransport
     private let clock: UniFlowClock
     private let retry: UniRetry
+    /// Seitentexte geladener PDFs fuer Suche und Seitenzuordnung einer neuen Fassung (S7; App: PDFKit, ohne: keine)
+    private let tools: LocalDocumentTools
 
     public init(db: SQLiteDatabase, container: DataContainerLayout, learnweb: LearnwebAPI?, lsf: LSFClient?, transport: UniTransport,
-                clock: UniFlowClock = .system, retry: UniRetry = UniRetry()) {
+                clock: UniFlowClock = .system, retry: UniRetry = UniRetry(), tools: LocalDocumentTools = NoDocumentTools()) {
         self.db = db
         self.container = container
         self.learnweb = learnweb
@@ -176,6 +182,7 @@ public actor HildesheimSync {
         self.transport = transport
         self.clock = clock
         self.retry = retry
+        self.tools = tools
     }
 
     /// Neu anmelden noetig (abgelaufene Sitzung oder ungueltiger Schluessel)
@@ -195,11 +202,6 @@ public actor HildesheimSync {
             ?? (error as NSError).localizedDescription
     }
 
-    /// Pfad im Learnweb-Ordner des Containers
-    public static func relativePath(fileID: String, name: String) -> String {
-        "files/\(StudIPImport.safeFileName(fileID))/\(StudIPImport.safeFileName(name))"
-    }
-
     /// semesterFilter: nur Kurse, deren Semester den Text enthaelt (wie HILDESHEIM_SEMESTER_FILTER)
     public func run(semesterFilter: String? = nil, includeGrades: Bool = true) async -> Report {
         var report = Report()
@@ -216,9 +218,10 @@ public actor HildesheimSync {
         }
         if Task.isCancelled { report.cancelled = true }
         let message = report.messages.joined(separator: ", ")
-        _ = try? await db.execute("INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES (?,?,?,?,?)",
-                                  [.text(started), .text(clock.nowISO), .integer(report.ok ? 1 : 0),
-                                   .integer(Int64(report.newFiles.count)), .text(message)])
+        let finished = clock.nowISO, ok = report.ok, newFiles = report.newFiles.count
+        _ = try? await db.transaction {
+            try UniStore.logSync($0, startedAt: started, finishedAt: finished, ok: ok, newFiles: newFiles, message: message)
+        }
         return report
     }
 
@@ -241,7 +244,7 @@ public actor HildesheimSync {
 
     private func syncLearnweb(_ api: LearnwebAPI, filter: String?, into report: inout Report) async {
         let courses: [Learnweb.Course]
-        let downloads = UniDownloads(container, folder: container.learnweb)
+        let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: "Learnweb")
         defer { downloads.end() }
         do {
             courses = try await api.courses().filter { c in
@@ -291,7 +294,7 @@ public actor HildesheimSync {
                     do {
                         try Task.checkCancellation()
                         let req = try await api.downloadRequest(f)
-                        try await downloads.load(row, to: Self.relativePath(fileID: row.id, name: row.name), db: db, clock: clock,
+                        try await downloads.load(row, to: StudIPImport.relativePath(fileID: row.id, name: row.name), db: db, clock: clock,
                                                  fetch: Self.fetch(req, name: row.name, shownURL: row.downloadURL, transport: transport, retry: retry))
                         report.newFiles.append(row.id)
                     } catch {
@@ -308,9 +311,23 @@ public actor HildesheimSync {
             report.messages.append("Learnweb abgebrochen")
             return
         }
-        if report.notAttempted.isEmpty { report.completed.append(Report.Part.learnweb) }
-        report.messages.append("\(report.newFiles.count) neue/geänderte Dateien aus \(courses.count) Learnweb-Kursen"
-                               + (report.failedFiles.isEmpty ? "" : ", \(report.failedFiles.count) Dateien später erneut"))
+        // kein einziger Kurs lesbar (Learnweb gestoert): Fehler statt "Learnweb: 16:30 ok" (wie beim Stud.IP-Abgleich);
+        // einzelne unlesbare Kurse stehen in der Meldung (vorher nur in `failedCourses`, das niemand las)
+        let allUnreadable = !courses.isEmpty && report.failedCourses.count == courses.count
+        if report.notAttempted.isEmpty, !allUnreadable { report.completed.append(Report.Part.learnweb) }
+        report.messages.append(Self.learnwebMessage(courses: courses.count, newFiles: report.newFiles.count,
+                                                    failedFiles: report.failedFiles.count, failedCourses: report.failedCourses.count))
+    }
+
+    /// Meldung des Learnweb-Teils fuer die Statusleiste
+    static func learnwebMessage(courses: Int, newFiles: Int, failedFiles: Int, failedCourses: Int) -> String {
+        if courses > 0, failedCourses == courses {
+            return "Learnweb: kein Kurs lesbar (\(courses) \(courses == 1 ? "Kurs" : "Kurse")), später erneut"
+        }
+        var text = "\(newFiles) neue/geänderte Dateien aus \(courses) Learnweb-Kursen"
+        if failedFiles > 0 { text += ", \(failedFiles) Dateien später erneut" }
+        if failedCourses > 0 { text += ", \(failedCourses) Learnweb-\(failedCourses == 1 ? "Kurs" : "Kurse") nicht lesbar" }
+        return text
     }
 
     /// Download einer Learnweb-Datei in die Zwischendatei von `UniDownloads.load`, wie `stream_download` am PC

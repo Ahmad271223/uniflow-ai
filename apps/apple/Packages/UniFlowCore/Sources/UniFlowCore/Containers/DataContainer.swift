@@ -46,12 +46,6 @@ public struct DataContainerKey: Hashable, Sendable, CustomStringConvertible {
     /// Schluesselbund-Dienst der gemerkten Hochschul-Zugangsdaten (nur dieses Geraet, nicht synchronisiert)
     public static let keychainService = "de.uniflow.ai.university"
 
-    /// Schluesselbund-Eintrag fuer Zugangsdaten dieses Containers, z. B. "u1a2b….hildesheim.cas.password" oder
-    /// "u1a2b….hildesheim.learnweb.token"; nil fuer Dienste einer anderen Hochschule (`UniversityProfile.keychainAccount`)
-    public func keychainAccount(service: String, field: String) -> String? {
-        university.profile.keychainAccount(service: service, field: field, userScope: userScope)
-    }
-
     /// "u" und 16 Hex-Zeichen aus SHA-256 der Nutzerkennung
     public static func userScope(_ userID: String) -> String {
         "u" + SolutionSHA256.hexString(Array(SolutionSHA256.hash(Data(("uniflow.user.v1\u{0}" + userID).utf8)).prefix(8)))
@@ -130,17 +124,51 @@ public struct DataContainerLayout: Hashable, Sendable {
         self.ownerScope = ownerScope
     }
 
+    /// Unterordner eines Containers: die eine Fassung der Namen, auch fuer Orte ohne Container (`ContainerPaths.none`)
+    /// und die Pfade der App (`AppPaths`, Vorschaubilder, Zwischenspeicher)
+    public enum Folder: String, CaseIterable, Sendable {
+        /// Datenbank
+        case database = "db"
+        /// Journal der Notizen (FileBlobStore-Wurzel, darin `spaces/<namensraum>/docs`)
+        case journal
+        /// Zwischenspeicher der Original-PDFs je Datenquelle (`pdfDirectory`)
+        case sources
+        /// Vorschaubilder der Bibliothek
+        case thumbs
+        /// Antworten fuer die Anzeige ohne Netz (ResponseCache)
+        case cache
+        /// Loesungs-Bibliothek (SolutionLibrary)
+        case solutions
+        /// Stud.IP-Downloads (ohne iCloud-Backup)
+        case studip = "StudIP"
+        /// Learnweb-Downloads der Universitaet Hildesheim (ohne iCloud-Backup)
+        case learnweb = "Learnweb"
+
+        public func url(in root: URL) -> URL { root.appendingPathComponent(rawValue, isDirectory: true) }
+    }
+
+    /// Zwischenspeicher der Original-PDFs einer Datenquelle: `sources/<namensraum>/pdf` (Datei-IDs von lokal und
+    /// Server koennen gleich sein)
+    public static func pdfDirectory(_ namespace: DataSourceNamespace, in root: URL) -> URL {
+        Folder.sources.url(in: root).appendingPathComponent(namespace.id, isDirectory: true).appendingPathComponent("pdf", isDirectory: true)
+    }
+
+    /// Ordner oder Datei vom iCloud-Backup ausnehmen bzw. ausdruecklich aufnehmen (die eine Stelle dafuer)
+    public static func setExcludedFromBackup(_ url: URL, _ excluded: Bool = true) throws {
+        var u = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = excluded
+        try u.setResourceValues(values)
+    }
+
     public var root: URL { base.appendingPathComponent(identifier.uuidString, isDirectory: true) }
-    public var databaseDirectory: URL { root.appendingPathComponent("db", isDirectory: true) }
+    public func url(_ folder: Folder) -> URL { folder.url(in: root) }
+    public var databaseDirectory: URL { url(.database) }
     public var databaseURL: URL { databaseDirectory.appendingPathComponent("uniflow.sqlite") }
-    /// Journal der Notizen (FileBlobStore-Wurzel, darin `spaces/<namensraum>/docs`)
-    public var journal: URL { root.appendingPathComponent("journal", isDirectory: true) }
-    /// Loesungs-Bibliothek (SolutionLibrary)
-    public var solutions: URL { root.appendingPathComponent("solutions", isDirectory: true) }
-    /// Stud.IP-Downloads (ohne iCloud-Backup)
-    public var studip: URL { root.appendingPathComponent("StudIP", isDirectory: true) }
-    /// Learnweb-Downloads der Universitaet Hildesheim (ohne iCloud-Backup)
-    public var learnweb: URL { root.appendingPathComponent("Learnweb", isDirectory: true) }
+    public var journal: URL { url(.journal) }
+    public var solutions: URL { url(.solutions) }
+    public var studip: URL { url(.studip) }
+    public var learnweb: URL { url(.learnweb) }
     public var manifestURL: URL { root.appendingPathComponent(Self.manifestName) }
 
     /// Dateiablage des lokalen Backends: Pfade in `files.local_path` relativ zum Container, nie ausserhalb

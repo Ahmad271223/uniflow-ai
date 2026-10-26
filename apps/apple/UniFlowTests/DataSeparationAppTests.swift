@@ -333,6 +333,7 @@ final class DataSeparationAppTests: XCTestCase {
         try StudIPCookieStore(service: cookieService, account: StudIPCookieStore.legacyAccount)
             .save([cookie("sitzung", "wert-alt", domain: "studip.uni-hannover.de")])
         defaults.set(true, forKey: UniversityCredentialStore.installedKey)            // Installation gab es schon
+        defaults.set(true, forKey: StudIPCookieStore.installedKey)
         XCTAssertTrue(keychain.write("ab1-alt", account: "luh.studip.user"))
         XCTAssertTrue(keychain.write("Passwort-alt", account: "luh.studip.password"))
         defaults.set(false, forKey: UniversityCredentialStore.rememberKey(.luh, "qis"))

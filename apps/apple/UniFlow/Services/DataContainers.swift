@@ -57,7 +57,7 @@ final class ActiveContainer: @unchecked Sendable {
         layout = DataContainerLayout(base: base, key: key)
         host = LocalBackendHost(directory: layout.databaseDirectory, clock: clock, files: .container(layout), university: key.university)
         api = .local(host)
-        cache = ResponseCache(root: layout.root.appendingPathComponent("cache", isDirectory: true))
+        cache = ResponseCache(root: layout.url(.cache))
         thumbnails = UFThumbnails(root: layout.root)
         solutions = SolutionLibrary(root: layout.solutions)
         defaultsSuite = Self.defaultsSuite(layout.identifier)
@@ -141,6 +141,8 @@ final class ContainerManager: ObservableObject {
         self.clock = clock
         self.publishesCurrent = publishesCurrent
         self.hildesheimTransport = hildesheimTransport
+        // Neuinstallation: Stud.IP-Sitzungen der geloeschten App nicht als Anmeldung uebernehmen (vor jedem Lesen)
+        StudIPCookieStore.removeLeftoversOfEarlierInstallation(service: cookieService, defaults: defaults)
         studip = Self.idleSync()
         DataContainerLayout.purgeTrash(base: base)
     }
@@ -150,7 +152,7 @@ final class ContainerManager: ObservableObject {
     /// Abgleich ohne Container: kein Ordner, keine Datenbank, keine Anmeldung
     private static func idleSync() -> StudIPSync {
         let none = ContainerPaths.none
-        return StudIPSync(root: none.appendingPathComponent("StudIP", isDirectory: true), host: .unavailable,
+        return StudIPSync(root: DataContainerLayout.Folder.studip.url(in: none), host: .unavailable,
                           defaults: UserDefaults(suiteName: "de.uniflow.ai.container.keiner") ?? .standard, support: none,
                           cookies: StudIPCookieStore(account: "ohne-container"), websiteDataStore: .nonPersistent())
     }
@@ -265,6 +267,10 @@ final class ContainerManager: ObservableObject {
         onChange?(c)
         Task { await checkDatabase(c) }
         Task { await moveLegacyWebData(into: c) }
+        // gleich abgleichen, wenn faellig (vorher erst beim naechsten Wechsel in den Vordergrund): eine abgelaufene
+        // Sitzung zeigt sich so sofort
+        studip.runIfDue()
+        hildesheim?.runIfDue()
     }
 
     /// Datenbank gleich pruefen: gehoert sie einer anderen Hochschule (`UniversityMismatch`), nicht weiterarbeiten
@@ -299,15 +305,12 @@ final class ContainerManager: ObservableObject {
     }
 
     /// Ordner mit Dateischutz (nach dem ersten Entsperren lesbar) und im iCloud-Backup (Notizen, Plan); die
-    /// Zwischenspeicher darin nehmen sich selbst aus (AppPaths.excludeFromBackup, StudIP)
+    /// Zwischenspeicher darin nehmen sich selbst aus (`DataContainerLayout.setExcludedFromBackup`, StudIP)
     private static func protect(_ root: URL) {
         #if os(iOS)
         try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: root.path)
         #endif
-        var dir = root
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = false
-        try? dir.setResourceValues(values)
+        try? DataContainerLayout.setExcludedFromBackup(root, false)
     }
 
     // MARK: Loeschen
@@ -331,6 +334,8 @@ final class ContainerManager: ObservableObject {
         UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: DataContainerKey.userScope(userID)).deleteAll()
         // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
         appDefaults.removeObject(forKey: SolutionDisplayName.key)
+        // empfangene Loesungen, die noch ausserhalb der Container lagen (Documents/Inbox)
+        SolutionSharing.purgeInbox()
     }
 
     /// Abgleiche eines Containers anhalten und auf ihr Ende warten (danach schreibt keiner mehr hinein)
@@ -346,6 +351,7 @@ final class ContainerManager: ObservableObject {
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
         UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
         await removeWebsiteData(key.websiteDataStoreID)
+        AppTemp.remove(container: layout.identifier)                       // Teilen-Dateien dieses Containers in tmp
         let suite = ActiveContainer.defaultsSuite(layout.identifier)
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
         try? layout.remove()

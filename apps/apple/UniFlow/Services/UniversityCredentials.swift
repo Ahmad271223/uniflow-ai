@@ -9,8 +9,8 @@ import UniFlowCore
 //
 // Schluesselbund: eigener Dienst `DataContainerKey.keychainService` ("de.uniflow.ai.university"), Eintrag je Nutzer,
 // Hochschule und Dienst mit Praefix ("<nutzer>.luh.studip.user", "<nutzer>.hildesheim.cas.password"); die Namen bildet
-// nur der Kern (`UniversityProfile.keychainAccount`, `DataContainerKey.keychainAccount`). kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht
-// synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule; innerhalb
+// nur der Kern (`UniversityProfile.keychainAccount`, Praefix `UniversityProfile.scoped`).
+// kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule; innerhalb
 // der LUH fuellt QIS ohne eigene Daten die LUH-ID aus Stud.IP vor (wie am PC, `prefillCredential`).
 // Nach einer Neuinstallation (Merker in den UserDefaults fehlt) wird der ganze Dienst geleert, bevor etwas gelesen wird.
 // Docs: docs/SICHERHEITSKONZEPT-KONTEN.md, Abschnitt "Gemerkte Hochschul-Zugangsdaten".
@@ -51,65 +51,31 @@ extension UniversitySecretStoring {
     }
 }
 
-/// Generic-Password-Eintraege unter einem eigenen Dienst, nur dieses Geraet, nur entsperrt lesbar, nicht synchronisiert.
+/// Gemerkte Zugangsdaten im Schluesselbund (`KeychainStore`): eigener Dienst, nur dieses Geraet, nur entsperrt lesbar
+/// (`WhenUnlockedThisDeviceOnly`), nicht synchronisiert.
 struct UniversityKeychain: UniversitySecretStoring {
     static let defaultService = DataContainerKey.keychainService
-    let service: String
+    let store: KeychainStore
+    var service: String { store.service }
 
-    init(service: String = UniversityKeychain.defaultService) { self.service = service }
-
-    private func query(_ account: String?) -> [String: Any] {
-        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                kSecAttrSynchronizable as String: kCFBooleanFalse as Any]
-        if let account { q[kSecAttrAccount as String] = account }
-        return q
+    init(service: String = UniversityKeychain.defaultService) {
+        store = KeychainStore(service: service, accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
     }
 
-    func read(_ account: String) -> String? {
-        var q = query(account)
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
+    func read(_ account: String) -> String? { store.string(account) }
 
     @discardableResult
-    func write(_ value: String, account: String) -> Bool {
-        SecItemDelete(query(account) as CFDictionary)
-        var add = query(account)
-        add[kSecValueData as String] = Data(value.utf8)
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
-    }
+    func write(_ value: String, account: String) -> Bool { (try? store.write(value, account: account)) != nil }
 
-    func remove(_ account: String) { SecItemDelete(query(account) as CFDictionary) }
+    func remove(_ account: String) { store.remove(account) }
 
     /// Ein Aufruf fuer den ganzen Dienst; "nichts da" gilt als Erfolg, ein gesperrter Schluesselbund nicht.
-    func removeAll() -> Bool {
-        let status = SecItemDelete(query(nil) as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
+    func removeAll() -> Bool { store.removeAll() }
 
-    func accounts() -> [String] {
-        var q = query(nil)
-        q[kSecReturnAttributes as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitAll
-        var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let items = out as? [[String: Any]] else { return [] }
-        return items.compactMap { $0[kSecAttrAccount as String] as? String }
-    }
+    func accounts() -> [String] { store.accounts() }
 
     /// Schutzklasse und Synchronisation eines Eintrags (fuer Tests)
-    func attributes(_ account: String) -> (accessible: String?, synchronizable: Bool?)? {
-        var q = query(account)
-        q[kSecReturnAttributes as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let a = out as? [String: Any] else { return nil }
-        let sync = (a[kSecAttrSynchronizable as String] as? NSNumber)?.boolValue
-        return (a[kSecAttrAccessible as String] as? String, sync)
-    }
+    func attributes(_ account: String) -> (accessible: String?, synchronizable: Bool?)? { store.attributes(account) }
 }
 
 /// Zugangsdaten je (Apple-Nutzer, Hochschule, Dienst). Ein Dienst, der nicht zur Hochschule gehoert, hat nie
@@ -141,7 +107,7 @@ final class UniversityCredentialStore {
     private func allows(_ uni: UniversityKey) -> Bool { onlyUniversity == nil || onlyUniversity == uni }
 
     /// Eintrag aus der alten Ablage ohne Nutzer ("luh.studip.user") unter dem Praefix dieses Nutzers (nur fuer den Umzug)
-    private func scoped(_ account: String) -> String { userScope.map { "\($0).\(account)" } ?? account }
+    private func scoped(_ account: String) -> String { UniversityProfile.scoped(account, userScope: userScope) }
 
     /// Teil nach dem Nutzer-Praefix; nil, wenn der Eintrag nicht zu diesem Nutzer gehoert
     private func unscoped(_ account: String) -> String? {
@@ -184,8 +150,6 @@ final class UniversityCredentialStore {
         return c.isStorable ? c : nil
     }
 
-    func hasCredential(_ uni: UniversityKey, service: String) -> Bool { credential(uni, service: service) != nil }
-
     /// Zum Vorausfuellen: eigene Zugangsdaten des Dienstes, sonst die des Rueckfall-Dienstes derselben Hochschule
     /// (`UniversityLoginService.prefillFallback`, LUH: QIS -> Stud.IP wie `config.service_credentials` am PC), aber
     /// nur, solange "merken" fuer diesen Dienst an ist. Nie Daten einer anderen Hochschule.
@@ -220,14 +184,6 @@ final class UniversityCredentialStore {
         let p = uni.profile
         for s in p.loginServices { delete(uni, service: s.key) }
         for account in secrets.accounts() where unscoped(account).map(p.ownsKeychainAccount) == true { secrets.remove(account) }
-    }
-
-    /// Gemerkte Zugangsdaten der bisherigen Hochschule entfernen. Der Wechsel in den Einstellungen ruft das nicht auf:
-    /// Die Daten der anderen Hochschule (auch gemerkte Zugangsdaten) bleiben getrennt erhalten, bis "Daten dieser
-    /// Hochschule löschen" sie entfernt (`ContainerManager.deleteUniversityData`).
-    func universityChanged(from old: UniversityKey, to new: UniversityKey) {
-        guard old != new else { return }
-        deleteAll(for: old)
     }
 
     /// Konto loeschen: alle Hochschulen dieses Nutzers (mit Nutzer-Praefix auch kuenftige Eintraege), samt Schaltern.

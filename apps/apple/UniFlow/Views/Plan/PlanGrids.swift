@@ -72,7 +72,8 @@ struct PlanWeekGrid: View {
         let days = d.days
         let (lo, hi) = range(days)
         let compact = days.count >= 7 && windowWidth < 1500
-        let unslotted = days.flatMap { dd in dd.list("packages").filter { $0.s("start_time") == nil }.map { (dd.s("date") ?? "", $0) } }
+        // ohne Uhrzeit, aber mit Aufgaben: ein leeres Paket (alle Aufgaben verschoben) braucht keine Uhrzeit
+        let unslotted = days.flatMap { dd in dd.list("packages").filter { $0.s("start_time") == nil && !$0.list("tasks").isEmpty }.map { (dd.s("date") ?? "", $0) } }
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 6) {
                 Color.clear.frame(width: 44, height: 1)
@@ -257,8 +258,11 @@ struct PlanWeekGrid: View {
                 Text("\(list.count) Lernpaket\(list.count > 1 ? "e" : "") ohne Uhrzeit").ufFont(13.12, 700).foregroundStyle(UF.text)
                 Spacer()
                 UFButton("Uhrzeiten vergeben", size: .small) {
+                    // die Tage dieser Pakete, nur Pakete ohne Uhrzeit (ohne Tage legte das Backend nur Tage mit
+                    // Konflikten neu, also nichts; von Hand gesetzte Uhrzeiten bleiben)
+                    let dates = Set(list.map(\.0)).sorted().map(JSONValue.string)
                     Task {
-                        _ = try? await session.api?.value("/api/timetable/reslot", method: "POST", body: [:])
+                        _ = try? await session.api?.value("/api/timetable/reslot", method: "POST", body: ["dates": .array(dates), "only_unset": true])
                         toast.show("Uhrzeiten vergeben")
                         router.reload()
                     }
@@ -518,7 +522,7 @@ struct PlanDayTimeline: View {
         let lo = max(0, ([7 * 60] + evs.map { UFTime.hm($0.s("start")) } + pks.map { UFTime.hm($0.s("start_time")) }).min() ?? 420)
         let hi = min(24 * 60, ([20 * 60] + evs.map { UFTime.hm($0.s("end")) } + pks.map { UFTime.hm($0.s("end_time")) }).max() ?? 1200)
         let px: (Int) -> CGFloat = { CGFloat($0 - lo) / 60 * HH }
-        let unslotted = dd.list("packages").filter { $0.s("start_time") == nil }
+        let unslotted = dd.list("packages").filter { $0.s("start_time") == nil && !$0.list("tasks").isEmpty }
         let now = PlanData.cal.dateComponents([.hour, .minute], from: Date())
         VStack(alignment: .leading, spacing: 0) {
             GeometryReader { g in
@@ -571,7 +575,8 @@ struct PlanDayTimeline: View {
                         Spacer()
                         UFButton("Uhrzeiten vergeben", size: .small) {
                             Task {
-                                _ = try? await session.api?.value("/api/timetable/reslot", method: "POST", body: ["dates": [.string(dateStr)]])
+                                // nur Pakete ohne Uhrzeit: von Hand gesetzte Uhrzeiten bleiben
+                                _ = try? await session.api?.value("/api/timetable/reslot", method: "POST", body: ["dates": [.string(dateStr)], "only_unset": true])
                                 router.reload()
                             }
                         }
@@ -741,7 +746,8 @@ struct PlanSide: View {
             UFGridLayout(columns: 2, spacing: 8) {
                 quick("Lernpaket", icon: "book") { actions.addPackage(date: Fmt.isoDay(d.date)) }
                 quick("Freie Zeit", icon: "calendar") { actions.availability() }
-                quick("Testtermin", icon: "exam") { router.go(.exams) }
+                // Tests (KI) nur am eigenen Server
+                if session.api?.isLocal == false { quick("Testtermin", icon: "exam") { router.go(.exams) } }
                 quick("Persönlich", icon: "user") {
                     actions.eventDialog(nil, preset: ["date_from": .string(Fmt.isoDay(d.date)), "kind": "persoenlich"])
                 }
@@ -906,9 +912,7 @@ struct PlanMiniCal: View {
         var byDate: [String: JSONValue] = [:]
         for x in d.monthCal.list("days") { if let k = x.s("date") { byDate[k] = x } }
         let t = UFFmt.todayISO()
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "LLLL y"
+        let f = Fmt.formatter("LLLL y")
         let pm = Fmt.isoDay(c.date(byAdding: .month, value: -1, to: first) ?? first), nm = Fmt.isoDay(c.date(byAdding: .month, value: 1, to: first) ?? first)
         return PlanSideCard(f.string(from: d.date), trailing: {
             HStack(spacing: 3.2) {

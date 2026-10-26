@@ -21,12 +21,6 @@ enum LocalFreeWindows {
         return try windows(lo: lo, hi: hi, blocks: try busyBlocks(c, day: day, settings: s, includePackages: includePackages), settings: s)
     }
 
-    /// Nur mit Sperrzeiten, ohne Datenbank (keine Termine, keine Lernslots)
-    static func compute(day: Int, settings s: [String: JSONValue]) throws -> [JSONValue] {
-        let (lo, hi) = (try hm(s["learn_start"], key: "learn_start"), try hm(s["learn_end"], key: "learn_end"))
-        return try windows(lo: lo, hi: hi, blocks: try blockedBlocks(day, settings: s), settings: s)
-    }
-
     /// `busy_blocks(conn, d, settings, include_packages)`, nach Beginn sortiert (stabil wie `sorted` in Python)
     static func busyBlocks(_ c: SQLiteConnection, day: Int, settings s: [String: JSONValue], includePackages: Bool = true) throws -> [Block] {
         var blocks: [Block] = []
@@ -97,17 +91,23 @@ enum LocalFreeWindows {
         } else {
             throw LocalHTTPError(status: 500, message: "Uhrzeit in \(key) ist kein Text")
         }
-        let parts = text.split(separator: ":", omittingEmptySubsequences: false).prefix(2).map(String.init)
-        guard parts.count == 2, let h = PyConvert.int(parts[0]), let m = PyConvert.int(parts[1]) else {
+        guard let (h, m) = hourMinute(text) else {
             throw LocalHTTPError(status: 500, message: "Ungültige Uhrzeit in \(key): \(text)")
         }
         return h * 60 + m
     }
 
-    /// `mh(m)`: Minuten als "HH:MM", negative Werte als 00:00
+    /// Stunde und Minute wie `int()` der ersten beiden Teile von `t.split(":")` in hm(); nil, wo Python scheitert.
+    /// Ohne Grenzen (25:70 gibt es hier); die Stud.IP-Zeiten pruefen sie selbst (`StudIPSchedule.minutes`).
+    static func hourMinute(_ text: String) -> (Int, Int)? {
+        let parts = text.split(separator: ":", omittingEmptySubsequences: false).prefix(2).map(String.init)
+        guard parts.count == 2, let h = PyConvert.int(parts[0]), let m = PyConvert.int(parts[1]) else { return nil }
+        return (h, m)
+    }
+
+    /// `mh(m)`: Minuten als "HH:MM", negative Werte als 00:00 (die eine Formatierung, auch fuer Stud.IP-Zeiten)
     static func mh(_ minutes: Int) -> String {
         let m = max(0, minutes)
-        func two(_ n: Int) -> String { n < 10 ? "0\(n)" : "\(n)" }
-        return two(m / 60) + ":" + two(m % 60)
+        return BerlinClock.pad(m / 60, 2) + ":" + BerlinClock.pad(m % 60, 2)
     }
 }

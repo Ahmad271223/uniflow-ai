@@ -27,16 +27,6 @@ final class ToolPickerHolder: ObservableObject {
 }
 
 /// Vorlagen fuer neue Seiten (gleiche Namen wie TEMPLATES im Web-Editor).
-struct PageTemplate: Identifiable {
-    let id: String
-    let name: String
-    static let all = [
-        PageTemplate(id: "blank", name: "Leer"), PageTemplate(id: "lined", name: "Liniert"),
-        PageTemplate(id: "grid", name: "Kariert"), PageTemplate(id: "dotted", name: "Gepunktet"),
-        PageTemplate(id: "mm", name: "Millimeter"), PageTemplate(id: "cornell", name: "Cornell"),
-    ]
-}
-
 struct ExportFile: Identifiable {
     let id = UUID()
     let url: URL
@@ -117,10 +107,51 @@ struct DocumentView: View {
     @ObservedObject private var entitlements = Entitlements.shared
     /// gesperrte Plus-Funktion, deren Sperrkarte gerade offen ist (Schreiben, geteilte Ansicht)
     @State private var lockedFeature: UFFeature?
+    /// geoeffnete alte Fassung (S7, nur zum Ansehen)
+    @State private var openedVersion: FileVersionInfo?
+    /// alte Original-Fassung: nur ansehen (S7)
+    let readOnly: Bool
+    /// PDF-Seite beim Oeffnen (1-basiert, Treffer der Suche), nil = wie zuletzt
+    let initialPDFPage: Int?
+    /// Aufgabe des Lernplans, aus der das Dokument geoeffnet wurde: Knopf "Erledigt" wie im Web (views-doc.js)
+    let task: Int?
+    @State private var taskDone = false
+    /// zuletzt gelesene Seite merken (`last_page`, wie onPage im Web), entprellt
+    @State private var lastPageTask: Task<Void, Never>?
 
-    init(file: LibFile, api: APIClient) {
+    init(file: LibFile, api: APIClient, readOnly: Bool = false, initialPDFPage: Int? = nil, task: Int? = nil) {
         self.api = api
+        self.readOnly = readOnly
+        self.initialPDFPage = initialPDFPage
+        self.task = task
         _store = StateObject(wrappedValue: DocumentStore(file: file, api: api))
+    }
+
+    /// PDF-Seite (1-basiert) der angezeigten Seite, nil fuer eingefuegte Seiten
+    private func pdfPage(at index: Int) -> Int? { store.entry(forPageIndex: index)?.pdfIndex }
+
+    /// Seite gewechselt: nach 0,8 s Ruhe als zuletzt gelesene Seite speichern (POST /api/files/{id}/opened). Als
+    /// PDF-Seite, so wie "Weiterlernen" sie wieder oeffnet (`initialPDFPage`)
+    private func rememberPage(_ index: Int) {
+        guard !readOnly, !store.isOldVersion, let page = pdfPage(at: index) else { return }
+        lastPageTask?.cancel()
+        let api = self.api, id = store.file.id
+        lastPageTask = Task {
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            guard !Task.isCancelled else { return }
+            _ = try? await api.value("/api/files/\(id)/opened", method: "POST", body: ["last_page": .number(Double(page))])
+        }
+    }
+
+    /// "Erledigt": Aufgabe abhaken (POST /api/tasks/{id}/status), danach zeigt der Knopf den Stand
+    private func markTaskDone() async {
+        guard let task else { return }
+        do {
+            _ = try await api.value("/api/tasks/\(task)/status", method: "POST", body: ["status": "erledigt"])
+            taskDone = true
+        } catch {
+            actionError = "Aufgabe ließ sich nicht abhaken: \(error.localizedDescription)"
+        }
     }
 
     /// Skript auf der Seite der freien Hand: Rechtshaender -> links.
@@ -128,7 +159,10 @@ struct DocumentView: View {
 
     /// Schreiben mit dem Pencil, Seiten und Lesezeichen nur mit Plus; Free und nach dem Herabstufen nur ansehen
     /// (Notizen bleiben sichtbar und exportierbar, docs/AUFTRAG-APPSTORE-V1.md Abschnitt 4)
-    private var canWrite: Bool { entitlements.notes.canEdit }
+    private var canWrite: Bool { planAllowsWriting && !readOnly && !store.outdatedByNewVersion }
+
+    /// Tarif mit Schreiben (sonst Schloss mit Weg zur Abo-Seite)
+    private var planAllowsWriting: Bool { entitlements.notes.canEdit }
 
     private var isExercise: Bool {
         let f = store.file
@@ -185,6 +219,14 @@ struct DocumentView: View {
         }
         .sheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
         .sheet(item: $lockedFeature) { f in UFLockedSheet(f) { lockedFeature = nil } }
+        .fullScreenCover(item: $openedVersion) { v in
+            NavigationStack {
+                DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("Schließen") { openedVersion = nil } }
+                    }
+            }
+        }
         .fileImporter(isPresented: $importingSolution, allowedContentTypes: [Self.solutionType]) { result in
             importSolution(result)
         }
@@ -225,7 +267,10 @@ struct DocumentView: View {
         .alert("Hinweis", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(actionError ?? "") }
-        .onChange(of: bridge.pageIndex) { _, page in scheduleSuggestion(page) }
+        .onChange(of: bridge.pageIndex) { _, page in
+            scheduleSuggestion(page)
+            rememberPage(page)
+        }
         .task {
             await store.load()
             scheduleSuggestion(bridge.pageIndex)
@@ -239,11 +284,47 @@ struct DocumentView: View {
 
     private var primaryPane: some View {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
-                      toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: nil,
+                      toolPicker: tools.picker, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
                       foreignLayers: foreignLayers, ownNotesVisible: ownNotesVisible, canEdit: canWrite)
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .bottom) { pageInfo }
-            .overlay(alignment: .top) { suggestionBanner }
+            .overlay(alignment: .top) {
+                VStack(spacing: 6) {
+                    versionBanner
+                    suggestionBanner
+                    // passende Opencast-Aufzeichnung nur bei sicherem Treffer (lokal: der Abgleich des iPads holt sie);
+                    // nicht in der alten Fassung (S7, nur ansehen)
+                    if api.isLocal, !readOnly, companion == nil, let pdf = store.pdf {
+                        RecordingMatchBanner(fileID: store.file.id) { String((pdf.page(at: 0)?.string ?? "").prefix(1500)) }
+                    }
+                }
+            }
+    }
+
+    /// Hinweis nach einer neuen Original-Fassung mit Notizen (S7): uebernommen, welche Seiten zu pruefen sind, Weg zur
+    /// alten Fassung
+    @ViewBuilder
+    private var versionBanner: some View {
+        if let v = store.versionNotice {
+            HStack(spacing: 10) {
+                Image(systemName: "doc.badge.clock")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(v.noticeTitle).font(.caption).bold()
+                    if let detail = v.noticeDetail { Text(detail).font(.caption).lineLimit(2) }
+                }
+                if v.available {
+                    Button("Alte Fassung") { openedVersion = v }
+                        .buttonStyle(.bordered).controlSize(.small)
+                }
+                Button("OK") { Task { await store.dismissVersionNotice() } }
+                    .buttonStyle(.borderedProminent).controlSize(.small)
+            }
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.top, 8)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("versionNotice")
+        }
     }
 
     private func companionPane(_ c: Companion) -> some View {
@@ -335,13 +416,21 @@ struct DocumentView: View {
                 .disabled(!canWrite)
             Button { bridge.redo() } label: { Label("Wiederholen", systemImage: "arrow.uturn.forward") }
                 .disabled(!canWrite)
-            if !canWrite {
+            if !planAllowsWriting && !readOnly {
                 // Free: Schloss mit Weg zur Abo-Seite statt still nicht schreibender Stift
                 Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (Plus)", systemImage: "lock") }
                     .labelStyle(.titleAndIcon)
             }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
+            if task != nil, !readOnly {
+                Button { Task { await markTaskDone() } } label: {
+                    Label(taskDone ? "Erledigt ✓" : "Erledigt", systemImage: taskDone ? "checkmark.circle.fill" : "checkmark.circle")
+                        .labelStyle(.titleAndIcon)
+                }
+                .disabled(taskDone)
+                .accessibilityIdentifier("doc.task.done")
+            }
             StatusLabel(status: store.status)
             SyncIssueBadge(store: store)
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
@@ -374,7 +463,7 @@ struct DocumentView: View {
             } label: { Label(exporting ? "Exportiert…" : "Teilen", systemImage: "square.and.arrow.up") }
             .disabled(exporting || store.pdf == nil)
             Menu {
-                if !canWrite {
+                if !planAllowsWriting && !readOnly {
                     // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
                     Button { lockedFeature = .pencilWriting } label: {
                         Label("Schreiben, Seiten und Lesezeichen mit Plus", systemImage: "lock")
@@ -398,7 +487,7 @@ struct DocumentView: View {
                         Label(store.isBookmarked(pageKey: bridge.pageKey) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
                     }
                     Menu {
-                        ForEach(PageTemplate.all) { t in
+                        ForEach(PaperTemplate.choices, id: \.id) { t in
                             // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
                             Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
                         }
@@ -421,6 +510,15 @@ struct DocumentView: View {
                 Button {
                     if entitlements.allows(.community) { importingSolution = true } else { solutionSheet = .locked }
                 } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
+                if !store.versions.isEmpty {
+                    // S7: aufbewahrte alte Fassungen mit ihren Notizen (nur zum Ansehen)
+                    Section("Alte Fassungen") {
+                        ForEach(store.versions) { v in
+                            Button { openedVersion = v } label: { Label(v.label, systemImage: "doc.badge.clock") }
+                                .disabled(!v.available)
+                        }
+                    }
+                }
                 Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
                 Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
             } label: { Label("Mehr", systemImage: "ellipsis.circle") }
@@ -570,7 +668,13 @@ struct DocumentView: View {
             Divider().frame(height: 14)
             Button("\(bridge.zoomPercent) %") { bridge.fitWidth() }
                 .accessibilityHint("Seite einpassen")
-            if !canWrite {
+            if readOnly {
+                Divider().frame(height: 14)
+                Label("Alte Fassung – nur ansehen", systemImage: "doc.badge.clock").lineLimit(1)
+            } else if store.outdatedByNewVersion {
+                Divider().frame(height: 14)
+                Label("Neue Fassung angekommen – Dokument neu öffnen", systemImage: "arrow.triangle.2.circlepath").lineLimit(1)
+            } else if !planAllowsWriting {
                 Divider().frame(height: 14)
                 Button { lockedFeature = .pencilWriting } label: {
                     Label("Nur ansehen – Schreiben mit Plus", systemImage: "lock").lineLimit(1)
@@ -984,7 +1088,7 @@ struct PageTrashSheet: View {
 
     private func title(_ p: PageOrder.TrashedPage) -> String {
         if p.type == "pdf", let i = p.pdfIndex { return "PDF-Seite \(i)" }
-        if p.type == "blank" { return "Leere Seite (\(PageTemplate.all.first { $0.id == p.template }?.name ?? "Leer"))" }
+        if p.type == "blank" { return "Leere Seite (\(p.template.flatMap { PaperTemplate.names[$0] } ?? "Leer"))" }
         return "Eingefügte Seite"
     }
 

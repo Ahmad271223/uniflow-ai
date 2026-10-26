@@ -20,7 +20,7 @@
     "subjects_per_day": 2,
     "parts_lecture": 1,
     "parts_exercise": 1,
-    "tests_per_subject": 1,
+    "tests_per_subject": 0,
     "test_minutes": 45,
     "break_minutes": 15,
     "exam_priority": true,
@@ -43,7 +43,9 @@
      4,
      5
     ],
-    "university_next": "luh"
+    "university_next": "luh",
+    "files_source": "Stud.IP",
+    "mode": "local"
    }
   },
   {
@@ -98,7 +100,7 @@
     "subjects_per_day": 2,
     "parts_lecture": 1,
     "parts_exercise": 1,
-    "tests_per_subject": 1,
+    "tests_per_subject": 0,
     "test_minutes": 45,
     "break_minutes": 15,
     "exam_priority": true,
@@ -132,7 +134,9 @@
      3,
      4
     ],
-    "university_next": "luh"
+    "university_next": "luh",
+    "files_source": "Stud.IP",
+    "mode": "local"
    }
   },
   {
@@ -155,7 +159,7 @@
     "subjects_per_day": 2,
     "parts_lecture": 1,
     "parts_exercise": 1,
-    "tests_per_subject": 1,
+    "tests_per_subject": 0,
     "test_minutes": 45,
     "break_minutes": 15,
     "exam_priority": true,
@@ -189,7 +193,9 @@
      3,
      4
     ],
-    "university_next": "luh"
+    "university_next": "luh",
+    "files_source": "Stud.IP",
+    "mode": "local"
    }
   },
   {
@@ -216,7 +222,7 @@
     "subjects_per_day": 2,
     "parts_lecture": 1,
     "parts_exercise": 1,
-    "tests_per_subject": 1,
+    "tests_per_subject": 0,
     "test_minutes": 45,
     "break_minutes": 15,
     "exam_priority": true,
@@ -252,7 +258,9 @@
      5,
      6
     ],
-    "university_next": "luh"
+    "university_next": "luh",
+    "files_source": "Stud.IP",
+    "mode": "local"
    }
   },
   {
@@ -282,7 +290,7 @@
     "subjects_per_day": 2,
     "parts_lecture": 1,
     "parts_exercise": 1,
-    "tests_per_subject": 1,
+    "tests_per_subject": 0,
     "test_minutes": 45,
     "break_minutes": 15,
     "exam_priority": true,
@@ -316,7 +324,9 @@
      4,
      5
     ],
-    "university_next": "luh"
+    "university_next": "luh",
+    "files_source": "Stud.IP",
+    "mode": "local"
    }
   },
   {
@@ -391,7 +401,7 @@
     "subjects_per_day": 2,
     "parts_lecture": 1,
     "parts_exercise": 1,
-    "tests_per_subject": 1,
+    "tests_per_subject": 0,
     "test_minutes": 45,
     "break_minutes": 15,
     "exam_priority": true,
@@ -425,7 +435,9 @@
      4,
      5
     ],
-    "university_next": "luh"
+    "university_next": "luh",
+    "files_source": "Stud.IP",
+    "mode": "local"
    }
   },
   {
@@ -580,7 +592,7 @@
   ],
   [
    "tests_per_subject",
-   "1"
+   "0"
   ],
   [
    "theme",

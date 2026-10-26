@@ -270,7 +270,7 @@ extension Learnweb {
 /// LSF der Uni Hildesheim mit der angemeldeten Sitzung (Cookies setzt der Transport): Stundenplan und Notenspiegel.
 /// Nur lesend: nie "Anmelden/abmelden", "Jetzt anmelden" oder Pruefungsanmeldung aufrufen.
 public actor LSFClient {
-    public static let startURL = "\(HildesheimCAS.lsfBase)/qisserver/rds?state=user&type=0"
+    public static let startURL = UniversityProfile.hildesheimLSFStart.absoluteString
     public static let planURL = "\(HildesheimCAS.lsfBase)/qisserver/rds?state=wplan&act=show&show=plan&P.subc=plan&week=-2"
 
     private let transport: UniTransport
@@ -344,9 +344,6 @@ public actor LSFClient {
         return QISParser.merge(out)
     }
 
-    private func absolute(_ href: String) -> String {
-        let h = href.replacingOccurrences(of: "&amp;", with: "&")
-        if h.hasPrefix("http") { return h }
-        return "\(HildesheimCAS.lsfBase)/qisserver/" + String(h.drop(while: { $0 == "/" }))
-    }
+    /// Links aus `HTMLScanner` sind schon dekodiert (`HildesheimCAS.lsfAbsolute`)
+    private func absolute(_ href: String) -> String { HildesheimCAS.lsfAbsolute(href) }
 }

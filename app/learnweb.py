@@ -41,7 +41,7 @@ class LearnwebError(RuntimeError):
 # ----------------------------------------------------------------------------
 
 def parse_course_title(fullname: str) -> dict:
-    """'SoSe 2026: 0406 Theorien der Erziehungswissenschaft' -> semester, number (Vst.-Nr. wie im LSF), title."""
+    """'SoSe 2026: 9406 Theorien der Testwissenschaft' -> semester, number (Vst.-Nr. wie im LSF), title."""
     t = re.sub(r"\s+", " ", fullname or "").strip()
     sem = ""
     m = SEM_RE.match(t)
@@ -98,9 +98,11 @@ def parse_pluginfile(url: str) -> dict | None:
     return {"area": m.group(1), "revision": int(m.group(2)), "filepath": filepath, "filename": parts[-1]}
 
 
-def with_token(url: str, token: str) -> str:
-    """Token erst beim Download anhaengen (nie in der Datenbank speichern)."""
-    return url + ("&" if "?" in url else "?") + "token=" + urllib.parse.quote(token, safe="")
+def token_request(url: str, token: str) -> dict:
+    """Download mit Schluessel wie auf dem iPad (LearnwebAPI.downloadRequest): Adresse unveraendert, der Schluessel
+    erst beim Abruf im POST-Koerper (nie in der Datenbank). Frueher hing er als ?token= an der Adresse und landete so
+    in Zugriffsprotokollen (Vorgabe: Schluessel nie in Adressen)."""
+    return {"url": url, "method": "POST", "form": {"token": token}}
 
 
 def files_from_contents(sections: list[dict]) -> list[dict]:
@@ -117,6 +119,7 @@ def files_from_contents(sections: list[dict]) -> list[dict]:
                     continue
                 fp = c.get("filepath") or "/"
                 name = nfc(c.get("filename")) or "datei"
+                plugin = parse_pluginfile(c["fileurl"])
                 out.append({
                     "id": file_id(mod["id"], fp, name),
                     "name": name,
@@ -124,6 +127,8 @@ def files_from_contents(sections: list[dict]) -> list[dict]:
                     "mime": c.get("mimetype") or guess_mime(name),
                     "author": c.get("author"),
                     "chdate": int(c.get("timemodified") or 0),
+                    # Revision mitspeichern: wechselt der Abgleich zur Sitzung, vergleicht er sie (store_course_files)
+                    "revision": plugin["revision"] if plugin else None,
                     "download_url": strip_forcedownload(c["fileurl"]),
                     "folder": nfc(join_folder(base_folder, fp)),
                     "module_name": mod.get("name"),
@@ -256,8 +261,8 @@ class TokenClient:
     def files(self, courseid: int) -> list[dict]:
         return files_from_contents(self.call("core_course_get_contents", courseid=courseid))
 
-    def download_url(self, url: str) -> str:
-        return with_token(url, self.token)
+    def download_request(self, url: str) -> dict:
+        return token_request(url, self.token)
 
     def deadlines(self, now: int | None = None) -> list[dict]:
         return deadlines_from_events(fetch_deadline_events(lambda fn, a: self.call(fn, **a), int(now or time.time())))
@@ -344,8 +349,9 @@ class SessionClient:
             seen[c["id"]] = ids
         return items, seen
 
-    def download_url(self, url: str) -> str:
-        return url
+    def download_request(self, url: str) -> dict:
+        """Sitzung: GET mit den Cookies des Browsers, ohne Schluessel"""
+        return {"url": url, "method": "GET", "form": None}
 
     def _resource_link(self, cmid) -> list[str]:
         r = self.page.request.get(f"{self.base}/mod/resource/view.php?id={cmid}&redirect=1", max_redirects=0)
@@ -373,7 +379,10 @@ def folder_links(html_text: str) -> list[str]:
 
 
 def files_from_state(state: dict, resource_links: Callable, folder_links_fn: Callable) -> list[dict]:
-    """core_courseformat_get_state -> Dateiliste; Links kommen aus den beiden Callbacks (je cmid)."""
+    """core_courseformat_get_state -> Dateiliste; Links kommen aus den beiden Callbacks (je cmid).
+    Die Sitzung kennt weder Aenderungszeit noch Groesse, nur die Pluginfile-Revision (steigt beim Ersetzen): chdate
+    und size sind None, den Zeitpunkt bestimmt store_course_files aus der Revision (version_stamp). Frueher stand die
+    Revision (1, 2, 3 ...) in chdate, das alle anderen als Unix-Zeit lesen (Lehrwoche 1970, "Aeltere Unterlagen")."""
     sections = {str(s["id"]): s for s in state.get("section", [])}
     out = []
     for cm in state.get("cm", []):
@@ -389,8 +398,8 @@ def files_from_state(state: dict, resource_links: Callable, folder_links_fn: Cal
             p = parse_pluginfile(url)
             if not p:
                 continue
-            out.append({"id": file_id(cm["id"], p["filepath"], p["filename"]), "name": p["filename"], "size": 0,
-                        "mime": guess_mime(p["filename"]), "author": None, "chdate": p["revision"],
+            out.append({"id": file_id(cm["id"], p["filepath"], p["filename"]), "name": p["filename"], "size": None,
+                        "mime": guess_mime(p["filename"]), "author": None, "chdate": None, "revision": p["revision"],
                         "download_url": strip_forcedownload(url),
                         "folder": join_folder(base_folder, p["filepath"]), "module_name": cm.get("name")})
     return out

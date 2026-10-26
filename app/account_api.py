@@ -60,7 +60,7 @@ def _device(body: dict, request: Request) -> tuple[str | None, str | None]:
 def info():
     """Oeffentlich: Betriebsart und Regeln, damit Clients das Formular passend bauen."""
     return {"mode": config.MODE, "hosted": config.is_hosted(), "password_min": accounts.PASSWORD_MIN,
-            "session_days": accounts.SESSION_DAYS, "universities": list(config.KNOWN_UNIVERSITIES),
+            "session_days": accounts.SESSION_DAYS, "universities": list(config.known_universities()),
             "providers": sorted(accounts.identity_verifiers)}
 
 

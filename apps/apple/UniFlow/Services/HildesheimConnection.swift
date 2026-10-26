@@ -209,7 +209,8 @@ final class HildesheimConnection: ObservableObject {
 
     /// Beim Oeffnen der App: hoechstens alle 30 Minuten, nur mit einer verbundenen Quelle
     func runIfDue() {
-        guard anyConnected, !isRunning else { return }
+        // dieselbe Regel wie beim Stud.IP-Abgleich: nie automatisch unter XCTest, -UFNoStudIPSync oder Startargumenten
+        guard StudIPSync.automaticRunAllowed(), anyConnected, !isRunning else { return }
         if let last = lastRun, clock.now.timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
     }
@@ -265,13 +266,14 @@ final class HildesheimConnection: ObservableObject {
         } catch {
             let message = LocalBackendHost.message(for: error)
             for s in sources.subtracting(connectedDuringRun) where isConnected(s) { set(s, .failed(message)) }
-            finish(messages: [message], report: nil)
+            finish(messages: [message], report: nil, succeeded: false)
             return nil
         }
         var report = HildesheimSync.Report()
         if lw.api != nil || lsfClient != nil {
+            // Seitentexte mit PDFKit (Suche, Seitenzuordnung einer neuen Fassung, S7)
             report = await HildesheimSync(db: database, container: layout, learnweb: lw.api, lsf: lsfClient, transport: transport,
-                                          clock: clock, retry: retry)
+                                          clock: clock, retry: retry, tools: AppDocumentTools())
                 .run(includeGrades: includeGrades)
         }
         apply(report, sources: sources.subtracting(connectedDuringRun), learnweb: lw, includeGrades: includeGrades, before: before)
@@ -319,15 +321,18 @@ final class HildesheimConnection: ObservableObject {
             all.first { m in prefixes.contains { m.hasPrefix($0) } } ?? r.refused ?? "Abgleich nicht abgeschlossen."
         }
         typealias Part = HildesheimSync.Report.Part
+        var succeeded = !r.cancelled
         if sources.contains(.learnweb), isConnected(.learnweb) {
             if lw.loginNeeded || r.needsLogin.contains(Source.learnweb.rawValue) {
                 set(.learnweb, .needsLogin)
+                succeeded = false
             } else if lw.api != nil, r.completed.contains(Part.learnweb) {
                 set(.learnweb, .ok(now))
             } else if r.cancelled {
                 set(.learnweb, before.0)
             } else {
                 set(.learnweb, .failed(message(["Learnweb"])))
+                succeeded = false
             }
         }
         if sources.contains(.lsf), isConnected(.lsf) {
@@ -335,23 +340,28 @@ final class HildesheimConnection: ObservableObject {
             let gradesOK = !includeGrades || r.completed.contains(Part.grades)
             if r.needsLogin.contains(Source.lsf.rawValue) {
                 set(.lsf, .needsLogin)
+                succeeded = false
             } else if planOK && gradesOK {
                 set(.lsf, .ok(now))
             } else if r.cancelled {
                 set(.lsf, before.1)
             } else {
                 set(.lsf, .failed(message(["LSF", "Stundenplan", "Notenspiegel"])))
+                succeeded = false
             }
         }
         if r.completed.contains(Part.grades) { defaults.set(now, forKey: Keys.gradesRun) }
-        finish(messages: all, report: r)
+        finish(messages: all, report: r, succeeded: succeeded)
     }
 
-    private func finish(messages all: [String], report: HildesheimSync.Report?) {
+    /// Ende eines Laufs: Meldungen merken; die 30-Minuten-Sperre (`lastRun`) wie beim Stud.IP-Abgleich nur nach einem
+    /// Lauf ohne Fehler (vorher auch nach einem gescheiterten, dann wartete der naechste Versuch 30 Minuten)
+    private func finish(messages all: [String], report: HildesheimSync.Report?, succeeded: Bool) {
         lastReport = report
         messages = all
-        lastRun = clock.now
         defaults.set(all, forKey: Keys.messages)
+        guard succeeded else { return }
+        lastRun = clock.now
         defaults.set(lastRun, forKey: Keys.lastRun)
     }
 
@@ -454,7 +464,8 @@ final class HildesheimLogin: ObservableObject {
     }
 
     /// Fuer `decidePolicyFor navigationAction`: true = Navigation abbrechen. Alles ausser http(s) und about geht nie an
-    /// das System (keine andere App); die Moodle-Antwort `<schema>://token=…` wird hier ausgewertet.
+    /// das System (keine andere App); die Moodle-Antwort `<schema>://token=…` wird hier ausgewertet. http im Hauptrahmen
+    /// haelt die Webansicht selbst an (`StudIPWebView.blocksMainFrame`).
     func intercept(_ url: URL) -> Bool {
         let s = url.scheme?.lowercased() ?? ""
         if s == "https" || s == "http" || s == "about" { return false }

@@ -19,13 +19,17 @@ from .holidays import DEADLINE_LABELS
 PALETTE = ["#4f6df5", "#0ea5a0", "#e0803a", "#9b59d9", "#d94f6b", "#2f9e5a", "#c7891a", "#3b82c4", "#7c5cd6", "#1aa39a"]
 DEFAULT_EST = {"vorlesung": 45, "skript": 60, "uebung": 60, "loesung": 30, "test": 45, "wiederholung": 30}
 OPEN = ("geplant", "in_bearbeitung", "nachholen")
+# Arten, die zu einer Lehrwoche gehoeren (Wochenhinweis aus dem Namen, Unterlagen zum Termin, Wochentest)
+LECTURE_WEEK_TYPES = ("vorlesung", "uebung", "skript", "loesung")
 
 
 def today() -> date:
     return date.today()
 
 
-def monday(d: date) -> date:
+def monday(d: date | None = None) -> date:
+    """Montag der Woche von d (ohne d: von heute); die eine Fassung (auch planner und server)"""
+    d = d or today()
     return d - timedelta(days=d.weekday())
 
 
@@ -98,6 +102,20 @@ def week_index(start: date, chdate: int | None) -> int:
     return day_week(start, datetime.fromtimestamp(chdate).date())
 
 
+def file_week(start: date, f: dict) -> int:
+    """Lehrwoche einer Datei (nach enrich_file), eine Regel fuer Moduldetail, Lernplan (_units), Unterlagen zum Termin
+    (timetable.materials_for_event), Wochentests und Aufzeichnungen: Klausuren und Klausur-Loesungen -2 (eigener
+    Block), sonst die Woche aus Name/Ordner (Blatt 3 / VL03 -> 3), wenn die Datei aus diesem Semester ist, sonst die
+    Woche der Aenderung. Vorher nahmen Lernplan und Termin nur die Woche der Aenderung: "Blatt 3", in Woche 5
+    hochgeladen, stand im Moduldetail in Woche 3, im Lernplan in Woche 5."""
+    if f.get("doc_type") == "klausur" or f.get("sub_label") == "Klausur-Lösung":
+        return -2
+    w = week_index(start, f.get("chdate"))
+    if f.get("week_hint") and w >= 0:
+        return f["week_hint"]
+    return w
+
+
 def week_label(start: date, w: int) -> str:
     if w == -2:
         return "Klausuren & Altklausuren"
@@ -162,7 +180,7 @@ def week_hint(name: str, folder: str | None) -> int | None:
 def enrich_file(f: dict) -> dict:
     t, lab = effective_type(f.get("name"), f.get("studip_folder"), f.get("doc_type"))
     f["ai_doc_type"] = f.get("doc_type"); f["doc_type"] = t; f["sub_label"] = lab
-    f["week_hint"] = week_hint(f.get("name"), f.get("studip_folder")) if t in ("vorlesung", "uebung", "loesung", "skript") else None
+    f["week_hint"] = week_hint(f.get("name"), f.get("studip_folder")) if t in LECTURE_WEEK_TYPES else None
     return f
 
 
@@ -205,13 +223,7 @@ def module_detail(conn, module_id: int) -> dict:
     files = _file_rows(conn, module_id)
     weeks: dict[int, list] = defaultdict(list)
     for f in files:
-        if f["doc_type"] == "klausur" or f.get("sub_label") == "Klausur-Lösung":
-            w = -2                                   # Klausuren & Altklausuren: eigener Block, keine Lehrwoche
-        elif f.get("week_hint") and week_index(start, f["chdate"]) >= 0:
-            w = f["week_hint"]                       # Blatt 3 / VL03 -> Lehrwoche 3
-        else:
-            w = week_index(start, f["chdate"])
-        weeks[w].append(f)
+        weeks[file_week(start, f)].append(f)
     order = sorted(weeks, key=lambda w: (w == -2, w == -1, w))
     out_weeks = []
     for w in order:
@@ -270,6 +282,11 @@ def refresh_statuses(conn) -> None:
                     AND package_id IN (SELECT id FROM study_packages WHERE date < ?)""", (t,))
     for p in db.rows(conn, "SELECT id, date, status FROM study_packages"):
         tasks = db.rows(conn, "SELECT status FROM study_tasks WHERE package_id=?", (p["id"],))
+        if not tasks:
+            # Paket ohne Aufgaben (alle verschoben oder geloescht): _recalc_package hat es auf "verschoben" gesetzt und
+            # seine Uhrzeit entfernt. Frueher wurde daraus hier wieder "geplant": ein leeres Paket belegte sein
+            # Zeitfenster im Stundenplan und stand unter "Naechste Termine" (Korrekturen vom 26.10.2026).
+            continue
         st = _derive_status([x["status"] for x in tasks], p["date"] < t)
         if st != p["status"]:
             conn.execute("UPDATE study_packages SET status=? WHERE id=?", (st, p["id"]))
@@ -322,9 +339,9 @@ def _units(conn, module_id: int, exclude_files: set[str]) -> list[dict]:
     for f in files:
         if f["id"] in exclude_files or f["status"] == "erledigt":
             continue
-        w = week_index(start, f["chdate"])
+        w = file_week(start, f)
         if w < 1:
-            continue  # alte und vorsemesterliche Unterlagen nicht automatisch einplanen
+            continue  # alte und vorsemesterliche Unterlagen und Klausuren nicht automatisch einplanen
         weeks[w]["files"].append(f)
         if f.get("doc_type") == "vorlesung":
             weeks[w]["vorlesungen"].append(f)
@@ -351,37 +368,72 @@ def _module_score(m: dict, open_units: int, settings: dict) -> float:
     return score
 
 
-def generate_packages(conn, start: date | None = None, days: int = 7, replace: bool = False, log=print) -> dict:
-    """Erstellt Lernpakete fuer `days` Tage ab `start` nach der Lernkombination in den Einstellungen."""
-    ensure_modules(conn)
-    refresh_statuses(conn)
-    s = db.get_settings(conn)
-    start = start or today()
-    end = start + timedelta(days=days - 1)
-    if replace:
-        ids = [r["id"] for r in db.rows(conn, "SELECT id FROM study_packages WHERE date BETWEEN ? AND ? AND status IN ('geplant')", (start.isoformat(), end.isoformat()))]
-        for pid in ids:
-            conn.execute("DELETE FROM study_tasks WHERE package_id=?", (pid,))
-            conn.execute("DELETE FROM study_packages WHERE id=?", (pid,))
-    planned_files = {r["file_id"] for r in db.rows(conn, "SELECT file_id FROM study_tasks WHERE file_id IS NOT NULL AND status IN ('geplant','in_bearbeitung','erledigt','nachholen')")}
-    modules = db.rows(conn, "SELECT * FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort")
+def _replaceable(conn, start: date, end: date) -> list[int]:
+    """Pakete, die "ersetzen" beim Planen loeschen darf: automatisch erstellte (generated=1), noch nicht begonnene
+    (alle Aufgaben geplant, keine verschoben oder von Hand neu eingeplant) und leere (alle Aufgaben verschoben oder
+    geloescht). Ersetzt wird tageweise: Liegt an einem Tag ein Paket, das bleibt (begonnen, eigenes Paket aus
+    "+ Lernpaket", "Eigener Lernblock" oder dem freien Fenster, mit neu eingeplanten Aufgaben), bleibt der ganze Tag.
+
+    Frueher (Korrektur vom 26.10.2026): Geloescht wurde jedes Paket mit Status "geplant" ohne Blick auf generated und
+    moved_from, also auch eigene Pakete und mit "Neu einplanen"/"Woche retten" verschobene Aufgaben (freie Aufgaben
+    ohne Datei waren verloren); ein leeres Paket blieb stehen und sperrte den Tag; an einem Tag mit begonnenem Paket
+    wurde das nicht begonnene geloescht, aber nicht ersetzt."""
+    rows = db.rows(conn, """SELECT p.id, p.date,
+                                   (p.generated=1 AND p.status='geplant' AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id
+                                        AND (t.status != 'geplant' OR t.moved_from IS NOT NULL))) AS fresh,
+                                   NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) AS empty
+                            FROM study_packages p WHERE p.date BETWEEN ? AND ? ORDER BY p.id""", (start.isoformat(), end.isoformat()))
+    keep_days = {r["date"] for r in rows if not (r["fresh"] or r["empty"])}
+    return [r["id"] for r in rows if r["date"] not in keep_days]
+
+
+def _planned_files(conn, exclude_packages: list[int] = ()) -> set[str]:
+    """Dateien, die schon in einer offenen oder erledigten Aufgabe stehen (ohne die Pakete in `exclude_packages`)"""
+    ex = list(exclude_packages)
+    sql = "SELECT file_id FROM study_tasks WHERE file_id IS NOT NULL AND status IN ('geplant','in_bearbeitung','erledigt','nachholen')"
+    if ex:
+        sql += f" AND package_id NOT IN ({','.join('?' * len(ex))})"
+    return {r["file_id"] for r in db.rows(conn, sql, ex)}
+
+
+def _queues(conn, planned_files: set[str], s: dict) -> tuple[dict, list[int]]:
+    """Warteschlangen der aktiven Module mit offenen Lerneinheiten und ihre Reihenfolge (hoechste Bewertung zuerst)"""
     queues = {}
-    for m in modules:
+    for m in db.rows(conn, "SELECT * FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort"):
         units = _units(conn, m["id"], planned_files)
         if units:
             queues[m["id"]] = {"module": m, "units": units, "pos": 0, "pending": []}  # pending: Aufgaben der angefangenen Einheit
+    order = sorted(queues, key=lambda mid: -_module_score(queues[mid]["module"], len(queues[mid]["units"]), s))
+    return queues, order
+
+
+def generate_packages(conn, start: date | None = None, days: int = 7, replace: bool = False, log=print) -> dict:
+    """Erstellt Lernpakete fuer `days` Tage ab `start` nach der Lernkombination in den Einstellungen. Tage vor heute
+    werden nicht geplant: "Plan erstellen" in der Wochenansicht beginnt am Montag, und frueher waren die Pakete der
+    vergangenen Tage sofort "nachholen" (Korrektur vom 26.10.2026). Mit `replace` werden nur Pakete aus
+    `_replaceable` ersetzt, und erst, wenn es etwas zu planen gibt."""
+    ensure_modules(conn)
+    refresh_statuses(conn)
+    s = db.get_settings(conn)
+    t0 = today()
+    start = start or t0
+    end = start + timedelta(days=days - 1)
+    drop = _replaceable(conn, start, end) if replace else []
+    queues, order = _queues(conn, _planned_files(conn, drop), s)
     if not queues:
         return {"created": 0, "message": "Keine offenen Vorlesungen oder Übungen für die Planung."}
+    for pid in drop:
+        conn.execute("DELETE FROM study_tasks WHERE package_id=?", (pid,))
+        conn.execute("DELETE FROM study_packages WHERE id=?", (pid,))
 
     budget_day = s["minutes_per_day"]
     per_pkg = max(30, budget_day // max(1, s["subjects_per_day"]))
-    order = sorted(queues, key=lambda mid: -_module_score(queues[mid]["module"], len(queues[mid]["units"]), s))
     rr = list(order)
     created = 0
     existing_days = {r["date"]: r["n"] for r in db.rows(conn, "SELECT date, COUNT(*) n FROM study_packages WHERE date BETWEEN ? AND ? GROUP BY date", (start.isoformat(), end.isoformat()))}
     for i in range(days):
         d = start + timedelta(days=i)
-        if d.weekday() not in s["learn_days"] or existing_days.get(d.isoformat()):
+        if d < t0 or d.weekday() not in s["learn_days"] or existing_days.get(d.isoformat()):
             continue
         picked: list[tuple[dict, int]] = []
         day_used = 0
@@ -421,59 +473,142 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     return {"created": created, "message": f"{created} Lernpakete erstellt", "feasibility": feas}
 
 
-def assign_slots(conn, d: date, only_unset: bool = True) -> None:
+def assign_slots(conn, d: date, only_unset: bool = True, package_id: int | None = None) -> None:
     """Weist den Lernpaketen eines Tages Uhrzeiten in den freien Fenstern zu (Hochschultermine, Sperrzeiten,
-    Fahrtzeit beruecksichtigt). Aufgaben eines Pakets koennen auf mehrere Fenster verteilt werden."""
+    Fahrtzeit beruecksichtigt). Ein Paket liegt am Stueck im ersten Fenster mit genug Platz; passt es in keines,
+    werden seine Aufgaben auf mehrere Fenster verteilt. Mit `package_id` nur dieses Paket (verschobenes Paket)."""
     from . import timetable
     s = db.get_settings(conn)
     pkgs = db.rows(conn, "SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id", (d.isoformat(),))
     if only_unset:
         pkgs = [p for p in pkgs if not p["start_time"]]
+    if package_id is not None:
+        pkgs = [p for p in pkgs if p["id"] == package_id]
     if not pkgs:
         return
     windows = [dict(w) for w in timetable.free_windows(conn, d, s, include_packages=True)]
     if not windows:  # kein freies Fenster: Lernbeginn als Fallback, hintereinander
         windows = [{"start": timetable.hm(s["learn_start"]), "end": timetable.hm(s["learn_end"])}]
     brk = s["break_minutes"]
-    wi = 0
-    cur = windows[0]["start"]
+    free = [w["start"] for w in windows]          # naechste freie Minute je Fenster
     for p in pkgs:
         tasks = db.rows(conn, "SELECT id, est_minutes FROM study_tasks WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben') ORDER BY sort", (p["id"],))
+        needs = [int(t["est_minutes"] or 45) for t in tasks]
+        # Ein Paket kommt am Stueck in das erste freie Fenster, in dem es Platz hat. Frueher begann es im aktuellen
+        # Fenster und endete hinter dem naechsten Termin: der Lernblock lag ueber der Vorlesung, der Stundenplan meldete
+        # einen Konflikt, und "Lernslots neu legen" ergab wieder dasselbe; ein spaeteres kurzes Paket konnte die Luecke
+        # davor nicht mehr nutzen (Korrektur vom 26.10.2026). Passt es in kein Fenster, werden seine Aufgaben wie
+        # bisher der Reihe nach auf die Fenster verteilt.
+        total = sum(needs) + brk * max(0, len(needs) - 1)
+        k = next((j for j, w in enumerate(windows) if free[j] + total <= w["end"]), 0)
         first, last = None, None
-        for t in tasks:
-            need = int(t["est_minutes"] or 45)
+        for t, need in zip(tasks, needs):
             placed = False
-            for _ in range(len(windows) + 1):
-                if wi >= len(windows):
-                    break
-                w = windows[wi]
-                if cur < w["start"]:
-                    cur = w["start"]
+            while k < len(windows):
+                w, cur = windows[k], free[k]
                 if cur + need <= w["end"] or (w["end"] - w["start"] < need and cur == w["start"]):
                     st, en = cur, min(cur + need, w["end"]) if cur + need > w["end"] else cur + need
                     conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?", (timetable.mh(st), timetable.mh(en), t["id"]))
                     first = first if first is not None else st
                     last = en
-                    cur = en + brk
+                    free[k] = en + brk
                     placed = True
                     break
-                wi += 1
-                cur = windows[wi]["start"] if wi < len(windows) else cur
-            if not placed:  # ueber das Tagesende hinaus
-                st = cur
+                k += 1
+            if not placed:  # ueber das Tagesende hinaus (hinter das letzte Fenster)
+                st = free[-1]
                 conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?", (timetable.mh(st), timetable.mh(st + need), t["id"]))
                 first = first if first is not None else st
                 last = st + need
-                cur = st + need + brk
+                free[-1] = st + need + brk
         if first is not None:
             conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(first), timetable.mh(last), p["id"]))
 
 
+def set_package_time(conn, package_id: int, start: str | None, end: str | None) -> None:
+    """Uhrzeit eines Lernpakets von Hand ("Uhrzeit" im Lernpaket, "Beginn" beim Anlegen). Frueher uebernahm
+    PATCH /api/packages/{id} nur Tag, Titel und Reihenfolge, die Uhrzeit ging verloren (Korrektur vom 26.10.2026).
+    Ohne Beginn wird die Uhrzeit entfernt, ohne Ende gilt die geplante Dauer. Aufgaben mit Uhrzeit ruecken um
+    denselben Abstand mit, und das Paket endet nie vor seiner letzten Aufgabe: Die geplante Dauer zaehlt die Pausen
+    zwischen den Aufgaben nicht mit, und der Dialog schickt Beginn + Dauer als Ende. Frueher wurde das Paket dadurch
+    kuerzer als seine Aufgaben, die Zeit dahinter galt als frei, und das naechste Paket lag in einer Aufgabe, die
+    noch lief (Korrektur vom 26.10.2026). Ungueltige Uhrzeit: ValueError."""
+    p = db.row(conn, "SELECT start_time, planned_minutes FROM study_packages WHERE id=?", (package_id,))
+    if not p:
+        return
+    if not start:
+        conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", (package_id,))
+        conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=?", (package_id,))
+        return
+    a = _clock_minutes(start)
+    b = _clock_minutes(end) if end else a + int(p["planned_minutes"] or 0)
+    if b <= a:
+        raise ValueError("Das Ende muss nach dem Beginn liegen.")
+    from . import timetable
+    if p["start_time"]:
+        shift = a - timetable.hm(p["start_time"])
+        for t in db.rows(conn, "SELECT id, start_time, end_time FROM study_tasks WHERE package_id=? AND start_time IS NOT NULL AND end_time IS NOT NULL", (package_id,)):
+            te = timetable.hm(t["end_time"]) + shift
+            conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
+                         (timetable.mh(timetable.hm(t["start_time"]) + shift), timetable.mh(te), t["id"]))
+            b = max(b, te)
+    conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(a), timetable.mh(b), package_id))
+
+
+def _clock_minutes(v) -> int:
+    """'HH:MM' (auch '24:30' fuer ein Ende nach Mitternacht) in Minuten, sonst ValueError"""
+    m = re.fullmatch(r"([0-9]{1,2}):([0-9]{2})", v) if isinstance(v, str) else None
+    if not m or int(m.group(2)) > 59:
+        raise ValueError(f"Ungültige Uhrzeit: {v}")
+    return int(m.group(1)) * 60 + int(m.group(2))
+
+
 def reslot_day(conn, d: date) -> None:
-    """Alle Slots eines Tages neu vergeben (z. B. nach Stundenplan-Aenderung)."""
+    """Alle Slots eines Tages neu vergeben (z. B. nach Stundenplan-Aenderung, "Lernslots neu legen"). Auch von Hand
+    gesetzte Uhrzeiten werden neu vergeben; "Uhrzeiten vergeben" nimmt deshalb assign_slots (nur Pakete ohne Uhrzeit)."""
     conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE date=? AND status NOT IN ('erledigt')", (d.isoformat(),))
     conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id IN (SELECT id FROM study_packages WHERE date=? AND status NOT IN ('erledigt'))", (d.isoformat(),))
     assign_slots(conn, d)
+
+
+def plan_window(conn, d: date, start: str, end: str) -> dict:
+    """"Lerneinheit automatisch einplanen" im freien Fenster: die naechsten Aufgaben eines Moduls als ein Paket genau in
+    dieses Fenster, auch an einem Tag mit Paketen und an einem freien Tag. Frueher rief das Fenster die Planung fuer
+    diesen einen Tag auf, und die uebersprang jeden Tag, auf dem schon ein Paket lag: "0 Lernpakete erstellt", obwohl
+    noch Unterlagen offen waren (Korrektur vom 26.10.2026). Genommen wird das Modul mit der hoechsten Bewertung, dessen
+    erste Aufgabe ins Fenster passt; weitere Aufgaben derselben Einheit folgen, solange sie mit Pause hineinpassen.
+    Dateien werden nicht geteilt: Ein erster Teil im Fenster liesse die uebrigen Teile ungeplant (die Datei gilt dann
+    als eingeplant). Ungueltige Uhrzeit: ValueError."""
+    from . import timetable
+    a, b = _clock_minutes(start), _clock_minutes(end)
+    if b <= a:
+        raise ValueError("Das Ende muss nach dem Beginn liegen.")
+    ensure_modules(conn)
+    refresh_statuses(conn)
+    s = db.get_settings(conn)
+    queues, order = _queues(conn, _planned_files(conn), s)
+    if not queues:
+        return {"created": 0, "message": "Keine offenen Vorlesungen oder Übungen für die Planung."}
+    brk = s["break_minutes"]
+    for mid in order:
+        q = queues[mid]
+        tasks = _next_tasks(q, s, 24 * 60)          # ganze Einheit, ohne Teile
+        if not tasks or a + tasks[0]["est"] > b:
+            continue
+        fit, cur = [], a
+        for t in tasks:
+            if fit and cur + t["est"] > b:
+                break
+            fit.append((t, cur))
+            cur += t["est"] + brk
+        pid = _insert_package(conn, d, q["module"], [t for t, _ in fit], q.get("cur_unit"))
+        ids = [r["id"] for r in db.rows(conn, "SELECT id FROM study_tasks WHERE package_id=? ORDER BY sort", (pid,))]
+        for tid, (t, st) in zip(ids, fit):
+            conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?", (timetable.mh(st), timetable.mh(st + t["est"]), tid))
+        last = fit[-1][1] + fit[-1][0]["est"]
+        conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(a), timetable.mh(last), pid))
+        return {"created": 1, "message": "1 Lernpaket erstellt", "feasibility": feasibility(conn)}
+    return {"created": 0, "message": f"Keine Lerneinheit passt in {b - a} Minuten."}
 
 
 def slot_conflicts(conn, start: date, end: date) -> list[dict]:
@@ -711,12 +846,18 @@ def _recalc_package(conn, pid: int) -> None:
     if r["n"] == 0:
         p = db.row(conn, "SELECT generated FROM study_packages WHERE id=?", (pid,))
         if p:
-            conn.execute("UPDATE study_packages SET status='verschoben', planned_minutes=0 WHERE id=?", (pid,))
+            # Ohne Aufgaben belegt das Paket keine Uhrzeit mehr. Frueher blieb sie stehen: Das Raster zeichnete den
+            # leeren Block weiter, und weil sein Fenster als frei galt, bekam ein neues Paket genau diese Uhrzeit (zwei
+            # Bloecke uebereinander, einer "0/0 Verschoben"; Korrektur vom 26.10.2026)
+            conn.execute("UPDATE study_packages SET status='verschoben', planned_minutes=0, start_time=NULL, end_time=NULL WHERE id=?", (pid,))
     else:
         conn.execute("UPDATE study_packages SET planned_minutes=? WHERE id=?", (r["m"], pid))
 
 
 def move_package(conn, package_id: int, new_date: str) -> None:
+    """Paket auf einen anderen Tag. Mit Uhrzeit: Ist dieselbe Uhrzeit am neuen Tag frei, bleibt sie, sonst bekommt das
+    Paket ein freies Fenster des neuen Tags. Frueher blieb die alte Uhrzeit immer, und das Paket konnte am neuen Tag
+    ueber einer Vorlesung liegen, bis jemand "Lernslots neu legen" ausloeste (Korrektur vom 26.10.2026)."""
     p = db.row(conn, "SELECT * FROM study_packages WHERE id=?", (package_id,))
     if not p:
         raise ValueError("Paket nicht gefunden")
@@ -725,7 +866,26 @@ def move_package(conn, package_id: int, new_date: str) -> None:
     for t in db.rows(conn, "SELECT id, status FROM study_tasks WHERE package_id=?", (package_id,)):
         conn.execute("INSERT INTO task_history(task_id, package_id, old_status, new_status, old_date, new_date, note, at) VALUES (?,?,?,?,?,?,?,?)",
                      (t["id"], package_id, t["status"], t["status"], p["date"], new_date, "Paket verschoben", db.now_iso()))
+    if p["start_time"] and p["end_time"] and new_date != p["date"]:
+        _slot_moved_package(conn, package_id, p, new_date)
     refresh_statuses(conn)
+
+
+def _slot_moved_package(conn, package_id: int, p: dict, new_date) -> None:
+    """Uhrzeit eines verschobenen Pakets: behalten, wenn sie am neuen Tag ganz in einem freien Fenster liegt (andere
+    Pakete, Termine, Sperrzeiten und Fahrtzeit zaehlen), sonst neu in ein freies Fenster legen"""
+    from . import timetable
+    try:
+        d = date.fromisoformat(new_date)
+    except (TypeError, ValueError):
+        return                                    # kein Datum: wie bisher nur gespeichert
+    a, b = timetable.hm(p["start_time"]), timetable.hm(p["end_time"])
+    conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", (package_id,))
+    if any(w["start"] <= a and b <= w["end"] for w in timetable.free_windows(conn, d)):
+        conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (p["start_time"], p["end_time"], package_id))
+        return
+    conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=?", (package_id,))
+    assign_slots(conn, d, package_id=package_id)
 
 
 def rescue_week(conn) -> dict:

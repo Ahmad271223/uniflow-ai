@@ -18,6 +18,19 @@ final class SupportTests: XCTestCase {
         try? FileManager.default.removeItem(at: dir)
     }
 
+    /// Container geloescht, waehrend eine Antwort unterwegs war: der Zwischenspeicher legt ihn nicht wieder an
+    func testResponseCacheDoesNotRecreateADeletedContainer() throws {
+        let container = FileManager.default.temporaryDirectory.appendingPathComponent("container-test-\(UUID().uuidString)")
+        let cache = ResponseCache(root: DataContainerLayout.Folder.cache.url(in: container))
+        cache.store(["x": 1], for: "/api/dashboard")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: container.path), "kein Ordner ohne Kennzeichnung")
+        XCTAssertNil(cache.load("/api/dashboard"))
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+        cache.store(["x": 1], for: "/api/dashboard")
+        XCTAssertEqual(cache.load("/api/dashboard")?.0, ["x": 1], "im bestehenden Container wie bisher")
+    }
+
     func testRowsGetUniqueIDs() {
         let rows = Row.rows([["id": 1], ["id": 1], ["name": "ohne id"]])
         XCTAssertEqual(Set(rows.map(\.id)).count, 3)
@@ -25,11 +38,26 @@ final class SupportTests: XCTestCase {
     }
 
     func testFormatting() {
-        XCTAssertEqual(Fmt.minutes(90), "1 h 30 min")
-        XCTAssertEqual(Fmt.minutes(45), "45 min")
-        XCTAssertEqual(Fmt.minutes(nil), "–")
-        XCTAssertEqual(Fmt.day("2026-10-26", style: "EEE d.M."), "Mo. 26.10.")
+        XCTAssertEqual(UFFmt.min(90), "1 h 30 min")
+        XCTAssertEqual(UFFmt.min(45), "45 min")
         XCTAssertNotNil(Fmt.date("2026-10-26T10:00:00"))
+    }
+
+    /// "Heute" und alle Tage der Oberflaeche in Berlin wie das lokale Backend (UniFlowClock), auch wenn das iPad in
+    /// einer anderen Zeitzone steht: in London um 23:30 ist in Berlin schon der naechste Tag
+    func testDaysUseBerlinTimeLikeTheBackend() throws {
+        let saved = NSTimeZone.default
+        NSTimeZone.default = try XCTUnwrap(TimeZone(identifier: "Europe/London"))
+        defer { NSTimeZone.default = saved }
+        let lateInLondon = Date(timeIntervalSince1970: 1_793_057_400)          // 2026-10-26 23:30 London = 00:30 Berlin
+        XCTAssertEqual(Fmt.isoDay(lateInLondon), "2026-10-27")
+        XCTAssertEqual(Fmt.isoDay(lateInLondon), UniFlowClock.fixed(lateInLondon).today)
+        let day = try XCTUnwrap(Fmt.date("2026-10-27"))
+        XCTAssertEqual(Fmt.isoDay(day), "2026-10-27")
+        XCTAssertEqual(UFFmt.weekdayShort("2026-10-27"), "Di")
+        XCTAssertEqual(UFFmt.date("2026-10-27"), "27.10.2026")
+        XCTAssertEqual(Fmt.isoDay(PlanData.monday(try XCTUnwrap(Fmt.date("2026-11-01")))), "2026-10-26")
+        XCTAssertEqual(Fmt.isoDay(PlanData.add(day, 7)), "2026-11-03")
     }
 
     /// Die Skriptsuche liefert PDF-Seitennummern; der Editor springt zur passenden Anzeige-Seite,

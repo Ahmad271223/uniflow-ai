@@ -58,8 +58,10 @@ final class URLSessionUniTransport: UniTransport, @unchecked Sendable {
         config.httpCookieStorage = nil
         config.urlCache = nil
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        // 30 s ohne Daten gilt als abgerissen (wiederholbar); kein festes Gesamtlimit: vorher brach nach 10 Minuten
+        // jede grosse Datei bei langsamem WLAN ab, wurde dreimal von vorn geladen und kam nie an
         config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 600
+        config.timeoutIntervalForResource = 24 * 3600
         session = URLSession(configuration: config)
     }
 

@@ -134,7 +134,7 @@ struct NotebookDialog: View {
             if kind == "notebook" {
                 UFField("Vorlage") {
                     UFGridLayout(columns: 6, spacing: 6.4) {
-                        ForEach(LibraryStyle.templates, id: \.0) { k, n in
+                        ForEach(PaperTemplate.choices, id: \.id) { k, n in
                             Button { tpl = k } label: {
                                 VStack(spacing: 4.8) {
                                     UFTemplatePreview(template: k).frame(width: 38, height: 48)
@@ -384,15 +384,20 @@ struct LibraryDocMenu: View {
         }
     }
 
-    /// <a download>: auf dem iPad ueber das Teilen-Menue (Sichern in Dateien)
+    /// <a download>: auf dem iPad ueber das Teilen-Menue (Sichern in Dateien). Der Name kommt ungeprueft aus
+    /// Stud.IP/Learnweb: bereinigt in einem eigenen Ordner des Containers (`AppTemp`), Fehler mit Meldung
     private func download(_ id: String) async {
         guard let api = session.api, let (data, http) = try? await api.data("/api/files/\(id)/content"), (200..<300).contains(http.statusCode) else {
             toast.show("Download fehlgeschlagen")
             return
         }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(f.s("name") ?? "\(id).pdf")
-        do { try data.write(to: url, options: .atomic) } catch { return }
-        UFShare.present([url])
+        do {
+            let url = try AppTemp.file("download", name: f.s("name") ?? "\(id).pdf")
+            try data.write(to: url, options: .atomic)
+            UFShare.present([url])
+        } catch {
+            toast.show("Datei ließ sich nicht ablegen: \(error.localizedDescription)", seconds: 5)
+        }
     }
 }
 

@@ -63,7 +63,7 @@ public final class LocalJournal: @unchecked Sendable {
             ($0 >= "a" && $0 <= "z") || ($0 >= "A" && $0 <= "Z") || ($0 >= "0" && $0 <= "9") || $0 == "_" || $0 == "-"
         }
         if ok { return s }
-        return "~" + s.utf8.map { String(format: "%02x", $0) }.joined()          // "~" kommt in sicheren Namen nie vor
+        return "~" + SolutionSHA256.hexString(Array(s.utf8))          // "~" kommt in sicheren Namen nie vor
     }
 
     static func unsafeName(_ file: String) -> String? {

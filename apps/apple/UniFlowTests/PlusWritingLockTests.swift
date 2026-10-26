@@ -40,7 +40,7 @@ final class PlusWritingLockTests: XCTestCase {
                                     clock: .fixed(berlin: "2026-10-25T14:30:05")!)
         let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
         let fileID = "tarif-" + UUID().uuidString.prefix(8).lowercased()
-        let pdfURL = AppPaths.pdfDirectory(api.namespace, root: root).appendingPathComponent(fileID + ".pdf")
+        let pdfURL = AppPaths.pdf(fileID, namespace: api.namespace, root: root)
         try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try makePDFData().write(to: pdfURL)
         let file = LibFile(id: fileID, name: "Blatt.pdf", title: "Blatt", kind: "pdf", module_id: nil, subject: nil, doc_type: nil,
@@ -204,7 +204,7 @@ final class PlusWritingLockTests: XCTestCase {
             try Data("x".utf8).write(to: url)
         }
         func pdf(_ id: String, _ ns: DataSourceNamespace) -> URL {
-            AppPaths.pdfDirectory(ns, root: root).appendingPathComponent(LocalJournalName.safe(id) + ".pdf")
+            AppPaths.pdf(id, namespace: ns, root: root)
         }
         func journalFile(_ id: String, _ ns: DataSourceNamespace) -> URL {
             root.appendingPathComponent("journal").appendingPathComponent(LocalJournal.directory(documentID: id, namespace: ns))

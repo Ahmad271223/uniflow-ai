@@ -116,7 +116,7 @@ aller Rückfragen.
 
 | ID | ✔ | Problem | Ort | Vorschlag | Erledigt |
 |---|---|---|---|---|---|
-| S1 | ✔ | `PATCH /api/packages/{id}` übernimmt nur `date`, `title`, `sort` – `start_time`/`end_time` werden ignoriert; „Uhrzeit“ und „Beginn (optional)“ beim Lernpaket wirken in Web und iPad nicht | `app/server.py:947-955` | Felder übernehmen (Spalten existieren, `db.py` `add_col("study_packages", "start_time"/"end_time")`), Test ergänzen | |
+| S1 | ✔ | `PATCH /api/packages/{id}` übernimmt nur `date`, `title`, `sort` – `start_time`/`end_time` werden ignoriert; „Uhrzeit“ und „Beginn (optional)“ beim Lernpaket wirken in Web und iPad nicht | `app/server.py:947-955` | Felder übernehmen (Spalten existieren, `db.py` `add_col("study_packages", "start_time"/"end_time")`), Test ergänzen | S6 (`wip/s6-lernplan-2`): `study.set_package_time`, Aufgaben rücken mit, ungültige Uhrzeit 400; `tests/test_study_plan.py`; auf dem iPad `StudyPlan.setPackageTime` |
 | S2 | ✔ | Testbewertung läuft synchron im Request (Ursache von K1) | `app/server.py:659-665` | Bewertung als Hintergrundaufgabe (`/api/bg`) wie die Testerstellung; Client fragt den Stand ab | |
 | S3 | | Laut Code-Prüfung wirft das Menü der Modulkarte in der Bibliothek im Web einen TypeError (nicht nachgeprüft) | `app/static/views-lib.js:84, 125` | prüfen und beheben | |
 | S4 | | „Endgültig löschen“ ohne Rückfrage (siehe K7) | `app/static/views-lib.js:124` | Rückfrage | |

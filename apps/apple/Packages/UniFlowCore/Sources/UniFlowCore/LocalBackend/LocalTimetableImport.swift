@@ -61,26 +61,17 @@ enum LocalTimetableImport {
         return (1..<m.numberOfRanges).compactMap { Int(ns.substring(with: m.range(at: $0)).trimmingCharacters(in: .whitespaces)) }
     }
 
-    /// Codepunkte `s[from:to]` wie Pythons Slicing
-    static func slice(_ s: String, _ from: Int, _ to: Int) -> String {
-        let u = Array(s.unicodeScalars)
-        let lo = min(max(0, from), u.count), hi = min(max(lo, to), u.count)
-        var out = String.UnicodeScalarView()
-        out.append(contentsOf: u[lo..<hi])
-        return String(out)
-    }
-
     /// `_ics_dt(v, params)`: Zeitpunkt als Ortszeit Berlin. "...Z" ist UTC, TZID=... eine Zeitzone (UTC-Namen und
     /// Europe/Berlin ohne Datenbank, andere aus den bekannten Zonen des Systems); unbekannte und Zeiten ohne Angabe
     /// gelten als Berliner Zeit. Reine Daten beginnen um 00:00. nil, wo Python mit ValueError scheitert.
     static func icsDate(_ raw: String, params: String = "") -> LocalTime? {
         let v = PyText.strip(raw)
         if v.unicodeScalars.contains("T") {
-            guard let p = strptime(strptimeDateTime, slice(v, 0, 15)), p.count == 6, p[0] >= 1,
+            guard let p = strptime(strptimeDateTime, PyText.slice(v, 0, 15)), p.count == 6, p[0] >= 1,
                   (1...BerlinClock.daysInMonth(year: p[0], month: p[1])).contains(p[2]), p[5] < 60 else { return nil }
             let day = BerlinClock.dayNumber(year: p[0], month: p[1], day: p[2])
             let wall = LocalTime(day: day, minutes: p[3] * 60 + p[4])
-            let utcFlag = slice(v, 15, 16).uppercased() == "Z"
+            let utcFlag = PyText.slice(v, 15, 16).uppercased() == "Z"
             let tz = tzid(params)
             if utcFlag || tz.map({ utcTZIDs.contains($0.uppercased()) }) == true {
                 return berlin(utc: day * 86400 + p[3] * 3600 + p[4] * 60 + p[5])
@@ -95,7 +86,7 @@ enum LocalTimetableImport {
             }
             return wall
         }
-        guard let p = strptime(strptimeDate, slice(v, 0, 8)), p.count == 3, p[0] >= 1,
+        guard let p = strptime(strptimeDate, PyText.slice(v, 0, 8)), p.count == 3, p[0] >= 1,
               (1...BerlinClock.daysInMonth(year: p[0], month: p[1])).contains(p[2]) else { return nil }
         return LocalTime(day: BerlinClock.dayNumber(year: p[0], month: p[1], day: p[2]), minutes: 0)
     }
@@ -121,7 +112,7 @@ enum LocalTimetableImport {
     /// `_ics_until(rrule, start)`: letzter Tag; UNTIL mit Uhrzeit vor dem Beginn des Termins zaehlt den Vortag
     static func icsUntil(_ rrule: String, start: LocalTime) -> String? {
         guard let g = HText.match(untilRule, rrule)?.groups, let d = g[1] else { return nil }
-        let day = slice(d, 0, 4) + "-" + slice(d, 4, 6) + "-" + slice(d, 6, 8)
+        let day = PyText.slice(d, 0, 4) + "-" + PyText.slice(d, 4, 6) + "-" + PyText.slice(d, 6, 8)
         guard let t = g[2] else { return day }
         guard let u = icsDate(d + t) else { return day }
         var last = u.day
@@ -250,21 +241,30 @@ enum LocalTimetableImport {
         var out: [Entry] = []
         for k in order {
             let list = groups[k] ?? []
-            guard list.count >= 3 else { out += list; continue }
-            let dates = list.compactMap { LocalModules.truthy($0["date_from"]) ? $0["date_from"]?.string : nil }
+            // Wochen ohne Termin innerhalb der Serie (Weihnachtspause, Feiertage, einzelne Ausfaelle) kommen als
+            // `exdates` mit (wie merge_weekly am PC seit 26.10.2026): Stud.IP legt an vorlesungsfreien Tagen keine
+            // Termine an, die Serie wuerde die Luecke sonst wieder mit Vorlesungen fuellen. Alle 14 Tage: alle
+            // Abstaende sind Vielfache von 14 (auch mit einer Luecke von 28 Tagen ueber Weihnachten).
+            let dates = Array(Set(list.compactMap { LocalModules.truthy($0["date_from"]) ? $0["date_from"]?.string : nil }))
                 .sorted { $0.unicodeScalars.lexicographicallyPrecedes($1.unicodeScalars) }
-            guard let firstDate = dates.first, let lastDate = dates.last else {
-                throw LocalHTTPError(status: 500, message: "Termine ohne Datum")
-            }
-            var gaps = Set<Int>()
-            for (a, b) in zip(dates, dates.dropFirst()) {
-                gaps.insert(try LocalTimetable.day(.string(b), "date_from") - LocalTimetable.day(.string(a), "date_from"))
+            guard list.count >= 3, dates.count >= 2, let firstDate = dates.first, let lastDate = dates.last else { out += list; continue }
+            let days = try dates.map { try LocalTimetable.day(.string($0), "date_from") }
+            let gaps = zip(days, days.dropFirst()).map { $1 - $0 }
+            let step = gaps.allSatisfy { $0 % 14 == 0 } ? 14 : 7
+            let known = Set(dates)
+            var missing: [String] = []
+            var d = days[0]
+            while d <= days[days.count - 1] {
+                let iso = BerlinClock.isoDate(d)
+                if !known.contains(iso) { missing.append(iso) }
+                d += step
             }
             var e = list[0]
-            e["rrule"] = !gaps.isEmpty && gaps.allSatisfy { $0 == 14 } ? "biweekly" : "weekly"
+            e["rrule"] = step == 14 ? "biweekly" : "weekly"
             e["date_from"] = .string(firstDate)
             e["date_to"] = .string(lastDate)
             e["count"] = .number(Double(list.count))
+            if !missing.isEmpty { e["exdates"] = .array(missing.map(JSONValue.string)) }       // Feld nur bei Luecken
             out.append(e)
         }
         return out
@@ -410,22 +410,6 @@ enum LocalTimetableImport {
             }
             return sa.unicodeScalars.lexicographicallyPrecedes(sb.unicodeScalars)
         }
-    }
-
-    /// `auto_import(conn)`: alle eindeutigen Stud.IP-Termine uebernehmen; parallele Gruppen bleiben zur Auswahl.
-    /// Zuerst `ensure_modules`, damit Termine neuer Kurse das Modul ihres Fachs bekommen (Korrektur vom 26.10.2026,
-    /// zuerst in Python, tests/test_timetable.py)
-    static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> JSONValue {
-        try LocalModules.ensureModules(c, clock: clock)
-        let all = try studipEntries(c)
-        let entries = try enrich(c, all.filter { LocalModules.truthy($0["selected"]) })
-        let diff = try diffAgainstExisting(c, entries)
-        let new = diff["new"]?.array ?? []
-        let res = try applyImport(c, new, source: "studip", clock: clock)
-        try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('studip-auto', ?, 'auto', '', ?, 1)",
-                      [.text(clock.nowISO), .text(JSONValue.array(new).jsonString(sortedKeys: true))])
-        let pending = try studipEntries(c).filter { !LocalModules.truthy($0["selected"]) }.count
-        return ["new": res["new"] ?? 0, "pending_groups": .number(Double(pending))]
     }
 
     // MARK: Vorschau und Uebernahme
