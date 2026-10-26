@@ -37,13 +37,17 @@ sealed class UiState<out T> {
     data class Failed(val message: String, val auth: Boolean = false) : UiState<Nothing>()
 }
 
-/** Laedt `load` beim ersten Anzeigen und bei jeder Aenderung von `key`. */
+/**
+ * Laedt `load` beim ersten Anzeigen und bei jeder Aenderung von `key`. Beim Neuladen ueber die zweite Rueckgabe bleibt
+ * der bisherige Inhalt stehen, bis die neue Antwort da ist (kein Flackern, Scrollposition bleibt); nur der erste Aufruf
+ * und ein Schluesselwechsel zeigen den Ladekreis.
+ */
 @Composable
 fun <T> rememberLoaded(key: Any?, load: suspend () -> T): Pair<UiState<T>, () -> Unit> {
     var state by remember(key) { mutableStateOf<UiState<T>>(UiState.Loading) }
     var tick by remember(key) { mutableStateOf(0) }
     LaunchedEffect(key, tick) {
-        state = UiState.Loading
+        if (state !is UiState.Ready) state = UiState.Loading
         state = try {
             UiState.Ready(load())
         } catch (e: ApiError) {

@@ -39,7 +39,8 @@ fun CalendarScreen(repo: Repo) {
     val end = Dates.format(monday.plusDays(6))
     val (state, reload) = rememberLoaded(start) { repo.calendar(start, end) }
     val scope = rememberCoroutineScope()
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember(start) { mutableStateOf<String?>(null) }          // beim Wochenwechsel zuruecksetzen
+    var busy by remember { mutableStateOf<Set<Int>>(emptySet()) }           // Aufgaben mit laufender Statusaenderung
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { monday = monday.minusWeeks(1) }) { Text("◀") }
@@ -64,10 +65,13 @@ fun CalendarScreen(repo: Repo) {
                                 color = colorOf(p.color, MaterialTheme.colorScheme.primary), modifier = Modifier.padding(top = 6.dp))
                             p.tasks.forEach { t ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = t.done, onCheckedChange = { checked ->
+                                    // waehrend der Anfrage gesperrt: kein zweiter Tipp, der den Status gleich wieder umdreht
+                                    Checkbox(checked = t.done, enabled = t.id !in busy, onCheckedChange = { checked ->
+                                        busy = busy + t.id
                                         scope.launch {
                                             try { repo.setTaskStatus(t.id, if (checked) "erledigt" else "geplant"); error = null; reload() }
                                             catch (e: Exception) { error = "Status nicht gespeichert: ${e.message}" }
+                                            finally { busy = busy - t.id }
                                         }
                                     })
                                     Text("${t.title}  ·  ${Labels.taskType[t.type] ?: t.type}, ${t.estMinutes} min", style = MaterialTheme.typography.bodyMedium)

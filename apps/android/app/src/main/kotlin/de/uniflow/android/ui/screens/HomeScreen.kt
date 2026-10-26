@@ -19,13 +19,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import de.uniflow.android.AppScope
 import de.uniflow.android.Dates
 import de.uniflow.android.Repo
+import de.uniflow.android.SyncRules
 import de.uniflow.android.ui.Loaded
 import de.uniflow.android.ui.SectionCard
 import de.uniflow.android.ui.rememberLoaded
 import de.uniflow.android.ui.theme.Bad
+import de.uniflow.core.ApiError
 import de.uniflow.core.Labels
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -33,18 +38,38 @@ fun HomeScreen(repo: Repo, onLogout: () -> Unit, onOpenLibrary: () -> Unit) {
     val (state, reload) = rememberLoaded("dashboard") { repo.dashboard() }
     val scope = rememberCoroutineScope()
     var info by remember { mutableStateOf<String?>(null) }
+    var syncing by remember { mutableStateOf(false) }
+
+    /** Abgleich wie `pollBg` im Web: starten, /api/bg abfragen bis fertig, dann die Uebersicht neu laden. */
+    fun startSync() {
+        scope.launch {
+            syncing = true
+            try {
+                info = try { "${repo.startSync()}: gestartet …" }
+                catch (e: ApiError) { if (e.status == 409) e.message else throw e }        // laeuft schon: trotzdem abwarten
+                val end = SyncRules.waitUntilIdle(fetch = { repo.bg() }, wait = { delay(SyncRules.POLL_MS) },
+                    onUpdate = { bg -> if (bg.running) info = bg.message ?: "${bg.task ?: "Abgleich"} läuft …" })
+                info = end?.message ?: if (end == null) "Abgleich läuft noch; später „Aktualisieren“ tippen" else "Abgleich fertig"
+                reload()
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { info = e.message ?: e.toString() }
+            finally { syncing = false }
+        }
+    }
+
     Loaded(state, reload) { d ->
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
                 Text("Guten Tag!", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                TextButton(onClick = { scope.launch { repo.logout(); onLogout() } }) { Text("Abmelden") }
+                // Sitzung sofort verwerfen und wechseln; der Server-Logout laeuft im Hintergrund (kein Warten bei langsamem Netz)
+                TextButton(onClick = { repo.logout(AppScope.main); onLogout() }) { Text("Abmelden") }
             }
             Text(buildString {
                 append(d.lastSyncAt?.let { "Zuletzt synchronisiert: ${it.take(16).replace('T', ' ')}" } ?: "Noch kein Abgleich")
                 if (d.bgRunning) append(" · ${d.bgMessage ?: "läuft"}")
             }, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp))
             Row(Modifier.padding(horizontal = 12.dp)) {
-                TextButton(onClick = { scope.launch { info = try { repo.startSync(); "Abgleich gestartet" } catch (e: Exception) { e.message } } }) { Text("Abgleich starten") }
+                TextButton(enabled = !syncing, onClick = { startSync() }) { Text(if (syncing) "Abgleich läuft …" else "Abgleich starten") }
                 TextButton(onClick = reload) { Text("Aktualisieren") }
             }
             info?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) }

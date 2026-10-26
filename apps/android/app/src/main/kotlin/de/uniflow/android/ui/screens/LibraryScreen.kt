@@ -17,6 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import de.uniflow.android.Repo
 import de.uniflow.android.ui.Loaded
 import de.uniflow.android.ui.rememberLoaded
@@ -28,6 +30,10 @@ import de.uniflow.core.LibraryFile
 fun LibraryScreen(repo: Repo, onOpen: (LibraryFile) -> Unit) {
     val (state, reload) = rememberLoaded("library") { repo.library() }
     var hint by remember { mutableStateOf<String?>(null) }
+    // Beim Zurueckkehren in den Vordergrund (und aus einem Dokument) neu laden: inzwischen abgeglichene Dateien erscheinen.
+    // Das erste ON_RESUME kommt direkt nach dem Anzeigen, da laedt rememberLoaded bereits.
+    var resumedBefore by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (resumedBefore) reload() else resumedBefore = true }
     Loaded(state, reload) { lib ->
         val groups = lib.byModule().entries.sortedBy { it.key?.name ?: "~" }
         LazyColumn(Modifier.fillMaxSize()) {
