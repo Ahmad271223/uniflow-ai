@@ -1,0 +1,10 @@
+{"data":[
+ {"id":"cy-ma","type":"seminar-cycle-dates","attributes":{"title":"Kurszeit","description":"","start":"08:15","end":"09:45","weekday":1,"color":null,
+   "recurrence":{"FREQ":"WEEKLY","INTERVAL":1,"DTSTART":"2026-10-12T08:15:00+02:00","UNTIL":"2027-01-25T09:45:00+01:00"},"locations":["Hörsaal F 102"]},
+  "relationships":{"owner":{"data":{"type":"courses","id":"c-ma"}}}},
+ {"id":"cy-ma-ue","type":"seminar-cycle-dates","attributes":{"title":"Kurszeit","description":"","start":"10:00","end":"11:30","weekday":3,"color":null,
+   "recurrence":{"FREQ":"WEEKLY","INTERVAL":1,"DTSTART":"2026-10-14T10:00:00+02:00","UNTIL":"2027-01-27T11:30:00+01:00"},"locations":["Raum B 305"]},
+  "relationships":{"owner":{"data":{"type":"courses","id":"c-ma-ue"}}}},
+ {"id":"cy-prog","type":"seminar-cycle-dates","attributes":{"title":"Kurszeit","description":"","start":"14:00","end":"15:30","weekday":2,"color":null,
+   "recurrence":{"FREQ":"WEEKLY","INTERVAL":1,"DTSTART":"2026-10-13T14:00:00+02:00","UNTIL":"2027-01-26T15:30:00+01:00"},"locations":["Hörsaal V 111"]},
+  "relationships":{"owner":{"data":{"type":"courses","id":"c-prog"}}}}],"links":{}}

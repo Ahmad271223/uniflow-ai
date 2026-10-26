@@ -381,7 +381,8 @@ final class HildesheimConnection: ObservableObject {
         return "\(s.rawValue): \(what)"
     }
 
-    private static func time(_ d: Date, now: Date) -> String {
+    /// Uhrzeit fuer Statustexte (auch QISConnection)
+    static func time(_ d: Date, now: Date) -> String {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "Europe/Berlin") ?? .current
         let f = DateFormatter()

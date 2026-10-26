@@ -778,7 +778,7 @@ private struct DeleteAccountDialog: View {
     }
 }
 
-/// "Zugang & Darstellung" ohne Server: Konto, Tarif, Stud.IP direkt (LUH) bzw. Learnweb und LSF (Uni Hildesheim),
+/// "Zugang & Darstellung" ohne Server: Konto, Tarif, Stud.IP und QIS (LUH) bzw. Learnweb und LSF (Uni Hildesheim),
 /// Semester (lokales Backend) und die
 /// Einstellungen dieses Geraets
 private struct LocalAccountTab: View {
@@ -789,27 +789,13 @@ private struct LocalAccountTab: View {
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
-    @State private var studipSheet = false
 
     var body: some View {
-        let connected = studip.phase != .signedOut && studip.phase != .needsLogin
         VStack(alignment: .leading, spacing: 16) {
             AppAccountCards()
             UFGridLayout(spacing: 16, minWidth: 340) {
                 if studip.offersStudIP {
-                    UFCard {
-                        UFCardHead("Stud.IP", icon: "graduation") {
-                            connected ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht verbunden", tone: .warn)
-                        }
-                        Text("Kurse, Ordner und neue Dateien direkt aus Stud.IP. Du meldest dich auf der echten Stud.IP-Seite an; Dateien bleiben nur auf diesem iPad.")
-                            .ufFont(13.12).foregroundStyle(UF.muted)
-                        UFFlexWrap(gap: 9.6) {
-                            UFButton(connected ? "Stud.IP öffnen" : "Stud.IP verbinden", icon: "book", kind: connected ? .normal : .primary, size: .small) {
-                                studipSheet = true
-                            }
-                        }
-                        .padding(.top, 9.6)
-                    }
+                    LUHSourcesCard()                                         // Stud.IP und QIS der LUH (Views/QISViews.swift)
                 } else {
                     HildesheimSourcesCard()                                  // Learnweb und LSF der Uni Hildesheim
                 }
@@ -828,7 +814,6 @@ private struct LocalAccountTab: View {
             }
             .environment(\.ufFillsCell, true)
         }
-        .sheet(isPresented: $studipSheet) { SettingsSheet(close: { studipSheet = false }) { StudIPView() } }
     }
 }
 

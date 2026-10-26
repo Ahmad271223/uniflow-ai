@@ -75,17 +75,18 @@ final class NoServerStateTests: XCTestCase {
         XCTAssertNil(content(.plan, .server, .running("x")).status)
     }
 
-    func testNoPromisesForGradesAndWeeklyTests() {
+    func testNoPromisesForWeeklyTestsAndNoSoonBadges() {
         for mode in [UFDataMode.local(.notConnected), .local(.connected)] {
+            // Noten aus QIS gibt es auf dem Geraet (F4): kein "bald", kein "spaetere Version"
             let services = content(.services, mode)
-            XCTAssertEqual(services.text, "Noten aus QIS kommen in einer späteren Version.")
-            XCTAssertTrue(services.soon)
+            XCTAssertEqual(services.text, "Noch keine Noten.")
+            XCTAssertFalse(services.soon)
             // keine KI in V1: Wochentests werden weder angeboten noch angekuendigt
             let exams = content(.exams, mode)
             XCTAssertEqual(exams.text, "Noch keine Tests.")
             XCTAssertFalse(exams.soon)
         }
         XCTAssertFalse(content(.library, .local(.connected)).soon)
-        XCTAssertNil(UFNoServerPage.Spec.services.sub?.range(of: "Notenspiegel"))
+        XCTAssertTrue(UFNoServerPage.Spec.services.local, "Uni & Noten lokal an beiden Hochschulen")
     }
 }

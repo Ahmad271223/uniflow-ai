@@ -43,22 +43,26 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .plus, flashcards: true), .allowed)
     }
 
-    /// Uni & Noten erst, "sobald nativ vorhanden (F4)": bis dahin "bald". Community laeuft auf dem Geraet (Loesung als
-    /// Datei teilen und im Editor ansehen) und gehoert zu Plus; nur die Online-Community fehlt noch.
+    /// Uni & Noten ist auf dem Geraet da (QIS der LUH, LSF der Uni Hildesheim) und gehoert zu Free. Community laeuft
+    /// auf dem Geraet (Loesung als Datei teilen und im Editor ansehen) und gehoert zu Plus; nur die Online-Community
+    /// fehlt noch.
     @MainActor
-    func testUniGradesComingSoonCommunityInPlus() {
-        XCTAssertFalse(UFFeatureMatrix.uniGradesOnDevice)
+    func testUniGradesInFreeCommunityInPlus() {
+        XCTAssertTrue(UFFeatureMatrix.uniGradesOnDevice)
         XCTAssertTrue(UFFeatureMatrix.communityAvailable)
         for p in UFPlan.allCases {
-            XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: p), .comingSoon, p.rawValue)
+            XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: p), .allowed, p.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(.uniflowEditor, plan: p), .comingSoon)
             XCTAssertEqual(UFFeatureMatrix.access(.deviceSync, plan: p), .comingSoon)
         }
+        // ohne Geraete-Funktion wieder "bald" (Schalter bleibt pruefbar)
+        XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: false), .comingSoon)
         XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .free), .locked(.plus))
         XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .plus), .allowed)
         // ohne Geraete-Funktion wieder "bald" (Schalter bleibt pruefbar)
         XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .plus, community: false), .comingSoon)
-        XCTAssertFalse(Entitlements(observe: false, plan: .plus).allows(.uniGrades))
+        XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(.uniGrades))
+        XCTAssertTrue(Entitlements(observe: false, plan: .free).allows(.uniGrades))
         XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(.community))
         XCTAssertFalse(Entitlements(observe: false, plan: .free).allows(.community))
         XCTAssertTrue(UFFeature.community.detail?.contains("Online-Community folgt") == true)
@@ -132,8 +136,9 @@ final class EntitlementTests: XCTestCase {
         let locked = UFLockedCard.message(.pencilWriting, access: .locked(.plus))
         XCTAssertTrue(locked.contains("Enthalten in Plus."))
         XCTAssertFalse(locked.contains("Pro"))
-        // Uni & Noten wird nicht als kaufbar beworben, sondern als "bald"
-        let soon = UFLockedCard.message(.uniGrades, access: ent.access(.uniGrades))
+        // Uni & Noten ist da (QIS bzw. LSF auf dem Geraet) und in jedem Tarif frei; die Sperrkarte kennt "bald" weiter
+        XCTAssertEqual(ent.access(.uniGrades), .allowed)
+        let soon = UFLockedCard.message(.uniGrades, access: .comingSoon)
         XCTAssertFalse(soon.contains("Enthalten in"))
         XCTAssertTrue(soon.contains("Bald verfügbar"))
         // Community in Free: Schloss, "Enthalten in Plus"

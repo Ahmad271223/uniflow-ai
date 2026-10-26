@@ -4,12 +4,12 @@ import Foundation
 // und der HTML-Leser (`HTMLScanner`), alle fuer den Notenspiegel des LSF Hildesheim (`LSFClient.grades` mit
 // `GradeRows`, der einen Fassung von qis.parse_grade_rows).
 //
-// Erst fuer V2 (F4, QIS der LUH auf dem Geraet, ohne Aufrufer in der App): `QISSession`, `QISLink`, `QISTarget`,
-// `QISDocumentLink`, `QISPage`, `QISCollector` und `QISParser.apiJSON`. Die App zeigt dann die echte QIS-Seite in einer
-// Webansicht, der Nutzer meldet sich selbst an; die App gibt das HTML der angezeigten Seite an `QISPage.parse` und folgt
-// den gefundenen Links (Mein Studium -> Notenspiegel -> Abschluss -> Studiengang -> Leistungen). Die Leistungen liest
-// auch dort `GradeRows` (Regeln wie app/qis.py), Aufbau der Seiten in docs/QIS-STUDIP-STRUKTUR.md. Der Kern ruft selbst
-// keine Seite auf und oeffnet keine Bescheinigung (jeder verpublish-Aufruf erzeugt ein Dokument).
+// QIS der LUH auf dem Geraet (F4, QISGrades.swift): `QISSession`, `QISLink`, `QISTarget`, `QISDocumentLink`, `QISPage`,
+// `QISCollector` und `QISParser.apiJSON`. Die App zeigt die echte QIS-Seite in einer Webansicht, der Nutzer meldet sich
+// selbst an; danach liest `QISClient` mit den Cookies dieser Sitzung die Seiten ueber `QISPage.parse` und folgt den
+// gefundenen Links (Mein Studium -> Notenspiegel -> Abschluss -> Studiengang -> Leistungen). Die Leistungen liest auch
+// dort `GradeRows` (Regeln wie app/qis.py), Aufbau der Seiten in docs/QIS-STUDIP-STRUKTUR.md. Eine Bescheinigung wird
+// nie geoeffnet (jeder verpublish-Aufruf erzeugt ein Dokument).
 
 // MARK: - Sitzung
 

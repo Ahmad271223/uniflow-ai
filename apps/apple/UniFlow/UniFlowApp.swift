@@ -26,7 +26,7 @@ struct UniFlowApp: App {
         DataSourceMigration.run()                                         // alte Journale in den Server-Namensraum, am alten Ort vor dem Umzug
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
-        let c = ContainerManager()
+        let c = ContainerManager(hildesheimTransport: DebugUniStub.transportFactory, qisTransport: DebugUniStub.transportFactory)
         c.sync(account: a)                                                // alte Daten umziehen, Container der Hochschule oeffnen
         let s = Session(local: c.active?.api ?? .local(.unavailable))
         c.onChange = { [weak s] container in s?.useLocal(container?.api ?? .local(.unavailable)) }
@@ -46,6 +46,7 @@ struct UniFlowApp: App {
                 .environmentObject(session)
                 .environmentObject(containers.studip)                     // Abgleich des offenen Containers
                 .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
+                .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
                 .environmentObject(router)
                 .environmentObject(shell)
                 .environmentObject(toast)
@@ -83,6 +84,7 @@ struct UniFlowApp: App {
             if phase == .active {
                 containers.studip.runIfDue()
                 containers.hildesheim?.runIfDue()
+                containers.qis?.runIfDue()
             }
         }
     }
