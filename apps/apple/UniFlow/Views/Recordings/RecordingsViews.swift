@@ -65,7 +65,7 @@ private struct RecordingsPanelContent: View {
         case .expired: return "Melde dich erneut bei Stud.IP an, damit UniFlow die Aufzeichnungen aktualisiert."
         case .connected:
             return studip.isRunning ? "Aufzeichnungen werden beim laufenden Abgleich geprüft …" : "Keine Aufzeichnungen zu diesem Modul."
-        case .otherSources: return "Aufzeichnungen kommen über Stud.IP (Opencast); an deiner Hochschule gibt es sie in UniFlow noch nicht."
+        case .otherSources: return "Aufzeichnungen (Opencast) gibt es in UniFlow nur über das Stud.IP der Leibniz Universität Hannover; das Learnweb der Universität Hildesheim bietet keine."
         }
     }
 }
