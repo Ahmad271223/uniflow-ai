@@ -69,12 +69,18 @@ public enum StudIPImport {
     }
 
     /// Dateiname ohne Pfadtrenner und Steuerzeichen, hoechstens 120 Zeichen, Endung bleibt erhalten.
+    /// Zuerst NFC wie `safe_name` in app/studip_sync.py ("u" + U+0308 -> U+00FC, 46ec3d1): Dateinamen kommen teils
+    /// zerlegt (Mac, Moodle). Der Name in der Datenbank bleibt wie geliefert (Python speichert f["name"] unveraendert).
+    /// Auf Apple-Systemen zerlegt Foundation Namen in Datei-URLs ohnehin wieder (gemessen unter macOS:
+    /// `appendingPathComponent` und die Datei auf APFS sind NFD); APFS vergleicht beide Formen gleich, die Datei wird
+    /// also immer gefunden.
     public static func safeFileName(_ name: String) -> String {
         let forbidden = CharacterSet(charactersIn: "/\\:*?\"<>|").union(.controlCharacters)
         var scalars = String.UnicodeScalarView()
         let underscore: Unicode.Scalar = "_"
         // erst Leerraum am Rand entfernen, sonst wird ein Zeilenumbruch zu "_"
-        for u in name.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars { scalars.append(forbidden.contains(u) ? underscore : u) }
+        let nfc = name.precomposedStringWithCanonicalMapping
+        for u in nfc.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars { scalars.append(forbidden.contains(u) ? underscore : u) }
         var s = String(scalars)
         while s.hasPrefix(".") { s.removeFirst() }      // keine versteckten Dateien, kein ".."
         if s.isEmpty { s = "datei" }

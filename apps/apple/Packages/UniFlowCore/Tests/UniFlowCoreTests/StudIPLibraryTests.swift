@@ -165,6 +165,65 @@ final class StudIPLibraryTests: XCTestCase {
         }
     }
 
+    /// Dateinamen wie studip_sync.safe_name (46ec3d1): zuerst NFC. Verglichen werden die UTF-8-Bytes, weil Swift
+    /// Zeichenketten kanonisch vergleicht ("u" + U+0308 ist dort gleich U+00FC).
+    func testSafeFileNameIsNFCLikePython() throws {
+        let cases = try fixture("studip-import.json")["safe_names"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 6)
+        var decomposed = 0
+        for c in cases {
+            let input = try XCTUnwrap(String(bytes: bytes(hex: c["name_hex"]?.string ?? ""), encoding: .utf8))
+            if input.unicodeScalars.count != input.precomposedStringWithCanonicalMapping.unicodeScalars.count { decomposed += 1 }
+            XCTAssertEqual(hex(StudIPImport.safeFileName(input)), c["safe_hex"]?.string, c["safe"]?.string ?? "")
+        }
+        XCTAssertGreaterThanOrEqual(decomposed, 4, "Fixture enthaelt zerlegte Namen")
+    }
+
+    /// Zerlegter Name aus Stud.IP wie in StudIPSync.run: in der Datenbank wie geliefert (Python speichert f["name"]
+    /// unveraendert), der Ablageort aus relativePath (NFC wie safe_name) und gespeichert ueber `LocalFiles.stored`
+    /// der geschriebenen Datei. Auf Apple-Systemen zerlegt Foundation den Namen in der Datei-URL wieder (NFD), darum
+    /// prueft der Test dort nur kanonische Gleichheit: Datei gefunden, Inhalt lesbar, der naechste Abgleich laedt nichts.
+    func testDecomposedNameKeptInDatabaseFileFoundAgain() async throws {
+        let container = try tempContainer(self)
+        let files = LocalFiles(container: container, dataDirectory: "")
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock, files: files)
+        let db = backend.context.database
+        let nfd = "U\u{308}bungsblatt 1.pdf", nfc = "\u{DC}bungsblatt 1.pdf"
+        let course = StudIPCourse(id: "c1", title: "Testkurs", number: nil, semesterTitle: "WiSe 2026/27")
+        let f = StudIPFile(id: "a1", courseID: "c1", name: nfd, size: 4, mimeType: "application/pdf", changed: "2026-10-19T10:00:00+02:00")
+        XCTAssertEqual(hex(StudIPImport.relativePath(for: f)), hex("files/a1/" + nfc), "Ablageort als Text in NFC")
+        try await db.transaction { try StudIPLibrary.storeCourses($0, [course], startedAt: "2026-10-20T08:00:00") }
+        let wanted = try await db.transaction {
+            try StudIPLibrary.storeFiles($0, [f], startedAt: "2026-10-20T08:00:00", base: base, localFiles: files)
+        }
+        XCTAssertEqual(wanted.map(\.id), ["a1"])
+        let target = try files.write(Data("Inhalt a1".utf8), to: "studip/" + StudIPImport.relativePath(for: f))
+        let stored = try XCTUnwrap(files.stored(target))
+        try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, at: "2026-10-20T08:00:00") }
+        let row = try await db.queryOne("SELECT name, local_path FROM files WHERE id='a1'")
+        XCTAssertEqual(hex(row?["name"]?.string ?? ""), hex(nfd), "Name wie geliefert")
+        XCTAssertEqual(row?["local_path"]?.string, "studip/files/a1/" + nfc, "kanonisch gleich (Swift vergleicht so)")
+        XCTAssertTrue(files.exists(stored: row?["local_path"]?.string))
+        let content = await backend.handle(LocalRequest(method: "GET", path: "/api/files/a1/content"))
+        XCTAssertEqual(String(decoding: content.body, as: UTF8.self), "Inhalt a1")
+        let again = try await db.transaction {
+            try StudIPLibrary.storeFiles($0, [f], startedAt: "2026-10-21T08:00:00", base: base, localFiles: files)
+        }
+        XCTAssertEqual(again.map(\.id), [], "Datei gefunden, kein zweiter Download")
+    }
+
+    private func hex(_ s: String) -> String { s.utf8.map { String(format: "%02x", $0) }.joined() }
+
+    private func bytes(hex: String) -> [UInt8] {
+        var out: [UInt8] = []
+        var i = hex.startIndex
+        while i < hex.endIndex, let j = hex.index(i, offsetBy: 2, limitedBy: hex.endIndex) {
+            out.append(UInt8(hex[i..<j], radix: 16) ?? 0)
+            i = j
+        }
+        return out
+    }
+
     func testFileKindLikePython() {
         XCTAssertEqual(StudIPLibrary.fileKind(name: "uebung01.py", mime: "text/x-python"), "file")
         XCTAssertEqual(StudIPLibrary.fileKind(name: "Folie.PDF", mime: nil), "pdf")

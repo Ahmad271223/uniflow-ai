@@ -8,7 +8,9 @@ Inhalt:
   und persoenliche Stud.IP-Eintraege, Stud.IP-Dateien der Module ueber mehrere Semesterwochen; alles erfunden)
 - steps: Anfragen mit Status und Antwort; danach die Tabellen course_events, event_exceptions, schedule_imports.
   Mit den Dateien liefern /api/timetable/event-materials und /attendance echte Unterlagen zum Termin
-  (materials_for_event, S4), GET /api/modules den naechsten Termin je Modul (next_event aus occurrences)
+  (materials_for_event, S4), GET /api/modules den naechsten Termin je Modul (next_event aus occurrences). Am Ende
+  eine Kalenderdatei im Aufbau des LSF-Exports (BYDAY, EXDATE): Import, Wochen mit den Ausfaellen, zweiter Import
+  derselben Datei ohne Doppelte
 - dashboard_today: Termine und freie Fenster von heute aus GET /api/dashboard (die Uebersicht ist sonst S6)
 - ics: parse_ics fuer Kalenderdateien (UTC, TZID, RRULE, BYDAY wie der LSF-Export, EXDATE, UID, DESCRIPTION,
   Ganztags, Faltung, Zeitumstellung)
@@ -156,6 +158,25 @@ ICS_IN_FORM = ("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Testkurs Physik – V
                "BEGIN:VEVENT\r\nSUMMARY:Testmathematik I\r\nDTSTART;TZID=Europe/Berlin:20261019T101500\r\nDTEND;TZID=Europe/Berlin:20261019T114500\r\n"
                "RRULE:FREQ=WEEKLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 
+# Kalenderdatei im Aufbau des LSF-Exports der Uni Hildesheim (wie packages/shared-contracts/fixtures/hildesheim, alle
+# Werte erfunden): Zeitzonenblock mit eigener RRULE, DTSTART ist der Montag des Semesterbeginns, der Wochentag steht
+# nur in BYDAY (auch zwei Tage), Ausfaelle als EXDATE (Komma-Liste mit Komma am Ende, mehrere Zeilen)
+ICS_LSF = ("BEGIN:VCALENDAR\r\nPRODID:QIS-LSF HIS eG\r\nVERSION:2.0\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nBEGIN:STANDARD\r\n"
+           "DTSTART:19701025T030000\r\nRRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nMETHOD:PUBLISH\r\n"
+           "BEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T160000\r\nDTEND;TZID=Europe/Berlin:20261026T180000\r\n"
+           "RRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TH\r\nEXDATE;TZID=Europe/Berlin:20261224T160000,20261231T160000,\r\n"
+           "LOCATION:Testgebäude 7 - TG.7.0.01 (Seminarraum)\r\nUID:900001:900002\r\nSUMMARY:7001 - Testseminar Wohnen\\, Raum und Kultur\r\n"
+           "CATEGORIES:Seminar\r\nEND:VEVENT\r\n"
+           "BEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T100000\r\nDTEND;TZID=Europe/Berlin:20261026T120000\r\n"
+           "RRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TU,TH\r\nEXDATE;TZID=Europe/Berlin:20261222T100000\r\n"
+           "EXDATE;TZID=Europe/Berlin:20261224T100000\r\nSUMMARY:7002 - Testvorlesung Pädagogik I\r\nEND:VEVENT\r\n"
+           "BEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T140000\r\nDTEND;TZID=Europe/Berlin:20261026T160000\r\n"
+           "RRULE:FREQ=WEEKLY;UNTIL=20270201T235900Z;INTERVAL=1;BYDAY=MO\r\nLOCATION:Testgebäude 3 - TG.3.09\r\n"
+           "SUMMARY:7003 - Testkolloquium Erinnerung (Beispiel)\r\nEND:VEVENT\r\n"
+           "BEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20270118T100000\r\nDTEND;TZID=Europe/Berlin:20270118T160000\r\nLOCATION:\r\n"
+           "SUMMARY:7004 - Testblock Kunst\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+ICS_LSF_FILE = {"field": "upload", "filename": "stundenplan.ics", "content_type": "text/calendar", "text": ICS_LSF}
+
 STEPS: list[dict] = [
     {"method": "GET", "path": "/api/timetable/week?start=2026-10-19"},
     {"method": "GET", "path": "/api/timetable/week?start=2026-10-26"},
@@ -226,6 +247,18 @@ STEPS: list[dict] = [
     {"method": "POST", "path": "/api/timetable/import/confirm", "body": {"entries": [
         {"existing_id": "id:Testkurs Mechanik", "title": "Testkurs Mechanik", "weekday": 2, "start_time": "08:30", "end_time": "10:00"}],
         "source": "ics", "remove_ids": []}},
+    # LSF-Export uebernehmen: der Donnerstags-Kurs liegt am Donnerstag (nicht am Montag aus DTSTART), an Heiligabend
+    # und Silvester faellt er aus, die Serie mit zwei Wochentagen hat ihre Ausfaelle je Tag. Ein zweiter Import
+    # derselben Datei (alles "same", mit existing_id) legt keine Serie und keinen Ausfall doppelt an.
+    {"method": "POST", "path": "/api/timetable/import/preview", "form": {"source": "ics"}, "file": ICS_LSF_FILE, "name": "lsf"},
+    {"method": "POST", "path": "/api/timetable/import/confirm", "body": "FROM_PREVIEW:lsf"},
+    {"method": "GET", "path": "/api/timetable/week?start=2026-10-26"},
+    {"method": "GET", "path": "/api/timetable/week?start=2026-12-21"},
+    {"method": "GET", "path": "/api/timetable/week?start=2026-12-28"},
+    {"method": "GET", "path": "/api/timetable/day?date=2027-01-18"},
+    {"method": "POST", "path": "/api/timetable/import/preview", "form": {"source": "ics"}, "file": ICS_LSF_FILE, "name": "lsf2"},
+    {"method": "POST", "path": "/api/timetable/import/confirm", "body": "FROM_PREVIEW:lsf2"},
+    {"method": "GET", "path": "/api/timetable/week?start=2026-12-21"},
 ]
 
 ICS_CASES: list[tuple[str, str]] = [
@@ -350,6 +383,17 @@ def confirm_body(preview: dict) -> dict:
     return {"entries": entries, "source": "studip", "import_id": preview["import_id"], "remove_ids": removed}
 
 
+def confirm_ics_body(preview: dict) -> dict:
+    """Kalenderdatei uebernehmen wie die App: alle Eintraege, existing_id aus diff.changed/diff.same (gleicher Titel
+    und Wochentag), nichts entfernen."""
+    entries = []
+    for e in preview["entries"]:
+        match = next((c for c in preview["diff"]["changed"] + preview["diff"]["same"]
+                      if c["title"] == e["title"] and c["weekday"] == e["weekday"]), None)
+        entries.append({**e, "existing_id": match["existing_id"] if match else None})
+    return {"entries": entries, "source": "ics", "import_id": preview["import_id"], "remove_ids": []}
+
+
 def series_ids(body, path: Path):
     """Platzhalter "id:<Titel>" -> ID der juengsten Serie mit diesem Titel (haengt von den Schritten davor ab)"""
     if isinstance(body, dict):
@@ -385,6 +429,8 @@ def main() -> int:
             body = s.get("body")
             if body == "FROM_STUDIP_PREVIEW":
                 body = confirm_body(previews["studip"])
+            elif isinstance(body, str) and body.startswith("FROM_PREVIEW:"):
+                body = confirm_ics_body(previews[body.split(":", 1)[1]])
             elif body is not None:
                 body = series_ids(body, path)
             form = dict(s.get("form") or {})

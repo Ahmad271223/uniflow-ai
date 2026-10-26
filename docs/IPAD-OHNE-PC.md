@@ -160,6 +160,26 @@ Klausur) und eigenem Eintrag → Unterlagen zum Termin über die Endpunkte und i
 Bedienungshilfen-Baum) → nächster Termin in „Meine Module“; ein zweiter Abgleich lädt und übernimmt nichts doppelt.
 Nicht geprüft: echtes Stud.IP, echtes iPad, Tippen auf einen Termin in der gezeichneten Woche.
 
+Stand nach dem **Abgleich mit der PC-Sitzung** (Zweig `wip/int-s345-py`; Python-Commits 61a9927 und 46ec3d1 auf
+`develop`, S3/S4/S5 waren auf dem älteren Python portiert): Jede Änderung in `app/*.py` ist gegen den Swift-Port
+geprüft. `parse_ics` (BYDAY, mehrere Tage, EXDATE-Listen) und `apply_import` (`ids`) waren schon nachgezogen. Neu am
+Ende von `timetable-logic.json`: eine erfundene Kalenderdatei im Aufbau des LSF-Exports über Vorschau und Übernahme,
+die Wochen mit den Ausfällen und ein zweiter Import derselben Datei ohne Doppelte, gegen `app/server.py` verglichen;
+`testHildesheimLSFExportInTimetable` prüft die Erwartungen aus `fixtures/hildesheim` im Stundenplan des lokalen
+Backends (Donnerstags-Kurs am Donnerstag 29.10. statt am Montag aus DTSTART, Ausfall an Heiligabend, Ausfälle je
+Wochentag, jeder genau einmal). In Python prüft `test_lsf_export_cancellations_exactly_once`, dass LSF-Import und
+ICS-Import die Ausfälle nur einmal anlegen. `safe_name` macht Dateinamen jetzt NFC, `StudIPImport.safeFileName` ebenso
+(gegen `safe_names` in `studip-import.json`); der Name in der Datenbank bleibt wie geliefert. Auf Apple-Systemen
+zerlegt Foundation Namen in Datei-URLs ohnehin wieder (gemessen unter macOS: Datei und gespeicherter Pfad sind NFD),
+APFS findet beide Formen. Jeder Kurs in eigener Transaktion gilt im iPad-Abgleich schon (Dateiliste je Kurs, jeder
+Download einzeln). Den Semesterfilter aus der `.env` gibt es auf dem iPad nicht (Kursauswahl). `university` in
+`settings` stammt schon von `develop`. **Nicht nachgezogen**, weil Hildesheim und die Hochschulwahl der Inhaber entscheidet:
+`/api/services` ohne `university`, `universities`, `university_next` und `learnweb`, `/api/learnweb/token`, Learnweb
+(auch NFC der Datei-IDs), CAS, LSF-Abruf und `lsf.import_plan` (Quelle `lsf`) sowie `qis.parse_grade_rows`. Diese
+Funktion ändert am PC auch die LUH-Tabelle: Zeilen ohne Note und ohne Status sowie „Prüfung vorhanden“ ohne Note
+fallen weg, und die Spalten „Bezeichnung“ und „Leistung“ gelten als Text. `QISParser.grades` ist dafür nicht
+angepasst.
+
 | Bereich | Stand | Was fehlt |
 |---|---|---|
 | Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle 77 App-Pfade beantwortet; **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt; **S4**: Module echt; **S5**: Stundenplan echt (außer `reslot`) | Portierung der übrigen Bereiche (S6, S7) |

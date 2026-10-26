@@ -7772,6 +7772,3063 @@
     "source": "ics",
     "remove_ids": []
    }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/preview",
+   "status": 200,
+   "response": {
+    "import_id": 4,
+    "entries": [
+     {
+      "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+      "kind": "seminar",
+      "weekday": 3,
+      "start_time": "16:00",
+      "end_time": "18:00",
+      "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24",
+       "2026-12-31"
+      ],
+      "uid": "900001:900002",
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-27",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-22"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 3,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "14:00",
+      "end_time": "16:00",
+      "room": "Testgebäude 3 - TG.3.09",
+      "rrule": "weekly",
+      "date_from": "2026-10-26",
+      "date_to": "2027-02-01",
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": 3,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "7004 - Testblock Kunst",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "16:00",
+      "room": "",
+      "rrule": "once",
+      "date_from": "2027-01-18",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     }
+    ],
+    "diff": {
+     "new": [
+      {
+       "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+       "kind": "seminar",
+       "weekday": 3,
+       "start_time": "16:00",
+       "end_time": "18:00",
+       "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+       "rrule": "weekly",
+       "date_from": "2026-10-29",
+       "date_to": "2027-02-05",
+       "uncertain": false,
+       "exdates": [
+        "2026-12-24",
+        "2026-12-31"
+       ],
+       "uid": "900001:900002",
+       "description": "",
+       "module_id": null,
+       "module_guess_uncertain": true
+      },
+      {
+       "title": "7002 - Testvorlesung Pädagogik I",
+       "kind": "vorlesung",
+       "weekday": 1,
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "room": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-27",
+       "date_to": "2027-02-05",
+       "uncertain": false,
+       "exdates": [
+        "2026-12-22"
+       ],
+       "uid": null,
+       "description": "",
+       "module_id": null,
+       "module_guess_uncertain": true
+      },
+      {
+       "title": "7002 - Testvorlesung Pädagogik I",
+       "kind": "vorlesung",
+       "weekday": 3,
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "room": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-29",
+       "date_to": "2027-02-05",
+       "uncertain": false,
+       "exdates": [
+        "2026-12-24"
+       ],
+       "uid": null,
+       "description": "",
+       "module_id": null,
+       "module_guess_uncertain": true
+      },
+      {
+       "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "room": "Testgebäude 3 - TG.3.09",
+       "rrule": "weekly",
+       "date_from": "2026-10-26",
+       "date_to": "2027-02-01",
+       "uncertain": false,
+       "exdates": [],
+       "uid": null,
+       "description": "",
+       "module_id": 3,
+       "module_guess_uncertain": false
+      },
+      {
+       "title": "7004 - Testblock Kunst",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "10:00",
+       "end_time": "16:00",
+       "room": "",
+       "rrule": "once",
+       "date_from": "2027-01-18",
+       "date_to": null,
+       "uncertain": false,
+       "exdates": [],
+       "uid": null,
+       "description": "",
+       "module_id": null,
+       "module_guess_uncertain": true
+      }
+     ],
+     "changed": [],
+     "same": [],
+     "removed": [
+      {
+       "id": 5,
+       "module_id": 1,
+       "course_id": "k-ma-ue",
+       "title": "Übung zu Testmathematik I",
+       "kind": "uebung",
+       "weekday": 3,
+       "start_time": "12:15",
+       "end_time": "13:45",
+       "room": "Raum C",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": "2026-12-17",
+       "attend": 0,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 7,
+       "module_id": 3,
+       "course_id": "k-prog-ue",
+       "title": "Gruppenübung Programmierkurs Beispiel",
+       "kind": "uebung",
+       "weekday": 1,
+       "start_time": "08:00",
+       "end_time": "09:30",
+       "room": "Pool 0",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-20",
+       "date_to": "2026-11-03",
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 8,
+       "module_id": 1,
+       "course_id": null,
+       "title": "Lerngruppe Testmathematik alle 2 Wochen",
+       "kind": "vorlesung",
+       "weekday": 1,
+       "start_time": "16:00",
+       "end_time": "17:30",
+       "room": "",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 9,
+       "module_id": null,
+       "course_id": null,
+       "title": "Termin",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "07:00",
+       "end_time": "07:45",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 10,
+       "module_id": 2,
+       "course_id": "k-ph",
+       "title": "Testphysik für Ingenieure",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": "2026-10-14",
+       "date_to": "2026-11-11",
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 11,
+       "module_id": 2,
+       "course_id": "k-ph",
+       "title": "Testphysik für Ingenieure",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "10:00",
+       "end_time": "11:00",
+       "room": "Raum B",
+       "lecturer": "",
+       "rrule": "once",
+       "date_from": "2026-10-16",
+       "date_to": "2026-10-16",
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 12,
+       "module_id": null,
+       "course_id": null,
+       "title": "Chor",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "18:00",
+       "end_time": "20:00",
+       "room": "",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 13,
+       "module_id": 2,
+       "course_id": null,
+       "title": "Neuer Termin",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "09:00",
+       "end_time": "10:30",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 14,
+       "module_id": null,
+       "course_id": null,
+       "title": "Veranstaltung",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "08:00",
+       "end_time": "09:30",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 15,
+       "module_id": null,
+       "course_id": null,
+       "title": "Text-Wochentag",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:00",
+       "end_time": "09:30",
+       "room": "",
+       "lecturer": "",
+       "rrule": "once",
+       "date_from": "2026-11-04",
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 16,
+       "module_id": 1,
+       "course_id": "k-ma-vl",
+       "title": "Testmathematik I",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "10:15",
+       "end_time": "11:45",
+       "room": "Hörsaal 1, Gebäude 3",
+       "lecturer": "Prof. Beispiel",
+       "rrule": "weekly",
+       "date_from": "2026-11-16",
+       "date_to": null,
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 17,
+       "module_id": null,
+       "course_id": null,
+       "title": "Testkurs Mechanik",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:30",
+       "end_time": "10:00",
+       "room": "M 1",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-21",
+       "date_to": "2027-01-27",
+       "attend": 1,
+       "source": "ics",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      }
+     ]
+    },
+    "modules": [
+     {
+      "id": 3,
+      "name": "Programmierkurs Beispiel",
+      "color": "#333333"
+     },
+     {
+      "id": 1,
+      "name": "Testmathematik I",
+      "color": "#111111"
+     },
+     {
+      "id": 2,
+      "name": "Testphysik",
+      "color": "#222222"
+     }
+    ]
+   },
+   "form": {
+    "source": "ics"
+   },
+   "file": {
+    "field": "upload",
+    "filename": "stundenplan.ics",
+    "content_type": "text/calendar",
+    "text": "BEGIN:VCALENDAR\r\nPRODID:QIS-LSF HIS eG\r\nVERSION:2.0\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nBEGIN:STANDARD\r\nDTSTART:19701025T030000\r\nRRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nMETHOD:PUBLISH\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T160000\r\nDTEND;TZID=Europe/Berlin:20261026T180000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TH\r\nEXDATE;TZID=Europe/Berlin:20261224T160000,20261231T160000,\r\nLOCATION:Testgebäude 7 - TG.7.0.01 (Seminarraum)\r\nUID:900001:900002\r\nSUMMARY:7001 - Testseminar Wohnen\\, Raum und Kultur\r\nCATEGORIES:Seminar\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T100000\r\nDTEND;TZID=Europe/Berlin:20261026T120000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TU,TH\r\nEXDATE;TZID=Europe/Berlin:20261222T100000\r\nEXDATE;TZID=Europe/Berlin:20261224T100000\r\nSUMMARY:7002 - Testvorlesung Pädagogik I\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T140000\r\nDTEND;TZID=Europe/Berlin:20261026T160000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270201T235900Z;INTERVAL=1;BYDAY=MO\r\nLOCATION:Testgebäude 3 - TG.3.09\r\nSUMMARY:7003 - Testkolloquium Erinnerung (Beispiel)\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20270118T100000\r\nDTEND;TZID=Europe/Berlin:20270118T160000\r\nLOCATION:\r\nSUMMARY:7004 - Testblock Kunst\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/confirm",
+   "status": 200,
+   "response": {
+    "new": 5,
+    "updated": 0,
+    "removed": 0,
+    "ids": [
+     18,
+     19,
+     20,
+     21,
+     22
+    ],
+    "conflicts": [
+     {
+      "date": "2026-11-03",
+      "package_id": 5,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket D",
+      "slot": "10:30–11:00",
+      "event": "7002 - Testvorlesung Pädagogik I",
+      "event_time": "10:00–12:00"
+     }
+    ]
+   },
+   "body": {
+    "entries": [
+     {
+      "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+      "kind": "seminar",
+      "weekday": 3,
+      "start_time": "16:00",
+      "end_time": "18:00",
+      "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24",
+       "2026-12-31"
+      ],
+      "uid": "900001:900002",
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true,
+      "existing_id": null
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-27",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-22"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true,
+      "existing_id": null
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 3,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true,
+      "existing_id": null
+     },
+     {
+      "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "14:00",
+      "end_time": "16:00",
+      "room": "Testgebäude 3 - TG.3.09",
+      "rrule": "weekly",
+      "date_from": "2026-10-26",
+      "date_to": "2027-02-01",
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": 3,
+      "module_guess_uncertain": false,
+      "existing_id": null
+     },
+     {
+      "title": "7004 - Testblock Kunst",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "16:00",
+      "room": "",
+      "rrule": "once",
+      "date_from": "2027-01-18",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true,
+      "existing_id": null
+     }
+    ],
+    "source": "ics",
+    "import_id": 4,
+    "remove_ids": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-10-26",
+   "status": 200,
+   "response": {
+    "start": "2026-10-26",
+    "end": "2026-11-01",
+    "days": [
+     {
+      "date": "2026-10-26",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 14,
+        "date": "2026-10-26",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Veranstaltung",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 21,
+        "date": "2026-10-26",
+        "start": "14:00",
+        "end": "16:00",
+        "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+        "kind": "vorlesung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Testgebäude 3 - TG.3.09",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 570,
+        "end": 720,
+        "minutes": 150,
+        "start_hm": "09:30",
+        "end_hm": "12:00",
+        "campus": true
+       },
+       {
+        "start": 780,
+        "end": 840,
+        "minutes": 60,
+        "start_hm": "13:00",
+        "end_hm": "14:00",
+        "campus": true
+       },
+       {
+        "start": 980,
+        "end": 1260,
+        "minutes": 280,
+        "start_hm": "16:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-27",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 7,
+        "date": "2026-10-27",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 0",
+        "lecturer": "",
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 19,
+        "date": "2026-10-27",
+        "start": "10:00",
+        "end": "12:00",
+        "title": "7002 - Testvorlesung Pädagogik I",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 8,
+        "date": "2026-10-27",
+        "start": "16:00",
+        "end": "17:30",
+        "title": "Lerngruppe Testmathematik alle 2 Wochen",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 4,
+        "date": "2026-10-27",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": "attend"
+       }
+      ],
+      "packages": [
+       {
+        "id": 3,
+        "date": "2026-10-27",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Paket verschoben",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "verschoben",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "09:00",
+        "end_time": "10:00",
+        "color": "#111111"
+       }
+      ],
+      "free": [
+       {
+        "start": 570,
+        "end": 600,
+        "minutes": 30,
+        "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
+       },
+       {
+        "start": 720,
+        "end": 960,
+        "minutes": 240,
+        "start_hm": "12:00",
+        "end_hm": "16:00",
+        "campus": true
+       },
+       {
+        "start": 1050,
+        "end": 1080,
+        "minutes": 30,
+        "start_hm": "17:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-28",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-10-28",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 10,
+        "date": "2026-10-28",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik für Ingenieure",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 17,
+        "date": "2026-10-28",
+        "start": "08:30",
+        "end": "10:00",
+        "title": "Testkurs Mechanik",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "M 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-29",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 20,
+        "date": "2026-10-29",
+        "start": "10:00",
+        "end": "12:00",
+        "title": "7002 - Testvorlesung Pädagogik I",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 5,
+        "date": "2026-10-29",
+        "start": "12:15",
+        "end": "13:45",
+        "title": "Übung zu Testmathematik I",
+        "kind": "uebung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Raum C",
+        "lecturer": "",
+        "course_id": "k-ma-ue",
+        "status": "nicht_teilnahme",
+        "permanent_skip": true,
+        "exception": null
+       },
+       {
+        "event_id": 18,
+        "date": "2026-10-29",
+        "start": "16:00",
+        "end": "18:00",
+        "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 1,
+        "date": "2026-10-29",
+        "module_id": 1,
+        "subject": "Testmathematik I",
+        "title": "Paket A",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "12:00",
+        "end_time": "13:00",
+        "color": "#111111"
+       },
+       {
+        "id": 2,
+        "date": "2026-10-29",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Paket B",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "in_bearbeitung",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": "15:00",
+        "end_time": "16:00",
+        "color": "#222222"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 580,
+        "minutes": 100,
+        "start_hm": "08:00",
+        "end_hm": "09:40",
+        "campus": false
+       },
+       {
+        "start": 780,
+        "end": 900,
+        "minutes": 120,
+        "start_hm": "13:00",
+        "end_hm": "15:00",
+        "campus": true
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-10-30",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 13,
+        "date": "2026-10-30",
+        "start": "09:00",
+        "end": "10:30",
+        "title": "Neuer Termin",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 12,
+        "date": "2026-10-30",
+        "start": "18:00",
+        "end": "20:00",
+        "title": "Chor",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [
+       {
+        "id": 6,
+        "date": "2026-10-30",
+        "module_id": 2,
+        "subject": "Testphysik",
+        "title": "Paket ohne Zeit",
+        "week_no": null,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-02T09:00:00",
+        "start_time": null,
+        "end_time": null,
+        "color": "#222222"
+       }
+      ],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 630,
+        "end": 1080,
+        "minutes": 450,
+        "start_hm": "10:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1220,
+        "end": 1260,
+        "minutes": 40,
+        "start_hm": "20:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-10-31",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-01",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-12-21",
+   "status": 200,
+   "response": {
+    "start": "2026-12-21",
+    "end": "2026-12-27",
+    "days": [
+     {
+      "date": "2026-12-21",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 14,
+        "date": "2026-12-21",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Veranstaltung",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 16,
+        "date": "2026-12-21",
+        "start": "10:15",
+        "end": "11:45",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 21,
+        "date": "2026-12-21",
+        "start": "14:00",
+        "end": "16:00",
+        "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+        "kind": "vorlesung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Testgebäude 3 - TG.3.09",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 570,
+        "end": 615,
+        "minutes": 45,
+        "start_hm": "09:30",
+        "end_hm": "10:15",
+        "campus": true
+       },
+       {
+        "start": 780,
+        "end": 840,
+        "minutes": 60,
+        "start_hm": "13:00",
+        "end_hm": "14:00",
+        "campus": true
+       },
+       {
+        "start": 980,
+        "end": 1260,
+        "minutes": 280,
+        "start_hm": "16:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-12-22",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 19,
+        "date": "2026-12-22",
+        "start": "10:00",
+        "end": "12:00",
+        "title": "7002 - Testvorlesung Pädagogik I",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       },
+       {
+        "event_id": 8,
+        "date": "2026-12-22",
+        "start": "16:00",
+        "end": "17:30",
+        "title": "Lerngruppe Testmathematik alle 2 Wochen",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 4,
+        "date": "2026-12-22",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 940,
+        "minutes": 460,
+        "start_hm": "08:00",
+        "end_hm": "15:40",
+        "campus": false
+       },
+       {
+        "start": 1050,
+        "end": 1080,
+        "minutes": 30,
+        "start_hm": "17:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-23",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-12-23",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 17,
+        "date": "2026-12-23",
+        "start": "08:30",
+        "end": "10:00",
+        "title": "Testkurs Mechanik",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "M 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 510,
+        "minutes": 30,
+        "start_hm": "08:00",
+        "end_hm": "08:30",
+        "campus": true
+       },
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-24",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 20,
+        "date": "2026-12-24",
+        "start": "10:00",
+        "end": "12:00",
+        "title": "7002 - Testvorlesung Pädagogik I",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       },
+       {
+        "event_id": 18,
+        "date": "2026-12-24",
+        "start": "16:00",
+        "end": "18:00",
+        "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+        "lecturer": "",
+        "course_id": null,
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-12-25",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 13,
+        "date": "2026-12-25",
+        "start": "09:00",
+        "end": "10:30",
+        "title": "Neuer Termin",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 12,
+        "date": "2026-12-25",
+        "start": "18:00",
+        "end": "20:00",
+        "title": "Chor",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 630,
+        "end": 1080,
+        "minutes": 450,
+        "start_hm": "10:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1220,
+        "end": 1260,
+        "minutes": 40,
+        "start_hm": "20:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-26",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-27",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-12-28",
+   "status": 200,
+   "response": {
+    "start": "2026-12-28",
+    "end": "2027-01-03",
+    "days": [
+     {
+      "date": "2026-12-28",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 14,
+        "date": "2026-12-28",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Veranstaltung",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 16,
+        "date": "2026-12-28",
+        "start": "10:15",
+        "end": "11:45",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 21,
+        "date": "2026-12-28",
+        "start": "14:00",
+        "end": "16:00",
+        "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+        "kind": "vorlesung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Testgebäude 3 - TG.3.09",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 570,
+        "end": 615,
+        "minutes": 45,
+        "start_hm": "09:30",
+        "end_hm": "10:15",
+        "campus": true
+       },
+       {
+        "start": 780,
+        "end": 840,
+        "minutes": 60,
+        "start_hm": "13:00",
+        "end_hm": "14:00",
+        "campus": true
+       },
+       {
+        "start": 980,
+        "end": 1260,
+        "minutes": 280,
+        "start_hm": "16:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-12-29",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 19,
+        "date": "2026-12-29",
+        "start": "10:00",
+        "end": "12:00",
+        "title": "7002 - Testvorlesung Pädagogik I",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 4,
+        "date": "2026-12-29",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 580,
+        "minutes": 100,
+        "start_hm": "08:00",
+        "end_hm": "09:40",
+        "campus": false
+       },
+       {
+        "start": 720,
+        "end": 1080,
+        "minutes": 360,
+        "start_hm": "12:00",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-30",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-12-30",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 17,
+        "date": "2026-12-30",
+        "start": "08:30",
+        "end": "10:00",
+        "title": "Testkurs Mechanik",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "M 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 510,
+        "minutes": 30,
+        "start_hm": "08:00",
+        "end_hm": "08:30",
+        "campus": true
+       },
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-31",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 20,
+        "date": "2026-12-31",
+        "start": "10:00",
+        "end": "12:00",
+        "title": "7002 - Testvorlesung Pädagogik I",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 18,
+        "date": "2026-12-31",
+        "start": "16:00",
+        "end": "18:00",
+        "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+        "lecturer": "",
+        "course_id": null,
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 580,
+        "minutes": 100,
+        "start_hm": "08:00",
+        "end_hm": "09:40",
+        "campus": false
+       },
+       {
+        "start": 740,
+        "end": 1020,
+        "minutes": 280,
+        "start_hm": "12:20",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2027-01-01",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 13,
+        "date": "2027-01-01",
+        "start": "09:00",
+        "end": "10:30",
+        "title": "Neuer Termin",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 650,
+        "end": 1260,
+        "minutes": 610,
+        "start_hm": "10:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2027-01-02",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2027-01-03",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/day?date=2027-01-18",
+   "status": 200,
+   "response": {
+    "date": "2027-01-18",
+    "events": [
+     {
+      "event_id": 14,
+      "date": "2027-01-18",
+      "start": "08:00",
+      "end": "09:30",
+      "title": "Veranstaltung",
+      "kind": "vorlesung",
+      "module_id": null,
+      "module_name": null,
+      "color": "#4f5bd5",
+      "room": "",
+      "lecturer": "",
+      "course_id": null,
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     },
+     {
+      "event_id": 22,
+      "date": "2027-01-18",
+      "start": "10:00",
+      "end": "16:00",
+      "title": "7004 - Testblock Kunst",
+      "kind": "vorlesung",
+      "module_id": null,
+      "module_name": null,
+      "color": "#4f5bd5",
+      "room": "",
+      "lecturer": "",
+      "course_id": null,
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     },
+     {
+      "event_id": 16,
+      "date": "2027-01-18",
+      "start": "10:15",
+      "end": "11:45",
+      "title": "Testmathematik I",
+      "kind": "vorlesung",
+      "module_id": 1,
+      "module_name": "Testmathematik I",
+      "color": "#111111",
+      "room": "Hörsaal 1, Gebäude 3",
+      "lecturer": "Prof. Beispiel",
+      "course_id": "k-ma-vl",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     },
+     {
+      "event_id": 21,
+      "date": "2027-01-18",
+      "start": "14:00",
+      "end": "16:00",
+      "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+      "kind": "vorlesung",
+      "module_id": 3,
+      "module_name": "Programmierkurs Beispiel",
+      "color": "#333333",
+      "room": "Testgebäude 3 - TG.3.09",
+      "lecturer": "",
+      "course_id": null,
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null
+     }
+    ],
+    "packages": [],
+    "free": [
+     {
+      "start": 570,
+      "end": 600,
+      "minutes": 30,
+      "start_hm": "09:30",
+      "end_hm": "10:00",
+      "campus": true
+     },
+     {
+      "start": 980,
+      "end": 1260,
+      "minutes": 280,
+      "start_hm": "16:20",
+      "end_hm": "21:00",
+      "campus": false
+     }
+    ],
+    "blocked": [
+     {
+      "weekday": 0,
+      "start": "12:00",
+      "end": "13:00",
+      "title": "Mittag"
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/preview",
+   "status": 200,
+   "response": {
+    "import_id": 5,
+    "entries": [
+     {
+      "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+      "kind": "seminar",
+      "weekday": 3,
+      "start_time": "16:00",
+      "end_time": "18:00",
+      "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24",
+       "2026-12-31"
+      ],
+      "uid": "900001:900002",
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-27",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-22"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 3,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "14:00",
+      "end_time": "16:00",
+      "room": "Testgebäude 3 - TG.3.09",
+      "rrule": "weekly",
+      "date_from": "2026-10-26",
+      "date_to": "2027-02-01",
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": 3,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "7004 - Testblock Kunst",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "16:00",
+      "room": "",
+      "rrule": "once",
+      "date_from": "2027-01-18",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     }
+    ],
+    "diff": {
+     "new": [],
+     "changed": [],
+     "same": [
+      {
+       "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+       "kind": "seminar",
+       "weekday": 3,
+       "start_time": "16:00",
+       "end_time": "18:00",
+       "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+       "rrule": "weekly",
+       "date_from": "2026-10-29",
+       "date_to": "2027-02-05",
+       "uncertain": false,
+       "exdates": [
+        "2026-12-24",
+        "2026-12-31"
+       ],
+       "uid": "900001:900002",
+       "description": "",
+       "module_id": null,
+       "module_guess_uncertain": true,
+       "existing_id": 18
+      },
+      {
+       "title": "7002 - Testvorlesung Pädagogik I",
+       "kind": "vorlesung",
+       "weekday": 1,
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "room": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-27",
+       "date_to": "2027-02-05",
+       "uncertain": false,
+       "exdates": [
+        "2026-12-22"
+       ],
+       "uid": null,
+       "description": "",
+       "module_id": null,
+       "module_guess_uncertain": true,
+       "existing_id": 19
+      },
+      {
+       "title": "7002 - Testvorlesung Pädagogik I",
+       "kind": "vorlesung",
+       "weekday": 3,
+       "start_time": "10:00",
+       "end_time": "12:00",
+       "room": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-29",
+       "date_to": "2027-02-05",
+       "uncertain": false,
+       "exdates": [
+        "2026-12-24"
+       ],
+       "uid": null,
+       "description": "",
+       "module_id": null,
+       "module_guess_uncertain": true,
+       "existing_id": 20
+      },
+      {
+       "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "14:00",
+       "end_time": "16:00",
+       "room": "Testgebäude 3 - TG.3.09",
+       "rrule": "weekly",
+       "date_from": "2026-10-26",
+       "date_to": "2027-02-01",
+       "uncertain": false,
+       "exdates": [],
+       "uid": null,
+       "description": "",
+       "module_id": 3,
+       "module_guess_uncertain": false,
+       "existing_id": 21
+      },
+      {
+       "title": "7004 - Testblock Kunst",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "10:00",
+       "end_time": "16:00",
+       "room": "",
+       "rrule": "once",
+       "date_from": "2027-01-18",
+       "date_to": null,
+       "uncertain": false,
+       "exdates": [],
+       "uid": null,
+       "description": "",
+       "module_id": null,
+       "module_guess_uncertain": true,
+       "existing_id": 22
+      }
+     ],
+     "removed": [
+      {
+       "id": 5,
+       "module_id": 1,
+       "course_id": "k-ma-ue",
+       "title": "Übung zu Testmathematik I",
+       "kind": "uebung",
+       "weekday": 3,
+       "start_time": "12:15",
+       "end_time": "13:45",
+       "room": "Raum C",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-19",
+       "date_to": "2026-12-17",
+       "attend": 0,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-01T09:00:00"
+      },
+      {
+       "id": 7,
+       "module_id": 3,
+       "course_id": "k-prog-ue",
+       "title": "Gruppenübung Programmierkurs Beispiel",
+       "kind": "uebung",
+       "weekday": 1,
+       "start_time": "08:00",
+       "end_time": "09:30",
+       "room": "Pool 0",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-20",
+       "date_to": "2026-11-03",
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 8,
+       "module_id": 1,
+       "course_id": null,
+       "title": "Lerngruppe Testmathematik alle 2 Wochen",
+       "kind": "vorlesung",
+       "weekday": 1,
+       "start_time": "16:00",
+       "end_time": "17:30",
+       "room": "",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 9,
+       "module_id": null,
+       "course_id": null,
+       "title": "Termin",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "07:00",
+       "end_time": "07:45",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 10,
+       "module_id": 2,
+       "course_id": "k-ph",
+       "title": "Testphysik für Ingenieure",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:15",
+       "end_time": "09:45",
+       "room": "",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": "2026-10-14",
+       "date_to": "2026-11-11",
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 11,
+       "module_id": 2,
+       "course_id": "k-ph",
+       "title": "Testphysik für Ingenieure",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "10:00",
+       "end_time": "11:00",
+       "room": "Raum B",
+       "lecturer": "",
+       "rrule": "once",
+       "date_from": "2026-10-16",
+       "date_to": "2026-10-16",
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 12,
+       "module_id": null,
+       "course_id": null,
+       "title": "Chor",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "18:00",
+       "end_time": "20:00",
+       "room": "",
+       "lecturer": "",
+       "rrule": "biweekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 13,
+       "module_id": 2,
+       "course_id": null,
+       "title": "Neuer Termin",
+       "kind": "vorlesung",
+       "weekday": 4,
+       "start_time": "09:00",
+       "end_time": "10:30",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 14,
+       "module_id": null,
+       "course_id": null,
+       "title": "Veranstaltung",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "08:00",
+       "end_time": "09:30",
+       "room": "",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": null,
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 15,
+       "module_id": null,
+       "course_id": null,
+       "title": "Text-Wochentag",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:00",
+       "end_time": "09:30",
+       "room": "",
+       "lecturer": "",
+       "rrule": "once",
+       "date_from": "2026-11-04",
+       "date_to": null,
+       "attend": 1,
+       "source": "manual",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 16,
+       "module_id": 1,
+       "course_id": "k-ma-vl",
+       "title": "Testmathematik I",
+       "kind": "vorlesung",
+       "weekday": 0,
+       "start_time": "10:15",
+       "end_time": "11:45",
+       "room": "Hörsaal 1, Gebäude 3",
+       "lecturer": "Prof. Beispiel",
+       "rrule": "weekly",
+       "date_from": "2026-11-16",
+       "date_to": null,
+       "attend": 1,
+       "source": "studip",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      },
+      {
+       "id": 17,
+       "module_id": null,
+       "course_id": null,
+       "title": "Testkurs Mechanik",
+       "kind": "vorlesung",
+       "weekday": 2,
+       "start_time": "08:30",
+       "end_time": "10:00",
+       "room": "M 1",
+       "lecturer": "",
+       "rrule": "weekly",
+       "date_from": "2026-10-21",
+       "date_to": "2027-01-27",
+       "attend": 1,
+       "source": "ics",
+       "color": null,
+       "created_at": "2026-10-25T14:30:05"
+      }
+     ]
+    },
+    "modules": [
+     {
+      "id": 3,
+      "name": "Programmierkurs Beispiel",
+      "color": "#333333"
+     },
+     {
+      "id": 1,
+      "name": "Testmathematik I",
+      "color": "#111111"
+     },
+     {
+      "id": 2,
+      "name": "Testphysik",
+      "color": "#222222"
+     }
+    ]
+   },
+   "form": {
+    "source": "ics"
+   },
+   "file": {
+    "field": "upload",
+    "filename": "stundenplan.ics",
+    "content_type": "text/calendar",
+    "text": "BEGIN:VCALENDAR\r\nPRODID:QIS-LSF HIS eG\r\nVERSION:2.0\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nBEGIN:STANDARD\r\nDTSTART:19701025T030000\r\nRRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nMETHOD:PUBLISH\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T160000\r\nDTEND;TZID=Europe/Berlin:20261026T180000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TH\r\nEXDATE;TZID=Europe/Berlin:20261224T160000,20261231T160000,\r\nLOCATION:Testgebäude 7 - TG.7.0.01 (Seminarraum)\r\nUID:900001:900002\r\nSUMMARY:7001 - Testseminar Wohnen\\, Raum und Kultur\r\nCATEGORIES:Seminar\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T100000\r\nDTEND;TZID=Europe/Berlin:20261026T120000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TU,TH\r\nEXDATE;TZID=Europe/Berlin:20261222T100000\r\nEXDATE;TZID=Europe/Berlin:20261224T100000\r\nSUMMARY:7002 - Testvorlesung Pädagogik I\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T140000\r\nDTEND;TZID=Europe/Berlin:20261026T160000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270201T235900Z;INTERVAL=1;BYDAY=MO\r\nLOCATION:Testgebäude 3 - TG.3.09\r\nSUMMARY:7003 - Testkolloquium Erinnerung (Beispiel)\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20270118T100000\r\nDTEND;TZID=Europe/Berlin:20270118T160000\r\nLOCATION:\r\nSUMMARY:7004 - Testblock Kunst\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/timetable/import/confirm",
+   "status": 200,
+   "response": {
+    "new": 0,
+    "updated": 5,
+    "removed": 0,
+    "ids": [],
+    "conflicts": [
+     {
+      "date": "2026-11-03",
+      "package_id": 5,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket D",
+      "slot": "10:30–11:00",
+      "event": "7002 - Testvorlesung Pädagogik I",
+      "event_time": "10:00–12:00"
+     }
+    ]
+   },
+   "body": {
+    "entries": [
+     {
+      "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+      "kind": "seminar",
+      "weekday": 3,
+      "start_time": "16:00",
+      "end_time": "18:00",
+      "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24",
+       "2026-12-31"
+      ],
+      "uid": "900001:900002",
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true,
+      "existing_id": 18
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-27",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-22"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true,
+      "existing_id": 19
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 3,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true,
+      "existing_id": 20
+     },
+     {
+      "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "14:00",
+      "end_time": "16:00",
+      "room": "Testgebäude 3 - TG.3.09",
+      "rrule": "weekly",
+      "date_from": "2026-10-26",
+      "date_to": "2027-02-01",
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": 3,
+      "module_guess_uncertain": false,
+      "existing_id": 21
+     },
+     {
+      "title": "7004 - Testblock Kunst",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "16:00",
+      "room": "",
+      "rrule": "once",
+      "date_from": "2027-01-18",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true,
+      "existing_id": 22
+     }
+    ],
+    "source": "ics",
+    "import_id": 5,
+    "remove_ids": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/timetable/week?start=2026-12-21",
+   "status": 200,
+   "response": {
+    "start": "2026-12-21",
+    "end": "2026-12-27",
+    "days": [
+     {
+      "date": "2026-12-21",
+      "weekday": 0,
+      "events": [
+       {
+        "event_id": 14,
+        "date": "2026-12-21",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Veranstaltung",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 16,
+        "date": "2026-12-21",
+        "start": "10:15",
+        "end": "11:45",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": "Prof. Beispiel",
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 21,
+        "date": "2026-12-21",
+        "start": "14:00",
+        "end": "16:00",
+        "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+        "kind": "vorlesung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Testgebäude 3 - TG.3.09",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 570,
+        "end": 615,
+        "minutes": 45,
+        "start_hm": "09:30",
+        "end_hm": "10:15",
+        "campus": true
+       },
+       {
+        "start": 780,
+        "end": 840,
+        "minutes": 60,
+        "start_hm": "13:00",
+        "end_hm": "14:00",
+        "campus": true
+       },
+       {
+        "start": 980,
+        "end": 1260,
+        "minutes": 280,
+        "start_hm": "16:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 0,
+        "start": "12:00",
+        "end": "13:00",
+        "title": "Mittag"
+       }
+      ]
+     },
+     {
+      "date": "2026-12-22",
+      "weekday": 1,
+      "events": [
+       {
+        "event_id": 19,
+        "date": "2026-12-22",
+        "start": "10:00",
+        "end": "12:00",
+        "title": "7002 - Testvorlesung Pädagogik I",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       },
+       {
+        "event_id": 8,
+        "date": "2026-12-22",
+        "start": "16:00",
+        "end": "17:30",
+        "title": "Lerngruppe Testmathematik alle 2 Wochen",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 4,
+        "date": "2026-12-22",
+        "start": "18:00",
+        "end": "19:30",
+        "title": "Sport (nicht besucht)",
+        "kind": "sonstiges",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 940,
+        "minutes": 460,
+        "start_hm": "08:00",
+        "end_hm": "15:40",
+        "campus": false
+       },
+       {
+        "start": 1050,
+        "end": 1080,
+        "minutes": 30,
+        "start_hm": "17:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1190,
+        "end": 1260,
+        "minutes": 70,
+        "start_hm": "19:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-23",
+      "weekday": 2,
+      "events": [
+       {
+        "event_id": 9,
+        "date": "2026-12-23",
+        "start": "07:00",
+        "end": "07:45",
+        "title": "Termin",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 17,
+        "date": "2026-12-23",
+        "start": "08:30",
+        "end": "10:00",
+        "title": "Testkurs Mechanik",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "M 1",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 510,
+        "minutes": 30,
+        "start_hm": "08:00",
+        "end_hm": "08:30",
+        "campus": true
+       },
+       {
+        "start": 620,
+        "end": 1260,
+        "minutes": 640,
+        "start_hm": "10:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-24",
+      "weekday": 3,
+      "events": [
+       {
+        "event_id": 20,
+        "date": "2026-12-24",
+        "start": "10:00",
+        "end": "12:00",
+        "title": "7002 - Testvorlesung Pädagogik I",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       },
+       {
+        "event_id": 18,
+        "date": "2026-12-24",
+        "start": "16:00",
+        "end": "18:00",
+        "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+        "lecturer": "",
+        "course_id": null,
+        "status": "ausfall",
+        "permanent_skip": false,
+        "exception": "cancelled"
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1020,
+        "minutes": 540,
+        "start_hm": "08:00",
+        "end_hm": "17:00",
+        "campus": false
+       },
+       {
+        "start": 1110,
+        "end": 1260,
+        "minutes": 150,
+        "start_hm": "18:30",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": [
+       {
+        "weekday": 3,
+        "start": "17:00",
+        "end": "18:30"
+       }
+      ]
+     },
+     {
+      "date": "2026-12-25",
+      "weekday": 4,
+      "events": [
+       {
+        "event_id": 13,
+        "date": "2026-12-25",
+        "start": "09:00",
+        "end": "10:30",
+        "title": "Neuer Termin",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       },
+       {
+        "event_id": 12,
+        "date": "2026-12-25",
+        "start": "18:00",
+        "end": "20:00",
+        "title": "Chor",
+        "kind": "vorlesung",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": "",
+        "course_id": null,
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null
+       }
+      ],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 520,
+        "minutes": 40,
+        "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 630,
+        "end": 1080,
+        "minutes": 450,
+        "start_hm": "10:30",
+        "end_hm": "18:00",
+        "campus": true
+       },
+       {
+        "start": 1220,
+        "end": 1260,
+        "minutes": 40,
+        "start_hm": "20:20",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-26",
+      "weekday": 5,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-12-27",
+      "weekday": 6,
+      "events": [],
+      "packages": [],
+      "free": [
+       {
+        "start": 480,
+        "end": 1260,
+        "minutes": 780,
+        "start_hm": "08:00",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     }
+    ],
+    "learn_start": "08:00",
+    "learn_end": "21:00",
+    "term": {
+     "id": 1,
+     "name": "WiSe 2026/27",
+     "start": "2026-10-12",
+     "end": "2027-01-30",
+     "active": 1
+    }
+   }
   }
  ],
  "tables_after": {
@@ -8022,6 +11079,101 @@
     "source": "ics",
     "color": null,
     "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 18,
+    "module_id": null,
+    "course_id": null,
+    "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+    "kind": "seminar",
+    "weekday": 3,
+    "start_time": "16:00",
+    "end_time": "18:00",
+    "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": "2026-10-29",
+    "date_to": "2027-02-05",
+    "attend": 1,
+    "source": "ics",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 19,
+    "module_id": null,
+    "course_id": null,
+    "title": "7002 - Testvorlesung Pädagogik I",
+    "kind": "vorlesung",
+    "weekday": 1,
+    "start_time": "10:00",
+    "end_time": "12:00",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": "2026-10-27",
+    "date_to": "2027-02-05",
+    "attend": 1,
+    "source": "ics",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 20,
+    "module_id": null,
+    "course_id": null,
+    "title": "7002 - Testvorlesung Pädagogik I",
+    "kind": "vorlesung",
+    "weekday": 3,
+    "start_time": "10:00",
+    "end_time": "12:00",
+    "room": "",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": "2026-10-29",
+    "date_to": "2027-02-05",
+    "attend": 1,
+    "source": "ics",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 21,
+    "module_id": 3,
+    "course_id": null,
+    "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+    "kind": "vorlesung",
+    "weekday": 0,
+    "start_time": "14:00",
+    "end_time": "16:00",
+    "room": "Testgebäude 3 - TG.3.09",
+    "lecturer": "",
+    "rrule": "weekly",
+    "date_from": "2026-10-26",
+    "date_to": "2027-02-01",
+    "attend": 1,
+    "source": "ics",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 22,
+    "module_id": null,
+    "course_id": null,
+    "title": "7004 - Testblock Kunst",
+    "kind": "vorlesung",
+    "weekday": 0,
+    "start_time": "10:00",
+    "end_time": "16:00",
+    "room": "",
+    "lecturer": "",
+    "rrule": "once",
+    "date_from": "2027-01-18",
+    "date_to": null,
+    "attend": 1,
+    "source": "ics",
+    "color": null,
+    "created_at": "2026-10-25T14:30:05"
    }
   ],
   "event_exceptions": [
@@ -8084,6 +11236,50 @@
     "id": 19,
     "event_id": 17,
     "date": "2026-12-02",
+    "type": "cancelled",
+    "new_date": null,
+    "new_start": null,
+    "new_end": null,
+    "note": "Ausfall laut Kalender",
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 20,
+    "event_id": 18,
+    "date": "2026-12-24",
+    "type": "cancelled",
+    "new_date": null,
+    "new_start": null,
+    "new_end": null,
+    "note": "Ausfall laut Kalender",
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 21,
+    "event_id": 18,
+    "date": "2026-12-31",
+    "type": "cancelled",
+    "new_date": null,
+    "new_start": null,
+    "new_end": null,
+    "note": "Ausfall laut Kalender",
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 22,
+    "event_id": 19,
+    "date": "2026-12-22",
+    "type": "cancelled",
+    "new_date": null,
+    "new_start": null,
+    "new_end": null,
+    "note": "Ausfall laut Kalender",
+    "created_at": "2026-10-25T14:30:05"
+   },
+   {
+    "id": 23,
+    "event_id": 20,
+    "date": "2026-12-24",
     "type": "cancelled",
     "new_date": null,
     "new_start": null,
@@ -8468,6 +11664,210 @@
      }
     ],
     "confirmed": 0
+   },
+   {
+    "id": 4,
+    "source": "ics",
+    "created_at": "2026-10-25T14:30:05",
+    "status": "confirmed",
+    "raw": "BEGIN:VCALENDAR\r\nPRODID:QIS-LSF HIS eG\r\nVERSION:2.0\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nBEGIN:STANDARD\r\nDTSTART:19701025T030000\r\nRRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nMETHOD:PUBLISH\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T160000\r\nDTEND;TZID=Europe/Berlin:20261026T180000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TH\r\nEXDATE;TZID=Europe/Berlin:20261224T160000,20261231T160000,\r\nLOCATION:Testgebäude 7 - TG.7.0.01 (Seminarraum)\r\nUID:900001:900002\r\nSUMMARY:7001 - Testseminar Wohnen\\, Raum und Kultur\r\nCATEGORIES:Seminar\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T100000\r\nDTEND;TZID=Europe/Berlin:20261026T120000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TU,TH\r\nEXDATE;TZID=Europe/Berlin:20261222T100000\r\nEXDATE;TZID=Europe/Berlin:20261224T100000\r\nSUMMARY:7002 - Testvorlesung Pädagogik I\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T140000\r\nDTEND;TZID=Europe/Berlin:20261026T160000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270201T235900Z;INTERVAL=1;BYDAY=MO\r\nLOCATION:Testgebäude 3 - TG.3.09\r\nSUMMARY:7003 - Testkolloquium Erinnerung (Beispiel)\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20270118T100000\r\nDTEND;TZID=Europe/Berlin:20270118T160000\r\nLOCATION:\r\nSUMMARY:7004 - Testblock Kunst\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+    "parsed": [
+     {
+      "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+      "kind": "seminar",
+      "weekday": 3,
+      "start_time": "16:00",
+      "end_time": "18:00",
+      "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24",
+       "2026-12-31"
+      ],
+      "uid": "900001:900002",
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-27",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-22"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 3,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "14:00",
+      "end_time": "16:00",
+      "room": "Testgebäude 3 - TG.3.09",
+      "rrule": "weekly",
+      "date_from": "2026-10-26",
+      "date_to": "2027-02-01",
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": 3,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "7004 - Testblock Kunst",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "16:00",
+      "room": "",
+      "rrule": "once",
+      "date_from": "2027-01-18",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     }
+    ],
+    "confirmed": 1
+   },
+   {
+    "id": 5,
+    "source": "ics",
+    "created_at": "2026-10-25T14:30:05",
+    "status": "confirmed",
+    "raw": "BEGIN:VCALENDAR\r\nPRODID:QIS-LSF HIS eG\r\nVERSION:2.0\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nBEGIN:STANDARD\r\nDTSTART:19701025T030000\r\nRRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nMETHOD:PUBLISH\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T160000\r\nDTEND;TZID=Europe/Berlin:20261026T180000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TH\r\nEXDATE;TZID=Europe/Berlin:20261224T160000,20261231T160000,\r\nLOCATION:Testgebäude 7 - TG.7.0.01 (Seminarraum)\r\nUID:900001:900002\r\nSUMMARY:7001 - Testseminar Wohnen\\, Raum und Kultur\r\nCATEGORIES:Seminar\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T100000\r\nDTEND;TZID=Europe/Berlin:20261026T120000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TU,TH\r\nEXDATE;TZID=Europe/Berlin:20261222T100000\r\nEXDATE;TZID=Europe/Berlin:20261224T100000\r\nSUMMARY:7002 - Testvorlesung Pädagogik I\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20261026T140000\r\nDTEND;TZID=Europe/Berlin:20261026T160000\r\nRRULE:FREQ=WEEKLY;UNTIL=20270201T235900Z;INTERVAL=1;BYDAY=MO\r\nLOCATION:Testgebäude 3 - TG.3.09\r\nSUMMARY:7003 - Testkolloquium Erinnerung (Beispiel)\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20270118T100000\r\nDTEND;TZID=Europe/Berlin:20270118T160000\r\nLOCATION:\r\nSUMMARY:7004 - Testblock Kunst\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+    "parsed": [
+     {
+      "title": "7001 - Testseminar Wohnen, Raum und Kultur",
+      "kind": "seminar",
+      "weekday": 3,
+      "start_time": "16:00",
+      "end_time": "18:00",
+      "room": "Testgebäude 7 - TG.7.0.01 (Seminarraum)",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24",
+       "2026-12-31"
+      ],
+      "uid": "900001:900002",
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 1,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-27",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-22"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7002 - Testvorlesung Pädagogik I",
+      "kind": "vorlesung",
+      "weekday": 3,
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "room": "",
+      "rrule": "weekly",
+      "date_from": "2026-10-29",
+      "date_to": "2027-02-05",
+      "uncertain": false,
+      "exdates": [
+       "2026-12-24"
+      ],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     },
+     {
+      "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "14:00",
+      "end_time": "16:00",
+      "room": "Testgebäude 3 - TG.3.09",
+      "rrule": "weekly",
+      "date_from": "2026-10-26",
+      "date_to": "2027-02-01",
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": 3,
+      "module_guess_uncertain": false
+     },
+     {
+      "title": "7004 - Testblock Kunst",
+      "kind": "vorlesung",
+      "weekday": 0,
+      "start_time": "10:00",
+      "end_time": "16:00",
+      "room": "",
+      "rrule": "once",
+      "date_from": "2027-01-18",
+      "date_to": null,
+      "uncertain": false,
+      "exdates": [],
+      "uid": null,
+      "description": "",
+      "module_id": null,
+      "module_guess_uncertain": true
+     }
+    ],
+    "confirmed": 1
    }
   ]
  },

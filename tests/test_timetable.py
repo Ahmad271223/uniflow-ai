@@ -212,3 +212,39 @@ def test_auto_import_assigns_modules_of_new_courses(app):
             conn.execute("DELETE FROM files WHERE id='f-aa-1'")
             conn.execute("DELETE FROM courses WHERE id IN ('c-aa-vl', 'c-aa-erst')")
             conn.execute("DELETE FROM modules WHERE name='Testfach Abgleich'")
+
+
+def test_lsf_export_cancellations_exactly_once(app):
+    """LSF-Export (BYDAY, EXDATE) auf beiden Wegen: lsf.import_plan legt die Ausfaelle selbst an ("fällt aus laut LSF",
+    apply_import bekommt exdates=None), der ICS-Import der App ueber apply_import ("Ausfall laut Kalender"). Je Serie und
+    Tag genau ein Ausfall, auch nach einem zweiten Import (Zusammenfuehren von S5 mit dem Hildesheim-Stand). Erfunden."""
+    from datetime import date
+
+    from app import db, lsf, timetable
+    ics = _ics("DTSTART;TZID=Europe/Berlin:20261026T160000\nDTEND;TZID=Europe/Berlin:20261026T180000\n"
+               "RRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;INTERVAL=1;BYDAY=TH\nEXDATE;TZID=Europe/Berlin:20261224T160000,20261231T160000,\n"
+               "SUMMARY:7101 - Testseminar Ausfall",
+               "DTSTART;TZID=Europe/Berlin:20261026T100000\nDTEND;TZID=Europe/Berlin:20261026T120000\n"
+               "RRULE:FREQ=WEEKLY;UNTIL=20270205T235900Z;BYDAY=TU,TH\nEXDATE;TZID=Europe/Berlin:20261222T100000\n"
+               "EXDATE;TZID=Europe/Berlin:20261224T100000\nSUMMARY:7102 - Testvorlesung Ausfall")
+
+    def cancellations(conn, source):
+        return sorted((r["weekday"], r["start_time"], r["date"], r["note"]) for r in db.rows(conn, """
+            SELECT e.weekday, e.start_time, x.date, x.note FROM event_exceptions x JOIN course_events e ON e.id=x.event_id
+            WHERE e.source=? AND e.title LIKE '%Ausfall' AND x.type='cancelled'""", (source,)))
+
+    want = [(1, "10:00", "2026-12-22"), (3, "10:00", "2026-12-24"), (3, "16:00", "2026-12-24"), (3, "16:00", "2026-12-31")]
+    with db.cursor() as conn:
+        try:
+            for _ in range(2):
+                lsf.import_plan(conn, lsf.plan_entries(ics))
+            assert cancellations(conn, "lsf") == [(*w, "fällt aus laut LSF") for w in want]
+            for _ in range(2):
+                entries = timetable.parse_ics(ics)
+                same = {(x["title"], x["weekday"]): x["existing_id"] for x in timetable.diff_against_existing(conn, entries)["same"]}
+                timetable.apply_import(conn, [{**e, "existing_id": same.get((e["title"], e["weekday"]))} for e in entries], "ics")
+            assert cancellations(conn, "ics") == [(*w, "Ausfall laut Kalender") for w in want]
+            occ = [o["status"] for o in timetable.occurrences(conn, date(2026, 12, 24), date(2026, 12, 24)) if o["title"].endswith("Ausfall")]
+            assert occ == ["ausfall"] * 4                        # je Weg zwei Serien am Donnerstag, Heiligabend
+        finally:
+            conn.execute("DELETE FROM course_events WHERE source IN ('lsf', 'ics') AND title LIKE '%Ausfall'")

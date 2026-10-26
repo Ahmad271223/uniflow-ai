@@ -23,7 +23,8 @@
 - studip-import.json (S3): mehrere Durchgaenge von studip_sync.run_sync ohne Netz und Playwright (Kurse, Dateilisten,
   Ordner und Downloads ersetzt; Fach und Art der Kurse mit dem echten classify, S4) und die Tabellen courses, files,
   sync_log danach. Dazu "classified" (S3 + S4): ein Abgleich mit mehreren Kursen je Fach, danach Bibliothek, Module,
-  Moduldetail mit Lehrwochen und Kursliste ueber den Server und die Tabellen courses und modules.
+  Moduldetail mit Lehrwochen und Kursliste ueber den Server und die Tabellen courses und modules. "safe_names":
+  studip_sync.safe_name fuer zerlegte und andere Dateinamen (NFC, als Hex der UTF-8-Bytes).
 
 Der Server laeuft dabei nur gegen Dateien in einem Temp-Ordner (tools/schema_source.py), nie gegen data/.
 Pfade mit Netzwerk, KI oder Zugangsdaten (Sync, QIS, Tests, /api/credentials, /api/services) werden nicht
@@ -1383,13 +1384,31 @@ def studip_classified(src: SchemaSource) -> dict:
     return {"now": FROZEN, "rounds": rounds, "steps": steps, "tables": tables}
 
 
+# Dateinamen fuer studip_sync.safe_name (46ec3d1: NFC, "u" + U+0308 -> U+00FC). Nur Faelle, in denen die Regeln von
+# PC und iPad gleich sein sollen (kein Rand aus Punkten/Leerzeichen, unter 120 Zeichen); alle Namen erfunden.
+SAFE_NAME_CASES = [
+    "Einfu\u0308hrung.pdf",                 # zerlegt wie aus Moodle oder vom Mac
+    "U\u0308bungsblatt 1.pdf",
+    "Lo\u0308sung: Blatt 2.pdf",            # Doppelpunkt wird "_"
+    "Einf\u00fchrung.pdf",                  # schon NFC
+    "Cafe\u0301 Pla\u0308ne.pdf",
+    "\u212b Messung.pdf",                   # Angstroem-Zeichen: NFC macht daraus U+00C5
+    "Stra\u00dfe/Plan?.pdf",
+    "Folien.pdf",
+]
+
+
 def studip_import(src: SchemaSource) -> dict:
+    from app.studip_sync import safe_name
     rounds = _import_rounds(src, IMPORT_ROUNDS, "abgleich")
     classified = studip_classified(src)
     unix = {c: _unix(c) for c in sorted({f["changed"] for r in IMPORT_ROUNDS + CLASSIFIED_ROUNDS
                                          for fs in r.get("files", {}).values() for f in fs})}
+    # als Hex der UTF-8-Bytes: der Vergleich soll die Zerlegung sehen (Swift vergleicht Zeichenketten kanonisch)
+    safe = [{"name_hex": n.encode("utf-8").hex(), "safe_hex": safe_name(n).encode("utf-8").hex(), "safe": safe_name(n)}
+            for n in SAFE_NAME_CASES]
     return {"generator": "tools/gen-local-backend-fixture.py", "studip_base": STUDIP_BASE_TEST, "rounds": rounds,
-            "classified": classified, "unix_times": unix}
+            "classified": classified, "unix_times": unix, "safe_names": safe}
 
 
 def main() -> int:

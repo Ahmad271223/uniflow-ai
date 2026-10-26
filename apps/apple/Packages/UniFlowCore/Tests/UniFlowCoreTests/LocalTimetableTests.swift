@@ -156,6 +156,72 @@ final class LocalTimetableTests: XCTestCase {
         }
     }
 
+    /// Dieselben Erwartungen wie tests/test_hildesheim.py an den LSF-Export (fixtures/hildesheim, expected.json), hier
+    /// im Stundenplan des lokalen Backends: die Serien wie mit dem ICS-Import der App uebernommen (apply_import mit den
+    /// Ausfaellen), dann liegt jede Serie ab date_from an ihrem Wochentag und jeder Ausfall (EXDATE) ist "ausfall".
+    /// Ausdruecklich: der Donnerstags-Kurs (DTSTART Montag 26.10.) liegt am Donnerstag 29.10. und faellt an
+    /// Heiligabend aus; die Serie mit zwei Wochentagen hat ihre Ausfaelle je Tag. Den Abgleich mit app/server.py auf
+    /// erfundenen LSF-Daten macht testStepsMatchPythonServer (letzte Schritte von timetable-logic.json).
+    func testHildesheimLSFExportInTimetable() async throws {
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { root.deleteLastPathComponent() }
+        let dir = root.appendingPathComponent("packages/shared-contracts/fixtures/hildesheim")
+        let expected = try JSONValue.parse(Data(contentsOf: dir.appendingPathComponent("expected.json")))
+        let names = ["lsf-course.ics", "lsf-plan.ics"]
+        var parsed: [String: [LocalTimetableImport.Entry]] = [:]
+        for name in names {
+            parsed[name] = LocalTimetableImport.parseICS(try String(contentsOf: dir.appendingPathComponent(name), encoding: .utf8))
+            XCTAssertEqual(parsed[name]?.count, expected[name]?.array?.count, name)
+        }
+
+        // parse_ics: Wochentag aus BYDAY, nicht aus DTSTART (test_parse_ics_uses_byday_and_exdate)
+        let thursday = try XCTUnwrap(parsed["lsf-course.ics"]?.first)
+        XCTAssertEqual(thursday["weekday"], 3)
+        XCTAssertEqual(thursday["date_from"], "2026-10-29")
+        XCTAssertEqual(BerlinClock.parseISODate("2026-10-29").map(BerlinClock.weekday), 3, "29.10.2026 ist ein Donnerstag")
+        XCTAssertEqual(BerlinClock.parseISODate("2026-10-26").map(BerlinClock.weekday), 0, "DTSTART 26.10.2026 ist ein Montag")
+        XCTAssertEqual(thursday["exdates"], ["2026-12-24", "2026-12-31"], "Heiligabend und Silvester")
+        // mehrere BYDAY: je Tag eine Serie mit den Ausfaellen an diesem Tag (test_parse_ics_multiple_bydays_split_exdates)
+        let split = (parsed["lsf-plan.ics"] ?? []).filter { ($0["title"]?.string ?? "").contains("Sozialpädagogik") }
+        XCTAssertEqual(split.map { [$0["weekday"] ?? .null, $0["date_from"] ?? .null, $0["exdates"] ?? .null] as JSONValue },
+                       [[1, "2026-10-27", ["2026-12-22"]], [3, "2026-10-29", ["2026-12-24"]]])
+
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let all = names.flatMap { parsed[$0] ?? [] }.map(JSONValue.object)
+        let body: JSONValue = ["entries": .array(all), "source": "ics", "remove_ids": []]
+        let confirm = await backend.handle(LocalRequest(method: "POST", path: "/api/timetable/import/confirm",
+                                                        headers: ["Content-Type": "application/json"], body: body.serialized()))
+        XCTAssertEqual(confirm.status, 200, String(decoding: confirm.body, as: UTF8.self))
+        XCTAssertEqual(confirm.json?["new"]?.int, all.count)
+
+        func day(_ date: String, start: String) async -> [String?] {
+            let r = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", date)]))
+            return (r.json?["events"]?.array ?? []).filter { $0["start"]?.string == start }.map { $0["status"]?.string }
+        }
+        for name in names {
+            for e in expected[name]?.array ?? [] {
+                let start = e["start_time"]?.string ?? "", first = e["date_from"]?.string ?? ""
+                let atFirst = await day(first, start: start)
+                XCTAssertEqual(atFirst, ["teilnahme"], "\(name): erster Termin \(first) \(start)")
+                for x in e["exdates"]?.array?.compactMap(\.string) ?? [] {
+                    let cancelled = await day(x, start: start)
+                    XCTAssertEqual(cancelled, ["ausfall"], "\(name): Ausfall \(x) \(start)")
+                }
+            }
+        }
+        let monday = await day("2026-10-26", start: "16:00")
+        XCTAssertEqual(monday, [], "Donnerstags-Kurs nicht am Montag aus DTSTART")
+        let christmasEve = await day("2026-12-24", start: "16:00")
+        XCTAssertEqual(christmasEve, ["ausfall"], "Donnerstags-Kurs faellt an Heiligabend aus")
+        let newYearsEve = await day("2026-12-31", start: "10:00")
+        XCTAssertEqual(newYearsEve, ["teilnahme"], "Sozialpaedagogik am Donnerstag 31.12. ohne EXDATE")
+        let notes = try await backend.context.database.withConnection {
+            try $0.rows("SELECT date, note FROM event_exceptions ORDER BY date, event_id").map { "\($0["date"]?.string ?? "") \($0["note"]?.string ?? "")" }
+        }
+        XCTAssertEqual(notes, ["2026-12-22 Ausfall laut Kalender", "2026-12-24 Ausfall laut Kalender", "2026-12-24 Ausfall laut Kalender",
+                               "2026-12-31 Ausfall laut Kalender"], "jeder Ausfall genau einmal")
+    }
+
     func testGuessModuleMatchesPython() async throws {
         let fx = try fixture()
         let backend = try await seeded(fx)
