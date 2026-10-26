@@ -134,7 +134,7 @@ struct NotebookDialog: View {
             if kind == "notebook" {
                 UFField("Vorlage") {
                     UFGridLayout(columns: 6, spacing: 6.4) {
-                        ForEach(LibraryStyle.templates, id: \.0) { k, n in
+                        ForEach(PaperTemplate.choices, id: \.id) { k, n in
                             Button { tpl = k } label: {
                                 VStack(spacing: 4.8) {
                                     UFTemplatePreview(template: k).frame(width: 38, height: 48)

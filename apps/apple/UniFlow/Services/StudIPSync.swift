@@ -213,7 +213,7 @@ final class StudIPSync: ObservableObject {
          support: URL = AppPaths.support, university: UniversityKey = .luh, cookies: StudIPCookieStore? = nil,
          websiteDataStore: WKWebsiteDataStore? = nil, container: DataContainerLayout? = nil) {
         self.container = container
-        self.root = root ?? AppPaths.support.appendingPathComponent("StudIP", isDirectory: true)
+        self.root = root ?? DataContainerLayout.Folder.studip.url(in: AppPaths.support)
         self.host = host
         self.clock = clock
         self.defaults = defaults
@@ -319,8 +319,7 @@ final class StudIPSync: ObservableObject {
         entries = []
         if let prefix = host.files?.stored(root), let backend = try? await host.backend() {
             let ids = (try? await backend.context.database.transaction { try StudIPLibrary.forgetDownloads($0, under: prefix + "/") }) ?? []
-            let cache = AppPaths.pdfDirectory(.local, root: support)
-            for id in ids { try? FileManager.default.removeItem(at: cache.appendingPathComponent(LocalJournalName.safe(id) + ".pdf")) }
+            for id in ids { try? FileManager.default.removeItem(at: AppPaths.pdf(id, namespace: .local, root: support)) }
             AppPaths.removeThumbnails(fileIDs: ids, namespace: .local, root: support)
         }
         await recordings.removeAll()                      // geladene Aufzeichnungen ebenso, die Listen bleiben

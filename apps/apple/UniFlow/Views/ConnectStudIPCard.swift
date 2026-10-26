@@ -9,8 +9,10 @@ import UniFlowCore
 // Quelle (HildesheimSourcesBar, Views/HildesheimViews.swift). Die abgeglichenen Dateien stehen seit S3
 // in den Seiten selbst (Dokumente, Uebersicht, Editor) – keine Beispieldaten, keine Hinweise auf PC oder PIN. Mit
 // eigenem Server (Entwicklungsmodus des Inhabers) laden die Seiten wie bisher.
-// Die Entscheidung trifft nur UFDataMode.current (Weiche fuer alle Seiten) und UFNoServerContent.resolve (was der
-// leere Zustand ohne Datenquelle zeigt); beide sind reine Funktionen mit Unit-Tests (NoServerStateTests).
+// Die Entscheidung trifft nur UFDataMode.current (Weiche fuer alle Seiten), UFGatePresentation.resolve (Leiste
+// oberhalb oder leerer Zustand) und UFNoServerContent.resolve (Abgleichstand, Text des leeren Zustands); alle sind
+// reine Funktionen mit Unit-Tests (NoServerStateTests, LocalBackendAppTests). Eine Datenquelle gibt es immer:
+// `Session.api` ist das lokale Backend oder (nur Entwicklung) der eigene Server.
 
 /// Stand der Stud.IP-Verbindung aus Sicht der Oberflaeche.
 enum StudIPLink: Equatable {
@@ -42,26 +44,11 @@ enum UFDataMode: Equatable {
     /// lokales Backend des iPads (Normalfall): Seite laedt wie mit Server; solange Stud.IP nicht verbunden bzw.
     /// abgelaufen ist, steht die Karte "Stud.IP verbinden" oberhalb der Seite
     case local(StudIPLink)
-    /// keine Datenquelle, Stud.IP nicht verbunden: leerer Zustand mit Karte "Stud.IP verbinden"
-    case connectStudIP
-    /// keine Datenquelle, Stud.IP-Anmeldung abgelaufen: leerer Zustand mit Karte "Erneut anmelden"
-    case reconnectStudIP
-    /// keine Datenquelle, Stud.IP verbunden: leerer Zustand ohne Karte
-    case empty
 
-    static func resolve(hasServer: Bool, studIP: StudIPLink) -> UFDataMode {
-        if hasServer { return .server }
-        switch studIP {
-        case .notConnected: return .connectStudIP
-        case .expired: return .reconnectStudIP
-        case .connected, .otherSources: return .empty
-        }
-    }
-
-    /// mit Datenquelle: lokal oder eigener Server
+    /// Eigener Server nur, wenn `api` einer ist; sonst das lokale Backend (`Session.api` ist nie nil, vorher gab es
+    /// dafuer drei unerreichbare Zustaende "ohne Datenquelle")
     static func resolve(api: APIClient?, studIP: StudIPLink) -> UFDataMode {
-        if let api, api.isLocal { return .local(studIP) }
-        return resolve(hasServer: api != nil, studIP: studIP)
+        api?.isLocal == false ? .server : .local(studIP)
     }
 
     /// Die eine Weiche fuer alle Seiten (UFServerGate, Uebersicht, UFRemote, Community): Datenquelle aus der Sitzung,
@@ -76,9 +63,8 @@ enum UFDataMode: Equatable {
     /// "Erneut anmelden"; an Hochschulen mit eigenen Quellen immer (Karten "Learnweb/LSF verbinden" oder ihr Stand)
     var showsConnectCard: Bool {
         switch self {
-        case .connectStudIP, .reconnectStudIP: return true
         case .local(let link): return link != .connected
-        case .server, .empty: return false
+        case .server: return false
         }
     }
 
@@ -86,21 +72,14 @@ enum UFDataMode: Equatable {
     var hasOtherSources: Bool { self == .local(.otherSources) }
 
     /// Karte mit "Erneut anmelden" statt "Stud.IP verbinden"
-    var studIPExpired: Bool { self == .reconnectStudIP || self == .local(.expired) }
+    var studIPExpired: Bool { self == .local(.expired) }
 
-    /// Seite laedt ihre Daten (eigener Server oder lokales Backend) statt den leeren Zustand ohne Datenquelle zu zeigen
-    var loadsPages: Bool {
-        switch self {
-        case .server, .local: return true
-        case .connectStudIP, .reconnectStudIP, .empty: return false
-        }
-    }
-
-    /// Ohne PC: lokales Backend oder gar keine Datenquelle (Texte ohne Hinweis auf den PC)
+    /// Ohne PC: lokales Backend (Texte ohne Hinweis auf den PC)
     var isOnDevice: Bool { self != .server }
 }
 
-/// Was der leere Zustand einer Seite ohne Server zeigt: Abgleichstand, Text, Knopf zu den Stud.IP-Dateien.
+/// Abgleichstand oberhalb einer lokalen Seite und was der leere Zustand einer Seite zeigt, die es in V1 nicht gibt
+/// (Wochentests, Noten aus QIS).
 struct UFNoServerContent: Equatable {
     enum Status: Equatable {
         /// erster oder laufender Abgleich (Fortschrittstext aus StudIPSync)
@@ -112,79 +91,45 @@ struct UFNoServerContent: Equatable {
     let showsConnectCard: Bool
     let status: Status?
     let text: String
-    /// Funktion braucht eine spaetere Version (QIS-Noten, KI-Wochentests): als "bald" kennzeichnen
+    /// Funktion braucht eine spaetere Version (QIS-Noten): als "bald" kennzeichnen
     let soon: Bool
-    /// Beschriftung des Knopfs zu StudIPView (nur ohne Datenquelle); nil = kein Knopf
-    let filesButton: String?
-    /// kurzer Satz neben dem Knopf in der Statusleiste oberhalb einer lokalen Seite (UFStudIPStatusBar)
-    var filesSummary: String?
 
-    /// Statusleiste oberhalb einer lokalen Seite zeigen: Abgleichstand oder Stud.IP-Dateien sind da
-    var showsStatusBar: Bool { status != nil || filesButton != nil }
+    /// Statusleiste oberhalb einer lokalen Seite zeigen: Abgleich laeuft oder ist fehlgeschlagen
+    var showsStatusBar: Bool { status != nil }
 
-    static func resolve(kind: UFNoServerPage.Kind, mode: UFDataMode, phase: StudIPSync.Phase,
-                        files: Int, courses: Int) -> UFNoServerContent {
-        // Stud.IP verbunden: ohne Datenquelle oder mit lokalem Backend. Lokal zeigen die Seiten die abgeglichenen
-        // Dateien seit S3 selbst; der Knopf zu StudIPView bleibt nur fuer den leeren Zustand ohne Datenquelle
-        let connected = mode == .empty || mode == .local(.connected)
+    static func resolve(kind: UFNoServerPage.Kind, mode: UFDataMode, phase: StudIPSync.Phase) -> UFNoServerContent {
+        // die abgeglichenen Dateien zeigen die Seiten seit S3 selbst; hier nur der Abgleichstand bei verbundenem Stud.IP
         var status: Status?
-        if connected {
+        if mode == .local(.connected) {
             switch phase {
             case .running(let step): status = .syncing(step)
             case .failed(let message): status = .failed(message)
             case .signedOut, .needsLogin, .idle: status = nil
             }
         }
-        var button: String?
-        var summary: String?
-        if mode == .empty, files > 0 {
-            button = "Stud.IP-Dateien ansehen (\(files))"
-            summary = filesHere(files)
-        } else if mode == .empty, courses > 0 {
-            button = "Stud.IP-Kurse ansehen (\(courses))"
-            summary = coursesSynced(courses)
-        }
-        return UFNoServerContent(showsConnectCard: mode.showsConnectCard, status: status,
-                                 text: text(kind, connected: connected, files: files, courses: courses),
-                                 soon: kind == .services, filesButton: button, filesSummary: summary)
+        return UFNoServerContent(showsConnectCard: mode.showsConnectCard, status: status, text: text(kind), soon: kind == .services)
     }
 
-    private static func filesHere(_ files: Int) -> String {
-        files == 1 ? "1 Datei aus Stud.IP liegt auf diesem iPad." : "\(files) Dateien aus Stud.IP liegen auf diesem iPad."
-    }
-
-    private static func coursesSynced(_ courses: Int) -> String {
-        courses == 1 ? "1 Kurs aus Stud.IP ist abgeglichen." : "\(courses) Kurse aus Stud.IP sind abgeglichen."
-    }
-
-    private static func text(_ kind: UFNoServerPage.Kind, connected: Bool, files: Int, courses: Int) -> String {
-        let filesHere = filesHere(files)
+    private static func text(_ kind: UFNoServerPage.Kind) -> String {
         switch kind {
-        case .dashboard:
-            if connected, files > 0 { return filesHere + " Lernpakete und Uni-Termine gibt es noch keine." }
-            return "Hier stehen deine Lernpakete, Uni-Termine und neuen Dateien – noch ist nichts da."
+        case .dashboard: return "Hier stehen deine Lernpakete, Uni-Termine und neuen Dateien – noch ist nichts da."
         case .plan: return "Noch keine Lernpakete geplant."
         case .timetable: return "Noch keine Termine im Stundenplan."
-        case .modules:
-            if connected, courses > 0 { return coursesSynced(courses) }
-            return "Noch keine Module."
-        case .library:
-            if connected, files > 0 { return filesHere }
-            return "Noch keine Dokumente."
+        case .modules: return "Noch keine Module."
+        case .library: return "Noch keine Dokumente."
         // keine KI in V1 (Entscheidung 25.10.): Wochentests weder anbieten noch ankuendigen
         case .exams: return "Noch keine Tests."
         case .cards: return "Noch keine Karteikarten."
         case .services: return "Noten aus QIS kommen in einer späteren Version."
-        case .generic: return "Hier ist noch nichts."
         }
     }
 }
 
 /// Karte "Stud.IP verbinden": kurzer Satz und Knopf, oeffnet die echte Stud.IP-Anmeldung (StudIPLoginView);
 /// das Passwort tippt der Nutzer selbst auf der Seite der Universitaet. Zeigt nur etwas, solange `mode` die Karte
-/// verlangt – sie verschwindet also nach erfolgreicher Anmeldung von selbst. In den Einstellungen (ohne Server)
-/// mit `UFDataMode.current(api: nil, studip:)` nutzbar. An der Universitaet Hildesheim (`hasOtherSources`) stehen hier
-/// die Karten "Learnweb verbinden"/"LSF verbinden" bzw. die Statusleiste (`HildesheimSourcesBar`).
+/// verlangt – sie verschwindet also nach erfolgreicher Anmeldung von selbst. An der Universitaet Hildesheim
+/// (`hasOtherSources`) stehen hier die Karten "Learnweb verbinden"/"LSF verbinden" bzw. die Statusleiste
+/// (`HildesheimSourcesBar`).
 struct ConnectStudIPCard: View {
     let mode: UFDataMode
     @EnvironmentObject private var studip: StudIPSync
@@ -230,11 +175,11 @@ struct ConnectStudIPCard: View {
     private var isFailed: Bool { if case .failed = studip.phase { return true }; return false }
 }
 
-/// Leerer Zustand einer Seite ohne Server: Kopf wie die Seite, Karte "Stud.IP verbinden", leere Karte.
+/// Leerer Zustand einer Seite, die es in V1 nicht gibt: Kopf wie die Seite, Karte "Stud.IP verbinden", leere Karte.
 struct UFNoServerPage: View {
     /// Seite, deren leerer Zustand gezeigt wird (bestimmt Icon und Text, UFNoServerContent)
     enum Kind: Equatable {
-        case dashboard, plan, timetable, modules, library, exams, cards, services, generic
+        case dashboard, plan, timetable, modules, library, exams, cards, services
 
         var icon: String {
             switch self {
@@ -245,7 +190,6 @@ struct UFNoServerPage: View {
             case .exams: return "exam"
             case .cards: return "cards"
             case .services: return "graduation"
-            case .generic: return "info"
             }
         }
     }
@@ -275,34 +219,21 @@ struct UFNoServerPage: View {
     }
 }
 
-/// Inhalt unter dem Seitenkopf ohne Server (auch fuer die Uebersicht mit eigener Begruessung).
+/// Inhalt unter dem Seitenkopf des leeren Zustands
 struct UFNoServerBody: View {
     let kind: UFNoServerPage.Kind
     let mode: UFDataMode
     @EnvironmentObject private var studip: StudIPSync
-    @State private var showFiles = false
 
     var body: some View {
-        let c = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase,
-                                          files: studip.entries.count, courses: studip.courses.count)
+        let c = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase)
         VStack(alignment: .leading, spacing: 16) {
             if c.showsConnectCard { ConnectStudIPCard(mode: mode) }
             if let status = c.status { UFStudIPStatusCard(status: status) }
             UFCard {
                 UFEmpty(icon: kind.icon, text: c.text) {
                     if c.soon { UFBadge("bald", tone: .info, icon: "clock") }
-                    // die heruntergeladenen Stud.IP-Dateien und Kurse sind echte Daten auf diesem iPad
-                    if let label = c.filesButton {
-                        UFButton(label, icon: "folder") { showFiles = true }
-                            .padding(.top, 8)
-                    }
                 }
-            }
-        }
-        .sheet(isPresented: $showFiles) {
-            NavigationStack {
-                StudIPView()
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { showFiles = false } } }
             }
         }
     }
@@ -347,9 +278,7 @@ struct UFStudIPStatusBar: View {
     @EnvironmentObject private var studip: StudIPSync
 
     var body: some View {
-        let c = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase,
-                                          files: studip.entries.count, courses: studip.courses.count)
-        if let status = c.status { UFStudIPStatusCard(status: status) }
+        if let status = UFNoServerContent.resolve(kind: kind, mode: mode, phase: studip.phase).status { UFStudIPStatusCard(status: status) }
     }
 }
 
@@ -373,8 +302,6 @@ extension UFNoServerPage.Spec {
     // Uni Hildesheim: Notenspiegel aus dem LSF auf dem Geraet (HildesheimSync), darum dort die echte Seite
     static let services = Self(title: "Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort.",
                                kind: .services, maxWidth: 1120, local: false, localWithOtherSources: true)
-    /// Rueckfall fuer Ansichten ohne eigene Angaben (UFRemote)
-    static let generic = Self(title: "UniFlow", kind: .generic)
 }
 
 /// Seite mit Datenquelle laden (eigener Server oder lokales Backend), sonst den leeren Zustand zeigen. Lokal steht
@@ -394,8 +321,7 @@ struct UFServerGate<Content: View>: View {
 
     var body: some View {
         let mode = UFDataMode.current(api: session.api, studip: studip)
-        let presentation = UFGatePresentation.resolve(spec: spec, mode: mode, phase: studip.phase,
-                                                      files: studip.entries.count, courses: studip.courses.count)
+        let presentation = UFGatePresentation.resolve(spec: spec, mode: mode, phase: studip.phase)
         if presentation == .empty {
             UFNoServerPage(spec: spec, mode: mode)
         } else if case .local = mode {
@@ -418,18 +344,13 @@ struct UFServerGate<Content: View>: View {
 enum UFGatePresentation: Equatable {
     case page, pageBelowConnectCard, pageBelowStudIPStatus, empty
 
-    static func resolve(spec: UFNoServerPage.Spec, mode: UFDataMode, phase: StudIPSync.Phase,
-                        files: Int, courses: Int) -> UFGatePresentation {
-        guard mode.loadsPages else { return .empty }
-        if case .local = mode {
-            guard spec.local || (spec.localWithOtherSources && mode.hasOtherSources) else { return .empty }
-            guard spec.barAbove else { return .page }
-            if mode.showsConnectCard { return .pageBelowConnectCard }
-            // Abgleichstand und Fehler oberhalb der Seite; die Dateien zeigt die Seite selbst (S3)
-            let c = UFNoServerContent.resolve(kind: spec.kind, mode: mode, phase: phase, files: files, courses: courses)
-            return c.showsStatusBar ? .pageBelowStudIPStatus : .page
-        }
-        return .page
+    static func resolve(spec: UFNoServerPage.Spec, mode: UFDataMode, phase: StudIPSync.Phase) -> UFGatePresentation {
+        guard case .local = mode else { return .page }
+        guard spec.local || (spec.localWithOtherSources && mode.hasOtherSources) else { return .empty }
+        guard spec.barAbove else { return .page }
+        if mode.showsConnectCard { return .pageBelowConnectCard }
+        // Abgleichstand und Fehler oberhalb der Seite; die Dateien zeigt die Seite selbst (S3)
+        return UFNoServerContent.resolve(kind: spec.kind, mode: mode, phase: phase).showsStatusBar ? .pageBelowStudIPStatus : .page
     }
 }
 

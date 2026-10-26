@@ -31,7 +31,7 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertEqual(h.learnwebBase?.absoluteString, "https://www.uni-hildesheim.de/learnweb2026")
         XCTAssertEqual(h.lsfBase?.absoluteString, "https://lsf.uni-hildesheim.de")
         XCTAssertEqual(l.studipBase?.absoluteString, "https://studip.uni-hannover.de")
-        XCTAssertEqual(h.qisStart?.absoluteString, "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0")
+        XCTAssertEqual(UniversityProfile.hildesheimLSFStart.absoluteString, "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0")
         XCTAssertNil(l.casBase)
         XCTAssertNil(h.studipBase)
         XCTAssertEqual(l.gradeLayout, .luh)

@@ -382,7 +382,7 @@ final class HildesheimAppTests: XCTestCase {
                            baseURL: launch)
         try await waitUntil("Schluessel abgefangen") { login.stage == .done }
         XCTAssertEqual(web.url, launch, "Weiterleitung abgebrochen, nicht an das System gegeben")
-        let account = try XCTUnwrap(c.key.keychainAccount(service: "learnweb", field: "token"))
+        let account = try XCTUnwrap(c.key.university.profile.keychainAccount(service: "learnweb", field: "token", userScope: c.key.userScope))
         XCTAssertEqual(account, "\(c.key.userScope).hildesheim.learnweb.token")
         XCTAssertEqual(keychain.read(account), token, "Schluessel im Schluesselbund unter dem Namen aus dem Kern")
         XCTAssertEqual(h.learnwebMode, .token)
@@ -577,7 +577,7 @@ final class HildesheimAppTests: XCTestCase {
         let all = try await db.rows("SELECT * FROM grades")
         XCTAssertFalse(JSONValue.array(all.map(JSONValue.object)).jsonString().contains("Muster"), "Stammdaten nie gespeichert")
         XCTAssertFalse(JSONValue.array(all.map(JSONValue.object)).jsonString().contains("990001"))
-        XCTAssertEqual(UFGatePresentation.resolve(spec: .services, mode: .local(.otherSources), phase: m.studip.phase, files: 0, courses: 0),
+        XCTAssertEqual(UFGatePresentation.resolve(spec: .services, mode: .local(.otherSources), phase: m.studip.phase),
                        .pageBelowConnectCard, "Uni & Noten gibt es in Hildesheim lokal")
 
         // zweiter Lauf: nichts neu geladen, Noten erst nach 20 Stunden wieder
@@ -610,7 +610,7 @@ final class HildesheimAppTests: XCTestCase {
         let luhCookies = await m.websiteDataStore(for: luh).httpCookieStore.allCookies()
         XCTAssertTrue(luhCookies.isEmpty, "keine Hildesheimer Sitzung in der Webansicht der LUH")
         XCTAssertNil(luh.credentials.token(.hildesheim, service: "learnweb"), "kein Rueckfall auf den Hildesheimer Schluessel")
-        XCTAssertEqual(UFGatePresentation.resolve(spec: .services, mode: .local(.notConnected), phase: m.studip.phase, files: 0, courses: 0),
+        XCTAssertEqual(UFGatePresentation.resolve(spec: .services, mode: .local(.notConnected), phase: m.studip.phase),
                        .empty, "Uni & Noten der LUH unveraendert: QIS folgt")
 
         // zurueck nach Hildesheim: Stand und Daten noch da
@@ -665,7 +665,7 @@ final class HildesheimAppTests: XCTestCase {
         // Abmelden: Schluessel, Verbindungen und Webdaten weg; Dateien, Stundenplan und Noten bleiben
         await m.websiteDataStore(for: c).httpCookieStore.setCookie(cookie("TGC", "cas-test", domain: "www.uni-hildesheim.de"))
         await h.signOut()
-        XCTAssertNil(keychain.read(try XCTUnwrap(c.key.keychainAccount(service: "learnweb", field: "token"))))
+        XCTAssertNil(keychain.read(try XCTUnwrap(c.key.university.profile.keychainAccount(service: "learnweb", field: "token", userScope: c.key.userScope))))
         XCTAssertFalse(h.anyConnected)
         XCTAssertEqual(h.learnweb, .notConnected)
         XCTAssertEqual(h.lsf, .notConnected)
@@ -727,10 +727,10 @@ final class HildesheimAppTests: XCTestCase {
         XCTAssertEqual(HildesheimConnectCard.title(.lsf, expired: false), "LSF verbinden")
         XCTAssertTrue(UFDataMode.local(.otherSources).showsConnectCard, "statt Stud.IP die Karten von Learnweb und LSF")
         XCTAssertFalse(UFDataMode.local(.otherSources).studIPExpired)
-        XCTAssertEqual(UFGatePresentation.resolve(spec: .exams, mode: .local(.otherSources), phase: .signedOut, files: 0, courses: 0), .empty)
-        XCTAssertEqual(UFGatePresentation.resolve(spec: .library, mode: .local(.otherSources), phase: .signedOut, files: 0, courses: 0),
+        XCTAssertEqual(UFGatePresentation.resolve(spec: .exams, mode: .local(.otherSources), phase: .signedOut), .empty)
+        XCTAssertEqual(UFGatePresentation.resolve(spec: .library, mode: .local(.otherSources), phase: .signedOut),
                        .pageBelowConnectCard)
-        XCTAssertEqual(UFGatePresentation.resolve(spec: .document, mode: .local(.otherSources), phase: .signedOut, files: 0, courses: 0),
+        XCTAssertEqual(UFGatePresentation.resolve(spec: .document, mode: .local(.otherSources), phase: .signedOut),
                        .page, "im Editor keine Leiste")
     }
 }

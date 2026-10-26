@@ -189,72 +189,56 @@ final class LocalBackendAppTests: XCTestCase {
         let server = APIClient(base: URL(string: "http://127.0.0.1:8765")!, pin: nil)
         XCTAssertEqual(UFDataMode.resolve(api: api, studIP: .notConnected), .local(.notConnected))
         XCTAssertEqual(UFDataMode.resolve(api: server, studIP: .notConnected), .server)
-        XCTAssertEqual(UFDataMode.resolve(api: nil, studIP: .notConnected), .connectStudIP)
         XCTAssertTrue(UFDataMode.local(.notConnected).showsConnectCard)
         XCTAssertTrue(UFDataMode.local(.expired).showsConnectCard)
         XCTAssertTrue(UFDataMode.local(.expired).studIPExpired)
         XCTAssertFalse(UFDataMode.local(.connected).showsConnectCard, "nach der Anmeldung weg")
-        XCTAssertTrue(UFDataMode.local(.connected).loadsPages)
         XCTAssertTrue(UFDataMode.local(.connected).isOnDevice)
         XCTAssertFalse(UFDataMode.server.isOnDevice)
     }
 
-    private func gate(_ spec: UFNoServerPage.Spec, _ mode: UFDataMode, _ phase: StudIPSync.Phase = .idle,
-                      files: Int = 0, courses: Int = 0) -> UFGatePresentation {
-        UFGatePresentation.resolve(spec: spec, mode: mode, phase: phase, files: files, courses: courses)
+    private func gate(_ spec: UFNoServerPage.Spec, _ mode: UFDataMode, _ phase: StudIPSync.Phase = .idle) -> UFGatePresentation {
+        UFGatePresentation.resolve(spec: spec, mode: mode, phase: phase)
     }
 
     func testGateShowsRealPageWithConnectCardAbove() {
         // lokal: echte Seite, Karte oberhalb solange Stud.IP fehlt (auch mit Dateien eines frueheren Abgleichs)
         XCTAssertEqual(gate(.plan, .local(.notConnected), .signedOut), .pageBelowConnectCard)
-        XCTAssertEqual(gate(.library, .local(.expired), .needsLogin, files: 3), .pageBelowConnectCard)
+        XCTAssertEqual(gate(.library, .local(.expired), .needsLogin), .pageBelowConnectCard)
         XCTAssertEqual(gate(.modules, .local(.connected)), .page)
         // im Editor keine Karte und keine Statusleiste oberhalb, die Seite bekommt die ganze Hoehe
         XCTAssertEqual(gate(.document, .local(.notConnected), .signedOut), .page)
-        XCTAssertEqual(gate(.document, .local(.connected), .running("Lade 1 von 3"), files: 3), .page)
-        XCTAssertEqual(gate(.document, .connectStudIP), .empty, "ohne Datenquelle weiter der leere Zustand")
+        XCTAssertEqual(gate(.document, .local(.connected), .running("Lade 1 von 3")), .page)
         // KI-Wochentests und QIS-Noten gibt es in V1 nicht: lokal der ehrliche leere Zustand
         XCTAssertEqual(gate(.exams, .local(.connected)), .empty)
         XCTAssertEqual(gate(.services, .local(.notConnected)), .empty)
-        // eigener Server wie bisher, ohne Datenquelle der leere Zustand
-        XCTAssertEqual(gate(.exams, .server, .running("x"), files: 4), .page)
-        XCTAssertEqual(gate(.plan, .connectStudIP), .empty)
+        // eigener Server wie bisher
+        XCTAssertEqual(gate(.exams, .server, .running("x")), .page)
+        // Uni & Noten an der Uni Hildesheim: Notenspiegel aus dem LSF, die echte Seite
+        XCTAssertEqual(gate(.services, .local(.otherSources)), .pageBelowConnectCard)
     }
 
     /// Lokal zeigen die Seiten die abgeglichenen Dateien seit S3 selbst: oberhalb der Seite stehen nur noch
-    /// Abgleichstand und Fehler, kein Knopf zu den Stud.IP-Dateien (der bleibt dem leeren Zustand ohne Datenquelle)
+    /// Abgleichstand und Fehler
     func testGateShowsStudIPStatusWhileConnectedLocally() {
         let connected = UFDataMode.local(.connected)
         XCTAssertEqual(gate(.library, connected, .running("Dateien werden geladen …")), .pageBelowStudIPStatus)
         XCTAssertEqual(gate(.plan, connected, .failed("offline")), .pageBelowStudIPStatus)
-        XCTAssertEqual(gate(.modules, connected, .idle, files: 12), .page, "Dateien stehen in der Seite")
-        XCTAssertEqual(gate(.modules, connected, .idle, courses: 2), .page)
+        XCTAssertEqual(gate(.modules, connected, .idle), .page, "Dateien stehen in der Seite")
         XCTAssertEqual(gate(.timetable, connected, .idle), .page, "nichts abgeglichen, kein Fehler: keine Leiste")
 
-        let running = UFNoServerContent.resolve(kind: .library, mode: connected, phase: .running("Kurse werden geladen …"),
-                                                files: 0, courses: 0)
+        let running = UFNoServerContent.resolve(kind: .library, mode: connected, phase: .running("Kurse werden geladen …"))
         XCTAssertEqual(running.status, .syncing("Kurse werden geladen …"))
-        XCTAssertNil(running.filesButton)
         XCTAssertTrue(running.showsStatusBar)
-        let failed = UFNoServerContent.resolve(kind: .dashboard, mode: connected, phase: .failed("offline"), files: 12, courses: 3)
+        let failed = UFNoServerContent.resolve(kind: .dashboard, mode: connected, phase: .failed("offline"))
         XCTAssertEqual(failed.status, .failed("offline"))
-        XCTAssertNil(failed.filesButton, "lokal kein Knopf zu StudIPView mehr")
-        XCTAssertNil(failed.filesSummary)
         XCTAssertFalse(failed.showsConnectCard)
-        let courses = UFNoServerContent.resolve(kind: .modules, mode: connected, phase: .idle, files: 0, courses: 1)
-        XCTAssertNil(courses.filesButton)
-        XCTAssertFalse(courses.showsStatusBar)
-        // ohne Datenquelle (eigener Server getrennt, keine lokale Seite) bleibt der Knopf zu StudIPView
-        XCTAssertEqual(UFNoServerContent.resolve(kind: .library, mode: .empty, phase: .idle, files: 12, courses: 3).filesButton,
-                       "Stud.IP-Dateien ansehen (12)")
+        XCTAssertFalse(UFNoServerContent.resolve(kind: .modules, mode: connected, phase: .idle).showsStatusBar)
         // nicht verbunden bzw. eigener Server: keine Leiste
-        XCTAssertFalse(UFNoServerContent.resolve(kind: .library, mode: .local(.notConnected), phase: .failed("x"),
-                                                 files: 3, courses: 1).showsStatusBar)
-        XCTAssertFalse(UFNoServerContent.resolve(kind: .dashboard, mode: .server, phase: .running("x"),
-                                                 files: 3, courses: 1).showsStatusBar)
+        XCTAssertFalse(UFNoServerContent.resolve(kind: .library, mode: .local(.notConnected), phase: .failed("x")).showsStatusBar)
+        XCTAssertFalse(UFNoServerContent.resolve(kind: .dashboard, mode: .server, phase: .running("x")).showsStatusBar)
         // Wochentests/Noten zeigen lokal den leeren Zustand, jetzt ebenfalls mit Abgleichstand
-        XCTAssertEqual(UFNoServerContent.resolve(kind: .exams, mode: connected, phase: .failed("offline"),
-                                                 files: 0, courses: 0).status, .failed("offline"))
+        XCTAssertEqual(UFNoServerContent.resolve(kind: .exams, mode: connected, phase: .failed("offline")).status, .failed("offline"))
     }
 
     // MARK: Umzug der alten Journale
@@ -276,7 +260,7 @@ final class LocalBackendAppTests: XCTestCase {
         let moved = try XCTUnwrap(try LocalJournal(store: FileBlobStore(root: journal), documentID: "f1", namespace: owner).load())
         XCTAssertEqual(moved.serverVersion, 7)
         XCTAssertEqual(moved.pages["p1"]?.localRev, 4, "ungesendete Seite bleibt ungesendet")
-        XCTAssertEqual(try Data(contentsOf: AppPaths.pdfDirectory(owner, root: support).appendingPathComponent("f1.pdf")), Data("%PDF".utf8))
+        XCTAssertEqual(try Data(contentsOf: AppPaths.pdf("f1", namespace: owner, root: support)), Data("%PDF".utf8))
         XCTAssertNil(try LocalJournal(store: FileBlobStore(root: journal), documentID: "f1", namespace: .local).load())
         // zweiter Start: nichts mehr zu tun
         let again = try XCTUnwrap(DataSourceMigration.run(support: support, savedServerURL: "http://10.0.0.2:8765"))

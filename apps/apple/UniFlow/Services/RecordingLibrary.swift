@@ -206,15 +206,9 @@ final class RecordingLibrary: ObservableObject {
     /// Ordner anlegen und vom Backup ausnehmen (Aufzeichnungen lassen sich jederzeit neu laden).
     nonisolated static func prepareFolder(_ url: URL) throws {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        try excludeFromBackup(url)
+        try DataContainerLayout.setExcludedFromBackup(url)
     }
 
-    nonisolated static func excludeFromBackup(_ url: URL) throws {
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        var u = url
-        try u.setResourceValues(values)
-    }
 
     // MARK: Laden (nur auf Wunsch)
 
@@ -364,7 +358,7 @@ final class RecordingLibrary: ObservableObject {
         try? data.write(to: job.resume, options: .atomic)
         let info: JSONValue = ["url": .string(job.url.absoluteString), "saved_at": .number(now.timeIntervalSince1970)]
         try? Data(info.jsonString(sortedKeys: true).utf8).write(to: resumeInfoURL(job.resume), options: .atomic)
-        try? excludeFromBackup(job.resume)
+        try? DataContainerLayout.setExcludedFromBackup(job.resume)
     }
 
     /// Zeitpunkt der Fortsetzungsdaten aus der Begleitdatei (0, wenn sie fehlt)
@@ -464,7 +458,7 @@ final class RecordingDownloadDelegate: NSObject, URLSessionDownloadDelegate, @un
             do {
                 try? fm.removeItem(at: j.target)
                 try fm.moveItem(at: location, to: j.target)
-                try RecordingLibrary.excludeFromBackup(j.target)
+                try DataContainerLayout.setExcludedFromBackup(j.target)
                 try? fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: j.target.path)
             } catch let e {
                 error = "Datei nicht gespeichert: \(e.localizedDescription)"

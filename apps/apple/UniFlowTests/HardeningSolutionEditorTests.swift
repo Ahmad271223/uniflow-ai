@@ -175,7 +175,7 @@ final class HardeningSolutionEditorTests: XCTestCase {
                                     clock: .fixed(berlin: "2026-10-25T14:30:05")!)
         let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
         let fileID = "haerte-editor-" + UUID().uuidString.prefix(8).lowercased()
-        let pdfURL = AppPaths.pdfDirectory(api.namespace, root: root).appendingPathComponent(fileID + ".pdf")
+        let pdfURL = AppPaths.pdf(fileID, namespace: api.namespace, root: root)
         try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try pdf.write(to: pdfURL)
         let file = LibFile(id: fileID, name: "Blatt7.pdf", title: "Blatt 7", kind: "pdf", module_id: nil, subject: nil, doc_type: nil,

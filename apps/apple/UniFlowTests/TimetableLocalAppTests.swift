@@ -528,27 +528,28 @@ final class TimetableLocalAppTests: XCTestCase {
             let next = try await api.value("/api/timetable/week?start=2026-11-02")
             XCTAssertEqual(next.list("days").first?.list("events").first?.s("status"), "ausfall", "Ausfall laut Stud.IP")
 
-            // 3. Unterlagen zum Termin: dieselbe Semesterwoche wie die Dateien, sonst die neuesten des Moduls
+            // 3. Unterlagen zum Termin: die Lehrwoche der Dateien wie im Moduldetail (study.file_week: "Lösung Blatt 1",
+            // in Woche 2 hochgeladen, gehoert zu Woche 1), sonst die neuesten des Moduls
             let id = try XCTUnwrap(lecture.i("id"))
             func materials(_ event: Int, _ date: String) async throws -> [String] {
                 try await api.value("/api/timetable/event-materials/\(event)?date=\(date)").items.compactMap { $0.s("id") }
             }
             let mats1 = try await materials(id, "2026-10-12")
-            XCTAssertEqual(mats1, ["fv1", "fu1"], "Woche 1")
+            XCTAssertEqual(mats1, ["fv1", "fu1", "fl1"], "Woche 1")
             let mats2 = try await materials(id, "2026-10-19")
-            XCTAssertEqual(mats2, ["fv2", "fu2", "fl1"], "Woche 2")
+            XCTAssertEqual(mats2, ["fv2", "fu2"], "Woche 2")
             let mats3 = try await materials(id, "2026-10-26")
             XCTAssertEqual(mats3, ["fv1", "fu1", "fv2", "fu2"], "Woche 3 ohne Dateien: die neuesten")
             let exercise = try XCTUnwrap(events.first { $0.s("course_id") == "c-ma-ue" }?.i("id"))
             let matsUe = try await materials(exercise, "2026-10-21")
-            XCTAssertEqual(matsUe, ["fv2", "fu2", "fl1"])
+            XCTAssertEqual(matsUe, ["fv2", "fu2"])
             let seminar = try XCTUnwrap(events.first { $0.s("course_id") == "c-sem" }?.i("id"))
             let matsSem = try await materials(seminar, "2026-10-20")
             XCTAssertEqual(matsSem, [], "Modul ohne Dateien")
             // Nicht-Teilnahme liefert dieselben Unterlagen fuer die freie Zeit
             let skip = try await api.value("/api/timetable/attendance", method: "POST",
                                            body: ["event_id": .number(Double(id)), "date": "2026-10-19", "mode": "today_skip"])
-            XCTAssertEqual(skip.list("materials").compactMap { $0.s("id") }, ["fv2", "fu2", "fl1"])
+            XCTAssertEqual(skip.list("materials").compactMap { $0.s("id") }, ["fv2", "fu2"])
             _ = try await api.value("/api/timetable/attendance", method: "POST",
                                     body: ["event_id": .number(Double(id)), "date": "2026-10-19", "mode": "reset"])
 
@@ -564,7 +565,7 @@ final class TimetableLocalAppTests: XCTestCase {
         }
 
         // 5. Termin-Panel im Fenster (wie ein Tipp auf den Termin im Stundenplan): passende Unterlagen der Woche
-        let names = ["VL02.pdf", "Blatt 2.pdf", "Lösung Blatt 1.pdf"]
+        let names = ["VL02.pdf", "Blatt 2.pdf"]
         let shown = try render(EventDrawer(eventID: series, date: "2026-10-19"), api: api, recorder: recorder,
                                expected: ["Passende Unterlagen"] + names) { calls in
             calls.contains { $0.path.hasPrefix("/api/timetable/event-materials/") }
@@ -574,6 +575,7 @@ final class TimetableLocalAppTests: XCTestCase {
         for n in names { XCTAssertTrue(all.contains(n), "\(n) fehlt: \(all)") }
         XCTAssertFalse(all.contains("Keine passenden Unterlagen"), all)
         XCTAssertFalse(all.contains("VL01 Einführung.pdf"), "Woche 1 gehört nicht dazu: \(all)")
+        XCTAssertFalse(all.contains("Lösung Blatt 1.pdf"), "Lehrwoche 1: \(all)")
         XCTAssertTrue(all.contains("Modul öffnen"), all)
         XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
 
@@ -588,7 +590,7 @@ final class TimetableLocalAppTests: XCTestCase {
             let summary = try XCTUnwrap(sync.lastSummary)
             XCTAssertFalse(summary.contains("Stundenplan-Termine"), summary)
             let mats = try await api.value("/api/timetable/event-materials/\(series)?date=2026-10-19").items.compactMap { $0.s("id") }
-            XCTAssertEqual(mats, ["fv2", "fu2", "fl1"])
+            XCTAssertEqual(mats, ["fv2", "fu2"])
         }
     }
 

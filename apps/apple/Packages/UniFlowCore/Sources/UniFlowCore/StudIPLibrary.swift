@@ -57,20 +57,13 @@ public enum StudIPLibrary {
     /// Vollstaendige Dateiliste eines Kurses (`UniStore.storeFiles`). Rueckgabe: Dateien, die wie in Python geladen
     /// werden muessen (neu, in Stud.IP juenger als der gespeicherte Stand, ohne lokale Datei oder lokale Datei fehlt).
     /// Ob sie sich laden lassen (`isDownloadable`), entscheidet der Aufrufer. Die neue Fassung einer bekannten Datei
-    /// gilt erst mit dem Download (`markDownloaded`).
+    /// gilt erst mit dem Download (`UniDownloads.load`, `UniStore.markDownloaded`).
     public static func storeFiles(_ c: SQLiteConnection, _ files: [StudIPFile], startedAt: String, base: URL,
                                   localFiles: LocalFiles?) throws -> [StudIPFile] {
         try files.filter { f in
             try !UniStore.storeFiles(c, courseID: f.courseID, [fileRow(f, base: base)], now: startedAt,
                                      fileExists: { localFiles?.exists(stored: $0) ?? false }).isEmpty
         }
-    }
-
-    /// Datei heruntergeladen (`UniStore.markDownloaded`): Ablageort relativ zum App-Container, Zeitpunkt wie
-    /// `db.now_iso()`, die geladene Fassung und der Inhalts-Hash (`ContentHash.file`) in einem Schritt.
-    public static func markDownloaded(_ c: SQLiteConnection, file f: StudIPFile, localPath: String, sha256: String?, at: String,
-                                      base: URL) throws {
-        try UniStore.markDownloaded(c, fileRow(f, base: base), localPath: localPath, sha256: sha256, now: at)
     }
 
     // MARK: Lesen (das eine Register der geladenen Dateien ist `files`)
@@ -156,7 +149,7 @@ public enum StudIPLibrary {
             let loaded = unixTime(e.downloadedAt).map { BerlinClock.localISO(utc: $0) } ?? at
             // ohne Inhalts-Hash (die Dateien nicht beim Start lesen); gemeinsame Wochentests lesen dann die Datei selbst
             // wie `material_fingerprint` in app/testshare.py
-            try markDownloaded(c, file: f, localPath: path, sha256: nil, at: loaded, base: base)
+            try UniStore.markDownloaded(c, fileRow(f, base: base), localPath: path, sha256: nil, now: loaded)
             adopted += 1
         }
         return adopted

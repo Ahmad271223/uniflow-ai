@@ -88,10 +88,7 @@ public struct UniDownloads: Sendable {
         try container?.verifyPresent()
         let fm = FileManager.default
         try fm.createDirectory(at: folder, withIntermediateDirectories: true)
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        var f = folder
-        try? f.setResourceValues(values)
+        try? DataContainerLayout.setExcludedFromBackup(folder)
         try? fm.removeItem(at: partial)
     }
 

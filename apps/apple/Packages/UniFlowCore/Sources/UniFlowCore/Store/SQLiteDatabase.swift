@@ -144,7 +144,6 @@ public struct SQLiteError: Error, Equatable, CustomStringConvertible {
     }
 
     public var isConstraint: Bool { code == SQLITE_CONSTRAINT }
-    public var isBusy: Bool { code == SQLITE_BUSY || code == SQLITE_LOCKED }
 
     public var description: String {
         "SQLite-Fehler \(extendedCode) (\(stage.rawValue)): \(message)" + (sql.map { " – \($0.prefix(200))" } ?? "")

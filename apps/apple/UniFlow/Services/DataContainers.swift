@@ -57,7 +57,7 @@ final class ActiveContainer: @unchecked Sendable {
         layout = DataContainerLayout(base: base, key: key)
         host = LocalBackendHost(directory: layout.databaseDirectory, clock: clock, files: .container(layout), university: key.university)
         api = .local(host)
-        cache = ResponseCache(root: layout.root.appendingPathComponent("cache", isDirectory: true))
+        cache = ResponseCache(root: layout.url(.cache))
         thumbnails = UFThumbnails(root: layout.root)
         solutions = SolutionLibrary(root: layout.solutions)
         defaultsSuite = Self.defaultsSuite(layout.identifier)
@@ -152,7 +152,7 @@ final class ContainerManager: ObservableObject {
     /// Abgleich ohne Container: kein Ordner, keine Datenbank, keine Anmeldung
     private static func idleSync() -> StudIPSync {
         let none = ContainerPaths.none
-        return StudIPSync(root: none.appendingPathComponent("StudIP", isDirectory: true), host: .unavailable,
+        return StudIPSync(root: DataContainerLayout.Folder.studip.url(in: none), host: .unavailable,
                           defaults: UserDefaults(suiteName: "de.uniflow.ai.container.keiner") ?? .standard, support: none,
                           cookies: StudIPCookieStore(account: "ohne-container"), websiteDataStore: .nonPersistent())
     }
@@ -305,15 +305,12 @@ final class ContainerManager: ObservableObject {
     }
 
     /// Ordner mit Dateischutz (nach dem ersten Entsperren lesbar) und im iCloud-Backup (Notizen, Plan); die
-    /// Zwischenspeicher darin nehmen sich selbst aus (AppPaths.excludeFromBackup, StudIP)
+    /// Zwischenspeicher darin nehmen sich selbst aus (`DataContainerLayout.setExcludedFromBackup`, StudIP)
     private static func protect(_ root: URL) {
         #if os(iOS)
         try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: root.path)
         #endif
-        var dir = root
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = false
-        try? dir.setResourceValues(values)
+        try? DataContainerLayout.setExcludedFromBackup(root, false)
     }
 
     // MARK: Loeschen

@@ -125,8 +125,6 @@ final class UFRouter: ObservableObject {
 
     func go(hash: String) { go(UFRoute(hash: hash)) }
 
-    var canGoBack: Bool { !history.isEmpty }
-
     func back() {
         if let r = history.popLast() { route = r }
     }

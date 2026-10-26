@@ -9,8 +9,8 @@ import UniFlowCore
 //
 // Schluesselbund: eigener Dienst `DataContainerKey.keychainService` ("de.uniflow.ai.university"), Eintrag je Nutzer,
 // Hochschule und Dienst mit Praefix ("<nutzer>.luh.studip.user", "<nutzer>.hildesheim.cas.password"); die Namen bildet
-// nur der Kern (`UniversityProfile.keychainAccount`, `DataContainerKey.keychainAccount`). kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht
-// synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule; innerhalb
+// nur der Kern (`UniversityProfile.keychainAccount`, Praefix `UniversityProfile.scoped`).
+// kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule; innerhalb
 // der LUH fuellt QIS ohne eigene Daten die LUH-ID aus Stud.IP vor (wie am PC, `prefillCredential`).
 // Nach einer Neuinstallation (Merker in den UserDefaults fehlt) wird der ganze Dienst geleert, bevor etwas gelesen wird.
 // Docs: docs/SICHERHEITSKONZEPT-KONTEN.md, Abschnitt "Gemerkte Hochschul-Zugangsdaten".
@@ -107,7 +107,7 @@ final class UniversityCredentialStore {
     private func allows(_ uni: UniversityKey) -> Bool { onlyUniversity == nil || onlyUniversity == uni }
 
     /// Eintrag aus der alten Ablage ohne Nutzer ("luh.studip.user") unter dem Praefix dieses Nutzers (nur fuer den Umzug)
-    private func scoped(_ account: String) -> String { userScope.map { "\($0).\(account)" } ?? account }
+    private func scoped(_ account: String) -> String { UniversityProfile.scoped(account, userScope: userScope) }
 
     /// Teil nach dem Nutzer-Praefix; nil, wenn der Eintrag nicht zu diesem Nutzer gehoert
     private func unscoped(_ account: String) -> String? {
@@ -150,8 +150,6 @@ final class UniversityCredentialStore {
         return c.isStorable ? c : nil
     }
 
-    func hasCredential(_ uni: UniversityKey, service: String) -> Bool { credential(uni, service: service) != nil }
-
     /// Zum Vorausfuellen: eigene Zugangsdaten des Dienstes, sonst die des Rueckfall-Dienstes derselben Hochschule
     /// (`UniversityLoginService.prefillFallback`, LUH: QIS -> Stud.IP wie `config.service_credentials` am PC), aber
     /// nur, solange "merken" fuer diesen Dienst an ist. Nie Daten einer anderen Hochschule.
@@ -186,14 +184,6 @@ final class UniversityCredentialStore {
         let p = uni.profile
         for s in p.loginServices { delete(uni, service: s.key) }
         for account in secrets.accounts() where unscoped(account).map(p.ownsKeychainAccount) == true { secrets.remove(account) }
-    }
-
-    /// Gemerkte Zugangsdaten der bisherigen Hochschule entfernen. Der Wechsel in den Einstellungen ruft das nicht auf:
-    /// Die Daten der anderen Hochschule (auch gemerkte Zugangsdaten) bleiben getrennt erhalten, bis "Daten dieser
-    /// Hochschule löschen" sie entfernt (`ContainerManager.deleteUniversityData`).
-    func universityChanged(from old: UniversityKey, to new: UniversityKey) {
-        guard old != new else { return }
-        deleteAll(for: old)
     }
 
     /// Konto loeschen: alle Hochschulen dieses Nutzers (mit Nutzer-Praefix auch kuenftige Eintraege), samt Schaltern.

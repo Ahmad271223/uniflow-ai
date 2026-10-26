@@ -29,9 +29,6 @@ final class PurchaseStore: ObservableObject {
         self.entitlements = entitlements ?? .shared
     }
 
-    /// aktueller Tarif als Text ("free"/"plus"), wie bisher
-    var activePlan: String { entitlements.plan.rawValue }
-
     func product(for plan: UFPlan) -> Product? {
         products.first { $0.id == plan.productID }
     }

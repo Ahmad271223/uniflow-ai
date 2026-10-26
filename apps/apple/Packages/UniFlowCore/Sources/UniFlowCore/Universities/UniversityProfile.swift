@@ -114,7 +114,6 @@ public struct UniversityProfile: Sendable, Hashable {
 
     // Datenadressen (nil, wenn die Hochschule den Dienst nicht hat)
     public let studipBase: URL?
-    public let qisStart: URL?
     public let casBase: URL?
     public let learnwebBase: URL?
     public let lsfBase: URL?
@@ -135,8 +134,13 @@ public struct UniversityProfile: Sendable, Hashable {
         default: known = false
         }
         guard known else { return nil }
-        let account = "\(keychainPrefix).\(service).\(field)"
-        return userScope.map { "\($0).\(account)" } ?? account
+        return Self.scoped("\(keychainPrefix).\(service).\(field)", userScope: userScope)
+    }
+
+    /// Nutzer-Praefix vor einem Schluesselbund-Namen ("u1a2b…." + Name); ohne `userScope` der Name selbst. Die eine
+    /// Stelle fuer das Praefix, auch fuer den Umzug alter Eintraege (`UniversityCredentialStore`).
+    public static func scoped(_ account: String, userScope: String?) -> String {
+        userScope.map { "\($0).\(account)" } ?? account
     }
 
     /// Alle Schluesselbund-Eintraege, die zu dieser Hochschule gehoeren koennen (zum Loeschen je Hochschule).
@@ -241,7 +245,7 @@ extension UniversityProfile {
                                   url: "https://www.luis.uni-hannover.de/de/services/kurse-beratung-und-support/it-support",
                                   desc: "WLAN, VPN, Software, Zugänge", login: "–", icon: "settings", connected: false, connector: false),
         ],
-        studipBase: luhStudIP, qisStart: luhQISStart, casBase: nil, learnwebBase: nil, lsfBase: nil)
+        studipBase: luhStudIP, casBase: nil, learnwebBase: nil, lsfBase: nil)
 
     public static let hildesheim = UniversityProfile(
         key: .hildesheim, name: "Universität Hildesheim", short: "Uni Hildesheim", filesSource: "Learnweb",
@@ -275,6 +279,6 @@ extension UniversityProfile {
             UniversityServiceLink(key: "uni", name: "Uni Hildesheim", url: "https://www.uni-hildesheim.de/",
                                   desc: "Webseite der Universität", login: "–", icon: "info", connected: false, connector: false),
         ],
-        studipBase: nil, qisStart: hildesheimLSFStart,
+        studipBase: nil,
         casBase: hildesheimCAS, learnwebBase: hildesheimLearnweb, lsfBase: hildesheimLSF)
 }

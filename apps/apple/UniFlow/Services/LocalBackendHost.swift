@@ -102,10 +102,7 @@ final class LocalBackendHost: @unchecked Sendable {
         let protection: [FileAttributeKey: Any] = [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]
         try fm.createDirectory(at: directory, withIntermediateDirectories: true, attributes: protection)
         try? fm.setAttributes(protection, ofItemAtPath: directory.path)
-        var dir = directory
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = false                                    // ausdruecklich ins Backup
-        try? dir.setResourceValues(values)
+        try? DataContainerLayout.setExcludedFromBackup(directory, false)        // ausdruecklich ins Backup
         let backend = try await LocalBackend.open(path: database.path, clock: clock, files: files, university: university)
         try? fm.setAttributes(protection, ofItemAtPath: database.path)
         return backend

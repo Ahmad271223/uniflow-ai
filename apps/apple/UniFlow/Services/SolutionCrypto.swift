@@ -2,7 +2,8 @@ import CryptoKit
 import Foundation
 import UniFlowCore
 
-/// Verschluesselung der Loesungspakete mit CryptoKit (nur App; der Kern bleibt ohne CryptoKit).
+/// Verschluesselung der Loesungspakete mit CryptoKit (nur App; der Kern verschluesselt nicht und nutzt CryptoKit nur,
+/// wo vorhanden, fuer den Inhalts-Hash grosser Dateien, `ContentHash`).
 ///
 /// - Schluessel: HKDF-SHA256 mit den VOLLSTAENDIGEN Bytes der Original-PDF als Eingabe, zufaelligem Salz (32 Byte, im
 ///   Kopf) und Info = Formatkennung + Loesungs-ID (`SolutionPackage.keyInfo`). Bewusst nicht aus dem Fingerabdruck:
@@ -17,7 +18,7 @@ struct CryptoKitSolutionCipher: SolutionCipher {
     struct InvalidInput: Error {}
 
     func sha256Hex(_ data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        SolutionSHA256.hexString(Array(SHA256.hash(data: data)))
     }
 
     /// HKDF-SHA256 (RFC 5869) mit 32 Byte Ergebnis, gleiches Ergebnis wie `HKDF<SHA256>.deriveKey`. Extract laeuft

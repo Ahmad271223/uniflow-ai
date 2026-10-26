@@ -150,7 +150,7 @@ struct SolutionShareSheet: View {
 
     private func tileTitle(_ page: SolutionPage, position: Int) -> String {
         if let i = page.pdfIndex { return "PDF-Seite \(i)" }
-        let t = PageTemplate.all.first { $0.id == page.template }?.name ?? "Leer"
+        let t = page.template.flatMap { PaperTemplate.names[$0] } ?? "Leer"
         return "Eigene Seite (\(t))"
     }
 

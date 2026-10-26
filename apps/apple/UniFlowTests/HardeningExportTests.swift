@@ -451,7 +451,7 @@ final class HardeningExportTests: XCTestCase {
                                     clock: .fixed(berlin: "2026-10-25T14:30:05")!)
         let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
         let fileID = "export-test-" + UUID().uuidString.prefix(8).lowercased()
-        let pdfURL = AppPaths.pdfDirectory(api.namespace, root: root).appendingPathComponent(fileID + ".pdf")
+        let pdfURL = AppPaths.pdf(fileID, namespace: api.namespace, root: root)
         try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try pdf.write(to: pdfURL)
         let file = LibFile(id: fileID, name: "Blatt.pdf", title: "Blatt", kind: "pdf", module_id: nil, subject: "Analysis",

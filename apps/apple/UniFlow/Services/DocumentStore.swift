@@ -16,27 +16,13 @@ enum AppPaths {
     static var legacySupport: URL { ContainerPaths.legacy.support }
 
     /// Journal aller Dokumente (Seiten, Revisionen, Basis fuer Konflikte), darin je Datenquelle `spaces/<id>/docs`.
-    static var journal: URL { support.appendingPathComponent("journal", isDirectory: true) }
-    /// Zwischenspeicher der Original-PDFs je Datenquelle (Datei-IDs von lokal und Server koennen gleich sein)
-    static func pdf(_ fileID: String, namespace: DataSourceNamespace) -> URL {
-        pdfDirectory(namespace, root: support).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf")
-    }
+    static var journal: URL { DataContainerLayout.Folder.journal.url(in: support) }
 
-    /// Geteilte und empfangene Loesungen (nur eigene Notizen anderer, verschluesselt), siehe `SolutionLibrary`.
-    static var solutions: URL { support.appendingPathComponent("solutions", isDirectory: true) }
-
-    static func pdfDirectory(_ namespace: DataSourceNamespace, root: URL) -> URL {
-        root.appendingPathComponent("sources", isDirectory: true).appendingPathComponent(namespace.id, isDirectory: true)
-            .appendingPathComponent("pdf", isDirectory: true)
-    }
-
-    /// Zwischenspeicher (Original-PDFs, Vorschaubilder) nicht ins iCloud-Backup: Stud.IP-Dateien bleiben nur auf dem
+    /// Original-PDF einer Datei im Zwischenspeicher ihrer Datenquelle (die eine Stelle fuer diesen Pfad). Der
+    /// Zwischenspeicher (wie die Vorschaubilder) kommt nicht ins iCloud-Backup: Stud.IP-Dateien bleiben nur auf dem
     /// Geraet (Entscheidung 6 in docs/IPAD-OHNE-PC.md), und alles darin laesst sich aus der Datenquelle neu laden.
-    static func excludeFromBackup(_ directory: URL) {
-        var dir = directory
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        try? dir.setResourceValues(values)
+    static func pdf(_ fileID: String, namespace: DataSourceNamespace, root: URL = support) -> URL {
+        DataContainerLayout.pdfDirectory(namespace, in: root).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf")
     }
 
     /// Kopien eines endgueltig geloeschten Dokuments auf dem Geraet entfernen: Original-PDF im Zwischenspeicher,
@@ -44,8 +30,8 @@ enum AppPaths {
     /// blieben sie fuer immer liegen (die Kennung kommt nie wieder).
     static func removeDocumentCopies(fileID: String, namespace: DataSourceNamespace, root: URL = support) {
         let fm = FileManager.default
-        try? fm.removeItem(at: pdfDirectory(namespace, root: root).appendingPathComponent(LocalJournalName.safe(fileID) + ".pdf"))
-        let journal = root.appendingPathComponent("journal", isDirectory: true)
+        try? fm.removeItem(at: pdf(fileID, namespace: namespace, root: root))
+        let journal = DataContainerLayout.Folder.journal.url(in: root)
             .appendingPathComponent(LocalJournal.directory(documentID: fileID, namespace: namespace), isDirectory: true)
         try? fm.removeItem(at: journal)
         removeThumbnails(fileIDs: [fileID], namespace: namespace, root: root)
@@ -55,7 +41,7 @@ enum AppPaths {
     static func removeThumbnails(fileIDs: [String], namespace: DataSourceNamespace, root: URL = support) {
         guard !fileIDs.isEmpty else { return }
         let fm = FileManager.default
-        let thumbs = root.appendingPathComponent("thumbs", isDirectory: true)
+        let thumbs = DataContainerLayout.Folder.thumbs.url(in: root)
         let prefixes = fileIDs.map { UFThumbnails.fileNamePrefix(fileID: $0, namespace: namespace) }
         for name in (try? fm.contentsOfDirectory(atPath: thumbs.path)) ?? [] where prefixes.contains(where: { name.hasPrefix($0) }) {
             try? fm.removeItem(at: thumbs.appendingPathComponent(name))
@@ -79,9 +65,9 @@ enum DataSourceMigration {
         -> (journal: JournalNamespaceMigration.Report, pdf: JournalNamespaceMigration.Report)? {
         let owner = legacyOwner(savedServerURL: savedServerURL)
         do {
-            let journal = try JournalNamespaceMigration.run(root: support.appendingPathComponent("journal", isDirectory: true), owner: owner)
+            let journal = try JournalNamespaceMigration.run(root: DataContainerLayout.Folder.journal.url(in: support), owner: owner)
             let pdf = try JournalNamespaceMigration.moveEntries(from: support.appendingPathComponent("pdf", isDirectory: true),
-                                                                to: AppPaths.pdfDirectory(owner, root: support))
+                                                                to: DataContainerLayout.pdfDirectory(owner, in: support))
             return (journal, pdf)
         } catch {
             // nichts verloren: was nicht umzog, liegt am alten Ort; der naechste Start versucht es erneut
@@ -93,7 +79,7 @@ enum DataSourceMigration {
 enum LocalJournalName {
     static func safe(_ s: String) -> String {
         let ok = s.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || $0 == "_" || $0 == "-" }
-        return ok && !s.isEmpty ? s : s.utf8.map { String(format: "%02x", $0) }.joined()
+        return ok && !s.isEmpty ? s : SolutionSHA256.hexString(Array(s.utf8))
     }
 }
 
@@ -254,11 +240,10 @@ final class DocumentStore: ObservableObject {
         self.file = file
         self.api = api
         self.namespace = api.namespace
-        self.originalPDFURL = AppPaths.pdfDirectory(api.namespace, root: root)
-            .appendingPathComponent(LocalJournalName.safe(file.id) + ".pdf")
+        self.originalPDFURL = AppPaths.pdf(file.id, namespace: api.namespace, root: root)
         let transport = SwitchableAnnotationTransport(api: api)
         self.transport = transport
-        let journal = LocalJournal(store: FileBlobStore(root: root.appendingPathComponent("journal", isDirectory: true)),
+        let journal = LocalJournal(store: FileBlobStore(root: DataContainerLayout.Folder.journal.url(in: root)),
                                    documentID: file.id, namespace: api.namespace)
         self.engine = SyncEngine(documentID: file.id, transport: transport, journal: journal)
     }
@@ -319,7 +304,7 @@ final class DocumentStore: ObservableObject {
                 guard Self.startsAsPDF(source) else { throw APIError(status: 200, message: "", text: DocumentOpenText.notPDF) }
                 try await Task.detached(priority: .userInitiated) {
                     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    AppPaths.excludeFromBackup(url.deletingLastPathComponent())
+                    try? DataContainerLayout.setExcludedFromBackup(url.deletingLastPathComponent())
                     try? FileManager.default.removeItem(at: url)
                     try FileManager.default.copyItem(at: source, to: url)
                     if let stamp { try? stamp.write(to: stampURL, atomically: true, encoding: .utf8) }
@@ -333,7 +318,7 @@ final class DocumentStore: ObservableObject {
                 // grosse Skripte: Schreiben nicht auf dem Hauptthread (die Oberflaeche bliebe so lange stehen)
                 try await Task.detached(priority: .userInitiated) {
                     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    AppPaths.excludeFromBackup(url.deletingLastPathComponent())
+                    try? DataContainerLayout.setExcludedFromBackup(url.deletingLastPathComponent())
                     try data.write(to: url, options: .atomic)
                     if let stamp { try? stamp.write(to: stampURL, atomically: true, encoding: .utf8) }
                 }.value
@@ -614,11 +599,14 @@ final class DocumentStore: ObservableObject {
         return try Data(contentsOf: originalPDFURL, options: .mappedIfSafe)
     }
 
-    /// SHA-256 der Original-PDF-Datei (Zuordnung geteilter Loesungen), einmal je Dokument berechnet.
-    func originalFingerprint(cipher: SolutionCipher = CryptoKitSolutionCipher()) async -> String? {
+    /// SHA-256 der Original-PDF-Datei (Zuordnung geteilter Loesungen, Herkunft der Notizen), einmal je Dokument
+    /// berechnet; derselbe Weg wie `content_sha256` beim Download (`ContentHash.file`, in Bloecken statt der ganzen
+    /// Datei im Speicher).
+    func originalFingerprint() async -> String? {
         if let fingerprintCache { return fingerprintCache }
-        guard let data = try? originalPDFData() else { return nil }
-        let fp = await Task.detached(priority: .userInitiated) { cipher.sha256Hex(data) }.value
+        guard original != nil else { return nil }
+        let url = originalPDFURL
+        let fp = await Task.detached(priority: .userInitiated) { ContentHash.file(url) }.value
         fingerprintCache = fp
         return fp
     }

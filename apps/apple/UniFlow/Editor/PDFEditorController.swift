@@ -667,9 +667,6 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Umsetzung im Store, sobald vorhanden. Pruefung zur Laufzeit, damit der Editor auch ohne sie baut.
     private var pageEditor: PageStructureEditing? { (store as AnyObject) as? PageStructureEditing }
 
-    /// Papierkorb und Wiederherstellen sind verfuegbar (Einfuegen geht immer).
-    var canEditPageStructure: Bool { pageEditor != nil }
-
     /// Leere Seite nach `key` (Standard: aktuelle Seite) einfuegen und hinspringen. Vorlage: blank, lined, grid,
     /// dotted, mm, cornell.
     /// - Mit `PageStructureEditing`: Groesse wie die Seite davor ohne deren zusaetzliche Drehung (`baseW`/`baseH`

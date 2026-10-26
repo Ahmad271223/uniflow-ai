@@ -507,7 +507,7 @@ enum StrokeConverter {
     /// Stabile Signatur der Objekte einer Seite (Schluessel sortiert), um Browser-Aenderungen zu erkennen.
     static func signature(_ objects: [JSONValue]) -> String {
         let data = JSONValue.array(objects).serialized(sortedKeys: true)
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        return SolutionSHA256.hexString(Array(SHA256.hash(data: data)))
     }
 
     /// Signatur der Objekte eines einzelnen Strichs (`pkdrawing-v2`, gekuerzt auf 96 Bit).

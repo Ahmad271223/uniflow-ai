@@ -27,16 +27,6 @@ final class ToolPickerHolder: ObservableObject {
 }
 
 /// Vorlagen fuer neue Seiten (gleiche Namen wie TEMPLATES im Web-Editor).
-struct PageTemplate: Identifiable {
-    let id: String
-    let name: String
-    static let all = [
-        PageTemplate(id: "blank", name: "Leer"), PageTemplate(id: "lined", name: "Liniert"),
-        PageTemplate(id: "grid", name: "Kariert"), PageTemplate(id: "dotted", name: "Gepunktet"),
-        PageTemplate(id: "mm", name: "Millimeter"), PageTemplate(id: "cornell", name: "Cornell"),
-    ]
-}
-
 struct ExportFile: Identifiable {
     let id = UUID()
     let url: URL
@@ -497,7 +487,7 @@ struct DocumentView: View {
                         Label(store.isBookmarked(pageKey: bridge.pageKey) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
                     }
                     Menu {
-                        ForEach(PageTemplate.all) { t in
+                        ForEach(PaperTemplate.choices, id: \.id) { t in
                             // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
                             Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
                         }
@@ -1098,7 +1088,7 @@ struct PageTrashSheet: View {
 
     private func title(_ p: PageOrder.TrashedPage) -> String {
         if p.type == "pdf", let i = p.pdfIndex { return "PDF-Seite \(i)" }
-        if p.type == "blank" { return "Leere Seite (\(PageTemplate.all.first { $0.id == p.template }?.name ?? "Leer"))" }
+        if p.type == "blank" { return "Leere Seite (\(p.template.flatMap { PaperTemplate.names[$0] } ?? "Leer"))" }
         return "Eingefügte Seite"
     }
 

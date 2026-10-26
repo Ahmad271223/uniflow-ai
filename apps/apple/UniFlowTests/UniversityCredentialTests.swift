@@ -62,14 +62,12 @@ final class UniversityCredentialTests: XCTestCase {
         XCTAssertNil(store.credential(.luh, service: "studip"))
         XCTAssertNil(store.credential(.luh, service: "qis"))
         XCTAssertEqual(store.credential(.hildesheim, service: "cas"), hiUser, "andere Uni bleibt")
-        store.universityChanged(from: .hildesheim, to: .luh)
+        store.deleteAll(for: .hildesheim)
         XCTAssertNil(store.credential(.hildesheim, service: "cas"))
         XCTAssertNil(keychain.read("hildesheim.learnweb.token"), "alles mit dem Praefix der Uni")
 
         store.save(luhUser, .luh, service: "studip")
         store.save(hiUser, .hildesheim, service: "cas")
-        store.universityChanged(from: .luh, to: .luh)
-        XCTAssertNotNil(store.credential(.luh, service: "studip"), "kein Wechsel, nichts geloescht")
         store.deleteAll()                                                                // Konto loeschen
         XCTAssertTrue(keychain.accounts().isEmpty)
     }

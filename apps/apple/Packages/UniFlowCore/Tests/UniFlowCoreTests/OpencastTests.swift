@@ -470,10 +470,13 @@ final class OpencastStoreTests: XCTestCase {
         try await db.transaction { c in
             try OpencastStore.setLocal(c, courseID: "c-ana", videoID: "Xyzab-12345-6789", path: "StudIP/Aufzeichnungen/x.mp4", quality: "720p")
         }
-        let before = try await db.withConnection { try OpencastStore.localPaths($0) }
+        func paths() async throws -> [String] {
+            try await db.rows("SELECT local_path FROM opencast_videos WHERE local_path IS NOT NULL").compactMap { $0["local_path"]?.string }
+        }
+        let before = try await paths()
         XCTAssertEqual(before, ["StudIP/Aufzeichnungen/x.mp4"])
         try await db.transaction { try OpencastStore.forgetLocalFiles($0) }
-        let after = try await db.withConnection { try OpencastStore.localPaths($0) }
+        let after = try await paths()
         XCTAssertEqual(after, [])
         let count = try await db.scalar("SELECT COUNT(*) FROM opencast_videos")?.int
         XCTAssertEqual(count, 3)

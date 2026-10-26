@@ -316,12 +316,6 @@ public enum OpencastStore {
         try c.execute("UPDATE opencast_videos SET local_path=NULL, local_quality=NULL")
     }
 
-    /// Gespeicherte Pfade aller geladenen Dateien (Aufraeumen von Dateien ohne Eintrag)
-    public static func localPaths(_ c: SQLiteConnection) throws -> Set<String> {
-        guard try tableExists(c) else { return [] }
-        return Set(try c.query("SELECT local_path FROM opencast_videos WHERE local_path IS NOT NULL").compactMap { $0[0].string })
-    }
-
     public static func savePosition(_ c: SQLiteConnection, courseID: String, videoID: String, seconds: Double?) throws {
         guard try tableExists(c) else { return }
         let s = seconds.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil }

@@ -202,11 +202,6 @@ public actor HildesheimSync {
             ?? (error as NSError).localizedDescription
     }
 
-    /// Pfad im Learnweb-Ordner des Containers
-    public static func relativePath(fileID: String, name: String) -> String {
-        "files/\(StudIPImport.safeFileName(fileID))/\(StudIPImport.safeFileName(name))"
-    }
-
     /// semesterFilter: nur Kurse, deren Semester den Text enthaelt (wie HILDESHEIM_SEMESTER_FILTER)
     public func run(semesterFilter: String? = nil, includeGrades: Bool = true) async -> Report {
         var report = Report()
@@ -299,7 +294,7 @@ public actor HildesheimSync {
                     do {
                         try Task.checkCancellation()
                         let req = try await api.downloadRequest(f)
-                        try await downloads.load(row, to: Self.relativePath(fileID: row.id, name: row.name), db: db, clock: clock,
+                        try await downloads.load(row, to: StudIPImport.relativePath(fileID: row.id, name: row.name), db: db, clock: clock,
                                                  fetch: Self.fetch(req, name: row.name, shownURL: row.downloadURL, transport: transport, retry: retry))
                         report.newFiles.append(row.id)
                     } catch {

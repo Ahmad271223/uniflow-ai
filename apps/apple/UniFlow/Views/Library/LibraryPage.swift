@@ -19,7 +19,6 @@ enum LibraryStyle {
                                                   ("klausur", "Klausuren"), ("sonstiges", "Sonstiges")]
     static let chips: [(String, String)] = [("all", "Alle"), ("vorlesung", "Vorlesungen"), ("uebung", "Übungen"), ("skript", "Skripte"),
                                             ("klausur", "Klausuren"), ("notes", "Notizen"), ("sonstiges", "Sonstiges")]
-    static let templates: [(String, String)] = [("blank", "Leer"), ("lined", "Liniert"), ("grid", "Kariert"), ("dotted", "Gepunktet"), ("mm", "Millimeter"), ("cornell", "Cornell")]
 
     /// fileType(f): PDFs nach Dokumenttyp, sonst die Art (notebook, whiteboard, image)
     static func fileType(_ f: JSONValue) -> String { f.s("kind") == "pdf" ? (f.s("doc_type") ?? "sonstiges") : (f.s("kind") ?? "file") }
@@ -760,8 +759,8 @@ actor UFThumbnails {
     private let journalRoot: URL
 
     init(root: URL) {
-        dir = root.appendingPathComponent("thumbs", isDirectory: true)
-        journalRoot = root.appendingPathComponent("journal", isDirectory: true)
+        dir = DataContainerLayout.Folder.thumbs.url(in: root)
+        journalRoot = DataContainerLayout.Folder.journal.url(in: root)
     }
 
     /// Schluessel einer Vorschau: je Datenquelle getrennt (lokal und ein Server koennen dieselbe Datei-ID haben)
@@ -794,7 +793,7 @@ actor UFThumbnails {
         guard let out else { return nil }
         memory[key] = out
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        AppPaths.excludeFromBackup(dir)                                 // Vorschauen von Stud.IP-Dateien: nur auf dem Geraet
+        try? DataContainerLayout.setExcludedFromBackup(dir)                               // Vorschauen von Stud.IP-Dateien: nur auf dem Geraet
         try? out.jpegData(compressionQuality: 0.75)?.write(to: file, options: .atomic)
         return out
     }

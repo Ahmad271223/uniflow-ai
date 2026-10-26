@@ -94,8 +94,11 @@ public enum StudIPImport {
     }
 
     /// Ablageort einer Datei: je Datei-ID ein eigener Ordner, damit gleich benannte Dateien sich nicht ueberschreiben.
-    public static func relativePath(for f: StudIPFile) -> String {
-        "files/\(safeFileName(f.id))/\(safeFileName(f.name))"
+    public static func relativePath(for f: StudIPFile) -> String { relativePath(fileID: f.id, name: f.name) }
+
+    /// Ablageort einer Datei im Ordner ihrer Quelle (Stud.IP, Learnweb): "files/<id>/<Name>", beides bereinigt
+    public static func relativePath(fileID: String, name: String) -> String {
+        "files/\(safeFileName(fileID))/\(safeFileName(name))"
     }
 
     /// Vorauswahl beim ersten Abgleich: Kurse des juengsten Startsemesters (aeltere Semester bleiben aus).

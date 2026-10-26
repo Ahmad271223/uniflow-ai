@@ -15,7 +15,8 @@ private let base = URL(string: "https://studip.test")!
 /// Nutzerfelder, relative Pfade, Uebernahme des alten Index.
 final class StudIPLibraryTests: XCTestCase {
 
-    /// Ein Durchgang wie StudIPSync.run in der App: Kurse, je Kurs die Dateiliste, Downloads, Protokoll.
+    /// Ein Durchgang wie StudIPSync.run in der App: Kurse, je Kurs die Dateiliste, Downloads ueber `UniDownloads.load`
+    /// (Zwischenordner, Pruefung leerer Antworten, Hash, Fassungen, Eintrag), Protokoll.
     /// `failing`: Downloads, die scheitern (Datei bleibt wie bei einem Netzfehler ungeladen), `abortBeforeDownloads`:
     /// Lauf bricht nach den Dateilisten ab (Netz weg, App beendet), ohne Protokoll.
     /// Rueckgabe: Dateien, die geladen werden muessten, und die geladenen.
@@ -34,11 +35,16 @@ final class StudIPLibraryTests: XCTestCase {
         }
         if abortBeforeDownloads { return (wanted.map(\.id), []) }
         var loaded: [String] = []
+        let downloads = UniDownloads(folder: files.container.appendingPathComponent("studip", isDirectory: true), files: files,
+                                     container: nil, source: "Stud.IP")
+        try downloads.begin()
+        defer { downloads.end() }
+        let at = try XCTUnwrap(UniFlowClock.fixed(berlin: now))
         for f in wanted where f.isDownloadable && !failing.contains(f.id) {
-            let rel = "studip/" + StudIPImport.relativePath(for: f)
-            // Inhalts-Hash nach dem Download wie store_course_files (testshare.file_sha256), ausserhalb der Transaktion
-            let sha = ContentHash.file(try files.write(Data("Inhalt \(f.id)".utf8), to: rel))
-            try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: rel, sha256: sha, at: now, base: base) }
+            let body = Data("Inhalt \(f.id)".utf8)
+            try await downloads.load(StudIPLibrary.fileRow(f, base: base), to: StudIPImport.relativePath(for: f), db: db, clock: at) { part in
+                try body.write(to: part)
+            }
             loaded.append(f.id)
         }
         let n = loaded.count
@@ -208,7 +214,7 @@ final class StudIPLibraryTests: XCTestCase {
         let target = try files.write(Data("Inhalt a1".utf8), to: "studip/" + StudIPImport.relativePath(for: f))
         let stored = try XCTUnwrap(files.stored(target))
         try await db.transaction {
-            try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, sha256: nil, at: "2026-10-20T08:00:00", base: base)
+            try UniStore.markDownloaded($0, StudIPLibrary.fileRow(f, base: base), localPath: stored, sha256: nil, now: "2026-10-20T08:00:00")
         }
         let row = try await db.queryOne("SELECT name, local_path FROM files WHERE id='a1'")
         XCTAssertEqual(hex(row?["name"]?.string ?? ""), hex(nfd), "Name wie geliefert")

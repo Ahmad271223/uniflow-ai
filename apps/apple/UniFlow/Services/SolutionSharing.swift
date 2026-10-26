@@ -136,10 +136,8 @@ enum SolutionSharing {
     static let cipher = CryptoKitSolutionCipher()
     /// Ablage auf diesem Geraet im aktiven Container (<Container>/solutions/, je Apple-Nutzer und Hochschule)
     static var library: SolutionLibrary {
-        ActiveContainer.current?.solutions ?? SolutionLibrary(root: ContainerPaths.none.appendingPathComponent("solutions", isDirectory: true))
+        ActiveContainer.current?.solutions ?? SolutionLibrary(root: DataContainerLayout.Folder.solutions.url(in: ContainerPaths.none))
     }
-    /// Online-Community: noch kein Dienst (wirft "nicht verbunden", sendet nichts)
-    static let community: CommunityService = NotConnectedCommunityService()
 
     /// Meldung "Die Datei passt nicht zu dieser PDF oder wurde verändert" (Import mit passendem Fingerabdruck, der
     /// sich nicht oeffnen laesst).

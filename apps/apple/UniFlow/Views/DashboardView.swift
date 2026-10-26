@@ -24,11 +24,9 @@ struct DashboardView: View {
     var body: some View {
         Group {
             let mode = UFDataMode.current(api: api, studip: studip)
-            if !mode.loadsPages { noServer(mode) } else {
-                UFRemote(data: data) { d in content(d, mode: mode) }
-                    .task { await data.load() }
-                    .ufReload { await data.load() }
-            }
+            UFRemote(data: data) { d in content(d, mode: mode) }
+                .task { await data.load() }
+                .ufReload { await data.load() }
         }
             .ufModal(isPresented: $showGenerate) {
                 GeneratePlanDialog(api: api, start: UFFmt.todayISO()) { showGenerate = false }
@@ -41,20 +39,6 @@ struct DashboardView: View {
                     }
                 }
             }
-    }
-
-    // MARK: Ohne Server
-
-    /// V1 ohne PC-Server: Begruessung, Karte "Stud.IP verbinden" (solange nicht verbunden) und ein ehrlicher
-    /// leerer Zustand – keine Beispieldaten.
-    private func noServer(_ mode: UFDataMode) -> some View {
-        UFContent {
-            VStack(alignment: .leading, spacing: 0) {
-                UFPageHeadGreet(title: "\(UFFmt.greeting())!", sub: UFFmt.longToday()) { EmptyView() }
-                UFNoServerBody(kind: .dashboard, mode: mode)
-            }
-            .frame(maxWidth: 1120, alignment: .leading)
-        }
     }
 
     // MARK: Inhalt
@@ -114,8 +98,7 @@ struct DashboardView: View {
     }
 
     private func statusBar(_ mode: UFDataMode) -> Bool {
-        UFNoServerContent.resolve(kind: .dashboard, mode: mode, phase: studip.phase,
-                                  files: studip.entries.count, courses: studip.courses.count).showsStatusBar
+        UFNoServerContent.resolve(kind: .dashboard, mode: mode, phase: studip.phase).showsStatusBar
     }
 
     /// "Sonntag, 25. Oktober · heute 2 Lernpakete · 3 Uni-Termine"

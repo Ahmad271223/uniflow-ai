@@ -1,7 +1,7 @@
 import Foundation
 
-// Kleiner HTML-Leser fuer serverseitig gerenderte Seiten (QIS, Learnweb-Notenspiegel ueber `HTMLScanner`,
-// Opencast-Aufzeichnungen ueber `OpencastParser`). Diese Seiten sind kein wohlgeformtes HTML (offene td/tr,
+// Kleiner HTML-Leser fuer serverseitig gerenderte Seiten (Notenspiegel des LSF Hildesheim ueber `HTMLScanner` in
+// `LSFClient.grades`, CAS-Anmeldeseite, Opencast-Aufzeichnungen ueber `OpencastParser`). Diese Seiten sind kein wohlgeformtes HTML (offene td/tr,
 // Layout-Tabellen ineinander, Attribute ohne Anfuehrungszeichen). Statt eines Parsers ein Durchlauf ueber die Bytes:
 // Start- und End-Tags mit Attributen und Text; Kommentare, Doctype und Verarbeitungsanweisungen fallen weg, der
 // Inhalt von script, style, title und textarea ist Rohtext bis zum passenden End-Tag.

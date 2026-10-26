@@ -418,7 +418,7 @@ final class SolutionSharingTests: XCTestCase {
                                     clock: .fixed(berlin: "2026-10-25T14:30:05")!)
         let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
         let fileID = "loesung-test-" + UUID().uuidString.prefix(8).lowercased()
-        let pdfURL = AppPaths.pdfDirectory(api.namespace, root: root).appendingPathComponent(fileID + ".pdf")
+        let pdfURL = AppPaths.pdf(fileID, namespace: api.namespace, root: root)
         try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try pdf.write(to: pdfURL)
         let file = LibFile(id: fileID, name: "Blatt.pdf", title: "Blatt", kind: "pdf", module_id: nil, subject: nil, doc_type: nil,
@@ -740,6 +740,5 @@ final class SolutionSharingTests: XCTestCase {
         XCTAssertTrue(SolutionTexts.examRules.contains("Prüfungsordnung"))
         XCTAssertEqual(SolutionTexts.communityNotConnected, "Community-Dienst noch nicht verbunden")
         XCTAssertTrue(SolutionTexts.pdfExportPrivate.contains("Originalmaterial"))
-        XCTAssertFalse(SolutionSharing.community.isConnected)
     }
 }

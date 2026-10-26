@@ -525,14 +525,6 @@ struct UFDiffBadge: View {
     }
 }
 
-/// typeBadge(t): neutrale Badge mit Dokumenttyp
-struct UFTypeBadge: View {
-    let type: String?
-    var body: some View {
-        if let t = type, !t.isEmpty { UFBadge(ShellState.typeText[t] ?? t, tone: .neutral) }
-    }
-}
-
 extension UFFmt {
     /// initial(): "Mathematik für …" -> "MF", sonst die ersten zwei Zeichen gross
     static func initial(_ s: String?) -> String {

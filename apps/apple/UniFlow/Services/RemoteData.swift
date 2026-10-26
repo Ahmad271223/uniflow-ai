@@ -6,11 +6,11 @@ import UniFlowCore
 /// Letzte erfolgreiche Serverantwort je Pfad, damit Ansichten auch ohne WLAN etwas zeigen.
 struct ResponseCache {
     /// Zwischenspeicher des aktiven Containers (je Apple-Nutzer und Hochschule getrennt)
-    static var shared: ResponseCache { ActiveContainer.current?.cache ?? ResponseCache(root: ContainerPaths.none.appendingPathComponent("cache", isDirectory: true)) }
+    static var shared: ResponseCache { ActiveContainer.current?.cache ?? ResponseCache(root: DataContainerLayout.Folder.cache.url(in: ContainerPaths.none)) }
     let root: URL
 
     private func url(_ path: String) -> URL {
-        let name = SHA256.hash(data: Data(path.utf8)).prefix(16).map { String(format: "%02x", $0) }.joined()
+        let name = SolutionSHA256.hexString(Array(SHA256.hash(data: Data(path.utf8)).prefix(16)))
         return root.appendingPathComponent(name + ".json")
     }
 

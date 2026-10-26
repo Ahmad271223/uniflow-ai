@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Hauptnavigation wie die Web-App: Seitenleiste + Kopfzeile (Design/AppShell.swift), Inhalt je Route.
-/// Bereiche ohne 1:1-Umsetzung zeigen vorerst die bisherige native Ansicht bzw. die Web-Ansicht des Servers;
-/// den Stand je Funktion fuehrt WEB-IPAD-PARITAET.md. Ohne eigenen UniFlow-Server (V1) zeigt jede Seite ihren
-/// leeren Zustand mit dem Weg zu "Stud.IP verbinden" (UFServerGate, Views/ConnectStudIPCard.swift).
+/// Hauptnavigation wie die Web-App: Seitenleiste + Kopfzeile (Design/AppShell.swift), Inhalt je Route, alle Seiten
+/// nativ; den Stand je Funktion fuehrt WEB-IPAD-PARITAET.md. Ohne eigenen UniFlow-Server (V1) liest jede Seite das
+/// lokale Backend des Geraets; fehlt der Abgleich noch, zeigt sie den Weg zu "Stud.IP verbinden" (UFServerGate,
+/// Views/ConnectStudIPCard.swift).
 struct MainView: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var shell: ShellState
