@@ -490,6 +490,22 @@ def fetch_documents(page: Page) -> list[dict]:
     return list(DOCS)
 
 
+def store_grades(conn, grades: list[dict]) -> None:
+    """Leistungen speichern: dieselbe Leistung (Pruefungsnr., Text, Semester, Versuch) aktualisieren, sonst anlegen.
+    Der Vergleich ist NULL-sicher (IS): der Notenspiegel der Uni Hildesheim hat weder Semester noch Versuch, und fuer
+    SQLite sind zwei NULL in einer UNIQUE-Spalte verschieden (ON CONFLICT griffe nie, jeder Abruf legte alle Leistungen
+    noch einmal an). Gleiche Regel im Swift-Kern: UniStore.storeGrades."""
+    now = db.now_iso()
+    for g in grades:
+        vals = (g.get("note"), g.get("status"), g.get("credits"), g.get("datum"), g.get("abschluss"), g.get("raw"), now)
+        key = (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch"))
+        cur = conn.execute("UPDATE grades SET note=?, status=?, credits=?, datum=?, abschluss=?, raw=?, fetched_at=? "
+                           "WHERE pruefungsnr IS ? AND text=? AND semester IS ? AND versuch IS ?", vals + key)
+        if cur.rowcount == 0:
+            conn.execute("INSERT INTO grades(note, status, credits, datum, abschluss, raw, fetched_at, pruefungsnr, text, semester, versuch) "
+                         "VALUES (?,?,?,?,?,?,?,?,?,?,?)", vals + key)
+
+
 def run(show_browser: bool = False, with_documents: bool = True, university: str | None = None) -> dict:
     from . import universities
     db.init_db()
@@ -525,12 +541,7 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
         except Exception as e:  # noqa: BLE001
             msg = f"FEHLER: {e}"
     with db.cursor() as conn:
-        for g in grades:
-            conn.execute("""INSERT INTO grades(pruefungsnr, text, semester, note, status, credits, versuch, datum, abschluss, raw, fetched_at)
-                            VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                            ON CONFLICT(pruefungsnr, text, semester, versuch) DO UPDATE SET note=excluded.note, status=excluded.status,
-                              credits=excluded.credits, datum=excluded.datum, abschluss=excluded.abschluss, raw=excluded.raw, fetched_at=excluded.fetched_at""",
-                         (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("note"), g.get("status"), g.get("credits"), g.get("versuch"), g.get("datum"), g.get("abschluss"), g.get("raw"), db.now_iso()))
+        store_grades(conn, grades)
         if docs:
             conn.execute("DELETE FROM qis_documents")
             keep = {d["local_path"] for d in docs}

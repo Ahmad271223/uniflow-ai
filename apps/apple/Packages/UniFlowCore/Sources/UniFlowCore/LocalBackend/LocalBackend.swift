@@ -9,6 +9,7 @@ public final class LocalBackend: Sendable {
     public static let standardModules: [LocalEndpointModule.Type] = [
         SettingsEndpoints.self,
         TermsEndpoints.self,
+        GradesEndpoints.self,
         LibraryEndpoints.self,
         FilesEndpoints.self,
         AnnotationEndpoints.self,

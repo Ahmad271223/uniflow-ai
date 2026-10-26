@@ -85,16 +85,24 @@ extension UniStore {
 
     // MARK: Notenspiegel (qis.run)
 
+    /// Wie `qis.store_grades`: dieselbe Leistung (Pruefungsnr., Text, Semester, Versuch) wird aktualisiert, sonst neu
+    /// angelegt. Der Vergleich ist NULL-sicher (`IS`): Der Notenspiegel der Uni Hildesheim hat weder Semester noch
+    /// Versuch, und fuer SQLite sind zwei NULL in einer UNIQUE-Spalte verschieden (ON CONFLICT griffe nie, jeder Abruf
+    /// legte alle Leistungen noch einmal an).
     public static func storeGrades(_ conn: SQLiteConnection, _ grades: [QISGrade], now: String) throws {
         for g in grades {
+            let key: [SQLiteValue] = [SQLiteValue(g.pruefungsnr), .text(g.text), SQLiteValue(g.semester), SQLiteValue(g.versuch)]
+            let values: [SQLiteValue] = [SQLiteValue(g.note), SQLiteValue(g.status), SQLiteValue(g.credits), SQLiteValue(g.datum),
+                                         .text(g.abschluss ?? ""), .text(g.raw), .text(now)]
+            let updated = try conn.execute("""
+                UPDATE grades SET note=?, status=?, credits=?, datum=?, abschluss=?, raw=?, fetched_at=?
+                WHERE pruefungsnr IS ? AND text=? AND semester IS ? AND versuch IS ?
+                """, values + key)
+            if updated > 0 { continue }
             try conn.execute("""
-                INSERT INTO grades(pruefungsnr, text, semester, note, status, credits, versuch, datum, abschluss, raw, fetched_at)
+                INSERT INTO grades(note, status, credits, datum, abschluss, raw, fetched_at, pruefungsnr, text, semester, versuch)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(pruefungsnr, text, semester, versuch) DO UPDATE SET note=excluded.note, status=excluded.status,
-                  credits=excluded.credits, datum=excluded.datum, abschluss=excluded.abschluss, raw=excluded.raw, fetched_at=excluded.fetched_at
-                """, [SQLiteValue(g.pruefungsnr), .text(g.text), SQLiteValue(g.semester), SQLiteValue(g.note),
-                      SQLiteValue(g.status), SQLiteValue(g.credits), SQLiteValue(g.versuch), SQLiteValue(g.datum),
-                      .text(g.abschluss ?? ""), .text(g.raw), .text(now)])
+                """, values + key)
         }
     }
 }
@@ -132,7 +140,21 @@ public actor HildesheimSync {
         public var notAttempted: [String] = []
         /// Container oder Datenbank gehoeren nicht zur Uni Hildesheim bzw. diesem Konto: nichts abgeglichen
         public var refused: String?
+        /// Teile, die ohne Fehler zu Ende gelaufen sind (`Part`), in dieser Reihenfolge; fuer den Stand je Quelle in
+        /// der Statusleiste der App ("Learnweb: 16:30 ok"). Ein Learnweb-Lauf mit einzelnen Kursfehlern zaehlt mit
+        /// (die Kurse stehen in `failedCourses`), ein abgebrochener oder an der Anmeldung gescheiterter nicht.
+        public var completed: [String] = []
         public var ok: Bool { failedCourses.isEmpty && needsLogin.isEmpty && !cancelled && refused == nil }
+
+        /// leerer Bericht (die App, wenn sie keinen Teil abfragen kann, z. B. Learnweb-Schluessel fehlt)
+        public init() {}
+
+        /// Namen der Teile in `completed`
+        public enum Part {
+            public static let learnweb = "Learnweb"
+            public static let plan = "LSF-Stundenplan"
+            public static let grades = "Notenspiegel"
+        }
     }
 
     private let db: SQLiteDatabase
@@ -287,6 +309,7 @@ public actor HildesheimSync {
             report.messages.append("Learnweb abgebrochen")
             return
         }
+        if report.notAttempted.isEmpty { report.completed.append(Report.Part.learnweb) }
         report.messages.append("\(report.newFiles.count) neue/geänderte Dateien aus \(courses.count) Learnweb-Kursen"
                                + (report.failedFiles.isEmpty ? "" : ", \(report.failedFiles.count) Dateien später erneut"))
     }
@@ -330,12 +353,14 @@ public actor HildesheimSync {
     private func syncPlan(_ lsf: LSFClient, into report: inout Report) async {
         do {
             guard let entries = try await lsf.planEntries() else {
+                report.completed.append(Report.Part.plan)
                 report.messages.append("LSF-Stundenplan ist leer")
                 return
             }
             let clock = self.clock
             let r = try await db.transaction { conn in try UniStore.importPlan(conn, entries, clock: clock) }
             report.plan = r
+            report.completed.append(Report.Part.plan)
             report.messages.append("Stundenplan: \(r.new) neu, \(r.kept) unverändert, \(r.removed) entfernt")
         } catch {
             if Self.isCancellation(error) { report.cancelled = true; return }
@@ -356,6 +381,7 @@ public actor HildesheimSync {
                                  [.text(started), .text(now), .text("\(grades.count) Leistungen"), .integer(Int64(grades.count))])
             }
             report.grades = grades.count
+            report.completed.append(Report.Part.grades)
             report.messages.append("Notenspiegel: \(grades.count) Leistungen")
         } catch {
             if Self.isCancellation(error) { report.cancelled = true; return }

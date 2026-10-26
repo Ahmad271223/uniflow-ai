@@ -307,11 +307,19 @@ enum UFThemeMode: String {
 }
 
 struct UFHeader: View {
-    /// Sync-Knopf: Abgleich des eigenen Servers, sonst Stud.IP direkt auf dem iPad oder der Weg zur Anmeldung
+    /// Sync-Knopf: Abgleich des eigenen Servers, sonst Stud.IP bzw. Learnweb und LSF direkt auf dem iPad oder der Weg
+    /// zur Anmeldung
     private func sync() {
         if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
         guard studip.offersStudIP else {
-            toast.show("Learnweb und LSF der \(studip.university.profile.name) folgen in einer späteren Version.", seconds: 4)
+            guard let hildesheim, hildesheim.anyConnected else {
+                toast.show("Zuerst Learnweb oder LSF verbinden")
+                router.go(.settings(tab: "account"))
+                return
+            }
+            let names = HildesheimConnection.Source.allCases.filter { hildesheim.isConnected($0) }.map(\.rawValue)
+            toast.show("\(names.joined(separator: " und ")) \(names.count == 1 ? "wird" : "werden") abgeglichen …")
+            Task { await hildesheim.run() }
             return
         }
         switch studip.phase {
@@ -332,6 +340,7 @@ struct UFHeader: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.hildesheim) private var hildesheim
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
     @State private var query = ""
     @FocusState private var searchFocused: Bool
@@ -354,7 +363,7 @@ struct UFHeader: View {
                 .foregroundStyle(UF.muted)
                 .lineLimit(1)
             }
-            // mit eigenem Server dessen Abgleich, sonst Stud.IP direkt auf dem iPad (V1 ohne PC-Server)
+            // mit eigenem Server dessen Abgleich, sonst Stud.IP bzw. Learnweb und LSF direkt auf dem iPad (V1 ohne PC-Server)
             UFButton("Sync", icon: "sync", size: .small) { sync() }
                 .disabled(shell.syncRunning || studip.isRunning)
             UFButton(icon: theme == UFThemeMode.dark.rawValue ? "moon" : "sun", kind: .ghost) {

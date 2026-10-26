@@ -165,19 +165,3 @@ struct DeleteUniversityDataDialog: View {
             + "Die Daten der \(other) bleiben unberührt. Das lässt sich nicht rückgängig machen."
     }
 }
-
-/// Statt der Stud.IP-Karte fuer Hochschulen ohne Stud.IP (Universitaet Hildesheim): ehrlich, dass der Abgleich folgt
-struct UniversitySourcesSoonCard: View {
-    let university: UniversityKey
-
-    var body: some View {
-        UFCard {
-            UFCardHead("\(university.profile.filesSource) & \(university.profile.gradesSource)", icon: "graduation") {
-                UFBadge("folgt", tone: .neutral)
-            }
-            Text("Der Abgleich mit \(university.profile.filesSource) (Dateien) und \(university.profile.gradesSource) (Stundenplan, Noten) der \(university.profile.name) folgt in einer späteren Version. Eigene Dokumente, Lernplan und Notizen funktionieren schon.")
-                .ufFont(13.12).foregroundStyle(UF.muted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}

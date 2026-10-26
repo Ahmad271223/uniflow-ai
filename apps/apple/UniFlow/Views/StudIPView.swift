@@ -230,19 +230,25 @@ struct StudIPLoginView: View {
     }
 }
 
-/// Eingebettete Webansicht. Eigener, dauerhafter Datenspeicher je Container (Apple-Nutzer, Hochschule;
+/// Eingebettete Webansicht fuer die Anmeldung aller Hochschulen (Stud.IP der LUH, CAS fuer Learnweb und LSF der Uni
+/// Hildesheim). Eigener, dauerhafter Datenspeicher je Container (Apple-Nutzer, Hochschule;
 /// `WKWebsiteDataStore(forIdentifier:)`, nicht Safari, nicht `.default()`): die Hochschul-Anmeldung bleibt erhalten,
 /// sodass eine erneute Anmeldung oft ohne Passwort gelingt, und eine andere Hochschule oder ein anderes Konto sieht
 /// keines ihrer Cookies. Eigene Skripte nur ueber `autofill`
 /// (eigene Inhaltswelt, nur auf den Anmeldeseiten der Hochschule, gebunden an die echten Navigationen des
-/// Hauptrahmens, die der Coordinator meldet). Nur fuer die Anmeldung verwenden, nie fuer Inhalte.
+/// Hauptrahmens, die der Coordinator meldet). `interceptNavigation` sieht jede Navigation vor dem Laden und bricht
+/// sie mit `true` ab (Moodle-SSO: `moodlemobile://token=…` nie an das System). Nur fuer die Anmeldung verwenden, nie
+/// fuer Inhalte.
 struct StudIPWebView: UIViewRepresentable {
     let url: URL
     let dataStore: WKWebsiteDataStore
     var autofill: UniversityLoginAutofill? = nil
+    var interceptNavigation: (@MainActor (URL) -> Bool)? = nil
     let onPageLoaded: (WKWebView) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onPageLoaded: onPageLoaded, autofill: autofill) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onPageLoaded: onPageLoaded, autofill: autofill, intercept: interceptNavigation)
+    }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -263,14 +269,20 @@ struct StudIPWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate {
         let onPageLoaded: (WKWebView) -> Void
         let autofill: UniversityLoginAutofill?
-        init(onPageLoaded: @escaping (WKWebView) -> Void, autofill: UniversityLoginAutofill?) {
+        let intercept: (@MainActor (URL) -> Bool)?
+        init(onPageLoaded: @escaping (WKWebView) -> Void, autofill: UniversityLoginAutofill?, intercept: (@MainActor (URL) -> Bool)? = nil) {
             self.onPageLoaded = onPageLoaded
             self.autofill = autofill
+            self.intercept = intercept
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             autofill?.navigationStarts(navigationAction)
+            if let url = navigationAction.request.url, intercept?(url) == true {
+                decisionHandler(.cancel)
+                return
+            }
             decisionHandler(.allow)
         }
 

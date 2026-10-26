@@ -118,8 +118,10 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertFalse(m.studip.offersStudIP)
         XCTAssertEqual(m.studip.root, c.layout.studip)
         let mode = UFDataMode.current(api: c.api, studip: m.studip)
-        XCTAssertEqual(mode, .local(.notOffered))
-        XCTAssertFalse(mode.showsConnectCard, "keine Karte \u{201E}Stud.IP verbinden\u{201C} in Hildesheim")
+        XCTAssertEqual(mode, .local(.otherSources))
+        XCTAssertTrue(mode.hasOtherSources, "statt \u{201E}Stud.IP verbinden\u{201C} die Karten von Learnweb und LSF")
+        XCTAssertEqual(m.hildesheim?.key, c.key, "Learnweb und LSF dieses Containers")
+        XCTAssertEqual(m.hildesheim?.websiteDataStore, m.websiteDataStore(for: c), "Anmeldung im Datenspeicher des Containers")
         let services = try await c.api.value("/api/services")["services"]?.array?.compactMap { $0["key"]?.string }
         XCTAssertEqual(services?.first, "learnweb")
 
@@ -133,7 +135,9 @@ final class DataSeparationAppTests: XCTestCase {
     }
 
     func testPickerTextsAreHonestAndNothingIsPreselected() {
-        XCTAssertTrue(UniversityOption.services(.hildesheim).contains("folgen in einer späteren Version"))
+        XCTAssertTrue(UniversityOption.services(.hildesheim).contains("Learnweb"))
+        XCTAssertTrue(UniversityOption.services(.hildesheim).contains("LSF"))
+        XCTAssertFalse(UniversityOption.services(.hildesheim).contains("folgen"), "Learnweb und LSF gibt es jetzt")
         XCTAssertTrue(UniversityOption.services(.luh).contains("Stud.IP"))
         XCTAssertTrue(UniversityPickerView.note.contains("getrennt"))
         let notice = UniversitySwitchDialog.notice(from: .luh, to: .hildesheim)

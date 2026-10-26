@@ -475,6 +475,25 @@ def test_grade_rows_hildesheim_layout():
     assert g[-1]["abschluss"].endswith("[021] Begleitfach PO-Version: 2022")
 
 
+def test_store_grades_updates_rows_without_semester():
+    """Leistungen aus Hildesheim haben weder Semester noch Versuch (NULL): ein zweiter Abruf aktualisiert sie, statt sie
+    doppelt anzulegen (UNIQUE mit NULL greift in SQLite nie). Gleiche Regel wie UniStore.storeGrades im Swift-Kern."""
+    from app import db, qis
+    db.init_db()
+    g = {"pruefungsnr": "5011", "text": "TM 1: Grundlagen", "note": "1,7", "status": "bestanden", "credits": "6",
+         "abschluss": "Abschluss: [82] Bachelor", "raw": "5011 | TM 1"}
+    luh = {"pruefungsnr": "1001", "text": "Mathematik I", "semester": "WiSe 26/27", "versuch": "1", "note": "2,0",
+           "status": "bestanden", "credits": "8", "abschluss": "", "raw": "1001"}
+    with db.cursor() as conn:
+        conn.execute("DELETE FROM grades")
+        qis.store_grades(conn, [g, {**g, "pruefungsnr": "5012", "text": "TM 2: Wohnen"}, luh])
+        qis.store_grades(conn, [{**g, "note": "1,3"}, {**luh, "note": "1,7"}, {**luh, "versuch": "2", "note": "1,0"}])
+        rows = db.rows(conn, "SELECT pruefungsnr, versuch, note FROM grades ORDER BY pruefungsnr, versuch")
+        conn.execute("DELETE FROM grades")
+    assert [(r["pruefungsnr"], r["versuch"], r["note"]) for r in rows] == [
+        ("1001", "1", "1,7"), ("1001", "2", "1,0"), ("5011", None, "1,3"), ("5012", None, "1,7")]
+
+
 def test_grade_rows_luh_layout_still_works():
     from app.qis import parse_grade_rows
     rows = [["Prüfungsnr", "Prüfungstext", "Semester", "Note", "Status", "Credits", "Versuch"],

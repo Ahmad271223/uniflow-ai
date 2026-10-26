@@ -300,6 +300,7 @@ final class LearnwebTests: XCTestCase {
         XCTAssertEqual(report.failedFiles, ["a.pdf", "d.pdf"], "Webseite statt PDF und 404 nicht gespeichert")
         XCTAssertEqual(report.needsLogin, ["Learnweb"], "ungueltiger Schluessel: neu anmelden")
         XCTAssertEqual(report.notAttempted, ["lw-101", "lw-102"], "danach nichts mehr, auch nicht f.pdf und Kurs 102")
+        XCTAssertEqual(report.completed, [], "an der Anmeldung gescheitert: Learnweb nicht als fertig gemeldet")
         XCTAssertEqual(net.count("\(pf)/f.pdf"), 0)
         XCTAssertFalse(report.messages.joined().contains("TOKEN123"))
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: layout.learnweb.appendingPathComponent("files").path).count, 2,
@@ -405,6 +406,7 @@ final class LearnwebTests: XCTestCase {
         XCTAssertEqual(r.needsLogin, ["Learnweb"])
         XCTAssertEqual(r.notAttempted, ["lw-2", "lw-3"])
         XCTAssertTrue(r.failedCourses.isEmpty, "abgelaufene Anmeldung ist kein Fehler der Kurse")
+        XCTAssertEqual(r.completed, [])
         XCTAssertFalse(r.cancelled)
         XCTAssertEqual(r.courses, 3)
         XCTAssertEqual(net.requests.filter { $0.url.absoluteString.contains("core_courseformat_get_state") }.count, 2, "nach Kurs 2 nichts mehr")
@@ -441,6 +443,7 @@ final class LearnwebTests: XCTestCase {
             XCTAssertFalse(r.ok, at)
             XCTAssertTrue(r.needsLogin.isEmpty, at)
             XCTAssertEqual(r.notAttempted, expected, at)
+            XCTAssertEqual(r.completed, [], at)
             XCTAssertTrue(r.failedCourses.isEmpty, "Abbruch ist kein Fehler der Kurse: \(r.failedCourses)")
             let contents = net.requests.compactMap { self.form($0)["wsfunction"] == "core_course_get_contents" ? self.form($0)["courseid"] : nil }
             XCTAssertEqual(contents.last, at, "nach dem Abbruch keine weiteren Anfragen")

@@ -85,7 +85,7 @@ struct UniversityOption: View {
         case .luh:
             return "Stud.IP: Kurse, Ordner und neue Dateien direkt auf dieses iPad. Noten aus QIS folgen in einer späteren Version."
         case .hildesheim:
-            return "Learnweb (Dateien) und LSF (Stundenplan, Noten) folgen in einer späteren Version. Eigene Dokumente, Lernplan und Notizen funktionieren schon."
+            return "Learnweb: Kurse und Dateien direkt auf dieses iPad. LSF: Stundenplan und Notenspiegel. Anmeldung mit deinem UNI-Account auf den Seiten der Universität."
         }
     }
 }

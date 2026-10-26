@@ -261,6 +261,34 @@ final class UniversityCredentialStore {
         }
     }
 
+    // MARK: Gespeicherte Schluessel (Learnweb aus dem Moodle-SSO)
+
+    /// Eintrag eines Schluessels (`UniversityProfile.tokenServices`, Hildesheim: "learnweb" ->
+    /// "<nutzer>.hildesheim.learnweb.token"); nil fuer Dienste ohne Schluessel und fuer eine andere Hochschule
+    private func tokenAccount(_ uni: UniversityKey, _ service: String) -> String? {
+        guard allows(uni) else { return nil }
+        return uni.profile.keychainAccount(service: service, field: "token", userScope: userScope)
+    }
+
+    /// Schluessel eines Dienstes. Er ist die Verbindung selbst (wie das Sitzungs-Cookie) und haengt nicht am Schalter
+    /// "merken"; nie in Protokollen, Meldungen oder Adressen. "Daten dieser Hochschule löschen", Abmelden und
+    /// `deleteAll(for:)` entfernen ihn mit.
+    func token(_ uni: UniversityKey, service: String) -> String? {
+        guard removeLeftoversOfEarlierInstallation(), let a = tokenAccount(uni, service) else { return nil }
+        return secrets.read(a)
+    }
+
+    @discardableResult
+    func saveToken(_ value: String, _ uni: UniversityKey, service: String) -> Bool {
+        guard !value.isEmpty, removeLeftoversOfEarlierInstallation(), let a = tokenAccount(uni, service) else { return false }
+        return secrets.write(value, account: a)
+    }
+
+    func deleteToken(_ uni: UniversityKey, service: String) {
+        guard let a = tokenAccount(uni, service) else { return }
+        secrets.remove(a)
+    }
+
     // MARK: Schalter "Auf diesem iPad merken" (Standard: an)
 
     /// Schalter ohne Nutzer (alte Ablage, Tests)

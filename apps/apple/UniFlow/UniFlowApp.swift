@@ -41,6 +41,7 @@ struct UniFlowApp: App {
                 .environmentObject(containers)
                 .environmentObject(session)
                 .environmentObject(containers.studip)                     // Abgleich des offenen Containers
+                .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                 .environmentObject(router)
                 .environmentObject(shell)
                 .environmentObject(toast)
@@ -72,7 +73,11 @@ struct UniFlowApp: App {
                 .task { await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { containers.studip.runIfDue() }      // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min
+            // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)
+            if phase == .active {
+                containers.studip.runIfDue()
+                containers.hildesheim?.runIfDue()
+            }
         }
     }
 }

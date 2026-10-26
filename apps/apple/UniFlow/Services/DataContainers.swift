@@ -6,7 +6,7 @@ import WebKit
 //
 // Jede Kombination hat einen eigenen Container (UniFlowCore `DataContainerLayout`) mit Datenbank, Journal,
 // PDF-Zwischenspeicher, Vorschaubildern, Antwort-Zwischenspeicher, Loesungs-Bibliothek, eigenen Dokumenten, Bildern
-// und Stud.IP-Downloads; dazu je Container ein eigener Einstellungs-Bereich (UserDefaults-Suite), ein eigener
+// und Stud.IP- bzw. Learnweb-Downloads; dazu je Container ein eigener Einstellungs-Bereich (UserDefaults-Suite), ein eigener
 // Schluesselbund-Eintrag fuer das Stud.IP-Sitzungs-Cookie, gemerkte Zugangsdaten mit dem Praefix des Nutzers und ein
 // eigener WKWebsiteDataStore(forIdentifier:) mit der UUID des Containers fuer alle Anmelde-Webansichten.
 //
@@ -87,6 +87,8 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var active: ActiveContainer?
     /// Stud.IP-Abgleich des aktiven Containers (ohne Container ein leerer, der nichts tut)
     @Published private(set) var studip: StudIPSync
+    /// Learnweb und LSF des aktiven Containers der Uni Hildesheim (an der LUH und ohne Container nil)
+    @Published private(set) var hildesheim: HildesheimConnection?
     /// Container laesst sich nicht oeffnen (andere Hochschule oder anderes Konto, Umzug gescheitert): Meldung
     @Published private(set) var problem: String?
     /// zaehlt jeden Wechsel; die Oberflaeche baut sich damit neu auf
@@ -102,6 +104,8 @@ final class ContainerManager: ObservableObject {
     private let clock: UniFlowClock
     /// nur die App setzt den aktiven Container fuer alle (`ActiveContainer.current`); Tests nicht
     private let publishesCurrent: Bool
+    /// Transport der Hildesheimer Abgleiche (nil: URLSession mit den Cookies des Containers; Tests: feste Antworten)
+    private let hildesheimTransport: HildesheimConnection.TransportFactory?
     private var stores: [UUID: WKWebsiteDataStore] = [:]
 
     /// Merker: Cookies der alten gemeinsamen Webansicht (`WKWebsiteDataStore.default()`) ziehen noch in diesen Container
@@ -109,7 +113,8 @@ final class ContainerManager: ObservableObject {
 
     init(base: URL = ContainerPaths.base, legacy: LegacyDataMigration.Sources = ContainerPaths.legacy,
          keychain: UniversitySecretStoring = UniversityKeychain(), cookieService: String = StudIPCookieStore.service,
-         defaults: UserDefaults = .standard, clock: UniFlowClock = .system, publishesCurrent: Bool = true) {
+         defaults: UserDefaults = .standard, clock: UniFlowClock = .system, publishesCurrent: Bool = true,
+         hildesheimTransport: HildesheimConnection.TransportFactory? = nil) {
         self.base = base
         self.legacy = legacy
         self.keychain = keychain
@@ -117,6 +122,7 @@ final class ContainerManager: ObservableObject {
         self.appDefaults = defaults
         self.clock = clock
         self.publishesCurrent = publishesCurrent
+        self.hildesheimTransport = hildesheimTransport
         studip = Self.idleSync()
         DataContainerLayout.purgeTrash(base: base)
     }
@@ -226,6 +232,9 @@ final class ContainerManager: ObservableObject {
         active = c
         studip = StudIPSync(root: c.layout.studip, host: c.host, clock: clock, defaults: c.defaults, support: c.layout.root,
                             university: key.university, cookies: c.cookies, websiteDataStore: websiteDataStore(for: c))
+        hildesheim = key.university == .hildesheim
+            ? HildesheimConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: hildesheimTransport)
+            : nil
         generation += 1
         onChange?(c)
         Task { await checkDatabase(c) }
@@ -250,6 +259,7 @@ final class ContainerManager: ObservableObject {
         if publishesCurrent { ActiveContainer.current = nil }
         active = nil
         studip = Self.idleSync()
+        hildesheim = nil
         generation += 1
         onChange?(nil)
     }

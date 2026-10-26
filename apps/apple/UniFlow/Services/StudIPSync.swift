@@ -411,9 +411,9 @@ final class StudIPSync: ObservableObject {
                                                downloadedAt: ISO8601DateFormatter().string(from: Date()))
                 saveIndex()                                   // nach jeder Datei: Abbruch verliert nichts
                 if let stored = localFiles?.stored(target) {
-                    // Inhalts-Hash fuer gemeinsame Wochentests wie store_course_files am PC; grosse Dateien nicht auf
-                    // dem Hauptthread und nicht in der Transaktion
-                    let sha = await Task.detached(priority: .utility) { TestShare.contentHash(file: target) }.value
+                    // Inhalts-Hash fuer gemeinsame Wochentests wie store_course_files am PC (CryptoKit, dasselbe Ergebnis
+                    // wie TestShare.contentHash); grosse Dateien nicht auf dem Hauptthread und nicht in der Transaktion
+                    let sha = await Task.detached(priority: .utility) { UniFileHash.sha256(file: target) }.value
                     let now = clock.nowISO, base = Self.base
                     try await db.transaction {
                         try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, sha256: sha, at: now, base: base)

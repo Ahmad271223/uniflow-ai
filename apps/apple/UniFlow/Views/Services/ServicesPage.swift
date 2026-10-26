@@ -4,6 +4,8 @@ import UniFlowCore
 
 // Uni & Noten 1:1 nach viewServices() und credDialog() in app/static/views-misc.js.
 // Bewusst anders (WEB-IPAD-PARITAET.md, W.B.9.1): Auf dem iPad wird kein Passwort eingegeben oder gespeichert.
+// Universitaet Hildesheim ohne PC (lokales Backend): dieselben Kennzahlen und Uni-Dienste, dazu der Notenspiegel aus
+// dem LSF (nur die Leistungstabelle, HildesheimSync) und die Karte "Learnweb & LSF" statt der Zugaenge der LUH.
 
 /// Uni & Noten: Kennzahlen, Notenspiegel (QIS), Bescheinigungen, Stundenplan-Status, Zugaenge, Uni-Dienste.
 struct ServicesPage: View {
@@ -14,6 +16,7 @@ struct ServicesPage: View {
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.openURL) private var openURL
+    @Environment(\.hildesheim) private var hildesheim
     @State private var svc: JSONValue?
     @State private var grades: JSONValue = .null
     @State private var tt: JSONValue?
@@ -69,8 +72,12 @@ struct ServicesPage: View {
         let creds = svc["credentials"] ?? .null
         let qis = creds["qis"] ?? .null
         let cols = windowWidth <= 820 ? 1 : windowWidth <= 1100 ? 2 : 3
+        // Uni Hildesheim auf dem Geraet: Notenspiegel aus dem LSF, Zugaenge ueber Learnweb & LSF
+        let lsf = session.api?.isLocal == true ? hildesheim : nil
         UFContent(maxWidth: 1120) {
-            UFPageHead("Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel direkt in der App.")
+            UFPageHead("Uni & Noten", sub: lsf == nil
+                       ? "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel direkt in der App."
+                       : "Alle Dienste der Universität Hildesheim an einem Ort, Notenspiegel aus dem LSF direkt in der App.")
             UFGrid(columns: 3) {
                 UFCard { UFKPI(value: g.n("average").map { Self.js($0).replacingOccurrences(of: ".", with: ",") } ?? "–",
                                label: "Notendurchschnitt" + ((g.n("credits") ?? 0) != 0 ? " · \(Self.js(g.n("credits") ?? 0)) LP" : "")) }
@@ -81,10 +88,18 @@ struct ServicesPage: View {
             .padding(.bottom, 19.2)
 
             ServicesSpanLayout(columns: cols) {
-                gradesCard(rows: rows, last: last, lastOK: lastOK, qis: qis).environment(\.ufFillsCell, true)
-                VStack(alignment: .leading, spacing: 8) {                                  // .stack
-                    timetableCard
-                    credentialsCard(creds)
+                if let lsf {
+                    LSFGradesCard(connection: lsf, rows: rows, last: last, lastOK: lastOK).environment(\.ufFillsCell, true)
+                    VStack(alignment: .leading, spacing: 8) {                              // .stack
+                        lsfTimetableCard
+                        HildesheimSourcesCard()
+                    }
+                } else {
+                    gradesCard(rows: rows, last: last, lastOK: lastOK, qis: qis).environment(\.ufFillsCell, true)
+                    VStack(alignment: .leading, spacing: 8) {                              // .stack
+                        timetableCard
+                        credentialsCard(creds)
+                    }
                 }
             }
 
@@ -95,6 +110,18 @@ struct ServicesPage: View {
                 }
             }
             .environment(\.ufFillsCell, true)
+        }
+    }
+
+    /// Stundenplan der Uni Hildesheim: Serien aus dem LSF-Export (HildesheimSync, UniStore.importPlan)
+    private var lsfTimetableCard: some View {
+        UFCard {
+            UFCardHead("Stundenplan", icon: "clock")
+            Text("Die Termine deines LSF-Stundenplans werden bei jedem Abgleich übernommen; vorlesungsfreie Tage stehen darin als Ausfall. Eigene Änderungen und Ausnahmen bleiben erhalten.")
+                .ufFont(13.12).foregroundStyle(UF.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 5.6)
+            UFButton("Stundenplan öffnen", icon: "calendar", size: .small) { router.go(.timetable()) }.padding(.top, 8)
         }
     }
 
@@ -288,6 +315,54 @@ private struct ServicesSpanLayout: Layout {
             subviews[i].place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY),
                               proposal: ProposedViewSize(width: f.width, height: i == 0 ? f.height : nil))
         }
+    }
+}
+
+/// Notenspiegel aus dem LSF der Uni Hildesheim: nur die Leistungstabelle (Stammdaten liest und speichert UniFlow nie),
+/// abgerufen beim Abgleich hoechstens alle 20 Stunden, mit "Noten abrufen" sofort
+private struct LSFGradesCard: View {
+    @ObservedObject var connection: HildesheimConnection
+    let rows: [JSONValue]
+    let last: JSONValue?
+    let lastOK: Bool
+    @State private var login: HildesheimConnection.Source?
+
+    var body: some View {
+        let connected = connection.isConnected(.lsf)
+        UFCard {
+            UFCardHead("Notenspiegel (LSF)", icon: "exam", wrap: true) {
+                if connected && connection.state(.lsf) != .needsLogin {
+                    UFButton("Noten abrufen", icon: "sync", kind: .primary, size: .small) { Task { await connection.run(forceGrades: true) } }
+                        .disabled(connection.isRunning)
+                } else {
+                    UFButton(connected ? "Erneut anmelden" : "LSF verbinden", icon: "arrow-right", kind: .primary, size: .small) { login = .lsf }
+                }
+            }
+            if let last, !lastOK {
+                HStack(alignment: .top, spacing: 4) {
+                    UFIcon("alert", size: 14).padding(.top, 2)
+                    Text(last.s("message") ?? "").ufFont(14.5, 700).fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(UF.text)
+                .padding(.vertical, 17.6 + ufB).padding(.horizontal, 19.2 + ufB)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.badSoft))
+                .padding(.bottom, 9.6)
+            }
+            if rows.isEmpty {
+                UFEmpty(icon: "exam", text: connected
+                        ? "Noch keine Leistungen. Nach dem nächsten Abruf erscheinen hier alle Prüfungsleistungen aus deinem LSF-Notenspiegel."
+                        : "Verbinde das LSF, damit UniFlow deinen Notenspiegel holt.", small: true)
+            } else {
+                GradesTable(rows: rows)
+            }
+            Text("Die Noten liest UniFlow mit deiner LSF-Anmeldung aus dem Notenspiegel (nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad. Prüfungsanmeldungen bleiben im LSF selbst.")
+                .ufFont(11.84).foregroundStyle(UF.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12.8).padding(.bottom, 5.6)
+            Spacer(minLength: 0)
+        }
+        .sheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
     }
 }
 

@@ -244,6 +244,7 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertEqual(r1.newFiles.count, 2)
         XCTAssertEqual(r1.plan?.new, 4)
         XCTAssertEqual(r1.grades, 2)                                                     // Modulzeile ohne Note/Status weg
+        XCTAssertEqual(r1.completed, ["Learnweb", "LSF-Stundenplan", "Notenspiegel"], "Stand je Teil fuer die Statusleiste")
 
         let files = try await db.rows("SELECT id, course_id, local_path, content_sha256, kind, studip_folder FROM files WHERE course_id LIKE 'lw-%' ORDER BY name")
         XCTAssertEqual(files.count, 2)
@@ -279,6 +280,7 @@ final class HildesheimSyncTests: XCTestCase {
         let r = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
                                      lsf: nil, transport: t, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)), retry: noWait).run()
         XCTAssertEqual(r.failedCourses, ["0439 Kurs 39"])
+        XCTAssertEqual(r.completed, ["Learnweb"], "ein Kursfehler beendet den Learnweb-Teil nicht")
         XCTAssertEqual(r.newFiles.count, 2, "Dateien des lesbaren Kurses kommen an")
         let courses = try await db.rows("SELECT id, subject, kind FROM courses WHERE id LIKE 'lw-%' ORDER BY id")
         XCTAssertEqual(courses.compactMap { $0["id"]?.string }, ["lw-35", "lw-39"])
@@ -314,6 +316,7 @@ final class HildesheimSyncTests: XCTestCase {
                                       lsf: LSFClient(transport: t2, retry: noWait), transport: t2, clock: clock).run()
         XCTAssertFalse(r2.ok)
         XCTAssertEqual(r2.needsLogin, ["LSF"])
+        XCTAssertEqual(r2.completed, [], "weder Learnweb (5xx) noch LSF (Anmeldung) zu Ende gelaufen")
         let got5 = try await db.scalar("SELECT COUNT(*) FROM course_events WHERE source='lsf'")?.int
         XCTAssertEqual(got5, 4)
         let got6 = try await db.scalar("SELECT COUNT(*) FROM files WHERE local_path IS NOT NULL")?.int

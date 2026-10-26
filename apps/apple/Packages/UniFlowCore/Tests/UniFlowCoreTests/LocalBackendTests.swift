@@ -271,10 +271,10 @@ final class LocalBackendCoverageTests: XCTestCase {
             }
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
-        // Nach S2 bis S5 (Einstellungen, Bibliothek und Dateien, Module, Stundenplan) bleiben 29 Pfade Platzhalter bis
-        // zu ihrer Portierung (Lernkalender, Pakete, Aufgaben, reslot: S6; Suche: S7; Karteikarten, Uni & Noten, ...).
-        // Jeder weitere Port senkt die Zahl; dann hier nachziehen.
-        XCTAssertEqual(placeholders, 29, "Platzhalter nach S2–S5")
+        // Nach S2 bis S5 (Einstellungen, Bibliothek und Dateien, Module, Stundenplan) und den Noten (GET /api/grades,
+        // Hildesheim) bleiben 28 Pfade Platzhalter bis zu ihrer Portierung (Lernkalender, Pakete, Aufgaben, reslot: S6;
+        // Suche: S7; Karteikarten, Uni & Noten, ...). Jeder weitere Port senkt die Zahl; dann hier nachziehen.
+        XCTAssertEqual(placeholders, 28, "Platzhalter nach S2–S5 und /api/grades")
     }
 
     func testServicesListLikeServer() async throws {

@@ -757,7 +757,8 @@ private struct DeleteAccountDialog: View {
     }
 }
 
-/// "Zugang & Darstellung" ohne Server: Konto, Tarif, Stud.IP direkt, Semester (lokales Backend) und die
+/// "Zugang & Darstellung" ohne Server: Konto, Tarif, Stud.IP direkt (LUH) bzw. Learnweb und LSF (Uni Hildesheim),
+/// Semester (lokales Backend) und die
 /// Einstellungen dieses Geraets
 private struct LocalAccountTab: View {
     /// aktives Semester aus /api/terms; nil, solange nicht geladen
@@ -789,7 +790,7 @@ private struct LocalAccountTab: View {
                         .padding(.top, 9.6)
                     }
                 } else {
-                    UniversitySourcesSoonCard(university: studip.university)
+                    HildesheimSourcesCard()                                  // Learnweb und LSF der Uni Hildesheim
                 }
                 UFCard {
                     if let term { SemesterFields(term: term, reload: reload).padding(.bottom, 16) }

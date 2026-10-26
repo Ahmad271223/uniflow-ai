@@ -210,8 +210,9 @@ PC-Sitzung in `UniFlowCore/Hildesheim/`): Zu jeder Aufgabe gibt es eine Fassung.
 - Aufgefallen, nicht geändert (Regel für alle Quellen, Entscheidung des Inhabers): `classify("Übung zur X")` ergibt am
   PC und im Port das Fach „r X“, weil `(zu|zur|:)?` zuerst „zu“ trifft.
 Geprüft: Kern (`UniStoreTests`, `HildesheimSyncTests`, `HildesheimFixtureTests`, `StudIPLibraryTests` gegen
-`studip-import.json` mit Hash), App (`LocalDocumentsAppTests` mit Hash je Fassung), Python. Nicht gebaut: die dünne
-Hildesheim-Schicht der App (URLSession-Transport, Anmeldung, Ablauf, „Uni & Noten“).
+`studip-import.json` mit Hash), App (`LocalDocumentsAppTests` mit Hash je Fassung), Python. Die dünne
+Hildesheim-Schicht der App (URLSession-Transport, Anmeldung, Ablauf, „Uni & Noten“) folgte auf `wip/v1-pc-hi`
+(Abschnitt „Uni Hildesheim in der App“ unten).
 
 **Nachbesserung der Zusammenführung** (Zweig `wip/int-s345-fix`): Endet ein Stud.IP-Abgleich auf dem Gerät (fertig,
 gescheitert oder mit abgelaufener Sitzung), laden die offenen Seiten neu (`StudIPSync.finishedRuns`, `ufReload`), wie
@@ -311,7 +312,8 @@ Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
   auf dem PC einmal `pip install -r requirements.txt`).
 - **Platzhalter in Server-Form** bis zur Portierung (leere Listen bzw. Objekte mit denselben Feldern wie
   `app/server.py` bei leerer Datenbank): Übersicht ohne Dateien und Termine von heute (Lernpakete, Woche, Module: S6),
-  Lernkalender/Pakete/Aufgaben und `/api/timetable/reslot` (S6), Karteikarten, Uni & Noten, Suche und Skriptsuche
+  Lernkalender/Pakete/Aufgaben und `/api/timetable/reslot` (S6), Karteikarten, Uni & Noten (außer `GET /api/grades`,
+  seit `wip/v1-pc-hi` der Port von `qis.summary`), Suche und Skriptsuche
   (`/api/search`, `/api/related`, `/api/files/{id}/pagetext`: S7), `/api/bg`. Einträge nach ID gibt es dort noch
   nicht (404 wie am PC), **Anlegen** (Lernpakete) antwortet mit **409** und klarer
   Meldung. Ein echter Endpunkt ersetzt den Platzhalter automatisch (`LocalRoute.placeholder`).
@@ -320,7 +322,8 @@ Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
   QIS-Abruf (`/api/grades/sync`) 404 „kommt in einer späteren Version“, `/api/sync` 409 (Stud.IP gleicht die App
   direkt ab).
 
-Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter den leeren Zustand (keine KI, QIS folgt).
+Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter den leeren Zustand (keine KI, QIS folgt);
+an der Uni Hildesheim zeigt „Uni & Noten“ seit `wip/v1-pc-hi` den Notenspiegel aus dem LSF (nur die Leistungstabelle).
 
 | Bereich | Endpunkte | Ziel | Stand |
 |---|---|---|---|
@@ -334,7 +337,7 @@ Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter 
 | Suche, Skriptsuche | `/api/search`, `/api/related`, `/api/files/{id}/pagetext` | lokal | Platzhalter (S7) |
 | Abgleich und Status | `/api/sync`, `/api/sync/status`, `/api/bg` | lokal als Stud.IP-Abgleich | Abgleich in der App (S3), Protokoll lokal |
 | Karteikarten | `/api/flashcards*` | lokal (Plus), eigenes Anlegen ohne KI | Platzhalter |
-| Uni & Noten | `/api/services`, `/api/grades*`, `/api/qis/*` | Dienste-Liste lokal; QIS auf dem Gerät (später) | Dienste lokal, QIS offen |
+| Uni & Noten | `/api/services`, `/api/grades*`, `/api/qis/*` | Dienste-Liste lokal; QIS auf dem Gerät (später) | Dienste lokal, `GET /api/grades` lokal (Hildesheim: LSF-Notenspiegel über `HildesheimSync`), QIS (LUH) offen |
 | Zugänge | `/api/credentials*` | entfällt (keine Passwörter in der App) | entfallen |
 | Tests, KI | `/api/tests*`, `/api/ai/tutor`, `/api/tasks/{id}/start-test` | entfällt (keine KI) | entfallen |
 | Community, Konto | – | zentraler Dienst (Entscheidung) | Lösung als Datei (S9) |
@@ -342,9 +345,20 @@ Die Seiten „Tests & Wiederholung“ und „Uni & Noten“ zeigen lokal weiter 
 **Was nach S3, S4 und S5 ohne PC noch nicht geht** (ehrlich): Wochentests (KI, entfallen), Lernplan und Kalender mit
 Inhalt (S6),
 Suche und Skriptsuche (S7), neue Original-Fassung mit erhaltenen Notizen (S7),
-Hintergrundabgleich (S8), QIS-Noten, Übernahme der Notizen und Pläne vom PC, die Uni Hildesheim auf dem iPad
-(Learnweb, LSF, CAS; Auftrag der PC-Sitzung in `docs/AUFTRAG-HILDESHEIM-IPAD.md`, am PC fertig). Keiner dieser
-Punkte braucht im App-Store-Betrieb einen PC; sie sind nur noch nicht portiert.
+Hintergrundabgleich (S8), QIS-Noten der LUH, Übernahme der Notizen und Pläne vom PC. Keiner dieser Punkte braucht im
+App-Store-Betrieb einen PC; sie sind nur noch nicht portiert. Die Uni Hildesheim (Learnweb, LSF, CAS) läuft seit
+`wip/v1-pc-hi` auf dem iPad; ein Test mit einem echten Konto steht noch aus.
+
+**Uni Hildesheim in der App** (Zweig `wip/v1-pc-hi`, Einzelheiten in `docs/AUFTRAG-HILDESHEIM-IPAD.md`, Abschnitt
+„Hildesheim in der App“): Der Abgleich ist die Fassung des Kerns (`HildesheimSync`), die App liefert nur Transport
+(`URLSessionUniTransport`, Cookies aus dem Datenspeicher der Webansicht des Containers), Anmeldung (CAS im WKWebView,
+nur vorausfüllen; Learnweb-Schlüssel aus dem Moodle-SSO im Schlüsselbund) und Ablauf (`HildesheimConnection`: beim
+Öffnen höchstens alle 30 Minuten, auf Knopfdruck, Noten höchstens alle 20 Stunden). Die Seiten lesen dieselben
+Tabellen wie für Stud.IP: Learnweb-Dateien in Dokumente & Notizen und Module (`files.local_path` = `Learnweb/files/…`
+relativ zum Container), LSF-Serien im Stundenplan (vorlesungsfreie Tage als Ausfall), Leistungen unter „Uni & Noten“.
+Statt „Stud.IP verbinden“ stehen die Karten „Learnweb verbinden“/„LSF verbinden“ und danach die Statusleiste
+(„Learnweb: 16:30 ok“, „LSF: Anmeldung nötig“) über den Seiten und auf der Übersicht. Geprüft ohne Netz: App-Tests mit
+`URLProtocol`-Stub und lokalen Seiten (`HildesheimAppTests`), Kern- und Python-Tests.
 
 ## 4. Architektur
 

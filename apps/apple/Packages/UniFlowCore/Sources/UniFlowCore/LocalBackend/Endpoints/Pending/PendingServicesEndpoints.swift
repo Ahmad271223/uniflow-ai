@@ -1,6 +1,7 @@
 import Foundation
 
-/// Platzhalter: Uni & Noten (QIS auf dem Geraet folgt, F4) und Karteikarten (Plus, eigenes Anlegen ohne KI).
+/// Platzhalter: Uni & Noten (QIS auf dem Geraet folgt, F4; die Leistungen selbst liefert `GradesEndpoints`) und
+/// Karteikarten (Plus, eigenes Anlegen ohne KI).
 enum PendingServicesEndpoints: LocalEndpointModule {
     static let name = "Uni & Noten, Karteikarten (Platzhalter)"
 
@@ -21,9 +22,8 @@ enum PendingServicesEndpoints: LocalEndpointModule {
                           "qis": ["configured": false, "same_as_studip": true, "last_run": .null],
                           "studip": ["configured": false]])
         }
-        router.get("/api/grades", placeholder: true) { _, _ in
-            .json(["grades": [], "average": .null, "credits": 0, "passed": 0, "last_run": .null, "documents": []])
-        }
+        // GET /api/grades liest die Tabelle grades (GradesEndpoints); den Abruf auf dem Geraet macht an der Uni
+        // Hildesheim der Abgleich der App (HildesheimSync), an der LUH folgt QIS (F4)
         router.post("/api/grades/sync", placeholder: true) { _, _ in
             throw LocalHTTPError.notFound("Noten aus QIS kommen in einer späteren Version.")
         }

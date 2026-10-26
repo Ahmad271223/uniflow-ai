@@ -4,7 +4,9 @@ import UniFlowCore
 // V1 ohne PC-Server (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a): Die Seiten laden vom lokalen Backend des iPads
 // (dieselben /api/-Pfade wie der PC-Server, docs/IPAD-OHNE-PC.md) und zeigen ihre echten, anfangs leeren Zustaende.
 // Solange Stud.IP nicht verbunden ist, steht die Karte "Stud.IP verbinden" oberhalb der Seite, danach die
-// Statusleiste mit dem Abgleichstand (laufend, Fehler mit "Erneut versuchen"). Die abgeglichenen Dateien stehen seit S3
+// Statusleiste mit dem Abgleichstand (laufend, Fehler mit "Erneut versuchen"). An der Universitaet Hildesheim stehen
+// dort stattdessen die Karten "Learnweb verbinden"/"LSF verbinden" und danach die Statusleiste mit dem Stand je
+// Quelle (HildesheimSourcesBar, Views/HildesheimViews.swift). Die abgeglichenen Dateien stehen seit S3
 // in den Seiten selbst (Dokumente, Uebersicht, Editor) – keine Beispieldaten, keine Hinweise auf PC oder PIN. Mit
 // eigenem Server (Entwicklungsmodus des Inhabers) laden die Seiten wie bisher.
 // Die Entscheidung trifft nur UFDataMode.current (Weiche fuer alle Seiten) und UFNoServerContent.resolve (was der
@@ -17,8 +19,9 @@ enum StudIPLink: Equatable {
     case expired
     /// angemeldet; auch waehrend eines Abgleichs und nach einem Abgleichfehler (z. B. offline)
     case connected
-    /// die gewaehlte Hochschule hat kein Stud.IP (Universitaet Hildesheim: Learnweb und LSF folgen): keine Karte
-    case notOffered
+    /// die gewaehlte Hochschule hat statt Stud.IP eigene Quellen (Universitaet Hildesheim: Learnweb und LSF):
+    /// keine Karte "Stud.IP verbinden", sondern deren Karten bzw. Stand (`HildesheimSourcesBar`)
+    case otherSources
 
     /// `hasSession`: liegt ein Sitzungs-Cookie im Schluesselbund? Nur bei `.failed` gefragt – scheitert schon das
     /// Speichern nach der Anmeldung (StudIPSync.signedIn), ist Stud.IP nicht verbunden, obwohl die Phase `.failed` ist.
@@ -51,7 +54,7 @@ enum UFDataMode: Equatable {
         switch studIP {
         case .notConnected: return .connectStudIP
         case .expired: return .reconnectStudIP
-        case .connected, .notOffered: return .empty
+        case .connected, .otherSources: return .empty
         }
     }
 
@@ -63,20 +66,24 @@ enum UFDataMode: Equatable {
 
     /// Die eine Weiche fuer alle Seiten (UFServerGate, Uebersicht, UFRemote, Community): Datenquelle aus der Sitzung,
     /// Stud.IP aus dem Abgleich des offenen Containers. Den Schluesselbund liest sie nur bei einem Abgleichfehler.
-    /// An einer Hochschule ohne Stud.IP gibt es keine Karte "Stud.IP verbinden".
+    /// An einer Hochschule ohne Stud.IP gibt es keine Karte "Stud.IP verbinden" (dort Learnweb und LSF).
     @MainActor static func current(api: APIClient?, studip: StudIPSync) -> UFDataMode {
-        guard studip.offersStudIP else { return resolve(api: api, studIP: .notOffered) }
+        guard studip.offersStudIP else { return resolve(api: api, studIP: .otherSources) }
         return resolve(api: api, studIP: StudIPLink(studip.phase, hasSession: studip.hasStoredSession))
     }
 
-    /// Karte "Stud.IP verbinden" zeigen
+    /// Karte der Hochschul-Quellen oberhalb der Seite zeigen (`ConnectStudIPCard`): "Stud.IP verbinden" bzw.
+    /// "Erneut anmelden"; an Hochschulen mit eigenen Quellen immer (Karten "Learnweb/LSF verbinden" oder ihr Stand)
     var showsConnectCard: Bool {
         switch self {
         case .connectStudIP, .reconnectStudIP: return true
-        case .local(let link): return link != .connected && link != .notOffered
+        case .local(let link): return link != .connected
         case .server, .empty: return false
         }
     }
+
+    /// Hochschule mit eigenen Quellen statt Stud.IP (Uni Hildesheim)
+    var hasOtherSources: Bool { self == .local(.otherSources) }
 
     /// Karte mit "Erneut anmelden" statt "Stud.IP verbinden"
     var studIPExpired: Bool { self == .reconnectStudIP || self == .local(.expired) }
@@ -176,14 +183,17 @@ struct UFNoServerContent: Equatable {
 /// Karte "Stud.IP verbinden": kurzer Satz und Knopf, oeffnet die echte Stud.IP-Anmeldung (StudIPLoginView);
 /// das Passwort tippt der Nutzer selbst auf der Seite der Universitaet. Zeigt nur etwas, solange `mode` die Karte
 /// verlangt – sie verschwindet also nach erfolgreicher Anmeldung von selbst. In den Einstellungen (ohne Server)
-/// mit `UFDataMode.current(api: nil, studip:)` nutzbar.
+/// mit `UFDataMode.current(api: nil, studip:)` nutzbar. An der Universitaet Hildesheim (`hasOtherSources`) stehen hier
+/// die Karten "Learnweb verbinden"/"LSF verbinden" bzw. die Statusleiste (`HildesheimSourcesBar`).
 struct ConnectStudIPCard: View {
     let mode: UFDataMode
     @EnvironmentObject private var studip: StudIPSync
     @State private var showLogin = false
 
     var body: some View {
-        if mode.showsConnectCard {
+        if mode.hasOtherSources {
+            HildesheimSourcesBar()
+        } else if mode.showsConnectCard {
             let expired = mode.studIPExpired
             UFCard {
                 UFCardHead(expired ? "Stud.IP-Anmeldung abgelaufen" : "Stud.IP verbinden", icon: "graduation")
@@ -247,6 +257,8 @@ struct UFNoServerPage: View {
         var maxWidth: CGFloat?
         /// Seite gibt es mit dem lokalen Backend (sonst lokal der leere Zustand, z. B. QIS-Noten, KI-Wochentests)
         var local = true
+        /// lokal auch an Hochschulen mit eigenen Quellen, wenn `local` aus ist (Uni & Noten: Notenspiegel aus dem LSF)
+        var localWithOtherSources = false
         /// lokal Karte "Stud.IP verbinden" bzw. Statusleiste oberhalb der Seite; im Editor nicht (dort zaehlt die
         /// ganze Hoehe fuer die Seite, Abgleich und Anmeldung stehen auf den uebrigen Seiten)
         var barAbove = true
@@ -357,8 +369,9 @@ extension UFNoServerPage.Spec {
                             kind: .exams, local: false)
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
     // ohne "Notenspiegel direkt in der App": Noten kommen erst mit QIS (F4)
+    // Uni Hildesheim: Notenspiegel aus dem LSF auf dem Geraet (HildesheimSync), darum dort die echte Seite
     static let services = Self(title: "Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort.",
-                               kind: .services, maxWidth: 1120, local: false)
+                               kind: .services, maxWidth: 1120, local: false, localWithOtherSources: true)
     /// Rueckfall fuer Ansichten ohne eigene Angaben (UFRemote)
     static let generic = Self(title: "UniFlow", kind: .generic)
 }
@@ -408,7 +421,7 @@ enum UFGatePresentation: Equatable {
                         files: Int, courses: Int) -> UFGatePresentation {
         guard mode.loadsPages else { return .empty }
         if case .local = mode {
-            guard spec.local else { return .empty }
+            guard spec.local || (spec.localWithOtherSources && mode.hasOtherSources) else { return .empty }
             guard spec.barAbove else { return .page }
             if mode.showsConnectCard { return .pageBelowConnectCard }
             // Abgleichstand und Fehler oberhalb der Seite; die Dateien zeigt die Seite selbst (S3)

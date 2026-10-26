@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UIKit
 
@@ -487,7 +488,7 @@ struct UFDrawerFrame<Head: View, Body: View, Foot: View>: View {
 
 extension View {
     /// Ansicht neu laden, wenn die Route neu gerendert wird (state.route()), ein Sync des eigenen Servers fertig ist
-    /// oder ein Stud.IP-Abgleich auf dem Geraet endet (lokal fuellt nur er die Datenbank der Seiten)
+    /// oder ein Abgleich auf dem Geraet endet (lokal fuellen nur Stud.IP bzw. Learnweb und LSF die Datenbank der Seiten)
     func ufReload(_ action: @escaping () async -> Void) -> some View {
         modifier(UFReloadModifier(action: action))
     }
@@ -497,6 +498,7 @@ private struct UFReloadModifier: ViewModifier {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.hildesheim) private var hildesheim
     let action: () async -> Void
 
     func body(content: Content) -> some View {
@@ -504,6 +506,12 @@ private struct UFReloadModifier: ViewModifier {
             .onChange(of: router.reloadToken) { _, _ in Task { await action() } }
             .onChange(of: shell.reloadToken) { _, _ in Task { await action() } }
             .onChange(of: studip.finishedRuns) { _, _ in Task { await action() } }
+            .onReceive(hildesheimRuns) { _ in Task { await action() } }
+    }
+
+    /// Ende jedes Hildesheimer Abgleichs (ohne Verbindung nie)
+    private var hildesheimRuns: AnyPublisher<Int, Never> {
+        hildesheim.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()
     }
 }
 

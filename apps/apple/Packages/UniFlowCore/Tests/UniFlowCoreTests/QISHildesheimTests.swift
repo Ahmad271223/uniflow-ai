@@ -141,4 +141,43 @@ final class QISHildesheimTests: XCTestCase {
         // Python-Regeln fuer dieselbe Tabelle (Hildesheim): Zeile ohne Note und Status ist keine Leistung
         XCTAssertEqual(p.grades(abschluss: "Abschluss 82 Bachelor of Science", layout: .hildesheim).map(\.text), ["Mathematik I"])
     }
+
+    /// GET /api/grades wie qis.summary: Reihenfolge "semester DESC, text" (NULL zuletzt, Bytes wie SQLite), Durchschnitt
+    /// nach Credits ueber alle Noten 1,0 bis 5,0, bestanden = Status beginnt mit "be", letzter Abruf. Erwartete Werte aus
+    /// qis.summary mit denselben erfundenen Zeilen: average 2.96, credits 15.0, passed 3.
+    func testGradesEndpointMatchesQISSummary() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)))
+        let empty = await backend.handle(LocalRequest(method: "GET", path: "/api/grades"))
+        XCTAssertEqual(empty.json, ["grades": [], "average": .null, "credits": 0, "passed": 0, "last_run": .null, "documents": []])
+        XCTAssertEqual(backend.route(method: "GET", path: "/api/grades")?.placeholder, false)
+        let grades = [QISGrade(pruefungsnr: "5011", text: "TM 1: Grundlagen", semester: "WiSe 25/26", note: "1,7", status: "bestanden", credits: "6"),
+                      QISGrade(pruefungsnr: "5020", text: "Statistik", semester: "SoSe 26", note: "2,3", status: "bestanden", credits: "4"),
+                      QISGrade(pruefungsnr: "5032", text: "TM 2: Kindheit", status: "angemeldet (SoSe 26)", credits: "0"),
+                      QISGrade(pruefungsnr: "5040", text: "Ästhetik", semester: "SoSe 26", note: "5,0", status: "nicht bestanden", credits: "5"),
+                      QISGrade(pruefungsnr: "5050", text: "Zusatz", semester: "SoSe 26", note: "1,0", status: "bestanden")]
+        try await backend.context.database.transaction { c in
+            try UniStore.storeGrades(c, grades, now: "2026-10-26T10:00:00")
+            try c.execute("INSERT INTO qis_runs(started_at, finished_at, ok, message, grades, documents) VALUES ('a','b',1,'4 Leistungen',4,0)")
+        }
+        let filled = await backend.handle(LocalRequest(method: "GET", path: "/api/grades"))
+        let r = try XCTUnwrap(filled.json)
+        XCTAssertEqual(r["grades"]?.array?.compactMap { $0["text"]?.string }, ["TM 1: Grundlagen", "Statistik", "Zusatz", "Ästhetik", "TM 2: Kindheit"])
+        XCTAssertEqual(r["average"], 2.96)
+        XCTAssertEqual(r["credits"], 15)
+        XCTAssertEqual(r["passed"], 3)
+        XCTAssertEqual(r["last_run"]?["message"], "4 Leistungen")
+        XCTAssertEqual(r["last_run"]?["ok"], 1)
+        XCTAssertEqual(r["documents"], [])
+        XCTAssertEqual(r["grades"]?.array?.first?["fetched_at"], "2026-10-26T10:00:00")
+
+        // erneuter Abruf (Hildesheim: ohne Semester und Versuch, NULL in der UNIQUE-Spalte): aktualisiert statt doppelt
+        var again = grades
+        again[2].note = "2,0"
+        again[2].status = "bestanden"
+        try await backend.context.database.transaction { try UniStore.storeGrades($0, again, now: "2026-10-27T10:00:00") }
+        let rows = try await backend.context.database.rows("SELECT text, note, fetched_at FROM grades ORDER BY id")
+        XCTAssertEqual(rows.count, 5, "keine doppelten Leistungen")
+        XCTAssertEqual(rows[2]["note"]?.string, "2,0")
+        XCTAssertEqual(rows[2]["fetched_at"]?.string, "2026-10-27T10:00:00")
+    }
 }
