@@ -9,7 +9,9 @@ import UniFlowCore
 //
 // Schluesselbund: eigener Dienst "de.uniflow.ai.university", Eintrag je Hochschule und Dienst mit Praefix
 // ("luh.studip.user", "hildesheim.cas.password"), kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht
-// synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule.
+// synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule; innerhalb
+// der LUH fuellt QIS ohne eigene Daten die LUH-ID aus Stud.IP vor (wie am PC, `prefillCredential`).
+// Nach einer Neuinstallation (Merker in den UserDefaults fehlt) wird der ganze Dienst geleert, bevor etwas gelesen wird.
 // Docs: docs/SICHERHEITSKONZEPT-KONTEN.md, Abschnitt "Gemerkte Hochschul-Zugangsdaten".
 
 /// Benutzername und Passwort einer Anmeldeseite. In Beschreibungen geschwaerzt (nie im Protokoll).
@@ -37,6 +39,15 @@ protocol UniversitySecretStoring {
     func remove(_ account: String)
     /// alle Eintraege dieses Dienstes (zum Loeschen je Hochschule)
     func accounts() -> [String]
+    /// alle Eintraege dieses Dienstes entfernen (Neuinstallation); false, wenn das nicht sicher gelungen ist
+    func removeAll() -> Bool
+}
+
+extension UniversitySecretStoring {
+    func removeAll() -> Bool {
+        accounts().forEach(remove)
+        return accounts().isEmpty
+    }
 }
 
 /// Generic-Password-Eintraege unter einem eigenen Dienst, nur dieses Geraet, nur entsperrt lesbar, nicht synchronisiert.
@@ -73,6 +84,12 @@ struct UniversityKeychain: UniversitySecretStoring {
 
     func remove(_ account: String) { SecItemDelete(query(account) as CFDictionary) }
 
+    /// Ein Aufruf fuer den ganzen Dienst; "nichts da" gilt als Erfolg, ein gesperrter Schluesselbund nicht.
+    func removeAll() -> Bool {
+        let status = SecItemDelete(query(nil) as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
+    }
+
     func accounts() -> [String] {
         var q = query(nil)
         q[kSecReturnAttributes as String] = true
@@ -104,6 +121,21 @@ final class UniversityCredentialStore {
     init(secrets: UniversitySecretStoring = UniversityKeychain(), defaults: UserDefaults = .standard) {
         self.secrets = secrets
         self.defaults = defaults
+        removeLeftoversOfEarlierInstallation()
+    }
+
+    /// Merker dieser Installation (UserDefaults verschwinden mit der App, der Schluesselbund nicht)
+    static let installedKey = "uniflow.login.installed"
+
+    /// Neuinstallation: Eintraege einer geloeschten App (womoeglich einer anderen Person auf demselben iPad) nie
+    /// vorausfuellen. Ohne Merker dieser Installation wird der ganze Dienst geleert, bevor irgendetwas gelesen wird;
+    /// der Merker wird erst gesetzt, wenn das gelungen ist (gesperrter Schluesselbund: beim naechsten Mal erneut).
+    @discardableResult
+    private func removeLeftoversOfEarlierInstallation() -> Bool {
+        guard !defaults.bool(forKey: Self.installedKey) else { return true }
+        guard secrets.removeAll() else { return false }
+        defaults.set(true, forKey: Self.installedKey)
+        return true
     }
 
     private func accounts(_ uni: UniversityKey, _ service: String) -> (user: String, password: String)? {
@@ -113,18 +145,30 @@ final class UniversityCredentialStore {
         return (u, pw)
     }
 
+    /// Nichts lesen, solange Reste einer frueheren Installation nicht entfernt werden konnten.
     func credential(_ uni: UniversityKey, service: String) -> UniversityCredential? {
-        guard let a = accounts(uni, service), let user = secrets.read(a.user), let password = secrets.read(a.password) else { return nil }
+        guard removeLeftoversOfEarlierInstallation(), let a = accounts(uni, service), let user = secrets.read(a.user),
+              let password = secrets.read(a.password) else { return nil }
         let c = UniversityCredential(user: user, password: password)
         return c.isStorable ? c : nil
     }
 
     func hasCredential(_ uni: UniversityKey, service: String) -> Bool { credential(uni, service: service) != nil }
 
+    /// Zum Vorausfuellen: eigene Zugangsdaten des Dienstes, sonst die des Rueckfall-Dienstes derselben Hochschule
+    /// (`UniversityLoginService.prefillFallback`, LUH: QIS -> Stud.IP wie `config.service_credentials` am PC), aber
+    /// nur, solange "merken" fuer diesen Dienst an ist. Nie Daten einer anderen Hochschule.
+    func prefillCredential(_ uni: UniversityKey, service: String) -> UniversityCredential? {
+        if let own = credential(uni, service: service) { return own }
+        guard remember(uni, service: service), let fallback = uni.profile.loginService(service)?.prefillFallback,
+              fallback != service, uni.profile.loginService(fallback) != nil else { return nil }
+        return credential(uni, service: fallback)
+    }
+
     /// Speichert beide Felder; schlaegt ein Teil fehl, bleibt nichts Halbes liegen.
     @discardableResult
     func save(_ c: UniversityCredential, _ uni: UniversityKey, service: String) -> Bool {
-        guard c.isStorable, let a = accounts(uni, service) else { return false }
+        guard c.isStorable, removeLeftoversOfEarlierInstallation(), let a = accounts(uni, service) else { return false }
         guard secrets.write(c.user, account: a.user), secrets.write(c.password, account: a.password) else {
             delete(uni, service: service)
             return false

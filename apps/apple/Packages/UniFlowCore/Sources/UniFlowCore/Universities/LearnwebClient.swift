@@ -170,13 +170,16 @@ public struct LearnwebRetry: Sendable {
 // MARK: - Ergebnis eines Durchgangs
 
 /// Ergebnis von `LearnwebClient.fetchAll`: je Kurs Dateien oder Fehler. Ein Fehler in einem Kurs ueberspringt nur
-/// diesen Kurs; laeuft die Anmeldung ab, endet der Durchgang mit `needsLogin` (bisherige Kurse bleiben erhalten).
+/// diesen Kurs; laeuft die Anmeldung ab, endet der Durchgang mit `needsLogin`, wird er abgebrochen, mit `cancelled`
+/// (bisherige Kurse bleiben in beiden Faellen erhalten). Nur Kurse in `files` gelten als vollstaendig abgefragt.
 public struct LearnwebSnapshot: Sendable, Equatable {
     public var courses: [LearnwebCourse] = []
     public var files: [String: [LearnwebFile]] = [:]
     public var failures: [String: String] = [:]
     public var needsLogin = false
-    /// Kurse, die wegen abgelaufener Anmeldung nicht mehr abgefragt wurden
+    /// Durchgang abgebrochen (Task.cancel, z. B. Ansicht geschlossen): kein Fehler der Kurse, nichts daraus ableiten
+    public var cancelled = false
+    /// Kurse, die wegen abgelaufener Anmeldung oder Abbruch nicht (fertig) abgefragt wurden
     public var notAttempted: [String] = []
 
     public init() {}
@@ -243,7 +246,9 @@ public actor LearnwebClient {
     }
 
     /// Alle sichtbaren Kurse (optional nur Semester mit `semesterFilter`), je Kurs die Dateiliste. Fehler je Kurs
-    /// werden gesammelt; nur eine abgelaufene Anmeldung beendet den Durchgang.
+    /// werden gesammelt; nur eine abgelaufene Anmeldung (`needsLogin`) oder ein Abbruch (`cancelled`) beendet den
+    /// Durchgang, die restlichen Kurse stehen dann in `notAttempted`. Ein Abbruch schon beim Holen der Kursliste
+    /// wirft `CancellationError`.
     public func fetchAll(semesterFilter: String? = nil) async throws -> LearnwebSnapshot {
         var snap = LearnwebSnapshot()
         var list = try await courses().filter { !$0.hidden }
@@ -251,9 +256,15 @@ public actor LearnwebClient {
         snap.courses = list
         courseLoop: for (i, c) in list.enumerated() {
             do {
+                try Task.checkCancellation()
                 snap.files[c.id] = try await files(courseID: c.moodleID)
             } catch LearnwebError.sessionExpired, LearnwebError.tokenRejected {
                 snap.needsLogin = true
+                snap.notAttempted = list[i...].map(\.id)
+                break courseLoop
+            } catch let e where e is CancellationError || Task.isCancelled {
+                // Abbruch ist kein Fehler des Kurses (auch URLError(.cancelled) einer abgebrochenen Aufgabe)
+                snap.cancelled = true
                 snap.notAttempted = list[i...].map(\.id)
                 break courseLoop
             } catch {
@@ -363,6 +374,7 @@ public actor LearnwebClient {
             if isLogin(abs) { throw LearnwebError.sessionExpired }
             if loc.contains("pluginfile.php"), let a = abs?.absoluteString { return [a] }
         }
+        try Self.checkLinkPage(r, path: "mod/resource/view.php")
         guard r.status < 400 else { return [] }
         return LearnwebParsing.embeddedResourceLink(html: String(decoding: r.body, as: UTF8.self)).map { [$0] } ?? []
     }
@@ -371,8 +383,16 @@ public actor LearnwebClient {
         guard Self.isDigits(cmid), let url = URL(string: base.absoluteString + "/mod/folder/view.php?id=\(cmid)") else { return [] }
         let r = try await send(LearnwebRequest(method: .get, url: url))
         if isLogin(r.finalURL) { throw LearnwebError.sessionExpired }
+        try Self.checkLinkPage(r, path: "mod/folder/view.php")
         guard r.status < 400 else { return [] }
         return LearnwebParsing.folderLinks(html: String(decoding: r.body, as: UTF8.self))
+    }
+
+    /// 429/5xx auch nach allen Versuchen: der Kurs ist nicht vollstaendig abgefragt -> Fehler des Kurses (Ausfallregel:
+    /// wiederholen, danach Kurs ueberspringen), nie still eine kuerzere Dateiliste. 403/404 (Inhalt nicht sichtbar)
+    /// bleiben wie am PC eine leere Liste.
+    static func checkLinkPage(_ r: LearnwebReply, path: String) throws {
+        if LearnwebRetry.isRetryable(status: r.status) { throw LearnwebError.http(status: r.status, path: path) }
     }
 
     // MARK: Senden mit Wiederholung
@@ -395,6 +415,8 @@ public actor LearnwebClient {
             } catch let e as LearnwebError {
                 throw e
             } catch {
+                // abgebrochene Aufgabe (URLSession meldet dann URLError(.cancelled)): nicht wiederholen, Abbruch melden
+                if Task.isCancelled { throw CancellationError() }
                 last = LearnwebError.network(redact((error as NSError).localizedDescription))
             }
         }

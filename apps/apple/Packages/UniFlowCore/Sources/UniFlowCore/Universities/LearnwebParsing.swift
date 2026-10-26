@@ -275,10 +275,15 @@ public enum LearnwebParsing {
 
     // MARK: Aenderungen
 
-    /// Neue oder geaenderte Dateien: unbekannte ID oder hoeheres `chdate` (timemodified bzw. Revision) als bekannt.
-    /// Gleiche oder niedrigere Werte laden nichts neu.
-    public static func needsDownload(_ files: [LearnwebFile], known: [String: Int]) -> [LearnwebFile] {
-        files.filter { f in known[f.id].map { f.chdate > $0 } ?? true }
+    /// Zu ladende Dateien wie `store_course_files` am PC: unbekannte ID, hoeheres `chdate` (timemodified bzw.
+    /// Revision) als bekannt oder keine lokale Kopie (`present` = IDs mit vorhandener Datei; fehlgeschlagene oder
+    /// geloeschte Downloads werden so beim naechsten Lauf erneut versucht). Gleiche oder niedrigere Werte mit lokaler
+    /// Kopie laden nichts neu.
+    public static func needsDownload(_ files: [LearnwebFile], known: [String: Int], present: Set<String>) -> [LearnwebFile] {
+        files.filter { f in
+            guard let chdate = known[f.id] else { return true }
+            return chdate < f.chdate || !present.contains(f.id)
+        }
     }
 
     // MARK: Hilfen

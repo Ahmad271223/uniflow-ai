@@ -16,6 +16,15 @@ public enum QISGradeLayout: String, Sendable, Hashable, Codable {
     case luh
     /// LSF Hildesheim (qis.parse_grade_rows)
     case hildesheim
+
+    /// Bescheinigungs-Links (verpublish) sammeln wie `qis.PROFILES[<uni>]["documents"]`: LUH ja, Hildesheim nein
+    /// (der PC speichert dort keine Bescheinigungen und kein Transcript).
+    public var collectsDocuments: Bool {
+        switch self {
+        case .luh: return true
+        case .hildesheim: return false
+        }
+    }
 }
 
 extension QISPage {

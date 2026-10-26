@@ -87,6 +87,25 @@ final class QISHildesheimTests: XCTestCase {
         check(collector.grades)
     }
 
+    func testHildesheimCollectsNoDocumentsLikePC() throws {
+        // qis.PROFILES["hildesheim"]["documents"] = False: keine Bescheinigungen/Transcripts, auch wenn die LSF-Seite
+        // verpublish-Links hat; die LUH sammelt sie weiter
+        let withLink = html.replacingOccurrences(of: "<h1>", with: #"<p><a href="rds?state=verpublish&amp;status=transform&amp;moduleCall=Studienbescheinigung&amp;publishConfFile=reports&amp;asi=SESSION.42">Studienbescheinigung</a></p><h1>"#)
+        let p = QISPage.parse(html: withLink, url: URL(string: "https://lsf.test/qisserver/rds?state=notenspiegelStudent&next=list.vm")!)
+        XCTAssertEqual(p.documents.count, 1, "Seite enthaelt einen Bescheinigungs-Link")
+        var hi = QISCollector()
+        hi.absorb(p, layout: .hildesheim)
+        check(hi.grades)
+        XCTAssertTrue(hi.documents.isEmpty, "Hildesheim: keine Bescheinigungs-Links")
+        XCTAssertEqual(hi.apiJSON()["documents"]?.array?.count, 0)
+        var luh = QISCollector()
+        luh.absorb(p)
+        XCTAssertEqual(luh.documents.count, 1, "LUH unveraendert")
+        XCTAssertFalse(UniversityProfile.hildesheim.qisDocuments)
+        XCTAssertTrue(UniversityProfile.luh.qisDocuments)
+        XCTAssertEqual(UniversityProfile.hildesheim.gradeLayout.collectsDocuments, UniversityProfile.hildesheim.qisDocuments)
+    }
+
     func testTableWithStammdatenRowIsNeverRead() {
         // Steht eine Stammdaten-Zeile in der Leistungstabelle, verwirft schon QISPage.parse die ganze Tabelle
         // (sicherer Weg; dann bleibt der Notenspiegel leer statt Stammdaten zu lesen)

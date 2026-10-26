@@ -35,6 +35,8 @@ final class UniversityCredentialTests: XCTestCase {
         XCTAssertEqual(store.credential(.luh, service: "studip"), luhUser)
         XCTAssertEqual(store.credential(.hildesheim, service: "cas"), hiUser)
         XCTAssertNil(store.credential(.luh, service: "qis"), "anderer Dienst derselben Uni: nichts")
+        XCTAssertEqual(store.prefillCredential(.luh, service: "qis"), luhUser, "nur zum Vorausfuellen: QIS mit der LUH-ID aus Stud.IP")
+        XCTAssertNil(store.prefillCredential(.hildesheim, service: "studip"))
         XCTAssertNil(store.credential(.luh, service: "cas"), "Dienst der anderen Uni: kein Rueckfall")
         XCTAssertNil(store.credential(.hildesheim, service: "studip"))
         XCTAssertFalse(store.save(hiUser, .luh, service: "cas"), "fremder Dienst wird nicht gespeichert")
@@ -119,5 +121,66 @@ final class UniversityCredentialTests: XCTestCase {
         XCTAssertTrue(on.contains("nie auf einem Server"))
         XCTAssertTrue(on.contains("anmelden tippst du selbst"))
         XCTAssertTrue(UniversityRememberBar.explanation(remember: false, login: "Stud.IP · LUH").contains("entfernt"))
+        let qis = UniversityRememberBar.explanation(remember: true, login: "QIS · LUH", fallback: "Stud.IP")
+        XCTAssertTrue(qis.contains("Stud.IP-Anmeldung vor"), "Rueckfall wird genannt")
+        let off = UniversityRememberBar.explanation(remember: false, login: "QIS · LUH", fallback: "Stud.IP")
+        XCTAssertFalse(off.contains("Stud.IP"), "Schalter aus: auch kein Rueckfall")
+        XCTAssertTrue(off.contains("füllt nichts vor"))
+    }
+
+    // MARK: Neuinstallation
+
+    func testReinstallRemovesRememberedCredentials() {
+        XCTAssertTrue(store.save(luhUser, .luh, service: "studip"))
+        XCTAssertTrue(store.save(hiUser, .hildesheim, service: "cas"))
+        keychain.write("token-wert-erfunden", account: "hildesheim.learnweb.token")
+        XCTAssertTrue(defaults.bool(forKey: UniversityCredentialStore.installedKey))
+        XCTAssertEqual(UniversityCredentialStore(secrets: keychain, defaults: defaults).credential(.luh, service: "studip"), luhUser,
+                       "normaler Neustart: alles bleibt")
+
+        // App geloescht und neu installiert (auch von einer anderen Person): UserDefaults leer, Schluesselbund noch da
+        let freshSuite = "\(suite).neu"
+        let fresh = UserDefaults(suiteName: freshSuite)!
+        defer { fresh.removePersistentDomain(forName: freshSuite) }
+        let again = UniversityCredentialStore(secrets: keychain, defaults: fresh)
+        XCTAssertTrue(again.remember(.luh, service: "studip"), "Schalter wieder Standard an")
+        XCTAssertNil(again.credential(.luh, service: "studip"), "nichts von der alten Installation vorausfuellen")
+        XCTAssertNil(again.prefillCredential(.luh, service: "qis"))
+        XCTAssertNil(again.credential(.hildesheim, service: "cas"))
+        XCTAssertTrue(keychain.accounts().isEmpty, "ganzer Dienst geleert, auch unbekannte Eintraege")
+        XCTAssertTrue(fresh.bool(forKey: UniversityCredentialStore.installedKey))
+
+        // danach ein normaler Start: Neues bleibt
+        XCTAssertTrue(again.save(luhUser, .luh, service: "studip"))
+        XCTAssertEqual(UniversityCredentialStore(secrets: keychain, defaults: fresh).credential(.luh, service: "studip"), luhUser)
+    }
+
+    func testLeftoversAreNeverReadWhileTheyCannotBeRemoved() {
+        // z. B. Schluesselbund noch gesperrt: nichts lesen, nichts speichern, Merker erst nach dem Leeren
+        final class Locked: UniversitySecretStoring {
+            var values = ["luh.studip.user": "alt-nutzer", "luh.studip.password": "alt-passwort"]
+            var locked = true
+            func read(_ account: String) -> String? { values[account] }
+            func write(_ value: String, account: String) -> Bool { values[account] = value; return true }
+            func remove(_ account: String) { if !locked { values[account] = nil } }
+            func accounts() -> [String] { Array(values.keys) }
+            func removeAll() -> Bool {
+                guard !locked else { return false }
+                values.removeAll()
+                return true
+            }
+        }
+        let secrets = Locked()
+        let freshSuite = "\(suite).gesperrt"
+        let fresh = UserDefaults(suiteName: freshSuite)!
+        defer { fresh.removePersistentDomain(forName: freshSuite) }
+        let s = UniversityCredentialStore(secrets: secrets, defaults: fresh)
+        XCTAssertNil(s.credential(.luh, service: "studip"))
+        XCTAssertFalse(s.save(luhUser, .luh, service: "qis"))
+        XCTAssertFalse(fresh.bool(forKey: UniversityCredentialStore.installedKey))
+        secrets.locked = false
+        XCTAssertNil(s.credential(.luh, service: "studip"), "beim naechsten Zugriff geleert, nicht gelesen")
+        XCTAssertTrue(secrets.values.isEmpty)
+        XCTAssertTrue(fresh.bool(forKey: UniversityCredentialStore.installedKey))
     }
 }

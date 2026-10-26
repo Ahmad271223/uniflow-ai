@@ -47,13 +47,36 @@ und Tests, ihre Anmeldeansichten kommen mit der Hochschulwahl nach der S3–S5-I
   bleibt. **Es gibt keinen Code-Pfad zum automatischen Anmelden** (kein Absenden, kein Klick, auch nicht vorbereitet);
   ein Test prüft, dass das Formular nicht abgeschickt wird.
 - **Nur auf bekannten Seiten:** Skript und App prüfen unabhängig voneinander: HTTPS, Hauptrahmen, genau der Rechner und
-  Pfad aus dem Hochschul-Profil (`UniversityProfile`, z. B. nicht `…uni-hildesheim.de.example.org`, nicht der
-  Learnweb-Pfad, nicht `http://`). Das Skript läuft in einer eigenen `WKContentWorld`; Skripte der Seite können weder
-  den Nachrichtenkanal benutzen noch der App eine fremde Herkunft vortäuschen.
+  Pfad aus dem Hochschul-Profil (`UniversityProfile`, z. B. nicht `…uni-hildesheim.de.example.org`, nicht `http://`).
+  Das Skript läuft in einer eigenen `WKContentWorld`; Skripte der Seite können den Nachrichtenkanal nicht benutzen.
+- **Die Grenze ist der Ursprung, nicht der Pfad (berichtigt 26.10.2026):** Eine Seite desselben Rechners kann ihre
+  Adresse mit `history.replaceState`/`pushState` ohne Navigation auf den Anmeldepfad umschreiben; `location` und die
+  Rahmen-Adresse (`WKFrameInfo.request`) folgen dem. Bei Hildesheim liegen CAS und Learnweb beide auf
+  `www.uni-hildesheim.de` (eine als Learnweb-Material hochgeladene HTML-Datei oder eine XSS-Lücke irgendwo auf dem
+  Rechner reicht), bei der LUH gilt dasselbe für ganz `studip.uni-hannover.de` und `sso.idm.uni-hannover.de`. Deshalb
+  bindet die App Vorausfüllen und Merken an die **letzte echte Navigation im Hauptrahmen**: Die Adresse der
+  Server-Antwort (`WKNavigationResponse`, für Seitenskripte unveränderlich) muss ein Anmeldeziel sein, und
+  `webView.url` wie die Rahmen-Adresse dürfen seitdem nicht umgeschrieben worden sein; jede neue Navigation entzieht
+  das Vertrauen sofort, Zurück/Vor aus dem Zwischenspeicher bekommt keines (der Verlaufseintrag kann eine per
+  `replaceState` gesetzte Adresse tragen). Nur lokal geladene Seiten ohne Server-Antwort (`loadHTMLString`, so in
+  den Tests) gelten mit der Adresse beim Übernehmen des Dokuments, bevor ein Skript des Dokuments laufen kann. Vorausgefüllt wird nur in
+  das Dokument, das „bereit“ gemeldet hat (zufällige Kennung, nur in der Skript-Welt der App sichtbar). Verlässt der
+  Hauptrahmen die Anmeldeseiten, nachdem er dort war, entfernt die App Skript und Kanal für den Rest dieser Webansicht;
+  Inhalte (Learnweb, Stud.IP) werden nie in einer Webansicht mit eingebautem Vorausfüllen angezeigt. Tests:
+  `UniversityLoginAutofillTests` (erfundene Learnweb-Datei mit `replaceState`/`pushState`, Abschicken per
+  `requestSubmit()` durch die Seite).
 - **Getrennt je Hochschule:** Präfix je Uni und Dienst, kein Rückfall (Hildesheim sieht nie LUH-Daten und umgekehrt).
+  Einzige Ausnahme innerhalb derselben Hochschule, wie am PC (`config.service_credentials("QIS")`): Hat QIS der LUH
+  keine eigenen gemerkten Daten, füllt die App dort die LUH-ID aus der Stud.IP-Anmeldung vor – nur bei
+  eingeschaltetem QIS-Schalter, ohne sie zu kopieren; gemerkt wird beim Absenden unter `luh.qis.…`.
   Gelöscht wird je Uni beim Abmelden (Stud.IP abmelden → alle LUH-Einträge), beim Uni-Wechsel (Schnittstelle
   `UniversityCredentialStore.universityChanged`, die Hochschulwahl folgt nach der S3–S5-Integration) und beim
   **Konto löschen** (alle Hochschulen).
+- **Neuinstallation:** Der Schlüsselbund überlebt das Löschen der App, die UserDefaults nicht. Fehlt der Merker dieser
+  Installation (`uniflow.login.installed`), leert die App den ganzen Dienst `de.uniflow.ai.university`, bevor sie
+  irgendetwas liest; gelingt das nicht (z. B. gesperrter Schlüsselbund), liest und speichert sie nichts und versucht
+  es beim nächsten Zugriff erneut. So füllt eine neu installierte App – auch für eine andere Person auf demselben
+  iPad – nie die Daten der alten Installation vor.
 - **Nie an einen Server:** weder an den UniFlow-Dienst noch an den PC-Server; keine Protokollzeile, keine Adresse,
   keine Fehlermeldung enthält Passwort oder Token (Beschreibungen geschwärzt).
 
@@ -62,7 +85,11 @@ Grenzen und Risiken (ehrlich):
   anmelden; das Passwort steht im Feld (verdeckt) und ist für Skripte der echten Hochschulseite lesbar – genauso wie
   beim Eintippen. Schutz: Geräte-Code, Schalter aus, Abmelden.
 - Ein **kompromittiertes Gerät** (Jailbreak, Schadsoftware mit Schlüsselbund-Zugriff) oder eine kompromittierte
-  Anmeldeseite der Hochschule (z. B. XSS auf dem erlaubten Rechner) kann das Passwort lesen.
+  Anmeldeseite selbst (z. B. XSS genau auf dem Anmeldepfad des CAS bzw. WebSSO) kann das Passwort lesen. XSS auf einer
+  anderen Seite desselben Rechners reicht dank der Bindung an die echte Navigation nicht mehr.
+- Strenger als nötig, mit Absicht: Kommt eine Anmeldeseite aus dem Zurück-Zwischenspeicher oder hat die Webansicht die
+  Anmeldeseiten schon einmal verlassen, füllt die App dort nichts vor und merkt nichts; dann die Anmeldung schließen und
+  neu öffnen.
 - Gemerkt wird beim Absenden, **nicht erst nach erfolgreicher Anmeldung**: ein vertipptes Passwort steht beim nächsten
   Mal im Feld, bis die nächste Anmeldung es überschreibt.
 - Ändert die Hochschule Rechner, Pfad oder Feldnamen, wird nichts gemerkt oder vorausgefüllt (kein Raten); die
@@ -75,7 +102,9 @@ Grenzen und Risiken (ehrlich):
   vor einer Veröffentlichung mit LUIS/Datenschutz bzw. der Uni Hildesheim klären.
 - Nicht gegen echte Hochschulseiten getestet (Regel: keine echten Anmeldungen); geprüft mit erfundenen lokalen Seiten
   in `WKWebView` (`UniFlowTests/UniversityLoginAutofillTests.swift`) und dem Schlüsselbund im Simulator
-  (`UniversityCredentialTests.swift`).
+  (`UniversityCredentialTests.swift`). Lokale Testseiten liefern keine Server-Antwort; die Bindung an die
+  Antwort-Adresse (der Weg der echten Anmeldeansicht) ist deshalb nur mit nachgestellten Delegate-Meldungen geprüft
+  (`testDocumentAddressComesFromTheRealNavigation`), nicht mit einer echten Netzantwort.
 
 ## 2. Bedrohungen und Maßnahmen
 
@@ -83,6 +112,8 @@ Grenzen und Risiken (ehrlich):
 | --- | --- |
 | Gestohlenes oder entsperrt liegengelassenes iPad | gemerkte Hochschul-Passwörter nur mit Schalter, nur entsperrt lesbar (`WhenUnlockedThisDeviceOnly`), nie automatisch abgeschickt; Abmelden/Konto löschen entfernt sie |
 | Gefälschte Anmeldeseite (Phishing) in der Webansicht | Vorausfüllen und Merken nur auf HTTPS + exakt bekanntem Rechner und Pfad je Hochschule, nur Hauptrahmen, eigene Skript-Welt |
+| Fremde Seite desselben Ursprungs täuscht per `history.replaceState` die Anmeldeadresse vor (z. B. hochgeladene Learnweb-Datei) | Vorausfüllen und Merken nur für das Dokument der letzten echten Navigation (Antwort-Adresse, unveränderte `webView.url`), Kennung je Dokument, Skript und Kanal weg, sobald die Anmeldeseiten verlassen sind |
+| Neuinstallation (auch durch eine andere Person) findet alte Schlüsselbund-Einträge | ohne Installations-Merker wird der ganze Dienst geleert, bevor etwas gelesen wird |
 | Diebstahl der Server-Datenbank | keine Hochschul-Zugangsdaten auf dem Dienst; Passwörter Argon2id; Tokens nur gehasht; Notizen pro Nutzer getrennt |
 | Konto-Übernahme durch Raten | Rate-Limit je Konto und IP, Sperre mit Rückmeldung, Passwort-Mindestlänge 10, optional Passkeys (WebAuthn) |
 | Gestohlenes Sitzungstoken | kurze Lebensdauer (Zugriffstoken 15 min, Refresh 30 Tage, rotierend), „auf allen Geräten abmelden“ |

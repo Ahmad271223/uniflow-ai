@@ -141,8 +141,22 @@ final class LearnwebTests: XCTestCase {
         }
         let remote = [f("lw-1-a", 5), f("lw-1-b", 3), f("lw-1-c", 2), f("lw-1-d", 9)]
         let known = ["lw-1-a": 5, "lw-1-b": 4, "lw-1-c": 1]
-        XCTAssertEqual(LearnwebParsing.needsDownload(remote, known: known).map(\.id), ["lw-1-c", "lw-1-d"],
+        let all: Set = ["lw-1-a", "lw-1-b", "lw-1-c"]
+        XCTAssertEqual(LearnwebParsing.needsDownload(remote, known: known, present: all).map(\.id), ["lw-1-c", "lw-1-d"],
                        "unveraendert und niedriger: nichts laden; hoeher und neu: laden")
+    }
+
+    func testChangeDetectionRetriesMissingLocalCopy() {
+        // wie store_course_files: bekannt mit gleichem chdate, aber keine lokale Datei (Download gescheitert) -> laden
+        func f(_ id: String, _ ch: Int) -> LearnwebFile {
+            LearnwebFile(id: id, name: "a.pdf", size: 1, mime: nil, author: nil, chdate: ch, downloadURL: "https://x/a.pdf", folder: "", moduleName: nil)
+        }
+        let remote = [f("lw-2-a", 5), f("lw-2-b", 5), f("lw-2-c", 3)]
+        let known = ["lw-2-a": 5, "lw-2-b": 5, "lw-2-c": 4]
+        XCTAssertEqual(LearnwebParsing.needsDownload(remote, known: known, present: ["lw-2-a"]).map(\.id), ["lw-2-b", "lw-2-c"],
+                       "ohne lokale Kopie erneut laden, auch bei gleichem oder niedrigerem chdate")
+        XCTAssertEqual(LearnwebParsing.needsDownload(remote, known: known, present: ["lw-2-a", "lw-2-b", "lw-2-c"]).map(\.id), [])
+        XCTAssertEqual(LearnwebParsing.needsDownload(remote, known: [:], present: []).map(\.id), ["lw-2-a", "lw-2-b", "lw-2-c"])
     }
 
     // MARK: REST mit Schluessel
@@ -314,6 +328,86 @@ final class LearnwebTests: XCTestCase {
         XCTAssertEqual(snap.files.keys.sorted(), ["lw-1"], "schon geholte Kurse bleiben")
         XCTAssertEqual(snap.notAttempted, ["lw-2", "lw-3"])
         XCTAssertTrue(snap.failures.isEmpty)
+        XCTAssertFalse(snap.cancelled)
+    }
+
+    /// Fuenf Kurse; beim Kurs `at` wird die Aufgabe abgebrochen und der Transport wirft `error` (wie URLSession).
+    private func cancelledFetch(at courseID: String, throwing error: Error) async throws -> (LearnwebSnapshot, FakeLearnweb) {
+        let net = FakeLearnweb { req in
+            switch req.form["wsfunction"] {
+            case "core_webservice_get_site_info": return .json(#"{"userid": 1}"#)
+            case "core_enrol_get_users_courses":
+                return .json(#"[{"id": 201, "fullname": "A"}, {"id": 202, "fullname": "B"}, {"id": 203, "fullname": "C"}, {"id": 204, "fullname": "D"}, {"id": 205, "fullname": "E"}]"#)
+            default:
+                if req.form["courseid"] == courseID {
+                    withUnsafeCurrentTask { $0?.cancel() }      // z. B. Ansicht geschlossen, .task beendet
+                    throw error
+                }
+                return .json("[]")
+            }
+        }
+        let c = LearnwebClient(base: base, access: .token(token), transport: net, retry: noWait)
+        let snap = try await Task { try await c.fetchAll() }.value
+        return (snap, net)
+    }
+
+    func testCancelDuringFetchIsReportedAsCancelNotAsCourseFailures() async throws {
+        for (at, error, expected) in [("202", URLError(.cancelled) as Error, ["lw-202", "lw-203", "lw-204", "lw-205"]),
+                                      ("203", CancellationError() as Error, ["lw-203", "lw-204", "lw-205"])] {
+            let (snap, net) = try await cancelledFetch(at: at, throwing: error)
+            XCTAssertTrue(snap.cancelled, at)
+            XCTAssertFalse(snap.needsLogin, at)
+            XCTAssertEqual(snap.notAttempted, expected, at)
+            XCTAssertTrue(snap.failures.isEmpty, "Abbruch ist kein Fehler der Kurse: \(snap.failures)")
+            XCTAssertEqual(Set(snap.files.keys), Set(["lw-201", "lw-202"].filter { !expected.contains($0) }), "geholte Kurse bleiben")
+            let contents = net.requests.filter { $0.form["wsfunction"] == "core_course_get_contents" }.compactMap { $0.form["courseid"] }
+            XCTAssertEqual(contents.last, at, "nach dem Abbruch keine weiteren Anfragen und keine Wiederholung")
+            XCTAssertEqual(contents.filter { $0 == at }.count, 1, "abgebrochene Anfrage wird nicht wiederholt")
+        }
+    }
+
+    func testOverloadedFolderPageFailsTheCourseInsteadOfShorterList() async throws {
+        // Sitzung: Kurs 35 mit Ressource (303 auf pluginfile) und Ordner, dessen Seite immer 503 liefert;
+        // Kurs 36 mit Ordner 404 (nicht sichtbar) -> leere Liste wie am PC, Kurs gilt als abgefragt
+        let pf = "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php"
+        let net = FakeLearnweb { req in
+            let u = req.url.absoluteString
+            if u.contains("info=core_course_get_enrolled_courses_by_timeline_classification") {
+                return .ajax(#"{"courses": [{"id": 35, "fullname": "SoSe 2026: 0406 Theorien"}, {"id": 36, "fullname": "SoSe 2026: 0407 Praxis"}]}"#)
+            }
+            if u.contains("info=core_courseformat_get_state") {
+                let id = (try? JSONValue.parse(req.body ?? Data()))?.array?.first?["args"]?["courseid"]?.int ?? 0
+                return .ajax(.string(#"{"section": [{"id": "10", "number": 1, "title": "1"}], "cm": [{"id": "\#(id)1", "module": "resource", "name": "Folien", "sectionid": "10"}, {"id": "\#(id)2", "module": "folder", "name": "Texte", "sectionid": "10"}]}"#))
+            }
+            if u.contains("mod/resource/view.php?id=351") { return LearnwebReply(status: 303, location: "\(pf)/5/mod_resource/content/4/Folien.pdf") }
+            if u.contains("mod/resource/view.php?id=361") { return LearnwebReply(status: 303, location: "\(pf)/6/mod_resource/content/1/Praxis.pdf") }
+            if u.contains("mod/folder/view.php?id=352") { return LearnwebReply(status: 503) }
+            return LearnwebReply(status: 404)
+        }
+        let c = LearnwebClient(base: base, access: .session(LearnwebSession(sesskey: "abcSESS1")!), transport: net, retry: noWait)
+        let snap = try await c.fetchAll()
+        XCTAssertNil(snap.files["lw-35"], "unvollstaendige Dateiliste gilt nicht als Ergebnis")
+        let failure = try XCTUnwrap(snap.failures["lw-35"])
+        XCTAssertTrue(failure.contains("503"), failure)
+        XCTAssertFalse(failure.contains("abcSESS1"))
+        XCTAssertEqual(snap.files["lw-36"]?.map(\.name), ["Praxis.pdf"], "404 (nicht sichtbar) bleibt eine leere Ordnerliste")
+        XCTAssertNil(snap.failures["lw-36"])
+        XCTAssertFalse(snap.needsLogin)
+        XCTAssertFalse(snap.cancelled)
+        XCTAssertEqual(net.requests.filter { $0.url.absoluteString.contains("mod/folder/view.php?id=352") }.count, 3, "3 Versuche, dann Kurs ueberspringen")
+
+        // dasselbe fuer eine ueberlastete Ressourcen-Seite (429)
+        let busy = FakeLearnweb { req in
+            let u = req.url.absoluteString
+            if u.contains("info=core_courseformat_get_state") {
+                return .ajax(.string(#"{"section": [], "cm": [{"id": "7", "module": "resource", "name": "F", "sectionid": "1"}]}"#))
+            }
+            return LearnwebReply(status: 429)
+        }
+        let c2 = LearnwebClient(base: base, access: .session(LearnwebSession(sesskey: "abc")!), transport: busy, retry: noWait)
+        do { _ = try await c2.files(courseID: 1); XCTFail("Fehler erwartet") } catch {
+            XCTAssertEqual(error as? LearnwebError, .http(status: 429, path: "mod/resource/view.php"))
+        }
     }
 
     // MARK: AJAX mit Sitzung

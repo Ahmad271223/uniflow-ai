@@ -230,13 +230,14 @@ struct StudIPLoginView: View {
 
 /// Eingebettete Webansicht. Eigener, dauerhafter Datenspeicher der App (nicht Safari): die Hochschul-Anmeldung
 /// bleibt erhalten, sodass eine erneute Anmeldung oft ohne Passwort gelingt. Eigene Skripte nur ueber `autofill`
-/// (eigene Inhaltswelt, nur auf den Anmeldeseiten der Hochschule).
+/// (eigene Inhaltswelt, nur auf den Anmeldeseiten der Hochschule, gebunden an die echten Navigationen des
+/// Hauptrahmens, die der Coordinator meldet). Nur fuer die Anmeldung verwenden, nie fuer Inhalte.
 struct StudIPWebView: UIViewRepresentable {
     let url: URL
     var autofill: UniversityLoginAutofill? = nil
     let onPageLoaded: (WKWebView) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onPageLoaded: onPageLoaded) }
+    func makeCoordinator() -> Coordinator { Coordinator(onPageLoaded: onPageLoaded, autofill: autofill) }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -256,7 +257,25 @@ struct StudIPWebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         let onPageLoaded: (WKWebView) -> Void
-        init(onPageLoaded: @escaping (WKWebView) -> Void) { self.onPageLoaded = onPageLoaded }
+        let autofill: UniversityLoginAutofill?
+        init(onPageLoaded: @escaping (WKWebView) -> Void, autofill: UniversityLoginAutofill?) {
+            self.onPageLoaded = onPageLoaded
+            self.autofill = autofill
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
+            autofill?.navigationStarts(navigationAction)
+            decisionHandler(.allow)
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
+                     decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {
+            autofill?.navigationResponds(navigationResponse)
+            decisionHandler(.allow)
+        }
+
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { autofill?.navigationCommitted(in: webView) }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { onPageLoaded(webView) }
     }

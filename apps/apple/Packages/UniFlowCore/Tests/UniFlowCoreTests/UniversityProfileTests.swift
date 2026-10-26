@@ -73,6 +73,21 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertNotEqual(l.keychainPrefix, h.keychainPrefix)
     }
 
+    func testPrefillFallbackOnlyWithinTheSameUniversity() {
+        // wie config.service_credentials("QIS"): ohne eigene QIS-Daten die LUH-ID aus Stud.IP; sonst kein Rueckfall
+        XCTAssertEqual(UniversityProfile.luh.loginService("qis")?.prefillFallback, "studip")
+        XCTAssertNil(UniversityProfile.luh.loginService("studip")?.prefillFallback)
+        XCTAssertNil(UniversityProfile.hildesheim.loginService("cas")?.prefillFallback)
+        for p in UniversityProfile.all {
+            for s in p.loginServices {
+                guard let f = s.prefillFallback else { continue }
+                XCTAssertNotNil(p.loginService(f), "\(p.key).\(s.key): Rueckfall nur auf einen Dienst derselben Hochschule")
+                XCTAssertNotEqual(f, s.key)
+                XCTAssertNil(p.loginService(f)?.prefillFallback, "keine Ketten")
+            }
+        }
+    }
+
     func testLoginTargetsOnlyKnownHttpsPages() {
         let cas = UniversityProfile.hildesheim.loginService("cas")!
         func u(_ s: String) -> URL { URL(string: s)! }

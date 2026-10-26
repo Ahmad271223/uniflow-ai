@@ -61,6 +61,10 @@ public struct UniversityLoginService: Sendable, Hashable {
     public let userSelectors: [String]
     /// CSS-Selektoren fuer das Passwortfeld; sonst das erste `input[type=password]`
     public let passwordSelectors: [String]
+    /// Dienst derselben Hochschule, dessen gemerkte Zugangsdaten beim Vorausfuellen gelten, solange dieser Dienst
+    /// keine eigenen hat (LUH: QIS mit der LUH-ID aus Stud.IP wie `config.service_credentials("QIS")` am PC).
+    /// Nie ein Dienst einer anderen Hochschule; gespeichert wird immer unter dem eigenen Dienst.
+    public let prefillFallback: String?
 
     public func allows(_ url: URL?) -> Bool { targets.contains { $0.matches(url) } }
 }
@@ -98,6 +102,8 @@ public struct UniversityProfile: Sendable, Hashable {
     public let keychainPrefix: String
     /// Aufbau des Notenspiegels (QIS der LUH bzw. LSF Hildesheim)
     public let gradeLayout: QISGradeLayout
+    /// Bescheinigungen aus dem QIS/LSF wie `qis.PROFILES[<uni>]["documents"]` (LUH ja, Hildesheim nein)
+    public var qisDocuments: Bool { gradeLayout.collectsDocuments }
     public let loginServices: [UniversityLoginService]
     public let services: [UniversityServiceLink]
 
@@ -171,14 +177,16 @@ extension UniversityProfile {
                           UniversityLoginTarget(host: "studip.uni-hannover.de", pathPrefix: "/dispatch.php/login")],
                 userSelectors: ["input[name='loginname']", "#loginname", "input[name='j_username']", "#username",
                                 "input[autocomplete='username']"],
-                passwordSelectors: ["input[name='password']", "#password"]),
+                passwordSelectors: ["input[name='password']", "#password"], prefillFallback: nil),
             UniversityLoginService(
                 key: "qis", name: "QIS", userLabel: "LUH-ID",
                 entryURLs: [luhQISStart],
                 // HIS-QIS: Benutzer 'asdf', Passwort 'fdsa' (app/qis.py)
                 targets: [UniversityLoginTarget(host: "qis.verwaltung.uni-hannover.de", pathPrefix: "/qisserver/")],
                 userSelectors: ["input[name='asdf']", "#asdf"],
-                passwordSelectors: ["input[name='fdsa']", "#fdsa"]),
+                passwordSelectors: ["input[name='fdsa']", "#fdsa"],
+                // ohne eigene QIS-Daten die LUH-ID aus Stud.IP (PC: same_as_studip, solange QIS nichts Eigenes hat)
+                prefillFallback: "studip"),
         ],
         services: [
             UniversityServiceLink(key: "studip", name: "Stud.IP", url: "https://studip.uni-hannover.de/",
@@ -204,7 +212,7 @@ extension UniversityProfile {
                 // is_cas_page: mit und ohne "www."
                 targets: [UniversityLoginTarget(host: "www.uni-hildesheim.de", pathPrefix: "/sso/login"),
                           UniversityLoginTarget(host: "uni-hildesheim.de", pathPrefix: "/sso/login")],
-                userSelectors: CASLogin.userSelectors, passwordSelectors: CASLogin.passwordSelectors),
+                userSelectors: CASLogin.userSelectors, passwordSelectors: CASLogin.passwordSelectors, prefillFallback: nil),
         ],
         // HILDESHEIM_SERVICES
         services: [
