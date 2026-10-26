@@ -60,7 +60,7 @@ widerrufen werden.
   Dateizeitstempel: C617.1). Datei anlegen, sobald am Mac geprüft wird, welche APIs die fertige App tatsächlich nutzt.
 - App-Store-Datenschutzangaben: Development speichert alles nur auf dem eigenen PC und Gerät. Mit Konten: E-Mail,
   Notizen, Lernfortschritt (mit Nutzer verknüpft, kein Tracking, keine Werbung).
-- Datenschutzerklärung und Impressum: vor TestFlight extern nötig, Inhalte hängen vom Hosting ab.
+- Datenschutzerklärung und Impressum: Entwürfe in `docs/release/` (26.10.2026); vor TestFlight anwaltlich prüfen und auf `[[Domain]]` veröffentlichen, Platzhalter hängen vom Hosting ab.
 
 ## Fehlerprotokollierung
 
@@ -76,21 +76,18 @@ widerrufen werden.
 4. Signierung: automatische Signierung in Xcode; in CI erst nach Freigabe mit App-Store-Connect-API-Schlüssel als
    GitHub-Secret (nie im Repository).
 
-## App-Store-Metadaten (Entwurf)
+## App-Store-Metadaten
 
-- Name: UniFlow – Studium & Notizen
-- Untertitel: Skripte, Handschrift, Lernplan
-- Kategorie: Bildung; zweite Kategorie: Produktivität
-- Beschreibung (Kurz): Stud.IP-Dateien automatisch, PDF-Skripte mit dem Apple Pencil beschreiben, Lernkalender und
-  KI-Wochentests. Notizen synchron zwischen iPad und PC.
-- Stichworte: Studium, Notizen, PDF, Apple Pencil, Lernplan, Stud.IP, Uni
-- Support-URL, Datenschutz-URL: offen (Hosting)
+Alle Texte und Angaben (Name, Untertitel, Werbetext, Beschreibung, Schlüsselwörter, Altersfreigabe, App-Datenschutz,
+Abo-Produkt, Prüfhinweise) stehen in `docs/release/APP-STORE.md`; Datenschutzerklärung, Nutzungsbedingungen,
+Impressum-Vorlage und die Seite „Konto löschen“ in `docs/release/` (Stand 26.10.2026, Entwürfe ohne KI-Versprechen,
+`tests/test_release_texts.py`). Support-URL und Datenschutz-URL: offen (Hosting, `[[Domain]]`).
 
 ## Bildschirmfotos (Vorgaben)
 
 | Gerät | Größe | Inhalte |
 | --- | --- | --- |
-| iPad Pro 13" (Pflicht) | 2064 × 2752 hoch oder 2752 × 2064 quer | 1. Skript mit Handschrift, 2. Split-Screen Übung + Skript, 3. Lernkalender Woche, 4. Module, 5. KI-Test |
+| iPad Pro 13" (Pflicht) | 2064 × 2752 hoch oder 2752 × 2064 quer | 1. Skript mit Handschrift, 2. Split-Screen Übung + Skript, 3. Lernkalender Woche, 4. Module, 5. Stundenplan mit Fristen und Feiertagen |
 | iPad 11" (optional) | 1668 × 2420 | wie oben |
 
 Nur echte App-Inhalte, keine fremden Logos (Uni-Logos nur mit Erlaubnis), keine echten Noten oder Namen.
