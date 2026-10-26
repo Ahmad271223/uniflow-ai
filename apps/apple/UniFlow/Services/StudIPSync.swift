@@ -7,10 +7,25 @@ import WebKit
 // Anmeldung auf der echten Hochschulseite in einer eingebetteten Webansicht, danach Abgleich ueber die JSON:API
 // mit dem Sitzungs-Cookie. Passwort und Cookie verlassen das Geraet nie; das Cookie liegt nur im Schluesselbund.
 
-/// Sitzungs-Cookies im Schluesselbund (nur dieses Geraet, nicht in Backups/iCloud).
-enum StudIPKeychain {
-    private static let service = "de.uniflow.ai.studip"
-    private static let account = "session-cookies"
+/// Sitzungs-Cookies im Schluesselbund (nur dieses Geraet, nicht in Backups/iCloud), je Container (Apple-Nutzer,
+/// Hochschule) ein eigener Eintrag: `session-cookies.<container-uuid>`. Kein Rueckfall auf einen anderen Container.
+struct StudIPCookieStore: Sendable {
+    static let service = "de.uniflow.ai.studip"
+    /// Eintrag aus der Zeit vor den Containern (zieht beim Umzug in den LUH-Container des Nutzers)
+    static let legacyAccount = "session-cookies"
+
+    let service: String
+    let account: String
+
+    init(service: String = StudIPCookieStore.service, account: String) {
+        self.service = service
+        self.account = account
+    }
+
+    /// Eintrag eines Containers
+    init(service: String = StudIPCookieStore.service, container: UUID) {
+        self.init(service: service, account: Self.legacyAccount + "." + container.uuidString)
+    }
 
     struct StoredCookie: Codable {
         let name: String
@@ -21,15 +36,40 @@ enum StudIPKeychain {
         let secure: Bool
     }
 
-    private static var query: [String: Any] {
+    private var query: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
     }
 
-    static func save(_ cookies: [HTTPCookie]) throws {
+    func save(_ cookies: [HTTPCookie]) throws {
         let stored = cookies.map {
             StoredCookie(name: $0.name, value: $0.value, domain: $0.domain, path: $0.path, expires: $0.expiresDate, secure: $0.isSecure)
         }
-        let data = try JSONEncoder().encode(stored)
+        try saveRaw(try JSONEncoder().encode(stored))
+    }
+
+    func load() -> [HTTPCookie] {
+        guard let data = loadRaw(), let stored = try? JSONDecoder().decode([StoredCookie].self, from: data) else { return [] }
+        return stored.compactMap { s in
+            var p: [HTTPCookiePropertyKey: Any] = [.name: s.name, .value: s.value, .domain: s.domain, .path: s.path]
+            if let e = s.expires { p[.expires] = e }
+            if s.secure { p[.secure] = "TRUE" }
+            return HTTPCookie(properties: p)
+        }
+    }
+
+    func clear() { SecItemDelete(query as CFDictionary) }
+
+    /// Inhalt unveraendert (fuer den Umzug)
+    func loadRaw() -> Data? {
+        var q = query
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &item) == errSecSuccess else { return nil }
+        return item as? Data
+    }
+
+    func saveRaw(_ data: Data) throws {
         SecItemDelete(query as CFDictionary)
         var add = query
         add[kSecValueData as String] = data
@@ -40,22 +80,17 @@ enum StudIPKeychain {
         }
     }
 
-    static func load() -> [HTTPCookie] {
-        var q = query
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &item) == errSecSuccess, let data = item as? Data,
-              let stored = try? JSONDecoder().decode([StoredCookie].self, from: data) else { return [] }
-        return stored.compactMap { s in
-            var p: [HTTPCookiePropertyKey: Any] = [.name: s.name, .value: s.value, .domain: s.domain, .path: s.path]
-            if let e = s.expires { p[.expires] = e }
-            if s.secure { p[.secure] = "TRUE" }
-            return HTTPCookie(properties: p)
-        }
+    /// Umzug: alten Eintrag in diesen verschieben (wiederholbar; ein vorhandener Eintrag wird nicht ueberschrieben)
+    func adopt(_ legacy: StudIPCookieStore) throws {
+        guard let data = legacy.loadRaw() else { return }
+        if loadRaw() == nil { try saveRaw(data) }
+        legacy.clear()
     }
+}
 
-    static func clear() { SecItemDelete(query as CFDictionary) }
+/// Sitzungs-Cookies des aktiven Containers (fuer Stellen ohne eigenen StudIPSync)
+enum StudIPKeychain {
+    static func load() -> [HTTPCookie] { ActiveContainer.current?.cookies.load() ?? [] }
 }
 
 /// Anfragen mit dem gespeicherten Sitzungs-Cookie. Eigene, fluechtige URLSession: keine Cookies anderer Dienste.
@@ -109,7 +144,8 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 }
 
 /// Abgleich der eigenen Stud.IP-Dateien aufs iPad. Laeuft beim Oeffnen der App (hoechstens alle 30 Minuten)
-/// und auf Knopfdruck; Dateien liegen unter Application Support/StudIP, ausgenommen vom iCloud-Backup.
+/// und auf Knopfdruck; Dateien liegen im Container (Apple-Nutzer, Hochschule) unter `StudIP/`, ausgenommen vom
+/// iCloud-Backup. Je Container ein eigener Abgleich mit eigenem Sitzungs-Cookie und eigener Webansicht.
 ///
 /// Seit S3 landen Kurse und Dateien wie bei app/studip_sync.py in der lokalen Datenbank (`StudIPLibrary` ueber
 /// `UniStore`, dieselbe Fassung wie fuer Learnweb), seit S4 mit Fach und Art je Kurs (`classify`), jede geladene
@@ -150,7 +186,16 @@ final class StudIPSync: ObservableObject {
         didSet { defaults.set(Array(selectedCourses), forKey: "uniflow.studip.courses") }
     }
 
+    /// Einstellungen des Abgleichs (je Container in dessen UserDefaults-Suite)
+    static let defaultsKeys = ["uniflow.studip.courses", "uniflow.studip.lastRun", "uniflow.studip.lastSummary"]
+
     let root: URL
+    /// Hochschule des Containers; Stud.IP gibt es nur an der LUH
+    let university: UniversityKey
+    /// Sitzungs-Cookie dieses Containers im Schluesselbund
+    let cookies: StudIPCookieStore
+    /// Datenspeicher der Anmelde-Webansicht dieses Containers (`WKWebsiteDataStore(forIdentifier:)`)
+    let websiteDataStore: WKWebsiteDataStore
     private var index: [String: StudIPLocalEntry] = [:]
     /// Lokales Backend, in dessen Datenbank der Abgleich schreibt
     private let host: LocalBackendHost
@@ -161,16 +206,21 @@ final class StudIPSync: ObservableObject {
     /// Uebernahme des Bestands von vor S3 (laeuft beim Start; ein Abgleich wartet darauf)
     private var adoption: Task<Void, Never>?
 
-    /// `root`: Stud.IP-Ordner (Standard Application Support/StudIP), `host`: lokales Backend, `support`: Ordner des
-    /// Editors (Journal, PDF-Zwischenspeicher). Tests geben Temp-Ordner und eine eigene Datenbank mit.
+    /// `root`: Stud.IP-Ordner (in der App `<Container>/StudIP`), `host`: lokales Backend, `support`: Ordner des
+    /// Editors (Journal, PDF-Zwischenspeicher), `defaults`: Einstellungen des Containers, `cookies` und
+    /// `websiteDataStore`: Anmeldung dieses Containers. Die App baut je Container einen eigenen Abgleich
+    /// (`ContainerManager`); Tests geben Temp-Ordner und eine eigene Datenbank mit.
     init(root: URL? = nil, host: LocalBackendHost = .shared, clock: UniFlowClock = .system, defaults: UserDefaults = .standard,
-         support: URL = AppPaths.support) {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        self.root = root ?? appSupport.appendingPathComponent("StudIP", isDirectory: true)
+         support: URL = AppPaths.support, university: UniversityKey = .luh, cookies: StudIPCookieStore? = nil,
+         websiteDataStore: WKWebsiteDataStore? = nil) {
+        self.root = root ?? AppPaths.support.appendingPathComponent("StudIP", isDirectory: true)
         self.host = host
         self.clock = clock
         self.defaults = defaults
         self.support = support
+        self.university = university
+        self.cookies = cookies ?? ActiveContainer.current?.cookies ?? StudIPCookieStore(account: "ohne-container")
+        self.websiteDataStore = websiteDataStore ?? .nonPersistent()
         selectedCourses = Set(defaults.stringArray(forKey: "uniflow.studip.courses") ?? [])
         lastRun = defaults.object(forKey: "uniflow.studip.lastRun") as? Date
         lastSummary = defaults.string(forKey: "uniflow.studip.lastSummary")
@@ -183,7 +233,7 @@ final class StudIPSync: ObservableObject {
             courses = list
         }
         entries = sortedEntries()
-        phase = StudIPKeychain.load().isEmpty ? .signedOut : .idle
+        phase = offersStudIP && !self.cookies.load().isEmpty ? .idle : .signedOut
         if !index.isEmpty { adoption = Task { await adoptExistingDownloads() } }
     }
 
@@ -203,6 +253,12 @@ final class StudIPSync: ObservableObject {
 
     var isRunning: Bool { if case .running = phase { return true }; return false }
 
+    /// Hat die Hochschule dieses Containers Stud.IP? (Hildesheim: Learnweb und LSF, Abgleich folgt)
+    var offersStudIP: Bool { university.profile.studipBase != nil }
+
+    /// Liegt ein Sitzungs-Cookie dieses Containers im Schluesselbund?
+    var hasStoredSession: Bool { !cookies.load().isEmpty }
+
     func fileURL(_ e: StudIPLocalEntry) -> URL { root.appendingPathComponent(e.relativePath) }
 
     // MARK: Anmeldung
@@ -210,7 +266,7 @@ final class StudIPSync: ObservableObject {
     /// Aufruf aus der Anmeldeansicht, sobald Stud.IP die Sitzung bestaetigt hat.
     func signedIn(cookies: [HTTPCookie]) {
         do {
-            try StudIPKeychain.save(cookies)
+            try self.cookies.save(cookies)
             phase = .idle
             Task { await run() }
         } catch {
@@ -225,12 +281,11 @@ final class StudIPSync: ObservableObject {
         return (try? await c.currentUserID()) != nil
     }
 
-    /// Abmelden: Cookie aus dem Schluesselbund und alle Daten der Webansicht (auch die SSO-Sitzung) loeschen.
-    /// Heruntergeladene Dateien bleiben, bis der Nutzer sie entfernt.
+    /// Abmelden: Cookie aus dem Schluesselbund und alle Daten der Webansicht dieses Containers (auch die SSO-Sitzung)
+    /// loeschen; die andere Hochschule bleibt angemeldet. Heruntergeladene Dateien bleiben, bis der Nutzer sie entfernt.
     func signOut() async {
-        StudIPKeychain.clear()
-        let store = WKWebsiteDataStore.default()
-        await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+        cookies.clear()
+        await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         phase = .signedOut
     }
 
@@ -262,8 +317,8 @@ final class StudIPSync: ObservableObject {
     private var isFailed: Bool { if case .failed = phase { return true }; return false }
 
     func run() async {
-        guard !isRunning else { return }
-        let cookies = StudIPKeychain.load()
+        guard !isRunning, offersStudIP else { return }
+        let cookies = self.cookies.load()
         guard !cookies.isEmpty else { phase = .signedOut; return }
         await run(client: StudIPClient(base: Self.base, transport: URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")))
     }

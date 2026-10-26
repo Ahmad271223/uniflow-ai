@@ -126,7 +126,7 @@ die ganze Lösung abgewiesen.
    `apps/apple/project.yml`, `.onOpenURL` in `UniFlowApp.swift`) oder im Editor „Mehr → Lösung importieren …“ bzw.
    „Ebenen → Lösung importieren …“ (`fileImporter`).
 2. Der Kopf wird geprüft, das Paket **verschlüsselt wie empfangen** unter
-   `Application Support/UniFlow/solutions/received/<id>.uniflowsolution` abgelegt (in der geprüften, kanonischen Form
+   `<Container>/solutions/received/<id>.uniflowsolution` abgelegt (Container je Apple-Nutzer und Hochschule) (in der geprüften, kanonischen Form
    `encoded()`: Kopf und Chiffrat unverändert, keine weiteren Bytes), der Index (`solutions/index.json`) ordnet es dem
    Fingerabdruck zu (`SolutionLibrary`). Ein **anderes** Paket mit derselben Lösungs-ID (anderer Fingerabdruck, Kopf
    oder anderes Chiffrat) verdrängt eine schon gespeicherte Lösung nie, denn beim Import ist der Kopf noch nicht

@@ -17,6 +17,8 @@ enum StudIPLink: Equatable {
     case expired
     /// angemeldet; auch waehrend eines Abgleichs und nach einem Abgleichfehler (z. B. offline)
     case connected
+    /// die gewaehlte Hochschule hat kein Stud.IP (Universitaet Hildesheim: Learnweb und LSF folgen): keine Karte
+    case notOffered
 
     /// `hasSession`: liegt ein Sitzungs-Cookie im Schluesselbund? Nur bei `.failed` gefragt – scheitert schon das
     /// Speichern nach der Anmeldung (StudIPSync.signedIn), ist Stud.IP nicht verbunden, obwohl die Phase `.failed` ist.
@@ -49,7 +51,7 @@ enum UFDataMode: Equatable {
         switch studIP {
         case .notConnected: return .connectStudIP
         case .expired: return .reconnectStudIP
-        case .connected: return .empty
+        case .connected, .notOffered: return .empty
         }
     }
 
@@ -60,16 +62,18 @@ enum UFDataMode: Equatable {
     }
 
     /// Die eine Weiche fuer alle Seiten (UFServerGate, Uebersicht, UFRemote, Community): Datenquelle aus der Sitzung,
-    /// Stud.IP aus dem Abgleich. Den Schluesselbund liest sie nur bei einem Abgleichfehler.
+    /// Stud.IP aus dem Abgleich des offenen Containers. Den Schluesselbund liest sie nur bei einem Abgleichfehler.
+    /// An einer Hochschule ohne Stud.IP gibt es keine Karte "Stud.IP verbinden".
     @MainActor static func current(api: APIClient?, studip: StudIPSync) -> UFDataMode {
-        resolve(api: api, studIP: StudIPLink(studip.phase, hasSession: !StudIPKeychain.load().isEmpty))
+        guard studip.offersStudIP else { return resolve(api: api, studIP: .notOffered) }
+        return resolve(api: api, studIP: StudIPLink(studip.phase, hasSession: studip.hasStoredSession))
     }
 
     /// Karte "Stud.IP verbinden" zeigen
     var showsConnectCard: Bool {
         switch self {
         case .connectStudIP, .reconnectStudIP: return true
-        case .local(let link): return link != .connected
+        case .local(let link): return link != .connected && link != .notOffered
         case .server, .empty: return false
         }
     }
@@ -205,7 +209,7 @@ struct ConnectStudIPCard: View {
                     .padding(.top, 12.8)
             }
             .sheet(isPresented: $showLogin) {
-                StudIPLoginView(base: StudIPSync.base) { cookies in
+                StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
                     showLogin = false
                     studip.signedIn(cookies: cookies)
                 }

@@ -1,4 +1,5 @@
 import AuthenticationServices
+import UniFlowCore
 import XCTest
 @testable import UniFlow
 
@@ -45,7 +46,7 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertEqual(s.stage, .welcome)
     }
 
-    func testSignInThenPlanPickerOnceThenReady() {
+    func testSignInThenPlanPickerOnceThenUniversityThenReady() {
         let secrets = MemorySecrets()
         let s = store(secrets)
         s.signIn(userID: "001.abc", name: "Ada Lovelace", email: "ada@example.com")
@@ -54,7 +55,11 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertEqual(secrets.values[AccountStore.Keys.name], "Ada Lovelace")
         XCTAssertEqual(secrets.values[AccountStore.Keys.email], "ada@example.com")
         s.markPlanShown()
+        XCTAssertEqual(s.stage, .universityPicker, "nach der Tarifwahl: Hochschule wählen")
+        XCTAssertNil(s.containerKey)
+        s.chooseUniversity(.luh)
         XCTAssertEqual(s.stage, .ready)
+        XCTAssertEqual(s.containerKey, DataContainerKey(userID: "001.abc", university: .luh))
 
         // zweiter Start: direkt die Oberflaeche
         let again = store(secrets)
@@ -154,12 +159,13 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertEqual(store(secrets, allowsDebugAccount: false).account?.userID, "001.abc")
     }
 
-    func testDeleteAccountRunsAllStepsAndKeepsFilesAndNotes() async throws {
+    func testDeleteAccountRunsAllStepsBeforeWelcome() async throws {
         let secrets = MemorySecrets()
         let s = store(secrets)
         s.signIn(userID: "001.abc", name: "Ada", email: "ada@example.com")
         s.markPlanShown()
-        // Geraeteeinstellungen und eine heruntergeladene Datei duerfen nicht verschwinden
+        s.chooseUniversity(.hildesheim)
+        // Geraeteeinstellungen und Dateien ausserhalb der Container der App bleiben (die Container loescht ein Schritt)
         defaults.set("left", forKey: "uniflow.hand")
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-delete-\(UUID().uuidString).pdf")
         try Data("%PDF".utf8).write(to: file)
@@ -178,6 +184,69 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertFalse(defaults.bool(forKey: AccountStore.Keys.planShown))
         XCTAssertEqual(defaults.string(forKey: "uniflow.hand"), "left")
         XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+        XCTAssertNil(defaults.string(forKey: AccountStore.Keys.university("001.abc")), "Hochschulwahl mit dem Konto geloescht")
+        s.signIn(userID: "001.abc", name: nil, email: nil)
+        s.markPlanShown()
+        XCTAssertEqual(s.stage, .universityPicker)
+    }
+
+    // MARK: Hochschulwahl
+
+    func testUniversityIsChosenPerUserAndNeverGuessed() {
+        let s = store(MemorySecrets())
+        // E-Mail und Name einer Hochschule: trotzdem keine Vorauswahl
+        s.signIn(userID: "001.abc", name: "Testperson Hildesheim", email: "testperson@uni-hildesheim.de")
+        s.markPlanShown()
+        XCTAssertNil(s.university)
+        XCTAssertEqual(s.stage, .universityPicker)
+        s.chooseUniversity(.hildesheim)
+        XCTAssertEqual(s.stage, .ready)
+        XCTAssertEqual(s.containerKey?.university, .hildesheim)
+        XCTAssertFalse(AccountStore.Keys.university("001.abc").contains("001.abc"), "nur die Kurzkennung in den UserDefaults")
+
+        // anderes Konto auf demselben iPad: eigene Wahl
+        s.signIn(userID: "002.other", name: nil, email: "other@stud.uni-hannover.de")
+        XCTAssertNil(s.university)
+        XCTAssertEqual(s.stage, .universityPicker)
+        s.chooseUniversity(.luh)
+        XCTAssertEqual(s.containerKey, DataContainerKey(userID: "002.other", university: .luh))
+
+        // zurueck zum ersten Konto (auch nach Abmelden und Neustart): seine Wahl gilt wieder
+        s.signOut()
+        XCTAssertNil(s.university)
+        XCTAssertNil(s.containerKey)
+        s.signIn(userID: "001.abc", name: nil, email: nil)
+        XCTAssertEqual(s.university, .hildesheim)
+        XCTAssertEqual(store(MemorySecrets()).university, nil, "ohne Anmeldung keine Hochschule")
+
+        // Wechsel in den Einstellungen
+        s.chooseUniversity(.luh)
+        XCTAssertEqual(s.containerKey, DataContainerKey(userID: "001.abc", university: .luh))
+        XCTAssertEqual(s.stage, .ready)
+    }
+
+    func testPrepareUniversityArguments() {
+        let s = store(MemorySecrets())
+        defaults.set("university", forKey: "UFOnboarding")
+        DebugLaunch.prepare(account: s, defaults: defaults)
+        XCTAssertEqual(s.stage, .universityPicker, "-UFOnboarding university zeigt die Hochschulwahl")
+        XCTAssertEqual(s.account?.userID, AccountStore.debugUserID, "Debug-Konto mit fester Kennung")
+
+        defaults.set("skip", forKey: "UFOnboarding")
+        defaults.set("hildesheim", forKey: "UFUniversity")
+        let h = store(MemorySecrets())
+        DebugLaunch.prepare(account: h, defaults: defaults)
+        XCTAssertEqual(h.stage, .ready)
+        XCTAssertEqual(h.university, .hildesheim)
+        XCTAssertEqual(DebugLaunch.forcedUniversity(defaults: defaults), .hildesheim)
+
+        defaults.set("tuebingen", forKey: "UFUniversity")
+        XCTAssertNil(DebugLaunch.forcedUniversity(defaults: defaults), "unbekannte Hochschule wird ignoriert")
+        defaults.removeObject(forKey: "UFUniversity")
+        let l = store(MemorySecrets())
+        l.signIn(userID: "003.neu", name: nil, email: nil)
+        DebugLaunch.prepare(account: l, defaults: defaults)
+        XCTAssertEqual(l.university, .luh, "skip ohne -UFUniversity: LUH wie bisher")
     }
 
     // MARK: Startargumente (DebugLaunch.prepare)

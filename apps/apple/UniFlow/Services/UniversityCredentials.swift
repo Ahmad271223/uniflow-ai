@@ -2,13 +2,13 @@ import Foundation
 import Security
 import UniFlowCore
 
-// Gemerkte Zugangsdaten je Hochschule und Dienst (Entscheidung des Inhabers, 25.10.2026): Nach der Wahl der
+// Gemerkte Zugangsdaten je Apple-Nutzer, Hochschule und Dienst (Entscheidung des Inhabers, 25.10.2026): Nach der Wahl der
 // Hochschule oeffnet die App deren Anmeldeseiten; wer den Schalter "Auf diesem iPad merken" an laesst, dessen
 // Benutzername und Passwort legt die App beim Tippen auf "Anmelden" im Schluesselbund ab und fuellt sie beim
 // naechsten Mal vor. Angemeldet wird nie automatisch.
 //
-// Schluesselbund: eigener Dienst "de.uniflow.ai.university", Eintrag je Hochschule und Dienst mit Praefix
-// ("luh.studip.user", "hildesheim.cas.password"), kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht
+// Schluesselbund: eigener Dienst "de.uniflow.ai.university", Eintrag je Nutzer, Hochschule und Dienst mit Praefix
+// ("<nutzer>.luh.studip.user", "<nutzer>.hildesheim.cas.password"), kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht
 // synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule; innerhalb
 // der LUH fuellt QIS ohne eigene Daten die LUH-ID aus Stud.IP vor (wie am PC, `prefillCredential`).
 // Nach einer Neuinstallation (Merker in den UserDefaults fehlt) wird der ganze Dienst geleert, bevor etwas gelesen wird.
@@ -111,17 +111,45 @@ struct UniversityKeychain: UniversitySecretStoring {
     }
 }
 
-/// Zugangsdaten je (Hochschule, Dienst). Ein Dienst, der nicht zur Hochschule gehoert, hat nie Zugangsdaten.
+/// Zugangsdaten je (Apple-Nutzer, Hochschule, Dienst). Ein Dienst, der nicht zur Hochschule gehoert, hat nie
+/// Zugangsdaten. Mit `userScope` (Kurzkennung des Apple-Nutzers, `DataContainerKey.userScope`) beginnt jeder Eintrag
+/// mit dieser Kennung ("u1a2b….luh.studip.user"): ein anderes Konto auf demselben iPad sieht nichts davon.
 final class UniversityCredentialStore {
-    static let standard = UniversityCredentialStore()
+    /// Zugangsdaten des angemeldeten Nutzers (Container der gewaehlten Hochschule); ohne Anmeldung ein Speicher,
+    /// der nichts findet und nichts behaelt, was jemandem gehoert
+    static var standard: UniversityCredentialStore { ActiveContainer.current?.credentials ?? signedOut }
+    private static let signedOut = UniversityCredentialStore(userScope: "u-ohne-anmeldung")
 
     private let secrets: UniversitySecretStoring
     private let defaults: UserDefaults
+    /// Kurzkennung des Apple-Nutzers; nil nur fuer die alte Ablage ohne Nutzer (Umzug, Tests)
+    let userScope: String?
+    /// Speicher eines Containers: nur diese Hochschule (eine andere liest nichts, speichert nichts, loescht nichts)
+    let onlyUniversity: UniversityKey?
 
-    init(secrets: UniversitySecretStoring = UniversityKeychain(), defaults: UserDefaults = .standard) {
+    init(secrets: UniversitySecretStoring = UniversityKeychain(), defaults: UserDefaults = .standard, userScope: String? = nil,
+         onlyUniversity: UniversityKey? = nil) {
         self.secrets = secrets
         self.defaults = defaults
+        self.userScope = userScope
+        self.onlyUniversity = onlyUniversity
         removeLeftoversOfEarlierInstallation()
+    }
+
+    /// gehoert die Hochschule zu diesem Speicher?
+    private func allows(_ uni: UniversityKey) -> Bool { onlyUniversity == nil || onlyUniversity == uni }
+
+    /// Eintrag im Schluesselbund: mit Nutzer-Praefix, sonst wie im Profil
+    private func scoped(_ account: String) -> String { userScope.map { "\($0).\(account)" } ?? account }
+
+    /// Teil nach dem Nutzer-Praefix; nil, wenn der Eintrag nicht zu diesem Nutzer gehoert
+    private func unscoped(_ account: String) -> String? {
+        guard let userScope else {
+            // alte Ablage: nur Eintraege ohne Nutzer-Praefix (die beginnen mit dem Praefix einer Hochschule)
+            return UniversityKey.allCases.contains { $0.profile.ownsKeychainAccount(account) } ? account : nil
+        }
+        let prefix = userScope + "."
+        return account.hasPrefix(prefix) ? String(account.dropFirst(prefix.count)) : nil
     }
 
     /// Merker dieser Installation (UserDefaults verschwinden mit der App, der Schluesselbund nicht)
@@ -139,10 +167,11 @@ final class UniversityCredentialStore {
     }
 
     private func accounts(_ uni: UniversityKey, _ service: String) -> (user: String, password: String)? {
+        guard allows(uni) else { return nil }
         let p = uni.profile
         guard let u = p.keychainAccount(service: service, field: "user"),
               let pw = p.keychainAccount(service: service, field: "password") else { return nil }
-        return (u, pw)
+        return (scoped(u), scoped(pw))
     }
 
     /// Nichts lesen, solange Reste einer frueheren Installation nicht entfernt werden konnten.
@@ -185,32 +214,69 @@ final class UniversityCredentialStore {
     /// Abmelden, Hochschule wechseln: alles mit dem Praefix dieser Hochschule (auch kuenftige Eintraege wie
     /// "hildesheim.learnweb.token"); die andere Hochschule bleibt unberuehrt.
     func deleteAll(for uni: UniversityKey) {
+        guard allows(uni) else { return }
         let p = uni.profile
         for s in p.loginServices { delete(uni, service: s.key) }
-        for account in secrets.accounts() where p.ownsKeychainAccount(account) { secrets.remove(account) }
+        for account in secrets.accounts() where unscoped(account).map(p.ownsKeychainAccount) == true { secrets.remove(account) }
     }
 
-    /// Hochschule gewechselt: gemerkte Zugangsdaten der bisherigen Hochschule entfernen (die Wahl selbst kommt mit
-    /// der Hochschulwahl nach der Integration).
+    /// Gemerkte Zugangsdaten der bisherigen Hochschule entfernen. Der Wechsel in den Einstellungen ruft das nicht auf:
+    /// Die Daten der anderen Hochschule (auch gemerkte Zugangsdaten) bleiben getrennt erhalten, bis "Daten dieser
+    /// Hochschule löschen" sie entfernt (`ContainerManager.deleteUniversityData`).
     func universityChanged(from old: UniversityKey, to new: UniversityKey) {
         guard old != new else { return }
         deleteAll(for: old)
     }
 
-    /// Konto loeschen: alle Hochschulen.
-    func deleteAll() { UniversityKey.allCases.forEach(deleteAll(for:)) }
+    /// Konto loeschen: alle Hochschulen dieses Nutzers (mit Nutzer-Praefix auch kuenftige Eintraege), samt Schaltern.
+    func deleteAll() {
+        UniversityKey.allCases.forEach(deleteAll(for:))
+        guard userScope != nil, onlyUniversity == nil else { return }
+        for account in secrets.accounts() where unscoped(account) != nil { secrets.remove(account) }
+        for uni in UniversityKey.allCases {
+            for s in uni.profile.loginServices { defaults.removeObject(forKey: rememberKey(uni, s.key)) }
+        }
+    }
+
+    /// Umzug aus der Zeit vor den Containern: Eintraege ohne Nutzer-Praefix ("luh.studip.user") und ihre Schalter
+    /// gehoeren ab jetzt diesem Nutzer. Wiederholbar: was schon umgezogen ist, wird nicht ueberschrieben.
+    func adoptEntriesWithoutUser() {
+        guard userScope != nil, onlyUniversity == nil, removeLeftoversOfEarlierInstallation() else { return }
+        let legacy = UniversityCredentialStore(secrets: secrets, defaults: defaults)
+        for account in secrets.accounts() where legacy.unscoped(account) != nil {
+            if secrets.read(scoped(account)) == nil, let value = secrets.read(account) {
+                guard secrets.write(value, account: scoped(account)) else { continue }
+            }
+            secrets.remove(account)
+        }
+        for uni in UniversityKey.allCases {
+            for s in uni.profile.loginServices {
+                let old = Self.rememberKey(uni, s.key)
+                guard let on = defaults.object(forKey: old) as? Bool else { continue }
+                if defaults.object(forKey: rememberKey(uni, s.key)) == nil { defaults.set(on, forKey: rememberKey(uni, s.key)) }
+                defaults.removeObject(forKey: old)
+            }
+        }
+    }
 
     // MARK: Schalter "Auf diesem iPad merken" (Standard: an)
 
+    /// Schalter ohne Nutzer (alte Ablage, Tests)
     static func rememberKey(_ uni: UniversityKey, _ service: String) -> String { "uniflow.login.remember.\(uni.rawValue).\(service)" }
 
+    /// Schalter dieses Nutzers
+    func rememberKey(_ uni: UniversityKey, _ service: String) -> String {
+        userScope.map { "uniflow.login.remember.\($0).\(uni.rawValue).\(service)" } ?? Self.rememberKey(uni, service)
+    }
+
     func remember(_ uni: UniversityKey, service: String) -> Bool {
-        defaults.object(forKey: Self.rememberKey(uni, service)) as? Bool ?? true
+        defaults.object(forKey: rememberKey(uni, service)) as? Bool ?? true
     }
 
     /// Aus: nichts mehr merken und die gespeicherten Zugangsdaten dieses Dienstes sofort entfernen.
     func setRemember(_ on: Bool, _ uni: UniversityKey, service: String) {
-        defaults.set(on, forKey: Self.rememberKey(uni, service))
+        guard allows(uni) else { return }
+        defaults.set(on, forKey: rememberKey(uni, service))
         if !on { delete(uni, service: service) }
     }
 }

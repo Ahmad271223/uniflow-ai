@@ -7,8 +7,9 @@ import UniFlowCore
 @main
 struct UniFlowApp: App {
     @StateObject private var account: AccountStore
-    @StateObject private var session = Session()
-    @StateObject private var studip = StudIPSync()
+    /// Container je (Apple-Nutzer, Hochschule) mit Datenbank, Dateien, Notizen und Anmeldungen
+    @StateObject private var containers: ContainerManager
+    @StateObject private var session: Session
     @StateObject private var router = UFRouter()
     @StateObject private var shell = ShellState()
     @StateObject private var toast = UFToastCenter()
@@ -18,10 +19,16 @@ struct UniFlowApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        DataSourceMigration.run()                                         // alte Journale in den Server-Namensraum, vor dem ersten Dokument
+        DataSourceMigration.run()                                         // alte Journale in den Server-Namensraum, am alten Ort vor dem Umzug
         let a = AccountStore()
-        DebugLaunch.prepare(account: a)                                   // -UFOnboarding vor dem ersten Bild
+        DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
+        let c = ContainerManager()
+        c.sync(account: a)                                                // alte Daten umziehen, Container der Hochschule oeffnen
+        let s = Session(local: c.active?.api ?? .local(.unavailable))
+        c.onChange = { [weak s] container in s?.useLocal(container?.api ?? .local(.unavailable)) }
         _account = StateObject(wrappedValue: a)
+        _containers = StateObject(wrappedValue: c)
+        _session = StateObject(wrappedValue: s)
     }
 
     var body: some Scene {
@@ -31,8 +38,9 @@ struct UniFlowApp: App {
                 .modifier(UFModalHost(overlay: overlay))                 // Dialoge innerhalb der Umgebungsobjekte
                 .modifier(UFToastOverlay(center: toast))
                 .environmentObject(account)
+                .environmentObject(containers)
                 .environmentObject(session)
-                .environmentObject(studip)
+                .environmentObject(containers.studip)                     // Abgleich des offenen Containers
                 .environmentObject(router)
                 .environmentObject(shell)
                 .environmentObject(toast)
@@ -44,6 +52,11 @@ struct UniFlowApp: App {
                     // Datei *.uniflowsolution (AirDrop, Dateien, "Öffnen in"): verschluesselt ablegen; sie erscheint im
                     // passenden Dokument unter "Ebenen" (docs/LOESUNGEN-TEILEN.md)
                     if SolutionSharing.isSolutionFile(url) {
+                        // Loesungen gehoeren in den Container des Kontos und der Hochschule
+                        guard containers.active != nil else {
+                            toast.show("Melde dich zuerst an und wähle deine Hochschule. Öffne die Lösung danach erneut.", seconds: 4)
+                            return
+                        }
                         do {
                             let e = try SolutionSharing.importFile(url)
                             let label = ForeignSolutionLayer.label(displayName: e.displayName, createdAt: e.createdAt)
@@ -59,20 +72,32 @@ struct UniFlowApp: App {
                 .task { await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { studip.runIfDue() }      // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min
+            if phase == .active { containers.studip.runIfDue() }      // Stud.IP direkt: beim Oeffnen, hoechstens alle 30 min
         }
     }
 }
 
-/// Begruessung -> Tarifwahl (nur beim ersten Mal) -> Oberflaeche; die Oberflaeche erscheint auch ohne Server
+/// Begruessung -> Tarifwahl (nur beim ersten Mal) -> Hochschulwahl -> Oberflaeche; die Oberflaeche erscheint auch
+/// ohne Server, aber erst mit offenem Container der gewaehlten Hochschule
 struct RootView: View {
+    @EnvironmentObject private var account: AccountStore
+    @EnvironmentObject private var containers: ContainerManager
     @State private var choosingPlan = false
 
+    /// was den Container bestimmt (Anmeldung, Hochschulwahl, Wechsel in den Einstellungen)
+    private struct ContainerTrigger: Equatable {
+        let user: String?
+        let university: UniversityKey?
+    }
+
     var body: some View {
-        OnboardingFlow { MainView() }
+        OnboardingFlow { ContainerGate { MainView() } }
             .environment(\.ufSwitchPlan) { choosingPlan = true }            // "Tarif wechseln" in den Einstellungen
             .sheet(isPresented: $choosingPlan) {
                 PlanPickerView(context: .settings) { choosingPlan = false }
+            }
+            .onChange(of: ContainerTrigger(user: account.account?.userID, university: account.university)) { _, _ in
+                containers.sync(account: account)
             }
     }
 }

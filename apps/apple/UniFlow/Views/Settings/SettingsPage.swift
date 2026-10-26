@@ -652,7 +652,7 @@ extension EnvironmentValues {
     }
 }
 
-/// Karten "Konto" (Mit Apple angemeldet, Konto loeschen) und "Tarif" nebeneinander
+/// Karten "Konto" (Mit Apple angemeldet, Konto loeschen), "Tarif" und "Hochschule" (Wechsel, Daten loeschen)
 private struct AppAccountCards: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var overlay: UFOverlay
@@ -663,6 +663,7 @@ private struct AppAccountCards: View {
         UFGridLayout(spacing: 16, minWidth: 340) {
             accountCard
             planCard
+            UniversitySettingsCard()
         }
         .environment(\.ufFillsCell, true)
         #if DEBUG
@@ -686,7 +687,7 @@ private struct AppAccountCards: View {
                     (Text("Name: ").font(.uf(13.12, 700)) + Text(a?.name ?? "nicht freigegeben"))
                     (Text("E-Mail: ").font(.uf(13.12, 700)) + Text(a?.email ?? "nicht freigegeben"))
                 }
-                Text("Das Konto ordnet dein Abo und deine Stud.IP-Verbindung zu. Deine Dateien und Notizen bleiben auf diesem iPad.")
+                Text("Das Konto ordnet dein Abo, deine Hochschule und ihre Verbindungen zu. Deine Dateien und Notizen bleiben auf diesem iPad.")
                     .foregroundStyle(UF.muted)
             }
             .ufFont(13.12).foregroundStyle(UF.text)
@@ -720,7 +721,7 @@ private struct AppAccountCards: View {
 private struct DeleteAccountDialog: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var session: Session
-    @EnvironmentObject private var studip: StudIPSync
+    @EnvironmentObject private var containers: ContainerManager
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
@@ -730,7 +731,8 @@ private struct DeleteAccountDialog: View {
         UFDialog("Konto löschen?", icon: "trash") {
             VStack(alignment: .leading, spacing: 9.6) {
                 Text("Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von UniFlow (Stud.IP-Sitzung, Server-PIN, gemerkte Hochschul-Zugangsdaten) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung.")
-                Text("Heruntergeladene Dateien und Notizen auf diesem iPad bleiben erhalten.")
+                Text("Ebenso werden alle Daten deines Kontos auf diesem iPad gelöscht, für jede Hochschule: heruntergeladene Dateien, eigene Dokumente, Notizen, Lernplan, Einstellungen und die Anmeldungen in den Webansichten. Das lässt sich nicht rückgängig machen.")
+                    .font(.uf(13.12, 600)).foregroundStyle(UF.bad)
                 Text("Ein Abo wird dadurch nicht gekündigt. Abos kündigst du bei Apple:").font(.uf(13.12, 700)).foregroundStyle(UF.text)
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
                     .ufFont(13.12, 600).foregroundStyle(UF.accentText)
@@ -743,7 +745,8 @@ private struct DeleteAccountDialog: View {
                 busy = true
                 Task {
                     // RootView zeigt danach die Begruessung
-                    await account.deleteAccount(also: AccountStore.deletionSteps(studip: studip, session: session)) {
+                    let steps = account.account.map { AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID) } ?? []
+                    await account.deleteAccount(also: steps) {
                         overlay.closeAll()
                         router.go(.dashboard)
                     }
@@ -771,18 +774,22 @@ private struct LocalAccountTab: View {
         VStack(alignment: .leading, spacing: 16) {
             AppAccountCards()
             UFGridLayout(spacing: 16, minWidth: 340) {
-                UFCard {
-                    UFCardHead("Stud.IP", icon: "graduation") {
-                        connected ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht verbunden", tone: .warn)
-                    }
-                    Text("Kurse, Ordner und neue Dateien direkt aus Stud.IP. Du meldest dich auf der echten Stud.IP-Seite an; Dateien bleiben nur auf diesem iPad.")
-                        .ufFont(13.12).foregroundStyle(UF.muted)
-                    UFFlexWrap(gap: 9.6) {
-                        UFButton(connected ? "Stud.IP öffnen" : "Stud.IP verbinden", icon: "book", kind: connected ? .normal : .primary, size: .small) {
-                            studipSheet = true
+                if studip.offersStudIP {
+                    UFCard {
+                        UFCardHead("Stud.IP", icon: "graduation") {
+                            connected ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht verbunden", tone: .warn)
                         }
+                        Text("Kurse, Ordner und neue Dateien direkt aus Stud.IP. Du meldest dich auf der echten Stud.IP-Seite an; Dateien bleiben nur auf diesem iPad.")
+                            .ufFont(13.12).foregroundStyle(UF.muted)
+                        UFFlexWrap(gap: 9.6) {
+                            UFButton(connected ? "Stud.IP öffnen" : "Stud.IP verbinden", icon: "book", kind: connected ? .normal : .primary, size: .small) {
+                                studipSheet = true
+                            }
+                        }
+                        .padding(.top, 9.6)
                     }
-                    .padding(.top, 9.6)
+                } else {
+                    UniversitySourcesSoonCard(university: studip.university)
                 }
                 UFCard {
                     if let term { SemesterFields(term: term, reload: reload).padding(.bottom, 16) }

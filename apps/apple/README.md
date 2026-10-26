@@ -30,7 +30,8 @@ Schreibgefühl, Handballen-Erkennung, Pencil-Doppeltippen und Zoomverhalten am G
 
 ### Journal auf dem Gerät
 
-`Application Support/UniFlow/journal/docs/<Datei-ID>/`: `meta.json` (Seitenliste usw.), `acks.json`
+`<Container>/journal/spaces/<Datenquelle>/docs/<Datei-ID>/` (Container je Apple-Nutzer und Hochschule unter
+`Application Support/UniFlowContainers/<uuid>/`): `meta.json` (Seitenliste usw.), `acks.json`
 (Serverversion, bestätigte Revisionen), `pages/<Seite>.json` (Stand + Revision), `base/<Seite>.json`
 (Vergleichsstand für Konflikte). Jede Datei wird einzeln atomar ersetzt; nach einem Absturz ist an den Revisionen
 erkennbar, was noch fehlt.

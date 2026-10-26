@@ -5,7 +5,8 @@ import UniFlowCore
 
 /// Letzte erfolgreiche Serverantwort je Pfad, damit Ansichten auch ohne WLAN etwas zeigen.
 struct ResponseCache {
-    static let shared = ResponseCache(root: AppPaths.support.appendingPathComponent("cache", isDirectory: true))
+    /// Zwischenspeicher des aktiven Containers (je Apple-Nutzer und Hochschule getrennt)
+    static var shared: ResponseCache { ActiveContainer.current?.cache ?? ResponseCache(root: ContainerPaths.none.appendingPathComponent("cache", isDirectory: true)) }
     let root: URL
 
     private func url(_ path: String) -> URL {
@@ -41,10 +42,13 @@ final class RemoteData: ObservableObject {
     @Published private(set) var failedOffline = false
     private(set) var path: String
     private let api: APIClient?
+    /// Zwischenspeicher des Containers, in dem die Ansicht entstand (eine spaete Antwort landet nie in einem anderen)
+    private let cache: ResponseCache
 
-    init(path: String, api: APIClient?) {
+    init(path: String, api: APIClient?, cache: ResponseCache = .shared) {
         self.path = path
         self.api = api
+        self.cache = cache
     }
 
     var value: JSONValue? {
@@ -65,15 +69,15 @@ final class RemoteData: ObservableObject {
         guard let api else { failedOffline = true; state = .failed("Nicht mit dem Server verbunden."); return }
         // Zwischenspeicher je Server getrennt (sonst zeigt ein anderer Server alte Daten)
         let key = api.base.absoluteString + path
-        if value == nil, let cached = ResponseCache.shared.load(key) { state = .loaded(cached.0, offlineSince: cached.1) }
+        if value == nil, let cached = cache.load(key) { state = .loaded(cached.0, offlineSince: cached.1) }
         do {
             let v = try await api.value(path)
-            ResponseCache.shared.store(v, for: key)
+            cache.store(v, for: key)
             state = .loaded(v, offlineSince: nil)
         } catch {
             // nur bei Netzfehlern den letzten Stand als "Offline" zeigen; eine Fehlerantwort (401, 500 …) ist kein Offline
             let network = !(error is APIError)
-            if network, let cached = ResponseCache.shared.load(key) {
+            if network, let cached = cache.load(key) {
                 state = .loaded(cached.0, offlineSince: cached.1)
             } else {
                 failedOffline = network

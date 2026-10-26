@@ -310,6 +310,10 @@ struct UFHeader: View {
     /// Sync-Knopf: Abgleich des eigenen Servers, sonst Stud.IP direkt auf dem iPad oder der Weg zur Anmeldung
     private func sync() {
         if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
+        guard studip.offersStudIP else {
+            toast.show("Learnweb und LSF der \(studip.university.profile.name) folgen in einer späteren Version.", seconds: 4)
+            return
+        }
         switch studip.phase {
         case .signedOut, .needsLogin:
             toast.show("Zuerst Stud.IP verbinden")

@@ -118,8 +118,10 @@ enum SolutionImportResult {
 /// Teilen und Ansehen von Loesungen ohne Server (docs/LOESUNGEN-TEILEN.md).
 enum SolutionSharing {
     static let cipher = CryptoKitSolutionCipher()
-    /// Ablage auf diesem Geraet (Application Support/UniFlow/solutions/)
-    static let library = SolutionLibrary(root: AppPaths.solutions)
+    /// Ablage auf diesem Geraet im aktiven Container (<Container>/solutions/, je Apple-Nutzer und Hochschule)
+    static var library: SolutionLibrary {
+        ActiveContainer.current?.solutions ?? SolutionLibrary(root: ContainerPaths.none.appendingPathComponent("solutions", isDirectory: true))
+    }
     /// Online-Community: noch kein Dienst (wirft "nicht verbunden", sendet nichts)
     static let community: CommunityService = NotConnectedCommunityService()
 

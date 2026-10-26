@@ -7,9 +7,14 @@ import UniFlowCore
 
 /// Ordner im App-Container.
 enum AppPaths {
-    static var support: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("UniFlow", isDirectory: true)
-    }
+    /// Datenordner des aktiven Containers (Apple-Nutzer, Hochschule; `ContainerManager`). Vor der Anmeldung und
+    /// Hochschulwahl ein leerer Ort im Temp-Ordner, an dem nichts Dauerhaftes entsteht. Wer Dateien eines Containers
+    /// schreibt, haelt seinen Ordner ab der Erzeugung fest (z. B. `DocumentStore`), damit ein Wechsel nichts vermischt.
+    static var support: URL { ActiveContainer.current?.layout.root ?? ContainerPaths.none }
+
+    /// Ort ohne Container aus der Zeit vor der Hochschulwahl (Application Support/UniFlow); nur fuer den Umzug
+    static var legacySupport: URL { ContainerPaths.legacy.support }
+
     /// Journal aller Dokumente (Seiten, Revisionen, Basis fuer Konflikte), darin je Datenquelle `spaces/<id>/docs`.
     static var journal: URL { support.appendingPathComponent("journal", isDirectory: true) }
     /// Zwischenspeicher der Original-PDFs je Datenquelle (Datei-IDs von lokal und Server koennen gleich sein)
@@ -68,8 +73,9 @@ enum DataSourceMigration {
         return .server(host: nil, port: nil)
     }
 
+    /// Laeuft am alten Ort (vor dem Umzug in die Container, `LegacyDataMigration`).
     @discardableResult
-    static func run(support: URL = AppPaths.support, savedServerURL: String? = UserDefaults.standard.string(forKey: Session.urlKey))
+    static func run(support: URL = AppPaths.legacySupport, savedServerURL: String? = UserDefaults.standard.string(forKey: Session.urlKey))
         -> (journal: JournalNamespaceMigration.Report, pdf: JournalNamespaceMigration.Report)? {
         let owner = legacyOwner(savedServerURL: savedServerURL)
         do {

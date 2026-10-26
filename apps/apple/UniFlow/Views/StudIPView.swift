@@ -25,7 +25,7 @@ struct StudIPView: View {
         .navigationBarTitleDisplayMode(.inline)
         .quickLookPreview($preview)
         .sheet(isPresented: $showLogin) {
-            StudIPLoginView(base: StudIPSync.base) { cookies in
+            StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
                 showLogin = false
                 studip.signedIn(cookies: cookies)
             }
@@ -193,6 +193,8 @@ struct StudIPView: View {
 /// (UniversityLoginAutofill); abgeschickt wird nie automatisch.
 struct StudIPLoginView: View {
     let base: URL
+    /// Datenspeicher des Containers (Apple-Nutzer, Hochschule), nie `.default()`
+    let dataStore: WKWebsiteDataStore
     let onSignedIn: ([HTTPCookie]) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var checking = false
@@ -201,7 +203,7 @@ struct StudIPLoginView: View {
 
     var body: some View {
         NavigationStack {
-            StudIPWebView(url: base.appendingPathComponent("dispatch.php/login"), autofill: autofill) { webView in check(webView) }
+            StudIPWebView(url: base.appendingPathComponent("dispatch.php/login"), dataStore: dataStore, autofill: autofill) { webView in check(webView) }
                 .safeAreaInset(edge: .bottom, spacing: 0) { UniversityRememberBar(autofill: autofill) }
                 .navigationTitle("Stud.IP-Anmeldung")
                 .navigationBarTitleDisplayMode(.inline)
@@ -228,12 +230,15 @@ struct StudIPLoginView: View {
     }
 }
 
-/// Eingebettete Webansicht. Eigener, dauerhafter Datenspeicher der App (nicht Safari): die Hochschul-Anmeldung
-/// bleibt erhalten, sodass eine erneute Anmeldung oft ohne Passwort gelingt. Eigene Skripte nur ueber `autofill`
+/// Eingebettete Webansicht. Eigener, dauerhafter Datenspeicher je Container (Apple-Nutzer, Hochschule;
+/// `WKWebsiteDataStore(forIdentifier:)`, nicht Safari, nicht `.default()`): die Hochschul-Anmeldung bleibt erhalten,
+/// sodass eine erneute Anmeldung oft ohne Passwort gelingt, und eine andere Hochschule oder ein anderes Konto sieht
+/// keines ihrer Cookies. Eigene Skripte nur ueber `autofill`
 /// (eigene Inhaltswelt, nur auf den Anmeldeseiten der Hochschule, gebunden an die echten Navigationen des
 /// Hauptrahmens, die der Coordinator meldet). Nur fuer die Anmeldung verwenden, nie fuer Inhalte.
 struct StudIPWebView: UIViewRepresentable {
     let url: URL
+    let dataStore: WKWebsiteDataStore
     var autofill: UniversityLoginAutofill? = nil
     let onPageLoaded: (WKWebView) -> Void
 
@@ -241,7 +246,7 @@ struct StudIPWebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
+        config.websiteDataStore = dataStore
         autofill?.install(into: config.userContentController)
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator

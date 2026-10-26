@@ -41,7 +41,9 @@ und Tests, ihre Anmeldeansichten kommen mit der Hochschulwahl nach der S3–S5-I
 
 - **Merken:** Erst wenn der Mensch auf „Anmelden“ tippt (Absenden des Formulars), liest ein Skript Benutzername und
   Passwort und gibt sie an die App; die App legt sie nur bei eingeschaltetem Schalter im Schlüsselbund ab
-  (`de.uniflow.ai.university`, Einträge `luh.studip.user`, `luh.studip.password`, `luh.qis.…`, `hildesheim.cas.…`).
+  (`de.uniflow.ai.university`, Einträge `<nutzer>.luh.studip.user`, `<nutzer>.luh.studip.password`, `<nutzer>.luh.qis.…`,
+  `<nutzer>.hildesheim.cas.…`; `<nutzer>` ist eine Kurzkennung aus dem Hash der Apple-Nutzer-ID, seit der
+  Hochschulwahl am 26.10.2026).
   Schalter aus = nichts wird gemerkt und schon Gemerktes dieses Dienstes sofort gelöscht.
 - **Vorausfüllen:** Beim nächsten Öffnen derselben Anmeldeseite setzt die App nur leere Felder; was schon eingetippt ist,
   bleibt. **Es gibt keinen Code-Pfad zum automatischen Anmelden** (kein Absenden, kein Klick, auch nicht vorbereitet);
@@ -65,13 +67,19 @@ und Tests, ihre Anmeldeansichten kommen mit der Hochschulwahl nach der S3–S5-I
   Inhalte (Learnweb, Stud.IP) werden nie in einer Webansicht mit eingebautem Vorausfüllen angezeigt. Tests:
   `UniversityLoginAutofillTests` (erfundene Learnweb-Datei mit `replaceState`/`pushState`, Abschicken per
   `requestSubmit()` durch die Seite).
-- **Getrennt je Hochschule:** Präfix je Uni und Dienst, kein Rückfall (Hildesheim sieht nie LUH-Daten und umgekehrt).
+- **Getrennt je Apple-Nutzer und Hochschule:** Präfix je Nutzer, Uni und Dienst, kein Rückfall (Hildesheim sieht nie
+  LUH-Daten und umgekehrt, ein anderes Konto auf demselben iPad nichts); der Speicher eines Containers liest und
+  schreibt nur seine eigene Hochschule. Die Anmelde-Webansichten nutzen je (Nutzer, Hochschule) einen eigenen
+  `WKWebsiteDataStore(forIdentifier:)` mit der UUID des Containers, nie `.default()`; Abmelden leert genau diesen.
   Einzige Ausnahme innerhalb derselben Hochschule, wie am PC (`config.service_credentials("QIS")`): Hat QIS der LUH
   keine eigenen gemerkten Daten, füllt die App dort die LUH-ID aus der Stud.IP-Anmeldung vor – nur bei
   eingeschaltetem QIS-Schalter, ohne sie zu kopieren; gemerkt wird beim Absenden unter `luh.qis.…`.
-  Gelöscht wird je Uni beim Abmelden (Stud.IP abmelden → alle LUH-Einträge), beim Uni-Wechsel (Schnittstelle
-  `UniversityCredentialStore.universityChanged`, die Hochschulwahl folgt nach der S3–S5-Integration) und beim
-  **Konto löschen** (alle Hochschulen).
+  Gelöscht wird je Uni beim Abmelden (Stud.IP abmelden → alle LUH-Einträge des Nutzers), mit „Daten dieser Hochschule
+  löschen“ (Einstellungen → Hochschule: Container, Webdaten-Speicher, Sitzungs-Cookie, Zugangsdaten dieser Uni) und
+  beim **Konto löschen** (alle Hochschulen des Nutzers, samt aller seiner Daten auf dem iPad). **Geändert 26.10.2026:**
+  Der Wechsel der Hochschule löscht nichts mehr – die Daten der anderen Uni (auch gemerkte Zugangsdaten) bleiben
+  getrennt erhalten, damit ein Zurückwechseln alles wiederfindet (Vorgabe „Daten der anderen Uni bleiben getrennt“).
+  Beim Umzug auf diese Version ziehen Einträge ohne Nutzer-Präfix (`luh.studip.user`) zum angemeldeten Nutzer.
 - **Neuinstallation:** Der Schlüsselbund überlebt das Löschen der App, die UserDefaults nicht. Fehlt der Merker dieser
   Installation (`uniflow.login.installed`), leert die App den ganzen Dienst `de.uniflow.ai.university`, bevor sie
   irgendetwas liest; gelingt das nicht (z. B. gesperrter Schlüsselbund), liest und speichert sie nichts und versucht

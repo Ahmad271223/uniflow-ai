@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import UniFlowCore
 
 /// Woher die Daten kommen: lokales Backend des Geraets (Standard, App Store) oder der eigene UniFlow-Server
 /// (nur Entwicklung, Einstellungen -> Entwicklung, nur in Debug-Builds).
@@ -20,7 +21,8 @@ final class Session: ObservableObject {
     nonisolated static let urlKey = "uniflow.serverURL"
     nonisolated static let modeKey = "uniflow.backendMode"
     private let defaults: UserDefaults
-    private let localAPI: APIClient
+    /// lokales Backend des aktiven Containers (Apple-Nutzer, Hochschule); wechselt mit der Hochschule
+    private var localAPI: APIClient
 
     /// Ist der eigene Server in diesem Build erreichbar? (Release: nie)
     static var ownServerAvailable: Bool {
@@ -84,6 +86,14 @@ final class Session: ObservableObject {
         }
     }
 
+    /// Anderer Container (Hochschule gewechselt, anderes Konto): ab sofort dessen lokales Backend; mit eigenem Server
+    /// (nur Entwicklung) bleibt die Verbindung, das lokale Backend gilt nach "Verbindung trennen"
+    func useLocal(_ api: APIClient) {
+        guard api !== localAPI else { return }
+        localAPI = api
+        if mode == .local { self.api = api }
+    }
+
     /// Zurueck zum lokalen Backend (PIN geloescht, Adresse bleibt als Vorschlag)
     func disconnect() {
         api = localAPI
@@ -102,9 +112,12 @@ final class Session: ObservableObject {
 ///                                     -UFDisconnect YES -UFRoute "#/settings?tab=dev" zeigt das Verbindungsformular.
 ///   -UFOnboarding reset               Konto und Merker "Tarifwahl gezeigt" loeschen -> Begruessung wie nach Neuinstallation
 ///   -UFOnboarding skip                Debug-Konto ohne Apple-ID, Tarifwahl gilt als gezeigt -> direkt die Oberflaeche
-///   -UFOnboarding plan                Debug-Konto, Tarifwahl noch nicht gezeigt -> Tarifwahl
+///   -UFOnboarding plan                Debug-Konto, Tarifwahl noch nicht gezeigt -> Tarifwahl -> Hochschulwahl
+///   -UFOnboarding university          Debug-Konto, Tarifwahl gezeigt, keine Hochschule -> Hochschulwahl
 ///                                     Ohne -UFOnboarding gilt bei -UFServer/-UFDisconnect/-UFRoute/-UFAction "skip"
-///                                     (bisherige Bildvergleiche).
+///                                     (bisherige Bildvergleiche); "skip" waehlt ohne -UFUniversity die LUH.
+///   -UFUniversity hildesheim          Hochschule des Kontos festlegen (luh|hildesheim), wie nach der Hochschulwahl;
+///                                     nur Debug, z. B. fuer Simulator-Ablaeufe mit der Universitaet Hildesheim
 ///   -UFPlan plus                      fester Tarif ohne Kauf (free|plus), z. B. fuer "Lösung teilen" im Simulator, wo
 ///                                     ohne Xcode keine StoreKit-Testkonfiguration laeuft
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
@@ -117,6 +130,15 @@ enum DebugLaunch {
     static func forcedPlan(defaults d: UserDefaults = .standard) -> UFPlan? {
         #if DEBUG
         return d.string(forKey: "UFPlan").flatMap(UFPlan.init(rawValue:))
+        #else
+        return nil
+        #endif
+    }
+
+    /// Hochschule aus -UFUniversity (nur Debug); nil = Wahl des Nutzers
+    static func forcedUniversity(defaults d: UserDefaults = .standard) -> UniversityKey? {
+        #if DEBUG
+        return d.string(forKey: "UFUniversity").flatMap(UniversityKey.init(rawValue:))
         #else
         return nil
         #endif
@@ -139,12 +161,18 @@ enum DebugLaunch {
         case "skip":
             if account.account == nil { account.skipSignInForDebug() }
             account.markPlanShown()
+            if account.university == nil { account.chooseUniversity(forcedUniversity(defaults: d) ?? .luh) }
         case "plan":
             account.deleteAccount()
             account.notice = nil
             account.skipSignInForDebug()
+        case "university":
+            if account.account == nil { account.skipSignInForDebug() }
+            account.markPlanShown()
+            account.clearUniversity()
         default: break
         }
+        if let u = forcedUniversity(defaults: d), account.account != nil { account.chooseUniversity(u) }
         #endif
     }
 

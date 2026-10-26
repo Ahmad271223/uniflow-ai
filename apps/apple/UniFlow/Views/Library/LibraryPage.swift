@@ -747,9 +747,18 @@ struct LibraryQuickItem: View {
 /// Erste Seite als Bild (Breite 220 px wie im Web), im Speicher und auf der Platte zwischengespeichert;
 /// Schluessel: Datei + Bearbeitungsstand, damit neue Fassungen eine neue Vorschau bekommen.
 actor UFThumbnails {
-    static let shared = UFThumbnails()
+    /// Vorschauen des aktiven Containers (Speicher und Platte je Apple-Nutzer und Hochschule getrennt)
+    static var shared: UFThumbnails { ActiveContainer.current?.thumbnails ?? withoutContainer }
+    private static let withoutContainer = UFThumbnails(root: ContainerPaths.none)
     private var memory: [String: UIImage] = [:]
-    private let dir = AppPaths.support.appendingPathComponent("thumbs", isDirectory: true)
+    private let dir: URL
+    /// Journal desselben Containers (Vorschau mit Notizen)
+    private let journalRoot: URL
+
+    init(root: URL) {
+        dir = root.appendingPathComponent("thumbs", isDirectory: true)
+        journalRoot = root.appendingPathComponent("journal", isDirectory: true)
+    }
 
     /// Schluessel einer Vorschau: je Datenquelle getrennt (lokal und ein Server koennen dieselbe Datei-ID haben)
     nonisolated static func key(fileID: String, namespace: DataSourceNamespace, version: String) -> String {
@@ -774,7 +783,8 @@ actor UFThumbnails {
         } else if let doc = PDFDocument(data: data), let page = doc.page(at: 0) {
             let b = page.bounds(for: .mediaBox)
             let w: CGFloat = 220
-            out = Self.inkThumbnail(fileID: fileID, namespace: api.namespace, pdf: doc, width: w)
+            out = Self.inkThumbnail(journal: LocalJournal(store: FileBlobStore(root: journalRoot), documentID: fileID, namespace: api.namespace),
+                                    pdf: doc, width: w)
                 ?? page.thumbnail(of: CGSize(width: w, height: w * b.height / max(1, b.width)), for: .mediaBox)
         }
         guard let out else { return nil }
@@ -787,11 +797,7 @@ actor UFThumbnails {
 
     /// Erste PDF-Seite mit den Notizen aus dem lokalen Journal (nur Dokumente, die auf diesem Geraet schon offen
     /// waren; ohne Netzwerk). Gleiche Zeichenroutine wie PDF-Export und Seitenminiaturen. `nil` = keine Notizen.
-    private static func inkThumbnail(fileID: String, namespace: DataSourceNamespace, pdf: PDFDocument, width: CGFloat) -> UIImage? {
-        inkThumbnail(journal: LocalJournal(store: FileBlobStore(root: AppPaths.journal), documentID: fileID, namespace: namespace), pdf: pdf, width: width)
-    }
-
-    /// Kern von `inkThumbnail` mit frei waehlbarem Journal (testbar mit eigenem Ordner).
+    /// Journal frei waehlbar (testbar mit eigenem Ordner).
     static func inkThumbnail(journal: LocalJournal, pdf: PDFDocument, width: CGFloat) -> UIImage? {
         guard let snap = try? journal.load() else { return nil }
         let doc = AnnotationDocument(rootMeta: snap.rootMeta, pages: snap.pages.mapValues(\.page))

@@ -130,8 +130,9 @@ Geprüft: Kern lokal im offiziellen Linux-Container `swift:6.0-jammy` (Swift 6.0
   „Auf diesem iPad merken“: Benutzername und Passwort nur dann im Schlüsselbund, beim nächsten Mal nur vorausgefüllt,
   nie abgeschickt – `docs/SICHERHEITSKONZEPT-KONTEN.md` 1a; Erfolg erst, wenn
   `users/me` mit den Cookies 200 liefert), `StudIPKeychain` (nur dieses Gerät, nicht im Backup), `StudIPSync`
-  (Abgleich beim Öffnen der App, höchstens alle 30 Minuten, und auf Knopfdruck; Dateien unter
-  Application Support/StudIP, vom iCloud-Backup ausgenommen; Verzeichnis nach jeder Datei gespeichert),
+  (Abgleich beim Öffnen der App, höchstens alle 30 Minuten, und auf Knopfdruck; Dateien im Container des
+  Apple-Nutzers und der LUH unter `StudIP/` (bis zur Hochschulwahl Application Support/StudIP), vom iCloud-Backup
+  ausgenommen; Verzeichnis nach jeder Datei gespeichert; Sitzungs-Cookie und Webansicht je Container),
   `StudIPView` (Status, Kursauswahl, Dateien mit Vorschau, Abmelden mit/ohne Löschen). Erreichbar über
   Einstellungen → Stud.IP und auf dem Verbindungsbildschirm („Stud.IP ohne PC nutzen“).
 - **Noch nicht:** Anzeige der Stud.IP-Dateien im Editor und in den Modulen, Termine, Hintergrundabgleich.

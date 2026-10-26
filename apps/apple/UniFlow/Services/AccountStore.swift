@@ -1,16 +1,19 @@
 import AuthenticationServices
 import Foundation
+import UniFlowCore
 
 /// Konto der App (V1: "Mit Apple anmelden", docs/AUFTRAG-APPSTORE-V1.md Abschnitt 2a).
 ///
 /// Nutzerkennung (`credential.user`), Name und E-Mail liegen im Schluesselbund, der Merker "Tarifwahl schon gezeigt"
-/// in UserDefaults. Beim Start prueft `verifyCredential()` still den Stand bei Apple; bei `revoked`/`notFound`
+/// und die gewaehlte Hochschule je Nutzer in UserDefaults (Hochschulwahl nach der Tarifwahl,
+/// docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 1; keine Erkennung aus E-Mail oder Name). Aus Nutzer und Hochschule
+/// folgt der Container aller Daten (`containerKey`, ContainerManager). Beim Start prueft `verifyCredential()` still den Stand bei Apple; bei `revoked`/`notFound`
 /// geht es zurueck zur Begruessung, die lokalen Studiendaten bleiben. Die Pruefung bei Apple und der Speicher sind
 /// hinter Protokollen, damit die Logik ohne echte Apple-ID testbar ist (UniFlowTests/AccountStoreTests.swift).
 @MainActor
 final class AccountStore: ObservableObject {
-    /// Bildschirm beim Start: Begruessung -> (nur beim ersten Mal) Tarifwahl -> UniFlow-Oberflaeche
-    enum Stage: Equatable { case welcome, planPicker, ready }
+    /// Bildschirm beim Start: Begruessung -> (nur beim ersten Mal) Tarifwahl -> Hochschule waehlen -> UniFlow-Oberflaeche
+    enum Stage: Equatable { case welcome, planPicker, universityPicker, ready }
 
     struct Account: Equatable {
         var userID: String
@@ -26,11 +29,15 @@ final class AccountStore: ObservableObject {
         static let email = "uniflow.apple.email"
         static let secrets = [user, name, email]
         static let planShown = "uniflow.onboarding.planShown"
+        /// gewaehlte Hochschule je Apple-Nutzer (Kurzkennung, nie die Apple-ID selbst)
+        static func university(_ userID: String) -> String { "uniflow.university." + DataContainerKey.userScope(userID) }
         /// gesetzt beim ersten Start dieser Installation (UserDefaults verschwinden mit der App, der Schluesselbund nicht)
         static let installed = "uniflow.account.installed"
     }
 
     static let debugUserPrefix = "debug."
+    /// feste Kennung des Debug-Kontos ohne Apple-ID (eigene Container wie ein echtes Konto)
+    static let debugUserID = debugUserPrefix + "local"
     /// Debug-Build? Debug-Konten und Hinweise fuer Entwickler gibt es nur dort.
     nonisolated static var isDebugBuild: Bool {
         #if DEBUG
@@ -44,6 +51,8 @@ final class AccountStore: ObservableObject {
 
     @Published private(set) var account: Account?
     @Published private(set) var planShown: Bool
+    /// gewaehlte Hochschule des angemeldeten Nutzers; nil = noch nicht gewaehlt (Hochschulwahl)
+    @Published private(set) var university: UniversityKey?
     @Published var lastError: String?
     /// einmaliger Hinweis auf der Begruessung, z. B. nach "Konto loeschen"
     @Published var notice: Notice?
@@ -68,6 +77,7 @@ final class AccountStore: ObservableObject {
         }
         account = secrets.get(Keys.user).map { Account(userID: $0, name: secrets.get(Keys.name), email: secrets.get(Keys.email)) }
         planShown = defaults.bool(forKey: Keys.planShown)
+        university = account.flatMap { Self.storedUniversity($0.userID, defaults) }
         // Release/TestFlight ueber einem Debug-Build installiert: das Debug-Konto gilt nicht als Anmeldung,
         // sonst waere "Mit Apple anmelden" umgangen (verifyCredential prueft Debug-Konten nicht bei Apple).
         // Die Tarifwahl wurde dann nur im Debug-Build "gezeigt" und erscheint nach der echten Anmeldung erneut.
@@ -92,7 +102,14 @@ final class AccountStore: ObservableObject {
 
     var stage: Stage {
         guard account != nil else { return .welcome }
-        return planShown ? .ready : .planPicker
+        guard planShown else { return .planPicker }
+        return university == nil ? .universityPicker : .ready
+    }
+
+    /// Container aller Daten: (Apple-Nutzer, Hochschule); nil vor Anmeldung oder Hochschulwahl
+    var containerKey: DataContainerKey? {
+        guard let a = account, let u = university else { return nil }
+        return DataContainerKey(userID: a.userID, university: u)
     }
 
     // MARK: Anmelden
@@ -128,6 +145,7 @@ final class AccountStore: ObservableObject {
         if let n = next.name { secrets.set(n, for: Keys.name) } else { secrets.delete(Keys.name) }
         if let e = next.email { secrets.set(e, for: Keys.email) } else { secrets.delete(Keys.email) }
         account = next
+        university = Self.storedUniversity(userID, defaults)
         lastError = nil
         notice = nil
     }
@@ -166,6 +184,28 @@ final class AccountStore: ObservableObject {
     func signOut() {
         Keys.secrets.forEach(secrets.delete)
         account = nil
+        university = nil
+    }
+
+    // MARK: Hochschule
+
+    /// Hochschule waehlen (erster Start) oder wechseln (Einstellungen). Die Daten jeder Hochschule bleiben in ihrem
+    /// Container; der Wechsel loescht nichts.
+    func chooseUniversity(_ u: UniversityKey) {
+        guard let a = account else { return }
+        defaults.set(u.rawValue, forKey: Keys.university(a.userID))
+        university = u
+    }
+
+    /// nur Debug (-UFOnboarding university): Hochschulwahl erneut zeigen
+    func clearUniversity() {
+        guard let a = account else { return }
+        defaults.removeObject(forKey: Keys.university(a.userID))
+        university = nil
+    }
+
+    private static func storedUniversity(_ userID: String, _ d: UserDefaults) -> UniversityKey? {
+        d.string(forKey: Keys.university(userID)).flatMap(UniversityKey.init(rawValue:))
     }
 
     // MARK: Tarifwahl
@@ -180,6 +220,7 @@ final class AccountStore: ObservableObject {
     /// Richtlinie 5.1.1(v): Konto-Eintraege und Schluesselbund entfernen, zurueck zur Begruessung.
     /// Abos laufen bei Apple weiter, bis der Nutzer sie dort kuendigt (Hinweis mit `manageSubscriptionsURL`).
     func deleteAccount() {
+        if let a = account { defaults.removeObject(forKey: Keys.university(a.userID)) }
         signOut()
         planShown = false
         defaults.removeObject(forKey: Keys.planShown)
@@ -187,28 +228,26 @@ final class AccountStore: ObservableObject {
         notice = .deleted
     }
 
-    /// Ganzer Ablauf "Konto loeschen" aus den Einstellungen: erst die weiteren Schluesselbund-Eintraege der App
-    /// entfernen (`deletionSteps`: Stud.IP-Sitzung, Server-PIN, gemerkte Hochschul-Zugangsdaten), danach das Konto
-    /// selbst -> Begruessung.
-    /// Heruntergeladene Dateien und Notizen bleiben; `beforeWelcome` laeuft direkt vor dem Wechsel zur Begruessung
-    /// (Dialoge schliessen, Route zuruecksetzen).
+    /// Ganzer Ablauf "Konto loeschen" aus den Einstellungen: erst die Daten des Kontos entfernen (`deletionSteps`:
+    /// alle Container des Nutzers mit Dateien, Notizen, Stud.IP-Sitzung, Webdaten und gemerkten Zugangsdaten; die
+    /// Server-PIN), danach das Konto selbst -> Begruessung. Daten anderer Konten auf dem iPad bleiben.
+    /// `beforeWelcome` laeuft direkt vor dem Wechsel zur Begruessung (Dialoge schliessen, Route zuruecksetzen).
     func deleteAccount(also steps: [() async -> Void], beforeWelcome: () -> Void = {}) async {
         for step in steps { await step() }
         beforeWelcome()
         deleteAccount()
     }
 
-    /// Schritte fuer `deleteAccount(also:)` in der App: Stud.IP abmelden (Cookie, Webansicht), Server-PIN loeschen
-    /// und die gemerkten Zugangsdaten aller Hochschulen entfernen
-    static func deletionSteps(studip: StudIPSync, session: Session,
-                              credentials: UniversityCredentialStore = .standard) -> [() async -> Void] {
-        [{ await studip.signOut() }, { session.disconnect() }, { credentials.deleteAll() }]
+    /// Schritte fuer `deleteAccount(also:)` in der App: alle Container dieses Nutzers (beide Hochschulen) samt
+    /// Webdaten, Sitzungs-Cookies, gemerkten Zugangsdaten und Einstellungen loeschen, Server-PIN loeschen
+    static func deletionSteps(containers: ContainerManager, session: Session, userID: String) -> [() async -> Void] {
+        [{ await containers.deleteAllData(userID: userID) }, { session.disconnect() }]
     }
 
     #if DEBUG
     /// "Anmeldung ueberspringen (Debug)": lokales Konto ohne Apple-ID, wird beim Start nicht bei Apple geprueft
     func skipSignInForDebug() {
-        signIn(userID: Self.debugUserPrefix + "local", name: nil, email: nil)
+        signIn(userID: Self.debugUserID, name: nil, email: nil)
     }
     #endif
 
