@@ -72,7 +72,7 @@ public enum MoodleSSO {
     }
 
     private static func launch(_ launchPHP: String, passport: String, scheme: String) -> String {
-        "\(launchPHP)?service=\(service)&passport=\(HText.quoteAll(passport))&urlscheme=\(HText.quoteAll(scheme))"
+        "\(launchPHP)?service=\(service)&passport=\(PyText.quote(passport, safe: ""))&urlscheme=\(PyText.quote(scheme, safe: ""))"
     }
 
     /// Zufaelliger Passport fuer einen Anmeldevorgang (merken, bis die Weiterleitung kommt)
@@ -126,7 +126,7 @@ public enum MoodleSSO {
     public static func parseLaunchToken(_ redirectURL: String, base: String, passport: String, scheme: String? = nil,
                                         siteURLs: [String] = []) -> LearnwebToken? {
         if let scheme, !isTokenRedirect(redirectURL, scheme: scheme) { return nil }
-        guard let raw0 = HText.match(tokenRE, HText.unquote(redirectURL))?.groups[1] ?? nil else { return nil }
+        guard let raw0 = HText.match(tokenRE, PyText.unquote(redirectURL))?.groups[1] ?? nil else { return nil }
         var raw = raw0.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
         while raw.count % 4 != 0 { raw += "=" }
         guard let data = Data(base64Encoded: raw), let text = String(data: data, encoding: .utf8) else { return nil }

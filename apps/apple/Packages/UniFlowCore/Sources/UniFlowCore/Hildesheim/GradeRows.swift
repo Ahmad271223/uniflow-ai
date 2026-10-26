@@ -1,9 +1,9 @@
 import Foundation
 
 /// Notenspiegel-Tabellen (HIS QIS/LSF) als Zeilen von Zellentexten -> Leistungen (`qis.parse_grade_rows`), die eine
-/// Fassung fuer das LSF Hildesheim. Gesammelt und ausgewertet wird der Hildesheimer Notenspiegel nur ueber
-/// `LSFClient.grades` (Tabellenauswahl, Stammdaten-Schutz `QISParser.isStammdaten`, Reiter der Studiengaenge);
-/// `QISPage`/`QISCollector` sind der Weg des QIS der LUH.
+/// Fassung im Kern. Gesammelt wird der Hildesheimer Notenspiegel ueber `LSFClient.grades` (Tabellenauswahl,
+/// Stammdaten-Schutz `QISParser.isStammdaten`, Reiter der Studiengaenge); `QISPage` (QIS der LUH, erst V2) liest
+/// seine Tabellen ebenfalls hiermit.
 /// Hildesheim: vor der Kopfzeile steht "Abschluss: ...", Spalten "Prüfungsnr." / "Bezeichnung der Leistung ...",
 /// mehrere Abschluesse in einer Tabelle, Modulzeilen ohne Note/Status und "Prüfung vorhanden" sind keine Leistungen.
 /// Stammdaten (Name, Anschrift, Matrikelnummer) stehen ausserhalb dieser Tabellen und werden nie gelesen; steht doch
@@ -29,7 +29,8 @@ public enum GradeRows {
 
     static func isHeader(_ map: [String?]) -> Bool { map.contains("text") && map.contains("note") }
 
-    /// Stammdaten-Zeile (Matrikelnummer, Geburtsdatum, Anschrift ...): nie auswerten
+    /// Stammdaten-Zeile (Matrikelnummer, Geburtsdatum, Anschrift ...): nie auswerten; die eine Liste, auch fuer ganze
+    /// Tabellen (`QISParser.isStammdaten`)
     static func isStammdatenRow(_ cells: [String]) -> Bool {
         let labels = ["matrikelnummer", "matrikelnr", "geburtsdatum", "geburtsort", "anschrift"]
         return cells.contains { c in let l = c.lowercased(); return labels.contains { l.hasPrefix($0) } }
@@ -72,7 +73,7 @@ public enum GradeRows {
 
 /// Aufbau des Notenspiegels je Hochschule (`UniversityProfile.gradeLayout`, wie `qis.PROFILES` am PC).
 public enum QISGradeLayout: String, Sendable, Hashable, Codable {
-    /// QIS der LUH (`QISPage`, `QISCollector`, QISParser.grades, Kopfzeile in den ersten Zeilen)
+    /// QIS der LUH (`QISPage`, `QISCollector`, erst V2)
     case luh
     /// LSF Hildesheim (`LSFClient.grades` mit `GradeRows`, qis.parse_grade_rows)
     case hildesheim

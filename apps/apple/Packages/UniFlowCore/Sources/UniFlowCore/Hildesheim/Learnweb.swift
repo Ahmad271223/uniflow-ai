@@ -95,7 +95,7 @@ public enum Learnweb {
         let path = HText.urlPath(url)
         guard let m = HText.match(pluginRE, path), let area = m.groups[1], let revText = m.groups[2], let rev = Int(revText),
               let rest = m.groups[3] else { return nil }
-        let parts = rest.split(separator: "/").map { HText.nfc(HText.unquote(String($0))) }
+        let parts = rest.split(separator: "/").map { HText.nfc(PyText.unquote(String($0))) }
         guard let filename = parts.last else { return nil }
         let filepath = "/" + parts.dropLast().joined(separator: "/") + (parts.count > 1 ? "/" : "")
         return Pluginfile(area: area, revision: rev, filepath: filepath, filename: filename)

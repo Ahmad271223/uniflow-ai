@@ -40,15 +40,12 @@ public struct LocalRequest: Sendable {
                   query: LocalRequest.parseQuery(parts?.percentEncodedQuery ?? ""), headers: headers, body: body ?? Data())
     }
 
-    /// `parse_qsl` mit `keep_blank_values=True`: Trennzeichen "&", "+" wird Leerzeichen, dann Prozent-Dekodierung.
+    /// `parse_qsl` mit `keep_blank_values=True`: Trennzeichen "&", je Teil `unquote_plus` (`PyText.unquotePlus`; kaputte
+    /// %-Folgen bleiben stehen wie in Python, vorher blieb dann der ganze Wert undekodiert).
     public static func parseQuery(_ raw: String) -> [QueryItem] {
         raw.split(separator: "&", omittingEmptySubsequences: true).map { pair in
             let kv = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-            func decode(_ s: Substring) -> String {
-                let plus = s.replacingOccurrences(of: "+", with: " ")
-                return plus.removingPercentEncoding ?? plus
-            }
-            return QueryItem(decode(kv[0]), kv.count > 1 ? decode(kv[1]) : "")
+            return QueryItem(PyText.unquotePlus(String(kv[0])), kv.count > 1 ? PyText.unquotePlus(String(kv[1])) : "")
         }
     }
 

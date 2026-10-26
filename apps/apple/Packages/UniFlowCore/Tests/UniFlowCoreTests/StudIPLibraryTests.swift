@@ -161,8 +161,15 @@ final class StudIPLibraryTests: XCTestCase {
         }
         XCTAssertEqual(StudIPLibrary.unixTime("2026-10-25T02:30:00+02:00"), StudIPLibrary.unixTime("2026-10-25T00:30:00Z"))
         XCTAssertEqual(StudIPLibrary.unixTime("2026-10-25"), BerlinClock.utcSeconds(day: BerlinClock.parseISODate("2026-10-25")!, minutes: 0))
-        for bad in ["", "gestern", "2026-13-01T00:00:00Z", "2026-10-25T25:00:00Z", "2026-10-25T10:00:00+0x:00", "2026-10-25T10:00:00Zx"] {
+        for bad in ["", "gestern", "2026-13-01T00:00:00Z", "2026-10-25T25:00:00Z", "2026-10-25T10:00:00+0x:00", "2026-10-25T10:00:00Zx",
+                    "2026-10-25T24:30:00Z"] {
             XCTAssertNil(StudIPLibrary.unixTime(bad), bad)
+        }
+        // ein Leser fuer Aenderungszeit und Stundenplan (StudIPTimestamp): iCalendar-Form, 24:00 = Folgetag 00:00
+        XCTAssertEqual(StudIPLibrary.unixTime("20261015T080000Z"), StudIPLibrary.unixTime("2026-10-15T08:00:00Z"))
+        XCTAssertEqual(StudIPLibrary.unixTime("2026-10-25T24:00:00+01:00"), StudIPLibrary.unixTime("2026-10-26T00:00:00+01:00"))
+        for s in ["2026-10-20T10:00:00+02:00", "20261020T080000Z", "2026-10-25T02:30:00+02:00", "2026-12-23T23:30:00Z"] {
+            XCTAssertEqual(StudIPSchedule.moment(.string(s)), StudIPLibrary.unixTime(s).map { StudIPMoment(utc: $0) }, s)
         }
     }
 

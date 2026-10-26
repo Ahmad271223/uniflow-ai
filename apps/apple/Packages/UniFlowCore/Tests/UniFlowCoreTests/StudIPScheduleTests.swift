@@ -441,6 +441,8 @@ final class StudIPScheduleTimeTests: XCTestCase {
         XCTAssertEqual(StudIPSchedule.moment("2026-12-23T23:30:00Z"), StudIPMoment(day: d("2026-12-24")!, minutes: 30))
         XCTAssertEqual(StudIPSchedule.moment(.number(1_792_051_200)), StudIPSchedule.moment("2026-10-15T08:00:00Z"))
         XCTAssertEqual(StudIPSchedule.moment("1792051200"), StudIPSchedule.moment("2026-10-15T08:00:00Z"))
+        XCTAssertEqual(StudIPSchedule.moment("2026-12-01T24:00"), StudIPMoment(day: d("2026-12-02")!, minutes: 0), "Ende des Tages")
+        XCTAssertNil(StudIPSchedule.moment("2026-12-01T24:15"))
         XCTAssertNil(StudIPSchedule.moment("2026-02-30"))
         XCTAssertNil(StudIPSchedule.moment("morgen"))
         XCTAssertNil(StudIPSchedule.moment("2026-10-12T10:15+02:00x"))

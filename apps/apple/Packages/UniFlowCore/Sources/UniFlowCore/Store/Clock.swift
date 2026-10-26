@@ -49,16 +49,11 @@ public struct UniFlowClock: Sendable {
 
     /// Minuten seit Mitternacht (Ortszeit)
     public var minutesOfDay: Int { BerlinClock.local(utc: utcSeconds).minutes }
-
-    /// "HH:MM" (Ortszeit), wie die Zeitangaben in plan_items/course_events
-    public var timeHHMM: String {
-        let m = minutesOfDay
-        return BerlinClock.pad(m / 60, 2) + ":" + BerlinClock.pad(m % 60, 2)
-    }
 }
 
 // Bruecke zu den Kalenderfunktionen aus StudIPSchedule (dort bleibt alles unveraendert)
 extension BerlinClock {
+    /// Zahl mit fuehrenden Nullen auf `w` Stellen (Datum, Uhrzeit)
     static func pad(_ v: Int, _ w: Int) -> String {
         let s = String(v)
         return String(repeating: "0", count: max(0, w - s.count)) + s

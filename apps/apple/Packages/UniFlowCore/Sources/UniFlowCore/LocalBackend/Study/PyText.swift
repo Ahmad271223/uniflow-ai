@@ -137,6 +137,55 @@ public struct PyMatch {
 
 /// Zeichenketten wie Python (`str` arbeitet mit Codepunkten, Swift mit Graphemen).
 public enum PyText {
+    // MARK: urllib.parse
+
+    /// `urllib.parse.quote(s, safe)` bzw. `quote_plus` (`plus`: Leerzeichen als "+"): Buchstaben, Ziffern, "_.-~" und
+    /// die Zeichen aus `safe` (nur ASCII) bleiben, alles andere wird %XX (UTF-8). Die eine Prozent-Kodierung des Kerns
+    /// (Dateinamen in Antworten, Adressen der Anmeldung, Formulare an Moodle).
+    public static func quote(_ s: String, safe: String = "/", plus: Bool = false) -> String {
+        let keep = Set(safe.utf8)
+        var out = ""
+        for b in s.utf8 {
+            switch b {
+            case 0x41...0x5A, 0x61...0x7A, 0x30...0x39, 0x5F, 0x2E, 0x2D, 0x7E: out.unicodeScalars.append(Unicode.Scalar(b))
+            case 0x20 where plus: out.append("+")
+            case _ where keep.contains(b) && b < 0x80: out.unicodeScalars.append(Unicode.Scalar(b))
+            default: out += String(format: "%%%02X", b)
+            }
+        }
+        return out
+    }
+
+    /// `urllib.parse.unquote`: gueltige %XX-Folgen dekodieren, alles andere bleibt; ungueltiges UTF-8 wird U+FFFD
+    /// (nie ein Absturz bei kaputten Adressen).
+    public static func unquote(_ s: String) -> String {
+        guard s.contains("%") else { return s }
+        func hex(_ c: UInt8) -> UInt8? {
+            switch c {
+            case 0x30...0x39: return c - 0x30
+            case 0x41...0x46: return c - 0x41 + 10
+            case 0x61...0x66: return c - 0x61 + 10
+            default: return nil
+            }
+        }
+        let b = Array(s.utf8)
+        var out: [UInt8] = []
+        var i = 0
+        while i < b.count {
+            if b[i] == 0x25, i + 2 < b.count, let h = hex(b[i + 1]), let l = hex(b[i + 2]) {
+                out.append(h << 4 | l)
+                i += 3
+            } else {
+                out.append(b[i])
+                i += 1
+            }
+        }
+        return String(decoding: out, as: UTF8.self)
+    }
+
+    /// `urllib.parse.unquote_plus` (Abfrage und Formular, `parse_qsl`): "+" als Leerzeichen, dann wie `unquote`
+    public static func unquotePlus(_ s: String) -> String { unquote(s.replacingOccurrences(of: "+", with: " ")) }
+
     /// `str.isspace()` je Codepunkt
     static func isSpace(_ u: Unicode.Scalar) -> Bool {
         switch u.value {

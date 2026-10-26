@@ -165,18 +165,6 @@ enum LocalFileResponse {
         return String(last[dot...])
     }
 
-    /// `urllib.parse.quote(s)` (sicher: Buchstaben, Ziffern, "_.-~" und "/"), UTF-8
-    static func quote(_ s: String) -> String {
-        var out = ""
-        for b in s.utf8 {
-            switch b {
-            case 0x41...0x5A, 0x61...0x7A, 0x30...0x39, 0x5F, 0x2E, 0x2D, 0x7E, 0x2F: out.unicodeScalars.append(Unicode.Scalar(b))
-            default: out += String(format: "%%%02X", b)
-            }
-        }
-        return out
-    }
-
     /// Antwort wie `FileResponse(path, media_type=..., filename=..., content_disposition_type=...)` mit den Kopfzeilen
     /// der Middleware: `nosniff` immer, Sandbox-CSP fuer alles ausser PDF.
     static func response(_ data: Data, mediaType: String, filename: String?, disposition: String) -> LocalResponse {
@@ -184,7 +172,7 @@ enum LocalFileResponse {
         let ctype = mediaType.hasPrefix("text/") && !mediaType.lowercased().contains("charset=") ? mediaType + "; charset=utf-8" : mediaType
         var headers = ["Content-Type": ctype, "Content-Length": String(data.count), "X-Content-Type-Options": "nosniff"]
         if let filename {
-            let q = quote(filename)
+            let q = PyText.quote(filename)
             headers["Content-Disposition"] = q != filename ? "\(disposition); filename*=utf-8''\(q)" : "\(disposition); filename=\"\(filename)\""
         }
         if mediaType.split(separator: ";").first?.trimmingCharacters(in: .whitespaces).lowercased() != "application/pdf" {

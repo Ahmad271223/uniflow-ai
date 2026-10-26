@@ -316,7 +316,7 @@ final class QISParserTests: XCTestCase {
         XCTAssertEqual(g.count, 1)
         XCTAssertEqual(g[0].text, "Seminar Musterarbeit")
         XCTAssertEqual(g[0].credits, "5")
-        XCTAssertEqual(g[0].abschluss, "Master")                    // eigene Spalte vor dem Baum-Text
+        XCTAssertEqual(g[0].abschluss, "Baum")                      // wie qis.parse_grade_rows: keine Spalte "Abschluss"
         XCTAssertNil(g[0].semester)
     }
 

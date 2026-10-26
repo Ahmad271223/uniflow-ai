@@ -342,7 +342,7 @@ public enum StudIPSchedule {
         let locations = locationList(a["locations"])
         var e = StudIPScheduleEntry(
             id: id, courseID: courseID, courseNumber: course?.number, title: title, description: description,
-            art: art, kind: art.kind, weekday: weekday, startTime: hhmm(startMin), endTime: hhmm(endMin), interval: interval,
+            art: art, kind: art.kind, weekday: weekday, startTime: LocalFreeWindows.mh(startMin), endTime: LocalFreeWindows.mh(endMin), interval: interval,
             dateFrom: from.map { BerlinClock.isoDate($0.day) }, dateTo: until.map { lastDay($0, startMinutes: startMin) },
             exdates: exdates(rec["EXDATES"]), locations: locations, room: room(locations), color: a["color"]?.string,
             groupSlots: 1, selected: true, uncertain: false, hint: nil, artFromCourseType: guess.fromCourseType)
@@ -425,11 +425,11 @@ public enum StudIPSchedule {
         return nil
     }
 
-    /// "H:MM" oder "HH:MM:SS" -> Minuten seit Mitternacht (wie hm() in app/timetable.py).
+    /// "H:MM" oder "HH:MM:SS" -> Minuten seit Mitternacht, gelesen wie hm() in app/timetable.py
+    /// (`LocalFreeWindows.hourMinute`), dazu nur gueltige Uhrzeiten (0-24 Uhr, Minute 0-59); sonst nil.
     static func minutes(_ s: String?) -> Int? {
-        guard let s else { return nil }
-        let p = s.trimmingCharacters(in: .whitespaces).split(separator: ":")
-        guard p.count >= 2, let h = Int(p[0]), let m = Int(p[1]), (0...24).contains(h), (0..<60).contains(m) else { return nil }
+        guard let s, let (h, m) = LocalFreeWindows.hourMinute(s.trimmingCharacters(in: .whitespaces)),
+              (0...24).contains(h), (0..<60).contains(m) else { return nil }
         return h * 60 + m
     }
 
@@ -441,13 +441,6 @@ public enum StudIPSchedule {
         if e == 0, s > 0 { return 1440 - s }
         if e < s, s >= 18 * 60, e <= 6 * 60 { return 1440 - s + e }
         return nil
-    }
-
-    /// Minuten -> "HH:MM" (mh() in app/timetable.py).
-    static func hhmm(_ m: Int) -> String {
-        let v = max(0, m)
-        let h = v / 60, mi = v % 60
-        return (h < 10 ? "0" : "") + String(h) + ":" + (mi < 10 ? "0" : "") + String(mi)
     }
 
     /// Zeitpunkt oder Datum aus Stud.IP: ISO 8601 ("2026-10-12", "2026-10-12T10:15:00+02:00"), iCalendar
@@ -465,6 +458,37 @@ public enum StudIPSchedule {
         guard let s = v.string?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
         let b = Array(s.utf8)
         if b.allSatisfy({ $0 >= 0x30 && $0 <= 0x39 }) && (9...11).contains(b.count) { return Int(s).flatMap(unixMoment) }
+        guard let t = StudIPTimestamp.parse(s) else { return nil }
+        guard let seconds = t.seconds else { return StudIPMoment(day: t.day, minutes: nil) }
+        guard t.offset != nil else { return StudIPMoment(day: t.day, minutes: seconds / 60) }
+        return StudIPMoment(utc: t.utcSeconds)
+    }
+
+    /// Unix-Sekunden ab 2000-01-01 (946684800).
+    static func unixMoment(_ n: Int) -> StudIPMoment? { n >= 946_684_800 ? StudIPMoment(utc: n) : nil }
+}
+
+/// Zeitangabe aus Stud.IP als Text, die eine Fassung fuer Aenderungszeiten (`StudIPLibrary.unixTime`) und Stundenplan
+/// (`StudIPSchedule.moment`): Datum ISO 8601 ("2026-10-12") oder iCalendar ("20261012"), danach optional nach "T" oder
+/// Leerzeichen die Uhrzeit ("10:15", "1015", mit Sekunden und Bruchteilen) und die Zone ("Z", "+02:00", "+0200", "+02").
+/// Stunde 24 nur als 24:00 (= 00:00 des Folgetags), Sekunde 60 zaehlt als 59. Zahlen (Unix-Zeit) liest jeder Aufrufer
+/// selbst: `unixTime` jede Zahl wie Python, `moment` erst ab 2000, weil achtstellige Zahlen dort Daten sind.
+struct StudIPTimestamp: Equatable {
+    let day: Int
+    /// Sekunden seit Mitternacht laut Text; nil bei reinen Daten
+    let seconds: Int?
+    /// Zone in Sekunden oestlich von UTC; nil = Ortszeit Berlin
+    let offset: Int?
+
+    /// UTC-Sekunden; reine Daten und Zeiten ohne Zone in Berliner Ortszeit
+    var utcSeconds: Int {
+        guard let seconds else { return BerlinClock.utcSeconds(day: day, minutes: 0) }
+        if let offset { return day * 86400 + seconds - offset }
+        return BerlinClock.utcSeconds(day: day, minutes: seconds / 60) + seconds % 60
+    }
+
+    static func parse(_ text: String) -> StudIPTimestamp? {
+        let b = Array(text.trimmingCharacters(in: .whitespaces).utf8)
         var i = 0
         func num(_ n: Int) -> Int? {
             guard i + n <= b.count else { return nil }
@@ -477,40 +501,45 @@ public enum StudIPSchedule {
             return v
         }
         func skip(_ c: UInt8) -> Bool { if i < b.count && b[i] == c { i += 1; return true }; return false }
+        func digitNext() -> Bool { i < b.count && b[i] >= 0x30 && b[i] <= 0x39 }
         guard let y = num(4) else { return nil }
         _ = skip(0x2D)
         guard let mo = num(2) else { return nil }
         _ = skip(0x2D)
         guard let d = num(2), (1...12).contains(mo), d >= 1, d <= BerlinClock.daysInMonth(year: y, month: mo) else { return nil }
-        let day = BerlinClock.dayNumber(year: y, month: mo, day: d)
-        if i == b.count { return StudIPMoment(day: day, minutes: nil) }
-        guard skip(0x54) || skip(0x20), let h = num(2) else { return nil }               // T oder Leerzeichen
+        var day = BerlinClock.dayNumber(year: y, month: mo, day: d)
+        if i == b.count { return StudIPTimestamp(day: day, seconds: nil, offset: nil) }
+        guard skip(0x54) || skip(0x74) || skip(0x20), let h = num(2) else { return nil }        // T oder Leerzeichen
         _ = skip(0x3A)
-        guard let mi = num(2), h <= 24, mi < 60 else { return nil }
-        if skip(0x3A) { guard num(2) != nil else { return nil } } else if i < b.count, b[i] >= 0x30 && b[i] <= 0x39 { guard num(2) != nil else { return nil } }
-        if skip(0x2E) || skip(0x2C) { while i < b.count, b[i] >= 0x30 && b[i] <= 0x39 { i += 1 } }   // Sekundenbruchteile
+        guard let mi = num(2), mi < 60 else { return nil }
+        var sec = 0
+        if skip(0x3A) || digitNext() {
+            guard let v = num(2), v <= 60 else { return nil }
+            sec = min(v, 59)
+        }
+        if skip(0x2E) || skip(0x2C) { while digitNext() { i += 1 } }                        // Sekundenbruchteile
+        guard h < 24 || (h == 24 && mi == 0 && sec == 0) else { return nil }
+        var seconds = h * 3600 + mi * 60 + sec
+        if seconds >= 86400 { day += 1; seconds -= 86400 }
         while skip(0x20) {}
-        let local = h * 60 + mi
-        if i == b.count { return StudIPMoment(day: day, minutes: local) }
+        if i == b.count { return StudIPTimestamp(day: day, seconds: seconds, offset: nil) }
         var offset = 0
-        if skip(0x5A) || skip(0x7A) {                                                    // Z
+        if skip(0x5A) || skip(0x7A) {                                                         // Z
             offset = 0
-        } else if i < b.count, b[i] == 0x2B || b[i] == 0x2D {                            // + oder -
+        } else if i < b.count, b[i] == 0x2B || b[i] == 0x2D {                                 // + oder -
             let sign = b[i] == 0x2D ? -1 : 1
             i += 1
             guard let oh = num(2) else { return nil }
             _ = skip(0x3A)
-            let om = num(2) ?? 0
+            var om = 0
+            if i < b.count { guard let v = num(2) else { return nil }; om = v }
             offset = sign * (oh * 3600 + om * 60)
         } else {
             return nil
         }
         guard i == b.count else { return nil }
-        return StudIPMoment(utc: day * 86400 + local * 60 - offset)
+        return StudIPTimestamp(day: day, seconds: seconds, offset: offset)
     }
-
-    /// Unix-Sekunden ab 2000-01-01 (946684800).
-    static func unixMoment(_ n: Int) -> StudIPMoment? { n >= 946_684_800 ? StudIPMoment(utc: n) : nil }
 }
 
 /// Tag (Tage seit 1970-01-01) und Uhrzeit in Berlin; `minutes` fehlt bei reinen Daten.
@@ -566,7 +595,6 @@ enum BerlinClock {
 
     static func isoDate(_ n: Int) -> String {
         let c = civil(n)
-        func pad(_ v: Int, _ w: Int) -> String { let s = String(v); return String(repeating: "0", count: max(0, w - s.count)) + s }
         return "\(pad(c.year, 4))-\(pad(c.month, 2))-\(pad(c.day, 2))"
     }
 

@@ -101,15 +101,10 @@ final class APIClient: @unchecked Sendable {
         self.transport = transport
     }
 
-    /// Zeichen, die `encodeURIComponent` (app.js) unkodiert laesst
-    private static let componentAllowed = CharacterSet(charactersIn:
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
-
-    /// Wert eines Query-Parameters wie `encodeURIComponent` im Web. `.urlQueryAllowed` liess "+", "&" und "=" stehen:
+    /// Wert eines Query-Parameters wie `encodeURIComponent` im Web (unkodiert bleiben Buchstaben, Ziffern und
+    /// "-_.!~*'()", ueber die eine Prozent-Kodierung `PyText.quote`). `.urlQueryAllowed` liess "+", "&" und "=" stehen:
     /// das lokale Backend (wie `parse_qsl`) und Starlette machten aus "C++" "C  " und schnitten "A & B" nach "A " ab.
-    static func queryValue(_ s: String) -> String {
-        s.addingPercentEncoding(withAllowedCharacters: componentAllowed) ?? ""
-    }
+    static func queryValue(_ s: String) -> String { PyText.quote(s, safe: "!*'()") }
 
     /// Lokales Backend des Geraets
     static func local(_ host: LocalBackendHost = .shared) -> APIClient {

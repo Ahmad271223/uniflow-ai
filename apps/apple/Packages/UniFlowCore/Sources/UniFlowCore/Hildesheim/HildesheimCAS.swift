@@ -21,7 +21,7 @@ public enum HildesheimCAS {
     public static func loginURL(casBase: String = casBase, service: String) -> String {
         var b = casBase
         while b.hasSuffix("/") { b.removeLast() }
-        return "\(b)/login?service=\(HText.quoteAll(service))"
+        return "\(b)/login?service=\(PyText.quote(service, safe: ""))"
     }
 
     /// Zeigt die URL auf die CAS-Loginseite (`cas.is_cas_page`)? Dann fehlt die Anmeldung bzw. die Sitzung ist

@@ -142,7 +142,7 @@ final class UniversityProfileTests: XCTestCase {
     func testCasUrlsLikePython() {
         XCTAssertEqual(HildesheimCAS.loginURL(casBase: casBase, service: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=1"),
                        "https://www.uni-hildesheim.de/sso/login?service=https%3A%2F%2Flsf.uni-hildesheim.de%2Fqisserver%2Frds%3Fstate%3Duser%26type%3D1")
-        XCTAssertEqual(HText.quoteAll("ä b~_.-"), "%C3%A4%20b~_.-")
+        XCTAssertEqual(PyText.quote("ä b~_.-", safe: ""), "%C3%A4%20b~_.-")
         XCTAssertTrue(HildesheimCAS.isCASPage("https://www.uni-hildesheim.de/sso/login?service=x", casBase: casBase))
         XCTAssertTrue(HildesheimCAS.isCASPage("https://uni-hildesheim.de/sso/login"))
         XCTAssertFalse(HildesheimCAS.isCASPage("https://www.uni-hildesheim.de/learnweb2026/my/"))

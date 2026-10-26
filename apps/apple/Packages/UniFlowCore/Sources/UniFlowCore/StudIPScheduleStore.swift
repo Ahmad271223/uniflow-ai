@@ -194,7 +194,7 @@ public enum StudIPScheduleStore {
                     INSERT INTO studip_schedule_entries(id, title, weekday, start, end, description, fetched_at) VALUES (?,?,?,?,?,?,?)
                     ON CONFLICT(id) DO UPDATE SET title=excluded.title, weekday=excluded.weekday, start=excluded.start, end=excluded.end, description=excluded.description, fetched_at=excluded.fetched_at
                     """, [.text(id), .text(LocalTimetable.or(a["title"], "Termin").string ?? "Termin"), .integer(Int64(wd)),
-                          .text(StudIPSchedule.hhmm(s)), .text(StudIPSchedule.hhmm(e)), .text(a["description"]?.string ?? ""), now])
+                          .text(LocalFreeWindows.mh(s)), .text(LocalFreeWindows.mh(e)), .text(a["description"]?.string ?? ""), now])
             }
         }
         var cycles = 0

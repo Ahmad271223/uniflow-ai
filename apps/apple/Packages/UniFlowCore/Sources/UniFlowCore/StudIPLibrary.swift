@@ -166,49 +166,11 @@ public enum StudIPLibrary {
 
     /// Unix-Zeit aus der Aenderungszeit: JSON:API liefert ISO 8601 mit Zone ("2026-10-20T10:00:00+02:00", "...Z",
     /// Sekundenbruchteile erlaubt), die Dateiliste der Weboberflaeche eine Zahl. Ohne Zone gilt Berliner Ortszeit.
+    /// Text liest `StudIPTimestamp` (dieselbe Fassung wie der Stundenplan).
     public static func unixTime(_ text: String) -> Int? {
         let s = text.trimmingCharacters(in: .whitespaces)
         if let i = Int(s) { return i }
         if let d = Double(s), d.isFinite, s.allSatisfy({ $0.isNumber || $0 == "." || $0 == "-" }) { return Int(d) }
-        let u = Array(s.utf8)
-        guard u.count >= 10, let day = BerlinClock.parseISODate(String(decoding: u[0..<10], as: UTF8.self)) else { return nil }
-        guard u.count > 10 else { return BerlinClock.utcSeconds(day: day, minutes: 0) }
-        guard u[10] == 0x54 || u[10] == 0x20 else { return nil }                     // "T" oder Leerzeichen
-        var i = 11
-        func number(_ n: Int) -> Int? {
-            guard i + n <= u.count, u[i..<i + n].allSatisfy({ (0x30...0x39).contains($0) }) else { return nil }
-            defer { i += n }
-            return Int(String(decoding: u[i..<i + n], as: UTF8.self))
-        }
-        guard let h = number(2), h < 24, i < u.count, u[i] == 0x3A else { return nil }
-        i += 1
-        guard let m = number(2), m < 60 else { return nil }
-        var sec = 0
-        if i < u.count, u[i] == 0x3A {
-            i += 1
-            guard let v = number(2), v < 61 else { return nil }
-            sec = min(v, 59)
-        }
-        if i < u.count, u[i] == 0x2E || u[i] == 0x2C {                               // Sekundenbruchteile
-            i += 1
-            while i < u.count, (0x30...0x39).contains(u[i]) { i += 1 }
-        }
-        guard i < u.count else { return BerlinClock.utcSeconds(day: day, minutes: h * 60 + m) + sec }
-        var offset = 0
-        if u[i] == 0x5A || u[i] == 0x7A {                                            // Z
-            i += 1
-        } else if u[i] == 0x2B || u[i] == 0x2D {
-            let sign = u[i] == 0x2D ? -1 : 1
-            i += 1
-            guard let oh = number(2) else { return nil }
-            var om = 0
-            if i < u.count, u[i] == 0x3A { i += 1 }
-            if i < u.count { guard let v = number(2) else { return nil }; om = v }
-            offset = sign * (oh * 3600 + om * 60)
-        } else {
-            return nil
-        }
-        guard i == u.count else { return nil }
-        return day * 86400 + h * 3600 + m * 60 + sec - offset
+        return StudIPTimestamp.parse(s)?.utcSeconds
     }
 }

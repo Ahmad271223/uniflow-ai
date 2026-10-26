@@ -18,7 +18,6 @@ final class ClockTests: XCTestCase {
         XCTAssertEqual(c.weekday, 6, "Sonntag")
         XCTAssertEqual(c.weekStart, "2026-10-19")
         XCTAssertEqual(c.minutesOfDay, 14 * 60 + 30)
-        XCTAssertEqual(c.timeHHMM, "14:30")
 
         let summer = UniFlowClock.fixed(utc("2026-07-01T10:00:00Z"))   // MESZ (+2)
         XCTAssertEqual(summer.nowISO, "2026-07-01T12:00:00")
@@ -30,7 +29,7 @@ final class ClockTests: XCTestCase {
         let c = UniFlowClock.fixed(utc("2026-01-15T23:30:00Z"))
         XCTAssertEqual(c.today, "2026-01-16")
         XCTAssertEqual(c.nowISO, "2026-01-16T00:30:00")
-        XCTAssertEqual(c.timeHHMM, "00:30")
+        XCTAssertEqual(c.minutesOfDay, 30)
         // Montag 00:30 Ortszeit ist noch Sonntag in UTC: die Woche beginnt trotzdem am Montag
         let monday = UniFlowClock.fixed(utc("2026-10-25T23:30:00Z"))
         XCTAssertEqual(monday.today, "2026-10-26")
