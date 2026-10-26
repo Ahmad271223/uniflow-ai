@@ -27,10 +27,14 @@ enum PendingServicesEndpoints: LocalEndpointModule {
     static func register(on router: LocalRouter) {
         // /api/services: Dienste wie am PC; auf dem iPad gibt es keine gespeicherten Zugaenge (keine Passwoerter in
         // der App), der letzte QIS-Abruf kommt mit QIS auf dem Geraet (F4)
-        router.get("/api/services", placeholder: true) { _, _ in
+        router.get("/api/services", placeholder: true) { _, ctx in
             var creds: [String: JSONValue] = [:]
             for k in ["studip", "qis", "idm", "ilias", "mail", "matrix", "luhki", "gitlab"] { creds[k] = noCredential }
-            return .json(["services": services, "credentials": .object(creds),
+            // Dienste der Hochschule dieser Datenbank wie api_services (HILDESHEIM_SERVICES bzw. SERVICES)
+            let uni = try await ctx.database.withConnection { try $0.scalar("SELECT value FROM settings WHERE key='university'")?.string }
+            let list: JSONValue = uni == UniversityKey.hildesheim.rawValue
+                ? .array(UniversityProfile.hildesheim.services.map(\.json)) : services
+            return .json(["services": list, "credentials": .object(creds),
                           "qis": ["configured": false, "same_as_studip": true, "last_run": .null],
                           "studip": ["configured": false]])
         }

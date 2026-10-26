@@ -42,11 +42,13 @@ public final class LocalBackend: Sendable {
     }
 
     /// Datenbank oeffnen (Datei oder `SQLiteDatabase.inMemory`), auf den Stand von app/db.py bringen, Backend bauen.
+    /// `university`: Hochschule des Containers; gehoert die Datenbank einer anderen, wirft das `UniversityMismatch`.
     public static func open(path: String, clock: UniFlowClock = .system, files: LocalFiles? = nil,
+                            university: String = Migrations.defaultUniversity,
                             newHex: @escaping @Sendable () -> String = LocalContext.randomHex,
                             modules: [LocalEndpointModule.Type] = LocalBackend.standardModules) async throws -> LocalBackend {
         let db = try SQLiteDatabase(path: path)
-        try await db.migrate(clock: clock)
+        try await db.migrate(clock: clock, university: university)
         return try LocalBackend(database: db, clock: clock, files: files, newHex: newHex, modules: modules)
     }
 

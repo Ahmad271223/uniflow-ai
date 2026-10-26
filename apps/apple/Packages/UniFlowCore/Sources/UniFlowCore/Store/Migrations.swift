@@ -154,9 +154,20 @@ public struct UniversityMismatch: Error, Equatable, CustomStringConvertible {
     public let stored: String?
     public let expected: String
 
+    public init(stored: String?, expected: String) {
+        self.stored = stored
+        self.expected = expected
+    }
+
     public var description: String {
-        "Diese Daten gehören zur Hochschule „\(stored ?? "unbekannt")“, die App läuft für „\(expected)“. "
-            + "Es werden keine Daten gemischt."
+        "Diese Daten gehören zur Hochschule „\(Self.name(stored))“, gewählt ist „\(Self.name(expected))“. "
+            + "Sie werden nicht geöffnet, damit keine Daten gemischt werden."
+    }
+
+    /// Name der Hochschule fuer die Meldung (unbekannte Schluessel unveraendert)
+    static func name(_ key: String?) -> String {
+        guard let key else { return "unbekannt" }
+        return UniversityProfile.profile(forKey: key)?.name ?? key
     }
 }
 
