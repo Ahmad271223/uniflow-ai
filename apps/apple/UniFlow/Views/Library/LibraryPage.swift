@@ -123,7 +123,10 @@ struct LibraryPage: View {
             courses = api.isLocal ? ((try? await api.value("/api/courses"))?.items ?? []) : []
             lib = value
             error = nil
-        } catch { if lib == nil { self.error = error.localizedDescription } }
+        } catch {
+            // Neu laden gescheitert: der letzte Stand bleibt, der Grund steht als Meldung
+            if lib == nil { self.error = error.localizedDescription } else { toast.show("Neu laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4) }
+        }
     }
 
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
@@ -419,9 +422,10 @@ struct LibraryPage: View {
     private func openDoc(_ f: JSONValue) { if let id = f.s("id") { router.go(.doc(id)) } }
 
     private func toggleFav(_ f: JSONValue) async {
-        guard let id = f.s("id") else { return }
-        _ = try? await session.api?.value("/api/files/\(id)/favorite", method: "POST", body: ["favorite": .bool(f.i("favorite") != 1)])
-        router.reload()
+        guard let id = f.s("id"), let api = session.api else { return }
+        if await toast.attempt("Favorit ändern", { _ = try await api.value("/api/files/\(id)/favorite", method: "POST", body: ["favorite": .bool(f.i("favorite") != 1)]) }) {
+            router.reload()
+        }
     }
 
     private func menu(_ it: Item, lib: JSONValue) {

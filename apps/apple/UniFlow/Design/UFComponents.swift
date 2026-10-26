@@ -670,6 +670,21 @@ final class UFToastCenter: ObservableObject {
             if !Task.isCancelled { self?.message = nil }
         }
     }
+
+    /// Benutzeraktion mit sichtbarem Fehler: fuehrt `body` aus und zeigt, wenn es scheitert, "<what> fehlgeschlagen:
+    /// <Grund>". Ersetzt `try?` an Aktionen (Ordner anlegen, Aufgabe ueberspringen, Termin loeschen …), das den Fehler
+    /// verschluckte und die Seite danach neu lud, als waere es gelungen. Liefert, ob es gelang; eine Erfolgsmeldung
+    /// zeigt der Aufrufer nur dann.
+    @discardableResult
+    func attempt(_ what: String, _ body: () async throws -> Void) async -> Bool {
+        do {
+            try await body()
+            return true
+        } catch {
+            show("\(what) fehlgeschlagen: \(error.localizedDescription)", seconds: 4)
+            return false
+        }
+    }
 }
 
 struct UFToastOverlay: ViewModifier {

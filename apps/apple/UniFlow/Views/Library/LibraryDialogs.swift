@@ -1,3 +1,4 @@
+import ImageIO
 import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
@@ -65,10 +66,14 @@ struct LibraryNewDialog: View {
             guard !items.isEmpty else { return }
             Task {
                 var files: [(String, String, Data)] = []
+                var unreadable = 0
                 for (i, it) in items.enumerated() {
-                    if let d = try? await it.loadTransferable(type: Data.self) { files.append(("Bild \(i + 1).jpg", "image/jpeg", d)) }
+                    // Format aus den Daten (HEIC, PNG, JPEG …), nicht pauschal JPEG; nicht lesbare Fotos werden gezaehlt
+                    if let d = try? await it.loadTransferable(type: Data.self), let type = Self.imageType(d) {
+                        files.append(("Bild \(i + 1).\(type.preferredFilenameExtension ?? "jpg")", type.preferredMIMEType ?? "image/jpeg", d))
+                    } else { unreadable += 1 }
                 }
-                await upload("image", files)
+                await upload("image", files, unreadable: unreadable)
             }
         }
         .fileImporter(isPresented: Binding(get: { importKind != nil }, set: { if !$0 { importKind = nil } }),
@@ -86,27 +91,51 @@ struct LibraryNewDialog: View {
         }
     }
 
-    /// prompt("Name des Ordners:", "Neuer Ordner") -> POST /api/folders
+    /// prompt("Name des Ordners:", "Neuer Ordner") -> POST /api/folders; Fehler sichtbar (vorher try?)
     private func newFolder() async {
-        guard let name = await overlay.prompt("Name des Ordners:", value: "Neuer Ordner"), !name.isEmpty else { return }
-        _ = try? await session.api?.value("/api/folders", method: "POST",
-                                          body: ["name": .string(name), "parent_id": folderID.map { .number(Double($0)) } ?? .null,
-                                                 "module_id": moduleID.map { .number(Double($0)) } ?? .null])
-        router.reload()
+        guard let name = await overlay.prompt("Name des Ordners:", value: "Neuer Ordner"), !name.isEmpty, let api = session.api else { return }
+        if await toast.attempt("Ordner anlegen", {
+            _ = try await api.value("/api/folders", method: "POST",
+                                    body: ["name": .string(name), "parent_id": folderID.map { .number(Double($0)) } ?? .null,
+                                           "module_id": moduleID.map { .number(Double($0)) } ?? .null])
+        }) { router.reload() }
     }
 
-    /// je Datei POST /api/notebooks (kind, title ohne Endung, module_id, folder_id, upload), danach Toast "Importiert"
-    private func upload(_ kind: String, _ files: [(String, String, Data)]) async {
-        guard let api = session.api, !files.isEmpty else { return }
+    /// Bildformat aus den Daten (Fotomediathek liefert HEIC, PNG oder JPEG); nil, wenn es kein Bild ist
+    static func imageType(_ data: Data) -> UTType? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil), let id = CGImageSourceGetType(src) else { return nil }
+        return UTType(id as String)
+    }
+
+    /// Meldung nach dem Import: genaue Zahl der importierten und der gescheiterten Dateien (ein Teilerfolg sagt nie
+    /// nur "Importiert")
+    static func importSummary(ok: Int, failed: [String], unreadable: Int = 0) -> String {
+        var parts: [String] = []
+        if ok > 0 { parts.append(ok == 1 ? "1 Datei importiert" : "\(ok) Dateien importiert") }
+        if !failed.isEmpty { parts.append("\(failed.count) fehlgeschlagen: " + failed.joined(separator: "; ")) }
+        if unreadable > 0 { parts.append(unreadable == 1 ? "1 Foto nicht lesbar" : "\(unreadable) Fotos nicht lesbar") }
+        return parts.isEmpty ? "Nichts importiert" : parts.joined(separator: " · ")
+    }
+
+    /// je Datei POST /api/notebooks (kind, title ohne Endung, module_id, folder_id, upload), danach die Bilanz
+    /// (importiert, fehlgeschlagen, nicht lesbar). Jede Datei ist eine eigene Anfrage: eine gescheiterte aendert an
+    /// den schon importierten nichts.
+    private func upload(_ kind: String, _ files: [(String, String, Data)], unreadable: Int = 0) async {
+        guard let api = session.api, !files.isEmpty || unreadable > 0 else { return }
         close()
+        var ok = 0
+        var failed: [String] = []
         for (name, mime, data) in files {
             var fields = ["kind": kind, "title": (name as NSString).deletingPathExtension]
             if let moduleID { fields["module_id"] = "\(moduleID)" }
             if let folderID { fields["folder_id"] = "\(folderID)" }
-            do { _ = try await api.form("/api/notebooks", fields: fields, file: ("upload", name, mime, data)) } catch { toast.show(error.localizedDescription) }
+            do {
+                _ = try await api.form("/api/notebooks", fields: fields, file: ("upload", name, mime, data))
+                ok += 1
+            } catch { failed.append("\(name) (\(error.localizedDescription))") }
         }
-        toast.show("Importiert")
-        router.reload()
+        toast.show(Self.importSummary(ok: ok, failed: failed, unreadable: unreadable), seconds: failed.isEmpty && unreadable == 0 ? 2.6 : 6)
+        if ok > 0 { router.reload() }
     }
 }
 
@@ -223,6 +252,7 @@ struct LibraryFolderMenu: View {
     let folder: JSONValue
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
 
@@ -230,31 +260,32 @@ struct LibraryFolderMenu: View {
         let id = folder.i("id") ?? 0
         UFDialog("Ordner „\(folder.s("name") ?? "")“") {
             VStack(spacing: 8) {
+                // Fehler sichtbar (vorher try?: die Seite lud neu, als waere es gelungen)
                 UFMenuButton(text: "Umbenennen", icon: "pencil") {
                     close()
                     Task {
-                        if let n = await overlay.prompt("Neuer Name:", value: folder.s("name") ?? ""), !n.isEmpty {
-                            _ = try? await session.api?.value("/api/folders/\(id)", method: "PATCH", body: ["name": .string(n)])
+                        if let n = await overlay.prompt("Neuer Name:", value: folder.s("name") ?? ""), !n.isEmpty, let api = session.api,
+                           await toast.attempt("Umbenennen", { _ = try await api.value("/api/folders/\(id)", method: "PATCH", body: ["name": .string(n)]) }) {
+                            router.reload()
                         }
-                        router.reload()
                     }
                 }
                 UFMenuButton(text: "Farbe", icon: "circle") {
                     close()
                     Task {
-                        if let c = await overlay.prompt("Farbe (Hex):", value: folder.s("color") ?? "#4f8ef7"), !c.isEmpty {
-                            _ = try? await session.api?.value("/api/folders/\(id)", method: "PATCH", body: ["color": .string(c)])
+                        if let c = await overlay.prompt("Farbe (Hex):", value: folder.s("color") ?? "#4f8ef7"), !c.isEmpty, let api = session.api,
+                           await toast.attempt("Farbe speichern", { _ = try await api.value("/api/folders/\(id)", method: "PATCH", body: ["color": .string(c)]) }) {
+                            router.reload()
                         }
-                        router.reload()
                     }
                 }
                 UFMenuButton(text: "Ordner löschen (Inhalt bleibt erhalten)", icon: "trash", kind: .danger) {
                     close()
                     Task {
-                        if await overlay.confirm("Ordner löschen? Dokumente bleiben erhalten.") {
-                            _ = try? await session.api?.value("/api/folders/\(id)", method: "DELETE")
+                        if await overlay.confirm("Ordner löschen? Dokumente bleiben erhalten."), let api = session.api,
+                           await toast.attempt("Ordner löschen", { _ = try await api.value("/api/folders/\(id)", method: "DELETE") }) {
+                            router.reload()
                         }
-                        router.reload()
                     }
                 }
             }
@@ -269,6 +300,7 @@ struct LibraryModuleMenu: View {
     let module: JSONValue
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
+    @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
 
@@ -279,8 +311,10 @@ struct LibraryModuleMenu: View {
                 UFMenuButton(text: "Modul bearbeiten", icon: "settings") {
                     close()
                     Task {
-                        if let id = module.i("id"), let d = try? await session.api?.value("/api/modules/\(id)"), let m = d["module"] {
-                            overlay.modal { ModuleEditDialog(m: m) }
+                        guard let id = module.i("id"), let api = session.api else { return }
+                        await toast.attempt("Modul laden") {
+                            let d = try await api.value("/api/modules/\(id)")
+                            if let m = d["module"] { overlay.modal { ModuleEditDialog(m: m) } }
                         }
                     }
                 }
@@ -343,20 +377,21 @@ struct LibraryDocMenu: View {
             VStack(spacing: 8) {
                 UFMenuButton(text: "Öffnen", icon: "book") { close(); router.go(.doc(id)) }
                 UFMenuButton(text: fav ? "Aus Favoriten entfernen" : "Zu Favoriten", icon: "star") {
-                    patch { try await $0.value("/api/files/\(id)/favorite", method: "POST", body: ["favorite": .bool(!fav)]) }
+                    close()
+                    Task { await patch("Favorit ändern") { try await $0.value("/api/files/\(id)/favorite", method: "POST", body: ["favorite": .bool(!fav)]) } }
                 }
                 UFMenuButton(text: "Umbenennen", icon: "pencil") {
                     close()
                     Task {
                         if let n = await overlay.prompt("Neuer Titel:", value: f.s("title") ?? ""), !n.isEmpty {
-                            _ = try? await session.api?.value("/api/library/files/\(id)", method: "PATCH", body: ["title": .string(n)])
+                            await patch("Umbenennen") { try await $0.value("/api/library/files/\(id)", method: "PATCH", body: ["title": .string(n)]) }
                         }
-                        router.reload()
                     }
                 }
                 UFMenuButton(text: "In Ordner verschieben", icon: "move") { close(); overlay.modal { LibraryMoveDialog(id: id, lib: lib) } }
                 UFMenuButton(text: "Duplizieren", icon: "copy") {
-                    patch { try await $0.value("/api/library/files/\(id)", method: "PATCH", body: ["duplicate": true]) }
+                    close()
+                    Task { await patch("Duplizieren") { try await $0.value("/api/library/files/\(id)", method: "PATCH", body: ["duplicate": true]) } }
                 }
                 if f.s("kind") == "pdf" && f.s("downloaded_at") != nil {
                     UFMenuButton(text: "Original herunterladen", icon: "download") { close(); Task { await download(id) } }
@@ -366,8 +401,7 @@ struct LibraryDocMenu: View {
                     Task {
                         let ok = await overlay.confirm(own ? "In den Papierkorb legen?"
                                                        : "In den Papierkorb legen? Das Stud.IP-Original bleibt auf dem Server und kann wiederhergestellt werden.")
-                        if ok { _ = try? await session.api?.value("/api/library/files/\(id)", method: "PATCH", body: ["trash": true]) }
-                        router.reload()
+                        if ok { await patch("In den Papierkorb legen") { try await $0.value("/api/library/files/\(id)", method: "PATCH", body: ["trash": true]) } }
                     }
                 }
             }
@@ -376,12 +410,10 @@ struct LibraryDocMenu: View {
         }
     }
 
-    private func patch(_ call: @escaping (APIClient) async throws -> JSONValue) {
-        close()
-        Task {
-            if let api = session.api { _ = try? await call(api) }
-            router.reload()
-        }
+    /// Aenderung am Dokument mit sichtbarem Fehler; neu laden nur, wenn sie gelang (vorher try? und immer neu laden)
+    private func patch(_ what: String, _ call: (APIClient) async throws -> JSONValue) async {
+        guard let api = session.api else { return }
+        if await toast.attempt(what, { _ = try await call(api) }) { router.reload() }
     }
 
     /// <a download>: auf dem iPad ueber das Teilen-Menue (Sichern in Dateien). Der Name kommt ungeprueft aus
@@ -406,6 +438,7 @@ struct LibraryMoveDialog: View {
     let id: String
     let lib: JSONValue
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
     @State private var folder = 0
@@ -423,9 +456,14 @@ struct LibraryMoveDialog: View {
             UFButton("Abbrechen") { close() }
             UFButton("Verschieben", kind: .primary) {
                 Task {
-                    _ = try? await session.api?.value("/api/library/files/\(id)", method: "PATCH", body: ["folder_id": folder == 0 ? .null : .number(Double(folder))])
-                    close()
-                    router.reload()
+                    guard let api = session.api else { return }
+                    // Fehler sichtbar, der Dialog bleibt dann offen (vorher try?, schliessen, neu laden)
+                    if await toast.attempt("Verschieben", {
+                        _ = try await api.value("/api/library/files/\(id)", method: "PATCH", body: ["folder_id": folder == 0 ? .null : .number(Double(folder))])
+                    }) {
+                        close()
+                        router.reload()
+                    }
                 }
             }
         }

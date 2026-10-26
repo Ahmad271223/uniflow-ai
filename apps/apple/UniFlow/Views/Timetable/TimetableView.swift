@@ -13,6 +13,8 @@ struct TimetableView: View {
     @EnvironmentObject private var router: UFRouter
     @State private var week: JSONValue?
     @State private var conflicts: [JSONValue] = []
+    /// Konfliktpruefung gescheitert: Meldung statt stiller leerer Liste (eine leere Liste hiesse "keine Konflikte")
+    @State private var conflictsError: String?
     @State private var error: String?
     /// noch nicht uebernommene Stud.IP-Termine (`pending_groups` aus /api/timetable/auto-status)
     @State private var studipPending = 0
@@ -48,11 +50,20 @@ struct TimetableView: View {
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
         do {
             let w = try await api.value("/api/timetable/week?start=\(Fmt.isoDay(start))")
-            conflicts = (try? await api.value("/api/timetable/conflicts"))?.items ?? []
+            do {
+                conflicts = try await api.value("/api/timetable/conflicts").items
+                conflictsError = nil
+            } catch {
+                conflicts = []
+                conflictsError = error.localizedDescription
+            }
             studipPending = (try? await api.value("/api/timetable/auto-status"))?.i("pending_groups") ?? 0
             week = w
             error = nil
-        } catch { if week == nil { self.error = error.localizedDescription } }
+        } catch {
+            // Neu laden gescheitert: der letzte Stand bleibt stehen, der Grund steht als Meldung
+            if week == nil { self.error = error.localizedDescription } else { toast.show("Neu laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4) }
+        }
     }
 
     @ViewBuilder private func content(_ w: JSONValue) -> some View {
@@ -68,6 +79,10 @@ struct TimetableView: View {
                 UFButton("Stundenplan importieren", icon: "download", kind: .primary, size: .small) { overlay.modal { TimetableImportDialog() } }
             }
             if !conflicts.isEmpty { conflictBanner }
+            if let conflictsError {
+                HStack(spacing: 6) { UFIcon("alert", size: 14); Text("Konfliktprüfung nicht möglich: \(conflictsError)") }
+                    .ufFont(13.12).foregroundStyle(UF.warn).padding(.bottom, 12.8)
+            }
             nav.padding(.bottom, 11.2)
             if allEv.isEmpty {
                 UFCard {
@@ -96,10 +111,12 @@ struct TimetableView: View {
                 UFFlexSpacer()
                 UFButton("Lernslots neu legen", kind: .primary, size: .small) {
                     Task {
-                        if let r = try? await session.api?.value("/api/timetable/reslot", method: "POST", body: [:]) {
+                        guard let api = session.api else { return }
+                        // Fehler sichtbar (vorher try?: ohne Meldung neu geladen, der Konflikt blieb)
+                        if await toast.attempt("Lernslots neu legen", {
+                            let r = try await api.value("/api/timetable/reslot", method: "POST", body: [:])
                             toast.show("\(r.list("reslotted").count) Tage neu gelegt")
-                        }
-                        router.reload()
+                        }) { router.reload() }
                     }
                 }
             }
@@ -665,6 +682,7 @@ struct UFSmallInput: View {
 struct TimetableConflictsDialog: View {
     let conflicts: [JSONValue]
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
 
@@ -682,9 +700,11 @@ struct TimetableConflictsDialog: View {
             UFButton("Später") { close() }
             UFButton("Lernslots neu legen", kind: .primary) {
                 Task {
-                    _ = try? await session.api?.value("/api/timetable/reslot", method: "POST", body: [:])
-                    close()
-                    router.reload()
+                    guard let api = session.api else { return }
+                    if await toast.attempt("Lernslots neu legen", { _ = try await api.value("/api/timetable/reslot", method: "POST", body: [:]) }) {
+                        close()
+                        router.reload()
+                    }
                 }
             }
         }

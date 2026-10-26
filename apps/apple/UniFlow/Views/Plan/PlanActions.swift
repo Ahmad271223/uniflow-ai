@@ -77,13 +77,25 @@ struct PlanActions {
         overlay.modal { AvailabilityDialog() }
     }
 
-    /// "Lernpaket erledigt" im Wochenraster: alle Aufgaben auf erledigt bzw. zurueck auf geplant
+    /// "Lernpaket erledigt" im Wochenraster: alle Aufgaben auf erledigt bzw. zurueck auf geplant. Aufgabe fuer
+    /// Aufgabe (eine Anfrage je Aufgabe wie im Web); scheitert eine, bricht es dort ab und die Meldung nennt den
+    /// Teilstand (vorher try? je Aufgabe und immer "Lernpaket erledigt", auch bei einem halb geaenderten Paket)
     func togglePackageDone(_ id: Int) async {
-        guard let api, let p = try? await api.value("/api/packages/\(id)") else { return }
+        guard let api else { return }
+        let p: JSONValue
+        do { p = try await api.value("/api/packages/\(id)") } catch { toast.show("Lernpaket laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4); return }
         let done = p.s("status") == "erledigt"
-        for t in p.list("tasks") where (t.s("status") == "erledigt") == done {
-            guard let tid = t.i("id") else { continue }
-            _ = try? await api.value("/api/tasks/\(tid)/status", method: "POST", body: ["status": .string(done ? "geplant" : "erledigt")])
+        let todo = p.list("tasks").filter { ($0.s("status") == "erledigt") == done }.compactMap { $0.i("id") }
+        var changed = 0
+        for tid in todo {
+            do {
+                _ = try await api.value("/api/tasks/\(tid)/status", method: "POST", body: ["status": .string(done ? "geplant" : "erledigt")])
+                changed += 1
+            } catch {
+                toast.show("\(changed) von \(todo.count) Aufgaben geändert, dann fehlgeschlagen: \(error.localizedDescription)", seconds: 5)
+                router.reload()
+                return
+            }
         }
         toast.show(done ? "Wieder offen" : "Lernpaket erledigt ✓")
         router.reload()
@@ -156,10 +168,14 @@ struct PackageDrawer: View {
                         UFButton("Neu einplanen", kind: .primary, size: .small) { Task { await actions.suggest(["package_id": .number(Double(id))]) } }
                         UFButton("Bewusst überspringen", size: .small) {
                             Task {
-                                _ = try? await session.api?.value("/api/tasks/skip", method: "POST",
-                                                                  body: ["task_ids": .array(late.compactMap { $0.i("id") }.map { .number(Double($0)) })])
-                                toast.show("Übersprungen")
-                                router.reload()
+                                guard let api = session.api else { return }
+                                if await toast.attempt("Überspringen", {
+                                    _ = try await api.value("/api/tasks/skip", method: "POST",
+                                                            body: ["task_ids": .array(late.compactMap { $0.i("id") }.map { .number(Double($0)) })])
+                                }) {
+                                    toast.show("Übersprungen")
+                                    router.reload()
+                                }
                             }
                         }
                     }
@@ -172,9 +188,11 @@ struct PackageDrawer: View {
         } foot: {
             UFButton("Verschieben", icon: "move", size: .small) {
                 actions.move(title: "Lernpaket „\(p.s("subject") ?? "")“ verschieben", current: p.s("date")) { date in
-                    _ = try? await session.api?.value("/api/packages/\(id)", method: "PATCH", body: ["date": .string(date)])
-                    toast.show("Verschoben")
-                    router.reload()
+                    guard let api = session.api else { return }
+                    if await toast.attempt("Verschieben", { _ = try await api.value("/api/packages/\(id)", method: "PATCH", body: ["date": .string(date)]) }) {
+                        toast.show("Verschoben")
+                        router.reload()
+                    }
                 }
             }
             UFButton("Uhrzeit", icon: "clock", size: .small) {
@@ -184,8 +202,9 @@ struct PackageDrawer: View {
             UFFlexSpacer()
             UFButton(icon: "trash", kind: .danger, size: .small) {
                 Task {
-                    if await overlay.confirm("Lernpaket mit allen Aufgaben löschen?") {
-                        _ = try? await session.api?.value("/api/packages/\(id)", method: "DELETE")
+                    if await overlay.confirm("Lernpaket mit allen Aufgaben löschen?"), let api = session.api,
+                       await toast.attempt("Löschen", { _ = try await api.value("/api/packages/\(id)", method: "DELETE") }) {
+                        close()
                         router.reload()
                     }
                 }
@@ -268,8 +287,10 @@ struct TaskRow: View {
     }
 
     private func toggle(_ done: Bool) async {
-        guard let id = t.i("id") else { return }
-        _ = try? await session.api?.value("/api/tasks/\(id)/status", method: "POST", body: ["status": .string(done ? "geplant" : "erledigt")])
+        guard let id = t.i("id"), let api = session.api else { return }
+        guard await toast.attempt(done ? "Wieder öffnen" : "Abhaken", {
+            _ = try await api.value("/api/tasks/\(id)/status", method: "POST", body: ["status": .string(done ? "geplant" : "erledigt")])
+        }) else { return }
         toast.show(done ? "Wieder offen" : "Erledigt ✓")
         refresh()
         router.reload()
@@ -306,18 +327,22 @@ struct TaskMenuDialog: View {
                 menuButton("In Bearbeitung", icon: "play") { await setStatus("in_bearbeitung") }
                 menuButton("Auf anderen Tag verschieben", icon: "move") {
                     PlanEnv.make(session, overlay, toast, router).move(title: "Aufgabe verschieben") { date in
-                        _ = try? await session.api?.value("/api/calendar/apply", method: "POST",
-                                                          body: ["moves": [["task_id": .number(Double(id)), "to": .string(date)]]])
-                        toast.show("Verschoben")
-                        refresh()
-                        router.reload()
+                        guard let api = session.api else { return }
+                        if await toast.attempt("Verschieben", {
+                            _ = try await api.value("/api/calendar/apply", method: "POST",
+                                                    body: ["moves": [["task_id": .number(Double(id)), "to": .string(date)]]])
+                        }) {
+                            toast.show("Verschoben")
+                            refresh()
+                            router.reload()
+                        }
                     }
                 }
                 menuButton("Bewusst überspringen", icon: "x") { await setStatus("uebersprungen") }
                 menuButton("Titel / Dauer ändern", icon: "pencil") { overlay.modal { TaskEditDialog(id: id, title: title, refresh: refresh) } }
                 menuButton("Löschen", icon: "trash", kind: .danger) {
-                    if await overlay.confirm("Aufgabe löschen?") {
-                        _ = try? await session.api?.value("/api/tasks/\(id)", method: "DELETE")
+                    if await overlay.confirm("Aufgabe löschen?"), let api = session.api,
+                       await toast.attempt("Löschen", { _ = try await api.value("/api/tasks/\(id)", method: "DELETE") }) {
                         refresh()
                         router.reload()
                     }
@@ -336,7 +361,8 @@ struct TaskMenuDialog: View {
     }
 
     private func setStatus(_ s: String) async {
-        _ = try? await session.api?.value("/api/tasks/\(id)/status", method: "POST", body: ["status": .string(s)])
+        guard let api = session.api else { return }
+        guard await toast.attempt("Status ändern", { _ = try await api.value("/api/tasks/\(id)/status", method: "POST", body: ["status": .string(s)]) }) else { return }
         refresh()
         router.reload()
     }
@@ -349,6 +375,7 @@ struct TaskEditDialog: View {
     @State var title: String
     @State private var minutes = 45
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var toast: UFToastCenter
     @Environment(\.ufClose) private var close
 
     init(id: Int, title: String, refresh: @escaping () -> Void) {
@@ -365,10 +392,14 @@ struct TaskEditDialog: View {
             UFButton("Abbrechen") { close() }
             UFButton("Speichern", kind: .primary) {
                 Task {
-                    _ = try? await session.api?.value("/api/tasks/\(id)", method: "PATCH",
-                                                      body: ["title": .string(title), "est_minutes": .number(Double(max(5, minutes)))])
-                    close()
-                    refresh()
+                    guard let api = session.api else { return }
+                    if await toast.attempt("Speichern", {
+                        _ = try await api.value("/api/tasks/\(id)", method: "PATCH",
+                                                body: ["title": .string(title), "est_minutes": .number(Double(max(5, minutes)))])
+                    }) {
+                        close()
+                        refresh()
+                    }
                 }
             }
         }
@@ -410,6 +441,7 @@ struct PackageTimeDialog: View {
     @State var start: String
     @State var minutes: Int
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
 
@@ -430,10 +462,14 @@ struct PackageTimeDialog: View {
             UFButton("Abbrechen") { close() }
             UFButton("Speichern", kind: .primary) {
                 Task {
-                    _ = try? await session.api?.value("/api/packages/\(id)", method: "PATCH",
-                                                      body: ["start_time": .string(start), "end_time": .string(UFTime.mh(UFTime.hm(start) + minutes))])
-                    close()
-                    router.reload()
+                    guard let api = session.api else { return }
+                    if await toast.attempt("Uhrzeit speichern", {
+                        _ = try await api.value("/api/packages/\(id)", method: "PATCH",
+                                                body: ["start_time": .string(start), "end_time": .string(UFTime.mh(UFTime.hm(start) + minutes))])
+                    }) {
+                        close()
+                        router.reload()
+                    }
                 }
             }
         }
@@ -469,7 +505,9 @@ struct AddTaskDialog: View {
             UFButton("Hinzufügen", kind: .primary) { Task { await add() } }
         }
         .task {
-            if let m = package.i("module_id"), let d = try? await session.api?.value("/api/modules/\(m)") { files = d.list("files") }
+            // Dateien des Moduls fuer die Auswahl; ohne sie bleibt der Dialog nutzbar, der Grund steht als Meldung
+            guard let m = package.i("module_id"), let api = session.api else { return }
+            await toast.attempt("Dokumente des Moduls laden") { files = try await api.value("/api/modules/\(m)").list("files") }
         }
         .onChange(of: file) { _, f in
             if let x = files.first(where: { $0.s("id") == f }), title.isEmpty { title = x.s("ai_title") ?? x.s("name") ?? "" }
@@ -484,10 +522,10 @@ struct AddTaskDialog: View {
     }
 
     private func add() async {
-        guard let pid = package.i("id") else { return }
+        guard let pid = package.i("id"), let api = session.api else { return }
         let body: JSONValue = ["type": .string(type), "file_id": file.isEmpty ? .null : .string(file),
                                "title": .string(title.isEmpty ? (ShellState.typeText[type] ?? type) : title), "est_minutes": .number(Double(minutes))]
-        _ = try? await session.api?.value("/api/packages/\(pid)/tasks", method: "POST", body: body)
+        guard await toast.attempt("Aufgabe hinzufügen", { _ = try await api.value("/api/packages/\(pid)/tasks", method: "POST", body: body) }) else { return }
         close()
         toast.show("Aufgabe hinzugefügt")
         router.reload()
@@ -523,8 +561,9 @@ struct AddPackageDialog: View {
             UFButton("Anlegen", kind: .primary) { Task { await create() } }
         }
         .task {
-            if let m = try? await session.api?.value("/api/modules") {
-                modules = m.items
+            guard let api = session.api else { return }
+            await toast.attempt("Module laden") {
+                modules = try await api.value("/api/modules").items
                 if module == 0 { module = modules.first?.i("id") ?? 0 }
             }
         }
@@ -571,11 +610,12 @@ struct FreeWindowDialog: View {
                 }
                 choice("Lerneinheit automatisch einplanen", icon: "sparkles") {
                     // genau in dieses Fenster (die Planung fuer den Tag uebersprang jeden Tag mit einem Paket)
-                    if let r = try? await session.api?.value("/api/calendar/generate", method: "POST",
-                                                             body: ["start": .string(date), "window_start": .string(UFTime.mh(start)), "window_end": .string(UFTime.mh(end))]) {
+                    guard let api = session.api else { return }
+                    if await toast.attempt("Einplanen", {
+                        let r = try await api.value("/api/calendar/generate", method: "POST",
+                                                    body: ["start": .string(date), "window_start": .string(UFTime.mh(start)), "window_end": .string(UFTime.mh(end))])
                         toast.show(r.s("message") ?? "")
-                    }
-                    router.reload()
+                    }) { router.reload() }
                 }
                 choice("Offene Aufgaben nachholen", icon: "alert") {
                     await PlanEnv.make(session, overlay, toast, router).suggest(["horizon": 1])
@@ -615,9 +655,16 @@ struct FreeWindowDialog: View {
         let body: JSONValue = ["date": .string(date), "module_id": moduleID.map { .number(Double($0)) } ?? .null,
                                "title": .string(lecture ? "Vorlesung nacharbeiten" : "Übung bearbeiten"),
                                "tasks": .array(tasks.filter { ($0["est_minutes"]?.double ?? 0) > 0 })]
-        if let p = try? await api.value("/api/packages", method: "POST", body: body), let id = p.i("id") {
-            _ = try? await api.value("/api/packages/\(id)", method: "PATCH", body: ["start_time": .string(UFTime.mh(start))])
-        }
+        // Fehler sichtbar; "Lernblock angelegt" nur, wenn das Paket da ist (die Uhrzeit ist ein zweiter Schritt, ein
+        // Fehler dort nennt genau das)
+        guard await toast.attempt("Lernblock anlegen", {
+            let p = try await api.value("/api/packages", method: "POST", body: body)
+            if let id = p.i("id") {
+                await toast.attempt("Lernblock angelegt, Uhrzeit setzen") {
+                    _ = try await api.value("/api/packages/\(id)", method: "PATCH", body: ["start_time": .string(UFTime.mh(start))])
+                }
+            }
+        }) else { router.reload(); return }
         toast.show("Lernblock angelegt")
         router.reload()
     }
