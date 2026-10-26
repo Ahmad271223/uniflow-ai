@@ -32,3 +32,8 @@ apps/android/**/build/
 apps/windows/backend/dist/
 apps/windows/backend/build/
 apps/windows/backend/ms-playwright/
+apps/android/keystore.properties
+apps/android/*.jks
+apps/android/*.keystore
+apps/android/.kotlin/
+apps/android/local.properties

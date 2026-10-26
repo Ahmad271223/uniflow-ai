@@ -100,9 +100,22 @@ object AnnotationMerge {
         val (objects, c) = mergeObjects((bp?.get("objects") as? JsonArray) ?: emptyList(), lo, so)
         conflicts += c
         result["objects"] = JsonArray(objects)
-        // native iPad-Zeichnung nur behalten, wenn sie noch genau zu den Objekten passt
-        if (lp["pkdrawing"] != null && same(JsonArray(objects), lo)) result["pkdrawing"] = lp["pkdrawing"]!!
-        else if (sp["pkdrawing"] != null && same(JsonArray(objects), so)) result["pkdrawing"] = sp["pkdrawing"]!!
+        // native iPad-Zeichnung: v1 nur, wenn sie noch genau zu den Objekten passt. v2 prueft das iPad je Strich selbst
+        // (strokeSigs) und bleibt deshalb auch bei abweichenden Objekten erhalten (wie merge.js und AnnotationMerge.swift)
+        val merged = JsonArray(objects)
+        val lpk = lp["pkdrawing"]?.takeIf { it !is JsonNull }
+        val spk = sp["pkdrawing"]?.takeIf { it !is JsonNull }
+        when {
+            lpk != null && same(merged, lo) -> result["pkdrawing"] = lpk
+            spk != null && same(merged, so) -> result["pkdrawing"] = spk
+            perStroke(lpk) -> result["pkdrawing"] = lpk!!
+            perStroke(spk) -> result["pkdrawing"] = spk!!
+        }
         return Result(JsonObject(result), conflicts)
+    }
+
+    private fun perStroke(pk: JsonElement?): Boolean {
+        val o = pk as? JsonObject ?: return false
+        return (o["format"] as? JsonPrimitive)?.content == "pkdrawing-v2" && o["strokeSigs"] is JsonArray
     }
 }

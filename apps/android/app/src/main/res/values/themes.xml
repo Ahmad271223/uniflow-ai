@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Die Oberflaeche ist Compose (Material 3); das Fensterthema bleibt schlicht und ohne Titelleiste. -->
+    <style name="Theme.UniFlow" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Der Dienst wird nur ueber https angesprochen (Session.kt erzwingt das fuer oeffentliche Adressen). Klartext bleibt
+     erlaubt, damit der eigene PC im WLAN (serve.py im WLAN-Modus, http://192.168.x.x:8765) erreichbar ist. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

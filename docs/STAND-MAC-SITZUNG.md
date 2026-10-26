@@ -330,3 +330,15 @@ eine strenge Content-Security-Policy (`app/server.py::UI_CSP`, kein Inline-Skrip
 für das Farbschema wurde zu `theme.js`; (2) die `.env` ist über `LERNAPP_ENV_FILE` verschiebbar (`config.env_file()`).
 Am Swift-Kern ändert sich nichts. Python: 221 Tests grün.
 
+## Nachtrag der PC-Sitzung: Android-App, erste Fassung (26.10.2026)
+
+`apps/android` hat jetzt neben dem Kern eine App (Jetpack Compose): Anmeldung mit UniFlow-Konto oder PC im WLAN (PIN),
+Übersicht, Dokumente nach Modul, PDF mit Stift-Notizen im gemeinsamen Notizformat (Striche wie im Web-Editor,
+Speichern mit `base_version`, bei 409 Zusammenführung mit den gemeinsamen Regeln), Stundenplan und Lernkalender.
+Der Kern prüft `fixtures/account/contract.json`, `fixtures/sync/cases.json`, `documents/web-editor.json` und
+`merge/cases.json`. Für euch wichtig: **der Kotlin-Port der Zusammenführung war nie gelaufen** (kein Gradle auf dem
+PC) und kannte die Regel für iPad-Zeichnungen v2 nicht (`strokeSigs` → Zeichnung bleibt auch bei abweichenden
+Objekten); jetzt wie `merge.js`/`AnnotationMerge.swift`, alle Merge-Fälle grün. Gebaut im Docker-Bild
+`cirruslabs/android-sdk:35` (22 Tests, Debug-APK, unsigniertes Release-Bundle); ein echtes Android-Gerät mit Stift
+fehlt am PC. Am Swift-Kern ändert sich nichts.
+
