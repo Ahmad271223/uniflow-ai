@@ -61,26 +61,17 @@ enum LocalTimetableImport {
         return (1..<m.numberOfRanges).compactMap { Int(ns.substring(with: m.range(at: $0)).trimmingCharacters(in: .whitespaces)) }
     }
 
-    /// Codepunkte `s[from:to]` wie Pythons Slicing
-    static func slice(_ s: String, _ from: Int, _ to: Int) -> String {
-        let u = Array(s.unicodeScalars)
-        let lo = min(max(0, from), u.count), hi = min(max(lo, to), u.count)
-        var out = String.UnicodeScalarView()
-        out.append(contentsOf: u[lo..<hi])
-        return String(out)
-    }
-
     /// `_ics_dt(v, params)`: Zeitpunkt als Ortszeit Berlin. "...Z" ist UTC, TZID=... eine Zeitzone (UTC-Namen und
     /// Europe/Berlin ohne Datenbank, andere aus den bekannten Zonen des Systems); unbekannte und Zeiten ohne Angabe
     /// gelten als Berliner Zeit. Reine Daten beginnen um 00:00. nil, wo Python mit ValueError scheitert.
     static func icsDate(_ raw: String, params: String = "") -> LocalTime? {
         let v = PyText.strip(raw)
         if v.unicodeScalars.contains("T") {
-            guard let p = strptime(strptimeDateTime, slice(v, 0, 15)), p.count == 6, p[0] >= 1,
+            guard let p = strptime(strptimeDateTime, PyText.slice(v, 0, 15)), p.count == 6, p[0] >= 1,
                   (1...BerlinClock.daysInMonth(year: p[0], month: p[1])).contains(p[2]), p[5] < 60 else { return nil }
             let day = BerlinClock.dayNumber(year: p[0], month: p[1], day: p[2])
             let wall = LocalTime(day: day, minutes: p[3] * 60 + p[4])
-            let utcFlag = slice(v, 15, 16).uppercased() == "Z"
+            let utcFlag = PyText.slice(v, 15, 16).uppercased() == "Z"
             let tz = tzid(params)
             if utcFlag || tz.map({ utcTZIDs.contains($0.uppercased()) }) == true {
                 return berlin(utc: day * 86400 + p[3] * 3600 + p[4] * 60 + p[5])
@@ -95,7 +86,7 @@ enum LocalTimetableImport {
             }
             return wall
         }
-        guard let p = strptime(strptimeDate, slice(v, 0, 8)), p.count == 3, p[0] >= 1,
+        guard let p = strptime(strptimeDate, PyText.slice(v, 0, 8)), p.count == 3, p[0] >= 1,
               (1...BerlinClock.daysInMonth(year: p[0], month: p[1])).contains(p[2]) else { return nil }
         return LocalTime(day: BerlinClock.dayNumber(year: p[0], month: p[1], day: p[2]), minutes: 0)
     }
@@ -121,7 +112,7 @@ enum LocalTimetableImport {
     /// `_ics_until(rrule, start)`: letzter Tag; UNTIL mit Uhrzeit vor dem Beginn des Termins zaehlt den Vortag
     static func icsUntil(_ rrule: String, start: LocalTime) -> String? {
         guard let g = HText.match(untilRule, rrule)?.groups, let d = g[1] else { return nil }
-        let day = slice(d, 0, 4) + "-" + slice(d, 4, 6) + "-" + slice(d, 6, 8)
+        let day = PyText.slice(d, 0, 4) + "-" + PyText.slice(d, 4, 6) + "-" + PyText.slice(d, 6, 8)
         guard let t = g[2] else { return day }
         guard let u = icsDate(d + t) else { return day }
         var last = u.day

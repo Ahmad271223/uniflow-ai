@@ -455,9 +455,13 @@ final class DocumentStore: ObservableObject {
 
     private func remoteChanged(_ keys: [String]) async {
         let doc = await engine.currentDocument()
+        // zuerst der Herkunftsstempel (S7): gehoeren die Notizen inzwischen zu einer neuen Fassung, passt ihre
+        // Seitenliste nicht zur angezeigten PDF (Notizen stuenden auf falschen Folien, Seiten ueber die alte Seitenzahl
+        // hinaus fehlten). Dann bleibt die Anzeige, wie sie ist, nur zum Ansehen, bis das Dokument neu geoeffnet wird.
+        await checkOrigin(doc)
+        guard !outdatedByNewVersion else { return }
         apply(document: doc)
         if !keys.isEmpty { onPagesChanged?(keys) }
-        await checkOrigin(doc)
     }
 
     /// Gehoeren die Notizen zu einer anderen Original-PDF als der angezeigten (Herkunftsstempel `origin` einer neuen

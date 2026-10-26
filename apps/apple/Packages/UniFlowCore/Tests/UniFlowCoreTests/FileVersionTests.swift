@@ -57,20 +57,95 @@ final class PageMatchTests: XCTestCase {
         XCTAssertLessThan(similar?.ratio ?? 1, 1)
     }
 
-    /// Gleiche Seiten (Wiederholung des Titels, "Fragen?") der Reihe nach; Seiten ohne Text (Scan, Leerseite) nach
-    /// ihrer Position zur naechsten zugeordneten Seite; ganz ohne Text Seite fuer Seite
+    /// Gleiche Seiten (Titel am Anfang und Ende): sicher nur im Block mit einer eindeutigen Seite und mit beiden
+    /// Nachbarn darin (oder am Ende beider Fassungen), sonst nach der Lage und zu pruefen; Seiten ohne Text (Scan,
+    /// Leerseite) nach ihrer Position zur naechsten zugeordneten Seite, zuerst auf eine Seite ohne Text; ganz ohne Text
+    /// Seite fuer Seite
     func testDuplicatesAndPagesWithoutText() {
         let t = "Titel Lineare Algebra Wintersemester"
         let e = "Eigenwerte einer Matrix und ihr charakteristisches Polynom"
         let r = PageMatch.match(old: [t, e, "", t], new: [t, "Neu eingefügt: Motivation und Überblick", e, "", t])
-        XCTAssertEqual(pairs(r), ["1>1 gleich", "2>3 gleich", "3>4 position", "4>5 gleich"])
-        // Leerseite hinter einer neuen Seite: Abstand zur folgenden Seite
+        XCTAssertEqual(pairs(r), ["1>1 wiederholt", "2>3 gleich", "3>4 position", "4>5 gleich"])
+        // Leerseite hinter einer neuen Seite: Abstand zur folgenden Seite (Leerseite vor Seite mit Text)
         let r2 = PageMatch.match(old: [t, "", e], new: [t, "Neue Seite mit Text dazwischen", "", e])
         XCTAssertEqual(pairs(r2), ["1>1 gleich", "2>3 position", "3>4 gleich"])
         let scans = PageMatch.match(old: ["", "", ""], new: ["", "", "", ""])
         XCTAssertEqual(pairs(scans), ["1>1 position", "2>2 position", "3>3 position"])
         XCTAssertEqual(scans.added, [4])
         XCTAssertEqual(pairs(PageMatch.byPosition(oldCount: 3, newCount: 2)), ["1>1 position", "2>2 position"])
+    }
+
+    /// Wiederholte Notizseiten ("Platz für Notizen" nach jedem Kapitel): ein neues Kapitel mit eigener Notizseite nach
+    /// Kapitel 1. Vorher wurden gleiche Seiten nur der Reihe nach vergeben und galten als sicher: die Notizen der Seite
+    /// nach "Eigenwerte" landeten nach "Lineare Abbildungen", ohne Hinweis. Jetzt folgt jede Notizseite ihrem Kapitel;
+    /// die eine, deren Nachbarn sich geaendert haben, ist zu pruefen.
+    func testRepeatedNotesPagesFollowTheirChapter() {
+        let n = "Platz für Notizen"
+        let old = ["Kapitel 1: Vektorräume", n, "Kapitel 2: Eigenwerte", n, "Kapitel 3: Determinanten", n]
+        let new = ["Kapitel 1: Vektorräume", n, "Kapitel 2: Lineare Abbildungen", n, "Kapitel 3: Eigenwerte", n, "Kapitel 4: Determinanten", n]
+        let r = PageMatch.match(old: old, new: new)
+        XCTAssertEqual(pairs(r), ["1>1 gleich", "2>2 wiederholt", "3>5 gleich", "4>6 gleich", "5>7 gleich", "6>8 gleich"])
+        XCTAssertEqual(r.added, [3, 4])
+        XCTAssertEqual(r.removed, [])
+        // Gegenrichtung: Kapitel A mit seiner Notizseite entfernt; die Notizseite von B bleibt bei B
+        let back = PageMatch.match(old: ["Kapitel A: Gruppen", n, "Kapitel B: Ringe", n], new: ["Kapitel B: Ringe", n])
+        XCTAssertEqual(pairs(back), ["3>1 gleich", "4>2 gleich"])
+        XCTAssertEqual(back.removed, [1, 2])
+        // Gliederungsfolie vor jedem Kapitel, ein Kapitel kommt dazu: ob die Folie zum Kapitel davor oder danach gehoert,
+        // laesst sich am Text nicht erkennen; bei Gleichstand gilt die Seite davor (wie bei Notizseiten), zu pruefen
+        let g = "Gliederung: Einleitung, Grundlagen, Anwendungen"
+        let outline = PageMatch.match(old: [g, "Einleitung und Motivation", g, "Grundlagen der Optik"],
+                                      new: [g, "Einleitung und Motivation", g, "Neu: Geschichte der Optik", g, "Grundlagen der Optik"])
+        XCTAssertEqual(pairs(outline), ["1>1 gleich", "2>2 gleich", "3>3 wiederholt", "4>6 gleich"])
+    }
+
+    /// Seiten, die sich nur in Zahlen unterscheiden ("Blatt 1", "Blatt 2"), sind gleich (Ziffern zaehlen nicht) und
+    /// darum mehrfach vorhanden: ohne eindeutige Nachbarn nach der Lage zugeordnet und zu pruefen, nicht still sicher
+    func testPagesDifferingOnlyInNumbersAreChecked() {
+        let r = PageMatch.match(old: ["Blatt 1: Aufgaben zur Woche", "Hinweise zur Abgabe", "Blatt 2: Aufgaben zur Woche", "Hinweise zur Abgabe"],
+                                new: ["Blatt 2: Aufgaben zur Woche", "Hinweise zur Abgabe"])
+        XCTAssertEqual(pairs(r), ["1>1 wiederholt", "2>2 wiederholt"])
+        XCTAssertEqual(r.removed, [3, 4])
+        // mit eindeutigem Nachbarn im selben Block: sicher
+        let anchored = PageMatch.match(old: ["Blatt 1: Aufgaben zur Woche", "Eigenwerte berechnen", "Blatt 2: Aufgaben zur Woche", "Determinanten"],
+                                       new: ["Blatt 1: Aufgaben zur Woche", "Eigenwerte berechnen", "Blatt 2: Aufgaben zur Woche", "Determinanten", "Anhang"])
+        XCTAssertEqual(pairs(anchored), ["1>1 gleich", "2>2 gleich", "3>3 gleich", "4>4 gleich"])
+    }
+
+    /// Scan (Seiten ohne Text) in einer der Fassungen: Seite fuer Seite, alle zu pruefen (vorher fiel alles heraus und
+    /// die Notizen standen nur noch in der alten Fassung); eine einzelne gescannte Seite nach ihrer Lage
+    func testScannedVersionMapsByPosition() {
+        let text = ["Eigenwerte und Eigenvektoren", "Charakteristisches Polynom einer Matrix", "Diagonalisierung"]
+        XCTAssertEqual(pairs(PageMatch.match(old: text, new: ["", "", ""])), ["1>1 position", "2>2 position", "3>3 position"])
+        XCTAssertEqual(pairs(PageMatch.match(old: ["", "", ""], new: text + ["Anhang"])), ["1>1 position", "2>2 position", "3>3 position"])
+        let partly = PageMatch.match(old: text, new: [text[0], "", text[2]])
+        XCTAssertEqual(pairs(partly), ["1>1 gleich", "2>2 position", "3>3 gleich"])
+        XCTAssertEqual(partly.removed, [])
+    }
+
+    /// Grosses Skript (150 Seiten zu 250 Woertern), jede Seite um ein Wort geaendert: alle Seiten aehnlich und auf
+    /// ihrem Platz; die Vorfilter rechnen aus Laengen und vorberechneten Haeufigkeiten, `ratio()` nur fuer
+    /// hoechstens fuenf Kandidaten je Seite mit einem Index je neuer Seite (vorher 22.500 Vergleiche mit eigenem Index)
+    func testLargeScriptMatchesQuickly() {
+        var rng = KernSeedRNG(seed: 7)
+        let letters: [Character] = Array("abcdefghijklmnopqrstuvwxyz")    // ohne Ziffern: die zaehlen als "#"
+        var vocabulary: [String] = []
+        for n in 0..<4000 { vocabulary.append("w" + String([letters[n / 676 % 26], letters[n / 26 % 26], letters[n % 26]])) }
+        var old: [String] = [], new: [String] = []
+        for _ in 0..<150 {
+            var words: [String] = []
+            for _ in 0..<250 { words.append(rng.pick(vocabulary)) }
+            old.append(words.joined(separator: " "))
+            words.insert("geaendert", at: 1)
+            new.append(words.joined(separator: " "))
+        }
+        let start = Date()
+        let r = PageMatch.match(old: old, new: new)
+        let seconds = Date().timeIntervalSince(start)
+        XCTAssertEqual(r.pairs.count, 150)
+        XCTAssertEqual(r.pairs.filter { $0.old == $0.new && $0.kind == .similar }.count, 150)
+        print("PageMatch 150 Seiten zu 250 Woertern: \(String(format: "%.2f", seconds)) s")
+        XCTAssertLessThan(seconds, 20, "Debug-Build; im Release deutlich schneller")
     }
 
     /// Mindestaehnlichkeit 0.6 wie `difflib.get_close_matches`; die Vorfilter aendern nichts am Ergebnis von ratio()
@@ -211,8 +286,8 @@ final class FileVersionKeeperTests: XCTestCase {
     private let path = "StudIP/files/d1/VL03.pdf"
 
     /// Datei d1 mit der alten Fassung auf der Platte und ihrem Hash (wie nach einem Abgleich)
-    private func seed(_ e: Env, notes: JSONValue?) async throws -> Data {
-        let data = pdfData(oldPages)
+    private func seed(_ e: Env, notes: JSONValue?, pages: [String]? = nil) async throws -> Data {
+        let data = pdfData(pages ?? oldPages)
         let url = e.container.appendingPathComponent(path)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: url)
@@ -220,39 +295,96 @@ final class FileVersionKeeperTests: XCTestCase {
         try await e.db.transaction { c in
             try c.execute("INSERT INTO courses(id, title, created_at) VALUES ('c1', 'Testkurs Lineare Algebra', 'x')")
             try c.execute("""
-                INSERT INTO files(id, course_id, name, size, mime, chdate, local_path, downloaded_at, status, content_sha256, kind)
-                VALUES ('d1', 'c1', 'VL03.pdf', ?, 'application/pdf', 100, ?, 'x', 'neu', ?, 'pdf')
+                INSERT INTO files(id, course_id, name, size, mime, chdate, local_path, downloaded_at, status, content_sha256, kind, download_url)
+                VALUES ('d1', 'c1', 'VL03.pdf', ?, 'application/pdf', 100, ?, 'x', 'neu', ?, 'pdf', 'x')
                 """, [.integer(Int64(data.count)), .text(p), .text(SolutionSHA256.hex(data))])
         }
-        if let notes {
-            let r = await e.backend.handle(LocalRequest(method: "PUT", path: "/api/files/d1/annotations", query: [.init("base_version", "0")],
-                                                        headers: ["Content-Type": "application/json"], body: notes.serialized()))
-            XCTAssertEqual(r.status, 200)
-        }
+        if let notes { try await put(e, "d1", notes, base: 0) }
         return data
     }
 
-    /// Wie der Abgleich: neue Fassung an den Platz der alten, dann `markDownloaded`
-    private func replace(_ e: Env, with pages: [String], chdate: Int) async throws -> (Data, String) {
+    private func put(_ e: Env, _ id: String, _ notes: JSONValue, base: Int) async throws {
+        let r = await e.backend.handle(LocalRequest(method: "PUT", path: "/api/files/\(id)/annotations", query: [.init("base_version", "\(base)")],
+                                                    headers: ["Content-Type": "application/json"], body: notes.serialized()))
+        XCTAssertEqual(r.status, 200, String(decoding: r.body, as: UTF8.self))
+    }
+
+    /// Wie der Abgleich, Schritt fuer Schritt: neue Fassung geladen (Zwischenordner), `prepare`, an ihren Platz
+    private struct Download {
+        let data: Data
+        let sha: String
+        let prepared: FileVersionKeeper.Prepared
+        let path: String
+    }
+
+    private func download(_ e: Env, _ pages: [String], to target: String? = nil) async throws -> Download {
         let data = pdfData(pages)
-        let url = e.container.appendingPathComponent(path)
+        let temp = e.container.appendingPathComponent(".laden/\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: temp.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: temp)
+        let sha = SolutionSHA256.hex(data), p = target ?? path
+        let prepared = try await e.keeper.prepare(fileID: "d1", newSHA: sha, newFile: temp, newPath: p)
+        let url = e.container.appendingPathComponent(p)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try data.write(to: url)
-        let sha = SolutionSHA256.hex(data), p = path, now = clock.nowISO
-        try await e.db.transaction { c in
-            try UniStore.markDownloaded(c, UniStore.FileRow(id: "d1", name: "VL03.pdf", size: data.count, mime: "application/pdf", chdate: chdate,
-                                                             downloadURL: "x", folder: nil), localPath: p, sha256: sha, now: now)
+        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        try FileManager.default.moveItem(at: temp, to: url)
+        return Download(data: data, sha: sha, prepared: prepared, path: p)
+    }
+
+    /// Schritt 2: `markDownloaded` mit Seitentexten, alter Fassung und Notizen in einer Transaktion
+    @discardableResult
+    private func commit(_ e: Env, _ d: Download, chdate: Int, failAfterMark: Bool = false) async throws -> FileVersionKeeper.Outcome? {
+        let row = UniStore.FileRow(id: "d1", name: (d.path as NSString).lastPathComponent, size: d.data.count, mime: "application/pdf",
+                                   chdate: chdate, downloadURL: "x", folder: nil)
+        let p = d.path, sha = d.sha, now = clock.nowISO
+        return try await e.keeper.commit(d.prepared) { c in
+            try UniStore.markDownloaded(c, row, localPath: p, sha256: sha, now: now)
+            if failAfterMark { throw LocalHTTPError(status: 500, message: "Abbruch zum Test") }
         }
-        return (data, sha)
+    }
+
+    private func newVersion(_ e: Env, _ pages: [String], chdate: Int, to target: String? = nil) async throws -> FileVersionKeeper.Outcome? {
+        try await commit(e, try await download(e, pages, to: target), chdate: chdate)
     }
 
     private func get(_ e: Env, _ path: String) async -> LocalResponse { await e.backend.handle(LocalRequest(method: "GET", path: path)) }
+
+    private func pageText(_ e: Env, _ id: String, _ page: Int) async -> JSONValue? {
+        await e.backend.handle(LocalRequest(method: "GET", path: "/api/files/\(id)/pagetext", query: [.init("page", "\(page)")])).json?["text"]
+    }
+
+    private func document(_ e: Env, _ id: String) async throws -> AnnotationDocument {
+        AnnotationDocument(root: try await data(e, "/api/files/\(id)/annotations"))
+    }
+
+    private func data(_ e: Env, _ path: String) async throws -> JSONValue {
+        let r = await get(e, path)
+        return try XCTUnwrap(r.json?["data"], path)
+    }
 
     private var notes: JSONValue {
         ["version": 2, "zoom": 1.2, "pageOrder": [["key": "p1", "type": "pdf", "index": 1], ["key": "p2", "type": "pdf", "index": 2],
                                                    ["key": "p3", "type": "pdf", "index": 3], ["key": "p4", "type": "pdf", "index": 4]],
          "pages": ["p1": ["objects": []], "p2": page(["auf-eigenwerte"]), "p3": page(["auf-determinante"]), "p4": page(["auf-fragen"])]]
     }
+
+    /// Kopie d1-kopie ("Duplizieren": gleiche Datei, gleiche Download-Adresse) mit Notizen auf Seite 3
+    private func addCopy(_ e: Env) async throws {
+        let p = path
+        try await e.db.transaction { c in
+            try c.execute("""
+                INSERT INTO files(id, course_id, name, size, mime, chdate, local_path, downloaded_at, status, kind, download_url)
+                VALUES ('d1-kopie', 'c1', 'VL03.pdf', 1, 'application/pdf', 100, ?, 'x', 'gelesen', 'pdf', 'x')
+                """, [.text(p)])
+        }
+        let copyNotes: JSONValue = ["version": 2, "pageOrder": [["key": "p1", "type": "pdf", "index": 1], ["key": "p2", "type": "pdf", "index": 2],
+                                                                ["key": "p3", "type": "pdf", "index": 3], ["key": "p4", "type": "pdf", "index": 4]],
+                                    "pages": ["p3": page(["kopie-determinante"])]]
+        try await put(e, "d1-kopie", copyNotes, base: 0)
+    }
+
+    private let fivePages = ["Lineare Algebra Vorlesung 3", "Neue Folie", "Eigenwerte einer Matrix und charakteristisches Polynom",
+                             "Determinante nach Laplace entwickeln", "Fragen?"]
 
     /// Abnahme S7 im Kern: Datei mit Notizen bekommt eine neue Fassung (Folie eingefuegt, Determinanten-Seite
     /// geaendert, "Fragen?" entfernt) -> alte PDF aufbewahrt, Notizen auf den passenden neuen Seiten, die Notizen der
@@ -263,14 +395,12 @@ final class FileVersionKeeperTests: XCTestCase {
         let old = try await seed(e, notes: notes)
         let newPages = ["Lineare Algebra Vorlesung 3", "Wiederholung: Matrizen und lineare Abbildungen",
                         "Eigenwerte einer Matrix und charakteristisches Polynom", "Determinante nach Laplace entwickeln mit Beispiel"]
-        let newSHA = SolutionSHA256.hex(pdfData(newPages))
-        let prepared = try await e.keeper.prepare(fileID: "d1", newSHA: newSHA)
-        guard case .keep(let k) = prepared.plan else { return XCTFail("\(prepared.plan)") }
+        let d = try await download(e, newPages)
+        guard case .keep(let k) = d.prepared.plan else { return XCTFail("\(d.prepared.plan)") }
         XCTAssertEqual(k.keptPath, "StudIP/Fassungen/d1/\(SolutionSHA256.hex(old)).pdf")
         XCTAssertEqual(k.pageTexts, oldPages)
-        let (_, sha) = try await replace(e, with: newPages, chdate: 200)
-        XCTAssertEqual(sha, newSHA)
-        let outcome = await e.keeper.finish(prepared)
+        XCTAssertEqual(d.prepared.newTexts, newPages, "Seitentexte der neuen Fassung aus der geladenen Datei")
+        let outcome = try await commit(e, d, chdate: 200)
         XCTAssertEqual(outcome, FileVersionKeeper.Outcome(version: 1, check: 1, removed: 1))
 
         // Notizen der neuen Fassung
@@ -281,7 +411,7 @@ final class FileVersionKeeperTests: XCTestCase {
         XCTAssertEqual(doc.objects(page: "p2").compactMap { $0["id"]?.string }, ["auf-eigenwerte"])
         XCTAssertEqual(doc.objects(page: "p3").compactMap { $0["id"]?.string }, ["auf-determinante"])
         XCTAssertNil(doc.page("p4"), "entfernte Seite nur noch auf der alten Fassung")
-        XCTAssertEqual(doc.root["origin"]?["sha256"]?.string, newSHA)
+        XCTAssertEqual(doc.root["origin"]?["sha256"]?.string, d.sha)
         XCTAssertEqual(doc.root["origin"]?["version"], 2)
 
         // Hinweis und alte Fassung
@@ -292,7 +422,7 @@ final class FileVersionKeeperTests: XCTestCase {
         XCTAssertEqual(v["source"], "Stud.IP")
         XCTAssertEqual(v["available"], true)
         XCTAssertEqual(v["document_id"], "d1/versions/1")
-        XCTAssertEqual(v["check"], [["old": 3, "new": 4]])
+        XCTAssertEqual(v["check"], [["old": 3, "new": 4, "kind": "aehnlich"]])
         XCTAssertEqual(v["removed"], [4])
         XCTAssertEqual(v["added"], [2])
         XCTAssertEqual(v["content_sha256"]?.string, SolutionSHA256.hex(old))
@@ -313,10 +443,11 @@ final class FileVersionKeeperTests: XCTestCase {
         XCTAssertEqual(seen.json?["notice"], .null)
         XCTAssertEqual(seen.json?["versions"]?.array?.first?["seen"], true)
 
-        // Seitentexte der neuen Fassung stehen fuer die Suche bereit
-        let texts = try await e.db.rows("SELECT page, text, chdate FROM page_texts WHERE file_id='d1' ORDER BY page")
+        // Seitentexte der neuen Fassung stehen fuer die Suche bereit (in derselben Transaktion geschrieben)
+        let texts = try await e.db.rows("SELECT page, text, chdate, search FROM page_texts WHERE file_id='d1' ORDER BY page")
         XCTAssertEqual(texts.compactMap { $0["text"]?.string }, newPages)
         XCTAssertEqual(Set(texts.compactMap { $0["chdate"] }), [200])
+        XCTAssertEqual(texts.first?["search"], "lineare algebra vorlesung 3")
         let hit = await e.backend.handle(LocalRequest(method: "GET", path: "/api/search", query: [.init("q", "wiederholung")]))
         XCTAssertEqual(hit.json?["pages"]?.array?.first?["page"], 2)
 
@@ -324,12 +455,11 @@ final class FileVersionKeeperTests: XCTestCase {
         try FileManager.default.removeItem(at: e.container.appendingPathComponent("StudIP/files"))
         XCTAssertTrue(FileManager.default.fileExists(atPath: e.container.appendingPathComponent(try XCTUnwrap(k.keptPath)).path))
         let third = ["Lineare Algebra Vorlesung 3", "Eigenwerte einer Matrix und charakteristisches Polynom"]
-        let again = try await e.keeper.prepare(fileID: "d1", newSHA: SolutionSHA256.hex(pdfData(third)))
-        guard case .keep(let k2) = again.plan else { return XCTFail("\(again.plan)") }
+        let again = try await download(e, third)
+        guard case .keep(let k2) = again.prepared.plan else { return XCTFail("\(again.prepared.plan)") }
         XCTAssertNil(k2.keptPath, "alte Datei fehlt: nur der Stand der Notizen und die gespeicherten Seitentexte")
         XCTAssertEqual(k2.pageTexts, newPages)
-        _ = try await replace(e, with: third, chdate: 300)
-        let o2 = await e.keeper.finish(again)
+        let o2 = try await commit(e, again, chdate: 300)
         XCTAssertEqual(o2?.version, 2)
         let both = await get(e, "/api/files/d1/versions")
         XCTAssertEqual(both.json?["versions"]?.array?.compactMap { $0["version"]?.int }, [2, 1])
@@ -337,8 +467,7 @@ final class FileVersionKeeperTests: XCTestCase {
         XCTAssertEqual(both.json?["notice"]?["version"], 2)
         let missing = await get(e, "/api/files/d1/versions/2/content")
         XCTAssertEqual(missing.status, 404)
-        let ann3 = await get(e, "/api/files/d1/annotations")
-        let doc3 = AnnotationDocument(root: try XCTUnwrap(ann3.json?["data"]))
+        let doc3 = try await document(e, "d1")
         XCTAssertEqual(doc3.pageOrder.compactMap { $0["key"]?.string }, ["p1", "p2"])
         XCTAssertEqual(doc3.objects(page: "p2").compactMap { $0["id"]?.string }, ["auf-eigenwerte"])
     }
@@ -349,10 +478,9 @@ final class FileVersionKeeperTests: XCTestCase {
         let e = try await env()
         _ = try await seed(e, notes: ["version": 2, "pageOrder": [["key": "p1", "type": "pdf", "index": 1]], "pages": ["p1": ["objects": []]]])
         let five = oldPages + ["Neue Seite"]
-        let p = try await e.keeper.prepare(fileID: "d1", newSHA: SolutionSHA256.hex(pdfData(five)))
-        XCTAssertEqual(p.plan, .resetPageList)
-        _ = try await replace(e, with: five, chdate: 200)
-        let finished = await e.keeper.finish(p)
+        let d = try await download(e, five)
+        XCTAssertEqual(d.prepared.plan, .resetPageList)
+        let finished = try await commit(e, d, chdate: 200)
         XCTAssertNil(finished)
         let ann = await get(e, "/api/files/d1/annotations")
         XCTAssertEqual(ann.json?["data"]?["pageOrder"], [])
@@ -360,6 +488,8 @@ final class FileVersionKeeperTests: XCTestCase {
         let list = await get(e, "/api/files/d1/versions")
         XCTAssertEqual(list.json, ["versions": [], "notice": .null])
         XCTAssertFalse(FileManager.default.fileExists(atPath: e.container.appendingPathComponent("StudIP/Fassungen").path))
+        let stored = try await e.db.rows("SELECT text FROM page_texts WHERE file_id='d1' ORDER BY page")
+        XCTAssertEqual(stored.compactMap { $0["text"]?.string }, five, "Seitentexte auch ohne Notizen")
 
         // gleicher Inhalt: nichts
         let same = try await e.keeper.prepare(fileID: "d1", newSHA: SolutionSHA256.hex(pdfData(five)))
@@ -375,28 +505,12 @@ final class FileVersionKeeperTests: XCTestCase {
     func testCopySharingTheFileMovesItsNotesToo() async throws {
         let e = try await env()
         _ = try await seed(e, notes: notes)
-        let p = path
-        try await e.db.transaction { c in
-            try c.execute("""
-                INSERT INTO files(id, course_id, name, size, mime, chdate, local_path, downloaded_at, status, kind, download_url)
-                VALUES ('d1-kopie', 'c1', 'VL03.pdf', 1, 'application/pdf', 100, ?, 'x', 'gelesen', 'pdf', 'x')
-                """, [.text(p)])
-        }
-        let copyNotes: JSONValue = ["version": 2, "pageOrder": [["key": "p1", "type": "pdf", "index": 1], ["key": "p2", "type": "pdf", "index": 2],
-                                                                ["key": "p3", "type": "pdf", "index": 3], ["key": "p4", "type": "pdf", "index": 4]],
-                                    "pages": ["p3": page(["kopie-determinante"])]]
-        let put = await e.backend.handle(LocalRequest(method: "PUT", path: "/api/files/d1-kopie/annotations", query: [.init("base_version", "0")],
-                                                      headers: ["Content-Type": "application/json"], body: copyNotes.serialized()))
-        XCTAssertEqual(put.status, 200)
-        let newPages = ["Lineare Algebra Vorlesung 3", "Neue Folie", "Eigenwerte einer Matrix und charakteristisches Polynom",
-                        "Determinante nach Laplace entwickeln", "Fragen?"]
-        let prepared = try await e.keeper.prepare(fileID: "d1", newSHA: SolutionSHA256.hex(pdfData(newPages)))
-        XCTAssertEqual(prepared.copies.map(\.fileID), ["d1-kopie"])
-        guard case .keep = prepared.copies.first?.plan else { return XCTFail("\(prepared.copies)") }
-        _ = try await replace(e, with: newPages, chdate: 200)
-        _ = await e.keeper.finish(prepared)
-        let copy = await get(e, "/api/files/d1-kopie/annotations")
-        let doc = AnnotationDocument(root: try XCTUnwrap(copy.json?["data"]))
+        try await addCopy(e)
+        let d = try await download(e, fivePages)
+        XCTAssertEqual(d.prepared.copies.map(\.fileID), ["d1-kopie"])
+        guard case .keep = d.prepared.copies.first?.plan else { return XCTFail("\(d.prepared.copies)") }
+        try await commit(e, d, chdate: 200)
+        let doc = try await document(e, "d1-kopie")
         XCTAssertEqual(doc.pdfIndex(forPageKey: "p3"), 4)
         XCTAssertEqual(doc.objects(page: "p3").compactMap { $0["id"]?.string }, ["kopie-determinante"])
         let versions = await get(e, "/api/files/d1-kopie/versions")
@@ -405,6 +519,188 @@ final class FileVersionKeeperTests: XCTestCase {
         XCTAssertEqual(content.body, pdfData(oldPages))
         let stamps = try await e.db.rows("SELECT id, downloaded_at FROM files ORDER BY id")
         XCTAssertEqual(stamps.map { $0["downloaded_at"] }, [.string(clock.nowISO), .string(clock.nowISO)])
+    }
+
+    /// Neue Fassung unter neuem Namen (neuer Ablageort): die Kopie zieht mit an den neuen Ort. Vorher wurden ihre
+    /// Notizen auf die neuen Seitenzahlen umgehaengt, sie zeigte aber weiter die alte PDF (Notiz auf Seite 4 einer
+    /// dreiseitigen PDF unsichtbar, dauerhaft "nur ansehen").
+    func testRenamedNewVersionMovesCopyAlong() async throws {
+        let e = try await env()
+        _ = try await seed(e, notes: notes)
+        try await addCopy(e)
+        let renamed = "StudIP/files/d1/VL03-korrigiert.pdf"
+        let d = try await download(e, fivePages, to: renamed)
+        XCTAssertEqual(d.prepared.copies.map(\.fileID), ["d1-kopie"])
+        try await commit(e, d, chdate: 200)
+        let rows = try await e.db.rows("SELECT id, local_path, downloaded_at FROM files ORDER BY id")
+        XCTAssertEqual(rows.map { $0["local_path"] }, [.string(renamed), .string(renamed)])
+        XCTAssertEqual(rows.map { $0["downloaded_at"] }, [.string(clock.nowISO), .string(clock.nowISO)])
+        let copy = try await document(e, "d1-kopie")
+        XCTAssertEqual(copy.pdfIndex(forPageKey: "p3"), 4)
+        XCTAssertEqual(copy.root["origin"]?["sha256"]?.string, d.sha)
+        // die Kopie liefert die neue PDF, deren Seite 4 die Determinanten-Seite ist
+        let content = await get(e, "/api/files/d1-kopie/content")
+        XCTAssertEqual(content.body, d.data)
+        let text = await pageText(e, "d1-kopie", 4)
+        XCTAssertEqual(text, "Determinante nach Laplace entwickeln")
+    }
+
+    /// Nach "Abmelden und Dateien löschen" (Datei und Kopie ohne Ablageort): die Kopie wird trotzdem gefunden (gleiche
+    /// Download-Adresse), bekommt den Ablageort zurueck, ihre Notizen werden umgehaengt und sie hat eine alte Fassung
+    /// (ohne PDF, nur Notizen). Vorher blieben ihre Notizen an den alten Seitenzahlen der neuen PDF.
+    func testCopyAfterForgetDownloadsGetsNotesMoved() async throws {
+        let e = try await env()
+        _ = try await seed(e, notes: notes)
+        try await addCopy(e)
+        let pages = oldPages
+        try await e.db.transaction { c in try ScriptSearch.storePages(c, fileID: "d1", pages: pages, chdate: .integer(100)) }
+        let forgotten = try await e.db.transaction { try StudIPLibrary.forgetDownloads($0, under: "StudIP/") }
+        XCTAssertEqual(forgotten, ["d1", "d1-kopie"])
+        try FileManager.default.removeItem(at: e.container.appendingPathComponent("StudIP/files"))
+        let d = try await download(e, fivePages)
+        XCTAssertEqual(d.prepared.copies.map(\.fileID), ["d1-kopie"])
+        try await commit(e, d, chdate: 200)
+        let rows = try await e.db.rows("SELECT local_path FROM files ORDER BY id")
+        XCTAssertEqual(rows.map { $0["local_path"] }, [.string(path), .string(path)])
+        let copy = try await document(e, "d1-kopie")
+        XCTAssertEqual(copy.pdfIndex(forPageKey: "p3"), 4, "Determinanten jetzt auf Seite 4")
+        XCTAssertEqual(copy.root["origin"]?["sha256"]?.string, d.sha)
+        let versions = await get(e, "/api/files/d1-kopie/versions")
+        XCTAssertEqual(versions.json?["versions"]?.array?.count, 1)
+        XCTAssertEqual(versions.json?["versions"]?.array?.first?["available"], false)
+    }
+
+    /// Endet die App zwischen Ersetzen der Datei und `commit` (oder scheitert `commit`), bleibt die Datenbank beim
+    /// alten Stand: keine Notizen 1:1 auf der neuen PDF, keine verwaiste alte Fassung. Der naechste Abgleich laedt die
+    /// Datei erneut (`storeFiles`), nimmt die schon aufbewahrte alte PDF und haengt die Notizen richtig um.
+    func testInterruptedOrFailedCommitHealsWithNextSync() async throws {
+        let e = try await env()
+        let old = try await seed(e, notes: notes)
+        // 1. Abbruch nach dem Ersetzen: kein commit
+        _ = try await download(e, fivePages)
+        // 2. commit scheitert nach markDownloaded: alles zurueck
+        let failing = try await download(e, fivePages)
+        do {
+            try await commit(e, failing, chdate: 200, failAfterMark: true)
+            XCTFail("Fehler erwartet")
+        } catch {}
+        let file = try await e.db.rows("SELECT chdate, content_sha256 FROM files WHERE id='d1'")
+        XCTAssertEqual(file.first?["chdate"], 100)
+        XCTAssertEqual(file.first?["content_sha256"]?.string, SolutionSHA256.hex(old))
+        let unchanged = await get(e, "/api/files/d1/annotations")
+        XCTAssertEqual(unchanged.json?["version"], 1)
+        XCTAssertEqual(unchanged.json?["data"], notes)
+        let none = await get(e, "/api/files/d1/versions")
+        XCTAssertEqual(none.json?["versions"], [])
+        // der naechste Abgleich haelt die Datei weiter fuer geaendert
+        let todo = try await e.db.transaction { c in
+            try UniStore.storeFiles(c, courseID: "c1", [UniStore.FileRow(id: "d1", name: "VL03.pdf", size: 1, mime: "application/pdf", chdate: 200,
+                                                                         downloadURL: "x", folder: nil)], now: "x", fileExists: { _ in true })
+        }
+        XCTAssertEqual(todo.map(\.id), ["d1"])
+        // 3. erneuter Download: aufbewahrte alte PDF (die Datei am Platz ist schon die neue), Notizen richtig
+        let d = try await download(e, fivePages)
+        guard case .keep(let k) = d.prepared.plan else { return XCTFail("\(d.prepared.plan)") }
+        XCTAssertEqual(k.pageTexts, oldPages)
+        let outcome = try await commit(e, d, chdate: 200)
+        XCTAssertEqual(outcome?.version, 1)
+        let doc = try await document(e, "d1")
+        XCTAssertEqual(doc.pdfIndex(forPageKey: "p3"), 4)
+        XCTAssertEqual(doc.pdfIndex(forPageKey: "p4"), 5)
+        let content = await get(e, "/api/files/d1/versions/1/content")
+        XCTAssertEqual(content.body, old)
+    }
+
+    /// Kopie ohne Notizen teilt sich die Datei: ihre Seitentexte gehoeren zur alten Fassung und werden verworfen (ihre
+    /// Aenderungszeit vom Duplizieren aendert sich nie, sie galten sonst weiter als aktuell); die Suche findet danach
+    /// den Text der neuen Fassung, nicht mehr den alten
+    func testCopyDropsStalePageTexts() async throws {
+        let e = try await env()
+        _ = try await seed(e, notes: nil)
+        let p = path
+        try await e.db.transaction { c in
+            try c.execute("""
+                INSERT INTO files(id, course_id, name, size, mime, chdate, local_path, downloaded_at, status, kind, download_url)
+                VALUES ('d1-kopie', 'c1', 'VL03.pdf', 1, 'application/pdf', 150, ?, 'x', 'gelesen', 'pdf', 'x')
+                """, [.text(p)])
+        }
+        let before = await pageText(e, "d1-kopie", 4)
+        XCTAssertEqual(before, "Fragen?")
+        _ = try await newVersion(e, ["Lineare Algebra Vorlesung 3", "Jordan-Normalform"], chdate: 200)
+        let after = await pageText(e, "d1-kopie", 2)
+        XCTAssertEqual(after, "Jordan-Normalform")
+        let old = await e.backend.handle(LocalRequest(method: "GET", path: "/api/search", query: [.init("q", "fragen?")]))
+        XCTAssertEqual(old.json?["pages"], [])
+    }
+
+    /// Kam die neue Fassung, waehrend das Dokument offen war, schickt der Editor danach noch Striche auf eine Seite, die
+    /// es in der neuen Fassung nicht gibt (nach dem Zusammenfuehren ohne Eintrag in `pageOrder`): sie kommen in den
+    /// Abzug der alten Fassung, die Seite steht unter "Nur in der alten Fassung", der Hinweis ist wieder ungesehen.
+    func testLateStrokesOnRemovedPageGoToOldVersion() async throws {
+        let e = try await env()
+        var start = notes
+        start["pages"]?["p4"] = ["objects": []]                       // "Fragen?" noch ohne Notizen
+        _ = try await seed(e, notes: start)
+        _ = try await newVersion(e, ["Lineare Algebra Vorlesung 3", "Eigenwerte einer Matrix und charakteristisches Polynom",
+                                     "Determinante nach Laplace entwickeln"], chdate: 200)
+        _ = await e.backend.handle(LocalRequest(method: "POST", path: "/api/files/d1/versions/seen"))
+        var current = try await document(e, "d1")
+        XCTAssertNil(current.page("p4"))
+        XCTAssertEqual(current.pageOrder.compactMap { $0["key"]?.string }, ["p1", "p2", "p3"])
+        // ... aber der Hinweis ist schon gesehen: nichts zu tun
+        current.pages["p4"] = page(["spaet-1"])
+        try await put(e, "d1", current.root, base: 2)
+        var old = try await data(e, "/api/files/d1/versions/1/annotations")
+        XCTAssertEqual(AnnotationDocument(root: old).objects(page: "p4"), [], "nur solange ein Hinweis offen ist")
+        // Hinweis offen: spaete Striche zur alten Fassung
+        try await e.db.execute("UPDATE file_versions SET seen=0")
+        current.pages["p4"] = page(["spaet-1", "spaet-2"])
+        try await put(e, "d1", current.root, base: 3)
+        old = try await data(e, "/api/files/d1/versions/1/annotations")
+        XCTAssertEqual(AnnotationDocument(root: old).objects(page: "p4").compactMap { $0["id"]?.string }, ["spaet-1", "spaet-2"])
+        XCTAssertEqual(AnnotationDocument(root: old).objects(page: "p2").compactMap { $0["id"]?.string }, ["auf-eigenwerte"])
+        let v = await get(e, "/api/files/d1/versions")
+        XCTAssertEqual(v.json?["notice"]?["removed"], [4])
+        XCTAssertEqual(v.json?["notice"]?["seen"], false)
+        // Striche auf einer Seite, die es weiter gibt, bleiben nur in der neuen Fassung
+        current.pages["p2"] = page(["auf-eigenwerte", "neu-auf-zwei"])
+        try await put(e, "d1", current.root, base: 4)
+        old = try await data(e, "/api/files/d1/versions/1/annotations")
+        XCTAssertEqual(AnnotationDocument(root: old).objects(page: "p2").compactMap { $0["id"]?.string }, ["auf-eigenwerte"])
+    }
+
+    /// Neue Fassung als Scan (Seiten ohne Text): die Notizen bleiben Seite fuer Seite im Dokument, alle zu pruefen
+    /// (vorher fielen alle heraus und standen nur noch in der alten Fassung)
+    func testScannedNewVersionKeepsNotesByPosition() async throws {
+        let e = try await env()
+        _ = try await seed(e, notes: notes)
+        let outcome = try await newVersion(e, ["", "", "", ""], chdate: 200)
+        XCTAssertEqual(outcome, FileVersionKeeper.Outcome(version: 1, check: 3, removed: 0))
+        let doc = try await document(e, "d1")
+        XCTAssertEqual(doc.pageOrder.compactMap { $0["index"]?.int }, [1, 2, 3, 4])
+        XCTAssertEqual(doc.objects(page: "p4").compactMap { $0["id"]?.string }, ["auf-fragen"])
+        let v = await get(e, "/api/files/d1/versions")
+        XCTAssertEqual(v.json?["notice"]?["check"]?.array?.compactMap { $0["kind"]?.string }, ["position", "position", "position"])
+    }
+
+    /// Wiederholte Notizseiten im Skript (Abnahme des Befunds): neues Kapitel mit eigener Notizseite nach Kapitel 1.
+    /// Die Notizen jeder Notizseite bleiben bei ihrem Kapitel; die eine, deren Nachbar sich geaendert hat, ist zu pruefen.
+    func testRepeatedNotesPagesKeepTheirChapterThroughKeeper() async throws {
+        let e = try await env()
+        let n = "Platz für Notizen"
+        let v1 = ["Kapitel 1: Vektorräume", n, "Kapitel 2: Eigenwerte", n, "Kapitel 3: Determinanten", n]
+        let marks: JSONValue = ["version": 2, "pageOrder": .array((1...6).map { i -> JSONValue in ["key": .string("p\(i)"), "type": "pdf", "index": .number(Double(i))] }),
+                                "pages": ["p2": page(["notiz-vektor"]), "p4": page(["notiz-eigen"]), "p6": page(["notiz-det"])]]
+        _ = try await seed(e, notes: marks, pages: v1)
+        let v2 = ["Kapitel 1: Vektorräume", n, "Kapitel 2: Lineare Abbildungen", n, "Kapitel 3: Eigenwerte", n, "Kapitel 4: Determinanten", n]
+        let outcome = try await newVersion(e, v2, chdate: 200)
+        XCTAssertEqual(outcome, FileVersionKeeper.Outcome(version: 1, check: 1, removed: 0))
+        let doc = try await document(e, "d1")
+        XCTAssertEqual(doc.pdfIndex(forPageKey: "p2"), 2)
+        XCTAssertEqual(doc.pdfIndex(forPageKey: "p4"), 6, "Notizen zu Eigenwerte nach Eigenwerte")
+        XCTAssertEqual(doc.pdfIndex(forPageKey: "p6"), 8, "Notizen zu Determinanten nach Determinanten")
+        let v = await get(e, "/api/files/d1/versions")
+        XCTAssertEqual(v.json?["notice"]?["check"], [["old": 2, "new": 2, "kind": "wiederholt"]])
     }
 
     /// Ohne gespeicherten Hash (Uebernahme von vor S3) zaehlt der Inhalt der Datei; laesst sich die alte Fassung nicht

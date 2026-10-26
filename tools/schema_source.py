@@ -32,17 +32,21 @@ class SchemaSource:
         self.scriptsearch = scriptsearch
 
     def page_texts_sql(self) -> str:
-        """Die CREATE-Anweisung, die scriptsearch.ensure_table wirklich ausfuehrt (aufgezeichnet, nicht abgeschrieben)."""
+        """Die CREATE-Anweisung, die scriptsearch.ensure_table wirklich ausfuehrt (aufgezeichnet, nicht abgeschrieben).
+        Danach prueft ensure_table die Spalten (PRAGMA) und haengt die Suchform an aeltere Tabellen an; das spiegelt
+        Migrations.swift (Spalte `search`)."""
         class Recorder:
             def __init__(self) -> None:
                 self.sql: list[str] = []
 
             def execute(self, sql, *args):
                 self.sql.append(sql)
+                return []                      # PRAGMA table_info einer leeren Aufzeichnung: keine Spalten
 
         rec = Recorder()
         self.scriptsearch.ensure_table(rec)
-        if len(rec.sql) != 1 or "page_texts" not in rec.sql[0]:
+        expected = ["PRAGMA table_info(page_texts)", "ALTER TABLE page_texts ADD COLUMN search TEXT"]
+        if len(rec.sql) != 3 or "CREATE TABLE IF NOT EXISTS page_texts" not in rec.sql[0] or rec.sql[1:] != expected:
             raise RuntimeError(f"scriptsearch.ensure_table hat sich geaendert: {rec.sql!r}")
         return rec.sql[0]
 

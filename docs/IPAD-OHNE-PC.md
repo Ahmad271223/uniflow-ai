@@ -346,21 +346,31 @@ Original-Fassung einer Datei mit Notizen** behält die Notizen.
 `GET /api/grades` 8). `app/scriptsearch.py`
 ist 1:1 portiert (`UniFlowCore/LocalBackend/Search/ScriptSearch.swift`: `normalize` mit zerlegten Umlauten, `tokens`
 mit Stoppwörtern und Wortstamm, BM25 mit Mindestgüte und Abstand zum Durchschnitt, Druckfassung derselben Folie nicht
-doppelt, `_snippet`, Index je Modul im Zwischenspeicher je Datenbank). Die Seitentexte stehen wie am PC in
-`page_texts` (je Datei und Seite mit der Änderungszeit der Datei); gelesen werden sie auf dem Gerät mit PDFKit
-(`LocalDocumentTools.pdfPageTexts`, nie auf dem Hauptthread), und zwar **beim Download** (jede geladene PDF, Stud.IP
-und Learnweb) und **beim Öffnen** eines Dokuments, das noch keine hat. Zuerst in Python erweitert bzw. korrigiert
-(`tests/test_search.py`, beide Tests scheitern ohne die Änderung): `/api/search` sucht außer in Dateien und Modulen
-jetzt auch in **Aufgaben des Lernplans** (`tasks`: Titel, Tag, Modul) und in **Seitentexten** (`pages`: Seite mit
-Ausschnitt, nur Texte der aktuellen Fassung, gelesen wird dabei nichts; `scriptsearch.find_pages`); die Web-App zeigt
-beides in der Suche der Kopfzeile. Die Begriffe eines Treffers der Skriptsuche stehen bei gleicher Häufigkeit in der
+doppelt, `_snippet`, Index je Modul im Zwischenspeicher je Datenbank; Durchschnitt für die Mindestgüte wie
+Pythons `sum()` kompensiert über die sortierte Liste, `PyMath.sum`, damit die Schwelle bitgleich ist). Die
+Seitentexte stehen wie am PC in `page_texts` (je Datei und Seite mit der Änderungszeit der Datei, dazu die Suchform);
+gelesen werden sie auf dem Gerät mit PDFKit (`LocalDocumentTools.pdfPageTexts`, nie auf dem Hauptthread), und zwar
+**beim Download** (jede geladene PDF, Stud.IP und Learnweb, schon aus der geladenen Datei vor dem Ersetzen) und **beim
+Öffnen** eines Dokuments, das noch keine hat. Zuerst in Python erweitert bzw. korrigiert (`tests/test_search.py`, jeder
+Test scheitert ohne seine Änderung): `/api/search` sucht außer in Dateien und Modulen jetzt auch in **Aufgaben des
+Lernplans** (`tasks`: Titel, Tag, Modul) und in **Seitentexten** (`pages`: Seite mit Ausschnitt, nur Texte der
+aktuellen Fassung von Dateien, die vorhanden sind – nach „Dateien löschen“ kein Treffer, der sich nicht öffnen lässt –,
+gelesen wird dabei nichts; `scriptsearch.find_pages`); die Web-App zeigt beides in der Suche der Kopfzeile. Die
+Seitensuche vergleicht die **Suchform** (`search_form`: `normalize`, klein, NFC; neue Spalte `page_texts.search`, ältere
+Zeilen bekommen sie bei der ersten Suche, ältere Tabellen die Spalte über `ensure_table` bzw. `Migrations`): SQLite
+`lower()` und `LIKE` kennen nur ASCII, „übersicht“ fand „Übersicht …“ nicht, und zerlegte Umlaute passten nicht. Die Begriffe eines Treffers der Skriptsuche stehen bei gleicher Häufigkeit in der
 Reihenfolge der Anfrage (vorher in der Reihenfolge einer Python-Menge, also je Lauf verschieden – so ließ sich die
 Antwort weder vergleichen noch wiederholen). In der App zeigt die Suche der Kopfzeile Module, Dateien, Aufgaben (führt
 zur Tagesansicht) und Seiten (öffnet das Dokument an dieser Seite; `#/doc/<id>?page=n` springt jetzt auch auf dem
 iPad zur Seite). Bewusste Abweichungen: `/pagetext` liest den gespeicherten Text (am PC jedes Mal neu mit pypdf;
 gleiche Antwort), eine unlesbare Datei meldet in `error` einen eigenen Text statt der Meldung von pypdf; ein `text`,
 der kein Text ist, und falsche Zahlen in `page` antworten mit 422 statt 500; der Index-Zwischenspeicher gilt auch für
-den Ablageort (am PC fehlte eine später geladene Datei bis zum Neustart im Index). Grenze: pypdf und PDFKit lesen
+den Ablageort (am PC fehlte eine später geladene Datei bis zum Neustart im Index), je Modul läuft höchstens ein Aufbau
+(weitere Anfragen warten darauf), und er endet zwischen zwei Dateien, wenn keine Anfrage mehr wartet; **Seitentreffer
+der Suche gibt es auf dem iPad für jede geladene und jede geöffnete PDF** (Übungsblätter, Lösungen, eigene PDFs), am PC
+nur für die Vorlesungs- und Skript-PDFs der Module (`index_all` nach dem Abgleich) und für Blätter, zu denen die
+Skriptsuche mit `page` lief – gleiche Datenbank, gleiche Antwort, aber auf dem iPad stehen mehr Seitentexte darin.
+Grenze: pypdf und PDFKit lesen
 denselben PDF-Text nicht immer gleich (Zeilenumbrüche, Ligaturen, zerlegte Umlaute) – darum vergleicht die Fixture mit
 festen Seitentexten, und Treffer können am PC und auf dem iPad für dieselbe PDF verschieden ausfallen.
 
@@ -378,45 +388,68 @@ Seitenliste); der Entwurf gilt darum nur auf dem Gerät (`UniFlowCore/FileVersio
   sich nicht sichern, wird die Datei nicht ersetzt (wie ein gescheiterter Download, der nächste Abgleich versucht es
   erneut). Gleicher Inhalt mit neuem Datum: nichts. **Ohne Notizen** wird ersetzt wie bisher; eine nur automatisch
   angelegte Seitenliste wird dabei geleert, damit der Editor neue Seiten zeigt.
-- **Seiten zuordnen** (`PageMatch`): Seitentexte der alten Fassung (gespeichert in `page_texts` oder mit PDFKit aus der
-  aufbewahrten Kopie) und der neuen, verglichen als Wörter (normalisiert wie die Skriptsuche, Ziffernfolgen als „#“,
-  damit Seitenzahl und Datum in der Fußzeile nicht zählen). 1. gleiche Wörter: Seite zu Seite (sicher; gleiche Seiten
-  der Reihe nach), 2. ähnlich: `SequenceMatcher.ratio()` derselbe difflib-Port wie für die Module (`ModuleGuess`, jetzt
-  für beliebige Folgen, dazu `quick_ratio`/`real_quick_ratio` als Vorfilter) ab 0,6 wie `difflib.get_close_matches`,
-  vergeben nach höchster Ähnlichkeit, dann kleinerem Abstand der Seitenzahlen (zu prüfen), 3. Seiten ohne Text auf
-  beiden Seiten (Scans, Leerseiten) im selben Abstand zur nächsten zugeordneten Seite davor oder danach (zu prüfen).
-  Alles andere ist entfernt (alte Seite) bzw. neu. Ohne lesbaren alten Text: Seite für Seite, alle zu prüfen.
-- **Notizen umhängen** (`NoteTransfer`, `FileVersionKeeper.finish` nach `markDownloaded`, eine Transaktion): Seiten
+- **Seiten zuordnen** (`PageMatch`, vor dem Ersetzen und außerhalb jeder Transaktion, einmal für Datei und Kopien):
+  Seitentexte der alten Fassung (gespeichert in `page_texts` oder mit PDFKit aus der aufbewahrten Kopie) und der neuen
+  (aus der geladenen Datei), verglichen als Wörter (normalisiert wie die Skriptsuche, Ziffernfolgen als „#“, damit
+  Seitenzahl und Datum in der Fußzeile nicht zählen). 1. gleich (sicher): beide Seitenfolgen ausgerichtet (derselbe
+  difflib-Port über die Seiten, `get_matching_blocks`, ohne autojunk); ein gemeinsamer Block zählt, wenn er eine Seite
+  enthält, deren Text in beiden Fassungen genau einmal vorkommt; darin sind eindeutige Seiten sicher, mehrfach
+  vorkommende („Platz für Notizen“, Gliederung, „Fragen?“, Seiten, die sich nur in Zahlen unterscheiden) nur mit beiden
+  Nachbarn im selben Block; eindeutige Seiten außerhalb der Blöcke folgen ihrem Text. 2. wiederholt (zu prüfen): übrige
+  mehrfach vorkommende Seiten nach ihrer Lage (gleicher Abstand zur nächsten zugeordneten Seite davor, dann danach).
+  Vorher wurden gleiche Seiten nur der Reihe nach vergeben und galten als sicher: kam ein Kapitel mit eigener
+  Notizseite dazu, standen die Notizen der folgenden Notizseiten ohne Hinweis eine Notizseite zu früh. 3. ähnlich:
+  `SequenceMatcher.ratio()` derselbe difflib-Port wie für die Module (`ModuleGuess`, für beliebige Folgen; Vorfilter
+  `real_quick_ratio` aus den Längen und `quick_ratio` aus vorberechneten Häufigkeiten, `ratio()` nur für die fünf
+  besten Kandidaten je Seite mit einem Index je neuer Seite) ab 0,6 wie `difflib.get_close_matches`, vergeben nach
+  höchster Ähnlichkeit, dann kleinerem Abstand der Seitenzahlen (zu prüfen). 4. Position (zu prüfen): Seiten ohne Text
+  (Scans, Leerseiten) im selben Abstand zur nächsten zugeordneten Seite davor oder danach, zuerst auf eine Seite ohne
+  Text, dann auch Scan auf Text und umgekehrt. Alles andere ist entfernt (alte Seite) bzw. neu. Ohne lesbaren alten
+  Text oder wenn eine Fassung gar keinen Text hat (Scan): Seite für Seite, alle zu prüfen.
+- **Notizen umhängen** (`NoteTransfer`, `FileVersionKeeper.commit` nach dem Ersetzen der Datei, **eine Transaktion**
+  mit `markDownloaded`, den Seitentexten der neuen Fassung, `file_versions` und den neuen Notizen; endet die App vorher
+  oder scheitert ein Schritt, bleibt die Datenbank beim alten Stand, der Abgleich zählt die Datei als nicht geladen,
+  und der nächste lädt sie erneut und nimmt die schon aufbewahrte alte PDF): Seiten
   behalten Schlüssel und Inhalt, nur `index` in `pageOrder` und im Papierkorb zeigt auf die neue Seite; **unveränderte
   Seiten 1:1, verschobene folgen ihrem Text**, eingefügte Seiten gehen mit ihrer Seite, neue Seiten bekommen einen
   eigenen Eintrag; ohne eigene Umstellung gilt die Reihenfolge der neuen Fassung, sonst bleibt die des Nutzers.
   **Entfernte Seiten** verschwinden aus dem Dokument, ihre Notizen bleiben **auf der alten Fassung**. Neue Version der
   Notizen mit Verlauf wie `PUT …/annotations`; Herkunftsstempel `origin` (Hash, Seitenzahl, Nummer der Fassung).
-  Kopien („Duplizieren“), die sich die PDF teilen, bekommen die neue Fassung mit: ihre Notizen werden ebenso
-  umgehängt, ihr Ladezeitpunkt geht mit.
+  Kopien („Duplizieren“; `UniStore.sharingCopies`: derselbe Ablageort wie die Datei oder nach „Dateien löschen“
+  keiner mehr bei gleicher Download-Adresse) bekommen die neue Fassung mit: `markDownloaded` hängt sie an den neuen
+  Ablageort (auch bei neuem Dateinamen) mit dem Ladezeitpunkt, ihre Notizen werden ebenso umgehängt, ihre
+  Seitentexte verworfen (sie gehören zur alten Fassung).
 - **Alte Fassung:** Tabelle `file_versions` (nur auf dem Gerät, bei Bedarf angelegt): Kennzeichen, aufbewahrte PDF,
   Notizen zum Zeitpunkt der neuen Fassung, Zuordnung mit zu prüfenden Seiten. Endpunkte (`FileVersionEndpoints`, am PC
   404): `GET /api/files/{id}/versions` (mit `notice`), `POST …/versions/seen`, `GET …/versions/{n}/content` und
   `…/annotations`; `PUT …/annotations` 409 (nur zum Ansehen). Der Editor öffnet sie unter `<id>/versions/<n>` mit
   eigenem Journal und Zwischenspeicher.
 - **Im Dokument:** über der Seite „Neue Fassung aus Stud.IP – Notizen übernommen (n Seiten prüfen)“ (n = Seiten mit
-  Notizen, deren Text sich geändert hat oder die nur nach Position zugeordnet sind, und Seiten mit Notizen, die es nur
-  noch in der alten Fassung gibt), darunter welche („Geänderte Seite 4 · Nur in der alten Fassung: Seite 7“), mit
+  Notizen, deren Text sich geändert hat, die mit gleichem Text mehrfach vorkommen oder nur nach Position zugeordnet
+  sind, und Seiten mit Notizen, die es nur noch in der alten Fassung gibt), darunter welche („Geänderte Seite 4 ·
+  Unsicher zugeordnet: Seite 6 · Nur in der alten Fassung: Seite 7“; `check` nennt dazu die Art der Zuordnung), mit
   „Alte Fassung“ (öffnet sie im Vollbild, nur ansehen) und „OK“ (Hinweis gesehen); danach bleiben die alten Fassungen
   unter „Mehr → Alte Fassungen“ erreichbar. **Geteilte Lösungen** hängen am Fingerabdruck der Original-Bytes: eine
   Lösung zur alten Fassung erscheint auf der aufbewahrten alten Fassung (gleiche Bytes), nicht auf der neuen.
 - **Editor-Zwischenspeicher** `sources/<quelle>/pdf` wird jetzt erneuert, sobald sich die Datei geändert hat (Stand
   `downloaded_at|content_sha256` aus `GET /api/files/{id}` neben der Kopie; ohne Antwort gilt die Kopie). Kommt eine
   neue Fassung, während das Dokument offen ist, und erreicht der neue Stand der Notizen den Editor (Zusammenführen
-  beim Speichern), erkennt er am Herkunftsstempel die andere PDF: nur noch ansehen mit „Neue Fassung angekommen –
-  Dokument neu öffnen“.
+  beim Speichern; `SyncEngine` meldet jetzt auch eine Änderung nur der Wurzel), prüft er **zuerst** den
+  Herkunftsstempel: andere PDF, also bleibt die Anzeige, wie sie ist (die neue Seitenliste passt nicht zur angezeigten
+  PDF), nur noch ansehen mit „Neue Fassung angekommen – Dokument neu öffnen“. Striche, die bis dahin noch auf eine in
+  der neuen Fassung entfernte Seite gingen, schreibt `PUT …/annotations` in den Abzug der alten Fassung
+  (`FileVersions.keepLateNotes`, solange ein Hinweis offen ist), die Seite steht dann unter „Nur in der alten
+  Fassung“.
 Grenzen (ehrlich): Seitengrößen werden nicht verglichen (gleicher Text auf anders großer Seite gilt als gleich, die
-Notizen stehen dann an denselben Koordinaten); Seiten, die sich nur in Zahlen unterscheiden, gelten als unverändert
-(z. B. ein korrigierter Zahlenwert); bricht die App zwischen Ersetzen und Umhängen ab, liegt die alte PDF aufbewahrt,
-aber ohne Eintrag, und die Notizen stehen 1:1 auf der neuen Fassung; noch nicht gesendete Striche auf einer entfernten
-Seite sind danach nur im Journal; die Seitentexte liegen wie am PC in der Datenbank und damit im Backup (Entscheidung
-6 sieht sie außerhalb vor – offen: eigene Zwischenspeicher-Datenbank ohne Backup). Beim Learnweb-Abgleich greift
-dasselbe über `UniDownloads` (die App gibt `HildesheimSync` PDFKit als `tools`).
+Notizen stehen dann an denselben Koordinaten); eine Seite, die sich nur in Zahlen unterscheidet und sonst nur einmal
+vorkommt, gilt als unverändert (z. B. ein korrigierter Zahlenwert); ob eine mehrfach vorkommende Seite zum Kapitel
+davor oder danach gehört, lässt sich am Text nicht erkennen (bei Gleichstand gilt die Seite davor, die Zuordnung ist zu
+prüfen); nach „Dateien löschen“ findet sich eine Learnweb-Kopie nicht mehr, wenn sich die Download-Adresse mit der
+neuen Fassung ändert (Revision in der Adresse; eine Kopie verweist sonst nirgends auf ihr Original); späte Striche in
+der alten Fassung sieht eine schon einmal geöffnete alte Fassung erst nach dem Leeren ihres Journals (ihre Version
+bleibt 1); die Seitentexte liegen wie am PC in der Datenbank und damit im Backup (Entscheidung 6 sieht sie außerhalb
+vor – offen: eigene Zwischenspeicher-Datenbank ohne Backup). Beim Learnweb-Abgleich greift dasselbe über
+`UniDownloads` (die App gibt `HildesheimSync` PDFKit als `tools`).
 
 Geprüft im Kern: `search.json` aus dem neuen `tools/gen-search-fixture.py` (erfundene Module, Kurse, Dateien mit PDFs
 aus festen Zeilen, die pypdf liest, Analysen, Lernpakete; `page_texts` genau mit dem Text von pypdf): 42 Anfragen an
@@ -435,6 +468,27 @@ Fassung“ (3 Seiten, „Alte Fassung – nur ansehen“), „Schließen“, „
 Kopfzeile zeigt „… · Seite 2“ mit Sprung zur Seite und eine Aufgabe mit Weg zur Tagesansicht. Kern 349/0, App 225/0,
 Python 126 passed, alle Generatoren `--check` aktuell; die neuen Tests je dreimal grün. Nicht geprüft: echtes Stud.IP,
 echtes iPad, echte Vorlesungsfolien (Text aus PDFKit großer Skripte, Laufzeit), Learnweb in der App.
+
+S7 nachgebessert (Zweig `wip/v1-s6-fix`, Befunde der Prüfung): gleiche Seiten (Notiz-, Gliederungs-, „Fragen?“-Seiten,
+Seiten nur mit anderen Zahlen) werden über die Ausrichtung der Seitenfolgen und ihre Nachbarn zugeordnet und sind
+sonst zu prüfen (`testRepeatedNotesPagesFollowTheirChapter`, `testPagesDifferingOnlyInNumbersAreChecked`,
+`testRepeatedNotesPagesKeepTheirChapterThroughKeeper`); Scan in einer Fassung: Seite für Seite statt alles entfernt
+(`testScannedVersionMapsByPosition`, `testScannedNewVersionKeepsNotesByPosition`); Zuordnung vor dem Ersetzen und
+außerhalb der Transaktion, einmal für alle Kopien, Vorfilter ohne Index je Paar (150 Seiten zu 250 Wörtern im
+Debug-Build 0,7 s, `testLargeScriptMatchesQuickly`); `markDownloaded`, Seitentexte, alte Fassung und Notizen in einer
+Transaktion, Abbruch und Fehler heilen mit dem nächsten Abgleich (`testInterruptedOrFailedCommitHealsWithNextSync`);
+Kopien bei neuem Dateinamen und nach „Dateien löschen“ (`testRenamedNewVersionMovesCopyAlong`,
+`testCopyAfterForgetDownloadsGetsNotesMoved`), ohne alte Seitentexte (`testCopyDropsStalePageTexts`); offenes
+Dokument behält seine Anzeige, späte Striche auf entfernten Seiten kommen zur alten Fassung
+(`testLateStrokesOnRemovedPageGoToOldVersion`, `testRootOnlyChangeIsReported`, in der App
+`testNewVersionWhileOpenKeepsDisplayAndLateStrokesReachOldVersion`, `testNoticeSeparatesChangedFromUnsurePages`);
+Skriptsuche mit Pythons `sum()` (`testPythonSumIsCompensated`), Index je Modul einmal und abbrechbar
+(`testIndexBuildIsSharedAndStopsWhenNobodyWaits`), `normalize` ohne zerlegte Umlaute sofort zurück; Seitensuche mit
+Suchform und nur für vorhandene Dateien zuerst in Python (`tests/test_search.py`: drei neue Tests, ohne die Änderung
+rot), `search.json` mit 47 Anfragen und `search_form`; `s[a:b]` und `str.find` nur noch in `PyText`
+(`testCodepointSliceAndFind`). Kern 365/0, App 227/0 (zweimal nacheinander), Python 129 passed, alle Generatoren
+`--check` aktuell, die betroffenen Tests je dreimal grün. Nicht geprüft: echtes Stud.IP, echtes iPad, große echte
+Skripte mit PDFKit.
 
 | Bereich | Stand | Was fehlt |
 |---|---|---|

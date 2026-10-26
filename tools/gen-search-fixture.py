@@ -12,10 +12,10 @@ Inhalt:
 - seed: SQL-Anweisungen nach init_db (Module, Kurse, Dateien mit Analysen, Lernpakete mit Aufgaben, page_texts)
 - files: Dateien auf der Platte (Pfad relativ zum Datenordner wie local_path, Inhalt Base64)
 - steps: Anfragen mit Status und Antwort
-- tokens, normalize, snippets: scriptsearch.tokens, scriptsearch.normalize und scriptsearch._snippet fuer
-  erfundene Texte (zerlegte Umlaute, Stoppwoerter, Wortstaemme, Zeilenumbrueche, Kleinschreibung, die die Laenge
-  aendert)
-- tables_after: page_texts nach allen Anfragen (nichts wird neu gelesen)
+- tokens, normalize, snippets, search_forms: scriptsearch.tokens, scriptsearch.normalize, scriptsearch._snippet und
+  scriptsearch.search_form fuer erfundene Texte (zerlegte Umlaute, Stoppwoerter, Wortstaemme, Zeilenumbrueche,
+  Kleinschreibung, die die Laenge aendert, Ligaturen, NBSP)
+- tables_after: page_texts nach allen Anfragen (nichts wird neu gelesen; die Suchform fuellt die Suche nach)
 
 Keine KI-Aufrufe. Der Server laeuft nur gegen Dateien in einem Temp-Ordner (tools/schema_source.py), nie gegen data/.
 Aufruf im Projektordner: python tools/gen-search-fixture.py [--check]
@@ -124,7 +124,11 @@ FILES = [
     ("f-an-v1", "k-an-vl", "VL01 Folgen.pdf", "Vorlesung", 1760266000, [["Folgen"], ["Grenzwerte"]], None),
     ("f-an-u1", "k-an-ue", "Übung 1.pdf", "Übungen", 1760366000, [["Folgen und Grenzwerte", "Konvergenz nach Cauchy"]], None),
     ("f-frei1", "k-frei", "Seminar.pdf", None, 1760466000, [["Seminar Organisation", "Termine und Vorträge"]], None),
+    ("f-la-weg", "k-la-vl", "VL03 Spektralzerlegung.pdf", "Vorlesung", 1761000000,
+     [["Spektralzerlegung", "Nach Dateien löschen nicht mehr auf dem Gerät"]], None),
 ]
+# Seitentexte vorhanden, Datei nicht (wie nach "Dateien löschen": local_path leer): kein Seitentreffer
+GONE = {"f-la-weg"}
 ANALYSIS = [("f-la-v1", "vorlesung", "Eigenwerte und Eigenvektoren", json.dumps(["Spektralsatz", "Diagonalisierung"])),
             ("f-la-u1", "uebung", None, None)]
 PACKAGES = [  # id, Datum, Modul, Fach, Titel
@@ -154,6 +158,11 @@ STEPS: list[dict] = [
     {"method": "GET", "path": "/api/search?q=konomie"},
     {"method": "GET", "path": "/api/search?q=%C3%96konomie"},
     {"method": "GET", "path": "/api/search?q=%C3%BCbung"},
+    {"method": "GET", "path": "/api/search?q=%C3%9Cbungsblatt"},
+    {"method": "GET", "path": "/api/search?q=%C3%BCberblick"},
+    {"method": "GET", "path": "/api/search?q=unabh%C3%A4ngigkeit"},
+    {"method": "GET", "path": "/api/search?q=unabha%CC%88ngig"},
+    {"method": "GET", "path": "/api/search?q=spektralzerlegung"},
     {"method": "GET", "path": "/api/search?q=%20a%20"},
     {"method": "GET", "path": "/api/search?q=zzzz"},
     {"method": "GET", "path": "/api/search"},
@@ -196,6 +205,10 @@ TOKEN_CASES = [
     "x1 x2 3D-Grafik C++ e-Funktion π-Formel naïve café",
     "",
 ]
+SEARCH_FORM_CASES = TOKEN_CASES + [
+    "Übersicht der Äquivalenzrelationen und Übungsaufgaben", "Unabha\u0308ngigkeit A\u0308RGER", "ẞ GROSS Straße",
+    "İstanbul DİYARBAKIR", "ﬁnale Lösung", "e\u0301te\u0301 CAFÉ", "ΟΔΟΣ Σ", "\u00a0NBSP\u00a0Text\u2009", None,
+]
 SNIPPET_CASES = [
     ("Der  Satz\nvon   Rolle   besagt", ["rolle"]),
     ("Kein Treffer in diesem Text", ["zzz"]),
@@ -219,13 +232,13 @@ def seed_sql(src: SchemaSource, pdf_text) -> tuple[list[tuple[str, list]], list[
     texts: list[tuple[str, list]] = []
     for i, (fid, course, name, folder, chdate, pages, raw) in enumerate(FILES):
         data = text_pdf(pages) if pages is not None else raw
-        local = f"files/{course}/{name}" if data is not None else None
+        local = f"files/{course}/{name}" if data is not None and fid not in GONE else None
         kind = "image" if name.endswith(".png") else "pdf"
         seed.append(("INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) "
                      "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                      [fid, course, name, len(data) if data else 0, "image/png" if kind == "image" else "application/pdf", chdate, folder,
                       local, "2026-10-22T08:00:00" if local else None, "neu", kind, "2026-10-22T08:00:00"]))
-        if data is not None:
+        if local is not None:
             files.append({"path": local, "base64": base64.b64encode(data).decode()})
         if pages is not None:
             for p, t in enumerate(pdf_text(data)):
@@ -281,15 +294,17 @@ def main() -> int:
                 step["body"] = s["body"]
             steps.append(step)
         with src.db.cursor() as conn:
-            after = src.db.rows(conn, "SELECT file_id, page, text, chdate FROM page_texts ORDER BY file_id, page")
+            after = src.db.rows(conn, "SELECT file_id, page, text, chdate, search FROM page_texts ORDER BY file_id, page")
         tokens = [{"text": t, "tokens": scriptsearch.tokens(t)} for t in TOKEN_CASES]
         normalize = [{"text": t, "normalized": scriptsearch.normalize(t)} for t in TOKEN_CASES]
         snippets = [{"text": t, "terms": terms, "snippet": scriptsearch._snippet(t, terms)} for t, terms in SNIPPET_CASES]
+        search_forms = [{"text": t, "search": scriptsearch.search_form(t)} for t in SEARCH_FORM_CASES]
     finally:
         os.chdir(cwd)
         src.cleanup()
     out = {"generator": "tools/gen-search-fixture.py", "seed": [{"sql": q, "params": p} for q, p in seed], "files": files,
-           "steps": steps, "tokens": tokens, "normalize": normalize, "snippets": snippets, "tables_after": {"page_texts": after}}
+           "steps": steps, "tokens": tokens, "normalize": normalize, "snippets": snippets, "search_forms": search_forms,
+           "tables_after": {"page_texts": after}}
     ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)
     return 0 if ok or not check else 1
 

@@ -79,7 +79,8 @@ final class LocalSearchTests: XCTestCase {
             if let d = jsonDiff(r.json, s["response"]) { problems.append("\(label): \(d)") }
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
-        let after = try await backend.context.database.rows("SELECT file_id, page, text, chdate FROM page_texts ORDER BY file_id, page")
+        // mit der Suchform, die die Suche fuer Zeilen ohne sie nachgetragen hat (gleich wie search_form in Python)
+        let after = try await backend.context.database.rows("SELECT file_id, page, text, chdate, search FROM page_texts ORDER BY file_id, page")
         XCTAssertNil(jsonDiff(.array(after.map(JSONValue.object)), fx["tables_after"]?["page_texts"]))
         // mit Ergebnissen, nicht nur leer: Skriptsuche, Seiten der Suche, Aufgaben
         XCTAssertGreaterThanOrEqual(steps.filter { !($0["response"]?["results"]?.array ?? []).isEmpty }.count, 5)
@@ -106,6 +107,62 @@ final class LocalSearchTests: XCTestCase {
             let got = ScriptSearch.snippet(text, terms: (c["terms"]?.array ?? []).compactMap(\.string))
             XCTAssertEqual(Array(got.unicodeScalars), Array((c["snippet"]?.string ?? "").unicodeScalars), String(text.prefix(40)))
         }
+        // Suchform der Seitensuche: normalize, klein (auch "Ü", "İ", "ẞ", Schluss-Sigma), NFC
+        let forms = fx["search_forms"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(forms.count, 15)
+        for c in forms {
+            let text = c["text"]?.string ?? ""
+            XCTAssertEqual(Array(ScriptSearch.searchForm(text).unicodeScalars), Array((c["search"]?.string ?? "").unicodeScalars), text)
+        }
+    }
+
+    /// `sum()` wie CPython ab 3.12 (Neumaier): die Schwelle der Skriptsuche (`mean * 1.6`) ist damit bitgleich; einfache
+    /// Addition wich in den letzten Stellen ab (Werte aus Python 3.13 nachgerechnet)
+    func testPythonSumIsCompensated() {
+        XCTAssertEqual(PyMath.sum(Array(repeating: 0.1, count: 10)), 1.0)
+        XCTAssertEqual(PyMath.sum([1e16, 1.0, -1e16]), 1.0)
+        XCTAssertEqual(PyMath.sum([1e308, 1e308, -1e308]), .infinity)
+        XCTAssertEqual(PyMath.sum([]), 0)
+        let xs = [10.533658707664273, 8.111888434943026, 15.113082622557952, 7.014108013345599, 13.502348060293649,
+                  11.119644836776198, 6.811984946845895, 13.104100264651883, 6.5249392181877885, 12.071039571273403,
+                  6.977975930044665, 7.269982186814111, 11.943268647995195, 17.575929745408533, 7.7332274560950385,
+                  9.125345504498203, 14.78406511367825, 19.26792519439808, 14.079441280644982, 11.553526645110923,
+                  19.66757147830088, 6.652157528648588, 18.018558426681516, 10.054530008643468, 8.019571167004125,
+                  7.649091333097157, 10.31874553742708, 17.42576902768044, 8.530169318935124, 14.142402291274527]
+        XCTAssertEqual(PyMath.sum(xs), 344.69604849892056)
+        XCTAssertEqual(xs.reduce(0, +), 344.6960484989206, "einfache Addition: anders in der letzten Stelle")
+    }
+
+    /// Codepunkte wie Python: `s[a:b]` und `s.find(t)` (die eine Fassung fuer Skriptsuche und Stundenplan-Import)
+    func testCodepointSliceAndFind() {
+        let s = "Unabha\u{308}ngig ü"
+        XCTAssertEqual(PyText.slice(s, 0, 6), "Unabha")
+        XCTAssertEqual(Array(PyText.slice(s, 6, 7).unicodeScalars), ["\u{308}"])
+        XCTAssertEqual(PyText.slice(s, 5, 100), "a\u{308}ngig ü")
+        XCTAssertEqual(PyText.slice(s, 9, 3), "")
+        XCTAssertEqual(PyText.slice("20261026T0930", 0, 8), "20261026")
+        XCTAssertEqual(PyText.find(Array(s.unicodeScalars), Array("ngig".unicodeScalars)), 7)
+        XCTAssertNil(PyText.find(Array(s.unicodeScalars), Array("ä".unicodeScalars)), "zerlegt ist nicht gleich")
+        XCTAssertEqual(PyText.find(Array("abc".unicodeScalars), []), 0)
+        XCTAssertTrue(PyText.contains(s, "ig ü"))
+        XCTAssertFalse(PyText.contains("ab", "abc"))
+    }
+
+    /// Aeltere Datenbank: page_texts ohne Suchform bekommt die Spalte (wie ensure_table in Python), ihre Zeilen die
+    /// Suchform bei der ersten Suche
+    func testMigrationAddsSearchFormToOldPageTexts() async throws {
+        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
+        try await db.execute("CREATE TABLE page_texts (file_id TEXT NOT NULL, page INTEGER NOT NULL, text TEXT, chdate INTEGER, PRIMARY KEY (file_id, page))")
+        try await db.execute("INSERT INTO page_texts(file_id, page, text, chdate) VALUES ('alt', 1, 'Übung', 0)")
+        try await db.migrate(clock: clock)
+        try await db.migrate(clock: clock)
+        let cols = try await db.withConnection { try $0.columnNames("page_texts") }
+        XCTAssertTrue(cols.contains("search"))
+        let rows = try await db.rows("SELECT text, search FROM page_texts")
+        XCTAssertEqual(rows.first?["search"], .null)
+        _ = try await db.transaction { try ScriptSearch.findPages($0, "übung") }
+        let filled = try await db.rows("SELECT search FROM page_texts")
+        XCTAssertEqual(filled.first?["search"], "übung")
     }
 
     /// Seitentexte wie `page_texts`: einmal mit PDFKit gelesen und mit der Aenderungszeit gespeichert, danach aus
@@ -188,5 +245,65 @@ final class LocalSearchTests: XCTestCase {
             XCTAssertNil(jsonDiff(r.json, expected), jsonDiff(r.json, expected) ?? "")
         }
         XCTAssertEqual(tools.readCount, 1)
+    }
+
+    /// Seitentexte wie PDFKit, aber langsam (grosse Skripte): zaehlt die Lesevorgaenge
+    final class SlowTools: LocalDocumentTools, @unchecked Sendable {
+        private let lock = NSLock()
+        private let texts: [String: [String]]
+        private var log: [String] = []
+        init(_ texts: [String: [String]]) { self.texts = texts }
+        var reads: [String] { lock.withLock { log } }
+        func pdfPageCount(_ data: Data) -> Int? { nil }
+        func pdfFromImage(_ data: Data) -> Data? { nil }
+        func pdfPageTexts(_ url: URL) -> [String]? {
+            Thread.sleep(forTimeInterval: 0.15)
+            return lock.withLock {
+                log.append(url.lastPathComponent)
+                return texts[url.lastPathComponent]
+            }
+        }
+    }
+
+    private func related(_ backend: LocalBackend, _ body: JSONValue) async -> LocalResponse {
+        await backend.handle(LocalRequest(method: "POST", path: "/api/related", headers: ["Content-Type": "application/json"], body: body.serialized()))
+    }
+
+    /// Zwei Anfragen zugleich bauen den Index eines Moduls nur einmal (die zweite wartet auf den laufenden Aufbau, jede
+    /// PDF wird einmal gelesen); bricht die einzige wartende Anfrage ab, endet der Aufbau zwischen zwei Dateien, und die
+    /// naechste Anfrage baut neu
+    func testIndexBuildIsSharedAndStopsWhenNobodyWaits() async throws {
+        let fx = try fixture()
+        let texts = (fx["seed"]?.array ?? []).reduce(into: [String: [String]]()) { out, s in
+            guard s["sql"]?.string?.contains("page_texts") == true, let p = s["params"]?.array, let id = p.first?.string else { return }
+            out[id, default: []].append(p[2].string ?? "")
+        }
+        let names = ["f-la-v1": "VL01 Eigenwerte.pdf", "f-la-v2": "VL02 Determinanten.pdf", "f-la-v2d": "VL02 Determinanten Druckfassung.pdf",
+                     "f-la-s": "Skript Lineare Algebra.pdf", "f-la-e": "Ergänzungen zur Vorlesung.pdf"]
+        let tools = SlowTools(Dictionary(uniqueKeysWithValues: names.map { ($0.value, texts[$0.key] ?? []) }))
+        let backend = try await seeded(fx, tools: tools)
+        try await backend.context.database.execute("DELETE FROM page_texts")
+        let body: JSONValue = ["file_id": "f-la-u1", "text": "Spektralsatz symmetrische Matrizen reelle Eigenwerte orthogonale Diagonalisierung"]
+        let expected = try XCTUnwrap(fx["steps"]?.array?.first { $0["body"] == body }?["response"])
+
+        // abgebrochen, waehrend die erste PDF gelesen wird: der Aufbau endet, ohne alle Skripte zu lesen
+        let cancelled = Task { await self.related(backend, body) }
+        try await Task.sleep(nanoseconds: 50_000_000)
+        cancelled.cancel()
+        _ = await cancelled.value
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertLessThan(tools.reads.count, names.count, "\(tools.reads)")
+        let afterCancel = tools.reads.count
+
+        // zwei Anfragen zugleich: ein Aufbau, jede noch fehlende PDF einmal gelesen
+        try await backend.context.database.execute("DELETE FROM page_texts")
+        let builds = backend.context.scriptIndex.builds
+        async let a = related(backend, body)
+        async let b = related(backend, body)
+        let (ra, rb) = await (a, b)
+        XCTAssertNil(jsonDiff(ra.json, expected), jsonDiff(ra.json, expected) ?? "")
+        XCTAssertNil(jsonDiff(rb.json, expected), jsonDiff(rb.json, expected) ?? "")
+        XCTAssertEqual(backend.context.scriptIndex.builds, builds + 1)
+        XCTAssertEqual(tools.reads.count - afterCancel, names.count, "\(tools.reads)")
     }
 }

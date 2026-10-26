@@ -202,7 +202,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
                 if source == "studip" { diff = try StudIPScheduleImport.previewDiff(c, diff, entries: entries) }
                 let list: JSONValue = .array(entries.map(JSONValue.object))
                 try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES (?,?,?,?,?,0)",
-                              [.text(source), .text(clock.nowISO), "preview", .text(LocalTimetableImport.slice(text, 0, 20000)),
+                              [.text(source), .text(clock.nowISO), "preview", .text(PyText.slice(text, 0, 20000)),
                                .text(list.jsonString(sortedKeys: true))])
                 let importID = c.lastInsertRowID
                 let modules = try c.rows("SELECT id, name, color FROM modules ORDER BY name")

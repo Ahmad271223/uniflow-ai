@@ -8,7 +8,8 @@ import Foundation
 ///
 /// Kein `await` in einer Transaktion: erst lesen, dann die PDF ausserhalb lesen, dann kurz schreiben.
 /// Abweichung: Der Zwischenspeicher des Index (`_CACHE`) gilt hier auch fuer den Ablageort der Dateien; am PC fehlte
-/// eine erst spaeter geladene Datei bis zum Neustart im Index.
+/// eine erst spaeter geladene Datei bis zum Neustart im Index. Je Schluessel laeuft hoechstens ein Aufbau (weitere
+/// Anfragen warten auf ihn), und er bricht ab, wenn keine Anfrage mehr auf ihn wartet.
 public enum ScriptSearch {
 
     /// `STOP` (gleiche Woerter wie in app/scriptsearch.py)
@@ -34,8 +35,10 @@ public enum ScriptSearch {
 
     // MARK: Text
 
-    /// `normalize(text)`: pypdf liefert Umlaute oft zerlegt ("Unabh¨ angigkeit", "a" + U+0308)
+    /// `normalize(text)`: pypdf liefert Umlaute oft zerlegt ("Unabh¨ angigkeit", "a" + U+0308). Ohne U+00A8 und
+    /// U+0308 im Text aendert sich nichts: dann gleich zurueck (die meisten Seiten; spart Regex- und Codepunkt-Laeufe)
     public static func normalize(_ text: String) -> String {
+        guard text.unicodeScalars.contains(where: { $0 == "\u{A8}" || $0 == "\u{308}" }) else { return text }
         var t = text
         for (i, u) in umlauts.enumerated() {
             t = spacedDiaeresis[i].sub(t, u.umlaut)
@@ -83,11 +86,10 @@ public enum ScriptSearch {
         return out
     }
 
-    /// Erste `n` Codepunkte (`s[:n]`)
-    static func prefix(_ s: String, _ n: Int) -> String {
-        var v = String.UnicodeScalarView()
-        v.append(contentsOf: s.unicodeScalars.prefix(max(0, n)))
-        return String(v)
+    /// `search_form(text)`: Suchform eines Seitentexts fuer `findPages` (normalize, klein, NFC). SQLite lower() und
+    /// LIKE kennen nur ASCII ("Übung" passte nicht auf "übung"), zerlegte Umlaute passten nicht auf die Anfrage.
+    public static func searchForm(_ text: String) -> String {
+        PyText.lower(normalize(text)).precomposedStringWithCanonicalMapping
     }
 
     /// `_snippet(text, terms, width)`: Ausschnitt um den ersten Treffer; die Stelle wird im klein geschriebenen Text
@@ -97,23 +99,13 @@ public enum ScriptSearch {
         let low = Array(PyText.lower(String(String.UnicodeScalarView(flat))).unicodeScalars)
         var pos: Int?
         for t in terms {
-            if let p = find(low, Array(t.unicodeScalars)) { pos = min(pos ?? p, p) }
+            if let p = PyText.find(low, Array(t.unicodeScalars)) { pos = min(pos ?? p, p) }
         }
         let start = max(0, (pos ?? 0) - 50)
         let lo = min(start, flat.count), hi = min(start + width, flat.count)
         var v = String.UnicodeScalarView()
         v.append(contentsOf: flat[lo..<hi])
         return (start > 0 ? "…" : "") + String(v) + (start + width < flat.count ? "…" : "")
-    }
-
-    /// `hay.find(needle)` nach Codepunkten
-    static func find(_ hay: [Unicode.Scalar], _ needle: [Unicode.Scalar]) -> Int? {
-        if needle.isEmpty { return 0 }
-        guard needle.count <= hay.count else { return nil }
-        for i in 0...(hay.count - needle.count) where hay[i] == needle[0] {
-            if Array(hay[i..<(i + needle.count)]) == needle { return i }
-        }
-        return nil
     }
 
     static func hasPDFSuffix(_ s: String) -> Bool {
@@ -145,16 +137,16 @@ public enum ScriptSearch {
         return .read(url, chdate: chdate)
     }
 
-    /// Zweiter Teil von `page_texts`: neu gelesene Texte speichern (`chdate or 0`), nur wenn die Datei noch dieselbe
-    /// Aenderungszeit hat (sonst kam inzwischen eine neue Fassung, deren Texte gehoeren nicht zu dieser)
+    /// Zweiter Teil von `page_texts`: neu gelesene Texte mit Suchform speichern (`chdate or 0`), nur wenn die Datei
+    /// noch dieselbe Aenderungszeit hat (sonst kam inzwischen eine neue Fassung, deren Texte gehoeren nicht zu dieser)
     static func storePages(_ c: SQLiteConnection, fileID: String, pages: [String], chdate: SQLiteValue) throws {
         guard let now = try c.queryOne("SELECT chdate FROM files WHERE id=?", [.text(fileID)]),
               (now["chdate"]?.double ?? 0) == (chdate.double ?? 0) else { return }
         try c.execute("DELETE FROM page_texts WHERE file_id=?", [.text(fileID)])
         let stamp: SQLiteValue = LocalModules.truthy(chdate) ? chdate : .integer(0)
         for (i, t) in pages.enumerated() {
-            try c.execute("INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
-                          [.text(fileID), .integer(Int64(i + 1)), .text(t), stamp])
+            try c.execute("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
+                          [.text(fileID), .integer(Int64(i + 1)), .text(t), stamp, .text(searchForm(t))])
         }
     }
 
@@ -189,17 +181,77 @@ public enum ScriptSearch {
         var n: Int { docs.count }
     }
 
-    /// `_CACHE`: Index je Modul und Stand der Quellen (hoechstens etwa 20 Eintraege), je Datenbank (`LocalContext`)
+    /// `_CACHE`: Index je Modul und Stand der Quellen (hoechstens etwa 20 Eintraege), je Datenbank (`LocalContext`).
+    /// Je Schluessel hoechstens ein Aufbau: weitere Anfragen warten auf den laufenden, statt dieselben PDFs noch einmal
+    /// zu lesen. Bricht jede wartende Anfrage ab (z. B. Seitenwechsel im Editor), wird der Aufbau abgebrochen (er prueft
+    /// das zwischen zwei Dateien); die naechste Anfrage beginnt neu.
     final class IndexCache: @unchecked Sendable {
+        private final class Build: @unchecked Sendable {
+            let task: Task<Index, Error>
+            /// wartende Anfragen (nur unter `lock`)
+            var waiting = Set<Int>()
+            init(_ task: Task<Index, Error>) { self.task = task }
+        }
+
         private let lock = NSLock()
         private var entries: [String: Index] = [:]
+        private var running: [String: Build] = [:]
+        private var nextWaiter = 0
+        private var started = 0
 
-        func get(_ key: String) -> Index? { lock.withLock { entries[key] } }
+        /// gestartete Aufbauten (Tests)
+        var builds: Int { lock.withLock { started } }
 
-        func set(_ key: String, _ index: Index) {
+        /// nur unter `lock`
+        private func store(_ key: String, _ index: Index) {
+            if entries.count > 20 { entries.removeAll() }
+            entries[key] = index
+        }
+
+        /// Index aus dem Zwischenspeicher, vom laufenden Aufbau oder neu mit `build`
+        func index(_ key: String, build: @escaping @Sendable () async throws -> Index) async throws -> Index {
+            let joined: (hit: Index?, build: Build?, waiter: Int) = lock.withLock {
+                if let hit = entries[key] { return (hit, nil, 0) }
+                let b: Build
+                if let r = running[key] {
+                    b = r
+                } else {
+                    b = Build(Task { try await build() })
+                    running[key] = b
+                    started += 1
+                }
+                nextWaiter += 1
+                b.waiting.insert(nextWaiter)
+                return (nil, b, nextWaiter)
+            }
+            if let hit = joined.hit { return hit }
+            guard let b = joined.build else { throw CancellationError() }
+            let me = joined.waiter
+            let result: Result<Index, Error> = await withTaskCancellationHandler {
+                do { return .success(try await b.task.value) } catch { return .failure(error) }
+            } onCancel: {
+                self.leave(key, b, me, cancelled: true)
+            }
+            leave(key, b, me, cancelled: false)
+            switch result {
+            case .success(let idx):
+                lock.withLock {
+                    if running[key] === b { running[key] = nil }
+                    store(key, idx)
+                }
+                return idx
+            case .failure(let e):
+                lock.withLock { if running[key] === b { running[key] = nil } }
+                throw e
+            }
+        }
+
+        /// Anfrage wartet nicht mehr; war es die letzte und hat sie abgebrochen, endet der Aufbau
+        private func leave(_ key: String, _ b: Build, _ me: Int, cancelled: Bool) {
             lock.withLock {
-                if entries.count > 20 { entries.removeAll() }
-                entries[key] = index
+                guard b.waiting.remove(me) != nil, cancelled, b.waiting.isEmpty else { return }
+                b.task.cancel()
+                if running[key] === b { running[key] = nil }
             }
         }
     }
@@ -224,24 +276,24 @@ public enum ScriptSearch {
             return (s, stamps)
         }
         let key = (moduleID.json?.jsonString() ?? "null") + "\u{1E}" + stamps.sorted().joined(separator: "\u{1E}")
-        if let hit = cache.get(key) { return hit }
-        var docs: [Doc] = []
-        for f in srcs {
-            let pages = try await pageTexts(fileID: f["id"]?.string ?? "", database: database, files: files)
-            for (i, text) in pages.enumerated() {
-                let toks = tokens(text)
-                if toks.count < 5 { continue }
-                var tf: [String: Int] = [:]
-                for t in toks { tf[t, default: 0] += 1 }
-                docs.append(Doc(file: f, page: i + 1, tf: tf, length: toks.count, text: text))
+        return try await cache.index(key) {
+            var docs: [Doc] = []
+            for f in srcs {
+                try Task.checkCancellation()
+                let pages = try await pageTexts(fileID: f["id"]?.string ?? "", database: database, files: files)
+                for (i, text) in pages.enumerated() {
+                    let toks = tokens(text)
+                    if toks.count < 5 { continue }
+                    var tf: [String: Int] = [:]
+                    for t in toks { tf[t, default: 0] += 1 }
+                    docs.append(Doc(file: f, page: i + 1, tf: tf, length: toks.count, text: text))
+                }
             }
+            var df: [String: Int] = [:]
+            for d in docs { for t in d.tf.keys { df[t, default: 0] += 1 } }
+            let avg = Double(docs.reduce(0) { $0 + $1.length }) / Double(max(1, docs.count))
+            return Index(docs: docs, df: df, avg: avg)
         }
-        var df: [String: Int] = [:]
-        for d in docs { for t in d.tf.keys { df[t, default: 0] += 1 } }
-        let avg = Double(docs.reduce(0) { $0 + $1.length }) / Double(max(1, docs.count))
-        let idx = Index(docs: docs, df: df, avg: avg)
-        cache.set(key, idx)
-        return idx
     }
 
     /// `search(conn, module_id, query, exclude, limit)`
@@ -278,13 +330,14 @@ public enum ScriptSearch {
         let ranked = scored.enumerated().sorted { x, y in
             x.element.score != y.element.score ? x.element.score > y.element.score : x.offset < y.offset
         }.map(\.element)
-        // Mindestguete: absolute Punktzahl und deutlicher Abstand zum Durchschnitt
-        let mean = scored.isEmpty ? 0 : scored.reduce(0.0) { $0 + $1.score } / Double(scored.count)
+        // Mindestguete: absolute Punktzahl und deutlicher Abstand zum Durchschnitt; der Durchschnitt wie Python ueber die
+        // sortierte Liste mit sum() (kompensiert), sonst laege die Schwelle in den letzten Stellen anders
+        let mean = ranked.isEmpty ? 0 : PyMath.sum(ranked.map(\.score)) / Double(ranked.count)
         var results: [JSONValue] = []
         var seen = Set<String>()
         for (s, hit, d) in ranked {
             if s < 6 || (mean != 0 && s < mean * 1.6) { break }
-            let key = prefix(nonWord.sub(normalize(d.text), ""), 120)    // Druckfassung derselben Folie nicht doppelt
+            let key = PyText.slice(nonWord.sub(normalize(d.text), ""), 0, 120)    // Druckfassung derselben Folie nicht doppelt
             if !seen.insert(key).inserted { continue }
             let f = d.file
             let title = LocalModules.truthy(f["ai_title"]) ? f["ai_title"] : f["name"]
@@ -307,15 +360,22 @@ public enum ScriptSearch {
     // MARK: Globale Suche
 
     /// `find_pages(conn, q, limit)`: Seiten, deren gespeicherter Text den (klein geschriebenen) Suchtext enthaelt;
-    /// nur Texte der aktuellen Fassung, gelesen wird nichts neu
+    /// nur Texte der aktuellen Fassung von Dateien, die vorhanden sind (nach "Dateien löschen" kein Treffer, der sich
+    /// nicht oeffnen laesst), gelesen wird nichts neu. Verglichen wird die Suchform von Text und Anfrage
+    /// (`searchForm`); Zeilen von vor der Suchform bekommen sie hier (darum in einer Transaktion aufrufen).
     static func findPages(_ c: SQLiteConnection, _ q: String, limit: Int = 10) throws -> [JSONValue] {
+        for r in try c.query("SELECT file_id, page, text FROM page_texts WHERE search IS NULL") {
+            try c.execute("UPDATE page_texts SET search=? WHERE file_id=? AND page=?",
+                          [.text(searchForm(r["text"]?.string ?? "")), r["file_id"] ?? .null, r["page"] ?? .null])
+        }
         let rows = try c.query("""
             SELECT p.file_id, p.page, p.text, f.name, a.title AS ai_title, c.subject, c.module_id
             FROM page_texts p JOIN files f ON f.id=p.file_id JOIN courses c ON c.id=f.course_id
             LEFT JOIN analysis a ON a.file_id=f.id
-            WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND lower(COALESCE(p.text, '')) LIKE ?
+            WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND COALESCE(f.local_path, '')<>''
+              AND p.search LIKE ?
             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?
-            """, [.text("%" + q + "%"), .integer(Int64(limit))])
+            """, [.text("%" + searchForm(q) + "%"), .integer(Int64(limit))])
         return rows.map { r in
             var o: [String: JSONValue] = [:]
             for k in ["file_id", "page", "name", "ai_title", "subject", "module_id"] { o[k] = r[k]?.json ?? .null }

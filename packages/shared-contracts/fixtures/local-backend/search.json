@@ -317,6 +317,23 @@
    ]
   },
   {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-weg",
+    "k-la-vl",
+    "VL03 Spektralzerlegung.pdf",
+    697,
+    "application/pdf",
+    1761000000,
+    "Vorlesung",
+    null,
+    null,
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
    "sql": "INSERT INTO analysis(file_id, doc_type, title, topics, created_at) VALUES (?,?,?,?,?)",
    "params": [
     "f-la-v1",
@@ -826,6 +843,15 @@
     "Seminar Organisation\nTermine und Vorträge",
     1760466000
    ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-weg",
+    1,
+    "Spektralzerlegung\nNach Dateien löschen nicht mehr auf dem Gerät",
+    1761000000
+   ]
   }
  ],
  "files": [
@@ -1296,6 +1322,15 @@
       "topics": null
      },
      {
+      "id": "f-la-weg",
+      "name": "VL03 Spektralzerlegung.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
       "id": "f-la-e",
       "name": "Ergänzungen zur Vorlesung.pdf",
       "subject": "Lineare Algebra Test",
@@ -1511,6 +1546,15 @@
       "module_id": 1,
       "ai_title": null,
       "doc_type": "uebung",
+      "topics": null
+     },
+     {
+      "id": "f-la-weg",
+      "name": "VL03 Spektralzerlegung.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
       "topics": null
      },
      {
@@ -1797,6 +1841,139 @@
    "status": 200,
    "response": {
     "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 1,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%C3%9Cbungsblatt",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 1,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%C3%BCberblick",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": [
+     {
+      "file_id": "f-la-s",
+      "page": 12,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "…tze, Definitionen und typische Klausuraufgaben im Überblick"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=unabh%C3%A4ngigkeit",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 3,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren. Vektoren linear unabhängig triviale Kombination"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 3,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Lineare Unabhängigkeit Vektoren heißen linear unabhängig wenn nur die triviale Kombination null ergibt"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=unabha%CC%88ngig",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 3,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren. Vektoren linear unabhängig triviale Kombination"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 3,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Lineare Unabhängigkeit Vektoren heißen linear unabhängig wenn nur die triviale Kombination null ergibt"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=spektralzerlegung",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-la-weg",
+      "name": "VL03 Spektralzerlegung.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
     "modules": [],
     "tasks": [],
     "pages": []
@@ -2509,253 +2686,367 @@
    "snippet": "Kurz Eigenwert"
   }
  ],
+ "search_forms": [
+  {
+   "text": "Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A.",
+   "search": "berechnen sie die eigenwerte und eigenvektoren der matrix a."
+  },
+  {
+   "text": "Lineare Unabh¨ angigkeit und Unabh¨\nangigkeit, Übung, Müller, ökonomisch",
+   "search": "lineare unabhängigkeit und unabhängigkeit, übung, müller, ökonomisch"
+  },
+  {
+   "text": "Übung Uebung Übungsblatt Aufgabe Teilaufgabe Lösung Hinweis Punkte",
+   "search": "übung uebung übungsblatt aufgabe teilaufgabe lösung hinweis punkte"
+  },
+  {
+   "text": "Abbildungen Abbildung Zuordnungen Zuordnung Rechnungen Spannungen Vektoren Matrizen Normen Ergebnisses Systemen Kreise",
+   "search": "abbildungen abbildung zuordnungen zuordnung rechnungen spannungen vektoren matrizen normen ergebnisses systemen kreise"
+  },
+  {
+   "text": "ab abc ABCD Straße STRASSE groß Größe Maß ÄÖÜ äöü",
+   "search": "ab abc abcd straße strasse groß größe maß äöü äöü"
+  },
+  {
+   "text": "x1 x2 3D-Grafik C++ e-Funktion π-Formel naïve café",
+   "search": "x1 x2 3d-grafik c++ e-funktion π-formel naïve café"
+  },
+  {
+   "text": "",
+   "search": ""
+  },
+  {
+   "text": "Übersicht der Äquivalenzrelationen und Übungsaufgaben",
+   "search": "übersicht der äquivalenzrelationen und übungsaufgaben"
+  },
+  {
+   "text": "Unabhängigkeit ÄRGER",
+   "search": "unabhängigkeit ärger"
+  },
+  {
+   "text": "ẞ GROSS Straße",
+   "search": "ß gross straße"
+  },
+  {
+   "text": "İstanbul DİYARBAKIR",
+   "search": "i̇stanbul di̇yarbakir"
+  },
+  {
+   "text": "ﬁnale Lösung",
+   "search": "ﬁnale lösung"
+  },
+  {
+   "text": "été CAFÉ",
+   "search": "été café"
+  },
+  {
+   "text": "ΟΔΟΣ Σ",
+   "search": "οδος σ"
+  },
+  {
+   "text": " NBSP Text ",
+   "search": " nbsp text "
+  },
+  {
+   "text": null,
+   "search": ""
+  }
+ ],
  "tables_after": {
   "page_texts": [
    {
     "file_id": "f-an-u1",
     "page": 1,
     "text": "Folgen und Grenzwerte\nKonvergenz nach Cauchy",
-    "chdate": 1760366000
+    "chdate": 1760366000,
+    "search": "folgen und grenzwerte\nkonvergenz nach cauchy"
    },
    {
     "file_id": "f-an-v1",
     "page": 1,
     "text": "Folgen",
-    "chdate": 1760266000
+    "chdate": 1760266000,
+    "search": "folgen"
    },
    {
     "file_id": "f-an-v1",
     "page": 2,
     "text": "Grenzwerte",
-    "chdate": 1760266000
+    "chdate": 1760266000,
+    "search": "grenzwerte"
    },
    {
     "file_id": "f-frei1",
     "page": 1,
     "text": "Seminar Organisation\nTermine und Vorträge",
-    "chdate": 1760466000
+    "chdate": 1760466000,
+    "search": "seminar organisation\ntermine und vorträge"
    },
    {
     "file_id": "f-la-alt",
     "page": 1,
     "text": "Eigenwerte einer Matrix\nDas charakteristische Polynom liefert die Eigenwerte und Eigenvektoren der Matrix.",
-    "chdate": 1729000000
+    "chdate": 1729000000,
+    "search": "eigenwerte einer matrix\ndas charakteristische polynom liefert die eigenwerte und eigenvektoren der matrix."
    },
    {
     "file_id": "f-la-e",
     "page": 1,
     "text": "Ergänzung 1: Matrix und Regel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 1: matrix und regel\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 2,
     "text": "Ergänzung 2: Determinante und Beispiel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 2: determinante und beispiel\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 3,
     "text": "Ergänzung 3: Entwicklung und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 3: entwicklung und matrix\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 4,
     "text": "Ergänzung 4: Eigenwerte und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 4: eigenwerte und vektoren\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 5,
     "text": "Ergänzung 5: Polynom und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 5: polynom und matrix\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 6,
     "text": "Ergänzung 6: Linear und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 6: linear und vektoren\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 7,
     "text": "Ergänzung 7: Determinante und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 7: determinante und matrix\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 8,
     "text": "Ergänzung 8: Regel und Polynom\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 8: regel und polynom\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 9,
     "text": "Ergänzung 9: Vektoren und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 9: vektoren und matrix\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 10,
     "text": "Ergänzung 10: Linear und Polynom\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 10: linear und polynom\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 11,
     "text": "Ergänzung 11: Vektoren und Regel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 11: vektoren und regel\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 12,
     "text": "Ergänzung 12: Linear und Determinante\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 12: linear und determinante\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 13,
     "text": "Ergänzung 13: Eigenwerte und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 13: eigenwerte und matrix\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-e",
     "page": 14,
     "text": "Ergänzung 14: Polynom und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
-    "chdate": 1760950000
+    "chdate": 1760950000,
+    "search": "ergänzung 14: polynom und vektoren\ngeschichte anwendungen ingenieurwesen physik informatik statistik grafik optimierung netzwerke codierung robotik\nliteratur hinweise beispiele bilder tabellen lernziele"
    },
    {
     "file_id": "f-la-s",
     "page": 1,
     "text": "Vektorräume über Körpern\nUnterräume, Erzeugnis und Linearkombination von Vektoren",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "vektorräume über körpern\nunterräume, erzeugnis und linearkombination von vektoren"
    },
    {
     "file_id": "f-la-s",
     "page": 2,
     "text": "Basis und Dimension\nAustauschsatz von Steinitz und Basisergänzung im Vektorraum",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "basis und dimension\naustauschsatz von steinitz und basisergänzung im vektorraum"
    },
    {
     "file_id": "f-la-s",
     "page": 3,
     "text": "Lineare Unabh¨ angigkeit\nVektoren heißen linear unabh¨ angig wenn nur die triviale Kombination null ergibt",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "lineare unabhängigkeit\nvektoren heißen linear unabhängig wenn nur die triviale kombination null ergibt"
    },
    {
     "file_id": "f-la-s",
     "page": 4,
     "text": "Skalarprodukt und Norm\nOrthogonalität, Projektion und Gram-Schmidt-Verfahren für Orthonormalbasen",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "skalarprodukt und norm\northogonalität, projektion und gram-schmidt-verfahren für orthonormalbasen"
    },
    {
     "file_id": "f-la-s",
     "page": 5,
     "text": "Spektralsatz für symmetrische Matrizen\nReelle Eigenwerte und orthogonale Diagonalisierung",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "spektralsatz für symmetrische matrizen\nreelle eigenwerte und orthogonale diagonalisierung"
    },
    {
     "file_id": "f-la-s",
     "page": 6,
     "text": "Jordan-Normalform\nHauptvektoren, Jordanblöcke und Minimalpolynom einer Matrix",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "jordan-normalform\nhauptvektoren, jordanblöcke und minimalpolynom einer matrix"
    },
    {
     "file_id": "f-la-s",
     "page": 7,
     "text": "Quadriken und Hauptachsentransformation\nKegelschnitte, Ellipsen, Hyperbeln und Parabeln",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "quadriken und hauptachsentransformation\nkegelschnitte, ellipsen, hyperbeln und parabeln"
    },
    {
     "file_id": "f-la-s",
     "page": 8,
     "text": "Dualraum und Bilinearformen\nDuale Basis, Annulator und Sylvesterscher Trägheitssatz",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "dualraum und bilinearformen\nduale basis, annulator und sylvesterscher trägheitssatz"
    },
    {
     "file_id": "f-la-s",
     "page": 9,
     "text": "Lineare Gleichungssysteme\nGaußsches Eliminationsverfahren, Rang und Lösungsmenge",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "lineare gleichungssysteme\ngaußsches eliminationsverfahren, rang und lösungsmenge"
    },
    {
     "file_id": "f-la-s",
     "page": 10,
     "text": "Eigenwerte numerisch\nPotenzmethode und QR-Verfahren zur Berechnung von Eigenwerten",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "eigenwerte numerisch\npotenzmethode und qr-verfahren zur berechnung von eigenwerten"
    },
    {
     "file_id": "f-la-s",
     "page": 11,
     "text": "Tensorprodukt\nMultilineare Abbildungen, universelle Eigenschaft und Basen",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "tensorprodukt\nmultilineare abbildungen, universelle eigenschaft und basen"
    },
    {
     "file_id": "f-la-s",
     "page": 12,
     "text": "Zusammenfassung\nWichtige Sätze, Definitionen und typische Klausuraufgaben im Überblick",
-    "chdate": 1760947200
+    "chdate": 1760947200,
+    "search": "zusammenfassung\nwichtige sätze, definitionen und typische klausuraufgaben im überblick"
    },
    {
     "file_id": "f-la-u1",
     "page": 1,
     "text": "Übungsblatt 1\nAufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A.\nBestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix.",
-    "chdate": 1761033600
+    "chdate": 1761033600,
+    "search": "übungsblatt 1\naufgabe 1: berechnen sie die eigenwerte und eigenvektoren der matrix a.\nbestimmen sie das charakteristische polynom und diagonalisieren sie die matrix."
    },
    {
     "file_id": "f-la-u1",
     "page": 2,
     "text": "Aufgabe 2: Berechnen Sie die Determinante mit der Laplace-Entwicklung.\nIst die Matrix invertierbar? Cramersche Regel",
-    "chdate": 1761033600
+    "chdate": 1761033600,
+    "search": "aufgabe 2: berechnen sie die determinante mit der laplace-entwicklung.\nist die matrix invertierbar? cramersche regel"
    },
    {
     "file_id": "f-la-u1",
     "page": 3,
     "text": "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren.\nVektoren linear unabhängig triviale Kombination",
-    "chdate": 1761033600
+    "chdate": 1761033600,
+    "search": "aufgabe 3: zeigen sie die lineare unabhängigkeit der vektoren.\nvektoren linear unabhängig triviale kombination"
    },
    {
     "file_id": "f-la-v1",
     "page": 1,
     "text": "Lineare Algebra Test\nVorlesung 1: Eigenwerte und Eigenvektoren\nEinführung in Matrizen und lineare Abbildungen",
-    "chdate": 1760256000
+    "chdate": 1760256000,
+    "search": "lineare algebra test\nvorlesung 1: eigenwerte und eigenvektoren\neinführung in matrizen und lineare abbildungen"
    },
    {
     "file_id": "f-la-v1",
     "page": 2,
     "text": "Eigenwerte einer Matrix\nDas charakteristische Polynom liefert die Eigenwerte.\nEigenvektoren lösen das homogene System.\nDiagonalmatrix mit Eigenwerten auf der Diagonale",
-    "chdate": 1760256000
+    "chdate": 1760256000,
+    "search": "eigenwerte einer matrix\ndas charakteristische polynom liefert die eigenwerte.\neigenvektoren lösen das homogene system.\ndiagonalmatrix mit eigenwerten auf der diagonale"
    },
    {
     "file_id": "f-la-v1",
     "page": 3,
     "text": "Fragen?",
-    "chdate": 1760256000
+    "chdate": 1760256000,
+    "search": "fragen?"
    },
    {
     "file_id": "f-la-v2",
     "page": 1,
     "text": "Determinanten\nLaplace-Entwicklung nach Zeilen und Spalten\nRechenregeln für Determinanten: Multiplikativität",
-    "chdate": 1760860800
+    "chdate": 1760860800,
+    "search": "determinanten\nlaplace-entwicklung nach zeilen und spalten\nrechenregeln für determinanten: multiplikativität"
    },
    {
     "file_id": "f-la-v2",
     "page": 2,
     "text": "Determinante und Invertierbarkeit\nEine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist\nCramersche Regel und Determinante der Inversen",
-    "chdate": 1760860800
+    "chdate": 1760860800,
+    "search": "determinante und invertierbarkeit\neine matrix ist invertierbar genau dann wenn die determinante nicht null ist\ncramersche regel und determinante der inversen"
    },
    {
     "file_id": "f-la-v2d",
     "page": 1,
     "text": "Determinanten\nLaplace-Entwicklung nach Zeilen und Spalten\nRechenregeln für Determinanten: Multiplikativität",
-    "chdate": 1760861100
+    "chdate": 1760861100,
+    "search": "determinanten\nlaplace-entwicklung nach zeilen und spalten\nrechenregeln für determinanten: multiplikativität"
    },
    {
     "file_id": "f-la-v2d",
     "page": 2,
     "text": "Determinante und Invertierbarkeit\nEine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist\nCramersche Regel und Determinante der Inversen",
-    "chdate": 1760861100
+    "chdate": 1760861100,
+    "search": "determinante und invertierbarkeit\neine matrix ist invertierbar genau dann wenn die determinante nicht null ist\ncramersche regel und determinante der inversen"
+   },
+   {
+    "file_id": "f-la-weg",
+    "page": 1,
+    "text": "Spektralzerlegung\nNach Dateien löschen nicht mehr auf dem Gerät",
+    "chdate": 1761000000,
+    "search": "spektralzerlegung\nnach dateien löschen nicht mehr auf dem gerät"
    }
   ]
  }

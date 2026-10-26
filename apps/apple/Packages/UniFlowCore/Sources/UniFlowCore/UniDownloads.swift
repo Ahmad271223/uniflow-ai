@@ -10,13 +10,17 @@ import Foundation
 /// 2. keine leere Antwort statt der Datei, wenn die Quelle eine Groesse meldet oder es schon eine Fassung gibt
 ///    (`empty_download` am PC): eine leere Antwort ersetzt und loescht nie etwas
 /// 3. der Container besteht noch (`DataContainerLayout.verifyPresent`, vor jedem Anlegen und vor dem Ersetzen)
-/// 4. Inhalts-Hash der geladenen Datei (`TestShare.contentHash(file:)`, ausserhalb jeder Transaktion); hat die Datei
-///    Notizen und ist der Inhalt neu, wird die alte Fassung aufbewahrt (S7, `FileVersionKeeper.prepare`, unter
-///    `Fassungen` im Ordner der Quelle). Laesst sie sich nicht sichern, wird nichts ersetzt (`Failure.versionNotKept`)
+/// 4. Inhalts-Hash der geladenen Datei (`TestShare.contentHash(file:)`), Seitentexte der neuen Fassung und, hat die
+///    Datei Notizen und ist der Inhalt neu, die alte Fassung aufbewahren und die Seiten zuordnen (S7,
+///    `FileVersionKeeper.prepare`, unter `Fassungen` im Ordner der Quelle); alles ausserhalb jeder Transaktion. Laesst
+///    sich die alte Fassung nicht sichern, wird nichts ersetzt (`Failure.versionNotKept`)
 /// 5. atomar an ihren Platz (`rename` ersetzt eine aeltere Fassung, nie halb), Dateischutz wie die Datenbank
-/// 6. `UniStore.markDownloaded` in einer kurzen Transaktion, danach Seitentexte fuer die Suche und umgehaengte Notizen
-///    (`FileVersionKeeper.finish`)
-/// Ein Fehler hinterlaesst keine Datei; die alte Fassung bleibt und gilt beim naechsten Abgleich weiter als geaendert.
+/// 6. EINE kurze Transaktion (`FileVersionKeeper.commit`): `UniStore.markDownloaded`, Seitentexte fuer die Suche, die
+///    alte Fassung mit dem Stand der Notizen und die umgehaengten Notizen. Scheitert sie, bleibt die Datenbank beim
+///    alten Stand (`Failure.notRecorded`): der naechste Abgleich laedt die Datei erneut und nimmt die schon aufbewahrte
+///    alte PDF
+/// Ein Fehler vor dem Ersetzen hinterlaesst keine Datei; die alte Fassung bleibt und gilt beim naechsten Abgleich
+/// weiter als geaendert.
 /// Vor dem Lauf raeumt `begin` Reste eines abgebrochenen Laufs weg, danach entfernt `end` den Zwischenordner.
 public struct UniDownloads: Sendable {
     /// Ordner der Quelle im Container (`DataContainerLayout.studip`, `.learnweb`); ohne iCloud-Backup
@@ -62,12 +66,15 @@ public struct UniDownloads: Sendable {
         case notStored(String)
         /// alte Fassung einer Datei mit Notizen liess sich nicht aufbewahren (S7): nichts ersetzt
         case versionNotKept(String)
+        /// Eintrag der neuen Fassung (mit Seitentexten und Notizen) scheiterte: Datenbank beim alten Stand
+        case notRecorded(String)
 
         public var description: String {
             switch self {
             case .empty(let name): return "Leere Antwort statt der Datei: \(name)"
             case .notStored(let name): return "Datei nicht gespeichert: \(name)"
             case .versionNotKept(let name): return "Alte Fassung mit Notizen nicht gesichert: \(name)"
+            case .notRecorded(let name): return "Neue Fassung nicht eingetragen: \(name)"
             }
         }
 
@@ -111,7 +118,11 @@ public struct UniDownloads: Sendable {
         try container?.verifyPresent()
         let keeper = versions(db, clock: clock)
         let prepared: FileVersionKeeper.Prepared
-        do { prepared = try await keeper.prepare(fileID: row.id, newSHA: sha) } catch { throw Failure.versionNotKept(row.name) }
+        do {
+            prepared = try await keeper.prepare(fileID: row.id, newSHA: sha, newFile: part, newPath: stored)
+        } catch {
+            throw Failure.versionNotKept(row.name)
+        }
         try container?.verifyPresent()
         try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         try container?.verifyPresent()
@@ -121,9 +132,11 @@ public struct UniDownloads: Sendable {
         try? fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path)
         #endif
         let now = clock.nowISO
-        try await db.transaction { try UniStore.markDownloaded($0, row, localPath: stored, sha256: sha, now: now) }
-        // Seitentexte fuer Suche und Skriptsuche; mit Notizen: Seiten zuordnen, Notizen umhaengen
-        await keeper.finish(prepared)
+        do {
+            try await keeper.commit(prepared) { try UniStore.markDownloaded($0, row, localPath: stored, sha256: sha, now: now) }
+        } catch {
+            throw Failure.notRecorded(row.name)
+        }
         return stored
     }
 

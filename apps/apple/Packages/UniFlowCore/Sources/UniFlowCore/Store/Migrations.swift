@@ -143,6 +143,10 @@ public enum Migrations {
                 try conn.execute("INSERT INTO terms(name, start, end, active) VALUES ('WiSe 2026/27', '2026-10-12', '2027-01-30', 1)")
             }
             try conn.executeScript(SchemaSQL.pageTexts)
+            // wie ensure_table: Suchform der Seitentexte (kam spaeter dazu; aeltere Zeilen fuellt `ScriptSearch.findPages`)
+            if !(try conn.columnNames("page_texts")).contains("search") {
+                try conn.execute("ALTER TABLE page_texts ADD COLUMN search TEXT")
+            }
 
             var version = try conn.scalar("PRAGMA user_version")?.int64 ?? 0
             for step in deviceSteps.sorted(by: { $0.version < $1.version }) where Int64(step.version) > version {

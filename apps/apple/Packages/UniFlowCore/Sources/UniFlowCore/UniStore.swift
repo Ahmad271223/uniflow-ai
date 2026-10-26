@@ -102,18 +102,32 @@ public enum UniStore {
     /// Zweiter Teil von `store_course_files`, nach erfolgreichem Download: Ablageort (relativ, siehe Quelle),
     /// Ladezeitpunkt, die geladene Fassung (Groesse, Typ, Aenderungszeit, siehe `storeFiles`) und der Inhalts-Hash fuer
     /// gemeinsame Wochentests (`content_sha256`, `TestShare.contentHash(file:)`) in einem Schritt.
-    /// Kopien ("Duplizieren") teilen sich die Datei des Originals; wer seinen Ablageort verloren hat (z. B. nach
+    /// Kopien ("Duplizieren", `sharingCopies`) teilen sich die Datei des Originals und ziehen mit: an den neuen
+    /// Ablageort (auch wenn er sich mit dem Namen aendert, sonst zeigte die Kopie weiter die alte Datei) und mit dem
+    /// Ladezeitpunkt (der Editor erneuert dann seinen Zwischenspeicher); wer seinen Ablageort verloren hat (z. B. nach
     /// "Abmelden und Dateien löschen", `StudIPLibrary.forgetDownloads`), bekommt ihn hier mit zurueck, sonst oeffnete
     /// sich die Kopie samt Notizen nicht mehr. Ihren Inhalts-Hash setzt wie am PC niemand (Kopien haben keinen).
     public static func markDownloaded(_ conn: SQLiteConnection, _ f: FileRow, localPath: String, sha256: String?, now: String) throws {
+        let copies = try sharingCopies(conn, fileID: f.id)                  // vor dem Umhaengen: alter Ablageort
         try conn.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=?, content_sha256=? WHERE id=?",
                          [.text(localPath), .text(now), .integer(Int64(f.size)), SQLiteValue(f.mime), .integer(Int64(f.chdate)),
                           SQLiteValue(sha256), .text(f.id)])
-        try conn.execute("""
-            UPDATE files SET local_path=?, downloaded_at=?
-            WHERE id<>? AND course_id<>'__user__' AND COALESCE(local_path, '')=''
-              AND download_url=(SELECT download_url FROM files WHERE id=?)
-            """, [.text(localPath), .text(now), .text(f.id), .text(f.id)])
+        for id in copies {
+            try conn.execute("UPDATE files SET local_path=?, downloaded_at=? WHERE id=?", [.text(localPath), .text(now), .text(id)])
+        }
+    }
+
+    /// Kopien ("Duplizieren") einer Datei, die sich ihre Datei teilen: derselbe Ablageort wie die Datei, oder keiner
+    /// mehr (nach "Dateien löschen") bei gleicher Download-Adresse; ohne eigene Dokumente. Eine Kopie verweist sonst
+    /// nirgends auf ihr Original (wie am PC).
+    public static func sharingCopies(_ conn: SQLiteConnection, fileID: String) throws -> [String] {
+        try conn.query("""
+            SELECT c.id FROM files c JOIN files f ON f.id=?
+            WHERE c.id<>f.id AND c.course_id<>'__user__'
+              AND ((COALESCE(f.local_path, '')<>'' AND c.local_path=f.local_path)
+                   OR (COALESCE(c.local_path, '')='' AND COALESCE(c.download_url, '')<>'' AND c.download_url=f.download_url))
+            ORDER BY c.id
+            """, [.text(fileID)]).compactMap { $0["id"]?.string }
     }
 
     /// Kam statt der Datei eine Webseite (meist eine abgelaufene Anmeldung)? Wie `stream_download` in
