@@ -1,6 +1,6 @@
 # Aufgabenteilung Apple (Mac-Sitzung) / PC-Sitzung – Stand 26.10.2026
 
-Grundlage: der externe Prüfbericht `docs/PRUEFBERICHT-EXTERN-2026-10-26.md` (Teil A: Ziel iPad + MacBook ohne PC,
+Grundlage: der externe Prüfbericht `docs/PRUEFBERICHT-EXTERN-2026-10-26.md` (Teil 2 vom selben Tag mit Apple-Punkten 221–570 und Windows/Android 571–681: `docs/PRUEFBERICHT-EXTERN-2026-10-26-TEIL2.md`; Abgleich des Plattform-Vorschlags: `docs/PLATTFORM-STAND-2026-10-26.md`) (Teil A: Ziel iPad + MacBook ohne PC,
 Teil B: 120 Prüfpunkte) und die Entscheidungen des Inhabers (Abschnitt 1). Die PC-Sitzung hat die wichtigsten
 Behauptungen des Berichts am Code geprüft (Abschnitt 2); nur geprüfte Punkte sind hier Aufgaben. Nummern `Nr. x`
 verweisen auf Teil B des Berichts.

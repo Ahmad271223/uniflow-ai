@@ -364,3 +364,48 @@ Nur zur Kenntnis, am Swift-Kern ändert sich nichts: Die Web-Oberfläche hat im 
 (Anmelden, Konto anlegen, Passwort vergessen, neues Passwort über `/login?reset=TOKEN`) und ein Konto-Menü mit
 Abmelden; `/` ohne Sitzung leitet dorthin. Die Seite nutzt dieselben öffentlichen Kontopfade wie euer Client (G1),
 das Token bleibt im HttpOnly-Cookie. Python: 235 Tests grün.
+
+## Nachtrag der PC-Sitzung: Apple-Prüfpunkte 221–570 vom externen Prüfer (26.10.2026) – für euch
+
+Der Inhaber hat einen zweiten externen Prüfbericht übergeben; der Wortlaut aller Apple-Punkte steht in
+`docs/PRUEFBERICHT-EXTERN-2026-10-26-TEIL2.md` (Runden 8–13: Nr. 221–570, dazu die Aufträge des Prüfers je Runde).
+Die Windows-/Android-Punkte 571–681 bearbeitet die PC-Sitzung. Der Prüfer sagt selbst: Prüfkandidaten, keine
+bestätigten Bugs; einiges ist durch eure Tests schon widerlegt (381 Pagination, Sync-Engine-Tests für 5.000 Striche,
+Absturz, parallele Uploads). Bitte deshalb: je Punkt erst Test oder Codebeweis, dann Fix, und bereits abgedeckte
+Punkte als erledigt kennzeichnen – keine Vermutungen als Bugs.
+
+Reihenfolge, die wir aus dem Bericht ableiten (P0/P1 zuerst):
+
+1. **Datenintegrität (421–440, 384–386, 392, 418–420):** StudIPScheduleStore – HTTP 200 mit ungültigen/leeren
+   Einträgen darf vorhandene Termine nicht ersetzen (vor dem Löschen validieren, Teilfehler melden); AnnotationMerge –
+   doppelte IDs erkennen statt zusammenfallen lassen, konkurrierende Seitenumordnung nicht still verwerfen; SyncEngine –
+   Fehler zwischen Serverbestätigung und acks.json; APIClient – fehlende Versionsnummern nicht als Version 0 /
+   baseVersion+1 annehmen. **Hinweis zum Vertrag:** Die Merge-Regeln (lokal gewinnt bei beidseitiger Änderung,
+   Objekte ohne ID nach Inhalt, Zeichnung v2 nach strokeSigs) sind plattformübergreifend (`merge.js`, Swift, Kotlin,
+   `fixtures/merge/cases.json`). Wenn ihr dort etwas ändern wollt (433 doppelte IDs, 435 Seitenreihenfolge, 431
+   Serverversion erhalten), bitte zuerst den Fall in die gemeinsamen Fixtures aufnehmen und uns Bescheid geben – die
+   PC-Sitzung zieht Web und Kotlin dann nach. Nicht einseitig in Swift ändern.
+2. **Konto- und Datenisolation (261, 263, 270, 273–274, 252, 297, 327, 511–515):** draftKey mit Benutzer-ID
+   prüfen, bevor 261 als Fehler gilt; AccountStore-Schlüsselbundfehler nicht ignorieren; Kontolöschung erst als
+   Erfolg melden, wenn alle Schritte durch sind (515/477).
+3. **Teil-Erfolg und verschluckte Fehler (251, 265, 275, 278–284, 306–309, 313–315, 561–563):** `try?` bei
+   API-Aufrufen durch sichtbare Fehler ersetzen; 265 (Prüfungsabgabe + Aufgabenstatus) und 306 (Lernpaket
+   abschließen) nicht in widersprüchlichen Zuständen enden lassen.
+4. **Platzhalter-Endpunkte (521–550):** Regel G6 „kein Erfolg ohne Wirkung“ – 528–530, 533–534, 549 dürfen keinen
+   Erfolg melden (404/501 mit Grund, wie im Python-Backend). Für jede Funktionslücke entscheiden: in V1 fertig oder
+   in der Oberfläche als nicht verfügbar gekennzeichnet (Vorgabe des Inhabers: nichts vortäuschen).
+5. **StoreKit (221–230)** ist Sache des Inhabers (Produkte in App Store Connect) plus eure Sandbox-Tests; **Timer
+   (241–249)** mit persistierten Zeitstempeln und lokaler Benachrichtigung; **Hochschul-Login (231–240)** mit
+   Regressionstests für die vorhandenen Schutzmechanismen in UniTransportSession.
+6. Router/Datenbank (551–560): 555 keine SQLite-Fehlertexte nach außen, 559 Dateischutz prüfen.
+
+Am Ende bitte die vom Prüfer gewünschte Apple-Release-Matrix (iPad, TestFlight, App Store, Mac) und eine
+Go/No-Go-Liste in `docs/STAND-MAC-SITZUNG.md` oder einer eigenen Datei. Python: 263 Tests grün, Stand fd29a96.
+
+Ergänzung nach der Prüfung der Windows-/Android-Punkte (`docs/PRUEFPUNKTE-WINDOWS-ANDROID-571-681.md`): Vier
+Merge-Verhalten, die der Prüfer auch bei euch bemängelt (431 beidseitige Änderung, 433 doppelte IDs, 435
+Seitenreihenfolge, 438 v2-Zeichnung), sind in `merge.js`, Swift und Kotlin heute identisch – Abschnitt „Benötigte
+Entscheidungen“ dort beschreibt die Alternativen. Bitte nicht einseitig in Swift ändern; wenn der Inhaber entscheidet,
+erweitern wir zuerst `fixtures/merge/cases.json` und ziehen alle drei nach. Nur für pageOrder weichen die drei
+Plattformen schon heute voneinander ab (Web lokal komplett, Swift Vereinigung, Kotlin lokal bei Änderung) – das
+sollte als Erstes vereinheitlicht werden.
