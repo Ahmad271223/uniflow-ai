@@ -168,6 +168,20 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}\.[A-Za-z0-9]{1,6}$")
 
 
+def _changed(cur, what: str = "Eintrag") -> None:
+    """Regel G6 (docs/AUFGABENTEILUNG-APPLE-PC.md): eine Aenderung oder Loeschung nach ID, die keinen Datensatz
+    getroffen hat, meldet 404 statt Erfolg. Der Nutzer darf nie glauben, etwas sei gespeichert oder geloescht."""
+    if cur.rowcount == 0:
+        raise HTTPException(404, f"{what} nicht gefunden")
+
+
+def _found(row, what: str = "Eintrag"):
+    """Gleiche Regel fuer Antworten nach ID: kein Datensatz -> 404, nie `null` mit 200."""
+    if row is None:
+        raise HTTPException(404, f"{what} nicht gefunden")
+    return row
+
+
 def _safe_id(value: str) -> str:
     """Datei-IDs werden fuer Pfade benutzt: keine Punkte, Schraegstriche oder Backslashes (Pfad-Traversal)."""
     if not _SAFE_ID.match(value or ""):
@@ -292,7 +306,7 @@ def patch_course(course_id: str, body: dict = Body(...)):
         for k, v in body.items():
             if k in allowed:
                 conn.execute(f"UPDATE courses SET {k}=? WHERE id=?", (v, course_id))
-        return db.row(conn, "SELECT * FROM courses WHERE id=?", (course_id,))
+        return _found(db.row(conn, "SELECT * FROM courses WHERE id=?", (course_id,)), "Kurs")
 
 
 @app.get("/api/files")
@@ -347,7 +361,7 @@ def patch_file(file_id: str, body: dict = Body(...)):
             conn.execute("UPDATE files SET status=?, seen_by_user=1 WHERE id=?", (body["status"], file_id))
         if "difficulty" in body:
             conn.execute("UPDATE analysis SET difficulty=? WHERE file_id=?", (int(body["difficulty"]), file_id))
-        return db.row(conn, "SELECT * FROM files WHERE id=?", (file_id,))
+        return _found(db.row(conn, "SELECT * FROM files WHERE id=?", (file_id,)), "Datei")
 
 
 @app.post("/api/files/{file_id}/analyze")
@@ -534,7 +548,7 @@ def review_flashcard(card_id: int, body: dict = Body(...)):
 @app.delete("/api/flashcards/{card_id}")
 def delete_flashcard(card_id: int):
     with db.cursor() as conn:
-        conn.execute("DELETE FROM flashcards WHERE id=?", (card_id,))
+        _changed(conn.execute("DELETE FROM flashcards WHERE id=?", (card_id,)), "Karteikarte")
     return {"ok": True}
 
 
@@ -587,7 +601,7 @@ def patch_item(item_id: int, body: dict = Body(...)):
 @app.delete("/api/plan/items/{item_id}")
 def delete_item(item_id: int):
     with db.cursor() as conn:
-        conn.execute("DELETE FROM plan_items WHERE id=?", (item_id,))
+        _changed(conn.execute("DELETE FROM plan_items WHERE id=?", (item_id,)), "Planeintrag")
     return {"ok": True}
 
 
@@ -668,9 +682,7 @@ def submit_test(test_id: int, body: dict = Body(...)):
 @app.delete("/api/tests/{test_id}")
 def delete_test(test_id: int):
     with db.cursor() as conn:
-        t = db.row(conn, "SELECT auto, module_id, week_no FROM tests WHERE id=?", (test_id,))
-        if not t:
-            return {"ok": True}
+        t = _found(db.row(conn, "SELECT auto, module_id, week_no FROM tests WHERE id=?", (test_id,)), "Test")
         # sonst legt der Sync (create_weekly_tests) denselben Wochentest sofort wieder an
         if t["auto"] and t["module_id"] is not None and t["week_no"] is not None:
             conn.execute("INSERT OR IGNORE INTO dismissed_tests(module_id, week_no, dismissed_at) VALUES (?,?,?)",
@@ -809,7 +821,7 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
         if "name" in body:
             conn.execute("UPDATE courses SET subject=? WHERE module_id=?", (body["name"], module_id))
             conn.execute("UPDATE study_packages SET subject=? WHERE module_id=?", (body["name"], module_id))
-        return db.row(conn, "SELECT * FROM modules WHERE id=?", (module_id,))
+        return _found(db.row(conn, "SELECT * FROM modules WHERE id=?", (module_id,)), "Modul")
 
 
 @app.post("/api/modules")
@@ -829,7 +841,7 @@ def api_module_delete(module_id: int):
     with db.cursor() as conn:
         if db.row(conn, "SELECT 1 FROM courses WHERE module_id=?", (module_id,)):
             raise HTTPException(400, "Modul enthält noch Kurse. Erst Kurse einem anderen Modul zuordnen.")
-        conn.execute("DELETE FROM modules WHERE id=?", (module_id,))
+        _changed(conn.execute("DELETE FROM modules WHERE id=?", (module_id,)), "Modul")
     return {"ok": True}
 
 
@@ -918,9 +930,8 @@ def api_task_patch(task_id: int, body: dict = Body(...)):
         for k, v in body.items():
             if k in allowed:
                 conn.execute(f"UPDATE study_tasks SET {k}=? WHERE id=?", (v, task_id))
-        t = db.row(conn, "SELECT package_id FROM study_tasks WHERE id=?", (task_id,))
-        if t:
-            study._recalc_package(conn, t["package_id"])
+        t = _found(db.row(conn, "SELECT package_id FROM study_tasks WHERE id=?", (task_id,)), "Aufgabe")
+        study._recalc_package(conn, t["package_id"])
         return db.row(conn, "SELECT * FROM study_tasks WHERE id=?", (task_id,))
 
 
@@ -928,9 +939,8 @@ def api_task_patch(task_id: int, body: dict = Body(...)):
 def api_task_delete(task_id: int):
     with db.cursor() as conn:
         t = db.row(conn, "SELECT package_id FROM study_tasks WHERE id=?", (task_id,))
-        conn.execute("DELETE FROM study_tasks WHERE id=?", (task_id,))
-        if t:
-            study._recalc_package(conn, t["package_id"])
+        _changed(conn.execute("DELETE FROM study_tasks WHERE id=?", (task_id,)), "Aufgabe")
+        study._recalc_package(conn, t["package_id"])
     return {"ok": True}
 
 
@@ -979,14 +989,14 @@ def api_package_patch(package_id: int, body: dict = Body(...)):
         for k in ("title", "sort"):
             if k in body:
                 conn.execute(f"UPDATE study_packages SET {k}=? WHERE id=?", (body[k], package_id))
-        return db.row(conn, "SELECT * FROM study_packages WHERE id=?", (package_id,))
+        return _found(db.row(conn, "SELECT * FROM study_packages WHERE id=?", (package_id,)), "Lernpaket")
 
 
 @app.delete("/api/packages/{package_id}")
 def api_package_delete(package_id: int):
     with db.cursor() as conn:
         conn.execute("DELETE FROM study_tasks WHERE package_id=?", (package_id,))
-        conn.execute("DELETE FROM study_packages WHERE id=?", (package_id,))
+        _changed(conn.execute("DELETE FROM study_packages WHERE id=?", (package_id,)), "Lernpaket")
     return {"ok": True}
 
 
@@ -1022,16 +1032,17 @@ def api_history(limit: int = 50):
 def api_file_opened(file_id: str, body: dict = Body(default={})):
     with db.cursor() as conn:
         if "last_page" in body:
-            conn.execute("UPDATE files SET last_page=? WHERE id=?", (int(body["last_page"]), file_id))
+            cur = conn.execute("UPDATE files SET last_page=? WHERE id=?", (int(body["last_page"]), file_id))
         else:
-            conn.execute("UPDATE files SET last_opened=?, opened_count=COALESCE(opened_count,0)+1, seen_by_user=1 WHERE id=?", (db.now_iso(), file_id))
+            cur = conn.execute("UPDATE files SET last_opened=?, opened_count=COALESCE(opened_count,0)+1, seen_by_user=1 WHERE id=?", (db.now_iso(), file_id))
+        _changed(cur, "Datei")
     return {"ok": True}
 
 
 @app.post("/api/files/{file_id}/favorite")
 def api_file_favorite(file_id: str, body: dict = Body(...)):
     with db.cursor() as conn:
-        conn.execute("UPDATE files SET favorite=? WHERE id=?", (1 if body.get("favorite") else 0, file_id))
+        _changed(conn.execute("UPDATE files SET favorite=? WHERE id=?", (1 if body.get("favorite") else 0, file_id)), "Datei")
     return {"ok": True}
 
 
@@ -1445,7 +1456,7 @@ def api_folder_patch(folder_id: int, body: dict = Body(...)):
         for k in ("name", "parent_id", "module_id", "color"):
             if k in body:
                 conn.execute(f"UPDATE folders SET {k}=? WHERE id=?", (body[k], folder_id))
-        return db.row(conn, "SELECT * FROM folders WHERE id=?", (folder_id,))
+        return _found(db.row(conn, "SELECT * FROM folders WHERE id=?", (folder_id,)), "Ordner")
 
 
 @app.delete("/api/folders/{folder_id}")
@@ -1453,7 +1464,7 @@ def api_folder_delete(folder_id: int):
     with db.cursor() as conn:
         conn.execute("UPDATE files SET folder_id=(SELECT parent_id FROM folders WHERE id=?) WHERE folder_id=?", (folder_id, folder_id))
         conn.execute("UPDATE folders SET parent_id=(SELECT parent_id FROM folders WHERE id=?) WHERE parent_id=?", (folder_id, folder_id))
-        conn.execute("DELETE FROM folders WHERE id=?", (folder_id,))
+        _changed(conn.execute("DELETE FROM folders WHERE id=?", (folder_id,)), "Ordner")
     return {"ok": True}
 
 
@@ -1578,7 +1589,7 @@ async def api_recording_add(file_id: str, upload: UploadFile = File(...), page: 
 def api_recording_delete(rec_id: int):
     with db.cursor() as conn:
         r = db.row(conn, "SELECT url FROM recordings WHERE id=?", (rec_id,))
-        conn.execute("DELETE FROM recordings WHERE id=?", (rec_id,))
+        _changed(conn.execute("DELETE FROM recordings WHERE id=?", (rec_id,)), "Aufnahme")
     if r:
         try:
             p = _inside(ASSETS_DIR, ASSETS_DIR / r["url"].replace("/api/assets/", ""))

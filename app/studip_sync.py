@@ -447,13 +447,58 @@ def upsert_course(conn, c: dict, started: str) -> None:
                  (subject, kind, c["id"]))
 
 
+BACKUP_SUFFIX = ".alt"
+
+
+def keep_previous(target: Path) -> Path | None:
+    """Vertrag G5: die alte Fassung bleibt als harter Link <name>.alt erhalten, bis die Datenbank die neue
+    bestaetigt hat. `os.replace(part, target)` ersetzt nur den Verzeichniseintrag; der Link zeigt weiter auf die
+    alten Bytes. Ohne harte Links (fremdes Dateisystem) eine Kopie."""
+    if not target.exists():
+        return None
+    backup = target.with_name(target.name + BACKUP_SUFFIX)
+    backup.unlink(missing_ok=True)
+    try:
+        os.link(target, backup)
+    except OSError:
+        import shutil
+        shutil.copy2(target, backup)
+    return backup
+
+
+def restore_previous(target: Path, backup: Path | None) -> None:
+    if backup and backup.exists():
+        os.replace(backup, target)
+
+
+def reconcile_backup(conn, file_id: str, target: Path) -> None:
+    """Nach einem Absturz zwischen Dateiersatz und Datenbank: liegt noch <name>.alt, entscheidet die Datenbank.
+    Stimmt ihr Hash mit der Datei ueberein, war die neue Fassung bestaetigt (Backup weg); sonst gehoert die
+    Datenbank zur alten Fassung, die zurueckkommt (die neue wird beim naechsten Abgleich erneut geladen)."""
+    backup = target.with_name(target.name + BACKUP_SUFFIX)
+    if not backup.exists():
+        return
+    from .testshare import file_sha256
+    row = db.row(conn, "SELECT content_sha256 FROM files WHERE id=?", (file_id,))
+    if row and row["content_sha256"] and target.exists() and file_sha256(target) == row["content_sha256"]:
+        backup.unlink(missing_ok=True)
+    else:
+        restore_previous(target, backup)
+        log(f"Alte Fassung wiederhergestellt (Abbruch beim letzten Abgleich): {target.name}")
+
+
 def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str, str], download_fn, started: str,
                        new_files: list[str], pause: float = 0.2) -> None:
     """Dateiliste eines Kurses speichern und neue/geaenderte Dateien mit download_fn(url, target, size) holen
     (size = Groesse laut Quelle, fuer `empty_download`).
-    Geaendert = hoeherer chdate als gespeichert (Stud.IP: Aenderungszeit, Learnweb: timemodified bzw. Revision)."""
+    Geaendert = hoeherer chdate als gespeichert (Stud.IP: Aenderungszeit, Learnweb: timemodified bzw. Revision).
+    Reihenfolge je Datei (Vertrag G5, gleich im Swift-Kern): alte Datei behalten -> neue schreiben (.part) -> Hash ->
+    Datenbank bestaetigen (Commit) -> erst dann die alte Datei entfernen. Scheitert etwas dazwischen, kommt die alte
+    Datei zurueck und die Datenbank bleibt bei der alten Fassung."""
     for f in files:
         existing = db.row(conn, "SELECT chdate, local_path FROM files WHERE id=?", (f["id"],))
+        if existing and existing["local_path"]:
+            reconcile_backup(conn, f["id"], Path(existing["local_path"]))
         changed = existing is None or (existing["chdate"] or 0) < f["chdate"] or not existing["local_path"]             or not Path(existing["local_path"]).exists()
         if existing is None:
             conn.execute(
@@ -481,15 +526,30 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 # Name-Kollision (gleicher Dateiname in zwei Ordnern): Dateiid anhaengen
                 suffix = safe_name(f["id"])[-8:] if str(f["id"]).startswith("lw-") else f["id"][:6]
                 target = target.with_name(f"{target.stem}_{suffix}{target.suffix}")
+            backup = None
             try:
+                backup = keep_previous(target)
                 download_fn(f["download_url"], target, f["size"] or 0)
                 from .testshare import file_sha256
+                sha = file_sha256(target)
+                if not sha:
+                    raise RuntimeError("Datei nach dem Download nicht lesbar")
+                conn.execute("SAVEPOINT dl")
                 conn.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=?, content_sha256=? "
                              "WHERE id=?",
-                             (str(target), db.now_iso(), f["size"], f["mime"], f["chdate"], file_sha256(target), f["id"]))
+                             (str(target), db.now_iso(), f["size"], f["mime"], f["chdate"], sha, f["id"]))
+                conn.execute("RELEASE dl")
+                conn.commit()                      # erst jetzt ist die neue Fassung gueltig
+                if backup:
+                    backup.unlink(missing_ok=True)
                 new_files.append(f["id"])
                 log(f"Neu: {c['title'][:40]} / {f['name']}")
             except Exception as e:  # noqa: BLE001
+                try:
+                    conn.execute("ROLLBACK TO dl"); conn.execute("RELEASE dl")
+                except Exception:  # noqa: BLE001 - kein offener Sicherungspunkt (Fehler vor dem UPDATE)
+                    pass
+                restore_previous(target, backup)
                 log(f"Download-Fehler {f['name']}: {e}")
             if pause:
                 time.sleep(pause)
