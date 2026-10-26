@@ -24,6 +24,10 @@ struct UniFlowApp: App {
         AppTemp.purgeAtLaunch()
         SolutionSharing.purgeStaleInbox()
         DataSourceMigration.run()                                         // alte Journale in den Server-Namensraum, am alten Ort vor dem Umzug
+        // Tarif von Anfang an beobachten (Transaction.updates: Verlaengerung, Widerruf, freigegebene Kaufanfrage, Kauf
+        // auf einem anderen Geraet) und unfertige Transaktionen abschliessen – nicht erst, wenn eine Ansicht mit
+        // Tarifpruefung erscheint (Pruefpunkt 223)
+        _ = Entitlements.shared
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
         let c = ContainerManager()
