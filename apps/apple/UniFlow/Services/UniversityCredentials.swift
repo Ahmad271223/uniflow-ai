@@ -7,8 +7,9 @@ import UniFlowCore
 // Benutzername und Passwort legt die App beim Tippen auf "Anmelden" im Schluesselbund ab und fuellt sie beim
 // naechsten Mal vor. Angemeldet wird nie automatisch.
 //
-// Schluesselbund: eigener Dienst "de.uniflow.ai.university", Eintrag je Nutzer, Hochschule und Dienst mit Praefix
-// ("<nutzer>.luh.studip.user", "<nutzer>.hildesheim.cas.password"), kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht
+// Schluesselbund: eigener Dienst `DataContainerKey.keychainService` ("de.uniflow.ai.university"), Eintrag je Nutzer,
+// Hochschule und Dienst mit Praefix ("<nutzer>.luh.studip.user", "<nutzer>.hildesheim.cas.password"); die Namen bildet
+// nur der Kern (`UniversityProfile.keychainAccount`, `DataContainerKey.keychainAccount`). kSecAttrAccessibleWhenUnlockedThisDeviceOnly, nicht
 // synchronisiert (nicht in iCloud, nicht auf andere Geraete). Kein Rueckfall auf die andere Hochschule; innerhalb
 // der LUH fuellt QIS ohne eigene Daten die LUH-ID aus Stud.IP vor (wie am PC, `prefillCredential`).
 // Nach einer Neuinstallation (Merker in den UserDefaults fehlt) wird der ganze Dienst geleert, bevor etwas gelesen wird.
@@ -52,7 +53,7 @@ extension UniversitySecretStoring {
 
 /// Generic-Password-Eintraege unter einem eigenen Dienst, nur dieses Geraet, nur entsperrt lesbar, nicht synchronisiert.
 struct UniversityKeychain: UniversitySecretStoring {
-    static let defaultService = "de.uniflow.ai.university"
+    static let defaultService = DataContainerKey.keychainService
     let service: String
 
     init(service: String = UniversityKeychain.defaultService) { self.service = service }
@@ -139,7 +140,7 @@ final class UniversityCredentialStore {
     /// gehoert die Hochschule zu diesem Speicher?
     private func allows(_ uni: UniversityKey) -> Bool { onlyUniversity == nil || onlyUniversity == uni }
 
-    /// Eintrag im Schluesselbund: mit Nutzer-Praefix, sonst wie im Profil
+    /// Eintrag aus der alten Ablage ohne Nutzer ("luh.studip.user") unter dem Praefix dieses Nutzers (nur fuer den Umzug)
     private func scoped(_ account: String) -> String { userScope.map { "\($0).\(account)" } ?? account }
 
     /// Teil nach dem Nutzer-Praefix; nil, wenn der Eintrag nicht zu diesem Nutzer gehoert
@@ -168,10 +169,11 @@ final class UniversityCredentialStore {
 
     private func accounts(_ uni: UniversityKey, _ service: String) -> (user: String, password: String)? {
         guard allows(uni) else { return nil }
+        // Namen wie im Kern (eine Funktion fuer App, Container und Learnweb-Schluessel)
         let p = uni.profile
-        guard let u = p.keychainAccount(service: service, field: "user"),
-              let pw = p.keychainAccount(service: service, field: "password") else { return nil }
-        return (scoped(u), scoped(pw))
+        guard let u = p.keychainAccount(service: service, field: "user", userScope: userScope),
+              let pw = p.keychainAccount(service: service, field: "password", userScope: userScope) else { return nil }
+        return (u, pw)
     }
 
     /// Nichts lesen, solange Reste einer frueheren Installation nicht entfernt werden konnten.

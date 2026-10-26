@@ -11,7 +11,8 @@ public enum Learnweb {
     }
 
     /// Eine Datei im Format, das der Sync speichert. `chdate`: Aenderungszeit (REST) oder Revision (Sitzung).
-    /// `author` nur mit Schluessel (REST), wie `files_from_contents`.
+    /// `author` nur mit Schluessel (REST), wie `files_from_contents`; `moduleName` wie `module_name` (Name der
+    /// Ressource bzw. des Ordners im Kurs). `downloadURL` nie mit Schluessel (der kommt erst beim Abruf dazu).
     public struct File: Sendable, Equatable {
         public let id: String
         public let name: String
@@ -21,6 +22,7 @@ public enum Learnweb {
         public let chdate: Int
         public let downloadURL: String
         public let folder: String
+        public var moduleName: String? = nil
 
         /// Zeile fuer `UniStore.storeFiles`; Ordner nur, wenn vorhanden (wie `folders` in hildesheim.sync_learnweb)
         public var row: UniStore.FileRow {
@@ -78,25 +80,35 @@ public enum Learnweb {
 
     public static func stripForceDownload(_ url: String) -> String { HText.replace(forceDownloadRE, in: url, with: "") }
 
-    public static func withToken(_ url: String, token: String) -> String {
-        url + (url.contains("?") ? "&" : "?") + "token=" + HText.quoteAll(token)
-    }
+    // Den Schluessel haengt der Abruf nicht an die Adresse (`with_token` am PC), sondern schickt ihn im Koerper
+    // (`LearnwebAPI.downloadRequest`): Schluessel nie in Adressen.
 
+    /// `mimetypes.guess_type` fuer die ueblichen Dateien in Lernplattformen; sonst nil
     public static func guessMime(_ name: String) -> String? {
-        let ext = (name as NSString).pathExtension.lowercased()
-        return ["pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif",
-                "zip": "application/zip", "txt": "text/plain", "csv": "text/csv", "py": "text/x-python",
-                "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"][ext]
+        guard let dot = name.lastIndex(of: "."), dot != name.startIndex else { return nil }
+        return mimeTypes[name[name.index(after: dot)...].lowercased()]
     }
 
-    /// Pluginfile-Link -> Bereich, Revision (steigt beim Ersetzen), Pfad und Dateiname (dekodiert, NFC).
+    static let mimeTypes: [String: String] = [
+        "pdf": "application/pdf", "txt": "text/plain", "csv": "text/csv", "html": "text/html", "htm": "text/html",
+        "json": "application/json", "xml": "text/xml", "zip": "application/zip", "py": "text/x-python",
+        "doc": "application/msword", "dot": "application/msword",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "ppt": "application/vnd.ms-powerpoint",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "xls": "application/vnd.ms-excel",
+        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "svg": "image/svg+xml",
+        "mp3": "audio/mpeg", "mp4": "video/mp4",
+    ]
+
+    /// Pluginfile-Link -> Bereich, Revision (steigt beim Ersetzen), Pfad und Dateiname (dekodiert wie
+    /// `urllib.parse.unquote`, NFC). Pfad wie `urlparse(url).path`, auch bei Adressen, die `URLComponents` ablehnt.
     public static func parsePluginfile(_ url: String) -> Pluginfile? {
-        let path = URLComponents(string: url)?.percentEncodedPath ?? url
+        let path = HText.urlPath(url)
         guard let m = HText.match(pluginRE, path), let area = m.groups[1], let revText = m.groups[2], let rev = Int(revText),
               let rest = m.groups[3] else { return nil }
-        let parts = rest.split(separator: "/").map { HText.nfc(String($0).removingPercentEncoding ?? String($0)) }
+        let parts = rest.split(separator: "/").map { HText.nfc(HText.unquote(String($0))) }
         guard let filename = parts.last else { return nil }
         let filepath = "/" + parts.dropLast().joined(separator: "/") + (parts.count > 1 ? "/" : "")
         return Pluginfile(area: area, revision: rev, filepath: filepath, filename: filename)
@@ -120,7 +132,7 @@ public enum Learnweb {
                     out.append(File(id: fileID(cmid: cmid, filepath: fp, filename: name), name: name,
                                     size: c["filesize"]?.int ?? 0, mime: (c["mimetype"]?.string).flatMap { $0.isEmpty ? nil : $0 } ?? guessMime(name),
                                     author: c["author"]?.string, chdate: c["timemodified"]?.int ?? 0, downloadURL: stripForceDownload(fileurl),
-                                    folder: HText.nfc(joinFolder(base, fp))))
+                                    folder: HText.nfc(joinFolder(base, fp)), moduleName: mod["name"]?.string))
                 }
             }
         }
@@ -144,7 +156,7 @@ public enum Learnweb {
                 guard let p = parsePluginfile(url) else { continue }
                 out.append(File(id: fileID(cmid: cmid, filepath: p.filepath, filename: p.filename), name: p.filename, size: 0,
                                 mime: guessMime(p.filename), chdate: p.revision, downloadURL: stripForceDownload(url),
-                                folder: joinFolder(base, p.filepath)))
+                                folder: joinFolder(base, p.filepath), moduleName: cm["name"]?.string))
             }
         }
         return out

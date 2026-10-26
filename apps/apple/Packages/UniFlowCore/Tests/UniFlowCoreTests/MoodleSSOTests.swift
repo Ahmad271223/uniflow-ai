@@ -2,9 +2,9 @@ import Foundation
 import XCTest
 @testable import UniFlowCore
 
-/// Moodle-SSO-Start (launch.php) und Zerlegen der Token-Antwort, ohne Netzwerk. Werte erfunden.
+/// Moodle-SSO-Start (launch.php), oeffentliche Konfiguration und Zerlegen der Token-Antwort, ohne Netzwerk. Werte
+/// erfunden. Die Python-Faelle (`moodle-launch` in expected.json) prueft HildesheimSyncTests.testMD5AndMoodleLaunch.
 final class MoodleSSOTests: XCTestCase {
-    private let base = URL(string: "https://www.uni-hildesheim.de/learnweb2026")!
     private let wwwroot = "https://www.uni-hildesheim.de/learnweb2026"
 
     private func config(_ extra: String = "") throws -> MoodlePublicConfig {
@@ -17,12 +17,12 @@ final class MoodleSSOTests: XCTestCase {
 
     /// Antwort wie admin/tool/mobile/launch.php: base64(md5(wwwroot + passport) ":::" token [":::" privatetoken])
     private func redirect(scheme: String = "moodlemobile", site: String, passport: String, token: String, privateToken: String? = nil,
-                          stripPadding: Bool = false) -> URL {
-        var plain = InsecureHash.md5Hex(site + passport) + ":::" + token
+                          stripPadding: Bool = false) -> String {
+        var plain = MD5.hex(site + passport) + ":::" + token
         if let privateToken { plain += ":::" + privateToken }
         var b64 = Data(plain.utf8).base64EncodedString()
         if stripPadding { b64 = b64.replacingOccurrences(of: "=", with: "") }
-        return URL(string: "\(scheme)://token=\(b64)")!
+        return "\(scheme)://token=\(b64)"
     }
 
     func testPublicConfigAndLaunchURL() throws {
@@ -30,27 +30,36 @@ final class MoodleSSOTests: XCTestCase {
         XCTAssertTrue(c.ssoAvailable)
         XCTAssertEqual(c.typeOfLogin, 1)
         XCTAssertEqual(c.identityProviders, ["CAS"])
+        XCTAssertEqual(c.siteName, "Learnweb")
         XCTAssertEqual(c.urlScheme, "moodlemobile", "Standard ohne forcedurlscheme")
         let passport = MoodleSSO.newPassport()
-        XCTAssertEqual(passport.count, 32)
+        XCTAssertEqual(passport.count, 24)
+        XCTAssertTrue(LearnwebToken.isAlnum(passport, 24...24))
         XCTAssertNotEqual(passport, MoodleSSO.newPassport())
-        let url = try MoodleSSO.launchURL(config: c, base: base, passport: passport)
-        XCTAssertEqual(url.absoluteString,
-                       "\(wwwroot)/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=\(passport)&urlscheme=moodlemobile")
+        let url = try MoodleSSO.launchURL(config: c, base: wwwroot, passport: passport)
+        XCTAssertEqual(url, "\(wwwroot)/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=\(passport)&urlscheme=moodlemobile")
+        XCTAssertEqual(url, MoodleSSO.launchURL(base: wwwroot + "/", passport: passport), "eine Fassung der Start-Adresse")
 
         let forced = try config(#", "forcedurlscheme": "UniSchema""#)
         XCTAssertEqual(forced.urlScheme, "unischema", "Uni gibt das Schema vor")
-        XCTAssertTrue(try MoodleSSO.launchURL(config: forced, base: base, passport: passport).absoluteString.hasSuffix("urlscheme=unischema"))
+        XCTAssertTrue(try MoodleSSO.launchURL(config: forced, base: wwwroot, passport: passport).hasSuffix("urlscheme=unischema"))
         XCTAssertEqual(try config(#", "forcedurlscheme": "https""#).urlScheme, "moodlemobile", "http(s) ist nie ein Token-Schema")
+        XCTAssertEqual(try config(#", "forcedurlscheme": "javascript""#).urlScheme, "moodlemobile")
 
-        // ohne launchurl, Webservice aus oder fremder Rechner: kein SSO
+        // ohne launchurl, Webservice aus, fremder Rechner, http oder ungueltiger passport: kein SSO
         let off = try config(#", "enablemobilewebservice": 0"#)
         XCTAssertFalse(off.ssoAvailable)
-        XCTAssertThrowsError(try MoodleSSO.launchURL(config: off, base: base, passport: passport))
+        XCTAssertThrowsError(try MoodleSSO.launchURL(config: off, base: wwwroot, passport: passport))
         let none = MoodlePublicConfig.parse(try JSONValue.parse(#"{"wwwroot": "x"}"#))
         XCTAssertFalse(none.ssoAvailable)
-        let foreign = MoodlePublicConfig.parse(try JSONValue.parse(#"{"launchurl": "https://evil.example/admin/tool/mobile/launch.php"}"#))
-        XCTAssertThrowsError(try MoodleSSO.launchURL(config: foreign, base: base, passport: passport))
+        for bad in ["https://evil.example/admin/tool/mobile/launch.php", "http://www.uni-hildesheim.de/learnweb2026/admin/tool/mobile/launch.php"] {
+            let foreign = MoodlePublicConfig.parse(try JSONValue.parse(#"{"launchurl": "\#(bad)"}"#))
+            XCTAssertThrowsError(try MoodleSSO.launchURL(config: foreign, base: wwwroot, passport: passport), bad) {
+                guard case .ssoUnavailable? = $0 as? HildesheimError else { return XCTFail("\($0)") }
+            }
+        }
+        XCTAssertThrowsError(try MoodleSSO.launchURL(config: c, base: wwwroot, passport: "kurz"))
+        XCTAssertThrowsError(try MoodleSSO.launchURL(config: c, base: wwwroot, passport: "mit&zeichen0123"))
     }
 
     func testTokenRedirectIsCheckedWithPassport() throws {
@@ -59,52 +68,60 @@ final class MoodleSSOTests: XCTestCase {
         let ok = redirect(site: wwwroot, passport: passport, token: tok, privateToken: "PRIV0123456789")
         XCTAssertTrue(MoodleSSO.isTokenRedirect(ok, scheme: "moodlemobile"))
         XCTAssertFalse(MoodleSSO.isTokenRedirect(ok, scheme: "anderes"))
-        XCTAssertFalse(MoodleSSO.isTokenRedirect(URL(string: "https://www.uni-hildesheim.de/learnweb2026/my/"), scheme: "moodlemobile"))
-        let t = try MoodleSSO.token(fromRedirect: ok, scheme: "moodlemobile", passport: passport, siteURLs: [wwwroot])
+        XCTAssertFalse(MoodleSSO.isTokenRedirect("https://www.uni-hildesheim.de/learnweb2026/my/", scheme: "moodlemobile"))
+        XCTAssertFalse(MoodleSSO.isTokenRedirect(nil, scheme: "moodlemobile"))
+        let t = try XCTUnwrap(MoodleSSO.parseLaunchToken(ok, base: wwwroot, passport: passport, scheme: "moodlemobile"))
         XCTAssertEqual(t.keychainValue, tok)
         XCTAssertEqual(t.privateToken, "PRIV0123456789")
         XCTAssertFalse(String(describing: t).contains(tok))
 
-        // Moodle-App-Regeln: "/" am Ende und http statt https zaehlen; fehlende Auffuellung ist ok
+        // Moodle-App-Regeln: "/" am Ende und http statt https zaehlen; fehlende Auffuellung und %-kodierte Zeichen sind ok
         let slash = redirect(site: wwwroot + "/", passport: passport, token: tok, stripPadding: true)
-        XCTAssertEqual(try MoodleSSO.token(fromRedirect: slash, scheme: "moodlemobile", passport: passport, siteURLs: [wwwroot]).keychainValue, tok)
+        XCTAssertEqual(MoodleSSO.parseLaunchToken(slash, base: wwwroot, passport: passport)?.keychainValue, tok)
         let http = redirect(site: "http://www.uni-hildesheim.de/learnweb2026", passport: passport, token: tok)
-        XCTAssertNoThrow(try MoodleSSO.token(fromRedirect: http, scheme: "moodlemobile", passport: passport, siteURLs: [wwwroot]))
+        XCTAssertNotNil(MoodleSSO.parseLaunchToken(http, base: wwwroot, passport: passport))
+        let encoded = ok.replacingOccurrences(of: "=", with: "%3D").replacingOccurrences(of: "token%3D", with: "token=")
+        XCTAssertEqual(MoodleSSO.parseLaunchToken(encoded, base: wwwroot, passport: passport)?.keychainValue, tok)
+        // wwwroot aus der Konfiguration, wenn die eigene Adresse anders geschrieben ist
+        let other = redirect(site: "https://lw.example.org/moodle", passport: passport, token: tok)
+        XCTAssertNil(MoodleSSO.parseLaunchToken(other, base: wwwroot, passport: passport))
+        XCTAssertNotNil(MoodleSSO.parseLaunchToken(other, base: wwwroot, passport: passport, siteURLs: ["https://lw.example.org/moodle/"]))
 
         // anderer passport (Antwort gehoert zu einem anderen Start), andere Seite, falsches Schema: verworfen
-        let other = redirect(site: wwwroot, passport: "ffffffffffffffffffffffffffffffff", token: tok)
-        XCTAssertThrowsError(try MoodleSSO.token(fromRedirect: other, scheme: "moodlemobile", passport: passport, siteURLs: [wwwroot])) {
-            guard case .ssoRejected? = $0 as? LearnwebError else { return XCTFail("\($0)") }
-            XCTAssertFalse(String(describing: $0).contains(tok), "Token nie in Fehlermeldungen")
-        }
-        let evil = redirect(site: "https://evil.example/moodle", passport: passport, token: tok)
-        XCTAssertThrowsError(try MoodleSSO.token(fromRedirect: evil, scheme: "moodlemobile", passport: passport, siteURLs: [wwwroot]))
-        XCTAssertThrowsError(try MoodleSSO.token(fromRedirect: ok, scheme: "unischema", passport: passport, siteURLs: [wwwroot]))
-        XCTAssertThrowsError(try MoodleSSO.token(fromRedirect: URL(string: "moodlemobile://token=bm9wZQ")!, scheme: "moodlemobile",
-                                                 passport: passport, siteURLs: [wwwroot]))
-        let bad = redirect(site: wwwroot, passport: passport, token: "nicht alnum!")
-        XCTAssertThrowsError(try MoodleSSO.token(fromRedirect: bad, scheme: "moodlemobile", passport: passport, siteURLs: [wwwroot]))
+        XCTAssertNil(MoodleSSO.parseLaunchToken(redirect(site: wwwroot, passport: "ffffffffffffffffffffffffffffffff", token: tok),
+                                                base: wwwroot, passport: passport))
+        XCTAssertNil(MoodleSSO.parseLaunchToken(redirect(site: "https://evil.example/moodle", passport: passport, token: tok),
+                                                base: wwwroot, passport: passport))
+        XCTAssertNil(MoodleSSO.parseLaunchToken(ok, base: wwwroot, passport: passport, scheme: "unischema"))
+        XCTAssertNil(MoodleSSO.parseLaunchToken("moodlemobile://token=bm9wZQ", base: wwwroot, passport: passport))
+        XCTAssertNil(MoodleSSO.parseLaunchToken(redirect(site: wwwroot, passport: passport, token: "nicht alnum!"), base: wwwroot, passport: passport),
+                     "nur alphanumerische Schluessel")
     }
 
     func testFetchPublicConfigOverTransport() async throws {
-        let body = #"[{"error": false, "data": {"wwwroot": "https://www.uni-hildesheim.de/learnweb2026", "launchurl": "https://www.uni-hildesheim.de/learnweb2026/admin/tool/mobile/launch.php", "enablemobilewebservice": true, "typeoflogin": 1}}]"#
+        let body = #"[{"error": false, "data": {"wwwroot": "https://www.uni-hildesheim.de/learnweb2026", "sitename": "Learnweb SoSe 2026", "launchurl": "https://www.uni-hildesheim.de/learnweb2026/admin/tool/mobile/launch.php", "enablemobilewebservice": true, "typeoflogin": 1}}]"#
         var n = 0
-        let net = FakeLearnweb { _ in
+        let net = FakeUniTransport { _ in
             n += 1
             if n == 1 { throw URLError(.networkConnectionLost) }
-            return .json(body)
+            return UniResponse(status: 200, body: Data(body.utf8))
         }
-        let c = try await MoodleSSO.fetchPublicConfig(base: base, transport: net, retry: LearnwebRetry(attempts: 3, baseDelayMillis: 1, sleep: { _ in }))
+        let c = try await MoodleSSO.publicConfig(base: wwwroot + "/", transport: net, retry: UniRetry(attempts: 3, delayNanos: { _ in 0 }))
         XCTAssertTrue(c.ssoAvailable)
         let r = net.requests[0]
-        XCTAssertEqual(r.method, .post)
+        XCTAssertEqual(r.method, "POST")
         XCTAssertEqual(r.url.absoluteString, "\(wwwroot)/lib/ajax/service-nologin.php?info=tool_mobile_get_public_config")
         XCTAssertEqual(try JSONValue.parse(r.body ?? Data()).array?.first?["methodname"], "tool_mobile_get_public_config")
         XCTAssertEqual(net.requests.count, 2, "einmal wiederholt")
+        // dieselbe Abfrage liefert den Namen fuer die Suche nach der Instanz des Semesters
+        let name = await Learnweb.publicSitename(base: wwwroot, transport: FakeUniTransport { _ in UniResponse(status: 200, body: Data(body.utf8)) })
+        XCTAssertEqual(name, "Learnweb SoSe 2026")
 
-        let failing = FakeLearnweb { _ in .json(#"[{"error": true, "exception": {"errorcode": "servicenotavailable"}}]"#) }
-        do { _ = try await MoodleSSO.fetchPublicConfig(base: base, transport: failing); XCTFail() } catch {
-            XCTAssertEqual(error as? LearnwebError, .ssoUnavailable("servicenotavailable"))
+        let failing = FakeUniTransport { _ in UniResponse(status: 200, body: Data(#"[{"error": true, "exception": {"errorcode": "servicenotavailable"}}]"#.utf8)) }
+        do { _ = try await MoodleSSO.publicConfig(base: wwwroot, transport: failing); XCTFail() } catch {
+            XCTAssertEqual(error as? HildesheimError, .ssoUnavailable("servicenotavailable"))
         }
+        let missing = await Learnweb.publicSitename(base: wwwroot, transport: failing)
+        XCTAssertNil(missing, "Fehler oder 404: keine Instanz")
     }
 }

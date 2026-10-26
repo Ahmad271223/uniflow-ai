@@ -61,8 +61,8 @@ public enum LocalSettings {
         return p
     }
 
-    /// Hochschulen wie `universities.valid` in app/universities.py
-    static let knownUniversities: Set<String> = ["luh", "hildesheim"]
+    /// Hochschulen wie `universities.valid` in app/universities.py (eine Quelle: `UniversityKey`)
+    static let knownUniversities: Set<String> = Set(UniversityKey.allCases.map(\.rawValue))
 
     /// `set_setting(conn, key, value)`: Listen und Objekte als `json.dumps`, Wahrheitswerte als "1"/"0", sonst `str(value)`.
     public static func write(_ c: SQLiteConnection, key: String, value: PyJSON) throws {
@@ -185,8 +185,9 @@ public enum SettingsEndpoints: LocalEndpointModule {
                 }
                 members.removeAll { $0.key == "university" }
             }
+            let writes = members
             let s = try await ctx.database.transaction { c -> [String: JSONValue] in
-                for m in members { try LocalSettings.write(c, key: m.key, value: m.value) }
+                for m in writes { try LocalSettings.write(c, key: m.key, value: m.value) }
                 return try LocalSettings.read(c)
             }
             return .json(.object(LocalSettings.publicSettings(s)))

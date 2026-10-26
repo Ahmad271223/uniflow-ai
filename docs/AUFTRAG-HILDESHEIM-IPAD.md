@@ -36,10 +36,10 @@ Fertig in `apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Hildesheim/`, unt
 
 | Datei | Inhalt |
 | --- | --- |
-| `Learnweb.swift` | Kurstitel, Abschnitt → „Woche N“, Datei-ID (SHA-256), REST-Dateiliste, Sitzungs-Dateiliste, Pluginfile-Links, Ordnerseiten, Token anhängen, **Instanz des Semesters** (`discoverBase`, jährlicher Wechsel learnweb2026 → 2027) |
-| `HildesheimCAS.swift` | CAS-Login-Adressen für LSF und Learnweb, Erkennung der Loginseite |
+| `Learnweb.swift` | Kurstitel, Abschnitt → „Woche N“, Datei-ID (SHA-256), REST-Dateiliste, Sitzungs-Dateiliste, Pluginfile-Links, Ordnerseiten, **Instanz des Semesters** (`discoverBase`, jährlicher Wechsel learnweb2026 → 2027) |
+| `HildesheimCAS.swift` | CAS-Login-Adressen für LSF und Learnweb, Erkennung der Loginseite; seit `wip/v1-pc-uni` auch Formular, Fehlertext, Rücksprung (früher `CASLogin`) |
 | `LSFCalendar.swift` | ICS-Parser mit BYDAY und EXDATE, LSF-Titel „0449 - Titel (Lehrperson)“, iCal-Link aus der Stundenplan-Seite |
-| `GradeRows.swift` | Notenspiegel-Zeilen im Hildesheimer Aufbau (Kopfzeile irgendwo, mehrere Abschlüsse, Modulzeilen weg) |
+| `GradeRows.swift` | Notenspiegel-Zeilen im Hildesheimer Aufbau (Kopfzeile irgendwo, mehrere Abschlüsse, Modulzeilen weg), Ergebnis `QISGrade`; `QISGradeLayout` und `QISPage.grades(layout:)` |
 | `TestShare.swift` | Schlüssel der gemeinsamen Wochentests, Inhalts-Hash |
 | `Store/Migrations.swift` | `tests.share_key`, `files.content_sha256`, Index wie `app/db.py` |
 
@@ -49,7 +49,8 @@ Fertig in `apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Hildesheim/`, unt
 | --- | --- |
 | `UniTransport.swift` | Schnittstelle `UniTransport` (send, download in Datei, Weiterleitung abschaltbar), `UniRetry` (3 Versuche bei Netz/5xx/429), `HildesheimError` |
 | `LearnwebAPI.swift` | Learnweb mit Schlüssel (REST) oder Sitzung (sesskey + AJAX, Dateilinks über Location-Header); `Learnweb.discoverBase(…, transport:)` fragt die Instanz übers Netz |
-| `HildesheimRules.swift` | `MoodleSSO` (launch.php, Token prüfen mit MD5), `UniRules` (classify, fileKind, eventKind wie Python), `UniversityStorage` (Ordner, Schlüsselbund-Dienst, WebsiteDataStore-UUID je Nutzer und Uni) |
+| `HildesheimRules.swift` | `UniRules` (classify, fileKind, eventKind wie Python) |
+| `MoodleSSO.swift` | `MoodleSSO` (launch.php, Token prüfen mit MD5) und `MoodlePublicConfig`; seit `wip/v1-pc-uni` in einer Datei (früher in `HildesheimRules.swift` und `Universities/MoodleSSO.swift`) |
 | `HildesheimSync.swift` | `UniStore` (LSF-Plan, Noten in die SQLite-DB, wie Python; Kurs und Datei seit `wip/v1-pc` in `UniStore.swift`) und `HildesheimSync.run()`: kein Netz in einer Transaktion, je Kurs eine Transaktion, `.part` + `rename`, nie löschen bei Fehlern, Bericht mit `needsLogin` |
 | `MD5.swift` | nur für die Moodle-Signatur |
 
@@ -60,21 +61,23 @@ Stud.IP (S3) und Learnweb schreiben beide darüber.
 **Für die Mac-Sitzung bleibt nur die dünne Schicht:**
 
 1. `URLSessionUniTransport: UniTransport` in der App: eigene URLSession je (Nutzer, Uni) mit den Cookies aus
-   `WKWebsiteDataStore(forIdentifier: UniversityStorage.websiteDataStoreID(...))`; `followRedirects == false` über
+   `WKWebsiteDataStore(forIdentifier: DataContainerKey.websiteDataStoreID)` (der Container, `ContainerManager`); `followRedirects == false` über
    `urlSession(_:task:willPerformHTTPRedirection:...)` → `completionHandler(nil)`; `download` mit
    `URLSession.download(for:)` und Verschieben an `destination`; Kopfzeilen in `UniResponse` übernehmen.
 2. Anmeldung (WKWebView mit diesem Datenspeicher):
    - LSF: `HildesheimCAS.lsfLoginURL` laden; fertig, wenn die Seite auf `lsf.uni-hildesheim.de` „Abmelden“ zeigt.
-   - Learnweb bevorzugt mit Schlüssel: `MoodleSSO.newPassport()`, `MoodleSSO.launchURL(base:passport:)` laden,
-     Weiterleitung auf `moodlemobile://…` in `decidePolicyFor` abfangen (`.cancel`), `MoodleSSO.parseLaunchToken`
-     → Schlüssel in den Schlüsselbund unter `UniversityStorage.keychainService(university: "hildesheim", purpose: "learnweb-token")`.
+   - Learnweb bevorzugt mit Schlüssel: `MoodleSSO.publicConfig`, `MoodleSSO.newPassport()`, `MoodleSSO.launchURL(config:base:passport:)` laden,
+     Weiterleitung auf `moodlemobile://…` in `decidePolicyFor` abfangen (`.cancel`), `MoodleSSO.parseLaunchToken(…, scheme:, siteURLs:)`
+     → `LearnwebToken` in den Schlüsselbund (`DataContainerKey.keychainService`) unter
+     `DataContainerKey.keychainAccount(service: "learnweb", field: "token")` (`<nutzer>.hildesheim.learnweb.token`).
      Erlaubt die Uni das Schema nicht, Sitzungs-Weg nutzen: `HildesheimCAS.learnwebLoginURL(base:)`.
-3. Ablauf: Datenbank im Ordner `UniversityStorage.containerPath(appleUserID:university:)` öffnen,
-   `migrate(university: "hildesheim")`; `Learnweb.discoverBase(year:month:transport:)`;
-   `HildesheimSync(db:root:learnweb:lsf:transport:hasher:)` mit CryptoKit-SHA-256 als `hasher` (schneller), beim Öffnen
+3. Ablauf: Datenbank des Containers (`ActiveContainer.host`, `DataContainerLayout` mit `settings.university`)
+   verwenden; `Learnweb.discoverBase(year:month:transport:)`;
+   `HildesheimSync(db:container:learnweb:lsf:transport:hasher:)` mit CryptoKit-SHA-256 als `hasher` (schneller), beim Öffnen
    der App und auf Knopfdruck `run()`; `report.needsLogin` → Anmeldung anbieten, `report.messages` in die Statusleiste.
 4. Oberfläche: Uni-Auswahl im ersten Start, „Uni & Noten“ für Hildesheim, Dateien in Dokumente & Notizen (S3-Endpunkte
-   lesen dieselben Tabellen; `files.local_path` ist **relativ** zum Uni-Ordner).
+   lesen dieselben Tabellen; `files.local_path` ist **relativ** zum Container, Learnweb unter `Learnweb/files/…`,
+   Stud.IP unter `StudIP/files/…`).
 5. Gerätetest mit einem echten Hildesheimer Konto.
 
 ## Fakten aus dem Live-Test (nicht neu herausfinden)
@@ -145,13 +148,14 @@ Stud.IP (S3) und Learnweb schreiben beide darüber.
      → `launchurl`, Einstellung `forcedurlscheme`, Standard `moodlemobile`).
   2. Sonst: Studierende fügen einen selbst erzeugten Schlüssel ein (Profil → Einstellungen → Sicherheitsschlüssel).
   3. Sonst: AJAX mit der Cookie-Sitzung wie auf dem PC (`SessionClient`), mit Hinweis auf die Aufrufzählung.
-- Token nie loggen, nie in URLs speichern; erst beim Download anhängen (`with_token`).
+- Token nie loggen, nie in URLs; erst beim Download mitschicken. Auf dem iPad im POST-Körper an die eigene
+  Pluginfile-Adresse (`LearnwebAPI.downloadRequest`), nicht wie `with_token` am PC an die Adresse.
 
 ### 4. Sync
 
 - Reihenfolge: Learnweb, danach LSF-Stundenplan, Noten höchstens alle 20 Stunden (wie PC).
 - Learnweb: Kurse → je Kurs Dateiliste → nur neue oder geänderte Dateien laden. Geändert = höheres
-  `timemodified` (Token) bzw. höhere Pluginfile-Revision (Sitzung). Datei-ID `lw-<cmid>-<sha1(filepath+filename)[:8]>`
+  `timemodified` (Token) bzw. höhere Pluginfile-Revision (Sitzung). Datei-ID `lw-<cmid>-<sha256(filepath+filename)[:8]>`
   nach NFC, identisch zum PC (siehe Fixtures).
 - LSF: iCal-Link aus der Stundenplan-Seite lesen, ICS laden, Serien mit Quelle `lsf` abgleichen: neue anlegen,
   verschwundene entfernen, bestehende samt Nutzer-Ausnahmen behalten; `EXDATE` als Ausfall eintragen.
@@ -194,11 +198,11 @@ Fixtures und lokalen HTML-Seiten.
 | Teil | Datei(en) | Stand |
 |---|---|---|
 | Hochschul-Profile wie `universities.py` (Schlüssel, Namen, Dienste, Anmelde-/Datenadressen, Keychain-Präfix, erlaubte Anmeldeseiten) | `UniFlowCore/Universities/UniversityProfile.swift` | gebaut, Kern-Tests grün |
-| CAS: Login-URL mit service, Anmeldeseite/abgelaufene Sitzung (`/sso/login`), Formular `#username`/`#password`/`name=submit`, Fehlertext `#loginErrorsPanel`, Erfolg = Rücksprung zur service-URL | `Universities/CASLogin.swift` | gebaut, Kern-Tests grün |
-| Learnweb: Kurse, Dateilisten (REST mit Schlüssel, AJAX mit Sitzung als Rückfall), Kurstitel → Semester/Nr./Titel, „Woche N“, NFC, Datei-ID wie PC, Änderung = höheres `timemodified`/Revision, HTML statt Datei = Sitzung abgelaufen, 3 Versuche mit Backoff, Fehler je Kurs überspringt nur diesen Kurs (auch 429/5xx einer Ressourcen- oder Ordnerseite nach allen Versuchen: Kurs in `failures`, nie still eine kürzere Liste; 403/404 bleiben wie am PC leer), Abbruch = `cancelled` + `notAttempted` statt Kursfehler, `needsDownload` lädt wie `store_course_files` auch ohne lokale Kopie (`present`), Netz über `LearnwebTransport` | `Universities/LearnwebParsing.swift`, `LearnwebClient.swift`, `InsecureHash.swift` (SHA-1/MD5 ohne CryptoKit) | gebaut; `learnweb-course-contents.json` ergibt genau `expected.json` (inkl. NFC-Name, Ordner) |
-| Moodle-SSO: `tool_mobile_get_public_config` (launchurl, forcedurlscheme, Standard `moodlemobile`), Start-URL mit zufälligem passport, Antwort `<schema>://token=<base64>` zerlegen, passport per MD5 prüfen | `Universities/MoodleSSO.swift` | Kern gebaut und getestet; das Abfangen in `decidePolicyFor` (App) fehlt noch |
-| Token nur beim Download: im POST-Körper an die eigene Pluginfile-Adresse (nie in der Adresse, nie an fremde Rechner) | `LearnwebClient.download` | **Abweichung vom PC** (`?token=`); dass Moodle den Token im Körper annimmt (`required_param` liest POST), ist gegen das echte Learnweb ungeprüft |
-| Notenspiegel Hildesheim wie `qis.parse_grade_rows` (Abschluss-Zeile, Kopfzeile irgendwo, `Prüfungsnr.`, Bonus = LP, Modulzeilen/„Prüfung vorhanden“ keine Leistung); LUH unverändert | `Universities/QISHildesheim.swift`, `QISCollector.absorb(…, layout:)` | gebaut, Kern-Tests grün. Keine Bescheinigungs-Links für Hildesheim (`collectsDocuments`/`qisDocuments` wie `qis.PROFILES["hildesheim"]["documents"] = False`). Steht eine Stammdaten-Zeile in derselben Tabelle wie die Leistungen, wird die ganze Tabelle verworfen (Stammdaten nie lesen) – dann bleibt der Notenspiegel leer; beim ersten echten Test prüfen |
+| CAS: Login-URL mit service, Anmeldeseite/abgelaufene Sitzung (`/sso/login`), Formular `#username`/`#password`/`name=submit`, Fehlertext `#loginErrorsPanel`, Erfolg = Rücksprung zur service-URL | seit `wip/v1-pc-uni` in `Hildesheim/HildesheimCAS.swift` (früher `Universities/CASLogin.swift`) | gebaut, Kern-Tests grün |
+| Learnweb: Kurse, Dateilisten (REST mit Schlüssel, AJAX mit Sitzung als Rückfall), Kurstitel → Semester/Nr./Titel, „Woche N“, NFC, Datei-ID wie PC, Änderung = höheres `timemodified`/Revision, HTML statt Datei = Sitzung abgelaufen, 3 Versuche mit Backoff, Fehler je Kurs überspringt nur diesen Kurs (auch 429/5xx einer Ressourcen- oder Ordnerseite nach allen Versuchen: Kurs in `failures`, nie still eine kürzere Liste; 403/404 bleiben wie am PC leer), Abbruch = `cancelled` + `notAttempted` statt Kursfehler, `needsDownload` lädt wie `store_course_files` auch ohne lokale Kopie (`present`), Netz über `LearnwebTransport` | seit `wip/v1-pc-uni` in `Hildesheim/Learnweb.swift`, `LearnwebAPI.swift`, `HildesheimSync.swift` (früher `Universities/LearnwebParsing.swift`, `LearnwebClient.swift`, `InsecureHash.swift`; Datei-ID jetzt SHA-256 wie Python, SHA-1 entfällt) | gebaut; `learnweb-course-contents.json` ergibt genau `expected.json` (inkl. NFC-Name, Ordner) |
+| Moodle-SSO: `tool_mobile_get_public_config` (launchurl, forcedurlscheme, Standard `moodlemobile`), Start-URL mit zufälligem passport, Antwort `<schema>://token=<base64>` zerlegen, passport per MD5 prüfen | `Hildesheim/MoodleSSO.swift` | Kern gebaut und getestet; das Abfangen in `decidePolicyFor` (App) fehlt noch |
+| Token nur beim Download: im POST-Körper an die eigene Pluginfile-Adresse (nie in der Adresse, nie an fremde Rechner) | `LearnwebAPI.downloadRequest` | **Abweichung vom PC** (`?token=`); dass Moodle den Token im Körper annimmt (`required_param` liest POST), ist gegen das echte Learnweb ungeprüft |
+| Notenspiegel Hildesheim wie `qis.parse_grade_rows` (Abschluss-Zeile, Kopfzeile irgendwo, `Prüfungsnr.`, Bonus = LP, Modulzeilen/„Prüfung vorhanden“ keine Leistung); LUH unverändert | seit `wip/v1-pc-uni` `Hildesheim/GradeRows.swift` (früher zusätzlich `Universities/QISHildesheim.swift`), `QISCollector.absorb(…, layout:)` | gebaut, Kern-Tests grün. Keine Bescheinigungs-Links für Hildesheim (`collectsDocuments`/`qisDocuments` wie `qis.PROFILES["hildesheim"]["documents"] = False`). Steht eine Stammdaten-Zeile in derselben Tabelle wie die Leistungen, wird die ganze Tabelle verworfen (Stammdaten nie lesen) – dann bleibt der Notenspiegel leer; beim ersten echten Test prüfen |
 | Zugangsdaten je Hochschule im Schlüsselbund (`luh.studip.*`, `luh.qis.*`, `hildesheim.cas.*`), `WhenUnlockedThisDeviceOnly`, nicht synchronisiert, kein Rückfall auf die andere Uni (LUH-QIS füllt ohne eigene Daten die LUH-ID aus Stud.IP vor, wie `service_credentials` am PC), Löschen je Uni, Neuinstallation leert den Dienst | `UniFlow/Services/UniversityCredentials.swift` | gebaut, App-Tests grün; Konto löschen räumt alle Unis, Stud.IP abmelden alle LUH-Einträge, Uni-Wechsel nur als Schnittstelle |
 | Anmeldeseite merkt sich Benutzername und Passwort, füllt beim nächsten Mal vor, schickt nie ab | `UniFlow/Services/UniversityLoginAutofill.swift`, `Views/UniversityLoginViews.swift`, Einbau in `StudIPLoginView` | gebaut; WKWebView-Tests mit lokalen Seiten grün (nur mit Zustimmung, nur erlaubter Host/Pfad, nur das Dokument der letzten echten Navigation – `history.replaceState` einer Seite desselben Rechners hilft nicht –, Skript weg nach Verlassen der Anmeldeseiten, Vorausfüllen ohne Absenden, Löschen je Uni, andere Uni sieht nichts). In der App bisher nur die Stud.IP-Anmeldung angebunden; Oberfläche im Simulator nicht angesehen (öffnet die echte Stud.IP-Seite) |
 
@@ -213,6 +217,28 @@ Fixtures und lokalen HTML-Seiten.
 | Abmelden (Stud.IP) räumt Sitzung und Webdaten genau dieses Containers; „Daten dieser Hochschule löschen“ den ganzen Container samt Webdaten-Speicher, Cookie, Zugangsdaten und Einstellungen (die andere Uni bleibt); **Konto löschen** alle Container des Nutzers (beide Unis) | `DataContainers.swift` (`deleteUniversityData`, `deleteAllData`) | gebaut, App-Tests grün |
 | Umzug: Daten ohne Container (bisher alles LUH) ziehen beim ersten Start mit dieser Version in den LUH-Container des angemeldeten Nutzers (verschoben, nicht kopiert; `UniFlow` als Ganzes umbenannt, dann `StudIP`), Pfade in der Datenbank umgeschrieben, Notizen und Journale unverändert, Kursauswahl/Cookie/Zugangsdaten mit; Ziel steht vor dem ersten Schritt fest (`legacy-move.json`), „done“ erst nach Abschluss, Neustart setzt beim selben Ziel fort; danach ist die Uni LUH ohne erneute Abfrage. Scheitert der Umzug, bleibt der LUH-Container zu (Meldung, nichts gelöscht) | UniFlowCore `Containers/LegacyDataMigration.swift`, `DataContainers.swift` | gebaut, Kern-Tests (auch Abbruch nach jedem Schritt und Dateisystemfehler) und App-Tests grün |
 | Universität Hildesheim in der Oberfläche: keine Karte „Stud.IP verbinden“, Sync-Knopf und Einstellungen sagen ehrlich, dass Learnweb und LSF folgen | `ConnectStudIPCard.swift`, `AppShell.swift`, `UniversitySettings.swift` | gebaut, App-Tests grün |
+
+### Hochschulen entdoppelt (26.10.2026, Zweig `wip/v1-pc-uni` ab `wip/v1-pc`)
+
+Die Hochschul-Grundlagen und die Hochschulwahl der Mac-Sitzung sind mit dem Hildesheim-Kern der PC-Sitzung
+zusammengeführt. Zu jeder Aufgabe gibt es genau eine Fassung; wo die PC-Fassung gleichwertig war, blieb sie, und was
+ihr fehlte, kam hinein. Alle Tests beider Seiten laufen gegen die verbleibende Fassung.
+
+| Aufgabe | eine Fassung | entfernt | aus der Mac-Fassung übernommen |
+| --- | --- | --- | --- |
+| Learnweb lesen | `Learnweb` (Parser), `LearnwebAPI` (REST/AJAX über `UniTransport`), Ablauf in `HildesheimSync` | `LearnwebParsing`, `LearnwebClient`, `LearnwebTransport`, `LearnwebRetry`, `LearnwebError`, `LearnwebSnapshot` | `LearnwebToken` (geschwärzt, nur alphanumerisch), Schlüssel nur im POST-Körper und nur an den eigenen Rechner über HTTPS, sesskey nur von angemeldeten Seiten (`notloggedin`), Webseite statt JSON = Sitzung abgelaufen, Moodle-Fehler-JSON statt Datei (`invalidtoken`) wird nie gespeichert, Abbruch = `cancelled` + `notAttempted` statt Kursfehler, abgelaufene Anmeldung beendet den Learnweb-Teil, Meldungen ohne Abfrage/sesskey, `module_name`, MIME-Tabelle, `unquote`/`urlparse` wie Python |
+| CAS | `HildesheimCAS` | `CASLogin` | Selektoren, Formular, Fehlertext, Rücksprung zur service-URL, Stand nach dem Laden |
+| Moodle-SSO | `MoodleSSO` (`Hildesheim/MoodleSSO.swift`) | zweite `MoodleSSO`-Fassung | `MoodlePublicConfig` (launchurl, forcedurlscheme), Start aus der Konfiguration, Schema-Prüfung, http/https und „/“ bei der Signatur, Ergebnis `LearnwebToken`; `Learnweb.publicSitename` nutzt dieselbe Abfrage |
+| MD5 | `MD5` | `InsecureHash` (MD5 und SHA-1) | Testvektoren |
+| Notenspiegel | `GradeRows.parse` → `QISGrade` | `QISParser.parseGradeRows`, zweite Kopfzeilen-Tabelle, `GradeRows.Grade` | Stammdaten-Zeilen werden übersprungen, `QISGradeLayout`, `QISPage.grades(layout:)` |
+| Hochschul-Profile | `UniversityProfile`/`UniversityKey` (auch für `HildesheimCAS.casBase`/`lsfBase`, `LocalSettings.knownUniversities`, `Migrations.defaultUniversity`, `/api/services` beider Unis) | `UniversityStorage.known`, zweite LUH-Dienste-Liste in `PendingServicesEndpoints` | – |
+| Speicherorte | `DataContainerKey`/`DataContainerLayout` (Ordner, `websiteDataStoreID`, `keychainService`, `keychainAccount(service:field:)`), App `ContainerManager` | `UniversityStorage` (containerPath, keychainService, websiteDataStoreID) | Learnweb-Schlüssel `<nutzer>.hildesheim.learnweb.token` (`tokenServices`); Schlüsselbund-Namen der App über `UniversityProfile.keychainAccount(…, userScope:)` |
+| Webseite statt Datei | `UniStore.isWebPage`/`startsLikeWebPage` (Stud.IP und Learnweb, auch mit UTF-8-BOM) | `looksLikeHTML` | BOM |
+
+`HildesheimSync` schreibt in denselben Container wie der Stud.IP-Abgleich (`HildesheimSync(db:container:…)`, Dateien
+unter `Learnweb/files/…`, Zwischenstand in `Learnweb/.laden`) und gleicht nur ab, wenn Container (Kennzeichnung, Konto)
+und Datenbank (`settings.university`) zur Uni Hildesheim gehören; sonst `refused` mit der Meldung von
+`UniversityMismatch` bzw. `DataContainerError`, ohne Anfrage an die Uni und ohne Schreiben.
 
 Nicht gebaut (folgt): LSF-ICS-Auswertung in der App, Learnweb-Abgleich in die Datenbank, CAS-/Learnweb-/LSF-Anmeldeansichten
 (mit dem Datenspeicher des Containers), Abfangen der Moodle-SSO-Antwort im WebView, Speichern des Learnweb-Schlüssels

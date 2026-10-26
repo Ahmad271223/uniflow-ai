@@ -11,19 +11,80 @@ extension Learnweb {
         public let hidden: Bool
     }
 
+    /// `learnweb._course`: Kennung als Zahl oder Text (`int(c["id"])`), Titel aus fullname, sonst displayname,
+    /// versteckt wie `bool(c.get("hidden"))`
     static func course(_ c: JSONValue) -> Course? {
-        guard let mid = c["id"]?.int else { return nil }
-        let p = parseCourseTitle(c["fullname"]?.string ?? c["displayname"]?.string ?? "")
+        guard let mid = c["id"]?.int ?? c["id"]?.string.flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }) else { return nil }
+        let full = [c["fullname"]?.string, c["displayname"]?.string].compactMap { $0 }.first { !$0.isEmpty } ?? ""
+        let p = parseCourseTitle(full)
         return Course(id: "lw-\(mid)", moodleID: mid, title: p.title, number: p.number, semester: p.semester,
-                      hidden: c["hidden"]?.bool ?? ((c["hidden"]?.int ?? 0) != 0))
+                      hidden: LocalModules.truthy(c["hidden"]))
+    }
+}
+
+/// Learnweb-Schluessel ("Moodle mobile web service", aus dem Moodle-SSO oder selbst erzeugt). In Beschreibungen
+/// geschwaerzt und nicht Codable: die App legt ihn nur im Schluesselbund ab (`keychainValue`), nie in Adressen,
+/// Meldungen oder Protokollen. Moodle-Schluessel sind alphanumerisch (PARAM_ALPHANUM); alles andere wird abgelehnt.
+public struct LearnwebToken: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    let token: String
+    /// privater Schluessel aus dem SSO (nur ueber HTTPS); wird hier nicht verwendet
+    let privateToken: String?
+
+    public init?(_ token: String, privateToken: String? = nil) {
+        guard Self.isAlnum(token, 1...256) else { return nil }
+        self.token = token
+        self.privateToken = privateToken.flatMap { Self.isAlnum($0, 1...256) ? $0 : nil }
+    }
+
+    static func isAlnum(_ s: String, _ len: ClosedRange<Int>) -> Bool {
+        len.contains(s.utf8.count) && s.utf8.allSatisfy { (0x30...0x39).contains($0) || (0x41...0x5A).contains($0) || (0x61...0x7A).contains($0) }
+    }
+
+    /// Nur zum Ablegen im Schluesselbund der App
+    public var keychainValue: String { token }
+
+    public var description: String { "LearnwebToken(***)" }
+    public var debugDescription: String { description }
+    public var customMirror: Mirror { Mirror(self, children: [:]) }
+}
+
+extension Learnweb {
+    private static let sesskeyRE = HText.regex(#""sesskey"\s*:\s*"([A-Za-z0-9]+)""#)
+    private static let bodyClassRE = HText.regex(#"<body\b[^>]*\bclass\s*=\s*["']([^"']*)["']"#, [.caseInsensitive])
+
+    /// Angemeldet wie LOGGED_IN_JS am PC: sesskey vorhanden und `<body>` ohne Klasse "notloggedin" (auch die
+    /// Anmeldeseite von Moodle hat einen sesskey).
+    public static func isLoggedIn(html: String) -> Bool {
+        guard html.contains("sesskey") else { return false }
+        if let cls = HText.match(bodyClassRE, html)?.groups[1] ?? nil, cls.split(separator: " ").contains("notloggedin") { return false }
+        return true
+    }
+
+    /// sesskey (M.cfg) einer angemeldeten Moodle-Seite; nil auf der Anmeldeseite oder ohne gueltigen Schluessel
+    public static func sesskey(fromPage html: String) -> String? {
+        guard isLoggedIn(html: html), let k = HText.match(sesskeyRE, html)?.groups[1] ?? nil, LearnwebToken.isAlnum(k, 1...64) else {
+            return nil
+        }
+        return k
+    }
+
+    /// webservice/pluginfile.php meldet Fehler als kleines JSON (`{"error": ..., "errorcode": "invalidtoken"}`) statt
+    /// der Datei: nie speichern. Ungueltiger Schluessel = neu anmelden. Echte .json-Dateien bleiben erlaubt.
+    static func downloadError(file: URL, name: String) -> HildesheimError? {
+        guard !name.lowercased().hasSuffix(".json"),
+              let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? NSNumber)?.intValue, size < 4096,
+              let data = FileManager.default.contents(atPath: file.path), data.first == UInt8(ascii: "{"),
+              let j = try? JSONValue.parse(data), let code = j["errorcode"]?.string else { return nil }
+        return code == "invalidtoken" ? .invalidToken : .badResponse("pluginfile: \(code)")
     }
 }
 
 /// Learnweb lesen: mit Schluessel (REST, bevorzugt) oder mit der angemeldeten Sitzung (AJAX mit sesskey).
-/// Uebertragen aus `app/learnweb.py` (TokenClient, SessionClient).
+/// Uebertragen aus `app/learnweb.py` (TokenClient, SessionClient). Der Schluessel steht nie in einer Adresse und nie
+/// in einer Meldung: REST und Downloads schicken ihn im Formular-Koerper (POST), erst beim Abruf.
 public actor LearnwebAPI {
     public enum Mode: Sendable, Equatable {
-        case token(String)
+        case token(LearnwebToken)
         /// Cookies der CAS-/Moodle-Sitzung setzt der Transport der App
         case session
     }
@@ -34,8 +95,7 @@ public actor LearnwebAPI {
     private let retry: UniRetry
     private var sesskey: String?
 
-    private static let sesskeyRE = HText.regex("\"sesskey\":\"([A-Za-z0-9]+)\"")
-    private static let embeddedRE = HText.regex("(https?://[^\"'<>\\s]+/pluginfile\\.php/\\d+/mod_resource/content/\\d+/[^\"'<>\\s]+)")
+    private static let embeddedRE = HText.regex(#"(https?://[^"'<>\s]+/pluginfile\.php/\d+/mod_resource/content/\d+/[^"'<>\s]+)"#)
 
     public init(base: String, mode: Mode, transport: UniTransport, retry: UniRetry = UniRetry()) {
         var b = base
@@ -83,11 +143,17 @@ public actor LearnwebAPI {
         }
     }
 
-    /// Anfrage fuer den Download einer Datei (Token erst hier anhaengen, nie speichern)
-    public func downloadRequest(_ f: Learnweb.File) -> UniRequest? {
-        let urlString: String
-        if case .token(let t) = mode { urlString = Learnweb.withToken(f.downloadURL, token: t) } else { urlString = f.downloadURL }
-        return URL(string: urlString).map { UniRequest(url: $0) }
+    /// Anfrage fuer den Download einer Datei, nur an den eigenen Rechner ueber HTTPS. Mit Schluessel: POST an die
+    /// Pluginfile-Adresse mit `token` im Koerper (am PC `with_token` an der Adresse; hier nie in Adressen. Gegen das
+    /// echte Learnweb ungeprueft; Moodle liest den Parameter aus POST und GET); mit Sitzung: GET mit den Cookies.
+    public func downloadRequest(_ f: Learnweb.File) throws -> UniRequest {
+        guard let url = URL(string: f.downloadURL), url.scheme?.lowercased() == "https",
+              let host = url.host?.lowercased(), host == URL(string: base)?.host?.lowercased() else {
+            throw HildesheimError.badResponse("fremde oder ungültige Adresse")
+        }
+        guard case .token(let t) = mode else { return UniRequest(url: url) }
+        return UniRequest(url: url, method: "POST", headers: ["Content-Type": "application/x-www-form-urlencoded"],
+                          body: HText.form([("token", t.token)]))
     }
 
     // MARK: REST
@@ -96,14 +162,15 @@ public actor LearnwebAPI {
         guard case .token(let token) = mode, let url = URL(string: "\(base)/webservice/rest/server.php") else {
             throw HildesheimError.badResponse("REST ohne Schluessel")
         }
-        var form = ["wstoken": token, "wsfunction": function, "moodlewsrestformat": "json"]
+        var form = ["wstoken": token.token, "wsfunction": function, "moodlewsrestformat": "json"]
         for (k, v) in params { form[k] = v }
-        let body = form.sorted { $0.key < $1.key }.map { "\(HText.quoteAll($0.key))=\(HText.quoteAll($0.value))" }.joined(separator: "&")
-        let r = UniRequest(url: url, method: "POST", headers: ["Content-Type": "application/x-www-form-urlencoded"], body: Data(body.utf8))
+        let r = UniRequest(url: url, method: "POST", headers: ["Content-Type": "application/x-www-form-urlencoded"],
+                           body: HText.form(form.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }))
         let resp = try await transport.fetch(r, retry: retry)
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: "\(base)/webservice/rest/server.php") }
         guard let j = try? JSONValue.parse(resp.body) else { throw HildesheimError.badResponse(function) }
-        if let ex = j["exception"]?.string, !ex.isEmpty {
+        // Fehlertexte von Moodle koennen Eingaben enthalten: nur Funktion und Fehlercode weitergeben
+        if j["exception"] != nil || j["errorcode"]?.string != nil {
             let code = j["errorcode"]?.string ?? ""
             if ["invalidtoken", "accessexception"].contains(code) { throw HildesheimError.invalidToken }
             throw HildesheimError.badResponse("\(function): \(code)")
@@ -113,34 +180,40 @@ public actor LearnwebAPI {
 
     // MARK: Sitzung
 
-    private func isLogin(_ resp: UniResponse) -> Bool {
-        let u = resp.finalURL?.absoluteString ?? ""
-        return HildesheimCAS.isCASPage(u) || u.contains("/login/index.php")
+    private func isLogin(_ url: String) -> Bool {
+        HildesheimCAS.isCASPage(url) || url.contains("/login/index.php")
     }
 
     private func currentSesskey() async throws -> String {
         if let s = sesskey { return s }
         guard let url = URL(string: "\(base)/my/courses.php") else { throw HildesheimError.badResponse(base) }
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
-        if isLogin(resp) { throw HildesheimError.sessionExpired("Learnweb") }
-        guard let key = HText.match(Self.sesskeyRE, resp.text)?.groups[1] ?? nil else { throw HildesheimError.sessionExpired("Learnweb") }
+        if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
+        guard let key = Learnweb.sesskey(fromPage: resp.text) else { throw HildesheimError.sessionExpired("Learnweb") }
         sesskey = key
         return key
     }
 
     private func ajax(_ function: String, _ args: JSONValue) async throws -> JSONValue {
         let key = try await currentSesskey()
-        guard let url = URL(string: "\(base)/lib/ajax/service.php?sesskey=\(key)&info=\(function)") else { throw HildesheimError.badResponse(function) }
+        guard let url = URL(string: "\(base)/lib/ajax/service.php?sesskey=\(key)&info=\(function)") else {
+            throw HildesheimError.badResponse(function)
+        }
         let payload = JSONValue.array([.object(["index": .number(0), "methodname": .string(function), "args": args])])
         let r = UniRequest(url: url, method: "POST", headers: ["Content-Type": "application/json"], body: payload.serialized())
         let resp = try await transport.fetch(r, retry: retry)
-        if isLogin(resp) { throw HildesheimError.sessionExpired("Learnweb") }
+        if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
         guard resp.status == 200, let first = (try? JSONValue.parse(resp.body))?.array?.first else {
+            // Webseite statt JSON: Sitzung beendet (Anmeldeseite)
+            if resp.status == 200, UniStore.startsLikeWebPage(resp.body) {
+                sesskey = nil
+                throw HildesheimError.sessionExpired("Learnweb")
+            }
             throw HildesheimError.badResponse(function)
         }
-        if first["error"]?.bool == true {
+        if first["error"]?.bool == true || first["exception"] != nil {
             let code = first["exception"]?["errorcode"]?.string ?? ""
-            if ["invalidsesskey", "servicerequireslogin", "requireloginerror"].contains(code) {
+            if ["invalidsesskey", "servicerequireslogin", "requireloginerror", "sessionexpired"].contains(code) {
                 sesskey = nil
                 throw HildesheimError.sessionExpired("Learnweb")
             }
@@ -149,36 +222,37 @@ public actor LearnwebAPI {
         return first["data"] ?? .null
     }
 
+    /// cmid steht in der Adresse: nur Ziffern
+    private static func isDigits(_ s: String) -> Bool { !s.isEmpty && s.utf8.allSatisfy { (0x30...0x39).contains($0) } }
+
     private func resourceLink(_ cmid: String) async throws -> [String] {
-        guard let url = URL(string: "\(base)/mod/resource/view.php?id=\(cmid)&redirect=1") else { return [] }
+        guard Self.isDigits(cmid), let url = URL(string: "\(base)/mod/resource/view.php?id=\(cmid)&redirect=1") else { return [] }
         let resp = try await transport.fetch(UniRequest(url: url, followRedirects: false), retry: retry)
-        if let loc = resp.headers["location"], loc.contains("pluginfile.php") {
-            return [URL(string: loc, relativeTo: URL(string: base + "/"))?.absoluteString ?? loc]
+        if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
+        if let loc = resp.headers["location"] {
+            let abs = URL(string: loc, relativeTo: URL(string: base + "/"))?.absoluteString ?? loc
+            if isLogin(abs) { throw HildesheimError.sessionExpired("Learnweb") }
+            if loc.contains("pluginfile.php") { return [abs] }
         }
-        if let loc = resp.headers["location"], HildesheimCAS.isCASPage(loc) || loc.contains("/login/index.php") {
-            throw HildesheimError.sessionExpired("Learnweb")
-        }
-        // Anzeigeart "eingebettet": Link steht in der Seite
+        // Anzeigeart "eingebettet": Link steht in der Seite; 403/404 (nicht sichtbar) wie am PC eine leere Liste
         guard resp.status == 200, let m = HText.match(Self.embeddedRE, resp.text)?.groups[1] ?? nil else { return [] }
         return [m.replacingOccurrences(of: "&amp;", with: "&")]
     }
 
     private func folderLinks(_ cmid: String) async throws -> [String] {
-        guard let url = URL(string: "\(base)/mod/folder/view.php?id=\(cmid)") else { return [] }
+        guard Self.isDigits(cmid), let url = URL(string: "\(base)/mod/folder/view.php?id=\(cmid)") else { return [] }
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
-        if isLogin(resp) { throw HildesheimError.sessionExpired("Learnweb") }
+        if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
         return resp.status == 200 ? Learnweb.folderLinks(html: resp.text) : []
     }
 }
 
 extension Learnweb {
-    /// Name einer Moodle-Instanz ueber die oeffentliche Schnittstelle (ohne Anmeldung); nil, wenn es sie nicht gibt.
+    /// Name einer Moodle-Instanz ueber die oeffentliche Schnittstelle (`tool_mobile_get_public_config` ohne Anmeldung,
+    /// dieselbe Abfrage wie fuer das Moodle-SSO); nil, wenn es sie nicht gibt. Ein Versuch je Instanz.
     public static func publicSitename(base: String, transport: UniTransport) async -> String? {
-        guard let url = URL(string: "\(base)/lib/ajax/service-nologin.php?info=tool_mobile_get_public_config") else { return nil }
-        let body = JSONValue.array([.object(["index": .number(0), "methodname": .string("tool_mobile_get_public_config"), "args": .object([:])])])
-        guard let resp = try? await transport.send(UniRequest(url: url, method: "POST", headers: ["Content-Type": "application/json"], body: body.serialized())),
-              resp.status == 200, let first = (try? JSONValue.parse(resp.body))?.array?.first, first["error"]?.bool != true else { return nil }
-        return first["data"]?["sitename"]?.string ?? ""
+        guard let config = try? await MoodleSSO.publicConfig(base: base, transport: transport, retry: .none) else { return nil }
+        return config.siteName ?? ""
     }
 
     /// Learnweb-Instanz des aktuellen Semesters ueber das Netz ermitteln (Vorjahr, aktuelles, naechstes Jahr).
@@ -228,14 +302,15 @@ public actor LSFClient {
         return LSFCalendar.planEntries(ics)
     }
 
-    /// Leistungen aus dem Notenspiegel (alle Studiengaenge). Stammdaten-Tabellen werden nie gelesen.
-    public func grades() async throws -> [GradeRows.Grade] {
+    /// Leistungen aus dem Notenspiegel (alle Studiengaenge) wie `qis.parse_grade_rows` (`GradeRows`). Stammdaten-Tabellen
+    /// werden nie gelesen.
+    public func grades() async throws -> [QISGrade] {
         let start = try await page(Self.startURL)
         guard let link = HTMLScanner.scan(start).anchors.first(where: { $0.label.contains("Notenspiegel") }) else {
             throw HildesheimError.badResponse("Link zum Notenspiegel fehlt")
         }
         let first = absolute(link.href)
-        var pages = [first], seen = Set([first]), out: [GradeRows.Grade] = []
+        var pages = [first], seen = Set([first]), out: [QISGrade] = []
         var i = 0
         while i < pages.count && i < 6 {
             let html = try await page(pages[i])
@@ -251,10 +326,8 @@ public actor LSFClient {
             }
             i += 1
         }
-        var keys = Set<String>()
-        return out.filter { g in
-            keys.insert([g["pruefungsnr"], g["text"], g["semester"], g["versuch"]].map { $0 ?? "" }.joined(separator: "|")).inserted
-        }
+        // dieselbe Leistung auf mehreren Reitern nur einmal (Pruefungsnr., Text, Semester, Versuch)
+        return QISParser.merge(out)
     }
 
     private func absolute(_ href: String) -> String {

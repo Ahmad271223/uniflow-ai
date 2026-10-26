@@ -31,7 +31,7 @@ final class DataContainerTests: XCTestCase {
 
     private func put(_ b: LocalBackend, _ path: String, _ body: JSONValue) async throws {
         let r = await b.handle(LocalRequest(method: "PUT", url: URL(string: "uniflow-local://device" + path)!,
-                                            headers: ["Content-Type": "application/json"], body: try body.serialized()))
+                                            headers: ["Content-Type": "application/json"], body: body.serialized()))
         XCTAssertEqual(r.status, 200, path)
     }
 
@@ -202,6 +202,127 @@ final class DataContainerTests: XCTestCase {
         XCTAssertTrue(luhKeys.contains("studip"))
         XCTAssertFalse(luhKeys.contains("learnweb"))
         XCTAssertFalse(hiKeys.contains("studip"))
+    }
+
+    // MARK: Namen je (Nutzer, Hochschule): eine Fassung fuer Ordner, Schluesselbund und Webdaten
+
+    /// Frueher zusaetzlich `UniversityStorage` (PC-Sitzung): Ordner, Schluesselbund-Dienst und WebsiteDataStore-UUID
+    /// kommen jetzt alle aus `DataContainerKey`.
+    func testStorageNamesPerUserAndUniversityComeFromOneKey() {
+        let root = URL(fileURLWithPath: "/x")
+        let hi = DataContainerKey(userID: user, university: .hildesheim)
+        let luh = DataContainerKey(userID: user, university: .luh)
+        XCTAssertNotEqual(DataContainerLayout(base: root, key: hi).root, DataContainerLayout(base: root, key: luh).root)
+        // nur bekannte Hochschulen, nur mit Nutzer (kein Pfad aus Eingaben, kein Raten)
+        XCTAssertNil(DataContainerKey(userID: "x", universityKey: "../etc"))
+        XCTAssertNil(DataContainerKey(userID: "", universityKey: "luh"))
+        XCTAssertNil(DataContainerKey(userID: "x", universityKey: nil))
+        XCTAssertNil(DataContainerKey(userID: "x", universityKey: "Hildesheim"))
+        XCTAssertEqual(DataContainerKey(userID: user, universityKey: "hildesheim"), hi)
+        // Webdaten (Cookies) je Container, fest und getrennt
+        XCTAssertEqual(hi.websiteDataStoreID, hi.identifier)
+        XCTAssertNotEqual(hi.websiteDataStoreID, luh.websiteDataStoreID)
+        XCTAssertEqual(hi.websiteDataStoreID, DataContainerKey(userID: user, university: .hildesheim).websiteDataStoreID, "bleibt gleich")
+        XCTAssertNotEqual(hi.websiteDataStoreID, DataContainerKey(userID: other, university: .hildesheim).websiteDataStoreID)
+        // Schluesselbund: ein Dienst, Eintraege mit Nutzer-Kurzkennung und Hochschule
+        XCTAssertEqual(DataContainerKey.keychainService, "de.uniflow.ai.university")
+        XCTAssertEqual(hi.keychainAccount(service: "learnweb", field: "token"), "\(hi.userScope).hildesheim.learnweb.token")
+        XCTAssertEqual(hi.keychainAccount(service: "cas", field: "password"), "\(hi.userScope).hildesheim.cas.password")
+        XCTAssertEqual(luh.keychainAccount(service: "studip", field: "user"), "\(luh.userScope).luh.studip.user")
+        XCTAssertNil(hi.keychainAccount(service: "studip", field: "user"), "kein Rueckfall auf die andere Hochschule")
+        XCTAssertNil(luh.keychainAccount(service: "learnweb", field: "token"))
+        XCTAssertNotEqual(hi.keychainAccount(service: "cas", field: "user"),
+                          DataContainerKey(userID: other, university: .hildesheim).keychainAccount(service: "cas", field: "user"))
+        for name in [hi.keychainAccount(service: "cas", field: "user") ?? "", hi.websiteDataStoreID.uuidString, "\(hi)"] {
+            XCTAssertFalse(name.contains("erfunden"), name)
+            XCTAssertFalse(name.contains("001234"), name)
+        }
+    }
+
+    // MARK: Stud.IP und Learnweb in ihrem Container
+
+    /// Learnweb mit Schluessel ohne Netz: ein Kurs mit zwei Dateien
+    private func learnwebTransport() -> FakeUniTransport {
+        let base = "https://www.uni-hildesheim.de/learnweb2026"
+        let t = FakeUniTransport()
+        let rest = "\(base)/webservice/rest/server.php"
+        t.on(rest, body: "wsfunction=core_webservice_get_site_info", okJSON(["userid": 7]))
+        t.on(rest, body: "wsfunction=core_enrol_get_users_courses", okJSON([["id": 35, "fullname": "SoSe 2026: 0435 Testkurs Hildesheim"]]))
+        t.on(rest, body: "wsfunction=core_course_get_contents", ok("""
+            [{"section": 1, "name": "1", "modules": [{"id": 80, "modname": "resource", "name": "Folien", "contents": [
+              {"type": "file", "filename": "Folien.pdf", "filepath": "/", "timemodified": 3,
+               "fileurl": "\(base)/webservice/pluginfile.php/6/mod_resource/content/1/Folien.pdf"}]}]}]
+            """))
+        t.on("\(base)/webservice/pluginfile.php", ok("%PDF-1.7 Hildesheim"))
+        return t
+    }
+
+    private func hildesheimSync(_ db: SQLiteDatabase, _ layout: DataContainerLayout, _ t: FakeUniTransport) -> HildesheimSync {
+        let api = LearnwebAPI(base: "https://www.uni-hildesheim.de/learnweb2026", mode: .token(LearnwebToken("ERFUNDEN0123")!), transport: t,
+                              retry: .none)
+        return HildesheimSync(db: db, container: layout, learnweb: api, lsf: nil, transport: t, clock: clock, retry: .none)
+    }
+
+    func testStudIPAndLearnwebWriteOnlyIntoTheirOwnContainer() async throws {
+        let base = try tempDir()
+        let luh = DataContainerLayout(base: base, key: DataContainerKey(userID: user, university: .luh))
+        let hi = DataContainerLayout(base: base, key: DataContainerKey(userID: user, university: .hildesheim))
+        let lb = try await backend(luh)
+        let hb = try await backend(hi)
+
+        // 1. LUH: Stud.IP-Datei ueber dieselbe Fassung wie StudIPSync (UniStore, Datei unter StudIP/files/...)
+        let studipFile = try luh.files().write(Data("%PDF-1.7 LUH".utf8), to: "StudIP/files/Testkurs/Blatt1.pdf")
+        let stored = try XCTUnwrap(luh.files().stored(studipFile))
+        try await lb.context.database.transaction { c in
+            try UniStore.upsertCourse(c, UniStore.CourseRow(id: "c-luh", title: "Testkurs LUH", number: nil, semester: nil), now: "t")
+            let row = UniStore.FileRow(id: "f-luh", name: "Blatt1.pdf", size: 12, mime: "application/pdf", chdate: 1,
+                                       downloadURL: "https://studip.test/f-luh", folder: "")
+            _ = try UniStore.storeFiles(c, courseID: "c-luh", [row], now: "t", fileExists: { _ in false })
+            try UniStore.markDownloaded(c, row, localPath: stored, sha256: nil, now: "t")
+        }
+
+        // 2. Hildesheim danach: Learnweb ueber HildesheimSync in den Hildesheimer Container
+        let report = await hildesheimSync(hb.context.database, hi, learnwebTransport()).run()
+        XCTAssertTrue(report.ok, report.messages.joined(separator: "; "))
+        XCTAssertEqual(report.newFiles.count, 1)
+        let hiPath = try await hb.context.database.scalar("SELECT local_path FROM files WHERE course_id='lw-35'")?.string ?? ""
+        XCTAssertTrue(hiPath.hasPrefix("Learnweb/files/lw-80-"), hiPath)
+        XCTAssertTrue(hi.files().exists(stored: hiPath))
+
+        // 3. gegenseitig unsichtbar: Datenbank, Dateien, gespeicherte Pfade
+        let luhLearnweb = try await lb.context.database.scalar("SELECT COUNT(*) FROM courses WHERE id LIKE 'lw-%'")?.int
+        XCTAssertEqual(luhLearnweb, 0)
+        let hiStudIP = try await hb.context.database.scalar("SELECT COUNT(*) FROM files WHERE id='f-luh'")?.int
+        XCTAssertEqual(hiStudIP, 0)
+        XCTAssertFalse(luh.files().exists(stored: hiPath))
+        XCTAssertFalse(hi.files().exists(stored: stored))
+        XCTAssertNil(hi.files().stored(studipFile))
+        XCTAssertNil(luh.files().stored(hi.root.appendingPathComponent(hiPath)))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: luh.learnweb.path), "kein Learnweb-Ordner bei der LUH")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: hi.studip.path), "kein Stud.IP-Ordner in Hildesheim")
+        let hiList = try await get(hb, "/api/files").jsonString()
+        let luhList = try await get(lb, "/api/files").jsonString()
+        XCTAssertTrue(hiList.contains("Folien.pdf"))
+        XCTAssertFalse(hiList.contains("Blatt1.pdf"), "Dokumente der LUH nicht in Hildesheim")
+        XCTAssertTrue(luhList.contains("Blatt1.pdf"))
+        XCTAssertFalse(luhList.contains("Folien.pdf"), "Learnweb-Dateien nicht bei der LUH")
+
+        // 4. Hildesheim-Abgleich mit der LUH-Datenbank, in den LUH-Container oder fuer ein anderes Konto: nichts
+        let before = try await lb.context.database.scalar("SELECT COUNT(*) FROM sync_log")?.int
+        let t = learnwebTransport()
+        let wrongDB = await hildesheimSync(lb.context.database, hi, t).run()
+        XCTAssertNotNil(wrongDB.refused)
+        XCTAssertTrue(wrongDB.refused?.contains("Leibniz Universität Hannover") ?? false, wrongDB.refused ?? "")
+        let wrongContainer = await hildesheimSync(lb.context.database, luh, t).run()
+        XCTAssertNotNil(wrongContainer.refused)
+        XCTAssertFalse(wrongDB.ok || wrongContainer.ok)
+        XCTAssertTrue(t.requests.isEmpty, "keine Anfrage an die Uni")
+        let after = try await lb.context.database.scalar("SELECT COUNT(*) FROM sync_log")?.int
+        XCTAssertEqual(before, after, "nichts in die LUH-Datenbank geschrieben")
+        let stranger = DataContainerLayout(base: base, identifier: hi.identifier, university: .hildesheim, ownerScope: DataContainerKey.userScope(other))
+        let foreign = await hildesheimSync(hb.context.database, stranger, t).run()
+        XCTAssertEqual(foreign.refused, DataContainerError.ownerMismatch.description)
+        XCTAssertTrue(t.requests.isEmpty)
     }
 
     // MARK: Umzug der alten Daten

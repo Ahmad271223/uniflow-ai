@@ -2,8 +2,8 @@ import Foundation
 import XCTest
 @testable import UniFlowCore
 
-/// Hochschul-Profile (wie app/universities.py), CAS-Regeln (wie app/cas.py und test_cas_urls) und die Hashwerte.
-/// Ohne Netzwerk; die Adressen werden nur verglichen, nie aufgerufen.
+/// Hochschul-Profile (wie app/universities.py), CAS-Regeln (`HildesheimCAS` wie app/cas.py und test_cas_urls) und
+/// MD5. Ohne Netzwerk; die Adressen werden nur verglichen, nie aufgerufen.
 final class UniversityProfileTests: XCTestCase {
 
     // MARK: Profile
@@ -18,6 +18,7 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertNil(UniversityProfile.profile(forKey: "../etc"), "unbekannt ergibt nie still die LUH")
         XCTAssertEqual(UniversityProfile.profile(forKey: "hildesheim")?.key, .hildesheim)
         XCTAssertEqual(Set(UniversityKey.allCases.map(\.rawValue)), LocalSettings.knownUniversities)
+        XCTAssertEqual(Migrations.defaultUniversity, UniversityKey.default.rawValue, "eine Quelle fuer die Schluessel")
     }
 
     func testProfilesMatchUniversitiesPy() {
@@ -35,8 +36,18 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertNil(h.studipBase)
         XCTAssertEqual(l.gradeLayout, .luh)
         XCTAssertEqual(h.gradeLayout, .hildesheim)
-        // HILDESHEIM_SERVICES
+        // dieselben Adressen wie der Abgleich (HildesheimCAS, LSFClient)
+        XCTAssertEqual(HildesheimCAS.casBase, h.casBase?.absoluteString)
+        XCTAssertEqual(HildesheimCAS.lsfBase, h.lsfBase?.absoluteString)
+        XCTAssertTrue(LSFClient.startURL.hasPrefix(h.lsfBase!.absoluteString))
+        XCTAssertEqual(h.learnwebBase?.absoluteString.hasPrefix(Learnweb.root), true)
+        // HILDESHEIM_SERVICES und SERVICES (app/server.py)
         XCTAssertEqual(h.services.map(\.key), ["learnweb", "lsf", "lsf-ausfall", "uni"])
+        XCTAssertEqual(l.services.map(\.key), ["studip", "ilias", "qis", "idm", "mail", "matrix", "luhki", "gitlab", "tib", "mensa",
+                                               "servicecenter", "luis"])
+        XCTAssertEqual(l.services[0].json["connected"], true)
+        XCTAssertEqual(l.services[2].json["connector"], true)
+        XCTAssertNil(l.services[1].json["connected"])
         XCTAssertEqual(h.services[0].url, "https://www.uni-hildesheim.de/learnweb2026/my/courses.php")
         XCTAssertEqual(h.services[0].json["connected"], true)
         XCTAssertEqual(h.services[1].json["connector"], true)
@@ -67,6 +78,13 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertNil(h.keychainAccount(service: "studip", field: "user"))
         XCTAssertNil(l.keychainAccount(service: "cas", field: "user"))
         XCTAssertNil(h.keychainAccount(service: "cas", field: "x"))
+        // Learnweb-Schluessel: nur als Schluessel, nur in Hildesheim
+        XCTAssertEqual(h.keychainAccount(service: "learnweb", field: "token"), "hildesheim.learnweb.token")
+        XCTAssertNil(h.keychainAccount(service: "learnweb", field: "password"))
+        XCTAssertNil(h.keychainAccount(service: "cas", field: "token"))
+        XCTAssertNil(l.keychainAccount(service: "learnweb", field: "token"))
+        // mit Nutzer-Praefix (eine Funktion fuer alle Namen, App und Kern)
+        XCTAssertEqual(h.keychainAccount(service: "cas", field: "user", userScope: "u0123456789abcdef"), "u0123456789abcdef.hildesheim.cas.user")
         XCTAssertTrue(h.ownsKeychainAccount("hildesheim.cas.user"))
         XCTAssertFalse(l.ownsKeychainAccount("hildesheim.cas.user"))
         XCTAssertFalse(l.ownsKeychainAccount("luhx.cas.user"))
@@ -118,18 +136,20 @@ final class UniversityProfileTests: XCTestCase {
 
     // MARK: CAS
 
-    let casBase = URL(string: "https://www.uni-hildesheim.de/sso")!
+    let casBase = "https://www.uni-hildesheim.de/sso"
 
     func testCasUrlsLikePython() {
-        XCTAssertEqual(CASLogin.loginURL(casBase: casBase, service: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=1").absoluteString,
+        XCTAssertEqual(HildesheimCAS.loginURL(casBase: casBase, service: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=1"),
                        "https://www.uni-hildesheim.de/sso/login?service=https%3A%2F%2Flsf.uni-hildesheim.de%2Fqisserver%2Frds%3Fstate%3Duser%26type%3D1")
-        XCTAssertEqual(CASLogin.quoteAll("ä b~_.-"), "%C3%A4%20b~_.-")
-        XCTAssertTrue(CASLogin.isLoginPage(URL(string: "https://www.uni-hildesheim.de/sso/login?service=x"), casBase: casBase))
-        XCTAssertTrue(CASLogin.isLoginPage(URL(string: "https://uni-hildesheim.de/sso/login"), casBase: casBase))
-        XCTAssertFalse(CASLogin.isLoginPage(URL(string: "https://www.uni-hildesheim.de/learnweb2026/my/"), casBase: casBase))
-        XCTAssertFalse(CASLogin.isLoginPage(URL(string: "https://lsf.uni-hildesheim.de/sso/login"), casBase: casBase))
-        XCTAssertTrue(CASLogin.isSessionExpired(finalURL: URL(string: "https://www.uni-hildesheim.de/sso/login?service=abc"), casBase: casBase))
-        XCTAssertFalse(CASLogin.isSessionExpired(finalURL: nil, casBase: casBase))
+        XCTAssertEqual(HText.quoteAll("ä b~_.-"), "%C3%A4%20b~_.-")
+        XCTAssertTrue(HildesheimCAS.isCASPage("https://www.uni-hildesheim.de/sso/login?service=x", casBase: casBase))
+        XCTAssertTrue(HildesheimCAS.isCASPage("https://uni-hildesheim.de/sso/login"))
+        XCTAssertFalse(HildesheimCAS.isCASPage("https://www.uni-hildesheim.de/learnweb2026/my/"))
+        XCTAssertFalse(HildesheimCAS.isCASPage("https://lsf.uni-hildesheim.de/sso/login"))
+        XCTAssertTrue(HildesheimCAS.isCASPage("https://www.uni-hildesheim.de/sso/login?service=abc"), "abgelaufene Sitzung")
+        XCTAssertFalse(HildesheimCAS.isCASPage(""))
+        XCTAssertEqual(HildesheimCAS.learnwebLoginURL(base: "https://www.uni-hildesheim.de/learnweb2027"),
+                       "https://www.uni-hildesheim.de/learnweb2027/login/index.php?authCAS=CAS")
     }
 
     // Erfundene CAS-Seite im Aufbau von Apereo CAS 7 (Felder wie im Live-Test)
@@ -144,52 +164,50 @@ final class UniversityProfileTests: XCTestCase {
     """
 
     func testCasFormAndStates() {
-        let f = CASLogin.form(html: casForm)
+        let f = HildesheimCAS.form(html: casForm)
         XCTAssertTrue(f.hasUsername && f.hasPassword && f.hasSubmit && f.isComplete)
-        XCTAssertFalse(CASLogin.form(html: "<html><body>Learnweb</body></html>").isComplete)
+        XCTAssertFalse(HildesheimCAS.form(html: "<html><body>Learnweb</body></html>").isComplete)
         let service = URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=1")!
         let login = URL(string: "https://www.uni-hildesheim.de/sso/login?service=x")!
-        XCTAssertEqual(CASLogin.state(url: login, html: casForm, service: service, casBase: casBase), .loginRequired)
+        XCTAssertEqual(HildesheimCAS.state(url: login, html: casForm, service: service, casBase: casBase), .loginRequired)
         let failed = casForm.replacingOccurrences(of: "<form", with: """
         <div id="loginErrorsPanel" class="banner banner-danger"><p><span>Ung&uuml;ltige</span> Anmeldedaten.</p>
         <div><b>Bitte</b> erneut versuchen</div></div><form
         """)
-        XCTAssertEqual(CASLogin.errorText(html: failed), "Ungültige Anmeldedaten. Bitte erneut versuchen")
-        XCTAssertEqual(CASLogin.state(url: login, html: failed, service: service, casBase: casBase),
+        XCTAssertEqual(HildesheimCAS.errorText(html: failed), "Ungültige Anmeldedaten. Bitte erneut versuchen")
+        XCTAssertEqual(HildesheimCAS.state(url: login, html: failed, service: service, casBase: casBase),
                        .failed("Ungültige Anmeldedaten. Bitte erneut versuchen"))
-        XCTAssertNil(CASLogin.errorText(html: casForm))
+        XCTAssertNil(HildesheimCAS.errorText(html: casForm))
         // Erfolg: Ruecksprung zur service-URL (mit ticket)
         let back = URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=1&ticket=ST-1-abc")!
-        XCTAssertEqual(CASLogin.state(url: back, html: nil, service: service, casBase: casBase), .returnedToService)
-        XCTAssertEqual(CASLogin.state(url: URL(string: "https://www.uni-hildesheim.de/sso/logout"), html: nil, service: service,
+        XCTAssertEqual(HildesheimCAS.state(url: back, html: nil, service: service, casBase: casBase), .returnedToService)
+        XCTAssertEqual(HildesheimCAS.state(url: URL(string: "https://www.uni-hildesheim.de/sso/logout"), html: nil, service: service,
                                       casBase: casBase), .elsewhere)
-        XCTAssertFalse(CASLogin.returnedToService(URL(string: "http://lsf.uni-hildesheim.de/qisserver/rds"), service: service))
-        XCTAssertFalse(CASLogin.returnedToService(URL(string: "https://lsf.uni-hildesheim.de/qisserverX"), service: service))
+        XCTAssertFalse(HildesheimCAS.returnedToService(URL(string: "http://lsf.uni-hildesheim.de/qisserver/rds"), service: service))
+        XCTAssertFalse(HildesheimCAS.returnedToService(URL(string: "https://lsf.uni-hildesheim.de/qisserverX"), service: service))
         let lw = URL(string: "https://www.uni-hildesheim.de/learnweb2026/login/index.php?authCAS=CAS")!
-        XCTAssertTrue(CASLogin.returnedToService(URL(string: "https://www.uni-hildesheim.de/learnweb2026/login/index.php?ticket=ST-2"), service: lw))
+        XCTAssertTrue(HildesheimCAS.returnedToService(URL(string: "https://www.uni-hildesheim.de/learnweb2026/login/index.php?ticket=ST-2"), service: lw))
     }
 
     func testErrorTextIsShortAndHasNoTags() {
         let long = "<div id='loginErrorsPanel'>" + String(repeating: "Fehler ", count: 80) + "<script>x</script></div>"
-        let t = CASLogin.errorText(html: long)!
+        let t = HildesheimCAS.errorText(html: long)!
         XCTAssertLessThanOrEqual(t.count, 200)
         XCTAssertFalse(t.contains("<"))
-        XCTAssertNil(CASLogin.errorText(html: "<div id=\"loginErrorsPanelX\">x</div>"))
+        XCTAssertNil(HildesheimCAS.errorText(html: "<div id=\"loginErrorsPanelX\">x</div>"))
     }
 
     // MARK: Hashwerte
 
-    func testHashVectors() {
-        XCTAssertEqual(InsecureHash.sha1Hex(""), "da39a3ee5e6b4b0d3255bfef95601890afd80709")
-        XCTAssertEqual(InsecureHash.sha1Hex("abc"), "a9993e364706816aba3e25717850c26c9cd0d89d")
-        XCTAssertEqual(InsecureHash.sha1Hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
-                       "84983e441c3bd26ebaae4aa1f95129e5e54670f1")
-        XCTAssertEqual(InsecureHash.sha1Hex(String(repeating: "a", count: 1000)), "291e9a6c66994949b57ba5e650361e98fc36b1ba")
-        XCTAssertEqual(InsecureHash.md5Hex(""), "d41d8cd98f00b204e9800998ecf8427e")
-        XCTAssertEqual(InsecureHash.md5Hex("abc"), "900150983cd24fb0d6963f7d28e17f72")
-        XCTAssertEqual(InsecureHash.md5Hex("The quick brown fox jumps over the lazy dog"), "9e107d9d372bb6826bd81d3542a419d6")
-        XCTAssertEqual(InsecureHash.md5Hex("12345678901234567890123456789012345678901234567890123456789012345678901234567890"),
+    func testMD5Vectors() {
+        // RFC 1321 und Moodle-Signatur; SHA-1 gibt es nicht mehr (Datei-IDs mit SHA-256 wie app/learnweb.py)
+        XCTAssertEqual(MD5.hex(""), "d41d8cd98f00b204e9800998ecf8427e")
+        XCTAssertEqual(MD5.hex("abc"), "900150983cd24fb0d6963f7d28e17f72")
+        XCTAssertEqual(MD5.hex("The quick brown fox jumps over the lazy dog"), "9e107d9d372bb6826bd81d3542a419d6")
+        XCTAssertEqual(MD5.hex("12345678901234567890123456789012345678901234567890123456789012345678901234567890"),
                        "57edf4a22be3c955ac49da2e2107b67a")
-        XCTAssertEqual(InsecureHash.md5Hex("ä"), "8419b71c87a225a2c70b50486fbee545")
+        XCTAssertEqual(MD5.hex("ä"), "8419b71c87a225a2c70b50486fbee545")
+        XCTAssertEqual(MD5.hex(String(repeating: "a", count: 55)), "ef1772b6dff9a122358552954ad0df65", "Grenze der Auffuellung")
+        XCTAssertEqual(MD5.hex(String(repeating: "a", count: 56)), "3b0c8ac703f828b04c6c197006d17218")
     }
 }

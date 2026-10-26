@@ -59,9 +59,8 @@ final class HildesheimFixtureTests: XCTestCase {
             XCTAssertEqual(p?.filepath, w?["filepath"]?.string)
             XCTAssertEqual(p?.filename, w?["filename"]?.string)
         }
-        for c in expected["with-token"]?.array ?? [] {
-            XCTAssertEqual(Learnweb.withToken(c["url"]?.string ?? "", token: c["token"]?.string ?? ""), c["result"]?.string)
-        }
+        // "with-token" (`learnweb.with_token`) gibt es im Kern bewusst nicht: der Schluessel geht im Koerper mit, nie in
+        // der Adresse (LearnwebTests.testDownloadKeepsTokenOutOfEveryAddress prueft dieselben Adressen)
         let fh = expected["folder-html"]
         XCTAssertEqual(Learnweb.folderLinks(html: fh?["html"]?.string ?? ""), (fh?["links"]?.array ?? []).compactMap { $0.string })
     }
@@ -148,9 +147,9 @@ final class HildesheimFixtureTests: XCTestCase {
         let want = g?["grades"]?.array ?? []
         XCTAssertEqual(got.count, want.count)
         for (a, w) in zip(got, want) {
-            for k in ["pruefungsnr", "text", "note", "status", "credits"] {
-                XCTAssertEqual(a[k], opt(w[k]), k)
-            }
+            let fields: [String: String?] = ["pruefungsnr": a.pruefungsnr, "text": a.text, "note": a.note, "status": a.status,
+                                             "credits": a.credits]
+            for (k, v) in fields { XCTAssertEqual(v, opt(w[k]), k) }
             XCTAssertEqual(a.abschluss, w["abschluss"]?.string)
         }
     }

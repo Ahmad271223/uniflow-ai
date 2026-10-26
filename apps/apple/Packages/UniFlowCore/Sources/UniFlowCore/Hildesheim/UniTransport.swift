@@ -53,15 +53,19 @@ public enum HildesheimError: Error, Equatable, CustomStringConvertible, Localize
     /// Statt einer Datei kam eine Webseite (meist abgelaufene Anmeldung); nichts gespeichert
     case htmlInsteadOfFile(String)
     case noLearnwebInstance
+    /// Moodle-SSO (Learnweb-Schluessel ueber die App-Anmeldung) nicht moeglich, z. B. Mobile-Webservice aus
+    case ssoUnavailable(String)
 
     public var description: String {
         switch self {
         case .sessionExpired(let s): return "Anmeldung bei \(s) abgelaufen. Bitte neu anmelden."
         case .invalidToken: return "Der Learnweb-Schlüssel gilt nicht mehr. Bitte neu verbinden."
-        case .http(let s, let u): return "HTTP \(s) bei \(u)"
+        // Adressen ohne Abfrage: kein sesskey und keine Kennungen in Meldungen und Protokollen
+        case .http(let s, let u): return "HTTP \(s) bei \(HText.withoutQuery(u))"
         case .badResponse(let r): return "Unerwartete Antwort: \(r)"
         case .htmlInsteadOfFile(let u): return "Statt der Datei kam eine Webseite zurück (Anmeldung abgelaufen?): \(u)"
         case .noLearnwebInstance: return "Kein Learnweb für das aktuelle Semester erreichbar."
+        case .ssoUnavailable(let r): return "Anmeldung über die Learnweb-App-Schnittstelle nicht möglich: \(r)"
         }
     }
 
@@ -77,7 +81,8 @@ public enum HildesheimError: Error, Equatable, CustomStringConvertible, Localize
 /// Wiederholungen bei Netzfehlern: abgerissene Verbindung, Zeitueberschreitung, 5xx und 429. Wie `stream_download`
 /// in app/studip_sync.py fuer alle Hochschul-Abgleiche (Learnweb, LSF, Stud.IP-Downloads): hoechstens 3 Versuche,
 /// davor 1,5 s bzw. 3 s Pause. Abbruch, Anmeldung, andere HTTP-Fehler, Inhalt (Webseite statt Datei) und Fehler
-/// beim Schreiben aendern sich durch Wiederholen nicht und gehen sofort weiter.
+/// beim Schreiben aendern sich durch Wiederholen nicht und gehen sofort weiter. Eine abgebrochene Aufgabe
+/// (`Task.cancel`, z. B. Ansicht geschlossen) versucht nichts mehr.
 public struct UniRetry: Sendable {
     public var attempts: Int
     /// Wartezeit vor Versuch n (n ab 1) in Nanosekunden; Tests setzen 0
@@ -104,8 +109,9 @@ public struct UniRetry: Sendable {
                 return try await body()
             } catch {
                 n += 1
-                guard n < max(1, attempts), Self.isTransient(error) else { throw error }
+                guard n < max(1, attempts), Self.isTransient(error), !Task.isCancelled else { throw error }
                 try? await Task.sleep(nanoseconds: delayNanos(n))
+                try Task.checkCancellation()
             }
         }
     }
@@ -116,7 +122,7 @@ extension UniTransport {
     func fetch(_ r: UniRequest, retry: UniRetry) async throws -> UniResponse {
         try await retry.run {
             let resp = try await send(r)
-            if resp.status == 429 || resp.status >= 500 { throw HildesheimError.http(status: resp.status, url: r.url.absoluteString) }
+            if resp.status == 429 || resp.status >= 500 { throw HildesheimError.http(status: resp.status, url: HText.withoutQuery(r.url.absoluteString)) }
             return resp
         }
     }

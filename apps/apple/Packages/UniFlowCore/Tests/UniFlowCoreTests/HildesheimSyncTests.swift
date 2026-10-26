@@ -2,27 +2,42 @@ import Foundation
 import XCTest
 @testable import UniFlowCore
 
-/// Nachgebildetes Netz: Antworten je URL-Praefix (laengster Treffer), zaehlt Anfragen, schreibt Downloads in Dateien.
+/// Nachgebildetes Netz: Antworten je URL-Praefix (laengster Treffer) oder aus einer Funktion (`init(_:)`, darf werfen,
+/// z. B. `URLError`), zaehlt Anfragen, schreibt Downloads in Dateien. Kein echtes Netz.
 final class FakeUniTransport: UniTransport, @unchecked Sendable {
     /// Antworten nacheinander; die letzte bleibt fuer alle weiteren Anfragen
     struct Route { var responses: [UniResponse] }
     private let lock = NSLock()
     /// Schluessel: URL-Praefix + "|" + Text, der im Inhalt der Anfrage stehen muss (leer = egal)
     private var routes: [String: Route] = [:]
-    private(set) var requests: [UniRequest] = []
+    private var log: [UniRequest] = []
+    private let handler: ((UniRequest) throws -> UniResponse)?
+
+    init() { handler = nil }
+
+    init(_ handler: @escaping (UniRequest) throws -> UniResponse) { self.handler = handler }
+
+    var requests: [UniRequest] { lock.lock(); defer { lock.unlock() }; return log }
 
     func on(_ prefix: String, body: String = "", _ responses: UniResponse...) {
         lock.lock(); routes[prefix + "|" + body] = Route(responses: responses); lock.unlock()
     }
 
-    func count(_ prefix: String) -> Int { lock.lock(); defer { lock.unlock() }; return requests.filter { $0.url.absoluteString.hasPrefix(prefix) }.count }
+    func count(_ prefix: String) -> Int { requests.filter { $0.url.absoluteString.hasPrefix(prefix) }.count }
 
-    func send(_ request: UniRequest) async throws -> UniResponse { respond(request) }
+    func send(_ request: UniRequest) async throws -> UniResponse {
+        guard let handler else { return respond(request) }
+        record(request)
+        let r = try handler(request)
+        return UniResponse(status: r.status, headers: r.headers, finalURL: r.finalURL ?? request.url, body: r.body)
+    }
+
+    private func record(_ request: UniRequest) { lock.lock(); log.append(request); lock.unlock() }
 
     /// synchron, damit das Sperren nicht in einem async-Kontext liegt (Swift 6)
     private func respond(_ request: UniRequest) -> UniResponse {
         lock.lock(); defer { lock.unlock() }
-        requests.append(request)
+        log.append(request)
         let url = request.url.absoluteString
         let body = String(decoding: request.body ?? Data(), as: UTF8.self)
         let candidates = routes.keys.filter { key in
@@ -59,16 +74,19 @@ final class HildesheimSyncTests: XCTestCase {
 
     private lazy var expected: JSONValue = try! JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/expected.json"))
 
-    private func tempDir() throws -> URL {
-        let d = FileManager.default.temporaryDirectory.appendingPathComponent("hi-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-        return d
-    }
+    let tok = LearnwebToken("TOK")!
 
-    private func database() async throws -> SQLiteDatabase {
-        let db = try SQLiteDatabase(path: SQLiteDatabase.inMemory)
-        try await db.migrate(clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)), university: "hildesheim")
-        return db
+    /// Container (erfundener Apple-Nutzer, Uni Hildesheim) in einem Temp-Ordner mit seiner Datenbank wie in der App
+    private func container() async throws -> (SQLiteDatabase, DataContainerLayout) {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("hi-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: base) }
+        let layout = DataContainerLayout(base: base, key: DataContainerKey(userID: "001234.erfunden.0001", university: .hildesheim))
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        try layout.prepare(clock: clock)
+        try FileManager.default.createDirectory(at: layout.databaseDirectory, withIntermediateDirectories: true)
+        let db = try SQLiteDatabase(path: layout.databaseURL.path)
+        try await db.migrate(clock: clock, university: "hildesheim")
+        return (db, layout)
     }
 
     // MARK: Regeln, MD5, Moodle-Anmeldung, Ablage
@@ -102,21 +120,6 @@ final class HildesheimSyncTests: XCTestCase {
         }
     }
 
-    func testUniversityStorageIsSeparated() {
-        let a = UniversityStorage.containerPath(appleUserID: "001234.abc", university: "hildesheim")
-        let b = UniversityStorage.containerPath(appleUserID: "001234.abc", university: "luh")
-        XCTAssertNotNil(a); XCTAssertNotEqual(a, b)
-        XCTAssertTrue(a!.hasPrefix("users/") && a!.hasSuffix("/hildesheim"))
-        XCTAssertNil(UniversityStorage.containerPath(appleUserID: "x", university: "../etc"))
-        XCTAssertNil(UniversityStorage.containerPath(appleUserID: "", university: "luh"))
-        XCTAssertEqual(UniversityStorage.keychainService(university: "hildesheim", purpose: "learnweb-token"), "de.uniflow.ai.hildesheim.learnweb-token")
-        let u1 = UniversityStorage.websiteDataStoreID(appleUserID: "u", university: "luh")
-        let u2 = UniversityStorage.websiteDataStoreID(appleUserID: "u", university: "hildesheim")
-        XCTAssertNotEqual(u1, u2)
-        XCTAssertEqual(u1, UniversityStorage.websiteDataStoreID(appleUserID: "u", university: "luh"))   // bleibt gleich
-        XCTAssertEqual(u1?.uuidString.dropFirst(14).first, "5")                                         // Version 5
-    }
-
     // MARK: Learnweb-Client
 
     /// REST wie Moodle: Antwort je wsfunction (und courseid) aus dem Formular
@@ -134,21 +137,23 @@ final class HildesheimSyncTests: XCTestCase {
         let t = FakeUniTransport()
         let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
         restRoutes(t, contentsByCourse: [35: contents], courses: [35])
-        let api = LearnwebAPI(base: base, mode: .token("TOK"), transport: t, retry: noWait)
+        let api = LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait)
         let courses = try await api.courses()
         XCTAssertEqual(courses.map(\.id), ["lw-35"])
         XCTAssertEqual(courses.first?.number, "0435")
         let files = try await api.files(moodleID: 35)
         XCTAssertEqual(files.map(\.name), ["plan.pdf", "Einführung.pdf"])
-        let req = await api.downloadRequest(files[0])
-        XCTAssertTrue(req?.url.absoluteString.hasSuffix("plan.pdf?token=TOK") ?? false)
+        let req = try await api.downloadRequest(files[0])
+        XCTAssertEqual(req.url.absoluteString, files[0].downloadURL, "Schluessel nie in der Adresse")
+        XCTAssertEqual(req.method, "POST")
+        XCTAssertEqual(String(decoding: req.body ?? Data(), as: UTF8.self), "token=TOK", "Schluessel erst beim Abruf, im Koerper")
         XCTAssertFalse(files[0].downloadURL.contains("TOK"))                       // Schluessel nie in der Dateiliste
     }
 
     func testLearnwebInvalidTokenIsNotRetried() async {
         let t = FakeUniTransport()
         t.on("\(base)/webservice/rest/server.php", okJSON(.object(["exception": .string("moodle_exception"), "errorcode": .string("invalidtoken")])))
-        let api = LearnwebAPI(base: base, mode: .token("ALT"), transport: t, retry: noWait)
+        let api = LearnwebAPI(base: base, mode: .token(LearnwebToken("ALT")!), transport: t, retry: noWait)
         do { _ = try await api.courses(); XCTFail("Fehler erwartet") } catch { XCTAssertEqual(error as? HildesheimError, .invalidToken) }
         XCTAssertEqual(t.count("\(base)/webservice"), 1)
     }
@@ -225,15 +230,14 @@ final class HildesheimSyncTests: XCTestCase {
     }
 
     func testFullSyncStoresEverythingAndIsSafeToRepeat() async throws {
-        let db = try await database()
-        let root = try tempDir()
+        let (db, layout) = try await container()
         let t = FakeUniTransport()
         let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
         restRoutes(t, contentsByCourse: [35: contents, 39: .array([])], courses: [35, 39])
         t.on("\(base)/webservice/pluginfile.php/5", ok("%PDF-1.7 plan"))
         t.on("\(base)/webservice/pluginfile.php/6", ok("%PDF-1.7 einfuehrung"))
         lsfRoutes(t, plan: try repo("packages/shared-contracts/fixtures/hildesheim/lsf-plan.ics"))
-        let sync = HildesheimSync(db: db, root: root, learnweb: LearnwebAPI(base: base, mode: .token("TOK"), transport: t, retry: noWait),
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
                                   lsf: LSFClient(transport: t, retry: noWait), transport: t, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)))
         let r1 = await sync.run()
         XCTAssertTrue(r1.ok, r1.messages.joined(separator: "; "))
@@ -246,8 +250,9 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertEqual(files[0]["content_sha256"]?.string, SolutionSHA256.hex(Data("%PDF-1.7 einfuehrung".utf8)))
         XCTAssertEqual(files[1]["studip_folder"]?.string, "Informationen")
         let path = files[0]["local_path"]?.string ?? ""
-        XCTAssertTrue(path.hasPrefix("files/lw-80-"))
-        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), "%PDF-1.7 einfuehrung")
+        XCTAssertTrue(path.hasPrefix("Learnweb/files/lw-80-"), "relativ zum Container wie StudIP/... der LUH")
+        XCTAssertEqual(try String(contentsOf: layout.root.appendingPathComponent(path), encoding: .utf8), "%PDF-1.7 einfuehrung")
+        XCTAssertTrue(layout.files().exists(stored: path))
         let grades = try await db.rows("SELECT * FROM grades")
         XCTAssertFalse(grades.contains { ($0["raw"]?.string ?? "").contains("Erika") }, "keine Stammdaten")
         let got3 = try await db.scalar("SELECT COUNT(*) FROM event_exceptions")?.int
@@ -264,15 +269,14 @@ final class HildesheimSyncTests: XCTestCase {
     /// Wie hildesheim.sync_learnweb: erst alle Kurse (upsert_course), dann je Kurs die Dateien. Eine unlesbare
     /// Dateiliste betrifft nur ihren Kurs; der Kurs selbst steht trotzdem in der Datenbank.
     func testCourseWithUnreadableFileListIsStoredOthersLoad() async throws {
-        let db = try await database()
-        let root = try tempDir()
+        let (db, layout) = try await container()
         let t = FakeUniTransport()
         let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
         restRoutes(t, contentsByCourse: [35: contents], courses: [35, 39])
         t.on("\(base)/webservice/rest/server.php", body: "courseid=39&moodlewsrestformat=json&wsfunction=core_course_get_contents",
              UniResponse(status: 503))
         t.on("\(base)/webservice/pluginfile.php", ok("%PDF-1.7"))
-        let r = await HildesheimSync(db: db, root: root, learnweb: LearnwebAPI(base: base, mode: .token("TOK"), transport: t, retry: noWait),
+        let r = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
                                      lsf: nil, transport: t, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)), retry: noWait).run()
         XCTAssertEqual(r.failedCourses, ["0439 Kurs 39"])
         XCTAssertEqual(r.newFiles.count, 2, "Dateien des lesbaren Kurses kommen an")
@@ -284,8 +288,7 @@ final class HildesheimSyncTests: XCTestCase {
     }
 
     func testFailuresStayLocalAndNeverDeleteData() async throws {
-        let db = try await database()
-        let root = try tempDir()
+        let (db, layout) = try await container()
         let t = FakeUniTransport()
         let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
         restRoutes(t, contentsByCourse: [35: contents], courses: [35])
@@ -293,7 +296,7 @@ final class HildesheimSyncTests: XCTestCase {
         t.on("\(base)/webservice/pluginfile.php/6", ok("<!DOCTYPE html><html>Bitte anmelden</html>"))   // Webseite statt Datei
         lsfRoutes(t, plan: try repo("packages/shared-contracts/fixtures/hildesheim/lsf-plan.ics"))
         let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
-        let r1 = await HildesheimSync(db: db, root: root, learnweb: LearnwebAPI(base: base, mode: .token("TOK"), transport: t, retry: noWait),
+        let r1 = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
                                       lsf: LSFClient(transport: t, retry: noWait), transport: t, clock: clock).run()
         XCTAssertEqual(r1.newFiles.count, 1)
         XCTAssertEqual(r1.failedFiles, ["Einführung.pdf"])
@@ -307,7 +310,7 @@ final class HildesheimSyncTests: XCTestCase {
         t2.on("\(base)/webservice/rest/server.php", UniResponse(status: 500))
         t2.on(LSFClient.planURL, ok("<html>Login</html>", url: "https://www.uni-hildesheim.de/sso/login?service=y"))
         t2.on(LSFClient.startURL, ok("<html>Login</html>", url: "https://www.uni-hildesheim.de/sso/login?service=y"))
-        let r2 = await HildesheimSync(db: db, root: root, learnweb: LearnwebAPI(base: base, mode: .token("TOK"), transport: t2, retry: noWait),
+        let r2 = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t2, retry: noWait),
                                       lsf: LSFClient(transport: t2, retry: noWait), transport: t2, clock: clock).run()
         XCTAssertFalse(r2.ok)
         XCTAssertEqual(r2.needsLogin, ["LSF"])

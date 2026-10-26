@@ -85,16 +85,16 @@ extension UniStore {
 
     // MARK: Notenspiegel (qis.run)
 
-    public static func storeGrades(_ conn: SQLiteConnection, _ grades: [GradeRows.Grade], now: String) throws {
+    public static func storeGrades(_ conn: SQLiteConnection, _ grades: [QISGrade], now: String) throws {
         for g in grades {
             try conn.execute("""
                 INSERT INTO grades(pruefungsnr, text, semester, note, status, credits, versuch, datum, abschluss, raw, fetched_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(pruefungsnr, text, semester, versuch) DO UPDATE SET note=excluded.note, status=excluded.status,
                   credits=excluded.credits, datum=excluded.datum, abschluss=excluded.abschluss, raw=excluded.raw, fetched_at=excluded.fetched_at
-                """, [SQLiteValue(g["pruefungsnr"]), .text(g["text"] ?? ""), SQLiteValue(g["semester"]), SQLiteValue(g["note"]),
-                      SQLiteValue(g["status"]), SQLiteValue(g["credits"]), SQLiteValue(g["versuch"]), SQLiteValue(g["datum"]),
-                      .text(g.abschluss), .text(g.raw), .text(now)])
+                """, [SQLiteValue(g.pruefungsnr), .text(g.text), SQLiteValue(g.semester), SQLiteValue(g.note),
+                      SQLiteValue(g.status), SQLiteValue(g.credits), SQLiteValue(g.versuch), SQLiteValue(g.datum),
+                      .text(g.abschluss ?? ""), .text(g.raw), .text(now)])
         }
     }
 }
@@ -106,7 +106,13 @@ extension UniStore {
 /// Stud.IP-Abgleich. Ausfallsicher: kein Netz in einer Transaktion, jede Transaktion kurz; ein Fehler betrifft nur
 /// diesen Kurs bzw. diese Datei. Nichts wird geloescht, weil die Gegenseite nicht antwortet; LSF-Serien verschwinden
 /// nur nach einem vollstaendig gelesenen Plan. Downloads gehen erst in eine .part-Datei und ersetzen eine gute Datei
-/// nie halb; eine neue Fassung, die nicht ankam, laedt der naechste Abgleich.
+/// nie halb; eine neue Fassung, die nicht ankam, laedt der naechste Abgleich. Laeuft die Anmeldung ab oder wird der
+/// Lauf abgebrochen (`Task.cancel`), endet der Learnweb-Teil; die uebrigen Kurse stehen in `notAttempted` und
+/// gelten nicht als Fehler.
+///
+/// Speicher: der Container (Apple-Nutzer, Uni Hildesheim) wie beim Stud.IP-Abgleich der LUH (`DataContainerLayout`).
+/// Downloads unter `Learnweb/files/<id>/<name>`, `files.local_path` relativ zum Container. Passt der Container oder
+/// seine Datenbank nicht zur Uni Hildesheim (`UniversityMismatch`, anderes Konto), laeuft nichts.
 public actor HildesheimSync {
 
     public struct Report: Sendable, Equatable {
@@ -120,12 +126,18 @@ public actor HildesheimSync {
         public var messages: [String] = []
         /// Neu anmelden noetig (Learnweb oder LSF)
         public var needsLogin: [String] = []
-        public var ok: Bool { failedCourses.isEmpty && needsLogin.isEmpty }
+        /// Lauf abgebrochen (z. B. Ansicht geschlossen): kein Fehler der Kurse
+        public var cancelled = false
+        /// Learnweb-Kurse, die wegen abgelaufener Anmeldung oder Abbruch nicht (fertig) abgefragt wurden
+        public var notAttempted: [String] = []
+        /// Container oder Datenbank gehoeren nicht zur Uni Hildesheim bzw. diesem Konto: nichts abgeglichen
+        public var refused: String?
+        public var ok: Bool { failedCourses.isEmpty && needsLogin.isEmpty && !cancelled && refused == nil }
     }
 
     private let db: SQLiteDatabase
-    /// Ordner der Hochschule (`UniversityStorage.containerPath`); Dateien unter files/<id>/<name>
-    private let root: URL
+    /// Container der Hochschule (`DataContainerLayout`); Dateien unter `Learnweb/`
+    private let container: DataContainerLayout
     private let learnweb: LearnwebAPI?
     private let lsf: LSFClient?
     private let transport: UniTransport
@@ -134,11 +146,11 @@ public actor HildesheimSync {
     private let hasher: @Sendable (URL) -> String?
     private let retry: UniRetry
 
-    public init(db: SQLiteDatabase, root: URL, learnweb: LearnwebAPI?, lsf: LSFClient?, transport: UniTransport,
+    public init(db: SQLiteDatabase, container: DataContainerLayout, learnweb: LearnwebAPI?, lsf: LSFClient?, transport: UniTransport,
                 clock: UniFlowClock = .system, retry: UniRetry = UniRetry(),
                 hasher: @escaping @Sendable (URL) -> String? = { TestShare.contentHash(file: $0) }) {
         self.db = db
-        self.root = root
+        self.container = container
         self.learnweb = learnweb
         self.lsf = lsf
         self.transport = transport
@@ -155,6 +167,16 @@ public actor HildesheimSync {
         }
     }
 
+    /// Abbruch ist kein Fehler (auch `URLError(.cancelled)` einer abgebrochenen Aufgabe)
+    static func isCancellation(_ error: Error) -> Bool { error is CancellationError || Task.isCancelled }
+
+    /// Meldung ohne Adressen: `URLError` traegt die volle Adresse (mit sesskey) in seiner Beschreibung
+    static func describe(_ error: Error) -> String {
+        (error as? HildesheimError)?.description ?? (error as? UniversityMismatch)?.description ?? (error as? DataContainerError)?.description
+            ?? (error as NSError).localizedDescription
+    }
+
+    /// Pfad im Learnweb-Ordner des Containers
     public static func relativePath(fileID: String, name: String) -> String {
         "files/\(StudIPImport.safeFileName(fileID))/\(StudIPImport.safeFileName(name))"
     }
@@ -162,17 +184,40 @@ public actor HildesheimSync {
     /// semesterFilter: nur Kurse, deren Semester den Text enthaelt (wie HILDESHEIM_SEMESTER_FILTER)
     public func run(semesterFilter: String? = nil, includeGrades: Bool = true) async -> Report {
         var report = Report()
+        if let problem = await refusal() {
+            report.refused = problem
+            report.messages.append(problem)
+            return report
+        }
         let started = clock.nowISO
         if let learnweb { await syncLearnweb(learnweb, filter: semesterFilter, into: &report) }
-        if let lsf {
+        if let lsf, !report.cancelled, !Task.isCancelled {
             await syncPlan(lsf, into: &report)
             if includeGrades { await syncGrades(lsf, into: &report) }
         }
+        if Task.isCancelled { report.cancelled = true }
         let message = report.messages.joined(separator: ", ")
         _ = try? await db.execute("INSERT INTO sync_log(started_at, finished_at, ok, new_files, message) VALUES (?,?,?,?,?)",
                                   [.text(started), .text(clock.nowISO), .integer(report.ok ? 1 : 0),
                                    .integer(Int64(report.newFiles.count)), .text(message)])
         return report
+    }
+
+    /// Nur der Container der Uni Hildesheim mit seiner Kennzeichnung und eine Datenbank dieser Hochschule
+    /// (`settings.university`) werden beschrieben; sonst die Meldung, warum nicht.
+    private func refusal() async -> String? {
+        let want = UniversityKey.hildesheim.rawValue
+        guard container.university == .hildesheim else {
+            return UniversityMismatch(stored: container.university.rawValue, expected: want).description
+        }
+        do {
+            try container.verify()
+            let stored = try await db.scalar("SELECT value FROM settings WHERE key='university'")?.string
+            if stored != want { return UniversityMismatch(stored: stored, expected: want).description }
+        } catch {
+            return Self.describe(error)
+        }
+        return nil
     }
 
     private func syncLearnweb(_ api: LearnwebAPI, filter: String?, into report: inout Report) async {
@@ -187,64 +232,99 @@ public actor HildesheimSync {
                     try UniStore.upsertCourse(conn, UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semester), now: now)
                 }
             }
-        } catch let e as HildesheimError {
-            if Self.isLoginError(e) { report.needsLogin.append("Learnweb") }
-            report.messages.append("Learnweb: \(e.description)")
-            return
         } catch {
-            report.messages.append("Learnweb: \(error)")
+            if Self.isCancellation(error) {
+                report.cancelled = true
+                return
+            }
+            if Self.isLoginError(error) { report.needsLogin.append("Learnweb") }
+            report.messages.append("Learnweb: \(Self.describe(error))")
             return
         }
         report.courses = courses.count
-        let rootPath = root.path
+        let files = container.files()
         // Jeder Kurs einzeln: ein Fehler in einem Kurs verwirft nicht die schon geholten Dateien
-        for c in courses {
+        courseLoop: for (i, c) in courses.enumerated() {
+            /// Learnweb-Teil beenden: Abbruch oder abgelaufene Anmeldung; dieser und alle weiteren Kurse bleiben offen
+            func stop(_ error: Error) -> Bool {
+                if Self.isCancellation(error) {
+                    report.cancelled = true
+                } else if Self.isLoginError(error) {
+                    if !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
+                } else {
+                    return false
+                }
+                report.notAttempted = courses[i...].map(\.id)
+                return true
+            }
+            if Task.isCancelled, stop(CancellationError()) { break courseLoop }
             do {
-                let files = try await api.files(moodleID: c.moodleID)
+                let list = try await api.files(moodleID: c.moodleID)
                 let now = clock.nowISO
                 let todo = try await db.transaction { conn in
-                    try UniStore.storeFiles(conn, courseID: c.id, files.map(\.row), now: now,
-                                            fileExists: { FileManager.default.fileExists(atPath: rootPath + "/" + $0) })
+                    try UniStore.storeFiles(conn, courseID: c.id, list.map(\.row), now: now, fileExists: { files.exists(stored: $0) })
                 }
                 for row in todo {
-                    guard let f = files.first(where: { $0.id == row.id }) else { continue }
+                    guard let f = list.first(where: { $0.id == row.id }) else { continue }
                     do {
-                        guard let req = await api.downloadRequest(f) else { continue }
-                        let (rel, sha) = try await download(req, fileID: row.id, name: row.name, shownURL: row.downloadURL)
+                        try Task.checkCancellation()
+                        let req = try await api.downloadRequest(f)
+                        let (stored, sha) = try await download(req, fileID: row.id, name: row.name, shownURL: row.downloadURL)
                         let at = clock.nowISO
-                        try await db.transaction { try UniStore.markDownloaded($0, row, localPath: rel, sha256: sha, now: at) }
+                        try await db.transaction { try UniStore.markDownloaded($0, row, localPath: stored, sha256: sha, now: at) }
                         report.newFiles.append(row.id)
                     } catch {
+                        if stop(error) { break courseLoop }
                         report.failedFiles.append(row.name)
-                        if Self.isLoginError(error), !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
                     }
                 }
             } catch {
+                if stop(error) { break courseLoop }
                 report.failedCourses.append(c.title)
-                if Self.isLoginError(error), !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
             }
+        }
+        if report.cancelled {
+            report.messages.append("Learnweb abgebrochen")
+            return
         }
         report.messages.append("\(report.newFiles.count) neue/geänderte Dateien aus \(courses.count) Learnweb-Kursen"
                                + (report.failedFiles.isEmpty ? "" : ", \(report.failedFiles.count) Dateien später erneut"))
     }
 
-    /// Download wie `stream_download` am PC: in eine .part-Datei (Wiederholung bei abgerissener Verbindung),
-    /// Pruefung (keine Anmelde- oder andere Webseite, `UniStore.isWebPage`), dann atomar ersetzen.
-    /// Rueckgabe (Pfad relativ zum Ordner der Hochschule, Inhalts-Hash)
+    /// Download wie `stream_download` am PC: in eine .part-Datei im Zwischenordner `Learnweb/.laden` (Wiederholung bei
+    /// abgerissener Verbindung), Pruefung (keine Anmelde- oder andere Webseite, `UniStore.isWebPage`; keine
+    /// Fehlermeldung von Moodle statt der Datei, `Learnweb.downloadError`), dann atomar an ihren Platz. Ein Fehler
+    /// hinterlaesst nichts. Rueckgabe (Pfad relativ zum Container, Inhalts-Hash)
     private func download(_ req: UniRequest, fileID: String, name: String, shownURL: String) async throws -> (String, String?) {
-        let rel = Self.relativePath(fileID: fileID, name: name)
-        let target = root.appendingPathComponent(rel)
-        let part = target.appendingPathExtension("part")
+        let folder = container.learnweb
+        let target = folder.appendingPathComponent(Self.relativePath(fileID: fileID, name: name))
+        let partial = folder.appendingPathComponent(".laden", isDirectory: true)
+        let part = partial.appendingPathComponent(UUID().uuidString + ".part")
         let fm = FileManager.default
-        try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try fm.createDirectory(at: partial, withIntermediateDirectories: true)
+        Self.excludeFromBackup(folder)
         defer { try? fm.removeItem(at: part) }
         let resp = try await retry.run { try await transport.download(req, to: part) }
         if HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: shownURL) }
         if UniStore.isWebPage(file: part, name: name) { throw HildesheimError.htmlInsteadOfFile(shownURL) }
+        if let e = Learnweb.downloadError(file: part, name: name) { throw e }
+        try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         // rename ersetzt atomar: entweder die alte oder die neue Datei, nie eine halbe
-        guard rename(part.path, target.path) == 0 else { throw HildesheimError.badResponse("Datei nicht gespeichert: \(name)") }
-        return (rel, hasher(target))
+        guard rename(part.path, target.path) == 0, let stored = container.files().stored(target) else {
+            throw HildesheimError.badResponse("Datei nicht gespeichert: \(name)")
+        }
+        return (stored, hasher(target))
+    }
+
+    /// Vorlesungsunterlagen lassen sich jederzeit neu laden: nicht ins iCloud-Backup (wie `StudIP/` in der App)
+    private static func excludeFromBackup(_ folder: URL) {
+        #if canImport(Darwin)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        var f = folder
+        try? f.setResourceValues(values)
+        #endif
     }
 
     private func syncPlan(_ lsf: LSFClient, into report: inout Report) async {
@@ -258,12 +338,14 @@ public actor HildesheimSync {
             report.plan = r
             report.messages.append("Stundenplan: \(r.new) neu, \(r.kept) unverändert, \(r.removed) entfernt")
         } catch {
+            if Self.isCancellation(error) { report.cancelled = true; return }
             if Self.isLoginError(error) { report.needsLogin.append("LSF") }
-            report.messages.append("LSF-Stundenplan: \((error as? HildesheimError)?.description ?? "\(error)")")
+            report.messages.append("LSF-Stundenplan: \(Self.describe(error))")
         }
     }
 
     private func syncGrades(_ lsf: LSFClient, into report: inout Report) async {
+        guard !report.cancelled else { return }
         let started = clock.nowISO
         do {
             let grades = try await lsf.grades()
@@ -276,8 +358,9 @@ public actor HildesheimSync {
             report.grades = grades.count
             report.messages.append("Notenspiegel: \(grades.count) Leistungen")
         } catch {
+            if Self.isCancellation(error) { report.cancelled = true; return }
             if Self.isLoginError(error), !report.needsLogin.contains("LSF") { report.needsLogin.append("LSF") }
-            let msg = (error as? HildesheimError)?.description ?? "\(error)"
+            let msg = Self.describe(error)
             _ = try? await db.execute("INSERT INTO qis_runs(started_at, finished_at, ok, message, grades, documents) VALUES (?,?,0,?,0,0)",
                                       [.text(started), .text(clock.nowISO), .text("FEHLER: \(msg)")])
             report.messages.append("Notenspiegel: \(msg)")

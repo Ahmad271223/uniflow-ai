@@ -122,9 +122,15 @@ public enum UniStore {
         if n.hasSuffix(".html") || n.hasSuffix(".htm") { return false }
         guard let h = try? FileHandle(forReadingFrom: url) else { return false }
         defer { try? h.close() }
-        let first = (try? h.read(upToCount: 65536)) ?? Data()
-        // bytes.lstrip(): Leerzeichen, \t, \n, \r, \v, \f
-        let start = first.drop { [0x20, 0x09, 0x0A, 0x0D, 0x0B, 0x0C].contains($0) }.prefix(15)
+        return startsLikeWebPage((try? h.read(upToCount: 65536)) ?? Data())
+    }
+
+    /// Anfang (nach `bytes.lstrip()`: Leerzeichen, \t, \n, \r, \v, \f; zusaetzlich zu Python ohne UTF-8-BOM)
+    /// beginnt mit "<!doctype html" oder "<html". Auch fuer Antworten, die JSON sein sollten (Learnweb-AJAX).
+    static func startsLikeWebPage(_ data: Data) -> Bool {
+        var bytes = data[...]
+        if bytes.starts(with: [0xEF, 0xBB, 0xBF]) { bytes = bytes.dropFirst(3) }
+        let start = bytes.drop { [0x20, 0x09, 0x0A, 0x0D, 0x0B, 0x0C].contains($0) }.prefix(15)
         let head = String(decoding: start, as: UTF8.self).lowercased()
         return head.hasPrefix("<!doctype html") || head.hasPrefix("<html")
     }

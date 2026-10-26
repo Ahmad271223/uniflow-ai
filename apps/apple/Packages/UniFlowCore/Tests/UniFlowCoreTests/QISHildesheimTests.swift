@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import UniFlowCore
 
-/// Notenspiegel des LSF Hildesheim wie qis.parse_grade_rows / test_grade_rows_hildesheim_layout.
+/// Notenspiegel des LSF Hildesheim wie qis.parse_grade_rows / test_grade_rows_hildesheim_layout (eine Fassung: `GradeRows`).
 /// Erfundene Seite (Rechner lsf.test, Person "Erika Beispiel"); Stammdaten duerfen nirgends auftauchen.
 final class QISHildesheimTests: XCTestCase {
 
@@ -32,18 +32,18 @@ final class QISHildesheimTests: XCTestCase {
     }
 
     func testRowsLikePython() {
-        let g = QISParser.parseGradeRows(rows, abschluss: "Fallback")
+        let g = GradeRows.parse(rows: rows, abschluss: "Fallback")
         check(g)
         XCTAssertEqual(g[0].raw, "5011 | TM 1: Grundlagen / 0424 Einführung | 1,7 | bestanden | 6")
     }
 
     func testFallbackAbschlussAndHeaderAnywhere() {
-        let g = QISParser.parseGradeRows([["Hinweis", "x", "y"], ["Prüfungsnr.", "Bezeichnung", "Note", "Status"], ["1", "A", "1,0", "bestanden"]],
+        let g = GradeRows.parse(rows: [["Hinweis", "x", "y"], ["Prüfungsnr.", "Bezeichnung", "Note", "Status"], ["1", "A", "1,0", "bestanden"]],
                                          abschluss: "Fallback")
         XCTAssertEqual(g.map(\.abschluss), ["Fallback"])
-        XCTAssertTrue(QISParser.parseGradeRows([["1", "A", "1,0", "bestanden"]]).isEmpty, "ohne Kopfzeile keine Leistungen")
+        XCTAssertTrue(GradeRows.parse(rows: [["1", "A", "1,0", "bestanden"]]).isEmpty, "ohne Kopfzeile keine Leistungen")
         // NFD-Kopfzeile wird erkannt
-        let nfd = QISParser.parseGradeRows([["Pru\u{0308}fungsnr.", "Bezeichnung", "Note", "Status"], ["2", "B", "2,0", ""]])
+        let nfd = GradeRows.parse(rows: [["Pru\u{0308}fungsnr.", "Bezeichnung", "Note", "Status"], ["2", "B", "2,0", ""]])
         XCTAssertEqual(nfd.first?.pruefungsnr, "2")
     }
 
@@ -114,7 +114,7 @@ final class QISHildesheimTests: XCTestCase {
         XCTAssertTrue(p.grades(layout: .hildesheim).isEmpty)
         XCTAssertEqual(p.gradeTableCount(layout: .hildesheim), 0)
         // direkt ausgewertete Zeilen: die Stammdaten-Zeile wird uebersprungen
-        let g = QISParser.parseGradeRows(rows + [["Matrikelnummer", "7654321", "1,0", "bestanden", ""]])
+        let g = GradeRows.parse(rows: rows + [["Matrikelnummer", "7654321", "1,0", "bestanden", ""]])
         XCTAssertFalse(g.contains { $0.raw.contains("7654321") })
         XCTAssertEqual(g.count, 4)
     }

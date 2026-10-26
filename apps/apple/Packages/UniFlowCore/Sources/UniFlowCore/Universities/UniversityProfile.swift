@@ -1,8 +1,10 @@
 import Foundation
 
 // Hochschul-Profile wie app/universities.py: welche Hochschule die App abgleicht, ihre Dienste, Anmelde- und
-// Datenadressen. Jede Hochschule hat einen eigenen Schluessel-Praefix fuer den Schluesselbund
-// ("luh.studip.user", "hildesheim.cas.user"); es gibt keinen Rueckfall von einer Hochschule auf die andere.
+// Datenadressen. Die eine Quelle fuer Schluessel und Adressen der Hochschulen im Kern (HildesheimCAS, Learnweb,
+// LSFClient, Datenbank-Einstellung `university`, Container). Jede Hochschule hat einen eigenen Schluessel-Praefix fuer
+// den Schluesselbund ("luh.studip.user", "hildesheim.cas.user", "hildesheim.learnweb.token"); es gibt keinen
+// Rueckfall von einer Hochschule auf die andere.
 //
 // luh        -> Stud.IP (WebSSO/Shibboleth) + QIS der Leibniz Universitaet Hannover
 // hildesheim -> Learnweb (Moodle) + LSF der Universitaet Hildesheim, Anmeldung ueber das zentrale CAS
@@ -105,6 +107,9 @@ public struct UniversityProfile: Sendable, Hashable {
     /// Bescheinigungen aus dem QIS/LSF wie `qis.PROFILES[<uni>]["documents"]` (LUH ja, Hildesheim nein)
     public var qisDocuments: Bool { gradeLayout.collectsDocuments }
     public let loginServices: [UniversityLoginService]
+    /// Dienste mit gespeichertem Schluessel statt Benutzername und Passwort (Hildesheim: "learnweb" aus dem Moodle-SSO)
+    public let tokenServices: [String]
+    /// Dienste-Liste fuer `/api/services` (LUH: SERVICES in app/server.py, Hildesheim: HILDESHEIM_SERVICES)
     public let services: [UniversityServiceLink]
 
     // Datenadressen (nil, wenn die Hochschule den Dienst nicht hat)
@@ -117,11 +122,22 @@ public struct UniversityProfile: Sendable, Hashable {
 
     public func loginService(_ key: String) -> UniversityLoginService? { loginServices.first { $0.key == key } }
 
-    /// Schluesselbund-Eintrag eines Dienstes dieser Hochschule, z. B. "hildesheim.cas.user". nil fuer Dienste einer
-    /// anderen Hochschule (kein Rueckfall) und fuer unbekannte Felder.
-    public func keychainAccount(service: String, field: String) -> String? {
-        guard loginService(service) != nil, ["user", "password", "token"].contains(field) else { return nil }
-        return "\(keychainPrefix).\(service).\(field)"
+    /// Schluesselbund-Eintrag eines Dienstes dieser Hochschule, z. B. "hildesheim.cas.user" oder
+    /// "hildesheim.learnweb.token"; mit `userScope` (Kurzkennung des Apple-Nutzers, `DataContainerKey.userScope`)
+    /// davor: "u1a2b….hildesheim.cas.user". Die eine Funktion fuer die Namen aller gemerkten Zugangsdaten (App:
+    /// `UniversityCredentialStore`, Learnweb-Schluessel). nil fuer Dienste einer anderen Hochschule (kein Rueckfall)
+    /// und fuer Felder, die der Dienst nicht hat (Benutzer/Passwort nur fuer Anmeldeseiten, Schluessel nur fuer
+    /// `tokenServices`).
+    public func keychainAccount(service: String, field: String, userScope: String? = nil) -> String? {
+        let known: Bool
+        switch field {
+        case "user", "password": known = loginService(service) != nil
+        case "token": known = tokenServices.contains(service)
+        default: known = false
+        }
+        guard known else { return nil }
+        let account = "\(keychainPrefix).\(service).\(field)"
+        return userScope.map { "\($0).\(account)" } ?? account
     }
 
     /// Alle Schluesselbund-Eintraege, die zu dieser Hochschule gehoeren koennen (zum Loeschen je Hochschule).
@@ -161,8 +177,11 @@ extension UniversityProfile {
     /// WebSSO (Shibboleth-IdP) der LUH, entityID in app/studip_sync.py
     static let luhSSOHost = "sso.idm.uni-hannover.de"
 
+    /// HILDESHEIM_CAS, LSF_BASE (app/universities.py)
     public static let hildesheimCAS = URL(string: "https://www.uni-hildesheim.de/sso")!
-    public static let hildesheimLearnweb = URL(string: "https://www.uni-hildesheim.de/learnweb2026")!
+    /// LEARNWEB_BASE: nur fuer Links in der Oberflaeche und die Anmeldeseite; der Abgleich ermittelt die Instanz des
+    /// Semesters selbst (`Learnweb.discoverBase`, jaehrlicher Wechsel learnweb2026 -> learnweb2027)
+    public static let hildesheimLearnweb = URL(string: Learnweb.root + "/learnweb2026")!
     public static let hildesheimLSF = URL(string: "https://lsf.uni-hildesheim.de")!
 
     public static let luh = UniversityProfile(
@@ -188,13 +207,44 @@ extension UniversityProfile {
                 // ohne eigene QIS-Daten die LUH-ID aus Stud.IP (PC: same_as_studip, solange QIS nichts Eigenes hat)
                 prefillFallback: "studip"),
         ],
+        tokenServices: [],
+        // SERVICES in app/server.py (gleich mit Python laut Fixture app-paths.json)
         services: [
             UniversityServiceLink(key: "studip", name: "Stud.IP", url: "https://studip.uni-hannover.de/",
                                   desc: "Kurse, Dateien, Termine, Ankündigungen", login: "WebSSO (LUH-ID)", icon: "book",
                                   connected: true, connector: false),
+            UniversityServiceLink(key: "ilias", name: "ILIAS", url: "https://ilias.uni-hannover.de/",
+                                  desc: "Lernplattform: Kurse, Tests, Lernmodule", login: "WebSSO (LUH-ID)", icon: "layers",
+                                  connected: false, connector: false),
             UniversityServiceLink(key: "qis", name: "QIS / LSF (Prüfungsverwaltung)", url: luhQISStart.absoluteString,
                                   desc: "Notenspiegel, Prüfungsanmeldung, Bescheinigungen", login: "LUH-ID", icon: "exam",
                                   connected: false, connector: true),
+            UniversityServiceLink(key: "idm", name: "IDM Account-Manager", url: "https://login.uni-hannover.de/",
+                                  desc: "LUH-ID verwalten, Passwort ändern, WebSSO", login: "LUH-ID", icon: "user",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "mail", name: "E-Mail (LUIS)", url: "https://www.luis.uni-hannover.de/de/services/kommunikation/e-mail",
+                                  desc: "Studentisches E-Mail-Postfach und Webmail", login: "LUH-ID", icon: "bell",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "matrix", name: "Matrix-Chat",
+                                  url: "https://www.luis.uni-hannover.de/de/services/kommunikation/messenger-chat-dienst-matrix",
+                                  desc: "Messenger der Uni, auch in Stud.IP-Kursen", login: "LUH-ID", icon: "users",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "luhki", name: "LUHKI", url: "https://www.luis.uni-hannover.de/de/services/anwendungen/luhki-2",
+                                  desc: "KI-Plattform der LUH", login: "LUH-ID", icon: "sparkles", connected: false, connector: false),
+            UniversityServiceLink(key: "gitlab", name: "GitLab (LUIS)",
+                                  url: "https://www.luis.uni-hannover.de/de/services/anwendungen/versionsverwaltung-von-software-projekten-gitlab",
+                                  desc: "Versionsverwaltung für Programmieren-Projekte", login: "LUH-ID", icon: "file-text",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "tib", name: "TIB Bibliothek", url: "https://www.tib.eu/", desc: "Literatur, Lernplätze, Ausleihe",
+                                  login: "Bibliotheksausweis", icon: "book", connected: false, connector: false),
+            UniversityServiceLink(key: "mensa", name: "Mensa (Studentenwerk)", url: "https://www.studentenwerk-hannover.de/essen/speiseplaene",
+                                  desc: "Speisepläne der Mensen", login: "–", icon: "sun", connected: false, connector: false),
+            UniversityServiceLink(key: "servicecenter", name: "ServiceCenter",
+                                  url: "https://www.uni-hannover.de/de/studium/beratung-hilfe/servicecenter",
+                                  desc: "Immatrikulation, Rückmeldung, Beratung", login: "–", icon: "info", connected: false, connector: false),
+            UniversityServiceLink(key: "luis", name: "LUIS IT-Support",
+                                  url: "https://www.luis.uni-hannover.de/de/services/kurse-beratung-und-support/it-support",
+                                  desc: "WLAN, VPN, Software, Zugänge", login: "–", icon: "settings", connected: false, connector: false),
         ],
         studipBase: luhStudIP, qisBase: luhQIS, qisStart: luhQISStart, casBase: nil, learnwebBase: nil, lsfBase: nil)
 
@@ -206,14 +256,15 @@ extension UniversityProfile {
             UniversityLoginService(
                 key: "cas", name: "UNI-Account (CAS)", userLabel: "Zugangskennung (UNI-Account)",
                 // Learnweb (LEARNWEB_LOGIN in app/hildesheim.py) und LSF (SSO_ENTRY in app/lsf.py) ueber dasselbe CAS
-                entryURLs: [hildesheimLearnweb.appendingPathComponent("login/index.php").appendingQuery("authCAS=CAS"),
-                            CASLogin.loginURL(casBase: hildesheimCAS,
-                                              service: hildesheimLSF.absoluteString + "/qisserver/rds?state=user&type=1")],
+                entryURLs: [URL(string: HildesheimCAS.learnwebLoginURL(base: hildesheimLearnweb.absoluteString))!,
+                            URL(string: HildesheimCAS.lsfLoginURL)!],
                 // is_cas_page: mit und ohne "www."
                 targets: [UniversityLoginTarget(host: "www.uni-hildesheim.de", pathPrefix: "/sso/login"),
                           UniversityLoginTarget(host: "uni-hildesheim.de", pathPrefix: "/sso/login")],
-                userSelectors: CASLogin.userSelectors, passwordSelectors: CASLogin.passwordSelectors, prefillFallback: nil),
+                userSelectors: HildesheimCAS.userSelectors, passwordSelectors: HildesheimCAS.passwordSelectors, prefillFallback: nil),
         ],
+        // Learnweb-Schluessel aus dem Moodle-SSO ("hildesheim.learnweb.token")
+        tokenServices: ["learnweb"],
         // HILDESHEIM_SERVICES
         services: [
             UniversityServiceLink(key: "learnweb", name: "Learnweb", url: hildesheimLearnweb.absoluteString + "/my/courses.php",
@@ -231,11 +282,4 @@ extension UniversityProfile {
         ],
         studipBase: nil, qisBase: hildesheimLSF, qisStart: URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0")!,
         casBase: hildesheimCAS, learnwebBase: hildesheimLearnweb, lsfBase: hildesheimLSF)
-}
-
-extension URL {
-    /// Abfrage anhaengen, ohne die vorhandene Kodierung zu veraendern (nur feste, bereits kodierte Werte).
-    func appendingQuery(_ query: String) -> URL {
-        URL(string: absoluteString + (absoluteString.contains("?") ? "&" : "?") + query) ?? self
-    }
 }

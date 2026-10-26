@@ -1,11 +1,14 @@
 import Foundation
 
-// Datentrennung je (Apple-Nutzer, Hochschule), docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 2:
+// Datentrennung je (Apple-Nutzer, Hochschule), docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 2. Die eine Fassung fuer
+// alle Speicherorte (Ordner, Schluesselbund-Namen, Webdaten-Speicher); der Stud.IP-Abgleich der App und
+// `HildesheimSync` schreiben in denselben Container:
 // Jede Kombination hat einen eigenen Ordner (Container) mit allem, was die App fuer sie speichert: SQLite-Datenbank,
 // Journal der Notizen, PDF-Zwischenspeicher und Vorschaubilder, Loesungs-Bibliothek, eigene Dokumente und Bilder,
-// Stud.IP- bzw. spaeter Learnweb-Downloads. Der Ordnername ist eine feste UUID aus Nutzer und Hochschule; dieselbe
-// UUID benennt in der App den WKWebsiteDataStore der Anmelde-Webansichten. Die Apple-Nutzer-ID steht nirgends im
-// Dateisystem, nur ihr Hash.
+// Stud.IP- bzw. Learnweb-Downloads. Der Ordnername ist eine feste UUID aus Nutzer und Hochschule; dieselbe UUID
+// benennt in der App den WKWebsiteDataStore der Anmelde-Webansichten (`websiteDataStoreID`). Gemerkte Zugangsdaten
+// liegen im Schluesselbund-Dienst `keychainService` unter `keychainAccount(service:field:)`. Die Apple-Nutzer-ID
+// steht nirgends im Dateisystem und im Schluesselbund, nur ihr Hash.
 //
 // Jeder Container traegt in `container.json` seine Hochschule und seinen Nutzer (Hash). Passt das beim Oeffnen
 // nicht, wird er nicht geoeffnet (wie `UniversityMismatch` der Datenbank, die ihre Hochschule zusaetzlich selbst
@@ -21,6 +24,13 @@ public struct DataContainerKey: Hashable, Sendable, CustomStringConvertible {
         self.university = university
     }
 
+    /// Aus gespeicherten Werten: nur eine bekannte Hochschule (kein Pfad aus Eingaben, kein Raten) und ein
+    /// angemeldeter Nutzer; sonst nil.
+    public init?(userID: String, universityKey raw: String?) {
+        guard !userID.isEmpty, let uni = raw.flatMap(UniversityKey.init(rawValue:)) else { return nil }
+        self.init(userID: userID, university: uni)
+    }
+
     /// Feste UUID je (Nutzer, Hochschule): erste 16 Byte von SHA-256 ueber beide, Version 8 (RFC 9562, frei belegt).
     public var identifier: UUID {
         Self.uuid(from: SolutionSHA256.hash(Data(("uniflow.container.v1\u{0}" + userID + "\u{0}" + university.rawValue).utf8)))
@@ -28,6 +38,19 @@ public struct DataContainerKey: Hashable, Sendable, CustomStringConvertible {
 
     /// Kurzkennung des Nutzers ohne die Apple-ID selbst (Schluesselbund-Praefix, Einstellungen, Container-Merker)
     public var userScope: String { Self.userScope(userID) }
+
+    /// Kennung fuer `WKWebsiteDataStore(forIdentifier:)`: eigene Cookies und Webdaten je (Nutzer, Hochschule); die
+    /// UUID des Containers. Abmelden oder Loeschen raeumt genau diesen Speicher.
+    public var websiteDataStoreID: UUID { identifier }
+
+    /// Schluesselbund-Dienst der gemerkten Hochschul-Zugangsdaten (nur dieses Geraet, nicht synchronisiert)
+    public static let keychainService = "de.uniflow.ai.university"
+
+    /// Schluesselbund-Eintrag fuer Zugangsdaten dieses Containers, z. B. "u1a2b….hildesheim.cas.password" oder
+    /// "u1a2b….hildesheim.learnweb.token"; nil fuer Dienste einer anderen Hochschule (`UniversityProfile.keychainAccount`)
+    public func keychainAccount(service: String, field: String) -> String? {
+        university.profile.keychainAccount(service: service, field: field, userScope: userScope)
+    }
 
     /// "u" und 16 Hex-Zeichen aus SHA-256 der Nutzerkennung
     public static func userScope(_ userID: String) -> String {

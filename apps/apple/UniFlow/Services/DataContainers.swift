@@ -48,8 +48,8 @@ final class ActiveContainer: @unchecked Sendable {
     /// Stud.IP-Sitzungs-Cookie dieses Containers
     let cookies: StudIPCookieStore
 
-    /// Kennung des WKWebsiteDataStore der Anmelde-Webansichten (= UUID des Containers)
-    var websiteDataStoreID: UUID { layout.identifier }
+    /// Kennung des WKWebsiteDataStore der Anmelde-Webansichten (= UUID des Containers, `DataContainerKey.websiteDataStoreID`)
+    var websiteDataStoreID: UUID { key.websiteDataStoreID }
 
     init(key: DataContainerKey, base: URL, keychain: UniversitySecretStoring, cookieService: String, appDefaults: UserDefaults,
          clock: UniFlowClock = .system) {
@@ -297,7 +297,7 @@ final class ContainerManager: ObservableObject {
         let layout = DataContainerLayout(base: base, key: key)
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
         UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
-        await removeWebsiteData(layout.identifier)
+        await removeWebsiteData(key.websiteDataStoreID)
         let suite = ActiveContainer.defaultsSuite(layout.identifier)
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
         try? layout.remove()

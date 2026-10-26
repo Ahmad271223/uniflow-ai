@@ -97,8 +97,8 @@ public enum Migrations {
 
     public static let deviceSteps: [DeviceStep] = []
 
-    /// Hochschule dieser App (V1 nur LUH, `config.UNIVERSITY` in Python)
-    public static let defaultUniversity = "luh"
+    /// Hochschule ohne Wahl (`universities.DEFAULT`, `config.UNIVERSITY` in Python; eine Quelle: `UniversityKey`)
+    public static let defaultUniversity = UniversityKey.default.rawValue
 
     /// Alles in einer Transaktion: bricht ein Schritt ab, bleibt die Datenbank im alten Stand. Gehoert die Datenbank
     /// einer anderen Hochschule, bricht der Lauf mit `UniversityMismatch` ab (wie `init_db`), nichts wird geaendert.
