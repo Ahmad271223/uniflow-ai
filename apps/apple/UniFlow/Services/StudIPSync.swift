@@ -137,12 +137,16 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// abgerissene Verbindung bis zu zweimal (`UniRetry` im `StudIPClient`), und eine Webseite oder leere Antwort statt
 /// der Datei wird nicht gespeichert. Ablage, Hash und Eintrag jeder Datei laufen ueber `UniDownloads`, dieselbe
 /// Fassung wie fuer Learnweb, ebenso seit S7 die alte Fassung einer Datei mit Notizen (unter `Fassungen`, Notizen auf
-/// den passenden Seiten der neuen) und die Seitentexte fuer die Suche (PDFKit ueber `host.files`). Eine neue Fassung, die nicht ankam, laedt der naechste Abgleich (`UniStore`). Laeuft die
-/// Sitzung erst beim Stundenplan ab, bleiben die Dateien, der Lauf endet aber mit "Erneut anmelden" (`.needsLogin`).
+/// den passenden Seiten der neuen) und die Seitentexte fuer die Suche (PDFKit ueber `host.files`). Eine neue Fassung,
+/// die nicht ankam, laedt der naechste Abgleich (`UniStore`). Laeuft die Sitzung erst beim Stundenplan ab, bleiben die
+/// Dateien, der Lauf endet aber mit "Erneut anmelden" (`.needsLogin`).
 /// "Daten dieser Hochschule löschen" und "Konto löschen" halten einen laufenden Abgleich an (`stop`) und warten auf
 /// sein Ende, bevor sie den Container entfernen.
 /// Am Ende jedes Laufs (auch eines gescheiterten: was bis dahin gelesen war, steht in der Datenbank) zaehlt
 /// `finishedRuns` hoch; offene Seiten laden dann neu (`ufReload`), wie nach einem Sync des PC-Servers.
+/// Nach dem Stundenplan kommen die Listen der Opencast-Aufzeichnungen (`recordings`, nur die Listen, nie ein Video;
+/// Listen in der Datenbank, geladene Videos unter `Aufzeichnungen` im Container). `stop` haelt auch laufende Downloads
+/// von Aufzeichnungen an.
 @MainActor
 final class StudIPSync: ObservableObject {
     static let base = URL(string: "https://studip.uni-hannover.de")!
@@ -176,6 +180,9 @@ final class StudIPSync: ObservableObject {
     let cookies: StudIPCookieStore
     /// Datenspeicher der Anmelde-Webansicht dieses Containers (`WKWebsiteDataStore(forIdentifier:)`)
     let websiteDataStore: WKWebsiteDataStore
+    /// Opencast-Aufzeichnungen: Listen in derselben Datenbank des Containers, geladene Videos (nur auf Wunsch) unter
+    /// `root/Aufzeichnungen` ohne Backup
+    let recordings: RecordingLibrary
     private var index: [String: StudIPLocalEntry] = [:]
     /// Lokales Backend, in dessen Datenbank der Abgleich schreibt
     private let host: LocalBackendHost
@@ -209,6 +216,8 @@ final class StudIPSync: ObservableObject {
         self.university = university
         self.cookies = cookies ?? ActiveContainer.current?.cookies ?? StudIPCookieStore(account: "ohne-container")
         self.websiteDataStore = websiteDataStore ?? .nonPersistent()
+        recordings = RecordingLibrary(root: self.root.appendingPathComponent(RecordingFiles.folder, isDirectory: true), host: host,
+                                      container: container)
         selectedCourses = Set(defaults.stringArray(forKey: "uniflow.studip.courses") ?? [])
         lastRun = defaults.object(forKey: "uniflow.studip.lastRun") as? Date
         lastSummary = defaults.string(forKey: "uniflow.studip.lastSummary")
@@ -292,11 +301,30 @@ final class StudIPSync: ObservableObject {
             for id in ids { try? FileManager.default.removeItem(at: cache.appendingPathComponent(LocalJournalName.safe(id) + ".pdf")) }
             AppPaths.removeThumbnails(fileIDs: ids, namespace: .local, root: support)
         }
+        await recordings.removeAll()                      // geladene Aufzeichnungen ebenso, die Listen bleiben
     }
 
     // MARK: Abgleich
 
+    /// Laeuft der Prozess als Test-Host von XCTest? Dann nie Stud.IP/Opencast abrufen (auch wenn im Simulator eine
+    /// echte Sitzung im Schluesselbund liegt).
+    nonisolated static func isUnderTest(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+        environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil
+            || environment["XCTestSessionIdentifier"] != nil
+    }
+
+    /// Automatischer Abgleich beim Oeffnen erlaubt? Nicht unter XCTest, nicht mit -UFNoStudIPSync und nicht bei
+    /// Startargumenten fuer Bildvergleiche/Agenten (-UFRoute, -UFAction, -UFServer, -UFDisconnect). Der Knopf
+    /// "Jetzt abgleichen" bleibt ausserhalb von XCTest moeglich.
+    nonisolated static func automaticRunAllowed(environment: [String: String] = ProcessInfo.processInfo.environment,
+                                                defaults: UserDefaults = .standard) -> Bool {
+        if isUnderTest(environment: environment) { return false }
+        if defaults.bool(forKey: "UFNoStudIPSync") { return false }
+        return !DebugLaunch.skipTriggers.contains { defaults.object(forKey: $0) != nil }
+    }
+
     func runIfDue() {
+        guard Self.automaticRunAllowed() else { return }
         guard phase == .idle || isFailed else { return }
         if let last = lastRun, Date().timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
@@ -305,7 +333,7 @@ final class StudIPSync: ObservableObject {
     private var isFailed: Bool { if case .failed = phase { return true }; return false }
 
     func run() async {
-        guard !isRunning, offersStudIP else { return }
+        guard !isRunning, offersStudIP, !Self.isUnderTest() else { return }
         let cookies = self.cookies.load()
         guard !cookies.isEmpty else { phase = .signedOut; return }
         await run(client: StudIPClient(base: Self.base, transport: URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")))
@@ -325,9 +353,10 @@ final class StudIPSync: ObservableObject {
     }
 
     /// Anhalten, bevor der Container geloescht wird: laufenden Abgleich abbrechen und auf sein Ende warten (danach
-    /// schreibt er nichts mehr); diese Instanz gleicht danach nicht mehr ab
+    /// schreibt er nichts mehr), ebenso laufende Downloads von Aufzeichnungen; diese Instanz gleicht danach nicht mehr ab
     func stop() async {
         stopped = true
+        recordings.stop()
         guard let task = current else { return }
         task.cancel()
         await task.value
@@ -430,6 +459,10 @@ final class StudIPSync: ObservableObject {
             try Task.checkCancellation()
             // Stundenplan aus Stud.IP (S5); Fehler dort brechen den Datei-Abgleich nicht ab
             let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
+            try Task.checkCancellation()
+            // Aufzeichnungen (Opencast): je Kurs eine Seite; Fehler eines Kurses ueberspringen nur diesen, Kurse ohne
+            // Opencast sind kein Fehler; Videos laedt nur der Nutzer. Nach abgelaufener Sitzung nicht mehr fragen
+            let rec = timetable.sessionExpired ? nil : await recordings.refresh(client: client, courses: chosen) { phase = .running($0) }
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
             var parts = ["\(loaded) neu/geändert", "\(remote.count - notDownloadable - download.count) unverändert"]
             if notDownloadable > 0 { parts.append("\(notDownloadable) nicht herunterladbar") }
@@ -437,11 +470,12 @@ final class StudIPSync: ObservableObject {
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
             parts += timetable.summary
+            parts += rec?.summary ?? []
             finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
             await log(database, started: started, ok: true, newFiles: loaded,
                       message: StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0))
-            // Sitzung erst beim Stundenplan abgelaufen: Dateien sind da, die Anmeldung muss trotzdem neu
-            phase = timetable.sessionExpired ? .needsLogin : .idle
+            // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu
+            phase = timetable.sessionExpired || rec?.sessionExpired == true ? .needsLogin : .idle
         } catch where Self.isCancellation(error) || Task.isCancelled {
             // angehalten (Container wird geloescht) oder abgebrochen: kein Fehler; was gelesen war, steht in der Datenbank
             entries = sortedEntries()

@@ -425,7 +425,7 @@ final class NewVersionSearchAppTests: XCTestCase {
     /// der geaenderten Seite ueber der Seite, "Alte Fassung" oeffnet die alte PDF (3 Seiten, nur ansehen), "OK" blendet
     /// den Hinweis dauerhaft aus
     func testDocumentShowsNoticeAndOpensOldVersion() throws {
-        let (dev, file) = try awaiting { () -> (Device, LibFile) in
+        let (dev, file, sync) = try awaiting { () -> (Device, LibFile, StudIPSync) in
             let dev = try self.device()
             let stud = FakeStudIP()
             stud.file(self.makePDF(self.v1Pages), changed: "2026-10-19T10:00:00+02:00")
@@ -438,11 +438,12 @@ final class NewVersionSearchAppTests: XCTestCase {
             _ = try await dev.api.value("/api/files/d1/annotations?base_version=0", method: "PUT", body: notes)
             stud.file(self.makePDF(self.v2Pages), changed: "2026-10-26T08:00:00+02:00")
             await sync.run(client: self.client(stud))
-            return (dev, try await self.libraryFile(dev.api, "d1"))
+            return (dev, try await self.libraryFile(dev.api, "d1"), sync)
         }
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }
-        let win = window(DocumentView(file: file, api: dev.api))
+        // StudIPSync wie in der App ueber der Seite (das Dokument fragt dessen Aufzeichnungen nach einem Vorschlag)
+        let win = window(DocumentView(file: file, api: dev.api).environmentObject(sync))
         let title = "Neue Fassung aus Stud.IP – Notizen übernommen (1 Seite prüfen)"
         XCTAssertTrue(pump { self.shows(win, title) }, texts(win).joined(separator: "\n"))
         XCTAssertTrue(shows(win, "Geänderte Seite 4"))

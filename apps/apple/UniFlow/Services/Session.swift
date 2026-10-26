@@ -124,6 +124,8 @@ final class Session: ObservableObject {
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,
 ///                                     timer:<stopwatch|countdown|pomodoro>[:run|:pill])
+///   -UFNoStudIPSync YES               kein automatischer Stud.IP-Abgleich beim Oeffnen (ebenso bei -UFServer,
+///                                     -UFDisconnect, -UFRoute, -UFAction und immer unter XCTest)
 /// Die Darstellung laesst sich ueber -theme dark|light|auto setzen (AppStorage liest Startargumente).
 enum DebugLaunch {
     /// Tarif aus -UFPlan (nur Debug); nil = Tarif aus StoreKit

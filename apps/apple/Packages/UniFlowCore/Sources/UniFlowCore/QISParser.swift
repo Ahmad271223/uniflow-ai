@@ -607,11 +607,11 @@ public enum QISParser {
     }
 }
 
-// MARK: - Kleiner HTML-Leser
+// MARK: - Tabellen und Links einer Seite
 
-// QIS liefert kein wohlgeformtes HTML (offene td/tr, Layout-Tabellen ineinander). Statt eines Parsers ein Durchlauf
-// ueber die Bytes: Tags mit Attributen, Text, Kommentare; Inhalt von script/style wird uebersprungen. Daraus entstehen
-// die Tabellen (Text je Zelle, innerste Tabelle bekommt den Text) und die Links.
+// QIS liefert kein wohlgeformtes HTML (offene td/tr, Layout-Tabellen ineinander). Aus den Bausteinen von
+// `HTMLTokenizer` entstehen die Tabellen (Text je Zelle, innerste Tabelle bekommt den Text) und die Links; Inhalt von
+// script/style faellt weg, der Seitentitel bleibt.
 
 struct HTMLTableCell: Sendable, Equatable {
     let text: String
@@ -725,8 +725,8 @@ enum HTMLScanner {
         /// offene Bloecke, aeusserster zuerst
         var blocks: [BlockBuilder] = []
 
-        func text(_ raw: String) {
-            let t = QISParser.decodeEntities(raw)
+        /// Text mit dekodierten Entities (`HTMLToken.text`)
+        func text(_ t: String) {
             stack.last?.cell?.parts.append(t)
             open?.parts.append(t)
             h1Parts?.append(t)
@@ -879,106 +879,16 @@ enum HTMLScanner {
     }
 
     static func scan(_ html: String) -> HTMLScan {
-        let b = Array(html.utf8)
-        let n = b.count
         let builder = Builder()
-        var i = 0
-        var textStart = 0
-
-        func isAlpha(_ c: UInt8) -> Bool { (c | 0x20) >= 0x61 && (c | 0x20) <= 0x7A }
-        func isSpace(_ c: UInt8) -> Bool { c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D || c == 0x0C }
-        func lower(_ s: ArraySlice<UInt8>) -> String { String(decoding: s.map { isAlpha($0) ? $0 | 0x20 : $0 }, as: UTF8.self) }
-        func find(_ needle: [UInt8], from: Int, caseless: Bool = false) -> Int? {
-            guard needle.count <= n else { return nil }
-            var k = from
-            while k + needle.count <= n {
-                var hit = true
-                for (o, c) in needle.enumerated() {
-                    let x = b[k + o]
-                    if caseless ? (isAlpha(x) ? x | 0x20 : x) != c : x != c { hit = false; break }
-                }
-                if hit { return k }
-                k += 1
+        for t in HTMLTokenizer.tokens(html) {
+            switch t {
+            case .start(let name, let attrs): builder.start(name, attrs)
+            case .end(let name): builder.end(name)
+            case .text(let s): builder.text(s)
+            case .raw(let name, let s):
+                if name == "title", builder.scan.title.isEmpty { builder.scan.title = QISParser.clean(QISParser.decodeEntities(s)) }
             }
-            return nil
         }
-        func flush(_ end: Int) {
-            if end > textStart { builder.text(String(decoding: b[textStart..<end], as: UTF8.self)) }
-        }
-
-        while i < n {
-            guard b[i] == UInt8(ascii: "<"), i + 1 < n else { i += 1; continue }
-            let c = b[i + 1]
-            if c == UInt8(ascii: "!") || c == UInt8(ascii: "?") {
-                flush(i)
-                if c == UInt8(ascii: "!"), i + 3 < n, b[i + 2] == UInt8(ascii: "-"), b[i + 3] == UInt8(ascii: "-") {
-                    i = find(Array("-->".utf8), from: i + 4).map { $0 + 3 } ?? n
-                } else {
-                    i = find([UInt8(ascii: ">")], from: i + 2).map { $0 + 1 } ?? n
-                }
-                textStart = i
-                continue
-            }
-            if c == UInt8(ascii: "/"), i + 2 < n, isAlpha(b[i + 2]) {
-                flush(i)
-                var j = i + 2
-                while j < n, isAlpha(b[j]) || (b[j] >= 0x30 && b[j] <= 0x39) { j += 1 }
-                builder.end(lower(b[(i + 2)..<j]))
-                i = find([UInt8(ascii: ">")], from: j).map { $0 + 1 } ?? n
-                textStart = i
-                continue
-            }
-            guard isAlpha(c) else { i += 1; continue }
-            flush(i)
-            var j = i + 1
-            while j < n, isAlpha(b[j]) || (b[j] >= 0x30 && b[j] <= 0x39) || b[j] == UInt8(ascii: "-") || b[j] == UInt8(ascii: ":") { j += 1 }
-            let name = lower(b[(i + 1)..<j])
-            var attrs: [String: String] = [:]
-            attrLoop: while j < n {
-                while j < n, isSpace(b[j]) { j += 1 }
-                guard j < n else { break }
-                if b[j] == UInt8(ascii: ">") { j += 1; break }
-                if b[j] == UInt8(ascii: "/") { j += 1; continue }
-                let ns = j
-                while j < n, !isSpace(b[j]), b[j] != UInt8(ascii: "="), b[j] != UInt8(ascii: ">"),
-                      !(b[j] == UInt8(ascii: "/") && j + 1 < n && b[j + 1] == UInt8(ascii: ">")) { j += 1 }
-                if j == ns { j += 1; continue attrLoop }
-                let attr = lower(b[ns..<j])
-                while j < n, isSpace(b[j]) { j += 1 }
-                var value = ""
-                if j < n, b[j] == UInt8(ascii: "=") {
-                    j += 1
-                    while j < n, isSpace(b[j]) { j += 1 }
-                    if j < n, b[j] == UInt8(ascii: "\"") || b[j] == UInt8(ascii: "'") {
-                        let q = b[j]
-                        j += 1
-                        let vs = j
-                        while j < n, b[j] != q { j += 1 }
-                        value = String(decoding: b[vs..<j], as: UTF8.self)
-                        if j < n { j += 1 }
-                    } else {
-                        let vs = j
-                        while j < n, !isSpace(b[j]), b[j] != UInt8(ascii: ">") { j += 1 }
-                        value = String(decoding: b[vs..<j], as: UTF8.self)
-                    }
-                }
-                if attrs[attr] == nil { attrs[attr] = QISParser.decodeEntities(value) }
-            }
-            i = j
-            textStart = i
-            if name == "script" || name == "style" || name == "title" || name == "textarea" {
-                // Rohtext bis zum passenden End-Tag
-                let close = find(Array("</\(name)".utf8), from: i, caseless: true) ?? n
-                if name == "title", builder.scan.title.isEmpty {
-                    builder.scan.title = QISParser.clean(QISParser.decodeEntities(String(decoding: b[i..<close], as: UTF8.self)))
-                }
-                i = close < n ? (find([UInt8(ascii: ">")], from: close).map { $0 + 1 } ?? n) : n
-                textStart = i
-                continue
-            }
-            builder.start(name, attrs)
-        }
-        flush(n)
         return builder.result()
     }
 }

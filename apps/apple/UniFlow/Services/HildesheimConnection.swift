@@ -209,7 +209,8 @@ final class HildesheimConnection: ObservableObject {
 
     /// Beim Oeffnen der App: hoechstens alle 30 Minuten, nur mit einer verbundenen Quelle
     func runIfDue() {
-        guard anyConnected, !isRunning else { return }
+        // dieselbe Regel wie beim Stud.IP-Abgleich: nie automatisch unter XCTest, -UFNoStudIPSync oder Startargumenten
+        guard StudIPSync.automaticRunAllowed(), anyConnected, !isRunning else { return }
         if let last = lastRun, clock.now.timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
     }
