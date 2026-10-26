@@ -2,7 +2,7 @@ import Foundation
 
 /// `/api/timetable/*` wie app/server.py (Abschnitt "Stundenplan" und `/api/timetable/auto-status`), Logik in
 /// `LocalTimetable`, `LocalFreeWindows` und `LocalTimetableImport`. `/api/timetable/reslot` gehoert zur Lernlogik
-/// (S6) und bleibt bis dahin Platzhalter. Abweichungen: falsche Datumsangaben in der Query geben 422 statt 500;
+/// (S6, `StudyEndpoints`). Abweichungen: falsche Datumsangaben in der Query geben 422 statt 500;
 /// Import aus PDF, Bild oder Text braucht KI und antwortet wie die anderen KI-Pfade (404 mit Meldung);
 /// `conflicts?days=` hoechstens zehn Jahre.
 public enum TimetableEndpoints: LocalEndpointModule {

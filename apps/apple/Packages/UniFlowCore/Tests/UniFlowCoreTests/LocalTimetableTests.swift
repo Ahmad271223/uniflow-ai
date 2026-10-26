@@ -336,10 +336,11 @@ final class LocalTimetableTests: XCTestCase {
         XCTAssertEqual(bad.status, 500)
     }
 
-    func testOnlyReslotStaysPlaceholder() async throws {
+    /// Seit S6 ist auch `/api/timetable/reslot` echt (Lernlogik, StudyEndpoints): kein Platzhalter mehr im Stundenplan
+    func testNoTimetablePlaceholderLeft() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
         let timetable = backend.router.allRoutes.filter { $0.pattern.template.hasPrefix("/api/timetable/") }
-        XCTAssertEqual(Set(timetable.filter(\.placeholder).map(\.pattern.template)), ["/api/timetable/reslot"])
-        XCTAssertGreaterThanOrEqual(timetable.filter { !$0.placeholder }.count, 14)
+        XCTAssertEqual(timetable.filter(\.placeholder).map(\.pattern.template), [])
+        XCTAssertGreaterThanOrEqual(timetable.count, 15)
     }
 }

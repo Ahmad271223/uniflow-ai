@@ -2389,8 +2389,7 @@
     }
    },
    "expect": {
-    "status": 409,
-    "reason": "Lernpakete kommen mit S6"
+    "status": 200
    }
   },
   {
