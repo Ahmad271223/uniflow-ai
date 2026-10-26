@@ -536,3 +536,133 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), v2)
     }
 }
+
+// MARK: - Fristen und Ankuendigungen im Abgleich (hildesheim.sync_deadlines, sync_announcements)
+
+final class HildesheimDeadlineSyncTests: XCTestCase {
+    let base = "https://www.uni-hildesheim.de/learnweb2026"
+    let noWait = UniRetry(attempts: 3, delayNanos: { _ in 0 })
+    let tok = LearnwebToken("TOK")!
+    /// Sonntag, 25.10.2026, 14:30:05 Europe/Berlin (nach dem Kalender-Fixture: Essay 1 ueberfaellig, Lerncheck kommt)
+    let clock = UniFlowClock.fixed(berlin: "2026-10-25T14:30:05")!
+
+    private func repo(_ relative: String) throws -> String {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        return try String(contentsOf: url.appendingPathComponent(relative), encoding: .utf8)
+    }
+
+    private func container() async throws -> (SQLiteDatabase, DataContainerLayout) {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("hi-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: base) }
+        let layout = DataContainerLayout(base: base, key: DataContainerKey(userID: "001234.erfunden.0001", university: .hildesheim))
+        try layout.prepare(clock: clock)
+        try FileManager.default.createDirectory(at: layout.databaseDirectory, withIntermediateDirectories: true)
+        let db = try SQLiteDatabase(path: layout.databaseURL.path)
+        try await db.migrate(clock: clock, university: "hildesheim")
+        return (db, layout)
+    }
+
+    /// Kurse 843 und 901 (wie im Kalender-Fixture) ohne Dateien, Kalender aus dem Fixture, ein Ankuendigungsforum
+    private func routes(_ t: FakeUniTransport, events: JSONValue, discussions: [JSONValue]) {
+        let rest = "\(base)/webservice/rest/server.php"
+        t.on(rest, body: "wsfunction=core_webservice_get_site_info", okJSON(.object(["userid": .number(42)])))
+        t.on(rest, body: "wsfunction=core_enrol_get_users_courses",
+             okJSON(.array([843, 901].map { .object(["id": .number(Double($0)), "fullname": .string("WiSe 2026/27: 90\($0 % 100) Kurs \($0)"), "hidden": .number(0)]) })))
+        t.on(rest, body: "wsfunction=core_course_get_contents", okJSON(.array([])))
+        t.on(rest, body: "wsfunction=core_calendar_get_action_events_by_timesort", okJSON(.object(["events": events, "lastid": .null])))
+        t.on(rest, body: "wsfunction=core_calendar_get_calendar_upcoming_view", okJSON(.object(["events": .array([])])))
+        t.on(rest, body: "wsfunction=mod_forum_get_forums_by_courses",
+             okJSON(.array([.object(["id": .number(7), "course": .number(843), "type": .string("news")]),
+                            .object(["id": .number(8), "course": .number(843), "type": .string("general")])])))
+        t.on(rest, body: "wsfunction=mod_forum_get_forum_discussions", okJSON(.object(["discussions": .array(discussions)])))
+        // LSF leer (kein Export-Link), Notenspiegel ohne Tabellen
+        t.on(LSFClient.planURL, ok(#"<a href="x">Abmelden</a>"#))
+        t.on(LSFClient.startURL, ok(#"<a href="x">Abmelden</a><a href="rds?state=notenspiegelStudent&amp;nodeID=a">Notenspiegel</a>"#))
+        t.on("\(HildesheimCAS.lsfBase)/qisserver/rds?state=notenspiegelStudent", ok(#"<a href="x">Abmelden</a>"#))
+    }
+
+    private func discussion(_ id: Int, subject: String, message: String, created: Int) -> JSONValue {
+        .object(["id": .number(Double(id)), "discussion": .number(Double(id)), "subject": .string(subject), "message": .string(message),
+                 "userfullname": .string("Erika Beispiel"), "created": .number(Double(created))])
+    }
+
+    func testDeadlinesAndAnnouncementsAreStoredAndRefreshed() async throws {
+        let (db, layout) = try await container()
+        let t = FakeUniTransport()
+        let events = try JSONValue.parse(Data(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-calendar-events.json").utf8))["events"] ?? .null
+        routes(t, events: events, discussions: [
+            discussion(5838, subject: "Raumänderung &amp; Ausfall", message: "<p>Die Sitzung am 3.11. fällt leider aus.</p>", created: 1_792_900_000),
+            discussion(5839, subject: "Hallo", message: "<p>Willkommen im Kurs.</p>", created: 1_792_800_000),
+        ])
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                  lsf: LSFClient(transport: t, retry: noWait), transport: t, clock: clock)
+        let r1 = await sync.run()
+        XCTAssertTrue(r1.ok, r1.messages.joined(separator: "; "))
+        XCTAssertEqual(r1.deadlines, Announcements.StoreResult(new: 6, total: 6, removed: 0))
+        XCTAssertEqual(r1.announcements, Announcements.StoreResult(new: 2, total: 2, removed: 0))
+        XCTAssertTrue(r1.messages.contains("Fristen: 6 (6 neu, 0 entfernt)"), r1.messages.joined(separator: "; "))
+        XCTAssertTrue(r1.messages.contains("Ankündigungen: 2 neu (1 mit Termin), 0 entfernt"), r1.messages.joined(separator: "; "))
+
+        // Tabellen wie am PC: Fristen mit Kurs, Ankuendigung mit erkanntem Termin
+        let dls = try await db.rows("SELECT id, course_id, title, kind, due_at, overdue FROM deadlines ORDER BY due_at")
+        XCTAssertEqual(dls.map { $0["id"]?.string ?? "" }, ["lw-ev-9005", "lw-ev-9007", "lw-ev-9003", "lw-ev-9002", "lw-ev-9001", "lw-ev-9004"])
+        XCTAssertEqual(dls[1]["course_id"]?.string, "lw-843")
+        XCTAssertEqual(dls[1]["overdue"]?.int, 1)
+        let ann = try await db.rows("SELECT id, course_id, title, discussion, dates FROM announcements ORDER BY id")
+        XCTAssertEqual(ann.map { $0["id"]?.string ?? "" }, ["lw-post-5838", "lw-post-5839"])
+        XCTAssertEqual(ann[0]["title"]?.string, "Raumänderung & Ausfall")
+        XCTAssertEqual(ann[0]["discussion"]?.string, "lw-d-5838")
+        let dates = try JSONValue.parse(Data((ann[0]["dates"]?.string ?? "[]").utf8))
+        XCTAssertEqual(dates.array?.first?["date"], "2026-11-03")
+        XCTAssertEqual(dates.array?.first?["kind"], "ausfall")
+
+        // Uebersicht und Kalender zeigen sie (upcoming mit Frist, ueberfaellig zuerst; notices am 3.11.)
+        let backend = try LocalBackend(database: db, clock: clock)
+        let dash = await backend.handle(LocalRequest(method: "GET", path: "/api/dashboard"))
+        let up = dash.json?["upcoming"]?.array ?? []
+        XCTAssertEqual(up.first?["deadline_id"], "lw-ev-9007")
+        XCTAssertEqual(up.first?["kind_label"], "überfällig: Abgabe")
+        XCTAssertEqual(up.first?["overdue"], true)
+        XCTAssertTrue(up.contains { $0["deadline_id"] == "lw-ev-9003" && $0["kind_label"] == "Test beginnt" })
+        XCTAssertEqual(dash.json?["announcements"]?.array?.count, 2)
+        let cal = await backend.handle(LocalRequest(method: "GET", path: "/api/calendar", query: [.init("start", "2026-11-02"), .init("end", "2026-11-04")]))
+        let days = cal.json?["days"]?.array ?? []
+        XCTAssertEqual(days[1]["notices"]?.array?.first?["kind_label"], "Ausfall?")
+        XCTAssertEqual(days[0]["deadlines"]?.array?.first?["id"], "lw-ev-9002")
+        XCTAssertEqual(days[2]["deadlines"]?.array?.first?["kind_label"], "Abgabe")
+        let api = await backend.handle(LocalRequest(method: "GET", path: "/api/deadlines"))
+        XCTAssertEqual(api.json?["deadlines"]?.array?.count, 5, "ab jetzt plus ueberfaellige der letzten 6 Wochen (Sprechstunde im Juli nicht)")
+        let apiA = await backend.handle(LocalRequest(method: "GET", path: "/api/announcements", query: [.init("days", "x")]))
+        XCTAssertEqual(apiA.status, 422)
+
+        // zweiter Lauf: ein Ereignis weg (im Fenster: entfernt), eine Diskussion weg (entfernt), nichts doppelt
+        let fewer: JSONValue = .array((events.array ?? []).filter { $0["id"]?.int != 9001 })
+        routes(t, events: fewer, discussions: [discussion(5838, subject: "Raumänderung", message: "<p>Neuer Raum.</p>", created: 1_792_900_000)])
+        let r2 = await sync.run()
+        XCTAssertEqual(r2.deadlines, Announcements.StoreResult(new: 0, total: 5, removed: 1))
+        XCTAssertEqual(r2.announcements, Announcements.StoreResult(new: 0, total: 1, removed: 1))
+        let ids = try await db.rows("SELECT id FROM deadlines ORDER BY id").map { $0["id"]?.string ?? "" }
+        XCTAssertFalse(ids.contains("lw-ev-9001"))
+        let count = try await db.scalar("SELECT COUNT(*) FROM announcements")?.int
+        XCTAssertEqual(count, 1)
+        let title = try await db.scalar("SELECT title FROM announcements")?.string
+        XCTAssertEqual(title, "Raumänderung")
+    }
+
+    /// Ein Fehler bei den Fristen stoppt den Lauf nicht (Python: "Learnweb-Fristen: FEHLER", Sync laeuft weiter)
+    func testDeadlineErrorDoesNotStopTheRun() async throws {
+        let (db, layout) = try await container()
+        let t = FakeUniTransport()
+        routes(t, events: .array([]), discussions: [])
+        t.on("\(base)/webservice/rest/server.php", body: "wsfunction=core_calendar_get_action_events_by_timesort", UniResponse(status: 500))
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                  lsf: nil, transport: t, clock: clock)
+        let r = await sync.run()
+        XCTAssertTrue(r.ok, r.messages.joined(separator: "; "))
+        XCTAssertNil(r.deadlines)
+        XCTAssertEqual(r.announcements?.total, 0)
+        XCTAssertTrue(r.messages.contains { $0.hasPrefix("Learnweb-Fristen: ") }, r.messages.joined(separator: "; "))
+        XCTAssertEqual(r.completed, ["Learnweb"])
+    }
+}

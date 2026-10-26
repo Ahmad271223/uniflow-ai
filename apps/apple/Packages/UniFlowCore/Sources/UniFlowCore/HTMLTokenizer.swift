@@ -22,7 +22,10 @@ enum HTMLTokenizer {
     /// Elemente, deren Inhalt bis zum End-Tag Rohtext ist
     static let rawTextElements: Set<String> = ["script", "style", "title", "textarea"]
 
-    static func tokens(_ html: String) -> [HTMLToken] {
+    /// `selfClosingEnds`: ein selbstschliessender Start-Tag (`<br/>`) bekommt wie in Pythons HTMLParser
+    /// (`handle_startendtag`) direkt seinen End-Tag; `<br>` ohne Schraegstrich bleibt ein Start-Tag ohne Ende
+    /// (`Announcements.parseDiscussionHTML` zaehlt die Tiefe wie `_ForumPosts`). Ohne die Option wie bisher.
+    static func tokens(_ html: String, selfClosingEnds: Bool = false) -> [HTMLToken] {
         let b = Array(html.utf8)
         let n = b.count
         var out: [HTMLToken] = []
@@ -79,11 +82,18 @@ enum HTMLTokenizer {
             while j < n, isAlpha(b[j]) || isDigit(b[j]) || b[j] == UInt8(ascii: "-") || b[j] == UInt8(ascii: ":") { j += 1 }
             let name = lower(b[(i + 1)..<j])
             var attrs: [String: String] = [:]
+            var selfClosing = false
             attrLoop: while j < n {
                 while j < n, isSpace(b[j]) { j += 1 }
                 guard j < n else { break }
                 if b[j] == UInt8(ascii: ">") { j += 1; break }
-                if b[j] == UInt8(ascii: "/") { j += 1; continue }
+                if b[j] == UInt8(ascii: "/") {
+                    var k = j + 1
+                    while k < n, isSpace(b[k]) { k += 1 }
+                    if k < n, b[k] == UInt8(ascii: ">") { selfClosing = true }
+                    j += 1
+                    continue
+                }
                 let ns = j
                 while j < n, !isSpace(b[j]), b[j] != UInt8(ascii: "="), b[j] != UInt8(ascii: ">"),
                       !(b[j] == UInt8(ascii: "/") && j + 1 < n && b[j + 1] == UInt8(ascii: ">")) { j += 1 }
@@ -120,6 +130,7 @@ enum HTMLTokenizer {
                 continue
             }
             out.append(.start(name, attrs))
+            if selfClosing, selfClosingEnds { out.append(.end(name)) }
         }
         flush(n)
         return out

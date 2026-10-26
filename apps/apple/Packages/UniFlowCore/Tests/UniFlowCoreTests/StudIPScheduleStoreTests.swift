@@ -591,3 +591,52 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertEqual(d2.events.count, 4)
     }
 }
+
+// MARK: - Ankuendigungen (News) der Kurse wie fetch_news/announcements.store in run_sync
+
+final class StudIPNewsStoreTests: XCTestCase {
+    private func newsReply(_ items: [(String, String, String, String)]) -> HTTPReply {
+        let data: [JSONValue] = items.map { id, title, content, start in
+            .object(["id": .string(id), "type": .string("news"),
+                     "attributes": .object(["title": .string(title), "content": .string(content), "publication-start": .string(start)])])
+        }
+        return HTTPReply(status: 200, contentType: "application/vnd.api+json", body: JSONValue.object(["data": .array(data)]).serialized())
+    }
+
+    func testNewsAreStoredPerCourseAndRemovedWhenGone() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let news = "/jsonapi.php/v1/courses/c-ana/news?page[limit]=100"
+        let (d1, t) = try await download([news: newsReply([
+            ("n1", "Ausfall", "<p>Die Vorlesung am <b>12.11.</b> f&auml;llt leider aus.</p>", "2026-10-20T12:00:00+02:00"),
+            ("n2", "Skript", "Das Skript ist online.", "2026-10-21T12:00:00+02:00"),
+        ])])
+        XCTAssertEqual(d1.news["c-ana"]?.count, 2)
+        XCTAssertNil(d1.news["c-prog"], "404 (kein News-Recht): Bestand bleibt, kein Fehler des Kurses")
+        XCTAssertTrue(t.requested.contains(news))
+        _ = try await store(d1, backend)
+        let rows = try await backend.context.database.rows("SELECT id, source, course_id, title, text, url, dates FROM announcements ORDER BY id")
+        XCTAssertEqual(rows.map { $0["id"]?.string ?? "" }, ["sp-news-n1", "sp-news-n2"])
+        XCTAssertEqual(rows[0]["text"]?.string, "Die Vorlesung am 12.11. fällt leider aus.")
+        XCTAssertEqual(rows[0]["url"]?.string, "https://studip.test/dispatch.php/course/overview?cid=c-ana")
+        let dates = try JSONValue.parse(Data((rows[0]["dates"]?.string ?? "[]").utf8))
+        XCTAssertEqual(dates.array?.first?["date"], "2026-11-12")
+        XCTAssertEqual(dates.array?.first?["kind"], "ausfall")
+        XCTAssertEqual(rows[1]["dates"]?.string, "[]")
+        // Uebersicht: Ankuendigung der letzten 21 Tage mit kommendem Termin
+        let dash = await call(backend, "GET", "/api/dashboard")
+        XCTAssertEqual(dash.json?["announcements"]?.array?.map { $0["id"]?.string ?? "" }, ["sp-news-n2", "sp-news-n1"], "neueste zuerst")
+        let week = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/week", query: [.init("start", "2026-11-09")]))
+        let thursday = week.json?["days"]?.array?[3]
+        XCTAssertEqual(thursday?["notices"]?.array?.first?["kind_label"], "Ausfall?")
+
+        // zweiter Lauf: n2 in Stud.IP geloescht -> weg; Kurs ohne lesbare News behaelt seinen Bestand
+        let (d2, _) = try await download([news: newsReply([("n1", "Ausfall", "Die Vorlesung am 12.11. fällt aus.", "2026-10-20T12:00:00+02:00")])])
+        _ = try await store(d2, backend)
+        let after2 = try await backend.context.database.rows("SELECT id FROM announcements ORDER BY id").map { $0["id"]?.string ?? "" }
+        XCTAssertEqual(after2, ["sp-news-n1"])
+        let (d3, _) = try await download([news: HTTPReply(status: 500, contentType: "text/plain")])
+        _ = try await store(d3, backend)
+        let count3 = try await backend.context.database.scalar("SELECT COUNT(*) FROM announcements")?.int
+        XCTAssertEqual(count3, 1)
+    }
+}

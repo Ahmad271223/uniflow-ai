@@ -171,3 +171,100 @@ final class HildesheimFixtureTests: XCTestCase {
         XCTAssertEqual([10, 15, 16, 45, 61, 500, nil, 0].map(TestShare.minutesBucket), [15, 15, 30, 45, 90, 120, 45, 45])
     }
 }
+
+// MARK: - Fristen, Feiertage, Ankuendigungen, LSF-Bemerkungen (PC-Stand 26.10.2026)
+
+/// Dieselben Erwartungen wie tests/test_hildesheim.py, test_holidays.py und test_announcements.py an die neuen
+/// Schluessel in expected.json: Learnweb-Fristen (`deadlines_from_events`, `deadline_kind`, `short_deadline_title`,
+/// `local_iso`), Feiertage und Markierungen je Tag (`public_holidays`, `day_marks`), Termine in Ankuendigungen
+/// (`extract_dates`, Forumsseiten, `from_forum_post`) und LSF-Bemerkungen (`note_text`, `is_placeholder`).
+final class HildesheimPortFixtureTests: XCTestCase {
+
+    private func repo(_ relative: String) throws -> Data {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        return try Data(contentsOf: url.appendingPathComponent(relative))
+    }
+
+    private func text(_ relative: String) throws -> String { String(decoding: try repo(relative), as: UTF8.self) }
+
+    private lazy var expected: JSONValue = try! JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/expected.json"))
+
+    private func opt(_ v: JSONValue?) -> String? { (v == nil || v!.isNull) ? nil : v!.string }
+
+    func testLearnwebDeadlinesMatchPython() throws {
+        let events = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-calendar-events.json"))["events"]?.array ?? []
+        let got: JSONValue = .array(Learnweb.deadlinesFromEvents(events).map(\.json))
+        XCTAssertEqual(got, expected["learnweb-deadlines"], jsonDiff(got, expected["learnweb-deadlines"]) ?? "")
+        XCTAssertEqual(got.array?.count, 6, "doppeltes Ereignis einmal, ohne Zeit weg")
+        for c in expected["deadline-kinds"]?.array ?? [] {
+            XCTAssertEqual(Learnweb.deadlineKind(module: opt(c["module"]), eventtype: opt(c["eventtype"])), c["kind"]?.string, "\(c)")
+        }
+        for c in expected["deadline-titles"]?.array ?? [] {
+            XCTAssertEqual(Learnweb.shortDeadlineTitle(c["title"]?.string ?? ""), c["short"]?.string, c["title"]?.string ?? "")
+        }
+        for c in expected["local-iso"]?.array ?? [] {
+            XCTAssertEqual(Learnweb.localISO(c["ts"]?.int ?? 0), c["local"]?.string, "Sommer-/Winterzeit wie zoneinfo")
+        }
+    }
+
+    func testHolidaysAndDayMarksMatchPython() {
+        for (year, days) in expected["nds-holidays"]?.object ?? [:] {
+            var got: [String: JSONValue] = [:]
+            for (d, name) in Holidays.publicHolidays(year: Int(year) ?? 0) { got[d] = .string(name) }
+            XCTAssertEqual(JSONValue.object(got), days, year)
+        }
+        for (uni, spans) in expected["day-marks"]?.object ?? [:] {
+            for (span, want) in spans.object ?? [:] {
+                let parts = span.components(separatedBy: "..")
+                let a = BerlinClock.parseISODate(parts[0]) ?? 0, b = BerlinClock.parseISODate(parts[1]) ?? 0
+                let got: JSONValue = .object(Holidays.dayMarks(from: a, to: b, university: uni).mapValues(JSONValue.array))
+                XCTAssertEqual(got, want, "\(uni) \(span): \(jsonDiff(got, want) ?? "")")
+            }
+        }
+        XCTAssertTrue(Holidays.lectureFree(day: BerlinClock.parseISODate("2026-12-24")!, university: "luh"))
+        XCTAssertFalse(Holidays.lectureFree(day: BerlinClock.parseISODate("2026-11-04")!, university: "luh"))
+        XCTAssertEqual(Holidays.defaultTerm(university: "hildesheim", today: "2026-10-25")?.name, "WiSe 2026/27")
+        XCTAssertNil(Holidays.defaultTerm(university: "luh", today: "2031-01-01"))
+    }
+
+    func testAnnouncementDatesMatchPython() {
+        for c in expected["announcement-dates"]?.array ?? [] {
+            let posted = BerlinClock.parseISODate(c["posted"]?.string ?? "") ?? 0
+            let got: JSONValue = .array(Announcements.extractDates(c["text"]?.string ?? "", posted: posted))
+            XCTAssertEqual(got, c["dates"], "\(c["text"]?.string ?? ""): \(jsonDiff(got, c["dates"]) ?? "")")
+        }
+    }
+
+    func testForumPagesMatchPython() throws {
+        let page = try text("packages/shared-contracts/fixtures/hildesheim/learnweb-forum-discussion.html")
+        let posts = Announcements.parseDiscussionHTML(page)
+        let want = expected["forum-discussion"]?.array ?? []
+        XCTAssertEqual(posts.count, want.count)
+        for (p, w) in zip(posts, want) {
+            XCTAssertEqual(p.id, w["id"]?.int)
+            XCTAssertEqual(p.subject, w["subject"]?.string)
+            XCTAssertEqual(p.author, w["author"]?.string)
+            XCTAssertEqual(p.postedAt, w["posted_at"]?.string)
+            XCTAssertEqual(Announcements.htmlToText(p.html), w["text"]?.string)
+        }
+        let view = try text("packages/shared-contracts/fixtures/hildesheim/learnweb-forum-view.html")
+        XCTAssertEqual(JSONValue.array(Announcements.discussionLinks(view).map { .number(Double($0)) }), expected["forum-view"])
+        XCTAssertTrue(Announcements.isNewsForum(bodyClass: Learnweb.bodyClass(html: view)))
+        XCTAssertFalse(Announcements.isNewsForum(bodyClass: "path-mod-forum forumtype-general"))
+        let a = Announcements.fromForumPost(posts[0], courseID: "lw-39", base: "https://www.uni-hildesheim.de/learnweb2026", discussionID: 5838,
+                                            today: BerlinClock.parseISODate("2026-10-27")!)
+        let got: JSONValue = ["id": .string(a.id), "title": .string(a.title), "text": .string(a.text), "author": .string(a.author),
+                              "posted_at": .string(a.postedAt), "url": a.url.map(JSONValue.string) ?? .null,
+                              "discussion": a.discussion.map(JSONValue.string) ?? .null, "dates": .array(a.dates)]
+        XCTAssertEqual(got, expected["forum-announcement"], jsonDiff(got, expected["forum-announcement"]) ?? "")
+    }
+
+    func testLSFNotesMatchPython() {
+        for c in expected["lsf-notes"]?.array ?? [] {
+            let note = LSFCalendar.noteText(c["description"]?.string)
+            XCTAssertEqual(note, c["note"]?.string, c["description"]?.string ?? "")
+            XCTAssertEqual(LSFCalendar.isPlaceholder(note), c["placeholder"]?.bool, note)
+        }
+    }
+}

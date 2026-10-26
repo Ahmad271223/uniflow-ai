@@ -60,6 +60,29 @@ public enum StudyEndpoints: LocalEndpointModule {
             d["bg"] = LocalPending.bg
             return .json(.object(publicSettings(d)))
         }
+
+        // Kommende Fristen aus dem Learnweb (Abgaben, Tests), nach Zeit sortiert (api_deadlines)
+        router.get("/api/deadlines") { _, ctx in
+            let clock = ctx.clock
+            let list = try await ctx.database.withConnection { try StudyCalendar.upcomingDeadlines($0, today: T.today(clock), clock: clock) }
+            return .json(["deadlines": .array(list.map(JSONValue.object))])
+        }
+
+        // Ankuendigungen der Lehrenden (Learnweb/Stud.IP) mit erkannten Terminen, neueste zuerst (api_announcements)
+        router.get("/api/announcements") { req, ctx in
+            var days = 30
+            if let raw = req.query("days") {
+                guard let n = Int(raw.trimmingCharacters(in: .whitespaces)) else {
+                    throw LocalHTTPError.validation(type: "int_parsing", loc: ["query", "days"],
+                                                    msg: "Input should be a valid integer, unable to parse string as an integer", input: .string(raw))
+                }
+                days = n
+            }
+            let span = max(1, min(days, 365))
+            let clock = ctx.clock
+            let list = try await ctx.database.withConnection { try Announcements.recent($0, days: span, limit: 50, today: T.today(clock)) }
+            return .json(["announcements": .array(list)])
+        }
     }
 
     // MARK: Kalender

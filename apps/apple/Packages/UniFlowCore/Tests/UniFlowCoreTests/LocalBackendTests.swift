@@ -427,3 +427,33 @@ final class CalendarExtrasTests: XCTestCase {
                                [["kind": "feiertag", "label": "1. Weihnachtstag"], ["kind": "pause", "label": "Weihnachtspause"]]])
     }
 }
+
+/// GET /api/deadlines und /api/announcements wie api_deadlines/api_announcements in app/server.py
+final class DeadlineEndpointTests: XCTestCase {
+    func testEndpointsAnswerLikeServer() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        try await backend.context.database.transaction { c in
+            try c.execute("INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue) VALUES ('lw-ev-1','learnweb',NULL,'Blatt 1','Blatt 1 (bis 1.11.)','abgabe','assign','2026-11-01T23:59','https://example.test/x',0)")
+            try c.execute("INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue) VALUES ('lw-ev-2','learnweb',NULL,'Alt','Alt','abgabe','assign','2026-10-01T23:59',NULL,1)")
+            try c.execute("INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue) VALUES ('lw-ev-3','learnweb',NULL,'Uralt','Uralt','abgabe','assign','2026-08-01T23:59',NULL,1)")
+            try c.execute("INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, discussion, dates) VALUES ('sp-news-1','studip',NULL,'Hinweis','Text','', '2026-10-20T10:00:00+02:00', NULL, NULL, '[{\"date\": \"2026-11-12\", \"time\": null, \"kind\": \"ausfall\", \"snippet\": \"Die Vorlesung am 12.11. fällt aus.\"}]')")
+            try c.execute("INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, discussion, dates) VALUES ('sp-news-2','studip',NULL,'Alt','Text','', '2026-08-01T10:00:00+02:00', NULL, NULL, '[]')")
+        }
+        let r = await backend.handle(request("GET", ["path": "/api/deadlines"]))
+        XCTAssertEqual(r.status, 200)
+        let list = r.json?["deadlines"]?.array ?? []
+        XCTAssertEqual(list.map { $0["deadline_id"]?.string ?? "" }, ["lw-ev-2", "lw-ev-1"], "ueberfaellig der letzten 6 Wochen zuerst, uralt nicht")
+        XCTAssertEqual(list[0]["kind_label"], "überfällig: Abgabe")
+        XCTAssertEqual(list[1]["time"], "23:59")
+        XCTAssertEqual(list[1]["full_title"], "Blatt 1 (bis 1.11.)")
+        let a = await backend.handle(request("GET", ["path": "/api/announcements"]))
+        XCTAssertEqual(a.json?["announcements"]?.array?.map { $0["id"]?.string ?? "" }, ["sp-news-1"], "letzte 30 Tage oder kommender Termin")
+        XCTAssertEqual(a.json?["announcements"]?.array?.first?["upcoming"]?.array?.count, 1)
+        let all = await backend.handle(request("GET", ["path": "/api/announcements?days=400"]))
+        XCTAssertEqual(all.json?["announcements"]?.array?.count, 2, "days auf 365 begrenzt reicht bis August")
+        let bad = await backend.handle(request("GET", ["path": "/api/announcements?days=drei"]))
+        XCTAssertEqual(bad.status, 422)
+        let cal = await backend.handle(request("GET", ["path": "/api/calendar?start=2026-11-12&end=2026-11-12"]))
+        XCTAssertEqual(cal.json?["days"]?.array?.first?["notices"]?.array?.first?["title"], "Hinweis")
+    }
+}

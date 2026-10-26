@@ -9,6 +9,8 @@ extension UniStore {
 
     public struct PlanResult: Sendable, Equatable {
         public var new = 0, removed = 0, kept = 0, cancelledDates = 0
+        /// Serien, die laut Bemerkung "nur aus technischen Gruenden angezeigt" werden und einmalig auf "nicht besuchen" gingen
+        public var placeholders = 0
     }
 
     /// `_norm_sem`: klein, ohne Leerraum und Punkte, "wintersemester" -> "wise", "sommersemester" -> "sose"
@@ -67,6 +69,29 @@ extension UniStore {
         var ids: [String: JSONValue] = [:]
         for (k, x) in existing where wantKeys.contains(k) { ids[k] = x["id"] ?? .null }
         for (n, id) in zip(new, res["ids"]?.array ?? []) { ids[n.key] = id }
+        // Bemerkung aus dem LSF uebernehmen (event_notes, `lsf.note_text`). Platzhalter ("nur aus technischen Gruenden
+        // angezeigt") werden einmalig auf "nicht besuchen" gestellt, wenn der Hinweis neu ist; eine spaetere
+        // Entscheidung des Nutzers bleibt bestehen.
+        var placeholders = 0
+        for (k, e) in want {
+            guard let eid = ids[k], LocalModules.truthy(eid) else { continue }
+            let event = try LocalTimetable.bind(eid, "event_id")
+            let old = try conn.queryOne("SELECT note FROM event_notes WHERE event_id=?", [event])?["note"]?.string ?? ""
+            let note = e["note"]?.string ?? ""
+            guard old != note else { continue }
+            if !note.isEmpty {
+                try conn.execute("""
+                    INSERT INTO event_notes(event_id, note, source, updated_at) VALUES (?, ?, 'lsf', ?)
+                                                ON CONFLICT(event_id) DO UPDATE SET note=excluded.note, updated_at=excluded.updated_at
+                    """, [event, .text(note), .text(clock.nowISO)])
+            } else {
+                try conn.execute("DELETE FROM event_notes WHERE event_id=?", [event])
+            }
+            if LSFCalendar.isPlaceholder(note), !LSFCalendar.isPlaceholder(old) {
+                try conn.execute("UPDATE course_events SET attend=0 WHERE id=?", [event])
+                placeholders += 1
+            }
+        }
         var cancelled = 0
         for (k, e) in want {
             guard let eid = ids[k], LocalModules.truthy(eid) else { continue }
@@ -80,7 +105,8 @@ extension UniStore {
         }
         try conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('lsf-auto', ?, 'auto', '', ?, 1)",
                          [.text(clock.nowISO), .text(JSONValue.array(new.map { .object($0.entry) }).jsonString(sortedKeys: true))])
-        return PlanResult(new: res["new"]?.int ?? 0, removed: removed.count, kept: want.count - new.count, cancelledDates: cancelled)
+        return PlanResult(new: res["new"]?.int ?? 0, removed: removed.count, kept: want.count - new.count, cancelledDates: cancelled,
+                          placeholders: placeholders)
     }
 
     // MARK: Notenspiegel (qis.run)
@@ -134,6 +160,9 @@ public actor HildesheimSync {
         public var failedCourses: [String] = []
         public var plan: UniStore.PlanResult?
         public var grades: Int?
+        /// Learnweb-Fristen und Ankuendigungen (nach den Dateien; ein Fehler dort stoppt den Lauf nicht)
+        public var deadlines: Announcements.StoreResult?
+        public var announcements: Announcements.StoreResult?
         /// verstaendliche Meldungen fuer die Statusleiste
         public var messages: [String] = []
         /// Neu anmelden noetig (Learnweb oder LSF)
@@ -211,7 +240,15 @@ public actor HildesheimSync {
             return report
         }
         let started = clock.nowISO
-        if let learnweb { await syncLearnweb(learnweb, filter: semesterFilter, into: &report) }
+        if let learnweb {
+            let courses = await syncLearnweb(learnweb, filter: semesterFilter, into: &report)
+            // wie run_sync am PC: Fristen und Ankuendigungen nach den Dateien; ein Fehler dort stoppt den Lauf nicht,
+            // nach abgelaufener Anmeldung oder Abbruch wird nichts mehr gefragt
+            if let courses, !report.cancelled, !Task.isCancelled, !report.needsLogin.contains("Learnweb") {
+                await syncDeadlines(learnweb, into: &report)
+                if !report.cancelled, !Task.isCancelled { await syncAnnouncements(learnweb, courses: courses, into: &report) }
+            }
+        }
         if let lsf, !report.cancelled, !Task.isCancelled {
             await syncPlan(lsf, into: &report)
             if includeGrades { await syncGrades(lsf, into: &report) }
@@ -242,7 +279,9 @@ public actor HildesheimSync {
         return nil
     }
 
-    private func syncLearnweb(_ api: LearnwebAPI, filter: String?, into report: inout Report) async {
+    /// Liefert die abgeglichenen Kurse (fuer Fristen und Ankuendigungen); nil, wenn die Kursliste oder kein Kurs
+    /// lesbar war (Learnweb gestoert: dann auch keine weiteren Anfragen)
+    private func syncLearnweb(_ api: LearnwebAPI, filter: String?, into report: inout Report) async -> [Learnweb.Course]? {
         let courses: [Learnweb.Course]
         let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: "Learnweb")
         defer { downloads.end() }
@@ -260,11 +299,11 @@ public actor HildesheimSync {
         } catch {
             if Self.isCancellation(error) {
                 report.cancelled = true
-                return
+                return nil
             }
             if Self.isLoginError(error) { report.needsLogin.append("Learnweb") }
             report.messages.append("Learnweb: \(Self.describe(error))")
-            return
+            return nil
         }
         report.courses = courses.count
         let files = container.files()
@@ -309,7 +348,7 @@ public actor HildesheimSync {
         }
         if report.cancelled {
             report.messages.append("Learnweb abgebrochen")
-            return
+            return nil
         }
         // kein einziger Kurs lesbar (Learnweb gestoert): Fehler statt "Learnweb: 16:30 ok" (wie beim Stud.IP-Abgleich);
         // einzelne unlesbare Kurse stehen in der Meldung (vorher nur in `failedCourses`, das niemand las)
@@ -317,6 +356,56 @@ public actor HildesheimSync {
         if report.notAttempted.isEmpty, !allUnreadable { report.completed.append(Report.Part.learnweb) }
         report.messages.append(Self.learnwebMessage(courses: courses.count, newFiles: report.newFiles.count,
                                                     failedFiles: report.failedFiles.count, failedCourses: report.failedCourses.count))
+        // Learnweb gestoert: keine weiteren Anfragen (Fristen, Ankuendigungen) in diesem Lauf
+        return allUnreadable ? nil : courses
+    }
+
+    /// `hildesheim.sync_deadlines`: Fristen aus dem Learnweb-Kalender (Abgaben, Tests) in die Tabelle `deadlines`;
+    /// im Abfragefenster Verschwundenes wird entfernt, Aelteres bleibt
+    private func syncDeadlines(_ api: LearnwebAPI, into report: inout Report) async {
+        do {
+            let now = Int(clock.now.timeIntervalSince1970)
+            let items = try await api.deadlines(now: now)
+            let fetched = clock.nowISO
+            let windowFrom = Learnweb.localISO(now - Learnweb.deadlineDaysBack * 86400)
+            let r = try await db.transaction { conn in try UniStore.storeDeadlines(conn, items, fetchedAt: fetched, windowFrom: windowFrom) }
+            report.deadlines = r
+            report.messages.append("Fristen: \(r.total) (\(r.new) neu, \(r.removed) entfernt)")
+        } catch {
+            if Self.isCancellation(error) { report.cancelled = true; return }
+            if Self.isLoginError(error), !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
+            report.messages.append("Learnweb-Fristen: \(Self.describe(error))")
+        }
+    }
+
+    /// `hildesheim.sync_announcements`: Ankuendigungsforen aller sichtbaren Kurse; geloeschte Diskussionen
+    /// verschwinden auch in der App
+    private func syncAnnouncements(_ api: LearnwebAPI, courses: [Learnweb.Course], into report: inout Report) async {
+        do {
+            let known = try await db.withConnection { try Announcements.knownDiscussions($0) }
+            let today = BerlinClock.parseISODate(clock.today) ?? 0
+            let (items, seen) = try await api.announcements(courses: courses, known: known, today: today)
+            let fetched = clock.nowISO
+            let (r, gone) = try await db.transaction { conn -> (Announcements.StoreResult, Int) in
+                let r = try Announcements.store(conn, items, source: "learnweb", fetchedAt: fetched)
+                var gone = 0
+                for (cid, ids) in seen.sorted(by: { $0.key < $1.key }) {
+                    let marks = ids.isEmpty ? "''" : Array(repeating: "?", count: ids.count).joined(separator: ",")
+                    gone += try conn.execute("""
+                        DELETE FROM announcements WHERE source='learnweb' AND course_id=?
+                                                                 AND (discussion IS NULL OR discussion NOT IN (\(marks)))
+                        """, [.text(cid)] + ids.map(SQLiteValue.text))
+                }
+                return (r, gone)
+            }
+            let withDates = items.filter { !$0.dates.isEmpty }.count
+            report.announcements = Announcements.StoreResult(new: r.new, total: r.total, removed: gone)
+            report.messages.append("Ankündigungen: \(r.new) neu (\(withDates) mit Termin), \(gone) entfernt")
+        } catch {
+            if Self.isCancellation(error) { report.cancelled = true; return }
+            if Self.isLoginError(error), !report.needsLogin.contains("Learnweb") { report.needsLogin.append("Learnweb") }
+            report.messages.append("Learnweb-Ankündigungen: \(Self.describe(error))")
+        }
     }
 
     /// Meldung des Learnweb-Teils fuer die Statusleiste
