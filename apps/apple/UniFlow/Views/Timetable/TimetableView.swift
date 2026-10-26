@@ -157,6 +157,7 @@ struct TimetableView: View {
                 legend("Lernslot") { RoundedRectangle(cornerRadius: 3).fill(UF.surface).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.accent, lineWidth: 1)) }
                 legend("Frei") { UFHatch(color: UF.ok, period: 4, stripe: 1) }
                 legend("Sperrzeit") { UFHatch(color: Color(hex: 0x999999), period: 4, stripe: 1, deg135: false) }
+                legend("Feiertag / vorlesungsfrei") { RoundedRectangle(cornerRadius: 3).fill(UF.okSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.ok, lineWidth: 1)) }
             }
             .padding(.vertical, 8)
         }
@@ -175,13 +176,16 @@ struct TimetableView: View {
     private func grid(_ days: [JSONValue], lo: Int, hi: Int) -> some View {
         let px: (Int) -> CGFloat = { CGFloat($0 - lo) / 60 * H }
         let today = UFFmt.todayISO()
+        // Chips im Tageskopf (Feiertag, Fristen, Hinweise) machen den Kopf hoeher: je Chip eine Zeile
+        let chipRows = days.map { UFDayExtras.marks($0).count + $0.list("deadlines").count + $0.list("notices").count }.max() ?? 0
+        let chipHeight: CGFloat = chipRows > 0 ? 2 + CGFloat(chipRows) * 21.2 : 0
         return GeometryReader { g in
             // 52px + 7 x minmax(120px, 1fr), mindestens 900 px; breiter als der Rahmen -> waagrecht scrollen
             let total = max(900, g.size.width - 2)
             let col = (total - 52) / 7
             ScrollView(.horizontal, showsIndicators: true) {
                 VStack(spacing: 0) {
-                    HStack(spacing: 0) {
+                    HStack(alignment: .top, spacing: 0) {
                         Color.clear.frame(width: 52)
                         ForEach(Row.rows(days, key: "date")) { row in
                             let d = row.value
@@ -189,9 +193,12 @@ struct TimetableView: View {
                                 Text(UFKind.daysLong[d.i("weekday") ?? 0]).ufFont(13.12, 600)
                                     .foregroundStyle(d.s("date") == today ? UF.accentText : UF.text)
                                 Text(dayMonth(d.s("date"))).ufFont(11.52).foregroundStyle(UF.muted)
+                                // .tt-head: Feiertag/vorlesungsfrei, Fristen und Hinweise als Chips (holChips, dlChips, noteChips)
+                                UFDayExtraChips(dd: d).padding(.horizontal, 4).padding(.top, 2)
                             }
-                            .frame(width: col)
+                            .frame(width: col, alignment: .top)
                             .padding(.vertical, 7.2)
+                            .background(UFDayExtras.background(d))
                         }
                     }
                     .ufBorderBottom()
@@ -207,7 +214,7 @@ struct TimetableView: View {
             }
             .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         }
-        .frame(height: 7.2 * 2 + 13.12 * 1.5 + 11.52 * 1.5 + 1 + px(hi) + 2)
+        .frame(height: 7.2 * 2 + 13.12 * 1.5 + 11.52 * 1.5 + chipHeight + 1 + px(hi) + 2)
         .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
         .clipShape(RoundedRectangle(cornerRadius: UF.r))
         .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
@@ -264,6 +271,7 @@ struct TimetableView: View {
         .frame(width: width, height: px(hi), alignment: .topLeading)
         .background(hourLines(H))
         .background(today ? Color.mix(UF.accentSoft, 0.4, UF.surface) : .clear)
+        .background(UFDayExtras.background(d))                                // .tt-col.is-hol / .is-free: gruen
         .overlay(alignment: .trailing) { Rectangle().fill(UF.line).frame(width: 1) }
         .contentShape(Rectangle())
         .gesture(SpatialTapGesture(count: 2).onEnded { v in

@@ -195,7 +195,7 @@ final class LocalBackendCoverageTests: XCTestCase {
         guard lt == pt else { problems.append("\(path): \(lt) statt \(pt)"); return }
         if lt == "object" {
             let lk = local["keys"]?.object ?? [:]
-            let pk = (python["keys"]?.object ?? [:]).filter { !(pcOnlyKeys.contains($0.key) && local["keys"]?[$0.key] == nil) }
+            let pk = python["keys"]?.object ?? [:]
             if Set(lk.keys) != Set(pk.keys) {
                 problems.append("\(path): Schlüssel \(lk.keys.sorted()) statt \(pk.keys.sorted())")
                 return
@@ -264,7 +264,7 @@ final class LocalBackendCoverageTests: XCTestCase {
                 }
                 if let type = expect["type"]?.string, shape(body)["type"]?.string != type { problems.append("\(label): Typ statt \(type)") }
                 if let keys = expect["keys"]?.array?.compactMap(\.string),
-                   Set(body.object?.keys.map { $0 } ?? []) != Set(keys).subtracting(pcOnlyKeys.filter { body[$0] == nil }) {
+                   Set(body.object?.keys.map { $0 } ?? []) != Set(keys) {
                     problems.append("\(label): Schlüssel \(body.object?.keys.sorted() ?? [])")
                 }
             } else {
@@ -405,25 +405,25 @@ final class LocalFreeWindowsTests: XCTestCase {
     }
 }
 
-// MARK: - Bekannte Abweichungen vom PC-Stand
+// MARK: - Fristen, Feiertage und Ankuendigungen in den Antworten
 
-/// Haelt fest, was der PC-Stand vom 26.10.2026 in den Antworten mehr hat als das iPad (siehe `pcOnlyKeys`):
-/// Learnweb-Fristen (`deadlines`), Feiertage und vorlesungsfreie Zeit (`marks`, Ausfall "vorlesungsfrei"),
-/// Ankuendigungen (`notices`, `announcements`) und LSF-Bemerkungen (`note`). Sobald das iPad die Logik nachzieht,
-/// schlaegt die erwartete Abweichung fehl und `pcOnlyKeys` wird geleert.
-final class KnownDeviationTests: XCTestCase {
-    func testCalendarAndDashboardLackPCOnlyKeys() async throws {
+/// Seit dem Port vom PC-Stand 26.10.2026 haben Lernkalender und Uebersicht dieselben Schluessel wie app/server.py:
+/// Learnweb-Fristen (`deadlines`), Feiertage und vorlesungsfreie Zeit (`marks`), Ankuendigungen (`notices`,
+/// `announcements`). Die Werte prueft testStepsMatchPythonServer gegen die Fixtures; hier nur, dass nichts fehlt.
+final class CalendarExtrasTests: XCTestCase {
+    func testCalendarAndDashboardCarryPCKeys() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
         let cal = await backend.handle(request("GET", ["path": "/api/calendar?start=2026-10-19&end=2026-10-25"]))
         let day = cal.json?["days"]?.array?.first
-        XCTExpectFailure("Fristen, Feiertage und Ankuendigungen (PC-Stand 26.10.2026) fehlen im iPad V1", strict: true) {
-            XCTAssertNotNil(day?["deadlines"])
-            XCTAssertNotNil(day?["marks"])
-            XCTAssertNotNil(day?["notices"])
-        }
+        XCTAssertEqual(day?["deadlines"], [])
+        XCTAssertEqual(day?["marks"], [])
+        XCTAssertEqual(day?["notices"], [])
         let dash = await backend.handle(request("GET", ["path": "/api/dashboard"]))
-        XCTExpectFailure("Ankuendigungen der Lehrenden (PC-Stand 26.10.2026) fehlen im iPad V1", strict: true) {
-            XCTAssertNotNil(dash.json?["announcements"])
-        }
+        XCTAssertEqual(dash.json?["announcements"], [])
+        // Feiertag und Weihnachtspause der LUH (Vorgabe der Datenbank) als Markierung
+        let xmas = await backend.handle(request("GET", ["path": "/api/calendar?start=2026-12-24&end=2026-12-25"]))
+        let marks = xmas.json?["days"]?.array?.map { $0["marks"] ?? .null } ?? []
+        XCTAssertEqual(marks, [[["kind": "pause", "label": "Weihnachtspause"]],
+                               [["kind": "feiertag", "label": "1. Weihnachtstag"], ["kind": "pause", "label": "Weihnachtspause"]]])
     }
 }

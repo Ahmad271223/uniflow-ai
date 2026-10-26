@@ -439,3 +439,139 @@ struct AvailabilityDialog: View {
         } catch { toast.show(error.localizedDescription) }
     }
 }
+
+// MARK: - Feiertage, Fristen und Hinweise je Kalendertag (holClass, holChips, dlChips, noteChips in core.js)
+
+/// Felder `marks`, `deadlines` und `notices` eines Kalendertags (GET /api/calendar, /api/timetable/week): gruene
+/// Markierung fuer Feiertag, Pause und vorlesungsfreie Zeit, Fristen aus dem Learnweb als Chips mit Link, Termine aus
+/// Ankuendigungen der Lehrenden als Hinweis. Stundenplan, Lernkalender (Woche, Monat, Tag, Mini-Kalender) und die
+/// Uebersicht zeigen sie wie die Web-App.
+enum UFDayExtras {
+    enum Tint { case none, holiday, lectureFree }
+
+    /// holClass: Feiertag oder Pause kraeftig, vorlesungsfreie Zeit leicht
+    static func tint(_ dd: JSONValue) -> Tint {
+        let kinds = dd.list("marks").compactMap { $0.s("kind") }
+        if kinds.contains("feiertag") || kinds.contains("pause") { return .holiday }
+        return kinds.isEmpty ? .none : .lectureFree
+    }
+
+    /// Hintergrund der Spalte bzw. Zelle (.is-hol / .is-free)
+    static func background(_ dd: JSONValue) -> Color {
+        switch tint(dd) {
+        case .holiday: return UF.okSoft
+        case .lectureFree: return UF.okSoft.opacity(0.5)
+        case .none: return .clear
+        }
+    }
+
+    /// Fuellfarbe einer Zelle mit eigener Grundfarbe (Tageskopf, Monatszelle)
+    static func fill(_ dd: JSONValue, over base: Color) -> Color {
+        switch tint(dd) {
+        case .holiday: return UF.okSoft
+        case .lectureFree: return Color.mix(UF.okSoft, 0.5, base)
+        case .none: return base
+        }
+    }
+
+    /// Kurzform der Markierung wie holChips(compact)
+    static func shortLabel(_ label: String) -> String {
+        ["Vorlesungsfreie Zeit": "vorlesungsfrei", "Weihnachtspause": "Pause", "Exkursions- und Projektwoche": "Projektwoche",
+         "Exkursionswoche": "Exkursion"][label] ?? label
+    }
+
+    /// Markierungen ohne Doppelte (je Bezeichnung die erste)
+    static func marks(_ dd: JSONValue) -> [JSONValue] {
+        var seen = Set<String>(), out: [JSONValue] = []
+        for m in dd.list("marks") {
+            let l = m.s("label") ?? ""
+            if seen.insert(l).inserted { out.append(m) }
+        }
+        return out
+    }
+
+    /// Nur http(s)-Adressen werden geoeffnet (safeUrl im Web)
+    static func safeURL(_ s: String?) -> URL? {
+        guard let s, let u = URL(string: s), let scheme = u.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return nil }
+        return u
+    }
+
+    static func hasAny(_ dd: JSONValue) -> Bool {
+        !dd.list("marks").isEmpty || !dd.list("deadlines").isEmpty || !dd.list("notices").isEmpty
+    }
+}
+
+/// Chips eines Tages: Markierungen (gruen), Fristen (Modulfarbe, sonst rot; Tippen oeffnet das Learnweb), Hinweise
+/// aus Ankuendigungen (blau, Tippen oeffnet den Beitrag). `compact`: nur Uhrzeit und Art.
+struct UFDayExtraChips: View {
+    let dd: JSONValue
+    var compact = true
+    /// Chips untereinander (Tageskopf) statt umbrechend (Tagesansicht)
+    var stacked = true
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        let marks = UFDayExtras.marks(dd), dls = dd.list("deadlines"), notes = dd.list("notices")
+        if !marks.isEmpty || !dls.isEmpty || !notes.isEmpty {
+            Group {
+                if stacked {
+                    VStack(alignment: .leading, spacing: 2.4) { chips(marks, dls, notes) }
+                } else {
+                    UFFlexWrap(gap: 4.8, rowGap: 4) { chips(marks, dls, notes) }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chips(_ marks: [JSONValue], _ dls: [JSONValue], _ notes: [JSONValue]) -> some View {
+        ForEach(marks.indices, id: \.self) { i in
+            let m = marks[i]
+            let label = m.s("label") ?? ""
+            chip(compact ? UFDayExtras.shortLabel(label) : label, fg: UF.ok, bg: UF.okSoft, border: UF.ok)
+                .help(label)
+        }
+        ForEach(dls.indices, id: \.self) { i in
+            let x = dls[i]
+            let color = x.s("color").map { Color(hex: $0) } ?? UF.bad
+            let text = "\(x.s("time") ?? "") " + (compact ? (x.s("kind_label") ?? "Frist") : "\(x.s("kind_label") ?? "Frist"): \(x.s("title") ?? "")")
+            Button {
+                if let u = UFDayExtras.safeURL(x.s("url")) { openURL(u) }
+            } label: {
+                chip(text, fg: color, bg: color.opacity(0.12), border: color, bold: x.s("time"))
+            }
+            .buttonStyle(.plain)
+            .help("\(x.s("kind_label") ?? "") \(x.s("time") ?? "") · \(x.s("full_title") ?? x.s("title") ?? "")\(x.s("course_title").map { " · \($0)" } ?? "")")
+            .accessibilityLabel("Frist \(x.s("time") ?? ""): \(x.s("title") ?? "")")
+        }
+        ForEach(notes.indices, id: \.self) { i in
+            let n = notes[i]
+            let text = (n.s("time").map { "\($0) " } ?? "") + (compact ? (n.s("kind_label") ?? "Termin") : "\(n.s("kind_label") ?? "Termin"): \(n.s("title") ?? "")")
+            Button {
+                if let u = UFDayExtras.safeURL(n.s("url")) { openURL(u) }
+            } label: {
+                chip(text, fg: UF.info, bg: UF.infoSoft, border: UF.info, icon: "info", bold: n.s("time"))
+            }
+            .buttonStyle(.plain)
+            .help("\(n.s("title") ?? "")\(n.s("course_title").map { " · \($0)" } ?? ""): \(n.s("snippet") ?? "")")
+            .accessibilityLabel("Hinweis aus Ankündigung: \(n.s("title") ?? "")")
+        }
+    }
+
+    private func chip(_ text: String, fg: Color, bg: Color, border: Color, icon: String? = nil, bold: String? = nil) -> some View {
+        HStack(spacing: 3) {
+            if let icon { UFIcon(icon, size: 10) }
+            if let bold, !bold.isEmpty, text.hasPrefix(bold) {
+                Text(bold).font(.uf(10.4, 700)) + Text(String(text.dropFirst(bold.count))).font(.uf(10.4, 400))
+            } else {
+                Text(text).font(.uf(10.4, 400))
+            }
+        }
+        .foregroundStyle(fg)
+        .lineLimit(1)
+        .padding(.vertical, 1.6).padding(.horizontal, 5.6)
+        .background(Capsule().fill(bg))
+        .overlay(Capsule().strokeBorder(border.opacity(0.6), lineWidth: 1))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}

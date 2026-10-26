@@ -120,8 +120,13 @@ enum LocalTimetable {
 
     // MARK: Vorkommen
 
+    /// `UNI_KINDS`: Arten, die an Feiertagen und in der vorlesungsfreien Zeit ausfallen
+    static let uniKinds: Set<String> = ["vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar"]
+
     /// `occurrences(conn, start, end, include_skipped)`: alle Termine im Zeitraum mit angewendeten Ausnahmen
     /// (verschoben, ausgefallen, nicht besucht), dazu hierher verschobene Termine anderer Tage; nach Datum und Beginn.
+    /// Serien ohne eigenen Zeitraum fallen an Feiertagen und in der vorlesungsfreien Zeit aus (`exception`
+    /// "vorlesungsfrei" mit `note`); eine Bemerkung der Quelle (`event_notes`, LSF) steht als `note`.
     static func occurrences(_ c: SQLiteConnection, from start: Int, to end: Int, includeSkipped: Bool = true) throws -> [JSONValue] {
         let events = try c.rows("SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
         if events.isEmpty { return [] }
@@ -134,6 +139,13 @@ enum LocalTimetable {
             exc[eid, default: [:]][d] = x
         }
         let t = try term(c)
+        // Serien ohne eigene Daten (z. B. persoenliche Stud.IP-Stundenplan-Eintraege) kennen weder Ferien noch
+        // Feiertage: an Feiertagen, in Unterbrechungen und in der vorlesungsfreien Zeit fallen Uni-Veranstaltungen
+        // aus (Holidays wie app/holidays.py). Serien mit Daten aus der Quelle (LSF-EXDATE, Stud.IP-Einzeltermine)
+        // regeln das selbst; persoenliche Termine nie.
+        let free = Holidays.dayMarks(from: start, to: end, university: try Holidays.university(c))
+        var notes: [JSONValue: JSONValue] = [:]
+        for r in try c.rows("SELECT event_id, note FROM event_notes") { notes[r["event_id"] ?? .null] = r["note"] ?? .null }
         var out: [JSONValue] = []
         var d = start
         while d <= end {
@@ -141,6 +153,7 @@ enum LocalTimetable {
             for e in events {
                 guard try matches(e, day: d, term: t) else { continue }
                 let x = e["id"].flatMap { exc[$0]?[di] }
+                let note = e["id"].flatMap { notes[$0] }
                 var occ: [String: JSONValue] = [
                     "event_id": e["id"] ?? .null, "date": .string(di), "start": e["start_time"] ?? .null, "end": e["end_time"] ?? .null,
                     "title": e["title"] ?? .null, "kind": e["kind"] ?? .null, "module_id": e["module_id"] ?? .null,
@@ -150,6 +163,7 @@ enum LocalTimetable {
                     "status": LocalModules.truthy(e["attend"]) ? "teilnahme" : "nicht_teilnahme", "permanent_skip": .bool(!LocalModules.truthy(e["attend"])),
                     "exception": .null,
                 ]
+                if LocalModules.truthy(note) { occ["note"] = note }          // nur mit Bemerkung (Antwortform sonst unveraendert)
                 if let x {
                     let type = x["type"] ?? .null
                     occ["exception"] = type
@@ -166,6 +180,17 @@ enum LocalTimetable {
                         }
                     default: break
                     }
+                }
+                if x == nil, LocalModules.truthy(e["attend"]), let marks = free[di], !LocalModules.truthy(e["date_from"]),
+                   !LocalModules.truthy(e["date_to"]), let kind = or(e["kind"], "vorlesung").string, uniKinds.contains(kind) {
+                    occ["status"] = "ausfall"
+                    occ["exception"] = "vorlesungsfrei"
+                    // " / ".join(dict.fromkeys(labels)) + (" · " + note)
+                    var labels: [String] = []
+                    for m in marks { if let l = m["label"]?.string, !labels.contains(l) { labels.append(l) } }
+                    var text = labels.joined(separator: " / ")
+                    if LocalModules.truthy(note) { text += " · \(LocalTimetable.text(note))" }
+                    occ["note"] = .string(text)
                 }
                 if occ["status"] == "nicht_teilnahme" && !includeSkipped { continue }
                 out.append(.object(occ))
@@ -232,11 +257,14 @@ enum LocalTimetable {
         let pk = try c.rows("SELECT p.*, m.color FROM study_packages p LEFT JOIN modules m ON m.id=p.module_id WHERE p.date BETWEEN ? AND ? ORDER BY p.date, p.start_time",
                             [.text(iso(start)), .text(iso(end))])
         let s = try LocalSettings.read(c)
+        let (marks, dls) = try Holidays.calendarExtras(c, from: start, to: end)
+        let notes = try Announcements.byDay(c, from: start, to: end)
         var days: [JSONValue] = []
         for d in start...end {
             let di: JSONValue = .string(iso(d))
             days.append(["date": di, "weekday": .number(Double(weekday(d))), "events": .array(occ.filter { $0["date"] == di }),
                          "packages": .array(pk.filter { $0["date"] == di }.map(JSONValue.object)),
+                         "marks": .array(marks[iso(d)] ?? []), "deadlines": .array(dls[iso(d)] ?? []), "notices": .array(notes[iso(d)] ?? []),
                          "free": .array(try LocalFreeWindows.compute(c, day: d, settings: s)), "blocked": .array(try blocked(d, settings: s))])
         }
         return ["start": .string(iso(start)), "end": .string(iso(end)), "days": .array(days),
