@@ -19,7 +19,7 @@ jedem Umsetzungsschritt fortgeschrieben (Abschnitt 2 und 7).
 | Lernkalender und **Lernplanung** (Lernplan, Lernkombination, freie Zeitfenster, Nachholen, Woche retten) | ✓ | ✓ |
 | Zeitmesser, vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ |
 | **Schreiben mit Apple Pencil**, Seiten einfügen/drehen/Papierkorb, Lesezeichen | – | ✓ |
-| **Community** (Lösungen teilen und ansehen) | – | ✓ als Datei (S9); online folgt |
+| **Community** (Lösungen teilen und ansehen) | – | ✓ als Datei (S9) und online über CloudKit (S9b, nur mit Developer Program) |
 | Übung und Skript nebeneinander mit Skriptsuche, eigene Karteikarten | – | ✓ |
 
 Pro und alle KI-Funktionen entfallen vorerst. Umgesetzt auf `develop` (Tarifwahl, Berechtigungen, StoreKit-Test).
@@ -513,7 +513,7 @@ Skripte mit PDFKit.
 | Geänderte Original-PDF bei vorhandenen Notizen | **lokal echt (S7)**: alte PDF aufbewahrt (nie gelöscht), Seiten über den Seitentext neu zugeordnet (`PageMatch`, difflib-Port), Notizen umgehängt, entfernte Seiten auf der alten Fassung, Hinweis im Dokument mit Weg zur alten Fassung, Kopien mit; Stud.IP in der App, Learnweb im Kern (`HildesheimSync`, `versions`) | Learnweb in der App (Hildesheim-Schicht); Seitengröße nicht verglichen; echtes iPad |
 | Hintergrundabgleich | **fehlt** | BGAppRefresh; vorher Sitzungsdauer messen bzw. OAuth2 (S8) |
 | Zeitmesser | **nativ fertig** | Mitteilung bei Ablauf im Hintergrund |
-| Community „Lösungen teilen“ | **lokal fertig (S9, Zweig `wip/loesung-teilen`)**: im Editor „Lösung teilen …“ (nur eigene Notizen, verschlüsseltes Paket `*.uniflowsolution`, Vorschau ohne Original), Import über „Öffnen in“/„Lösung importieren …“, Anzeige als eigene, nicht bearbeitbare Ebene über der eigenen PDF, „Meine geteilten Lösungen“; PDF-Export davon getrennt und nur privat (`docs/LOESUNGEN-TEILEN.md`) | zentraler Dienst (Entscheidung des Inhabers) mit echter Berechtigungsprüfung, Konten, Moderation; Prüfung „Datei aus dem eigenen Stud.IP-Abgleich“ (seit S3 möglich: `files.course_id` + `download_url`, noch nicht eingebaut) |
+| Community „Lösungen teilen“ | **lokal fertig (S9, Zweig `wip/loesung-teilen`)**: im Editor „Lösung teilen …“ (nur eigene Notizen, verschlüsseltes Paket `*.uniflowsolution`, Vorschau ohne Original), Import über „Öffnen in“/„Lösung importieren …“, Anzeige als eigene, nicht bearbeitbare Ebene über der eigenen PDF, „Meine geteilten Lösungen“; PDF-Export davon getrennt und nur privat. **Online programmiert (S9b, Zweig `wip/community-cloudkit`)**: `CloudKitCommunityService` hinter `CommunityService` (öffentliche CloudKit-Datenbank, Container `iCloud.de.uniflow.ai`): veröffentlichen mit Sichtbarkeit Modul (Kurs-Schlüssel aus `files.course_id`) / Lerngruppe (Beitrittscode, QR) / anonym, Treffer im Dokument („n Lösungen aus der Community zu diesem Blatt“, Laden und anzeigen über denselben Importweg), Bereich „Community“ im Moduldetail nach Lehrwoche, Zurückziehen, Melden, Blockieren, Pseudonym und Sperrliste in den Einstellungen (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7) | **nur mit Developer Program**: iCloud-Container anlegen, `Config/Team.xcconfig` mit `UF_CLOUDKIT_CONTAINER`, Schema/Indizes im CloudKit Dashboard, echte Läufe im Simulator; ohne Team meldet die App „Community nicht verfügbar“. Die Berechtigung ist nur so stark wie die Kenntnis der Kurs-ID (kein signierter Beleg der Hochschule); Moderation der Meldungen (Inhaber) |
 
 Tarife (seit der Nachbesserung von S3 auch durchgesetzt, vorher griff die Plus-Sperre nirgends): Lesen, Öffnen,
 Durchsuchen, vorhandene Notizen ansehen und als PDF exportieren sind Free, ebenso PDF- und Bild-Import zum Lesen. Mit
@@ -620,7 +620,7 @@ an der Uni Hildesheim zeigt „Uni & Noten“ seit `wip/v1-pc-hi` den Notenspieg
 | Uni & Noten | `/api/services`, `/api/grades*`, `/api/qis/*` | Dienste-Liste lokal; QIS auf dem Gerät (später) | Dienste lokal, `GET /api/grades` lokal (Hildesheim: LSF-Notenspiegel über `HildesheimSync`), QIS (LUH) offen |
 | Zugänge | `/api/credentials*` | entfällt (keine Passwörter in der App) | entfallen |
 | Tests, KI | `/api/tests*`, `/api/ai/tutor`, `/api/tasks/{id}/start-test` | entfällt (keine KI) | entfallen |
-| Community, Konto | – | zentraler Dienst (Entscheidung) | Lösung als Datei (S9) |
+| Community, Konto | – | CloudKit (öffentliche Datenbank, S9b; Konto = iCloud auf dem iPad) | Lösung als Datei (S9); online programmiert, echter Lauf erst mit Developer Program |
 
 **Was nach S3 bis S7 ohne PC noch nicht geht** (ehrlich): Wochentests (KI, entfallen), Karteikarten,
 Hintergrundabgleich (S8), QIS-Noten der LUH, Übernahme der Notizen und Pläne vom PC. Keiner dieser Punkte braucht im
@@ -680,6 +680,11 @@ Statt „Stud.IP verbinden“ stehen die Karten „Learnweb verbinden“/„LSF 
    wartet auf ausstehende Tinte, gemischte Seitengrößen, lange Titel, kein leeres Paket, Extremwerte sicher
    (`HardeningExportTests`, `HardeningSolutionEditorTests`, `HardeningSolutionRoundTripTests`). Seit S3 kommt die
    Plus-Sperre dazu: mit Free ist der Editor wie im Ansichtsmodus nur zum Ansehen (`canEdit` neben `ownNotesVisible`).
+   **S9b (Zweig `wip/community-cloudkit`, Entscheidung des Inhabers vom 26.10.2026: CloudKit für V1, später
+   Supabase):** Online-Community als `CloudKitCommunityService` hinter `CommunityService` (der Kern bleibt ohne
+   CloudKit, der Dienst ist tauschbar). Sichtbarkeit Modul / Lerngruppe / anonym, Kurs-Schlüssel statt Kurs-ID, Melden,
+   Blockieren, Zurückziehen, Pseudonym. Grenzen ehrlich: nur Apple-Geräte (CloudKit), Berechtigung = Kenntnis der
+   Kurs-ID (kein Beleg der Hochschule), echte Läufe erst mit Developer Program; Tests gegen ein nachgebildetes CloudKit.
    Einzelheiten und Grenzen: `docs/LOESUNGEN-TEILEN.md`.
 
 ## 5. Reihenfolge der Umsetzung
@@ -696,7 +701,7 @@ Zuerst der größte Nutzen: Dokumente öffnen und mit dem Pencil schreiben ohne 
 | S6 | Lernlogik (`study.py`): lesen, verschieben, planen; Übersicht, Kalender; **umgesetzt** (`wip/s6-lernplan-2`): Port von `study.py` auf die Bausteine aus S4/S5, alle `/api/calendar*`, `/api/tasks*`, `/api/packages*`, `/api/timetable/reslot` und `/api/dashboard` vollständig; zuerst in Python korrigiert: Uhrzeit von Lernpaketen, leere Pakete, Ersetzen, 404 statt 500, Pakete am Stück neben Terminen; ohne Testaufgaben (`tests_per_subject` 0); auf den Stand mit dem PC-Kern gesetzt in `wip/v1-s6` | Lernplan erstellen, Aufgaben abhaken, Übersicht (**App-Test im Simulator mit erfundenen Daten grün**: Lernpaket über den Dialog, im Lernkalender, abhaken, Übersicht; Plan erstellen neben Terminen ohne Konflikt; echtes iPad offen) |
 | S7 | Neue Original-Fassung mit erhaltenen Notizen; Suche und Skriptsuche; **umgesetzt** (`wip/v1-s6-s7`): Port von `scriptsearch.py` und `/api/search` (zuerst in Python um Aufgaben und Seitentexte erweitert, Begriffe in fester Reihenfolge), Seitentexte mit PDFKit; alte Fassung aufbewahren, Seiten über den Text zuordnen, Notizen umhängen, Hinweis mit alter Fassung (Entwurf, Python hat dafür keine Regel) | Notizen überleben neue PDF; Suche offline (**App-Tests im Simulator mit erfundenen Stud.IP-Antworten grün**: Notizen auf den passenden Seiten, Hinweis, alte Fassung öffnet sich; Suche findet Text einer PDF ohne Netz; echtes iPad offen) |
 | S8 | Hintergrundabgleich (nach Messung der Sitzungsdauer bzw. OAuth2) | Abgleich beim Öffnen und, wenn iPadOS es erlaubt, im Hintergrund |
-| S9 | Community „Lösungen teilen“: **lokaler Teil umgesetzt** (`wip/loesung-teilen`, nachgebessert in `wip/loesung-teilen-fix`: robuste Formatversion, keine Zusatzfelder, Pixelgrenze für Bilder, gleiche Lösungs-ID verdrängt nichts, Ansichtsmodus schreibt nichts, unlesbare Importe werden entfernt, Entschlüsseln abseits des Hauptthreads; `docs/LOESUNGEN-TEILEN.md`): Lösung als Datei teilen (nur eigene Notizen), importieren, im Editor als Ebene ansehen, lokal zurückziehen; Online-Teil nach Entscheidung zum Dienst | lokal: Lösung als Datei teilen, auf zweitem iPad mit derselben PDF ansehen (**Tests grün**); online: veröffentlichen, finden, zurückziehen, melden (**offen**) |
+| S9 | Community „Lösungen teilen“: **lokaler Teil umgesetzt** (`wip/loesung-teilen`, nachgebessert in `wip/loesung-teilen-fix`: robuste Formatversion, keine Zusatzfelder, Pixelgrenze für Bilder, gleiche Lösungs-ID verdrängt nichts, Ansichtsmodus schreibt nichts, unlesbare Importe werden entfernt, Entschlüsseln abseits des Hauptthreads; `docs/LOESUNGEN-TEILEN.md`): Lösung als Datei teilen (nur eigene Notizen), importieren, im Editor als Ebene ansehen, lokal zurückziehen. **Online-Teil programmiert (S9b, `wip/community-cloudkit`)**: CloudKit hinter `CommunityService` | lokal: Lösung als Datei teilen, auf zweitem iPad mit derselben PDF ansehen (**Tests grün**); online: veröffentlichen, finden, laden, zurückziehen, melden, blockieren, Lerngruppen (**Tests gegen nachgebildetes CloudKit grün**; echter Lauf **offen**, braucht Developer Program und iCloud-Container) |
 | S10 | Anmeldung härten, Release-Bereinigung, Demo-Modus für die App-Prüfung, Abnahmeliste | Abnahme nach AUFTRAG 2a und dieser Datei |
 
 Nach jedem Schritt: bauen, Unit-Tests, Prüfung „funktioniert auf einem iPad ohne Windows-PC“, Abschnitt 2 dieser
@@ -735,8 +740,10 @@ Datei fortschreiben.
 
 **Offen:**
 
-8. **Community-Dienst:** CloudKit (gehört zum Developer Program, 99 €/Jahr) oder Supabase (ca. 25 USD/Monat) –
-   entscheidet der Inhaber später; bis dahin wird die Community nur vorbereitet (ohne echten Dienst). Seit S9 läuft
-   „Lösung teilen“ als Datei ohne Dienst (Plus); der Knopf „In der Community veröffentlichen“ bleibt deaktiviert
-   („Community-Dienst noch nicht verbunden“). Vor dem Einschalten braucht es eine echte Berechtigungsprüfung (signierter
-   Beleg der Hochschule oder OAuth2-Scope) und Moderation (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7).
+8. **Community-Dienst:** **Entschieden (26.10.2026): CloudKit für V1** (gehört zum Developer Program, 99 €/Jahr),
+   später Supabase – darum alles hinter `CommunityService`. Programmiert in S9b (`wip/community-cloudkit`); der Knopf
+   „In der Community veröffentlichen“ ist aktiv, sobald der Build einen iCloud-Container hat (`Config/Team.xcconfig`,
+   `UF_CLOUDKIT_CONTAINER`), sonst „nicht verfügbar“. Offen für den Inhaber: Container und Schema im Developer Program
+   anlegen, Moderation der Meldungen (wer sichtet, Löschfristen), Nutzungsbedingungen/Datenschutzerklärung mit der
+   Community, ob die Kenntnis der Kurs-ID als Berechtigung reicht oder ein Beleg der Hochschule nötig ist
+   (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7).

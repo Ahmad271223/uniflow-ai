@@ -61,7 +61,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
     case uniGrades           // Uni & Noten (QIS), vorerst ausserhalb der Tarife: "bald", bis nativ vorhanden (F4)
     // Plus
     case pencilWriting       // Stift, Marker, Radierer, Lasso, Seiten einfuegen/drehen/Papierkorb, Lesezeichen
-    case community           // Loesungen als Datei teilen und im Editor ansehen; Online-Community folgt
+    case community           // Loesungen als Datei teilen, in der Community veroeffentlichen und im Editor ansehen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
     // ab V2
@@ -111,7 +111,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .studyPlanning: return "Lernplan, Lernkombination, freie Zeitfenster, Nachholen, „Woche retten“"
         case .uniGrades: return "Notenspiegel und Bescheinigungen aus QIS"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
-        case .community: return "Lösungen als Datei teilen und im Editor ansehen – Online-Community folgt"
+        case .community: return "Lösungen als Datei teilen, in der Community veröffentlichen und Lösungen anderer im Editor ansehen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         default: return nil
         }
@@ -157,10 +157,9 @@ enum UFFeatureMatrix {
     /// die Funktion in keinem Tarif freigeschaltet ("bald" bei Free, Abschnitt 4).
     static let uniGradesOnDevice = false
 
-    /// Community-Funktionen auf dem Geraet: eigene Loesung als Datei teilen (nur eigene Notizen, verschluesselt) und
-    /// empfangene Loesungen im Editor ansehen, ohne Server (docs/LOESUNGEN-TEILEN.md). Die Online-Community
-    /// (Veroeffentlichen, Suchen) braucht einen zentralen Dienst und ist im Dialog deaktiviert
-    /// ("Community-Dienst noch nicht verbunden").
+    /// Community-Funktionen: eigene Loesung als Datei teilen (nur eigene Notizen, verschluesselt), empfangene Loesungen
+    /// im Editor ansehen und die Online-Community ueber CloudKit (docs/LOESUNGEN-TEILEN.md, Abschnitt 7). Ohne
+    /// iCloud-Container im Build meldet der Dienst selbst "nicht verfügbar"; der Dateiweg bleibt.
     static let communityAvailable = true
 
     static func access(_ f: UFFeature, plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,

@@ -138,8 +138,9 @@ enum SolutionSharing {
     static var library: SolutionLibrary {
         ActiveContainer.current?.solutions ?? SolutionLibrary(root: ContainerPaths.none.appendingPathComponent("solutions", isDirectory: true))
     }
-    /// Online-Community: noch kein Dienst (wirft "nicht verbunden", sendet nichts)
-    static let community: CommunityService = NotConnectedCommunityService()
+    /// Online-Community des aktiven Containers (CloudKit, docs/LOESUNGEN-TEILEN.md Abschnitt 7); ohne Container
+    /// der Kern-Stand "nicht verbunden" (wirft, sendet nichts)
+    static var community: CommunityService { ActiveContainer.current?.community ?? NotConnectedCommunityService() }
 
     /// Meldung "Die Datei passt nicht zu dieser PDF oder wurde verändert" (Import mit passendem Fingerabdruck, der
     /// sich nicht oeffnen laesst).
