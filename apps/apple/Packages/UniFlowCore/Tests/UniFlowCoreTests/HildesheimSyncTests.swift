@@ -461,4 +461,58 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertTrue(none.requests.isEmpty, "ohne Kennzeichnung keine Anfrage")
         XCTAssertFalse(FileManager.default.fileExists(atPath: missing.root.path))
     }
+
+    // MARK: Neue Fassung (S7)
+
+    /// S7 fuer Learnweb: liefert Learnweb fuer eine Datei mit Notizen eine neue Fassung (hoeheres timemodified, anderer
+    /// Inhalt), bleibt die alte PDF im Container aufbewahrt (`Learnweb/Fassungen`, derselbe Weg `UniDownloads` wie bei
+    /// Stud.IP) und die Notizen kommen auf die passende Seite der neuen (eine Seite davor eingefuegt); die Seitentexte
+    /// stehen fuer die Suche bereit
+    func testNewLearnwebVersionKeepsOldVersionAndMovesNotes() async throws {
+        let (db, layout) = try await container()
+        let root = layout.root
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
+        let v1 = "Seminarplan Wintersemester\u{C}Termine im Oktober mit Referaten\u{C}Termine im November mit Klausur"
+        let v2 = "Seminarplan Wintersemester\u{C}Neu: Hinweise zur Anmeldung im Portal\u{C}Termine im Oktober mit Referaten\u{C}Termine im November mit Klausur"
+        let t = FakeUniTransport()
+        restRoutes(t, contentsByCourse: [35: contents], courses: [35])
+        t.on("\(base)/webservice/pluginfile.php/5", ok(v1))
+        t.on("\(base)/webservice/pluginfile.php/6", ok("%PDF-1.7 einfuehrung"))
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                  lsf: nil, transport: t, clock: clock, retry: noWait, tools: FormFeedTools())
+        _ = await sync.run()
+        let idValue = try await db.scalar("SELECT id FROM files WHERE name='plan.pdf'")?.string
+        let id = try XCTUnwrap(idValue)
+        let indexed = try await db.scalar("SELECT COUNT(*) FROM page_texts WHERE file_id=?", [.text(id)])?.int
+        XCTAssertEqual(indexed, 3, "Seitentexte beim Download")
+        let notes: JSONValue = ["version": 2, "pageOrder": [["key": "p1", "type": "pdf", "index": 1], ["key": "p2", "type": "pdf", "index": 2],
+                                                            ["key": "p3", "type": "pdf", "index": 3]],
+                                "pages": ["p1": ["objects": []], "p2": ["objects": []], "p3": page(["klausur-merken"])]]
+        try await db.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,1)", [.text(id), .text(notes.jsonString()), "x"])
+
+        // zweiter Abgleich: neue Fassung von plan.pdf
+        let newer = try JSONValue.parse(contents.jsonString().replacingOccurrences(of: "1760000000", with: "1760100000"))
+        let t2 = FakeUniTransport()
+        restRoutes(t2, contentsByCourse: [35: newer], courses: [35])
+        t2.on("\(base)/webservice/pluginfile.php/5", ok(v2))
+        let r2 = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t2, retry: noWait),
+                                      lsf: nil, transport: t2, clock: clock, retry: noWait, tools: FormFeedTools()).run()
+        XCTAssertEqual(r2.newFiles, [id])
+        let stored = try await db.scalar("SELECT data FROM annotations WHERE file_id=?", [.text(id)])?.string
+        let data = try XCTUnwrap(stored)
+        let doc = AnnotationDocument(root: try JSONValue.parse(data))
+        XCTAssertEqual(doc.pdfIndex(forPageKey: "p3"), 4)
+        XCTAssertEqual(doc.objects(page: "p3").compactMap { $0["id"]?.string }, ["klausur-merken"])
+        let version = try await db.rows("SELECT version, source, local_path, content_sha256 FROM file_versions WHERE file_id=?", [.text(id)])
+        XCTAssertEqual(version.count, 1)
+        XCTAssertEqual(version.first?["source"], "Learnweb")
+        XCTAssertEqual(version.first?["content_sha256"]?.string, SolutionSHA256.hex(Data(v1.utf8)))
+        let kept = try XCTUnwrap(version.first?["local_path"]?.string)
+        XCTAssertTrue(kept.hasPrefix("Learnweb/Fassungen/"), kept)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(kept), encoding: .utf8), v1, "alte Fassung aufbewahrt")
+        let current = try await db.scalar("SELECT local_path FROM files WHERE id=?", [.text(id)])?.string
+        let path = try XCTUnwrap(current)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), v2)
+    }
 }

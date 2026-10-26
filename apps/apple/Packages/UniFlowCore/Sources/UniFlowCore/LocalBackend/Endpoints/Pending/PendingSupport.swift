@@ -3,8 +3,8 @@ import Foundation
 // Platzhalter bis zur Portierung (docs/IPAD-OHNE-PC.md, Abschnitt 5): Jeder Pfad, den die App aufruft, bekommt eine
 // gueltige Antwort in der Form von app/server.py, wie sie der PC-Server bei leerer Datenbank gibt (leere Listen,
 // leere Objekte mit denselben Feldern). Viele Seiten laden mehrere Pfade gemeinsam (async let) – ein einziger Fehler
-// liesse die ganze Seite scheitern. Seit S6 sind Lernkalender, Stundenplan und Uebersicht echt; uebrig sind
-// Hintergrund, Suche, Skriptsuche, Uni & Noten und Karteikarten (Pending*Endpoints).
+// liesse die ganze Seite scheitern. Seit S6 sind Lernkalender, Stundenplan und Uebersicht echt, seit S7 Suche und
+// Skriptsuche; uebrig sind Hintergrund, Uni & Noten und Karteikarten (Pending*Endpoints).
 //
 // Regeln:
 // - Lesen: leere Antwort in Server-Form; einzelne Eintraege nach ID gibt es noch nicht -> 404 wie auf dem PC.

@@ -136,7 +136,8 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// abgelaufene Sitzung, kein Netz und volle Platte brechen ab. Wie `stream_download` wiederholt der Download eine
 /// abgerissene Verbindung bis zu zweimal (`UniRetry` im `StudIPClient`), und eine Webseite oder leere Antwort statt
 /// der Datei wird nicht gespeichert. Ablage, Hash und Eintrag jeder Datei laufen ueber `UniDownloads`, dieselbe
-/// Fassung wie fuer Learnweb. Eine neue Fassung, die nicht ankam, laedt der naechste Abgleich (`UniStore`). Laeuft die
+/// Fassung wie fuer Learnweb, ebenso seit S7 die alte Fassung einer Datei mit Notizen (unter `Fassungen`, Notizen auf
+/// den passenden Seiten der neuen) und die Seitentexte fuer die Suche (PDFKit ueber `host.files`). Eine neue Fassung, die nicht ankam, laedt der naechste Abgleich (`UniStore`). Laeuft die
 /// Sitzung erst beim Stundenplan ab, bleiben die Dateien, der Lauf endet aber mit "Erneut anmelden" (`.needsLogin`).
 /// "Daten dieser Hochschule löschen" und "Konto löschen" halten einen laufenden Abgleich an (`stop`) und warten auf
 /// sein Ende, bevor sie den Container entfernen.
@@ -347,7 +348,7 @@ final class StudIPSync: ObservableObject {
             let db = try await host.backend().context.database
             database = db
             guard let localFiles = host.files else { throw DataContainerError.missing }
-            let downloads = UniDownloads(folder: root, files: localFiles, container: container)
+            let downloads = UniDownloads(folder: root, files: localFiles, container: container, source: "Stud.IP")
             // Ordner anlegen (ohne iCloud-Backup); Reste eines abgebrochenen Laufs im Zwischenordner gehen hier weg
             try downloads.begin()
             defer { downloads.end() }
@@ -395,8 +396,9 @@ final class StudIPSync: ObservableObject {
                                          fileExists: { FileManager.default.fileExists(atPath: root.appendingPathComponent($0).path) }).goneRemotely
             let download = wanted.filter(\.isDownloadable)
             var failed = 0
-            // je Datei ueber `UniDownloads`: erst in den Zwischenordner, pruefen, an ihren Platz, Hash, eintragen; ein
-            // Abbruch hinterlaesst keine halbe Datei als "geladen"
+            // je Datei ueber `UniDownloads`: erst in den Zwischenordner, pruefen, Hash, alte Fassung einer Datei mit
+            // Notizen aufbewahren (S7), an ihren Platz, eintragen, Seitentexte und Notizen der neuen Fassung; ein Abbruch
+            // hinterlaesst keine halbe Datei als "geladen"
             for (i, f) in download.enumerated() {
                 try Task.checkCancellation()
                 phase = .running("Lade \(i + 1) von \(download.count): \(f.name)")
@@ -414,7 +416,8 @@ final class StudIPSync: ObservableObject {
                     failed += 1
                     continue
                 } catch is UniDownloads.Failure {
-                    // leere Antwort statt der Datei: die alte Fassung bleibt, der naechste Abgleich laedt erneut
+                    // leere Antwort statt der Datei oder alte Fassung mit Notizen nicht gesichert (S7): die alte Fassung
+                    // bleibt, der naechste Abgleich laedt erneut
                     failed += 1
                     continue
                 }

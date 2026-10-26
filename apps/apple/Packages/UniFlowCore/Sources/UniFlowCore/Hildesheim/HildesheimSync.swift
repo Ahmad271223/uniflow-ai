@@ -117,6 +117,9 @@ extension UniStore {
 /// gehen erst in eine .part-Datei und ersetzen eine gute Datei nie halb und nie durch eine leere; eine neue Fassung,
 /// die nicht ankam, laedt der naechste Abgleich. Laeuft die Anmeldung ab oder wird der Lauf abgebrochen
 /// (`Task.cancel`), endet der Learnweb-Teil; die uebrigen Kurse stehen in `notAttempted` und gelten nicht als Fehler.
+/// Wie beim Stud.IP-Abgleich bleibt ueber `UniDownloads` (S7) die alte Fassung einer Datei mit Notizen erhalten und
+/// die Notizen kommen auf die passenden Seiten der neuen (`FileVersionKeeper`, alte Fassungen unter
+/// `Learnweb/Fassungen`); die Seitentexte jeder geladenen PDF fuellen den Suchindex (`tools`, in der App PDFKit).
 ///
 /// Speicher: der Container (Apple-Nutzer, Uni Hildesheim) wie beim Stud.IP-Abgleich der LUH (`DataContainerLayout`).
 /// Downloads unter `Learnweb/files/<id>/<name>`, `files.local_path` relativ zum Container. Passt der Container oder
@@ -166,9 +169,11 @@ public actor HildesheimSync {
     private let transport: UniTransport
     private let clock: UniFlowClock
     private let retry: UniRetry
+    /// Seitentexte geladener PDFs fuer Suche und Seitenzuordnung einer neuen Fassung (S7; App: PDFKit, ohne: keine)
+    private let tools: LocalDocumentTools
 
     public init(db: SQLiteDatabase, container: DataContainerLayout, learnweb: LearnwebAPI?, lsf: LSFClient?, transport: UniTransport,
-                clock: UniFlowClock = .system, retry: UniRetry = UniRetry()) {
+                clock: UniFlowClock = .system, retry: UniRetry = UniRetry(), tools: LocalDocumentTools = NoDocumentTools()) {
         self.db = db
         self.container = container
         self.learnweb = learnweb
@@ -176,6 +181,7 @@ public actor HildesheimSync {
         self.transport = transport
         self.clock = clock
         self.retry = retry
+        self.tools = tools
     }
 
     /// Neu anmelden noetig (abgelaufene Sitzung oder ungueltiger Schluessel)
@@ -241,7 +247,7 @@ public actor HildesheimSync {
 
     private func syncLearnweb(_ api: LearnwebAPI, filter: String?, into report: inout Report) async {
         let courses: [Learnweb.Course]
-        let downloads = UniDownloads(container, folder: container.learnweb)
+        let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: "Learnweb")
         defer { downloads.end() }
         do {
             courses = try await api.courses().filter { c in

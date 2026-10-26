@@ -8,6 +8,8 @@ public struct LocalContext: Sendable {
     public let files: LocalFiles?
     /// Neue Kennung wie `uuid.uuid4().hex` (32 Hex-Zeichen); Tests setzen dieselbe Folge wie die Python-Fixtures
     public let newHex: @Sendable () -> String
+    /// Index der Skriptsuche je Modul (`_CACHE` in app/scriptsearch.py), je Datenbank
+    let scriptIndex = ScriptSearch.IndexCache()
 
     public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
                 newHex: @escaping @Sendable () -> String = LocalContext.randomHex) {

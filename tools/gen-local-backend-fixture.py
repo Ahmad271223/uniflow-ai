@@ -72,6 +72,7 @@ SAMPLES: dict[str, dict] = {
     "PATCH /api/library/files/{}": {"path": "/api/library/files/f1", "body": {"title": "Neu"}},
     "POST /api/files/{}/favorite": {"path": "/api/files/f1/favorite", "body": {"favorite": True}},
     "POST /api/files/{}/opened": {"path": "/api/files/f1/opened", "body": {}},
+    "GET /api/files/{}": {"path": "/api/files/f1"},
     "GET /api/files/{}/content": {"path": "/api/files/f1/content"},
     "GET /api/files/{}/pagetext": {"path": "/api/files/f1/pagetext?page=1"},
     "GET /api/assets/{}/{}": {"path": "/api/assets/f1/bild.png"},
@@ -148,6 +149,13 @@ SAMPLES: dict[str, dict] = {
     "POST /api/grades/sync": {"path": "/api/grades/sync", "python": False,
                               "expect": {"status": 404, "reason": "QIS auf dem iPad folgt (F4)"}},
     "GET /api/qis/documents/{}": {"path": "/api/qis/documents/1"},
+    # S7: alte Original-Fassungen von Dateien mit Notizen gibt es nur auf dem Geraet (am PC 404, die App zeigt nichts)
+    "GET /api/files/{}/versions": {"path": "/api/files/f1/versions", "python": False,
+                                   "expect": {"status": 200, "type": "object", "keys": ["notice", "versions"],
+                                              "reason": "nur auf dem Geraet (FileVersionEndpoints)"}},
+    "POST /api/files/{}/versions/seen": {"path": "/api/files/f1/versions/seen", "python": False,
+                                         "expect": {"status": 200, "type": "object", "keys": ["ok"],
+                                                    "reason": "nur auf dem Geraet (FileVersionEndpoints)"}},
 }
 
 

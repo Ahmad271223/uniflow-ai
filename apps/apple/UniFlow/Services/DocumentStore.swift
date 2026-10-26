@@ -198,13 +198,20 @@ final class DocumentStore: ObservableObject {
     @Published private(set) var insertedPages = 0
     @Published private(set) var removedPDFPages: [Int] = []
     @Published private(set) var bookmarks: [Bookmark] = []
+    /// Alte Original-Fassungen dieser Datei (S7, lokales Backend; am PC-Server keine), neueste zuerst
+    @Published var versions: [FileVersionInfo] = []
+    /// Hinweis "Neue Fassung aus Stud.IP – Notizen übernommen": neueste alte Fassung, solange nicht gesehen
+    @Published var versionNotice: FileVersionInfo?
+    /// Waehrend das Dokument offen war, kam eine neue Fassung an: die Notizen gehoeren jetzt zu ihr, angezeigt ist noch
+    /// die alte PDF. Bis zum erneuten Oeffnen nur ansehen.
+    @Published private(set) var outdatedByNewVersion = false
 
     var pdf: PDFDocument? { layout?.pdf }
 
     let file: LibFile
     /// Datenquelle (lokal oder Server-Host): bestimmt Journal und PDF-Zwischenspeicher, aendert sich nie
     let namespace: DataSourceNamespace
-    private var api: APIClient
+    private(set) var api: APIClient
     private let transport: SwitchableAnnotationTransport
     private let engine: SyncEngine
     private let ink = InkProcessor()
@@ -239,8 +246,8 @@ final class DocumentStore: ObservableObject {
     /// nur ansehen wie bei ausgeblendeten Notizen, dazu nimmt der Store keine neuen Zeichnungen an. Die eigenen
     /// Notizen bleiben sichtbar und exportierbar; was vorher gezeichnet wurde und noch aussteht, wird gesichert.
     var canEdit = true
-    /// Schreibende Aktionen erlaubt (Notizen eingeblendet und Tarif mit Schreiben)
-    var isWritable: Bool { canEdit && !ownNotesReadOnly }
+    /// Schreibende Aktionen erlaubt (Notizen eingeblendet, Tarif mit Schreiben, keine neue Fassung seit dem Oeffnen)
+    var isWritable: Bool { canEdit && !ownNotesReadOnly && !outdatedByNewVersion }
 
     /// - Parameter root: Ordner fuer Journal und PDF-Zwischenspeicher (Standard: App-Container; Tests: Temp-Ordner).
     init(file: LibFile, api: APIClient, root: URL = AppPaths.support) {
@@ -263,16 +270,24 @@ final class DocumentStore: ObservableObject {
         loadStarted = true
         do {
             let url = originalPDFURL
+            // neue Fassung seit dem Zwischenspeichern (S7): Stand der Datei laut Quelle; ohne Antwort (offline am
+            // PC-Server) gilt der Zwischenspeicher
+            let stamp = await contentStamp()
+            if let stamp, FileManager.default.fileExists(atPath: url.path), (try? String(contentsOf: stampURL, encoding: .utf8)) != stamp {
+                try? FileManager.default.removeItem(at: url)
+            }
             if !FileManager.default.fileExists(atPath: url.path) {
                 let (data, http) = try await api.data("/api/files/\(file.id)/content")
                 guard http.statusCode == 200, data.starts(with: Array("%PDF".utf8)) else {
                     throw APIError(status: http.statusCode, message: "Keine PDF-Datei erhalten")
                 }
                 // grosse Skripte: Schreiben nicht auf dem Hauptthread (die Oberflaeche bliebe so lange stehen)
+                let stampURL = self.stampURL
                 try await Task.detached(priority: .userInitiated) {
                     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                     AppPaths.excludeFromBackup(url.deletingLastPathComponent())
                     try data.write(to: url, options: .atomic)
+                    if let stamp { try? stamp.write(to: stampURL, atomically: true, encoding: .utf8) }
                 }.value
             }
             guard let pdfDocument = PDFDocument(url: url) else {
@@ -291,6 +306,9 @@ final class DocumentStore: ObservableObject {
                 notice = "\(opened.restoredUnsentPages) ungesendete Seite(n) wiederhergestellt."
             }
             startMonitoring()
+            await checkOrigin(opened.document)
+            await loadVersions()
+            indexPageTexts()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -365,7 +383,7 @@ final class DocumentStore: ObservableObject {
     /// Seitenaufbau, mit dem die Canvas angelegt wurde (bleibt richtig, auch wenn sich die Reihenfolge aendert).
     func canvasChanged(pageKey key: String, drawing: PKDrawing) {
         // ohne Schreiben im Tarif keine neuen Zeichnungen (auch nicht ueber Rueckgaengig); Ausstehendes bleibt
-        guard !key.isEmpty, canEdit else { return }
+        guard !key.isEmpty, canEdit, !outdatedByNewVersion else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
         canvasEdits[key, default: 0] += 1
         processTask?.cancel()
@@ -436,8 +454,18 @@ final class DocumentStore: ObservableObject {
     }
 
     private func remoteChanged(_ keys: [String]) async {
-        apply(document: await engine.currentDocument())
+        let doc = await engine.currentDocument()
+        apply(document: doc)
         if !keys.isEmpty { onPagesChanged?(keys) }
+        await checkOrigin(doc)
+    }
+
+    /// Gehoeren die Notizen zu einer anderen Original-PDF als der angezeigten (Herkunftsstempel `origin` einer neuen
+    /// Fassung, S7)? Dann nur noch ansehen, bis das Dokument neu geoeffnet ist.
+    private func checkOrigin(_ doc: AnnotationDocument) async {
+        guard !outdatedByNewVersion, let sha = doc.root["origin"]?["sha256"]?.string,
+              let fp = await originalFingerprint(), fp != sha else { return }
+        outdatedByNewVersion = true
     }
 
     // MARK: Bearbeiten der Struktur (gleiches Format wie der Web-Editor)

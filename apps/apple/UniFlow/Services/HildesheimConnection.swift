@@ -270,8 +270,9 @@ final class HildesheimConnection: ObservableObject {
         }
         var report = HildesheimSync.Report()
         if lw.api != nil || lsfClient != nil {
+            // Seitentexte mit PDFKit (Suche, Seitenzuordnung einer neuen Fassung, S7)
             report = await HildesheimSync(db: database, container: layout, learnweb: lw.api, lsf: lsfClient, transport: transport,
-                                          clock: clock, retry: retry)
+                                          clock: clock, retry: retry, tools: AppDocumentTools())
                 .run(includeGrades: includeGrades)
         }
         apply(report, sources: sources.subtracting(connectedDuringRun), learnweb: lw, includeGrades: includeGrades, before: before)

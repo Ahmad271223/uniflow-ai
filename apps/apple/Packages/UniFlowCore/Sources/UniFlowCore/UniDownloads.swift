@@ -10,9 +10,12 @@ import Foundation
 /// 2. keine leere Antwort statt der Datei, wenn die Quelle eine Groesse meldet oder es schon eine Fassung gibt
 ///    (`empty_download` am PC): eine leere Antwort ersetzt und loescht nie etwas
 /// 3. der Container besteht noch (`DataContainerLayout.verifyPresent`, vor jedem Anlegen und vor dem Ersetzen)
-/// 4. atomar an ihren Platz (`rename` ersetzt eine aeltere Fassung, nie halb), Dateischutz wie die Datenbank
-/// 5. Inhalts-Hash (`TestShare.contentHash(file:)`, ausserhalb der Transaktion), dann `UniStore.markDownloaded` in
-///    einer kurzen Transaktion
+/// 4. Inhalts-Hash der geladenen Datei (`TestShare.contentHash(file:)`, ausserhalb jeder Transaktion); hat die Datei
+///    Notizen und ist der Inhalt neu, wird die alte Fassung aufbewahrt (S7, `FileVersionKeeper.prepare`, unter
+///    `Fassungen` im Ordner der Quelle). Laesst sie sich nicht sichern, wird nichts ersetzt (`Failure.versionNotKept`)
+/// 5. atomar an ihren Platz (`rename` ersetzt eine aeltere Fassung, nie halb), Dateischutz wie die Datenbank
+/// 6. `UniStore.markDownloaded` in einer kurzen Transaktion, danach Seitentexte fuer die Suche und umgehaengte Notizen
+///    (`FileVersionKeeper.finish`)
 /// Ein Fehler hinterlaesst keine Datei; die alte Fassung bleibt und gilt beim naechsten Abgleich weiter als geaendert.
 /// Vor dem Lauf raeumt `begin` Reste eines abgebrochenen Laufs weg, danach entfernt `end` den Zwischenordner.
 public struct UniDownloads: Sendable {
@@ -22,16 +25,28 @@ public struct UniDownloads: Sendable {
     public let files: LocalFiles
     /// Container, in den geschrieben wird; nil nur fuer eine Ablage ohne Container (Tests mit eigenem Ordner)
     public let container: DataContainerLayout?
+    /// Herkunft fuer den Hinweis auf eine neue Fassung im Dokument ("Stud.IP", "Learnweb"; S7)
+    public let source: String
 
-    public init(folder: URL, files: LocalFiles, container: DataContainerLayout?) {
+    public init(folder: URL, files: LocalFiles, container: DataContainerLayout?, source: String) {
         self.folder = folder
         self.files = files
         self.container = container
+        self.source = source
     }
 
-    /// Ablage einer Quelle im Container (`layout.studip`, `layout.learnweb`)
-    public init(_ layout: DataContainerLayout, folder: URL) {
-        self.init(folder: folder, files: layout.files(), container: layout)
+    /// Ablage einer Quelle im Container (`layout.studip`, `layout.learnweb`); `tools` liest Seitentexte (App: PDFKit)
+    public init(_ layout: DataContainerLayout, folder: URL, tools: LocalDocumentTools = NoDocumentTools(), source: String) {
+        self.init(folder: folder, files: layout.files(tools: tools), container: layout, source: source)
+    }
+
+    /// Alte Fassungen von Dateien mit Notizen (S7): im Ordner der Quelle ohne iCloud-Backup (Entscheidung 6), aber
+    /// nicht unter `files`, damit "Dateien löschen" sie nicht entfernt (aus der Quelle lassen sie sich nicht mehr laden)
+    public var versionsFolder: URL { folder.appendingPathComponent("Fassungen", isDirectory: true) }
+
+    /// Alte Fassungen und umgehaengte Notizen in `db` (`FileVersionKeeper`, Ablage wie `files`)
+    public func versions(_ db: SQLiteDatabase, clock: UniFlowClock) -> FileVersionKeeper {
+        FileVersionKeeper(database: db, files: files, directory: files.stored(versionsFolder) ?? "Fassungen", source: source, clock: clock)
     }
 
     /// Zwischenordner der laufenden Downloads
@@ -45,11 +60,14 @@ public struct UniDownloads: Sendable {
         case empty(String)
         /// Ziel liegt nicht im Container (nichts eingetragen)
         case notStored(String)
+        /// alte Fassung einer Datei mit Notizen liess sich nicht aufbewahren (S7): nichts ersetzt
+        case versionNotKept(String)
 
         public var description: String {
             switch self {
             case .empty(let name): return "Leere Antwort statt der Datei: \(name)"
             case .notStored(let name): return "Datei nicht gespeichert: \(name)"
+            case .versionNotKept(let name): return "Alte Fassung mit Notizen nicht gesichert: \(name)"
             }
         }
 
@@ -87,6 +105,13 @@ public struct UniDownloads: Sendable {
         defer { try? fm.removeItem(at: part) }
         try await fetch(part)
         if Self.isEmpty(part), row.size > 0 || fm.fileExists(atPath: target.path) { throw Failure.empty(row.name) }
+        guard let stored = files.stored(target) else { throw Failure.notStored(row.name) }
+        // dieselben Bytes wie nach dem Ersetzen
+        let sha = TestShare.contentHash(file: part)
+        try container?.verifyPresent()
+        let keeper = versions(db, clock: clock)
+        let prepared: FileVersionKeeper.Prepared
+        do { prepared = try await keeper.prepare(fileID: row.id, newSHA: sha) } catch { throw Failure.versionNotKept(row.name) }
         try container?.verifyPresent()
         try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         try container?.verifyPresent()
@@ -95,10 +120,10 @@ public struct UniDownloads: Sendable {
         #if canImport(Darwin)
         try? fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path)
         #endif
-        guard let stored = files.stored(target) else { throw Failure.notStored(row.name) }
-        let sha = TestShare.contentHash(file: target)
         let now = clock.nowISO
         try await db.transaction { try UniStore.markDownloaded($0, row, localPath: stored, sha256: sha, now: now) }
+        // Seitentexte fuer Suche und Skriptsuche; mit Notizen: Seiten zuordnen, Notizen umhaengen
+        await keeper.finish(prepared)
         return stored
     }
 

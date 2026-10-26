@@ -115,9 +115,16 @@ extension LocalFiles {
     static func container(_ layout: DataContainerLayout) -> LocalFiles { layout.files(tools: AppDocumentTools()) }
 }
 
-/// Seitenzahl (PDFKit) und Bild als einseitige PDF (UIKit) fuer eigene Dokumente, wie pypdf und Pillow am PC.
+/// Seitenzahl und Seitentexte (PDFKit) und Bild als einseitige PDF (UIKit), wie pypdf und Pillow am PC.
 struct AppDocumentTools: LocalDocumentTools {
     func pdfPageCount(_ data: Data) -> Int? { PDFDocument(data: data)?.pageCount }
+
+    /// Text je Seite (Skriptsuche, Suche, Seitenzuordnung einer neuen Fassung); laeuft nie auf dem Hauptthread
+    /// (lokales Backend, Abgleich)
+    func pdfPageTexts(_ url: URL) -> [String]? {
+        guard let doc = PDFDocument(url: url), !doc.isLocked else { return nil }
+        return (0..<doc.pageCount).map { doc.page(at: $0)?.string ?? "" }
+    }
 
     func pdfFromImage(_ data: Data) -> Data? {
         guard let image = UIImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
