@@ -207,6 +207,84 @@ final class PurchaseTests: XCTestCase {
         XCTAssertTrue(ent.allows(.studyPlanning))
     }
 
+    /// 223: Der Beobachter von Transaction.updates (wie `Entitlements.shared` ab App-Start) schaltet eine spaeter
+    /// freigegebene Kaufanfrage von selbst frei – ohne dass eine Ansicht refresh() aufruft
+    func testTransactionUpdatesListenerUnlocksApprovedAskToBuyWithoutRefresh() async throws {
+        session.askToBuyEnabled = true
+        let ent = Entitlements(observe: true)
+        _ = await eventually { !ent.loading }
+        let store = PurchaseStore(entitlements: ent)
+        await store.loadProducts()
+        await waitForPlan(ent, .free)
+        let plus = try XCTUnwrap(store.product(for: .plus))
+        let outcome = await store.purchase(plus)
+        XCTAssertEqual(outcome, .pending, store.lastError ?? "")
+        let t = try XCTUnwrap(session.allTransactions().first { $0.productIdentifier == plus.id })
+        try session.approveAskToBuyTransaction(identifier: t.identifier)
+        // ab hier kein refresh(): nur der Beobachter darf den Tarif aendern
+        let unlocked = await eventually(15) { ent.plan == .plus }
+        XCTAssertTrue(unlocked, "Transaction.updates hat die Freigabe nicht verarbeitet")
+        XCTAssertGreaterThanOrEqual(ent.transactionCount, 1)
+        XCTAssertTrue(ent.allows(.pencilWriting))
+    }
+
+    /// 226: Abbruch im Kaufdialog ist kein Fehler (keine Meldung, Free bleibt); ein echter Fehler nennt den Grund und
+    /// schaltet nichts frei. Den Abbruch durch den Menschen kann die Testsitzung nicht ausloesen (`failureError =
+    /// .paymentCancelled` kommt als `StoreKitError.unknown` an, gemessen unter Xcode 27.1): darum die Zuordnung des
+    /// Dialog-Ergebnisses direkt, den Fehlerweg ueber die Testsitzung.
+    func testCancelledPurchaseIsNoErrorAndFailedPurchaseUnlocksNothing() async throws {
+        XCTAssertEqual(PurchaseStore.outcome(of: .userCancelled), .cancelled)
+        XCTAssertEqual(PurchaseStore.outcome(of: .pending), .pending)
+        let thrownCancel = PurchaseStore.failure(StoreKitError.userCancelled)
+        XCTAssertEqual(thrownCancel.outcome, .cancelled)
+        XCTAssertNil(thrownCancel.message, "Abbruch ohne Fehlermeldung")
+        let other = PurchaseStore.failure(StoreKitError.networkError(URLError(.notConnectedToInternet)))
+        XCTAssertEqual(other.outcome, .failed)
+        XCTAssertTrue(other.message?.hasPrefix("Kauf fehlgeschlagen: ") == true, other.message ?? "")
+
+        let (store, ent) = await makeStore()
+        let plus = try XCTUnwrap(store.product(for: .plus))
+        session.failTransactionsEnabled = true
+        defer { session.failTransactionsEnabled = false }
+        session.failureError = .unknown
+        let failed = await store.purchase(plus)
+        XCTAssertEqual(failed, .failed)
+        XCTAssertTrue(store.lastError?.hasPrefix("Kauf fehlgeschlagen") == true, store.lastError ?? "")
+        XCTAssertEqual(ent.plan, .free)
+        XCTAssertEqual(ent.transactionCount, 0)
+        XCTAssertFalse(ent.allows(.pencilWriting))
+    }
+
+    /// 224: Lehnt die Pruefung eine Transaktion ab, erfaehrt der Nutzer den Grund (Fehlerkarte) und die Tarifwahl geht
+    /// nicht weiter. Hier ueber die Server-Pruefung (V2-Haken); eine von StoreKit unverifizierte Transaktion geht
+    /// denselben Weg (`Entitlements.handle` -> false).
+    func testRejectedVerificationTellsTheUser() async throws {
+        let (store, ent) = await makeStore()
+        ent.verifyOnServer = { _ in false }
+        let plus = try XCTUnwrap(store.product(for: .plus))
+        let outcome = await store.purchase(plus)
+        XCTAssertEqual(outcome, .failed)
+        XCTAssertEqual(store.lastError, "Der Kauf konnte nicht bestätigt werden.")
+    }
+
+    /// 229: Store nicht erreichbar (hier: keine bekannten Produkte): verstaendliche Meldung mit "Erneut versuchen",
+    /// der zuletzt bekannte Tarif und die Notizen bleiben
+    func testUnreachableStoreKeepsPlanAndExplains() async throws {
+        let (store, ent) = await makeStore()
+        _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
+        XCTAssertEqual(ent.plan, .plus)
+        let offline = PurchaseStore(entitlements: ent, productIDs: ["de.uniflow.nicht.vorhanden"])
+        await offline.loadProducts()
+        XCTAssertTrue(offline.products.isEmpty)
+        XCTAssertEqual(offline.lastError, "Die Tarife konnten nicht geladen werden. Prüfe die Verbindung und versuche es erneut.")
+        XCTAssertNil(offline.product(for: .plus), "kein Kaufknopf ohne Produkt")
+        await offline.refreshEntitlements()
+        XCTAssertEqual(ent.plan, .plus, "Tarif aus den gespeicherten Berechtigungen bleibt")
+        XCTAssertEqual(ent.notes, UFNoteAccess(canView: true, canExport: true, canEdit: true))
+        XCTAssertEqual(UFFeatureMatrix.notes(plan: .free), UFNoteAccess(canView: true, canExport: true, canEdit: false),
+                       "auch ohne Tarif bleiben Notizen lesbar und exportierbar")
+    }
+
     func testRestoreOnNewInstall() async throws {
         let (store, ent) = await makeStore()
         _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))

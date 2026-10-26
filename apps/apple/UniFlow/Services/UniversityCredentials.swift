@@ -160,15 +160,27 @@ final class UniversityCredentialStore {
         return credential(uni, service: fallback)
     }
 
-    /// Speichert beide Felder; schlaegt ein Teil fehl, bleibt nichts Halbes liegen.
+    /// Speichert beide Felder. Schlaegt ein Teil fehl, kommt das vorher gespeicherte Paar zurueck; geht auch das nicht,
+    /// bleibt nichts Halbes liegen (nie Benutzername A mit Passwort B).
     @discardableResult
     func save(_ c: UniversityCredential, _ uni: UniversityKey, service: String) -> Bool {
         guard c.isStorable, removeLeftoversOfEarlierInstallation(), let a = accounts(uni, service) else { return false }
+        let previous = credential(uni, service: service)
         guard secrets.write(c.user, account: a.user), secrets.write(c.password, account: a.password) else {
-            delete(uni, service: service)
+            rollBack(to: previous, a)
             return false
         }
         return true
+    }
+
+    /// Nach einem Teilfehler: altes Paar zurueckschreiben; gelingt das nicht vollstaendig, beide Eintraege entfernen
+    private func rollBack(to previous: UniversityCredential?, _ a: (user: String, password: String)) {
+        if let previous, secrets.write(previous.user, account: a.user), secrets.write(previous.password, account: a.password),
+           secrets.read(a.user) == previous.user, secrets.read(a.password) == previous.password {
+            return
+        }
+        secrets.remove(a.user)
+        secrets.remove(a.password)
     }
 
     func delete(_ uni: UniversityKey, service: String) {

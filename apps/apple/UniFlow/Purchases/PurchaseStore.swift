@@ -22,22 +22,27 @@ final class PurchaseStore: ObservableObject {
     @Published private(set) var busy = false
 
     let entitlements: Entitlements
+    /// abgefragte Produkte (Tests: unbekannte Kennungen, als waere der Store nicht erreichbar)
+    private let requestedProductIDs: [String]
 
     /// `nil` = gemeinsamer Tarif der App (`Entitlements.shared`). Aufgeloest erst hier im MainActor-Kontext, weil
     /// Standardargumente in Swift 5 nicht isoliert ausgewertet werden (in Swift 6 ein Fehler).
-    init(entitlements: Entitlements? = nil) {
+    init(entitlements: Entitlements? = nil, productIDs: [String] = PurchaseStore.productIDs) {
         self.entitlements = entitlements ?? .shared
+        requestedProductIDs = productIDs
     }
 
     func product(for plan: UFPlan) -> Product? {
         products.first { $0.id == plan.productID }
     }
 
+    /// Produkte laden. Kommt nichts (kein Netz, Store nicht erreichbar), bleibt der Tarif, wie StoreKit ihn zuletzt
+    /// kannte (currentEntitlements aus dem Geraete-Zwischenspeicher); die Seite nennt den Grund, "Erneut versuchen".
     func loadProducts() async {
         loadingProducts = true
         defer { loadingProducts = false }
         do {
-            products = try await Product.products(for: Self.productIDs).sorted { $0.price < $1.price }
+            products = try await Product.products(for: requestedProductIDs).sorted { $0.price < $1.price }
             await refreshEligibility()
             lastError = products.isEmpty ? "Die Tarife konnten nicht geladen werden. Prüfe die Verbindung und versuche es erneut." : nil
         } catch {
@@ -63,26 +68,38 @@ final class PurchaseStore: ObservableObject {
         defer { busy = false }
         lastError = nil
         do {
-            switch try await product.purchase() {
-            case .success(let verification):
-                guard await entitlements.handle(verification) else {
-                    lastError = "Der Kauf konnte nicht bestätigt werden."
-                    return .failed
-                }
-                await refreshEligibility()
-                return .success
-            case .userCancelled:
-                return .cancelled
-            case .pending:
-                // z. B. "Kaufanfrage" in der Familienfreigabe: Freischaltung kommt spaeter ueber Transaction.updates
-                return .pending
-            @unknown default:
-                return .cancelled
+            let result = try await product.purchase()
+            guard case .success(let verification) = result else { return Self.outcome(of: result) }
+            guard await entitlements.handle(verification) else {
+                lastError = "Der Kauf konnte nicht bestätigt werden."
+                return .failed
             }
+            await refreshEligibility()
+            return .success
         } catch {
-            lastError = "Kauf fehlgeschlagen: \(error.localizedDescription)"
-            return .failed
+            let f = Self.failure(error)
+            lastError = f.message
+            return f.outcome
         }
+    }
+
+    /// Ergebnis des Kaufdialogs ohne Transaktion: Abbruch im Apple-Dialog (`.userCancelled`) ist kein Fehler (keine
+    /// Meldung, nichts freigeschaltet); `.pending` z. B. "Kaufanfrage" in der Familienfreigabe, die Freischaltung kommt
+    /// spaeter ueber Transaction.updates. `.success` behandelt `purchase` selbst.
+    nonisolated static func outcome(of result: Product.PurchaseResult) -> Outcome {
+        switch result {
+        case .success: return .success
+        case .userCancelled: return .cancelled
+        case .pending: return .pending
+        @unknown default: return .cancelled
+        }
+    }
+
+    /// Geworfener Fehler: ein als Fehler gemeldeter Abbruch (`StoreKitError.userCancelled`) bleibt ohne Meldung, alles
+    /// andere nennt den Grund
+    nonisolated static func failure(_ error: Error) -> (outcome: Outcome, message: String?) {
+        if case StoreKitError.userCancelled = error { return (.cancelled, nil) }
+        return (.failed, "Kauf fehlgeschlagen: \(error.localizedDescription)")
     }
 
     /// "Käufe wiederherstellen"

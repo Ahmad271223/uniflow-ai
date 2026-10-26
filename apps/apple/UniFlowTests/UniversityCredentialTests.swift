@@ -106,6 +106,46 @@ final class UniversityCredentialTests: XCTestCase {
         XCTAssertTrue(keychain.accounts().isEmpty)
     }
 
+    /// 236: Teilfehler beim Ueberschreiben: das alte Paar kommt zurueck; laesst sich auch das nicht vollstaendig
+    /// schreiben, bleibt nichts (nie Benutzername neu mit Passwort alt)
+    func testPartialFailureRollsBackToThePreviousPair() {
+        final class Flaky: UniversitySecretStoring {
+            var values: [String: String] = [:]
+            /// Werte, deren Schreiben scheitert
+            var rejects: Set<String> = []
+            var writes: [String] = []
+            func read(_ account: String) -> String? { values[account] }
+            func write(_ value: String, account: String) -> Bool {
+                writes.append(account)
+                guard !rejects.contains(value) else { return false }
+                values[account] = value
+                return true
+            }
+            func remove(_ account: String) { values[account] = nil }
+            func accounts() -> [String] { Array(values.keys) }
+        }
+        let flaky = Flaky()
+        let s = UniversityCredentialStore(secrets: flaky, defaults: defaults)
+        XCTAssertTrue(s.save(hiUser, .hildesheim, service: "cas"))
+        let newer = UniversityCredential(user: "testnutzer-neu", password: "Neu-Pw-9")
+        flaky.rejects = ["Neu-Pw-9"]                                   // Benutzername geht, Passwort scheitert
+        XCTAssertFalse(s.save(newer, .hildesheim, service: "cas"))
+        XCTAssertEqual(s.credential(.hildesheim, service: "cas"), hiUser, "altes Paar zurueck")
+        flaky.rejects = ["testnutzer-neu"]                              // schon der Benutzername scheitert
+        XCTAssertFalse(s.save(newer, .hildesheim, service: "cas"))
+        XCTAssertEqual(s.credential(.hildesheim, service: "cas"), hiUser)
+        // Rueckschreiben scheitert ebenfalls (Schluesselbund waehrenddessen gesperrt): nichts Halbes bleibt liegen
+        flaky.rejects = ["Neu-Pw-9", hiUser.password]
+        XCTAssertFalse(s.save(newer, .hildesheim, service: "cas"))
+        XCTAssertNil(s.credential(.hildesheim, service: "cas"))
+        XCTAssertNil(flaky.values["hildesheim.cas.user"], "kein Benutzername ohne Passwort")
+        XCTAssertNil(flaky.values["hildesheim.cas.password"])
+        // ohne vorheriges Paar: wie bisher nichts
+        flaky.rejects = ["Neu-Pw-9"]
+        XCTAssertFalse(s.save(newer, .luh, service: "studip"))
+        XCTAssertNil(flaky.values["luh.studip.user"])
+    }
+
     func testCredentialNeverInDescriptions() {
         for text in [String(describing: hiUser), String(reflecting: hiUser), "\(hiUser)"] {
             XCTAssertFalse(text.contains("testnutzer") || text.contains("pw#2"), text)
