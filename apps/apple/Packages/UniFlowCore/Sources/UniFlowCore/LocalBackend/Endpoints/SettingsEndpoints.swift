@@ -21,7 +21,7 @@ public enum LocalSettings {
         out["test_default_minutes"] = .number(Double(try strictInt(s["test_default_minutes"], default: 90, key: "test_default_minutes")))
         out["auto_plan"] = .bool(flag(s["auto_plan"], default: "1"))
         out["auto_tests"] = .bool(flag(s["auto_tests"], default: "1"))
-        for (k, d) in [("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 1),
+        for (k, d) in [("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 0),
                        ("test_minutes", 45), ("break_minutes", 15)] {
             out[k] = .number(Double(try lenientInt(s[k], default: d, key: k)))
         }

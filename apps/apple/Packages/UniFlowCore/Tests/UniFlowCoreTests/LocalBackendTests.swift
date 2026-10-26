@@ -325,9 +325,9 @@ final class LocalBackendCoverageTests: XCTestCase {
         let fResponse = await backend.handle(LocalRequest(method: "GET", path: "/api/calendar/feasibility"))
         let f = try XCTUnwrap(fResponse.json)
         XCTAssertEqual(f["available_minutes_4w"], 4800)
-        XCTAssertEqual(f["per_day_need"], 300)
+        XCTAssertEqual(f["per_day_need"], 210, "2 Fächer · (Vorlesung 45 + Übung 60), ohne Wochentest (Standard)")
         XCTAssertEqual(f["open_minutes"], 0)
-        XCTAssertNotNil(f["hint"]?.string, "300 > 240 Minuten")
+        XCTAssertEqual(f["hint"], .null, "210 <= 240 Minuten")
     }
 }
 
