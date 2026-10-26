@@ -447,8 +447,7 @@ struct AddTaskDialog: View {
     var body: some View {
         UFDialog("Aufgabe hinzufügen") {
             UFField("Art") {
-                UFSelect(options: [("vorlesung", "Vorlesung"), ("uebung", "Übung"), ("test", "Wochentest"), ("wiederholung", "Wiederholung"), ("frei", "Freies Lernen")],
-                         selection: $type, fill: true)
+                UFSelect(options: typeOptions, selection: $type, fill: true)
             }
             UFField("Dokument (optional)") {
                 UFSelect(options: [("", "– keins –")] + files.compactMap { f in f.s("id").map { ($0, f.s("ai_title") ?? f.s("name") ?? "") } },
@@ -466,6 +465,13 @@ struct AddTaskDialog: View {
         .onChange(of: file) { _, f in
             if let x = files.first(where: { $0.s("id") == f }), title.isEmpty { title = x.s("ai_title") ?? x.s("name") ?? "" }
         }
+    }
+
+    /// Arten wie im Web; ohne PC keine Wochentests (KI, entfallen in V1)
+    private var typeOptions: [(value: String, label: String)] {
+        let all: [(value: String, label: String)] = [("vorlesung", "Vorlesung"), ("uebung", "Übung"), ("test", "Wochentest"),
+                                                     ("wiederholung", "Wiederholung"), ("frei", "Freies Lernen")]
+        return session.api?.isLocal == true ? all.filter { $0.value != "test" } : all
     }
 
     private func add() async {
@@ -592,7 +598,7 @@ struct FreeWindowDialog: View {
             tasks.append(["type": "uebung", "file_id": .string(e.s("id") ?? ""), "title": .string(e.s("ai_title") ?? e.s("name") ?? ""),
                           "est_minutes": .number(Double(min(mins - used, e.i("est_minutes") ?? 45)))])
         }
-        if lecture { tasks.append(["type": "test", "title": "Gemeinsamer Wochentest", "est_minutes": 15]) }
+        if lecture && !api.isLocal { tasks.append(["type": "test", "title": "Gemeinsamer Wochentest", "est_minutes": 15]) }    // ohne PC kein Wochentest
         let body: JSONValue = ["date": .string(date), "module_id": moduleID.map { .number(Double($0)) } ?? .null,
                                "title": .string(lecture ? "Vorlesung nacharbeiten" : "Übung bearbeiten"),
                                "tasks": .array(tasks.filter { ($0["est_minutes"]?.double ?? 0) > 0 })]

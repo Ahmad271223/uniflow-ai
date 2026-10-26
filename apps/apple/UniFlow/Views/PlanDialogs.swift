@@ -23,7 +23,8 @@ struct GeneratePlanDialog: View {
         } else {
             UFDialog("Lernplan erstellen", icon: "sparkles") {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Erstellt Lernpakete pro Modul und Lehrwoche (Vorlesung → Übungen → gemeinsamer Wochentest) für freie Tage ab dem gewählten Datum und legt sie in freie Zeitfenster deines Stundenplans. Bestehende Pakete bleiben erhalten.")
+                    // ohne PC keine Wochentests (KI, entfallen in V1): weder anbieten noch ankuendigen
+                    Text("Erstellt Lernpakete pro Modul und Lehrwoche (\(api?.isLocal == true ? "Vorlesung → Übungen" : "Vorlesung → Übungen → gemeinsamer Wochentest")) für freie Tage ab dem gewählten Datum und legt sie in freie Zeitfenster deines Stundenplans. Bestehende Pakete bleiben erhalten.")
                         .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
                     if let f = feas {
                         if let hint = f.s("hint"), !hint.isEmpty {
@@ -78,6 +79,8 @@ struct GeneratePlanDialog: View {
 
 /// "Meinen Lernplan konfigurieren": Vorlagen A–E, Faecher/Lernzeit/Vorlesungen/Uebungen/Test, Lerntage, Klausur-Prioritaet;
 /// Live-Rechnung wie upd() in configDialog. Speichern -> PUT /api/settings. onDone(true) = gespeichert.
+/// Ohne PC (lokales Backend) gibt es keine Wochentests (KI, entfallen in V1): Vorlagen ohne Test und Wiederholung,
+/// keine Felder dafuer, gespeichert wird immer tests_per_subject 0 (Entscheidung 2).
 struct ConfigDialog: View {
     let api: APIClient?
     let onDone: (Bool) -> Void
@@ -87,7 +90,7 @@ struct ConfigDialog: View {
     @State private var minutes = 120
     @State private var lec = 1
     @State private var ex = 1
-    @State private var tests = 1
+    @State private var tests = 0
     @State private var testMin = 45
     @State private var learnDays: Set<Int> = Set(0..<7)
     @State private var examPriority = false
@@ -100,11 +103,19 @@ struct ConfigDialog: View {
         Preset(key: "D", name: "Zwei Fächer mit Wiederholung", desc: "2 Fächer pro Tag · zusätzlich Wiederholung", v: (2, 1, 1, 2)),
         Preset(key: "E", name: "Benutzerdefiniert", desc: "Alles selbst kombinieren", v: nil),
     ]
+    private let localPresets: [Preset] = [
+        Preset(key: "A", name: "Intensiv", desc: "1 Fach pro Tag · Vorlesung + Übungen", v: (1, 1, 1, 0)),
+        Preset(key: "B", name: "Abwechslungsreich", desc: "2 Fächer pro Tag · je Vorlesung + Übungen", v: (2, 1, 1, 0)),
+        Preset(key: "C", name: "Benutzerdefiniert", desc: "Alles selbst kombinieren", v: nil),
+    ]
+
+    /// lokales Backend: ohne Wochentests
+    private var local: Bool { api?.isLocal == true }
 
     var body: some View {
         UFDialog("Meinen Lernplan konfigurieren") {
             VStack(alignment: .leading, spacing: 8) {                     // .stack#presets: label.chip mit Radioknopf
-                ForEach(presets, id: \.key) { p in
+                ForEach(local ? localPresets : presets, id: \.key) { p in
                     Button {
                         preset = p.key
                         if let v = p.v { sub = v.sub; lec = v.lec; ex = v.ex; tests = v.tests }
@@ -130,8 +141,10 @@ struct ConfigDialog: View {
                 UFField("Lernzeit pro Tag (Minuten)") { UFNumberField(value: $minutes) }
                 UFField("Vorlesungen der Woche") { UFSelect(options: [(0, "nicht einplanen"), (1, "alle der Lehrwoche")], selection: $lec, fill: true) }
                 UFField("Übungen der Woche") { UFSelect(options: [(0, "nicht einplanen"), (1, "alle (Hörsaal-, Gruppenübung …)")], selection: $ex, fill: true) }
-                UFField("Wochentest pro Modul") { UFSelect(options: [(0, "kein Test"), (1, "1 gemeinsamer Test"), (2, "1 Test + Wiederholung")], selection: $tests, fill: true) }
-                UFField("Dauer Wochentest") { UFSelect(options: [15, 30, 45, 60, 90].map { ($0, "\($0) min") }, selection: $testMin, fill: true) }
+                if !local {
+                    UFField("Wochentest pro Modul") { UFSelect(options: [(0, "kein Test"), (1, "1 gemeinsamer Test"), (2, "1 Test + Wiederholung")], selection: $tests, fill: true) }
+                    UFField("Dauer Wochentest") { UFSelect(options: [15, 30, 45, 60, 90].map { ($0, "\($0) min") }, selection: $testMin, fill: true) }
+                }
             }
             .padding(.top, 12.8)
             UFField("Lerntage") {
@@ -154,12 +167,14 @@ struct ConfigDialog: View {
 
     /// Bedarf je Tag wie im Web: Faecher * (Vorlesung 45 + Uebung 60 + Testdauer + 15 bei Wiederholung)
     private var feasibility: Text {
-        let need = sub * (lec * 45 + ex * 60 + (tests > 0 ? testMin : 0) + (tests > 1 ? 15 : 0))
-        let combo = "\(sub) Fächer täglich · \(lec > 0 ? "Vorlesung" : "ohne Vorlesung") · \(ex > 0 ? "Übungen" : "ohne Übung") · \(tests > 0 ? "1 Wochentest" : "kein Test")\(tests > 1 ? " + Wiederholung" : "")"
+        let t = local ? 0 : tests
+        let need = sub * (lec * 45 + ex * 60 + (t > 0 ? testMin : 0) + (t > 1 ? 15 : 0))
+        var combo = "\(sub) Fächer täglich · \(lec > 0 ? "Vorlesung" : "ohne Vorlesung") · \(ex > 0 ? "Übungen" : "ohne Übung")"
+        if !local { combo += " · \(t > 0 ? "1 Wochentest" : "kein Test")\(t > 1 ? " + Wiederholung" : "")" }
         let head = Text("Deine Kombination: ").foregroundColor(UF.muted) + Text(combo).bold().foregroundColor(UF.muted)
             + Text(" → etwa \(UFFmt.min(need)) pro Tag. ").foregroundColor(UF.muted)
         if need > minutes {
-            return head + Text("Das passt nicht in \(UFFmt.min(minutes)). Vorschlag: \(sub > 1 ? "weniger Fächer pro Tag" : "kürzerer Test oder mehr Lernzeit").").foregroundColor(UF.bad)
+            return head + Text("Das passt nicht in \(UFFmt.min(minutes)). Vorschlag: \(sub > 1 ? "weniger Fächer pro Tag" : local ? "mehr Lernzeit" : "kürzerer Test oder mehr Lernzeit").").foregroundColor(UF.bad)
         }
         return head + Text("Passt in \(UFFmt.min(minutes)).").foregroundColor(UF.ok)
     }
@@ -170,7 +185,7 @@ struct ConfigDialog: View {
         minutes = s.i("minutes_per_day") ?? Int(((s.n("hours_per_day") ?? Double(s.s("hours_per_day") ?? "") ?? 2) * 60).rounded())
         lec = min(1, s.i("parts_lecture") ?? Int(s.s("parts_lecture") ?? "") ?? 1)
         ex = min(1, s.i("parts_exercise") ?? Int(s.s("parts_exercise") ?? "") ?? 1)
-        tests = s.i("tests_per_subject") ?? Int(s.s("tests_per_subject") ?? "") ?? 1
+        tests = local ? 0 : s.i("tests_per_subject") ?? Int(s.s("tests_per_subject") ?? "") ?? 0
         testMin = s.i("test_minutes") ?? Int(s.s("test_minutes") ?? "") ?? 45
         let free = Set((s["free_days"]?.array ?? []).compactMap { $0.int })
         learnDays = Set(0..<7).subtracting(free)
@@ -183,7 +198,7 @@ struct ConfigDialog: View {
         let free = (0..<7).filter { !learnDays.contains($0) }.map { JSONValue.number(Double($0)) }
         let body: JSONValue = [
             "subjects_per_day": .string("\(sub)"), "parts_lecture": .string("\(lec)"), "parts_exercise": .string("\(ex)"),
-            "tests_per_subject": .string("\(tests)"), "test_minutes": .string("\(testMin)"),
+            "tests_per_subject": .string("\(local ? 0 : tests)"), "test_minutes": .string("\(testMin)"),
             "hours_per_day": .string(String(format: "%.2f", Double(minutes) / 60)), "free_days": .array(free),
             "exam_priority": .bool(examPriority),
         ]
