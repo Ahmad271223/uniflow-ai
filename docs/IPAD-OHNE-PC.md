@@ -338,9 +338,107 @@ C40B7FE0), Python 124 passed, alle Generatoren `--check` aktuell; `StudyPlanLoca
 Aufgaben und Einstellungen des Lernplans liegen wie alle Tabellen in der Datenbank des Containers (Apple-Nutzer,
 Hochschule), ein Wechsel der Hochschule zeigt den Lernplan der anderen.
 
+Stand nach **S7** (Zweig `wip/v1-s6-s7`, auf `wip/v1-s6`): **Suche und Skriptsuche laufen offline**, und eine **neue
+Original-Fassung einer Datei mit Notizen** behält die Notizen.
+
+*Suche und Skriptsuche.* `GET /api/search`, `POST /api/related` und `GET /api/files/{id}/pagetext` sind echt
+(`SearchEndpoints`; die Platzhalter sind entfernt, `LocalBackendCoverageTests` zählt jetzt 9, auf `develop` mit
+`GET /api/grades` 8). `app/scriptsearch.py`
+ist 1:1 portiert (`UniFlowCore/LocalBackend/Search/ScriptSearch.swift`: `normalize` mit zerlegten Umlauten, `tokens`
+mit Stoppwörtern und Wortstamm, BM25 mit Mindestgüte und Abstand zum Durchschnitt, Druckfassung derselben Folie nicht
+doppelt, `_snippet`, Index je Modul im Zwischenspeicher je Datenbank). Die Seitentexte stehen wie am PC in
+`page_texts` (je Datei und Seite mit der Änderungszeit der Datei); gelesen werden sie auf dem Gerät mit PDFKit
+(`LocalDocumentTools.pdfPageTexts`, nie auf dem Hauptthread), und zwar **beim Download** (jede geladene PDF, Stud.IP
+und Learnweb) und **beim Öffnen** eines Dokuments, das noch keine hat. Zuerst in Python erweitert bzw. korrigiert
+(`tests/test_search.py`, beide Tests scheitern ohne die Änderung): `/api/search` sucht außer in Dateien und Modulen
+jetzt auch in **Aufgaben des Lernplans** (`tasks`: Titel, Tag, Modul) und in **Seitentexten** (`pages`: Seite mit
+Ausschnitt, nur Texte der aktuellen Fassung, gelesen wird dabei nichts; `scriptsearch.find_pages`); die Web-App zeigt
+beides in der Suche der Kopfzeile. Die Begriffe eines Treffers der Skriptsuche stehen bei gleicher Häufigkeit in der
+Reihenfolge der Anfrage (vorher in der Reihenfolge einer Python-Menge, also je Lauf verschieden – so ließ sich die
+Antwort weder vergleichen noch wiederholen). In der App zeigt die Suche der Kopfzeile Module, Dateien, Aufgaben (führt
+zur Tagesansicht) und Seiten (öffnet das Dokument an dieser Seite; `#/doc/<id>?page=n` springt jetzt auch auf dem
+iPad zur Seite). Bewusste Abweichungen: `/pagetext` liest den gespeicherten Text (am PC jedes Mal neu mit pypdf;
+gleiche Antwort), eine unlesbare Datei meldet in `error` einen eigenen Text statt der Meldung von pypdf; ein `text`,
+der kein Text ist, und falsche Zahlen in `page` antworten mit 422 statt 500; der Index-Zwischenspeicher gilt auch für
+den Ablageort (am PC fehlte eine später geladene Datei bis zum Neustart im Index). Grenze: pypdf und PDFKit lesen
+denselben PDF-Text nicht immer gleich (Zeilenumbrüche, Ligaturen, zerlegte Umlaute) – darum vergleicht die Fixture mit
+festen Seitentexten, und Treffer können am PC und auf dem iPad für dieselbe PDF verschieden ausfallen.
+
+*Neue Original-Fassung mit erhaltenen Notizen.* Python hat dafür **keine Regel** (am PC überschreibt
+`store_course_files` die Datei, die Notizen bleiben an den alten Seitenzahlen, neue Seiten fehlen in der
+Seitenliste); der Entwurf gilt darum nur auf dem Gerät (`UniFlowCore/FileVersions`):
+- **Wann:** Liefert Stud.IP (`StudIPSync`) oder Learnweb (`HildesheimSync`; beide über `UniDownloads`, auf `develop`
+  derselbe Weg für jede geladene Datei) für eine Datei eine
+  neue Fassung mit anderem Inhalt (`content_sha256` der geladenen Datei ≠ gespeicherter; ohne gespeicherten Hash zählt
+  der Inhalt der alten Datei) und hat die Datei **Notizen** (Objekte auf einer Seite, eingefügte, gedrehte,
+  umgestellte oder gelöschte Seiten, Lesezeichen, Gliederung, Dokumentnotiz – mehr als die automatische Seitenliste),
+  dann vor dem Ersetzen: die alte PDF wird aufbewahrt (`FileVersionKeeper.prepare`, Kopie unter
+  `<Container>/StudIP/Fassungen/<Datei>/<Hash>.pdf` bzw. `<Container>/Learnweb/Fassungen/…`, auf APFS ein Klon; ohne iCloud-Backup nach Entscheidung 6;
+  **nie gelöscht**, auch nicht von „Abmelden und Dateien löschen“, denn Stud.IP liefert nur noch die neue). Lässt sie
+  sich nicht sichern, wird die Datei nicht ersetzt (wie ein gescheiterter Download, der nächste Abgleich versucht es
+  erneut). Gleicher Inhalt mit neuem Datum: nichts. **Ohne Notizen** wird ersetzt wie bisher; eine nur automatisch
+  angelegte Seitenliste wird dabei geleert, damit der Editor neue Seiten zeigt.
+- **Seiten zuordnen** (`PageMatch`): Seitentexte der alten Fassung (gespeichert in `page_texts` oder mit PDFKit aus der
+  aufbewahrten Kopie) und der neuen, verglichen als Wörter (normalisiert wie die Skriptsuche, Ziffernfolgen als „#“,
+  damit Seitenzahl und Datum in der Fußzeile nicht zählen). 1. gleiche Wörter: Seite zu Seite (sicher; gleiche Seiten
+  der Reihe nach), 2. ähnlich: `SequenceMatcher.ratio()` derselbe difflib-Port wie für die Module (`ModuleGuess`, jetzt
+  für beliebige Folgen, dazu `quick_ratio`/`real_quick_ratio` als Vorfilter) ab 0,6 wie `difflib.get_close_matches`,
+  vergeben nach höchster Ähnlichkeit, dann kleinerem Abstand der Seitenzahlen (zu prüfen), 3. Seiten ohne Text auf
+  beiden Seiten (Scans, Leerseiten) im selben Abstand zur nächsten zugeordneten Seite davor oder danach (zu prüfen).
+  Alles andere ist entfernt (alte Seite) bzw. neu. Ohne lesbaren alten Text: Seite für Seite, alle zu prüfen.
+- **Notizen umhängen** (`NoteTransfer`, `FileVersionKeeper.finish` nach `markDownloaded`, eine Transaktion): Seiten
+  behalten Schlüssel und Inhalt, nur `index` in `pageOrder` und im Papierkorb zeigt auf die neue Seite; **unveränderte
+  Seiten 1:1, verschobene folgen ihrem Text**, eingefügte Seiten gehen mit ihrer Seite, neue Seiten bekommen einen
+  eigenen Eintrag; ohne eigene Umstellung gilt die Reihenfolge der neuen Fassung, sonst bleibt die des Nutzers.
+  **Entfernte Seiten** verschwinden aus dem Dokument, ihre Notizen bleiben **auf der alten Fassung**. Neue Version der
+  Notizen mit Verlauf wie `PUT …/annotations`; Herkunftsstempel `origin` (Hash, Seitenzahl, Nummer der Fassung).
+  Kopien („Duplizieren“), die sich die PDF teilen, bekommen die neue Fassung mit: ihre Notizen werden ebenso
+  umgehängt, ihr Ladezeitpunkt geht mit.
+- **Alte Fassung:** Tabelle `file_versions` (nur auf dem Gerät, bei Bedarf angelegt): Kennzeichen, aufbewahrte PDF,
+  Notizen zum Zeitpunkt der neuen Fassung, Zuordnung mit zu prüfenden Seiten. Endpunkte (`FileVersionEndpoints`, am PC
+  404): `GET /api/files/{id}/versions` (mit `notice`), `POST …/versions/seen`, `GET …/versions/{n}/content` und
+  `…/annotations`; `PUT …/annotations` 409 (nur zum Ansehen). Der Editor öffnet sie unter `<id>/versions/<n>` mit
+  eigenem Journal und Zwischenspeicher.
+- **Im Dokument:** über der Seite „Neue Fassung aus Stud.IP – Notizen übernommen (n Seiten prüfen)“ (n = Seiten mit
+  Notizen, deren Text sich geändert hat oder die nur nach Position zugeordnet sind, und Seiten mit Notizen, die es nur
+  noch in der alten Fassung gibt), darunter welche („Geänderte Seite 4 · Nur in der alten Fassung: Seite 7“), mit
+  „Alte Fassung“ (öffnet sie im Vollbild, nur ansehen) und „OK“ (Hinweis gesehen); danach bleiben die alten Fassungen
+  unter „Mehr → Alte Fassungen“ erreichbar. **Geteilte Lösungen** hängen am Fingerabdruck der Original-Bytes: eine
+  Lösung zur alten Fassung erscheint auf der aufbewahrten alten Fassung (gleiche Bytes), nicht auf der neuen.
+- **Editor-Zwischenspeicher** `sources/<quelle>/pdf` wird jetzt erneuert, sobald sich die Datei geändert hat (Stand
+  `downloaded_at|content_sha256` aus `GET /api/files/{id}` neben der Kopie; ohne Antwort gilt die Kopie). Kommt eine
+  neue Fassung, während das Dokument offen ist, und erreicht der neue Stand der Notizen den Editor (Zusammenführen
+  beim Speichern), erkennt er am Herkunftsstempel die andere PDF: nur noch ansehen mit „Neue Fassung angekommen –
+  Dokument neu öffnen“.
+Grenzen (ehrlich): Seitengrößen werden nicht verglichen (gleicher Text auf anders großer Seite gilt als gleich, die
+Notizen stehen dann an denselben Koordinaten); Seiten, die sich nur in Zahlen unterscheiden, gelten als unverändert
+(z. B. ein korrigierter Zahlenwert); bricht die App zwischen Ersetzen und Umhängen ab, liegt die alte PDF aufbewahrt,
+aber ohne Eintrag, und die Notizen stehen 1:1 auf der neuen Fassung; noch nicht gesendete Striche auf einer entfernten
+Seite sind danach nur im Journal; die Seitentexte liegen wie am PC in der Datenbank und damit im Backup (Entscheidung
+6 sieht sie außerhalb vor – offen: eigene Zwischenspeicher-Datenbank ohne Backup). Beim Learnweb-Abgleich greift
+dasselbe über `UniDownloads` (die App gibt `HildesheimSync` PDFKit als `tools`).
+
+Geprüft im Kern: `search.json` aus dem neuen `tools/gen-search-fixture.py` (erfundene Module, Kurse, Dateien mit PDFs
+aus festen Zeilen, die pypdf liest, Analysen, Lernpakete; `page_texts` genau mit dem Text von pypdf): 42 Anfragen an
+die drei Endpunkte (Suche mit Groß-/Kleinschreibung, Umlauten wie SQLite, `%%`, zu kurz, fehlend; Skriptsuche mit
+Text und Seite, Mindestgüte, Druckfassung, gekürztem Text, ohne Modul, ohne Skripte; Seitentext mit allen
+Grenzfällen) mit exakt denselben Antworten wie `app/server.py`, `tokens`, `normalize` und `_snippet` für erfundene
+Texte (`LocalSearchTests`), dazu Lesen mit PDFKit nur einmal und neu bei neuer Fassung; Seitenzuordnung, Umhängen,
+alte Fassung, Kopien, Endpunkte (`PageMatchTests`, `NoteTransferTests`, `FileVersionKeeperTests`) und der
+Learnweb-Abgleich mit neuer Fassung (`testNewLearnwebVersionKeepsOldVersionAndMovesNotes`). In der App
+(`NewVersionSearchAppTests`, Simulator, feste erfundene Stud.IP-Antworten, PDFs mit UIKit erzeugt, PDFKit liest die
+Seitentexte): Datei mit Strichen auf Seite 2 und 3 bekommt eine neue Fassung mit eingefügter Folie und geänderter
+letzter Seite → Striche auf Seite 3 und 4, Editor zeigt die neue PDF, der Hinweis nennt „1 Seite prüfen“ und „Geänderte
+Seite 4“, die alte Fassung öffnet sich mit den alten Notizen, eine Lösung zur alten Fassung erscheint nur dort, nach
+„Dateien löschen“ bleibt sie; ohne Notizen einfach ersetzt; im Fenster (Bedienungshilfen-Baum) Hinweis, „Alte
+Fassung“ (3 Seiten, „Alte Fassung – nur ansehen“), „Schließen“, „OK“; Suche findet den Text einer Seite offline, die
+Kopfzeile zeigt „… · Seite 2“ mit Sprung zur Seite und eine Aufgabe mit Weg zur Tagesansicht. Kern 349/0, App 225/0,
+Python 126 passed, alle Generatoren `--check` aktuell; die neuen Tests je dreimal grün. Nicht geprüft: echtes Stud.IP,
+echtes iPad, echte Vorlesungsfolien (Text aus PDFKit großer Skripte, Laufzeit), Learnweb in der App.
+
 | Bereich | Stand | Was fehlt |
 |---|---|---|
-| Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle 77 App-Pfade beantwortet; **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt; **S4**: Module echt; **S5**: Stundenplan echt; **S6**: Lernkalender, Pakete, Aufgaben, `reslot`, Übersicht echt | Portierung der übrigen Bereiche (S7) |
+| Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle App-Pfade beantwortet (seit S7 80); **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt; **S4**: Module echt; **S5**: Stundenplan echt; **S6**: Lernkalender, Pakete, Aufgaben, `reslot`, Übersicht echt; **S7**: Suche, Skriptsuche, Seitentext, alte Fassungen echt | Karteikarten, Uni & Noten, Hintergrund (8 Platzhalter) |
 | Einstellungen (Lernzeit, Lernkombination, Verfügbarkeit), Semester | **lokal echt (S2)**: `GET/PUT /api/settings` (mit `university` und `university_next` wie `server.py`; `PUT` prüft `university`, schreibt es aber nie), `GET/PUT /api/terms` | Hochschule wählen und wechseln auf dem iPad (`docs/AUFTRAG-HILDESHEIM-IPAD.md`) |
 | Stud.IP-Abgleich in die Datenbank | **lokal echt (S3)**: Kurse (Titel, Nummer, Semester; Fach und Art mit `classify` seit dem Zusammenführen mit S4, nur solange leer), Dateien (Name, Größe, Typ, Änderungszeit, Ordnerpfad, Art pdf/image/file, Status „neu“), Downloads mit Pfad **relativ zum App-Container**, `sync_log`; idempotent, Nutzerfelder (Status, gesehen, Favorit, Ordner, Titel) und Notizen bleiben; umbenannte Dateien behalten ihre ID, in Stud.IP gelöschte bleiben stehen (wie Python); Fehler eines Kurses oder einer Datei (HTTP, unerwartete Antwort, beim Lesen der Dateiliste auch Zeitüberschreitung und Verbindungsabbruch) überspringen nur diese wie in Python, ist kein Kurs lesbar, gilt der Lauf als gescheitert; nach jedem Lauf laden die offenen Seiten neu; eine neue Fassung (Größe, Typ, Änderungszeit) gilt erst mit ihrem Download – scheitert er oder bricht der Lauf vorher ab, lädt der nächste Abgleich sie (in `app/studip_sync.py` ebenso korrigiert, in `store_course_files`, das am PC auch der Learnweb-Abgleich für Hildesheim nutzt; Test in `tests/test_regressions.py`); Downloads gehen direkt in eine Datei (nicht in den Arbeitsspeicher), eine abgerissene Verbindung wird bis zu zweimal wiederholt, danach überspringt eine Zeitüberschreitung nur diese Datei, eine Webseite statt der Datei wird nicht gespeichert; Inhalts-Hash `content_sha256` je geladener Fassung; geschrieben über `UniStore`, dieselbe Fassung wie für Learnweb; gegen `run_sync` geprüft (`studip-import.json`, 6 Durchgänge, dazu `classified` mit Modulen danach) | `author` (die JSON:API liefert keinen Namen); große Dateien werden immer automatisch geladen (Entscheidung „über 100 MB nur auf Wunsch“ noch ohne Oberfläche; eine Datei, die länger als 10 Minuten lädt, scheitert bei jedem Abgleich erneut, hält die übrigen aber nicht auf); kein ETag/If-Modified-Since; kein Netz und abgelaufene Sitzung brechen den Lauf ab (schon gelesene Kurse und geladene Dateien bleiben gespeichert; läuft die Sitzung erst beim Stundenplan ab, endet der Lauf mit „Erneut anmelden“); alte Datei bleibt nach Umbenennen liegen (wie Python); abgewählte Kurse bleiben mit ihren Dateien in Dokumente (ausblenden über `courses.active` noch ohne Oberfläche) |
 | Notizen beim Wechsel PC ↔ lokal | **getrennt (S2)**, **lokal gespeichert (S3)**: Journal und PDF-Zwischenspeicher je Datenquelle, Notizen lokal in `annotations`/`annotation_versions` | Übernahme vom PC (Entwicklung) |
@@ -355,9 +453,9 @@ Hochschule), ein Wechsel der Hochschule zeigt den Lernplan der anderen.
 | QIS (Noten) | **Kern fertig** (Parser), nicht angebunden | Webansicht, Ablage, Anzeige |
 | Stundenplan | **lokal echt (S5)**: alle `/api/timetable/*` (Woche, Tag, Termine, Ausnahmen, Teilnahme, freie Fenster, Unterlagen, ICS- und Stud.IP-Import, Konflikte, Auto-Status), heutige Termine und freie Fenster in der Übersicht; ICS mit UTC/TZID/EXDATE (Korrektur zuerst in Python, `tests/test_timetable.py`) und BYDAY (LSF); **Unterlagen zum Termin** aus den Stud.IP-Dateien des Moduls seit dem Zusammenführen mit S3/S4; Lernslots neu legen (`reslot`) seit S6 | KI-Import entfällt |
 | Lernkalender | **lokal echt (S6)**: Kalender, Lernpakete anlegen/verschieben/löschen, Uhrzeit, Aufgaben abhaken/bearbeiten/löschen/überspringen, Plan erstellen nach der Lernkombination mit Zeitslots in den freien Fenstern, Machbarkeit, Neu einplanen, Woche retten, Verlauf; ohne Wochentests (`tests_per_subject` 0, keine KI); gegen Python geprüft (`study-plan.json`), in der App mit erfundenen Daten im Simulator | Ziehen und Ablegen im Kalender und echtes iPad nicht geprüft |
-| PDF-Editor mit Apple Pencil | **lokal echt (S3)**: Original aus dem Stud.IP-Abgleich oder Import über `/api/files/{id}/content` (Bytes der lokalen Datei, Kopfzeilen wie `server.py`), Notizen über `/api/files/{id}/annotations` lokal mit `base_version`-Konflikt und 30 Versionen; offline; „Lösung teilen“ nutzt die unveränderten Original-Bytes (`DocumentStore.originalPDFURL`, geprüft) | Seitentext/Skriptsuche (S7); neue Original-Fassung bei vorhandenen Notizen (S7); der PDF-Zwischenspeicher `sources/<quelle>/pdf` (seit S3 ohne Backup) wird nach einer neuen Stud.IP-Fassung nicht erneuert (S7) und ist eine zweite vollständige Kopie der Datei (je Duplikat eine weitere; ein APFS-Klon statt der Kopie fehlt, das Schreiben läuft abseits des Hauptthreads) |
-| Suche, Skriptsuche | **nur Server** | lokaler Index, Port von `scriptsearch.py` (S7) |
-| Geänderte Original-PDF bei vorhandenen Notizen | **fehlt** | Fingerabdruck, Neuzuordnung der Seiten, alte Fassung aufbewahren (S7) |
+| PDF-Editor mit Apple Pencil | **lokal echt (S3)**: Original aus dem Stud.IP-Abgleich oder Import über `/api/files/{id}/content` (Bytes der lokalen Datei, Kopfzeilen wie `server.py`), Notizen über `/api/files/{id}/annotations` lokal mit `base_version`-Konflikt und 30 Versionen; offline; „Lösung teilen“ nutzt die unveränderten Original-Bytes (`DocumentStore.originalPDFURL`, geprüft); **S7**: Skriptsuche und Seitentext lokal, neue Original-Fassung mit erhaltenen Notizen, PDF-Zwischenspeicher wird nach einer neuen Fassung erneuert | der PDF-Zwischenspeicher `sources/<quelle>/pdf` (seit S3 ohne Backup) ist eine zweite vollständige Kopie der Datei (je Duplikat eine weitere; ein APFS-Klon statt der Kopie fehlt, das Schreiben läuft abseits des Hauptthreads); Seitengröße beim Zuordnen einer neuen Fassung nicht verglichen |
+| Suche, Skriptsuche | **lokal echt (S7)**: `/api/search` (Dateien, Module, Aufgaben, Seitentexte; zuerst in Python erweitert), `/api/related` (Port von `scriptsearch.py`), `/api/files/{id}/pagetext`; Seitentexte mit PDFKit in `page_texts`, gefüllt beim Download und beim Öffnen; gegen Python geprüft (`search.json`) | Seitentexte im Backup der Datenbank (Entscheidung 6: außerhalb); pypdf und PDFKit lesen Text nicht immer gleich |
+| Geänderte Original-PDF bei vorhandenen Notizen | **lokal echt (S7)**: alte PDF aufbewahrt (nie gelöscht), Seiten über den Seitentext neu zugeordnet (`PageMatch`, difflib-Port), Notizen umgehängt, entfernte Seiten auf der alten Fassung, Hinweis im Dokument mit Weg zur alten Fassung, Kopien mit; Stud.IP in der App, Learnweb im Kern (`HildesheimSync`, `versions`) | Learnweb in der App (Hildesheim-Schicht); Seitengröße nicht verglichen; echtes iPad |
 | Hintergrundabgleich | **fehlt** | BGAppRefresh; vorher Sitzungsdauer messen bzw. OAuth2 (S8) |
 | Zeitmesser | **nativ fertig** | Mitteilung bei Ablauf im Hintergrund |
 | Community „Lösungen teilen“ | **lokal fertig (S9, Zweig `wip/loesung-teilen`)**: im Editor „Lösung teilen …“ (nur eigene Notizen, verschlüsseltes Paket `*.uniflowsolution`, Vorschau ohne Original), Import über „Öffnen in“/„Lösung importieren …“, Anzeige als eigene, nicht bearbeitbare Ebene über der eigenen PDF, „Meine geteilten Lösungen“; PDF-Export davon getrennt und nur privat (`docs/LOESUNGEN-TEILEN.md`) | zentraler Dienst (Entscheidung des Inhabers) mit echter Berechtigungsprüfung, Konten, Moderation; Prüfung „Datei aus dem eigenen Stud.IP-Abgleich“ (seit S3 möglich: `files.course_id` + `download_url`, noch nicht eingebaut) |
@@ -376,9 +474,11 @@ Leiste; nicht angesehen: Schloss im Dialog „Neu“ und die Sperrkarte selbst.
 
 ## 3. Serverabhängigkeiten
 
-Die iPad-App ruft **77 verschiedene Endpunkte** auf (Methode + Pfad, Liste per grep über `apps/apple/UniFlow` in
+Die iPad-App ruft **80 verschiedene Endpunkte** auf (Methode + Pfad, Liste per grep über `apps/apple/UniFlow` in
 `packages/shared-contracts/fixtures/local-backend/app-paths.json`, erzeugt mit `tools/gen-local-backend-fixture.py`;
-neu seit S3: `POST /api/files/{id}/opened` beim Öffnen eines Dokuments wie im Web, für „Zuletzt“ und „gesehen“).
+neu seit S3: `POST /api/files/{id}/opened` beim Öffnen eines Dokuments wie im Web, für „Zuletzt“ und „gesehen“; neu
+seit S7: `GET /api/files/{id}` (Stand des PDF-Zwischenspeichers), `GET /api/files/{id}/versions` und
+`POST …/versions/seen`).
 Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
 
 - **echt lokal (S2):** `GET/PUT /api/settings`, `GET/PUT /api/terms`; freie Zeitfenster in `/api/timetable/week`,
@@ -431,11 +531,16 @@ Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
   `tests/test_study_plan.py`): Uhrzeit von Lernpaketen gespeichert, leere Pakete bleiben „verschoben“, Ersetzen behält
   begonnene Pakete, 404 statt 500 für fehlendes Paket/fehlende Aufgabe, Pakete am Stück im ersten freien Fenster;
   `tests_per_subject` Standard 0.
+- **echt lokal (S7), Antworten wie `app/server.py` bei gleicher Datenbank** (`LocalSearchTests` gegen `search.json`
+  aus `tools/gen-search-fixture.py`, 42 Anfragen mit festen Seitentexten): `GET /api/search` (mit `tasks` und `pages`,
+  zuerst in Python ergänzt), `POST /api/related`, `GET /api/files/{id}/pagetext`. Nur auf dem Gerät (am PC 404):
+  `GET /api/files/{id}/versions`, `POST …/versions/seen`, `GET …/versions/{n}/content`, `GET/PUT …/versions/{n}/annotations`
+  (alte Original-Fassungen, siehe Abschnitt 2). `GET /api/files/{id}` ruft die App jetzt auch selbst auf (Stand des
+  PDF-Zwischenspeichers).
 - **Platzhalter in Server-Form** bis zur Portierung (leere Listen bzw. Objekte mit denselben Feldern wie
   `app/server.py` bei leerer Datenbank): Karteikarten, Uni & Noten (außer `GET /api/grades`, seit `wip/v1-pc-hi` der
-  Port von `qis.summary`), Suche und Skriptsuche (`/api/search`, `/api/related`, `/api/files/{id}/pagetext`: S7),
-  `/api/bg` – 11 Pfade der App. Einträge nach ID gibt es dort noch nicht (404 wie am PC). Ein echter Endpunkt ersetzt
-  den Platzhalter automatisch (`LocalRoute.placeholder`).
+  Port von `qis.summary`), `/api/bg` – 8 Pfade der App. Einträge nach ID gibt es dort noch nicht (404 wie am PC). Ein
+  echter Endpunkt ersetzt den Platzhalter automatisch (`LocalRoute.placeholder`).
 - **bewusst entfallen:** KI (`/api/ai/tutor`), Wochentests (`/api/tests/*` außer der leeren Liste,
   `/api/tasks/{id}/start-test`), Zugänge (`PUT /api/credentials/*`; `GET` liefert „kein Zugang“): 404 mit Meldung.
   QIS-Abruf (`/api/grades/sync`) 404 „kommt in einer späteren Version“, `/api/sync` 409 (Stud.IP gleicht die App
@@ -453,7 +558,8 @@ an der Uni Hildesheim zeigt „Uni & Noten“ seit `wip/v1-pc-hi` den Notenspieg
 | Lernkalender, Pakete, Aufgaben, Zeitfenster | `/api/calendar*`, `/api/tasks*`, `/api/packages*`, `/api/timetable/reslot` (16) | lokal (Free) | **lokal (S6)** |
 | Stundenplan, Termine, Import, Konflikte | `/api/timetable/*` (12) | lokal (Free) | **lokal (S5)**, `reslot` seit S6 |
 | Einstellungen, Semester | `/api/settings`, `/api/terms` | lokal | **lokal (S2)** |
-| Suche, Skriptsuche | `/api/search`, `/api/related`, `/api/files/{id}/pagetext` | lokal | Platzhalter (S7) |
+| Suche, Skriptsuche | `/api/search`, `/api/related`, `/api/files/{id}/pagetext` | lokal | **lokal (S7)** |
+| Alte Original-Fassungen | `/api/files/{id}/versions*` | nur auf dem Gerät | **lokal (S7)** |
 | Abgleich und Status | `/api/sync`, `/api/sync/status`, `/api/bg` | lokal als Stud.IP-Abgleich | Abgleich in der App (S3), Protokoll lokal |
 | Karteikarten | `/api/flashcards*` | lokal (Plus), eigenes Anlegen ohne KI | Platzhalter |
 | Uni & Noten | `/api/services`, `/api/grades*`, `/api/qis/*` | Dienste-Liste lokal; QIS auf dem Gerät (später) | Dienste lokal, `GET /api/grades` lokal (Hildesheim: LSF-Notenspiegel über `HildesheimSync`), QIS (LUH) offen |
@@ -461,10 +567,10 @@ an der Uni Hildesheim zeigt „Uni & Noten“ seit `wip/v1-pc-hi` den Notenspieg
 | Tests, KI | `/api/tests*`, `/api/ai/tutor`, `/api/tasks/{id}/start-test` | entfällt (keine KI) | entfallen |
 | Community, Konto | – | zentraler Dienst (Entscheidung) | Lösung als Datei (S9) |
 
-**Was nach S3 bis S6 ohne PC noch nicht geht** (ehrlich): Wochentests (KI, entfallen), Suche und Skriptsuche (S7),
-neue Original-Fassung mit erhaltenen Notizen (S7), Hintergrundabgleich (S8), QIS-Noten der LUH, Übernahme der Notizen
-und Pläne vom PC. Keiner dieser Punkte braucht im App-Store-Betrieb einen PC; sie sind nur noch nicht portiert. Die Uni
-Hildesheim (Learnweb, LSF, CAS) läuft seit `wip/v1-pc-hi` auf dem iPad; ein Test mit einem echten Konto steht noch aus.
+**Was nach S3 bis S7 ohne PC noch nicht geht** (ehrlich): Wochentests (KI, entfallen), Karteikarten,
+Hintergrundabgleich (S8), QIS-Noten der LUH, Übernahme der Notizen und Pläne vom PC. Keiner dieser Punkte braucht im
+App-Store-Betrieb einen PC; sie sind nur noch nicht portiert. Die Uni Hildesheim (Learnweb, LSF, CAS) läuft seit
+`wip/v1-pc-hi` auf dem iPad; ein Test mit einem echten Konto steht noch aus.
 
 **Uni Hildesheim in der App** (Zweig `wip/v1-pc-hi`, Einzelheiten in `docs/AUFTRAG-HILDESHEIM-IPAD.md`, Abschnitt
 „Hildesheim in der App“): Der Abgleich ist die Fassung des Kerns (`HildesheimSync`), die App liefert nur Transport
@@ -475,7 +581,9 @@ Tabellen wie für Stud.IP: Learnweb-Dateien in Dokumente & Notizen und Module (`
 relativ zum Container), LSF-Serien im Stundenplan (vorlesungsfreie Tage als Ausfall), Leistungen unter „Uni & Noten“.
 Statt „Stud.IP verbinden“ stehen die Karten „Learnweb verbinden“/„LSF verbinden“ und danach die Statusleiste
 („Learnweb: 16:30 ok“, „LSF: Anmeldung nötig“) über den Seiten und auf der Übersicht. Geprüft ohne Netz: App-Tests mit
-`URLProtocol`-Stub und lokalen Seiten (`HildesheimAppTests`), Kern- und Python-Tests.
+`URLProtocol`-Stub und lokalen Seiten (`HildesheimAppTests`), Kern- und Python-Tests. Seit S7 (auf `develop` in
+`wip/v1-final`) laufen Seitentexte und neue Fassungen beim Learnweb-Abgleich über denselben Weg wie bei Stud.IP
+(`UniDownloads`, alte Fassungen unter `Learnweb/Fassungen` im Container).
 
 ## 4. Architektur
 
@@ -531,7 +639,7 @@ Zuerst der größte Nutzen: Dokumente öffnen und mit dem Pencil schreiben ohne 
 | S4 | Fach, Art, Lehrwoche ohne KI (`classify`, `effective_type`, `week_hint`); Module-Endpunkte: **umgesetzt** (`wip/s4-module-3`): Port von `classify`, `effective_type`, `week_hint`, `enrich_file`, Semesterwochen (Stichtag und Woche 0 vorher in Python korrigiert), `ensure_modules`, `module_detail`, `modules_overview`, `guess_module`; alle Module-Endpunkte; im Kern gegen Python, in der App mit Seed-Daten im Simulator geprüft; mit S3 zusammengeführt in `wip/int-s345-s4` (`classify` beim Abgleich, eine Fassung von `ensure_modules`, Einstellungen → „Module“ ohne PC) | Fächer geordnet, Moduldetail mit Wochen (**mit Seed-Daten im Simulator und mit Daten aus dem Stud.IP-Abgleich im App-Test erfüllt**, feste erfundene Stud.IP-Antworten; echtes Stud.IP und echtes iPad offen) |
 | S5 | Stundenplan: Kurszeiten und Einzeltermine aus Stud.IP, `timetable.py`-Port; **umgesetzt** (`wip/s5-stundenplan-2`): Abruf nach dem Datei-Abgleich (`StudIPScheduleSync`), Ablage und `auto_import` (`StudIPScheduleStore`), alle `/api/timetable/*` außer `reslot` (S6), Gruppenauswahl in der Importvorschau, ICS mit UTC/TZID/EXDATE (zuerst in Python korrigiert); mit S3 und S4 zusammengeführt in `wip/int-s345-s5` (Abgleich füllt Dokumente und Stundenplan, Unterlagen zum Termin, nächster Termin je Modul, ein difflib-Port, `ensure_modules` vor `auto_import`) | Stundenplan aus Stud.IP (**im Simulator mit erfundenen Stud.IP-Antworten geprüft**: Woche zeigt die Kurse, Ausfälle, Gruppen zur Auswahl; seit dem Zusammenführen ein App-Test über den ganzen Ablauf bis zu den Unterlagen im Termin-Panel; mit echtem Stud.IP noch nicht) |
 | S6 | Lernlogik (`study.py`): lesen, verschieben, planen; Übersicht, Kalender; **umgesetzt** (`wip/s6-lernplan-2`): Port von `study.py` auf die Bausteine aus S4/S5, alle `/api/calendar*`, `/api/tasks*`, `/api/packages*`, `/api/timetable/reslot` und `/api/dashboard` vollständig; zuerst in Python korrigiert: Uhrzeit von Lernpaketen, leere Pakete, Ersetzen, 404 statt 500, Pakete am Stück neben Terminen; ohne Testaufgaben (`tests_per_subject` 0); auf den Stand mit dem PC-Kern gesetzt in `wip/v1-s6` | Lernplan erstellen, Aufgaben abhaken, Übersicht (**App-Test im Simulator mit erfundenen Daten grün**: Lernpaket über den Dialog, im Lernkalender, abhaken, Übersicht; Plan erstellen neben Terminen ohne Konflikt; echtes iPad offen) |
-| S7 | Neue Original-Fassung mit erhaltenen Notizen; Suche und Skriptsuche | Notizen überleben neue PDF; Suche offline |
+| S7 | Neue Original-Fassung mit erhaltenen Notizen; Suche und Skriptsuche; **umgesetzt** (`wip/v1-s6-s7`): Port von `scriptsearch.py` und `/api/search` (zuerst in Python um Aufgaben und Seitentexte erweitert, Begriffe in fester Reihenfolge), Seitentexte mit PDFKit; alte Fassung aufbewahren, Seiten über den Text zuordnen, Notizen umhängen, Hinweis mit alter Fassung (Entwurf, Python hat dafür keine Regel) | Notizen überleben neue PDF; Suche offline (**App-Tests im Simulator mit erfundenen Stud.IP-Antworten grün**: Notizen auf den passenden Seiten, Hinweis, alte Fassung öffnet sich; Suche findet Text einer PDF ohne Netz; echtes iPad offen) |
 | S8 | Hintergrundabgleich (nach Messung der Sitzungsdauer bzw. OAuth2) | Abgleich beim Öffnen und, wenn iPadOS es erlaubt, im Hintergrund |
 | S9 | Community „Lösungen teilen“: **lokaler Teil umgesetzt** (`wip/loesung-teilen`, nachgebessert in `wip/loesung-teilen-fix`: robuste Formatversion, keine Zusatzfelder, Pixelgrenze für Bilder, gleiche Lösungs-ID verdrängt nichts, Ansichtsmodus schreibt nichts, unlesbare Importe werden entfernt, Entschlüsseln abseits des Hauptthreads; `docs/LOESUNGEN-TEILEN.md`): Lösung als Datei teilen (nur eigene Notizen), importieren, im Editor als Ebene ansehen, lokal zurückziehen; Online-Teil nach Entscheidung zum Dienst | lokal: Lösung als Datei teilen, auf zweitem iPad mit derselben PDF ansehen (**Tests grün**); online: veröffentlichen, finden, zurückziehen, melden (**offen**) |
 | S10 | Anmeldung härten, Release-Bereinigung, Demo-Modus für die App-Prüfung, Abnahmeliste | Abnahme nach AUFTRAG 2a und dieser Datei |
