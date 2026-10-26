@@ -46,7 +46,8 @@ public enum TestShare {
         #else
         private var sha = SolutionSHA256.Hasher()
         mutating func update(_ block: Data) { sha.update(block) }
-        func hex() -> String { SolutionSHA256.hexString(sha.finalize()) }
+        // finalize() veraendert den Hasher (mutating): auf einer Kopie rechnen, sonst baut Linux nicht
+        func hex() -> String { var copy = sha; return SolutionSHA256.hexString(copy.finalize()) }
         #endif
     }
 
