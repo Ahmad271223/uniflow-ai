@@ -78,12 +78,26 @@ def split_summary(summary: str) -> dict:
     return {"number": num, "title": s or summary, "lecturer": lecturer}
 
 
+PLACEHOLDER_RE = re.compile(r"nur\s+aus\s+technischen\s+Gr(?:ü|ue)nden\s+angezeigt", re.I)
+
+
+def note_text(description: str | None) -> str:
+    """Bemerkung einer LSF-Veranstaltung (iCal DESCRIPTION, HTML) als kurzer Text."""
+    from .announcements import html_to_text
+    return re.sub(r"\s*\n\s*", " · ", html_to_text(description or ""))[:400]   # Zeilenumbrueche wandelt parse_ics schon um
+
+
+def is_placeholder(note: str | None) -> bool:
+    """LSF-Termin, der laut Bemerkung "nur aus technischen Gruenden angezeigt" wird (kein echter Termin)."""
+    return bool(PLACEHOLDER_RE.search(note or ""))
+
+
 def plan_entries(ics_text: str) -> list[dict]:
     out = []
     for e in timetable.parse_ics(ics_text):
         p = split_summary(e["title"])
         e.update(title=p["title"], number=p["number"], lecturer=p["lecturer"] or e.get("lecturer") or "",
-                 kind=timetable.guess_kind(p["title"]))
+                 kind=timetable.guess_kind(p["title"]), note=note_text(e.get("description")))
         out.append(e)
     return out
 
@@ -125,6 +139,24 @@ def import_plan(conn, entries: list[dict]) -> dict:
     ids = {k: x["id"] for k, x in ex_map.items() if k in want}
     for e, new_id in zip(new, res["ids"]):
         ids[_key(e)] = new_id
+    # Bemerkung aus dem LSF uebernehmen. Platzhalter ("nur aus technischen Gruenden angezeigt") werden einmalig auf
+    # "nicht besuchen" gestellt, wenn der Hinweis neu ist; eine spaetere Entscheidung des Nutzers bleibt bestehen.
+    n_placeholder = 0
+    for k, e in want.items():
+        eid = ids.get(k)
+        if not eid:
+            continue
+        old = (db.row(conn, "SELECT note FROM event_notes WHERE event_id=?", (eid,)) or {}).get("note") or ""
+        note = e.get("note") or ""
+        if old != note:
+            if note:
+                conn.execute("""INSERT INTO event_notes(event_id, note, source, updated_at) VALUES (?, ?, 'lsf', ?)
+                                ON CONFLICT(event_id) DO UPDATE SET note=excluded.note, updated_at=excluded.updated_at""", (eid, note, db.now_iso()))
+            else:
+                conn.execute("DELETE FROM event_notes WHERE event_id=?", (eid,))
+            if is_placeholder(note) and not is_placeholder(old):
+                conn.execute("UPDATE course_events SET attend=0 WHERE id=?", (eid,))
+                n_placeholder += 1
     n_exc = 0
     for k, e in want.items():
         eid = ids.get(k)
@@ -135,4 +167,5 @@ def import_plan(conn, entries: list[dict]) -> dict:
                 n_exc += 1
     conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('lsf-auto', ?, 'auto', '', ?, 1)",
                  (db.now_iso(), json.dumps(new, ensure_ascii=False, default=str)))
-    return {"new": res["new"], "removed": len(removed), "kept": len(want) - len(new), "cancelled_dates": n_exc}
+    return {"new": res["new"], "removed": len(removed), "kept": len(want) - len(new), "cancelled_dates": n_exc,
+            "placeholders": n_placeholder}

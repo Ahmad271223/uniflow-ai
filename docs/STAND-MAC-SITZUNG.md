@@ -227,3 +227,23 @@ Wunsch des Inhabers nach Blick auf die Startseite. In Python fertig, auf develop
   ob dort dieselbe feste LUH-Vorgabe steht.
 - Tests: Python 132 grün, Swift-Kern 375 grün (Linux, mit neuem Schema).
 
+## Nachtrag der PC-Sitzung: Lücken aus dem Komplett-Check geschlossen (26.10.2026)
+
+Komplett-Check (nur lesend, beide Unis): Feiertage 10/10 je Jahr wie feiertage-api.de, Learnweb-Kalender vollständig,
+Stud.IP-Absagen der eigenen Serien 66/66 als Ausfall, LSF 29/29 Terminzeilen. Geschlossen, in Python auf develop:
+
+1. **Ankündigungen mit Terminen** – neues Modul `app/announcements.py`, Tabelle `announcements`; Learnweb
+   (Ankündigungsforen; REST mit Schlüssel, sonst Forumsseiten) und Stud.IP-News. `extract_dates` erkennt Tage und
+   Art; Anzeige als `notices` je Kalendertag, Karte „Ankündigungen“ (`dashboard.announcements`), `GET /api/announcements`.
+2. **Undatierte Serien in Ferien** – `timetable.occurrences`: ohne `date_from`/`date_to`, Uni-Art, an Tagen mit
+   `holidays.day_marks` → `ausfall` mit `note` (z. B. „Weihnachtspause“). LUH-Live: 0 Teilnahme-Termine in der Pause.
+3. **LSF-Bemerkungen/Platzhalter** – `lsf.note_text`, `lsf.is_placeholder`; neue Tabelle `event_notes` (nicht als
+   Spalte von `course_events`: das hätte alle Timetable-Antworten verändert und 4 Swift-Vergleichstests gebrochen).
+   `occ.note` steht nur, wenn es eine Bemerkung gibt.
+4. **Link** „Heute im LSF“ (`universities.LSF_CURRENT_LECTURES`, `type=0`).
+5. **Überfällige Fristen** – `deadlines.overdue`, Abruf 120 Tage zurück, Startseite: letzte 6 Wochen rot zuerst.
+
+**Fixtures fürs iPad** (`fixtures/hildesheim`): `announcement-dates`, `forum-discussion` + `learnweb-forum-discussion.html`,
+`forum-view` + `learnweb-forum-view.html`, `forum-announcement`, `lsf-notes`, Frist mit `overdue`. Schema neu erzeugt
+(`announcements`, `event_notes`, `deadlines.overdue`). Tests: Python 150 grün, Swift-Kern 375 grün (Linux).
+

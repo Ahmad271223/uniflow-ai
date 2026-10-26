@@ -308,9 +308,35 @@ CREATE TABLE IF NOT EXISTS deadlines (
     module TEXT,                          -- assign | quiz | ...
     due_at TEXT NOT NULL,
     url TEXT,
+    overdue INTEGER DEFAULT 0,            -- laut Learnweb ueberfaellig und noch nicht erledigt
     fetched_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_deadlines_due ON deadlines(due_at);
+
+-- Bemerkung der Quelle zu einer Serie (LSF: Exkursion, "nur aus technischen Gruenden angezeigt"). Eigene Tabelle,
+-- damit course_events und alle Antworten mit seinen Spalten unveraendert bleiben (der iPad-Kern vergleicht sie genau).
+CREATE TABLE IF NOT EXISTS event_notes (
+    event_id INTEGER PRIMARY KEY REFERENCES course_events(id) ON DELETE CASCADE,
+    note TEXT NOT NULL,
+    source TEXT,
+    updated_at TEXT
+);
+
+-- Ankuendigungen der Lehrenden (Learnweb-Ankuendigungsforen, Stud.IP-News) mit erkannten Terminen (app/announcements.py)
+CREATE TABLE IF NOT EXISTS announcements (
+    id TEXT PRIMARY KEY,                  -- lw-post-<Beitrag> | sp-news-<id>
+    source TEXT NOT NULL,                 -- learnweb | studip
+    course_id TEXT,
+    title TEXT NOT NULL,
+    text TEXT,                            -- reiner Text (ohne HTML)
+    author TEXT,
+    posted_at TEXT NOT NULL,              -- ISO-8601
+    url TEXT,
+    discussion TEXT,                      -- lw-d-<Diskussion> (nur Learnweb)
+    dates TEXT DEFAULT '[]',              -- JSON [{date, time, kind, snippet}]
+    fetched_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_announcements_course ON announcements(course_id);
 
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,

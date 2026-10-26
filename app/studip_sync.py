@@ -187,6 +187,15 @@ def fetch_events(page: Page, course_id: str) -> list[dict]:
     return out
 
 
+def fetch_news(page: Page, course_id: str) -> list[dict] | None:
+    """Ankuendigungen (News) eines Kurses; None, wenn Stud.IP sie nicht liefert (dann bleibt der Bestand)."""
+    from . import announcements
+    r = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/courses/{course_id}/news?page[limit]=100", headers={"Accept": "application/vnd.api+json"})
+    if not r.ok:
+        return None
+    return [announcements.from_studip_news(n, course_id, STUDIP_BASE) for n in r.json().get("data", [])]
+
+
 def fetch_schedule_entries(page: Page, uid: str) -> list[dict]:
     """Persoenliche Eintraege aus dem Stud.IP-Stundenplan des Nutzers (selbst angelegte Termine)."""
     resp = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/schedule", headers={"Accept": "application/vnd.api+json"})
@@ -534,6 +543,13 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                         store_events(conn, fetch_events(page, c["id"]))
                     except Exception as e:  # noqa: BLE001
                         log(f"Fehler bei Terminen {c['title']}: {e}")
+                    try:
+                        news = fetch_news(page, c["id"])
+                        if news is not None:
+                            from . import announcements
+                            announcements.store(conn, news, "studip", db.now_iso(), course_ids=[c["id"]])
+                    except Exception as e:  # noqa: BLE001 - Ankuendigungen sind eine Ergaenzung
+                        log(f"Ankuendigungen nicht gelesen ({c['title']}): {e}")
                     try:
                         files = fetch_files(page, c["id"])
                     except Exception as e:  # noqa: BLE001

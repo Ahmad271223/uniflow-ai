@@ -509,4 +509,13 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
 .cal2-legend .lg-hol { background: var(--ok-soft); border: 1px solid var(--ok); } .cal2-legend .lg-dl { background: var(--surface-2); border-left: 3px solid var(--bad); }
 .cal2-dh .hol-chip, .tt-head .hol-chip, .cal-month .hol-chip { white-space: normal; hyphens: auto; line-height: 1.15; }
 .mini-cal .md a.hol { background: var(--ok-soft); color: var(--ok); font-weight: 700; } .mini-cal .md a.vfrei { color: var(--ok); }
-
+/* Hinweise aus Ankuendigungen der Lehrenden */
+.note-chip { display: flex; align-items: center; gap: .2rem; margin-top: .2rem; padding: .05rem .3rem; border-radius: 4px; background: var(--info-soft, var(--accent-soft)); color: var(--text); font-size: .68rem; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.note-chip.k-ausfall, .note-chip.k-verlegt { background: var(--warn-soft); } .note-chip:hover { text-decoration: none; filter: brightness(.96); }
+.cal-day-extras .note-chip { font-size: .8rem; margin: 0; padding: .2rem .5rem; }
+.ann-item { padding: .55rem .2rem; border-bottom: 1px solid var(--line); } .ann-item:last-child { border-bottom: 0; }
+.ann-item summary { cursor: pointer; list-style: none; } .ann-item summary::-webkit-details-marker { display: none; }
+.ann-item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ann-item .s { color: var(--muted); font-size: .78rem; }
+.ann-item .body { white-space: pre-line; font-size: .84rem; margin: .4rem 0; max-height: 240px; overflow: auto; }
+.ann-dates { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .25rem; } .ann-dates .note-chip { margin: 0; }
+.cal2-legend .lg-note { background: var(--info-soft); border: 1px solid var(--info); }

@@ -587,6 +587,8 @@ def calendar(conn, start: date, end: date) -> dict:
     from . import timetable
     occ_all = timetable.occurrences(conn, start, end) if (end - start).days <= 45 else []
     marks, dls = holidays.calendar_extras(conn, start, end)
+    from . import announcements
+    notes = announcements.by_day(conn, start, end)
     days = []
     d = start
     while d <= end:
@@ -609,7 +611,7 @@ def calendar(conn, start: date, end: date) -> dict:
         else:
             st = "geplant"
         days.append({"date": d.isoformat(), "weekday": d.weekday(), "status": st, "minutes": minutes, "tasks_done": done, "tasks_total": total, "packages": dp, "events": ev,
-                     "marks": marks.get(d.isoformat(), []), "deadlines": dls.get(d.isoformat(), [])})
+                     "marks": marks.get(d.isoformat(), []), "deadlines": dls.get(d.isoformat(), []), "notices": notes.get(d.isoformat(), [])})
         d += timedelta(days=1)
     return {"start": start.isoformat(), "end": end.isoformat(), "days": days, "settings": s}
 
@@ -738,13 +740,21 @@ def skip_tasks(conn, task_ids: list[int]) -> None:
 
 
 
+OVERDUE_DAYS = 42
+
+
 def upcoming_deadlines(conn, t, limit: int = 50) -> list[dict]:
     """Learnweb-Fristen ab heute fuer 'Naechste Termine' (Abgaben, Tests); Farbe vom Modul des Kurses."""
     now = datetime.now().strftime("%Y-%m-%dT%H:%M") if t == today() else f"{t.isoformat()}T00:00"
+    # Ueberfaellige, laut Learnweb nicht erledigte Fristen der letzten 6 Wochen zuerst (aeltere, z. B. aus dem
+    # Vorsemester, nicht mehr), dann die kommenden
+    since = f"{(t - timedelta(days=OVERDUE_DAYS)).isoformat()}T00:00"
     rows = db.rows(conn, """SELECT d.*, c.title AS course_title, m.color, c.module_id
                             FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id
-                            WHERE d.due_at >= ? ORDER BY d.due_at LIMIT ?""", (now, limit))
-    return [{"date": r["due_at"][:10], "time": r["due_at"][11:16], "kind": r["kind"], "kind_label": DEADLINE_LABELS.get(r["kind"], "Frist"),
+                            WHERE d.due_at >= ? OR (d.overdue=1 AND d.kind IN ('abgabe','test_ende','frist') AND d.due_at >= ?)
+                            ORDER BY (d.due_at >= ?), d.due_at LIMIT ?""", (now, since, now, limit))
+    return [{"date": r["due_at"][:10], "time": r["due_at"][11:16], "kind": r["kind"],
+             "kind_label": ("überfällig: " if r["due_at"] < now else "") + DEADLINE_LABELS.get(r["kind"], "Frist"), "overdue": r["due_at"] < now,
              "title": r["title"], "full_title": r["full_title"] or r["title"], "course_title": r["course_title"], "module_id": r["module_id"], "color": r["color"],
              "url": r["url"], "deadline_id": r["id"]} for r in rows]
 
@@ -772,12 +782,17 @@ def dashboard(conn) -> dict:
         upcoming.append({"date": p["date"], "kind": "lernpaket", "title": f"{p['subject']}: {p['title']}", "module_id": p["module_id"], "color": p["color"], "package_id": p["id"]})
     for te in db.rows(conn, "SELECT t.id, t.title, p.date, p.subject FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE t.type='test' AND t.status IN ('geplant') AND p.date>=? ORDER BY p.date LIMIT 4", (t.isoformat(),)):
         upcoming.append({"date": te["date"], "kind": "test", "title": f"{te['subject']}: {te['title']}", "task_id": te["id"]})
-    upcoming += upcoming_deadlines(conn, t, limit=8)
+    dls = upcoming_deadlines(conn, t, limit=8)
+    overdue = [x for x in dls if x.get("overdue")]
+    upcoming += [x for x in dls if not x.get("overdue")]
     upcoming.sort(key=lambda x: (x["date"], x.get("time") or ""))
+    upcoming = overdue + upcoming          # Ueberfaelliges oben
     last_sync = db.row(conn, "SELECT * FROM sync_log ORDER BY id DESC LIMIT 1")
     from . import timetable
     today_day["events"] = timetable.occurrences(conn, t, t)
     today_day["free"] = timetable.free_windows(conn, t)
+    from . import announcements
     return {"today": today_day, "modules": mods, "new_files": new_files[:50], "new_total": len(new_files),
+            "announcements": announcements.recent(conn, days=21, limit=6, today=t),
             "week": {"start": week_start.isoformat(), "done": wk_done, "total": wk_total, "days": [{"date": d["date"], "status": d["status"], "minutes": d["minutes"]} for d in week["days"]]},
             "backlog": backlog, "upcoming": upcoming[:8], "last_sync": last_sync, "settings": db.get_settings(conn)}

@@ -12,6 +12,8 @@
   {"id": 9004, "name": "Umfrage schließt", "modulename": "feedback", "eventtype": "close",
    "timestart": 1798757940, "courseid": 901},
   {"id": 9005, "name": "Sprechstunde", "modulename": null, "eventtype": "user", "timestart": 1784710800, "course": {"id": 1}},
+  {"id": 9007, "name": "Essay 1 ist fällig.", "activityname": "Essay 1", "modulename": "assign", "eventtype": "due",
+   "timestart": 1791583140, "course": {"id": 843}, "overdue": true, "url": "https://www.uni-hildesheim.de/learnweb2026/mod/assign/view.php?id=57"},
   {"id": 9006, "name": "ohne Zeit", "modulename": "assign", "eventtype": "due", "timestart": 0, "course": {"id": 843}}
  ]
 }

@@ -11,6 +11,8 @@ HILDESHEIM_CAS = "https://www.uni-hildesheim.de/sso"
 # Nur fuer Links in der Oberflaeche; der Sync ermittelt die Instanz des Semesters selbst (learnweb.discover_base)
 LEARNWEB_BASE = "https://www.uni-hildesheim.de/learnweb2026"
 LSF_BASE = "https://lsf.uni-hildesheim.de"
+LSF_CURRENT_LECTURES = (f"{LSF_BASE}/qisserver/rds?state=currentLectures&type=0&next=CurrentLectures.vm&nextdir=ressourcenManager"
+                        "&navigationPosition=lectures%2CcurrentLectures&breadcrumb=currentLectures&topitem=lectures&subitem=currentLectures")
 
 PROFILES: dict[str, dict] = {
     "luh": {
@@ -41,7 +43,8 @@ PROFILES: dict[str, dict] = {
 HILDESHEIM_SERVICES = [
     {"key": "learnweb", "name": "Learnweb", "url": f"{LEARNWEB_BASE}/my/courses.php", "desc": "Kurse, Folien, Skripte, Aufgaben (Moodle)", "login": "UNI-Account (CAS)", "icon": "book", "connected": True},
     {"key": "lsf", "name": "LSF", "url": f"{LSF_BASE}/qisserver/rds?state=user&type=0", "desc": "Vorlesungsverzeichnis, Stundenplan, Notenspiegel, Prüfungsanmeldung", "login": "UNI-Account (CAS)", "icon": "exam", "connector": True},
-    {"key": "lsf-ausfall", "name": "Ausfälle & Raumwechsel", "url": f"{LSF_BASE}/qisserver/rds?state=currentLectures&type=1&next=CurrentLectures.vm&nextdir=ressourcenManager", "desc": "Heute ausfallende oder verlegte Veranstaltungen", "login": "–", "icon": "alert"},
+    # type=1 liefert eine Fehlerseite des LSF (AsiException, geprueft 26.10.2026); type=0 mit Navigation funktioniert ohne Login
+    {"key": "lsf-ausfall", "name": "Heute im LSF (Räume)", "url": LSF_CURRENT_LECTURES, "desc": "Alle heutigen Veranstaltungen mit aktuellem Raum; Ausfälle stehen in der Veranstaltung unter „fällt aus am“", "login": "–", "icon": "alert"},
     {"key": "uni", "name": "Uni Hildesheim", "url": "https://www.uni-hildesheim.de/", "desc": "Webseite der Universität", "login": "–", "icon": "info"},
 ]
 

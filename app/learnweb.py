@@ -262,6 +262,22 @@ class TokenClient:
     def deadlines(self, now: int | None = None) -> list[dict]:
         return deadlines_from_events(fetch_deadline_events(lambda fn, a: self.call(fn, **a), int(now or time.time())))
 
+    def announcements(self, courses: list[dict], known: set[str] | None = None, max_discussions: int = 30) -> tuple[list[dict], dict]:
+        """Ankuendigungsforen (Typ news) aller Kurse ueber REST; liefert (Ankuendigungen, {Kurs-ID: [Diskussionen]})."""
+        from . import announcements as ann
+        by_moodle = {c["moodle_id"]: c for c in courses}
+        params = {f"courseids[{i}]": cid for i, cid in enumerate(by_moodle)}
+        items, seen = [], {c["id"]: [] for c in courses}
+        for f in self.call("mod_forum_get_forums_by_courses", **params) or []:
+            c = by_moodle.get(int(f.get("course") or 0))
+            if not c or f.get("type") != "news":
+                continue
+            d = self.call("mod_forum_get_forum_discussions", forumid=int(f["id"]), sortorder=-1, page=0, perpage=max_discussions) or {}
+            for x in d.get("discussions", []):
+                seen[c["id"]].append(f"lw-d-{int(x['discussion'])}")
+                items.append(ann.from_moodle_discussion(x, c["id"], self.base))
+        return items, seen
+
 
 # ----------------------------------------------------------------------------
 # Weg 2: angemeldete Browsersitzung (Playwright-Seite)
@@ -304,6 +320,29 @@ class SessionClient:
 
     def deadlines(self, now: int | None = None) -> list[dict]:
         return deadlines_from_events(fetch_deadline_events(self.ajax, int(now or time.time())))
+
+    def announcements(self, courses: list[dict], known: set[str] | None = None, max_discussions: int = 30) -> tuple[list[dict], dict]:
+        """Ankuendigungsforen ueber die Forumsseiten (Foren-Dienste sind fuer AJAX gesperrt). Bereits gespeicherte
+        Diskussionen (known) werden nicht erneut geoeffnet. Liefert (neue Ankuendigungen, {Kurs-ID: [Diskussionen]})."""
+        from . import announcements as ann
+        known = known or set()
+        items, seen = [], {}
+        for c in courses:
+            state = json.loads(self.ajax("core_courseformat_get_state", {"courseid": c["moodle_id"]}))
+            ids: list[str] = []
+            for cm in [x for x in state.get("cm", []) if x.get("module") == "forum" and x.get("uservisible", True)]:
+                self.page.goto(f"{self.base}/mod/forum/view.php?id={cm['id']}", wait_until="domcontentloaded")
+                if not ann.is_news_forum(self.page.evaluate("() => document.body.className")):
+                    continue
+                for did in ann.discussion_links(self.page.content())[:max_discussions]:
+                    ids.append(f"lw-d-{did}")
+                    if f"lw-d-{did}" in known:
+                        continue
+                    self.page.goto(f"{self.base}/mod/forum/discuss.php?d={did}", wait_until="domcontentloaded")
+                    posts = ann.parse_discussion_html(self.page.content())
+                    items += [ann.from_forum_post(p, c["id"], self.base, did) for p in posts[:1]]   # erster Beitrag = Ankuendigung
+            seen[c["id"]] = ids
+        return items, seen
 
     def download_url(self, url: str) -> str:
         return url
@@ -367,7 +406,7 @@ def files_from_state(state: dict, resource_links: Callable, folder_links_fn: Cal
 # Beide liefern dieselbe Ereignis-Form; doppelte Ereignisse (gleiche id) werden zusammengefasst.
 
 DEADLINE_KINDS = {("assign", "due"): "abgabe", ("quiz", "close"): "test_ende", ("quiz", "open"): "test_beginn"}
-DEADLINE_DAYS_BACK = 1
+DEADLINE_DAYS_BACK = 120     # ueberfaellige, nicht erledigte Fristen des Semesters (Moodle liefert erledigte nicht mehr)
 DEADLINE_DAYS_AHEAD = 200
 DEADLINE_PAGES = 10
 
@@ -413,7 +452,7 @@ def deadlines_from_events(events: list[dict]) -> list[dict]:
         out[did] = {"id": did, "course_id": f"lw-{int(cid)}" if cid and int(cid) > 1 else None,
                     "title": short_deadline_title(title) or "Termin", "full_title": title or "Termin", "kind": deadline_kind(e.get("modulename"), e.get("eventtype")),
                     "module": e.get("modulename") or None, "due_at": local_iso(e["timestart"]),
-                    "url": e.get("url") or None}
+                    "url": e.get("url") or None, "overdue": bool(e.get("overdue"))}
     return sorted(out.values(), key=lambda d: (d["due_at"], d["title"], d["id"]))
 
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from . import cas, config, db, learnweb, lsf
+from . import announcements, cas, config, db, learnweb, lsf
 from .config import DATA_DIR
 from .studip_sync import log, store_course_files, stream_download, upsert_course
 from .universities import HILDESHEIM_CAS
@@ -51,15 +51,20 @@ def _learnweb_client(page, user: str, pw: str, token: str):
     return client, courses, ""
 
 
-def sync_learnweb(page, client, courses: list[dict], token: str, started: str, new_files: list[str]) -> int:
+def visible_courses(courses: list[dict], quiet: bool = False) -> list[dict]:
     courses = [c for c in courses if not c.get("hidden")]
     # Eigener Filter fuer Hildesheim; der LUH-Filter SEMESTER_FILTER gilt hier nicht (anderes Semester-Schema)
     flt = config.secret("HILDESHEIM_SEMESTER_FILTER")
     if flt:
         kept = [c for c in courses if flt.lower() in (c["semester"] or "").lower()]
-        if len(kept) < len(courses):
+        if len(kept) < len(courses) and not quiet:
             log(f"Learnweb: {len(kept)} von {len(courses)} Kursen passen zum Semesterfilter '{flt}'.")
         courses = kept
+    return courses
+
+
+def sync_learnweb(page, client, courses: list[dict], token: str, started: str, new_files: list[str]) -> int:
+    courses = visible_courses(courses)
     with db.cursor() as conn:
         for c in courses:
             upsert_course(conn, c, started)
@@ -79,16 +84,16 @@ def sync_learnweb(page, client, courses: list[dict], token: str, started: str, n
 
 
 def store_deadlines(conn, items: list[dict], fetched_at: str, window_from: str) -> dict:
-    """Learnweb-Fristen speichern. Was im abgefragten Zeitfenster (ab window_from) nicht mehr kommt, ist im Learnweb
-    geloescht oder erledigt und wird entfernt; aeltere Fristen bleiben als Verlauf stehen."""
+    """Learnweb-Fristen speichern. Was im abgefragten Zeitfenster (ab window_from, 120 Tage zurueck) nicht mehr kommt,
+    ist im Learnweb geloescht oder erledigt und wird entfernt; aeltere Fristen bleiben als Verlauf stehen."""
     known = {r["id"] for r in db.rows(conn, "SELECT id FROM deadlines WHERE source='learnweb'")}
     for d in items:
-        conn.execute("""INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, fetched_at)
-                        VALUES (?, 'learnweb', ?, ?, ?, ?, ?, ?, ?, ?)
+        conn.execute("""INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue, fetched_at)
+                        VALUES (?, 'learnweb', ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(id) DO UPDATE SET course_id=excluded.course_id, title=excluded.title,
                           full_title=excluded.full_title, kind=excluded.kind,
-                          module=excluded.module, due_at=excluded.due_at, url=excluded.url, fetched_at=excluded.fetched_at""",
-                     (d["id"], d.get("course_id"), d["title"], d.get("full_title") or d["title"], d["kind"], d.get("module"), d["due_at"], d.get("url"), fetched_at))
+                          module=excluded.module, due_at=excluded.due_at, url=excluded.url, overdue=excluded.overdue, fetched_at=excluded.fetched_at""",
+                     (d["id"], d.get("course_id"), d["title"], d.get("full_title") or d["title"], d["kind"], d.get("module"), d["due_at"], d.get("url"), int(bool(d.get("overdue"))), fetched_at))
     ids = [d["id"] for d in items]
     gone = conn.execute(f"""DELETE FROM deadlines WHERE source='learnweb' AND due_at >= ?
                             AND id NOT IN ({",".join("?" * len(ids)) or "''"})""", (window_from, *ids)).rowcount
@@ -101,6 +106,23 @@ def sync_deadlines(client) -> str:
     with db.cursor() as conn:
         r = store_deadlines(conn, items, db.now_iso(), learnweb.local_iso(now - learnweb.DEADLINE_DAYS_BACK * 86400))
     return f"Fristen: {r['total']} ({r['new']} neu, {r['removed']} entfernt)"
+
+
+def sync_announcements(client, courses: list[dict]) -> str:
+    """Ankuendigungsforen aller sichtbaren Kurse; geloeschte Diskussionen verschwinden auch in der App."""
+    courses = visible_courses(courses, quiet=True)
+    with db.cursor() as conn:
+        known = announcements.known_discussions(conn)
+    items, seen = client.announcements(courses, known)
+    with db.cursor() as conn:
+        r = announcements.store(conn, items, "learnweb", db.now_iso())
+        gone = 0
+        for cid, ids in seen.items():
+            gone += conn.execute(f"""DELETE FROM announcements WHERE source='learnweb' AND course_id=?
+                                     AND (discussion IS NULL OR discussion NOT IN ({",".join("?" * len(ids)) or "''"}))""",
+                                 (cid, *ids)).rowcount
+        n_dates = sum(1 for a in items if a["dates"])
+    return f"Ankuendigungen: {r['new']} neu ({n_dates} mit Termin), {gone} entfernt"
 
 
 def sync_lsf_plan(page, user: str, pw: str) -> str:
@@ -136,6 +158,11 @@ def run_sync(show_browser: bool = False) -> dict:
                 except Exception as e:  # noqa: BLE001 - Fristen sind eine Ergaenzung, der Sync laeuft weiter
                     parts.append(f"Learnweb-Fristen: FEHLER {e}")
                     log(f"Learnweb-Fristen: {e}")
+                try:
+                    parts.append(sync_announcements(client, courses))
+                except Exception as e:  # noqa: BLE001 - ebenso Ergaenzung
+                    parts.append(f"Learnweb-Ankuendigungen: FEHLER {e}")
+                    log(f"Learnweb-Ankuendigungen: {e}")
                 if user and pw:
                     try:
                         parts.append(sync_lsf_plan(page, user, pw))

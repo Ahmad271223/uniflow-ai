@@ -26,7 +26,7 @@ from schema_source import write_or_check  # noqa: E402
 import base64  # noqa: E402
 import hashlib  # noqa: E402
 
-from app import cas, holidays, learnweb, lsf, qis, studip_sync, timetable  # noqa: E402
+from app import announcements, cas, holidays, learnweb, lsf, qis, studip_sync, timetable  # noqa: E402
 
 D = ROOT / "packages" / "shared-contracts" / "fixtures" / "hildesheim"
 BASE = "https://www.uni-hildesheim.de/learnweb2026"
@@ -122,6 +122,27 @@ def main(check: bool) -> bool:
         "day-marks": {u: {f"{a}..{b}": holidays.day_marks(date.fromisoformat(a), date.fromisoformat(b), u)
                           for a, b in (("2026-12-20", "2027-01-08"), ("2027-01-28", "2027-02-10"), ("2027-05-14", "2027-05-25"), ("2030-07-25", "2030-08-02"))}
                       for u in ("luh", "hildesheim")},
+        "announcement-dates": [{"text": t, "posted": p, "dates": announcements.extract_dates(t, date.fromisoformat(p))} for t, p in (
+            ("Die Vorlesung am 12.11. fällt leider aus.", "2026-10-26"),
+            ("Am Dienstag, 3. November um 14:15 Uhr findet die Sitzung online über BBB statt.", "2026-10-26"),
+            ("Abgabe der Hausarbeit bis zum 15.01.2027.", "2026-10-26"),
+            ("Raumänderung: ab 4.11. in HC.N.0.08 (Hörsaal 4).", "2026-10-26"),
+            ("Version 2.1.3 ist online. Telefon 05121.883", "2026-10-26"),
+            ("Am 28.10. 10-12 Uhr Sprechstunde. Am 28.10. auch Abgabe.", "2026-10-26"),
+            ("Wie am 01.09. besprochen.", "2026-10-26"),
+            ("Die Klausur ist am 5.2.27 um 9 Uhr.", "2026-10-26"),
+            ("Termin: 31.12. und 1.1.", "2026-12-01"),
+            ("Ersatztermin am 30. Februar oder 7.1.", "2026-12-01"),
+            ("Keine Vorlesung am 24.12., stattdessen am 7. Januar 2027 von 10.15 bis 11.45 Uhr.", "2026-12-01"))],
+        "forum-discussion": [{k: p[k] for k in ("id", "subject", "author", "posted_at")} | {"text": announcements.html_to_text(p["html"])}
+                             for p in announcements.parse_discussion_html((D / "learnweb-forum-discussion.html").read_text(encoding="utf-8"))],
+        "forum-view": announcements.discussion_links((D / "learnweb-forum-view.html").read_text(encoding="utf-8")),
+        "forum-announcement": (lambda a: {k: a[k] for k in ("id", "title", "text", "author", "posted_at", "url", "discussion", "dates")})(
+            announcements.from_forum_post(announcements.parse_discussion_html((D / "learnweb-forum-discussion.html").read_text(encoding="utf-8"))[0],
+                                          "lw-39", BASE, 5838)),
+        "lsf-notes": [{"description": d, "note": lsf.note_text(d), "placeholder": lsf.is_placeholder(lsf.note_text(d))} for d in (
+            "<p><em><strong>Dieser Termin wird nur aus technischen Gr&uuml;nden angezeigt!</strong></em><br /><em>Bitte zwei der Termine w&auml;hlen.</em></p>",
+            "<p>Exkursion zur KuFa&nbsp;- Expertinnengespr&auml;ch</p>", "", "Nur aus technischen Gruenden angezeigt")],
         "local-iso": [{"ts": ts, "local": learnweb.local_iso(ts)} for ts in (1793833140, 1784710800, 1798757940, 1774746000, 1792890000)],
         "grade-rows": {"abschluss": "Fallback", "rows": grade_rows,
                        "grades": [{k: g.get(k) for k in ("pruefungsnr", "text", "note", "status", "credits", "abschluss")}

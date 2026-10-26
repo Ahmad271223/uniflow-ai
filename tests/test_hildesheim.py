@@ -526,6 +526,18 @@ def test_shared_hildesheim_fixtures_match_python():
         for span, marks in spans.items():
             a, b = span.split("..")
             assert holidays.day_marks(_d.fromisoformat(a), _d.fromisoformat(b), uni) == marks, (uni, span)
+    # Ankuendigungen: Termine in Texten, Forumsseiten, LSF-Bemerkungen
+    from app import announcements as ann
+    assert [ann.extract_dates(c["text"], _d.fromisoformat(c["posted"])) for c in exp["announcement-dates"]] == \
+        [c["dates"] for c in exp["announcement-dates"]]
+    posts = ann.parse_discussion_html((d / "learnweb-forum-discussion.html").read_text(encoding="utf-8"))
+    assert [{k: p[k] for k in ("id", "subject", "author", "posted_at")} | {"text": ann.html_to_text(p["html"])} for p in posts] == \
+        exp["forum-discussion"]
+    assert ann.discussion_links((d / "learnweb-forum-view.html").read_text(encoding="utf-8")) == exp["forum-view"]
+    a = ann.from_forum_post(posts[0], "lw-39", "https://www.uni-hildesheim.de/learnweb2026", 5838)
+    assert {k: a[k] for k in exp["forum-announcement"]} == exp["forum-announcement"]
+    assert [(lsf.note_text(c["description"]), lsf.is_placeholder(lsf.note_text(c["description"]))) for c in exp["lsf-notes"]] == \
+        [(c["note"], c["placeholder"]) for c in exp["lsf-notes"]]
 
 
 def test_grade_rows_hildesheim_layout():
@@ -814,7 +826,7 @@ def test_deadline_events_paged_and_upcoming_view_optional():
 
     ev = learnweb.fetch_deadline_events(call, now=1793000000)
     assert len(ev) == 51 and [c[1].get("aftereventid") for c in calls[:2]] == [None, 49]
-    assert calls[0][1]["timesortfrom"] == 1793000000 - 86400 and calls[0][1]["timesortto"] == 1793000000 + 200 * 86400
+    assert calls[0][1]["timesortfrom"] == 1793000000 - 120 * 86400 and calls[0][1]["timesortto"] == 1793000000 + 200 * 86400
     assert calls[-1][0] == "core_calendar_get_calendar_upcoming_view"
     with pytest.raises(learnweb.LearnwebError):          # Fehler der Hauptquelle wird gemeldet, nicht verschluckt
         learnweb.fetch_deadline_events(lambda fn, a: (_ for _ in ()).throw(learnweb.LearnwebError("x")), now=1)

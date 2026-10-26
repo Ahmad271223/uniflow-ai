@@ -758,6 +758,14 @@ def api_deadlines():
         return {"deadlines": study.upcoming_deadlines(conn, study.today())}
 
 
+@app.get("/api/announcements")
+def api_announcements(days: int = 30):
+    """Ankuendigungen der Lehrenden (Learnweb/Stud.IP) mit erkannten Terminen, neueste zuerst."""
+    from . import announcements
+    with db.cursor() as conn:
+        return {"announcements": announcements.recent(conn, days=max(1, min(days, 365)), limit=50, today=study.today())}
+
+
 @app.get("/api/modules")
 def api_modules():
     with db.cursor() as conn:
@@ -1112,6 +1120,7 @@ def api_tt_event_patch(event_id: int, body: dict = Body(...)):
 def api_tt_event_delete(event_id: int):
     with db.cursor() as conn:
         conn.execute("DELETE FROM event_exceptions WHERE event_id=?", (event_id,))
+        conn.execute("DELETE FROM event_notes WHERE event_id=?", (event_id,))
         conn.execute("DELETE FROM course_events WHERE id=?", (event_id,))
     return {"ok": True}
 

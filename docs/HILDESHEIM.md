@@ -61,7 +61,28 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
 - Anzeige: Startseite „Nächste Termine“ (mit Uhrzeit, Art und Kurs, Link ins Learnweb), `GET /api/deadlines`, und in
   Lernkalender (Woche, Monat, Tag, Mini-Kalender) und Stundenplan je Tag (`deadlines` an jedem Kalendertag).
 - Live 26.10.2026: 5 Fristen (2× Test beginnt, 2× Test endet, 1 Abgabe), alle mit Kurs, zweiter Lauf ohne Doppelte.
+- Überfällige, nicht erledigte Fristen: Abruf 120 Tage zurück (`overdue` von Moodle); Startseite zeigt die der
+  letzten 6 Wochen rot oben, ältere (Vorsemester) nicht.
 - Ferien/Feiertage stehen nicht im Learnweb; vorlesungsfreie Tage kommen aus dem LSF-Export (EXDATE).
+
+## Ankündigungen der Lehrenden (`app/announcements.py`)
+
+- Learnweb: nur Ankündigungsforen (Moodle-Typ `news`), erster Beitrag je Diskussion, höchstens 30 neueste je Forum.
+  Mit Schlüssel über REST (`mod_forum_get_forums_by_courses`, `mod_forum_get_forum_discussions`), ohne Schlüssel über
+  die Forumsseiten (Foren-Dienste sind für AJAX gesperrt, geprüft 26.10.2026). Bekannte Diskussionen werden nicht
+  erneut geöffnet; im Learnweb gelöschte verschwinden. Allgemeine Diskussionsforen der Studierenden bleiben außen vor.
+- Stud.IP (LUH): `/jsonapi.php/v1/courses/{id}/news` je Kurs beim Sync.
+- `extract_dates` erkennt 12.11., 12.11.26, 12.11.2026, „12. November“ mit Uhrzeit danach; Art aus dem Satzteil
+  (Ausfall?, Verlegung?, Raum, Frist, Prüfung, Online, Termin). Die App ändert dadurch **nie** Termine selbst, sie
+  zeigt Hinweise an den Kalendertagen (`notices`), auf der Startseite („Ankündigungen“) und unter `GET /api/announcements`.
+- Live 26.10.2026: Hildesheim 14 Ankündigungen (9 mit Termin), LUH 23 (15 mit Termin, 19 Kalendertage mit Hinweis).
+
+## LSF-Bemerkungen und Platzhalter
+
+- Die Bemerkung steht im iCal als DESCRIPTION und wird in `event_notes` gespeichert (eigene Tabelle, damit
+  `course_events` und alle Antworten unverändert bleiben). Termine mit „nur aus technischen Gründen angezeigt“ werden
+  einmalig auf „nicht besuchen“ gestellt; stellt der Nutzer sie wieder auf „besuchen“, bleibt das.
+- Dienste-Link „Heute im LSF“: die Variante `type=1` liefert im LSF eine Fehlerseite, `type=0` mit Navigation geht.
 
 ## Feiertage und vorlesungsfreie Zeit (`app/holidays.py`)
 
@@ -71,6 +92,8 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
 - Jeder Kalendertag hat `marks` (`feiertag`, `pause`, `vorlesungsfrei`); Feiertage und Pausen grün, vorlesungsfreie
   Zeit hellgrün. Nach dem letzten bekannten Zeitplan wird nichts erfunden (nur Feiertage).
 - Vorgabe-Semester des Stundenplans kommt jetzt aus dieser Tabelle (vorher für alle die LUH-Zeit 12.10.–30.01.).
+- Serien **ohne eigene Daten** (z. B. persönliche Stud.IP-Stundenplan-Einträge) fallen an markierten Tagen aus
+  (`occurrences`, nur Uni-Veranstaltungsarten, nie persönlich; Ausnahmen des Nutzers gehen vor).
 
 ## LSF-Stundenplan
 

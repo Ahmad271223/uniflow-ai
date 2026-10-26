@@ -37,6 +37,9 @@ def term(conn) -> dict:
 # Vorkommen (Occurrences)
 # ----------------------------------------------------------------------------
 
+UNI_KINDS = {"vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar"}
+
+
 def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> list[dict]:
     """Alle Termine im Zeitraum, mit Ausnahmen (verschoben, ausgefallen, nicht besucht) angewendet."""
     events = db.rows(conn, "SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
@@ -47,6 +50,12 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     for x in db.rows(conn, f"SELECT * FROM event_exceptions WHERE event_id IN ({','.join('?' * len(ids))})", ids):
         exc[x["event_id"]][x["date"]] = x
     t = term(conn)
+    # Serien ohne eigene Daten (z. B. persoenliche Stud.IP-Stundenplan-Eintraege) kennen weder Ferien noch Feiertage:
+    # an Feiertagen, in Unterbrechungen und in der vorlesungsfreien Zeit fallen Uni-Veranstaltungen aus (app/holidays.py).
+    # Serien mit Daten aus der Quelle (LSF-EXDATE, Stud.IP-Einzeltermine) regeln das selbst; persoenliche Termine nie.
+    from . import config, holidays
+    free = holidays.day_marks(start, end, config.UNIVERSITY)
+    notes = {r["event_id"]: r["note"] for r in db.rows(conn, "SELECT event_id, note FROM event_notes")}
     out = []
     d = start
     while d <= end:
@@ -58,6 +67,8 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
             occ = {"event_id": e["id"], "date": di, "start": e["start_time"], "end": e["end_time"], "title": e["title"], "kind": e["kind"],
                    "module_id": e["module_id"], "module_name": e["module_name"], "color": e["color"] or e["module_color"] or "#4f5bd5", "room": e["room"],
                    "lecturer": e["lecturer"], "course_id": e["course_id"], "status": "teilnahme" if e["attend"] else "nicht_teilnahme", "permanent_skip": not e["attend"], "exception": None}
+            if notes.get(e["id"]):
+                occ["note"] = notes[e["id"]]          # nur mit Bemerkung (Antwortform sonst unveraendert)
             if x:
                 occ["exception"] = x["type"]
                 if x["type"] == "skip":
@@ -72,6 +83,10 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
                     if x["type"] == "moved" and x["new_date"] and x["new_date"] != di:
                         occ["moved_to"] = x["new_date"]
                         occ["status"] = "verschoben"
+            if (not x and e["attend"] and di in free and not e["date_from"] and not e["date_to"]
+                    and (e["kind"] or "vorlesung") in UNI_KINDS):
+                occ["status"], occ["exception"] = "ausfall", "vorlesungsfrei"
+                occ["note"] = " / ".join(dict.fromkeys(m["label"] for m in free[di])) + (f" · {notes[e['id']]}" if notes.get(e["id"]) else "")
             if occ["status"] == "nicht_teilnahme" and not include_skipped:
                 continue
             out.append(occ)
@@ -542,6 +557,7 @@ def apply_import(conn, entries: list[dict], source: str, remove_ids: list[int] |
             n_new += 1
         _add_cancellations(conn, event_id, e.get("exdates"), note)
     for rid in remove_ids or []:
+        conn.execute("DELETE FROM event_notes WHERE event_id=?", (rid,))
         conn.execute("DELETE FROM course_events WHERE id=?", (rid,))
     return {"new": n_new, "updated": n_upd, "removed": len(remove_ids or []), "ids": new_ids}
 
@@ -579,11 +595,13 @@ def week_grid(conn, start: date) -> dict:
     s = db.get_settings(conn)
     from . import holidays
     marks, dls = holidays.calendar_extras(conn, start, end)
+    from . import announcements
+    notes = announcements.by_day(conn, start, end)
     days = []
     d = start
     while d <= end:
         days.append({"date": d.isoformat(), "weekday": d.weekday(), "events": [o for o in occ if o["date"] == d.isoformat()], "packages": [p for p in pk if p["date"] == d.isoformat()],
-                     "marks": marks.get(d.isoformat(), []), "deadlines": dls.get(d.isoformat(), []),
+                     "marks": marks.get(d.isoformat(), []), "deadlines": dls.get(d.isoformat(), []), "notices": notes.get(d.isoformat(), []),
                      "free": free_windows(conn, d, s), "blocked": [b for b in s["blocked_times"] if int(b.get("weekday", -1)) == d.weekday()]})
         d += timedelta(days=1)
     return {"start": start.isoformat(), "end": end.isoformat(), "days": days, "learn_start": s["learn_start"], "learn_end": s["learn_end"], "term": term(conn)}
