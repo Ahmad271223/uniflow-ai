@@ -338,8 +338,10 @@ struct ModulePage: View {
             // (nur an Hochschulen mit Stud.IP)
             let recordings: [(value: String, label: String)] = session.api?.isLocal == true && studip.offersStudIP
                 ? [("recordings", "Aufzeichnungen")] : []
-            // Community (Loesungen aus der Community nach Lehrwoche, Plus) nur lokal: sie gehoert zum Container
-            let community: [(value: String, label: String)] = session.api?.isLocal == true ? [("community", "Community")] : []
+            // Community (Loesungen aus der Community nach Lehrwoche, Plus) nur lokal (sie gehoert zum Container) und
+            // nur mit CloudKit-Dienst im Build (sonst kein Platzhalter-Reiter)
+            let community: [(value: String, label: String)] = session.api?.isLocal == true && SolutionSharing.community.isConnected
+                ? [("community", "Community")] : []
             UFTabs(options: [("overview", "Übersicht"), ("lectures", "Vorlesungen"), ("exercises", "Übungen"), ("solutions", "Lösungen"),
                              ("scripts", "Skripte"), ("exams", "Klausuren")] + recordings + community + [("notes", "Notizen")], selection: $tab)
             if tab == "overview" {
@@ -348,7 +350,7 @@ struct ModulePage: View {
             } else if tab == "recordings" {
                 RecordingsPanel(moduleID: id, focusWeek: focusWeek)
             } else if tab == "community" {
-                CommunityModulePanel(courseIDs: d.list("courses").compactMap { $0.s("id") }, files: d.list("files"), weeks: weeks)
+                CommunityModulePanel(module: d, files: d.list("files"), weeks: weeks)
             } else {
                 let key = ["lectures": "vorlesung", "exercises": "uebung", "solutions": "loesung", "scripts": "skript", "exams": "klausur"][tab]
                 let files = tab == "notes" ? d.list("notes")

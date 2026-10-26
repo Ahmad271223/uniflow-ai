@@ -1,7 +1,8 @@
 # Lösung teilen: Format, Ablauf, Sicherheit und Grenzen
 
 Stand 26.10.2026, Zweig `wip/loesung-teilen` mit Nachbesserung `wip/loesung-teilen-fix` (Schritt S9 in
-`docs/IPAD-OHNE-PC.md`), Online-Community in `wip/community-cloudkit` (S9b). Gilt für die native iPad-App.
+`docs/IPAD-OHNE-PC.md`), Online-Community in `wip/community-cloudkit`, auf den Abnahme-Stand gesetzt und mit den
+Entscheidungen des Inhabers nachgebessert in `wip/community-2` (S9b). Gilt für die native iPad-App.
 Lösungen werden als Datei weitergegeben (AirDrop, Dateien-App, „Öffnen in“) **oder** in der Community veröffentlicht
 (öffentliche CloudKit-Datenbank, Abschnitt 7) und ausschließlich auf dem iPad mit der eigenen PDF geöffnet. Die
 Online-Community läuft nur in einem Build mit iCloud-Container (bezahltes Developer Program); sonst meldet die App
@@ -44,8 +45,9 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
   kein Teilen (`SolutionSharing.draft`, `requireOwnNotes: false`): Stehen die eigenen Notizen nur auf ausgelassenen
   oder eingefügten Seiten, zeigt der Dialog die Vorschau mit genau diesen Gründen statt „keine eigenen Notizen“.
   Bleibt gar keine teilbare Seite, nennt die Meldung alle Gründe.
-- Karte „In der Community“: Sichtbarkeit **Modul** (alle mit demselben Kurs; nur bei Dateien aus einem Kurs des eigenen
-  Abgleichs, sonst Hinweis), **Lerngruppe** (Auswahl der eigenen Lerngruppen) oder **Anonym** (alle an der Hochschule,
+- Karte „In der Community“: Sichtbarkeit **Modul** (alle mit demselben Kurs oder einem Modul gleichen Namens; bei
+  Dateien aus dem Abgleich über die Kurs-ID, bei eigenen Dokumenten über den Modulnamen, ohne beides ein Hinweis),
+  **Lerngruppe** (Auswahl der eigenen Lerngruppen) oder **Anonym** (alle an der Hochschule,
   ohne Pseudonym), dazu der Urheberrechts-Hinweis (`CommunityTexts.copyright`). Ohne iCloud-Container im Build steht
   dort „nicht verfügbar“ und der Knopf bleibt gesperrt.
 - „In der Community veröffentlichen“ (nur mit Plus, wie die ganze Seite; nur mit Dienst): Bestätigung mit Sichtbarkeit,
@@ -220,70 +222,150 @@ zurückholen – das steht so im Blatt.
 Die neuen Aufrufe haben Standardimplementierungen („nicht verbunden“), `publish(_:)` ohne Optionen bleibt als
 Kurzform. Umsetzungen: `NotConnectedCommunityService` (Kern: wirft, sendet nichts) und `CloudKitCommunityService`
 (App, Abschnitt 7). Reine Funktionen im Kern (`CommunityRules.swift`): `CommunityKeys.courseKey(university:courseID:)`
-(SHA-256 aus Hochschule und Stud.IP-/Learnweb-Kurs-ID), `CommunityKeys.groupKey(university:code:)`,
+(SHA-256 aus Hochschule und Stud.IP-/Learnweb-Kurs-ID), `CommunityKeys.courseKey(university:courseName:)` (aus dem
+normalisierten Kursnamen, eigener Namensraum, für eigene Dokumente), `CommunityKeys.groupKey(university:code:)`,
 Beitrittscodes (8 Zeichen ohne 0/O/1/I), `CommunityRules.isVisible`/`visible` (Filter), `effectiveDisplayName`
 (anonym = nie ein Pseudonym), `validate` (Optionen), `byWeek`.
 
 ## 7. Online-Community über CloudKit (S9b)
 
-Entscheidung des Inhabers vom 26.10.2026: **CloudKit für V1**, später Supabase. Code: `Services/CommunityCloud.swift`
-(schmale Schnittstelle `CommunityCloud` über die Datensatz-Operationen, Umsetzung `CKCommunityCloud`; Tests nehmen
-einen Nachbau im Speicher), `Services/CommunityCloudKit.swift` (`CloudKitCommunityService`, `CommunityMembership`,
-`CommunityCourses`, `CommunityMatches`), `Views/CommunityViews.swift` (Oberfläche).
+Entscheidung des Inhabers vom 26.10.2026: **CloudKit für V1**, später Supabase oder ein eigener Dienst. Code:
+`Services/CommunityCloud.swift` (schmale Schnittstelle `CommunityCloud` über die Datensatz-Operationen, Umsetzung
+`CKCommunityCloud`; Tests nehmen einen Nachbau im Speicher), `Services/CommunityCloudKit.swift`
+(`CloudKitCommunityService`, `CommunityMembership`, `CommunityCourses`, `CommunityMatches`),
+`Views/CommunityViews.swift` (Treffer, Melden, Moduldetail, Einstellungen), `Views/Services/CommunityPage.swift`
+(Bereich „Community“ in der Seitenleiste).
 
 **Datensätze** in der öffentlichen Datenbank des Containers `iCloud.de.uniflow.ai`:
 
 | Typ | Felder |
 |---|---|
-| `Solution` | `solutionID`, `fingerprint` (SHA-256 der Original-PDF, nur Zuordnung), `university` (`luh`/`hildesheim`), `courseKey`, `visibility` (`modul`/`lerngruppe`/`anonym`), `groupKey`, `displayName` (Pseudonym, leer bei anonym), `title`, `pageCount`, `week`, `createdAt`, `package` (Asset: das verschlüsselte `.uniflowsolution`, ohne Original-PDF), `ownerRecordName` (CloudKit-Nutzerkennung), `withdrawn` |
+| `Solution` | `solutionID`, `fingerprint` (SHA-256 der Original-PDF, nur Zuordnung), `university` (`luh`/`hildesheim`), `courseKey`, `visibility` (`modul`/`lerngruppe`/`anonym`), `groupKey`, `displayName` (Pseudonym, leer bei anonym), `title`, `pageCount`, `week`, `createdAt`, `package` (Asset: das verschlüsselte `.uniflowsolution`, ohne Original-PDF), `ownerRecordName` (nur Anzeige im Dashboard), `withdrawn` |
 | `Report` | `solutionID`, `reason`, `note` (höchstens 500 Zeichen), `reporterRecordName`, `createdAt` |
 | `StudyGroup` | `groupKey` (Hash aus Hochschule und Code – der Code selbst liegt nie beim Dienst), `name`, `university`, `ownerRecordName`, `createdAt` |
+| `Ban` | `ownerRecordName`, `createdAt` – legt **nur der Inhaber** im Dashboard an (Moderation, unten); die App liest ihn nur |
 | `Block` (private Datenbank) | `ownerRecordName`, `createdAt` – nur für den Nutzer selbst sichtbar |
 
-**Berechtigung (ehrlich):** Wer sucht, bildet aus allen Kurs-IDs seiner lokalen Datenbank die Kurs-Schlüssel; der
-Dienst liefert zu einem Fingerabdruck nur Einträge derselben Hochschule, die nicht zurückgezogen sind, deren
-Besitzer nicht gesperrt ist und die zur Sichtbarkeit passen: Modul nur mit passendem Kurs-Schlüssel, Lerngruppe nur
-mit passendem Gruppen-Schlüssel (Kenntnis des Codes), anonym für alle an der Hochschule. Die Prüfung läuft in der
-App (`CommunityRules`), nicht auf dem Dienst: Wer die Kurs-ID oder den Code kennt, kann den Schlüssel bilden – das
-ist **kein** signierter Beleg der Hochschule. Lesen kann eine Lösung weiterhin nur, wer dieselbe PDF besitzt
-(Abschnitt 5).
+Der **Besitzer** eines Datensatzes ist der Ersteller, den CloudKit selbst setzt (`creatorUserRecordID`, nicht
+fälschbar; für eigene Datensätze liefert CloudKit `__defaultOwner__`, das ist der Nutzer selbst). Das Feld
+`ownerRecordName` dient nur der Anzeige im Dashboard; ein verändertes Feld ändert weder „eigene“ noch Sperren noch
+Zurückziehen (`CloudKitCommunityService.owner`, getestet).
 
-**Datenschutz:** Hochgeladen werden nur Paket, Kopfdaten, Sichtbarkeit und Pseudonym. Nie Apple-ID, Name, E-Mail
-oder Matrikelnummer; `ownerRecordName` ist die CloudKit-Nutzerkennung und dient nur dem Zurückziehen (nur eigene),
-Melden und Blockieren. Stud.IP-Cookies, -Sitzungen oder -Tokens gehen nie an den Dienst. Pseudonym, Lerngruppen
-und Sperrliste (Zwischenspeicher) liegen je Container (Apple-Nutzer, Hochschule); „Daten dieser Hochschule
-löschen“ und „Konto löschen“ entfernen sie mit.
+**Berechtigung – Entscheidung des Inhabers (26.10.2026): Kenntnis der Kurs-ID oder des Kursnamens reicht.** Es gibt
+keine Bestätigung der Hochschule (keinen signierten Beleg, kein OAuth2-Scope). Kurs-Schlüssel entstehen an einer
+Stelle (`CommunityKeys` im Kern, in der App nur über `CommunityCourses`):
+
+- Datei aus dem Abgleich (Stud.IP/Learnweb): `courseKey(university:courseID:)` aus der Kurs-ID.
+- Eigenes Dokument (kein Kurs, Modul über den Ordner „Eigene Notizen“): `courseKey(university:courseName:)` aus dem
+  **normalisierten Modulnamen** (Kleinbuchstaben, Umlaute und ß ausgeschrieben, nur Buchstaben und Ziffern, je ein
+  Leerzeichen dazwischen; eigener Namensraum, fällt nie mit einer Kurs-ID zusammen). Ohne Kurs und Modul gibt es
+  nur „Lerngruppe“ oder „Anonym“.
+- Wer sucht, kennt die Schlüssel aller Kurs-IDs, **Kurstitel** und **Modulnamen** seiner lokalen Datenbank. Eine
+  Lösung mit Sichtbarkeit „Modul“ findet, wer denselben Kurs hat oder ein Modul bzw. einen Kurs mit demselben
+  Namen. Ehrlich: Stud.IP-Titel tragen oft Semester oder Zusätze („Analysis I (WS 2026/27)“); dann passt der Name
+  nur bei gleicher Schreibweise, die Kurs-ID passt immer.
+
+Der Dienst liefert zu einem Fingerabdruck nur Einträge derselben Hochschule, die nicht zurückgezogen sind, deren
+Besitzer weder auf der eigenen Sperrliste noch vom Inhaber gesperrt (`Ban`) ist und die zur Sichtbarkeit passen:
+Modul nur mit passendem Kurs-Schlüssel, Lerngruppe nur mit passendem Gruppen-Schlüssel (Kenntnis des Codes), anonym
+für alle an der Hochschule. Die Prüfung läuft in der App (`CommunityRules`), nicht auf dem Dienst. Lesen kann eine
+Lösung weiterhin nur, wer dieselbe PDF besitzt (Abschnitt 5).
+
+**Datenschutz:** Hochgeladen werden nur Paket, Kopfdaten, Sichtbarkeit und Pseudonym. Nie Apple-ID, Name, E-Mail,
+Matrikelnummer, Kurs-ID oder Kursname (nur deren Schlüssel); `ownerRecordName` ist die CloudKit-Nutzerkennung
+(Zufallskennung des Containers) und dient nur dem Zurückziehen (nur eigene), Melden und Blockieren. Stud.IP-Cookies,
+-Sitzungen oder -Tokens gehen nie an den Dienst. Pseudonym, Lerngruppen und Sperrliste (Zwischenspeicher) liegen je
+Container (Apple-Nutzer, Hochschule); „Daten dieser Hochschule löschen“ und „Konto löschen“ entfernen sie mit.
+Hochgeladene und geladene Pakete liegen kurz im Zwischenspeicher des Containers (`AppTemp`, weg nach dem Upload bzw.
+Import, spätestens beim nächsten Start). Fehlermeldungen (`CommunityServiceError`) nennen nie Kennungen oder
+Geheimnisse. Die Meldung bittet, keine persönlichen Daten in den Hinweis zu schreiben. **Ehrlich:** Die öffentliche
+CloudKit-Datenbank ist für jeden lesbar, der den Container kennt – die Kopfdaten aller Veröffentlichungen (Titel,
+Pseudonym, Fingerabdruck, Schlüssel, Lehrwoche, Seitenzahl) sind also keine Geheimnisse; die Sichtbarkeitsregeln
+filtern in der App, was angezeigt wird. Der Inhalt (die Notizen) bleibt für alle außer Besitzern derselben PDF
+verschlüsselt. Das Privacy Manifest nennt dafür „Other User Content“ (nicht verknüpft, kein Tracking); dieselbe
+Angabe gehört in die App-Datenschutzangaben in App Store Connect.
 
 **Oberfläche (Plus, `UFGate(.community)`):** Dialog „Lösung teilen“ (Abschnitt 2); im Dokument beim Öffnen
 `findMatching` (nur mit Dienst, Ergebnis je Sitzung zwischengespeichert, nie blockierend) → Hinweis „n Lösungen aus
 der Community zu diesem Blatt“ und Eintrag im Menü „Ebenen“ → Blatt mit Pseudonym/Datum/Seitenzahl, „Laden und
 anzeigen“ (derselbe Weg wie „Lösung importieren …“: `DocumentStore.importFromCommunity` schreibt das Paket als Datei
 und ruft `importSolution`; fremde Ebene, eigene Notizen unverändert), „Melden …“ (Grund und Notiz), „Nutzer
-blockieren …“, bei eigenen „Zurückziehen“; Moduldetail → Reiter „Community“ (`findForCourse` je Kurs des Moduls, nach
-Lehrwoche, „Blatt öffnen“ bei gleichem Titel); „Meine geteilten Lösungen“ (Abschnitt 4); Einstellungen → Karte
-„Community“: Pseudonym, Lerngruppen (anlegen → Code und QR `uniflow://community/join/<Code>`, beitreten mit Code,
-verlassen), Sperrliste (freigeben).
+blockieren …“, bei eigenen „Zurückziehen“; Moduldetail → Reiter „Community“ (`findForCourse` je Kurs-Schlüssel des
+Moduls – Kurs-IDs und Modulname –, nach Lehrwoche, „Blatt öffnen“ bei gleichem Titel: der Treffer wird über den
+Blatt-Titel dem Dokument zugeordnet, Entscheidung (d)); „Meine geteilten Lösungen“ (Abschnitt 4); Einstellungen →
+Karte „Community“: Pseudonym, Lerngruppen (anlegen → Code und QR `uniflow://community/join/<Code>`, beitreten mit
+Code, verlassen), Sperrliste (freigeben). **Seitenleiste:** Der Eintrag „Community“ erscheint nur, wenn der Build
+einen iCloud-Container hat (`UFNavItem.visible(community:)` = `SolutionSharing.community.isConnected`); die Seite
+erklärt, wo die Community in der App steckt (Dokument, Modul, Dialog), und trägt dieselbe Karte wie die
+Einstellungen samt „Meine geteilten Lösungen“. Ohne Container fehlt der Eintrag, und die Karte in den Einstellungen
+sagt ehrlich: kein iCloud-Container, nichts wird veröffentlicht oder gesucht, der Dateiweg bleibt.
 
 **Fehler verständlich** (`CommunityServiceError`): nicht verfügbar (Build ohne Container), nicht bei iCloud
-angemeldet, kein Netz, Kontingent erschöpft, nur eigene zurückziehen, nicht mehr vorhanden, Datei ohne Kurs,
-ungültiger Code, keine Lerngruppe.
+angemeldet (Weg: Einstellungen → Apple-ID), kein Netz (erneut versuchen), Kontingent erschöpft, nur eigene
+zurückziehen, nicht mehr vorhanden, Datei ohne Kurs und Modul, ungültiger Code, keine Lerngruppe. Lesen (Suchen,
+Laden) geht ohne iCloud-Konto; Schreiben (Veröffentlichen, Zurückziehen, Melden, Blockieren, Lerngruppe anlegen)
+braucht das Konto. Ohne Netz zeigt das Blatt „Keine Verbindung zur Community“ mit „Erneut versuchen“; die Sperrliste
+kommt dann aus dem Zwischenspeicher.
 
 **Build:** Container nur mit `Config/Team.xcconfig` (`UF_CLOUDKIT_CONTAINER = iCloud.de.uniflow.ai` → Info.plist
 `UFCloudKitContainer`; Berechtigungen `icloud-container-identifiers`/`icloud-services` in `UniFlow.entitlements`,
 aktiv nur mit `CODE_SIGN_ENTITLEMENTS`). Ohne Team ist der Wert leer: `CommunityCloudFactory.make()` liefert nil,
 `CKContainer` wird nie erzeugt (kein Absturz), `isConnected` ist false.
 
+**Moderation im CloudKit Dashboard (Inhaber)** – es gibt keine Moderation in der App, die Meldungen landen als
+Datensätze beim Dienst:
+
+1. **Meldungen sichten:** Dashboard → Container `iCloud.de.uniflow.ai` → Umgebung (Development/Production) → Data →
+   Public Database → Record Type `Report`, nach `createdAt` sortieren (Index QUERYABLE/SORTABLE auf `createdAt` und
+   `solutionID`). `reason` ist einer von `foreignMaterial`, `gradedSubmission`, `offensive`, `spam`, `other`; `note` der
+   Hinweis des Meldenden. Über `solutionID` den Datensatz `Solution` mit diesem Record Name öffnen (`title`,
+   `displayName`, `university`, `createdAt`; den Inhalt selbst kann auch der Inhaber nicht lesen – er ist mit der PDF
+   verschlüsselt).
+2. **Lösung aus der Community nehmen:** im Datensatz `Solution` das Feld `withdrawn` auf `1` setzen und das Asset
+   `package` entfernen, dann speichern. Die App filtert `withdrawn` sofort heraus (bei der nächsten Suche; der
+   Zwischenspeicher je Sitzung hält höchstens bis zum nächsten Start); wer die Lösung schon geladen hat, behält sie
+   (wie beim Zurückziehen durch den Nutzer). Alternativ den Datensatz löschen – dann verschwindet er auch aus der
+   Kursansicht und aus „deine Veröffentlichung“ beim Autor.
+3. **Nutzer sperren (Block):** Record Type `Ban`, neuer Datensatz mit `ownerRecordName` = `creatorUserRecordID` des
+   beanstandeten `Solution`-Datensatzes (steht in dessen Systemfeldern) und `createdAt`. Alle Geräte blenden danach
+   sämtliche Lösungen dieses Nutzers aus (gelesen höchstens alle 10 Minuten, `CloudKitCommunityService.banRefresh`);
+   der Nutzer selbst sieht seine eigenen weiter und kann sie zurückziehen. Aufheben = Datensatz löschen.
+   **Wichtig beim Einrichten:** in Schema → Security Roles für `Ban` der Rolle `_icloud` das Recht **Create
+   entziehen** (Standard wäre: jeder Angemeldete darf anlegen) – sonst könnte ein Nutzer andere sperren. `_world`
+   behält Read.
+4. **Meldung erledigen:** `Report`-Datensatz löschen (oder stehen lassen als Verlauf). Eine Lösung mit mehreren
+   Meldungen fällt im Dashboard über die Sortierung nach `solutionID` auf; eine automatische Schwelle („ab drei
+   Meldungen verborgen“) gibt es in V1 nicht.
+5. **Schema:** Development legt Felder beim ersten Speichern an; vor dem Release „Deploy Schema Changes“ nach
+   Production. Indizes: `Solution` QUERYABLE auf `fingerprint`, `university`, `courseKey`; `Ban` und `Block`
+   QUERYABLE auf `recordName` (die App fragt alle Datensätze des Typs ab – CloudKit braucht dafür diesen Index,
+   sonst „Field recordName is not marked queryable“); `Report` wie oben. Berechtigungen (Security Roles) der öffentlichen Datenbank: `_world` Read,
+   `_icloud` Create, `_creator` Write – Standard für `Solution`, `Report`, `StudyGroup`; für `Ban` siehe Punkt 3.
+
 **Grenzen und offene Punkte (Inhaber):**
-1. CloudKit gibt es nur auf Apple-Geräten; für Windows/Android (V2) wird der Dienst hinter `CommunityService`
-   gegen Supabase getauscht (gleiche Schlüsselbildung, gleiche Regeln).
-2. Echter Lauf nur mit Developer Program: iCloud-Container anlegen, Datensatztypen und Indizes (QUERYABLE auf
-   `fingerprint`, `university`, `courseKey`; Development-Umgebung legt Felder beim ersten Speichern an, Production
-   braucht „Deploy Schema“), Berechtigungen der öffentlichen Datenbank (Lesen alle, Schreiben nur Ersteller – Standard).
-3. Moderation: Meldungen (`Report`) sichtet der Inhaber im CloudKit Dashboard; Löschen und Sperren dort. Löschfristen,
-   Kontakt für Lehrende, Nutzungsbedingungen und Datenschutzerklärung mit der Community sind offen.
-4. Berechtigung = Kenntnis der Kurs-ID bzw. des Codes (siehe oben); ein signierter Beleg der Hochschule oder OAuth2
-   (`docs/ANFRAGE-STUDIP-ZUGANG.md`) wäre stärker.
+1. CloudKit gibt es nur auf Apple-Geräten; Windows/Android siehe „Später (V2)“.
+2. Echter Lauf nur mit Developer Program: iCloud-Container anlegen, `Config/Team.xcconfig` mit `UF_CLOUDKIT_CONTAINER`,
+   Schema und Indizes wie oben; danach den Ablauf mit zwei iCloud-Konten (zwei Simulatoren oder iPad und Simulator)
+   durchspielen: veröffentlichen → beim zweiten Nutzer finden → laden → Ebene → zurückziehen → verschwindet;
+   Lerngruppe anlegen, mit Code beitreten, Gruppenlösung sehen, verlassen. Die Tests spielen genau das gegen einen
+   Nachbau von CloudKit durch (Abschnitt 8), echtes CloudKit war in dieser Sitzung nicht erreichbar.
+3. Löschfristen, Kontakt für Lehrende, Nutzungsbedingungen und Datenschutzerklärung mit der Community sind offen.
+4. Berechtigung = Kenntnis der Kurs-ID bzw. des Kursnamens oder des Codes (entschieden, oben); wer eine Kurs-ID oder
+   einen Kursnamen kennt, ohne im Kurs zu sein, findet die Lösungen mit Sichtbarkeit „Modul“ – lesen kann er sie nur
+   mit derselben PDF.
 5. Neue Fassungen der PDF: Zuordnung weiter nur über den Datei-Hash (S7-Anmerkung bleibt).
+6. Kontingent: CloudKit rechnet die öffentliche Datenbank über alle Nutzer ab (Speicher, Übertragung, Anfragen pro
+   Sekunde wachsen mit der Nutzerzahl); Pakete sind klein (nur Notizen), aber eigene Bilder zählen mit.
+
+**Später (V2) – anderer Dienst hinter derselben Schnittstelle:** Die PC-Sitzung hat am 26.10.2026 einen eigenen
+Community-Dienst in Python gebaut (`app/community.py`, `app/community_api.py`, Vertrag G4 in
+`docs/VERTRAEGE-KONTO-SYNC.md`; Commit `41307ea`): veröffentlichen, suchen, laden, zurückziehen, melden, sperren,
+Moderation über Admin-Konten, Autoren mit stabilem Pseudonym (HMAC). Er ist **nicht** in die iPad-App eingebaut
+(V1 = CloudKit, kein PC-Server). Für Windows/Android oder einen Umzug weg von CloudKit könnte derselbe
+`CommunityService` auf diesen Dienst zeigen (Supabase oder eigener Server): das Paketformat ist dasselbe
+(`uniflow-solution` Version 1, der Dienst prüft nur den Kopf und speichert das Paket unverändert), die Schlüssel
+(`CommunityKeys`, feste Testvektoren) und Regeln (`CommunityRules`) liegen im Kern und gelten für jeden Dienst; es
+fehlen dort heute Sichtbarkeit Modul/Lerngruppe/anonym, Kurs-Schlüssel, Lerngruppen und die Kursansicht.
 
 ## 8. Tests
 
@@ -298,7 +380,8 @@ aktiv nur mit `CODE_SIGN_ENTITLEMENTS`). Ohne Team ist der Wert leer: `Community
   verdrängt keine vorhandene Lösung, gespeichert wird nur die kanonische Form, Drehungsabbildung, Ablage, Community
   „nicht verbunden“. `CommunityRulesTests`: Kurs- und Gruppen-Schlüssel (fest, ohne Klartext), Beitrittscodes,
   Sichtbarkeitsregeln (Modul, Lerngruppe, anonym, eigene), Filter (Hochschule, zurückgezogen, gesperrt, Sortierung,
-  Dubletten), Optionen, Wochen-Gruppierung, `publishedAt` in der Ablage, Standardimplementierungen des Protokolls.
+  Dubletten), Optionen, Wochen-Gruppierung, `publishedAt` in der Ablage, Standardimplementierungen des Protokolls,
+  Kurs-Schlüssel aus dem normalisierten Kursnamen (Schreibweise, Umlaute, eigener Namensraum, fester Testvektor).
 - App (`UniFlowTests/SolutionSharingTests`, AES-GCM aus CryptoKit, selbst erzeugte Test-PDF mit drei
   Seitengrößen und `/Rotate`): CryptoKit-SHA-256 = Kern-SHA-256, Export ohne PDF, zweites Gerät, andere PDF ohne
   Anzeige, Manipulation, Anzeige auf gedrehter Seite mit Pixelprobe, Vorschau weiß mit Tinte (auch über einer roten
@@ -315,4 +398,9 @@ aktiv nur mit `CODE_SIGN_ENTITLEMENTS`). Ohne Team ist der Wert leer: `Community
   Zurückziehen nur eigene (Paket beim Dienst weg), Melden, Sperrliste privat und ohne Netz aus dem Zwischenspeicher,
   Lerngruppen (Code nie beim Dienst, Beitritt auch klein/mit Bindestrich, andere Hochschule nicht, Verlassen),
   Fehlerfälle (kein iCloud-Konto, kein Netz, Kontingent, Serverfehler, CloudKit-Codes), Knopf nur mit Plus, Texte,
-  Lehrwoche aus der Modulansicht.
+  Lehrwoche aus der Modulansicht; eigenes Dokument unter dem Modulnamen veröffentlicht und über den Kurstitel
+  gefunden, Kurs-Schlüssel aus der lokalen Datenbank (Kurs-ID, Kurstitel, Modul über den Ordner, Pseudokurs nie),
+  Besitzer = Ersteller vom Dienst (gefälschtes Feld ändert nichts, `__defaultOwner__`), `Ban` des Inhabers blendet
+  überall aus, Ablauf über zwei iPads (veröffentlichen → finden → laden → Ebene → zurückziehen → verschwindet,
+  schon geladene Ebene bleibt), Zwischenspeicher-Dateien weg. `AbnahmeV1AppTests`: Seitenleiste zeigt „Community“
+  nur mit Dienst, Texte der Community-Seite ohne Container.

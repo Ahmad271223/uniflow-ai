@@ -79,7 +79,8 @@ public enum CommunityVisibility: String, CaseIterable, Sendable {
 /// Auswahl im Dialog; nichts Persoenliches).
 public struct CommunityPublishOptions: Equatable, Sendable {
     public var visibility: CommunityVisibility
-    /// `CommunityKeys.courseKey` der Datei (Pflicht bei `.module`; sonst, wenn bekannt, fuer die Kursansicht)
+    /// `CommunityKeys.courseKey` der Datei aus Kurs-ID oder Modulname (Pflicht bei `.module`; sonst, wenn bekannt,
+    /// fuer die Kursansicht)
     public var courseKey: String?
     /// `CommunityKeys.groupKey` der Lerngruppe (Pflicht bei `.studyGroup`)
     public var groupKey: String?
@@ -201,7 +202,7 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
     /// nur eigene Veroeffentlichungen lassen sich zurueckziehen
     case notOwner
     case notFound
-    /// Datei ohne Kurs (eigener Upload): Sichtbarkeit "Modul" nicht moeglich
+    /// Datei ohne Kurs und ohne Modul (eigener Upload ohne Zuordnung): Sichtbarkeit "Modul" nicht moeglich
     case missingCourse
     case invalidGroupCode
     case groupNotFound
@@ -217,7 +218,7 @@ public enum CommunityServiceError: Error, Equatable, LocalizedError {
         case .quota: return "Das Kontingent des Community-Dienstes ist erschöpft. Bitte später erneut versuchen."
         case .notOwner: return "Nur eigene Veröffentlichungen lassen sich zurückziehen."
         case .notFound: return "Diese Lösung gibt es in der Community nicht mehr."
-        case .missingCourse: return "Diese Datei gehört zu keinem Kurs. Wähle „Lerngruppe“ oder „Anonym“."
+        case .missingCourse: return "Diese Datei gehört zu keinem Kurs und keinem Modul. Wähle „Lerngruppe“ oder „Anonym“."
         case .invalidGroupCode: return "Ein Beitrittscode hat 8 Zeichen (Buchstaben und Ziffern)."
         case .groupNotFound: return "Keine Lerngruppe mit diesem Code an deiner Hochschule."
         case .invalidGroupName: return "Gib der Lerngruppe einen Namen (höchstens 60 Zeichen)."

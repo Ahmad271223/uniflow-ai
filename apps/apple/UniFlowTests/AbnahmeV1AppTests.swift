@@ -37,11 +37,17 @@ final class AbnahmeV1AppTests: XCTestCase {
     // MARK: Navigation, Texte
 
     func testSidebarShowsOnlyAreasWithAFunctionOnTheDevice() {
-        let luh = UFNavItem.visible(local: true, gradesOnDevice: false).map(\.id)
+        let luh = UFNavItem.visible(local: true, gradesOnDevice: false, community: false).map(\.id)
         XCTAssertEqual(luh, ["dashboard", "plan", "timetable", "modules", "files"])
-        let hildesheim = UFNavItem.visible(local: true, gradesOnDevice: true).map(\.id)
+        let hildesheim = UFNavItem.visible(local: true, gradesOnDevice: true, community: false).map(\.id)
         XCTAssertEqual(hildesheim, ["dashboard", "plan", "timetable", "modules", "files", "services"], "Notenspiegel aus dem LSF")
-        XCTAssertEqual(UFNavItem.visible(local: false, gradesOnDevice: false).map(\.id), UFNavItem.main.map(\.id), "eigener Server")
+        // Community nur mit CloudKit-Dienst im Build (iCloud-Container)
+        let withCloud = UFNavItem.visible(local: true, gradesOnDevice: false, community: true).map(\.id)
+        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "files", "community"])
+        XCTAssertEqual(UFNavItem.visible(local: false, gradesOnDevice: false, community: false).map(\.id), UFNavItem.main.map(\.id), "eigener Server")
+        // dieser Testlauf hat keinen Container: der Eintrag fehlt, die Einstellungen sagen ehrlich warum
+        XCTAssertFalse(SolutionSharing.community.isConnected)
+        XCTAssertTrue(CommunityTexts.unavailableHint.contains("kein") && CommunityTexts.unavailableHint.contains("verschlüsselte Datei"))
     }
 
     func testDeleteAccountMentionsPINOnlyWithOwnServer() {
@@ -54,7 +60,12 @@ final class AbnahmeV1AppTests: XCTestCase {
         let device = CommunityPage.text(onDevice: true)
         XCTAssertFalse(device.contains("nichts verlässt"))
         XCTAssertTrue(device.contains("verschlüsselte Datei"))
+        XCTAssertTrue(device.contains("iCloud-Container"), "sagt, was dem Build fehlt")
         XCTAssertFalse(CommunityPage.planned(onDevice: true).contains { $0.hasPrefix("Eigene Lösungen freiwillig teilen") })
+        XCTAssertFalse(CommunityPage.planned(onDevice: true).contains { $0.hasPrefix("Lösungen in der Online-Community veröffentlichen – geplant") },
+                       "nicht mehr 'geplant': programmiert, nur ohne Container nicht verfuegbar")
+        XCTAssertEqual(CommunityPage.howItWorks.count, 3)
+        XCTAssertTrue(CommunityPage.howItWorks.contains { $0.text.contains("„Ebenen“") })
     }
 
     func testReceivedSolutionMessageDependsOnPlus() {

@@ -750,7 +750,8 @@ Datei fortschreiben.
 8. **Community-Dienst:** **Entschieden (26.10.2026): CloudKit für V1** (gehört zum Developer Program, 99 €/Jahr),
    später Supabase – darum alles hinter `CommunityService`. Programmiert in S9b (`wip/community-cloudkit`); der Knopf
    „In der Community veröffentlichen“ ist aktiv, sobald der Build einen iCloud-Container hat (`Config/Team.xcconfig`,
-   `UF_CLOUDKIT_CONTAINER`), sonst „nicht verfügbar“. Offen für den Inhaber: Container und Schema im Developer Program
-   anlegen, Moderation der Meldungen (wer sichtet, Löschfristen), Nutzungsbedingungen/Datenschutzerklärung mit der
-   Community, ob die Kenntnis der Kurs-ID als Berechtigung reicht oder ein Beleg der Hochschule nötig ist
-   (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7).
+   `UF_CLOUDKIT_CONTAINER`), sonst „nicht verfügbar“ und kein Menüpunkt „Community“. **Entschieden (26.10.2026):**
+   die Kenntnis der Kurs-ID oder des Kursnamens reicht als Berechtigung (kein Beleg der Hochschule; eigene Dokumente
+   über den Modulnamen), die Moderation macht der Inhaber im CloudKit Dashboard (Anleitung in
+   `docs/LOESUNGEN-TEILEN.md`, Abschnitt 7). Offen: Container und Schema im Developer Program anlegen, Löschfristen,
+   Nutzungsbedingungen/Datenschutzerklärung mit der Community.

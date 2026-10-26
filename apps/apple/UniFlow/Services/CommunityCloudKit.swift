@@ -9,9 +9,12 @@ import UniFlowCore
 // Sperrliste). Es gehen nie Apple-ID, Name, E-Mail oder Matrikelnummer an den Dienst; `ownerRecordName` ist die
 // CloudKit-Nutzerkennung und dient nur dem Zurueckziehen, Melden und Blockieren.
 //
-// Sichtbarkeit: `CommunityRules` (Kern). Kurs-Schluessel entstehen aus den Kurs-IDs der lokalen Datenbank
-// (`CommunityCourses`); wer die Kurs-ID nicht kennt, findet nichts. Lerngruppen: Mitgliedschaft = Kenntnis des
-// Codes, gemerkt je Container (`CommunityMembership`).
+// Sichtbarkeit: `CommunityRules` (Kern). Kurs-Schluessel entstehen an einer Stelle (`CommunityCourses`) aus den
+// Kurs-IDs, Kurstiteln und Modulnamen der lokalen Datenbank; wer weder Kurs-ID noch Kursnamen kennt, findet nichts
+// (Entscheidung des Inhabers 26.10.2026: das reicht als Berechtigung). Lerngruppen: Mitgliedschaft = Kenntnis des
+// Codes, gemerkt je Container (`CommunityMembership`). Der Besitzer eines Datensatzes ist der Ersteller, den der
+// Dienst selbst setzt (nicht faelschbar); das Feld `ownerRecordName` ist nur Anzeige fuer das Dashboard.
+// Moderation macht der Inhaber im CloudKit Dashboard: `withdrawn` setzen, Datensatz `Ban` fuer gesperrte Nutzer.
 
 /// Lerngruppen und Sperrliste (Zwischenspeicher) dieses Containers in seiner Einstellungs-Suite.
 final class CommunityMembership: @unchecked Sendable {
@@ -51,25 +54,55 @@ final class CommunityMembership: @unchecked Sendable {
     func setBlocked(_ owners: Set<String>) { lock.withLock { defaults?.set(owners.sorted(), forKey: Self.blockedKey) } }
 }
 
-/// Kurse und Dateien aus der lokalen Datenbank des Containers (nur lesen).
+/// Kurs-Schluessel aus der lokalen Datenbank des Containers (nur lesen) – die eine Stelle in der App, an der sie
+/// gebildet werden (`CommunityKeys` im Kern rechnet). Eine Datei aus dem Abgleich bekommt den Schluessel ihrer
+/// Kurs-ID, ein eigenes Dokument den seines Moduls (Name); wer sucht, kennt die Schluessel aller Kurs-IDs,
+/// Kurstitel und Modulnamen seiner Datenbank.
 enum CommunityCourses {
-    /// alle Kurs-IDs (Stud.IP bzw. Learnweb) ausser den eigenen Uploads
-    static func courseIDs(host: LocalBackendHost) async -> Set<String> {
+    /// Kurs-Schluessel des Suchenden: Kurs-IDs (Stud.IP bzw. Learnweb), Kurstitel und Modulnamen, ohne den
+    /// Pseudokurs der eigenen Uploads
+    static func courseKeys(host: LocalBackendHost, university: String) async -> Set<String> {
         guard let backend = try? await host.backend() else { return [] }
         let rows = (try? await backend.context.database.withConnection { c in
-            try c.rows("SELECT id FROM courses WHERE id <> '__user__'")
-        }) ?? []
-        return Set(rows.compactMap { $0["id"]?.string })
+            try (c.rows("SELECT id, title FROM courses WHERE id <> '__user__'"), c.rows("SELECT name FROM modules"))
+        }) ?? ([], [])
+        var keys = Set<String>()
+        for r in rows.0 {
+            if let id = r["id"]?.string { keys.insert(CommunityKeys.courseKey(university: university, courseID: id)) }
+            if let t = r["title"]?.string, let k = CommunityKeys.courseKey(university: university, courseName: t) { keys.insert(k) }
+        }
+        for r in rows.1 {
+            if let n = r["name"]?.string, let k = CommunityKeys.courseKey(university: university, courseName: n) { keys.insert(k) }
+        }
+        return keys
     }
 
-    /// Kurs-ID einer Datei; nil bei eigenen Uploads oder unbekannter Datei
-    static func courseID(fileID: String, host: LocalBackendHost) async -> String? {
+    /// Kurs-Schluessel einer Datei: aus der Kurs-ID (Abgleich) oder, bei eigenen Dokumenten, aus dem Namen des
+    /// Moduls (ueber den Ordner); nil ohne Kurs und Modul oder bei unbekannter Datei
+    static func courseKey(fileID: String, host: LocalBackendHost, university: String) async -> String? {
         guard let backend = try? await host.backend() else { return nil }
         let row = try? await backend.context.database.withConnection { c in
-            try c.rows("SELECT course_id FROM files WHERE id=?", [.text(fileID)]).first
+            try c.rows("""
+                SELECT f.course_id AS course_id, m.name AS module_name FROM files f
+                LEFT JOIN folders fo ON fo.id = f.folder_id LEFT JOIN modules m ON m.id = fo.module_id WHERE f.id=?
+                """, [.text(fileID)]).first
         }
-        guard let id = row?["course_id"]?.string, id != "__user__" else { return nil }
-        return id
+        guard let row else { return nil }
+        if let id = row["course_id"]?.string, id != "__user__" { return CommunityKeys.courseKey(university: university, courseID: id) }
+        guard let name = row["module_name"]?.string else { return nil }
+        return CommunityKeys.courseKey(university: university, courseName: name)
+    }
+
+    /// Kurs-Schluessel eines Moduls aus seiner Detailansicht (`/api/modules/{id}`): alle Kurs-IDs des Moduls und
+    /// sein Name (eigene Dokumente), ohne Dubletten
+    static func courseKeys(module d: JSONValue, university: String) -> [String] {
+        var keys: [String] = []
+        for id in d.list("courses").compactMap({ $0.s("id") }) where id != "__user__" {
+            keys.append(CommunityKeys.courseKey(university: university, courseID: id))
+        }
+        if let name = d["module"]?.s("name"), let k = CommunityKeys.courseKey(university: university, courseName: name) { keys.append(k) }
+        var seen = Set<String>()
+        return keys.filter { seen.insert($0).inserted }
     }
 
     /// Lehrwoche einer Datei aus der Modulansicht (`/api/modules/{id}`, dieselbe Einordnung wie im Moduldetail);
@@ -101,21 +134,26 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
     }
 
     static let maxNote = 500
+    /// Ersteller-Kennung, die CloudKit fuer eigene Datensaetze zurueckgibt (statt der eigenen Nutzerkennung)
+    static let defaultOwner = "__defaultOwner__"
+    /// Vom Inhaber gesperrte Nutzer (`Ban`) werden hoechstens so oft neu geholt
+    static let banRefresh: TimeInterval = 600
 
     let cloud: CommunityCloud?
     let university: UniversityKey
     let membership: CommunityMembership
-    /// Kurs-IDs der lokalen Datenbank (werden zu Kurs-Schluesseln)
-    private let courseIDs: @Sendable () async -> Set<String>
+    /// Kurs-Schluessel des Suchenden (`CommunityCourses.courseKeys`)
+    private let courseKeys: @Sendable () async -> Set<String>
     private let lock = NSLock()
     private var cachedUser: String?
+    private var cachedBans: (owners: Set<String>, at: Date)?
 
     init(cloud: CommunityCloud?, university: UniversityKey, membership: CommunityMembership,
-         courseIDs: @escaping @Sendable () async -> Set<String>) {
+         courseKeys: @escaping @Sendable () async -> Set<String>) {
         self.cloud = cloud
         self.university = university
         self.membership = membership
-        self.courseIDs = courseIDs
+        self.courseKeys = courseKeys
     }
 
     var isConnected: Bool { cloud != nil }
@@ -157,16 +195,35 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         return .server(error.localizedDescription)
     }
 
+    /// Vom Inhaber im Dashboard gesperrte Nutzer (oeffentlicher Datensatz `Ban`, die App schreibt ihn nie); ohne
+    /// Netz die zuletzt geholten, sonst keine
+    private func bannedOwners(_ cloud: CommunityCloud) async -> Set<String> {
+        if let c = lock.withLock({ cachedBans }), Date().timeIntervalSince(c.at) < Self.banRefresh { return c.owners }
+        guard let records = try? await cloud.query(CommunityQuery(type: CommunityRecordType.ban, equals: [:]), in: .publicDB) else {
+            return lock.withLock { cachedBans?.owners ?? [] }
+        }
+        let owners = Set(records.compactMap { $0[Field.owner]?.string }.filter { !$0.isEmpty })
+        lock.withLock { cachedBans = (owners, Date()) }
+        return owners
+    }
+
     private func viewer(_ cloud: CommunityCloud) async -> CommunityViewer {
-        let keys = Set(await courseIDs().map { CommunityKeys.courseKey(university: university.rawValue, courseID: $0) })
         let groups = Set(membership.groups().filter { $0.university == university.rawValue }.map(\.groupKey))
-        return CommunityViewer(university: university.rawValue, courseKeys: keys, groupKeys: groups,
-                               blockedOwners: membership.blocked(), ownerRecordName: await ownerName(cloud))
+        return CommunityViewer(university: university.rawValue, courseKeys: await courseKeys(), groupKeys: groups,
+                               blockedOwners: membership.blocked().union(await bannedOwners(cloud)), ownerRecordName: await ownerName(cloud))
     }
 
     // MARK: Datensaetze
 
-    static func listing(_ r: CommunityRecord) -> CommunityListing? {
+    /// Besitzer eines Datensatzes: der Ersteller, den der Dienst setzt (nicht faelschbar; fuer eigene Datensaetze
+    /// meldet CloudKit `__defaultOwner__`, das ist `me`). Das Feld `ownerRecordName` zaehlt nur, wenn der Dienst
+    /// keinen Ersteller liefert (Nachbau in Tests ohne Anmeldung).
+    static func owner(_ r: CommunityRecord, me: String) -> String {
+        if let c = r.creator, !c.isEmpty { return c == defaultOwner ? me : c }
+        return r[Field.owner]?.string ?? ""
+    }
+
+    static func listing(_ r: CommunityRecord, me: String) -> CommunityListing? {
         guard r.type == CommunityRecordType.solution, let id = r[Field.solutionID]?.string, let fp = r[Field.fingerprint]?.string,
               let uni = r[Field.university]?.string, let vis = r[Field.visibility]?.string.flatMap(CommunityVisibility.init(rawValue:)) else {
             return nil
@@ -174,13 +231,13 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         return CommunityListing(solutionID: id.lowercased(), fingerprint: fp, university: uni, courseKey: r[Field.courseKey]?.string ?? "",
                                 visibility: vis, groupKey: r[Field.groupKey]?.string ?? "", displayName: r[Field.displayName]?.string ?? "",
                                 title: r[Field.title]?.string ?? "", pageCount: r[Field.pageCount]?.int ?? 0, week: r[Field.week]?.int ?? 0,
-                                createdAt: r[Field.createdAt]?.string ?? "", ownerRecordName: r[Field.owner]?.string ?? r.creator ?? "",
+                                createdAt: r[Field.createdAt]?.string ?? "", ownerRecordName: owner(r, me: me),
                                 withdrawn: (r[Field.withdrawn]?.int ?? 0) != 0)
     }
 
     private func summaries(_ records: [CommunityRecord], cloud: CommunityCloud) async -> [CommunitySolutionSummary] {
         let v = await viewer(cloud)
-        return CommunityRules.visible(records.compactMap(Self.listing), to: v)
+        return CommunityRules.visible(records.compactMap { Self.listing($0, me: v.ownerRecordName) }, to: v)
             .map { CommunitySolutionSummary(listing: $0, isOwn: !v.ownerRecordName.isEmpty && $0.ownerRecordName == v.ownerRecordName) }
     }
 
@@ -194,9 +251,9 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         let (cloud, user) = try await signedIn()
         let h = package.header
         let name = CommunityRules.effectiveDisplayName(h.displayName, visibility: options.visibility)
-        // das Paket als Datei fuer das Asset (nur das verschluesselte Paket, keine PDF)
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("community-upload-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // das Paket als Datei fuer das Asset (nur das verschluesselte Paket, keine PDF), im Zwischenspeicher des
+        // Containers (AppTemp: weg nach dem Upload, spaetestens beim naechsten Start)
+        let dir = try AppTemp.fresh("community-upload")
         defer { try? FileManager.default.removeItem(at: dir) }
         let file = dir.appendingPathComponent(SolutionLibrary.fileName(h.solutionID))
         try package.encoded().write(to: file, options: .atomic)
@@ -254,10 +311,11 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
         do { record = try await cloud.fetch(name: solutionID.lowercased(), type: CommunityRecordType.solution, in: .publicDB) } catch {
             throw Self.serviceError(error)
         }
-        guard let record, let listing = Self.listing(record), !listing.withdrawn, let url = record[Field.package]?.asset else {
+        let v = await viewer(cloud)
+        guard let record, let listing = Self.listing(record, me: v.ownerRecordName), !listing.withdrawn, let url = record[Field.package]?.asset else {
             throw CommunityServiceError.notFound
         }
-        guard CommunityRules.isVisible(listing, to: await viewer(cloud)) else { throw CommunityServiceError.notFound }
+        guard CommunityRules.isVisible(listing, to: v) else { throw CommunityServiceError.notFound }
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size <= SolutionLimits.maxPackageBytes else { throw SolutionError.tooLarge }
         let package = try SolutionPackage.decode(try Data(contentsOf: url))
@@ -273,7 +331,7 @@ final class CloudKitCommunityService: CommunityService, @unchecked Sendable {
             guard var record = try await cloud.fetch(name: solutionID.lowercased(), type: CommunityRecordType.solution, in: .publicDB) else {
                 throw CommunityServiceError.notFound
             }
-            guard (record[Field.owner]?.string ?? record.creator) == user else { throw CommunityServiceError.notOwner }
+            guard Self.owner(record, me: user) == user else { throw CommunityServiceError.notOwner }
             record[Field.withdrawn] = .int(1)
             record[Field.package] = nil
             try await cloud.save(record, in: .publicDB)
@@ -423,12 +481,10 @@ extension SolutionSharing {
         await CommunityMatches.shared.remove(solutionID: solutionID)
     }
 
-    /// Geladenes Paket als Datei ablegen, damit der Import denselben Weg nimmt wie "Lösung importieren …"
-    /// (Kopf pruefen, verschluesselt ablegen, mit der eigenen PDF oeffnen, fremde Ebene).
+    /// Geladenes Paket als Datei im Zwischenspeicher des Containers ablegen, damit der Import denselben Weg nimmt wie
+    /// "Lösung importieren …" (Kopf pruefen, verschluesselt ablegen, mit der eigenen PDF oeffnen, fremde Ebene).
     static func writeDownloaded(_ package: SolutionPackage) throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("community-download-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent(SolutionLibrary.fileName(package.header.solutionID))
+        let url = try AppTemp.fresh("community-download").appendingPathComponent(SolutionLibrary.fileName(package.header.solutionID))
         try package.encoded().write(to: url, options: .atomic)
         return url
     }

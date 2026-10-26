@@ -114,7 +114,7 @@ Abschnitt 2a (Tarifwahl: zwei Karten Free / Plus) und in der Startnachricht.
 | Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ |
 | Uni & Noten (QIS: Notenspiegel, Bescheinigungen) – vorerst außerhalb der Tarife, sobald nativ vorhanden (F4) | bald | bald |
 | **Schreiben mit Apple Pencil** (Stift, Marker, Radierer, Lasso), Seiten einfügen/drehen/Papierkorb, Lesezeichen | – | ✓ |
-| **Community**: Lösungen als Datei teilen und im Editor ansehen (S9, `docs/LOESUNGEN-TEILEN.md`); Online-Community folgt (Knopf deaktiviert, „Community-Dienst noch nicht verbunden“) | – | ✓ |
+| **Community über CloudKit** (Plus): Lösungen als Datei teilen und im Editor ansehen (S9) sowie in der Community veröffentlichen, finden, laden, zurückziehen, melden, blockieren, Lerngruppen (S9b, `docs/LOESUNGEN-TEILEN.md` Abschnitt 7); läuft nur in einem Build mit iCloud-Container (Developer Program), sonst sagt die App „nicht verfügbar“ und der Dateiweg bleibt | – | ✓ |
 | **Übung und Skript nebeneinander** + Skriptsuche zur Aufgabe | – | ✓ |
 | Eigene Karteikarten mit Wiederholung | – | ✓ |
 | ab V2: UniFlow-Editor (auf Apple wählbar) | – | ✓ |
@@ -126,8 +126,10 @@ Regeln:
 - **Sperren sichtbar machen:** Gesperrte Funktionen zeigen ein Schloss und führen zur Abo-Seite, statt zu
   verschwinden oder still nichts zu tun.
 - **„bald“ ehrlich kennzeichnen:** Uni & Noten ist in keinem Tarif freigeschaltet, bis es auf dem iPad wirklich
-  funktioniert; von der Community ist nur der Teil freigeschaltet, der ohne Dienst wirklich funktioniert (Lösung als
-  Datei teilen und ansehen, Plus). Veröffentlichen in der Online-Community bleibt deaktiviert – nichts vortäuschen.
+  funktioniert; die Community (Plus) ist über CloudKit umgesetzt und nur in einem Build mit iCloud-Container
+  freigeschaltet – ohne Container erscheint kein Menüpunkt „Community“, der Knopf „In der Community veröffentlichen“
+  bleibt gesperrt und die Einstellungen sagen, warum (nichts vortäuschen); Lösung als Datei teilen und ansehen geht
+  immer.
 - **KI** entfällt vorerst (Abschnitt 6); KI-Funktionen werden weder angeboten noch beworben.
 
 ## 5. Abos technisch (V1)
@@ -163,6 +165,7 @@ Regeln:
 | Thema | Stand |
 |---|---|
 | **Tarife** | **Entschieden (25.10.2026):** nur Free und Plus; Pro entfällt vorerst. Free mit Lernplanung, Plus zusätzlich mit Schreiben (Apple Pencil) und Community (Abschnitt 4) |
+| **Community** | **Entschieden (26.10.2026):** Community über CloudKit (Plus), später tauschbar (Supabase/eigener Dienst hinter `CommunityService`). Berechtigung = Kenntnis der Kurs-ID oder des Kursnamens, keine Bestätigung der Hochschule. Moderation macht der Inhaber im CloudKit Dashboard (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7). Braucht das Developer Program (iCloud-Container) |
 | **Art der 7 Tage** | **Entschieden (25.10.2026):** Apple-Einführungsangebot, 1 Woche gratis auf Plus (Abschnitt 5) |
 | **KI in V1** | **Entschieden (25.10.2026):** KI entfällt vorerst komplett, keine KI-Zeilen und keine KI-Kontingente. KI bräuchte ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App) |
 | **Preise** | Plus 1,99 €/Monat (25.10.2026). Offen: Jahresabo ja/nein |

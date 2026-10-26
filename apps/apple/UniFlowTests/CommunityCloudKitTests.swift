@@ -72,10 +72,10 @@ final class CommunityCloudKitTests: XCTestCase {
         func query(_ q: CommunityQuery, in scope: CommunityScope) async throws -> [CommunityRecord] {
             try check()
             return lock.withLock {
-                records.values.filter { r in
-                    r.type == q.type && key(scope, r.type, r.name) == key(scope, q.type, r.name)
-                        && q.equals.allSatisfy { k, v in r.fields[k] == v }
+                records.filter { entry in
+                    entry.key == key(scope, q.type, entry.value.name) && q.equals.allSatisfy { k, v in entry.value.fields[k] == v }
                 }
+                .map(\.value)
                 .sorted { $0.name < $1.name }
             }
         }
@@ -142,10 +142,14 @@ final class CommunityCloudKitTests: XCTestCase {
         let library: SolutionLibrary
     }
 
-    /// Ein "iPad": eigener Container (Lerngruppen, Sperrliste, Ablage), gemeinsame Datenbank
-    private func device(_ cloud: FakeCommunityCloud?, university: UniversityKey = .luh, courses: Set<String> = ["kurs-1"]) throws -> Device {
+    /// Ein "iPad": eigener Container (Lerngruppen, Sperrliste, Ablage), gemeinsame Datenbank. `courses` sind Kurs-IDs,
+    /// `courseNames` Kurstitel bzw. Modulnamen der lokalen Datenbank (werden zu Kurs-Schluesseln)
+    private func device(_ cloud: FakeCommunityCloud?, university: UniversityKey = .luh, courses: Set<String> = ["kurs-1"],
+                        courseNames: Set<String> = []) throws -> Device {
         let membership = CommunityMembership(defaults: suite())
-        let service = CloudKitCommunityService(cloud: cloud, university: university, membership: membership, courseIDs: { courses })
+        let keys = Set(courses.map { CommunityKeys.courseKey(university: university.rawValue, courseID: $0) })
+            .union(courseNames.compactMap { CommunityKeys.courseKey(university: university.rawValue, courseName: $0) })
+        let service = CloudKitCommunityService(cloud: cloud, university: university, membership: membership, courseKeys: { keys })
         let fallback = try cloud ?? FakeCommunityCloud(assetDir: tempDir())
         return Device(cloud: fallback, membership: membership, service: service, library: SolutionLibrary(root: try tempDir()))
     }
@@ -238,8 +242,9 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertEqual(entry.solutionID, pub.solutionID)
         XCTAssertEqual(entry.publishedAt, SolutionPackage.timestamp(pub.publishedAt))
         XCTAssertEqual(SharedSolutionsSheet.status(entry), "veröffentlicht am \(ForeignSolutionLayer.date(entry.publishedAt!))")
-        // die hochgeladene Datei ist nach dem Senden weg
-        XCTAssertFalse(FileManager.default.fileExists(atPath: FileManager.default.temporaryDirectory.appendingPathComponent("community-upload-x").path))
+        // die hochgeladene Datei (Zwischenspeicher des Containers, AppTemp) ist nach dem Senden weg
+        let uploads = AppTemp.folder(container: nil).appendingPathComponent("community-upload", isDirectory: true)
+        XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: uploads.path))?.count ?? 0, 0)
         // anonym: Pseudonym wird nie uebertragen
         let anon = try await d.service.publish(try package(pdf: makePDFData(marker: "B2"), displayName: "Lea"),
                                                options: .init(visibility: .anonymous, title: "B2"))
@@ -354,9 +359,11 @@ final class CommunityCloudKitTests: XCTestCase {
         cloud.user = "_user-ada"
         await expect(.notFound) { _ = try await ada.service.download(solutionID: id) }
         await expect(.notFound) { _ = try await ada.service.download(solutionID: UUID().uuidString.lowercased()) }
-        // keine Aufraeum-Reste
+        // keine Aufraeum-Reste: das geladene Paket lag im Zwischenspeicher des Containers (AppTemp) und ist weg
+        let downloads = AppTemp.folder(container: nil).appendingPathComponent("community-download", isDirectory: true)
+        XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: downloads.path))?.count ?? 0, 0)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: FileManager.default.temporaryDirectory.path)
-            .filter { $0.hasPrefix("community-download-") }.count, 0)
+            .filter { $0.hasPrefix("community-download-") }.count, 0, "nicht mehr im gemeinsamen tmp-Ordner")
     }
 
     // MARK: Zurueckziehen, Melden, Blockieren
@@ -536,6 +543,174 @@ final class CommunityCloudKitTests: XCTestCase {
         XCTAssertEqual(CommunityCourses.week(fileID: "f9", module: module), 0)
     }
 
+    // MARK: Kurs-Schluessel aus Kurs-ID oder Kursname (Entscheidung des Inhabers 26.10.2026)
+
+    func testOwnDocumentPublishesUnderModuleNameAndCourseTitleFindsIt() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let pdf = makePDFData()
+        let fp = cipher.sha256Hex(pdf)
+        // Ben hat ein eigenes Dokument im Modul "Analysis I" (keine Kurs-ID): Sichtbarkeit Modul ueber den Namen
+        cloud.user = "_user-ben"
+        let ben = try device(cloud, courses: [], courseNames: ["Analysis I"])
+        let nameKey = try XCTUnwrap(CommunityKeys.courseKey(university: "luh", courseName: "Analysis I"))
+        let id = try await ben.service.publish(try package(pdf: pdf), options: .init(visibility: .module, courseKey: nameKey)).solutionID
+        XCTAssertFalse(String(describing: cloud.all(CommunityRecordType.solution).first?.fields).contains("Analysis"), "Kursname nur als Schluessel")
+        // Ada hat den Stud.IP-Kurs "analysis i" (andere Schreibweise) – findet sie
+        cloud.user = "_user-ada"
+        let ada = try device(cloud, courses: ["kurs-7"], courseNames: ["ANALYSIS I"])
+        let found = try await ada.service.findMatching(fingerprint: fp).map(\.solutionID)
+        XCTAssertEqual(found, [id])
+        let course = try await ada.service.findForCourse(courseKey: nameKey).map(\.solutionID)
+        XCTAssertEqual(course, [id])
+        // Eve kennt weder Kurs noch Namen: nichts
+        let eve = try device(cloud, courses: ["kurs-7"], courseNames: ["Analysis II"])
+        let none = try await eve.service.findMatching(fingerprint: fp)
+        XCTAssertEqual(none, [])
+        // Schluessel eines Moduls aus der Detailansicht: Kurs-IDs und Name, ohne Dubletten und ohne den Pseudokurs
+        let detail: JSONValue = ["module": ["name": "Analysis I"], "courses": [["id": "kurs-7"], ["id": "__user__"], ["id": "kurs-7"]]]
+        XCTAssertEqual(CommunityCourses.courseKeys(module: detail, university: "luh"),
+                       [CommunityKeys.courseKey(university: "luh", courseID: "kurs-7"), nameKey])
+        XCTAssertEqual(CommunityCourses.courseKeys(module: ["module": ["name": "  "]], university: "luh"), [])
+    }
+
+    func testCourseKeysComeFromTheLocalDatabase() async throws {
+        let root = try tempDir()
+        let host = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-10-26T14:30:05")!)
+        let backend = try await host.backend()
+        try await backend.context.database.withConnection { c in
+            try c.execute("INSERT INTO courses(id, title, kind, active) VALUES ('kurs-1', 'Lineare Algebra (WS 2026/27)', 'vorlesung', 1)")
+            try c.execute("INSERT INTO modules(id, name, created_at) VALUES (5, 'Analysis I', '2026-10-26')")
+            try c.execute("INSERT INTO folders(id, name, parent_id, module_id, created_at) VALUES (9, 'Eigene Notizen', NULL, 5, '2026-10-26')")
+            try c.execute("INSERT INTO files(id, course_id, name, folder_id) VALUES ('f-studip', 'kurs-1', 'Blatt 1.pdf', NULL)")
+            try c.execute("INSERT INTO files(id, course_id, name, folder_id) VALUES ('f-own', '__user__', 'Notizbuch', 9)")
+            try c.execute("INSERT INTO files(id, course_id, name, folder_id) VALUES ('f-loose', '__user__', 'Lose.pdf', NULL)")
+        }
+        let idKey = CommunityKeys.courseKey(university: "luh", courseID: "kurs-1")
+        let titleKey = try XCTUnwrap(CommunityKeys.courseKey(university: "luh", courseName: "Lineare Algebra (WS 2026/27)"))
+        let moduleKey = try XCTUnwrap(CommunityKeys.courseKey(university: "luh", courseName: "Analysis I"))
+        // Datei aus dem Abgleich: Kurs-ID; eigenes Dokument: Modulname; ohne beides: nichts
+        let studip = await CommunityCourses.courseKey(fileID: "f-studip", host: host, university: "luh")
+        XCTAssertEqual(studip, idKey)
+        let own = await CommunityCourses.courseKey(fileID: "f-own", host: host, university: "luh")
+        XCTAssertEqual(own, moduleKey)
+        let loose = await CommunityCourses.courseKey(fileID: "f-loose", host: host, university: "luh")
+        XCTAssertNil(loose)
+        let unknown = await CommunityCourses.courseKey(fileID: "nope", host: host, university: "luh")
+        XCTAssertNil(unknown)
+        // der Suchende kennt Kurs-IDs, Kurstitel und Modulnamen, nicht den Pseudokurs
+        let keys = await CommunityCourses.courseKeys(host: host, university: "luh")
+        XCTAssertEqual(keys, [idKey, titleKey, moduleKey])
+        XCTAssertFalse(keys.contains(CommunityKeys.courseKey(university: "luh", courseID: "__user__")))
+    }
+
+    // MARK: Besitzer vom Dienst, Sperren durch den Inhaber
+
+    func testOwnerIsTheCreatorSetByTheServiceNotTheField() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let pdf = makePDFData()
+        let fp = cipher.sha256Hex(pdf)
+        // Eve veroeffentlicht und faelscht danach das Feld ownerRecordName auf Ben
+        cloud.user = "_user-eve"
+        let eve = try device(cloud)
+        let id = try await eve.service.publish(try package(pdf: pdf), options: .init(visibility: .anonymous)).solutionID
+        for (k, stored) in cloud.records where stored.name == id {
+            var r = stored
+            r[CloudKitCommunityService.Field.owner] = .string("_user-ben")
+            cloud.records[k] = r
+        }
+        // Ben sieht sie nicht als eigene, Ada ordnet sie Eve zu und kann Eve blockieren
+        cloud.user = "_user-ben"
+        let ben = try device(cloud)
+        let seenByBen = try await ben.service.findMatching(fingerprint: fp)
+        XCTAssertEqual(seenByBen.map(\.isOwn), [false])
+        XCTAssertEqual(seenByBen.first?.ownerRecordName, "_user-eve")
+        await expect(.notOwner) { try await ben.service.withdraw(solutionID: id) }
+        cloud.user = "_user-ada"
+        let ada = try device(cloud)
+        try await ada.service.block(owner: "_user-eve")
+        let hidden = try await ada.service.findMatching(fingerprint: fp)
+        XCTAssertEqual(hidden, [])
+        // Eve selbst darf zurueckziehen
+        cloud.user = "_user-eve"
+        try await eve.service.withdraw(solutionID: id)
+        XCTAssertEqual(cloud.all(CommunityRecordType.solution).first?["withdrawn"]?.int, 1)
+        // CloudKit meldet fuer eigene Datensaetze "__defaultOwner__": das ist der Nutzer selbst
+        var r = CommunityRecord(type: CommunityRecordType.solution, name: "x", creator: CloudKitCommunityService.defaultOwner)
+        r[CloudKitCommunityService.Field.owner] = .string("_user-eve")
+        XCTAssertEqual(CloudKitCommunityService.owner(r, me: "_user-ada"), "_user-ada")
+        r.creator = nil
+        XCTAssertEqual(CloudKitCommunityService.owner(r, me: "_user-ada"), "_user-eve", "ohne Ersteller zaehlt das Feld")
+    }
+
+    func testBanFromDashboardHidesUserEverywhere() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let pdf = makePDFData()
+        let fp = cipher.sha256Hex(pdf)
+        cloud.user = "_user-ben"
+        let ben = try device(cloud)
+        let id = try await ben.service.publish(try package(pdf: pdf), options: .init(visibility: .anonymous)).solutionID
+        cloud.user = "_user-ada"
+        let visible = try await device(cloud).service.findMatching(fingerprint: fp).map(\.solutionID)
+        XCTAssertEqual(visible, [id])
+        // der Inhaber legt im Dashboard einen Ban-Datensatz an (die App schreibt ihn nie)
+        cloud.user = "_owner"
+        var ban = CommunityRecord(type: CommunityRecordType.ban, name: "ban-_user-ben")
+        ban[CloudKitCommunityService.Field.owner] = .string("_user-ben")
+        try await cloud.save(ban, in: .publicDB)
+        cloud.user = "_user-ada"
+        let ada = try device(cloud)
+        let afterBan = try await ada.service.findMatching(fingerprint: fp)
+        XCTAssertEqual(afterBan, [])
+        await expect(.notFound) { _ = try await ada.service.download(solutionID: id) }
+        XCTAssertEqual(ada.membership.blocked(), [], "Ban ist keine eigene Sperre")
+        // Ben sieht seine eigene weiterhin (und kann sie zurueckziehen)
+        cloud.user = "_user-ben"
+        let own = try await ben.service.findMatching(fingerprint: fp).map(\.isOwn)
+        XCTAssertEqual(own, [true])
+        XCTAssertEqual(cloud.all(CommunityRecordType.ban).count, 1)
+    }
+
+    // MARK: Ablauf ueber zwei iPads
+
+    func testFlowPublishFindLoadWithdraw() async throws {
+        let cloud = FakeCommunityCloud(assetDir: try tempDir())
+        let pdf = makePDFData()
+        let fp = cipher.sha256Hex(pdf)
+        let matches = CommunityMatches.shared
+        matches.invalidate()
+        // Ben veroeffentlicht fuer seinen Kurs
+        cloud.user = "_user-ben"
+        let ben = try device(cloud)
+        let src = SolutionSource(document: try ownDocument(text: "Lösungsweg"), originalPDF: pdf, pdf: PDFDocument(data: pdf)!,
+                                 fingerprint: fp, images: [:], title: "Übungsblatt 3")
+        let pub = try await SolutionSharing.publishToCommunity(src, keys: ["p1"], displayName: "Ben",
+                                                               options: .init(visibility: .module, courseKey: courseKey("kurs-1"), title: "Übungsblatt 3"),
+                                                               service: ben.service, library: ben.library)
+        // Ada (gleicher Kurs) findet sie beim Oeffnen des Blatts, laedt sie und sieht die fremde Ebene
+        cloud.user = "_user-ada"
+        let ada = try device(cloud)
+        let found = try await matches.load(fingerprint: fp, service: ada.service, force: true)
+        XCTAssertEqual(found.map(\.solutionID), [pub.solutionID])
+        XCTAssertEqual(CommunityTexts.matches(found.count), "1 Lösung aus der Community zu diesem Blatt")
+        let store = try await makeStore(pdf: pdf)
+        guard case .shown = try await store.importFromCommunity(pub.solutionID, service: ada.service, library: ada.library) else {
+            return XCTFail("nicht angezeigt")
+        }
+        let layers = await store.solutionLayers(library: ada.library).layers
+        XCTAssertEqual(layers.map(\.id), [pub.solutionID])
+        XCTAssertEqual(layers.first?.displayName, "Ben")
+        // Ben zieht zurueck: aus dem Zwischenspeicher sofort, beim Dienst als zurueckgezogen, Ada findet nichts mehr
+        cloud.user = "_user-ben"
+        try await SolutionSharing.withdrawFromCommunity(pub.solutionID, service: ben.service, library: ben.library)
+        XCTAssertEqual(matches.cached(fp), [])
+        cloud.user = "_user-ada"
+        let again = try await matches.load(fingerprint: fp, service: ada.service, force: true)
+        XCTAssertEqual(again, [])
+        // die schon geladene Ebene bleibt bei Ada (ehrlich im Dialog gesagt)
+        let still = await store.solutionLayers(library: ada.library).layers
+        XCTAssertEqual(still.map(\.id), [pub.solutionID])
+    }
+
     // MARK: Dokument fuer den Import
 
     private func makeStore(pdf: Data) async throws -> DocumentStore {
@@ -543,7 +718,7 @@ final class CommunityCloudKitTests: XCTestCase {
         let host = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-10-26T14:30:05")!)
         let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
         let fileID = "community-test-" + UUID().uuidString.prefix(8).lowercased()
-        let pdfURL = AppPaths.pdfDirectory(api.namespace, root: root).appendingPathComponent(fileID + ".pdf")
+        let pdfURL = AppPaths.pdf(fileID, namespace: api.namespace, root: root)
         try FileManager.default.createDirectory(at: pdfURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try pdf.write(to: pdfURL)
         let file = LibFile(id: fileID, name: "Blatt.pdf", title: "Blatt", kind: "pdf", module_id: nil, subject: nil, doc_type: nil,
@@ -551,6 +726,7 @@ final class CommunityCloudKitTests: XCTestCase {
         let store = DocumentStore(file: file, api: api, root: root)
         await store.load()
         XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(store.originalPDFURL, pdfURL)
         return store
     }
 }

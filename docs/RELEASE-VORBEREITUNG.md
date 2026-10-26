@@ -129,8 +129,8 @@ Code und Build (umgesetzt, Stand Abnahme 26.10.2026):
 - [x] Debug-Schalter (-UFPlan, -UFNoServer, -UFUniversity, -UFOnboarding, eigener Server, Debug-Konto, Reiter
       „Entwicklung“) im Release gesperrt; Abo nur über StoreKit; „Konto löschen“ vorhanden
 - [x] Release-Prüfung Team/SIWA als Skriptphase
-- [x] Seitenleiste ohne Platzhalter-Bereiche ohne PC (Tests & Wiederholung, Community; Uni & Noten nur mit Notenspiegel
-      auf dem Gerät)
+- [x] Seitenleiste ohne Platzhalter-Bereiche ohne PC (Tests & Wiederholung; Community nur mit iCloud-Container im Build,
+      sonst ehrlicher Hinweis in den Einstellungen; Uni & Noten nur mit Notenspiegel auf dem Gerät)
 - [ ] Icon ohne Transparenz, alle Größen generiert (am Mac prüfen)
 - [ ] Gerätetest mit Apple Pencil (`MAC-IPAD-CHECKLISTE.md`)
 - [ ] StoreKit: nur Testkonfiguration im Build, echte Produkte erst nach Freigabe
@@ -142,7 +142,11 @@ Inhaber:
       ersten Version einreichen
 - [ ] Vertrag für kostenpflichtige Apps mit Bank- und Steuerdaten
 - [ ] URLs für Datenschutzerklärung, EULA, Impressum und Support (in App und App Store Connect)
-- [ ] App-Datenschutzangaben, Exportkontrolle (`ITSAppUsesNonExemptEncryption`), Altersfreigabe
+- [ ] App-Datenschutzangaben (mit Community: „Andere Nutzerinhalte“, nicht verknüpft, kein Tracking – wie im Privacy
+      Manifest), Exportkontrolle (`ITSAppUsesNonExemptEncryption`), Altersfreigabe
+- [ ] Community: iCloud-Container `iCloud.de.uniflow.ai`, `UF_CLOUDKIT_CONTAINER` in `Team.xcconfig`, Schema und
+      Indizes, Security Role für `Ban` (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7); ohne Container bleibt der Build
+      ehrlich („nicht verfügbar“, kein Menüpunkt)
 - [ ] Bildschirmfotos iPad 13" ohne echte Namen und Noten
 - [ ] Review-Notes: Weg für die Prüfung ohne Uni-Konto (Demo-Modus S10 ist nicht umgesetzt, Entscheidung offen),
       Begründung der Pflichtanmeldung (Datentrennung je Konto und Hochschule), keine Token/kein Serverkonto, Erlaubnisse

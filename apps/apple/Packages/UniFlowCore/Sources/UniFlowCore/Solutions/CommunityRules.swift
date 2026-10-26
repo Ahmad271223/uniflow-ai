@@ -1,14 +1,53 @@
 import Foundation
 
 // Schluessel und Sichtbarkeitsregeln der Community als reine Funktionen (docs/LOESUNGEN-TEILEN.md, Abschnitt 7).
-// Der Dienst (CloudKit in der App, spaeter tauschbar) speichert nur Schluessel, nie Kurs-IDs oder Beitrittscodes im
-// Klartext: Wer die Kurs-ID oder den Code nicht kennt, kann den Schluessel nicht bilden und findet nichts.
+// Der Dienst (CloudKit in der App, spaeter tauschbar) speichert nur Schluessel, nie Kurs-IDs, Kursnamen oder
+// Beitrittscodes im Klartext: Wer die Kurs-ID bzw. den Kursnamen oder den Code nicht kennt, kann den Schluessel nicht
+// bilden und findet nichts. Entscheidung des Inhabers (26.10.2026): diese Kenntnis reicht als Berechtigung, eine
+// Bestaetigung der Hochschule gibt es nicht.
 
-/// Schluesselbildung (SHA-256, 64 Hexziffern).
+/// Schluesselbildung (SHA-256, 64 Hexziffern). Die einzige Stelle, an der Kurs- und Gruppen-Schluessel entstehen;
+/// ein anderer Dienst (V2) muss dieselben Schluessel bilden.
 public enum CommunityKeys {
     /// Kurs-Schluessel aus Hochschule und Stud.IP- bzw. Learnweb-Kurs-ID. Nur Kursmitglieder kennen die Kurs-ID.
     public static func courseKey(university: String, courseID: String) -> String {
         SolutionSHA256.hex(Data(("uniflow.community.course.v1\u{0}" + university + "\u{0}" + courseID).utf8))
+    }
+
+    /// Kurs-Schluessel aus Hochschule und normalisiertem Kursnamen (eigene Dokumente ohne Kurs-ID: der Name des
+    /// Moduls; beim Suchenden auch die Titel seiner Kurse). Eigener Namensraum, damit ein Name nie mit einer Kurs-ID
+    /// zusammenfaellt. nil, wenn vom Namen nichts uebrig bleibt.
+    public static func courseKey(university: String, courseName: String) -> String? {
+        let name = normalizedCourseName(courseName)
+        guard !name.isEmpty else { return nil }
+        return SolutionSHA256.hex(Data(("uniflow.community.coursename.v1\u{0}" + university + "\u{0}" + name).utf8))
+    }
+
+    /// Kursname fuer den Schluessel: Kleinbuchstaben, Umlaute und Eszett ausgeschrieben (ae, oe, ue, ss), nur
+    /// Buchstaben und Ziffern, dazwischen je ein Leerzeichen ("Analysis I (WS 2026/27)" und "analysis i - ws 2026/27"
+    /// ergeben dasselbe).
+    /// Ohne Foundation-Faltung, damit Kern und ein spaeterer Dienst gleich rechnen.
+    public static func normalizedCourseName(_ raw: String) -> String {
+        var out = ""
+        var pendingSpace = false
+        for ch in raw.lowercased() {
+            let mapped: String
+            switch ch {
+            case "ä": mapped = "ae"
+            case "ö": mapped = "oe"
+            case "ü": mapped = "ue"
+            case "ß": mapped = "ss"
+            default: mapped = ch.isLetter || ch.isNumber ? String(ch) : ""
+            }
+            if mapped.isEmpty {
+                pendingSpace = !out.isEmpty
+            } else {
+                if pendingSpace { out += " " }
+                pendingSpace = false
+                out += mapped
+            }
+        }
+        return out
     }
 
     /// Gruppen-Schluessel aus Hochschule und Beitrittscode (normalisiert).
@@ -80,7 +119,8 @@ public struct CommunityListing: Equatable, Sendable {
     }
 }
 
-/// Wer sucht: Hochschule, bekannte Kurs-Schluessel (alle Kurse der lokalen Datenbank), Lerngruppen und Sperrliste.
+/// Wer sucht: Hochschule, bekannte Kurs-Schluessel (Kurs-IDs, Kurstitel und Modulnamen der lokalen Datenbank),
+/// Lerngruppen und Sperrliste (eigene Sperrliste plus die vom Inhaber gesperrten Nutzer, Datensatz `Ban`).
 public struct CommunityViewer: Equatable, Sendable {
     public var university: String
     public var courseKeys: Set<String>

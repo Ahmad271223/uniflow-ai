@@ -2,8 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   Datenschutz-Manifest der App (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 7; docs/RELEASE-VORBEREITUNG.md).
-  V1 laeuft ohne Server: Anmeldung mit Apple, Kaeufe (StoreKit), Stud.IP-/Learnweb-Daten, Notizen und Lernplan
-  bleiben auf dem Geraet; UniFlow erhebt nichts (nichts wird an UniFlow oder Dritte gesendet), kein Tracking.
+  V1 laeuft ohne eigenen Server: Anmeldung mit Apple, Kaeufe (StoreKit), Stud.IP-/Learnweb-Daten, Notizen und
+  Lernplan bleiben auf dem Geraet; kein Tracking. Einzige Ausnahme ist die Community (Plus, nur in einem Build mit
+  iCloud-Container, docs/LOESUNGEN-TEILEN.md Abschnitt 7): Wer eine Loesung veroeffentlicht, laedt freiwillig seine
+  eigenen Notizen (verschluesselt), ein Pseudonym und Kopfdaten in die oeffentliche CloudKit-Datenbank des Inhabers
+  (NSPrivacyCollectedDataTypeOtherUserContent, nicht mit der Identitaet verknuepft, kein Tracking). Nie Apple-ID,
+  Name, E-Mail oder Kurs-ID.
   Genutzte APIs mit Begruendungspflicht:
   - UserDefaults (CA92.1): Einstellungen nur dieser App (je Container eine eigene Suite)
   - Datei-Zeitstempel (C617.1): Alter der Antworten im Zwischenspeicher im App-Container (ResponseCache)
@@ -18,7 +22,20 @@
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>

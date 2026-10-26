@@ -589,14 +589,17 @@ struct DocumentView: View {
                     }
                     Button { importingSolution = true } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
                 }
-                Section("Community") {
-                    Button {
-                        if let fp = communityFingerprint { solutionSheet = .community(fp) }
-                    } label: {
-                        Label(communityMatches.isEmpty ? "Community durchsuchen …" : CommunityTexts.matches(communityMatches.count) + " …",
-                              systemImage: "person.2")
+                // nur mit CloudKit-Dienst im Build (sonst kein Platzhalter; die Einstellungen sagen, warum)
+                if SolutionSharing.community.isConnected {
+                    Section("Community") {
+                        Button {
+                            if let fp = communityFingerprint { solutionSheet = .community(fp) }
+                        } label: {
+                            Label(communityMatches.isEmpty ? "Community durchsuchen …" : CommunityTexts.matches(communityMatches.count) + " …",
+                                  systemImage: "person.2")
+                        }
+                        .disabled(communityFingerprint == nil)
                     }
-                    .disabled(communityFingerprint == nil)
                 }
             } else {
                 Button { solutionSheet = .locked } label: { Label("Lösungen anderer ansehen (Plus)", systemImage: "lock") }
@@ -645,8 +648,8 @@ struct DocumentView: View {
         if !unseen.isEmpty, actionError == nil { actionError = unseen.map(\.text).joined(separator: "\n") }
     }
 
-    /// Treffer aus der Community zu dieser PDF (nur mit Plus; ohne Dienst im Build bleibt der Eintrag im Ebenen-Menue
-    /// und das Blatt erklaert "nicht verfügbar"; Fehler bleiben still, die Liste zeigt sie)
+    /// Treffer aus der Community zu dieser PDF (nur mit Plus und Dienst im Build; Fehler bleiben still, die Liste
+    /// zeigt sie beim Oeffnen des Blatts)
     private func loadCommunityMatches() async {
         guard entitlements.allows(.community), store.pdf != nil, !readOnly, let fp = await store.originalFingerprint() else { return }
         communityFingerprint = fp

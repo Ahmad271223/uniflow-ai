@@ -23,6 +23,25 @@ final class CommunityRulesTests: XCTestCase {
         XCTAssertEqual(k, SolutionSHA256.hex(Data("uniflow.community.course.v1\u{0}luh\u{0}abc123".utf8)))
     }
 
+    /// Entscheidung des Inhabers (26.10.2026): Kenntnis des Kursnamens reicht – eigene Dokumente ohne Kurs-ID bekommen
+    /// den Schluessel ihres Modulnamens, normalisiert, in einem eigenen Namensraum
+    func testCourseKeyFromNameIsNormalizedAndSeparateFromIDKey() throws {
+        XCTAssertEqual(CommunityKeys.normalizedCourseName("  Analysis I (WS 2026/27)  "), "analysis i ws 2026 27")
+        XCTAssertEqual(CommunityKeys.normalizedCourseName("Höhere Mathematik – Übung, Straße"), "hoehere mathematik uebung strasse")
+        XCTAssertEqual(CommunityKeys.normalizedCourseName("ANALYSIS   I"), "analysis i")
+        XCTAssertEqual(CommunityKeys.normalizedCourseName(" – ( ) "), "")
+        let k = try XCTUnwrap(CommunityKeys.courseKey(university: luh, courseName: "Analysis I"))
+        XCTAssertTrue(CommunityKeys.isHex64(k))
+        XCTAssertEqual(k, CommunityKeys.courseKey(university: luh, courseName: " analysis   i "), "Schreibweise egal")
+        XCTAssertNotEqual(k, CommunityKeys.courseKey(university: luh, courseName: "Analysis II"))
+        XCTAssertNotEqual(k, CommunityKeys.courseKey(university: hil, courseName: "Analysis I"), "andere Hochschule")
+        XCTAssertNotEqual(k, CommunityKeys.courseKey(university: luh, courseID: "analysis i"), "Name und Kurs-ID fallen nie zusammen")
+        XCTAssertNil(CommunityKeys.courseKey(university: luh, courseName: "   "))
+        XCTAssertFalse(k.contains("analysis"), "Kursname steht nie im Klartext im Schluessel")
+        // fester Wert: ein anderer Dienst (V2) muss dieselben Schluessel bilden
+        XCTAssertEqual(k, SolutionSHA256.hex(Data("uniflow.community.coursename.v1\u{0}luh\u{0}analysis i".utf8)))
+    }
+
     func testGroupCodeAndKey() {
         var rng = SystemRandomNumberGenerator()
         for _ in 0..<50 {

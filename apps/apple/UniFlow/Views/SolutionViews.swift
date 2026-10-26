@@ -9,7 +9,6 @@ import UniFlowCore
 enum SolutionTexts {
     static let ownNotesOnly = "Geteilt werden nur deine eigenen Notizen – keine Folien, keine Aufgabenstellungen, keine PDF. Teile nur, was du selbst erstellt hast."
     static let examRules = "Bewertete Abgaben (z. B. Hausübungen, Testate, Klausuren): Es gilt die Prüfungsordnung deiner Hochschule. Teile Lösungen dazu nur, wenn es ausdrücklich erlaubt ist."
-    static let communityNotConnected = "Community-Dienst noch nicht verbunden"
     static let communityConfirmTitle = "In der Community veröffentlichen"
     static let pdfExportPrivate = "Die exportierte PDF enthält das Originalmaterial deiner Hochschule (z. B. Folien und Aufgabenstellungen) zusammen mit deinen Notizen. Verwende sie nur privat, z. B. in der Dateien-App, und gib sie nicht weiter. Zum Teilen deiner Notizen gibt es „Lösung teilen …“."
 }
@@ -214,7 +213,7 @@ struct SolutionShareSheet: View {
                 UFButton(publishing ? "Wird veröffentlicht …" : "In der Community veröffentlichen", icon: "users") { confirmingPublish = true }
                     .disabled(!canPublish)
                 if !community.isConnected {
-                    Text(SolutionTexts.communityNotConnected).ufFont(12.8).foregroundStyle(UF.muted)
+                    Text(CommunityTexts.unavailable).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 }
             }
             UFButton(busy ? "Wird erstellt …" : "Als Datei teilen", icon: "download", kind: .primary) { share() }
@@ -270,9 +269,10 @@ struct SolutionShareSheet: View {
         displayName = SolutionDisplayName.load()
         groups = (try? await community.studyGroups()) ?? []
         groupCode = groups.first?.code ?? ""
+        // Kurs-Schluessel aus Kurs-ID oder, bei eigenen Dokumenten, aus dem Modulnamen (eine Stelle: CommunityCourses)
         if let host = ActiveContainer.current?.host, let uni = ActiveContainer.current?.key.university,
-           let course = await CommunityCourses.courseID(fileID: store.file.id, host: host) {
-            courseKey = CommunityKeys.courseKey(university: uni.rawValue, courseID: course)
+           let key = await CommunityCourses.courseKey(fileID: store.file.id, host: host, university: uni.rawValue) {
+            courseKey = key
             week = await CommunityCourses.week(fileID: store.file.id, moduleID: store.file.module_id, api: api)
         } else {
             visibility = .anonymous

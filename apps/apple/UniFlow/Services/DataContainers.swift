@@ -64,9 +64,9 @@ final class ActiveContainer: @unchecked Sendable {
         solutions = SolutionLibrary(root: layout.solutions)
         defaultsSuite = Self.defaultsSuite(layout.identifier)
         defaults = UserDefaults(suiteName: defaultsSuite) ?? appDefaults
-        let localHost = host
+        let localHost = host, university = key.university.rawValue
         community = CloudKitCommunityService(cloud: cloud, university: key.university, membership: CommunityMembership(defaults: defaults),
-                                             courseIDs: { await CommunityCourses.courseIDs(host: localHost) })
+                                             courseKeys: { await CommunityCourses.courseKeys(host: localHost, university: university) })
         credentials = UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope,
                                                 onlyUniversity: key.university)
         cookies = StudIPCookieStore(service: cookieService, container: layout.identifier)

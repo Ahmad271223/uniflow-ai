@@ -15,6 +15,8 @@ enum CommunityRecordType {
     static let report = "Report"
     static let block = "Block"
     static let studyGroup = "StudyGroup"
+    /// vom Inhaber im Dashboard gesperrte Nutzer (nur lesen; Anlegen im Dashboard auf die Rolle des Inhabers beschraenken)
+    static let ban = "Ban"
 }
 
 /// Feldwert eines Datensatzes (nur die Typen, die die Community braucht)

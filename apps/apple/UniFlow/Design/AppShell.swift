@@ -150,12 +150,13 @@ struct UFNavItem: Identifiable {
     ]
 
     /// Eintraege der Seitenleiste. Ohne PC (lokales Backend) nur Bereiche mit Funktion (App Review 2.1/2.2): ohne
-    /// "Tests & Wiederholung" (Wochentests entfallen in V1, eigene Karteikarten "bald"), ohne "Community" (kein Dienst;
-    /// Loesungen teilt man im Editor als Datei) und "Uni & Noten" nur, wo der Notenspiegel auf dem Geraet ankommt
-    /// (`gradesOnDevice`: Uni Hildesheim, LSF); an der LUH zeigte die Seite bis F4 nur "spätere Version".
-    static func visible(local: Bool, gradesOnDevice: Bool) -> [UFNavItem] {
+    /// "Tests & Wiederholung" (Wochentests entfallen in V1, eigene Karteikarten "bald"), "Community" nur, wenn der
+    /// Build einen iCloud-Container hat (`community`: CloudKit-Dienst verfuegbar; sonst teilt man Loesungen im Editor
+    /// als Datei und die Einstellungen sagen ehrlich, warum) und "Uni & Noten" nur, wo der Notenspiegel auf dem
+    /// Geraet ankommt (`gradesOnDevice`: Uni Hildesheim, LSF); an der LUH zeigte die Seite bis F4 nur "spätere Version".
+    static func visible(local: Bool, gradesOnDevice: Bool, community: Bool) -> [UFNavItem] {
         guard local else { return main }
-        return main.filter { $0.id != "exams" && $0.id != "community" && ($0.id != "services" || gradesOnDevice) }
+        return main.filter { $0.id != "exams" && ($0.id != "community" || community) && ($0.id != "services" || gradesOnDevice) }
     }
 
     /// untere Leiste (mobileNav in app.js)
@@ -234,8 +235,10 @@ struct UFSidebar: View {
 
             ScrollView(showsIndicators: false) {                         // .nav scrollt selbst, Fuss bleibt fest
                 VStack(spacing: 4) {
-                    // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): Hochschule ohne Stud.IP
-                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: !studip.offersStudIP)) { item in
+                    // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): Hochschule ohne Stud.IP;
+                    // Community nur mit CloudKit-Dienst des aktiven Containers
+                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: !studip.offersStudIP,
+                                              community: SolutionSharing.community.isConnected)) { item in
                         navRow(item.title, icon: item.icon, active: router.route.navKey == item.id) { router.go(item.route) }
                     }
                 }

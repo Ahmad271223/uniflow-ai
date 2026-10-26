@@ -10,12 +10,15 @@ import UniFlowCore
 /// Feste Texte (auch fuer Tests).
 enum CommunityTexts {
     static let copyright = "In der Community erscheinen nur deine eigenen Notizen – kein Originalmaterial deiner Hochschule (Folien, Aufgabenstellungen, Skripte). Mit dem Veröffentlichen bestätigst du, dass alles von dir stammt."
-    static let visibilityModule = "Sichtbar für alle, die diese Datei über denselben Kurs in Stud.IP bzw. Learnweb haben. Wer den Kurs nicht hat, findet sie nicht."
+    static let visibilityModule = "Sichtbar für alle an deiner Hochschule, die denselben Kurs in Stud.IP bzw. Learnweb haben oder ein Modul mit demselben Namen. Wer den Kurs nicht kennt, findet sie nicht – eine Bestätigung der Hochschule gibt es nicht."
     static let visibilityGroup = "Sichtbar nur für Mitglieder der gewählten Lerngruppe (wer den Beitrittscode kennt)."
     static let visibilityAnonymous = "Sichtbar für alle an deiner Hochschule, die dieselbe PDF haben – ohne Pseudonym."
-    static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Sichtbarkeit und dein Pseudonym – nie Apple-ID, Name, E-Mail oder Matrikelnummer. Öffnen kann die Lösung nur, wer dieselbe PDF hat."
+    static let privacy = "Hochgeladen werden nur das verschlüsselte Paket, Fingerabdruck und Seitenzahl, Sichtbarkeit und dein Pseudonym – nie Apple-ID, Name, E-Mail, Matrikelnummer oder Kurs-ID. Öffnen kann die Lösung nur, wer dieselbe PDF hat."
     static let unavailable = CommunityServiceError.unavailable.localizedDescription
+    /// Einstellungen und Community-Seite ohne iCloud-Container: ehrlich, mit dem Weg, der bleibt
+    static let unavailableHint = "Dieser Build hat keinen iCloud-Container (dafür braucht es das Apple Developer Program). Es wird nichts veröffentlicht und nichts gesucht. Lösungen teilst du weiterhin als verschlüsselte Datei – im Editor unter „Ebenen“."
     static let blockNotice = "Lösungen dieser Person erscheinen für dich nicht mehr. Die Sperrliste ist nur für dich sichtbar und lässt sich in den Einstellungen aufheben."
+    static let reportNotice = "Die Meldung geht an die Moderation von UniFlow. Gemeldet wird nur die Lösung, nicht deine Apple-ID. Schreib keine persönlichen Daten in den Hinweis."
 
     static func matches(_ n: Int) -> String {
         n == 1 ? "1 Lösung aus der Community zu diesem Blatt" : "\(n) Lösungen aus der Community zu diesem Blatt"
@@ -239,8 +242,7 @@ struct CommunityReportDialog: View {
     var body: some View {
         UFDialog("Lösung melden", icon: "flag") {
             VStack(alignment: .leading, spacing: 9.6) {
-                Text("Die Meldung geht an die Moderation von UniFlow. Gemeldet wird nur die Lösung, nicht deine Apple-ID.")
-                    .ufFont(13.12).foregroundStyle(UF.text2)
+                Text(CommunityTexts.reportNotice).ufFont(13.12).foregroundStyle(UF.text2)
                 UFField("Grund") {
                     UFSelect(options: CommunityReportReason.allCases.map { ($0, $0.title) }, selection: $reason, fill: true)
                 }
@@ -271,8 +273,8 @@ struct CommunityReportDialog: View {
 // MARK: - Moduldetail: Community nach Lehrwoche
 
 struct CommunityModulePanel: View {
-    /// Kurse des Moduls (`/api/modules/{id}` → courses[].id)
-    let courseIDs: [String]
+    /// Detailansicht des Moduls (`/api/modules/{id}`): Kurse und Name fuer die Kurs-Schluessel
+    let module: JSONValue
     /// Dateien des Moduls (Titel → Dokument oeffnen) und Wochen (Beschriftung)
     let files: [JSONValue]
     let weeks: [JSONValue]
@@ -311,8 +313,13 @@ struct CommunityModulePanel: View {
                     UFCard { UFSkeleton().frame(height: 120) }
                 }
             }
-            .task(id: courseIDs) { await load() }
+            .task(id: courseKeys) { await load() }
         }
+    }
+
+    /// Kurs-Schluessel des Moduls (Kurs-IDs und Modulname, eine Stelle: CommunityCourses)
+    private var courseKeys: [String] {
+        account.university.map { CommunityCourses.courseKeys(module: module, university: $0.rawValue) } ?? []
     }
 
     private func weekLabel(_ week: Int) -> String {
@@ -344,12 +351,11 @@ struct CommunityModulePanel: View {
     }
 
     private func load() async {
-        guard let uni = account.university?.rawValue else { return }
         error = nil
         do {
             var all: [CommunitySolutionSummary] = []
-            for id in courseIDs where id != "__user__" {
-                all += try await service.findForCourse(courseKey: CommunityKeys.courseKey(university: uni, courseID: id))
+            for key in courseKeys {
+                all += try await service.findForCourse(courseKey: key)
             }
             var seen = Set<String>()
             items = all.filter { seen.insert($0.solutionID).inserted }
@@ -384,7 +390,8 @@ struct CommunitySettingsCard: View {
             UFGate(.community) {
                 VStack(alignment: .leading, spacing: 0) {
                     if !service.isConnected {
-                        Text(CommunityTexts.unavailable).ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 8)
+                        Text(CommunityTexts.unavailableHint).ufFont(13.12).foregroundStyle(UF.warn)
+                            .fixedSize(horizontal: false, vertical: true).padding(.bottom, 8)
                     }
                     Text(CommunityTexts.privacy).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                     if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).padding(.top, 8).fixedSize(horizontal: false, vertical: true) }
