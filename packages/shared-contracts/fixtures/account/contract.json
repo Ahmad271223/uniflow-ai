@@ -166,6 +166,10 @@
    "status": 401,
    "message": "E-Mail-Adresse oder Passwort stimmt nicht."
   },
+  "credentials_missing": {
+   "status": 400,
+   "message": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang)."
+  },
   "email_taken": {
    "status": 409,
    "message": "Für diese E-Mail-Adresse gibt es schon ein Konto."
@@ -180,7 +184,7 @@
   },
   "not_available_hosted": {
    "status": 501,
-   "message": "Der Hochschul-Abgleich im Dienst kommt mit dem naechsten Schritt (Zugangsdaten je Konto)."
+   "message": "KI-Funktionen kommen mit dem KI-Update."
   },
   "not_hosted": {
    "status": 501,
@@ -374,15 +378,29 @@
    "response": []
   },
   {
-   "step": "Im Dienst nicht verfuegbar",
+   "step": "Im Dienst nicht verfuegbar (KI bis zum KI-Update)",
+   "method": "POST",
+   "path": "/api/ai/tutor",
+   "auth": true,
+   "request": {
+    "mode": "explain"
+   },
+   "status": 501,
+   "response": {
+    "detail": "KI-Funktionen kommen mit dem KI-Update.",
+    "code": "not_available_hosted"
+   }
+  },
+  {
+   "step": "Abgleich ohne hinterlegte Hochschul-Zugangsdaten",
    "method": "POST",
    "path": "/api/sync",
    "auth": true,
    "request": null,
-   "status": 501,
+   "status": 400,
    "response": {
-    "detail": "Der Hochschul-Abgleich im Dienst kommt mit dem naechsten Schritt (Zugangsdaten je Konto).",
-    "code": "not_available_hosted"
+    "detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).",
+    "code": "credentials_missing"
    }
   },
   {

@@ -16,11 +16,21 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, config, db, planner, study, timetable, universities
+from . import account_api, accounts, config, db, jobs, planner, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
-app = FastAPI(title="Stud.IP Lern-App")
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def _lifespan(_app):
+    """Gehosteter Modus: Arbeiter und Zeitplan fuer den Hochschul-Abgleich je Konto (app/jobs.py)."""
+    jobs.start_background()
+    yield
+
+
+app = FastAPI(title="Stud.IP Lern-App", lifespan=_lifespan)
 app.include_router(account_api.router)
 db.init_db()
 
@@ -36,9 +46,6 @@ async def _http_error(request, exc: HTTPException):
 # Gehosteter Modus (LERNAPP_MODE=hosted): diese Pfade gibt es dort noch nicht. Sie antworten 501 mit Grund (Regel G6),
 # statt im Dienst mit den Zugangsdaten der .env oder der KI-Kommandozeile des PCs zu arbeiten.
 HOSTED_UNAVAILABLE = (
-    ("POST", "/api/sync", "Der Hochschul-Abgleich im Dienst kommt mit dem naechsten Schritt (Zugangsdaten je Konto)."),
-    ("GET", "/api/credentials", "Hochschul-Zugangsdaten je Konto kommen mit dem naechsten Schritt."),
-    ("PUT", "/api/credentials", "Hochschul-Zugangsdaten je Konto kommen mit dem naechsten Schritt."),
     ("GET", "/api/network", "Gibt es nur auf dem eigenen PC (WLAN-Zugang)."),
     ("POST", "/api/ai/tutor", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/files/{id}/analyze", "KI-Funktionen kommen mit dem KI-Update."),
@@ -50,6 +57,12 @@ HOSTED_UNAVAILABLE = (
 _HOSTED_UNAVAILABLE_RE = [(m, re.compile("^" + "[^/]+".join(re.escape(part) for part in p.split("{id}")) + "$"), why)
                           for m, p, why in HOSTED_UNAVAILABLE]
 _user_dbs_ready: set = set()
+
+
+def _bg() -> dict:
+    """Hintergrundzustand: im Dienst je Konto (Job-Warteschlange), sonst der eine Zustand des PCs."""
+    uid = config.current_user_id()
+    return jobs.bg_state(uid) if uid and config.is_hosted() else _bg_state
 
 
 def hosted_unavailable(method: str, path: str) -> str | None:
@@ -327,11 +340,17 @@ def overview():
         today_items = db.rows(conn, "SELECT * FROM plan_items WHERE week_start=? AND day=? ORDER BY start_time",
                               (ws, today.weekday()))
     return {"new_files": new_files, "recent": recent, "last_sync": last_sync, "counts": counts,
-            "today": today_items, "bg": _bg_state}
+            "today": today_items, "bg": _bg()}
 
 
 @app.post("/api/sync")
 def sync_now(ai: bool = True):
+    if config.is_hosted():
+        uid = config.current_user_id()
+        if not vault.has_university_credentials(uid, config.university()):
+            raise HTTPException(400, {"detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).", "code": "credentials_missing"})
+        j = jobs.enqueue(uid, "sync", "manual")
+        return {"started": "Sync", "job_id": j["id"], "status": j["status"], "already": j["already"]}
     return _run_bg("Sync", _full_sync if ai else lambda: run_sync()["message"])
 
 
@@ -359,7 +378,10 @@ def api_sync_push(body: dict = Body(...)):
 def sync_status():
     with db.cursor() as conn:
         logs = db.rows(conn, "SELECT * FROM sync_log ORDER BY id DESC LIMIT 20")
-    return {"bg": _bg_state, "log": logs}
+    out = {"bg": _bg(), "log": logs}
+    if config.is_hosted():
+        out["jobs"] = jobs.recent(config.current_user_id())
+    return out
 
 
 @app.post("/api/files/mark-seen")
@@ -848,7 +870,7 @@ def put_credentials(body: dict = Body(...)):
 def api_dashboard():
     with db.cursor() as conn:
         d = study.dashboard(conn)
-    d["bg"] = _bg_state
+    d["bg"] = _bg()
     if isinstance(d.get("settings"), dict):
         d["settings"] = _public_settings(d["settings"])
     return d
@@ -1437,6 +1459,12 @@ def api_grades():
 @app.post("/api/grades/sync")
 def api_grades_sync(show: bool = False):
     from . import qis
+    if config.is_hosted():
+        uid = config.current_user_id()
+        if not vault.has_university_credentials(uid, config.university()):
+            raise HTTPException(400, {"detail": "Keine Hochschul-Zugangsdaten hinterlegt (Einstellungen > Zugang).", "code": "credentials_missing"})
+        j = jobs.enqueue(uid, "grades", "manual")
+        return {"started": "Notenspiegel", "job_id": j["id"], "status": j["status"], "already": j["already"]}
     return _run_bg("Notenspiegel", lambda: qis.run(show_browser=show)["message"])
 
 
@@ -1693,7 +1721,7 @@ def api_recording_delete(rec_id: int):
 
 @app.get("/api/bg")
 def bg():
-    return _bg_state
+    return _bg()
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

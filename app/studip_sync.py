@@ -32,6 +32,11 @@ SHIB_LOGIN_URL = (f"{STUDIP_BASE}/Shibboleth.sso/Login?target="
 PROFILE_DIR = DATA_DIR / "browser-profile"       # LUH: data/browser-profile wie bisher
 
 
+def _profile_dir() -> Path:
+    """Browser-Profil: im Dienst je Konto unter dessen Datenordner."""
+    return config.data_dir() / "browser-profile" if config.current_user_id() else PROFILE_DIR
+
+
 def console_print(line: str) -> None:
     """Konsolenausgabe, die nie abbricht: Die Windows-Konsole (cp1252) kennt z. B. U+0308 nicht."""
     try:
@@ -46,7 +51,7 @@ def console_print(line: str) -> None:
 def log(msg: str) -> None:
     line = f"[{db.now_iso()}] {msg}"
     console_print(line)
-    with open(LOG_DIR / "sync.log", "a", encoding="utf-8") as f:
+    with open(config.log_dir() / "sync.log", "a", encoding="utf-8") as f:
         f.write(line + "\n")
 
 
@@ -69,8 +74,8 @@ def login(page: Page) -> None:
         _login(page)
     except Exception:
         try:
-            page.screenshot(path=str(LOG_DIR / "login-fehler.png"), full_page=True)
-            log(f"Login-Fehler, Screenshot: {LOG_DIR / 'login-fehler.png'}  URL: {page.url}")
+            page.screenshot(path=str(config.log_dir() / "login-fehler.png"), full_page=True)
+            log(f"Login-Fehler, Screenshot: {config.log_dir() / 'login-fehler.png'}  URL: {page.url}")
         except Exception:  # noqa: BLE001
             pass
         raise
@@ -132,7 +137,7 @@ def _login(page: Page) -> None:
             page.wait_for_timeout(1500)
 
     if not _is_logged_in(page):
-        shot = LOG_DIR / "login-fehler.png"
+        shot = config.log_dir() / "login-fehler.png"
         page.screenshot(path=str(shot), full_page=True)
         raise RuntimeError(f"Login fehlgeschlagen. Screenshot: {shot}  URL: {page.url}")
     log("Login erfolgreich.")
@@ -583,7 +588,7 @@ def run_studip_sync(show_browser: bool = False) -> dict:
     try:
         with sync_playwright() as p:
             ctx: BrowserContext = p.chromium.launch_persistent_context(
-                str(PROFILE_DIR), headless=not show_browser, accept_downloads=True,
+                str(_profile_dir()), headless=not show_browser, accept_downloads=True,
                 locale="de-DE",
             )
             page = ctx.new_page()

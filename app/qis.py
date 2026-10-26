@@ -49,6 +49,14 @@ def configured(key: str | None = None) -> bool:
     u, p = credentials_for(key)
     return bool(u and p)
 DOC_DIR = DATA_DIR / "qis"
+
+
+def _doc_dir():
+    return config.data_dir() / "qis" if config.current_user_id() else DOC_DIR
+
+
+def _profile_dir(prof: dict):
+    return config.data_dir() / prof["profile_dir"].name if config.current_user_id() else prof["profile_dir"]
 GRADE_HEADERS = {"bezeichnung": "text", "leistung": "text", "prüfungsnr": "pruefungsnr", "nr": "pruefungsnr", "prüfungstext": "text", "text": "text", "semester": "semester", "note": "note",
                  "status": "status", "credits": "credits", "ects": "credits", "bonus": "credits", "versuch": "versuch", "vermerk": "status", "datum": "datum", "prüfungsdatum": "datum"}
 
@@ -57,7 +65,7 @@ def log(msg: str) -> None:
     line = f"[{db.now_iso()}] {msg}"
     from .studip_sync import console_print
     console_print(line)
-    with open(LOG_DIR / "qis.log", "a", encoding="utf-8") as f:
+    with open(config.log_dir() / "qis.log", "a", encoding="utf-8") as f:
         f.write(line + "\n")
 
 
@@ -168,7 +176,7 @@ def fetch_grades(page: Page) -> list[dict]:
         menu_txt = ", ".join(t for t, _ in _links(page)[:40] if t)
         raise RuntimeError(f"'Notenspiegel' nicht gefunden. Sichtbare Menuepunkte: {menu_txt[:300]}")
     try:
-        page.screenshot(path=str(LOG_DIR / "qis-notenspiegel.png"), full_page=True)
+        page.screenshot(path=str(config.log_dir() / "qis-notenspiegel.png"), full_page=True)
     except Exception:  # noqa: BLE001
         pass
     log(f"QIS: Notenspiegel-Seite '{_page_title(page)}' mit {page.locator('table').count()} Tabellen")
@@ -205,7 +213,7 @@ def fetch_grades(page: Page) -> list[dict]:
             except Exception as e:  # noqa: BLE001
                 log(f"Notenspiegel-Unterseite uebersprungen ({t}): {e}"); continue
             try:
-                page.screenshot(path=str(LOG_DIR / f"qis-notenspiegel-{depth + 1}.png"), full_page=True)
+                page.screenshot(path=str(config.log_dir() / f"qis-notenspiegel-{depth + 1}.png"), full_page=True)
             except Exception:  # noqa: BLE001
                 pass
             log(f"QIS: Notenspiegel > {t}: {page.locator('table').count()} Tabellen")
@@ -253,9 +261,9 @@ def _store_pdf(body: bytes, title: str) -> bool:
     title = _clean_title(title)
     if any(_title_key(d["title"]) == _title_key(title) for d in DOCS):
         return True
-    DOC_DIR.mkdir(parents=True, exist_ok=True)
+    _doc_dir().mkdir(parents=True, exist_ok=True)
     fname = re.sub(r"[^\w\-]+", "_", title)[:60].strip("_") or "Dokument"
-    path = DOC_DIR / f"{fname}.pdf"
+    path = _doc_dir() / f"{fname}.pdf"
     path.write_bytes(body)  # gleicher Titel -> Datei wird bei jedem Abruf aktualisiert
     DOCS.append({"title": title, "local_path": str(path)})
     log(f"QIS-Dokument gespeichert: {title}")
@@ -348,7 +356,7 @@ def _click_pdf_links(page: Page, context: str) -> None:
                         if m:
                             r2 = np_.request.get(_abs(m.group(1)), timeout=30000); _store_pdf(r2.body() if r2.ok else b"", title)
                         else:
-                            (LOG_DIR / "qis-pdf-link.html").write_text(html, encoding="utf-8")
+                            (config.log_dir() / "qis-pdf-link.html").write_text(html, encoding="utf-8")
                 finally:
                     try:
                         np_.close()
@@ -363,7 +371,7 @@ def _click_pdf_links(page: Page, context: str) -> None:
                     resp = page.request.get(page.url, timeout=30000)
                     if not _store_pdf(resp.body() if resp.ok else b"", title):
                         html = page.content()
-                        (LOG_DIR / "qis-pdf-link.html").write_text(html, encoding="utf-8")
+                        (config.log_dir() / "qis-pdf-link.html").write_text(html, encoding="utf-8")
                         log(f"QIS: PDF-Link '{title}' fuehrt zu HTML-Seite {page.url[:120]}")
                         for m in re.finditer(r"""(?:src|href|data|content)=["']?([^"'> ]*(?:\.pdf|pdf|download)[^"'> ]*)""", html, flags=re.I):
                             u = m.group(1).replace("&amp;", "&")
@@ -387,7 +395,7 @@ def _click_pdf_links(page: Page, context: str) -> None:
                     if m and _abs(m.group(1)) != _abs(href):
                         r2 = page.request.get(_abs(m.group(1)), timeout=30000); _store_pdf(r2.body() if r2.ok else b"", title)
                     if not any(_title_key(d["title"]) == _title_key(title) for d in DOCS):
-                        (LOG_DIR / "qis-pdf-link.html").write_text(html, encoding="utf-8")
+                        (config.log_dir() / "qis-pdf-link.html").write_text(html, encoding="utf-8")
                         log(f"QIS: PDF-Link '{title}' liefert keine PDF (HTML unter logs/qis-pdf-link.html)")
         except Exception as e:  # noqa: BLE001
             log(f"QIS: PDF-Link '{context}' uebersprungen ({str(e).splitlines()[0][:80]})")
@@ -439,7 +447,7 @@ def fetch_documents(page: Page) -> list[dict]:
     Durchsucht die QIS-Menues (Meine Funktionen, Pruefungsverwaltung, Studiumsverwaltung ...) nach Links, deren Text
     auf ein Dokument hindeutet, folgt ihnen bis Tiefe 2 und laedt alle PDF-Links dort herunter (dedupliziert).
     """
-    DOC_DIR.mkdir(parents=True, exist_ok=True)
+    _doc_dir().mkdir(parents=True, exist_ok=True)
     visited: set[str] = set(); queue: list[tuple[str, str, int]] = []
 
     def enqueue(links, depth):
@@ -521,7 +529,7 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
     else:
         try:
             with sync_playwright() as p:
-                ctx = p.chromium.launch_persistent_context(str(prof["profile_dir"]), headless=not show_browser, locale="de-DE")
+                ctx = p.chromium.launch_persistent_context(str(_profile_dir(prof)), headless=not show_browser, locale="de-DE")
                 page = ctx.new_page()
                 try:
                     login(page, user, pw)
@@ -532,7 +540,7 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
                     msg = f"{len(grades)} Leistungen, {len(docs)} Bescheinigungen" + ("" if grades else " – im Notenspiegel stehen noch keine Leistungen")
                 except Exception as e:  # noqa: BLE001
                     try:
-                        page.screenshot(path=str(LOG_DIR / "qis-fehler.png"), full_page=True)
+                        page.screenshot(path=str(config.log_dir() / "qis-fehler.png"), full_page=True)
                     except Exception:  # noqa: BLE001
                         pass
                     msg = f"FEHLER: {e}"
@@ -545,7 +553,7 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
         if docs:
             conn.execute("DELETE FROM qis_documents")
             keep = {d["local_path"] for d in docs}
-            for f in DOC_DIR.glob("*.pdf"):
+            for f in _doc_dir().glob("*.pdf"):
                 if str(f) not in keep:
                     f.unlink(missing_ok=True)
         for d in docs:

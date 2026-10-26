@@ -313,3 +313,12 @@ Einstellungen). Python: 203 Tests grün.
 
 Nicht im Dienst, bis die PC-Sitzung es nachzieht: Hochschul-Abgleich je Konto (501), Mailversand, Signaturprüfung.
 
+## Nachtrag der PC-Sitzung: Hochschul-Abgleich je Konto im Dienst (26.10.2026, dritte Runde)
+
+Im gehosteten Modus läuft der Abgleich jetzt je Konto: Zugangsdaten verschlüsselt im Tresor (`app/vault.py`), Jobs
+mit Warteschlange, Arbeitern und Zeitplan 08:00/15:00 (`app/jobs.py`), gleicher Sync-Code wie am PC im Kontext des
+Kontos. Für den iPad-Client gegen den Dienst gilt: `PUT /api/credentials` bzw. `PUT /api/credentials/hildesheim`
+speichert am Konto (nie lokal in einer `.env`), `POST /api/sync` liefert `{started, job_id, status}` und `GET
+/api/sync/status` enthält `jobs`; `GET /api/bg` hat zusätzlich `job`. Beschreibung in `docs/VERTRAEGE-KONTO-SYNC.md`,
+Abschnitt „Abgleich je Konto“. Python: 212 Tests grün. Für den lokalen iPad-Abgleich (ohne Dienst) ändert sich nichts.
+

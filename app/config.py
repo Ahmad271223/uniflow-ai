@@ -107,6 +107,19 @@ def university() -> str:
     return ctx[1] if ctx else UNIVERSITY
 
 
+# Zugangsdaten-Abbild der laufenden Aufgabe (Dienst-Job): dict wie die .env. Ohne Kontext und im gehosteten Modus
+# kommen die Werte aus dem Tresor des angemeldeten Kontos (app/vault.py), im Einzelplatzmodus aus der .env.
+_ctx_env: contextvars.ContextVar = contextvars.ContextVar("uniflow_env", default=None)
+
+
+def set_env_context(values: dict | None):
+    return _ctx_env.set(dict(values) if values is not None else None)
+
+
+def reset_env_context(token) -> None:
+    _ctx_env.reset(token)
+
+
 def retire_user_data_dir(user_id: str) -> Path | None:
     """Beim Loeschen eines Kontos: Nutzerordner beiseitelegen (30 Tage), dann `accounts.purge_deleted`."""
     if not _USER_ID_RE.match(user_id or ""):
@@ -140,17 +153,23 @@ PLACEHOLDERS = {"", "DEINE-LUH-ID", "DEIN-WEBSSO-PASSWORT"}
 
 
 def credentials() -> tuple[str, str]:
-    """Liest LUH-ID und Passwort frisch aus der .env (damit Aenderungen zur Laufzeit wirken)."""
-    from dotenv import dotenv_values
-
-    v = dotenv_values(ROOT / ".env", interpolate=False) if (ROOT / ".env").exists() else {}
+    """LUH-ID und Passwort: frisch aus der .env (Einzelplatz) bzw. aus dem Tresor des Kontos (Dienst)."""
+    v = _env()
     user = (v.get("STUDIP_USER") or "").strip()
     pw = (v.get("STUDIP_PASSWORD") or "").strip()
     return ("" if user in PLACEHOLDERS else user, "" if pw in PLACEHOLDERS else pw)
 
 
 def set_env(values: dict) -> None:
-    """Setzt/entfernt Schluessel in der .env (None = Zeile entfernen); andere Zeilen bleiben erhalten."""
+    """Setzt/entfernt Schluessel in der .env (None = Zeile entfernen); andere Zeilen bleiben erhalten.
+    Im gehosteten Modus landen die Werte verschluesselt im Tresor des angemeldeten Kontos, nie in der .env."""
+    uid = current_user_id()
+    if uid and is_hosted():
+        from . import vault
+        vault.set_values(uid, values)
+        if _ctx_env.get() is not None:
+            _ctx_env.set(vault.env_for(uid))
+        return
     path = ROOT / ".env"
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else \
         ((ROOT / ".env.example").read_text(encoding="utf-8").splitlines() if (ROOT / ".env.example").exists() else [])
@@ -187,6 +206,13 @@ def save_credentials(user: str, password: str, prefix: str = "STUDIP") -> None:
 
 
 def _env() -> dict:
+    ctx = _ctx_env.get()
+    if ctx is not None:
+        return dict(ctx)
+    uid = current_user_id()
+    if uid and is_hosted():
+        from . import vault
+        return vault.env_for(uid)
     from dotenv import dotenv_values
     return dotenv_values(ROOT / ".env", interpolate=False) if (ROOT / ".env").exists() else {}
 
@@ -215,6 +241,8 @@ def service_credentials(prefix: str, _depth: int = 0) -> tuple[str, str]:
 
 def configured_university() -> str:
     """UNIVERSITY aus der .env, wie sie beim naechsten Start gilt (kann von der laufenden UNIVERSITY abweichen)."""
+    if is_hosted():
+        return university()                                      # im Dienst steht die Hochschule am Konto
     v = _env().get("UNIVERSITY")
     return normalize_university(v) if v else UNIVERSITY       # nichts in der .env: kein Wechsel vorgemerkt
 

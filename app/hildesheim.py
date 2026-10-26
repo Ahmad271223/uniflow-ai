@@ -20,6 +20,10 @@ from .universities import HILDESHEIM_CAS
 PROFILE_DIR = DATA_DIR / "browser-profile-hildesheim"
 
 
+def _profile_dir() -> Path:
+    return config.data_dir() / "browser-profile-hildesheim" if config.current_user_id() else PROFILE_DIR
+
+
 def learnweb_base() -> str:
     """Learnweb-Instanz des aktuellen Semesters (wechselt jaehrlich), siehe learnweb.discover_base."""
     return learnweb.discover_base(override=config.secret("HILDESHEIM_LEARNWEB_URL") or None)
@@ -147,7 +151,7 @@ def run_sync(show_browser: bool = False) -> dict:
             raise RuntimeError("Zugangsdaten fehlen. Bitte unter Einstellungen > Zugang den UNI-Account "
                                "oder einen Learnweb-Schluessel eintragen.")
         with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(str(PROFILE_DIR), headless=not show_browser, accept_downloads=True, locale="de-DE")
+            ctx = p.chromium.launch_persistent_context(str(_profile_dir()), headless=not show_browser, accept_downloads=True, locale="de-DE")
             try:
                 page = ctx.new_page()
                 client, courses, used_token = _learnweb_client(page, user, pw, token)

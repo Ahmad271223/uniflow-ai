@@ -209,11 +209,15 @@ def test_hosted_register_login_me_logout(hosted):
 
 def test_hosted_local_only_paths_answer_501(hosted):
     _, token, _ = _register(hosted, "k@beispiel.de")
-    for m, p in (("POST", "/api/sync"), ("GET", "/api/credentials"), ("GET", "/api/network"), ("POST", "/api/ai/tutor"),
+    for m, p in (("GET", "/api/network"), ("POST", "/api/ai/tutor"),
                  ("POST", "/api/files/abc/analyze"), ("POST", "/api/tests/generate-week"), ("POST", "/api/plan/generate")):
         st, data, _ = _json(asgi_call(hosted, m, p, headers=_auth(token), body="{}"))
         assert st == 501 and data["code"] == "not_available_hosted", (m, p, st, data)
     assert asgi_call(hosted, "GET", "/api/sync/status", headers=_auth(token))[0] == 200
+    # Abgleich und Zugangsdaten gibt es im Dienst je Konto (tests/test_hosted_sync.py)
+    st, data, _ = _json(asgi_call(hosted, "POST", "/api/sync", headers=_auth(token), body="{}"))
+    assert st == 400 and data["code"] == "credentials_missing"
+    assert asgi_call(hosted, "GET", "/api/credentials", headers=_auth(token))[0] == 200
 
 
 def test_users_are_isolated_in_their_own_databases(hosted):

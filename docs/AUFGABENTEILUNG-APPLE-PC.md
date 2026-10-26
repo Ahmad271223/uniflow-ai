@@ -99,8 +99,8 @@ Reihenfolge nach Wirkung. P0 = vor jeder Abgabe an Tester, P1 = vor dem Store.
 
 Stand 26.10.2026 (zweite Runde): **P1, P2, P3 umgesetzt** (Konten, gehosteter Modus mit Trennung je Konto, Verträge
 G1/G2 mit Fixtures, Download-Reihenfolge und Platzhalter-Regel in Python), Details in `docs/VERTRAEGE-KONTO-SYNC.md`.
-Offen aus P1: Hochschul-Zugangsdaten je Konto und der Abgleich als Dienst-Job, Mailversand, Signaturprüfung Apple/Google,
-Anmeldeseite der Web-Oberfläche.
+Dritte Runde: Hochschul-Abgleich je Konto im Dienst (Tresor `app/vault.py`, Jobs `app/jobs.py`, Zeitplan 08:00/15:00).
+Offen aus P1: Mailversand, Signaturprüfung Apple/Google, Anmeldeseite der Web-Oberfläche.
 
 | # | Prio | Aufgabe | Bericht |
 | --- | --- | --- | --- |

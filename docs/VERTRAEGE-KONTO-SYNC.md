@@ -19,7 +19,8 @@ ihre Clients danach und prüfen gegen dieselben Dateien:
 | Zugang | PC frei, WLAN mit PIN | jede `/api`-Anfrage mit Sitzung (Bearer-Token oder Cookie), sonst 401 |
 | Daten | `data/` bzw. `data/unis/<key>` | `data/users/<UniFlow-ID>/` (LUH) bzw. `.../unis/<key>`, eigene SQLite je Konto |
 | Hochschule | `UNIVERSITY` in der `.env` | am Konto (`POST /api/account/university`); `PUT /api/settings {university}` → 400 `use_account` |
-| Hochschul-Abgleich, Zugangsdaten, WLAN, KI | wie bisher | 501 `not_available_hosted` mit Grund (nächster Schritt: Zugangsdaten je Konto; KI mit dem KI-Update) |
+| Hochschul-Abgleich, Zugangsdaten | `.env`, Hintergrundlauf des PCs | je Konto: Tresor + Dienst-Jobs (Abschnitt „Abgleich je Konto“) |
+| WLAN-Zugang, KI | wie bisher | 501 `not_available_hosted` mit Grund (KI mit dem KI-Update) |
 
 Die Trennung je Konto ist strukturell: jedes Konto hat eine eigene Datenbankdatei und einen eigenen Dateiordner
 (`config.data_dir()` aus dem Nutzerkontext der Anfrage). Es gibt keine Abfrage, die eine `user_id` vergessen könnte.
@@ -41,6 +42,33 @@ Herkunftsprüfung (`same_origin_guard`) bleibt aktiv: Änderungen aus dem Browse
 senden kein `Origin`. Betriebsbefehle: `python -m app.accounts list`, `reset-token <email>` (Reset-Token, solange
 kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfunktion), `purge` (Konten, die seit
 30 Tagen gelöscht sind, endgültig entfernen; per Cron täglich).
+
+## Abgleich je Konto (gehostet)
+
+- **Tresor** (`app/vault.py`): die Hochschul-Zugangsdaten eines Kontos liegen als einzelne Werte wie in der `.env`
+  (`STUDIP_USER`, `STUDIP_PASSWORD`, `HILDESHEIM_USER`, `HILDESHEIM_PASSWORD`, `QIS_SAME_AS`, `LEARNWEB_TOKEN`, …)
+  in `accounts.db`, jeder Wert mit AES-256-GCM verschlüsselt. Schlüssel je Konto per HKDF-SHA256 aus dem
+  Dienst-Geheimnis `LERNAPP_SECRET_KEY` (32 Byte, base64 oder hex); ohne Angabe erzeugt der Dienst beim ersten Start
+  `secret.key` neben den Nutzerordnern. Die Konto-ID ist als AAD gebunden. Geheimnis und Datenbank getrennt
+  aufbewahren: ein Datenbank-Abzug allein gibt nichts preis. Warum kein Schlüssel aus dem Nutzerpasswort: der Abgleich
+  läuft zweimal täglich ohne den Nutzer. Löschen der Zugangsdaten (`clear`) beendet den automatischen Abgleich.
+- **Gleicher Code wie am PC**: `config.credentials()`, `own_credentials()`, `secret()`, `set_env()` lesen und
+  schreiben im Dienst den Tresor des Kontos der Anfrage bzw. des Jobs (`config.set_env_context`), nie die `.env`.
+  Browser-Profile, Protokolle und QIS-Dokumente liegen unter `users/<id>/…` (`studip_sync._profile_dir`,
+  `hildesheim._profile_dir`, `qis._doc_dir`, `config.log_dir`).
+- **Jobs** (`app/jobs.py`): Tabelle `sync_jobs` in `accounts.db` (`queued | running | done | failed`), Arbeiter holen
+  Jobs atomar ab, höchstens ein laufender Job je Konto, ein Job setzt den Kontext des Kontos und ruft
+  `studip_sync.run_sync()` (LUH: Stud.IP, Hildesheim: Learnweb + LSF) oder `qis.run()`. Zeitplan
+  `LERNAPP_SYNC_TIMES` (Standard `08:00,15:00`, Ortszeit des Servers): je Uhrzeit einmal am Tag ein Job für jedes
+  aktive Konto mit Zugangsdaten, auch nach Neustart nur einmal (`schedule_marks`). Beim Start werden verwaiste
+  „laufende“ Jobs (älter als 6 h) als abgebrochen markiert.
+- **Betrieb**: im API-Prozess (`LERNAPP_JOBS=inproc`, Standard) oder getrennt `python -m app.jobs` mit
+  `LERNAPP_JOBS=off` für die API. `LERNAPP_JOB_WORKERS` (Standard 2) = gleichzeitige Browser, je etwa 300 MB; Playwright
+  mit Chromium muss auf dem Server installiert sein (`playwright install chromium`).
+- **Endpunkte** (je Konto): `GET/PUT /api/credentials` (LUH-ID), `PUT /api/credentials/{service}` (Hildesheim,
+  QIS, `clear`, `same_as`), `PUT /api/learnweb/token`, `POST /api/sync` → `{started, job_id, status, already}` oder
+  400 `credentials_missing`, `POST /api/grades/sync` ebenso, `GET /api/sync/status` → `{bg, log, jobs}`, `GET /api/bg`
+  → `{running, task, message, job}`. Die Web-Oberfläche braucht dafür keine Änderung (gleiche Form wie am PC).
 
 ## G1 Konto
 
@@ -93,8 +121,6 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
 
 ## Noch offen (nächste Schritte der PC-Sitzung)
 
-- Hochschul-Zugangsdaten je Konto (verschlüsselt, Schlüssel aus dem Sitzungsgeheimnis) und der Abgleich als Dienst-Job;
-  bis dahin 501 im gehosteten Modus.
 - Mailversand für Reset und E-Mail-Bestätigung (`email_verified`).
 - Apple-/Google-Signaturprüfung, sobald Team-ID/Client-ID vorliegen.
 - Web-Oberfläche: Anmeldeseite für den gehosteten Modus (heute nur API; der PC-Modus braucht keine).
