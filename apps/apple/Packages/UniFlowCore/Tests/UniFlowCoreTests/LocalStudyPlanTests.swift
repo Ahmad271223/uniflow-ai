@@ -111,14 +111,14 @@ final class LocalStudyPlanTests: XCTestCase {
         for day in ["2026-10-26", "2026-10-28", "2026-10-29", "2026-10-30"] {
             let r = await backend.handle(LocalRequest(method: "GET", path: "/api/timetable/day", query: [.init("date", day)]))
             let d = try XCTUnwrap(r.json)
-            let events = (d["events"]?.array ?? []).filter { $0["status"] == "teilnahme" }
+            // Termine, dazu 20 Minuten Fahrt vor dem ersten und nach dem letzten (wie free_windows)
+            var busy = try (d["events"]?.array ?? []).filter { $0["status"] == "teilnahme" }
+                .map { (try LocalFreeWindows.hm($0["start"], key: "s"), try LocalFreeWindows.hm($0["end"], key: "e")) }.sorted { $0.0 < $1.0 }
+            if let f = busy.first, let l = busy.last { busy += [(f.0 - 20, f.0), (l.1, l.1 + 20)] }
             for p in d["packages"]?.array ?? [] {
                 guard let ps = p["start_time"]?.string, let pe = p["end_time"]?.string else { continue }
                 let a = try LocalFreeWindows.hm(.string(ps), key: "s"), b = try LocalFreeWindows.hm(.string(pe), key: "e")
-                for e in events {
-                    let es = try LocalFreeWindows.hm(e["start"], key: "s") - 20, ee = try LocalFreeWindows.hm(e["end"], key: "e") + 20   // Fahrtzeit
-                    XCTAssertFalse(a < ee && b > es, "\(day): Paket \(ps)–\(pe) im Termin \(e["title"]?.string ?? "")")
-                }
+                for (es, ee) in busy { XCTAssertFalse(a < ee && b > es, "\(day): Paket \(ps)–\(pe) in einem Termin") }
                 checked += 1
             }
         }
