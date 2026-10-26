@@ -47,13 +47,30 @@ final class MergeTests: XCTestCase {
         XCTAssertNil(r.page?["pkdrawing"], "veraltete native Zeichnung wird nicht uebernommen")
     }
 
-    func testPageOrderKeepsLocallyAddedPage() {
+    /// Regel vom 26.10.2026 (mergeDocument): nur dort umsortiert -> Serverreihenfolge, die hier eingefuegte Seite
+    /// hinter ihrem Vorgaenger (p2), kein Konflikt
+    func testPageOrderKeepsLocallyAddedPageBehindItsPredecessor() {
         let base: JSONValue = ["pageOrder": [["key": "p1"], ["key": "p2"]]]
         let local: JSONValue = ["pageOrder": [["key": "p1"], ["key": "p2"], ["key": "bNew"]]]
         let server: JSONValue = ["pageOrder": [["key": "p2"], ["key": "p1"]], "bookmarks": [["key": "p1"]]]
-        let (m, _) = AnnotationMerge.mergeRootMeta(base: base, local: local, server: server)
-        XCTAssertEqual(m["pageOrder"]?.array?.compactMap { $0["key"]?.string }, ["p2", "p1", "bNew"])
+        let (m, c, order) = AnnotationMerge.mergeRootMeta(base: base, local: local, server: server)
+        XCTAssertEqual(m["pageOrder"]?.array?.compactMap { $0["key"]?.string }, ["p2", "bNew", "p1"])
         XCTAssertEqual(m["bookmarks"]?.array?.count, 1)
+        XCTAssertEqual(c, 0)
+        XCTAssertFalse(order)
+        XCTAssertNil(m["deletedPages"], "kein Papierkorb auf beiden Seiten: Feld bleibt weg")
+        XCTAssertNil(m["pages"])
+    }
+
+    /// Beide verschieden umsortiert: dieses Geraet gewinnt, ein Konflikt, orderConflict fuer die Anzeige
+    func testBothReorderedDifferentlyIsAVisibleConflict() {
+        let base: JSONValue = ["pageOrder": [["key": "p1"], ["key": "p2"], ["key": "p3"]], "pages": ["p1": ["objects": []], "p2": ["objects": []], "p3": ["objects": []]]]
+        let local: JSONValue = ["pageOrder": [["key": "p3"], ["key": "p1"], ["key": "p2"]], "pages": base["pages"]!]
+        let server: JSONValue = ["pageOrder": [["key": "p2"], ["key": "p1"], ["key": "p3"]], "pages": base["pages"]!]
+        let (m, c, order) = AnnotationMerge.mergeRootMeta(base: base, local: local, server: server)
+        XCTAssertEqual(m["pageOrder"]?.array?.compactMap { $0["key"]?.string }, ["p3", "p1", "p2"])
+        XCTAssertEqual(c, 1)
+        XCTAssertTrue(order)
     }
 
     func testMerge5000ObjectsIsFast() {
