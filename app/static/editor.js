@@ -1,7 +1,7 @@
 // UniFlow Editor 2.0 – PDF- und Notizeditor (pdf.js + Konva + pdf-lib)
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
 import { icon } from "./icons.js?v=29";
-import { mergePage } from "./merge.js?v=29";
+import { mergeDocument } from "./merge.js?v=29";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -113,7 +113,7 @@ export class PdfEditor {
       // Entwurf ist aelter als der Server (anderes Geraet hat inzwischen gespeichert): zusammenfuehren statt verwerfen
       const local = this.migrate(draft.data);
       const keys = draft.dirtyKeys || Object.keys(local.pages).filter(k => JSON.stringify(local.pages[k]) !== JSON.stringify(serverModel.pages[k]));
-      this.model = this.mergeInto(serverModel, local, { keys, struct: !!draft.struct, meta: !!draft.meta }, draft.basePages || null);
+      this.model = this.mergeInto(serverModel, local, { keys, struct: !!draft.struct, meta: !!draft.meta }, draft.basePages ? { pages: draft.basePages } : null);
       this.base = this.snap(serverModel); this.dirty = true;
       this._mergedOnLoad = keys.length;
     } else {
@@ -125,31 +125,31 @@ export class PdfEditor {
   // Vergleichsstand: pro Seite das JSON, dazu Seitenreihenfolge und Dokument-Notizen
   snap(m) { return { pages: Object.fromEntries(Object.entries(m.pages || {}).map(([k, v]) => [k, JSON.stringify(v)])), order: JSON.stringify([m.pageOrder || [], m.deletedPages || []]), meta: JSON.stringify([m.note || "", m.bookmarks || [], m.outline || []]) }; }
   diffFromBase(m = this.model) { const b = this.base || { pages: {}, order: "", meta: "" }; const keys = Object.keys(m.pages || {}).filter(k => b.pages[k] !== JSON.stringify(m.pages[k])); const cur = this.snap(m); return { keys, struct: cur.order !== b.order, meta: cur.meta !== b.meta }; }
-  // basePages: Seiten-JSON des letzten bestaetigten Stands (fuer objektweises Zusammenfuehren; fehlt er, werden beide Seiten vereinigt)
-  mergeInto(server, local, d, basePages = null) {
-    const merged = JSON.parse(JSON.stringify(server)); this._mergeConflicts = 0;
-    for (const k of d.keys) if (local.pages[k]) {
-      const base = basePages && basePages[k] ? JSON.parse(basePages[k]) : null;
-      const r = mergePage(base, local.pages[k], server.pages?.[k] ?? null);
-      this._mergeConflicts += r.conflicts;
-      merged.pages[k] = JSON.parse(JSON.stringify(r.page ?? local.pages[k]));
-    }
-    if (d.struct) { merged.pageOrder = JSON.parse(JSON.stringify(local.pageOrder)); merged.deletedPages = JSON.parse(JSON.stringify(local.deletedPages || [])); merged.pageOrder.forEach(pe => { merged.pages[pe.key] ||= JSON.parse(JSON.stringify(local.pages[pe.key] || { objects: [] })); }); }
-    if (d.meta) { merged.note = local.note; merged.bookmarks = local.bookmarks; merged.outline = local.outline; }
-    return this.migrate(merged);
+  // Drei-Wege-Zusammenfuehrung des ganzen Dokuments (merge.js mergeDocument: Seiten, Reihenfolge, Papierkorb, Notizen).
+  // base = letzter bestaetigter Stand als snap (oder nur { pages }) oder null; d bleibt fuer die Rueckgabe von applyServerMerge
+  mergeInto(server, local, d, base = null) {
+    const r = mergeDocument(base ? this.unsnap(base) : null, local, server);
+    this._mergeConflicts = r.conflicts; this._orderConflict = r.orderConflict;
+    return this.migrate(r.doc);
+  }
+  // snap() zurueck in ein Dokument (fehlende Teile = unbekannt, dann gelten beide Seiten als neu)
+  unsnap(s) {
+    const [pageOrder, deletedPages] = s.order ? JSON.parse(s.order) : [[], []]; const [note, bookmarks, outline] = s.meta ? JSON.parse(s.meta) : ["", [], []];
+    return { version: 2, pages: Object.fromEntries(Object.entries(s.pages || {}).map(([k, v]) => [k, typeof v === "string" ? JSON.parse(v) : v])), pageOrder, deletedPages, note, bookmarks, outline };
   }
   // Serverstand eines anderen Geraets uebernehmen, eigene geaenderte Seiten behalten, Anzeige nur dort erneuern, wo noetig
   applyServerMerge(serverData, version) {
     const server = this.migrate(serverData || { version: 2 });
     const d = this.diffFromBase(this.model);
-    const merged = this.mergeInto(server, this.model, d, this.base?.pages || null);
+    const merged = this.mergeInto(server, this.model, d, this.base || null);
     const old = this.model; const orderChanged = JSON.stringify(merged.pageOrder) !== JSON.stringify(old.pageOrder);
     this.model = merged; this.version = version; this.base = this.snap(server);
     this.history = []; this.future = [];          // Undo-Schritte bezogen sich auf den alten Stand
     if (this.destroyed) { /* geschlossen: nur noch speichern */ }
     else if (orderChanged) this.buildPages();
     else for (const pg of this.pages) { if (pg.mounted && JSON.stringify(old.pages[pg.key]?.objects) !== JSON.stringify(merged.pages[pg.key]?.objects)) this.reloadPage(pg); }
-    this.onStatus("Mit anderem Gerät zusammengeführt");
+    this.onStatus(this._orderConflict ? "Seitenreihenfolge auf beiden Geräten geändert – die Reihenfolge dieses Geräts gilt"
+      : this._mergeConflicts ? `Mit anderem Gerät zusammengeführt – ${this._mergeConflicts} Konflikt${this._mergeConflicts > 1 ? "e" : ""}, dieses Gerät gilt` : "Mit anderem Gerät zusammengeführt");
     return d.keys.length + (d.struct || d.meta ? 1 : 0);
   }
   // Aufgabe auf der aktuellen Seite: Block ab der Ueberschrift "Aufgabe 2.3" ueber dem letzten Strich (sonst Bildmitte)

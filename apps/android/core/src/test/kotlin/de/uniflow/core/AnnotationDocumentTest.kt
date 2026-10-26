@@ -105,8 +105,16 @@ class AnnotationDocumentTest {
         val ohneNotiz = JsonObject(base.toMutableMap().apply { remove("note") })
         assertEquals(null, AnnotationDocument.merge(base, ohneNotiz, base).first["note"])
         assertEquals(null, AnnotationDocument.merge(base, base, ohneNotiz).first["note"])
-        // ohne Basis (erstes Speichern): gleiche Felder ohne Konflikt, eigene Seitenreihenfolge gilt
-        val (m3, c3) = AnnotationDocument.merge(null, local, base)
-        assertEquals(local["pageOrder"], m3["pageOrder"]); assertTrue(c3 >= 1)
+        // ohne Basis (erstes Speichern): nichts gilt als geloescht - die hier entfernte Seite kommt vom Server zurueck
+        // (beide Seiten "neu", Reihenfolgen vertraeglich, kein Reihenfolge-Konflikt), der Papierkorb-Eintrag entfaellt
+        val r3 = AnnotationDocument.mergeDetailed(null, local, base)
+        assertEquals(AnnotationDocument.pageOrder(base).map { it.s("key") }, AnnotationDocument.pageOrder(r3.doc).map { it.s("key") })
+        assertEquals(false, r3.orderConflict); assertEquals(JsonArray(emptyList()), r3.doc["deletedPages"])
+        // beide verschieden umsortiert: dieses Geraet gewinnt, orderConflict sichtbar, ein Konflikt
+        val keys = AnnotationDocument.pageOrder(base)
+        val hier = JsonObject(base.toMutableMap().apply { this["pageOrder"] = JsonArray(keys.reversed()) })
+        val dort = JsonObject(base.toMutableMap().apply { this["pageOrder"] = JsonArray(listOf(keys[1], keys[0]) + keys.drop(2)) })
+        val r4 = AnnotationDocument.mergeDetailed(base, hier, dort)
+        assertTrue(r4.orderConflict); assertEquals(1, r4.conflicts); assertEquals(hier["pageOrder"], r4.doc["pageOrder"])
     }
 }

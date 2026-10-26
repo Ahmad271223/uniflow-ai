@@ -1,99 +1,2854 @@
 {
-  "description": "Gemeinsame Testfaelle fuer die Drei-Wege-Zusammenfuehrung einer Seite. Geprueft von UniFlowCore (Swift) und app/static/merge.js. base/local/server = null bedeutet: Seite existiert dort nicht. expectIds = Reihenfolge der Objekt-IDs im Ergebnis, null = Seite geloescht.",
-  "cases": [
-    {
-      "name": "beide Geraete ergaenzen dieselbe Seite",
-      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
-      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "ipad1", "type": "stroke", "points": [5, 6, 7, 8] } ] },
-      "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "web1", "type": "stroke", "points": [9, 9, 9, 9] } ] },
-      "expectIds": ["a", "web1", "ipad1"],
-      "expectConflicts": 0
-    },
-    {
-      "name": "auf dem Server geloescht, hier unveraendert",
-      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "b", "type": "stroke", "points": [1, 1, 2, 2] } ] },
-      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "b", "type": "stroke", "points": [1, 1, 2, 2] }, { "id": "c", "type": "stroke", "points": [3, 3, 4, 4] } ] },
-      "server": { "objects": [ { "id": "b", "type": "stroke", "points": [1, 1, 2, 2] } ] },
-      "expectIds": ["b", "c"],
-      "expectConflicts": 0
-    },
-    {
-      "name": "hier geloescht, auf dem Server verschoben",
-      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4], "x": 0 } ] },
-      "local":  { "objects": [] },
-      "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4], "x": 30 } ] },
-      "expectIds": ["a"],
-      "expectConflicts": 1
-    },
-    {
-      "name": "dasselbe Objekt verschieden geaendert: dieses Geraet gewinnt",
-      "base":   { "objects": [ { "id": "a", "type": "stroke", "color": "#000000", "points": [1, 2, 3, 4] } ] },
-      "local":  { "objects": [ { "id": "a", "type": "stroke", "color": "#ff0000", "points": [1, 2, 3, 4] } ] },
-      "server": { "objects": [ { "id": "a", "type": "stroke", "color": "#00ff00", "points": [1, 2, 3, 4] } ] },
-      "expectIds": ["a"],
-      "expectField": { "index": 0, "key": "color", "value": "#ff0000" },
-      "expectConflicts": 1
-    },
-    {
-      "name": "hier nichts geaendert: Serverstand gilt",
-      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
-      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
-      "server": { "objects": [ { "id": "z", "type": "text", "text": "neu" } ], "template": "grid" },
-      "expectIds": ["z"],
-      "expectConflicts": 0
-    },
-    {
-      "name": "ohne bekannte Basis: beide Staende vereinigen",
-      "base":   null,
-      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "l", "type": "stroke", "points": [2, 2, 3, 3] } ] },
-      "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "s", "type": "stroke", "points": [4, 4, 5, 5] } ] },
-      "expectIds": ["a", "s", "l"],
-      "expectConflicts": 0
-    },
-    {
-      "name": "unbekannte Seitenfelder bleiben, Feldreihenfolge egal",
-      "base":   { "objects": [], "template": "lined" },
-      "local":  { "template": "lined", "objects": [ { "type": "stroke", "id": "n", "points": [1, 1, 2, 2] } ] },
-      "server": { "objects": [], "template": "lined", "zukunftsFeld": { "x": 1 } },
-      "expectIds": ["n"],
-      "expectPageField": { "key": "zukunftsFeld", "value": { "x": 1 } },
-      "expectConflicts": 0
-    },
-    {
-      "name": "Objekte ohne ID werden ueber ihren Inhalt erkannt",
-      "base":   { "objects": [ { "type": "shape", "shape": "rect", "x": 1 } ] },
-      "local":  { "objects": [ { "type": "shape", "shape": "rect", "x": 1 }, { "id": "neu", "type": "stroke", "points": [0, 0, 1, 1] } ] },
-      "server": { "objects": [ { "x": 1, "shape": "rect", "type": "shape" } ] },
-      "expectIds": [null, "neu"],
-      "expectConflicts": 0
-    },
-    {
-      "name": "Seite hier entfernt, auf dem Server unveraendert",
-      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
-      "local":  null,
-      "server": { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
-      "expectIds": null,
-      "expectConflicts": 0
-    },
-    {
-      "name": "iPad-Zeichnung v2 bleibt, auch wenn die Objekte abweichen (Strich im Browser geloescht)",
-      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
-      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "b", "type": "stroke", "points": [5, 6, 7, 8] } ],
-                  "pkdrawing": { "data": "AAAA", "objectsSig": "teilweise", "format": "pkdrawing-v2", "strokeIds": [["a"], ["b"]], "strokeSigs": ["s-a", "s-b"] } },
-      "server": { "objects": [] },
-      "expectIds": ["b"],
-      "expectConflicts": 0,
-      "expectPageField": { "key": "pkdrawing", "value": { "data": "AAAA", "objectsSig": "teilweise", "format": "pkdrawing-v2", "strokeIds": [["a"], ["b"]], "strokeSigs": ["s-a", "s-b"] } }
-    },
-    {
-      "name": "iPad-Zeichnung v1 faellt bei abweichenden Objekten weg, v2 vom Server bleibt",
-      "base":   { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] } ] },
-      "local":  { "objects": [ { "id": "a", "type": "stroke", "points": [1, 2, 3, 4] }, { "id": "b", "type": "stroke", "points": [5, 6, 7, 8] } ],
-                  "pkdrawing": { "data": "BBBB", "objectsSig": "x", "format": "pkdrawing-v1", "strokeIds": [["a"], ["b"]] } },
-      "server": { "objects": [], "pkdrawing": { "data": "AAAA", "objectsSig": "teilweise", "format": "pkdrawing-v2", "strokeIds": [["a"], ["b"]], "strokeSigs": ["s-a", "s-b"] } },
-      "expectIds": ["b"],
-      "expectConflicts": 0,
-      "expectPageField": { "key": "pkdrawing", "value": { "data": "AAAA", "objectsSig": "teilweise", "format": "pkdrawing-v2", "strokeIds": [["a"], ["b"]], "strokeSigs": ["s-a", "s-b"] } }
+ "description": "Gemeinsame Testfaelle fuer die Drei-Wege-Zusammenfuehrung einer Seite. Geprueft von UniFlowCore (Swift) und app/static/merge.js. base/local/server = null bedeutet: Seite existiert dort nicht. expectIds = Reihenfolge der Objekt-IDs im Ergebnis, null = Seite geloescht.",
+ "cases": [
+  {
+   "name": "beide Geraete ergaenzen dieselbe Seite",
+   "base": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "local": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "id": "ipad1",
+      "type": "stroke",
+      "points": [
+       5,
+       6,
+       7,
+       8
+      ]
+     }
+    ]
+   },
+   "server": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "id": "web1",
+      "type": "stroke",
+      "points": [
+       9,
+       9,
+       9,
+       9
+      ]
+     }
+    ]
+   },
+   "expectIds": [
+    "a",
+    "web1",
+    "ipad1"
+   ],
+   "expectConflicts": 0
+  },
+  {
+   "name": "auf dem Server geloescht, hier unveraendert",
+   "base": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "id": "b",
+      "type": "stroke",
+      "points": [
+       1,
+       1,
+       2,
+       2
+      ]
+     }
+    ]
+   },
+   "local": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "id": "b",
+      "type": "stroke",
+      "points": [
+       1,
+       1,
+       2,
+       2
+      ]
+     },
+     {
+      "id": "c",
+      "type": "stroke",
+      "points": [
+       3,
+       3,
+       4,
+       4
+      ]
+     }
+    ]
+   },
+   "server": {
+    "objects": [
+     {
+      "id": "b",
+      "type": "stroke",
+      "points": [
+       1,
+       1,
+       2,
+       2
+      ]
+     }
+    ]
+   },
+   "expectIds": [
+    "b",
+    "c"
+   ],
+   "expectConflicts": 0
+  },
+  {
+   "name": "hier geloescht, auf dem Server verschoben",
+   "base": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ],
+      "x": 0
+     }
+    ]
+   },
+   "local": {
+    "objects": []
+   },
+   "server": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ],
+      "x": 30
+     }
+    ]
+   },
+   "expectIds": [
+    "a"
+   ],
+   "expectConflicts": 1
+  },
+  {
+   "name": "dasselbe Objekt verschieden geaendert: dieses Geraet gewinnt",
+   "base": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "color": "#000000",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "local": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "color": "#ff0000",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "server": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "color": "#00ff00",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "expectIds": [
+    "a"
+   ],
+   "expectField": {
+    "index": 0,
+    "key": "color",
+    "value": "#ff0000"
+   },
+   "expectConflicts": 1
+  },
+  {
+   "name": "hier nichts geaendert: Serverstand gilt",
+   "base": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "local": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "server": {
+    "objects": [
+     {
+      "id": "z",
+      "type": "text",
+      "text": "neu"
+     }
+    ],
+    "template": "grid"
+   },
+   "expectIds": [
+    "z"
+   ],
+   "expectConflicts": 0
+  },
+  {
+   "name": "ohne bekannte Basis: beide Staende vereinigen",
+   "base": null,
+   "local": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "id": "l",
+      "type": "stroke",
+      "points": [
+       2,
+       2,
+       3,
+       3
+      ]
+     }
+    ]
+   },
+   "server": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "id": "s",
+      "type": "stroke",
+      "points": [
+       4,
+       4,
+       5,
+       5
+      ]
+     }
+    ]
+   },
+   "expectIds": [
+    "a",
+    "s",
+    "l"
+   ],
+   "expectConflicts": 0
+  },
+  {
+   "name": "unbekannte Seitenfelder bleiben, Feldreihenfolge egal",
+   "base": {
+    "objects": [],
+    "template": "lined"
+   },
+   "local": {
+    "template": "lined",
+    "objects": [
+     {
+      "type": "stroke",
+      "id": "n",
+      "points": [
+       1,
+       1,
+       2,
+       2
+      ]
+     }
+    ]
+   },
+   "server": {
+    "objects": [],
+    "template": "lined",
+    "zukunftsFeld": {
+     "x": 1
     }
-  ]
+   },
+   "expectIds": [
+    "n"
+   ],
+   "expectPageField": {
+    "key": "zukunftsFeld",
+    "value": {
+     "x": 1
+    }
+   },
+   "expectConflicts": 0
+  },
+  {
+   "name": "Objekte ohne ID werden ueber ihren Inhalt erkannt",
+   "base": {
+    "objects": [
+     {
+      "type": "shape",
+      "shape": "rect",
+      "x": 1
+     }
+    ]
+   },
+   "local": {
+    "objects": [
+     {
+      "type": "shape",
+      "shape": "rect",
+      "x": 1
+     },
+     {
+      "id": "neu",
+      "type": "stroke",
+      "points": [
+       0,
+       0,
+       1,
+       1
+      ]
+     }
+    ]
+   },
+   "server": {
+    "objects": [
+     {
+      "x": 1,
+      "shape": "rect",
+      "type": "shape"
+     }
+    ]
+   },
+   "expectIds": [
+    null,
+    "neu"
+   ],
+   "expectConflicts": 0
+  },
+  {
+   "name": "Seite hier entfernt, auf dem Server unveraendert",
+   "base": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "local": null,
+   "server": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "expectIds": null,
+   "expectConflicts": 0
+  },
+  {
+   "name": "iPad-Zeichnung v2 bleibt, auch wenn die Objekte abweichen (Strich im Browser geloescht)",
+   "base": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "local": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "id": "b",
+      "type": "stroke",
+      "points": [
+       5,
+       6,
+       7,
+       8
+      ]
+     }
+    ],
+    "pkdrawing": {
+     "data": "AAAA",
+     "objectsSig": "teilweise",
+     "format": "pkdrawing-v2",
+     "strokeIds": [
+      [
+       "a"
+      ],
+      [
+       "b"
+      ]
+     ],
+     "strokeSigs": [
+      "s-a",
+      "s-b"
+     ]
+    }
+   },
+   "server": {
+    "objects": []
+   },
+   "expectIds": [
+    "b"
+   ],
+   "expectConflicts": 0,
+   "expectPageField": {
+    "key": "pkdrawing",
+    "value": {
+     "data": "AAAA",
+     "objectsSig": "teilweise",
+     "format": "pkdrawing-v2",
+     "strokeIds": [
+      [
+       "a"
+      ],
+      [
+       "b"
+      ]
+     ],
+     "strokeSigs": [
+      "s-a",
+      "s-b"
+     ]
+    }
+   }
+  },
+  {
+   "name": "iPad-Zeichnung v1 faellt bei abweichenden Objekten weg, v2 vom Server bleibt",
+   "base": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     }
+    ]
+   },
+   "local": {
+    "objects": [
+     {
+      "id": "a",
+      "type": "stroke",
+      "points": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     {
+      "id": "b",
+      "type": "stroke",
+      "points": [
+       5,
+       6,
+       7,
+       8
+      ]
+     }
+    ],
+    "pkdrawing": {
+     "data": "BBBB",
+     "objectsSig": "x",
+     "format": "pkdrawing-v1",
+     "strokeIds": [
+      [
+       "a"
+      ],
+      [
+       "b"
+      ]
+     ]
+    }
+   },
+   "server": {
+    "objects": [],
+    "pkdrawing": {
+     "data": "AAAA",
+     "objectsSig": "teilweise",
+     "format": "pkdrawing-v2",
+     "strokeIds": [
+      [
+       "a"
+      ],
+      [
+       "b"
+      ]
+     ],
+     "strokeSigs": [
+      "s-a",
+      "s-b"
+     ]
+    }
+   },
+   "expectIds": [
+    "b"
+   ],
+   "expectConflicts": 0,
+   "expectPageField": {
+    "key": "pkdrawing",
+    "value": {
+     "data": "AAAA",
+     "objectsSig": "teilweise",
+     "format": "pkdrawing-v2",
+     "strokeIds": [
+      [
+       "a"
+      ],
+      [
+       "b"
+      ]
+     ],
+     "strokeSigs": [
+      "s-a",
+      "s-b"
+     ]
+    }
+   }
+  }
+ ],
+ "documentDescription": "Dokument-Faelle (pageOrder, deletedPages, Wurzelfelder) fuer mergeDocument: Seiten werden mit mergePage zusammengefuehrt. Reihenfolge: nur eine Seite geaendert -> diese gilt; beide geaendert, aber auf den gemeinsamen Seiten gleich -> vertraeglich (eingefuegte Seiten jeder Seite hinter ihrem Vorgaenger, Serverseiten zuerst); beide verschieden umsortiert -> dieses Geraet, expectOrderConflict true und ein Konflikt. Eine Seite, die eine Seite loescht und die andere unveraendert laesst, ist weg; wurde sie auf der anderen Seite geaendert, bleibt sie an ihrem Platz (Konflikt aus mergePage). Papierkorb: Eintraege beider Seiten je Schluessel vereinigt (hier zuerst), ohne Seiten, die wieder in der Reihenfolge stehen. Eintraege und Wurzelfelder (note, bookmarks, outline, ...) folgen der Feldregel: nur hier geaendert -> hier, nur dort -> dort, beide -> hier + Konflikt. expectOrder/expectTrash = Schluessel in Reihenfolge.",
+ "documentCases": [
+  {
+   "name": "nur hier umsortiert",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p3": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p3",
+    "p1",
+    "p2"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "nur dort umsortiert",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p2": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p2",
+    "p1",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "beide verschieden umsortiert: dieses Geraet gewinnt, Konflikt sichtbar",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p3": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p2": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p3",
+    "p1",
+    "p2"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 1,
+   "expectOrderConflict": true
+  },
+  {
+   "name": "beide gleich umsortiert",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p2": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p2": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p2",
+    "p1",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "hier Seite eingefuegt, dort umsortiert: Serverreihenfolge, neue Seite hinter ihrem Vorgaenger",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "b1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "b1",
+      "type": "blank",
+      "template": "blank",
+      "w": 595,
+      "h": 842
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p3": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p3",
+    "p2",
+    "p1",
+    "b1"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "dort Seite eingefuegt, hier umsortiert",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p3": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "b2": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "b2",
+      "type": "blank",
+      "template": "blank",
+      "w": 595,
+      "h": 842
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p3",
+    "p2",
+    "p1",
+    "b2"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "beide eingefuegt, Reihenfolge vertraeglich",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "b1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "b1",
+      "type": "blank",
+      "template": "blank",
+      "w": 595,
+      "h": 842
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "b2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "b2",
+      "type": "blank",
+      "template": "blank",
+      "w": 595,
+      "h": 842
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "b1",
+    "p2",
+    "b2",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "dort geloescht, hier unveraendert: weg, im Papierkorb",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [
+     {
+      "entry": {
+       "key": "p2",
+       "type": "pdf",
+       "index": 2
+      },
+      "objects": [],
+      "at": 1700000000000,
+      "pos": 1
+     }
+    ],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p3"
+   ],
+   "expectTrash": [
+    "p2"
+   ],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "dort geloescht, hier auf der Seite gezeichnet: Seite bleibt an ihrem Platz, Konflikt",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": [
+       {
+        "id": "s1",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#e5322d",
+        "width": 2.2,
+        "points": [
+         1,
+         1,
+         2,
+         2
+        ]
+       }
+      ]
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [
+     {
+      "entry": {
+       "key": "p2",
+       "type": "pdf",
+       "index": 2
+      },
+      "objects": [],
+      "at": 1700000000000,
+      "pos": 1
+     }
+    ],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 1,
+   "expectOrderConflict": false,
+   "expectPageIds": {
+    "p2": [
+     "s1"
+    ]
+   }
+  },
+  {
+   "name": "hier geloescht, dort unveraendert",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [
+     {
+      "entry": {
+       "key": "p2",
+       "type": "pdf",
+       "index": 2
+      },
+      "objects": [],
+      "at": 1700000000000,
+      "pos": 1
+     }
+    ],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p3"
+   ],
+   "expectTrash": [
+    "p2"
+   ],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "hier geloescht, dort gezeichnet: Seite kommt zurueck",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [
+     {
+      "entry": {
+       "key": "p2",
+       "type": "pdf",
+       "index": 2
+      },
+      "objects": [],
+      "at": 1700000000000,
+      "pos": 1
+     }
+    ],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": [
+       {
+        "id": "s2",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#e5322d",
+        "width": 2.2,
+        "points": [
+         1,
+         1,
+         2,
+         2
+        ]
+       }
+      ]
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 1,
+   "expectOrderConflict": false,
+   "expectPageIds": {
+    "p2": [
+     "s2"
+    ]
+   }
+  },
+  {
+   "name": "Papierkorb beider Geraete vereinigt (hier zuerst)",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [
+     {
+      "entry": {
+       "key": "p2",
+       "type": "pdf",
+       "index": 2
+      },
+      "objects": [],
+      "at": 1700000000000,
+      "pos": 1
+     }
+    ],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     }
+    ],
+    "deletedPages": [
+     {
+      "entry": {
+       "key": "p3",
+       "type": "pdf",
+       "index": 3
+      },
+      "objects": [],
+      "at": 1700000000000,
+      "pos": 2
+     }
+    ],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1"
+   ],
+   "expectTrash": [
+    "p2",
+    "p3"
+   ],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "Seite hier gedreht, dort umsortiert: beides gilt",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1,
+      "rotation": 90
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p2": {
+      "objects": []
+     },
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p2",
+    "p1",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false,
+   "expectEntry": {
+    "key": "p1",
+    "field": "rotation",
+    "value": 90
+   }
+  },
+  {
+   "name": "Eintrag beidseitig verschieden geaendert: hier gewinnt, Konflikt",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1,
+      "rotation": 90
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1,
+      "rotation": 180
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 1,
+   "expectOrderConflict": false,
+   "expectEntry": {
+    "key": "p1",
+    "field": "rotation",
+    "value": 90
+   }
+  },
+  {
+   "name": "ohne Basis: beide haengen an, Serverseite direkt hinter dem Vorgaenger",
+   "base": null,
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "b1": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "b1",
+      "type": "blank",
+      "template": "blank",
+      "w": 595,
+      "h": 842
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "b2": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "b2",
+      "type": "blank",
+      "template": "blank",
+      "w": 595,
+      "h": 842
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p2",
+    "b2",
+    "b1"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  },
+  {
+   "name": "Notiz nur hier, Lesezeichen nur dort: beides gilt",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "meine Notiz",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [
+     {
+      "key": "p2",
+      "title": "Satz 1"
+     }
+    ],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false,
+   "expectNote": "meine Notiz",
+   "expectBookmarks": [
+    {
+     "key": "p2",
+     "title": "Satz 1"
+    }
+   ]
+  },
+  {
+   "name": "Notiz beidseitig verschieden: hier gewinnt, Konflikt",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "hier",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "dort",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 1,
+   "expectOrderConflict": false,
+   "expectNote": "hier"
+  },
+  {
+   "name": "Seite geloescht und wiederhergestellt: nicht mehr im Papierkorb",
+   "base": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [
+     {
+      "entry": {
+       "key": "p2",
+       "type": "pdf",
+       "index": 2
+      },
+      "objects": [],
+      "at": 1700000000000,
+      "pos": 1
+     }
+    ],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "local": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p2": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p2",
+      "type": "pdf",
+      "index": 2
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "server": {
+    "version": 2,
+    "pages": {
+     "p1": {
+      "objects": []
+     },
+     "p3": {
+      "objects": []
+     }
+    },
+    "pageOrder": [
+     {
+      "key": "p1",
+      "type": "pdf",
+      "index": 1
+     },
+     {
+      "key": "p3",
+      "type": "pdf",
+      "index": 3
+     }
+    ],
+    "deletedPages": [
+     {
+      "entry": {
+       "key": "p2",
+       "type": "pdf",
+       "index": 2
+      },
+      "objects": [],
+      "at": 1700000000000,
+      "pos": 1
+     }
+    ],
+    "note": "",
+    "bookmarks": [],
+    "outline": []
+   },
+   "expectOrder": [
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "expectTrash": [],
+   "expectConflicts": 0,
+   "expectOrderConflict": false
+  }
+ ]
 }

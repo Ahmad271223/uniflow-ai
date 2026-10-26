@@ -32,7 +32,7 @@ object AnnotationDocument {
     fun orderedPages(doc: JsonObject, pdfPageCount: Int): List<Pair<String, Int?>> {
         val order = pageOrder(doc)
         if (order.isEmpty()) return (1..pdfPageCount).map { "p$it" to it }
-        val deleted = (doc["deletedPages"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content }?.toSet() ?: emptySet()
+        val deleted = (doc["deletedPages"] as? JsonArray)?.mapNotNull { keyOf(it) }?.toSet() ?: emptySet()   // Web: {entry: {key}}, sonst String
         val out = order.filter { it.s("key") !in deleted }.map { (it.s("key") ?: "") to it.i("index").takeIf { _ -> it.s("type") == "pdf" } }
         val known = out.mapNotNull { it.second }.toSet()
         return out + (1..pdfPageCount).filter { it !in known }.map { "p$it" to it }     // Seiten, die pageOrder nicht kennt
@@ -70,14 +70,23 @@ object AnnotationDocument {
     private const val HEX = "0123456789abcdef"
     private fun round2(f: Float): Double = Math.round(f * 100.0) / 100.0
 
+    /** Ergebnis der Dokument-Zusammenfuehrung; orderConflict = beide Geraete haben die Seiten verschieden umsortiert (anzeigen!). */
+    data class MergeResult(val doc: JsonObject, val conflicts: Int, val orderConflict: Boolean)
+
+    /** Ergebnis von mergePageOrder: Schluessel in Reihenfolge und ob die Reihenfolge ein Konflikt war. */
+    data class OrderResult(val keys: List<String>, val conflict: Boolean)
+
     /**
-     * Vollstaendige Zusammenfuehrung zweier Dokumente auf Basis des letzten bestaetigten Standes: je Seite
-     * AnnotationMerge.mergePage, die Wurzelfelder (pageOrder, deletedPages, note, bookmarks, outline, zoom, unbekannte)
-     * nach derselben Feldregel wie die Seitenfelder in merge.js: nur hier geaendert -> hier, nur dort -> dort,
-     * beidseitig verschieden -> hier (Konflikt). So bleiben der Papierkorb (deletedPages) und die Dokument-Notizen
-     * eines Geraets erhalten, wenn das andere sie nicht angefasst hat (wie AnnotationMerge.mergeRootMeta auf dem iPad).
+     * Vollstaendige Zusammenfuehrung zweier Dokumente auf Basis des letzten bestaetigten Standes, wie merge.js
+     * mergeDocument (gemeinsame Faelle: documentCases in fixtures/merge/cases.json): je Seite AnnotationMerge.mergePage;
+     * Seitenreihenfolge mit mergePageOrder; Papierkorb beider Seiten vereinigt; Eintraege und Wurzelfelder (note,
+     * bookmarks, outline, zoom, unbekannte) nach der Feldregel: nur hier geaendert -> hier, nur dort -> dort,
+     * beidseitig verschieden -> hier (Konflikt).
      */
-    fun merge(base: JsonObject?, local: JsonObject, server: JsonObject): Pair<JsonObject, Int> {
+    fun merge(base: JsonObject?, local: JsonObject, server: JsonObject): Pair<JsonObject, Int> =
+        mergeDetailed(base, local, server).let { it.doc to it.conflicts }
+
+    fun mergeDetailed(base: JsonObject?, local: JsonObject, server: JsonObject): MergeResult {
         val keys = LinkedHashSet<String>()
         keys += pages(server).keys; keys += pages(local).keys; if (base != null) keys += pages(base).keys
         val mergedPages = LinkedHashMap<String, JsonElement>()
@@ -87,22 +96,95 @@ object AnnotationDocument {
             if (r.page != null) mergedPages[k] = r.page
             conflicts += r.conflicts
         }
+        val order = mergePageOrder(base, local, server)
+        if (order.conflict) conflicts++
+        val pageOrder = order.keys.map { k ->
+            val lE = entryOf(local, k)
+            val sE = entryOf(server, k)
+            if (lE != null && sE != null) {
+                val f = mergeField(entryOf(base, k), lE, sE); conflicts += f.second; f.first ?: lE
+            } else (lE ?: sE)!!
+        }
+        for (k in order.keys) if (k !in mergedPages) {
+            mergedPages[k] = pages(local)[k] ?: pages(server)[k] ?: buildJsonObject { put("objects", JsonArray(emptyList())) }
+        }
         val out = LinkedHashMap<String, JsonElement>()
         for (k in server.keys + local.keys + (base?.keys ?: emptySet())) {        // Serverreihenfolge zuerst, unbekannte Felder bleiben
-            if (k == "pages") { out[k] = JsonObject(mergedPages); continue }
-            val bv = base?.get(k)
-            val lv = local[k]
-            val sv = server[k]
-            val v = when {
-                sameElement(lv, bv) -> sv
-                sameElement(sv, bv) || sameElement(sv, lv) -> lv
-                else -> { conflicts++; lv }
-            }
-            if (v != null) out[k] = v
+            if (k == "pages" || k == "pageOrder" || k == "deletedPages") continue
+            val f = mergeField(base?.get(k), local[k], server[k])
+            conflicts += f.second
+            f.first?.let { out[k] = it }
         }
-        if ("pages" !in out) out["pages"] = JsonObject(mergedPages)
-        return JsonObject(out) to conflicts
+        out["pages"] = JsonObject(mergedPages)
+        out["pageOrder"] = JsonArray(pageOrder)
+        out["deletedPages"] = JsonArray(mergeTrash(local, server, order.keys.toSet()))
+        return MergeResult(JsonObject(out), conflicts, order.conflict)
     }
+
+    /**
+     * Seitenreihenfolge (nur Schluessel), Loeschen gegen Aenderung wie mergePage: nur auf einer Seite geaendert -> diese;
+     * beide geaendert, auf den gemeinsamen Seiten aber gleich -> vertraeglich (eingefuegte Seiten hinter ihrem Vorgaenger,
+     * Serverseiten zuerst); beide verschieden umsortiert -> dieses Geraet mit Konflikt.
+     */
+    fun mergePageOrder(base: JsonObject?, local: JsonObject?, server: JsonObject?): OrderResult {
+        val b = orderKeys(base); val l = orderKeys(local); val s = orderKeys(server)
+        val bSet = b.toSet(); val lSet = l.toSet(); val sSet = s.toSet()
+        fun dropped(k: String): Boolean = when {
+            k in lSet && k in sSet -> false
+            k !in bSet -> false                                                          // neu auf einer Seite: bleibt
+            k !in lSet -> sameElement(pageOf(server, k), pageOf(base, k))                // hier geloescht: weg, wenn dort unveraendert
+            else -> sameElement(pageOf(local, k), pageOf(base, k))                       // dort geloescht: weg, wenn hier unveraendert
+        }
+        val lk = l.filter { !dropped(it) }; val sk = s.filter { !dropped(it) }; val bk = b.filter { !dropped(it) }
+        val common = lk.filter { it in sk }.toSet()
+        val oL = lk.filter { it in common }; val oS = sk.filter { it in common }; val oB = bk.filter { it in common }
+        val primary: List<String>; val secondary: List<String>; var conflict = false
+        when {
+            oL == oS || oS == oB -> { primary = lk; secondary = sk }                     // vertraeglich oder nur hier umsortiert
+            oL == oB -> { primary = sk; secondary = lk }                                 // nur dort umsortiert
+            else -> { primary = lk; secondary = sk; conflict = true }                    // beide verschieden: dieses Geraet, Konflikt
+        }
+        val out = primary.toMutableList()
+        for (i in secondary.indices) {
+            val k = secondary[i]
+            if (k in out) continue
+            var at = 0                                                                   // hinter dem naechsten Vorgaenger, der schon drin ist
+            for (j in i - 1 downTo 0) { val p = out.indexOf(secondary[j]); if (p >= 0) { at = p + 1; break } }
+            out.add(at, k)
+        }
+        return OrderResult(out, conflict)
+    }
+
+    /** Papierkorb beider Seiten: je Schluessel einmal (hier zuerst), ohne Seiten, die in der Reihenfolge stehen. */
+    fun mergeTrash(local: JsonObject?, server: JsonObject?, inOrder: Set<String>): List<JsonElement> {
+        val seen = HashSet<String>(); val out = ArrayList<JsonElement>()
+        for (e in trashEntries(local) + trashEntries(server)) {
+            val k = keyOf(e) ?: continue
+            if (k in seen || k in inOrder) continue
+            seen += k; out += e
+        }
+        return out
+    }
+
+    /** Feldregel wie in merge.js mergePage: nur hier geaendert -> hier, nur dort -> dort, beide verschieden -> hier + Konflikt. */
+    fun mergeField(bv: JsonElement?, lv: JsonElement?, sv: JsonElement?): Pair<JsonElement?, Int> = when {
+        sameElement(lv, bv) -> sv to 0
+        sameElement(sv, bv) || sameElement(sv, lv) -> lv to 0
+        else -> lv to 1
+    }
+
+    /** Schluessel eines pageOrder-Eintrags, eines Papierkorb-Eintrags ({entry: {key}} wie im Web) oder eines Strings. */
+    fun keyOf(e: JsonElement?): String? = when (e) {
+        is JsonObject -> (e["key"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+            ?: ((e["entry"] as? JsonObject)?.get("key") as? JsonPrimitive)?.takeIf { it.isString }?.content
+        is JsonPrimitive -> e.takeIf { it.isString }?.content
+        else -> null
+    }
+
+    private fun orderKeys(doc: JsonObject?): List<String> = (doc?.get("pageOrder") as? JsonArray)?.mapNotNull { keyOf(it) } ?: emptyList()
+    private fun trashEntries(doc: JsonObject?): List<JsonElement> = (doc?.get("deletedPages") as? JsonArray)?.toList() ?: emptyList()
+    private fun pageOf(doc: JsonObject?, k: String): JsonElement? = doc?.let { pages(it)[k] }
+    private fun entryOf(doc: JsonObject?, k: String): JsonElement? = (doc?.get("pageOrder") as? JsonArray)?.firstOrNull { keyOf(it) == k }
 
     private fun sameElement(a: JsonElement?, b: JsonElement?) = AnnotationMerge.canonical(a ?: JsonNull) == AnnotationMerge.canonical(b ?: JsonNull)
 }

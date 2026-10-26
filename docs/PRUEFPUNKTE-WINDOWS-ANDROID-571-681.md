@@ -101,8 +101,9 @@ Plattformen gleich – sie zu ändern heißt, zuerst die Fixtures zu erweitern u
    über die Form erkannt. Alternative: Signaturvergleich je Strich im Vertrag.
 4. **Dokumentstruktur / pageOrder** (574, Apple 435): Web nimmt bei lokaler Strukturänderung lokal komplett, Swift
    vereinigt (Serverreihenfolge + nur lokal neue Seiten), Kotlin lokal bei Änderung gegenüber Basis. Kein gemeinsamer
-   Fixture-Fall. Empfehlung: eine Regel festlegen (Drei-Wege über die Basis-Reihenfolge, Konflikt sichtbar) und als
-   Fixture aufnehmen.
+   Fixture-Fall. **Entschieden und umgesetzt (26.10.2026):** Drei-Wege-Regel mit sichtbarem Konflikt in `merge.js`
+   (`mergeDocument`) und Kotlin (`AnnotationDocument.mergeDetailed`), 18 Fälle unter `documentCases` in
+   `fixtures/merge/cases.json`; Swift zieht nach (`docs/STAND-MAC-SITZUNG.md`).
 
 Weiter offen (nicht Code): GitHub Actions freischalten, damit `windows.yml` (jetzt mit Installer-Test) und
 `android.yml` laufen; Gerätetests Android und Windows-Installer auf einem sauberen Rechner.

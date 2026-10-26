@@ -409,3 +409,25 @@ Entscheidungen“ dort beschreibt die Alternativen. Bitte nicht einseitig in Swi
 erweitern wir zuerst `fixtures/merge/cases.json` und ziehen alle drei nach. Nur für pageOrder weichen die drei
 Plattformen schon heute voneinander ab (Web lokal komplett, Swift Vereinigung, Kotlin lokal bei Änderung) – das
 sollte als Erstes vereinheitlicht werden.
+
+## Nachtrag der PC-Sitzung: pageOrder-Regel festgelegt – bitte in Swift nachziehen (26.10.2026)
+
+Die Zusammenführung ganzer Dokumente ist jetzt Teil des Vertrags: `app/static/merge.js` hat `mergeDocument(base,
+local, server)` → `{ doc, conflicts, orderConflict }` mit `mergePageOrder`, `mergeTrash`, `mergeField`; Kotlin
+`AnnotationDocument.mergeDetailed` liefert dasselbe (`MergeResult(doc, conflicts, orderConflict)`). Die 18 gemeinsamen
+Fälle stehen in `packages/shared-contracts/fixtures/merge/cases.json` unter `documentCases` (Beschreibung in
+`documentDescription`); Web (`tests/test_merge_contract.py`, Node) und Kotlin (`SharedFixtureTest.
+documentCasesMatchOtherPlatforms`) sind grün. Regel in Kürze:
+
+- Welche Seiten bleiben: wie `mergePage` – auf einer Seite gelöscht und auf der anderen unverändert → weg (und im
+  Papierkorb); gelöscht gegen geändert → bleibt an ihrem Platz, ein Konflikt.
+- Reihenfolge: nur eine Seite umsortiert/eingefügt → diese gilt. Beide geändert, aber auf den gemeinsamen Seiten gleich
+  → verträglich: eingefügte Seiten jeder Seite hinter ihrem Vorgänger (Serverseiten zuerst, dann lokale), kein Konflikt.
+  Beide verschieden umsortiert → dieses Gerät gewinnt, `orderConflict = true` und ein Konflikt – **der Client muss das
+  anzeigen** (Web: Status „Seitenreihenfolge auf beiden Geräten geändert – die Reihenfolge dieses Geräts gilt“).
+- Papierkorb: Einträge beider Seiten je Schlüssel vereinigt (hier zuerst), ohne Seiten, die wieder in der Reihenfolge
+  stehen. Einträge (Drehung, Vorlage) und Wurzelfelder (note, bookmarks, outline) nach der Feldregel aus `mergePage`.
+
+Das ersetzt eure Vereinigung in `mergePageOrder` (Serverreihenfolge + nur lokal neue Seiten): bitte `AnnotationMerge.swift`
+auf diese Regel umstellen, `documentCases` in `SharedFixtureTests.swift` prüfen und den Konflikt in der Oberfläche
+zeigen. Die vier anderen Vertragsfragen (doppelte IDs, lokal gewinnt, v2 ohne Signaturvergleich) bleiben unverändert.

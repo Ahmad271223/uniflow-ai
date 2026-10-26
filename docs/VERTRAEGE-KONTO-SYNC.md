@@ -131,7 +131,10 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   - Löschen: `deleted_at` ≥ letzte Serveränderung → `deleted` (Tombstone), sonst `edit_wins` (Zeile bleibt).
     Eine Änderung mit `updated_at` nach dem Tombstone → `resurrected`.
   - `annotations`: wie `PUT /api/files/{id}/annotations` – `base_version` muss stimmen, sonst `conflict` mit
-    `data`/`version`; der Client führt mit den Regeln aus `fixtures/merge/cases.json` zusammen und sendet erneut.
+    `data`/`version`; der Client führt mit den Regeln aus `fixtures/merge/cases.json` zusammen und sendet erneut
+    (`cases` = Seite, `documentCases` = ganzes Dokument mit Seitenreihenfolge, Papierkorb und Wurzelfeldern; Referenz
+    `app/static/merge.js::mergeDocument`, Kotlin `AnnotationDocument.mergeDetailed`; beide verschieden umsortiert →
+    dieses Gerät gewinnt, `orderConflict` muss der Client anzeigen).
     Unbekannte Datei → `unknown_file`.
   - `settings`: `local_id` = Schlüssel, `data.value`; private Schlüssel → `ignored`.
 - Beide Endpunkte gibt es auch im Einzelplatzmodus (iPad ↔ PC im WLAN); im Dienst gelten sie je Konto.

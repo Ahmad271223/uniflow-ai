@@ -7,6 +7,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -52,5 +53,36 @@ class SharedFixtureTest {
         val a = Json.parseToJsonElement("""{"b":1,"a":[2.0,{"d":3,"c":4}]}""")
         val b = Json.parseToJsonElement("""{"a":[2,{"c":4,"d":3}],"b":1.0}""")
         assertEquals(AnnotationMerge.canonical(a), AnnotationMerge.canonical(b))
+    }
+
+    @Test
+    fun documentCasesMatchOtherPlatforms() {
+        val root = Json.parseToJsonElement(File(fixtures, "merge/cases.json").readText()) as JsonObject
+        val cases = root["documentCases"] as JsonArray
+        assertTrue(cases.size >= 15)
+        for (c in cases) {
+            c as JsonObject
+            val name = c["name"]!!.jsonPrimitive.content
+            val r = AnnotationDocument.mergeDetailed(c["base"] as? JsonObject, c["local"] as JsonObject, c["server"] as JsonObject)
+            val order = (r.doc["pageOrder"] as JsonArray).map { AnnotationDocument.keyOf(it) }
+            val trash = (r.doc["deletedPages"] as JsonArray).map { AnnotationDocument.keyOf(it) }
+            val strings = { a: JsonElement? -> (a as JsonArray).map { (it as JsonPrimitive).content } }
+            assertEquals(strings(c["expectOrder"]), order, name)
+            assertEquals(strings(c["expectTrash"]), trash, name)
+            assertEquals(c["expectConflicts"]!!.jsonPrimitive.int, r.conflicts, name)
+            assertEquals(c["expectOrderConflict"]!!.jsonPrimitive.content == "true", r.orderConflict, name)
+            val pages = r.doc["pages"] as JsonObject
+            for (k in order) assertTrue(k in pages, name + ": Seite " + k + " fehlt")
+            (c["expectPageIds"] as? JsonObject)?.forEach { (k, ids) ->
+                val got = ((pages[k] as JsonObject)["objects"] as JsonArray).map { ((it as JsonObject)["id"] as JsonPrimitive).content }
+                assertEquals(strings(ids), got, name)
+            }
+            (c["expectEntry"] as? JsonObject)?.let { e ->
+                val entry = (r.doc["pageOrder"] as JsonArray).first { AnnotationDocument.keyOf(it) == e["key"]!!.jsonPrimitive.content } as JsonObject
+                assertEquals(AnnotationMerge.canonical(e["value"]), AnnotationMerge.canonical(entry[e["field"]!!.jsonPrimitive.content]), name)
+            }
+            c["expectNote"]?.let { assertEquals(AnnotationMerge.canonical(it), AnnotationMerge.canonical(r.doc["note"]), name) }
+            c["expectBookmarks"]?.let { assertEquals(AnnotationMerge.canonical(it), AnnotationMerge.canonical(r.doc["bookmarks"]), name) }
+        }
     }
 }
