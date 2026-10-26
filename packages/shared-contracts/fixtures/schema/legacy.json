@@ -527,7 +527,7 @@
       {"key": "subjects_per_day", "value": "2"},
       {"key": "parts_lecture", "value": "1"},
       {"key": "parts_exercise", "value": "1"},
-      {"key": "tests_per_subject", "value": "1"},
+      {"key": "tests_per_subject", "value": "0"},
       {"key": "test_minutes", "value": "45"},
       {"key": "break_minutes", "value": "15"},
       {"key": "exam_priority", "value": "1"},
