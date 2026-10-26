@@ -51,9 +51,6 @@ enum StudyPlan {
 
     // MARK: Python-Werte
 
-    /// Wahrheitswert eines gespeicherten Werts (`if x`, `x or y`)
-    static func truthy(_ v: SQLiteValue?) -> Bool { LocalModules.truthy(v) }
-
     /// `int(v)` fuer gespeicherte Werte (Zahl abgeschnitten, Text mit ganzer Zahl); sonst 500 wie in Python
     static func int(_ v: SQLiteValue?, _ field: String) throws -> Int {
         try T.int(v?.json ?? .null, field)
@@ -144,7 +141,7 @@ enum StudyPlan {
                       [.text(status), status == "erledigt" ? now : .null, actualMinutes, taskID])
         try c.execute("INSERT INTO task_history(task_id, package_id, old_status, new_status, old_date, new_date, note, at) VALUES (?,?,?,?,?,?,?,?)",
                       [taskID, t["package_id"] ?? .null, t["status"] ?? .null, .text(status), t["date"] ?? .null, t["date"] ?? .null, note, now])
-        if status == "erledigt" && truthy(t["file_id"]) {
+        if status == "erledigt" && LocalModules.truthy(t["file_id"]) {
             try c.execute("UPDATE files SET status='erledigt', seen_by_user=1 WHERE id=?", [t["file_id"] ?? .null])
         }
         try refreshStatuses(c, today: T.today(clock))
@@ -164,7 +161,7 @@ enum StudyPlan {
 
     /// `_est(f)`: Dauer aus der Analyse, sonst nach Art
     static func est(_ f: LocalModules.FileRow) throws -> Int {
-        if let m = f.json["est_minutes"], T.truthy(m) { return try T.int(m, "est_minutes") }
+        if let m = f.json["est_minutes"], LocalModules.truthy(m) { return try T.int(m, "est_minutes") }
         return defaultEst[f.docType ?? ""] ?? 45
     }
 
@@ -192,9 +189,9 @@ enum StudyPlan {
 
     /// `_module_score(m, open_units, settings)`: Prioritaet, offene Einheiten, Klausur in den naechsten 6 Wochen
     static func moduleScore(_ m: SQLiteRow, openUnits: Int, settings s: Settings, today: Int) throws -> Double {
-        let priority = truthy(m["priority"]) ? try number(m["priority"], "priority") : 2
+        let priority = LocalModules.truthy(m["priority"]) ? try number(m["priority"], "priority") : 2
         var score = priority * 10 + Double(openUnits)
-        if s.examPriority, truthy(m["exam_date"]) {
+        if s.examPriority, LocalModules.truthy(m["exam_date"]) {
             guard let text = m["exam_date"]?.string else { throw LocalHTTPError(status: 500, message: "Klausurtermin ist kein Text") }
             if let exam = BerlinClock.parseISODate(text) {        // ValueError: kein Zuschlag
                 let days = exam - today
@@ -257,7 +254,7 @@ enum StudyPlan {
             // Genau EIN gemeinsamer Wochentest fuer das Modul und die Lehrwoche (am iPad Standard 0: ohne Test)
             let weekly = q.module["weekly_test"] ?? .integer(1)
             if s.testsPerSubject >= 1 && weekly != .integer(0) && weekly != .real(0) {
-                let minutes = truthy(q.module["test_minutes"]) ? try int(q.module["test_minutes"], "test_minutes") : s.testMinutes
+                let minutes = LocalModules.truthy(q.module["test_minutes"]) ? try int(q.module["test_minutes"], "test_minutes") : s.testMinutes
                 tasks.append(NewTask(type: "test", fileID: .null,
                                      title: .text("Gemeinsamer Wochentest Lehrwoche \(u.week)" + (u.topic.isEmpty ? "" : " – \(u.topic)")), est: minutes))
             }
@@ -329,7 +326,7 @@ enum StudyPlan {
                    NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) AS empty
             FROM study_packages p WHERE p.date BETWEEN ? AND ? ORDER BY p.id
             """, [.text(iso(start)), .text(iso(end))])
-        let keep = Set(rows.filter { !truthy($0["fresh"]) && !truthy($0["empty"]) }.map { $0["date"] ?? .null })
+        let keep = Set(rows.filter { !LocalModules.truthy($0["fresh"]) && !LocalModules.truthy($0["empty"]) }.map { $0["date"] ?? .null })
         return rows.filter { !keep.contains($0["date"] ?? .null) }.map { $0["id"] ?? .null }
     }
 
@@ -386,7 +383,7 @@ enum StudyPlan {
         var created = 0
         var existing: Set<String> = []
         for r in try c.query("SELECT date, COUNT(*) n FROM study_packages WHERE date BETWEEN ? AND ? GROUP BY date", [.text(iso(start)), .text(iso(end))])
-            where truthy(r["n"]) {
+            where LocalModules.truthy(r["n"]) {
             if let d = r["date"]?.string { existing.insert(d) }
         }
         for i in 0..<max(0, days) {
@@ -445,7 +442,7 @@ enum StudyPlan {
         let s = try Settings(c)
         var pkgs = try c.query("SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id",
                                [.text(iso(d))])
-        if onlyUnset { pkgs = pkgs.filter { !truthy($0["start_time"]) } }
+        if onlyUnset { pkgs = pkgs.filter { !LocalModules.truthy($0["start_time"]) } }
         if let packageID { pkgs = pkgs.filter { $0["id"] == packageID } }
         if pkgs.isEmpty { return }
         var windows = try LocalFreeWindows.compute(c, day: d, settings: s.raw).map { w in (start: w["start"]?.int ?? 0, end: w["end"]?.int ?? 0) }
@@ -457,7 +454,7 @@ enum StudyPlan {
         for p in pkgs {
             let tasks = try c.query("SELECT id, est_minutes FROM study_tasks WHERE package_id=? AND status NOT IN ('erledigt','uebersprungen','verschoben') ORDER BY sort",
                                     [p["id"] ?? .null])
-            let needs = try tasks.map { truthy($0["est_minutes"]) ? try int($0["est_minutes"], "est_minutes") : 45 }
+            let needs = try tasks.map { LocalModules.truthy($0["est_minutes"]) ? try int($0["est_minutes"], "est_minutes") : 45 }
             // Am Stueck in das erste freie Fenster mit genug Platz: sonst lag der Lernblock ueber dem naechsten Termin
             // (Korrektur vom 26.10.2026, zuerst in Python). Passt es in keines, werden die Aufgaben der Reihe nach verteilt.
             let total = needs.reduce(0, +) + brk * max(0, needs.count - 1)
@@ -523,15 +520,15 @@ enum StudyPlan {
     /// kuerzer als seine Aufgaben), zuerst in Python.
     static func setPackageTime(_ c: SQLiteConnection, packageID id: SQLiteValue, start: JSONValue?, end: JSONValue?) throws {
         guard let p = try c.queryOne("SELECT start_time, planned_minutes FROM study_packages WHERE id=?", [id]) else { return }
-        guard T.truthy(start) else {
+        guard LocalModules.truthy(start) else {
             try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", [id])
             try c.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=?", [id])
             return
         }
         let a = try clockMinutes(start)
-        var b = T.truthy(end) ? try clockMinutes(end) : a + (truthy(p["planned_minutes"]) ? try int(p["planned_minutes"], "planned_minutes") : 0)
+        var b = LocalModules.truthy(end) ? try clockMinutes(end) : a + (LocalModules.truthy(p["planned_minutes"]) ? try int(p["planned_minutes"], "planned_minutes") : 0)
         guard b > a else { throw LocalHTTPError(status: 400, message: "Das Ende muss nach dem Beginn liegen.") }
-        if truthy(p["start_time"]) {
+        if LocalModules.truthy(p["start_time"]) {
             let shift = a - (try LocalFreeWindows.hm(p["start_time"]?.json, key: "start_time"))
             for t in try c.query("SELECT id, start_time, end_time FROM study_tasks WHERE package_id=? AND start_time IS NOT NULL AND end_time IS NOT NULL", [id]) {
                 let ts = try LocalFreeWindows.hm(t["start_time"]?.json, key: "start_time"), te = try LocalFreeWindows.hm(t["end_time"]?.json, key: "end_time") + shift

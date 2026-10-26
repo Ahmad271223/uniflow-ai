@@ -45,7 +45,7 @@ enum StudyCalendar {
                 return o
             }
             var minutes = 0.0
-            for p in dp where T.truthy(p["planned_minutes"]) {
+            for p in dp where LocalModules.truthy(p["planned_minutes"]) {
                 guard let n = p["planned_minutes"]?.double else { throw LocalHTTPError(status: 500, message: "planned_minutes ist keine Zahl") }
                 minutes += n
             }
@@ -116,7 +116,7 @@ enum StudyCalendar {
         let ti = T.iso(t)
         var upcoming: [[String: JSONValue]] = []
         for m in mods {
-            guard T.truthy(m["exam_date"]) else { continue }
+            guard LocalModules.truthy(m["exam_date"]) else { continue }
             guard let exam = m["exam_date"]?.string else { throw LocalHTTPError(status: 500, message: "Klausurtermin ist kein Text") }
             if !PyText.less(exam, ti) {
                 upcoming.append(["date": .string(exam), "kind": "klausur", "title": .string("Klausur \(T.text(m["name"]))"),

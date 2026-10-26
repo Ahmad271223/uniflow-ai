@@ -37,10 +37,10 @@ public enum StudyEndpoints: LocalEndpointModule {
         // only_unset ("Uhrzeiten vergeben") nur Pakete ohne Uhrzeit, von Hand gesetzte bleiben (seit dem 26.10.2026)
         router.post("/api/timetable/reslot") { req, ctx in
             let b = try req.objectBody(orEmpty: true)
-            let onlyUnset = T.truthy(b["only_unset"])
+            let onlyUnset = LocalModules.truthy(b["only_unset"])
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { c -> JSONValue in
-                var dates = T.truthy(b["dates"]) ? b["dates"]! : .array([])
+                var dates = T.or(b["dates"], [])
                 if dates.array?.isEmpty == true {
                     let t = T.today(clock)
                     let found = Set(try T.slotConflicts(c, from: t, to: t + 28).compactMap { $0["date"]?.string })
@@ -75,17 +75,17 @@ public enum StudyEndpoints: LocalEndpointModule {
 
         router.post("/api/calendar/generate") { req, ctx in
             let b = try req.objectBody(orEmpty: true)
-            let start: Int? = T.truthy(b["start"]) ? try day(b["start"], "start") : nil
+            let start: Int? = LocalModules.truthy(b["start"]) ? try day(b["start"], "start") : nil
             let clock = ctx.clock
             // "Lerneinheit automatisch einplanen" im freien Fenster: ein Paket genau in dieses Fenster
-            if T.truthy(b["window_start"]) || T.truthy(b["window_end"]) {
+            if LocalModules.truthy(b["window_start"]) || LocalModules.truthy(b["window_end"]) {
                 let from = b["window_start"], to = b["window_end"]
                 return .json(try await ctx.database.transaction { c in
                     try StudyPlan.planWindow(c, day: start ?? T.today(clock), start: from, end: to, clock: clock)
                 })
             }
             let days = try T.span(try T.int(T.or(b["days"], 7), "days"))
-            let replace = T.truthy(b["replace"])
+            let replace = LocalModules.truthy(b["replace"])
             return .json(try await ctx.database.transaction { c in
                 try StudyPlan.generatePackages(c, start: start, days: days, replace: replace, clock: clock)
             })
@@ -100,11 +100,11 @@ public enum StudyEndpoints: LocalEndpointModule {
         router.post("/api/calendar/suggest") { req, ctx in
             let b = try req.objectBody(orEmpty: true)
             let clock = ctx.clock
-            if T.truthy(b["rescue"]) {
+            if LocalModules.truthy(b["rescue"]) {
                 return .json(try await ctx.database.transaction { try StudyReschedule.rescueWeek($0, clock: clock) })
             }
             var ids: [SQLiteValue]?
-            if T.truthy(b["task_ids"]) {
+            if LocalModules.truthy(b["task_ids"]) {
                 guard let list = b["task_ids"]?.array else { throw LocalHTTPError(status: 500, message: "task_ids ist keine Liste") }
                 ids = try list.map { try T.bind($0, "task_ids") }
             }
@@ -120,7 +120,7 @@ public enum StudyEndpoints: LocalEndpointModule {
         router.post("/api/calendar/apply") { req, ctx in
             let b = try req.objectBody()
             let moves: [JSONValue]
-            if T.truthy(b["moves"]) {
+            if LocalModules.truthy(b["moves"]) {
                 guard let list = b["moves"]?.array else { throw LocalHTTPError(status: 500, message: "moves ist keine Liste") }
                 moves = list
             } else {
@@ -224,10 +224,10 @@ public enum StudyEndpoints: LocalEndpointModule {
             let date = try day(b["date"], "date")
             // ohne Ternaer: `nil` waere dort SQLiteValue.null (ExpressibleByNilLiteral), nicht "kein Wert"
             var moduleID: SQLiteValue?
-            if T.truthy(b["module_id"]) { moduleID = try T.bind(b["module_id"], "module_id") }
+            if LocalModules.truthy(b["module_id"]) { moduleID = try T.bind(b["module_id"], "module_id") }
             let subject = try T.bind(T.or(b["subject"], "Allgemein"), "subject")
             var title: SQLiteValue?
-            if T.truthy(b["title"]) { title = try T.bind(b["title"], "title") }
+            if LocalModules.truthy(b["title"]) { title = try T.bind(b["title"], "title") }
             let planned = tasks, module = moduleID, heading = title
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { c -> JSONValue in
@@ -272,7 +272,7 @@ public enum StudyEndpoints: LocalEndpointModule {
             let b = try req.objectBody()
             let id = SQLiteValue.integer(Int64(req.intParam("package_id")))
             var newDate: SQLiteValue?                  // ohne Ternaer, siehe POST /api/packages
-            if T.truthy(b["date"]) { newDate = try T.bind(b["date"], "date") }
+            if LocalModules.truthy(b["date"]) { newDate = try T.bind(b["date"], "date") }
             var fields: [(String, SQLiteValue)] = []
             for k in ["title", "sort"] where b[k] != nil { fields.append((k, try T.bind(b[k], k))) }
             let time = b["start_time"] != nil || b["end_time"] != nil ? (b["start_time"], b["end_time"]) : nil

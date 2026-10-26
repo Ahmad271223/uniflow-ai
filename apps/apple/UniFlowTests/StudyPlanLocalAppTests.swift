@@ -83,7 +83,7 @@ final class StudyPlanLocalAppTests: XCTestCase {
         ]
         try await backend.context.database.transaction { c in
             for (id, title) in courses {
-                let (subject, kind) = StudyClassify.classify(title)
+                let (subject, kind) = UniRules.classify(title)
                 try c.execute("INSERT INTO courses(id, title, semester, subject, kind, created_at) VALUES (?,?,?,?,?,?)",
                               [.text(id), .text(title), .text("WiSe 2026/27"), .text(subject), .text(kind), .text("2026-10-01T08:00:00")])
             }

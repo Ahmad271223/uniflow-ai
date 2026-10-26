@@ -74,7 +74,7 @@ enum StudyReschedule {
         func texts(_ key: String) throws -> [String] {
             var seen = Set<[Unicode.Scalar]>()
             var out: [String] = []
-            for m in moves where T.truthy(m[key]) {
+            for m in moves where LocalModules.truthy(m[key]) {
                 guard let s = m[key]?.string else { throw LocalHTTPError(status: 500, message: "\(key) ist kein Text") }
                 if seen.insert(Array(s.unicodeScalars)).inserted { out.append(s) }
             }
@@ -94,7 +94,7 @@ enum StudyReschedule {
         var n = 0
         for mv in moves {
             guard let o = mv.object else { throw LocalHTTPError(status: 500, message: "Verschiebung ist kein Objekt") }
-            guard T.truthy(o["to"]) else { continue }
+            guard LocalModules.truthy(o["to"]) else { continue }
             guard let taskID = o["task_id"] else { throw LocalHTTPError(status: 500, message: "task_id fehlt") }
             let to = try T.bind(o["to"], "to")
             guard let t = try c.queryOne("""
@@ -137,7 +137,7 @@ enum StudyReschedule {
             try c.execute("INSERT INTO task_history(task_id, package_id, old_status, new_status, old_date, new_date, note, at) VALUES (?,?,?,?,?,?,?,?)",
                           [t["id"] ?? .null, id, t["status"] ?? .null, t["status"] ?? .null, p["date"] ?? .null, newDate, "Paket verschoben", .text(clock.nowISO)])
         }
-        if StudyPlan.truthy(p["start_time"]) && StudyPlan.truthy(p["end_time"]) && newDate != (p["date"] ?? .null) {
+        if LocalModules.truthy(p["start_time"]) && LocalModules.truthy(p["end_time"]) && newDate != (p["date"] ?? .null) {
             try slotMovedPackage(c, id: id, p, to: newDate)
         }
         try StudyPlan.refreshStatuses(c, today: T.today(clock))
