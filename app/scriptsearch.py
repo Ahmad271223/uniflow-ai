@@ -178,11 +178,24 @@ def search(conn, module_id: int, query: str, exclude: str | None = None, limit: 
         seen.add(key)
         f = d["file"]
         results.append({"file_id": f["id"], "title": f.get("ai_title") or f.get("name"), "name": f.get("name"), "label": f.get("sub_label"),
-                        "page": d["page"], "score": round(s, 2), "terms": sorted(set(hit), key=lambda t: -idx["df"].get(t, 0))[:6],
+                        "page": d["page"], "score": round(s, 2), "terms": sorted(hit, key=lambda t: -idx["df"].get(t, 0))[:6],
                         "snippet": _snippet(normalize(d["text"]), hit)})
         if len(results) >= limit:
             break
     return {"terms": sorted(set(q))[:20], "results": results}
+
+
+def find_pages(conn, q: str, limit: int = 10) -> list[dict]:
+    """Seiten, deren gespeicherter Text den Suchtext enthaelt (globale Suche). Nur Seitentexte der aktuellen Fassung
+    (gleiche Aenderungszeit wie die Datei); gelesen wird dabei nichts neu. `q` ist schon klein geschrieben."""
+    ensure_table(conn)
+    rows = db.rows(conn, """SELECT p.file_id, p.page, p.text, f.name, a.title AS ai_title, c.subject, c.module_id
+                             FROM page_texts p JOIN files f ON f.id=p.file_id JOIN courses c ON c.id=f.course_id
+                             LEFT JOIN analysis a ON a.file_id=f.id
+                             WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND lower(COALESCE(p.text, '')) LIKE ?
+                             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?""", (f"%{q}%", limit))
+    return [{"file_id": r["file_id"], "page": r["page"], "name": r["name"], "ai_title": r["ai_title"], "subject": r["subject"],
+             "module_id": r["module_id"], "snippet": _snippet(normalize(r["text"]), [q])} for r in rows]
 
 
 def index_all(conn, log=print) -> int:

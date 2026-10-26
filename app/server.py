@@ -1040,9 +1040,11 @@ def api_file_favorite(file_id: str, body: dict = Body(...)):
 
 @app.get("/api/search")
 def api_search(q: str):
+    """Globale Suche: Dateien, Module, Aufgaben des Lernplans und Seitentexte (gespeichert von der Skriptsuche)."""
+    from . import scriptsearch
     q = (q or "").strip().lower()
     if len(q) < 2:
-        return {"files": [], "modules": []}
+        return {"files": [], "modules": [], "tasks": [], "pages": []}
     like = f"%{q}%"
     with db.cursor() as conn:
         files = db.rows(conn, """SELECT f.id, f.name, c.subject, c.module_id, a.title AS ai_title, a.doc_type, a.topics FROM files f
@@ -1050,7 +1052,11 @@ def api_search(q: str):
                                  WHERE lower(f.name) LIKE ? OR lower(COALESCE(a.title,'')) LIKE ? OR lower(COALESCE(a.topics,'')) LIKE ? OR lower(c.subject) LIKE ?
                                  ORDER BY f.chdate DESC LIMIT 20""", (like, like, like, like))
         mods = db.rows(conn, "SELECT id, name, color FROM modules WHERE lower(name) LIKE ? LIMIT 5", (like,))
-    return {"files": files, "modules": mods}
+        tasks = db.rows(conn, """SELECT t.id, t.title, t.type, t.status, t.file_id, t.package_id, p.date, p.subject, p.module_id
+                                 FROM study_tasks t JOIN study_packages p ON p.id=t.package_id
+                                 WHERE lower(t.title) LIKE ? ORDER BY p.date DESC, t.id LIMIT 10""", (like,))
+        pages = scriptsearch.find_pages(conn, q)
+    return {"files": files, "modules": mods, "tasks": tasks, "pages": pages}
 
 
 # ----------------------------------------------------------------------------

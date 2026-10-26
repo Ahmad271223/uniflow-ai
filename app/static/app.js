@@ -35,7 +35,9 @@ async function globalSearch() {
   if (q.length < 2) { pop.hidden = true; return; }
   const r = await api(`/search?q=${encodeURIComponent(q)}`);
   pop.innerHTML = (r.modules.map(m => `<a href="#/modules/${m.id}"><span class="dot" style="background:${m.color}"></span><b>${esc(m.name)}</b><span class="muted small">Modul</span></a>`).join("") +
-    r.files.map(f => `<a href="#/doc/${f.id}">${icon(TYPE_ICON[f.doc_type] || "file", 16)}<span class="main"><span style="display:block">${esc(f.ai_title || f.name)}</span><span class="muted small">${esc(f.subject || "")} · ${esc(TYPE_TXT[f.doc_type] || f.name)}</span></span></a>`).join("")) || `<div class="muted small" style="padding:.6rem">Keine Treffer</div>`;
+    r.files.map(f => `<a href="#/doc/${f.id}">${icon(TYPE_ICON[f.doc_type] || "file", 16)}<span class="main"><span style="display:block">${esc(f.ai_title || f.name)}</span><span class="muted small">${esc(f.subject || "")} · ${esc(TYPE_TXT[f.doc_type] || f.name)}</span></span></a>`).join("") +
+    (r.tasks || []).map(t => `<a href="#/plan?view=day&date=${t.date}">${icon(TYPE_ICON[t.type] || "check", 16)}<span class="main"><span style="display:block">${esc(t.title)}</span><span class="muted small">${esc(t.subject || "")} · Aufgabe · ${fmtShort(t.date)}</span></span></a>`).join("") +
+    (r.pages || []).map(p => `<a href="#/doc/${p.file_id}?page=${p.page}">${icon("file-text", 16)}<span class="main"><span style="display:block">${esc(p.ai_title || p.name)} · Seite ${p.page}</span><span class="muted small">${esc(p.snippet)}</span></span></a>`).join("")) || `<div class="muted small" style="padding:.6rem">Keine Treffer</div>`;
   pop.hidden = false; $$("a", pop).forEach(a => a.onclick = () => { pop.hidden = true; $("#searchInput").value = ""; });
 }
 let bgTimer; async function pollBg() {

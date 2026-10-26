@@ -1202,7 +1202,7 @@
       "code": "C",
       "area": "C",
       "name": "Globale Suche (Strg K)",
-      "look": "ab 2 Zeichen, 220 ms verzögert; Treffer Module (Punkt) und Dateien (Typ-Icon); Escape/Klick daneben schließt",
+      "look": "ab 2 Zeichen, 220 ms verzögert; Treffer Module (Punkt), Dateien (Typ-Icon), Aufgaben (Tagesansicht) und Seiten mit dem Text (Dokument an der Seite, S7); Escape/Klick daneben schließt",
       "where": "app.js:26-46 · GET /search"
     },
     {
