@@ -226,6 +226,21 @@ final class RecordingsAppTests: XCTestCase {
                      target: lib.target(e, quality: quality), resume: lib.resumeURL(e, quality: quality), previous: lib.localFile(e)?.url)
     }
 
+    /// Vorschaubilder laden ueber die Sitzung des Containers: kein app-weiter URL-Zwischenspeicher, keine Cookies;
+    /// ohne Netz kein Bild (statt eines Fehlers)
+    func testThumbnailsUseTheContainerSessionWithoutSharedCache() async throws {
+        let dev = try device()
+        let (s, _, _) = try await synced(dev)
+        let config = s.recordings.sessionConfiguration
+        XCTAssertNil(config.urlCache)
+        XCTAssertFalse(config.httpShouldSetCookies)
+        XCTAssertEqual(config.httpCookieAcceptPolicy, .never)
+        let unreachable = try XCTUnwrap(URL(string: "http://127.0.0.1:9/vorschau.jpg"))
+        let image = await s.recordings.thumbnail(unreachable)
+        XCTAssertNil(image)
+        XCTAssertNil(URLCache.shared.cachedResponse(for: URLRequest(url: unreachable)))
+    }
+
     func testFinishedDownloadIsStoredWithoutBackupAndCanBeRemoved() async throws {
         let dev = try device()
         let (s, _, ana) = try await synced(dev)
@@ -397,6 +412,11 @@ final class RecordingsAppTests: XCTestCase {
         XCTAssertEqual(Probe(status: 503, size: nil).failure, "Der Videoserver antwortet mit HTTP 503. Bitte später erneut versuchen.")
         // Erfolg, Anmeldung (eigener Hinweis) und HEAD unbekannt (dann Rueckfrage zur Groesse): keine Meldung
         for s in [200, 206, 401, 403, 405, 501] { XCTAssertNil(Probe(status: s, size: nil).failure, "\(s)") }
+        // Abspielen ohne Netz: Meldung mit Hinweis aufs Laden statt der (dann leeren) Stud.IP-Seite
+        XCTAssertEqual(Probe(status: nil, size: nil).playbackFailure,
+                       "Der Videoserver ist nicht erreichbar. Prüfe die Internetverbindung. Zum Ansehen ohne Internet lade die Aufzeichnung vorher.")
+        XCTAssertNil(Probe(status: 200, size: nil).playbackFailure)
+        XCTAssertNil(Probe(status: 403, size: nil).playbackFailure, "Anmeldung: eigener Weg ueber die Stud.IP-Seite")
         guard case .confirm(let q) = RecordingDownloadPolicy.decide(title: "x", quality: "720p", size: Probe(status: 405, size: nil).size,
                                                                    freeBytes: 50_000_000_000) else { return XCTFail("405: Rückfrage") }
         XCTAssertTrue(q.contains("unbekannt"), q)

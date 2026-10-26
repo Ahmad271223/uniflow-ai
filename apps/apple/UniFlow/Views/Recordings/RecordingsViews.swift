@@ -147,13 +147,13 @@ struct RecordingRow: View {
         let meta = [entry.label, RecordingText.duration(v.duration), RecordingText.date(v.created), v.author].compactMap { $0 }
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: 12.8) {
-                RecordingThumbnail(url: v.thumbnailURL, action: play)
+                RecordingThumbnail(url: v.thumbnailURL, library: library, action: play)
                 info(meta).frame(maxWidth: .infinity, alignment: .leading)
                 actions.fixedSize()
             }
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 12.8) {
-                    RecordingThumbnail(url: v.thumbnailURL, action: play)
+                    RecordingThumbnail(url: v.thumbnailURL, library: library, action: play)
                     info(meta).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 actions
@@ -185,19 +185,18 @@ struct RecordingRow: View {
     }
 }
 
+/// Vorschaubild ueber `RecordingLibrary.thumbnail` (eigene Sitzung des Containers, kein app-weiter Zwischenspeicher)
 struct RecordingThumbnail: View {
     let url: URL?
+    let library: RecordingLibrary
     let action: () -> Void
+    @State private var image: UIImage?
 
     var body: some View {
         Button(action: action) {
             ZStack {
                 RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2)
-                if let url {
-                    AsyncImage(url: url) { phase in
-                        if let img = phase.image { img.resizable().scaledToFill() } else { Color.clear }
-                    }
-                }
+                if let image { Image(uiImage: image).resizable().scaledToFill() }
                 Circle().fill(.black.opacity(0.45)).frame(width: 30, height: 30)
                     .overlay(UFIcon("play", size: 14).foregroundStyle(.white))
             }
@@ -207,6 +206,7 @@ struct RecordingThumbnail: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Abspielen")
+        .task(id: url) { image = nil; if let url { image = await library.thumbnail(url) } }
     }
 }
 
@@ -589,6 +589,11 @@ struct RecordingPlayerView: View {
             let probe = await library.probe(url)
             if probe.needsLogin {
                 fallback("Der Videoserver verlangt eine Anmeldung (HTTP \(probe.status ?? 0)). Die Aufzeichnung läuft deshalb über die Stud.IP-Seite mit deiner Stud.IP-Sitzung.")
+                return
+            }
+            // offline oder Server nicht erreichbar: klare Meldung statt der Stud.IP-Seite, die dann ebenfalls leer bliebe
+            if let message = probe.playbackFailure {
+                mode = .failed(message)
                 return
             }
             play(url, local: false, quality: q, saved: current.position)

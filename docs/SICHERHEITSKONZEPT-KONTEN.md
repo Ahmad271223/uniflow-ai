@@ -36,8 +36,11 @@ immer der Mensch (Abschnitt 1a).
 Ablauf: Die App öffnet die echte Anmeldeseite der gewählten Hochschule in einer Webansicht (LUH: Stud.IP-Login und
 WebSSO `sso.idm.uni-hannover.de/idp/…`, QIS; Hildesheim: CAS `www.uni-hildesheim.de/sso/login` für Learnweb und LSF).
 Unter der Seite steht der Schalter **„Auf diesem iPad merken“** (Standard an) mit Erklärtext. In der App angebunden
-ist bisher nur die **Stud.IP-Anmeldung der LUH** (`StudIPLoginView`); QIS und das Hildesheimer CAS haben Profil, Regeln
-und Tests, ihre Anmeldeansichten kommen mit der Hochschulwahl nach der S3–S5-Integration.
+sind (Stand Abnahme 26.10.2026) die **Stud.IP-Anmeldung der LUH** (`StudIPLoginView`) und das **CAS der Uni
+Hildesheim** für Learnweb und LSF (`HildesheimLoginView`, `UniversityLoginAutofill` mit `serviceKey: "cas"`, Schalter
+`UniversityRememberBar`): Benutzername und Passwort des UNI-Accounts werden dort gemerkt und vorausgefüllt. Dazu liegt
+der **Learnweb-Schlüssel** aus dem Moodle-Mobile-SSO (`<nutzer>.hildesheim.learnweb.token`) im selben Dienst. QIS der
+LUH hat Profil, Regeln und Tests, eine Anmeldeansicht kommt erst mit F4 (V2).
 
 - **Merken:** Erst wenn der Mensch auf „Anmelden“ tippt (Absenden des Formulars), liest ein Skript Benutzername und
   Passwort und gibt sie an die App; die App legt sie nur bei eingeschaltetem Schalter im Schlüsselbund ab
@@ -89,8 +92,13 @@ und Tests, ihre Anmeldeansichten kommen mit der Hochschulwahl nach der S3–S5-I
 - **Neuinstallation:** Der Schlüsselbund überlebt das Löschen der App, die UserDefaults nicht. Fehlt der Merker dieser
   Installation (`uniflow.login.installed`), leert die App den ganzen Dienst `de.uniflow.ai.university`, bevor sie
   irgendetwas liest; gelingt das nicht (z. B. gesperrter Schlüsselbund), liest und speichert sie nichts und versucht
-  es beim nächsten Zugriff erneut. So füllt eine neu installierte App – auch für eine andere Person auf demselben
-  iPad – nie die Daten der alten Installation vor.
+  es beim nächsten Zugriff erneut. Ebenso für die **Stud.IP-Sitzungs-Cookies** (Dienst `de.uniflow.ai.studip`, Merker
+  `uniflow.studip.installed`, `StudIPCookieStore.removeLeftoversOfEarlierInstallation` beim Start, seit der Abnahme vom
+  26.10.2026): vorher galt Stud.IP nach Löschen und Neuinstallieren sofort als verbunden. So füllt eine neu installierte
+  App – auch für eine andere Person auf demselben iPad – nie die Daten der alten Installation vor und nutzt keine alte
+  Sitzung. Konto und PIN (`de.uniflow.ai.app`) liegen seit derselben Abnahme ebenfalls unter einem eigenen Dienst mit
+  `…ThisDeviceOnly` (vorher ohne Dienst und mit Backup auf andere Geräte; alte Einträge zieht die App einmal um);
+  alle drei Dienste nutzen dieselbe Umsetzung (`KeychainStore`).
 - **Nie an einen Server:** weder an den UniFlow-Dienst noch an den PC-Server; keine Protokollzeile, keine Adresse,
   keine Fehlermeldung enthält Passwort oder Token (Beschreibungen geschwärzt).
 
@@ -127,7 +135,7 @@ Grenzen und Risiken (ehrlich):
 | Gestohlenes oder entsperrt liegengelassenes iPad | gemerkte Hochschul-Passwörter nur mit Schalter, nur entsperrt lesbar (`WhenUnlockedThisDeviceOnly`), nie automatisch abgeschickt; Abmelden/Konto löschen entfernt sie |
 | Gefälschte Anmeldeseite (Phishing) in der Webansicht | Vorausfüllen und Merken nur auf HTTPS + exakt bekanntem Rechner und Pfad je Hochschule, nur Hauptrahmen, eigene Skript-Welt |
 | Fremde Seite desselben Ursprungs täuscht per `history.replaceState` die Anmeldeadresse vor (z. B. hochgeladene Learnweb-Datei) | Vorausfüllen und Merken nur für das Dokument der letzten echten Navigation (Antwort-Adresse, unveränderte `webView.url`), Kennung je Dokument, Skript und Kanal weg, sobald die Anmeldeseiten verlassen sind |
-| Neuinstallation (auch durch eine andere Person) findet alte Schlüsselbund-Einträge | ohne Installations-Merker wird der ganze Dienst geleert, bevor etwas gelesen wird |
+| Neuinstallation (auch durch eine andere Person) findet alte Schlüsselbund-Einträge | ohne Installations-Merker werden die Dienste `de.uniflow.ai.university` und `de.uniflow.ai.studip` geleert, bevor etwas gelesen wird |
 | Diebstahl der Server-Datenbank | keine Hochschul-Zugangsdaten auf dem Dienst; Passwörter Argon2id; Tokens nur gehasht; Notizen pro Nutzer getrennt |
 | Konto-Übernahme durch Raten | Rate-Limit je Konto und IP, Sperre mit Rückmeldung, Passwort-Mindestlänge 10, optional Passkeys (WebAuthn) |
 | Gestohlenes Sitzungstoken | kurze Lebensdauer (Zugriffstoken 15 min, Refresh 30 Tage, rotierend), „auf allen Geräten abmelden“ |

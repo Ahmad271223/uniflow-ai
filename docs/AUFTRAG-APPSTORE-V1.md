@@ -173,9 +173,10 @@ Regeln:
 ## 7. App-Store-Vorbereitung (V1)
 
 - `NSAllowsArbitraryLoads` entfernen; Stud.IP läuft über HTTPS, der PC-Modus nur für lokale Adressen
-  (`NSAllowsLocalNetworking`).
+  (`NSAllowsLocalNetworking`). **Erledigt (Abnahme 26.10.2026):** keine ATS-Ausnahme im Release, lokales Netz nur Debug.
 - Datenschutz-Manifest `PrivacyInfo.xcprivacy` und Datenschutzangaben in App Store Connect (gesammelte Daten:
-  Anmeldung, Käufe; keine Weitergabe; kein Tracking).
+  Anmeldung, Käufe; keine Weitergabe; kein Tracking). **Manifest erledigt (26.10.2026)**; die Angaben in App Store
+  Connect trifft der Inhaber (Checkliste `RELEASE-VORBEREITUNG.md`).
 - Anmeldung: „Mit Apple anmelden“ als Fähigkeit (braucht das Developer Program); **Konto löschen** in der App.
   Vorgabe des Inhabers: Anmeldung beim ersten Start (Abschnitt 2a). Risiko bei der App-Prüfung (Richtlinie
   5.1.1(v): Pflichtanmeldung ohne kontobezogene Funktionen) – auf der Begrüßung kurz zeigen, wofür das Konto dient

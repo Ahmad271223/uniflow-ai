@@ -792,7 +792,8 @@ actor UFThumbnails {
         }
         guard let out else { return nil }
         memory[key] = out
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // nur im bestehenden Container (wie ResponseCache.store): nach dem Loeschen kein neuer Ordner ohne Kennzeichnung
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: false)
         try? DataContainerLayout.setExcludedFromBackup(dir)                               // Vorschauen von Stud.IP-Dateien: nur auf dem Geraet
         try? out.jpegData(compressionQuality: 0.75)?.write(to: file, options: .atomic)
         return out

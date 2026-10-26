@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import UniFlowCore
 
 // Opencast-Aufzeichnungen auf dem iPad (Kern: UniFlowCore/Opencast). Die Listen holt der Stud.IP-Abgleich
@@ -44,6 +45,10 @@ final class RecordingLibrary: ObservableObject {
             return m + (s == 404 || s == 410 ? " Die Liste ist vermutlich veraltet, der nächste Stud.IP-Abgleich aktualisiert sie."
                                              : " Bitte später erneut versuchen.")
         }
+
+        /// Meldung beim Abspielen einer nicht geladenen Aufzeichnung, wenn der Stream nicht starten kann (offline,
+        /// Server nicht erreichbar, Fehlerstatus): statt der Stud.IP-Seite, die offline ebenfalls leer bliebe
+        var playbackFailure: String? { failure.map { $0 + " Zum Ansehen ohne Internet lade die Aufzeichnung vorher." } }
     }
 
     /// Ergebnis des Abrufs im Stud.IP-Abgleich
@@ -82,6 +87,9 @@ final class RecordingLibrary: ObservableObject {
     private let session: URLSession
     let delegate: RecordingDownloadDelegate
     private var tasks: [String: URLSessionDownloadTask] = [:]
+    /// Vorschaubilder nur im Speicher dieses Containers (vorher AsyncImage: URLSession.shared mit app-weitem
+    /// URLCache und Cookies, von keinem Loeschweg geleert)
+    private var thumbnails: [URL: UIImage] = [:]
     /// angehalten (Container wird geloescht, `StudIPSync.stop`): kein neuer Download
     private(set) var stopped = false
 
@@ -189,6 +197,21 @@ final class RecordingLibrary: ObservableObject {
     // MARK: Groesse und Erreichbarkeit
 
     /// HEAD an den Videoserver: Status (401/403 = Anmeldung noetig) und Content-Length
+    /// Vorschaubild ueber dieselbe Sitzung wie die Videos (ephemeral, ohne URL-Zwischenspeicher und Cookies);
+    /// nil ohne Netz oder ohne Bild. Gemerkt nur im Speicher.
+    func thumbnail(_ url: URL) async -> UIImage? {
+        if let image = thumbnails[url] { return image }
+        var r = URLRequest(url: url)
+        r.timeoutInterval = 20
+        guard let (data, response) = try? await session.data(for: r), (response as? HTTPURLResponse)?.statusCode == 200,
+              data.count <= 2_000_000, let image = UIImage(data: data) else { return nil }
+        thumbnails[url] = image
+        return image
+    }
+
+    /// Sitzung der Vorschaubilder und Videos (Tests: kein Zwischenspeicher, keine Cookies)
+    var sessionConfiguration: URLSessionConfiguration { session.configuration }
+
     func probe(_ url: URL) async -> Probe {
         var r = URLRequest(url: url)
         r.httpMethod = "HEAD"

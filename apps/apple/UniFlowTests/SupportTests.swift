@@ -18,6 +18,19 @@ final class SupportTests: XCTestCase {
         try? FileManager.default.removeItem(at: dir)
     }
 
+    /// Container geloescht, waehrend eine Antwort unterwegs war: der Zwischenspeicher legt ihn nicht wieder an
+    func testResponseCacheDoesNotRecreateADeletedContainer() throws {
+        let container = FileManager.default.temporaryDirectory.appendingPathComponent("container-test-\(UUID().uuidString)")
+        let cache = ResponseCache(root: DataContainerLayout.Folder.cache.url(in: container))
+        cache.store(["x": 1], for: "/api/dashboard")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: container.path), "kein Ordner ohne Kennzeichnung")
+        XCTAssertNil(cache.load("/api/dashboard"))
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+        cache.store(["x": 1], for: "/api/dashboard")
+        XCTAssertEqual(cache.load("/api/dashboard")?.0, ["x": 1], "im bestehenden Container wie bisher")
+    }
+
     func testRowsGetUniqueIDs() {
         let rows = Row.rows([["id": 1], ["id": 1], ["name": "ohne id"]])
         XCTAssertEqual(Set(rows.map(\.id)).count, 3)

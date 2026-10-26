@@ -738,7 +738,6 @@ final class SolutionSharingTests: XCTestCase {
         XCTAssertEqual(SolutionTexts.ownNotesOnly,
                        "Geteilt werden nur deine eigenen Notizen – keine Folien, keine Aufgabenstellungen, keine PDF. Teile nur, was du selbst erstellt hast.")
         XCTAssertTrue(SolutionTexts.examRules.contains("Prüfungsordnung"))
-        XCTAssertEqual(SolutionTexts.communityNotConnected, "Community-Dienst noch nicht verbunden")
         XCTAssertTrue(SolutionTexts.pdfExportPrivate.contains("Originalmaterial"))
     }
 }

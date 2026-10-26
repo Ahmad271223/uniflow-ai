@@ -66,5 +66,6 @@ startbar).
 
 Siehe `docs/MAC-IPAD-CHECKLISTE.md`.
 
-Vor einer Veröffentlichung: `NSAllowsArbitraryLoads` aus `project.yml` entfernen (Server dann per HTTPS),
-Bundle-ID und Team festlegen, Datenschutzangaben, App-Store-Connect-Eintrag.
+Vor einer Veröffentlichung: Bundle-ID und Team festlegen, Datenschutzangaben, App-Store-Connect-Eintrag
+(Checkliste in `docs/RELEASE-VORBEREITUNG.md`). Die Info.plist enthält keine ATS-Ausnahme; nur der Debug-Build erlaubt
+das lokale Netz für den eigenen Server (Skriptphase in `project.yml`).

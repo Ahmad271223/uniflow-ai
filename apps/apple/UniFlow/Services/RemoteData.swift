@@ -15,7 +15,9 @@ struct ResponseCache {
     }
 
     func store(_ value: JSONValue, for path: String) {
-        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        // nur im bestehenden Container: ist er inzwischen geloescht ("Konto löschen", "Daten dieser Hochschule
+        // löschen", waehrend die Antwort unterwegs war), entsteht kein Ordner <Container>/cache ohne Kennzeichnung
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         try? value.serialized().write(to: url(path), options: .atomic)     // nur Zwischenspeicher: Fehler sind unkritisch
     }
 

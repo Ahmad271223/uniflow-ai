@@ -8,7 +8,6 @@ import UniFlowCore
 enum SolutionTexts {
     static let ownNotesOnly = "Geteilt werden nur deine eigenen Notizen – keine Folien, keine Aufgabenstellungen, keine PDF. Teile nur, was du selbst erstellt hast."
     static let examRules = "Bewertete Abgaben (z. B. Hausübungen, Testate, Klausuren): Es gilt die Prüfungsordnung deiner Hochschule. Teile Lösungen dazu nur, wenn es ausdrücklich erlaubt ist."
-    static let communityNotConnected = "Community-Dienst noch nicht verbunden"
     static let pdfExportPrivate = "Die exportierte PDF enthält das Originalmaterial deiner Hochschule (z. B. Folien und Aufgabenstellungen) zusammen mit deinen Notizen. Verwende sie nur privat, z. B. in der Dateien-App, und gib sie nicht weiter. Zum Teilen deiner Notizen gibt es „Lösung teilen …“."
 }
 
@@ -138,11 +137,6 @@ struct SolutionShareSheet: View {
     private var actions: some View {
         UFFlexWrap(gap: 10) {
             UFButton("Abbrechen", action: close)
-            VStack(alignment: .leading, spacing: 4) {
-                UFButton("In der Community veröffentlichen", icon: "users") {}
-                    .disabled(true)
-                Text(SolutionTexts.communityNotConnected).ufFont(12.8).foregroundStyle(UF.muted)
-            }
             UFButton(busy ? "Wird erstellt …" : "Als Datei teilen", icon: "download", kind: .primary) { share() }
                 .disabled(busy || !(draft?.canShare(selected) ?? false))
         }

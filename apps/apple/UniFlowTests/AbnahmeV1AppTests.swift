@@ -36,10 +36,12 @@ final class AbnahmeV1AppTests: XCTestCase {
 
     // MARK: Navigation, Texte
 
-    func testSidebarHidesTestsOnTheDevice() {
-        XCTAssertFalse(UFNavItem.visible(local: true).map(\.id).contains("exams"))
-        XCTAssertTrue(UFNavItem.visible(local: false).map(\.id).contains("exams"))
-        XCTAssertEqual(UFNavItem.visible(local: true).count, UFNavItem.main.count - 1)
+    func testSidebarShowsOnlyAreasWithAFunctionOnTheDevice() {
+        let luh = UFNavItem.visible(local: true, gradesOnDevice: false).map(\.id)
+        XCTAssertEqual(luh, ["dashboard", "plan", "timetable", "modules", "files"])
+        let hildesheim = UFNavItem.visible(local: true, gradesOnDevice: true).map(\.id)
+        XCTAssertEqual(hildesheim, ["dashboard", "plan", "timetable", "modules", "files", "services"], "Notenspiegel aus dem LSF")
+        XCTAssertEqual(UFNavItem.visible(local: false, gradesOnDevice: false).map(\.id), UFNavItem.main.map(\.id), "eigener Server")
     }
 
     func testDeleteAccountMentionsPINOnlyWithOwnServer() {

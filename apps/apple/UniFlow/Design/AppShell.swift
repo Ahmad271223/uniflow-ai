@@ -149,10 +149,13 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
 
-    /// Eintraege der Seitenleiste: ohne PC (lokales Backend) ohne "Tests & Wiederholung" – Wochentests entfallen in
-    /// V1 (KI), eigene Karteikarten gibt es noch nicht ("bald" auf der Plus-Karte); die Seite war immer leer
-    static func visible(local: Bool) -> [UFNavItem] {
-        local ? main.filter { $0.id != "exams" } : main
+    /// Eintraege der Seitenleiste. Ohne PC (lokales Backend) nur Bereiche mit Funktion (App Review 2.1/2.2): ohne
+    /// "Tests & Wiederholung" (Wochentests entfallen in V1, eigene Karteikarten "bald"), ohne "Community" (kein Dienst;
+    /// Loesungen teilt man im Editor als Datei) und "Uni & Noten" nur, wo der Notenspiegel auf dem Geraet ankommt
+    /// (`gradesOnDevice`: Uni Hildesheim, LSF); an der LUH zeigte die Seite bis F4 nur "spätere Version".
+    static func visible(local: Bool, gradesOnDevice: Bool) -> [UFNavItem] {
+        guard local else { return main }
+        return main.filter { $0.id != "exams" && $0.id != "community" && ($0.id != "services" || gradesOnDevice) }
     }
 
     /// untere Leiste (mobileNav in app.js)
@@ -213,6 +216,7 @@ struct AppShell<Content: View>: View {
 struct UFSidebar: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
     @AppStorage("sidebar") private var sidebarMode = "full"
     let collapsed: Bool
     let allowCollapse: Bool
@@ -230,7 +234,8 @@ struct UFSidebar: View {
 
             ScrollView(showsIndicators: false) {                         // .nav scrollt selbst, Fuss bleibt fest
                 VStack(spacing: 4) {
-                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true)) { item in
+                    // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): Hochschule ohne Stud.IP
+                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: !studip.offersStudIP)) { item in
                         navRow(item.title, icon: item.icon, active: router.route.navKey == item.id) { router.go(item.route) }
                     }
                 }

@@ -709,7 +709,12 @@ Datei fortschreiben.
 - **ZQS/elsa:** schriftliche Erlaubnis für den Abruf über die JSON:API durch eine App für andere Studierende
   (Abrufmuster nennen); OAuth2-Client mit PKCE und Lebensdauer von Sitzung und Refresh-Token; ob Teilen der eigenen
   Anmerkungsebene innerhalb eines Kurses in Ordnung ist. Entwurf: `docs/ANFRAGE-STUDIP-ZUGANG.md`.
-- **LUH:** Erlaubnis für den App Store nach Richtlinie 5.2.2 (Nutzung der Hochschuldienste und Namen).
+- **LUH:** Erlaubnis für den App Store nach Richtlinie 5.2.2 (Nutzung der Hochschuldienste und Namen), dazu nach
+  5.2.3 für Opencast-Aufzeichnungen samt Download auf das Gerät (Laden auf Wunsch, `RecordingLibrary`).
+- **Uni Hildesheim** (ergänzt bei der Abnahme 26.10.2026, die App bietet sie in der Hochschulwahl an): Erlaubnis nach
+  5.2.2 für CAS, Learnweb über den Dienst der offiziellen Moodle-App (`moodle_mobile_app`, Schema `moodlemobile`), LSF
+  und den Namen. Bis zur Freigabe ggf. im Release ausblenden (Entscheidung des Inhabers); Entscheidung 5 („Nur LUH“)
+  ist durch den Code überholt und muss bestätigt oder geändert werden.
 - **LUIS:** Anmeldung in der eingebetteten Webansicht als Übergang zulässig oder nur `ASWebAuthenticationSession`.
 - **Datenschutz und Urheberrecht:** Datenschutzerklärung; lokale Speicherung der Skripte; Teilen eigener
   Anmerkungen über fremden Folien; Hinweis zu bewerteten Abgaben (Prüfungsämter).
