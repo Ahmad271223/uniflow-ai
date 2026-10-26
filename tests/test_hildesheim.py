@@ -514,6 +514,10 @@ def test_shared_hildesheim_fixtures_match_python():
     files = learnweb.files_from_contents(json.loads((d / "learnweb-course-contents.json").read_text(encoding="utf-8")))
     assert [{k: f[k] for k in exp["learnweb-course-contents.json"][0]} for f in files] == exp["learnweb-course-contents.json"]
     assert {t: learnweb.parse_course_title(t) for t in exp["course-titles"]} == exp["course-titles"]
+    cal = json.loads((d / "learnweb-calendar-events.json").read_text(encoding="utf-8"))["events"]
+    assert learnweb.deadlines_from_events(cal) == exp["learnweb-deadlines"]
+    assert [learnweb.deadline_kind(c["module"], c["eventtype"]) for c in exp["deadline-kinds"]] == [c["kind"] for c in exp["deadline-kinds"]]
+    assert [learnweb.local_iso(c["ts"]) for c in exp["local-iso"]] == [c["local"] for c in exp["local-iso"]]
 
 
 def test_grade_rows_hildesheim_layout():
@@ -778,3 +782,123 @@ def test_moodle_launch_token():
     assert learnweb.parse_launch_token(f"moodlemobile://token={tok}", base, "falsch") is None        # fremder Passport
     assert learnweb.parse_launch_token("moodlemobile://token=%%%", base, "pass123") is None
     assert learnweb.launch_url(base, "p/1") == base + "/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=p%2F1&urlscheme=moodlemobile"
+
+
+# ---------------------------------------------------------------- Learnweb-Fristen (Abgaben, Tests) aus dem Kalender
+
+def _ev(i, ts, module="assign", etype="due", course=843, name=None):
+    return {"id": i, "name": name or f"Blatt {i} ist fällig.", "activityname": name or f"Blatt {i}", "modulename": module,
+            "eventtype": etype, "timestart": ts, "course": {"id": course}, "url": f"https://lw.example/mod/{module}/view.php?id={i}"}
+
+
+def test_deadline_events_paged_and_upcoming_view_optional():
+    """Seitenweise ueber aftereventid; faellt die Vorschau weg, bleiben die Fristen aus der ersten Quelle."""
+    from app import learnweb
+    calls = []
+    pages = {None: [_ev(i, 1793833140 + i) for i in range(50)], 49: [_ev(50, 1793900000)]}
+
+    def call(fn, a):
+        calls.append((fn, dict(a)))
+        if fn == "core_calendar_get_action_events_by_timesort":
+            ev = pages[a.get("aftereventid")]
+            return {"events": ev, "lastid": ev[-1]["id"]}
+        raise learnweb.LearnwebError("servicenotavailable")
+
+    ev = learnweb.fetch_deadline_events(call, now=1793000000)
+    assert len(ev) == 51 and [c[1].get("aftereventid") for c in calls[:2]] == [None, 49]
+    assert calls[0][1]["timesortfrom"] == 1793000000 - 86400 and calls[0][1]["timesortto"] == 1793000000 + 200 * 86400
+    assert calls[-1][0] == "core_calendar_get_calendar_upcoming_view"
+    with pytest.raises(learnweb.LearnwebError):          # Fehler der Hauptquelle wird gemeldet, nicht verschluckt
+        learnweb.fetch_deadline_events(lambda fn, a: (_ for _ in ()).throw(learnweb.LearnwebError("x")), now=1)
+
+
+def test_token_client_deadlines_use_rest_with_flat_params():
+    from app import learnweb
+    seen = []
+
+    def post(url, data):
+        seen.append(data)
+        if data["wsfunction"] == "core_calendar_get_action_events_by_timesort":
+            return json.dumps({"events": [_ev(7, 1793833140)], "lastid": 7}).encode()
+        return json.dumps({"events": [_ev(7, 1793833140), _ev(8, 1793451600, "quiz", "open", name="Lerncheck")]}).encode()
+
+    d = learnweb.TokenClient("https://lw.example", "TOK", post=post).deadlines(now=1793000000)
+    assert [(x["id"], x["kind"]) for x in d] == [("lw-ev-8", "test_beginn"), ("lw-ev-7", "abgabe")]
+    assert seen[0]["wstoken"] == "TOK" and seen[0]["limitnum"] == 50
+
+
+def test_store_deadlines_updates_removes_in_window_keeps_past(app):
+    from app import db, hildesheim
+    db.init_db()
+    a = {"id": "lw-ev-1", "course_id": "lw-843", "title": "Blatt 1", "kind": "abgabe", "module": "assign", "due_at": "2026-11-04T23:59", "url": None}
+    b = {**a, "id": "lw-ev-2", "title": "Blatt 2", "due_at": "2026-11-11T23:59"}
+    old = {**a, "id": "lw-ev-0", "title": "Blatt 0", "due_at": "2026-10-20T23:59"}
+    with db.cursor() as conn:
+        conn.execute("DELETE FROM deadlines")
+        assert hildesheim.store_deadlines(conn, [old, a, b], "t1", "2026-10-19T00:00") == {"new": 3, "total": 3, "removed": 0}
+        # spaeterer Abruf: Blatt 2 abgegeben (fehlt), Blatt 1 verschoben, Blatt 0 liegt vor dem Zeitfenster
+        r = hildesheim.store_deadlines(conn, [{**a, "due_at": "2026-11-05T12:00"}], "t2", "2026-10-25T00:00")
+        rows = db.rows(conn, "SELECT id, due_at, fetched_at FROM deadlines ORDER BY id")
+        assert r == {"new": 0, "total": 1, "removed": 1}
+        assert [(x["id"], x["due_at"]) for x in rows] == [("lw-ev-0", "2026-10-20T23:59"), ("lw-ev-1", "2026-11-05T12:00")]
+        assert hildesheim.store_deadlines(conn, [], "t3", "2026-10-25T00:00")["removed"] == 1     # leere Antwort im Fenster
+        conn.execute("DELETE FROM deadlines")
+
+
+def test_deadlines_in_dashboard_and_api(app, monkeypatch):
+    from conftest import asgi_call
+    from datetime import date
+    from app import db, study
+    db.init_db()
+    monkeypatch.setattr(study, "today", lambda: date(2026, 10, 26))
+    with db.cursor() as conn:
+        conn.execute("DELETE FROM deadlines")
+        conn.execute("INSERT OR REPLACE INTO courses(id, title, kind, active, created_at) VALUES ('lw-843', 'Statistik', 'vorlesung', 1, '2026-10-26')")
+        for i, (due, kind) in enumerate([("2026-10-20T23:59", "abgabe"), ("2026-11-02T23:59", "test_ende"), ("2026-11-04T23:59", "abgabe")]):
+            conn.execute("INSERT INTO deadlines(id, source, course_id, title, kind, module, due_at, url) VALUES (?, 'learnweb', 'lw-843', ?, ?, 'assign', ?, ?)",
+                         (f"lw-ev-t{i}", f"Frist {i}", kind, due, "javascript:alert(1)" if i == 2 else "https://lw.example/x"))
+    status, _, body = asgi_call(app, "GET", "/api/deadlines")
+    d = json.loads(body)["deadlines"]
+    assert status == 200 and [(x["date"], x["time"], x["kind_label"], x["course_title"]) for x in d] == [
+        ("2026-11-02", "23:59", "Test endet", "Statistik"), ("2026-11-04", "23:59", "Abgabe", "Statistik")]
+    status, _, body = asgi_call(app, "GET", "/api/dashboard")
+    up = [u for u in json.loads(body)["upcoming"] if u.get("deadline_id")]
+    assert status == 200 and [u["title"] for u in up] == ["Frist 1", "Frist 2"]
+    with db.cursor() as conn:
+        conn.execute("DELETE FROM deadlines")
+        conn.execute("DELETE FROM courses WHERE id='lw-843'")
+
+
+def test_sync_deadline_failure_does_not_stop_sync(app, monkeypatch):
+    """Fristen sind eine Ergaenzung: ein Fehler im Kalender steht im Ergebnis, der Sync gilt trotzdem als gelungen."""
+    from contextlib import contextmanager
+    from app import config, hildesheim
+
+    class Broken:
+        def deadlines(self, now=None):
+            raise RuntimeError("Kalender gesperrt")
+
+    class Ctx:
+        def new_page(self):
+            return object()
+
+        def close(self):
+            pass
+
+    class PW:
+        class chromium:
+            @staticmethod
+            def launch_persistent_context(*a, **k):
+                return Ctx()
+
+    @contextmanager
+    def fake_playwright():
+        yield PW
+
+    monkeypatch.setattr(hildesheim, "sync_playwright", fake_playwright)
+    monkeypatch.setattr(config, "own_credentials", lambda key: ("", ""))
+    monkeypatch.setattr(config, "secret", lambda key, *a: "TOK" if key == "LEARNWEB_TOKEN" else "")
+    monkeypatch.setattr(hildesheim, "_learnweb_client", lambda page, u, p, t: (Broken(), [], t))
+    monkeypatch.setattr(hildesheim, "sync_learnweb", lambda *a: 0)
+    r = hildesheim.run_sync()
+    assert r["ok"] and "Learnweb-Fristen: FEHLER Kalender gesperrt" in r["message"] and "LSF-Stundenplan uebersprungen" in r["message"]

@@ -44,6 +44,22 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
 - Kurs-IDs `lw-<moodle-id>`, Datei-IDs `lw-<cmid>-<hash>`. Kursname „SoSe 2026: 0406 Titel“ → Semester + Vst.-Nr.
 - Abschnitte mit reiner Zahl werden zu „Woche N“ (Wochenerkennung im Lernplan).
 
+## Learnweb-Fristen (Abgaben, Tests)
+
+- Beim Sync nach den Dateien, beide Wege (Schlüssel und Sitzung), nur lesend. `core_calendar_get_calendar_events` ist
+  für AJAX gesperrt (geprüft 26.10.2026), deshalb zwei Quellen derselben Ereignis-Form:
+  `core_calendar_get_action_events_by_timesort` (offene Fristen von gestern bis +200 Tage, seitenweise über
+  `aftereventid`, erledigte Aufgaben fehlen) und `core_calendar_get_calendar_upcoming_view` (Vorschau, auch „Test
+  beginnt“; ein Fehler dort wird ignoriert). Doppelte Ereignis-IDs werden zusammengefasst (`learnweb.deadlines_from_events`).
+- Arten: Aufgabe fällig → `abgabe`, Test endet/beginnt → `test_ende`/`test_beginn`, andere Aktivität fällig/schließt →
+  `frist`, sonst `termin`. Zeit lokal `YYYY-MM-DDTHH:MM` (Europe/Berlin), Titel = Aktivitätsname.
+- Tabelle `deadlines` (`id` = `lw-ev-<Ereignis-id>`, Kurs `lw-<id>`). Was im abgefragten Fenster nicht mehr kommt,
+  wird entfernt (gelöscht oder abgegeben); ältere Fristen bleiben. Ein Fehler beim Kalender meldet „Learnweb-Fristen:
+  FEHLER …“, der Sync läuft weiter.
+- Anzeige: Startseite „Nächste Termine“ (mit Uhrzeit, Art und Kurs, Link ins Learnweb), `GET /api/deadlines`.
+- Live 26.10.2026: 5 Fristen (2× Test beginnt, 2× Test endet, 1 Abgabe), alle mit Kurs, zweiter Lauf ohne Doppelte.
+- Ferien/Feiertage stehen nicht im Learnweb; vorlesungsfreie Tage kommen aus dem LSF-Export (EXDATE).
+
 ## LSF-Stundenplan
 
 - Stundenplan-Seite → Link `moduleCall=iCalendarPlan` → ICS. Der Link braucht keine Sitzung, enthält aber nur die
@@ -64,4 +80,4 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
 ## Offen
 
 - Bescheinigungen (Immatrikulation): Quelle in Hildesheim unbekannt, im LSF-Menü nicht vorhanden.
-- Learnweb-Abgabetermine (Aufgaben/Quizze) sind noch nicht in den Kalender übernommen.
+- Learnweb-Fristen stehen auf der Startseite, aber noch nicht im Stundenplan- oder Lernkalender-Raster.

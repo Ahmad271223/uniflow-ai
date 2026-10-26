@@ -88,6 +88,24 @@
           {"name": "sqlite_autoindex_courses_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["id"]}
         ]
       },
+      "deadlines": {
+        "columns": [
+          {"name": "id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "source", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "course_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "title", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "kind", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "module", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "due_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "url", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "idx_deadlines_due", "unique": 0, "origin": "c", "partial": 0, "columns": ["due_at"]},
+          {"name": "sqlite_autoindex_deadlines_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["id"]}
+        ]
+      },
       "dismissed_tests": {
         "columns": [
           {"name": "module_id", "type": "INTEGER", "notnull": 1, "default": null, "pk": 1},
@@ -458,7 +476,7 @@
         ]
       }
     },
-    "index_sql": {"ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
+    "index_sql": {"idx_deadlines_due": "CREATE INDEX idx_deadlines_due ON deadlines(due_at)", "ix_tests_share_key": "CREATE INDEX ix_tests_share_key ON tests(share_key)", "ux_tests_auto": "CREATE UNIQUE INDEX ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"},
     "user_version": 0
   },
   "settings": [

@@ -19,6 +19,7 @@ import json
 import unicodedata
 import mimetypes
 import re
+import time
 import urllib.parse
 import urllib.request
 from typing import Callable
@@ -258,6 +259,9 @@ class TokenClient:
     def download_url(self, url: str) -> str:
         return with_token(url, self.token)
 
+    def deadlines(self, now: int | None = None) -> list[dict]:
+        return deadlines_from_events(fetch_deadline_events(lambda fn, a: self.call(fn, **a), int(now or time.time())))
+
 
 # ----------------------------------------------------------------------------
 # Weg 2: angemeldete Browsersitzung (Playwright-Seite)
@@ -297,6 +301,9 @@ class SessionClient:
     def files(self, courseid: int) -> list[dict]:
         state = json.loads(self.ajax("core_courseformat_get_state", {"courseid": courseid}))
         return files_from_state(state, self._resource_link, self._folder_links)
+
+    def deadlines(self, now: int | None = None) -> list[dict]:
+        return deadlines_from_events(fetch_deadline_events(self.ajax, int(now or time.time())))
 
     def download_url(self, url: str) -> str:
         return url
@@ -348,3 +355,71 @@ def files_from_state(state: dict, resource_links: Callable, folder_links_fn: Cal
                         "download_url": strip_forcedownload(url),
                         "folder": join_folder(base_folder, p["filepath"]), "module_name": cm.get("name")})
     return out
+
+
+# ----------------------------------------------------------------------------
+# Fristen aus dem Learnweb-Kalender (Abgaben, Tests), beide Wege nur lesend
+# ----------------------------------------------------------------------------
+# core_calendar_get_calendar_events ist fuer AJAX gesperrt (Befund 26.10.2026). Deshalb zwei Quellen:
+#  - core_calendar_get_action_events_by_timesort: alle offenen Fristen (Abgabe faellig, Test endet) im Zeitfenster,
+#    seitenweise; erledigte Aufgaben fehlen hier.
+#  - core_calendar_get_calendar_upcoming_view: die naechsten Termine laut Moodle-Vorschau, auch "Test beginnt".
+# Beide liefern dieselbe Ereignis-Form; doppelte Ereignisse (gleiche id) werden zusammengefasst.
+
+DEADLINE_KINDS = {("assign", "due"): "abgabe", ("quiz", "close"): "test_ende", ("quiz", "open"): "test_beginn"}
+DEADLINE_DAYS_BACK = 1
+DEADLINE_DAYS_AHEAD = 200
+DEADLINE_PAGES = 10
+
+
+def deadline_kind(modulename: str | None, eventtype: str | None) -> str:
+    """abgabe | test_ende | test_beginn | frist (andere Aktivitaet: faellig/schliesst) | termin (alles andere)."""
+    k = DEADLINE_KINDS.get(((modulename or "").lower(), (eventtype or "").lower()))
+    if k:
+        return k
+    if modulename and (eventtype or "").lower() in ("due", "close", "expectcompletionon", "gradingdue"):
+        return "frist"
+    return "termin"
+
+
+def local_iso(ts: int, tz: str = "Europe/Berlin") -> str:
+    """Unix-Zeit als lokale Uhrzeit 'YYYY-MM-DDTHH:MM' (wie die Stundenplan-Zeiten der App)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.fromtimestamp(int(ts), ZoneInfo(tz)).strftime("%Y-%m-%dT%H:%M")
+
+
+def deadlines_from_events(events: list[dict]) -> list[dict]:
+    """Moodle-Kalenderereignisse -> Fristen der App, nach Zeit sortiert, ohne doppelte Ereignisse."""
+    out: dict[str, dict] = {}
+    for e in events or []:
+        if e.get("id") is None or not e.get("timestart"):
+            continue
+        course = e.get("course") or {}
+        cid = course.get("id") or e.get("courseid")
+        title = nfc(e.get("activityname") or e.get("name") or "").strip()
+        did = f"lw-ev-{int(e['id'])}"
+        out[did] = {"id": did, "course_id": f"lw-{int(cid)}" if cid and int(cid) > 1 else None,
+                    "title": title or "Termin", "kind": deadline_kind(e.get("modulename"), e.get("eventtype")),
+                    "module": e.get("modulename") or None, "due_at": local_iso(e["timestart"]),
+                    "url": e.get("url") or None}
+    return sorted(out.values(), key=lambda d: (d["due_at"], d["title"], d["id"]))
+
+
+def fetch_deadline_events(call: Callable[[str, dict], dict], now: int) -> list[dict]:
+    """Ereignisse aus beiden Kalender-Quellen; call(fn, args) ist REST (Schluessel) oder AJAX (Sitzung)."""
+    events: list[dict] = []
+    args = {"timesortfrom": now - DEADLINE_DAYS_BACK * 86400, "timesortto": now + DEADLINE_DAYS_AHEAD * 86400, "limitnum": 50}
+    for _ in range(DEADLINE_PAGES):
+        d = call("core_calendar_get_action_events_by_timesort", args) or {}
+        page = d.get("events") or []
+        events += page
+        if len(page) < args["limitnum"] or not d.get("lastid"):
+            break
+        args = {**args, "aftereventid": d["lastid"]}
+    try:
+        events += (call("core_calendar_get_calendar_upcoming_view", {"courseid": 1, "categoryid": 0}) or {}).get("events") or []
+    except LearnwebError:
+        pass        # Vorschau nur Ergaenzung ("Test beginnt"); die Fristen selbst kommen aus der ersten Quelle
+    return events
+

@@ -186,3 +186,25 @@ das gibt es unter Windows nicht, beide laufen nur unter macOS/Linux (geprüft im
 `gen-local-backend-fixture.py` unter Linux (Python 3.10 im Container) in `_import_rounds` ab
 (`fetchone()` liefert None, Zeile 1292) – auch **ohne** meine Änderung, also ein vorhandener Fehler des Werkzeugs
 oder seiner Umgebung.
+
+## Hinweis der PC-Sitzung: Learnweb-Fristen (Abgaben, Tests) – bitte im iPad nachziehen (26.10.2026)
+
+Wunsch des Inhabers: Abgabefristen und Test-Zeiten aus dem Learnweb in die App. In Python fertig, auf develop:
+
+- `app/learnweb.py`: `deadline_kind`, `local_iso`, `deadlines_from_events`, `fetch_deadline_events` und
+  `deadlines()` in `TokenClient` und `SessionClient`. Zwei Kalender-Quellen (`core_calendar_get_action_events_by_timesort`
+  seitenweise, `core_calendar_get_calendar_upcoming_view` als Ergänzung); `core_calendar_get_calendar_events` ist
+  für AJAX gesperrt.
+- `app/hildesheim.py`: `store_deadlines` (Upsert; im Abfragefenster Verschwundenes entfernen, Älteres behalten) und
+  `sync_deadlines`; in `run_sync` nach den Dateien, ein Fehler stoppt den Sync nicht.
+- Neue Tabelle `deadlines` in `app/db.py`; `SchemaSQL.swift`, `schema.json` und `legacy.json` sind mit den
+  Werkzeugen neu erzeugt (nur diese Tabelle samt Index kommt dazu).
+- Startseite: `study.upcoming_deadlines` fließt in `upcoming` ein (Felder `deadline_id`, `time`, `kind_label`,
+  `course_title`, `url`), neu `GET /api/deadlines`. Web: Eintrag öffnet das Learnweb im neuen Tab (nur http/https).
+- Gemeinsame Fixtures: `fixtures/hildesheim/learnweb-calendar-events.json` (erfunden) und in `expected.json` die
+  Schlüssel `learnweb-deadlines`, `deadline-kinds`, `local-iso` (inkl. Sommer-/Winterzeit-Wechsel).
+
+**Für das iPad:** dieselben Funktionen im Kern (HildesheimSync nach den Dateien), Tabelle über das erzeugte Schema,
+Fixture-Test gegen die drei neuen Schlüssel, Anzeige in „Nächste Termine“. Live mit echten Daten: 5 Fristen, alle
+mit Kurs, zweiter Lauf ohne Doppelte. Python: 125 Tests grün.
+

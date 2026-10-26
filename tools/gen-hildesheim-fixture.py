@@ -2,7 +2,7 @@
 
 Der Swift-Kern (HildesheimFixtureTests) rechnet dieselben Eingaben und vergleicht: Kurstitel, Learnweb-Dateilisten
 (REST und Sitzung), Pluginfile-Links, Semester und Learnweb-Instanz, CAS-Adressen, LSF-iCal (BYDAY, EXDATE),
-LSF-Veranstaltungstitel und den Notenspiegel im Hildesheimer Tabellenaufbau. Alle Eingaben sind erfunden.
+LSF-Veranstaltungstitel, Learnweb-Fristen und den Notenspiegel im Hildesheimer Tabellenaufbau. Alle Eingaben sind erfunden.
 Aufruf im Projektordner: python tools/gen-hildesheim-fixture.py [--check]
 """
 from __future__ import annotations
@@ -36,6 +36,7 @@ def main(check: bool) -> bool:
     ics_course = (D / "lsf-course.ics").read_text(encoding="utf-8")
     ics_plan = (D / "lsf-plan.ics").read_text(encoding="utf-8")
     contents = json.loads((D / "learnweb-course-contents.json").read_text(encoding="utf-8"))
+    calendar = json.loads((D / "learnweb-calendar-events.json").read_text(encoding="utf-8"))["events"]
 
     titles = ["SoSe 2026: 0406 Theorien der Erziehungswissenschaft", "WiSe 2026/27:  1532   Klein(st)kinder", "Mathe-Vorkurs",
               "SS 26: 3200 Grundlagen der BWL", "WS 2026/27: Ringvorlesung"]
@@ -109,6 +110,11 @@ def main(check: bool) -> bool:
         "lsf-plan-link": [{"html": h, "link": lsf.plan_ics_link(h)} for h in (
             '<a href="https://lsf.uni-hildesheim.de/qisserver/rds?state=verpublish&amp;status=transform&amp;termine=1,2&amp;moduleCall=iCalendarPlan">',
             '<a href="rds?state=wplan&amp;moduleCall=iCalendarPlan">', "<html>kein Plan</html>")],
+        "learnweb-deadlines": learnweb.deadlines_from_events(calendar),
+        "deadline-kinds": [{"module": m, "eventtype": t, "kind": learnweb.deadline_kind(m, t)} for m, t in (
+            ("assign", "due"), ("quiz", "close"), ("quiz", "open"), ("QUIZ", "Close"), ("feedback", "close"),
+            ("choice", "open"), (None, "user"), (None, "course"))],
+        "local-iso": [{"ts": ts, "local": learnweb.local_iso(ts)} for ts in (1793833140, 1784710800, 1798757940, 1774746000, 1792890000)],
         "grade-rows": {"abschluss": "Fallback", "rows": grade_rows,
                        "grades": [{k: g.get(k) for k in ("pruefungsnr", "text", "note", "status", "credits", "abschluss")}
                                   for g in qis.parse_grade_rows(grade_rows, "Fallback")]},

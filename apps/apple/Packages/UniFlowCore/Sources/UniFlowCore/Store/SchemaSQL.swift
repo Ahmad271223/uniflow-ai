@@ -297,6 +297,20 @@ CREATE TABLE IF NOT EXISTS recordings (
     created_at TEXT
 );
 
+-- Fristen aus dem Learnweb-Kalender (Abgabe faellig, Test beginnt/endet); due_at lokale Zeit 'YYYY-MM-DDTHH:MM'
+CREATE TABLE IF NOT EXISTS deadlines (
+    id TEXT PRIMARY KEY,                  -- lw-ev-<Moodle-Ereignis-id>
+    source TEXT NOT NULL,                 -- learnweb
+    course_id TEXT,                       -- lw-<Kurs-id>, NULL bei Terminen ohne Kurs
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL,                   -- abgabe | test_ende | test_beginn | frist | termin
+    module TEXT,                          -- assign | quiz | ...
+    due_at TEXT NOT NULL,
+    url TEXT,
+    fetched_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_deadlines_due ON deadlines(due_at);
+
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT

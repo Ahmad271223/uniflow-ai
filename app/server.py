@@ -750,6 +750,13 @@ def api_dashboard():
     return d
 
 
+@app.get("/api/deadlines")
+def api_deadlines():
+    """Kommende Fristen aus dem Learnweb (Abgaben, Tests), nach Zeit sortiert."""
+    with db.cursor() as conn:
+        return {"deadlines": study.upcoming_deadlines(conn, study.today())}
+
+
 @app.get("/api/modules")
 def api_modules():
     with db.cursor() as conn:

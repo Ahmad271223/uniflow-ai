@@ -36,4 +36,4 @@ Regeln für Notizen (`packages/shared-contracts/annotations.schema.json`):
 Übersicht `/api/dashboard`, Module `/api/modules`, `/api/modules/{id}`, Lernkalender `/api/calendar?start=&end=`,
 Aufgaben `/api/tasks/open`, `/api/tasks/{id}/status`, Lernpakete `/api/packages/{id}`, Stundenplan `/api/timetable/week?start=`,
 `/api/timetable/day?date=`, Tests `/api/tests`, `/api/tests/{id}`, Karteikarten `/api/flashcards`, KI-Tutor `/api/ai/tutor`,
-Noten `/api/grades`, Dienste `/api/services`, Netzwerk/PIN `/api/network` (nur vom PC sinnvoll).
+Noten `/api/grades`, Learnweb-Fristen `/api/deadlines`, Dienste `/api/services`, Netzwerk/PIN `/api/network` (nur vom PC sinnvoll).

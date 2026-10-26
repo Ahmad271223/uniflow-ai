@@ -733,6 +733,20 @@ def skip_tasks(conn, task_ids: list[int]) -> None:
         set_task_status(conn, tid, "uebersprungen", note="bewusst übersprungen")
 
 
+DEADLINE_LABELS = {"abgabe": "Abgabe", "test_ende": "Test endet", "test_beginn": "Test beginnt", "frist": "Frist", "termin": "Termin"}
+
+
+def upcoming_deadlines(conn, t, limit: int = 50) -> list[dict]:
+    """Learnweb-Fristen ab heute fuer 'Naechste Termine' (Abgaben, Tests); Farbe vom Modul des Kurses."""
+    now = datetime.now().strftime("%Y-%m-%dT%H:%M") if t == today() else f"{t.isoformat()}T00:00"
+    rows = db.rows(conn, """SELECT d.*, c.title AS course_title, m.color, c.module_id
+                            FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id
+                            WHERE d.due_at >= ? ORDER BY d.due_at LIMIT ?""", (now, limit))
+    return [{"date": r["due_at"][:10], "time": r["due_at"][11:16], "kind": r["kind"], "kind_label": DEADLINE_LABELS.get(r["kind"], "Frist"),
+             "title": r["title"], "course_title": r["course_title"], "module_id": r["module_id"], "color": r["color"],
+             "url": r["url"], "deadline_id": r["id"]} for r in rows]
+
+
 def dashboard(conn) -> dict:
     ensure_modules(conn)
     refresh_statuses(conn)
@@ -756,7 +770,8 @@ def dashboard(conn) -> dict:
         upcoming.append({"date": p["date"], "kind": "lernpaket", "title": f"{p['subject']}: {p['title']}", "module_id": p["module_id"], "color": p["color"], "package_id": p["id"]})
     for te in db.rows(conn, "SELECT t.id, t.title, p.date, p.subject FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE t.type='test' AND t.status IN ('geplant') AND p.date>=? ORDER BY p.date LIMIT 4", (t.isoformat(),)):
         upcoming.append({"date": te["date"], "kind": "test", "title": f"{te['subject']}: {te['title']}", "task_id": te["id"]})
-    upcoming.sort(key=lambda x: x["date"])
+    upcoming += upcoming_deadlines(conn, t, limit=8)
+    upcoming.sort(key=lambda x: (x["date"], x.get("time") or ""))
     last_sync = db.row(conn, "SELECT * FROM sync_log ORDER BY id DESC LIMIT 1")
     from . import timetable
     today_day["events"] = timetable.occurrences(conn, t, t)

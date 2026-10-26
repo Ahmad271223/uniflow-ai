@@ -18,6 +18,8 @@ export async function api(path, opts = {}) {
   return r.json();
 }
 export const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Nur http(s)-Links aus Fremddaten (z. B. Learnweb) als href; alles andere wird '#'
+export const safeUrl = u => /^https?:\/\//i.test(String(u ?? "")) ? String(u) : "#";
 export const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const parseISO = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 export const todayISO = () => iso(new Date());

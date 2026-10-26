@@ -7,6 +7,7 @@ Der Schluessel wird nie in die Datenbank oder ins Protokoll geschrieben.
 """
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -77,6 +78,30 @@ def sync_learnweb(page, client, courses: list[dict], token: str, started: str, n
     return len(courses)
 
 
+def store_deadlines(conn, items: list[dict], fetched_at: str, window_from: str) -> dict:
+    """Learnweb-Fristen speichern. Was im abgefragten Zeitfenster (ab window_from) nicht mehr kommt, ist im Learnweb
+    geloescht oder erledigt und wird entfernt; aeltere Fristen bleiben als Verlauf stehen."""
+    known = {r["id"] for r in db.rows(conn, "SELECT id FROM deadlines WHERE source='learnweb'")}
+    for d in items:
+        conn.execute("""INSERT INTO deadlines(id, source, course_id, title, kind, module, due_at, url, fetched_at)
+                        VALUES (?, 'learnweb', ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(id) DO UPDATE SET course_id=excluded.course_id, title=excluded.title, kind=excluded.kind,
+                          module=excluded.module, due_at=excluded.due_at, url=excluded.url, fetched_at=excluded.fetched_at""",
+                     (d["id"], d.get("course_id"), d["title"], d["kind"], d.get("module"), d["due_at"], d.get("url"), fetched_at))
+    ids = [d["id"] for d in items]
+    gone = conn.execute(f"""DELETE FROM deadlines WHERE source='learnweb' AND due_at >= ?
+                            AND id NOT IN ({",".join("?" * len(ids)) or "''"})""", (window_from, *ids)).rowcount
+    return {"new": len(set(ids) - known), "total": len(ids), "removed": gone}
+
+
+def sync_deadlines(client) -> str:
+    now = int(time.time())
+    items = client.deadlines(now)
+    with db.cursor() as conn:
+        r = store_deadlines(conn, items, db.now_iso(), learnweb.local_iso(now - learnweb.DEADLINE_DAYS_BACK * 86400))
+    return f"Fristen: {r['total']} ({r['new']} neu, {r['removed']} entfernt)"
+
+
 def sync_lsf_plan(page, user: str, pw: str) -> str:
     lsf.login(page, user, pw, log)
     ics = lsf.fetch_plan_ics(page)
@@ -105,6 +130,11 @@ def run_sync(show_browser: bool = False) -> dict:
                 client, courses, used_token = _learnweb_client(page, user, pw, token)
                 n = sync_learnweb(page, client, courses, used_token, started, new_files)
                 parts.append(f"{len(new_files)} neue/geaenderte Dateien aus {n} Learnweb-Kursen")
+                try:
+                    parts.append(sync_deadlines(client))
+                except Exception as e:  # noqa: BLE001 - Fristen sind eine Ergaenzung, der Sync laeuft weiter
+                    parts.append(f"Learnweb-Fristen: FEHLER {e}")
+                    log(f"Learnweb-Fristen: {e}")
                 if user and pw:
                     try:
                         parts.append(sync_lsf_plan(page, user, pw))

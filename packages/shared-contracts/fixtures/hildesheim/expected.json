@@ -413,6 +413,117 @@
    "link": null
   }
  ],
+ "learnweb-deadlines": [
+  {
+   "id": "lw-ev-9005",
+   "course_id": null,
+   "title": "Sprechstunde",
+   "kind": "termin",
+   "module": null,
+   "due_at": "2026-07-22T11:00",
+   "url": null
+  },
+  {
+   "id": "lw-ev-9003",
+   "course_id": "lw-843",
+   "title": "Lerncheck 1",
+   "kind": "test_beginn",
+   "module": "quiz",
+   "due_at": "2026-10-31T14:00",
+   "url": "https://www.uni-hildesheim.de/learnweb2026/mod/quiz/view.php?id=56"
+  },
+  {
+   "id": "lw-ev-9002",
+   "course_id": "lw-843",
+   "title": "Lerncheck 1",
+   "kind": "test_ende",
+   "module": "quiz",
+   "due_at": "2026-11-02T23:59",
+   "url": "https://www.uni-hildesheim.de/learnweb2026/mod/quiz/view.php?id=56"
+  },
+  {
+   "id": "lw-ev-9001",
+   "course_id": "lw-843",
+   "title": "Übungsblatt 3",
+   "kind": "abgabe",
+   "module": "assign",
+   "due_at": "2026-11-04T23:59",
+   "url": "https://www.uni-hildesheim.de/learnweb2026/mod/assign/view.php?id=55"
+  },
+  {
+   "id": "lw-ev-9004",
+   "course_id": "lw-901",
+   "title": "Umfrage schließt",
+   "kind": "frist",
+   "module": "feedback",
+   "due_at": "2026-12-31T23:59",
+   "url": null
+  }
+ ],
+ "deadline-kinds": [
+  {
+   "module": "assign",
+   "eventtype": "due",
+   "kind": "abgabe"
+  },
+  {
+   "module": "quiz",
+   "eventtype": "close",
+   "kind": "test_ende"
+  },
+  {
+   "module": "quiz",
+   "eventtype": "open",
+   "kind": "test_beginn"
+  },
+  {
+   "module": "QUIZ",
+   "eventtype": "Close",
+   "kind": "test_ende"
+  },
+  {
+   "module": "feedback",
+   "eventtype": "close",
+   "kind": "frist"
+  },
+  {
+   "module": "choice",
+   "eventtype": "open",
+   "kind": "termin"
+  },
+  {
+   "module": null,
+   "eventtype": "user",
+   "kind": "termin"
+  },
+  {
+   "module": null,
+   "eventtype": "course",
+   "kind": "termin"
+  }
+ ],
+ "local-iso": [
+  {
+   "ts": 1793833140,
+   "local": "2026-11-04T23:59"
+  },
+  {
+   "ts": 1784710800,
+   "local": "2026-07-22T11:00"
+  },
+  {
+   "ts": 1798757940,
+   "local": "2026-12-31T23:59"
+  },
+  {
+   "ts": 1774746000,
+   "local": "2026-03-29T03:00"
+  },
+  {
+   "ts": 1792890000,
+   "local": "2026-10-25T02:00"
+  }
+ ],
  "grade-rows": {
   "abschluss": "Fallback",
   "rows": [
