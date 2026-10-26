@@ -73,6 +73,22 @@ struct UniFlowApp: App {
                         }
                         return
                     }
+                    // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (nur mit Plus und Container)
+                    if let code = CommunityJoinLink.code(from: url) {
+                        guard containers.active != nil, Entitlements.shared.allows(.community) else {
+                            toast.show("Lerngruppen gibt es mit Plus, nach Anmeldung und Hochschulwahl.", seconds: 4)
+                            return
+                        }
+                        Task {
+                            do {
+                                let g = try await SolutionSharing.community.joinStudyGroup(code: code)
+                                toast.show("Lerngruppe „\(g.name)“ beigetreten.", seconds: 4)
+                            } catch {
+                                toast.show(CommunityTexts.message(error), seconds: 4)
+                            }
+                        }
+                        return
+                    }
                     // uniflow://#/plan?view=week -> dieselbe Hash-Route wie in der Web-App
                     if let hash = UFRoute.hash(fromDeepLink: url) { router.go(hash: hash) }
                 }

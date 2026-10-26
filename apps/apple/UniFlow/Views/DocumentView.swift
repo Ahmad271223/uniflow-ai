@@ -40,6 +40,8 @@ enum SolutionSheet: Identifiable, Equatable {
     case shared
     /// Vorschau einer empfangenen Loesung (Loesungs-ID)
     case preview(String)
+    /// Loesungen aus der Community zu dieser PDF (Fingerabdruck)
+    case community(String)
     /// Free: Sperrkarte mit Weg zur Abo-Seite
     case locked
 
@@ -48,6 +50,7 @@ enum SolutionSheet: Identifiable, Equatable {
         case .share: return "share"
         case .shared: return "shared"
         case .preview(let id): return "preview-" + id
+        case .community(let fp): return "community-" + fp
         case .locked: return "locked"
         }
     }
@@ -104,6 +107,10 @@ struct DocumentView: View {
     @State private var foreignLayers: [ForeignSolutionLayer] = []
     /// passende, aber nicht lesbare Loesungen (im Ebenen-Menue entfernbar)
     @State private var foreignProblems: [SolutionLayerLoad.Problem] = []
+    /// Treffer aus der Community zu dieser PDF (beim Oeffnen geholt, je Sitzung zwischengespeichert, nie blockierend)
+    @State private var communityMatches: [CommunitySolutionSummary] = []
+    @State private var communityFingerprint: String?
+    @State private var communityBannerDismissed = false
     @ObservedObject private var entitlements = Entitlements.shared
     /// gesperrte Plus-Funktion, deren Sperrkarte gerade offen ist (Schreiben, geteilte Ansicht)
     @State private var lockedFeature: UFFeature?
@@ -275,6 +282,7 @@ struct DocumentView: View {
             await store.load()
             scheduleSuggestion(bridge.pageIndex)
             await reloadSolutionLayers()
+            await loadCommunityMatches()
         }
         .onDisappear {
             suggestionTask?.cancel()
@@ -291,6 +299,7 @@ struct DocumentView: View {
             .overlay(alignment: .top) {
                 VStack(spacing: 6) {
                     versionBanner
+                    communityBanner
                     suggestionBanner
                     // passende Opencast-Aufzeichnung nur bei sicherem Treffer (lokal: der Abgleich des iPads holt sie);
                     // nicht in der alten Fassung (S7, nur ansehen)
@@ -529,6 +538,23 @@ struct DocumentView: View {
 
     static var solutionType: UTType { UTType(SolutionPackage.typeIdentifier) ?? .data }
 
+    /// "n Lösungen aus der Community zu diesem Blatt" (nur mit Plus und Treffern)
+    @ViewBuilder private var communityBanner: some View {
+        if !communityMatches.isEmpty, !communityBannerDismissed, entitlements.allows(.community), let fp = communityFingerprint {
+            HStack(spacing: 10) {
+                Image(systemName: "person.2")
+                Text(CommunityTexts.matches(communityMatches.count)).font(.caption).bold().lineLimit(1)
+                Button("Ansehen") { solutionSheet = .community(fp) }
+                    .buttonStyle(.borderedProminent).controlSize(.small)
+                Button { communityBannerDismissed = true } label: { Image(systemName: "xmark") }
+                    .accessibilityLabel("Hinweis ausblenden")
+            }
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.top, 8)
+        }
+    }
+
     /// Ebenen: eigene Notizen und passende empfangene Loesungen ein-/ausblenden.
     private var layersMenu: some View {
         Menu {
@@ -563,6 +589,15 @@ struct DocumentView: View {
                     }
                     Button { importingSolution = true } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
                 }
+                Section("Community") {
+                    Button {
+                        if let fp = communityFingerprint { solutionSheet = .community(fp) }
+                    } label: {
+                        Label(communityMatches.isEmpty ? "Community durchsuchen …" : CommunityTexts.matches(communityMatches.count) + " …",
+                              systemImage: "person.2")
+                    }
+                    .disabled(communityFingerprint == nil)
+                }
             } else {
                 Button { solutionSheet = .locked } label: { Label("Lösungen anderer ansehen (Plus)", systemImage: "lock") }
             }
@@ -585,6 +620,11 @@ struct DocumentView: View {
             if let layer = foreignLayers.first(where: { $0.id == id }) {
                 SolutionPreviewSheet(layer: layer) { solutionSheet = nil }
             }
+        case .community(let fp):
+            // "Laden und anzeigen" nimmt denselben Weg wie die Datei (fremde Ebene, eigene Notizen unveraendert)
+            CommunitySolutionsSheet(fingerprint: fp, service: SolutionSharing.community,
+                                    importer: { id in try await store.importFromCommunity(id, service: SolutionSharing.community) },
+                                    onImported: { result in Task { await handleImport(result) } }) { solutionSheet = nil }
         case .locked:
             SolutionLockedSheet { solutionSheet = nil }
         }
@@ -603,6 +643,16 @@ struct DocumentView: View {
         foreignProblems = result.problems
         let unseen = SolutionProblemNotices.unseen(result.problems)
         if !unseen.isEmpty, actionError == nil { actionError = unseen.map(\.text).joined(separator: "\n") }
+    }
+
+    /// Treffer aus der Community zu dieser PDF (nur mit Plus; ohne Dienst im Build bleibt der Eintrag im Ebenen-Menue
+    /// und das Blatt erklaert "nicht verfügbar"; Fehler bleiben still, die Liste zeigt sie)
+    private func loadCommunityMatches() async {
+        guard entitlements.allows(.community), store.pdf != nil, !readOnly, let fp = await store.originalFingerprint() else { return }
+        communityFingerprint = fp
+        guard SolutionSharing.community.isConnected else { return }
+        if let cached = CommunityMatches.shared.cached(fp) { communityMatches = cached }
+        communityMatches = (try? await CommunityMatches.shared.load(fingerprint: fp, service: SolutionSharing.community)) ?? communityMatches
     }
 
     private func removeProblem(_ problem: SolutionLayerLoad.Problem) {
@@ -631,20 +681,25 @@ struct DocumentView: View {
     private func importSolution(_ result: Result<URL, Error>) {
         Task {
             do {
-                switch try await store.importSolution(try result.get()) {
-                case .shown:
-                    await reloadSolutionLayers()
-                case .otherPDF(let entry):
-                    let label = ForeignSolutionLayer.label(displayName: entry.displayName, createdAt: entry.createdAt)
-                    actionError = "\(label): \(SolutionError.fingerprintMismatch.description) Sie ist gespeichert und erscheint, sobald du die passende PDF öffnest."
-                case .removedUnreadable(let entry, let error):
-                    let label = ForeignSolutionLayer.label(displayName: entry.displayName, createdAt: entry.createdAt)
-                    actionError = "\(label): \(SolutionSharing.unreadableImportMessage)\n(\(error.description))"
-                    await reloadSolutionLayers()
-                }
+                await handleImport(try await store.importSolution(try result.get()))
             } catch {
                 actionError = (error as? SolutionError)?.description ?? "Import fehlgeschlagen: \(error.localizedDescription)"
             }
+        }
+    }
+
+    /// Ergebnis eines Imports (Datei oder Community): Ebenen neu laden bzw. erklaeren, warum nichts erscheint
+    private func handleImport(_ result: SolutionImportResult) async {
+        switch result {
+        case .shown:
+            await reloadSolutionLayers()
+        case .otherPDF(let entry):
+            let label = ForeignSolutionLayer.label(displayName: entry.displayName, createdAt: entry.createdAt)
+            actionError = "\(label): \(SolutionError.fingerprintMismatch.description) Sie ist gespeichert und erscheint, sobald du die passende PDF öffnest."
+        case .removedUnreadable(let entry, let error):
+            let label = ForeignSolutionLayer.label(displayName: entry.displayName, createdAt: entry.createdAt)
+            actionError = "\(label): \(SolutionSharing.unreadableImportMessage)\n(\(error.description))"
+            await reloadSolutionLayers()
         }
     }
 

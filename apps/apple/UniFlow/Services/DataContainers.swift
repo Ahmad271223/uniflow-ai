@@ -40,6 +40,8 @@ final class ActiveContainer: @unchecked Sendable {
     let cache: ResponseCache
     let thumbnails: UFThumbnails
     let solutions: SolutionLibrary
+    /// Online-Community dieses Containers (CloudKit; ohne iCloud-Container im Build "nicht verfügbar")
+    let community: CloudKitCommunityService
     /// Einstellungen dieses Containers (Stud.IP-Kursauswahl, letzter Abgleich, Learnweb/LSF, Anzeigename beim Teilen)
     let defaults: UserDefaults
     let defaultsSuite: String
@@ -52,7 +54,7 @@ final class ActiveContainer: @unchecked Sendable {
     var websiteDataStoreID: UUID { key.websiteDataStoreID }
 
     init(key: DataContainerKey, base: URL, keychain: UniversitySecretStoring, cookieService: String, appDefaults: UserDefaults,
-         clock: UniFlowClock = .system) {
+         clock: UniFlowClock = .system, cloud: CommunityCloud? = CommunityCloudFactory.make()) {
         self.key = key
         layout = DataContainerLayout(base: base, key: key)
         host = LocalBackendHost(directory: layout.databaseDirectory, clock: clock, files: .container(layout), university: key.university)
@@ -62,6 +64,9 @@ final class ActiveContainer: @unchecked Sendable {
         solutions = SolutionLibrary(root: layout.solutions)
         defaultsSuite = Self.defaultsSuite(layout.identifier)
         defaults = UserDefaults(suiteName: defaultsSuite) ?? appDefaults
+        let localHost = host
+        community = CloudKitCommunityService(cloud: cloud, university: key.university, membership: CommunityMembership(defaults: defaults),
+                                             courseIDs: { await CommunityCourses.courseIDs(host: localHost) })
         credentials = UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope,
                                                 onlyUniversity: key.university)
         cookies = StudIPCookieStore(service: cookieService, container: layout.identifier)

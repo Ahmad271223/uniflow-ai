@@ -338,13 +338,17 @@ struct ModulePage: View {
             // (nur an Hochschulen mit Stud.IP)
             let recordings: [(value: String, label: String)] = session.api?.isLocal == true && studip.offersStudIP
                 ? [("recordings", "Aufzeichnungen")] : []
+            // Community (Loesungen aus der Community nach Lehrwoche, Plus) nur lokal: sie gehoert zum Container
+            let community: [(value: String, label: String)] = session.api?.isLocal == true ? [("community", "Community")] : []
             UFTabs(options: [("overview", "Übersicht"), ("lectures", "Vorlesungen"), ("exercises", "Übungen"), ("solutions", "Lösungen"),
-                             ("scripts", "Skripte"), ("exams", "Klausuren")] + recordings + [("notes", "Notizen")], selection: $tab)
+                             ("scripts", "Skripte"), ("exams", "Klausuren")] + recordings + community + [("notes", "Notizen")], selection: $tab)
             if tab == "overview" {
                 if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Keine Dokumente.") } }
                 ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
             } else if tab == "recordings" {
                 RecordingsPanel(moduleID: id, focusWeek: focusWeek)
+            } else if tab == "community" {
+                CommunityModulePanel(courseIDs: d.list("courses").compactMap { $0.s("id") }, files: d.list("files"), weeks: weeks)
             } else {
                 let key = ["lectures": "vorlesung", "exercises": "uebung", "solutions": "loesung", "scripts": "skript", "exams": "klausur"][tab]
                 let files = tab == "notes" ? d.list("notes")

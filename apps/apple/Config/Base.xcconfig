@@ -2,4 +2,8 @@
 // Die nicht eingecheckte Team.xcconfig (Vorlage: Team.xcconfig.example) setzt das bezahlte Team und schaltet
 // damit "Mit Apple anmelden" frei. Fehlt sie, bauen Simulator, CI und kostenlose Personal-Team-Builds wie bisher
 // ohne diese Faehigkeit; der Knopf meldet dann, dass die Anmeldung in diesem Build nicht verfuegbar ist.
+// iCloud-Container der Community (CloudKit, docs/LOESUNGEN-TEILEN.md Abschnitt 7): nur mit Team.xcconfig gesetzt.
+// Leer = kein Container im Build; die App meldet "Community nicht verfügbar" statt abzustuerzen (Info.plist
+// UFCloudKitContainer, CommunityCloudFactory).
+UF_CLOUDKIT_CONTAINER =
 #include? "Team.xcconfig"

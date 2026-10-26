@@ -1,9 +1,11 @@
 # Lösung teilen: Format, Ablauf, Sicherheit und Grenzen
 
-Stand 25.10.2026, Zweig `wip/loesung-teilen` mit Nachbesserung `wip/loesung-teilen-fix` (Schritt S9 in
-`docs/IPAD-OHNE-PC.md`). Gilt für die native iPad-App.
-Es gibt **keinen Server**: Lösungen werden als Datei weitergegeben (AirDrop, Dateien-App, „Öffnen in“) und
-ausschließlich auf dem iPad geöffnet. Die Online-Community ist vorbereitet, aber nicht verbunden.
+Stand 26.10.2026, Zweig `wip/loesung-teilen` mit Nachbesserung `wip/loesung-teilen-fix` (Schritt S9 in
+`docs/IPAD-OHNE-PC.md`), Online-Community in `wip/community-cloudkit` (S9b). Gilt für die native iPad-App.
+Lösungen werden als Datei weitergegeben (AirDrop, Dateien-App, „Öffnen in“) **oder** in der Community veröffentlicht
+(öffentliche CloudKit-Datenbank, Abschnitt 7) und ausschließlich auf dem iPad mit der eigenen PDF geöffnet. Die
+Online-Community läuft nur in einem Build mit iCloud-Container (bezahltes Developer Program); sonst meldet die App
+„Community nicht verfügbar“ und der Dateiweg bleibt.
 
 ## 1. Zwei getrennte Wege im Editor
 
@@ -32,7 +34,7 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
 - Seiten, deren Objekte die Prüfungen nicht bestehen (unbekannter Objekttyp, ungültige Zahlen, PDF-Daten in einem
   Verweisfeld), nennt der Dialog mit Seitenangabe („PDF-Seite 3 lässt sich nicht teilen: …“) und lässt sie aus; der
   Rest bleibt teilbar.
-- Optionaler Anzeigename (leer = anonym, gemerkt für das nächste Mal, je Apple-Nutzer und Hochschule in den Einstellungen des Containers).
+- Optionales Pseudonym (leer = anonym, gemerkt für das nächste Mal, je Apple-Nutzer und Hochschule in den Einstellungen des Containers; auch in den Einstellungen unter „Community“).
 - „Als Datei teilen“ öffnet das Teilen-Menü des Systems und merkt die Lösung unter „Meine geteilten Lösungen“.
   Inhalt, Siegel (HKDF über die ganze PDF, AES-GCM) und Datei entstehen abseits des Hauptthreads; währenddessen steht
   „Wird erstellt …“ auf dem Knopf.
@@ -42,7 +44,13 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
   kein Teilen (`SolutionSharing.draft`, `requireOwnNotes: false`): Stehen die eigenen Notizen nur auf ausgelassenen
   oder eingefügten Seiten, zeigt der Dialog die Vorschau mit genau diesen Gründen statt „keine eigenen Notizen“.
   Bleibt gar keine teilbare Seite, nennt die Meldung alle Gründe.
-- „In der Community veröffentlichen“ ist deaktiviert: „Community-Dienst noch nicht verbunden“.
+- Karte „In der Community“: Sichtbarkeit **Modul** (alle mit demselben Kurs; nur bei Dateien aus einem Kurs des eigenen
+  Abgleichs, sonst Hinweis), **Lerngruppe** (Auswahl der eigenen Lerngruppen) oder **Anonym** (alle an der Hochschule,
+  ohne Pseudonym), dazu der Urheberrechts-Hinweis (`CommunityTexts.copyright`). Ohne iCloud-Container im Build steht
+  dort „nicht verfügbar“ und der Knopf bleibt gesperrt.
+- „In der Community veröffentlichen“ (nur mit Plus, wie die ganze Seite; nur mit Dienst): Bestätigung mit Sichtbarkeit,
+  Pseudonym, Prüfungsordnung und Datenschutz-Hinweis; dann Inhalt und Siegel wie beim Dateiweg, Kopie unter „Meine
+  geteilten Lösungen“, Upload; danach „Veröffentlicht … veröffentlicht am …“.
 - „Abbrechen“.
 
 ## 3. Format `uniflow-solution`, Formatversion 1
@@ -164,9 +172,11 @@ die ganze Lösung abgewiesen.
    echte Änderungen der Zeichenfläche an den Store, eine nur angezeigte Seite wird nie gespeichert
    (`HardeningSolutionEditorTests`).
 
-„Meine geteilten Lösungen“ (Menü „Teilen“): Kopien der selbst geteilten Pakete unter `solutions/shared/`, „Erneut
-teilen“ und „Entfernen“. Ohne Dienst heißt Zurückziehen nur: die Kopie auf diesem iPad löschen. Bereits
-weitergegebene Dateien kann UniFlow nicht zurückholen – das steht so im Blatt.
+„Meine geteilten Lösungen“ (Menü „Teilen“): Kopien der selbst geteilten und veröffentlichten Pakete unter
+`solutions/shared/` mit Zustand „als Datei geteilt“ oder „veröffentlicht am …“ (`SharedEntry.publishedAt`), „Erneut
+teilen“, bei Veröffentlichungen „Zurückziehen“ (Dienst: Eintrag als zurückgezogen markiert, Paket gelöscht; danach
+erst „Entfernen“ der Kopie). Bereits weitergegebene Dateien und schon geladene Lösungen kann UniFlow nicht
+zurückholen – das steht so im Blatt.
 
 ## 5. Sicherheit – und was sie nicht leistet
 
@@ -192,60 +202,88 @@ weitergegebene Dateien kann UniFlow nicht zurückholen – das steht so im Blatt
   Test gleich. HKDF rechnet die App als HMAC-SHA256 in Blöcken (Extract) plus `HKDF.expand`; Test gegen RFC 5869
   (Testfall 1) und gegen CryptoKit `HKDF.deriveKey`.
 
-## 6. Community-Schnittstelle (Dienst umgesetzt, Client offen)
+## 6. Community-Schnittstelle
 
-`Solutions/CommunityService.swift`:
+`Solutions/CommunityService.swift` (Kern, ohne CloudKit – der Dienst ist tauschbar, später Supabase):
 
 | Aufruf | Zweck |
 |---|---|
-| `publish(_ package)` | verschlüsseltes Paket veröffentlichen |
-| `findMatching(fingerprint:)` | Lösungen zu einer PDF finden (nur Kopfdaten) |
+| `publish(_ package, options:)` | verschlüsseltes Paket veröffentlichen; Optionen: Sichtbarkeit, Kurs-Schlüssel, Gruppen-Schlüssel, Titel, Lehrwoche |
+| `findMatching(fingerprint:)` | Lösungen zu einer PDF finden (nur Kopfdaten), schon gefiltert nach Hochschule, Sichtbarkeit, Zurückgezogen, Sperrliste |
+| `findForCourse(courseKey:)` | Lösungen zu allen Dateien eines Kurses (Moduldetail, nach Lehrwoche) |
 | `download(solutionID:)` | Paket laden, geöffnet wird lokal mit der eigenen PDF |
-| `withdraw(solutionID:)` | eigene Veröffentlichung zurückziehen |
+| `withdraw(solutionID:)` | eigene Veröffentlichung zurückziehen (nur eigene) |
 | `report(solutionID:reason:note:)` | melden (fremdes Material, bewertete Abgabe, beleidigend, Spam, sonstiges) |
+| `block(owner:)`, `unblock`, `blockedOwners()` | eigene Sperrliste (privat) |
+| `createStudyGroup(name:)`, `joinStudyGroup(code:)`, `leaveStudyGroup`, `studyGroups()` | Lerngruppen |
 
-Einzige Umsetzung in Swift heute: `NotConnectedCommunityService` – jeder Aufruf wirft „Community-Dienst noch nicht
-verbunden.“, es wird nichts gesendet und kein Erfolg vorgetäuscht. Der Dienst bekommt nur das verschlüsselte Paket,
-nie Stud.IP-Cookies, -Sitzungen oder -Tokens.
+Die neuen Aufrufe haben Standardimplementierungen („nicht verbunden“), `publish(_:)` ohne Optionen bleibt als
+Kurzform. Umsetzungen: `NotConnectedCommunityService` (Kern: wirft, sendet nichts) und `CloudKitCommunityService`
+(App, Abschnitt 7). Reine Funktionen im Kern (`CommunityRules.swift`): `CommunityKeys.courseKey(university:courseID:)`
+(SHA-256 aus Hochschule und Stud.IP-/Learnweb-Kurs-ID), `CommunityKeys.groupKey(university:code:)`,
+Beitrittscodes (8 Zeichen ohne 0/O/1/I), `CommunityRules.isVisible`/`visible` (Filter), `effectiveDisplayName`
+(anonym = nie ein Pseudonym), `validate` (Optionen), `byWeek`.
 
-**Der Dienst dazu ist seit 26.10.2026 in Python umgesetzt** (`app/community.py`, `app/community_api.py`; Vertrag G4
-in `docs/VERTRAEGE-KONTO-SYNC.md`, Fixture `packages/shared-contracts/fixtures/community/contract.json`). Zuordnung
-für den Client (M15), alle mit UniFlow-Sitzung und Tarif Plus:
+## 7. Online-Community über CloudKit (S9b)
 
-| Swift-Aufruf | Dienst |
+Entscheidung des Inhabers vom 26.10.2026: **CloudKit für V1**, später Supabase. Code: `Services/CommunityCloud.swift`
+(schmale Schnittstelle `CommunityCloud` über die Datensatz-Operationen, Umsetzung `CKCommunityCloud`; Tests nehmen
+einen Nachbau im Speicher), `Services/CommunityCloudKit.swift` (`CloudKitCommunityService`, `CommunityMembership`,
+`CommunityCourses`, `CommunityMatches`), `Views/CommunityViews.swift` (Oberfläche).
+
+**Datensätze** in der öffentlichen Datenbank des Containers `iCloud.de.uniflow.ai`:
+
+| Typ | Felder |
 |---|---|
-| `publish` | `POST /api/community/solutions {package, title?}` → `{solution_id, published_at}` |
-| `findMatching(fingerprint:)` | `GET /api/community/solutions?fingerprint=` → `{solutions: [...]}` (`solution_id`, `fingerprint`, `display_name`, `created_at`, `page_count`, dazu `pseudonym`, `mine`, `reported_by_me`, `downloads`) |
-| `download(solutionID:)` | `GET /api/community/solutions/{id}` → Feld `package` (unverändertes Paket) |
-| `withdraw` | `DELETE /api/community/solutions/{id}` |
-| `report` | `POST /api/community/solutions/{id}/report {reason, note}` mit denselben fünf Gründen |
-| neu: Autor sperren | `POST /api/community/solutions/{id}/block`, `GET /api/community/blocks`, `DELETE /api/community/blocks/{pseudonym}` |
+| `Solution` | `solutionID`, `fingerprint` (SHA-256 der Original-PDF, nur Zuordnung), `university` (`luh`/`hildesheim`), `courseKey`, `visibility` (`modul`/`lerngruppe`/`anonym`), `groupKey`, `displayName` (Pseudonym, leer bei anonym), `title`, `pageCount`, `week`, `createdAt`, `package` (Asset: das verschlüsselte `.uniflowsolution`, ohne Original-PDF), `ownerRecordName` (CloudKit-Nutzerkennung), `withdrawn` |
+| `Report` | `solutionID`, `reason`, `note` (höchstens 500 Zeichen), `reporterRecordName`, `createdAt` |
+| `StudyGroup` | `groupKey` (Hash aus Hochschule und Code – der Code selbst liegt nie beim Dienst), `name`, `university`, `ownerRecordName`, `createdAt` |
+| `Block` (private Datenbank) | `ownerRecordName`, `createdAt` – nur für den Nutzer selbst sichtbar |
 
-Berechtigung auf dem Dienst: nur für PDFs aus dem eigenen Hochschul-Abgleich des Kontos (403 `file_not_owned`), nur
-innerhalb der eigenen Hochschule; ab drei Meldungen ist eine Lösung verborgen, Admins moderieren.
+**Berechtigung (ehrlich):** Wer sucht, bildet aus allen Kurs-IDs seiner lokalen Datenbank die Kurs-Schlüssel; der
+Dienst liefert zu einem Fingerabdruck nur Einträge derselben Hochschule, die nicht zurückgezogen sind, deren
+Besitzer nicht gesperrt ist und die zur Sichtbarkeit passen: Modul nur mit passendem Kurs-Schlüssel, Lerngruppe nur
+mit passendem Gruppen-Schlüssel (Kenntnis des Codes), anonym für alle an der Hochschule. Die Prüfung läuft in der
+App (`CommunityRules`), nicht auf dem Dienst: Wer die Kurs-ID oder den Code kennt, kann den Schlüssel bilden – das
+ist **kein** signierter Beleg der Hochschule. Lesen kann eine Lösung weiterhin nur, wer dieselbe PDF besitzt
+(Abschnitt 5).
 
-## 7. Was für die Online-Community fehlt
+**Datenschutz:** Hochgeladen werden nur Paket, Kopfdaten, Sichtbarkeit und Pseudonym. Nie Apple-ID, Name, E-Mail
+oder Matrikelnummer; `ownerRecordName` ist die CloudKit-Nutzerkennung und dient nur dem Zurückziehen (nur eigene),
+Melden und Blockieren. Stud.IP-Cookies, -Sitzungen oder -Tokens gehen nie an den Dienst. Pseudonym, Lerngruppen
+und Sperrliste (Zwischenspeicher) liegen je Container (Apple-Nutzer, Hochschule); „Daten dieser Hochschule
+löschen“ und „Konto löschen“ entfernen sie mit.
 
-Stand 26.10.2026: Punkt 1 ist als eigener Dienst in Python umgesetzt (Betrieb beim Inhaber), Punkt 3 über die
-UniFlow-Konten (G1) mit Sperren von Autoren, die Moderation aus Punkt 2 über Admin-Konten. Die Berechtigung prüft
-der Dienst heute als „Datei aus dem eigenen Hochschul-Abgleich“ (das Konto muss die PDF selbst über Stud.IP oder
-Learnweb erhalten haben); der signierte Beleg der Hochschule bleibt offen, ebenso 4, 5, 6 (Client M15) und die
-Nutzungsbedingungen.
+**Oberfläche (Plus, `UFGate(.community)`):** Dialog „Lösung teilen“ (Abschnitt 2); im Dokument beim Öffnen
+`findMatching` (nur mit Dienst, Ergebnis je Sitzung zwischengespeichert, nie blockierend) → Hinweis „n Lösungen aus
+der Community zu diesem Blatt“ und Eintrag im Menü „Ebenen“ → Blatt mit Pseudonym/Datum/Seitenzahl, „Laden und
+anzeigen“ (derselbe Weg wie „Lösung importieren …“: `DocumentStore.importFromCommunity` schreibt das Paket als Datei
+und ruft `importSolution`; fremde Ebene, eigene Notizen unverändert), „Melden …“ (Grund und Notiz), „Nutzer
+blockieren …“, bei eigenen „Zurückziehen“; Moduldetail → Reiter „Community“ (`findForCourse` je Kurs des Moduls, nach
+Lehrwoche, „Blatt öffnen“ bei gleichem Titel); „Meine geteilten Lösungen“ (Abschnitt 4); Einstellungen → Karte
+„Community“: Pseudonym, Lerngruppen (anlegen → Code und QR `uniflow://community/join/<Code>`, beitreten mit Code,
+verlassen), Sperrliste (freigeben).
 
-1. **Entscheidung und Betrieb des Dienstes** (CloudKit mit Developer Program oder Supabase; kostenpflichtig, Inhaber).
-2. **Echte Berechtigungsprüfung auf dem Dienst** – der Fingerabdruck reicht nicht. Optionen:
-   - Mitwirkung der Hochschule: signierter Beleg der Kursmitgliedschaft (z. B. von Stud.IP ausgestellt, kurz gültig,
-     an Kurs und Nutzer gebunden), den der Dienst prüft;
-   - OAuth2 mit Stud.IP (Freigabe ZQS/elsa) und einem Scope, mit dem der Dienst die Kursmitgliedschaft selbst
-     abfragen darf – ohne dass die App Tokens weiterreicht, die mehr erlauben;
-   - Moderation: Meldungen prüfen, Sperren, Löschfristen, Kontakt für Lehrende.
-3. **Konten** für Veröffentlichen, Zurückziehen und Melden (Mit Apple anmelden), Blockieren von Nutzern
-   (App-Store-Richtlinie 1.2), Nutzungsbedingungen und Datenschutzerklärung.
-4. **Klärung mit der Hochschule**: Teilen eigener Anmerkungen über fremden Folien innerhalb eines Kurses,
-   Umgang mit bewerteten Abgaben (Prüfungsämter), siehe `docs/ANFRAGE-STUDIP-ZUGANG.md`.
-5. **Neue Fassungen der PDF**: Zuordnung über Seiteninhalt statt nur über den Datei-Hash (S7).
-6. Danach: `CommunityService` umsetzen, Knopf „In der Community veröffentlichen“ freischalten, Treffer im Menü
-   „Ebenen“ anbieten, „Zurückziehen“ beim Dienst statt nur lokal.
+**Fehler verständlich** (`CommunityServiceError`): nicht verfügbar (Build ohne Container), nicht bei iCloud
+angemeldet, kein Netz, Kontingent erschöpft, nur eigene zurückziehen, nicht mehr vorhanden, Datei ohne Kurs,
+ungültiger Code, keine Lerngruppe.
+
+**Build:** Container nur mit `Config/Team.xcconfig` (`UF_CLOUDKIT_CONTAINER = iCloud.de.uniflow.ai` → Info.plist
+`UFCloudKitContainer`; Berechtigungen `icloud-container-identifiers`/`icloud-services` in `UniFlow.entitlements`,
+aktiv nur mit `CODE_SIGN_ENTITLEMENTS`). Ohne Team ist der Wert leer: `CommunityCloudFactory.make()` liefert nil,
+`CKContainer` wird nie erzeugt (kein Absturz), `isConnected` ist false.
+
+**Grenzen und offene Punkte (Inhaber):**
+1. CloudKit gibt es nur auf Apple-Geräten; für Windows/Android (V2) wird der Dienst hinter `CommunityService`
+   gegen Supabase getauscht (gleiche Schlüsselbildung, gleiche Regeln).
+2. Echter Lauf nur mit Developer Program: iCloud-Container anlegen, Datensatztypen und Indizes (QUERYABLE auf
+   `fingerprint`, `university`, `courseKey`; Development-Umgebung legt Felder beim ersten Speichern an, Production
+   braucht „Deploy Schema“), Berechtigungen der öffentlichen Datenbank (Lesen alle, Schreiben nur Ersteller – Standard).
+3. Moderation: Meldungen (`Report`) sichtet der Inhaber im CloudKit Dashboard; Löschen und Sperren dort. Löschfristen,
+   Kontakt für Lehrende, Nutzungsbedingungen und Datenschutzerklärung mit der Community sind offen.
+4. Berechtigung = Kenntnis der Kurs-ID bzw. des Codes (siehe oben); ein signierter Beleg der Hochschule oder OAuth2
+   (`docs/ANFRAGE-STUDIP-ZUGANG.md`) wäre stärker.
+5. Neue Fassungen der PDF: Zuordnung weiter nur über den Datei-Hash (S7-Anmerkung bleibt).
 
 ## 8. Tests
 
@@ -258,7 +296,9 @@ Nutzungsbedingungen.
   Bilddaten, `formatVersion` 1e300/-1e300/1e18/1.5 ohne Absturz, zusätzliches Wurzelfeld mit der PDF als Base64),
   eigener Freitext mit `%PDF-`/`application/pdf` bleibt erhalten, Seitenangabe bei Fehlern, gleiche Lösungs-ID
   verdrängt keine vorhandene Lösung, gespeichert wird nur die kanonische Form, Drehungsabbildung, Ablage, Community
-  „nicht verbunden“.
+  „nicht verbunden“. `CommunityRulesTests`: Kurs- und Gruppen-Schlüssel (fest, ohne Klartext), Beitrittscodes,
+  Sichtbarkeitsregeln (Modul, Lerngruppe, anonym, eigene), Filter (Hochschule, zurückgezogen, gesperrt, Sortierung,
+  Dubletten), Optionen, Wochen-Gruppierung, `publishedAt` in der Ablage, Standardimplementierungen des Protokolls.
 - App (`UniFlowTests/SolutionSharingTests`, AES-GCM aus CryptoKit, selbst erzeugte Test-PDF mit drei
   Seitengrößen und `/Rotate`): CryptoKit-SHA-256 = Kern-SHA-256, Export ohne PDF, zweites Gerät, andere PDF ohne
   Anzeige, Manipulation, Anzeige auf gedrehter Seite mit Pixelprobe, Vorschau weiß mit Tinte (auch über einer roten
@@ -267,3 +307,12 @@ Nutzungsbedingungen.
   Notizen“ ausgeblendet schreibt nichts in den Store, unlesbarer Import mit passendem Fingerabdruck wird entfernt,
   Hinweis nur einmal je Sitzung, großflächiges PNG (20 000 × 20 000 Pixel, wenige Kilobyte) weist die ganze Lösung ab
   und eigene große Bilder werden verkleinert, Block-HKDF = RFC 5869 = CryptoKit, Texte des Dialogs.
+- App (`UniFlowTests/CommunityCloudKitTests`, `CloudKitCommunityService` gegen ein nachgebildetes CloudKit im
+  Speicher, kein echtes CloudKit): ohne Container nichts und kein Absturz, Upload enthält nur Paket und Kopfdaten
+  (keine PDF-Bytes, keine Notizen im Klartext, keine Kurs-ID), Pseudonym bei anonym leer, Sichtbarkeitsregeln über
+  mehrere Nutzer und Hochschulen (Kurs-Schlüssel, Lerngruppe, zurückgezogen, gesperrt, eigene), Laden = identisches
+  Paket und Import über denselben Weg wie die Datei (eigene Notizen byte-gleich, andere PDF, zurückgezogen),
+  Zurückziehen nur eigene (Paket beim Dienst weg), Melden, Sperrliste privat und ohne Netz aus dem Zwischenspeicher,
+  Lerngruppen (Code nie beim Dienst, Beitritt auch klein/mit Bindestrich, andere Hochschule nicht, Verlassen),
+  Fehlerfälle (kein iCloud-Konto, kein Netz, Kontingent, Serverfehler, CloudKit-Codes), Knopf nur mit Plus, Texte,
+  Lehrwoche aus der Modulansicht.

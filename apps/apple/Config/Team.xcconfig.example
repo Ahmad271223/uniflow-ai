@@ -2,3 +2,5 @@
 // bezahlten Apple Developer Program eintragen. Danach `xcodegen generate`.
 DEVELOPMENT_TEAM = ABCDE12345
 CODE_SIGN_ENTITLEMENTS = UniFlow/UniFlow.entitlements
+// Community ueber CloudKit (iCloud-Container im Developer Program anlegen, Name wie hier; UniFlow.entitlements)
+UF_CLOUDKIT_CONTAINER = iCloud.de.uniflow.ai

@@ -71,13 +71,17 @@ public final class SolutionLibrary: @unchecked Sendable {
         public var createdAt: String
         public var pageCount: Int
         public var missingImages: Int
+        /// In der Community veroeffentlicht am (ISO 8601); nil = nur als Datei geteilt oder zurueckgezogen.
+        public var publishedAt: String?
 
         var json: JSONValue {
-            .object([
+            var o: [String: JSONValue] = [
                 "solutionId": .string(solutionID), "fingerprint": .string(fingerprint), "title": .string(title),
                 "displayName": .string(displayName), "createdAt": .string(createdAt),
                 "pageCount": .number(Double(pageCount)), "missingImages": .number(Double(missingImages)),
-            ])
+            ]
+            if let publishedAt { o["publishedAt"] = .string(publishedAt) }
+            return .object(o)
         }
 
         init?(json: JSONValue) {
@@ -90,6 +94,7 @@ public final class SolutionLibrary: @unchecked Sendable {
             createdAt = json["createdAt"]?.string ?? ""
             pageCount = json["pageCount"]?.int ?? 0
             missingImages = json["missingImages"]?.int ?? 0
+            publishedAt = json["publishedAt"]?.string
         }
 
         init(header h: SolutionHeader, title: String) {
@@ -233,18 +238,33 @@ public final class SolutionLibrary: @unchecked Sendable {
 
     // MARK: Eigene geteilte Loesungen
 
-    /// Als Datei geteiltes eigenes Paket merken (Kopie unter `shared/`).
+    /// Als Datei geteiltes eigenes Paket merken (Kopie unter `shared/`). Ein schon veroeffentlichter Eintrag behaelt
+    /// sein Veroeffentlichungsdatum.
     @discardableResult
     public func recordShared(_ package: SolutionPackage, title: String) throws -> SharedEntry {
         try locked {
             var index = readIndex()
-            let entry = SharedEntry(header: package.header, title: title)
+            var entry = SharedEntry(header: package.header, title: title)
+            entry.publishedAt = index.shared.first { $0.solutionID == entry.solutionID }?.publishedAt
             try FileManager.default.createDirectory(at: sharedDir, withIntermediateDirectories: true)
             try package.encoded().write(to: sharedDir.appendingPathComponent(Self.fileName(entry.solutionID)), options: .atomic)
             index.shared.removeAll { $0.solutionID == entry.solutionID }
             index.shared.append(entry)
             try writeIndex(index)
             return entry
+        }
+    }
+
+    /// Nach dem Veroeffentlichen in der Community: Datum merken ("veröffentlicht am …"); `nil` nach dem Zurueckziehen.
+    public func setPublished(_ id: String, at date: Date?) throws {
+        try locked {
+            var index = readIndex()
+            index.shared = index.shared.map { e in
+                var e = e
+                if e.solutionID == id.lowercased() { e.publishedAt = date.map(SolutionPackage.timestamp) }
+                return e
+            }
+            try writeIndex(index)
         }
     }
 

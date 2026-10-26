@@ -85,6 +85,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        # iCloud-Container der Community (leer ohne Config/Team.xcconfig; dann "Community nicht verfügbar")
+        UFCloudKitContainer: $(UF_CLOUDKIT_CONTAINER)
         # Schrift der Web-App (Inter, Google Fonts, SIL Open Font License: UniFlow/Resources/Fonts/Inter-OFL.txt)
         UIAppFonts:
           - Inter-Variable.ttf

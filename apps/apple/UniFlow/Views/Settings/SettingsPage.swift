@@ -550,6 +550,7 @@ private struct AccountTab: View {
                 looksCard
             }
             .environment(\.ufFillsCell, true)
+            CommunitySettingsCard()                                          // Pseudonym, Lerngruppen, Sperrliste
         }
             .onAppear {
                 termName = d.term.s("name") ?? ""
@@ -827,6 +828,7 @@ private struct LocalAccountTab: View {
                 }
             }
             .environment(\.ufFillsCell, true)
+            CommunitySettingsCard()                                          // Pseudonym, Lerngruppen, Sperrliste (Plus)
         }
         .sheet(isPresented: $studipSheet) { SettingsSheet(close: { studipSheet = false }) { StudIPView() } }
     }

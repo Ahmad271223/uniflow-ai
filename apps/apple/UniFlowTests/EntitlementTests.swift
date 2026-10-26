@@ -61,7 +61,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertFalse(Entitlements(observe: false, plan: .plus).allows(.uniGrades))
         XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(.community))
         XCTAssertFalse(Entitlements(observe: false, plan: .free).allows(.community))
-        XCTAssertTrue(UFFeature.community.detail?.contains("Online-Community folgt") == true)
+        XCTAssertTrue(UFFeature.community.detail?.contains("in der Community veröffentlichen") == true)
     }
 
     /// Plus bietet schon heute mehr als Free (Schreiben, Uebung und Skript, Loesung als Datei teilen)
