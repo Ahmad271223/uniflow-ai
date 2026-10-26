@@ -267,6 +267,32 @@ die Lücke davor nicht); passt es in keines, werden seine Aufgaben wie bisher ve
 iPads: falsche Datumsangaben (Query, `date`, `start`, `dates`) 422 statt 500; Zeiträume von Kalender und Planung sowie
 `horizon` höchstens 3660 Tage (Python kennt keine Grenze); `task_ids` in `suggest` muss eine Liste sein.
 
+Nachgebessert nach der Prüfung von S6 (`wip/s6-lernplan-2-fix`; wieder zuerst in Python mit Tests in
+`tests/test_study_plan.py`, die ohne die Korrektur scheitern, dann portiert und im Szenario „nachgebessert“ von
+`study-plan.json` verglichen): „Uhrzeit“ kürzt ein Paket nie mehr vor seine letzte Aufgabe (der Dialog schickt Beginn +
+geplante Dauer, die keine Pausen zählt; vorher wurde ein gelegtes Paket mit 45 + 30 Minuten 08:00–09:15, die zweite
+Aufgabe lief bis 09:30, und das nächste Paket lag darin); Web und App belegen die Dauer mit Ende − Beginn vor. Ein
+leeres Paket hat keine Uhrzeit mehr (vorher zeichneten die Raster den leeren Block weiter, und ein neues Paket bekam
+dieselbe Uhrzeit) und steht nicht unter „ohne Uhrzeit“. „Ersetzen“ nimmt nur automatisch erstellte, nicht begonnene
+Pakete und leere Pakete, tageweise (ein Tag mit begonnenem oder eigenem Paket oder mit neu eingeplanter Aufgabe bleibt
+ganz), und nur, wenn es etwas zu planen gibt (vorher verschwanden eigene Pakete aus „+ Lernpaket“ und mit „Woche
+retten“ verschobene Aufgaben, auch ohne neue Planung); der Dialog sagt „Automatisch erstellte, noch nicht begonnene
+Pakete …“. „Plan erstellen“ plant keine Tage vor heute (die Wochenansicht schlägt den Montag vor; vorher waren die
+Pakete von Montag und Dienstag am Mittwoch sofort nachzuholen). „Uhrzeiten vergeben“ in Woche und Tag schickt die Tage
+mit und `only_unset` an `POST /api/timetable/reslot`: nur Pakete ohne Uhrzeit bekommen eine, von Hand gesetzte bleiben
+(vorher tat der Knopf der Woche nichts, der des Tages legte alle Uhrzeiten neu); „Lernslots neu legen“ bei Konflikten
+legt weiter alles neu. Freie Zeit: „Passende Übung“/„Vorlesung nacharbeiten“ bekommt den Beginn des angetippten
+Fensters (statt den ganzen Tag neu zu legen), „Lerneinheit automatisch einplanen“ legt ein Paket genau in dieses
+Fenster (`window_start`/`window_end` an `POST /api/calendar/generate`, `study.plan_window`, ganze Dateien; vorher „0
+Lernpakete erstellt“, sobald am Tag ein Paket lag). Ein verschobenes Paket mit Uhrzeit behält sie, wenn sie am neuen
+Tag frei ist, sonst bekommt es ein freies Fenster (vorher konnte es über einer Vorlesung liegen). Nur iPad: der
+Geräte-Schritt 1 (`PRAGMA user_version`) setzt `tests_per_subject` einer älteren Datenbank einmal auf 0, „Test
+starten“ erscheint ohne PC nicht; `refreshStatuses` liest alle Pakete mit einer Abfrage statt einer je Paket (3000
+Pakete mit 9000 Aufgaben, Debug-Build auf dem Mac: Übersicht 0,05 s statt laut Prüfung 1,49 s) und läuft in der
+Übersicht nur einmal. Aufgeräumt: die toten Platzhalter-Helfer in `PendingSupport.swift`, der eigene Wochenbeginn der
+Übersicht (`StudyWeeks.monday`), doppelte Datums- und Tagesgrenzen-Prüfung (`LocalTimetable.day(status:)`,
+`LocalTimetable.span`).
+
 Geprüft im Kern: `study-plan.json` aus `tools/gen-study-fixture.py` – erfundene Seed-Datenbank (Module mit Priorität,
 Klausurtermin, ohne Wochentest, eines inaktiv, ein Kurs mit Fach ohne Modul, ein inaktiver Kurs; Stud.IP-Dateien in den
 Lehrwochen 0 bis 2, eine am 25.10. in der doppelten Stunde; Analysen mit Dauer, Titel und Themen; Stundenplan mit
@@ -276,15 +302,23 @@ Dateien; 84 Schritte (Planen, auch mit Wochentest und Wiederholung, ohne Lerntag
 Zeitslots neben Terminen; Uhrzeit von Hand und Konflikt mit „Lernslots neu legen“; Abhaken; Bearbeiten; Verschieben;
 Neu einplanen; Woche retten; Überspringen; Verlauf; Machbarkeit mit Hinweisen; Übersicht; Module), danach die Tabellen
 `study_packages`, `study_tasks`, `task_history`, `modules` und die Dateien sowie `_derive_status` für alle 64
-Kombinationen der Aufgabenstatus, je vergangen und nicht. `LocalStudyPlanTests` vergleicht jede Antwort und die Tabellen exakt mit `app/server.py`, dazu „Plan
+Kombinationen der Aufgabenstatus, je vergangen und nicht; dazu das Szenario „nachgebessert“ (eigene Datenbank mit
+demselben Seed, Mittwoch 28.10., 38 Schritte: freies Fenster, Plan ab Montag, Uhrzeit von Hand, Verschieben mit und
+ohne freie Uhrzeit, „Uhrzeiten vergeben“, leeres Paket, Ersetzen mit und ohne etwas zu planen). `LocalStudyPlanTests`
+vergleicht jede Antwort und die Tabellen exakt mit `app/server.py`, dazu „Plan
 erstellen“ neben Terminen ohne Konflikt und die 422-Fälle. In der App (`StudyPlanLocalAppTests`, Simulator, Bedienung
 über den Bedienungshilfen-Baum): im Lernkalender „Lernpaket“ → Dialog „Neues Lernpaket“ → Titel getippt → „Anlegen“
 (Paket mit dem ersten Modul in der Datenbank, danach im Lernkalender sichtbar) → im Lernpaket „Als erledigt
 markieren“ (Aufgabe und Paket erledigt) → Übersicht „Heute für dich geplant“ mit dem Paket und „1 / 1“; „Plan
 erstellen“ → „Erstellen“ legt die Pakete neben Vorlesung, Übung und Fahrtzeit, ohne Konflikt und ohne Testaufgabe, der
-Stundenplan zeigt Termine und Lernblöcke; die Lernkombination zeigt keinen Wochentest und speichert 0. Nicht geprüft:
-echtes iPad, Ziehen und Ablegen im Kalender, die Zeitauswahl „Uhrzeit“/„Beginn“ in der Oberfläche (nur über die
-Endpunkte), Planen mit echten Stud.IP-Daten.
+Stundenplan zeigt Termine und Lernblöcke; die Lernkombination zeigt keinen Wochentest und speichert 0. Seit der
+Nachbesserung außerdem: „Uhrzeiten vergeben“ der Wochenansicht gibt dem ohne Beginn angelegten Paket 08:00–09:00;
+„Plan erstellen“ am Mittwoch ab Montag lässt Montag und Dienstag leer, nichts ist nachzuholen; „Lerneinheit
+automatisch einplanen“ in der freien Zeit 16:00–18:00 legt dort ein Paket neben ein vorhandenes; „Uhrzeit“ →
+„Speichern“ in einem gelegten Paket mit zwei Aufgaben schickt 08:00–09:30 und die Aufgaben bleiben darin; eine
+Testaufgabe zeigt ohne PC kein „Test starten“. Nicht geprüft: echtes iPad, Ziehen und Ablegen im Kalender, die
+Zeitauswahl „Beginn“ beim Anlegen in der Oberfläche (nur über die Endpunkte), „Passende Übung“/„Vorlesung
+nacharbeiten“ in der Oberfläche (nur der Endpunkt), Planen mit echten Stud.IP-Daten.
 
 | Bereich | Stand | Was fehlt |
 |---|---|---|

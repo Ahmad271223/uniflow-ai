@@ -11,21 +11,31 @@ import UniFlowCore
 @MainActor
 final class StudyPlanLocalAppTests: XCTestCase {
 
-    /// Merkt sich Methode, Pfad und Status jeder Anfrage an das lokale Backend
+    /// Merkt sich Methode, Pfad, Status und Rumpf jeder Anfrage an das lokale Backend
     final class RecordingTransport: APITransport, @unchecked Sendable {
         let inner: LocalTransport
         private let lock = NSLock()
         private var log: [(method: String, path: String, status: Int)] = []
+        private var bodies: [JSONValue?] = []
 
         init(_ inner: LocalTransport) { self.inner = inner }
 
         func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
             let r = try await inner.send(request)
-            lock.withLock { log.append((request.httpMethod ?? "GET", request.url?.path ?? "", r.1.statusCode)) }
+            let body = request.httpBody.flatMap { try? JSONValue.parse($0) }
+            lock.withLock {
+                log.append((request.httpMethod ?? "GET", request.url?.path ?? "", r.1.statusCode))
+                bodies.append(body)
+            }
             return r
         }
 
         var calls: [(method: String, path: String, status: Int)] { lock.withLock { log } }
+
+        /// Rumpf der letzten Anfrage mit dieser Methode und diesem Pfad
+        func lastBody(_ method: String, _ path: String) -> JSONValue? {
+            lock.withLock { Array(zip(log, bodies)).last { $0.0.method == method && $0.0.path == path }?.1 ?? nil }
+        }
     }
 
     private final class MemorySecrets: AccountSecretStore {
@@ -54,9 +64,9 @@ final class StudyPlanLocalAppTests: XCTestCase {
     /// Lokales Backend mit Seed: zwei Faecher (Vorlesung + Uebung, Physik) mit Dateien in den Lehrwochen 1 und 2
     /// (Vorlesungsbeginn 12.10.), eine Begruessung ohne Fach, Stundenplan mit Vorlesung und Uebung am Montag und
     /// Physik am Mittwoch. Einstellungen wie neu (4 Stunden, 2 Faecher, ohne Wochentest, 30 Minuten Fahrt).
-    private func seededAPI() async throws -> (APIClient, RecordingTransport) {
+    private func seededAPI(now: String = "2026-10-26T07:30:00") async throws -> (APIClient, RecordingTransport) {
         let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true),
-                                    clock: .fixed(berlin: "2026-10-26T07:30:00")!)
+                                    clock: .fixed(berlin: now)!)
         let backend = try await host.backend()
         let courses: [(String, String)] = [("k-ma", "Testmathematik I"), ("k-ma-ue", "Übung zu Testmathematik I"),
                                            ("k-ph", "Testphysik"), ("k-erst", "Begrüßung der Erstsemester")]
@@ -230,6 +240,18 @@ final class StudyPlanLocalAppTests: XCTestCase {
         XCTAssertTrue(pump { self.shows(plan, "Kapitel 2 lernen") }, texts(plan).joined(separator: "\n"))
         XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
 
+        // ohne Beginn angelegt: "Uhrzeiten vergeben" der Wochenansicht gibt ihm eine Uhrzeit im freien Fenster vor der
+        // Vorlesung (vorher schickte der Knopf keine Tage, das Backend legte nur Tage mit Konflikten neu: nichts)
+        XCTAssertTrue(pump { self.shows(plan, "1 Lernpaket ohne Uhrzeit") }, texts(plan).joined(separator: "\n"))
+        let beforeReslot = recorder.calls.count
+        XCTAssertTrue(tap("Uhrzeiten vergeben", in: plan), texts(plan).joined(separator: "\n"))
+        XCTAssertTrue(pump { recorder.calls.dropFirst(beforeReslot).contains { $0.method == "POST" && $0.path == "/api/timetable/reslot" } })
+        let reslotBody: JSONValue = ["dates": ["2026-10-26"], "only_unset": true]
+        XCTAssertEqual(recorder.lastBody("POST", "/api/timetable/reslot"), reslotBody)
+        let slotted = try awaiting { try await api.value("/api/packages/\(pid)") }
+        XCTAssertEqual([slotted.s("start_time"), slotted.s("end_time")], ["08:00", "09:00"])
+        XCTAssertTrue(pump { !self.shows(plan, "ohne Uhrzeit") }, texts(plan).joined(separator: "\n"))
+
         // im Lernpaket abhaken
         let drawer = try show(PackageDrawer(id: pid), api: api)
         XCTAssertTrue(pump { self.shows(drawer, "Als erledigt markieren") }, texts(drawer).joined(separator: "\n"))
@@ -318,5 +340,98 @@ final class StudyPlanLocalAppTests: XCTestCase {
         XCTAssertEqual(saved, true)
         let s = try awaiting { try await api.value("/api/settings") }
         XCTAssertEqual(s.i("tests_per_subject"), 0)
+    }
+
+    // MARK: Nachbesserung S6
+
+    /// "Plan erstellen" in der Wochenansicht am Mittwoch: "Ab" ist der Montag, geplant wird erst ab heute (vorher lagen
+    /// die Unterlagen zuerst auf Montag und Dienstag und waren sofort nachzuholen)
+    func testPlanFromMondaySkipsPastDays() throws {
+        let (api, recorder) = try awaiting { try await self.seededAPI(now: "2026-10-28T07:30:00") }
+        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { Self.accessibilityAutomation(false) }
+        let plan = try show(PlanView(params: (view: "week", date: "2026-10-28", module: nil)), api: api)
+        XCTAssertTrue(pump { self.shows(plan, "Plan erstellen") && recorder.calls.contains { $0.path == "/api/timetable/week" } })
+        XCTAssertTrue(tap("Plan erstellen", in: plan))
+        XCTAssertTrue(pump { self.shows(plan, "Lernplan erstellen") && recorder.calls.contains { $0.path == "/api/calendar/feasibility" } })
+        settle()
+        XCTAssertTrue(shows(plan, "Automatisch erstellte, noch nicht begonnene Pakete in diesem Zeitraum ersetzen"), texts(plan).joined(separator: "\n"))
+        XCTAssertTrue(tap("Erstellen", in: plan), texts(plan).joined(separator: "\n"))
+        XCTAssertTrue(pump { recorder.calls.contains { $0.method == "POST" && $0.path == "/api/calendar/generate" } })
+        XCTAssertEqual(recorder.lastBody("POST", "/api/calendar/generate")?["start"], "2026-10-26", "Ab Montag der Woche")
+        let cal = try awaiting { try await api.value("/api/calendar?start=2026-10-26&end=2026-11-01") }
+        let counts = cal.list("days").map { $0.list("packages").count }
+        XCTAssertEqual(Array(counts.prefix(2)), [0, 0], "Montag und Dienstag liegen zurück: \(counts)")
+        XCTAssertGreaterThan(counts.reduce(0, +), 0, "\(counts)")
+        let dash = try awaiting { try await api.value("/api/dashboard") }
+        XCTAssertEqual(dash.i("backlog"), 0)
+        XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
+    }
+
+    /// Freie Zeit 16:00–18:00 → "Lerneinheit automatisch einplanen" legt ein Paket genau in dieses Fenster, obwohl am Tag
+    /// schon ein Paket liegt (vorher "0 Lernpakete erstellt")
+    func testFreeWindowPlansIntoTappedWindow() throws {
+        let (api, recorder) = try awaiting { try await self.seededAPI() }
+        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { Self.accessibilityAutomation(false) }
+        _ = try awaiting { try await api.value("/api/packages", method: "POST", body: ["date": "2026-10-26", "title": "Eigenes", "minutes": 30]) }
+        let dialog = try show(FreeWindowDialog(date: "2026-10-26", start: 16 * 60, end: 18 * 60, materials: [], moduleID: nil), api: api)
+        XCTAssertTrue(pump { self.shows(dialog, "Wie möchtest du die Zeit nutzen?") }, texts(dialog).joined(separator: "\n"))
+        XCTAssertTrue(tap("Lerneinheit automatisch einplanen", in: dialog), texts(dialog).joined(separator: "\n"))
+        XCTAssertTrue(pump { recorder.calls.contains { $0.method == "POST" && $0.path == "/api/calendar/generate" } })
+        let body: JSONValue = ["start": "2026-10-26", "window_start": "16:00", "window_end": "18:00"]
+        XCTAssertEqual(recorder.lastBody("POST", "/api/calendar/generate"), body)
+        let day = try awaiting { try await api.value("/api/calendar?start=2026-10-26&end=2026-10-26") }
+        let pkgs = day.list("days").first?.list("packages") ?? []
+        XCTAssertEqual(pkgs.count, 2, "\(pkgs)")
+        let planned = try XCTUnwrap(pkgs.first { $0.i("generated") == 1 })
+        XCTAssertEqual(planned.s("start_time"), "16:00")
+        XCTAssertLessThanOrEqual(UFTime.hm(planned.s("end_time")), 18 * 60)
+        XCTAssertFalse(planned.list("tasks").isEmpty)
+        XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
+    }
+
+    /// "Uhrzeit" in einem gelegten Paket mit zwei Aufgaben: die Dauer ist Ende - Beginn (mit Pause), unveraendert
+    /// gespeichert bleibt das Paket so lang wie seine Aufgaben (vorher 75 statt 90 Minuten, die zweite Aufgabe lief
+    /// ueber das Paketende hinaus)
+    func testPackageTimeDialogKeepsTasksInside() throws {
+        let (api, recorder) = try awaiting { try await self.seededAPI() }
+        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { Self.accessibilityAutomation(false) }
+        let created = try awaiting {
+            try await api.value("/api/packages", method: "POST", body: ["date": "2026-10-27", "title": "Zwei Aufgaben", "tasks": [
+                ["type": "frei", "title": "Lesen", "est_minutes": 45], ["type": "frei", "title": "Rechnen", "est_minutes": 30]]])
+        }
+        let pid = try XCTUnwrap(created.i("id"))
+        _ = try awaiting { try await api.value("/api/timetable/reslot", method: "POST", body: ["dates": ["2026-10-27"], "only_unset": true]) }
+        let before = try awaiting { try await api.value("/api/packages/\(pid)") }
+        XCTAssertEqual([before.s("start_time"), before.s("end_time")], ["08:00", "09:30"])
+        XCTAssertEqual(PackageTimeDialog.minutes(before), 90)
+
+        let overlay = UFOverlay()
+        let drawer = try show(PackageDrawer(id: pid), api: api, overlay: overlay)
+        XCTAssertTrue(pump { self.shows(drawer, "Rechnen") }, texts(drawer).joined(separator: "\n"))
+        XCTAssertTrue(tap("Uhrzeit", in: drawer), texts(drawer).joined(separator: "\n"))
+        XCTAssertTrue(pump { self.shows(drawer, "Speichern") }, texts(drawer).joined(separator: "\n"))
+        XCTAssertTrue(tap("Speichern", in: drawer), texts(drawer).joined(separator: "\n"))
+        XCTAssertTrue(pump { recorder.calls.contains { $0.method == "PATCH" && $0.path == "/api/packages/\(pid)" } })
+        let sent: JSONValue = ["start_time": "08:00", "end_time": "09:30"]
+        XCTAssertEqual(recorder.lastBody("PATCH", "/api/packages/\(pid)"), sent)
+        let after = try awaiting { try await api.value("/api/packages/\(pid)") }
+        XCTAssertEqual([after.s("start_time"), after.s("end_time")], ["08:00", "09:30"])
+        XCTAssertEqual(after.list("tasks").map { "\($0.s("start_time") ?? "")-\($0.s("end_time") ?? "")" }, ["08:00-08:45", "09:00-09:30"])
+        XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
+    }
+
+    /// Ohne PC kein Knopf "Test starten" (Wochentests entfallen; eine Testaufgabe aus einer alten Datenbank fuehrte
+    /// sonst zu 404)
+    func testNoStartTestButtonWithoutPC() throws {
+        let (api, _) = try awaiting { try await self.seededAPI() }
+        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { Self.accessibilityAutomation(false) }
+        let task: JSONValue = ["id": 99, "type": "test", "title": "Gemeinsamer Wochentest Lehrwoche 1", "status": "geplant", "est_minutes": 45]
+        let row = try show(TaskRow(t: task) {}, api: api)
+        XCTAssertTrue(pump { self.shows(row, "Gemeinsamer Wochentest Lehrwoche 1") }, texts(row).joined(separator: "\n"))
+        XCTAssertFalse(shows(row, "Test starten"), texts(row).joined(separator: "\n"))
     }
 }

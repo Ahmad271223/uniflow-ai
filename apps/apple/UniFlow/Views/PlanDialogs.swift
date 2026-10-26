@@ -46,7 +46,8 @@ struct GeneratePlanDialog: View {
                         UFField("Ab") { UFDateField(iso: $startDate) }
                         UFField("Tage") { UFSelect(options: [(7, "7 Tage"), (14, "14 Tage"), (28, "4 Wochen")], selection: $days, fill: true) }
                     }
-                    UFCheckbox("Bereits geplante, noch nicht begonnene Pakete in diesem Zeitraum ersetzen", isOn: $replace)
+                    // ersetzt werden nur automatisch erstellte, nicht begonnene und leere Pakete (study._replaceable)
+                    UFCheckbox("Automatisch erstellte, noch nicht begonnene Pakete in diesem Zeitraum ersetzen", isOn: $replace)
                 }
             } foot: {
                 UFButton("Abbrechen") { onClose() }

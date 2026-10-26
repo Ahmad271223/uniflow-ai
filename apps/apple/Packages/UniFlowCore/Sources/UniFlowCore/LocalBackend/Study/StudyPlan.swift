@@ -96,18 +96,35 @@ enum StudyPlan {
     /// `refresh_statuses(conn)`: offene Aufgaben vergangener Pakete werden "nachholen", der Paketstatus folgt den
     /// Aufgaben. Pakete ohne Aufgaben behalten ihren Status ("verschoben" aus `recalcPackage`; Korrektur vom
     /// 26.10.2026, zuerst in Python, tests/test_study_plan.py).
+    ///
+    /// Eine Abfrage fuer alle Pakete samt Aufgaben statt einer je Paket (Python: N+1). Laeuft bei jeder Anfrage an
+    /// Kalender, Paket, Abhaken und offene Aufgaben mit; mit 3000 Paketen dauerte die Uebersicht frueher ueber eine
+    /// Sekunde. Ergebnis wie in Python (Reihenfolge der Aufgaben egal, `_derive_status` nimmt eine Menge).
     static func refreshStatuses(_ c: SQLiteConnection, today: Int) throws {
         let t = iso(today)
         try c.execute("""
             UPDATE study_tasks SET status='nachholen' WHERE status IN ('geplant','in_bearbeitung')
                                 AND package_id IN (SELECT id FROM study_packages WHERE date < ?)
             """, [.text(t)])
-        for p in try c.query("SELECT id, date, status FROM study_packages") {
-            let tasks = try c.query("SELECT status FROM study_tasks WHERE package_id=?", [p["id"] ?? .null])
-            if tasks.isEmpty { continue }
-            let st = deriveStatus(tasks.map { $0[0].string }, past: try less(p["date"], t))
-            if p["status"] != .text(st) {
-                try c.execute("UPDATE study_packages SET status=? WHERE id=?", [.text(st), p["id"] ?? .null])
+        var order: [SQLiteValue] = []
+        var packages: [SQLiteValue: (date: SQLiteValue?, status: SQLiteValue?, tasks: [String?])] = [:]
+        for r in try c.query("""
+            SELECT p.id, p.date, p.status, t.id AS task_id, t.status AS task_status
+            FROM study_packages p LEFT JOIN study_tasks t ON t.package_id=p.id ORDER BY p.id
+            """) {
+            let id = r["id"] ?? .null
+            if packages[id] == nil {
+                order.append(id)
+                packages[id] = (r["date"], r["status"], [])
+            }
+            if r["task_id"] != nil && r["task_id"] != .null { packages[id]!.tasks.append(r["task_status"]?.string) }
+        }
+        for id in order {
+            let p = packages[id]!
+            if p.tasks.isEmpty { continue }
+            let st = deriveStatus(p.tasks, past: try less(p.date, t))
+            if p.status != .text(st) {
+                try c.execute("UPDATE study_packages SET status=? WHERE id=?", [.text(st), id])
             }
         }
     }
@@ -284,39 +301,45 @@ enum StudyPlan {
                                  weekNo: unit.map { .integer(Int64($0.week)) } ?? .null, tasks: tasks, clock: clock)
     }
 
-    /// `_recalc_package(conn, pid)`: geplante Minuten aus den Aufgaben; ohne Aufgaben "verschoben" mit 0 Minuten
+    /// `_recalc_package(conn, pid)`: geplante Minuten aus den Aufgaben; ohne Aufgaben "verschoben" mit 0 Minuten und
+    /// ohne Uhrzeit (vorher blieb sie: leerer Block im Raster, ein neues Paket bekam dieselbe Uhrzeit; Korrektur vom
+    /// 26.10.2026, zuerst in Python)
     static func recalcPackage(_ c: SQLiteConnection, _ pid: SQLiteValue) throws {
         guard let r = try c.queryOne("SELECT COUNT(*) n, COALESCE(SUM(est_minutes),0) m FROM study_tasks WHERE package_id=?", [pid]) else { return }
         if r["n"]?.int == 0 {
             if try c.queryOne("SELECT generated FROM study_packages WHERE id=?", [pid]) != nil {
-                try c.execute("UPDATE study_packages SET status='verschoben', planned_minutes=0 WHERE id=?", [pid])
+                try c.execute("UPDATE study_packages SET status='verschoben', planned_minutes=0, start_time=NULL, end_time=NULL WHERE id=?", [pid])
             }
         } else {
             try c.execute("UPDATE study_packages SET planned_minutes=? WHERE id=?", [r["m"] ?? .null, pid])
         }
     }
 
-    /// `generate_packages(conn, start, days, replace)`: Lernpakete fuer `days` Tage ab `start` (sonst heute) nach der
-    /// Lernkombination; danach Zeitslots in den freien Fenstern. Mit `replace` werden nur noch nicht begonnene Pakete
-    /// ersetzt (Korrektur vom 26.10.2026, zuerst in Python).
-    static func generatePackages(_ c: SQLiteConnection, start: Int?, days: Int, replace: Bool, clock: UniFlowClock) throws -> JSONValue {
-        try LocalModules.ensureModules(c, clock: clock)
-        let today = T.today(clock)
-        try refreshStatuses(c, today: today)
-        let s = try Settings(c)
-        let start = start ?? today
-        let end = start + days - 1
-        if replace {
-            for r in try c.query("""
-                SELECT id FROM study_packages p WHERE date BETWEEN ? AND ? AND status IN ('geplant')
-                                                AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id AND t.status != 'geplant')
-                """, [.text(iso(start)), .text(iso(end))]) {
-                try c.execute("DELETE FROM study_tasks WHERE package_id=?", [r[0]])
-                try c.execute("DELETE FROM study_packages WHERE id=?", [r[0]])
-            }
-        }
-        let planned = Set(try c.query("SELECT file_id FROM study_tasks WHERE file_id IS NOT NULL AND status IN ('geplant','in_bearbeitung','erledigt','nachholen')")
-            .compactMap { $0[0].string })
+    /// `_replaceable(conn, start, end)`: Pakete, die "ersetzen" loeschen darf: automatisch erstellte, noch nicht
+    /// begonnene (alle Aufgaben geplant, keine verschoben) und leere; tageweise (ein Paket, das bleibt, haelt seinen
+    /// Tag). Korrektur vom 26.10.2026, zuerst in Python: vorher auch eigene Pakete und neu eingeplante Aufgaben.
+    static func replaceable(_ c: SQLiteConnection, from start: Int, to end: Int) throws -> [SQLiteValue] {
+        let rows = try c.query("""
+            SELECT p.id, p.date,
+                   (p.generated=1 AND p.status='geplant' AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id
+                        AND (t.status != 'geplant' OR t.moved_from IS NOT NULL))) AS fresh,
+                   NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id) AS empty
+            FROM study_packages p WHERE p.date BETWEEN ? AND ? ORDER BY p.id
+            """, [.text(iso(start)), .text(iso(end))])
+        let keep = Set(rows.filter { !LocalModules.truthy($0["fresh"]) && !LocalModules.truthy($0["empty"]) }.map { $0["date"] ?? .null })
+        return rows.filter { !keep.contains($0["date"] ?? .null) }.map { $0["id"] ?? .null }
+    }
+
+    /// `_planned_files(conn, exclude_packages)`: Dateien in offenen oder erledigten Aufgaben (ohne diese Pakete)
+    static func plannedFiles(_ c: SQLiteConnection, excluding packages: [SQLiteValue] = []) throws -> Set<String> {
+        var sql = "SELECT file_id FROM study_tasks WHERE file_id IS NOT NULL AND status IN ('geplant','in_bearbeitung','erledigt','nachholen')"
+        if !packages.isEmpty { sql += " AND package_id NOT IN (\(Array(repeating: "?", count: packages.count).joined(separator: ",")))" }
+        return Set(try c.query(sql, packages).compactMap { $0[0].string })
+    }
+
+    /// `_queues(conn, planned_files, s)`: Warteschlangen der aktiven Module mit offenen Einheiten und ihre
+    /// Reihenfolge (hoechste Bewertung zuerst, bei Gleichstand wie die Module sortiert sind)
+    static func queues(_ c: SQLiteConnection, planned: Set<String>, settings s: Settings, today: Int, clock: UniFlowClock) throws -> ([Int64: Queue], [Int64]) {
         let dates = try LocalModules.Dates(c, clock: clock)
         var queues: [Int64: Queue] = [:]
         var queueOrder: [Int64] = []
@@ -328,13 +351,35 @@ enum StudyPlan {
                 queues[id] = Queue(module: m, units: units)
             }
         }
-        if queues.isEmpty { return ["created": 0, "message": "Keine offenen Vorlesungen oder Übungen für die Planung."] }
+        var scores: [Int64: Double] = [:]
+        for id in queueOrder { scores[id] = -(try moduleScore(queues[id]!.module, openUnits: queues[id]!.units.count, settings: s, today: today)) }
+        return (queues, T.stableSorted(queueOrder) { scores[$0]! < scores[$1]! })
+    }
+
+    static let nothingToPlan: JSONValue = ["created": 0, "message": "Keine offenen Vorlesungen oder Übungen für die Planung."]
+
+    /// `generate_packages(conn, start, days, replace)`: Lernpakete fuer `days` Tage ab `start` (sonst heute) nach der
+    /// Lernkombination; danach Zeitslots in den freien Fenstern. Tage vor heute werden nicht geplant; mit `replace`
+    /// werden nur Pakete aus `replaceable` ersetzt, und erst, wenn es etwas zu planen gibt (Korrekturen vom
+    /// 26.10.2026, zuerst in Python).
+    static func generatePackages(_ c: SQLiteConnection, start: Int?, days: Int, replace: Bool, clock: UniFlowClock) throws -> JSONValue {
+        try LocalModules.ensureModules(c, clock: clock)
+        let today = T.today(clock)
+        try refreshStatuses(c, today: today)
+        let s = try Settings(c)
+        let start = start ?? today
+        let end = start + days - 1
+        let drop = replace ? try replaceable(c, from: start, to: end) : []
+        let (queues, order) = try queues(c, planned: try plannedFiles(c, excluding: drop), settings: s, today: today, clock: clock)
+        if queues.isEmpty { return nothingToPlan }
+        for pid in drop {
+            try c.execute("DELETE FROM study_tasks WHERE package_id=?", [pid])
+            try c.execute("DELETE FROM study_packages WHERE id=?", [pid])
+        }
 
         let budgetDay = s.minutesPerDay
         let perPackage = max(30, BerlinClock.floorDiv(budgetDay, max(1, s.subjectsPerDay)))
-        var scores: [Int64: Double] = [:]
-        for id in queueOrder { scores[id] = -(try moduleScore(queues[id]!.module, openUnits: queues[id]!.units.count, settings: s, today: today)) }
-        var rr = T.stableSorted(queueOrder) { scores[$0]! < scores[$1]! }
+        var rr = order
         var created = 0
         var existing: Set<String> = []
         for r in try c.query("SELECT date, COUNT(*) n FROM study_packages WHERE date BETWEEN ? AND ? GROUP BY date", [.text(iso(start)), .text(iso(end))])
@@ -343,7 +388,7 @@ enum StudyPlan {
         }
         for i in 0..<max(0, days) {
             let d = start + i
-            if !s.isLearnDay(d) || existing.contains(iso(d)) { continue }
+            if d < today || !s.isLearnDay(d) || existing.contains(iso(d)) { continue }
             var picked: [(Queue, Int64)] = []
             var dayUsed = 0
             var attempts = 0
@@ -392,12 +437,13 @@ enum StudyPlan {
     /// `assign_slots(conn, d, only_unset)`: Uhrzeiten fuer die Lernpakete eines Tages in den freien Fenstern
     /// (Hochschultermine, Sperrzeiten, Fahrtzeit, schon gelegte Lernslots). Ein Paket liegt am Stueck im ersten Fenster
     /// mit genug Platz; passt es in keines, werden seine Aufgaben auf mehrere Fenster verteilt. Ohne freies Fenster ab
-    /// Lernbeginn hintereinander.
-    static func assignSlots(_ c: SQLiteConnection, day d: Int, onlyUnset: Bool = true) throws {
+    /// Lernbeginn hintereinander. Mit `packageID` nur dieses Paket (verschobenes Paket).
+    static func assignSlots(_ c: SQLiteConnection, day d: Int, onlyUnset: Bool = true, packageID: SQLiteValue? = nil) throws {
         let s = try Settings(c)
         var pkgs = try c.query("SELECT * FROM study_packages WHERE date=? AND status NOT IN ('verschoben','uebersprungen','erledigt') ORDER BY sort, id",
                                [.text(iso(d))])
         if onlyUnset { pkgs = pkgs.filter { !LocalModules.truthy($0["start_time"]) } }
+        if let packageID { pkgs = pkgs.filter { $0["id"] == packageID } }
         if pkgs.isEmpty { return }
         var windows = try LocalFreeWindows.compute(c, day: d, settings: s.raw).map { w in (start: w["start"]?.int ?? 0, end: w["end"]?.int ?? 0) }
         if windows.isEmpty {
@@ -447,7 +493,8 @@ enum StudyPlan {
         }
     }
 
-    /// `reslot_day(conn, d)`: alle Slots eines Tages neu vergeben (z. B. nach einer Stundenplan-Aenderung)
+    /// `reslot_day(conn, d)`: alle Slots eines Tages neu vergeben (z. B. nach einer Stundenplan-Aenderung, "Lernslots
+    /// neu legen"), auch von Hand gesetzte; "Uhrzeiten vergeben" nimmt `assignSlots` (nur Pakete ohne Uhrzeit)
     static func reslotDay(_ c: SQLiteConnection, day d: Int) throws {
         let di = SQLiteValue.text(iso(d))
         try c.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE date=? AND status NOT IN ('erledigt')", [di])
@@ -467,8 +514,10 @@ enum StudyPlan {
     }
 
     /// `set_package_time(conn, package_id, start, end)`: Uhrzeit von Hand ("Uhrzeit", "Beginn" beim Anlegen); ohne
-    /// Beginn entfaellt sie, ohne Ende gilt die geplante Dauer. Aufgaben mit Uhrzeit ruecken mit. Korrektur vom
-    /// 26.10.2026 (vorher speicherte PATCH /api/packages/{id} keine Uhrzeit), zuerst in Python.
+    /// Beginn entfaellt sie, ohne Ende gilt die geplante Dauer. Aufgaben mit Uhrzeit ruecken mit, und das Paket endet
+    /// nie vor seiner letzten Aufgabe (die geplante Dauer zaehlt keine Pausen, der Dialog schickt Beginn + Dauer).
+    /// Korrekturen vom 26.10.2026 (vorher speicherte PATCH /api/packages/{id} keine Uhrzeit, danach wurde das Paket
+    /// kuerzer als seine Aufgaben), zuerst in Python.
     static func setPackageTime(_ c: SQLiteConnection, packageID id: SQLiteValue, start: JSONValue?, end: JSONValue?) throws {
         guard let p = try c.queryOne("SELECT start_time, planned_minutes FROM study_packages WHERE id=?", [id]) else { return }
         guard LocalModules.truthy(start) else {
@@ -477,16 +526,57 @@ enum StudyPlan {
             return
         }
         let a = try clockMinutes(start)
-        let b = LocalModules.truthy(end) ? try clockMinutes(end) : a + (LocalModules.truthy(p["planned_minutes"]) ? try int(p["planned_minutes"], "planned_minutes") : 0)
+        var b = LocalModules.truthy(end) ? try clockMinutes(end) : a + (LocalModules.truthy(p["planned_minutes"]) ? try int(p["planned_minutes"], "planned_minutes") : 0)
         guard b > a else { throw LocalHTTPError(status: 400, message: "Das Ende muss nach dem Beginn liegen.") }
-        try c.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", [.text(LocalFreeWindows.mh(a)), .text(LocalFreeWindows.mh(b)), id])
-        guard LocalModules.truthy(p["start_time"]) else { return }
-        let shift = a - (try LocalFreeWindows.hm(p["start_time"]?.json, key: "start_time"))
-        for t in try c.query("SELECT id, start_time, end_time FROM study_tasks WHERE package_id=? AND start_time IS NOT NULL AND end_time IS NOT NULL", [id]) {
-            let ts = try LocalFreeWindows.hm(t["start_time"]?.json, key: "start_time"), te = try LocalFreeWindows.hm(t["end_time"]?.json, key: "end_time")
-            try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
-                          [.text(LocalFreeWindows.mh(ts + shift)), .text(LocalFreeWindows.mh(te + shift)), t["id"] ?? .null])
+        if LocalModules.truthy(p["start_time"]) {
+            let shift = a - (try LocalFreeWindows.hm(p["start_time"]?.json, key: "start_time"))
+            for t in try c.query("SELECT id, start_time, end_time FROM study_tasks WHERE package_id=? AND start_time IS NOT NULL AND end_time IS NOT NULL", [id]) {
+                let ts = try LocalFreeWindows.hm(t["start_time"]?.json, key: "start_time"), te = try LocalFreeWindows.hm(t["end_time"]?.json, key: "end_time") + shift
+                try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
+                              [.text(LocalFreeWindows.mh(ts + shift)), .text(LocalFreeWindows.mh(te)), t["id"] ?? .null])
+                b = max(b, te)
+            }
         }
+        try c.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", [.text(LocalFreeWindows.mh(a)), .text(LocalFreeWindows.mh(b)), id])
+    }
+
+    /// `plan_window(conn, d, start, end)`: "Lerneinheit automatisch einplanen" im freien Fenster: die naechsten
+    /// Aufgaben eines Moduls als ein Paket genau in dieses Fenster, auch an einem Tag mit Paketen (vorher uebersprang
+    /// die Planung fuer den Tag ihn: "0 Lernpakete erstellt"; Korrektur vom 26.10.2026, zuerst in Python). Das Modul
+    /// mit der hoechsten Bewertung, dessen erste Aufgabe passt; weitere Aufgaben der Einheit, solange sie mit Pause
+    /// passen; Dateien ungeteilt. Falsche Uhrzeit: 400.
+    static func planWindow(_ c: SQLiteConnection, day d: Int, start: JSONValue?, end: JSONValue?, clock: UniFlowClock) throws -> JSONValue {
+        let a = try clockMinutes(start), b = try clockMinutes(end)
+        guard b > a else { throw LocalHTTPError(status: 400, message: "Das Ende muss nach dem Beginn liegen.") }
+        try LocalModules.ensureModules(c, clock: clock)
+        let today = T.today(clock)
+        try refreshStatuses(c, today: today)
+        let s = try Settings(c)
+        let (queues, order) = try queues(c, planned: try plannedFiles(c), settings: s, today: today, clock: clock)
+        if queues.isEmpty { return nothingToPlan }
+        for mid in order {
+            let q = queues[mid]!
+            let tasks = try nextTasks(q, settings: s, budget: 24 * 60)        // ganze Einheit, ohne Teile
+            guard let first = tasks.first, a + first.est <= b else { continue }
+            var fit: [(task: NewTask, start: Int)] = []
+            var cur = a
+            for t in tasks {
+                if !fit.isEmpty && cur + t.est > b { break }
+                fit.append((t, cur))
+                cur += t.est + s.breakMinutes
+            }
+            let pid = try insertPackage(c, day: d, module: q.module, tasks: fit.map(\.task), unit: q.current, clock: clock)
+            let ids = try c.query("SELECT id FROM study_tasks WHERE package_id=? ORDER BY sort", [.integer(pid)]).map { $0["id"] ?? .null }
+            for (tid, f) in zip(ids, fit) {
+                try c.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
+                              [.text(LocalFreeWindows.mh(f.start)), .text(LocalFreeWindows.mh(f.start + f.task.est)), tid])
+            }
+            let last = fit[fit.count - 1].start + fit[fit.count - 1].task.est
+            try c.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?",
+                          [.text(LocalFreeWindows.mh(a)), .text(LocalFreeWindows.mh(last)), .integer(pid)])
+            return ["created": 1, "message": "1 Lernpaket erstellt", "feasibility": try feasibility(c, clock: clock)]
+        }
+        return ["created": 0, "message": .string("Keine Lerneinheit passt in \(b - a) Minuten.")]
     }
 
     // MARK: Machbarkeit
