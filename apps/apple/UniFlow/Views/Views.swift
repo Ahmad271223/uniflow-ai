@@ -20,8 +20,13 @@ struct LibraryView: View {
     @State private var importMessage: String?
     /// Dokument, das beim Oeffnen gleich angezeigt wird (Route #/doc/<id> aus Uebersicht/Suche)
     var openFile: String?
+    /// PDF-Seite dieses Dokuments (1-basiert, Route #/doc/<id>?page=n aus der Suche nach Seitentext)
+    var openPage: Int?
 
-    init(openFile: String? = nil) { self.openFile = openFile }
+    init(openFile: String? = nil, openPage: Int? = nil) {
+        self.openFile = openFile
+        self.openPage = openPage
+    }
 
     private var files: [LibFile] {
         let all = (library?.files ?? []).filter { $0.isPDF }
@@ -81,7 +86,7 @@ struct LibraryView: View {
                 if let id = fileSelection, let f = file(id), let api = session.api {
                     // Identitaet je Datenquelle: beim Wechsel lokal <-> Server entsteht der DocumentStore neu fuer
                     // die neue Quelle (updateAPI uebernimmt nur Verbindungen derselben Quelle)
-                    DocumentView(file: f, api: api).id("\(api.namespace.id)/\(f.id)")
+                    DocumentView(file: f, api: api, initialPDFPage: f.id == openFile ? openPage : nil).id("\(api.namespace.id)/\(f.id)")
                 } else {
                     ContentUnavailableView("Dokument wählen", systemImage: "doc.richtext", description: Text("Links ein Modul und ein Dokument auswählen."))
                 }

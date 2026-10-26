@@ -106,7 +106,9 @@ extension UniStore {
 /// Stud.IP-Abgleich. Ausfallsicher: kein Netz in einer Transaktion, jede Transaktion kurz; ein Fehler betrifft nur
 /// diesen Kurs bzw. diese Datei. Nichts wird geloescht, weil die Gegenseite nicht antwortet; LSF-Serien verschwinden
 /// nur nach einem vollstaendig gelesenen Plan. Downloads gehen erst in eine .part-Datei und ersetzen eine gute Datei
-/// nie halb; eine neue Fassung, die nicht ankam, laedt der naechste Abgleich.
+/// nie halb; eine neue Fassung, die nicht ankam, laedt der naechste Abgleich. Mit `versions` (S7) bleibt die alte
+/// Fassung einer Datei mit Notizen erhalten und die Notizen kommen auf die passenden Seiten der neuen
+/// (`FileVersionKeeper`, wie beim Stud.IP-Abgleich), die Seitentexte jeder geladenen PDF fuellen den Suchindex.
 public actor HildesheimSync {
 
     public struct Report: Sendable, Equatable {
@@ -133,10 +135,13 @@ public actor HildesheimSync {
     /// Inhalts-Hash einer geladenen Datei (`content_sha256`); die App darf CryptoKit einsetzen (schneller)
     private let hasher: @Sendable (URL) -> String?
     private let retry: UniRetry
+    /// Alte Fassungen mit Notizen aufbewahren (Ablage mit `root` als Container und PDFKit); nil = ersetzen wie am PC
+    private let versions: FileVersionKeeper?
 
     public init(db: SQLiteDatabase, root: URL, learnweb: LearnwebAPI?, lsf: LSFClient?, transport: UniTransport,
                 clock: UniFlowClock = .system, retry: UniRetry = UniRetry(),
-                hasher: @escaping @Sendable (URL) -> String? = { TestShare.contentHash(file: $0) }) {
+                hasher: @escaping @Sendable (URL) -> String? = { TestShare.contentHash(file: $0) },
+                versions: FileVersionKeeper? = nil) {
         self.db = db
         self.root = root
         self.learnweb = learnweb
@@ -145,6 +150,7 @@ public actor HildesheimSync {
         self.clock = clock
         self.retry = retry
         self.hasher = hasher
+        self.versions = versions
     }
 
     /// Neu anmelden noetig (abgelaufene Sitzung oder ungueltiger Schluessel)
@@ -210,9 +216,10 @@ public actor HildesheimSync {
                     guard let f = files.first(where: { $0.id == row.id }) else { continue }
                     do {
                         guard let req = await api.downloadRequest(f) else { continue }
-                        let (rel, sha) = try await download(req, fileID: row.id, name: row.name, shownURL: row.downloadURL)
+                        let (rel, sha, prepared) = try await download(req, fileID: row.id, name: row.name, shownURL: row.downloadURL)
                         let at = clock.nowISO
                         try await db.transaction { try UniStore.markDownloaded($0, row, localPath: rel, sha256: sha, now: at) }
+                        if let prepared { await versions?.finish(prepared) }
                         report.newFiles.append(row.id)
                     } catch {
                         report.failedFiles.append(row.name)
@@ -229,9 +236,11 @@ public actor HildesheimSync {
     }
 
     /// Download wie `stream_download` am PC: in eine .part-Datei (Wiederholung bei abgerissener Verbindung),
-    /// Pruefung (keine Anmelde- oder andere Webseite, `UniStore.isWebPage`), dann atomar ersetzen.
-    /// Rueckgabe (Pfad relativ zum Ordner der Hochschule, Inhalts-Hash)
-    private func download(_ req: UniRequest, fileID: String, name: String, shownURL: String) async throws -> (String, String?) {
+    /// Pruefung (keine Anmelde- oder andere Webseite, `UniStore.isWebPage`), alte Fassung mit Notizen sichern
+    /// (`versions`; scheitert das, bleibt die alte Datei), dann atomar ersetzen.
+    /// Rueckgabe (Pfad relativ zum Ordner der Hochschule, Inhalts-Hash, Schritt 2 fuer `versions`)
+    private func download(_ req: UniRequest, fileID: String, name: String, shownURL: String) async throws
+        -> (String, String?, FileVersionKeeper.Prepared?) {
         let rel = Self.relativePath(fileID: fileID, name: name)
         let target = root.appendingPathComponent(rel)
         let part = target.appendingPathExtension("part")
@@ -242,9 +251,11 @@ public actor HildesheimSync {
         if HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: shownURL) }
         if UniStore.isWebPage(file: part, name: name) { throw HildesheimError.htmlInsteadOfFile(shownURL) }
+        let sha = hasher(part)
+        let prepared = try await versions?.prepare(fileID: fileID, newSHA: sha)
         // rename ersetzt atomar: entweder die alte oder die neue Datei, nie eine halbe
         guard rename(part.path, target.path) == 0 else { throw HildesheimError.badResponse("Datei nicht gespeichert: \(name)") }
-        return (rel, hasher(target))
+        return (rel, sha, prepared)
     }
 
     private func syncPlan(_ lsf: LSFClient, into report: inout Report) async {

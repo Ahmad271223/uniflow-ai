@@ -331,6 +331,7 @@ final class StudIPSync: ObservableObject {
             // Downloads erst in einen Zwischenordner, dann an ihren Platz: ein Abbruch hinterlaesst keine halbe Datei
             // als "geladen"; Reste eines abgebrochenen Laufs gehen hier weg
             let partial = partialFolder
+            let versions = localFiles.map { versionKeeper(db, $0) }
             try? FileManager.default.removeItem(at: partial)
             try FileManager.default.createDirectory(at: partial, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: partial) }
@@ -351,18 +352,24 @@ final class StudIPSync: ObservableObject {
                 let rel = StudIPImport.relativePath(for: f)
                 let target = root.appendingPathComponent(rel)
                 try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+                // Inhalts-Hash fuer gemeinsame Wochentests wie store_course_files am PC (vor dem Ersetzen, dieselben
+                // Bytes); grosse Dateien nicht auf dem Hauptthread und nicht in der Transaktion
+                let sha = await Task.detached(priority: .utility) { TestShare.contentHash(file: temp) }.value
+                // S7: die alte Fassung einer Datei mit Notizen aufbewahren, bevor die neue sie ersetzt; laesst sie sich
+                // nicht sichern, bleibt die alte Datei und der naechste Abgleich versucht es erneut
+                let prepared: FileVersionKeeper.Prepared?
+                do { prepared = try await versions?.prepare(fileID: f.id, newSHA: sha) } catch { failed += 1; continue }
                 try Self.place(temp, at: target)
                 index[f.id] = StudIPLocalEntry(file: f, courseTitle: titles[f.courseID] ?? "Kurs", relativePath: rel,
                                                downloadedAt: ISO8601DateFormatter().string(from: Date()))
                 saveIndex()                                   // nach jeder Datei: Abbruch verliert nichts
                 if let stored = localFiles?.stored(target) {
-                    // Inhalts-Hash fuer gemeinsame Wochentests wie store_course_files am PC; grosse Dateien nicht auf
-                    // dem Hauptthread und nicht in der Transaktion
-                    let sha = await Task.detached(priority: .utility) { TestShare.contentHash(file: target) }.value
                     let now = clock.nowISO, base = Self.base
                     try await db.transaction {
                         try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, sha256: sha, at: now, base: base)
                     }
+                    // Seitentexte fuer Suche und Skriptsuche; mit Notizen: Seiten zuordnen, Notizen umhaengen
+                    if let prepared { await versions?.finish(prepared) }
                 }
                 loaded += 1
             }
@@ -410,6 +417,13 @@ final class StudIPSync: ObservableObject {
 
     /// Zwischenordner der laufenden Downloads (im Stud.IP-Ordner, also ohne Backup)
     private var partialFolder: URL { root.appendingPathComponent(".laden", isDirectory: true) }
+
+    /// Alte Fassungen von Dateien mit Notizen (S7): im Stud.IP-Ordner ohne Backup (Entscheidung 6), aber nicht unter
+    /// `files`, damit "Dateien löschen" sie nicht entfernt (aus Stud.IP lassen sie sich nicht mehr laden)
+    private func versionKeeper(_ db: SQLiteDatabase, _ files: LocalFiles) -> FileVersionKeeper {
+        FileVersionKeeper(database: db, files: files, directory: files.stored(root.appendingPathComponent("Fassungen")) ?? "Fassungen",
+                          source: "Stud.IP", clock: clock)
+    }
 
     /// Transportfehler, nach dem keine weitere Datei ankaeme (kein Netz, Stud.IP nicht erreichbar, abgebrochen):
     /// der Lauf endet als Fehler. Alles andere (z. B. Zeitueberschreitung) betrifft nur den einen Kurs (Dateiliste)
