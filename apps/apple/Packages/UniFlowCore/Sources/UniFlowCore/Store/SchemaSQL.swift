@@ -302,7 +302,8 @@ CREATE TABLE IF NOT EXISTS deadlines (
     id TEXT PRIMARY KEY,                  -- lw-ev-<Moodle-Ereignis-id>
     source TEXT NOT NULL,                 -- learnweb
     course_id TEXT,                       -- lw-<Kurs-id>, NULL bei Terminen ohne Kurs
-    title TEXT NOT NULL,
+    title TEXT NOT NULL,                  -- ohne angehaengte Zeitangabe in Klammern
+    full_title TEXT,                      -- Name wie im Learnweb
     kind TEXT NOT NULL,                   -- abgabe | test_ende | test_beginn | frist | termin
     module TEXT,                          -- assign | quiz | ...
     due_at TEXT NOT NULL,

@@ -418,6 +418,7 @@
    "id": "lw-ev-9005",
    "course_id": null,
    "title": "Sprechstunde",
+   "full_title": "Sprechstunde",
    "kind": "termin",
    "module": null,
    "due_at": "2026-07-22T11:00",
@@ -427,6 +428,7 @@
    "id": "lw-ev-9003",
    "course_id": "lw-843",
    "title": "Lerncheck 1",
+   "full_title": "Lerncheck 1",
    "kind": "test_beginn",
    "module": "quiz",
    "due_at": "2026-10-31T14:00",
@@ -436,6 +438,7 @@
    "id": "lw-ev-9002",
    "course_id": "lw-843",
    "title": "Lerncheck 1",
+   "full_title": "Lerncheck 1 (verfügbar vom 30.10. (15:00 Uhr) bis 02.11. (23:59 Uhr))",
    "kind": "test_ende",
    "module": "quiz",
    "due_at": "2026-11-02T23:59",
@@ -445,6 +448,7 @@
    "id": "lw-ev-9001",
    "course_id": "lw-843",
    "title": "Übungsblatt 3",
+   "full_title": "Übungsblatt 3 (schließt am 04.11. um 23:59 Uhr)",
    "kind": "abgabe",
    "module": "assign",
    "due_at": "2026-11-04T23:59",
@@ -454,6 +458,7 @@
    "id": "lw-ev-9004",
    "course_id": "lw-901",
    "title": "Umfrage schließt",
+   "full_title": "Umfrage schließt",
    "kind": "frist",
    "module": "feedback",
    "due_at": "2026-12-31T23:59",
@@ -502,6 +507,430 @@
    "kind": "termin"
   }
  ],
+ "deadline-titles": [
+  {
+   "title": "Bonustest Teil 1 (verfügbar vom 30.10. (15:00 Uhr) bis 02.11. (23:59 Uhr))",
+   "short": "Bonustest Teil 1"
+  },
+  {
+   "title": "Abgabe der Eigenständigkeitserklärung (schließt am 04.11. um 23:59 Uhr)",
+   "short": "Abgabe der Eigenständigkeitserklärung"
+  },
+  {
+   "title": "Klein(st)kinder Blatt 2",
+   "short": "Klein(st)kinder Blatt 2"
+  },
+  {
+   "title": "Übung (Gruppe A)",
+   "short": "Übung (Gruppe A)"
+  },
+  {
+   "title": "(bis 01.02.)",
+   "short": "(bis 01.02.)"
+  },
+  {
+   "title": "Blatt 3 (Abgabe 1.12.) Teil 2",
+   "short": "Blatt 3 (Abgabe 1.12.) Teil 2"
+  },
+  {
+   "title": "",
+   "short": ""
+  }
+ ],
+ "nds-holidays": {
+  "2026": {
+   "2026-01-01": "Neujahr",
+   "2026-04-03": "Karfreitag",
+   "2026-04-06": "Ostermontag",
+   "2026-05-01": "Tag der Arbeit",
+   "2026-05-14": "Christi Himmelfahrt",
+   "2026-05-25": "Pfingstmontag",
+   "2026-10-03": "Tag der Deutschen Einheit",
+   "2026-10-31": "Reformationstag",
+   "2026-12-25": "1. Weihnachtstag",
+   "2026-12-26": "2. Weihnachtstag"
+  },
+  "2027": {
+   "2027-01-01": "Neujahr",
+   "2027-03-26": "Karfreitag",
+   "2027-03-29": "Ostermontag",
+   "2027-05-01": "Tag der Arbeit",
+   "2027-05-06": "Christi Himmelfahrt",
+   "2027-05-17": "Pfingstmontag",
+   "2027-10-03": "Tag der Deutschen Einheit",
+   "2027-10-31": "Reformationstag",
+   "2027-12-25": "1. Weihnachtstag",
+   "2027-12-26": "2. Weihnachtstag"
+  },
+  "2030": {
+   "2030-01-01": "Neujahr",
+   "2030-04-19": "Karfreitag",
+   "2030-04-22": "Ostermontag",
+   "2030-05-01": "Tag der Arbeit",
+   "2030-05-30": "Christi Himmelfahrt",
+   "2030-06-10": "Pfingstmontag",
+   "2030-10-03": "Tag der Deutschen Einheit",
+   "2030-10-31": "Reformationstag",
+   "2030-12-25": "1. Weihnachtstag",
+   "2030-12-26": "2. Weihnachtstag"
+  }
+ },
+ "day-marks": {
+  "luh": {
+   "2026-12-20..2027-01-08": {
+    "2026-12-25": [
+     {
+      "kind": "feiertag",
+      "label": "1. Weihnachtstag"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-26": [
+     {
+      "kind": "feiertag",
+      "label": "2. Weihnachtstag"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-01": [
+     {
+      "kind": "feiertag",
+      "label": "Neujahr"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-23": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-24": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-27": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-28": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-29": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-30": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-31": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-02": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-03": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-04": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-05": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ]
+   },
+   "2027-01-28..2027-02-10": {
+    "2027-01-31": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-01": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-02": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-03": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-04": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-05": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-06": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-07": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-08": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-09": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-10": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ]
+   },
+   "2027-05-14..2027-05-25": {
+    "2027-05-17": [
+     {
+      "kind": "feiertag",
+      "label": "Pfingstmontag"
+     }
+    ],
+    "2027-05-18": [
+     {
+      "kind": "pause",
+      "label": "Exkursionswoche"
+     }
+    ],
+    "2027-05-19": [
+     {
+      "kind": "pause",
+      "label": "Exkursionswoche"
+     }
+    ],
+    "2027-05-20": [
+     {
+      "kind": "pause",
+      "label": "Exkursionswoche"
+     }
+    ],
+    "2027-05-21": [
+     {
+      "kind": "pause",
+      "label": "Exkursionswoche"
+     }
+    ],
+    "2027-05-22": [
+     {
+      "kind": "pause",
+      "label": "Exkursionswoche"
+     }
+    ],
+    "2027-05-23": [
+     {
+      "kind": "pause",
+      "label": "Exkursionswoche"
+     }
+    ]
+   },
+   "2030-07-25..2030-08-02": {}
+  },
+  "hildesheim": {
+   "2026-12-20..2027-01-08": {
+    "2026-12-25": [
+     {
+      "kind": "feiertag",
+      "label": "1. Weihnachtstag"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-26": [
+     {
+      "kind": "feiertag",
+      "label": "2. Weihnachtstag"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2027-01-01": [
+     {
+      "kind": "feiertag",
+      "label": "Neujahr"
+     },
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-23": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-24": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-27": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-28": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-29": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-30": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ],
+    "2026-12-31": [
+     {
+      "kind": "pause",
+      "label": "Weihnachtspause"
+     }
+    ]
+   },
+   "2027-01-28..2027-02-10": {
+    "2027-02-06": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-07": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-08": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-09": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ],
+    "2027-02-10": [
+     {
+      "kind": "vorlesungsfrei",
+      "label": "Vorlesungsfreie Zeit"
+     }
+    ]
+   },
+   "2027-05-14..2027-05-25": {
+    "2027-05-17": [
+     {
+      "kind": "feiertag",
+      "label": "Pfingstmontag"
+     }
+    ],
+    "2027-05-18": [
+     {
+      "kind": "pause",
+      "label": "Exkursions- und Projektwoche"
+     }
+    ],
+    "2027-05-19": [
+     {
+      "kind": "pause",
+      "label": "Exkursions- und Projektwoche"
+     }
+    ],
+    "2027-05-20": [
+     {
+      "kind": "pause",
+      "label": "Exkursions- und Projektwoche"
+     }
+    ],
+    "2027-05-21": [
+     {
+      "kind": "pause",
+      "label": "Exkursions- und Projektwoche"
+     }
+    ]
+   },
+   "2030-07-25..2030-08-02": {}
+  }
+ },
  "local-iso": [
   {
    "ts": 1793833140,

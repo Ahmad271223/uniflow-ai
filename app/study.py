@@ -13,7 +13,8 @@ import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from . import db
+from . import db, holidays
+from .holidays import DEADLINE_LABELS
 
 PALETTE = ["#4f6df5", "#0ea5a0", "#e0803a", "#9b59d9", "#d94f6b", "#2f9e5a", "#c7891a", "#3b82c4", "#7c5cd6", "#1aa39a"]
 DEFAULT_EST = {"vorlesung": 45, "skript": 60, "uebung": 60, "loesung": 30, "test": 45, "wiederholung": 30}
@@ -585,6 +586,7 @@ def calendar(conn, start: date, end: date) -> dict:
     s = db.get_settings(conn)
     from . import timetable
     occ_all = timetable.occurrences(conn, start, end) if (end - start).days <= 45 else []
+    marks, dls = holidays.calendar_extras(conn, start, end)
     days = []
     d = start
     while d <= end:
@@ -606,7 +608,8 @@ def calendar(conn, start: date, end: date) -> dict:
             st = "in_bearbeitung"
         else:
             st = "geplant"
-        days.append({"date": d.isoformat(), "weekday": d.weekday(), "status": st, "minutes": minutes, "tasks_done": done, "tasks_total": total, "packages": dp, "events": ev})
+        days.append({"date": d.isoformat(), "weekday": d.weekday(), "status": st, "minutes": minutes, "tasks_done": done, "tasks_total": total, "packages": dp, "events": ev,
+                     "marks": marks.get(d.isoformat(), []), "deadlines": dls.get(d.isoformat(), [])})
         d += timedelta(days=1)
     return {"start": start.isoformat(), "end": end.isoformat(), "days": days, "settings": s}
 
@@ -733,7 +736,6 @@ def skip_tasks(conn, task_ids: list[int]) -> None:
         set_task_status(conn, tid, "uebersprungen", note="bewusst übersprungen")
 
 
-DEADLINE_LABELS = {"abgabe": "Abgabe", "test_ende": "Test endet", "test_beginn": "Test beginnt", "frist": "Frist", "termin": "Termin"}
 
 
 def upcoming_deadlines(conn, t, limit: int = 50) -> list[dict]:
@@ -743,7 +745,7 @@ def upcoming_deadlines(conn, t, limit: int = 50) -> list[dict]:
                             FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id
                             WHERE d.due_at >= ? ORDER BY d.due_at LIMIT ?""", (now, limit))
     return [{"date": r["due_at"][:10], "time": r["due_at"][11:16], "kind": r["kind"], "kind_label": DEADLINE_LABELS.get(r["kind"], "Frist"),
-             "title": r["title"], "course_title": r["course_title"], "module_id": r["module_id"], "color": r["color"],
+             "title": r["title"], "full_title": r["full_title"] or r["title"], "course_title": r["course_title"], "module_id": r["module_id"], "color": r["color"],
              "url": r["url"], "deadline_id": r["id"]} for r in rows]
 
 

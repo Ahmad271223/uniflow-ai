@@ -83,11 +83,12 @@ def store_deadlines(conn, items: list[dict], fetched_at: str, window_from: str) 
     geloescht oder erledigt und wird entfernt; aeltere Fristen bleiben als Verlauf stehen."""
     known = {r["id"] for r in db.rows(conn, "SELECT id FROM deadlines WHERE source='learnweb'")}
     for d in items:
-        conn.execute("""INSERT INTO deadlines(id, source, course_id, title, kind, module, due_at, url, fetched_at)
-                        VALUES (?, 'learnweb', ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(id) DO UPDATE SET course_id=excluded.course_id, title=excluded.title, kind=excluded.kind,
+        conn.execute("""INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, fetched_at)
+                        VALUES (?, 'learnweb', ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(id) DO UPDATE SET course_id=excluded.course_id, title=excluded.title,
+                          full_title=excluded.full_title, kind=excluded.kind,
                           module=excluded.module, due_at=excluded.due_at, url=excluded.url, fetched_at=excluded.fetched_at""",
-                     (d["id"], d.get("course_id"), d["title"], d["kind"], d.get("module"), d["due_at"], d.get("url"), fetched_at))
+                     (d["id"], d.get("course_id"), d["title"], d.get("full_title") or d["title"], d["kind"], d.get("module"), d["due_at"], d.get("url"), fetched_at))
     ids = [d["id"] for d in items]
     gone = conn.execute(f"""DELETE FROM deadlines WHERE source='learnweb' AND due_at >= ?
                             AND id NOT IN ({",".join("?" * len(ids)) or "''"})""", (window_from, *ids)).rowcount

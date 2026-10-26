@@ -26,7 +26,7 @@ from schema_source import write_or_check  # noqa: E402
 import base64  # noqa: E402
 import hashlib  # noqa: E402
 
-from app import cas, learnweb, lsf, qis, studip_sync, timetable  # noqa: E402
+from app import cas, holidays, learnweb, lsf, qis, studip_sync, timetable  # noqa: E402
 
 D = ROOT / "packages" / "shared-contracts" / "fixtures" / "hildesheim"
 BASE = "https://www.uni-hildesheim.de/learnweb2026"
@@ -114,6 +114,14 @@ def main(check: bool) -> bool:
         "deadline-kinds": [{"module": m, "eventtype": t, "kind": learnweb.deadline_kind(m, t)} for m, t in (
             ("assign", "due"), ("quiz", "close"), ("quiz", "open"), ("QUIZ", "Close"), ("feedback", "close"),
             ("choice", "open"), (None, "user"), (None, "course"))],
+        "deadline-titles": [{"title": t, "short": learnweb.short_deadline_title(t)} for t in (
+            "Bonustest Teil 1 (verfügbar vom 30.10. (15:00 Uhr) bis 02.11. (23:59 Uhr))",
+            "Abgabe der Eigenständigkeitserklärung (schließt am 04.11. um 23:59 Uhr)", "Klein(st)kinder Blatt 2",
+            "Übung (Gruppe A)", "(bis 01.02.)", "Blatt 3 (Abgabe 1.12.) Teil 2", "")],
+        "nds-holidays": {str(y): holidays.public_holidays(y) for y in (2026, 2027, 2030)},
+        "day-marks": {u: {f"{a}..{b}": holidays.day_marks(date.fromisoformat(a), date.fromisoformat(b), u)
+                          for a, b in (("2026-12-20", "2027-01-08"), ("2027-01-28", "2027-02-10"), ("2027-05-14", "2027-05-25"), ("2030-07-25", "2030-08-02"))}
+                      for u in ("luh", "hildesheim")},
         "local-iso": [{"ts": ts, "local": learnweb.local_iso(ts)} for ts in (1793833140, 1784710800, 1798757940, 1774746000, 1792890000)],
         "grade-rows": {"abschluss": "Fallback", "rows": grade_rows,
                        "grades": [{k: g.get(k) for k in ("pruefungsnr", "text", "note", "status", "credits", "abschluss")}

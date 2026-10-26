@@ -372,6 +372,17 @@ DEADLINE_DAYS_AHEAD = 200
 DEADLINE_PAGES = 10
 
 
+# Angehaengte Zeitangabe im Aktivitaetsnamen, z. B. "Bonustest (verfügbar vom 30.10. (15:00 Uhr) bis 02.11. (23:59 Uhr))"
+# oder "Abgabe ... (schließt am 04.11. um 23:59 Uhr)": steht schon als Datum/Uhrzeit in der Frist
+_TRAILING_DATE_RE = re.compile(r"\s*\((?:[^()]|\([^()]*\))*?\b\d{1,2}\.\d{1,2}\.(?:[^()]|\([^()]*\))*\)\s*$")
+
+
+def short_deadline_title(title: str) -> str:
+    """Titel ohne angehaengte Zeitangabe in Klammern; bleibt nichts uebrig, der volle Titel."""
+    t = _TRAILING_DATE_RE.sub("", title or "").strip()
+    return t or (title or "").strip()
+
+
 def deadline_kind(modulename: str | None, eventtype: str | None) -> str:
     """abgabe | test_ende | test_beginn | frist (andere Aktivitaet: faellig/schliesst) | termin (alles andere)."""
     k = DEADLINE_KINDS.get(((modulename or "").lower(), (eventtype or "").lower()))
@@ -400,7 +411,7 @@ def deadlines_from_events(events: list[dict]) -> list[dict]:
         title = nfc(e.get("activityname") or e.get("name") or "").strip()
         did = f"lw-ev-{int(e['id'])}"
         out[did] = {"id": did, "course_id": f"lw-{int(cid)}" if cid and int(cid) > 1 else None,
-                    "title": title or "Termin", "kind": deadline_kind(e.get("modulename"), e.get("eventtype")),
+                    "title": short_deadline_title(title) or "Termin", "full_title": title or "Termin", "kind": deadline_kind(e.get("modulename"), e.get("eventtype")),
                     "module": e.get("modulename") or None, "due_at": local_iso(e["timestart"]),
                     "url": e.get("url") or None}
     return sorted(out.values(), key=lambda d: (d["due_at"], d["title"], d["id"]))

@@ -577,10 +577,13 @@ def week_grid(conn, start: date) -> dict:
     occ = occurrences(conn, start, end)
     pk = db.rows(conn, "SELECT p.*, m.color FROM study_packages p LEFT JOIN modules m ON m.id=p.module_id WHERE p.date BETWEEN ? AND ? ORDER BY p.date, p.start_time", (start.isoformat(), end.isoformat()))
     s = db.get_settings(conn)
+    from . import holidays
+    marks, dls = holidays.calendar_extras(conn, start, end)
     days = []
     d = start
     while d <= end:
         days.append({"date": d.isoformat(), "weekday": d.weekday(), "events": [o for o in occ if o["date"] == d.isoformat()], "packages": [p for p in pk if p["date"] == d.isoformat()],
+                     "marks": marks.get(d.isoformat(), []), "deadlines": dls.get(d.isoformat(), []),
                      "free": free_windows(conn, d, s), "blocked": [b for b in s["blocked_times"] if int(b.get("weekday", -1)) == d.weekday()]})
         d += timedelta(days=1)
     return {"start": start.isoformat(), "end": end.isoformat(), "days": days, "learn_start": s["learn_start"], "learn_end": s["learn_end"], "term": term(conn)}

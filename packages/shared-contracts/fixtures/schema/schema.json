@@ -94,6 +94,7 @@
           {"name": "source", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
           {"name": "course_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "title", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "full_title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "kind", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
           {"name": "module", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "due_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},

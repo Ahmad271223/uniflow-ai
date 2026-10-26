@@ -304,7 +304,8 @@ CREATE TABLE IF NOT EXISTS deadlines (
     id TEXT PRIMARY KEY,                  -- lw-ev-<Moodle-Ereignis-id>
     source TEXT NOT NULL,                 -- learnweb
     course_id TEXT,                       -- lw-<Kurs-id>, NULL bei Terminen ohne Kurs
-    title TEXT NOT NULL,
+    title TEXT NOT NULL,                  -- ohne angehaengte Zeitangabe in Klammern
+    full_title TEXT,                      -- Name wie im Learnweb
     kind TEXT NOT NULL,                   -- abgabe | test_ende | test_beginn | frist | termin
     module TEXT,                          -- assign | quiz | ...
     due_at TEXT NOT NULL,
@@ -427,14 +428,27 @@ def _init_db(conn) -> None:
     add_col("tests", "auto", "INTEGER DEFAULT 0")
     add_col("tests", "share_key", "TEXT")               # gemeinsamer Wochentest (app/testshare.py)
     add_col("files", "content_sha256", "TEXT")          # Inhalts-Hash fuer gemeinsame Tests
+    add_col("deadlines", "full_title", "TEXT")          # Learnweb-Name mit Zeitangabe (Tooltip)
     conn.execute("CREATE INDEX IF NOT EXISTS ix_tests_share_key ON tests(share_key)")
     # Hoechstens ein automatischer Wochentest pro Modul und Lehrwoche
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1")
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                     VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))
+    ensure_term(conn, config.UNIVERSITY)
+
+
+def ensure_term(conn, university: str) -> None:
+    """Semester fuer den Stundenplan: Vorlesungszeit laut Zeitplan der eigenen Hochschule (app/holidays.py).
+    Frueher stand hier fuer alle Hochschulen die LUH-Vorlesungszeit; diese unveraenderte Vorgabe wird bei anderen
+    Hochschulen korrigiert. Ein vom Nutzer eingetragenes Semester bleibt."""
+    from . import holidays
+    term = holidays.default_term(university) or {"name": "WiSe 2026/27", "start": "2026-10-12", "end": "2027-01-30"}
     if not conn.execute("SELECT 1 FROM terms").fetchone():
-        conn.execute("INSERT INTO terms(name, start, end, active) VALUES ('WiSe 2026/27', '2026-10-12', '2027-01-30', 1)")
+        conn.execute("INSERT INTO terms(name, start, end, active) VALUES (?, ?, ?, 1)", (term["name"], term["start"], term["end"]))
+    elif university != "luh":
+        conn.execute("""UPDATE terms SET name=?, start=?, end=? WHERE name='WiSe 2026/27' AND start='2026-10-12' AND end='2027-01-30'
+                        AND (SELECT COUNT(*) FROM terms)=1""", (term["name"], term["start"], term["end"]))
 
 
 @contextmanager

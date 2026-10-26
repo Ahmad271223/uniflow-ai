@@ -208,3 +208,22 @@ Wunsch des Inhabers: Abgabefristen und Test-Zeiten aus dem Learnweb in die App. 
 Fixture-Test gegen die drei neuen Schlüssel, Anzeige in „Nächste Termine“. Live mit echten Daten: 5 Fristen, alle
 mit Kurs, zweiter Lauf ohne Doppelte. Python: 125 Tests grün.
 
+## Nachtrag der PC-Sitzung: Feiertage grün, Fristen im Kalender, Startseiten-Layout (26.10.2026)
+
+Wunsch des Inhabers nach Blick auf die Startseite. In Python fertig, auf develop:
+
+- **Layout-Fehler (Web):** lange Learnweb-Titel ohne Umbruch drückten die rechte Spalte breit, die linke wurde schmal
+  und „Heute an der Uni“ lief über. Korrektur: `.grid > * { min-width: 0 }`, Raum-Spalte gekürzt. Bitte im iPad
+  prüfen, ob lange Fristen-Titel dort ebenso Spalten aufdrücken.
+- **Titel:** `learnweb.short_deadline_title` entfernt eine angehängte Zeitangabe in Klammern; Tabelle `deadlines`
+  hat neu `full_title` (Schema neu erzeugt). Fixture-Schlüssel `deadline-titles`, Ereignisse mit solchen Titeln.
+- **Feiertage/vorlesungsfrei:** neues Modul `app/holidays.py` (Ostern, Feiertage Niedersachsen, Tabelle
+  `SEMESTERS` je Hochschule mit Quelle, `day_marks`, `default_term`). Fixture-Schlüssel `nds-holidays` und
+  `day-marks` (beide Hochschulen, vier Zeiträume) in `fixtures/hildesheim/expected.json`.
+- **Kalender:** `/api/calendar` und `/api/timetable/week` liefern je Tag `marks` und `deadlines`. Web: grüne Spalte
+  und Kopf-Chips im Lernkalender (Woche, Monat, Tag, Mini-Kalender) und Stundenplan; Fristen als Chips mit Link.
+- **Semester-Vorgabe:** `db.ensure_term` setzt die Vorlesungszeit der eigenen Hochschule; die alte LUH-Vorgabe
+  (WiSe 2026/27, 12.10.–30.01.) wird in Hildesheim-Datenbanken korrigiert, eigene Einträge bleiben. Im iPad prüfen,
+  ob dort dieselbe feste LUH-Vorgabe steht.
+- Tests: Python 132 grün, Swift-Kern 375 grün (Linux, mit neuem Schema).
+

@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import config, db, planner, study, timetable
+from . import config, db, planner, study, timetable, universities
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -690,6 +690,7 @@ def _public_settings(s: dict) -> dict:
     out = {k: v for k, v in s.items() if k != "lan_pin"}
     out["university"] = config.UNIVERSITY
     out["university_next"] = config.configured_university()
+    out["files_source"] = universities.PROFILES.get(config.UNIVERSITY, {}).get("files_source", "Stud.IP")
     return out
 
 

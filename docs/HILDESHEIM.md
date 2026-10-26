@@ -56,9 +56,21 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
 - Tabelle `deadlines` (`id` = `lw-ev-<Ereignis-id>`, Kurs `lw-<id>`). Was im abgefragten Fenster nicht mehr kommt,
   wird entfernt (gelöscht oder abgegeben); ältere Fristen bleiben. Ein Fehler beim Kalender meldet „Learnweb-Fristen:
   FEHLER …“, der Sync läuft weiter.
-- Anzeige: Startseite „Nächste Termine“ (mit Uhrzeit, Art und Kurs, Link ins Learnweb), `GET /api/deadlines`.
+- Titel ohne angehängte Zeitangabe in Klammern („Bonustest Teil 1 (verfügbar vom … bis …)“ → „Bonustest Teil 1“), voller
+  Name in `full_title` (Tooltip).
+- Anzeige: Startseite „Nächste Termine“ (mit Uhrzeit, Art und Kurs, Link ins Learnweb), `GET /api/deadlines`, und in
+  Lernkalender (Woche, Monat, Tag, Mini-Kalender) und Stundenplan je Tag (`deadlines` an jedem Kalendertag).
 - Live 26.10.2026: 5 Fristen (2× Test beginnt, 2× Test endet, 1 Abgabe), alle mit Kurs, zweiter Lauf ohne Doppelte.
 - Ferien/Feiertage stehen nicht im Learnweb; vorlesungsfreie Tage kommen aus dem LSF-Export (EXDATE).
+
+## Feiertage und vorlesungsfreie Zeit (`app/holidays.py`)
+
+- Keine Quelle liefert eine Ferienliste. Gesetzliche Feiertage in Niedersachsen werden berechnet; Vorlesungszeiten
+  und Unterbrechungen stehen als Tabelle aus den offiziellen Zeitplänen (Hildesheim: PDFs unter „Termine und Fristen“
+  bis SoSe 2030; LUH: Seite „Semestertermine“ bis WiSe 2028/29). Neue Semester dort nachtragen.
+- Jeder Kalendertag hat `marks` (`feiertag`, `pause`, `vorlesungsfrei`); Feiertage und Pausen grün, vorlesungsfreie
+  Zeit hellgrün. Nach dem letzten bekannten Zeitplan wird nichts erfunden (nur Feiertage).
+- Vorgabe-Semester des Stundenplans kommt jetzt aus dieser Tabelle (vorher für alle die LUH-Zeit 12.10.–30.01.).
 
 ## LSF-Stundenplan
 
@@ -80,4 +92,3 @@ nach einem Neustart). Werte `luh` | `hildesheim`, siehe `app/universities.py`.
 ## Offen
 
 - Bescheinigungen (Immatrikulation): Quelle in Hildesheim unbekannt, im LSF-Menü nicht vorhanden.
-- Learnweb-Fristen stehen auf der Startseite, aber noch nicht im Stundenplan- oder Lernkalender-Raster.

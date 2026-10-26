@@ -518,6 +518,14 @@ def test_shared_hildesheim_fixtures_match_python():
     assert learnweb.deadlines_from_events(cal) == exp["learnweb-deadlines"]
     assert [learnweb.deadline_kind(c["module"], c["eventtype"]) for c in exp["deadline-kinds"]] == [c["kind"] for c in exp["deadline-kinds"]]
     assert [learnweb.local_iso(c["ts"]) for c in exp["local-iso"]] == [c["local"] for c in exp["local-iso"]]
+    assert [learnweb.short_deadline_title(c["title"]) for c in exp["deadline-titles"]] == [c["short"] for c in exp["deadline-titles"]]
+    from app import holidays
+    from datetime import date as _d
+    assert {y: holidays.public_holidays(int(y)) for y in exp["nds-holidays"]} == exp["nds-holidays"]
+    for uni, spans in exp["day-marks"].items():
+        for span, marks in spans.items():
+            a, b = span.split("..")
+            assert holidays.day_marks(_d.fromisoformat(a), _d.fromisoformat(b), uni) == marks, (uni, span)
 
 
 def test_grade_rows_hildesheim_layout():
@@ -830,7 +838,7 @@ def test_token_client_deadlines_use_rest_with_flat_params():
 def test_store_deadlines_updates_removes_in_window_keeps_past(app):
     from app import db, hildesheim
     db.init_db()
-    a = {"id": "lw-ev-1", "course_id": "lw-843", "title": "Blatt 1", "kind": "abgabe", "module": "assign", "due_at": "2026-11-04T23:59", "url": None}
+    a = {"id": "lw-ev-1", "course_id": "lw-843", "title": "Blatt 1", "full_title": "Blatt 1 (schließt am 04.11. um 23:59 Uhr)", "kind": "abgabe", "module": "assign", "due_at": "2026-11-04T23:59", "url": None}
     b = {**a, "id": "lw-ev-2", "title": "Blatt 2", "due_at": "2026-11-11T23:59"}
     old = {**a, "id": "lw-ev-0", "title": "Blatt 0", "due_at": "2026-10-20T23:59"}
     with db.cursor() as conn:
@@ -841,6 +849,7 @@ def test_store_deadlines_updates_removes_in_window_keeps_past(app):
         rows = db.rows(conn, "SELECT id, due_at, fetched_at FROM deadlines ORDER BY id")
         assert r == {"new": 0, "total": 1, "removed": 1}
         assert [(x["id"], x["due_at"]) for x in rows] == [("lw-ev-0", "2026-10-20T23:59"), ("lw-ev-1", "2026-11-05T12:00")]
+        assert db.row(conn, "SELECT full_title FROM deadlines WHERE id='lw-ev-1'")["full_title"] == "Blatt 1 (schließt am 04.11. um 23:59 Uhr)"
         assert hildesheim.store_deadlines(conn, [], "t3", "2026-10-25T00:00")["removed"] == 1     # leere Antwort im Fenster
         conn.execute("DELETE FROM deadlines")
 

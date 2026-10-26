@@ -20,6 +20,10 @@ export async function api(path, opts = {}) {
 export const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 // Nur http(s)-Links aus Fremddaten (z. B. Learnweb) als href; alles andere wird '#'
 export const safeUrl = u => /^https?:\/\//i.test(String(u ?? "")) ? String(u) : "#";
+// Feiertage/vorlesungsfreie Zeit (gruen) und Learnweb-Fristen je Kalendertag (Felder marks/deadlines der API)
+export const holClass = dd => { const k = (dd.marks || []).map(m => m.kind); return k.includes("feiertag") || k.includes("pause") ? "is-hol" : k.length ? "is-free" : ""; };
+export const holChips = (dd, compact) => [...new Map((dd.marks || []).map(m => [m.label, m])).values()].map(m => `<span class="hol-chip ${m.kind}" title="${esc(m.label)}">${esc(compact ? ({ "Vorlesungsfreie Zeit": "vorlesungsfrei", "Weihnachtspause": "Pause", "Exkursions- und Projektwoche": "Projektwoche", "Exkursionswoche": "Exkursion" }[m.label] || m.label) : m.label)}</span>`).join("");
+export const dlChips = (dd, compact) => (dd.deadlines || []).map(x => `<a class="dl-chip" href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener" style="--dc:${x.color || "var(--bad)"}" title="${esc(x.kind_label)} ${esc(x.time)} · ${esc(x.full_title || x.title)}${x.course_title ? " · " + esc(x.course_title) : ""}"><b>${esc(x.time)}</b> ${esc(compact ? x.kind_label : `${x.kind_label}: ${x.title}`)}</a>`).join("");
 export const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const parseISO = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 export const todayISO = () => iso(new Date());

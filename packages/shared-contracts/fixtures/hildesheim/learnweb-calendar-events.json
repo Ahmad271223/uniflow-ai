@@ -1,13 +1,13 @@
 {
  "_hinweis": "Erfundene Ereignisse in der Form von core_calendar_get_action_events_by_timesort / get_calendar_upcoming_view (Learnweb, Moodle 4.x).",
  "events": [
-  {"id": 9001, "name": "Übungsblatt 3 ist fällig.", "activityname": "Übungsblatt 3", "modulename": "assign", "eventtype": "due",
+  {"id": 9001, "name": "Übungsblatt 3 (schließt am 04.11. um 23:59 Uhr) ist fällig.", "activityname": "Übungsblatt 3 (schließt am 04.11. um 23:59 Uhr)", "modulename": "assign", "eventtype": "due",
    "timestart": 1793833140, "course": {"id": 843}, "url": "https://www.uni-hildesheim.de/learnweb2026/mod/assign/view.php?id=55"},
-  {"id": 9002, "name": "Lerncheck 1 endet", "activityname": "Lerncheck 1", "modulename": "quiz", "eventtype": "close",
+  {"id": 9002, "name": "Lerncheck 1 (verfügbar vom 30.10. (15:00 Uhr) bis 02.11. (23:59 Uhr)) endet", "activityname": "Lerncheck 1 (verfügbar vom 30.10. (15:00 Uhr) bis 02.11. (23:59 Uhr))", "modulename": "quiz", "eventtype": "close",
    "timestart": 1793660340, "course": {"id": 843}, "url": "https://www.uni-hildesheim.de/learnweb2026/mod/quiz/view.php?id=56"},
   {"id": 9003, "name": "Lerncheck 1 beginnt", "activityname": "Lerncheck 1", "modulename": "quiz", "eventtype": "open",
    "timestart": 1793451600, "course": {"id": 843}, "url": "https://www.uni-hildesheim.de/learnweb2026/mod/quiz/view.php?id=56"},
-  {"id": 9002, "name": "Lerncheck 1 endet", "activityname": "Lerncheck 1", "modulename": "quiz", "eventtype": "close",
+  {"id": 9002, "name": "Lerncheck 1 (verfügbar vom 30.10. (15:00 Uhr) bis 02.11. (23:59 Uhr)) endet", "activityname": "Lerncheck 1 (verfügbar vom 30.10. (15:00 Uhr) bis 02.11. (23:59 Uhr))", "modulename": "quiz", "eventtype": "close",
    "timestart": 1793660340, "course": {"id": 843}, "url": "https://www.uni-hildesheim.de/learnweb2026/mod/quiz/view.php?id=56"},
   {"id": 9004, "name": "Umfrage schließt", "modulename": "feedback", "eventtype": "close",
    "timestart": 1798757940, "courseid": 901},
