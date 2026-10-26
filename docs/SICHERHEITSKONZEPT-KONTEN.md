@@ -80,6 +80,12 @@ und Tests, ihre Anmeldeansichten kommen mit der Hochschulwahl nach der S3–S5-I
   Der Wechsel der Hochschule löscht nichts mehr – die Daten der anderen Uni (auch gemerkte Zugangsdaten) bleiben
   getrennt erhalten, damit ein Zurückwechseln alles wiederfindet (Vorgabe „Daten der anderen Uni bleiben getrennt“).
   Beim Umzug auf diese Version ziehen Einträge ohne Nutzer-Präfix (`luh.studip.user`) zum angemeldeten Nutzer.
+  **Seit `wip/v1-pc-fix`:** Läuft beim Löschen ein Abgleich dieses Containers (Stud.IP, Learnweb/LSF, auch einer aus
+  der Zeit vor einem Wechsel der Hochschule), wird er angehalten und abgewartet, bevor Ordner, Einstellungen und
+  Webdaten verschwinden; danach prüft die App noch einmal nach. Ein Abgleich schreibt Dateien nur in einen Container
+  mit Kennzeichnung (`container.json`), legt einen gelöschten also nie neu an. Die Löschknöpfe sind gesperrt, solange
+  ein Abgleich läuft. Der Anzeigename beim Teilen einer Lösung liegt in der Einstellungs-Suite des Containers (nicht
+  mehr in den gemeinsamen Einstellungen des iPads) und geht mit „Daten dieser Hochschule löschen“ und „Konto löschen“.
 - **Neuinstallation:** Der Schlüsselbund überlebt das Löschen der App, die UserDefaults nicht. Fehlt der Merker dieser
   Installation (`uniflow.login.installed`), leert die App den ganzen Dienst `de.uniflow.ai.university`, bevor sie
   irgendetwas liest; gelingt das nicht (z. B. gesperrter Schlüsselbund), liest und speichert sie nichts und versucht

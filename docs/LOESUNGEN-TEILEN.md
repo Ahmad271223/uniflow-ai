@@ -32,7 +32,7 @@ Notizen“, Menü „Ebenen“, „Mehr → Lösung importieren …“), `Views/
 - Seiten, deren Objekte die Prüfungen nicht bestehen (unbekannter Objekttyp, ungültige Zahlen, PDF-Daten in einem
   Verweisfeld), nennt der Dialog mit Seitenangabe („PDF-Seite 3 lässt sich nicht teilen: …“) und lässt sie aus; der
   Rest bleibt teilbar.
-- Optionaler Anzeigename (leer = anonym, gemerkt für das nächste Mal).
+- Optionaler Anzeigename (leer = anonym, gemerkt für das nächste Mal, je Apple-Nutzer und Hochschule in den Einstellungen des Containers).
 - „Als Datei teilen“ öffnet das Teilen-Menü des Systems und merkt die Lösung unter „Meine geteilten Lösungen“.
   Inhalt, Siegel (HKDF über die ganze PDF, AES-GCM) und Datei entstehen abseits des Hauptthreads; währenddessen steht
   „Wird erstellt …“ auf dem Knopf.

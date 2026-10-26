@@ -29,6 +29,13 @@ final class LearnwebTests: XCTestCase {
         return out
     }
 
+    /// Ausgabe von `dump` (Mirror) als Text
+    private func dumped(_ value: Any) -> String {
+        var out = ""
+        dump(value, to: &out)
+        return out
+    }
+
     private func json(_ text: String, url: String? = nil) -> UniResponse {
         UniResponse(status: 200, finalURL: url.flatMap(URL.init(string:)), body: Data(text.utf8))
     }
@@ -249,6 +256,11 @@ final class LearnwebTests: XCTestCase {
             XCTAssertEqual(r.url.absoluteString, url, "Adresse unveraendert, ohne Schluessel")
             XCTAssertEqual(r.method, "POST")
             XCTAssertEqual(form(r)["token"], "TOKEN123abcdef0123456789", "Token erst beim Abruf, im Koerper")
+            XCTAssertFalse(r.description.contains("TOKEN123"))
+            for shown in [String(describing: r), String(reflecting: r), dumped(r)] {
+                XCTAssertFalse(shown.contains("TOKEN123"), "kein Schluessel in Beschreibungen")
+                XCTAssertTrue(shown.contains("POST"), shown)
+            }
         }
         // fremder Rechner oder http: Token wird nie verschickt
         for bad in ["https://evil.example/learnweb2026/webservice/pluginfile.php/5/a.pdf", "http://www.uni-hildesheim.de/learnweb2026/a.pdf", "kaputt"] {
@@ -305,8 +317,8 @@ final class LearnwebTests: XCTestCase {
         XCTAssertFalse(report.messages.joined().contains("TOKEN123"))
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: layout.learnweb.appendingPathComponent("files").path).count, 2,
                        "keine falschen Dateien im Learnweb-Ordner")
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: layout.learnweb.appendingPathComponent(".laden").path), [],
-                       "keine Reste (.part)")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.learnweb.appendingPathComponent(".laden").path),
+                       "keine Reste (.part), Zwischenordner nach dem Lauf entfernt wie bei Stud.IP")
         let log = try await db.scalar("SELECT message FROM sync_log ORDER BY id DESC LIMIT 1")?.string ?? ""
         XCTAssertFalse(log.contains("TOKEN123"))
         // 404-Meldung ohne Abfrage
@@ -531,6 +543,11 @@ final class LearnwebTests: XCTestCase {
         let payload = try JSONValue.parse(first.body ?? Data())
         XCTAssertEqual(payload.array?.first?["methodname"], "core_course_get_enrolled_courses_by_timeline_classification")
         XCTAssertEqual(payload.array?.first?["args"]?["classification"], "all")
+        XCTAssertFalse(first.description.contains("abcSESS1"), "sesskey nicht in Beschreibungen")
+        XCTAssertEqual(first.description, "POST \(base)/lib/ajax/service.php")
+        for shown in [String(describing: first), String(reflecting: first), dumped(first), "\(net.requests)"] {
+            XCTAssertFalse(shown.contains("abcSESS1"), shown)
+        }
 
         let files = try await c.files(moodleID: 35)
         XCTAssertEqual(files.map(\.name), ["Folien.pdf", "x.pdf", "Eingebettet.pdf"])

@@ -281,25 +281,39 @@ public actor LSFClient {
         self.retry = retry
     }
 
+    /// Rechner des LSF (aus dem Hochschul-Profil)
+    static let host = UniversityProfile.hildesheimLSF.host?.lowercased() ?? "lsf.uni-hildesheim.de"
+
+    /// Angemeldet im LSF wie `lsf.is_logged_in` am PC: eine Seite des LSF (HTTPS, Rechner des Profils) mit
+    /// "Abmelden"-Link. Die eine Regel fuer die Anmeldung in der App (`HildesheimLogin`) und jede hier gelesene Seite.
+    public static func isLoggedIn(html: String, url: URL?) -> Bool {
+        guard let url, url.scheme?.lowercased() == "https", url.host?.lowercased() == host else { return false }
+        return html.contains("Abmelden")
+    }
+
     private func page(_ urlString: String) async throws -> String {
         guard let url = URL(string: urlString) else { throw HildesheimError.badResponse(urlString) }
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
         if HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("LSF") }
         guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: urlString) }
         let html = resp.text
-        // angemeldet nur mit "Abmelden"-Link
-        if !html.contains("Abmelden") { throw HildesheimError.sessionExpired("LSF") }
+        if !Self.isLoggedIn(html: html, url: resp.finalURL ?? url) { throw HildesheimError.sessionExpired("LSF") }
         return html
     }
 
-    /// Serien des persoenlichen Stundenplans; nil, wenn der Plan leer ist (kein Export-Link)
+    /// Serien des persoenlichen Stundenplans; nil, wenn der Plan leer ist (kein Export-Link). Ein Kalender ohne einen
+    /// Termin bei vorhandenem Export-Link ist eine unvollstaendige Antwort (Fehler): nichts wird uebernommen und keine
+    /// LSF-Serie entfernt (`UniStore.importPlan` entfernte sonst alle samt eigener Ausnahmen und Teilnahme), wie
+    /// `lsf.fetch_plan_ics` am PC.
     public func planEntries() async throws -> [LSFCalendar.Entry]? {
         let html = try await page(Self.planURL)
         guard let link = LSFCalendar.planICSLink(html: html), let url = URL(string: link) else { return nil }
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
         let ics = resp.text
         guard resp.status == 200, ics.contains("BEGIN:VCALENDAR") else { throw HildesheimError.badResponse("LSF-iCal") }
-        return LSFCalendar.planEntries(ics)
+        let entries = LSFCalendar.planEntries(ics)
+        guard !entries.isEmpty else { throw HildesheimError.badResponse("LSF-iCal ohne Termine") }
+        return entries
     }
 
     /// Leistungen aus dem Notenspiegel (alle Studiengaenge) wie `qis.parse_grade_rows` (`GradeRows`). Stammdaten-Tabellen

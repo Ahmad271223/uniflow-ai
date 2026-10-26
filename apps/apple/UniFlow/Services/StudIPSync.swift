@@ -93,53 +93,29 @@ enum StudIPKeychain {
     static func load() -> [HTTPCookie] { ActiveContainer.current?.cookies.load() ?? [] }
 }
 
-/// Anfragen mit dem gespeicherten Sitzungs-Cookie. Eigene, fluechtige URLSession: keine Cookies anderer Dienste.
+/// Stud.IP-Anfragen mit dem gespeicherten Sitzungs-Cookie ueber dieselbe URLSession-Umsetzung wie Learnweb und LSF
+/// (`URLSessionUniTransport`: eigene fluechtige URLSession je Lauf, Cookies je Zieladresse, nur HTTPS auf Stud.IP und
+/// den Anmeldeseiten der LUH, Downloads direkt in die Datei). Hier nur die Uebersetzung in `StudIPTransport`.
 final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
-    private let session: URLSession
-    private let cookieHeader: String
+    private let transport: URLSessionUniTransport
 
     /// `configuration`: nur Tests (feste Antworten ueber `URLProtocol`); sonst fluechtig, ohne Cookie-Speicher.
     init(cookies: [HTTPCookie], host: String, configuration: URLSessionConfiguration = .ephemeral) {
-        let now = Date()
-        let valid = cookies.filter { c in
-            let d = c.domain.hasPrefix(".") ? String(c.domain.dropFirst()) : c.domain
-            return (host == d || host.hasSuffix("." + d)) && (c.expiresDate ?? .distantFuture) > now
-        }
-        cookieHeader = HTTPCookie.requestHeaderFields(with: valid)["Cookie"] ?? ""
-        let config = configuration
-        config.httpShouldSetCookies = false
-        config.httpCookieAcceptPolicy = .never
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 600
-        session = URLSession(configuration: config)
+        transport = URLSessionUniTransport(cookies: cookies, allowedDomains: [host] + URLSessionUniTransport.studipDomains,
+                                           configuration: configuration)
     }
 
-    private func request(_ url: URL, accept: String?) -> URLRequest {
-        var r = URLRequest(url: url)
-        r.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        if let accept { r.setValue(accept, forHTTPHeaderField: "Accept") }
-        return r
-    }
-
-    private static func reply(_ response: URLResponse, body: Data = Data()) throws -> HTTPReply {
-        guard let http = response as? HTTPURLResponse else { throw StudIPError.badResponse("keine HTTP-Antwort") }
-        return HTTPReply(status: http.statusCode, contentType: http.value(forHTTPHeaderField: "Content-Type") ?? "",
-                         finalURL: http.url, body: body)
+    private static func reply(_ r: UniResponse) -> HTTPReply {
+        HTTPReply(status: r.status, contentType: r.headers["content-type"] ?? "", finalURL: r.finalURL, body: r.body)
     }
 
     func get(_ url: URL, accept: String?) async throws -> HTTPReply {
-        let (data, response) = try await session.data(for: request(url, accept: accept))
-        return try Self.reply(response, body: data)
+        Self.reply(try await transport.send(UniRequest(url: url, headers: accept.map { ["Accept": $0] } ?? [:])))
     }
 
     /// Dateien gehen direkt auf die Platte (Vorlesungsvideos sprengen sonst den Arbeitsspeicher)
     func download(_ url: URL, to file: URL) async throws -> HTTPReply {
-        let (temp, response) = try await session.download(for: request(url, accept: nil))
-        defer { try? FileManager.default.removeItem(at: temp) }
-        let reply = try Self.reply(response)
-        if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
-        try FileManager.default.moveItem(at: temp, to: file)
-        return reply
+        Self.reply(try await transport.download(UniRequest(url: url), to: file))
     }
 }
 
@@ -158,9 +134,12 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// Wie in Python halten Fehler einzelner Kurse oder Dateien den Abgleich nicht an (`StudIPError.affectsOnlyItem`,
 /// bei Dateiliste und Download auch Transportfehler eines Kurses oder einer Datei wie eine Zeitueberschreitung); eine
 /// abgelaufene Sitzung, kein Netz und volle Platte brechen ab. Wie `stream_download` wiederholt der Download eine
-/// abgerissene Verbindung bis zu zweimal (`UniRetry` im `StudIPClient`), und eine Webseite statt der Datei wird nicht
-/// gespeichert. Eine neue Fassung, die nicht ankam, laedt der naechste Abgleich (`UniStore`). Laeuft die Sitzung erst
-/// beim Stundenplan ab, bleiben die Dateien, der Lauf endet aber mit "Erneut anmelden" (`.needsLogin`).
+/// abgerissene Verbindung bis zu zweimal (`UniRetry` im `StudIPClient`), und eine Webseite oder leere Antwort statt
+/// der Datei wird nicht gespeichert. Ablage, Hash und Eintrag jeder Datei laufen ueber `UniDownloads`, dieselbe
+/// Fassung wie fuer Learnweb. Eine neue Fassung, die nicht ankam, laedt der naechste Abgleich (`UniStore`). Laeuft die
+/// Sitzung erst beim Stundenplan ab, bleiben die Dateien, der Lauf endet aber mit "Erneut anmelden" (`.needsLogin`).
+/// "Daten dieser Hochschule löschen" und "Konto löschen" halten einen laufenden Abgleich an (`stop`) und warten auf
+/// sein Ende, bevor sie den Container entfernen.
 /// Am Ende jedes Laufs (auch eines gescheiterten: was bis dahin gelesen war, steht in der Datenbank) zaehlt
 /// `finishedRuns` hoch; offene Seiten laden dann neu (`ufReload`), wie nach einem Sync des PC-Servers.
 @MainActor
@@ -205,14 +184,22 @@ final class StudIPSync: ObservableObject {
     private let support: URL
     /// Uebernahme des Bestands von vor S3 (laeuft beim Start; ein Abgleich wartet darauf)
     private var adoption: Task<Void, Never>?
+    /// Container, in den der Abgleich schreibt; vor jedem Schreiben einer Datei geprueft (`UniDownloads`). nil nur
+    /// fuer eine Ablage ohne Container (Tests mit eigenem Ordner)
+    private let container: DataContainerLayout?
+    /// laufender Abgleich (zum Anhalten vor dem Loeschen des Containers)
+    private var current: Task<Void, Never>?
+    /// angehalten (Container wird geloescht): kein weiterer Abgleich
+    private(set) var stopped = false
 
     /// `root`: Stud.IP-Ordner (in der App `<Container>/StudIP`), `host`: lokales Backend, `support`: Ordner des
     /// Editors (Journal, PDF-Zwischenspeicher), `defaults`: Einstellungen des Containers, `cookies` und
     /// `websiteDataStore`: Anmeldung dieses Containers. Die App baut je Container einen eigenen Abgleich
-    /// (`ContainerManager`); Tests geben Temp-Ordner und eine eigene Datenbank mit.
+    /// (`ContainerManager`, mit `container`); Tests geben Temp-Ordner und eine eigene Datenbank mit.
     init(root: URL? = nil, host: LocalBackendHost = .shared, clock: UniFlowClock = .system, defaults: UserDefaults = .standard,
          support: URL = AppPaths.support, university: UniversityKey = .luh, cookies: StudIPCookieStore? = nil,
-         websiteDataStore: WKWebsiteDataStore? = nil) {
+         websiteDataStore: WKWebsiteDataStore? = nil, container: DataContainerLayout? = nil) {
+        self.container = container
         self.root = root ?? AppPaths.support.appendingPathComponent("StudIP", isDirectory: true)
         self.host = host
         self.clock = clock
@@ -294,7 +281,7 @@ final class StudIPSync: ObservableObject {
     /// Vorschaubilder der Bibliothek (lokale Datenquelle) gehen mit, sonst blieben die Stud.IP-Dateien auf dem Geraet.
     func removeDownloads() async {
         try? FileManager.default.removeItem(at: root.appendingPathComponent("files"))
-        try? FileManager.default.removeItem(at: partialFolder)
+        try? FileManager.default.removeItem(at: UniDownloads.partial(in: root))
         index = [:]
         saveIndex()
         entries = []
@@ -328,18 +315,42 @@ final class StudIPSync: ObservableObject {
     /// derselben Kurse (`StudIPScheduleSync` mit demselben lokalen Backend, wie `auto_import` am Ende von run_sync),
     /// am Ende `sync_log`. Kein `await` innerhalb einer Transaktion: erst das Netz, dann kurz schreiben.
     func run(client: StudIPClient) async {
-        guard !isRunning else { return }
+        guard !isRunning, !stopped else { return }
         phase = .running("Kurse werden geladen …")
+        let task = Task { await self.perform(client: client) }
+        current = task
+        await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        current = nil
+    }
+
+    /// Anhalten, bevor der Container geloescht wird: laufenden Abgleich abbrechen und auf sein Ende warten (danach
+    /// schreibt er nichts mehr); diese Instanz gleicht danach nicht mehr ab
+    func stop() async {
+        stopped = true
+        guard let task = current else { return }
+        task.cancel()
+        await task.value
+    }
+
+    /// Abbruch (`stop`) statt Fehler, auch `URLError(.cancelled)` einer abgebrochenen Anfrage
+    nonisolated static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
+    }
+
+    private func perform(client: StudIPClient) async {
         defer { finishedRuns += 1 }                       // nach der letzten Phase: Seiten laden neu
         await adoption?.value
         let started = clock.nowISO
         var loaded = 0
         var database: SQLiteDatabase?
         do {
-            try prepareFolder()
             let db = try await host.backend().context.database
             database = db
-            let localFiles = host.files
+            guard let localFiles = host.files else { throw DataContainerError.missing }
+            let downloads = UniDownloads(folder: root, files: localFiles, container: container)
+            // Ordner anlegen (ohne iCloud-Backup); Reste eines abgebrochenen Laufs im Zwischenordner gehen hier weg
+            try downloads.begin()
+            defer { downloads.end() }
             let uid = try await client.currentUserID()
             let list = try await client.courses(userID: uid)
             courses = list.sorted { ($0.semesterStart ?? "", $0.title) > ($1.semesterStart ?? "", $1.title) }
@@ -354,6 +365,7 @@ final class StudIPSync: ObservableObject {
             var checked = Set<String>()
             var unreadable: [Error] = []
             for (i, c) in chosen.enumerated() {
+                try Task.checkCancellation()
                 phase = .running("Dateiliste \(i + 1) von \(chosen.count): \(c.title)")
                 let files: [StudIPFile]
                 do {
@@ -383,17 +395,16 @@ final class StudIPSync: ObservableObject {
                                          fileExists: { FileManager.default.fileExists(atPath: root.appendingPathComponent($0).path) }).goneRemotely
             let download = wanted.filter(\.isDownloadable)
             var failed = 0
-            // Downloads erst in einen Zwischenordner, dann an ihren Platz: ein Abbruch hinterlaesst keine halbe Datei
-            // als "geladen"; Reste eines abgebrochenen Laufs gehen hier weg
-            let partial = partialFolder
-            try? FileManager.default.removeItem(at: partial)
-            try FileManager.default.createDirectory(at: partial, withIntermediateDirectories: true)
-            defer { try? FileManager.default.removeItem(at: partial) }
+            // je Datei ueber `UniDownloads`: erst in den Zwischenordner, pruefen, an ihren Platz, Hash, eintragen; ein
+            // Abbruch hinterlaesst keine halbe Datei als "geladen"
             for (i, f) in download.enumerated() {
+                try Task.checkCancellation()
                 phase = .running("Lade \(i + 1) von \(download.count): \(f.name)")
-                let temp = partial.appendingPathComponent(UUID().uuidString)
+                let rel = StudIPImport.relativePath(for: f)
                 do {
-                    try await client.download(fileID: f.id, to: temp, name: f.name)
+                    try await downloads.load(StudIPLibrary.fileRow(f, base: Self.base), to: rel, db: db, clock: clock) { part in
+                        try await client.download(fileID: f.id, to: part, name: f.name)
+                    }
                 } catch let e as StudIPError where e.affectsOnlyItem {
                     // wie run_sync ("Download-Fehler"): naechste Datei; der naechste Abgleich versucht es erneut
                     failed += 1
@@ -402,26 +413,18 @@ final class StudIPSync: ObservableObject {
                     // z. B. Zeitueberschreitung bei einer grossen Datei: nur diese Datei, die uebrigen kommen trotzdem
                     failed += 1
                     continue
+                } catch is UniDownloads.Failure {
+                    // leere Antwort statt der Datei: die alte Fassung bleibt, der naechste Abgleich laedt erneut
+                    failed += 1
+                    continue
                 }
-                let rel = StudIPImport.relativePath(for: f)
-                let target = root.appendingPathComponent(rel)
-                try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try Self.place(temp, at: target)
                 index[f.id] = StudIPLocalEntry(file: f, courseTitle: titles[f.courseID] ?? "Kurs", relativePath: rel,
                                                downloadedAt: ISO8601DateFormatter().string(from: Date()))
                 saveIndex()                                   // nach jeder Datei: Abbruch verliert nichts
-                if let stored = localFiles?.stored(target) {
-                    // Inhalts-Hash fuer gemeinsame Wochentests wie store_course_files am PC (CryptoKit, dasselbe Ergebnis
-                    // wie TestShare.contentHash); grosse Dateien nicht auf dem Hauptthread und nicht in der Transaktion
-                    let sha = await Task.detached(priority: .utility) { UniFileHash.sha256(file: target) }.value
-                    let now = clock.nowISO, base = Self.base
-                    try await db.transaction {
-                        try StudIPLibrary.markDownloaded($0, file: f, localPath: stored, sha256: sha, at: now, base: base)
-                    }
-                }
                 loaded += 1
             }
             entries = sortedEntries()                         // Dateien schon zeigen, waehrend der Stundenplan laedt
+            try Task.checkCancellation()
             // Stundenplan aus Stud.IP (S5); Fehler dort brechen den Datei-Abgleich nicht ab
             let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
@@ -436,6 +439,11 @@ final class StudIPSync: ObservableObject {
                       message: StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0))
             // Sitzung erst beim Stundenplan abgelaufen: Dateien sind da, die Anmeldung muss trotzdem neu
             phase = timetable.sessionExpired ? .needsLogin : .idle
+        } catch where Self.isCancellation(error) || Task.isCancelled {
+            // angehalten (Container wird geloescht) oder abgebrochen: kein Fehler; was gelesen war, steht in der Datenbank
+            entries = sortedEntries()
+            await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure("Abgleich abgebrochen"))
+            phase = hasStoredSession ? .idle : .signedOut
         } catch StudIPError.sessionExpired {
             entries = sortedEntries()
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(StudIPError.sessionExpired.description))
@@ -463,35 +471,12 @@ final class StudIPSync: ObservableObject {
         defaults.set(summary, forKey: "uniflow.studip.lastSummary")
     }
 
-    /// Zwischenordner der laufenden Downloads (im Stud.IP-Ordner, also ohne Backup)
-    private var partialFolder: URL { root.appendingPathComponent(".laden", isDirectory: true) }
-
     /// Transportfehler, nach dem keine weitere Datei ankaeme (kein Netz, Stud.IP nicht erreichbar, abgebrochen):
     /// der Lauf endet als Fehler. Alles andere (z. B. Zeitueberschreitung) betrifft nur den einen Kurs (Dateiliste)
     /// oder die eine Datei (Download).
     nonisolated static func endsRun(_ e: URLError) -> Bool {
         [.notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff, .cannotFindHost, .cannotConnectToHost,
          .dnsLookupFailed, .cancelled].contains(e.code)
-    }
-
-    /// Geladene Datei an ihren Platz (ersetzt eine aeltere Fassung), mit Dateischutz wie bisher
-    nonisolated static func place(_ temp: URL, at target: URL) throws {
-        let fm = FileManager.default
-        if fm.fileExists(atPath: target.path) {
-            _ = try fm.replaceItemAt(target, withItemAt: temp)
-        } else {
-            try fm.moveItem(at: temp, to: target)
-        }
-        try? fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path)
-    }
-
-    /// Ordner anlegen und vom iCloud-Backup ausnehmen (Vorlesungsunterlagen lassen sich jederzeit neu laden).
-    private func prepareFolder() throws {
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        var r = root
-        try r.setResourceValues(values)
     }
 
     private func saveIndex() {

@@ -289,12 +289,22 @@ def safe_name(s: str) -> str:
 HTML_STARTS = (b"<!doctype html", b"<html")
 
 
-def stream_download(page, url: str, target: Path, shown_url: str | None = None, timeout: int = 180) -> None:
+def empty_download(first: bytes, target: Path, expected_size: int = 0) -> bool:
+    """Leere Antwort (0 Bytes) statt der Datei: ein Fehler dieser Datei, wenn die Quelle eine Groesse > 0 meldet
+    oder schon eine lokale Fassung existiert. Dann bleibt die alte Datei stehen und die Datei gilt beim naechsten
+    Abgleich weiter als geaendert (eine leere Antwort ersetzt und loescht nie etwas). Dieselbe Regel im Kern der
+    iPad-App (UniDownloads.load)."""
+    return not first and ((expected_size or 0) > 0 or target.exists())
+
+
+def stream_download(page, url: str, target: Path, shown_url: str | None = None, timeout: int = 180,
+                    expected_size: int = 0) -> None:
     """Datei direkt auf die Platte streamen, mit den Cookies der angemeldeten Browsersitzung.
     Playwright (page.request) haelt jede Antwort komplett im Speicher; beim Live-Test mit 539 Dateien (1 GB)
     wuchs der Serverprozess so auf 2,7 GB. Hier bleibt der Speicher konstant (1-MB-Bloecke).
     Schreibt erst in <name>.part und ersetzt dann atomar: ein Abbruch zerstoert nie eine gute Datei.
-    Kommt eine HTML-Seite statt der Datei (abgelaufene Anmeldung), wird nichts gespeichert."""
+    Kommt eine HTML-Seite statt der Datei (abgelaufene Anmeldung) oder eine leere Antwort (`empty_download`,
+    `expected_size` = Groesse laut Quelle), wird nichts gespeichert."""
     import shutil
     import urllib.request
     shown = shown_url or url
@@ -310,7 +320,7 @@ def stream_download(page, url: str, target: Path, shown_url: str | None = None, 
     # Anmeldeseiten nicht, die aendern sich durch Wiederholen nicht.
     for attempt in range(3):
         try:
-            _stream_once(req, target, shown, timeout)
+            _stream_once(req, target, shown, timeout, expected_size)
             return
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"Download fehlgeschlagen ({e.code}): {shown}") from None
@@ -320,13 +330,15 @@ def stream_download(page, url: str, target: Path, shown_url: str | None = None, 
             time.sleep(1.5 * (attempt + 1))
 
 
-def _stream_once(req, target: Path, shown: str, timeout: int) -> None:
+def _stream_once(req, target: Path, shown: str, timeout: int, expected_size: int = 0) -> None:
     import shutil
     import urllib.request
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - URL stammt aus der Uni-Schnittstelle
         first = resp.read(65536)
         if first.lstrip()[:15].lower().startswith(HTML_STARTS) and target.suffix.lower() not in (".html", ".htm"):
             raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {shown}")
+        if empty_download(first, target, expected_size):
+            raise RuntimeError(f"Leere Antwort statt der Datei: {shown}")
         target.parent.mkdir(parents=True, exist_ok=True)
         part = target.with_name(target.name + ".part")
         try:
@@ -351,11 +363,11 @@ def _user_agent(page) -> str:
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UniFlow-Lernapp"
 
 
-def download(page: Page, url: str, target: Path) -> None:
+def download(page: Page, url: str, target: Path, expected_size: int = 0) -> None:
     """Stud.IP: gestreamt; falls das scheitert (z. B. Cookie-Eigenheiten), einmal der alte Weg ueber
     page.request, mit sofortiger Freigabe des Antwortspeichers (dispose)."""
     try:
-        stream_download(page, url, target)
+        stream_download(page, url, target, expected_size=expected_size)
         return
     except Exception as e:  # noqa: BLE001
         log(f"Gestreamter Download fehlgeschlagen ({e}); versuche den Browser-Weg.")
@@ -366,6 +378,8 @@ def download(page: Page, url: str, target: Path) -> None:
         body = resp.body()
         if body.lstrip()[:15].lower().startswith(HTML_STARTS) and target.suffix.lower() not in (".html", ".htm"):
             raise RuntimeError(f"Statt der Datei kam eine Webseite zurueck (Anmeldung abgelaufen?): {url}")
+        if empty_download(body, target, expected_size):
+            raise RuntimeError(f"Leere Antwort statt der Datei: {url}")
         target.parent.mkdir(parents=True, exist_ok=True)
         part = target.with_name(target.name + ".part")
         part.write_bytes(body)
@@ -426,7 +440,8 @@ def upsert_course(conn, c: dict, started: str) -> None:
 
 def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str, str], download_fn, started: str,
                        new_files: list[str], pause: float = 0.2) -> None:
-    """Dateiliste eines Kurses speichern und neue/geaenderte Dateien mit download_fn(url, target) holen.
+    """Dateiliste eines Kurses speichern und neue/geaenderte Dateien mit download_fn(url, target, size) holen
+    (size = Groesse laut Quelle, fuer `empty_download`).
     Geaendert = hoeherer chdate als gespeichert (Stud.IP: Aenderungszeit, Learnweb: timemodified bzw. Revision)."""
     for f in files:
         existing = db.row(conn, "SELECT chdate, local_path FROM files WHERE id=?", (f["id"],))
@@ -458,7 +473,7 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
                 suffix = safe_name(f["id"])[-8:] if str(f["id"]).startswith("lw-") else f["id"][:6]
                 target = target.with_name(f"{target.stem}_{suffix}{target.suffix}")
             try:
-                download_fn(f["download_url"], target)
+                download_fn(f["download_url"], target, f["size"] or 0)
                 from .testshare import file_sha256
                 conn.execute("UPDATE files SET local_path=?, downloaded_at=?, size=?, mime=?, chdate=?, content_sha256=? "
                              "WHERE id=?",
@@ -528,7 +543,8 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                         folder_paths = fetch_folder_paths(page, c["id"]) if files else {}
                     except Exception as e:  # noqa: BLE001
                         log(f"Ordnerstruktur nicht gelesen ({c['title']}): {e}"); folder_paths = {}
-                    store_course_files(conn, c, files, folder_paths, lambda url, target: download(page, url, target), started, new_files)
+                    store_course_files(conn, c, files, folder_paths, lambda url, target, size: download(page, url, target, size),
+                                       started, new_files)
             ctx.close()
         ok = True
         message = f"{len(new_files)} neue/geaenderte Dateien"

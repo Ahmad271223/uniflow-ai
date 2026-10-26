@@ -70,10 +70,19 @@ final class QISHildesheimTests: XCTestCase {
     </table></body></html>
     """
 
-    func testHildesheimPageAndNoStammdaten() {
-        let p = QISPage.parse(html: html, url: URL(string: "https://lsf.test/qisserver/rds?state=notenspiegelStudent&next=list.vm")!)
-        XCTAssertEqual(p.gradeTableCount(layout: .hildesheim), 1)
-        let g = p.grades(abschluss: "Fallback", layout: .hildesheim)
+    /// LSF mit festen Antworten (kein Netz): Startseite mit Link zum Notenspiegel, dann die Seite `page`; beide mit
+    /// "Abmelden" (angemeldet)
+    private func lsf(_ page: String) -> FakeUniTransport {
+        let t = FakeUniTransport()
+        let signedIn = #"<a href="rds?state=user&amp;type=4">Abmelden</a>"#
+        t.on(LSFClient.startURL, ok(signedIn + #"<a href="rds?state=notenspiegelStudent&amp;nodeID=a">Studien-/Prüfungsleistungen (Notenspiegel)</a>"#))
+        t.on("\(HildesheimCAS.lsfBase)/qisserver/rds?state=notenspiegelStudent", ok(page.replacingOccurrences(of: "<body>", with: "<body>" + signedIn)))
+        return t
+    }
+
+    /// Der eine Weg fuer den Hildesheimer Notenspiegel: `LSFClient.grades` (Tabellen, Stammdaten-Schutz, GradeRows)
+    func testHildesheimPageAndNoStammdaten() async throws {
+        let g = try await LSFClient(transport: lsf(html), retry: .none).grades()
         check(g)
         let json = QISParser.apiJSON(grades: g).jsonString()
         for secret in ["Erika", "Beispiel", "02.02.2002", "7654321", "Beispielweg", "31141", "Matrikel", "Geburtsdatum"] {
@@ -81,38 +90,31 @@ final class QISHildesheimTests: XCTestCase {
             XCTAssertFalse(g.contains { $0.raw.contains(secret) || $0.text.contains(secret) }, secret)
         }
         XCTAssertEqual(QISParser.summary(g).passed, 3)
-
-        var collector = QISCollector()
-        collector.absorb(p, via: nil, layout: .hildesheim)
-        check(collector.grades)
     }
 
-    func testHildesheimCollectsNoDocumentsLikePC() throws {
+    func testHildesheimReadsNoDocumentsLikePC() async throws {
         // qis.PROFILES["hildesheim"]["documents"] = False: keine Bescheinigungen/Transcripts, auch wenn die LSF-Seite
-        // verpublish-Links hat; die LUH sammelt sie weiter
+        // verpublish-Links hat (jeder Aufruf erzeugt ein Dokument); das QIS der LUH sammelt sie weiter
         let withLink = html.replacingOccurrences(of: "<h1>", with: #"<p><a href="rds?state=verpublish&amp;status=transform&amp;moduleCall=Studienbescheinigung&amp;publishConfFile=reports&amp;asi=SESSION.42">Studienbescheinigung</a></p><h1>"#)
+        let t = lsf(withLink)
+        check(try await LSFClient(transport: t, retry: .none).grades())
+        XCTAssertFalse(t.requests.contains { $0.url.absoluteString.contains("verpublish") }, "keine Bescheinigung aufgerufen")
         let p = QISPage.parse(html: withLink, url: URL(string: "https://lsf.test/qisserver/rds?state=notenspiegelStudent&next=list.vm")!)
         XCTAssertEqual(p.documents.count, 1, "Seite enthaelt einen Bescheinigungs-Link")
-        var hi = QISCollector()
-        hi.absorb(p, layout: .hildesheim)
-        check(hi.grades)
-        XCTAssertTrue(hi.documents.isEmpty, "Hildesheim: keine Bescheinigungs-Links")
-        XCTAssertEqual(hi.apiJSON()["documents"]?.array?.count, 0)
         var luh = QISCollector()
         luh.absorb(p)
         XCTAssertEqual(luh.documents.count, 1, "LUH unveraendert")
         XCTAssertFalse(UniversityProfile.hildesheim.qisDocuments)
         XCTAssertTrue(UniversityProfile.luh.qisDocuments)
-        XCTAssertEqual(UniversityProfile.hildesheim.gradeLayout.collectsDocuments, UniversityProfile.hildesheim.qisDocuments)
+        XCTAssertEqual(UniversityProfile.hildesheim.gradeLayout, .hildesheim)
     }
 
-    func testTableWithStammdatenRowIsNeverRead() {
-        // Steht eine Stammdaten-Zeile in der Leistungstabelle, verwirft schon QISPage.parse die ganze Tabelle
-        // (sicherer Weg; dann bleibt der Notenspiegel leer statt Stammdaten zu lesen)
+    func testTableWithStammdatenRowIsNeverRead() async throws {
+        // Steht eine Stammdaten-Zeile in der Leistungstabelle, verwirft LSFClient.grades die ganze Tabelle
+        // (QISParser.isStammdaten, sicherer Weg; dann bleibt der Notenspiegel leer statt Stammdaten zu lesen)
         let mixed = html.replacingOccurrences(of: "</table></body>", with: "<tr><td>Matrikelnummer</td><td>7654321</td><td>1,0</td><td>x</td><td></td></tr></table></body>")
-        let p = QISPage.parse(html: mixed, url: URL(string: "https://lsf.test/qisserver/rds?state=notenspiegelStudent")!)
-        XCTAssertTrue(p.grades(layout: .hildesheim).isEmpty)
-        XCTAssertEqual(p.gradeTableCount(layout: .hildesheim), 0)
+        let fromPage = try await LSFClient(transport: lsf(mixed), retry: .none).grades()
+        XCTAssertTrue(fromPage.isEmpty)
         // direkt ausgewertete Zeilen: die Stammdaten-Zeile wird uebersprungen
         let g = GradeRows.parse(rows: rows + [["Matrikelnummer", "7654321", "1,0", "bestanden", ""]])
         XCTAssertFalse(g.contains { $0.raw.contains("7654321") })
@@ -128,18 +130,20 @@ final class QISHildesheimTests: XCTestCase {
         """
         let p = QISPage.parse(html: luh, url: URL(string: "https://qis.test/qisserver/rds?state=notenspiegelStudent")!)
         let old = p.grades(abschluss: "Abschluss 82 Bachelor of Science")
-        XCTAssertEqual(p.grades(abschluss: "Abschluss 82 Bachelor of Science", layout: .luh), old)
         XCTAssertEqual(old.map(\.text), ["Mathematik I", "Nur Text ohne Note"], "LUH-Regeln wie bisher (Zeilen ohne Note bleiben)")
         XCTAssertEqual(old[0].semester, "WiSe 26/27")
         XCTAssertEqual(old[0].credits, "8")
         XCTAssertEqual(old[0].versuch, "1")
         XCTAssertEqual(old[0].abschluss, "Abschluss 82 Bachelor of Science")
-        XCTAssertEqual(p.gradeTableCount(layout: .luh), p.gradeTableCount)
+        XCTAssertEqual(p.gradeTableCount, 1)
         var c = QISCollector()
         c.absorb(p)
-        XCTAssertEqual(c.grades, p.grades(), "Standard bleibt LUH")
-        // Python-Regeln fuer dieselbe Tabelle (Hildesheim): Zeile ohne Note und Status ist keine Leistung
-        XCTAssertEqual(p.grades(abschluss: "Abschluss 82 Bachelor of Science", layout: .hildesheim).map(\.text), ["Mathematik I"])
+        XCTAssertEqual(c.grades, p.grades(), "QISCollector ist der Weg der LUH")
+        // Python-Regeln fuer dieselbe Tabelle (Hildesheim, GradeRows): Zeile ohne Note und Status ist keine Leistung
+        let cells = [["Prüfungsnr", "Prüfungstext", "Semester", "Note", "Status", "Credits", "Versuch"],
+                     ["1001", "Mathematik I", "WiSe 26/27", "2,0", "bestanden", "8", "1"],
+                     ["1002", "Nur Text ohne Note", "WiSe 26/27", "", "", "", "1"]]
+        XCTAssertEqual(GradeRows.parse(rows: cells, abschluss: "Abschluss 82 Bachelor of Science").map(\.text), ["Mathematik I"])
     }
 
     /// GET /api/grades wie qis.summary: Reihenfolge "semester DESC, text" (NULL zuletzt, Bytes wie SQLite), Durchschnitt
@@ -174,7 +178,8 @@ final class QISHildesheimTests: XCTestCase {
         var again = grades
         again[2].note = "2,0"
         again[2].status = "bestanden"
-        try await backend.context.database.transaction { try UniStore.storeGrades($0, again, now: "2026-10-27T10:00:00") }
+        let updated = again
+        try await backend.context.database.transaction { try UniStore.storeGrades($0, updated, now: "2026-10-27T10:00:00") }
         let rows = try await backend.context.database.rows("SELECT text, note, fetched_at FROM grades ORDER BY id")
         XCTAssertEqual(rows.count, 5, "keine doppelten Leistungen")
         XCTAssertEqual(rows[2]["note"]?.string, "2,0")

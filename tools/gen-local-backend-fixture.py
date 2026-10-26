@@ -1260,7 +1260,7 @@ def _import_rounds(src: SchemaSource, import_rounds: list, db_name: str) -> list
     def fetch_folder_paths(page, cid):
         return {f["id"]: f["folder"] for f in state["round"]["files"].get(cid, [])}
 
-    def download(page, url, target):
+    def download(page, url, target, size=0):
         fid = url.split("/file-refs/")[1].split("/")[0]
         state["attempted"].append(fid)
         f = next(x for fs in state["round"]["files"].values() for x in fs if x["id"] == fid)

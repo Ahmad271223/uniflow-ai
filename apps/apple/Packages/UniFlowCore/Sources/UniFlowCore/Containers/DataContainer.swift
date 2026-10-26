@@ -92,6 +92,8 @@ public enum DataContainerError: Error, Equatable, CustomStringConvertible {
     case ownerMismatch
     /// `container.json` ist kaputt
     case unreadableManifest
+    /// keine Kennzeichnung (mehr): der Container wurde geloescht ("Daten dieser Hochschule löschen", "Konto löschen")
+    case missing
 
     public var description: String {
         switch self {
@@ -99,6 +101,8 @@ public enum DataContainerError: Error, Equatable, CustomStringConvertible {
             return "Dieser Speicher gehört zu einem anderen Konto. Er wird nicht geöffnet, damit keine Daten gemischt werden."
         case .unreadableManifest:
             return "Die Kennzeichnung dieses Speichers ist beschädigt. Er wird nicht geöffnet, damit keine Daten gemischt werden."
+        case .missing:
+            return "Dieser Speicher wurde gelöscht. Es wird nichts mehr hineingeschrieben."
         }
     }
 }
@@ -135,7 +139,7 @@ public struct DataContainerLayout: Hashable, Sendable {
     public var solutions: URL { root.appendingPathComponent("solutions", isDirectory: true) }
     /// Stud.IP-Downloads (ohne iCloud-Backup)
     public var studip: URL { root.appendingPathComponent("StudIP", isDirectory: true) }
-    /// Learnweb-Downloads der Universitaet Hildesheim (Abgleich folgt)
+    /// Learnweb-Downloads der Universitaet Hildesheim (ohne iCloud-Backup)
     public var learnweb: URL { root.appendingPathComponent("Learnweb", isDirectory: true) }
     public var manifestURL: URL { root.appendingPathComponent(Self.manifestName) }
 
@@ -167,6 +171,14 @@ public struct DataContainerLayout: Hashable, Sendable {
             throw UniversityMismatch(stored: m.university, expected: university.rawValue)
         }
         guard m.owner == ownerScope else { throw DataContainerError.ownerMismatch }
+    }
+
+    /// Streng wie `verify`, aber ohne Kennzeichnung ein Fehler (`DataContainerError.missing`): vor jedem Schreiben
+    /// eines Abgleichs (`HildesheimSync`, `UniDownloads`). Wurde der Container waehrend eines Laufs geloescht, legt der
+    /// Lauf ihn so nicht ohne Kennzeichnung neu an.
+    public func verifyPresent(fileManager fm: FileManager = .default) throws {
+        guard try manifest(fileManager: fm) != nil else { throw DataContainerError.missing }
+        try verify(fileManager: fm)
     }
 
     /// Ordner anlegen und kennzeichnen bzw. eine vorhandene Kennzeichnung pruefen (vor dem ersten Oeffnen).

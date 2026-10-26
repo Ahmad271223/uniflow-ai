@@ -36,7 +36,7 @@ def test_file_hash_is_stored_on_download(app, tmp_path):
     course = {"id": "ts-c1", "title": "TS Kurs", "number": None, "semester": "WiSe 2026/27"}
     f = {"id": "ts-f1", "name": "vl.pdf", "size": 4, "mime": "application/pdf", "author": None, "chdate": 1, "download_url": "x"}
 
-    def dl(url, target):
+    def dl(url, target, size=0):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(b"%PDF inhalt")
 

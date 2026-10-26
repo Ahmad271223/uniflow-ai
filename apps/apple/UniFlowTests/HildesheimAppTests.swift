@@ -53,10 +53,12 @@ final class UniStubProtocol: URLProtocol {
         guard let url = request.url else { return }
         let body = request.httpBody ?? Self.read(request.httpBodyStream)
         let seen = Seen(url: url, method: request.httpMethod ?? "GET", headers: request.allHTTPHeaderFields ?? [:], body: body)
-        let reply = Self.lock.withLock { () -> Reply in
+        // Antwort ausserhalb der Sperre: ein Test darf eine Antwort zurueckhalten (laufender Download)
+        let handler = Self.lock.withLock { () -> (@Sendable (Seen) -> Reply)? in
             Self.log.append(seen)
-            return Self.handler?(seen) ?? Reply(status: 404)
+            return Self.handler
         }
+        let reply = handler?(seen) ?? Reply(status: 404)
         let http = HTTPURLResponse(url: url, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: reply.headers)!
         if (300..<400).contains(reply.status), let loc = reply.headers["Location"], let to = URL(string: loc, relativeTo: url)?.absoluteURL {
             var next = URLRequest(url: to)
@@ -85,6 +87,32 @@ final class UniStubProtocol: URLProtocol {
             out.append(buf, count: n)
         }
         return out
+    }
+}
+
+/// Haelt eine Antwort von `UniStubProtocol` zurueck, bis der Test sie freigibt (ein Download "laeuft" noch). Wartet
+/// hoechstens 10 s; nach der Freigabe wartet niemand mehr.
+final class StubGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private let semaphore = DispatchSemaphore(value: 0)
+    private var reached = false
+    private var open = false
+
+    /// Eine Antwort wartet gerade bzw. hat gewartet
+    var wasReached: Bool { lock.withLock { reached } }
+
+    /// Im Stub (Lade-Thread von URLSession, nie der Hauptthread): bis zur Freigabe warten
+    func pass() {
+        let wait = lock.withLock { () -> Bool in
+            reached = true
+            return !open
+        }
+        if wait { _ = semaphore.wait(timeout: .now() + 10) }
+    }
+
+    func release() {
+        lock.withLock { open = true }
+        for _ in 0..<4 { semaphore.signal() }
     }
 }
 
@@ -303,14 +331,6 @@ final class HildesheimAppTests: XCTestCase {
         XCTAssertEqual(UniStubProtocol.requests.first?.method, "POST")
     }
 
-    func testCryptoKitHashEqualsTheCoreHash() throws {
-        let f = appSupport.appendingPathComponent("gross.bin")
-        try Data((0..<2_500_000).map { UInt8(($0 * 7) % 256) }).write(to: f)
-        XCTAssertEqual(UniFileHash.sha256(file: f), TestShare.contentHash(file: f))
-        XCTAssertNil(UniFileHash.sha256(file: appSupport.appendingPathComponent("fehlt.bin")))
-        XCTAssertNil(UniFileHash.sha256(file: appSupport), "Ordner haben keinen Inhalts-Hash")
-    }
-
     // MARK: Learnweb-Schluessel aus dem Moodle-SSO
 
     /// Antwort von tool_mobile_get_public_config einer Learnweb-Instanz (laeuft im Stub, nicht auf dem MainActor)
@@ -423,8 +443,9 @@ final class HildesheimAppTests: XCTestCase {
     // MARK: Abgleich bis in die Seiten
 
     /// Learnweb (REST mit Schluessel) und LSF (Sitzung) wie die Uni, Inhalte aus packages/shared-contracts/fixtures/hildesheim
-    nonisolated private static func uniHildesheim(base: String, lsf: String, token: String, ics: Data,
-                                                  contents: Data) -> @Sendable (UniStubProtocol.Seen) -> UniStubProtocol.Reply {
+    /// (auch fuer DataSeparationAppTests)
+    nonisolated static func uniHildesheim(base: String, lsf: String, token: String, ics: Data,
+                                          contents: Data) -> @Sendable (UniStubProtocol.Seen) -> UniStubProtocol.Reply {
         let gradePage = """
             <html><body><a href="rds?state=user&amp;type=4">Abmelden</a>
             <table summary="Angaben zur Person"><tr><td>Name</td><td>Testperson Muster</td></tr><tr><td>Matrikelnummer</td><td>990001</td></tr></table>
@@ -537,7 +558,7 @@ final class HildesheimAppTests: XCTestCase {
         let modules = try await c.api.value("/api/modules").jsonString()
         XCTAssertTrue(modules.contains("Das perfekte Zimmer"), "Modul aus dem Learnweb-Kurs")
         let sha = try await db.scalar("SELECT content_sha256 FROM files WHERE id=?", [.text(einf)])?.string
-        XCTAssertEqual(sha, SolutionSHA256.hex(Data("%PDF-1.7 einfuehrung".utf8)), "Inhalts-Hash mit CryptoKit wie im Kern")
+        XCTAssertEqual(sha, SolutionSHA256.hex(Data("%PDF-1.7 einfuehrung".utf8)), "Inhalts-Hash aus dem Kern (TestShare.contentHash)")
 
         // Stundenplan: LSF-Serie am Donnerstag (DTSTART ist der Montag), Ausfall an Heiligabend
         let thursday = try await day(c, "2026-10-29", start: "16:00")
@@ -652,6 +673,46 @@ final class HildesheimAppTests: XCTestCase {
         XCTAssertTrue(web.isEmpty)
         let still = try await c.host.backend().context.database.scalar("SELECT COUNT(*) FROM files WHERE local_path IS NOT NULL")?.int
         XCTAssertEqual(still, 2)
+    }
+
+    /// Der uebliche Weg: Learnweb verbunden, der Abgleich laeuft (Downloads), dann LSF verbinden. LSF bleibt
+    /// "verbunden" statt "Fehler" (der laufende Lauf bewertet nur seine Quellen) und bekommt direkt danach einen eigenen
+    /// Lauf mit Stundenplan und Noten.
+    func testSourceConnectedDuringARunGetsItsOwnRunInsteadOfAnError() async throws {
+        let ics = try repo("packages/shared-contracts/fixtures/hildesheim/lsf-course.ics")
+        let contents = try repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json")
+        let m = manager()
+        let (c, h) = try hildesheim(m, account(.hildesheim))
+        XCTAssertTrue(h.learnwebSignedIn(token: try XCTUnwrap(LearnwebToken(token)), base: base))
+        let gate = StubGate()
+        let uni = Self.uniHildesheim(base: base, lsf: lsf, token: token, ics: ics, contents: contents)
+        UniStubProtocol.install { r in
+            if r.url.path.contains("/webservice/pluginfile.php/") { gate.pass() }
+            return uni(r)
+        }
+        let first = Task { await h.run() }
+        try await waitUntil("Learnweb-Download laeuft") { gate.wasReached }
+        XCTAssertTrue(h.isRunning)
+        XCTAssertEqual(h.lsf, .notConnected)
+
+        // LSF in der Webansicht verbunden, waehrend der Learnweb-Abgleich noch laedt
+        await m.websiteDataStore(for: c).httpCookieStore.setCookie(cookie("JSESSIONID", "lsf-sitzung-test", domain: "lsf.uni-hildesheim.de"))
+        h.syncsAfterSignIn = true
+        h.lsfSignedIn()
+        XCTAssertEqual(h.lsf, .connected, "weder laufend noch Fehler")
+        gate.release()
+        let report = try unwrap(await first.value)
+        XCTAssertEqual(report.completed, ["Learnweb"], "der erste Lauf kannte LSF noch nicht")
+        XCTAssertEqual(h.learnweb, .ok(clock.now))
+        if case .failed = h.lsf { XCTFail("LSF faelschlich als Fehler: \(h.messages)") }
+
+        try await waitUntil("Folgelauf mit LSF") { h.lsf == .ok(clock.now) && !h.isRunning }
+        XCTAssertEqual(h.lastReport?.completed, ["Learnweb", "LSF-Stundenplan", "Notenspiegel"])
+        let thursday = try await day(c, "2026-10-29", start: "16:00")
+        XCTAssertEqual(thursday, ["teilnahme"], "Stundenplan aus dem Folgelauf")
+        let grades = try await c.api.value("/api/grades")
+        XCTAssertEqual(grades["grades"]?.array?.count, 2)
+        XCTAssertEqual(h.learnweb, .ok(clock.now))
     }
 
     func testStatusTexts() {

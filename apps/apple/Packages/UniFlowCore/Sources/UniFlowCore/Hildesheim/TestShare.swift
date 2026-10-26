@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#endif
 
 /// Gemeinsame Wochentests (`app/testshare.py`, docs/GEMEINSAME-WOCHENTESTS.md): gleiche Vorlesung und Uebung
 /// ergeben denselben Test. Schluessel aus Hochschule, Dauer-Stufe und SHA-256 des Dateiinhalts.
@@ -15,21 +18,36 @@ public enum TestShare {
     public static func contentHash(_ data: Data) -> String { SolutionSHA256.hex(data) }
 
     /// `testshare.file_sha256(path)`: Inhalts-Hash einer Datei auf der Platte in 1-MB-Bloecken (konstanter Speicher,
-    /// auch fuer Vorlesungsvideos); nil, wenn die Datei fehlt oder nicht lesbar ist. Synchron und je nach Groesse
-    /// langsam: nicht auf dem Hauptthread und nicht in einer Datenbank-Transaktion aufrufen.
+    /// auch fuer Vorlesungsvideos); nil, wenn die Datei fehlt oder nicht lesbar ist. Die eine Fassung fuer alle
+    /// Abgleiche (Stud.IP, Learnweb: `UniDownloads`). Synchron und je nach Groesse langsam: nicht auf dem Hauptthread
+    /// und nicht in einer Datenbank-Transaktion aufrufen.
     public static func contentHash(file url: URL) -> String? {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue,
               let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        var hasher = SolutionSHA256.Hasher()
+        var hasher = FileHasher()
         do {
             // nil oder leer: Dateiende
             while let block = try handle.read(upToCount: 1 << 20), !block.isEmpty { hasher.update(block) }
         } catch {
             return nil
         }
-        return SolutionSHA256.hexString(hasher.finalize())
+        return hasher.hex()
+    }
+
+    /// SHA-256 fuer `contentHash(file:)`: auf Apple-Geraeten CryptoKit (um ein Vielfaches schneller, grosse Dateien
+    /// und Videos), sonst (Linux) `SolutionSHA256`; derselbe Wert (UniStoreTests vergleicht beide).
+    private struct FileHasher {
+        #if canImport(CryptoKit)
+        private var sha = CryptoKit.SHA256()
+        mutating func update(_ block: Data) { sha.update(data: block) }
+        func hex() -> String { SolutionSHA256.hexString(Array(sha.finalize())) }
+        #else
+        private var sha = SolutionSHA256.Hasher()
+        mutating func update(_ block: Data) { sha.update(block) }
+        func hex() -> String { SolutionSHA256.hexString(sha.finalize()) }
+        #endif
     }
 
     /// Schluessel oder nil, wenn eine Datei keinen Inhalts-Hash hat (dann nicht teilen).

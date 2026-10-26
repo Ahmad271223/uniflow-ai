@@ -19,7 +19,9 @@ import WebKit
 ///
 /// Abgeglichen wird beim Oeffnen der App (hoechstens alle 30 Minuten) und auf Knopfdruck, Noten hoechstens alle
 /// 20 Stunden wie am PC (auf Knopfdruck "Noten abrufen" sofort). `report.messages` stehen in der Statusleiste, dazu
-/// der Stand je Quelle ("Learnweb: 16:30 ok", "LSF: Anmeldung nötig").
+/// der Stand je Quelle ("Learnweb: 16:30 ok", "LSF: Anmeldung nötig"). Eine Quelle, die waehrend eines Laufs verbunden
+/// wird, bewertet erst der direkt folgende eigene Lauf. Vor dem Loeschen des Containers haelt `stop` einen laufenden
+/// Abgleich an und wartet auf sein Ende.
 @MainActor
 final class HildesheimConnection: ObservableObject {
     enum Source: String, CaseIterable, Identifiable {
@@ -66,6 +68,13 @@ final class HildesheimConnection: ObservableObject {
     private let retry: UniRetry
     /// nach einer Anmeldung sofort abgleichen (Tests schalten das ab)
     var syncsAfterSignIn = true
+    /// laufender Abgleich (zum Anhalten vor dem Loeschen des Containers, `stop`)
+    private var current: Task<HildesheimSync.Report?, Never>?
+    /// angehalten (Container wird geloescht): kein weiterer Abgleich
+    private(set) var stopped = false
+    /// Quellen, die waehrend eines laufenden Abgleichs (neu) verbunden wurden: der laufende bewertet sie nicht (sie
+    /// bleiben "verbunden"), direkt danach folgt ein eigener Lauf
+    private var connectedDuringRun: Set<Source> = []
 
     init(container c: ActiveContainer, websiteDataStore: WKWebsiteDataStore, clock: UniFlowClock = .system,
          transport: TransportFactory? = nil, retry: UniRetry = UniRetry()) {
@@ -152,18 +161,24 @@ final class HildesheimConnection: ObservableObject {
         }
         defaults.set(base, forKey: Keys.learnwebBase)
         set(.learnweb, .connected)
-        afterSignIn()
+        afterSignIn(.learnweb)
         return true
     }
 
-    /// LSF verbunden (die Webansicht zeigt auf lsf.uni-hildesheim.de "Abmelden")
+    /// LSF verbunden (die Webansicht zeigt eine angemeldete Seite des LSF, `LSFClient.isLoggedIn`)
     func lsfSignedIn() {
         defaults.set(true, forKey: Keys.lsfConnected)
         set(.lsf, .connected)
-        afterSignIn()
+        afterSignIn(.lsf)
     }
 
-    private func afterSignIn() {
+    /// Nach einer Anmeldung abgleichen. Laeuft schon einer (der uebliche Weg: Learnweb verbunden, Abgleich laeuft, dann
+    /// LSF verbinden), gilt die Quelle fuer ihn nicht; sie bekommt direkt danach einen eigenen Lauf.
+    private func afterSignIn(_ s: Source) {
+        if isRunning {
+            connectedDuringRun.insert(s)
+            return
+        }
         guard syncsAfterSignIn else { return }
         Task { await run() }
     }
@@ -206,37 +221,60 @@ final class HildesheimConnection: ObservableObject {
     }
 
     /// Ein Abgleich: Learnweb, danach LSF-Stundenplan und Noten (`HildesheimSync.run`). `forceGrades`: Noten auch vor
-    /// Ablauf der 20 Stunden.
+    /// Ablauf der 20 Stunden. Wurde waehrend des Laufs eine Quelle verbunden, folgt direkt danach ein weiterer Lauf.
     @discardableResult
     func run(forceGrades: Bool = false) async -> HildesheimSync.Report? {
-        guard !isRunning, anyConnected else { return nil }
+        guard !isRunning, !stopped, anyConnected else { return nil }
         isRunning = true
-        defer {
-            isRunning = false
-            finishedRuns += 1
+        let task = Task { await self.perform(forceGrades: forceGrades) }
+        current = task
+        let report = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        current = nil
+        isRunning = false
+        finishedRuns += 1
+        if !connectedDuringRun.isEmpty {
+            connectedDuringRun = []
+            if syncsAfterSignIn, !stopped { Task { await run() } }
         }
+        return report
+    }
+
+    /// Anhalten, bevor der Container geloescht wird: laufenden Abgleich abbrechen (`Task.cancel`, der Kern endet als
+    /// "abgebrochen") und auf sein Ende warten, danach schreibt er nichts mehr; diese Verbindung gleicht nicht mehr ab
+    func stop() async {
+        stopped = true
+        connectedDuringRun = []
+        guard let task = current else { return }
+        task.cancel()
+        _ = await task.value
+    }
+
+    private func perform(forceGrades: Bool) async -> HildesheimSync.Report? {
+        // nur die Quellen, die zu Beginn verbunden sind, bewertet dieser Lauf (vor dem ersten await festgehalten)
+        let sources = Set(Source.allCases.filter(isConnected))
         let before = (learnweb, lsf)
-        for s in Source.allCases where isConnected(s) { set(s, .running) }
+        for s in sources { set(s, .running) }
         let transport = await makeTransport(websiteDataStore)
-        let lw = await learnwebAccess(transport: transport)
-        let lsfClient = lsfConnected ? LSFClient(transport: transport, retry: retry) : nil
+        var lw = LearnwebAccess()
+        if sources.contains(.learnweb) { lw = await learnwebAccess(transport: transport) }
+        let lsfClient = sources.contains(.lsf) ? LSFClient(transport: transport, retry: retry) : nil
         let includeGrades = forceGrades || gradesDue
         let database: SQLiteDatabase
         do {
             database = try await host.backend().context.database
         } catch {
             let message = LocalBackendHost.message(for: error)
-            for s in Source.allCases where isConnected(s) { set(s, .failed(message)) }
+            for s in sources.subtracting(connectedDuringRun) where isConnected(s) { set(s, .failed(message)) }
             finish(messages: [message], report: nil)
             return nil
         }
         var report = HildesheimSync.Report()
         if lw.api != nil || lsfClient != nil {
             report = await HildesheimSync(db: database, container: layout, learnweb: lw.api, lsf: lsfClient, transport: transport,
-                                          clock: clock, retry: retry, hasher: { UniFileHash.sha256(file: $0) })
+                                          clock: clock, retry: retry)
                 .run(includeGrades: includeGrades)
         }
-        apply(report, learnweb: lw, includeGrades: includeGrades, before: before)
+        apply(report, sources: sources.subtracting(connectedDuringRun), learnweb: lw, includeGrades: includeGrades, before: before)
         return report
     }
 
@@ -271,15 +309,17 @@ final class HildesheimConnection: ObservableObject {
     }
 
     /// Stand je Quelle aus dem Bericht: Anmeldung noetig (`needsLogin`), zu Ende gelaufen (`completed`), Abbruch (alter
-    /// Stand bleibt), sonst Fehler mit der Meldung des Kerns
-    private func apply(_ r: HildesheimSync.Report, learnweb lw: LearnwebAccess, includeGrades: Bool, before: (State, State)) {
+    /// Stand bleibt), sonst Fehler mit der Meldung des Kerns. Bewertet werden nur `sources` (zu Beginn des Laufs
+    /// verbunden und nicht waehrend des Laufs neu angemeldet) und nur, solange sie noch verbunden sind.
+    private func apply(_ r: HildesheimSync.Report, sources: Set<Source>, learnweb lw: LearnwebAccess, includeGrades: Bool,
+                       before: (State, State)) {
         let now = clock.now
         let all = (lw.message.map { [$0] } ?? []) + r.messages
         func message(_ prefixes: [String]) -> String {
             all.first { m in prefixes.contains { m.hasPrefix($0) } } ?? r.refused ?? "Abgleich nicht abgeschlossen."
         }
         typealias Part = HildesheimSync.Report.Part
-        if isConnected(.learnweb) {
+        if sources.contains(.learnweb), isConnected(.learnweb) {
             if lw.loginNeeded || r.needsLogin.contains(Source.learnweb.rawValue) {
                 set(.learnweb, .needsLogin)
             } else if lw.api != nil, r.completed.contains(Part.learnweb) {
@@ -290,7 +330,7 @@ final class HildesheimConnection: ObservableObject {
                 set(.learnweb, .failed(message(["Learnweb"])))
             }
         }
-        if isConnected(.lsf) {
+        if sources.contains(.lsf), isConnected(.lsf) {
             let planOK = r.completed.contains(Part.plan)
             let gradesOK = !includeGrades || r.completed.contains(Part.grades)
             if r.needsLogin.contains(Source.lsf.rawValue) {
@@ -345,7 +385,7 @@ final class HildesheimConnection: ObservableObject {
 /// Anmeldung bei Learnweb oder LSF in der Webansicht des Containers (CAS der Uni). Die Studierenden tippen ihre
 /// Zugangsdaten selbst ein und tippen selbst auf "Anmelden"; die App fuellt hoechstens vor (`UniversityLoginAutofill`).
 ///
-/// - LSF: `HildesheimCAS.lsfLoginURL`; fertig, sobald eine Seite auf lsf.uni-hildesheim.de "Abmelden" zeigt.
+/// - LSF: `HildesheimCAS.lsfLoginURL`; fertig, sobald eine Seite des LSF angemeldet ist (`LSFClient.isLoggedIn`).
 /// - Learnweb: Instanz des Semesters (`Learnweb.discoverBase`), dann `MoodleSSO.publicConfig`. Ist das SSO moeglich,
 ///   oeffnet die Webansicht `MoodleSSO.launchURL(config:base:passport:)` mit einem neuen Passport; die abschliessende
 ///   Weiterleitung `<schema>://token=…` faengt `intercept` ab (nie an das System), `MoodleSSO.parseLaunchToken` prueft
@@ -377,8 +417,6 @@ final class HildesheimLogin: ObservableObject {
         self.target = target
         self.connection = connection
     }
-
-    static let lsfHost = UniversityProfile.hildesheimLSF.host?.lowercased() ?? "lsf.uni-hildesheim.de"
 
     /// Startseite bestimmen (Learnweb: Netz fuer Instanz und Konfiguration, ohne Anmeldedaten)
     func prepare() async {
@@ -443,7 +481,8 @@ final class HildesheimLogin: ObservableObject {
         casError = nil
         switch target {
         case .lsf:
-            if url.scheme?.lowercased() == "https", url.host?.lowercased() == Self.lsfHost, html.contains("Abmelden") {
+            // dieselbe Regel wie fuer jede Seite im Abgleich (LSF ueber HTTPS mit "Abmelden")
+            if LSFClient.isLoggedIn(html: html, url: url) {
                 connection.lsfSignedIn()
                 stage = .done
             }

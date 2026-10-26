@@ -53,9 +53,15 @@ def fetch_plan_ics(page) -> str | None:
     if not link:
         return None       # leerer Stundenplan: kein Export-Link
     r = page.request.get(link)
-    if not r.ok or "BEGIN:VCALENDAR" not in r.text():
+    text = r.text()
+    if not r.ok or "BEGIN:VCALENDAR" not in text:
         raise RuntimeError(f"LSF: iCal-Export nicht lesbar ({r.status})")
-    return r.text()
+    if not plan_entries(text):
+        # Export-Link mit Terminen, aber kein Termin im Kalender: unvollstaendige Antwort. Nichts uebernehmen und keine
+        # LSF-Serie entfernen (import_plan wuerde sonst alle samt Ausnahmen und Teilnahme loeschen); ein leerer Plan
+        # ist nur der Fall ohne Export-Link. Dieselbe Regel im Kern der iPad-App (LSFClient.planEntries).
+        raise RuntimeError("LSF: iCal-Export ohne Termine")
+    return text
 
 
 def split_summary(summary: str) -> dict:

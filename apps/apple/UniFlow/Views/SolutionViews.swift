@@ -29,7 +29,6 @@ struct SolutionShareSheet: View {
     @State private var shareError: String?
     @State private var busy = false
     @State private var shareFile: ExportFile?
-    @AppStorage("uniflow.solution.displayName") private var savedName = ""
 
     var body: some View {
         NavigationStack {
@@ -172,7 +171,7 @@ struct SolutionShareSheet: View {
     /// (ausgelassene oder eingefuegte Seiten) nennt die Seitenkarte. Ob geteilt werden kann, entscheidet die Auswahl.
     private func load() async {
         guard draft == nil, Entitlements.shared.allows(.community) else { return }
-        displayName = savedName
+        displayName = SolutionDisplayName.load()
         do {
             let s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
             let prepared = try await Task.detached(priority: .userInitiated) { try SolutionSharing.draft(s) }.value
@@ -195,7 +194,7 @@ struct SolutionShareSheet: View {
         busy = true
         shareError = nil
         let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        savedName = name
+        SolutionDisplayName.save(name)
         let keys = Array(selected)
         Task {
             do {

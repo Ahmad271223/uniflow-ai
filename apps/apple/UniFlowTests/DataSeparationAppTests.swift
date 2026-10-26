@@ -336,6 +336,7 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertTrue(keychain.write("ab1-alt", account: "luh.studip.user"))
         XCTAssertTrue(keychain.write("Passwort-alt", account: "luh.studip.password"))
         defaults.set(false, forKey: UniversityCredentialStore.rememberKey(.luh, "qis"))
+        defaults.set("Ada beim Teilen", forKey: SolutionDisplayName.key)
     }
 
     func testLegacyDataMovesIntoTheLUHContainerOfTheCurrentUserOnFirstStart() async throws {
@@ -368,6 +369,8 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertNil(keychain.read("luh.studip.user"), "kein Eintrag ohne Nutzer mehr")
         XCTAssertFalse(c.credentials.remember(.luh, service: "qis"), "Schalter mit umgezogen")
         XCTAssertTrue(LegacyDataMigration.isDone(base: base))
+        XCTAssertEqual(SolutionDisplayName.load(c.defaults), "Ada beim Teilen", "Anzeigename beim Teilen mit umgezogen")
+        XCTAssertNil(defaults.object(forKey: SolutionDisplayName.key), "nicht mehr in den gemeinsamen Einstellungen")
 
         // anderes Konto danach: bekommt nichts von den alten Daten und waehlt selbst
         let b = account(otherUser)
@@ -437,5 +440,193 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertTrue(m.problem?.contains("Universität Hildesheim") == true, m.problem ?? "")
         // die Webansicht nutzt nie den gemeinsamen Datenspeicher
         XCTAssertNotEqual(luhLayout.identifier, hiLayout.identifier)
+    }
+
+    // MARK: Anzeigename beim Teilen
+
+    /// Der Name beim Teilen einer Loesung gehoert dem Container: ein zweites Konto sieht ihn nicht, Loeschen entfernt ihn
+    func testSolutionDisplayNameStaysWithItsContainer() async throws {
+        let m = manager()
+        let a = account(user)
+        a.chooseUniversity(.luh)
+        m.sync(account: a)
+        let luh = try active(m)
+        SolutionDisplayName.save("Ada LUH", luh.defaults)
+        XCTAssertNil(defaults.object(forKey: SolutionDisplayName.key), "nicht in den gemeinsamen Einstellungen")
+
+        let b = account(otherUser)
+        b.chooseUniversity(.luh)
+        m.sync(account: b)
+        XCTAssertEqual(SolutionDisplayName.load(try active(m).defaults), "", "anderes Konto sieht den Namen nicht")
+        a.chooseUniversity(.hildesheim)
+        m.sync(account: a)
+        XCTAssertEqual(SolutionDisplayName.load(try active(m).defaults), "", "andere Hochschule desselben Kontos ebenso nicht")
+        a.chooseUniversity(.luh)
+        m.sync(account: a)
+        XCTAssertEqual(SolutionDisplayName.load(try active(m).defaults), "Ada LUH")
+        XCTAssertEqual(SolutionDisplayName.load(nil), "", "ohne Container nichts")
+
+        await m.deleteUniversityData(luh.key)
+        XCTAssertEqual(SolutionDisplayName.load(try active(m).defaults), "", "mit den Daten der Hochschule geloescht")
+        SolutionDisplayName.save("Ada neu", try active(m).defaults)
+        defaults.set("Ada alt", forKey: SolutionDisplayName.key)                  // Rest von vor den Containern
+        await m.deleteAllData(userID: user)
+        XCTAssertNil(defaults.object(forKey: SolutionDisplayName.key), "Konto löschen entfernt auch den alten Eintrag")
+        for layout in DataContainerLayout.all(base: base, userID: user) {
+            let s = ActiveContainer.defaultsSuite(layout.identifier)
+            XCTAssertNil(UserDefaults(suiteName: s)?.persistentDomain(forName: s)?[SolutionDisplayName.key])
+        }
+    }
+
+    // MARK: Loeschen waehrend eines Abgleichs
+
+    private func repo(_ relative: String) throws -> Data {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<4 { url.deleteLastPathComponent() }
+        return try Data(contentsOf: url.appendingPathComponent(relative))
+    }
+
+    private func waitUntil(_ what: String, timeout: TimeInterval = 10, _ condition: () async -> Bool) async throws {
+        let end = Date().addingTimeInterval(timeout)
+        while Date() < end {
+            if await condition() { return }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTFail("Zeitueberschreitung: \(what)")
+    }
+
+    /// Container-Verwaltung mit dem Hildesheimer Abgleich ueber den Stub statt des Netzes
+    private func hildesheimManager() -> ContainerManager {
+        ContainerManager(base: base, legacy: legacy, keychain: keychain, cookieService: cookieService, defaults: defaults, clock: clock,
+                         publishesCurrent: false,
+                         hildesheimTransport: { store in await URLSessionUniTransport.make(dataStore: store, configuration: UniStubProtocol.configuration()) })
+    }
+
+    /// Learnweb verbinden und abgleichen; der erste Download haelt im Stub an, bis `gate` ihn freigibt
+    private func startLearnwebSync(_ m: ContainerManager, _ gate: StubGate) async throws
+        -> (ActiveContainer, HildesheimConnection, Task<HildesheimSync.Report?, Never>) {
+        let c = try active(m)
+        let h = try XCTUnwrap(m.hildesheim)
+        h.syncsAfterSignIn = false
+        let token = "TestSchluessel0123456789abcdef", lw = "https://www.uni-hildesheim.de/learnweb2026"
+        XCTAssertTrue(h.learnwebSignedIn(token: try XCTUnwrap(LearnwebToken(token)), base: lw))
+        let uni = HildesheimAppTests.uniHildesheim(base: lw, lsf: "https://lsf.uni-hildesheim.de", token: token, ics: Data(),
+                                                   contents: try repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
+        UniStubProtocol.install { r in
+            if r.url.path.contains("/webservice/pluginfile.php/") { gate.pass() }
+            return uni(r)
+        }
+        let run = Task { await h.run() }
+        try await waitUntil("Learnweb-Download laeuft") { gate.wasReached }
+        return (c, h, run)
+    }
+
+    /// Eintraege der App in der Einstellungs-Suite eines Containers, die ein Abgleich schreibt (ein frisch geoeffneter
+    /// Container legt von sich aus nur die leere Stud.IP-Kursauswahl an)
+    private func suiteKeys(_ layout: DataContainerLayout) -> [String] {
+        let s = ActiveContainer.defaultsSuite(layout.identifier)
+        let domain = UserDefaults(suiteName: s)?.persistentDomain(forName: s) ?? [:]
+        return domain.filter { k, v in k.hasPrefix("uniflow.") && !(k == "uniflow.studip.courses" && (v as? [String])?.isEmpty == true) }
+            .keys.sorted()
+    }
+
+    /// Stud.IP mit festen Antworten (ein Kurs, eine Datei, erfunden); der Download wartet, bis der Test ihn freigibt
+    private final class WaitingStudIP: StudIPTransport, @unchecked Sendable {
+        let gate = StubGate()
+
+        func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+            let path = (url.path + (url.query.map { "?" + $0 } ?? ""))
+                .replacingOccurrences(of: "%5B", with: "[").replacingOccurrences(of: "%5D", with: "]")
+            let json: String
+            switch path {
+            case "/jsonapi.php/v1/users/me": json = #"{"data":{"id":"u1","type":"users"}}"#
+            case "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester":
+                json = #"""
+                    {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
+                      "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
+                     "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}
+                    """#
+            case "/jsonapi.php/v1/courses/c1/folders?page[limit]=200": json = #"{"data":[{"id":"r1","attributes":{"folder-type":"RootFolder","name":""}}]}"#
+            case "/jsonapi.php/v1/folders/r1/file-refs?page[limit]=500":
+                json = #"{"data":[{"id":"d1","attributes":{"name":"Blatt 3.pdf","filesize":12,"mime-type":"application/pdf","chdate":"2026-10-19T10:00:00+02:00","is-downloadable":true}}]}"#
+            case "/jsonapi.php/v1/folders/r1/folders?page[limit]=200": json = #"{"data":[]}"#
+            default: return HTTPReply(status: 404, contentType: "application/vnd.api+json", body: Data(#"{"errors":[]}"#.utf8))
+            }
+            return HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(json.utf8))
+        }
+
+        func download(_ url: URL, to file: URL) async throws -> HTTPReply {
+            let gate = self.gate
+            await Task.detached { gate.pass() }.value
+            try Data("%PDF-1.7 LUH".utf8).write(to: file)
+            return HTTPReply(status: 200, contentType: "application/pdf")
+        }
+    }
+
+    /// "Daten dieser Hochschule löschen" und "Konto löschen" waehrend eines laufenden Abgleichs: der Abgleich wird
+    /// angehalten und abgewartet, danach bleiben weder Ordner noch Dateien noch Eintraege in der Einstellungs-Suite
+    /// (vorher legte der Learnweb-Abgleich den geloeschten Container ohne Kennzeichnung neu an)
+    func testDeletingDuringARunningSyncLeavesNothingBehind() async throws {
+        defer { UniStubProtocol.reset() }
+        let a = account(user)
+        a.chooseUniversity(.hildesheim)
+        let m = hildesheimManager()
+        m.sync(account: a)
+
+        // 1. Daten der Uni Hildesheim loeschen, waehrend der erste Learnweb-Download laeuft
+        let gate = StubGate()
+        let (hi, h, run) = try await startLearnwebSync(m, gate)
+        XCTAssertTrue(h.isRunning)
+        let deletion = Task { await m.deleteUniversityData(hi.key) }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        gate.release()
+        await deletion.value
+        _ = await run.value
+        XCTAssertTrue(h.stopped)
+        let fresh = try active(m)
+        XCTAssertEqual(fresh.key, hi.key, "es geht mit einem leeren Container weiter")
+        XCTAssertEqual(try fresh.layout.manifest()?.university, "hildesheim")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fresh.layout.learnweb.path), "keine Learnweb-Reste")
+        let files = try await fresh.host.backend().context.database.scalar("SELECT COUNT(*) FROM files WHERE course_id LIKE 'lw-%'")?.int
+        XCTAssertEqual(files, 0)
+        XCTAssertEqual(suiteKeys(fresh.layout), [], "Stand des alten Abgleichs nicht zurueckgeschrieben")
+        XCTAssertFalse(m.hildesheim?.anyConnected ?? true)
+        let after = await h.run()
+        XCTAssertNil(after, "die alte Verbindung gleicht nicht mehr ab")
+
+        // 2. Konto loeschen, waehrend im neuen Container wieder ein Download laeuft
+        let gate2 = StubGate()
+        let (hi2, _, run2) = try await startLearnwebSync(m, gate2)
+        let deletion2 = Task { await m.deleteAllData(userID: user) }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        gate2.release()
+        await deletion2.value
+        _ = await run2.value
+        XCTAssertFalse(FileManager.default.fileExists(atPath: hi2.layout.root.path))
+        for layout in DataContainerLayout.all(base: base, userID: user) {
+            XCTAssertFalse(layout.exists(), "\(layout.university)")
+            XCTAssertEqual(suiteKeys(layout), [], "\(layout.university)")
+        }
+
+        // 3. LUH: Stud.IP-Abgleich laeuft beim Loeschen (Download wartet)
+        let b = account(otherUser)
+        b.chooseUniversity(.luh)
+        m.sync(account: b)
+        let luh = try active(m)
+        let stud = WaitingStudIP()
+        let sync = m.studip
+        let studRun = Task { await sync.run(client: StudIPClient(base: StudIPSync.base, transport: stud, pauseMillis: 0)) }
+        try await waitUntil("Stud.IP-Download laeuft") { stud.gate.wasReached }
+        let deletion3 = Task { await m.deleteUniversityData(luh.key) }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        stud.gate.release()
+        await deletion3.value
+        await studRun.value
+        XCTAssertTrue(sync.stopped)
+        let freshLUH = try active(m)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: freshLUH.layout.studip.appendingPathComponent("files").path), "keine Stud.IP-Reste")
+        let luhFiles = try await freshLUH.host.backend().context.database.scalar("SELECT COUNT(*) FROM files WHERE course_id='c1'")?.int
+        XCTAssertEqual(luhFiles, 0)
+        XCTAssertEqual(suiteKeys(freshLUH.layout), [], "Kursauswahl und Stand des alten Abgleichs weg")
     }
 }

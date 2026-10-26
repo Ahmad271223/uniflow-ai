@@ -40,7 +40,7 @@ final class ActiveContainer: @unchecked Sendable {
     let cache: ResponseCache
     let thumbnails: UFThumbnails
     let solutions: SolutionLibrary
-    /// Einstellungen dieses Containers (Stud.IP-Kursauswahl, letzter Abgleich)
+    /// Einstellungen dieses Containers (Stud.IP-Kursauswahl, letzter Abgleich, Learnweb/LSF, Anzeigename beim Teilen)
     let defaults: UserDefaults
     let defaultsSuite: String
     /// gemerkte Hochschul-Zugangsdaten mit dem Praefix des Nutzers
@@ -80,6 +80,17 @@ final class ActiveContainer: @unchecked Sendable {
     }
 }
 
+/// Abgleich eines Containers (Stud.IP, Learnweb/LSF). Vor dem Loeschen des Containers haelt ihn `ContainerManager` an
+/// und wartet auf sein Ende (`stop`), damit kein laufender Abgleich Ordner, Dateien oder Einstellungen neu anlegt.
+@MainActor
+protocol ContainerSync: AnyObject {
+    var isRunning: Bool { get }
+    func stop() async
+}
+
+extension StudIPSync: ContainerSync {}
+extension HildesheimConnection: ContainerSync {}
+
 /// Oeffnet den Container zu (Apple-Nutzer, gewaehlte Hochschule), zieht beim ersten Start die alten Daten in den
 /// LUH-Container des Nutzers um und loescht Container ("Daten dieser Hochschule löschen", "Konto löschen").
 @MainActor
@@ -107,6 +118,13 @@ final class ContainerManager: ObservableObject {
     /// Transport der Hildesheimer Abgleiche (nil: URLSession mit den Cookies des Containers; Tests: feste Antworten)
     private let hildesheimTransport: HildesheimConnection.TransportFactory?
     private var stores: [UUID: WKWebsiteDataStore] = [:]
+    /// Abgleiche je Container, auch die eines abgeloesten (Wechsel der Hochschule waehrend eines Abgleichs). Schwach
+    /// gehalten: ein laufender Abgleich haelt sich selbst, ein beendeter faellt weg.
+    private struct SyncRef {
+        let key: DataContainerKey
+        weak var sync: ContainerSync?
+    }
+    private var syncs: [SyncRef] = []
 
     /// Merker: Cookies der alten gemeinsamen Webansicht (`WKWebsiteDataStore.default()`) ziehen noch in diesen Container
     static let legacyWebDataKey = "uniflow.legacy.webdata.target"
@@ -183,12 +201,16 @@ final class ContainerManager: ObservableObject {
         }
     }
 
-    /// Schritte der App im Umzug (wiederholbar): Stud.IP-Einstellungen in die Suite des Containers, Sitzungs-Cookie
-    /// und gemerkte Zugangsdaten in die Eintraege des Nutzers; die Cookies der alten gemeinsamen Webansicht folgen
-    /// nach dem Oeffnen (`moveLegacyWebData`).
+    /// Einstellungen eines Containers aus der Zeit vor den Containern (gemeinsame UserDefaults): Stud.IP-Abgleich und
+    /// der Anzeigename beim Teilen von Loesungen
+    static let legacyContainerKeys = StudIPSync.defaultsKeys + [SolutionDisplayName.key]
+
+    /// Schritte der App im Umzug (wiederholbar): Einstellungen des Containers (`legacyContainerKeys`) in seine Suite,
+    /// Sitzungs-Cookie und gemerkte Zugangsdaten in die Eintraege des Nutzers; die Cookies der alten gemeinsamen
+    /// Webansicht folgen nach dem Oeffnen (`moveLegacyWebData`).
     private func finishLegacyMove(into layout: DataContainerLayout) throws {
         if let suite = UserDefaults(suiteName: ActiveContainer.defaultsSuite(layout.identifier)) {
-            for k in StudIPSync.defaultsKeys {
+            for k in Self.legacyContainerKeys {
                 guard let v = appDefaults.object(forKey: k) else { continue }
                 if suite.object(forKey: k) == nil { suite.set(v, forKey: k) }
                 appDefaults.removeObject(forKey: k)
@@ -231,10 +253,14 @@ final class ContainerManager: ObservableObject {
         if publishesCurrent { ActiveContainer.current = c }
         active = c
         studip = StudIPSync(root: c.layout.studip, host: c.host, clock: clock, defaults: c.defaults, support: c.layout.root,
-                            university: key.university, cookies: c.cookies, websiteDataStore: websiteDataStore(for: c))
+                            university: key.university, cookies: c.cookies, websiteDataStore: websiteDataStore(for: c),
+                            container: c.layout)
         hildesheim = key.university == .hildesheim
             ? HildesheimConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: hildesheimTransport)
             : nil
+        syncs.removeAll { $0.sync == nil }
+        syncs.append(SyncRef(key: key, sync: studip))
+        if let hildesheim { syncs.append(SyncRef(key: key, sync: hildesheim)) }
         generation += 1
         onChange?(c)
         Task { await checkDatabase(c) }
@@ -289,6 +315,7 @@ final class ContainerManager: ObservableObject {
     /// "Daten dieser Hochschule löschen": genau dieser Container (Datenbank, Dateien, Notizen, Zwischenspeicher),
     /// sein Datenspeicher der Webansichten, sein Sitzungs-Cookie, die gemerkten Zugangsdaten dieser Hochschule und
     /// seine Einstellungen. Die andere Hochschule bleibt unberuehrt. War er offen, geht es mit einem leeren weiter.
+    /// Laufende Abgleiche des Containers werden vorher angehalten und abgewartet (`remove`).
     func deleteUniversityData(_ key: DataContainerKey) async {
         let wasActive = active?.key == key
         if wasActive { deactivate() }
@@ -296,14 +323,25 @@ final class ContainerManager: ObservableObject {
         if wasActive { activate(key) }
     }
 
-    /// "Konto löschen": alle Container des Nutzers samt Webdaten, Schluesselbund und Einstellungen
+    /// "Konto löschen": alle Container des Nutzers samt Webdaten, Schluesselbund und Einstellungen; laufende Abgleiche
+    /// werden vorher angehalten und abgewartet
     func deleteAllData(userID: String) async {
         if active?.key.userID == userID { deactivate() }
         for uni in UniversityKey.allCases { await remove(DataContainerKey(userID: userID, university: uni)) }
         UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: DataContainerKey.userScope(userID)).deleteAll()
+        // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
+        appDefaults.removeObject(forKey: SolutionDisplayName.key)
+    }
+
+    /// Abgleiche eines Containers anhalten und auf ihr Ende warten (danach schreibt keiner mehr hinein)
+    private func stopSyncs(_ key: DataContainerKey) async {
+        let running = syncs.filter { $0.key == key }.compactMap(\.sync)
+        syncs.removeAll { $0.key == key || $0.sync == nil }
+        for s in running { await s.stop() }
     }
 
     private func remove(_ key: DataContainerKey) async {
+        await stopSyncs(key)
         let layout = DataContainerLayout(base: base, key: key)
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
         UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
@@ -311,6 +349,10 @@ final class ContainerManager: ObservableObject {
         let suite = ActiveContainer.defaultsSuite(layout.identifier)
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
         try? layout.remove()
+        // noch einmal nachsehen: was waehrend des Loeschens entstand, geht ebenfalls (ohne Kennzeichnung schreibt kein
+        // Abgleich mehr hinein, `UniDownloads`)
+        if layout.exists() { try? layout.remove() }
+        UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
     }
 
     /// Webdaten eines Containers leeren und seinen Datenspeicher entfernen (ist er noch in Gebrauch, bleibt er leer

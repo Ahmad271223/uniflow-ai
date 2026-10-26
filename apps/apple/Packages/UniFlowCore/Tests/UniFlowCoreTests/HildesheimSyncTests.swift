@@ -323,4 +323,142 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertEqual(got6, 1)
         XCTAssertEqual(t2.count("\(base)/webservice/rest/server.php"), 3)                   // 3 Versuche, dann aufgegeben
     }
+
+    // MARK: Leere oder unvollstaendige Antworten loeschen nie etwas
+
+    /// Kursinhalt mit einer Datei plan.pdf (Fassung `modified`, Groesse laut Learnweb 26 Byte)
+    private func planContents(modified: Int) -> JSONValue {
+        .array([.object(["section": .number(1), "name": .string("1"), "modules": .array([.object([
+            "id": .number(77), "modname": .string("resource"), "name": .string("Seminarplan"),
+            "contents": .array([.object(["type": .string("file"), "filename": .string("plan.pdf"), "filepath": .string("/"),
+                                         "filesize": .number(26), "timemodified": .number(Double(modified)),
+                                         "fileurl": .string("\(base)/webservice/pluginfile.php/5/mod_resource/content/1/plan.pdf")])]),
+        ])])])])
+    }
+
+    /// HTTP 200 mit 0 Bytes zu einer neuen Fassung: die gute alte Datei bleibt samt Fassung und Inhalts-Hash, die
+    /// Datei gilt als nicht geladen und kommt beim naechsten Abgleich (wie `empty_download` am PC).
+    func testEmptyDownloadNeverReplacesAGoodFile() async throws {
+        let (db, layout) = try await container()
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        func sync(_ t: FakeUniTransport) -> HildesheimSync {
+            HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                           lsf: nil, transport: t, clock: clock, retry: noWait)
+        }
+        let good = "%PDF-1.7 gute alte Fassung"
+        let t1 = FakeUniTransport()
+        restRoutes(t1, contentsByCourse: [35: planContents(modified: 100)], courses: [35])
+        t1.on("\(base)/webservice/pluginfile.php/5", ok(good))
+        let r1 = await sync(t1).run()
+        XCTAssertEqual(r1.newFiles.count, 1, r1.messages.joined(separator: "; "))
+        let loaded = try await db.scalar("SELECT local_path FROM files WHERE name='plan.pdf'")?.string
+        let path = try XCTUnwrap(loaded)
+        let file = layout.root.appendingPathComponent(path)
+
+        let t2 = FakeUniTransport()
+        restRoutes(t2, contentsByCourse: [35: planContents(modified: 200)], courses: [35])
+        t2.on("\(base)/webservice/pluginfile.php/5", ok(""))
+        let r2 = await sync(t2).run()
+        XCTAssertEqual(r2.newFiles, [])
+        XCTAssertEqual(r2.failedFiles, ["plan.pdf"], "leere Antwort ist ein Fehler dieser Datei")
+        XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), good, "alte Datei steht noch")
+        let row = try await db.rows("SELECT chdate, size, content_sha256 FROM files WHERE name='plan.pdf'").first
+        XCTAssertEqual(row?["chdate"]?.int, 100, "neue Fassung erst mit einem echten Download")
+        XCTAssertEqual(row?["content_sha256"]?.string, SolutionSHA256.hex(Data(good.utf8)))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.learnweb.appendingPathComponent(".laden").path),
+                       "Zwischenordner nach dem Lauf aufgeraeumt")
+
+        let t3 = FakeUniTransport()
+        restRoutes(t3, contentsByCourse: [35: planContents(modified: 200)], courses: [35])
+        t3.on("\(base)/webservice/pluginfile.php/5", ok("%PDF-1.7 neue Fassung"))
+        let r3 = await sync(t3).run()
+        XCTAssertEqual(r3.newFiles.count, 1, "gilt weiter als geaendert")
+        XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "%PDF-1.7 neue Fassung")
+    }
+
+    /// Export-Link vorhanden, Kalender ohne Termin: kein vollstaendig gelesener Plan. LSF-Serien bleiben mit eigener
+    /// Verlegung und Teilnahme-Einstellung, der Stundenplan-Teil gilt nicht als ok (wie lsf.fetch_plan_ics).
+    func testCalendarWithoutEventsRemovesNoSeries() async throws {
+        let (db, layout) = try await container()
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        let t1 = FakeUniTransport()
+        lsfRoutes(t1, plan: try repo("packages/shared-contracts/fixtures/hildesheim/lsf-plan.ics"))
+        let r1 = await HildesheimSync(db: db, container: layout, learnweb: nil, lsf: LSFClient(transport: t1, retry: noWait),
+                                      transport: t1, clock: clock).run(includeGrades: false)
+        XCTAssertEqual(r1.plan?.new, 4)
+        let first = try await db.scalar("SELECT id FROM course_events WHERE source='lsf' ORDER BY id LIMIT 1")
+        let eid = try XCTUnwrap(first)
+        try await db.transaction { c in
+            try c.execute("UPDATE course_events SET attend=0 WHERE id=?", [eid])
+            try c.execute("INSERT INTO event_exceptions(event_id, date, type, created_at) VALUES (?, '2026-11-02', 'moved', 't')", [eid])
+        }
+        let exceptions = try await db.scalar("SELECT COUNT(*) FROM event_exceptions")?.int
+
+        let t2 = FakeUniTransport()
+        lsfRoutes(t2, plan: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//HIS//LSF//DE\r\nEND:VCALENDAR\r\n")
+        let r2 = await HildesheimSync(db: db, container: layout, learnweb: nil, lsf: LSFClient(transport: t2, retry: noWait),
+                                      transport: t2, clock: clock).run(includeGrades: false)
+        XCTAssertNil(r2.plan)
+        XCTAssertFalse(r2.completed.contains(HildesheimSync.Report.Part.plan))
+        XCTAssertTrue(r2.messages.contains("LSF-Stundenplan: Unerwartete Antwort: LSF-iCal ohne Termine"), r2.messages.joined(separator: "; "))
+        let series = try await db.scalar("SELECT COUNT(*) FROM course_events WHERE source='lsf'")?.int
+        XCTAssertEqual(series, 4)
+        let attend = try await db.scalar("SELECT attend FROM course_events WHERE id=?", [eid])?.int
+        XCTAssertEqual(attend, 0)
+        let moved = try await db.scalar("SELECT COUNT(*) FROM event_exceptions WHERE event_id=? AND type='moved'", [eid])?.int
+        XCTAssertEqual(moved, 1)
+        let after = try await db.scalar("SELECT COUNT(*) FROM event_exceptions")?.int
+        XCTAssertEqual(after, exceptions)
+    }
+
+    // MARK: Geloeschter Container
+
+    /// Wird der Container waehrend des Abgleichs geloescht ("Daten dieser Hochschule löschen"), legt der Lauf ihn nicht
+    /// neu an: vor jedem Anlegen und Ersetzen prueft `UniDownloads` die Kennzeichnung. Ohne Kennzeichnung laeuft nichts.
+    func testDeletedContainerIsNeverRecreated() async throws {
+        let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
+        /// Learnweb mit Schluessel; `onDownload` laeuft bei jedem Datei-Abruf
+        func learnweb(_ onDownload: @escaping () throws -> Void) -> FakeUniTransport {
+            FakeUniTransport { req in
+                let form = String(decoding: req.body ?? Data(), as: UTF8.self)
+                if req.url.path.contains("/webservice/pluginfile.php/") {
+                    try onDownload()
+                    return ok("%PDF-1.7")
+                }
+                if form.contains("core_webservice_get_site_info") { return okJSON(["userid": 42]) }
+                if form.contains("core_enrol_get_users_courses") { return okJSON([["id": 35, "fullname": "SoSe 2026: 0435 Kurs 35"]]) }
+                if form.contains("core_course_get_contents") { return okJSON(contents) }
+                return UniResponse(status: 404)
+            }
+        }
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+
+        // ganzer Container waehrend des ersten Downloads geloescht: die zweite Datei legt ihn nicht wieder an
+        let (db, layout) = try await container()
+        let t = learnweb { try? layout.remove() }
+        let r = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                     lsf: nil, transport: t, clock: clock, retry: noWait).run()
+        XCTAssertEqual(r.newFiles, [])
+        XCTAssertEqual(r.failedFiles.count, 2)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.root.path), "Container nicht neu angelegt")
+
+        // nur die Kennzeichnung ist schon weg (Loeschen laeuft): die geladene Datei kommt nicht an ihren Platz
+        let (db2, layout2) = try await container()
+        let t2 = learnweb { try? FileManager.default.removeItem(at: layout2.manifestURL) }
+        let r2 = await HildesheimSync(db: db2, container: layout2, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t2, retry: noWait),
+                                      lsf: nil, transport: t2, clock: clock, retry: noWait).run()
+        XCTAssertEqual(r2.newFiles, [])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout2.learnweb.appendingPathComponent("files").path), "keine Datei abgelegt")
+        let stored = try await db2.scalar("SELECT COUNT(*) FROM files WHERE local_path IS NOT NULL")?.int
+        XCTAssertEqual(stored, 0)
+        XCTAssertTrue(r2.messages.contains { $0.contains("2 Dateien später erneut") }, r2.messages.joined(separator: "; "))
+
+        let missing = DataContainerLayout(base: layout.base, key: DataContainerKey(userID: "001234.erfunden.0002", university: .hildesheim))
+        let none = FakeUniTransport()
+        let refused = await HildesheimSync(db: db, container: missing, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: none, retry: noWait),
+                                           lsf: nil, transport: none).run()
+        XCTAssertEqual(refused.refused, DataContainerError.missing.description)
+        XCTAssertTrue(none.requests.isEmpty, "ohne Kennzeichnung keine Anfrage")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: missing.root.path))
+    }
 }

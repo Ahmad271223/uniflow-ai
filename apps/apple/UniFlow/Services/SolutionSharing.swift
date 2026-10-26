@@ -115,6 +115,22 @@ enum SolutionImportResult {
     case removedUnreadable(SolutionLibrary.Entry, SolutionError)
 }
 
+/// Anzeigename beim Teilen einer Loesung, gemerkt je Container (Apple-Nutzer, Hochschule) in dessen
+/// Einstellungs-Suite: ein zweites Konto sieht ihn nicht, "Daten dieser Hochschule löschen" und "Konto löschen"
+/// entfernen ihn mit, der Umzug der alten LUH-Daten nimmt ihn mit (`ContainerManager.legacyContainerKeys`). Ohne
+/// Container wird nichts gemerkt.
+enum SolutionDisplayName {
+    static let key = "uniflow.solution.displayName"
+
+    static func load(_ defaults: UserDefaults? = ActiveContainer.current?.defaults) -> String {
+        defaults?.string(forKey: key) ?? ""
+    }
+
+    static func save(_ name: String, _ defaults: UserDefaults? = ActiveContainer.current?.defaults) {
+        defaults?.set(name, forKey: key)
+    }
+}
+
 /// Teilen und Ansehen von Loesungen ohne Server (docs/LOESUNGEN-TEILEN.md).
 enum SolutionSharing {
     static let cipher = CryptoKitSolutionCipher()

@@ -8,8 +8,10 @@ import Foundation
 ///
 /// Ablauf je Kurs wie `store_course_files`, aufgeteilt, weil im Kern kein Netz in einer Transaktion laeuft:
 /// 1. `storeFiles` (Transaktion): Dateizeilen schreiben, Rueckgabe der Dateien, die geladen werden muessen
-/// 2. Download ausserhalb der Transaktion (Quelle), Inhalts-Hash mit `TestShare.contentHash(file:)`
-/// 3. `markDownloaded` (Transaktion): Ablageort, Ladezeitpunkt, die geladene Fassung und `content_sha256`
+/// 2. Download ausserhalb der Transaktion (`UniDownloads.load`: Quelle laedt, Ablage im Container, Inhalts-Hash mit
+///    `TestShare.contentHash(file:)`)
+/// 3. `markDownloaded` (Transaktion, ebenfalls aus `UniDownloads.load`): Ablageort, Ladezeitpunkt, die geladene
+///    Fassung und `content_sha256`
 /// Scheitert der Download, bleibt die alte Fassung stehen und die Datei gilt beim naechsten Abgleich weiter als
 /// geaendert. Nichts wird geloescht: in der Quelle verschwundene Dateien bleiben mit ihren Notizen stehen.
 /// Alles hier ist synchron und fuer `SQLiteDatabase.transaction` gedacht (kein `await` darin).

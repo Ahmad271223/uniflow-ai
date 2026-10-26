@@ -110,17 +110,18 @@ extension UniStore {
 /// Abgleich Uni Hildesheim auf dem Geraet: Learnweb (Kurse, Dateien), LSF (Stundenplan, Noten).
 ///
 /// Ablauf wie `hildesheim.sync_learnweb` am PC: alle Kurse (`UniStore.upsertCourse`), dann je Kurs Dateiliste
-/// (`UniStore.storeFiles`), Downloads und je geladene Datei `UniStore.markDownloaded`, dieselben Funktionen wie der
-/// Stud.IP-Abgleich. Ausfallsicher: kein Netz in einer Transaktion, jede Transaktion kurz; ein Fehler betrifft nur
-/// diesen Kurs bzw. diese Datei. Nichts wird geloescht, weil die Gegenseite nicht antwortet; LSF-Serien verschwinden
-/// nur nach einem vollstaendig gelesenen Plan. Downloads gehen erst in eine .part-Datei und ersetzen eine gute Datei
-/// nie halb; eine neue Fassung, die nicht ankam, laedt der naechste Abgleich. Laeuft die Anmeldung ab oder wird der
-/// Lauf abgebrochen (`Task.cancel`), endet der Learnweb-Teil; die uebrigen Kurse stehen in `notAttempted` und
-/// gelten nicht als Fehler.
+/// (`UniStore.storeFiles`), Downloads und je geladene Datei `UniStore.markDownloaded` ueber `UniDownloads`, dieselben
+/// Funktionen wie der Stud.IP-Abgleich. Ausfallsicher: kein Netz in einer Transaktion, jede Transaktion kurz; ein
+/// Fehler betrifft nur diesen Kurs bzw. diese Datei. Nichts wird geloescht, weil die Gegenseite nicht oder leer
+/// antwortet; LSF-Serien verschwinden nur nach einem vollstaendig gelesenen Plan (`LSFClient.planEntries`). Downloads
+/// gehen erst in eine .part-Datei und ersetzen eine gute Datei nie halb und nie durch eine leere; eine neue Fassung,
+/// die nicht ankam, laedt der naechste Abgleich. Laeuft die Anmeldung ab oder wird der Lauf abgebrochen
+/// (`Task.cancel`), endet der Learnweb-Teil; die uebrigen Kurse stehen in `notAttempted` und gelten nicht als Fehler.
 ///
 /// Speicher: der Container (Apple-Nutzer, Uni Hildesheim) wie beim Stud.IP-Abgleich der LUH (`DataContainerLayout`).
 /// Downloads unter `Learnweb/files/<id>/<name>`, `files.local_path` relativ zum Container. Passt der Container oder
-/// seine Datenbank nicht zur Uni Hildesheim (`UniversityMismatch`, anderes Konto), laeuft nichts.
+/// seine Datenbank nicht zur Uni Hildesheim (`UniversityMismatch`, anderes Konto) oder fehlt seine Kennzeichnung
+/// (geloescht), laeuft nichts; vor jedem Schreiben einer Datei wird das erneut geprueft (`UniDownloads`).
 public actor HildesheimSync {
 
     public struct Report: Sendable, Equatable {
@@ -164,13 +165,10 @@ public actor HildesheimSync {
     private let lsf: LSFClient?
     private let transport: UniTransport
     private let clock: UniFlowClock
-    /// Inhalts-Hash einer geladenen Datei (`content_sha256`); die App darf CryptoKit einsetzen (schneller)
-    private let hasher: @Sendable (URL) -> String?
     private let retry: UniRetry
 
     public init(db: SQLiteDatabase, container: DataContainerLayout, learnweb: LearnwebAPI?, lsf: LSFClient?, transport: UniTransport,
-                clock: UniFlowClock = .system, retry: UniRetry = UniRetry(),
-                hasher: @escaping @Sendable (URL) -> String? = { TestShare.contentHash(file: $0) }) {
+                clock: UniFlowClock = .system, retry: UniRetry = UniRetry()) {
         self.db = db
         self.container = container
         self.learnweb = learnweb
@@ -178,7 +176,6 @@ public actor HildesheimSync {
         self.transport = transport
         self.clock = clock
         self.retry = retry
-        self.hasher = hasher
     }
 
     /// Neu anmelden noetig (abgelaufene Sitzung oder ungueltiger Schluessel)
@@ -225,15 +222,15 @@ public actor HildesheimSync {
         return report
     }
 
-    /// Nur der Container der Uni Hildesheim mit seiner Kennzeichnung und eine Datenbank dieser Hochschule
-    /// (`settings.university`) werden beschrieben; sonst die Meldung, warum nicht.
+    /// Nur der Container der Uni Hildesheim mit seiner Kennzeichnung (streng: ohne Kennzeichnung nicht) und eine
+    /// Datenbank dieser Hochschule (`settings.university`) werden beschrieben; sonst die Meldung, warum nicht.
     private func refusal() async -> String? {
         let want = UniversityKey.hildesheim.rawValue
         guard container.university == .hildesheim else {
             return UniversityMismatch(stored: container.university.rawValue, expected: want).description
         }
         do {
-            try container.verify()
+            try container.verifyPresent()
             let stored = try await db.scalar("SELECT value FROM settings WHERE key='university'")?.string
             if stored != want { return UniversityMismatch(stored: stored, expected: want).description }
         } catch {
@@ -244,6 +241,8 @@ public actor HildesheimSync {
 
     private func syncLearnweb(_ api: LearnwebAPI, filter: String?, into report: inout Report) async {
         let courses: [Learnweb.Course]
+        let downloads = UniDownloads(container, folder: container.learnweb)
+        defer { downloads.end() }
         do {
             courses = try await api.courses().filter { c in
                 !c.hidden && (filter.map { f in f.isEmpty || c.semester.lowercased().contains(f.lowercased()) } ?? true)
@@ -254,6 +253,7 @@ public actor HildesheimSync {
                     try UniStore.upsertCourse(conn, UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semester), now: now)
                 }
             }
+            try downloads.begin()
         } catch {
             if Self.isCancellation(error) {
                 report.cancelled = true
@@ -291,9 +291,8 @@ public actor HildesheimSync {
                     do {
                         try Task.checkCancellation()
                         let req = try await api.downloadRequest(f)
-                        let (stored, sha) = try await download(req, fileID: row.id, name: row.name, shownURL: row.downloadURL)
-                        let at = clock.nowISO
-                        try await db.transaction { try UniStore.markDownloaded($0, row, localPath: stored, sha256: sha, now: at) }
+                        try await downloads.load(row, to: Self.relativePath(fileID: row.id, name: row.name), db: db, clock: clock,
+                                                 fetch: Self.fetch(req, name: row.name, shownURL: row.downloadURL, transport: transport, retry: retry))
                         report.newFiles.append(row.id)
                     } catch {
                         if stop(error) { break courseLoop }
@@ -314,40 +313,19 @@ public actor HildesheimSync {
                                + (report.failedFiles.isEmpty ? "" : ", \(report.failedFiles.count) Dateien später erneut"))
     }
 
-    /// Download wie `stream_download` am PC: in eine .part-Datei im Zwischenordner `Learnweb/.laden` (Wiederholung bei
-    /// abgerissener Verbindung), Pruefung (keine Anmelde- oder andere Webseite, `UniStore.isWebPage`; keine
-    /// Fehlermeldung von Moodle statt der Datei, `Learnweb.downloadError`), dann atomar an ihren Platz. Ein Fehler
-    /// hinterlaesst nichts. Rueckgabe (Pfad relativ zum Container, Inhalts-Hash)
-    private func download(_ req: UniRequest, fileID: String, name: String, shownURL: String) async throws -> (String, String?) {
-        let folder = container.learnweb
-        let target = folder.appendingPathComponent(Self.relativePath(fileID: fileID, name: name))
-        let partial = folder.appendingPathComponent(".laden", isDirectory: true)
-        let part = partial.appendingPathComponent(UUID().uuidString + ".part")
-        let fm = FileManager.default
-        try fm.createDirectory(at: partial, withIntermediateDirectories: true)
-        Self.excludeFromBackup(folder)
-        defer { try? fm.removeItem(at: part) }
-        let resp = try await retry.run { try await transport.download(req, to: part) }
-        if HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
-        guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: shownURL) }
-        if UniStore.isWebPage(file: part, name: name) { throw HildesheimError.htmlInsteadOfFile(shownURL) }
-        if let e = Learnweb.downloadError(file: part, name: name) { throw e }
-        try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-        // rename ersetzt atomar: entweder die alte oder die neue Datei, nie eine halbe
-        guard rename(part.path, target.path) == 0, let stored = container.files().stored(target) else {
-            throw HildesheimError.badResponse("Datei nicht gespeichert: \(name)")
+    /// Download einer Learnweb-Datei in die Zwischendatei von `UniDownloads.load`, wie `stream_download` am PC
+    /// (Wiederholung bei abgerissener Verbindung), mit den Pruefungen des Learnweb: keine CAS-Anmeldung, HTTP 200,
+    /// keine Anmelde- oder andere Webseite (`UniStore.isWebPage`), keine Fehlermeldung von Moodle statt der Datei
+    /// (`Learnweb.downloadError`)
+    private static func fetch(_ req: UniRequest, name: String, shownURL: String, transport: UniTransport,
+                              retry: UniRetry) -> @Sendable (URL) async throws -> Void {
+        { part in
+            let resp = try await retry.run { try await transport.download(req, to: part) }
+            if HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
+            guard resp.status == 200 else { throw HildesheimError.http(status: resp.status, url: shownURL) }
+            if UniStore.isWebPage(file: part, name: name) { throw HildesheimError.htmlInsteadOfFile(shownURL) }
+            if let e = Learnweb.downloadError(file: part, name: name) { throw e }
         }
-        return (stored, hasher(target))
-    }
-
-    /// Vorlesungsunterlagen lassen sich jederzeit neu laden: nicht ins iCloud-Backup (wie `StudIP/` in der App)
-    private static func excludeFromBackup(_ folder: URL) {
-        #if canImport(Darwin)
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        var f = folder
-        try? f.setResourceValues(values)
-        #endif
     }
 
     private func syncPlan(_ lsf: LSFClient, into report: inout Report) async {

@@ -128,6 +128,50 @@ struct UniversitySwitchDialog: View {
     }
 }
 
+/// Inhalt, der sich mit dem Stand der Abgleiche des offenen Containers neu zeichnet (Stud.IP, Learnweb/LSF):
+/// Loeschknoepfe sind gesperrt, solange einer laeuft. `ContainerManager` haelt einen laufenden Abgleich vor dem
+/// Loeschen ohnehin an und wartet auf ihn; die Sperre sagt das vorher.
+struct ContainerSyncGate<Content: View>: View {
+    @EnvironmentObject private var containers: ContainerManager
+    @ViewBuilder let content: (_ syncing: Bool) -> Content
+
+    var body: some View {
+        StudIPObserver(studip: containers.studip, hildesheim: containers.hildesheim, content: content)
+    }
+
+    private struct StudIPObserver: View {
+        @ObservedObject var studip: StudIPSync
+        let hildesheim: HildesheimConnection?
+        let content: (Bool) -> Content
+
+        var body: some View {
+            if let hildesheim {
+                HildesheimObserver(connection: hildesheim, studipRunning: studip.isRunning, content: content)
+            } else {
+                content(studip.isRunning)
+            }
+        }
+    }
+
+    private struct HildesheimObserver: View {
+        @ObservedObject var connection: HildesheimConnection
+        let studipRunning: Bool
+        let content: (Bool) -> Content
+
+        var body: some View { content(studipRunning || connection.isRunning) }
+    }
+}
+
+/// Hinweis in den Loeschdialogen, solange ein Abgleich laeuft
+struct ContainerSyncNotice: View {
+    var body: some View {
+        Text("Gerade läuft ein Abgleich. Löschen ist möglich, sobald er fertig ist.")
+            .ufFont(13.12, 600).foregroundStyle(UF.warn)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("container.delete.syncing")
+    }
+}
+
 /// "Daten dieser Hochschule löschen": genau dieser Container mit Anmeldung, Zugangsdaten und Webdaten
 struct DeleteUniversityDataDialog: View {
     let university: UniversityKey
@@ -140,21 +184,28 @@ struct DeleteUniversityDataDialog: View {
 
     var body: some View {
         UFDialog("Daten der \(university.profile.name) löschen?", icon: "trash") {
-            Text(Self.explanation(university))
-                .ufFont(13.12).foregroundStyle(UF.text2)
-                .fixedSize(horizontal: false, vertical: true)
-        } foot: {
-            UFButton("Abbrechen") { close() }
-            UFButton("Endgültig löschen", icon: "trash", kind: .danger) {
-                guard let user = account.account?.userID else { return }
-                busy = true
-                Task {
-                    overlay.closeAll()
-                    await containers.deleteUniversityData(DataContainerKey(userID: user, university: university))
-                    toast.show("Die Daten der \(university.profile.name) wurden von diesem iPad gelöscht.", seconds: 4)
+            VStack(alignment: .leading, spacing: 9.6) {
+                Text(Self.explanation(university))
+                    .ufFont(13.12).foregroundStyle(UF.text2)
+                    .fixedSize(horizontal: false, vertical: true)
+                ContainerSyncGate { syncing in
+                    if syncing { ContainerSyncNotice() }
                 }
             }
-            .disabled(busy)
+        } foot: {
+            UFButton("Abbrechen") { close() }
+            ContainerSyncGate { syncing in
+                UFButton("Endgültig löschen", icon: "trash", kind: .danger) {
+                    guard let user = account.account?.userID else { return }
+                    busy = true
+                    Task {
+                        overlay.closeAll()
+                        await containers.deleteUniversityData(DataContainerKey(userID: user, university: university))
+                        toast.show("Die Daten der \(university.profile.name) wurden von diesem iPad gelöscht.", seconds: 4)
+                    }
+                }
+                .disabled(busy || syncing)
+            }
         }
     }
 

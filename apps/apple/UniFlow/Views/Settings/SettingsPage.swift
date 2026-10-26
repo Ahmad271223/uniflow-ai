@@ -736,23 +736,29 @@ private struct DeleteAccountDialog: View {
                 Text("Ein Abo wird dadurch nicht gekündigt. Abos kündigst du bei Apple:").font(.uf(13.12, 700)).foregroundStyle(UF.text)
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
                     .ufFont(13.12, 600).foregroundStyle(UF.accentText)
+                ContainerSyncGate { syncing in
+                    if syncing { ContainerSyncNotice() }
+                }
             }
             .ufFont(13.12).foregroundStyle(UF.text2)
             .fixedSize(horizontal: false, vertical: true)
         } foot: {
             UFButton("Abbrechen") { close() }
-            UFButton("Konto löschen", icon: "trash", kind: .danger) {
-                busy = true
-                Task {
-                    // RootView zeigt danach die Begruessung
-                    let steps = account.account.map { AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID) } ?? []
-                    await account.deleteAccount(also: steps) {
-                        overlay.closeAll()
-                        router.go(.dashboard)
+            // gesperrt, solange ein Abgleich laeuft (deleteAllData haelt ihn sonst an und wartet auf ihn)
+            ContainerSyncGate { syncing in
+                UFButton("Konto löschen", icon: "trash", kind: .danger) {
+                    busy = true
+                    Task {
+                        // RootView zeigt danach die Begruessung
+                        let steps = account.account.map { AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID) } ?? []
+                        await account.deleteAccount(also: steps) {
+                            overlay.closeAll()
+                            router.go(.dashboard)
+                        }
                     }
                 }
+                .disabled(busy || syncing)
             }
-            .disabled(busy)
         }
     }
 }

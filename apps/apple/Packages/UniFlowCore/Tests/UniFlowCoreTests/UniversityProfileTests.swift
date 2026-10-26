@@ -163,30 +163,24 @@ final class UniversityProfileTests: XCTestCase {
     </form></body></html>
     """
 
-    func testCasFormAndStates() {
-        let f = HildesheimCAS.form(html: casForm)
-        XCTAssertTrue(f.hasUsername && f.hasPassword && f.hasSubmit && f.isComplete)
-        XCTAssertFalse(HildesheimCAS.form(html: "<html><body>Learnweb</body></html>").isComplete)
-        let service = URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=1")!
-        let login = URL(string: "https://www.uni-hildesheim.de/sso/login?service=x")!
-        XCTAssertEqual(HildesheimCAS.state(url: login, html: casForm, service: service, casBase: casBase), .loginRequired)
+    /// Fehlertext des CAS nach falscher Eingabe (zeigt die Anmeldeansicht der App); ob die Anmeldung fertig ist,
+    /// entscheidet der Dienst (`LSFClient.isLoggedIn`, `Learnweb.isLoggedIn`)
+    func testCasErrorTextAndLoginRules() {
         let failed = casForm.replacingOccurrences(of: "<form", with: """
         <div id="loginErrorsPanel" class="banner banner-danger"><p><span>Ung&uuml;ltige</span> Anmeldedaten.</p>
         <div><b>Bitte</b> erneut versuchen</div></div><form
         """)
         XCTAssertEqual(HildesheimCAS.errorText(html: failed), "Ungültige Anmeldedaten. Bitte erneut versuchen")
-        XCTAssertEqual(HildesheimCAS.state(url: login, html: failed, service: service, casBase: casBase),
-                       .failed("Ungültige Anmeldedaten. Bitte erneut versuchen"))
         XCTAssertNil(HildesheimCAS.errorText(html: casForm))
-        // Erfolg: Ruecksprung zur service-URL (mit ticket)
-        let back = URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=1&ticket=ST-1-abc")!
-        XCTAssertEqual(HildesheimCAS.state(url: back, html: nil, service: service, casBase: casBase), .returnedToService)
-        XCTAssertEqual(HildesheimCAS.state(url: URL(string: "https://www.uni-hildesheim.de/sso/logout"), html: nil, service: service,
-                                      casBase: casBase), .elsewhere)
-        XCTAssertFalse(HildesheimCAS.returnedToService(URL(string: "http://lsf.uni-hildesheim.de/qisserver/rds"), service: service))
-        XCTAssertFalse(HildesheimCAS.returnedToService(URL(string: "https://lsf.uni-hildesheim.de/qisserverX"), service: service))
-        let lw = URL(string: "https://www.uni-hildesheim.de/learnweb2026/login/index.php?authCAS=CAS")!
-        XCTAssertTrue(HildesheimCAS.returnedToService(URL(string: "https://www.uni-hildesheim.de/learnweb2026/login/index.php?ticket=ST-2"), service: lw))
+        // LSF angemeldet = Seite des LSF ueber HTTPS mit "Abmelden" (lsf.is_logged_in)
+        let page = #"<a href="rds?state=user&amp;type=4">Abmelden</a>"#
+        XCTAssertTrue(LSFClient.isLoggedIn(html: page, url: URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0")))
+        XCTAssertTrue(LSFClient.isLoggedIn(html: page, url: URL(string: "https://LSF.uni-hildesheim.de/qisserver/rds")))
+        XCTAssertFalse(LSFClient.isLoggedIn(html: "<a>Anmelden</a>", url: URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds")))
+        XCTAssertFalse(LSFClient.isLoggedIn(html: page, url: URL(string: "http://lsf.uni-hildesheim.de/qisserver/rds")), "nur HTTPS")
+        XCTAssertFalse(LSFClient.isLoggedIn(html: page, url: URL(string: "https://www.uni-hildesheim.de/sso/login?service=x")), "CAS ist nicht das LSF")
+        XCTAssertFalse(LSFClient.isLoggedIn(html: page, url: URL(string: "https://lsf.uni-hildesheim.de.example.org/qisserver")))
+        XCTAssertFalse(LSFClient.isLoggedIn(html: page, url: nil))
     }
 
     func testErrorTextIsShortAndHasNoTags() {

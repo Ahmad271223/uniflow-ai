@@ -169,7 +169,7 @@ public enum StudIPScheduleStore {
     public static func store(_ d: StudIPScheduleDownload, in c: SQLiteConnection, clock: UniFlowClock) throws -> StudIPScheduleResult {
         let now: SQLiteValue = .text(clock.nowISO)
         // Kurse wie upsert_course in run_sync, derselbe Weg wie der Datei-Abgleich (`StudIPLibrary.storeCourses`):
-        // anlegen bzw. Titel, Nummer, Semester aktualisieren; Fach und Art aus `StudyClassify.classify` nur, solange
+        // anlegen bzw. Titel, Nummer, Semester aktualisieren; Fach und Art aus `UniRules.classify` nur, solange
         // sie fehlen (der Nutzer darf sie aendern). Ohne Art fiele ein Kurs aus studip_entries (kind != 'sonstiges').
         try StudIPLibrary.storeCourses(c, d.courses, startedAt: clock.nowISO)
         // Einzeltermine je vollstaendig geladenem Kurs ersetzen (store_events; dort bleiben Veraltete stehen)

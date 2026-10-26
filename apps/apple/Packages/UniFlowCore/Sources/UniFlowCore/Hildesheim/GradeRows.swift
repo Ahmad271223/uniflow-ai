@@ -1,7 +1,9 @@
 import Foundation
 
 /// Notenspiegel-Tabellen (HIS QIS/LSF) als Zeilen von Zellentexten -> Leistungen (`qis.parse_grade_rows`), die eine
-/// Fassung fuer das LSF Hildesheim (`LSFClient.grades`, `QISPage.grades(layout: .hildesheim)`).
+/// Fassung fuer das LSF Hildesheim. Gesammelt und ausgewertet wird der Hildesheimer Notenspiegel nur ueber
+/// `LSFClient.grades` (Tabellenauswahl, Stammdaten-Schutz `QISParser.isStammdaten`, Reiter der Studiengaenge);
+/// `QISPage`/`QISCollector` sind der Weg des QIS der LUH.
 /// Hildesheim: vor der Kopfzeile steht "Abschluss: ...", Spalten "Prüfungsnr." / "Bezeichnung der Leistung ...",
 /// mehrere Abschluesse in einer Tabelle, Modulzeilen ohne Note/Status und "Prüfung vorhanden" sind keine Leistungen.
 /// Stammdaten (Name, Anschrift, Matrikelnummer) stehen ausserhalb dieser Tabellen und werden nie gelesen; steht doch
@@ -68,11 +70,11 @@ public enum GradeRows {
     }
 }
 
-/// Aufbau des Notenspiegels je Hochschule (`UniversityProfile.gradeLayout`).
+/// Aufbau des Notenspiegels je Hochschule (`UniversityProfile.gradeLayout`, wie `qis.PROFILES` am PC).
 public enum QISGradeLayout: String, Sendable, Hashable, Codable {
-    /// QIS der LUH (QISParser.grades, Kopfzeile in den ersten Zeilen)
+    /// QIS der LUH (`QISPage`, `QISCollector`, QISParser.grades, Kopfzeile in den ersten Zeilen)
     case luh
-    /// LSF Hildesheim (`GradeRows`, qis.parse_grade_rows)
+    /// LSF Hildesheim (`LSFClient.grades` mit `GradeRows`, qis.parse_grade_rows)
     case hildesheim
 
     /// Bescheinigungs-Links (verpublish) sammeln wie `qis.PROFILES[<uni>]["documents"]`: LUH ja, Hildesheim nein
@@ -81,25 +83,6 @@ public enum QISGradeLayout: String, Sendable, Hashable, Codable {
         switch self {
         case .luh: return true
         case .hildesheim: return false
-        }
-    }
-}
-
-extension QISPage {
-    /// Leistungen aller Tabellen der Seite nach dem Aufbau der Hochschule (LUH unveraendert). Stammdaten-Tabellen
-    /// verwirft schon `QISPage.parse`.
-    public func grades(abschluss: String = "", layout: QISGradeLayout) -> [QISGrade] {
-        switch layout {
-        case .luh: return grades(abschluss: abschluss)
-        case .hildesheim: return QISParser.merge(tables.flatMap { GradeRows.parse(rows: $0.rows.map { $0.map(\.text) }, abschluss: abschluss) })
-        }
-    }
-
-    /// Anzahl der Tabellen mit Leistungs-Kopfzeile nach dem Aufbau der Hochschule.
-    public func gradeTableCount(layout: QISGradeLayout) -> Int {
-        switch layout {
-        case .luh: return gradeTableCount
-        case .hildesheim: return tables.filter { t in t.rows.contains { GradeRows.isHeader(GradeRows.headerMap($0.map(\.text))) } }.count
         }
     }
 }

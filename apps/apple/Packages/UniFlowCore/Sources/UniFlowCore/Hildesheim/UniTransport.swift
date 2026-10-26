@@ -2,7 +2,9 @@ import Foundation
 
 /// HTTP fuer Hochschul-Abgleiche (Learnweb, LSF), ohne URLSession im Kern: die App setzt eine Umsetzung mit
 /// URLSession und den Cookies der Hochschule ein (eigener Datenspeicher je Nutzer und Uni), Tests feste Antworten.
-public struct UniRequest: Sendable, Equatable {
+/// Beschreibungen (`print`, `dump`, Meldungen) zeigen nur Methode und Adresse ohne Abfrage: kein sesskey (AJAX), kein
+/// Schluessel und kein Koerper (Formular mit `wstoken`/`token`).
+public struct UniRequest: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     public var url: URL
     public var method: String
     public var headers: [String: String]
@@ -16,6 +18,12 @@ public struct UniRequest: Sendable, Equatable {
         self.headers = headers
         self.body = body
         self.followRedirects = followRedirects
+    }
+
+    public var description: String { "\(method) \(HText.withoutQuery(url.absoluteString))" }
+    public var debugDescription: String { description }
+    public var customMirror: Mirror {
+        Mirror(self, children: ["method": method, "url": HText.withoutQuery(url.absoluteString)], displayStyle: .struct)
     }
 }
 

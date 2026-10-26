@@ -1,11 +1,11 @@
-import CryptoKit
 import Foundation
 import UniFlowCore
 import WebKit
 
-// HTTP der Hochschul-Abgleiche ohne Stud.IP (Uni Hildesheim: CAS, Learnweb, LSF) in der App,
-// docs/AUFTRAG-HILDESHEIM-IPAD.md ("duenne Schicht", Punkt 1). Der Kern (`HildesheimSync`, `LearnwebAPI`, `LSFClient`)
-// kennt nur `UniTransport`; hier steckt URLSession dahinter.
+// HTTP der Hochschul-Abgleiche in der App, docs/AUFTRAG-HILDESHEIM-IPAD.md ("duenne Schicht", Punkt 1): Uni Hildesheim
+// (CAS, Learnweb, LSF) direkt, Stud.IP der LUH ueber `URLSessionStudIPTransport` (StudIPSync.swift). Der Kern
+// (`HildesheimSync`, `LearnwebAPI`, `LSFClient`, `StudIPClient`) kennt nur seine Transport-Protokolle; hier steckt die
+// eine URLSession-Umsetzung dahinter.
 
 /// `UniTransport` mit einer eigenen, fluechtigen URLSession je Lauf und Container (Apple-Nutzer, Hochschule). Die
 /// Cookies kommen aus dem Datenspeicher der Anmelde-Webansichten genau dieses Containers
@@ -26,6 +26,15 @@ final class URLSessionUniTransport: UniTransport, @unchecked Sendable {
         let p = UniversityProfile.hildesheim
         let hosts = [p.casBase, p.learnwebBase, p.lsfBase].compactMap { $0?.host?.lowercased() }
         return Array(Set(hosts.map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 })).sorted()
+    }
+
+    /// Rechner des Stud.IP der LUH: Stud.IP selbst und die Anmeldeseiten aus dem Profil (WebSSO /idp/, Stud.IP-Login),
+    /// auf die eine abgelaufene Sitzung weiterleitet (`StudIPClient.looksLikeLogin`)
+    static var studipDomains: [String] {
+        let p = UniversityProfile.luh
+        let hosts = [p.studipBase?.host?.lowercased()].compactMap { $0 }
+            + (p.loginServices.first { $0.key == "studip" }?.targets.map { $0.host.lowercased() } ?? [])
+        return Array(Set(hosts)).sorted()
     }
 
     private let session: URLSession
@@ -152,25 +161,5 @@ final class URLSessionUniTransport: UniTransport, @unchecked Sendable {
             transport.setCookieHeader(&next)
             return next
         }
-    }
-}
-
-/// Inhalts-Hash einer geladenen Datei (`files.content_sha256`, gemeinsame Wochentests) mit CryptoKit: dasselbe
-/// Ergebnis wie `TestShare.contentHash(file:)` im Kern (SHA-256 in 1-MB-Bloecken, klein geschriebenes Hex), aber
-/// schneller. Fuer alle Abgleiche der App (Stud.IP, Learnweb). Nicht auf dem Hauptthread und nicht in einer
-/// Datenbank-Transaktion aufrufen.
-enum UniFileHash {
-    static func sha256(file url: URL) -> String? {
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue,
-              let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        var hasher = SHA256()
-        do {
-            while let block = try handle.read(upToCount: 1 << 20), !block.isEmpty { hasher.update(data: block) }
-        } catch {
-            return nil
-        }
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 }

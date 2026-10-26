@@ -48,7 +48,7 @@ final class UniStoreTests: XCTestCase {
         XCTAssertEqual(SolutionSHA256.hex(Data("abc".utf8)), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
         let dir = try tempDir()
         var gen = SystemRandomNumberGenerator()
-        for size in [0, 1, 55, 56, 63, 64, 65, 127, 128, 1000, (1 << 20) + 3] {
+        for size in [0, 1, 55, 56, 63, 64, 65, 127, 128, 1000, (1 << 20) + 3, 5 << 19] {
             let data = Data((0..<size).map { _ in UInt8.random(in: 0...255, using: &gen) })
             var h = SolutionSHA256.Hasher()
             var i = 0

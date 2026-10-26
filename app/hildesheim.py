@@ -24,9 +24,9 @@ def learnweb_base() -> str:
     return learnweb.discover_base(override=config.secret("HILDESHEIM_LEARNWEB_URL") or None)
 
 
-def _download(page, url: str, target: Path, token: str = "") -> None:
-    # gestreamt (konstanter Speicher); Fehlermeldungen zeigen die URL ohne Token
-    stream_download(page, learnweb.with_token(url, token) if token else url, target, shown_url=url)
+def _download(page, url: str, target: Path, token: str = "", size: int = 0) -> None:
+    # gestreamt (konstanter Speicher); Fehlermeldungen zeigen die URL ohne Token; leere Antwort ersetzt nichts
+    stream_download(page, learnweb.with_token(url, token) if token else url, target, shown_url=url, expected_size=size)
 
 
 def _learnweb_client(page, user: str, pw: str, token: str):
@@ -68,7 +68,8 @@ def sync_learnweb(page, client, courses: list[dict], token: str, started: str, n
             try:
                 files = client.files(c["moodle_id"])
                 folders = {f["id"]: f["folder"] for f in files if f.get("folder")}
-                store_course_files(conn, c, files, folders, lambda url, target: _download(page, url, target, token), started, new_files)
+                store_course_files(conn, c, files, folders, lambda url, target, size: _download(page, url, target, token, size),
+                                   started, new_files)
                 conn.commit()
             except Exception as e:  # noqa: BLE001
                 conn.commit()

@@ -171,7 +171,7 @@ def test_failed_download_of_new_version_is_retried(app, monkeypatch, tmp_path):
         def __exit__(self, *exc):
             return False
 
-    def download(page, url, target):
+    def download(page, url, target, size=0):
         fid = url.split("/file-refs/")[1].split("/")[0]
         if fid in failing:
             raise RuntimeError("Verbindung abgebrochen")

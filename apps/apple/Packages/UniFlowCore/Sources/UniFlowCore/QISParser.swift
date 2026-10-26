@@ -230,8 +230,8 @@ public struct QISPage: Sendable {
 
 // MARK: - Sammeln ueber mehrere Seiten
 
-/// Sammelt beim Durchklicken die Leistungen und Bescheinigungs-Links mehrerer Seiten. Enthaelt kein asi und darf
-/// gespeichert werden.
+/// Sammelt beim Durchklicken die Leistungen und Bescheinigungs-Links mehrerer Seiten des QIS der LUH. Enthaelt kein
+/// asi und darf gespeichert werden. Den Notenspiegel des LSF Hildesheim liest `LSFClient.grades` (Hildesheim/LearnwebAPI.swift).
 public struct QISCollector: Sendable, Equatable, Codable {
     public private(set) var grades: [QISGrade] = []
     public private(set) var documents: [QISDocumentLink] = []
@@ -241,14 +241,11 @@ public struct QISCollector: Sendable, Equatable, Codable {
     public init() {}
 
     /// Seite uebernehmen; `link` ist der Link, ueber den sie erreicht wurde (bestimmt den Abschluss der Leistungen).
-    /// `layout`: Aufbau des Notenspiegels der Hochschule (Universities/QISHildesheim.swift), Standard LUH; Bescheinigungs-
-    /// Links nur, wenn die Hochschule sie hat (`collectsDocuments`, Hildesheim nicht).
-    public mutating func absorb(_ page: QISPage, via link: QISLink? = nil, layout: QISGradeLayout = .luh) {
+    public mutating func absorb(_ page: QISPage, via link: QISLink? = nil) {
         visited.insert(page.address)
         if let link { visited.insert(link.address) }
         let abschluss = link.map { $0.studiengang ?? $0.text } ?? ""
-        grades = QISParser.merge(grades + page.grades(abschluss: abschluss, layout: layout))
-        guard layout.collectsDocuments else { return }
+        grades = QISParser.merge(grades + page.grades(abschluss: abschluss))
         var known = Set(documents.map(\.link.address))
         for d in page.documents where known.insert(d.link.address).inserted { documents.append(d) }
     }

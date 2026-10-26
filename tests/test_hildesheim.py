@@ -291,7 +291,7 @@ def test_store_course_files_downloads_only_changes(app, tmp_path):
               "chdate": 1, "download_url": "https://x/pluginfile.php/5/mod_resource/content/1/a.pdf", "folder": "Woche 1"}]
     got = []
 
-    def dl(url, target):
+    def dl(url, target, size=0):
         got.append(url)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(b"%PDF")
@@ -387,6 +387,72 @@ def test_lsf_import_plan_is_idempotent(app):
         conn.execute("DELETE FROM courses WHERE id IN ('lw-900','lw-901')")
 
 
+class _PlanPage:
+    """Seite "Persoenlicher Stundenplan" im LSF (erfundene Termin-Nummern) mit fester iCal-Antwort; kein Netz"""
+
+    def __init__(self, ics: str, link: bool = True):
+        self.ics, self.link, self.url = ics, link, "about:blank"
+        page = self
+
+        class Request:
+            @staticmethod
+            def get(url):
+                class R:
+                    ok, status = True, 200
+
+                    @staticmethod
+                    def text():
+                        return page.ics
+                return R()
+        self.request = Request()
+
+    def goto(self, url, wait_until=None):
+        self.url = url
+
+    def wait_for_timeout(self, ms):
+        pass
+
+    def locator(self, selector):
+        class L:
+            @staticmethod
+            def count():
+                return 1
+        return L()
+
+    def content(self):
+        link = '<a href="rds?state=verpublish&amp;status=transform&amp;moduleCall=iCalendarPlan&amp;termine=1,2">iCal</a>'
+        return '<a href="rds?state=user&amp;type=4">Abmelden</a>' + (link if self.link else "")
+
+
+def test_lsf_calendar_without_events_removes_nothing(app, monkeypatch):
+    """Export-Link vorhanden, aber der Kalender hat keinen Termin: Fehler, LSF-Serien bleiben samt eigener Ausnahmen
+    (Verlegung) und Teilnahme-Einstellung. Ein leerer Plan ist nur der Fall ohne Export-Link."""
+    from app import db, hildesheim, lsf
+    monkeypatch.setattr(lsf, "login", lambda page, user, password, log=print: None)
+    with db.cursor() as conn:
+        conn.execute("DELETE FROM course_events WHERE source='lsf'")
+    assert hildesheim.sync_lsf_plan(_PlanPage(PLAN_ICS), "u", "p") == "Stundenplan: 4 neu, 0 unveraendert, 0 entfernt"
+    with db.cursor() as conn:
+        eid = db.row(conn, "SELECT id FROM course_events WHERE source='lsf' AND title LIKE 'Erinnerungen%'")["id"]
+        conn.execute("UPDATE course_events SET attend=0 WHERE id=?", (eid,))
+        conn.execute("INSERT INTO event_exceptions(event_id, date, type, created_at) VALUES (?, '2026-11-02', 'moved', '2026-10-25')", (eid,))
+        exc_before = db.row(conn, "SELECT COUNT(*) AS n FROM event_exceptions")["n"]
+    empty = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//HIS//LSF//DE\r\nEND:VCALENDAR\r\n"
+    with pytest.raises(RuntimeError, match="ohne Termine"):
+        hildesheim.sync_lsf_plan(_PlanPage(empty), "u", "p")
+    with db.cursor() as conn:
+        assert db.row(conn, "SELECT COUNT(*) AS n FROM course_events WHERE source='lsf'")["n"] == 4
+        assert db.row(conn, "SELECT attend FROM course_events WHERE id=?", (eid,))["attend"] == 0
+        assert db.row(conn, "SELECT 1 FROM event_exceptions WHERE event_id=? AND type='moved'", (eid,))
+        assert db.row(conn, "SELECT COUNT(*) AS n FROM event_exceptions")["n"] == exc_before
+    # ohne Export-Link: leerer Plan wie bisher, ebenfalls ohne etwas zu entfernen
+    assert hildesheim.sync_lsf_plan(_PlanPage(empty, link=False), "u", "p") == "LSF-Stundenplan ist leer"
+    with db.cursor() as conn:
+        assert db.row(conn, "SELECT COUNT(*) AS n FROM course_events WHERE source='lsf'")["n"] == 4
+        conn.execute("DELETE FROM event_exceptions WHERE event_id IN (SELECT id FROM course_events WHERE source='lsf')")
+        conn.execute("DELETE FROM course_events WHERE source='lsf'")
+
+
 # ---------------------------------------------------------------- Live-Test 25.10.2026: Abbruch bei U+0308
 
 def test_log_survives_console_without_unicode(monkeypatch):
@@ -419,7 +485,7 @@ def test_sync_learnweb_keeps_courses_before_an_error(app, monkeypatch):
             return [{"id": learnweb.file_id(mid, "/", "a.pdf"), "name": "a.pdf", "size": 1, "mime": "application/pdf", "author": None,
                      "chdate": 1, "download_url": f"https://x/pluginfile.php/{mid}/mod_resource/content/1/a.pdf", "folder": "Woche 1"}]
 
-    def fake_dl(page, url, target, token=""):
+    def fake_dl(page, url, target, token="", size=0):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(b"%PDF")
 
@@ -523,6 +589,9 @@ def local_server():
             elif self.path.startswith("/login"):
                 body = b"<!DOCTYPE html><html><body>Anmelden</body></html>"
                 self.send_response(200); self.send_header("Content-Type", "text/html")
+            elif self.path.startswith("/leer"):
+                body = b""
+                self.send_response(200); self.send_header("Content-Type", "application/pdf")
             else:
                 body = b"nicht da"
                 self.send_response(404)
@@ -563,6 +632,83 @@ def test_stream_download_rejects_login_page_and_keeps_old_file(local_server, tmp
     with pytest.raises(RuntimeError, match="Webseite"):
         stream_download(_FakePage(), base + "/login", target)
     assert target.read_bytes() == b"%PDF alt" and not list(tmp_path.glob("*.part"))
+
+
+def test_empty_answer_never_replaces_a_good_file(local_server, tmp_path):
+    """HTTP 200 mit 0 Bytes zu einer neuen Fassung: die alte Datei bleibt (Notizen haengen an ihr); ohne lokale
+    Fassung zaehlt die Groesse laut Quelle. Gestreamt und ueber den Browser-Weg der LUH."""
+    from app import studip_sync
+    base, _ = local_server
+    old = tmp_path / "plan.pdf"
+    old.write_bytes(b"%PDF-1.7 gute alte Fassung")
+    with pytest.raises(RuntimeError, match="Leere Antwort"):
+        studip_sync.stream_download(_FakePage(), base + "/leer", old)
+    assert old.read_bytes() == b"%PDF-1.7 gute alte Fassung" and not list(tmp_path.glob("*.part"))
+    new = tmp_path / "neu.pdf"
+    with pytest.raises(RuntimeError, match="Leere Antwort"):
+        studip_sync.stream_download(_FakePage(), base + "/leer", new, expected_size=26)
+    assert not new.exists()
+    # die Quelle meldet selbst 0 Bytes und es gibt noch keine Fassung: eine wirklich leere Datei
+    really_empty = tmp_path / "leer.txt"
+    studip_sync.stream_download(_FakePage(), base + "/leer", really_empty)
+    assert really_empty.exists() and really_empty.stat().st_size == 0
+
+    class Resp:
+        ok, status = True, 200
+
+        def body(self):
+            return b""
+
+        def dispose(self):
+            pass
+
+    class Page(_FakePage):
+        class request:  # noqa: N801
+            @staticmethod
+            def get(url):
+                return Resp()
+
+    with pytest.raises(RuntimeError, match="Leere Antwort"):
+        studip_sync.download(Page(), base + "/leer", old, expected_size=26)
+    assert old.read_bytes() == b"%PDF-1.7 gute alte Fassung"
+
+
+def test_empty_answer_keeps_the_file_changed_for_the_next_sync(app, local_server):
+    """store_course_files: Groesse laut Quelle geht an den Download; scheitert er an einer leeren Antwort, bleiben
+    Datei, Fassung (chdate) und Inhalts-Hash, und der naechste Abgleich laedt die Datei erneut."""
+    import hashlib
+    from app import db
+    from app.studip_sync import store_course_files, stream_download, upsert_course
+    base, _ = local_server
+    course = {"id": "lw-36", "moodle_id": 36, "title": "0407 Leere Antwort", "number": "0407", "semester": "SoSe 2026"}
+    f = {"id": "lw-36-leer", "name": "plan.pdf", "size": 26, "mime": "application/pdf", "author": None, "chdate": 100,
+         "download_url": base + "/leer"}
+    sizes = []
+
+    def good(url, target, size=0):
+        sizes.append(size)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"%PDF-1.7 gute alte Fassung")
+
+    def empty(url, target, size=0):
+        sizes.append(size)
+        stream_download(_FakePage(), url, target, expected_size=size)
+
+    with db.cursor() as conn:
+        upsert_course(conn, course, "2026-10-25")
+        store_course_files(conn, course, [f], {}, good, "2026-10-25", [], pause=0)
+        f["chdate"] = 200
+        new = []
+        store_course_files(conn, course, [f], {}, empty, "2026-10-25", new, pause=0)
+        row = db.row(conn, "SELECT local_path, chdate, content_sha256 FROM files WHERE id=?", (f["id"],))
+        assert new == [] and sizes == [26, 26]
+        assert row["chdate"] == 100 and row["content_sha256"] == hashlib.sha256(b"%PDF-1.7 gute alte Fassung").hexdigest()
+        from pathlib import Path
+        assert Path(row["local_path"]).read_bytes() == b"%PDF-1.7 gute alte Fassung"
+        store_course_files(conn, course, [f], {}, good, "2026-10-25", new, pause=0)
+        assert new == [f["id"]], "gilt weiter als geaendert"
+        Path(row["local_path"]).unlink(missing_ok=True)
+        conn.execute("DELETE FROM files WHERE course_id='lw-36'"); conn.execute("DELETE FROM courses WHERE id='lw-36'")
 
 
 def test_stream_download_error_hides_token(local_server, tmp_path):
