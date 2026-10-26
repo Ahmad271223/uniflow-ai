@@ -512,7 +512,9 @@ enum LocalTimetableImport {
             try imported?(e, eventID)
         }
         for rid in removeIDs {
-            try c.execute("DELETE FROM course_events WHERE id=?", [try LocalTimetable.bind(rid, "remove_ids")])
+            let id = try LocalTimetable.bind(rid, "remove_ids")
+            try c.execute("DELETE FROM event_notes WHERE event_id=?", [id])
+            try c.execute("DELETE FROM course_events WHERE id=?", [id])
         }
         return ["new": .number(Double(nNew)), "updated": .number(Double(nUpd)), "removed": .number(Double(removeIDs.count)), "ids": .array(newIDs)]
     }

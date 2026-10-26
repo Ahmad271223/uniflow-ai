@@ -14,18 +14,13 @@ private func fixture() throws -> JSONValue {
 
 private let clock = UniFlowClock.fixed(berlin: "2026-10-25T14:30:05")!
 
-/// Erste Abweichung zweier JSON-Werte mit Pfad (fuer lesbare Fehlermeldungen)
-/// Bekannte Abweichung vom PC-Stand 26.10.2026 (Fristen aus dem Learnweb-Kalender, Feiertage und vorlesungsfreie
-/// Zeit, Ankuendigungen der Lehrenden, LSF-Bemerkungen): app/server.py haengt diese Schluessel an Tage, Termine und
-/// die Uebersicht. Das iPad hat die Logik (holidays.py, announcements.py, deadlines) noch nicht; fehlt der Schluessel
-/// lokal, zaehlt er nicht als Abweichung. `KnownDeviationTests` haelt den Unterschied als erwartete Abweichung fest.
-let pcOnlyKeys: Set<String> = ["deadlines", "marks", "notices", "announcements", "note"]
-
+/// Erste Abweichung zweier JSON-Werte mit Pfad (fuer lesbare Fehlermeldungen). Jeder Schluessel zaehlt: Fristen,
+/// Feiertage, Ankuendigungen und LSF-Bemerkungen (`deadlines`, `marks`, `notices`, `announcements`, `note`) sind seit
+/// dem Port vom PC-Stand 26.10.2026 auch auf dem iPad in den Antworten.
 func jsonDiff(_ a: JSONValue?, _ b: JSONValue?, _ path: String = "$") -> String? {
     switch (a, b) {
     case (.object(let x)?, .object(let y)?):
         for k in Set(x.keys).union(y.keys).sorted() {
-            if x[k] == nil, pcOnlyKeys.contains(k) { continue }
             if let d = jsonDiff(x[k], y[k], "\(path).\(k)") { return d }
         }
         return nil
@@ -105,15 +100,8 @@ final class LocalTimetableTests: XCTestCase {
             }
             if let d = jsonDiff(r.json, s["response"]) { problems.append("\(label): \(d)") }
         }
-        // Bekannte Abweichung (PC-Stand 26.10.2026, app/holidays.py): an Feiertagen, in der Weihnachtspause und in
-        // der vorlesungsfreien Zeit fallen Uni-Termine aus (exception "vorlesungsfrei"); das iPad kennt den Zeitplan
-        // der Hochschule noch nicht. Alles andere muss stimmen.
-        let holidayGaps = problems.filter { $0.hasSuffix("statt \"vorlesungsfrei\"") }
-        XCTExpectFailure("Ferien und Feiertage als Ausfall (PC-Stand) fehlen im iPad V1", strict: true) {
-            XCTAssertEqual(holidayGaps, [], holidayGaps.joined(separator: "\n"))
-        }
-        let rest = problems.filter { !holidayGaps.contains($0) }
-        XCTAssertEqual(rest, [], rest.joined(separator: "\n"))
+        // auch Feiertage, Weihnachtspause und vorlesungsfreie Zeit (exception "vorlesungsfrei" mit note, Holidays)
+        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
         let t = try await tables(backend)
         XCTAssertNil(jsonDiff(t, fx["tables_after"]), jsonDiff(t, fx["tables_after"]) ?? "")
     }

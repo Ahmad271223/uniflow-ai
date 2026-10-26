@@ -113,34 +113,10 @@ public enum Migrations {
         DeviceStep(version: 1) { try $0.execute("UPDATE settings SET value='0' WHERE key='tests_per_subject'") },
     ]
 
-    /// Vorlesungszeiten je Hochschule wie `holidays.SEMESTERS` in app/holidays.py (Name, Beginn, Ende; die Pausen
-    /// darin braucht die Migration nicht). Erweiterungen zuerst dort, dann hier.
-    static let semesters: [String: [(name: String, start: String, end: String)]] = [
-        "luh": [
-            ("SoSe 2026", "2026-04-07", "2026-07-18"),
-            ("WiSe 2026/27", "2026-10-12", "2027-01-30"),
-            ("SoSe 2027", "2027-04-05", "2027-07-17"),
-            ("WiSe 2027/28", "2027-10-11", "2028-01-29"),
-            ("SoSe 2028", "2028-04-18", "2028-07-29"),
-            ("WiSe 2028/29", "2028-10-09", "2029-01-27"),
-        ],
-        "hildesheim": [
-            ("SoSe 2026", "2026-04-07", "2026-07-17"),
-            ("WiSe 2026/27", "2026-10-19", "2027-02-05"),
-            ("SoSe 2027", "2027-04-05", "2027-07-16"),
-            ("WiSe 2027/28", "2027-10-11", "2028-02-04"),
-            ("SoSe 2028", "2028-04-18", "2028-07-28"),
-            ("WiSe 2028/29", "2028-10-09", "2029-02-02"),
-            ("SoSe 2029", "2029-04-09", "2029-07-20"),
-            ("WiSe 2029/30", "2029-10-08", "2030-02-01"),
-            ("SoSe 2030", "2030-04-15", "2030-07-26"),
-        ],
-    ]
-
-    /// `holidays.default_term`: laufendes oder naechstes Semester laut Zeitplan; nil, wenn der Zeitplan nichts
-    /// (mehr) kennt.
+    /// `holidays.default_term`: laufendes oder naechstes Semester laut Zeitplan (`Holidays.semesters`, die eine
+    /// Tabelle wie app/holidays.py); nil, wenn der Zeitplan nichts (mehr) kennt.
     static func defaultTerm(university: String, today: String) -> (name: String, start: String, end: String)? {
-        semesters[university]?.first { $0.end >= today }
+        Holidays.defaultTerm(university: university, today: today).map { ($0.name, $0.start, $0.end) }
     }
 
     /// `db.ensure_term`: Semester fuer den Stundenplan. Frueher stand hier fuer alle Hochschulen die LUH-Vorlesungszeit;

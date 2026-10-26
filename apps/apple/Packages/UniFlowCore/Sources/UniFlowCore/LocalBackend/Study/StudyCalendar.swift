@@ -35,6 +35,8 @@ enum StudyCalendar {
         }
         let s = try StudyPlan.Settings(c)
         let events = end - start <= 45 ? try T.occurrences(c, from: start, to: end) : []
+        let (marks, dls) = try Holidays.calendarExtras(c, from: start, to: end)
+        let notes = try Announcements.byDay(c, from: start, to: end)
         var days: [JSONValue] = []
         var d = start
         while d <= end {
@@ -68,7 +70,8 @@ enum StudyCalendar {
             }
             days.append(["date": .string(di), "weekday": .number(Double(BerlinClock.weekday(d))), "status": .string(st),
                          "minutes": .number(minutes), "tasks_done": .number(Double(done)), "tasks_total": .number(Double(tasks.count)),
-                         "packages": .array(dp.map(JSONValue.object)), "events": .array(events.filter { $0["date"]?.string == di })])
+                         "packages": .array(dp.map(JSONValue.object)), "events": .array(events.filter { $0["date"]?.string == di }),
+                         "marks": .array(marks[di] ?? []), "deadlines": .array(dls[di] ?? []), "notices": .array(notes[di] ?? [])])
             d += 1
         }
         return ["start": .string(T.iso(start)), "end": .string(T.iso(end)), "days": .array(days), "settings": .object(s.raw)]
@@ -97,9 +100,39 @@ enum StudyCalendar {
         return .object(p)
     }
 
+    /// `OVERDUE_DAYS`: ueberfaellige Fristen der letzten sechs Wochen zaehlen noch
+    static let overdueDays = 42
+
+    /// `upcoming_deadlines(conn, t, limit)`: Learnweb-Fristen ab jetzt fuer "Naechste Termine" (Abgaben, Tests),
+    /// Farbe vom Modul des Kurses; ueberfaellige, laut Learnweb nicht erledigte Fristen der letzten sechs Wochen
+    /// zuerst (aeltere, z. B. aus dem Vorsemester, nicht mehr), dann die kommenden. `today` ist immer der heutige
+    /// Tag (Uebersicht, GET /api/deadlines): die Grenze ist die Uhrzeit jetzt ("YYYY-MM-DDTHH:MM").
+    static func upcomingDeadlines(_ c: SQLiteConnection, today t: Int, clock: UniFlowClock, limit: Int = 50) throws -> [[String: JSONValue]] {
+        let now = PyText.slice(clock.nowISO, 0, 16)
+        let since = T.iso(t - overdueDays) + "T00:00"
+        var out: [[String: JSONValue]] = []
+        for r in try c.rows("""
+            SELECT d.*, c.title AS course_title, m.color, c.module_id
+                                        FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id
+                                        WHERE d.due_at >= ? OR (d.overdue=1 AND d.kind IN ('abgabe','test_ende','frist') AND d.due_at >= ?)
+                                        ORDER BY (d.due_at >= ?), d.due_at LIMIT ?
+            """, [.text(now), .text(since), .text(now), .integer(Int64(limit))]) {
+            guard let due = r["due_at"]?.string else { throw LocalHTTPError(status: 500, message: "due_at ist kein Text") }
+            let overdue = PyText.less(due, now)
+            let kind = r["kind"]?.string ?? ""
+            out.append(["date": .string(PyText.slice(due, 0, 10)), "time": .string(PyText.slice(due, 11, 16)), "kind": r["kind"] ?? .null,
+                        "kind_label": .string((overdue ? "überfällig: " : "") + (Holidays.deadlineLabels[kind] ?? "Frist")), "overdue": .bool(overdue),
+                        "title": r["title"] ?? .null, "full_title": T.or(r["full_title"], r["title"] ?? .null),
+                        "course_title": r["course_title"] ?? .null, "module_id": r["module_id"] ?? .null, "color": r["color"] ?? .null,
+                        "url": r["url"] ?? .null, "deadline_id": r["id"] ?? .null])
+        }
+        return out
+    }
+
     /// `dashboard(conn)`: heute (Pakete, Termine, freie Fenster), Module, neue Dateien, Woche, Nachholen, naechste
-    /// Termine (Klausuren, Lernpakete, Wochentests), letzter Abgleich. Ohne `bg` und mit allen Einstellungen (die
-    /// oeffentliche Form setzt der Endpunkt). Die Status werden einmal abgeleitet, nicht je Kalender noch einmal.
+    /// Termine (Klausuren, Lernpakete, Wochentests, Learnweb-Fristen), Ankuendigungen, letzter Abgleich. Ohne `bg`
+    /// und mit allen Einstellungen (die oeffentliche Form setzt der Endpunkt). Die Status werden einmal abgeleitet,
+    /// nicht je Kalender noch einmal.
     static func dashboard(_ c: SQLiteConnection, clock: UniFlowClock) throws -> [String: JSONValue] {
         try LocalModules.ensureModules(c, clock: clock)
         let t = T.today(clock)
@@ -135,15 +168,23 @@ enum StudyCalendar {
             upcoming.append(["date": x["date"] ?? .null, "kind": "test", "title": .string("\(T.text(x["subject"])): \(T.text(x["title"]))"),
                              "task_id": x["id"] ?? .null])
         }
-        // upcoming.sort(key=lambda x: x["date"]), stabil
+        // Learnweb-Fristen: ueberfaellige oben, kommende mit den uebrigen nach Tag und Uhrzeit
+        let dls = try upcomingDeadlines(c, today: t, clock: clock, limit: 8)
+        let overdue = dls.filter { LocalModules.truthy($0["overdue"]) }
+        upcoming += dls.filter { !LocalModules.truthy($0["overdue"]) }
+        // upcoming.sort(key=lambda x: (x["date"], x.get("time") or "")), stabil
         upcoming = try T.stableSorted(upcoming) { a, b in
             guard let x = a["date"]?.string, let y = b["date"]?.string else { throw LocalHTTPError(status: 500, message: "Datum ist kein Text") }
-            return PyText.less(x, y)
+            if x != y { return PyText.less(x, y) }
+            let ta = T.or(a["time"], "").string ?? "", tb = T.or(b["time"], "").string ?? ""
+            return PyText.less(ta, tb)
         }
+        upcoming = overdue + upcoming
         today["events"] = .array(try T.occurrences(c, from: t, to: t))
         today["free"] = .array(try LocalFreeWindows.compute(c, day: t, settings: try LocalSettings.read(c)))
         return ["today": .object(today), "modules": .array(mods), "new_files": .array(Array(newFiles.prefix(50))),
                 "new_total": .number(Double(newFiles.count)),
+                "announcements": .array(try Announcements.recent(c, days: 21, limit: 6, today: t)),
                 "week": ["start": .string(T.iso(weekStart)), "done": .number(Double(wkDone)), "total": .number(Double(wkTotal)),
                          "days": .array(week.map { ["date": $0["date"] ?? .null, "status": $0["status"] ?? .null, "minutes": $0["minutes"] ?? .null] })],
                 "backlog": .number(Double(backlog)), "upcoming": .array(Array(upcoming.prefix(8)).map(JSONValue.object)),

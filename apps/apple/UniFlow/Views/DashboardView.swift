@@ -12,6 +12,7 @@ struct DashboardView: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.openURL) private var openURL
     @State private var showGenerate = false
     @State private var suggestion: JSONValue?
     private let api: APIClient?
@@ -89,6 +90,7 @@ struct DashboardView: View {
                     if !evs.isEmpty { eventsCard(evs) }
                 }, right: {
                     upcomingCard(d.list("upcoming"))
+                    if !d.list("announcements").isEmpty { announcementsCard(d.list("announcements")) }
                     weekCard(d["week"] ?? .null, today: todayDate)
                     newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0)
                 })
@@ -148,8 +150,7 @@ struct DashboardView: View {
         let item: CGFloat = 16, card: CGFloat = 2 * 19.2 + 2             // .item padding .5rem, .card padding + Rand
         var w: CGFloat = 0
         for u in d.list("upcoming").prefix(6) {
-            let kind = u.s("kind") == "klausur" ? "Klausur" : u.s("kind") == "test" ? "Wochentest" : "Lernpaket"
-            let text = max(UFTypeface.width(UFFmt.shortName(u.s("title")), 14.5, 550), UFTypeface.width("\(UFFmt.short(u.s("date"))) · \(kind)", 12.8))
+            let text = max(UFTypeface.width(UFFmt.shortName(u.s("title")), 14.5, 550), UFTypeface.width(Self.upcomingSub(u), 12.8))
             w = max(w, 10 + 12 + text + item)
         }
         var order: [String] = [], groups: [String: [JSONValue]] = [:]
@@ -218,18 +219,80 @@ struct DashboardView: View {
                 let rows = Row.rows(Array(up.prefix(6)), key: "date")
                 ForEach(rows) { row in
                     let u = row.value
-                    let kind = u.s("kind") == "klausur" ? "Klausur" : u.s("kind") == "test" ? "Wochentest" : "Lernpaket"
+                    let isDeadline = u["deadline_id"].map { !$0.isNull } == true
                     Button {
-                        if u["package_id"].map({ !$0.isNull }) == true { router.go(.plan(view: "day", date: u.s("date"))) }
+                        // Learnweb-Frist: Eintrag oeffnet das Learnweb (nur http/https), sonst Lernplan bzw. Modul
+                        if isDeadline { if let url = UFDayExtras.safeURL(u.s("url")) { openURL(url) } }
+                        else if u["package_id"].map({ !$0.isNull }) == true { router.go(.plan(view: "day", date: u.s("date"))) }
                         else if let m = u.i("module_id") { router.go(.module(m)) } else { router.go(.plan()) }
                     } label: {
-                        UFItemRow(UFFmt.shortName(u.s("title")), sub: "\(UFFmt.short(u.s("date"))) · \(kind)", link: true, leading: {
+                        UFItemRow(UFFmt.shortName(u.s("title")), sub: Self.upcomingSub(u), link: true, leading: {
                             UFDot(color: Color(hex: u.s("color")))
                         })
+                        .foregroundStyle(isDeadline && (u["overdue"]?.bool ?? false) ? UF.bad : UF.text)
                     }
                     .buttonStyle(.plain)
+                    .help(u.s("full_title") ?? u.s("title") ?? "")
+                    .accessibilityLabel(isDeadline ? "Frist: \(u.s("title") ?? "") · \(Self.upcomingSub(u))" : "\(u.s("title") ?? "") · \(Self.upcomingSub(u))")
                     .ufBorderBottom(row.id != rows.last?.id)                     // .item:last-child { border-bottom: 0 }
                 }
+            }
+        }
+    }
+
+    /// Unterzeile wie im Web: Frist "Datum Uhrzeit · Abgabe · Kurs" (ueberfaellig rot), sonst "Datum · Klausur/Wochentest/Lernpaket"
+    static func upcomingSub(_ u: JSONValue) -> String {
+        if u["deadline_id"].map({ !$0.isNull }) == true {
+            var s = UFFmt.short(u.s("date"))
+            if let t = u.s("time"), !t.isEmpty { s += " \(t)" }
+            s += " · \(u.s("kind_label") ?? "Frist")"
+            if let c = u.s("course_title"), !c.isEmpty { s += " · \(UFFmt.shortName(c))" }
+            return s
+        }
+        let kind = u.s("kind") == "klausur" ? "Klausur" : u.s("kind") == "test" ? "Wochentest" : "Lernpaket"
+        return "\(UFFmt.short(u.s("date"))) · \(kind)"
+    }
+
+    /// Karte "Ankuendigungen" wie im Web: Titel, Datum, Kurs, Quelle, erkannte Termine als Chips, Text aufklappbar,
+    /// Link oeffnet das Learnweb bzw. Stud.IP (nur http/https)
+    private func announcementsCard(_ list: [JSONValue]) -> some View {
+        UFCard {
+            UFCardHead("Ankündigungen", icon: "info") { Text("\(list.count)").ufFont(13.12).foregroundStyle(UF.muted) }
+            let rows = Row.rows(Array(list.prefix(5)))
+            ForEach(rows) { row in
+                let a = row.value
+                let source = a.s("source") == "studip" ? "Stud.IP" : "Learnweb"
+                var sub = UFFmt.short(a.s("posted_at").map { String($0.prefix(10)) })
+                let _ = { if let c = a.s("course_title"), !c.isEmpty { sub += " · \(UFFmt.shortName(c))" } }()
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 6.4) {
+                        Text(a.s("text") ?? "").ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                        if let url = UFDayExtras.safeURL(a.s("url")) {
+                            Button("Im \(source) öffnen") { openURL(url) }.ufFont(12.8).foregroundStyle(UF.accentText).buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4.8)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2.4) {
+                        Text(a.s("title") ?? "Ankündigung").ufFont(14.5, 550).foregroundStyle(UF.text).lineLimit(2)
+                        Text("\(sub) · \(source)").ufFont(12.8).foregroundStyle(UF.muted).lineLimit(1)
+                        let upcoming = a.list("upcoming").prefix(3)
+                        if !upcoming.isEmpty {
+                            let notices: [JSONValue] = upcoming.map { x in
+                                let kind = x.s("kind") ?? ""
+                                let label = ["ausfall": "Ausfall?", "verlegt": "Verlegung?", "raum": "Raum", "pruefung": "Prüfung",
+                                             "frist": "Frist", "online": "Online"][kind] ?? "Termin"
+                                return .object(["kind_label": .string("\(UFFmt.short(x.s("date"))) \(label)"), "time": x["time"] ?? .null,
+                                                "title": a["title"] ?? .null, "url": a["url"] ?? .null, "course_title": a["course_title"] ?? .null,
+                                                "snippet": x["snippet"] ?? .null, "kind": x["kind"] ?? .null])
+                            }
+                            UFDayExtraChips(dd: .object(["notices": .array(notices)]), stacked: false).padding(.top, 2.4)
+                        }
+                    }
+                    .padding(.vertical, 4.8)
+                }
+                .tint(UF.muted)
+                .ufBorderBottom(row.id != rows.last?.id)
             }
         }
     }

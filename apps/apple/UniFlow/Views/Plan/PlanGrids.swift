@@ -126,10 +126,12 @@ struct PlanWeekGrid: View {
                 }
                 .ufFont(11.52).foregroundStyle(today ? UF.accentText : UF.muted)
                 .padding(.top, 3.2)
+                // .cal2-dh: Feiertag/vorlesungsfrei, Fristen und Hinweise (holChips, dlChips, noteChips)
+                UFDayExtraChips(dd: dd, compact: compact).padding(.top, 3.2)
             }
             .padding(.vertical, 8 + ufB).padding(.horizontal, 4.8 + ufB)
             .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 12).fill(today ? UF.accentSoft : UF.surface))
+            .background(RoundedRectangle(cornerRadius: 12).fill(today ? UF.accentSoft : UFDayExtras.fill(dd, over: UF.surface)))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(today ? .clear : UF.line, lineWidth: 1))
             .contentShape(Rectangle())
         }
@@ -240,6 +242,15 @@ struct PlanWeekGrid: View {
             legendItem("nicht besucht") {
                 RoundedRectangle(cornerRadius: 3).fill(UF.surface2)
                     .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.lineStrong, lineWidth: 1)).opacity(0.6)
+            }
+            legendItem("Feiertag / vorlesungsfrei") {
+                RoundedRectangle(cornerRadius: 3).fill(UF.okSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.ok, lineWidth: 1))
+            }
+            legendItem("Frist (Learnweb)") {
+                RoundedRectangle(cornerRadius: 3).fill(UF.badSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.bad, lineWidth: 1))
+            }
+            legendItem("Hinweis aus Ankündigung") {
+                RoundedRectangle(cornerRadius: 3).fill(UF.infoSoft).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(UF.info, lineWidth: 1))
             }
         }
     }
@@ -480,6 +491,8 @@ struct PlanMonthGrid: View {
                             Text("\(PlanData.cal.component(.day, from: dt))")
                         }
                         .ufFont(12.16, 600).foregroundStyle(UF.text)
+                        // .md: Feiertag/vorlesungsfrei, Fristen und Hinweise (holChips, dlChips, noteChips, compact)
+                        UFDayExtraChips(dd: dd)
                         VStack(spacing: 2) {
                             ForEach(Row.rows(dd.list("packages"))) { p in
                                 Capsule().fill(Color(hex: p.value.s("color"))).frame(height: 4).help(p.value.s("subject") ?? "")
@@ -489,7 +502,7 @@ struct PlanMonthGrid: View {
                     }
                     .padding(.vertical, 5.6 + ufB).padding(.horizontal, 7.2 + ufB)
                     .frame(maxWidth: .infinity, minHeight: 86, alignment: .topLeading)
-                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface))
+                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UFDayExtras.fill(dd, over: UF.surface)))
                     .overlay(RoundedRectangle(cornerRadius: UF.rSm).strokeBorder(date == t ? UF.accent : UF.line, lineWidth: 1))
                     .opacity(other ? 0.45 : 1)
                     .contentShape(Rectangle())
@@ -935,23 +948,33 @@ struct PlanMiniCal: View {
                             let col = p.s("color") ?? "accent"
                             if !colors.contains(col) && colors.count < 3 { colors.append(col) }
                         }
+                        // miniCal: Frist rot, Hinweis aus Ankuendigung blau; Feiertag/vorlesungsfrei gruene Zelle
+                        let _ = { if !(byDate[k]?.list("deadlines") ?? []).isEmpty { colors.append("bad") } }()
+                        let _ = { if !(byDate[k]?.list("notices") ?? []).isEmpty { colors.append("info") } }()
+                        let hol = byDate[k].map(UFDayExtras.tint) ?? .none
+                        let tip = ((byDate[k].map(UFDayExtras.marks) ?? []).compactMap { $0.s("label") }
+                                   + (byDate[k]?.list("deadlines") ?? []).map { "\($0.s("kind_label") ?? "") \($0.s("time") ?? ""): \($0.s("title") ?? "")" }
+                                   + (byDate[k]?.list("notices") ?? []).map { "\($0.s("kind_label") ?? ""): \($0.s("title") ?? "")" }).joined(separator: " · ")
                         Button { router.go(.plan(view: "day", date: k)) } label: {
                             VStack(spacing: 2) {
                                 Text("\(c.component(.day, from: dt))").font(.uf(12.48, isToday ? 700 : 400))
                                     .foregroundStyle(isToday ? .white : sel ? UF.accentText : other ? UF.lineStrong : UF.text)
                                 HStack(spacing: 2) {
                                     ForEach(colors, id: \.self) { col in
-                                        Circle().fill(isToday ? .white : (col == "accent" ? UF.accent : Color(hex: col))).frame(width: 4, height: 4)
+                                        Circle().fill(isToday ? .white : (col == "accent" ? UF.accent : col == "bad" ? UF.bad : col == "info" ? UF.info : Color(hex: col)))
+                                            .frame(width: 4, height: 4)
                                     }
                                 }
                                 .frame(height: 4)
                             }
                             .padding(.top, 4).padding(.bottom, 2.4)
                             .frame(maxWidth: .infinity, minHeight: 32)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(isToday ? UF.accent : sel ? UF.accentSoft : .clear))
+                            .background(RoundedRectangle(cornerRadius: 8).fill(isToday ? UF.accent : sel ? UF.accentSoft
+                                                                               : hol == .holiday ? UF.okSoft : hol == .lectureFree ? UF.okSoft.opacity(0.5) : .clear))
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .help(tip)
                     }
                 }
                 .environment(\.ufFillsCell, false)

@@ -144,7 +144,12 @@ struct PlanView: View {
             switch d.view {
             case "week", "3days": PlanWeekGrid(d: d)
             case "month": PlanMonthGrid(d: d)
-            case "day": PlanDayTimeline(d: d)
+            case "day":
+                // .cal-day-extras: Feiertag/vorlesungsfrei, Fristen und Hinweise des Tages ueber der Zeitleiste
+                if let dd = d.days.first, UFDayExtras.hasAny(dd) {
+                    UFDayExtraChips(dd: dd, compact: false, stacked: false).padding(.bottom, 9.6)
+                }
+                PlanDayTimeline(d: d)
             default: PlanTaskList(open: d.open)
             }
         }
