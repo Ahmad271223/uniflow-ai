@@ -13,7 +13,8 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 ROOT = Path(SPECPATH).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-datas = [(str(ROOT / "app" / "static"), "app/static"), (str(ROOT / ".env.example"), ".")]
+datas = [(str(ROOT / "app" / "static"), "app/static"), (str(ROOT / ".env.example"), "."),
+         (str(ROOT / "docs" / "release"), "docs/release")]            # Rechtsseiten (app/legal.py)
 datas += collect_data_files("tzdata")                 # Zeitzonen (Windows hat keine eigene Datenbank)
 datas += collect_data_files("playwright")             # Node-Treiber von Playwright (ohne Browser)
 hidden = collect_submodules("app") + [

@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, community_api, config, db, jobs, planner, study, timetable, universities, vault
+from . import account_api, accounts, community_api, config, db, jobs, legal, planner, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -196,7 +196,7 @@ async def no_cache_static(request, call_next):
     HTML-Seiten bekommen die Content-Security-Policy."""
     response = await call_next(request)
     p = request.url.path
-    if not p.startswith("/api/") and (p in ("/", "/login") or p.endswith((".js", ".mjs", ".css", ".html"))):
+    if not p.startswith("/api/") and (p in ("/", "/login") or p[1:] in legal.PAGES or p.endswith((".js", ".mjs", ".css", ".html"))):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
     ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
     if ctype == "text/html" and not _FILE_PATHS.match(p):
@@ -254,6 +254,21 @@ def login_page():
     if not config.is_hosted():
         return RedirectResponse("/", status_code=302)
     return FileResponse(STATIC_DIR / "login.html", media_type="text/html")
+
+
+def _legal_page(page: str):
+    def handler():
+        out = legal.render(page, config.is_hosted())
+        if not out:
+            return HTMLResponse("<!doctype html><meta charset=\"utf-8\"><h1>Seite nicht vorhanden</h1>", status_code=404)
+        return HTMLResponse(out[1])
+    handler.__name__ = f"legal_{page.replace('-', '_')}"
+    return handler
+
+
+# Oeffentliche Rechtsseiten aus docs/release (app/legal.py): ohne Sitzung, auch im gehosteten Modus.
+for _page in legal.PAGES:
+    app.add_api_route(f"/{_page}", _legal_page(_page), methods=["GET"], include_in_schema=False)
 
 
 _FILE_PATHS = re.compile(r"^/api/(files/[^/]+/content|assets/|qis/documents/)")

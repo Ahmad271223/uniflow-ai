@@ -7,3 +7,4 @@ python-dotenv==1.2.4
 python-multipart==0.0.32
 tzdata==2026.5
 cryptography==50.0.2
+markdown==3.11.2

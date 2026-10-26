@@ -48,8 +48,10 @@ Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröf
    (umgesetzt: `accounts.purge_deleted`).
 4. **Mailversand** für „Passwort vergessen“ und Konto-Bestätigung (`accounts.reset_sender`) – Anbieter in die
    Datenschutzerklärung (Abschnitt 11).
-5. **Öffentliche Seiten** `/datenschutz`, `/nutzungsbedingungen`, `/impressum`, `/konto-loeschen` aus diesen Dateien
-   auf `[[Domain]]` bereitstellen (der Dienst kann sie als statische Seiten ausliefern; noch nicht gebaut).
+5. **Öffentliche Seiten – erledigt (26.10.2026):** der Dienst liefert `/datenschutz`, `/nutzungsbedingungen`,
+   `/impressum` und `/konto-loeschen` direkt aus diesen Markdown-Dateien aus (`app/legal.py`, ohne Sitzung, auch im
+   gehosteten Modus; Platzhalter erscheinen gelb markiert, bis sie ersetzt sind). Verlinkt auf der Anmeldeseite und im
+   Konto-Menü der App; `tests/test_legal_pages.py`. Es bleibt, die Platzhalter zu ersetzen.
 6. **App Review:** Die Hochschulfunktionen brauchen ein echtes Hochschulkonto, das Apple und Google nicht bekommen
    dürfen. Für die Prüfung braucht die App Beispielinhalte ohne Hochschule (Demo-Kurs mit PDFs, Stundenplan,
    Kalender) – in den Prüfhinweisen beschrieben, in der App noch nicht vorhanden.
