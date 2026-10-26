@@ -1,11 +1,39 @@
 import SwiftUI
+import UserNotifications
 
 /// Zeitmesser aus views-doc.js (global, laeuft ueber Ansichten hinweg): Stoppuhr, Countdown, Pomodoro.
 /// Offen als Kasten unten rechts (.timer-widget), geschlossen und angefangen als Pille (.timer-pill).
+///
+/// Zeitbasis (Pruefpunkte 241–249): Der Takt alle 500 ms zeichnet nur; die Zeit kommt aus Zeitstempeln. Solange die
+/// App laeuft, zaehlt die fortlaufende Systemuhr (`CLOCK_MONOTONIC`, laeuft auch im Ruhezustand weiter und haengt
+/// nicht an der Geraetezeit): Suspendierung, Sperre und ein verstelltes Datum verfaelschen nichts. Jeder Zustand
+/// (Modus, laufend, Beginn als Datum, Ziel, Pomodoro-Phase) steht in den UserDefaults; nach einem Neustart (auch nach
+/// einer Beendigung durch das System) rechnet die App den laufenden Abschnitt ueber das Datum nach, rueckwaerts
+/// gestellte Uhren ziehen nie etwas ab. Das Ende eines Countdowns oder einer Pomodoro-Phase meldet eine lokale
+/// Benachrichtigung, die beim Start eingeplant wird: Die App muss dafuer nicht im Hintergrund laufen. Die Erlaubnis
+/// wird erst beim ersten Start eines Countdowns erfragt, nie beim App-Start. Endet die Phase, waehrend die App nicht
+/// lief, gilt beim naechsten Oeffnen genau diese eine Phase als beendet (Countdown steht auf 0:00, Pomodoro wechselt
+/// in die naechste Phase und wartet auf "Start" – wie im Web endet jede Phase mit Anhalten).
 @MainActor
 final class StudyTimer: ObservableObject {
-    enum Mode: String { case stopwatch, countdown, pomodoro }
-    struct Pomo: Equatable { var work = 25, pause = 5, phase = "work", round = 1 }
+    enum Mode: String, Codable { case stopwatch, countdown, pomodoro }
+    struct Pomo: Equatable, Codable { var work = 25, pause = 5, phase = "work", round = 1 }
+
+    /// Zustand in den UserDefaults (`stateKey`)
+    struct Snapshot: Codable, Equatable {
+        var mode: Mode
+        var running: Bool
+        /// verstrichene Zeit, zuletzt gesehen
+        var elapsed: Double
+        /// Datum, zu dem `elapsed` galt (nur bei `running`; danach laeuft die Zeit weiter)
+        var seenAt: Date?
+        var target: Double
+        var pomo: Pomo
+    }
+
+    static let stateKey = "uniflow.timer.state"
+    /// laufend hoechstens alle 10 s speichern (ein Neustart verliert so hoechstens 10 s, auch bei verstellter Uhr)
+    static let persistEvery: Double = 10
 
     @Published private(set) var mode: Mode = .stopwatch
     @Published private(set) var running = false
@@ -15,8 +43,23 @@ final class StudyTimer: ObservableObject {
     @Published private(set) var open = false
     weak var toast: UFToastCenter?
     private var base: Double = 0
-    private var startAt = Date()
+    /// laufender Abschnitt: Beginn nach beiden Uhren
+    private var start: StudyTimerNow?
     private var ticker: Task<Void, Never>?
+    /// fortlaufende Uhr beim letzten Speichern
+    private var persistedAt: Double = -.infinity
+    private let defaults: UserDefaults
+    private let notifier: StudyTimerNotifying
+    private let clock: () -> StudyTimerNow
+
+    /// `defaults`, `notifier`, `clock`: Tests. Ein gespeicherter Zustand wird sofort wiederhergestellt.
+    init(defaults: UserDefaults = .standard, notifier: StudyTimerNotifying? = nil,
+         clock: @escaping () -> StudyTimerNow = StudyTimerNow.current) {
+        self.defaults = defaults
+        self.notifier = notifier ?? StudyTimerNotifications()
+        self.clock = clock
+        restore()
+    }
 
     /// toggleTimer(open)
     func toggle(_ open: Bool? = nil) { self.open = open ?? !self.open }
@@ -32,44 +75,187 @@ final class StudyTimer: ObservableObject {
     }
 
     func setMode(_ m: Mode) {
-        mode = m; running = false; elapsed = 0; base = 0
+        stop()
+        mode = m; elapsed = 0; base = 0
         if m == .pomodoro { pomo = Pomo(); target = 25 * 60 }
         if m == .countdown { target = 25 * 60 }
+        persist()
     }
 
-    func setMinutes(_ n: Int) { target = Double(n) * 60; elapsed = 0; base = 0 }
+    func setMinutes(_ n: Int) {
+        stop()
+        target = Double(n) * 60; elapsed = 0; base = 0
+        persist()
+    }
 
-    func reset() { running = false; elapsed = 0; base = 0 }
+    func reset() {
+        stop()
+        elapsed = 0; base = 0
+        persist()
+    }
 
     func startPause() {
         if running {
-            running = false; base = elapsed
+            tick()
+            stop()
+            persist()
         } else {
-            running = true; base = elapsed; startAt = Date()
+            let now = clock()
+            running = true; base = elapsed; start = now
+            if mode != .stopwatch {
+                notifier.requestPermissionIfNeeded()
+                notifier.schedule(title: Self.notificationTitle(mode), body: endMessage, at: now.wall.addingTimeInterval(max(0, target - base)))
+            }
+            persist()
             if ticker == nil {                                        // setInterval(tick, 500), einmal angelegt
                 ticker = Task { [weak self] in
                     while !Task.isCancelled {
                         try? await Task.sleep(nanoseconds: 500_000_000)
-                        self?.tick(now: Date())
+                        self?.tick()
                     }
                 }
             }
         }
     }
 
-    /// ein Takt (alle 500 ms); `now` von aussen fuer Tests
-    func tick(now: Date) {
-        guard running else { return }
-        elapsed = base + now.timeIntervalSince(startAt)
+    /// Anhalten ohne zu speichern (Teil von Pause, Zuruecksetzen, Moduswechsel): verstrichene Zeit festhalten,
+    /// Benachrichtigung zuruecknehmen
+    private func stop() {
+        running = false
+        base = elapsed
+        start = nil
+        notifier.cancel()
+    }
+
+    /// ein Takt (alle 500 ms, beim Wechsel in den Vordergrund und beim Anhalten)
+    func tick() {
+        guard running, let start else { return }
+        let now = clock()
+        elapsed = base + max(0, now.monotonic - start.monotonic)
+        finishIfDue()
+        if running, now.monotonic - persistedAt >= Self.persistEvery { persist() }
+    }
+
+    /// Countdown bzw. Pomodoro-Phase zu Ende: anhalten, melden, bei Pomodoro die naechste Phase vorbereiten (sie
+    /// startet erst der Mensch). Stoppuhr endet nie.
+    private func finishIfDue() {
         guard mode != .stopwatch, elapsed >= target else { return }
-        running = false; elapsed = target
-        toast?.show(mode == .pomodoro ? (pomo.phase == "work" ? "Pomodoro vorbei – Pause!" : "Pause vorbei – weiter geht's") : "Zeit abgelaufen")
+        let message = endMessage
+        running = false; elapsed = target; base = target; start = nil
+        notifier.cancel()
+        toast?.show(message)
         if mode == .pomodoro {
             pomo.phase = pomo.phase == "work" ? "pause" : "work"
             if pomo.phase == "work" { pomo.round += 1 }
             target = Double(pomo.phase == "work" ? pomo.work : pomo.pause) * 60
             elapsed = 0; base = 0
         }
+        persist()
+    }
+
+    /// Meldung am Ende des laufenden Countdowns bzw. der laufenden Pomodoro-Phase
+    var endMessage: String {
+        mode == .pomodoro ? (pomo.phase == "work" ? "Pomodoro vorbei – Pause!" : "Pause vorbei – weiter geht's") : "Zeit abgelaufen"
+    }
+
+    static func notificationTitle(_ m: Mode) -> String { m == .pomodoro ? "Pomodoro" : "Countdown" }
+
+    /// Wechsel in den Vordergrund (nach Suspendierung, Sperre): Zeit sofort nachfuehren statt auf den naechsten Takt
+    /// zu warten
+    func sceneBecameActive() { tick() }
+
+    /// Wechsel in den Hintergrund: Stand sichern (das System darf die App danach jederzeit beenden)
+    func sceneWillResignActive() { persist() }
+
+    // MARK: Zustand
+
+    var snapshot: Snapshot {
+        Snapshot(mode: mode, running: running, elapsed: elapsed, seenAt: running ? clock().wall : nil, target: target, pomo: pomo)
+    }
+
+    func persist() {
+        persistedAt = clock().monotonic
+        if let data = try? JSONEncoder().encode(snapshot) { defaults.set(data, forKey: Self.stateKey) }
+    }
+
+    /// Nach einem Neustart: laufender Abschnitt ueber das Datum nachgerechnet (eine zurueckgestellte Uhr zieht nichts
+    /// ab), dann wie ein Takt – ein inzwischen abgelaufener Countdown steht auf 0:00, eine Pomodoro-Phase wechselt.
+    private func restore() {
+        guard let data = defaults.data(forKey: Self.stateKey), let s = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
+        mode = s.mode; target = s.target; pomo = s.pomo
+        base = s.elapsed; elapsed = s.elapsed
+        guard s.running, let seenAt = s.seenAt else { return }
+        let now = clock()
+        base = s.elapsed + max(0, now.wall.timeIntervalSince(seenAt))
+        elapsed = base
+        running = true
+        start = now
+        finishIfDue()
+        guard running else { return }
+        if mode != .stopwatch {
+            // die beim Start eingeplante Benachrichtigung bleibt beim System; nach einem Neustart des Geraets zur
+            // Sicherheit neu einplanen (gleiche Kennung: nie zwei)
+            notifier.schedule(title: Self.notificationTitle(mode), body: endMessage, at: now.wall.addingTimeInterval(max(0, target - base)))
+        }
+        persist()
+        ticker = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                self?.tick()
+            }
+        }
+    }
+}
+
+/// Zeitpunkt nach beiden Uhren: Datum (zum Speichern) und fortlaufende Systemuhr in Sekunden (zum Rechnen, laeuft im
+/// Ruhezustand weiter, unabhaengig von der Geraetezeit)
+struct StudyTimerNow {
+    var wall: Date
+    var monotonic: Double
+
+    static func current() -> StudyTimerNow {
+        StudyTimerNow(wall: Date(), monotonic: Double(clock_gettime_nsec_np(CLOCK_MONOTONIC)) / 1_000_000_000)
+    }
+}
+
+/// Lokale Benachrichtigung am Ende eines Countdowns bzw. einer Pomodoro-Phase (Tests: eigener Mitschreiber)
+@MainActor
+protocol StudyTimerNotifying: AnyObject {
+    /// Erlaubnis erfragen, falls noch nie gefragt (nur beim ersten Start eines Countdowns, nie beim App-Start)
+    func requestPermissionIfNeeded()
+    /// genau eine Benachrichtigung (eine neue ersetzt die alte)
+    func schedule(title: String, body: String, at date: Date)
+    func cancel()
+}
+
+final class StudyTimerNotifications: StudyTimerNotifying {
+    static let identifier = "de.uniflow.timer.end"
+    private var asked = false
+
+    func requestPermissionIfNeeded() {
+        guard !asked else { return }
+        asked = true
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
+    }
+
+    func schedule(title: String, body: String, at date: Date) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        // ein Ausloeser braucht mindestens eine Sekunde; ein schon vergangenes Ende meldet der Takt selbst
+        let interval = max(1, date.timeIntervalSinceNow)
+        let request = UNNotificationRequest(identifier: Self.identifier, content: content,
+                                            trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false))
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    func cancel() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.identifier])
     }
 }
 
@@ -77,6 +263,7 @@ final class StudyTimer: ObservableObject {
 struct StudyTimerHost: ViewModifier {
     @ObservedObject var timer: StudyTimer
     let toast: UFToastCenter
+    @Environment(\.scenePhase) private var scenePhase
 
     func body(content: Content) -> some View {
         content
@@ -94,6 +281,9 @@ struct StudyTimerHost: ViewModifier {
                 .animation(.easeOut(duration: 0.15), value: timer.open)
             }
             .onAppear { timer.toast = toast }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { timer.sceneBecameActive() } else { timer.sceneWillResignActive() }
+            }
     }
 }
 
