@@ -39,10 +39,10 @@ Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröf
 1. **Hosting entscheiden** (`docs/KONTEN-ABOS-PLAN.md`): Anbieter, Standort (Empfehlung EU), Vertrag zur
    Auftragsverarbeitung (Art. 28 DSGVO). Ohne gehosteten Dienst gilt für V1 (iPad) nur der Abschnitt „Auf deinem
    Gerät“ der Datenschutzerklärung – das ist dort so markiert.
-2. **Schriftart selbst ausliefern.** Die Web-Oberfläche lädt die Schrift „Inter“ heute von `fonts.googleapis.com`
-   (`app/static/index.html`, `login.html`). Dabei geht die IP-Adresse an Google; in Deutschland ist das ohne
-   Einwilligung angreifbar (LG München I, 3 O 17493/20). Vor dem Start die Schrift aus `app/static/` ausliefern
-   und die CSP (`UI_CSP`) entsprechend kürzen; dann Abschnitt 10 der Datenschutzerklärung anpassen (Variante A).
+2. **Schriftart selbst ausliefern – erledigt (26.10.2026).** Die Web-Oberfläche liefert „Inter“ aus
+   `app/static/fonts/` aus (Inter 4.1, SIL Open Font License, `LICENSE-Inter.txt`); die CSP (`UI_CSP`) erlaubt keine
+   fremden Hosts mehr, `tests/test_fonts.py` prüft das. Hintergrund: Laden von Google Fonts überträgt die IP-Adresse
+   an Google und ist in Deutschland ohne Einwilligung angreifbar (LG München I, 3 O 17493/20).
 3. **Löschfristen umsetzen**, die die Erklärung nennt: HTTP-Zugriffsprotokolle `[[14 Tage]]`, Abgleich-Protokolle
    `[[90 Tage]]` (heute gibt es keine automatische Rotation der `logs/`-Dateien), Konto 30 Tage nach Löschung
    (umgesetzt: `accounts.purge_deleted`).

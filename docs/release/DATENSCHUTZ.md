@@ -136,12 +136,8 @@ Art. 6 Abs. 1 lit. b DSGVO.
   Abwehr von Angriffen und zur Fehlersuche (Art. 6 Abs. 1 lit. f DSGVO), gelöscht nach [[14 Tagen]].
 - **Protokolle des Abgleichs** je Konto: Zeitpunkt, Erfolg, Fehlermeldung ohne Inhalte und Passwörter, gelöscht
   nach [[90 Tagen]].
-- **Schriftart**: [[Variante A (empfohlen, siehe README): Die Schrift wird von unserem Server ausgeliefert; es
-  werden keine Daten an Dritte übertragen.]] [[Variante B, solange nicht umgestellt: Die Web-Oberfläche lädt die
-  Schrift „Inter“ von Google Fonts (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland). Dabei
-  erhält Google deine IP-Adresse. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (einheitliche Darstellung); du kannst
-  das durch Blockieren von `fonts.googleapis.com` verhindern, die Oberfläche funktioniert dann mit einer
-  Systemschrift.]]
+- **Schriftart und andere Dateien der Oberfläche** liefert unser Server selbst aus; die Web-Oberfläche lädt nichts
+  von Dritten (auch keine Schriften von Google), es werden keine Daten an Dritte übertragen.
 
 ## 11. Hosting, E-Mail-Versand und Auftragsverarbeiter
 

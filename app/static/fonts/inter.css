@@ -1,0 +1,17 @@
+/* Inter 4.1 (rsms/inter, SIL Open Font License 1.1, siehe LICENSE-Inter.txt), selbst ausgeliefert:
+   keine Anfrage an Google Fonts, keine IP-Adresse an Dritte. Variable Schrift, eine Datei fuer alle Staerken;
+   die kursive Datei laedt der Browser nur, wenn kursiver Text vorkommt. Familienname "Inter" wie in style.css. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("InterVariable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("InterVariable-Italic.woff2") format("woff2");
+}

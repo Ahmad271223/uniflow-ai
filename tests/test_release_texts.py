@@ -75,7 +75,7 @@ def test_privacy_policy_matches_the_implementation():
     assert "scrypt" in t and "AES-256-GCM" in t and "SHA-256" in t
     assert f"Ab {'drei' if community.REPORTS_TO_HIDE == 3 else community.REPORTS_TO_HIDE} Meldungen" in t
     assert "uniflow_session" in t and "lernapp_pin" in t and "08:00" in t and "15:00" in t
-    assert "Google Fonts" in t, "solange index.html/login.html die Schrift von Google laden, muss das drinstehen"
+    assert "keine Schriften von Google" in t and "Google Fonts" not in t, "Schrift wird selbst ausgeliefert (tests/test_fonts.py)"
 
 
 def test_old_release_doc_no_longer_promises_ai_in_store_texts():

@@ -182,10 +182,11 @@ async def lan_pin_guard(request, call_next):
 
 # Content-Security-Policy der Oberflaeche: nur eigene Skripte (kein Inline, kein eval), Stile auch inline (die
 # Oberflaeche setzt style-Attribute), Bilder/Medien auch aus Daten-URLs und Blobs (PDF-Vorschau, Aufnahmen),
-# Worker fuer pdf.js, nichts Fremdes einbetten, nie selbst eingebettet. Gilt im Browser und im Fenster der Windows-App.
-UI_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+# Worker fuer pdf.js, Schrift nur vom eigenen Server (app/static/fonts), keine fremden Hosts, nie selbst eingebettet.
+# Gilt im Browser und im Fenster der Windows-App.
+UI_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
           "img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; "
-          "font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; frame-src 'self' blob:; "
+          "font-src 'self' data:; worker-src 'self' blob:; frame-src 'self' blob:; "
           "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
 
 
