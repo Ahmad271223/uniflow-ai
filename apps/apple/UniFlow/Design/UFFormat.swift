@@ -106,6 +106,17 @@ struct UFRemote<Content: View>: View {
                         .font(UF.small).foregroundStyle(UF.warn)
                         .frame(maxWidth: .infinity).padding(6).background(UF.warnSoft)
                 }
+                if let reloadError = data.reloadError {
+                    // Neu laden gescheitert: der letzte Stand bleibt, die Meldung steht darueber (nicht die Fehlerkarte)
+                    HStack(spacing: 6) {
+                        UFIcon("alert", size: 14)
+                        Text("Neu laden fehlgeschlagen – letzter Stand: \(reloadError)").lineLimit(2)
+                        Spacer(minLength: 8)
+                        Button("Erneut") { Task { await data.load() } }.font(UF.small).foregroundStyle(UF.accentText).buttonStyle(.plain)
+                    }
+                    .font(UF.small).foregroundStyle(UF.warn)
+                    .frame(maxWidth: .infinity).padding(6).background(UF.warnSoft)
+                }
                 content(value)
             }
         }

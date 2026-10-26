@@ -112,6 +112,7 @@ struct UniFlowApp: App {
 struct RootView: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var containers: ContainerManager
+    @EnvironmentObject private var overlay: UFOverlay
     @State private var choosingPlan = false
 
     /// was den Container bestimmt (Anmeldung, Hochschulwahl, Wechsel in den Einstellungen)
@@ -129,5 +130,8 @@ struct RootView: View {
             .onChange(of: ContainerTrigger(user: account.account?.userID, university: account.university)) { _, _ in
                 containers.sync(account: account)
             }
+            // anderer Container (Konto, Hochschule): Dialoge und Drawer liegen ueber der Seite (UFModalHost in
+            // UniFlowApp) und ueberlebten den Neuaufbau – eine Aktion darin traefe das neue Konto
+            .onChange(of: containers.generation) { _, _ in overlay.closeAll() }
     }
 }

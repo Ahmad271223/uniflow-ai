@@ -18,6 +18,8 @@ final class ShellState: ObservableObject {
     @Published private(set) var syncRunning = false
     @Published private(set) var lastSyncOK = true
     @Published private(set) var searchHits: [SearchHit] = []
+    /// Suche gescheitert (Server nicht erreichbar, Fehlerantwort): Meldung statt alter Treffer
+    @Published private(set) var searchError: String?
     /// Initialen aus dem Anzeigenamen des Servers (/api/settings); leer ohne Server
     @Published private(set) var initials = ""
     /// wird nach einem abgeschlossenen Sync erhoeht; Ansichten laden dann neu (route() im Web)
@@ -25,6 +27,11 @@ final class ShellState: ObservableObject {
 
     var api: APIClient?
     private var searchTask: Task<Void, Never>?
+    /// laufende Beobachtung einer Hintergrundaufgabe (/api/bg): hoechstens eine, endet beim Wechsel der Datenquelle
+    private var pollTask: Task<Void, Never>?
+    /// Nummer der aktuellen Datenquelle: Antworten einer frueheren (Kontowechsel, anderer Server waehrend des
+    /// Ladens) setzen weder Initialen noch Sync-Chip noch Treffer
+    private var generation = 0
 
     /// Symbol je Dokument-/Aufgabentyp (TYPE_ICON in core.js)
     static let typeIcon: [String: String] = [
@@ -38,25 +45,40 @@ final class ShellState: ObservableObject {
         String((name ?? "").split(whereSeparator: \.isWhitespace).compactMap(\.first).prefix(2)).uppercased()
     }
 
+    /// Andere Datenquelle (Container nach Konto- oder Hochschulwechsel, eigener Server verbunden oder getrennt): alles
+    /// aus der alten weg (Treffer, Initialen, Chip, laufende Beobachtung), dann neu laden
     func attach(_ api: APIClient?) {
         self.api = api
+        generation += 1
+        pollTask?.cancel()
+        pollTask = nil
+        searchTask?.cancel()
+        searchHits = []
+        searchError = nil
+        initials = ""
+        syncChip = nil
+        syncRunning = false
         Task { await refresh() }
     }
 
     func refresh() async {
         guard let api else { syncChip = nil; return }
-        if let s = try? await api.value("/api/settings"), let name = s.s("user_name")?.trimmingCharacters(in: .whitespaces), !name.isEmpty {
+        let mine = generation
+        if let s = try? await api.value("/api/settings"), mine == generation,
+           let name = s.s("user_name")?.trimmingCharacters(in: .whitespaces), !name.isEmpty {
             initials = Self.initials(of: name)
         }
+        guard mine == generation else { return }
         // lokal gleicht StudIPSync direkt ab und zeigt den Fortschritt selbst (Statusleiste); kein Sync-Chip. Neu laden
         // danach ueber StudIPSync.finishedRuns (ufReload), nicht ueber reloadToken
         guard !api.isLocal else { syncChip = nil; return }
         await updateSyncChip()
-        if let bg = try? await api.value("/api/bg"), bg["running"]?.bool == true { await poll() }
+        if let bg = try? await api.value("/api/bg"), mine == generation, bg["running"]?.bool == true { await poll() }
     }
 
     private func updateSyncChip() async {
-        guard let api, let s = try? await api.value("/api/sync/status") else { return }
+        let mine = generation
+        guard let api, let s = try? await api.value("/api/sync/status"), mine == generation else { return }
         if let l = s["log"]?.array?.first {
             lastSyncOK = (l["ok"]?.int ?? (l["ok"]?.bool == true ? 1 : 0)) == 1
             syncChip = "Zuletzt synchronisiert: \(Self.time(l.s("finished_at")))"
@@ -81,11 +103,34 @@ final class ShellState: ObservableObject {
     /// window.pollBg(): Hintergrundaufgabe (Test erstellen, Noten abrufen …) beobachten, danach Meldung und Neuladen
     func pollBackground(toast: UFToastCenter) async { await poll(toast: toast) }
 
+    /// Hoechstens eine Schleife je Datenquelle: laeuft schon eine, wartet der Aufrufer auf deren Ende (vorher
+    /// beobachteten zwei Schleifen dieselbe Aufgabe und meldeten sie doppelt). Scheitert die Abfrage, endet die
+    /// Beobachtung mit sichtbarer Meldung statt still (der Endstand der Aufgabe ist dann unbekannt).
     private func poll(toast: UFToastCenter? = nil) async {
+        if let running = pollTask { await running.value; return }
+        let mine = generation
+        let task: Task<Void, Never> = Task { [weak self] in
+            guard let self else { return }
+            await self.pollLoop(toast: toast, generation: mine)
+        }
+        pollTask = task
+        await task.value
+        if pollTask == task { pollTask = nil }
+    }
+
+    private func pollLoop(toast: UFToastCenter?, generation mine: Int) async {
         guard let api else { return }
         var was = false
-        while true {
-            guard let bg = try? await api.value("/api/bg") else { break }
+        while !Task.isCancelled && mine == generation {
+            let bg: JSONValue
+            do { bg = try await api.value("/api/bg") } catch {
+                guard !Task.isCancelled, mine == generation else { return }
+                syncRunning = false
+                syncChip = "Status der Aufgabe nicht abrufbar"
+                toast?.show("Status der Hintergrundaufgabe nicht abrufbar: \(error.localizedDescription)", seconds: 4)
+                return
+            }
+            guard !Task.isCancelled, mine == generation else { return }
             if bg["running"]?.bool == true {
                 was = true
                 syncRunning = true
@@ -100,6 +145,7 @@ final class ShellState: ObservableObject {
             }
             break
         }
+        guard !Task.isCancelled, mine == generation else { return }
         await updateSyncChip()
     }
 
@@ -108,11 +154,21 @@ final class ShellState: ObservableObject {
     func search(_ q: String) {
         searchTask?.cancel()
         let text = q.trimmingCharacters(in: .whitespaces)
-        guard text.count >= 2, let api else { searchHits = []; return }
+        guard text.count >= 2, let api else { searchHits = []; searchError = nil; return }
+        let mine = generation
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 220_000_000)
             guard !Task.isCancelled else { return }
-            guard let r = try? await api.value("/api/search?q=\(APIClient.queryValue(text))"), !Task.isCancelled else { return }
+            let r: JSONValue
+            do { r = try await api.value("/api/search?q=\(APIClient.queryValue(text))") } catch {
+                // Fehler sichtbar, alte Treffer weg (vorher blieben die Treffer der vorigen Eingabe stehen)
+                guard !Task.isCancelled, mine == generation else { return }
+                searchHits = []
+                searchError = "Suche nicht möglich: \(error.localizedDescription)"
+                return
+            }
+            guard !Task.isCancelled, mine == generation else { return }
+            searchError = nil
             var hits: [SearchHit] = []
             for m in r["modules"]?.array ?? [] {
                 guard let id = m.i("id") else { continue }
