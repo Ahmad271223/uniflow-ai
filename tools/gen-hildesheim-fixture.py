@@ -37,7 +37,7 @@ def main(check: bool) -> bool:
     ics_plan = (D / "lsf-plan.ics").read_text(encoding="utf-8")
     contents = json.loads((D / "learnweb-course-contents.json").read_text(encoding="utf-8"))
 
-    titles = ["SoSe 2026: 0406 Theorien der Erziehungswissenschaft", "WiSe 2026/27:  1532   Klein(st)kinder", "Mathe-Vorkurs",
+    titles = ["SoSe 2026: 9406 Theorien der Testwissenschaft", "WiSe 2026/27:  9532   Klein(st)gruppen", "Mathe-Vorkurs",
               "SS 26: 3200 Grundlagen der BWL", "WS 2026/27: Ringvorlesung"]
     plugin_links = [f"{BASE}/pluginfile.php/4711/mod_resource/content/3/01%20Folien.pdf?forcedownload=1",
                     f"{BASE}/pluginfile.php/9/mod_folder/content/12/Kapitel%201/Text.pdf",
@@ -82,13 +82,13 @@ def main(check: bool) -> bool:
                            for t, n in (("3", 3), ("Informationen", 0), ("", 4), ("  Woche  2 ", 2), ("12", 12))],
         "file-ids": [{"cmid": 77, "filepath": "/", "filename": "plan.pdf", "id": learnweb.file_id(77, "/", "plan.pdf")},
                      {"cmid": 80, "filepath": "/Teil 1/", "filename": "Einführung.pdf", "id": learnweb.file_id(80, "/Teil 1/", "Einführung.pdf")}],
-        "learnweb-course-contents.json": [{k: f[k] for k in ("id", "name", "size", "mime", "chdate", "download_url", "folder")}
+        "learnweb-course-contents.json": [{k: f[k] for k in ("id", "name", "size", "mime", "chdate", "revision", "download_url", "folder")}
                                           for f in learnweb.files_from_contents(contents)],
         "pluginfile": [{"url": u, "parsed": learnweb.parse_pluginfile(u)} for u in plugin_links],
-        "with-token": [{"url": u, "token": "ABC123", "result": learnweb.with_token(u, "ABC123")}
-                       for u in (f"{BASE}/webservice/pluginfile.php/5/a.pdf", f"{BASE}/x.php?a=1")],
+        "token-download": [{"url": u, "token": "ABC123", "request": learnweb.token_request(u, "ABC123")}
+                           for u in (f"{BASE}/webservice/pluginfile.php/5/a.pdf", f"{BASE}/x.php?a=1")],
         "session-state": {"state": state, "links": links,
-                          "files": [{k: f[k] for k in ("id", "name", "chdate", "download_url", "folder")}
+                          "files": [{k: f[k] for k in ("id", "name", "size", "chdate", "revision", "download_url", "folder")}
                                     for f in learnweb.files_from_state(state, lambda c: links.get(str(c), []), lambda c: links.get(str(c), []))]},
         "folder-html": {"html": folder_html, "links": learnweb.folder_links(folder_html)},
         "semester-labels": {d: learnweb.semester_label(date.fromisoformat(d)) for d in
@@ -104,8 +104,8 @@ def main(check: bool) -> bool:
                            for e in timetable.parse_ics(ics_course)],
         "lsf-plan.ics": [{k: e[k] for k in keep} for e in lsf.plan_entries(ics_plan)],
         "lsf-summary": [{"summary": s, **lsf.split_summary(s)} for s in
-                        ("0449 - Erinnerungen\\, Erzählungen (Zimmermann)", "1532 - Klein(st)kinder in den stationären Hilfen",
-                         "Ohne Nummer (Meier, Schulz)", "2072 - Das perfekte Zimmer. Wohnraum als Konsumkultur")],
+                        ("9449 - Erinnerungen\\, Erzählungen (Muster)", "9532 - Klein(st)gruppen in den Testhilfen",
+                         "Ohne Nummer (Muster, Beispiel)", "9072 - Das Testzimmer. Wohnen als Beispiel")],
         "lsf-plan-link": [{"html": h, "link": lsf.plan_ics_link(h)} for h in (
             '<a href="https://lsf.uni-hildesheim.de/qisserver/rds?state=verpublish&amp;status=transform&amp;termine=1,2&amp;moduleCall=iCalendarPlan">',
             '<a href="rds?state=wplan&amp;moduleCall=iCalendarPlan">', "<html>kein Plan</html>")],
@@ -122,7 +122,7 @@ def main(check: bool) -> bool:
             (f"moodlemobile://token={good}", "pass123"), (f"moodlemobile://token={only}", "pass123"),
             (f"moodlemobile://token={good}", "falsch"), ("moodlemobile://token=%%%", "pass123"), ("moodlemobile://nix", "pass123"))]}
     titles_kind = ["Übung zu Mathematik I", "Gruppenübung Programmieren", "Hörsaalübung Mathe", "Tutorium Physik",
-                   "Seminar: Kindheit", "Labor Elektrotechnik", "0406 Theorien der Erziehungswissenschaft",
+                   "Seminar: Kindheit", "Labor Elektrotechnik", "9406 Theorien der Testwissenschaft",
                    "Begrüßung Erstsemester", "Mathematik I (Tranche A)", "Fragestunde Numerik"]
     out["classify"] = [{"title": t, "subject": studip_sync.classify(t)[0], "kind": studip_sync.classify(t)[1],
                         "event_kind": timetable.guess_kind(t)} for t in titles_kind]

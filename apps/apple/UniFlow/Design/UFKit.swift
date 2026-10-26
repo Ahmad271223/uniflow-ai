@@ -587,6 +587,9 @@ struct UFDateField: View {
                            displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .environment(\.locale, Locale(identifier: "de_DE"))
+                    // Tage in derselben Zeitzone wie Fmt.iso (Berlin), sonst zeigte er auf einem iPad in London den Vortag
+                    .environment(\.timeZone, Fmt.zone)
+                    .environment(\.calendar, Fmt.calendar)
                     .frame(width: 320)
                 HStack {
                     if allowEmpty { Button("Löschen") { iso = ""; open = false } }

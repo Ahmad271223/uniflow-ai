@@ -5,7 +5,7 @@ import Foundation
 /// Eigenheiten des LSF-Exports: DTSTART ist der Semesterbeginn (Montag), der echte Wochentag steht nur in BYDAY
 /// (auch mehrere Tage); vorlesungsfreie Tage stehen als EXDATE (mehrere Zeilen, Komma-Listen). Gelesen wird die Datei
 /// mit demselben Port von `timetable.parse_ics` wie jeder Kalender-Import (`LocalTimetableImport.parseICS`, mit
-/// UTC/TZID, UNTIL mit Uhrzeit); hier steht nur, was das LSF eigen ist (Titel "0449 - Titel (Lehrperson)", Link).
+/// UTC/TZID, UNTIL mit Uhrzeit); hier steht nur, was das LSF eigen ist (Titel "9449 - Titel (Lehrperson)", Link).
 public enum LSFCalendar {
 
     /// Eine Serie wie in `course_events` (weekday 0 = Montag, Zeiten "HH:MM", Daten "YYYY-MM-DD").
@@ -66,7 +66,7 @@ public enum LSFCalendar {
         public let lecturer: String
     }
 
-    /// "0449 - Titel (Lehrperson)" -> Nummer, Titel, Lehrperson
+    /// "9449 - Titel (Lehrperson)" -> Nummer, Titel, Lehrperson
     public static func splitSummary(_ summary: String) -> Summary {
         var s = summary.replacingOccurrences(of: "\\,", with: ",").replacingOccurrences(of: "\\;", with: ";")
             .trimmingCharacters(in: .whitespacesAndNewlines)

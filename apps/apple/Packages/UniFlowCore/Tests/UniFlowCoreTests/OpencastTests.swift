@@ -677,6 +677,28 @@ final class OpencastStoreTests: XCTestCase {
         XCTAssertNil(OpencastStore.best(list.map { _ in e("k", "Fragestunde", kind: "vorlesung") }, documentWeek: -2, documentKind: "klausur", documentText: "", names: []))
     }
 
+    /// Loesungsbesprechungen gehoeren zur Uebungsseite (wie die Art des Dokuments), organisatorische Videos zu keiner
+    /// Lehrwoche: vorher kam zu "VL05 Folien" auch "Lösungsbesprechung Blatt 5", zu "Lösung Blatt 5" fiel sie neben
+    /// "Übung 5" weg, und "Organisatorisches" (Woche aus dem Erstelldatum) wurde zu den Folien der Woche vorgeschlagen
+    func testSolutionVideosBelongToTheExerciseSideOrganisationalVideosToNone() {
+        func e(_ id: String, _ title: String, kind: String, week: Int = 5) -> OpencastEntry {
+            OpencastEntry(courseID: "c", courseTitle: "Fach", moduleID: 1, video: video(id, title, created: 0), week: week, kind: kind)
+        }
+        let list = [e("v5", "Vorlesung 5", kind: "vorlesung"), e("u5", "Übung 5", kind: "uebung"),
+                    e("l5", "Lösungsbesprechung Blatt 5", kind: "loesung"), e("o5", "Organisatorisches", kind: "organisatorisch")]
+        XCTAssertEqual(OpencastStore.best(list, documentWeek: 5, documentKind: "vorlesung", documentText: "VL05 Folien", names: [])?
+            .entries.map(\.video.id), ["v5"])
+        XCTAssertEqual(OpencastStore.best(list, documentWeek: 5, documentKind: "loesung", documentText: "Lösung Blatt 5", names: [])?
+            .entries.map(\.video.id), ["u5", "l5"])
+        XCTAssertEqual(OpencastStore.best(list, documentWeek: 5, documentKind: "uebung", documentText: "Blatt 5", names: [])?
+            .entries.map(\.video.id), ["u5", "l5"])
+        // nur ein organisatorisches Video in der Woche: kein Vorschlag
+        XCTAssertNil(OpencastStore.best([e("o1", "Organisatorisches", kind: "organisatorisch", week: 1)], documentWeek: 1,
+                                        documentKind: "vorlesung", documentText: "VL01 Einführung", names: []))
+        // abgesetztes Trema aus PDF-Text (pypdf/PDFKit) wird wie in der Skriptsuche zum Umlaut
+        XCTAssertEqual(OpencastStore.words("¨ Ubertragung und Unabh¨ angigkeit"), ["übertragung", "und", "unabhängigkeit"])
+    }
+
     func testPackageShowsMatchesOfItsTasksOnce() async throws {
         let backend = try await seededBackend()
         let db = backend.context.database

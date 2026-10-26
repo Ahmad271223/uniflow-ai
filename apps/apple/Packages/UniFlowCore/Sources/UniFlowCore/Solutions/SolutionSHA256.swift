@@ -22,7 +22,7 @@ public enum SolutionSHA256 {
         return hasher.finalize()
     }
 
-    /// Fortlaufender Hashwert: Daten stueckweise (z. B. eine grosse Datei in 1-MB-Bloecken, `TestShare.contentHash(file:)`),
+    /// Fortlaufender Hashwert: Daten stueckweise (z. B. eine grosse Datei in 1-MB-Bloecken, `ContentHash.file`),
     /// derselbe Wert wie `hash` ueber alles zusammen.
     public struct Hasher: Sendable {
         private var h: [UInt32] = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]

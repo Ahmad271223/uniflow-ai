@@ -4,7 +4,7 @@ Ablauf (Playwright, eigenes Browserprofil):
  1. Loginseite oeffnen, Zugangsdaten aus der .env (QIS_USER/QIS_PASSWORD, sonst LUH-ID wie bei Stud.IP).
  2. Menue "Pruefungsverwaltung" -> "Notenspiegel" -> Abschluss/Studiengang aufklappen -> Tabelle(n) lesen.
  3. Optional: Seite "Bescheinigungen"/"Studienbescheinigungen" nach PDF-Links durchsuchen und herunterladen.
-Bei Fehlern wird ein Screenshot unter logs/qis-fehler.png abgelegt.
+Keine Bildschirmfotos: Notenspiegel und Fehlerseiten zeigen Stammdaten; protokolliert wird nur die Struktur.
 """
 from __future__ import annotations
 
@@ -13,18 +13,19 @@ from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
-from . import config, db
+from . import config, db, hildesheim, lsf, universities
 from .config import DATA_DIR, LOG_DIR
 
 QIS_BASE = "https://qis.verwaltung.uni-hannover.de"
 QIS_START = f"{QIS_BASE}/qisserver/servlet/de.his.servlet.RequestDispatcherServlet?state=user&type=0&application=lsf"
 PROFILE_DIR = DATA_DIR / "browser-profile-qis"
 
-# Gleiche HIS-QIS-Software an mehreren Hochschulen: Basis-URL, Login und Bescheinigungen je Uni.
+# Gleiche HIS-QIS-Software an mehreren Hochschulen: Basis-URL, Login und Bescheinigungen je Uni. Hildesheim aus den
+# Angaben, die es schon gibt (LSF-Adressen, Browserprofil des Learnweb-/LSF-Abgleichs, Zugangsdaten des Profils).
 PROFILES = {
     "luh": {"base": QIS_BASE, "start": QIS_START, "documents": True, "cred_prefix": "QIS", "profile_dir": PROFILE_DIR},
-    "hildesheim": {"base": "https://lsf.uni-hildesheim.de", "start": "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=0",
-                   "documents": False, "cred_prefix": "HILDESHEIM", "profile_dir": DATA_DIR / "browser-profile-hildesheim"},
+    "hildesheim": {"base": universities.LSF_BASE, "start": lsf.LSF_START, "documents": False,
+                   "cred_prefix": universities.PROFILES["hildesheim"]["cred_prefix"], "profile_dir": hildesheim.PROFILE_DIR},
 }
 _P = dict(PROFILES["luh"], key="luh")      # aktives Profil waehrend eines Laufs
 
@@ -42,7 +43,6 @@ def credentials_for(key: str) -> tuple[str, str]:
 
 
 def configured(key: str | None = None) -> bool:
-    from . import universities
     key = key or universities.current_key()
     if key == "luh":
         return config.service_status("QIS")["own"]
@@ -167,10 +167,8 @@ def fetch_grades(page: Page) -> list[dict]:
     if not found:
         menu_txt = ", ".join(t for t, _ in _links(page)[:40] if t)
         raise RuntimeError(f"'Notenspiegel' nicht gefunden. Sichtbare Menuepunkte: {menu_txt[:300]}")
-    try:
-        page.screenshot(path=str(LOG_DIR / "qis-notenspiegel.png"), full_page=True)
-    except Exception:  # noqa: BLE001
-        pass
+    # Keine Bildschirmfotos: die Seite zeigt Stammdaten (Name, Geburtsdatum, Anschrift, Matrikelnummer), die nie
+    # gespeichert oder protokolliert werden (docs/AUFTRAG-HILDESHEIM-IPAD.md). Protokolliert wird nur die Struktur.
     log(f"QIS: Notenspiegel-Seite '{_page_title(page)}' mit {page.locator('table').count()} Tabellen")
     grades: list[dict] = []
     # Abschluesse/Studiengaenge aufklappen (z. B. "Abschluss 82 Bachelor of Science" -> Studiengang -> Leistungen), bis Tiefe 3
@@ -204,10 +202,6 @@ def fetch_grades(page: Page) -> list[dict]:
                 page.goto(_abs(h), wait_until="domcontentloaded"); page.wait_for_timeout(600)
             except Exception as e:  # noqa: BLE001
                 log(f"Notenspiegel-Unterseite uebersprungen ({t}): {e}"); continue
-            try:
-                page.screenshot(path=str(LOG_DIR / f"qis-notenspiegel-{depth + 1}.png"), full_page=True)
-            except Exception:  # noqa: BLE001
-                pass
             log(f"QIS: Notenspiegel > {t}: {page.locator('table').count()} Tabellen")
             expand(depth + 1, t)
 
@@ -506,9 +500,21 @@ def store_grades(conn, grades: list[dict]) -> None:
                          "VALUES (?,?,?,?,?,?,?,?,?,?,?)", vals + key)
 
 
+def remove_old_screenshots() -> int:
+    """Bildschirmfotos frueherer Laeufe (Notenspiegel mit Stammdaten, Fehlerseite) aus dem Protokollordner loeschen"""
+    n = 0
+    for p in [*LOG_DIR.glob("qis-notenspiegel*.png"), LOG_DIR / "qis-fehler.png"]:
+        try:
+            p.unlink()
+            n += 1
+        except FileNotFoundError:
+            pass
+    return n
+
+
 def run(show_browser: bool = False, with_documents: bool = True, university: str | None = None) -> dict:
-    from . import universities
     db.init_db()
+    remove_old_screenshots()
     key = university or universities.current_key()
     prof = use_profile(key)
     with_documents = with_documents and prof["documents"]
@@ -531,10 +537,7 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
                     ok = True
                     msg = f"{len(grades)} Leistungen, {len(docs)} Bescheinigungen" + ("" if grades else " – im Notenspiegel stehen noch keine Leistungen")
                 except Exception as e:  # noqa: BLE001
-                    try:
-                        page.screenshot(path=str(LOG_DIR / "qis-fehler.png"), full_page=True)
-                    except Exception:  # noqa: BLE001
-                        pass
+                    # kein Bildschirmfoto: der Fehler kann auf einer Seite mit Stammdaten passieren
                     msg = f"FEHLER: {e}"
                 finally:
                     ctx.close()

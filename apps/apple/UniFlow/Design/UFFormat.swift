@@ -22,6 +22,7 @@ enum UFFmt {
     private static func formatter(_ pattern: String) -> DateFormatter {
         let f = DateFormatter()
         f.locale = Locale(identifier: "de_DE")
+        f.timeZone = Fmt.zone
         f.setLocalizedDateFormatFromTemplate(pattern)
         return f
     }
@@ -50,12 +51,13 @@ enum UFFmt {
         return h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend"
     }
 
+    /// Heute in Berlin wie das lokale Backend (`UniFlowClock.today`), nicht in der Zeitzone des Geraets
     static func todayISO() -> String { Fmt.isoDay(Date()) }
 
     /// DAYS[(getDay()+6)%7]: Mo…So zum ISO-Datum
     static func weekdayShort(_ iso: String?) -> String {
         guard let d = Fmt.date(iso) else { return "" }
-        let w = Calendar(identifier: .gregorian).component(.weekday, from: d)   // 1 = Sonntag
+        let w = Fmt.calendar.component(.weekday, from: d)   // 1 = Sonntag
         return ShellState.days[(w + 5) % 7]
     }
 }

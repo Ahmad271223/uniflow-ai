@@ -345,6 +345,10 @@ final class QISParserTests: XCTestCase {
         XCTAssertEqual(avg([("1,0", "3"), ("2,7", "1")]), 1.43)
         XCTAssertEqual(avg([("1,0", "1"), ("2,3", "3")]), 1.97)
         XCTAssertEqual(avg([("1,3", "6"), ("2,0", "10"), ("5,0", "4")]), 2.39)
+        // Summen wie Pythons sum() (Neumaier): 87,2 / 32 = 2,725 -> 2,73; einfach summiert 2,7249999999999996 -> 2,72
+        XCTAssertEqual(avg([("2,3", "2"), ("3,3", "4"), ("2,7", "2"), ("1,0", "4"), ("2,0", "10"), ("4,0", "10")]), 2.73)
+        XCTAssertEqual(QISParser.summary([("2,3", "2"), ("3,3", "4"), ("2,7", "2"), ("1,0", "4"), ("2,0", "10"), ("4,0", "10")]
+            .map { QISGrade(text: $0.0, note: $0.0, credits: $0.1) }).credits, 32)
         // Gleichstand auf dem exakten Wert: zur geraden Ziffer wie round()
         XCTAssertEqual(QISParser.round2(0.125), 0.12)
         XCTAssertEqual(QISParser.round2(2.675), 2.67)

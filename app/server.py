@@ -246,7 +246,7 @@ def overview():
                                         (SELECT COUNT(*) FROM analysis) AS analyzed,
                                         (SELECT COUNT(*) FROM files WHERE status!='erledigt') AS open""")
         today = date.today()
-        ws = planner.monday(today).isoformat()
+        ws = study.monday(today).isoformat()
         today_items = db.rows(conn, "SELECT * FROM plan_items WHERE week_start=? AND day=? ORDER BY start_time",
                               (ws, today.weekday()))
     return {"new_files": new_files, "recent": recent, "last_sync": last_sync, "counts": counts,
@@ -1040,21 +1040,24 @@ def api_file_favorite(file_id: str, body: dict = Body(...)):
 
 @app.get("/api/search")
 def api_search(q: str):
-    """Globale Suche: Dateien, Module, Aufgaben des Lernplans und Seitentexte (gespeichert von der Skriptsuche)."""
+    """Globale Suche: Dateien, Module, Aufgaben des Lernplans und Seitentexte (gespeichert von der Skriptsuche).
+    Verglichen wird die Suchform (scriptsearch.contains: klein, NFC) als Teiltext. Frueher lower() und LIKE in SQLite:
+    die kennen nur ASCII ("übung" fand "Übung 1.pdf" nicht), und % oder _ in der Anfrage waren Platzhalter ("%%" fand
+    alle Dateien). Dateien im Papierkorb und aus abgewaehlten Kursen fehlen wie in der Bibliothek (der Treffer liess
+    sich nicht oeffnen)."""
     from . import scriptsearch
     q = (q or "").strip().lower()
     if len(q) < 2:
         return {"files": [], "modules": [], "tasks": [], "pages": []}
-    like = f"%{q}%"
     with db.cursor() as conn:
         files = db.rows(conn, """SELECT f.id, f.name, c.subject, c.module_id, a.title AS ai_title, a.doc_type, a.topics FROM files f
                                  JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-                                 WHERE lower(f.name) LIKE ? OR lower(COALESCE(a.title,'')) LIKE ? OR lower(COALESCE(a.topics,'')) LIKE ? OR lower(c.subject) LIKE ?
-                                 ORDER BY f.chdate DESC LIMIT 20""", (like, like, like, like))
-        mods = db.rows(conn, "SELECT id, name, color FROM modules WHERE lower(name) LIKE ? LIMIT 5", (like,))
+                                 WHERE f.deleted_at IS NULL AND c.active=1 ORDER BY f.chdate DESC""")
+        files = [r for r in files if scriptsearch.contains(q, r["name"], r["ai_title"], r["topics"], r["subject"])][:20]
+        mods = [r for r in db.rows(conn, "SELECT id, name, color FROM modules") if scriptsearch.contains(q, r["name"])][:5]
         tasks = db.rows(conn, """SELECT t.id, t.title, t.type, t.status, t.file_id, t.package_id, p.date, p.subject, p.module_id
-                                 FROM study_tasks t JOIN study_packages p ON p.id=t.package_id
-                                 WHERE lower(t.title) LIKE ? ORDER BY p.date DESC, t.id LIMIT 10""", (like,))
+                                 FROM study_tasks t JOIN study_packages p ON p.id=t.package_id ORDER BY p.date DESC, t.id""")
+        tasks = [r for r in tasks if scriptsearch.contains(q, r["title"])][:10]
         pages = scriptsearch.find_pages(conn, q)
     return {"files": files, "modules": mods, "tasks": tasks, "pages": pages}
 
@@ -1310,7 +1313,7 @@ def api_services():
     from . import qis, universities
     with db.cursor() as conn:
         s = qis.summary(conn)
-        uni = universities.current(conn)
+        uni = universities.current()
     creds = _cred_overview()
     creds["hildesheim"] = _hildesheim_creds()
     q = creds["qis"]

@@ -14,7 +14,7 @@ Inhalt:
 - dashboard_today: Termine und freie Fenster von heute aus GET /api/dashboard (die Uebersicht ist sonst S6)
 - ics: parse_ics fuer Kalenderdateien (UTC, TZID, RRULE, BYDAY wie der LSF-Export, EXDATE, UID, DESCRIPTION,
   Ganztags, Faltung, Zeitumstellung)
-- matcher: difflib.SequenceMatcher(None, a, b).ratio(); guess_module: Titel -> Modul auf den Seed-Daten
+- guess_module: Titel -> Modul auf den Seed-Daten (der difflib-Port selbst: sequence_ratios in study-modules.json)
 - merge_weekly: Einzeltermine -> Serien
 - auto_import: timetable.auto_import zweimal auf frischen Seed-Daten mit einem neuen Kurs samt Fach (extra_seed, wie
   direkt nach dem Speichern im Abgleich: ensure_modules legt sein Modul an), Ergebnis, Tabellen und modules
@@ -28,14 +28,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import sqlite3
 import sys
-import time
 from datetime import date, datetime
 from pathlib import Path
 
-from schema_source import ROOT, SchemaSource, write_or_check
+from schema_source import ROOT, SchemaSource, berlin_time, dump_tables, write_or_check
 
 OUT = ROOT / "packages" / "shared-contracts" / "fixtures" / "local-backend" / "timetable-logic.json"
 NOW = "2026-10-25T14:30:05"
@@ -307,13 +305,6 @@ ICS_CASES: list[tuple[str, str]] = [
     ("byday-taeglich", "SUMMARY:Taeglich\nDTSTART:20261021T081500\nDTEND:20261021T094500\nRRULE:FREQ=DAILY;BYDAY=FR\nUID:  mit Leerzeichen  "),
 ]
 
-MATCHER_CASES = [
-    ("testkurs mathematik i", "mathematik i"), ("", ""), ("abc", ""), ("übung zu testmathematik i", "testmathematik i"),
-    ("programmierkurs beispiel", "gruppenübung programmierkurs beispiel"), ("abcd", "bcda"), ("aaaa", "aa"),
-    ("einführung in die testphysik", "testphysik für ingenieure"), ("x" * 210 + "abc", "y" + "x" * 205 + "abc"),
-    ("ab" * 120, "ba" * 130), ("é", "é"), ("qwertzuiop", "poiuztrewq"),
-]
-
 GUESS_TITLES = ["Testmathematik I", "Übung zu Testmathematik I", "Testphysik für Ingenieure", "Gruppenübung Programmierkurs Beispiel",
                 "Lerngruppe Testmathematik alle 2 Wochen", "Chor", "Termin", "", "Programmier", "Physik", "TESTPHYSIK", "Beispiel Programmierkurs"]
 
@@ -327,25 +318,9 @@ MERGE_CASES = [
 ]
 
 
-def frozen(src: SchemaSource):
-    """Uhr einfrieren: date.today() in server/study und db.now_iso()"""
-    class FrozenDate(date):
-        @classmethod
-        def today(cls):
-            return cls(*TODAY)
-
-    from app import server, study
-    server.date = FrozenDate
-    study.date = FrozenDate
-    src.db.now_iso = lambda: NOW
-
-
 def fresh(src: SchemaSource, name: str) -> Path:
-    path = src.tmp / f"{name}.db"
-    for suffix in ("", "-wal", "-shm"):
-        path.with_name(path.name + suffix).unlink(missing_ok=True)
-    src.use_db(path)
-    src.db.init_db()
+    """Frische Datenbank mit SEED"""
+    path = src.fresh_db(name)
     with src.db.cursor() as conn:
         for sql, params in SEED:
             conn.execute(sql, params)
@@ -353,12 +328,7 @@ def fresh(src: SchemaSource, name: str) -> Path:
 
 
 def tables(path: Path) -> dict:
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    try:
-        out = {t: [dict(r) for r in conn.execute(f"SELECT * FROM {t} ORDER BY id")] for t in ("course_events", "event_exceptions", "schedule_imports")}
-    finally:
-        conn.close()
+    out = dump_tables(path, {t: f"SELECT * FROM {t} ORDER BY id" for t in ("course_events", "event_exceptions", "schedule_imports")})
     for r in out["schedule_imports"]:
         r["parsed"] = json.loads(r["parsed"]) if r["parsed"] else r["parsed"]
     return out
@@ -410,15 +380,16 @@ def series_ids(body, path: Path):
 
 
 def main() -> int:
-    check = "--check" in sys.argv[1:]
-    saved_tz = os.environ.get("TZ")
-    os.environ["TZ"] = "Europe/Berlin"                  # datetime.fromtimestamp wie auf dem PC-Server in Berlin
-    time.tzset()
+    with berlin_time():                                 # datetime.fromtimestamp wie auf dem PC-Server in Berlin
+        return build("--check" in sys.argv[1:])
+
+
+def build(check: bool) -> int:
     SEED.extend(_files_seed())
     src = SchemaSource()
     try:
         from app import server, timetable
-        frozen(src)
+        src.freeze(lambda: date(*TODAY), lambda: NOW)
         spec = importlib.util.spec_from_file_location("gen_local_backend_fixture", Path(__file__).with_name("gen-local-backend-fixture.py"))
         gen = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(gen)
@@ -455,7 +426,6 @@ def main() -> int:
         dashboard_today = {"events": dash["today"]["events"], "free": dash["today"]["free"]}
 
         ics = [{"name": n, "text": _ics(t), "entries": timetable.parse_ics(_ics(t))} for n, t in ICS_CASES]
-        matcher = [{"a": a, "b": b, "ratio": __import__("difflib").SequenceMatcher(None, a, b).ratio()} for a, b in MATCHER_CASES]
         with src.db.cursor() as conn:
             guess = [{"title": t, "module_id": timetable.guess_module(conn, t)} for t in GUESS_TITLES]
         merge = [{"entries": c, "merged": timetable.merge_weekly([dict(e) for e in c])} for c in MERGE_CASES]
@@ -472,13 +442,8 @@ def main() -> int:
                 "tables": tables(path), "modules": modules}
     finally:
         src.cleanup()
-        if saved_tz is None:
-            os.environ.pop("TZ", None)
-        else:
-            os.environ["TZ"] = saved_tz
-        time.tzset()
     out = {"generator": "tools/gen-timetable-fixture.py", "now": NOW, "timezone": "Europe/Berlin", "seed": [{"sql": q, "params": p} for q, p in SEED],
-           "steps": steps, "tables_after": after, "dashboard_today": dashboard_today, "ics": ics, "matcher": matcher,
+           "steps": steps, "tables_after": after, "dashboard_today": dashboard_today, "ics": ics,
            "guess_module": guess, "merge_weekly": merge, "auto_import": auto}
     ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)
     return 0 if ok or not check else 1

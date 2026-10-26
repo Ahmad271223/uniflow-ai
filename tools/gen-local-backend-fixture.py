@@ -293,14 +293,6 @@ def shape(v):
     return {"type": "object", "keys": {k: shape(v[k]) for k in sorted(v)}}
 
 
-def fresh_db(src: SchemaSource, name: str) -> None:
-    path = src.tmp / f"{name}.db"
-    for suffix in ("", "-wal", "-shm"):
-        path.with_name(path.name + suffix).unlink(missing_ok=True)
-    src.use_db(path)
-    src.db.init_db()
-
-
 def coverage(src: SchemaSource, app, server) -> dict:
     calls = app_calls()
     missing = sorted(set(calls) - set(SAMPLES))
@@ -314,7 +306,7 @@ def coverage(src: SchemaSource, app, server) -> dict:
         entry = {"method": method, "shape": path_shape, "sources": calls[key],
                  "request": {k: s[k] for k in ("path", "body", "form") if k in s}}
         if s.get("python", True):
-            fresh_db(src, "leer")                          # jede Anfrage auf einer frischen, leeren Datenbank
+            src.fresh_db("leer")                          # jede Anfrage auf einer frischen, leeren Datenbank
             status, value = asgi(app, method, s["path"], s.get("body"), s.get("form"))
             entry["python"] = {"status": status, "shape": shape(value)}
         expect = dict(s.get("expect") or {})
@@ -350,7 +342,7 @@ SETTINGS_STEPS = [
 
 
 def settings_terms(src: SchemaSource, app) -> dict:
-    fresh_db(src, "einstellungen")
+    src.fresh_db("einstellungen")
     steps = []
     for method, path, body in SETTINGS_STEPS:
         status, value = asgi(app, method, path, body)
@@ -396,7 +388,7 @@ def timetable_free(src: SchemaSource, app) -> dict:
     from datetime import date, timedelta
     scenarios = []
     for name, body in FREE_SCENARIOS:
-        fresh_db(src, "frei")
+        src.fresh_db("frei")
         if body is not None:
             status, _ = asgi(app, "PUT", "/api/settings", body)
             assert status == 200, (name, status)
@@ -493,6 +485,11 @@ SEQUENCE_PAIRS = [
     ("abc", "abc"), ("\u00fcbung", "zentral\u00fcbung testmathematik i"), ("u\u0308bung", "\u00fcbung"), ("abxcd", "abcd"), ("private", "pirate"),
     ("ab" * 150, "ba" * 120), ("x" * 250 + "abc", "abc" + "x" * 250), ("tutorium probeinformatik \U0001f600", "probeinformatik"),
     ("aaaa bbbb cccc", "cccc bbbb aaaa"), ("grundlagen der beispieltechnik", "\u00fcbung zu grundlagen der beispieltechnik"),
+    # Faelle des Stundenplans (timetable.guess_module nutzt denselben difflib-Port; eine Liste, ein Test)
+    ("testkurs mathematik i", "mathematik i"), ("abc", ""), ("\u00fcbung zu testmathematik i", "testmathematik i"),
+    ("programmierkurs beispiel", "gruppen\u00fcbung programmierkurs beispiel"), ("abcd", "bcda"), ("aaaa", "aa"),
+    ("einf\u00fchrung in die testphysik", "testphysik f\u00fcr ingenieure"), ("x" * 210 + "abc", "y" + "x" * 205 + "abc"),
+    ("ab" * 120, "ba" * 130), ("\u00e9", "e\u0301"), ("qwertzuiop", "poiuztrewq"),
 ]
 
 
@@ -675,7 +672,7 @@ def study_modules(src: SchemaSource, app) -> dict:
         cands = [chr(c) for c in range(sys.maxunicode + 1) if not 0xD800 <= c <= 0xDFFF and rough.fullmatch(chr(c))]
         ignorecase = [{"letter": L, "matches": [ord(ch) for ch in cands if re.fullmatch(L, ch, re.I)]} for L in IGNORECASE_LETTERS]
 
-        fresh_db(src, "semester")
+        src.fresh_db("semester")
         files = [[cid, _berlin_ts(when)] for cid, when in SEMESTER_FILES]
         with db.cursor() as conn:
             for i, (cid, ts) in enumerate(files):
@@ -697,7 +694,7 @@ def study_modules(src: SchemaSource, app) -> dict:
                               "labels": {str(w): study.week_label(start, w) for w in (-2, -1, 0, 1, 2, 9, 16, 30)}})
 
         seed = _module_seed()
-        fresh_db(src, "materials")
+        src.fresh_db("materials")
         with db.cursor() as conn:
             for sql, params in seed:
                 conn.execute(sql, params)
@@ -719,7 +716,7 @@ def study_modules(src: SchemaSource, app) -> dict:
             material_sample = {"today": "2026-11-20", "module_id": 1, "day": "2026-10-21",
                                "response": timetable.materials_for_event(conn, {"module_id": 1}, date(2026, 10, 21))}
 
-        fresh_db(src, "module")
+        src.fresh_db("module")
         with db.cursor() as conn:
             for sql, params in seed:
                 conn.execute(sql, params)
@@ -1079,7 +1076,7 @@ def library_files(src: SchemaSource, server) -> dict:
     for sub in ("studip", "assets", "files/Eigene Dokumente"):
         shutil.rmtree(data_dir / sub, ignore_errors=True)
     with Frozen(server):
-        fresh_db(src, "bibliothek")
+        src.fresh_db("bibliothek")
         conn = sqlite3.connect(src.db.DB_PATH)
         conn.execute("PRAGMA foreign_keys=ON")
         _seed(conn, LIB_SEED, data_dir)
@@ -1215,7 +1212,7 @@ def _import_rounds(src: SchemaSource, import_rounds: list, db_name: str) -> list
     saved_now = db.now_iso
     db.now_iso = lambda: FROZEN                                          # Pseudokurs __user__ wie in den Swift-Tests
     try:
-        fresh_db(src, db_name)
+        src.fresh_db(db_name)
     finally:
         db.now_iso = saved_now
     names = ("sync_playwright", "login", "fetch_courses", "fetch_events", "fetch_files", "fetch_folder_paths", "download",

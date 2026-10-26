@@ -1,53 +1,21 @@
 import Foundation
-#if canImport(CryptoKit)
-import CryptoKit
-#endif
 
-/// Gemeinsame Wochentests (`app/testshare.py`, docs/GEMEINSAME-WOCHENTESTS.md): gleiche Vorlesung und Uebung
-/// ergeben denselben Test. Schluessel aus Hochschule, Dauer-Stufe und SHA-256 des Dateiinhalts.
+/// Schluessel gemeinsamer Wochentests (`app/testshare.py`, docs/GEMEINSAME-WOCHENTESTS.md): gleiche Vorlesung und
+/// Uebung ergeben denselben Test. Schluessel aus Hochschule, Dauer-Stufe und den Inhalts-Hashes der Materialien
+/// (`content_sha256`, `ContentHash.file`).
+///
+/// Erst ab V2: Wochentests entfallen in V1 (KI, `DroppedEndpoints`); in der App ruft niemand `shareKey` auf. Der
+/// Schluessel bleibt mit seinen Erwartungswerten (fixtures/testshare/cases.json) gleich wie am PC, damit V2 ihn
+/// unveraendert nutzen kann.
 public enum TestShare {
     public static let version = "wt1"
     public static let minuteSteps = [15, 30, 45, 60, 90, 120]
 
+    /// `minutes_bucket`: naechste feste Stufe; ohne Angabe oder 0 wie `int(minutes or 45)` die Stufe 45 (vorher
+    /// wurde 0 zur Stufe 15 und damit zu einem anderen Schluessel als am PC)
     public static func minutesBucket(_ minutes: Int?) -> Int {
-        let m = minutes ?? 45
+        let m = minutes.flatMap { $0 == 0 ? nil : $0 } ?? 45
         return minuteSteps.first { m <= $0 } ?? minuteSteps.last!
-    }
-
-    /// Inhalts-Hash einer Datei (beim Download einmal berechnen und speichern)
-    public static func contentHash(_ data: Data) -> String { SolutionSHA256.hex(data) }
-
-    /// `testshare.file_sha256(path)`: Inhalts-Hash einer Datei auf der Platte in 1-MB-Bloecken (konstanter Speicher,
-    /// auch fuer Vorlesungsvideos); nil, wenn die Datei fehlt oder nicht lesbar ist. Die eine Fassung fuer alle
-    /// Abgleiche (Stud.IP, Learnweb: `UniDownloads`). Synchron und je nach Groesse langsam: nicht auf dem Hauptthread
-    /// und nicht in einer Datenbank-Transaktion aufrufen.
-    public static func contentHash(file url: URL) -> String? {
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue,
-              let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        var hasher = FileHasher()
-        do {
-            // nil oder leer: Dateiende
-            while let block = try handle.read(upToCount: 1 << 20), !block.isEmpty { hasher.update(block) }
-        } catch {
-            return nil
-        }
-        return hasher.hex()
-    }
-
-    /// SHA-256 fuer `contentHash(file:)`: auf Apple-Geraeten CryptoKit (um ein Vielfaches schneller, grosse Dateien
-    /// und Videos), sonst (Linux) `SolutionSHA256`; derselbe Wert (UniStoreTests vergleicht beide).
-    private struct FileHasher {
-        #if canImport(CryptoKit)
-        private var sha = CryptoKit.SHA256()
-        mutating func update(_ block: Data) { sha.update(data: block) }
-        func hex() -> String { SolutionSHA256.hexString(Array(sha.finalize())) }
-        #else
-        private var sha = SolutionSHA256.Hasher()
-        mutating func update(_ block: Data) { sha.update(block) }
-        func hex() -> String { SolutionSHA256.hexString(sha.finalize()) }
-        #endif
     }
 
     /// Schluessel oder nil, wenn eine Datei keinen Inhalts-Hash hat (dann nicht teilen).

@@ -9,15 +9,16 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env", interpolate=False)
 
-# Hochschule dieser App-Instanz (UNIVERSITY in der .env, Standard luh). Sie wird beim Start festgelegt:
-# jede Uni hat einen eigenen Datenordner (Datenbank, Dateien, Browser-Profile, Protokolle), damit sich
-# Daten verschiedener Hochschulen nie vermischen. Ein Wechsel greift nach einem Neustart.
-KNOWN_UNIVERSITIES = ("luh", "hildesheim")
+# Hochschule dieser App-Instanz (UNIVERSITY in der .env, Standard universities.DEFAULT). Sie wird beim Start
+# festgelegt: jede Uni hat einen eigenen Datenordner (Datenbank, Dateien, Browser-Profile, Protokolle), damit sich
+# Daten verschiedener Hochschulen nie vermischen. Ein Wechsel greift nach einem Neustart. Welche Hochschulen es gibt,
+# steht nur in universities.PROFILES (eine neue dort wurde hier frueher still zu "luh").
 
 
 def normalize_university(key: str | None) -> str:
+    from . import universities
     k = (key or "").strip().lower()
-    return k if k in KNOWN_UNIVERSITIES else "luh"
+    return k if universities.valid(k) else universities.DEFAULT
 
 
 def data_dir_for(base: Path, university: str) -> Path:

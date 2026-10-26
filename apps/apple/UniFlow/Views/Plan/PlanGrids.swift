@@ -911,9 +911,7 @@ struct PlanMiniCal: View {
         var byDate: [String: JSONValue] = [:]
         for x in d.monthCal.list("days") { if let k = x.s("date") { byDate[k] = x } }
         let t = UFFmt.todayISO()
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "LLLL y"
+        let f = Fmt.formatter("LLLL y")
         let pm = Fmt.isoDay(c.date(byAdding: .month, value: -1, to: first) ?? first), nm = Fmt.isoDay(c.date(byAdding: .month, value: 1, to: first) ?? first)
         return PlanSideCard(f.string(from: d.date), trailing: {
             HStack(spacing: 3.2) {

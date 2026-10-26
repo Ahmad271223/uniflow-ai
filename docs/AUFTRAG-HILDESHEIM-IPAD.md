@@ -38,7 +38,7 @@ Fertig in `apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Hildesheim/`, unt
 | --- | --- |
 | `Learnweb.swift` | Kurstitel, Abschnitt → „Woche N“, Datei-ID (SHA-256), REST-Dateiliste, Sitzungs-Dateiliste, Pluginfile-Links, Ordnerseiten, **Instanz des Semesters** (`discoverBase`, jährlicher Wechsel learnweb2026 → 2027) |
 | `HildesheimCAS.swift` | CAS-Login-Adressen für LSF und Learnweb, Erkennung der Loginseite, Fehlertext (`#loginErrorsPanel`); Formular, Rücksprung und Stand aus `CASLogin` ohne Aufrufer seit `wip/v1-pc-fix` entfernt (ob eine Anmeldung fertig ist, entscheiden `LSFClient.isLoggedIn` und `Learnweb.isLoggedIn`) |
-| `LSFCalendar.swift` | ICS-Parser mit BYDAY und EXDATE, LSF-Titel „0449 - Titel (Lehrperson)“, iCal-Link aus der Stundenplan-Seite |
+| `LSFCalendar.swift` | ICS-Parser mit BYDAY und EXDATE, LSF-Titel „9449 - Titel (Lehrperson)“, iCal-Link aus der Stundenplan-Seite |
 | `GradeRows.swift` | Notenspiegel-Zeilen im Hildesheimer Aufbau (Kopfzeile irgendwo, mehrere Abschlüsse, Modulzeilen weg), Ergebnis `QISGrade`; `QISGradeLayout` (Profil). Gesammelt wird der Hildesheimer Notenspiegel nur über `LSFClient.grades` |
 | `TestShare.swift` | Schlüssel der gemeinsamen Wochentests, Inhalts-Hash (`contentHash(file:)`, auf Apple-Geräten mit CryptoKit, sonst `SolutionSHA256`; die eine Fassung für Stud.IP und Learnweb) |
 | `Store/Migrations.swift` | `tests.share_key`, `files.content_sha256`, Index wie `app/db.py` |
@@ -90,7 +90,7 @@ App“ unten). Punkt 5 ist offen: Gegen die echten Seiten der Uni wurde nichts a
 - **Learnweb** `https://www.uni-hildesheim.de/learnweb2026`, Moodle mit aktivem Mobile-Webservice,
   Identitätsanbieter CAS, `typeoflogin` 1.
   - `core_course_get_contents` ist **per AJAX gesperrt** (`servicenotavailable`), nur mit Token (REST) nutzbar.
-  - Kursnamen: `"SoSe 2026: 0406 Titel"` → Semester, Veranstaltungsnummer (wie im LSF), Titel.
+  - Kursnamen: `"SoSe 2026: 9406 Titel"` → Semester, Veranstaltungsnummer (wie im LSF), Titel.
   - Abschnitte heißen oft nur `"1"`, `"2"` → als `"Woche N"` speichern (Wochenerkennung im Lernplan).
   - Dateinamen kommen teils in **NFD** (`u` + U+0308). Immer **NFC** normalisieren, auch vor dem Hash der Datei-ID.
     Auf dem PC hat genau das den Sync abgebrochen.
@@ -100,7 +100,7 @@ App“ unten). Punkt 5 ist offen: Gegen die echten Seiten der Uni wurde nichts a
     `moduleCall=iCalendarPlan&termine=<ids>`. Dieser ICS-Link braucht **keine Sitzung**.
   - **`DTSTART` ist der Semesterbeginn (Montag), der echte Wochentag steht nur in `BYDAY`** (auch mehrere Tage).
     Vorlesungsfreie Tage stehen als `EXDATE` (mehrere Zeilen, Komma-Listen, Liste endet mit Komma).
-  - `SUMMARY` = `"0449 - Titel (Lehrperson)"`, Kommas als `\,`.
+  - `SUMMARY` = `"9449 - Titel (Lehrperson)"`, Kommas als `\,`.
   - Veranstaltungsnummern wiederholen sich zwischen Semestern: Zuordnung zu Kursen nur über **Nummer und Semester**.
   - Notenspiegel: auf „Meine Funktionen“ direkt der Link „Studien-/Prüfungsleistungen (Notenspiegel)“, je
     Studiengang ein Reiter. Tabellenaufbau anders als LUH: **vor der Kopfzeile steht eine Zeile „Abschluss: …“**,
@@ -152,7 +152,7 @@ App“ unten). Punkt 5 ist offen: Gegen die echten Seiten der Uni wurde nichts a
   2. Sonst: Studierende fügen einen selbst erzeugten Schlüssel ein (Profil → Einstellungen → Sicherheitsschlüssel).
   3. Sonst: AJAX mit der Cookie-Sitzung wie auf dem PC (`SessionClient`), mit Hinweis auf die Aufrufzählung.
 - Token nie loggen, nie in URLs; erst beim Download mitschicken. Auf dem iPad im POST-Körper an die eigene
-  Pluginfile-Adresse (`LearnwebAPI.downloadRequest`), nicht wie `with_token` am PC an die Adresse.
+  Pluginfile-Adresse (`LearnwebAPI.downloadRequest`, am PC ebenso `learnweb.token_request`), nie an die Adresse.
 
 ### 4. Sync
 

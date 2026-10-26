@@ -30,15 +30,13 @@ from __future__ import annotations
 import importlib.util
 import itertools
 import json
-import os
 import re
 import sqlite3
 import sys
-import time
 from datetime import date, datetime
 from pathlib import Path
 
-from schema_source import ROOT, SchemaSource, write_or_check
+from schema_source import ROOT, SchemaSource, berlin_time, dump_tables, write_or_check
 
 OUT = ROOT / "packages" / "shared-contracts" / "fixtures" / "local-backend" / "study-plan.json"
 START = "2026-10-23T09:15:00"           # Freitag vor der Zeitumstellung (So 25.10.2026, 03:00 -> 02:00)
@@ -328,22 +326,7 @@ DERIVE_STATUSES = ["geplant", "in_bearbeitung", "erledigt", "nachholen", "uebers
 def frozen(src: SchemaSource):
     """Uhr einfrieren und weiterstellbar machen: date.today() in server/study, study.today(), db.now_iso() und
     datetime.now() in server.py lesen CLOCK["now"]."""
-    class FrozenDate(date):
-        @classmethod
-        def today(cls):
-            return cls.fromisoformat(CLOCK["now"][:10])
-
-    class FrozenDateTime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            n = datetime.fromisoformat(CLOCK["now"])
-            return n if tz is None else n.astimezone(tz)
-
-    from app import server, study
-    server.date = FrozenDate
-    server.datetime = FrozenDateTime
-    study.date = FrozenDate
-    src.db.now_iso = lambda: CLOCK["now"]
+    src.freeze(lambda: date.fromisoformat(CLOCK["now"][:10]), lambda: CLOCK["now"], lambda: datetime.fromisoformat(CLOCK["now"]))
 
 
 def resolve(value, path: Path, names: dict):
@@ -384,24 +367,16 @@ def resolve(value, path: Path, names: dict):
 
 
 def tables(path: Path) -> dict:
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    try:
-        out = {t: [dict(r) for r in conn.execute(f"SELECT * FROM {t} ORDER BY id")] for t in ("study_packages", "study_tasks", "task_history", "modules")}
-        out["files"] = [dict(r) for r in conn.execute("SELECT id, status, seen_by_user FROM files ORDER BY id")]
-    finally:
-        conn.close()
-    return out
+    q = {t: f"SELECT * FROM {t} ORDER BY id" for t in ("study_packages", "study_tasks", "task_history", "modules")}
+    return dump_tables(path, q | {"files": "SELECT id, status, seen_by_user FROM files ORDER BY id"})
 
 
 def run(src: SchemaSource, gen, name: str, now: str, seed: list, plan: list[dict]) -> tuple[list[dict], dict]:
     """Frische Datenbank mit Seed, Uhr auf `now`, dann die Schritte; liefert die Schritte mit Antworten und die
     Tabellen danach. Schritte mit "now" stellen die Uhr und fuehren SQL aus ("WEEK3" oder eine Liste)."""
     from app import server
-    path = src.tmp / f"{name}.db"
-    src.use_db(path)
     CLOCK["now"] = now
-    src.db.init_db()
+    path = src.fresh_db(name)
     with src.db.cursor() as conn:
         for sql, params in seed:
             conn.execute(sql, params)
@@ -429,10 +404,11 @@ def run(src: SchemaSource, gen, name: str, now: str, seed: list, plan: list[dict
 
 
 def main() -> int:
-    check = "--check" in sys.argv[1:]
-    saved_tz = os.environ.get("TZ")
-    os.environ["TZ"] = "Europe/Berlin"                  # datetime.fromtimestamp wie auf dem PC-Server in Berlin
-    time.tzset()
+    with berlin_time():                                 # datetime.fromtimestamp wie auf dem PC-Server in Berlin
+        return build("--check" in sys.argv[1:])
+
+
+def build(check: bool) -> int:
     src = SchemaSource()
     try:
         seed = SEED + _files_seed()
@@ -447,11 +423,6 @@ def main() -> int:
                   for n in range(len(DERIVE_STATUSES) + 1) for c in itertools.combinations(DERIVE_STATUSES, n) for past in (False, True)]
     finally:
         src.cleanup()
-        if saved_tz is None:
-            os.environ.pop("TZ", None)
-        else:
-            os.environ["TZ"] = saved_tz
-        time.tzset()
     out = {"generator": "tools/gen-study-fixture.py", "now": START, "timezone": "Europe/Berlin",
            "seed": [{"sql": q, "params": p} for q, p in seed], "steps": steps, "tables_after": after,
            "scenarios": [{"name": "nachgebessert", "now": FIXES_NOW, "steps": fix_steps, "tables_after": fix_after}],

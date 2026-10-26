@@ -80,6 +80,9 @@ public enum Migrations {
         .sql("CREATE INDEX IF NOT EXISTS ix_tests_share_key ON tests(share_key)"),
         // Hoechstens ein automatischer Wochentest pro Modul und Lehrwoche
         .sql("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1"),
+        // Learnweb: Pluginfile-Revision (steigt beim Ersetzen); erkennt ueber die Sitzung eine neue Fassung, chdate bleibt
+        // eine Unix-Zeit (studip_sync.version_stamp, UniStore.versionStamp)
+        .addColumn("files", "revision", "INTEGER"),
     ]
 
     /// Reine Geraete-Umzuege ueber `PRAGMA user_version`: nur fuer Aenderungen, die es in app/db.py nicht gibt (etwa

@@ -132,3 +132,39 @@ def test_page_texts_table_gets_search_column(app):
         scriptsearch.ensure_table(conn)
         assert "search" in {r[1] for r in conn.execute("PRAGMA table_info(page_texts)")}
         assert db.rows(conn, "SELECT text, search FROM page_texts") == [{"text": "Übung", "search": None}]
+
+
+def test_search_names_with_capital_umlauts_and_like_characters(app, tmp_path):
+    """Namen von Dateien, Modulen und Aufgaben werden in der Suchform verglichen (klein, NFC): SQLite lower() und LIKE
+    kennen nur ASCII, darum fanden "übung" und "Ökonomie" weder "Übung 1.pdf" noch das Modul "Ökonomie Übung".
+    % und _ sind keine Platzhalter mehr ("%%" fand alle Dateien); Papierkorb und abgewaehlte Kurse fehlen."""
+    from app import db
+    _seed(tmp_path, file_id="s-name", chdate=1760000900, texts=["Seite 50% sicher"])
+    with db.cursor() as conn:
+        conn.execute("INSERT INTO modules(id, name, color, created_at) VALUES (92, 'Ökonomie Übung', '#336699', '2026-10-26')")
+        conn.execute("INSERT INTO courses(id, title, subject, kind, module_id, active, created_at) VALUES ('c-alt', 'Alt', 'Alt', 'vorlesung', 92, 0, '2026-10-26')")
+        conn.execute("INSERT INTO files(id, course_id, name, kind, status, chdate) VALUES ('s-ue', 'c-such', 'Übung 1.pdf', 'pdf', 'neu', 1760000901)")
+        conn.execute("INSERT INTO files(id, course_id, name, kind, status, chdate) VALUES ('s-pk', 'c-such', 'Übung 2.pdf', 'pdf', 'neu', 1760000902)")
+        conn.execute("UPDATE files SET deleted_at='2026-10-26T10:00:00' WHERE id='s-pk'")
+        conn.execute("INSERT INTO files(id, course_id, name, kind, status, chdate) VALUES ('s-inakt', 'c-alt', 'Übung 3.pdf', 'pdf', 'neu', 1760000903)")
+        conn.execute("INSERT INTO files(id, course_id, name, kind, status, chdate) VALUES ('s-proz', 'c-such', 'Rabatt_50%.pdf', 'pdf', 'neu', 1760000904)")
+        conn.execute("INSERT INTO study_packages(id, date, module_id, subject, title, planned_minutes, status, created_at) VALUES (902, '2026-10-28', 92, 'Ökonomie Übung', 'Woche 2', 60, 'geplant', '2026-10-26')")
+        conn.execute("INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) VALUES (9002, 902, 'uebung', 'Übungsblatt Ökonomie', 0, 30, 'geplant', '2026-10-26')")
+
+    def search(q):
+        st, _, b = asgi_call(app, "GET", "/api/search?q=" + q)
+        assert st == 200
+        return json.loads(b)
+
+    for q in ("%C3%BCbung", "%C3%9Cbung"):
+        r = search(q)
+        assert [f["id"] for f in r["files"]] == ["s-ue"]
+        assert [m["id"] for m in r["modules"]] == [92]
+        assert [t["id"] for t in r["tasks"]] == [9002]
+    assert [m["id"] for m in search("%C3%96konomie")["modules"]] == [92]
+    assert [m["id"] for m in search("u%CC%88bung")["modules"]] == [92]      # zerlegter Umlaut (NFD)
+    assert [f["id"] for f in search("%25%25")["files"]] == []
+    assert [f["id"] for f in search("_5")["files"]] == ["s-proz"]
+    assert [f["id"] for f in search("0%25")["files"]] == ["s-proz"]
+    assert [(p["file_id"], p["page"]) for p in search("50%25")["pages"]] == [("s-name", 1)]
+    assert search("0_")["files"] == [] and search("0_")["pages"] == []

@@ -1,15 +1,15 @@
 {
  "_hinweis": "Erzeugt mit tools/gen-hildesheim-fixture.py aus der Python-Referenz; nicht von Hand aendern.",
  "course-titles": {
-  "SoSe 2026: 0406 Theorien der Erziehungswissenschaft": {
+  "SoSe 2026: 9406 Theorien der Testwissenschaft": {
    "semester": "SoSe 2026",
-   "number": "0406",
-   "title": "0406 Theorien der Erziehungswissenschaft"
+   "number": "9406",
+   "title": "9406 Theorien der Testwissenschaft"
   },
-  "WiSe 2026/27:  1532   Klein(st)kinder": {
+  "WiSe 2026/27:  9532   Klein(st)gruppen": {
    "semester": "WiSe 2026/27",
-   "number": "1532",
-   "title": "1532 Klein(st)kinder"
+   "number": "9532",
+   "title": "9532 Klein(st)gruppen"
   },
   "Mathe-Vorkurs": {
    "semester": "",
@@ -75,6 +75,7 @@
    "size": 1200,
    "mime": "application/pdf",
    "chdate": 1760000000,
+   "revision": 1,
    "download_url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/mod_resource/content/1/plan.pdf",
    "folder": "Informationen"
   },
@@ -84,6 +85,7 @@
    "size": 5,
    "mime": "application/pdf",
    "chdate": 1760000001,
+   "revision": 2,
    "download_url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/6/mod_folder/content/2/Teil%201/Einfu%CC%88hrung.pdf",
    "folder": "Woche 1/Literatur/Teil 1"
   }
@@ -121,16 +123,28 @@
    "parsed": null
   }
  ],
- "with-token": [
+ "token-download": [
   {
    "url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/a.pdf",
    "token": "ABC123",
-   "result": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/a.pdf?token=ABC123"
+   "request": {
+    "url": "https://www.uni-hildesheim.de/learnweb2026/webservice/pluginfile.php/5/a.pdf",
+    "method": "POST",
+    "form": {
+     "token": "ABC123"
+    }
+   }
   },
   {
    "url": "https://www.uni-hildesheim.de/learnweb2026/x.php?a=1",
    "token": "ABC123",
-   "result": "https://www.uni-hildesheim.de/learnweb2026/x.php?a=1&token=ABC123"
+   "request": {
+    "url": "https://www.uni-hildesheim.de/learnweb2026/x.php?a=1",
+    "method": "POST",
+    "form": {
+     "token": "ABC123"
+    }
+   }
   }
  ],
  "session-state": {
@@ -202,28 +216,36 @@
    {
     "id": "lw-1-2e4a3839",
     "name": "Folien 1.pdf",
-    "chdate": 4,
+    "size": null,
+    "chdate": null,
+    "revision": 4,
     "download_url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/5/mod_resource/content/4/Folien%201.pdf",
     "folder": "Woche 1"
    },
    {
     "id": "lw-2-d7d9a757",
     "name": "x.pdf",
-    "chdate": 2,
+    "size": null,
+    "chdate": null,
+    "revision": 2,
     "download_url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/x.pdf",
     "folder": "Informationen/Texte"
    },
    {
     "id": "lw-2-f9923d73",
     "name": "y.pdf",
-    "chdate": 2,
+    "size": null,
+    "chdate": null,
+    "revision": 2,
     "download_url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/6/mod_folder/content/2/Sub/y.pdf",
     "folder": "Informationen/Texte/Sub"
    },
    {
     "id": "lw-5-355519f7",
     "name": "blatt.pdf",
-    "chdate": 1,
+    "size": null,
+    "chdate": null,
+    "revision": 1,
     "download_url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/7/mod_resource/content/1/blatt.pdf",
     "folder": "Abschnitt 2"
    }
@@ -321,9 +343,9 @@
  ],
  "lsf-plan.ics": [
   {
-   "number": "0449",
-   "title": "Erinnerungen, Erzählungen & Diskurse um Erinnerungskulturen",
-   "lecturer": "Zimmermann",
+   "number": "9449",
+   "title": "Erinnerungen, Erzählungen & Beispiele",
+   "lecturer": "Muster",
    "weekday": 0,
    "start_time": "14:00",
    "end_time": "16:00",
@@ -333,8 +355,8 @@
    "exdates": []
   },
   {
-   "number": "1528",
-   "title": "Mit Kunst und Kultur arbeiten",
+   "number": "9528",
+   "title": "Mit Beispielen arbeiten",
    "lecturer": "",
    "weekday": 0,
    "start_time": "10:00",
@@ -345,8 +367,8 @@
    "exdates": []
   },
   {
-   "number": "1505",
-   "title": "Einführung in die Sozialpädagogik I",
+   "number": "9505",
+   "title": "Einführung in die Testpädagogik I",
    "lecturer": "",
    "weekday": 1,
    "start_time": "10:00",
@@ -359,8 +381,8 @@
    ]
   },
   {
-   "number": "1505",
-   "title": "Einführung in die Sozialpädagogik I",
+   "number": "9505",
+   "title": "Einführung in die Testpädagogik I",
    "lecturer": "",
    "weekday": 3,
    "start_time": "10:00",
@@ -375,27 +397,27 @@
  ],
  "lsf-summary": [
   {
-   "summary": "0449 - Erinnerungen\\, Erzählungen (Zimmermann)",
-   "number": "0449",
+   "summary": "9449 - Erinnerungen\\, Erzählungen (Muster)",
+   "number": "9449",
    "title": "Erinnerungen, Erzählungen",
-   "lecturer": "Zimmermann"
+   "lecturer": "Muster"
   },
   {
-   "summary": "1532 - Klein(st)kinder in den stationären Hilfen",
-   "number": "1532",
-   "title": "Klein(st)kinder in den stationären Hilfen",
+   "summary": "9532 - Klein(st)gruppen in den Testhilfen",
+   "number": "9532",
+   "title": "Klein(st)gruppen in den Testhilfen",
    "lecturer": ""
   },
   {
-   "summary": "Ohne Nummer (Meier, Schulz)",
+   "summary": "Ohne Nummer (Muster, Beispiel)",
    "number": null,
    "title": "Ohne Nummer",
-   "lecturer": "Meier, Schulz"
+   "lecturer": "Muster, Beispiel"
   },
   {
-   "summary": "2072 - Das perfekte Zimmer. Wohnraum als Konsumkultur",
-   "number": "2072",
-   "title": "Das perfekte Zimmer. Wohnraum als Konsumkultur",
+   "summary": "9072 - Das Testzimmer. Wohnen als Beispiel",
+   "number": "9072",
+   "title": "Das Testzimmer. Wohnen als Beispiel",
    "lecturer": ""
   }
  ],
@@ -597,8 +619,8 @@
    "event_kind": "labor"
   },
   {
-   "title": "0406 Theorien der Erziehungswissenschaft",
-   "subject": "Theorien der Erziehungswissenschaft",
+   "title": "9406 Theorien der Testwissenschaft",
+   "subject": "Theorien der Testwissenschaft",
    "kind": "vorlesung",
    "event_kind": "vorlesung"
   },

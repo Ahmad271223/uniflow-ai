@@ -37,7 +37,7 @@ final class StudIPLibraryTests: XCTestCase {
         for f in wanted where f.isDownloadable && !failing.contains(f.id) {
             let rel = "studip/" + StudIPImport.relativePath(for: f)
             // Inhalts-Hash nach dem Download wie store_course_files (testshare.file_sha256), ausserhalb der Transaktion
-            let sha = TestShare.contentHash(file: try files.write(Data("Inhalt \(f.id)".utf8), to: rel))
+            let sha = ContentHash.file(try files.write(Data("Inhalt \(f.id)".utf8), to: rel))
             try await db.transaction { try StudIPLibrary.markDownloaded($0, file: f, localPath: rel, sha256: sha, at: now, base: base) }
             loaded.append(f.id)
         }

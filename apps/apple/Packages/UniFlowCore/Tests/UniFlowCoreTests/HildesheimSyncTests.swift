@@ -166,18 +166,18 @@ final class HildesheimSyncTests: XCTestCase {
             "cm": .array([.object(["id": .string("7"), "module": .string("resource"), "name": .string("Folien"), "sectionid": .string("11")]),
                           .object(["id": .string("8"), "module": .string("folder"), "name": .string("Texte"), "sectionid": .string("11")])])])
         t.on("\(base)/lib/ajax/service.php?sesskey=abc123&info=core_course_get_enrolled_courses_by_timeline_classification",
-             okJSON(.array([.object(["error": .bool(false), "data": .object(["courses": .array([.object(["id": .number(264), "fullname": .string("SoSe 2026: 0883 Sozialpsychologie")])])])])])))
+             okJSON(.array([.object(["error": .bool(false), "data": .object(["courses": .array([.object(["id": .number(264), "fullname": .string("SoSe 2026: 9883 Testpsychologie")])])])])])))
         t.on("\(base)/lib/ajax/service.php?sesskey=abc123&info=core_courseformat_get_state",
              okJSON(.array([.object(["error": .bool(false), "data": .string(state.jsonString())])])))
         t.on("\(base)/mod/resource/view.php?id=7", UniResponse(status: 303, headers: ["Location": "\(base)/pluginfile.php/5/mod_resource/content/4/Folien%201.pdf"]))
         t.on("\(base)/mod/folder/view.php?id=8", ok(#"<a href="\#(base)/pluginfile.php/6/mod_folder/content/2/a.pdf?forcedownload=1">a</a>"#))
         let api = LearnwebAPI(base: base, mode: .session, transport: t, retry: noWait)
         let got1 = try await api.courses().map(\.number)
-        XCTAssertEqual(got1, ["0883"])
+        XCTAssertEqual(got1, ["9883"])
         let files = try await api.files(moodleID: 264)
         XCTAssertEqual(files.map(\.name), ["Folien 1.pdf", "a.pdf"])
         XCTAssertEqual(files.map(\.folder), ["Woche 1", "Woche 1/Texte"])
-        XCTAssertEqual(files.map(\.chdate), [4, 2])
+        XCTAssertEqual(files.map(\.revision), [4, 2])
         XCTAssertEqual(t.requests.first { $0.url.absoluteString.contains("view.php?id=7") }?.followRedirects, false)
     }
 

@@ -127,34 +127,9 @@ final class LocalTimetableTests: XCTestCase {
         }
     }
 
-    /// Derselbe difflib-Port wie fuer die Module (`SequenceMatcher` in ModuleGuess.swift, auch gegen
-    /// study-modules.json geprueft)
-    func testSequenceMatcherMatchesPython() throws {
-        let cases = try fixture()["matcher"]?.array ?? []
-        XCTAssertGreaterThanOrEqual(cases.count, 10)
-        for c in cases {
-            let a = c["a"]?.string ?? "", b = c["b"]?.string ?? ""
-            XCTAssertEqual(SequenceMatcher(a, b).ratio(), c["ratio"]?.double, "\(a.prefix(20)) / \(b.prefix(20))")
-        }
-    }
-
-    /// LSF-Export der Uni Hildesheim (packages/shared-contracts/fixtures/hildesheim, Erwartungen aus Python): der
-    /// Wochentag kommt aus BYDAY, mehrere BYDAY werden mehrere Serien mit ihren Ausfaellen. Verglichen werden die
-    /// Felder von `parse_ics`; Nummer, Titel und Lehrende trennt erst `lsf.split_summary` (nicht portiert).
-    func testHildesheimLSFExportMatchesPython() throws {
-        var root = URL(fileURLWithPath: #filePath)
-        for _ in 0..<7 { root.deleteLastPathComponent() }
-        let dir = root.appendingPathComponent("packages/shared-contracts/fixtures/hildesheim")
-        let expected = try JSONValue.parse(Data(contentsOf: dir.appendingPathComponent("expected.json")))
-        let keys = ["weekday", "start_time", "end_time", "rrule", "date_from", "date_to", "exdates"]
-        for name in ["lsf-course.ics", "lsf-plan.ics"] {
-            let text = try String(contentsOf: dir.appendingPathComponent(name), encoding: .utf8)
-            let got: [JSONValue] = LocalTimetableImport.parseICS(text).map { e in .object(e.filter { keys.contains($0.key) }) }
-            let want: [JSONValue] = (expected[name]?.array ?? []).map { e in .object((e.object ?? [:]).filter { keys.contains($0.key) }) }
-            XCTAssertFalse(want.isEmpty, name)
-            XCTAssertNil(jsonDiff(.array(got), .array(want)), "\(name): \(jsonDiff(.array(got), .array(want)) ?? "")")
-        }
-    }
+    // Der difflib-Port (`SequenceMatcher`) hat einen Test mit einer Fallliste: LocalModulesTests
+    // (sequence_ratios in study-modules.json). Der LSF-Export der Uni Hildesheim steht in HildesheimFixtureTests
+    // (parse_ics und lsf.split_summary bzw. `LSFCalendar.splitSummary`).
 
     /// Dieselben Erwartungen wie tests/test_hildesheim.py an den LSF-Export (fixtures/hildesheim, expected.json), hier
     /// im Stundenplan des lokalen Backends: die Serien wie mit dem ICS-Import der App uebernommen (apply_import mit den
@@ -182,7 +157,7 @@ final class LocalTimetableTests: XCTestCase {
         XCTAssertEqual(BerlinClock.parseISODate("2026-10-26").map(BerlinClock.weekday), 0, "DTSTART 26.10.2026 ist ein Montag")
         XCTAssertEqual(thursday["exdates"], ["2026-12-24", "2026-12-31"], "Heiligabend und Silvester")
         // mehrere BYDAY: je Tag eine Serie mit den Ausfaellen an diesem Tag (test_parse_ics_multiple_bydays_split_exdates)
-        let split = (parsed["lsf-plan.ics"] ?? []).filter { ($0["title"]?.string ?? "").contains("Sozialpädagogik") }
+        let split = (parsed["lsf-plan.ics"] ?? []).filter { ($0["title"]?.string ?? "").contains("Testpädagogik") }
         XCTAssertEqual(split.map { [$0["weekday"] ?? .null, $0["date_from"] ?? .null, $0["exdates"] ?? .null] as JSONValue },
                        [[1, "2026-10-27", ["2026-12-22"]], [3, "2026-10-29", ["2026-12-24"]]])
 
@@ -214,7 +189,7 @@ final class LocalTimetableTests: XCTestCase {
         let christmasEve = await day("2026-12-24", start: "16:00")
         XCTAssertEqual(christmasEve, ["ausfall"], "Donnerstags-Kurs faellt an Heiligabend aus")
         let newYearsEve = await day("2026-12-31", start: "10:00")
-        XCTAssertEqual(newYearsEve, ["teilnahme"], "Sozialpaedagogik am Donnerstag 31.12. ohne EXDATE")
+        XCTAssertEqual(newYearsEve, ["teilnahme"], "Testpaedagogik am Donnerstag 31.12. ohne EXDATE")
         let notes = try await backend.context.database.withConnection {
             try $0.rows("SELECT date, note FROM event_exceptions ORDER BY date, event_id").map { "\($0["date"]?.string ?? "") \($0["note"]?.string ?? "")" }
         }

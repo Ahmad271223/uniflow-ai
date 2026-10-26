@@ -112,8 +112,7 @@ final class ShellState: ObservableObject {
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 220_000_000)
             guard !Task.isCancelled else { return }
-            let enc = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
-            guard let r = try? await api.value("/api/search?q=\(enc)"), !Task.isCancelled else { return }
+            guard let r = try? await api.value("/api/search?q=\(APIClient.queryValue(text))"), !Task.isCancelled else { return }
             var hits: [SearchHit] = []
             for m in r["modules"]?.array ?? [] {
                 guard let id = m.i("id") else { continue }

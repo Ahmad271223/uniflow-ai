@@ -65,7 +65,7 @@ def fetch_plan_ics(page) -> str | None:
 
 
 def split_summary(summary: str) -> dict:
-    """'0449 - Erinnerungen ... (Zimmermann)' -> number, title, lecturer."""
+    """'9449 - Erinnerungen ... (Muster)' -> number, title, lecturer."""
     s = (summary or "").replace("\\,", ",").replace("\\;", ";").strip()
     num = None
     m = SUMMARY_RE.match(s)

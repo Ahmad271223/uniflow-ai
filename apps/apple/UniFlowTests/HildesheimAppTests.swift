@@ -463,7 +463,7 @@ final class HildesheimAppTests: XCTestCase {
                 guard form.contains("wstoken=\(token)") else { return .text(#"{"exception":"x","errorcode":"invalidtoken"}"#) }
                 if form.contains("wsfunction=core_webservice_get_site_info") { return .text(#"{"userid": 42}"#) }
                 if form.contains("wsfunction=core_enrol_get_users_courses") {
-                    return .text(#"[{"id": 35, "fullname": "WiSe 2026/27: 2072 Das perfekte Zimmer", "hidden": 0}]"#)
+                    return .text(#"[{"id": 35, "fullname": "WiSe 2026/27: 9072 Das Testzimmer", "hidden": 0}]"#)
                 }
                 if form.contains("courseid=35") { return UniStubProtocol.Reply(status: 200, body: contents) }
                 return .text("[]")
@@ -480,7 +480,7 @@ final class HildesheimAppTests: XCTestCase {
                 let q = URLComponents(url: r.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
                 switch q.first(where: { $0.name == "state" })?.value {
                 case "wplan":
-                    return .text(#"<a href="x">Abmelden</a><a href="\#(lsf)/qisserver/rds?state=verpublish&amp;status=transform&amp;moduleCall=iCalendarPlan&amp;termine=125321">iCal</a>"#)
+                    return .text(#"<a href="x">Abmelden</a><a href="\#(lsf)/qisserver/rds?state=verpublish&amp;status=transform&amp;moduleCall=iCalendarPlan&amp;termine=1">iCal</a>"#)
                 case "verpublish": return UniStubProtocol.Reply(status: 200, headers: ["Content-Type": "text/calendar"], body: ics)
                 case "user": return .text(#"<a href="x">Abmelden</a><a href="rds?state=notenspiegelStudent&amp;nodeID=a">Studien-/Prüfungsleistungen (Notenspiegel)</a>"#)
                 case "notenspiegelStudent": return .text(gradePage)
@@ -553,12 +553,12 @@ final class HildesheimAppTests: XCTestCase {
         // "__user__" ist der Kurs der eigenen Dokumente (legt die Bibliothek an)
         let courses = (try await c.api.value("/api/courses").array ?? []).filter { $0["id"]?.string != "__user__" }
         XCTAssertEqual(courses.compactMap { $0["id"]?.string }, ["lw-35"])
-        XCTAssertEqual(courses.first?["subject"]?.string, "Das perfekte Zimmer")
+        XCTAssertEqual(courses.first?["subject"]?.string, "Das Testzimmer")
         XCTAssertEqual(courses.first?["file_count"]?.int, 2)
         let modules = try await c.api.value("/api/modules").jsonString()
-        XCTAssertTrue(modules.contains("Das perfekte Zimmer"), "Modul aus dem Learnweb-Kurs")
+        XCTAssertTrue(modules.contains("Das Testzimmer"), "Modul aus dem Learnweb-Kurs")
         let sha = try await db.scalar("SELECT content_sha256 FROM files WHERE id=?", [.text(einf)])?.string
-        XCTAssertEqual(sha, SolutionSHA256.hex(Data("%PDF-1.7 einfuehrung".utf8)), "Inhalts-Hash aus dem Kern (TestShare.contentHash)")
+        XCTAssertEqual(sha, SolutionSHA256.hex(Data("%PDF-1.7 einfuehrung".utf8)), "Inhalts-Hash aus dem Kern (ContentHash.file)")
 
         // Stundenplan: LSF-Serie am Donnerstag (DTSTART ist der Montag), Ausfall an Heiligabend
         let thursday = try await day(c, "2026-10-29", start: "16:00")

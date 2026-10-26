@@ -24,7 +24,9 @@ def today() -> date:
     return date.today()
 
 
-def monday(d: date) -> date:
+def monday(d: date | None = None) -> date:
+    """Montag der Woche von d (ohne d: von heute); die eine Fassung (auch planner und server)"""
+    d = d or today()
     return d - timedelta(days=d.weekday())
 
 

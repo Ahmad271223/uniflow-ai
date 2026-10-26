@@ -67,7 +67,7 @@ public enum StudIPLibrary {
     }
 
     /// Datei heruntergeladen (`UniStore.markDownloaded`): Ablageort relativ zum App-Container, Zeitpunkt wie
-    /// `db.now_iso()`, die geladene Fassung und der Inhalts-Hash (`TestShare.contentHash(file:)`) in einem Schritt.
+    /// `db.now_iso()`, die geladene Fassung und der Inhalts-Hash (`ContentHash.file`) in einem Schritt.
     public static func markDownloaded(_ c: SQLiteConnection, file f: StudIPFile, localPath: String, sha256: String?, at: String,
                                       base: URL) throws {
         try UniStore.markDownloaded(c, fileRow(f, base: base), localPath: localPath, sha256: sha256, now: at)

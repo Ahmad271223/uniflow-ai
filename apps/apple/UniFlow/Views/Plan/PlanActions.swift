@@ -388,7 +388,7 @@ struct MoveDialog: View {
             HStack(spacing: 9.6) {
                 ForEach([1, 2, 3, 7], id: \.self) { n in
                     UFChip(text: "+\(n) Tag\(n > 1 ? "e" : "")") {
-                        date = Fmt.isoDay(Calendar.current.date(byAdding: .day, value: n, to: Date()) ?? Date())
+                        date = Fmt.isoDay(Fmt.calendar.date(byAdding: .day, value: n, to: Date()) ?? Date())
                     }
                 }
             }

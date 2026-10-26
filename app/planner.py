@@ -7,11 +7,7 @@ from datetime import date, timedelta
 
 from . import ai, db
 from .extract import extract_text
-
-
-def monday(d: date | None = None) -> date:
-    d = d or date.today()
-    return d - timedelta(days=d.weekday())
+from .study import monday
 
 
 def planning_week(d: date | None = None) -> date:
@@ -289,7 +285,7 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
         mats = _materials_for_test(conn, subject, module_id=module_id, week_no=week_no)
         # Gemeinsamer Wochentest: gleiche Materialien (Inhalt) + gleiche Dauer -> derselbe Test, ohne neue KI-Anfrage
         from . import testshare, universities
-        key = testshare.share_key(universities.current_key(conn), duration_min, mats) if (auto and mats) else None
+        key = testshare.share_key(universities.current_key(), duration_min, mats) if (auto and mats) else None
         shared = testshare.lookup_local(conn, key) if key else None
     if not mats:
         raise RuntimeError(f"Keine Materialien fuer {subject}")

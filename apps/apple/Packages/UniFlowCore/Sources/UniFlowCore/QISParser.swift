@@ -348,7 +348,9 @@ public enum QISParser {
     }
 
     /// Wie qis.summary(): jede Note von 1,0 bis 5,0 zaehlt (die Status-Bedingung dort trifft immer zu), gewichtet
-    /// nach Credits; ohne Credits einfacher Mittelwert. Gerundet auf zwei Stellen wie round(x, 2).
+    /// nach Credits; ohne Credits einfacher Mittelwert. Gerundet auf zwei Stellen wie round(x, 2). Summen wie Pythons
+    /// `sum()` (kompensiert, `PyMath.sum`) in Zeilenreihenfolge: mit einfacher Summe lag der Schnitt an Rundungsgrenzen
+    /// x,xx5 um 0,01 neben dem PC (2,7249999… statt 2,725).
     public static func summary(_ grades: [QISGrade]) -> QISGradeSummary {
         var graded: [(n: Double, c: Double)] = []
         for g in grades {
@@ -357,10 +359,10 @@ public enum QISParser {
             guard let c = number(cs) else { continue }
             if n >= 1.0, n <= 5.0 { graded.append((n, c)) }
         }
-        let cp = graded.reduce(0) { $0 + $1.c }
+        let cp = PyMath.sum(graded.map(\.c))
         let avg: Double?
-        if cp != 0 { avg = round2(graded.reduce(0) { $0 + $1.n * $1.c } / cp) }
-        else if !graded.isEmpty { avg = round2(graded.reduce(0) { $0 + $1.n } / Double(graded.count)) }
+        if cp != 0 { avg = round2(PyMath.sum(graded.map { $0.n * $0.c }) / cp) }
+        else if !graded.isEmpty { avg = round2(PyMath.sum(graded.map(\.n)) / Double(graded.count)) }
         else { avg = nil }
         let passed = grades.filter { ($0.status ?? "").lowercased().hasPrefix("be") }.count
         return QISGradeSummary(average: avg, credits: cp, passed: passed)

@@ -334,6 +334,13 @@
    ]
   },
   {
+   "sql": "UPDATE files SET deleted_at=? WHERE id=?",
+   "params": [
+    "2026-10-23T08:00:00",
+    "f-la-v4"
+   ]
+  },
+  {
    "sql": "INSERT INTO analysis(file_id, doc_type, title, topics, created_at) VALUES (?,?,?,?,?)",
    "params": [
     "f-la-v1",
@@ -915,15 +922,6 @@
       "ai_title": "Eigenwerte und Eigenvektoren",
       "doc_type": "vorlesung",
       "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
-     },
-     {
-      "id": "f-la-alt",
-      "name": "VL01 Eigenwerte alt.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
      }
     ],
     "modules": [],
@@ -1003,15 +1001,6 @@
       "subject": "Lineare Algebra Test",
       "module_id": 1,
       "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte. Eigenvektoren lösen das homogene System. Diagonalmatrix mit Eigenwerten auf der Diagonale"
-     },
-     {
-      "file_id": "f-la-alt",
-      "page": 1,
-      "name": "VL01 Eigenwerte alt.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte und Eigenvektoren der Matrix."
      }
     ]
    }
@@ -1030,15 +1019,6 @@
       "ai_title": "Eigenwerte und Eigenvektoren",
       "doc_type": "vorlesung",
       "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
-     },
-     {
-      "id": "f-la-alt",
-      "name": "VL01 Eigenwerte alt.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
      }
     ],
     "modules": [],
@@ -1118,15 +1098,6 @@
       "subject": "Lineare Algebra Test",
       "module_id": 1,
       "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte. Eigenvektoren lösen das homogene System. Diagonalmatrix mit Eigenwerten auf der Diagonale"
-     },
-     {
-      "file_id": "f-la-alt",
-      "page": 1,
-      "name": "VL01 Eigenwerte alt.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte und Eigenvektoren der Matrix."
      }
     ]
    }
@@ -1295,15 +1266,6 @@
    "response": {
     "files": [
      {
-      "id": "f-la-v4",
-      "name": "VL04 Ausblick.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
       "id": "f-la-png",
       "name": "Tafelbild.png",
       "subject": "Lineare Algebra Test",
@@ -1374,15 +1336,6 @@
       "ai_title": "Eigenwerte und Eigenvektoren",
       "doc_type": "vorlesung",
       "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
-     },
-     {
-      "id": "f-la-alt",
-      "name": "VL01 Eigenwerte alt.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
      }
     ],
     "modules": [
@@ -1520,291 +1473,10 @@
    "path": "/api/search?q=%25%25",
    "status": 200,
    "response": {
-    "files": [
-     {
-      "id": "f-la-v4",
-      "name": "VL04 Ausblick.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-la-png",
-      "name": "Tafelbild.png",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-la-u1",
-      "name": "Blatt 1.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": "uebung",
-      "topics": null
-     },
-     {
-      "id": "f-la-weg",
-      "name": "VL03 Spektralzerlegung.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-la-e",
-      "name": "Ergänzungen zur Vorlesung.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-la-s",
-      "name": "Skript Lineare Algebra.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-la-v2d",
-      "name": "VL02 Determinanten Druckfassung.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-la-v2",
-      "name": "VL02 Determinanten.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-frei1",
-      "name": "Seminar.pdf",
-      "subject": null,
-      "module_id": null,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-an-u1",
-      "name": "Übung 1.pdf",
-      "subject": "Analysis Beispiel",
-      "module_id": 2,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-an-v1",
-      "name": "VL01 Folgen.pdf",
-      "subject": "Analysis Beispiel",
-      "module_id": 2,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     },
-     {
-      "id": "f-la-v1",
-      "name": "VL01 Eigenwerte.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": "Eigenwerte und Eigenvektoren",
-      "doc_type": "vorlesung",
-      "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
-     },
-     {
-      "id": "f-la-alt",
-      "name": "VL01 Eigenwerte alt.pdf",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "ai_title": null,
-      "doc_type": null,
-      "topics": null
-     }
-    ],
-    "modules": [
-     {
-      "id": 1,
-      "name": "Lineare Algebra Test",
-      "color": "#4f6df5"
-     },
-     {
-      "id": 2,
-      "name": "Analysis Beispiel",
-      "color": "#0ea5a0"
-     },
-     {
-      "id": 3,
-      "name": "Ökonomie Übung",
-      "color": "#e0803a"
-     }
-    ],
-    "tasks": [
-     {
-      "id": 4,
-      "title": "Übung 1 Folgen",
-      "type": "uebung",
-      "status": "nachholen",
-      "file_id": "f-an-u1",
-      "package_id": 3,
-      "date": "2026-10-28",
-      "subject": "Analysis Beispiel",
-      "module_id": 2
-     },
-     {
-      "id": 5,
-      "title": "Lesen: Determinanten im Alltag",
-      "type": "frei",
-      "status": "geplant",
-      "file_id": null,
-      "package_id": 4,
-      "date": "2026-10-27",
-      "subject": "Allgemein",
-      "module_id": null
-     },
-     {
-      "id": 2,
-      "title": "Blatt 1 rechnen",
-      "type": "uebung",
-      "status": "geplant",
-      "file_id": "f-la-u1",
-      "package_id": 2,
-      "date": "2026-10-26",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1
-     },
-     {
-      "id": 3,
-      "title": "VL02 Determinanten nacharbeiten",
-      "type": "vorlesung",
-      "status": "geplant",
-      "file_id": "f-la-v2",
-      "package_id": 2,
-      "date": "2026-10-26",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1
-     },
-     {
-      "id": 1,
-      "title": "Eigenwerte wiederholen",
-      "type": "vorlesung",
-      "status": "erledigt",
-      "file_id": "f-la-v1",
-      "package_id": 1,
-      "date": "2026-10-20",
-      "subject": "Lineare Algebra Test",
-      "module_id": 1
-     }
-    ],
-    "pages": [
-     {
-      "file_id": "f-la-u1",
-      "page": 1,
-      "name": "Blatt 1.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
-     },
-     {
-      "file_id": "f-la-u1",
-      "page": 2,
-      "name": "Blatt 1.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Aufgabe 2: Berechnen Sie die Determinante mit der Laplace-Entwicklung. Ist die Matrix invertierbar? Cramersche Regel"
-     },
-     {
-      "file_id": "f-la-u1",
-      "page": 3,
-      "name": "Blatt 1.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren. Vektoren linear unabhängig triviale Kombination"
-     },
-     {
-      "file_id": "f-la-e",
-      "page": 1,
-      "name": "Ergänzungen zur Vorlesung.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Ergänzung 1: Matrix und Regel Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Beispiel…"
-     },
-     {
-      "file_id": "f-la-e",
-      "page": 2,
-      "name": "Ergänzungen zur Vorlesung.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Ergänzung 2: Determinante und Beispiel Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise…"
-     },
-     {
-      "file_id": "f-la-e",
-      "page": 3,
-      "name": "Ergänzungen zur Vorlesung.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Ergänzung 3: Entwicklung und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Be…"
-     },
-     {
-      "file_id": "f-la-e",
-      "page": 4,
-      "name": "Ergänzungen zur Vorlesung.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Ergänzung 4: Eigenwerte und Vektoren Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise B…"
-     },
-     {
-      "file_id": "f-la-e",
-      "page": 5,
-      "name": "Ergänzungen zur Vorlesung.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Ergänzung 5: Polynom und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Beispi…"
-     },
-     {
-      "file_id": "f-la-e",
-      "page": 6,
-      "name": "Ergänzungen zur Vorlesung.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Ergänzung 6: Linear und Vektoren Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Beisp…"
-     },
-     {
-      "file_id": "f-la-e",
-      "page": 7,
-      "name": "Ergänzungen zur Vorlesung.pdf",
-      "ai_title": null,
-      "subject": "Lineare Algebra Test",
-      "module_id": 1,
-      "snippet": "Ergänzung 7: Determinante und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise B…"
-     }
-    ]
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": []
    }
   },
   {
@@ -1830,7 +1502,30 @@
    "status": 200,
    "response": {
     "files": [],
-    "modules": [],
+    "modules": [
+     {
+      "id": 3,
+      "name": "Ökonomie Übung",
+      "color": "#e0803a"
+     }
+    ],
+    "tasks": [],
+    "pages": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%C3%B6konomie",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [
+     {
+      "id": 3,
+      "name": "Ökonomie Übung",
+      "color": "#e0803a"
+     }
+    ],
     "tasks": [],
     "pages": []
    }
@@ -1840,9 +1535,37 @@
    "path": "/api/search?q=%C3%BCbung",
    "status": 200,
    "response": {
-    "files": [],
-    "modules": [],
-    "tasks": [],
+    "files": [
+     {
+      "id": "f-an-u1",
+      "name": "Übung 1.pdf",
+      "subject": "Analysis Beispiel",
+      "module_id": 2,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
+    "modules": [
+     {
+      "id": 3,
+      "name": "Ökonomie Übung",
+      "color": "#e0803a"
+     }
+    ],
+    "tasks": [
+     {
+      "id": 4,
+      "title": "Übung 1 Folgen",
+      "type": "uebung",
+      "status": "nachholen",
+      "file_id": "f-an-u1",
+      "package_id": 3,
+      "date": "2026-10-28",
+      "subject": "Analysis Beispiel",
+      "module_id": 2
+     }
+    ],
     "pages": [
      {
       "file_id": "f-la-u1",
@@ -1854,6 +1577,137 @@
       "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
      }
     ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%C3%9Cbung",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-an-u1",
+      "name": "Übung 1.pdf",
+      "subject": "Analysis Beispiel",
+      "module_id": 2,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
+    "modules": [
+     {
+      "id": 3,
+      "name": "Ökonomie Übung",
+      "color": "#e0803a"
+     }
+    ],
+    "tasks": [
+     {
+      "id": 4,
+      "title": "Übung 1 Folgen",
+      "type": "uebung",
+      "status": "nachholen",
+      "file_id": "f-an-u1",
+      "package_id": 3,
+      "date": "2026-10-28",
+      "subject": "Analysis Beispiel",
+      "module_id": 2
+     }
+    ],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 1,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=u%CC%88bung",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-an-u1",
+      "name": "Übung 1.pdf",
+      "subject": "Analysis Beispiel",
+      "module_id": 2,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
+    "modules": [
+     {
+      "id": 3,
+      "name": "Ökonomie Übung",
+      "color": "#e0803a"
+     }
+    ],
+    "tasks": [
+     {
+      "id": 4,
+      "title": "Übung 1 Folgen",
+      "type": "uebung",
+      "status": "nachholen",
+      "file_id": "f-an-u1",
+      "package_id": 3,
+      "date": "2026-10-28",
+      "subject": "Analysis Beispiel",
+      "module_id": 2
+     }
+    ],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 1,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=s_",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=ausblick",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=eigenwerte%20alt",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": []
    }
   },
   {

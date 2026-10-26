@@ -44,6 +44,7 @@ final class HildesheimFixtureTests: XCTestCase {
             XCTAssertEqual(f.size, w["size"]?.int)
             XCTAssertEqual(f.mime, opt(w["mime"]))
             XCTAssertEqual(f.chdate, w["chdate"]?.int)
+            XCTAssertEqual(f.revision, w["revision"]?.int)
             XCTAssertEqual(f.downloadURL, w["download_url"]?.string)
             XCTAssertEqual(f.folder, w["folder"]?.string)
         }
@@ -59,8 +60,8 @@ final class HildesheimFixtureTests: XCTestCase {
             XCTAssertEqual(p?.filepath, w?["filepath"]?.string)
             XCTAssertEqual(p?.filename, w?["filename"]?.string)
         }
-        // "with-token" (`learnweb.with_token`) gibt es im Kern bewusst nicht: der Schluessel geht im Koerper mit, nie in
-        // der Adresse (LearnwebTests.testDownloadKeepsTokenOutOfEveryAddress prueft dieselben Adressen)
+        // "token-download" (`learnweb.token_request`) prueft LearnwebTests.testDownloadKeepsTokenOutOfEveryAddress: der
+        // Schluessel geht auf beiden Seiten im Koerper mit, nie in der Adresse
         let fh = expected["folder-html"]
         XCTAssertEqual(Learnweb.folderLinks(html: fh?["html"]?.string ?? ""), (fh?["links"]?.array ?? []).compactMap { $0.string })
     }
@@ -75,6 +76,9 @@ final class HildesheimFixtureTests: XCTestCase {
         for (f, w) in zip(files, want) {
             XCTAssertEqual([f.id, f.name, f.downloadURL, f.folder], [w["id"], w["name"], w["download_url"], w["folder"]].map { $0?.string ?? "" })
             XCTAssertEqual(f.chdate, w["chdate"]?.int)
+            XCTAssertEqual(f.size, w["size"]?.int)
+            XCTAssertEqual(f.revision, w["revision"]?.int)
+            XCTAssertNil(f.chdate, "die Sitzung kennt keine Aenderungszeit")
         }
     }
 
@@ -164,6 +168,6 @@ final class HildesheimFixtureTests: XCTestCase {
             XCTAssertEqual(key, c["expected_key"]?.string, c["name"]?.string ?? "")
         }
         XCTAssertNil(TestShare.shareKey(university: "luh", minutes: 45, contentHashes: ["a", nil]))
-        XCTAssertEqual([10, 15, 16, 45, 61, 500].map(TestShare.minutesBucket), [15, 15, 30, 45, 90, 120])
+        XCTAssertEqual([10, 15, 16, 45, 61, 500, nil, 0].map(TestShare.minutesBucket), [15, 15, 30, 45, 90, 120, 45, 45])
     }
 }

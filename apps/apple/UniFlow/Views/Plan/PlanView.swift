@@ -205,11 +205,8 @@ struct PlanData {
         self.cal = cal; self.open = open.items; self.modules = modules.items; self.month = month
     }
 
-    static var cal: Calendar {
-        var c = Calendar(identifier: .gregorian)
-        c.firstWeekday = 2
-        return c
-    }
+    /// Woche ab Montag, Zeitzone wie das Backend (`Fmt.calendar`)
+    static var cal: Calendar { Fmt.calendar }
 
     static func add(_ d: Date, _ n: Int) -> Date { cal.date(byAdding: .day, value: n, to: d) ?? d }
     static func monday(_ d: Date) -> Date { add(cal.startOfDay(for: d), -((cal.component(.weekday, from: d) + 5) % 7)) }
@@ -244,8 +241,7 @@ struct PlanData {
 
     /// Zeitraum-Titel
     var label: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
+        let f = Fmt.formatter("d. MMMM")
         switch view {
         case "week", "3days":
             f.dateFormat = "d. MMMM"

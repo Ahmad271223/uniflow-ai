@@ -92,6 +92,23 @@ public enum ScriptSearch {
         PyText.lower(normalize(text)).precomposedStringWithCanonicalMapping
     }
 
+    /// `contains(q, *texts)`: steht die Anfrage als Teiltext in einem der Texte, beides in der Suchform? Fuer Namen,
+    /// Titel und Faecher der globalen Suche; ohne SQL-Muster, also ohne Platzhalter. Nach Codepunkten wie Python.
+    static func contains(_ q: String, _ texts: String?...) -> Bool {
+        let form = searchForm(q)
+        return texts.contains { t in t.map { !$0.isEmpty && PyText.contains(searchForm($0), form) } ?? false }
+    }
+
+    /// `like_pattern(text)`: LIKE-Muster "enthaelt text" fuer ESCAPE '!': %, _ und ! im Text sind keine Platzhalter.
+    static func likePattern(_ text: String) -> String {
+        var out = "%"
+        for ch in text.unicodeScalars {
+            if ch == "!" || ch == "%" || ch == "_" { out.unicodeScalars.append("!") }
+            out.unicodeScalars.append(ch)
+        }
+        return out + "%"
+    }
+
     /// `_snippet(text, terms, width)`: Ausschnitt um den ersten Treffer; die Stelle wird im klein geschriebenen Text
     /// gesucht und im Original ausgeschnitten (wie Python, auch wenn die Kleinschreibung die Laenge aendert)
     static func snippet(_ text: String, terms: [String], width: Int = 170) -> String {
@@ -361,8 +378,9 @@ public enum ScriptSearch {
 
     /// `find_pages(conn, q, limit)`: Seiten, deren gespeicherter Text den (klein geschriebenen) Suchtext enthaelt;
     /// nur Texte der aktuellen Fassung von Dateien, die vorhanden sind (nach "Dateien löschen" kein Treffer, der sich
-    /// nicht oeffnen laesst), gelesen wird nichts neu. Verglichen wird die Suchform von Text und Anfrage
-    /// (`searchForm`); Zeilen von vor der Suchform bekommen sie hier (darum in einer Transaktion aufrufen).
+    /// nicht oeffnen laesst), nicht im Papierkorb und aus gewaehlten Kursen (wie die Bibliothek); gelesen wird nichts
+    /// neu. Verglichen wird die Suchform von Text und Anfrage (`searchForm`), % und _ der Anfrage sind keine
+    /// Platzhalter (`likePattern`); Zeilen von vor der Suchform bekommen sie hier (darum in einer Transaktion aufrufen).
     static func findPages(_ c: SQLiteConnection, _ q: String, limit: Int = 10) throws -> [JSONValue] {
         for r in try c.query("SELECT file_id, page, text FROM page_texts WHERE search IS NULL") {
             try c.execute("UPDATE page_texts SET search=? WHERE file_id=? AND page=?",
@@ -373,9 +391,9 @@ public enum ScriptSearch {
             FROM page_texts p JOIN files f ON f.id=p.file_id JOIN courses c ON c.id=f.course_id
             LEFT JOIN analysis a ON a.file_id=f.id
             WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND COALESCE(f.local_path, '')<>''
-              AND p.search LIKE ?
+              AND f.deleted_at IS NULL AND c.active=1 AND p.search LIKE ? ESCAPE '!'
             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?
-            """, [.text("%" + searchForm(q) + "%"), .integer(Int64(limit))])
+            """, [.text(likePattern(searchForm(q))), .integer(Int64(limit))])
         return rows.map { r in
             var o: [String: JSONValue] = [:]
             for k in ["file_id", "page", "name", "ai_title", "subject", "module_id"] { o[k] = r[k]?.json ?? .null }

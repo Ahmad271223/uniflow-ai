@@ -12,23 +12,24 @@ public enum SearchEndpoints: LocalEndpointModule {
     public static let name = "Suche und Skriptsuche"
 
     public static func register(on router: LocalRouter) {
+        // Namen, Titel und Faecher in der Suchform als Teiltext (`ScriptSearch.contains`) wie api_search: SQLite
+        // lower() und LIKE kennen nur ASCII, % und _ der Anfrage waren Platzhalter; Papierkorb und abgewaehlte Kurse
+        // fehlen wie in der Bibliothek
         router.get("/api/search") { req, ctx in
             let q = PyText.lower(PyText.strip(try req.requiredQuery("q")))
             if PyText.length(q) < 2 { return .json(["files": [], "modules": [], "tasks": [], "pages": []]) }
-            let like = SQLiteValue.text("%" + q + "%")
             let result = try await ctx.database.transaction { c -> JSONValue in
                 let files = try c.rows("""
                     SELECT f.id, f.name, c.subject, c.module_id, a.title AS ai_title, a.doc_type, a.topics FROM files f
                     JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-                    WHERE lower(f.name) LIKE ? OR lower(COALESCE(a.title,'')) LIKE ? OR lower(COALESCE(a.topics,'')) LIKE ? OR lower(c.subject) LIKE ?
-                    ORDER BY f.chdate DESC LIMIT 20
-                    """, [like, like, like, like])
-                let mods = try c.rows("SELECT id, name, color FROM modules WHERE lower(name) LIKE ? LIMIT 5", [like])
+                    WHERE f.deleted_at IS NULL AND c.active=1 ORDER BY f.chdate DESC
+                    """).filter { ScriptSearch.contains(q, $0["name"]?.string, $0["ai_title"]?.string, $0["topics"]?.string, $0["subject"]?.string) }
+                    .prefix(20)
+                let mods = try c.rows("SELECT id, name, color FROM modules").filter { ScriptSearch.contains(q, $0["name"]?.string) }.prefix(5)
                 let tasks = try c.rows("""
                     SELECT t.id, t.title, t.type, t.status, t.file_id, t.package_id, p.date, p.subject, p.module_id
-                    FROM study_tasks t JOIN study_packages p ON p.id=t.package_id
-                    WHERE lower(t.title) LIKE ? ORDER BY p.date DESC, t.id LIMIT 10
-                    """, [like])
+                    FROM study_tasks t JOIN study_packages p ON p.id=t.package_id ORDER BY p.date DESC, t.id
+                    """).filter { ScriptSearch.contains(q, $0["title"]?.string) }.prefix(10)
                 return ["files": .array(files.map(JSONValue.object)), "modules": .array(mods.map(JSONValue.object)),
                         "tasks": .array(tasks.map(JSONValue.object)), "pages": .array(try ScriptSearch.findPages(c, q))]
             }

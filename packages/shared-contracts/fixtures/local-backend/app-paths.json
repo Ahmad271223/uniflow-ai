@@ -2373,6 +2373,9 @@
       "page_count": {
        "type": "null"
       },
+      "revision": {
+       "type": "null"
+      },
       "seen_by_user": {
        "type": "number"
       },

@@ -46,6 +46,18 @@ def search_form(text: str) -> str:
     return unicodedata.normalize("NFC", normalize(text).lower())
 
 
+def contains(q: str, *texts) -> bool:
+    """Steht die Anfrage als Teiltext in einem der Texte, beides in der Suchform? Fuer Namen, Titel und Faecher der
+    globalen Suche (api_search); ohne SQL-Muster, also ohne Platzhalter."""
+    form = search_form(q)
+    return any(form in search_form(t) for t in texts if t)
+
+
+def like_pattern(text: str) -> str:
+    """LIKE-Muster "enthaelt text" fuer ESCAPE '!': %, _ und ! im Text sind keine Platzhalter."""
+    return "%" + re.sub(r"([!%_])", r"!\1", text) + "%"
+
+
 def tokens(text: str) -> list[str]:
     out = []
     for w in re.findall(r"[a-zäöüß]{3,}", normalize(text).lower()):
@@ -198,8 +210,9 @@ def search(conn, module_id: int, query: str, exclude: str | None = None, limit: 
 def find_pages(conn, q: str, limit: int = 10) -> list[dict]:
     """Seiten, deren gespeicherter Text den Suchtext enthaelt (globale Suche). Nur Seitentexte der aktuellen Fassung
     (gleiche Aenderungszeit wie die Datei) von Dateien, die vorhanden sind (nach "Dateien löschen" kein Treffer, der
-    sich nicht oeffnen laesst); gelesen wird dabei nichts neu. `q` ist schon klein geschrieben. Verglichen wird die
-    Suchform von Text und Anfrage (search_form); Zeilen von vor der Suchform bekommen sie hier."""
+    sich nicht oeffnen laesst), nicht im Papierkorb und aus gewaehlten Kursen (wie die Bibliothek); gelesen wird dabei
+    nichts neu. `q` ist schon klein geschrieben. Verglichen wird die Suchform von Text und Anfrage (search_form), % und
+    _ in der Anfrage sind keine Platzhalter (like_pattern); Zeilen von vor der Suchform bekommen sie hier."""
     ensure_table(conn)
     for r in db.rows(conn, "SELECT file_id, page, text FROM page_texts WHERE search IS NULL"):
         conn.execute("UPDATE page_texts SET search=? WHERE file_id=? AND page=?", (search_form(r["text"]), r["file_id"], r["page"]))
@@ -207,8 +220,8 @@ def find_pages(conn, q: str, limit: int = 10) -> list[dict]:
                              FROM page_texts p JOIN files f ON f.id=p.file_id JOIN courses c ON c.id=f.course_id
                              LEFT JOIN analysis a ON a.file_id=f.id
                              WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND COALESCE(f.local_path, '')<>''
-                               AND p.search LIKE ?
-                             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?""", (f"%{search_form(q)}%", limit))
+                               AND f.deleted_at IS NULL AND c.active=1 AND p.search LIKE ? ESCAPE '!'
+                             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?""", (like_pattern(search_form(q)), limit))
     return [{"file_id": r["file_id"], "page": r["page"], "name": r["name"], "ai_title": r["ai_title"], "subject": r["subject"],
              "module_id": r["module_id"], "snippet": _snippet(normalize(r["text"]), [q])} for r in rows]
 

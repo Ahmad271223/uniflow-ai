@@ -478,11 +478,12 @@ public enum OpencastStore {
     }
 
     /// Lieber kein Vorschlag als ein falscher:
-    /// 0. Organisatorisches (Raumverteilung, Termine, Klausurergebnisse) gehoert zu keiner Aufzeichnung: nichts.
+    /// 0. Organisatorisches (Raumverteilung, Termine, Klausurergebnisse) gehoert zu keiner Aufzeichnung: nichts; ebenso
+    ///    werden organisatorische Videos ("Organisatorisches", Woche nur aus dem Erstelldatum) nie vorgeschlagen.
     /// 1. Dokument einer Art mit Lehrwoche (`StudyClassify.lectureWeekTypes`, wie `week_hint`), Lehrwoche bekannt (ab 1)
-    ///    und es gibt Videos derselben Lehrwoche im Modul: diese (bei einem Blatt die Uebungsaufzeichnungen, sonst die
-    ///    Vorlesungen, falls es beide gibt); passt das Thema genau eines davon, nur dieses. Hoechstens drei. Bei
-    ///    anderen Arten ist die Woche nur die des Hochladens, kein sicherer Treffer.
+    ///    und es gibt Videos derselben Lehrwoche im Modul: diese (bei einem Blatt oder einer Loesung die Uebungs- und
+    ///    Loesungsaufzeichnungen, sonst die Vorlesungen, falls es beide gibt); passt das Thema genau eines davon, nur
+    ///    dieses. Hoechstens drei. Bei anderen Arten ist die Woche nur die des Hochladens, kein sicherer Treffer.
     /// 2. Sonst nur, wenn genau ein Video des Moduls ein eindeutiges Thema hat, das vollstaendig im Dokument steht
     ///    (`topicWords`, ohne Modul- und Kursnamen, ohne Woerter einer Art wie "Vorlesung", "Exercise" und ohne
     ///    allgemeine Woerter wie "Teil", "Woche").
@@ -490,6 +491,9 @@ public enum OpencastStore {
     static func best(_ entries: [OpencastEntry], documentWeek: Int, documentKind: String, documentText: String,
                      names: [String]) -> OpencastMatch? {
         guard documentKind != "organisatorisch" else { return nil }
+        let entries = entries.filter { $0.kind != "organisatorisch" }
+        /// Uebungsseite: Uebung und Loesung (wie bei der Art des Dokuments), sonst Vorlesungsseite
+        func exerciseSide(_ kind: String) -> Bool { ["uebung", "loesung"].contains(kind) }
         let docWords = Set(words(documentText))
         let ignored = Set(names.flatMap(words))
         func topic(_ e: OpencastEntry) -> [String]? {
@@ -501,8 +505,7 @@ public enum OpencastStore {
         if documentWeek >= 1, StudyClassify.lectureWeekTypes.contains(documentKind) {
             var same = entries.filter { $0.week == documentWeek }
             if !same.isEmpty {
-                let exercise = ["uebung", "loesung"].contains(documentKind)
-                let preferred = same.filter { ($0.kind == "uebung") == exercise }
+                let preferred = same.filter { exerciseSide($0.kind) == exerciseSide(documentKind) }
                 if !preferred.isEmpty { same = preferred }
                 let narrowed = same.filter { topic($0) != nil }
                 return OpencastMatch(entries: Array((narrowed.count == 1 ? narrowed : same).prefix(3)), reason: .sameWeek(documentWeek))
@@ -517,13 +520,17 @@ public enum OpencastStore {
 
     private static let letters = PyRegex("[a-zäöüß]+")
 
-    /// Woerter (klein, nur Buchstaben) eines Texts; zerlegte Umlaute aus PDF-Text werden vorher zusammengesetzt
+    /// Woerter (klein, nur Buchstaben) eines Texts in der Suchform der Skriptsuche (`ScriptSearch.searchForm`):
+    /// zerlegte Umlaute aus PDF-Text ("a" + U+0308 und "¨ Ubertragung", "Unabh¨ angigkeit" mit abgesetztem Trema)
+    /// werden vorher zusammengesetzt; mit NFC allein wurden daraus "ubertragung" bzw. "unabh" und "angigkeit"
     static func words(_ s: String) -> [String] {
-        letters.findAll(PyText.lower(s.precomposedStringWithCanonicalMapping))
+        letters.findAll(ScriptSearch.searchForm(s))
     }
 
     /// Woerter in Videotiteln und Blattkoepfen, die nichts ueber das Thema sagen und keine Art nennen (Woerter einer Art
-    /// wie "Vorlesung", "Übungsblatt", "Lösung", "Klausur", "Exercise", "Slides" erkennt `namesKind` ueber die Einordnung)
+    /// wie "Vorlesung", "Übungsblatt", "Lösung", "Klausur", "Exercise", "Slides" erkennt `namesKind` ueber die Einordnung).
+    /// Bewusst eine eigene Liste neben `ScriptSearch.stop`: jene ist die Stoppliste der Skriptsuche wie `STOP` in
+    /// app/scriptsearch.py (Aufgabentexte, gleich wie am PC), diese betrifft Videotitel und gibt es am PC nicht.
     static let generic: Set<String> = Set("""
         woche wochen lehrwoche tutorien teil teile video videos aufzeichnung aufzeichnungen mitschnitt livestream stream
         ergänzung ergänzungen besprechung korrektur fortsetzung wiederholung sitzung termin aufgabe hausaufgabe

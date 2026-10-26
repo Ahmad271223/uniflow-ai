@@ -508,4 +508,26 @@ final class NewVersionSearchAppTests: XCTestCase {
         let task = await waitUntil { shell.searchHits.contains { $0.route == .plan(view: "day", date: "2026-10-27") } }
         XCTAssertTrue(task, "\(shell.searchHits.map(\.title))")
     }
+
+    /// Suchtext mit "+", "&" und "=" kommt unverfaelscht im lokalen Backend an (wie `encodeURIComponent` im Web).
+    /// Vorher kodierte die Kopfzeile mit `.urlQueryAllowed`: aus "C++" wurde "C  " (zu kurz, keine Treffer), und
+    /// "Signale & Systeme" kam als "Signale " an. Dazu Namen mit grossem Umlaut (Suchform statt SQLite lower()).
+    func testHeaderSearchEncodesPlusAmpersandAndFindsCapitalUmlauts() async throws {
+        XCTAssertEqual(APIClient.queryValue("C++ & a=b #1/ü"), "C%2B%2B%20%26%20a%3Db%20%231%2F%C3%BC")
+        XCTAssertEqual(APIClient.queryValue("A-z_0.9~!*'()"), "A-z_0.9~!*'()")
+        let dev = try device()
+        _ = try await dev.api.value("/api/packages", method: "POST", body: ["date": "2026-10-27", "title": "Lernen", "tasks": [
+            ["type": "frei", "title": "C++ Zeiger wiederholen", "est_minutes": 30],
+            ["type": "frei", "title": "Signale & Systeme Blatt 2", "est_minutes": 30],
+            ["type": "frei", "title": "Übungsblatt a=b lösen", "est_minutes": 30],
+        ]])
+        let shell = ShellState()
+        shell.api = dev.api
+        for (query, title) in [("C++", "C++ Zeiger wiederholen"), ("Signale & Systeme", "Signale & Systeme Blatt 2"),
+                               ("a=b", "Übungsblatt a=b lösen"), ("übungsblatt", "Übungsblatt a=b lösen")] {
+            shell.search(query)
+            let found = await waitUntil { shell.searchHits.map(\.title) == [title] }
+            XCTAssertTrue(found, "\(query): \(shell.searchHits.map(\.title))")
+        }
+    }
 }

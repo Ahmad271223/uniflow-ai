@@ -416,6 +416,9 @@ def _init_db(conn) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS ix_tests_share_key ON tests(share_key)")
     # Hoechstens ein automatischer Wochentest pro Modul und Lehrwoche
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_auto ON tests(module_id, week_no) WHERE auto=1")
+    # Learnweb: Pluginfile-Revision (steigt beim Ersetzen); erkennt ueber die Sitzung eine neue Fassung, chdate bleibt
+    # eine Unix-Zeit (studip_sync.version_stamp)
+    add_col("files", "revision", "INTEGER")
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                     VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))

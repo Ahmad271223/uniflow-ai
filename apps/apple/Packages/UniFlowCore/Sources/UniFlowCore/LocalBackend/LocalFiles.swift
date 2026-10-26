@@ -128,17 +128,24 @@ enum LocalFileResponse {
     /// `_INLINE_TYPES` in app/server.py: diese Typen zeigt die App direkt, alles andere wird heruntergeladen
     static let inlineTypes: Set<String> = ["application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp", "text/plain"]
 
-    /// `mimetypes.guess_type(name)[0]` fuer die Endungen, die in Stud.IP-Kursen vorkommen (Standardtabelle von
-    /// Python; die Systemtabellen des PCs koennen weitere Endungen kennen, die aber nie inline gezeigt werden).
+    /// `mimetypes.guess_type(name)[0]` fuer die Endungen, die in Stud.IP- und Learnweb-Kursen vorkommen
+    /// (Standardtabelle von Python; die Systemtabellen des PCs koennen weitere Endungen kennen, die aber nie inline
+    /// gezeigt werden). Die eine Tabelle des Kerns: Dateiantworten und Learnweb ueber die Sitzung (`Learnweb.guessMime`,
+    /// davon haengt `file_kind` "image" ab, z. B. bei .bmp, .tif, .heic).
     static let types: [String: String] = [
         "pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg", "jpe": "image/jpeg", "jpeg": "image/jpeg",
         "gif": "image/gif", "webp": "image/webp", "svg": "image/svg+xml", "bmp": "image/bmp", "ico": "image/vnd.microsoft.icon",
-        "tif": "image/tiff", "tiff": "image/tiff", "txt": "text/plain", "text": "text/plain", "c": "text/plain", "h": "text/plain",
+        "tif": "image/tiff", "tiff": "image/tiff", "heic": "image/heic", "heif": "image/heif", "avif": "image/avif",
+        "txt": "text/plain", "text": "text/plain", "c": "text/plain", "h": "text/plain",
         "bat": "text/plain", "pl": "text/plain", "ksh": "text/plain", "srt": "text/plain", "csv": "text/csv",
         "html": "text/html", "htm": "text/html", "css": "text/css", "js": "text/javascript", "mjs": "text/javascript",
-        "md": "text/markdown", "xml": "text/xml", "json": "application/json", "zip": "application/zip",
+        "md": "text/markdown", "markdown": "text/markdown", "rtf": "text/rtf", "tex": "application/x-tex",
+        "xml": "text/xml", "json": "application/json", "zip": "application/zip",
         "gz": "application/gzip", "tar": "application/x-tar", "py": "text/x-python", "doc": "application/msword",
-        "xls": "application/vnd.ms-excel", "ppt": "application/vnd.ms-powerpoint",
+        "dot": "application/msword", "xls": "application/vnd.ms-excel", "ppt": "application/vnd.ms-powerpoint",
+        "pps": "application/vnd.ms-powerpoint", "pot": "application/vnd.ms-powerpoint",
+        "eps": "application/postscript", "ps": "application/postscript",
+        "avi": "video/x-msvideo", "mpg": "video/mpeg", "mpeg": "video/mpeg", "aac": "audio/aac", "opus": "audio/opus",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",

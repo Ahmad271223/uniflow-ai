@@ -60,7 +60,7 @@ struct ServicesPage: View {
     /// toLocaleDateString("de-DE") ohne Optionen: T.M.JJJJ
     static func plainDate(_ s: String?) -> String {
         guard let d = Fmt.date(s) else { return s ?? "" }
-        let c = Calendar(identifier: .gregorian).dateComponents([.day, .month, .year], from: d)
+        let c = Fmt.calendar.dateComponents([.day, .month, .year], from: d)
         return "\(c.day ?? 0).\(c.month ?? 0).\(c.year ?? 0)"
     }
 

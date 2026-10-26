@@ -140,11 +140,11 @@ public struct FileVersionKeeper: Sendable {
     /// Herkunft fuer den Hinweis im Dokument ("Stud.IP", "Learnweb")
     public let source: String
     public let clock: UniFlowClock
-    /// Inhalts-Hash einer Datei (`content_sha256` wie `TestShare.contentHash(file:)`)
+    /// Inhalts-Hash einer Datei (`content_sha256` wie `ContentHash.file`)
     public let hasher: @Sendable (URL) -> String?
 
     public init(database: SQLiteDatabase, files: LocalFiles, directory: String, source: String, clock: UniFlowClock = .system,
-                hasher: @escaping @Sendable (URL) -> String? = { TestShare.contentHash(file: $0) }) {
+                hasher: @escaping @Sendable (URL) -> String? = { ContentHash.file($0) }) {
         self.database = database
         self.files = files
         self.directory = directory

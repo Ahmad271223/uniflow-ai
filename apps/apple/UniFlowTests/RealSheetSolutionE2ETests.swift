@@ -786,7 +786,7 @@ final class RealSheetSolutionE2ETests: XCTestCase {
         }
         XCTAssertEqual(stored, "StudIP/" + rel, "Pfad relativ zum Container, im Stud.IP-Ordner")
         let sha = try await db.scalar("SELECT content_sha256 FROM files WHERE id=?", [.text(file.id)])?.string
-        XCTAssertEqual(sha, TestShare.contentHash(file: pdf), "Inhalts-Hash wie beim Download")
+        XCTAssertEqual(sha, ContentHash.file(pdf), "Inhalts-Hash wie beim Download")
         return file.id
     }
 

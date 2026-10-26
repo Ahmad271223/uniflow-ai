@@ -129,6 +129,8 @@ FILES = [
 ]
 # Seitentexte vorhanden, Datei nicht (wie nach "Dateien löschen": local_path leer): kein Seitentreffer
 GONE = {"f-la-weg"}
+# im Papierkorb: kein Treffer (wie die Bibliothek), ebenso Dateien aus abgewaehlten Kursen (k-la-alt)
+TRASH = {"f-la-v4"}
 ANALYSIS = [("f-la-v1", "vorlesung", "Eigenwerte und Eigenvektoren", json.dumps(["Spektralsatz", "Diagonalisierung"])),
             ("f-la-u1", "uebung", None, None)]
 PACKAGES = [  # id, Datum, Modul, Fach, Titel
@@ -157,7 +159,13 @@ STEPS: list[dict] = [
     {"method": "GET", "path": "/api/search?q=%25%25"},
     {"method": "GET", "path": "/api/search?q=konomie"},
     {"method": "GET", "path": "/api/search?q=%C3%96konomie"},
+    {"method": "GET", "path": "/api/search?q=%C3%B6konomie"},
     {"method": "GET", "path": "/api/search?q=%C3%BCbung"},
+    {"method": "GET", "path": "/api/search?q=%C3%9Cbung"},
+    {"method": "GET", "path": "/api/search?q=u%CC%88bung"},
+    {"method": "GET", "path": "/api/search?q=s_"},
+    {"method": "GET", "path": "/api/search?q=ausblick"},
+    {"method": "GET", "path": "/api/search?q=eigenwerte%20alt"},
     {"method": "GET", "path": "/api/search?q=%C3%9Cbungsblatt"},
     {"method": "GET", "path": "/api/search?q=%C3%BCberblick"},
     {"method": "GET", "path": "/api/search?q=unabh%C3%A4ngigkeit"},
@@ -243,6 +251,8 @@ def seed_sql(src: SchemaSource, pdf_text) -> tuple[list[tuple[str, list]], list[
         if pages is not None:
             for p, t in enumerate(pdf_text(data)):
                 texts.append(("INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)", [fid, p + 1, t, chdate]))
+    for fid in sorted(TRASH):
+        seed.append(("UPDATE files SET deleted_at=? WHERE id=?", ["2026-10-23T08:00:00", fid]))
     for fid, doc_type, title, topics in ANALYSIS:
         seed.append(("INSERT INTO analysis(file_id, doc_type, title, topics, created_at) VALUES (?,?,?,?,?)",
                      [fid, doc_type, title, topics, "2026-10-22T08:00:00"]))

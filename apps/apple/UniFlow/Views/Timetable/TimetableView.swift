@@ -108,9 +108,7 @@ struct TimetableView: View {
     /// Wochennavigation und Legende (.row.wrap)
     private var nav: some View {
         let s = start, e = PlanData.add(start, 6)
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "d. MMMM"
+        let f = Fmt.formatter("d. MMMM")
         let a = f.string(from: s)
         f.dateFormat = "d. MMMM y"
         let label = "\(a) – \(f.string(from: e))"

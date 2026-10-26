@@ -885,6 +885,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -922,6 +923,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -959,6 +961,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": null,
@@ -996,6 +999,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": null,
@@ -1033,6 +1037,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1070,6 +1075,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1107,6 +1113,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Alt",
      "subject": null,
      "course_kind": null,
@@ -1144,6 +1151,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": null,
@@ -1181,6 +1189,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testfach Mechanik Vorlesung",
      "subject": "Testfach Mechanik",
      "course_kind": "vorlesung",
@@ -1218,6 +1227,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testfach Mechanik Übung",
      "subject": "Testfach Mechanik",
      "course_kind": "uebung",
@@ -1255,6 +1265,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testbegrüßung",
      "subject": "Testbegrüßung",
      "course_kind": "sonstiges",
@@ -1292,6 +1303,7 @@
      "title": "Mein Heft",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -1329,6 +1341,7 @@
      "title": "Eigenes Skript",
      "page_count": 2,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -1373,6 +1386,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1410,6 +1424,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1447,6 +1462,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1484,6 +1500,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1528,6 +1545,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testfach Mechanik Vorlesung",
      "subject": "Testfach Mechanik",
      "course_kind": "vorlesung",
@@ -1565,6 +1583,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testfach Mechanik Übung",
      "subject": "Testfach Mechanik",
      "course_kind": "uebung",
@@ -1609,6 +1628,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1646,6 +1666,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1683,6 +1704,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": null,
@@ -1720,6 +1742,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": null,
@@ -1757,6 +1780,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1794,6 +1818,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -1831,6 +1856,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Alt",
      "subject": null,
      "course_kind": null,
@@ -1868,6 +1894,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": null,
@@ -1905,6 +1932,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testfach Mechanik Vorlesung",
      "subject": "Testfach Mechanik",
      "course_kind": "vorlesung",
@@ -1942,6 +1970,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testfach Mechanik Übung",
      "subject": "Testfach Mechanik",
      "course_kind": "uebung",
@@ -1979,6 +2008,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testbegrüßung",
      "subject": "Testbegrüßung",
      "course_kind": "sonstiges",
@@ -2016,6 +2046,7 @@
      "title": "Mein Heft",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -2053,6 +2084,7 @@
      "title": "Eigenes Skript",
      "page_count": 2,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -2096,6 +2128,7 @@
     "title": null,
     "page_count": null,
     "content_sha256": null,
+    "revision": null,
     "course_title": "Testkurs Algebra",
     "subject": null,
     "module_id": null,
@@ -2139,6 +2172,7 @@
     "title": null,
     "page_count": null,
     "content_sha256": null,
+    "revision": null,
     "course_title": "Testkurs Algebra",
     "subject": null,
     "module_id": null,
@@ -2182,6 +2216,7 @@
     "title": null,
     "page_count": null,
     "content_sha256": null,
+    "revision": null,
     "course_title": "Übung zu Testkurs Physik",
     "subject": null,
     "module_id": null,
@@ -2315,7 +2350,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   },
   {
@@ -2348,7 +2384,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   },
   {
@@ -3821,7 +3858,8 @@
     "deleted_at": null,
     "title": "Heft Ü",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   },
   {
@@ -3860,7 +3898,8 @@
     "deleted_at": null,
     "title": "Neues Notizbuch",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   },
   {
@@ -3900,7 +3939,8 @@
     "deleted_at": null,
     "title": "Modulheft",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   },
   {
@@ -3940,7 +3980,8 @@
     "deleted_at": null,
     "title": "Modulheft 2",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   },
   {
@@ -3985,7 +4026,8 @@
     "deleted_at": null,
     "title": "Import",
     "page_count": 3,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   },
   {
@@ -4070,7 +4112,8 @@
     "deleted_at": null,
     "title": "Foto",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   },
   {
@@ -4770,6 +4813,7 @@
      "title": "Heft Ü",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -4807,6 +4851,7 @@
      "title": "Neues Notizbuch",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -4844,6 +4889,7 @@
      "title": "Modulheft",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -4881,6 +4927,7 @@
      "title": "Modulheft 2",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -4918,6 +4965,7 @@
      "title": "Import",
      "page_count": 3,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -4955,6 +5003,7 @@
      "title": "Foto",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -4992,6 +5041,7 @@
      "title": "Mein Heft (Kopie)",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -5029,6 +5079,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -5066,6 +5117,7 @@
      "title": "Neuer Titel",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -5103,6 +5155,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": "uebung",
@@ -5140,6 +5193,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": "uebung",
@@ -5177,6 +5231,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -5214,6 +5269,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Algebra",
      "subject": null,
      "course_kind": null,
@@ -5251,6 +5307,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testkurs Alt",
      "subject": null,
      "course_kind": null,
@@ -5288,6 +5345,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Übung zu Testkurs Physik",
      "subject": null,
      "course_kind": "uebung",
@@ -5325,6 +5383,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testfach Mechanik Vorlesung",
      "subject": "Testfach Mechanik",
      "course_kind": "vorlesung",
@@ -5362,6 +5421,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testfach Mechanik Übung",
      "subject": "Testfach Mechanik",
      "course_kind": "uebung",
@@ -5399,6 +5459,7 @@
      "title": null,
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Testbegrüßung",
      "subject": "Testbegrüßung",
      "course_kind": "sonstiges",
@@ -5436,6 +5497,7 @@
      "title": "Mein Heft",
      "page_count": null,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -5473,6 +5535,7 @@
      "title": "Eigenes Skript",
      "page_count": 2,
      "content_sha256": null,
+     "revision": null,
      "course_title": "Eigene Dokumente",
      "subject": null,
      "course_kind": "sonstiges",
@@ -5514,7 +5577,8 @@
     "deleted_at": null,
     "title": "Neuer Titel",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f10",
@@ -5541,7 +5605,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f11",
@@ -5568,7 +5633,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f2",
@@ -5595,7 +5661,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f3",
@@ -5622,7 +5689,8 @@
     "deleted_at": "2026-10-25T14:30:05",
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f4",
@@ -5649,7 +5717,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f5",
@@ -5676,7 +5745,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f6",
@@ -5703,7 +5773,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f7",
@@ -5730,7 +5801,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f8",
@@ -5757,7 +5829,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "f9",
@@ -5784,7 +5857,8 @@
     "deleted_at": null,
     "title": null,
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u00000003000000000000000",
@@ -5811,7 +5885,8 @@
     "deleted_at": null,
     "title": "Heft Ü",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u00000004000000000000000",
@@ -5838,7 +5913,8 @@
     "deleted_at": null,
     "title": "Neues Notizbuch",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u00000005000000000000000",
@@ -5865,7 +5941,8 @@
     "deleted_at": null,
     "title": "Modulheft",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u00000006000000000000000",
@@ -5892,7 +5969,8 @@
     "deleted_at": null,
     "title": "Modulheft 2",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u00000007000000000000000",
@@ -5919,7 +5997,8 @@
     "deleted_at": null,
     "title": "Import",
     "page_count": 3,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u0000000a000000000000000",
@@ -5946,7 +6025,8 @@
     "deleted_at": null,
     "title": "Foto",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u0000000c000000000000000",
@@ -5973,7 +6053,8 @@
     "deleted_at": null,
     "title": "Mein Heft (Kopie)",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u1",
@@ -6000,7 +6081,8 @@
     "deleted_at": null,
     "title": "Mein Heft",
     "page_count": null,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    },
    {
     "id": "u2",
@@ -6027,7 +6109,8 @@
     "deleted_at": null,
     "title": "Eigenes Skript",
     "page_count": 2,
-    "content_sha256": null
+    "content_sha256": null,
+    "revision": null
    }
   ],
   "courses": [

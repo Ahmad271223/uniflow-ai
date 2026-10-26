@@ -1056,6 +1056,61 @@
    "a": "grundlagen der beispieltechnik",
    "b": "übung zu grundlagen der beispieltechnik",
    "ratio": 0.8695652173913043
+  },
+  {
+   "a": "testkurs mathematik i",
+   "b": "mathematik i",
+   "ratio": 0.7272727272727273
+  },
+  {
+   "a": "abc",
+   "b": "",
+   "ratio": 0.0
+  },
+  {
+   "a": "übung zu testmathematik i",
+   "b": "testmathematik i",
+   "ratio": 0.7804878048780488
+  },
+  {
+   "a": "programmierkurs beispiel",
+   "b": "gruppenübung programmierkurs beispiel",
+   "ratio": 0.7868852459016393
+  },
+  {
+   "a": "abcd",
+   "b": "bcda",
+   "ratio": 0.75
+  },
+  {
+   "a": "aaaa",
+   "b": "aa",
+   "ratio": 0.6666666666666666
+  },
+  {
+   "a": "einführung in die testphysik",
+   "b": "testphysik für ingenieure",
+   "ratio": 0.37735849056603776
+  },
+  {
+   "a": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxabc",
+   "b": "yxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxabc",
+   "ratio": 0.985781990521327
+  },
+  {
+   "a": "abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab",
+   "b": "babababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababa",
+   "ratio": 0.0
+  },
+  {
+   "a": "é",
+   "b": "é",
+   "ratio": 0.0
+  },
+  {
+   "a": "qwertzuiop",
+   "b": "poiuztrewq",
+   "ratio": 0.1
   }
  ],
  "lower": [

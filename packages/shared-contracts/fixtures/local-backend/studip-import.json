@@ -195,7 +195,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572"
+      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572",
+      "revision": null
      },
      {
       "id": "a2",
@@ -222,7 +223,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab"
+      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab",
+      "revision": null
      },
      {
       "id": "a3",
@@ -249,7 +251,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887"
+      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887",
+      "revision": null
      },
      {
       "id": "a4",
@@ -276,7 +279,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": null
+      "content_sha256": null,
+      "revision": null
      },
      {
       "id": "b1",
@@ -303,7 +307,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265"
+      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265",
+      "revision": null
      },
      {
       "id": "b2",
@@ -330,7 +335,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129"
+      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129",
+      "revision": null
      }
     ],
     "sync_log": [
@@ -530,7 +536,8 @@
       "deleted_at": null,
       "title": "Mein Titel",
       "page_count": null,
-      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572"
+      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572",
+      "revision": null
      },
      {
       "id": "a2",
@@ -557,7 +564,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab"
+      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab",
+      "revision": null
      },
      {
       "id": "a3",
@@ -584,7 +592,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887"
+      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887",
+      "revision": null
      },
      {
       "id": "a4",
@@ -611,7 +620,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": null
+      "content_sha256": null,
+      "revision": null
      },
      {
       "id": "a5",
@@ -638,7 +648,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792"
+      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792",
+      "revision": null
      },
      {
       "id": "b1",
@@ -665,7 +676,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265"
+      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265",
+      "revision": null
      },
      {
       "id": "b2",
@@ -692,7 +704,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129"
+      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129",
+      "revision": null
      }
     ],
     "sync_log": [
@@ -848,7 +861,8 @@
       "deleted_at": null,
       "title": "Mein Titel",
       "page_count": null,
-      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572"
+      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572",
+      "revision": null
      },
      {
       "id": "a2",
@@ -875,7 +889,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab"
+      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab",
+      "revision": null
      },
      {
       "id": "a3",
@@ -902,7 +917,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887"
+      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887",
+      "revision": null
      },
      {
       "id": "a4",
@@ -929,7 +945,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": null
+      "content_sha256": null,
+      "revision": null
      },
      {
       "id": "a5",
@@ -956,7 +973,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792"
+      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792",
+      "revision": null
      },
      {
       "id": "b1",
@@ -983,7 +1001,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265"
+      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265",
+      "revision": null
      },
      {
       "id": "b2",
@@ -1010,7 +1029,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129"
+      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129",
+      "revision": null
      }
     ],
     "sync_log": [
@@ -1168,7 +1188,8 @@
       "deleted_at": null,
       "title": "Mein Titel",
       "page_count": null,
-      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572"
+      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572",
+      "revision": null
      },
      {
       "id": "a2",
@@ -1195,7 +1216,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab"
+      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab",
+      "revision": null
      },
      {
       "id": "a3",
@@ -1222,7 +1244,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887"
+      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887",
+      "revision": null
      },
      {
       "id": "a4",
@@ -1249,7 +1272,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": null
+      "content_sha256": null,
+      "revision": null
      },
      {
       "id": "a5",
@@ -1276,7 +1300,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792"
+      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792",
+      "revision": null
      },
      {
       "id": "b1",
@@ -1303,7 +1328,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265"
+      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265",
+      "revision": null
      },
      {
       "id": "b2",
@@ -1330,7 +1356,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129"
+      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129",
+      "revision": null
      }
     ],
     "sync_log": [
@@ -1497,7 +1524,8 @@
       "deleted_at": null,
       "title": "Mein Titel",
       "page_count": null,
-      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572"
+      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572",
+      "revision": null
      },
      {
       "id": "a2",
@@ -1524,7 +1552,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab"
+      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab",
+      "revision": null
      },
      {
       "id": "a3",
@@ -1551,7 +1580,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887"
+      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887",
+      "revision": null
      },
      {
       "id": "a4",
@@ -1578,7 +1608,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": null
+      "content_sha256": null,
+      "revision": null
      },
      {
       "id": "a5",
@@ -1605,7 +1636,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792"
+      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792",
+      "revision": null
      },
      {
       "id": "b1",
@@ -1632,7 +1664,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265"
+      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265",
+      "revision": null
      },
      {
       "id": "b2",
@@ -1659,7 +1692,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129"
+      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129",
+      "revision": null
      }
     ],
     "sync_log": [
@@ -1801,7 +1835,8 @@
       "deleted_at": null,
       "title": "Mein Titel",
       "page_count": null,
-      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572"
+      "content_sha256": "2c48f76c5f98d20ef921b0432c362a90a4d80341c7150aaabd30933a7690b572",
+      "revision": null
      },
      {
       "id": "a2",
@@ -1828,7 +1863,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab"
+      "content_sha256": "299bd3ae1e7a6f2ad3d1b0765f6f959c531424c41bff9b30a186ec22708e9fab",
+      "revision": null
      },
      {
       "id": "a3",
@@ -1855,7 +1891,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887"
+      "content_sha256": "14f1af4899063cbf8189ad69bcb61d7782b7c350de0bf6fc6f1d7a96080c9887",
+      "revision": null
      },
      {
       "id": "a4",
@@ -1882,7 +1919,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": null
+      "content_sha256": null,
+      "revision": null
      },
      {
       "id": "a5",
@@ -1909,7 +1947,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792"
+      "content_sha256": "f6cbd1f013e2cf3f73c41771311ac0d23fa1532e3bb0673c9a22163f93caf792",
+      "revision": null
      },
      {
       "id": "b1",
@@ -1936,7 +1975,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265"
+      "content_sha256": "ac0ca75b248d932d36c8091e4246876a32ecc62002ca13877add8282712e7265",
+      "revision": null
      },
      {
       "id": "b2",
@@ -1963,7 +2003,8 @@
       "deleted_at": null,
       "title": null,
       "page_count": null,
-      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129"
+      "content_sha256": "c04ac60afde9d5a374a27ddfd755c106212497ed94ce251af01897988c3d7129",
+      "revision": null
      }
     ],
     "sync_log": [
@@ -2367,7 +2408,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "550127afe3962e33674ed4478b08ab3a0b1a3748a9e99b8d8d79912887676d43"
+       "content_sha256": "550127afe3962e33674ed4478b08ab3a0b1a3748a9e99b8d8d79912887676d43",
+       "revision": null
       },
       {
        "id": "h1",
@@ -2394,7 +2436,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "e4dc1889e03f62211c9c4e2fe46e0d73d304b9dc383c351b3cee55c1af03f64e"
+       "content_sha256": "e4dc1889e03f62211c9c4e2fe46e0d73d304b9dc383c351b3cee55c1af03f64e",
+       "revision": null
       },
       {
        "id": "t1",
@@ -2421,7 +2464,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "078477f8faa5451ef090abd87837f9e4ef94ef72e0a146999c54c1d19e4d6a7c"
+       "content_sha256": "078477f8faa5451ef090abd87837f9e4ef94ef72e0a146999c54c1d19e4d6a7c",
+       "revision": null
       },
       {
        "id": "t2",
@@ -2448,7 +2492,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "db6af403b7716aded12649432f89909db8993ff5fcbd2638f7cac80190b16851"
+       "content_sha256": "db6af403b7716aded12649432f89909db8993ff5fcbd2638f7cac80190b16851",
+       "revision": null
       },
       {
        "id": "u1",
@@ -2475,7 +2520,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "6638291408ef3884d77d81f42d2183c486cb02fb15a530b3ad35341c72d0f67e"
+       "content_sha256": "6638291408ef3884d77d81f42d2183c486cb02fb15a530b3ad35341c72d0f67e",
+       "revision": null
       },
       {
        "id": "u2",
@@ -2502,7 +2548,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "7da385a8fd78480e61ce3d217eceacb45046eb6e50534169073698d909ded65e"
+       "content_sha256": "7da385a8fd78480e61ce3d217eceacb45046eb6e50534169073698d909ded65e",
+       "revision": null
       },
       {
        "id": "u3",
@@ -2529,7 +2576,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "cd21df839f33ce36d1fb279215e0ff456cd326522b61dca1881d507305505683"
+       "content_sha256": "cd21df839f33ce36d1fb279215e0ff456cd326522b61dca1881d507305505683",
+       "revision": null
       },
       {
        "id": "u4",
@@ -2556,7 +2604,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": null
+       "content_sha256": null,
+       "revision": null
       },
       {
        "id": "v1",
@@ -2583,7 +2632,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "ec7a6620fb50a9fbef05f40aa8cf9e3f5365361eaf0c04186cbb6731e90ec35d"
+       "content_sha256": "ec7a6620fb50a9fbef05f40aa8cf9e3f5365361eaf0c04186cbb6731e90ec35d",
+       "revision": null
       },
       {
        "id": "v2",
@@ -2610,7 +2660,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "8d3530cd6c5191b4a10ba64053b82165db3b268728de1c28e36eca31eb1133e9"
+       "content_sha256": "8d3530cd6c5191b4a10ba64053b82165db3b268728de1c28e36eca31eb1133e9",
+       "revision": null
       },
       {
        "id": "v3",
@@ -2637,7 +2688,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "6cb7c60198dcb106bdcbd4b18bf27e0fdf9f193ff49bad23ed9340bf7a53f424"
+       "content_sha256": "6cb7c60198dcb106bdcbd4b18bf27e0fdf9f193ff49bad23ed9340bf7a53f424",
+       "revision": null
       },
       {
        "id": "v4",
@@ -2664,7 +2716,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "ddb68c3a7a24786dac2060f5a48292e1bc4c39c745455a3ae8ba17b96cadb161"
+       "content_sha256": "ddb68c3a7a24786dac2060f5a48292e1bc4c39c745455a3ae8ba17b96cadb161",
+       "revision": null
       },
       {
        "id": "v5",
@@ -2691,7 +2744,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "109397d15c040428925f589b414cc93080611d5f9206619204f037b1f4839706"
+       "content_sha256": "109397d15c040428925f589b414cc93080611d5f9206619204f037b1f4839706",
+       "revision": null
       },
       {
        "id": "w1",
@@ -2718,7 +2772,8 @@
        "deleted_at": null,
        "title": null,
        "page_count": null,
-       "content_sha256": "6b1912d8c9dcfd542dc2d724842a237ecde9f63e794023f79e259e75cf5afebe"
+       "content_sha256": "6b1912d8c9dcfd542dc2d724842a237ecde9f63e794023f79e259e75cf5afebe",
+       "revision": null
       }
      ],
      "sync_log": [
