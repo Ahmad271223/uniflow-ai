@@ -372,7 +372,7 @@
        "type": "number"
       },
       "hint": {
-       "type": "string"
+       "type": "null"
       },
       "open_minutes": {
        "type": "number"

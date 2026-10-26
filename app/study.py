@@ -269,6 +269,11 @@ def refresh_statuses(conn) -> None:
                     AND package_id IN (SELECT id FROM study_packages WHERE date < ?)""", (t,))
     for p in db.rows(conn, "SELECT id, date, status FROM study_packages"):
         tasks = db.rows(conn, "SELECT status FROM study_tasks WHERE package_id=?", (p["id"],))
+        if not tasks:
+            # Paket ohne Aufgaben (alle verschoben oder geloescht): _recalc_package hat es auf "verschoben" gesetzt.
+            # Frueher wurde daraus hier wieder "geplant": ein leeres Paket blieb im Kalender, belegte sein Zeitfenster
+            # im Stundenplan und stand unter "Naechste Termine" (Korrektur vom 26.10.2026).
+            continue
         st = _derive_status([x["status"] for x in tasks], p["date"] < t)
         if st != p["status"]:
             conn.execute("UPDATE study_packages SET status=? WHERE id=?", (st, p["id"]))
@@ -358,7 +363,12 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     start = start or today()
     end = start + timedelta(days=days - 1)
     if replace:
-        ids = [r["id"] for r in db.rows(conn, "SELECT id FROM study_packages WHERE date BETWEEN ? AND ? AND status IN ('geplant')", (start.isoformat(), end.isoformat()))]
+        # nur noch nicht begonnene Pakete: Ein Paket von heute oder spaeter mit einer erledigten (begonnenen,
+        # uebersprungenen) Aufgabe hat ebenfalls den Status "geplant" und wurde frueher samt der erledigten Aufgabe
+        # geloescht (Korrektur vom 26.10.2026)
+        ids = [r["id"] for r in db.rows(conn, """SELECT id FROM study_packages p WHERE date BETWEEN ? AND ? AND status IN ('geplant')
+                                                AND NOT EXISTS (SELECT 1 FROM study_tasks t WHERE t.package_id=p.id AND t.status != 'geplant')""",
+                                        (start.isoformat(), end.isoformat()))]
         for pid in ids:
             conn.execute("DELETE FROM study_tasks WHERE package_id=?", (pid,))
             conn.execute("DELETE FROM study_packages WHERE id=?", (pid,))
@@ -466,6 +476,39 @@ def assign_slots(conn, d: date, only_unset: bool = True) -> None:
                 cur = st + need + brk
         if first is not None:
             conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(first), timetable.mh(last), p["id"]))
+
+
+def set_package_time(conn, package_id: int, start: str | None, end: str | None) -> None:
+    """Uhrzeit eines Lernpakets von Hand ("Uhrzeit" im Lernpaket, "Beginn" beim Anlegen). Frueher uebernahm
+    PATCH /api/packages/{id} nur Tag, Titel und Reihenfolge, die Uhrzeit ging verloren (Korrektur vom 26.10.2026).
+    Ohne Beginn wird die Uhrzeit entfernt, ohne Ende gilt die geplante Dauer. Aufgaben mit Uhrzeit ruecken um
+    denselben Abstand mit. Ungueltige Uhrzeit: ValueError."""
+    p = db.row(conn, "SELECT start_time, planned_minutes FROM study_packages WHERE id=?", (package_id,))
+    if not p:
+        return
+    if not start:
+        conn.execute("UPDATE study_packages SET start_time=NULL, end_time=NULL WHERE id=?", (package_id,))
+        conn.execute("UPDATE study_tasks SET start_time=NULL, end_time=NULL WHERE package_id=?", (package_id,))
+        return
+    a = _clock_minutes(start)
+    b = _clock_minutes(end) if end else a + int(p["planned_minutes"] or 0)
+    if b <= a:
+        raise ValueError("Das Ende muss nach dem Beginn liegen.")
+    from . import timetable
+    conn.execute("UPDATE study_packages SET start_time=?, end_time=? WHERE id=?", (timetable.mh(a), timetable.mh(b), package_id))
+    if p["start_time"]:
+        shift = a - timetable.hm(p["start_time"])
+        for t in db.rows(conn, "SELECT id, start_time, end_time FROM study_tasks WHERE package_id=? AND start_time IS NOT NULL AND end_time IS NOT NULL", (package_id,)):
+            conn.execute("UPDATE study_tasks SET start_time=?, end_time=? WHERE id=?",
+                         (timetable.mh(timetable.hm(t["start_time"]) + shift), timetable.mh(timetable.hm(t["end_time"]) + shift), t["id"]))
+
+
+def _clock_minutes(v) -> int:
+    """'HH:MM' (auch '24:30' fuer ein Ende nach Mitternacht) in Minuten, sonst ValueError"""
+    m = re.fullmatch(r"([0-9]{1,2}):([0-9]{2})", v) if isinstance(v, str) else None
+    if not m or int(m.group(2)) > 59:
+        raise ValueError(f"Ungültige Uhrzeit: {v}")
+    return int(m.group(1)) * 60 + int(m.group(2))
 
 
 def reslot_day(conn, d: date) -> None:

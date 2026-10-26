@@ -959,10 +959,19 @@ def api_package_add_task(package_id: int, body: dict = Body(...)):
 def api_package_patch(package_id: int, body: dict = Body(...)):
     with db.cursor() as conn:
         if body.get("date"):
-            study.move_package(conn, package_id, body["date"])
+            try:
+                study.move_package(conn, package_id, body["date"])
+            except ValueError as e:                      # frueher 500
+                raise HTTPException(404, str(e))
         for k in ("title", "sort"):
             if k in body:
                 conn.execute(f"UPDATE study_packages SET {k}=? WHERE id=?", (body[k], package_id))
+        # Uhrzeit ("Uhrzeit" im Lernpaket, "Beginn" beim Anlegen): wurde frueher nicht gespeichert
+        if "start_time" in body or "end_time" in body:
+            try:
+                study.set_package_time(conn, package_id, body.get("start_time"), body.get("end_time"))
+            except ValueError as e:
+                raise HTTPException(400, str(e))
         return db.row(conn, "SELECT * FROM study_packages WHERE id=?", (package_id,))
 
 
@@ -991,8 +1000,12 @@ def api_apply(body: dict = Body(...)):
 
 @app.post("/api/tasks/skip")
 def api_skip(body: dict = Body(...)):
+    ids = [int(x) for x in body.get("task_ids") or []]
     with db.cursor() as conn:
-        study.skip_tasks(conn, [int(x) for x in body.get("task_ids") or []])
+        try:
+            study.skip_tasks(conn, ids)
+        except ValueError as e:                          # unbekannte Aufgabe: frueher 500, nichts wird uebersprungen
+            raise HTTPException(404, str(e))
     return {"ok": True}
 
 

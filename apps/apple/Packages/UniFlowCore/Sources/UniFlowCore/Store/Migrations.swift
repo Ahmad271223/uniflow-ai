@@ -21,7 +21,7 @@ public enum Migrations {
         ("subjects_per_day", "2"),
         ("parts_lecture", "1"),
         ("parts_exercise", "1"),
-        ("tests_per_subject", "1"),
+        ("tests_per_subject", "0"),      // ohne Testaufgaben (Entscheidung 2 vom 25.10.2026, keine KI noetig)
         ("test_minutes", "45"),
         ("break_minutes", "15"),
         ("exam_priority", "1"),

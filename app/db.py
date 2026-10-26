@@ -325,7 +325,7 @@ DEFAULT_SETTINGS = {
     "subjects_per_day": "2",
     "parts_lecture": "1",
     "parts_exercise": "1",
-    "tests_per_subject": "1",
+    "tests_per_subject": "0",      # ohne Testaufgaben (Entscheidung 2 vom 25.10.2026, keine KI noetig)
     "test_minutes": "45",
     "break_minutes": "15",
     "exam_priority": "1",
@@ -450,7 +450,7 @@ def get_settings(conn: sqlite3.Connection) -> dict:
     out["test_default_minutes"] = int(s.get("test_default_minutes", 90))
     out["auto_plan"] = s.get("auto_plan", "1") == "1"
     out["auto_tests"] = s.get("auto_tests", "1") == "1"
-    for k, d in (("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 1),
+    for k, d in (("subjects_per_day", 2), ("parts_lecture", 1), ("parts_exercise", 1), ("tests_per_subject", 0),
                  ("test_minutes", 45), ("break_minutes", 15)):
         try:
             out[k] = int(s.get(k, d))
