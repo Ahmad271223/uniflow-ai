@@ -1,0 +1,5 @@
+{"data":[
+ {"id":"c-ma","type":"courses","attributes":{"title":"Mathematik für Ingenieure I","course-number":"T-MA1","course-type":1},"relationships":{"start-semester":{"data":{"type":"semesters","id":"s-w26"}}}},
+ {"id":"c-ma-ue","type":"courses","attributes":{"title":"Übung zu Mathematik für Ingenieure I","course-number":"T-MA2","course-type":3},"relationships":{"start-semester":{"data":{"type":"semesters","id":"s-w26"}}}},
+ {"id":"c-prog","type":"courses","attributes":{"title":"Programmieren I","course-number":"T-PR1","course-type":1},"relationships":{"start-semester":{"data":{"type":"semesters","id":"s-w26"}}}}],
+ "included":[{"id":"s-w26","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}],"links":{}}

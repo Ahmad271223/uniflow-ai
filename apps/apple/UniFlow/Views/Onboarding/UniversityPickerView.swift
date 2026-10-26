@@ -83,7 +83,7 @@ struct UniversityOption: View {
     static func services(_ u: UniversityKey) -> String {
         switch u {
         case .luh:
-            return "Stud.IP: Kurse, Ordner und neue Dateien direkt auf dieses iPad. Noten aus QIS folgen in einer späteren Version."
+            return "Stud.IP: Kurse, Ordner, neue Dateien, Stundenplan und Aufzeichnungen direkt auf dieses iPad. QIS: Notenspiegel. Anmeldung mit deiner LUH-ID auf den Seiten der Universität."
         case .hildesheim:
             return "Learnweb: Kurse und Dateien direkt auf dieses iPad. LSF: Stundenplan und Notenspiegel. Anmeldung mit deinem UNI-Account auf den Seiten der Universität."
         }

@@ -103,8 +103,8 @@ final class PurchaseTests: XCTestCase {
         XCTAssertTrue(ent.inIntroOffer, "Während der Gratiswoche gilt Plus mit Einführungsangebot")
         XCTAssertTrue(ent.allows(.pencilWriting))
         XCTAssertTrue(ent.allows(.splitView))
-        // Uni & Noten ist auch mit Plus "bald"; Community (Loesung als Datei teilen und ansehen) gehoert zu Plus
-        XCTAssertEqual(ent.access(.uniGrades), .comingSoon)
+        // Uni & Noten (QIS bzw. LSF auf dem Geraet) gehoert zu Free; Community (Loesung als Datei teilen und ansehen) zu Plus
+        XCTAssertEqual(ent.access(.uniGrades), .allowed)
         XCTAssertEqual(ent.access(.community), .allowed)
         XCTAssertEqual(ent.transactionCount, 1)
         XCTAssertEqual(store.introEligible["de.uniflow.plus.monthly"], false)

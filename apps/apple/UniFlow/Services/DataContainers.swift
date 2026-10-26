@@ -105,6 +105,8 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var studip: StudIPSync
     /// Learnweb und LSF des aktiven Containers der Uni Hildesheim (an der LUH und ohne Container nil)
     @Published private(set) var hildesheim: HildesheimConnection?
+    /// QIS (Noten) des aktiven Containers der LUH (an der Uni Hildesheim und ohne Container nil)
+    @Published private(set) var qis: QISConnection?
     /// Container laesst sich nicht oeffnen (andere Hochschule oder anderes Konto, Umzug gescheitert): Meldung
     @Published private(set) var problem: String?
     /// zaehlt jeden Wechsel; die Oberflaeche baut sich damit neu auf
@@ -122,6 +124,8 @@ final class ContainerManager: ObservableObject {
     private let publishesCurrent: Bool
     /// Transport der Hildesheimer Abgleiche (nil: URLSession mit den Cookies des Containers; Tests: feste Antworten)
     private let hildesheimTransport: HildesheimConnection.TransportFactory?
+    /// Transport des QIS-Abrufs (nil: URLSession mit den Cookies des Containers; Tests und Debug-Stub: feste Antworten)
+    private let qisTransport: QISConnection.TransportFactory?
     private var stores: [UUID: WKWebsiteDataStore] = [:]
     /// Abgleiche je Container, auch die eines abgeloesten (Wechsel der Hochschule waehrend eines Abgleichs). Schwach
     /// gehalten: ein laufender Abgleich haelt sich selbst, ein beendeter faellt weg.
@@ -137,7 +141,7 @@ final class ContainerManager: ObservableObject {
     init(base: URL = ContainerPaths.base, legacy: LegacyDataMigration.Sources = ContainerPaths.legacy,
          keychain: UniversitySecretStoring = UniversityKeychain(), cookieService: String = StudIPCookieStore.service,
          defaults: UserDefaults = .standard, clock: UniFlowClock = .system, publishesCurrent: Bool = true,
-         hildesheimTransport: HildesheimConnection.TransportFactory? = nil) {
+         hildesheimTransport: HildesheimConnection.TransportFactory? = nil, qisTransport: QISConnection.TransportFactory? = nil) {
         self.base = base
         self.legacy = legacy
         self.keychain = keychain
@@ -146,6 +150,7 @@ final class ContainerManager: ObservableObject {
         self.clock = clock
         self.publishesCurrent = publishesCurrent
         self.hildesheimTransport = hildesheimTransport
+        self.qisTransport = qisTransport
         // Neuinstallation: Stud.IP-Sitzungen der geloeschten App nicht als Anmeldung uebernehmen (vor jedem Lesen)
         StudIPCookieStore.removeLeftoversOfEarlierInstallation(service: cookieService, defaults: defaults)
         studip = Self.idleSync()
@@ -265,9 +270,13 @@ final class ContainerManager: ObservableObject {
         hildesheim = key.university == .hildesheim
             ? HildesheimConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: hildesheimTransport)
             : nil
+        qis = key.university == .luh
+            ? QISConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: qisTransport)
+            : nil
         syncs.removeAll { $0.sync == nil }
         syncs.append(SyncRef(key: key, sync: studip))
         if let hildesheim { syncs.append(SyncRef(key: key, sync: hildesheim)) }
+        if let qis { syncs.append(SyncRef(key: key, sync: qis)) }
         generation += 1
         onChange?(c)
         Task { await checkDatabase(c) }
@@ -276,6 +285,7 @@ final class ContainerManager: ObservableObject {
         // Sitzung zeigt sich so sofort
         studip.runIfDue()
         hildesheim?.runIfDue()
+        qis?.runIfDue()
     }
 
     /// Datenbank gleich pruefen: gehoert sie einer anderen Hochschule (`UniversityMismatch`), nicht weiterarbeiten
@@ -297,6 +307,7 @@ final class ContainerManager: ObservableObject {
         active = nil
         studip = Self.idleSync()
         hildesheim = nil
+        qis = nil
         generation += 1
         onChange?(nil)
     }

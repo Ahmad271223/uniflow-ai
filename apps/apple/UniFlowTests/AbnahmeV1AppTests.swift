@@ -37,13 +37,13 @@ final class AbnahmeV1AppTests: XCTestCase {
     // MARK: Navigation, Texte
 
     func testSidebarShowsOnlyAreasWithAFunctionOnTheDevice() {
-        let luh = UFNavItem.visible(local: true, gradesOnDevice: false, community: false).map(\.id)
-        XCTAssertEqual(luh, ["dashboard", "plan", "timetable", "modules", "files"])
-        let hildesheim = UFNavItem.visible(local: true, gradesOnDevice: true, community: false).map(\.id)
-        XCTAssertEqual(hildesheim, ["dashboard", "plan", "timetable", "modules", "files", "services"], "Notenspiegel aus dem LSF")
+        let without = UFNavItem.visible(local: true, gradesOnDevice: false, community: false).map(\.id)
+        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "files"])
+        let both = UFNavItem.visible(local: true, gradesOnDevice: true, community: false).map(\.id)
+        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "files", "services"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
         // Community nur mit CloudKit-Dienst im Build (iCloud-Container)
-        let withCloud = UFNavItem.visible(local: true, gradesOnDevice: false, community: true).map(\.id)
-        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "files", "community"])
+        let withCloud = UFNavItem.visible(local: true, gradesOnDevice: true, community: true).map(\.id)
+        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "files", "services", "community"])
         XCTAssertEqual(UFNavItem.visible(local: false, gradesOnDevice: false, community: false).map(\.id), UFNavItem.main.map(\.id), "eigener Server")
         // dieser Testlauf hat keinen Container: der Eintrag fehlt, die Einstellungen sagen ehrlich warum
         XCTAssertFalse(SolutionSharing.community.isConnected)

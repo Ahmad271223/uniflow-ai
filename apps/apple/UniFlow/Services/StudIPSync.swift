@@ -357,7 +357,9 @@ final class StudIPSync: ObservableObject {
         guard !isRunning, offersStudIP, !Self.isUnderTest() else { return }
         let cookies = self.cookies.load()
         guard !cookies.isEmpty else { phase = .signedOut; return }
-        await run(client: StudIPClient(base: Self.base, transport: URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")))
+        // nur Debug mit -UFLoginStub: feste Antworten aus dem Stub-Ordner statt Stud.IP
+        let transport: StudIPTransport = DebugUniStub.studipTransport() ?? URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")
+        await run(client: StudIPClient(base: Self.base, transport: transport))
     }
 
     /// Ein Abgleich mit diesem Client (Tests: feste Antworten statt Stud.IP). Ablauf wie run_sync in

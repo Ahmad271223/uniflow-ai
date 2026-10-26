@@ -79,7 +79,7 @@ enum UFDataMode: Equatable {
 }
 
 /// Abgleichstand oberhalb einer lokalen Seite und was der leere Zustand einer Seite zeigt, die es in V1 nicht gibt
-/// (Wochentests, Noten aus QIS).
+/// (Wochentests).
 struct UFNoServerContent: Equatable {
     enum Status: Equatable {
         /// erster oder laufender Abgleich (Fortschrittstext aus StudIPSync)
@@ -91,7 +91,7 @@ struct UFNoServerContent: Equatable {
     let showsConnectCard: Bool
     let status: Status?
     let text: String
-    /// Funktion braucht eine spaetere Version (QIS-Noten): als "bald" kennzeichnen
+    /// Funktion braucht eine spaetere Version: als "bald" kennzeichnen (seit QIS auf dem Geraet keine mehr)
     let soon: Bool
 
     /// Statusleiste oberhalb einer lokalen Seite zeigen: Abgleich laeuft oder ist fehlgeschlagen
@@ -107,7 +107,7 @@ struct UFNoServerContent: Equatable {
             case .signedOut, .needsLogin, .idle: status = nil
             }
         }
-        return UFNoServerContent(showsConnectCard: mode.showsConnectCard, status: status, text: text(kind), soon: kind == .services)
+        return UFNoServerContent(showsConnectCard: mode.showsConnectCard, status: status, text: text(kind), soon: false)
     }
 
     private static func text(_ kind: UFNoServerPage.Kind) -> String {
@@ -120,7 +120,7 @@ struct UFNoServerContent: Equatable {
         // keine KI in V1 (Entscheidung 25.10.): Wochentests weder anbieten noch ankuendigen
         case .exams: return "Noch keine Tests."
         case .cards: return "Noch keine Karteikarten."
-        case .services: return "Noten aus QIS kommen in einer späteren Version."
+        case .services: return "Noch keine Noten."
         }
     }
 }
@@ -298,16 +298,16 @@ extension UFNoServerPage.Spec {
     static let exams = Self(title: "Tests & Wiederholung", sub: "Eigene Karteikarten zum Wiederholen kommen mit einem Update.",
                             kind: .exams, local: false)
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
-    // ohne "Notenspiegel direkt in der App": Noten kommen erst mit QIS (F4)
-    // Uni Hildesheim: Notenspiegel aus dem LSF auf dem Geraet (HildesheimSync), darum dort die echte Seite
+    // Notenspiegel auf dem Geraet an beiden Hochschulen: LUH aus dem QIS (QISConnection), Uni Hildesheim aus dem LSF
+    // (HildesheimSync); die Seite ist lokal immer echt
     static let services = Self(title: "Uni & Noten", sub: "Alle Dienste der Leibniz Universität an einem Ort.",
-                               kind: .services, maxWidth: 1120, local: false, localWithOtherSources: true)
+                               kind: .services, maxWidth: 1120, localWithOtherSources: true)
 }
 
 /// Seite mit Datenquelle laden (eigener Server oder lokales Backend), sonst den leeren Zustand zeigen. Lokal steht
 /// die Karte "Stud.IP verbinden" oberhalb der echten Seite, solange Stud.IP nicht verbunden ist, danach die
-/// Statusleiste mit dem Abgleichstand. Seiten, deren Funktion es in V1 nicht gibt (KI-Wochentests,
-/// QIS-Noten), zeigen lokal weiter den ehrlichen leeren Zustand (`Spec.local == false`).
+/// Statusleiste mit dem Abgleichstand. Seiten, deren Funktion es in V1 nicht gibt (KI-Wochentests), zeigen lokal
+/// weiter den ehrlichen leeren Zustand (`Spec.local == false`).
 struct UFServerGate<Content: View>: View {
     let spec: UFNoServerPage.Spec
     @ViewBuilder var content: () -> Content

@@ -153,7 +153,7 @@ struct UFNavItem: Identifiable {
     /// "Tests & Wiederholung" (Wochentests entfallen in V1, eigene Karteikarten "bald"), "Community" nur, wenn der
     /// Build einen iCloud-Container hat (`community`: CloudKit-Dienst verfuegbar; sonst teilt man Loesungen im Editor
     /// als Datei und die Einstellungen sagen ehrlich, warum) und "Uni & Noten" nur, wo der Notenspiegel auf dem
-    /// Geraet ankommt (`gradesOnDevice`: Uni Hildesheim, LSF); an der LUH zeigte die Seite bis F4 nur "spätere Version".
+    /// Geraet ankommt (`gradesOnDevice`: seit QIS auf dem Geraet an der LUH wie am LSF der Uni Hildesheim immer).
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool) -> [UFNavItem] {
         guard local else { return main }
         return main.filter { $0.id != "exams" && ($0.id != "community" || community) && ($0.id != "services" || gradesOnDevice) }
@@ -235,9 +235,9 @@ struct UFSidebar: View {
 
             ScrollView(showsIndicators: false) {                         // .nav scrollt selbst, Fuss bleibt fest
                 VStack(spacing: 4) {
-                    // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): Hochschule ohne Stud.IP;
-                    // Community nur mit CloudKit-Dienst des aktiven Containers
-                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: !studip.offersStudIP,
+                    // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): an beiden Hochschulen
+                    // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
+                    ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                               community: SolutionSharing.community.isConnected)) { item in
                         navRow(item.title, icon: item.icon, active: router.route.navKey == item.id) { router.go(item.route) }
                     }
