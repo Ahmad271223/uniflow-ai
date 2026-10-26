@@ -56,7 +56,7 @@ Folgerungen für den nativen Stundenplan-Import (fehlte bisher, siehe docs/IPAD-
 
 Die Videos liegen **nicht** in den Datei-Ordnern der JSON:API, sondern im LUH-Opencast-Modul. Gelesen im Browser,
 festgehalten ist nur der Aufbau (keine Titel, Namen oder Kennungen). Nachbau mit erfundenen Werten:
-`apps/apple/Packages/UniFlowCore/Tests/UniFlowCoreTests/Fixtures/opencast/`, Parser `OpencastParser` im Kern.
+`packages/shared-contracts/fixtures/opencast/`, Parser `OpencastParser` im Kern (derselbe HTML-Leser wie für QIS).
 
 | Seite | Aufbau |
 |---|---|
@@ -72,5 +72,6 @@ festgehalten ist nur der Aufbau (keine Titel, Namen oder Kennungen). Nachbau mit
 
 Folgerungen für die App: je gewähltem Kurs eine Anfrage an `media/index` (Kurse ohne Opencast höchstens alle
 7 Tage), nur bei einer unklaren Antwort zusätzlich der Kursüberblick; Anmeldeseite statt Inhalt = Sitzung abgelaufen.
+BigBlueButton-Räume (Meetings) enthalten an der LUH keine Aufzeichnungen und werden nicht gelesen.
 Ob der Opencast-Host die MP4-Links ohne Anmeldung ausliefert, ist noch nicht am Gerät gemessen; die App fällt bei
 401/403 auf die Player-Seite in der Webansicht zurück. Videos gehören den Lehrenden: nur privat ansehen, nicht teilen.
