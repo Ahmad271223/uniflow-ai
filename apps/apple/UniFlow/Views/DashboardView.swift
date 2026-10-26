@@ -14,6 +14,9 @@ struct DashboardView: View {
     @EnvironmentObject private var studip: StudIPSync
     @State private var showGenerate = false
     @State private var suggestion: JSONValue?
+    /// Tag, fuer den die Seite gerade steht: nach Mitternacht (NSCalendarDayChanged) laedt sie neu, und Begruessung
+    /// und "heute" folgen dem neuen Tag ohne Neustart
+    @State private var day = UFFmt.todayISO()
     private let api: APIClient?
 
     init(api: APIClient?) {
@@ -27,6 +30,10 @@ struct DashboardView: View {
             UFRemote(data: data) { d in content(d, mode: mode) }
                 .task { await data.load() }
                 .ufReload { await data.load() }
+                .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in
+                    day = UFFmt.todayISO()                                   // neuer Tag: Begruessung und Datum neu, Daten neu
+                    Task { await data.load() }
+                }
         }
             .ufModal(isPresented: $showGenerate) {
                 GeneratePlanDialog(api: api, start: UFFmt.todayISO()) { showGenerate = false }
@@ -51,7 +58,7 @@ struct DashboardView: View {
         let done = tasks.filter { $0.s("status") == "erledigt" }.count
         let total = tasks.count
         let nextOpen = pk.flatMap { p in p.list("tasks").filter { !["erledigt", "uebersprungen"].contains($0.s("status") ?? "") } }.first
-        let todayDate = today.s("date") ?? UFFmt.todayISO()
+        let todayDate = today.s("date") ?? day
         let backlog = d.i("backlog") ?? 0
 
         UFContent {
@@ -294,8 +301,11 @@ struct DashboardView: View {
                     Spacer()
                     UFButton("Gesehen", kind: .ghost, size: .small) {
                         Task {
-                            _ = try? await api?.value("/api/files/mark-seen", method: "POST")
-                            await data.load()
+                            // Fehler sichtbar (vorher try?: die Karte blieb voll, ohne Grund)
+                            guard let api else { return }
+                            if await toast.attempt("Als gesehen markieren", { _ = try await api.value("/api/files/mark-seen", method: "POST") }) {
+                                await data.load()
+                            }
                         }
                     }
                 }

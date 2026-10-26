@@ -7,6 +7,7 @@ import SwiftUI
 struct MainView: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var shell: ShellState
+    @EnvironmentObject private var overlay: UFOverlay
 
     var body: some View {
         AppShell { route in
@@ -43,8 +44,24 @@ struct MainView: View {
                 CommunityPage()
             }
         }
-        .onAppear { shell.attach(session.api) }
-        .onChange(of: session.api?.base) { _, _ in shell.attach(session.api) }
+        .onAppear { shell.attach(session.api); UFSessionState.reset() }
+        // andere Datenquelle (eigener Server verbunden/getrennt): Kopfzeile neu, Anzeigezustaende von vorn, offene
+        // Dialoge und Drawer zu – eine Aktion darin traefe sonst die neue Quelle
+        .onChange(of: session.api?.base) { _, _ in shell.attach(session.api); UFSessionState.reset(); overlay.closeAll() }
+    }
+}
+
+/// Sitzungsweite Anzeigezustaende der Seiten (planState, ttDate, sort/filter im Web: Modulvariablen). Sie gehoeren
+/// zur Datenquelle: nach einem Konto- oder Hochschulwechsel (neuer Container, MainView entsteht neu) und beim
+/// Wechsel zum oder vom eigenen Server beginnen sie von vorn – sonst filterte der Lernkalender nach einem Modul des
+/// anderen Containers (leer) und zeigte den Stundenplan an dessen zuletzt gewaehlter Woche.
+@MainActor
+enum UFSessionState {
+    static func reset() {
+        PlanView.state = (view: "week", date: UFFmt.todayISO(), module: "")
+        TimetableView.ttDate = UFFmt.todayISO()
+        LibraryPage.sort = "date"
+        LibraryPage.filter = "all"
     }
 }
 

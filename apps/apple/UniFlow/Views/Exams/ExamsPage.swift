@@ -252,8 +252,11 @@ struct ExamRunPage: View {
     @State private var submitting = false
     @State private var warned = false
 
-    /// Entwurf der Antworten je Server und Test (im Web nur im Speicher, s. Bestandsaufnahme E.8)
+    /// Entwurf der Antworten je Server und Test (im Web nur im Speicher, s. Bestandsaufnahme E.8). Gespeichert in den
+    /// Einstellungen des Containers (Apple-Nutzer, Hochschule), nie in UserDefaults.standard: ein anderes Konto auf
+    /// demselben iPad sieht die Antworten nicht, "Konto löschen" nimmt sie mit.
     private var draftKey: String { "exam-draft:\(session.api?.base.absoluteString ?? ""):\(id)" }
+    private var draftStore: UserDefaults { ActiveContainer.current?.defaults ?? .standard }
 
     var body: some View {
         Group {
@@ -272,8 +275,8 @@ struct ExamRunPage: View {
             var a: [String: String] = [:]
             for (k, x) in v["answers"]?.object ?? [:] { a[k] = x.string ?? "" }
             let submitted = v["submitted_at"].map { !$0.isNull } == true
-            if !submitted, let d = UserDefaults.standard.dictionary(forKey: draftKey) as? [String: String] { a.merge(d) { _, new in new } }
-            if submitted { UserDefaults.standard.removeObject(forKey: draftKey) }
+            if !submitted, let d = draftStore.dictionary(forKey: draftKey) as? [String: String] { a.merge(d) { _, new in new } }
+            if submitted { draftStore.removeObject(forKey: draftKey) }
             answers = a
             t = v
             router.examFocus = !submitted                                    // body.exam-focus: Seitenleiste und Kopfzeile aus
@@ -282,7 +285,7 @@ struct ExamRunPage: View {
 
     private func setAnswer(_ nr: String, _ value: String) {
         answers[nr] = value
-        UserDefaults.standard.set(answers, forKey: draftKey)
+        draftStore.set(answers, forKey: draftKey)
     }
 
     @ViewBuilder private func content(_ t: JSONValue) -> some View {
@@ -413,14 +416,22 @@ struct ExamRunPage: View {
         do {
             _ = try await api.value("/api/tests/\(id)/submit", method: "POST",
                                     body: ["answers": .object(answers.mapValues { .string($0) })])
-            if let task { _ = try await api.value("/api/tasks/\(task)/status", method: "POST", body: ["status": "erledigt"]) }
-            UserDefaults.standard.removeObject(forKey: draftKey)
-            submitting = false
-            await load()
         } catch {
             toast.show("Bewertung fehlgeschlagen: " + error.localizedDescription, seconds: 5)
             submitting = false
+            return
         }
+        // abgegeben: der Entwurf ist erledigt, der Stand kommt vom Server. Die Aufgabe des Lernplans ist ein zweiter
+        // Schritt; scheitert nur er, sagt die Meldung genau das (vorher "Bewertung fehlgeschlagen", obwohl der Test
+        // abgegeben war, und die Aufgabe blieb still offen)
+        draftStore.removeObject(forKey: draftKey)
+        if let task {
+            await toast.attempt("Test abgegeben, Aufgabe im Lernplan abhaken") {
+                _ = try await api.value("/api/tasks/\(task)/status", method: "POST", body: ["status": "erledigt"])
+            }
+        }
+        submitting = false
+        await load()
     }
 }
 
@@ -432,15 +443,20 @@ struct ExamTimer: View {
     @State private var warned = false
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { ctx in
-            let end = (startedAt.flatMap { ISO8601DateFormatter.local.date(from: String($0.prefix(19))) } ?? ctx.date).addingTimeInterval(Double(minutes) * 60)
-            let left = max(0, end.timeIntervalSince(ctx.date))
-            Text("⏱ \(Int(left) / 60):\(String(format: "%02d", Int(left) % 60))")
-                .font(.uf(16.8, 700)).monospacedDigit()
-                .foregroundStyle(left < 300 ? UF.bad : UF.text)
-                .onChange(of: left <= 0) { _, over in
-                    if over && !warned { warned = true; toast.show("Zeit abgelaufen – bitte abgeben.") }
-                }
+        if let start = startedAt.flatMap({ ISO8601DateFormatter.local.date(from: String($0.prefix(19))) }) {
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                let end = start.addingTimeInterval(Double(minutes) * 60)
+                let left = max(0, end.timeIntervalSince(ctx.date))
+                Text("⏱ \(Int(left) / 60):\(String(format: "%02d", Int(left) % 60))")
+                    .font(.uf(16.8, 700)).monospacedDigit()
+                    .foregroundStyle(left < 300 ? UF.bad : UF.text)
+                    .onChange(of: left <= 0) { _, over in
+                        if over && !warned { warned = true; toast.show("Zeit abgelaufen – bitte abgeben.") }
+                    }
+            }
+        } else {
+            // ohne Startzeit vom Server keinen Countdown ab der Renderzeit vortaeuschen: nur die Dauer
+            Text("⏱ \(minutes) min").font(.uf(16.8, 700)).monospacedDigit().foregroundStyle(UF.text)
         }
     }
 }
@@ -450,11 +466,15 @@ struct ExamTimer: View {
 struct CardsPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var toast: UFToastCenter
     @State private var due: [JSONValue] = []
     @State private var all: [JSONValue] = []
     @State private var loaded = false
     @State private var i = 0
     @State private var shown = false
+    /// Bewertung unterwegs: ein zweiter Tipp (Richtig/Falsch schnell nacheinander) bewertet dieselbe Karte nicht noch
+    /// einmal und ueberspringt keine
+    @State private var reviewing = false
 
     var body: some View {
         UFContent(maxWidth: 820) {
@@ -482,8 +502,8 @@ struct CardsPage: View {
                 .buttonStyle(.plain)
                 if shown {
                     HStack(spacing: 9.6) {
-                        UFButton("Falsch", kind: .danger) { Task { await review(c, correct: false) } }
-                        UFButton("Richtig", kind: .ok) { Task { await review(c, correct: true) } }
+                        UFButton("Falsch", kind: .danger) { Task { await review(c, correct: false) } }.disabled(reviewing)
+                        UFButton("Richtig", kind: .ok) { Task { await review(c, correct: true) } }.disabled(reviewing)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 11.2)
@@ -507,8 +527,10 @@ struct CardsPage: View {
                         } trailing: {
                             UFButton(icon: "trash", kind: .ghost, size: .small) {
                                 Task {
-                                    _ = try? await session.api?.value("/api/flashcards/\(c.i("id") ?? 0)", method: "DELETE")
-                                    await load()
+                                    guard let api = session.api else { return }
+                                    if await toast.attempt("Karte löschen", { _ = try await api.value("/api/flashcards/\(c.i("id") ?? 0)", method: "DELETE") }) {
+                                        await load()
+                                    }
                                 }
                             }
                         }
@@ -523,15 +545,22 @@ struct CardsPage: View {
 
     private func load() async {
         guard let api = session.api else { return }
-        due = (try? await api.value("/api/flashcards?due=true"))?.items ?? []
-        all = (try? await api.value("/api/flashcards"))?.items ?? []
+        // Fehler sichtbar statt "Heute nichts fällig." mit leerer Liste (vorher try? ... ?? [])
+        guard await toast.attempt("Karteikarten laden", {
+            due = try await api.value("/api/flashcards?due=true").items
+            all = try await api.value("/api/flashcards").items
+        }) else { return }
         i = 0
         shown = false
         loaded = true
     }
 
     private func review(_ c: JSONValue, correct: Bool) async {
-        _ = try? await session.api?.value("/api/flashcards/\(c.i("id") ?? 0)/review", method: "POST", body: ["correct": .bool(correct)])
+        guard !reviewing, let api = session.api else { return }
+        reviewing = true
+        defer { reviewing = false }
+        // Fehler sichtbar, die Karte bleibt (vorher try?: die Karte rueckte weiter, als waere sie bewertet)
+        guard await toast.attempt("Bewerten", { _ = try await api.value("/api/flashcards/\(c.i("id") ?? 0)/review", method: "POST", body: ["correct": .bool(correct)]) }) else { return }
         i += 1
         shown = false
     }

@@ -42,10 +42,16 @@ final class RemoteData: ObservableObject {
     /// letzter Fehler war ein Netzfehler (Server nicht erreichbar), keine Fehlerantwort des Servers – wie
     /// /Failed to fetch|NetworkError|Load failed/ in route() (app.js)
     @Published private(set) var failedOffline = false
+    /// Neu laden ist gescheitert, waehrend schon ein Stand da war: der bleibt stehen, dazu diese Meldung (vorher
+    /// ersetzte die Fehlerkarte den Inhalt, auch bei einer kurzen Stoerung)
+    @Published private(set) var reloadError: String?
     private(set) var path: String
     private let api: APIClient?
     /// Zwischenspeicher des Containers, in dem die Ansicht entstand (eine spaete Antwort landet nie in einem anderen)
     private let cache: ResponseCache
+    /// Nummer des juengsten Ladevorgangs: eine aeltere Antwort (zwei Ladevorgaenge zugleich, Pfadwechsel waehrend des
+    /// Ladens) ueberschreibt nie den neueren Stand
+    private var generation = 0
 
     init(path: String, api: APIClient?, cache: ResponseCache = .shared) {
         self.path = path
@@ -63,24 +69,33 @@ final class RemoteData: ObservableObject {
         if newPath != path {
             path = newPath
             state = .loading
+            reloadError = nil
         }
         await load()
     }
 
     func load() async {
         guard let api else { failedOffline = true; state = .failed("Nicht mit dem Server verbunden."); return }
+        generation += 1
+        let mine = generation
         // Zwischenspeicher je Server getrennt (sonst zeigt ein anderer Server alte Daten)
         let key = api.base.absoluteString + path
         if value == nil, let cached = cache.load(key) { state = .loaded(cached.0, offlineSince: cached.1) }
         do {
             let v = try await api.value(path)
+            guard mine == generation else { return }                      // inzwischen neuer geladen: veraltet
             cache.store(v, for: key)
+            reloadError = nil
             state = .loaded(v, offlineSince: nil)
         } catch {
+            guard mine == generation else { return }
             // nur bei Netzfehlern den letzten Stand als "Offline" zeigen; eine Fehlerantwort (401, 500 …) ist kein Offline
             let network = !(error is APIError)
             if network, let cached = cache.load(key) {
                 state = .loaded(cached.0, offlineSince: cached.1)
+            } else if case .loaded = state {
+                // schon ein Stand da (Neu laden nach einer Aktion, Abgleich, Tageswechsel): behalten und melden
+                reloadError = error.localizedDescription
             } else {
                 failedOffline = network
                 state = .failed(error.localizedDescription)

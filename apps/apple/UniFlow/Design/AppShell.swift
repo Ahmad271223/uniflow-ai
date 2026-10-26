@@ -436,7 +436,9 @@ struct UFHeader: View {
     @ViewBuilder private var searchResults: some View {
         if searchFocused && query.trimmingCharacters(in: .whitespaces).count >= 2 {
             VStack(alignment: .leading, spacing: 0) {
-                if shell.searchHits.isEmpty {
+                if let e = shell.searchError {
+                    HStack(spacing: 6) { UFIcon("alert", size: 14); Text(e) }.font(UF.small).foregroundStyle(UF.warn).padding(9.6)
+                } else if shell.searchHits.isEmpty {
                     Text("Keine Treffer").font(UF.small).foregroundStyle(UF.muted).padding(9.6)
                 } else {
                     ForEach(shell.searchHits) { hit in
