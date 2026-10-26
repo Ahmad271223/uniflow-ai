@@ -262,9 +262,13 @@ struct PlanWeekGrid: View {
                     // Konflikten neu, also nichts; von Hand gesetzte Uhrzeiten bleiben)
                     let dates = Set(list.map(\.0)).sorted().map(JSONValue.string)
                     Task {
-                        _ = try? await session.api?.value("/api/timetable/reslot", method: "POST", body: ["dates": .array(dates), "only_unset": true])
-                        toast.show("Uhrzeiten vergeben")
-                        router.reload()
+                        guard let api = session.api else { return }
+                        if await toast.attempt("Uhrzeiten vergeben", {
+                            _ = try await api.value("/api/timetable/reslot", method: "POST", body: ["dates": .array(dates), "only_unset": true])
+                        }) {
+                            toast.show("Uhrzeiten vergeben")
+                            router.reload()
+                        }
                     }
                 }
             }
@@ -575,9 +579,11 @@ struct PlanDayTimeline: View {
                         Spacer()
                         UFButton("Uhrzeiten vergeben", size: .small) {
                             Task {
-                                // nur Pakete ohne Uhrzeit: von Hand gesetzte Uhrzeiten bleiben
-                                _ = try? await session.api?.value("/api/timetable/reslot", method: "POST", body: ["dates": [.string(dateStr)], "only_unset": true])
-                                router.reload()
+                                // nur Pakete ohne Uhrzeit: von Hand gesetzte Uhrzeiten bleiben; Fehler sichtbar
+                                guard let api = session.api else { return }
+                                if await toast.attempt("Uhrzeiten vergeben", {
+                                    _ = try await api.value("/api/timetable/reslot", method: "POST", body: ["dates": [.string(dateStr)], "only_unset": true])
+                                }) { router.reload() }
                             }
                         }
                     }
@@ -803,9 +809,13 @@ struct PlanSide: View {
                         HStack(alignment: .top, spacing: 9.6) {
                             Button {
                                 Task {
-                                    _ = try? await session.api?.value("/api/tasks/\(t.i("id") ?? 0)/status", method: "POST", body: ["status": .string(on ? "geplant" : "erledigt")])
-                                    toast.show(on ? "Wieder offen" : "Erledigt ✓")
-                                    router.reload()
+                                    guard let api = session.api else { return }
+                                    if await toast.attempt(on ? "Wieder öffnen" : "Abhaken", {
+                                        _ = try await api.value("/api/tasks/\(t.i("id") ?? 0)/status", method: "POST", body: ["status": .string(on ? "geplant" : "erledigt")])
+                                    }) {
+                                        toast.show(on ? "Wieder offen" : "Erledigt ✓")
+                                        router.reload()
+                                    }
                                 }
                             } label: {
                                 Circle().fill(on ? UF.accent : .clear)

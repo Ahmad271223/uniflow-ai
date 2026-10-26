@@ -32,6 +32,7 @@ struct EventDrawer: View {
     @State private var e: JSONValue?
     @State private var occ: JSONValue = .null
     @State private var mats: [JSONValue] = []
+    @State private var matsError: String?
 
     private var actions: PlanActions { PlanEnv.make(session, overlay, toast, router) }
 
@@ -55,16 +56,30 @@ struct EventDrawer: View {
         .ufReload { await load(first: false) }
     }
 
+    /// "Termin nicht gefunden" (geloescht) und "Abruf fehlgeschlagen" (Fehlerantwort) sind zwei Meldungen; Unterlagen,
+    /// die sich nicht laden lassen, stehen als Meldung statt als "Keine passenden Unterlagen"
     private func load(first: Bool) async {
         guard let api = session.api else { return }
-        guard let events = try? await api.value("/api/timetable/events"), let ev = events.items.first(where: { $0.i("id") == eventID }) else {
+        let events: JSONValue
+        do { events = try await api.value("/api/timetable/events") } catch {
+            toast.show("Termin laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4)
+            if first { close() }
+            return
+        }
+        guard let ev = events.items.first(where: { $0.i("id") == eventID }) else {
             if first { toast.show("Termin nicht gefunden"); close() }
             return
         }
         let day = try? await api.value("/api/timetable/day?date=\(date)")
         occ = day?.list("events").first { $0.i("event_id") == eventID }
             ?? ["status": .string(ev.i("attend") == 0 ? "nicht_teilnahme" : "teilnahme"), "start": ev["start_time"] ?? .null, "end": ev["end_time"] ?? .null]
-        mats = (try? await api.value("/api/timetable/event-materials/\(eventID)?date=\(date)"))?.items ?? []
+        do {
+            mats = try await api.value("/api/timetable/event-materials/\(eventID)?date=\(date)").items
+            matsError = nil
+        } catch {
+            mats = []
+            matsError = error.localizedDescription
+        }
         e = ev
     }
 
@@ -107,7 +122,9 @@ struct EventDrawer: View {
             HStack(spacing: 7.2) { UFIcon("book", size: 16); Text("Passende Unterlagen") }
                 .ufFont(15.2, 650, em: -0.01).foregroundStyle(UF.text)
                 .padding(.top, 16).padding(.bottom, 6.4)
-            if mats.isEmpty {
+            if let matsError {
+                Text("Unterlagen ließen sich nicht laden: \(matsError)").ufFont(13.12).foregroundStyle(UF.warn)
+            } else if mats.isEmpty {
                 Text("Keine passenden Unterlagen gefunden.").ufFont(13.12).foregroundStyle(UF.muted)
             } else {
                 ForEach(Row.rows(mats)) { row in UFEventDocRow(f: row.value) { overlay.closeAll(); router.go(.doc(row.value.s("id") ?? "")) } }
@@ -124,8 +141,9 @@ struct EventDrawer: View {
             UFFlexSpacer()
             UFButton(icon: "trash", kind: .danger, size: .small) {
                 Task {
-                    if await overlay.confirm("Ganze Veranstaltungsreihe aus dem Stundenplan entfernen?") {
-                        _ = try? await session.api?.value("/api/timetable/events/\(eventID)", method: "DELETE")
+                    if await overlay.confirm("Ganze Veranstaltungsreihe aus dem Stundenplan entfernen?"), let api = session.api,
+                       await toast.attempt("Entfernen", { _ = try await api.value("/api/timetable/events/\(eventID)", method: "DELETE") }) {
+                        close()
                         router.reload()
                     }
                 }
@@ -157,10 +175,15 @@ struct EventDrawer: View {
         .buttonStyle(UFButtonStyle(kind: on ? .primary : .normal))
     }
 
+    /// Teilnahme speichern; scheitert es, steht der Grund als Meldung und es wird weder Zeit freigegeben noch neu
+    /// geladen (vorher try? ... else { return }: nichts Sichtbares)
     private func attendance(_ mode: String) async {
         guard let api = session.api, let e else { return }
-        guard let r = try? await api.value("/api/timetable/attendance", method: "POST",
-                                           body: ["event_id": .number(Double(eventID)), "date": .string(date), "mode": .string(mode)]) else { return }
+        let r: JSONValue
+        do {
+            r = try await api.value("/api/timetable/attendance", method: "POST",
+                                    body: ["event_id": .number(Double(eventID)), "date": .string(date), "mode": .string(mode)])
+        } catch { toast.show("Teilnahme speichern fehlgeschlagen: \(error.localizedDescription)", seconds: 4); return }
         let freed = r.i("freed_minutes") ?? 0
         if ["today_skip", "permanent_skip", "cancelled"].contains(mode) && freed >= 30 {
             let w = r.list("windows").first
@@ -283,7 +306,10 @@ struct EventDialog: View {
         }
         .task {
             if !loaded { apply(); loaded = true }
-            modules = (try? await session.api?.value("/api/modules"))?.items ?? []
+            // Module fuer die Auswahl; scheitert das, bleibt die Zuordnung des Termins (module) unveraendert und
+            // der Grund steht als Meldung (vorher stille leere Liste)
+            guard let api = session.api else { return }
+            await toast.attempt("Module laden") { modules = try await api.value("/api/modules").items }
         }
     }
 

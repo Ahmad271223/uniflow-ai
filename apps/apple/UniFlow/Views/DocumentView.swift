@@ -94,6 +94,8 @@ struct DocumentView: View {
     @State private var actionError: String?
     @State private var companion: Companion?
     @State private var suggestion: ScriptSuggestion?
+    /// Skriptsuche gescheitert (Fehlerantwort, Server nicht erreichbar): Hinweis statt stillem Ausbleiben
+    @State private var suggestionError: String?
     @State private var dismissedSuggestions: Set<Int> = []
     @State private var suggestionTask: Task<Void, Never>?
     @State private var suggestionCache: [Int: ScriptSuggestion?] = [:]
@@ -361,7 +363,16 @@ struct DocumentView: View {
 
     @ViewBuilder
     private var suggestionBanner: some View {
-        if companion == nil, let s = suggestion, s.forPage == bridge.pageIndex, !dismissedSuggestions.contains(s.forPage) {
+        if companion == nil, let suggestionError {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle")
+                Text(suggestionError).font(.caption).lineLimit(2)
+                Button { self.suggestionError = nil } label: { Image(systemName: "xmark") }.accessibilityLabel("Hinweis ausblenden")
+            }
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.top, 8)
+        } else if companion == nil, let s = suggestion, s.forPage == bridge.pageIndex, !dismissedSuggestions.contains(s.forPage) {
             HStack(spacing: 10) {
                 Image(systemName: "book")
                 VStack(alignment: .leading, spacing: 1) {
@@ -410,9 +421,11 @@ struct DocumentView: View {
                                             terms: h.list("terms").compactMap { $0.string }, forPage: page)
                 }
                 suggestionCache[page] = .some(s)
-                if bridge.pageIndex == page { suggestion = s }
+                if bridge.pageIndex == page { suggestion = s; suggestionError = nil }
             } catch {
-                // ohne Server kein Vorschlag; kein Fehlerhinweis noetig
+                // Skriptsuche gescheitert: einmal sichtbar statt still (die naechste Seite versucht es wieder)
+                guard !Task.isCancelled, bridge.pageIndex == page else { return }
+                suggestionError = "Skriptsuche nicht möglich: \(error.localizedDescription)"
             }
         }
     }

@@ -121,9 +121,12 @@ struct PlanView: View {
             UFButton("Neu einplanen", kind: .primary, size: .small) { Task { await actions.suggest([:]) } }
             UFButton("Bewusst überspringen", kind: .ghost, size: .small) {
                 Task {
-                    if await overlay.confirm("\(backlog.count) offene Aufgaben als bewusst übersprungen markieren?") {
-                        _ = try? await session.api?.value("/api/tasks/skip", method: "POST",
-                                                          body: ["task_ids": .array(backlog.compactMap { $0.i("id") }.map { .number(Double($0)) })])
+                    // Fehler sichtbar, "Übersprungen" nur bei Erfolg (vorher try? und immer die Erfolgsmeldung)
+                    if await overlay.confirm("\(backlog.count) offene Aufgaben als bewusst übersprungen markieren?"), let api = session.api,
+                       await toast.attempt("Überspringen", {
+                           _ = try await api.value("/api/tasks/skip", method: "POST",
+                                                   body: ["task_ids": .array(backlog.compactMap { $0.i("id") }.map { .number(Double($0)) })])
+                       }) {
                         toast.show("Übersprungen")
                         router.reload()
                     }

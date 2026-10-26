@@ -9,6 +9,7 @@ import UniFlowCore
 struct ModulesPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var toast: UFToastCenter
     @AppStorage("mod-mode") private var mode = "cards"
     @State private var mods: [JSONValue]?
     /// lokal ohne ein einziges Modul: Stud.IP-Kurse ohne Modul
@@ -32,7 +33,10 @@ struct ModulesPage: View {
             courses = api.isLocal && list.isEmpty ? LibraryCourses.unassigned((try? await api.value("/api/courses"))?.items ?? []) : []
             mods = list
             error = nil
-        } catch { if mods == nil { self.error = error.localizedDescription } }
+        } catch {
+            // Neu laden gescheitert: der letzte Stand bleibt, der Grund steht als Meldung (vorher still)
+            if mods == nil { self.error = error.localizedDescription } else { toast.show("Neu laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4) }
+        }
     }
 
     @ViewBuilder private func content(_ mods: [JSONValue]) -> some View {
@@ -271,6 +275,7 @@ struct ModulePage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var toast: UFToastCenter
     @State private var d: JSONValue?
     @State private var error: String?
     @State private var tab = "overview"                                   // nur im Speicher wie im Web
@@ -294,7 +299,16 @@ struct ModulePage: View {
 
     private func load() async {
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
-        do { d = try await api.value("/api/modules/\(id)"); error = nil } catch { if d == nil { self.error = error.localizedDescription } }
+        do {
+            let v = try await api.value("/api/modules/\(id)")
+            // andere Modul-ID waehrend des Ladens (.task(id:) bricht den alten Lauf ab): dessen Antwort nie anzeigen
+            guard !Task.isCancelled else { return }
+            d = v
+            error = nil
+        } catch {
+            guard !Task.isCancelled else { return }
+            if d == nil { self.error = error.localizedDescription } else { toast.show("Neu laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4) }
+        }
         if api.isLocal { recordingCounts = await studip.recordings.weekCounts(moduleID: id) }
     }
 
