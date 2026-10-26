@@ -123,3 +123,33 @@ ohne Seitenwechsel und ohne Wiedergabe.
 Hinweise: Am 25.10. waren es 17 Leistungen; die 17. war die Modulzeile „Prüfung vorhanden“, die seitdem gefiltert
 wird. Learnweb lief ohne Schlüssel (Sitzung); Moodle verbucht dabei je Material einen Aufruf. Zweiter
 Stundenplan-Abruf am 25.10.: 0 neu, 24 unverändert.
+
+## Nächste Aufgaben für die PC-Sitzung (26.10.2026, 10:45) – danke, die Zahlen sind angekommen
+
+Die Mac-Sitzung prüft das iPad gegen die Zählwerte (LUH 19/155, 18 Serien, 0 Leistungen, 5 Opencast-Kurse;
+Hildesheim 9/539, 24 Serien, 17 Ausfalltage, 16 Leistungen). Bitte weiter **keine Änderungen** an
+`apps/apple/UniFlow/`, `UniFlowCore/LocalBackend/`, `UniFlowCore/Store/`, `UniFlowCore/Hildesheim/`,
+`UniFlowCore/Solutions/` und an `app/qis.py` (die Mac-Abnahme behebt dort gerade die Notenspiegel-Bildschirmfotos
+und die LSF-Fixtures mit echten Daten).
+
+1. **Texte, die der Inhaber für den App Store braucht** (Entwürfe in `docs/release/`, deutsch, ohne KI-Versprechen,
+   Stand V1: nur iPad, Free/Plus 1,99 €/Monat mit 1 Woche gratis, Apple-Konto, Hochschulen LUH und Hildesheim,
+   Daten nur auf dem Gerät, Community über CloudKit mit Pseudonym, Melden/Blockieren):
+   - `DATENSCHUTZ.md` (Datenschutzerklärung: Apple-Anmeldung, Schlüsselbund für Uni-Zugangsdaten nur auf dem Gerät,
+     Stud.IP/QIS/Learnweb/LSF werden nur im Auftrag des Nutzers abgefragt, keine Weitergabe, CloudKit-Community,
+     Widerruf/Löschen in der App, Verantwortlicher = Platzhalter für den Inhaber),
+   - `NUTZUNGSBEDINGUNGEN.md` (Abo-Bedingungen nach Apple 3.1.2, Urheberrecht: nur eigene Notizen teilen,
+     Verhaltensregeln, Sperrung),
+   - `IMPRESSUM.md` (Platzhalter),
+   - `APP-STORE-TEXTE.md` (Name, Untertitel, Beschreibung, Stichworte, Datenschutz-Angaben für App Store Connect)
+     als Ersatz für den veralteten Entwurf in `docs/RELEASE-VORBEREITUNG.md` (dort KI-Wochentests/PC-Abgleich
+     streichen).
+2. **Anfragen an die Hochschulen** als versandfertige Entwürfe (der Inhaber schickt sie selbst):
+   `docs/ANFRAGE-STUDIP-ZUGANG.md` aktualisieren (Hintergrundabgleich, Merken der Zugangsdaten nur im Gerät, App Store
+   Regel 5.2.2, Bitte um schriftliche Bestätigung) und neu `docs/ANFRAGE-HILDESHEIM.md` (Learnweb-Schlüssel/Moodle-
+   Mobile-Schema, LSF-Export, CAS, gleiche Bitte).
+3. **Windows-Einrichtung:** `tzdata` in `docs/SETUP-WINDOWS.md` (oder wo das Einrichten beschrieben ist) ergänzen;
+   `Start-iPad.cmd` prüft `requirements.txt` (pip install -r) beim Start.
+4. **Nach dem nächsten Push der Mac-Sitzung** (Abnahme-Stand, kommt heute): Linux-Kern erneut, Python/Web erneut,
+   und mit den Zugängen des Inhabers je Hochschule **denselben Zähllauf** wiederholen, damit wir sehen, ob sich die
+   Zahlen durch die Python-Korrekturen der Abnahme ändern (nur Zahlen eintragen).
