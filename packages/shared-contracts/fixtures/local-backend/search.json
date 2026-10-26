@@ -1,0 +1,2762 @@
+{
+ "generator": "tools/gen-search-fixture.py",
+ "seed": [
+  {
+   "sql": "INSERT INTO modules(id, name, semester, color, sort, created_at) VALUES (?,?,?,?,?,?)",
+   "params": [
+    1,
+    "Lineare Algebra Test",
+    "WiSe 2026/27",
+    "#4f6df5",
+    0,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO modules(id, name, semester, color, sort, created_at) VALUES (?,?,?,?,?,?)",
+   "params": [
+    2,
+    "Analysis Beispiel",
+    "WiSe 2026/27",
+    "#0ea5a0",
+    1,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO modules(id, name, semester, color, sort, created_at) VALUES (?,?,?,?,?,?)",
+   "params": [
+    3,
+    "Ökonomie Übung",
+    "WiSe 2026/27",
+    "#e0803a",
+    2,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-la-vl",
+    "Lineare Algebra Test",
+    "WiSe 2026/27",
+    "Lineare Algebra Test",
+    "vorlesung",
+    1,
+    1,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-la-ue",
+    "Übung zu Lineare Algebra Test",
+    "WiSe 2026/27",
+    "Lineare Algebra Test",
+    "uebung",
+    1,
+    1,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-la-alt",
+    "Lineare Algebra Test (altes Semester)",
+    "WiSe 2026/27",
+    "Lineare Algebra Test",
+    "vorlesung",
+    0,
+    1,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-an-vl",
+    "Analysis Beispiel",
+    "WiSe 2026/27",
+    "Analysis Beispiel",
+    "vorlesung",
+    1,
+    2,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-an-ue",
+    "Übung Analysis Beispiel",
+    "WiSe 2026/27",
+    "Analysis Beispiel",
+    "uebung",
+    1,
+    2,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    "k-frei",
+    "Freies Seminar Beispiel",
+    "WiSe 2026/27",
+    null,
+    "sonstiges",
+    1,
+    null,
+    "2026-10-01T09:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-v1",
+    "k-la-vl",
+    "VL01 Eigenwerte.pdf",
+    1551,
+    "application/pdf",
+    1760256000,
+    "Vorlesung",
+    "files/k-la-vl/VL01 Eigenwerte.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-v2",
+    "k-la-vl",
+    "VL02 Determinanten.pdf",
+    1246,
+    "application/pdf",
+    1760860800,
+    "Vorlesung",
+    "files/k-la-vl/VL02 Determinanten.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-v2d",
+    "k-la-vl",
+    "VL02 Determinanten Druckfassung.pdf",
+    1246,
+    "application/pdf",
+    1760861100,
+    "Vorlesung",
+    "files/k-la-vl/VL02 Determinanten Druckfassung.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-s",
+    "k-la-vl",
+    "Skript Lineare Algebra.pdf",
+    4829,
+    "application/pdf",
+    1760947200,
+    "Skript",
+    "files/k-la-vl/Skript Lineare Algebra.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-e",
+    "k-la-vl",
+    "Ergänzungen zur Vorlesung.pdf",
+    7642,
+    "application/pdf",
+    1760950000,
+    "Vorlesung",
+    "files/k-la-vl/Ergänzungen zur Vorlesung.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-u1",
+    "k-la-ue",
+    "Blatt 1.pdf",
+    1629,
+    "application/pdf",
+    1761033600,
+    "Übungsblätter",
+    "files/k-la-ue/Blatt 1.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-png",
+    "k-la-vl",
+    "Tafelbild.png",
+    71,
+    "image/png",
+    1761120000,
+    "Vorlesung",
+    "files/k-la-vl/Tafelbild.png",
+    "2026-10-22T08:00:00",
+    "neu",
+    "image",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-v4",
+    "k-la-vl",
+    "VL04 Ausblick.pdf",
+    0,
+    "application/pdf",
+    1761206400,
+    "Vorlesung",
+    null,
+    null,
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-la-alt",
+    "k-la-alt",
+    "VL01 Eigenwerte alt.pdf",
+    740,
+    "application/pdf",
+    1729000000,
+    "Vorlesung",
+    "files/k-la-alt/VL01 Eigenwerte alt.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-an-v1",
+    "k-an-vl",
+    "VL01 Folgen.pdf",
+    871,
+    "application/pdf",
+    1760266000,
+    "Vorlesung",
+    "files/k-an-vl/VL01 Folgen.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-an-u1",
+    "k-an-ue",
+    "Übung 1.pdf",
+    678,
+    "application/pdf",
+    1760366000,
+    "Übungen",
+    "files/k-an-ue/Übung 1.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO files(id, course_id, name, size, mime, chdate, studip_folder, local_path, downloaded_at, status, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+   "params": [
+    "f-frei1",
+    "k-frei",
+    "Seminar.pdf",
+    675,
+    "application/pdf",
+    1760466000,
+    null,
+    "files/k-frei/Seminar.pdf",
+    "2026-10-22T08:00:00",
+    "neu",
+    "pdf",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO analysis(file_id, doc_type, title, topics, created_at) VALUES (?,?,?,?,?)",
+   "params": [
+    "f-la-v1",
+    "vorlesung",
+    "Eigenwerte und Eigenvektoren",
+    "[\"Spektralsatz\", \"Diagonalisierung\"]",
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO analysis(file_id, doc_type, title, topics, created_at) VALUES (?,?,?,?,?)",
+   "params": [
+    "f-la-u1",
+    "uebung",
+    null,
+    null,
+    "2026-10-22T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(id, date, module_id, subject, title, planned_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    1,
+    "2026-10-20",
+    1,
+    "Lineare Algebra Test",
+    "Woche 1",
+    60,
+    "geplant",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(id, date, module_id, subject, title, planned_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    2,
+    "2026-10-26",
+    1,
+    "Lineare Algebra Test",
+    "Woche 2",
+    60,
+    "geplant",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(id, date, module_id, subject, title, planned_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    3,
+    "2026-10-28",
+    2,
+    "Analysis Beispiel",
+    "Woche 2",
+    60,
+    "geplant",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_packages(id, date, module_id, subject, title, planned_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?)",
+   "params": [
+    4,
+    "2026-10-27",
+    null,
+    "Allgemein",
+    "Lesen",
+    60,
+    "geplant",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_tasks(id, package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    1,
+    1,
+    "vorlesung",
+    "f-la-v1",
+    "Eigenwerte wiederholen",
+    1,
+    30,
+    "erledigt",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_tasks(id, package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    2,
+    2,
+    "uebung",
+    "f-la-u1",
+    "Blatt 1 rechnen",
+    2,
+    30,
+    "geplant",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_tasks(id, package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    3,
+    2,
+    "vorlesung",
+    "f-la-v2",
+    "VL02 Determinanten nacharbeiten",
+    3,
+    30,
+    "geplant",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_tasks(id, package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    4,
+    3,
+    "uebung",
+    "f-an-u1",
+    "Übung 1 Folgen",
+    4,
+    30,
+    "nachholen",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO study_tasks(id, package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+   "params": [
+    5,
+    4,
+    "frei",
+    null,
+    "Lesen: Determinanten im Alltag",
+    5,
+    30,
+    "geplant",
+    "2026-10-19T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-v1",
+    1,
+    "Lineare Algebra Test\nVorlesung 1: Eigenwerte und Eigenvektoren\nEinführung in Matrizen und lineare Abbildungen",
+    1760256000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-v1",
+    2,
+    "Eigenwerte einer Matrix\nDas charakteristische Polynom liefert die Eigenwerte.\nEigenvektoren lösen das homogene System.\nDiagonalmatrix mit Eigenwerten auf der Diagonale",
+    1760256000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-v1",
+    3,
+    "Fragen?",
+    1760256000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-v2",
+    1,
+    "Determinanten\nLaplace-Entwicklung nach Zeilen und Spalten\nRechenregeln für Determinanten: Multiplikativität",
+    1760860800
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-v2",
+    2,
+    "Determinante und Invertierbarkeit\nEine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist\nCramersche Regel und Determinante der Inversen",
+    1760860800
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-v2d",
+    1,
+    "Determinanten\nLaplace-Entwicklung nach Zeilen und Spalten\nRechenregeln für Determinanten: Multiplikativität",
+    1760861100
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-v2d",
+    2,
+    "Determinante und Invertierbarkeit\nEine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist\nCramersche Regel und Determinante der Inversen",
+    1760861100
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    1,
+    "Vektorräume über Körpern\nUnterräume, Erzeugnis und Linearkombination von Vektoren",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    2,
+    "Basis und Dimension\nAustauschsatz von Steinitz und Basisergänzung im Vektorraum",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    3,
+    "Lineare Unabh¨ angigkeit\nVektoren heißen linear unabh¨ angig wenn nur die triviale Kombination null ergibt",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    4,
+    "Skalarprodukt und Norm\nOrthogonalität, Projektion und Gram-Schmidt-Verfahren für Orthonormalbasen",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    5,
+    "Spektralsatz für symmetrische Matrizen\nReelle Eigenwerte und orthogonale Diagonalisierung",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    6,
+    "Jordan-Normalform\nHauptvektoren, Jordanblöcke und Minimalpolynom einer Matrix",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    7,
+    "Quadriken und Hauptachsentransformation\nKegelschnitte, Ellipsen, Hyperbeln und Parabeln",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    8,
+    "Dualraum und Bilinearformen\nDuale Basis, Annulator und Sylvesterscher Trägheitssatz",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    9,
+    "Lineare Gleichungssysteme\nGaußsches Eliminationsverfahren, Rang und Lösungsmenge",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    10,
+    "Eigenwerte numerisch\nPotenzmethode und QR-Verfahren zur Berechnung von Eigenwerten",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    11,
+    "Tensorprodukt\nMultilineare Abbildungen, universelle Eigenschaft und Basen",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-s",
+    12,
+    "Zusammenfassung\nWichtige Sätze, Definitionen und typische Klausuraufgaben im Überblick",
+    1760947200
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    1,
+    "Ergänzung 1: Matrix und Regel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    2,
+    "Ergänzung 2: Determinante und Beispiel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    3,
+    "Ergänzung 3: Entwicklung und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    4,
+    "Ergänzung 4: Eigenwerte und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    5,
+    "Ergänzung 5: Polynom und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    6,
+    "Ergänzung 6: Linear und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    7,
+    "Ergänzung 7: Determinante und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    8,
+    "Ergänzung 8: Regel und Polynom\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    9,
+    "Ergänzung 9: Vektoren und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    10,
+    "Ergänzung 10: Linear und Polynom\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    11,
+    "Ergänzung 11: Vektoren und Regel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    12,
+    "Ergänzung 12: Linear und Determinante\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    13,
+    "Ergänzung 13: Eigenwerte und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-e",
+    14,
+    "Ergänzung 14: Polynom und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    1760950000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-u1",
+    1,
+    "Übungsblatt 1\nAufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A.\nBestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix.",
+    1761033600
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-u1",
+    2,
+    "Aufgabe 2: Berechnen Sie die Determinante mit der Laplace-Entwicklung.\nIst die Matrix invertierbar? Cramersche Regel",
+    1761033600
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-u1",
+    3,
+    "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren.\nVektoren linear unabhängig triviale Kombination",
+    1761033600
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-la-alt",
+    1,
+    "Eigenwerte einer Matrix\nDas charakteristische Polynom liefert die Eigenwerte und Eigenvektoren der Matrix.",
+    1729000000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-an-v1",
+    1,
+    "Folgen",
+    1760266000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-an-v1",
+    2,
+    "Grenzwerte",
+    1760266000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-an-u1",
+    1,
+    "Folgen und Grenzwerte\nKonvergenz nach Cauchy",
+    1760366000
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "f-frei1",
+    1,
+    "Seminar Organisation\nTermine und Vorträge",
+    1760466000
+   ]
+  }
+ ],
+ "files": [
+  {
+   "path": "files/k-la-vl/VL01 Eigenwerte.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUiA2IDAgUiA4IDAgUl0gL0NvdW50IDMgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMjAzID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChMaW5lYXJlIEFsZ2VicmEgVGVzdCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoVm9ybGVzdW5nIDE6IEVpZ2Vud2VydGUgdW5kIEVpZ2VudmVrdG9yZW4pIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3MjggVGQgKEVpbmb8aHJ1bmcgaW4gTWF0cml6ZW4gdW5kIGxpbmVhcmUgQWJiaWxkdW5nZW4pIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKNiAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyA3IDAgUiA+PgplbmRvYmoKNyAwIG9iago8PCAvTGVuZ3RoIDI5MiA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoRWlnZW53ZXJ0ZSBlaW5lciBNYXRyaXgpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKERhcyBjaGFyYWt0ZXJpc3Rpc2NoZSBQb2x5bm9tIGxpZWZlcnQgZGllIEVpZ2Vud2VydGUuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzI4IFRkIChFaWdlbnZla3RvcmVuIGz2c2VuIGRhcyBob21vZ2VuZSBTeXN0ZW0uKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzEyIFRkIChEaWFnb25hbG1hdHJpeCBtaXQgRWlnZW53ZXJ0ZW4gYXVmIGRlciBEaWFnb25hbGUpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKOCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyA5IDAgUiA+PgplbmRvYmoKOSAwIG9iago8PCAvTGVuZ3RoIDM5ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChGcmFnZW4/KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCAxMAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTI3IDAwMDAwIG4gCjAwMDAwMDAyMjQgMDAwMDAgbiAKMDAwMDAwMDM1MCAwMDAwMCBuIAowMDAwMDAwNjAzIDAwMDAwIG4gCjAwMDAwMDA3MjkgMDAwMDAgbiAKMDAwMDAwMTA3MSAwMDAwMCBuIAowMDAwMDAxMTk3IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgMTAgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjEyODUKJSVFT0YK"
+  },
+  {
+   "path": "files/k-la-vl/VL02 Determinanten.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUiA2IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMjAxID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChEZXRlcm1pbmFudGVuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChMYXBsYWNlLUVudHdpY2tsdW5nIG5hY2ggWmVpbGVuIHVuZCBTcGFsdGVuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzI4IFRkIChSZWNoZW5yZWdlbG4gZvxyIERldGVybWluYW50ZW46IE11bHRpcGxpa2F0aXZpdOR0KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiA+PiA+PiAvQ29udGVudHMgNyAwIFIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL0xlbmd0aCAyNTEgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiA3MiA3NjAgVGQgKERldGVybWluYW50ZSB1bmQgSW52ZXJ0aWVyYmFya2VpdCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoRWluZSBNYXRyaXggaXN0IGludmVydGllcmJhciBnZW5hdSBkYW5uIHdlbm4gZGllIERldGVybWluYW50ZSBuaWNodCBudWxsIGlzdCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDcyOCBUZCAoQ3JhbWVyc2NoZSBSZWdlbCB1bmQgRGV0ZXJtaW5hbnRlIGRlciBJbnZlcnNlbikgVGogRVQKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTIxIDAwMDAwIG4gCjAwMDAwMDAyMTggMDAwMDAgbiAKMDAwMDAwMDM0NCAwMDAwMCBuIAowMDAwMDAwNTk1IDAwMDAwIG4gCjAwMDAwMDA3MjEgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgoxMDIyCiUlRU9GCg=="
+  },
+  {
+   "path": "files/k-la-vl/VL02 Determinanten Druckfassung.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUiA2IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMjAxID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChEZXRlcm1pbmFudGVuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChMYXBsYWNlLUVudHdpY2tsdW5nIG5hY2ggWmVpbGVuIHVuZCBTcGFsdGVuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzI4IFRkIChSZWNoZW5yZWdlbG4gZvxyIERldGVybWluYW50ZW46IE11bHRpcGxpa2F0aXZpdOR0KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiA+PiA+PiAvQ29udGVudHMgNyAwIFIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL0xlbmd0aCAyNTEgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiA3MiA3NjAgVGQgKERldGVybWluYW50ZSB1bmQgSW52ZXJ0aWVyYmFya2VpdCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoRWluZSBNYXRyaXggaXN0IGludmVydGllcmJhciBnZW5hdSBkYW5uIHdlbm4gZGllIERldGVybWluYW50ZSBuaWNodCBudWxsIGlzdCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDcyOCBUZCAoQ3JhbWVyc2NoZSBSZWdlbCB1bmQgRGV0ZXJtaW5hbnRlIGRlciBJbnZlcnNlbikgVGogRVQKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTIxIDAwMDAwIG4gCjAwMDAwMDAyMTggMDAwMDAgbiAKMDAwMDAwMDM0NCAwMDAwMCBuIAowMDAwMDAwNTk1IDAwMDAwIG4gCjAwMDAwMDA3MjEgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgoxMDIyCiUlRU9GCg=="
+  },
+  {
+   "path": "files/k-la-vl/Skript Lineare Algebra.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUiA2IDAgUiA4IDAgUiAxMCAwIFIgMTIgMCBSIDE0IDAgUiAxNiAwIFIgMTggMCBSIDIwIDAgUiAyMiAwIFIgMjQgMCBSIDI2IDAgUl0gL0NvdW50IDEyID4+CmVuZG9iagozIDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyA+PgplbmRvYmoKNCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyA1IDAgUiA+PgplbmRvYmoKNSAwIG9iago8PCAvTGVuZ3RoIDE0NCA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoVmVrdG9ycuR1bWUg/GJlciBL9nJwZXJuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChVbnRlcnLkdW1lLCBFcnpldWduaXMgdW5kIExpbmVhcmtvbWJpbmF0aW9uIHZvbiBWZWt0b3JlbikgVGogRVQKZW5kc3RyZWFtCmVuZG9iago2IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDcgMCBSID4+CmVuZG9iago3IDAgb2JqCjw8IC9MZW5ndGggMTQyID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChCYXNpcyB1bmQgRGltZW5zaW9uKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChBdXN0YXVzY2hzYXR6IHZvbiBTdGVpbml0eiB1bmQgQmFzaXNlcmfkbnp1bmcgaW0gVmVrdG9ycmF1bSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iago4IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDkgMCBSID4+CmVuZG9iago5IDAgb2JqCjw8IC9MZW5ndGggMTY5ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChMaW5lYXJlIFVuYWJoqCBhbmdpZ2tlaXQpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKFZla3RvcmVuIGhlad9lbiBsaW5lYXIgdW5hYmioIGFuZ2lnIHdlbm4gbnVyIGRpZSB0cml2aWFsZSBLb21iaW5hdGlvbiBudWxsIGVyZ2lidCkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoxMCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAxMSAwIFIgPj4KZW5kb2JqCjExIDAgb2JqCjw8IC9MZW5ndGggMTYwID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChTa2FsYXJwcm9kdWt0IHVuZCBOb3JtKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChPcnRob2dvbmFsaXTkdCwgUHJvamVrdGlvbiB1bmQgR3JhbS1TY2htaWR0LVZlcmZhaHJlbiBm/HIgT3J0aG9ub3JtYWxiYXNlbikgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoxMiAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAxMyAwIFIgPj4KZW5kb2JqCjEzIDAgb2JqCjw8IC9MZW5ndGggMTUyID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChTcGVrdHJhbHNhdHogZvxyIHN5bW1ldHJpc2NoZSBNYXRyaXplbikgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoUmVlbGxlIEVpZ2Vud2VydGUgdW5kIG9ydGhvZ29uYWxlIERpYWdvbmFsaXNpZXJ1bmcpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKMTQgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiA+PiA+PiAvQ29udGVudHMgMTUgMCBSID4+CmVuZG9iagoxNSAwIG9iago8PCAvTGVuZ3RoIDE0MCA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoSm9yZGFuLU5vcm1hbGZvcm0pIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEhhdXB0dmVrdG9yZW4sIEpvcmRhbmJs9mNrZSB1bmQgTWluaW1hbHBvbHlub20gZWluZXIgTWF0cml4KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjE2IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDE3IDAgUiA+PgplbmRvYmoKMTcgMCBvYmoKPDwgL0xlbmd0aCAxNTAgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiA3MiA3NjAgVGQgKFF1YWRyaWtlbiB1bmQgSGF1cHRhY2hzZW50cmFuc2Zvcm1hdGlvbikgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoS2VnZWxzY2huaXR0ZSwgRWxsaXBzZW4sIEh5cGVyYmVsbiB1bmQgUGFyYWJlbG4pIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKMTggMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiA+PiA+PiAvQ29udGVudHMgMTkgMCBSID4+CmVuZG9iagoxOSAwIG9iago8PCAvTGVuZ3RoIDE0NiA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoRHVhbHJhdW0gdW5kIEJpbGluZWFyZm9ybWVuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChEdWFsZSBCYXNpcywgQW5udWxhdG9yIHVuZCBTeWx2ZXN0ZXJzY2hlciBUcuRnaGVpdHNzYXR6KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjIwIDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDIxIDAgUiA+PgplbmRvYmoKMjEgMCBvYmoKPDwgL0xlbmd0aCAxNDMgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiA3MiA3NjAgVGQgKExpbmVhcmUgR2xlaWNodW5nc3N5c3RlbWUpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEdhdd9zY2hlcyBFbGltaW5hdGlvbnN2ZXJmYWhyZW4sIFJhbmcgdW5kIEz2c3VuZ3NtZW5nZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoyMiAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAyMyAwIFIgPj4KZW5kb2JqCjIzIDAgb2JqCjw8IC9MZW5ndGggMTQ1ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFaWdlbndlcnRlIG51bWVyaXNjaCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoUG90ZW56bWV0aG9kZSB1bmQgUVItVmVyZmFocmVuIHp1ciBCZXJlY2hudW5nIHZvbiBFaWdlbndlcnRlbikgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoyNCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAyNSAwIFIgPj4KZW5kb2JqCjI1IDAgb2JqCjw8IC9MZW5ndGggMTM2ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChUZW5zb3Jwcm9kdWt0KSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChNdWx0aWxpbmVhcmUgQWJiaWxkdW5nZW4sIHVuaXZlcnNlbGxlIEVpZ2Vuc2NoYWZ0IHVuZCBCYXNlbikgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoyNiAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAyNyAwIFIgPj4KZW5kb2JqCjI3IDAgb2JqCjw8IC9MZW5ndGggMTQ5ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChadXNhbW1lbmZhc3N1bmcpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKFdpY2h0aWdlIFPkdHplLCBEZWZpbml0aW9uZW4gdW5kIHR5cGlzY2hlIEtsYXVzdXJhdWZnYWJlbiBpbSDcYmVyYmxpY2spIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDI4CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxOTEgMDAwMDAgbiAKMDAwMDAwMDI4OCAwMDAwMCBuIAowMDAwMDAwNDE0IDAwMDAwIG4gCjAwMDAwMDA2MDggMDAwMDAgbiAKMDAwMDAwMDczNCAwMDAwMCBuIAowMDAwMDAwOTI2IDAwMDAwIG4gCjAwMDAwMDEwNTIgMDAwMDAgbiAKMDAwMDAwMTI3MSAwMDAwMCBuIAowMDAwMDAxMzk5IDAwMDAwIG4gCjAwMDAwMDE2MTAgMDAwMDAgbiAKMDAwMDAwMTczOCAwMDAwMCBuIAowMDAwMDAxOTQxIDAwMDAwIG4gCjAwMDAwMDIwNjkgMDAwMDAgbiAKMDAwMDAwMjI2MCAwMDAwMCBuIAowMDAwMDAyMzg4IDAwMDAwIG4gCjAwMDAwMDI1ODkgMDAwMDAgbiAKMDAwMDAwMjcxNyAwMDAwMCBuIAowMDAwMDAyOTE0IDAwMDAwIG4gCjAwMDAwMDMwNDIgMDAwMDAgbiAKMDAwMDAwMzIzNiAwMDAwMCBuIAowMDAwMDAzMzY0IDAwMDAwIG4gCjAwMDAwMDM1NjAgMDAwMDAgbiAKMDAwMDAwMzY4OCAwMDAwMCBuIAowMDAwMDAzODc1IDAwMDAwIG4gCjAwMDAwMDQwMDMgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSAyOCAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDIwMwolJUVPRgo="
+  },
+  {
+   "path": "files/k-la-vl/Ergänzungen zur Vorlesung.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUiA2IDAgUiA4IDAgUiAxMCAwIFIgMTIgMCBSIDE0IDAgUiAxNiAwIFIgMTggMCBSIDIwIDAgUiAyMiAwIFIgMjQgMCBSIDI2IDAgUiAyOCAwIFIgMzAgMCBSXSAvQ291bnQgMTQgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMjkxID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFcmfkbnp1bmcgMTogTWF0cml4IHVuZCBSZWdlbCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoR2VzY2hpY2h0ZSBBbndlbmR1bmdlbiBJbmdlbmlldXJ3ZXNlbiBQaHlzaWsgSW5mb3JtYXRpayBTdGF0aXN0aWsgR3JhZmlrIE9wdGltaWVydW5nIE5ldHp3ZXJrZSBDb2RpZXJ1bmcgUm9ib3RpaykgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDcyOCBUZCAoTGl0ZXJhdHVyIEhpbndlaXNlIEJlaXNwaWVsZSBCaWxkZXIgVGFiZWxsZW4gTGVybnppZWxlKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiA+PiA+PiAvQ29udGVudHMgNyAwIFIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL0xlbmd0aCAzMDAgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiA3MiA3NjAgVGQgKEVyZ+RuenVuZyAyOiBEZXRlcm1pbmFudGUgdW5kIEJlaXNwaWVsKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChHZXNjaGljaHRlIEFud2VuZHVuZ2VuIEluZ2VuaWV1cndlc2VuIFBoeXNpayBJbmZvcm1hdGlrIFN0YXRpc3RpayBHcmFmaWsgT3B0aW1pZXJ1bmcgTmV0endlcmtlIENvZGllcnVuZyBSb2JvdGlrKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzI4IFRkIChMaXRlcmF0dXIgSGlud2Vpc2UgQmVpc3BpZWxlIEJpbGRlciBUYWJlbGxlbiBMZXJuemllbGUpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKOCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyA5IDAgUiA+PgplbmRvYmoKOSAwIG9iago8PCAvTGVuZ3RoIDI5NyA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoRXJn5G56dW5nIDM6IEVudHdpY2tsdW5nIHVuZCBNYXRyaXgpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEdlc2NoaWNodGUgQW53ZW5kdW5nZW4gSW5nZW5pZXVyd2VzZW4gUGh5c2lrIEluZm9ybWF0aWsgU3RhdGlzdGlrIEdyYWZpayBPcHRpbWllcnVuZyBOZXR6d2Vya2UgQ29kaWVydW5nIFJvYm90aWspIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3MjggVGQgKExpdGVyYXR1ciBIaW53ZWlzZSBCZWlzcGllbGUgQmlsZGVyIFRhYmVsbGVuIExlcm56aWVsZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoxMCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAxMSAwIFIgPj4KZW5kb2JqCjExIDAgb2JqCjw8IC9MZW5ndGggMjk4ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFcmfkbnp1bmcgNDogRWlnZW53ZXJ0ZSB1bmQgVmVrdG9yZW4pIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEdlc2NoaWNodGUgQW53ZW5kdW5nZW4gSW5nZW5pZXVyd2VzZW4gUGh5c2lrIEluZm9ybWF0aWsgU3RhdGlzdGlrIEdyYWZpayBPcHRpbWllcnVuZyBOZXR6d2Vya2UgQ29kaWVydW5nIFJvYm90aWspIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3MjggVGQgKExpdGVyYXR1ciBIaW53ZWlzZSBCZWlzcGllbGUgQmlsZGVyIFRhYmVsbGVuIExlcm56aWVsZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoxMiAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAxMyAwIFIgPj4KZW5kb2JqCjEzIDAgb2JqCjw8IC9MZW5ndGggMjkzID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFcmfkbnp1bmcgNTogUG9seW5vbSB1bmQgTWF0cml4KSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChHZXNjaGljaHRlIEFud2VuZHVuZ2VuIEluZ2VuaWV1cndlc2VuIFBoeXNpayBJbmZvcm1hdGlrIFN0YXRpc3RpayBHcmFmaWsgT3B0aW1pZXJ1bmcgTmV0endlcmtlIENvZGllcnVuZyBSb2JvdGlrKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzI4IFRkIChMaXRlcmF0dXIgSGlud2Vpc2UgQmVpc3BpZWxlIEJpbGRlciBUYWJlbGxlbiBMZXJuemllbGUpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKMTQgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiA+PiA+PiAvQ29udGVudHMgMTUgMCBSID4+CmVuZG9iagoxNSAwIG9iago8PCAvTGVuZ3RoIDI5NCA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoRXJn5G56dW5nIDY6IExpbmVhciB1bmQgVmVrdG9yZW4pIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEdlc2NoaWNodGUgQW53ZW5kdW5nZW4gSW5nZW5pZXVyd2VzZW4gUGh5c2lrIEluZm9ybWF0aWsgU3RhdGlzdGlrIEdyYWZpayBPcHRpbWllcnVuZyBOZXR6d2Vya2UgQ29kaWVydW5nIFJvYm90aWspIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3MjggVGQgKExpdGVyYXR1ciBIaW53ZWlzZSBCZWlzcGllbGUgQmlsZGVyIFRhYmVsbGVuIExlcm56aWVsZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoxNiAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAxNyAwIFIgPj4KZW5kb2JqCjE3IDAgb2JqCjw8IC9MZW5ndGggMjk4ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFcmfkbnp1bmcgNzogRGV0ZXJtaW5hbnRlIHVuZCBNYXRyaXgpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEdlc2NoaWNodGUgQW53ZW5kdW5nZW4gSW5nZW5pZXVyd2VzZW4gUGh5c2lrIEluZm9ybWF0aWsgU3RhdGlzdGlrIEdyYWZpayBPcHRpbWllcnVuZyBOZXR6d2Vya2UgQ29kaWVydW5nIFJvYm90aWspIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3MjggVGQgKExpdGVyYXR1ciBIaW53ZWlzZSBCZWlzcGllbGUgQmlsZGVyIFRhYmVsbGVuIExlcm56aWVsZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoxOCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAxOSAwIFIgPj4KZW5kb2JqCjE5IDAgb2JqCjw8IC9MZW5ndGggMjkyID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFcmfkbnp1bmcgODogUmVnZWwgdW5kIFBvbHlub20pIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEdlc2NoaWNodGUgQW53ZW5kdW5nZW4gSW5nZW5pZXVyd2VzZW4gUGh5c2lrIEluZm9ybWF0aWsgU3RhdGlzdGlrIEdyYWZpayBPcHRpbWllcnVuZyBOZXR6d2Vya2UgQ29kaWVydW5nIFJvYm90aWspIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3MjggVGQgKExpdGVyYXR1ciBIaW53ZWlzZSBCZWlzcGllbGUgQmlsZGVyIFRhYmVsbGVuIExlcm56aWVsZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoyMCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAyMSAwIFIgPj4KZW5kb2JqCjIxIDAgb2JqCjw8IC9MZW5ndGggMjk0ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFcmfkbnp1bmcgOTogVmVrdG9yZW4gdW5kIE1hdHJpeCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoR2VzY2hpY2h0ZSBBbndlbmR1bmdlbiBJbmdlbmlldXJ3ZXNlbiBQaHlzaWsgSW5mb3JtYXRpayBTdGF0aXN0aWsgR3JhZmlrIE9wdGltaWVydW5nIE5ldHp3ZXJrZSBDb2RpZXJ1bmcgUm9ib3RpaykgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDcyOCBUZCAoTGl0ZXJhdHVyIEhpbndlaXNlIEJlaXNwaWVsZSBCaWxkZXIgVGFiZWxsZW4gTGVybnppZWxlKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjIyIDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDIzIDAgUiA+PgplbmRvYmoKMjMgMCBvYmoKPDwgL0xlbmd0aCAyOTQgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiA3MiA3NjAgVGQgKEVyZ+RuenVuZyAxMDogTGluZWFyIHVuZCBQb2x5bm9tKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChHZXNjaGljaHRlIEFud2VuZHVuZ2VuIEluZ2VuaWV1cndlc2VuIFBoeXNpayBJbmZvcm1hdGlrIFN0YXRpc3RpayBHcmFmaWsgT3B0aW1pZXJ1bmcgTmV0endlcmtlIENvZGllcnVuZyBSb2JvdGlrKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzI4IFRkIChMaXRlcmF0dXIgSGlud2Vpc2UgQmVpc3BpZWxlIEJpbGRlciBUYWJlbGxlbiBMZXJuemllbGUpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKMjQgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiA+PiA+PiAvQ29udGVudHMgMjUgMCBSID4+CmVuZG9iagoyNSAwIG9iago8PCAvTGVuZ3RoIDI5NCA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoRXJn5G56dW5nIDExOiBWZWt0b3JlbiB1bmQgUmVnZWwpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEdlc2NoaWNodGUgQW53ZW5kdW5nZW4gSW5nZW5pZXVyd2VzZW4gUGh5c2lrIEluZm9ybWF0aWsgU3RhdGlzdGlrIEdyYWZpayBPcHRpbWllcnVuZyBOZXR6d2Vya2UgQ29kaWVydW5nIFJvYm90aWspIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3MjggVGQgKExpdGVyYXR1ciBIaW53ZWlzZSBCZWlzcGllbGUgQmlsZGVyIFRhYmVsbGVuIExlcm56aWVsZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoyNiAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAyNyAwIFIgPj4KZW5kb2JqCjI3IDAgb2JqCjw8IC9MZW5ndGggMjk5ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFcmfkbnp1bmcgMTI6IExpbmVhciB1bmQgRGV0ZXJtaW5hbnRlKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChHZXNjaGljaHRlIEFud2VuZHVuZ2VuIEluZ2VuaWV1cndlc2VuIFBoeXNpayBJbmZvcm1hdGlrIFN0YXRpc3RpayBHcmFmaWsgT3B0aW1pZXJ1bmcgTmV0endlcmtlIENvZGllcnVuZyBSb2JvdGlrKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzI4IFRkIChMaXRlcmF0dXIgSGlud2Vpc2UgQmVpc3BpZWxlIEJpbGRlciBUYWJlbGxlbiBMZXJuemllbGUpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKMjggMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiA+PiA+PiAvQ29udGVudHMgMjkgMCBSID4+CmVuZG9iagoyOSAwIG9iago8PCAvTGVuZ3RoIDI5NyA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoRXJn5G56dW5nIDEzOiBFaWdlbndlcnRlIHVuZCBNYXRyaXgpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEdlc2NoaWNodGUgQW53ZW5kdW5nZW4gSW5nZW5pZXVyd2VzZW4gUGh5c2lrIEluZm9ybWF0aWsgU3RhdGlzdGlrIEdyYWZpayBPcHRpbWllcnVuZyBOZXR6d2Vya2UgQ29kaWVydW5nIFJvYm90aWspIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3MjggVGQgKExpdGVyYXR1ciBIaW53ZWlzZSBCZWlzcGllbGUgQmlsZGVyIFRhYmVsbGVuIExlcm56aWVsZSkgVGogRVQKZW5kc3RyZWFtCmVuZG9iagozMCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyAzMSAwIFIgPj4KZW5kb2JqCjMxIDAgb2JqCjw8IC9MZW5ndGggMjk2ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFcmfkbnp1bmcgMTQ6IFBvbHlub20gdW5kIFZla3RvcmVuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChHZXNjaGljaHRlIEFud2VuZHVuZ2VuIEluZ2VuaWV1cndlc2VuIFBoeXNpayBJbmZvcm1hdGlrIFN0YXRpc3RpayBHcmFmaWsgT3B0aW1pZXJ1bmcgTmV0endlcmtlIENvZGllcnVuZyBSb2JvdGlrKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzI4IFRkIChMaXRlcmF0dXIgSGlud2Vpc2UgQmVpc3BpZWxlIEJpbGRlciBUYWJlbGxlbiBMZXJuemllbGUpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDMyCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAyMDUgMDAwMDAgbiAKMDAwMDAwMDMwMiAwMDAwMCBuIAowMDAwMDAwNDI4IDAwMDAwIG4gCjAwMDAwMDA3NjkgMDAwMDAgbiAKMDAwMDAwMDg5NSAwMDAwMCBuIAowMDAwMDAxMjQ1IDAwMDAwIG4gCjAwMDAwMDEzNzEgMDAwMDAgbiAKMDAwMDAwMTcxOCAwMDAwMCBuIAowMDAwMDAxODQ2IDAwMDAwIG4gCjAwMDAwMDIxOTUgMDAwMDAgbiAKMDAwMDAwMjMyMyAwMDAwMCBuIAowMDAwMDAyNjY3IDAwMDAwIG4gCjAwMDAwMDI3OTUgMDAwMDAgbiAKMDAwMDAwMzE0MCAwMDAwMCBuIAowMDAwMDAzMjY4IDAwMDAwIG4gCjAwMDAwMDM2MTcgMDAwMDAgbiAKMDAwMDAwMzc0NSAwMDAwMCBuIAowMDAwMDA0MDg4IDAwMDAwIG4gCjAwMDAwMDQyMTYgMDAwMDAgbiAKMDAwMDAwNDU2MSAwMDAwMCBuIAowMDAwMDA0Njg5IDAwMDAwIG4gCjAwMDAwMDUwMzQgMDAwMDAgbiAKMDAwMDAwNTE2MiAwMDAwMCBuIAowMDAwMDA1NTA3IDAwMDAwIG4gCjAwMDAwMDU2MzUgMDAwMDAgbiAKMDAwMDAwNTk4NSAwMDAwMCBuIAowMDAwMDA2MTEzIDAwMDAwIG4gCjAwMDAwMDY0NjEgMDAwMDAgbiAKMDAwMDAwNjU4OSAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDMyIC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo2OTM2CiUlRU9GCg=="
+  },
+  {
+   "path": "files/k-la-ue/Blatt 1.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUiA2IDAgUiA4IDAgUl0gL0NvdW50IDMgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMjU5ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkICjcYnVuZ3NibGF0dCAxKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChBdWZnYWJlIDE6IEJlcmVjaG5lbiBTaWUgZGllIEVpZ2Vud2VydGUgdW5kIEVpZ2VudmVrdG9yZW4gZGVyIE1hdHJpeCBBLikgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDcyOCBUZCAoQmVzdGltbWVuIFNpZSBkYXMgY2hhcmFrdGVyaXN0aXNjaGUgUG9seW5vbSB1bmQgZGlhZ29uYWxpc2llcmVuIFNpZSBkaWUgTWF0cml4LikgVGogRVQKZW5kc3RyZWFtCmVuZG9iago2IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDcgMCBSID4+CmVuZG9iago3IDAgb2JqCjw8IC9MZW5ndGggMTc5ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChBdWZnYWJlIDI6IEJlcmVjaG5lbiBTaWUgZGllIERldGVybWluYW50ZSBtaXQgZGVyIExhcGxhY2UtRW50d2lja2x1bmcuKSBUaiBFVApCVCAvRjEgMTIgVGYgNzIgNzQ0IFRkIChJc3QgZGllIE1hdHJpeCBpbnZlcnRpZXJiYXI/IENyYW1lcnNjaGUgUmVnZWwpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKOCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+IC9Db250ZW50cyA5IDAgUiA+PgplbmRvYmoKOSAwIG9iago8PCAvTGVuZ3RoIDE3MyA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc2MCBUZCAoQXVmZ2FiZSAzOiBaZWlnZW4gU2llIGRpZSBsaW5lYXJlIFVuYWJo5G5naWdrZWl0IGRlciBWZWt0b3Jlbi4pIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKFZla3RvcmVuIGxpbmVhciB1bmFiaORuZ2lnIHRyaXZpYWxlIEtvbWJpbmF0aW9uKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCAxMAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTI3IDAwMDAwIG4gCjAwMDAwMDAyMjQgMDAwMDAgbiAKMDAwMDAwMDM1MCAwMDAwMCBuIAowMDAwMDAwNjU5IDAwMDAwIG4gCjAwMDAwMDA3ODUgMDAwMDAgbiAKMDAwMDAwMTAxNCAwMDAwMCBuIAowMDAwMDAxMTQwIDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgMTAgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjEzNjMKJSVFT0YK"
+  },
+  {
+   "path": "files/k-la-vl/Tafelbild.png",
+   "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNg+M/A8B8ABf4C/qcsXG0AAAAASUVORK5CYII="
+  },
+  {
+   "path": "files/k-la-alt/VL01 Eigenwerte alt.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMTY5ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChFaWdlbndlcnRlIGVpbmVyIE1hdHJpeCkgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoRGFzIGNoYXJha3RlcmlzdGlzY2hlIFBvbHlub20gbGllZmVydCBkaWUgRWlnZW53ZXJ0ZSB1bmQgRWlnZW52ZWt0b3JlbiBkZXIgTWF0cml4LikgVGogRVQKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyMTIgMDAwMDAgbiAKMDAwMDAwMDMzOCAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjU1NwolJUVPRgo="
+  },
+  {
+   "path": "files/k-an-vl/VL01 Folgen.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUiA2IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMzggPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiA3MiA3NjAgVGQgKEZvbGdlbikgVGogRVQKZW5kc3RyZWFtCmVuZG9iago2IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDcgMCBSID4+CmVuZG9iago3IDAgb2JqCjw8IC9MZW5ndGggNDIgPj4Kc3RyZWFtCkJUIC9GMSAxMiBUZiA3MiA3NjAgVGQgKEdyZW56d2VydGUpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDEyMSAwMDAwMCBuIAowMDAwMDAwMjE4IDAwMDAwIG4gCjAwMDAwMDAzNDQgMDAwMDAgbiAKMDAwMDAwMDQzMSAwMDAwMCBuIAowMDAwMDAwNTU3IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgOCAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNjQ4CiUlRU9GCg=="
+  },
+  {
+   "path": "files/k-an-ue/Übung 1.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMTA3ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChGb2xnZW4gdW5kIEdyZW56d2VydGUpIFRqIEVUCkJUIC9GMSAxMiBUZiA3MiA3NDQgVGQgKEtvbnZlcmdlbnogbmFjaCBDYXVjaHkpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjEyIDAwMDAwIG4gCjAwMDAwMDAzMzggMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo0OTUKJSVFT0YK"
+  },
+  {
+   "path": "files/k-frei/Seminar.pdf",
+   "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMTA0ID4+CnN0cmVhbQpCVCAvRjEgMTIgVGYgNzIgNzYwIFRkIChTZW1pbmFyIE9yZ2FuaXNhdGlvbikgVGogRVQKQlQgL0YxIDEyIFRmIDcyIDc0NCBUZCAoVGVybWluZSB1bmQgVm9ydHLkZ2UpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjEyIDAwMDAwIG4gCjAwMDAwMDAzMzggMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo0OTIKJSVFT0YK"
+  }
+ ],
+ "steps": [
+  {
+   "method": "GET",
+   "path": "/api/search?q=eigenwert",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-la-v1",
+      "name": "VL01 Eigenwerte.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "doc_type": "vorlesung",
+      "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
+     },
+     {
+      "id": "f-la-alt",
+      "name": "VL01 Eigenwerte alt.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
+    "modules": [],
+    "tasks": [
+     {
+      "id": 1,
+      "title": "Eigenwerte wiederholen",
+      "type": "vorlesung",
+      "status": "erledigt",
+      "file_id": "f-la-v1",
+      "package_id": 1,
+      "date": "2026-10-20",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1
+     }
+    ],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 1,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 4,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 4: Eigenwerte und Vektoren Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise B…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 13,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 13: Eigenwerte und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Be…"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 5,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Spektralsatz für symmetrische Matrizen Reelle Eigenwerte und orthogonale Diagonalisierung"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 10,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Eigenwerte numerisch Potenzmethode und QR-Verfahren zur Berechnung von Eigenwerten"
+     },
+     {
+      "file_id": "f-la-v1",
+      "page": 1,
+      "name": "VL01 Eigenwerte.pdf",
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Lineare Algebra Test Vorlesung 1: Eigenwerte und Eigenvektoren Einführung in Matrizen und lineare Abbildungen"
+     },
+     {
+      "file_id": "f-la-v1",
+      "page": 2,
+      "name": "VL01 Eigenwerte.pdf",
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte. Eigenvektoren lösen das homogene System. Diagonalmatrix mit Eigenwerten auf der Diagonale"
+     },
+     {
+      "file_id": "f-la-alt",
+      "page": 1,
+      "name": "VL01 Eigenwerte alt.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte und Eigenvektoren der Matrix."
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%20EIGENWERTE%20",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-la-v1",
+      "name": "VL01 Eigenwerte.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "doc_type": "vorlesung",
+      "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
+     },
+     {
+      "id": "f-la-alt",
+      "name": "VL01 Eigenwerte alt.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
+    "modules": [],
+    "tasks": [
+     {
+      "id": 1,
+      "title": "Eigenwerte wiederholen",
+      "type": "vorlesung",
+      "status": "erledigt",
+      "file_id": "f-la-v1",
+      "package_id": 1,
+      "date": "2026-10-20",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1
+     }
+    ],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 1,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 4,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 4: Eigenwerte und Vektoren Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise B…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 13,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 13: Eigenwerte und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Be…"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 5,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Spektralsatz für symmetrische Matrizen Reelle Eigenwerte und orthogonale Diagonalisierung"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 10,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Eigenwerte numerisch Potenzmethode und QR-Verfahren zur Berechnung von Eigenwerten"
+     },
+     {
+      "file_id": "f-la-v1",
+      "page": 1,
+      "name": "VL01 Eigenwerte.pdf",
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Lineare Algebra Test Vorlesung 1: Eigenwerte und Eigenvektoren Einführung in Matrizen und lineare Abbildungen"
+     },
+     {
+      "file_id": "f-la-v1",
+      "page": 2,
+      "name": "VL01 Eigenwerte.pdf",
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte. Eigenvektoren lösen das homogene System. Diagonalmatrix mit Eigenwerten auf der Diagonale"
+     },
+     {
+      "file_id": "f-la-alt",
+      "page": 1,
+      "name": "VL01 Eigenwerte alt.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte und Eigenvektoren der Matrix."
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=Determinante",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-la-v2d",
+      "name": "VL02 Determinanten Druckfassung.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-v2",
+      "name": "VL02 Determinanten.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
+    "modules": [],
+    "tasks": [
+     {
+      "id": 5,
+      "title": "Lesen: Determinanten im Alltag",
+      "type": "frei",
+      "status": "geplant",
+      "file_id": null,
+      "package_id": 4,
+      "date": "2026-10-27",
+      "subject": "Allgemein",
+      "module_id": null
+     },
+     {
+      "id": 3,
+      "title": "VL02 Determinanten nacharbeiten",
+      "type": "vorlesung",
+      "status": "geplant",
+      "file_id": "f-la-v2",
+      "package_id": 2,
+      "date": "2026-10-26",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1
+     }
+    ],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 2,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Aufgabe 2: Berechnen Sie die Determinante mit der Laplace-Entwicklung. Ist die Matrix invertierbar? Cramersche Regel"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 2,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 2: Determinante und Beispiel Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 7,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 7: Determinante und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise B…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 12,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 12: Linear und Determinante Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise …"
+     },
+     {
+      "file_id": "f-la-v2d",
+      "page": 1,
+      "name": "VL02 Determinanten Druckfassung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Determinanten Laplace-Entwicklung nach Zeilen und Spalten Rechenregeln für Determinanten: Multiplikativität"
+     },
+     {
+      "file_id": "f-la-v2d",
+      "page": 2,
+      "name": "VL02 Determinanten Druckfassung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Determinante und Invertierbarkeit Eine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist Cramersche Regel und Determinante der Inversen"
+     },
+     {
+      "file_id": "f-la-v2",
+      "page": 1,
+      "name": "VL02 Determinanten.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Determinanten Laplace-Entwicklung nach Zeilen und Spalten Rechenregeln für Determinanten: Multiplikativität"
+     },
+     {
+      "file_id": "f-la-v2",
+      "page": 2,
+      "name": "VL02 Determinanten.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Determinante und Invertierbarkeit Eine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist Cramersche Regel und Determinante der Inversen"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=spektralsatz",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-la-v1",
+      "name": "VL01 Eigenwerte.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "doc_type": "vorlesung",
+      "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
+     }
+    ],
+    "modules": [],
+    "tasks": [],
+    "pages": [
+     {
+      "file_id": "f-la-s",
+      "page": 5,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Spektralsatz für symmetrische Matrizen Reelle Eigenwerte und orthogonale Diagonalisierung"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=lineare",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-la-v4",
+      "name": "VL04 Ausblick.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-png",
+      "name": "Tafelbild.png",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-u1",
+      "name": "Blatt 1.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": "uebung",
+      "topics": null
+     },
+     {
+      "id": "f-la-e",
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-s",
+      "name": "Skript Lineare Algebra.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-v2d",
+      "name": "VL02 Determinanten Druckfassung.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-v2",
+      "name": "VL02 Determinanten.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-v1",
+      "name": "VL01 Eigenwerte.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "doc_type": "vorlesung",
+      "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
+     },
+     {
+      "id": "f-la-alt",
+      "name": "VL01 Eigenwerte alt.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
+    "modules": [
+     {
+      "id": 1,
+      "name": "Lineare Algebra Test",
+      "color": "#4f6df5"
+     }
+    ],
+    "tasks": [],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 3,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren. Vektoren linear unabhängig triviale Kombination"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 3,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Lineare Unabhängigkeit Vektoren heißen linear unabhängig wenn nur die triviale Kombination null ergibt"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 9,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Lineare Gleichungssysteme Gaußsches Eliminationsverfahren, Rang und Lösungsmenge"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 11,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Tensorprodukt Multilineare Abbildungen, universelle Eigenschaft und Basen"
+     },
+     {
+      "file_id": "f-la-v1",
+      "page": 1,
+      "name": "VL01 Eigenwerte.pdf",
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Lineare Algebra Test Vorlesung 1: Eigenwerte und Eigenvektoren Einführung in Matrizen und lineare Abbildungen"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=unabh",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 3,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren. Vektoren linear unabhängig triviale Kombination"
+     },
+     {
+      "file_id": "f-la-s",
+      "page": 3,
+      "name": "Skript Lineare Algebra.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Lineare Unabhängigkeit Vektoren heißen linear unabhängig wenn nur die triviale Kombination null ergibt"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=blatt",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-la-u1",
+      "name": "Blatt 1.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": "uebung",
+      "topics": null
+     }
+    ],
+    "modules": [],
+    "tasks": [
+     {
+      "id": 2,
+      "title": "Blatt 1 rechnen",
+      "type": "uebung",
+      "status": "geplant",
+      "file_id": "f-la-u1",
+      "package_id": 2,
+      "date": "2026-10-26",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1
+     }
+    ],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 1,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%25%25",
+   "status": 200,
+   "response": {
+    "files": [
+     {
+      "id": "f-la-v4",
+      "name": "VL04 Ausblick.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-png",
+      "name": "Tafelbild.png",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-u1",
+      "name": "Blatt 1.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": "uebung",
+      "topics": null
+     },
+     {
+      "id": "f-la-e",
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-s",
+      "name": "Skript Lineare Algebra.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-v2d",
+      "name": "VL02 Determinanten Druckfassung.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-v2",
+      "name": "VL02 Determinanten.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-frei1",
+      "name": "Seminar.pdf",
+      "subject": null,
+      "module_id": null,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-an-u1",
+      "name": "Übung 1.pdf",
+      "subject": "Analysis Beispiel",
+      "module_id": 2,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-an-v1",
+      "name": "VL01 Folgen.pdf",
+      "subject": "Analysis Beispiel",
+      "module_id": 2,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     },
+     {
+      "id": "f-la-v1",
+      "name": "VL01 Eigenwerte.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": "Eigenwerte und Eigenvektoren",
+      "doc_type": "vorlesung",
+      "topics": "[\"Spektralsatz\", \"Diagonalisierung\"]"
+     },
+     {
+      "id": "f-la-alt",
+      "name": "VL01 Eigenwerte alt.pdf",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "ai_title": null,
+      "doc_type": null,
+      "topics": null
+     }
+    ],
+    "modules": [
+     {
+      "id": 1,
+      "name": "Lineare Algebra Test",
+      "color": "#4f6df5"
+     },
+     {
+      "id": 2,
+      "name": "Analysis Beispiel",
+      "color": "#0ea5a0"
+     },
+     {
+      "id": 3,
+      "name": "Ökonomie Übung",
+      "color": "#e0803a"
+     }
+    ],
+    "tasks": [
+     {
+      "id": 4,
+      "title": "Übung 1 Folgen",
+      "type": "uebung",
+      "status": "nachholen",
+      "file_id": "f-an-u1",
+      "package_id": 3,
+      "date": "2026-10-28",
+      "subject": "Analysis Beispiel",
+      "module_id": 2
+     },
+     {
+      "id": 5,
+      "title": "Lesen: Determinanten im Alltag",
+      "type": "frei",
+      "status": "geplant",
+      "file_id": null,
+      "package_id": 4,
+      "date": "2026-10-27",
+      "subject": "Allgemein",
+      "module_id": null
+     },
+     {
+      "id": 2,
+      "title": "Blatt 1 rechnen",
+      "type": "uebung",
+      "status": "geplant",
+      "file_id": "f-la-u1",
+      "package_id": 2,
+      "date": "2026-10-26",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1
+     },
+     {
+      "id": 3,
+      "title": "VL02 Determinanten nacharbeiten",
+      "type": "vorlesung",
+      "status": "geplant",
+      "file_id": "f-la-v2",
+      "package_id": 2,
+      "date": "2026-10-26",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1
+     },
+     {
+      "id": 1,
+      "title": "Eigenwerte wiederholen",
+      "type": "vorlesung",
+      "status": "erledigt",
+      "file_id": "f-la-v1",
+      "package_id": 1,
+      "date": "2026-10-20",
+      "subject": "Lineare Algebra Test",
+      "module_id": 1
+     }
+    ],
+    "pages": [
+     {
+      "file_id": "f-la-u1",
+      "page": 1,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Übungsblatt 1 Aufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A. Bestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix."
+     },
+     {
+      "file_id": "f-la-u1",
+      "page": 2,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Aufgabe 2: Berechnen Sie die Determinante mit der Laplace-Entwicklung. Ist die Matrix invertierbar? Cramersche Regel"
+     },
+     {
+      "file_id": "f-la-u1",
+      "page": 3,
+      "name": "Blatt 1.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren. Vektoren linear unabhängig triviale Kombination"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 1,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 1: Matrix und Regel Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Beispiel…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 2,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 2: Determinante und Beispiel Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 3,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 3: Entwicklung und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Be…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 4,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 4: Eigenwerte und Vektoren Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise B…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 5,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 5: Polynom und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Beispi…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 6,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 6: Linear und Vektoren Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise Beisp…"
+     },
+     {
+      "file_id": "f-la-e",
+      "page": 7,
+      "name": "Ergänzungen zur Vorlesung.pdf",
+      "ai_title": null,
+      "subject": "Lineare Algebra Test",
+      "module_id": 1,
+      "snippet": "Ergänzung 7: Determinante und Matrix Geschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik Literatur Hinweise B…"
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=konomie",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [
+     {
+      "id": 3,
+      "name": "Ökonomie Übung",
+      "color": "#e0803a"
+     }
+    ],
+    "tasks": [],
+    "pages": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%C3%96konomie",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%C3%BCbung",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=%20a%20",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search?q=zzzz",
+   "status": 200,
+   "response": {
+    "files": [],
+    "modules": [],
+    "tasks": [],
+    "pages": []
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/search",
+   "status": 422,
+   "response": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "query",
+       "q"
+      ],
+      "msg": "Field required",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "charakteristisch",
+     "diagonalisier",
+     "eigenvektor",
+     "eigenwert",
+     "matrix",
+     "polynom"
+    ],
+    "results": [
+     {
+      "file_id": "f-la-v1",
+      "title": "Eigenwerte und Eigenvektoren",
+      "name": "VL01 Eigenwerte.pdf",
+      "label": "Vorlesung",
+      "page": 2,
+      "score": 12.11,
+      "terms": [
+       "matrix",
+       "eigenwert",
+       "polynom",
+       "eigenvektor",
+       "charakteristisch"
+      ],
+      "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte. Eigenvektoren lösen das homogene System. Diagonalmatrix mit Eigenwerten auf der Diagonale"
+     }
+    ]
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "page": 1
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "cramersch",
+     "determinant",
+     "entwickl",
+     "invertierbar",
+     "laplac",
+     "matrix",
+     "regel"
+    ],
+    "results": [
+     {
+      "file_id": "f-la-v2",
+      "title": "VL02 Determinanten.pdf",
+      "name": "VL02 Determinanten.pdf",
+      "label": "Vorlesung",
+      "page": 2,
+      "score": 10.95,
+      "terms": [
+       "matrix",
+       "determinant",
+       "regel",
+       "invertierbar",
+       "cramersch"
+      ],
+      "snippet": "Determinante und Invertierbarkeit Eine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist Cramersche Regel und Determinante der Inversen"
+     }
+    ]
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "page": 2
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "kombinatio",
+     "linear",
+     "trivial",
+     "unabhängig",
+     "unabhängigkeit",
+     "vektor"
+    ],
+    "results": [
+     {
+      "file_id": "f-la-s",
+      "title": "Skript Lineare Algebra.pdf",
+      "name": "Skript Lineare Algebra.pdf",
+      "label": "Skript",
+      "page": 3,
+      "score": 21.51,
+      "terms": [
+       "vektor",
+       "linear",
+       "unabhängigkeit",
+       "unabhängig",
+       "trivial",
+       "kombinatio"
+      ],
+      "snippet": "Lineare Unabhängigkeit Vektoren heißen linear unabhängig wenn nur die triviale Kombination null ergibt"
+     }
+    ]
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "page": "3"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [],
+    "results": []
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "page": 9
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "cramersch",
+     "determinant",
+     "entwickl",
+     "invertierbar",
+     "laplac",
+     "matrix",
+     "regel"
+    ],
+    "results": [
+     {
+      "file_id": "f-la-v2",
+      "title": "VL02 Determinanten.pdf",
+      "name": "VL02 Determinanten.pdf",
+      "label": "Vorlesung",
+      "page": 2,
+      "score": 10.95,
+      "terms": [
+       "matrix",
+       "determinant",
+       "regel",
+       "invertierbar",
+       "cramersch"
+      ],
+      "snippet": "Determinante und Invertierbarkeit Eine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist Cramersche Regel und Determinante der Inversen"
+     }
+    ]
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "text": "  ",
+    "page": 2
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "eigenwert"
+    ],
+    "results": []
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "text": "Berechnen Sie die Eigenwerte"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [],
+    "results": []
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "text": "Berechnen Sie die Aufgabe"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "diagonalisier",
+     "eigenwert",
+     "matriz",
+     "orthogonal",
+     "reell",
+     "spektralsatz",
+     "symmetrisch"
+    ],
+    "results": [
+     {
+      "file_id": "f-la-s",
+      "title": "Skript Lineare Algebra.pdf",
+      "name": "Skript Lineare Algebra.pdf",
+      "label": "Skript",
+      "page": 5,
+      "score": 24.18,
+      "terms": [
+       "eigenwert",
+       "matriz",
+       "spektralsatz",
+       "symmetrisch",
+       "reell",
+       "orthogonal"
+      ],
+      "snippet": "Spektralsatz für symmetrische Matrizen Reelle Eigenwerte und orthogonale Diagonalisierung"
+     }
+    ]
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "text": "Spektralsatz symmetrische Matrizen reelle Eigenwerte orthogonale Diagonalisierung"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "determinant",
+     "entwickl",
+     "invertierbarkeit",
+     "laplac"
+    ],
+    "results": []
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "text": "Laplace Entwicklung Determinante Determinante Invertierbarkeit"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "charakteristisch",
+     "eigenvektor",
+     "eigenwert",
+     "matrix",
+     "polynom"
+    ],
+    "results": []
+   },
+   "body": {
+    "file_id": "f-la-v1",
+    "text": "Eigenwerte Eigenvektoren charakteristische Polynom Matrix"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "charakteristisch",
+     "diagonalisier",
+     "eigenvektor",
+     "eigenwert",
+     "matrix",
+     "numerisch",
+     "polynom",
+     "spektralsatz",
+     "symmetrisch"
+    ],
+    "results": [
+     {
+      "file_id": "f-la-s",
+      "title": "Skript Lineare Algebra.pdf",
+      "name": "Skript Lineare Algebra.pdf",
+      "label": "Skript",
+      "page": 5,
+      "score": 13.4,
+      "terms": [
+       "eigenwert",
+       "diagonalisier",
+       "spektralsatz",
+       "symmetrisch"
+      ],
+      "snippet": "Spektralsatz für symmetrische Matrizen Reelle Eigenwerte und orthogonale Diagonalisierung"
+     },
+     {
+      "file_id": "f-la-v1",
+      "title": "Eigenwerte und Eigenvektoren",
+      "name": "VL01 Eigenwerte.pdf",
+      "label": "Vorlesung",
+      "page": 2,
+      "score": 10.99,
+      "terms": [
+       "matrix",
+       "eigenwert",
+       "polynom",
+       "eigenvektor",
+       "charakteristisch"
+      ],
+      "snippet": "Eigenwerte einer Matrix Das charakteristische Polynom liefert die Eigenwerte. Eigenvektoren lösen das homogene System. Diagonalmatrix mit Eigenwerten auf der Diagonale"
+     }
+    ]
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "text": "Eigenwerte Eigenvektoren charakteristisches Polynom Matrix Diagonalisierung Spektralsatz symmetrisch numerisch"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [
+     "abc"
+    ],
+    "results": []
+   },
+   "body": {
+    "file_id": "f-la-u1",
+    "text": "Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Abc Determinante Laplace Entwicklung Invertierbarkeit"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [],
+    "results": [],
+    "note": "keine Vorlesungs- oder Skriptseiten im Modul"
+   },
+   "body": {
+    "file_id": "f-an-u1",
+    "text": "Folgen Grenzwerte Konvergenz Cauchy"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [],
+    "results": [],
+    "note": "Dokument gehoert zu keinem Modul"
+   },
+   "body": {
+    "file_id": "f-frei1",
+    "text": "Seminar Organisation Termine"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [],
+    "results": [],
+    "note": "Dokument gehoert zu keinem Modul"
+   },
+   "body": {
+    "file_id": "nope",
+    "text": "Eigenwerte"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 200,
+   "response": {
+    "terms": [],
+    "results": [],
+    "note": "Dokument gehoert zu keinem Modul"
+   },
+   "body": {}
+  },
+  {
+   "method": "POST",
+   "path": "/api/related",
+   "status": 422,
+   "response": {
+    "detail": [
+     {
+      "type": "dict_type",
+      "loc": [
+       "body"
+      ],
+      "msg": "Input should be a valid dictionary",
+      "input": [
+       "kein",
+       "Objekt"
+      ]
+     }
+    ]
+   },
+   "body": [
+    "kein",
+    "Objekt"
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-v1/pagetext",
+   "status": 200,
+   "response": {
+    "text": "Lineare Algebra Test\nVorlesung 1: Eigenwerte und Eigenvektoren\nEinführung in Matrizen und lineare Abbildungen",
+    "pages": 3
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-v1/pagetext?page=2",
+   "status": 200,
+   "response": {
+    "text": "Eigenwerte einer Matrix\nDas charakteristische Polynom liefert die Eigenwerte.\nEigenvektoren lösen das homogene System.\nDiagonalmatrix mit Eigenwerten auf der Diagonale",
+    "pages": 3
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-v1/pagetext?page=3",
+   "status": 200,
+   "response": {
+    "text": "Fragen?",
+    "pages": 3
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-v1/pagetext?page=0",
+   "status": 200,
+   "response": {
+    "text": "",
+    "pages": 3
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-v1/pagetext?page=4",
+   "status": 200,
+   "response": {
+    "text": "",
+    "pages": 3
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-v1/pagetext?page=-1",
+   "status": 200,
+   "response": {
+    "text": "",
+    "pages": 3
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-s/pagetext?page=3",
+   "status": 200,
+   "response": {
+    "text": "Lineare Unabh¨ angigkeit\nVektoren heißen linear unabh¨ angig wenn nur die triviale Kombination null ergibt",
+    "pages": 12
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-u1/pagetext?page=1",
+   "status": 200,
+   "response": {
+    "text": "Übungsblatt 1\nAufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A.\nBestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix.",
+    "pages": 3
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-v4/pagetext",
+   "status": 404,
+   "response": {
+    "detail": "Not Found"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/nope/pagetext",
+   "status": 404,
+   "response": {
+    "detail": "Not Found"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/files/f-la-v1/pagetext?page=abc",
+   "status": 422,
+   "response": {
+    "detail": [
+     {
+      "type": "int_parsing",
+      "loc": [
+       "query",
+       "page"
+      ],
+      "msg": "Input should be a valid integer, unable to parse string as an integer",
+      "input": "abc"
+     }
+    ]
+   }
+  }
+ ],
+ "tokens": [
+  {
+   "text": "Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A.",
+   "tokens": [
+    "eigenwert",
+    "eigenvektor",
+    "matrix"
+   ]
+  },
+  {
+   "text": "Lineare Unabh¨ angigkeit und Unabh¨\nangigkeit, Übung, Müller, ökonomisch",
+   "tokens": [
+    "linear",
+    "unabhängigkeit",
+    "unabhängigkeit",
+    "müll",
+    "ökonomisch"
+   ]
+  },
+  {
+   "text": "Übung Uebung Übungsblatt Aufgabe Teilaufgabe Lösung Hinweis Punkte",
+   "tokens": []
+  },
+  {
+   "text": "Abbildungen Abbildung Zuordnungen Zuordnung Rechnungen Spannungen Vektoren Matrizen Normen Ergebnisses Systemen Kreise",
+   "tokens": [
+    "abbild",
+    "abbild",
+    "zuordn",
+    "zuordn",
+    "rechn",
+    "spann",
+    "vektor",
+    "matriz",
+    "norm",
+    "ergebniss",
+    "system",
+    "kreis"
+   ]
+  },
+  {
+   "text": "ab abc ABCD Straße STRASSE groß Größe Maß ÄÖÜ äöü",
+   "tokens": [
+    "abc",
+    "abcd",
+    "straß",
+    "strass",
+    "groß",
+    "größe",
+    "maß",
+    "äöü",
+    "äöü"
+   ]
+  },
+  {
+   "text": "x1 x2 3D-Grafik C++ e-Funktion π-Formel naïve café",
+   "tokens": [
+    "grafik",
+    "funktio",
+    "formel",
+    "caf"
+   ]
+  },
+  {
+   "text": "",
+   "tokens": []
+  }
+ ],
+ "normalize": [
+  {
+   "text": "Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A.",
+   "normalized": "Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A."
+  },
+  {
+   "text": "Lineare Unabh¨ angigkeit und Unabh¨\nangigkeit, Übung, Müller, ökonomisch",
+   "normalized": "Lineare Unabhängigkeit und Unabhängigkeit, Übung, Müller, ökonomisch"
+  },
+  {
+   "text": "Übung Uebung Übungsblatt Aufgabe Teilaufgabe Lösung Hinweis Punkte",
+   "normalized": "Übung Uebung Übungsblatt Aufgabe Teilaufgabe Lösung Hinweis Punkte"
+  },
+  {
+   "text": "Abbildungen Abbildung Zuordnungen Zuordnung Rechnungen Spannungen Vektoren Matrizen Normen Ergebnisses Systemen Kreise",
+   "normalized": "Abbildungen Abbildung Zuordnungen Zuordnung Rechnungen Spannungen Vektoren Matrizen Normen Ergebnisses Systemen Kreise"
+  },
+  {
+   "text": "ab abc ABCD Straße STRASSE groß Größe Maß ÄÖÜ äöü",
+   "normalized": "ab abc ABCD Straße STRASSE groß Größe Maß ÄÖÜ äöü"
+  },
+  {
+   "text": "x1 x2 3D-Grafik C++ e-Funktion π-Formel naïve café",
+   "normalized": "x1 x2 3D-Grafik C++ e-Funktion π-Formel naïve café"
+  },
+  {
+   "text": "",
+   "normalized": ""
+  }
+ ],
+ "snippets": [
+  {
+   "text": "Der  Satz\nvon   Rolle   besagt",
+   "terms": [
+    "rolle"
+   ],
+   "snippet": "Der Satz von Rolle besagt"
+  },
+  {
+   "text": "Kein Treffer in diesem Text",
+   "terms": [
+    "zzz"
+   ],
+   "snippet": "Kein Treffer in diesem Text"
+  },
+  {
+   "text": "Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Einleitung Hier steht der Spektralsatz mit Beweis und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter ",
+   "terms": [
+    "spektralsatz",
+    "beweis"
+   ],
+   "snippet": "…g Einleitung Einleitung Einleitung Hier steht der Spektralsatz mit Beweis und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weiter und weit…"
+  },
+  {
+   "text": "İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ İİİ Eigenwert",
+   "terms": [
+    "eigenwert"
+   ],
+   "snippet": "…"
+  },
+  {
+   "text": "   ",
+   "terms": [
+    "x"
+   ],
+   "snippet": ""
+  },
+  {
+   "text": "Kurz Eigenwert",
+   "terms": [
+    "eigenwert",
+    "kurz"
+   ],
+   "snippet": "Kurz Eigenwert"
+  }
+ ],
+ "tables_after": {
+  "page_texts": [
+   {
+    "file_id": "f-an-u1",
+    "page": 1,
+    "text": "Folgen und Grenzwerte\nKonvergenz nach Cauchy",
+    "chdate": 1760366000
+   },
+   {
+    "file_id": "f-an-v1",
+    "page": 1,
+    "text": "Folgen",
+    "chdate": 1760266000
+   },
+   {
+    "file_id": "f-an-v1",
+    "page": 2,
+    "text": "Grenzwerte",
+    "chdate": 1760266000
+   },
+   {
+    "file_id": "f-frei1",
+    "page": 1,
+    "text": "Seminar Organisation\nTermine und Vorträge",
+    "chdate": 1760466000
+   },
+   {
+    "file_id": "f-la-alt",
+    "page": 1,
+    "text": "Eigenwerte einer Matrix\nDas charakteristische Polynom liefert die Eigenwerte und Eigenvektoren der Matrix.",
+    "chdate": 1729000000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 1,
+    "text": "Ergänzung 1: Matrix und Regel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 2,
+    "text": "Ergänzung 2: Determinante und Beispiel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 3,
+    "text": "Ergänzung 3: Entwicklung und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 4,
+    "text": "Ergänzung 4: Eigenwerte und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 5,
+    "text": "Ergänzung 5: Polynom und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 6,
+    "text": "Ergänzung 6: Linear und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 7,
+    "text": "Ergänzung 7: Determinante und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 8,
+    "text": "Ergänzung 8: Regel und Polynom\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 9,
+    "text": "Ergänzung 9: Vektoren und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 10,
+    "text": "Ergänzung 10: Linear und Polynom\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 11,
+    "text": "Ergänzung 11: Vektoren und Regel\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 12,
+    "text": "Ergänzung 12: Linear und Determinante\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 13,
+    "text": "Ergänzung 13: Eigenwerte und Matrix\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-e",
+    "page": 14,
+    "text": "Ergänzung 14: Polynom und Vektoren\nGeschichte Anwendungen Ingenieurwesen Physik Informatik Statistik Grafik Optimierung Netzwerke Codierung Robotik\nLiteratur Hinweise Beispiele Bilder Tabellen Lernziele",
+    "chdate": 1760950000
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 1,
+    "text": "Vektorräume über Körpern\nUnterräume, Erzeugnis und Linearkombination von Vektoren",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 2,
+    "text": "Basis und Dimension\nAustauschsatz von Steinitz und Basisergänzung im Vektorraum",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 3,
+    "text": "Lineare Unabh¨ angigkeit\nVektoren heißen linear unabh¨ angig wenn nur die triviale Kombination null ergibt",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 4,
+    "text": "Skalarprodukt und Norm\nOrthogonalität, Projektion und Gram-Schmidt-Verfahren für Orthonormalbasen",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 5,
+    "text": "Spektralsatz für symmetrische Matrizen\nReelle Eigenwerte und orthogonale Diagonalisierung",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 6,
+    "text": "Jordan-Normalform\nHauptvektoren, Jordanblöcke und Minimalpolynom einer Matrix",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 7,
+    "text": "Quadriken und Hauptachsentransformation\nKegelschnitte, Ellipsen, Hyperbeln und Parabeln",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 8,
+    "text": "Dualraum und Bilinearformen\nDuale Basis, Annulator und Sylvesterscher Trägheitssatz",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 9,
+    "text": "Lineare Gleichungssysteme\nGaußsches Eliminationsverfahren, Rang und Lösungsmenge",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 10,
+    "text": "Eigenwerte numerisch\nPotenzmethode und QR-Verfahren zur Berechnung von Eigenwerten",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 11,
+    "text": "Tensorprodukt\nMultilineare Abbildungen, universelle Eigenschaft und Basen",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-s",
+    "page": 12,
+    "text": "Zusammenfassung\nWichtige Sätze, Definitionen und typische Klausuraufgaben im Überblick",
+    "chdate": 1760947200
+   },
+   {
+    "file_id": "f-la-u1",
+    "page": 1,
+    "text": "Übungsblatt 1\nAufgabe 1: Berechnen Sie die Eigenwerte und Eigenvektoren der Matrix A.\nBestimmen Sie das charakteristische Polynom und diagonalisieren Sie die Matrix.",
+    "chdate": 1761033600
+   },
+   {
+    "file_id": "f-la-u1",
+    "page": 2,
+    "text": "Aufgabe 2: Berechnen Sie die Determinante mit der Laplace-Entwicklung.\nIst die Matrix invertierbar? Cramersche Regel",
+    "chdate": 1761033600
+   },
+   {
+    "file_id": "f-la-u1",
+    "page": 3,
+    "text": "Aufgabe 3: Zeigen Sie die lineare Unabhängigkeit der Vektoren.\nVektoren linear unabhängig triviale Kombination",
+    "chdate": 1761033600
+   },
+   {
+    "file_id": "f-la-v1",
+    "page": 1,
+    "text": "Lineare Algebra Test\nVorlesung 1: Eigenwerte und Eigenvektoren\nEinführung in Matrizen und lineare Abbildungen",
+    "chdate": 1760256000
+   },
+   {
+    "file_id": "f-la-v1",
+    "page": 2,
+    "text": "Eigenwerte einer Matrix\nDas charakteristische Polynom liefert die Eigenwerte.\nEigenvektoren lösen das homogene System.\nDiagonalmatrix mit Eigenwerten auf der Diagonale",
+    "chdate": 1760256000
+   },
+   {
+    "file_id": "f-la-v1",
+    "page": 3,
+    "text": "Fragen?",
+    "chdate": 1760256000
+   },
+   {
+    "file_id": "f-la-v2",
+    "page": 1,
+    "text": "Determinanten\nLaplace-Entwicklung nach Zeilen und Spalten\nRechenregeln für Determinanten: Multiplikativität",
+    "chdate": 1760860800
+   },
+   {
+    "file_id": "f-la-v2",
+    "page": 2,
+    "text": "Determinante und Invertierbarkeit\nEine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist\nCramersche Regel und Determinante der Inversen",
+    "chdate": 1760860800
+   },
+   {
+    "file_id": "f-la-v2d",
+    "page": 1,
+    "text": "Determinanten\nLaplace-Entwicklung nach Zeilen und Spalten\nRechenregeln für Determinanten: Multiplikativität",
+    "chdate": 1760861100
+   },
+   {
+    "file_id": "f-la-v2d",
+    "page": 2,
+    "text": "Determinante und Invertierbarkeit\nEine Matrix ist invertierbar genau dann wenn die Determinante nicht null ist\nCramersche Regel und Determinante der Inversen",
+    "chdate": 1760861100
+   }
+  ]
+ }
+}
