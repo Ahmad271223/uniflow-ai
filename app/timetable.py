@@ -376,17 +376,29 @@ def _ics_exdates(items: list[tuple[str, str]]) -> list[str]:
 
 
 def merge_weekly(entries: list[dict]) -> list[dict]:
-    """Viele Einzeltermine (z. B. aus Stud.IP oder ICS ohne RRULE) zu woechentlichen Serien zusammenfassen."""
+    """Viele Einzeltermine (z. B. aus Stud.IP oder ICS ohne RRULE) zu woechentlichen Serien zusammenfassen.
+
+    Wochen ohne Termin innerhalb der Serie (Weihnachtspause, Feiertage, einzelne Ausfaelle) kommen als `exdates`
+    mit: Stud.IP legt an vorlesungsfreien Tagen keine Termine an, die Serie wuerde die Luecke sonst wieder mit
+    Vorlesungen fuellen (Befund 26.10.2026: LUH 23.12.-05.01. ohne Termine, im Kalender aber belegt).
+    Alle 14 Tage: alle Abstaende sind Vielfache von 14 (auch mit einer Luecke von 28 Tagen ueber Weihnachten)."""
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for e in entries:
         groups[(e["title"], e["weekday"], e["start_time"], e["end_time"])].append(e)
     out = []
     for (title, wd, st, en), lst in groups.items():
-        dates = sorted(x["date_from"] for x in lst if x.get("date_from"))
-        if len(lst) >= 3:
-            gaps = {(date.fromisoformat(b) - date.fromisoformat(a)).days for a, b in zip(dates, dates[1:])}
-            rr = "biweekly" if gaps and all(g == 14 for g in gaps) else "weekly"
-            out.append({**lst[0], "rrule": rr, "date_from": dates[0], "date_to": dates[-1], "count": len(lst)})
+        dates = sorted({x["date_from"] for x in lst if x.get("date_from")})
+        if len(lst) >= 3 and len(dates) >= 2:
+            days = [date.fromisoformat(d) for d in dates]
+            gaps = [(b - a).days for a, b in zip(days, days[1:])]
+            step = 14 if all(g % 14 == 0 for g in gaps) else 7
+            missing, d = [], days[0]
+            while d <= days[-1]:
+                if d.isoformat() not in dates:
+                    missing.append(d.isoformat())
+                d += timedelta(days=step)
+            out.append({**lst[0], "rrule": "biweekly" if step == 14 else "weekly", "date_from": dates[0], "date_to": dates[-1],
+                        "count": len(lst), **({"exdates": missing} if missing else {})})   # Feld nur bei Luecken
         else:
             out.extend(lst)
     return out
@@ -437,6 +449,17 @@ def auto_import(conn) -> dict:
     entries = enrich(conn, [e for e in studip_entries(conn) if e.get("selected")])
     diff = diff_against_existing(conn, entries)
     res = apply_import(conn, diff["new"], "studip")
+    # Bestehende Stud.IP-Serien bekommen fehlende Ausfaelle nachgetragen (Luecken wie die Weihnachtspause); nur Serien
+    # aus Stud.IP, nie manuell angelegte; Tage mit eigener Ausnahme des Nutzers bleiben unveraendert.
+    # Zuordnung genau ueber Kurs, Wochentag und Uhrzeit (diff_against_existing unterscheidet zwei Serien desselben
+    # Kurses am selben Wochentag nicht, z. B. 09:00 und 15:00).
+    for e in entries:
+        if not e.get("exdates"):
+            continue
+        for ev in db.rows(conn, """SELECT id FROM course_events WHERE source LIKE 'studip%' AND weekday=? AND start_time=? AND end_time=?
+                                   AND (course_id=? OR (course_id IS NULL AND title=?))""",
+                          (int(e["weekday"]), e["start_time"], e["end_time"], e.get("course_id"), e["title"])):
+            _add_cancellations(conn, ev["id"], e["exdates"], "Ausfall laut Stud.IP")
     conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('studip-auto', ?, 'auto', '', ?, 1)",
                  (db.now_iso(), json.dumps(diff["new"], ensure_ascii=False)))
     return {"new": res["new"], "pending_groups": len([e for e in studip_entries(conn) if not e.get("selected")])}
