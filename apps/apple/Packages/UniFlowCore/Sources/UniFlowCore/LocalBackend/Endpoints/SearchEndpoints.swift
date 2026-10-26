@@ -16,7 +16,7 @@ public enum SearchEndpoints: LocalEndpointModule {
             let q = PyText.lower(PyText.strip(try req.requiredQuery("q")))
             if PyText.length(q) < 2 { return .json(["files": [], "modules": [], "tasks": [], "pages": []]) }
             let like = SQLiteValue.text("%" + q + "%")
-            let result = try await ctx.database.withConnection { c -> JSONValue in
+            let result = try await ctx.database.transaction { c -> JSONValue in
                 let files = try c.rows("""
                     SELECT f.id, f.name, c.subject, c.module_id, a.title AS ai_title, a.doc_type, a.topics FROM files f
                     JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
@@ -56,7 +56,7 @@ public enum SearchEndpoints: LocalEndpointModule {
                 let pages = try await ScriptSearch.pageTexts(fileID: id ?? "", database: ctx.database, files: ctx.files)
                 text = 0 < page && page <= pages.count ? pages[page - 1] : ""
             }
-            return .json(try await ScriptSearch.search(moduleID: module, query: ScriptSearch.prefix(text, 6000), exclude: id,
+            return .json(try await ScriptSearch.search(moduleID: module, query: PyText.slice(text, 0, 6000), exclude: id,
                                                        database: ctx.database, files: ctx.files, cache: ctx.scriptIndex))
         }
 

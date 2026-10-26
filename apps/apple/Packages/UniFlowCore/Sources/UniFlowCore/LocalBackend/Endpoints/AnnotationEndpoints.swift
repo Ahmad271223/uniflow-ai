@@ -8,7 +8,9 @@ import Foundation
 ///
 /// Abweichung: Fuer ein Dokument, das es in der lokalen Datenbank nicht gibt, scheitert Python mit 500 (Fremdschluessel
 /// `annotations.file_id`); hier 409 mit Meldung und ohne `version` – die App wertet das als "kann hier nicht
-/// speichern" und behaelt die Notizen im Journal, statt ohne Ende zu wiederholen.
+/// speichern" und behaelt die Notizen im Journal, statt ohne Ende zu wiederholen. Nur auf dem Geraet: Striche auf
+/// Seiten, die eine neue Original-Fassung entfernt hat, kommen zusaetzlich zur alten Fassung
+/// (`FileVersions.keepLateNotes`; die Antwort bleibt wie in Python).
 public enum AnnotationEndpoints: LocalEndpointModule {
     public static let name = "Notizen"
 
@@ -150,7 +152,10 @@ public enum AnnotationEndpoints: LocalEndpointModule {
                 return .conflict(curV, cur["data"]?.string ?? "null")
             }
             guard try c.queryOne("SELECT 1 FROM files WHERE id=?", [id]) != nil else { return .unknownFile }
-            return .saved(try write(c, fileID: fileID, payload: payload, version: curV + 1, now: now))
+            let v = try write(c, fileID: fileID, payload: payload, version: curV + 1, now: now)
+            // nur auf dem Geraet (S7): spaete Striche auf Seiten, die eine neue Fassung entfernt hat, zur alten Fassung
+            try FileVersions.keepLateNotes(c, fileID: fileID, payload: payload)
+            return .saved(v)
         }
         switch outcome {
         case .saved(let v):

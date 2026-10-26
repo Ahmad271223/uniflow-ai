@@ -201,13 +201,26 @@ public enum PyText {
 
     /// `needle in hay` (Teilfolge von Codepunkten)
     public static func contains(_ hay: String, _ needle: String) -> Bool {
-        let h = Array(hay.unicodeScalars), n = Array(needle.unicodeScalars)
-        if n.isEmpty { return true }
-        guard n.count <= h.count else { return false }
-        for i in 0...(h.count - n.count) where h[i] == n[0] {
-            if Array(h[i..<(i + n.count)]) == n { return true }
+        find(Array(hay.unicodeScalars), Array(needle.unicodeScalars)) != nil
+    }
+
+    /// `hay.find(needle)` nach Codepunkten; nil statt -1
+    static func find(_ hay: [Unicode.Scalar], _ needle: [Unicode.Scalar]) -> Int? {
+        if needle.isEmpty { return 0 }
+        guard needle.count <= hay.count else { return nil }
+        for i in 0...(hay.count - needle.count) where hay[i] == needle[0] {
+            if hay[i..<(i + needle.count)].elementsEqual(needle) { return i }
         }
-        return false
+        return nil
+    }
+
+    /// `s[from:to]` nach Codepunkten wie Pythons Slicing (nicht negative Grenzen, zu grosse werden gekappt)
+    static func slice(_ s: String, _ from: Int, _ to: Int) -> String {
+        let u = Array(s.unicodeScalars)
+        let lo = min(max(0, from), u.count), hi = min(max(lo, to), u.count)
+        var out = String.UnicodeScalarView()
+        out.append(contentsOf: u[lo..<hi])
+        return String(out)
     }
 
     /// `a < b` fuer `str`: Codepunkte der Reihe nach (Swift vergleicht kanonisch aequivalent)
@@ -288,5 +301,21 @@ public enum PyText {
     private static func hex(_ v: UInt32, _ width: Int) -> String {
         let s = String(v, radix: 16)
         return String(repeating: "0", count: max(0, width - s.count)) + s
+    }
+}
+
+/// Rechnen wie Python, wo das Ergebnis bitgenau gleich sein muss
+enum PyMath {
+    /// `sum(values)` fuer Gleitkommazahlen wie CPython ab 3.12 (bltinmodule.c): kompensierte Summe nach Neumaier in
+    /// der gegebenen Reihenfolge, der Ausgleich kommt am Ende dazu, wenn er endlich und nicht 0 ist
+    static func sum(_ values: [Double]) -> Double {
+        var total = 0.0, c = 0.0
+        for x in values {
+            let t = total + x
+            if abs(total) >= abs(x) { c += (total - t) + x } else { c += (x - t) + total }
+            total = t
+        }
+        if c != 0, c.isFinite { total += c }
+        return total
     }
 }

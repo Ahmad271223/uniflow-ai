@@ -271,6 +271,70 @@ final class NewVersionSearchAppTests: XCTestCase {
         await again.close()
     }
 
+    /// Neue Fassung, waehrend das Dokument offen ist (Seite 2 entfaellt): nach dem Zusammenfuehren bleibt die Anzeige
+    /// der alten PDF, wie sie war (vorher lag die neue Seitenliste auf der alten PDF: Notizen auf falschen Folien),
+    /// nur noch ansehen; ein Strich, der noch auf die entfallene Seite ging, steht in der alten Fassung (vorher auf
+    /// einer Seite ohne Eintrag in der Seitenliste, nirgends sichtbar). Neu geoeffnet: neue PDF, Hinweis.
+    func testNewVersionWhileOpenKeepsDisplayAndLateStrokesReachOldVersion() async throws {
+        let dev = try device()
+        let v1 = makePDF(v1Pages), v2 = makePDF([v1Pages[0], v1Pages[2]])
+        let stud = FakeStudIP()
+        stud.file(v1, changed: "2026-10-19T10:00:00+02:00")
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults(), support: dev.support)
+        await sync.run(client: client(stud))
+        let store = DocumentStore(file: try await libraryFile(dev.api, "d1"), api: dev.api, root: dev.support)
+        await store.load()
+        store.canvasChanged(pageKey: "p2", drawing: drawing(y: 300))
+        store.canvasChanged(pageKey: "p3", drawing: drawing(y: 500))
+        await store.flush()
+        let saved = await waitUntil {
+            let two = (try? await self.strokeCount(dev.api, page: "p2")) ?? 0
+            let three = (try? await self.strokeCount(dev.api, page: "p3")) ?? 0
+            return two == 1 && three == 1
+        }
+        XCTAssertTrue(saved)
+
+        // neue Fassung, das Dokument bleibt offen; danach noch ein Strich auf Seite 2
+        stud.file(v2, changed: "2026-10-26T08:00:00+02:00")
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        store.canvasChanged(pageKey: "p2", drawing: PKDrawing(strokes: drawing(y: 300).strokes + drawing(y: 700).strokes))
+        await store.flush()
+        let outdated = await waitUntil { store.outdatedByNewVersion }
+        XCTAssertTrue(outdated)
+        XCTAssertFalse(store.isWritable)
+        XCTAssertEqual(store.pdf?.pageCount, 3, "angezeigt bleibt die alte PDF")
+        XCTAssertEqual(store.entry(forKey: "p3")?.pdfIndex, 3, "Notizen bleiben auf ihrer Folie")
+        XCTAssertEqual(store.entry(forKey: "p2")?.pdfIndex, 2)
+        let late = await waitUntil {
+            let old = try? await dev.api.value("/api/files/d1/versions/1/annotations")
+            return (old?["data"]?["pages"]?["p2"]?["objects"]?.array ?? []).filter { $0["type"]?.string == "stroke" }.count == 2
+        }
+        XCTAssertTrue(late, "spaeter Strich in der alten Fassung")
+        await store.close()
+
+        let reopened = DocumentStore(file: try await libraryFile(dev.api, "d1"), api: dev.api, root: dev.support)
+        await reopened.load()
+        XCTAssertEqual(reopened.pdf?.pageCount, 2)
+        XCTAssertFalse(reopened.outdatedByNewVersion)
+        XCTAssertEqual(reopened.entry(forKey: "p3")?.pdfIndex, 2)
+        XCTAssertNil(reopened.entry(forKey: "p2"))
+        XCTAssertEqual(reopened.versionNotice?.noticeDetail, "Nur in der alten Fassung: Seite 2")
+        await reopened.close()
+    }
+
+    /// Hinweis nennt geaenderte Seiten getrennt von unsicher zugeordneten (gleicher Text mehrfach, ohne Text)
+    func testNoticeSeparatesChangedFromUnsurePages() throws {
+        let v = try XCTUnwrap(FileVersionInfo(["version": 1, "document_id": "d1/versions/1", "source": "Stud.IP",
+                                              "check": [["old": 3, "new": 4, "kind": "aehnlich"], ["old": 2, "new": 2, "kind": "wiederholt"],
+                                                        ["old": 6, "new": 6, "kind": "position"]],
+                                              "removed": [7]]))
+        XCTAssertEqual(v.noticeTitle, "Neue Fassung aus Stud.IP – Notizen übernommen (4 Seiten prüfen)")
+        XCTAssertEqual(v.noticeDetail, "Geänderte Seite 4 · Unsicher zugeordnet: Seiten 2, 6 · Nur in der alten Fassung: Seite 7")
+        let legacy = try XCTUnwrap(FileVersionInfo(["version": 1, "document_id": "d1/versions/1", "check": [["old": 3, "new": 4]]]))
+        XCTAssertEqual(legacy.noticeDetail, "Geänderte Seite 4", "ohne Art wie bisher")
+    }
+
     // MARK: Hinweis im Dokument (Fenster, Bedienungshilfen-Baum)
 
     private func awaiting<T>(_ body: @escaping @MainActor () async throws -> T) throws -> T {

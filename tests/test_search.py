@@ -73,3 +73,62 @@ def test_related_terms_keep_query_order_for_equal_frequency(app, tmp_path):
         assert hit["terms"] == sorted(dict.fromkeys(tokens(q)), key=lambda t: -df(t))
         orders.append(hit["terms"])
     assert orders == [["spur", "matriz", "determinant", "eigenwert"], ["matriz", "spur", "eigenwert", "determinant"]]
+
+
+def test_page_search_finds_capital_and_decomposed_umlauts(app, tmp_path):
+    """Seitensuche mit Umlaut am Wortanfang und mit zerlegten Umlauten: SQLite lower() und LIKE kennen nur ASCII,
+    darum fand "übersicht" die Seite "Übersicht ..." nicht, und "unabhängigkeit" nur die Schreibweise in NFC.
+    Verglichen wird jetzt die Suchform (normalize, klein, NFC), auch fuer Zeilen von vor der Suchform."""
+    from app import db, scriptsearch
+    _seed(tmp_path, file_id="s-umlaut", chdate=1760000700,
+          texts=["Übersicht der Äquivalenzrelationen und Übungsaufgaben", "Lineare Unabhängigkeit",
+                 "Lineare Unabh¨ angigkeit", "Lineare Unabhängigkeit", "Ökonomie"])
+    with db.cursor() as conn:
+        assert db.rows(conn, "SELECT search FROM page_texts WHERE file_id='s-umlaut' AND search IS NOT NULL") == []
+
+    def pages(q):
+        st, _, b = asgi_call(app, "GET", "/api/search?q=" + q)
+        assert st == 200
+        return [p["page"] for p in json.loads(b)["pages"] if p["file_id"] == "s-umlaut"]
+
+    assert pages("%C3%BCbersicht") == [1]
+    assert pages("%C3%9Cbersicht") == [1]
+    assert pages("%C3%A4quivalenz") == [1]
+    assert pages("bersicht") == [1]
+    assert pages("unabh%C3%A4ngigkeit") == [2, 3, 4]
+    assert pages("unabha%CC%88ngigkeit") == [2, 3, 4]
+    assert pages("%C3%B6konomie") == [5]
+    with db.cursor() as conn:
+        forms = [r["search"] for r in db.rows(conn, "SELECT search FROM page_texts WHERE file_id='s-umlaut' ORDER BY page")]
+    assert forms[0] == "übersicht der äquivalenzrelationen und übungsaufgaben"
+    assert forms[1:4] == ["lineare unabhängigkeit"] * 3
+    assert scriptsearch.search_form("ÄRGER") == "ärger"
+
+
+def test_page_search_skips_files_that_are_not_on_the_device(app, tmp_path):
+    """Nach "Dateien löschen" (local_path leer) keine Seitentreffer mehr, die sich nicht oeffnen lassen; die
+    Seitentexte selbst bleiben (eine neue Fassung braucht sie noch)."""
+    from app import db
+    _seed(tmp_path, file_id="s-weg", chdate=1760000800, texts=["Seite mit Spektralzerlegung"])
+    st, _, b = asgi_call(app, "GET", "/api/search?q=spektralzerlegung")
+    assert [p["file_id"] for p in json.loads(b)["pages"]] == ["s-weg"]
+    with db.cursor() as conn:
+        conn.execute("UPDATE files SET local_path=NULL, downloaded_at=NULL WHERE id='s-weg'")
+    st, _, b = asgi_call(app, "GET", "/api/search?q=spektralzerlegung")
+    assert json.loads(b)["pages"] == []
+    with db.cursor() as conn:
+        assert len(db.rows(conn, "SELECT 1 FROM page_texts WHERE file_id='s-weg'")) == 1
+
+
+def test_page_texts_table_gets_search_column(app):
+    """Aeltere page_texts ohne Suchform bekommen die Spalte (ensure_table), mehrfach aufgerufen ohne Fehler."""
+    from app import db, scriptsearch
+    with db.cursor() as conn:
+        conn.execute("DROP TABLE IF EXISTS page_texts")
+        conn.execute("CREATE TABLE page_texts (file_id TEXT NOT NULL, page INTEGER NOT NULL, text TEXT, chdate INTEGER, "
+                     "PRIMARY KEY (file_id, page))")
+        conn.execute("INSERT INTO page_texts(file_id, page, text, chdate) VALUES ('alt', 1, 'Übung', 0)")
+        scriptsearch.ensure_table(conn)
+        scriptsearch.ensure_table(conn)
+        assert "search" in {r[1] for r in conn.execute("PRAGMA table_info(page_texts)")}
+        assert db.rows(conn, "SELECT text, search FROM page_texts") == [{"text": "Übung", "search": None}]

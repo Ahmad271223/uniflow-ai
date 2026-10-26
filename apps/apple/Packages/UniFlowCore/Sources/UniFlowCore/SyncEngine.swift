@@ -197,6 +197,9 @@ public actor SyncEngine {
         }
     }
 
+    /// `onRemoteChange`: nach dem Zusammenfuehren mit einem neueren Serverstand die Seiten, deren Inhalt sich geaendert
+    /// hat; auch mit leerer Liste, wenn sich nur die Wurzel geaendert hat (Seitenliste, Lesezeichen, Herkunftsstempel
+    /// einer neuen Original-Fassung)
     public func setHandlers(onStatus: (@Sendable (SyncStatus) -> Void)?, onRemoteChange: (@Sendable ([String]) -> Void)?) {
         statusHandler = onStatus
         remoteChangeHandler = onRemoteChange
@@ -529,6 +532,7 @@ public actor SyncEngine {
     private func merge(with server: ServerSnapshot) {
         let doc = AnnotationDocument(root: server.root)
         let serverPages = doc.pages
+        let metaBefore = rootMeta
         var changed: [String] = []
         var conflicts = 0
         for key in Set(pages.keys).union(serverPages.keys) {
@@ -589,7 +593,7 @@ public actor SyncEngine {
         persistAcks()
         stats.mergedConflicts += conflicts
         mergedConflictCount += conflicts
-        if !changed.isEmpty { remoteChangeHandler?(changed.sorted()) }
+        if !changed.isEmpty || rootMeta != metaBefore { remoteChangeHandler?(changed.sorted()) }
     }
 
     // MARK: Zustand

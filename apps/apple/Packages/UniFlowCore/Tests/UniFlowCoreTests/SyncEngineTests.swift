@@ -273,6 +273,29 @@ final class SyncEngineTests: XCTestCase {
         await engine.syncNow()
         XCTAssertEqual(box.keys, ["p2"])
     }
+
+    /// Nur die Wurzel auf dem Server geaendert (Seitenliste und Herkunftsstempel einer neuen Original-Fassung): auch
+    /// das wird gemeldet, mit leerer Liste, damit der Editor den Stempel prueft (vorher erfuhr er davon nichts)
+    func testRootOnlyChangeIsReported() async {
+        let server = MockServer()
+        let engine = makeEngine(server, MemoryBlobStore())
+        _ = await engine.open(pdfPageCount: 2)
+        let calls = CallsBox()
+        await engine.setHandlers(onStatus: nil, onRemoteChange: { keys in calls.add(keys) })
+        await server.externalEdit { $0.root["origin"] = ["sha256": "neu", "pages": 3, "version": 2] }
+        await engine.updatePage("p1", page(["ipad"]))
+        await engine.syncNow()
+        XCTAssertEqual(calls.calls, [[]])
+        let origin = await engine.currentDocument().root["origin"]?["sha256"]
+        XCTAssertEqual(origin, "neu")
+    }
+}
+
+final class CallsBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [[String]] = []
+    func add(_ k: [String]) { lock.withLock { stored.append(k) } }
+    var calls: [[String]] { lock.withLock { stored } }
 }
 
 final class ChangedBox: @unchecked Sendable {

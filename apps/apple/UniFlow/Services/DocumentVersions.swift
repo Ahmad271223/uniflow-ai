@@ -8,6 +8,11 @@ struct FileVersionInfo: Identifiable, Equatable {
         /// Seite in der alten und in der neuen Fassung (1-basiert)
         let old: Int
         let new: Int
+        /// Art der Zuordnung (`PageMatch.Kind`): "aehnlich" = Text geaendert, sonst unsicher zugeordnet
+        /// ("wiederholt": gleicher Text mehrfach, "position": ohne Text)
+        var kind: String = "aehnlich"
+
+        var changedText: Bool { kind == "aehnlich" }
     }
 
     let version: Int
@@ -35,11 +40,13 @@ struct FileVersionInfo: Identifiable, Equatable {
         replacedAt = v.s("replaced_at")
         available = v["available"]?.bool ?? false
         seen = v["seen"]?.bool ?? false
-        check = v.list("check").compactMap { c in c.i("old").flatMap { o in c.i("new").map { Check(old: o, new: $0) } } }
+        check = v.list("check").compactMap { c in
+            c.i("old").flatMap { o in c.i("new").map { Check(old: o, new: $0, kind: c.s("kind") ?? "aehnlich") } }
+        }
         removed = v.list("removed").compactMap(\.int)
     }
 
-    /// Seiten, die der Nutzer pruefen sollte (geaendert oder nur noch in der alten Fassung)
+    /// Seiten, die der Nutzer pruefen sollte (geaendert, unsicher zugeordnet oder nur noch in der alten Fassung)
     var pagesToCheck: Int { check.count + removed.count }
 
     /// "Neue Fassung aus Stud.IP – Notizen übernommen (2 Seiten prüfen)"
@@ -48,11 +55,15 @@ struct FileVersionInfo: Identifiable, Equatable {
         return "Neue Fassung aus \(source) – Notizen übernommen" + (n > 0 ? " (\(n) \(n == 1 ? "Seite" : "Seiten") prüfen)" : "")
     }
 
-    /// Welche Seiten: "Geänderte Seite 4 · Nur in der alten Fassung: Seite 7"
+    /// Welche Seiten: "Geänderte Seite 4 · Unsicher zugeordnet: Seite 6 · Nur in der alten Fassung: Seite 7"
     var noticeDetail: String? {
         var parts: [String] = []
-        if !check.isEmpty {
-            parts.append((check.count == 1 ? "Geänderte Seite " : "Geänderte Seiten ") + check.map { "\($0.new)" }.joined(separator: ", "))
+        let changed = check.filter(\.changedText), unsure = check.filter { !$0.changedText }
+        if !changed.isEmpty {
+            parts.append((changed.count == 1 ? "Geänderte Seite " : "Geänderte Seiten ") + changed.map { "\($0.new)" }.joined(separator: ", "))
+        }
+        if !unsure.isEmpty {
+            parts.append("Unsicher zugeordnet: " + (unsure.count == 1 ? "Seite " : "Seiten ") + unsure.map { "\($0.new)" }.joined(separator: ", "))
         }
         if !removed.isEmpty {
             parts.append("Nur in der alten Fassung: " + (removed.count == 1 ? "Seite " : "Seiten ") + removed.map(String.init).joined(separator: ", "))

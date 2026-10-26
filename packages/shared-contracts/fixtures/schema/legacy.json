@@ -251,7 +251,8 @@
           {"name": "file_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 1},
           {"name": "page", "type": "INTEGER", "notnull": 1, "default": null, "pk": 2},
           {"name": "text", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "chdate", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "search", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [

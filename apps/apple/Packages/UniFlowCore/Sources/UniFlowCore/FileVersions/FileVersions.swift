@@ -61,34 +61,75 @@ public enum FileVersions {
     }
 
     /// Zuordnung als JSON fuer `file_versions.mapping`: alle Paare, die zu pruefenden Seiten mit Notizen (Text
-    /// geaendert oder nur nach Position zugeordnet; alte und neue Seite), die Seiten mit Notizen, die es nur noch in der
-    /// alten Fassung gibt, und die neuen Seiten
+    /// geaendert, gleicher Text mehrfach oder nur nach Position zugeordnet; alte und neue Seite, Art), die Seiten mit
+    /// Notizen, die es nur noch in der alten Fassung gibt, und die neuen Seiten
     static func mapping(_ match: PageMatch.Result, notes: Set<Int>) -> JSONValue {
         let check = match.pairs.filter { $0.kind != .same && notes.contains($0.old) }
         return .object([
             "pages": .array(match.pairs.map { .object(["old": .number(Double($0.old)), "new": .number(Double($0.new)),
                                                       "kind": .string($0.kind.rawValue), "ratio": .number(QISParser.round2($0.ratio))]) }),
-            "check": .array(check.map { .object(["old": .number(Double($0.old)), "new": .number(Double($0.new))]) }),
+            "check": .array(check.map { .object(["old": .number(Double($0.old)), "new": .number(Double($0.new)), "kind": .string($0.kind.rawValue)]) }),
             "removed": .array(match.removed.filter(notes.contains).map { .number(Double($0)) }),
             "added": .array(match.added.map { .number(Double($0)) }),
         ])
+    }
+
+    /// Spaete Notizen auf entfernten Seiten (nach `PUT …/annotations`, in derselben Transaktion): Kam die neue Fassung,
+    /// waehrend das Dokument offen war, schickt der Editor noch Striche auf Seiten der alten Fassung, die es in der neuen
+    /// nicht mehr gibt (Zusammenfuehren nach 409 behaelt die Seite, sie steht aber nicht mehr in `pageOrder`). Solche
+    /// Seiten mit Objekten kommen in den Abzug der neuesten alten Fassung, die die Seite kennt, und stehen dort unter
+    /// "Nur in der alten Fassung" (Hinweis wieder ungesehen). Geprueft nur, solange ein Hinweis ungesehen ist.
+    static func keepLateNotes(_ c: SQLiteConnection, fileID: String, payload: String) throws {
+        guard try hasTable(c),
+              try c.queryOne("SELECT 1 FROM file_versions WHERE file_id=? AND seen=0", [.text(fileID)]) != nil,
+              let root = try? JSONValue.parse(payload) else { return }
+        let doc = AnnotationDocument(root: root)
+        var placed = Set(doc.pageOrder.compactMap { $0["key"]?.string })
+        for d in doc.root["deletedPages"]?.array ?? [] { if let k = d["entry"]?["key"]?.string { placed.insert(k) } }
+        let late = doc.pages.filter { !placed.contains($0.key) && !($0.value["objects"]?.array ?? []).isEmpty }
+        guard !late.isEmpty else { return }
+        var open = late
+        for r in try c.query("SELECT version, annotations, mapping FROM file_versions WHERE file_id=? ORDER BY version DESC", [.text(fileID)]) {
+            guard !open.isEmpty, let text = r["annotations"]?.string, let oldRoot = try? JSONValue.parse(text) else { continue }
+            var old = AnnotationDocument(root: oldRoot)
+            var mapping = (try? JSONValue.parse(r["mapping"]?.string ?? "")) ?? .object([:])
+            var removed = Set((mapping["removed"]?.array ?? []).compactMap(\.int))
+            var changed = false
+            for (key, page) in open {
+                guard let entry = old.pageOrder.first(where: { $0["key"]?.string == key }) else { continue }
+                open.removeValue(forKey: key)
+                guard old.page(key) != page else { continue }
+                old.pages[key] = page
+                if (entry["type"]?.string ?? "pdf") == "pdf", let i = entry["index"]?.int { removed.insert(i) }
+                changed = true
+            }
+            guard changed else { continue }
+            mapping["removed"] = .array(removed.sorted().map { .number(Double($0)) })
+            let payload = try PyJSON.parse(old.root.serialized()).dumps(ensureASCII: false)
+            try c.execute("UPDATE file_versions SET annotations=?, mapping=?, seen=0 WHERE file_id=? AND version=?",
+                          [.text(payload), .text(mapping.jsonString()), .text(fileID), r["version"] ?? .null])
+        }
     }
 }
 
 /// Neue Original-Fassung einer Datei mit Notizen uebernehmen, fuer beide Abgleiche (Stud.IP in der App, Learnweb in
 /// `HildesheimSync`). Zwei Schritte um das Ersetzen der Datei herum, keiner mit Netz oder `await` in einer
 /// Transaktion:
-/// 1. `prepare` (die neue Fassung liegt geladen bereit, die alte noch an ihrem Platz): Hat die Datei Notizen und ist
-///    der Inhalt wirklich neu (anderer `content_sha256`), wird die alte PDF in `directory` kopiert (auf APFS ein Klon)
-///    und ihr Seitentext gelesen (gespeichert in `page_texts` oder mit PDFKit). Scheitert das Sichern, darf die Datei
-///    nicht ersetzt werden (Fehler; der naechste Abgleich versucht es erneut).
-/// 2. `finish` (nach `UniStore.markDownloaded`): Seitentexte der neuen Fassung lesen und speichern (Index der Suche,
-///    fuer jede geladene PDF), Seiten zuordnen (`PageMatch`), die alte Fassung mit dem Stand der Notizen in
-///    `file_versions` ablegen und die Notizen umhaengen (`NoteTransfer`, neue Version der Notizen mit Verlauf).
+/// 1. `prepare` (die neue Fassung liegt geladen bereit, die alte noch an ihrem Platz): Seitentexte der neuen Fassung
+///    aus der geladenen Datei lesen (PDFKit). Hat die Datei Notizen und ist der Inhalt wirklich neu (anderer
+///    `content_sha256`), wird die alte PDF in `directory` kopiert (auf APFS ein Klon) und ihr Seitentext gelesen
+///    (gespeichert in `page_texts` oder mit PDFKit); dann die Seiten zuordnen (`PageMatch`, einmal fuer die Datei und
+///    alle Kopien). Scheitert das Sichern, darf die Datei nicht ersetzt werden (Fehler; der naechste Abgleich versucht
+///    es erneut).
+/// 2. `commit` (nach dem Ersetzen der Datei) in EINER Transaktion: `UniStore.markDownloaded` (vom Aufrufer), die
+///    Seitentexte der neuen Fassung (Index der Suche, fuer jede geladene PDF), die alte Fassung mit dem Stand der
+///    Notizen in `file_versions` und die umgehaengten Notizen (`NoteTransfer`, neue Version mit Verlauf). Endet die App
+///    zwischen Ersetzen und `commit` oder scheitert `commit`, bleibt die Datenbank beim alten Stand: der naechste
+///    Abgleich laedt die Datei erneut und nimmt die schon aufbewahrte alte PDF.
 /// Ohne Notizen wird ersetzt wie bisher; eine automatisch angelegte Seitenliste ohne Notizen wird dabei geleert, damit
-/// der Editor sie fuer die neue Seitenzahl neu anlegt (sonst fehlten neue Seiten). Kopien der Datei ("Duplizieren")
-/// teilen sich ihre PDF und bekommen die neue Fassung mit: auch ihre Notizen werden umgehaengt, jede mit eigener alter
-/// Fassung (dieselbe aufbewahrte PDF).
+/// der Editor sie fuer die neue Seitenzahl neu anlegt (sonst fehlten neue Seiten). Kopien der Datei ("Duplizieren",
+/// `UniStore.sharingCopies`) teilen sich ihre PDF und bekommen die neue Fassung mit: auch ihre Notizen werden
+/// umgehaengt, jede mit eigener alter Fassung (dieselbe aufbewahrte PDF), ihre Seitentexte gelten nicht mehr.
 public struct FileVersionKeeper: Sendable {
     public let database: SQLiteDatabase
     /// Ablage, in der die Pfade der Datenbank liegen (App-Container; Learnweb: Ordner der Hochschule), mit PDFKit
@@ -135,16 +176,19 @@ public struct FileVersionKeeper: Sendable {
 
     public struct Prepared: Sendable, Equatable {
         public let fileID: String
+        /// Plan fuer die Datei selbst (Stand von `prepare`; `commit` prueft die Notizen erneut)
         public let plan: Plan
         /// Kopien der Datei ("Duplizieren"), die sich ihre PDF teilen und mit ihr die neue Fassung bekommen, je mit
         /// eigenem Plan fuer ihre eigenen Notizen
         public let copies: [Copy]
-
-        public init(fileID: String, plan: Plan, copies: [Copy] = []) {
-            self.fileID = fileID
-            self.plan = plan
-            self.copies = copies
-        }
+        /// Seitentexte der neuen Fassung (aus der geladenen Datei), nil ohne PDF oder wenn sie sich nicht lesen laesst
+        public let newTexts: [String]?
+        /// Inhalt anders als die gespeicherte Fassung (oder unbekannt)
+        let changed: Bool
+        /// aufbewahrte alte Fassung, nil ohne Notizen
+        let kept: Kept?
+        /// Seitenzuordnung ueber den Text, vor dem Ersetzen gerechnet; nil, wenn eine Fassung keine Texte hat
+        let textMatch: PageMatch.Result?
     }
 
     public struct Copy: Sendable, Equatable {
@@ -152,44 +196,54 @@ public struct FileVersionKeeper: Sendable {
         public let plan: Plan
     }
 
-    /// Ergebnis von `finish` mit alter Fassung
+    /// Ergebnis von `commit` mit alter Fassung
     public struct Outcome: Sendable, Equatable {
         public let version: Int
-        /// Seiten mit Notizen zu pruefen (Text geaendert oder nach Position) bzw. nur noch in der alten Fassung
+        /// Seiten mit Notizen zu pruefen (Text geaendert, mehrfach vorhanden oder nach Position) bzw. nur noch in der
+        /// alten Fassung
         public let check: Int
         public let removed: Int
     }
 
-    /// Schritt 1, vor dem Ersetzen der Datei. `newSHA`: Inhalts-Hash der geladenen neuen Fassung.
-    public func prepare(fileID: String, newSHA: String?) async throws -> Prepared {
+    /// Schritt 1, vor dem Ersetzen der Datei. `newSHA`: Inhalts-Hash der geladenen neuen Fassung, `newFile`: wo sie
+    /// liegt, `newPath`: ihr kuenftiger Ablageort (Pfad wie `local_path`, entscheidet ueber "PDF").
+    public func prepare(fileID: String, newSHA: String?, newFile: URL? = nil, newPath: String? = nil) async throws -> Prepared {
         let id = SQLiteValue.text(fileID)
+        let newTexts = newFile.flatMap { url in newPath.flatMap { ScriptSearch.hasPDFSuffix($0) ? files.tools.pdfPageTexts(url) : nil } }
         // die Datei und ihre Kopien, die dieselbe PDF benutzen, je mit ihren Notizen
         let (file, notes) = try await database.withConnection { c -> (SQLiteRow?, [(id: String, data: String?)]) in
             guard let f = try c.queryOne("SELECT local_path, content_sha256, chdate, size, mime, name FROM files WHERE id=?", [id]) else { return (nil, []) }
-            var ids = [fileID]
-            if let path = f["local_path"]?.string, !path.isEmpty {
-                ids += try c.query("SELECT id FROM files WHERE local_path=? AND id<>? ORDER BY id", [.text(path), id]).compactMap { $0["id"]?.string }
-            }
+            let ids = [fileID] + (try UniStore.sharingCopies(c, fileID: fileID))
             return (f, try ids.map { ($0, try c.scalar("SELECT data FROM annotations WHERE file_id=?", [.text($0)])?.string) })
         }
-        let docs = notes.map { n in (id: n.id, doc: n.data.flatMap { try? JSONValue.parse($0) }.map(AnnotationDocument.init(root:))) }
-        guard let file, docs.contains(where: { $0.doc != nil }) else { return Prepared(fileID: fileID, plan: .none) }
-        let oldPath = file["local_path"]?.string ?? ""
+        let docs = notes.map { n in (id: n.id, doc: Self.document(n.data)) }
+        let oldPath = file?["local_path"]?.string ?? ""
         let oldURL = files.exists(stored: oldPath) ? files.url(stored: oldPath) : nil
-        var oldSHA = file["content_sha256"]?.string
+        var oldSHA = file?["content_sha256"]?.string
         if oldSHA == nil, let oldURL { oldSHA = hasher(oldURL) }
-        if let oldSHA, let newSHA, oldSHA == newSHA { return Prepared(fileID: fileID, plan: .none) }
-
+        let changed = !(oldSHA != nil && newSHA != nil && oldSHA == newSHA)
         var kept: Kept?
-        if docs.contains(where: { $0.doc.map(NoteTransfer.hasNotes) ?? false }) {
+        if let file, changed, docs.contains(where: { $0.doc.map(NoteTransfer.hasNotes) ?? false }) {
             kept = try await keepOldFile(fileID: fileID, file: file, oldPath: oldPath, oldURL: oldURL, sha: oldSHA)
         }
-        func plan(_ doc: AnnotationDocument?) -> Plan {
-            guard let doc else { return .none }
-            guard NoteTransfer.hasNotes(doc), let kept else { return .resetPageList }
-            return .keep(kept)
-        }
-        return Prepared(fileID: fileID, plan: plan(docs[0].doc), copies: docs.dropFirst().map { Copy(fileID: $0.id, plan: plan($0.doc)) })
+        var textMatch: PageMatch.Result?
+        if let old = kept?.pageTexts, !old.isEmpty, let new = newTexts, !new.isEmpty { textMatch = PageMatch.match(old: old, new: new) }
+        let plans = docs.map { Copy(fileID: $0.id, plan: Self.plan($0.doc, kept: kept, changed: changed)) }
+        return Prepared(fileID: fileID, plan: plans.first?.plan ?? .none, copies: Array(plans.dropFirst()), newTexts: newTexts,
+                        changed: changed, kept: kept, textMatch: textMatch)
+    }
+
+    private static func document(_ data: String?) -> AnnotationDocument? {
+        data.flatMap { try? JSONValue.parse($0) }.map(AnnotationDocument.init(root:))
+    }
+
+    /// Plan fuer ein Dokument: ohne Notizen-Zeile oder bei gleichem Inhalt nichts; mit Notizen umhaengen (wenn die alte
+    /// Fassung aufbewahrt ist; Notizen, die erst nach `prepare` entstanden, ohne aufbewahrte Fassung bleiben, wie sie
+    /// sind), sonst die automatische Seitenliste neu anlegen lassen
+    private static func plan(_ doc: AnnotationDocument?, kept: Kept?, changed: Bool) -> Plan {
+        guard let doc, changed else { return .none }
+        guard NoteTransfer.hasNotes(doc) else { return .resetPageList }
+        return kept.map(Plan.keep) ?? .none
     }
 
     /// Alte PDF in `directory` sichern (einmal je Inhalt) und ihre Seitentexte lesen
@@ -202,6 +256,8 @@ public struct FileVersionKeeper: Sendable {
                 + (oldSHA ?? "chdate-\(chdate.int64 ?? 0)") + (ScriptSearch.hasPDFSuffix(oldPath) ? ".pdf" : "")
             guard let target = files.url(stored: stored) else { throw LocalHTTPError(status: 400, message: "Ungültiger Pfad") }
             let fm = FileManager.default
+            // schon aufbewahrt (z. B. ein Abgleich endete zwischen Ersetzen und `commit`): die Kopie gilt, die Datei am
+            // alten Platz kann dann schon die neue Fassung sein
             if !fm.fileExists(atPath: target.path) {
                 try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try fm.copyItem(at: oldURL, to: target)                     // APFS: Klon, kein zweiter Speicherplatz
@@ -225,53 +281,41 @@ public struct FileVersionKeeper: Sendable {
                     sha256: oldSHA, keptPath: kept, pageTexts: texts)
     }
 
-    /// Schritt 2, nach `UniStore.markDownloaded`. Fehler beim Schreiben lassen die Notizen, wie sie sind (die alte PDF
-    /// ist dann schon aufbewahrt); Rueckgabe nur, wenn fuer die Datei selbst eine alte Fassung angelegt wurde.
+    /// Schritt 2, nach dem Ersetzen der Datei, alles in einer Transaktion: `download` (der Aufrufer schreibt darin
+    /// `UniStore.markDownloaded`), Seitentexte der neuen Fassung, alte Fassungen und umgehaengte Notizen der Datei und
+    /// ihrer Kopien. Ein Fehler laesst alles beim alten Stand (der naechste Abgleich laedt erneut). Die Notizen werden
+    /// hier noch einmal gelesen (inzwischen Geschriebenes zaehlt mit); Rueckgabe nur, wenn fuer die Datei selbst eine
+    /// alte Fassung angelegt wurde.
     @discardableResult
-    public func finish(_ p: Prepared) async -> Outcome? {
+    public func commit(_ p: Prepared, download: @escaping @Sendable (SQLiteConnection) throws -> Void) async throws -> Outcome? {
         let now = clock.nowISO, source = self.source, fileID = p.fileID
-        let all = [Copy(fileID: p.fileID, plan: p.plan)] + p.copies
-        // Kopien, die sich die PDF teilen, haben jetzt ebenfalls die neue Fassung: Ladezeitpunkt mit, damit der Editor
-        // seinen PDF-Zwischenspeicher auch fuer sie erneuert
-        _ = try? await database.transaction { c in
-            try c.execute("""
-                UPDATE files SET downloaded_at=(SELECT downloaded_at FROM files WHERE id=?)
-                WHERE id<>? AND COALESCE(local_path, '')<>'' AND local_path=(SELECT local_path FROM files WHERE id=?)
-                """, [.text(fileID), .text(fileID), .text(fileID)])
-        }
-        if all.contains(where: { $0.plan != .none }) {
-            // anderer Inhalt: gespeicherte Seitentexte gehoeren zur alten Fassung, auch bei gleicher Aenderungszeit
-            let ids = all.map { SQLiteValue.text($0.fileID) }
-            _ = try? await database.transaction { c in for id in ids { try c.execute("DELETE FROM page_texts WHERE file_id=?", [id]) } }
-        }
-        let newTexts = (try? await ScriptSearch.pageTexts(fileID: fileID, database: database, files: files)) ?? []
-        var outcome: Outcome?
-        for item in all {
-            let target = item.fileID
-            switch item.plan {
-            case .none:
-                continue
-            case .resetPageList:
-                _ = try? await database.transaction { c in
-                    guard let data = try c.scalar("SELECT data FROM annotations WHERE file_id=?", [.text(target)])?.string,
-                          let root = try? JSONValue.parse(data) else { return }
-                    var doc = AnnotationDocument(root: root)
-                    guard !NoteTransfer.hasNotes(doc), !doc.pageOrder.isEmpty else { return }
-                    doc.root["pageOrder"] = .array([])
-                    doc.pages = [:]
-                    try Self.save(c, fileID: target, doc, now: now)
-                }
-            case .keep(let k):
-                let o = try? await database.transaction { c -> Outcome? in
-                    guard let data = try c.scalar("SELECT data FROM annotations WHERE file_id=?", [.text(target)])?.string,
-                          let root = try? JSONValue.parse(data) else { return nil }
-                    let doc = AnnotationDocument(root: root)
-                    guard NoteTransfer.hasNotes(doc) else { return nil }
+        return try await database.transaction { c -> Outcome? in
+            try download(c)
+            // Kopien, die sich die PDF teilen (seit `markDownloaded` am neuen Ablageort), und die aus `prepare`
+            let copies = Set(p.copies.map(\.fileID)).union(try UniStore.sharingCopies(c, fileID: fileID)).sorted()
+            // Seitentexte: die der Datei gehoeren zur alten Fassung (auch bei gleicher Aenderungszeit), die der Kopien
+            // ebenso (ihre Aenderungszeit bleibt die vom Duplizieren); die neuen gleich mit der neuen Aenderungszeit
+            for id in [fileID] + copies { try c.execute("DELETE FROM page_texts WHERE file_id=?", [.text(id)]) }
+            if let texts = p.newTexts, let chdate = try c.queryOne("SELECT chdate FROM files WHERE id=?", [.text(fileID)])?["chdate"] {
+                try ScriptSearch.storePages(c, fileID: fileID, pages: texts, chdate: chdate)
+            }
+            var outcome: Outcome?
+            for target in [fileID] + copies {
+                let data = try c.scalar("SELECT data FROM annotations WHERE file_id=?", [.text(target)])?.string
+                guard let data, let doc = Self.document(data) else { continue }
+                switch Self.plan(doc, kept: p.kept, changed: p.changed) {
+                case .none:
+                    continue
+                case .resetPageList:
+                    guard !doc.pageOrder.isEmpty else { continue }
+                    var reset = doc
+                    reset.root["pageOrder"] = .array([])
+                    reset.pages = [:]
+                    try Self.save(c, fileID: target, reset, now: now)
+                case .keep(let k):
                     let oldCount = k.pageTexts?.count ?? NoteTransfer.highestPDFIndex(doc)
-                    let newCount = newTexts.isEmpty ? oldCount : newTexts.count
-                    let match: PageMatch.Result
-                    if let old = k.pageTexts, !old.isEmpty, !newTexts.isEmpty { match = PageMatch.match(old: old, new: newTexts) }
-                    else { match = PageMatch.byPosition(oldCount: oldCount, newCount: newCount) }
+                    let newCount = p.newTexts.map { $0.isEmpty ? oldCount : $0.count } ?? oldCount
+                    let match = p.textMatch ?? PageMatch.byPosition(oldCount: oldCount, newCount: newCount)
                     try FileVersions.ensureTable(c)
                     let version = (try c.scalar("SELECT MAX(version) FROM file_versions WHERE file_id=?", [.text(target)])?.int ?? 0) + 1
                     let mapping = FileVersions.mapping(match, notes: NoteTransfer.pagesWithNotes(doc))
@@ -285,12 +329,14 @@ public struct FileVersionKeeper: Sendable {
                               SQLiteValue(k.mime), SQLiteValue(k.chdate.map(Int64.init)), SQLiteValue(k.sha256), SQLiteValue(k.keptPath),
                               .integer(Int64(oldCount)), .text(data), .text(mapping.jsonString()), .text(source), .text(now)])
                     try Self.save(c, fileID: target, moved.document, now: now)
-                    return Outcome(version: version, check: mapping["check"]?.array?.count ?? 0, removed: mapping["removed"]?.array?.count ?? 0)
+                    if target == fileID {
+                        outcome = Outcome(version: version, check: mapping["check"]?.array?.count ?? 0,
+                                          removed: mapping["removed"]?.array?.count ?? 0)
+                    }
                 }
-                if target == fileID { outcome = o ?? nil }
             }
+            return outcome
         }
-        return outcome
     }
 
     /// Neuen Stand der Notizen wie `PUT /api/files/{id}/annotations` schreiben (Text wie `json.dumps`)
