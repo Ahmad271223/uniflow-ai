@@ -197,30 +197,48 @@ struct HildesheimSourcesCard: View {
     }
 }
 
-/// Anmeldung bei Learnweb oder LSF auf der echten Seite der Universitaet (CAS) in der Webansicht des Containers.
-/// Mit dem Schalter "Auf diesem iPad merken" fuellt die App Benutzername und Passwort beim naechsten Mal vor;
-/// abgeschickt wird nie automatisch.
+/// Anmeldung bei Learnweb oder LSF auf der echten Seite der Universitaet (CAS) als Blatt: die Anmeldeansicht
+/// `HildesheimLoginPane` mit Titel und "Abbrechen". Beim ersten Start steht dieselbe Anmeldeansicht im FirstLoginFlow.
 struct HildesheimLoginView: View {
     @StateObject private var login: HildesheimLogin
-    @StateObject private var autofill: UniversityLoginAutofill
-    /// Ladefehler der Seite (kein Netz, LSF/CAS nicht erreichbar): Karte mit "Erneut versuchen"
-    @StateObject private var load = UFWebLoadState()
     @Environment(\.dismiss) private var dismiss
 
     init(target: HildesheimConnection.Source, connection: HildesheimConnection) {
         _login = StateObject(wrappedValue: HildesheimLogin(target: target, connection: connection))
-        _autofill = StateObject(wrappedValue: UniversityLoginAutofill(university: .hildesheim, serviceKey: "cas", store: connection.credentials)!)
     }
 
     var body: some View {
         NavigationStack {
-            content
+            HildesheimLoginPane(login: login) { EmptyView() }
                 .navigationTitle("\(login.target.rawValue)-Anmeldung")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }
         }
-        .task { await login.prepare() }
         .onChange(of: login.stage) { _, stage in if stage == .done { dismiss() } }
+    }
+}
+
+/// Anmeldung bei Learnweb oder LSF in der Webansicht des Containers (CAS der Uni). Mit dem Schalter "Auf diesem iPad
+/// merken" fuellt die App Benutzername und Passwort beim naechsten Mal vor; abgeschickt wird nie automatisch.
+/// `bottom` steht unter dem Schalter (erster Start: "Später anmelden"). Nur Debug mit -UFLoginStub: lokale
+/// Nachbildung statt der Seite der Universitaet; "<learnweb|lsf>-angemeldet.html" gilt als angemeldet (DebugUniStub).
+struct HildesheimLoginPane<Bottom: View>: View {
+    @ObservedObject var login: HildesheimLogin
+    @ViewBuilder let bottom: Bottom
+    @StateObject private var autofill: UniversityLoginAutofill
+    /// Ladefehler der Seite (kein Netz, LSF/CAS nicht erreichbar): Karte mit "Erneut versuchen"
+    @StateObject private var load = UFWebLoadState()
+
+    init(login: HildesheimLogin, @ViewBuilder bottom: () -> Bottom) {
+        self.login = login
+        self.bottom = bottom()
+        _autofill = StateObject(wrappedValue: UniversityLoginAutofill(university: .hildesheim, serviceKey: "cas", store: login.connection.credentials)!)
+    }
+
+    private var service: String { login.target == .learnweb ? "learnweb" : "lsf" }
+
+    var body: some View {
+        content.task { if login.stage == .preparing { await login.prepare() } }
     }
 
     @ViewBuilder private var content: some View {
@@ -230,8 +248,12 @@ struct HildesheimLoginView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(UF.bg)
         case .page(let url):
-            StudIPWebView(url: url, dataStore: login.connection.websiteDataStore, autofill: autofill,
+            StudIPWebView(url: DebugUniStub.loginPage(service, real: url), dataStore: login.connection.websiteDataStore, autofill: autofill,
                           interceptNavigation: { login.intercept($0) }, load: load) { webView in
+                if DebugUniStub.isSignedIn(webView.url, service: service) {
+                    login.stubSignedIn()
+                    return
+                }
                 webView.evaluateJavaScript("document.documentElement.outerHTML", in: nil, in: .defaultClient) { result in
                     login.pageLoaded(url: webView.url, html: (try? result.get()) as? String ?? "")
                 }
@@ -250,6 +272,7 @@ struct HildesheimLoginView: View {
                         .background(UF.badSoft)
                     }
                     UniversityRememberBar(autofill: autofill)
+                    bottom
                 }
             }
         case .failed(let message):

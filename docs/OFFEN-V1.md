@@ -31,10 +31,15 @@ Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (C
    CloudKit Dashboard, AUFTRAG-APPSTORE-V1 auf „Community über CloudKit“ fortschreiben).
 2. **Erster Start neu:** Apple → Tarif → Hochschule → **sofort die Anmeldeseiten der Uni** (LUH: Stud.IP, dann QIS;
    Hildesheim: CAS) → Erstabgleich mit Fortschritt → gefüllter Startbildschirm; kleiner Link „Später anmelden“;
-   Uni-Wechsel nur in den Einstellungen.
+   Uni-Wechsel nur in den Einstellungen. **Gebaut (Zweig `wip/erststart-noten`, 26.10.):** `FirstLoginFlow`, Debug
+   `-UFOnboarding login -UFLoginStub <ordner>` mit Nachbildungen in `apps/apple/DebugStub/erststart`; geprüft im
+   Simulator mit erfundenen Daten, nicht gegen echte Uni-Seiten.
 3. **Noten aus QIS (LUH)** anzeigen; leer ist möglich und kein Fehler („noch keine Noten veröffentlicht“).
+   **Gebaut (`wip/erststart-noten`):** `QISClient`/`QISGradesSync` im Kern, `QISConnection` in der App, Uni & Noten an
+   der LUH lokal; geprüft mit erfundenem QIS-HTML, nicht gegen das echte QIS.
 4. **Hildesheim-Gleichheit:** jede LUH-Funktion auch für Hildesheim prüfen (Learnweb-Folien in Dokumente/Module,
-   LSF-Stundenplan, Noten, Lernplan, Editor, Teilen/Community) und Lücken schließen.
+   LSF-Stundenplan, Noten, Lernplan, Editor, Teilen/Community) und Lücken schließen. **Geprüft (`wip/erststart-noten`):**
+   Tabelle in `docs/HILDESHEIM-PARITAET.md`, `HildesheimParityAppTests`.
 5. **Prüfung mit echten Daten** gegen die Zählwerte der PC-Sitzung (`docs/STAND-MAC-SITZUNG.md`): LUH 19 Kurse /
    155 Dateien / 18 Serien / 0 Noten / 12 Opencast-Videos; Hildesheim 9 / 539 / 24 Serien / 17 Ausfalltage /
    16 Leistungen. Der Inhaber meldet sich dafür selbst im Simulator an.

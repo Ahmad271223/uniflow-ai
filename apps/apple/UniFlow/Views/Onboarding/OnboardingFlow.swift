@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Erster Start nach docs/AUFTRAG-APPSTORE-V1.md Abschnitt 2a und docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 1:
-/// Begruessung (Mit Apple anmelden) -> beim ersten Mal Tarifwahl -> Hochschule waehlen -> die UniFlow-Oberflaeche.
+/// Begruessung (Mit Apple anmelden) -> beim ersten Mal Tarifwahl -> Hochschule waehlen -> sofort die Anmeldeseiten
+/// der Hochschule mit Erstabgleich (`main`, dort FirstLoginFlow im offenen Container) -> die UniFlow-Oberflaeche.
 /// Kein Verbindungsformular: die Verbindung zum eigenen PC-Server liegt in den Einstellungen unter "Entwicklung".
 struct OnboardingFlow<Main: View>: View {
     @EnvironmentObject private var account: AccountStore
@@ -13,7 +14,7 @@ struct OnboardingFlow<Main: View>: View {
             case .welcome: WelcomeView()
             case .planPicker: PlanPickerView { account.markPlanShown() }
             case .universityPicker: UniversityPickerView { account.chooseUniversity($0) }
-            case .ready: main()
+            case .universityLogin, .ready: main()
             }
         }
         .animation(UF.transition, value: account.stage)
