@@ -1,7 +1,9 @@
 """Zentrale Konfiguration: Pfade und .env-Werte."""
 from __future__ import annotations
 
+import contextvars
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -37,6 +39,92 @@ STATIC_DIR = ROOT / "app" / "static"
 
 for d in (DATA_DIR, FILES_DIR, LOG_DIR):
     d.mkdir(parents=True, exist_ok=True)
+
+# Betriebsart: local = eine Person auf dem eigenen PC (PIN im WLAN, Zugangsdaten in der .env);
+# hosted = gehosteter Dienst mit UniFlow-Konten (app/accounts.py), jedes Konto mit eigenem Datenordner.
+MODE = (os.getenv("LERNAPP_MODE") or "local").strip().lower() or "local"
+
+
+def is_hosted() -> bool:
+    return MODE == "hosted"
+
+
+# Aktueller Nutzer der laufenden Anfrage (nur hosted): (UniFlow-ID, Hochschule). Contextvars gelten je Aufgabe und
+# werden in den Threadpool der Endpunkte kopiert; ohne Kontext gelten die Einzelplatz-Pfade oben.
+_ctx_user: contextvars.ContextVar = contextvars.ContextVar("uniflow_user", default=None)
+_USER_ID_RE = re.compile(r"^[a-f0-9]{32}$")
+_made_dirs: set = set()
+
+
+def set_user_context(user_id: str | None, university: str | None = None):
+    if user_id is not None and not _USER_ID_RE.match(user_id):
+        raise ValueError("Ungueltige Nutzer-ID")
+    return _ctx_user.set((user_id, normalize_university(university)) if user_id else None)
+
+
+def reset_user_context(token) -> None:
+    _ctx_user.reset(token)
+
+
+def current_user_id() -> str | None:
+    ctx = _ctx_user.get()
+    return ctx[0] if ctx else None
+
+
+def user_data_dir(user_id: str, university: str) -> Path:
+    if not _USER_ID_RE.match(user_id or ""):
+        raise ValueError("Ungueltige Nutzer-ID")
+    return data_dir_for(BASE_DATA_DIR / "users" / user_id, normalize_university(university))
+
+
+def data_dir() -> Path:
+    """Datenordner der laufenden Anfrage: Nutzerordner (hosted) oder der Einzelplatz-Ordner."""
+    ctx = _ctx_user.get()
+    if not ctx:
+        return DATA_DIR
+    d = user_data_dir(*ctx)
+    if d not in _made_dirs:
+        for sub in ("", "files", "logs"):
+            (d / sub).mkdir(parents=True, exist_ok=True)
+        _made_dirs.add(d)
+    return d
+
+
+def files_dir() -> Path:
+    return data_dir() / "files"
+
+
+def log_dir() -> Path:
+    return data_dir() / "logs" if _ctx_user.get() else LOG_DIR
+
+
+def db_path() -> Path:
+    return data_dir() / "lernapp.db"
+
+
+def university() -> str:
+    ctx = _ctx_user.get()
+    return ctx[1] if ctx else UNIVERSITY
+
+
+def retire_user_data_dir(user_id: str) -> Path | None:
+    """Beim Loeschen eines Kontos: Nutzerordner beiseitelegen (30 Tage), dann `accounts.purge_deleted`."""
+    if not _USER_ID_RE.match(user_id or ""):
+        raise ValueError("Ungueltige Nutzer-ID")
+    src = BASE_DATA_DIR / "users" / user_id
+    if not src.exists():
+        return None
+    from datetime import datetime
+    dst = BASE_DATA_DIR / "users-deleted" / f"{user_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    src.rename(dst)
+    _made_dirs.discard(src)
+    return dst
+
+
+def retired_user_data_dirs(user_id: str) -> list[Path]:
+    base = BASE_DATA_DIR / "users-deleted"
+    return sorted(base.glob(f"{user_id}-*")) if base.exists() else []
 
 STUDIP_BASE = os.getenv("STUDIP_BASE", "https://studip.uni-hannover.de").rstrip("/")
 STUDIP_USER = os.getenv("STUDIP_USER", "")

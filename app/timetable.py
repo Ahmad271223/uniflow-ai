@@ -54,7 +54,7 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
     # an Feiertagen, in Unterbrechungen und in der vorlesungsfreien Zeit fallen Uni-Veranstaltungen aus (app/holidays.py).
     # Serien mit Daten aus der Quelle (LSF-EXDATE, Stud.IP-Einzeltermine) regeln das selbst; persoenliche Termine nie.
     from . import config, holidays
-    free = holidays.day_marks(start, end, config.UNIVERSITY)
+    free = holidays.day_marks(start, end, config.university())
     notes = {r["event_id"]: r["note"] for r in db.rows(conn, "SELECT event_id, note FROM event_notes")}
     out = []
     d = start

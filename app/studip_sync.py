@@ -450,6 +450,11 @@ def upsert_course(conn, c: dict, started: str) -> None:
 BACKUP_SUFFIX = ".alt"
 
 
+def _files_dir() -> Path:
+    from . import config
+    return config.files_dir() if config.current_user_id() else FILES_DIR
+
+
 def keep_previous(target: Path) -> Path | None:
     """Vertrag G5: die alte Fassung bleibt als harter Link <name>.alt erhalten, bis die Datenbank die neue
     bestaetigt hat. `os.replace(part, target)` ersetzt nur den Verzeichniseintrag; der Link zeigt weiter auf die
@@ -520,7 +525,7 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
         if f["id"] in folder_paths:
             conn.execute("UPDATE files SET studip_folder=? WHERE id=?", (folder_paths[f["id"]], f["id"]))
         if changed:
-            target = FILES_DIR / safe_name(subject_dir(c["title"])) / safe_name(f["name"])
+            target = _files_dir() / safe_name(subject_dir(c["title"])) / safe_name(f["name"])
             other = db.row(conn, "SELECT id FROM files WHERE local_path=? AND id<>?", (str(target), f["id"]))
             if other:
                 # Name-Kollision (gleicher Dateiname in zwei Ordnern): Dateiid anhaengen

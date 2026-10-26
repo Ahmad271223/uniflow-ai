@@ -388,7 +388,9 @@ def now_iso() -> str:
 
 
 def connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    from . import config
+    # hosted: Datenbank des angemeldeten Kontos; sonst DB_PATH (Modulvariable, von Werkzeugen und Tests umlenkbar)
+    conn = sqlite3.connect(config.db_path() if config.current_user_id() else DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -412,12 +414,13 @@ def _init_db(conn) -> None:
     from . import config
     conn.executescript(SCHEMA)
     # Jede Datenbank gehoert genau einer Hochschule (Schutz gegen vertauschte Datenordner)
+    uni = config.university()
     owner = conn.execute("SELECT value FROM settings WHERE key='university'").fetchone()
     if owner is None:
-        conn.execute("INSERT INTO settings(key, value) VALUES ('university', ?)", (config.UNIVERSITY,))
-    elif owner[0] != config.UNIVERSITY:
-        raise UniversityMismatch(f"Der Datenordner {config.DATA_DIR} gehoert zur Hochschule '{owner[0]}', "
-                                 f"die App laeuft fuer '{config.UNIVERSITY}'. Es werden keine Daten gemischt.")
+        conn.execute("INSERT INTO settings(key, value) VALUES ('university', ?)", (uni,))
+    elif owner[0] != uni:
+        raise UniversityMismatch(f"Der Datenordner {config.data_dir()} gehoert zur Hochschule '{owner[0]}', "
+                                 f"die App laeuft fuer '{uni}'. Es werden keine Daten gemischt.")
     for k, v in DEFAULT_SETTINGS.items():
         conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
     # Migrationen fuer bestehende Datenbanken
@@ -462,7 +465,7 @@ def _init_db(conn) -> None:
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                     VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))
-    ensure_term(conn, config.UNIVERSITY)
+    ensure_term(conn, uni)
 
 
 def ensure_term(conn, university: str) -> None:

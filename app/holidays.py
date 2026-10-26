@@ -113,7 +113,7 @@ def lecture_free(day: date, university: str) -> bool:
 def calendar_extras(conn, start: date, end: date, university: str | None = None) -> tuple[dict, dict]:
     """(Markierungen je Tag, Learnweb-Fristen je Tag) fuer Lernkalender und Stundenplan."""
     from . import config, db
-    marks = day_marks(start, end, university or config.UNIVERSITY)
+    marks = day_marks(start, end, university or config.university())
     by_day: dict[str, list[dict]] = {}
     for r in db.rows(conn, """SELECT d.id, d.title, d.full_title, d.kind, d.due_at, d.url, d.overdue, c.title AS course_title, m.color
                               FROM deadlines d LEFT JOIN courses c ON c.id=d.course_id LEFT JOIN modules m ON m.id=c.module_id

@@ -16,12 +16,74 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import config, db, planner, study, timetable, universities
+from . import account_api, accounts, config, db, planner, study, timetable, universities
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
 app = FastAPI(title="Stud.IP Lern-App")
+app.include_router(account_api.router)
 db.init_db()
+
+
+@app.exception_handler(HTTPException)
+async def _http_error(request, exc: HTTPException):
+    """Fehler mit stabilem Code: HTTPException(status, {"detail": ..., "code": ...}) -> flache Antwort
+    {"detail": "...", "code": "..."} (Vertrag G1); alle anderen wie bei FastAPI ueblich."""
+    d = exc.detail
+    body = {"detail": d.get("detail"), "code": d.get("code")} if isinstance(d, dict) and "detail" in d else {"detail": d}
+    return JSONResponse(body, status_code=exc.status_code, headers=getattr(exc, "headers", None))
+
+# Gehosteter Modus (LERNAPP_MODE=hosted): diese Pfade gibt es dort noch nicht. Sie antworten 501 mit Grund (Regel G6),
+# statt im Dienst mit den Zugangsdaten der .env oder der KI-Kommandozeile des PCs zu arbeiten.
+HOSTED_UNAVAILABLE = (
+    ("POST", "/api/sync", "Der Hochschul-Abgleich im Dienst kommt mit dem naechsten Schritt (Zugangsdaten je Konto)."),
+    ("GET", "/api/credentials", "Hochschul-Zugangsdaten je Konto kommen mit dem naechsten Schritt."),
+    ("PUT", "/api/credentials", "Hochschul-Zugangsdaten je Konto kommen mit dem naechsten Schritt."),
+    ("GET", "/api/network", "Gibt es nur auf dem eigenen PC (WLAN-Zugang)."),
+    ("POST", "/api/ai/tutor", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/files/{id}/analyze", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/tests/generate", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/tests/generate-week", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/tests/{id}/submit", "KI-Funktionen kommen mit dem KI-Update."),
+    ("POST", "/api/plan/generate", "KI-Funktionen kommen mit dem KI-Update."),
+)
+_HOSTED_UNAVAILABLE_RE = [(m, re.compile("^" + "[^/]+".join(re.escape(part) for part in p.split("{id}")) + "$"), why)
+                          for m, p, why in HOSTED_UNAVAILABLE]
+_user_dbs_ready: set = set()
+
+
+def hosted_unavailable(method: str, path: str) -> str | None:
+    for m, rx, why in _HOSTED_UNAVAILABLE_RE:
+        if m == method and rx.match(path):
+            return why
+    return None
+
+
+@app.middleware("http")
+async def hosted_guard(request, call_next):
+    """Gehosteter Modus: jede /api-Anfrage braucht eine Sitzung (Bearer-Token oder Cookie), ausser den oeffentlichen
+    Kontopfaden. Der angemeldete Nutzer bestimmt den Datenordner der Anfrage (config.set_user_context)."""
+    if not config.is_hosted():
+        return await call_next(request)
+    path = request.url.path
+    if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS:
+        return await call_next(request)
+    why = hosted_unavailable(request.method, path)
+    if why:
+        return JSONResponse({"detail": why, "code": "not_available_hosted"}, status_code=501)
+    user = accounts.authenticate(account_api.token_of(request))
+    if not user:
+        return JSONResponse({"detail": "Anmeldung erforderlich.", "code": "unauthenticated"}, status_code=401)
+    request.state.user = user
+    ctx = config.set_user_context(user["id"], user["university"])
+    try:
+        key = (user["id"], user["university"])
+        if key not in _user_dbs_ready:
+            db.init_db()
+            _user_dbs_ready.add(key)
+        return await call_next(request)
+    finally:
+        config.reset_user_context(ctx)
 
 
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
@@ -70,9 +132,10 @@ def _client_allowed(host: str) -> bool:
 
 @app.middleware("http")
 async def lan_pin_guard(request, call_next):
-    """Zugriff von anderen Geraeten (iPad im WLAN) nur mit PIN; vom PC selbst immer frei."""
+    """Zugriff von anderen Geraeten (iPad im WLAN) nur mit PIN; vom PC selbst immer frei. Im gehosteten Modus gilt
+    statt der PIN die Sitzung des Kontos (hosted_guard)."""
     host = request.client.host if request.client else "127.0.0.1"
-    if host in LOOPBACK:
+    if host in LOOPBACK or config.is_hosted():
         return await call_next(request)
     if not _client_allowed(host):
         return JSONResponse({"detail": "Zugriff nur aus dem eigenen Netz"}, status_code=403)
@@ -379,6 +442,7 @@ def analyze_one(file_id: str):
 @app.get("/api/files/{file_id}/annotations")
 def get_annotations(file_id: str):
     with db.cursor() as conn:
+        _found(db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)), "Datei")     # G6: unbekannte Datei -> 404
         r = db.row(conn, "SELECT data, updated_at, version FROM annotations WHERE file_id=?", (file_id,))
     if not r:
         return {"data": {"version": 2, "pages": {}, "zoom": 1.2}, "updated_at": None, "version": 0}
@@ -426,6 +490,10 @@ def restore_version(file_id: str, version: int):
 ASSETS_DIR = DATA_DIR / "assets"
 
 
+def _assets_dir() -> Path:
+    return config.data_dir() / "assets" if config.current_user_id() else ASSETS_DIR
+
+
 @app.post("/api/files/{file_id}/assets")
 async def upload_asset(file_id: str, upload: UploadFile = File(...)):
     """Bild (oder Screenshot) fuer den Editor ablegen. Antwort: URL zum Einbetten."""
@@ -434,7 +502,7 @@ async def upload_asset(file_id: str, upload: UploadFile = File(...)):
     if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf"):
         raise HTTPException(400, "Nur Bild- oder PDF-Dateien")
     name = f"{uuid.uuid4().hex}{ext}"
-    target = _inside(ASSETS_DIR, ASSETS_DIR / file_id)
+    target = _inside(_assets_dir(), _assets_dir() / file_id)
     target.mkdir(parents=True, exist_ok=True)
     data = await upload.read()
     if len(data) > 15 * 1024 * 1024:
@@ -448,7 +516,7 @@ def get_asset(file_id: str, name: str):
     _safe_id(file_id)
     if not _SAFE_NAME.match(name or ""):
         raise HTTPException(400, "Ungueltiger Dateiname")
-    p = _inside(ASSETS_DIR, ASSETS_DIR / file_id / name)
+    p = _inside(_assets_dir(), _assets_dir() / file_id / name)
     if not p.is_file():
         raise HTTPException(404)
     return FileResponse(p)
@@ -700,9 +768,10 @@ def delete_test(test_id: int):
 def _public_settings(s: dict) -> dict:
     """Einstellungen ohne die PIN (die steht nur in /api/network fuer die Anzeige am PC)."""
     out = {k: v for k, v in s.items() if k != "lan_pin"}
-    out["university"] = config.UNIVERSITY
-    out["university_next"] = config.configured_university()
-    out["files_source"] = universities.PROFILES.get(config.UNIVERSITY, {}).get("files_source", "Stud.IP")
+    out["university"] = config.university()
+    out["university_next"] = config.university() if config.is_hosted() else config.configured_university()
+    out["files_source"] = universities.PROFILES.get(config.university(), {}).get("files_source", "Stud.IP")
+    out["mode"] = config.MODE
     return out
 
 
@@ -720,6 +789,8 @@ def put_settings(body: dict = Body(...)):
         uni = body.pop("university")
         if not universities.valid(uni):
             raise HTTPException(400, "Unbekannte Hochschule")
+        if config.is_hosted():
+            raise HTTPException(400, {"detail": "Die Hochschule gehoert zum Konto: POST /api/account/university", "code": "use_account"})
         # Nur fuer den naechsten Start vormerken: jede Uni hat ihren eigenen Datenordner
         config.set_env({"UNIVERSITY": uni})
     with db.cursor() as conn:
@@ -1190,7 +1261,7 @@ async def api_tt_import_preview(source: str = Form(...), text: str = Form(defaul
             elif source == "pdf":
                 if not upload:
                     raise HTTPException(400, "PDF fehlt")
-                tmp = DATA_DIR / "imports"; tmp.mkdir(exist_ok=True)
+                tmp = config.data_dir() / "imports"; tmp.mkdir(exist_ok=True)
                 p = tmp / f"{uuid.uuid4().hex}.pdf"; p.write_bytes(await upload.read())
                 from .extract import extract_text
                 raw = extract_text(p, 20000)
@@ -1198,7 +1269,7 @@ async def api_tt_import_preview(source: str = Form(...), text: str = Form(defaul
             elif source == "image":
                 if not upload:
                     raise HTTPException(400, "Bild fehlt")
-                tmp = DATA_DIR / "imports"; tmp.mkdir(exist_ok=True)
+                tmp = config.data_dir() / "imports"; tmp.mkdir(exist_ok=True)
                 ext = Path(upload.filename or "x.png").suffix.lower() or ".png"
                 if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"):
                     raise HTTPException(400, "Nur Bilddateien")
@@ -1476,7 +1547,7 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
     local = None
     page_count = None
     if upload is not None and kind in ("pdf", "image"):
-        d = DATA_DIR / "files" / "Eigene Dokumente"; d.mkdir(parents=True, exist_ok=True)
+        d = config.data_dir() / "files" / "Eigene Dokumente"; d.mkdir(parents=True, exist_ok=True)
         ext = Path(upload.filename or "datei.pdf").suffix.lower() or ".pdf"
         if kind == "image" and ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"):
             raise HTTPException(400, "Nur Bilddateien")
@@ -1577,7 +1648,7 @@ async def api_recording_add(file_id: str, upload: UploadFile = File(...), page: 
     if ext not in (".webm", ".m4a", ".mp4", ".ogg", ".oga", ".wav", ".mp3", ".aac"):
         raise HTTPException(400, "Nur Audio-Aufnahmen")
     name = f"rec_{uuid.uuid4().hex}{ext}"
-    target = _inside(ASSETS_DIR, ASSETS_DIR / file_id); target.mkdir(parents=True, exist_ok=True)
+    target = _inside(_assets_dir(), _assets_dir() / file_id); target.mkdir(parents=True, exist_ok=True)
     (target / name).write_bytes(await upload.read())
     with db.cursor() as conn:
         cur = conn.execute("INSERT INTO recordings(file_id, page, title, url, duration, created_at) VALUES (?,?,?,?,?,?)",
@@ -1592,7 +1663,7 @@ def api_recording_delete(rec_id: int):
         _changed(conn.execute("DELETE FROM recordings WHERE id=?", (rec_id,)), "Aufnahme")
     if r:
         try:
-            p = _inside(ASSETS_DIR, ASSETS_DIR / r["url"].replace("/api/assets/", ""))
+            p = _inside(_assets_dir(), _assets_dir() / r["url"].replace("/api/assets/", ""))
             if p.is_file():
                 p.unlink()
         except HTTPException:
