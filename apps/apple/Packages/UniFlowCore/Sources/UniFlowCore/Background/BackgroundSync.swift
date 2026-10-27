@@ -85,6 +85,8 @@ public enum BackgroundSkipReason: String, Sendable, Codable, Equatable {
     case noSession
     /// iPad gesperrt und die Sitzung nur entsperrt lesbar (Learnweb-Schluessel im Schluesselbund, WhenUnlocked)
     case deviceLocked
+    /// Demo-Inhalte aktiv (`DemoContent`): kein Abgleich mit der Hochschule, bis sie entfernt sind
+    case demo
 
     /// Anzeige in den Einstellungen
     public var text: String {
@@ -95,6 +97,7 @@ public enum BackgroundSkipReason: String, Sendable, Codable, Equatable {
         case .alreadyRunning: return "ein Abgleich lief bereits"
         case .noSession: return "keine gültige Anmeldung"
         case .deviceLocked: return "iPad gesperrt"
+        case .demo: return "Demo-Inhalte aktiv"
         }
     }
 }
@@ -111,13 +114,16 @@ public struct BackgroundSyncSituation: Sendable, Equatable {
     public var syncRunning: Bool
     /// mindestens eine Quelle mit gespeicherter, nicht als abgelaufen bekannter Sitzung
     public var usableSession: Bool
+    /// Demo-Inhalte im offenen Container aktiv: nie zur Hochschule
+    public var demo: Bool
 
-    public init(enabled: Bool, hasContainer: Bool, switching: Bool, syncRunning: Bool, usableSession: Bool) {
+    public init(enabled: Bool, hasContainer: Bool, switching: Bool, syncRunning: Bool, usableSession: Bool, demo: Bool = false) {
         self.enabled = enabled
         self.hasContainer = hasContainer
         self.switching = switching
         self.syncRunning = syncRunning
         self.usableSession = usableSession
+        self.demo = demo
     }
 }
 
@@ -127,6 +133,7 @@ public enum BackgroundSyncGate {
         if !s.enabled { return .disabled }
         if !s.hasContainer { return .noContainer }
         if s.switching { return .switching }
+        if s.demo { return .demo }
         if s.syncRunning { return .alreadyRunning }
         if !s.usableSession { return .noSession }
         return nil

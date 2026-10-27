@@ -47,6 +47,9 @@ public struct LocalFiles: Sendable {
     /// Ordner fuer eigene Dokumente (`DATA_DIR / "files" / "Eigene Dokumente"`), relativ zum Container
     public var ownDocumentsDirectory: String { join(dataDirectory, "files/Eigene Dokumente") }
 
+    /// Ordner der Demo-PDFs (`config.files_dir() / "Demo"`, DemoContent), relativ zum Container
+    public var demoDirectory: String { join(dataDirectory, DemoContent.folder) }
+
     /// Ordner fuer Bilder der Notizen (`ASSETS_DIR / file_id`), relativ zum Container
     public func assetsDirectory(fileID: String) -> String { join(dataDirectory, "assets/" + fileID) }
 
