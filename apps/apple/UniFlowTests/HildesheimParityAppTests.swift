@@ -157,7 +157,10 @@ final class HildesheimParityAppTests: XCTestCase {
         // Statusleiste: Stand je Quelle und Meldungen des Laufs
         XCTAssertEqual(HildesheimConnection.statusText(.learnweb, h.learnweb, now: clock.now), "Learnweb: 10:00 ok")
         XCTAssertEqual(HildesheimConnection.statusText(.lsf, h.lsf, now: clock.now), "LSF: 10:00 ok")
-        XCTAssertEqual(h.messages.count, 3, "\(h.messages)")
+        // Seit dem Port der PC-Fristen und -Ankuendigungen meldet der Lauf auch diese beiden Zeilen (wie hildesheim.py)
+        XCTAssertEqual(h.messages.count, 5, "\(h.messages)")
+        XCTAssertTrue(h.messages.contains { $0.hasPrefix("Fristen: ") }, "\(h.messages)")
+        XCTAssertTrue(h.messages.contains { $0.hasPrefix("Ankündigungen: ") }, "\(h.messages)")
         XCTAssertEqual(FirstSyncProgress.hildesheim(learnweb: h.learnweb, lsf: h.lsf, messages: h.messages).map(\.state), [.done, .done, .done])
     }
 

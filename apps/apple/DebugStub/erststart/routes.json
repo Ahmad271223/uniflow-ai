@@ -134,6 +134,24 @@
   "contentType": "application/json"
  },
  {
+  "match": "learnweb2026/webservice/rest/server.php",
+  "bodyMatch": "wsfunction=core_calendar_get_action_events_by_timesort",
+  "body": "{\"events\": []}",
+  "contentType": "application/json"
+ },
+ {
+  "match": "learnweb2026/webservice/rest/server.php",
+  "bodyMatch": "wsfunction=core_calendar_get_calendar_upcoming_view",
+  "body": "{\"events\": []}",
+  "contentType": "application/json"
+ },
+ {
+  "match": "learnweb2026/webservice/rest/server.php",
+  "bodyMatch": "wsfunction=mod_forum_get_forums_by_courses",
+  "body": "[]",
+  "contentType": "application/json"
+ },
+ {
   "match": "learnweb2026/webservice/pluginfile.php/501/",
   "file": "lw-ew-plan.pdf"
  },
