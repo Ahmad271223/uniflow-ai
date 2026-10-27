@@ -1,0 +1,159 @@
+{
+ "data": [
+  {
+   "id": "ev-frei-1-1013",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-13T10:00:00+02:00",
+    "end": "2026-10-13T11:30:00+02:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-1-1020",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-20T10:00:00+02:00",
+    "end": "2026-10-20T11:30:00+02:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-1-1027",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-27T10:00:00+01:00",
+    "end": "2026-10-27T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-1-1103",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-03T10:00:00+01:00",
+    "end": "2026-11-03T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-1-1110",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-10T10:00:00+01:00",
+    "end": "2026-11-10T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-1-1117",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-17T10:00:00+01:00",
+    "end": "2026-11-17T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-1-1124",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-24T10:00:00+01:00",
+    "end": "2026-11-24T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-2-1015",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-15T10:00:00+02:00",
+    "end": "2026-10-15T11:30:00+02:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-2-1022",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-22T10:00:00+02:00",
+    "end": "2026-10-22T11:30:00+02:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-2-1029",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-29T10:00:00+01:00",
+    "end": "2026-10-29T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-2-1105",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-05T10:00:00+01:00",
+    "end": "2026-11-05T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-2-1112",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-12T10:00:00+01:00",
+    "end": "2026-11-12T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-2-1119",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-19T10:00:00+01:00",
+    "end": "2026-11-19T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-frei-2-1126",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-26T10:00:00+01:00",
+    "end": "2026-11-26T11:30:00+01:00",
+    "location": "Hörsaal K3, Kalenderweg 4",
+    "is-cancelled": false
+   }
+  }
+ ],
+ "links": {}
+}

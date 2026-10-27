@@ -16,6 +16,8 @@ struct TimetableView: View {
     @State private var error: String?
     /// noch nicht uebernommene Stud.IP-Termine (`pending_groups` aus /api/timetable/auto-status)
     @State private var studipPending = 0
+    /// offene Fragen zum eigenen Stud.IP-Kalender (nur auf dem Geraet)
+    @State private var studipQuestions: JSONValue?
 
     /// ttDate im Web: bleibt fuer die Sitzung erhalten
     @MainActor static var ttDate = UFFmt.todayISO()
@@ -50,6 +52,7 @@ struct TimetableView: View {
             let w = try await api.value("/api/timetable/week?start=\(Fmt.isoDay(start))")
             conflicts = (try? await api.value("/api/timetable/conflicts"))?.items ?? []
             studipPending = (try? await api.value("/api/timetable/auto-status"))?.i("pending_groups") ?? 0
+            studipQuestions = api.isLocal ? (try? await api.value("/api/timetable/studip-questions")) : nil
             week = w
             error = nil
         } catch { if week == nil { self.error = error.localizedDescription } }
@@ -68,6 +71,9 @@ struct TimetableView: View {
                 UFButton("Stundenplan importieren", icon: "download", kind: .primary, size: .small) { overlay.modal { TimetableImportDialog() } }
             }
             if !conflicts.isEmpty { conflictBanner }
+            if let q = studipQuestions, !q.list("hidden").isEmpty || !q.list("busy").isEmpty {
+                StudIPCalendarQuestions(questions: q) { await load() }
+            }
             nav.padding(.bottom, 11.2)
             if allEv.isEmpty {
                 UFCard {

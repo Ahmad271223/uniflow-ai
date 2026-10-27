@@ -1,0 +1,117 @@
+{
+ "data": [
+  {
+   "id": "k-vl",
+   "type": "courses",
+   "attributes": {
+    "title": "Testvorlesung Kalender",
+    "course-number": "8001",
+    "course-type": 1
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "s-test"
+     }
+    }
+   }
+  },
+  {
+   "id": "k-ue",
+   "type": "courses",
+   "attributes": {
+    "title": "Übung Testvorlesung Kalender",
+    "course-number": "8002",
+    "course-type": 3
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "s-test"
+     }
+    }
+   }
+  },
+  {
+   "id": "k-prog",
+   "type": "courses",
+   "attributes": {
+    "title": "Übung Testprogrammierung Kalender",
+    "course-number": "8003",
+    "course-type": 3
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "s-test"
+     }
+    }
+   }
+  },
+  {
+   "id": "k-frei",
+   "type": "courses",
+   "attributes": {
+    "title": "Testmathe ohne Kalender",
+    "course-number": "8004",
+    "course-type": 1
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "s-test"
+     }
+    }
+   }
+  },
+  {
+   "id": "k-frage",
+   "type": "courses",
+   "attributes": {
+    "title": "Fragestunden Testmathe",
+    "course-number": "8005",
+    "course-type": 1
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "s-test"
+     }
+    }
+   }
+  },
+  {
+   "id": "k-tut",
+   "type": "courses",
+   "attributes": {
+    "title": "Tutorium Testphysik",
+    "course-number": "8006",
+    "course-type": 3
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "s-test"
+     }
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "id": "s-test",
+   "type": "semesters",
+   "attributes": {
+    "title": "WiSe 2026/27",
+    "start": "2026-10-01T00:00:00+02:00"
+   }
+  }
+ ],
+ "links": {}
+}

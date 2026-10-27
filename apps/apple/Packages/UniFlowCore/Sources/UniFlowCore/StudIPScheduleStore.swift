@@ -71,6 +71,10 @@ public struct StudIPScheduleDownload: Sendable {
     public var unreachable = false
     /// users/{id}/schedule liess sich nicht laden (Meldung ohne Kennungen)
     public var scheduleError: String?
+    /// Termin-IDs im eigenen Stud.IP-Kalender (users/{id}/events.ics, `StudIPCalendar`); nil = nicht geladen
+    public var calendar: [String]?
+    /// Der Kalender liess sich nicht laden oder enthielt keine Veranstaltungstermine: Gruppen nicht sicher bekannt
+    public var calendarError: String?
 
     public init(courses: [StudIPCourse]) {
         self.courses = courses
@@ -85,12 +89,18 @@ public struct StudIPScheduleResult: Sendable, Equatable {
     public let pendingGroups: Int
     public let cycles: Int
     public let events: Int
+    /// Serien, die laut eigenem Stud.IP-Kalender nicht mehr dazugehoeren und entfernt wurden
+    public let removedEvents: Int
+    /// offene Fragen zum Stud.IP-Kalender (Kurs ohne Kalendertermine, Kurs mit vielen Serien je Woche)
+    public let openQuestions: Int
 
-    public init(newEvents: Int, pendingGroups: Int, cycles: Int, events: Int) {
+    public init(newEvents: Int, pendingGroups: Int, cycles: Int, events: Int, removedEvents: Int = 0, openQuestions: Int = 0) {
         self.newEvents = newEvents
         self.pendingGroups = pendingGroups
         self.cycles = cycles
         self.events = events
+        self.removedEvents = removedEvents
+        self.openQuestions = openQuestions
     }
 }
 
@@ -109,7 +119,7 @@ public enum StudIPScheduleStore {
 
     // MARK: Abruf
 
-    /// Laedt Kurszeiten, eigene Eintraege und die Einzeltermine der Kurse. Wirft nie: Fehler je Teil stehen im
+    /// Laedt Kurszeiten, eigene Eintraege, den eigenen Kalender und die Einzeltermine der Kurse. Wirft nie: Fehler je Teil stehen im
     /// Ergebnis, damit der Datei-Abgleich davon unberuehrt bleibt. Nach einem Netz- oder Zeitlimitfehler
     /// (`stopsFetch`) fragt der Abruf nichts mehr ab: jede weitere Anfrage wuerde nur bis zum Zeitlimit warten
     /// (30 s je Kurs), waehrend der Datei-Abgleich noch nicht fertig gemeldet ist.
@@ -127,6 +137,21 @@ public enum StudIPScheduleStore {
             return d
         } catch {
             d.scheduleError = (error as? StudIPError)?.description ?? "Stundenplan nicht lesbar"
+            if stopsFetch(error) {
+                d.unreachable = true
+                d.failedCourses = courses.map(\.id)
+                return d
+            }
+        }
+        // eigener Kalender: welche Termine Stud.IP dem Nutzer selbst zeigt (eigene Gruppen, Kurse mit Kalenderbindung)
+        do {
+            let ids = StudIPCalendar.dateIDs(ics: try await client.calendarICS(userID: userID))
+            if ids.isEmpty { d.calendarError = "Stud.IP-Kalender ohne Veranstaltungstermine" } else { d.calendar = ids }
+        } catch StudIPError.sessionExpired {
+            d.sessionExpired = true
+            return d
+        } catch {
+            d.calendarError = (error as? StudIPError)?.description ?? "Stud.IP-Kalender nicht lesbar"
             if stopsFetch(error) {
                 d.unreachable = true
                 d.failedCourses = courses.map(\.id)
@@ -209,23 +234,41 @@ public enum StudIPScheduleStore {
                 cycles += 1
             }
         }
+        // eigener Stud.IP-Kalender: Kurszeiten neu entscheiden (nach Kurszeiten und Einzelterminen)
+        if let ids = d.calendar { try StudIPCalendar.store(ids: ids, in: c, clock: clock) }
         let r = try StudIPScheduleImport.autoImport(c, clock: clock)
-        return StudIPScheduleResult(newEvents: r.new, pendingGroups: r.pendingGroups, cycles: cycles, events: events)
+        let q = try StudIPCalendar.questions(c)
+        let open = (q["hidden"]?.array?.count ?? 0) + (q["busy"]?.array?.count ?? 0)
+        return StudIPScheduleResult(newEvents: r.new, pendingGroups: r.pendingGroups, cycles: cycles, events: events,
+                                    removedEvents: r.removed, openQuestions: open)
     }
 
     // MARK: Lesen
 
     /// Kurszeit mit Semester (fuer Termine ohne eigenen Zeitraum) und Eintrag in der Form von studip_entries.
     struct StoredCycle {
-        let entry: StudIPScheduleEntry
+        var entry: StudIPScheduleEntry
         let term: StudIPTerm
-        let json: [String: JSONValue]
+        /// Modul und Art des Kurses aus der Tabelle courses
+        let module: JSONValue
+        let courseKind: JSONValue
+
+        /// Eintrag in der Form von studip_entries: Modul aus dem Kurs; ist der Kurs als Uebung eingeordnet, ist es
+        /// auch die Art (wie studip_entries)
+        var json: [String: JSONValue] {
+            var o = entry.json.object ?? [:]
+            if entry.courseID != nil {
+                o["module_id"] = module
+                if courseKind == "uebung" { o["kind"] = "uebung" }
+            }
+            return o
+        }
     }
 
     /// Gespeicherte Kurszeiten der aktiven Kurse (ohne "sonstiges"), gelesen von StudIPSchedule mit Titel und Nummer
-    /// aus der Tabelle courses. Modul aus dem Kurs; ist der Kurs als Uebung eingeordnet, ist es auch die Art (wie
-    /// studip_entries). Leer, solange es die Tabelle noch nicht gibt.
-    static func cycleEntries(_ c: SQLiteConnection) throws -> [StoredCycle] {
+    /// aus der Tabelle courses. Mit `relevance` nach dem eigenen Stud.IP-Kalender ausgewaehlt (`StudIPCalendar`,
+    /// `relevant(_:_:)`), sonst alle. Leer, solange es die Tabelle noch nicht gibt.
+    static func cycleEntries(_ c: SQLiteConnection, relevance: Bool = true) throws -> [StoredCycle] {
         guard try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='studip_cycle_dates'") != nil else { return [] }
         let rows = try c.rows("""
             SELECT y.data, y.course_type, c.id AS course_id, c.title, c.number, c.module_id, c.kind
@@ -245,13 +288,51 @@ public enum StudIPScheduleStore {
         let tt = StudIPSchedule.timetable(schedule: schedule, courses: courses.keys.sorted().compactMap { courses[$0] })
         let t = try LocalTimetable.term(c)
         let term = StudIPTerm(start: t["start"]?.string ?? "", end: t["end"]?.string ?? "")
-        return tt.entries.map { e in
-            var o = e.json.object ?? [:]
-            if let course = e.courseID, let i = info[course] {
-                o["module_id"] = i.module
-                if i.kind == "uebung" { o["kind"] = "uebung" }
-            }
-            return StoredCycle(entry: e, term: term, json: o)
+        let all = tt.entries.map { e in
+            let i = e.courseID.flatMap { info[$0] }
+            return StoredCycle(entry: e, term: term, module: i?.module ?? .null, courseKind: i?.kind ?? .null)
         }
+        return relevance ? try relevant(c, all) : all
+    }
+
+    /// Auswahl nach dem eigenen Stud.IP-Kalender. Ohne gespeicherte Entscheidungen alle (bisherige Regel). Sonst:
+    /// relevante Kurszeiten sind eindeutig und werden uebernommen (keine Gruppenwahl), nicht relevante fehlen. Gleiche
+    /// Zeiten desselben Kurses (mehrere Raeume) ergeben eine Serie: die mit passendem Raum, sonst die erste.
+    /// Unentschiedene Kurszeiten (ganz vergangen) bleiben, ausser ihr Kurs fehlt laut Kalender ganz oder sie waeren
+    /// eine Gruppe zur Auswahl in einem Kurs, dessen eigene Gruppe der Kalender schon kennt. Kurse ohne
+    /// Kalendertermine fehlen bis zur Antwort des Nutzers; uebernimmt er sie, gilt fuer sie die bisherige Regel.
+    static func relevant(_ c: SQLiteConnection, _ cycles: [StoredCycle]) throws -> [StoredCycle] {
+        let decisions = try StudIPCalendar.decisions(c)
+        guard !decisions.isEmpty else { return cycles }
+        let hidden = try StudIPCalendar.hiddenCourses(c), decided = try StudIPCalendar.decidedCourses(c)
+        let choices = try StudIPCalendar.choices(c)
+        var out: [StoredCycle] = [], rank: [Int] = [], seen: [String: Int] = [:]
+        for var cy in cycles {
+            let e = cy.entry
+            if let course = e.courseID, hidden.contains(course), choices[course]?.include == true {
+                out.append(cy)
+                rank.append(-1)
+                continue
+            }
+            guard let v = decisions[e.id] else {
+                if let course = e.courseID, decided.contains(course), hidden.contains(course) || !e.selected { continue }
+                out.append(cy)
+                rank.append(-1)
+                continue
+            }
+            guard v > 0 else { continue }
+            cy.entry.selected = true
+            cy.entry.uncertain = false
+            cy.entry.hint = nil
+            let k = StudIPCalendar.sameTime(e) + "|\(e.interval)|\(e.dateFrom ?? "")|\(e.dateTo ?? "")"
+            if let i = seen[k] {
+                if v > rank[i] { out[i] = cy; rank[i] = v }
+                continue
+            }
+            seen[k] = out.count
+            out.append(cy)
+            rank.append(v)
+        }
+        return out
     }
 }

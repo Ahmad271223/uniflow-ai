@@ -141,3 +141,44 @@ Offen und zu messen, sobald die App auf dem Gerät läuft:
 1. Lebensdauer der Sitzung (wie oft muss man sich neu anmelden; bleibt die SSO-Anmeldung in der Webansicht erhalten?).
 2. Abgleich über mehrere Tage: Anzahl Anfragen und Dauer je Durchgang, Fehler.
 3. Speicherbedarf (PC-Stand: 151 Dateien, 222 MB).
+
+## 10. Stundenplan nach dem eigenen Stud.IP-Kalender (27.10.2026)
+
+Befund mit echten LUH-Daten im Simulator (Zählwerte, keine Inhalte): `users/{id}/schedule` liefert **alle**
+Kurszeiten aller belegten Kurse (102 Kurszeiten in 17 Kursen), auch fremde Übungsgruppen und Kurse, die der Nutzer in
+Stud.IP nicht im Kalender hat. Daraus wurden 14 Serien. Der Stud.IP-Kalender des Nutzers zeigt dagegen andere Termine:
+Die eigene Gruppenübung, Fragestunden und die Kurszeit „Hauptveranst.“ einer Übung mit 18 Gruppen fehlten. Dafür kamen
+zwei Vorlesungen eines Kurses dazu, den der Nutzer aus dem Kalender genommen hatte.
+
+Stud.IP wählt die Kalendertermine so aus (`CalendarCourseDate::getEvents`):
+- Kurse mit Kalenderbindung (`seminar_user.bind_calendar`),
+- ohne im Stundenplan ausgeblendete Kurszeiten,
+- Termine mit Statusgruppen nur für deren Mitglieder.
+
+Genau diese Termine liefert der iCalendar-Export `jsonapi.php/v1/users/{id}/events.ics` ab dem Zeitpunkt der Abfrage.
+Die UID `Stud.IP-SEM-<Termin-ID>@…` ist dieselbe ID wie in `courses/{id}/events`.
+
+Umsetzung (`StudIPCalendar` im Kern):
+- Der Abgleich holt den Export zusätzlich.
+- Je Kurszeit gilt:
+  - **relevant**, wenn ein künftiger Termin im Kalender steht (Kurs, Tag und Beginn; bei gleichen Zeiten in mehreren
+    Räumen entscheidet der Raum),
+  - **nicht relevant**, wenn es künftige Termine gibt, aber keiner im Kalender steht.
+- Relevante Kurszeiten kommen ohne Gruppenwahl in den Stundenplan. Gleiche Zeiten eines Kurses werden eine Serie.
+- Nicht relevante, unveränderte Serien verschwinden. Serien mit eigener Änderung bleiben (Teilnahme, Zeiten, Notiz,
+  eigene Ausnahme).
+- Entscheidungen bleiben gespeichert. Kurszeiten ganz in der Vergangenheit bleiben unentschieden (bisherige Regel).
+- Persönliche Einträge aus dem Stud.IP-Stundenplan bleiben wie bisher.
+
+Zwei Fragen an den Nutzer stehen als Karten über dem Stundenplan und in der Zusammenfassung des Abgleichs. Die Antworten
+gelten je Kurs und je Container, also je Nutzer und Hochschule. Endpunkte nur auf dem Gerät:
+`GET /api/timetable/studip-questions`, `POST …/course`, `POST …/times`.
+1. **Kurs belegt, aber nicht im Kalender:** „Übernehmen“ oder „Weglassen“. Bis zur Antwort nicht im Stundenplan, wie in
+   Stud.IP. Übernommen gilt die bisherige Regel, also Gruppenwahl bei parallelen Gruppen.
+2. **Kurs mit drei oder mehr Serien je Woche:** „Welche Termine besuchst du?“ Alle sind vorausgewählt, abgewählte
+   bekommen `attend=0` (grau, Zeit frei).
+
+Ohne Export (Fehler, ältere Stud.IP-Fassung, Kalender ohne Veranstaltungstermine) bleibt die bisherige Regel. Die
+Zusammenfassung sagt dann „Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt“. Tests mit
+erfundenen Daten: `packages/shared-contracts/fixtures/studip-schedule/kalender`, `StudIPCalendarTests` (Kern) und
+`StudIPCalendarAppTests` (App).

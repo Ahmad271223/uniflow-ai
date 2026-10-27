@@ -1,0 +1,364 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Stud.IP@studip.test//Stud.IP_iCalendar Library //EN
+METHOD:PUBLISH
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:Stud.IP-0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f@studip.test
+SUMMARY:Eigener Termin (kein Kurs)
+DTSTART;TZID=Europe/Berlin:20261028T190000
+DTEND;TZID=Europe/Berlin:20261028T200000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-vl-1-1026@studip.test
+SUMMARY:Testvorlesung Kalender
+LOCATION:Hörsaal K1\, Kalenderweg 1
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261026T100000
+DTEND;TZID=Europe/Berlin:20261026T113000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-vl-1-1102@studip.test
+SUMMARY:Testvorlesung Kalender
+LOCATION:Hörsaal K1\, Kalenderweg 1
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261102T100000
+DTEND;TZID=Europe/Berlin:20261102T113000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-vl-1-1109@studip.test
+SUMMARY:Testvorlesung Kalender
+LOCATION:Hörsaal K1\, Kalenderweg 1
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261109T100000
+DTEND;TZID=Europe/Berlin:20261109T113000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-vl-1-1116@studip.test
+SUMMARY:Testvorlesung Kalender (fällt aus)
+LOCATION:Hörsaal K1\, Kalenderweg 1
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261116T100000
+DTEND;TZID=Europe/Berlin:20261116T113000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-vl-1-1123@studip.test
+SUMMARY:Testvorlesung Kalender
+LOCATION:Hörsaal K1\, Kalenderweg 1
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261123T100000
+DTEND;TZID=Europe/Berlin:20261123T113000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-vl-1-1130@studip.test
+SUMMARY:Testvorlesung Kalender
+LOCATION:Hörsaal K1\, Kalenderweg 1
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261130T100000
+DTEND;TZID=Europe/Berlin:20261130T113000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-ue-1-1027@studip.test
+SUMMARY:Übung Testvorlesung Kalender
+LOCATION:Raum U1\, Kalenderweg 2
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261027T080000
+DTEND;TZID=Europe/Berlin:20261027T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-ue-1-1103@studip.test
+SUMMARY:Übung Testvorlesung Kalender
+LOCATION:Raum U1\, Kalenderweg 2
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261103T080000
+DTEND;TZID=Europe/Berlin:20261103T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-ue-1-1110@studip.test
+SUMMARY:Übung Testvorlesung Kalender
+LOCATION:Raum U1\, Kalenderweg 2
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261110T080000
+DTEND;TZID=Europe/Berlin:20261110T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-ue-1-1117@studip.test
+SUMMARY:Übung Testvorlesung Kalender
+LOCATION:Raum U1\, Kalenderweg 2
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261117T080000
+DTEND;TZID=Europe/Berlin:20261117T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-ue-1-1124@studip.test
+SUMMARY:Übung Testvorlesung Kalender
+LOCATION:Raum U1\, Kalenderweg 2
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261124T080000
+DTEND;TZID=Europe/Berlin:20261124T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-ue-3b-1111@studip.test
+SUMMARY:Übung Testvorlesung Kalender
+LOCATION:Raum U3\, Kalenderweg 2
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261111T080000
+DTEND;TZID=Europe/Berlin:20261111T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-ue-3b-1118@studip.test
+SUMMARY:Übung Testvorlesung Kalender
+LOCATION:Raum U3\, Kalenderweg 2
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261118T080000
+DTEND;TZID=Europe/Berlin:20261118T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-ue-3b-1125@studip.test
+SUMMARY:Übung Testvorlesung Kalender
+LOCATION:Raum U3\, Kalenderweg 2
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261125T080000
+DTEND;TZID=Europe/Berlin:20261125T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-prog-hv-1030@studip.test
+SUMMARY:Übung Testprogrammierung Kalender
+LOCATION:Hörsaal K2\, Kalenderweg 3
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261030T094000
+DTEND;TZID=Europe/Berlin:20261030T102500
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-prog-hv-1106@studip.test
+SUMMARY:Übung Testprogrammierung Kalender
+LOCATION:Hörsaal K2\, Kalenderweg 3
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261106T094000
+DTEND;TZID=Europe/Berlin:20261106T102500
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-prog-hv-1113@studip.test
+SUMMARY:Übung Testprogrammierung Kalender
+LOCATION:Hörsaal K2\, Kalenderweg 3
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261113T094000
+DTEND;TZID=Europe/Berlin:20261113T102500
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-prog-hv-1120@studip.test
+SUMMARY:Übung Testprogrammierung Kalender
+LOCATION:Hörsaal K2\, Kalenderweg 3
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261120T094000
+DTEND;TZID=Europe/Berlin:20261120T102500
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-prog-hv-1127@studip.test
+SUMMARY:Übung Testprogrammierung Kalender
+LOCATION:Hörsaal K2\, Kalenderweg 3
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261127T094000
+DTEND;TZID=Europe/Berlin:20261127T102500
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-1-1026@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261026T140000
+DTEND;TZID=Europe/Berlin:20261026T153000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-1-1102@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261102T140000
+DTEND;TZID=Europe/Berlin:20261102T153000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-1-1109@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261109T140000
+DTEND;TZID=Europe/Berlin:20261109T153000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-1-1116@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261116T140000
+DTEND;TZID=Europe/Berlin:20261116T153000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-1-1123@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261123T140000
+DTEND;TZID=Europe/Berlin:20261123T153000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-2-1027@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261027T160000
+DTEND;TZID=Europe/Berlin:20261027T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-2-1103@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261103T160000
+DTEND;TZID=Europe/Berlin:20261103T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-2-1110@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261110T160000
+DTEND;TZID=Europe/Berlin:20261110T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-2-1117@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261117T160000
+DTEND;TZID=Europe/Berlin:20261117T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-2-1124@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261124T160000
+DTEND;TZID=Europe/Berlin:20261124T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-3-1028@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261028T160000
+DTEND;TZID=Europe/Berlin:20261028T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-3-1104@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261104T160000
+DTEND;TZID=Europe/Berlin:20261104T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-3-1111@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261111T160000
+DTEND;TZID=Europe/Berlin:20261111T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-3-1118@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261118T160000
+DTEND;TZID=Europe/Berlin:20261118T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-3-1125@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261125T160000
+DTEND;TZID=Europe/Berlin:20261125T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-4-1029@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261029T160000
+DTEND;TZID=Europe/Berlin:20261029T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-4-1105@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261105T160000
+DTEND;TZID=Europe/Berlin:20261105T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-4-1112@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261112T160000
+DTEND;TZID=Europe/Berlin:20261112T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-4-1119@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261119T160000
+DTEND;TZID=Europe/Berlin:20261119T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-frage-4-1126@studip.test
+SUMMARY:Fragestunden Testmathe
+LOCATION:Raum F1\, Kalenderweg 5
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261126T160000
+DTEND;TZID=Europe/Berlin:20261126T173000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-tut-1-1029@studip.test
+SUMMARY:Tutorium Testphysik
+LOCATION:Raum T1\, Kalenderweg 6
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261029T080000
+DTEND;TZID=Europe/Berlin:20261029T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-tut-1-1105@studip.test
+SUMMARY:Tutorium Testphysik
+LOCATION:Raum T1\, Kalenderweg 6
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261105T080000
+DTEND;TZID=Europe/Berlin:20261105T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-tut-1-1112@studip.test
+SUMMARY:Tutorium Testphysik
+LOCATION:Raum T1\, Kalenderweg 6
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261112T080000
+DTEND;TZID=Europe/Berlin:20261112T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-tut-1-1119@studip.test
+SUMMARY:Tutorium Testphysik
+LOCATION:Raum T1\, Kalenderweg 6
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261119T080000
+DTEND;TZID=Europe/Berlin:20261119T093000
+END:VEVENT
+BEGIN:VEVENT
+UID:Stud.IP-SEM-ev-tut-1-1126@studip.test
+SUMMARY:Tutorium Testphysik
+LOCATION:Raum T1\, Kalenderweg 6
+CATEGORIES:Sitzung
+DTSTART;TZID=Europe/Berlin:20261126T080000
+DTEND;TZID=Europe/Berlin:20261126T093000
+END:VEVENT
+END:VCALENDAR

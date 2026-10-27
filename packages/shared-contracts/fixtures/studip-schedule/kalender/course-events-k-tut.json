@@ -1,0 +1,159 @@
+{
+ "data": [
+  {
+   "id": "ev-tut-1-1015",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-15T08:00:00+02:00",
+    "end": "2026-10-15T09:30:00+02:00",
+    "location": "Raum T1, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-1-1022",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-22T08:00:00+02:00",
+    "end": "2026-10-22T09:30:00+02:00",
+    "location": "Raum T1, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-1-1029",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-29T08:00:00+01:00",
+    "end": "2026-10-29T09:30:00+01:00",
+    "location": "Raum T1, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-1-1105",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-05T08:00:00+01:00",
+    "end": "2026-11-05T09:30:00+01:00",
+    "location": "Raum T1, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-1-1112",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-12T08:00:00+01:00",
+    "end": "2026-11-12T09:30:00+01:00",
+    "location": "Raum T1, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-1-1119",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-19T08:00:00+01:00",
+    "end": "2026-11-19T09:30:00+01:00",
+    "location": "Raum T1, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-1-1126",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-26T08:00:00+01:00",
+    "end": "2026-11-26T09:30:00+01:00",
+    "location": "Raum T1, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-2-1015",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-15T08:00:00+02:00",
+    "end": "2026-10-15T09:30:00+02:00",
+    "location": "Raum T2, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-2-1022",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-22T08:00:00+02:00",
+    "end": "2026-10-22T09:30:00+02:00",
+    "location": "Raum T2, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-2-1029",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-29T08:00:00+01:00",
+    "end": "2026-10-29T09:30:00+01:00",
+    "location": "Raum T2, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-2-1105",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-05T08:00:00+01:00",
+    "end": "2026-11-05T09:30:00+01:00",
+    "location": "Raum T2, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-2-1112",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-12T08:00:00+01:00",
+    "end": "2026-11-12T09:30:00+01:00",
+    "location": "Raum T2, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-2-1119",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-19T08:00:00+01:00",
+    "end": "2026-11-19T09:30:00+01:00",
+    "location": "Raum T2, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-tut-2-1126",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-26T08:00:00+01:00",
+    "end": "2026-11-26T09:30:00+01:00",
+    "location": "Raum T2, Kalenderweg 6",
+    "is-cancelled": false
+   }
+  }
+ ],
+ "links": {}
+}
