@@ -1,13 +1,19 @@
 """Backend der Windows-App (Tauri): startet den Server auf einem freien Port auf 127.0.0.1, nur fuer das Fenster.
 
 Ablauf: das Tauri-Fenster startet `uniflow-backend.exe --parent-pid <pid> --state <datei>`; das Backend legt die
-Datenordner unter %LOCALAPPDATA%\\UniFlow an (Daten, Protokolle, .env), bindet den Port selbst (127.0.0.1, 0 = frei),
+Datenordner unter %LOCALAPPDATA%\\de.uniflow.desktop an (Daten, Protokolle, .env), bindet den Port selbst (127.0.0.1, 0 = frei),
 schreibt dann `{"port", "pid", "url"}` in die Zustandsdatei und uebergibt den offenen Socket an uvicorn. Die Datei
 gilt also erst, wenn der Port schon annimmt. Es laeuft, bis das Fenster (Elternprozess) endet. Dieselbe App wie
 `serve.py`: gleiche Oberflaeche, gleiche Datenbank, gleicher Abgleich. Playwrights Chromium kommt aus dem Ordner
 `ms-playwright` neben der exe (vom Installer mitgeliefert); fehlt er, gilt Playwrights Standardordner (Entwicklung).
 
 Die Umgebungsvariablen muessen gesetzt sein, BEVOR `app.config` importiert wird (es liest sie beim Import).
+
+Datenordner und Programmordner sind getrennt: der Installer (Tauri-NSIS, installMode currentUser) installiert nach
+%LOCALAPPDATA%\\UniFlow (= productName), die Daten liegen unter %LOCALAPPDATA%\\de.uniflow.desktop (= identifier, der
+Ordner, den „App-Daten entfernen“ beim Deinstallieren meint). Bis 0.3.0 lagen beide im selben Ordner; Installer und
+Backend kamen sich dort in die Quere (Startfehler WinError 183 beim Anlegen von `logs`, 27.10.2026), und Neu- oder
+Deinstallieren raeumt den Programmordner auf. Alte Daten zieht `migrate_legacy` beim ersten Start einmal um.
 """
 from __future__ import annotations
 
@@ -23,12 +29,63 @@ import traceback
 from pathlib import Path
 
 
+DATA_FOLDER = "de.uniflow.desktop"      # = identifier in apps/windows/src-tauri/tauri.conf.json und main.rs
+LEGACY_FOLDER = "UniFlow"               # bis 0.3.0: Daten im Programmordner (productName)
+FALLBACK_LOG = "uniflow-backend-start.log"
+
+
 def app_base_dir(override: str | None = None) -> Path:
-    """%LOCALAPPDATA%\\UniFlow (Windows) bzw. ~/.uniflow; mit --base ueberschreibbar (Tests)."""
+    """%LOCALAPPDATA%\\de.uniflow.desktop (Windows) bzw. ~/.uniflow; mit --base ueberschreibbar (Tests)."""
     if override:
         return Path(override)
     local = os.environ.get("LOCALAPPDATA")
-    return Path(local) / "UniFlow" if local else Path.home() / ".uniflow"
+    return Path(local) / DATA_FOLDER if local else Path.home() / ".uniflow"
+
+
+def legacy_base_dir() -> Path | None:
+    """Datenordner bis 0.3.0 (%LOCALAPPDATA%\\UniFlow, zugleich Programmordner) oder None ausserhalb von Windows."""
+    local = os.environ.get("LOCALAPPDATA")
+    return Path(local) / LEGACY_FOLDER if local else None
+
+
+def ensure_dir(path: Path, attempts: int = 20, wait_seconds: float = 0.25) -> None:
+    """Ordner anlegen, auch wenn er gerade kurz nicht zugreifbar ist. Windows meldet beim Anlegen eines vorhandenen
+    Ordners WinError 183, und pathlib wirft das trotz exist_ok weiter, wenn der Ordner in dem Moment nicht abfragbar
+    ist (Virenscanner, Installer oder Deinstallierer halten ihn, Ordner wird gerade geloescht). Dann kurz warten und
+    erneut versuchen; liegt dort eine Datei statt eines Ordners, sofort ein klarer Fehler."""
+    for _ in range(max(1, attempts) - 1):
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            return
+        except FileExistsError:
+            if path.is_file():
+                raise FileExistsError(f"{path} ist eine Datei, kein Ordner – bitte umbenennen oder loeschen") from None
+        except PermissionError:
+            pass
+        time.sleep(wait_seconds)
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def migrate_legacy(base: Path, legacy: Path | None) -> Path:
+    """Daten aus dem alten Ordner (bis 0.3.0) einmal in den neuen umziehen: `data` und `.env` werden verschoben,
+    `logs` bleibt liegen. Nur wenn der neue Ordner noch keine Daten hat und der alte welche. Klappt das Verschieben
+    nicht (z. B. laeuft noch ein altes Backend und haelt die Datenbank offen), arbeitet dieser Start mit dem alten
+    Ordner weiter – Daten werden nie versteckt oder geloescht. Liefert den Ordner, mit dem gestartet wird."""
+    if legacy is None or legacy == base:
+        return base
+    old_data = legacy / "data"
+    if (base / "data").exists() or not old_data.is_dir() or not any(old_data.iterdir()):
+        return base
+    try:
+        ensure_dir(base)
+        old_data.rename(base / "data")
+        if (legacy / ".env").is_file() and not (base / ".env").exists():
+            (legacy / ".env").rename(base / ".env")
+        return base
+    except OSError:
+        if (base / "data").exists():          # Daten sind schon umgezogen, nur .env nicht: neuer Ordner gilt
+            return base
+        return legacy
 
 
 def exe_dir() -> Path:
@@ -54,7 +111,7 @@ def prepare_environment(base: Path, exe_folder: Path | None = None) -> dict[str,
     if bp:
         values["PLAYWRIGHT_BROWSERS_PATH"] = str(bp)
     for d in (base, base / "data", base / "logs"):
-        d.mkdir(parents=True, exist_ok=True)
+        ensure_dir(d)
     for k, v in values.items():
         os.environ[k] = v
     return values
@@ -166,7 +223,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--parent-pid", type=int, default=None, help="Fenster-Prozess; endet er, endet das Backend")
     p.add_argument("--state", type=str, default=None, help="Zustandsdatei (Port, PID); Standard <base>/backend.json")
     p.add_argument("--port", type=int, default=0, help="0 = freier Port")
-    p.add_argument("--base", type=str, default=None, help="Datenordner (Standard %%LOCALAPPDATA%%\\UniFlow)")
+    p.add_argument("--base", type=str, default=None, help="Datenordner (Standard %%LOCALAPPDATA%%\\de.uniflow.desktop)")
     return p.parse_args(argv)
 
 
@@ -208,13 +265,41 @@ def serve(args: argparse.Namespace, state_path: Path, log_path: Path) -> None:
             pass
 
 
+def emergency_log(base: Path | None, text: str) -> None:
+    """Letzter Ausweg vor dem Ende mit Code 1: ins Backend-Protokoll, sonst nach %TEMP%. Wirft nie (sonst zeigt
+    PyInstaller wieder sein Fehlerfenster)."""
+    targets = ([base / "logs" / "backend.log"] if base else []) + [Path(os.environ.get("TEMP") or "/tmp") / FALLBACK_LOG]
+    for p in targets:
+        try:
+            ensure_dir(p.parent, attempts=2, wait_seconds=0.1)
+            log(p, text)
+            return
+        except Exception:                                    # noqa: BLE001 - naechstes Ziel versuchen
+            continue
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(sys.argv[1:] if argv is None else argv)
-    base = app_base_dir(args.base)
+    """Jeder Fehler endet mit Code 1 und einem Protokolleintrag, nie mit dem Fehlerfenster von PyInstaller; das Tauri-
+    Fenster zeigt dann seinen eigenen Hinweis mit dem Protokollpfad."""
+    base: Path | None = None
+    try:
+        args = parse_args(sys.argv[1:] if argv is None else argv)
+        base = app_base_dir(args.base)
+        if not args.base:
+            base = migrate_legacy(base, legacy_base_dir())
+        return _run(args, base)
+    except SystemExit:
+        raise
+    except BaseException:                                    # noqa: BLE001 - auch KeyboardInterrupt sauber protokollieren
+        emergency_log(base, f"Backend-Start fehlgeschlagen:\n{traceback.format_exc()}")
+        return 1
+
+
+def _run(args: argparse.Namespace, base: Path) -> int:
     prepare_environment(base)
     state_path = Path(args.state) if args.state else base / "backend.json"
     log_path = base / "logs" / "backend.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_dir(log_path.parent)
     redirect_std_streams(log_path)
     try:
         serve(args, state_path, log_path)

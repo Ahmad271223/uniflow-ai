@@ -1,6 +1,7 @@
 # Installiert den gebauten NSIS-Installer still (/S, aktueller Benutzer, kein Admin), prueft die installierten Dateien,
 # startet das installierte Backend (check-backend.ps1) und deinstalliert wieder still. Fuer GitHub-Windows-Runner.
 # Installationsordner bei installMode currentUser: %LOCALAPPDATA%\UniFlow (Tauri-NSIS: $LOCALAPPDATA\<productName>).
+# Die Daten liegen getrennt davon unter %LOCALAPPDATA%\de.uniflow.desktop (app/desktop.py, DATA_FOLDER).
 param(
     [string]$Bundle = "apps/windows/src-tauri/target/release/bundle/nsis",
     [string]$InstallDir = (Join-Path $env:LOCALAPPDATA "UniFlow")
