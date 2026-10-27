@@ -253,4 +253,28 @@ final class StudIPCalendarTests: XCTestCase {
         let none = await call(backend, "POST", "/api/timetable/studip-questions/times", ["course_id": "k-frage", "attend": []])
         XCTAssertEqual(none.status, 404, "schon beantwortet")
     }
+
+    /// Doppel nur bei gleichem Kurs (oder ohne Kurs gleichem Titel), Tag und ueberlappender Zeit - nicht bei gleichem
+    /// Titelanfang: Fragestunde und Vorlesung desselben Fachs am selben Tag sind zwei Serien (Befund 27.10.2026)
+    func testDoubleNeedsSameCourseNotSameTitleStart() {
+        let vl: [String: JSONValue] = ["title": "Mathematik für die Ingenieurwissenschaften III - Numerik, Tranche 1",
+                                       "course_id": "k-vl", "weekday": 3, "start_time": "11:45", "end_time": "13:30"]
+        var frage = vl
+        frage["title"] = "Mathematik für die Ingenieurwissenschaften III - Numerik - Fragestunden"
+        frage["course_id"] = "k-frage"
+        frage["start_time"] = "12:15"; frage["end_time"] = "13:45"
+        XCTAssertFalse(StudIPScheduleImport.isDouble(frage, vl), "anderer Kurs, gleicher Titelanfang, überlappend")
+        XCTAssertTrue(StudIPScheduleImport.isDouble(vl, vl))
+        var later = vl
+        later["start_time"] = "13:30"; later["end_time"] = "15:00"
+        XCTAssertFalse(StudIPScheduleImport.isDouble(later, vl), "schliesst nur an, ueberlappt nicht")
+        var otherDay = vl
+        otherDay["weekday"] = 4
+        XCTAssertFalse(StudIPScheduleImport.isDouble(otherDay, vl))
+        let own: [String: JSONValue] = ["title": "Lerngruppe  alle 2 Wochen", "weekday": 1, "start_time": "12:15", "end_time": "13:45"]
+        var ownAgain = own
+        ownAgain["title"] = "lerngruppe alle 2 wochen"
+        XCTAssertTrue(StudIPScheduleImport.isDouble(ownAgain, own), "ohne Kurs: gleicher Titel")
+        XCTAssertFalse(StudIPScheduleImport.isDouble(own, vl), "nur eine Seite mit Kurs")
+    }
 }
