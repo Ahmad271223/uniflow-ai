@@ -144,6 +144,12 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// Nach dem Stundenplan kommen die Listen der Opencast-Aufzeichnungen (`recordings`, nur die Listen, nie ein Video;
 /// Listen in der Datenbank, geladene Videos unter `Aufzeichnungen` im Container). `stop` haelt auch laufende Downloads
 /// von Aufzeichnungen an.
+/// Im Hintergrund (S8, `BackgroundSyncController`) laeuft derselbe Abgleich: kurz nur mit den Listen (`scope: .lists`,
+/// Kurse, Dateilisten, Stundenplan; keine Downloads, keine Aufzeichnungen), lang mit Netz wie beim Oeffnen. Ein Lauf
+/// nur mit Listen setzt nicht `lastRun` (sonst wartete das Laden der neuen Dateien beim Oeffnen 30 Minuten), sondern
+/// merkt sich wartende Downloads (`downloadsPending`): der naechste Abgleich beim Oeffnen kommt dann sofort. Eine
+/// abgelaufene Sitzung merkt sich der Container (`sessionKnownExpired`) bis zur neuen Anmeldung; der Hintergrund
+/// versucht es damit nicht erneut und meldet sie nur einmal.
 @MainActor
 final class StudIPSync: ObservableObject {
     /// Stud.IP der LUH aus dem Hochschul-Profil (die eine Quelle der Adresse)
@@ -177,6 +183,22 @@ final class StudIPSync: ObservableObject {
     /// Einstellungen des Abgleichs (je Container in dessen UserDefaults-Suite)
     static let defaultsKeys = ["uniflow.studip.courses", "uniflow.studip.knownCourses", "uniflow.studip.lastRun", "uniflow.studip.lastSummary"]
 
+    /// Merker im Container seit S8 (aus der Zeit vor den Containern gibt es sie nicht, darum nicht in `defaultsKeys`)
+    enum Keys {
+        /// ein Abgleich endete mit "Anmeldung abgelaufen"; weg mit der neuen Anmeldung oder einem Lauf ohne Fehler
+        static let sessionExpired = "uniflow.studip.sessionExpired"
+        /// ein Lauf nur mit Listen fand Dateien zum Laden; weg nach einem vollen Lauf ohne Fehler
+        static let downloadsPending = "uniflow.studip.downloadsPending"
+    }
+
+    /// Wie ein Lauf endete (Hintergrund: Stand und Benachrichtigung)
+    enum RunEnd: Equatable {
+        case completed
+        case cancelled
+        case sessionExpired
+        case failed(String)
+    }
+
     let root: URL
     /// Hochschule des Containers; Stud.IP gibt es nur an der LUH
     let university: UniversityKey
@@ -201,7 +223,7 @@ final class StudIPSync: ObservableObject {
     /// fuer eine Ablage ohne Container (Tests mit eigenem Ordner)
     private let container: DataContainerLayout?
     /// laufender Abgleich (zum Anhalten vor dem Loeschen des Containers)
-    private var current: Task<Void, Never>?
+    private var current: Task<RunEnd, Never>?
     /// angehalten (Container wird geloescht): kein weiterer Abgleich
     private(set) var stopped = false
 
@@ -264,6 +286,13 @@ final class StudIPSync: ObservableObject {
         return adopted
     }
 
+    /// Kennungen der Hochschul-Dateien in der Datenbank des Containers (Hintergrund: neue Dateien eines Laufs); nil,
+    /// wenn die Datenbank nicht lesbar ist
+    func sourceFileIDs() async -> Set<String>? {
+        guard let backend = try? await host.backend() else { return nil }
+        return try? await backend.context.database.withConnection { try UniStore.sourceFileIDs($0) }
+    }
+
     /// Liste der geladenen Dateien aus der Datenbank neu lesen
     func refreshEntries() async {
         guard let prefix = host.files?.stored(root), let backend = try? await host.backend() else { entries = []; return }
@@ -278,6 +307,17 @@ final class StudIPSync: ObservableObject {
     /// Liegt ein Sitzungs-Cookie dieses Containers im Schluesselbund?
     var hasStoredSession: Bool { !cookies.load().isEmpty }
 
+    /// Sitzung als abgelaufen bekannt (in diesem App-Lauf oder gemerkt im Container, auch nach einem Neustart)
+    var sessionKnownExpired: Bool { phase == .needsLogin || defaults.bool(forKey: Keys.sessionExpired) }
+
+    /// Ein Lauf nur mit Listen hat Dateien gefunden, die noch nicht geladen sind
+    var downloadsPending: Bool { defaults.bool(forKey: Keys.downloadsPending) }
+
+    /// Merker nur schreiben, wenn sich etwas aendert (ein frischer Container bleibt leer)
+    private func setFlag(_ key: String, _ on: Bool) {
+        if on { defaults.set(true, forKey: key) } else if defaults.object(forKey: key) != nil { defaults.removeObject(forKey: key) }
+    }
+
     func fileURL(_ e: StudIPLibrary.DownloadedFile) -> URL? { host.files?.url(stored: e.localPath) }
 
     // MARK: Anmeldung
@@ -286,6 +326,7 @@ final class StudIPSync: ObservableObject {
     func signedIn(cookies: [HTTPCookie]) {
         do {
             try self.cookies.save(cookies)
+            setFlag(Keys.sessionExpired, false)
             phase = .idle
             Task { await run() }
         } catch {
@@ -304,6 +345,7 @@ final class StudIPSync: ObservableObject {
     /// loeschen; die andere Hochschule bleibt angemeldet. Heruntergeladene Dateien bleiben, bis der Nutzer sie entfernt.
     func signOut() async {
         cookies.clear()
+        setFlag(Keys.sessionExpired, false)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         phase = .signedOut
     }
@@ -344,35 +386,44 @@ final class StudIPSync: ObservableObject {
         return !DebugLaunch.skipTriggers.contains { defaults.object(forKey: $0) != nil }
     }
 
+    /// Beim Oeffnen: hoechstens alle 30 Minuten; warten Dateien aus einem Lauf nur mit Listen (Hintergrund), sofort
     func runIfDue() {
         guard Self.automaticRunAllowed() else { return }
         guard phase == .idle || isFailed else { return }
-        if let last = lastRun, Date().timeIntervalSince(last) < 30 * 60 { return }
+        if let last = lastRun, !downloadsPending, Date().timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
     }
 
     private var isFailed: Bool { if case .failed = phase { return true }; return false }
 
-    func run() async {
+    func run(scope: UniSyncScope = .full) async {
         guard !isRunning, offersStudIP, !Self.isUnderTest() else { return }
         let cookies = self.cookies.load()
         guard !cookies.isEmpty else { phase = .signedOut; return }
-        // nur Debug mit -UFLoginStub: feste Antworten aus dem Stub-Ordner statt Stud.IP
+        await run(client: liveClient(cookies), scope: scope)
+    }
+
+    /// Client mit dem gespeicherten Sitzungs-Cookie (nur Debug mit -UFLoginStub: feste Antworten aus dem Stub-Ordner)
+    func liveClient(_ cookies: [HTTPCookie]) -> StudIPClient {
         let transport: StudIPTransport = DebugUniStub.studipTransport() ?? URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")
-        await run(client: StudIPClient(base: Self.base, transport: transport))
+        return StudIPClient(base: Self.base, transport: transport)
     }
 
     /// Ein Abgleich mit diesem Client (Tests: feste Antworten statt Stud.IP). Ablauf wie run_sync in
     /// app/studip_sync.py: Kurse, je Kurs die Dateiliste in die Datenbank, dann die Downloads, danach der Stundenplan
     /// derselben Kurse (`StudIPScheduleSync` mit demselben lokalen Backend, wie `auto_import` am Ende von run_sync),
     /// am Ende `sync_log`. Kein `await` innerhalb einer Transaktion: erst das Netz, dann kurz schreiben.
-    func run(client: StudIPClient) async {
-        guard !isRunning, !stopped else { return }
+    /// `scope: .lists` (kurzer Hintergrundlauf): ohne Downloads und ohne Aufzeichnungen. Rueckgabe: wie der Lauf
+    /// endete; nil, wenn er nicht begann (es lief schon einer, angehalten).
+    @discardableResult
+    func run(client: StudIPClient, scope: UniSyncScope = .full) async -> RunEnd? {
+        guard !isRunning, !stopped else { return nil }
         phase = .running("Kurse werden geladen …")
-        let task = Task { await self.perform(client: client) }
+        let task = Task { await self.perform(client: client, scope: scope) }
         current = task
-        await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        let end = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         current = nil
+        return end
     }
 
     /// Anhalten, bevor der Container geloescht wird: laufenden Abgleich abbrechen und auf sein Ende warten (danach
@@ -382,7 +433,7 @@ final class StudIPSync: ObservableObject {
         recordings.stop()
         guard let task = current else { return }
         task.cancel()
-        await task.value
+        _ = await task.value
     }
 
     /// Abbruch (`stop`) statt Fehler, auch `URLError(.cancelled)` einer abgebrochenen Anfrage
@@ -390,7 +441,7 @@ final class StudIPSync: ObservableObject {
         error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
-    private func perform(client: StudIPClient) async {
+    private func perform(client: StudIPClient, scope: UniSyncScope) async -> RunEnd {
         defer { finishedRuns += 1 }                       // nach der letzten Phase: Seiten laden neu
         await adoption?.value
         let started = clock.nowISO
@@ -453,14 +504,16 @@ final class StudIPSync: ObservableObject {
             }
             let download = wanted.filter(\.isDownloadable)
             var failed = 0
+            // nur Listen (kurzer Hintergrundlauf): die Dateien laedt der naechste volle Lauf
+            let toLoad = scope == .full ? download : []
             // je Datei ueber `UniDownloads`: erst in den Zwischenordner, pruefen, Hash, alte Fassung einer Datei mit
             // Notizen aufbewahren (S7), an ihren Platz, eintragen, Seitentexte und Notizen der neuen Fassung; ein Abbruch
             // hinterlaesst keine halbe Datei als "geladen". Vor jeder Datei der freie Platz: ein voller Speicher haelt
             // den Lauf an (`DeviceStorage.Full`), statt Datei fuer Datei zu scheitern
-            for (i, f) in download.enumerated() {
+            for (i, f) in toLoad.enumerated() {
                 try Task.checkCancellation()
                 guard DeviceStorage.fits(Int64(f.size), free: DeviceStorage.availableBytes(at: root)) else { throw DeviceStorage.Full() }
-                phase = .running("Lade \(i + 1) von \(download.count): \(f.name)")
+                phase = .running("Lade \(i + 1) von \(toLoad.count): \(f.name)")
                 let rel = StudIPImport.relativePath(for: f)
                 do {
                     try await downloads.load(StudIPLibrary.fileRow(f, base: Self.base), to: rel, db: db, clock: clock) { part in
@@ -490,10 +543,15 @@ final class StudIPSync: ObservableObject {
             let timetable = await StudIPScheduleSync(host: host).run(client: client, userID: uid, courses: chosen) { phase = .running($0) }
             try Task.checkCancellation()
             // Aufzeichnungen (Opencast): je Kurs eine Seite; Fehler eines Kurses ueberspringen nur diesen, Kurse ohne
-            // Opencast sind kein Fehler; Videos laedt nur der Nutzer. Nach abgelaufener Sitzung nicht mehr fragen
-            let rec = timetable.sessionExpired ? nil : await recordings.refresh(client: client, courses: chosen) { phase = .running($0) }
+            // Opencast sind kein Fehler; Videos laedt nur der Nutzer. Nach abgelaufener Sitzung nicht mehr fragen, im
+            // kurzen Hintergrundlauf auch nicht (eine Seite je Kurs sprengte die rund 30 Sekunden)
+            let rec = timetable.sessionExpired || scope == .lists ? nil
+                : await recordings.refresh(client: client, courses: chosen) { phase = .running($0) }
             let notDownloadable = remote.filter { !$0.isDownloadable }.count
+            let waiting = download.count - toLoad.count
+            let waitingText = "\(waiting) \(waiting == 1 ? "Datei wartet" : "Dateien warten") auf den Download"
             var parts = ["\(loaded) neu/geändert", "\(remote.count - notDownloadable - download.count) unverändert"]
+            if waiting > 0 { parts.append(waitingText) }
             if notDownloadable > 0 { parts.append("\(notDownloadable) nicht herunterladbar") }
             if failed > 0 { parts.append("\(failed) nicht geladen (Fehler)") }
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
@@ -501,26 +559,40 @@ final class StudIPSync: ObservableObject {
             if let n = Self.newCoursesNote(selection.newUnselected.count) { parts.append(n) }
             parts += timetable.summary
             parts += rec?.summary ?? []
-            finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
-            await log(database, started: started, ok: true, newFiles: loaded,
-                      message: StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0))
+            let expired = timetable.sessionExpired || rec?.sessionExpired == true
+            if scope == .full {
+                finish(summary: parts.joined(separator: ", ") + " · \(checked.count) Kurse")
+                // alle Dateien geladen oder als Fehler gezaehlt: nichts wartet mehr auf den naechsten Abgleich
+                setFlag(Keys.downloadsPending, false)
+            } else if waiting > 0 {
+                setFlag(Keys.downloadsPending, true)
+            }
+            let message = scope == .full ? StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0)
+                : "Hintergrund: Listen abgeglichen, " + waitingText
+            await log(database, started: started, ok: true, newFiles: loaded, message: message)
             // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu
-            phase = timetable.sessionExpired || rec?.sessionExpired == true ? .needsLogin : .idle
+            phase = expired ? .needsLogin : .idle
+            setFlag(Keys.sessionExpired, expired)
+            return expired ? .sessionExpired : .completed
         } catch where Self.isCancellation(error) || Task.isCancelled {
             // angehalten (Container wird geloescht) oder abgebrochen: kein Fehler; was gelesen war, steht in der Datenbank
             await refreshEntries()
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure("Abgleich abgebrochen"))
             phase = hasStoredSession ? .idle : .signedOut
+            return .cancelled
         } catch StudIPError.sessionExpired {
             await refreshEntries()
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(StudIPError.sessionExpired.description))
             phase = .needsLogin
+            setFlag(Keys.sessionExpired, true)
+            return .sessionExpired
         } catch {
             await refreshEntries()
             // verstaendlich statt "…SQLiteError-Fehler 1." (LocalBackendHost.message, auch "Speicher voll")
             let message = LocalBackendHost.message(for: error)
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(message))
             phase = .failed(message)
+            return .failed(message)
         }
     }
 

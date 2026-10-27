@@ -812,6 +812,7 @@ private struct LocalAccountTab: View {
                     Text("Geteilte Ansicht: Das Skript öffnet auf der Seite der freien Hand (35 %), das Übungsblatt daneben.")
                         .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4).padding(.bottom, 5.6)
                 }
+                BackgroundSyncCard()                                         // Abgleich im Hintergrund (S8)
             }
             .environment(\.ufFillsCell, true)
             CommunitySettingsCard()                                          // Pseudonym, Lerngruppen, Sperrliste (Plus)

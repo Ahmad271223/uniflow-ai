@@ -282,10 +282,22 @@ final class ContainerManager: ObservableObject {
         Task { await checkDatabase(c) }
         Task { await moveLegacyWebData(into: c) }
         // gleich abgleichen, wenn faellig (vorher erst beim naechsten Wechsel in den Vordergrund): eine abgelaufene
-        // Sitzung zeigt sich so sofort
-        studip.runIfDue()
-        hildesheim?.runIfDue()
-        qis?.runIfDue()
+        // Sitzung zeigt sich so sofort. Nicht, wenn iOS die App fuer eine Hintergrundaufgabe gestartet hat (S8): dann
+        // gleicht nur die Aufgabe ab, mit ihrem Umfang und ihrer Zeit (sonst lief hier ein voller Abgleich ohne
+        // Hintergrundzeit los, und die Aufgabe fand den Container besetzt). Erst im naechsten Takt gefragt, dann gibt es
+        // `UIApplication`; ein Start im Vordergrund gleicht ohnehin beim Wechsel nach "aktiv" ab.
+        Task { @MainActor [weak self] in
+            guard let self, self.active === c, !AppActivity.isInBackground() else { return }
+            self.studip.runIfDue()
+            self.hildesheim?.runIfDue()
+            self.qis?.runIfDue()
+        }
+    }
+
+    /// Laeuft auf diesem Container ein Abgleich, auch einer eines abgeloesten Abgleich-Objekts (Wechsel waehrend eines
+    /// Laufs)? Dieselbe Liste wie beim Loeschen (`syncs`); der Hintergrund startet dann keinen zweiten (S8).
+    func isSyncing(_ key: DataContainerKey) -> Bool {
+        syncs.contains { $0.key == key && $0.sync?.isRunning == true }
     }
 
     /// Datenbank gleich pruefen: gehoert sie einer anderen Hochschule (`UniversityMismatch`), nicht weiterarbeiten

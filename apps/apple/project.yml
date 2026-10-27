@@ -115,6 +115,15 @@ targets:
                 - application/vnd.uniflow.solution+json
         # Dateien aus "Öffnen in" werden in die App kopiert (nicht an Ort und Stelle bearbeitet)
         LSSupportsOpeningDocumentsInPlace: false
+        # Abgleich im Hintergrund (S8, UniFlow/Services/BackgroundSync.swift): kurzer Lauf (BGAppRefreshTask, nur
+        # Listen) und langer mit Netz (BGProcessingTask, Downloads), beide fruehestens 8, 15 und 20 Uhr. Auch im Release
+        # noetig; keine ATS-Ausnahme, kein Server, keine Push-Nachrichten.
+        BGTaskSchedulerPermittedIdentifiers:
+          - de.uniflow.ai.sync.refresh
+          - de.uniflow.ai.sync.files
+        UIBackgroundModes:
+          - fetch
+          - processing
         # kein NSAppTransportSecurity: nur HTTPS (Stud.IP, Learnweb, LSF, Opencast); Debug siehe postBuildScripts
   UniFlowTests:
     type: bundle.unit-test
