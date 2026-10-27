@@ -79,7 +79,7 @@ final class AbnahmeV1AppTests: XCTestCase {
     func testReceivedSolutionMessageDependsOnPlus() {
         XCTAssertTrue(SolutionSharing.receivedMessage(label: "Lösung", canView: true).contains("„Ebenen“"))
         let free = SolutionSharing.receivedMessage(label: "Lösung", canView: false)
-        XCTAssertTrue(free.contains("mit Plus"))
+        XCTAssertTrue(free.contains("ab Studora Plus"))
         XCTAssertFalse(free.contains("erscheint"))
     }
 

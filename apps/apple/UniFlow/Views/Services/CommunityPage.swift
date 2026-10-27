@@ -26,7 +26,7 @@ struct CommunityPage: View {
     /// iPad", obwohl Plus Loesungen als Datei teilt)
     static func text(onDevice: Bool) -> String {
         onDevice
-            ? "Die Community läuft über CloudKit und braucht einen Build mit iCloud-Container (Apple Developer Program). In diesem Build wird nichts veröffentlicht und nichts gesucht. Mit Plus gibst du eigene Lösungen selbst als verschlüsselte Datei weiter (im Editor unter „Ebenen“) – nur an die, denen du sie schickst."
+            ? "Die Community läuft über CloudKit und braucht einen Build mit iCloud-Container (Apple Developer Program). In diesem Build wird nichts veröffentlicht und nichts gesucht. Ab \(UFPlan.plus.name) gibst du eigene Lösungen selbst als verschlüsselte Datei weiter (im Editor unter „Ebenen“) – nur an die, denen du sie schickst."
             : "Diese Installation läuft nur für dich auf deinem PC. Eine Community braucht einen gemeinsamen Server mit Anmeldung, Moderation und Freigabe-Regeln. Es werden keine Inhalte geteilt, nichts verlässt deinen Rechner."
     }
 

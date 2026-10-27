@@ -338,7 +338,7 @@ enum SolutionSharing {
     /// steht das dabei, statt "erscheint unter Ebenen" zu versprechen.
     static func receivedMessage(label: String, canView: Bool) -> String {
         canView ? "\(label) gespeichert – sie erscheint in der passenden PDF unter „Ebenen“."
-            : "\(label) gespeichert – ansehen kannst du sie mit Plus (Einstellungen → Zugang & Darstellung → Tarif)."
+            : "\(label) gespeichert – ansehen kannst du sie ab \(UFPlan.plus.name) (Einstellungen → Zugang & Darstellung → Tarif)."
     }
 
     /// Datei *.uniflowsolution uebernehmen (Teilen-Menue, Dateien-App, AirDrop): Kopf pruefen, verschluesselt ablegen.

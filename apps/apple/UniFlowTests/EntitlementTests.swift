@@ -6,14 +6,23 @@ import XCTest
 final class EntitlementTests: XCTestCase {
 
     func testProductToPlan() {
-        XCTAssertEqual(UFPlan.allCases, [.free, .plus])
+        // vier Tarife (Entscheidung 27.10.2026, plans.json), Rohwerte wie im Vertrag
+        XCTAssertEqual(UFPlan.allCases, [.free, .plus, .proConnect, .proAI])
+        XCTAssertEqual(UFPlan.allCases.map(\.rawValue), ["free", "plus", "pro_connect", "pro_ai"])
         XCTAssertEqual(UFPlan(productID: "de.uniflow.plus.monthly"), .plus)
-        // Pro wird vorerst nicht angeboten (Entscheidung 25.10.2026): das fruehere Produkt gibt keinen Tarif
+        XCTAssertEqual(UFPlan(productID: "de.uniflow.proconnect.monthly"), .proConnect)
+        XCTAssertEqual(UFPlan(productID: "de.uniflow.proai.monthly"), .proAI)
+        // das fruehere Pro-Produkt (bis 25.10.2026) gibt keinen Tarif
         XCTAssertNil(UFPlan(productID: "de.uniflow.pro.monthly"))
         XCTAssertNil(UFPlan(productID: "fremd"))
         XCTAssertNil(UFPlan.free.productID)
-        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly"])
+        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.proconnect.monthly", "de.uniflow.proai.monthly"])
+        XCTAssertEqual(UFPlan.paid, [.plus, .proConnect, .proAI])
         XCTAssertLessThan(UFPlan.free, .plus)
+        XCTAssertLessThan(UFPlan.plus, .proConnect)
+        XCTAssertLessThan(UFPlan.proConnect, .proAI)
+        XCTAssertEqual(UFPlan.allCases.map(\.lower), [nil, .free, .plus, .proConnect])
+        XCTAssertEqual(UFPlan.allCases.map(\.name), ["Studora Free", "Studora Plus", "Studora Pro Connect", "Studora Pro AI"])
     }
 
     /// Free: planen (Lernplanung), Dokumente oeffnen, Faecher geordnet sehen und der Rest des Uni-Alltags
@@ -71,10 +80,13 @@ final class EntitlementTests: XCTestCase {
         XCTAssertTrue(UFFeature.community.detail?.contains("in der Community veröffentlichen") == true)
     }
 
-    /// Plus bietet schon heute mehr als Free (Schreiben, Uebung und Skript, Loesung als Datei teilen)
+    /// Plus bietet schon heute mehr als Free (Schreiben, Uebung und Skript, Loesung als Datei teilen); Pro Connect und
+    /// Pro AI noch nicht mehr als Plus (ihre Funktionen brauchen den Dienst, die Karte sagt es offen)
     func testPlusHasExtras() {
         XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .free))
         XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .plus))
+        XCTAssertFalse(UFFeatureMatrix.hasAvailableExtras(in: .proConnect))
+        XCTAssertFalse(UFFeatureMatrix.hasAvailableExtras(in: .proAI))
     }
 
     func testDowngradeKeepsNotesReadableAndExportable() {
@@ -82,11 +94,14 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFFeatureMatrix.notes(plan: .plus), UFNoteAccess(canView: true, canExport: true, canEdit: true))
     }
 
-    /// Inhalt der zwei Tarifkarten (Abschnitt 4), ohne KI-Zeilen
+    /// Geraete-Funktionen der Tarifkarten (Abschnitt 4): keine davon ist KI (die Studora-KI braucht den Dienst und
+    /// steht nur unter "in Vorbereitung", PlanContractTests)
     func testPlanCards() {
         XCTAssertEqual(UFFeatureMatrix.added(in: .free),
                        [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes, .uniGrades])
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 }, [.pencilWriting, .community, .splitView, .flashcards])
+        XCTAssertEqual(UFFeatureMatrix.added(in: .proConnect), [])
+        XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [])
         for f in UFFeature.allCases {
             XCTAssertFalse(f.title.contains("KI"), f.rawValue)
             XCTAssertFalse((f.detail ?? "").contains("KI"), f.rawValue)
@@ -112,6 +127,36 @@ final class EntitlementTests: XCTestCase {
             .init(productID: "de.uniflow.plus.monthly", expirationDate: earlier),
             .init(productID: "de.uniflow.plus.monthly", expirationDate: later),
         ], now: now), .plus)
+        // hoechster gueltiger Tarif gilt, gleich in welcher Reihenfolge
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [
+            .init(productID: "de.uniflow.proai.monthly", expirationDate: later),
+            .init(productID: "de.uniflow.plus.monthly", expirationDate: later),
+            .init(productID: "de.uniflow.proconnect.monthly", expirationDate: later),
+        ], now: now), .proAI)
+        // abgelaufenes Pro AI, gueltiges Pro Connect -> Pro Connect; durch Upgrade ersetztes Plus zaehlt nicht
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [
+            .init(productID: "de.uniflow.proai.monthly", expirationDate: earlier),
+            .init(productID: "de.uniflow.proconnect.monthly", expirationDate: later),
+        ], now: now), .proConnect)
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [
+            .init(productID: "de.uniflow.plus.monthly", expirationDate: later, isUpgraded: true),
+            .init(productID: "de.uniflow.proconnect.monthly", expirationDate: later),
+        ], now: now), .proConnect)
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [
+            .init(productID: "de.uniflow.proai.monthly", expirationDate: later, revocationDate: earlier),
+            .init(productID: "de.uniflow.plus.monthly", expirationDate: later),
+        ], now: now), .plus, "erstattetes Pro AI faellt auf das gueltige Plus zurueck")
+    }
+
+    /// Vorgemerkter Wechsel aus der RenewalInfo: nur ein anderes, bekanntes Produkt, das sich verlaengert
+    func testPendingPlanFromRenewalInfo() {
+        XCTAssertEqual(UFEntitlementResolver.pendingPlan(current: .proAI, willAutoRenew: true, autoRenewProductID: "de.uniflow.plus.monthly"), .plus)
+        XCTAssertNil(UFEntitlementResolver.pendingPlan(current: .proAI, willAutoRenew: true, autoRenewProductID: "de.uniflow.proai.monthly"))
+        XCTAssertNil(UFEntitlementResolver.pendingPlan(current: .proAI, willAutoRenew: false, autoRenewProductID: "de.uniflow.plus.monthly"),
+                     "gekuendigt: kein Wechsel, der Tarif endet")
+        XCTAssertNil(UFEntitlementResolver.pendingPlan(current: .plus, willAutoRenew: true, autoRenewProductID: "de.uniflow.pro.monthly"))
+        XCTAssertNil(UFEntitlementResolver.pendingPlan(current: .plus, willAutoRenew: true, autoRenewProductID: nil))
+        XCTAssertNil(UFEntitlementResolver.pendingPlan(current: .free, willAutoRenew: true, autoRenewProductID: "de.uniflow.plus.monthly"))
     }
 
     func testTrialEndsAfterWeek() {
@@ -131,7 +176,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertFalse(ent.loading)
         XCTAssertEqual(ent.access(.splitView), .locked(.plus))
         XCTAssertEqual(ent.access(.flashcards), .locked(.plus))
-        XCTAssertTrue(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Enthalten in Plus."))
+        XCTAssertTrue(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Enthalten ab Studora Plus."))
         XCTAssertFalse(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Bald"))
         XCTAssertTrue(ent.allows(.studyPlanning), "Lernplanung gehoert zu Free")
         ent.setPlanForTesting(.plus)
@@ -139,16 +184,26 @@ final class EntitlementTests: XCTestCase {
         XCTAssertTrue(ent.allows(.flashcards), "mit Plus frei")
         XCTAssertTrue(UFLockedCard.message(.flashcards, access: .comingSoon).contains("Bald verfügbar"), "Sperrkarte kennt \"bald\" weiter")
         let locked = UFLockedCard.message(.pencilWriting, access: .locked(.plus))
-        XCTAssertTrue(locked.contains("Enthalten in Plus."))
+        XCTAssertTrue(locked.contains("Enthalten ab Studora Plus."))
         XCTAssertFalse(locked.contains("Pro"))
+        XCTAssertEqual(ent.access(.pencilWriting).requiredPlan, nil, "mit Plus frei")
+        XCTAssertEqual(UFAccess.locked(.plus).requiredPlan, .plus)
+        // Pro Connect und Pro AI: alles aus Plus frei
+        ent.setPlanForTesting(.proAI)
+        XCTAssertTrue(ent.allows(.pencilWriting))
+        XCTAssertTrue(ent.allows(.flashcards))
+        ent.setPlanForTesting(.proConnect)
+        XCTAssertTrue(ent.allows(.community))
+        XCTAssertTrue(ent.allows(.splitView))
         // Uni & Noten ist da (QIS bzw. LSF auf dem Geraet) und in jedem Tarif frei; die Sperrkarte kennt "bald" weiter
         XCTAssertEqual(ent.access(.uniGrades), .allowed)
         let soon = UFLockedCard.message(.uniGrades, access: .comingSoon)
         XCTAssertFalse(soon.contains("Enthalten in"))
         XCTAssertTrue(soon.contains("Bald verfügbar"))
-        // Community in Free: Schloss, "Enthalten in Plus"
+        // Community in Free: Schloss, "Enthalten ab Studora Plus"
         let free = Entitlements(observe: false, plan: .free)
-        XCTAssertTrue(UFLockedCard.message(.community, access: free.access(.community)).contains("Enthalten in Plus."))
+        XCTAssertTrue(UFLockedCard.message(.community, access: free.access(.community)).contains("Enthalten ab Studora Plus."))
+        XCTAssertEqual(free.access(.community).requiredPlan, .plus)
     }
 
     // MARK: Angebotstexte (Richtlinie 3.1.2)
@@ -162,8 +217,21 @@ final class EntitlementTests: XCTestCase {
                        "1,99 €/Monat, monatlich kündbar")
         XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month, freeTrial: nil, eligible: true),
                        "1,99 €/Monat, monatlich kündbar")
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: true), "Plus – 1 Woche gratis")
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: false), "Plus für 1,99 €/Monat")
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: true), "Studora Plus – 1 Woche gratis")
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month, freeTrial: week, eligible: false), "Studora Plus für 1,99 €/Monat")
+        XCTAssertEqual(UFOfferText.button(plan: .proAI, price: "3,99 €", period: month, freeTrial: week, eligible: true), "Studora Pro AI – 1 Woche gratis")
+        XCTAssertEqual(UFOfferText.button(plan: .proConnect, price: "2,99 €", period: month, freeTrial: week, eligible: false),
+                       "Studora Pro Connect für 2,99 €/Monat")
+        // Wechsel in der Abo-Gruppe: hoeher sofort, kleiner ab der naechsten Verlaengerung (regelt Apple)
+        XCTAssertEqual(UFOfferText.switchButton(to: .proAI), "Zu Studora Pro AI wechseln")
+        XCTAssertEqual(UFOfferText.switchNote(to: .proAI, from: .plus), "Gilt sofort. Apple verrechnet den bisherigen Tarif anteilig.")
+        XCTAssertEqual(UFOfferText.switchNote(to: .plus, from: .proAI), "Gilt ab der nächsten Verlängerung, bis dahin bleibt Studora Pro AI.")
+        let nov27 = DateComponents(calendar: Calendar(identifier: .gregorian), timeZone: TimeZone(identifier: "Europe/Berlin"),
+                                   year: 2026, month: 11, day: 27, hour: 12).date!
+        XCTAssertEqual(UFOfferText.pendingNote(.plus, at: nov27), "Wechsel zu Studora Plus vorgemerkt ab 27. November.")
+        XCTAssertEqual(UFOfferText.pendingNote(.plus, at: nil), "Wechsel zu Studora Plus zur nächsten Verlängerung vorgemerkt.")
+        XCTAssertEqual(UFOfferText.cancelledNote(.proConnect, endsAt: nov27),
+                       "Gekündigt – Studora Pro Connect endet am 27. November, danach gilt Studora Free.")
         XCTAssertEqual(UFOfferText.period(value: 2, unit: .week), "2 Wochen")
         XCTAssertEqual(UFOfferText.per(value: 1, unit: .year), "/Jahr")
         XCTAssertEqual(UFOfferText.per(value: 3, unit: .month), "/3 Monate")

@@ -94,7 +94,7 @@ struct UniFlowApp: App {
                     // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (nur mit Plus und Container)
                     if let code = CommunityJoinLink.code(from: url) {
                         guard containers.active != nil, Entitlements.shared.allows(.community) else {
-                            toast.show("Lerngruppen gibt es mit Plus, nach Anmeldung und Hochschulwahl.", seconds: 4)
+                            toast.show("Lerngruppen gibt es ab \(UFPlan.plus.name), nach Anmeldung und Hochschulwahl.", seconds: 4)
                             return
                         }
                         Task {

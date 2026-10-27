@@ -34,7 +34,7 @@
           ],
           "displayPrice" : "1.99",
           "familyShareable" : false,
-          "groupNumber" : 1,
+          "groupNumber" : 3,
           "internalID" : "6500000001",
           "introductoryOffer" : {
             "internalID" : "6500000011",
@@ -44,14 +44,74 @@
           },
           "localizations" : [
             {
-              "description" : "Schreiben mit Apple Pencil, Übung und Skript nebeneinander, Karteikarten, bald Community",
-              "displayName" : "UniFlow Plus",
+              "description" : "Schreiben mit Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lösungen teilen",
+              "displayName" : "Studora Plus",
               "locale" : "de"
             }
           ],
           "productID" : "de.uniflow.plus.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Plus monatlich",
+          "referenceName" : "Studora Plus monatlich",
+          "subscriptionGroupID" : "21500001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6500000002",
+          "introductoryOffer" : {
+            "internalID" : "6500000012",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Alles aus Studora Plus; weitere Funktionen in Vorbereitung",
+              "displayName" : "Studora Pro Connect",
+              "locale" : "de"
+            }
+          ],
+          "productID" : "de.uniflow.proconnect.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Studora Pro Connect monatlich",
+          "subscriptionGroupID" : "21500001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "3.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6500000003",
+          "introductoryOffer" : {
+            "internalID" : "6500000013",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Alles aus Studora Plus; weitere Funktionen in Vorbereitung",
+              "displayName" : "Studora Pro AI",
+              "locale" : "de"
+            }
+          ],
+          "productID" : "de.uniflow.proai.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Studora Pro AI monatlich",
           "subscriptionGroupID" : "21500001",
           "type" : "RecurringSubscription"
         }

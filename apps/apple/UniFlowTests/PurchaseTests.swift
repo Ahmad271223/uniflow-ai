@@ -3,7 +3,8 @@ import StoreKitTest
 import XCTest
 @testable import UniFlow
 
-/// Abo-Kauf nur in der lokalen StoreKit-Testsitzung (keine echten Produkte, keine Abrechnung).
+/// Abo-Kauf nur in der lokalen StoreKit-Testsitzung (keine echten Produkte, keine Abrechnung). Drei Produkte in einer
+/// Abo-Gruppe (Studora Plus, Pro Connect, Pro AI); Wechsel zwischen ihnen regelt StoreKit wie der App Store.
 @MainActor
 final class PurchaseTests: XCTestCase {
     private var session: SKTestSession!
@@ -37,6 +38,13 @@ final class PurchaseTests: XCTestCase {
         _ = await eventually { await ent.refresh(); return ent.plan == plan }
     }
 
+    /// V1 ohne Konto beim Dienst: kein gueltiger Kauf traegt einen appAccountToken (BillingServiceLink.swift)
+    private func assertNoAccountToken(file: StaticString = #filePath, line: UInt = #line) async {
+        for await result in StoreKit.Transaction.currentEntitlements {
+            if case .verified(let t) = result { XCTAssertNil(t.appAccountToken, t.productID, file: file, line: line) }
+        }
+    }
+
     /// Steht eine Transaktion, die die Testsitzung noch als ausstehende Kaufanfrage fuehrt, in currentEntitlements?
     private static func entitlementsListPendingAskToBuy(_ session: SKTestSession) async -> Bool {
         let pending = Set(session.allTransactions().filter(\.pendingAskToBuyConfirmation).map { UInt64($0.identifier) })
@@ -67,9 +75,20 @@ final class PurchaseTests: XCTestCase {
     /// einem Hinweis statt falsch rot. Er heisst "test0…", weil XCTest die Tests einer Klasse alphabetisch ausfuehrt.
     func test0ProductsCarryOneFreeWeekUntilFirstPurchase() async throws {
         let (store, ent) = await makeStore()
-        // nur Plus wird angeboten (Entscheidung 25.10.2026), kein Pro-Produkt mehr
-        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly"])
+        // drei Abo-Tarife (Entscheidung 27.10.2026), nach Preis sortiert wie die Karten; das fruehere Pro gibt es nicht
+        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly", "de.uniflow.proconnect.monthly", "de.uniflow.proai.monthly"])
         XCTAssertEqual(ent.plan, .free)
+        // jeder Tarif: 1 Woche gratis, monatlich, eine Abo-Gruppe
+        for plan in UFPlan.paid {
+            let q = try XCTUnwrap(store.product(for: plan), plan.rawValue)
+            XCTAssertEqual(q.ufFreeTrial?.0, 1, plan.rawValue)
+            XCTAssertEqual(q.ufFreeTrial?.1, .week, plan.rawValue)
+            XCTAssertEqual(q.ufPeriod.0, 1, plan.rawValue)
+            XCTAssertEqual(q.ufPeriod.1, .month, plan.rawValue)
+            XCTAssertEqual(q.subscription?.subscriptionGroupID, store.products.first?.subscription?.subscriptionGroupID)
+            XCTAssertEqual(q.displayName, plan.name)
+        }
+        XCTAssertEqual(store.products.map(\.price), store.products.map(\.price).sorted())
         let p = try XCTUnwrap(store.product(for: .plus))
         let eligibleNow = store.introEligible[p.id] == true
         let trial = try XCTUnwrap(p.ufFreeTrial)
@@ -77,7 +96,7 @@ final class PurchaseTests: XCTestCase {
         XCTAssertEqual(trial.1, .week)
         XCTAssertEqual(p.ufPeriod.1, .month)
         XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true),
-                       "Plus – 1 Woche gratis")
+                       "Studora Plus – 1 Woche gratis")
         XCTAssertTrue(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true)
             .hasPrefix("1 Woche gratis, danach \(p.displayPrice)/Monat"))
         guard eligibleNow, !Self.processHadPurchase else {
@@ -88,8 +107,11 @@ final class PurchaseTests: XCTestCase {
         let outcome = await store.purchase(p)
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
         XCTAssertEqual(store.introEligible[p.id], false)
+        // der Anspruch gilt je Abo-Gruppe: auch Pro Connect und Pro AI zeigen danach keine Gratiswoche mehr
+        XCTAssertEqual(store.introEligible["de.uniflow.proconnect.monthly"], false)
+        XCTAssertEqual(store.introEligible["de.uniflow.proai.monthly"], false)
         XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
-                                          eligible: false), "Plus für \(p.displayPrice)/Monat")
+                                          eligible: false), "Studora Plus für \(p.displayPrice)/Monat")
         XCTAssertFalse(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
                                            eligible: store.introEligible[p.id] == true).contains("gratis"))
     }
@@ -299,5 +321,145 @@ final class PurchaseTests: XCTestCase {
         XCTAssertNil(fresh.lastError)
         XCTAssertEqual(freshEnt.plan, .plus)
         XCTAssertNotNil(freshEnt.expiresAt, "Ablauf des wiederhergestellten Abos fehlt")
+    }
+
+    // MARK: Vier Tarife
+
+    /// Kauf je Tarif: jeder Abo-Tarif schaltet sich selbst frei, mit allem aus Plus und Gratiswoche; nie mit
+    /// appAccountToken (V1 ohne Konto beim Dienst)
+    func testPurchaseOfEachPlanUnlocksItWithEverythingFromPlus() async throws {
+        let (store, ent) = await makeStore()
+        for plan in UFPlan.paid {
+            session.clearTransactions()
+            await waitForPlan(ent, .free)
+            XCTAssertEqual(ent.plan, .free, "Ausgangslage vor \(plan.rawValue)")
+            let product = try XCTUnwrap(store.product(for: plan), plan.rawValue)
+            let outcome = await store.purchase(product)
+            XCTAssertEqual(outcome, .success, "\(plan.rawValue): \(store.lastError ?? "")")
+            XCTAssertEqual(ent.plan, plan)
+            XCTAssertTrue(ent.inIntroOffer, "\(plan.rawValue) beginnt mit der Gratiswoche")
+            XCTAssertNotNil(ent.expiresAt, plan.rawValue)
+            XCTAssertEqual(ent.willRenew, true, plan.rawValue)
+            XCTAssertNil(ent.pendingPlan, plan.rawValue)
+            for f: UFFeature in [.pencilWriting, .community, .splitView, .flashcards, .studyPlanning, .readDocuments] {
+                XCTAssertTrue(ent.allows(f), "\(plan.rawValue): \(f.rawValue)")
+            }
+            XCTAssertEqual(ent.notes, UFNoteAccess(canView: true, canExport: true, canEdit: true))
+            await assertNoAccountToken()
+        }
+    }
+
+    /// Upgrade in der Gruppe gilt sofort: Plus -> Pro Connect -> Pro AI; der ersetzte Kauf zaehlt nicht mehr, es gilt
+    /// der hoechste Tarif
+    func testUpgradeTakesEffectImmediatelyAndHighestPlanWins() async throws {
+        let (store, ent) = await makeStore()
+        _ = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
+        XCTAssertEqual(ent.plan, .plus)
+        let up = await store.purchase(try XCTUnwrap(store.product(for: .proConnect)))
+        XCTAssertEqual(up, .success, store.lastError ?? "")
+        XCTAssertEqual(ent.plan, .proConnect, "Upgrade gilt sofort")
+        XCTAssertNil(ent.pendingPlan)
+        let top = await store.purchase(try XCTUnwrap(store.product(for: .proAI)))
+        XCTAssertEqual(top, .success, store.lastError ?? "")
+        XCTAssertEqual(ent.plan, .proAI)
+        XCTAssertTrue(ent.allows(.pencilWriting))
+        // nach dem Upgrade fuehrt StoreKit fuer die Gruppe nur noch den hoechsten Tarif als gueltig
+        var active: [String] = []
+        for await r in StoreKit.Transaction.currentEntitlements {
+            if case .verified(let t) = r, UFEntitlementResolver.isActive(UFEntitlementEntry(t), now: Date()) { active.append(t.productID) }
+        }
+        XCTAssertEqual(active, ["de.uniflow.proai.monthly"])
+        // neue Instanz (wie nach einem Neustart) kommt zum selben Ergebnis
+        let fresh = Entitlements(observe: false)
+        await fresh.refresh()
+        XCTAssertEqual(fresh.plan, .proAI)
+    }
+
+    /// Downgrade in der Gruppe gilt erst zur naechsten Verlaengerung: bis dahin bleibt Pro AI, der Wechsel ist
+    /// vorgemerkt; nach der Verlaengerung gilt Plus
+    func testDowngradeWaitsForNextRenewal() async throws {
+        let (store, ent) = await makeStore()
+        let proAI = try XCTUnwrap(store.product(for: .proAI))
+        _ = await store.purchase(proAI)
+        XCTAssertEqual(ent.plan, .proAI)
+        let down = await store.purchase(try XCTUnwrap(store.product(for: .plus)))
+        XCTAssertEqual(down, .success, store.lastError ?? "")
+        await ent.refresh()
+        XCTAssertEqual(ent.plan, .proAI, "Downgrade gilt erst ab der nächsten Verlängerung")
+        XCTAssertEqual(ent.pendingPlan, .plus)
+        XCTAssertEqual(ent.willRenew, true)
+        try session.forceRenewalOfSubscription(productIdentifier: proAI.id)
+        let switched = await eventually { await ent.refresh(); return ent.plan == .plus }
+        XCTAssertTrue(switched, "nach der Verlängerung gilt Plus")
+        XCTAssertNil(ent.pendingPlan)
+        XCTAssertTrue(ent.allows(.pencilWriting), "Plus-Rechte bleiben")
+    }
+
+    /// Ablauf eines Pro-Tarifs (gekuendigt, Zeitraum vorbei): zurueck auf Free, Notizen bleiben lesbar
+    func testExpiryOfProPlanFallsBackToFree() async throws {
+        let (store, ent) = await makeStore()
+        let proConnect = try XCTUnwrap(store.product(for: .proConnect))
+        _ = await store.purchase(proConnect)
+        XCTAssertEqual(ent.plan, .proConnect)
+        let bought = session.allTransactions().filter { $0.productIdentifier == proConnect.id }
+        XCTAssertFalse(bought.isEmpty)
+        for t in bought { try session.disableAutoRenewForTransaction(identifier: t.identifier) }
+        // gekuendigt: laeuft bis zum Ende des Zeitraums weiter, die Karte sagt es
+        let cancelled = await eventually { await ent.refresh(); return ent.willRenew == false }
+        XCTAssertTrue(cancelled, "Kündigung kommt in der RenewalInfo an")
+        XCTAssertEqual(ent.plan, .proConnect)
+        XCTAssertNil(ent.pendingPlan)
+        try session.expireSubscription(productIdentifier: proConnect.id)
+        // Eigenheit der Testsitzung (Xcode 27.1, gemessen): nach einer erzwungenen Verlaengerung in einem frueheren
+        // Test desselben Laufs (testDowngradeWaitsForNextRenewal) meldet currentEntitlements den Ablauf eines Pro-Abos
+        // erst nach etwa 15 Sekunden, allein nach unter einer. Die Testsitzung hat ihn sofort. Darum bis zu 30 Sekunden;
+        // kommt Free gar nicht, bleibt der Test rot.
+        let expired = await eventually(30) { await ent.refresh(); return ent.plan == .free }
+        XCTAssertTrue(expired, "Ablauf kam nicht an")
+        XCTAssertEqual(ent.plan, .free)
+        XCTAssertNil(ent.willRenew)
+        XCTAssertFalse(ent.allows(.pencilWriting))
+        XCTAssertEqual(ent.notes, UFNoteAccess(canView: true, canExport: true, canEdit: false))
+    }
+
+    /// Kaufanfrage fuer Pro AI: erst ausstehend und weiter Free, nach Freigabe Pro AI
+    func testAskToBuyForProAIIsPendingUntilApproved() async throws {
+        session.askToBuyEnabled = true
+        let (store, ent) = await makeStore()
+        let proAI = try XCTUnwrap(store.product(for: .proAI))
+        let outcome = await store.purchase(proAI)
+        XCTAssertEqual(outcome, .pending, store.lastError ?? "")
+        XCTAssertNil(store.lastError)
+        await ent.refresh()
+        // Eigenheit der Testsitzung wie in testAskToBuyIsPendingUntilApproved
+        let stillFree = {
+            XCTAssertEqual(ent.plan, .free)
+            XCTAssertFalse(ent.allows(.pencilWriting))
+        }
+        if await Self.entitlementsListPendingAskToBuy(session) {
+            XCTExpectFailure("StoreKit-Testsitzung meldet die ausstehende Kaufanfrage schon als Anspruch", strict: false,
+                             failingBlock: stillFree)
+        } else {
+            stillFree()
+        }
+        let t = try XCTUnwrap(session.allTransactions().first { $0.productIdentifier == proAI.id })
+        try session.approveAskToBuyTransaction(identifier: t.identifier)
+        await waitForPlan(ent, .proAI)
+        XCTAssertEqual(ent.plan, .proAI)
+        XCTAssertTrue(ent.allows(.pencilWriting))
+    }
+
+    /// Wiederherstellen eines Pro-Tarifs auf einer neuen Installation
+    func testRestoreOfProPlanOnNewInstall() async throws {
+        let (store, ent) = await makeStore()
+        _ = await store.purchase(try XCTUnwrap(store.product(for: .proAI)))
+        XCTAssertEqual(ent.plan, .proAI)
+        let freshEnt = Entitlements(observe: false)
+        let fresh = PurchaseStore(entitlements: freshEnt)
+        await fresh.loadProducts()
+        XCTAssertEqual(freshEnt.plan, .free)
+        await fresh.restore()
+        XCTAssertNil(fresh.lastError)
+        XCTAssertEqual(freshEnt.plan, .proAI)
     }
 }

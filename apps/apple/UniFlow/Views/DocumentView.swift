@@ -440,7 +440,7 @@ struct DocumentView: View {
                 .disabled(!canWrite)
             if !planAllowsWriting && !readOnly {
                 // Free: Schloss mit Weg zur Abo-Seite statt still nicht schreibender Stift
-                Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (Plus)", systemImage: "lock") }
+                Button { lockedFeature = .pencilWriting } label: { Label("Schreiben (\(UFPlan.plus.name))", systemImage: "lock") }
                     .labelStyle(.titleAndIcon)
             }
         }
@@ -461,7 +461,7 @@ struct DocumentView: View {
                 else if entitlements.allows(.splitView) { choosingCompanion = true }
                 else { lockedFeature = .splitView }
             } label: {
-                Label(companion == nil ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (Plus)") : "Teilung beenden",
+                Label(companion == nil ? (entitlements.allows(.splitView) ? "Geteilt" : "Geteilt (\(UFPlan.plus.name))") : "Teilung beenden",
                       systemImage: companion == nil && !entitlements.allows(.splitView) ? "lock" : "rectangle.split.2x1")
             }
             Button { pencilOnly.toggle() } label: {
@@ -477,7 +477,7 @@ struct DocumentView: View {
                 // B) nur eigene Notizen, ohne Original (Plus)
                 Section("Nur eigene Notizen") {
                     Button { openSolutionSheet(.share) } label: {
-                        Label(entitlements.allows(.community) ? "Lösung teilen …" : "Lösung teilen … (Plus)",
+                        Label(entitlements.allows(.community) ? "Lösung teilen …" : "Lösung teilen … (\(UFPlan.plus.name))",
                               systemImage: entitlements.allows(.community) ? "person.2" : "lock")
                     }
                     Button { openSolutionSheet(.shared) } label: { Label("Meine geteilten Lösungen …", systemImage: "tray.full") }
@@ -488,7 +488,7 @@ struct DocumentView: View {
                 if !planAllowsWriting && !readOnly {
                     // Free: schreibende Eintraege gesperrt, Schloss fuehrt zur Abo-Seite
                     Button { lockedFeature = .pencilWriting } label: {
-                        Label("Schreiben, Seiten und Lesezeichen mit Plus", systemImage: "lock")
+                        Label("Schreiben, Seiten und Lesezeichen ab \(UFPlan.plus.name)", systemImage: "lock")
                     }
                     Divider()
                 } else if !ownNotesVisible {
@@ -644,7 +644,7 @@ struct DocumentView: View {
                     }
                 }
             } else {
-                Button { solutionSheet = .locked } label: { Label("Lösungen anderer ansehen (Plus)", systemImage: "lock") }
+                Button { solutionSheet = .locked } label: { Label("Lösungen anderer ansehen (\(UFPlan.plus.name))", systemImage: "lock") }
             }
         } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
         .disabled(store.pdf == nil)
@@ -777,7 +777,7 @@ struct DocumentView: View {
             } else if !planAllowsWriting {
                 Divider().frame(height: 14)
                 Button { lockedFeature = .pencilWriting } label: {
-                    Label("Nur ansehen – Schreiben mit Plus", systemImage: "lock").lineLimit(1)
+                    Label("Nur ansehen – Schreiben ab \(UFPlan.plus.name)", systemImage: "lock").lineLimit(1)
                 }
                 .accessibilityHint("Öffnet die Tarifwahl")
             } else if !ownNotesVisible {

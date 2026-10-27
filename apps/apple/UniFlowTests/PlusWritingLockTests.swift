@@ -188,7 +188,7 @@ final class PlusWritingLockTests: XCTestCase {
         XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(NotebookDialog.feature))
         XCTAssertEqual(UFFeatureMatrix.access(.readDocuments, plan: .free), .allowed)
         XCTAssertEqual(Entitlements(observe: false, plan: .free).access(.splitView), .locked(.plus), "geteilte Ansicht: Schloss")
-        XCTAssertTrue(UFLockedCard.message(.pencilWriting, access: .locked(.plus)).contains("Enthalten in Plus."))
+        XCTAssertTrue(UFLockedCard.message(.pencilWriting, access: .locked(.plus)).contains("Enthalten ab Studora Plus."))
     }
 
     // MARK: Endgueltig loeschen

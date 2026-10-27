@@ -662,7 +662,14 @@ private struct AppAccountCards: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufSwitchPlan) private var switchPlan
+    @ObservedObject private var ent = Entitlements.shared
     @State private var plans = false
+
+    /// "Studora Free, Studora Plus, Studora Pro Connect oder Studora Pro AI" (Namen aus plans.json)
+    static var planNames: String {
+        let names = UFPlan.allCases.map(\.name)
+        return names.dropLast().joined(separator: ", ") + " oder " + names.last!
+    }
 
     var body: some View {
         UFGridLayout(spacing: 16, minWidth: 340) {
@@ -706,10 +713,12 @@ private struct AppAccountCards: View {
     /// Platz fuer den Tarif; Inhalt (aktueller Tarif, Verwalten, Wiederherstellen) baut das Abo-Paket
     private var planCard: some View {
         UFCard {
-            UFCardHead("Tarif", icon: "star")
+            UFCardHead("Tarif", icon: "star") {
+                if !ent.loading { UFBadge(ent.plan.name, tone: ent.plan == .free ? .neutral : .ok) }
+            }
             Text(canSwitchPlan
-                 ? "Free oder Plus wählen, Abo verwalten und Käufe wiederherstellen."
-                 : "Die Auswahl zwischen Free und Plus folgt hier.")
+                 ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen."
+                 : "Die Auswahl zwischen \(Self.planNames) folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
             UFFlexWrap(gap: 9.6) {
                 UFButton("Tarif wechseln", icon: "star", kind: .primary, size: .small) {
