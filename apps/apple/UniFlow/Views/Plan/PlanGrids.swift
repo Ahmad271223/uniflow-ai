@@ -14,6 +14,11 @@ extension PlanNames {
                 + dd.list("packages").map { (title: $0.s("subject") ?? "", module: moduleKey($0["module_id"])) }
         })
     }
+
+    /// Rand eines Lernblocks: Fachfarbe des Pakets (`--ec: p.color || var(--info)`)
+    static func studyColor(_ p: JSONValue) -> Color {
+        p.s("color").flatMap { UIColor(hex: $0) }.map { Color(uiColor: $0) } ?? UF.info
+    }
 }
 
 // MARK: - Spuren fuer gleichzeitige Termine (lanes)
@@ -329,7 +334,7 @@ struct PlanEventBlock: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("\(e.s("start") ?? "")\(compact ? "" : " – \(e.s("end") ?? "")")").ufFont(10.88, lh: 1.25).foregroundStyle(UF.text2)
                     .lineLimit(narrow ? 1 : nil).truncationMode(.tail)
-                Text(name).ufFont(12.16, 700, lh: 1.25).foregroundStyle(UF.text).lineLimit(narrow ? 1 : 2).padding(.vertical, 1.6)
+                Text(name).ufFont(narrow ? 10.88 : 12.16, 700, lh: 1.25).foregroundStyle(UF.text).lineLimit(narrow ? 1 : 2).padding(.vertical, 1.6)   // .narrow b: .68rem
                 if f.h > 54 && !narrow {
                     Text((e.s("room").flatMap { $0.isEmpty ? nil : $0 } ?? UFKind.label[e.s("kind") ?? ""] ?? "").components(separatedBy: ":").first ?? "")
                         .ufFont(10.88, lh: 1.25).foregroundStyle(UF.muted).lineLimit(1)
@@ -376,7 +381,7 @@ struct PlanPackageBlock: View {
                 Text("\(p.s("start_time") ?? "")\(compact ? "" : " – \(p.s("end_time") ?? "")")").lineLimit(narrow ? 1 : nil)
             }
             .ufFont(10.88, lh: 1.25).foregroundStyle(UF.text2)
-            Text(name).ufFont(12.16, 700, lh: 1.25).foregroundStyle(UF.text).lineLimit(narrow ? 1 : 2).padding(.vertical, 1.6)
+            Text(name).ufFont(narrow ? 10.88 : 12.16, 700, lh: 1.25).foregroundStyle(UF.text).lineLimit(narrow ? 1 : 2).padding(.vertical, 1.6)   // .narrow b: .68rem
             if f.h > 54 && !narrow { Text(p.s("title") ?? "").ufFont(10.88, lh: 1.25).foregroundStyle(UF.muted).lineLimit(1) }
             if f.h > 88 && !compact {
                 HStack(spacing: 4.8) {
@@ -398,7 +403,8 @@ struct PlanPackageBlock: View {
         .frame(width: f.w, height: f.h, alignment: .topLeading)
         .background(Color.mix(UF.info, 0.07, UF.surface))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(UF.info.opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
-        .overlay(alignment: .leading) { Rectangle().fill(UF.info).frame(width: 3) }
+        // linker Rand in der Fachfarbe (--ec), damit der Lernblock dieselbe Farbe zeigt wie die Termine des Fachs
+        .overlay(alignment: .leading) { Rectangle().fill(PlanNames.studyColor(p)).frame(width: 3) }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .opacity(status == "erledigt" ? 0.75 : 1)
         .contentShape(RoundedRectangle(cornerRadius: 10))
@@ -664,7 +670,7 @@ struct PlanDayTimeline: View {
         .padding(.vertical, 8.8).padding(.trailing, 14.4).padding(.leading, 14.4 + 4)
         .frame(width: max(0, W - 68), height: h)
         .background(Color.mix(UF.info, 0.08, UF.surface))
-        .overlay(alignment: .leading) { Rectangle().fill(UF.info).frame(width: 4) }
+        .overlay(alignment: .leading) { Rectangle().fill(PlanNames.studyColor(p)).frame(width: 4) }      // Fachfarbe wie im Web
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture { actions.openPackage(p.i("id") ?? 0) }

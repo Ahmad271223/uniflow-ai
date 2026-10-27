@@ -126,8 +126,8 @@ API beim Laden: `GET /calendar?start&end`, `GET /tasks/open`, `GET /modules`. Au
 | Tageskopf `.cal2-dh` | Wochentag, „T.M.“, Fortschrittsring (Farbe nach Status: nachholen rot, erledigt grün, teilweise orange, sonst accent), dazu Minuten, „Frei“, „Nichts geplant“ oder kompakt „–“. Klick → Tagesansicht | – | :70–75, 104 |
 | Zeitachse | 60 px pro Stunde; mindestens 08:00–19:00, wird durch Termine erweitert | – | :55–56, 95 |
 | Freie Fenster `.cal2-free` | grün schraffiert, Tooltip „Frei hh:mm–hh:mm“ | (`/timetable/week`) | :91 |
-| Uni-Termin `.cal2-ev` | Farbe des Termins, Uhrzeit, Name (kompakt/parallel: TINY-Kürzel wie „Mathe I“, „ET“, „DSA“, „Ü …“), Raum ab Höhe >54 px. `off` (nicht besucht) blass und durchgestrichen. Parallele Termine liegen in Spuren nebeneinander; `.narrow` ab 3 Spuren. Klick → Termin-Drawer | Termin-Drawer-APIs | :58–59, 63–69, 76–79, 107 |
-| Lernblock `.cal2-ev.study` | gestrichelter Info-Rahmen, Buch-Icon, Uhrzeit, Fach, Titel (ab >54 px), Fuß mit Status-Pill und Checkbox (ab >88 px, nicht kompakt). Klick → Lernpaket-Drawer | `GET /packages/:id` | :80–83, 101 |
+| Uni-Termin `.cal2-ev` | Farbe des Termins, Uhrzeit, Name (kompakt/parallel: eindeutiger Kurzname je Fach aus `plan-names.js` wie „Mathe I“, „SigSys“, „EGI“, „Ü …“, gemeinsame Fälle in `fixtures/plan-names`; in `.narrow` .68rem), Raum ab Höhe >54 px. `off` (nicht besucht) blass und durchgestrichen. Parallele Termine liegen in Spuren nebeneinander; `.narrow` ab 3 Spuren. Klick → Termin-Drawer | Termin-Drawer-APIs | :58–59, 63–69, 76–79, 107 |
+| Lernblock `.cal2-ev.study` | gestrichelter Info-Rahmen, linker Rand in der Fachfarbe, Buch-Icon, Uhrzeit, Fach, Titel (ab >54 px), Fuß mit Status-Pill und Checkbox (ab >88 px, nicht kompakt). Klick → Lernpaket-Drawer | `GET /packages/:id` | :80–83, 101 |
 | Checkbox `[data-pkgdone]` | setzt alle Aufgaben des Pakets auf erledigt bzw. zurück auf geplant; Toast „Lernpaket erledigt ✓“ oder „Wieder offen“ | `GET /packages/:id`, je Aufgabe `POST /tasks/:id/status` | :102 |
 | Jetzt-Linie `.cal2-now` | nur heute | – | :92 |
 | „+“-Button `.cal2-add` (nur Spalte heute) | „Lernpaket hinzufügen“ | `GET /modules` | :92, 105 |
@@ -333,7 +333,7 @@ API: `GET /modules/:id`.
 
 | Element/Funktion | Was der Nutzer sieht/tut | API | Datei:Zeile |
 |---|---|---|---|
-| Felder | Name; Farbe (Farbwähler); Priorität (Niedrig/Normal/Hoch); Klausurtermin (date); Checkbox „Modul aktiv (wird eingeplant)“; Checkbox „Gemeinsamer Wochentest“; „Abweichende Testdauer“ (Standard/15/30/45/60/90 min) | – | :54–56 |
+| Felder | Name; Farbe (12 Farben der Palette `PALETTE` und „Eigene Farbe“, gesendet nur bei Änderung); Priorität (Niedrig/Normal/Hoch); Klausurtermin (date); Checkbox „Modul aktiv (wird eingeplant)“; Checkbox „Gemeinsamer Wochentest“; „Abweichende Testdauer“ (Standard/15/30/45/60/90 min) | – | :54–56 |
 | Abbrechen/Speichern | Toast „Gespeichert“ | `PATCH /modules/:id {name,color,priority,exam_date,active,weekly_test,test_minutes}` | :57–58 |
 
 #### B.4.4 Modal „Zusammenfassung: <Woche>“ (`summarizeWeek`, views-misc.js:60–65)
@@ -809,7 +809,7 @@ Dunkel gilt bei `[data-theme=dark]` (:13–19) und bei `prefers-color-scheme: da
 | Sidebar/Nav | Sidebar padding .75rem .6rem; Link .55rem .7rem, radius 8px, text-2, 500; aktiv accent-soft | :46–63 |
 | Header-Suche | Input pill, bg surface-2, padding .5rem .8rem .5rem 2.2rem; Max-Breite 520px; `.kbd` .68rem, radius 5px; Popover radius 12px, sh-lg, max 60vh | :66–71, 326 |
 | `.avatar` | 34px, Kreis, accent-soft/accent-text, .78rem 700 | :325 |
-| **Kalender cal2** | Grid minmax(0,1fr) + 286px. main: radius 16px, padding .9rem 1rem 1rem. Raster 44px + 7 Spalten, gap 0 6px. Tageskopf radius 12px, heute accent-soft. Ring 18px conic (innen 11px). Achse .72rem. Spalte mit Stundenlinien (--hour 60px), heute accent-soft 40 %, `.drop` accent-soft. Termin radius 10px, padding .35rem .5rem, bg Farbe 13 % gemischt, linker Rand 3px. Lernblock gestrichelt in info 60 % und 7 %. Jetzt-Linie 2px accent mit 8px-Punkt. Add-Button 34px rund accent. `.narrow`. Legende .75rem | :330–354, 455–466, 481 |
+| **Kalender cal2** | Grid minmax(0,1fr) + 286px. main: radius 16px, padding .9rem 1rem 1rem. Raster 44px + 7 Spalten, gap 0 6px. Tageskopf radius 12px, heute accent-soft. Ring 18px conic (innen 11px). Achse .72rem. Spalte mit Stundenlinien (--hour 60px), heute accent-soft 40 %, `.drop` accent-soft. Termin radius 10px, padding .35rem .5rem, bg Farbe 13 % gemischt, linker Rand 3px. Lernblock gestrichelt in info 60 % und 7 %, linker Rand in der Fachfarbe. Jetzt-Linie 2px accent mit 8px-Punkt. Add-Button 34px rund accent. `.narrow`. Legende .75rem | :330–354, 455–466, 481 |
 | Seitenkarten / Donut / Mini-Kalender | side-card radius 16px, padding 1rem 1.1rem. Donut 104px (innen 76px). legend2 .8rem. todo-item radius 12px. quick-grid 2 Spalten. Mini-Kalender 7 Spalten, Zellen radius 8px, min 32px; heute accent/#fff; ausgewählt accent-soft; Punkte 4px | :355–367 |
 | Tagesansicht day2 | Termin radius 12px, padding .55rem .9rem, bg Farbe 10 %, linker Rand 4px; Icon-Kachel 38px radius 10px; study info 8 %; frei schraffiert ok 12 %. task2-Checkbox 22px rund, an = accent | :368–378 |
 | Monat | `.cal-month` 7 Spalten, gap .4rem; Zelle min 86px, radius 8px; Farbbalken 4px | :187–192 |
