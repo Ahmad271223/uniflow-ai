@@ -106,6 +106,15 @@ MSIX-Paket fuer den Store (Store signiert und verteilt Updates selbst): `msix/RE
 Zweiter Start (Doppelklick bei laufender App): das Einzelinstanz-Plugin holt das offene Fenster nach vorn, es gibt nie
 zwei Backends auf derselben Datenbank (seit 0.3.6).
 
+## Konto entfernen (Laptop weitergeben, anderer Account)
+
+Einstellungen → Konto → Stud.IP-/Learnweb-Anmeldung → „Konto entfernen“ (`POST /api/university/reset`, `app/reset.py`):
+löscht auf dem PC die gemerkte Sitzung und Zugangsdaten, die Browser-Profile der Anmeldefenster, die ganze Datenbank
+(Kurse, Dateien, Notizen, Karteikarten, Tests, Lernpläne, Stundenplan, Noten), heruntergeladene Dateien, die
+ChatGPT-Verbindung, die Sicherungen in `%LOCALAPPDATA%\UniFlow-Sicherungen` und die Cookies des App-Fensters
+(WebView2-Profil, Auftrag `clear` an den Fenster-Agenten). Danach ist die App leer, ein anderer Account meldet sich
+neu an. Hochschule und App-Einstellungen in der `.env` bleiben. Nicht möglich, während ein Abgleich läuft.
+
 ## KI über das eigene ChatGPT-Konto
 
 Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“: die Anmeldung bei OpenAI läuft in einem

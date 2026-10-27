@@ -247,6 +247,17 @@ fn handle_command(app: &tauri::AppHandle, port: u16, cmd: &serde_json::Value) {
     let id = cmd.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let kind = cmd.get("kind").and_then(|v| v.as_str()).unwrap_or("");
     let title = cmd.get("title").and_then(|v| v.as_str()).unwrap_or("UniFlow").to_string();
+    if kind == "clear" && !id.is_empty() {
+        // Hochschul-Konto entfernt (app/reset.py): Cookies und Speicher des WebView2-Profils loeschen, das alle Fenster
+        // der App teilen (WebSSO-, Stud.IP-, OpenAI-Sitzungen der Anmeldefenster), damit der naechste Mensch nicht
+        // angemeldet vorfindet, was der vorige hinterliess. Die Oberflaeche laedt sich danach selbst neu.
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.clear_all_browsing_data();
+        }
+        let _ = backend_json(port, "POST", &format!("/api/desktop/windows/{id}/state"),
+                             Some(&serde_json::json!({"status": "closed"})), Duration::from_secs(10));
+        return;
+    }
     let Some(url) = cmd.get("url").and_then(|v| v.as_str()).and_then(|u| tauri::Url::parse(u).ok()) else { return };
     if id.is_empty() || !allowed_window_url(&url) || url.scheme() == "about" {
         return;

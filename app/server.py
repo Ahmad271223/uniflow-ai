@@ -1134,6 +1134,26 @@ def api_university_session_forget():
     return {"ok": True}
 
 
+@app.post("/api/university/reset")
+def api_university_reset():
+    """Hochschul-Konto entfernen (Einzelplatz/Windows-App): Sitzung, Zugangsdaten, Browser-Profile, Datenbank, Dateien,
+    ChatGPT-Verbindung, Sicherungen und (Windows-App) die Cookies des App-Fensters loeschen – danach kann sich ein
+    anderer Account anmelden, von der vorigen Person bleibt nichts (app/reset.py). Nicht waehrend eines Abgleichs."""
+    from . import reset, unilogin
+    if config.is_hosted():
+        raise HTTPException(400, {"detail": "Im Dienst loeschst du dein Konto unter Konto → Konto loeschen.", "code": "use_account"})
+    if (unilogin.status() or {}).get("state") == "open":
+        raise HTTPException(409, "Das Anmeldefenster ist noch offen – bitte erst schliessen.")
+    if not _bg_lock.acquire(blocking=False):
+        raise HTTPException(409, f"Es laeuft gerade: {_bg_state.get('task') or 'Abgleich'} – bitte warten, bis es fertig ist.")
+    try:
+        if _bg_state.get("running"):
+            raise HTTPException(409, f"Es laeuft gerade: {_bg_state.get('task') or 'Abgleich'} – bitte warten, bis es fertig ist.")
+        return reset.wipe()
+    finally:
+        _bg_lock.release()
+
+
 @app.put("/api/university/session")
 def api_university_session_put(body: dict = Body(...)):
     """Dienst: Die App auf dem Geraet (Android/iPad) hinterlegt nach der Anmeldung im Anmeldefenster die Sitzung
