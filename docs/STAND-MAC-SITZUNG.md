@@ -491,3 +491,45 @@ Stud.IP ist der Abruf der Fristen und Foren vom iPad aus noch nicht gelaufen (St
 ohne Konten hat sie nicht. Entweder blendet der Server sie in den Antworten aus (wie `without_sync` im Generator),
 oder ihr dokumentiert sie als Teil des Vertrags – dann ziehen wir sie mit G2 nach und die letzte erwartete Abweichung
 fällt.
+
+## Echte Daten vom iPad (27.10.2026, 00:50–02:05) – Befunde und Bitten an die PC-Sitzung
+
+Der Inhaber hat sich im Simulator selbst angemeldet (LUH: Stud.IP + QIS; Hildesheim: CAS). Gezählt wurde nur aus
+einer Kopie der App-Datenbank, keine Namen, Noten oder Zugangsdaten ins Repo.
+
+| Wert | iPad | PC (26.10.) |
+| --- | --- | --- |
+| LUH: Stud.IP-Kurse / Dateien (PDF) | 20 / 159 (151) | 19 / 155 (147) |
+| LUH: `studip_events` roh | 1217 | 1217 |
+| LUH: QIS-Leistungen | 0 (Lauf ok, „noch keine Leistungen“) | 0 |
+| Hildesheim: Learnweb-Kurse | 9 | 9 |
+| Hildesheim: Learnweb-Dateien | **195** | **539** |
+| Hildesheim: LSF-Einträge (ohne Port) | 26 (13 wöchentlich, 1 vierzehntäglich, 12 einzeln) | 24 (15 / 9) |
+| Hildesheim: Ausnahmen aus EXDATE | 17 Zeilen | 17 |
+| Hildesheim: Leistungen / mit Note | 16 / 5 | 16 / 5 |
+
+**1. Stud.IP-Stundenplan war auf beiden Seiten falsch (behoben auf dem iPad, bitte in Python nachziehen).**
+Verglichen mit dem Stud.IP-Kalender des Inhabers (Woche 26.10. und 21.12.): `courses/{id}/events` und
+`users/{id}/schedule` liefern die Termine **aller** Gruppen jeder Veranstaltung. Stud.IP selbst zeigt im Kalender nur
+(`CalendarCourseDate::getEvents`): Kurse mit `seminar_user.bind_calendar = 1`, ohne ausgeblendete Kurszeiten
+(`schedule_courses.visible = 0`) und Gruppentermine nur für Mitglieder der Statusgruppe. Python `auto_import` (18 Serien)
+übernimmt deshalb einen Kurs, den der Inhaber aus seinem Kalender genommen hat (zwei Vorlesungsserien), und beide
+Gruppen zweier Übungen; es fehlen die eigene Gruppenübung, vier Tutoriums-Zeiten ohne Gruppe (5 Kurszeiten → als
+„parallele Gruppen“ verworfen) und die Kurszeit „Hauptveranst.“ einer Übung mit 18 Gruppen.
+iPad-Lösung (`wip/stundenplan-ics`, Doku `docs/IPAD-STUDIP-SYNC.md` §10): zusätzlich
+`GET jsonapi.php/v1/users/{uid}/events.ics` (UserEventsIcal: genau die Kalendertermine ab heute, UID
+`Stud.IP-SEM-<termin-id>@host` = `studip_events.id`); eine Kurszeit zählt, wenn einer ihrer künftigen Termine im
+Kalender steht. Kurse ganz ohne Kalendertermine fragt die App einmal („Übernehmen / Weglassen“), Kurse mit 3 oder mehr
+Serien pro Woche ebenso („Welche Termine besuchst du?“, abgewählt = `attend=0`); persönliche Einträge bleiben
+(Entscheidung Inhaber). Fixture: `packages/shared-contracts/fixtures/studip-schedule/kalender/`. Bitte dieselbe Regel in
+`studip_sync.py`/`timetable.py` (und Web), sonst zeigen PC und iPad verschiedene Pläne.
+
+**2. LSF-Anmeldung wurde nicht erkannt.** Die echte angemeldete LSF-Seite enthält das Wort „Abmelden“ nicht (weder
+groß noch klein), wohl aber den Link `category=auth.logout`; die abgemeldete Seite hat nur `auth.login`.
+`lsf.is_logged_in` am PC klappt wohl, weil Playwright `has-text` anders sucht – bitte dennoch auf `auth.logout`
+prüfen. iPad: `LSFClient.isLoggedIn` = `auth.logout` oder Linktext „abmelden“ ohne Groß-/Kleinschreibung.
+
+**3. Bitte um Vergleichszahlen**: Learnweb-Dateien **je Kurs** (Learnweb-Kurs-ID → Anzahl, ohne Titel) und ob ihr
+über Schlüssel (REST) oder Sitzung gelesen habt; das iPad hat 195 statt 539 – wir suchen die Lücke (Ordner? versteckte
+Module? andere Quellen?). Dazu die LSF-Einträge nach eurer Platzhalter-Regel (`is_placeholder`) als
+wöchentlich/einzeln, damit wir nach dem Port erneut vergleichen.
