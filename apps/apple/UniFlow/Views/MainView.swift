@@ -45,6 +45,7 @@ struct MainView: View {
             }
         }
         .onAppear { shell.attach(session.api); UFSessionState.reset() }
+        .modifier(DueReminderHost())                                         // Erinnerungen an Abgaben und Prüfungen
         // andere Datenquelle (eigener Server verbunden/getrennt): Kopfzeile neu, Anzeigezustaende von vorn, offene
         // Dialoge und Drawer zu – eine Aktion darin traefe sonst die neue Quelle
         .onChange(of: session.api?.base) { _, _ in shell.attach(session.api); UFSessionState.reset(); overlay.closeAll() }

@@ -156,27 +156,32 @@ public enum ScriptSearch {
 
     /// Zweiter Teil von `page_texts`: neu gelesene Texte mit Suchform speichern (`chdate or 0`), nur wenn die Datei
     /// noch dieselbe Aenderungszeit hat (sonst kam inzwischen eine neue Fassung, deren Texte gehoeren nicht zu dieser)
-    static func storePages(_ c: SQLiteConnection, fileID: String, pages: [String], chdate: SQLiteValue) throws {
+    @discardableResult
+    static func storePages(_ c: SQLiteConnection, fileID: String, pages: [String], chdate: SQLiteValue) throws -> Bool {
         guard let now = try c.queryOne("SELECT chdate FROM files WHERE id=?", [.text(fileID)]),
-              (now["chdate"]?.double ?? 0) == (chdate.double ?? 0) else { return }
+              (now["chdate"]?.double ?? 0) == (chdate.double ?? 0) else { return false }
         try c.execute("DELETE FROM page_texts WHERE file_id=?", [.text(fileID)])
         let stamp: SQLiteValue = LocalModules.truthy(chdate) ? chdate : .integer(0)
         for (i, t) in pages.enumerated() {
             try c.execute("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
                           [.text(fileID), .integer(Int64(i + 1)), .text(t), stamp, .text(searchForm(t))])
         }
+        return true
     }
 
     /// `page_texts(conn, file_id)`: alle Seitentexte einer Datei, aus dem Zwischenspeicher oder neu gelesen (PDFKit in
-    /// der App) und gespeichert. Leer ohne lokale PDF oder wenn sie sich nicht lesen laesst.
-    public static func pageTexts(fileID: String, database: SQLiteDatabase, files: LocalFiles?) async throws -> [String] {
+    /// der App) und gespeichert. Leer ohne lokale PDF oder wenn sie sich nicht lesen laesst. Geraet: neu gelesene Texte
+    /// pruefen gleich auf Abgaben und Pruefungstermine (`DueStore.refreshFile`, `clock` fuer das laufende Semester).
+    public static func pageTexts(fileID: String, database: SQLiteDatabase, files: LocalFiles?, clock: UniFlowClock = .system) async throws -> [String] {
         let state = try await database.withConnection { try storedPages($0, fileID: fileID, files: files) }
         switch state {
         case .unavailable: return []
         case .fresh(let pages): return pages
         case .read(let url, let chdate):
             guard let pages = files?.tools.pdfPageTexts(url) else { return [] }
-            try await database.transaction { try storePages($0, fileID: fileID, pages: pages, chdate: chdate) }
+            try await database.transaction { c in
+                if try storePages(c, fileID: fileID, pages: pages, chdate: chdate) { try DueStore.refreshFile(c, fileID: fileID, clock: clock) }
+            }
             return pages
         }
     }

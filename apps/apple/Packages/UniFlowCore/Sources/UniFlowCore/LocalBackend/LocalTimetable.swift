@@ -258,7 +258,7 @@ enum LocalTimetable {
                             [.text(iso(start)), .text(iso(end))])
         let s = try LocalSettings.read(c)
         let (marks, dls) = try Holidays.calendarExtras(c, from: start, to: end)
-        let notes = try Announcements.byDay(c, from: start, to: end)
+        let notes = DueStore.withoutDuplicateNotices(try Announcements.byDay(c, from: start, to: end), deadlines: dls)
         var days: [JSONValue] = []
         for d in start...end {
             let di: JSONValue = .string(iso(d))

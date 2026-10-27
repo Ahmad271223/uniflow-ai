@@ -800,6 +800,7 @@ private struct LocalAccountTab: View {
                 } else {
                     HildesheimSourcesCard()                                  // Learnweb und LSF der Uni Hildesheim
                 }
+                DueReminderCard()                                            // Erinnerungen an Abgaben und Prüfungen
                 UFCard {
                     if let term { SemesterFields(term: term, reload: reload).padding(.bottom, 16) }
                     UFCardHead("Darstellung", icon: "sun")

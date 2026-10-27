@@ -19,6 +19,7 @@ public final class LocalBackend: Sendable {
         StudyEndpoints.self,
         SearchEndpoints.self,
         FileVersionEndpoints.self,
+        DueEndpoints.self,
         PendingOverviewEndpoints.self,
         PendingServicesEndpoints.self,
     ]

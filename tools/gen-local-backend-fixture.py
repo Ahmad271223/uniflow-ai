@@ -167,6 +167,19 @@ SAMPLES: dict[str, dict] = {
     "POST /api/timetable/studip-questions/times": {"path": "/api/timetable/studip-questions/times", "python": False,
                                                    "body": {"course_id": "c1", "attend": []},
                                                    "expect": {"status": 404, "reason": "nur auf dem Geraet; ohne offene Frage 404"}},
+    # Abgaben, Tests und Pruefungstermine aus Folien, Uebungsblaettern und Ankuendigungen erkennen gibt es nur auf dem
+    # Geraet (DueDetection/DueStore, Tabellen due_* erst bei Bedarf); am PC 404
+    "GET /api/due": {"path": "/api/due", "python": False,
+                     "expect": {"status": 200, "type": "object", "keys": ["hidden", "items", "refreshed", "today"],
+                                "reason": "nur auf dem Geraet (DueEndpoints)"}},
+    "POST /api/due/backfill": {"path": "/api/due/backfill?limit=20", "python": False,
+                               "expect": {"status": 200, "type": "object", "keys": ["read", "remaining"],
+                                          "reason": "nur auf dem Geraet (DueEndpoints; ohne Dateiablage nichts zu lesen)"}},
+    "POST /api/due/refresh": {"path": "/api/due/refresh", "python": False,
+                              "expect": {"status": 200, "type": "object", "keys": ["changed", "hits"],
+                                         "reason": "nur auf dem Geraet (DueEndpoints)"}},
+    "PATCH /api/due/{}": {"path": "/api/due/due-0000000000000000", "body": {"hidden": True}, "python": False,
+                          "expect": {"status": 404, "reason": "nur auf dem Geraet; ohne erkannten Termin 404"}},
 }
 
 

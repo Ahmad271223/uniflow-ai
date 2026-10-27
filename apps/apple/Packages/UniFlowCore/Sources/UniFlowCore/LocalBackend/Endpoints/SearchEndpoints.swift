@@ -54,7 +54,7 @@ public enum SearchEndpoints: LocalEndpointModule {
             }
             let id = fid.string
             if text.isEmpty, page != 0 {
-                let pages = try await ScriptSearch.pageTexts(fileID: id ?? "", database: ctx.database, files: ctx.files)
+                let pages = try await ScriptSearch.pageTexts(fileID: id ?? "", database: ctx.database, files: ctx.files, clock: ctx.clock)
                 text = 0 < page && page <= pages.count ? pages[page - 1] : ""
             }
             return .json(try await ScriptSearch.search(moduleID: module, query: PyText.slice(text, 0, 6000), exclude: id,
@@ -73,7 +73,7 @@ public enum SearchEndpoints: LocalEndpointModule {
             let id = req.param("file_id")
             let path = try await ctx.database.scalar("SELECT local_path FROM files WHERE id=?", [.text(id)])?.string
             guard let path, !path.isEmpty, let files = ctx.files, files.exists(stored: path) else { throw LocalHTTPError.notFound() }
-            let pages = try await ScriptSearch.pageTexts(fileID: id, database: ctx.database, files: files)
+            let pages = try await ScriptSearch.pageTexts(fileID: id, database: ctx.database, files: files, clock: ctx.clock)
             // jede PDF hat mindestens eine Seite: keine Texte heisst nicht lesbar (am PC die Meldung von pypdf)
             guard !pages.isEmpty else { return .json(["text": "", "error": "Seitentext nicht lesbar"]) }
             guard page >= 1, page <= pages.count else { return .json(["text": "", "pages": .number(Double(pages.count))]) }

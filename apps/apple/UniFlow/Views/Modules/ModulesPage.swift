@@ -359,6 +359,7 @@ struct ModulePage: View {
             UFTabs(options: [("overview", "Übersicht"), ("lectures", "Vorlesungen"), ("exercises", "Übungen"), ("solutions", "Lösungen"),
                              ("scripts", "Skripte"), ("exams", "Klausuren")] + recordings + community + [("notes", "Notizen")], selection: $tab)
             if tab == "overview" {
+                DueListCard(moduleID: id, limit: 4).padding(.bottom, 14.4)       // Abgaben & Prüfungen dieses Moduls
                 if weeks.isEmpty { UFCard { UFEmpty(icon: "file", text: "Keine Dokumente.") } }
                 ForEach(Row.rows(weeks, key: "week")) { row in weekBlock(row.value, m: m) }
             } else if tab == "recordings" {

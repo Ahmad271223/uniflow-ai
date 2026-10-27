@@ -501,14 +501,16 @@ enum UFDayExtras {
     }
 }
 
-/// Chips eines Tages: Markierungen (gruen), Fristen (Modulfarbe, sonst rot; Tippen oeffnet das Learnweb), Hinweise
-/// aus Ankuendigungen (blau, Tippen oeffnet den Beitrag). `compact`: nur Uhrzeit und Art.
+/// Chips eines Tages: Markierungen (gruen), Fristen (Modulfarbe, sonst rot; Tippen oeffnet das Learnweb), erkannte
+/// Abgaben, Tests und Pruefungen (wie Fristen, mit Dokument-Symbol; Tippen oeffnet die PDF auf der Seite bzw. die
+/// Ankuendigung), Hinweise aus Ankuendigungen (blau, Tippen oeffnet den Beitrag). `compact`: nur Uhrzeit und Art.
 struct UFDayExtraChips: View {
     let dd: JSONValue
     var compact = true
     /// Chips untereinander (Tageskopf) statt umbrechend (Tagesansicht)
     var stacked = true
     @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var router: UFRouter
 
     var body: some View {
         let marks = UFDayExtras.marks(dd), dls = dd.list("deadlines"), notes = dd.list("notices")
@@ -534,15 +536,21 @@ struct UFDayExtraChips: View {
         ForEach(dls.indices, id: \.self) { i in
             let x = dls[i]
             let color = x.s("color").map { Color(hex: $0) } ?? UF.bad
-            let text = "\(x.s("time") ?? "") " + (compact ? (x.s("kind_label") ?? "Frist") : "\(x.s("kind_label") ?? "Frist"): \(x.s("title") ?? "")")
+            let detected = x["detected"]?.bool == true
+            let time = x.s("time").flatMap { $0.isEmpty ? nil : $0 }
+            let what = compact || detected ? (detected && !compact ? (x.s("title") ?? "Termin") : (x.s("kind_label") ?? "Frist"))
+                : "\(x.s("kind_label") ?? "Frist"): \(x.s("title") ?? "")"
+            let text = (time.map { "\($0) " } ?? "") + what
             Button {
-                if let u = UFDayExtras.safeURL(x.s("url")) { openURL(u) }
+                if detected { DueOpen.open(x, router: router, openURL: openURL) }
+                else if let u = UFDayExtras.safeURL(x.s("url")) { openURL(u) }
             } label: {
-                chip(text, fg: color, bg: color.opacity(0.12), border: color, bold: x.s("time"))
+                chip(text, fg: color, bg: color.opacity(0.12), border: color, icon: detected ? "file-text" : nil, bold: time)
             }
             .buttonStyle(.plain)
-            .help("\(x.s("kind_label") ?? "") \(x.s("time") ?? "") · \(x.s("full_title") ?? x.s("title") ?? "")\(x.s("course_title").map { " · \($0)" } ?? "")")
-            .accessibilityLabel("Frist \(x.s("time") ?? ""): \(x.s("title") ?? "")")
+            .help("\(x.s("kind_label") ?? "") \(time ?? "") · \(x.s("full_title") ?? x.s("title") ?? "")\(x.s("course_title").map { " · \($0)" } ?? "")")
+            .accessibilityLabel(detected ? "\(x.s("title") ?? "Termin")\(time.map { " \($0)" } ?? ""), \(x.s("origin") ?? "erkannt")"
+                                         : "Frist \(x.s("time") ?? ""): \(x.s("title") ?? "")")
         }
         ForEach(notes.indices, id: \.self) { i in
             let n = notes[i]
