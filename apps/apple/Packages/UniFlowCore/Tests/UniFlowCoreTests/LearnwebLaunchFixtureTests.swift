@@ -15,7 +15,8 @@ import XCTest
 ///   oder "<html" am Anfang, `UniStore.startsLikeWebPage`), nicht den Content-Type wie `filestream.looks_like_html`.
 /// - Erlaubte Hosts: das iPad laesst Anfragen des Abgleichs nur an die Rechner der Hochschule (Stud.IP mit WebSSO,
 ///   *.uni-hildesheim.de); die Anmeldeansicht selbst schraenkt keine Rechner ein.
-/// Die Cookie-Kopfzeile setzt in der App `HTTPCookieStorage` (URLSessionUniTransport, App-Test).
+/// Die Cookie-Kopfzeile setzt in der App `HTTPCookieStorage` (URLSessionUniTransport); geprueft im App-Test
+/// HildesheimAppTests.testCookieHeaderLikeLaunchFixture.
 final class LearnwebLaunchFixtureTests: XCTestCase {
     private func fixture() throws -> JSONValue {
         var url = URL(fileURLWithPath: #filePath)

@@ -152,15 +152,18 @@ enum PageRenderer {
         if group { cg.endTransparencyLayer() }
     }
 
-    /// Miniatur einer Seite in der angegebenen Breite (Punkte), weisser Hintergrund.
+    /// Miniatur einer Seite in der angegebenen Breite (Punkte), weisser Hintergrund. Sehr hohe Seiten (Notizseiten
+    /// duerfen 100 x 3400 pt haben) werden hoechstens `maxAspect` x `width` hoch und dafuer schmaler, statt ein
+    /// beliebig hohes Bild zu zeichnen; alle A-Formate (1 : 1,41) bleiben unveraendert.
     static func thumbnail(page: PDFPage, entry: DisplayLayout.Entry, objects: [JSONValue], images: [String: UIImage],
-                          width: CGFloat, scale: CGFloat = 2) -> UIImage {
+                          width: CGFloat, scale: CGFloat = 2, maxAspect: CGFloat = 1.5) -> UIImage {
         let size = size(of: page)
-        let s = width / max(1, size.width)
+        let byWidth = width / max(1, size.width)
+        let s = min(byWidth, width * maxAspect / max(1, size.height))
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
         format.opaque = true
-        let out = CGSize(width: width, height: (size.height * s).rounded())
+        let out = CGSize(width: s == byWidth ? width : max(1, (size.width * s).rounded()), height: max(1, (size.height * s).rounded()))
         return UIGraphicsImageRenderer(size: out, format: format).image { ctx in
             UIColor.white.setFill()
             ctx.fill(CGRect(origin: .zero, size: out))

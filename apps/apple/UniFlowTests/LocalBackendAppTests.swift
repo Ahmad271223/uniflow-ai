@@ -63,7 +63,8 @@ final class LocalBackendAppTests: XCTestCase {
             XCTFail("404 erwartet")
         } catch let e as APIError {
             XCTAssertEqual(e.status, 404)
-            XCTAssertEqual(e.errorDescription, "Datei nicht lokal vorhanden")
+            // unbekannte Datei (leere Datenbank): eigene Meldung wie file_content seit b718cfb
+            XCTAssertEqual(e.errorDescription, "Datei nicht gefunden")
         }
         // seit S6 legt das iPad Lernpakete selbst an; was es nicht gibt (Wochentests mit KI), meldet es klar
         do {

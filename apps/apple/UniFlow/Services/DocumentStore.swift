@@ -529,11 +529,13 @@ final class DocumentStore: ObservableObject {
         }
     }
 
-    /// Leere Seite nach der angegebenen Seite einfuegen (Vorlage: blank, lined, grid, dotted, mm, cornell).
-    func addBlankPage(afterKey: String?, template: String) async {
+    /// Leere Seite nach der angegebenen Seite einfuegen (Vorlage: blank, lined, grid, dotted, mm, cornell). `size`:
+    /// gewaehltes Format (`PageFormats.validSize`), sonst die angezeigte Groesse der Seite davor.
+    func addBlankPage(afterKey: String?, template: String, size chosen: CGSize? = nil) async {
         guard isWritable else { return }
         let index = afterKey.flatMap { layout?.index(ofKey: $0) }
-        let size = index.flatMap { layout?.pdf.page(at: $0) }.map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize }
+        let format = chosen.flatMap { PageFormats.validSize(Double($0.width), Double($0.height)) ? $0 : nil }
+        let size = format ?? index.flatMap { layout?.pdf.page(at: $0) }.map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize }
             ?? CGSize(width: 595, height: 842)
         let key = "b" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(11).lowercased()
         await engine.updatePage(key, .object(["objects": .array([]), "template": .string(template)]))

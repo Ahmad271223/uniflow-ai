@@ -139,7 +139,8 @@ struct LibraryNewDialog: View {
     }
 }
 
-/// notebookDialog(kind, moduleId, folderId): Titel, Vorlage (nur Notizbuch), Modul -> Erstellen, danach Dokument oeffnen
+/// notebookDialog(kind, moduleId, folderId): Titel, Vorlage (nur Notizbuch), Format (A6 ... A2 hoch/quer bzw.
+/// Whiteboard-Groessen wie formats.js, `PageFormats`), Modul -> Erstellen, danach Dokument oeffnen
 struct NotebookDialog: View {
     /// Notizbuecher und Whiteboards sind zum Schreiben da: Plus wie das Schreiben selbst (PDF- und Bild-Import zum
     /// Lesen bleiben Free)
@@ -156,6 +157,11 @@ struct NotebookDialog: View {
     @State private var title = ""
     @State private var tpl = "lined"
     @State private var module = 0
+    /// Format wie im Web: Notizbuch A4, Whiteboard "Mittel (A3 quer)"
+    @State private var format = ""
+    @State private var orientation = PageFormats.Orientation.portrait
+
+    private var formats: [PageFormats.Format] { kind == "whiteboard" ? PageFormats.whiteboards : PageFormats.paper }
 
     var body: some View {
         UFDialog(kind == "whiteboard" ? "Neues Whiteboard" : "Neues Notizbuch") {
@@ -181,6 +187,21 @@ struct NotebookDialog: View {
                     .environment(\.ufFillsCell, false)
                 }
             }
+            UFField("Format") {
+                VStack(alignment: .leading, spacing: 6.4) {
+                    UFFlexWrap(gap: 6.4) {
+                        ForEach(formats, id: \.key) { f in
+                            UFChip(text: f.name, on: format == f.key) { format = f.key }
+                                .accessibilityHint(f.hint ?? "")
+                        }
+                    }
+                    if kind == "notebook" {
+                        UFSegmented(options: [(PageFormats.Orientation.portrait, "Hoch"), (.landscape, "Quer")], selection: $orientation)
+                    } else {
+                        Text("Whiteboards sind quer; „Riesig“ braucht viel Arbeitsspeicher.").ufFont(12.8).foregroundStyle(UF.muted)
+                    }
+                }
+            }
             UFField("Modul (optional)") {
                 UFSelect(options: [(0, "– keins –")] + lib.list("modules").compactMap { m in m.i("id").map { ($0, m.s("name") ?? "") } }, selection: $module, fill: true)
             }
@@ -190,6 +211,7 @@ struct NotebookDialog: View {
         }
         .onAppear {
             if title.isEmpty { title = kind == "whiteboard" ? "Whiteboard" : "Notizen" }
+            if format.isEmpty { format = kind == "whiteboard" ? PageFormats.defaultWhiteboard : PageFormats.defaultNotebook }
             module = moduleID ?? 0
         }
     }
@@ -201,7 +223,7 @@ struct NotebookDialog: View {
             toast.show("Notizbücher und Whiteboards gibt es mit Plus.")
             return
         }
-        var fields = ["kind": kind, "title": title.isEmpty ? "Notizen" : title, "template": tpl]
+        var fields = Self.fields(kind: kind, title: title, template: tpl, format: format, orientation: orientation)
         if module != 0 { fields["module_id"] = "\(module)" }
         if let folderID { fields["folder_id"] = "\(folderID)" }
         do {
@@ -209,6 +231,19 @@ struct NotebookDialog: View {
             close()
             if let id = r.s("id") { router.go(.doc(id)) }
         } catch { toast.show(error.localizedDescription) }
+    }
+}
+
+extension NotebookDialog {
+    /// Formularfelder fuer POST /api/notebooks wie notebookDialog im Web (`w`/`h` aus `formatSize(fmt, orient)`)
+    static func fields(kind: String, title: String, template: String, format: String,
+                       orientation: PageFormats.Orientation) -> [String: String] {
+        var f = ["kind": kind, "title": title.isEmpty ? "Notizen" : title, "template": template]
+        if let s = PageFormats.size(format, orientation) {
+            f["w"] = String(s.width)
+            f["h"] = String(s.height)
+        }
+        return f
     }
 }
 

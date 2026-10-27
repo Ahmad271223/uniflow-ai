@@ -250,6 +250,38 @@ final class HildesheimAppTests: XCTestCase {
                        "je Container nur seine Cookies, je Rechner nur die passenden, keine fremde Cookie-Kopfzeile")
     }
 
+    /// Gemeinsamer Vertrag learnweb/launch.json, "cookie_header": nur Cookies, deren Domain zum Rechner passt und
+    /// die nicht abgelaufen sind; ein fremder Rechner bekommt keine (das iPad fragt ihn gar nicht an). Die Ablaufzeiten
+    /// der Fixture gelten zu ihrem "now" und werden auf die Uhr verschoben. Die Reihenfolge der Cookies in der Kopfzeile
+    /// bestimmt `HTTPCookieStorage` (fuer Server ohne Bedeutung, RFC 6265 5.4); verglichen wird die Menge.
+    func testCookieHeaderLikeLaunchFixture() async throws {
+        UniStubProtocol.install { _ in .text("ok") }
+        let fx = try JSONValue.parse(repo("packages/shared-contracts/fixtures/learnweb/launch.json"))["cookie_header"]
+        let shift = Date().timeIntervalSince1970 - (fx?["now"]?.double ?? 0)
+        let cookies = (fx?["cookies"]?.array ?? []).compactMap { c -> HTTPCookie? in
+            var p: [HTTPCookiePropertyKey: Any] = [.name: c["name"]?.string ?? "", .value: c["value"]?.string ?? "",
+                                                   .domain: c["domain"]?.string ?? "", .path: c["path"]?.string ?? "/"]
+            if let e = c["expires"]?.double, e >= 0 { p[.expires] = Date(timeIntervalSince1970: e + shift) }
+            return HTTPCookie(properties: p)
+        }
+        XCTAssertEqual(cookies.count, 4)
+        let t = URLSessionUniTransport(cookies: cookies, allowedDomains: ["uni-hannover.de", "uni-hildesheim.de"],
+                                       configuration: UniStubProtocol.configuration())
+        let cases = fx?["cases"]?.array ?? []
+        XCTAssertEqual(cases.count, 3)
+        for c in cases {
+            let url = try XCTUnwrap(URL(string: c["url"]?.string ?? ""))
+            let expected = Set((c["header"]?.string ?? "").components(separatedBy: "; ").filter { !$0.isEmpty })
+            guard t.allows(url) else {
+                XCTAssertEqual(expected, [], "fremder Rechner \(url): keine Anfrage, also keine Cookies")
+                continue
+            }
+            _ = try await t.send(UniRequest(url: url))
+            let sent = Set((UniStubProtocol.requests.last?.cookie ?? "").components(separatedBy: "; ").filter { !$0.isEmpty })
+            XCTAssertEqual(sent, expected, url.absoluteString)
+        }
+    }
+
     func testRedirectsCanBeSwitchedOffAndKeepCookiesPerTarget() async throws {
         let t = transport([cookie("MoodleSession", "s1", domain: "learnweb.hochschule.test")])
         UniStubProtocol.install { r in
