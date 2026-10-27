@@ -83,3 +83,19 @@ jobs:
             apps/windows/src-tauri/target/release/bundle/nsis/*.exe
             apps/windows/src-tauri/Cargo.lock
           retention-days: 14
+
+      # Microsoft Store: MSIX aus derselben App (apps/windows/msix/README.md). Erst nach dem Hochladen des Installers,
+      # damit ein Fehler hier den NSIS-Installer nicht verhindert.
+      - name: MSIX-Paket (unsigniert fuer Partner Center, dazu testsigniert)
+        shell: pwsh
+        run: ./apps/windows/scripts/build-msix.ps1 -AppExe apps/windows/src-tauri/target/release/uniflow-desktop.exe -BackendDir apps/windows/backend/dist/uniflow-backend -TestSign
+      - name: MSIX testweise installieren, Backend im Paket starten, deinstallieren
+        shell: pwsh
+        run: ./apps/windows/scripts/check-msix.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uniflow-windows-msix
+          path: |
+            apps/windows/msix/out/*.msix
+            apps/windows/msix/out/*.cer
+          retention-days: 14

@@ -137,6 +137,31 @@ def test_main_never_lets_an_exception_escape(tmp_path, monkeypatch):
     assert rc == 1 and "Backend-Start fehlgeschlagen" in (tmp_path / "temp" / desktop.FALLBACK_LOG).read_text(encoding="utf-8")
 
 
+def test_msix_manifest_store_values_and_workflow():
+    """MSIX für den Microsoft Store: Manifest mit allen Platzhaltern, die build-msix.ps1 ersetzt, Desktop-App mit
+    runFullTrust, Version x.y.z.0 aus tauri.conf.json; der Workflow baut und prüft es erst nach dem NSIS-Installer."""
+    manifest = (WIN / "msix" / "AppxManifest.xml.in").read_text(encoding="utf-8")
+    script = (WIN / "scripts" / "build-msix.ps1").read_text(encoding="utf-8")
+    placeholders = set(re.findall(r"\{\{([A-Z_]+)\}\}", manifest))
+    assert placeholders == {"IDENTITY_NAME", "PUBLISHER", "VERSION", "DISPLAY_NAME", "PUBLISHER_DISPLAY_NAME", "DESCRIPTION"}
+    for p in placeholders:
+        assert f'"{p}"' in script, f"build-msix.ps1 ersetzt {p} nicht"
+    assert 'EntryPoint="Windows.FullTrustApplication"' in manifest and 'Executable="uniflow-desktop.exe"' in manifest
+    assert 'rescap:Capability Name="runFullTrust"' in manifest and 'Name="Windows.Desktop"' in manifest
+    for asset in ("StoreLogo", "Square44x44Logo", "Square150x150Logo", "Wide310x150Logo"):
+        assert f"Assets\\{asset}.png" in manifest and f"Assets\\{asset}.png" in script
+    assert '$version = "$appVersion.0"' in script, "Store verlangt vierstellige Versionen mit 0 am Ende"
+    store = json.loads((WIN / "msix" / "store.json").read_text(encoding="utf-8"))
+    assert {"identity_name", "publisher", "publisher_display_name", "display_name", "description", "store_ready"} <= store.keys()
+    assert store["publisher"].startswith("CN="), "Publisher aus Partner Center beginnt mit CN="
+    if store["store_ready"]:
+        assert "Test" not in store["identity_name"] and "Test" not in store["publisher"], "store_ready nur mit echten Werten"
+    wf = (ROOT / ".github" / "workflows" / "windows.yml").read_text(encoding="utf-8")
+    assert wf.index("bundle/nsis/*.exe") < wf.index("build-msix.ps1") < wf.index("check-msix.ps1") < wf.index("uniflow-windows-msix")
+    assert "-TestSign" in wf
+    assert "apps/windows/msix/out/" in (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+
 def test_bind_socket_state_file_and_process_alive(tmp_path):
     from app import desktop
     sock = desktop.bind_socket()

@@ -77,6 +77,11 @@ nutzt sie für den Abgleich und das Öffnen von Dateien (`app/unilogin.py`, `POS
 `GET/DELETE /api/university/session`). Ist die Sitzung abgelaufen, meldet der Abgleich „Anmeldung nötig“.
 Zugangsdaten in der `.env` sind nur noch eine freiwillige Alternative für den Abgleich ohne Nachfrage.
 
+## Microsoft Store
+
+MSIX-Paket fuer den Store (Store signiert und verteilt Updates selbst): `msix/README.md`, gebaut im selben Workflow
+(Artefakt `uniflow-windows-msix`). Was in Partner Center einzurichten ist, steht dort.
+
 ## Offen
 
 - Zweiter Start: die App hat noch keine Einzelinstanz-Sperre (Tauri-Plugin `single-instance`). Ein zweites Öffnen

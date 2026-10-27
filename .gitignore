@@ -32,6 +32,7 @@ apps/android/**/build/
 apps/windows/backend/dist/
 apps/windows/backend/build/
 apps/windows/backend/ms-playwright/
+apps/windows/msix/out/
 apps/android/keystore.properties
 apps/android/*.jks
 apps/android/*.keystore
