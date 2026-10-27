@@ -81,7 +81,7 @@ function evBlock(e, px, dateStr, L, compact, tn) {
   // Namen wie in Stud.IP lesbar (27.10.2026): Kurzname statt Initialen, erst ab drei Spuren nebeneinander die Initialen
   const name = n >= 3 ? tn.get(e.title || "") : shortName(e.title);
   const det = `${esc(e.title)} ${e.start}–${e.end}${e.room ? " · " + esc(e.room) : ""}${e.note ? " · " + esc(e.note) : ""}${e.event_id ? "" : " · aus deinem Stud.IP-Kalender"}`;
-  return `<div class="cal2-ev ${off ? "off" : ""} ${n >= 3 || (compact && n >= 2) ? "narrow" : ""}" style="--ec:${e.color || "var(--accent)"};${P.css}" data-ev="${e.event_id || ""}" data-sid="${e.studip_id || ""}" data-date="${dateStr}" title="${det}"><div class="t">${e.start}${compact && n > 1 ? "" : ` – ${e.end}`}</div><b>${esc(name)}</b>${P.h > 54 ? `<div class="r">${esc((e.room || KIND_LABEL[e.kind] || "").split(":")[0])}</div>` : ""}</div>`;
+  return `<div class="cal2-ev ${off ? "off" : ""} ${n >= 3 || (compact && n >= 2) ? "narrow" : ""}" style="--ec:${e.color || "var(--accent)"};${P.css}" data-ev="${e.event_id || ""}" data-sid="${e.studip_id || ""}" data-date="${dateStr}" title="${det}"><div class="t">${e.start}${compact && n > 1 ? "" : ` – ${e.end}`}</div><b>${esc(name)}</b>${P.h > 54 ? `<div class="r">${esc((e.room || KIND_LABEL[e.kind] || "").split(" · ").map(r => r.split(":")[0]).join(" · "))}</div>` : ""}</div>`;
 }
 function pkgBlock(p, px, L, compact, tn) {
   const P = posStyle(px, hm(p.start_time), hm(p.end_time), L); const done = p.tasks.filter(t => t.status === "erledigt").length; const name = compact || (L?.n || 1) > 1 ? tn.get(p.subject || "") : shortName(p.subject);

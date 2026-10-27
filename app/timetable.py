@@ -66,7 +66,18 @@ def studip_dated(conn, start: date, end: date) -> list[dict]:
                     "kind": "uebung" if r["course_kind"] == "uebung" else guess_kind(title), "module_id": r["module_id"], "module_name": r["module_name"],
                     "color": r["module_color"] or "#4f5bd5", "room": r["room"] or "", "lecturer": None, "course_id": r["course_id"],
                     "status": "teilnahme", "permanent_skip": False, "exception": None, "source": "studip-kalender"})
-    return out
+    # Derselbe Termin eines Kurses in mehreren Raeumen (Stud.IP legt je Raum einen Termin an, z. B. eine Uebung in
+    # drei Hoersaelen): ein Kasten mit allen Raeumen statt drei schmaler Kaesten nebeneinander
+    merged: dict[tuple, dict] = {}
+    for o in out:
+        k = (o["course_id"], o["date"], o["start"], o["end"])
+        if k not in merged:
+            merged[k] = o
+            continue
+        rooms = [x for x in merged[k]["room"].split(" · ") if x]
+        if o["room"] and o["room"] not in rooms:
+            merged[k]["room"] = " · ".join(rooms + [o["room"]])
+    return list(merged.values())
 
 
 def _same_slot(o: dict, d: dict) -> bool:
@@ -478,11 +489,15 @@ def merge_weekly(entries: list[dict]) -> list[dict]:
     mit: Stud.IP legt an vorlesungsfreien Tagen keine Termine an, die Serie wuerde die Luecke sonst wieder mit
     Vorlesungen fuellen (Befund 26.10.2026: LUH 23.12.-05.01. ohne Termine, im Kalender aber belegt).
     Alle 14 Tage: alle Abstaende sind Vielfache von 14 (auch mit einer Luecke von 28 Tagen ueber Weihnachten)."""
+    # Je Kurs getrennt (28.10.2026): Stud.IP legt dieselbe Veranstaltung jedes Jahr als neuen Kurs mit gleichem Titel an
+    # (Messtechnik I WiSe 23/24, 25/26, 26/27). Ohne Kurs im Schluessel wurden drei Jahre zu einer Serie mit der
+    # Kurs-ID des aeltesten Jahrgangs; der eigene Kalender fand dann keinen kuenftigen Termin dieses Kurses, die Serie
+    # galt als "parallele Gruppen" und kam nie in den Stundenplan (Mittwoch fehlte ganz).
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for e in entries:
-        groups[(e["title"], e["weekday"], e["start_time"], e["end_time"])].append(e)
+        groups[(e.get("course_id"), e["title"], e["weekday"], e["start_time"], e["end_time"])].append(e)
     out = []
-    for (title, wd, st, en), lst in groups.items():
+    for (_course, title, wd, st, en), lst in groups.items():
         dates = sorted({x["date_from"] for x in lst if x.get("date_from")})
         if len(lst) >= 3 and len(dates) >= 2:
             days = [date.fromisoformat(d) for d in dates]

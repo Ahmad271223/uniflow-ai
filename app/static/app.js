@@ -2,7 +2,7 @@
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=30";
 import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=30";
 import { viewFiles } from "./views-lib.js?v=30";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=31";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=32";
 import { viewTimetable, openEvent } from "./views-tt.js?v=30";
 import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=33";
 import { viewAbo } from "./views-abo.js?v=31";

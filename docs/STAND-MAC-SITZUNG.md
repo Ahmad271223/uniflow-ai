@@ -820,3 +820,23 @@ Danke für `app/demo.py`. Das iPad hat jetzt denselben Schalter, ohne Dienst und
   angemeldeten Nutzers und der gewählten Hochschule (wie je Konto im Dienst); ein eigener Demo-Container hätte eine
   Schein-Hochschule gebraucht. „Daten dieser Hochschule löschen“ nimmt sie mit.
 - `app-paths.json` kennt `GET/POST /api/demo` (Beispiel mit `{"enabled": false}`, legt nichts an).
+
+## Nachtrag der PC-Sitzung: Woche 1:1 aus dem Stud.IP-Kalender, nur aktuelles Semester (28.10.2026) – bitte in Swift nachziehen
+
+Wunsch des Inhabers: Für jede Person, die sich registriert, muss der Plan 1:1 dem eigenen Stud.IP-Kalender entsprechen,
+und Kurse früherer Semester dürfen nicht erscheinen. Befunde mit echten LUH-Daten (KW 44 und 47/2026):
+
+- **Ursache „Mittwoch fehlt“:** `timetable.merge_weekly` fasste Einzeltermine nur nach Titel, Wochentag und Uhrzeit
+  zusammen. Stud.IP legt dieselbe Veranstaltung jedes Jahr als neuen Kurs mit gleichem Titel an (Messtechnik I
+  WiSe 23/24, 25/26, 26/27), also wurden drei Jahrgänge eine Serie mit der Kurs-ID des ältesten. Die Kalenderregel fand
+  dann keinen künftigen Termin dieses Kurses, die Serie galt als „3 parallele Gruppen“ und kam nie in den Plan.
+  Jetzt gehört die Kurs-ID in den Schlüssel. Bitte im Swift-Kern prüfen, ob die Zusammenfassung dort genauso gruppiert.
+- **Woche direkt aus dem Kalender:** `timetable.studip_dated` liefert die Einzeltermine aktiver Kurse, ab dem Tag nach
+  dem Kalenderabruf nur die aus `users/{id}/events.ics`. `_merge_dated` legt sie mit den Serien zusammen (Serie bleibt
+  mit Teilnahme, Ausnahmen, Notizen); automatisch übernommene Serien ohne Stud.IP-Termin fallen weg. Derselbe Termin
+  eines Kurses in mehreren Räumen wird ein Kasten mit allen Räumen. Tests: `tests/test_studip_week.py`.
+- **Nur aktuelles Semester:** `app/semesters.py`. Kurse werden jetzt mit `include=start-semester,end-semester`
+  abgefragt; aktiv ist ein Kurs, dessen `end-semester` heute oder später endet (fehlende Beziehung = unbegrenzt),
+  sonst entscheidet der Semestertitel. Alte Kurse bekommen keine Termine, Dateien, KI-Analysen und keine Module;
+  Module ohne aktiven Kurs gehen aus. Eigene Schalter (`active_custom`) bleiben. Einmalige Umstellung in
+  `db._init_db`. An echten Daten: 11 von 208 Kursen aktiv, 10 von 80 Modulen. Tests: `tests/test_semesters.py`.

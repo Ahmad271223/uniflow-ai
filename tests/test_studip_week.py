@@ -63,7 +63,7 @@ def test_week_shows_the_studip_calendar_and_drops_stale_series(app, week):
     assert ("2026-11-18", "11:30", "KW-Regelungstechnik II") in slots and ("2026-11-18", "13:15", "KW-Regelungstechnik II") in slots
     # Uebung: nur die beiden Gruppen aus dem eigenen Kalender, nicht die dritte
     ue = [o for o in occ if o["course_id"] == "kw-ue"]
-    assert len(ue) == 2 and {o["room"] for o in ue} == {"Raum F303", "Raum 031"} and all(o["kind"] == "uebung" for o in ue)
+    assert len(ue) == 1 and ue[0]["room"] == "Raum F303 · Raum 031" and ue[0]["kind"] == "uebung"     # ein Kasten, beide Raeume
     # passende Serie bleibt mit ihrer ID, Notiz und dem Raum aus Stud.IP; die veraltete Serie 13:45 ist weg
     ms = [o for o in occ if o["course_id"] == "kw-ms"]
     assert len(ms) == 1 and ms[0]["event_id"] == week and ms[0]["note"] == "Skript mitbringen" and ms[0]["room"] == "Raum 003" and ms[0]["studip_id"] == "e-ms"
@@ -84,7 +84,7 @@ def test_before_the_calendar_day_all_groups_show_and_manual_series_stay(app, wee
         conn.execute("UPDATE course_events SET source='studip-manual' WHERE title='KW-Ü MecSys (alt)'")
         occ = _week(conn)
         ue = [o for o in occ if o["course_id"] == "kw-ue"]
-        assert len(ue) == 3                                              # Montag liegt vor dem Abruf: keine Kalenderauswahl
+        assert len(ue) == 1 and ue[0]["room"].count(" · ") == 2          # vor dem Abruf: alle drei Raeume
         assert any(o["title"].startswith("KW-Ü MecSys") for o in occ)   # von Hand bestaetigte Serie bleibt
         # ohne Serien ueberhaupt: nur die Einzeltermine
         conn.execute("DELETE FROM course_events WHERE course_id LIKE 'kw-%' OR title LIKE 'KW-%'")
