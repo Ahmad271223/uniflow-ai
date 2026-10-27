@@ -238,6 +238,9 @@ final class HildesheimConnection: ObservableObject {
         Set(Source.allCases.filter { isConnected($0) && (!background || state($0) != .needsLogin) })
     }
 
+    /// Demo-Inhalte im Container an? Dann gleicht die Verbindung nicht ab (`LocalBackendHost.demoActive`)
+    func demoActive() async -> Bool { await host.demoActive() }
+
     /// Kennungen der Hochschul-Dateien in der Datenbank des Containers (Hintergrund: neue Dateien eines Laufs); nil,
     /// wenn die Datenbank nicht lesbar ist
     func sourceFileIDs() async -> Set<String>? {
@@ -257,6 +260,9 @@ final class HildesheimConnection: ObservableObject {
     @discardableResult
     func run(forceGrades: Bool = false, scope: UniSyncScope = .full, background: Bool = false) async -> HildesheimSync.Report? {
         guard !isRunning, !stopped, !sources(background: background).isEmpty else { return nil }
+        // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
+        if await demoActive() { return nil }
+        guard !isRunning, !stopped else { return nil }
         isRunning = true
         let task = Task { await self.perform(forceGrades: forceGrades, scope: scope, background: background) }
         current = task

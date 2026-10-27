@@ -301,6 +301,9 @@ final class StudIPSync: ObservableObject {
 
     var isRunning: Bool { if case .running = phase { return true }; return false }
 
+    /// Demo-Inhalte im Container dieses Abgleichs an? Dann gleicht er nicht ab (`LocalBackendHost.demoActive`)
+    func demoActive() async -> Bool { await host.demoActive() }
+
     /// Hat die Hochschule dieses Containers Stud.IP? (Hildesheim: Learnweb und LSF, Abgleich folgt)
     var offersStudIP: Bool { university.profile.studipBase != nil }
 
@@ -417,6 +420,9 @@ final class StudIPSync: ObservableObject {
     /// endete; nil, wenn er nicht begann (es lief schon einer, angehalten).
     @discardableResult
     func run(client: StudIPClient, scope: UniSyncScope = .full) async -> RunEnd? {
+        guard !isRunning, !stopped else { return nil }
+        // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
+        if await demoActive() { return nil }
         guard !isRunning, !stopped else { return nil }
         phase = .running("Kurse werden geladen …")
         let task = Task { await self.perform(client: client, scope: scope) }

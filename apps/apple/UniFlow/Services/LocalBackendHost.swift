@@ -82,6 +82,13 @@ final class LocalBackendHost: @unchecked Sendable {
         }
     }
 
+    /// Demo-Inhalte in dieser Datenbank an (`DemoContent.isEnabled`)? Dann gleicht nichts mit der Hochschule ab.
+    /// false ohne Datenbank (vor der Hochschulwahl, Speicher nicht lesbar)
+    func demoActive() async -> Bool {
+        guard refusal == nil, let b = try? await backend() else { return false }
+        return (try? await b.context.database.withConnection { try DemoContent.isEnabled($0) }) ?? false
+    }
+
     /// Verstaendliche Meldung (UniversityMismatch, DataContainerError haben eigene Texte)
     static func message(for error: Error) -> String {
         if DeviceStorage.isFull(error) { return DeviceStorage.fullMessage }

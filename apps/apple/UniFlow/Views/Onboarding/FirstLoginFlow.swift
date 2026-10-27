@@ -8,6 +8,8 @@ import UniFlowCore
 // Auf jeder Anmeldeseite ein kleiner Link "Später anmelden": dann die bisherigen Karten "… verbinden" auf der
 // Uebersicht. Der Schritt erscheint einmal je (Nutzer, Hochschule) (`AccountStore.loginDone`); Uni-Wechsel nur in den
 // Einstellungen. Debug: -UFOnboarding login (mit -UFLoginStub <ordner> gegen lokale Nachbildungen, DebugUniStub).
+// Ohne Hochschulkonto (App-Pruefung, Ausprobieren): klein daneben "Ohne Hochschulkonto ansehen (Demo)" legt die
+// Demo-Inhalte im offenen Container an (`ContainerManager.setDemo`, kein Netz) und fuehrt gleich zur Oberflaeche.
 
 /// Eine Anmeldeseite des ersten Starts
 enum FirstLoginStep: String, CaseIterable, Identifiable {
@@ -50,8 +52,10 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
 struct FirstLoginFlow: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var containers: ContainerManager
+    @EnvironmentObject private var toast: UFToastCenter
     @State private var index = 0
     @State private var syncing = false
+    @State private var startingDemo = false
 
     private var university: UniversityKey { account.university ?? .luh }
     private var steps: [FirstLoginStep] { FirstLoginStep.steps(for: university) }
@@ -64,7 +68,10 @@ struct FirstLoginFlow: View {
                 }
             } else {
                 FirstLoginPage(step: steps[index], index: index, count: steps.count, studip: containers.studip, qis: containers.qis,
-                               hildesheim: containers.hildesheim, onDone: advance, onLater: later)
+                               hildesheim: containers.hildesheim, onDone: advance, onLater: later,
+                               demo: Self.offersDemo(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim)
+                                   ? (startingDemo ? .starting : .offered) : .hidden,
+                               onDemo: startDemo)
                     .id(steps[index])
                     .onAppear {
                         if Self.isConnected(steps[index], studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim) { advance() }
@@ -99,7 +106,36 @@ struct FirstLoginFlow: View {
     private func later() {
         if Self.anyConnected(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim) { syncing = true } else { account.markLoginDone() }
     }
+
+    /// "Ohne Hochschulkonto ansehen (Demo)" nur, solange keine Quelle der Hochschule verbunden ist (wer sich angemeldet
+    /// hat, braucht keine Demo, und ein laufender Abgleich soll nicht neben der Demo weiterlaufen)
+    static func offersDemo(studip: StudIPSync, qis: QISConnection?, hildesheim: HildesheimConnection?) -> Bool {
+        !anyConnected(studip: studip, qis: qis, hildesheim: hildesheim)
+    }
+
+    private func startDemo() {
+        guard !startingDemo else { return }
+        startingDemo = true
+        Task {
+            defer { startingDemo = false }
+            do {
+                try await Self.startDemo(containers: containers, account: account)
+            } catch {
+                toast.show(error.localizedDescription, seconds: 4)
+            }
+        }
+    }
+
+    /// Demo-Inhalte im offenen Container anlegen (keine Anmeldung, keine Anfrage an die Hochschule), dann die Oberflaeche
+    /// (der Schritt gilt als erledigt; anmelden geht spaeter in den Einstellungen, nachdem die Demo entfernt ist)
+    static func startDemo(containers: ContainerManager, account: AccountStore) async throws {
+        try await containers.setDemo(true)
+        account.markLoginDone()
+    }
 }
+
+/// "Ohne Hochschulkonto ansehen (Demo)" auf der Anmeldeseite
+enum FirstLoginDemo: Equatable { case hidden, offered, starting }
 
 /// Eine Anmeldeseite: Kopf mit Schritt und Erklaerung, darunter die Anmeldeansicht der Quelle (Webansicht der
 /// Hochschule mit dem Hinweis `UniversityLoginHint`), ganz unten der kleine Link "Später anmelden"
@@ -113,6 +149,8 @@ struct FirstLoginPage: View {
     let hildesheim: HildesheimConnection?
     let onDone: () -> Void
     let onLater: () -> Void
+    var demo: FirstLoginDemo = .hidden
+    var onDemo: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
@@ -185,11 +223,16 @@ struct FirstLoginPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Link "Später anmelden" unter dem Hinweis zu den Passwoertern
+    /// Link "Später anmelden" unter dem Hinweis zu den Passwoertern, davor klein der Weg ohne Hochschulkonto
     private var later: some View {
         HStack(spacing: 8) {
             Text(Self.laterHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
+            if demo != .hidden {
+                UFButton(demo == .starting ? DemoTexts.firstStartRunning : DemoTexts.firstStart, icon: "sparkles", kind: .ghost, size: .small) { onDemo() }
+                    .disabled(demo == .starting)
+                    .accessibilityIdentifier("firststart.demo")
+            }
             UFButton("Später anmelden", icon: "arrow-right", kind: .ghost, size: .small) { onLater() }
                 .accessibilityIdentifier("firststart.later")
         }

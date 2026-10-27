@@ -24,6 +24,9 @@ enum StudIPLink: Equatable {
     /// die gewaehlte Hochschule hat statt Stud.IP eigene Quellen (Universitaet Hildesheim: Learnweb und LSF):
     /// keine Karte "Stud.IP verbinden", sondern deren Karten bzw. Stand (`HildesheimSourcesBar`)
     case otherSources
+    /// Demo-Inhalte aktiv (`DemoContent`): keine Anmeldung, keine Karten "… verbinden", kein Abgleich; die Uebersicht
+    /// zeigt "Demo-Inhalte aktiv" mit "Entfernen" (`DemoActiveBar`)
+    case demo
 
     /// `hasSession`: liegt ein Sitzungs-Cookie im Schluesselbund? Nur bei `.failed` gefragt – scheitert schon das
     /// Speichern nach der Anmeldung (StudIPSync.signedIn), ist Stud.IP nicht verbunden, obwohl die Phase `.failed` ist.
@@ -53,8 +56,10 @@ enum UFDataMode: Equatable {
 
     /// Die eine Weiche fuer alle Seiten (UFServerGate, Uebersicht, UFRemote, Community): Datenquelle aus der Sitzung,
     /// Stud.IP aus dem Abgleich des offenen Containers. Den Schluesselbund liest sie nur bei einem Abgleichfehler.
-    /// An einer Hochschule ohne Stud.IP gibt es keine Karte "Stud.IP verbinden" (dort Learnweb und LSF).
-    @MainActor static func current(api: APIClient?, studip: StudIPSync) -> UFDataMode {
+    /// An einer Hochschule ohne Stud.IP gibt es keine Karte "Stud.IP verbinden" (dort Learnweb und LSF). Mit
+    /// Demo-Inhalten (`demo`, `ContainerManager.demoActive` ueber `\.ufDemoActive`) gibt es keine Karte zum Verbinden.
+    @MainActor static func current(api: APIClient?, studip: StudIPSync, demo: Bool = false) -> UFDataMode {
+        if demo { return resolve(api: api, studIP: .demo) }
         guard studip.offersStudIP else { return resolve(api: api, studIP: .otherSources) }
         return resolve(api: api, studIP: StudIPLink(studip.phase, hasSession: studip.hasStoredSession))
     }
@@ -63,10 +68,13 @@ enum UFDataMode: Equatable {
     /// "Erneut anmelden"; an Hochschulen mit eigenen Quellen immer (Karten "Learnweb/LSF verbinden" oder ihr Stand)
     var showsConnectCard: Bool {
         switch self {
-        case .local(let link): return link != .connected
+        case .local(let link): return link != .connected && link != .demo
         case .server: return false
         }
     }
+
+    /// Demo-Inhalte aktiv (lokal)
+    var isDemo: Bool { self == .local(.demo) }
 
     /// Hochschule mit eigenen Quellen statt Stud.IP (Uni Hildesheim)
     var hasOtherSources: Bool { self == .local(.otherSources) }
@@ -313,6 +321,7 @@ struct UFServerGate<Content: View>: View {
     @ViewBuilder var content: () -> Content
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.ufDemoActive) private var demo
 
     init(_ spec: UFNoServerPage.Spec, @ViewBuilder content: @escaping () -> Content) {
         self.spec = spec
@@ -320,7 +329,7 @@ struct UFServerGate<Content: View>: View {
     }
 
     var body: some View {
-        let mode = UFDataMode.current(api: session.api, studip: studip)
+        let mode = UFDataMode.current(api: session.api, studip: studip, demo: demo)
         let presentation = UFGatePresentation.resolve(spec: spec, mode: mode, phase: studip.phase)
         if presentation == .empty {
             UFNoServerPage(spec: spec, mode: mode)

@@ -111,6 +111,10 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var problem: String?
     /// zaehlt jeden Wechsel; die Oberflaeche baut sich damit neu auf
     @Published private(set) var generation = 0
+    /// Demo-Inhalte im offenen Container an (`DemoContent`, Einstellungen -> Erweitert oder "Ohne Hochschulkonto
+    /// ansehen" im ersten Start): die Uebersicht zeigt "Demo-Inhalte aktiv", die Karten "… verbinden" entfallen, kein
+    /// Abgleich mit der Hochschule (die Abgleiche fragen selbst die Datenbank, `LocalBackendHost.demoActive`)
+    @Published private(set) var demoActive = false
     /// wird nach jedem Wechsel aufgerufen (App: Session auf das Backend des Containers umstellen)
     var onChange: ((ActiveContainer?) -> Void)?
 
@@ -287,9 +291,11 @@ final class ContainerManager: ObservableObject {
         syncs.append(SyncRef(key: key, sync: studip))
         if let hildesheim { syncs.append(SyncRef(key: key, sync: hildesheim)) }
         if let qis { syncs.append(SyncRef(key: key, sync: qis)) }
+        demoActive = false
         generation += 1
         onChange?(c)
         Task { await checkDatabase(c) }
+        Task { await refreshDemo() }
         Task { await moveLegacyWebData(into: c) }
         // gleich abgleichen, wenn faellig (vorher erst beim naechsten Wechsel in den Vordergrund): eine abgelaufene
         // Sitzung zeigt sich so sofort. Nicht, wenn iOS die App fuer eine Hintergrundaufgabe gestartet hat (S8): dann
@@ -330,8 +336,33 @@ final class ContainerManager: ObservableObject {
         studip = Self.idleSync()
         hildesheim = nil
         qis = nil
+        demoActive = false
         generation += 1
         onChange?(nil)
+    }
+
+    // MARK: Demo-Inhalte (App-Pruefung ohne Hochschulkonto)
+
+    /// Stand der Demo im offenen Container neu lesen (nach dem Oeffnen)
+    func refreshDemo() async {
+        guard let c = active else { demoActive = false; return }
+        let on = await c.host.demoActive()
+        if active === c { demoActive = on }
+    }
+
+    /// Demo-Inhalte im offenen Container anlegen (frisch) bzw. rueckstandslos entfernen, `POST /api/demo` wie am PC.
+    /// Die Kopien der Demo-Dateien auf dem Geraet (PDF-Zwischenspeicher, Notiz-Journal, Vorschaubilder) gehen in
+    /// beiden Faellen mit, sonst kaemen alte Notizen in eine neu angelegte Demo zurueck. Kein Netz, keine Anmeldung.
+    /// Rueckgabe: Antwort des Backends (`enabled`, `files`, `events`, `packages`, beim Entfernen `removed`).
+    @discardableResult
+    func setDemo(_ on: Bool) async throws -> JSONValue {
+        guard let c = active else { throw APIError(status: 503, message: "", text: "Keine Hochschule geöffnet. Melde dich an und wähle deine Hochschule.") }
+        let r = try await c.api.value("/api/demo", method: "POST", body: ["enabled": .bool(on)])
+        for id in DemoContent.fileIDs { AppPaths.removeDocumentCopies(fileID: id, namespace: .local, root: c.layout.root) }
+        if active === c { demoActive = r["enabled"]?.bool == true }
+        // Erinnerungen an Abgaben neu planen (Frist der Demo kommt dazu bzw. faellt weg); nie unter XCTest
+        if !StudIPSync.isUnderTest() { DueReminderScheduler.shared.schedule(recompute: true) }
+        return r
     }
 
     /// Datenspeicher der Anmelde-Webansichten dieses Containers (eigene UUID, nie `.default()`)
