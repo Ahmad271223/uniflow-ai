@@ -44,7 +44,9 @@ Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (C
    155 Dateien / 18 Serien / 0 Noten / 12 Opencast-Videos; Hildesheim 9 / 539 / 24 Serien / 17 Ausfalltage /
    16 Leistungen. Der Inhaber meldet sich dafür selbst im Simulator an.
 6. **S8** Abgleich im Hintergrund (frühestens 8/15/20 Uhr, Erinnerungen) – nach Messung der Sitzungsdauer.
-7. **Karteikarten** selbst anlegen (sonst von der Plus-Karte nehmen; ist in der Abnahme schon auf „bald“ gesetzt).
+7. **Karteikarten** selbst anlegen: **erledigt (`wip/karteikarten`)** – vier Endpunkte lokal wie `app/server.py`,
+   Seite „Karteikarten“ mit Anlegen, Liste je Modul, Wiederholen und Löschen, nur mit Plus; „bald“ entfällt.
+   Offen: „Als Karteikarte“ aus markiertem Text im Editor (der Editor hat keine Textauswahl, `isInMarkupMode`).
 8. Kleinere Abnahme-Reste: Strichbreite der fremden Ebene, Stundenplan-Hinweis, E2E-Lage nach Zoom – siehe
    Commits „Abnahme: …“ und offene Punkte in `docs/IPAD-OHNE-PC.md`.
 
