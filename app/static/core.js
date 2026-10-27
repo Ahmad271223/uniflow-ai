@@ -1,5 +1,5 @@
 // Gemeinsame Helfer für alle Ansichten
-import { icon } from "./icons.js?v=29";
+import { icon } from "./icons.js?v=30";
 export { icon };
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -86,4 +86,6 @@ export const initial = s => (s || "?").replace(/^(Mathematik|Grundlagen|Einführ
 // Fachfarben fuer die Farbwahl: erste Stufe von PALETTE in app/colors.py (tests/test_module_colors.py vergleicht)
 export const PALETTE = ["#175ee8", "#e95905", "#167535", "#834bbf", "#b9454c", "#1f9682", "#896301", "#de5797", "#0486c2", "#748e03", "#626974", "#a1826c"];
 export const shortName = s => (s || "").replace("Mathematik für die Ingenieurwissenschaften", "Mathematik").replace("Elektrotechnische Grundlagen der Informatik", "Elektrotechnik").replace("Datenstrukturen und Algorithmen", "Datenstrukturen & Algorithmen").replace("Grundlagen digitaler Systeme", "Digitale Systeme");
-export const state = { route: () => {}, editors: [], hosted: false, account: null };
+export const state = { route: () => {}, editors: [], hosted: false, account: null, entitlements: null };
+// Recht aus dem Abo-Stand (GET /api/entitlements). Auf dem eigenen PC ist alles erlaubt; der Server prueft trotzdem jeden Aufruf.
+export const can = name => !state.hosted || !!state.entitlements?.entitlements?.[name];

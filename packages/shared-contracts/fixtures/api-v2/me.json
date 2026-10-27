@@ -1,3 +1,13 @@
-{ "id": "u_7f3a", "email": "studi@example.org", "email_verified": true, "plan": "plus", "plan_expires_at": "2026-11-25T00:00:00Z",
-  "capabilities": { "annotate": true, "pencil": true, "split_screen": true, "ai_advanced": false },
-  "quotas": { "ai_tests": { "used": 2, "limit": 6, "period": "2026-10" } } }
+{ "plan": "plus", "plan_name": "Studora Plus", "source": "app_store", "expires_at": "2026-11-25T10:00:00+00:00", "will_renew": true,
+  "pending_plan": null, "mode": "hosted", "apple_account_token": "7f3a2b1c-0000-4000-8000-000000000001",
+  "entitlements": { "can_view_pdf": true, "can_manage_courses": true, "can_import_documents": true, "can_view_timetable": true,
+                    "can_use_basic_planner": true, "can_read_community": true, "can_annotate_pdf": true, "can_use_pencilkit": true,
+                    "can_sync_annotations": true, "can_write_community_comments": true, "can_share_solutions": true,
+                    "can_access_shared_tests": true, "can_generate_studora_ai_tests": true, "can_use_advanced_analytics": false,
+                    "can_use_advanced_planner": false, "can_review_wrong_answers": false, "can_use_extended_test_history": false,
+                    "can_get_recommendations": false, "chatgpt_connection_premium": false, "can_use_ai_explanations": false,
+                    "can_use_ai_generated_questions": false, "can_use_ai_summaries": false, "can_use_ai_recommendations": false },
+  "quotas": { "ai_tests_new": { "used": 2, "limit": 3, "unlimited": false, "period": "2026-10" },
+              "library_tests": { "used": 1, "limit": 4, "unlimited": false, "period": "2026-10" },
+              "ai_assist": { "used": 0, "limit": 0, "unlimited": false, "period": "2026-10" } },
+  "integrations": { "chatgpt": { "status": "disabled", "reason": "Noch nicht von OpenAI freigegeben.", "plan_gating_allowed": false } } }

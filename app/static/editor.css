@@ -135,3 +135,8 @@ html.ed-inking .ed-pageinfo { opacity: .2; pointer-events: none; }
   .ed-sw { width: 28px; height: 28px; } .ed-widths .ed-w { width: 40px; }
   .ed-pageinfo button { height: 36px; min-width: 36px; }
 }
+
+/* Nur lesen (Studora Free im Dienst): Werkzeuge ausgeblendet, Notizen bleiben sichtbar */
+.ed-readonly .ed-main [data-tool], .ed-readonly .ed-ctx { display: none !important; }
+.ed-readonly-note { margin: .4rem .6rem; padding: .45rem .8rem; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: .85rem; display: flex; gap: .4rem; align-items: center; }
+.ed-readonly-note a { color: inherit; font-weight: 600; }

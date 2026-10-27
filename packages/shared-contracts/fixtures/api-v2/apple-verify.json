@@ -1,1 +1,2 @@
-{ "plan": "pro", "status": "active", "original_transaction_id": "2000000123456789", "expires_at": "2026-11-25T10:00:00Z", "environment": "Xcode" }
+{ "plan": "pro_ai", "status": "active", "original_transaction_id": "2000000123456789", "expires_at": "2026-11-25T10:00:00+00:00",
+  "will_renew": true, "pending_plan": null, "environment": "Sandbox", "stale": false }

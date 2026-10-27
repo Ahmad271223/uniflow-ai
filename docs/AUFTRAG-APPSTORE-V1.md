@@ -164,10 +164,10 @@ Regeln:
 
 | Thema | Stand |
 |---|---|
-| **Tarife** | **Entschieden (25.10.2026):** nur Free und Plus; Pro entfällt vorerst. Free mit Lernplanung, Plus zusätzlich mit Schreiben (Apple Pencil) und Community (Abschnitt 4) |
+| **Tarife** | **Ersetzt am 27.10.2026:** vier Tarife Studora Free/Plus/Pro Connect/Pro AI (0/1,99/2,99/3,99 €), siehe `docs/ABO-SYSTEM.md`. Bisher: **Entschieden (25.10.2026):** nur Free und Plus; Pro entfällt vorerst. Free mit Lernplanung, Plus zusätzlich mit Schreiben (Apple Pencil) und Community (Abschnitt 4) |
 | **Community** | **Entschieden (26.10.2026):** Community über CloudKit (Plus), später tauschbar (Supabase/eigener Dienst hinter `CommunityService`). Berechtigung = Kenntnis der Kurs-ID oder des Kursnamens, keine Bestätigung der Hochschule. Moderation macht der Inhaber im CloudKit Dashboard (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7). Braucht das Developer Program (iCloud-Container) |
 | **Art der 7 Tage** | **Entschieden (25.10.2026):** Apple-Einführungsangebot, 1 Woche gratis auf Plus (Abschnitt 5) |
-| **KI in V1** | **Entschieden (25.10.2026):** KI entfällt vorerst komplett, keine KI-Zeilen und keine KI-Kontingente. KI bräuchte ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App) |
+| **KI in V1** | **Ersetzt am 27.10.2026:** Studora-KI über das Backend (KI-Tests ab Plus, Pro AI mit eigener OpenAI-API), Kostenkontrolle im Dienst, siehe `docs/ABO-SYSTEM.md`. Bisher: **Entschieden (25.10.2026):** KI entfällt vorerst komplett, keine KI-Zeilen und keine KI-Kontingente. KI bräuchte ohne PC einen kostenpflichtigen Dienst und einen kleinen eigenen Server (der Schlüssel darf nicht in die App) |
 | **Preise** | Plus 1,99 €/Monat (25.10.2026). Offen: Jahresabo ja/nein |
 | **Server für V2** | Offen. Google- und SMS-Anmeldung, Abgleich zwischen Geräten und Abos über Plattformen hinweg brauchen einen gehosteten Dienst (Kosten, Betrieb, Datenschutz). SMS kostet pro Nachricht |
 | **Apple Developer Program** | Offen, Anmeldung durch den Inhaber. 99 €/Jahr, Voraussetzung für „Mit Apple anmelden“, TestFlight, App Store und echte Abos |

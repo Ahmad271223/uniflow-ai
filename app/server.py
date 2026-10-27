@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, colors, community_api, config, db, demo, filestream, jobs, legal, mail, planner, progress, retention, social_login, study, timetable, universities, vault
+from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -41,6 +41,8 @@ async def _lifespan(_app):
 app = FastAPI(title="Stud.IP Lern-App", lifespan=_lifespan)
 app.include_router(account_api.router)
 app.include_router(community_api.router)
+app.include_router(billing_api.router)
+app.include_router(library_api.router)
 db.init_db()
 
 
@@ -49,18 +51,17 @@ async def _http_error(request, exc: HTTPException):
     """Fehler mit stabilem Code: HTTPException(status, {"detail": ..., "code": ...}) -> flache Antwort
     {"detail": "...", "code": "..."} (Vertrag G1); alle anderen wie bei FastAPI ueblich."""
     d = exc.detail
-    body = {"detail": d.get("detail"), "code": d.get("code")} if isinstance(d, dict) and "detail" in d else {"detail": d}
+    body = ({"detail": d.get("detail"), "code": d.get("code"), **{k: v for k, v in d.items() if k not in ("detail", "code")}}
+            if isinstance(d, dict) and "detail" in d else {"detail": d})
     return JSONResponse(body, status_code=exc.status_code, headers=getattr(exc, "headers", None))
 
 # Gehosteter Modus (LERNAPP_MODE=hosted): diese Pfade gibt es dort noch nicht. Sie antworten 501 mit Grund (Regel G6),
 # statt im Dienst mit den Zugangsdaten der .env oder der KI-Kommandozeile des PCs zu arbeiten.
 HOSTED_UNAVAILABLE = (
     ("GET", "/api/network", "Gibt es nur auf dem eigenen PC (WLAN-Zugang)."),
-    ("POST", "/api/ai/tutor", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/files/{id}/analyze", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tests/generate", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tests/generate-week", "KI-Funktionen kommen mit dem KI-Update."),
-    ("POST", "/api/tests/{id}/submit", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/plan/generate", "KI-Funktionen kommen mit dem KI-Update."),
 )
 _HOSTED_UNAVAILABLE_RE = [(m, re.compile("^" + "[^/]+".join(re.escape(part) for part in p.split("{id}")) + "$"), why)
@@ -101,7 +102,7 @@ async def hosted_guard(request, call_next):
         if path != "/login" and not user:
             return RedirectResponse("/login", status_code=302)
         return await call_next(request)
-    if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS:
+    if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS or path in billing_api.PUBLIC:
         return await call_next(request)
     why = hosted_unavailable(request.method, path)
     if why:
@@ -454,15 +455,24 @@ def api_sync_changes(since: str | None = None, device_id: str | None = None):
 
 
 @app.post("/api/sync/push")
-def api_sync_push(body: dict = Body(...)):
-    """Vertrag G2: Aenderungen eines Geraets uebernehmen; Antwort mit Ergebnis je Eintrag, ID-Zuordnung, Konflikten."""
+def api_sync_push(request: Request, body: dict = Body(...)):
+    """Vertrag G2: Aenderungen eines Geraets uebernehmen; Antwort mit Ergebnis je Eintrag, ID-Zuordnung, Konflikten.
+    Notizen (`annotations`) nur mit dem Recht can_sync_annotations (ab Studora Plus); sonst Ergebnis `plan_required`
+    fuer genau diese Eintraege, alles andere wird normal uebernommen."""
     from . import sync
     items, deletes = body.get("items") or [], body.get("deletes") or []
     if not isinstance(items, list) or not isinstance(deletes, list):
         raise HTTPException(400, "items und deletes muessen Listen sein")
+    refused = []
+    if not entitlements.has(entitlements.user_of(request), "can_sync_annotations"):
+        refused = [it for it in items if isinstance(it, dict) and it.get("entity") == "annotations"]
+        items = [it for it in items if not (isinstance(it, dict) and it.get("entity") == "annotations")]
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")
-        return sync.push(conn, body.get("device_id"), items, deletes)
+        out = sync.push(conn, body.get("device_id"), items, deletes)
+    out["results"] = [{"entity": "annotations", "id": it.get("id") or it.get("local_id"), "status": "plan_required",
+                       "required_plan": entitlements.required_plan("can_sync_annotations")} for it in refused] + out["results"]
+    return out
 
 
 @app.get("/api/sync/status")
@@ -679,8 +689,14 @@ def get_annotations(file_id: str):
 
 
 @app.put("/api/files/{file_id}/annotations")
-def put_annotations(file_id: str, body: dict = Body(...), base_version: int | None = None):
-    """Speichert Annotationen. Mit base_version wird ein Konflikt (409) gemeldet, wenn der Server neuer ist."""
+def put_annotations(file_id: str, body: dict = Body(...), base_version: int | None = None, request: Request = None):
+    """Speichert Annotationen. Mit base_version wird ein Konflikt (409) gemeldet, wenn der Server neuer ist.
+    Im Dienst nur mit dem Recht can_annotate_pdf (ab Studora Plus); vorhandene Notizen bleiben immer lesbar."""
+    entitlements.require(request, "can_annotate_pdf")
+    return _put_annotations(file_id, body, base_version)
+
+
+def _put_annotations(file_id: str, body: dict, base_version: int | None = None):
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")      # Versionspruefung und Schreiben atomar: zwei Geraete koennen nicht beide gewinnen
         cur = db.row(conn, "SELECT version, data FROM annotations WHERE file_id=?", (file_id,))
@@ -708,12 +724,13 @@ def annotation_versions(file_id: str):
 
 
 @app.post("/api/files/{file_id}/annotations/restore/{version}")
-def restore_version(file_id: str, version: int):
+def restore_version(file_id: str, version: int, request: Request = None):
+    entitlements.require(request, "can_annotate_pdf")
     with db.cursor() as conn:
         r = db.row(conn, "SELECT data FROM annotation_versions WHERE file_id=? AND version=?", (file_id, version))
         if not r:
             raise HTTPException(404, "Version nicht gefunden")
-    return put_annotations(file_id, json.loads(r["data"]))
+    return _put_annotations(file_id, json.loads(r["data"]))
 
 
 ASSETS_DIR = DATA_DIR / "assets"
@@ -724,7 +741,8 @@ def _assets_dir() -> Path:
 
 
 @app.post("/api/files/{file_id}/assets")
-async def upload_asset(file_id: str, upload: UploadFile = File(...)):
+async def upload_asset(request: Request, file_id: str, upload: UploadFile = File(...)):
+    entitlements.require(request, "can_annotate_pdf")         # Bilder im Editor sind Notizen
     """Bild (oder Screenshot) fuer den Editor ablegen. Antwort: URL zum Einbetten."""
     _safe_id(file_id)
     ext = Path(upload.filename or "bild.png").suffix.lower() or ".png"
@@ -772,9 +790,17 @@ def page_text(file_id: str, page: int = 1):
 # KI-Tutor im Editor und Karteikarten
 # ----------------------------------------------------------------------------
 
+TUTOR_ENTITLEMENT = {"summary": "can_use_ai_summaries", "flashcards": "can_use_ai_generated_questions",
+                     "similar": "can_use_ai_generated_questions", "terms": "can_use_ai_explanations"}
+
+
 @app.post("/api/ai/tutor")
-def ai_tutor(body: dict = Body(...)):
+def ai_tutor(request: Request, body: dict = Body(...)):
     from . import ai
+    mode = body.get("mode") or "explain"
+    hosted = config.is_hosted()
+    if hosted:
+        entitlements.require(request, TUTOR_ENTITLEMENT.get(mode, "can_use_ai_explanations"))
     file_id = body.get("file_id")
     page = int(body.get("page") or 1)
     text = body.get("page_text") or ""
@@ -786,11 +812,14 @@ def ai_tutor(body: dict = Body(...)):
             course, fname = f["course_title"], f["name"]
         if not text.strip():
             text = page_text(file_id, page).get("text", "")
-    try:
-        answer = ai.tutor(body.get("mode") or "explain", text, body.get("selection") or "", body.get("question") or "",
-                          body.get("own_solution") or "", course, fname, page)
-    except ai.AIError as e:
-        raise HTTPException(500, str(e))
+    if hosted:
+        answer = _tutor_hosted(request, body, mode, text, course, fname, page)
+    else:
+        try:
+            answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
+                              body.get("own_solution") or "", course, fname, page)
+        except ai.AIError as e:
+            raise HTTPException(500, str(e))
     cards = None
     if (body.get("mode") == "flashcards"):
         try:
@@ -798,6 +827,23 @@ def ai_tutor(body: dict = Body(...)):
         except ai.AIError:
             cards = None
     return {"answer": answer, "cards": cards}
+
+
+def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int) -> str:
+    """Studora-KI (Pro AI): Kontingent ai_assist, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern zurueckgebucht."""
+    from . import ai, ai_backend
+    rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
+    entitlements.consume(request, "ai_assist", rid)
+    prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
+                             body.get("own_solution") or "", course, fname, page)
+    try:
+        return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True).text
+    except ai_backend.AIUnavailable as e:
+        entitlements.refund(rid)
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+    except Exception:
+        entitlements.refund(rid)
+        raise
 
 
 @app.get("/api/flashcards")
@@ -915,11 +961,15 @@ def subjects():
                                 FROM courses c WHERE active=1 AND kind!='sonstiges' GROUP BY subject ORDER BY subject""")
 
 
+HISTORY_BASIC = 10
+
+
 @app.get("/api/tests")
-def tests():
+def tests(request: Request):
+    limit = "" if entitlements.has(entitlements.user_of(request), "can_use_extended_test_history") else f" LIMIT {HISTORY_BASIC}"
     with db.cursor() as conn:
         rows = db.rows(conn, """SELECT id, subject, week_start, title, duration_min, created_at, started_at, submitted_at,
-                                       score, max_score, module_id, week_no, auto, questions FROM tests ORDER BY created_at DESC""")
+                                       score, max_score, module_id, week_no, auto, questions FROM tests ORDER BY created_at DESC""" + limit)
     for r in rows:
         try:
             r["question_count"] = len(json.loads(r.pop("questions") or "[]"))
@@ -971,6 +1021,8 @@ def get_test(test_id: int):
 @app.post("/api/tests/{test_id}/submit")
 def submit_test(test_id: int, body: dict = Body(...)):
     answers = {str(k): v for k, v in (body.get("answers") or {}).items()}
+    if config.is_hosted():
+        return library_api.grade_and_store(test_id, answers)
     try:
         return planner.grade(test_id, answers)
     except Exception as e:  # noqa: BLE001

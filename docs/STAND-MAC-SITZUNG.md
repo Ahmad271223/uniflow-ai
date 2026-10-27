@@ -767,3 +767,28 @@ Zeilen 117 und 204 nutzen `XCTExpectFailure`, das swift-corelibs-xctest unter Li
 es. Bitte unter Linux mit `#if canImport(ObjectiveC)` ausklammern oder die erwartete Abweichung anders pruefen, dann
 zeigt der Workflow wieder echte Fehler (zuletzt gruen: vor dem 26.10.). Android (`android.yml`) scheiterte an der
 fehlenden Ausfuehrrechte-Markierung von `gradlew` (100644 in Git) – ab 27.10. behoben.
+
+## Nachtrag der PC-Sitzung: Studora-Abosystem mit vier Tarifen (27.10.2026) – bitte in Swift nachziehen
+
+Neuer Auftrag des Inhabers: vier Tarife **Studora Free 0 €, Plus 1,99 €, Pro Connect 2,99 €, Pro AI 3,99 €**
+(ersetzt „nur Free und Plus“ und „KI entfällt in V1“). Server, Web und Windows sind auf Branch
+`feature/studora-abos` umgesetzt; Beschreibung in `docs/ABO-SYSTEM.md`. Für die Apple-App:
+
+1. **Tabelle aus dem Vertrag:** `packages/shared-contracts/fixtures/plans/plans.json` (Tarife, Preise, Rechte je Tarif,
+   Kontingente, Stand je Funktion). `UFPlan` auf `free, plus, pro_connect, pro_ai` erweitern, `UFFeature` auf die
+   Rechte-Namen abbilden und im Test gegen die Datei prüfen. Nur Rechte mit `status = available` als enthalten zeigen.
+2. **Produkte** (eine Abo-Gruppe): `de.uniflow.plus.monthly`, `de.uniflow.proconnect.monthly`,
+   `de.uniflow.proai.monthly`; StoreKit-Testkonfiguration (`UniFlow.storekit`) entsprechend ergänzen.
+3. **Kauf mit Konto verknüpfen:** `Product.purchase(options: [.appAccountToken(uuid)])` mit
+   `apple_account_token` aus `GET /api/entitlements`; nach jedem Kauf, jeder Verlängerung und beim Wiederherstellen
+   `Transaction.jwsRepresentation` (und `RenewalInfo`-JWS) an `POST /api/billing/apple/verify` schicken. Der Server
+   prüft die Signatur selbst; die App zeigt danach den Stand aus `GET /api/entitlements`.
+4. **Rechte serverseitig:** Notizen speichern (`PUT …/annotations`, G2-Push `annotations`) gibt ohne
+   `can_annotate_pdf`/`can_sync_annotations` jetzt `403 plan_required` bzw. Ergebnis `plan_required`. PencilKit nur mit
+   `can_use_pencilkit` einschalten; vorhandene Notizen bleiben immer sichtbar (auch nach Kündigung).
+5. **KI:** Pro AI nutzt die Studora-KI über `POST /api/ai/tutor` im Dienst, neue KI-Tests ab Plus über
+   `POST /api/library/tests`. Kein Schlüssel in der App. Ohne Schlüssel auf dem Server antwortet der Dienst
+   `503 ai_not_configured` – dann die KI-Funktionen als „in Vorbereitung“ zeigen.
+6. **ChatGPT:** `chatgpt_connection_premium` ist eine Anzeige-Regel und bleibt `false`, solange
+   `integrations.chatgpt.status = disabled`. Keine Verbindung vortäuschen.
+

@@ -1,32 +1,38 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://uniflow.local/contracts/api/v2/me.json",
-  "title": "GET /v2/me – Entwurf. Enthaelt nie Hochschul-Zugangsdaten.",
+  "title": "GET /api/entitlements – Abo-Stand eines Kontos (Studora-Tarife, app/billing.py). Enthaelt nie Hochschul-Zugangsdaten.",
   "type": "object",
-  "required": ["id", "email", "plan", "capabilities", "quotas"],
+  "required": ["plan", "plan_name", "entitlements", "quotas", "integrations", "mode"],
   "properties": {
-    "id": { "type": "string" },
-    "email": { "type": "string" },
-    "email_verified": { "type": "boolean" },
-    "plan": { "enum": ["free", "plus", "pro"] },
-    "plan_expires_at": { "type": ["string", "null"] },
-    "capabilities": {
+    "plan": { "enum": ["free", "plus", "pro_connect", "pro_ai", "local"] },
+    "plan_name": { "type": "string" },
+    "source": { "enum": ["app_store", "manual", null] },
+    "expires_at": { "type": ["string", "null"] },
+    "will_renew": { "type": "boolean" },
+    "pending_plan": { "enum": ["free", "plus", "pro_connect", "pro_ai", null] },
+    "mode": { "enum": ["hosted", "local"] },
+    "apple_account_token": { "type": "string" },
+    "entitlements": {
       "type": "object",
-      "required": ["annotate", "pencil", "split_screen", "ai_advanced"],
-      "properties": {
-        "annotate": { "type": "boolean" }, "pencil": { "type": "boolean" },
-        "split_screen": { "type": "boolean" }, "ai_advanced": { "type": "boolean" }
-      }
+      "required": ["can_view_pdf", "can_annotate_pdf", "can_use_pencilkit", "can_sync_annotations", "can_write_community_comments",
+                   "can_share_solutions", "can_use_advanced_planner", "can_use_advanced_analytics", "can_access_shared_tests",
+                   "can_generate_studora_ai_tests", "chatgpt_connection_premium"],
+      "additionalProperties": { "type": "boolean" }
     },
     "quotas": {
       "type": "object",
-      "required": ["ai_tests"],
-      "properties": {
-        "ai_tests": {
-          "type": "object", "required": ["used", "limit", "period"],
-          "properties": { "used": { "type": "integer", "minimum": 0 }, "limit": { "type": "integer", "minimum": 0 }, "period": { "type": "string" } }
-        }
+      "required": ["ai_tests_new", "library_tests", "ai_assist"],
+      "additionalProperties": {
+        "type": "object", "required": ["used", "limit", "period"],
+        "properties": { "used": { "type": "integer", "minimum": 0 }, "limit": { "type": ["integer", "null"], "minimum": 0 },
+                        "unlimited": { "type": "boolean" }, "period": { "type": "string" } }
       }
+    },
+    "integrations": {
+      "type": "object", "required": ["chatgpt"],
+      "properties": { "chatgpt": { "type": "object", "required": ["status", "plan_gating_allowed"],
+                                   "properties": { "status": { "enum": ["disabled", "enabled"] }, "plan_gating_allowed": { "type": "boolean" } } } }
     }
   }
 }

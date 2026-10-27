@@ -1,6 +1,6 @@
 // Stundenplan: Wochenraster, Termin-Panel mit Teilnahme, Import-Vorschau, Verfügbarkeit
 import { holClass, holChips, dlChips, noteChips, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, DAYS, DAYS_LONG, KIND_TXT, shortName, state } from "./core.js?v=30";
-import { useFreeWindow, openPackage } from "./views-plan.js?v=29";
+import { useFreeWindow, openPackage } from "./views-plan.js?v=30";
 
 let ttDate = todayISO();
 export async function viewTimetable(_, params, view) {

@@ -1,6 +1,6 @@
 // Lernkalender: Woche (Zeitraster), Tag (Zeitleiste), Monat, Aufgabenliste; Lernpakete, Nachholen, Neuplanung, Lernkombination
 import { holClass, holChips, dlChips, noteChips, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=30";
-import { tinyNames } from "./plan-names.js?v=29";
+import { tinyNames } from "./plan-names.js?v=30";
 
 export const planState = { view: "week", date: todayISO(), module: "" };
 const KIND_ICON = { vorlesung: "book", uebung: "pencil", gruppenuebung: "users", hoersaaluebung: "pencil", tutorium: "users", persoenlich: "user", sonstiges: "calendar" };
@@ -109,7 +109,7 @@ export function bindCalendar(body) {
   $$("[data-add]", body).forEach(b => b.onclick = e => { e.stopPropagation(); addPackageDialog(b.dataset.add); });
   // "Uhrzeiten vergeben": die Tage der Pakete ohne Uhrzeit, von Hand gesetzte Uhrzeiten bleiben (only_unset)
   $("#reslotWeek", body)?.addEventListener("click", async e => { await api("/timetable/reslot", { method: "POST", body: { dates: e.currentTarget.dataset.dates.split(","), only_unset: true } }); toast("Uhrzeiten vergeben"); state.route(); });
-  $$(".tt-ev[data-ev], .cal2-ev[data-ev], .day2-ev[data-ev]", body).forEach(el => el.onclick = () => import("./views-tt.js?v=29").then(m => m.openEvent(+el.dataset.ev, el.dataset.date)));
+  $$(".tt-ev[data-ev], .cal2-ev[data-ev], .day2-ev[data-ev]", body).forEach(el => el.onclick = () => import("./views-tt.js?v=30").then(m => m.openEvent(+el.dataset.ev, el.dataset.date)));
 }
 export function pkgBox(p) { return `<div class="pkg ${p.status}" style="--pc:${p.color || "var(--accent)"}" data-pkg="${p.id}"><div class="pt">${esc(shortName(p.subject || p.title))}</div><div class="ps">${esc(p.title && p.title !== p.subject ? p.title : "")}</div><div class="ps">${p.start_time ? `${p.start_time}–${p.end_time} · ` : ""}${fmtMin(p.planned_minutes || 0)} ${statusPill(p.status)}</div><div class="tl">${p.tasks.map(t => `<i class="${t.status === "erledigt" ? "done" : t.status === "nachholen" ? "late" : ""}" title="${esc(t.title)}">${{ vorlesung: "V", uebung: "Ü", test: "T", wiederholung: "W", frei: "L" }[t.type] || "•"}</i>`).join("")}</div></div>`; }
 
@@ -137,7 +137,7 @@ function weekSide(days, backlog, monthCal, d) {
 }
 function bindSide(view, dateStr, days) {
   $$("#calSide [data-pkg]", view).forEach(el => el.onclick = () => openPackage(+el.dataset.pkg));
-  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") (await import("./views-tt.js?v=29")).availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=29")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
+  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") (await import("./views-tt.js?v=30")).availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=30")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
   $$("#calSide [data-taskdone]", view).forEach(c => c.onclick = async () => { const done = c.classList.contains("on"); await api(`/tasks/${c.dataset.taskdone}/status`, { method: "POST", body: { status: done ? "geplant" : "erledigt" } }); toast(done ? "Wieder offen" : "Erledigt ✓"); state.route(); });
   $("#calSide #addTaskBtn", view)?.addEventListener("click", () => addPackageDialog(dateStr));
   $$("#calSide [data-use]", view).forEach(b => b.onclick = () => useFreeWindow(dateStr, b.dataset.use));

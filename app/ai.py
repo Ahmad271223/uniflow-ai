@@ -269,6 +269,12 @@ TUTOR_MODES = {
 
 def tutor(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
           course: str = "", file_name: str = "", page: int | None = None) -> str:
+    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page), TUTOR_SYSTEM)
+
+
+def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
+                 course: str = "", file_name: str = "", page: int | None = None) -> str:
+    """Prompt des KI-Tutors; gleich fuer `claude -p` am PC und die Studora-KI im Dienst (app/ai_backend.py)."""
     instr = TUTOR_MODES.get(mode, TUTOR_MODES["explain"])
     parts = [f"Kurs: {course}", f"Datei: {file_name}" + (f", Seite {page}" if page else ""), "", f"AUFGABE: {instr}"]
     if selection.strip():
@@ -278,7 +284,7 @@ def tutor(mode: str, page_text: str, selection: str = "", question: str = "", ow
     if question.strip():
         parts += ["", f"MEINE FRAGE: {question.strip()[:1000]}"]
     parts += ["", "SEITENINHALT (Kontext):", "<<<", (page_text or "").strip()[:9000] or "[kein Text extrahierbar]", ">>>"]
-    return ask("\n".join(parts), TUTOR_SYSTEM)
+    return "\n".join(parts)
 
 
 # ----------------------------------------------------------------------------
