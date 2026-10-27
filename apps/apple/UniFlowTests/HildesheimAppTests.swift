@@ -705,7 +705,9 @@ final class HildesheimAppTests: XCTestCase {
         gate.release()
         let report = try unwrap(await first.value)
         XCTAssertEqual(report.completed, ["Learnweb"], "der erste Lauf kannte LSF noch nicht")
-        XCTAssertEqual(h.learnweb, .ok(clock.now))
+        // der Folgelauf startet direkt am Ende des ersten und kann schon laufen, bevor dieser Test weitermacht (dann
+        // "gleicht ab …"); vorher stand hier nur .ok, das scheiterte je nach Reihenfolge auf dem MainActor
+        XCTAssertTrue(h.learnweb == .ok(clock.now) || h.learnweb == .running, "\(h.learnweb)")
         if case .failed = h.lsf { XCTFail("LSF faelschlich als Fehler: \(h.messages)") }
 
         try await waitUntil("Folgelauf mit LSF") { h.lsf == .ok(clock.now) && !h.isRunning }
