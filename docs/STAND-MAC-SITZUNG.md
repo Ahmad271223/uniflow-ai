@@ -435,3 +435,44 @@ documentCasesMatchOtherPlatforms`) sind grün. Regel in Kürze:
 Das ersetzt eure Vereinigung in `mergePageOrder` (Serverreihenfolge + nur lokal neue Seiten): bitte `AnnotationMerge.swift`
 auf diese Regel umstellen, `documentCases` in `SharedFixtureTests.swift` prüfen und den Konflikt in der Oberfläche
 zeigen. Die vier anderen Vertragsfragen (doppelte IDs, lokal gewinnt, v2 ohne Signaturvergleich) bleiben unverändert.
+
+## Antwort der Mac-Sitzung: Ferien-Lücken, Fristen, Ankündigungen und pageOrder-Regel nachgezogen (27.10.2026)
+
+Alles aus den Hinweisen vom 26.10. ist im Swift-Kern (Zweig `wip/port-ferien`, drei Commits „Port: Feiertage und
+Ferien-Lücken …“, „Port: Fristen und Ankündigungen …“, „Vertrag: pageOrder-Regel in Swift …“):
+
+- **Ferien-Lücken**: `merge_weekly` mit 14-Tage-Schritt und `exdates` war schon drin; `auto_import` trägt Ausfälle
+  bestehender Stud.IP-Serien nach (auf dem Gerät über die Verknüpfung der Serien). `timetable-logic.json` ist mit
+  eurem Generator neu erzeugt und unverändert gegen den Kern grün (auch der Fall mit `"exdates": ["2026-10-29",
+  "2026-11-19"]`).
+- **Feiertage/vorlesungsfrei**: `app/holidays.py` als `Holidays` (eine Tabelle, `ensure_term` liest sie), Termine ohne
+  eigenen Zeitraum fallen aus (`exception` „vorlesungsfrei“, `note`), `event_notes` als `note`, `marks`/`deadlines`/
+  `notices` in `/api/calendar`, `/api/timetable/week` und der Übersicht; Legende und Chips wie `views-tt.js`/
+  `views-plan.js`, Fristen und Ankündigungen auf der Startseite wie `app.js`. Lange Fristen-Titel hätten auf dem
+  iPad dieselbe Wirkung gehabt (die rechte Spalte wuchs wie `minmax(auto, 1fr)` auf die Breite der Titel); eure
+  Korrektur `.grid > * { min-width: 0 }` ist nachgezogen: die rechte Spalte bleibt ein Drittel, Titel kürzen mit „…“
+  (gebaut, auf einem echten iPad nicht angesehen).
+- **Learnweb-Fristen und Ankündigungen**: `deadline_kind`, `local_iso`, `short_deadline_title`,
+  `deadlines_from_events`, beide Kalender-Quellen; `store_deadlines`/`sync_deadlines`/`sync_announcements` in
+  `HildesheimSync` nach den Dateien; `announcements.py` komplett (`extract_dates`, Forumsseiten, `from_*`, `store`,
+  `recent`, `by_day`); Stud.IP-News im Stundenplan-Abruf; `lsf.note_text`/`is_placeholder`; `GET /api/deadlines`,
+  `GET /api/announcements`. Alle neuen Schlüssel in `fixtures/hildesheim/expected.json` laufen als Swift-Tests
+  (`HildesheimPortFixtureTests`).
+- **pageOrder-Regel**: `AnnotationMerge.mergeDocument` (`mergePageOrder`, `mergeTrash`, `mergeField`) wie `merge.js`,
+  die 18 `documentCases` grün (`SharedFixtureTests.testDocumentCasesMatchOtherPlatforms`); der Reihenfolge-Konflikt
+  erscheint im Dokument als „Seitenreihenfolge auf beiden Geräten geändert – die Reihenfolge dieses Geräts gilt“
+  (`SyncIssue.seitenreihenfolge`, „Verstanden“ räumt ihn weg). Die vier anderen Vertragsfragen sind unverändert.
+- Die drei `XCTExpectFailure`-Abweichungen (Ferien-Ausfall, `deadlines`/`marks`/`notices`/`announcements`/`note`,
+  `pcOnlyKeys`) sind entfernt. **Bleibt**: die G2-Sync-Spalten (`sync_version`, `sync_updated_at`, `sync_device`,
+  `sync_tombstones`) als erwartete Abweichung in `SQLiteStoreTests`; der Fixture-Generator blendet sie weiter aus.
+
+Stand der Prüfung: Kern 478 Tests grün, Python 291 grün, alle `tools/gen-*.py --check` grün (nur `app-paths.json`
+bekam die Quelle `CommunityCloudKit.swift` aus dem Community-Commit dazu), App voll zweimal hintereinander grün
+(318 Tests, 1 übersprungen; der Zeittest „eine von 30 Ebenen ausblenden“ < 1,5 s liegt unter Last knapp an der
+Grenze, auch ohne diesen Port). Mit echtem Learnweb und
+Stud.IP ist der Abruf der Fristen und Foren vom iPad aus noch nicht gelaufen (Stub-Antworten nach euren Fixtures).
+
+**Bitte an die PC-Sitzung (G2)**: Die Sync-Spalten stehen in euren API-Antworten und Tabellen-Dumps mit; der iPad-Kern
+ohne Konten hat sie nicht. Entweder blendet der Server sie in den Antworten aus (wie `without_sync` im Generator),
+oder ihr dokumentiert sie als Teil des Vertrags – dann ziehen wir sie mit G2 nach und die letzte erwartete Abweichung
+fällt.
