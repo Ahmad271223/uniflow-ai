@@ -24,9 +24,10 @@ WIN = ROOT / "apps" / "windows"
 def test_base_dir_and_environment(tmp_path, monkeypatch):
     from app import desktop
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Local"))
-    assert desktop.app_base_dir() == tmp_path / "Local" / "UniFlow"
+    assert desktop.app_base_dir() == tmp_path / "Local" / "de.uniflow.desktop", "Daten getrennt vom Programmordner"
+    assert desktop.legacy_base_dir() == tmp_path / "Local" / "UniFlow"
     monkeypatch.delenv("LOCALAPPDATA")
-    assert desktop.app_base_dir().name in (".uniflow", "UniFlow")
+    assert desktop.app_base_dir().name == ".uniflow" and desktop.legacy_base_dir() is None
     assert desktop.app_base_dir(str(tmp_path / "x")) == tmp_path / "x"
     base = tmp_path / "base"
     exe = tmp_path / "exe"
@@ -43,6 +44,97 @@ def test_base_dir_and_environment(tmp_path, monkeypatch):
     (base / "ms-playwright" / "chromium-2").mkdir(parents=True)
     assert desktop.browsers_path(base, exe) == exe / "ms-playwright", "neben der exe hat Vorrang"
     assert desktop.browsers_path(base, tmp_path / "leer") == base / "ms-playwright"
+
+
+def test_data_folder_matches_tauri_identifier_and_differs_from_install_folder():
+    """Datenordner = identifier (den meint „App-Daten entfernen“ beim Deinstallieren), Programmordner = productName.
+    Bis 0.3.0 waren beide gleich; Installer und Backend kamen sich in %LOCALAPPDATA%\\UniFlow in die Quere."""
+    from app import desktop
+    conf = json.loads((WIN / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
+    assert desktop.DATA_FOLDER == conf["identifier"] and desktop.DATA_FOLDER != conf["productName"]
+    assert desktop.LEGACY_FOLDER == conf["productName"]
+    rs = (WIN / "src-tauri" / "src" / "main.rs").read_text(encoding="utf-8")
+    assert f'const DATA_FOLDER: &str = "{conf["identifier"]}";' in rs and ".join(DATA_FOLDER)" in rs
+    assert 'join("UniFlow")' not in rs and "de.uniflow.desktop\\\\logs\\\\backend.log" in rs
+
+
+def test_migrate_legacy_moves_data_once_and_never_hides_it(tmp_path):
+    from app import desktop
+    legacy, base = tmp_path / "UniFlow", tmp_path / "de.uniflow.desktop"
+    assert desktop.migrate_legacy(base, None) == base, "ausserhalb von Windows nichts zu tun"
+    assert desktop.migrate_legacy(base, legacy) == base, "kein alter Ordner"
+    (legacy / "data").mkdir(parents=True)
+    assert desktop.migrate_legacy(base, legacy) == base and not base.exists(), "leerer alter Datenordner: nichts umziehen"
+    (legacy / "data" / "lernapp.db").write_bytes(b"alt")
+    (legacy / ".env").write_text("UNIVERSITY=luh\n", encoding="utf-8")
+    (legacy / "logs").mkdir()
+    (legacy / "backend").mkdir()                              # Programmdateien bleiben, wo sie sind
+    assert desktop.migrate_legacy(base, legacy) == base
+    assert (base / "data" / "lernapp.db").read_bytes() == b"alt" and (base / ".env").is_file()
+    assert not (legacy / "data").exists() and (legacy / "backend").is_dir() and (legacy / "logs").is_dir()
+    (legacy / "data").mkdir()
+    (legacy / "data" / "x").write_bytes(b"neu im alten Ordner")
+    assert desktop.migrate_legacy(base, legacy) == base, "neuer Ordner hat schon Daten: kein zweiter Umzug"
+    assert (base / "data" / "lernapp.db").read_bytes() == b"alt"
+
+
+def test_migrate_legacy_keeps_old_folder_when_move_fails(tmp_path, monkeypatch):
+    """Haelt ein altes Backend die Datenbank offen, scheitert das Verschieben: dann startet es mit dem alten Ordner,
+    statt mit einem leeren neuen (Daten waeren sonst scheinbar weg)."""
+    from app import desktop
+    legacy, base = tmp_path / "UniFlow", tmp_path / "de.uniflow.desktop"
+    (legacy / "data").mkdir(parents=True)
+    (legacy / "data" / "lernapp.db").write_bytes(b"alt")
+
+    def locked(self, target):
+        raise PermissionError(32, "Der Prozess kann nicht auf die Datei zugreifen")
+    monkeypatch.setattr(type(legacy), "rename", locked)
+    assert desktop.migrate_legacy(base, legacy) == legacy
+    assert (legacy / "data" / "lernapp.db").read_bytes() == b"alt"
+
+
+def test_ensure_dir_retries_when_folder_is_briefly_unavailable(tmp_path, monkeypatch):
+    """WinError 183 beim Anlegen eines vorhandenen, kurz nicht abfragbaren Ordners (Startfehler vom 27.10.2026):
+    erneut versuchen statt abzubrechen; eine Datei an der Stelle gibt sofort einen klaren Fehler."""
+    from app import desktop
+    target = tmp_path / "logs"
+    real_mkdir = type(target).mkdir
+    calls = {"n": 0}
+
+    def flaky(self, *a, **kw):
+        if self == target and calls["n"] < 2:
+            calls["n"] += 1
+            raise FileExistsError(183, "Eine Datei kann nicht erstellt werden, wenn sie bereits vorhanden ist")
+        return real_mkdir(self, *a, **kw)
+    monkeypatch.setattr(type(target), "mkdir", flaky)
+    desktop.ensure_dir(target, wait_seconds=0)
+    assert target.is_dir() and calls["n"] == 2
+    monkeypatch.setattr(type(target), "mkdir", real_mkdir)
+    blocker = tmp_path / "datei"
+    blocker.write_text("x", encoding="utf-8")
+    with pytest.raises(FileExistsError, match="Datei, kein Ordner"):
+        desktop.ensure_dir(blocker, wait_seconds=0)
+
+
+def test_main_never_lets_an_exception_escape(tmp_path, monkeypatch):
+    """Jeder Fehler beim Start, auch beim Anlegen der Ordner, endet mit 1 und einem Protokolleintrag – nie mit dem
+    Fehlerfenster „Unhandled exception in script“ von PyInstaller."""
+    from app import desktop
+    for k in ("LERNAPP_DATA_DIR", "LERNAPP_LOG_DIR", "LERNAPP_ENV_FILE", "PLAYWRIGHT_BROWSERS_PATH"):
+        monkeypatch.setenv(k, os.environ.get(k, ""))
+    monkeypatch.setenv("TEMP", str(tmp_path / "temp"))
+
+    def broken(base, exe_folder=None):
+        raise FileExistsError(183, "Eine Datei kann nicht erstellt werden")
+    monkeypatch.setattr(desktop, "prepare_environment", broken)
+    rc = desktop.main(["--base", str(tmp_path / "base"), "--state", str(tmp_path / "backend.json")])
+    assert rc == 1 and not (tmp_path / "backend.json").exists()
+    text = (tmp_path / "base" / "logs" / "backend.log").read_text(encoding="utf-8")
+    assert "Backend-Start fehlgeschlagen" in text and "FileExistsError" in text
+    # Protokollordner selbst nicht anlegbar: Ausweichprotokoll im TEMP-Ordner
+    (tmp_path / "base2").write_text("Datei statt Ordner", encoding="utf-8")
+    rc = desktop.main(["--base", str(tmp_path / "base2"), "--state", str(tmp_path / "b2.json")])
+    assert rc == 1 and "Backend-Start fehlgeschlagen" in (tmp_path / "temp" / desktop.FALLBACK_LOG).read_text(encoding="utf-8")
 
 
 def test_bind_socket_state_file_and_process_alive(tmp_path):

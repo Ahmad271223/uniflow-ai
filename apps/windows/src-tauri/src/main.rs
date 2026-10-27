@@ -1,7 +1,8 @@
 // UniFlow fuer Windows: ein Tauri-Fenster und das mitgelieferte Backend (uniflow-backend.exe, PyInstaller).
 //
 // Start: das Backend wird aus den Ressourcen gestartet (backend/uniflow-backend.exe) mit der eigenen Prozess-ID als
-// Elternprozess; es bindet einen freien Port auf 127.0.0.1 und schreibt ihn in %LOCALAPPDATA%\UniFlow\backend.json.
+// Elternprozess; es bindet einen freien Port auf 127.0.0.1 und schreibt ihn in %LOCALAPPDATA%\de.uniflow.desktop\backend.json.
+// Datenordner (= identifier) und Programmordner (%LOCALAPPDATA%\UniFlow, = productName) sind getrennt, siehe app/desktop.py.
 // Die Datei gilt nur, wenn ihre `pid` die des gerade gestarteten Kindprozesses ist (keine alte Datei, kein fremder
 // Prozess) und ihre `url` genau http://127.0.0.1:<port>/ lautet; dann wechselt das Fenster von der Startseite
 // (dist/index.html) zur Oberflaeche des Backends. Endet das Backend vorher, zeigt die Startseite sofort den Fehler
@@ -18,7 +19,9 @@ use std::time::{Duration, Instant};
 
 use tauri::{Manager, RunEvent};
 
-const LOG_HINT: &str = "Protokoll: %LOCALAPPDATA%\\UniFlow\\logs\\backend.log";
+const LOG_HINT: &str = "Protokoll: %LOCALAPPDATA%\\de.uniflow.desktop\\logs\\backend.log";
+/// Datenordner unter %LOCALAPPDATA%; gleicher Wert wie DATA_FOLDER in app/desktop.py und identifier in tauri.conf.json.
+const DATA_FOLDER: &str = "de.uniflow.desktop";
 
 /// Der Backend-Prozess; None, bevor er gestartet und nachdem er beim Beenden abgeraeumt wurde.
 type Shared = Arc<Mutex<Option<Child>>>;
@@ -29,7 +32,7 @@ fn state_file() -> PathBuf {
     let base = std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir())
-        .join("UniFlow");
+        .join(DATA_FOLDER);
     base.join("backend.json")
 }
 
