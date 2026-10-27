@@ -1,5 +1,6 @@
 import PDFKit
 import PencilKit
+import SwiftUI
 import UIKit
 import XCTest
 import UniFlowCore
@@ -83,6 +84,88 @@ final class PageFormatsAppTests: XCTestCase {
             XCTAssertEqual([first?["w"]?.double ?? 0, first?["h"]?.double ?? 0], size, format)
             XCTAssertEqual(first?["template"], "dotted")
         }
+    }
+
+    private static func accessibilityAutomation(_ on: Bool) -> Bool {
+        guard let h = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW), let f = dlsym(h, "_AXSSetAutomationEnabled") else { return false }
+        typealias SetEnabled = @convention(c) (Int32) -> Void
+        unsafeBitCast(f, to: SetEnabled.self)(on ? 1 : 0)
+        return true
+    }
+
+    private func buttons(in view: UIView) -> [NSObject] {
+        view.layoutIfNeeded()
+        var out: [NSObject] = []
+        func visit(_ element: Any, depth: Int) {
+            guard depth < 40 else { return }
+            if let o = element as? NSObject {
+                if o.accessibilityTraits.contains(.button), o.accessibilityLabel?.isEmpty == false { out.append(o) }
+                for e in o.accessibilityElements ?? [] { visit(e, depth: depth + 1) }
+                let n = o.accessibilityElementCount()
+                if n != NSNotFound, n > 0 { for i in 0..<min(n, 500) { if let e = o.accessibilityElement(at: i) { visit(e, depth: depth + 1) } } }
+            }
+            if let v = element as? UIView { for s in v.subviews { visit(s, depth: depth + 1) } }
+        }
+        visit(view, depth: 0)
+        return out
+    }
+
+    private func tap(_ label: String, in view: UIView) -> Bool {
+        buttons(in: view).first { $0.accessibilityLabel == label }?.accessibilityActivate() == true
+    }
+
+    /// Dialog "Neues Notizbuch" in einem Fenster: Formate A6 ... A2 und Hoch/Quer sind waehlbar, "Erstellen" legt die
+    /// erste Seite im gewaehlten Format an; das Whiteboard bietet die vier Whiteboard-Groessen ohne Hoch/Quer an
+    func testNotebookDialogOffersFormatsAndCreatesChosenOne() async throws {
+        let fx = try backend()
+        let plan = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(plan) }
+        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { _ = Self.accessibilityAutomation(false) }
+        let suite = "uniflow-formate-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let router = UFRouter()
+
+        func show(_ kind: String) async throws -> (UIWindow, UIView) {
+            let root = NotebookDialog(kind: kind, lib: ["modules": []], moduleID: nil, folderID: nil)
+                .environmentObject(Session(local: fx.api, defaults: defaults))
+                .environmentObject(UFToastCenter())
+                .environmentObject(router)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 760, height: 900)
+            let hosting = UIHostingController(rootView: root)
+            window.rootViewController = hosting
+            window.makeKeyAndVisible()
+            for _ in 0..<10 { try await Task.sleep(nanoseconds: 50_000_000) }
+            return (window, hosting.view)
+        }
+
+        let (w1, notebook) = try await show("notebook")
+        let labels = Set(buttons(in: notebook).compactMap(\.accessibilityLabel))
+        for f in PageFormats.paper { XCTAssertTrue(labels.contains(f.name), "Format \(f.name) fehlt: \(labels.sorted())") }
+        XCTAssertTrue(labels.isSuperset(of: ["Hoch", "Quer"]))
+        XCTAssertFalse(labels.contains("Riesig (A0 quer)"), "Whiteboards nur beim Whiteboard")
+        XCTAssertTrue(tap("A5", in: notebook))
+        XCTAssertTrue(tap("Quer", in: notebook))
+        for _ in 0..<5 { try await Task.sleep(nanoseconds: 50_000_000) }
+        XCTAssertTrue(tap("Erstellen", in: notebook))
+        for _ in 0..<100 { if case .doc = router.route { break }; try await Task.sleep(nanoseconds: 20_000_000) }
+        guard case .doc(let id, _, _) = router.route else { return XCTFail("Dokument nicht geoeffnet: \(router.route)") }
+        let ann = try await fx.api.value("/api/files/\(id)/annotations")
+        let first = ann["data"]?["pageOrder"]?.array?.first
+        XCTAssertEqual([first?["w"]?.double ?? 0, first?["h"]?.double ?? 0], [595, 420], "A5 quer")
+        XCTAssertEqual(first?["template"], "lined", "Vorlage wie vorgewaehlt")
+        w1.isHidden = true
+
+        let (w2, board) = try await show("whiteboard")
+        let boardLabels = Set(buttons(in: board).compactMap(\.accessibilityLabel))
+        for f in PageFormats.whiteboards { XCTAssertTrue(boardLabels.contains(f.name), "Whiteboard \(f.name) fehlt: \(boardLabels.sorted())") }
+        XCTAssertFalse(boardLabels.contains("Quer"), "Whiteboards sind immer quer")
+        XCTAssertFalse(boardLabels.contains("A4"))
+        w2.isHidden = true
     }
 
     // MARK: Anzeige beliebiger Groessen
