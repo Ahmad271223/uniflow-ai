@@ -368,10 +368,10 @@ private struct UFWebLoadFailureCard: ViewModifier {
 /// ueber der Tastatur). Nach dem Laden liest eine Ansicht hoechstens den Seiteninhalt, um eine angemeldete Seite oder
 /// den Fehlertext des CAS zu erkennen (`outerHTML` enthaelt eingetippte Werte nicht).
 ///
-/// `interceptNavigation` sieht jede Navigation vor dem Laden und bricht sie mit `true` ab (Moodle-SSO: `moodlemobile://token=…` nie an das System). Der Hauptrahmen laedt nur HTTPS (und
-/// about:blank): eine auf http herabgestufte Anmeldeseite wird nie angezeigt, auch nicht im Debug-Build mit
-/// ATS-Ausnahme fuer das lokale Netz. Ladefehler meldet `load` (Karte mit "Erneut versuchen"). Nur fuer die Anmeldung
-/// verwenden, nie fuer Inhalte.
+/// `interceptNavigation` sieht jede Navigation vor dem Laden und bricht sie mit `true` ab (Moodle-SSO:
+/// `moodlemobile://token=…` nie an das System). Der Hauptrahmen laedt nur HTTPS (und about:blank): eine auf http
+/// herabgestufte Anmeldeseite wird nie angezeigt, auch nicht im Debug-Build mit ATS-Ausnahme fuer das lokale Netz.
+/// Ladefehler meldet `load` (Karte mit "Erneut versuchen"). Nur fuer die Anmeldung verwenden, nie fuer Inhalte.
 struct StudIPWebView: UIViewRepresentable {
     let url: URL
     let dataStore: WKWebsiteDataStore
