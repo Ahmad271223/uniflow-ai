@@ -231,6 +231,50 @@ final class AuditRunde11AppTests: XCTestCase {
         XCTAssertTrue(c.cookies.load().isEmpty)
     }
 
+    /// 362, Luecke beim Start: Abmelden, waehrend ein Lauf noch die Demo-Pruefung abwartet (noch ohne laufende Aufgabe,
+    /// das Abmelden kann ihn nicht anhalten). Vorher begann er danach mit dem Client der alten Sitzung, fragte Stud.IP
+    /// und stand am Ende wieder auf "verbunden".
+    func testStudIPSignOutWhileARunIsStillStartingKeepsItFromStarting() async throws {
+        let m = manager()
+        let c = try open(m, account(.luh))
+        try c.cookies.save([cookie("Seminar_Session", "sitzung-test", domain: "studip.uni-hannover.de")])
+        let stud = WaitingStudIP()
+        let sync = m.studip
+        let run = Task { await sync.run(client: StudIPClient(base: StudIPSync.base, transport: stud, pauseMillis: 0)) }
+        await Task.yield()                                   // der Lauf wartet jetzt in der Demo-Pruefung
+        XCTAssertFalse(sync.isRunning)
+        await sync.signOut()
+        stud.gate.release()
+        let end = await run.value
+        XCTAssertNil(end, "nach dem Abmelden beginnt der Lauf nicht mehr")
+        XCTAssertEqual(stud.requests, 0, "keine Anfrage mit der alten Sitzung")
+        XCTAssertEqual(sync.phase, .signedOut)
+        XCTAssertFalse(sync.isRunning)
+        XCTAssertTrue(c.cookies.load().isEmpty)
+    }
+
+    /// Dasselbe fuer die Uni Hildesheim: der wartende Lauf beginnt nicht, zaehlt nicht als Lauf, fragt niemanden
+    func testHildesheimSignOutWhileARunIsStillStartingStartsNothing() async throws {
+        let m = manager()
+        let (c, h) = try await connectedHildesheim(m, account(.hildesheim))
+        try installUni()
+        let runsBefore = h.finishedRuns
+        let lastRunBefore = h.lastRun
+        let run = Task { await h.run() }
+        await Task.yield()                                   // der Lauf wartet jetzt in der Demo-Pruefung
+        XCTAssertFalse(h.isRunning)
+        let problem = await h.signOut()
+        XCTAssertNil(problem)
+        let report = await run.value
+        XCTAssertNil(report, "nach dem Abmelden beginnt der Lauf nicht mehr")
+        XCTAssertEqual(h.finishedRuns, runsBefore)
+        XCTAssertEqual(h.lastRun, lastRunBefore)
+        XCTAssertTrue(UniStubProtocol.requests.isEmpty, UniStubProtocol.requests.map(\.url.absoluteString).joined(separator: ", "))
+        XCTAssertEqual(h.learnweb, .notConnected)
+        XCTAssertEqual(h.lsf, .notConnected)
+        XCTAssertNil(c.tokens.token(.hildesheim, service: "learnweb"))
+    }
+
     // MARK: 363/372 Hochschulwechsel waehrend des Learnweb-Downloads
 
     func testSwitchingUniversityDuringALearnwebDownloadKeepsFilesInTheirContainer() async throws {
@@ -375,6 +419,33 @@ final class AuditRunde11AppTests: XCTestCase {
     }
 
     // MARK: 374 spaete Schreibzugriffe nach dem Loeschen
+
+    /// 374, Luecke beim Start: "Daten dieser Hochschule loeschen", waehrend ein Lauf noch die Demo-Pruefung abwartet
+    /// (noch ohne laufende Aufgabe, `stop` findet nichts zum Anhalten). Die Sperre wird nach der Pruefung erneut gelesen:
+    /// der Lauf beginnt nicht, fragt niemanden, und im neu geoeffneten Container entsteht nichts.
+    func testDeletingWhileARunIsStillStartingStartsNothing() async throws {
+        let m = manager()
+        let c = try open(m, account(.luh))
+        try c.cookies.save([cookie("Seminar_Session", "sitzung-test", domain: "studip.uni-hannover.de")])
+        let stud = WaitingStudIP()
+        let sync = m.studip
+        let run = Task { await sync.run(client: StudIPClient(base: StudIPSync.base, transport: stud, pauseMillis: 0)) }
+        await Task.yield()                                   // der Lauf wartet jetzt in der Demo-Pruefung
+        XCTAssertFalse(sync.isRunning)
+        let problem = await m.deleteUniversityData(c.key)
+        XCTAssertNil(problem)
+        stud.gate.release()
+        let end = await run.value
+        XCTAssertNil(end, "nach dem Loeschen beginnt der Lauf nicht mehr")
+        XCTAssertEqual(stud.requests, 0)
+        XCTAssertTrue(sync.stopped)
+        let fresh = try XCTUnwrap(m.active)
+        XCTAssertEqual(fresh.layout.root, c.layout.root, "derselbe Container, neu und leer")
+        let downloads = DataContainerLayout.Folder.studip.url(in: fresh.layout.root).appendingPathComponent("files")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: downloads.path), "keine Downloads im neuen Container")
+        let library = try await fresh.api.value("/api/library").jsonString()
+        XCTAssertFalse(library.contains("Blatt 3"), "nichts aus dem alten Lauf im neuen Container")
+    }
 
     /// Ein Dokument sichert nach "Daten dieser Hochschule loeschen" noch (Schliessen, Upload): es schreibt nichts mehr,
     /// weder in den geloeschten noch in den leer neu geoeffneten Container mit derselben Kennung
@@ -565,8 +636,14 @@ final class AuditRunde11AppTests: XCTestCase {
     /// Stud.IP mit festen Antworten (ein Kurs, eine Datei, erfunden); der Download wartet, bis der Test ihn freigibt
     private final class WaitingStudIP: StudIPTransport, @unchecked Sendable {
         let gate = StubGate()
+        private let lock = NSLock()
+        private var count = 0
+        /// Zahl der Anfragen (Listen und Downloads)
+        var requests: Int { lock.lock(); defer { lock.unlock() }; return count }
+        private func counted() { lock.lock(); count += 1; lock.unlock() }
 
         func get(_ url: URL, accept: String?) async throws -> HTTPReply {
+            counted()
             let path = (url.path + (url.query.map { "?" + $0 } ?? ""))
                 .replacingOccurrences(of: "%5B", with: "[").replacingOccurrences(of: "%5D", with: "]")
             let json: String
@@ -588,6 +665,7 @@ final class AuditRunde11AppTests: XCTestCase {
         }
 
         func download(_ url: URL, to file: URL) async throws -> HTTPReply {
+            counted()
             let gate = self.gate
             await Task.detached { gate.pass() }.value
             try Task.checkCancellation()

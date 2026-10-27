@@ -82,6 +82,9 @@ final class HildesheimConnection: ObservableObject {
     private var current: Task<HildesheimSync.Report?, Never>?
     /// angehalten (Container wird geloescht): kein weiterer Abgleich
     private(set) var stopped = false
+    /// zaehlt jedes Abmelden: ein Lauf, der vorher begann und noch auf die Demo-Pruefung wartete (noch ohne `current`,
+    /// das Abmelden haelt ihn also nicht an), beginnt danach nicht mehr (Pruefpunkt 362)
+    private var signOuts = 0
     /// Quellen, die waehrend eines laufenden Abgleichs (neu) verbunden wurden: der laufende bewertet sie nicht (sie
     /// bleiben "verbunden"), direkt danach folgt ein eigener Lauf
     private var connectedDuringRun: Set<Source> = []
@@ -214,6 +217,7 @@ final class HildesheimConnection: ObservableObject {
     /// - Returns: nil, wenn alles entfernt ist; sonst die Meldung fuer die Oberflaeche
     @discardableResult
     func signOut() async -> String? {
+        signOuts += 1
         defaults.set(true, forKey: Keys.signOutPending)
         connectedDuringRun = []
         if let task = current {
@@ -299,9 +303,11 @@ final class HildesheimConnection: ObservableObject {
     @discardableResult
     func run(forceGrades: Bool = false, scope: UniSyncScope = .full, background: Bool = false) async -> HildesheimSync.Report? {
         guard !isRunning, !stopped, !sources(background: background).isEmpty else { return nil }
+        let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
         if await demoActive() { return nil }
-        guard !isRunning, !stopped else { return nil }
+        // waehrend der Pruefung angehalten, schon ein Lauf, abgemeldet oder nichts mehr verbunden
+        guard !isRunning, !stopped, signOuts == signOutsBefore, !sources(background: background).isEmpty else { return nil }
         isRunning = true
         let task = Task { await self.perform(forceGrades: forceGrades, scope: scope, background: background) }
         current = task

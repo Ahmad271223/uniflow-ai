@@ -46,6 +46,9 @@ final class QISConnection: ObservableObject {
     var syncsAfterSignIn = true
     private var current: Task<QISGradesSync.Report?, Never>?
     private(set) var stopped = false
+    /// zaehlt jedes Abmelden: ein Abruf, der vorher begann und noch auf die Demo-Pruefung wartete, beginnt danach nicht
+    /// mehr (er setzte sonst nach dem Abmelden wieder seinen Stand, Pruefpunkt 362)
+    private var signOuts = 0
 
     /// Rueckfrage vor dem Abmelden (Einstellungen, Uni & Noten)
     static let signOutMessage = "Die QIS-Anmeldung in der Webansicht wird gelöscht. Die geladenen Noten bleiben; Stud.IP bleibt angemeldet. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
@@ -121,6 +124,7 @@ final class QISConnection: ObservableObject {
     /// Abmelden: Verbindung, Stand und die QIS-Cookies der Webansicht (Stud.IP bleibt angemeldet); Noten in der
     /// Datenbank bleiben. Ein Passwort hat die App nicht zu loeschen (das merkt hoechstens iOS).
     func signOut() async {
+        signOuts += 1
         // laufenden Abruf zuerst anhalten und abwarten (er schriebe danach seinen Stand zurueck)
         if let task = current {
             task.cancel()
@@ -154,9 +158,11 @@ final class QISConnection: ObservableObject {
     @discardableResult
     func run(force: Bool = false) async -> QISGradesSync.Report? {
         guard !isRunning, !stopped, isConnected, force || due else { return nil }
+        let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
         if await host.demoActive() { return nil }
-        guard !isRunning, !stopped else { return nil }
+        // waehrend der Pruefung angehalten, schon ein Abruf oder abgemeldet
+        guard !isRunning, !stopped, signOuts == signOutsBefore, isConnected else { return nil }
         isRunning = true
         let before = state
         set(.running)

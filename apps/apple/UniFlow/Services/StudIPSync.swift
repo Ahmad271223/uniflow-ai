@@ -226,6 +226,9 @@ final class StudIPSync: ObservableObject {
     private var current: Task<RunEnd, Never>?
     /// angehalten (Container wird geloescht): kein weiterer Abgleich
     private(set) var stopped = false
+    /// zaehlt jedes Abmelden: ein Lauf, der vorher begann und noch auf die Demo-Pruefung wartete (noch ohne `current`,
+    /// das Abmelden haelt ihn also nicht an), beginnt danach nicht mehr mit der alten Sitzung (Pruefpunkt 362)
+    private var signOuts = 0
 
     /// `root`: Stud.IP-Ordner (in der App `<Container>/StudIP`), `host`: lokales Backend, `support`: Ordner des
     /// Editors (Journal, PDF-Zwischenspeicher), `defaults`: Einstellungen des Containers, `cookies` und
@@ -347,6 +350,7 @@ final class StudIPSync: ObservableObject {
     /// Abmelden: Cookie aus dem Schluesselbund und alle Daten der Webansicht dieses Containers (auch die SSO-Sitzung)
     /// loeschen; die andere Hochschule bleibt angemeldet. Heruntergeladene Dateien bleiben, bis der Nutzer sie entfernt.
     func signOut() async {
+        signOuts += 1
         // laufenden Abgleich zuerst anhalten und abwarten: er arbeitete sonst mit der alten Sitzung weiter und setzte
         // danach "verbunden" (phase .idle), obwohl abgemeldet
         if let task = current {
@@ -427,9 +431,11 @@ final class StudIPSync: ObservableObject {
     @discardableResult
     func run(client: StudIPClient, scope: UniSyncScope = .full) async -> RunEnd? {
         guard !isRunning, !stopped else { return nil }
+        let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
         if await demoActive() { return nil }
-        guard !isRunning, !stopped else { return nil }
+        // waehrend der Pruefung angehalten, schon ein Lauf oder abgemeldet (dann gehoert `client` zur alten Sitzung)
+        guard !isRunning, !stopped, signOuts == signOutsBefore else { return nil }
         phase = .running("Kurse werden geladen …")
         let task = Task { await self.perform(client: client, scope: scope) }
         current = task
