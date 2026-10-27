@@ -359,6 +359,55 @@ final class LocalAnnotationsTests: XCTestCase {
         XCTAssertEqual(ann.json?["data"]?["pageOrder"]?.array?.first?["template"], "blank")
     }
 
+    private func notebook(_ b: LocalBackend, _ fields: [(String, String)]) async -> LocalResponse {
+        let body = fields.map { "--b\r\nContent-Disposition: form-data; name=\"\($0.0)\"\r\n\r\n\($0.1)\r\n" }.joined() + "--b--\r\n"
+        return await b.handle(LocalRequest(method: "POST", path: "/api/notebooks",
+                                           headers: ["Content-Type": "multipart/form-data; boundary=b"], body: Data(body.utf8)))
+    }
+
+    private func firstPage(_ b: LocalBackend, _ created: LocalResponse) async -> JSONValue? {
+        let ann = await b.handle(LocalRequest(method: "GET", path: "/api/files/\(created.json?["id"]?.string ?? "")/annotations"))
+        return ann.json?["data"]?["pageOrder"]?.array?.first
+    }
+
+    /// Seitenformat beim Anlegen wie tests/test_page_formats.py: gewaehltes Format (A3 quer, Whiteboard A0 quer),
+    /// ohne Angabe A4 hoch bzw. A4 quer, ausserhalb von 100-3400 pt 400 format_invalid ohne neue Datei, Zahlen wie
+    /// FastAPI (Formularfeld "595.0" gilt, "12.5" 422)
+    func testNotebookTakesChosenPageFormat() async throws {
+        let b = try await backend()
+        let a3 = await notebook(b, [("kind", "notebook"), ("title", "A3 quer"), ("template", "grid"), ("w", "1191"), ("h", "842")])
+        XCTAssertEqual(a3.status, 200)
+        let e = await firstPage(b, a3)
+        XCTAssertEqual(e?["type"], "blank")
+        XCTAssertEqual(e?["template"], "grid")
+        XCTAssertEqual(e?["w"], 1191)
+        XCTAssertEqual(e?["h"], 842)
+        let wb = await notebook(b, [("kind", "whiteboard"), ("title", "Riesig"), ("w", "3370"), ("h", "2384")])
+        let wbPage = await firstPage(b, wb)
+        XCTAssertEqual([wbPage?["w"], wbPage?["h"]], [3370, 2384])
+        let plain = await notebook(b, [("kind", "notebook"), ("title", "Standard"), ("template", "lined")])
+        let plainPage = await firstPage(b, plain)
+        XCTAssertEqual([plainPage?["w"], plainPage?["h"]], [595, 842], "ohne Angabe A4 hoch")
+        let board = await notebook(b, [("kind", "whiteboard"), ("title", "Standard"), ("w", ""), ("h", "")])
+        let boardPage = await firstPage(b, board)
+        XCTAssertEqual([boardPage?["w"], boardPage?["h"]], [842, 595], "leere Felder: A4 quer")
+        let a6 = await notebook(b, [("kind", "notebook"), ("w", " 298.0 "), ("h", "4_20")])
+        let a6Page = await firstPage(b, a6)
+        XCTAssertEqual([a6Page?["w"], a6Page?["h"]], [298, 420])
+
+        let before = try await b.context.database.scalar("SELECT COUNT(*) FROM files")
+        for (w, h) in [("50", "842"), ("595", "5000"), ("0", "842"), ("-3", "0")] {
+            let r = await notebook(b, [("kind", "notebook"), ("title", "kaputt"), ("w", w), ("h", h)])
+            XCTAssertEqual(r.status, 400, "\(w) x \(h)")
+            XCTAssertEqual(r.json, ["detail": "Seitenformat außerhalb von 100–3400 Punkten.", "code": "format_invalid"])
+        }
+        let bad = await notebook(b, [("kind", "notebook"), ("w", "12.5"), ("h", "842")])
+        XCTAssertEqual(bad.status, 422)
+        XCTAssertEqual(bad.json?["detail"]?.array?.first?["loc"], ["body", "w"])
+        let after = try await b.context.database.scalar("SELECT COUNT(*) FROM files")
+        XCTAssertEqual(after, before)
+    }
+
     func testS3EndpointsAreReal() async throws {
         let b = try await backend()
         let real: [(String, String)] = [
