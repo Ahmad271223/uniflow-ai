@@ -4,9 +4,11 @@ import UniFlowCore
 /// Stundenplan aus Stud.IP aufs iPad (S5, docs/IPAD-OHNE-PC.md): nach dem Datei-Abgleich Kurszeiten
 /// (seminar-cycle-dates), eigene Eintraege (schedule-entries) und die Einzeltermine der abgeglichenen Kurse
 /// (course-events) laden und in die lokale Datenbank schreiben. `StudIPScheduleStore.store` uebernimmt danach wie
-/// `timetable.auto_import` auf dem PC alle eindeutigen Termine in den Stundenplan. Parallele Uebungsgruppen bleiben
-/// offen; der Nutzer waehlt seine Gruppe wie in der Web-App unter "Stundenplan importieren -> aus Stud.IP"
-/// (Vorschau mit Hinweis "n parallele Gruppen", `/api/timetable/import/preview` und `/confirm`).
+/// `timetable.auto_import` auf dem PC alle eindeutigen Termine in den Stundenplan. Der eigene Stud.IP-Kalender
+/// (users/{id}/events.ics, `StudIPCalendar` im Kern) sagt, welche Kurszeiten dem Nutzer gehoeren: eigene
+/// Uebungsgruppen, nur Kurse mit Kalenderbindung, so wie Stud.IP selbst sie im Kalender zeigt. Ohne Kalender bleiben
+/// parallele Uebungsgruppen offen; der Nutzer waehlt seine Gruppe wie in der Web-App unter "Stundenplan importieren ->
+/// aus Stud.IP" (Vorschau mit Hinweis "n parallele Gruppen", `/api/timetable/import/preview` und `/confirm`).
 ///
 /// Fehler hier brechen den Datei-Abgleich nie ab: `run` wirft nicht. Was nicht geladen werden konnte, bleibt wie
 /// zuletzt gespeichert; die Zusammenfassung nennt es. Nach einem Netz- oder Zeitlimitfehler fragt der Abruf nichts
@@ -31,6 +33,8 @@ struct StudIPScheduleSync {
         var scheduleFailed = false
         /// Netz- oder Zeitlimitfehler: der Rest wurde nicht mehr abgefragt
         var unreachable = false
+        /// eigener Stud.IP-Kalender nicht gelesen (oder ohne Veranstaltungstermine): Gruppen nicht sicher bekannt
+        var calendarFailed = false
 
         /// Teile fuer die Zusammenfassung des Abgleichs (wie `message += ", N Stundenplan-Termine"` in run_sync).
         /// Gruppen, aus denen schon gewaehlt ist, zaehlen nicht (StudIPScheduleImport.openGroups).
@@ -38,7 +42,13 @@ struct StudIPScheduleSync {
             var parts: [String] = []
             if let r = result {
                 if r.newEvents > 0 { parts.append("\(r.newEvents) Stundenplan-Termine") }
+                if r.removedEvents > 0 {
+                    parts.append("\(r.removedEvents) \(r.removedEvents == 1 ? "Termin" : "Termine") entfernt, nicht in deinem Stud.IP-Kalender")
+                }
                 if r.pendingGroups > 0 { parts.append("Übungsgruppen zur Auswahl im Stundenplan") }
+                if r.openQuestions > 0 {
+                    parts.append(r.openQuestions == 1 ? "1 Frage zu deinen Kursen im Stundenplan" : "\(r.openQuestions) Fragen zu deinen Kursen im Stundenplan")
+                }
             } else {
                 parts.append("Stundenplan nicht gespeichert")
             }
@@ -47,7 +57,11 @@ struct StudIPScheduleSync {
             } else if unreachable {
                 parts.append("Stundenplan: Stud.IP nicht erreichbar")
             } else {
-                if scheduleFailed { parts.append("Kurszeiten nicht geladen") }
+                if scheduleFailed {
+                    parts.append("Kurszeiten nicht geladen")
+                } else if calendarFailed, result != nil {
+                    parts.append("Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt")
+                }
                 if failedCourses > 0 { parts.append("Termine von \(failedCourses) \(failedCourses == 1 ? "Kurs" : "Kursen") nicht geladen") }
             }
             return parts
@@ -61,7 +75,8 @@ struct StudIPScheduleSync {
         progress("Stundenplan wird geladen …")
         let download = await StudIPScheduleStore.fetch(client: client, userID: userID, courses: courses)
         var out = Outcome(failedCourses: download.failedCourses.count, sessionExpired: download.sessionExpired,
-                          scheduleFailed: download.scheduleError != nil, unreachable: download.unreachable)
+                          scheduleFailed: download.scheduleError != nil, unreachable: download.unreachable,
+                          calendarFailed: download.calendarError != nil)
         do {
             let backend = try await host.backend()
             let clock = backend.context.clock

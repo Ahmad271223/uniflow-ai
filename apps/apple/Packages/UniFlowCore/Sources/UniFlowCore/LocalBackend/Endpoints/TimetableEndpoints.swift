@@ -253,6 +253,47 @@ public enum TimetableEndpoints: LocalEndpointModule {
                         "personal": .array(entries.filter { LocalModules.truthy($0["personal"]) }.map(JSONValue.object))]
             })
         }
+
+        // Nur auf dem Geraet: Fragen zum eigenen Stud.IP-Kalender (StudIPCalendar). "hidden": belegte Kurse ohne
+        // Termine im Kalender, "busy": Kurse mit drei oder mehr Serien je Woche.
+        router.get("/api/timetable/studip-questions") { _, ctx in
+            .json(try await ctx.database.withConnection { try StudIPCalendar.questions($0) })
+        }
+
+        // Antwort zu einem Kurs ohne Kalendertermine: {"course_id", "include": true|false}; danach gleich uebernehmen
+        // bzw. entfernen wie beim Abgleich
+        router.post("/api/timetable/studip-questions/course") { req, ctx in
+            let b = try req.objectBody()
+            guard let course = b["course_id"]?.string, !course.isEmpty else { throw LocalHTTPError(status: 400, message: "course_id fehlt") }
+            guard case .bool(let include)? = b["include"] else { throw LocalHTTPError(status: 400, message: "include fehlt") }
+            let clock = ctx.clock
+            return .json(try await ctx.database.transaction { c -> JSONValue in
+                guard try StudIPCalendar.hiddenCourses(c).contains(course) else { throw LocalHTTPError.notFound("Keine offene Frage zu diesem Kurs") }
+                try StudIPCalendar.setInclude(c, course: course, include: include, clock: clock)
+                let r = try StudIPScheduleImport.autoImport(c, clock: clock)
+                return ["ok": true, "new": .number(Double(r.new)), "removed": .number(Double(r.removed)),
+                        "pending_groups": .number(Double(r.pendingGroups))]
+            })
+        }
+
+        // Besuchte Termine eines Kurses mit vielen Serien: {"course_id", "attend": [Kurszeit-IDs]}; alle gefragten
+        // Kurszeiten gelten als beantwortet, nicht genannte bekommen attend=0
+        router.post("/api/timetable/studip-questions/times") { req, ctx in
+            let b = try req.objectBody()
+            guard let course = b["course_id"]?.string, !course.isEmpty else { throw LocalHTTPError(status: 400, message: "course_id fehlt") }
+            guard let list = b["attend"]?.array, list.allSatisfy({ $0.string != nil }) else { throw LocalHTTPError(status: 400, message: "attend fehlt") }
+            let attend = Set(list.compactMap(\.string))
+            let clock = ctx.clock
+            return .json(try await ctx.database.transaction { c -> JSONValue in
+                let busy = try StudIPCalendar.questions(c)["busy"]?.array ?? []
+                guard let q = busy.first(where: { $0["course_id"]?.string == course }) else {
+                    throw LocalHTTPError.notFound("Keine offene Frage zu diesem Kurs")
+                }
+                let known = (q["times"]?.array ?? []).compactMap { $0["cycle_id"]?.string }
+                try StudIPCalendar.setTimes(c, course: course, known: known, attend: attend, clock: clock)
+                return ["ok": true, "attend": .number(Double(known.filter(attend.contains).count)), "skipped": .number(Double(known.filter { !attend.contains($0) }.count))]
+            })
+        }
     }
 
     /// `db.row(conn, "SELECT * FROM course_events WHERE id=?")`: Zeile oder null

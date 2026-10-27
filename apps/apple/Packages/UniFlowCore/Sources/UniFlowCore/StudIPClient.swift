@@ -206,6 +206,18 @@ public actor StudIPClient {
         return (data, included)
     }
 
+    /// Eigener Kalender als iCalendar (users/{id}/events.ics, kein JSON:API): die Veranstaltungstermine, die Stud.IP
+    /// dem Nutzer selbst zeigt (StudIPCalendar). Eine Anmeldeseite statt des Kalenders heisst wie bei der JSON:API:
+    /// Sitzung abgelaufen; alles ohne VCALENDAR ist keine gueltige Antwort.
+    public func calendarICS(userID: String) async throws -> String {
+        let path = "jsonapi.php/v1/users/\(userID)/events.ics"
+        let r = try await send(path, accept: "text/calendar")
+        if r.contentType.lowercased().contains("text/html") { throw StudIPError.sessionExpired }
+        let text = String(decoding: r.body, as: UTF8.self)
+        guard text.contains("BEGIN:VCALENDAR") else { throw StudIPError.badResponse("kein Kalender (\(Self.scrub(path)))") }
+        return text
+    }
+
     // MARK: Daten
 
     public func currentUserID() async throws -> String {

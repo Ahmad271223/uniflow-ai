@@ -39,9 +39,10 @@ enum StudIPScheduleImport {
     /// verknuepften Serien nachziehen. Liefert die Zahl neuer Serien und die Eintraege offener Gruppen. Wie
     /// `auto_import` zuerst `ensure_modules`: der Abgleich speichert neue Kurse direkt davor, ihre Termine sollen das
     /// Modul ihres Fachs bekommen (sonst fehlen ihnen dauerhaft die Unterlagen zum Termin).
-    static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> (new: Int, pendingGroups: Int) {
+    static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> (new: Int, pendingGroups: Int, removed: Int) {
         try LocalModules.ensureModules(c, clock: clock)
         try c.executeScript(linkTable)
+        let removed = try removeOutsideCalendar(c)
         let all = try LocalTimetableImport.studipEntries(c)
         var links = try readLinks(c)
         var taken = Set(links.values.map(\.eventID))
@@ -61,8 +62,11 @@ enum StudIPScheduleImport {
         let entries = try LocalTimetableImport.enrich(c, fresh)
         let diff = try LocalTimetableImport.diffAgainstExisting(c, entries)
         let new = diff["new"]?.array ?? []
+        // vom Nutzer abgewaehlte Kurszeiten (Kurs mit vielen Serien) kommen gleich als "nicht besucht"
+        let skipped = try StudIPCalendar.skippedTimes(c)
         let res = try LocalTimetableImport.applyImport(c, new, source: "studip", clock: clock) { e, id in
             try link(c, key: key(e), eventID: id, exdates: isoDates(e["exdates"]) ?? [], clock: clock)
+            if let cycle = e["studip_id"]?.string, skipped.contains(cycle) { try c.execute("UPDATE course_events SET attend=0 WHERE id=?", [id]) }
         }
         try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('studip-auto', ?, 'auto', '', ?, 1)",
                       [.text(clock.nowISO), .text(JSONValue.array(new).jsonString(sortedKeys: true))])
@@ -71,7 +75,48 @@ enum StudIPScheduleImport {
             let k = key(e)
             if let l = links[k] { try refresh(c, key: k, link: l, exdates: e["exdates"], clock: clock) }
         }
-        return (res["new"]?.int ?? 0, try openGroups(c, all).count)
+        return (res["new"]?.int ?? 0, try openGroups(c, all).count, removed)
+    }
+
+    /// Serien, deren Kurszeit laut eigenem Stud.IP-Kalender nicht (mehr) zum Nutzer gehoert (StudIPCalendar: nicht
+    /// relevant, oder unentschieden in einem Kurs, der dort ganz fehlt), entfernen samt Verknuepfung. Serien mit
+    /// eigener Aenderung bleiben (`untouched`), ebenso Kurszeiten, die Stud.IP gar nicht mehr liefert (wie bisher).
+    /// Ohne Kalender aendert sich nichts. Liefert die Zahl entfernter Serien.
+    static func removeOutsideCalendar(_ c: SQLiteConnection) throws -> Int {
+        let decisions = try StudIPCalendar.decisions(c)
+        guard !decisions.isEmpty else { return 0 }
+        // Kurse ohne Kalendertermine, die der Nutzer uebernommen hat, bleiben
+        let choices = try StudIPCalendar.choices(c)
+        let allHidden = try StudIPCalendar.hiddenCourses(c)
+        let included = allHidden.filter { choices[$0]?.include == true }
+        let hidden = allHidden.subtracting(included)
+        var cycles: [String: StudIPScheduleStore.StoredCycle] = [:]
+        for cy in try StudIPScheduleStore.cycleEntries(c, relevance: false) { cycles[cy.entry.id] = cy }
+        var removed = 0
+        for (k, l) in try readLinks(c).sorted(by: { $0.key < $1.key }) where k.hasPrefix("cycle:") {
+            guard let cy = cycles[String(k.dropFirst("cycle:".count))] else { continue }
+            if let course = cy.entry.courseID, included.contains(course) { continue }
+            let outside = decisions[cy.entry.id].map { $0 == 0 } ?? cy.entry.courseID.map(hidden.contains) ?? false
+            guard outside, try untouched(c, eventID: l.eventID, cy.json) else { continue }
+            try c.execute("DELETE FROM event_exceptions WHERE event_id=?", [.integer(l.eventID)])
+            try c.execute("DELETE FROM course_events WHERE id=?", [.integer(l.eventID)])
+            try c.execute("DELETE FROM studip_timetable_links WHERE entry_key=?", [.text(k)])
+            removed += 1
+        }
+        return removed
+    }
+
+    /// Serie so, wie der Import sie angelegt hat: Quelle Stud.IP, besucht, Titel, Tag, Zeiten und Ende wie die
+    /// Kurszeit, keine Notiz und keine Ausnahme ausser den Ausfaellen laut Stud.IP. Eine geloeschte Serie zaehlt nicht
+    /// (ihre Verknuepfung bleibt, damit sie nicht zurueckkommt).
+    static func untouched(_ c: SQLiteConnection, eventID: Int64, _ e: Entry) throws -> Bool {
+        let id: SQLiteValue = .integer(eventID)
+        guard let r = try c.rows("SELECT * FROM course_events WHERE id=?", [id]).first,
+              (r["source"]?.string ?? "").hasPrefix("studip"), (r["attend"]?.int ?? 1) == 1,
+              r["weekday"]?.int == e["weekday"]?.int else { return false }
+        for f in ["title", "start_time", "end_time", "date_to"] where r[f]?.string != e[f]?.string { return false }
+        if try c.queryOne("SELECT 1 FROM event_notes WHERE event_id=?", [id]) != nil { return false }
+        return try c.queryOne("SELECT 1 FROM event_exceptions WHERE event_id=? AND NOT (type='cancelled' AND note IS ?)", [id, .text(note)]) == nil
     }
 
     /// Fuer POST /api/timetable/import/confirm: aus Stud.IP uebernommene Eintraege (Quelle "studip", z. B. die

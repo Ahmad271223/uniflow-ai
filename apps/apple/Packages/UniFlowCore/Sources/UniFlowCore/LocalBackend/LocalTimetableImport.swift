@@ -333,16 +333,24 @@ enum LocalTimetableImport {
 
     /// `studip_entries(conn)`: Einzeltermine der aktiven Kurse zu Serien zusammengefasst, parallele Gruppen (mehr
     /// als zwei Serien je Kurs) zur Auswahl, dazu die persoenlichen Eintraege aus dem Stud.IP-Stundenplan. Auf dem
-    /// Geraet zusaetzlich die Kurszeiten (seminar-cycle-dates) aus `StudIPScheduleStore`.
+    /// Geraet zusaetzlich die Kurszeiten (seminar-cycle-dates) aus `StudIPScheduleStore`, ausgewaehlt nach dem eigenen
+    /// Stud.IP-Kalender (`StudIPCalendar`): dann fehlen auch kuenftige Einzeltermine, die nicht im Kalender stehen, und
+    /// alle Termine von Kursen, die dort ganz fehlen; die uebrigen kuenftigen sind eindeutig.
     static func studipEntries(_ c: SQLiteConnection) throws -> [Entry] {
         let rows = try c.rows("""
             SELECT s.*, c.title AS course_title, c.module_id, c.kind AS course_kind FROM studip_events s JOIN courses c ON c.id=s.course_id
                                         WHERE c.active=1 AND c.kind != 'sonstiges' ORDER BY s.start
             """)
-        let cycles = try StudIPScheduleStore.cycleEntries(c)
-        // Einzeltermine, die eine Kurszeit schon abdeckt (gleicher Tag und Beginn, auch ausgefallene)
+        let allCycles = try StudIPScheduleStore.cycleEntries(c, relevance: false)
+        let cycles = try StudIPScheduleStore.relevant(c, allCycles)
+        let calendar = try StudIPCalendar.calendar(c)
+        // Kurse ohne Kalendertermine: bis zur Antwort draussen; uebernommene nach der bisherigen Regel
+        let hidden = calendar == nil ? [] : try StudIPCalendar.hiddenCourses(c)
+        let included = hidden.isEmpty ? [] : Set(try StudIPCalendar.choices(c).filter { $0.value.include == true }.keys)
+        // Einzeltermine, die eine Kurszeit schon abdeckt (gleicher Tag und Beginn, auch ausgefallene); auch die
+        // nicht relevanten Kurszeiten, deren Termine sonst als eigene Serien zurueckkaemen
         var covered: [String: Set<String>] = [:]
-        if !cycles.isEmpty {
+        if !allCycles.isEmpty {
             var span: [String: (lo: String, hi: String)] = [:]
             for r in rows {
                 guard let course = r["course_id"]?.string, let st = isoDateTime(r["start"]) else { continue }
@@ -350,7 +358,7 @@ enum LocalTimetableImport {
                 let s = span[course]
                 span[course] = (min(s?.lo ?? d, d), max(s?.hi ?? d, d))
             }
-            for cy in cycles {
+            for cy in allCycles {
                 guard let course = cy.entry.courseID, let s = span[course] else { continue }
                 for o in cy.entry.occurrences(from: s.lo, to: s.hi, term: cy.term, includeCancelled: true) {
                     covered[course, default: []].insert(o.date + "|" + o.startTime)
@@ -362,6 +370,10 @@ enum LocalTimetableImport {
             guard let st = isoDateTime(r["start"]), let en = isoDateTime(r["end"]) else { continue }
             if let course = r["course_id"]?.string,
                covered[course]?.contains(BerlinClock.isoDate(st.day) + "|" + LocalFreeWindows.mh(st.minutes)) == true { continue }
+            if let cal = calendar, !(r["course_id"]?.string.map(included.contains) ?? false) {
+                if let course = r["course_id"]?.string, hidden.contains(course) { continue }
+                if st.day > cal.day, !(r["id"]?.string.map(cal.ids.contains) ?? false) { continue }
+            }
             let title = r["course_title"] ?? .null
             let date: JSONValue = .string(BerlinClock.isoDate(st.day))
             entries.append([
@@ -379,6 +391,13 @@ enum LocalTimetableImport {
         for i in merged.indices {
             let n = perCourse[merged[i]["course_id"] ?? .null] ?? 0
             merged[i]["group_slots"] = .number(Double(n))
+            // mit Kalender: was kuenftig noch stattfindet, steht dort und ist damit eindeutig
+            if let cal = calendar, !(merged[i]["course_id"]?.string.map(included.contains) ?? false),
+               let last = (merged[i]["date_to"]?.string ?? merged[i]["date_from"]?.string).flatMap(BerlinClock.parseISODate), last > cal.day {
+                merged[i]["selected"] = true
+                merged[i]["uncertain"] = false
+                continue
+            }
             merged[i]["selected"] = .bool(n <= 2)
             merged[i]["uncertain"] = .bool(n > 2)
             if n > 2 { merged[i]["hint"] = .string("\(n) parallele Gruppen – nur deine Gruppe auswählen") }

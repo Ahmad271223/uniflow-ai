@@ -1,0 +1,236 @@
+{
+ "data": [
+  {
+   "id": "ev-ue-1-1013",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-13T08:00:00+02:00",
+    "end": "2026-10-13T09:30:00+02:00",
+    "location": "Raum U1, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-1-1020",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-20T08:00:00+02:00",
+    "end": "2026-10-20T09:30:00+02:00",
+    "location": "Raum U1, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-1-1027",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-27T08:00:00+01:00",
+    "end": "2026-10-27T09:30:00+01:00",
+    "location": "Raum U1, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-1-1103",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-03T08:00:00+01:00",
+    "end": "2026-11-03T09:30:00+01:00",
+    "location": "Raum U1, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-1-1110",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-10T08:00:00+01:00",
+    "end": "2026-11-10T09:30:00+01:00",
+    "location": "Raum U1, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-1-1117",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-17T08:00:00+01:00",
+    "end": "2026-11-17T09:30:00+01:00",
+    "location": "Raum U1, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-1-1124",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-24T08:00:00+01:00",
+    "end": "2026-11-24T09:30:00+01:00",
+    "location": "Raum U1, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-2-1013",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-13T14:00:00+02:00",
+    "end": "2026-10-13T15:30:00+02:00",
+    "location": "Raum U2, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-2-1020",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-20T14:00:00+02:00",
+    "end": "2026-10-20T15:30:00+02:00",
+    "location": "Raum U2, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-2-1027",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-27T14:00:00+01:00",
+    "end": "2026-10-27T15:30:00+01:00",
+    "location": "Raum U2, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-2-1103",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-03T14:00:00+01:00",
+    "end": "2026-11-03T15:30:00+01:00",
+    "location": "Raum U2, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-2-1110",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-10T14:00:00+01:00",
+    "end": "2026-11-10T15:30:00+01:00",
+    "location": "Raum U2, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-2-1117",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-17T14:00:00+01:00",
+    "end": "2026-11-17T15:30:00+01:00",
+    "location": "Raum U2, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-2-1124",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-24T14:00:00+01:00",
+    "end": "2026-11-24T15:30:00+01:00",
+    "location": "Raum U2, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-3a-1014",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-14T08:00:00+02:00",
+    "end": "2026-10-14T09:30:00+02:00",
+    "location": "Raum U3, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-3a-1021",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-21T08:00:00+02:00",
+    "end": "2026-10-21T09:30:00+02:00",
+    "location": "Raum U3, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-3a-1028",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-10-28T08:00:00+01:00",
+    "end": "2026-10-28T09:30:00+01:00",
+    "location": "Raum U3, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-3a-1104",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-04T08:00:00+01:00",
+    "end": "2026-11-04T09:30:00+01:00",
+    "location": "Raum U3, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-3b-1111",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-11T08:00:00+01:00",
+    "end": "2026-11-11T09:30:00+01:00",
+    "location": "Raum U3, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-3b-1118",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-18T08:00:00+01:00",
+    "end": "2026-11-18T09:30:00+01:00",
+    "location": "Raum U3, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  },
+  {
+   "id": "ev-ue-3b-1125",
+   "type": "course-events",
+   "attributes": {
+    "title": "Termin",
+    "start": "2026-11-25T08:00:00+01:00",
+    "end": "2026-11-25T09:30:00+01:00",
+    "location": "Raum U3, Kalenderweg 2",
+    "is-cancelled": false
+   }
+  }
+ ],
+ "links": {}
+}
