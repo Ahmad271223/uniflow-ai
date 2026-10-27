@@ -59,8 +59,13 @@ Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (C
   `docs/release/`), Links auf der Abo-Seite eintragen.
 - Anfragen an LUH (LUIS/elsa) und Hildesheim (Regel 5.2.2, Learnweb-Schlüssel) – Entwürfe PC-Sitzung. Passwort-Merken
   durch die App muss nicht mehr erfragt werden (seit 27.10.2026 merkt nur iOS das Passwort).
-- Apple-Prüfung: kein Demo-Modus gewünscht (Entscheidung 26.10.); Risiko nach Regel 2.1 ist bekannt – vor der
-  Einreichung klären (z. B. Prüf-Konto der Hochschule).
+- Apple-Prüfung, Regel 2.1 (App vollständig prüfbar): **teilweise gelöst (27.10.2026).** Entscheidung des Inhabers
+  27.10. ersetzt „kein Demo-Modus“: Demo-Inhalte wie am PC (`app/demo.py`, auf dem iPad `DemoContent`, Zweig
+  `wip/demo`) – im ersten Start „Ohne Hochschulkonto ansehen (Demo)“ auf der Anmeldeseite, sonst Einstellungen →
+  Erweitert (auch im Release-Build); Demo-Modul mit drei PDFs, Stundenplan, Lernkalender, Frist und Ankündigung,
+  kein Abgleich mit der Hochschule, „Entfernen“ auf der Übersicht, rückstandslos. Prüfhinweise in
+  `docs/release/APP-STORE.md`. Offen bleibt: Stud.IP/QIS/CAS selbst kann Apple damit nicht prüfen (Regel 5.2.2,
+  Erlaubnis der Hochschulen), und es ist ungeprüft, ob Apple Demo-Inhalte statt eines Prüf-Kontos annimmt.
 - Apple Pencil, echtes iPad, echte Stud.IP-/QIS-/CAS-Anmeldung: nur der Inhaber.
 - Passwörter aus dem Chat vom 25.10. ändern (stehen im Verlauf).
 

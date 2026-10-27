@@ -148,7 +148,8 @@ Inhaber:
       Indizes, Security Role für `Ban` (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 7); ohne Container bleibt der Build
       ehrlich („nicht verfügbar“, kein Menüpunkt)
 - [ ] Bildschirmfotos iPad 13" ohne echte Namen und Noten
-- [ ] Review-Notes: Weg für die Prüfung ohne Uni-Konto (Demo-Modus S10 ist nicht umgesetzt, Entscheidung offen),
+- [x] Review-Notes: Weg für die Prüfung ohne Uni-Konto – Demo-Inhalte (Entscheidung 27.10.2026; iPad: erster Start
+      „Ohne Hochschulkonto ansehen (Demo)“ und Einstellungen → Erweitert, Text in `docs/release/APP-STORE.md`),
       Begründung der Pflichtanmeldung (Datentrennung je Konto und Hochschule), keine Token/kein Serverkonto, Erlaubnisse
       der Hochschulen
 - [ ] TestFlight und Einreichung nur nach eigener Freigabe
