@@ -719,18 +719,13 @@ final class HardeningSolutionEditorTests: XCTestCase {
         XCTAssertLessThan(shown, 4, "30 Ebenen auf allen Seiten anzeigen: \(shown) s")
         XCTAssertEqual(weakViews.count, 30 * pageCount)
 
-        // eine Ebene umschalten; unter Fremdlast (parallele Testlaeufe auf anderen Simulatoren) schwankt eine einzelne
-        // Messung um die Grenze - es zaehlt der schnellste von drei Laeufen, eine echte Verlangsamung trifft alle drei
+        // eine Ebene umschalten
         var toggled = layers
         toggled[7].visible = false
-        var toggle = Double.infinity
-        for round in 0..<3 {
-            if round > 0 { autoreleasepool { editor.foreignLayers = layers } }
-            let t0 = Date()
-            autoreleasepool { editor.foreignLayers = toggled }
-            toggle = min(toggle, Date().timeIntervalSince(t0))
-        }
-        XCTAssertLessThan(toggle, 1.5, "eine von 30 Ebenen ausblenden (schnellster von 3 Laeufen): \(toggle) s")
+        let t0 = Date()
+        autoreleasepool { editor.foreignLayers = toggled }
+        let toggle = Date().timeIntervalSince(t0)
+        XCTAssertLessThan(toggle, 1.5, "eine von 30 Ebenen ausblenden: \(toggle) s")
         let o0 = try XCTUnwrap(editor.overlayForTesting(at: 0))
         XCTAssertEqual(o0.foreignLayerViews.count, 29)
         XCTAssertFalse(o0.foreignLayerViews.contains { $0.solutionID == layers[7].id })
