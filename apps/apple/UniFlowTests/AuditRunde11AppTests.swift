@@ -490,6 +490,51 @@ final class AuditRunde11AppTests: XCTestCase {
         return PKDrawing(strokes: [one(y, 800_000_000)] + (extra ? [one(y + 30, 800_000_100)] : []))
     }
 
+    // MARK: 371 Hochschulwechsel bei geoeffnetem PDF
+
+    /// Ein Dokument, das beim Wechsel der Hochschule offen ist, sichert weiter in seinen Container (Wurzel, Namensraum und
+    /// Schreibrecht ab der Erzeugung); im neuen Container entsteht nichts. Zurueck bei der ersten Hochschule zeigt das
+    /// Dokument beide Striche.
+    func testDocumentOpenDuringASwitchKeepsSavingIntoItsOwnContainer() async throws {
+        let m = manager()
+        let a = account(.luh)
+        let c = try open(m, a)
+        let pdf = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 300, height: 400)).pdfData { ctx in ctx.beginPage() }
+        let created = try await c.api.upload("/api/notebooks", fields: ["kind": "pdf", "title": "Skript"], fileField: "upload",
+                                             fileName: "skript.pdf", mimeType: "application/pdf", data: pdf)
+        let id = try XCTUnwrap(created["id"]?.string)
+        let lib = try await c.api.json("/api/library", as: LibraryResponse.self)
+        let file = try XCTUnwrap(lib.files.first { $0.id == id })
+        let store = DocumentStore(file: file, api: c.api, root: c.layout.root, lease: c.lease)
+        await store.load()
+        XCTAssertNil(store.errorMessage)
+        store.canvasChanged(pageKey: "p1", drawing: stroke(y: 50))
+        await store.flush()
+
+        a.chooseUniversity(.hildesheim)
+        let hi = try open(m, a)
+        XCTAssertNotEqual(hi.layout.root, c.layout.root)
+        XCTAssertTrue(c.lease.isValid, "ein Wechsel entzieht kein Schreibrecht")
+        // das offene Dokument schreibt nach dem Wechsel weiter und wird dann geschlossen
+        store.canvasChanged(pageKey: "p1", drawing: stroke(y: 50, extra: true))
+        await store.flush()
+        await store.close()
+        XCTAssertNil(try LocalJournal(store: FileBlobStore(root: hi.layout.journal), documentID: id, namespace: .local).load(),
+                     "keine Notizen im Container der anderen Hochschule")
+        let hiLibrary = try await hi.api.value("/api/library").jsonString()
+        XCTAssertFalse(hiLibrary.contains(id), "das Dokument gehoert nicht zur anderen Hochschule")
+
+        a.chooseUniversity(.luh)
+        let back = try open(m, a)
+        XCTAssertEqual(back.layout.root, c.layout.root)
+        let reopened = DocumentStore(file: file, api: back.api, root: back.layout.root, lease: back.lease)
+        await reopened.load()
+        XCTAssertNil(reopened.errorMessage)
+        let drawing = await reopened.drawing(forPageKey: "p1")
+        XCTAssertEqual(drawing.strokes.count, 2, "beide Striche im eigenen Container")
+        await reopened.close()
+    }
+
     // MARK: 375 mehrfaches Wechseln
 
     func testRepeatedSwitchTapsOpenEachContainerOnceAndNeverMix() async throws {
@@ -631,6 +676,45 @@ final class AuditRunde11AppTests: XCTestCase {
                        "https://uniflow.example:8443")
         XCTAssertEqual(Diagnostics.address(APIClient.localBase), "uniflow-local://device")
         XCTAssertEqual(Diagnostics.address(nil), "–")
+    }
+
+    // MARK: 378 Diagnose mit sehr vielen Dateien
+
+    /// Die Erhebung der Diagnose laeuft abseits des Hauptthreads: mit 300 Journalen und 4000 Dateien im Zwischenspeicher
+    /// kommt der Hauptthread waehrenddessen weiter dran, die Zahlen stimmen.
+    func testDiagnosisWithManyFilesKeepsTheMainThreadFree() async throws {
+        let journal = appSupport.appendingPathComponent("journal-viele", isDirectory: true)
+        let cache = appSupport.appendingPathComponent("cache-viele", isDirectory: true)
+        try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        let store = FileBlobStore(root: journal)
+        for d in 0..<300 {
+            let j = LocalJournal(store: store, documentID: "dok\(d)", namespace: .local)
+            for p in 0..<3 {
+                try j.writePage("p\(p)", JournalPage(page: ["objects": [["id": .string("s\(d)-\(p)"), "type": "stroke"]]], localRev: 1))
+            }
+            try j.writeMeta(rootMeta: ["pageOrder": []], metaRev: 0, baseRootMeta: nil)
+        }
+        let block = Data(repeating: 7, count: 1024)
+        for i in 0..<4000 { try block.write(to: cache.appendingPathComponent("antwort-\(i).bin")) }
+
+        final class Ticks { var n = 0 }
+        let counter = Ticks()
+        let ticker = Task { @MainActor in
+            while !Task.isCancelled { counter.n += 1; try? await Task.sleep(nanoseconds: 5_000_000) }
+        }
+        let start = Date()
+        let d = await Diagnostics.collect(journal: journal, cache: cache)
+        let elapsed = Date().timeIntervalSince(start)
+        ticker.cancel()
+        let ticks = counter.n
+        XCTAssertEqual(d.unsentPages, 900)
+        XCTAssertEqual(d.documentsWithUnsent, 300)
+        XCTAssertEqual(d.cacheBytes, 4000 * 1024)
+        XCTAssertTrue(d.unreadable.isEmpty)
+        XCTAssertLessThan(elapsed, 20, "Erhebung dauerte \(elapsed) s")
+        // lief die Erhebung auf dem Hauptthread, kaeme der Taktgeber erst danach wieder dran
+        if elapsed > 0.1 { XCTAssertGreaterThanOrEqual(ticks, 3, "Hauptthread blieb frei (\(ticks) Takte in \(elapsed) s)") }
+        print("Diagnose: 300 Journale, 4000 Dateien: \(String(format: "%.2f", elapsed)) s, \(ticks) Takte des Hauptthreads")
     }
 
     /// Stud.IP mit festen Antworten (ein Kurs, eine Datei, erfunden); der Download wartet, bis der Test ihn freigibt

@@ -17,13 +17,13 @@ struct Diagnostics {
     var collectedAt = Date()
 
     /// Erhebung abseits des Hauptthreads (Groessen und Journale koennen bei vielen Dateien dauern; die Oberflaeche
-    /// zeigt bis dahin "…")
+    /// zeigt bis dahin "…"). PDF-Ordner werden nicht durchgezaehlt. `journal`/`cache`: andere Ordner (Tests).
     @MainActor
-    static func collect() async -> Diagnostics {
+    static func collect(journal: URL? = nil, cache: URL? = nil) async -> Diagnostics {
         let info = Bundle.main.infoDictionary
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
         let os = UIDevice.current.systemVersion
-        let journal = AppPaths.journal, cache = ResponseCache.shared.root
+        let journal = journal ?? AppPaths.journal, cache = cache ?? ResponseCache.shared.root
         return await Task.detached(priority: .utility) {
             collect(journal: journal, cache: cache, appVersion: version, osVersion: os)
         }.value
