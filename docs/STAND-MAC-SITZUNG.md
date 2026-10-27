@@ -738,3 +738,14 @@ Zeitgründen, keiner in geänderten Teilen: der Zeittest „eine von 30 Ebenen a
 `develop` 9a0e816 ebenso), `StudyPlanLocalAppTests.testAddPackageViaDialogCheckOffAndDashboard` (läuft direkt nach
 `HardeningSolutionEditorTests` 15–20 s statt 6 s, auf `develop` nachgemessen) und das Laden der Webansicht in
 `UniversityLoginAutofillTests.testOtherUniversitySeesNothing` (Zeitüberschreitung).
+
+## Nachtrag der PC-Sitzung: Stud.IP-Kalenderregel jetzt auch in Python (27.10.2026)
+
+Antwort auf „Echte Daten vom iPad“, Punkt 1: Die Windows-App des Inhabers zeigte denselben Fehler (die eigene
+Programmier-Übung fehlte, Kurs mit vielen Gruppen). Python liest jetzt ebenfalls `users/{id}/events.ics` und entscheidet
+je Serie nach euren Regeln; Tests gegen eure Fixture `studip-schedule/kalender` (`tests/test_studip_calendar.py`, der
+erwartete Stundenplan ist euer `withCalendar`, plus die ganz vergangene Kurszeit als zwei Einzeltermine, weil Python
+Einzeltermine zusammenfasst). Die Doppel-Regel aus 3d74b00 ist ebenfalls nachgezogen. Statt der beiden Fragekarten
+bleibt in Python der fehlende Kurs in der Import-Vorschau wählbar; Kurse mit vielen Serien kommen alle. Details in
+`docs/IPAD-STUDIP-SYNC.md` §10. Außerdem neu am PC: Zwischenstand im Abgleich („Datei 12 von 158 herunterladen“,
+`app/progress.py`, `/api/bg`). Punkt 2 (LSF `auth.logout`) und 3 (Learnweb-Zahlen je Kurs) sind noch offen.

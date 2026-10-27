@@ -182,3 +182,12 @@ Ohne Export (Fehler, ältere Stud.IP-Fassung, Kalender ohne Veranstaltungstermin
 Zusammenfassung sagt dann „Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt“. Tests mit
 erfundenen Daten: `packages/shared-contracts/fixtures/studip-schedule/kalender`, `StudIPCalendarTests` (Kern) und
 `StudIPCalendarAppTests` (App).
+
+**Python (PC, Windows-App, Web) seit 27.10.2026 mit derselben Regel** (`timetable._apply_calendar`,
+`studip_sync.fetch_calendar_ids`, Tests `tests/test_studip_calendar.py` gegen dieselbe Fixture). Unterschiede, weil
+Python Einzeltermine zu Serien fasst statt Kurszeiten zu lesen: entschieden wird je Serie (Kurs, Wochentag, Beginn,
+Ende) über ihre künftigen Einzeltermine; gleiche Zeit in mehreren Räumen ist eine Serie mit dem Raum der eigenen
+Termine. Statt der zwei Fragekarten bleibt der fehlende Kurs in der Import-Vorschau wählbar (Hinweis „Kurs steht nicht
+in deinem Stud.IP-Kalender“), Kurse mit vielen Serien werden wie in Stud.IP alle übernommen. Von Hand bestätigte
+Vorschauen heißen `studip-manual` und werden nie als fremde Gruppe entfernt. Dazu die Doppel-Regel aus 3d74b00
+(gleicher Kurs, Tag und überlappende Zeit, `timetable._same_series`).

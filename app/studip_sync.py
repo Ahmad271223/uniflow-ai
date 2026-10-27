@@ -21,7 +21,7 @@ from urllib.parse import quote
 
 from playwright.sync_api import BrowserContext, Page, sync_playwright
 
-from . import config, db
+from . import config, db, progress
 from .config import DATA_DIR, FILES_DIR, LOG_DIR, SEMESTER_FILTER, STUDIP_BASE
 
 LOGIN_URL = f"{STUDIP_BASE}/dispatch.php/login"
@@ -216,6 +216,34 @@ def fetch_schedule_entries(page: Page, uid: str) -> list[dict]:
         a = e.get("attributes", {})
         out.append({"id": e["id"], "title": a.get("title") or "Termin", "weekday": int(a.get("weekday", 1)) - 1, "start": a.get("start"), "end": a.get("end"), "description": a.get("description") or ""})
     return out
+
+
+def fetch_calendar_ids(page: Page, uid: str) -> list[str] | None:
+    """Termin-IDs des eigenen Stud.IP-Kalenders (users/{id}/events.ics, siehe timetable.calendar_date_ids); None, wenn
+    Stud.IP ihn nicht liefert (alte Fassung, Fehler, Anmeldeseite statt Kalender)."""
+    from . import timetable
+    resp = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/events.ics", headers={"Accept": "text/calendar"})
+    if not resp.ok:
+        return None
+    text = resp.text()
+    if "BEGIN:VCALENDAR" not in text[:500]:
+        return None
+    return timetable.calendar_date_ids(text)
+
+
+def pending_downloads(conn, files: list[dict], now: int | None = None) -> int:
+    """Wie viele Dateien `store_course_files` herunterladen wird (neu, neuere Fassung, ohne Ablage oder lokal weg);
+    fuer die Anzeige "Datei x von y". Im Dienst (stream) wird nichts heruntergeladen."""
+    if config.streams_files():
+        return 0
+    now = int(time.time()) if now is None else now
+    n = 0
+    for f in files:
+        existing = db.row(conn, "SELECT chdate, local_path, revision, first_seen FROM files WHERE id=?", (f["id"],))
+        _, newer = version_stamp(existing, f, now)
+        if existing is None or newer or not existing["local_path"] or not Path(existing["local_path"]).exists():
+            n += 1
+    return n
 
 
 def store_schedule_entries(conn, entries: list[dict]) -> None:
@@ -657,6 +685,7 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                 locale="de-DE",
             )
             page = ctx.new_page()
+            progress.report("Anmeldung bei Stud.IP …")
             try:
                 from . import unilogin
                 if unilogin.restore(ctx, "STUDIP_COOKIES"):        # Sitzung aus dem Anmeldefenster/Geraet weiterverwenden
@@ -670,21 +699,28 @@ def run_studip_sync(show_browser: bool = False) -> dict:
             except Exception as e:  # noqa: BLE001
                 log(f"Sitzung nicht gemerkt: {e}")
 
+            progress.report("Kurse lesen …")
             courses = fetch_courses(page)
             if SEMESTER_FILTER:
                 courses = [c for c in courses if SEMESTER_FILTER.lower() in (c["semester"] or "").lower()]
             log(f"{len(courses)} Kurse gefunden.")
 
             with db.cursor() as conn:
+                uid = None
                 try:
                     me = page.request.get(f"{STUDIP_BASE}/jsonapi.php/v1/users/me", headers={"Accept": "application/vnd.api+json"}).json()
-                    store_schedule_entries(conn, fetch_schedule_entries(page, me["data"]["id"]))
+                    uid = me["data"]["id"]
+                    store_schedule_entries(conn, fetch_schedule_entries(page, uid))
                 except Exception as e:  # noqa: BLE001
                     log(f"Persoenlicher Stundenplan nicht gelesen: {e}")
                 for c in courses:
                     upsert_course(conn, c, started)
 
-                for c in courses:
+                # Erst alle Listen (Termine, Ankuendigungen, Dateien), dann die Downloads: so steht vorher fest, wie
+                # viele Dateien kommen, und die Anzeige kann "Datei x von y" zeigen
+                listed: list[tuple[dict, list[dict], dict[str, str]]] = []
+                for i, c in enumerate(courses, 1):
+                    progress.report(f"Kurs {i} von {len(courses)}: Termine und Dateiliste – {c['title'][:50]}")
                     try:
                         store_events(conn, fetch_events(page, c["id"]))
                     except Exception as e:  # noqa: BLE001
@@ -705,11 +741,32 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                         folder_paths = fetch_folder_paths(page, c["id"]) if files else {}
                     except Exception as e:  # noqa: BLE001
                         log(f"Ordnerstruktur nicht gelesen ({c['title']}): {e}"); folder_paths = {}
-                    store_course_files(conn, c, files, folder_paths, lambda url, target, size: download(page, url, target, size),
-                                       started, new_files)
+                    listed.append((c, files, folder_paths))
+
+                # Eigener Stud.IP-Kalender: welche Termine (Gruppen, Kurse) Stud.IP dem Nutzer selbst zeigt
+                progress.report("Eigenen Stud.IP-Kalender lesen …")
+                calendar_ok = False
+                if uid:
+                    try:
+                        from . import timetable
+                        calendar_ok = timetable.store_calendar(conn, fetch_calendar_ids(page, uid) or [])
+                    except Exception as e:  # noqa: BLE001
+                        log(f"Stud.IP-Kalender nicht gelesen: {e}")
+                if not calendar_ok:
+                    log("Stud.IP-Kalender nicht gelesen: eigene Uebungsgruppen nicht sicher bekannt")
+
+                total = sum(pending_downloads(conn, files) for _, files, _ in listed)
+                done = {"n": 0}
+                for c, files, folder_paths in listed:
+                    def fetch_one(url, target, size, c=c):
+                        done["n"] += 1
+                        progress.report(f"Datei {done['n']} von {total} herunterladen – {c['title'][:50]}")
+                        download(page, url, target, size)
+                    store_course_files(conn, c, files, folder_paths, fetch_one, started, new_files)
             ctx.close()
         ok = True
         message = f"{len(new_files)} neue/geaenderte Dateien"
+        progress.report("Stundenplan übernehmen …")
         # Stundenplan automatisch ergaenzen (Vorlesungen, eindeutige Termine, persoenliche Stud.IP-Eintraege)
         try:
             from . import timetable
@@ -718,6 +775,11 @@ def run_studip_sync(show_browser: bool = False) -> dict:
             if r["new"]:
                 log(f"Stundenplan: {r['new']} Termine automatisch uebernommen")
                 message += f", {r['new']} Stundenplan-Termine"
+            if r.get("removed"):
+                log(f"Stundenplan: {r['removed']} Serien entfernt (nicht im eigenen Stud.IP-Kalender)")
+                message += f", {r['removed']} Serien entfernt (nicht in deinem Stud.IP-Kalender)"
+            if not r.get("calendar"):
+                message += " – Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt"
         except Exception as e:  # noqa: BLE001
             log(f"Stundenplan-Autoimport: {e}")
     except Exception as e:  # noqa: BLE001

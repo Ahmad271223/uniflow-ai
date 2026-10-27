@@ -43,7 +43,7 @@ async function globalSearch() {
 let bgTimer; async function pollBg() {
   try {
     const bg = await api("/bg"); const chip = $("#syncChip");
-    if (bg.running) { chip.innerHTML = `${icon("refresh", 14)} ${esc(bg.task)} läuft…`; $("#syncBtn").disabled = true; clearTimeout(bgTimer); bgTimer = setTimeout(pollBg, 3000); pollBg._was = true; }
+    if (bg.running) { chip.innerHTML = `${icon("refresh", 14)} ${esc(bg.message || `${bg.task} läuft…`)}`; $("#syncBtn").disabled = true; clearTimeout(bgTimer); bgTimer = setTimeout(pollBg, 3000); pollBg._was = true; }
     else { $("#syncBtn").disabled = false; if (pollBg._was) { pollBg._was = false; toast(bg.message || "Fertig"); route(); } updateSyncChip(); }
   } catch {}
 }

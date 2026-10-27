@@ -7,7 +7,7 @@ from __future__ import annotations
 import difflib
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 
 from . import db
@@ -431,18 +431,33 @@ def studip_entries(conn) -> list[dict]:
             continue
         title = r["course_title"]
         entries.append({"title": title, "kind": "uebung" if r["course_kind"] == "uebung" else guess_kind(title), "weekday": st.weekday(), "start_time": st.strftime("%H:%M"), "end_time": en.strftime("%H:%M"),
-                        "room": r["room"] or "", "rrule": "once", "date_from": st.date().isoformat(), "date_to": st.date().isoformat(), "module_id": r["module_id"], "course_id": r["course_id"], "uncertain": False})
+                        "room": r["room"] or "", "rrule": "once", "date_from": st.date().isoformat(), "date_to": st.date().isoformat(), "module_id": r["module_id"], "course_id": r["course_id"], "uncertain": False,
+                        "event_id": r["id"]})
     merged = merge_weekly(entries)
-    # Uebungen mit vielen parallelen Gruppenterminen: nur eine Gruppe wird besucht -> Auswahl noetig
+    decisions = _apply_calendar(conn, merged, entries)
+    # Ohne Entscheidung aus dem eigenen Kalender die bisherige Regel: Uebungen mit vielen parallelen Gruppenterminen,
+    # nur eine Gruppe wird besucht -> Auswahl noetig (gezaehlt werden die unentschiedenen Serien des Kurses)
     per_course = defaultdict(int)
+    hidden = {c for c, d in decisions.items() if d and all(v == 0 for v in d)}
     for e in merged:
-        per_course[e["course_id"]] += 1
+        if e.get("calendar") is None:
+            per_course[e["course_id"]] += 1
     for e in merged:
-        e["group_slots"] = per_course[e["course_id"]]
-        e["selected"] = per_course[e["course_id"]] <= 2
-        e["uncertain"] = per_course[e["course_id"]] > 2
-        if per_course[e["course_id"]] > 2:
-            e["hint"] = f"{per_course[e['course_id']]} parallele Gruppen – nur deine Gruppe auswählen"
+        e.pop("event_id", None)
+        if e.get("course_id") in hidden:
+            e.update(selected=False, uncertain=True, group_slots=1, calendar="kurs_fehlt",
+                     hint="Kurs steht nicht in deinem Stud.IP-Kalender – nur auswählen, wenn du ihn besuchst")
+        elif e.get("calendar") == "eigen":
+            e.update(selected=True, uncertain=False, group_slots=1)
+        elif e.get("calendar") == "fremd":
+            e.update(selected=False, uncertain=True, group_slots=1, hint="Nicht in deinem Stud.IP-Kalender (andere Gruppe?)")
+        else:
+            n = per_course[e["course_id"]]
+            e["group_slots"] = n
+            e["selected"] = n <= 2
+            e["uncertain"] = n > 2
+            if n > 2:
+                e["hint"] = f"{n} parallele Gruppen – nur deine Gruppe auswählen"
     # Persoenliche Eintraege aus dem Stud.IP-Stundenplan (z. B. die gewaehlte Uebungsgruppe)
     for r in db.rows(conn, "SELECT * FROM studip_schedule_entries"):
         title = r["title"] or "Termin"
@@ -462,9 +477,11 @@ def auto_import(conn) -> dict:
     uebernimmt nur neue Termine) und ohne Unterlagen zum Termin (Korrektur vom 26.10.2026)."""
     from . import study
     study.ensure_modules(conn)
-    entries = enrich(conn, [e for e in studip_entries(conn) if e.get("selected")])
+    all_entries = studip_entries(conn)
+    entries = enrich(conn, [e for e in all_entries if e.get("selected")])
     diff = diff_against_existing(conn, entries)
     res = apply_import(conn, diff["new"], "studip")
+    removed = remove_foreign_series(conn, [e for e in all_entries if e.get("calendar") in ("fremd", "kurs_fehlt")])
     # Bestehende Stud.IP-Serien bekommen fehlende Ausfaelle nachgetragen (Luecken wie die Weihnachtspause); nur Serien
     # aus Stud.IP, nie manuell angelegte; Tage mit eigener Ausnahme des Nutzers bleiben unveraendert.
     # Zuordnung genau ueber Kurs, Wochentag und Uhrzeit (diff_against_existing unterscheidet zwei Serien desselben
@@ -478,7 +495,123 @@ def auto_import(conn) -> dict:
             _add_cancellations(conn, ev["id"], e["exdates"], "Ausfall laut Stud.IP")
     conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('studip-auto', ?, 'auto', '', ?, 1)",
                  (db.now_iso(), json.dumps(diff["new"], ensure_ascii=False)))
-    return {"new": res["new"], "pending_groups": len([e for e in studip_entries(conn) if not e.get("selected")])}
+    return {"new": res["new"], "removed": removed, "calendar": calendar_state(conn) is not None,
+            "pending_groups": len([e for e in studip_entries(conn) if not e.get("selected")])}
+
+
+# ----------------------------------------------------------------------------
+# Eigener Stud.IP-Kalender (users/{id}/events.ics), gleiche Regel wie StudIPCalendar im Swift-Kern
+# ----------------------------------------------------------------------------
+#
+# users/{id}/schedule und courses/{id}/events liefern die Termine aller Gruppen jeder Veranstaltung. Stud.IP zeigt im
+# eigenen Kalender nur Kurse mit Kalenderbindung, ohne ausgeblendete Kurszeiten und Gruppentermine nur fuer Mitglieder
+# (CalendarCourseDate::getEvents). Genau diese Termine stehen im iCalendar-Export ab dem Zeitpunkt der Abfrage; ihre
+# UID ist "Stud.IP-SEM-<Termin-ID>@<Host>" = studip_events.id. Je Serie (Kurs, Wochentag, Beginn, Ende) gilt:
+# - "eigen": mindestens ein kuenftiger Termin steht im Kalender -> ohne Gruppenwahl uebernommen,
+# - "fremd": kuenftige Termine, aber keiner im Kalender -> nicht uebernommen, unveraendert uebernommene Serien gehen,
+# - unentschieden (nur vergangene Termine, noch nie ein Kalender): bisherige Regel.
+# Ein Kurs, von dem keine Serie im Kalender steht, fehlt ganz ("kurs_fehlt", z. B. selbst aus dem Kalender genommen);
+# er bleibt in der Vorschau waehlbar. Entscheidungen bleiben gespeichert (Semesterende, gescheiterter Abruf).
+# Befund mit echten LUH-Daten: docs/STAND-MAC-SITZUNG.md ("Echte Daten vom iPad", Punkt 1), docs/IPAD-STUDIP-SYNC.md §10.
+
+CAL_UID_RE = re.compile(r"^UID:Stud\.IP-SEM-([^@\s]+)@", re.M)
+
+
+def calendar_date_ids(ics: str) -> list[str]:
+    """Termin-IDs der Veranstaltungstermine im Kalender-Export; eigene Kalendertermine (ohne "SEM-") fehlen."""
+    text = re.sub(r"\r?\n[ \t]", "", ics or "")          # gefaltete Zeilen (RFC 5545) zusammenfuegen
+    return sorted(set(CAL_UID_RE.findall(text)))
+
+
+def store_calendar(conn, ids: list[str], fetched_at: str | None = None) -> bool:
+    """Kalender ablegen; ein leerer Kalender (Fehler, alte Stud.IP-Fassung) aendert nichts. True, wenn gespeichert."""
+    if not ids:
+        return False
+    at = fetched_at or db.now_iso()
+    conn.execute("DELETE FROM studip_calendar_dates")
+    conn.executemany("INSERT OR REPLACE INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)", [(i, at) for i in ids])
+    return True
+
+
+def calendar_state(conn) -> tuple[set, date] | None:
+    """(Termin-IDs, Tag der Abfrage) des zuletzt gelesenen Kalenders oder None."""
+    rows = db.rows(conn, "SELECT id, fetched_at FROM studip_calendar_dates")
+    if not rows:
+        return None
+    at = max((r["fetched_at"] or "") for r in rows)
+    try:
+        day = date.fromisoformat(at[:10])
+    except ValueError:
+        return None
+    return {r["id"] for r in rows}, day
+
+
+def series_key(e: dict) -> str:
+    return f"{e.get('course_id') or ''}|{int(e['weekday'])}|{e['start_time']}|{e['end_time']}"
+
+
+def _apply_calendar(conn, merged: list[dict], singles: list[dict]) -> dict[str, list[int]]:
+    """Setzt je Stud.IP-Serie `calendar` ("eigen" | "fremd" | None) und bei eigenen Serien den Raum aus den eigenen
+    Terminen (gleiche Zeit in mehreren Raeumen: der Raum der eigenen Gruppe). Liefert je Kurs die Entscheidungen."""
+    cal = calendar_state(conn)
+    if cal is None:
+        return {}
+    ids, day = cal
+    since = (day + timedelta(days=1)).isoformat()   # der Export beginnt mit der Abfrage: frueher am selben Tag fehlt
+    stored = {r["series"]: r["relevant"] for r in db.rows(conn, "SELECT series, relevant FROM studip_series_relevance")}
+    members: dict[tuple, list[dict]] = defaultdict(list)
+    for x in singles:
+        members[(x.get("course_id"), x["title"], x["weekday"], x["start_time"], x["end_time"])].append(x)
+    out: dict[str, list[int]] = defaultdict(list)
+    now = db.now_iso()
+    for e in merged:
+        course = e.get("course_id")
+        if not course:
+            continue
+        mem = members.get((course, e["title"], e["weekday"], e["start_time"], e["end_time"]), [e])
+        future = [m for m in mem if (m.get("date_from") or "") >= since]
+        key = series_key(e)
+        if future:
+            own = [m for m in future if m.get("event_id") in ids]
+            rel = 1 if own else 0
+            conn.execute("""INSERT INTO studip_series_relevance(series, course_id, relevant, decided_at) VALUES (?,?,?,?)
+                            ON CONFLICT(series) DO UPDATE SET course_id=excluded.course_id, relevant=excluded.relevant, decided_at=excluded.decided_at""",
+                         (key, course, rel, now))
+            if own:
+                room = Counter(m.get("room") or "" for m in own).most_common(1)[0][0]
+                if room:
+                    e["room"] = room
+        else:
+            rel = stored.get(key)
+        e["calendar"] = None if rel is None else ("eigen" if rel else "fremd")
+        if rel is not None:
+            out[course].append(int(rel))
+    return dict(out)
+
+
+def remove_foreign_series(conn, entries: list[dict]) -> int:
+    """Serien, die laut eigenem Kalender nicht dazugehoeren, aus dem Stundenplan nehmen, wenn sie automatisch
+    uebernommen und seitdem unveraendert sind: Quelle genau 'studip' (von Hand bestaetigte Vorschauen sind
+    'studip-manual'), Teilnahme an, keine Notiz, keine eigene Ausnahme (nur Ausfaelle laut Stud.IP). Eigene
+    Aenderungen bleiben. Liefert die Zahl der entfernten Serien."""
+    n = 0
+    for e in entries:
+        if not e.get("course_id"):
+            continue
+        for ev in db.rows(conn, """SELECT id, attend FROM course_events WHERE source='studip' AND course_id=? AND weekday=?
+                                   AND start_time=? AND end_time=?""",
+                          (e["course_id"], int(e["weekday"]), e["start_time"], e["end_time"])):
+            if (ev["attend"] if ev["attend"] is not None else 1) != 1:
+                continue
+            if db.row(conn, "SELECT 1 FROM event_notes WHERE event_id=?", (ev["id"],)):
+                continue
+            if db.row(conn, "SELECT 1 FROM event_exceptions WHERE event_id=? AND NOT (type='cancelled' AND note='Ausfall laut Stud.IP')",
+                      (ev["id"],)):
+                continue
+            conn.execute("DELETE FROM event_exceptions WHERE event_id=?", (ev["id"],))
+            conn.execute("DELETE FROM course_events WHERE id=?", (ev["id"],))
+            n += 1
+    return n
 
 
 def ai_parse(conn, text: str = "", image_path: str | None = None) -> list[dict]:
@@ -516,24 +649,44 @@ def enrich(conn, entries: list[dict]) -> list[dict]:
     return entries
 
 
+def _same_series(x: dict, e: dict) -> bool:
+    """Dieselbe Serie: gleicher Wochentag, gleicher Kurs (ohne Kurs: gleicher Titelanfang) und ueberlappende Zeit.
+    Frueher reichte gleicher Titelanfang am selben Tag: die Fragestunde neben der Vorlesung desselben Fachs oder die
+    zweite Uebung am selben Tag galt dann als schon vorhanden und fehlte (Befund mit echten Daten, 27.10.2026)."""
+    if int(x["weekday"]) != int(e["weekday"]):
+        return False
+    xc, ec = x.get("course_id"), e.get("course_id")
+    if xc and ec:
+        if xc != ec:
+            return False
+    else:
+        norm = lambda t: re.sub(r"\W+", "", (t or "").lower())[:30]
+        if norm(x.get("title")) != norm(e.get("title")):
+            return False
+    try:
+        return hm(x["start_time"]) < hm(e["end_time"]) and hm(e["start_time"]) < hm(x["end_time"])
+    except (ValueError, TypeError):
+        return False
+
+
 def diff_against_existing(conn, entries: list[dict]) -> dict:
-    """Vergleicht Importvorschau mit vorhandenen Serien: neu / geaendert / unveraendert / entfernt."""
+    """Vergleicht Importvorschau mit vorhandenen Serien: neu / geaendert / unveraendert / entfernt. Jede vorhandene
+    Serie passt hoechstens zu einem Eintrag; gleiche Zeit hat Vorrang vor bloss ueberlappender."""
     existing = db.rows(conn, "SELECT * FROM course_events WHERE source != 'personal'")
-    key = lambda e: (re.sub(r"\W+", "", (e["title"] or "").lower())[:30], int(e["weekday"]))
-    ex_map = {key(e): e for e in existing}
-    new, changed, same, seen = [], [], [], set()
+    new, changed, same, used = [], [], [], set()
     for e in entries:
-        k = key(e)
-        seen.add(k)
-        if k in ex_map:
-            x = ex_map[k]
-            if x["start_time"] != e["start_time"] or x["end_time"] != e["end_time"]:
-                changed.append({**e, "old_start": x["start_time"], "old_end": x["end_time"], "existing_id": x["id"]})
-            else:
-                same.append({**e, "existing_id": x["id"]})
-        else:
+        cands = [x for x in existing if x["id"] not in used and _same_series(x, e)]
+        exact = next((x for x in cands if x["start_time"] == e["start_time"] and x["end_time"] == e["end_time"]), None)
+        x = exact or (cands[0] if cands else None)
+        if x is None:
             new.append(e)
-    removed = [x for k, x in ex_map.items() if k not in seen]
+            continue
+        used.add(x["id"])
+        if exact:
+            same.append({**e, "existing_id": x["id"]})
+        else:
+            changed.append({**e, "old_start": x["start_time"], "old_end": x["end_time"], "existing_id": x["id"]})
+    removed = [x for x in existing if x["id"] not in used]
     return {"new": new, "changed": changed, "same": same, "removed": removed}
 
 

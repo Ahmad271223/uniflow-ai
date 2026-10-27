@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, colors, community_api, config, db, demo, filestream, jobs, legal, mail, planner, retention, social_login, study, timetable, universities, vault
+from . import account_api, accounts, colors, community_api, config, db, demo, filestream, jobs, legal, mail, planner, progress, retention, social_login, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -69,9 +69,14 @@ _user_dbs_ready: set = set()
 
 
 def _bg() -> dict:
-    """Hintergrundzustand: im Dienst je Konto (Job-Warteschlange), sonst der eine Zustand des PCs."""
+    """Hintergrundzustand: im Dienst je Konto (Job-Warteschlange), sonst der eine Zustand des PCs. Laeuft etwas und
+    gibt es einen Zwischenstand (app/progress.py, z. B. "Datei 12 von 158 herunterladen"), steht er in `message`."""
     uid = config.current_user_id()
-    return jobs.bg_state(uid) if uid and config.is_hosted() else _bg_state
+    st = dict(jobs.bg_state(uid) if uid and config.is_hosted() else _bg_state)
+    p = progress.current()
+    if st.get("running") and p:
+        st["message"] = f"{st.get('task') or 'Abgleich'}: {p}"
+    return st
 
 
 def hosted_unavailable(method: str, path: str) -> str | None:
@@ -369,6 +374,7 @@ def _run_bg(name: str, fn):
     if not _bg_lock.acquire(blocking=False):
         raise HTTPException(409, f"Es laeuft bereits: {_bg_state['task']}")
     _bg_state.update(running=True, task=name, message="")
+    progress.clear()
 
     def worker():
         try:
@@ -377,6 +383,7 @@ def _run_bg(name: str, fn):
         except Exception as e:  # noqa: BLE001
             _bg_state["message"] = f"{name}: FEHLER {e}"
         finally:
+            progress.clear()
             _bg_state.update(running=False, task=None)
             _bg_lock.release()
 
@@ -1632,7 +1639,9 @@ def _modules_brief():
 @app.post("/api/timetable/import/confirm")
 def api_tt_import_confirm(body: dict = Body(...)):
     with db.cursor() as conn:
-        res = timetable.apply_import(conn, body.get("entries") or [], body.get("source") or "manual", body.get("remove_ids") or [])
+        # Von Hand bestaetigte Stud.IP-Vorschau: 'studip-manual', damit der Abgleich sie nie als fremde Gruppe entfernt
+        src = body.get("source") or "manual"
+        res = timetable.apply_import(conn, body.get("entries") or [], "studip-manual" if src == "studip" else src, body.get("remove_ids") or [])
         if body.get("import_id"):
             conn.execute("UPDATE schedule_imports SET confirmed=1, status='confirmed' WHERE id=?", (body["import_id"],))
         conflicts = study.slot_conflicts(conn, date.today(), date.today() + timedelta(days=28))
