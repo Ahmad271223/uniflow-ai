@@ -340,6 +340,37 @@ final class AuditMultipartTests: XCTestCase {
         XCTAssertEqual(MultipartBody.mimeType("text/calendar"), "text/calendar")
         XCTAssertEqual(MultipartBody.mimeType("pdf"), "application/octet-stream")
     }
+
+    /// 412: Das lokale Backend liest das Formular direkt aus seinem Speicher (vorher zusaetzlich als Kopie in einer
+    /// Byte-Liste). Grosse Datei mit Zeichenfolgen, die wie Grenzen aussehen, und ein Formular als Ausschnitt eines
+    /// groesseren Speichers (Startindex nicht 0) kommen unveraendert an; der Dateiinhalt beginnt bei Index 0.
+    func testLargeUploadAndSlicedBodyParseUnchanged() throws {
+        var big = Data(count: 16 * 1024 * 1024)
+        big.withUnsafeMutableBytes { raw in
+            for i in stride(from: 0, to: raw.count, by: 4093) { raw[i] = UInt8(truncatingIfNeeded: i) }
+        }
+        let fake = Data("\r\n--uniflow-tes\r\n--uniflow-tesX\r\n\r\n--\r\n".utf8)      // beinahe die Grenze
+        big.replaceSubrange(1000..<(1000 + fake.count), with: fake)
+        let boundary = "uniflow-test"
+        let body = MultipartBody.build(fields: ["kind": "pdf", "title": "Groß"],
+                                       file: .init(field: "upload", name: "gross.pdf", mime: "application/pdf", data: big), boundary: boundary)
+        let start = Date()
+        let form = try MultipartForm.parse(body, contentType: "multipart/form-data; boundary=" + boundary)
+        XCTAssertLessThan(Date().timeIntervalSince(start), 10)
+        XCTAssertEqual(form.fields, ["kind": "pdf", "title": "Groß"])
+        XCTAssertEqual(form.file("upload")?.data.count, big.count)
+        XCTAssertTrue(form.file("upload")?.data == big)
+
+        let padded = Data("vorne".utf8) + MultipartBody.build(fields: ["kind": "pdf"], file: .init(field: "upload", name: "a.pdf", mime: "application/pdf",
+                                                                                                   data: Data("%PDF-1.7".utf8)), boundary: boundary)
+        let slice = padded[5...]
+        XCTAssertEqual(slice.startIndex, 5, "Voraussetzung: Ausschnitt")
+        let small = try MultipartForm.parse(slice, contentType: "multipart/form-data; boundary=" + boundary)
+        XCTAssertEqual(small.fields, ["kind": "pdf"])
+        XCTAssertEqual(small.file("upload")?.data, Data("%PDF-1.7".utf8))
+        XCTAssertEqual(small.file("upload")?.data.startIndex, 0)
+        XCTAssertEqual(small.file("upload")?.data.first, 0x25)
+    }
 }
 
 // MARK: - 431-438 Zusammenfuehrung
@@ -432,6 +463,21 @@ final class AuditMergeTests: XCTestCase {
         XCTAssertEqual(ids(r.doc["pages"]?["p2"]?["objects"]?.array ?? []), ["b", "neu"])
     }
 
+    /// 394 (Vertrag offen): Der Papierkorb haelt eine Kopie der Objekte, `pages[key]` bleibt daneben (wie im Web). Eine
+    /// Grenze oder "Papierkorb leeren" laesst sich nicht auf einem Geraet allein einfuehren: `mergeTrash` vereinigt
+    /// beide Papierkoerbe (gemeinsamer Fall "Papierkorb beider Geraete vereinigt", merge.js), ein hier geleerter
+    /// Papierkorb kaeme mit dem naechsten Abgleich vom anderen Stand zurueck.
+    func testEmptiedTrashComesBackThroughMergeAsInTheSharedContract() {
+        let trashed = docJSON(["p1", "p3"], ["p1": ["a"], "p2": ["b"], "p3": ["c"]], trash: ["p2"])
+        XCTAssertEqual(ids(trashed["pages"]?["p2"]?["objects"]?.array ?? []), ["b"], "pages[key] bleibt neben dem Papierkorb")
+        var emptied = trashed
+        emptied["deletedPages"] = []
+        for (local, server) in [(emptied, trashed), (trashed, emptied)] {
+            let r = AnnotationMerge.mergeDocument(base: trashed, local: local, server: server)
+            XCTAssertEqual((r.doc["deletedPages"]?.array ?? []).compactMap(AnnotationMerge.keyOf), ["p2"], "geleert kommt zurueck")
+        }
+    }
+
     /// 437: Seite in der Reihenfolge ohne Inhalt in `pages`: die Reparatur nimmt nur Inhalt mit demselben Schluessel
     /// (hier, sonst dort), sonst eine leere Seite; nie den Inhalt einer anderen Seite
     func testRepairOfMissingPageContentNeverTakesForeignContent() throws {
@@ -445,9 +491,79 @@ final class AuditMergeTests: XCTestCase {
     }
 }
 
-// MARK: - 439, 440 und Tiefentest C: Synchronisierung
+// MARK: - 431, 439, 440 und Tiefentest C: Synchronisierung
+
+/// Lokales Backend als Notiz-Transport mit den Regeln von `HTTPAnnotationTransport` der App (Version und Daten Pflicht,
+/// 409 mit Version = Konflikt)
+private struct AuditBackendTransport: AnnotationTransport {
+    let backend: LocalBackend
+
+    struct Failure: Error, HTTPStatusError {
+        let httpStatus: Int
+        var httpDetail: String? { nil }
+    }
+
+    func fetch(documentID: String) async throws -> ServerSnapshot {
+        let r = await backend.handle(LocalRequest(method: "GET", path: "/api/files/\(documentID)/annotations"))
+        guard r.isSuccess, let v = r.json, let version = v["version"]?.int, let data = v["data"], data.object != nil else {
+            throw Failure(httpStatus: r.isSuccess ? 502 : r.status)
+        }
+        return ServerSnapshot(version: version, root: data)
+    }
+
+    func put(documentID: String, root: JSONValue, baseVersion: Int) async throws -> PutOutcome {
+        let r = await backend.handle(LocalRequest(method: "PUT", path: "/api/files/\(documentID)/annotations",
+                                                  query: [.init("base_version", "\(baseVersion)")], body: root.serialized()))
+        if r.status == 409, let v = r.json, let version = v["version"]?.int, let data = v["data"], data.object != nil {
+            return .conflict(ServerSnapshot(version: version, root: data))
+        }
+        guard r.isSuccess, let version = r.json?["version"]?.int else { throw Failure(httpStatus: r.isSuccess ? 502 : r.status) }
+        return .saved(version: version)
+    }
+}
 
 final class AuditSyncTests: XCTestCase {
+
+    /// 431: Beidseitig verschieden geaendert, dieses Geraet gewinnt (Vertrag). Die verworfene Fassung des anderen
+    /// Stands bleibt im Versionsverlauf des Backends (wie app/server.py, 30 Fassungen) und laesst sich
+    /// wiederherstellen; danach steht sie wieder im Dokument.
+    func testDiscardedServerVersionStaysRestorable() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory)
+        try await backend.context.database.execute("INSERT INTO courses(id, title) VALUES ('k1', 'Testkurs')")
+        try await backend.context.database.execute("INSERT INTO files(id, course_id, name) VALUES ('f1', 'k1', 'Blatt.pdf')")
+        let transport = AuditBackendTransport(backend: backend)
+        func engine() -> SyncEngine {
+            SyncEngine(documentID: "f1", transport: transport, journal: LocalJournal(store: MemoryBlobStore(), documentID: "f1"),
+                       uploadDelay: 0, sleeper: fastSleeper)
+        }
+        let a = engine(), b = engine()
+        _ = await a.open(pdfPageCount: 1)
+        await a.updatePage("p1", pageWith([stroke("s", x: 1)]))
+        await a.syncNow()
+        _ = await b.open(pdfPageCount: 1)
+        await b.updatePage("p1", pageWith([stroke("s", x: 3)]))          // anderes Geraet verschiebt den Strich ...
+        await b.syncNow()
+        await a.updatePage("p1", pageWith([stroke("s", x: 2)]))          // ... dieses auch, ohne es zu wissen
+        await a.syncNow()
+        let saved = await waitUntil(timeout: 5) { await a.status == .saved }
+        XCTAssertTrue(saved)
+        let stats = await a.stats
+        XCTAssertEqual(stats.mergedConflicts, 1, "Konflikt gezaehlt")
+        func points() async throws -> JSONValue? {
+            let r = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f1/annotations"))
+            return r.json?["data"]?["pages"]?["p1"]?["objects"]?.array?.first?["points"]
+        }
+        let kept = try await points()
+        XCTAssertEqual(kept, stroke("s", x: 2)["points"], "dieses Geraet gewinnt")
+
+        let listed = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f1/annotations/versions"))
+        let versions = (listed.json?.array ?? []).compactMap { $0["version"]?.int }
+        XCTAssertEqual(versions, [3, 2, 1])
+        let restored = await backend.handle(LocalRequest(method: "POST", path: "/api/files/f1/annotations/restore/2"))
+        XCTAssertEqual(restored.json?["version"], 4)
+        let back = try await points()
+        XCTAssertEqual(back, stroke("s", x: 3)["points"], "verworfene Fassung wiederhergestellt")
+    }
 
     /// 440: Entfernen einer alten Vergleichsbasis scheitert (Fehler wird bewusst nicht gemeldet). Nach einem Neustart
     /// liegt die alte Basis noch da; sie wird nie benutzt, weil die erste Aenderung danach eine neue Basis schreibt:

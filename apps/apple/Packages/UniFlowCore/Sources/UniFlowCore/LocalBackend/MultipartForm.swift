@@ -22,6 +22,8 @@ public struct MultipartForm: Sendable, Equatable {
     }
 
     /// Zerlegt den Inhalt anhand der Grenze aus `Content-Type: multipart/form-data; boundary=...`.
+    /// Gelesen wird direkt im Speicher von `body` (keine Kopie des ganzen Formulars als Byte-Liste): bei einem grossen
+    /// Upload lag die Datei sonst dreimal im Speicher (Formular, Kopie, Dateiinhalt), jetzt zweimal (Pruefbericht 412).
     public static func parse(_ body: Data, contentType: String) throws -> MultipartForm {
         let params = contentType.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
         guard params.first?.lowercased() == "multipart/form-data" else { throw malformed("kein multipart/form-data") }
@@ -30,11 +32,13 @@ public struct MultipartForm: Sendable, Equatable {
             guard kv.count == 2, kv[0].lowercased() == "boundary" else { return nil }
             return unquote(String(kv[1]))
         }).first, !b.isEmpty else { throw malformed("Grenze fehlt") }
-
-        let bytes = [UInt8](body)
         let delimiter = Array("--\(b)".utf8)
+        return try body.withUnsafeBytes { try parts($0, delimiter: delimiter) }
+    }
+
+    private static func parts(_ bytes: UnsafeRawBufferPointer, delimiter: [UInt8]) throws -> MultipartForm {
         var form = MultipartForm()
-        guard var pos = find(delimiter, in: bytes, from: 0) else { throw malformed("Grenze nicht gefunden") }
+        guard var pos = find(delimiter, in: bytes, from: 0), let start = bytes.baseAddress else { throw malformed("Grenze nicht gefunden") }
         while true {
             pos += delimiter.count
             // "--" nach der Grenze: Ende des Formulars
@@ -51,7 +55,7 @@ public struct MultipartForm: Sendable, Equatable {
             var dataEnd = next
             if dataEnd >= dataStart + 2, bytes[dataEnd - 2] == 0x0D, bytes[dataEnd - 1] == 0x0A { dataEnd -= 2 }
             else if dataEnd >= dataStart + 1, bytes[dataEnd - 1] == 0x0A { dataEnd -= 1 }
-            try form.add(head: head, data: Data(bytes[dataStart..<dataEnd]))
+            try form.add(head: head, data: Data(bytes: start + dataStart, count: dataEnd - dataStart))
             pos = next
         }
         return form
@@ -110,13 +114,13 @@ public struct MultipartForm: Sendable, Equatable {
         s.count >= 2 && s.hasPrefix("\"") && s.hasSuffix("\"") ? String(s.dropFirst().dropLast()) : s
     }
 
-    private static func skipLineBreak(_ b: [UInt8], _ p: Int) -> Int {
+    private static func skipLineBreak(_ b: UnsafeRawBufferPointer, _ p: Int) -> Int {
         if p + 1 < b.count, b[p] == 0x0D, b[p + 1] == 0x0A { return p + 2 }
         if p < b.count, b[p] == 0x0A { return p + 1 }
         return p
     }
 
-    private static func find(_ needle: [UInt8], in hay: [UInt8], from start: Int) -> Int? {
+    private static func find(_ needle: [UInt8], in hay: UnsafeRawBufferPointer, from start: Int) -> Int? {
         guard !needle.isEmpty, hay.count >= needle.count, start <= hay.count - needle.count else { return nil }
         let first = needle[0]
         var i = start
