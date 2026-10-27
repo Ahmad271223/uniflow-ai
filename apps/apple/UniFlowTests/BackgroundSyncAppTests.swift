@@ -375,7 +375,8 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertEqual(fake.kinds, [.refresh])
         XCTAssertEqual(n.posts.count, 1)
         XCTAssertEqual(n.posts.first?.content, BackgroundNotice.Content(title: "Neue Dateien", body: "3 neue Dateien aus Stud.IP"))
-        XCTAssertEqual(n.posts.first?.thread, luh.layout.identifier.uuidString)
+        XCTAssertEqual(n.posts.first?.thread, "de.uniflow.ai.sync." + luh.layout.identifier.uuidString, "eigene Gruppe je Container")
+        XCTAssertTrue(n.posts.allSatisfy { $0.id.hasPrefix("de.uniflow.ai.sync.files.") }, "eigene Kennungen, getrennt von anderen Mitteilungen")
         XCTAssertEqual(n.permissionRequests, 0, "nie von selbst nach der Erlaubnis fragen")
         XCTAssertTrue(s.submitted.contains { $0.0 == .refresh }, "nach dem Lauf neu geplant")
         let record = try XCTUnwrap(b.lastRecord)
@@ -525,6 +526,7 @@ final class BackgroundSyncAppTests: XCTestCase {
             XCTAssertEqual(m.studip.phase, .needsLogin)
             XCTAssertTrue(m.studip.sessionKnownExpired)
             XCTAssertEqual(n.posts.map(\.content.title), ["Bitte bei Stud.IP anmelden"], "\(mode)")
+            XCTAssertEqual(n.posts.first?.id, "de.uniflow.ai.sync.login." + luh.layout.identifier.uuidString, "ersetzt nur den eigenen Hinweis")
             XCTAssertEqual(b.lastRecord?.outcome, .loginNeeded(["Stud.IP"]))
             XCTAssertEqual(spy.credentialReads, [], "keine gemerkten Zugangsdaten gelesen: \(mode)")
 
@@ -608,12 +610,20 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertTrue(h.downloadsPending)
         XCTAssertEqual(spy.credentialReads, [], "nur der Learnweb-Schluessel, nie Benutzername oder Passwort")
         XCTAssertTrue(spy.reads.allSatisfy { $0.hasSuffix(".learnweb.token") }, "\(spy.reads)")
-        try await launch(b, .processing)
+        // beim Oeffnen (voller Lauf mit allen verbundenen Quellen): die wartenden Dateien kommen, auch wenn das LSF
+        // weiter eine Anmeldung braucht
+        _ = await h.run()
         let loaded = try await count(hi, "SELECT COUNT(*) FROM files WHERE course_id LIKE 'lw-%' AND local_path IS NOT NULL")
         XCTAssertEqual(loaded, 2)
-        XCTAssertFalse(h.downloadsPending)
-        XCTAssertEqual(n.posts.count, 2, "keine weitere Mitteilung")
+        XCTAssertFalse(h.downloadsPending, "nichts wartet mehr, obwohl das LSF abgemeldet ist")
         XCTAssertEqual(h.state(.lsf), .needsLogin)
+        // langer Hintergrundlauf danach: nichts Neues, keine Mitteilung, das LSF wird nicht gefragt
+        let lsfBefore = UniStubProtocol.requests.filter { $0.url.host == "lsf.uni-hildesheim.de" }.count
+        try await launch(b, .processing)
+        XCTAssertEqual(b.lastRecord?.outcome, .done(newFiles: 0))
+        XCTAssertEqual(UniStubProtocol.requests.filter { $0.url.host == "lsf.uni-hildesheim.de" }.count, lsfBefore)
+        XCTAssertEqual(n.posts.count, 2, "keine weitere Mitteilung")
+        XCTAssertEqual(spy.credentialReads, [])
     }
 
     // MARK: Kein Lauf waehrend eines Wechsels oder neben einem Abgleich

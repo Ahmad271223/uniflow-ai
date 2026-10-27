@@ -121,9 +121,14 @@ protocol BackgroundNotifying: AnyObject {
     func post(_ content: BackgroundNotice.Content, id: String, thread: String) async
 }
 
+/// Eigene Schicht des Hintergrundabgleichs: eigene Kennungen (Kategorie, Mitteilungen, Gruppen mit dem Praefix
+/// `de.uniflow.ai.sync.`), eigener Schalter (`BackgroundSyncSettings.notifyKey`). Andere Mitteilungen der App (Lern-Timer,
+/// Erinnerungen) bleiben unberuehrt: keine Kategorie wird ersetzt, nichts Fremdes entfernt.
 final class SystemBackgroundNotifier: BackgroundNotifying {
     /// Kategorie mit eigenem Platzhalter fuer ausgeblendete Vorschauen (Sperrbildschirm)
     static let category = "de.uniflow.ai.sync"
+    /// Praefix aller Kennungen dieser Schicht (Mitteilungen und Gruppen)
+    static let prefix = "de.uniflow.ai.sync."
     private var categoryRegistered = false
 
     func requestPermission() async -> Bool {
@@ -146,10 +151,12 @@ final class SystemBackgroundNotifier: BackgroundNotifying {
     func post(_ content: BackgroundNotice.Content, id: String, thread: String) async {
         let center = UNUserNotificationCenter.current()
         if !categoryRegistered {
-            // ohne Option .hiddenPreviewsShowTitle: bei ausgeblendeter Vorschau nur der Platzhalter
-            center.setNotificationCategories([UNNotificationCategory(identifier: Self.category, actions: [], intentIdentifiers: [],
-                                                                     hiddenPreviewsBodyPlaceholder: BackgroundNotice.hiddenPreviewPlaceholder,
-                                                                     options: [])])
+            // ohne Option .hiddenPreviewsShowTitle: bei ausgeblendeter Vorschau nur der Platzhalter. setNotificationCategories
+            // ersetzt alle Kategorien der App: die vorhandenen anderer Schichten (Erinnerungen) bleiben dabei stehen
+            let mine = UNNotificationCategory(identifier: Self.category, actions: [], intentIdentifiers: [],
+                                              hiddenPreviewsBodyPlaceholder: BackgroundNotice.hiddenPreviewPlaceholder, options: [])
+            let others = await center.notificationCategories().filter { $0.identifier != Self.category }
+            center.setNotificationCategories(others.union([mine]))
             categoryRegistered = true
         }
         let c = UNMutableNotificationContent()
@@ -403,13 +410,14 @@ final class BackgroundSyncController: ObservableObject {
         // Container inzwischen geloescht (oder geloescht und leer neu angelegt): nichts mehr hineinschreiben, nichts melden
         guard owns(c) else { return false }
         if report.skipped == nil, containers.active === c, settings.notify, await notifier.isAllowed() {
-            let thread = c.layout.identifier.uuidString
+            let container = c.layout.identifier.uuidString, prefix = SystemBackgroundNotifier.prefix
+            let thread = prefix + container
             if let n = BackgroundNotice.newFiles(report.newFiles, source: target.fileSource) {
-                await notifier.post(n, id: "de.uniflow.ai.sync.files.\(thread).\(UUID().uuidString)", thread: thread)
+                await notifier.post(n, id: prefix + "files.\(container).\(UUID().uuidString)", thread: thread)
             }
             let due = state.loginNoticeDue(report)
             if let n = BackgroundNotice.loginNeeded(due) {
-                await notifier.post(n, id: "de.uniflow.ai.sync.login.\(thread)", thread: thread)
+                await notifier.post(n, id: prefix + "login.\(container)", thread: thread)
                 due.forEach(state.markLoginNoticeSent)
             }
         }

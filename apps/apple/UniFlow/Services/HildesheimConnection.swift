@@ -391,13 +391,19 @@ final class HildesheimConnection: ObservableObject {
             }
         }
         if r.completed.contains(Part.grades) { defaults.set(now, forKey: Keys.gradesRun) }
-        if scope == .lists, r.waiting > 0 { defaults.set(true, forKey: Keys.downloadsPending) }
+        // wartende Learnweb-Dateien: merken (nur Listen) bzw. erledigt, sobald ein voller Learnweb-Teil durchlief (auch
+        // wenn das LSF dabei eine neue Anmeldung braucht)
+        if scope == .lists, r.waiting > 0 {
+            defaults.set(true, forKey: Keys.downloadsPending)
+        } else if scope == .full, r.completed.contains(Part.learnweb), defaults.object(forKey: Keys.downloadsPending) != nil {
+            defaults.removeObject(forKey: Keys.downloadsPending)
+        }
         finish(messages: all, report: r, succeeded: succeeded, scope: scope)
     }
 
     /// Ende eines Laufs: Meldungen merken; die 30-Minuten-Sperre (`lastRun`) wie beim Stud.IP-Abgleich nur nach einem
     /// Lauf ohne Fehler (vorher auch nach einem gescheiterten, dann wartete der naechste Versuch 30 Minuten) und nur
-    /// nach einem vollen Lauf (einer nur mit Listen hat nichts geladen); der volle nimmt auch die wartenden Downloads mit
+    /// nach einem vollen Lauf (einer nur mit Listen hat nichts geladen)
     private func finish(messages all: [String], report: HildesheimSync.Report?, succeeded: Bool, scope: UniSyncScope) {
         lastReport = report
         messages = all
@@ -405,7 +411,6 @@ final class HildesheimConnection: ObservableObject {
         guard succeeded, scope == .full else { return }
         lastRun = clock.now
         defaults.set(lastRun, forKey: Keys.lastRun)
-        if defaults.object(forKey: Keys.downloadsPending) != nil { defaults.removeObject(forKey: Keys.downloadsPending) }
     }
 
     // MARK: Anzeige
