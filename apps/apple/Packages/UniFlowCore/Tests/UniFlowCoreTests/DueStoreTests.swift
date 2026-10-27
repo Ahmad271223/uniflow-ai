@@ -136,6 +136,51 @@ final class DueStoreTests: XCTestCase {
         XCTAssertEqual(next["items"]?.array?.count, 5)
     }
 
+    // MARK: Zeitraeume
+
+    /// Testate mit Zeitraum (Semesterplan und Tutoriumsblatt) und eine Anmeldung aus einem Zeitraum (Absatz ueber den
+    /// Meldezeitraum und Ankuendigung): je Modul, Tag und Art ein Termin, nur am ersten Tag bzw. am Ende der Anmeldung
+    func testRangesAreShownOncePerModuleDayAndKind() async throws {
+        let b = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock, university: "luh")
+        try await exec(b, "INSERT INTO modules(id, name, color) VALUES (3, 'Programmierkurs', '#0891b2')")
+        try await exec(b, """
+            INSERT INTO courses(id, title, semester, kind, active, module_id) VALUES
+              ('k-prog', 'Programmierkurs (Vorlesung)', 'WiSe 2026/27', 'vorlesung', 1, 3),
+              ('k-prog-tut', 'Programmierkurs (Tutorium)', 'WiSe 2026/27', 'uebung', 1, 3)
+            """)
+        try await addFile(b, id: "f-plan", name: "Semesterplan.pdf", course: "k-prog", pages: [
+            "Nr Datum Thema Tutorien & Testate\n3 06.11. Schleifen (…) T1: Kontrollfluss (VL 1-3) - 16.11 bis 19.11.\n7 04.12. Zeiger (…) T2: Felder (VL 4-6) - 14.12 - 17.12.",
+        ])
+        try await addFile(b, id: "f-tut", name: "Tutorium.pdf", course: "k-prog-tut", pages: ["Das Testat T1 findet vom 16.11. bis 19.11. in den Tutorien statt."])
+        try await addFile(b, id: "f-orga", name: "Organisation.pdf", course: "k-prog", pages: [
+            "Die Anmeldung erfolgt im Meldezeitraum über das Prüfungsportal. Er unterscheidet sich von den „regulären“ Klausuren (16.11.-27.11.).",
+        ])
+        let news = Announcements.fromStudIPNews(
+            ["id": "n7", "attributes": ["title": "Anmeldung Teilklausur", "content": "<p>Bitte bis 27.11.2026 im Prüfungsportal anmelden.</p>",
+                                        "publication-start": "2026-10-26T09:00:00+01:00"]],
+            courseID: "k-prog-tut", studipBase: "https://studip.example.test", today: BerlinClock.parseISODate("2026-10-27")!)!
+        try await b.context.database.transaction { c in _ = try Announcements.store(c, [news], source: "studip", fetchedAt: "2026-10-27T09:00:00") }
+
+        let r = try await json(b, "POST", "/api/due/refresh")
+        XCTAssertEqual(r["hits"]?.int, 5, "Plan zweimal, Tutorium, Organisation, Ankündigung")
+        let list = try await get(b, "/api/due")
+        let items = list["items"]?.array ?? []
+        XCTAssertEqual(items.map { "\($0["date"]?.string ?? "") \($0["kind"]?.string ?? "") \($0["title"]?.string ?? "")" },
+                       ["2026-11-16 test Testat T1 (bis 19.11.)", "2026-11-27 anmeldung Anmeldung", "2026-12-14 test Testat T2 (bis 17.12.)"])
+        XCTAssertEqual(items.map { $0["sources"]?.array?.count ?? 0 }, [2, 2, 1])
+        XCTAssertEqual(items[0]["kind_label"]?.string, "Testat")
+        XCTAssertEqual(items[1]["origin"]?.string, "erkannt in Organisation.pdf, S. 1 und an 1 weiteren Stelle")
+        // Kalender: das Testat nur am ersten Tag, nicht an jedem Tag des Zeitraums; die Anmeldung nur am Ende
+        let cal = try await get(b, "/api/calendar?start=2026-11-16&end=2026-11-29")
+        let perDay = (cal["days"]?.array ?? []).compactMap { d -> String? in
+            let n = d["deadlines"]?.array?.count ?? 0
+            return n == 0 ? nil : "\(d["date"]?.string ?? "") \(n)"
+        }
+        XCTAssertEqual(perDay, ["2026-11-16 1", "2026-11-27 1"])
+        // Erinnerungen je Termin einmal
+        XCTAssertEqual(DueReminders.items(from: list).map(\.title), ["Testat T1 (bis 19.11.)", "Anmeldung", "Testat T2 (bis 17.12.)"])
+    }
+
     // MARK: Ausblenden, Bestaetigen, Uhrzeit
 
     func testHideIsRememberedAcrossRefresh() async throws {
