@@ -41,7 +41,7 @@ struct UniFlowApp: App {
         let b = BackgroundSyncController(containers: c, account: a)
         if !StudIPSync.isUnderTest() {
             b.register()
-            b.schedule()
+            Task { await b.schedule() }
         }
         _account = StateObject(wrappedValue: a)
         _containers = StateObject(wrappedValue: c)
@@ -118,7 +118,7 @@ struct UniFlowApp: App {
                 containers.qis?.runIfDue()
             }
             // beim Wechsel in den Hintergrund den naechsten Termin 8/15/20 Uhr neu bestellen (S8)
-            if phase == .background { background.schedule() }
+            if phase == .background { Task { await background.schedule() } }
         }
     }
 }

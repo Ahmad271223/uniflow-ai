@@ -316,7 +316,7 @@ final class HildesheimConnection: ObservableObject {
         var api: LearnwebAPI?
         var loginNeeded = false
         var message: String?
-        /// in diesem Lauf aussen vor (Hintergrund bei gesperrtem iPad): Stand bleibt, kein "Anmeldung nötig"
+        /// in diesem Lauf aussen vor (Hintergrund bei gesperrtem iPad): Stand bleibt, keine neue Anmeldung noetig
         var skipped = false
     }
 
