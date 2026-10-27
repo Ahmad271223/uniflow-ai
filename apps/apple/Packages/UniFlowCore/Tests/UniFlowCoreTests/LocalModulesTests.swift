@@ -98,6 +98,23 @@ final class StudyClassifyTests: XCTestCase {
         XCTAssertEqual(PyText.strip("(Testlogik) -", chars: " -:,("), "Testlogik)")
     }
 
+    /// `study.file_source` wie tests/test_device_sync_api.py::test_file_source_rule, dazu Codepunkt-Vergleiche
+    func testFileSourceLikePython() {
+        let learnweb = "https://learnweb.test/webservice/pluginfile.php/7/mod_resource/content/1/Folien.pdf"
+        let studip = "https://studip.test/jsonapi.php/v1/file-refs/f1/content"
+        XCTAssertEqual(StudyClassify.fileSource(["id": "u1", "course_id": "__user__", "download_url": .string(learnweb)]), "own")
+        XCTAssertEqual(StudyClassify.fileSource(["id": "lw-1", "course_id": "c"]), "learnweb")
+        XCTAssertEqual(StudyClassify.fileSource(["id": "abc", "course_id": "c", "download_url": .string(learnweb)]), "learnweb")
+        XCTAssertEqual(StudyClassify.fileSource(["id": "abc", "course_id": "c", "download_url": .string(studip)]), "studip")
+        XCTAssertEqual(StudyClassify.fileSource(["id": "abc", "course_id": "c"]), "studip")
+        XCTAssertEqual(StudyClassify.fileSource(["id": "abc", "course_id": .null, "download_url": .null]), "studip")
+        // startswith nach Codepunkten: ein angehaengtes Kombinationszeichen aendert in Python nichts
+        XCTAssertEqual(StudyClassify.fileSource(["id": "lw-\u{301}1", "course_id": "c"]), "learnweb")
+        XCTAssertEqual(StudyClassify.fileSource(["id": "LW-1", "course_id": "c"]), "studip")
+        // enrich_file setzt die Herkunft mit
+        XCTAssertEqual(StudyClassify.enrichFile(["id": "lw-2", "name": "Folien 1.pdf"])["source"], "learnweb")
+    }
+
     /// str.lower fuer LOWER_CASES: volle Abbildung je Codepunkt, Sigma am Wortende
     func testLowerLikePython() throws {
         let cases = try studyFixture()["lower"]?.array ?? []

@@ -7,9 +7,11 @@ import Foundation
 public enum LocalLibrary {
     // MARK: Abfragen wie app/server.py
 
-    /// Dateien in `GET /api/library`
+    /// Dateien in `GET /api/library` (mit Quelle und Fingerabdruck wie am PC: `download_url`, `content_sha256`;
+    /// `source` setzt `StudyClassify.enrichFile`)
     static let librarySQL = """
         SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
+               f.download_url, f.content_sha256,
                c.module_id, c.subject, c.kind AS course_kind, a.doc_type, a.title AS ai_title, a.difficulty,
                (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes, (SELECT updated_at FROM annotations an WHERE an.file_id=f.id) AS edited_at
         FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id

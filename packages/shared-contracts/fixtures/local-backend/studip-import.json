@@ -2812,6 +2812,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m4",
        "studip_folder": "",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/h1/content",
+       "content_sha256": "e4dc1889e03f62211c9c4e2fe46e0d73d304b9dc383c351b3cee55c1af03f64e",
        "module_id": 2,
        "subject": "Hörsaalübung Testmathematik I",
        "course_kind": "hoersaaluebung",
@@ -2822,7 +2824,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Hörsaalübung",
-       "week_hint": 2
+       "week_hint": 2,
+       "source": "studip"
       },
       {
        "id": "u4",
@@ -2839,6 +2842,8 @@
        "downloaded_at": null,
        "course_id": "m2",
        "studip_folder": "Übungsblätter",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/u4/content",
+       "content_sha256": null,
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "uebung",
@@ -2849,7 +2854,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Übung",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       },
       {
        "id": "u3",
@@ -2866,6 +2872,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m2",
        "studip_folder": "Lösungen",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/u3/content",
+       "content_sha256": "cd21df839f33ce36d1fb279215e0ff456cd326522b61dca1881d507305505683",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "uebung",
@@ -2876,7 +2884,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Lösung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "u2",
@@ -2893,6 +2902,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m2",
        "studip_folder": "Übungsblätter",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/u2/content",
+       "content_sha256": "7da385a8fd78480e61ce3d217eceacb45046eb6e50534169073698d909ded65e",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "uebung",
@@ -2903,7 +2914,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Übung",
-       "week_hint": 2
+       "week_hint": 2,
+       "source": "studip"
       },
       {
        "id": "v3",
@@ -2920,6 +2932,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m1",
        "studip_folder": "Vorlesung/Folien",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v3/content",
+       "content_sha256": "6cb7c60198dcb106bdcbd4b18bf27e0fdf9f193ff49bad23ed9340bf7a53f424",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -2930,7 +2944,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Vorlesung",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       },
       {
        "id": "v2",
@@ -2947,6 +2962,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m1",
        "studip_folder": "Vorlesung",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v2/content",
+       "content_sha256": "8d3530cd6c5191b4a10ba64053b82165db3b268728de1c28e36eca31eb1133e9",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -2957,7 +2974,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Vorlesung",
-       "week_hint": 2
+       "week_hint": 2,
+       "source": "studip"
       },
       {
        "id": "v5",
@@ -2974,6 +2992,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m1",
        "studip_folder": "Alte Klausuren",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v5/content",
+       "content_sha256": "109397d15c040428925f589b414cc93080611d5f9206619204f037b1f4839706",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -2984,7 +3004,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Altklausur",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       },
       {
        "id": "g1",
@@ -3001,6 +3022,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m3",
        "studip_folder": "",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/g1/content",
+       "content_sha256": "550127afe3962e33674ed4478b08ab3a0b1a3748a9e99b8d8d79912887676d43",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "gruppenuebung",
@@ -3011,7 +3034,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Gruppenübung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "t2",
@@ -3028,6 +3052,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "b2",
        "studip_folder": "Übungen",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/t2/content",
+       "content_sha256": "db6af403b7716aded12649432f89909db8993ff5fcbd2638f7cac80190b16851",
        "module_id": 3,
        "subject": "Grundlagen der Beispieltechnik",
        "course_kind": "uebung",
@@ -3038,7 +3064,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Übung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "u1",
@@ -3055,6 +3082,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m2",
        "studip_folder": "Übungsblätter",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/u1/content",
+       "content_sha256": "6638291408ef3884d77d81f42d2183c486cb02fb15a530b3ad35341c72d0f67e",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "uebung",
@@ -3065,7 +3094,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Übung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "v1",
@@ -3082,6 +3112,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m1",
        "studip_folder": "Vorlesung",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v1/content",
+       "content_sha256": "ec7a6620fb50a9fbef05f40aa8cf9e3f5365361eaf0c04186cbb6731e90ec35d",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -3092,7 +3124,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Vorlesung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "t1",
@@ -3109,6 +3142,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "b1",
        "studip_folder": "",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/t1/content",
+       "content_sha256": "078477f8faa5451ef090abd87837f9e4ef94ef72e0a146999c54c1d19e4d6a7c",
        "module_id": 3,
        "subject": "Grundlagen der Beispieltechnik",
        "course_kind": "vorlesung",
@@ -3119,7 +3154,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Vorlesung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "w1",
@@ -3136,6 +3172,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "e1",
        "studip_folder": "",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/w1/content",
+       "content_sha256": "6b1912d8c9dcfd542dc2d724842a237ecde9f63e794023f79e259e75cf5afebe",
        "module_id": null,
        "subject": "Begrüßung der Testsemester",
        "course_kind": "sonstiges",
@@ -3146,7 +3184,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Sonstiges",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       },
       {
        "id": "v4",
@@ -3163,6 +3202,8 @@
        "downloaded_at": "2026-10-24T08:00:00",
        "course_id": "m1",
        "studip_folder": "Skript",
+       "download_url": "https://studip.test/jsonapi.php/v1/file-refs/v4/content",
+       "content_sha256": "ddb68c3a7a24786dac2060f5a48292e1bc4c39c745455a3ae8ba17b96cadb161",
        "module_id": 1,
        "subject": "Testmathematik I",
        "course_kind": "vorlesung",
@@ -3173,7 +3214,8 @@
        "edited_at": null,
        "ai_doc_type": null,
        "sub_label": "Skript",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       }
      ],
      "modules": [
@@ -3354,7 +3396,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Skript",
-         "week_hint": null
+         "week_hint": null,
+         "source": "studip"
         }
        ],
        "klausuren": [],
@@ -3389,7 +3432,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Vorlesung",
-         "week_hint": 1
+         "week_hint": 1,
+         "source": "studip"
         }
        ],
        "uebungen": [
@@ -3416,7 +3460,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Gruppenübung",
-         "week_hint": 1
+         "week_hint": 1,
+         "source": "studip"
         },
         {
          "id": "u1",
@@ -3441,7 +3486,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Übung",
-         "week_hint": 1
+         "week_hint": 1,
+         "source": "studip"
         }
        ],
        "loesungen": [
@@ -3468,7 +3514,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Lösung",
-         "week_hint": 1
+         "week_hint": 1,
+         "source": "studip"
         }
        ],
        "skripte": [],
@@ -3504,7 +3551,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Vorlesung",
-         "week_hint": null
+         "week_hint": null,
+         "source": "studip"
         },
         {
          "id": "v2",
@@ -3529,7 +3577,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Vorlesung",
-         "week_hint": 2
+         "week_hint": 2,
+         "source": "studip"
         }
        ],
        "uebungen": [
@@ -3556,7 +3605,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Übung",
-         "week_hint": 2
+         "week_hint": 2,
+         "source": "studip"
         },
         {
          "id": "u4",
@@ -3581,7 +3631,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Übung",
-         "week_hint": null
+         "week_hint": null,
+         "source": "studip"
         }
        ],
        "loesungen": [],
@@ -3622,7 +3673,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Altklausur",
-         "week_hint": null
+         "week_hint": null,
+         "source": "studip"
         }
        ],
        "sonstiges": []
@@ -3652,7 +3704,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Skript",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       },
       {
        "id": "v1",
@@ -3677,7 +3730,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Vorlesung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "u1",
@@ -3702,7 +3756,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Übung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "g1",
@@ -3727,7 +3782,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Gruppenübung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "v5",
@@ -3752,7 +3808,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Altklausur",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       },
       {
        "id": "v2",
@@ -3777,7 +3834,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Vorlesung",
-       "week_hint": 2
+       "week_hint": 2,
+       "source": "studip"
       },
       {
        "id": "v3",
@@ -3802,7 +3860,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Vorlesung",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       },
       {
        "id": "u2",
@@ -3827,7 +3886,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Übung",
-       "week_hint": 2
+       "week_hint": 2,
+       "source": "studip"
       },
       {
        "id": "u3",
@@ -3852,7 +3912,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Lösung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "u4",
@@ -3877,7 +3938,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Übung",
-       "week_hint": null
+       "week_hint": null,
+       "source": "studip"
       }
      ],
      "progress": 0,
@@ -3946,7 +4008,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Hörsaalübung",
-         "week_hint": 2
+         "week_hint": 2,
+         "source": "studip"
         }
        ],
        "loesungen": [],
@@ -3979,7 +4042,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Hörsaalübung",
-       "week_hint": 2
+       "week_hint": 2,
+       "source": "studip"
       }
      ],
      "progress": 0,
@@ -4053,7 +4117,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Vorlesung",
-         "week_hint": 1
+         "week_hint": 1,
+         "source": "studip"
         }
        ],
        "uebungen": [
@@ -4080,7 +4145,8 @@
          "has_notes": null,
          "ai_doc_type": null,
          "sub_label": "Übung",
-         "week_hint": 1
+         "week_hint": 1,
+         "source": "studip"
         }
        ],
        "loesungen": [],
@@ -4113,7 +4179,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Vorlesung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       },
       {
        "id": "t2",
@@ -4138,7 +4205,8 @@
        "has_notes": null,
        "ai_doc_type": null,
        "sub_label": "Übung",
-       "week_hint": 1
+       "week_hint": 1,
+       "source": "studip"
       }
      ],
      "progress": 0,

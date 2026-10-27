@@ -50,7 +50,12 @@ public enum FilesEndpoints: LocalEndpointModule {
             if let course = req.query("course_id"), !course.isEmpty { sql += " AND f.course_id=?"; params.append(.text(course)) }
             if let subject = req.query("subject"), !subject.isEmpty { sql += " AND c.subject=?"; params.append(.text(subject)) }
             sql += " ORDER BY f.chdate DESC"
-            let rows = try await ctx.database.rows(sql, params)
+            // f.* bringt download_url und content_sha256 schon mit; dazu die Herkunft wie study.file_source
+            let rows = try await ctx.database.rows(sql, params).map { f -> [String: JSONValue] in
+                var out = f
+                out["source"] = .string(StudyClassify.fileSource(f))
+                return out
+            }
             return .json(.array(rows.map(JSONValue.object)))
         }
 
@@ -65,10 +70,14 @@ public enum FilesEndpoints: LocalEndpointModule {
             return .json(.object(f))
         }
 
-        // Bytes der lokalen Datei; PDF, Bilder und Text inline, alles andere nur zum Herunterladen
+        // Bytes der lokalen Datei; PDF, Bilder und Text inline, alles andere nur zum Herunterladen. Unbekannte ID und
+        // fehlende Datei mit verschiedenen Meldungen wie file_content (das Durchreichen ohne Datei auf der Platte,
+        // LERNAPP_FILES=stream, gibt es nur im Dienst; das Geraet laedt die Datei selbst)
         router.get("/api/files/{file_id}/content") { req, ctx in
-            let f = try await ctx.database.queryOne("SELECT local_path, name, mime FROM files WHERE id=?", [.text(req.param("file_id"))])
-            guard let f, let path = f["local_path"]?.string, !path.isEmpty, let files = ctx.files, files.exists(stored: path),
+            guard let f = try await ctx.database.queryOne("SELECT local_path, name, mime FROM files WHERE id=?", [.text(req.param("file_id"))]) else {
+                throw LocalHTTPError.notFound("Datei nicht gefunden")
+            }
+            guard let path = f["local_path"]?.string, !path.isEmpty, let files = ctx.files, files.exists(stored: path),
                   let url = files.url(stored: path) else {
                 throw LocalHTTPError.notFound("Datei nicht lokal vorhanden")
             }

@@ -340,6 +340,11 @@ final class LocalAnnotationsTests: XCTestCase {
         try await b.context.database.execute("UPDATE files SET local_path='x/Blatt.pdf' WHERE id='d1'")
         let content = await b.handle(LocalRequest(method: "GET", path: "/api/files/d1/content"))
         XCTAssertEqual(content.status, 404)
+        XCTAssertEqual(content.json, ["detail": "Datei nicht lokal vorhanden"])
+        // unbekannte ID: eigene Meldung wie file_content (seit b718cfb)
+        let unknown = await b.handle(LocalRequest(method: "GET", path: "/api/files/gibtsnicht/content"))
+        XCTAssertEqual(unknown.status, 404)
+        XCTAssertEqual(unknown.json, ["detail": "Datei nicht gefunden"])
         let form = "--b\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"a.png\"\r\nContent-Type: image/png\r\n\r\nPNG\r\n--b--\r\n"
         let upload = await b.handle(LocalRequest(method: "POST", path: "/api/files/d1/assets",
                                                  headers: ["Content-Type": "multipart/form-data; boundary=b"], body: Data(form.utf8)))

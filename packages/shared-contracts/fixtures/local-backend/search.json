@@ -1893,7 +1893,7 @@
       "name": "VL01 Eigenwerte.pdf",
       "label": "Vorlesung",
       "page": 2,
-      "score": 12.11,
+      "score": 12.21,
       "terms": [
        "matrix",
        "eigenwert",
@@ -1931,7 +1931,7 @@
       "name": "VL02 Determinanten.pdf",
       "label": "Vorlesung",
       "page": 2,
-      "score": 10.95,
+      "score": 11.05,
       "terms": [
        "matrix",
        "determinant",
@@ -1968,7 +1968,7 @@
       "name": "Skript Lineare Algebra.pdf",
       "label": "Skript",
       "page": 3,
-      "score": 21.51,
+      "score": 21.65,
       "terms": [
        "vektor",
        "linear",
@@ -2020,7 +2020,7 @@
       "name": "VL02 Determinanten.pdf",
       "label": "Vorlesung",
       "page": 2,
-      "score": 10.95,
+      "score": 11.05,
       "terms": [
        "matrix",
        "determinant",
@@ -2087,7 +2087,7 @@
       "name": "Skript Lineare Algebra.pdf",
       "label": "Skript",
       "page": 5,
-      "score": 24.18,
+      "score": 24.3,
       "terms": [
        "eigenwert",
        "matriz",
@@ -2165,7 +2165,7 @@
       "name": "Skript Lineare Algebra.pdf",
       "label": "Skript",
       "page": 5,
-      "score": 13.4,
+      "score": 13.47,
       "terms": [
        "eigenwert",
        "diagonalisier",
@@ -2180,7 +2180,7 @@
       "name": "VL01 Eigenwerte.pdf",
       "label": "Vorlesung",
       "page": 2,
-      "score": 10.99,
+      "score": 11.08,
       "terms": [
        "matrix",
        "eigenwert",
@@ -2366,7 +2366,8 @@
    "path": "/api/files/f-la-v4/pagetext",
    "status": 404,
    "response": {
-    "detail": "Not Found"
+    "detail": "Kein Seitentext vorhanden.",
+    "code": "no_content"
    }
   },
   {
@@ -2374,7 +2375,7 @@
    "path": "/api/files/nope/pagetext",
    "status": 404,
    "response": {
-    "detail": "Not Found"
+    "detail": "Datei nicht gefunden"
    }
   },
   {

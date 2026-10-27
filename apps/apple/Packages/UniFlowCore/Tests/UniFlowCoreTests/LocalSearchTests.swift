@@ -189,14 +189,14 @@ final class LocalSearchTests: XCTestCase {
         // Seitentext ueber den Endpunkt aus der Tabelle
         let r = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f-la-v1/pagetext", query: [.init("page", "3")]))
         XCTAssertEqual(r.json, ["text": "Neue Seite drei", "pages": 3])
-        // nicht lesbar: leer, nichts gespeichert, Endpunkt mit Meldung
+        // nicht lesbar: leer, nichts gespeichert, Endpunkt 404 ohne Seitentext (wie page_text seit b718cfb)
         try await db.execute("UPDATE files SET chdate=1760400000 WHERE id='f-la-v1'")
         tools.set("VL01 Eigenwerte.pdf", nil)
         let none = try await ScriptSearch.pageTexts(fileID: "f-la-v1", database: db, files: files)
         XCTAssertEqual(none, [])
         let broken = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f-la-v1/pagetext"))
-        XCTAssertEqual(broken.json?["text"], "")
-        XCTAssertNotNil(broken.json?["error"]?.string)
+        XCTAssertEqual(broken.status, 404)
+        XCTAssertEqual(broken.json, ["detail": "Kein Seitentext vorhanden.", "code": "no_content"])
         // keine PDF (Bild) und ohne lokale Datei: keine Seitentexte
         let png = try await ScriptSearch.pageTexts(fileID: "f-la-png", database: db, files: files)
         XCTAssertEqual(png, [])
@@ -225,6 +225,29 @@ final class LocalSearchTests: XCTestCase {
         try await db.execute("UPDATE files SET chdate=chdate+1 WHERE id='f-frei1'")
         let stale = await backend.handle(LocalRequest(method: "GET", path: "/api/search", query: [.init("q", "quantenchromo")]))
         XCTAssertEqual(stale.json?["pages"], [])
+    }
+
+    /// Gespeicherte Seitentexte einer Datei, die nicht mehr auf dem Geraet liegt (nach "Dateien löschen"), gelten wie
+    /// am PC (`page_texts` seit b718cfb): `/pagetext` liefert sie, die Skriptsuche zaehlt sie mit (Punktzahlen der
+    /// Fixture); die globale Suche zeigt die Seite nicht (`find_pages` verlangt die Datei). Ohne Texte 404 no_content.
+    func testStoredTextsOfDeletedFileStillCount() async throws {
+        let fx = try fixture()
+        let tools = TextTools()
+        let backend = try await seeded(fx, tools: tools)
+        let r = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f-la-weg/pagetext"))
+        XCTAssertEqual(r.status, 200)
+        XCTAssertEqual(r.json?["pages"], 1)
+        XCTAssertEqual(r.json?["text"]?.string?.hasPrefix("Spektralzerlegung"), true)
+        let search = await backend.handle(LocalRequest(method: "GET", path: "/api/search", query: [.init("q", "spektralzerlegung")]))
+        XCTAssertEqual(search.json?["pages"], [])
+        XCTAssertEqual(tools.readCount, 0)
+        try await backend.context.database.execute("DELETE FROM page_texts WHERE file_id='f-la-weg'")
+        let gone = await backend.handle(LocalRequest(method: "GET", path: "/api/files/f-la-weg/pagetext"))
+        XCTAssertEqual(gone.status, 404)
+        XCTAssertEqual(gone.json, ["detail": "Kein Seitentext vorhanden.", "code": "no_content"])
+        let unknown = await backend.handle(LocalRequest(method: "GET", path: "/api/files/gibtsnicht/pagetext"))
+        XCTAssertEqual(unknown.status, 404)
+        XCTAssertEqual(unknown.json, ["detail": "Datei nicht gefunden"])
     }
 
     /// Skriptsuche liest die Skripte eines Moduls bei der ersten Anfrage (nicht vorher gelesene Seitentexte) und
@@ -282,7 +305,10 @@ final class LocalSearchTests: XCTestCase {
                      "f-la-s": "Skript Lineare Algebra.pdf", "f-la-e": "Ergänzungen zur Vorlesung.pdf"]
         let tools = SlowTools(Dictionary(uniqueKeysWithValues: names.map { ($0.value, texts[$0.key] ?? []) }))
         let backend = try await seeded(fx, tools: tools)
-        try await backend.context.database.execute("DELETE FROM page_texts")
+        // nur die Texte der Dateien auf dem Geraet: die gespeicherten Texte von f-la-weg (Datei geloescht) zaehlen im
+        // Index mit wie am PC und liessen sich nicht neu lesen
+        let readable = "DELETE FROM page_texts WHERE file_id IN (" + names.keys.sorted().map { "'\($0)'" }.joined(separator: ",") + ")"
+        try await backend.context.database.execute(readable)
         let body: JSONValue = ["file_id": "f-la-u1", "text": "Spektralsatz symmetrische Matrizen reelle Eigenwerte orthogonale Diagonalisierung"]
         let expected = try XCTUnwrap(fx["steps"]?.array?.first { $0["body"] == body }?["response"])
 
@@ -296,7 +322,7 @@ final class LocalSearchTests: XCTestCase {
         let afterCancel = tools.reads.count
 
         // zwei Anfragen zugleich: ein Aufbau, jede noch fehlende PDF einmal gelesen
-        try await backend.context.database.execute("DELETE FROM page_texts")
+        try await backend.context.database.execute(readable)
         let builds = backend.context.scriptIndex.builds
         async let a = related(backend, body)
         async let b = related(backend, body)
