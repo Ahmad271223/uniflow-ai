@@ -533,3 +533,60 @@ prüfen. iPad: `LSFClient.isLoggedIn` = `auth.logout` oder Linktext „abmelden�
 über Schlüssel (REST) oder Sitzung gelesen habt; das iPad hat 195 statt 539 – wir suchen die Lücke (Ordner? versteckte
 Module? andere Quellen?). Dazu die LSF-Einträge nach eurer Platzhalter-Regel (`is_placeholder`) als
 wöchentlich/einzeln, damit wir nach dem Port erneut vergleichen.
+
+## Nachtrag der PC-Sitzung: Dienst speichert keine Hochschuldateien mehr (27.10.2026)
+
+Entscheidung des Inhabers („so wenig Speicher wie möglich“): Im gehosteten Dienst gilt `LERNAPP_FILES=stream` –
+der Abgleich merkt nur die Dateiliste, `GET /api/files/{id}/content` holt die Datei beim Öffnen mit der
+Hochschulsitzung des Kontos und reicht sie durch (`app/filestream.py`), nichts auf der Platte; behalten werden
+Fingerabdruck (`content_sha256`) und Seitentext. Für euch relevant, sobald der iPad-Client gegen den Dienst spricht
+(V2): Ladet ihr Dateien weiterhin direkt von Stud.IP aufs iPad (empfohlen, bleibt so), holt `POST
+/api/files/{id}/fingerprint` → `{sha256}` den Community-Schlüssel vom Dienst, falls er ihn noch nicht kennt – oder
+ihr rechnet ihn wie bisher lokal. Fehlercodes beim Durchreichen: 409 `university_session_expired`, 502
+`university_login_failed`, 413 `too_large`. Der PC-Modus und eure lokale Ablage bleiben unverändert.
+
+## Nachtrag der PC-Sitzung: Hochschul-Anmeldung auf dem Gerät als gemeinsamer Vertrag (27.10.2026)
+
+Für Android bauen wir die Hochschul-Anmeldung in der App (WebView) und den Download direkt aufs Gerät – also das, was
+euer iPad schon macht. Damit beide Geräte dieselben Regeln haben, gibt es jetzt `packages/shared-contracts/fixtures/
+learnweb/launch.json` (aus `tools/gen-learnweb-fixture.py`): Anmeldeprofile je Hochschule (Startseite, Prüf-Adresse,
+Sitzungscookie, erlaubte Hosts, Learnweb-Adresse, CAS), die Moodle-App-Anmeldung (`launch.php`-Startadresse,
+Rückleitung `<scheme>://token=<base64(md5(base+passport) ':::' token [':::' privat])>` mit Signaturprüfung und
+URL-sicherem Base64), der Download mit Schlüssel (POST-Formular, Schlüssel nie in der Adresse), die Cookie-Kopfzeile
+(Domain-Suffix, abgelaufene weg) und die Erkennung „Anmeldeseite statt Datei“. Bitte eure `MoodleSSO`/`LearnwebAPI`/
+`UniversityProfile` einmal dagegen prüfen (Test wie bei den anderen Fixtures) – Abweichungen bitte melden, dann
+gleichen wir die Referenz oder Kotlin an. Der Dienst liefert das Profil des Kontos auch unter `GET /api/university/profile`.
+
+## Nachtrag der PC-Sitzung: Seitenformate A6–A2 und große Whiteboards (27.10.2026)
+
+Vorgabe des Inhabers: alle Vorlagen (Leer, Liniert, Kariert, Gepunktet, Millimeter, Cornell) in A6, A5, A4, A3, A2
+(hoch und quer) sowie Whiteboards bis A0 quer (3370 × 2384 pt). Im Notizformat ändert sich nichts – Notizseiten
+tragen weiter `w`/`h` in PDF-Punkten im `pageOrder`-Eintrag; neu ist nur, dass diese Werte jetzt auch jenseits von
+595 × 842 bzw. 842 × 595 vorkommen (Grenzen 100–3400 pt je Seite, `app/static/formats.js`, Server prüft gleich).
+Bitte prüfen, dass euer Renderer (PageOrder/DisplayLayout, PencilKit-Canvas) beliebige `w`/`h` in diesem Bereich
+darstellt und beim Anlegen von Seiten dieselben Formate anbietet; sehr große Seiten (A1/A0 quer) brauchen auf dem
+iPad ggf. gekachelte Darstellung. Zweite Änderung nur im Web: beim Tippen in ein Textfeld schalteten Kurzbefehle das
+Werkzeug um (Textfeld verlor nach dem pointerdown den Fokus) – behoben in `editor.js`.
+
+## Nachtrag der PC-Sitzung: Demo-Inhalte für die App-Prüfung (27.10.2026)
+
+Für die Prüfung ohne Hochschulkonto gibt es jetzt `app/demo.py`: ein Demo-Modul „Grundlagen der Informatik“ mit drei
+selbst erzeugten PDFs (Skript, Folien, Übungsblatt – kein fremdes Material), Stundenplan (Mo/Mi/Do), drei Lernpaketen
+dieser Woche, einer Abgabefrist und einer Ankündigung mit Raumwechsel; Schalter in Einstellungen → Erweitert und
+`GET/POST /api/demo`, rückstandslos entfernbar, Kennung `demo-`/`source = demo`. Web, Windows und Android (über den
+Dienst) haben das damit. Das iPad läuft ohne Dienst – bitte denselben Schalter lokal anbieten (gleiche Inhalte, ihr
+könnt die PDFs mit `demo.pdf_bytes` aus Python erzeugen und als Fixture ablegen oder in Swift nachbauen) und in den
+Prüfhinweisen (`docs/release/APP-STORE.md`) steht der Ablauf schon so.
+
+## Nachtrag der PC-Sitzung: Hochschul-Passwort merkt nur der Passwort-Manager des Systems (27.10.2026)
+
+Entscheidung des Inhabers: Das Hochschul-Passwort darf sich nur der Browser bzw. das Anmeldefenster merken, das die
+App zeigt – **nie die App selbst**. Android setzt das so um: Die WebView der Hochschul-Anmeldung nimmt am
+Android-Autofill teil (`importantForAutofill = IMPORTANT_FOR_AUTOFILL_YES`), der Google Password Manager oder Samsung
+Pass bietet das Speichern an, die App speichert weder Benutzername noch Passwort und füllt nichts per Skript aus; nach
+der Anmeldung bleibt nur die Hochschul-Sitzung (Cookies) im verschlüsselten App-Speicher. `tests/test_android_login_policy.py`
+prüft das in den Quellen und in `docs/release/DATENSCHUTZ.md` (Abschnitt 3 ist entsprechend umformuliert, Play-Store-Text
+ebenso). Bitte auf dem iPad genauso: keinen eigenen Schalter „Auf diesem Gerät merken“ mit Schlüsselbund-Eintrag der
+App, sondern die WKWebView der Anmeldung dem iCloud-Schlüsselbund überlassen (Passwort-Autofill in WKWebView ist ab
+iOS 11 Standard; nichts zusätzlich speichern, nichts per `evaluateJavaScript` vorausfüllen). Falls ihr den Schalter schon
+gebaut habt: entfernen und die Datenschutz-Formulierung („iPad: Schlüsselbund von iOS“ im Anmeldefenster) bleibt richtig.

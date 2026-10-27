@@ -52,6 +52,7 @@ import de.uniflow.android.AppScope
 import de.uniflow.android.InkMath
 import de.uniflow.android.InkTool
 import de.uniflow.android.Repo
+import de.uniflow.android.UniversityRules
 import de.uniflow.android.ui.theme.Bad
 import de.uniflow.android.ui.theme.Ok
 import de.uniflow.android.ui.theme.Warn
@@ -104,6 +105,7 @@ fun DocumentScreen(repo: Repo, fileId: String, onBack: () -> Unit) {
     var bitmap by remember(fileId) { mutableStateOf<Bitmap?>(null) }
     var pageSizePt by remember(fileId) { mutableStateOf(InkMath.A4) }
     var loadError by remember(fileId) { mutableStateOf<String?>(null) }
+    var sourceHint by remember(fileId) { mutableStateOf<String?>(null) }   // „Direkt von Stud.IP geladen“ nach einem Direkt-Download
     var loadTick by remember(fileId) { mutableStateOf(0) }           // „Erneut versuchen“
     var leaveArmed by remember(fileId) { mutableStateOf(false) }     // zweites „Zurück“ nach fehlgeschlagenem Speichern
     var tool by remember { mutableStateOf(InkTool.Pen) }
@@ -129,7 +131,9 @@ fun DocumentScreen(repo: Repo, fileId: String, onBack: () -> Unit) {
             val lib = repo.library()
             val f = lib.files.firstOrNull { it.id == fileId } ?: throw ApiError(404, "not_found", "Datei nicht gefunden")
             file = f
-            val pf = repo.pdfFile(f)
+            val got = repo.pdf(f)
+            val pf = got.file
+            sourceHint = UniversityRules.sourceHint(got.directFrom)
             opened = withContext(Dispatchers.IO) {
                 try { PageRenderer(pf) }
                 catch (e: Exception) { repo.discardPdf(pf); throw ApiError(0, "pdf_invalid", "PDF kann nicht geöffnet werden: ${e.message}") }   // naechster Versuch laedt neu
@@ -194,6 +198,7 @@ fun DocumentScreen(repo: Repo, fileId: String, onBack: () -> Unit) {
         InkMath.foreignHint(InkMath.foreignCount(pageObjects))?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = Warn, modifier = Modifier.padding(horizontal = 12.dp))
         }
+        sourceHint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Ok, modifier = Modifier.padding(horizontal = 12.dp)) }
 
         val err = loadError
         val bmp = bitmap

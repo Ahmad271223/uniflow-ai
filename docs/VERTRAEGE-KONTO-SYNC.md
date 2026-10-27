@@ -59,6 +59,30 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   schreiben im Dienst den Tresor des Kontos der Anfrage bzw. des Jobs (`config.set_env_context`), nie die `.env`.
   Browser-Profile, Protokolle und QIS-Dokumente liegen unter `users/<id>/…` (`studip_sync._profile_dir`,
   `hildesheim._profile_dir`, `qis._doc_dir`, `config.log_dir`).
+- **Dateien ohne Speicherung** (`LERNAPP_FILES=stream`, Standard im Dienst; `store` wie am PC): Der Abgleich merkt
+  nur die Dateiliste (`files` ohne `local_path`); `GET /api/files/{id}/content` holt die Datei beim Öffnen mit der
+  Hochschulsitzung des Kontos (`STUDIP_COOKIES` aus dem Abgleich bzw. `LEARNWEB_TOKEN`, beides im Tresor) und reicht
+  sie durch (`app/filestream.py`): nichts auf der Platte, Zwischenspeicher im Arbeitsspeicher (8 Dateien, 256 MB,
+  15 min), dabei `content_sha256` und `page_texts` (Suche) abgelegt. Abgelaufene Stud.IP-Sitzung → einmal neu anmelden
+  (Playwright, Profil des Kontos), sonst 409 `university_session_expired`; Anmeldung schlägt fehl → 502
+  `university_login_failed`; zu groß (300 MB) → 413. `POST /api/files/{id}/fingerprint` → `{sha256, source}` liefert
+  den Community-Schlüssel auch für Geräte, die die Datei direkt von der Hochschule laden (iPad). Eigene Dokumente
+  (`course_id = __user__`) werden weiter gespeichert – sie sind Inhalt des Nutzers, keine Hochschuldatei.
+- **Geräte-Abgleich** (Android/iPad laden die Hochschuldatei selbst – eigene Hochschul-Anmeldung in der App, Download
+  mit der Sitzung des Geräts – und melden dem Dienst nur abgeleitete Daten, nie die Datei): `GET /api/university/profile`
+  → Anmeldeprofil der Hochschule des Kontos (`key`, `name`, `launch_scheme`, `login_url`, `logged_in_check_url`,
+  `session_cookie`, `hosts`, `file_host`, `learnweb_base`, `cas_base`; Werte wie `fixtures/learnweb/launch.json` →
+  `profiles`, Hildesheim mit `HILDESHEIM_LEARNWEB_URL` des Kontos als Überschreibung, kein Netz-Probing).
+  `PUT /api/files/{id}/fingerprint {sha256}` → `{sha256, source: geraet}` setzt `content_sha256`, wenn noch leer
+  (gleicher Wert → ok, anderer → 409 `fingerprint_mismatch`, kein 64-Hex → 400 `fingerprint_invalid`).
+  `PUT /api/files/{id}/pagetext {pages: [...]}` → `{pages}` legt `page_texts` mit `chdate` der Datei ab (1…2000
+  Seiten, je ≤ 20 000 Zeichen, sonst 400 `pagetext_invalid`); danach nutzen `GET …/pagetext`, `/api/search` und
+  `/api/related` den Text (im Dienst gilt eine Hochschuldatei mit Quelle als vorhanden). Beides nur für
+  Hochschuldateien ohne Datei beim Dienst (eigenes Dokument → 400 `not_university_file`, Datei auf der Platte → 400
+  `file_stored`, unbekannte ID → 404); ein Konto meldet nur Dateien seiner eigenen Datenbank. `GET /api/library` und
+  `GET /api/files` liefern je Datei `download_url`, `content_sha256` und `source` (`studip | learnweb | own`), nie
+  Tokens oder Passwörter. Restrisiko falscher Meldungen: Spam in der Community (ein Paket ohne die passende PDF ist
+  für niemanden lesbar), kein Datenzugriff. Tests `tests/test_device_sync_api.py`.
 - **Jobs** (`app/jobs.py`): Tabelle `sync_jobs` in `accounts.db` (`queued | running | done | failed`), Arbeiter holen
   Jobs atomar ab, höchstens ein laufender Job je Konto, ein Job setzt den Kontext des Kontos und ruft
   `studip_sync.run_sync()` (LUH: Stud.IP, Hildesheim: Learnweb + LSF) oder `qis.run()`. Zeitplan

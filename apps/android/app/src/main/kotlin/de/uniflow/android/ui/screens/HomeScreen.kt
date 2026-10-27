@@ -23,10 +23,14 @@ import de.uniflow.android.AppScope
 import de.uniflow.android.Dates
 import de.uniflow.android.Repo
 import de.uniflow.android.SyncRules
+import de.uniflow.android.UniversityRules
 import de.uniflow.android.ui.Loaded
 import de.uniflow.android.ui.SectionCard
+import de.uniflow.android.ui.UiState
 import de.uniflow.android.ui.rememberLoaded
 import de.uniflow.android.ui.theme.Bad
+import de.uniflow.android.ui.theme.Ok
+import de.uniflow.android.ui.theme.Warn
 import de.uniflow.core.ApiError
 import de.uniflow.core.Labels
 import kotlinx.coroutines.CancellationException
@@ -34,8 +38,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun HomeScreen(repo: Repo, onLogout: () -> Unit, onOpenLibrary: () -> Unit) {
+fun HomeScreen(repo: Repo, onLogout: () -> Unit, onOpenLibrary: () -> Unit, onUniversityLogin: () -> Unit) {
     val (state, reload) = rememberLoaded("dashboard") { repo.dashboard() }
+    // Hochschul-Sitzung dieses Geraets: beim Zurueckkehren von der Anmeldung wird die Ansicht neu aufgebaut und laedt den Stand neu
+    val (uniState, reloadUni) = rememberLoaded("university") { repo.universityStatus() }
     val scope = rememberCoroutineScope()
     var info by remember { mutableStateOf<String?>(null) }
     var syncing by remember { mutableStateOf(false) }
@@ -107,6 +113,24 @@ fun HomeScreen(repo: Repo, onLogout: () -> Unit, onOpenLibrary: () -> Unit) {
             SectionCard("Neu aus der Hochschule") {
                 Text(if (d.newTotal == 0) "Nichts Neues." else "${d.newTotal} neue Dateien", style = MaterialTheme.typography.bodyMedium)
                 if (d.newTotal > 0) TextButton(onClick = onOpenLibrary) { Text("Dokumente öffnen") }
+            }
+            SectionCard("Hochschule") {
+                when (val u = uniState) {
+                    is UiState.Loading -> Text("Lade …", style = MaterialTheme.typography.bodySmall)
+                    is UiState.Failed -> Text(u.message, style = MaterialTheme.typography.bodySmall, color = Bad)
+                    is UiState.Ready -> {
+                        val profile = u.value.profile
+                        val uni = u.value.session
+                        Text(profile?.name ?: "Hochschule des Kontos", fontWeight = FontWeight.SemiBold)
+                        Text(UniversityRules.statusText(uni), style = MaterialTheme.typography.bodySmall,
+                            color = if (uni == null) MaterialTheme.colorScheme.onSurface else if (uni.expired) Warn else Ok)
+                        if (profile == null) Text("Für diese Hochschule gibt es noch kein Anmeldeprofil.", style = MaterialTheme.typography.bodySmall, color = Warn)
+                        Row {
+                            TextButton(enabled = profile != null, onClick = onUniversityLogin) { Text(UniversityRules.loginLabel(uni)) }
+                            if (uni != null) TextButton(onClick = { repo.universityLogout(); reloadUni() }) { Text("Abmelden") }
+                        }
+                    }
+                }
             }
         }
     }

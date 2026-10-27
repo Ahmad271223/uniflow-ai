@@ -52,9 +52,11 @@ Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröf
    `/impressum` und `/konto-loeschen` direkt aus diesen Markdown-Dateien aus (`app/legal.py`, ohne Sitzung, auch im
    gehosteten Modus; Platzhalter erscheinen gelb markiert, bis sie ersetzt sind). Verlinkt auf der Anmeldeseite und im
    Konto-Menü der App; `tests/test_legal_pages.py`. Es bleibt, die Platzhalter zu ersetzen.
-6. **App Review:** Die Hochschulfunktionen brauchen ein echtes Hochschulkonto, das Apple und Google nicht bekommen
-   dürfen. Für die Prüfung braucht die App Beispielinhalte ohne Hochschule (Demo-Kurs mit PDFs, Stundenplan,
-   Kalender) – in den Prüfhinweisen beschrieben, in der App noch nicht vorhanden.
+6. **App Review – erledigt (27.10.2026):** Demo-Inhalte ohne Hochschulkonto (`app/demo.py`): Einstellungen →
+   Erweitert → „Demo-Inhalte anlegen“ bzw. `POST /api/demo {enabled: true}` legt ein Demo-Modul mit drei selbst
+   erzeugten PDFs, Stundenplan, Lernkalender, einer Frist und einer Ankündigung an; „entfernen“ nimmt alles
+   rückstandslos weg. Gilt für Web, Windows und Android (über den Dienst); das iPad braucht denselben Schalter
+   lokal (Hinweis an den Mac).
 7. **Händlerstatus (DSA)** in App Store Connect angeben; Name, Anschrift, E-Mail und Telefon werden dann im Store
    angezeigt. Dieselben Angaben wie im Impressum.
 8. **Datenexport** als Gesamtpaket (ZIP mit Notizen, Kalender, Karteikarten) ist in `docs/KONTEN-ABOS-PLAN.md`

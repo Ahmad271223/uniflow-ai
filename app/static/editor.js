@@ -2,6 +2,7 @@
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
 import { icon } from "./icons.js?v=29";
 import { mergeDocument } from "./merge.js?v=29";
+import { FORMATS, WHITEBOARDS, formatSize, formatOf, sizeLabel, validSize } from "./formats.js?v=29";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -688,8 +689,10 @@ export class PdfEditor {
       if (t === "pen") { drawing = this.strokeBegin(pg, p, pr); ev.preventDefault(); }
       else if (t === "eraser") { drawing = { tool: "eraser", before: this.snapshot(pg), changed: false }; this.eraseAt(pg, p, drawing); }
       else if (t === "lasso") { if (e.target !== st && e.target.hasName?.("obj")) return; if (e.target.getParent()?.className === "Transformer") return; if (ev.shiftKey) { marquee = { x0: p.x, y0: p.y, rect: new Konva.Rect({ x: p.x, y: p.y, stroke: "#4f5bd5", strokeWidth: 1 / this.zoom, dash: [4 / this.zoom, 3 / this.zoom], fill: "rgba(79,91,213,.06)" }) }; pg.tmp.add(marquee.rect); } else { lasso = new Konva.Line({ points: [p.x, p.y], stroke: "#4f5bd5", strokeWidth: 1 / this.zoom, dash: [6 / this.zoom, 4 / this.zoom], closed: true, fill: "rgba(79,91,213,.08)", listening: false }); pg.tmp.add(lasso); } this.clearSelection(); }
-      else if (t === "text") { if (e.target !== st) return; this.createText(pg, p); }
-      else if (t === "sticky") { if (e.target !== st) return; this.createSticky(pg, p); }
+      // preventDefault: sonst holt sich die Seite nach dem pointerdown den Fokus zurueck, das Textfeld verliert ihn und
+      // die naechste Taste schaltete das Werkzeug um (p = Stift)
+      else if (t === "text") { if (e.target !== st) return; ev.preventDefault(); this.createText(pg, p); }
+      else if (t === "sticky") { if (e.target !== st) return; ev.preventDefault(); this.createSticky(pg, p); }
       else if (t === "image") { if (e.target !== st) return; this._imgPos = p; this.action("image"); }
       else if (t === "shape") { if (this.shapeKind === "polygon") { this.polyClick(pg, p, e); return; } shape = { kind: this.shapeKind, x0: p.x, y0: p.y, node: null }; }
       else if (t === "textselect") { tsel = { x0: p.x, y0: p.y, rect: new Konva.Rect({ x: p.x, y: p.y, fill: "rgba(255,200,0,.25)", stroke: "#d98a00", strokeWidth: 1 / this.zoom, listening: false }) }; pg.tmp.add(tsel.rect); }
@@ -765,10 +768,14 @@ export class PdfEditor {
     this.clearSelection(); txt.hide(); pg.layer.batchDraw(); this.editingText = true;
     const ta = document.createElement("textarea"); ta.className = "ed-textedit"; pg.el.append(ta);
     const abs = node.getAbsolutePosition(); Object.assign(ta.style, { left: abs.x + "px", top: abs.y + "px", width: (o.width * this.zoom) + "px", minHeight: (txt.height() * this.zoom) + "px", fontSize: o.fontSize * this.zoom + "px", fontFamily: o.fontFamily, color: o.fill, fontWeight: o.bold ? "bold" : "normal", fontStyle: o.italic ? "italic" : "normal", textDecoration: o.underline ? "underline" : "none", textAlign: o.align, background: o.bg || "rgba(255,255,255,.9)", transform: `rotate(${o.rotation || 0}deg)`, lineHeight: String(o.lineHeight || 1.25), padding: 4 * this.zoom + "px" });
-    ta.value = o.text; ta.focus(); if (!isNew) ta.select();
+    ta.value = o.text; const born = performance.now();
+    const focusTa = () => { if (!ta.isConnected) return; ta.focus({ preventScroll: true }); if (!isNew) ta.select(); };
+    focusTa(); setTimeout(focusTa, 0);                // Fokus auch nach der Standardaktion des Zeigerereignisses sichern
     const autosize = () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }; autosize(); ta.oninput = autosize;
     const done = cancel => { if (!ta.isConnected) return; ta.remove(); this.editingText = false; txt.show(); if (!cancel) o.text = ta.value; if (!o.text.trim()) { const objs = this.model.pages[pg.key].objects; const i = objs.indexOf(o); if (i >= 0) objs.splice(i, 1); node.destroy(); } else { const n = this.refreshNode(pg, node); if (!isNew) { this.setTool("lasso"); this.select(pg, [n]); } } pg.layer.batchDraw(); this.commit(pg, before); };
-    ta.onblur = () => done(false); ta.onkeydown = e => { if (e.key === "Escape") done(true); if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) done(false); e.stopPropagation(); };
+    // kurz nach dem Anlegen holt der Browser den Fokus manchmal auf die Seite zurueck: dann zurueckholen statt beenden
+    ta.onblur = () => { if (performance.now() - born < 400 && ta.isConnected) { setTimeout(() => { if (ta.isConnected && document.activeElement !== ta) ta.focus({ preventScroll: true }); }, 0); return; } done(false); };
+    ta.onkeydown = e => { if (e.key === "Escape") done(true); if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) done(false); e.stopPropagation(); };
   }
 
   // ---------------------------------------------------------------- Bilder
@@ -784,7 +791,19 @@ export class PdfEditor {
   // ---------------------------------------------------------------- Seitenverwaltung
   rebuildPages() { this.pages.forEach(p => this.unmount(p)); this.buildPages(); this.renderSide(); }
   insertPage(where, entry) { const before = this.pagesSnap(); const i = this.currentPage; const pos = where === "before" ? i : where === "end" ? this.pages.length : i + 1; this.model.pageOrder.splice(pos, 0, entry); this.model.pages[entry.key] ||= { objects: [] }; this.rebuildPages(); this.commitPages(before); setTimeout(() => this.goToPage(pos), 60); }
-  addBlankPage(where = "after", template = "blank") { const cur = this.pages[this.currentPage]; this.insertPage(where, { key: "b" + uid(), type: "blank", template, w: cur?.baseW || 595, h: cur?.baseH || 842 }); }
+  addBlankPage(where = "after", template = "blank", size = null) { const cur = this.pages[this.currentPage]; const s = size && validSize(size.w, size.h) ? size : { w: cur?.baseW || 595, h: cur?.baseH || 842 }; this.insertPage(where, { key: "b" + uid(), type: "blank", template, w: s.w, h: s.h }); }
+  // Seitenformat einer Notizseite aendern (A6 … A2 hoch/quer, Whiteboards): Objekte behalten ihre Lage in Punkten
+  setFormat(i, size) { if (!size || !validSize(size.w, size.h)) return; const before = this.pagesSnap(); const p = this.model.pageOrder[i]; if (p.type !== "blank") return; p.w = size.w; p.h = size.h; this.rebuildPages(); this.commitPages(before); }
+  formatPicker(anchor, i) {
+    const p = this.model.pageOrder[i]; if (p.type !== "blank") { alert("Nur Notizseiten lassen sich im Format ändern; PDF-Seiten behalten ihr Maß."); return; }
+    const w = p.w || 595, h = p.h || 842; let orient = formatOf(w, h)?.orientation || (w > h ? "landscape" : "portrait");
+    this.showPop(anchor, `<div class="ed-menu"><div class="ed-menu-head">Seitenformat (${sizeLabel(w, h)})</div>
+      <div class="seg ed-orient"><button data-orient="portrait" class="${orient === "portrait" ? "active" : ""}">Hoch</button><button data-orient="landscape" class="${orient === "landscape" ? "active" : ""}">Quer</button></div>
+      <div class="ed-menu-list">${Object.entries(FORMATS).map(([k, f]) => `<button data-fmt="${k}">${f.name} <span class="muted tiny">${Math.round(f.w / 72 * 2.54)} × ${Math.round(f.h / 72 * 2.54)} cm</span></button>`).join("")}</div>
+      <div class="ed-menu-sub">Whiteboard (immer quer)</div><div class="ed-menu-list">${Object.entries(WHITEBOARDS).map(([k, f]) => `<button data-fmt="${k}" title="${f.hint || ""}">${f.name}</button>`).join("")}</div></div>`);
+    $$("[data-orient]", this.pop).forEach(b => b.onclick = () => { orient = b.dataset.orient; $$("[data-orient]", this.pop).forEach(x => x.classList.toggle("active", x === b)); });
+    $$("[data-fmt]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; this.setFormat(i, formatSize(b.dataset.fmt, orient)); });
+  }
   duplicatePage(i = this.currentPage) { const src = this.model.pageOrder[i]; const key = (src.type === "pdf" ? "p" + src.index + "c" : "b") + uid(); const before = this.pagesSnap(); this.model.pageOrder.splice(i + 1, 0, { ...src, key }); this.model.pages[key] = JSON.parse(JSON.stringify(this.model.pages[src.key])); this.model.pages[key].objects.forEach(o => o.id = uid()); this.rebuildPages(); this.commitPages(before); }
   rotatePage(i = this.currentPage, deg = 90) { const before = this.pagesSnap(); const p = this.model.pageOrder[i]; p.rotation = ((p.rotation || 0) + deg) % 360; this.rebuildPages(); this.commitPages(before); }
   deletePage(i = this.currentPage) { if (this.pages.length <= 1) return; const before = this.pagesSnap(); const [p] = this.model.pageOrder.splice(i, 1); this.model.deletedPages.push({ entry: p, objects: this.model.pages[p.key]?.objects || [], at: Date.now(), pos: i }); this.rebuildPages(); this.commitPages(before); this.onStatus("Seite in den Papierkorb gelegt (Mehr → Papierkorb)"); }
@@ -830,11 +849,11 @@ export class PdfEditor {
       <button data-m="copy">${icon("copy", 16)} Seite kopieren (duplizieren)</button>
       <button data-m="rotate">${icon("rotate", 16)} Seite drehen</button>
       <button data-m="outline">${icon("list", 16)} Seite zur Gliederung hinzufügen</button>
-      <button data-m="template">${icon("grid", 16)} Vorlage wechseln</button>
+      <button data-m="template">${icon("grid", 16)} Vorlage wechseln</button><button data-m="format">${icon("columns", 16)} Seitenformat ändern</button>
       <button data-m="goto">${icon("arrow-right", 16)} Gehe zu Seite <span class="muted small">(1 – ${this.pages.length})</span></button>
       <button data-m="clear" class="danger">${icon("eraser", 16)} Seite leeren</button>
       <button data-m="delete" class="danger">${icon("trash", 16)} Seite in den Papierkorb legen</button></div>`);
-    $$("[data-m]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; const m = b.dataset.m; if (m === "bm") this.toggleBookmark(i); if (m === "copy") this.duplicatePage(i); if (m === "rotate") this.rotatePage(i); if (m === "outline") this.addOutline(i); if (m === "template") this.templatePicker(anchor, t => this.setTemplate(i, t)); if (m === "goto") { const n = +(safePrompt("Seite:", String(i + 1)) || 0); if (n) this.goToPage(n - 1); } if (m === "clear") { if (confirm("Alle Notizen auf dieser Seite löschen? (Rückgängig möglich)")) this.clearPage(i); } if (m === "delete") this.deletePage(i); });
+    $$("[data-m]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; const m = b.dataset.m; if (m === "bm") this.toggleBookmark(i); if (m === "copy") this.duplicatePage(i); if (m === "rotate") this.rotatePage(i); if (m === "outline") this.addOutline(i); if (m === "template") this.templatePicker(anchor, t => this.setTemplate(i, t)); if (m === "format") this.formatPicker(anchor, i); if (m === "goto") { const n = +(safePrompt("Seite:", String(i + 1)) || 0); if (n) this.goToPage(n - 1); } if (m === "clear") { if (confirm("Alle Notizen auf dieser Seite löschen? (Rückgängig möglich)")) this.clearPage(i); } if (m === "delete") this.deletePage(i); });
   }
   templatePicker(anchor, cb) { this.showPop(anchor, `<div class="ed-menu"><div class="ed-menu-head">Vorlage wechseln</div><div class="ed-tpl-grid">${Object.entries(TEMPLATES).map(([k, n]) => `<button data-tpl="${k}"><i class="ed-tpl ${k}"></i><span>${n}</span></button>`).join("")}</div></div>`); $$("[data-tpl]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; cb(b.dataset.tpl); }); }
   showPop(anchor, html) { const pop = this.pop; pop.innerHTML = html; pop.hidden = false; const r = anchor.getBoundingClientRect(); const c = this.c.getBoundingClientRect(); pop.style.top = (r.bottom - c.top + 6) + "px"; const left = Math.min(r.left - c.left, c.width - pop.offsetWidth - 10); pop.style.left = Math.max(6, left) + "px"; }
@@ -853,13 +872,18 @@ export class PdfEditor {
   }
   searchPop(btn) { this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Im Dokument suchen</div><input class="ed-search input" placeholder="Suchbegriff… (Enter)"><div class="ed-search-res"></div></div>`); const inp = $(".ed-search", this.pop); inp.focus(); inp.onkeydown = e => { if (e.key === "Enter") this.search(inp.value); e.stopPropagation(); }; }
   addPagePop(btn) {
-    let where = "after"; const cur = this.model.pageOrder[this.currentPage];
+    let where = "after", fmt = "current", orient = "portrait"; const cur = this.model.pageOrder[this.currentPage];
     this.showPop(btn, `<div class="ed-menu ed-addpage"><div class="ed-menu-head">Seite hinzufügen</div><div class="seg ed-where"><button data-where="before">Vor dieser</button><button data-where="after" class="active">Nach dieser</button><button data-where="end">Letzte Seite</button></div>
-      <div class="ed-menu-sub">Neue Vorlagen</div><p class="muted tiny">Vorlagen übernehmen, wenn möglich, die Größe der aktuellen Seite.</p>
+      <div class="ed-menu-sub">Format</div><div class="seg ed-format"><button data-fmt="current" class="active">Wie aktuelle</button>${Object.entries(FORMATS).map(([k, f]) => `<button data-fmt="${k}">${f.name}</button>`).join("")}</div>
+      <div class="seg ed-orient" style="margin-top:.3rem"><button data-orient="portrait" class="active">Hoch</button><button data-orient="landscape">Quer</button>${Object.entries(WHITEBOARDS).map(([k, f]) => `<button data-fmt="${k}" title="${f.hint || ""}">${f.name.replace(/ \(.*\)/, "")}-Whiteboard</button>`).join("")}</div>
+      <div class="ed-menu-sub">Neue Vorlagen</div><p class="muted tiny">Vorlagen übernehmen die gewählte Größe, sonst die der aktuellen Seite.</p>
       <div class="ed-tpl-grid"><button data-tpl="current"><i class="ed-tpl current"></i><span>Aktuelle Vorlage</span></button>${Object.entries(TEMPLATES).map(([k, n]) => `<button data-tpl="${k}"><i class="ed-tpl ${k}"></i><span>${n}</span></button>`).join("")}</div>
       <div class="ed-menu-list"><button data-add="image">${icon("image", 16)} Bild</button><button data-add="pdf">${icon("file-text", 16)} PDF-Seiten importieren</button><button data-add="dup">${icon("copy", 16)} Aktuelle Seite duplizieren</button></div></div>`);
     $$("[data-where]", this.pop).forEach(b => b.onclick = () => { where = b.dataset.where; $$("[data-where]", this.pop).forEach(x => x.classList.toggle("active", x === b)); });
-    $$("[data-tpl]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; const t = b.dataset.tpl; if (t === "current") { if (cur.type === "blank") this.addBlankPage(where, cur.template); else this.duplicatePage(); } else this.addBlankPage(where, t); });
+    $$("[data-fmt]", this.pop).forEach(b => b.onclick = () => { fmt = b.dataset.fmt; $$("[data-fmt]", this.pop).forEach(x => x.classList.toggle("active", x === b)); });
+    $$("[data-orient]", this.pop).forEach(b => b.onclick = () => { orient = b.dataset.orient; $$("[data-orient]", this.pop).forEach(x => x.classList.toggle("active", x === b)); });
+    const chosen = () => fmt === "current" ? null : formatSize(fmt, orient);
+    $$("[data-tpl]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; const t = b.dataset.tpl; if (t === "current") { if (cur.type === "blank") this.addBlankPage(where, cur.template, chosen()); else if (chosen()) this.addBlankPage(where, "blank", chosen()); else this.duplicatePage(); } else this.addBlankPage(where, t, chosen()); });
     $$("[data-add]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; const k = b.dataset.add; if (k === "dup") return this.duplicatePage(); const inp = document.createElement("input"); inp.type = "file"; inp.accept = k === "pdf" ? "application/pdf" : "image/*"; inp.onchange = () => k === "pdf" ? this.importPdfPages(inp.files[0], where) : this.imageAsPage(inp.files[0], where); inp.click(); });
   }
   exportPop(btn) {
@@ -871,7 +895,7 @@ export class PdfEditor {
   morePop(btn) {
     const i = this.currentPage; const p = this.model.pageOrder[i]; const isBm = this.model.bookmarks.some(b => b.key === p.key);
     this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Mehr</div><div class="ed-menu-sub">Seite „${i + 1}“</div>
-      <button data-m="bm">${icon("bookmark", 16)} ${isBm ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}</button><button data-m="copy">${icon("copy", 16)} Seite kopieren</button><button data-m="rotate">${icon("rotate", 16)} Seite drehen</button><button data-m="outline">${icon("list", 16)} Seite zur Gliederung hinzufügen</button><button data-m="template">${icon("grid", 16)} Vorlage wechseln</button><button data-m="goto">${icon("arrow-right", 16)} Gehe zu Seite <span class="muted tiny">(1 – ${this.pages.length})</span></button><button data-m="clear" class="danger">${icon("eraser", 16)} Seite leeren</button><button data-m="delete" class="danger">${icon("trash", 16)} Seite in den Papierkorb legen</button>
+      <button data-m="bm">${icon("bookmark", 16)} ${isBm ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}</button><button data-m="copy">${icon("copy", 16)} Seite kopieren</button><button data-m="rotate">${icon("rotate", 16)} Seite drehen</button><button data-m="outline">${icon("list", 16)} Seite zur Gliederung hinzufügen</button><button data-m="template">${icon("grid", 16)} Vorlage wechseln</button><button data-m="format">${icon("columns", 16)} Seitenformat ändern</button><button data-m="goto">${icon("arrow-right", 16)} Gehe zu Seite <span class="muted tiny">(1 – ${this.pages.length})</span></button><button data-m="clear" class="danger">${icon("eraser", 16)} Seite leeren</button><button data-m="delete" class="danger">${icon("trash", 16)} Seite in den Papierkorb legen</button>
       ${this.model.deletedPages.length ? `<button data-m="trash">${icon("rotate", 16)} Papierkorb (${this.model.deletedPages.length}) – wiederherstellen</button>` : ""}
       <div class="ed-menu-sub">Einstellungen</div>
       <div class="ed-menu-row">${icon("move", 16)} Scrollrichtung <select data-pref="scroll"><option value="vertical" ${this.prefs.scroll === "vertical" ? "selected" : ""}>Vertikal</option><option value="horizontal" ${this.prefs.scroll === "horizontal" ? "selected" : ""}>Horizontal</option></select></div>
@@ -879,7 +903,7 @@ export class PdfEditor {
       <div class="ed-menu-row">${icon("pen", 16)} Stylus- & Handballenerkennung <select data-pref="pen"><option value="all" ${this.penInput === "all" ? "selected" : ""}>Finger darf schreiben</option><option value="pen_only" ${this.penInput === "pen_only" ? "selected" : ""}>Nur Stift schreibt, Finger navigiert</option></select></div>
       <div class="ed-menu-row">${icon("file", 16)} Dokumentbearbeitung <select data-pref="single"><option value="0" ${!this.prefs.single ? "selected" : ""}>Fortlaufend</option><option value="1" ${this.prefs.single ? "selected" : ""}>Einzelne Seite</option></select></div>
       <button data-m="toolbar">${icon("settings", 16)} Werkzeugleiste anpassen</button></div>`);
-    $$("[data-m]", this.pop).forEach(b => b.onclick = () => { const m = b.dataset.m; if (m !== "template" && m !== "toolbar" && m !== "trash") this.pop.hidden = true; if (m === "bm") this.toggleBookmark(i); if (m === "copy") this.duplicatePage(i); if (m === "rotate") this.rotatePage(i); if (m === "outline") this.addOutline(i); if (m === "template") this.templatePicker(btn, t => this.setTemplate(i, t)); if (m === "goto") { const n = +(safePrompt("Seite:", String(i + 1)) || 0); if (n) this.goToPage(n - 1); } if (m === "clear") { if (confirm("Alle Notizen auf dieser Seite löschen? (Rückgängig möglich)")) this.clearPage(i); } if (m === "delete") this.deletePage(i); if (m === "trash") this.trashPop(btn); if (m === "toolbar") this.toolbarPop(btn); });
+    $$("[data-m]", this.pop).forEach(b => b.onclick = () => { const m = b.dataset.m; if (m !== "template" && m !== "toolbar" && m !== "trash" && m !== "format") this.pop.hidden = true; if (m === "bm") this.toggleBookmark(i); if (m === "copy") this.duplicatePage(i); if (m === "rotate") this.rotatePage(i); if (m === "outline") this.addOutline(i); if (m === "template") this.templatePicker(btn, t => this.setTemplate(i, t)); if (m === "format") this.formatPicker(btn, i); if (m === "goto") { const n = +(safePrompt("Seite:", String(i + 1)) || 0); if (n) this.goToPage(n - 1); } if (m === "clear") { if (confirm("Alle Notizen auf dieser Seite löschen? (Rückgängig möglich)")) this.clearPage(i); } if (m === "delete") this.deletePage(i); if (m === "trash") this.trashPop(btn); if (m === "toolbar") this.toolbarPop(btn); });
     $$("[data-pref]", this.pop).forEach(s => s.onchange = () => { const k = s.dataset.pref; if (k === "pen") { this._penManual = true; this.penInput = s.value; this.updatePenInputBtn(); fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pen_input: s.value }) }).catch(() => {}); } else if (k === "single") { this.prefs.single = s.value === "1"; this.savePrefs(); this.showSingle(); } else { this.prefs[k] = s.value; this.savePrefs(); } });
   }
   trashPop(btn) { this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Papierkorb</div>${this.model.deletedPages.map((d, i) => `<button data-rs="${i}">${icon("rotate", 16)} ${d.entry.type === "blank" ? "Notizseite" : "PDF-Seite " + (d.entry.index || "")} wiederherstellen <span class="muted tiny">${new Date(d.at).toLocaleTimeString("de-DE")}</span></button>`).join("")}<button data-rs="clear" class="danger">${icon("trash", 16)} Papierkorb leeren</button></div>`); $$("[data-rs]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; if (b.dataset.rs === "clear") { this.model.deletedPages = []; this.markDirty(); } else this.restorePage(+b.dataset.rs); }); }
@@ -995,7 +1019,9 @@ export class PdfEditor {
 
   // ---------------------------------------------------------------- Tastatur
   onKey(e) {
-    if (this.editingText || ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+    const tgt = e.target;
+    if (this.editingText || ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
+        || (tgt && tgt.closest && tgt.closest('input, textarea, select, [contenteditable="true"], .ed-textedit'))) return;
     const k = e.key.toLowerCase(); const ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && k === "z") { e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); } else if (ctrl && k === "y") { e.preventDefault(); this.redo(); }
     else if (ctrl && k === "c") this.copySelection(); else if (ctrl && k === "x") { this.copySelection(); this.deleteSelection(); } else if (ctrl && k === "d") { e.preventDefault(); this.duplicateSelection(); }

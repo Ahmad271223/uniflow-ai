@@ -177,10 +177,21 @@ def week_hint(name: str, folder: str | None) -> int | None:
     return None
 
 
+def file_source(f: dict) -> str:
+    """Herkunft einer Datei fuer die Geraete: own (eigenes Dokument, course_id __user__), learnweb (Moodle: IDs lw-...
+    bzw. pluginfile.php in der Adresse, gleiche Regel wie filestream.is_learnweb) oder studip."""
+    if f.get("course_id") == "__user__":
+        return "own"
+    if str(f.get("id") or "").startswith("lw-") or "pluginfile.php" in (f.get("download_url") or ""):
+        return "learnweb"
+    return "studip"
+
+
 def enrich_file(f: dict) -> dict:
     t, lab = effective_type(f.get("name"), f.get("studip_folder"), f.get("doc_type"))
     f["ai_doc_type"] = f.get("doc_type"); f["doc_type"] = t; f["sub_label"] = lab
     f["week_hint"] = week_hint(f.get("name"), f.get("studip_folder")) if t in LECTURE_WEEK_TYPES else None
+    f["source"] = file_source(f)
     return f
 
 

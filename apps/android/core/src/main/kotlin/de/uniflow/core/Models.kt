@@ -6,7 +6,10 @@ import kotlinx.serialization.json.JsonObject
 /** Antworten des Servers als leicht lesbare Modelle; unbekannte Felder stoeren nicht (JsonObject bleibt erreichbar). */
 
 data class LibraryFile(val id: String, val name: String, val title: String, val kind: String, val moduleId: Int?, val subject: String?,
-                       val docType: String?, val downloadedAt: String?, val chdate: Long?, val raw: JsonObject) {
+                       val docType: String?, val downloadedAt: String?, val chdate: Long?, val raw: JsonObject,
+                       // Direkter Download auf das Geraet (University.kt): Adresse bei der Hochschule, Quelle
+                       // ("studip" | "learnweb" | "own" = eigenes Dokument ohne Hochschulquelle) und Fingerabdruck des Inhalts
+                       val downloadUrl: String? = null, val source: String = "studip", val contentSha256: String? = null) {
     val isPdf: Boolean get() = kind == "pdf"
     val isLocal: Boolean get() = !downloadedAt.isNullOrEmpty()
 
@@ -15,6 +18,10 @@ data class LibraryFile(val id: String, val name: String, val title: String, val 
             id = o.s("id") ?: "", name = o.s("name") ?: "", title = o.s("title") ?: o.s("ai_title") ?: o.s("name") ?: "",
             kind = o.s("kind") ?: "pdf", moduleId = o.i("module_id"), subject = o.s("subject"), docType = o.s("doc_type"),
             downloadedAt = o.s("downloaded_at"), chdate = o.s("chdate")?.toDoubleOrNull()?.toLong(), raw = o,
+            downloadUrl = o.s("download_url"),
+            // fehlt "source": eigene Dokumente haengen am Pseudo-Kurs __user__, alles andere kommt aus Stud.IP
+            source = o.s("source") ?: if (o.s("course_id") == "__user__") "own" else "studip",
+            contentSha256 = o.s("content_sha256"),
         )
     }
 }

@@ -31,9 +31,11 @@ Die Apps arbeiten zuerst lokal. Auf dem Gerät gespeichert werden:
 - Dateien, Kurse, Termine, Fristen und Ankündigungen aus den Systemen deiner Hochschule, die die App für dich abruft;
 - deine Notizen (Handschrift, Text, Formen, Bilder), eigene Dokumente, Lesezeichen, Papierkorb;
 - Stundenplan, Lernkalender, Lernpakete, Aufgaben, Karteikarten, Zeitmesser und Einstellungen;
-- auf Wunsch deine Hochschul-Zugangsdaten (Schalter „Auf diesem Gerät merken“; iPad: Schlüsselbund von iOS;
-  Android: verschlüsselter App-Speicher; Windows/PC: Datei `.env` bzw. der Datenordner der App). Die Apps füllen
-  damit nur Anmeldefelder vorab; sie melden sich nie von selbst an. Schalter aus = sofort gelöscht.
+- Hochschul-Zugangsdaten merkt sich – wenn du das beim Anmelden erlaubst – der Passwort-Manager deines Geräts
+  (Android: Google Password Manager oder Samsung Pass im Anmeldefenster; iPad: Schlüsselbund von iOS); die App
+  selbst speichert weder Benutzername noch Passwort und meldet sich nie von selbst an. Am PC liegen sie für den
+  Abgleich in der Datei `.env` bzw. im Datenordner der App. Nach der Anmeldung behält die App nur die Sitzung
+  (Cookies) der Hochschule, bis du dich abmeldest.
 
 Der PC-Modus (eigener Server auf deinem Rechner, Ordner `data/`) ist ebenfalls rein lokal; im eigenen WLAN schützt
 eine PIN den Zugriff. Diese Daten verlassen dein Gerät nur, wenn du den Geräteabgleich (Abschnitt 7) einschaltest.
@@ -77,7 +79,11 @@ Konto führen. Du kannst UniFlow auch ohne Konto nutzen (Abschnitt 3).
 
 Nur wenn du es in den Einstellungen einrichtest, speichern wir deine Hochschul-Zugangsdaten (Benutzername und
 Passwort, bei Hildesheim zusätzlich ein Learnweb-Token) in deinem Konto, damit unser Dienst zweimal täglich (08:00
-und 15:00 Uhr) neue Dateien, Termine, Fristen und Ankündigungen für dich abruft, auch wenn kein Gerät läuft.
+und 15:00 Uhr) die Liste neuer Dateien, Termine, Fristen und Ankündigungen für dich abruft, auch wenn kein Gerät läuft.
+**Die Dateien selbst (Skripte, Folien, Übungsblätter) speichert der Dienst nicht.** Öffnest du eine Datei auf einem
+Gerät, holt der Dienst sie in diesem Moment mit deiner Hochschulsitzung und reicht sie an dein Gerät durch; auf
+unseren Servern bleibt nur ein kurzlebiger Zwischenspeicher im Arbeitsspeicher (höchstens 15 Minuten), der
+Fingerabdruck der Datei (SHA-256, für die Community) und der Seitentext für die Suche – keine Kopie der Datei.
 
 - Die Zugangsdaten sind mit AES-256-GCM verschlüsselt; der Schlüssel wird je Konto aus einem Dienst-Geheimnis
   abgeleitet, das getrennt von der Datenbank aufbewahrt wird. Niemand kann sie in der Datenbank lesen.
@@ -93,7 +99,8 @@ Nutzungsbedingungen).
 ## 7. Deine Inhalte im Dienst und Abgleich zwischen Geräten
 
 Mit Konto speichert der Dienst in einem eigenen, von anderen Konten getrennten Datenbereich: die abgerufenen Kurse,
-Dateien, Termine, Fristen, Ankündigungen und – nur auf deinen Abruf hin – Noten und Bescheinigungen; mit dem
+die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – nicht die Dateien, siehe Abschnitt 6),
+Termine, Fristen, Ankündigungen und – nur auf deinen Abruf hin – Noten und Bescheinigungen; mit dem
 Geräteabgleich (Plus) außerdem Notizen, Lesezeichen, Stundenplan, Lernkalender, Aufgaben, Karteikarten und
 Einstellungen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
 Löschen in der App (Papierkorb, Konto) löscht auch im Dienst; endgültig gelöscht wird mit dem Konto, spätestens

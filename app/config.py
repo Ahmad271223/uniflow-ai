@@ -58,6 +58,18 @@ for d in (DATA_DIR, FILES_DIR, LOG_DIR):
 # Betriebsart: local = eine Person auf dem eigenen PC (PIN im WLAN, Zugangsdaten in der .env);
 # hosted = gehosteter Dienst mit UniFlow-Konten (app/accounts.py), jedes Konto mit eigenem Datenordner.
 MODE = (os.getenv("LERNAPP_MODE") or "local").strip().lower() or "local"
+# Hochschuldateien: store = auf die Platte (PC); stream = nie speichern, beim Oeffnen mit der Hochschulsitzung des
+# Kontos durchreichen (app/filestream.py). Standard: stream im gehosteten Dienst, store am eigenen PC.
+FILES_MODE = (os.getenv("LERNAPP_FILES") or "").strip().lower()
+
+
+def files_mode() -> str:
+    m = FILES_MODE or ("stream" if is_hosted() else "store")
+    return m if m in ("store", "stream") else "store"
+
+
+def streams_files() -> bool:
+    return files_mode() == "stream"
 
 
 def is_hosted() -> bool:

@@ -1,0 +1,173 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-learnweb-fixture.py aus app/learnweb.py, app/studip_sync.py, app/universities.py; nicht von Hand aendern.",
+ "profiles": {
+  "luh": {
+   "name": "Leibniz Universität Hannover",
+   "login_url": "https://studip.uni-hannover.de/dispatch.php/login",
+   "logged_in_check_url": "https://studip.uni-hannover.de/jsonapi.php/v1/users/me",
+   "session_cookie": "Seminar_Session",
+   "hosts": [
+    "studip.uni-hannover.de",
+    "sso.idm.uni-hannover.de",
+    "login.uni-hannover.de"
+   ],
+   "file_host": "studip.uni-hannover.de",
+   "learnweb_base": null,
+   "cas_base": null
+  },
+  "hildesheim": {
+   "name": "Universität Hildesheim",
+   "login_url": "https://www.uni-hildesheim.de/learnweb2026/login/index.php?authCAS=CAS",
+   "logged_in_check_url": "https://www.uni-hildesheim.de/learnweb2026/my/",
+   "session_cookie": "MoodleSession",
+   "hosts": [
+    "www.uni-hildesheim.de",
+    "lsf.uni-hildesheim.de"
+   ],
+   "file_host": "www.uni-hildesheim.de",
+   "learnweb_base": "https://www.uni-hildesheim.de/learnweb2026",
+   "cas_base": "https://www.uni-hildesheim.de/sso"
+  }
+ },
+ "launch": {
+  "base": "https://www.uni-hildesheim.de/learnweb2026",
+  "passport": "a1b2c3d4-passport",
+  "scheme": "uniflow",
+  "url": "https://www.uni-hildesheim.de/learnweb2026/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=a1b2c3d4-passport&urlscheme=uniflow",
+  "url_default_scheme": "https://www.uni-hildesheim.de/learnweb2026/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=a1b2c3d4-passport&urlscheme=moodlemobile"
+ },
+ "token_cases": [
+  {
+   "name": "gueltig mit privatem Schluessel",
+   "redirect": "uniflow://token=NGE1MmIyN2UzNDQxOWFmNDczZDU2ZTk2NTEzZTFiN2U6Ojp0b2stMTIzOjo6cHJpdi00NTY=",
+   "expect": {
+    "token": "tok-123",
+    "private_token": "priv-456"
+   }
+  },
+  {
+   "name": "gueltig ohne privaten Schluessel",
+   "redirect": "uniflow://token=NGE1MmIyN2UzNDQxOWFmNDczZDU2ZTk2NTEzZTFiN2U6Ojp0b2stNzg5",
+   "expect": {
+    "token": "tok-789",
+    "private_token": null
+   }
+  },
+  {
+   "name": "Schluessel mit URL-sicherem Base64",
+   "redirect": "uniflow:__token=NGE1MmIyN2UzNDQxOWFmNDczZDU2ZTk2NTEzZTFiN2U6Ojp0b2srLz14Ojo6cA",
+   "expect": {
+    "token": "tok+/=x",
+    "private_token": "p"
+   }
+  },
+  {
+   "name": "falsche Signatur (anderer Passport)",
+   "redirect": "uniflow://token=YTcwZTcwZWNkMDY2ODc4ZjVmMzk3NTNkMjQyYjAyMGY6Ojp0b2stMTIz",
+   "expect": null
+  },
+  {
+   "name": "falsche Signatur (andere Adresse)",
+   "redirect": "uniflow://token=MzAzNDM4NDJkMDIzYTljNzQyNWU3NzFiMjRlNDVhZGI6Ojp0b2stMTIz",
+   "expect": null
+  },
+  {
+   "name": "leerer Schluessel",
+   "redirect": "uniflow://token=NGE1MmIyN2UzNDQxOWFmNDczZDU2ZTk2NTEzZTFiN2U6Ojo=",
+   "expect": null
+  },
+  {
+   "name": "kein Token in der Adresse",
+   "redirect": "uniflow://ohne",
+   "expect": null
+  },
+  {
+   "name": "kein Base64",
+   "redirect": "uniflow://token=%%%",
+   "expect": null
+  }
+ ],
+ "download_with_token": {
+  "url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/21/mod_resource/content/1/Blatt%201.pdf",
+  "token": "tok-123",
+  "request": {
+   "url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/21/mod_resource/content/1/Blatt%201.pdf",
+   "method": "POST",
+   "form": {
+    "token": "tok-123"
+   }
+  }
+ },
+ "cookie_header": {
+  "description": "Cookie-Kopfzeile fuer den Download: nur Cookies, deren Domain zum Host passt (Suffix, fuehrender Punkt egal) und die nicht abgelaufen sind (expires -1 oder fehlend = Sitzung); Reihenfolge wie gespeichert.",
+  "now": 1761600000,
+  "cookies": [
+   {
+    "name": "Seminar_Session",
+    "value": "abc",
+    "domain": "studip.uni-hannover.de",
+    "path": "/",
+    "expires": -1
+   },
+   {
+    "name": "shib",
+    "value": "s1",
+    "domain": ".uni-hannover.de",
+    "path": "/",
+    "expires": 1761700000
+   },
+   {
+    "name": "alt",
+    "value": "x",
+    "domain": "studip.uni-hannover.de",
+    "path": "/",
+    "expires": 1761500000
+   },
+   {
+    "name": "MoodleSession",
+    "value": "m1",
+    "domain": "www.uni-hildesheim.de",
+    "path": "/"
+   }
+  ],
+  "cases": [
+   {
+    "url": "https://studip.uni-hannover.de/sendfile.php?file_id=1",
+    "header": "Seminar_Session=abc; shib=s1"
+   },
+   {
+    "url": "https://www.uni-hildesheim.de/learnweb2026/pluginfile.php/1/x.pdf",
+    "header": "MoodleSession=m1"
+   },
+   {
+    "url": "https://example.org/",
+    "header": ""
+   }
+  ]
+ },
+ "html_instead_of_file": {
+  "description": "Antwort ist eine Anmeldeseite statt der Datei, wenn der Content-Type text/html ist oder der Inhalt (nach Leerraum) mit <!doctype oder <html beginnt (Gross-/Kleinschreibung egal). Dann: Sitzung abgelaufen.",
+  "cases": [
+   {
+    "content_type": "text/html; charset=utf-8",
+    "body_start": "%PDF-1.7",
+    "html": true
+   },
+   {
+    "content_type": "application/pdf",
+    "body_start": "  <!DOCTYPE html><html>",
+    "html": true
+   },
+   {
+    "content_type": "application/octet-stream",
+    "body_start": "<HTML>",
+    "html": true
+   },
+   {
+    "content_type": "application/pdf",
+    "body_start": "%PDF-1.4",
+    "html": false
+   }
+  ]
+ }
+}

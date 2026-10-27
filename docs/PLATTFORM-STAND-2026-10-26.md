@@ -21,7 +21,7 @@ Betrieb, Mailversand, Datenexport, PWA/Offline im Web und die Android-Offline-Ab
 | Plattform | Vorschlag | Stand |
 |---|---|---|
 | Windows | Web-App + installierbare Desktop-App | **Desktop-App gebaut** (Tauri 2 mit mitgeliefertem Backend, NSIS-Installer über Workflow); Web-App im Browser läuft gegen den Dienst |
-| Android-Handy/-Tablet | Play-Store-App | **erste native App** (Compose: Konto, Dokumente, PDF mit Stift, Stundenplan, Lernkalender), Release-Bundle unsigniert; **offen**: Offline-Ablage mit G2-Sync, Karteikarten, Noten, Community, Gerätetest, Play Console |
+| Android-Handy/-Tablet | Play-Store-App | **native App** (Compose: Konto, Dokumente, PDF mit Stift, Stundenplan, Lernkalender), seit 27.10. mit **Hochschul-Anmeldung in der App (WebView) und Download direkt aufs Gerät** (Stud.IP-Cookies/Learnweb-Schlüssel nur auf dem Gerät, SHA-256 und Seitentext lokal, Rückfall auf den Dienst), Release-Bundle unsigniert; **offen**: Offline-Ablage mit G2-Sync, Karteikarten, Noten, Community, Passwort merken, Gerätetest, Play Console |
 | iPad / Mac | native Apple-App | Mac-Sitzung (eigener Kern, `apps/apple`), Konto-/Sync-Client M13/M14 nach denselben Verträgen |
 | Linux / Browser | Web-App, optional installierbar | Web-App läuft in Chrome, Edge, Firefox, Safari (CSP ohne fremde Hosts, Schrift lokal); **offen**: PWA-Installierbarkeit und Offline (Manifest vorhanden, kein Service Worker) |
 
@@ -37,6 +37,7 @@ Kotlin-Kern, kein Web-Wrapper.
 | Benutzerkonten | eigene ID und eigene Daten | **umgesetzt**: UniFlow-ID (32 Hex), Datenordner `users/<id>` je Konto |
 | Hochschulwahl | Hildesheim oder LUH | **umgesetzt** (`config.KNOWN_UNIVERSITIES`) |
 | Hochschulverbindung | je Nutzer eigene Anmeldung und Tokens | **umgesetzt**: Tresor je Konto (AES-256-GCM, Schlüssel je Konto), eigenes Browserprofil je Konto |
+| Dateien | – | **Dienst speichert keine Hochschuldateien** (27.10., `LERNAPP_FILES=stream`): nur Dateiliste, Fingerabdruck, Seitentext; Inhalt wird beim Öffnen mit der Hochschulsitzung durchgereicht (`app/filestream.py`). Geräte halten ihre Kopie lokal (iPad, Android, Windows) |
 | Datenbank | alles dem richtigen Konto zuordnen | **umgesetzt, anders als vorgeschlagen**: statt einer gemeinsamen PostgreSQL-Datenbank mit `user_id` in jeder Zeile hat jedes Konto eine **eigene SQLite-Datenbank** in seinem Ordner; die Zuordnung ist damit physisch (keine vergessene WHERE-Bedingung möglich). Zentrale Tabellen nur für Konten, Sitzungen, Jobs, Community. Entscheidung: bleibt so, solange der Dienst auf einem Server läuft; PostgreSQL erst bei mehreren API-Servern (siehe Abschnitt 5) |
 | Cloud-Synchronisierung | Abgleich zwischen allen Geräten | **umgesetzt** (G2): Versionsspalten, Trigger, Tombstones, `GET /api/sync/changes`, `POST /api/sync/push`, je Feld letzter Schreiber, Löschen/Wiederherstellen, Notizen mit `base_version` und Konflikt-Zusammenführung; Clients: Kotlin-Kern (SyncApi), Swift (M14) |
 | Offline-Nutzung | lokal arbeiten, später synchronisieren | iPad: lokales Journal + Sync-Engine (Mac); Android: **offen** (Room-Ablage mit G2); Web: **offen** (Service Worker) |

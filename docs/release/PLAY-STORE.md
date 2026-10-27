@@ -39,7 +39,7 @@ Mit deinem UniFlow-Konto zeigen Android-Tablet, iPad, Windows und Web denselben 
 
 DEINE DATEN
 • Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
-• Hochschul-Zugangsdaten speicherst du nur, wenn du den automatischen Abgleich willst – verschlüsselt, jederzeit löschbar.
+• Dein Hochschul-Passwort bleibt bei dir: Du meldest dich im Anmeldefenster deiner Hochschule an. Merken übernimmt auf Wunsch der Passwort-Manager deines Geräts, die App speichert es nicht.
 • Konto löschen direkt in der App.
 
 UNIFLOW FREE UND PLUS
@@ -62,7 +62,7 @@ UniFlow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. V
 | Konto löschen (Pflicht bei Kontoerstellung) | in der App: Einstellungen → Konto → Konto löschen; URL `[[Domain]]/konto-loeschen` |
 | Zielgruppe und Inhalte | nur „18 und älter“ (Studierende; keine Kinder-Zielgruppe, damit die Families-Richtlinien nicht greifen) |
 | Werbung | enthält keine Werbung |
-| App-Zugriff | „Alle Funktionen sind ohne besondere Zugangsdaten verfügbar“ gilt **nicht** – Anleitung hinterlegen: Konto anlegen in der App; Hochschulfunktionen brauchen ein Hochschulkonto, Prüfung mit [[Beispielinhalten ohne Hochschule]] |
+| App-Zugriff | „Alle Funktionen sind ohne besondere Zugangsdaten verfügbar“ gilt **nicht** – Anleitung hinterlegen: Konto anlegen in der App; Hochschulfunktionen brauchen ein Hochschulkonto; Prüfung mit den Demo-Inhalten (Einstellungen → Erweitert → „Demo-Inhalte anlegen“: Demo-Modul mit PDFs, Stundenplan, Lernkalender, Frist, Ankündigung) |
 | Paketname | `de.uniflow.android` (`apps/android/app/build.gradle.kts`) |
 
 ## Inhaltseinstufung (IARC-Fragebogen)
@@ -89,9 +89,10 @@ verschlüsselte Pakete, kein Chat), mit Moderation, Melden und Sperren; bis dahi
 | Finanzdaten → Kaufverlauf (Abo-Status) | ja | nein | ja | App-Funktionen |
 | Standort, Kontakte, Fotos, Audio, Gesundheit, Aktivität, Browserverlauf, Geräte-IDs, Absturzprotokolle, Diagnose | nein | – | – | – |
 
-Hochschul-Zugangsdaten für den automatischen Abgleich: vom Nutzer freiwillig hinterlegt, verschlüsselt gespeichert,
-nur zur Erbringung der Funktion verwendet, jederzeit löschbar – in der Erklärung unter „Persönliche Daten → andere
-Informationen“ angeben, [[mit der Google-Dokumentation zum Zeitpunkt der Einreichung abgleichen]].
+Hochschul-Zugangsdaten erhebt die Android-App nicht: Die Anmeldung läuft im Anmeldefenster der Hochschule (WebView),
+Merken übernimmt der Passwort-Manager des Systems, die App behält nur die Sitzung (Cookies) der Hochschule bis zur
+Abmeldung – sie laufen nie über den UniFlow-Dienst. [[Mit der Google-Dokumentation zum Zeitpunkt der Einreichung
+abgleichen, ob die Sitzungs-Cookies anzugeben sind.]]
 
 ## Abo-Produkt (Play Billing)
 

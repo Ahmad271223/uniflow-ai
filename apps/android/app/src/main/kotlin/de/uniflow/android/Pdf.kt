@@ -1,5 +1,6 @@
 package de.uniflow.android
 
+import de.uniflow.core.ApiError
 import java.io.File
 
 /**
@@ -34,5 +35,30 @@ object PdfRules {
         val head = ByteArray(HEADER_WINDOW)
         val n = runCatching { f.inputStream().use { it.read(head) } }.getOrDefault(-1)
         return n >= HEADER.size && hasHeader(head.copyOf(n))
+    }
+}
+
+/**
+ * Ablage der PDFs im Cache des Geraets (reines Kotlin, im JVM-Test pruefbar). Der Cache-Schluessel enthaelt die
+ * Aenderungszeit; der Download geht zuerst in eine `.part`-Datei und wird erst nach der Pruefung umbenannt, so liegt nie
+ * eine halbe Datei unter dem endgueltigen Namen.
+ */
+object PdfCache {
+    fun dir(cacheDir: File): File = File(cacheDir, "pdf").apply { mkdirs() }
+
+    fun fileFor(dir: File, id: String, chdate: Long?): File = File(dir, "$id-${chdate ?: 0}.pdf")
+
+    /**
+     * Uebernimmt `bytes` als `f`; nur, was mit `%PDF-` beginnt und gross genug ist (PdfRules), sonst ApiError `not_pdf`
+     * und keine Datei. Eine vorhandene Datei wird ersetzt.
+     */
+    fun store(dir: File, f: File, bytes: ByteArray, origin: String = "Der Server") {
+        if (!PdfRules.isPdf(bytes)) throw ApiError(0, "not_pdf", "$origin hat keine PDF geliefert (${bytes.size} Bytes)")
+        val tmp = File(dir, f.name + ".part")
+        tmp.writeBytes(bytes)
+        if (!tmp.renameTo(f)) {
+            f.delete()
+            if (!tmp.renameTo(f)) { tmp.delete(); throw ApiError(0, "cache", "PDF konnte nicht im Cache abgelegt werden") }
+        }
     }
 }
