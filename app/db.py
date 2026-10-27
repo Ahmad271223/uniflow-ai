@@ -492,6 +492,9 @@ def _init_db(conn) -> None:
     ensure_term(conn, uni)
     from . import sync
     sync.ensure_schema(conn)        # Versionsspalten, Trigger und Tombstones fuer die Geraete-Synchronisierung (G2)
+    # Doppelte Module aus dem Wettlauf in study.ensure_modules (27.10.2026) zusammenfuehren; danach ohne Wirkung
+    from . import study
+    study.merge_duplicate_modules(conn)
 
 
 def ensure_term(conn, university: str) -> None:

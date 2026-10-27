@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
@@ -37,21 +38,72 @@ def monday(d: date | None = None) -> date:
 # Module
 # ----------------------------------------------------------------------------
 
+_modules_lock = threading.Lock()
+
+
 def ensure_modules(conn) -> None:
-    """Legt fuer jedes Fach (subject) ein Modul an und ordnet Kurse zu, die noch kein Modul haben."""
-    existing = {r["name"]: r["id"] for r in db.rows(conn, "SELECT id, name FROM modules")}
-    courses = db.rows(conn, "SELECT id, subject, kind, semester FROM courses WHERE module_id IS NULL")
-    n = len(existing)
-    for c in courses:
-        if c["kind"] == "sonstiges" or not c["subject"]:
-            continue
-        name = c["subject"]
-        if name not in existing:
-            cur = conn.execute("INSERT INTO modules(name, semester, color, sort, created_at) VALUES (?,?,?,?,?)",
-                               (name, c["semester"], colors.next_color(conn), n, db.now_iso()))
-            existing[name] = cur.lastrowid
-            n += 1
-        conn.execute("UPDATE courses SET module_id=? WHERE id=?", (existing[name], c["id"]))
+    """Legt fuer jedes Fach (subject) ein Modul an und ordnet Kurse zu, die noch kein Modul haben.
+
+    Sicher gegen gleichzeitige Aufrufe (27.10.2026: nach dem ersten Abgleich luden Uebersicht, Module und Bibliothek
+    gleichzeitig, jede Anfrage sah "noch kein Modul" und legte alle an – jedes Modul stand dreimal da): das Anlegen
+    ist ein einziges INSERT ... WHERE NOT EXISTS, das erst mit der Schreibsperre der Datenbank entscheidet, also auch
+    zwischen Prozessen; dazu eine Sperre im Prozess. Die ID kommt danach immer aus der Datenbank."""
+    with _modules_lock:
+        courses = db.rows(conn, "SELECT id, subject, kind, semester FROM courses WHERE module_id IS NULL")
+        for c in courses:
+            if c["kind"] == "sonstiges" or not c["subject"]:
+                continue
+            name = c["subject"]
+            conn.execute("""INSERT INTO modules(name, semester, color, sort, created_at)
+                            SELECT ?, ?, ?, (SELECT COUNT(*) FROM modules), ?
+                            WHERE NOT EXISTS (SELECT 1 FROM modules WHERE name=?)""",
+                         (name, c["semester"], colors.next_color(conn), db.now_iso(), name))
+            mid = db.row(conn, "SELECT id FROM modules WHERE name=? ORDER BY id LIMIT 1", (name,))["id"]
+            conn.execute("UPDATE courses SET module_id=? WHERE id=? AND module_id IS NULL", (mid, c["id"]))
+
+
+# Tabellen mit Verweis auf ein Modul (fuer merge_duplicate_modules)
+MODULE_REFS = ("courses", "course_events", "study_packages", "folders")
+
+
+def merge_duplicate_modules(conn) -> int:
+    """Doppelte Module (gleicher Name und gleiches Semester) zu einem zusammenfuehren; beim Start (db._init_db), also
+    einmalig fuer Datenbanken mit dem Fehler von ensure_modules und danach ohne Wirkung. Bleiben darf das Modul mit den
+    meisten Kursen (sonst das aelteste); alles, was auf die anderen zeigt, zeigt danach darauf: Kurse, Termine,
+    Lernpakete, Ordner, Tests, verworfene Wochentests. Eigene Angaben eines Doppels (Pruefungstermin, selbst gewaehlte
+    Farbe, Symbol) gehen nicht verloren, wenn das bleibende Modul keine hat. Liefert die Zahl der entfernten Doppel."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(modules)")}
+    groups = conn.execute("""SELECT name, COALESCE(semester, '') AS sem FROM modules GROUP BY name, COALESCE(semester, '')
+                             HAVING COUNT(*) > 1""").fetchall()
+    removed = 0
+    for name, sem in groups:
+        ids = [r[0] for r in conn.execute(
+            """SELECT m.id FROM modules m WHERE m.name=? AND COALESCE(m.semester, '')=?
+               ORDER BY (SELECT COUNT(*) FROM courses c WHERE c.module_id=m.id) DESC, m.id""", (name, sem))]
+        keep, dups = ids[0], ids[1:]
+        for dup in dups:
+            k = dict(zip([d[0] for d in conn.execute("SELECT * FROM modules LIMIT 0").description],
+                         conn.execute("SELECT * FROM modules WHERE id=?", (keep,)).fetchone()))
+            d = dict(zip(k.keys(), conn.execute("SELECT * FROM modules WHERE id=?", (dup,)).fetchone()))
+            take = {}
+            for col in ("exam_date", "icon", "test_minutes"):
+                if col in cols and not k.get(col) and d.get(col):
+                    take[col] = d[col]
+            if "color_custom" in cols and d.get("color_custom") and not k.get("color_custom"):
+                take.update(color=d["color"], color_custom=1)
+            if take:
+                conn.execute(f"UPDATE modules SET {', '.join(f'{c}=?' for c in take)} WHERE id=?", (*take.values(), keep))
+            for table in MODULE_REFS:
+                conn.execute(f"UPDATE {table} SET module_id=? WHERE module_id=?", (keep, dup))
+            # hoechstens ein automatischer Wochentest je Modul und Woche: ein zweiter wird ein normaler Test
+            conn.execute("""UPDATE tests SET auto=0 WHERE module_id=? AND auto=1 AND week_no IN
+                            (SELECT week_no FROM tests WHERE module_id=? AND auto=1)""", (dup, keep))
+            conn.execute("UPDATE tests SET module_id=? WHERE module_id=?", (keep, dup))
+            conn.execute("UPDATE OR IGNORE dismissed_tests SET module_id=? WHERE module_id=?", (keep, dup))
+            conn.execute("DELETE FROM dismissed_tests WHERE module_id=?", (dup,))
+            conn.execute("DELETE FROM modules WHERE id=?", (dup,))
+            removed += 1
+    return removed
 
 
 # ----------------------------------------------------------------------------
