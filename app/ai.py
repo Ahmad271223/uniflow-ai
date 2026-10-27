@@ -35,11 +35,38 @@ def _claude_bin() -> str:
     return b
 
 
+def uses_chatgpt() -> bool:
+    """KI-Anfragen ueber das eigene ChatGPT-Abo des Nutzers (Sign in with ChatGPT, app/chatgpt_login.py): nur auf dem
+    eigenen PC, nur wenn verbunden, die Abo-Nutzung gewaehrt und der Schalter in den Einstellungen an ist."""
+    try:
+        from . import chatgpt_login
+        return chatgpt_login.enabled_for_ai()
+    except Exception:  # noqa: BLE001 - ohne Ablage bleibt Claude
+        return False
+
+
+def ask_chatgpt(prompt: str, system: str = "") -> str:
+    """Antwort ueber das ChatGPT-Abo (Responses API, Modell aus den Einstellungen)."""
+    from . import ai_backend, chatgpt_login
+    try:
+        text = ai_backend.ChatGPTProvider(chatgpt_login.model()).complete(system, prompt).text
+    except ai_backend.AIUnavailable as e:
+        raise AIError(e.message) from None
+    with open(LOG_DIR / "ai.log", "a", encoding="utf-8") as f:
+        f.write(f"\n===== PROMPT (ChatGPT, {len(prompt)} Zeichen) =====\n{prompt[:1500]}\n----- ANTWORT -----\n{text[:3000]}\n")
+    return text
+
+
 def ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[str] | None = None,
         model: str | None = None, cwd: str | Path | None = None, blocked_tools: list[str] | None = None) -> str:
-    """Schickt einen Prompt an `claude -p` und gibt den Antworttext zurueck.
+    """Schickt einen Prompt an `claude -p` und gibt den Antworttext zurueck; mit verbundenem ChatGPT-Abo an die
+    Responses API (dann ohne Werkzeuge: Bilder und PDF-Seiten kann nur Claude lesen, Text geht ueber beide).
     allowed_tools: z. B. ["Read"], damit Claude eine Bilddatei (Stundenplan-Screenshot) lesen darf.
     cwd: Arbeitsordner der CLI (Lesen nur dort erlaubt); blocked_tools: ausdruecklich gesperrte Werkzeuge."""
+    if uses_chatgpt():
+        if allowed_tools or cwd:
+            raise AIError("Bilder und PDF-Seiten liest nur Claude; mit ChatGPT wird der Text der Datei genutzt.")
+        return ask_chatgpt(prompt, system)
     env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
     env["PYTHONIOENCODING"] = "utf-8"
     cmd = [_claude_bin(), "-p", "--output-format", "json", "--model", model or CLAUDE_MODEL]

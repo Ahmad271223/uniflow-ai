@@ -88,6 +88,37 @@ Windows: Windows-Anmeldeinformationen bzw. verschlüsselt im App-Ordner), nie be
 - **Einstellungen → KI:** „ChatGPT verbinden“ / „Trennen“, verbundenes Konto (Name, E-Mail), Modellwahl aus der Liste
   der Verbindung, Schalter je Funktion, Link „Nutzung verwalten“.
 
+## 3a. Gebaut am 27.10.2026: Sign in with ChatGPT auf dem eigenen PC (Phase 1)
+
+`app/chatgpt_login.py` setzt den Ablauf für den Einzelplatz (PC mit `serve.py`, Windows-App) um; im gehosteten
+Dienst bleibt er aus, bis OpenAI Studora freigibt (`chatgpt_state` liefert dort weiter `available: false`, der
+Dienst antwortet 503 `chatgpt_not_available`).
+
+- **Anmeldung:** Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“. UniFlow bindet einen
+  freien Port auf 127.0.0.1, öffnet die Autorisierung bei `auth.openai.com` im Standardbrowser (beim ersten Mal mit
+  `client_id=dynamic_agent_client` und `agent_name_hint=UniFlow`; die dabei ausgestellte `oaiapp_…`-ID wird gespeichert,
+  bevor der Code getauscht wird, und bei jeder weiteren Anmeldung wiederverwendet), Scope
+  `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, PKCE S256, `state` und `nonce` je
+  Versuch, `ext_agent_host_id` als feste Rechnerkennung.
+- **Rückleitung** `http://127.0.0.1:<port>/auth/callback`: falscher `state` oder abgebrochene Anmeldung tauschen nichts;
+  Code-Tausch am Token-Endpunkt ohne Secret; ID-Token wird gegen die JWKS von OpenAI, Aussteller, Audience und Nonce
+  geprüft (Helfer aus `app/social_login.py`). Timeout 10 Minuten, nur ein Ablauf gleichzeitig.
+- **Ablage** nur auf diesem Rechner: `chatgpt-auth.json` im Datenordner (0600) mit Rechnerkennung, Client-ID,
+  Zugriffs- und Refresh-Token (rotiert, wird mit ersetzt), Ablauf, gewährten Scopes, Name/E-Mail aus dem ID-Token,
+  gewähltem Modell und dem Schalter „KI-Anfragen über mein ChatGPT“. Nichts davon geht an den Dienst oder in den
+  Geräte-Abgleich; „Trennen“ löscht Token und Profil, Rechnerkennung und Client-ID bleiben.
+- **Nutzung:** `app/ai_backend.ChatGPTProvider` ruft die Responses API mit dem Zugriffstoken (erneuert 60 s vor
+  Ablauf); `app/ai.ask` leitet dorthin, sobald verbunden, die Abo-Nutzung gewährt (`sharing`), der Schalter an und
+  ein Modell gewählt ist – sonst wie bisher Claude Code. Bilder und PDF-Seiten liest weiter nur Claude; die Analyse
+  fällt mit ChatGPT auf den Text der Datei zurück. 401 → „neu verbinden“, 402/403/429 → „Kontingent aufgebraucht oder
+  Nutzung in Apps nicht freigegeben“ mit Link „Nutzung verwalten“ (ChatGPT → Einstellungen → Nutzung).
+- **Endpunkte (nur lokal):** `GET /api/integrations/chatgpt` (Stand), `POST …/connect` (startet, liefert `auth_url`
+  und `port`), `POST …/disconnect`, `GET …/models` (`GET /v1/models` mit dem Token), `PUT …/settings {model, use_for_ai}`.
+  Tests ohne Netz: `tests/test_chatgpt_login.py`.
+- **Offen:** Refresh-Grant und Modelle-Endpunkt sind in OpenAIs Doku nicht beschrieben (Standard angenommen),
+  Fehlercodes der Responses API bei erschöpftem Kontingent ebenso – beim ersten echten Test des Inhabers prüfen.
+  Für den Dienst gilt weiter Abschnitt 4 (Antrag); in der Windows-App öffnet die Anmeldung den Standardbrowser.
+
 ## 4. Was der Inhaber bei OpenAI beantragen muss
 
 1. **OpenAI-Konto** für UniFlow anlegen (Organisation auf den Namen des Inhabers), Kontakt-E-Mail festlegen.
@@ -159,7 +190,7 @@ Projekte sind ohne Antrag zugelassen. Damit lässt sich Phase 1 testen, ohne das
 | Phase | Inhalt | Wer | Fertig, wenn |
 |---|---|---|---|
 | 0 | OpenAI-Konto, Interessenformular, Fragen aus Abschnitt 6 | Inhaber | Antwort von OpenAI liegt vor |
-| 1 | Vertrag `shared-contracts/ai` (Prompts, Schemas, Fixtures) aus `app/ai.py`; Anbieter `chatgpt` in Python mit Anmeldung über `127.0.0.1`; Fragen im Editor und Analyse am eigenen PC | PC-Sitzung | Tests gegen die Fixtures grün, Inhaber hat am eigenen PC mit seinem Abo gefragt (privates Projekt, ohne Antrag) |
+| 1 | **Gebaut (27.10.2026, Abschnitt 3a):** Anbieter `chatgpt` in Python mit Anmeldung über `127.0.0.1`, Fragen im Editor, Analyse und Lernplan am eigenen PC. Noch offen aus Phase 1: gemeinsamer Vertrag `shared-contracts/ai` (Prompts, Schemas, Fixtures) | PC-Sitzung | Tests grün (`tests/test_chatgpt_login.py`); der Inhaber testet am eigenen PC mit seinem Abo (privates Projekt, ohne Antrag) |
 | 2 | Windows-App: „ChatGPT verbinden“, Token sicher auf dem Gerät, alle vier Funktionen, Fehlerfälle | PC-Sitzung | Gerätetest auf einem Windows-Laptop; Client-ID aus Phase 0 nötig für andere Nutzer |
 | 3 | iPad/Mac: `AIService` im Kern, `ASWebAuthenticationSession`, Schlüsselbund, Editor-Seitenleiste, Analyse, Plan-Vorschlag, Zustimmungsdialog | Mac-Sitzung | Tests gegen dieselben Fixtures grün, Gerätetest mit Abo |
 | 4 | Datenschutzerklärung, App-Datenschutzangaben, Privacy Manifest, App-Prüfung | Inhaber + PC-Sitzung | Update im App Store |

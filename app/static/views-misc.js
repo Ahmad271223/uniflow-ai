@@ -226,7 +226,34 @@ function diagTab() {
     <div class="card-head" style="margin-top:1rem"><h2>${icon("book", 18)} Demo-Inhalte</h2><button class="btn sm" id="demoToggle">…</button></div><p class="muted small" id="demoText">Ein Demo-Modul mit drei PDFs, Stundenplan, Lernkalender, einer Frist und einer Ankündigung – zum Ausprobieren ohne Hochschulkonto und für die App-Prüfung. Lässt sich jederzeit wieder entfernen.</p>
     <div class="card-head" style="margin-top:1rem"><h2>${icon("file-text", 18)} PDF-Anzeige testen</h2><button class="btn sm primary" id="diagTest">Test starten</button></div><p class="muted small">Lädt eine PDF aus deiner Bibliothek, liest sie mit pdf.js und zeichnet Seite 1 – genau wie der Editor. Wenn hier ein Bild erscheint, funktioniert die Anzeige in diesem Browser.</p><div id="diagOut" class="small"></div></div>`;
 }
+
+// ChatGPT verbinden (eigener PC): Sign in with ChatGPT, Token nur auf diesem Rechner (app/chatgpt_login.py). Im Dienst
+// zeigt die Karte den ehrlichen Stand "noch nicht freigegeben".
+function chatgptCard(gpt, models) {
+  if (!gpt) return "";
+  const head = `<div class="card-head"><h2>${icon("sparkles", 18)} KI über mein ChatGPT</h2><span class="badge ${gpt.connected ? (gpt.needs_reauth ? "warn" : gpt.sharing ? "ok" : "warn") : "neutral"}">${gpt.connected ? (gpt.needs_reauth ? "neu anmelden" : gpt.sharing ? "verbunden" : "ohne Abo-Nutzung") : gpt.available ? "nicht verbunden" : "noch nicht verfügbar"}</span></div>`;
+  if (!gpt.available) return `<div class="card">${head}<p class="small muted">Die offizielle ChatGPT-Verbindung ist für den Dienst noch nicht von OpenAI freigegeben. Auf dem eigenen PC kannst du dein ChatGPT-Konto schon verbinden.</p></div>`;
+  const pending = gpt.pending ? `<p class="small" style="color:var(--accent)">${icon("clock", 13)} Anmeldung läuft im Browser … (Port ${gpt.pending.port})</p>` : "";
+  const err = gpt.last_error ? `<p class="small" style="color:var(--bad)">${esc(gpt.last_error)}</p>` : "";
+  if (!gpt.connected) return `<div class="card">${head}
+      <p class="small muted">Verbinde dein eigenes ChatGPT-Konto (Plus, Pro oder Go): Erklärungen im Editor, Analyse der Unterlagen und Lernpläne laufen dann über dein Abo statt über Claude. UniFlow bekommt nur Name und E-Mail und ein Zugriffstoken, nie dein Passwort und nie deine Chats. Das Token bleibt auf diesem Rechner.</p>
+      ${pending}${err}<div class="row wrap"><button class="btn primary sm" id="gptConnect" ${gpt.pending ? "disabled" : ""}>${icon("log-out", 14)} ChatGPT verbinden</button>${gpt.pending ? `<button class="btn sm" id="gptOpen">Anmeldeseite erneut öffnen</button>` : ""}</div></div>`;
+  const who = gpt.email || gpt.name || "ChatGPT-Konto";
+  const options = (models && models.length ? models : [gpt.model].filter(Boolean)).map(m => `<option value="${esc(m)}" ${m === gpt.model ? "selected" : ""}>${esc(m)}</option>`).join("");
+  return `<div class="card">${head}
+      <p class="small">Verbunden als <b>${esc(who)}</b>${gpt.sharing ? "" : ` – <span style="color:var(--warn)">die Nutzung deines Abos in Apps ist nicht freigegeben</span>`}.</p>
+      ${gpt.needs_reauth ? `<p class="small" style="color:var(--warn)">Die Anmeldung ist abgelaufen – bitte neu verbinden.</p>` : ""}${err}
+      <div class="row wrap" style="align-items:center;gap:.6rem">
+        <label class="field" style="margin:0;flex:1">Modell<select class="input" id="gptModel">${options || `<option value="">(Modelle laden …)</option>`}</select></label>
+        <label class="small"><input type="checkbox" id="gptUse" ${gpt.use_for_ai ? "checked" : ""}> KI-Anfragen über mein ChatGPT</label></div>
+      ${!gpt.model ? `<p class="small muted">Bitte ein Modell wählen, sonst bleibt Claude aktiv.</p>` : ""}
+      <p class="small muted">Verbrauch zählt gegen dein ChatGPT-Kontingent; das Wochenlimit für UniFlow setzt du in ChatGPT unter Einstellungen → Nutzung (<a href="${esc(gpt.usage_help_url || "https://chatgpt.com/#settings")}" target="_blank" rel="noopener">Nutzung verwalten</a>).</p>
+      <div class="row wrap"><button class="btn sm" id="gptReconnect">${icon("refresh", 14)} Neu verbinden</button><button class="btn ghost sm" id="gptDisconnect">Trennen</button></div></div>`;
+}
+
 export async function viewSettings(_, params, view) {
+  const gpt = await api("/integrations/chatgpt").catch(() => null);
+  const gptModels = gpt?.connected && !gpt.needs_reauth ? await api("/integrations/chatgpt/models").then(r => r.models).catch(() => null) : null;
   const [s, courses, mods, log, cred, term, svc, sess] = await Promise.all([api("/settings"), api("/courses"), api("/modules"), api("/sync/status"), api("/credentials"), api("/terms"), api("/services"), state.hosted ? null : api("/university/session").catch(() => null)]);
   const uniKey = svc.university?.key || "luh";
   let tab = params.tab === "diag" ? "advanced" : (params.tab || "modules"); let openMod = null;
@@ -265,11 +292,19 @@ export async function viewSettings(_, params, view) {
         <div class="card-head" style="margin-top:1rem"><h2>${icon("settings", 18)} Learnweb-Schlüssel</h2>${svc.learnweb?.token_set ? `<span class="badge ok">gesetzt</span>` : `<span class="badge neutral">optional</span>`}</div>
         <p class="muted small">Mit Schlüssel holt die App die Dateien direkt über die Moodle-Schnittstelle, ohne Browser-Anmeldung, und Moodle markiert nichts als angesehen. Erzeugen: im Learnweb Profil → Einstellungen → Sicherheitsschlüssel → „Moodle mobile web service“.</p>
         <div class="row"><input class="input" id="lwToken" type="password" placeholder="${svc.learnweb?.token_set ? "•••••••• (neu eingeben zum Ersetzen)" : "Schlüssel einfügen"}" autocomplete="off" style="flex:1"><button class="btn sm" id="lwSave">Speichern</button>${svc.learnweb?.token_set ? `<button class="btn ghost sm" id="lwClear">Entfernen</button>` : ""}</div></div>`;
-    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : credCard}${looksCard}${ipadCard}</div>`; const advancedTab = `<div class="stack">${logCard}${diagTab()}</div>`;
+    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : credCard}${looksCard}${ipadCard}</div>`; const advancedTab = `<div class="stack">${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
     view.innerHTML = `<div class="content" style="max-width:1180px"><div class="page-head"><div><h1>Einstellungen</h1></div></div>
       <div class="set-layout"><nav class="set-nav">${[["modules", "Module & Wochentests", "book"], ["plan", "Lernzeit & Verfügbarkeit", "clock"], ["account", "Zugang & Darstellung", "user"], ["abo", "Abo & Tarife", "star"], ["advanced", "Erweitert", "settings"]].map(([k, l, i]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${icon(i, 16)}<span>${l}</span></button>`).join("")}</nav><div class="set-body">
       ${tab === "modules" ? modulesTab : tab === "account" ? accountTab : tab === "advanced" ? advancedTab : `<div class="card"><div class="card-head"><h2>Lernzeit & Verfügbarkeit</h2></div><p class="muted small">Lernkombination (Fächer pro Tag, Vorlesung/Übungen/Wochentest) und persönliche Verfügbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten).</p><div class="row wrap"><button class="btn primary" id="openCfg">${icon("settings", 16)} Lernkombination</button><button class="btn" id="openAvail">${icon("clock", 16)} Verfügbarkeit & Sperrzeiten</button></div><div class="small muted" style="margin-top:.8rem">Aktuell: ${s.subjects_per_day} Fächer pro Tag · ${fmtMin(s.minutes_per_day)} · Lernzeit ${s.learn_start}–${s.learn_end} · freie Tage: ${s.free_days.map(d => DAYS[d]).join(", ") || "keine"} · Fahrtzeit ${s.travel_minutes} min</div></div>`}</div></div></div>`;
     $$("[data-tab]", view).forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+    // ChatGPT verbinden: Browser oeffnet sich, danach den Stand abfragen, bis die Anmeldung durch ist
+    const gptWait = () => { let n = 0; const t = setInterval(async () => { const g = await api("/integrations/chatgpt").catch(() => null); if (!g || ++n > 300 || (!g.pending && (g.connected || g.last_error))) { clearInterval(t); if (g?.connected) toast("ChatGPT verbunden"); else if (g?.last_error) toast(g.last_error, 5000); state.route(); } }, 2000); };
+    $("#gptConnect")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite öffnet sich im Browser", 4000); state.route(); gptWait(); } catch (e) { toast(e.message, 5000); } });
+    $("#gptReconnect")?.addEventListener("click", async () => { try { await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite öffnet sich im Browser", 4000); gptWait(); } catch (e) { toast(e.message, 5000); } });
+    $("#gptOpen")?.addEventListener("click", async () => { try { const r = await api("/integrations/chatgpt/connect", { method: "POST", body: {} }); toast("Anmeldeseite geöffnet"); if (!r.auth_url) return; } catch (e) { toast(e.message, 5000); } });
+    $("#gptDisconnect")?.addEventListener("click", async () => { if (!confirm("ChatGPT trennen? Das Zugriffstoken wird gelöscht; KI-Anfragen laufen wieder über Claude.")) return; await api("/integrations/chatgpt/disconnect", { method: "POST", body: {} }); toast("Getrennt"); state.route(); });
+    $("#gptModel")?.addEventListener("change", async e => { try { await api("/integrations/chatgpt/settings", { method: "PUT", body: { model: e.target.value } }); toast("Modell gespeichert"); } catch (x) { toast(x.message, 4000); } });
+    $("#gptUse")?.addEventListener("change", async e => { await api("/integrations/chatgpt/settings", { method: "PUT", body: { use_for_ai: e.target.checked } }); toast(e.target.checked ? "KI läuft über dein ChatGPT" : "KI läuft über Claude"); });
     $$("[data-open]", view).forEach(el => el.onclick = e => { if (e.target.closest("input, button, select, label")) return; openMod = openMod === +el.dataset.open ? null : +el.dataset.open; render(); });
     $$("[data-edit]", view).forEach(b => b.onclick = () => editModule(mods.find(m => m.id === +b.dataset.edit), () => state.route()));
     $$("[data-active]", view).forEach(c => c.onchange = async () => { await api(`/modules/${c.dataset.active}`, { method: "PATCH", body: { active: c.checked ? 1 : 0 } }); toast("Gespeichert"); state.route(); });
