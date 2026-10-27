@@ -778,8 +778,6 @@ def run_studip_sync(show_browser: bool = False) -> dict:
             if r.get("removed"):
                 log(f"Stundenplan: {r['removed']} Serien entfernt (nicht im eigenen Stud.IP-Kalender)")
                 message += f", {r['removed']} Serien entfernt (nicht in deinem Stud.IP-Kalender)"
-            if not r.get("calendar"):
-                message += " – Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt"
         except Exception as e:  # noqa: BLE001
             log(f"Stundenplan-Autoimport: {e}")
     except Exception as e:  # noqa: BLE001

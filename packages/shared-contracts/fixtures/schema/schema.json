@@ -395,6 +395,16 @@
           {"name": "sqlite_autoindex_settings_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["key"]}
         ]
       },
+      "studip_calendar_dates": {
+        "columns": [
+          {"name": "id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "fetched_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_studip_calendar_dates_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["id"]}
+        ]
+      },
       "studip_events": {
         "columns": [
           {"name": "id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
@@ -423,6 +433,18 @@
         "foreign_keys": [],
         "indexes": [
           {"name": "sqlite_autoindex_studip_schedule_entries_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["id"]}
+        ]
+      },
+      "studip_series_relevance": {
+        "columns": [
+          {"name": "series", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "course_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "relevant", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0},
+          {"name": "decided_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_studip_series_relevance_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["series"]}
         ]
       },
       "study_packages": {

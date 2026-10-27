@@ -749,3 +749,13 @@ Einzeltermine zusammenfasst). Die Doppel-Regel aus 3d74b00 ist ebenfalls nachgez
 bleibt in Python der fehlende Kurs in der Import-Vorschau wählbar; Kurse mit vielen Serien kommen alle. Details in
 `docs/IPAD-STUDIP-SYNC.md` §10. Außerdem neu am PC: Zwischenstand im Abgleich („Datei 12 von 158 herunterladen“,
 `app/progress.py`, `/api/bg`). Punkt 2 (LSF `auth.logout`) und 3 (Learnweb-Zahlen je Kurs) sind noch offen.
+
+Neu erzeugt (unter Linux, `tools/gen-*.py --check` gruen): `fixtures/schema/*.json` und `SchemaSQL.swift` (zwei Tabellen
+`studip_calendar_dates`, `studip_series_relevance`; eure `StudIPCalendar.tables` legt `studip_calendar_dates` gleich an)
+sowie `fixtures/local-backend/timetable-logic.json`. Dort bitte im LocalBackend nachziehen: `POST
+/api/timetable/import/confirm` mit `source: studip` speichert jetzt `studip-manual` (von Hand gewaehlt, wird nie als
+fremde Gruppe entfernt), und die Doppel-Regel aus 3d74b00 gilt auch fuer die Vorschau (die Stud.IP-Serie
+"Testphysik fuer Ingenieure" ist dort jetzt dieselbe wie die von Hand angelegte "Testphysik", gleicher Kurs und Zeit).
+Schon vor dieser Aenderung: unter Linux (python:3.14-slim) weichen `gen-account`, `gen-community` und
+`gen-local-backend` ab; unter Windows laufen flashcards, local-backend, study und timetable gar nicht (time.tzset fehlt);
+`tests/test_plan_names.py` liest seine Fixture unter Windows ohne UTF-8.

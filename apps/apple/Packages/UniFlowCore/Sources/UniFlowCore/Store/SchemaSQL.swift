@@ -244,6 +244,20 @@ CREATE TABLE IF NOT EXISTS studip_events (
     fetched_at TEXT
 );
 
+-- Eigener Stud.IP-Kalender (users/{id}/events.ics): Termin-IDs, die Stud.IP dem Nutzer selbst zeigt (eigene Gruppen,
+-- Kurse mit Kalenderbindung). Gleiche Regel wie StudIPCalendar im Swift-Kern, siehe timetable._apply_calendar.
+CREATE TABLE IF NOT EXISTS studip_calendar_dates (
+    id TEXT PRIMARY KEY,               -- studip_events.id
+    fetched_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS studip_series_relevance (
+    series TEXT PRIMARY KEY,           -- Kurs|Wochentag|Beginn|Ende
+    course_id TEXT NOT NULL,
+    relevant INTEGER NOT NULL,         -- 1 = im eigenen Kalender, 0 = kuenftige Termine, aber keiner im Kalender
+    decided_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS studip_schedule_entries (
     id TEXT PRIMARY KEY,               -- persoenliche Eintraege aus dem Stud.IP-Stundenplan
     title TEXT,
