@@ -2360,6 +2360,9 @@
       "color": {
        "type": "string"
       },
+      "color_custom": {
+       "type": "number"
+      },
       "created_at": {
        "type": "string"
       },

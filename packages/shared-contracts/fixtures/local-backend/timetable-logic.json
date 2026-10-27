@@ -2950,6 +2950,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 7,
      "new_count": 4,
      "open_tasks": 0,
@@ -2994,6 +2995,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -3038,6 +3040,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -6787,6 +6790,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 7,
      "new_count": 4,
      "open_tasks": 0,
@@ -6831,6 +6835,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -6875,6 +6880,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -13382,7 +13388,8 @@
     "created_at": "2026-10-01T09:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 2,
@@ -13396,7 +13403,8 @@
     "created_at": "2026-10-01T09:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 3,
@@ -13410,13 +13418,14 @@
     "created_at": "2026-10-01T09:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 4,
     "name": "Testchemie",
     "semester": "WiSe 2026/27",
-    "color": "#9b59d9",
+    "color": "#175ee8",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13424,7 +13433,8 @@
     "created_at": "2026-10-25T14:30:05",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    }
   ]
  }

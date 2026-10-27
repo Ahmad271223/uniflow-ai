@@ -154,6 +154,7 @@
          "active": 1,
          "weekly_test": 1,
          "test_minutes": null,
+         "color_custom": 0,
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -500,6 +501,7 @@
          "active": 1,
          "weekly_test": 1,
          "test_minutes": null,
+         "color_custom": 0,
          "sync_version": 2,
          "sync_updated_at": "<zeit>",
          "sync_device": "mac-1"
@@ -561,6 +563,7 @@
          "active": 1,
          "weekly_test": 1,
          "test_minutes": null,
+         "color_custom": 0,
          "sync_version": 3,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"
@@ -595,6 +598,7 @@
          "active": 1,
          "weekly_test": 1,
          "test_minutes": null,
+         "color_custom": 0,
          "sync_version": 3,
          "sync_updated_at": "<zeit>",
          "sync_device": "ipad-1"

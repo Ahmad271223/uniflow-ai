@@ -46,5 +46,7 @@ export const statusPill = st => `<span class="status-pill st-${st}">${icon(STATU
 export const diffBadge = d => d ? `<span class="badge ${d <= 2 ? "ok" : d >= 4 ? "bad" : "warn"}">Stufe ${d}</span>` : "";
 export const typeBadge = t => t ? `<span class="badge neutral">${esc(TYPE_TXT[t] || t)}</span>` : "";
 export const initial = s => (s || "?").replace(/^(Mathematik|Grundlagen|Einführung|Elektrotechnische|Datenstrukturen|Signale|Programmieren)\s*/i, m => m[0]).slice(0, 2).toUpperCase();
+// Fachfarben fuer die Farbwahl: erste Stufe von PALETTE in app/colors.py (tests/test_module_colors.py vergleicht)
+export const PALETTE = ["#175ee8", "#e95905", "#167535", "#834bbf", "#b9454c", "#1f9682", "#896301", "#de5797", "#0486c2", "#748e03", "#626974", "#a1826c"];
 export const shortName = s => (s || "").replace("Mathematik für die Ingenieurwissenschaften", "Mathematik").replace("Elektrotechnische Grundlagen der Informatik", "Elektrotechnik").replace("Datenstrukturen und Algorithmen", "Datenstrukturen & Algorithmen").replace("Grundlagen digitaler Systeme", "Digitale Systeme");
 export const state = { route: () => {}, editors: [], hosted: false, account: null };

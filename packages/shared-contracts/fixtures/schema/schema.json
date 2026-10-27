@@ -279,6 +279,7 @@
           {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "weekly_test", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "color_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}

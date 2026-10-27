@@ -47,6 +47,8 @@ public enum Migrations {
         case addColumn(String, String, String)
         /// feste Anweisung
         case sql(String)
+        /// Spalte anhaengen, wenn sie fehlt, und nur dann einmal `then` ausfuehren (einmalige Umstellung)
+        case addColumnOnce(String, String, String, then: @Sendable (SQLiteConnection) throws -> Void)
     }
 
     /// Die Migrationen fuer bestehende Datenbanken aus `init_db()`, woertlich und in derselben Reihenfolge.
@@ -90,6 +92,10 @@ public enum Migrations {
         // Learnweb: Pluginfile-Revision (steigt beim Ersetzen); erkennt ueber die Sitzung eine neue Fassung, chdate bleibt
         // eine Unix-Zeit (studip_sync.version_stamp, UniStore.versionStamp)
         .addColumn("files", "revision", "INTEGER"),
+        // Fachfarben (27.10.2026, ModuleColors): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
+        // Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
+        // bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.
+        .addColumnOnce("modules", "color_custom", "INTEGER DEFAULT 0", then: ModuleColors.migratePalette),
     ]
 
     /// Reine Geraete-Umzuege ueber `PRAGMA user_version`: nur fuer Aenderungen, die es in app/db.py nicht gibt (etwa
@@ -163,6 +169,11 @@ public enum Migrations {
                     }
                 case .sql(let sql):
                     try conn.execute(sql)
+                case .addColumnOnce(let table, let column, let decl, let then):
+                    if !(try conn.columnNames(table)).contains(column) {
+                        try conn.execute("ALTER TABLE \(table) ADD COLUMN \(column) \(decl)")
+                        try then(conn)
+                    }
                 }
             }
             // Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)

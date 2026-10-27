@@ -67,8 +67,16 @@ public enum ModulesEndpoints: LocalEndpointModule {
                 (m.key, m.key == "exam_date" && !LocalTerms.truthy(m.value) ? .null : try LocalTerms.bindable(m.value, field: m.key))
             }
             let rename = try value(members, "name").map { try LocalTerms.bindable($0, field: "name") }
+            let colorSent = members.contains { $0.key == "color" }
             let row = try await ctx.database.transaction { c -> JSONValue in
+                let before = try c.queryOne("SELECT color FROM modules WHERE id=?", [id])
                 for (k, v) in updates { try c.execute("UPDATE modules SET \(k)=? WHERE id=?", [v, id]) }
+                // Merker fuer eine selbst gewaehlte Farbe (ModuleColors): nur, wenn sich die Farbe wirklich aendert (die
+                // Bearbeiten-Dialoge schicken sie auch unveraendert mit)
+                if colorSent, let before, let after = try c.queryOne("SELECT color FROM modules WHERE id=?", [id]),
+                   LocalModules.truthy(after["color"]), after["color"] != before["color"] {
+                    try c.execute("UPDATE modules SET color_custom=1 WHERE id=?", [id])
+                }
                 if let rename {
                     try c.execute("UPDATE courses SET subject=? WHERE module_id=?", [rename, id])
                     try c.execute("UPDATE study_packages SET subject=? WHERE module_id=?", [rename, id])
@@ -93,15 +101,16 @@ public enum ModulesEndpoints: LocalEndpointModule {
             }
             if name.isEmpty { throw LocalHTTPError(status: 400, message: "Name fehlt") }
             let semester = try LocalTerms.bindable(value(members, "semester") ?? .null, field: "semester")
-            // body.get("color") or PALETTE[n % len(PALETTE)] (SQLiteValue kennt nil als NULL: darum ausdruecklich)
+            // body.get("color") or next_color(conn) (SQLiteValue kennt nil als NULL: darum ausdruecklich); eine
+            // mitgeschickte Farbe hat der Nutzer gewaehlt (Merker color_custom)
             let colorValue = value(members, "color")
             let color: SQLiteValue? = LocalTerms.truthy(colorValue) ? .some(try LocalTerms.bindable(colorValue ?? .null, field: "color")) : .none
             let now = ctx.clock.nowISO
             let row = try await ctx.database.transaction { c -> JSONValue in
                 let n = Int(try c.scalar("SELECT COUNT(*) n FROM modules")?.int64 ?? 0)
-                let chosen = color ?? .text(LocalModules.palette[n % LocalModules.palette.count])
-                try c.execute("INSERT INTO modules(name, semester, color, sort, created_at) VALUES (?,?,?,?,?)",
-                              [.text(name), semester, chosen, .integer(Int64(n)), .text(now)])
+                let chosen = try color ?? .text(ModuleColors.next(c))
+                try c.execute("INSERT INTO modules(name, semester, color, color_custom, sort, created_at) VALUES (?,?,?,?,?,?)",
+                              [.text(name), semester, chosen, .integer(color == nil ? 0 : 1), .integer(Int64(n)), .text(now)])
                 return try c.queryOne("SELECT * FROM modules WHERE id=?", [.integer(c.lastInsertRowID)]).map { .object($0.json) } ?? .null
             }
             return .json(row)
