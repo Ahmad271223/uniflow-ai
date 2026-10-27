@@ -36,7 +36,7 @@ enum StudyCalendar {
         let s = try StudyPlan.Settings(c)
         let events = end - start <= 45 ? try T.occurrences(c, from: start, to: end) : []
         let (marks, dls) = try Holidays.calendarExtras(c, from: start, to: end)
-        let notes = try Announcements.byDay(c, from: start, to: end)
+        let notes = DueStore.withoutDuplicateNotices(try Announcements.byDay(c, from: start, to: end), deadlines: dls)
         var days: [JSONValue] = []
         var d = start
         while d <= end {
@@ -126,7 +126,17 @@ enum StudyCalendar {
                         "course_title": r["course_title"] ?? .null, "module_id": r["module_id"] ?? .null, "color": r["color"] ?? .null,
                         "url": r["url"] ?? .null, "deadline_id": r["id"] ?? .null])
         }
-        return out
+        // Geraet: erkannte Abgaben, Tests und Pruefungen (DueStore; am PC keine) mit den kommenden nach Tag und Uhrzeit,
+        // ueberfaellige Learnweb-Fristen bleiben oben
+        let detected = try DueStore.upcoming(c, today: t, now: now, limit: limit)
+        guard !detected.isEmpty else { return out }
+        let overdue = out.filter { LocalModules.truthy($0["overdue"]) }
+        let rest = T.stableSorted(out.filter { !LocalModules.truthy($0["overdue"]) } + detected) { a, b in
+            let da = a["date"]?.string ?? "", db = b["date"]?.string ?? ""
+            if da != db { return PyText.less(da, db) }
+            return PyText.less(T.or(a["time"], "").string ?? "", T.or(b["time"], "").string ?? "")
+        }
+        return Array((overdue + rest).prefix(limit))
     }
 
     /// `dashboard(conn)`: heute (Pakete, Termine, freie Fenster), Module, neue Dateien, Woche, Nachholen, naechste

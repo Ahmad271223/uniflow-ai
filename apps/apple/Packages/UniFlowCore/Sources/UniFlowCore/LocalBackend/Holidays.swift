@@ -145,6 +145,13 @@ public enum Holidays {
                 "course_title": r["course_title"] ?? .null, "color": r["color"] ?? .null,
             ])
         }
+        // Geraet: erkannte Abgaben, Tests und Pruefungen aus Dokumenten und Ankuendigungen (DueStore; am PC keine),
+        // mit den Learnweb-Fristen nach Uhrzeit (ohne Uhrzeit zuerst)
+        for (day, list) in try DueStore.calendarDays(c, from: start, to: end) {
+            byDay[day] = LocalTimetable.stableSorted((byDay[day] ?? []) + list) { a, b in
+                PyText.less(LocalTimetable.or(a["time"], "").string ?? "", LocalTimetable.or(b["time"], "").string ?? "")
+            }
+        }
         return (marks, byDay)
     }
 }

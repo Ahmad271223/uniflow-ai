@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 84,
+ "count": 88,
  "paths": [
   {
    "method": "DELETE",
@@ -746,6 +746,28 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/due",
+   "sources": [
+    "UniFlow/Services/DueReminderScheduler.swift",
+    "UniFlow/Views/Due/DueViews.swift"
+   ],
+   "request": {
+    "path": "/api/due"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "hidden",
+     "items",
+     "refreshed",
+     "today"
+    ],
+    "reason": "nur auf dem Geraet (DueEndpoints)"
    }
   },
   {
@@ -1825,6 +1847,23 @@
   },
   {
    "method": "PATCH",
+   "shape": "/api/due/{}",
+   "sources": [
+    "UniFlow/Views/Due/DueViews.swift"
+   ],
+   "request": {
+    "path": "/api/due/due-0000000000000000",
+    "body": {
+     "hidden": true
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur auf dem Geraet; ohne erkannten Termin 404"
+   }
+  },
+  {
+   "method": "PATCH",
    "shape": "/api/folders/{}",
    "sources": [
     "UniFlow/Views/Library/LibraryDialogs.swift"
@@ -2121,6 +2160,44 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/due/backfill",
+   "sources": [
+    "UniFlow/Services/DueReminderScheduler.swift"
+   ],
+   "request": {
+    "path": "/api/due/backfill?limit=20"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "read",
+     "remaining"
+    ],
+    "reason": "nur auf dem Geraet (DueEndpoints; ohne Dateiablage nichts zu lesen)"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/due/refresh",
+   "sources": [
+    "UniFlow/Services/DueReminderScheduler.swift"
+   ],
+   "request": {
+    "path": "/api/due/refresh"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "changed",
+     "hits"
+    ],
+    "reason": "nur auf dem Geraet (DueEndpoints)"
    }
   },
   {

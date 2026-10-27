@@ -30,6 +30,7 @@ struct UniFlowApp: App {
         // auf einem anderen Geraet) und unfertige Transaktionen abschliessen – nicht erst, wenn eine Ansicht mit
         // Tarifpruefung erscheint (Pruefpunkt 223)
         _ = Entitlements.shared
+        DueNotificationDelegate.install()                                 // Antippen einer Erinnerung oeffnet die Quelle; fragt nichts
         let a = AccountStore()
         DebugLaunch.prepare(account: a)                                   // -UFOnboarding/-UFUniversity vor dem ersten Bild
         let c = ContainerManager(hildesheimTransport: DebugUniStub.transportFactory, qisTransport: DebugUniStub.transportFactory)

@@ -97,6 +97,7 @@ struct DashboardView: View {
                     if !evs.isEmpty { eventsCard(evs) }
                 }, right: {
                     upcomingCard(d.list("upcoming"))
+                    DueListCard()                                                  // Abgaben & Prüfungen (nur lokal)
                     if !d.list("announcements").isEmpty { announcementsCard(d.list("announcements")) }
                     weekCard(d["week"] ?? .null, today: todayDate)
                     newFilesCard(d.list("new_files"), total: d.i("new_total") ?? 0)
@@ -203,8 +204,10 @@ struct DashboardView: View {
                     let u = row.value
                     let isDeadline = u["deadline_id"].map { !$0.isNull } == true
                     Button {
-                        // Learnweb-Frist: Eintrag oeffnet das Learnweb (nur http/https), sonst Lernplan bzw. Modul
-                        if isDeadline { if let url = UFDayExtras.safeURL(u.s("url")) { openURL(url) } }
+                        // erkannter Termin: Quelle (PDF auf der Seite, Ankuendigung); Learnweb-Frist: Eintrag oeffnet das
+                        // Learnweb (nur http/https), sonst Lernplan bzw. Modul
+                        if u["detected"]?.bool == true { DueOpen.open(u, router: router, openURL: openURL) }
+                        else if isDeadline { if let url = UFDayExtras.safeURL(u.s("url")) { openURL(url) } }
                         else if u["package_id"].map({ !$0.isNull }) == true { router.go(.plan(view: "day", date: u.s("date"))) }
                         else if let m = u.i("module_id") { router.go(.module(m)) } else { router.go(.plan()) }
                     } label: {
