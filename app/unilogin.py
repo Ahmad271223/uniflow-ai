@@ -8,6 +8,11 @@ die Sitzung (Cookies) in `university-session.json` im Datenordner und nutzt sie 
 Durchreichen von Dateien; ist sie abgelaufen, meldet der Abgleich "Anmeldung noetig" und der Mensch klickt erneut
 "Im Browser anmelden". Zugangsdaten in der .env bleiben eine freiwillige Alternative fuer den Abgleich ohne Nachfrage.
 
+In der Windows-App (LERNAPP_DESKTOP=1 mit verbundenem Fenster-Agenten, app/desktop_windows.py) ist das Anmeldefenster
+ein Fenster der App selbst (WebView2 von Tauri): Tauri liefert die Cookies der Hochschule, dieses Modul prueft damit
+die Anmeldung (`check_cookies`) und merkt die Sitzung; die Cookies des Fensters bleiben im WebView2-Profil der App,
+so bleibt die Hochschule oft bis zum Ablauf angemeldet. Ohne Agenten (serve.py am PC) wie bisher Chromium von Playwright.
+
 Im Dienst (hosted) gibt es kein Fenster auf dem Server: dort liegen die Sitzungs-Cookies verschluesselt im Tresor des
 Kontos (STUDIP_COOKIES / LEARNWEB_COOKIES), gesetzt vom Abgleich oder von der App auf dem Geraet."""
 from __future__ import annotations
@@ -16,6 +21,9 @@ import json
 import os
 import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -129,6 +137,60 @@ def restore(ctx, name: str) -> int:
 
 # ---------------------------------------------------------------- Hochschulen
 
+def desktop_windows_available() -> bool:
+    """Windows-App mit verbundenem Fenster-Agenten: Anmeldung in einem Fenster der App statt in Chromium."""
+    from . import desktop_windows
+    return os.environ.get("LERNAPP_DESKTOP") == "1" and desktop_windows.agent_connected()
+
+
+def _cookie_header(cookies: list[dict], url: str) -> str:
+    host = urllib.parse.urlsplit(url).hostname or ""
+    now = time.time()
+    parts = []
+    for c in cookies:
+        if not isinstance(c, dict) or not c.get("name"):
+            continue
+        dom = str(c.get("domain") or host).lstrip(".")
+        exp = c.get("expires")
+        if (host == dom or host.endswith("." + dom)) and (not exp or exp < 0 or exp > now):
+            parts.append(f"{c['name']}={c.get('value', '')}")
+    return "; ".join(parts)
+
+
+def _get_with_cookies(url: str, cookies: list[dict], accept: str = "text/html,*/*", timeout: int = 20) -> str | None:
+    """GET mit den Cookies des Fensters; None bei Fehlern (401, Netz)."""
+    header = _cookie_header(cookies, url)
+    if not header:
+        return None
+    req = urllib.request.Request(url, headers={"Cookie": header, "Accept": accept, "User-Agent": "UniFlow/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 - feste Adresse der Hochschule
+            return r.read(400_000).decode("utf-8", "replace")
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return None
+
+
+def check_cookies(key: str, cookies: list[dict]) -> bool:
+    """Ist die Hochschule mit diesen Cookies angemeldet? LUH: users/me der Stud.IP-JSON:API antwortet mit dem
+    Benutzernamen. Hildesheim: /my/ im Learnweb ist keine Anmeldeseite (wie LOGGED_IN_JS: sesskey da, body ohne
+    notloggedin)."""
+    if key == "hildesheim":
+        from . import hildesheim
+        html = _get_with_cookies(hildesheim.learnweb_base() + "/my/", cookies)
+        return bool(html) and "sesskey" in html and "notloggedin" not in html
+    from .config import STUDIP_BASE
+    text = _get_with_cookies(f"{STUDIP_BASE}/jsonapi.php/v1/users/me", cookies, accept="application/vnd.api+json")
+    return bool(text) and '"username"' in text
+
+
+def _cookie_urls(key: str) -> list[str]:
+    if key == "hildesheim":
+        from . import hildesheim
+        return [hildesheim.learnweb_base()]
+    from .config import STUDIP_BASE
+    return [STUDIP_BASE]
+
+
 def _target(university: str | None) -> tuple[str, str, str, object, Path]:
     """(Schluessel, Name der Sitzung, Startadresse, Pruefung angemeldet(page), Profilordner)."""
     from . import universities
@@ -167,6 +229,8 @@ def run(university: str | None = None, launch=None) -> str:
     key, name, url, check, profile = _target(university)
     _set(state="open", message="Anmeldefenster ist offen – bitte dort anmelden.", since=time.time(), university=key)
     try:
+        if launch is None and desktop_windows_available():
+            return _wait_desktop(key, name, url)
         if launch is None:
             from playwright.sync_api import sync_playwright
             with sync_playwright() as p:
@@ -181,6 +245,36 @@ def run(university: str | None = None, launch=None) -> str:
     except Exception as e:  # noqa: BLE001
         _set(state="error", message=f"Anmeldung fehlgeschlagen: {e}")
         raise
+
+
+def _wait_desktop(key: str, name: str, url: str, check=None) -> str:
+    """Anmeldefenster in der Windows-App: Auftrag an den Fenster-Agenten, dann auf Cookies warten, bis die
+    Hochschule angemeldet ist, das Fenster geschlossen wurde oder die Zeit um ist."""
+    from . import desktop_windows as dw
+    check = check or check_cookies                 # zur Laufzeit nachschlagen (Tests tauschen check_cookies aus)
+    w = dw.enqueue("login", url, "Anmeldung bei der Hochschule", _cookie_urls(key))
+    deadline = time.time() + TIMEOUT_S
+    seen = 0.0
+    try:
+        while time.time() < deadline:
+            cur = dw.wait_update(w.id, seen, 2.0)
+            if cur is None:
+                break
+            if cur.status == "closed":
+                _set(state="closed", message="Fenster geschlossen, nicht angemeldet.")
+                raise LoginRequired("Fenster geschlossen, ohne angemeldet zu sein.")
+            if cur.updated_at > seen:
+                seen = cur.updated_at
+                if cur.cookies and check(key, cur.cookies):
+                    save_session(name, cur.cookies)
+                    _set(state="ok", message="Angemeldet, Sitzung gemerkt.")
+                    dw.finish(w.id, "ok")
+                    return "angemeldet"
+        _set(state="timeout", message="Zeit abgelaufen, nicht angemeldet.")
+        dw.finish(w.id, "timeout")
+        raise LoginRequired("Zeit abgelaufen, ohne angemeldet zu sein.")
+    finally:
+        dw.finish(w.id)
 
 
 def _wait(ctx, name: str, url: str, check) -> str:

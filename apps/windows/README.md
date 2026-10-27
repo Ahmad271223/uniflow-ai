@@ -73,6 +73,21 @@ Dann steht die URL in der Zustandsdatei (oder: `pwsh apps/windows/scripts/check-
 Abfrage und Ende in einem). Für das Fenster braucht es Rust (`rustup`) und `npm install` in `apps/windows`,
 dann `npx tauri dev` (ohne Paket verbindet sich die Startseite mit `serve.py` auf Port 8765) oder `npx tauri build`.
 
+## Browserfenster in der App
+
+Seit 0.3.9 erscheinen Links („Im Stud.IP öffnen“, Fristen, Dienste) und das Anmeldefenster der Hochschule als Fenster
+der App (WebView2), nicht als Edge oder Chrome. Das Tauri-Fenster holt dafür beim Backend Aufträge ab
+(`GET /api/desktop/commands`, lange Abfrage; `app/desktop_windows.py`) und meldet den Zustand jedes Fensters zurück
+(`POST /api/desktop/windows/{id}/state`). Beim Anmeldefenster liefert es jede Sekunde die Cookies der Hochschul-Adressen;
+das Backend prüft damit die Anmeldung (`unilogin.check_cookies`: Stud.IP `users/me`, Learnweb `/my/`), merkt die Sitzung
+und lässt das Fenster schließen. Die Cookies des Fensters bleiben im WebView2-Profil der App (`EBWebView`), die
+Hochschule bleibt also meist bis zum Ablauf angemeldet. Ohne Fenster-Agent (serve.py am PC, ältere App) wie bisher:
+Systembrowser für Links, Chromium von Playwright für die Anmeldung. App-Fenster öffnen nur http(s).
+
+Noch offen: WebView2 bietet in diesem Fenster kein „Passwort speichern?“ an (das Chromium von Playwright tat das);
+dafür müsste die App die WebView2-Einstellung `IsPasswordAutosaveEnabled` setzen (webview2-com). Bis dahin tippt
+der Mensch das Hochschul-Passwort, wenn die Sitzung abgelaufen ist.
+
 ## Hochschul-Anmeldung ohne Passwort in der App
 
 Einstellungen → Zugang → „Im Browser anmelden“ öffnet das Anmeldefenster der Hochschule (sichtbares Chromium von

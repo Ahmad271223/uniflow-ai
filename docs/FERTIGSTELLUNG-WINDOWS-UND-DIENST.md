@@ -26,6 +26,8 @@ werden, und was muss der Inhaber noch beschaffen (Domain, Server, Mail, Konten)?
 | Fristen/Termine | nur ein Tooltip, nichts erklärt | Detailfenster mit Titel, Zeit, Kurs, ganzer Ankündigung und Link (0.3.5) |
 | Abgleich | keine Fortschrittsanzeige | „Kurs 3 von 20 …“, „Datei 12 von 158 herunterladen“ im Chip |
 | Zweiter Start | zweites Fenster mit zweitem Backend auf derselben Datenbank | Einzelinstanz-Plugin: Fenster kommt nach vorn (0.3.6) |
+| Datenverlust | „Anwendungsdaten löschen“ beim Deinstallieren leert den Datenordner (passiert am 27.10.) | Sicherungen nach `%LOCALAPPDATA%\UniFlow-Sicherungen` bei jedem Start (0.3.8) |
+| Fremde Browser | Links und Hochschul-Anmeldung öffneten Edge bzw. ein Chromium-Fenster | Fenster der App (WebView2), Cookies der Anmeldung vom App-Fenster (0.3.9) |
 | Tests unter Windows | `test_plan_names` las Node-Ausgabe als cp1252 | UTF-8 erzwungen; Suite unter Windows komplett grün |
 | GitHub Actions | Windows-Workflow brach immer vor dem Bauen ab (kein pytest); Android: `gradlew` ohne Ausführrecht | behoben; Windows-Installer und MSIX bauen seit heute |
 

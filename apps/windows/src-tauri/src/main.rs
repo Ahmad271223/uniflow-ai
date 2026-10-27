@@ -2,6 +2,11 @@
 //
 // Start: das Backend wird aus den Ressourcen gestartet (backend/uniflow-backend.exe) mit der eigenen Prozess-ID als
 // Elternprozess; es bindet einen freien Port auf 127.0.0.1 und schreibt ihn in %LOCALAPPDATA%\de.uniflow.desktop\backend.json.
+// Fenster-Agent: nach dem Start holt ein Thread beim Backend Auftraege ab (GET /api/desktop/commands, lange Abfrage)
+// und oeffnet dafuer eigene WebView-Fenster – Links („Im Stud.IP oeffnen“) und die Anmeldung bei der Hochschule
+// erscheinen so als Fenster der App, nicht als fremder Browser (app/desktop_windows.py). Beim Anmeldefenster meldet
+// der Agent jede Sekunde die Cookies der gewuenschten Hosts an das Backend, das die Anmeldung prueft; antwortet es
+// mit done, wird das Fenster geschlossen. Das Backend ist nur auf 127.0.0.1 erreichbar.
 // Datenordner (= identifier) und Programmordner (%LOCALAPPDATA%\UniFlow, = productName) sind getrennt, siehe app/desktop.py.
 // Die Datei gilt nur, wenn ihre `pid` die des gerade gestarteten Kindprozesses ist (keine alte Datei, kein fremder
 // Prozess) und ihre `url` genau http://127.0.0.1:<port>/ lautet; dann wechselt das Fenster von der Startseite
@@ -132,6 +137,149 @@ fn reachable(port: u16) -> bool {
     std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
 }
 
+/// Minimaler HTTP/1.1-Aufruf gegen das eigene Backend auf 127.0.0.1 (kein Zusatzpaket): JSON hin, JSON zurueck.
+/// None bei Verbindungsfehler oder Status ausserhalb 2xx; Some(Null) bei 204 oder leerem Koerper.
+fn backend_json(port: u16, method: &str, path: &str, body: Option<&serde_json::Value>, timeout: Duration) -> Option<serde_json::Value> {
+    use std::io::{Read, Write};
+    let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port));
+    let mut stream = std::net::TcpStream::connect_timeout(&addr, Duration::from_secs(3)).ok()?;
+    stream.set_read_timeout(Some(timeout)).ok()?;
+    let payload = body.map(|b| b.to_string()).unwrap_or_default();
+    let request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAccept: application/json\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+        payload.len()
+    );
+    stream.write_all(request.as_bytes()).ok()?;
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).ok()?;
+    let text = String::from_utf8_lossy(&raw);
+    let (head, rest) = text.split_once("\r\n\r\n")?;
+    let status: u16 = head.split_whitespace().nth(1)?.parse().ok()?;
+    if !(200..300).contains(&status) {
+        return None;
+    }
+    let chunked = head.to_ascii_lowercase().contains("transfer-encoding: chunked");
+    let body_text = if chunked { dechunk(rest) } else { rest.to_string() };
+    if status == 204 || body_text.trim().is_empty() {
+        return Some(serde_json::Value::Null);
+    }
+    serde_json::from_str(&body_text).ok()
+}
+
+/// Chunked-Koerper zusammensetzen (uvicorn schickt JSON normalerweise mit Content-Length; nur zur Sicherheit).
+fn dechunk(data: &str) -> String {
+    let mut out = String::new();
+    let mut rest = data;
+    loop {
+        let Some((size_line, after)) = rest.split_once("\r\n") else { break };
+        let size = usize::from_str_radix(size_line.trim().split(';').next().unwrap_or("0"), 16).unwrap_or(0);
+        if size == 0 || after.len() < size {
+            break;
+        }
+        out.push_str(&after[..size]);
+        rest = after[size..].strip_prefix("\r\n").unwrap_or("");
+    }
+    out
+}
+
+/// Nur http(s)-Adressen werden in App-Fenstern geoeffnet (und about:blank waehrend der Navigation).
+fn allowed_window_url(url: &tauri::Url) -> bool {
+    matches!(url.scheme(), "http" | "https" | "about")
+}
+
+fn cookie_json(c: &tauri::webview::Cookie<'_>) -> serde_json::Value {
+    serde_json::json!({
+        "name": c.name(), "value": c.value(),
+        "domain": c.domain().unwrap_or(""), "path": c.path().unwrap_or("/"),
+        "expires": c.expires_datetime().map(|d| d.unix_timestamp()),
+        "httpOnly": c.http_only().unwrap_or(false), "secure": c.secure().unwrap_or(false)
+    })
+}
+
+/// Fenster auf dem Hauptthread anlegen (WebviewWindowBuilder darf unter Windows nicht aus Ereignis-Handlern laufen).
+fn open_app_window(app: &tauri::AppHandle, label: &str, url: tauri::Url, title: &str) -> Result<(), String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let (app2, label2, title2) = (app.clone(), label.to_string(), title.to_string());
+    app.run_on_main_thread(move || {
+        let built = tauri::WebviewWindowBuilder::new(&app2, &label2, tauri::WebviewUrl::External(url))
+            .title(title2)
+            .inner_size(1000.0, 820.0)
+            .on_navigation(allowed_window_url)
+            .build()
+            .map(|_| ())
+            .map_err(|e| e.to_string());
+        let _ = tx.send(built);
+    })
+    .map_err(|e| e.to_string())?;
+    rx.recv_timeout(Duration::from_secs(15)).unwrap_or_else(|_| Err("Fenster nicht angelegt (Zeitueberschreitung)".into()))
+}
+
+/// Anmeldefenster begleiten: jede Sekunde Zustand und Cookies der gewuenschten Hosts melden, bis das Backend `done`
+/// sagt (dann schliessen) oder der Mensch das Fenster schliesst.
+fn track_login_window(app: tauri::AppHandle, port: u16, id: String, label: String, cookie_urls: Vec<tauri::Url>) {
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+        let Some(window) = app.get_webview_window(&label) else {
+            let _ = backend_json(port, "POST", &format!("/api/desktop/windows/{id}/state"),
+                                 Some(&serde_json::json!({"status": "closed"})), Duration::from_secs(10));
+            return;
+        };
+        let mut cookies = Vec::new();
+        for u in &cookie_urls {
+            if let Ok(list) = window.cookies_for_url(u.clone()) {
+                cookies.extend(list.iter().map(cookie_json));
+            }
+        }
+        let current = window.url().map(|u| u.to_string()).unwrap_or_default();
+        let body = serde_json::json!({"status": "open", "url": current, "cookies": cookies});
+        match backend_json(port, "POST", &format!("/api/desktop/windows/{id}/state"), Some(&body), Duration::from_secs(10)) {
+            Some(v) if v.get("done").and_then(|d| d.as_bool()) == Some(true) => {
+                let _ = window.close();
+                return;
+            }
+            Some(_) => {}
+            None => return,                          // Backend weg: nicht weiter melden, Fenster bleibt dem Menschen
+        }
+    }
+}
+
+fn handle_command(app: &tauri::AppHandle, port: u16, cmd: &serde_json::Value) {
+    let id = cmd.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let kind = cmd.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+    let title = cmd.get("title").and_then(|v| v.as_str()).unwrap_or("UniFlow").to_string();
+    let Some(url) = cmd.get("url").and_then(|v| v.as_str()).and_then(|u| tauri::Url::parse(u).ok()) else { return };
+    if id.is_empty() || !allowed_window_url(&url) || url.scheme() == "about" {
+        return;
+    }
+    let label = format!("win-{id}");
+    if let Err(e) = open_app_window(app, &label, url, &title) {
+        let _ = backend_json(port, "POST", &format!("/api/desktop/windows/{id}/state"),
+                             Some(&serde_json::json!({"status": "closed", "error": e})), Duration::from_secs(10));
+        return;
+    }
+    if kind == "login" {
+        let cookie_urls: Vec<tauri::Url> = cmd.get("cookie_urls").and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|u| u.as_str()).filter_map(|u| tauri::Url::parse(u).ok()).collect())
+            .unwrap_or_default();
+        let app2 = app.clone();
+        std::thread::spawn(move || track_login_window(app2, port, id, label, cookie_urls));
+    } else {
+        let _ = backend_json(port, "POST", &format!("/api/desktop/windows/{id}/state"),
+                             Some(&serde_json::json!({"status": "open"})), Duration::from_secs(10));
+    }
+}
+
+/// Auftraege des Backends abholen (lange Abfrage), solange die App laeuft.
+fn window_agent(app: tauri::AppHandle, port: u16) {
+    loop {
+        match backend_json(port, "GET", "/api/desktop/commands?wait=25", None, Duration::from_secs(45)) {
+            None => std::thread::sleep(Duration::from_secs(2)),          // Backend nicht erreichbar: spaeter erneut
+            Some(serde_json::Value::Null) => {}                            // nichts zu tun
+            Some(cmd) => handle_command(&app, port, &cmd),
+        }
+    }
+}
+
 fn set_message(window: &tauri::WebviewWindow, text: &str) {
     let js = format!(
         "(function(){{var m=document.getElementById('msg');if(m)m.textContent={};}})()",
@@ -166,12 +314,16 @@ fn main() {
                             *backend.lock().unwrap() = Some(child);
                             let win = window.clone();
                             let state_path = state.clone();
+                            let handle = app.handle().clone();
                             std::thread::spawn(move || {
                                 set_message(&win, "UniFlow startet …");
                                 match wait_for_url(&state_path, &backend, started, Duration::from_secs(90)) {
                                     Ok(url) => {
                                         if let Ok(parsed) = tauri::Url::parse(&url) {
                                             let _ = win.navigate(parsed);
+                                        }
+                                        if let Some(port) = local_port(&url) {
+                                            std::thread::spawn(move || window_agent(handle, port));
                                         }
                                     }
                                     Err(text) => set_message(&win, &text),
@@ -204,6 +356,19 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dechunk_joins_chunks() {
+        assert_eq!(dechunk("5\r\nhello\r\n0\r\n\r\n"), "hello");
+        assert_eq!(dechunk("2\r\n{}\r\n0\r\n\r\n"), "{}");
+    }
+
+    #[test]
+    fn app_windows_open_only_http() {
+        assert!(allowed_window_url(&tauri::Url::parse("https://studip.uni-hannover.de/x").unwrap()));
+        assert!(!allowed_window_url(&tauri::Url::parse("file:///C:/x").unwrap()));
+        assert!(!allowed_window_url(&tauri::Url::parse("javascript:alert(1)").unwrap()));
+    }
 
     #[test]
     fn local_port_accepts_only_loopback_http() {

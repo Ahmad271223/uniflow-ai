@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault
+from . import account_api, accounts, billing_api, colors, community_api, config, db, demo, desktop_windows, entitlements, filestream, jobs, legal, library_api, mail, planner, progress, retention, social_login, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -2152,27 +2152,55 @@ def external_url(u) -> str | None:
     return u
 
 
-@app.get("/api/desktop")
-def api_desktop():
-    """Laeuft die Oberflaeche in der Windows-App? Dann oeffnet sie Links in ein neues Fenster ueber /api/desktop/open."""
-    return {"desktop": _desktop_mode()}
-
-
-@app.post("/api/desktop/open")
-def api_desktop_open(request: Request, body: dict = Body(...)):
-    """Link im Standardbrowser oeffnen (Windows-App: das Tauri-Fenster blockiert target="_blank" und window.open still,
-    z. B. „Im Stud.IP öffnen“). Nur in der Windows-App, nur vom eigenen Rechner, nur http(s)."""
+def _desktop_only(request: Request) -> None:
     if not _desktop_mode():
         raise HTTPException(404, "Nur in der Windows-App")
     if (request.client.host if request.client else "") not in ("127.0.0.1", "::1"):
         raise HTTPException(403, "Nur vom eigenen Rechner")
+
+
+@app.get("/api/desktop")
+def api_desktop():
+    """Laeuft die Oberflaeche in der Windows-App? Dann oeffnet sie Links in ein neues Fenster ueber /api/desktop/open;
+    `windows_agent`: das Tauri-Fenster holt Auftraege ab, Links und die Hochschul-Anmeldung erscheinen als Fenster der App."""
+    return {"desktop": _desktop_mode(), "windows_agent": _desktop_mode() and desktop_windows.agent_connected()}
+
+
+@app.post("/api/desktop/open")
+def api_desktop_open(request: Request, body: dict = Body(...)):
+    """Link oeffnen (Windows-App: das Tauri-Fenster blockiert target="_blank" und window.open still, z. B. „Im Stud.IP
+    öffnen“): als Fenster der App, wenn der Fenster-Agent verbunden ist, sonst im Standardbrowser. Nur in der
+    Windows-App, nur vom eigenen Rechner, nur http(s)."""
+    _desktop_only(request)
     url = external_url(body.get("url"))
     if not url:
         raise HTTPException(400, "Nur http- und https-Adressen")
+    if desktop_windows.agent_connected():
+        from urllib.parse import urlsplit
+        w = desktop_windows.enqueue("open", url, urlsplit(url).hostname or "UniFlow")
+        return {"opened": True, "window": w.id, "in_app": True}
     import webbrowser
     if not webbrowser.open(url, new=2):
         raise HTTPException(500, "Kein Browser gefunden")
-    return {"opened": True}
+    return {"opened": True, "in_app": False}
+
+
+@app.get("/api/desktop/commands")
+def api_desktop_commands(request: Request, wait: float = Query(default=25, ge=0, le=30)):
+    """Fenster-Agent des Tauri-Fensters: naechster Auftrag (open | login), lange Abfrage; 204 = nichts."""
+    _desktop_only(request)
+    cmd = desktop_windows.next_command(wait)
+    if cmd is None:
+        return Response(status_code=204)
+    return cmd
+
+
+@app.post("/api/desktop/windows/{window_id}/state")
+def api_desktop_window_state(window_id: str, request: Request, body: dict = Body(...)):
+    """Zustand eines App-Fensters (offen/geschlossen, Adresse, Cookies der gewuenschten Hosts); Antwort `done` =
+    Fenster schliessen. Cookies gehen nie in eine Antwort und nie ins Protokoll."""
+    _desktop_only(request)
+    return desktop_windows.report(window_id, body.get("status"), body.get("url"), body.get("cookies"))
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

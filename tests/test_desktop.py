@@ -168,20 +168,22 @@ def test_desktop_opens_new_window_links_in_the_default_browser(app, monkeypatch)
     Dort öffnet der lokale Dienst solche Links im Standardbrowser – nur in der Windows-App, nur vom eigenen Rechner,
     nur http(s)."""
     import webbrowser
+    from app import desktop_windows
+    desktop_windows.reset()                                   # kein Fenster-Agent: Links gehen in den Systembrowser
     opened = []
     monkeypatch.setattr(webbrowser, "open", lambda url, new=0: opened.append(url) or True)
     post = lambda url, client=("127.0.0.1", 5000): asgi_call(app, "POST", "/api/desktop/open", client=client, body=json.dumps({"url": url}))
 
     monkeypatch.delenv("LERNAPP_DESKTOP", raising=False)
     status, _, body = asgi_call(app, "GET", "/api/desktop")
-    assert status == 200 and json.loads(body) == {"desktop": False}
+    assert status == 200 and json.loads(body) == {"desktop": False, "windows_agent": False}
     assert post("https://studip.uni-hannover.de/dispatch.php/course/overview?cid=x")[0] == 404, "im Browser und im Dienst gibt es das nicht"
 
     monkeypatch.setenv("LERNAPP_DESKTOP", "1")
-    assert json.loads(asgi_call(app, "GET", "/api/desktop")[2]) == {"desktop": True}
+    assert json.loads(asgi_call(app, "GET", "/api/desktop")[2]) == {"desktop": True, "windows_agent": False}
     url = "https://studip.uni-hannover.de/dispatch.php/course/overview?cid=abc&x=1"
     status, _, body = post(url)
-    assert status == 200 and json.loads(body) == {"opened": True} and opened == [url]
+    assert status == 200 and json.loads(body) == {"opened": True, "in_app": False} and opened == [url]
     for bad in ("javascript:alert(1)", "file:///C:/Windows/System32/calc.exe", "ms-settings:", "https://", "http://x\nexample.org", "", None, 42):
         assert post(bad)[0] == 400, bad
     assert post(url, client=("192.168.0.20", 5000))[0] in (401, 403), "andere Geraete: schon die PIN-Pruefung oder hier abgewiesen"
