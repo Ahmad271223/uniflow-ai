@@ -461,3 +461,26 @@ Fingerabdruck (`content_sha256`) und Seitentext. Für euch relevant, sobald der 
 /api/files/{id}/fingerprint` → `{sha256}` den Community-Schlüssel vom Dienst, falls er ihn noch nicht kennt – oder
 ihr rechnet ihn wie bisher lokal. Fehlercodes beim Durchreichen: 409 `university_session_expired`, 502
 `university_login_failed`, 413 `too_large`. Der PC-Modus und eure lokale Ablage bleiben unverändert.
+
+## Nachtrag der PC-Sitzung: Hochschul-Anmeldung auf dem Gerät als gemeinsamer Vertrag (27.10.2026)
+
+Für Android bauen wir die Hochschul-Anmeldung in der App (WebView) und den Download direkt aufs Gerät – also das, was
+euer iPad schon macht. Damit beide Geräte dieselben Regeln haben, gibt es jetzt `packages/shared-contracts/fixtures/
+learnweb/launch.json` (aus `tools/gen-learnweb-fixture.py`): Anmeldeprofile je Hochschule (Startseite, Prüf-Adresse,
+Sitzungscookie, erlaubte Hosts, Learnweb-Adresse, CAS), die Moodle-App-Anmeldung (`launch.php`-Startadresse,
+Rückleitung `<scheme>://token=<base64(md5(base+passport) ':::' token [':::' privat])>` mit Signaturprüfung und
+URL-sicherem Base64), der Download mit Schlüssel (POST-Formular, Schlüssel nie in der Adresse), die Cookie-Kopfzeile
+(Domain-Suffix, abgelaufene weg) und die Erkennung „Anmeldeseite statt Datei“. Bitte eure `MoodleSSO`/`LearnwebAPI`/
+`UniversityProfile` einmal dagegen prüfen (Test wie bei den anderen Fixtures) – Abweichungen bitte melden, dann
+gleichen wir die Referenz oder Kotlin an. Der Dienst liefert das Profil des Kontos auch unter `GET /api/university/profile`.
+
+## Nachtrag der PC-Sitzung: Seitenformate A6–A2 und große Whiteboards (27.10.2026)
+
+Vorgabe des Inhabers: alle Vorlagen (Leer, Liniert, Kariert, Gepunktet, Millimeter, Cornell) in A6, A5, A4, A3, A2
+(hoch und quer) sowie Whiteboards bis A0 quer (3370 × 2384 pt). Im Notizformat ändert sich nichts – Notizseiten
+tragen weiter `w`/`h` in PDF-Punkten im `pageOrder`-Eintrag; neu ist nur, dass diese Werte jetzt auch jenseits von
+595 × 842 bzw. 842 × 595 vorkommen (Grenzen 100–3400 pt je Seite, `app/static/formats.js`, Server prüft gleich).
+Bitte prüfen, dass euer Renderer (PageOrder/DisplayLayout, PencilKit-Canvas) beliebige `w`/`h` in diesem Bereich
+darstellt und beim Anlegen von Seiten dieselben Formate anbietet; sehr große Seiten (A1/A0 quer) brauchen auf dem
+iPad ggf. gekachelte Darstellung. Zweite Änderung nur im Web: beim Tippen in ein Textfeld schalteten Kurzbefehle das
+Werkzeug um (Textfeld verlor nach dem pointerdown den Fokus) – behoben in `editor.js`.

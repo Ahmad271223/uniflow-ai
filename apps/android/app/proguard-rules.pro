@@ -9,3 +9,7 @@
 -dontwarn javax.annotation.**
 -dontwarn javax.annotation.concurrent.**
 # PdfRenderer und Verschluesselung der Einstellungen sind Plattformklassen; nichts weiter noetig
+# PdfBox-Android (Seitentext) verweist auf optionale Bibliotheken (BouncyCastle fuer verschluesselte PDFs, JPX-Decoder),
+# die nicht mitgeliefert werden; solche PDFs ergeben nur leeren Seitentext
+-dontwarn org.bouncycastle.**
+-dontwarn com.gemalto.jp2.**

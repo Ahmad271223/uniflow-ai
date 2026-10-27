@@ -29,6 +29,7 @@ import de.uniflow.android.ui.screens.HomeScreen
 import de.uniflow.android.ui.screens.LibraryScreen
 import de.uniflow.android.ui.screens.LoginScreen
 import de.uniflow.android.ui.screens.TimetableScreen
+import de.uniflow.android.ui.screens.UniversityLoginRoute
 
 private data class Tab(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
@@ -50,7 +51,7 @@ fun UniFlowApp(session: Session, repo: Repo) {
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route ?: "home"
     Scaffold(bottomBar = {
-        if (!route.startsWith("doc/")) NavigationBar {
+        if (!route.startsWith("doc/") && route != "uni-login") NavigationBar {
             tabs.forEach { t ->
                 NavigationBarItem(selected = route == t.route, onClick = {
                     nav.navigate(t.route) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true }
@@ -59,7 +60,12 @@ fun UniFlowApp(session: Session, repo: Repo) {
         }
     }) { padding ->
         NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding)) {
-            composable("home") { HomeScreen(repo, onLogout = { loggedIn = false }, onOpenLibrary = { nav.navigate("library") }) }
+            composable("home") {
+                HomeScreen(repo, onLogout = { loggedIn = false }, onOpenLibrary = { nav.navigate("library") },
+                    onUniversityLogin = { nav.navigate("uni-login") })
+            }
+            // Hochschul-Anmeldung in der WebView; zurueck zur Uebersicht, die den Stand der Sitzung neu laedt
+            composable("uni-login") { UniversityLoginRoute(repo, onDone = { nav.popBackStack() }) }
             composable("library") { LibraryScreen(repo, onOpen = { nav.navigate("doc/${it.id}") }) }
             composable("timetable") { TimetableScreen(repo) }
             composable("calendar") { CalendarScreen(repo) }

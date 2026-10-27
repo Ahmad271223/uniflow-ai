@@ -1,7 +1,9 @@
 package de.uniflow.android
 
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /** Datumshilfen der Oberflaeche (reines Kotlin, im JVM-Test pruefbar). */
@@ -24,4 +26,8 @@ object Dates {
     }
 
     fun minutes(m: Int): String = if (m >= 60) "${m / 60} h" + (if (m % 60 != 0) " ${m % 60} min" else "") else "$m min"
+
+    /** Zeitpunkt in Sekunden seit 1970 als "27.10.2026, 14:03" in der Zeitzone des Geraets. */
+    fun dateTime(epochSeconds: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+        Instant.ofEpochSecond(epochSeconds).atZone(zone).format(DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm"))
 }
