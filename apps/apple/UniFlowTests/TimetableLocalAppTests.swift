@@ -110,7 +110,8 @@ final class TimetableLocalAppTests: XCTestCase {
         XCTAssertEqual(progress, ["Stundenplan wird geladen …"])
         XCTAssertEqual(out.result, StudIPScheduleResult(newEvents: 8, pendingGroups: 3, cycles: 8, events: 7))
         // ohne users/{id}/events.ics (404 wie eine alte Stud.IP-Fassung): bisherige Regel mit Hinweis
-        XCTAssertEqual(out.summary, ["8 Stundenplan-Termine", "Übungsgruppen zur Auswahl im Stundenplan", "Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt"])
+        // Fixture: ein Termin ohne Kennung, ein eigener Eintrag ohne Uhrzeit (Pruefbericht 382, 421): genannt, nie still verworfen
+        XCTAssertEqual(out.summary, ["8 Stundenplan-Termine", "Übungsgruppen zur Auswahl im Stundenplan", "Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt", "2 Stundenplan-Einträge aus Stud.IP nicht lesbar"])
         XCTAssertTrue(transport.requested.allSatisfy { !$0.contains("/files") && !$0.contains("/folders") }, "nur Stundenplan-Abfragen")
 
         // Woche nach der Zeitumstellung aus dem lokalen Backend, wie TimetableView.load()
@@ -130,7 +131,7 @@ final class TimetableLocalAppTests: XCTestCase {
         // zweiter Abgleich: nichts doppelt
         let again = await StudIPScheduleSync(host: h).run(client: try studIP().0, userID: "u-test", courses: Self.courses)
         XCTAssertEqual(again.result?.newEvents, 0)
-        XCTAssertEqual(again.summary, ["Übungsgruppen zur Auswahl im Stundenplan", "Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt"])
+        XCTAssertEqual(again.summary, ["Übungsgruppen zur Auswahl im Stundenplan", "Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt", "2 Stundenplan-Einträge aus Stud.IP nicht lesbar"])
         let events = try await api.value("/api/timetable/events").items
         XCTAssertEqual(events.count, 8)
     }
@@ -211,7 +212,7 @@ final class TimetableLocalAppTests: XCTestCase {
 
         let again = await StudIPScheduleSync(host: h).run(client: try studIP().0, userID: "u-test", courses: Self.courses)
         XCTAssertEqual(again.result?.newEvents, 0)
-        XCTAssertEqual(again.summary, ["Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt"], "Gruppe gewählt: kein Gruppenhinweis mehr")
+        XCTAssertEqual(again.summary, ["Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt", "2 Stundenplan-Einträge aus Stud.IP nicht lesbar"], "Gruppe gewählt: kein Gruppenhinweis mehr")
         let status = try await api.value("/api/timetable/auto-status")
         XCTAssertEqual(status.i("pending_groups"), 0)
     }

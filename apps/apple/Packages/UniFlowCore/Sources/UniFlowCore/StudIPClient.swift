@@ -191,7 +191,10 @@ public actor StudIPClient {
         do { return try JSONValue.parse(r.body) } catch { throw StudIPError.badResponse("kein JSON (\(Self.scrub(pathOrLink)))") }
     }
 
-    /// Alle Seiten einer Liste (JSON:API `links.next`); `included` wird mitgesammelt.
+    /// Alle Seiten einer Liste (JSON:API `links.next`); `included` wird mitgesammelt. Jede Seite braucht eine Liste
+    /// `data` (JSON:API fuer Sammlungen): eine Antwort mit HTTP 200 ohne diese Liste ist kein leerer Bestand, sondern
+    /// unbrauchbar. Sie gilt als Fehler wie eine gescheiterte Folgeseite, damit Aufrufer, die den Bestand ersetzen
+    /// (Stundenplan, Dateien eines Kurses), das Gespeicherte stehen lassen.
     func list(_ path: String) async throws -> (data: [JSONValue], included: [JSONValue]) {
         var data: [JSONValue] = [], included: [JSONValue] = []
         var next: String? = path
@@ -199,7 +202,8 @@ public actor StudIPClient {
         while let n = next, !seen.contains(n) {
             seen.insert(n)
             let j = try await json(n)
-            data += j["data"]?.array ?? []
+            guard let page = j["data"]?.array else { throw StudIPError.badResponse("Antwort ohne Liste (\(Self.scrub(n)))") }
+            data += page
             included += j["included"]?.array ?? []
             next = j["links"]?["next"]?.string
         }
@@ -208,13 +212,15 @@ public actor StudIPClient {
 
     /// Eigener Kalender als iCalendar (users/{id}/events.ics, kein JSON:API): die Veranstaltungstermine, die Stud.IP
     /// dem Nutzer selbst zeigt (StudIPCalendar). Eine Anmeldeseite statt des Kalenders heisst wie bei der JSON:API:
-    /// Sitzung abgelaufen; alles ohne VCALENDAR ist keine gueltige Antwort.
+    /// Sitzung abgelaufen; alles ohne VCALENDAR ist keine gueltige Antwort, ebenso ein abgeschnittener Kalender ohne
+    /// END:VCALENDAR (sonst fehlten die restlichen Termine und ihre Kurszeiten galten als "nicht im Kalender").
     public func calendarICS(userID: String) async throws -> String {
         let path = "jsonapi.php/v1/users/\(userID)/events.ics"
         let r = try await send(path, accept: "text/calendar")
         if r.contentType.lowercased().contains("text/html") { throw StudIPError.sessionExpired }
         let text = String(decoding: r.body, as: UTF8.self)
         guard text.contains("BEGIN:VCALENDAR") else { throw StudIPError.badResponse("kein Kalender (\(Self.scrub(path)))") }
+        guard text.contains("END:VCALENDAR") else { throw StudIPError.badResponse("Kalender unvollständig (\(Self.scrub(path)))") }
         return text
     }
 

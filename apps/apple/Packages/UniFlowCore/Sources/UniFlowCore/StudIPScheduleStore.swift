@@ -7,7 +7,10 @@ import Foundation
 // angelegt wird. LocalTimetableImport.studipEntries nutzt sie anstelle der aus Einzelterminen abgeleiteten Serien.
 //
 // Abruf und Speichern sind getrennt: erst alles laden (Netzwerk), dann in einer Transaktion schreiben (kein await
-// in der Transaktion, siehe SQLiteDatabase). Was nicht geladen werden konnte, bleibt wie zuletzt gespeichert.
+// in der Transaktion, siehe SQLiteDatabase). Was nicht geladen werden konnte, bleibt wie zuletzt gespeichert; ebenso
+// jeder gelieferte Eintrag, der sich nicht lesen laesst (HTTP 200 ist noch kein gueltiger Datensatz). Anders als am PC
+// (store_events/store_schedule_entries schreiben nur dazu) ersetzt das Geraet seine Abbilder, damit in Stud.IP
+// Entferntes verschwindet; entfernt wird deshalb nur, was eine vollstaendig lesbare Antwort nicht mehr enthaelt.
 
 /// Einzeltermin eines Kurses (course-events) wie fetch_events in app/studip_sync.py.
 public struct StudIPCourseEvent: Sendable, Equatable {
@@ -31,28 +34,62 @@ public struct StudIPCourseEvent: Sendable, Equatable {
 
     /// `data` von courses/{id}/events; abgesagte Termine (`is-cancelled`) fehlen wie auf dem PC
     public static func parse(_ data: [JSONValue], courseID: String) -> [StudIPCourseEvent] {
-        data.compactMap { e in
-            guard let id = e["id"]?.string else { return nil }
+        read(data, courseID: courseID).events
+    }
+
+    /// Gelesene Einzeltermine eines Kurses und was sich nicht lesen liess. Lesbar ist ein Termin mit Kennung und
+    /// Beginn/Ende als Datum mit Uhrzeit; abgesagte zaehlen nicht (sie fehlen wie auf dem PC). Doppelte Kennungen
+    /// (z. B. Ueberlappung zweier Seiten) zaehlen einmal.
+    public struct Read: Sendable, Equatable {
+        public var events: [StudIPCourseEvent] = []
+        /// Kennungen, deren Termin sich nicht lesen liess: ihr gespeicherter Stand bleibt
+        public var unreadableIDs: [String] = []
+        /// Eintraege ohne Kennung: die Antwort ist unvollstaendig, gespeicherte Termine werden nicht entfernt
+        public var withoutID = 0
+
+        public var unreadable: Int { unreadableIDs.count + withoutID }
+        public var complete: Bool { withoutID == 0 }
+    }
+
+    public static func read(_ data: [JSONValue], courseID: String) -> Read {
+        var out = Read()
+        var seen = Set<String>()
+        for e in data {
+            guard let id = e["id"]?.string, !id.isEmpty else { out.withoutID += 1; continue }
+            guard seen.insert(id).inserted else { continue }
             let a = e["attributes"]
-            if LocalModules.truthy(a?["is-cancelled"]) { return nil }
+            if LocalModules.truthy(a?["is-cancelled"]) { continue }
             func text(_ k: String) -> String { a?[k]?.string ?? "" }
+            let start = PyText.slice(text("start"), 0, 19), end = PyText.slice(text("end"), 0, 19)
+            guard LocalTimetableImport.isoDateTime(.string(start)) != nil, LocalTimetableImport.isoDateTime(.string(end)) != nil else {
+                out.unreadableIDs.append(id)
+                continue
+            }
             let room = text("location").split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
-            return StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: PyText.slice(text("start"), 0, 19),
-                                     end: PyText.slice(text("end"), 0, 19), room: PyText.strip(room))
+            out.events.append(StudIPCourseEvent(id: id, courseID: courseID, title: text("title"), start: start, end: end, room: PyText.strip(room)))
         }
+        return out
     }
 }
 
 extension StudIPClient {
     /// Einzeltermine eines Kurses (courses/{id}/events, alle Seiten). Nur lesend.
     public func courseEvents(courseID: String) async throws -> [StudIPCourseEvent] {
+        try await courseEventsRead(courseID: courseID).events
+    }
+
+    /// Einzeltermine eines Kurses mit dem, was sich nicht lesen liess (`StudIPCourseEvent.read`)
+    public func courseEventsRead(courseID: String) async throws -> StudIPCourseEvent.Read {
         let (data, _) = try await list("jsonapi.php/v1/courses/\(courseID)/events?page[limit]=200")
-        return StudIPCourseEvent.parse(data, courseID: courseID)
+        return StudIPCourseEvent.read(data, courseID: courseID)
     }
 
     /// Ankuendigungen (News) eines Kurses wie `fetch_news` (courses/{id}/news, eine Seite mit 100). Nur lesend.
+    /// Ohne Liste `data` (Antwort unbrauchbar) ein Fehler: der Bestand des Kurses bleibt, statt geloescht zu werden.
     public func courseNews(courseID: String) async throws -> [JSONValue] {
-        try await json("jsonapi.php/v1/courses/\(courseID)/news?page[limit]=100")["data"]?.array ?? []
+        let path = "jsonapi.php/v1/courses/\(courseID)/news?page[limit]=100"
+        guard let list = try await json(path)["data"]?.array else { throw StudIPError.badResponse("Antwort ohne Liste (\(Self.scrub(path)))") }
+        return list
     }
 
     /// Basis fuer Links in Ankuendigungen (STUDIP_BASE am PC, ohne "/" am Ende)
@@ -75,6 +112,15 @@ public struct StudIPScheduleDownload: Sendable {
     public var personal: [JSONValue]?
     /// Einzeltermine je Kurs, nur vollstaendig geladene Kurse
     public var events: [String: [StudIPCourseEvent]] = [:]
+    /// je Kurs: Kennungen geladener, aber nicht lesbarer Termine (ihr gespeicherter Stand bleibt)
+    public var keptEvents: [String: Set<String>] = [:]
+    /// Kurse mit Terminen ohne Kennung: Lesbares wird aktualisiert, Gespeichertes nicht entfernt
+    public var incompleteCourses: Set<String> = []
+    /// users/{id}/schedule enthielt Eintraege ohne Typ: weder Kurszeiten noch eigene Eintraege werden entfernt
+    public var scheduleIncomplete = false
+    /// Eintraege, die Stud.IP geliefert hat, die sich aber nicht lesen liessen (Termine, Kurszeiten, eigene
+    /// Eintraege ohne Kennung, Uhrzeit oder Kurs). Ihr gespeicherter Stand bleibt; die Zusammenfassung nennt die Zahl.
+    public var unreadable = 0
     /// Ankuendigungen (News) je Kurs, Rohdaten der JSON:API; fehlt ein Kurs, bleibt sein Bestand (wie `fetch_news` None)
     public var news: [String: [JSONValue]] = [:]
     /// Basis fuer Links in Ankuendigungen (STUDIP_BASE)
@@ -146,6 +192,11 @@ public enum StudIPScheduleStore {
             let r = try await client.scheduleResources(userID: userID)
             d.cycles = r.schedule.filter { $0["type"]?.string == "seminar-cycle-dates" }
             d.personal = r.schedule.filter { $0["type"]?.string == "schedule-entries" }
+            // ohne Typ laesst sich ein Eintrag keiner Tabelle zuordnen: nichts entfernen, was er sein koennte
+            let untyped = r.schedule.filter { $0["type"]?.string == nil }.count
+            if untyped > 0 { d.scheduleIncomplete = true }
+            d.unreadable += untyped + (d.cycles ?? []).filter { readableCycle($0) == nil }.count
+                + (d.personal ?? []).filter { readablePersonal($0) == nil }.count
             for c in r.courses {
                 if let id = c["id"]?.string, let t = StudIPSchedule.integer(c["attributes"]?["course-type"]) { d.courseTypes[id] = t }
             }
@@ -177,7 +228,11 @@ public enum StudIPScheduleStore {
         }
         for (i, c) in courses.enumerated() {
             do {
-                d.events[c.id] = try await client.courseEvents(courseID: c.id)
+                let read = try await client.courseEventsRead(courseID: c.id)
+                d.events[c.id] = read.events
+                if !read.unreadableIDs.isEmpty { d.keptEvents[c.id] = Set(read.unreadableIDs) }
+                if !read.complete { d.incompleteCourses.insert(c.id) }
+                d.unreadable += read.unreadable
             } catch StudIPError.sessionExpired {
                 d.sessionExpired = true
                 break
@@ -218,10 +273,20 @@ public enum StudIPScheduleStore {
         // anlegen bzw. Titel, Nummer, Semester aktualisieren; Fach und Art aus `UniRules.classify` nur, solange
         // sie fehlen (der Nutzer darf sie aendern). Ohne Art fiele ein Kurs aus studip_entries (kind != 'sonstiges').
         try StudIPLibrary.storeCourses(c, d.courses, startedAt: clock.nowISO)
-        // Einzeltermine je vollstaendig geladenem Kurs ersetzen (store_events; dort bleiben Veraltete stehen)
+        // Einzeltermine je vollstaendig geladenem Kurs ersetzen (store_events; dort bleiben Veraltete stehen). Was
+        // Stud.IP geliefert hat, das sich aber nicht lesen liess, bleibt wie gespeichert (Kennungen in `keptEvents`);
+        // mit Terminen ohne Kennung (Antwort unvollstaendig) wird nur aktualisiert, nichts entfernt. Fehlende Termine
+        // sind fuer den eigenen Kalender wichtig: ihre Kurszeiten gaelten sonst als "nicht im Kalender"
+        // (`StudIPCalendar.store`) und verschwaenden aus dem Stundenplan.
         var events = 0
         for (courseID, list) in d.events.sorted(by: { $0.key < $1.key }) {
-            try c.execute("DELETE FROM studip_events WHERE course_id=?", [.text(courseID)])
+            if !d.incompleteCourses.contains(courseID) {
+                let keep = Set(list.map(\.id)).union(d.keptEvents[courseID] ?? [])
+                for r in try c.rows("SELECT id FROM studip_events WHERE course_id=?", [.text(courseID)]) {
+                    guard let id = r["id"]?.string, !keep.contains(id) else { continue }
+                    try c.execute("DELETE FROM studip_events WHERE id=?", [.text(id)])
+                }
+            }
             for e in list {
                 try c.execute("""
                     INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)
@@ -230,17 +295,18 @@ public enum StudIPScheduleStore {
                 events += 1
             }
         }
-        // eigene Eintraege (store_schedule_entries): Wochentag 0 = Montag, Uhrzeiten als "HH:MM"
+        // eigene Eintraege (store_schedule_entries): Wochentag 0 = Montag, Uhrzeiten als "HH:MM". Entfernt wird nur,
+        // was Stud.IP nicht mehr liefert; ein gelieferter, aber nicht lesbarer Eintrag behaelt seinen Stand (HTTP 200
+        // ist noch kein gueltiger Datensatz), ein Eintrag ohne Kennung verhindert das Entfernen ganz.
         if let personal = d.personal {
-            try c.execute("DELETE FROM studip_schedule_entries")
+            try replaceKeepingUnreadable(c, table: "studip_schedule_entries", items: personal, complete: !d.scheduleIncomplete)
             for r in personal {
-                guard let id = r["id"]?.string, let a = r["attributes"], let wd = StudIPSchedule.studipWeekday(a["weekday"] ?? 1),
-                      let s = StudIPSchedule.minutes(a["start"]?.string), let e = StudIPSchedule.minutes(a["end"]?.string) else { continue }
+                guard let p = readablePersonal(r) else { continue }
                 try c.execute("""
                     INSERT INTO studip_schedule_entries(id, title, weekday, start, end, description, fetched_at) VALUES (?,?,?,?,?,?,?)
                     ON CONFLICT(id) DO UPDATE SET title=excluded.title, weekday=excluded.weekday, start=excluded.start, end=excluded.end, description=excluded.description, fetched_at=excluded.fetched_at
-                    """, [.text(id), .text(LocalTimetable.or(a["title"], "Termin").string ?? "Termin"), .integer(Int64(wd)),
-                          .text(LocalFreeWindows.mh(s)), .text(LocalFreeWindows.mh(e)), .text(a["description"]?.string ?? ""), now])
+                    """, [.text(p.id), .text(p.title), .integer(Int64(p.weekday)), .text(LocalFreeWindows.mh(p.start)),
+                          .text(LocalFreeWindows.mh(p.end)), .text(p.description), now])
             }
         }
         // Ankuendigungen je gelesenem Kurs (announcements.store mit course_ids=[c["id"]]: Geloeschtes verschwindet)
@@ -252,10 +318,9 @@ public enum StudIPScheduleStore {
         var cycles = 0
         if let list = d.cycles {
             try c.executeScript(cycleTable)
-            try c.execute("DELETE FROM studip_cycle_dates")
+            try replaceKeepingUnreadable(c, table: "studip_cycle_dates", items: list, complete: !d.scheduleIncomplete)
             for r in list {
-                let owner = r["relationships"]?["owner"]?["data"]
-                guard let id = r["id"]?.string, owner?["type"]?.string == "courses", let course = owner?["id"]?.string else { continue }
+                guard let (id, course) = readableCycle(r) else { continue }
                 try c.execute("INSERT OR REPLACE INTO studip_cycle_dates(id, course_id, course_type, data, fetched_at) VALUES (?,?,?,?,?)",
                               [.text(id), .text(course), SQLiteValue(d.courseTypes[course]), .text(r.jsonString(sortedKeys: true)), now])
                 cycles += 1
@@ -268,6 +333,39 @@ public enum StudIPScheduleStore {
         let open = (q["hidden"]?.array?.count ?? 0) + (q["busy"]?.array?.count ?? 0)
         return StudIPScheduleResult(newEvents: r.new, pendingGroups: r.pendingGroups, cycles: cycles, events: events,
                                     removedEvents: r.removed, openQuestions: open)
+    }
+
+    /// Vor dem Neuschreiben einer Tabelle (Kurszeiten, eigene Eintraege): Zeilen entfernen, deren Kennung Stud.IP
+    /// nicht mehr liefert. Zeilen mit gelieferter Kennung bleiben (lesbare werden danach ueberschrieben, nicht
+    /// lesbare behalten ihren Stand). Fehlt einem Eintrag die Kennung (`complete` false oder ein Eintrag ohne `id`),
+    /// wird nichts entfernt.
+    static func replaceKeepingUnreadable(_ c: SQLiteConnection, table: String, items: [JSONValue], complete: Bool) throws {
+        var present = Set<String>()
+        for r in items {
+            guard let id = r["id"]?.string, !id.isEmpty else { return }
+            present.insert(id)
+        }
+        guard complete else { return }
+        for r in try c.rows("SELECT id FROM \(table)") {
+            guard let id = r["id"]?.string, !present.contains(id) else { continue }
+            try c.execute("DELETE FROM \(table) WHERE id=?", [.text(id)])
+        }
+    }
+
+    /// Kurszeit, die sich lesen laesst: Kennung, Kurs als Eigentuemer, Wochentag und Uhrzeiten wie
+    /// `StudIPSchedule.cycleEntry` sie braucht; sonst nil
+    static func readableCycle(_ r: JSONValue) -> (id: String, course: String)? {
+        let owner = r["relationships"]?["owner"]?["data"]
+        guard let id = r["id"]?.string, !id.isEmpty, owner?["type"]?.string == "courses", let course = owner?["id"]?.string,
+              StudIPSchedule.cycleEntry(r, courses: [:], courseTypes: [:]) != nil else { return nil }
+        return (id, course)
+    }
+
+    /// Eigener Stundenplan-Eintrag, der sich lesen laesst (Kennung, Wochentag, Beginn und Ende); sonst nil
+    static func readablePersonal(_ r: JSONValue) -> (id: String, title: String, weekday: Int, start: Int, end: Int, description: String)? {
+        guard let id = r["id"]?.string, !id.isEmpty, let a = r["attributes"], let wd = StudIPSchedule.studipWeekday(a["weekday"] ?? 1),
+              let s = StudIPSchedule.minutes(a["start"]?.string), let e = StudIPSchedule.minutes(a["end"]?.string) else { return nil }
+        return (id, LocalTimetable.or(a["title"], "Termin").string ?? "Termin", wd, s, e, a["description"]?.string ?? "")
     }
 
     // MARK: Lesen

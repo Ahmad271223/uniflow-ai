@@ -35,6 +35,8 @@ struct StudIPScheduleSync {
         var unreachable = false
         /// eigener Stud.IP-Kalender nicht gelesen (oder ohne Veranstaltungstermine): Gruppen nicht sicher bekannt
         var calendarFailed = false
+        /// geliefert, aber nicht lesbar (ohne Kennung, Uhrzeit oder Kurs); ihr bisheriger Stand bleibt
+        var unreadable = 0
 
         /// Teile fuer die Zusammenfassung des Abgleichs (wie `message += ", N Stundenplan-Termine"` in run_sync).
         /// Gruppen, aus denen schon gewaehlt ist, zaehlen nicht (StudIPScheduleImport.openGroups).
@@ -64,6 +66,10 @@ struct StudIPScheduleSync {
                 }
                 if failedCourses > 0 { parts.append("Termine von \(failedCourses) \(failedCourses == 1 ? "Kurs" : "Kursen") nicht geladen") }
             }
+            // ein Teilerfolg ist nie "vollstaendig": nicht lesbare Eintraege nennen (auch nach einem spaeteren Abbruch)
+            if unreadable > 0 {
+                parts.append("\(unreadable) \(unreadable == 1 ? "Stundenplan-Eintrag" : "Stundenplan-Einträge") aus Stud.IP nicht lesbar")
+            }
             return parts
         }
     }
@@ -76,7 +82,7 @@ struct StudIPScheduleSync {
         let download = await StudIPScheduleStore.fetch(client: client, userID: userID, courses: courses)
         var out = Outcome(failedCourses: download.failedCourses.count, sessionExpired: download.sessionExpired,
                           scheduleFailed: download.scheduleError != nil, unreachable: download.unreachable,
-                          calendarFailed: download.calendarError != nil)
+                          calendarFailed: download.calendarError != nil, unreadable: download.unreadable)
         do {
             let backend = try await host.backend()
             let clock = backend.context.clock
