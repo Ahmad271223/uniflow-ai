@@ -168,16 +168,6 @@ SAMPLES: dict[str, dict] = {
     "POST /api/files/{}/versions/seen": {"path": "/api/files/f1/versions/seen", "python": False,
                                          "expect": {"status": 200, "type": "object", "keys": ["ok"],
                                                     "reason": "nur auf dem Geraet (FileVersionEndpoints)"}},
-    # Fragen aus dem Stud.IP-Kalender (users/{id}/events.ics) gibt es nur auf dem Geraet; ohne Kalender keine Frage
-    "GET /api/timetable/studip-questions": {"path": "/api/timetable/studip-questions", "python": False,
-                                            "expect": {"status": 200, "type": "object", "keys": ["busy", "hidden"],
-                                                       "reason": "nur auf dem Geraet (StudIPCalendar)"}},
-    "POST /api/timetable/studip-questions/course": {"path": "/api/timetable/studip-questions/course", "python": False,
-                                                    "body": {"course_id": "c1", "include": True},
-                                                    "expect": {"status": 404, "reason": "nur auf dem Geraet; ohne offene Frage 404"}},
-    "POST /api/timetable/studip-questions/times": {"path": "/api/timetable/studip-questions/times", "python": False,
-                                                   "body": {"course_id": "c1", "attend": []},
-                                                   "expect": {"status": 404, "reason": "nur auf dem Geraet; ohne offene Frage 404"}},
 }
 
 
