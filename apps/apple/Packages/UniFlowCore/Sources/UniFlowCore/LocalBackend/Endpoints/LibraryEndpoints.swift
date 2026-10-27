@@ -70,9 +70,32 @@ public enum LibraryEndpoints: LocalEndpointModule {
         router.patch("/api/library/files/{file_id}") { req, ctx in try await patchLibraryFile(req, ctx) }
     }
 
+    /// Grenzen einer Notizseite in PDF-Punkten (`PAGE_MIN_PT`, `PAGE_MAX_PT` in app/server.py, wie formats.js):
+    /// A6 (298 x 420) bis Whiteboard A0 quer (3370 x 2384)
+    public static let pageMinPT = 100, pageMaxPT = 3400
+
+    /// `x: int = Form(default=0)` wie FastAPI/pydantic: leeres Feld = Standardwert, Leerraum, Vorzeichen, Unterstriche
+    /// und ein Nachkommateil aus Nullen ("595.0") gelten, sonst 422 `int_parsing` (vor dem Aufruf, also vor uuid4)
+    static func formInt(_ form: MultipartForm, _ key: String, default value: Int = 0) throws -> Int {
+        guard let raw = form.fields[key], !raw.isEmpty else { return value }
+        var t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let dot = t.firstIndex(of: ".") {
+            let frac = t[t.index(after: dot)...]
+            if !frac.isEmpty, frac.allSatisfy({ $0 == "0" }) { t = String(t[..<dot]) }
+        }
+        guard let v = PyConvert.int(t) else {
+            throw LocalHTTPError.validation(type: "int_parsing", loc: ["body", key],
+                                            msg: "Input should be a valid integer, unable to parse string as an integer", input: .string(raw))
+        }
+        return v
+    }
+
     /// `POST /api/notebooks`: Notizbuch oder Whiteboard (leer, mit Vorlage) oder Import einer PDF bzw. eines Bilds.
+    /// `w`/`h`: Seitenformat der ersten Notizseite in PDF-Punkten (A6 ... A2, Whiteboards bis A0 quer), sonst A4 hoch
+    /// bzw. A4 quer; ausserhalb von `pageMinPT`...`pageMaxPT` 400 `format_invalid` (Stand 1ca6154).
     static func createNotebook(_ req: LocalRequest, _ ctx: LocalContext) async throws -> LocalResponse {
         let form = try req.multipart()
+        let w = try formInt(form, "w"), h = try formInt(form, "h")
         let fid = newDocumentID(ctx)                                            // wie Python vor allen Pruefungen
         // FastAPI: leeres Formularfeld = Standardwert
         func field(_ k: String, _ d: String) -> String {
@@ -84,6 +107,10 @@ public enum LibraryEndpoints: LocalEndpointModule {
         let moduleID = field("module_id", "")
         let folderID = field("folder_id", "")
         let template = field("template", "blank")
+        let bounds = pageMinPT...pageMaxPT
+        if kind == "notebook" || kind == "whiteboard", w != 0 || h != 0, !(bounds.contains(w) && bounds.contains(h)) {
+            return .json(["detail": .string("Seitenformat außerhalb von \(pageMinPT)–\(pageMaxPT) Punkten."), "code": "format_invalid"], status: 400)
+        }
         let folder: Int? = try folderID.isEmpty ? nil : LocalTerms.pyInt(.string(folderID), field: "folder_id")
         let module: Int? = try moduleID.isEmpty ? nil : LocalTerms.pyInt(.string(moduleID), field: "module_id")
         var local: String?
@@ -125,7 +152,8 @@ public enum LibraryEndpoints: LocalEndpointModule {
         ]
         var model: String?
         if kind == "notebook" || kind == "whiteboard" {
-            let size: [PyJSON.Member] = kind == "whiteboard" ? [.init("w", .int("842")), .init("h", .int("595"))] : [.init("w", .int("595")), .init("h", .int("842"))]
+            let size: [PyJSON.Member] = w != 0 && h != 0 ? [.init("w", .int(String(w))), .init("h", .int(String(h)))]
+                : kind == "whiteboard" ? [.init("w", .int("842")), .init("h", .int("595"))] : [.init("w", .int("595")), .init("h", .int("842"))]
             let page: [PyJSON.Member] = [.init("key", .string("b1")), .init("type", .string("blank")), .init("template", .string(template))] + size
             model = PyJSON.object([
                 .init("version", .int("2")), .init("zoom", .float(1.2)), .init("pages", .object([.init("b1", .object([.init("objects", .array([]))]))])),
