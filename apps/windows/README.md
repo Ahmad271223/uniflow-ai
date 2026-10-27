@@ -31,6 +31,12 @@
   hält ein altes Backend die Datenbank noch offen, startet es einmal mit dem alten Ordner. Jeder Startfehler endet mit
   Code 1 und einem Eintrag in `logs\backend.log` (oder `%TEMP%\uniflow-backend-start.log`), nie mit dem Fehlerfenster
   von PyInstaller.
+- **Sicherungen:** Beim Start sichert das Backend jede Datenbank nach `%LOCALAPPDATA%\UniFlow-Sicherungen`
+  (`lernapp-<Datum>.db`, höchstens alle 6 Stunden, die neuesten 10 bleiben; `desktop.backup_databases`). Der Ordner
+  liegt bewusst außerhalb von `de.uniflow.desktop`: Wer beim Deinstallieren „Anwendungsdaten löschen“ anhakt, verliert
+  den Datenordner (Kurse, Dateien, Notizen, Hochschul-Sitzung) – Befund 27.10.2026 –, die Sicherungen bleiben.
+  Wiederherstellen: App beenden, Sicherung nach `%LOCALAPPDATA%\de.uniflow.desktop\data\lernapp.db` kopieren, App
+  starten (Dateien und Hochschul-Sitzung kommen mit dem nächsten Abgleich wieder).
   Dieselbe Oberfläche, Datenbank und derselbe Abgleich wie `serve.py`; ein bestehender Datenordner im Projekt wird
   nicht übernommen (eigene Installation = eigener Datenordner).
 

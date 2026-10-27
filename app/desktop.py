@@ -268,6 +268,73 @@ def serve(args: argparse.Namespace, state_path: Path, log_path: Path) -> None:
             pass
 
 
+BACKUP_FOLDER = "UniFlow-Sicherungen"     # neben dem Datenordner in %LOCALAPPDATA%, ausserhalb des Ordners der App
+BACKUP_KEEP = 10
+BACKUP_MIN_HOURS = 6
+
+
+def backup_dir(base: Path) -> Path:
+    return base.parent / BACKUP_FOLDER
+
+
+def _backups_of(dest: Path, tag: str) -> list[tuple[float, Path]]:
+    """Sicherungen genau dieser Datenbank (Zeitpunkt aus dem Dateinamen, nicht aus dem Dateisystem), aelteste zuerst;
+    `lernapp` findet nicht die Dateien von `lernapp-hildesheim`."""
+    out = []
+    for p in dest.glob(f"{tag}-*.db"):
+        rest = p.name[len(tag) + 1:-3]
+        try:
+            out.append((time.mktime(time.strptime(rest, "%Y%m%d-%H%M%S")), p))
+        except ValueError:
+            continue                                         # andere Datenbank mit laengerem Namen oder fremde Datei
+    return sorted(out)
+
+
+def backup_databases(base: Path, now: float | None = None, keep: int = BACKUP_KEEP, min_hours: float = BACKUP_MIN_HOURS) -> list[Path]:
+    """Sicherung jeder Datenbank (data/lernapp.db, data/unis/<key>/lernapp.db) beim Start, hoechstens alle `min_hours`
+    Stunden, die neuesten `keep` je Datenbank bleiben (auch eine frisch angelegte: aeltere Sicherungen bleiben daneben). Ziel ist %LOCALAPPDATA%\\UniFlow-Sicherungen, bewusst ausserhalb
+    des Ordners der App: "Anwendungsdaten loeschen" beim Deinstallieren leert den Datenordner (Befund 27.10.2026),
+    die Sicherungen bleiben. Konsistent ueber die SQLite-Backup-API, auch waehrend das Backend laeuft.
+    Wiederherstellen: App beenden, die gewuenschte Sicherung nach data\\lernapp.db kopieren. Wirft nie."""
+    import sqlite3
+    out: list[Path] = []
+    t = time.time() if now is None else now
+    try:
+        data = base / "data"
+        sources = ([data / "lernapp.db"] if (data / "lernapp.db").is_file() else []) + sorted((data / "unis").glob("*/lernapp.db"))
+        dest = backup_dir(base)
+        for src in sources:
+            tag = "lernapp" if src.parent == data else f"lernapp-{src.parent.name}"
+            try:
+                ensure_dir(dest, attempts=2, wait_seconds=0.1)
+                existing = _backups_of(dest, tag)
+                if existing and t - existing[-1][0] < min_hours * 3600:
+                    continue
+                target = dest / f"{tag}-{time.strftime('%Y%m%d-%H%M%S', time.localtime(t))}.db"
+                tmp = target.with_suffix(".part")
+                s = sqlite3.connect(src.resolve().as_uri() + "?mode=ro", uri=True)     # file:///C:/... auch unter Windows
+                d = sqlite3.connect(str(tmp))
+                try:
+                    s.backup(d)
+                finally:
+                    d.close(); s.close()
+                os.replace(tmp, target)
+                out.append(target)
+                for _, old in _backups_of(dest, tag)[:-keep]:
+                    try:
+                        old.unlink(missing_ok=True)
+                    except OSError:
+                        pass                                 # gerade geoeffnet (Windows): beim naechsten Mal
+            except Exception:                                # noqa: BLE001 - eine Sicherung darf den Start nie verhindern
+                try:
+                    tmp.unlink(missing_ok=True)              # type: ignore[possibly-undefined]
+                except Exception:                            # noqa: BLE001
+                    pass
+    except Exception:                                        # noqa: BLE001
+        pass
+    return out
+
+
 def emergency_log(base: Path | None, text: str) -> None:
     """Letzter Ausweg vor dem Ende mit Code 1: ins Backend-Protokoll, sonst nach %TEMP%. Wirft nie (sonst zeigt
     PyInstaller wieder sein Fehlerfenster)."""
@@ -304,6 +371,8 @@ def _run(args: argparse.Namespace, base: Path) -> int:
     log_path = base / "logs" / "backend.log"
     ensure_dir(log_path.parent)
     redirect_std_streams(log_path)
+    for b in backup_databases(base):
+        log(log_path, f"Sicherung: {b}")
     try:
         serve(args, state_path, log_path)
     except Exception:                                        # ins Protokoll und Ende mit 1, statt PyInstallers Fehlerfenster

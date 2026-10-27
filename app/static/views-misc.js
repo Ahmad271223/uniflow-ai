@@ -293,6 +293,8 @@ export async function viewSettings(_, params, view) {
     $$("[data-theme]", view).forEach(b => b.onclick = () => { window.setTheme?.(b.dataset.theme); render(); });
     $("#sPen")?.addEventListener("change", async e => { await api("/settings", { method: "PUT", body: { pen_input: e.target.value } }); toast("Gespeichert"); });
     if ($("#ipadCard")) api("/network").then(net => {
+      // Antwort kann nach einem Neuaufbau der Ansicht (z. B. nach "Speichern") ankommen: dann gibt es die Elemente nicht mehr
+      if (!$("#lanBadge") || !$("#ipadBody")) return;
       $("#lanBadge").className = `badge ${net.lan ? "ok" : "warn"}`; $("#lanBadge").textContent = net.lan ? "WLAN-Zugriff aktiv" : "nur auf diesem PC";
       $("#ipadBody").className = "small"; $("#ipadBody").innerHTML = `
         <ol style="padding-left:1.2rem;margin:.2rem 0 .6rem;display:grid;gap:.45rem">
@@ -303,7 +305,7 @@ export async function viewSettings(_, params, view) {
           <li>Safari → Teilen-Symbol → <b>„Zum Home-Bildschirm“</b>: Die App startet dann im Vollbild wie eine echte iPad-App. Apple Pencil schreibt direkt im Editor (Einstellung „Nur Stift schreibt“ unter Stift & Touch).</li>
         </ol>
         <div class="card flat" style="background:var(--warn-soft);border-color:transparent"><b>${icon("alert", 14)} Im Uni-WLAN (eduroam)</b> sehen sich Geräte meist nicht. Dann am PC den <b>Mobilen Hotspot</b> einschalten (Windows-Einstellungen → Netzwerk → Mobiler Hotspot) und das iPad damit verbinden. Die Adresse ist dann in der Regel <b>http://192.168.137.1:${net.port}</b>.</div>`;
-    }).catch(() => { $("#ipadBody").textContent = "Netzwerkinfo nicht verfügbar."; });
+    }).catch(() => { const b = $("#ipadBody"); if (b) b.textContent = "Netzwerkinfo nicht verfügbar."; });
     $$("[data-hand]", view).forEach(b => b.onclick = async () => { await api("/settings", { method: "PUT", body: { hand: b.dataset.hand } }); s.hand = b.dataset.hand; toast("Schreibhand gespeichert"); render(); });
     $("#sNameOk")?.addEventListener("click", async () => { await api("/settings", { method: "PUT", body: { user_name: $("#sName").value } }); toast("Gespeichert"); location.reload(); });
     $("#diagCopy")?.addEventListener("click", () => { navigator.clipboard?.writeText($("#diagText").textContent).then(() => toast("Diagnose kopiert")); });

@@ -117,6 +117,31 @@ def test_ensure_dir_retries_when_folder_is_briefly_unavailable(tmp_path, monkeyp
         desktop.ensure_dir(blocker, wait_seconds=0)
 
 
+def test_backup_databases_outside_the_app_folder(tmp_path):
+    """Sicherung beim Start neben den Datenordner (ausserhalb des Ordners, den "Anwendungsdaten loeschen" leert),
+    hoechstens alle 6 Stunden, die neuesten 10 bleiben, jede Hochschul-Datenbank fuer sich."""
+    import sqlite3
+    from app import desktop
+    base = tmp_path / "de.uniflow.desktop"
+    data = base / "data"
+    (data / "unis" / "hildesheim").mkdir(parents=True)
+    for p in (data / "lernapp.db", data / "unis" / "hildesheim" / "lernapp.db"):
+        with sqlite3.connect(str(p)) as c:
+            c.execute("CREATE TABLE t(x)"); c.executemany("INSERT INTO t VALUES (?)", [(i,) for i in range(20000)])
+    t0 = 1_800_000_000.0
+    made = desktop.backup_databases(base, now=t0)
+    tag = lambda p: p.name.rsplit("-", 2)[0]
+    assert [tag(p) for p in made] == ["lernapp", "lernapp-hildesheim"] and made[0].parent == tmp_path / "UniFlow-Sicherungen"
+    c = sqlite3.connect(str(made[0]))
+    assert c.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 20000
+    c.close()                                                 # sonst haelt Windows die Datei offen und sie kann nicht aufgeraeumt werden
+    assert desktop.backup_databases(base, now=t0 + 3600) == [], "innerhalb von 6 Stunden keine zweite"
+    for i in range(1, 13):
+        desktop.backup_databases(base, now=t0 + i * 7 * 3600)
+    assert len([p for p in (tmp_path / "UniFlow-Sicherungen").glob("lernapp-*.db") if tag(p) == "lernapp"]) == 10, "nur die neuesten 10"
+    assert desktop.backup_databases(tmp_path / "gibt-es-nicht") == [], "ohne Datenordner nichts, kein Fehler"
+
+
 def test_main_never_lets_an_exception_escape(tmp_path, monkeypatch):
     """Jeder Fehler beim Start, auch beim Anlegen der Ordner, endet mit 1 und einem Protokolleintrag – nie mit dem
     Fehlerfenster „Unhandled exception in script“ von PyInstaller."""

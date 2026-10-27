@@ -394,6 +394,10 @@ def _run_bg(name: str, fn):
 
 def _full_sync():
     res = run_sync()
+    if not res.get("ok"):
+        # Der eigentliche Fehler (z. B. "Anmeldung bei Stud.IP noetig") soll in der Oberflaeche stehen, nicht ein
+        # Folgefehler des Planers wie "Keine Kurse vorhanden" (Befund 27.10.2026)
+        raise RuntimeError(res.get("message") or "Abgleich fehlgeschlagen")
     n = planner.analyze_pending()
     with db.cursor() as conn:
         s = db.get_settings(conn)
