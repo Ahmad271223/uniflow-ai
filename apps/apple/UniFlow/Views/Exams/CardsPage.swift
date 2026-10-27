@@ -4,8 +4,8 @@ import UniFlowCore
 // Eigene Karteikarten nach viewCards() in app/static/views-misc.js, fuer das iPad ohne PC erweitert: Karte anlegen
 // (Frage, Antwort, optional Modul und Dokument), Liste je Modul, "Heute faellig (N)", Wiederholen mit Aufdecken und
 // Richtig/Falsch, Loeschen mit Rueckfrage. Daten ueber /api/flashcards* (lokal FlashcardEndpoints in der Datenbank des
-// Containers, also je Apple-Nutzer und Hochschule). Karten entstehen nur von Hand, keine KI. Lokal nur mit Plus
-// (UFGate(.flashcards) in MainView).
+// Containers, also je Apple-Nutzer und Hochschule). Karten entstehen nur von Hand, keine KI. Lokal nur mit Plus: die
+// Seite zeigt unter ihrem Kopf UFGate(.flashcards) wie die Community; ohne Plus wird nichts geladen.
 
 /// Stapel der Karteikarten-Seite: alle Karten, die heute faelligen, die laufende Wiederholung, Anlegen und Loeschen.
 /// Gehoert zu genau einer Datenquelle: wechselt sie (anderes Konto, andere Hochschule, eigener Server), beginnt der
@@ -218,20 +218,35 @@ struct CardsPage: View {
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var overlay: UFOverlay
     @StateObject private var deck = FlashcardDeck()
-    private let ent: Entitlements
+    @ObservedObject private var ent: Entitlements
 
-    /// `entitlements: nil` = `Entitlements.shared` (Tarifpruefung beim Anlegen)
+    /// `entitlements: nil` = `Entitlements.shared`
     @MainActor
     init(entitlements: Entitlements? = nil) {
-        ent = entitlements ?? .shared
+        _ent = ObservedObject(wrappedValue: entitlements ?? .shared)
     }
+
+    /// Ohne PC (lokales Backend) nur mit Plus; am eigenen Server (Entwicklung) ohne Tarif
+    private var needsPlus: Bool { session.api?.isLocal != false }
+    private var allowed: Bool { !needsPlus || ent.allows(.flashcards) }
 
     var body: some View {
         UFContent(maxWidth: 820) {
             UFPageHead("Karteikarten", sub: "Selbst angelegt · Leitner-System: richtig = seltener, falsch = morgen wieder.") {
-                if session.api?.isLocal == false { UFButton("Tests", icon: "arrow-left", size: .small) { router.go(.exams) } }
-                if deck.loaded { UFButton("Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() } }
+                if !needsPlus { UFButton("Tests", icon: "arrow-left", size: .small) { router.go(.exams) } }
+                if allowed && deck.loaded { UFButton("Karte anlegen", icon: "plus", kind: .primary, size: .small) { openCreate() } }
             }
+            if needsPlus {
+                UFGate(.flashcards, entitlements: ent) { cards }
+            } else {
+                cards
+            }
+        }
+    }
+
+    /// Inhalt unter dem Kopf; laedt erst, wenn er sichtbar ist (mit Plus bzw. am eigenen Server)
+    private var cards: some View {
+        VStack(alignment: .leading, spacing: 0) {
             if let failed = deck.failed {
                 UFCard {
                     UFEmpty(icon: "alert", text: failed) {
@@ -251,6 +266,7 @@ struct CardsPage: View {
                 list.padding(.top, 16)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: session.api.map(ObjectIdentifier.init)) {
             deck.attach(session.api)
             await deck.reload(toast: toast)
@@ -264,7 +280,8 @@ struct CardsPage: View {
         if deck.finished {
             UFCard {
                 UFCardHead("Wiederholung geschafft", icon: "check")
-                Text("\(deck.queue.count) \(deck.queue.count == 1 ? "Karte" : "Karten") wiederholt: \(deck.right) richtig, \(deck.wrong) falsch.")
+                let n = deck.right + deck.wrong                              // bewertete Karten (geloeschte zaehlen mit)
+                Text("\(n) \(n == 1 ? "Karte" : "Karten") wiederholt: \(deck.right) richtig, \(deck.wrong) falsch.")
                     .ufFont(14.5).foregroundStyle(UF.text2)
                 UFButton("Fertig", kind: .primary, size: .small) {
                     deck.endSession()

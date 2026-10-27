@@ -494,7 +494,7 @@ Skripte mit PDFKit.
 
 | Bereich | Stand | Was fehlt |
 |---|---|---|
-| Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle App-Pfade beantwortet (seit S7 80); **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt; **S4**: Module echt; **S5**: Stundenplan echt; **S6**: Lernkalender, Pakete, Aufgaben, `reslot`, Übersicht echt; **S7**: Suche, Skriptsuche, Seitentext, alte Fassungen echt | Karteikarten, Uni & Noten, Hintergrund (8 Platzhalter) |
+| Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle App-Pfade beantwortet (seit S7 80); **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt; **S4**: Module echt; **S5**: Stundenplan echt; **S6**: Lernkalender, Pakete, Aufgaben, `reslot`, Übersicht echt; **S7**: Suche, Skriptsuche, Seitentext, alte Fassungen echt | Karteikarten, Uni & Noten, Hintergrund (8 Platzhalter); **M8**: Karteikarten echt, übrig Uni & Noten und Hintergrund (5 Platzhalter) |
 | Einstellungen (Lernzeit, Lernkombination, Verfügbarkeit), Semester | **lokal echt (S2)**: `GET/PUT /api/settings` (mit `university` und `university_next` wie `server.py`; `PUT` prüft `university`, schreibt es aber nie), `GET/PUT /api/terms` | Hochschule wählen und wechseln auf dem iPad (`docs/AUFTRAG-HILDESHEIM-IPAD.md`) |
 | Stud.IP-Abgleich in die Datenbank | **lokal echt (S3)**: Kurse (Titel, Nummer, Semester; Fach und Art mit `classify` seit dem Zusammenführen mit S4, nur solange leer), Dateien (Name, Größe, Typ, Änderungszeit, Ordnerpfad, Art pdf/image/file, Status „neu“), Downloads mit Pfad **relativ zum App-Container**, `sync_log`; idempotent, Nutzerfelder (Status, gesehen, Favorit, Ordner, Titel) und Notizen bleiben; umbenannte Dateien behalten ihre ID, in Stud.IP gelöschte bleiben stehen (wie Python); Fehler eines Kurses oder einer Datei (HTTP, unerwartete Antwort, beim Lesen der Dateiliste auch Zeitüberschreitung und Verbindungsabbruch) überspringen nur diese wie in Python, ist kein Kurs lesbar, gilt der Lauf als gescheitert; nach jedem Lauf laden die offenen Seiten neu; eine neue Fassung (Größe, Typ, Änderungszeit) gilt erst mit ihrem Download – scheitert er oder bricht der Lauf vorher ab, lädt der nächste Abgleich sie (in `app/studip_sync.py` ebenso korrigiert, in `store_course_files`, das am PC auch der Learnweb-Abgleich für Hildesheim nutzt; Test in `tests/test_regressions.py`); Downloads gehen direkt in eine Datei (nicht in den Arbeitsspeicher), eine abgerissene Verbindung wird bis zu zweimal wiederholt, danach überspringt eine Zeitüberschreitung nur diese Datei, eine Webseite statt der Datei wird nicht gespeichert; Inhalts-Hash `content_sha256` je geladener Fassung; geschrieben über `UniStore`, dieselbe Fassung wie für Learnweb; gegen `run_sync` geprüft (`studip-import.json`, 6 Durchgänge, dazu `classified` mit Modulen danach) | `author` (die JSON:API liefert keinen Namen); große Dateien werden immer automatisch geladen (Entscheidung „über 100 MB nur auf Wunsch“ noch ohne Oberfläche; eine Datei, die länger als 10 Minuten lädt, scheitert bei jedem Abgleich erneut, hält die übrigen aber nicht auf); kein ETag/If-Modified-Since; kein Netz und abgelaufene Sitzung brechen den Lauf ab (schon gelesene Kurse und geladene Dateien bleiben gespeichert; läuft die Sitzung erst beim Stundenplan ab, endet der Lauf mit „Erneut anmelden“); alte Datei bleibt nach Umbenennen liegen (wie Python); abgewählte Kurse bleiben mit ihren Dateien in Dokumente (ausblenden über `courses.active` noch ohne Oberfläche) |
 | Notizen beim Wechsel PC ↔ lokal | **getrennt (S2)**, **lokal gespeichert (S3)**: Journal und PDF-Zwischenspeicher je Datenquelle, Notizen lokal in `annotations`/`annotation_versions` | Übernahme vom PC (Entwicklung) |
@@ -595,8 +595,8 @@ Das lokale Backend beantwortet **jeden** davon (`LocalBackendCoverageTests`):
   (alte Original-Fassungen, siehe Abschnitt 2). `GET /api/files/{id}` ruft die App jetzt auch selbst auf (Stand des
   PDF-Zwischenspeichers).
 - **Platzhalter in Server-Form** bis zur Portierung (leere Listen bzw. Objekte mit denselben Feldern wie
-  `app/server.py` bei leerer Datenbank): Karteikarten, Uni & Noten (außer `GET /api/grades`, seit `wip/v1-pc-hi` der
-  Port von `qis.summary`), `/api/bg` – 8 Pfade der App. Einträge nach ID gibt es dort noch nicht (404 wie am PC). Ein
+  `app/server.py` bei leerer Datenbank): Uni & Noten (außer `GET /api/grades`, seit `wip/v1-pc-hi` der Port von
+  `qis.summary`), `/api/bg` – 5 Pfade der App (Karteikarten seit M8 echt, `FlashcardEndpoints`). Einträge nach ID gibt es dort noch nicht (404 wie am PC). Ein
   echter Endpunkt ersetzt den Platzhalter automatisch (`LocalRoute.placeholder`).
 - **bewusst entfallen:** KI (`/api/ai/tutor`), Wochentests (`/api/tests/*` außer der leeren Liste,
   `/api/tasks/{id}/start-test`), Zugänge (`PUT /api/credentials/*`; `GET` liefert „kein Zugang“): 404 mit Meldung.
@@ -618,13 +618,13 @@ an der Uni Hildesheim zeigt „Uni & Noten“ seit `wip/v1-pc-hi` den Notenspieg
 | Suche, Skriptsuche | `/api/search`, `/api/related`, `/api/files/{id}/pagetext` | lokal | **lokal (S7)** |
 | Alte Original-Fassungen | `/api/files/{id}/versions*` | nur auf dem Gerät | **lokal (S7)** |
 | Abgleich und Status | `/api/sync`, `/api/sync/status`, `/api/bg` | lokal als Stud.IP-Abgleich | Abgleich in der App (S3), Protokoll lokal |
-| Karteikarten | `/api/flashcards*` | lokal (Plus), eigenes Anlegen ohne KI | Platzhalter |
+| Karteikarten | `/api/flashcards*` (4) | lokal (Plus), eigenes Anlegen ohne KI | **lokal (M8)**: Liste mit `file_id`/`due`, Anlegen, Leitner-Bewertung, Löschen wie `app/server.py` (`flashcards.json`, `tools/gen-flashcards-fixture.py`); Seite „Karteikarten“ statt „Tests & Wiederholung“ |
 | Uni & Noten | `/api/services`, `/api/grades*`, `/api/qis/*` | Dienste-Liste lokal; QIS auf dem Gerät (später) | Dienste lokal, `GET /api/grades` lokal (Hildesheim: LSF-Notenspiegel über `HildesheimSync`), QIS (LUH) offen |
 | Zugänge | `/api/credentials*` | entfällt (keine Passwörter in der App) | entfallen |
 | Tests, KI | `/api/tests*`, `/api/ai/tutor`, `/api/tasks/{id}/start-test` | entfällt (keine KI) | entfallen |
 | Community, Konto | – | CloudKit (öffentliche Datenbank, S9b; Konto = iCloud auf dem iPad) | Lösung als Datei (S9); online programmiert, echter Lauf erst mit Developer Program |
 
-**Was nach S3 bis S7 ohne PC noch nicht geht** (ehrlich): Wochentests (KI, entfallen), Karteikarten,
+**Was nach S3 bis S7 ohne PC noch nicht geht** (ehrlich): Wochentests (KI, entfallen),
 Hintergrundabgleich (S8), QIS-Noten der LUH, Übernahme der Notizen und Pläne vom PC. Keiner dieser Punkte braucht im
 App-Store-Betrieb einen PC; sie sind nur noch nicht portiert. Die Uni Hildesheim (Learnweb, LSF, CAS) läuft seit
 `wip/v1-pc-hi` auf dem iPad; ein Test mit einem echten Konto steht noch aus.

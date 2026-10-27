@@ -425,15 +425,16 @@ final class FlashcardsAppTests: XCTestCase {
 
     private func dump(_ view: UIView) -> String { texts(view).joined(separator: " | ") }
 
+    /// Seite wie in MainView (die Sperre UFGate(.flashcards) steht in der Seite) mit festem Tarif
     private func gated(_ plan: UFPlan) -> some View {
-        let ent = Entitlements(observe: false, plan: plan)
-        return UFGate(.flashcards, entitlements: ent) { CardsPage(entitlements: ent) }
+        CardsPage(entitlements: Entitlements(observe: false, plan: plan))
     }
 
     func testFreeShowsTheLockCardAndLoadsNoCards() throws {
         let (api, rec, _) = try awaiting { try await self.seededAPI(cards: [("Geheime Frage", "Antwort", nil)]) }
         let page = try show(gated(.free), api: api)
         XCTAssertTrue(pump { self.shows(page.view, "Mit Plus freischalten") }, dump(page.view))
+        XCTAssertTrue(shows(page.view, "Karteikarten"), "Seitenkopf bleibt: \(dump(page.view))")
         XCTAssertTrue(shows(page.view, "Eigene Karteikarten mit Wiederholung"), dump(page.view))
         XCTAssertTrue(shows(page.view, "Enthalten in Plus"), dump(page.view))
         XCTAssertFalse(shows(page.view, "Karte anlegen"))
