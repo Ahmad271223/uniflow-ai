@@ -634,6 +634,11 @@ final class StudIPNewsStoreTests: XCTestCase {
         _ = try await store(d2, backend)
         let after2 = try await backend.context.database.rows("SELECT id FROM announcements ORDER BY id").map { $0["id"]?.string ?? "" }
         XCTAssertEqual(after2, ["sp-news-n1"])
+        // Termine eines Kurses nicht lesbar: seine Ankuendigungen kommen trotzdem (eigener Versuch wie in run_sync)
+        let (d4, _) = try await download(["/jsonapi.php/v1/courses/c-ana/events?page[limit]=200": serverError,
+                                          news: newsReply([("n1", "Ausfall", "x", "2026-10-20T12:00:00+02:00")])])
+        XCTAssertEqual(d4.failedCourses, ["c-ana"])
+        XCTAssertEqual(d4.news["c-ana"]?.count, 1)
         let (d3, _) = try await download([news: HTTPReply(status: 500, contentType: "text/plain")])
         _ = try await store(d3, backend)
         let count3 = try await backend.context.database.scalar("SELECT COUNT(*) FROM announcements")?.int

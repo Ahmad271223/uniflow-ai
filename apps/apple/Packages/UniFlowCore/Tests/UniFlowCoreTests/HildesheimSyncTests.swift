@@ -650,6 +650,27 @@ final class HildesheimDeadlineSyncTests: XCTestCase {
         XCTAssertEqual(title, "Raumänderung")
     }
 
+    /// Die Vorschau (core_calendar_get_calendar_upcoming_view) ist nur Ergaenzung: meldet Moodle dort einen Fehler,
+    /// kommen die Fristen trotzdem (`except LearnwebError`); ein HTTP-Fehler dort laesst die Fristen scheitern wie am PC
+    func testUpcomingViewErrorIsOnlySkippedWhenMoodleReportsIt() async throws {
+        let (db, layout) = try await container()
+        let t = FakeUniTransport()
+        let events = try JSONValue.parse(Data(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-calendar-events.json").utf8))["events"] ?? .null
+        routes(t, events: events, discussions: [])
+        let upcoming = "wsfunction=core_calendar_get_calendar_upcoming_view"
+        t.on("\(base)/webservice/rest/server.php", body: upcoming, okJSON(.object(["exception": .string("moodle_exception"), "errorcode": .string("nopermissions")])))
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                  lsf: nil, transport: t, clock: clock)
+        let r1 = await sync.run()
+        XCTAssertEqual(r1.deadlines?.total, 6, r1.messages.joined(separator: "; "))
+        t.on("\(base)/webservice/rest/server.php", body: upcoming, UniResponse(status: 502))
+        let r2 = await sync.run()
+        XCTAssertNil(r2.deadlines)
+        XCTAssertTrue(r2.messages.contains { $0.hasPrefix("Learnweb-Fristen: ") }, r2.messages.joined(separator: "; "))
+        let kept = try await db.scalar("SELECT COUNT(*) FROM deadlines")?.int
+        XCTAssertEqual(kept, 6, "gescheiterter Abruf entfernt nichts")
+    }
+
     /// Ein Fehler bei den Fristen stoppt den Lauf nicht (Python: "Learnweb-Fristen: FEHLER", Sync laeuft weiter)
     func testDeadlineErrorDoesNotStopTheRun() async throws {
         let (db, layout) = try await container()

@@ -178,9 +178,6 @@ public enum StudIPScheduleStore {
         for (i, c) in courses.enumerated() {
             do {
                 d.events[c.id] = try await client.courseEvents(courseID: c.id)
-                // Ankuendigungen sind eine Ergaenzung (run_sync: "Ankuendigungen nicht gelesen"): ein Fehler laesst
-                // den Bestand des Kurses stehen; Abbruch und abgelaufene Sitzung behandelt der naechste Kurs
-                if let news = try? await client.courseNews(courseID: c.id) { d.news[c.id] = news }
             } catch StudIPError.sessionExpired {
                 d.sessionExpired = true
                 break
@@ -192,6 +189,10 @@ public enum StudIPScheduleStore {
                     break
                 }
             }
+            // Ankuendigungen je Kurs wie in run_sync, unabhaengig von den Terminen: eine Ergaenzung ("Ankuendigungen
+            // nicht gelesen"), ein Fehler laesst den Bestand des Kurses stehen; Abbruch und abgelaufene Sitzung
+            // bemerkt der naechste Kurs
+            if let news = try? await client.courseNews(courseID: c.id) { d.news[c.id] = news }
         }
         return d
     }

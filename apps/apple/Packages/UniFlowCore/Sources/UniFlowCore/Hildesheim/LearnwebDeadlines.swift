@@ -90,8 +90,8 @@ extension Learnweb {
     }
 
     /// `fetch_deadline_events(call, now)`: Ereignisse aus beiden Kalender-Quellen; `call(fn, args)` ist REST
-    /// (Schluessel) oder AJAX (Sitzung). Die Vorschau ist nur Ergaenzung ("Test beginnt"): ein Fehler dort wird
-    /// uebergangen, die Fristen selbst kommen aus der ersten Quelle.
+    /// (Schluessel) oder AJAX (Sitzung). Die Vorschau ist nur Ergaenzung ("Test beginnt"): eine Fehlermeldung von
+    /// Moodle dort wird uebergangen, die Fristen selbst kommen aus der ersten Quelle.
     static func fetchDeadlineEvents(now: Int, call: (String, [(String, JSONValue)]) async throws -> JSONValue) async throws -> [JSONValue] {
         var events: [JSONValue] = []
         var args: [(String, JSONValue)] = [("timesortfrom", .number(Double(now - deadlineDaysBack * 86400))),
@@ -103,8 +103,15 @@ extension Learnweb {
             guard page.count >= 50, let last = d["lastid"], LocalModules.truthy(last) else { break }
             args = args.filter { $0.0 != "aftereventid" } + [("aftereventid", last)]
         }
-        if let more = try? await call("core_calendar_get_calendar_upcoming_view", [("courseid", .number(1)), ("categoryid", .number(0))]) {
-            events += more["events"]?.array ?? []
+        do {
+            events += try await call("core_calendar_get_calendar_upcoming_view", [("courseid", .number(1)), ("categoryid", .number(0))])["events"]?.array ?? []
+        } catch let e as HildesheimError {
+            // wie `except LearnwebError`: eine Fehlermeldung von Moodle zur Vorschau uebergehen; Netz- und HTTP-Fehler
+            // (wie am PC) und Abbruch gehen weiter
+            switch e {
+            case .badResponse, .invalidToken, .sessionExpired: break
+            default: throw e
+            }
         }
         return events
     }
