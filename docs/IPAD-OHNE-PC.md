@@ -492,6 +492,53 @@ rot), `search.json` mit 47 Anfragen und `search_form`; `s[a:b]` und `str.find` n
 `--check` aktuell, die betroffenen Tests je dreimal grün. Nicht geprüft: echtes Stud.IP, echtes iPad, große echte
 Skripte mit PDFKit.
 
+Stand nach dem **Port vom PC-Stand 26.10.2026** (Zweig `wip/port-ferien`, auf `develop` 9ccca68; die drei als
+`XCTExpectFailure` festgehaltenen Abweichungen aus dem Zusammenführen sind damit nachgezogen, nur die G2-Sync-Spalten
+bleiben eine erwartete Abweichung). **Nachgezogen** (1:1 aus Python, nichts doppelt):
+- **Feiertage und vorlesungsfreie Zeit** (`app/holidays.py` → `Holidays`): Ostern, Feiertage Niedersachsen, `SEMESTERS`
+  je Hochschule mit Pausen (die eine Tabelle, `Migrations.defaultTerm` liest sie), `day_marks`, `default_term`,
+  `lecture_free`, `calendar_extras`. `occurrences` lässt Serien ohne eigenen Zeitraum (Uni-Arten) an Feiertagen, in
+  Pausen und in der vorlesungsfreien Zeit ausfallen (`exception` „vorlesungsfrei“ mit `note`, Hochschule aus
+  `settings.university`); Bemerkungen aus `event_notes` stehen als `note`; `apply_import` löscht `event_notes` mit
+  der Serie. `merge_weekly` mit 14-Tage-Schritt und `exdates` war schon nachgezogen; `auto_import` trägt die Ausfälle
+  bestehender Stud.IP-Serien über die Verknüpfung (`StudIPScheduleImport.refresh`) nach.
+- **Fristen und Ankündigungen**: `week_grid`, `calendar` und `dashboard` liefern je Tag `marks`, `deadlines` und
+  `notices`, die Übersicht `upcoming` mit Frist-Einträgen (überfällige der letzten 6 Wochen zuerst, `deadline_id`,
+  `url`) und `announcements`; `GET /api/deadlines`, `GET /api/announcements` wie `server.py`. Learnweb
+  (`LearnwebDeadlines.swift`, `LearnwebAPI.deadlines`/`.announcements`): `deadline_kind`, `local_iso`,
+  `short_deadline_title`, `deadlines_from_events`, beide Kalender-Quellen seitenweise, Ankündigungsforen mit Schlüssel
+  (REST) und mit der Sitzung (Forumsseiten, bekannte Diskussionen nicht erneut); `HildesheimSync` nach den Dateien
+  wie `run_sync` (`store_deadlines`, `sync_announcements`; ein Fehler dort stoppt den Lauf nicht, nach „kein Kurs
+  lesbar“ wird nichts mehr gefragt). `Announcements` (`app/announcements.py`): `html_to_text`, `extract_dates`,
+  Forumsseiten-Parser mit der Tiefe von Pythons `HTMLParser` (der `HTMLTokenizer` kennt dafür selbstschließende Tags),
+  `make`/`from_*`, `store`, `known_discussions`, `recent`, `by_day`. Stud.IP: `courses/{id}/news` je Kurs im
+  Stundenplan-Abruf (`StudIPScheduleStore`), Ablage wie `announcements.store` mit `course_ids`. LSF: `note_text`,
+  `is_placeholder`, `event_notes`, Platzhalter einmalig „nicht besuchen“ (`PlanResult.placeholders`).
+- **Oberfläche** wie `views-tt.js`/`views-plan.js`/`app.js`: Legende „Feiertag / vorlesungsfrei“, „Frist (Learnweb)“,
+  „Hinweis aus Ankündigung“; grüne Tage und Chips (`UFDayExtraChips`) im Stundenplan, im Lernkalender (Woche, Monat,
+  Tag, Mini-Kalender mit roten und blauen Punkten); in der Übersicht Fristen unter „Nächste Termine“ (Tippen öffnet
+  nur http/https) und die Karte „Ankündigungen“ (aufklappbar, Link ins Learnweb bzw. Stud.IP). Die Spalten der
+  Übersicht folgen `.grid > * { min-width: 0 }` (PC-Korrektur vom 26.10.): die rechte bleibt ein Drittel, lange
+  Titel kürzen mit „…“ statt die linke Spalte schmal zu drücken.
+- **Vertrag pageOrder** (`merge.js` → `AnnotationMerge.mergeDocument`, `mergePageOrder`, `mergeTrash`,
+  `mergeField`): Seiten bleiben wie `mergePage`; Reihenfolge nur einer Seite gilt, beide verträglich → eingefügte
+  Seiten hinter ihrem Vorgänger (Server zuerst), beide verschieden → dieses Gerät, `orderConflict` und ein Konflikt;
+  Papierkorb vereinigt; Felder nach der Feldregel (fehlend und null gleich wie `same()`). `SyncEngine` gibt
+  `mergeRootMeta` die Seiten vor dem Abgleich mit und meldet `SyncIssue.seitenreihenfolge` („Seitenreihenfolge auf
+  beiden Geräten geändert – die Reihenfolge dieses Geräts gilt“, `SyncIssueBadge` mit „Verstanden“). Die 18
+  `documentCases` aus `cases.json` laufen in `SharedFixtureTests`; doppelte IDs, lokal gewinnt und v2 ohne
+  Signaturvergleich sind unverändert.
+Geprüft: Kern 478 Tests grün (G2-Spalten als erwartete Abweichung), Fixtures mit allen `tools/gen-*.py` neu erzeugt
+und `--check` grün (nur `app-paths.json` bekam die Quelle `CommunityCloudKit.swift` dazu), Python 291 grün, App
+voll zweimal hintereinander grün (318 Tests, 1 übersprungen). Aufgefallen, nicht geändert:
+`HardeningSolutionEditorTests.testManyForeignLayersStayFastAndAreReleased` misst die Zeit für „eine von 30 Ebenen
+ausblenden“ gegen 1,5 s und lag unter Last zweimal knapp darüber (1,52 s und 1,64 s); allein und abwechselnd mit dem
+Stand vor dem Port (9ccca68) gleich schnell, der Editor ist hier unverändert. Fixture-Tests gegen `fixtures/hildesheim/expected.json` (`learnweb-deadlines`, `deadline-kinds`,
+`deadline-titles`, `local-iso`, `nds-holidays`, `day-marks`, `announcement-dates`, `forum-discussion`, `forum-view`,
+`forum-announcement`, `lsf-notes`), Abgleichstests mit erfundenen Antworten (zweiter Lauf ohne Doppelte), Stud.IP-News
+mit Löschen je gelesenem Kurs, Endpunkte wie der Server, Reihenfolge-Konflikt im `SyncEngine`. **Nicht geprüft**: mit
+echtem Learnweb/Stud.IP (Fristen und Foren), die Chips auf einem echten iPad.
+
 | Bereich | Stand | Was fehlt |
 |---|---|---|
 | Lokales Backend (Router, Transport-Weiche) | **fertig (S2)**, alle App-Pfade beantwortet (seit S7 80); **S3**: Bibliothek, Kurse, Dateien, Datei-Inhalt, Notizen, Bilder, Ordner, Notizbücher echt; **S4**: Module echt; **S5**: Stundenplan echt; **S6**: Lernkalender, Pakete, Aufgaben, `reslot`, Übersicht echt; **S7**: Suche, Skriptsuche, Seitentext, alte Fassungen echt | Karteikarten, Uni & Noten, Hintergrund (8 Platzhalter) |
@@ -501,7 +548,7 @@ Skripte mit PDFKit.
 | Erster Start (Mit Apple anmelden, Tarifwahl, Konto löschen) | **nativ fertig** (echte Apple-Anmeldung braucht das Developer Program) | – |
 | Stud.IP-Anmeldung auf der echten Seite, Sitzung im Schlüsselbund, Ablauf erkennen | **nativ fertig** | Navigationsgrenzen und Fehlermeldungen in der Webansicht; Logout beendet die Sitzung nicht beim Server; stilles Erneuern; OAuth2 (Freigabe LUH) |
 | Dokumente & Notizen | **lokal echt (S3)**: `GET /api/library`, Kursordner je Stud.IP-Kurs ohne Modul, Ordner anlegen/umbenennen/löschen, Notizbuch/Whiteboard anlegen, eigene PDF und Bilder importieren (Ablage `<Container>/files/Eigene Dokumente`, im Backup; Bild → PDF-Seite mit UIKit), Titel, Ordner, Papierkorb, Wiederherstellen, Duplizieren (Kopien von Stud.IP-Dateien teilen sich deren Datei und öffnen sich nach „Abmelden und Dateien löschen“ und dem nächsten Abgleich wieder mit ihren Notizen), endgültig löschen (nur eigene; entfernt auch die PDF-Kopie des Editors, das Journal und die Vorschaubilder auf dem Gerät); **S4**: Modulordner je Fach mit Unterordnern nach Art, Einordnung `doc_type`/`sub_label`/`week_hint` wie `study.enrich_file` (gegen Python verglichen) | Prüfung auf einem echten iPad |
-| Übersicht | **lokal echt (S6)**: `/api/dashboard` wie `study.dashboard` – Lernpakete von heute mit Aufgaben, Woche, Module, Nachholen, nächste Termine; „Neu aus Stud.IP“ (`new_files`, `new_total`), „Gesehen“ (`mark-seen`), letzter Abgleich (S3); Termine und freie Fenster von heute (S5) | Prüfung auf einem echten iPad |
+| Übersicht | **lokal echt (S6)**: `/api/dashboard` wie `study.dashboard` – Lernpakete von heute mit Aufgaben, Woche, Module, Nachholen, nächste Termine; „Neu aus Stud.IP“ (`new_files`, `new_total`), „Gesehen“ (`mark-seen`), letzter Abgleich (S3); Termine und freie Fenster von heute (S5); seit dem Port vom PC-Stand 26.10. Learnweb-Fristen in „Nächste Termine“ (überfällige zuerst, Link nur http/https) und die Karte „Ankündigungen“ (`announcements`), `GET /api/deadlines`, `GET /api/announcements` | Prüfung auf einem echten iPad |
 | Einordnung ohne KI: Fach, Art, Lehrwoche, Semesterwochen | **Kern fertig (S4)**: `UniRules.classify` (seit dem Zusammenführen mit dem PC-Kern die eine Fassung für alle Quellen), `StudyClassify.effectiveType`/`weekHint`, `StudyWeeks` (Stichtag und Woche 0 zuerst in Python korrigiert), `ModuleGuess` (`timetable.guess_module` mit `difflib`, seit dem Zusammenführen mit S5 die einzige Fassung, auch für den Stundenplan-Import); Regeln wie Pythons `re` (`PyRegex`: `\b`, `\w`, `\s`, `re.I` Zeichen für Zeichen, nicht wie ICU); **angebunden**: `classify` beim Stud.IP-Abgleich (`StudIPLibrary.classify`), `enrichFile` in Bibliothek und Moduldetail | Vorsilbe „Hörsaalübung“/„Zentralübung“ bleibt im Fach (wie Python, Entscheidung des Inhabers) |
 | Module und Kurse | **Kursliste echt (S3)**: `GET /api/courses` (in „Meine Module“ als „Deine Stud.IP-Kurse“, solange es kein Modul gibt), `PATCH /api/courses/{id}` (Art in Einstellungen → „Module“; Fach, aktiv, Testminuten ohne Oberfläche); **Module lokal echt (S4)**: `GET/POST /api/modules`, `GET/PATCH/DELETE /api/modules/{id}`, `POST /api/modules/auto-assign`, `POST /api/courses/{id}/module`; gleiche Antworten und Tabellen wie Python auf einer Seed-Datenbank; Seiten „Meine Module“ und Moduldetail im Simulator mit Seed-Daten geprüft, mit Daten aus dem Stud.IP-Abgleich im App-Test; Einstellungen → „Module“ ohne PC (Anlegen, Zuordnen, automatische Zuordnung, ohne Wochentests); KI-Zusammenfassung der Woche ohne PC ausgeblendet; **nächster Termin** `next_event` aus dem Stundenplan seit dem Zusammenführen mit S5 | Wochenthema bleibt ohne KI-Analyse leer; Prüfung auf einem echten iPad (Module in der Übersicht seit S6) |
 | Aufzeichnungen (Opencast) | **lokal echt (Opencast)**, nur an Hochschulen mit Stud.IP (LUH): Abruf im Stud.IP-Abgleich nach dem Stundenplan, je gewähltem Kurs die Seite `media/index` (Pausen und Anfragegrenze der JSON:API; Kurse ohne Plugin – HTTP 500 „navigation item … not found“ – sind kein Fehler und werden erst nach 7 Tagen erneut gefragt; ein Fehler überspringt nur seinen Kurs; Anmeldeseite = „Erneut anmelden“; „kein Opencast“ über den Kursüberblick nur, wenn die Antwort sicher der Kursüberblick des Kurses ist – eine Zwischenseite mit HTTP 200 zählt als nicht lesbar –, und ein Kurs mit Reiter wird nur durch die ausdrückliche Meldung des Plugins zu „kein Opencast“), Ablage in der Datenbank des Containers (`opencast_courses`, `opencast_videos`, nur auf dem Gerät, bei Bedarf angelegt wie `studip_cycle_dates`); geordnet nach Fach (Modul des Kurses) und Lehrwoche mit denselben Regeln und Beschriftungen wie die Dokumente im Moduldetail (`LocalModules.week`, `StudyWeeks`, `StudyClassify.enrichFile`; Datum und Uhrzeit im Titel zählen nicht als Nummer, auch „06.11“, „06/11/2026“, „2026_11_06“, „6. November“, „08.15 Uhr“); Bereich „Aufzeichnungen“ im Moduldetail mit Hinweis „N Aufzeichnungen“ in den Wochenblöcken, Kurse ohne Modul unter „Meine Module“; Abspielen im App-Player (AVPlayer, Stream 720p bzw. geladene Datei, Qualität wählbar, gemerkte Stelle in der Datenbank), Ersatzweg Stud.IP-Player-Seite in der Webansicht; Laden nur auf Wunsch (Entscheidung 7: über 100 MB oder unbekannte Größe nur nach ausdrücklicher Bestätigung, Platz geprüft), Ablage `<Container>/StudIP/Aufzeichnungen` ohne Backup (kein Download in einen gelöschten Container, „Daten dieser Hochschule löschen“ hält laufende Downloads an), Abbrechen/Fortsetzen in der Fassung des abgebrochenen Downloads, auch nach einem Neustart (veraltete Fortsetzungsdaten werden verworfen; antwortet der Videoserver nicht oder mit einem Fehler, kommt eine Meldung statt der Rückfrage), „Dateien löschen“ entfernt auch die Videos; „Passende Aufzeichnung“ im Dokument und im Lernpaket nur bei sicherem Treffer (gleiches Fach und gleiche Lehrwoche bei Vorlesung, Übung, Lösung und Skript oder ein eindeutiges Thema aus dem Videotitel ohne Wörter einer Art wie „Exercise“, „Großübung“; Organisatorisches nie) | am Gerät prüfen: Streaming ohne Anmeldung am Opencast-Host, Größe per HEAD, Player-Seite in der Webansicht; Themenwörter ohne Wortstamm-Kürzung (die Skriptsuche aus S7 kann sie später ersetzen) |

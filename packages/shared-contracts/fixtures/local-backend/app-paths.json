@@ -999,6 +999,7 @@
    "method": "GET",
    "shape": "/api/modules/{}",
    "sources": [
+    "UniFlow/Services/CommunityCloudKit.swift",
     "UniFlow/Views/Library/LibraryDialogs.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Plan/PlanActions.swift"
