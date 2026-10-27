@@ -85,7 +85,7 @@ struct DashboardView: View {
                 }
                 .padding(.bottom, 19.2)
 
-                twoColumns(rightMin: rightMinContent(d), left: {
+                twoColumns(left: {
                     todayCard(pk: pk)
                     if !evs.isEmpty { eventsCard(evs) }
                 }, right: {
@@ -140,33 +140,8 @@ struct DashboardView: View {
     }
 
     /// linke Spalte doppelt so breit wie die rechte (span-2), unter 1100 pt untereinander
-    private func twoColumns<L: View, R: View>(rightMin: CGFloat, @ViewBuilder left: () -> L, @ViewBuilder right: () -> R) -> some View {
-        DashboardColumns(rightMin: rightMin, left: left(), right: right())
-    }
-
-    /// Min-Content-Breite der rechten Spalte wie im Browser: Titel und Unterzeilen der Listen brechen nicht um
-    /// (white-space: nowrap), und die 1fr-Spur (minmax(auto, 1fr)) waechst auf diese Breite.
-    private func rightMinContent(_ d: JSONValue) -> CGFloat {
-        let item: CGFloat = 16, card: CGFloat = 2 * 19.2 + 2             // .item padding .5rem, .card padding + Rand
-        var w: CGFloat = 0
-        for u in d.list("upcoming").prefix(6) {
-            let text = max(UFTypeface.width(UFFmt.shortName(u.s("title")), 14.5, 550), UFTypeface.width(Self.upcomingSub(u), 12.8))
-            w = max(w, 10 + 12 + text + item)
-        }
-        var order: [String] = [], groups: [String: [JSONValue]] = [:]
-        for f in d.list("new_files") {
-            let s = f.s("subject") ?? "Sonstiges"
-            if groups[s] == nil { order.append(s) }
-            groups[s, default: []].append(f)
-        }
-        for s in order.prefix(4) {
-            let fs = groups[s] ?? []
-            let first = fs.first.map { $0.s("ai_title") ?? $0.s("name") ?? "" } ?? ""
-            let sub = "\(fs.count) neue \(fs.count == 1 ? "Datei" : "Dateien") · \(first)\(fs.count > 1 ? " …" : "")"
-            let text = max(UFTypeface.width(UFFmt.shortName(s), 14.5, 550), UFTypeface.width(sub, 12.8))
-            w = max(w, text + 12 + UFTypeface.width("\(fs.count)", 11.52, 600) + 16 + item)
-        }
-        return w + card
+    private func twoColumns<L: View, R: View>(@ViewBuilder left: () -> L, @ViewBuilder right: () -> R) -> some View {
+        DashboardColumns(left: left(), right: right())
     }
 
     // MARK: Karten
@@ -407,14 +382,13 @@ private struct UFPageHeadGreet<Actions: View>: View {
 
 /// .grid.cols-3 mit .span-2 links und .stack rechts; schmal untereinander
 private struct DashboardColumns<L: View, R: View>: View {
-    let rightMin: CGFloat
     let left: L
     let right: R
     @Environment(\.ufWindowWidth) private var width
 
     var body: some View {
         if width > 1100 {
-            TwoOneLayout(spacing: 16, rightMin: rightMin) {
+            TwoOneLayout(spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) { left }
                 VStack(alignment: .leading, spacing: 8) { right }
             }
@@ -424,16 +398,15 @@ private struct DashboardColumns<L: View, R: View>: View {
     }
 }
 
-/// Zwei Spalten im Verhaeltnis 2:1 wie .span-2 in .grid.cols-3 (Spaltenbreite (B - 2 Abstaende) / 3);
-/// die rechte Spur waechst wie minmax(auto, 1fr) auf die Min-Content-Breite ihres Inhalts.
+/// Zwei Spalten im Verhaeltnis 2:1 wie .span-2 in .grid.cols-3 (Spaltenbreite (B - 2 Abstaende) / 3). Seit dem
+/// PC-Stand vom 26.10.2026 gilt `.grid > * { min-width: 0 }`: die rechte Spur waechst nicht mehr auf die Breite
+/// langer Titel (Learnweb-Fristen drueckten sie breit, "Heute an der Uni" lief ueber); die Zeilen kuerzen mit "…".
 private struct TwoOneLayout: Layout {
     var spacing: CGFloat = 16
-    var rightMin: CGFloat = 0
 
     private func widths(_ w: CGFloat) -> (CGFloat, CGFloat) {
         let col = max(0, (w - 2 * spacing) / 3)
-        let right = min(max(col, rightMin), max(0, w - spacing - col))
-        return (w - spacing - right, right)
+        return (w - spacing - col, col)
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
