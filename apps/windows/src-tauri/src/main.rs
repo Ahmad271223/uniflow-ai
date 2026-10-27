@@ -142,6 +142,15 @@ fn set_message(window: &tauri::WebviewWindow, text: &str) {
 
 fn main() {
     tauri::Builder::default()
+        // Einzelinstanz: ein zweiter Start (Doppelklick, Startmenue) holt das offene Fenster nach vorn und endet; sonst
+        // liefe ein zweites Backend auf derselben Datenbank. Muss das erste Plugin sein.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         .manage(Backend(Arc::new(Mutex::new(None))))
         .setup(|app| {
             let window = app.get_webview_window("main").expect("Hauptfenster fehlt");

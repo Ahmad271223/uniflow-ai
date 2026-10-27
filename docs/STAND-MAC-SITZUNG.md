@@ -759,3 +759,11 @@ fremde Gruppe entfernt), und die Doppel-Regel aus 3d74b00 gilt auch fuer die Vor
 Schon vor dieser Aenderung: unter Linux (python:3.14-slim) weichen `gen-account`, `gen-community` und
 `gen-local-backend` ab; unter Windows laufen flashcards, local-backend, study und timetable gar nicht (time.tzset fehlt);
 `tests/test_plan_names.py` liest seine Fixture unter Windows ohne UTF-8.
+
+## Hinweis der PC-Sitzung: Apple-Workflow auf Linux rot (27.10.2026)
+
+`apple.yml` (UniFlowCore, Linux, `swift test`) ist seit 42ed0aa (26.10.) in jedem Lauf rot: `SQLiteStoreTests.swift`
+Zeilen 117 und 204 nutzen `XCTExpectFailure`, das swift-corelibs-xctest unter Linux nicht kennt. Auf dem Mac laeuft
+es. Bitte unter Linux mit `#if canImport(ObjectiveC)` ausklammern oder die erwartete Abweichung anders pruefen, dann
+zeigt der Workflow wieder echte Fehler (zuletzt gruen: vor dem 26.10.). Android (`android.yml`) scheiterte an der
+fehlenden Ausfuehrrechte-Markierung von `gradlew` (100644 in Git) – ab 27.10. behoben.

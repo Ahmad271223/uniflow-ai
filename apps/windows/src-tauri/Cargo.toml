@@ -1,6 +1,6 @@
 [package]
 name = "uniflow-desktop"
-version = "0.3.5"
+version = "0.3.6"
 description = "UniFlow fuer Windows (Fenster plus mitgeliefertes Backend)"
 edition = "2021"
 
@@ -9,4 +9,6 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+# Zweiter Start bringt das vorhandene Fenster nach vorn, statt ein zweites Backend auf derselben Datenbank zu starten
+tauri-plugin-single-instance = "2"
 serde_json = "1"

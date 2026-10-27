@@ -32,7 +32,7 @@ def results(tmp_path_factory):
     runner = tmp_path_factory.mktemp("plan-names") / "run.mjs"
     runner.write_text(RUNNER % {"module": json.dumps(MODULE.resolve().as_uri()), "fixture": FIXTURE.read_text(encoding="utf-8")},
                       encoding="utf-8")
-    p = subprocess.run(cmd + [str(runner)], capture_output=True, text=True, timeout=60)
+    p = subprocess.run(cmd + [str(runner)], capture_output=True, text=True, encoding="utf-8", timeout=60)   # node schreibt UTF-8, auch unter Windows (cp1252) so lesen
     assert p.returncode == 0, p.stderr
     return json.loads(p.stdout)
 

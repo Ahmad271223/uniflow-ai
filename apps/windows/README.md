@@ -82,10 +82,11 @@ Zugangsdaten in der `.env` sind nur noch eine freiwillige Alternative für den A
 MSIX-Paket fuer den Store (Store signiert und verteilt Updates selbst): `msix/README.md`, gebaut im selben Workflow
 (Artefakt `uniflow-windows-msix`). Was in Partner Center einzurichten ist, steht dort.
 
+Zweiter Start (Doppelklick bei laufender App): das Einzelinstanz-Plugin holt das offene Fenster nach vorn, es gibt nie
+zwei Backends auf derselben Datenbank (seit 0.3.6).
+
 ## Offen
 
-- Zweiter Start: die App hat noch keine Einzelinstanz-Sperre (Tauri-Plugin `single-instance`). Ein zweites Öffnen
-  startet ein zweites Fenster mit eigenem Backend auf derselben Datenbank.
 
 - Automatische Updates (Tauri-Updater braucht einen signierten Endpunkt) und Code-Signing.
 - Größe: Chromium macht den Großteil des Installers aus (etwa 150 MB gepackt).
