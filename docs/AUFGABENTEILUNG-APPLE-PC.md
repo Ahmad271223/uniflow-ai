@@ -87,7 +87,7 @@ Reihenfolge nach Wirkung. P0 = vor jeder Abgabe an Tester, P1 = vor dem Store.
 | M9 | P1 | **Hochschul-Sync robust**: Sitzungsablauf/Logout Stud.IP; 1.500-Anfragen-Limit und 6-Ebenen-Grenze als „unvollständig“ sichtbar machen oder fortsetzen; Pagination über `links.next` wie Python; Kursfehler sichtbar; Sync-Log nicht mit `try?`; LSF ohne Exportlink klare Meldung; Notenspiegel ohne feste 6-Seiten-Grenze (Schleife bis keine neue Seite) | 23, 91–100, 105–109 |
 | M10 | P1 | **Hildesheim live auf dem iPad**: Schlüsselweg (`MoodleSSO`, Token-Download) gegen das echte Learnweb; LSF, Noten, Fristen, Ankündigungen (Port nach `docs/STAND-MAC-SITZUNG.md`); nur mit dem Inhaber am Gerät | 101–104, 110 |
 | M11 | P1 | **LUH-QIS nativ** (`/api/grades/sync`, Dokumente) | 24, 46, 47 |
-| M12 | P1 | **S8 Hintergrundabgleich** (BGAppRefresh), Abgleich beim Öffnen | 25 |
+| M12 | P1 | **S8 Hintergrundabgleich** (BGAppRefresh), Abgleich beim Öffnen. **Umgesetzt** (`wip/s8-hintergrund`): kurzer Lauf nur mit Listen, langer mit Netz für die Downloads, frühestens 8/15/20 Uhr, nur mit gültiger Sitzung, einmal „Bitte bei … anmelden“, Mitteilung ohne Dateinamen, Karte in den Einstellungen; am Gerät über mehrere Tage beobachten | 25 |
 | M13 | P1 | **Konto-Client**: `AccountStore` auf das UniFlow-Konto umstellen (Abschnitt 1.3, Vertrag G1); Anmeldung mit Apple als Verknüpfung; Hochschulwechsel in der Oberfläche; Kontolöschung ruft den Dienst und löscht lokal; `remove()`/`purgeTrash()` melden Fehler | 48–50, 78, 79 |
 | M14 | P1 | **Sync-Client** nach Vertrag G2 (Notizen, Pläne, Module, Karteikarten, Einstellungen) | 8, 60, Teil A |
 | M15 | P1 | **Community-Client** gegen den Dienst der PC-Sitzung (G4), nach dessen Fertigstellung | 51–54 |
