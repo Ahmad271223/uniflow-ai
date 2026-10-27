@@ -64,8 +64,9 @@ Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröf
 6. **App Review – erledigt (27.10.2026):** Demo-Inhalte ohne Hochschulkonto (`app/demo.py`): Einstellungen →
    Erweitert → „Demo-Inhalte anlegen“ bzw. `POST /api/demo {enabled: true}` legt ein Demo-Modul mit drei selbst
    erzeugten PDFs, Stundenplan, Lernkalender, einer Frist und einer Ankündigung an; „entfernen“ nimmt alles
-   rückstandslos weg. Gilt für Web, Windows und Android (über den Dienst); das iPad braucht denselben Schalter
-   lokal (Hinweis an den Mac).
+   rückstandslos weg. Gilt für Web, Windows und Android (über den Dienst). Das iPad hat denselben Schalter lokal
+   ohne Dienst (27.10.2026, `DemoContent` im Swift-Kern, gleiche Inhalte, Vergleich `fixtures/demo/demo.json`):
+   Einstellungen → Erweitert und im ersten Start auf der Anmeldeseite „Ohne Hochschulkonto ansehen (Demo)“.
 7. **Händlerstatus (DSA)** in App Store Connect angeben; Name, Anschrift, E-Mail und Telefon werden dann im Store
    angezeigt. Dieselben Angaben wie im Impressum.
 8. **Datenexport** als Gesamtpaket (ZIP mit Notizen, Kalender, Karteikarten) ist in `docs/KONTEN-ABOS-PLAN.md`
