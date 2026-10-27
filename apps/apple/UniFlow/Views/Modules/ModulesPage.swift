@@ -555,7 +555,11 @@ struct ModuleEditDialog: View {
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
     @State private var name = ""
-    @State private var color = Color.accentColor
+    /// gewaehlte Farbe als "#rrggbb" (klein); `was` = gespeicherte Farbe, gesendet wird nur eine Aenderung
+    @State private var color = ""
+    @State private var was = ""
+    /// Farben der anderen Module -> Name (blass mit Hinweis, waehlbar bleiben sie)
+    @State private var used: [String: String] = [:]
     @State private var prio = 2
     @State private var exam = ""
     @State private var active = true
@@ -566,10 +570,8 @@ struct ModuleEditDialog: View {
     var body: some View {
         UFDialog("Modul bearbeiten") {
             UFField("Name") { UFTextInput(text: $name) }
+            UFField("Farbe") { ModuleColorChoice(color: $color, used: used) }
             HStack(alignment: .top, spacing: 9.6) {
-                UFField("Farbe") {
-                    UFInputBox { ColorPicker("", selection: $color, supportsOpacity: false).labelsHidden().frame(maxWidth: .infinity, alignment: .leading) }
-                }
                 UFField("Priorität") { UFSelect(options: [(1, "Niedrig"), (2, "Normal"), (3, "Hoch")], selection: $prio, fill: true) }
                 UFField("Klausurtermin") { UFDateField(iso: $exam, allowEmpty: true) }
             }
@@ -589,26 +591,76 @@ struct ModuleEditDialog: View {
             guard !loaded else { return }
             loaded = true
             name = m.s("name") ?? ""
-            color = Color(hex: m.s("color") ?? "#4f5bd5")
+            was = (m.s("color") ?? "").lowercased()
+            color = was
             prio = m.i("priority") ?? 2
             exam = m.s("exam_date") ?? ""
             active = m.i("active") != 0
             weekly = m.i("weekly_test") != 0
             tmin = m.i("test_minutes") ?? 0
         }
+        .task {
+            guard let api = session.api, let list = try? await api.value("/api/modules").items else { return }
+            var u: [String: String] = [:]
+            for x in list where x.i("id") != m.i("id") {
+                if let c = x.s("color")?.lowercased(), u[c] == nil { u[c] = x.s("name") ?? "" }
+            }
+            used = u
+        }
     }
 
     private func save() async {
         guard let api = session.api, let id = m.i("id") else { return }
-        let body: JSONValue = ["name": .string(name), "color": .string(color.hexString), "priority": .number(Double(prio)),
+        var body: JSONValue = ["name": .string(name), "priority": .number(Double(prio)),
                                "exam_date": exam.isEmpty ? .null : .string(exam), "active": .number(active ? 1 : 0),
                                "weekly_test": .number(weekly ? 1 : 0), "test_minutes": tmin == 0 ? .null : .number(Double(tmin))]
+        // wie im Web: Farbe nur bei einer Aenderung (sonst bliebe der Merker color_custom nicht verlaesslich)
+        if !color.isEmpty && color != was { body["color"] = .string(color) }
         do {
             _ = try await api.value("/api/modules/\(id)", method: "PATCH", body: body)
             close()
             toast.show("Gespeichert")
             router.reload()
         } catch { toast.show(error.localizedDescription) }
+    }
+}
+
+/// Farbwahl im Modul-Dialog wie `.mod-colors` im Web: die 12 Farben der Palette (`ModuleColors`) und ein Feld
+/// fuer eine eigene Farbe; die gewaehlte ist umrandet.
+struct ModuleColorChoice: View {
+    @Binding var color: String
+    /// Farben anderer Module -> Name: blass, mit Hinweis "schon vergeben"
+    var used: [String: String] = [:]
+
+    private var own: Bool { !color.isEmpty && !ModuleColors.palette.contains(color) }
+
+    var body: some View {
+        UFFlexWrap(gap: 7.2, rowGap: 7.2) {
+            ForEach(ModuleColors.palette, id: \.self) { c in
+                Button { color = c } label: { swatch(Color(hex: c), on: color == c).opacity(used[c] != nil && color != c ? 0.35 : 1) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Farbe \(c)")
+                    .accessibilityHint(used[c].map { "Schon vergeben: \($0)" } ?? "")
+                    .help(used[c].map { "Farbe \(c) – schon vergeben: \($0)" } ?? "Farbe \(c)")
+            }
+            ColorPicker(selection: Binding(get: { Color(hex: color.isEmpty ? "#4f5bd5" : color) },
+                                           set: { color = $0.hexString.lowercased() }), supportsOpacity: false) {
+                Text("Eigene Farbe")
+            }
+            .labelsHidden()
+            .frame(width: 28, height: 28)
+            .overlay { if own { Circle().strokeBorder(UF.text, lineWidth: 2).frame(width: 32, height: 32).allowsHitTesting(false) } }
+            .accessibilityLabel("Eigene Farbe")
+        }
+        .padding(.top, 5.6)
+    }
+
+    private func swatch(_ c: Color, on: Bool) -> some View {
+        Circle().fill(c).frame(width: 24, height: 24)
+            .padding(2)
+            .overlay(Circle().strokeBorder(on ? UF.text : UF.line, lineWidth: on ? 2 : 1))
+            .frame(width: 28, height: 28)
+            .contentShape(Circle())
     }
 }
 
