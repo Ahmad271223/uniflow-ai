@@ -126,7 +126,7 @@ final class Session: ObservableObject {
 ///   -UFUniversity hildesheim          Hochschule des Kontos festlegen (luh|hildesheim), wie nach der Hochschulwahl;
 ///                                     nur Debug, z. B. fuer Simulator-Ablaeufe mit der Universitaet Hildesheim
 ///   -UFPlan plus                      fester Tarif ohne Kauf (free|plus|pro_connect|pro_ai, Schluessel wie in
-///                                     plans.json), z. B. fuer "Lösung teilen" im Simulator, wo ohne Xcode keine
+///                                     plans.json), z. B. fuer "Loesung teilen" im Simulator, wo ohne Xcode keine
 ///                                     StoreKit-Testkonfiguration laeuft; unbekannte Werte gelten nicht
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,

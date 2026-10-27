@@ -154,11 +154,16 @@ struct PlanPickerView: View {
                 if let d = r.detail { Text(d).ufFont(12.8).foregroundStyle(UF.muted) }
             }
             // immer umbrechen statt kuerzen: die Karte ist so hoch wie die hoechste der Zeile (ufFillsCell), lange
-            // Zeilen wie "Intelligente Lernplanung (Empfehlungen für die Woche)" wurden sonst mit "…" abgeschnitten
+            // Zeilen wie "Intelligente Lernplanung (Empfehlungen fuer die Woche)" wurden sonst mit "…" abgeschnitten
             .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(r.preparing ? "\(r.title), in Vorbereitung" : r.title)
+        .accessibilityLabel(Self.accessibilityLabel(r))
+    }
+
+    /// VoiceOver: Titel, Zusatz und bei Zeilen in Vorbereitung die Marke (die Ueberschrift steht weiter oben)
+    static func accessibilityLabel(_ r: UFPlanCardRow) -> String {
+        ([r.title] + (r.detail.map { [$0] } ?? []) + (r.preparing ? ["in Vorbereitung"] : [])).joined(separator: ", ")
     }
 
     @ViewBuilder

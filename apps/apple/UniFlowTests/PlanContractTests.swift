@@ -208,7 +208,7 @@ final class PlanContractTests: XCTestCase {
         }
     }
 
-    func testPlanCardTextsAreHonest() {
+    func testPlanCardTextsAreHonest() throws {
         XCTAssertEqual(UFPlanCard.sameScope(as: .free), .free)
         XCTAssertEqual(UFPlanCard.sameScope(as: .plus), .plus)
         XCTAssertEqual(UFPlanCard.sameScope(as: .proConnect), .plus)
@@ -237,6 +237,11 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(PlanPickerView.title(.settings), "Tarif wechseln")
         XCTAssertEqual(PlanPickerView.title(.upgrade(.plus)), "Mehr mit Studora Plus")
         XCTAssertEqual(PlanPickerView.title(.upgrade(nil)), "Tarif wechseln")
+        // VoiceOver liest Zusatz und Marke mit
+        XCTAssertEqual(PlanPickerView.accessibilityLabel(UFPlanCardRow(title: "Uni & Noten", detail: "Notenspiegel", icon: "check")),
+                       "Uni & Noten, Notenspiegel")
+        XCTAssertEqual(PlanPickerView.accessibilityLabel(try XCTUnwrap(UFPlanCard.preparing(.proAI).first)),
+                       "KI-Erklärungen zu Aufgaben, in Vorbereitung")
         XCTAssertTrue(PlanPickerView.legalText.contains("höheren Tarif gilt sofort"))
         XCTAssertTrue(PlanPickerView.legalText.contains("24 Stunden"))
     }

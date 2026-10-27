@@ -170,7 +170,7 @@ enum UFOfferText {
     }
 
     /// Beschriftung des Kaufknopfs ohne laufendes Abo: "Studora Plus – 1 Woche gratis" bzw.
-    /// "Studora Plus für 1,99 €/Monat"
+    /// "Studora Plus fuer 1,99 €/Monat"
     static func button(plan: UFPlan, price: String, period: (Int, Product.SubscriptionPeriod.Unit),
                        freeTrial: (Int, Product.SubscriptionPeriod.Unit)?, eligible: Bool) -> String {
         if eligible, let t = freeTrial { return "\(plan.name) – \(self.period(value: t.0, unit: t.1)) gratis" }
@@ -193,7 +193,7 @@ enum UFOfferText {
         return "Wechsel zu \(next.name) vorgemerkt ab \(day(date))."
     }
 
-    /// Gekuendigtes Abo: "Gekündigt – Studora Plus endet am 27. November, danach gilt Studora Free."
+    /// Gekuendigtes Abo: "Gekuendigt – Studora Plus endet am 27. November, danach gilt Studora Free."
     static func cancelledNote(_ plan: UFPlan, endsAt date: Date?) -> String {
         guard let date else { return "Gekündigt – danach gilt \(UFPlan.free.name)." }
         return "Gekündigt – \(plan.name) endet am \(day(date)), danach gilt \(UFPlan.free.name)."
