@@ -315,6 +315,47 @@ final class DataSeparationAppTests: XCTestCase {
         try await assertOnly(m, try active(m), tag: "BOB", foreign: "ADA-luh")
     }
 
+    /// Konto loeschen und mit derselben Apple-ID neu anmelden (Wunsch des Inhabers 27.10.2026): Tarifwahl, Hochschule und
+    /// Anmeldeseiten kommen wieder, beide Hochschulen sind leer, die Webansichten haben keine Sitzung und kein Cookie,
+    /// im Schluesselbund liegt nichts des Kontos - nichts ist vorgespeichert (Passwoerter merkt sich ohnehin nur iOS)
+    func testAfterDeletingTheAccountTheNextSignInStartsWithoutAnyStoredLogin() async throws {
+        let m = manager()
+        let a = account(user)
+        for uni in [UniversityKey.hildesheim, .luh] {
+            a.chooseUniversity(uni)
+            m.sync(account: a)
+            try await fill(m, try active(m), tag: "ADA-\(uni.rawValue)")
+            a.markLoginDone()
+        }
+        XCTAssertEqual(a.stage, .ready)
+        let id = user
+        await a.deleteAccount(also: [{ await m.deleteAllData(userID: id) }])
+        m.sync(account: a)
+        XCTAssertEqual(a.stage, .welcome)
+
+        // dieselbe Apple-ID meldet sich wieder an
+        a.signIn(userID: user, name: nil, email: nil)
+        XCTAssertEqual(a.stage, .planPicker, "Tarifwahl kommt wieder")
+        a.markPlanShown()
+        XCTAssertEqual(a.stage, .universityPicker, "Hochschule wird neu gewählt")
+        for uni in [UniversityKey.luh, .hildesheim] {
+            a.chooseUniversity(uni)
+            m.sync(account: a)
+            XCTAssertEqual(a.stage, .universityLogin, "Anmeldeseiten kommen wieder: \(uni)")
+            let fresh = try active(m)
+            let names = await cookies(m, fresh)
+            XCTAssertEqual(names, [], "keine alte Sitzung in der Webansicht: \(uni)")
+            let records = await m.websiteDataStore(for: fresh).dataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes())
+            XCTAssertTrue(records.isEmpty, "keine Webdaten: \(uni)")
+            XCTAssertTrue(fresh.cookies.load().isEmpty, "keine Stud.IP-Sitzung: \(uni)")
+            XCTAssertNil(fresh.tokens.token(uni, service: "learnweb"), "kein Learnweb-Schluessel: \(uni)")
+            let settings = try await fresh.api.value("/api/settings")
+            XCTAssertNotEqual(settings["user_name"]?.string, "Ada ADA-\(uni.rawValue)", "Einstellungen der alten Daten weg: \(uni)")
+        }
+        let scope = DataContainerKey.userScope(user) + "."
+        XCTAssertFalse(keychain.accounts().contains { $0.hasPrefix(scope) }, "nichts des Kontos im Schluesselbund")
+    }
+
     // MARK: Umzug der alten Daten
 
     /// Stand vor dieser Version: Datenbank und Notizen unter Application Support/UniFlow, Downloads unter
