@@ -17,7 +17,7 @@ import Foundation
 /// Angezeigt wird je Modul (sonst Kurs), Tag und Art ein Termin mit allen Fundstellen.
 public enum DueStore {
     /// Stand der Erkennung; aendert sich die Erkennung, rechnet `ensureFresh` alles neu
-    static let detectorVersion = "1"
+    static let detectorVersion = "2"
 
     static let tablesSQL = """
         CREATE TABLE IF NOT EXISTS due_hits (

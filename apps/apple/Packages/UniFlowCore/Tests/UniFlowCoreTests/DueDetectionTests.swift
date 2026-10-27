@@ -206,4 +206,132 @@ final class DueDetectionTests: XCTestCase {
         XCTAssertEqual(summary(detect("Pru\u{308}fungstermin: 12.02.2027")), ["2027-02-12 klausur Prüfung"])
         XCTAssertEqual(summary(detect("Die Abga-\nbe ist am 05.11.2026.")), ["2026-11-05 abgabe Abgabe"])
     }
+
+    // MARK: Ueberschrift mit Unterpunkten
+
+    func testHeadingWithSubPoints() {
+        // Zeile nur aus Aufzaehlungszeichen und Schluesselwort, das Datum im Unterpunkt darunter
+        let text = """
+            ◼ Kurzklausurtermin
+            ❑ Datum: Do, 03.12.2026,
+            ❑ Anmeldung über das Prüfungsportal
+            ❑ Raum + Uhrzeit werden im Portal bekanntgegeben
+            ◼ Übungsbetrieb
+            ❑ Beginn in der zweiten Vorlesungswoche
+            """
+        let hits = detect(text)
+        XCTAssertEqual(summary(hits), ["2026-12-03 klausur Kurzklausur"])
+        XCTAssertTrue(hits.first?.snippet.contains("Datum: Do, 03.12.2026") ?? false, "\(hits)")
+        // andere Zeichen und Komposita; ein Datum nach "Termin:" geht dem ersten vor
+        XCTAssertEqual(summary(detect("• Abgabetermin\n  ◦ Ausgabe der Aufgabe am 05.11.2026\n  ◦ Termin: Fr, 20.11.2026, 12:00 Uhr\n• Rückfragen im Forum")),
+                       ["2026-11-20 12:00 abgabe Abgabe"])
+        // Ueberschrift ohne eigenes Zeichen, Unterpunkte mit
+        XCTAssertEqual(summary(detect("Klausurtermin\n- Datum: 09.02.2027\n- Dauer: 90 Minuten")), ["2027-02-09 klausur Klausur"])
+        // Datum auf der Folgezeile des Unterpunkts
+        XCTAssertEqual(summary(detect("◼ Testattermine\n❑ Termin:\n17.11.2026 in den Tutorien")), ["2026-11-17 test Testat"])
+    }
+
+    func testHeadingCounterChecks() {
+        // der naechste Hauptpunkt beendet die Unterpunkte: sein Datum gehoert nicht zur Ueberschrift
+        XCTAssertEqual(detect("◼ Klausurtermin\n❑ wird in der Vorlesung bekanntgegeben\n◼ Übungsbetrieb\n❑ Beginn: 02.11.2026"), [])
+        // gleiches Zeichen wie die Ueberschrift: Nachbar, kein Unterpunkt
+        XCTAssertEqual(detect("• Kurzklausur\n• Vorlesungsbeginn: 19.10.2026"), [])
+        // Unterpunkt mit eigenem Schluesselwort: das Datum gehoert ihm
+        XCTAssertEqual(summary(detect("◼ Klausurtermine\n❑ Probeklausur am 26.11.2026\n❑ Klausur: Datum folgt")), ["2026-11-26 klausur Probeklausur"])
+        // ohne Unterpunkte wie bisher
+        XCTAssertEqual(detect("◼ Abgabetermin\nDie Vorlesung am 12.11.2026 fällt aus."), [])
+        // Einsicht im Unterpunkt: kein Termin
+        XCTAssertEqual(detect("◼ Klausur\n❑ Einsicht: 03.03.2027"), [])
+        // Folien und andere Ereignisse in Unterpunkten geben der Ueberschrift kein Datum
+        XCTAssertEqual(detect("• Abgabe\n  – über das Portal als PDF\n  – Folien vom 02.11. beachten"), [])
+        XCTAssertEqual(detect("◼ Klausur\n❑ Stoff: Kapitel 1–6\n❑ Die Vorlesung am 02.11. entfällt"), [])
+    }
+
+    // MARK: Testate im Semesterplan
+
+    func testTestatColumnInSemesterPlan() {
+        let plan = """
+            Semesterplan Programmierkurs
+            Nr Datum Thema Tutorien & Testate
+            1 23.10. Organisation, Werkzeuge
+            3 06.11. Schleifen und Felder (…) T1: Kontrollfluss (VL 1-3) - 16.11 bis 19.11.
+            5 20.11. Recursion (base cases, accumulators, local helpers, tests), recipe for lists
+            7 04.12. Zeiger und Speicher (…) T2: Felder und Zeiger (VL 4-6) - 14.12 - 17.12.
+            9 08.01. Dateien und Ströme T3: Speicher (VL 7-8) - 18.01. bis 21.01.
+            11 22.01. Wiederholung
+            """
+        let hits = detect(plan, reference: "2026-10-15")
+        XCTAssertEqual(summary(hits), ["2026-11-16 test Testat T1 (bis 19.11.)", "2026-12-14 test Testat T2 (bis 17.12.)",
+                                       "2027-01-18 test Testat T3 (bis 21.01.)"])
+        XCTAssertTrue(hits.first?.snippet.contains("T1: Kontrollfluss (VL 1-3) - 16.11 bis 19.11.") ?? false, "\(hits)")
+        // derselbe Zeitraum noch einmal im Text: ein Treffer
+        XCTAssertEqual(summary(detect(plan + "\n\nDas Testat T1 findet vom 16.11. bis 19.11. statt.", reference: "2026-10-15")).first,
+                       "2026-11-16 test Testat T1 (bis 19.11.)")
+        XCTAssertEqual(detect(plan + "\n\nDas Testat T1 findet vom 16.11. bis 19.11. statt.", reference: "2026-10-15").count, 3)
+    }
+
+    func testTestatMarkerNeedsTestatHeader() {
+        // Kopf ohne Testate: "T1:" ist kein Testat
+        XCTAssertEqual(detect("Nr Datum Thema Übungen\n3 06.11. Schleifen T1: Kontrollfluss - 16.11 bis 19.11.", reference: "2026-10-15"), [])
+        // ausserhalb einer Tabelle
+        XCTAssertEqual(detect("Gruppe T1: Raum F102, 16.11. bis 19.11."), [])
+        // Zeile ohne Datum hinter "T1:": das Datum der Vorlesung davor gehoert nicht zum Testat
+        XCTAssertEqual(detect("Woche Datum Thema Testate\n3 06.11. Schleifen T1: Kontrollfluss\n5 20.11. Rekursion", reference: "2026-10-15"), [])
+        // Liste statt Tabelle: wie bisher
+        XCTAssertEqual(summary(detect("Termine der Testate:\n16.11.2026, 14.12.2026")), ["2026-11-16 test Testat", "2026-12-14 test Testat"])
+        XCTAssertEqual(summary(detect("Termine der Testate\nT1: 16.11.2026\nT2: 14.12.2026")), ["2026-11-16 test Testat T1", "2026-12-14 test Testat T2"])
+    }
+
+    func testRangeStartWithoutDot() {
+        XCTAssertEqual(summary(detect("Testat 14.12 - 17.12.")), ["2026-12-14 test Testat"])
+        XCTAssertEqual(summary(detect("Abgabe 16.11 bis 19.11.")), ["2026-11-19 abgabe Abgabe"])
+        // ohne Bereich kein Datum
+        XCTAssertEqual(detect("Abgabe 16.11 im Kasten"), [])
+        XCTAssertEqual(detect("Klausurrelevant: Kapitel 2.11 bis 3.4."), [])
+    }
+
+    // MARK: Englisch klein "test"
+
+    func testLowercaseEnglishTestNeedsExamContext() {
+        // Themenliste in Klammern
+        XCTAssertEqual(detect("Recursion (base cases, accumulators, local helpers, tests), recipe for lists 20.11.2026"), [])
+        // Wortgruppen
+        XCTAssertEqual(detect("Write unit tests until 20.11.2026"), [])
+        XCTAssertEqual(detect("Add tests for the parser by 20.11.2026"), [])
+        // ohne Pruefungsbezug
+        XCTAssertEqual(detect("we run the tests again 20.11.2026"), [])
+        // mit klarem Bezug: "test on <Datum>", "test: <Datum>", Pruefungswort im Satz
+        XCTAssertEqual(summary(detect("The second test on 26.11.2026 covers recursion.")), ["2026-11-26 test Test"])
+        XCTAssertEqual(summary(detect("Next test: 03.12.2026, 10:00")), ["2026-12-03 10:00 test Test"])
+        XCTAssertEqual(summary(detect("As announced for the exam, the test 10.12.2026 is mandatory.")), ["2026-12-10 test Test"])
+        // gross geschrieben wie bisher
+        XCTAssertEqual(summary(detect("Tests am 17.12.2026 in der Übung")), ["2026-12-17 test Test"])
+    }
+
+    // MARK: Zeitraum nach "Klausuren", "Pruefungen", "Pruefungszeitraum"
+
+    func testRangeAfterPluralExamsIsNoExamDay() {
+        // Absatz ueber den Meldezeitraum: der Zeitraum nach "Klausuren" ist die Anmeldung, das Ende zaehlt
+        let text = """
+            Anmeldung zur Teilklausur
+            Die Anmeldung erfolgt nur im Melde- und Rücktrittszeitraum über das Prüfungsportal. Dieser unterscheidet sich von den „regulären“ Klausuren (16.11.-27.11.) und wird in der Vorlesung bekanntgegeben.
+            """
+        XCTAssertEqual(summary(detect(text)), ["2026-11-27 anmeldung Anmeldung"])
+        XCTAssertEqual(summary(detect("Meldezeitraum wie bei allen Prüfungen: 16.11.–27.11.2026")), ["2026-11-27 anmeldung Anmeldung"])
+        XCTAssertEqual(summary(detect("Wer sich nicht rechtzeitig angemeldet hat, kann nicht teilnehmen. Es gelten die Zeiten wie bei den Prüfungen (16.11.–27.11.).")),
+                       ["2026-11-27 anmeldung Anmeldung"])
+        // ohne Anmeldung in den zwei Saetzen davor: kein Termin
+        XCTAssertEqual(detect("Die Kurzklausuren ersetzen nicht die regulären Klausuren (01.02.–12.02.2027)."), [])
+        XCTAssertEqual(detect("Die Anmeldung erfolgt online. Der Stoff umfasst alle Kapitel der Vorlesung. Hilfsmittel sind nicht erlaubt. "
+                              + "Es gelten die Termine der regulären Klausuren (16.11.-27.11.)."), [])
+        // Anmeldung mit eigenem Datum: der Zeitraum nach "Klausuren" ist die Pruefungszeit
+        XCTAssertEqual(summary(detect("Prüfungsanmeldung: 16.11.–27.11.2026 im Portal\nKlausuren: 01.02.–12.02.2027")),
+                       ["2026-11-27 anmeldung Anmeldung"])
+        // "Pruefungszeitraum" ist nie ein Klausurtag und nie die Anmeldung
+        XCTAssertEqual(detect("Die Prüfungsanmeldung erfolgt im Portal. Prüfungszeitraum: 01.02.–12.02.2027"), [])
+        XCTAssertEqual(detect("Klausur im Prüfungszeitraum 01.02.–12.02.2027"), [])
+        // einzelner Tag bleibt ein Klausurtag
+        XCTAssertEqual(summary(detect("Die Klausuren finden am 03.02.2027 statt.")), ["2027-02-03 klausur Klausur"])
+        XCTAssertEqual(summary(detect("Klausur in der Prüfungsphase am 03.02.2027")), ["2027-02-03 klausur Klausur"])
+    }
 }

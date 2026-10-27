@@ -18,6 +18,14 @@ import Foundation
 ///   gilt das Datum nicht. Daten ausserhalb des Zeitraums fallen weg (alte Semester).
 /// - Kein Datum: "Aufgabe 2.1.", "Kapitel 3.11.", "Folien vom 02.11.", "Stand: 01.10.2026". Kein Termin: Loesungen,
 ///   Ergebnisse, Rueckgabe oder Einsicht zu einem Test.
+/// - Ueberschrift: eine Zeile nur aus Aufzaehlungszeichen und Schluesselwort ("◼ Kurzklausurtermin") bekommt das erste
+///   Datum ihrer Unterpunkte bis zum naechsten Hauptpunkt, eines nach "Datum:"/"Termin:" zuerst (`headingDate`).
+/// - Semesterplan mit Spalte "Testate": "T1: ... 16.11 bis 19.11." ist ein Testat am ersten Tag, das Ende steht in der
+///   Bezeichnung; das Datum der Vorlesung davor gehoert nicht dazu (`testatTables`).
+/// - Englisch klein "test"/"tests" nur mit Pruefungsbezug ("test on <Datum>", "test: <Datum>", exam/quiz/midterm im
+///   Satz), nicht in Wortgruppen ("unit tests", "tests for") und nicht in einer Aufzaehlung in Klammern.
+/// - Bereich direkt nach "Klausuren"/"Pruefungen" ist kein Klausurtag, nach "Pruefungszeitraum" nie ein Termin; ist in
+///   den zwei Saetzen davor von der Anmeldung die Rede (ohne eigenes Datum), ist er die Anmeldung (Ende zaehlt).
 ///
 /// `Announcements.extractDates` (app/announcements.py) ist dafuer nur teilweise wiederverwendbar: Monatsnamen und Text
 /// aus HTML kommen von dort; die Art bestimmt es aus dem ganzen Satz, ohne Abstand zum Schluesselwort, und das Jahr nur
@@ -240,6 +248,9 @@ public enum DueDetection {
     }
 
     private static let numericRE = HText.regex(#"(?<![\p{L}\p{N}./])(\d{1,2})\.\s?(\d{1,2})\.(?:\s?(20\d{2})(?![\d])|(\d{2})(?![\d.:]))?(?![\d])"#)
+    /// "16.11" direkt vor "bis 19.11." bzw. "- 19.11." (Semesterplaene)
+    private static let openStartRE = HText.regex(
+        #"(?<![\p{L}\p{N}./])(\d{1,2})\.(\d{1,2})(?=\s*(?:-|–|—|bis)\s*(?:\p{L}{2,10}\.?,?\s*)?\d{1,2}\.\s?\d{1,2}\.)"#, [.caseInsensitive])
     private static let isoRE = HText.regex(#"(?<![\d\-./])(20\d{2})-(\d{2})-(\d{2})(?![\d\-])(?:[T ](\d{2}):(\d{2}))?"#)
     private static let germanMonthRE: NSRegularExpression = {
         let names = Announcements.months.map(\.0).sorted { $0.count > $1.count }.joined(separator: "|")
@@ -287,10 +298,15 @@ public enum DueDetection {
         }
         var found: [(range: NSRange, parts: Parts, time: String?)] = []
         var numberingEnd = -1                                // Ende der letzten Nummer ("Aufgabe 3.11. und 3.12.")
-        for m in numericRE.matches(in: text, range: full) {
+        // Beginn eines Bereichs ohne Punkt nach dem Monat ("16.11 bis 19.11."): gilt nur, wenn daraus ein Bereich wird
+        var openStarts = Set<Int>()
+        let numeric = (numericRE.matches(in: text, range: full).map { ($0, false) } + openStartRE.matches(in: text, range: full).map { ($0, true) })
+            .sorted { $0.0.range.location < $1.0.range.location }
+        for (m, open) in numeric {
             guard let d = group(m, 1).flatMap(Int.init), let mo = group(m, 2).flatMap(Int.init) else { continue }
+            if open { openStarts.insert(m.range.location) }
             var year: Int?
-            if let y = group(m, 3) { year = Int(y) } else if let y = group(m, 4), let n = Int(y) { year = 2000 + n }
+            if !open, let y = group(m, 3) { year = Int(y) } else if !open, let y = group(m, 4), let n = Int(y) { year = 2000 + n }
             if year == nil {
                 // "2.1." ohne Jahr: fast immer eine Nummer (Aufgabe 2.1.); ebenso nach "Aufgabe", "Kapitel" ... und in
                 // einer Aufzaehlung direkt dahinter
@@ -371,6 +387,7 @@ public enum DueDetection {
             }
             merged.append(t)
         }
+        merged.removeAll { $0.end == nil && openStarts.contains($0.coreStart) }
         // Uhrzeit direkt danach
         for i in merged.indices where merged[i].time == nil {
             let a = NSMaxRange(merged[i].range), len = min(34, ns.length - a)
@@ -414,12 +431,19 @@ public enum DueDetection {
         let kind: Kind
         let label: String
         let direction: Direction
+        /// englisch klein ("test", "tests"): nur mit klarem Pruefungsbezug (`Keyword.weak`)
+        let weakLowercase: Bool
+        /// Zeitraum statt Termin ("Pruefungszeitraum"): nimmt nur Bereiche und ergibt selbst keinen Treffer
+        let periodOnly: Bool
 
-        init(pattern: String, kind: Kind, label: String, nounAfterRestricted: Bool, direction: Direction? = nil) {
+        init(pattern: String, kind: Kind, label: String, nounAfterRestricted: Bool, direction: Direction? = nil,
+             weakLowercase: Bool = false, periodOnly: Bool = false) {
             self.pattern = pattern
             self.kind = kind
             self.label = label
             self.direction = direction ?? (nounAfterRestricted ? .restrictedBefore : .both)
+            self.weakLowercase = weakLowercase
+            self.periodOnly = periodOnly
         }
     }
 
@@ -429,22 +453,25 @@ public enum DueDetection {
         KeywordSpec(pattern: #"abmeldefrist(?:en)?|abmeldeschluss|r(?:ü|ue)cktrittsfrist"#, kind: .anmeldung, label: "Abmeldefrist", nounAfterRestricted: false),
         KeywordSpec(pattern: #"anmeldung(?:en)?|registration(?:\s+deadline)?"#, kind: .anmeldung, label: "Anmeldung", nounAfterRestricted: true),
         KeywordSpec(pattern: #"anzumelden|anmelden"#, kind: .anmeldung, label: "Anmeldung", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"probe-?kurzklausur(?:en)?"#, kind: .klausur, label: "Probe-Kurzklausur", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"probe-?kurzklausur(?:en|termin(?:e)?)?"#, kind: .klausur, label: "Probe-Kurzklausur", nounAfterRestricted: false),
         KeywordSpec(pattern: #"kurzklausur(?:en|termin|termine)?"#, kind: .klausur, label: "Kurzklausur", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"probeklausur(?:en)?"#, kind: .klausur, label: "Probeklausur", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"nachklausur(?:en)?|wiederholungsklausur(?:en)?"#, kind: .klausur, label: "Nachklausur", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"klausurtermin(?:e)?|klausur(?:en)?"#, kind: .klausur, label: "Klausur", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"pr(?:ü|ue)fungstermin(?:e)?|(?:m(?:ü|ue)ndliche|schriftliche)\s+pr(?:ü|ue)fung(?:en)?"#, kind: .klausur, label: "Prüfung", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"probeklausur(?:en|termin(?:e)?)?"#, kind: .klausur, label: "Probeklausur", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"nachklausur(?:en|termin(?:e)?)?|wiederholungsklausur(?:en|termin(?:e)?)?"#, kind: .klausur, label: "Nachklausur", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"pr(?:ü|ue)fungs(?:zeitr(?:aum|(?:ä|ae)ume)|phase)|klausur(?:en)?(?:zeitr(?:aum|(?:ä|ae)ume)|phase)"#, kind: .klausur,
+                    label: "Prüfungszeitraum", nounAfterRestricted: false, direction: .dateAfter, periodOnly: true),
+        KeywordSpec(pattern: #"klausurtermin(?:e)?|klausurdatum|klausur(?:en)?"#, kind: .klausur, label: "Klausur", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"pr(?:ü|ue)fungstermin(?:e)?|pr(?:ü|ue)fungsdatum|(?:m(?:ü|ue)ndliche|schriftliche)\s+pr(?:ü|ue)fung(?:en)?"#, kind: .klausur, label: "Prüfung", nounAfterRestricted: false),
         KeywordSpec(pattern: #"pr(?:ü|ue)fung(?:en)?"#, kind: .klausur, label: "Prüfung", nounAfterRestricted: false, direction: .dateAfter),
         KeywordSpec(pattern: #"(?:final\s+|midterm\s+)?exam(?:s|ination)?|midterm"#, kind: .klausur, label: "Prüfung", nounAfterRestricted: false, direction: .dateAfter),
-        KeywordSpec(pattern: #"probe-?kurztest(?:s|e)?"#, kind: .test, label: "Probe-Kurztest", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"kurztestat(?:e|en|s)?"#, kind: .test, label: "Kurztestat", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"kurztest(?:s|e)?"#, kind: .test, label: "Kurztest", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"probetestat(?:e|en)?|testat(?:e|en|s)?"#, kind: .test, label: "Testat", nounAfterRestricted: false),
-        KeywordSpec(pattern: #"zwischentest(?:s|e)?"#, kind: .test, label: "Zwischentest", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"probe-?kurztest(?:s|e|termin(?:e)?)?"#, kind: .test, label: "Probe-Kurztest", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"kurztestat(?:e|en|s|termin(?:e)?)?"#, kind: .test, label: "Kurztestat", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"kurztest(?:s|e|termin(?:e)?)?"#, kind: .test, label: "Kurztest", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"probetestat(?:e|en)?|testat(?:e|en|s|termin(?:e)?)?"#, kind: .test, label: "Testat", nounAfterRestricted: false),
+        KeywordSpec(pattern: #"zwischentest(?:s|e|termin(?:e)?)?"#, kind: .test, label: "Zwischentest", nounAfterRestricted: false),
         KeywordSpec(pattern: #"online-?test(?:s)?|e-?test(?:s)?"#, kind: .test, label: "Online-Test", nounAfterRestricted: false),
         KeywordSpec(pattern: #"quiz(?:ze|zes)?"#, kind: .test, label: "Quiz", nounAfterRestricted: false, direction: .dateAfter),
-        KeywordSpec(pattern: #"tests?"#, kind: .test, label: "Test", nounAfterRestricted: false, direction: .dateAfter),
+        KeywordSpec(pattern: #"test(?:s|termin(?:e)?)?"#, kind: .test, label: "Test", nounAfterRestricted: false, direction: .dateAfter,
+                    weakLowercase: true),
         KeywordSpec(pattern: #"(?:(?:ü|ue)bungsblatt|blatt)-?abgabe"#, kind: .abgabe, label: "Abgabe", nounAfterRestricted: false),
         KeywordSpec(pattern: #"abgabe(?:termin(?:e)?|frist(?:en)?|schluss|datum)|abgaben?"#, kind: .abgabe, label: "Abgabe", nounAfterRestricted: false),
         KeywordSpec(pattern: #"abzugeben|abgeben|abgegeben"#, kind: .abgabe, label: "Abgabe", nounAfterRestricted: false),
@@ -475,7 +502,48 @@ public enum DueDetection {
         var kind: Kind
         var label: String
         var direction: Direction
+        /// englisch klein "test"/"tests": zaehlt nur mit "on"/":" vor dem Datum oder einem Pruefungswort im Satz
+        var weak = false
+        /// Zeitraum ("Pruefungszeitraum"): nimmt nur Bereiche, ergibt keinen Treffer
+        var periodOnly = false
     }
+
+    /// Vor "test"/"tests": Wortgruppen wie "unit tests", "t-test", "write tests"
+    private static let weakBeforeRE = HText.regex(
+        #"(?<![\p{L}])(?:unit|integration|regression|smoke|acceptance|system|end-to-end|e2e|load|stress|performance|usability|property(?:-based)?|automated|automatic|statistical|hypothesis|significance|t|z|f|chi(?:-squared?)?|write|writing|run|running|pass|passing|failing|failed)[\s-]+$"#,
+        [.caseInsensitive])
+    /// Nach "test"/"tests": "tests for", "test cases", "test suite" ...
+    private static let weakAfterRE = HText.regex(
+        #"^\s+(?:for|of|cases?|suites?|data|coverage|driven|runs?|results?|files?|methods?|classes?|code|framework|harness|statistics?)(?![\p{L}])"#,
+        [.caseInsensitive])
+    /// zwischen "test" und Datum: "test on <Datum>", "test: <Datum>"
+    private static let weakGapRE = HText.regex(
+        #"^\s*(?::\s*|(?:(?:is|will\s+be|takes\s+place|is\s+held|will\s+be\s+held|will\s+take\s+place)\s+)?on\s+)(?:the\s+)?$"#,
+        [.caseInsensitive])
+    /// Pruefungswort im Satz vor "test"
+    private static let examContextRE = HText.regex(#"(?<![\p{L}])(?:exams?|examinations?|quiz(?:zes)?|midterms?)(?![\p{L}])"#, [.caseInsensitive])
+
+    /// Wort in einer Aufzaehlung in Klammern ("(Variablen, Funktionen, tests)"): offene Klammer davor (hoechstens 200
+    /// Zeichen, auch ueber einen Zeilenumbruch, nicht ueber einen Absatz) und Komma, Semikolon oder "und"/"and" darin
+    static func inParenList(_ ns: NSString, _ r: NSRange) -> Bool {
+        var i = r.location - 1, open = -1
+        while i >= 0, r.location - i <= 200 {
+            let c = ns.character(at: i)
+            if c == 41 || (c == 10 && i > 0 && ns.character(at: i - 1) == 10) { break }   // ")" oder Leerzeile
+            if c == 40 { open = i; break }                                              // "("
+            i -= 1
+        }
+        guard open >= 0 else { return false }
+        var j = NSMaxRange(r)
+        while j < ns.length, j - NSMaxRange(r) <= 200 {
+            let c = ns.character(at: j)
+            if c == 41 || c == 40 || (c == 10 && j + 1 < ns.length && ns.character(at: j + 1) == 10) { break }
+            j += 1
+        }
+        let inner = ns.substring(with: NSRange(location: open + 1, length: j - open - 1))
+        return inner.contains(",") || inner.contains(";") || has(parenAndRE, inner)
+    }
+    private static let parenAndRE = HText.regex(#"(?<![\p{L}])(?:und|and|sowie|or|oder)(?![\p{L}])"#, [.caseInsensitive])
 
     private static let headConnectorRE = HText.regex(#"^\s*(?:zur|zum|zu|f(?:ü|ue)r|der|des|von|for|of|to)(?:\s+(?:der|die|das|den|dem|the))?\s*$"#, [.caseInsensitive])
     private static let compoundRE = HText.regex(#"^\s*[-/]\s*$"#)
@@ -499,7 +567,21 @@ public enum DueDetection {
                 if !dateTails.contains(word) && !nextIsKeyword { continue }
             }
             for (i, spec) in keywordSpecs.enumerated() where m.range(at: i + 1).location != NSNotFound {
-                out.append(Keyword(range: m.range, kind: spec.kind, label: spec.label, direction: spec.direction))
+                var weak = false
+                if spec.weakLowercase {
+                    let word = ns.substring(with: m.range)
+                    if word == "test" || word == "tests" {
+                        // englisch klein: nicht in Wortgruppen ("unit tests", "tests for") und nicht in einer Aufzaehlung
+                        // in Klammern ("(Schleifen, Felder, tests)")
+                        let lo = max(0, m.range.location - 24)
+                        let before = ns.substring(with: NSRange(location: lo, length: m.range.location - lo))
+                        if has(weakBeforeRE, before) || has(weakAfterRE, tail) { break }
+                        if !tail.drop(while: { $0 == " " }).hasPrefix(":"), inParenList(ns, m.range) { break }
+                        weak = true
+                    }
+                }
+                out.append(Keyword(range: m.range, kind: spec.kind, label: spec.label, direction: spec.direction, weak: weak,
+                                   periodOnly: spec.periodOnly))
                 break
             }
         }
@@ -519,8 +601,10 @@ public enum DueDetection {
                         head = k.kind == .anmeldung ? k : prev
                     }
                     if let head {
+                        // schwach nur, wenn beide Teile schwach sind ("exam/test" zaehlt)
                         prev = Keyword(range: NSRange(location: prev.range.location, length: NSMaxRange(k.range) - prev.range.location),
-                                       kind: head.kind, label: head.label, direction: head.direction)
+                                       kind: head.kind, label: head.label, direction: head.direction, weak: prev.weak && k.weak,
+                                       periodOnly: head.periodOnly)
                         merged[merged.count - 1] = prev
                         continue
                     }
@@ -542,6 +626,16 @@ public enum DueDetection {
                                              "jun", "jul", "aug", "sep", "sept", "okt", "oct", "nov", "dez", "dec", "hrsg", "ws", "ss",
                                              "wise", "sose", "mo", "di", "mi", "do", "sa", "so", "abb", "tab", "aufg", "bzgl", "z", "b",
                                              "u", "a", "s", "d", "h", "o", "e", "i", "v", "ff", "f", "geb", "raum"]
+
+    /// Satzenden in einem Text (Stelle direkt dahinter), ungeordnet; Regeln wie `sentenceBreak`
+    static func sentenceEnds(_ s: String) -> [Int] {
+        let ns = s as NSString, r = NSRange(location: 0, length: ns.length)
+        return sentenceBreakRE.matches(in: s, range: r).map { NSMaxRange($0.range) }
+            + wordDotRE.matches(in: s, range: r).filter { m in
+                let w = ns.substring(with: m.range(at: 1)).lowercased()
+                return !abbreviations.contains(w) && (w.count >= 4 || m.range(at: 2).location != NSNotFound)
+            }.map { $0.range(at: 1).location + $0.range(at: 1).length + 1 }
+    }
 
     /// Satzgrenze zwischen Schluesselwort und Datum ("... fällt aus. Die Abgabe ..."); Punkte von Abkuerzungen
     /// ("bzw.", "Nr.", "Prof.") und Datumsangaben zaehlen nicht
@@ -592,6 +686,15 @@ public enum DueDetection {
         let n = words(gap)
         let comma = has(commaRE, gap)
         if !keywordFirst && k.direction == .dateAfter { return nil }
+        // "Pruefungszeitraum" nimmt nur Bereiche ("Klausur in der Pruefungsphase am 03.02." bleibt der Klausur)
+        if k.periodOnly && d.end == nil { return nil }
+        if k.weak, !has(weakGapRE, gap) {
+            // englisch klein: sonst nur mit Pruefungswort im selben Satz davor
+            let lo = max(0, k.range.location - 100)
+            var lead = ns.substring(with: NSRange(location: lo, length: k.range.location - lo))
+            if let b = sentenceEnds(lead).max() { lead = String((lead as NSString).substring(from: b)) }
+            guard has(examContextRE, lead) || has(examContextRE, gap) else { return nil }
+        }
         if !keywordFirst && k.direction == .restrictedBefore {
             // "Fr, 11.12.2026, Anmeldung über Stud.IP": Hinweis zur Anmeldung, kein Anmeldeschluss
             if comma { return nil }
@@ -676,6 +779,198 @@ public enum DueDetection {
         return k.label
     }
 
+    // MARK: - Ueberschriften mit Unterpunkten
+
+    /// Hauptpunkte: beenden die Unterpunkte einer Ueberschrift ("◼", "●", "■")
+    static let mainBullets: Set<unichar> = [0x25FC, 0x25CF, 0x25A0, 0x25FE, 0x2B1B, 0x26AB, 0x2B24]
+    /// weitere Aufzaehlungszeichen ("❑", "-", "•", "◦", "▪", "–", "*", "➢" ...); dazu Zeichen aus dem privaten Bereich
+    /// (Symbolschriften in PDFs)
+    static let subBullets: Set<unichar> = [0x2751, 0x2752, 0x25A1, 0x25AA, 0x25AB, 0x25E6, 0x25CB, 0x2022, 0x2023, 0x2043, 0x2D, 0x2013,
+                                           0x2014, 0x2A, 0xB7, 0x2713, 0x2714, 0x27A2, 0x27A4, 0x25BA, 0x25B8, 0x25B6, 0x25C7, 0x25C6,
+                                           0x2756, 0x2192]
+
+    static func isBullet(_ c: unichar) -> Bool { mainBullets.contains(c) || subBullets.contains(c) || (0xE000...0xF8FF).contains(c) }
+
+    /// Beginn und Ende (ohne Zeilenumbruch) der Zeile um `pos`
+    static func lineBounds(_ ns: NSString, _ pos: Int) -> (start: Int, end: Int) {
+        var s = min(pos, ns.length), e = min(pos, ns.length)
+        while s > 0, ns.character(at: s - 1) != 10 { s -= 1 }
+        while e < ns.length, ns.character(at: e) != 10 { e += 1 }
+        return (s, e)
+    }
+
+    /// Erstes Zeichen einer Zeile nach Leerraum; nil bei leerer Zeile
+    static func firstVisible(_ ns: NSString, _ start: Int, _ end: Int) -> Int? {
+        var i = start
+        while i < end, ns.character(at: i) == 32 || ns.character(at: i) == 9 { i += 1 }
+        return i < end ? i : nil
+    }
+
+    /// Rest einer Ueberschrift hinter dem Schluesselwort: hoechstens eine Nummer ("Kurztestat 2", "Abgabe Blatt 3") und ":"
+    private static let headingTailRE = HText.regex(#"^\s*(?:(?:nr\.?|no\.?|#)?\s*\d{1,2}|(?:(?:ü|ue)bungs)?blatt\s*\d{1,2})?\s*:?\s*$"#, [.caseInsensitive])
+    /// vor dem Datum eines Unterpunkts: "Datum:", "Termin:" (geht dem ersten Datum vor)
+    private static let dateLabelRE = HText.regex(#"(?<![\p{L}])(?:datum|termin|zeitpunkt|wann|date|when)\s*:?\s*$"#, [.caseInsensitive])
+    /// Unterpunkt, der mit einem anderen Ereignis beginnt ("❑ Vorlesung am 02.11. entfaellt", "◦ Ausgabe am 05.11.")
+    private static let otherEventRE = HText.regex(
+        #"^[^\p{L}\p{N}]*(?:(?:die|der|das|the)\s+)?(?:(?:erste|letzte|n(?:ä|ae)chste|first|last|next)\s+)?(?:vorlesung(?:en)?|(?:ü|ue)bung(?:en)?|tutori(?:um|en)|sprechstunde|sitzung|ausgabe|lecture|tutorial)(?![\p{L}])"#,
+        [.caseInsensitive])
+    /// Unterpunkt laeuft auf der naechsten Zeile weiter ("❑ Termin:" / "17.11.2026 ...")
+    private static let continuedRE = HText.regex(#"(?:[:,]|(?<![\p{L}])(?:am|bis|vom|ab|den|on|by|until))\s*$"#, [.caseInsensitive])
+
+    /// Ueberschrift aus Aufzaehlungszeichen und Schluesselwort ("◼ Kurzklausurtermin", auch ohne Zeichen, wenn die
+    /// Unterpunkte welche haben), darunter Unterpunkte ("❑", "-", "•", "◦", Einrueckung) bis zum naechsten Hauptpunkt
+    /// ("◼", "●"), zum naechsten Punkt mit dem Zeichen der Ueberschrift oder zur ersten Zeile, die kein Unterpunkt ist.
+    /// nil: keine solche Ueberschrift. Sonst das Datum der Unterpunkte (.some(nil): keins): eines hinter "Datum:" oder
+    /// "Termin:" geht vor, sonst das erste; eines, das in seiner Zeile ein eigenes Schluesselwort hat
+    /// ("❑ Probeklausur am 26.11."), gehoert diesem.
+    static func headingDate(_ ki: Int, _ keywords: [Keyword], _ dates: [DateToken], _ ns: NSString) -> Int?? {
+        let k = keywords[ki]
+        guard !k.weak, !k.periodOnly else { return nil }
+        // vor dem Schluesselwort nur Aufzaehlungszeichen und Leerraum (rueckwaerts: bricht meist sofort ab)
+        var headBullet: unichar?
+        var i = k.range.location - 1
+        while i >= 0, ns.character(at: i) != 10 {
+            let c = ns.character(at: i)
+            if c != 32 && c != 9 {
+                guard isBullet(c) else { return nil }
+                headBullet = c
+            }
+            i -= 1
+        }
+        let ls = i + 1
+        let a = NSMaxRange(k.range)
+        let le = lineBounds(ns, a).end
+        guard has(headingTailRE, ns.substring(with: NSRange(location: a, length: le - a))) else { return nil }
+        let headIndented = ls < ns.length && (ns.character(at: ls) == 32 || ns.character(at: ls) == 9)
+        var lines: [(start: Int, end: Int)] = []
+        var bulleted = false, continues = false
+        var pos = le + 1
+        while pos < ns.length, lines.count < 8 {
+            let e = lineBounds(ns, pos).end
+            guard let f = firstVisible(ns, pos, e) else { break }               // Leerzeile
+            let c = ns.character(at: f)
+            if mainBullets.contains(c) { break }                                 // naechster Hauptpunkt
+            if let h = headBullet, c == h { break }                              // Nachbar der Ueberschrift
+            if isBullet(c) {
+                bulleted = true
+            } else if !(f > pos && !headIndented) && !(continues && !lines.isEmpty) {
+                break                                                            // weder eingerueckt noch Fortsetzung
+            }
+            lines.append((pos, e))
+            continues = has(continuedRE, ns.substring(with: NSRange(location: pos, length: e - pos)))
+            pos = e + 1
+        }
+        guard let lo = lines.first?.start, let hi = lines.last?.end, headBullet != nil || bulleted else { return nil }
+        var first: Int?, labelled: Int?
+        for (di, d) in dates.enumerated() where d.range.location >= lo && d.range.location < hi {
+            let (s, e) = lineBounds(ns, d.range.location)
+            let owned = keywords.indices.contains { j in
+                j != ki && keywords[j].range.location >= s && keywords[j].range.location < e && score(keywords[j], d, ns) != nil
+            }
+            if owned { continue }
+            // "Folien vom 02.11.", "Stand: ..." und Unterpunkte zu etwas anderem ("❑ Vorlesung am 02.11. entfaellt")
+            let before = ns.substring(with: NSRange(location: s, length: d.coreStart - s))
+            if has(blockedBeforeDateRE, before) || has(otherEventRE, before) { continue }
+            if first == nil { first = di }
+            let from = max(lo, d.range.location - 40)
+            if labelled == nil, has(dateLabelRE, ns.substring(with: NSRange(location: from, length: d.range.location - from))) { labelled = di }
+        }
+        return .some(labelled ?? first)
+    }
+
+    // MARK: - Testate im Semesterplan
+
+    /// Spaltenkoepfe einer Tabelle
+    private static let tableColumnRE = HText.regex(
+        #"(?<![\p{L}])(?:datum|termine?|themen?|inhalte?|woche|kw|vorlesung(?:en)?|vl|(?:gruppen)?(?:ü|ue)bung(?:en)?|tutorium|tutorien|date|topics?|week|lecture)(?![\p{L}])|(?:^|\s)#(?:\s|$)"#,
+        [.caseInsensitive])
+    private static let testatMarkerRE = HText.regex(#"(?<![\p{L}\p{N}])T ?(\d{1,2})(?=\s*:)"#)
+    /// Zeile beginnt eine neue Tabellenzeile ("5 20.11. ...", "Mo 20.11. ...")
+    private static let rowStartRE = HText.regex(#"^\s*(?:\d{1,2}\s+)?(?:\p{L}{2,3}\.?,?\s*)?\d{1,2}\.\s?\d{1,2}\."#)
+
+    /// Tabellen, deren Kopfzeile Testate nennt ("Nr Datum Thema Tutorien & Testate"; ohne Datum, hoechstens 14 Woerter,
+    /// mit einem weiteren Spaltenkopf): darunter, bis zur Leerzeile, ist "T1:" ein Testat. Sein Datum ist das erste
+    /// danach in derselben Zeile ("T1: Kontrollfluss (VL 1-3) - 16.11 bis 19.11."), sonst das erste der Folgezeile, wenn
+    /// sie keine neue Tabellenzeile beginnt; nie das Datum der Vorlesung davor. Ergebnis: Kopfwoerter (kein Termin) und
+    /// Testate mit Datum (nil: keins).
+    static func testatTables(_ text: String, _ keywords: [Keyword], _ dates: [DateToken], _ ns: NSString)
+        -> (headers: [Int], markers: [(keyword: Keyword, date: Int?)]) {
+        var headers: [Int] = [], markers: [(keyword: Keyword, date: Int?)] = []
+        var seen = Set<Int>(), markersByLine: [Int: Bool] = [:]
+        for (ki, k) in keywords.enumerated() where k.kind == .test && (k.label == "Testat" || k.label == "Kurztestat") {
+            let (ls, le) = lineBounds(ns, k.range.location)
+            let line = ns.substring(with: NSRange(location: ls, length: le - ls))
+            // Kopf: kein Datum, kein ":" am Ende ("Termine der Testate:" leitet eine Liste ein), weitere Spalte
+            guard !line.trimmingCharacters(in: .whitespaces).hasSuffix(":"),
+                  !dates.contains(where: { $0.range.location < le && NSMaxRange($0.range) > ls }),
+                  words(line) <= 14, has(tableColumnRE, line) else { continue }
+            if !seen.insert(ls).inserted {
+                if markersByLine[ls] ?? false { headers.append(ki) }
+                continue
+            }
+            var rows: [(start: Int, end: Int)] = []
+            var pos = le + 1
+            while pos < ns.length, rows.count < 80 {
+                let e = lineBounds(ns, pos).end
+                guard firstVisible(ns, pos, e) != nil else { break }
+                rows.append((pos, e))
+                pos = e + 1
+            }
+            let before = markers.count
+            for (n, row) in rows.enumerated() {
+                let found = testatMarkerRE.matches(in: text, range: NSRange(location: row.start, length: row.end - row.start))
+                for (j, m) in found.enumerated() {
+                    let a = NSMaxRange(m.range)
+                    let stop = j + 1 < found.count ? found[j + 1].range.location : row.end
+                    var d = dates.firstIndex { $0.range.location >= a && $0.range.location < stop }
+                    if d == nil, j + 1 == found.count, n + 1 < rows.count {
+                        let next = rows[n + 1]
+                        let nextText = ns.substring(with: NSRange(location: next.start, length: next.end - next.start))
+                        if !has(rowStartRE, nextText), !has(testatMarkerRE, nextText) {
+                            d = dates.firstIndex { $0.range.location >= next.start && $0.range.location < next.end }
+                        }
+                    }
+                    let number = Int(ns.substring(with: m.range(at: 1))) ?? 0
+                    markers.append((Keyword(range: m.range, kind: .test, label: "Testat T\(number)", direction: .dateAfter), d))
+                }
+            }
+            // nur mit "T1:" darunter ist es eine Testat-Tabelle (und ihr Kopf kein Termin)
+            markersByLine[ls] = markers.count > before
+            if markers.count > before { headers.append(ki) }
+        }
+        return (headers, markers)
+    }
+
+    // MARK: - Zeitraum nach "Klausuren", "Pruefungen"
+
+    /// "Klausuren", "Pruefungen" (Mehrzahl) als Ende des Schluesselworts
+    private static let pluralExamRE = HText.regex(#"(?<![\p{L}])(?:klausuren|pr(?:ü|ue)fungen)$"#, [.caseInsensitive])
+    /// direkt davor: nur Klammer, Doppelpunkt, Strich, "vom"/"von"/"zwischen"
+    private static let directGapRE = HText.regex(#"^\s*(?:[(:–\-]\s*)?(?:(?:vom|von|zwischen)\s+)?$"#, [.caseInsensitive])
+    /// Rede von der Anmeldung: "Anmeldung", "anzumelden", "angemeldet", "Pruefungsanmeldung", "Melde-", "Meldezeitraum"
+    private static let registrationRE = HText.regex(
+        #"(?<![\p{L}])(?:\p{L}*an(?:zu|ge)?meld\p{L}*|\p{L}*melde(?:-|zeitr|frist|phase|schluss)\p{L}*|registration|register)"#, [.caseInsensitive])
+
+    /// Bereich direkt nach "Klausuren"/"Pruefungen" ("Klausuren (16.11.-27.11.)"): kein Klausurtag
+    static func isPeriodAfterPlural(_ k: Keyword, _ t: DateToken, _ ns: NSString) -> Bool {
+        guard k.kind == .klausur, t.end != nil, NSMaxRange(k.range) <= t.range.location,
+              has(pluralExamRE, ns.substring(with: k.range)) else { return false }
+        return has(directGapRE, ns.substring(with: NSRange(location: NSMaxRange(k.range), length: t.range.location - NSMaxRange(k.range))))
+    }
+
+    /// Im Satz bis `pos` oder in den zwei Saetzen davor ist von der Anmeldung die Rede, und sie hat dort kein eigenes
+    /// Datum ("Pruefungsanmeldung: 16.11.–27.11. ... Klausuren: 01.02.–12.02." meint mit dem zweiten die Pruefungszeit)
+    static func registrationBefore(_ pos: Int, _ ns: NSString, _ dates: [DateToken]) -> Bool {
+        let lo = max(0, pos - 400)
+        let lead = ns.substring(with: NSRange(location: lo, length: pos - lo))
+        let ends = sentenceEnds(lead).sorted()
+        let from = ends.count >= 3 ? ends[ends.count - 3] : 0
+        let scope = (lead as NSString).substring(from: from)
+        guard let m = registrationRE.matches(in: scope, range: NSRange(location: 0, length: (scope as NSString).length)).last else { return false }
+        let after = lo + from + NSMaxRange(m.range)
+        return !dates.contains { $0.range.location >= after && $0.range.location < pos }
+    }
+
     // MARK: - Erkennen
 
     /// Termine in einem Text (Seite, Dateiname, Ankuendigung), nach Datum; gleiche Art am gleichen Tag nur einmal
@@ -685,12 +980,28 @@ public enum DueDetection {
         // erst die Daten (schneller; die meisten Seiten haben keins), dann die Schluesselwoerter
         let dates = findDates(text)
         guard !dates.isEmpty else { return [] }
-        let keywords = findKeywords(text)
+        var keywords = findKeywords(text)
         guard !keywords.isEmpty else { return [] }
 
+        // feste Paare vor allen anderen: Testate in Tabellen mit Kopf "Testate" (der Kopf selbst ist kein Termin),
+        // Ueberschriften mit Unterpunkten (ohne Datum darunter: kein Termin)
+        var forced: [(k: Int, d: Int?)] = []
+        let tables = testatTables(text, keywords, dates, ns)
+        let plain = keywords.count
+        for h in tables.headers { forced.append((h, nil)) }
+        for m in tables.markers {
+            keywords.append(m.keyword)
+            forced.append((keywords.count - 1, m.date))
+        }
+        let headerKeys = Set(tables.headers)
+        for ki in 0..<plain where !headerKeys.contains(ki) {
+            if let d = headingDate(ki, keywords, dates, ns) { forced.append((ki, d)) }
+        }
+        let forcedKeys = Set(forced.map(\.k))
+
         struct Pair { let k: Int; let d: Int; let score: Int; let keywordFirst: Bool }
-        var pairs: [Pair] = []
-        for (ki, k) in keywords.enumerated() {
+        var pairs: [Pair] = forced.compactMap { f in f.d.map { Pair(k: f.k, d: $0, score: -1, keywordFirst: true) } }
+        for (ki, k) in keywords.enumerated() where !forcedKeys.contains(ki) {
             let before = dates.lastIndex { NSMaxRange($0.range) <= k.range.location }
             let after = dates.firstIndex { $0.range.location >= NSMaxRange(k.range) }
             for di in [before, after].compactMap({ $0 }) {
@@ -703,18 +1014,21 @@ public enum DueDetection {
             if keywords[a.k].kind.rank != keywords[b.k].kind.rank { return keywords[a.k].kind.rank < keywords[b.k].kind.rank }
             return dates[a.d].range.location < dates[b.d].range.location
         }
-        var dateTaken = Set<Int>(), keyTaken = Set<Int>()
+        var dateTaken = Set<Int>(), keyTaken = Set(forced.filter { $0.d == nil }.map(\.k))
         var accepted: [(k: Int, d: Int)] = []
         for p in pairs where !dateTaken.contains(p.d) && !keyTaken.contains(p.k) {
             dateTaken.insert(p.d)
             keyTaken.insert(p.k)
             accepted.append((p.k, p.d))
-            // Datumsliste hinter dem Schluesselwort: "Kurztestate am 02.11., 16.11. und 30.11."
-            guard p.keywordFirst else { continue }
+            // Datumsliste hinter dem Schluesselwort: "Kurztestate am 02.11., 16.11. und 30.11." (bei festen Paaren nur in
+            // derselben Zeile, Testate in Tabellen ohne)
+            guard p.keywordFirst, p.k < plain else { continue }
             var j = p.d + 1
             while j < dates.count, !dateTaken.contains(j) {
                 let gs = NSMaxRange(dates[j - 1].range), gl = dates[j].range.location - gs
-                guard gl >= 0, gl <= 12, has(listGapRE, ns.substring(with: NSRange(location: gs, length: gl))) else { break }
+                guard gl >= 0, gl <= 12 else { break }
+                let gap = ns.substring(with: NSRange(location: gs, length: gl))
+                guard has(listGapRE, gap), !(forcedKeys.contains(p.k) && gap.contains("\n")) else { break }
                 dateTaken.insert(j)
                 accepted.append((p.k, j))
                 j += 1
@@ -723,21 +1037,30 @@ public enum DueDetection {
 
         var hits: [Hit] = []
         for (ki, di) in accepted {
-            let k = keywords[ki], t = dates[di]
+            var k = keywords[ki]
+            let t = dates[di]
+            // "Pruefungszeitraum": nur Zeitraum, kein Termin
+            if k.periodOnly { continue }
+            // Zeitraum direkt nach "Klausuren"/"Pruefungen": kein Klausurtag; ist kurz davor von der Anmeldung die Rede
+            // (ohne eigenes Datum), ist er die Anmeldung, sonst kein Termin
+            if isPeriodAfterPlural(k, t, ns) {
+                guard registrationBefore(k.range.location, ns, dates) else { continue }
+                k = Keyword(range: k.range, kind: .anmeldung, label: "Anmeldung", direction: k.direction)
+            }
             if !ctx.allowExams, k.kind == .test || k.kind == .klausur { continue }
-            // Kontext vom Satzanfang (hoechstens 50 Zeichen vor dem Schluesselwort) bis zum Datum
-            let first = min(k.range.location, t.range.location)
-            var lo = max(0, first - 50)
-            let lead = ns.substring(with: NSRange(location: lo, length: first - lo))
-            let leadRange = NSRange(location: 0, length: (lead as NSString).length)
-            let breaks = sentenceBreakRE.matches(in: lead, range: leadRange).map { NSMaxRange($0.range) }
-                + wordDotRE.matches(in: lead, range: leadRange).filter { m in
-                    let w = (lead as NSString).substring(with: m.range(at: 1)).lowercased()
-                    return !abbreviations.contains(w) && (w.count >= 4 || m.range(at: 2).location != NSNotFound)
-                }.map { $0.range(at: 1).location + $0.range(at: 1).length + 1 }
-            if let b = breaks.max() { lo += b }                         // nur der eigene Satz
             let hi = max(NSMaxRange(k.range), NSMaxRange(t.range))
-            let around = ns.substring(with: NSRange(location: lo, length: hi - lo))
+            let around: String
+            if forcedKeys.contains(ki) {
+                // feste Paare: Schluesselwort und die Zeile des Datums (Unterpunkt, Tabellenzeile ab "T1:")
+                let from = max(lineBounds(ns, t.range.location).start, NSMaxRange(k.range))
+                around = ns.substring(with: k.range) + " " + ns.substring(with: NSRange(location: from, length: NSMaxRange(t.range) - from))
+            } else {
+                // Kontext vom Satzanfang (hoechstens 50 Zeichen vor dem Schluesselwort) bis zum Datum
+                let first = min(k.range.location, t.range.location)
+                var lo = max(0, first - 50)
+                if let b = sentenceEnds(ns.substring(with: NSRange(location: lo, length: first - lo))).max() { lo += b }   // nur der eigene Satz
+                around = ns.substring(with: NSRange(location: lo, length: hi - lo))
+            }
             if (k.kind == .test || k.kind == .klausur), has(examBlockRE, around) { continue }
             if k.kind == .abgabe, has(submissionBlockRE, around) { continue }
             // Bereich: Abgaben und Anmeldungen enden am letzten Tag, Tests beginnen am ersten
@@ -746,7 +1069,12 @@ public enum DueDetection {
             let time = (t.end == nil || usesEnd) ? t.time : nil
             let snip = snippet(ns, from: min(k.range.location, t.range.location), to: hi)
             let head = text.split(separator: "\n", maxSplits: 2, omittingEmptySubsequences: true).prefix(2).joined(separator: "\n")
-            let lab = label(k, ns, line: snip, head: String(head.prefix(120)), docHead: ctx.head, name: ctx.name)
+            var lab = label(k, ns, line: snip, head: String(head.prefix(120)), docHead: ctx.head, name: ctx.name)
+            // Testat aus der Tabelle mit Zeitraum: das Datenmodell kennt nur einen Tag, das Ende steht in der Bezeichnung
+            if ki >= plain, let end = t.end, let last = resolve(end, ctx), last > day {
+                let c = BerlinClock.civil(last)
+                lab += " (bis \(BerlinClock.pad(c.day, 2)).\(BerlinClock.pad(c.month, 2)).)"
+            }
             let iso = BerlinClock.isoDate(day)
             if let i = hits.firstIndex(where: { $0.date == iso && $0.kind == k.kind }) {
                 if hits[i].time == nil, let time { hits[i].time = time }
