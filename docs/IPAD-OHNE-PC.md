@@ -786,6 +786,8 @@ Datei fortschreiben.
 2. **Lernplan ohne Testaufgaben** (keine KI): Standard `tests_per_subject` = 0, in Python und auf dem iPad
    (umgesetzt in S6; bestehende Datenbanken am PC behalten ihren Wert).
 3. **Demo-Modus** für die App-Prüfung nur über einen versteckten Schalter für Prüfer; sonst keine Beispieldaten.
+   (Seit 27.10.2026: Demo-Inhalte wie am PC, sichtbar unter Einstellungen → Erweitert und im ersten Start „Ohne
+   Hochschulkonto ansehen (Demo)“; nur auf Wunsch angelegt, rückstandslos entfernbar, `docs/OFFEN-V1.md`.)
 4. **Eigener Server** (Entwicklungsmodus) nur in Debug-Builds; im Release nicht erreichbar.
 5. **Nur LUH** in V1. Seitdem auf `develop`: Hochschulen strikt getrennt und Hildesheim am PC
    (`docs/HILDESHEIM.md`), Auftrag für die iPad-App in `docs/AUFTRAG-HILDESHEIM-IPAD.md`; auf dem iPad bisher nur die

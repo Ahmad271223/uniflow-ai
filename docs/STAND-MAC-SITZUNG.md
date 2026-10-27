@@ -759,3 +759,31 @@ fremde Gruppe entfernt), und die Doppel-Regel aus 3d74b00 gilt auch fuer die Vor
 Schon vor dieser Aenderung: unter Linux (python:3.14-slim) weichen `gen-account`, `gen-community` und
 `gen-local-backend` ab; unter Windows laufen flashcards, local-backend, study und timetable gar nicht (time.tzset fehlt);
 `tests/test_plan_names.py` liest seine Fixture unter Windows ohne UTF-8.
+
+## Antwort der Mac-Sitzung: Demo-Inhalte auf dem iPad (27.10.2026)
+
+Danke für `app/demo.py`. Das iPad hat jetzt denselben Schalter, ohne Dienst und ohne Netz, mit denselben Inhalten:
+
+- **Kern:** `DemoContent` und `GET/POST /api/demo` im lokalen Backend, Antworten in derselben Form. Die PDFs baut
+  Swift Byte für Byte wie `demo.pdf_bytes` nach (eigener cp1252-Kodierer, „?“ für nicht darstellbare Zeichen). Der
+  Vergleich steht in `packages/shared-contracts/fixtures/demo/demo.json` (`python tools/gen-demo-fixture.py
+  [--check]`): PDF-Bytes, Konstanten, 31 Anfragen samt Rümpfen wie FastAPI (Wahrheitswert wie Python, `null` und
+  kaputtes JSON 422), Tabellen und Dateien an zehn Merkpunkten, eigene Daten des Nutzers vorher und nachher, und die
+  Datumslogik an sechs Tagen (Montag, Sonntag, Jahreswechsel, Schaltjahr, beide Zeitumstellungen beim `chdate`).
+  Alles gleich, `DemoContentTests`.
+- **Entfernen auf dem Gerät nimmt mehr mit als Python:** Notiz-Versionen (`annotation_versions`), Karteikarten,
+  Aufnahmen zu Seiten, alte Fassungen, erkannte Abgaben (`due_*`), Aufgabenverlauf, Bilder der Notizen, in der App
+  dazu Journal, PDF-Zwischenspeicher und Vorschaubilder der Demo-Dateien. Ein umbenanntes Demo-Modul wird über die
+  Demo-Kurse gefunden; ein Modul mit eigenem Kurs des Nutzers bleibt, eigene Termine und Ordner darin verlieren nur
+  die Zuordnung. **Bitte am PC prüfen:** `remove()` lässt `annotation_versions` (und Karteikarten) zu Demo-Dateien
+  stehen – nach „Demo entfernen“ und erneutem Anlegen zeigt die Versionsliste von `demo-skript` dann alte Stände.
+  Die Fixture blendet genau diese Zeilen auf der Python-Seite aus; zieht ihr nach, fällt die Ausnahme in
+  `DemoContentTests.compareTables` weg.
+- **App:** Einstellungen → Erweitert (auch im Release-Build) mit der Karte „Demo-Inhalte für die App-Prüfung“; im
+  ersten Start auf der Anmeldeseite der Hochschule klein „Ohne Hochschulkonto ansehen (Demo)“ (nur solange nichts
+  verbunden ist), danach gleich die Oberfläche. Die Übersicht zeigt „Demo-Inhalte aktiv“ mit „Entfernen“, die Karten
+  „… verbinden“ entfallen. Im Demo-Betrieb beginnt kein Abgleich (Stud.IP, QIS, Learnweb/LSF, Hintergrund mit
+  Sperrgrund „Demo-Inhalte aktiv“); die Abgleiche fragen dafür selbst die Datenbank. Die Demo lebt im Container des
+  angemeldeten Nutzers und der gewählten Hochschule (wie je Konto im Dienst); ein eigener Demo-Container hätte eine
+  Schein-Hochschule gebraucht. „Daten dieser Hochschule löschen“ nimmt sie mit.
+- `app-paths.json` kennt `GET/POST /api/demo` (Beispiel mit `{"enabled": false}`, legt nichts an).
