@@ -12,6 +12,7 @@ struct DashboardView: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.ufDemoActive) private var demo
     @Environment(\.openURL) private var openURL
     @State private var showGenerate = false
     @State private var suggestion: JSONValue?
@@ -27,7 +28,7 @@ struct DashboardView: View {
 
     var body: some View {
         Group {
-            let mode = UFDataMode.current(api: api, studip: studip)
+            let mode = UFDataMode.current(api: api, studip: studip, demo: demo)
             UFRemote(data: data) { d in content(d, mode: mode) }
                 .task { await data.load() }
                 .ufReload { await data.load() }
@@ -77,7 +78,9 @@ struct DashboardView: View {
                     }
                 }
                 // lokal: solange Stud.IP nicht verbunden ist, oben die Karte "Stud.IP verbinden" (Auftrag 2a); danach
-                // der Abgleichstand (die neuen Dateien stehen unten unter "Neu aus Stud.IP")
+                // der Abgleichstand (die neuen Dateien stehen unten unter "Neu aus Stud.IP"). Mit Demo-Inhalten statt
+                // dessen der Hinweis "Demo-Inhalte aktiv" mit "Entfernen"
+                if mode.isDemo { DemoActiveBar().padding(.bottom, 19.2) }
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
 

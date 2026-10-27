@@ -198,6 +198,7 @@ extension StudIPSync: BackgroundSyncable {
     /// `kind`; neue Dateien = Kennungen nachher ohne die vorher
     func runInBackground(_ kind: BackgroundSyncKind, client: StudIPClient) async -> BackgroundSyncReport {
         guard offersStudIP, !stopped else { return .skipped(.noContainer) }
+        if await demoActive() { return .skipped(.demo) }          // Demo-Inhalte: nie zur Hochschule
         guard usableSources.contains("Stud.IP") else { return .skipped(.noSession) }
         let before = await sourceFileIDs()
         guard !isRunning, let end = await run(client: client, scope: kind.scope) else { return .skipped(.alreadyRunning) }
@@ -221,6 +222,7 @@ extension HildesheimConnection: BackgroundSyncable {
     /// zeigt der Stand danach
     func runInBackground(_ kind: BackgroundSyncKind) async -> BackgroundSyncReport {
         guard !stopped else { return .skipped(.noContainer) }
+        if await demoActive() { return .skipped(.demo) }          // Demo-Inhalte: nie zur Hochschule
         let sources = self.sources(background: true)
         guard !sources.isEmpty else { return .skipped(.noSession) }
         // nur Learnweb mit Schluessel und das iPad gesperrt: nichts zu tun (der Lauf liesse Learnweb ohnehin aus)
@@ -392,7 +394,8 @@ final class BackgroundSyncController: ObservableObject {
             hasContainer: c != nil && containers.problem == nil && target != nil,
             switching: c?.key != account.containerKey || account.stage != .ready,
             syncRunning: (c.map { containers.isSyncing($0.key) } ?? false) || (target?.isRunning ?? false),
-            usableSession: !(target?.usableSources.isEmpty ?? true))
+            usableSession: !(target?.usableSources.isEmpty ?? true),
+            demo: containers.demoActive)
         if let reason = BackgroundSyncGate.skipReason(situation) {
             // im passenden Container festhalten, dass iOS gestartet hat (nicht waehrend eines Wechsels)
             if let c, reason != .noContainer, reason != .switching, c.layout.exists() {
