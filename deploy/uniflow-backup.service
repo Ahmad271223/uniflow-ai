@@ -1,0 +1,16 @@
+# systemd-Dienst fuer das taegliche Backup (deploy/backup.sh). Einrichten auf dem Server:
+#   sudo cp /srv/uniflow/app/deploy/uniflow-backup.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now uniflow-backup.timer
+#   sudo systemctl start uniflow-backup.service        # einmal von Hand pruefen
+#   journalctl -u uniflow-backup.service -n 20         # Ausgabe ansehen
+[Unit]
+Description=UniFlow: taegliches Backup der Datenbanken und Nutzerdaten
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/uniflow/app/deploy
+Environment=BACKUP_DIR=/srv/uniflow/backups
+Environment=BACKUP_KEEP_DAYS=14
+ExecStart=/usr/bin/env bash /srv/uniflow/app/deploy/backup.sh
