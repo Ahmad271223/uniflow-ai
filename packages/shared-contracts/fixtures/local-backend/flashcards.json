@@ -1,0 +1,3097 @@
+{
+ "generator": "tools/gen-flashcards-fixture.py",
+ "intervals": [
+  1,
+  2,
+  4,
+  8,
+  16
+ ],
+ "scenarios": [
+  {
+   "name": "haupt",
+   "seed": [
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-la",
+      "Lineare Algebra Test",
+      "WiSe 2026/27",
+      "Lineare Algebra Test",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-an",
+      "Analysis Beispiel",
+      "WiSe 2026/27",
+      "Analysis Beispiel",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-frei",
+      "Freies Seminar Beispiel",
+      "WiSe 2026/27",
+      null,
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-la1",
+      "k-la",
+      "LA_Vorlesung_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-an1",
+      "k-an",
+      "Analysis_Blatt_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-frei",
+      "k-frei",
+      "Seminar_Einfuehrung.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "5",
+      "k-la",
+      "LA_Zusatz.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": []
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": []
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Was ist eine Basis?\", \"answer\": \"Ein linear unabh\\u00e4ngiges Erzeugendensystem\"}], \"file_id\": \"f-la1\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Ableitung von x\\u00b2?\", \"answer\": \"2x\"}, {\"question\": \"\", \"answer\": \"leer\"}, {\"question\": \"ohne Antwort\"}, {\"answer\": \"ohne Frage\"}, {\"question\": \"Grenzwert von 1/n?\", \"answer\": \"0\"}], \"file_id\": \"f-an1\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 5
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Freie Frage \\ud83d\\ude00\", \"answer\": \"Freie Antwort mit \\\"Zitat\\\"\\nund Zeilenumbruch\"}]}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Zahl als Antwort\", \"answer\": 42}, {\"question\": 1.5, \"answer\": true}], \"file_id\": \"gibtsnicht\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 2
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Kurs ohne Fach\", \"answer\": \"ja\"}], \"file_id\": \"f-frei\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Datei als Zahl\", \"answer\": \"trifft Datei 5\"}], \"file_id\": 5}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Datei als Kommazahl\", \"answer\": \"trifft keine Datei\"}], \"file_id\": 5.0}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Leere Datei-ID\", \"answer\": \"kein Fach\"}], \"file_id\": \"\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"   \", \"answer\": \"nur Leerzeichen zaehlen in Python als Text\"}]}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [], \"file_id\": \"f-la1\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 0
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 0
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": null}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 0
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": 0}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 0
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": \"\"}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 0
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": {}}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 0
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": [], \"answer\": \"leere Liste als Frage wird uebersprungen\"}]}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"q\", \"answer\": \"a\"}], \"file_id\": []}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [], \"file_id\": []}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 0
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": \"Frage\"}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": {\"question\": \"q\", \"answer\": \"a\"}}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": 5}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"vorher\", \"answer\": \"nicht gespeichert\"}, \"kein Objekt\"]}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": [\"Liste\"], \"answer\": \"a\"}]}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"q\", \"answer\": \"a\"}], \"file_id\": {\"x\": 1}}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"q\", \"answer\": 100000000000000000000}]}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "[1]",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "dict_type",
+        "loc": [
+         "body"
+        ],
+        "msg": "Input should be a valid dictionary",
+        "input": [
+         1
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "missing",
+        "loc": [
+         "body"
+        ],
+        "msg": "Field required",
+        "input": null
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Datei als Zahl",
+       "answer": "trifft Datei 5",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Zusatz.pdf"
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "Zahl als Antwort",
+       "answer": "42",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Grenzwert von 1/n?",
+       "answer": "0",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Was ist eine Basis?",
+       "answer": "Ein linear unabhängiges Erzeugendensystem",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?file_id=f-la1",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Was ist eine Basis?",
+       "answer": "Ein linear unabhängiges Erzeugendensystem",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?file_id=",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Datei als Zahl",
+       "answer": "trifft Datei 5",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Zusatz.pdf"
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "Zahl als Antwort",
+       "answer": "42",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Grenzwert von 1/n?",
+       "answer": "0",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Was ist eine Basis?",
+       "answer": "Ein linear unabhängiges Erzeugendensystem",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?file_id=gibtsnicht",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "Zahl als Antwort",
+       "answer": "42",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?file_id=5",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 8,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Datei als Zahl",
+       "answer": "trifft Datei 5",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Zusatz.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?file_id=f-la1&file_id=f-an1",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Grenzwert von 1/n?",
+       "answer": "0",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Datei als Zahl",
+       "answer": "trifft Datei 5",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Zusatz.pdf"
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "Zahl als Antwort",
+       "answer": "42",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Grenzwert von 1/n?",
+       "answer": "0",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Was ist eine Basis?",
+       "answer": "Ein linear unabhängiges Erzeugendensystem",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=false",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Datei als Zahl",
+       "answer": "trifft Datei 5",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Zusatz.pdf"
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "Zahl als Antwort",
+       "answer": "42",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Grenzwert von 1/n?",
+       "answer": "0",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Was ist eine Basis?",
+       "answer": "Ein linear unabhängiges Erzeugendensystem",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=1&file_id=f-an1",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Grenzwert von 1/n?",
+       "answer": "0",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": "Analysis_Blatt_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=vielleicht",
+     "raw": null,
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "bool_parsing",
+        "loc": [
+         "query",
+         "due"
+        ],
+        "msg": "Input should be a valid boolean, unable to interpret input",
+        "input": "vielleicht"
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-10-28"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 3,
+      "due": "2026-10-30"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/2/review",
+     "raw": "{\"correct\": false}",
+     "status": 200,
+     "response": {
+      "box": 1,
+      "due": "2026-10-27"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/3/review",
+     "raw": "{\"correct\": \"false\"}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-10-28"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/4/review",
+     "raw": "{\"correct\": 0}",
+     "status": 200,
+     "response": {
+      "box": 1,
+      "due": "2026-10-27"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/5/review",
+     "raw": "{\"correct\": \"0\"}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-10-28"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/6/review",
+     "raw": "{\"correct\": []}",
+     "status": 200,
+     "response": {
+      "box": 1,
+      "due": "2026-10-27"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/7/review",
+     "raw": "{}",
+     "status": 200,
+     "response": {
+      "box": 1,
+      "due": "2026-10-27"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/8/review",
+     "raw": "{\"correct\": 1.0}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-10-28"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/9999/review",
+     "raw": "{\"correct\": true}",
+     "status": 404,
+     "response": {
+      "detail": "Not Found"
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": "[true]",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "dict_type",
+        "loc": [
+         "body"
+        ],
+        "msg": "Input should be a valid dictionary",
+        "input": [
+         true
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": null,
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "missing",
+        "loc": [
+         "body"
+        ],
+        "msg": "Field required",
+        "input": null
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/eins/review",
+     "raw": "{\"correct\": true}",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "int_parsing",
+        "loc": [
+         "path",
+         "card_id"
+        ],
+        "msg": "Input should be a valid integer, unable to parse string as an integer",
+        "input": "eins"
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-10-26T09:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      }
+     ]
+    },
+    {
+     "now": "2026-10-27T18:45:10",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": "Analysis_Blatt_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-27T18:45:10",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 4,
+      "due": "2026-11-04"
+     }
+    },
+    {
+     "now": "2026-10-27T18:45:10",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 5,
+      "due": "2026-11-12"
+     }
+    },
+    {
+     "now": "2026-10-27T18:45:10",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 5,
+      "due": "2026-11-12"
+     }
+    },
+    {
+     "now": "2026-10-27T18:45:10",
+     "method": "POST",
+     "path": "/api/flashcards",
+     "raw": "{\"cards\": [{\"question\": \"Neu am Dienstag\", \"answer\": \"faellig ab heute\"}]}",
+     "status": 200,
+     "response": {
+      "ok": true,
+      "count": 1
+     }
+    },
+    {
+     "now": "2026-10-27T18:45:10",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 12,
+       "file_id": null,
+       "subject": null,
+       "question": "Neu am Dienstag",
+       "answer": "faellig ab heute",
+       "created_at": "2026-10-27T18:45:10",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": "Analysis_Blatt_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-30T07:05:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 12,
+       "file_id": null,
+       "subject": null,
+       "question": "Neu am Dienstag",
+       "answer": "faellig ab heute",
+       "created_at": "2026-10-27T18:45:10",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Datei als Zahl",
+       "answer": "trifft Datei 5",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": "LA_Zusatz.pdf"
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "Zahl als Antwort",
+       "answer": "42",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Grenzwert von 1/n?",
+       "answer": "0",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Was ist eine Basis?",
+       "answer": "Ein linear unabhängiges Erzeugendensystem",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 5,
+       "due": "2026-11-12",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-11-30T07:05:00",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": "{\"correct\": false}",
+     "status": 200,
+     "response": {
+      "box": 1,
+      "due": "2026-12-01"
+     }
+    },
+    {
+     "now": "2026-11-30T07:05:00",
+     "method": "POST",
+     "path": "/api/flashcards/2/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-12-02"
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "POST",
+     "path": "/api/flashcards/3/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 3,
+      "due": "2027-01-03"
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "POST",
+     "path": "/api/flashcards/3/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 4,
+      "due": "2027-01-07"
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "POST",
+     "path": "/api/flashcards/3/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 5,
+      "due": "2027-01-15"
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "POST",
+     "path": "/api/flashcards/3/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 5,
+      "due": "2027-01-15"
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 12,
+       "file_id": null,
+       "subject": null,
+       "question": "Neu am Dienstag",
+       "answer": "faellig ab heute",
+       "created_at": "2026-10-27T18:45:10",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Datei als Zahl",
+       "answer": "trifft Datei 5",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": "LA_Zusatz.pdf"
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "Zahl als Antwort",
+       "answer": "42",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 2,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Ableitung von x²?",
+       "answer": "2x",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 2,
+       "due": "2026-12-02",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Was ist eine Basis?",
+       "answer": "Ein linear unabhängiges Erzeugendensystem",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-12-01",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "DELETE",
+     "path": "/api/flashcards/2",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "ok": true
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "DELETE",
+     "path": "/api/flashcards/2",
+     "raw": null,
+     "status": 404,
+     "response": {
+      "detail": "Karteikarte nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "DELETE",
+     "path": "/api/flashcards/9999",
+     "raw": null,
+     "status": 404,
+     "response": {
+      "detail": "Karteikarte nicht gefunden"
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "DELETE",
+     "path": "/api/flashcards/zwei",
+     "raw": null,
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "int_parsing",
+        "loc": [
+         "path",
+         "card_id"
+        ],
+        "msg": "Input should be a valid integer, unable to parse string as an integer",
+        "input": "zwei"
+       }
+      ]
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "POST",
+     "path": "/api/flashcards/2/review",
+     "raw": "{\"correct\": true}",
+     "status": 404,
+     "response": {
+      "detail": "Not Found"
+     }
+    },
+    {
+     "now": "2026-12-30T23:59:59",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 12,
+       "file_id": null,
+       "subject": null,
+       "question": "Neu am Dienstag",
+       "answer": "faellig ab heute",
+       "created_at": "2026-10-27T18:45:10",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "   ",
+       "answer": "nur Leerzeichen zaehlen in Python als Text",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": "",
+       "subject": null,
+       "question": "Leere Datei-ID",
+       "answer": "kein Fach",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": "5.0",
+       "subject": null,
+       "question": "Datei als Kommazahl",
+       "answer": "trifft keine Datei",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": "5",
+       "subject": "Lineare Algebra Test",
+       "question": "Datei als Zahl",
+       "answer": "trifft Datei 5",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": "LA_Zusatz.pdf"
+      },
+      {
+       "id": 7,
+       "file_id": "f-frei",
+       "subject": null,
+       "question": "Kurs ohne Fach",
+       "answer": "ja",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": "Seminar_Einfuehrung.pdf"
+      },
+      {
+       "id": 6,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "1.5",
+       "answer": "1",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": "gibtsnicht",
+       "subject": null,
+       "question": "Zahl als Antwort",
+       "answer": "42",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": null,
+       "subject": null,
+       "question": "Freie Frage 😀",
+       "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": "Analysis Beispiel",
+       "question": "Grenzwert von 1/n?",
+       "answer": "0",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 5,
+       "due": "2027-01-15",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": "Lineare Algebra Test",
+       "question": "Was ist eine Basis?",
+       "answer": "Ein linear unabhängiges Erzeugendensystem",
+       "created_at": "2026-10-26T09:00:00",
+       "box": 1,
+       "due": "2026-12-01",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    }
+   ],
+   "tables_after": {
+    "flashcards": [
+     {
+      "id": 1,
+      "file_id": "f-la1",
+      "subject": "Lineare Algebra Test",
+      "question": "Was ist eine Basis?",
+      "answer": "Ein linear unabhängiges Erzeugendensystem",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 1,
+      "due": "2026-12-01"
+     },
+     {
+      "id": 3,
+      "file_id": "f-an1",
+      "subject": "Analysis Beispiel",
+      "question": "Grenzwert von 1/n?",
+      "answer": "0",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 5,
+      "due": "2027-01-15"
+     },
+     {
+      "id": 4,
+      "file_id": null,
+      "subject": null,
+      "question": "Freie Frage 😀",
+      "answer": "Freie Antwort mit \"Zitat\"\nund Zeilenumbruch",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 1,
+      "due": "2026-10-27"
+     },
+     {
+      "id": 5,
+      "file_id": "gibtsnicht",
+      "subject": null,
+      "question": "Zahl als Antwort",
+      "answer": "42",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 2,
+      "due": "2026-10-28"
+     },
+     {
+      "id": 6,
+      "file_id": "gibtsnicht",
+      "subject": null,
+      "question": "1.5",
+      "answer": "1",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 1,
+      "due": "2026-10-27"
+     },
+     {
+      "id": 7,
+      "file_id": "f-frei",
+      "subject": null,
+      "question": "Kurs ohne Fach",
+      "answer": "ja",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 1,
+      "due": "2026-10-27"
+     },
+     {
+      "id": 8,
+      "file_id": "5",
+      "subject": "Lineare Algebra Test",
+      "question": "Datei als Zahl",
+      "answer": "trifft Datei 5",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 2,
+      "due": "2026-10-28"
+     },
+     {
+      "id": 9,
+      "file_id": "5.0",
+      "subject": null,
+      "question": "Datei als Kommazahl",
+      "answer": "trifft keine Datei",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 1,
+      "due": "2026-10-26"
+     },
+     {
+      "id": 10,
+      "file_id": "",
+      "subject": null,
+      "question": "Leere Datei-ID",
+      "answer": "kein Fach",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 1,
+      "due": "2026-10-26"
+     },
+     {
+      "id": 11,
+      "file_id": null,
+      "subject": null,
+      "question": "   ",
+      "answer": "nur Leerzeichen zaehlen in Python als Text",
+      "created_at": "2026-10-26T09:00:00",
+      "box": 1,
+      "due": "2026-10-26"
+     },
+     {
+      "id": 12,
+      "file_id": null,
+      "subject": null,
+      "question": "Neu am Dienstag",
+      "answer": "faellig ab heute",
+      "created_at": "2026-10-27T18:45:10",
+      "box": 1,
+      "due": "2026-10-27"
+     }
+    ]
+   }
+  },
+  {
+   "name": "grenzen",
+   "seed": [
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-la",
+      "Lineare Algebra Test",
+      "WiSe 2026/27",
+      "Lineare Algebra Test",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-an",
+      "Analysis Beispiel",
+      "WiSe 2026/27",
+      "Analysis Beispiel",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "k-frei",
+      "Freies Seminar Beispiel",
+      "WiSe 2026/27",
+      null,
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-la1",
+      "k-la",
+      "LA_Vorlesung_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-an1",
+      "k-an",
+      "Analysis_Blatt_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "f-frei",
+      "k-frei",
+      "Seminar_Einfuehrung.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen) VALUES (?,?,?,?,?,?)",
+     "params": [
+      "5",
+      "k-la",
+      "LA_Zusatz.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (1, ?, ?, ?, ?, ?, NULL, NULL)",
+     "params": [
+      "f-la1",
+      null,
+      "Grenzfall 1",
+      "Fach NULL",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (2, ?, ?, ?, ?, ?, 0, '2026-10-26')",
+     "params": [
+      "f-la1",
+      null,
+      "Grenzfall 2",
+      "Fach 0",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (3, ?, ?, ?, ?, ?, 5, '2026-10-25')",
+     "params": [
+      "f-an1",
+      null,
+      "Grenzfall 3",
+      "Fach 5",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (4, ?, ?, ?, ?, ?, 9, '2026-10-27')",
+     "params": [
+      "f-an1",
+      null,
+      "Grenzfall 4",
+      "Fach 9",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (5, ?, ?, ?, ?, ?, -1, '')",
+     "params": [
+      null,
+      null,
+      "Grenzfall 5",
+      "Fach -1",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (6, ?, ?, ?, ?, ?, -4, 'morgen')",
+     "params": [
+      null,
+      null,
+      "Grenzfall 6",
+      "Fach -4",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (7, ?, ?, ?, ?, ?, -5, '2026-10-26')",
+     "params": [
+      null,
+      null,
+      "Grenzfall 7",
+      "Fach -5",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (8, ?, ?, ?, ?, ?, -6, '2026-10-26')",
+     "params": [
+      null,
+      null,
+      "Grenzfall 8",
+      "Fach -6",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (9, ?, ?, ?, ?, ?, 'abc', '2026-10-26')",
+     "params": [
+      null,
+      null,
+      "Grenzfall 9",
+      "Fach 'abc'",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (10, ?, ?, ?, ?, ?, 2.5, '2026-10-26')",
+     "params": [
+      null,
+      null,
+      "Grenzfall 10",
+      "Fach 2.5",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (11, ?, ?, ?, ?, ?, 7.5, '2026-10-26')",
+     "params": [
+      null,
+      null,
+      "Grenzfall 11",
+      "Fach 7.5",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (12, ?, ?, ?, ?, ?, '', '2026-10-26')",
+     "params": [
+      null,
+      null,
+      "Grenzfall 12",
+      "Fach ''",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(id, file_id, subject, question, answer, created_at, box, due) VALUES (13, ?, ?, ?, ?, ?, 9223372036854775807, '2026-10-26')",
+     "params": [
+      "f-weg",
+      null,
+      "Grenzfall 13",
+      "Fach 9223372036854775807",
+      "2026-10-20T08:00:00"
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "file_id": "f-weg",
+       "subject": null,
+       "question": "Grenzfall 13",
+       "answer": "Fach 9223372036854775807",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 9223372036854775807,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 12,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 12",
+       "answer": "Fach ''",
+       "created_at": "2026-10-20T08:00:00",
+       "box": "",
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 11",
+       "answer": "Fach 7.5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 7.5,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 10",
+       "answer": "Fach 2.5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 2.5,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 9",
+       "answer": "Fach 'abc'",
+       "created_at": "2026-10-20T08:00:00",
+       "box": "abc",
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 8",
+       "answer": "Fach -6",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -6,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 7",
+       "answer": "Fach -5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -5,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 6,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 6",
+       "answer": "Fach -4",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -4,
+       "due": "morgen",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 5",
+       "answer": "Fach -1",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -1,
+       "due": "",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": "f-an1",
+       "subject": null,
+       "question": "Grenzfall 4",
+       "answer": "Fach 9",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 9,
+       "due": "2026-10-27",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": null,
+       "question": "Grenzfall 3",
+       "answer": "Fach 5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 5,
+       "due": "2026-10-25",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": null,
+       "question": "Grenzfall 2",
+       "answer": "Fach 0",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 0,
+       "due": "2026-10-26",
+       "file_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": null,
+       "question": "Grenzfall 1",
+       "answer": "Fach NULL",
+       "created_at": "2026-10-20T08:00:00",
+       "box": null,
+       "due": null,
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?due=true",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "file_id": "f-weg",
+       "subject": null,
+       "question": "Grenzfall 13",
+       "answer": "Fach 9223372036854775807",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 9223372036854775807,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 12,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 12",
+       "answer": "Fach ''",
+       "created_at": "2026-10-20T08:00:00",
+       "box": "",
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 11",
+       "answer": "Fach 7.5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 7.5,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 10",
+       "answer": "Fach 2.5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 2.5,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 9",
+       "answer": "Fach 'abc'",
+       "created_at": "2026-10-20T08:00:00",
+       "box": "abc",
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 8",
+       "answer": "Fach -6",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -6,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 7",
+       "answer": "Fach -5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -5,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 5",
+       "answer": "Fach -1",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -1,
+       "due": "",
+       "file_name": null
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": null,
+       "question": "Grenzfall 3",
+       "answer": "Fach 5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 5,
+       "due": "2026-10-25",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": null,
+       "question": "Grenzfall 2",
+       "answer": "Fach 0",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 0,
+       "due": "2026-10-26",
+       "file_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": null,
+       "question": "Grenzfall 1",
+       "answer": "Fach NULL",
+       "created_at": "2026-10-20T08:00:00",
+       "box": null,
+       "due": null,
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/1/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-10-28"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/2/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-10-28"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/3/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 5,
+      "due": "2026-11-11"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/4/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 5,
+      "due": "2026-11-11"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/5/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 0,
+      "due": "2026-11-11"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/6/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": -3,
+      "due": "2026-10-28"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/7/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": -4,
+      "due": "2026-10-27"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/8/review",
+     "raw": "{\"correct\": true}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/9/review",
+     "raw": "{\"correct\": true}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/10/review",
+     "raw": "{\"correct\": true}",
+     "status": 500
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/11/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 5,
+      "due": "2026-11-11"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/12/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 2,
+      "due": "2026-10-28"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/13/review",
+     "raw": "{\"correct\": true}",
+     "status": 200,
+     "response": {
+      "box": 5,
+      "due": "2026-11-11"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "POST",
+     "path": "/api/flashcards/9/review",
+     "raw": "{\"correct\": false}",
+     "status": 200,
+     "response": {
+      "box": 1,
+      "due": "2026-10-27"
+     }
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "GET",
+     "path": "/api/flashcards?file_id=f-weg",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "file_id": "f-weg",
+       "subject": null,
+       "question": "Grenzfall 13",
+       "answer": "Fach 9223372036854775807",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 5,
+       "due": "2026-11-11",
+       "file_name": null
+      }
+     ]
+    },
+    {
+     "now": "2026-10-26T12:00:00",
+     "method": "GET",
+     "path": "/api/flashcards",
+     "raw": null,
+     "status": 200,
+     "response": [
+      {
+       "id": 13,
+       "file_id": "f-weg",
+       "subject": null,
+       "question": "Grenzfall 13",
+       "answer": "Fach 9223372036854775807",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 5,
+       "due": "2026-11-11",
+       "file_name": null
+      },
+      {
+       "id": 12,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 12",
+       "answer": "Fach ''",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": null
+      },
+      {
+       "id": 11,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 11",
+       "answer": "Fach 7.5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 5,
+       "due": "2026-11-11",
+       "file_name": null
+      },
+      {
+       "id": 10,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 10",
+       "answer": "Fach 2.5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 2.5,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 9,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 9",
+       "answer": "Fach 'abc'",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 1,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 8,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 8",
+       "answer": "Fach -6",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -6,
+       "due": "2026-10-26",
+       "file_name": null
+      },
+      {
+       "id": 7,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 7",
+       "answer": "Fach -5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -4,
+       "due": "2026-10-27",
+       "file_name": null
+      },
+      {
+       "id": 6,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 6",
+       "answer": "Fach -4",
+       "created_at": "2026-10-20T08:00:00",
+       "box": -3,
+       "due": "2026-10-28",
+       "file_name": null
+      },
+      {
+       "id": 5,
+       "file_id": null,
+       "subject": null,
+       "question": "Grenzfall 5",
+       "answer": "Fach -1",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 0,
+       "due": "2026-11-11",
+       "file_name": null
+      },
+      {
+       "id": 4,
+       "file_id": "f-an1",
+       "subject": null,
+       "question": "Grenzfall 4",
+       "answer": "Fach 9",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 5,
+       "due": "2026-11-11",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 3,
+       "file_id": "f-an1",
+       "subject": null,
+       "question": "Grenzfall 3",
+       "answer": "Fach 5",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 5,
+       "due": "2026-11-11",
+       "file_name": "Analysis_Blatt_01.pdf"
+      },
+      {
+       "id": 2,
+       "file_id": "f-la1",
+       "subject": null,
+       "question": "Grenzfall 2",
+       "answer": "Fach 0",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": "LA_Vorlesung_01.pdf"
+      },
+      {
+       "id": 1,
+       "file_id": "f-la1",
+       "subject": null,
+       "question": "Grenzfall 1",
+       "answer": "Fach NULL",
+       "created_at": "2026-10-20T08:00:00",
+       "box": 2,
+       "due": "2026-10-28",
+       "file_name": "LA_Vorlesung_01.pdf"
+      }
+     ]
+    }
+   ],
+   "tables_after": {
+    "flashcards": [
+     {
+      "id": 1,
+      "file_id": "f-la1",
+      "subject": null,
+      "question": "Grenzfall 1",
+      "answer": "Fach NULL",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 2,
+      "due": "2026-10-28"
+     },
+     {
+      "id": 2,
+      "file_id": "f-la1",
+      "subject": null,
+      "question": "Grenzfall 2",
+      "answer": "Fach 0",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 2,
+      "due": "2026-10-28"
+     },
+     {
+      "id": 3,
+      "file_id": "f-an1",
+      "subject": null,
+      "question": "Grenzfall 3",
+      "answer": "Fach 5",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 5,
+      "due": "2026-11-11"
+     },
+     {
+      "id": 4,
+      "file_id": "f-an1",
+      "subject": null,
+      "question": "Grenzfall 4",
+      "answer": "Fach 9",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 5,
+      "due": "2026-11-11"
+     },
+     {
+      "id": 5,
+      "file_id": null,
+      "subject": null,
+      "question": "Grenzfall 5",
+      "answer": "Fach -1",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 0,
+      "due": "2026-11-11"
+     },
+     {
+      "id": 6,
+      "file_id": null,
+      "subject": null,
+      "question": "Grenzfall 6",
+      "answer": "Fach -4",
+      "created_at": "2026-10-20T08:00:00",
+      "box": -3,
+      "due": "2026-10-28"
+     },
+     {
+      "id": 7,
+      "file_id": null,
+      "subject": null,
+      "question": "Grenzfall 7",
+      "answer": "Fach -5",
+      "created_at": "2026-10-20T08:00:00",
+      "box": -4,
+      "due": "2026-10-27"
+     },
+     {
+      "id": 8,
+      "file_id": null,
+      "subject": null,
+      "question": "Grenzfall 8",
+      "answer": "Fach -6",
+      "created_at": "2026-10-20T08:00:00",
+      "box": -6,
+      "due": "2026-10-26"
+     },
+     {
+      "id": 9,
+      "file_id": null,
+      "subject": null,
+      "question": "Grenzfall 9",
+      "answer": "Fach 'abc'",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 1,
+      "due": "2026-10-27"
+     },
+     {
+      "id": 10,
+      "file_id": null,
+      "subject": null,
+      "question": "Grenzfall 10",
+      "answer": "Fach 2.5",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 2.5,
+      "due": "2026-10-26"
+     },
+     {
+      "id": 11,
+      "file_id": null,
+      "subject": null,
+      "question": "Grenzfall 11",
+      "answer": "Fach 7.5",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 5,
+      "due": "2026-11-11"
+     },
+     {
+      "id": 12,
+      "file_id": null,
+      "subject": null,
+      "question": "Grenzfall 12",
+      "answer": "Fach ''",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 2,
+      "due": "2026-10-28"
+     },
+     {
+      "id": 13,
+      "file_id": "f-weg",
+      "subject": null,
+      "question": "Grenzfall 13",
+      "answer": "Fach 9223372036854775807",
+      "created_at": "2026-10-20T08:00:00",
+      "box": 5,
+      "due": "2026-11-11"
+     }
+    ]
+   }
+  }
+ ]
+}

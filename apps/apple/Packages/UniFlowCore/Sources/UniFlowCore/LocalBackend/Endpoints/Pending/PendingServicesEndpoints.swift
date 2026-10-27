@@ -1,9 +1,9 @@
 import Foundation
 
-/// Platzhalter: Uni & Noten (QIS auf dem Geraet folgt, F4; die Leistungen selbst liefert `GradesEndpoints`) und
-/// Karteikarten (Plus, eigenes Anlegen ohne KI).
+/// Platzhalter: Uni & Noten (QIS auf dem Geraet folgt, F4; die Leistungen selbst liefert `GradesEndpoints`).
+/// Karteikarten sind echt (`FlashcardEndpoints`).
 enum PendingServicesEndpoints: LocalEndpointModule {
-    static let name = "Uni & Noten, Karteikarten (Platzhalter)"
+    static let name = "Uni & Noten (Platzhalter)"
 
     /// `config.service_status` ohne gespeicherten Zugang
     private static let noCredential: JSONValue = ["own": false, "same_as": .null, "user": .null, "configured": false]
@@ -33,17 +33,6 @@ enum PendingServicesEndpoints: LocalEndpointModule {
             throw LocalHTTPError.notFound("Noten aus QIS kommen in einer späteren Version.")
         }
         router.get("/api/qis/documents/{doc_id:int}", placeholder: true) { _, _ in throw LocalHTTPError.notFound() }
-
-        router.get("/api/flashcards", placeholder: true) { req, _ in
-            _ = try req.boolQuery("due")
-            return .json([])
-        }
-        router.post("/api/flashcards/{card_id:int}/review", placeholder: true) { req, _ in
-            _ = try req.objectBody()
-            throw LocalHTTPError.notFound()
-        }
-        // Regel G6: ohne Karteikarten gibt es nichts zu loeschen -> 404 wie server._changed
-        router.delete("/api/flashcards/{card_id:int}", placeholder: true) { _, _ in throw LocalHTTPError.notFound("Karteikarte nicht gefunden") }
     }
 }
 
