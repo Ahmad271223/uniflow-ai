@@ -214,8 +214,11 @@ struct DeleteUniversityDataDialog: View {
                     busy = true
                     Task {
                         overlay.closeAll()
-                        await containers.deleteUniversityData(DataContainerKey(userID: user, university: university))
-                        toast.show("Die Daten der \(university.profile.name) wurden von diesem iPad gelöscht.", seconds: 4)
+                        if let problem = await containers.deleteUniversityData(DataContainerKey(userID: user, university: university)) {
+                            toast.show(problem, seconds: 6)
+                        } else {
+                            toast.show("Die Daten der \(university.profile.name) wurden von diesem iPad gelöscht.", seconds: 4)
+                        }
                     }
                 }
                 .disabled(busy || syncing)

@@ -121,6 +121,11 @@ final class QISConnection: ObservableObject {
     /// Abmelden: Verbindung, Stand und die QIS-Cookies der Webansicht (Stud.IP bleibt angemeldet); Noten in der
     /// Datenbank bleiben. Ein Passwort hat die App nicht zu loeschen (das merkt hoechstens iOS).
     func signOut() async {
+        // laufenden Abruf zuerst anhalten und abwarten (er schriebe danach seinen Stand zurueck)
+        if let task = current {
+            task.cancel()
+            _ = await task.value
+        }
         for k in Keys.all { defaults.removeObject(forKey: k) }
         lastMessage = nil
         lastCount = nil

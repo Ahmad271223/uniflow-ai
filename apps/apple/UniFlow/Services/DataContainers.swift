@@ -32,10 +32,45 @@ enum ContainerPaths {
     static var none: URL { FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-ohne-container", isDirectory: true) }
 }
 
+/// Schreibrecht in einen Container. Wer laenger schreibt, als der Container lebt (ein Dokument, das beim Schliessen noch
+/// sichert oder hochlaedt), prueft es vor jedem Schreiben (`FileBlobStore(canWrite:)`): "Daten dieser Hochschule
+/// löschen" entzieht es (`ContainerLeases.revoke`), bevor geloescht wird. Vorher legte ein spaeter Schreibzugriff den
+/// Journal-Ordner im geloeschten Container neu an bzw. landete im leer neu geoeffneten Container mit demselben
+/// Schluessel (die Notizen ueberlebten das Loeschen).
+final class ContainerLease: @unchecked Sendable {
+    private let lock = NSLock()
+    private var revoked = false
+    var isValid: Bool { lock.withLock { !revoked } }
+    func revoke() { lock.withLock { revoked = true } }
+}
+
+/// Ein Schreibrecht je Container-Kennung, gemeinsam fuer alle Objekte, die ihn geoeffnet haben; nach dem Entziehen
+/// bekommt ein neu geoeffneter Container gleicher Kennung ein neues
+enum ContainerLeases {
+    private static let lock = NSLock()
+    private static var current: [UUID: ContainerLease] = [:]
+
+    static func lease(for id: UUID) -> ContainerLease {
+        lock.withLock {
+            if let l = current[id] { return l }
+            let l = ContainerLease()
+            current[id] = l
+            return l
+        }
+    }
+
+    static func revoke(_ id: UUID) {
+        let old = lock.withLock { current.removeValue(forKey: id) }
+        old?.revoke()
+    }
+}
+
 /// Alles, was zu einem (Apple-Nutzer, Hochschule) gehoert.
 final class ActiveContainer: @unchecked Sendable {
     let key: DataContainerKey
     let layout: DataContainerLayout
+    /// Schreibrecht (entzogen beim Loeschen dieses Containers)
+    let lease: ContainerLease
     let host: LocalBackendHost
     let api: APIClient
     let cache: ResponseCache
@@ -58,6 +93,7 @@ final class ActiveContainer: @unchecked Sendable {
          clock: UniFlowClock = .system, cloud: CommunityCloud? = CommunityCloudFactory.make()) {
         self.key = key
         layout = DataContainerLayout(base: base, key: key)
+        lease = ContainerLeases.lease(for: layout.identifier)
         host = LocalBackendHost(directory: layout.databaseDirectory, clock: clock, files: .container(layout), university: key.university)
         api = .local(host)
         cache = ResponseCache(root: layout.url(.cache))
@@ -388,23 +424,45 @@ final class ContainerManager: ObservableObject {
     /// sein Datenspeicher der Webansichten, sein Sitzungs-Cookie, der Learnweb-Schluessel dieser Hochschule und
     /// seine Einstellungen. Die andere Hochschule bleibt unberuehrt. War er offen, geht es mit einem leeren weiter.
     /// Laufende Abgleiche des Containers werden vorher angehalten und abgewartet (`remove`).
-    func deleteUniversityData(_ key: DataContainerKey) async {
+    /// - Returns: nil, wenn alles geloescht ist; sonst die Meldung, was blieb (fuer die Oberflaeche; vorher meldete
+    ///   sie immer "gelöscht", auch wenn der Ordner oder ein Schluessel blieb)
+    @discardableResult
+    func deleteUniversityData(_ key: DataContainerKey) async -> String? {
         let wasActive = active?.key == key
         if wasActive { deactivate() }
-        await remove(key)
+        let left = await remove(key)
         if wasActive { activate(key) }
+        return Self.deletionProblem(left)
     }
 
     /// "Konto löschen": alle Container des Nutzers samt Webdaten, Schluesselbund und Einstellungen; laufende Abgleiche
-    /// werden vorher angehalten und abgewartet
-    func deleteAllData(userID: String) async {
+    /// werden vorher angehalten und abgewartet. Rueckgabe wie `deleteUniversityData`.
+    @discardableResult
+    func deleteAllData(userID: String) async -> String? {
         if active?.key.userID == userID { deactivate() }
-        for uni in UniversityKey.allCases { await remove(DataContainerKey(userID: userID, university: uni)) }
-        UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: DataContainerKey.userScope(userID)).deleteAll()
+        var left: [String] = []
+        for uni in UniversityKey.allCases { left += await remove(DataContainerKey(userID: userID, university: uni)) }
+        let tokens = UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: DataContainerKey.userScope(userID))
+        tokens.deleteAll()
+        if UniversityKey.allCases.contains(where: { uni in uni.profile.tokenServices.contains { tokens.token(uni, service: $0) != nil } }),
+           !left.contains(Self.leftKey) {
+            left.append(Self.leftKey)
+        }
         // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
         appDefaults.removeObject(forKey: SolutionDisplayName.key)
         // empfangene Loesungen, die noch ausserhalb der Container lagen (Documents/Inbox)
         SolutionSharing.purgeInbox()
+        return Self.deletionProblem(Array(Set(left)).sorted())
+    }
+
+    static let leftFiles = "Dateien und Notizen"
+    static let leftKey = "Learnweb-Schlüssel"
+    static let leftSession = "Stud.IP-Anmeldung"
+
+    /// Meldung "Nicht alles ließ sich löschen …" zu den Resten (nil ohne Reste)
+    static func deletionProblem(_ left: [String]) -> String? {
+        guard !left.isEmpty else { return nil }
+        return "Nicht alles ließ sich löschen (\(left.joined(separator: ", "))). Bitte versuche es erneut."
     }
 
     /// Abgleiche eines Containers anhalten und auf ihr Ende warten (danach schreibt keiner mehr hinein)
@@ -414,9 +472,12 @@ final class ContainerManager: ObservableObject {
         for s in running { await s.stop() }
     }
 
-    private func remove(_ key: DataContainerKey) async {
-        await stopSyncs(key)
+    /// Rueckgabe: was nach dem Loeschen noch da ist (leer = alles weg)
+    private func remove(_ key: DataContainerKey) async -> [String] {
         let layout = DataContainerLayout(base: base, key: key)
+        // zuerst das Schreibrecht entziehen: offene Dokumente sichern und laden danach nichts mehr hinein
+        ContainerLeases.revoke(layout.identifier)
+        await stopSyncs(key)
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
         UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
         await removeWebsiteData(key.websiteDataStoreID)
@@ -428,6 +489,13 @@ final class ContainerManager: ObservableObject {
         // Abgleich mehr hinein, `UniDownloads`)
         if layout.exists() { try? layout.remove() }
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
+        // pruefen statt annehmen: was blieb, sagt die Oberflaeche
+        var left: [String] = []
+        if layout.exists() { left.append(Self.leftFiles) }
+        let tokens = UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope, onlyUniversity: key.university)
+        if key.university.profile.tokenServices.contains(where: { tokens.token(key.university, service: $0) != nil }) { left.append(Self.leftKey) }
+        if !StudIPCookieStore(service: cookieService, container: layout.identifier).load().isEmpty { left.append(Self.leftSession) }
+        return left
     }
 
     /// Webdaten eines Containers leeren und seinen Datenspeicher entfernen (ist er noch in Gebrauch, bleibt er leer

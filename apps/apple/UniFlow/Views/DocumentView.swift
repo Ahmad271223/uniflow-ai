@@ -168,7 +168,7 @@ struct DocumentView: View {
 
     /// Schreiben mit dem Pencil, Seiten und Lesezeichen nur mit Plus; Free und nach dem Herabstufen nur ansehen
     /// (Notizen bleiben sichtbar und exportierbar, docs/AUFTRAG-APPSTORE-V1.md Abschnitt 4)
-    private var canWrite: Bool { planAllowsWriting && !readOnly && !store.outdatedByNewVersion }
+    private var canWrite: Bool { planAllowsWriting && !readOnly && !store.outdatedByNewVersion && !store.journalUnreadable }
 
     /// Tarif mit Schreiben (sonst Schloss mit Weg zur Abo-Seite)
     private var planAllowsWriting: Bool { entitlements.notes.canEdit }
@@ -774,6 +774,9 @@ struct DocumentView: View {
             } else if store.outdatedByNewVersion {
                 Divider().frame(height: 14)
                 Label("Neue Fassung angekommen – Dokument neu öffnen", systemImage: "arrow.triangle.2.circlepath").lineLimit(1)
+            } else if store.journalUnreadable {
+                Divider().frame(height: 14)
+                Label("Lokale Notizen nicht lesbar – nur ansehen", systemImage: "exclamationmark.triangle").lineLimit(1)
             } else if !planAllowsWriting {
                 Divider().frame(height: 14)
                 Button { lockedFeature = .pencilWriting } label: {
@@ -788,7 +791,7 @@ struct DocumentView: View {
                 Divider().frame(height: 14)
                 Label("\(foreignLayers.filter(\.visible).count) Lösung(en) eingeblendet", systemImage: "square.3.layers.3d").lineLimit(1)
             }
-            if let notice = store.notice {
+            if let notice = store.notice ?? store.inkNotice {
                 Divider().frame(height: 14)
                 Text(notice).lineLimit(1)
             }
@@ -842,7 +845,7 @@ struct CompanionView: View {
             } else if store.pdf != nil {
                 PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                               toolPicker: toolPicker, ownsToolPicker: false, undoManager: undoManager, initialPDFPage: pdfPage,
-                              canEdit: canEdit)
+                              canEdit: canEdit && !store.journalUnreadable)
             } else {
                 ProgressView().frame(maxHeight: .infinity)
             }
@@ -1226,14 +1229,22 @@ struct SyncIssueBadge: View {
                     Button("Erneut versuchen") { Task { await store.retrySync() } }
                 }
             } label: {
-                Label(issue.label, systemImage: issue.needsUserAction ? "exclamationmark.triangle" : "info.circle")
+                Label(Self.text(issue, pages: store.conflictPages), systemImage: issue.needsUserAction ? "exclamationmark.triangle" : "info.circle")
                     .labelStyle(.titleAndIcon)
                     .font(.caption)
                     .foregroundStyle(issue.needsUserAction ? .red : .orange)
                     .lineLimit(1)
             }
-            .accessibilityLabel(issue.label)
+            .accessibilityLabel(Self.text(issue, pages: store.conflictPages))
         }
+    }
+
+    /// Text des Hinweises; bei zusammengefuehrten Konflikten mit den betroffenen Seiten ("– Seite 3", "– Seiten 2, 5"),
+    /// damit man weiss, wo man nachsehen sollte
+    static func text(_ issue: SyncIssue, pages: [Int]) -> String {
+        guard case .konflikteZusammengefuehrt = issue, !pages.isEmpty else { return issue.label }
+        let shown = pages.prefix(6).map(String.init).joined(separator: ", ") + (pages.count > 6 ? " …" : "")
+        return issue.label + " – " + (pages.count == 1 ? "Seite " : "Seiten ") + shown
     }
 }
 
