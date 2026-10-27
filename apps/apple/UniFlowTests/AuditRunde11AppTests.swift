@@ -179,6 +179,21 @@ final class AuditRunde11AppTests: XCTestCase {
         XCTAssertFalse(h.isRunning)
     }
 
+    /// Zwei Laeufe, die gleichzeitig beginnen (beide warten noch auf die Demo-Pruefung): danach prueft jeder erneut, ob
+    /// schon einer laeuft - es gibt genau einen Lauf und eine Anfrage an Learnweb
+    func testTwoRunsStartedAtTheSameTimeBecomeOne() async throws {
+        let m = manager()
+        let (_, h) = try await connectedHildesheim(m, account(.hildesheim), lsfToo: false)
+        try installUni()
+        async let first = h.run()
+        async let second = h.run()
+        let (a, b) = await (first, second)
+        XCTAssertEqual([a, b].compactMap { $0 }.count, 1, "genau ein Lauf")
+        XCTAssertEqual(h.finishedRuns, 1)
+        XCTAssertEqual(UniStubProtocol.requests.filter { $0.bodyText.contains("core_webservice_get_site_info") }.count, 1)
+        XCTAssertFalse(h.isRunning)
+    }
+
     // MARK: 362 Abmelden waehrend des Abgleichs
 
     func testSignOutDuringARunningSyncStopsItFirst() async throws {
