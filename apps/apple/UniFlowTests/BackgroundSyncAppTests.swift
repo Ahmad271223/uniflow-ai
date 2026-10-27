@@ -512,8 +512,7 @@ final class BackgroundSyncAppTests: XCTestCase {
             let m = manager()
             let (a, luh) = try ready(m, .luh)
             try cookie(luh)
-            // gemerkte Zugangsdaten liegen bereit: der Hintergrund liest sie nie
-            XCTAssertTrue(luh.credentials.save(UniversityCredential(user: "erfunden-ada", password: "Erfunden-Passwort-123"), .luh, service: "studip"))
+            // Zugangsdaten merkt sich die App nicht mehr (nur iOS); der Hintergrund liest auch keinen Schluessel
             spy.resetReads()
             let (b, _, n) = controller(m, a)
             let stud = ScriptedStudIP()
@@ -572,7 +571,6 @@ final class BackgroundSyncAppTests: XCTestCase {
         h.syncsAfterSignIn = false
         XCTAssertTrue(h.learnwebSignedIn(token: try XCTUnwrap(LearnwebToken(token)), base: base))
         h.lsfSignedIn()                                          // ohne LSF-Sitzung in der Webansicht: abgelaufen
-        XCTAssertTrue(hi.credentials.save(UniversityCredential(user: "erfunden-hilde", password: "Erfunden-CAS-456"), .hildesheim, service: "cas"))
         spy.resetReads()
         var locked = true
         h.protectedDataAvailable = { !locked }
