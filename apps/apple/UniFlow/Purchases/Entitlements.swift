@@ -145,8 +145,8 @@ enum UFAccess: Equatable {
     case allowed
     /// gesperrt, freigeschaltet ab diesem Tarif
     case locked(UFPlan)
-    /// noch nicht vorhanden (Funktionen ab V2; frueher auch Uni & Noten vor F4 und Karteikarten) – als "bald" kennzeichnen, in keinem
-    /// Tarif freigeschaltet
+    /// noch nicht vorhanden (Funktionen ab V2; frueher auch Uni & Noten vor F4 und Karteikarten) – als "bald"
+    /// kennzeichnen, in keinem Tarif freigeschaltet
     case comingSoon
 
     var isAllowed: Bool { self == .allowed }

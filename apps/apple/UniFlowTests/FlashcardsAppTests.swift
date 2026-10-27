@@ -131,7 +131,7 @@ final class FlashcardsAppTests: XCTestCase {
         XCTAssertNil(deck.fileTitle(stored.first { $0.s("question") == "Freie Frage" }!))
     }
 
-    /// Pruefpunkt 269: zwei schnelle Tipps auf "Richtig" bewerten die Karte einmal; ohne Aufdecken gibt es keine Bewertung
+    /// Pruefpunkt 269: zwei schnelle Tipps auf "Richtig" bewerten die Karte einmal; ohne Aufdecken keine Bewertung
     func testReviewRatesEachCardOnceEvenWithDoubleTap() async throws {
         let (api, rec, _) = try await seededAPI(cards: [("Frage A", "Antwort A", nil), ("Frage B", "Antwort B", "f-la")])
         let deck = FlashcardDeck(api: api)
