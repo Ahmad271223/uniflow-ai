@@ -286,10 +286,15 @@ public actor LSFClient {
 
     /// Angemeldet im LSF wie `lsf.is_logged_in` am PC: eine Seite des LSF (HTTPS, Rechner des Profils) mit
     /// "Abmelden"-Link. Die eine Regel fuer die Anmeldung in der App (`HildesheimLogin`) und jede hier gelesene Seite.
+    /// Wie Playwright `a:has-text('Abmelden')` ohne Gross-/Kleinschreibung; zusaetzlich der Abmelde-Link des LSF
+    /// (`category=auth.logout`), den die abgemeldete Seite nie hat (dort nur `auth.login`, Befund 27.10.2026).
     public static func isLoggedIn(html: String, url: URL?) -> Bool {
         guard let url, url.scheme?.lowercased() == "https", url.host?.lowercased() == host else { return false }
-        return html.contains("Abmelden")
+        return html.contains("auth.logout") || HText.match(logoutLinkRE, html) != nil
     }
+
+    /// Link, dessen Text "Abmelden" enthaelt (auch in einem span), nicht nur das Wort irgendwo im Fliesstext
+    static let logoutLinkRE = HText.regex(#"<a\b[^>]*>(?:(?!</a>).){0,300}?abmelden"#, [.caseInsensitive, .dotMatchesLineSeparators])
 
     private func page(_ urlString: String) async throws -> String {
         guard let url = URL(string: urlString) else { throw HildesheimError.badResponse(urlString) }
