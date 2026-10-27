@@ -1,10 +1,11 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=29";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=29";
-import { viewFiles } from "./views-lib.js?v=29";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=29";
-import { viewTimetable, openEvent } from "./views-tt.js?v=29";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=29";
+import { $, $$, api, esc, safeUrl, noteChips, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=30";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=30";
+import { viewFiles } from "./views-lib.js?v=30";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=30";
+import { viewTimetable, openEvent } from "./views-tt.js?v=30";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=30";
+import { viewAbo } from "./views-abo.js?v=30";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
@@ -58,7 +59,7 @@ const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universit
 function accountMenu() {
   const a = state.account;
   const m = modal(`<div class="card-head"><h2>${icon("user", 18)} UniFlow-Konto</h2><button class="btn ghost icon" data-close>${icon("x", 16)}</button></div>
-    <p style="margin:.2rem 0"><b>${esc(a.email)}</b></p><p class="muted small" style="margin:0 0 .9rem">${esc(UNI_NAMES[a.university] || a.university)} · Tarif ${a.plan === "plus" ? "Plus" : "Free"}${a.role === "admin" ? " · Moderation" : ""}</p>
+    <p style="margin:.2rem 0"><b>${esc(a.email)}</b></p><p class="muted small" style="margin:0 0 .9rem">${esc(UNI_NAMES[a.university] || a.university)} · Tarif ${esc(state.entitlements?.plan_name || "Studora Free")}${a.role === "admin" ? " · Moderation" : ""}</p>
     <div class="row wrap"><button class="btn primary" id="accLogout">${icon("log-out", 15)} Abmelden</button><button class="btn" id="accLogoutAll" title="Alle anderen Geräte abmelden, dieses bleibt angemeldet">Andere Geräte abmelden</button><a class="btn" href="#/settings?tab=account" data-close>Hochschul-Zugang</a></div>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} location.replace("/login"); };
@@ -66,7 +67,7 @@ function accountMenu() {
 }
 
 // ---------------------------------------------------------------- Router
-const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, doc: viewDoc, services: viewServices, tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
+const routes = { dashboard: viewDashboard, plan: viewPlan, timetable: viewTimetable, modules: viewModules, files: viewFiles, exams: viewExams, cards: viewCards, community: viewCommunity, settings: viewSettings, abo: viewAbo, doc: viewDoc, services: viewServices, tasks: (p, q, v) => viewPlan(p, { ...q, view: "list" }, v) };
 async function route() {
   const hash = location.hash.replace(/^#\/?/, "") || "dashboard";
   const [path, qs] = hash.split("?"); const parts = path.split("/"); const name = parts[0]; const params = Object.fromEntries(new URLSearchParams(qs || ""));
@@ -129,6 +130,7 @@ async function start() {
   if (state.hosted) {
     const r = await fetch("/api/account/me");
     if (r.status === 401) { location.replace("/login"); return; }
+    try { state.entitlements = await fetch("/api/entitlements").then(x => x.ok ? x.json() : null); } catch {}
     if (r.ok) { state.account = (await r.json()).user; const av = $("#avatar"); av.textContent = state.account.email.slice(0, 2).toUpperCase(); av.title = `${state.account.email} – Konto und Abmelden`; av.style.cursor = "pointer"; av.onclick = accountMenu; }
   }
   buildShell(); setTheme((() => { try { return localStorage.getItem("theme") || "light"; } catch { return "light"; } })());

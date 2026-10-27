@@ -211,10 +211,13 @@ def test_hosted_register_login_me_logout(hosted):
 
 def test_hosted_local_only_paths_answer_501(hosted):
     _, token, _ = _register(hosted, "k@beispiel.de")
-    for m, p in (("GET", "/api/network"), ("POST", "/api/ai/tutor"),
+    for m, p in (("GET", "/api/network"),
                  ("POST", "/api/files/abc/analyze"), ("POST", "/api/tests/generate-week"), ("POST", "/api/plan/generate")):
         st, data, _ = _json(asgi_call(hosted, m, p, headers=_auth(token), body="{}"))
         assert st == 501 and data["code"] == "not_available_hosted", (m, p, st, data)
+    # KI im Editor gibt es im Dienst ueber die Studora-KI (Pro AI); ohne Tarif 403 plan_required statt 501
+    st, data, _ = _json(asgi_call(hosted, "POST", "/api/ai/tutor", headers=_auth(token), body="{}"))
+    assert st == 403 and data["code"] == "plan_required" and data["required_plan"] == "pro_ai", data
     assert asgi_call(hosted, "GET", "/api/sync/status", headers=_auth(token))[0] == 200
     # Abgleich und Zugangsdaten gibt es im Dienst je Konto (tests/test_hosted_sync.py)
     st, data, _ = _json(asgi_call(hosted, "POST", "/api/sync", headers=_auth(token), body="{}"))
@@ -227,8 +230,10 @@ def test_users_are_isolated_in_their_own_databases(hosted):
     keinem GET-Pfad etwas davon und bekommt auf A's IDs 404. Beide Datenbanken liegen in getrennten Ordnern."""
     from fastapi.routing import APIRoute
     from app import config
+    from app import accounts
     a, ta, _ = _register(hosted, "a@beispiel.de", "luh")
     b, tb, _ = _register(hosted, "b@beispiel.de", "luh")
+    accounts.set_plan(accounts.user_by_email("a@beispiel.de")["id"], "plus")      # Notizen speichern ab Studora Plus
     marker = "Geheim-A-7f3e"
     st, mod, _ = _json(asgi_call(hosted, "POST", "/api/modules", body=json.dumps({"name": f"Modul {marker}"}), headers=_auth(ta)))
     assert st == 200, mod

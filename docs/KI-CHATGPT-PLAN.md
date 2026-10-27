@@ -145,6 +145,8 @@ Projekte sind ohne Antrag zugelassen. Damit lässt sich Phase 1 testen, ohne das
 
 ## 7. Entscheidungen des Inhabers
 
+**Nachtrag 27.10.2026:** Mit dem Abosystem (`docs/ABO-SYSTEM.md`) wünscht der Inhaber die ChatGPT-Verbindung als Premiumfunktion ab Pro Connect. Laut Zusammenfassungen der „Sign in with ChatGPT Terms“ muss die Nutzung des eigenen ChatGPT-Abos aber ohne Zahlung an den Partner möglich sein. Deshalb ist die Regel nur eine Anzeige-Regel (`chatgpt_connection_premium`), die Integration bleibt aus (`plan_gating_allowed = False`), bis OpenAI die Kopplung für Studora schriftlich bestätigt. Diese Frage gehört in den Antrag (Abschnitt 6).
+
 | Thema | Vorschlag |
 |---|---|
 | Zeitpunkt | nach dem App-Store-Start (V1.1); V1 bleibt ohne KI |

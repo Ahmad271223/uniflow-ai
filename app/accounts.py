@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified INTEGER DEFAULT 0,
     pw_hash TEXT,                        -- scrypt$n$r$p$salz$hash (hex); NULL bei reinem Apple/Google-Konto
     university TEXT NOT NULL,            -- luh | hildesheim
-    plan TEXT DEFAULT 'free',            -- free | plus
+    plan TEXT DEFAULT 'free',            -- free | plus | pro_connect | pro_ai (Quelle "manual", app/billing.py)
     plan_until TEXT,
     role TEXT DEFAULT 'user',            -- user | admin
     status TEXT DEFAULT 'active',        -- active | deleted
@@ -473,9 +473,12 @@ def purge_deleted(days: int = 30) -> int:
 
 
 def set_plan(user_id: str, plan: str, until: str | None = None) -> dict:
-    """Tarif setzen (free | plus); spaeter aus den Store-Kaeufen, heute ueber die Kommandozeile."""
-    if plan not in ("free", "plus"):
-        raise AccountError("plan_invalid", "Unbekannter Tarif.")
+    """Tarif von Hand setzen (Quelle "manual": Betrieb, Tests, Gutscheine). Kaeufe aus dem App Store laufen ueber
+    app/apple_store.py in die Tabelle entitlements; es gilt der hoechste aktive Tarif beider Quellen (app/billing.py)."""
+    from . import billing
+    plan = billing.normalize_plan(plan) or ""
+    if not plan:
+        raise AccountError("plan_invalid", "Unbekannter Tarif (free, plus, pro_connect, pro_ai).")
     with cursor() as conn:
         conn.execute("UPDATE users SET plan=?, plan_until=? WHERE id=?", (plan, until, user_id))
         return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
@@ -504,14 +507,18 @@ def get_user(user_id: str) -> dict | None:
 # ---------------------------------------------------------------- Kommandozeile (Betrieb)
 
 def main(argv: list[str]) -> int:
-    """python -m app.accounts reset-token <email> | purge | list | plan <email> free|plus [bis YYYY-MM-DD] | role <email> user|admin"""
+    """python -m app.accounts reset-token <email> | purge | list | plan <email> free|plus|pro_connect|pro_ai [bis YYYY-MM-DD] | role <email> user|admin"""
     cmd = argv[0] if argv else ""
     if cmd in ("plan", "role") and len(argv) >= 3:
         u = user_by_email(argv[1])
         if not u:
             print("Kein Konto mit dieser Adresse.")
             return 1
-        out = set_plan(u["id"], argv[2], argv[3] if len(argv) > 3 else None) if cmd == "plan" else set_role(u["id"], argv[2])
+        try:
+            out = set_plan(u["id"], argv[2], argv[3] if len(argv) > 3 else None) if cmd == "plan" else set_role(u["id"], argv[2])
+        except AccountError as e:
+            print(e.message if hasattr(e, "message") else str(e))
+            return 1
         print(json.dumps({k: out[k] for k in ("email", "plan", "plan_until", "role")}, ensure_ascii=False))
         return 0
     if cmd == "reset-token" and len(argv) == 2:

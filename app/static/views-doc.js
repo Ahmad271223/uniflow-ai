@@ -1,6 +1,6 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
-import { $, $$, api, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=29";
-import { PdfEditor } from "./editor.js?v=29";
+import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=30";
+import { PdfEditor } from "./editor.js?v=30";
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };
@@ -123,7 +123,9 @@ export async function mountDoc(host, f, { page = 1, onPage, penInput, restore, p
   if (!f.exists && !notebook) { host.innerHTML = `<div class="pane-empty">${icon("alert", 28)}Datei ist lokal nicht vorhanden. Bitte Sync ausführen.</div>`; return null; }
   if (isPdf || notebook) {
     const div = document.createElement("div"); div.className = "ed-host"; host.append(div);
-    const ed = new PdfEditor(div, { fileId: f.id, name: f.title || f.name, url: notebook && !f.local_path ? null : `/api/files/${f.id}/content`, penInput, onPage,
+    const readOnly = !can("can_annotate_pdf");      // Studora Free im Dienst: lesen ja, schreiben ab Plus (Server prueft ebenso)
+    if (readOnly) { const n = document.createElement("div"); n.className = "ed-readonly-note"; n.innerHTML = `${icon("info", 14)} Nur lesen – Notizen, Textmarker und Apple Pencil gibt es ab <a href="#/abo">Studora Plus</a>.`; host.insertBefore(n, div); }
+    const ed = new PdfEditor(div, { fileId: f.id, name: f.title || f.name, url: notebook && !f.local_path ? null : `/api/files/${f.id}/content`, penInput, onPage, readOnly,
       onStatus: s => { const el = $(".ed-status", div); if (el) { el.textContent = s; el.title = s; } if (host.id === "paneA") { const d = $("#docStatus"); if (d) d.textContent = s; } },
       onAccessory: k => { if (k === "timer") toggleTimer(true); } });
     ed.pane = pane; state.editors.push(ed);           // vor dem Laden markieren: Schliessen waehrend des Ladens findet den Editor

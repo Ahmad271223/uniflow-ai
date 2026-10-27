@@ -1,8 +1,8 @@
 // UniFlow Editor 2.0 – PDF- und Notizeditor (pdf.js + Konva + pdf-lib)
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
-import { icon } from "./icons.js?v=29";
-import { mergeDocument } from "./merge.js?v=29";
-import { FORMATS, WHITEBOARDS, formatSize, formatOf, sizeLabel, validSize } from "./formats.js?v=29";
+import { icon } from "./icons.js?v=30";
+import { mergeDocument } from "./merge.js?v=30";
+import { FORMATS, WHITEBOARDS, formatSize, formatOf, sizeLabel, validSize } from "./formats.js?v=30";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -68,7 +68,7 @@ export class PdfEditor {
     this.zoom = 1.2; this.model = null; this.version = 0; this.dirty = false;
     this.pages = []; this.history = []; this.future = []; this.selection = []; this.clipboard = null;
     this.penSeenAt = 0; this.pointers = new Map(); this.currentPage = 0; this.textCache = new Map(); this.assetDocs = new Map();
-    this.destroyed = false; this.penInput = opts.penInput || "all";
+    this.destroyed = false; this.penInput = opts.penInput || "all"; this.readOnly = !!opts.readOnly;
     this.ruler = null; this.zoomWin = null; this.recorder = null; this._prev = new Map();
     this.prefs = Object.assign({ scroll: "vertical", single: false, sidebar: "left", hidden: [] }, (() => { try { return JSON.parse(localStorage.getItem("ed-prefs") || "{}"); } catch { return {}; } })());
   }
@@ -190,7 +190,7 @@ export class PdfEditor {
 
   // ---------------------------------------------------------------- UI
   buildUI() {
-    this.c.classList.add("ed"); this.c.innerHTML = `
+    this.c.classList.add("ed"); this.c.classList.toggle("ed-readonly", this.readOnly); this.c.innerHTML = `
       <div class="ed-bar ed-main">
         <div class="ed-group ed-left">
           <button data-act="side" title="Seitenleiste">${icon("panel-left")}</button>
@@ -576,7 +576,7 @@ export class PdfEditor {
   scheduleSave() { clearTimeout(this._t); if (!this._dirtySince) this._dirtySince = Date.now(); this._t = setTimeout(() => this._saveTick(), 1200); }
   _saveTick() { const busy = (this.penDown && Date.now() - (this.penSeenAt || 0) < 15000) || (this._activeLive && Date.now() - (this._liveAt || 0) < 15000); const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta, basePages: Object.fromEntries(dd.keys.map(k => [k, this.base?.pages?.[k] ?? null])) }); this.flush(); }
   async flush() {
-    if (!this.dirty || this.saving) return; this.saving = true;
+    if (this.readOnly || !this.dirty || this.saving) return; this.saving = true;
     let retryConflict = false;
     try {
       const sentJson = JSON.stringify(this.model);
@@ -616,7 +616,7 @@ export class PdfEditor {
   setTextStyle(patch) { Object.assign(this.textStyle, patch); const sel = this.selection.filter(s => s.node.getAttr("obj").type === "text"); if (sel.length) { const pg = sel[0].pg; const before = this.snapshot(pg); sel.forEach(s => { Object.assign(s.node.getAttr("obj"), patch); const n = this.refreshNode(pg, s.node); s.node = n; n.draggable(true); }); pg.tr.nodes(sel.map(s => s.node)); this.commit(pg, before); } this.renderCtx(); }
   toggleFmt(k) { const st = this.selText() || this.textStyle; this.setTextStyle({ [k]: !st[k] }); }
   applyToSelection(patch) { if (!this.selection.length) return; const pg = this.selection[0].pg; const before = this.snapshot(pg); this.selection.forEach(s => { const o = s.node.getAttr("obj"); if (o.type === "stroke") { if (patch.color) o.color = patch.color; if (patch.width) { if (o.widths && o.width) o.widths = o.widths.map(w => Math.round(w * patch.width / o.width * 100) / 100); o.width = patch.width; } if (patch.opacity != null) o.opacity = patch.opacity; } else if (o.type === "shape") { if (patch.stroke) o.stroke = patch.stroke; if (patch.strokeWidth) o.strokeWidth = patch.strokeWidth; if (patch.opacity != null) o.opacity = patch.opacity; if ("fill" in patch) o.fill = patch.fill; } else if (patch.opacity != null) o.opacity = patch.opacity; s.node = this.refreshNode(pg, s.node); s.node.draggable(true); }); pg.tr.nodes(this.selection.map(s => s.node)); this.commit(pg, before); }
-  allowPointer(ev) { if (ev.pointerType === "touch") { if (this.penInput === "pen_only" || this.penDown) return false; if (Date.now() - this.penSeenAt < 1200 || this.pointers.size > 1) return false; } if (ev.button !== 0 && ev.pointerType === "mouse") return false; return true; }
+  allowPointer(ev) { if (this.readOnly) return false; if (ev.pointerType === "touch") { if (this.penInput === "pen_only" || this.penDown) return false; if (Date.now() - this.penSeenAt < 1200 || this.pointers.size > 1) return false; } if (ev.button !== 0 && ev.pointerType === "mouse") return false; return true; }
 
   // Gemeinsame Strich-API (Stage + Zoom-Fenster)
   liveCtx(pg, cls = ".ed-live") { const cv = $(cls, pg.el); const dpr = pageDpr(pg, this.zoom); const W = Math.round(pg.w * this.zoom * dpr), H = Math.round(pg.h * this.zoom * dpr); if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } const ctx = cv.getContext("2d"); ctx.setTransform(this.zoom * dpr, 0, 0, this.zoom * dpr, 0, 0); return { cv, ctx, dpr }; }

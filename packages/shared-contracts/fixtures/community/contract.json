@@ -264,7 +264,7 @@
   },
   "plan_required": {
    "status": 403,
-   "message": "Lösungen teilen und ansehen gibt es mit UniFlow Plus."
+   "message": "Eigene Lösungen teilen gibt es ab Studora Plus."
   },
   "solution_exists": {
    "status": 409,
@@ -387,6 +387,8 @@
     "enabled": true,
     "plan_required": "plus",
     "plan_ok": true,
+    "can_read": true,
+    "can_share": true,
     "reasons": [
      "foreignMaterial",
      "<base64>",
@@ -481,7 +483,7 @@
    },
    "status": 403,
    "response": {
-    "detail": "Lösungen teilen und ansehen gibt es mit UniFlow Plus.",
+    "detail": "Eigene Lösungen teilen gibt es ab Studora Plus.",
     "code": "plan_required"
    }
   },

@@ -1,5 +1,5 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
-import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=29";
+import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=30";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -70,7 +70,7 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted">⏳ Die KI liest die Vorlesungsfolien dieser Woche…</div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=29"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=30"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
@@ -231,6 +231,7 @@ export async function viewSettings(_, params, view) {
   const uniKey = svc.university?.key || "luh";
   let tab = params.tab === "diag" ? "advanced" : (params.tab || "modules"); let openMod = null;
   const render = () => {
+    if (tab === "abo") { location.hash = "#/abo"; return; }   // Abo & Tarife hat eine eigene Seite
     const activeMods = mods.filter(m => m.active !== 0);
     const modulesTab = `<div class="card"><div class="card-head"><h2>Module & Wochentests</h2><span class="badge ok">${activeMods.length} aktiv</span></div><p class="muted small">Ein Modul fasst mehrere Stud.IP-Kurse zusammen (Vorlesung, Hörsaalübung, Gruppenübung …). Pro Modul und Lehrwoche entsteht höchstens <b>ein gemeinsamer Wochentest</b>, und nur wenn in der Woche neue Inhalte vorliegen.</p>
       <div class="row wrap" style="margin:.6rem 0"><label class="field" style="margin:0"><input type="checkbox" id="sAutoTests" ${s.auto_tests ? "checked" : ""}> Gemeinsamen Wochentest pro Modul automatisch erstellen</label><span class="spacer"></span><label class="field" style="margin:0;display:flex;align-items:center;gap:.5rem">Standard-Testdauer <div class="seg">${[15, 30, 60].map(n => `<button class="${s.test_minutes == n ? "active" : ""}" data-tmin="${n}">${n} Min.</button>`).join("")}<button class="${![15, 30, 60].includes(+s.test_minutes) ? "active" : ""}" data-tmin="custom">Eigene</button></div></label></div>
@@ -266,7 +267,7 @@ export async function viewSettings(_, params, view) {
         <div class="row"><input class="input" id="lwToken" type="password" placeholder="${svc.learnweb?.token_set ? "•••••••• (neu eingeben zum Ersetzen)" : "Schlüssel einfügen"}" autocomplete="off" style="flex:1"><button class="btn sm" id="lwSave">Speichern</button>${svc.learnweb?.token_set ? `<button class="btn ghost sm" id="lwClear">Entfernen</button>` : ""}</div></div>`;
     const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : credCard}${looksCard}${ipadCard}</div>`; const advancedTab = `<div class="stack">${logCard}${diagTab()}</div>`;
     view.innerHTML = `<div class="content" style="max-width:1180px"><div class="page-head"><div><h1>Einstellungen</h1></div></div>
-      <div class="set-layout"><nav class="set-nav">${[["modules", "Module & Wochentests", "book"], ["plan", "Lernzeit & Verfügbarkeit", "clock"], ["account", "Zugang & Darstellung", "user"], ["advanced", "Erweitert", "settings"]].map(([k, l, i]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${icon(i, 16)}<span>${l}</span></button>`).join("")}</nav><div class="set-body">
+      <div class="set-layout"><nav class="set-nav">${[["modules", "Module & Wochentests", "book"], ["plan", "Lernzeit & Verfügbarkeit", "clock"], ["account", "Zugang & Darstellung", "user"], ["abo", "Abo & Tarife", "star"], ["advanced", "Erweitert", "settings"]].map(([k, l, i]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${icon(i, 16)}<span>${l}</span></button>`).join("")}</nav><div class="set-body">
       ${tab === "modules" ? modulesTab : tab === "account" ? accountTab : tab === "advanced" ? advancedTab : `<div class="card"><div class="card-head"><h2>Lernzeit & Verfügbarkeit</h2></div><p class="muted small">Lernkombination (Fächer pro Tag, Vorlesung/Übungen/Wochentest) und persönliche Verfügbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten).</p><div class="row wrap"><button class="btn primary" id="openCfg">${icon("settings", 16)} Lernkombination</button><button class="btn" id="openAvail">${icon("clock", 16)} Verfügbarkeit & Sperrzeiten</button></div><div class="small muted" style="margin-top:.8rem">Aktuell: ${s.subjects_per_day} Fächer pro Tag · ${fmtMin(s.minutes_per_day)} · Lernzeit ${s.learn_start}–${s.learn_end} · freie Tage: ${s.free_days.map(d => DAYS[d]).join(", ") || "keine"} · Fahrtzeit ${s.travel_minutes} min</div></div>`}</div></div></div>`;
     $$("[data-tab]", view).forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
     $$("[data-open]", view).forEach(el => el.onclick = e => { if (e.target.closest("input, button, select, label")) return; openMod = openMod === +el.dataset.open ? null : +el.dataset.open; render(); });
@@ -313,8 +314,8 @@ export async function viewSettings(_, params, view) {
       demoBtn.onclick = async () => { demoBtn.disabled = true; try { const d = await api("/demo", { method: "POST", body: { enabled: demoBtn.dataset.on !== "1" } }); showDemo(d); toast(d.enabled ? `Demo angelegt: ${d.files} PDFs, ${d.events} Termine, ${d.packages} Lernpakete` : "Demo-Inhalte entfernt"); } catch (e) { toast(e.message, 4000); } demoBtn.disabled = false; };
     }
     $("#diagTest")?.addEventListener("click", async () => { const out = $("#diagOut"); out.textContent = "Prüfe…"; const lines = []; try { const f = (await api("/library")).files.find(x => x.kind === "pdf" && x.downloaded_at); if (!f) { out.textContent = "Keine PDF vorhanden."; return; } const r = await fetch(`/api/files/${f.id}/content`); lines.push(`PDF-Abruf: HTTP ${r.status}, Typ ${r.headers.get("content-type")}`); const pdfjs = await import("./vendor/pdf.min.mjs?v=3"); pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; const doc = await pdfjs.getDocument({ data: await r.arrayBuffer() }).promise; lines.push(`pdf.js: ${doc.numPages} Seiten gelesen`); const page = await doc.getPage(1); const vp = page.getViewport({ scale: 1 }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; lines.push(`Canvas: Seite 1 gerendert (${Math.round(vp.width)}×${Math.round(vp.height)})`); lines.push(`Konva: ${typeof window.Konva !== "undefined" ? "geladen" : "nicht geladen (wird erst im Editor geladen)"}`); out.innerHTML = `<div style="color:var(--ok)">✅ ${lines.join("<br>")}</div><img src="${cv.toDataURL()}" style="max-width:220px;border:1px solid var(--line);margin-top:.5rem">`; } catch (e) { lines.push(`❌ ${e.message}`); out.innerHTML = `<div style="color:var(--bad)">${lines.join("<br>")}</div>`; } });
-    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=29")).configDialog(() => state.route()));
-    $("#openAvail")?.addEventListener("click", async () => (await import("./views-tt.js?v=29")).availabilityDialog());
+    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=30")).configDialog(() => state.route()));
+    $("#openAvail")?.addEventListener("click", async () => (await import("./views-tt.js?v=30")).availabilityDialog());
   };
   render();
 }

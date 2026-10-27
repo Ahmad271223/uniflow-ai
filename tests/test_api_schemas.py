@@ -99,13 +99,13 @@ def test_v2_examples_match_draft_schemas():
 
 
 def test_v2_contract_matches_billing_logic():
-    """Tarif-Faehigkeiten und Kontingent-Antwort im Vertrag entsprechen app/billing.py."""
+    """Rechte, Tarife und Kontingent-Antwort im Vertrag entsprechen app/plans.py und app/billing.py."""
     from dataclasses import asdict
-    from app import billing
-    caps = set(schema_v2("me")["properties"]["capabilities"]["required"])
-    for plan, spec in billing.PLANS.items():
-        assert caps <= set(spec), plan
-    assert set(schema_v2("me")["properties"]["plan"]["enum"]) == set(billing.PLANS)
+    from app import billing, plans
+    caps = set(schema_v2("me")["properties"]["entitlements"]["required"])
+    assert caps <= set(plans.ENTITLEMENTS)
+    assert set(schema_v2("me")["properties"]["plan"]["enum"]) == set(billing.PLANS) | {billing.LOCAL_PLAN}
+    assert set(schema_v2("me")["properties"]["quotas"]["required"]) == set(plans.QUOTA_LABELS)
     sample = asdict(billing.ConsumeResult(ok=True, used=1, limit=6))
     assert check(sample, schema_v2("quota-consume")) == []
     assert "STUDIP" not in json.dumps(schema_v2("me")).upper(), "Konto-Antwort enthaelt keine Hochschul-Zugangsdaten"

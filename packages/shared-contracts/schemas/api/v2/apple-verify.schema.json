@@ -1,14 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://uniflow.local/contracts/api/v2/apple-verify.json",
-  "title": "POST /v2/billing/apple/verify (Antwort) – Entwurf",
+  "title": "POST /api/billing/apple/verify (Antwort) – app/apple_store.py verify_purchase",
   "type": "object",
   "required": ["plan", "status", "original_transaction_id"],
   "properties": {
-    "plan": { "enum": ["free", "plus", "pro"] },
-    "status": { "enum": ["active", "expired", "revoked", "billing_retry"] },
+    "plan": { "enum": ["free", "plus", "pro_connect", "pro_ai"] },
+    "status": { "enum": ["active", "grace", "expired", "revoked", "billing_retry"] },
     "original_transaction_id": { "type": "string" },
     "expires_at": { "type": ["string", "null"] },
-    "environment": { "enum": ["Sandbox", "Production", "Xcode"] }
+    "will_renew": { "type": "boolean" },
+    "pending_plan": { "enum": ["free", "plus", "pro_connect", "pro_ai", null] },
+    "environment": { "enum": ["Sandbox", "Production", "Xcode", null] },
+    "stale": { "type": "boolean" }
   }
 }

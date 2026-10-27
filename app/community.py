@@ -128,15 +128,14 @@ def pseudonym(user_id: str) -> str:
 
 
 def plan_ok(user: dict) -> bool:
-    if user.get("plan") != "plus":
-        return False
-    until = user.get("plan_until")
-    return not until or str(until)[:10] >= date.today().isoformat()
+    """Darf Loesungen teilen (Recht can_share_solutions, ab Studora Plus). Lesen duerfen alle Konten (Free)."""
+    from . import entitlements
+    return entitlements.has(user, "can_share_solutions")
 
 
 def require_plan(user: dict) -> None:
     if not plan_ok(user):
-        raise CommunityError("plan_required", "Lösungen teilen und ansehen gibt es mit UniFlow Plus.", 403)
+        raise CommunityError("plan_required", "Eigene Lösungen teilen gibt es ab Studora Plus.", 403)
 
 
 def owns_file(fingerprint: str) -> bool:
@@ -264,7 +263,7 @@ def publish(user: dict, university: str, pkg, title: str | None = None) -> dict:
 
 
 def find(user: dict, university: str, fingerprint: str) -> list[dict]:
-    require_plan(user)
+    # Lesen duerfen alle Konten (Recht can_read_community, auch Studora Free); weiter nur fuer die eigene PDF
     require_file(fingerprint)
     with cursor() as conn:
         blocked = {r["pseudonym"] for r in conn.execute("SELECT pseudonym FROM blocks WHERE user_id=?", (user["id"],))}
@@ -276,7 +275,6 @@ def find(user: dict, university: str, fingerprint: str) -> list[dict]:
 
 
 def get_package(user: dict, solution_id: str) -> tuple[dict, dict]:
-    require_plan(user)
     with cursor() as conn:
         r = conn.execute("SELECT * FROM solutions WHERE id=?", (solution_id.lower(),)).fetchone()
         if not r or (r["status"] != "active" and r["author_id"] != user["id"]):
@@ -411,6 +409,7 @@ def moderate(user: dict, solution_id: str, action: str, reason: str | None = Non
 
 def info(user: dict | None) -> dict:
     return {"enabled": config.is_hosted(), "plan_required": "plus", "plan_ok": bool(user and plan_ok(user)),
+            "can_read": True, "can_share": bool(user and plan_ok(user)),
             "reasons": list(REPORT_REASONS), "reports_to_hide": REPORTS_TO_HIDE, "format": FORMAT, "format_version": FORMAT_VERSION,
             "max_package_bytes": MAX_PACKAGE_BYTES, "pseudonym": pseudonym(user["id"]) if user else None,
             "admin": bool(user and user.get("role") == "admin")}

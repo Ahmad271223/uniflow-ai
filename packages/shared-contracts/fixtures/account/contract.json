@@ -200,6 +200,10 @@
    "status": 400,
    "message": "Das Passwort braucht mindestens 10 Zeichen."
   },
+  "plan_required": {
+   "status": 403,
+   "message": "Diese Funktion gibt es ab Studora Plus."
+  },
   "provider_not_configured": {
    "status": 501,
    "message": "Anmeldung mit Google ist noch nicht eingerichtet (Prüfung der Signatur fehlt)."
@@ -384,17 +388,32 @@
    "response": []
   },
   {
-   "step": "Im Dienst nicht verfuegbar (KI bis zum KI-Update)",
+   "step": "Im Dienst nicht verfuegbar (Wochentests mit der KI des PCs)",
    "method": "POST",
-   "path": "/api/ai/tutor",
+   "path": "/api/tests/generate-week",
    "auth": true,
-   "request": {
-    "mode": "explain"
-   },
+   "request": null,
    "status": 501,
    "response": {
     "detail": "KI-Funktionen kommen mit dem KI-Update.",
     "code": "not_available_hosted"
+   }
+  },
+  {
+   "step": "Bezahlfunktion ohne Tarif (Studora Free)",
+   "method": "PUT",
+   "path": "/api/files/f1/annotations",
+   "auth": true,
+   "request": {
+    "version": 2,
+    "pages": {}
+   },
+   "status": 403,
+   "response": {
+    "detail": "Diese Funktion gibt es ab Studora Plus.",
+    "code": "plan_required",
+    "entitlement": "can_annotate_pdf",
+    "required_plan": "plus"
    }
   },
   {
