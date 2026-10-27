@@ -44,7 +44,7 @@
           },
           "localizations" : [
             {
-              "description" : "Schreiben mit Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lösungen teilen",
+              "description" : "Stift, Karteikarten, Lösungen teilen",
               "displayName" : "Studora Plus",
               "locale" : "de"
             }
@@ -74,7 +74,7 @@
           },
           "localizations" : [
             {
-              "description" : "Alles aus Studora Plus; weitere Funktionen in Vorbereitung",
+              "description" : "Alles aus Plus, mehr in Vorbereitung",
               "displayName" : "Studora Pro Connect",
               "locale" : "de"
             }
@@ -104,7 +104,7 @@
           },
           "localizations" : [
             {
-              "description" : "Alles aus Studora Plus; weitere Funktionen in Vorbereitung",
+              "description" : "Alles aus Plus, mehr in Vorbereitung",
               "displayName" : "Studora Pro AI",
               "locale" : "de"
             }

@@ -12,6 +12,7 @@
 | Skriptsuche zur Aufgabe | M3/M4 (S7) fertig |
 | Community: Lösungen vergleichen | V1: nur Teilen als Datei und Ansehen; Online-Community erst mit M15 und Dienst |
 | „ohne Tracking“ | bleibt richtig, solange kein Analyse-SDK eingebaut wird |
+| Studora Pro Connect und Pro AI „enthalten alles aus Plus; weitere Funktionen in Vorbereitung“ | stimmt, solange der Online-Dienst nicht läuft; mit dem Dienst die freigeschalteten Funktionen nennen (Tarifkarten in der App folgen `plans.json`) |
 
 ## Name, Untertitel, Werbetext
 
@@ -55,8 +56,8 @@ DEINE DATEN
 • Alles liegt auf deinem iPad. Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
 • Dein Hochschul-Passwort speichert UniFlow nicht und überträgt es nie; merken kann es auf Wunsch iOS im Schlüsselbund.
 
-UNIFLOW FREE UND PLUS
-Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und Lernplanung. UniFlow Plus (1,99 € pro Monat, die erste Woche gratis) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen von Lösungen frei. Das Abo verlängert sich automatisch um einen Monat, wenn es nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
+TARIFE: STUDORA FREE, PLUS, PRO CONNECT UND PRO AI
+Studora Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und Lernplanung. Studora Plus (1,99 € pro Monat) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen von Lösungen frei. Studora Pro Connect (2,99 € pro Monat) und Studora Pro AI (3,99 € pro Monat) enthalten alles aus Plus; ihre weiteren Funktionen brauchen den Online-Dienst von Studora und sind in der App als „in Vorbereitung“ gekennzeichnet. Die erste Woche ist gratis, einmal je Apple-ID für alle Abo-Tarife zusammen. Ein Wechsel zu einem höheren Tarif gilt sofort, zu einem kleineren ab der nächsten Verlängerung. Die Abos verlängern sich automatisch um einen Monat, wenn sie nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos gekündigt werden. Nach dem Ende eines Abos bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: [[Domain]]/nutzungsbedingungen
 Datenschutz: [[Domain]]/datenschutz
@@ -73,7 +74,7 @@ Studium,Notizen,Apple Pencil,Lernplan,Stud.IP,Learnweb,Stundenplan,Übungsblatt,
 ## Neue Funktionen in dieser Version (1.0)
 
 ```text whats-new
-Erste Version: Dateien und Termine aus Stud.IP, Bibliothek nach Modulen, Stundenplan, Lernkalender mit Lernplanung, Zeitmesser. Mit UniFlow Plus: Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lösungen teilen.
+Erste Version: Dateien und Termine aus Stud.IP, Bibliothek nach Modulen, Stundenplan, Lernkalender mit Lernplanung, Zeitmesser. Mit Studora Plus: Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Lösungen teilen.
 ```
 
 ## Weitere Angaben
@@ -115,26 +116,37 @@ iPad-App), sind „Anmeldedaten“ im
 Sinne von Apples Definition **nicht** erfasst, wenn sie nur verschlüsselt zur Erbringung der vom Nutzer
 eingerichteten Funktion gespeichert werden; [[mit Apple-Dokumentation zum Zeitpunkt der Einreichung abgleichen]].
 
-## In-App-Kauf
+## In-App-Käufe
 
-| Feld | Wert |
-|---|---|
-| Typ | Automatisch verlängerbares Abo, Gruppe „UniFlow“ |
-| Produkt-ID | `de.uniflow.plus.monthly` (`apps/apple`, StoreKit) |
-| Referenzname | UniFlow Plus (monatlich) |
-| Anzeigename (max. 30) | UniFlow Plus |
-| Beschreibung (max. 45) | Stift, Karteikarten, Lösungen teilen |
-| Preis | 1,99 € pro Monat (Preisstufe nach App Store Connect) |
-| Einführungsangebot | 1 Woche gratis, einmal je Apple-ID |
-| Prüf-Screenshot | Tarifseite der App mit beiden Karten |
+Vier Tarife nach `docs/ABO-SYSTEM.md` (Entscheidung des Inhabers vom 27.10.2026); Namen, Preise und Produkt-IDs aus
+`packages/shared-contracts/fixtures/plans/plans.json`. Studora Free hat kein Produkt. Die drei Abos sind automatisch
+verlängerbare Abos in **einer** Abo-Gruppe „UniFlow“, damit Apple Upgrade, Downgrade und Doppel-Abos regelt. Der
+App-Name bleibt UniFlow.
+
+| Feld | Studora Plus | Studora Pro Connect | Studora Pro AI |
+|---|---|---|---|
+| Produkt-ID | `de.uniflow.plus.monthly` | `de.uniflow.proconnect.monthly` | `de.uniflow.proai.monthly` |
+| Stufe in der Gruppe | 3 | 2 | 1 (höchste) |
+| Referenzname | Studora Plus (monatlich) | Studora Pro Connect (monatlich) | Studora Pro AI (monatlich) |
+| Anzeigename (max. 30) | Studora Plus | Studora Pro Connect | Studora Pro AI |
+| Beschreibung (max. 45) | Stift, Karteikarten, Lösungen teilen | Alles aus Plus, mehr in Vorbereitung | Alles aus Plus, mehr in Vorbereitung |
+| Preis | 1,99 € pro Monat | 2,99 € pro Monat | 3,99 € pro Monat |
+| Einführungsangebot | 1 Woche gratis | 1 Woche gratis | 1 Woche gratis |
+
+- Die Gratiswoche gibt Apple je Abo-Gruppe und Apple-ID einmal; danach zeigt die App den normalen Preis.
+- Upgrade gilt sofort (Apple verrechnet anteilig), Downgrade ab der nächsten Verlängerung (die App zeigt den Wechsel
+  als vorgemerkt).
+- In V1 prüft die App den Kauf nur auf dem Gerät (StoreKit 2); kein Konto beim Dienst, kein `appAccountToken`.
+- Prüf-Screenshot: Tarifseite der App mit allen vier Karten.
 
 Pflichttexte auf der Tarifseite in der App: Preis und Laufzeit, automatische Verlängerung, Kündigung in den
-Einstellungen, Links zu Nutzungsbedingungen und Datenschutzerklärung, „Käufe wiederherstellen“.
+Einstellungen, wann ein Wechsel gilt, Links zu Nutzungsbedingungen und Datenschutzerklärung, „Käufe
+wiederherstellen“. Was den Online-Dienst braucht, steht auf den Karten unter „in Vorbereitung“, nie als enthalten.
 
 ## Hinweise für die App-Prüfung (Review Notes)
 
 ```text review-notes
-UniFlow ist eine Lern-App für Studierende der Leibniz Universität Hannover. Die Hochschulfunktionen (Dateien, Termine) brauchen ein persönliches Konto der Hochschule, das wir nicht weitergeben dürfen. Zum Prüfen ohne Hochschulkonto: Mit Apple anmelden, einen Tarif wählen, als Hochschule „Leibniz Universität Hannover“ wählen und auf der folgenden Anmeldeseite unten „Ohne Hochschulkonto ansehen (Demo)“ tippen. Das legt ein Demo-Modul mit drei PDFs, Stundenplan, Lernkalender, einer Abgabefrist und einer Ankündigung an (selbst erstellte Demo-Daten, keine Hochschulinhalte); im Demo-Betrieb verbindet sich die App nicht mit der Hochschule und fragt nach keiner Anmeldung. Jederzeit auch unter Einstellungen → Erweitert → „Demo-Inhalte anlegen“; „Entfernen“ (Übersicht oder Einstellungen → Erweitert) nimmt alles wieder weg. Anmeldung mit Apple ist in der App vorhanden, Konto löschen unter Einstellungen → Konto. Das Abo „UniFlow Plus“ lässt sich in der Sandbox testen; nach dem Ende von Plus bleiben Notizen lesbar. Die Community in dieser Version teilt Lösungen nur als verschlüsselte Datei zwischen Nutzern mit derselben PDF; es gibt Melden, Sperren und eine Kontaktadresse. Keine KI-Funktionen, kein Tracking, keine Werbung.
+UniFlow ist eine Lern-App für Studierende der Leibniz Universität Hannover. Die Hochschulfunktionen (Dateien, Termine) brauchen ein persönliches Konto der Hochschule, das wir nicht weitergeben dürfen. Zum Prüfen ohne Hochschulkonto: Mit Apple anmelden, einen Tarif wählen, als Hochschule „Leibniz Universität Hannover“ wählen und auf der folgenden Anmeldeseite unten „Ohne Hochschulkonto ansehen (Demo)“ tippen. Das legt ein Demo-Modul mit drei PDFs, Stundenplan, Lernkalender, einer Abgabefrist und einer Ankündigung an (selbst erstellte Demo-Daten, keine Hochschulinhalte); im Demo-Betrieb verbindet sich die App nicht mit der Hochschule und fragt nach keiner Anmeldung. Jederzeit auch unter Einstellungen → Erweitert → „Demo-Inhalte anlegen“; „Entfernen“ (Übersicht oder Einstellungen → Erweitert) nimmt alles wieder weg. Anmeldung mit Apple ist in der App vorhanden, Konto löschen unter Einstellungen → Konto. Die Abos Studora Plus, Studora Pro Connect und Studora Pro AI (eine Abo-Gruppe) lassen sich in der Sandbox testen. Pro Connect und Pro AI enthalten in dieser Version den Umfang von Plus; ihre weiteren Funktionen brauchen unseren Online-Dienst und stehen in der App deutlich als „in Vorbereitung“, nicht als enthalten. Nach dem Ende eines Abos bleiben Notizen lesbar. Die Community in dieser Version teilt Lösungen nur als verschlüsselte Datei zwischen Nutzern mit derselben PDF; es gibt Melden, Sperren und eine Kontaktadresse. Keine KI-Funktionen in dieser Version, kein Tracking, keine Werbung.
 ```
 
 ## Bildschirmfotos (iPad Pro 13", 2064 × 2752)

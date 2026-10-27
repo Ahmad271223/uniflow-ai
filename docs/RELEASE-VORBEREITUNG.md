@@ -5,7 +5,8 @@ App-Store-Connect-Einträge und echte In-App-Produkte nur nach ausdrücklicher F
 
 V1 läuft **ohne Server**: Daten aus Stud.IP (LUH) bzw. Learnweb/LSF (Uni Hildesheim) holt das iPad selbst, alles liegt
 im lokalen Backend des Geräts (`docs/AUFTRAG-APPSTORE-V1.md`, `docs/IPAD-OHNE-PC.md`). Kein KI-Dienst, kein PC, kein
-UniFlow-Konto auf einem Server; Abos nur über StoreKit (Free/Plus).
+UniFlow-Konto auf einem Server; Abos nur über StoreKit (vier Tarife Studora Free/Plus/Pro Connect/Pro AI seit
+27.10.2026, Prüfung nur auf dem Gerät; Funktionen, die den Online-Dienst brauchen, stehen als „in Vorbereitung“).
 
 ## Umgebungen
 
@@ -28,7 +29,7 @@ Release-Builds für den Simulator (kein ATS-Schlüssel, kein `NSLocalNetworkUsag
 | Version (Marketing) | `MARKETING_VERSION` in `apps/apple/project.yml` | |
 | Build-Nummer | `CURRENT_PROJECT_VERSION`, je Upload +1 | |
 | Mindestversion | iPadOS 17 | wegen PDFKit-Overlays (16) und SwiftUI-APIs (17) |
-| Abo | `de.uniflow.plus.monthly` (1,99 €, Probewoche) | Abo-Gruppe in App Store Connect, mit der ersten Version einreichen |
+| Abos | `de.uniflow.plus.monthly` (1,99 €), `de.uniflow.proconnect.monthly` (2,99 €), `de.uniflow.proai.monthly` (3,99 €), je Probewoche | eine Abo-Gruppe in App Store Connect, mit der ersten Version einreichen (`docs/release/APP-STORE.md`, In-App-Käufe) |
 
 ## App-Icon und Startbildschirm
 
@@ -138,7 +139,8 @@ Code und Build (umgesetzt, Stand Abnahme 26.10.2026):
 Inhaber:
 
 - [ ] Apple Developer Program, `Team.xcconfig`, App-ID `de.uniflow.ai` mit Sign in with Apple
-- [ ] App Store Connect: App-Eintrag, Abo-Gruppe mit `de.uniflow.plus.monthly` (1,99 €, Probewoche), zusammen mit der
+- [ ] App Store Connect: App-Eintrag, Abo-Gruppe mit `de.uniflow.plus.monthly`, `de.uniflow.proconnect.monthly` und
+      `de.uniflow.proai.monthly` (1,99/2,99/3,99 €, je Probewoche; Stufen in `docs/OFFEN-V1.md`), zusammen mit der
       ersten Version einreichen
 - [ ] Vertrag für kostenpflichtige Apps mit Bank- und Steuerdaten
 - [ ] URLs für Datenschutzerklärung, EULA, Impressum und Support (in App und App Store Connect)

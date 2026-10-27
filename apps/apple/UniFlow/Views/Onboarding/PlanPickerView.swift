@@ -136,7 +136,7 @@ struct PlanPickerView: View {
                 }
             }
             if let note = UFPlanCard.note(plan) {
-                Text(note).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 9.6)
+                Text(note).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 9.6)
             }
             Spacer(minLength: 16)
             actionButton(plan, current: current)
@@ -153,6 +153,9 @@ struct PlanPickerView: View {
                 Text(r.title).ufFont(14.5, r.preparing ? 400 : 500).foregroundStyle(r.preparing ? UF.text2 : UF.text)
                 if let d = r.detail { Text(d).ufFont(12.8).foregroundStyle(UF.muted) }
             }
+            // immer umbrechen statt kuerzen: die Karte ist so hoch wie die hoechste der Zeile (ufFillsCell), lange
+            // Zeilen wie "Intelligente Lernplanung (Empfehlungen für die Woche)" wurden sonst mit "…" abgeschnitten
+            .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(r.preparing ? "\(r.title), in Vorbereitung" : r.title)

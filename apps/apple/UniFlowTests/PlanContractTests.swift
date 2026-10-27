@@ -106,6 +106,9 @@ final class PlanContractTests: XCTestCase {
             XCTAssertEqual(s["introductoryOffer"]?["paymentMode"]?.string, "free")
             XCTAssertEqual(s["introductoryOffer"]?["subscriptionPeriod"]?.string, "P1W")
             XCTAssertEqual(s["localizations"]?.array?.first?["displayName"]?.string, plan.name)
+            // Grenzen von App Store Connect: Anzeigename 30, Beschreibung 45 Zeichen (docs/release/APP-STORE.md)
+            XCTAssertLessThanOrEqual(plan.name.count, 30, plan.rawValue)
+            XCTAssertLessThanOrEqual(s["localizations"]?.array?.first?["description"]?.string?.count ?? 99, 45, plan.rawValue)
             XCTAssertEqual(s["subscriptionGroupID"]?.string, groups.first?["id"]?.string)
         }
     }

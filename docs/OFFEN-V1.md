@@ -1,4 +1,4 @@
-# Was für V1 noch fehlt (Stand 26.10.2026, 11:20)
+# Was für V1 noch fehlt (Stand 26.10.2026, 11:20; Tarife ergänzt 27.10.2026)
 
 Geschrieben von der Mac-Sitzung vor dem Ausschalten des Laptops, damit beide Sitzungen und der Inhaber dieselbe Liste
 haben. „Getestet“ heißt: automatische Tests grün und, wo angegeben, mit echten Daten im Simulator geprüft.
@@ -22,6 +22,17 @@ haben. „Getestet“ heißt: automatische Tests grün und, wo angegeben, mit ec
 | Dreifache Abnahme: 96 bestätigte Befunde behoben (u. a. Notizbücher öffnen, neue Kurse beim Abgleich, HTTP nur Debug, Privacy Manifest, KI-Reste entfernt, Plus-Karte ehrlich) | getestet |
 
 Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (Community über CloudKit, siehe unten).
+
+Noch nur lokal (Zweig `wip/vier-tarife`, 27.10.2026): **vier Tarife auf dem iPad** nach `docs/ABO-SYSTEM.md` –
+Studora Free 0 €, Plus 1,99 €, Pro Connect 2,99 €, Pro AI 3,99 € (ersetzt „nur Free und Plus“). Tabelle in
+`apps/apple/UniFlow/Purchases/Plans.swift`, geprüft gegen `packages/shared-contracts/fixtures/plans/plans.json`
+(`PlanContractTests`). Plus behält seine Rechte (Stift, Community, Übung und Skript, Karteikarten); Pro Connect und
+Pro AI enthalten alles aus Plus. Alles, was den Online-Dienst braucht (Studora-KI, Testbibliothek, Lernstatistik und
+Empfehlungen, Notizen auf allen Geräten, ChatGPT, Community-Kommentare), steht auf den Karten unter „in Vorbereitung“
+und ist in keinem Tarif freigeschaltet; die Karten von Pro Connect und Pro AI sagen offen, dass sie bis dahin den
+Umfang von Plus haben. Kaufprüfung nur auf dem Gerät (StoreKit 2, höchster gültiger Tarif, Downgrade vorgemerkt bis
+zur Verlängerung); `appAccountToken` und `POST /api/billing/apple/verify` sind vorbereitet und abgeschaltet
+(`Purchases/BillingServiceLink.swift`, V2).
 
 ## Noch zu bauen (Mac-Sitzung, Reihenfolge)
 
@@ -54,7 +65,23 @@ Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (C
 
 - Developer Program aktiv → Team-ID in `apps/apple/Config/Team.xcconfig`; dann „Mit Apple anmelden“ und CloudKit
   echt testbar (iCloud-Container `iCloud.de.uniflow.ai` anlegen, Schema nach Production).
-- App Store Connect: App-Eintrag, Abo „Plus 1,99 €/Monat, 1 Woche gratis“, Datenschutz-Angaben.
+- App Store Connect: App-Eintrag, Datenschutz-Angaben und **drei Abo-Produkte in einer Abo-Gruppe** „UniFlow“
+  (Texte in `docs/release/APP-STORE.md`, Abschnitt In-App-Käufe; StoreKit-Testkonfiguration
+  `apps/apple/UniFlowTests/UniFlow.storekit` mit denselben Werten):
+
+  | Stufe | Produkt-ID | Anzeigename | Preis | Einführungsangebot |
+  | --- | --- | --- | --- | --- |
+  | 1 (höchste) | `de.uniflow.proai.monthly` | Studora Pro AI | 3,99 €/Monat | 1 Woche gratis |
+  | 2 | `de.uniflow.proconnect.monthly` | Studora Pro Connect | 2,99 €/Monat | 1 Woche gratis |
+  | 3 | `de.uniflow.plus.monthly` | Studora Plus | 1,99 €/Monat | 1 Woche gratis |
+
+  Die Reihenfolge der Stufen bestimmt, was Apple als Upgrade (sofort) und Downgrade (zur nächsten Verlängerung)
+  behandelt. Die Gratiswoche gibt Apple je Abo-Gruppe und Apple-ID nur einmal. Für V2 zusätzlich: App Store Server
+  Notifications V2 auf `/api/billing/apple/notifications` des Dienstes (`docs/ABO-SYSTEM.md`, Abschnitt 8).
+- **Entscheidung offen:** Pro Connect und Pro AI sind ab sofort kaufbar, bieten auf dem iPad aber bis zum Start des
+  Online-Dienstes nur den Umfang von Plus (die App sagt das auf den Karten). Ob Apple ein teureres Abo ohne
+  zusätzliche Funktion durchlässt (Richtlinien 2.1/3.1.2), ist ungeprüft; Alternative: beide erst mit dem Dienst
+  einreichen.
 - Datenschutzerklärung, Nutzungsbedingungen, Impressum veröffentlichen (Entwürfe macht die PC-Sitzung in
   `docs/release/`), Links auf der Abo-Seite eintragen.
 - Anfragen an LUH (LUIS/elsa) und Hildesheim (Regel 5.2.2, Learnweb-Schlüssel) – Entwürfe PC-Sitzung. Passwort-Merken
