@@ -43,12 +43,15 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import de.uniflow.android.AnnotationSession
 import de.uniflow.android.AppScope
+import de.uniflow.android.DraftKeeper
+import de.uniflow.android.DraftUploadWorker
 import de.uniflow.android.InkMath
 import de.uniflow.android.InkTool
 import de.uniflow.android.Repo
@@ -96,8 +99,15 @@ private class PageRenderer(file: File) {
  */
 @Composable
 fun DocumentScreen(repo: Repo, fileId: String, onBack: () -> Unit) {
-    // Alles je Datei-ID: eine andere Datei beginnt mit leerem Zustand, nie mit Seiten oder Strichen der vorigen
-    val session = remember(fileId) { AnnotationSession(fileId) { local, base, version -> repo.saveAnnotations(fileId, local, base, version) } }
+    // Alles je Datei-ID: eine andere Datei beginnt mit leerem Zustand, nie mit Seiten oder Strichen der vorigen.
+    // Entwuerfe liegen im App-Speicher (DraftStore), die Nachlieferung uebernimmt WorkManager (DraftUploadWorker).
+    val appContext = LocalContext.current.applicationContext
+    val session = remember(fileId) {
+        AnnotationSession(fileId,
+            send = { local, base, version -> repo.saveAnnotations(fileId, local, base, version) },
+            drafts = DraftKeeper(repo.drafts, schedule = { DraftUploadWorker.enqueue(appContext, it) }, cancel = { DraftUploadWorker.cancel(appContext, it) }),
+            draftScope = AppScope.main)
+    }
     var file by remember(fileId) { mutableStateOf<LibraryFile?>(null) }
     var pages by remember(fileId) { mutableStateOf<PageRenderer?>(null) }
     var pageCount by remember(fileId) { mutableStateOf(0) }
@@ -138,9 +148,11 @@ fun DocumentScreen(repo: Repo, fileId: String, onBack: () -> Unit) {
                 try { PageRenderer(pf) }
                 catch (e: Exception) { repo.discardPdf(pf); throw ApiError(0, "pdf_invalid", "PDF kann nicht geöffnet werden: ${e.message}") }   // naechster Versuch laedt neu
             }
-            session.loaded(repo.loadAnnotations(fileId))
+            // Entwurf vom letzten Mal (ungesendet) wird mit dem Serverstand zusammengefuehrt und gleich gesendet
+            session.loaded(repo.loadAnnotations(fileId), repo.loadDraft(fileId))
             pages?.close(); pages = opened; pageCount = opened.pageCount
             showPage(1)
+            if (session.dirty) session.save()
         } catch (e: CancellationException) {
             opened?.close(); throw e
         } catch (e: Exception) {
@@ -155,7 +167,7 @@ fun DocumentScreen(repo: Repo, fileId: String, onBack: () -> Unit) {
             pages?.close(); pages = null
         }
     }
-    // App in den Hintergrund: ungesendete Striche sofort sichern
+    // App in den Hintergrund: Entwurf ablegen, Nachlieferung einplanen (WorkManager), senden – beendet das System die App, holt der Worker nach
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { session.flush(AppScope.main) }
 
     /** Zurueck: erst speichern. Klappt das nicht, bleibt die Ansicht mit der Meldung; ein zweites „Zurück“ verlaesst sie trotzdem (Senden im Hintergrund). */
@@ -194,7 +206,16 @@ fun DocumentScreen(repo: Repo, fileId: String, onBack: () -> Unit) {
             TextButton(enabled = pageIndex < pageCount && !session.saving, onClick = { goTo(pageIndex + 1) }) { Text("Seite ▶") }
         }
         Text(session.status, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp),
-            color = if (session.status.startsWith("Nicht") || session.status.startsWith("Seite")) Bad else Ok)
+            color = when {
+                session.status.startsWith("Nicht") || session.status.startsWith("Seite") -> Bad
+                session.status.startsWith("Konflikt") || session.status.startsWith("Entwurf") -> Warn
+                else -> Ok
+            })
+        // Stand des Entwurfs: gespeichert / wird gesendet / gesendet / Konflikt
+        session.draftState.label?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp),
+                color = if (session.draftState == AnnotationSession.DraftState.Conflict) Warn else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         InkMath.foreignHint(InkMath.foreignCount(pageObjects))?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = Warn, modifier = Modifier.padding(horizontal = 12.dp))
         }

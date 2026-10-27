@@ -16,6 +16,8 @@ class UniFlowApplication : Application() {
         private set
     lateinit var universities: UniversityStore
         private set
+    lateinit var drafts: DraftStore
+        private set
     lateinit var repo: Repo
         private set
 
@@ -24,6 +26,8 @@ class UniFlowApplication : Application() {
         PDFBoxResourceLoader.init(applicationContext)        // Schriftmetriken fuer den Seitentext (PdfBoxPageText)
         session = Session(this)
         universities = UniversityStore(this)
-        repo = Repo(session, cacheDir, universities, PdfBoxPageText())
+        drafts = DraftStore(DraftStore.dir(filesDir))        // ungesendete Notizstaende (files/drafts)
+        repo = Repo(session, cacheDir, universities, drafts, PdfBoxPageText())
+        DraftUploadWorker.enqueuePending(this, drafts)        // liegen gebliebene Entwuerfe (App im Hintergrund beendet) nachliefern
     }
 }
