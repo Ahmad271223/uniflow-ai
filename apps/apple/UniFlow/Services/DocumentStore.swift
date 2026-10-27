@@ -93,7 +93,7 @@ actor InkProcessor {
         let older = states[key]
         let (d, fresh) = StrokeConverter.drawing(fromPage: page, avoiding: older?.creationSlots ?? [])
         states[key] = older.map { fresh.carryingOver($0) } ?? fresh
-        return DrawingBox(drawing: d)
+        return DrawingBox(drawing: d, unrenderable: fresh.unrenderable)
     }
 
     /// Neuer Seitenstand aus der Zeichnung (drei-Wege gegen `previous`, siehe `StrokeConverter.update`).
@@ -191,6 +191,13 @@ final class DocumentStore: ObservableObject {
     /// Waehrend das Dokument offen war, kam eine neue Fassung an: die Notizen gehoeren jetzt zu ihr, angezeigt ist noch
     /// die alte PDF. Bis zum erneuten Oeffnen nur ansehen.
     @Published private(set) var outdatedByNewVersion = false
+    /// Das lokale Journal liess sich beim Oeffnen nicht lesen: der Serverstand ist nur zum Ansehen da, nichts wird
+    /// geschrieben (`SyncEngine.OpenResult.journalUnreadable`), bis das Dokument erneut geoeffnet wird
+    @Published private(set) var journalUnreadable = false
+    /// Je Seite: Strich-Objekte, die sich nicht darstellen lassen (bleiben unveraendert gespeichert)
+    @Published private(set) var hiddenStrokes: [String: Int] = [:]
+    /// Seiten (1-basiert) mit zusammengefuehrten Konflikten seit dem letzten "Verstanden"
+    @Published private(set) var conflictPages: [Int] = []
 
     var pdf: PDFDocument? { layout?.pdf }
 
@@ -232,18 +239,35 @@ final class DocumentStore: ObservableObject {
     /// nur ansehen wie bei ausgeblendeten Notizen, dazu nimmt der Store keine neuen Zeichnungen an. Die eigenen
     /// Notizen bleiben sichtbar und exportierbar; was vorher gezeichnet wurde und noch aussteht, wird gesichert.
     var canEdit = true
-    /// Schreibende Aktionen erlaubt (Notizen eingeblendet, Tarif mit Schreiben, keine neue Fassung seit dem Oeffnen)
-    var isWritable: Bool { canEdit && !ownNotesReadOnly && !outdatedByNewVersion }
+    /// Schreibende Aktionen erlaubt (Notizen eingeblendet, Tarif mit Schreiben, keine neue Fassung seit dem Oeffnen,
+    /// lokales Journal lesbar)
+    var isWritable: Bool { canEdit && !ownNotesReadOnly && !outdatedByNewVersion && !journalUnreadable }
+
+    /// Hinweis auf Striche, die sich nicht anzeigen lassen (beschaedigte oder fremde Daten); sie bleiben gespeichert
+    var inkNotice: String? {
+        let n = hiddenStrokes.values.reduce(0, +)
+        guard n > 0 else { return nil }
+        return n == 1 ? "1 Strich lässt sich hier nicht anzeigen – er bleibt unverändert gespeichert."
+            : "\(n) Striche lassen sich hier nicht anzeigen – sie bleiben unverändert gespeichert."
+    }
+
+    /// Schreibrecht in den Container der Datei (entzogen, sobald "Daten dieser Hochschule löschen" ihn loescht)
+    private let lease: ContainerLease?
 
     /// - Parameter root: Ordner fuer Journal und PDF-Zwischenspeicher (Standard: App-Container; Tests: Temp-Ordner).
-    init(file: LibFile, api: APIClient, root: URL = AppPaths.support) {
+    /// - Parameter lease: Schreibrecht dieses Containers (Standard: das des aktiven); nach dem Loeschen des Containers
+    ///   schreibt das Dokument nichts mehr hinein, auch kein spaeter Upload oder Sichern beim Schliessen (sonst legte es
+    ///   den Ordner neu an bzw. landete im leer neu geoeffneten Container mit demselben Schluessel).
+    init(file: LibFile, api: APIClient, root: URL = AppPaths.support, lease: ContainerLease? = ActiveContainer.current?.lease) {
         self.file = file
         self.api = api
         self.namespace = api.namespace
+        self.lease = lease
         self.originalPDFURL = AppPaths.pdf(file.id, namespace: api.namespace, root: root)
         let transport = SwitchableAnnotationTransport(api: api)
         self.transport = transport
-        let journal = LocalJournal(store: FileBlobStore(root: DataContainerLayout.Folder.journal.url(in: root)),
+        let journal = LocalJournal(store: FileBlobStore(root: DataContainerLayout.Folder.journal.url(in: root),
+                                                        canWrite: lease.map { l in { l.isValid } }),
                                    documentID: file.id, namespace: api.namespace)
         self.engine = SyncEngine(documentID: file.id, transport: transport, journal: journal)
     }
@@ -269,10 +293,18 @@ final class DocumentStore: ObservableObject {
             await engine.setHandlers(
                 onStatus: { [weak self] s in Task { @MainActor in self?.status = s } },
                 onRemoteChange: { [weak self] keys in Task { @MainActor in await self?.remoteChanged(keys) } })
-            await engine.setIssueHandler { [weak self] issue in Task { @MainActor in self?.syncIssue = issue } }
+            await engine.setIssueHandler { [weak self] issue in
+                Task { @MainActor in
+                    self?.syncIssue = issue
+                    await self?.refreshConflictPages()
+                }
+            }
             let opened = await engine.open(pdfPageCount: pdfDocument.pageCount)
+            journalUnreadable = opened.journalUnreadable
             apply(document: opened.document, forceLayout: true)
-            if !opened.damagedFiles.isEmpty {
+            if opened.journalUnreadable {
+                notice = "Lokale Notizen lassen sich gerade nicht lesen – nur ansehen. Schließe das Dokument und öffne es erneut."
+            } else if !opened.damagedFiles.isEmpty {
                 notice = "\(opened.damagedFiles.count) lokale Datei(en) beschädigt – Serverstand verwendet, wo möglich."
             } else if opened.restoredUnsentPages > 0 {
                 notice = "\(opened.restoredUnsentPages) ungesendete Seite(n) wiederhergestellt."
@@ -299,6 +331,8 @@ final class DocumentStore: ObservableObject {
             try? FileManager.default.removeItem(at: url)
         }
         if !FileManager.default.fileExists(atPath: url.path) {
+            // Container inzwischen geloescht: nichts mehr hineinlegen (der Ordner entstuende sonst neu)
+            guard lease?.isValid ?? true else { throw APIError(status: 0, message: "", text: "Die Daten dieser Hochschule wurden gelöscht.") }
             let stampURL = self.stampURL
             if let source = containerFile(meta) {
                 guard Self.startsAsPDF(source) else { throw APIError(status: 200, message: "", text: DocumentOpenText.notPDF) }
@@ -383,6 +417,7 @@ final class DocumentStore: ObservableObject {
             let edits = canvasEdits[key, default: 0]
             let page = await engine.page(key)
             let box = await ink.drawing(key: key, page: page)
+            if hiddenStrokes[key, default: 0] != box.unrenderable { hiddenStrokes[key] = box.unrenderable == 0 ? nil : box.unrenderable }
             if canvasEdits[key, default: 0] == edits && processingKey != key { return box.drawing }
         }
     }
@@ -413,7 +448,7 @@ final class DocumentStore: ObservableObject {
     /// Seitenaufbau, mit dem die Canvas angelegt wurde (bleibt richtig, auch wenn sich die Reihenfolge aendert).
     func canvasChanged(pageKey key: String, drawing: PKDrawing) {
         // ohne Schreiben im Tarif keine neuen Zeichnungen (auch nicht ueber Rueckgaengig); Ausstehendes bleibt
-        guard !key.isEmpty, canEdit, !outdatedByNewVersion else { return }
+        guard !key.isEmpty, canEdit, !outdatedByNewVersion, !journalUnreadable else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
         canvasEdits[key, default: 0] += 1
         processTask?.cancel()
@@ -462,6 +497,15 @@ final class DocumentStore: ObservableObject {
     /// Hinweis "Konflikte zusammengefuehrt" gesehen.
     func acknowledgeSyncNotice() async {
         await engine.acknowledgeMergedConflicts()
+        await refreshConflictPages()
+    }
+
+    /// Seiten mit zusammengefuehrten Konflikten als Seitenzahlen der Anzeige (Schluessel ohne Seite der Anzeige, z. B.
+    /// im Papierkorb, fallen weg)
+    private func refreshConflictPages() async {
+        let keys = await engine.conflictPageKeys
+        let numbers = keys.compactMap { layout?.index(ofKey: $0) }.map { $0 + 1 }.sorted()
+        if numbers != conflictPages { conflictPages = numbers }
     }
 
     /// Erneut versuchen; bei 401/403 wird sonst nicht automatisch wiederholt. Ist nichts ungesendet, prueft ein
@@ -504,7 +548,17 @@ final class DocumentStore: ObservableObject {
 
     // MARK: Bearbeiten der Struktur (gleiches Format wie der Web-Editor)
 
+    /// Seitenliste/Lesezeichen unbekannt (beschaedigte meta.json, Serverstand noch nicht da): sagen statt still nichts tun
+    private func rootMetaWritable() async -> Bool {
+        guard await engine.rootMetaKnown else {
+            notice = "Seitenliste und Lesezeichen lassen sich erst nach dem nächsten Abgleich ändern."
+            return false
+        }
+        return true
+    }
+
     private func updateMeta(_ change: (inout [String: JSONValue]) -> Void) async {
+        guard await rootMetaWritable() else { return }
         await processPending()
         var doc = await engine.currentDocument()
         var meta = doc.rootMeta.object ?? [:]
@@ -529,10 +583,16 @@ final class DocumentStore: ObservableObject {
         }
     }
 
+<<<<<<< HEAD
     /// Leere Seite nach der angegebenen Seite einfuegen (Vorlage: blank, lined, grid, dotted, mm, cornell). `size`:
     /// gewaehltes Format (`PageFormats.validSize`), sonst die angezeigte Groesse der Seite davor.
     func addBlankPage(afterKey: String?, template: String, size chosen: CGSize? = nil) async {
         guard isWritable else { return }
+=======
+    /// Leere Seite nach der angegebenen Seite einfuegen (Vorlage: blank, lined, grid, dotted, mm, cornell).
+    func addBlankPage(afterKey: String?, template: String) async {
+        guard isWritable, await rootMetaWritable() else { return }
+>>>>>>> 13424a6 (WIP Runde 11: Striche aus dem JSON behalten ihre Punkte, Abmelden haelt Abgleich an, Loeschfehler sichtbar [skip ci])
         let index = afterKey.flatMap { layout?.index(ofKey: $0) }
         let format = chosen.flatMap { PageFormats.validSize(Double($0.width), Double($0.height)) ? $0 : nil }
         let size = format ?? index.flatMap { layout?.pdf.page(at: $0) }.map { PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize }
@@ -692,6 +752,7 @@ extension DocumentStore: PageStructureEditing {
 
     func applyPageStructure(_ change: (inout AnnotationDocument) -> PageOrder.Change?) async -> PageOrder.Change? {
         guard isWritable else { return nil }                // nur ansehen
+        guard await rootMetaWritable() else { return nil }
         await settlePending()
         var doc = await engine.currentDocument()
         guard let result = change(&doc) else { return nil }

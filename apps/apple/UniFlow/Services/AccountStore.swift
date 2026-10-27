@@ -64,6 +64,8 @@ final class AccountStore: ObservableObject {
     @Published var lastError: String?
     /// einmaliger Hinweis auf der Begruessung, z. B. nach "Konto loeschen"
     @Published var notice: Notice?
+    /// Nach "Konto löschen": was sich auf diesem iPad nicht loeschen liess (Begruessung zeigt es), sonst nil
+    @Published var deletionProblem: String?
 
     enum Notice: Equatable { case deleted, signedOut }
 
@@ -159,6 +161,7 @@ final class AccountStore: ObservableObject {
         loginDone = Self.storedLoginDone(userID, university, defaults)
         lastError = nil
         notice = nil
+        deletionProblem = nil
     }
 
     /// Abbruch durch den Nutzer ist kein Fehler; sonst ein kurzer Hinweis auf der Begruessung
@@ -272,6 +275,7 @@ final class AccountStore: ObservableObject {
     /// Server-PIN), danach das Konto selbst -> Begruessung. Daten anderer Konten auf dem iPad bleiben.
     /// `beforeWelcome` laeuft direkt vor dem Wechsel zur Begruessung (Dialoge schliessen, Route zuruecksetzen).
     func deleteAccount(also steps: [() async -> Void], beforeWelcome: () -> Void = {}) async {
+        deletionProblem = nil
         for step in steps { await step() }
         beforeWelcome()
         deleteAccount()
@@ -279,8 +283,9 @@ final class AccountStore: ObservableObject {
 
     /// Schritte fuer `deleteAccount(also:)` in der App: alle Container dieses Nutzers (beide Hochschulen) samt
     /// Webdaten, Sitzungs-Cookies, Learnweb-Schluessel und Einstellungen loeschen, Server-PIN loeschen
-    static func deletionSteps(containers: ContainerManager, session: Session, userID: String) -> [() async -> Void] {
-        [{ await containers.deleteAllData(userID: userID) }, { session.disconnect() }]
+    static func deletionSteps(containers: ContainerManager, session: Session, userID: String,
+                              report: @escaping @MainActor (String) -> Void = { _ in }) -> [() async -> Void] {
+        [{ if let problem = await containers.deleteAllData(userID: userID) { report(problem) } }, { session.disconnect() }]
     }
 
     #if DEBUG
