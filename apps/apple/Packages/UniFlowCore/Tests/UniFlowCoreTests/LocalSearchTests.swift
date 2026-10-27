@@ -227,7 +227,7 @@ final class LocalSearchTests: XCTestCase {
         XCTAssertEqual(stale.json?["pages"], [])
     }
 
-    /// Gespeicherte Seitentexte einer Datei, die nicht mehr auf dem Geraet liegt (nach "Dateien löschen"), gelten wie
+    /// Gespeicherte Seitentexte einer Datei, die nicht mehr auf dem Geraet liegt (nach "Dateien loeschen"), gelten wie
     /// am PC (`page_texts` seit b718cfb): `/pagetext` liefert sie, die Skriptsuche zaehlt sie mit (Punktzahlen der
     /// Fixture); die globale Suche zeigt die Seite nicht (`find_pages` verlangt die Datei). Ohne Texte 404 no_content.
     func testStoredTextsOfDeletedFileStillCount() async throws {
