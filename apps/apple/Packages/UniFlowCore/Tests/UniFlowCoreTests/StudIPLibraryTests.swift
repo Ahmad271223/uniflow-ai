@@ -472,3 +472,16 @@ final class StudIPLibraryTests: XCTestCase {
         XCTAssertEqual(own, .null)
     }
 }
+
+extension StudIPLibraryTests {
+    /// Meldung in sync_log wie `run_studip_sync` (app/studip_sync.py): Dateien, dann ", N Stundenplan-Termine", seit
+    /// 8cc7463 dazu ", N Serien entfernt (nicht in deinem Stud.IP-Kalender)"; ohne Kalender kein Zusatz (ea863c2)
+    func testSummaryLikeRunStudipSync() {
+        XCTAssertEqual(StudIPLibrary.summary(newFiles: 3), "3 neue/geaenderte Dateien")
+        XCTAssertEqual(StudIPLibrary.summary(newFiles: 3, newEvents: 5), "3 neue/geaenderte Dateien, 5 Stundenplan-Termine")
+        XCTAssertEqual(StudIPLibrary.summary(newFiles: 0, removedEvents: 2),
+                       "0 neue/geaenderte Dateien, 2 Serien entfernt (nicht in deinem Stud.IP-Kalender)")
+        XCTAssertEqual(StudIPLibrary.summary(newFiles: 1, newEvents: 2, removedEvents: 1),
+                       "1 neue/geaenderte Dateien, 2 Stundenplan-Termine, 1 Serien entfernt (nicht in deinem Stud.IP-Kalender)")
+    }
+}

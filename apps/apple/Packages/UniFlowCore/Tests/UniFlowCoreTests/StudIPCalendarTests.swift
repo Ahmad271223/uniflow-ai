@@ -82,12 +82,24 @@ private let withCalendar = [
 
 final class StudIPCalendarTests: XCTestCase {
 
-    func testDateIDsOnlyFromCourseDates() {
+    func testDateIDsOnlyFromCourseDates() throws {
         let ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:Stud.IP-SEM-abc@studip.test\r\nDTSTART;TZID=Europe/Berlin:20261026T100000\r\nEND:VEVENT\r\n"
             + "BEGIN:VEVENT\r\nUID:Stud.IP-SEM-de\r\n f@studip.test\r\nDTSTART:20261027T090000Z\r\nEND:VEVENT\r\n"
             + "BEGIN:VEVENT\r\nUID:Stud.IP-0123@studip.test\r\nDTSTART:20261028T090000Z\r\nEND:VEVENT\r\n"
             + "BEGIN:VEVENT\r\nUID:Stud.IP-SEM-abc@studip.test\r\nDTSTART:20261102T090000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
         XCTAssertEqual(StudIPCalendar.dateIDs(ics: ics), ["abc", "def"], "eigene Kalendertermine fehlen, gefaltete Zeilen, keine Doppelten")
+        // dieselben Faelle wie tests/test_studip_calendar.py (calendar_date_ids): auch ohne DTSTART zaehlt die UID
+        let py = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:Stud.IP-0f0f@studip.test\r\nEND:VEVENT\r\n"
+            + "BEGIN:VEVENT\r\nUID:Stud.IP-SEM-ab\r\n c@studip.test\r\nEND:VEVENT\r\n"
+            + "BEGIN:VEVENT\r\nUID:Stud.IP-SEM-def@studip.test\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:Stud.IP-SEM-def@studip.test\r\nEND:VEVENT\r\n"
+        XCTAssertEqual(StudIPCalendar.dateIDs(ics: py), ["abc", "def"])
+        XCTAssertEqual(StudIPCalendar.dateIDs(ics: ""), [])
+        XCTAssertEqual(StudIPCalendar.dateIDs(ics: "<html>Anmelden</html>"), [])
+        XCTAssertEqual(StudIPCalendar.dateIDs(ics: "BEGIN:VEVENT\r\nUID:Stud.IP-SEM-ohne-host\r\nEND:VEVENT\r\n"), [], "ohne @ wie Python")
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let file = try String(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/studip-schedule/kalender/users-events.ics"), encoding: .utf8)
+        XCTAssertEqual(StudIPCalendar.dateIDs(ics: file).count, 44)
     }
 
     /// Kalender bekannt: genau die Termine aus Stud.IP-Kalender, keine Gruppenwahl offen, der Kurs ohne Kalendertermine
@@ -179,6 +191,37 @@ final class StudIPCalendarTests: XCTestCase {
         XCTAssertFalse(s.contains { $0.hasPrefix("Tutorium Testphysik") && $0.contains("Raum T2") })
     }
 
+    /// Von Hand in der Vorschau gewaehlte Gruppe heisst "studip-manual" (wie app/server.py seit 8cc7463) und bleibt,
+    /// auch wenn der Kalender ihre Kurszeit spaeter einer anderen Gruppe zuordnet; Ausfaelle laut Stud.IP zieht der
+    /// Abgleich weiter nach (Verknuepfung)
+    func testHandConfirmedGroupIsNeverRemoved() async throws {
+        let backend = try await open()
+        _ = try await sync(backend, calendar: false)
+        let b = "x-test"
+        let form = "--\(b)\r\nContent-Disposition: form-data; name=\"source\"\r\n\r\nstudip\r\n--\(b)--\r\n"
+        let preview = await backend.handle(LocalRequest(method: "POST", path: "/api/timetable/import/preview",
+                                                        headers: ["Content-Type": "multipart/form-data; boundary=\(b)"], body: Data(form.utf8)))
+        var chosen = try XCTUnwrap(preview.json?["entries"]?.array?.first { $0["studip_id"] == "cy-ue-2" }?.object)
+        XCTAssertEqual(chosen["selected"], false, "ohne Kalender eine Gruppe zur Auswahl")
+        chosen["selected"] = true
+        let res = await call(backend, "POST", "/api/timetable/import/confirm", ["entries": [.object(chosen)], "source": "studip"])
+        XCTAssertEqual(res.json?["new"], 1)
+        let query = "SELECT source FROM course_events WHERE course_id='k-ue' AND weekday=1 AND start_time='14:00'"
+        let manual = try await backend.context.database.scalar(query)
+        XCTAssertEqual(manual, .text("studip-manual"))
+
+        let (_, r) = try await sync(backend)
+        let decisions = try await backend.context.database.withConnection { try StudIPCalendar.decisions($0) }
+        XCTAssertEqual(decisions["cy-ue-2"], 0, "laut Kalender eine fremde Gruppe")
+        XCTAssertEqual(r.removedEvents, 2, "nur die zwei automatisch übernommenen Serien des Kurses ohne Kalendertermine")
+        let frei = try await backend.context.database.scalar("SELECT COUNT(*) FROM course_events WHERE course_id='k-frei'")
+        XCTAssertEqual(frei?.int, 0)
+        let still = try await backend.context.database.scalar(query)
+        XCTAssertEqual(still, .text("studip-manual"))
+        let link = try await backend.context.database.scalar("SELECT COUNT(*) FROM studip_timetable_links WHERE entry_key='cycle:cy-ue-2'")
+        XCTAssertEqual(link?.int, 1)
+    }
+
     /// Frage A: Kurs ohne Kalendertermine; die Antwort gilt bei jedem Abgleich weiter
     func testHiddenCourseAnswerIsRemembered() async throws {
         let backend = try await open()
@@ -254,27 +297,40 @@ final class StudIPCalendarTests: XCTestCase {
         XCTAssertEqual(none.status, 404, "schon beantwortet")
     }
 
-    /// Doppel nur bei gleichem Kurs (oder ohne Kurs gleichem Titel), Tag und ueberlappender Zeit - nicht bei gleichem
-    /// Titelanfang: Fragestunde und Vorlesung desselben Fachs am selben Tag sind zwei Serien (Befund 27.10.2026)
-    func testDoubleNeedsSameCourseNotSameTitleStart() {
+    /// Doppel nur bei gleichem Kurs (fehlt er auf einer Seite: gleicher Titelanfang), Tag und ueberlappender Zeit -
+    /// nicht bei gleichem Titelanfang zweier Kurse: Fragestunde und Vorlesung desselben Fachs am selben Tag sind zwei
+    /// Serien (Befund 27.10.2026). Seit 8cc7463 dieselbe Regel wie Python (`_same_series`).
+    func testDoubleNeedsSameCourseNotSameTitleStart() throws {
         let vl: [String: JSONValue] = ["title": "Mathematik für die Ingenieurwissenschaften III - Numerik, Tranche 1",
                                        "course_id": "k-vl", "weekday": 3, "start_time": "11:45", "end_time": "13:30"]
         var frage = vl
         frage["title"] = "Mathematik für die Ingenieurwissenschaften III - Numerik - Fragestunden"
         frage["course_id"] = "k-frage"
         frage["start_time"] = "12:15"; frage["end_time"] = "13:45"
-        XCTAssertFalse(StudIPScheduleImport.isDouble(frage, vl), "anderer Kurs, gleicher Titelanfang, überlappend")
-        XCTAssertTrue(StudIPScheduleImport.isDouble(vl, vl))
+        XCTAssertFalse(try StudIPScheduleImport.isDouble(frage, vl), "anderer Kurs, gleicher Titelanfang, überlappend")
+        XCTAssertTrue(try StudIPScheduleImport.isDouble(vl, vl))
         var later = vl
         later["start_time"] = "13:30"; later["end_time"] = "15:00"
-        XCTAssertFalse(StudIPScheduleImport.isDouble(later, vl), "schliesst nur an, ueberlappt nicht")
+        XCTAssertFalse(try StudIPScheduleImport.isDouble(later, vl), "schliesst nur an, ueberlappt nicht")
         var otherDay = vl
         otherDay["weekday"] = 4
-        XCTAssertFalse(StudIPScheduleImport.isDouble(otherDay, vl))
+        XCTAssertFalse(try StudIPScheduleImport.isDouble(otherDay, vl))
         let own: [String: JSONValue] = ["title": "Lerngruppe  alle 2 Wochen", "weekday": 1, "start_time": "12:15", "end_time": "13:45"]
         var ownAgain = own
         ownAgain["title"] = "lerngruppe alle 2 wochen"
-        XCTAssertTrue(StudIPScheduleImport.isDouble(ownAgain, own), "ohne Kurs: gleicher Titel")
-        XCTAssertFalse(StudIPScheduleImport.isDouble(own, vl), "nur eine Seite mit Kurs")
+        XCTAssertTrue(try StudIPScheduleImport.isDouble(ownAgain, own), "ohne Kurs: gleicher Titel")
+        XCTAssertFalse(try StudIPScheduleImport.isDouble(own, vl), "anderer Tag")
+        // nur eine Seite mit Kurs (z. B. Serie aus einer Kalenderdatei): der Titelanfang zaehlt wie in Python
+        var ics = vl
+        ics["course_id"] = .null
+        XCTAssertTrue(try StudIPScheduleImport.isDouble(ics, vl), "ohne Kurs, gleicher Titelanfang, überlappend")
+        ics["title"] = "Numerik Tranche 1"
+        XCTAssertFalse(try StudIPScheduleImport.isDouble(ics, vl), "ohne Kurs, anderer Titel")
+        // unlesbare Uhrzeit: andere Serie; fehlender Schluessel scheitert wie in Python
+        var odd = vl
+        odd["start_time"] = "8"
+        XCTAssertFalse(try StudIPScheduleImport.isDouble(odd, vl))
+        odd.removeValue(forKey: "end_time")
+        XCTAssertThrowsError(try StudIPScheduleImport.isDouble(odd, vl))
     }
 }

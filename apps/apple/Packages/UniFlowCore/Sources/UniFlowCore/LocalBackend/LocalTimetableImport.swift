@@ -9,7 +9,8 @@ import Foundation
 ///
 /// Erweiterung auf dem Geraet: Kurszeiten aus Stud.IP (seminar-cycle-dates, `StudIPScheduleStore`) ersetzen fuer
 /// ihren Kurs die aus Einzelterminen abgeleiteten Serien; Einzeltermine, die zu keiner Kurszeit passen (z. B.
-/// Blocktermine), bleiben wie in Python. Ohne gespeicherte Kurszeiten ist `studipEntries` gleich `studip_entries`.
+/// Blocktermine), bleiben wie in Python, auch mit dem eigenen Stud.IP-Kalender (`_apply_calendar`, PC-Stand 8cc7463).
+/// Ohne gespeicherte Kurszeiten ist `studipEntries` gleich `studip_entries`.
 enum LocalTimetableImport {
     typealias Entry = [String: JSONValue]
 
@@ -331,12 +332,14 @@ enum LocalTimetableImport {
         return LocalTime(day: day, minutes: h * 60 + mi)
     }
 
-    /// `studip_entries(conn)`: Einzeltermine der aktiven Kurse zu Serien zusammengefasst, parallele Gruppen (mehr
-    /// als zwei Serien je Kurs) zur Auswahl, dazu die persoenlichen Eintraege aus dem Stud.IP-Stundenplan. Auf dem
-    /// Geraet zusaetzlich die Kurszeiten (seminar-cycle-dates) aus `StudIPScheduleStore`, ausgewaehlt nach dem eigenen
-    /// Stud.IP-Kalender (`StudIPCalendar`): dann fehlen auch kuenftige Einzeltermine, die nicht im Kalender stehen, und
-    /// alle Termine von Kursen, die dort ganz fehlen; die uebrigen kuenftigen sind eindeutig.
-    static func studipEntries(_ c: SQLiteConnection) throws -> [Entry] {
+    /// `studip_entries(conn)`: Einzeltermine der aktiven Kurse zu Serien zusammengefasst, je Serie nach dem eigenen
+    /// Stud.IP-Kalender entschieden (`applyCalendar`, "eigen" ohne Gruppenwahl, "fremd" und "kurs_fehlt" nur zur
+    /// Auswahl), sonst parallele Gruppen (mehr als zwei unentschiedene Serien je Kurs) zur Auswahl, dazu die
+    /// persoenlichen Eintraege aus dem Stud.IP-Stundenplan. Auf dem Geraet zusaetzlich die Kurszeiten
+    /// (seminar-cycle-dates) aus `StudIPScheduleStore`, ausgewaehlt nach dem eigenen Stud.IP-Kalender (`StudIPCalendar`):
+    /// Einzeltermine eines Kurses, dessen Kurszeiten dort ganz fehlen, kommen bis zur Antwort auf die Frage nicht vor;
+    /// hat der Nutzer ihn uebernommen, gilt fuer ihn die bisherige Regel ohne Kalender. `clock` fuer `decided_at`.
+    static func studipEntries(_ c: SQLiteConnection, clock: UniFlowClock) throws -> [Entry] {
         let rows = try c.rows("""
             SELECT s.*, c.title AS course_title, c.module_id, c.kind AS course_kind FROM studip_events s JOIN courses c ON c.id=s.course_id
                                         WHERE c.active=1 AND c.kind != 'sonstiges' ORDER BY s.start
@@ -344,7 +347,7 @@ enum LocalTimetableImport {
         let allCycles = try StudIPScheduleStore.cycleEntries(c, relevance: false)
         let cycles = try StudIPScheduleStore.relevant(c, allCycles)
         let calendar = try StudIPCalendar.calendar(c)
-        // Kurse ohne Kalendertermine: bis zur Antwort draussen; uebernommene nach der bisherigen Regel
+        // Kurse ohne Kalendertermine laut Kurszeiten: bis zur Antwort draussen; uebernommene nach der bisherigen Regel
         let hidden = calendar == nil ? [] : try StudIPCalendar.hiddenCourses(c)
         let included = hidden.isEmpty ? [] : Set(try StudIPCalendar.choices(c).filter { $0.value.include == true }.keys)
         // Einzeltermine, die eine Kurszeit schon abdeckt (gleicher Tag und Beginn, auch ausgefallene); auch die
@@ -370,10 +373,7 @@ enum LocalTimetableImport {
             guard let st = isoDateTime(r["start"]), let en = isoDateTime(r["end"]) else { continue }
             if let course = r["course_id"]?.string,
                covered[course]?.contains(BerlinClock.isoDate(st.day) + "|" + LocalFreeWindows.mh(st.minutes)) == true { continue }
-            if let cal = calendar, !(r["course_id"]?.string.map(included.contains) ?? false) {
-                if let course = r["course_id"]?.string, hidden.contains(course) { continue }
-                if st.day > cal.day, !(r["id"]?.string.map(cal.ids.contains) ?? false) { continue }
-            }
+            if calendar != nil, let course = r["course_id"]?.string, hidden.contains(course), !included.contains(course) { continue }
             let title = r["course_title"] ?? .null
             let date: JSONValue = .string(BerlinClock.isoDate(st.day))
             entries.append([
@@ -381,26 +381,43 @@ enum LocalTimetableImport {
                 "weekday": .number(Double(BerlinClock.weekday(st.day))), "start_time": .string(LocalFreeWindows.mh(st.minutes)),
                 "end_time": .string(LocalFreeWindows.mh(en.minutes)), "room": LocalTimetable.or(r["room"], ""), "rrule": "once",
                 "date_from": date, "date_to": date, "module_id": r["module_id"] ?? .null, "course_id": r["course_id"] ?? .null,
-                "uncertain": false,
+                "uncertain": false, "event_id": r["id"] ?? .null,
             ])
         }
         var merged = try mergeWeekly(entries)
-        // Uebungen mit vielen parallelen Gruppenterminen: nur eine Gruppe wird besucht -> Auswahl noetig
+        let decisions = try applyCalendar(c, &merged, singles: entries, except: included, clock: clock)
+        // Ohne Entscheidung aus dem eigenen Kalender die bisherige Regel: Uebungen mit vielen parallelen
+        // Gruppenterminen, nur eine Gruppe wird besucht -> Auswahl noetig (gezaehlt werden die unentschiedenen Serien
+        // des Kurses). Kurs ganz ohne Kalendertermine ("kurs_fehlt") wie in Python nur bei Kursen ohne entschiedene
+        // Kurszeit: die anderen stehen ueber ihre Kurszeiten im Kalender bzw. kommen als Frage (StudIPCalendar).
+        let byCycles = decisions.isEmpty ? [] : try StudIPCalendar.decidedCourses(c)
+        let missing = Set(decisions.filter { !$0.value.isEmpty && $0.value.allSatisfy { $0 == 0 } && !byCycles.contains($0.key) }.keys)
         var perCourse: [JSONValue: Int] = [:]
-        for e in merged { perCourse[e["course_id"] ?? .null, default: 0] += 1 }
+        for e in merged where e["calendar"] == nil || e["calendar"] == .null { perCourse[e["course_id"] ?? .null, default: 0] += 1 }
         for i in merged.indices {
-            let n = perCourse[merged[i]["course_id"] ?? .null] ?? 0
-            merged[i]["group_slots"] = .number(Double(n))
-            // mit Kalender: was kuenftig noch stattfindet, steht dort und ist damit eindeutig
-            if let cal = calendar, !(merged[i]["course_id"]?.string.map(included.contains) ?? false),
-               let last = (merged[i]["date_to"]?.string ?? merged[i]["date_from"]?.string).flatMap(BerlinClock.parseISODate), last > cal.day {
+            merged[i].removeValue(forKey: "event_id")
+            if let course = merged[i]["course_id"]?.string, missing.contains(course) {
+                merged[i]["selected"] = false
+                merged[i]["uncertain"] = true
+                merged[i]["group_slots"] = 1
+                merged[i]["calendar"] = "kurs_fehlt"
+                merged[i]["hint"] = "Kurs steht nicht in deinem Stud.IP-Kalender – nur auswählen, wenn du ihn besuchst"
+            } else if merged[i]["calendar"] == "eigen" {
                 merged[i]["selected"] = true
                 merged[i]["uncertain"] = false
-                continue
+                merged[i]["group_slots"] = 1
+            } else if merged[i]["calendar"] == "fremd" {
+                merged[i]["selected"] = false
+                merged[i]["uncertain"] = true
+                merged[i]["group_slots"] = 1
+                merged[i]["hint"] = "Nicht in deinem Stud.IP-Kalender (andere Gruppe?)"
+            } else {
+                let n = perCourse[merged[i]["course_id"] ?? .null] ?? 0
+                merged[i]["group_slots"] = .number(Double(n))
+                merged[i]["selected"] = .bool(n <= 2)
+                merged[i]["uncertain"] = .bool(n > 2)
+                if n > 2 { merged[i]["hint"] = .string("\(n) parallele Gruppen – nur deine Gruppe auswählen") }
             }
-            merged[i]["selected"] = .bool(n <= 2)
-            merged[i]["uncertain"] = .bool(n > 2)
-            if n > 2 { merged[i]["hint"] = .string("\(n) parallele Gruppen – nur deine Gruppe auswählen") }
         }
         // Kurszeiten aus Stud.IP (Geraet): Gruppen je Kurs und Art bestimmt StudIPSchedule
         merged += cycles.map(\.json)
@@ -431,6 +448,77 @@ enum LocalTimetableImport {
         }
     }
 
+    /// `series_key(e)`: Kurs, Wochentag, Beginn und Ende einer Serie aus Einzelterminen (studip_series_relevance.series)
+    static func calendarSeriesKey(_ e: Entry) throws -> String {
+        let course = LocalModules.truthy(e["course_id"]) ? LocalTimetable.text(e["course_id"]) : ""
+        return "\(course)|\(try LocalTimetable.int(e["weekday"], "weekday"))|\(LocalTimetable.text(e["start_time"]))|\(LocalTimetable.text(e["end_time"]))"
+    }
+
+    /// `_apply_calendar(conn, merged, singles)`: setzt je Serie aus Einzelterminen `calendar` ("eigen" | "fremd" |
+    /// null) und bei eigenen Serien den Raum der eigenen Termine (gleiche Zeit in mehreren Raeumen: der haeufigste,
+    /// bei Gleichstand der zuerst gesehene wie `Counter.most_common`). Entschieden wird ueber die kuenftigen Termine
+    /// (ab dem Tag nach der Abfrage: der Export beginnt mit ihr); ohne kuenftige gilt die gespeicherte Entscheidung
+    /// (studip_series_relevance), ohne beide bleibt die Serie unentschieden. Ohne Kalender aendert sich nichts.
+    /// `except`: Kurse, die der Nutzer trotz fehlender Kalendertermine uebernommen hat (nur auf dem Geraet, bisherige
+    /// Regel). Liefert je Kurs die Entscheidungen (0/1) in der Reihenfolge der Serien.
+    @discardableResult
+    static func applyCalendar(_ c: SQLiteConnection, _ merged: inout [Entry], singles: [Entry], except skip: Set<String> = [],
+                              clock: UniFlowClock) throws -> [String: [Int]] {
+        guard let cal = try StudIPCalendar.calendar(c) else { return [:] }
+        let since = BerlinClock.isoDate(cal.day + 1)
+        let table = try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='studip_series_relevance'") != nil
+        var stored: [String: Int] = [:]
+        if table {
+            for r in try c.rows("SELECT series, relevant FROM studip_series_relevance") {
+                if let k = r["series"]?.string, let v = r["relevant"]?.int { stored[k] = v }
+            }
+        }
+        func memberKey(_ x: Entry) -> JSONValue {
+            [x["course_id"] ?? .null, x["title"] ?? .null, x["weekday"] ?? .null, x["start_time"] ?? .null, x["end_time"] ?? .null]
+        }
+        var members: [JSONValue: [Entry]] = [:]
+        for x in singles { members[memberKey(x), default: []].append(x) }
+        var out: [String: [Int]] = [:]
+        for i in merged.indices {
+            let e = merged[i]
+            guard LocalModules.truthy(e["course_id"]), let course = e["course_id"]?.string, !skip.contains(course) else { continue }
+            let mem = members[memberKey(e)] ?? [e]
+            // `(m.get("date_from") or "") >= since` nach Codepunkten
+            let future = mem.filter { m in
+                let d = LocalModules.truthy(m["date_from"]) ? (m["date_from"]?.string ?? "") : ""
+                return !d.unicodeScalars.lexicographicallyPrecedes(since.unicodeScalars)
+            }
+            let key = try calendarSeriesKey(e)
+            let rel: Int?
+            if !future.isEmpty {
+                let own = future.filter { m in m["event_id"]?.string.map(cal.ids.contains) ?? false }
+                let decided = own.isEmpty ? 0 : 1
+                rel = decided
+                if table {
+                    try c.execute("""
+                        INSERT INTO studip_series_relevance(series, course_id, relevant, decided_at) VALUES (?,?,?,?)
+                        ON CONFLICT(series) DO UPDATE SET course_id=excluded.course_id, relevant=excluded.relevant, decided_at=excluded.decided_at
+                        """, [.text(key), .text(course), .integer(Int64(decided)), .text(clock.nowISO)])
+                }
+                // haeufigster Raum der eigenen Termine, bei Gleichstand der zuerst gesehene
+                var counts: [String: Int] = [:], order: [String] = []
+                for m in own {
+                    let room = LocalModules.truthy(m["room"]) ? LocalTimetable.text(m["room"]) : ""
+                    if counts[room] == nil { order.append(room) }
+                    counts[room, default: 0] += 1
+                }
+                var best = "", most = 0
+                for room in order where (counts[room] ?? 0) > most { best = room; most = counts[room] ?? 0 }
+                if !best.isEmpty { merged[i]["room"] = .string(best) }
+            } else {
+                rel = stored[key]
+            }
+            merged[i]["calendar"] = rel.map { .string($0 != 0 ? "eigen" : "fremd") } ?? .null
+            if let rel { out[course, default: []].append(rel) }
+        }
+        return out
+    }
+
     // MARK: Vorschau und Uebernahme
 
     /// `enrich(conn, entries)`: Modul raten, wo keines gesetzt ist
@@ -446,45 +534,76 @@ enum LocalTimetableImport {
         }
     }
 
-    /// Schluessel einer Serie: Titel ohne Nicht-Wortzeichen, klein, hoechstens 30 Zeichen, und Wochentag
-    static func seriesKey(_ e: [String: JSONValue]) throws -> JSONValue {
-        let raw = LocalTimetable.or(e["title"], "")
-        guard let title = raw.string else { throw LocalHTTPError(status: 500, message: "Titel ist kein Text") }
+    /// Titelanfang wie `re.sub(r"\W+", "", (t or "").lower())[:30]`; ein Titel, der weder fehlt noch Text ist, scheitert
+    /// in Python (500)
+    static func titleStart(_ v: JSONValue?) throws -> String {
+        guard LocalModules.truthy(v) else { return "" }
+        guard let title = v?.string else { throw LocalHTTPError(status: 500, message: "Titel ist kein Text") }
         var short = String.UnicodeScalarView()
-        short.append(contentsOf: title.lowercased().unicodeScalars.filter(isWordChar).prefix(30))
-        return [.string(String(short)), .number(Double(try LocalTimetable.int(e["weekday"], "weekday")))]
+        short.append(contentsOf: PyText.lower(title).unicodeScalars.filter(isWordChar).prefix(30))
+        return String(short)
     }
 
-    /// `diff_against_existing(conn, entries)`: neu / geaendert / unveraendert / entfernt gegen vorhandene Serien
-    static func diffAgainstExisting(_ c: SQLiteConnection, _ entries: [Entry]) throws -> JSONValue {
-        var order: [JSONValue] = []
-        var exMap: [JSONValue: [String: JSONValue]] = [:]
-        for x in try c.rows("SELECT * FROM course_events WHERE source != 'personal'") {
-            let k = try seriesKey(x)
-            if exMap[k] == nil { order.append(k) }
-            exMap[k] = x                                       // wie im dict: letzte Zeile, erste Stelle
+    /// `hm(t)` in `_same_series`: nil, wo Python mit ValueError/TypeError scheitert (dort gilt die Serie als andere)
+    private static func minutesOrNil(_ v: JSONValue) -> Int? {
+        guard LocalModules.truthy(v) else { return 0 }
+        guard let s = v.string, let (h, m) = LocalFreeWindows.hourMinute(s) else { return nil }
+        return h * 60 + m
+    }
+
+    /// `_same_series(x, e)`: dieselbe Serie bei gleichem Wochentag, gleichem Kurs (fehlt er auf einer Seite: gleicher
+    /// Titelanfang) und ueberlappender Zeit. Frueher reichte gleicher Titelanfang am selben Tag; die Fragestunde neben
+    /// der Vorlesung desselben Fachs fehlte dann (Befund mit echten Daten, 27.10.2026, 3d74b00; Python seit 8cc7463).
+    /// Ein fehlender Schluessel scheitert wie in Python (500), eine unlesbare Uhrzeit heisst "andere Serie".
+    static func sameSeries(_ x: [String: JSONValue], _ e: Entry) throws -> Bool {
+        guard try LocalTimetable.int(x["weekday"], "weekday") == LocalTimetable.int(e["weekday"], "weekday") else { return false }
+        if LocalModules.truthy(x["course_id"]) && LocalModules.truthy(e["course_id"]) {
+            if x["course_id"] != e["course_id"] { return false }
+        } else if try titleStart(x["title"]) != titleStart(e["title"]) {
+            return false
         }
+        func required(_ o: [String: JSONValue], _ k: String) throws -> JSONValue {
+            guard let v = o[k] else { throw LocalHTTPError(status: 500, message: "Eintrag ohne \(k)") }
+            return v
+        }
+        // hm(x.start) < hm(e.end) and hm(e.start) < hm(x.end), von links nach rechts wie in Python
+        guard let xs = minutesOrNil(try required(x, "start_time")), let ee = minutesOrNil(try required(e, "end_time")) else { return false }
+        guard xs < ee else { return false }
+        guard let es = minutesOrNil(try required(e, "start_time")), let xe = minutesOrNil(try required(x, "end_time")) else { return false }
+        return es < xe
+    }
+
+    /// `diff_against_existing(conn, entries)`: neu / geaendert / unveraendert / entfernt gegen vorhandene Serien. Jede
+    /// vorhandene Serie passt hoechstens zu einem Eintrag; gleiche Zeit hat Vorrang vor bloss ueberlappender.
+    /// `used`: Serien, die schon vergeben sind (nur auf dem Geraet: mit einem ausgewaehlten Stud.IP-Eintrag dieses
+    /// Laufs verknuepft, `StudIPScheduleImport.autoImport`); sie zaehlen auch nicht als entfernt.
+    static func diffAgainstExisting(_ c: SQLiteConnection, _ entries: [Entry], used taken: Set<Int64> = []) throws -> JSONValue {
+        let existing = try c.rows("SELECT * FROM course_events WHERE source != 'personal'")
         var new: [JSONValue] = [], changed: [JSONValue] = [], same: [JSONValue] = []
-        var seen = Set<JSONValue>()
+        var used = Set<JSONValue>(taken.map { JSONValue.number(Double($0)) })
         for e in entries {
-            let k = try seriesKey(e)
-            seen.insert(k)
-            if let x = exMap[k] {
-                var o = e
-                if x["start_time"] != e["start_time"] || x["end_time"] != e["end_time"] {
-                    o["old_start"] = x["start_time"] ?? .null
-                    o["old_end"] = x["end_time"] ?? .null
-                    o["existing_id"] = x["id"] ?? .null
-                    changed.append(.object(o))
-                } else {
-                    o["existing_id"] = x["id"] ?? .null
-                    same.append(.object(o))
-                }
-            } else {
+            var cands: [[String: JSONValue]] = []
+            for x in existing where !used.contains(x["id"] ?? .null) {
+                if try sameSeries(x, e) { cands.append(x) }
+            }
+            let exact = cands.first { $0["start_time"] == e["start_time"] && $0["end_time"] == e["end_time"] }
+            guard let x = exact ?? cands.first else {
                 new.append(.object(e))
+                continue
+            }
+            used.insert(x["id"] ?? .null)
+            var o = e
+            if exact != nil {
+                o["existing_id"] = x["id"] ?? .null
+                same.append(.object(o))
+            } else {
+                o["old_start"] = x["start_time"] ?? .null
+                o["old_end"] = x["end_time"] ?? .null
+                o["existing_id"] = x["id"] ?? .null
+                changed.append(.object(o))
             }
         }
-        let removed = order.filter { !seen.contains($0) }.compactMap { exMap[$0].map(JSONValue.object) }
+        let removed = existing.filter { !used.contains($0["id"] ?? .null) }.map(JSONValue.object)
         return ["new": .array(new), "changed": .array(changed), "same": .array(same), "removed": .array(removed)]
     }
 

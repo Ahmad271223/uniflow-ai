@@ -484,7 +484,8 @@ final class StudIPScheduleStoreTests: XCTestCase {
         let res = try await choose(backend, room: "Pool Test A")
         XCTAssertEqual(res["updated"], 1, "ersetzt die bisherige Gruppe (gleicher Titel und Wochentag)")
         let s = try await series(backend)
-        XCTAssertEqual(s.filter { $0.contains("|4|") }, ["Testprogrammierung|4|08:00|09:30|weekly|2026-10-16|2027-01-29|Pool Test A|uebung|studip"])
+        // von Hand gewaehlt: Quelle "studip-manual" wie app/server.py seit 8cc7463 (nie als fremde Gruppe entfernt)
+        XCTAssertEqual(s.filter { $0.contains("|4|") }, ["Testprogrammierung|4|08:00|09:30|weekly|2026-10-16|2027-01-29|Pool Test A|uebung|studip-manual"])
         let a = try await exceptions(backend, row)
         XCTAssertEqual(a, ["2026-11-06|skip|"])
         _ = try await store(d, backend)
@@ -524,7 +525,7 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertEqual(res["updated"], 0)
         let tue = try await series(backend).filter { $0.contains("|1|") && $0.hasPrefix("Testprogrammierung|") }
         XCTAssertEqual(tue, ["Testprogrammierung|1|12:00|13:30|weekly|2026-10-13|2027-01-26|Hörsaal Test 3|vorlesung|studip",
-                             "Testprogrammierung|1|16:00|17:30|weekly|2026-10-14|2027-01-27|Pool Test C|uebung|studip"])
+                             "Testprogrammierung|1|16:00|17:30|weekly|2026-10-14|2027-01-27|Pool Test C|uebung|studip-manual"])
         // Wechsel zu Gruppe 4 (auch Dienstag): ersetzt Gruppe 3, die Vorlesung bleibt, Ausfall der neuen Gruppe dazu
         let sw = try await choose(backend, room: "Pool Test D")
         XCTAssertEqual(sw["updated"], 1)
