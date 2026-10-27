@@ -10,6 +10,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -139,5 +141,86 @@ class AnnotationSessionTest {
         session.loaded(AnnotationStore.Loaded(AnnotationDocument.empty(), 0, null))
         assertNull(session.base); assertEquals("Noch keine Notizen", session.status)
         assertTrue(runBlocking { session.save() }, "ohne Aenderung wird nichts gesendet"); assertEquals(0, session.sends)
+    }
+
+    // ---- lokaler Entwurf und Nachlieferung ----
+
+    /** Attrappe der Ablage: merkt sich den letzten Entwurf und die eingeplanten/abgesagten Nachlieferungen. */
+    private class FakeDrafts : AnnotationSession.Drafts {
+        val written = ArrayList<Draft>()
+        var stored: Draft? = null
+        val scheduled = ArrayList<String>()
+        val cancelled = ArrayList<String>()
+        override suspend fun write(draft: Draft) { written += draft; stored = draft }
+        override suspend fun clear(fileId: String) { stored = null }
+        override fun scheduleUpload(fileId: String) { scheduled += fileId }
+        override fun cancelUpload(fileId: String) { cancelled += fileId }
+    }
+
+    private fun CoroutineScope.withDrafts(server: FakeSend, drafts: FakeDrafts, delayMs: Long = 20) =
+        AnnotationSession("f1", server::send, drafts, this, delayMs).also { it.loaded(AnnotationStore.Loaded(AnnotationDocument.empty(), 0, null)) }
+
+    @Test
+    fun draftIsWrittenDebouncedAfterEdits() = runBlocking {
+        val drafts = FakeDrafts()
+        val session = withDrafts(FakeSend(), drafts)
+        add(session, "a"); add(session, "b")                     // zwei Striche kurz nacheinander: ein Entwurf
+        assertEquals(AnnotationSession.DraftState.Pending, session.draftState); assertEquals(0, drafts.written.size)
+        delay(200)
+        assertEquals(1, drafts.written.size, "entprellt: ein Entwurf fuer beide Striche")
+        assertEquals(listOf("a", "b"), ids(drafts.stored!!.doc)); assertEquals(0, drafts.stored!!.baseVersion); assertNull(drafts.stored!!.base)
+        assertEquals(AnnotationSession.DraftState.Saved, session.draftState)
+        assertTrue(drafts.scheduled.isEmpty(), "ohne Fehlschlag keine Nachlieferung")
+        assertTrue(session.dirty)
+    }
+
+    @Test
+    fun draftIsDeletedOnlyAfterTheServerConfirmed() = runBlocking {
+        val drafts = FakeDrafts()
+        val session = withDrafts(FakeSend(failFirst = true), drafts)
+        add(session, "a")
+        assertFalse(session.save())
+        assertEquals(listOf("a"), ids(drafts.stored!!.doc), "Fehlschlag: Entwurf liegt sofort auf der Platte, nicht erst nach der Entprellung")
+        assertEquals(listOf("f1"), drafts.scheduled, "Nachlieferung eingeplant")
+        assertEquals(AnnotationSession.DraftState.Queued, session.draftState)
+        assertTrue(session.status.startsWith("Nicht gespeichert"))
+        assertTrue(session.save())
+        assertNull(drafts.stored, "erst nach 2xx geloescht")
+        assertEquals(listOf("f1"), drafts.cancelled, "Nachlieferung abgesagt")
+        assertEquals(AnnotationSession.DraftState.Sent, session.draftState); assertFalse(session.dirty)
+        delay(100)
+        assertNull(drafts.stored, "die Entprellung schreibt nach dem Senden keinen alten Entwurf mehr")
+    }
+
+    @Test
+    fun strokeDrawnDuringSaveKeepsItsDraftUntilSent() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        val drafts = FakeDrafts()
+        val session = withDrafts(FakeSend(gate), drafts)
+        add(session, "a")
+        val job = launch { session.save() }
+        yield()
+        assertEquals(AnnotationSession.DraftState.Sending, session.draftState)
+        add(session, "b")                                         // waehrend des Sendens gezeichnet
+        delay(60)                                                 // Entwurf mit beiden Strichen, waehrend das Senden noch haengt
+        assertEquals(listOf("a", "b"), ids(drafts.stored!!.doc))
+        gate.complete(Unit)
+        job.join()
+        assertNull(drafts.stored, "nach dem Nachsenden ist nichts Ungesendetes mehr da"); assertFalse(session.dirty)
+        assertEquals(AnnotationSession.DraftState.Sent, session.draftState)
+    }
+
+    @Test
+    fun flushWritesTheDraftAndSchedulesTheUploadBeforeSending() = runBlocking {
+        val drafts = FakeDrafts()
+        val session = withDrafts(FakeSend(), drafts)
+        session.flush(this)
+        assertTrue(drafts.scheduled.isEmpty(), "nichts ungesendet: nichts einplanen")
+        add(session, "a")
+        session.flush(this)                                       // App in den Hintergrund: einplanen, Entwurf, senden
+        assertEquals(listOf("f1"), drafts.scheduled)
+        delay(100)
+        assertEquals(listOf("a"), ids(drafts.written.single().doc), "Entwurf sofort, nicht erst nach der Entprellung")
+        assertNull(drafts.stored); assertEquals(listOf("f1"), drafts.cancelled); assertFalse(session.dirty)
     }
 }

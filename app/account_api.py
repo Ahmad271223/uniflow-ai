@@ -12,13 +12,19 @@ import os
 from fastapi import APIRouter, Body, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
-from . import accounts, config
+from . import accounts, config, mail, social_login
 
 router = APIRouter(prefix="/api/account", tags=["account"])
 COOKIE = "uniflow_session"
 # Pfade ohne Sitzung (alles andere unter /api braucht im gehosteten Modus eine Sitzung)
 PUBLIC_PATHS = {"/api/account/register", "/api/account/login", "/api/account/login/apple", "/api/account/login/google",
-                "/api/account/password/reset-request", "/api/account/password/reset", "/api/account/info"}
+                "/api/account/password/reset-request", "/api/account/password/reset", "/api/account/info",
+                "/api/account/providers"}
+
+
+def _providers() -> list[str]:
+    """Anbieter, bei denen eine Anmeldung geprueft werden kann: social_login (Client-IDs) oder ein Pruefer im Prozess."""
+    return sorted(set(accounts.identity_verifiers) | {p for p in social_login.PROVIDERS if social_login.configured(p)})
 
 
 def _err(e: accounts.AccountError) -> HTTPException:
@@ -61,7 +67,13 @@ def info():
     """Oeffentlich: Betriebsart und Regeln, damit Clients das Formular passend bauen."""
     return {"mode": config.MODE, "hosted": config.is_hosted(), "password_min": accounts.PASSWORD_MIN,
             "session_days": accounts.SESSION_DAYS, "universities": list(config.known_universities()),
-            "providers": sorted(accounts.identity_verifiers)}
+            "providers": _providers()}
+
+
+@router.get("/providers")
+def providers():
+    """Oeffentlich: {google, apple: bool, google_web_client_id, apple_web_client_id} fuer die Anmeldeseite und die Apps."""
+    return social_login.status()
 
 
 @router.post("/register", status_code=201)
@@ -72,6 +84,7 @@ def register(request: Request, body: dict = Body(...)):
         _, token = accounts.login(user["email"], body.get("password"), *_device(body, request))
     except accounts.AccountError as e:
         raise _err(e)
+    mail.send_welcome(user["email"])            # nur Information; ein Fehler beim Versand aendert die Antwort nicht
     resp = JSONResponse({"user": user, "token": token}, status_code=201)
     _set_cookie(resp, token)
     return resp
@@ -90,15 +103,38 @@ def login(request: Request, body: dict = Body(...)):
     return resp
 
 
-@router.post("/login/{provider}")
-def login_provider(provider: str, request: Request, body: dict = Body(...)):
-    """Anmelden mit Apple/Google: `identity_token` vom Anbieter; neues Konto braucht `university`."""
-    _hosted_only()
+def _id_token(body: dict) -> str:
+    return (body.get("id_token") or body.get("identity_token") or "").strip()
+
+
+def _verified(provider: str, body: dict) -> dict:
+    """ID-Token pruefen: im Dienst ueber app/social_login.py (Client-IDs), sonst ueber einen Pruefer in
+    accounts.identity_verifiers (Tests, Fixtures). Ohne beides 501 provider_not_configured; Fehler 401 token_invalid."""
     if provider not in ("apple", "google"):
         raise HTTPException(404, {"detail": "Unbekannter Anbieter", "code": "provider_unknown"})
+    token, nonce = _id_token(body), (body.get("nonce") or "").strip() or None
+    if social_login.configured(provider):
+        try:
+            return social_login.verify(provider, token, nonce)
+        except social_login.TokenError as e:
+            raise HTTPException(401, {"detail": f"Die Anmeldung bei {provider.capitalize()} konnte nicht geprüft werden: {e}",
+                                      "code": "token_invalid"})
     try:
-        user, token, created = accounts.login_with_identity(provider, body.get("identity_token") or "", *_device(body, request),
-                                                            university=(body.get("university") or "").strip().lower() or None)
+        return accounts.verify_identity(provider, token, nonce)
+    except accounts.AccountError as e:
+        raise _err(e)
+
+
+@router.post("/login/{provider}")
+def login_provider(provider: str, request: Request, body: dict = Body(...)):
+    """Anmelden mit Apple/Google: `id_token` (oder `identity_token`) vom Anbieter, optional `nonce`; neues Konto braucht `university` (und `email`, falls der Anbieter keine liefert)."""
+    _hosted_only()
+    info = _verified(provider, body)
+    try:
+        user, token, created = accounts.login_with_provider(
+            provider, info["subject"], info.get("email"), bool(info.get("email_verified")),
+            (body.get("university") or "").strip().lower() or None, *_device(body, request),
+            fallback_email=(body.get("email") or "").strip() or None)
     except accounts.AccountError as e:
         raise _err(e)
     resp = JSONResponse({"user": user, "token": token, "created": created}, status_code=201 if created else 200)
@@ -110,10 +146,9 @@ def login_provider(provider: str, request: Request, body: dict = Body(...)):
 def link(provider: str, request: Request, body: dict = Body(...)):
     _hosted_only()
     u = _user(request)
-    if provider not in ("apple", "google"):
-        raise HTTPException(404, {"detail": "Unbekannter Anbieter", "code": "provider_unknown"})
+    info = _verified(provider, body)
     try:
-        return accounts.link_identity(u["id"], provider, body.get("identity_token") or "")
+        return accounts.link_provider(u["id"], provider, info["subject"], info.get("email"))
     except accounts.AccountError as e:
         raise _err(e)
 

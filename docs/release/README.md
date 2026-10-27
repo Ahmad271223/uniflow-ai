@@ -13,6 +13,7 @@ erklärung, die Nutzungsbedingungen und das Impressum; die Store-Texte prüft de
 | `KONTO-LOESCHEN.md` | Öffentliche Seite „Konto löschen“ (Pflicht im Play Store, nützlich für Apple) | `[[Domain]]/konto-loeschen` |
 | `APP-STORE.md` | App Store Connect: Name, Untertitel, Werbetext, Beschreibung, Schlüsselwörter, Altersfreigabe, App-Datenschutz, Abo-Produkt, Hinweise für die Prüfung | App Store Connect (de-DE) |
 | `PLAY-STORE.md` | Play Console: Titel, Kurz- und Vollbeschreibung, Datensicherheit, Inhaltseinstufung, Zielgruppe, Abo-Produkt | Play Console (de-DE) |
+| `BETRIEB.md` | Betriebsanleitung für den gehosteten Dienst (Hosting-Paket `deploy/`: Docker, Caddy/TLS, `.env`, Backups, Updates, Löschfristen, Monitoring) | Inhaber, Server |
 
 Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 
@@ -46,8 +47,16 @@ Alle Platzhalter stehen in doppelten eckigen Klammern und müssen vor der Veröf
    Jobs): eigenes Zugriffsprotokoll je Tag, 14 Tage; Abgleich-Protokolle und `sync_log` je Konto 90 Tage; abgelaufene
    Sitzungen, Reset-Token, Fehlversuchszähler; Konten 30 Tage nach Löschung (`accounts.purge_deleted`). Der Dienst muss
    ohne das uvicorn-Zugriffsprotokoll laufen (`--no-access-log`), siehe `docs/VERTRAEGE-KONTO-SYNC.md`, Betrieb.
-4. **Mailversand** für „Passwort vergessen“ und Konto-Bestätigung (`accounts.reset_sender`) – Anbieter in die
+4. **Mailversand – Code erledigt (27.10.2026), Zugangsdaten fehlen:** `app/mail.py` verschickt den Reset-Link und
+   eine Willkommensmail (nur Information) per SMTP (`LERNAPP_MAIL`, `LERNAPP_SMTP_HOST/PORT/USER/PASSWORD`,
+   `LERNAPP_MAIL_FROM`, `LERNAPP_PUBLIC_URL`, siehe `docs/VERTRAEGE-KONTO-SYNC.md`, Betrieb); ohne SMTP-Host landen
+   die Mails in `logs/mail.log`. Es bleibt: Mail-Anbieter wählen, Zugangsdaten eintragen, Anbieter in die
    Datenschutzerklärung (Abschnitt 11).
+4a. **„Mit Google/Apple anmelden“ – Code erledigt (27.10.2026), Client-IDs fehlen:** `app/social_login.py` prüft die
+   ID-Tokens; Buttons und Endpunkte sind erst mit `LERNAPP_GOOGLE_CLIENT_IDS` / `LERNAPP_APPLE_CLIENT_IDS` (und den
+   Web-Client-IDs) aktiv. Es bleibt: Google-Cloud-Projekt (OAuth-Client-IDs für Android, iOS, Web) und bei Apple
+   „Sign in with Apple“ für die App-ID plus eine Services-ID mit bestätigter Domain anlegen; beide Anbieter in die
+   Datenschutzerklärung.
 5. **Öffentliche Seiten – erledigt (26.10.2026):** der Dienst liefert `/datenschutz`, `/nutzungsbedingungen`,
    `/impressum` und `/konto-loeschen` direkt aus diesen Markdown-Dateien aus (`app/legal.py`, ohne Sitzung, auch im
    gehosteten Modus; Platzhalter erscheinen gelb markiert, bis sie ersetzt sind). Verlinkt auf der Anmeldeseite und im

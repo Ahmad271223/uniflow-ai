@@ -10,7 +10,7 @@ Docker-Bild `ghcr.io/cirruslabs/android-sdk:35`; auf einem echten Gerät noch ni
 | Modul | Inhalt | Tests |
 | --- | --- | --- |
 | `core` (Kotlin/JVM, ohne Android) | `ApiClient` (HttpURLConnection, Bearer-Token oder PIN-Cookie), `AccountApi` (G1), `SyncApi` (G2), `AnnotationDocument` (gemeinsames Notizformat, verlustfrei), `AnnotationStore` (base_version, 409 → Zusammenführung → erneut senden), `AnnotationMerge` (Drei-Wege-Regeln), Modelle für Bibliothek, Stundenplan, Lernkalender, Übersicht | gegen `packages/shared-contracts/fixtures`: `account/contract.json` (jeder aufgezeichnete Ablauf, Anfrage und Antwort), `sync/cases.json`, `documents/web-editor.json`, `merge/cases.json` |
-| `app` (Jetpack Compose, minSdk 26) | Anmeldung (Konto oder PC+PIN), Übersicht, Dokumente nach Modul, PDF mit Stift (`PdfRenderer` + Compose-Canvas, Stift/Rot/Blau/Marker/Radierer, „Nur Stift“), Stundenplan (Woche, Feiertage grün, Fristen, Hinweise), Lernkalender (Woche, Aufgaben abhaken), Hochschul-Anmeldung in der WebView mit Direkt-Download (`UniversityLoginScreen`, `UniversityStore`, `FetchPolicy`, `PdfBoxPageText`) | reine Regeln ohne Gerät: `RulesTest` (Adressen, Datum), `InkTest` (Stiftgeometrie, Farben, Breite/Deckkraft, Seitenmaß, fremde Objekte), `PdfRulesTest` (PDF-Prüfung), `PdfCacheTest` (atomare Ablage), `AnnotationSessionTest` (serialisiertes Speichern), `SyncRulesTest` (Abgleich abwarten), `FetchPolicyTest` (direkt oder Dienst), `PageTextRulesTest` (Grenzen des Seitentexts), `UniversityRulesTest` (Karte „Hochschule“) |
+| `app` (Jetpack Compose, minSdk 26) | Anmeldung (Konto oder PC+PIN), Übersicht, Dokumente nach Modul, PDF mit Stift (`PdfRenderer` + Compose-Canvas, Stift/Rot/Blau/Marker/Radierer, „Nur Stift“), Stundenplan (Woche, Feiertage grün, Fristen, Hinweise), Lernkalender (Woche, Aufgaben abhaken), Hochschul-Anmeldung in der WebView mit Direkt-Download (`UniversityLoginScreen`, `UniversityStore`, `FetchPolicy`, `PdfBoxPageText`), lokaler Notiz-Entwurf mit Nachlieferung (`Draft`, `DraftStore`, `DraftKeeper`, `DraftUploadRules`, `DraftUploadWorker`) | reine Regeln ohne Gerät: `RulesTest` (Adressen, Datum), `InkTest` (Stiftgeometrie, Farben, Breite/Deckkraft, Seitenmaß, fremde Objekte), `PdfRulesTest` (PDF-Prüfung), `PdfCacheTest` (atomare Ablage), `AnnotationSessionTest` (serialisiertes Speichern, Entwurf erst nach 2xx weg), `DraftStoreTest` (Entwurf atomar und wiederherstellbar), `DraftRestoreTest` (Entwurf + Serverstand nach `fixtures/merge/cases.json`), `DraftUploadRulesTest` (Nachlieferung: Erfolg/Wiederholung/Abbruch nach Antwortcode), `SyncRulesTest` (Abgleich abwarten), `FetchPolicyTest` (direkt oder Dienst), `PageTextRulesTest` (Grenzen des Seitentexts), `UniversityRulesTest` (Karte „Hochschule“) |
 
 Sitzung: Token oder PIN liegen in `EncryptedSharedPreferences` (Android-Schlüsselbund), nie Passwörter. Öffentliche
 Adressen nur über https; http nur für private Netze (PC im WLAN). PDFs kommen unverändert vom Server und liegen im
@@ -31,7 +31,25 @@ Farben nur als `#RRGGBB` (sonst Standardfarbe), Breite und Deckkraft werden beim
 Art (Text, Formen, Bilder, Haftnotizen des Web-Editors) werden nicht gezeichnet, aber mit Hinweis angezeigt und beim
 Speichern unverändert erhalten.
 
+Verlustfrei: Jede Änderung wird entprellt (500 ms) als Entwurf im App-Speicher abgelegt (`files/drafts/<id>.json`,
+`DraftStore`: Schreiben in `.tmp` mit fsync, dann umbenennen – nie ein halber Entwurf), mit Dokument, letzter
+bestätigter Basis und deren Version. Gelöscht wird der Entwurf erst, wenn der Dienst das Speichern bestätigt hat (2xx).
+Scheitert ein Sendeversuch oder geht die App in den Hintergrund (ON_STOP), plant `DraftUploadWorker` (WorkManager, nur
+mit Netz, exponentieller Abstand ab 30 s, eindeutig je Datei, `REPLACE`) die Nachlieferung ein; beim App-Start werden
+liegen gebliebene Entwürfe eingeplant (`KEEP`). Der Worker nimmt das Konto-Token aus derselben Sitzung wie die Ansicht
+(`EncryptedSharedPreferences`), die WorkManager-Daten enthalten nur die Datei-ID. 409 löst `AnnotationStore.save` auf
+(Serverstand holen, zusammenführen, erneut senden, höchstens 3 Versuche); bleibt es dabei, behält der Worker den Entwurf
+mit `conflict` (`DraftUploadRules`: 2xx → Erfolg, kein Netz/5xx/408/429 → Wiederholung, 409/401/4xx → Abbruch, Entwurf
+bleibt). Beim nächsten Öffnen führt `AnnotationSession.loaded` einen vorhandenen Entwurf mit dem Serverstand nach den
+gemeinsamen Regeln zusammen (`AnnotationDocument.mergeDetailed`, `fixtures/merge/cases.json`: Entwurf gewinnt bei
+Feldern, Seitenreihenfolge-Konflikt sichtbar), sendet ihn gleich und zeigt wie der Web-Editor „… mit anderem Gerät
+zusammengeführt, N Konflikte, dieses Gerät gilt“ bzw. „Seitenreihenfolge auf beiden Geräten geändert – die Reihenfolge
+dieses Geräts gilt“; ein vom Worker aufgegebener Entwurf erscheint als „Konflikt“. Kleiner Status im Dokument:
+„Entwurf gespeichert“ / „wird gesendet“ / „gesendet“ / „Entwurf gespeichert – wird nachgeliefert“ / „Konflikt“.
+
 ## Hochschul-Anmeldung auf dem Gerät
+
+Nach der Anmeldung meldet die App die Sitzung (nur Cookies, nie das Passwort, nie den Learnweb-Schlüssel) mit `PUT /api/university/session` an den Dienst (`Repo.reportUniversitySession`, `DeviceSyncApi.reportSession`); der Abgleich im Dienst (Kurse, Termine, Dateiliste) läuft damit ohne gespeicherte Zugangsdaten, bis die Hochschule die Sitzung beendet – dann zeigt die App das Anmeldefenster erneut.
 
 Hochschuldateien können direkt auf das Gerät geladen werden, ohne dass der Dienst sie herunterlädt – wie auf dem iPad.
 
@@ -112,5 +130,7 @@ App-Tests, Debug-APK und `bundleRelease` (unsigniert) als Artefakt `uniflow-andr
 - Eigene Notizbücher und Importe, Karteikarten, Noten, Community.
 - Hochschul-Abgleich (Kurse, Termine, Dateiliste) startet nur den Job auf dem Server (`POST /api/sync`) und wartet auf
   `/api/bg`; nur der Download der Dateien läuft mit Hochschul-Sitzung direkt auf dem Gerät (siehe oben).
-- Speichern, wenn das System die App im Hintergrund beendet: es wird bei ON_STOP gesendet, aber ohne WorkManager nicht
-  garantiert zu Ende geführt (kein lokaler Entwurf).
+- Gerätetest WorkManager: Entwurf, Nachlieferung und Konfliktanzeige sind im JVM-Test geprüft (`DraftStoreTest`,
+  `DraftRestoreTest`, `DraftUploadRulesTest`, `AnnotationSessionTest`); dass der Worker auf einem echten Gerät nach dem
+  Beenden der App im Hintergrund und nach Netzverlust tatsächlich läuft (Doze, Hersteller-Akkuschoner), ist nur am Gerät
+  prüfbar.

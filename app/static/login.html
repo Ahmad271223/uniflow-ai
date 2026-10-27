@@ -19,6 +19,9 @@
 .auth .links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; font-size: .85rem; }
 .auth .links a { color: var(--accent-text); cursor: pointer; text-decoration: none; } .auth .links a:hover { text-decoration: underline; }
 .auth .btn.primary { width: 100%; justify-content: center; margin-top: .6rem; }
+.auth #social { margin-top: .9rem; display: grid; gap: .5rem; justify-items: center; }
+.auth .or { display: flex; align-items: center; gap: .6rem; width: 100%; margin: 0; } .auth .or::before, .auth .or::after { content: ""; flex: 1; border-top: 1px solid var(--line, #e5e8f0); }
+.auth .btn.apple { width: 100%; max-width: 320px; justify-content: center; background: #000; color: #fff; }
 .auth .foot { text-align: center; margin-top: 1rem; } .auth .legal-links { margin-top: .4rem; } .auth .legal-links a { color: var(--muted); text-decoration: none; } .auth .legal-links a:hover { text-decoration: underline; }
 </style>
 <script src="theme.js?v=29"></script>
@@ -61,6 +64,12 @@
       <button class="btn primary" type="submit">Passwort setzen</button>
       <div class="links"><a data-tab="login" href="#login">Zurück zur Anmeldung</a></div>
     </form>
+    <div id="social" hidden>
+      <p class="muted tiny or"><span>oder</span></p>
+      <div id="googleBtn"></div>
+      <button type="button" class="btn apple" id="appleBtn" hidden>Mit Apple anmelden</button>
+      <div class="msg" id="socialMsg"></div>
+    </div>
   </div>
   <p class="muted tiny foot">Gehosteter UniFlow-Dienst. Am eigenen PC braucht die App kein Konto.</p>
   <p class="tiny foot legal-links"><a href="/datenschutz">Datenschutz</a> · <a href="/nutzungsbedingungen">Nutzungsbedingungen</a> · <a href="/impressum">Impressum</a></p>

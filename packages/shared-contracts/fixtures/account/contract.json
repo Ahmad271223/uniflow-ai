@@ -110,7 +110,7 @@
    "method": "POST",
    "path": "/api/account/login/{provider}",
    "public": false,
-   "summary": "Anmelden mit Apple/Google: `identity_token` vom Anbieter; neues Konto braucht `university`."
+   "summary": "Anmelden mit Apple/Google: `id_token` (oder `identity_token`) vom Anbieter, optional `nonce`; neues Konto braucht `university` (und `email`, falls der Anbieter keine liefert)."
   },
   {
    "method": "POST",
@@ -147,6 +147,12 @@
    "path": "/api/account/password/reset-request",
    "public": true,
    "summary": "Antwort immer gleich: verraet nicht, ob es das Konto gibt. Das Token geht nur ueber den Versandweg."
+  },
+  {
+   "method": "GET",
+   "path": "/api/account/providers",
+   "public": true,
+   "summary": "Oeffentlich: {google, apple: bool, google_web_client_id, apple_web_client_id} fuer die Anmeldeseite und die Apps."
   },
   {
    "method": "POST",

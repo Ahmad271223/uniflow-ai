@@ -1,4 +1,6 @@
-// Anmeldeseite des gehosteten Dienstes: Anmelden, Konto anlegen, Passwort vergessen, neues Passwort (/login?reset=TOKEN).
+// Anmeldeseite des gehosteten Dienstes: Anmelden, Konto anlegen, Passwort vergessen, neues Passwort (/login?reset=TOKEN),
+// „Mit Google/Apple anmelden“ (nur wenn /api/account/providers den Anbieter meldet; die SDKs kommen von
+// accounts.google.com bzw. appleid.cdn-apple.com, erlaubt durch die CSP der Anmeldeseite in app/server.py).
 // Ruft nur die oeffentlichen Kontopfade (Vertrag G1); die Sitzung kommt als HttpOnly-Cookie vom Server. Kein Inline-Skript (CSP).
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -12,10 +14,12 @@ const post = async (path, body) => {
 const say = (id, text, ok) => { const m = $("#" + id); m.textContent = text; m.className = "msg " + (ok ? "ok" : "bad"); };
 const busy = (form, on) => $$("button, input, select", form).forEach(x => x.disabled = on);
 const device = () => ("Browser " + (navigator.userAgentData?.platform || navigator.platform || "")).trim();
+const loadScript = src => new Promise((ok, bad) => { const s = document.createElement("script"); s.src = src; s.async = true; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
 function show(tab) {
   $$("form").forEach(f => f.classList.toggle("active", f.id === tab));
   $$("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
   $("#tabs").style.display = tab === "login" || tab === "register" ? "flex" : "none";
+  $("#social").style.display = tab === "login" || tab === "register" ? "" : "none";
   $("#" + tab + " input")?.focus();
 }
 $$("[data-tab]").forEach(el => el.addEventListener("click", e => { e.preventDefault(); show(el.dataset.tab); }));
@@ -55,4 +59,39 @@ if (!info || !info.hosted) {
     catch (x) { say("resetMsg", x.message); }
     busy(f, false);
   };
+
+  // Mit Google / Apple anmelden: ein neues Konto nimmt die Hochschule aus der Auswahl im Reiter „Konto anlegen“.
+  const prov = await fetch("/api/account/providers").then(r => r.json()).catch(() => null);
+  const social = $("#social");
+  const uni = () => $("#uniSelect").value;
+  if (prov && prov.google && prov.google_web_client_id) {
+    try {
+      await loadScript("https://accounts.google.com/gsi/client");
+      window.google.accounts.id.initialize({ client_id: prov.google_web_client_id, callback: async r => {
+        try { await post("/login/google", { id_token: r.credential, university: uni(), device_name: device() }); location.replace("/"); }
+        catch (x) { say("socialMsg", x.message); }
+      } });
+      window.google.accounts.id.renderButton($("#googleBtn"), { type: "standard", size: "large", text: "signin_with", locale: "de", width: 320 });
+      social.hidden = false;
+    } catch { /* SDK nicht erreichbar: Anmeldung per Passwort bleibt */ }
+  }
+  if (prov && prov.apple && prov.apple_web_client_id) {
+    try {
+      await loadScript("https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/de_DE/appleid.auth.js");
+      const nonce = crypto.randomUUID().replace(/-/g, "");
+      window.AppleID.auth.init({ clientId: prov.apple_web_client_id, scope: "email", redirectURI: location.origin + "/login", usePopup: true, nonce });
+      const btn = $("#appleBtn");
+      btn.hidden = false;
+      btn.onclick = async () => {
+        btn.disabled = true;
+        try {
+          const r = await window.AppleID.auth.signIn();
+          await post("/login/apple", { id_token: r.authorization.id_token, nonce, university: uni(), device_name: device() });
+          location.replace("/");
+        } catch (x) { if (!x || x.error !== "popup_closed_by_user") say("socialMsg", x?.message || "Anmeldung bei Apple abgebrochen."); }
+        btn.disabled = false;
+      };
+      social.hidden = false;
+    } catch { /* SDK nicht erreichbar: Anmeldung per Passwort bleibt */ }
+  }
 }

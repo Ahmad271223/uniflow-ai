@@ -590,3 +590,33 @@ ebenso). Bitte auf dem iPad genauso: keinen eigenen Schalter „Auf diesem Gerä
 App, sondern die WKWebView der Anmeldung dem iCloud-Schlüsselbund überlassen (Passwort-Autofill in WKWebView ist ab
 iOS 11 Standard; nichts zusätzlich speichern, nichts per `evaluateJavaScript` vorausfüllen). Falls ihr den Schalter schon
 gebaut habt: entfernen und die Datenschutz-Formulierung („iPad: Schlüsselbund von iOS“ im Anmeldefenster) bleibt richtig.
+
+## Nachtrag der PC-Sitzung: Android speichert Stift-Notizen verlustfrei (27.10.2026)
+
+Android legt jede Änderung entprellt als lokalen Entwurf ab (Dokument + letzte bestätigte Basis + Version), löscht ihn
+erst nach der 2xx-Bestätigung des Dienstes und liefert ihn bei Fehlschlag oder beim Beenden der App im Hintergrund
+per WorkManager nach (409 → zusammenführen, höchstens 3 Versuche, dann Entwurf behalten und beim nächsten Öffnen als
+„Konflikt“ zeigen). Beim Öffnen wird ein Entwurf mit dem Serverstand nach den gemeinsamen Regeln zusammengeführt
+(`fixtures/merge/cases.json`, Entwurf gewinnt bei Feldern, `orderConflict` sichtbar) – mit den Texten des Web-Editors
+(„Mit anderem Gerät zusammengeführt – N Konflikte, dieses Gerät gilt“, „Seitenreihenfolge auf beiden Geräten geändert
+– die Reihenfolge dieses Geräts gilt“). Für das iPad gilt dasselbe Muster: lokaler Entwurf erst nach 2xx weg,
+Nachlieferung über `BGTaskScheduler`/URLSession-Background, beim Öffnen Entwurf + Serverstand mit `AnnotationMerge`
+zusammenführen und dieselben Texte zeigen.
+
+## Nachtrag der PC-Sitzung: Sitzung vom Gerät in den Dienst, Anmeldung im Browserfenster am PC (27.10.2026)
+
+Zwei Ergänzungen zum Vertrag „Hochschul-Anmeldung auf dem Gerät“:
+
+1. **`PUT /api/university/session` {cookies: [{name, value, domain, path?, expires?}]}** (Dienst, Sitzung des Kontos):
+   Die App legt nach der Anmeldung im Anmeldefenster die Hochschul-Sitzung (Cookies, nie das Passwort) verschlüsselt
+   im Tresor des Kontos ab. Damit zählt das Konto als „Abgleich möglich“ (`vault.has_university_credentials`) und
+   `POST /api/sync` im Dienst holt Kurse, Termine, Dateiliste mit dieser Sitzung – ohne gespeicherte Zugangsdaten.
+   Nur Cookies für die Hosts aus `GET /api/university/profile` (plus CAS-Host in Hildesheim), höchstens 50, Wert bis
+   4 KB; fremde Hosts → 400 `cookies_foreign_host`. `DELETE /api/university/session` löscht sie, `GET` zeigt, ob eine
+   gilt. Bitte auf dem iPad nach erfolgreicher WKWebView-Anmeldung aufrufen (Android macht es seit 27.10. in `UniversityLoginScreen` → `Repo.reportUniversitySession`).
+   Läuft die Sitzung ab, meldet der Abgleich „Anmeldung noetig“ (Fehlertext enthält „Im Browser anmelden“ am PC bzw.
+   die App zeigt ihr Anmeldefenster). Tests: `tests/test_unilogin.py`.
+2. **PC/Windows**: `POST /api/university/login` öffnet ein sichtbares Chromium (Playwright-Profil im Datenordner) mit
+   dem WebSSO/CAS; der Mensch meldet sich selbst an, Chromium bietet „Passwort speichern?“ an (geprüft), die App
+   merkt nur die Sitzung in `university-session.json`. Für das iPad nicht relevant (dort WKWebView), nur zur Kenntnis:
+   Zugangsdaten in `.env`/Tresor sind damit überall nur noch die freiwillige Alternative für den Abgleich ohne Nachfrage.

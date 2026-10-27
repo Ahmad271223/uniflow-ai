@@ -1,0 +1,75 @@
+# UniFlow – gehosteter Dienst auf einem VPS: App (uvicorn, intern) + Caddy (TLS, Ports 80/443).
+# Start aus dem Ordner deploy/:  docker compose up -d --build        Anleitung: docs/release/BETRIEB.md
+# Variablen kommen aus deploy/.env (Vorlage: .env.example). Diese Datei nennt keine Geheimnisse.
+
+name: uniflow
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: uniflow-app:latest
+    container_name: uniflow-app
+    restart: unless-stopped
+    env_file:
+      # Ohne deploy/.env startet der Dienst nicht sinnvoll – ${UNIFLOW_DOMAIN:?} bei caddy bricht dann mit Hinweis ab.
+      - path: .env
+        required: false
+    environment:
+      LERNAPP_MODE: hosted
+      LERNAPP_DATA_DIR: /data
+      LERNAPP_LOG_DIR: /logs
+      LERNAPP_HTTPS: "1"
+      # Host-Kopfzeile, die der Dienst annimmt (Schutz gegen DNS-Rebinding); Caddy reicht den Original-Host durch
+      LERNAPP_ALLOWED_HOSTS: ${UNIFLOW_DOMAIN:?deploy/.env fehlt oder UNIFLOW_DOMAIN ist leer}
+    volumes:
+      - uniflow-data:/data      # accounts.db, secret.key (falls kein LERNAPP_SECRET_KEY), users/<id>/...
+      - uniflow-logs:/logs      # access/access-YYYY-MM-DD.log (14 Tage), retention.log
+    expose:
+      - "8765"                  # nur im Compose-Netz erreichbar, kein Port am Host
+    # Chromium (Playwright-Abgleich) braucht mehr als die 64 MB /dev/shm von Docker
+    shm_size: "512m"
+    deploy:
+      resources:
+        limits:
+          # App ca. 300 MB + je gleichzeitigem Browser-Abgleich 300–500 MB (LERNAPP_JOB_WORKERS=2) – passt auf 4 GB RAM
+          memory: 2560M
+        reservations:
+          memory: 512M
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2
+    container_name: uniflow-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"           # HTTP/3
+    environment:
+      UNIFLOW_DOMAIN: ${UNIFLOW_DOMAIN:?deploy/.env fehlt oder UNIFLOW_DOMAIN ist leer}
+      UNIFLOW_ACME_EMAIL: ${UNIFLOW_ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data        # Zertifikate (Let's Encrypt) – nie loeschen, sonst Rate-Limits beim Neuausstellen
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  uniflow-data:
+  uniflow-logs:
+  caddy-data:
+  caddy-config:

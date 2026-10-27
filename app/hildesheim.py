@@ -51,7 +51,13 @@ def _learnweb_client(page, user: str, pw: str, token: str):
             if not (user and pw):
                 raise
     client = learnweb.SessionClient(page, base)
-    cas.login(page, f"{base}/login/index.php?authCAS=CAS", HILDESHEIM_CAS, user, pw, client.is_logged_in, log)
+    try:
+        cas.login(page, f"{base}/login/index.php?authCAS=CAS", HILDESHEIM_CAS, user, pw, client.is_logged_in, log)
+    except cas.CasLoginError as e:
+        if not (user and pw):
+            from .unilogin import LoginRequired
+            raise LoginRequired("Learnweb-Sitzung abgelaufen: Einstellungen > Zugang > 'Im Browser anmelden'.") from e
+        raise
     courses = client.courses()
     log(f"Learnweb: angemeldet ueber das CAS, {len(courses)} Kurse.")
     return client, courses, ""
@@ -146,16 +152,24 @@ def run_sync(show_browser: bool = False) -> dict:
     started = db.now_iso()
     new_files: list[str] = []
     ok, parts = False, []
+    from . import unilogin
     user, pw = config.own_credentials("HILDESHEIM")
     token = config.secret("LEARNWEB_TOKEN")
+    session = unilogin.has_session("LEARNWEB_COOKIES")
     try:
-        if not token and not (user and pw):
-            raise RuntimeError("Zugangsdaten fehlen. Bitte unter Einstellungen > Zugang den UNI-Account "
-                               "oder einen Learnweb-Schluessel eintragen.")
+        if not token and not (user and pw) and not session:
+            raise unilogin.LoginRequired("Anmeldung beim Learnweb noetig: Einstellungen > Zugang > 'Im Browser anmelden' "
+                                         "(oder UNI-Account bzw. Learnweb-Schluessel eintragen).")
         with sync_playwright() as p:
             ctx = p.chromium.launch_persistent_context(str(_profile_dir()), headless=not show_browser, accept_downloads=True, locale="de-DE")
             try:
                 page = ctx.new_page()
+                if session:
+                    try:
+                        unilogin.restore(ctx, "LEARNWEB_COOKIES")       # CAS-/Moodle-Sitzung aus dem Anmeldefenster
+                        log("Gemerkte Learnweb-Sitzung eingesetzt.")
+                    except Exception as e:  # noqa: BLE001
+                        log(f"Gemerkte Sitzung nicht eingesetzt: {e}")
                 client, courses, used_token = _learnweb_client(page, user, pw, token)
                 if not used_token:
                     try:
@@ -175,8 +189,8 @@ def run_sync(show_browser: bool = False) -> dict:
                 except Exception as e:  # noqa: BLE001 - ebenso Ergaenzung
                     parts.append(f"Learnweb-Ankuendigungen: FEHLER {e}")
                     log(f"Learnweb-Ankuendigungen: {e}")
-                if user and pw:
-                    try:
+                if (user and pw) or (session and not used_token):
+                    try:        # mit Sitzung: klappt, solange die CAS-Anmeldung aus dem Fenster noch gilt
                         parts.append(sync_lsf_plan(page, user, pw))
                     except Exception as e:  # noqa: BLE001
                         parts.append(f"LSF-Stundenplan: FEHLER {e}")

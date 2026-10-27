@@ -31,7 +31,7 @@ import kotlinx.serialization.json.JsonObject
  * (`universities`), sonst wie bisher ueber den Dienst. `pageText` liest nach einem Direkt-Download den Seitentext fuer
  * die Meldung an den Dienst; `background` traegt die Meldungen ueber die Ansicht hinaus.
  */
-class Repo(private val session: Session, private val cacheDir: File, val universities: UniversityStore,
+class Repo(private val session: Session, private val cacheDir: File, val universities: UniversityStore, val drafts: DraftStore,
            private val pageText: PageTextExtractor = PageTextExtractor.None, private val background: CoroutineScope = AppScope.main) {
 
     private fun client(): ApiClient = session.client()
@@ -157,6 +157,17 @@ class Repo(private val session: Session, private val cacheDir: File, val univers
      * nur einem angenommenen Fingerabdruck: lehnt der Dienst ihn ab (Datei liegt schon beim Dienst, 400; andere Fassung
      * bekannt, 409), will er auch keinen Seitentext dieser Fassung.
      */
+    /**
+     * Sitzung aus dem Anmeldefenster (nur Cookies) in den Tresor des Kontos, im Hintergrund: der Abgleich im Dienst
+     * (Kurse, Termine, Dateiliste) laeuft damit ohne gespeicherte Zugangsdaten. Fehler werden nur protokolliert.
+     */
+    fun reportUniversitySession(s: UniversitySession) {
+        background.launch(Dispatchers.IO) {
+            runCatching { DeviceSyncApi(client()).reportSession(s) }
+                .onFailure { Log.w(TAG, "Hochschul-Sitzung nicht an den Dienst gemeldet: ${it.message}") }
+        }
+    }
+
     private fun report(file: LibraryFile, f: File, bytes: ByteArray) {
         background.launch(Dispatchers.IO) {
             val api = DeviceSyncApi(client())
@@ -173,6 +184,9 @@ class Repo(private val session: Session, private val cacheDir: File, val univers
     fun discardPdf(f: File) { f.delete() }
 
     suspend fun loadAnnotations(fileId: String): AnnotationStore.Loaded = withContext(Dispatchers.IO) { AnnotationStore(client()).load(fileId) }
+
+    /** Lokaler Entwurf der Datei (ungesendeter Stand vom letzten Mal) oder null. */
+    suspend fun loadDraft(fileId: String): Draft? = withContext(Dispatchers.IO) { drafts.read(fileId) }
 
     suspend fun saveAnnotations(fileId: String, local: JsonObject, base: JsonObject?, baseVersion: Int): AnnotationStore.Saved = withContext(Dispatchers.IO) {
         AnnotationStore(client()).save(fileId, local, base, baseVersion)

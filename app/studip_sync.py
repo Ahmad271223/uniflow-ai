@@ -91,7 +91,9 @@ def _login(page: Page) -> None:
 
     user, password = config.credentials()
     if not user or not password:
-        raise RuntimeError("Zugangsdaten fehlen. Bitte in der App unter Einstellungen > Stud.IP-Zugang eintragen.")
+        from .unilogin import LoginRequired
+        raise LoginRequired("Anmeldung bei Stud.IP noetig: Einstellungen > Zugang > 'Im Browser anmelden' "
+                            "(oder Zugangsdaten fuer den Abgleich ohne Nachfrage eintragen).")
 
     # Direkt zum WebSSO der Uni Hannover (statt Uni-Auswahl auf der Loginseite)
     page.goto(SHIB_LOGIN_URL, wait_until="domcontentloaded")
@@ -655,10 +657,16 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                 locale="de-DE",
             )
             page = ctx.new_page()
+            try:
+                from . import unilogin
+                if unilogin.restore(ctx, "STUDIP_COOKIES"):        # Sitzung aus dem Anmeldefenster/Geraet weiterverwenden
+                    log("Gemerkte Stud.IP-Sitzung eingesetzt.")
+            except Exception as e:  # noqa: BLE001
+                log(f"Gemerkte Sitzung nicht eingesetzt: {e}")
             login(page)
             try:
                 from . import filestream
-                filestream.save_studip_cookies(ctx.cookies())      # Dienst: Sitzung fuer das Durchreichen von Dateien
+                filestream.save_studip_cookies(ctx.cookies())      # Sitzung fuer den naechsten Abgleich und das Durchreichen
             except Exception as e:  # noqa: BLE001
                 log(f"Sitzung nicht gemerkt: {e}")
 
