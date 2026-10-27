@@ -30,7 +30,7 @@ struct MainView: View {
             case .exam(let id, let task):
                 UFServerGate(.exams) { ExamRunPage(id: id, task: task) }                      // 1:1
             case .cards:
-                // ohne PC "bald" (UFFeatureMatrix.flashcardsOnDevice), sobald vorhanden nur mit Plus
+                // ohne PC nur mit Plus (eigene Karten in der Datenbank des Containers), am eigenen Server ohne Tarif
                 UFServerGate(.cards) {
                     if session.api?.isLocal == false { CardsPage() } else { UFGate(.flashcards) { CardsPage() } }
                 }                                                                               // 1:1

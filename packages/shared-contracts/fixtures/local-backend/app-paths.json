@@ -1,12 +1,12 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 83,
+ "count": 84,
  "paths": [
   {
    "method": "DELETE",
    "shape": "/api/flashcards/{}",
    "sources": [
-    "UniFlow/Views/Exams/ExamsPage.swift"
+    "UniFlow/Views/Exams/CardsPage.swift"
    ],
    "request": {
     "path": "/api/flashcards/1"
@@ -873,6 +873,7 @@
    "method": "GET",
    "shape": "/api/flashcards",
    "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift",
     "UniFlow/Views/Exams/ExamsPage.swift"
    ],
    "request": {
@@ -935,6 +936,7 @@
    "shape": "/api/library",
    "sources": [
     "UniFlow/Views/DocumentView.swift",
+    "UniFlow/Views/Exams/CardsPage.swift",
     "UniFlow/Views/Library/LibraryPage.swift",
     "UniFlow/Views/Settings/SettingsPage.swift",
     "UniFlow/Views/Views.swift"
@@ -2219,9 +2221,44 @@
   },
   {
    "method": "POST",
+   "shape": "/api/flashcards",
+   "sources": [
+    "UniFlow/Views/Exams/CardsPage.swift"
+   ],
+   "request": {
+    "path": "/api/flashcards",
+    "body": {
+     "cards": [
+      {
+       "question": "Testfrage",
+       "answer": "Testantwort"
+      }
+     ]
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "count": {
+       "type": "number"
+      },
+      "ok": {
+       "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/flashcards/{}/review",
    "sources": [
-    "UniFlow/Views/Exams/ExamsPage.swift"
+    "UniFlow/Views/Exams/CardsPage.swift"
    ],
    "request": {
     "path": "/api/flashcards/1/review",
@@ -3009,13 +3046,13 @@
    "request": {
     "path": "/api/timetable/studip-questions/course",
     "body": {
-     "course_id": "c1",
+     "course_id": "k1",
      "include": true
     }
    },
    "expect": {
     "status": 404,
-    "reason": "nur auf dem Geraet; ohne offene Frage 404"
+    "reason": "nur auf dem Geraet; leere Datenbank: keine offene Frage"
    }
   },
   {
@@ -3027,13 +3064,13 @@
    "request": {
     "path": "/api/timetable/studip-questions/times",
     "body": {
-     "course_id": "c1",
+     "course_id": "k1",
      "attend": []
     }
    },
    "expect": {
     "status": 404,
-    "reason": "nur auf dem Geraet; ohne offene Frage 404"
+    "reason": "nur auf dem Geraet; leere Datenbank: keine offene Frage"
    }
   },
   {

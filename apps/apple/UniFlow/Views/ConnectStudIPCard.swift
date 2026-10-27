@@ -295,7 +295,7 @@ extension UFNoServerPage.Spec {
     static let document = Self(title: "Dokumente & Notizen", sub: "Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.",
                                kind: .library, barAbove: false)
     // Wochentests sind KI (entfallen in V1), Noten kommen erst mit QIS (F4): lokal der leere Zustand
-    static let exams = Self(title: "Tests & Wiederholung", sub: "Eigene Karteikarten zum Wiederholen kommen mit einem Update.",
+    static let exams = Self(title: "Tests & Wiederholung", sub: "Deine eigenen Karteikarten wiederholst du unter „Karteikarten“.",
                             kind: .exams, local: false)
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
     // Notenspiegel auf dem Geraet an beiden Hochschulen: LUH aus dem QIS (QISConnection), Uni Hildesheim aus dem LSF
