@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 80,
+ "count": 83,
  "paths": [
   {
    "method": "DELETE",
@@ -1659,6 +1659,25 @@
   },
   {
    "method": "GET",
+   "shape": "/api/timetable/studip-questions",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableView.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/studip-questions"
+   },
+   "expect": {
+    "status": 200,
+    "type": "object",
+    "keys": [
+     "busy",
+     "hidden"
+    ],
+    "reason": "nur auf dem Geraet (StudIPCalendar)"
+   }
+  },
+  {
+   "method": "GET",
    "shape": "/api/timetable/week",
    "sources": [
     "UniFlow/Views/Plan/PlanView.swift",
@@ -2979,6 +2998,42 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/timetable/studip-questions/course",
+   "sources": [
+    "UniFlow/Views/Timetable/StudIPCalendarQuestions.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/studip-questions/course",
+    "body": {
+     "course_id": "c1",
+     "include": true
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur auf dem Geraet; ohne offene Frage 404"
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/timetable/studip-questions/times",
+   "sources": [
+    "UniFlow/Views/Timetable/StudIPCalendarQuestions.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/studip-questions/times",
+    "body": {
+     "course_id": "c1",
+     "attend": []
+    }
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur auf dem Geraet; ohne offene Frage 404"
    }
   },
   {
