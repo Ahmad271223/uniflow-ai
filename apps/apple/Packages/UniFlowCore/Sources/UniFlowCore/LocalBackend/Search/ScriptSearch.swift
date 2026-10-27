@@ -10,7 +10,7 @@ import Foundation
 /// Abweichung: Der Zwischenspeicher des Index (`_CACHE`) gilt hier auch fuer den Ablageort der Dateien; am PC fehlte
 /// eine erst spaeter geladene Datei im Index, bis dort neue Seitentexte gespeichert werden (`store_pages` leert den
 /// ganzen Zwischenspeicher). Auf dem Geraet aendern sich gespeicherte Texte nur mit Ablageort oder Aenderungszeit
-/// (Download, "Dateien löschen", neue Fassung), beides steht im Schluessel. Je Schluessel laeuft hoechstens ein
+/// (Download, "Dateien loeschen", neue Fassung), beides steht im Schluessel. Je Schluessel laeuft hoechstens ein
 /// Aufbau (weitere Anfragen warten auf ihn), und er bricht ab, wenn keine Anfrage mehr auf ihn wartet.
 public enum ScriptSearch {
 
@@ -137,7 +137,7 @@ public enum ScriptSearch {
     enum StoredPages: Sendable {
         /// unbekannte Datei, oder keine gueltigen Texte und keine lokale PDF: keine Seitentexte
         case unavailable
-        /// gespeichert und so alt wie die Datei (auch ohne lokale Datei, z. B. nach "Dateien löschen")
+        /// gespeichert und so alt wie die Datei (auch ohne lokale Datei, z. B. nach "Dateien loeschen")
         case fresh([String])
         /// neu lesen (noch nicht gelesen oder die Datei hat eine neuere Aenderungszeit)
         case read(URL, chdate: SQLiteValue)
