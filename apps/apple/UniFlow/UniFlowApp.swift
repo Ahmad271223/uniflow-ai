@@ -114,6 +114,7 @@ struct UniFlowApp: App {
         .onChange(of: scenePhase) { _, phase in
             // beim Oeffnen, hoechstens alle 30 min: Stud.IP (LUH) bzw. Learnweb und LSF (Uni Hildesheim)
             if phase == .active {
+                containers.removeRememberedPasswords()                     // einmalig, falls beim Start gesperrt
                 containers.studip.runIfDue()
                 containers.hildesheim?.runIfDue()
                 containers.qis?.runIfDue()

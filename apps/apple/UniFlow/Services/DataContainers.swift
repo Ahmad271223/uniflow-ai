@@ -161,6 +161,13 @@ final class ContainerManager: ObservableObject {
 
     var key: DataContainerKey? { active?.key }
 
+    /// Bestandsnutzer: frueher von der App gemerkte Hochschul-Passwoerter einmal loeschen (alle Container dieses
+    /// iPads, `UniversityPasswordCleanup`). Laeuft beim Anlegen, beim Oeffnen eines Containers und beim Wechsel in den
+    /// Vordergrund, bis es einmal gelungen ist (z. B. Schluesselbund beim Start im Hintergrund gesperrt); danach nur
+    /// noch ein Blick auf den Merker.
+    @discardableResult
+    func removeRememberedPasswords() -> Bool { UniversityPasswordCleanup.run(secrets: keychain, defaults: appDefaults) }
+
     /// Abgleich ohne Container: kein Ordner, keine Datenbank, keine Anmeldung
     private static func idleSync() -> StudIPSync {
         let none = ContainerPaths.none
@@ -254,8 +261,7 @@ final class ContainerManager: ObservableObject {
     /// oder einem anderen Konto, bleibt er zu und `problem` erklaert es.
     func activate(_ key: DataContainerKey) {
         if active?.key == key, problem == nil { return }
-        // war der Schluesselbund beim Start gesperrt, jetzt erneut (danach nur noch ein Blick in die UserDefaults)
-        UniversityPasswordCleanup.run(secrets: keychain, defaults: appDefaults)
+        removeRememberedPasswords()
         let c = ActiveContainer(key: key, base: base, keychain: keychain, cookieService: cookieService, appDefaults: appDefaults, clock: clock)
         do {
             try c.layout.prepare(clock: clock)

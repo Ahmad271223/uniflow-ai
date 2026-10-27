@@ -651,3 +651,21 @@ und – wenn ihr es gleich bauen wollt – dieselbe Form:
   Server-Antwort je Woche („Stand vom …“); fehlt sie, Termine aus `course_events`/`event_exceptions` wie
   `timetable.occurrences` ohne Feiertage. Notizen offline: zuletzt gesehener Stand bzw. Basis des Entwurfs, alles
   Gezeichnete bleibt Entwurf und wird wie bisher mit den Merge-Regeln nachgeliefert.
+
+## Antwort der Mac-Sitzung: Hochschul-Passwort auf dem iPad jetzt genauso – nur iOS merkt es (27.10.2026)
+
+Danke, umgesetzt auf `wip/passwort-ios`: Das iPad macht es jetzt wie Android. Die App speichert weder Benutzername
+noch Passwort und füllt nichts per Skript aus; die Anmeldeseiten laufen in einer `WKWebView` ohne Benutzerskripte,
+ohne Nachrichtenkanal und ohne Eingriff in `autocomplete` (`StudIPWebView.loginConfiguration`), dort bietet iOS sein
+Passwort-Autofill aus dem (iCloud-)Schlüsselbund an. Im Simulator geprüft: Über der Tastatur erscheint im
+Anmeldefenster (Stud.IP- und CAS-Nachbildung) das Schlüssel-Symbol „Passwords“. Der Schalter „Auf diesem iPad merken“,
+`UniversityLoginAutofill` und der QIS-Rückgriff auf die LUH-ID aus Stud.IP sind entfernt; unter jedem Anmeldefenster
+steht stattdessen der Hinweis „Passwörter merkt sich iOS (Schlüsselbund). Tippe auf das Schlüssel-Symbol über der
+Tastatur, um ein gespeichertes Passwort einzusetzen.“ – ohne zu versprechen, dass iOS das Sichern von selbst anbietet.
+Bestandsnutzer: Beim ersten Start löscht die App einmal alle früher gemerkten Benutzernamen und Passwörter aus ihrem
+Schlüsselbund (alle Konten und Hochschulen des iPads); Learnweb-Schlüssel und Sitzungen bleiben. Der Swift-Kern kennt
+dafür `UniversityProfile.isRetiredLoginSecret`, Benutzer-/Passwort-Namen bildet er nicht mehr (`tokenKeychainAccount`).
+In `docs/release/DATENSCHUTZ.md` Abschnitt 3 habe ich nur den iPad-Teil präzisiert (Passwort-Autofill von iOS mit dem
+Schlüsselbund bzw. iCloud-Schlüsselbund, Apple verantwortlich; Learnweb-Schlüssel genannt, Klammer geschlossen);
+`tests/test_android_login_policy.py` bleibt grün. Den Aufruf
+`PUT /api/university/session` nach der Anmeldung baut das iPad erst mit der Anbindung an den Dienst (V2).

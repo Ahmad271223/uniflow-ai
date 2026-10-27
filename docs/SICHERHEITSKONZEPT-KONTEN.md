@@ -3,8 +3,9 @@
 Stand 26.10.2026. **Entschieden** (Vorgabe vom 25.10.): Stud.IP-Login und Hochschulpasswörter bleiben auf dem Gerät
 der Studierenden; der zentrale UniFlow-Server erhält keine Stud.IP-Passwörter; Konten, Abos und KI-Kontingente werden
 getrennt verwaltet; kein Hosting gebucht. Nichts davon ist produktiv umgesetzt oder migriert.
-**Neu entschieden (Inhaber, 25.10.2026):** Die iPad-App darf sich Benutzername und Passwort der Hochschul-Anmeldeseiten
-merken – nur auf dem Gerät im Schlüsselbund, nur mit sichtbarem Schalter, und sie **füllt nur vor**: „Anmelden“ tippt
+**Neu entschieden (Inhaber, 27.10.2026, ersetzt die Regel vom 25.10.):** Hochschul-Passwörter merkt sich nur das System
+(iOS-Passwort-Autofill bzw. iCloud-Schlüsselbund im Anmeldefenster, auf Android der Passwort-Manager des Systems), **nie
+die App selbst**. Die App speichert weder Benutzername noch Passwort und füllt nichts per Skript aus; „Anmelden“ tippt
 immer der Mensch (Abschnitt 1a).
 
 ## 1. Komponenten und Vertrauensgrenzen
@@ -23,7 +24,8 @@ immer der Mensch (Abschnitt 1a).
 
 | Daten | Wo | Schutz |
 | --- | --- | --- |
-| Hochschul-Passwort (LUH-ID für Stud.IP/WebSSO, QIS, UNI-Account Hildesheim/CAS) | Eingabe auf der Anmeldeseite der Hochschule; **nur mit Schalter „Auf diesem iPad merken“** zusätzlich im Schlüsselbund des iPads (Abschnitt 1a) | `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, nicht synchronisiert (kein iCloud-Schlüsselbund, nicht auf neue Geräte), je Hochschule und Dienst getrennt; nie an einen Server, nie im Protokoll; bei OAuth2 (später) sieht die App es nicht |
+| Hochschul-Passwort (LUH-ID für Stud.IP/WebSSO, QIS, UNI-Account Hildesheim/CAS) | Eingabe auf der Anmeldeseite der Hochschule; gemerkt **nur vom System** (iOS-Passwort-Autofill, Schlüsselbund bzw. iCloud-Schlüsselbund), nie von der App (Abschnitt 1a) | die App liest, speichert und füllt es nicht; nie an einen Server, nie im Protokoll; bei OAuth2 (später) sieht die App es gar nicht |
+| Learnweb-Schlüssel (Moodle-Mobile-SSO, Uni Hildesheim) | Gerät, Schlüsselbund `de.uniflow.ai.university` (`<nutzer>.hildesheim.learnweb.token`) | `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, nicht synchronisiert; nie an den Dienst |
 | Stud.IP-Zugriffstoken / Session-Cookie | Gerät, Schlüsselbund (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`) | nicht in Backups, nicht an den Dienst |
 | Vorlesungsdateien | Gerät | Dateischutz `completeUntilFirstUserAuthentication` |
 | Notizen | Gerät; optional Dienst | Transport TLS; Speicherung beim Dienst nutzergetrennt |
@@ -31,110 +33,74 @@ immer der Mensch (Abschnitt 1a).
 | Abo-Status | Dienst (Quelle: App Store) | nur über signierte Transaktionen änderbar |
 | KI-Kontingent | Dienst | atomare Zählung (`app/billing.py`) |
 
-## 1a. Gemerkte Hochschul-Zugangsdaten auf dem iPad (umgesetzt 26.10.2026, Entscheidung des Inhabers)
+## 1a. Hochschul-Passwörter auf dem iPad: nur das System merkt sie (umgesetzt 27.10.2026, Entscheidung des Inhabers)
 
-Ablauf: Die App öffnet die echte Anmeldeseite der gewählten Hochschule in einer Webansicht (LUH: Stud.IP-Login und
-WebSSO `sso.idm.uni-hannover.de/idp/…`, QIS; Hildesheim: CAS `www.uni-hildesheim.de/sso/login` für Learnweb und LSF).
-Unter der Seite steht der Schalter **„Auf diesem iPad merken“** (Standard an) mit Erklärtext. In der App angebunden
-sind (Stand Abnahme 26.10.2026) die **Stud.IP-Anmeldung der LUH** (`StudIPLoginView`) und das **CAS der Uni
-Hildesheim** für Learnweb und LSF (`HildesheimLoginView`, `UniversityLoginAutofill` mit `serviceKey: "cas"`, Schalter
-`UniversityRememberBar`): Benutzername und Passwort des UNI-Accounts werden dort gemerkt und vorausgefüllt. Dazu liegt
-der **Learnweb-Schlüssel** aus dem Moodle-Mobile-SSO (`<nutzer>.hildesheim.learnweb.token`) im selben Dienst. QIS der
-LUH hat Profil, Regeln und Tests, eine Anmeldeansicht kommt erst mit F4 (V2).
+**Abgelöst:** Vom 25./26.10.2026 bis zur Fassung auf `wip/passwort-ios` merkte die App mit dem Schalter „Auf diesem iPad
+merken“ Benutzername und Passwort selbst im Schlüsselbund (`<nutzer>.luh.studip.user/.password`, `….luh.qis.…`,
+`….hildesheim.cas.…`) und füllte sie per Skript in einer eigenen `WKContentWorld` vor (`UniversityLoginAutofill`,
+gebunden an die echte Navigation des Hauptrahmens; QIS fiel auf die LUH-ID aus Stud.IP zurück). Das gibt es nicht mehr.
 
-- **Merken:** Erst wenn der Mensch auf „Anmelden“ tippt (Absenden des Formulars), liest ein Skript Benutzername und
-  Passwort und gibt sie an die App; die App legt sie nur bei eingeschaltetem Schalter im Schlüsselbund ab
-  (`de.uniflow.ai.university`, Einträge `<nutzer>.luh.studip.user`, `<nutzer>.luh.studip.password`, `<nutzer>.luh.qis.…`,
-  `<nutzer>.hildesheim.cas.…`; `<nutzer>` ist eine Kurzkennung aus dem Hash der Apple-Nutzer-ID, seit der
-  Hochschulwahl am 26.10.2026).
-  Schalter aus = nichts wird gemerkt und schon Gemerktes dieses Dienstes sofort gelöscht.
-- **Vorausfüllen:** Beim nächsten Öffnen derselben Anmeldeseite setzt die App nur leere Felder; was schon eingetippt ist,
-  bleibt. **Es gibt keinen Code-Pfad zum automatischen Anmelden** (kein Absenden, kein Klick, auch nicht vorbereitet);
-  ein Test prüft, dass das Formular nicht abgeschickt wird.
-- **Nur auf bekannten Seiten:** Skript und App prüfen unabhängig voneinander: HTTPS, Hauptrahmen, genau der Rechner und
-  Pfad aus dem Hochschul-Profil (`UniversityProfile`, z. B. nicht `…uni-hildesheim.de.example.org`, nicht `http://`).
-  Das Skript läuft in einer eigenen `WKContentWorld`; Skripte der Seite können den Nachrichtenkanal nicht benutzen.
-- **Die Grenze ist der Ursprung, nicht der Pfad (berichtigt 26.10.2026):** Eine Seite desselben Rechners kann ihre
-  Adresse mit `history.replaceState`/`pushState` ohne Navigation auf den Anmeldepfad umschreiben; `location` und die
-  Rahmen-Adresse (`WKFrameInfo.request`) folgen dem. Bei Hildesheim liegen CAS und Learnweb beide auf
-  `www.uni-hildesheim.de` (eine als Learnweb-Material hochgeladene HTML-Datei oder eine XSS-Lücke irgendwo auf dem
-  Rechner reicht), bei der LUH gilt dasselbe für ganz `studip.uni-hannover.de` und `sso.idm.uni-hannover.de`. Deshalb
-  bindet die App Vorausfüllen und Merken an die **letzte echte Navigation im Hauptrahmen**: Die Adresse der
-  Server-Antwort (`WKNavigationResponse`, für Seitenskripte unveränderlich) muss ein Anmeldeziel sein, und
-  `webView.url` wie die Rahmen-Adresse dürfen seitdem nicht umgeschrieben worden sein; jede neue Navigation entzieht
-  das Vertrauen sofort, Zurück/Vor aus dem Zwischenspeicher bekommt keines (der Verlaufseintrag kann eine per
-  `replaceState` gesetzte Adresse tragen). Nur lokal geladene Seiten ohne Server-Antwort (`loadHTMLString`, so in
-  den Tests) gelten mit der Adresse beim Übernehmen des Dokuments, bevor ein Skript des Dokuments laufen kann. Vorausgefüllt wird nur in
-  das Dokument, das „bereit“ gemeldet hat (zufällige Kennung, nur in der Skript-Welt der App sichtbar). Verlässt der
-  Hauptrahmen die Anmeldeseiten, nachdem er dort war, entfernt die App Skript und Kanal für den Rest dieser Webansicht;
-  Inhalte (Learnweb, Stud.IP) werden nie in einer Webansicht mit eingebautem Vorausfüllen angezeigt. Tests:
-  `UniversityLoginAutofillTests` (erfundene Learnweb-Datei mit `replaceState`/`pushState`, Abschicken per
-  `requestSubmit()` durch die Seite).
-- **Getrennt je Apple-Nutzer und Hochschule:** Präfix je Nutzer, Uni und Dienst, kein Rückfall (Hildesheim sieht nie
-  LUH-Daten und umgekehrt, ein anderes Konto auf demselben iPad nichts); der Speicher eines Containers liest und
-  schreibt nur seine eigene Hochschule. Die Anmelde-Webansichten nutzen je (Nutzer, Hochschule) einen eigenen
-  `WKWebsiteDataStore(forIdentifier:)` mit der UUID des Containers, nie `.default()`; Abmelden leert genau diesen.
-  Einzige Ausnahme innerhalb derselben Hochschule, wie am PC (`config.service_credentials("QIS")`): Hat QIS der LUH
-  keine eigenen gemerkten Daten, füllt die App dort die LUH-ID aus der Stud.IP-Anmeldung vor – nur bei
-  eingeschaltetem QIS-Schalter, ohne sie zu kopieren; gemerkt wird beim Absenden unter `luh.qis.…`.
-  Gelöscht wird je Uni beim Abmelden (Stud.IP abmelden → alle LUH-Einträge des Nutzers), mit „Daten dieser Hochschule
-  löschen“ (Einstellungen → Hochschule: Container, Webdaten-Speicher, Sitzungs-Cookie, Zugangsdaten dieser Uni) und
-  beim **Konto löschen** (alle Hochschulen des Nutzers, samt aller seiner Daten auf dem iPad). **Geändert 26.10.2026:**
-  Der Wechsel der Hochschule löscht nichts mehr – die Daten der anderen Uni (auch gemerkte Zugangsdaten) bleiben
-  getrennt erhalten, damit ein Zurückwechseln alles wiederfindet (Vorgabe „Daten der anderen Uni bleiben getrennt“).
-  Beim Umzug auf diese Version ziehen Einträge ohne Nutzer-Präfix (`luh.studip.user`) zum angemeldeten Nutzer.
-  **Seit `wip/v1-pc-fix`:** Läuft beim Löschen ein Abgleich dieses Containers (Stud.IP, Learnweb/LSF, auch einer aus
-  der Zeit vor einem Wechsel der Hochschule), wird er angehalten und abgewartet, bevor Ordner, Einstellungen und
-  Webdaten verschwinden; danach prüft die App noch einmal nach. Ein Abgleich schreibt Dateien nur in einen Container
-  mit Kennzeichnung (`container.json`), legt einen gelöschten also nie neu an. Die Löschknöpfe sind gesperrt, solange
-  ein Abgleich läuft. Der Anzeigename beim Teilen einer Lösung liegt in der Einstellungs-Suite des Containers (nicht
-  mehr in den gemeinsamen Einstellungen des iPads) und geht mit „Daten dieser Hochschule löschen“ und „Konto löschen“.
-- **Neuinstallation:** Der Schlüsselbund überlebt das Löschen der App, die UserDefaults nicht. Fehlt der Merker dieser
-  Installation (`uniflow.login.installed`), leert die App den ganzen Dienst `de.uniflow.ai.university`, bevor sie
-  irgendetwas liest; gelingt das nicht (z. B. gesperrter Schlüsselbund), liest und speichert sie nichts und versucht
-  es beim nächsten Zugriff erneut. Ebenso für die **Stud.IP-Sitzungs-Cookies** (Dienst `de.uniflow.ai.studip`, Merker
-  `uniflow.studip.installed`, `StudIPCookieStore.removeLeftoversOfEarlierInstallation` beim Start, seit der Abnahme vom
-  26.10.2026): vorher galt Stud.IP nach Löschen und Neuinstallieren sofort als verbunden. So füllt eine neu installierte
-  App – auch für eine andere Person auf demselben iPad – nie die Daten der alten Installation vor und nutzt keine alte
-  Sitzung. Konto und PIN (`de.uniflow.ai.app`) liegen seit derselben Abnahme ebenfalls unter einem eigenen Dienst mit
-  `…ThisDeviceOnly` (vorher ohne Dienst und mit Backup auf andere Geräte; alte Einträge zieht die App einmal um);
-  alle drei Dienste nutzen dieselbe Umsetzung (`KeychainStore`).
+Jetzt:
+- **Anmeldefenster:** Die App öffnet die echte Anmeldeseite der gewählten Hochschule in einer `WKWebView`
+  (`StudIPWebView`, Konfiguration `loginConfiguration`: nur der `WKWebsiteDataStore` des Containers). Keine
+  Benutzerskripte, kein Nachrichtenkanal zur Seite, kein `evaluateJavaScript`/`callAsyncJavaScript` in Formulare, kein
+  Eingriff in `autocomplete`. Das Formular ist genau die Seite der Hochschule; iOS bietet dort sein Passwort-Autofill aus
+  dem Schlüsselbund bzw. iCloud-Schlüsselbund an (Schlüssel-Symbol über der Tastatur). Nach dem Laden liest die App
+  höchstens den Seiteninhalt (`document.documentElement.outerHTML`), um eine angemeldete Seite oder den Fehlertext des
+  CAS zu erkennen; eingetippte Werte stehen darin nicht.
+- **Hinweis unter dem Fenster** (`UniversityLoginHint`, Stud.IP, QIS, CAS, erster Start und Einstellungen): „Passwörter
+  merkt sich iOS (Schlüsselbund). Tippe auf das Schlüssel-Symbol über der Tastatur, um ein gespeichertes Passwort
+  einzusetzen.“ Ehrlich: In Webansichten von Apps bietet iOS das **Sichern** oft nicht von selbst an; der Hinweis
+  verspricht das nicht, sondern nennt „Passwörter“ (App unter iOS 18, Einstellungen unter iOS 17) zum Hinzufügen von Hand.
+- **Was die App behält:** die Sitzung der Hochschule (Cookies im Webdaten-Speicher des Containers, Stud.IP-Sitzungs-
+  Cookie im Dienst `de.uniflow.ai.studip`) und in Hildesheim den Learnweb-Schlüssel (`UniversityTokenStore`, Dienst
+  `de.uniflow.ai.university`, `<nutzer>.hildesheim.learnweb.token`, `WhenUnlockedThisDeviceOnly`, nicht synchronisiert).
+  Getrennt je Apple-Nutzer und Hochschule, kein Rückfall auf die andere Hochschule. Abmelden (Learnweb/LSF), „Daten
+  dieser Hochschule löschen“ und „Konto löschen“ entfernen den Schlüssel; ein Passwort hat die App dabei nicht zu
+  löschen. Was iOS gesichert hat, bleibt unter „Passwörter“ (das sagen die Rückfragen beim Abmelden und Konto löschen).
+- **Bestandsnutzer:** `UniversityPasswordCleanup` löscht beim ersten Start der neuen Fassung (Anlegen von
+  `ContainerManager`, erneut beim Öffnen eines Containers und beim Wechsel in den Vordergrund, falls der Schlüsselbund
+  beim Start gesperrt war) alle
+  Einträge `[<präfix>.]<hochschule>.<dienst>.user|password` im Dienst `de.uniflow.ai.university` – für alle Nutzer und
+  Hochschulen dieses iPads, auch ohne Nutzer-Präfix (vor den Containern) und `u-ohne-anmeldung.…` – sowie die Schalter
+  `uniflow.login.remember.…`. Erkennung im Kern (`UniversityProfile.isRetiredLoginSecret`). Learnweb-Schlüssel und
+  Sitzungen bleiben. Erledigt (`uniflow.login.passwords.removed`) erst, wenn der Schlüsselbund danach sicher keinen
+  solchen Eintrag mehr nennt (`KeychainStore.accountList`: gesperrt = nil, nicht „leer“). Der Umzug aus der Zeit vor den
+  Containern nimmt gemerkte Zugangsdaten nicht mehr mit.
+- **Neuinstallation:** unverändert. Der Schlüsselbund überlebt das Löschen der App, die UserDefaults nicht. Fehlt der
+  Merker dieser Installation (`uniflow.login.installed`), leert die App den ganzen Dienst `de.uniflow.ai.university`,
+  bevor sie etwas liest; gelingt das nicht (gesperrt), liest und speichert sie nichts und versucht es erneut. Ebenso die
+  Stud.IP-Sitzungs-Cookies (`uniflow.studip.installed`). Konto und PIN (`de.uniflow.ai.app`) wie bisher; alle Dienste
+  nutzen `KeychainStore`.
 - **Nie an einen Server:** weder an den UniFlow-Dienst noch an den PC-Server; keine Protokollzeile, keine Adresse,
-  keine Fehlermeldung enthält Passwort oder Token (Beschreibungen geschwärzt).
+  keine Fehlermeldung enthält Passwort oder Schlüssel.
 
 Grenzen und Risiken (ehrlich):
-- Wer das **entsperrte iPad** in der Hand hat, kann die Anmeldeseite öffnen und sich mit den vorausgefüllten Daten
-  anmelden; das Passwort steht im Feld (verdeckt) und ist für Skripte der echten Hochschulseite lesbar – genauso wie
-  beim Eintippen. Schutz: Geräte-Code, Schalter aus, Abmelden.
-- Ein **kompromittiertes Gerät** (Jailbreak, Schadsoftware mit Schlüsselbund-Zugriff) oder eine kompromittierte
-  Anmeldeseite selbst (z. B. XSS genau auf dem Anmeldepfad des CAS bzw. WebSSO) kann das Passwort lesen. XSS auf einer
-  anderen Seite desselben Rechners reicht dank der Bindung an die echte Navigation nicht mehr.
-- Strenger als nötig, mit Absicht: Kommt eine Anmeldeseite aus dem Zurück-Zwischenspeicher oder hat die Webansicht die
-  Anmeldeseiten schon einmal verlassen, füllt die App dort nichts vor und merkt nichts; dann die Anmeldung schließen und
-  neu öffnen.
-- Gemerkt wird beim Absenden, **nicht erst nach erfolgreicher Anmeldung**: ein vertipptes Passwort steht beim nächsten
-  Mal im Feld, bis die nächste Anmeldung es überschreibt.
-- Ändert die Hochschule Rechner, Pfad oder Feldnamen, wird nichts gemerkt oder vorausgefüllt (kein Raten); die
-  Anmeldung von Hand funktioniert weiter.
-- Eingebettete Anmeldeseiten sind nach RFC 8252 §8.12 nur ein Übergang (die App kann Eingaben technisch lesen – hier
-  tut sie es mit Zustimmung). Ziel bleibt OAuth2 mit `ASWebAuthenticationSession`, wo die Hochschule es anbietet.
-- Rechtlich offen: Die LUIS-Nutzungsordnung verlangt, das Passwort geheim zu halten, und LUIS wertet das Hinterlegen
-  von Zugangsdaten auf Systemen Dritter als unzulässig (Hinweis zu Mail-Apps mit Server-Abruf,
-  `docs/IPAD-STUDIP-SYNC.md` Abschnitt 8). Hier liegt nichts bei Dritten, nur im Schlüsselbund des eigenen Geräts;
-  vor einer Veröffentlichung mit LUIS/Datenschutz bzw. der Uni Hildesheim klären.
-- Nicht gegen echte Hochschulseiten getestet (Regel: keine echten Anmeldungen); geprüft mit erfundenen lokalen Seiten
-  in `WKWebView` (`UniFlowTests/UniversityLoginAutofillTests.swift`) und dem Schlüsselbund im Simulator
-  (`UniversityCredentialTests.swift`). Lokale Testseiten liefern keine Server-Antwort; die Bindung an die
-  Antwort-Adresse (der Weg der echten Anmeldeansicht) ist deshalb nur mit nachgestellten Delegate-Meldungen geprüft
-  (`testDocumentAddressComesFromTheRealNavigation`), nicht mit einer echten Netzantwort.
+- Eingebettete Anmeldeseiten sind nach RFC 8252 §8.12 nur ein Übergang: Eine App könnte Eingaben in ihrer Webansicht
+  technisch lesen. UniFlow tut es nicht (keine Skripte, Tests unten); Ziel bleibt OAuth2 mit
+  `ASWebAuthenticationSession`, wo die Hochschule es anbietet.
+- Ob iOS in der `WKWebView` das Sichern anbietet und gespeicherte Passwörter vorschlägt, entscheidet iOS (u. a.
+  Einstellungen → Passwörter → „Automatisch ausfüllen“, Rechner der Seite); ohne Associated Domains der Hochschulen gibt
+  es keine Zuordnung zur App. Am echten iPad zu prüfen.
+- Eine kompromittierte Anmeldeseite selbst (XSS genau auf dem Anmeldepfad) kann ein eingetipptes oder von iOS
+  eingesetztes Passwort lesen – wie in jedem Browser.
+- Rechtlich: Die LUIS-Nutzungsordnung verlangt, das Passwort geheim zu halten; die App hinterlegt es nirgends. Die
+  Anfrage „Passwort-Merken durch die App“ an die Hochschulen entfällt.
+- Geprüft ohne echte Hochschulseiten (Regel: keine echten Anmeldungen): `UniFlowTests/UniversityLoginPolicyTests.swift`
+  (echte `WKWebView` mit der Konfiguration der App und erfundenen Seiten, auch eingebettetes Fremdformular, fremde
+  Rechner, http und eine Seite desselben Rechners mit `replaceState`/`pushState`: kein Feld gefüllt, `autocomplete`
+  unverändert, kein Kanal, nach dem Absenden nichts im Schlüsselbund oder in den UserDefaults; die echten
+  Anmeldeansichten Stud.IP, QIS und CAS/LSF mit den Nachbildungen des Debug-Stubs; Quellen ohne Skript-APIs),
+  `UniversityTokenStoreTests.swift` (Learnweb-Schlüssel, einmalige Löschung auch bei gesperrtem Schlüsselbund, erster
+  Start mit `ContainerManager`).
 
 ## 2. Bedrohungen und Maßnahmen
 
 | Bedrohung | Maßnahme |
 | --- | --- |
-| Gestohlenes oder entsperrt liegengelassenes iPad | gemerkte Hochschul-Passwörter nur mit Schalter, nur entsperrt lesbar (`WhenUnlockedThisDeviceOnly`), nie automatisch abgeschickt; Abmelden/Konto löschen entfernt sie |
-| Gefälschte Anmeldeseite (Phishing) in der Webansicht | Vorausfüllen und Merken nur auf HTTPS + exakt bekanntem Rechner und Pfad je Hochschule, nur Hauptrahmen, eigene Skript-Welt |
-| Fremde Seite desselben Ursprungs täuscht per `history.replaceState` die Anmeldeadresse vor (z. B. hochgeladene Learnweb-Datei) | Vorausfüllen und Merken nur für das Dokument der letzten echten Navigation (Antwort-Adresse, unveränderte `webView.url`), Kennung je Dokument, Skript und Kanal weg, sobald die Anmeldeseiten verlassen sind |
+| Gestohlenes oder entsperrt liegengelassenes iPad | die App hat kein Hochschul-Passwort (das merkt nur iOS, geschützt durch Geräte-Code/Face ID beim Einsetzen); Learnweb-Schlüssel nur entsperrt lesbar (`WhenUnlockedThisDeviceOnly`); nie automatisch angemeldet; Abmelden/Konto löschen entfernt Sitzung und Schlüssel |
+| Gefälschte Anmeldeseite (Phishing) in der Webansicht | die App füllt nirgends etwas aus und hat keinen Kanal zur Seite; der Hauptrahmen lädt nur HTTPS; welche gespeicherten Passwörter iOS vorschlägt, entscheidet iOS (am iPad prüfen) |
+| Fremde Seite desselben Ursprungs täuscht per `history.replaceState` die Anmeldeadresse vor (z. B. hochgeladene Learnweb-Datei) | kein Vorausfüllen und kein Merken durch die App, also nichts zu erbeuten; `UniversityLoginPolicyTests` prüft das mit solchen Seiten |
 | Neuinstallation (auch durch eine andere Person) findet alte Schlüsselbund-Einträge | ohne Installations-Merker werden die Dienste `de.uniflow.ai.university` und `de.uniflow.ai.studip` geleert, bevor etwas gelesen wird |
 | Diebstahl der Server-Datenbank | keine Hochschul-Zugangsdaten auf dem Dienst; Passwörter Argon2id; Tokens nur gehasht; Notizen pro Nutzer getrennt |
 | Konto-Übernahme durch Raten | Rate-Limit je Konto und IP, Sperre mit Rückmeldung, Passwort-Mindestlänge 10, optional Passkeys (WebAuthn) |

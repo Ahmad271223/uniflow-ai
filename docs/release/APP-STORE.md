@@ -53,7 +53,7 @@ GEMEINSAM LERNEN (PLUS)
 
 DEINE DATEN
 • Alles liegt auf deinem iPad. Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
-• Hochschul-Zugangsdaten werden nur auf Wunsch im Schlüsselbund gemerkt und nie an UniFlow übertragen.
+• Dein Hochschul-Passwort speichert UniFlow nicht und überträgt es nie; merken kann es auf Wunsch iOS im Schlüsselbund.
 
 UNIFLOW FREE UND PLUS
 Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und Lernplanung. UniFlow Plus (1,99 € pro Monat, die erste Woche gratis) schaltet das Schreiben mit dem Apple Pencil, Übung und Skript nebeneinander, Karteikarten und das Teilen von Lösungen frei. Das Abo verlängert sich automatisch um einen Monat, wenn es nicht mindestens 24 Stunden vor Ende des laufenden Zeitraums in den Einstellungen deines Apple-Kontos gekündigt wird. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
@@ -94,6 +94,11 @@ Erste Version: Dateien und Termine aus Stud.IP, Bibliothek nach Modulen, Stunden
 
 **V1 (iPad ohne UniFlow-Dienst):** „Daten werden nicht erfasst.“ Begründung: Alle Daten bleiben auf dem Gerät; „Mit
 Apple anmelden“ und das Abo laufen über Apple, nicht über einen Server des Entwicklers; kein Analyse-SDK.
+Hochschul-Passwörter speichert die iPad-App nicht (Entscheidung vom 27.10.2026): Im Anmeldefenster (WKWebView ohne
+eigene Skripte) kann sie nur iOS selbst mit Passwort-Autofill im Schlüsselbund bzw. iCloud-Schlüsselbund sichern –
+das ist Apples Funktion, nicht eine Erfassung durch den Entwickler. Auf dem Gerät bleiben nur Sitzungs-Cookies und der
+Learnweb-Schlüssel; beides verlässt das Gerät nicht. Ältere Testfassungen hatten Zugangsdaten auf Wunsch selbst im
+Schlüsselbund abgelegt; die aktuelle Fassung löscht solche Einträge beim ersten Start.
 
 **Ab Anbindung des UniFlow-Dienstes (Konto, Geräteabgleich, Community):**
 
@@ -105,7 +110,8 @@ Apple anmelden“ und das Abo laufen über Apple, nicht über einen Server des E
 | Käufe → Kaufverlauf (Abo-Status) | ja | ja | nein | App-Funktionalität |
 | Standort, Kontakte, Gesundheit, Finanzdaten, Browserverlauf, Nutzungsdaten, Diagnose | nein | – | – | – |
 
-Hochschul-Zugangsdaten, die der Nutzer für den automatischen Abgleich im Konto speichert, sind „Anmeldedaten“ im
+Hochschul-Zugangsdaten, die der Nutzer für den automatischen Abgleich im Konto speichert (nur über Web/PC, nicht in der
+iPad-App), sind „Anmeldedaten“ im
 Sinne von Apples Definition **nicht** erfasst, wenn sie nur verschlüsselt zur Erbringung der vom Nutzer
 eingerichteten Funktion gespeichert werden; [[mit Apple-Dokumentation zum Zeitpunkt der Einreichung abgleichen]].
 
