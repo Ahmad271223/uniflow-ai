@@ -911,6 +911,26 @@ final class StudIPScheduleIntegrityTests: XCTestCase {
         XCTAssertEqual(normal, ["Testprogrammierung teilnahme", "Testseminar Beispiel teilnahme"])
     }
 
+    /// 428: Kurs eines frueheren Semesters (Stud.IP legt je Semester eine neue Veranstaltung mit neuer Kennung an):
+    /// seine Einzeltermine liegen im alten Semester, die abgeleitete Serie endet dort und erscheint nicht im laufenden
+    /// Semester; Kurszeiten (users/{id}/schedule) kommen ohnehin nur fuer das laufende
+    func testCourseOfAnEarlierSemesterStaysInItsSemester() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let old = apiReply(#"""
+            {"data": [
+             {"id": "ev-alt-1", "type": "course-events", "attributes": {"title": "Termin", "start": "2026-04-14T16:00:00+02:00", "end": "2026-04-14T17:30:00+02:00", "location": "Raum Alt"}},
+             {"id": "ev-alt-2", "type": "course-events", "attributes": {"title": "Termin", "start": "2026-04-21T16:00:00+02:00", "end": "2026-04-21T17:30:00+02:00", "location": "Raum Alt"}},
+             {"id": "ev-alt-3", "type": "course-events", "attributes": {"title": "Termin", "start": "2026-04-28T16:00:00+02:00", "end": "2026-04-28T17:30:00+02:00", "location": "Raum Alt"}}
+            ], "links": {}}
+            """#)
+        let (d, _) = try await download(["/jsonapi.php/v1/courses/c-sem/events?page[limit]=200": old])
+        _ = try await store(d, backend)
+        let s = try await series(backend).filter { $0.hasPrefix("Testseminar Beispiel|") }
+        XCTAssertEqual(s, ["Testseminar Beispiel|1|16:00|17:30|weekly|2026-04-14|2026-04-28|Raum Alt|seminar|studip"])
+        let now = await day(backend, "2026-10-27")
+        XCTAssertEqual(now, ["Testprogrammierung teilnahme"], "nichts aus dem alten Semester im laufenden")
+    }
+
     /// 388: Kennungen aus Einzelterminen: zwei einzelne Termine desselben Kurses zur selben Zeit an verschiedenen Tagen
     /// bleiben zwei Eintraege (der Tag gehoert zur Kennung), Kurszeiten haben ihre Stud.IP-ID
     func testSingleDatesOfTheSameCourseAndTimeKeepTheirOwnKey() throws {

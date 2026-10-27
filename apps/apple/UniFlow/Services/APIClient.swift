@@ -147,7 +147,10 @@ final class APIClient: @unchecked Sendable {
     static func url(_ path: String, base: URL) -> URL? {
         guard let url = URL(string: path, relativeTo: base)?.absoluteURL,
               url.scheme?.lowercased() == base.scheme?.lowercased(), url.host?.lowercased() == base.host?.lowercased(),
-              url.port == base.port, url.user == nil, url.standardized.path.hasPrefix("/api/") else { return nil }
+              url.port == base.port, url.user == nil else { return nil }
+        // erster Pfadteil "api" (nach Aufloesen von "..")
+        let parts = url.standardized.pathComponents
+        guard parts.count >= 3, parts[0] == "/", parts[1] == "api" else { return nil }
         return url
     }
 
