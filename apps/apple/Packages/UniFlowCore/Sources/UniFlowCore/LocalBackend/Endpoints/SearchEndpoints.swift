@@ -5,9 +5,11 @@ import Foundation
 /// `ScriptSearch`), `GET /api/files/{id}/pagetext`. Die Seitentexte liest PDFKit (`LocalDocumentTools`) und speichert
 /// sie in `page_texts` wie app/scriptsearch.py; der Index fuellt sich beim Download und beim Oeffnen.
 ///
-/// Abweichungen: `/pagetext` liest den gespeicherten Text (am PC jedes Mal neu mit pypdf; gleiche Antwort), eine
-/// nicht lesbare Datei antwortet mit eigener Meldung in `error` (am PC die Meldung von pypdf); ein `text`, der kein
-/// Text ist, und falsche Zahlen in `page` antworten mit 422 statt 500.
+/// `/pagetext` liest wie am PC (seit b718cfb) den gespeicherten Text (`page_texts`): ohne Seitentext 404 mit
+/// `code: no_content`, unbekannte Datei 404 "Datei nicht gefunden".
+///
+/// Abweichungen: ein Fehler beim Lesen der Datenbank antwortet mit eigener Meldung in `error` (am PC `str(e)`); ein
+/// `text`, der kein Text ist, und falsche Zahlen in `page` antworten mit 422 statt 500.
 public enum SearchEndpoints: LocalEndpointModule {
     public static let name = "Suche und Skriptsuche"
 
@@ -71,11 +73,20 @@ public enum SearchEndpoints: LocalEndpointModule {
                 page = v
             }
             let id = req.param("file_id")
-            let path = try await ctx.database.scalar("SELECT local_path FROM files WHERE id=?", [.text(id)])?.string
-            guard let path, !path.isEmpty, let files = ctx.files, files.exists(stored: path) else { throw LocalHTTPError.notFound() }
-            let pages = try await ScriptSearch.pageTexts(fileID: id, database: ctx.database, files: files)
-            // jede PDF hat mindestens eine Seite: keine Texte heisst nicht lesbar (am PC die Meldung von pypdf)
-            guard !pages.isEmpty else { return .json(["text": "", "error": "Seitentext nicht lesbar"]) }
+            guard try await ctx.database.queryOne("SELECT 1 FROM files WHERE id=?", [.text(id)]) != nil else {
+                throw LocalHTTPError.notFound("Datei nicht gefunden")
+            }
+            let pages: [String]
+            do {
+                pages = try await ScriptSearch.pageTexts(fileID: id, database: ctx.database, files: ctx.files)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // am PC `str(e)`; hier ohne Datenbank-Meldung nach aussen (Pruefpunkt 555)
+                return .json(["text": "", "error": "Seitentext nicht lesbar"])
+            }
+            // keine gueltigen gespeicherten Texte und keine lesbare lokale PDF (nie gelesen, nicht lesbar, keine PDF)
+            guard !pages.isEmpty else { return .json(["detail": "Kein Seitentext vorhanden.", "code": "no_content"], status: 404) }
             guard page >= 1, page <= pages.count else { return .json(["text": "", "pages": .number(Double(pages.count))]) }
             return .json(["text": .string(pages[page - 1]), "pages": .number(Double(pages.count))])
         }

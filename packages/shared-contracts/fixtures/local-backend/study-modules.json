@@ -6951,7 +6951,8 @@
     "has_notes": null,
     "ai_doc_type": null,
     "sub_label": "Vorlesung",
-    "week_hint": 2
+    "week_hint": 2,
+    "source": "studip"
    },
    {
     "id": "f-ma-07",
@@ -6976,7 +6977,8 @@
     "has_notes": null,
     "ai_doc_type": null,
     "sub_label": "Gruppenübung",
-    "week_hint": 2
+    "week_hint": 2,
+    "source": "studip"
    }
   ]
  },
@@ -7311,7 +7313,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Skript",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "klausuren": [],
@@ -7339,7 +7342,8 @@
           "has_notes": null,
           "ai_doc_type": "organisatorisch",
           "sub_label": "Organisatorisches",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -7372,7 +7376,8 @@
           "has_notes": 1,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -7399,7 +7404,8 @@
           "has_notes": null,
           "ai_doc_type": "uebung",
           "sub_label": "Gruppenübung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "loesungen": [
@@ -7426,7 +7432,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Lösung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "skripte": [],
@@ -7462,7 +7469,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -7489,7 +7497,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Gruppenübung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -7519,7 +7528,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Sonstiges",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -7552,7 +7562,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -7579,7 +7590,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -7616,7 +7628,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 4
+          "week_hint": 4,
+          "source": "studip"
          }
         ],
         "uebungen": [],
@@ -7659,7 +7672,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -7694,7 +7708,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Klausur-Lösung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "skripte": [],
@@ -7722,7 +7737,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Altklausur",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "sonstiges": []
@@ -7752,7 +7768,8 @@
         "has_notes": null,
         "ai_doc_type": "organisatorisch",
         "sub_label": "Organisatorisches",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-04",
@@ -7777,7 +7794,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Skript",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-01",
@@ -7802,7 +7820,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-ma-05",
@@ -7827,7 +7846,8 @@
         "has_notes": null,
         "ai_doc_type": "uebung",
         "sub_label": "Gruppenübung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-ma-12",
@@ -7852,7 +7872,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Sonstiges",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-02",
@@ -7877,7 +7898,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-ma-06",
@@ -7902,7 +7924,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Lösung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-ma-07",
@@ -7927,7 +7950,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Gruppenübung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-ma-03",
@@ -7952,7 +7976,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        },
        {
         "id": "f-ma-13",
@@ -7977,7 +8002,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        },
        {
         "id": "f-ma-14",
@@ -8002,7 +8028,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 4
+        "week_hint": 4,
+        "source": "studip"
        },
        {
         "id": "f-ma-08",
@@ -8027,7 +8054,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Altklausur",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-09",
@@ -8052,7 +8080,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Klausur-Lösung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-10",
@@ -8077,7 +8106,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        }
       ],
       "progress": 38,
@@ -8111,7 +8141,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        }
       ]
      }
@@ -8181,7 +8212,8 @@
           "has_notes": null,
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -8208,7 +8240,8 @@
           "has_notes": 1,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "loesungen": [
@@ -8235,7 +8268,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Lösung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "skripte": [
@@ -8262,7 +8296,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Skript",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "klausuren": [],
@@ -8290,7 +8325,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -8323,7 +8359,8 @@
           "has_notes": null,
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -8350,7 +8387,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -8378,7 +8416,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Skript",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "klausuren": [],
@@ -8414,7 +8453,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -8452,7 +8492,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -8485,7 +8526,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        },
        {
         "id": "f-bt-01",
@@ -8510,7 +8552,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Skript",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-05",
@@ -8535,7 +8578,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-bt-06",
@@ -8560,7 +8604,8 @@
         "has_notes": null,
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-bt-02",
@@ -8585,7 +8630,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-10",
@@ -8610,7 +8656,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Skript",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-bt-07",
@@ -8635,7 +8682,8 @@
         "has_notes": null,
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-bt-03",
@@ -8660,7 +8708,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-bt-04",
@@ -8685,7 +8734,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Lösung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-09",
@@ -8710,7 +8760,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        }
       ],
       "progress": 12,
@@ -8744,7 +8795,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        }
       ]
      }
@@ -8840,7 +8892,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Hörsaalübung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -8873,7 +8926,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Hörsaalübung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        }
       ],
       "progress": 0,
@@ -8948,7 +9002,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "uebungen": [],
@@ -8986,7 +9041,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -9013,7 +9069,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Tutorium",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -9050,7 +9107,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [],
@@ -9092,7 +9150,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Klausur",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "sonstiges": []
@@ -9122,7 +9181,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-pi-03",
@@ -9147,7 +9207,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-pi-02",
@@ -9172,7 +9233,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Tutorium",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-pi-04",
@@ -9197,7 +9259,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Klausur",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-pi-05",
@@ -9222,7 +9285,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        }
       ],
       "progress": 0,
@@ -9291,7 +9355,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -9318,7 +9383,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -9351,7 +9417,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-alt-02",
@@ -9376,7 +9443,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        }
       ],
       "progress": 50,
@@ -9856,7 +9924,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Skript",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "klausuren": [],
@@ -9884,7 +9953,8 @@
           "has_notes": null,
           "ai_doc_type": "organisatorisch",
           "sub_label": "Organisatorisches",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -9917,7 +9987,8 @@
           "has_notes": 1,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -9944,7 +10015,8 @@
           "has_notes": null,
           "ai_doc_type": "uebung",
           "sub_label": "Gruppenübung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "loesungen": [
@@ -9971,7 +10043,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Lösung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "skripte": [],
@@ -10007,7 +10080,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -10034,7 +10108,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Gruppenübung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -10064,7 +10139,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Sonstiges",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -10097,7 +10173,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -10124,7 +10201,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -10161,7 +10239,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 4
+          "week_hint": 4,
+          "source": "studip"
          }
         ],
         "uebungen": [],
@@ -10204,7 +10283,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -10239,7 +10319,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Klausur-Lösung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "skripte": [],
@@ -10267,7 +10348,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Altklausur",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "sonstiges": []
@@ -10297,7 +10379,8 @@
         "has_notes": null,
         "ai_doc_type": "organisatorisch",
         "sub_label": "Organisatorisches",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-04",
@@ -10322,7 +10405,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Skript",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-01",
@@ -10347,7 +10431,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-ma-05",
@@ -10372,7 +10457,8 @@
         "has_notes": null,
         "ai_doc_type": "uebung",
         "sub_label": "Gruppenübung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-ma-12",
@@ -10397,7 +10483,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Sonstiges",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-02",
@@ -10422,7 +10509,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-ma-06",
@@ -10447,7 +10535,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Lösung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-ma-07",
@@ -10472,7 +10561,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Gruppenübung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-ma-03",
@@ -10497,7 +10587,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        },
        {
         "id": "f-ma-13",
@@ -10522,7 +10613,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        },
        {
         "id": "f-ma-14",
@@ -10547,7 +10639,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 4
+        "week_hint": 4,
+        "source": "studip"
        },
        {
         "id": "f-ma-08",
@@ -10572,7 +10665,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Altklausur",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-09",
@@ -10597,7 +10691,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Klausur-Lösung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-ma-10",
@@ -10622,7 +10717,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        }
       ],
       "progress": 38,
@@ -10653,7 +10749,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        }
       ]
      }
@@ -10723,7 +10820,8 @@
           "has_notes": null,
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -10750,7 +10848,8 @@
           "has_notes": 1,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "loesungen": [
@@ -10777,7 +10876,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Lösung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "skripte": [
@@ -10804,7 +10904,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Skript",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "klausuren": [],
@@ -10832,7 +10933,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -10865,7 +10967,8 @@
           "has_notes": null,
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -10892,7 +10995,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -10920,7 +11024,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Skript",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "klausuren": [],
@@ -10956,7 +11061,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -10994,7 +11100,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -11027,7 +11134,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        },
        {
         "id": "f-bt-01",
@@ -11052,7 +11160,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Skript",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-05",
@@ -11077,7 +11186,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-bt-06",
@@ -11102,7 +11212,8 @@
         "has_notes": null,
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-bt-02",
@@ -11127,7 +11238,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-10",
@@ -11152,7 +11264,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Skript",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-bt-07",
@@ -11177,7 +11290,8 @@
         "has_notes": null,
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-bt-03",
@@ -11202,7 +11316,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-bt-04",
@@ -11227,7 +11342,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Lösung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-09",
@@ -11252,7 +11368,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        }
       ],
       "progress": 12,
@@ -11286,7 +11403,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        }
       ]
      }
@@ -11603,7 +11721,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [],
@@ -11641,7 +11760,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          },
          {
           "id": "f-pi-01",
@@ -11666,7 +11786,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -11693,7 +11814,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Tutorium",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -11734,7 +11856,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Klausur",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "sonstiges": []
@@ -11764,7 +11887,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-pi-03",
@@ -11789,7 +11913,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-pi-02",
@@ -11814,7 +11939,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Tutorium",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-pi-04",
@@ -11839,7 +11965,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Klausur",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-pi-05",
@@ -11864,7 +11991,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        }
       ],
       "progress": 0,
@@ -12571,7 +12699,8 @@
           "has_notes": null,
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -12598,7 +12727,8 @@
           "has_notes": 1,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "loesungen": [
@@ -12625,7 +12755,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Lösung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "skripte": [
@@ -12652,7 +12783,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Skript",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "klausuren": [],
@@ -12680,7 +12812,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Organisatorisches",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ]
        },
@@ -12713,7 +12846,8 @@
           "has_notes": null,
           "ai_doc_type": "vorlesung",
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [
@@ -12740,7 +12874,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Tutorium",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          },
          {
           "id": "f-bt-03",
@@ -12765,7 +12900,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -12793,7 +12929,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Skript",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "klausuren": [],
@@ -12829,7 +12966,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -12867,7 +13005,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Übung",
-          "week_hint": 3
+          "week_hint": 3,
+          "source": "studip"
          }
         ],
         "loesungen": [],
@@ -12900,7 +13039,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        },
        {
         "id": "f-bt-01",
@@ -12925,7 +13065,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Skript",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-05",
@@ -12950,7 +13091,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Organisatorisches",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-bt-06",
@@ -12975,7 +13117,8 @@
         "has_notes": null,
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-bt-02",
@@ -13000,7 +13143,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-10",
@@ -13025,7 +13169,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Skript",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-bt-07",
@@ -13050,7 +13195,8 @@
         "has_notes": null,
         "ai_doc_type": "vorlesung",
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-pi-02",
@@ -13075,7 +13221,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Tutorium",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-bt-03",
@@ -13100,7 +13247,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-bt-04",
@@ -13125,7 +13273,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Lösung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-bt-09",
@@ -13150,7 +13299,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 3
+        "week_hint": 3,
+        "source": "studip"
        }
       ],
       "progress": 11,
@@ -13184,7 +13334,8 @@
         "has_notes": 1,
         "ai_doc_type": null,
         "sub_label": "Übung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        }
       ]
      }
@@ -13248,7 +13399,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 1
+          "week_hint": 1,
+          "source": "studip"
          }
         ],
         "uebungen": [],
@@ -13286,7 +13438,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": 2
+          "week_hint": 2,
+          "source": "studip"
          }
         ],
         "uebungen": [],
@@ -13324,7 +13477,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Vorlesung",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "uebungen": [],
@@ -13366,7 +13520,8 @@
           "has_notes": null,
           "ai_doc_type": null,
           "sub_label": "Klausur",
-          "week_hint": null
+          "week_hint": null,
+          "source": "studip"
          }
         ],
         "sonstiges": []
@@ -13396,7 +13551,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 1
+        "week_hint": 1,
+        "source": "studip"
        },
        {
         "id": "f-pi-03",
@@ -13421,7 +13577,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": 2
+        "week_hint": 2,
+        "source": "studip"
        },
        {
         "id": "f-pi-04",
@@ -13446,7 +13603,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Klausur",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        },
        {
         "id": "f-pi-05",
@@ -13471,7 +13629,8 @@
         "has_notes": null,
         "ai_doc_type": null,
         "sub_label": "Vorlesung",
-        "week_hint": null
+        "week_hint": null,
+        "source": "studip"
        }
       ],
       "progress": 0,

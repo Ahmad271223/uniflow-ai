@@ -2711,7 +2711,8 @@
      "has_notes": null,
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
-     "week_hint": 3
+     "week_hint": 3,
+     "source": "studip"
     }
    ]
   },
@@ -2743,7 +2744,8 @@
      "has_notes": null,
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
-     "week_hint": 2
+     "week_hint": 2,
+     "source": "studip"
     }
    ]
   },
@@ -2775,7 +2777,8 @@
      "has_notes": null,
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
-     "week_hint": null
+     "week_hint": null,
+     "source": "studip"
     }
    ]
   },
@@ -2807,7 +2810,8 @@
      "has_notes": null,
      "ai_doc_type": null,
      "sub_label": "Skript",
-     "week_hint": null
+     "week_hint": null,
+     "source": "studip"
     }
    ]
   },
@@ -2839,7 +2843,8 @@
      "has_notes": null,
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
-     "week_hint": 1
+     "week_hint": 1,
+     "source": "studip"
     },
     {
      "id": "tf-ue-1",
@@ -2864,7 +2869,8 @@
      "has_notes": null,
      "ai_doc_type": null,
      "sub_label": "Übung",
-     "week_hint": 1
+     "week_hint": 1,
+     "source": "studip"
     },
     {
      "id": "tf-ma-2",
@@ -2889,7 +2895,8 @@
      "has_notes": null,
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
-     "week_hint": 2
+     "week_hint": 2,
+     "source": "studip"
     },
     {
      "id": "tf-ma-3",
@@ -2914,7 +2921,8 @@
      "has_notes": null,
      "ai_doc_type": null,
      "sub_label": "Vorlesung",
-     "week_hint": 3
+     "week_hint": 3,
+     "source": "studip"
     }
    ]
   },
@@ -5118,7 +5126,8 @@
       "has_notes": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      }
     ],
     "event": {
@@ -5214,7 +5223,8 @@
       "has_notes": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": 2
+      "week_hint": 2,
+      "source": "studip"
      }
     ],
     "event": {
@@ -5291,7 +5301,8 @@
       "has_notes": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": 2
+      "week_hint": 2,
+      "source": "studip"
      }
     ],
     "event": {
@@ -5361,7 +5372,8 @@
       "has_notes": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": 1
+      "week_hint": 1,
+      "source": "studip"
      },
      {
       "id": "tf-ue-1",
@@ -5386,7 +5398,8 @@
       "has_notes": null,
       "ai_doc_type": null,
       "sub_label": "Übung",
-      "week_hint": 1
+      "week_hint": 1,
+      "source": "studip"
      },
      {
       "id": "tf-ma-2",
@@ -5411,7 +5424,8 @@
       "has_notes": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": 2
+      "week_hint": 2,
+      "source": "studip"
      },
      {
       "id": "tf-ma-3",
@@ -5436,7 +5450,8 @@
       "has_notes": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": 3
+      "week_hint": 3,
+      "source": "studip"
      }
     ],
     "event": {

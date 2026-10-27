@@ -70,7 +70,7 @@ public enum StudyClassify {
     public static let lectureWeekTypes: Set<String> = ["vorlesung", "uebung", "loesung", "skript"]
 
     /// `enrich_file(f)`: `ai_doc_type` = Einschaetzung aus `analysis`, `doc_type`/`sub_label` aus `effectiveType`,
-    /// `week_hint` nur fuer Vorlesung, Uebung, Loesung und Skript (`lectureWeekTypes`).
+    /// `week_hint` nur fuer Vorlesung, Uebung, Loesung und Skript (`lectureWeekTypes`), `source` aus `fileSource`.
     public static func enrichFile(_ f: [String: JSONValue]) -> [String: JSONValue] {
         var out = f
         let ai = f["doc_type"] ?? .null
@@ -80,6 +80,24 @@ public enum StudyClassify {
         out["sub_label"] = .string(label)
         let hint = lectureWeekTypes.contains(t) ? weekHint(name: f["name"]?.string, folder: f["studip_folder"]?.string) : nil
         out["week_hint"] = hint.map { .number(Double($0)) } ?? .null
+        out["source"] = .string(fileSource(f))
         return out
+    }
+
+    // MARK: study.file_source
+
+    /// `file_source(f)`: Herkunft einer Datei fuer die Geraete: "own" (eigenes Dokument, Kurs `__user__`), "learnweb"
+    /// (IDs "lw-..." oder pluginfile.php in der Adresse, wie filestream.is_learnweb) oder "studip". Vergleiche nach
+    /// Codepunkten wie Python (`startswith`, `in`); fehlt `download_url` in der Zeile (`_file_rows`), zaehlt nur die ID.
+    public static func fileSource(_ f: [String: JSONValue]) -> String {
+        if case .string(let course)? = f["course_id"], Array(course.unicodeScalars) == Array("__user__".unicodeScalars) {
+            return "own"
+        }
+        let id = LocalModules.truthy(f["id"]) ? (f["id"]?.string ?? f["id"]?.jsonString() ?? "") : ""
+        let url = LocalModules.truthy(f["download_url"]) ? (f["download_url"]?.string ?? "") : ""
+        if Array(id.unicodeScalars.prefix(3)) == Array("lw-".unicodeScalars) || PyText.contains(url, "pluginfile.php") {
+            return "learnweb"
+        }
+        return "studip"
     }
 }

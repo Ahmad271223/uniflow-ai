@@ -8,8 +8,10 @@ import Foundation
 ///
 /// Kein `await` in einer Transaktion: erst lesen, dann die PDF ausserhalb lesen, dann kurz schreiben.
 /// Abweichung: Der Zwischenspeicher des Index (`_CACHE`) gilt hier auch fuer den Ablageort der Dateien; am PC fehlte
-/// eine erst spaeter geladene Datei bis zum Neustart im Index. Je Schluessel laeuft hoechstens ein Aufbau (weitere
-/// Anfragen warten auf ihn), und er bricht ab, wenn keine Anfrage mehr auf ihn wartet.
+/// eine erst spaeter geladene Datei im Index, bis dort neue Seitentexte gespeichert werden (`store_pages` leert den
+/// ganzen Zwischenspeicher). Auf dem Geraet aendern sich gespeicherte Texte nur mit Ablageort oder Aenderungszeit
+/// (Download, "Dateien löschen", neue Fassung), beides steht im Schluessel. Je Schluessel laeuft hoechstens ein
+/// Aufbau (weitere Anfragen warten auf ihn), und er bricht ab, wenn keine Anfrage mehr auf ihn wartet.
 public enum ScriptSearch {
 
     /// `STOP` (gleiche Woerter wie in app/scriptsearch.py)
@@ -133,24 +135,27 @@ public enum ScriptSearch {
 
     /// Was `page_texts(conn, file_id)` vorfindet
     enum StoredPages: Sendable {
-        /// keine lokale PDF: keine Seitentexte
+        /// unbekannte Datei, oder keine gueltigen Texte und keine lokale PDF: keine Seitentexte
         case unavailable
-        /// gespeichert und so alt wie die Datei
+        /// gespeichert und so alt wie die Datei (auch ohne lokale Datei, z. B. nach "Dateien löschen")
         case fresh([String])
         /// neu lesen (noch nicht gelesen oder die Datei hat eine neuere Aenderungszeit)
         case read(URL, chdate: SQLiteValue)
     }
 
-    /// Erster Teil von `page_texts`: Datei mit lokaler PDF? Gespeicherte Texte noch gueltig?
+    /// Erster Teil von `page_texts` (Stand b718cfb): gespeicherte Texte derselben Fassung gelten, auch wenn die Datei
+    /// nicht (mehr) auf dem Geraet liegt; sonst neu lesen, wenn eine lokale PDF da ist. Am PC kommen ohne Datei auf der
+    /// Platte die Texte im Dienst vom Durchreichen (filestream) oder vom Geraet (PUT /pagetext); das Geraet liest nur
+    /// seine eigenen Dateien.
     static func storedPages(_ c: SQLiteConnection, fileID: String, files: LocalFiles?) throws -> StoredPages {
-        guard let f = try c.queryOne("SELECT local_path, chdate FROM files WHERE id=?", [.text(fileID)]),
-              let path = f["local_path"]?.string, !path.isEmpty, let files, files.exists(stored: path), hasPDFSuffix(path),
-              let url = files.url(stored: path) else { return .unavailable }
+        guard let f = try c.queryOne("SELECT local_path, chdate FROM files WHERE id=?", [.text(fileID)]) else { return .unavailable }
         let chdate = f["chdate"] ?? .null
         let rows = try c.query("SELECT page, text, chdate FROM page_texts WHERE file_id=? ORDER BY page", [.text(fileID)])
         if !rows.isEmpty, rows.allSatisfy({ ($0["chdate"]?.double ?? 0) == (chdate.double ?? 0) }) {
             return .fresh(rows.map { $0["text"]?.string ?? "" })
         }
+        guard let path = f["local_path"]?.string, !path.isEmpty, let files, files.exists(stored: path), hasPDFSuffix(path),
+              let url = files.url(stored: path) else { return .unavailable }
         return .read(url, chdate: chdate)
     }
 
@@ -168,7 +173,8 @@ public enum ScriptSearch {
     }
 
     /// `page_texts(conn, file_id)`: alle Seitentexte einer Datei, aus dem Zwischenspeicher oder neu gelesen (PDFKit in
-    /// der App) und gespeichert. Leer ohne lokale PDF oder wenn sie sich nicht lesen laesst.
+    /// der App) und gespeichert. Leer ohne gueltige gespeicherte Texte und ohne lokale PDF, oder wenn sie sich nicht
+    /// lesen laesst.
     public static func pageTexts(fileID: String, database: SQLiteDatabase, files: LocalFiles?) async throws -> [String] {
         let state = try await database.withConnection { try storedPages($0, fileID: fileID, files: files) }
         switch state {

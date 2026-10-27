@@ -429,6 +429,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k1",
       "studip_folder": "Übungen",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f2/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": null,
@@ -439,7 +441,8 @@
       "edited_at": "2026-10-22T09:00:00",
       "ai_doc_type": null,
       "sub_label": "Übung",
-      "week_hint": 2
+      "week_hint": 2,
+      "source": "studip"
      },
      {
       "id": "f1",
@@ -456,6 +459,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k1",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f1/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": null,
@@ -466,7 +471,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": 1
+      "week_hint": 1,
+      "source": "studip"
      },
      {
       "id": "f3",
@@ -483,6 +489,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k2",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f3/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": null,
@@ -493,7 +501,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "f4",
@@ -510,6 +519,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k2",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f4/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": null,
@@ -520,7 +531,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "f5",
@@ -537,6 +549,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k1",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f5/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": null,
@@ -547,7 +561,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "f6",
@@ -564,6 +579,8 @@
       "downloaded_at": null,
       "course_id": "k1",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f6/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": null,
@@ -574,7 +591,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "f8",
@@ -591,6 +609,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k2",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f8/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": null,
@@ -601,7 +621,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "f9",
@@ -618,6 +639,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k4",
       "studip_folder": "Vorlesung",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f9/content",
+      "content_sha256": null,
       "module_id": 1,
       "subject": "Testfach Mechanik",
       "course_kind": "vorlesung",
@@ -628,7 +651,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": 1
+      "week_hint": 1,
+      "source": "studip"
      },
      {
       "id": "f10",
@@ -645,6 +669,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k5",
       "studip_folder": "Übung",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f10/content",
+      "content_sha256": null,
       "module_id": 1,
       "subject": "Testfach Mechanik",
       "course_kind": "uebung",
@@ -655,7 +681,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Übung",
-      "week_hint": 1
+      "week_hint": 1,
+      "source": "studip"
      },
      {
       "id": "f11",
@@ -672,6 +699,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k6",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f11/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": "Testbegrüßung",
       "course_kind": "sonstiges",
@@ -682,7 +711,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "u1",
@@ -699,6 +729,8 @@
       "downloaded_at": "2026-10-21T11:00:00",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -709,7 +741,8 @@
       "edited_at": "2026-10-21T11:00:00",
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "u2",
@@ -726,6 +759,8 @@
       "downloaded_at": "2026-10-21T12:00:00",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -736,7 +771,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Skript",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      }
     ],
     "modules": [
@@ -895,7 +931,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "studip"
     },
     {
      "id": "f1",
@@ -933,7 +970,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f3",
@@ -971,7 +1009,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f4",
@@ -1009,7 +1048,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f5",
@@ -1047,7 +1087,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f6",
@@ -1085,7 +1126,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f7",
@@ -1123,7 +1165,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f8",
@@ -1161,7 +1204,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f9",
@@ -1199,7 +1243,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f10",
@@ -1237,7 +1282,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f11",
@@ -1275,7 +1321,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "u1",
@@ -1313,7 +1360,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "own"
     },
     {
      "id": "u2",
@@ -1351,7 +1399,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "own"
     }
    ]
   },
@@ -1396,7 +1445,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "studip"
     },
     {
      "id": "f1",
@@ -1434,7 +1484,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f5",
@@ -1472,7 +1523,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f6",
@@ -1510,7 +1562,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     }
    ]
   },
@@ -1555,7 +1608,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f10",
@@ -1593,7 +1647,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     }
    ]
   },
@@ -1638,7 +1693,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "studip"
     },
     {
      "id": "f1",
@@ -1676,7 +1732,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f3",
@@ -1714,7 +1771,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f4",
@@ -1752,7 +1810,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f5",
@@ -1790,7 +1849,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f6",
@@ -1828,7 +1888,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f7",
@@ -1866,7 +1927,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f8",
@@ -1904,7 +1966,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f9",
@@ -1942,7 +2005,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f10",
@@ -1980,7 +2044,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f11",
@@ -2018,7 +2083,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "u1",
@@ -2056,7 +2122,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "own"
     },
     {
      "id": "u2",
@@ -2094,7 +2161,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "own"
     }
    ]
   },
@@ -4316,6 +4384,8 @@
       "downloaded_at": "2026-10-25T14:30:05",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4326,7 +4396,8 @@
       "edited_at": "2026-10-25T14:30:05",
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "u00000004000000000000000",
@@ -4343,6 +4414,8 @@
       "downloaded_at": "2026-10-25T14:30:05",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4353,7 +4426,8 @@
       "edited_at": "2026-10-25T14:30:05",
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "u00000005000000000000000",
@@ -4370,6 +4444,8 @@
       "downloaded_at": "2026-10-25T14:30:05",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4380,7 +4456,8 @@
       "edited_at": "2026-10-25T14:30:05",
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "u00000006000000000000000",
@@ -4397,6 +4474,8 @@
       "downloaded_at": "2026-10-25T14:30:05",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4407,7 +4486,8 @@
       "edited_at": "2026-10-25T14:30:05",
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "u00000007000000000000000",
@@ -4424,6 +4504,8 @@
       "downloaded_at": "2026-10-25T14:30:05",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4434,7 +4516,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "u0000000a000000000000000",
@@ -4451,6 +4534,8 @@
       "downloaded_at": "2026-10-25T14:30:05",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4461,7 +4546,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "u0000000c000000000000000",
@@ -4478,6 +4564,8 @@
       "downloaded_at": "2026-10-21T11:00:00",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4488,7 +4576,8 @@
       "edited_at": "2026-10-25T14:30:05",
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "f4",
@@ -4505,6 +4594,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k2",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f4/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "uebung",
@@ -4515,7 +4606,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "f8",
@@ -4532,6 +4624,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k2",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f8/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "uebung",
@@ -4542,7 +4636,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "f9",
@@ -4559,6 +4654,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k4",
       "studip_folder": "Vorlesung",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f9/content",
+      "content_sha256": null,
       "module_id": 1,
       "subject": "Testfach Mechanik",
       "course_kind": "vorlesung",
@@ -4569,7 +4666,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Vorlesung",
-      "week_hint": 1
+      "week_hint": 1,
+      "source": "studip"
      },
      {
       "id": "f10",
@@ -4586,6 +4684,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k5",
       "studip_folder": "Übung",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f10/content",
+      "content_sha256": null,
       "module_id": 1,
       "subject": "Testfach Mechanik",
       "course_kind": "uebung",
@@ -4596,7 +4696,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Übung",
-      "week_hint": 1
+      "week_hint": 1,
+      "source": "studip"
      },
      {
       "id": "f11",
@@ -4613,6 +4714,8 @@
       "downloaded_at": "2026-10-20T10:00:00",
       "course_id": "k6",
       "studip_folder": "",
+      "download_url": "https://studip.test/jsonapi.php/v1/file-refs/f11/content",
+      "content_sha256": null,
       "module_id": null,
       "subject": "Testbegrüßung",
       "course_kind": "sonstiges",
@@ -4623,7 +4726,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "studip"
      },
      {
       "id": "u1",
@@ -4640,6 +4744,8 @@
       "downloaded_at": "2026-10-21T11:00:00",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4650,7 +4756,8 @@
       "edited_at": "2026-10-21T11:00:00",
       "ai_doc_type": null,
       "sub_label": "Sonstiges",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      },
      {
       "id": "u2",
@@ -4667,6 +4774,8 @@
       "downloaded_at": "2026-10-21T12:00:00",
       "course_id": "__user__",
       "studip_folder": null,
+      "download_url": "",
+      "content_sha256": null,
       "module_id": null,
       "subject": null,
       "course_kind": "sonstiges",
@@ -4677,7 +4786,8 @@
       "edited_at": null,
       "ai_doc_type": null,
       "sub_label": "Skript",
-      "week_hint": null
+      "week_hint": null,
+      "source": "own"
      }
     ],
     "modules": [
@@ -4843,7 +4953,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "own"
     },
     {
      "id": "u00000004000000000000000",
@@ -4881,7 +4992,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "own"
     },
     {
      "id": "u00000005000000000000000",
@@ -4919,7 +5031,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "own"
     },
     {
      "id": "u00000006000000000000000",
@@ -4957,7 +5070,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "own"
     },
     {
      "id": "u00000007000000000000000",
@@ -4995,7 +5109,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "own"
     },
     {
      "id": "u0000000a000000000000000",
@@ -5033,7 +5148,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "own"
     },
     {
      "id": "u0000000c000000000000000",
@@ -5071,7 +5187,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "own"
     },
     {
      "id": "f2",
@@ -5109,7 +5226,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "studip"
     },
     {
      "id": "f1",
@@ -5147,7 +5265,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "studip"
     },
     {
      "id": "f3",
@@ -5185,7 +5304,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f4",
@@ -5223,7 +5343,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f5",
@@ -5261,7 +5382,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f6",
@@ -5299,7 +5421,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f7",
@@ -5337,7 +5460,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f8",
@@ -5375,7 +5499,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f9",
@@ -5413,7 +5538,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f10",
@@ -5451,7 +5577,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "f11",
@@ -5489,7 +5616,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "studip"
     },
     {
      "id": "u1",
@@ -5527,7 +5655,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": 1
+     "has_notes": 1,
+     "source": "own"
     },
     {
      "id": "u2",
@@ -5565,7 +5694,8 @@
      "difficulty": null,
      "est_minutes": null,
      "summary": null,
-     "has_notes": null
+     "has_notes": null,
+     "source": "own"
     }
    ]
   }
