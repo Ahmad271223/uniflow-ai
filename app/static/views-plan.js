@@ -1,5 +1,6 @@
 // Lernkalender: Woche (Zeitraster), Tag (Zeitleiste), Monat, Aufgabenliste; Lernpakete, Nachholen, Neuplanung, Lernkombination
 import { holClass, holChips, dlChips, noteChips, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=29";
+import { tinyNames } from "./plan-names.js?v=29";
 
 export const planState = { view: "week", date: todayISO(), module: "" };
 const KIND_ICON = { vorlesung: "book", uebung: "pencil", gruppenuebung: "users", hoersaaluebung: "pencil", tutorium: "users", persoenlich: "user", sonstiges: "calendar" };
@@ -55,8 +56,10 @@ export async function viewPlan(_, params, view) {
 const H = 60;
 function range(days) { const ev = days.flatMap(dd => [...(dd.events || []), ...dd.packages.filter(p => p.start_time).map(p => ({ start: p.start_time, end: p.end_time }))]); const lo = Math.min(8 * 60, ...ev.map(e => hm(e.start))); const hi = Math.max(19 * 60, ...ev.map(e => hm(e.end))); return { lo: Math.floor(lo / 60) * 60, hi: Math.ceil(hi / 60) * 60 }; }
 export function ring(p, color) { return `<span class="ring" style="--p:${Math.max(0, Math.min(100, p || 0))};--rc:${color || "var(--ok)"}"></span>`; }
-const TINY = [[/Mathematik für die Ingenieurwissenschaften III.*|.*Numerik.*/i, "Numerik"], [/Mathematik( für die Ingenieurwissenschaften)? I\b.*/i, "Mathe I"], [/Elektrotechni.*/i, "ET"], [/Signale und Systeme.*/i, "SigSys"], [/Datenstrukturen (und|&) Algorithmen.*/i, "DSA"], [/Programmieren I\b.*/i, "Prog I"], [/Einführung in die Informatik.*/i, "Info"], [/Grundlagen digitaler Systeme.*|Digitale Systeme.*/i, "DigiSys"]];
-function tinyName(s) { let t = (s || "").trim(), pre = ""; const m = t.match(/^(Übung zu |Übung: |Gruppenübung: |Hörsaalübung: |Tutorium: )/); if (m) { pre = "Ü "; t = t.slice(m[0].length); } for (const [re, r] of TINY) if (re.test(t)) { t = r; break; } return pre + t; }
+// Kurznamen enger Bloecke (app/static/plan-names.js): eindeutig je Fach ueber alle Tage der Ansicht
+function planTinyNames(days) {
+  return tinyNames(days.flatMap(dd => [...(dd.events || []).map(e => ({ title: e.title, module_id: e.module_id })), ...dd.packages.map(p => ({ title: p.subject, module_id: p.module_id }))]));
+}
 function sideOff() { try { const v = localStorage.getItem("cal-side"); return v ? v === "off" : window.innerWidth < 1400; } catch { return window.innerWidth < 1400; } }
 async function freeMap(start, end) { const out = {}; for (const w of new Set([iso(mondayOf(start)), iso(mondayOf(end))])) { try { const tw = await api(`/timetable/week?start=${w}`); tw.days.forEach(x => { out[x.date] = x.free || []; }); } catch {} } return out; }
 // Gleichzeitige Termine nebeneinander (Spuren) statt uebereinander
@@ -73,23 +76,23 @@ function dayHead(dd, compact) {
   const txt = dd.status === "frei" ? "Frei" : dd.minutes ? fmtMin(dd.minutes) : (compact ? "–" : "Nichts geplant");
   return `<div class="cal2-dh ${dd.date === todayISO() ? "today" : ""} ${holClass(dd)}" data-date="${dd.date}"><div class="wd">${DAYS[dd.weekday]}</div><div class="dn">${dt.getDate()}.${dt.getMonth() + 1}.</div><div class="pm">${dd.tasks_total ? ring(p, col) : ""}<span>${txt}</span></div>${holChips(dd, compact)}${dlChips(dd, compact)}${noteChips(dd, true)}</div>`;
 }
-function evBlock(e, px, dateStr, L, compact) {
-  const off = e.status !== "teilnahme"; const P = posStyle(px, hm(e.start), hm(e.end), L); const name = compact || (L?.n || 1) > 1 ? tinyName(e.title) : shortName(e.title);
+function evBlock(e, px, dateStr, L, compact, tn) {
+  const off = e.status !== "teilnahme"; const P = posStyle(px, hm(e.start), hm(e.end), L); const name = compact || (L?.n || 1) > 1 ? tn.get(e.title || "") : shortName(e.title);
   return `<div class="cal2-ev ${off ? "off" : ""} ${(L?.n || 1) >= 3 || (compact && (L?.n || 1) >= 2) ? "narrow" : ""}" style="--ec:${e.color || "var(--accent)"};${P.css}" data-ev="${e.event_id}" data-date="${dateStr}" title="${esc(e.title)} ${e.start}–${e.end}${e.room ? " · " + esc(e.room) : ""}${e.note ? " · " + esc(e.note) : ""}"><div class="t">${e.start}${compact ? "" : ` – ${e.end}`}</div><b>${esc(name)}</b>${P.h > 54 ? `<div class="r">${esc((e.room || KIND_LABEL[e.kind] || "").split(":")[0])}</div>` : ""}</div>`;
 }
-function pkgBlock(p, px, L, compact) {
-  const P = posStyle(px, hm(p.start_time), hm(p.end_time), L); const done = p.tasks.filter(t => t.status === "erledigt").length; const name = compact || (L?.n || 1) > 1 ? tinyName(p.subject) : shortName(p.subject);
+function pkgBlock(p, px, L, compact, tn) {
+  const P = posStyle(px, hm(p.start_time), hm(p.end_time), L); const done = p.tasks.filter(t => t.status === "erledigt").length; const name = compact || (L?.n || 1) > 1 ? tn.get(p.subject || "") : shortName(p.subject);
   return `<div class="cal2-ev study ${p.status} ${(L?.n || 1) >= 3 || (compact && (L?.n || 1) >= 2) ? "narrow" : ""}" style="--ec:${p.color || "var(--info)"};${P.css}" data-pkg="${p.id}" title="Lernblock · ${esc(p.subject)}: ${esc(p.title)}"><div class="t">${icon("book", 11)} ${p.start_time}${compact ? "" : ` – ${p.end_time}`}</div><b>${esc(name)}</b>${P.h > 54 ? `<div class="r">${esc(p.title)}</div>` : ""}${P.h > 88 && !compact ? `<div class="foot">${statusPill(p.status)}<span class="chk ${p.status === "erledigt" ? "on" : ""}" data-pkgdone="${p.id}" title="${done}/${p.tasks.length} erledigt">${p.status === "erledigt" ? icon("check", 11) : ""}</span></div>` : ""}</div>`;
 }
 function weekGrid(days, free = {}) {
   const { lo, hi } = range(days); const px = m => (m - lo) / 60 * H; const t = todayISO(); const now = new Date(); const nowM = now.getHours() * 60 + now.getMinutes();
-  const compact = days.length >= 7 && window.innerWidth < 1500;
+  const compact = days.length >= 7 && window.innerWidth < 1500; const tn = planTinyNames(days);
   const unslotted = days.flatMap(dd => dd.packages.filter(p => !p.start_time && p.tasks.length).map(p => ({ ...p, _d: dd.date }))); // leere Pakete brauchen keine Uhrzeit
   const col = dd => {
     const evs = (dd.events || []).filter(e => e.status !== "verschoben"); const pks = dd.packages.filter(p => p.start_time);
     const L = lanes([...evs.map(e => ({ s: hm(e.start), e: hm(e.end) })), ...pks.map(p => ({ s: hm(p.start_time), e: hm(p.end_time) }))]);
     const fr = (free[dd.date] || []).filter(w => w.end > lo && w.start < hi).map(w => `<div class="cal2-free" style="top:${px(Math.max(lo, w.start))}px;height:${px(Math.min(hi, w.end)) - px(Math.max(lo, w.start))}px" title="Frei ${w.start_hm}–${w.end_hm}"></div>`).join("");
-    return `<div class="cal2-col ${dd.date === t ? "today" : ""} ${holClass(dd)}" style="height:${px(hi)}px;--hour:${H}px" data-date="${dd.date}">${fr}${evs.map((e, i) => evBlock(e, px, dd.date, L[i], compact)).join("")}${pks.map((p, i) => pkgBlock(p, px, L[evs.length + i], compact)).join("")}${dd.date === t && nowM >= lo && nowM <= hi ? `<div class="cal2-now" style="top:${px(nowM)}px"></div>` : ""}${dd.date === t ? `<button class="cal2-add" data-add="${dd.date}" title="Lernpaket hinzufügen">${icon("plus", 16)}</button>` : ""}</div>`;
+    return `<div class="cal2-col ${dd.date === t ? "today" : ""} ${holClass(dd)}" style="height:${px(hi)}px;--hour:${H}px" data-date="${dd.date}">${fr}${evs.map((e, i) => evBlock(e, px, dd.date, L[i], compact, tn)).join("")}${pks.map((p, i) => pkgBlock(p, px, L[evs.length + i], compact, tn)).join("")}${dd.date === t && nowM >= lo && nowM <= hi ? `<div class="cal2-now" style="top:${px(nowM)}px"></div>` : ""}${dd.date === t ? `<button class="cal2-add" data-add="${dd.date}" title="Lernpaket hinzufügen">${icon("plus", 16)}</button>` : ""}</div>`;
   };
   return `<div class="cal2-grid" style="grid-template-columns:44px repeat(${days.length}, minmax(${days.length > 3 ? 78 : 0}px, 1fr))"><div></div>${days.map(dd => dayHead(dd, compact)).join("")}
     <div class="cal2-axis" style="height:${px(hi)}px">${Array.from({ length: (hi - lo) / 60 + 1 }, (_, i) => `<span style="top:${px(lo + i * 60)}px">${mh(lo + i * 60)}</span>`).join("")}</div>
