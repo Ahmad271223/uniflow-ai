@@ -108,6 +108,18 @@ def _extract_bytes(data: bytes) -> list[str]:
     return pages
 
 
+def store_pages(conn, file_id: str, pages: list[str], chdate) -> None:
+    """Seitentexte einer Datei ablegen (alte Fassung weg), mit `chdate` der Datei und der Suchform fuer find_pages.
+    Gemeinsam fuer PDF auf der Platte, Durchreichen (index_bytes) und den Geraete-Abgleich (PUT /api/files/{id}/pagetext,
+    das Geraet liest den Text selbst). Der BM25-Index je Modul wird verworfen, damit /api/related die Seiten sieht."""
+    ensure_table(conn)
+    conn.execute("DELETE FROM page_texts WHERE file_id=?", (file_id,))
+    conn.executemany("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
+                     [(file_id, i + 1, t or "", chdate, search_form(t or "")) for i, t in enumerate(pages)])
+    with _LOCK:
+        _CACHE.clear()
+
+
 def index_bytes(conn, file_id: str, data: bytes, chdate) -> list[str]:
     """Seitentexte aus Bytes (Betriebsart stream: Datei liegt nicht auf der Platte) ablegen, wenn noch nicht vorhanden."""
     ensure_table(conn)
@@ -118,9 +130,7 @@ def index_bytes(conn, file_id: str, data: bytes, chdate) -> list[str]:
         pages = _extract_bytes(data)
     except Exception:  # noqa: BLE001
         return []
-    conn.execute("DELETE FROM page_texts WHERE file_id=?", (file_id,))
-    conn.executemany("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
-                     [(file_id, i + 1, t, chdate, search_form(t)) for i, t in enumerate(pages)])
+    store_pages(conn, file_id, pages, chdate)
     return pages
 
 
@@ -148,9 +158,7 @@ def page_texts(conn, file_id: str) -> list[str]:
         pages = _extract_pages(f["local_path"])
     except Exception:  # noqa: BLE001
         return []
-    conn.execute("DELETE FROM page_texts WHERE file_id=?", (file_id,))
-    conn.executemany("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
-                     [(file_id, i + 1, t, f["chdate"] or 0, search_form(t)) for i, t in enumerate(pages)])
+    store_pages(conn, file_id, pages, f["chdate"] or 0)
     return pages
 
 
@@ -251,17 +259,21 @@ def find_pages(conn, q: str, limit: int = 10) -> list[dict]:
     """Seiten, deren gespeicherter Text den Suchtext enthaelt (globale Suche). Nur Seitentexte der aktuellen Fassung
     (gleiche Aenderungszeit wie die Datei) von Dateien, die vorhanden sind (nach "Dateien löschen" kein Treffer, der
     sich nicht oeffnen laesst), nicht im Papierkorb und aus gewaehlten Kursen (wie die Bibliothek); gelesen wird dabei
-    nichts neu. `q` ist schon klein geschrieben. Verglichen wird die Suchform von Text und Anfrage (search_form), % und
-    _ in der Anfrage sind keine Platzhalter (like_pattern); Zeilen von vor der Suchform bekommen sie hier."""
+    nichts neu. In der Betriebsart stream (Dienst) gilt eine Hochschuldatei mit Quelle als vorhanden: das Geraet laedt
+    sie selbst bzw. der Dienst reicht sie durch, auf der Platte liegt sie nie. `q` ist schon klein geschrieben.
+    Verglichen wird die Suchform von Text und Anfrage (search_form), % und _ in der Anfrage sind keine Platzhalter
+    (like_pattern); Zeilen von vor der Suchform bekommen sie hier."""
     ensure_table(conn)
     for r in db.rows(conn, "SELECT file_id, page, text FROM page_texts WHERE search IS NULL"):
         conn.execute("UPDATE page_texts SET search=? WHERE file_id=? AND page=?", (search_form(r["text"]), r["file_id"], r["page"]))
     rows = db.rows(conn, """SELECT p.file_id, p.page, p.text, f.name, a.title AS ai_title, c.subject, c.module_id
                              FROM page_texts p JOIN files f ON f.id=p.file_id JOIN courses c ON c.id=f.course_id
                              LEFT JOIN analysis a ON a.file_id=f.id
-                             WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0) AND COALESCE(f.local_path, '')<>''
+                             WHERE COALESCE(p.chdate, 0)=COALESCE(f.chdate, 0)
+                               AND (COALESCE(f.local_path, '')<>'' OR (? AND COALESCE(f.download_url, '')<>'' AND f.course_id<>'__user__'))
                                AND f.deleted_at IS NULL AND c.active=1 AND p.search LIKE ? ESCAPE '!'
-                             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?""", (like_pattern(search_form(q)), limit))
+                             ORDER BY f.chdate DESC, p.file_id, p.page LIMIT ?""",
+                   (1 if config.streams_files() else 0, like_pattern(search_form(q)), limit))
     return [{"file_id": r["file_id"], "page": r["page"], "name": r["name"], "ai_title": r["ai_title"], "subject": r["subject"],
              "module_id": r["module_id"], "snippet": _snippet(normalize(r["text"]), [q])} for r in rows]
 

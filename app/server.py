@@ -495,7 +495,10 @@ def files(course_id: str | None = None, subject: str | None = None):
         params.append(subject)
     sql += " ORDER BY f.chdate DESC"
     with db.cursor() as conn:
-        return db.rows(conn, sql, params)
+        rows = db.rows(conn, sql, params)
+    for f in rows:                                   # f.* bringt download_url und content_sha256 schon mit
+        f["source"] = study.file_source(f)
+    return rows
 
 
 @app.get("/api/files/{file_id}")
@@ -562,6 +565,60 @@ def file_fingerprint(file_id: str):
                 raise _stream_error(e)
             return {"sha256": sha, "source": "hochschule"}
     raise HTTPException(404, {"detail": "Datei nicht vorhanden.", "code": "no_content"})
+
+
+# ---------------------------------------------------------------- Geraete-Abgleich: das Geraet laedt die Hochschuldatei selbst
+# (eigene Hochschul-Anmeldung in der App, Download mit der Sitzung des Geraets) und meldet dem Dienst nur Fingerabdruck
+# und Seitentext. Beides sind abgeleitete Daten; der Dienst bekommt die Datei nie zu sehen. Restrisiko ein falscher
+# Wert: hoechstens Spam in der Community (ein Paket ohne die passende PDF ist fuer niemanden lesbar) und ein unpassender
+# Suchtreffer im eigenen Konto - kein Zugriff auf fremde Daten, da jedes Konto nur Dateien seiner eigenen Datenbank meldet.
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+PAGETEXT_MAX_PAGES, PAGETEXT_MAX_CHARS = 2000, 20000
+
+
+def _device_file(conn, file_id: str) -> dict:
+    """Datei, fuer die ein Geraet Fingerabdruck oder Seitentext melden darf: eine Hochschuldatei (kein eigenes
+    Dokument), die nicht auf der Platte des Dienstes liegt - sonst kennt der Dienst den Inhalt selbst besser."""
+    f = _found(db.row(conn, "SELECT id, course_id, local_path, chdate, content_sha256 FROM files WHERE id=?", (file_id,)), "Datei")
+    if f["course_id"] == "__user__":
+        raise HTTPException(400, {"detail": "Eigene Dokumente liegen beim Dienst; nur Hochschuldateien werden vom Gerät gemeldet.", "code": "not_university_file"})
+    if f["local_path"] and Path(f["local_path"]).exists():
+        raise HTTPException(400, {"detail": "Die Datei liegt beim Dienst; Fingerabdruck und Seitentext kommen von dort.", "code": "file_stored"})
+    return f
+
+
+@app.put("/api/files/{file_id}/fingerprint")
+def put_file_fingerprint(file_id: str, body: dict = Body(...)):
+    """Fingerabdruck (SHA-256, Community-Schluessel) einer Hochschuldatei, die das Geraet selbst geladen hat. Gesetzt
+    wird er nur, wenn der Dienst noch keinen kennt; ein bekannter gleicher Wert ist ok, ein anderer 409 (der Dienst
+    kennt die Datei anders - neue Fassung erst abgleichen)."""
+    sha = str(body.get("sha256") or "").strip().lower()
+    if not _SHA256_RE.match(sha):
+        raise HTTPException(400, {"detail": "sha256: 64 Hex-Zeichen erwartet.", "code": "fingerprint_invalid"})
+    with db.cursor() as conn:
+        f = _device_file(conn, file_id)
+        if f["content_sha256"] and f["content_sha256"] != sha:
+            raise HTTPException(409, {"detail": "Der Dienst kennt diese Datei mit einem anderen Fingerabdruck.", "code": "fingerprint_mismatch"})
+        if not f["content_sha256"]:
+            conn.execute("UPDATE files SET content_sha256=? WHERE id=?", (sha, file_id))
+    return {"sha256": sha, "source": "geraet"}
+
+
+@app.put("/api/files/{file_id}/pagetext")
+def put_page_text(file_id: str, body: dict = Body(...)):
+    """Seitentexte einer Hochschuldatei vom Geraet (fuer Suche und Uebung <-> Skript), abgelegt mit der Aenderungszeit
+    der Datei wie beim Durchreichen; ersetzt eine aeltere Fassung."""
+    from . import scriptsearch
+    pages = body.get("pages")
+    if (not isinstance(pages, list) or not 1 <= len(pages) <= PAGETEXT_MAX_PAGES
+            or not all(isinstance(p, str) and len(p) <= PAGETEXT_MAX_CHARS for p in pages)):
+        raise HTTPException(400, {"detail": f"pages: Liste mit 1 bis {PAGETEXT_MAX_PAGES} Seitentexten, je höchstens {PAGETEXT_MAX_CHARS} Zeichen.",
+                                  "code": "pagetext_invalid"})
+    with db.cursor() as conn:
+        f = _device_file(conn, file_id)
+        scriptsearch.store_pages(conn, file_id, pages, f["chdate"])
+    return {"pages": len(pages)}
 
 
 @app.patch("/api/files/{file_id}")
@@ -1588,6 +1645,39 @@ def put_learnweb_token(body: dict = Body(...)):
     return {"ok": True, "token_set": True}
 
 
+# Weitere Hosts der LUH-Anmeldung (WebSSO/Shibboleth), die das Geraet in seiner Anmeldeansicht zulassen muss
+_LUH_SSO_HOSTS = ("sso.idm.uni-hannover.de", "login.uni-hannover.de")
+
+
+def university_profile(key: str) -> dict:
+    """Anmeldeprofil einer Hochschule fuer die Anmeldung auf dem Geraet (Android/iPad): Startseite, Pruef-Adresse,
+    Sitzungscookie, erlaubte Hosts, Datei-Host. Dieselben Werte wie packages/shared-contracts/fixtures/learnweb/
+    launch.json -> profiles (tools/gen-learnweb-fixture.py), aus denselben Konstanten. Fuer Hildesheim gilt
+    HILDESHEIM_LEARNWEB_URL des Kontos als Ueberschreibung der Learnweb-Adresse; kein Netz-Probing in der Anfrage."""
+    from urllib.parse import urlsplit
+    from . import studip_sync, universities
+    uni = universities.PROFILES[key]
+    out = {"key": key, "name": uni["name"], "launch_scheme": "uniflow"}
+    if key == "hildesheim":
+        lw = (config.secret("HILDESHEIM_LEARNWEB_URL") or universities.LEARNWEB_BASE).rstrip("/")
+        host = urlsplit(lw).hostname or ""
+        out.update({"login_url": f"{lw}/login/index.php?authCAS=CAS", "logged_in_check_url": f"{lw}/my/", "session_cookie": "MoodleSession",
+                    "hosts": [host, urlsplit(universities.LSF_BASE).hostname or ""], "file_host": host,
+                    "learnweb_base": lw, "cas_base": universities.HILDESHEIM_CAS})
+    else:
+        host = urlsplit(studip_sync.STUDIP_BASE).hostname or ""
+        out.update({"login_url": studip_sync.LOGIN_URL, "logged_in_check_url": f"{studip_sync.STUDIP_BASE}/jsonapi.php/v1/users/me",
+                    "session_cookie": "Seminar_Session", "hosts": [host, *_LUH_SSO_HOSTS], "file_host": host,
+                    "learnweb_base": None, "cas_base": None})
+    return out
+
+
+@app.get("/api/university/profile")
+def api_university_profile():
+    """Anmeldeprofil der Hochschule des Kontos (Dienst: Sitzung, hosted_guard) bzw. der .env (Einzelplatz)."""
+    return university_profile(universities.current_key())
+
+
 @app.get("/api/grades")
 def api_grades():
     from . import qis
@@ -1690,6 +1780,7 @@ def api_library():
         study.ensure_modules(conn)
         folders = db.rows(conn, "SELECT * FROM folders ORDER BY name")
         files = db.rows(conn, """SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
+                                        f.download_url, f.content_sha256,
                                         c.module_id, c.subject, c.kind AS course_kind, a.doc_type, a.title AS ai_title, a.difficulty,
                                         (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes, (SELECT updated_at FROM annotations an WHERE an.file_id=f.id) AS edited_at
                                  FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
@@ -1726,11 +1817,18 @@ def api_folder_delete(folder_id: int):
     return {"ok": True}
 
 
+PAGE_MIN_PT, PAGE_MAX_PT = 100, 3400      # wie formats.js: A6 (298 x 420) bis Whiteboard A0 quer (3370 x 2384)
+
+
 @app.post("/api/notebooks")
 async def api_notebook_create(kind: str = Form(default="notebook"), title: str = Form(default="Neues Notizbuch"), module_id: str = Form(default=""),
-                              folder_id: str = Form(default=""), template: str = Form(default="blank"), upload: UploadFile | None = File(default=None)):
-    """Eigenes Dokument: notebook | whiteboard | pdf (Import) | image (als PDF-Seite)."""
+                              folder_id: str = Form(default=""), template: str = Form(default="blank"), upload: UploadFile | None = File(default=None),
+                              w: int = Form(default=0), h: int = Form(default=0)):
+    """Eigenes Dokument: notebook | whiteboard | pdf (Import) | image (als PDF-Seite). w/h = Seitenformat in PDF-Punkten
+    (A6 … A2, Whiteboards bis A0 quer; Grenzen wie app/static/formats.js), sonst A4 hoch bzw. A4 quer."""
     fid = "u" + uuid.uuid4().hex[:23]
+    if kind in ("notebook", "whiteboard") and (w or h) and not (PAGE_MIN_PT <= w <= PAGE_MAX_PT and PAGE_MIN_PT <= h <= PAGE_MAX_PT):
+        raise HTTPException(400, {"detail": f"Seitenformat außerhalb von {PAGE_MIN_PT}–{PAGE_MAX_PT} Punkten.", "code": "format_invalid"})
     local = None
     page_count = None
     if upload is not None and kind in ("pdf", "image"):
@@ -1766,7 +1864,7 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
                      (fid, (title or "Dokument") + (".pdf" if local else ""), 0, "application/pdf" if local else None, "Ich", int(datetime.now().timestamp()), "", local, db.now_iso(), db.now_iso(),
                       int(folder_id) if folder_id else None, kind, title or "Dokument", page_count))
         if kind in ("notebook", "whiteboard"):
-            size = {"w": 842, "h": 595} if kind == "whiteboard" else {"w": 595, "h": 842}
+            size = {"w": w, "h": h} if (w and h) else ({"w": 842, "h": 595} if kind == "whiteboard" else {"w": 595, "h": 842})
             model = {"version": 2, "zoom": 1.2, "pages": {"b1": {"objects": []}}, "pageOrder": [{"key": "b1", "type": "blank", "template": template, **size}], "bookmarks": [], "outline": []}
             conn.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,1)", (fid, json.dumps(model), db.now_iso()))
         if module_id:
