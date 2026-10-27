@@ -55,7 +55,8 @@ struct DisplayLayout {
                 page = copy
                 pdfIndex = i
             } else {
-                let w = p["w"]?.double ?? 595, h = p["h"]?.double ?? 842
+                // eine Regel mit dem Loesungspaket (Pruefbericht 404): fehlend, 0, negativ oder unendlich -> A4
+                let (w, h) = PageOrder.blankSize(p)
                 let blank = PDFPage()
                 let rect = CGRect(x: 0, y: 0, width: w, height: h)
                 blank.setBounds(rect, for: .mediaBox)
