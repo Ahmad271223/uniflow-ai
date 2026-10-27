@@ -20,7 +20,7 @@ Betrieb, Mailversand, Datenexport, PWA/Offline im Web und die Android-Offline-Ab
 
 | Plattform | Vorschlag | Stand |
 |---|---|---|
-| Windows | Web-App + installierbare Desktop-App | **Desktop-App gebaut** (Tauri 2 mit mitgeliefertem Backend, NSIS-Installer über Workflow); Web-App im Browser läuft gegen den Dienst |
+| Windows | Web-App + installierbare Desktop-App | **Desktop-App gebaut** (Tauri 2 mit mitgeliefertem Backend, NSIS-Installer über Workflow); Web-App im Browser läuft gegen den Dienst; seit 27.10. **Hochschul-Anmeldung im Browserfenster** (Einstellungen → Zugang → „Im Browser anmelden“: Chromium merkt das Passwort, die App nur die Sitzung; Zugangsdaten in der `.env` nur noch optional); **offen**: Code-Signing, Updater, Test auf fremdem Rechner |
 | Android-Handy/-Tablet | Play-Store-App | **native App** (Compose: Konto, Dokumente, PDF mit Stift, Stundenplan, Lernkalender), seit 27.10. mit **Hochschul-Anmeldung in der App (WebView) und Download direkt aufs Gerät** (Stud.IP-Cookies/Learnweb-Schlüssel nur auf dem Gerät, SHA-256 und Seitentext lokal, Rückfall auf den Dienst), Release-Bundle unsigniert; **offen**: Offline-Ablage mit G2-Sync, Karteikarten, Noten, Community, Passwort merken, Gerätetest, Play Console |
 | iPad / Mac | native Apple-App | Mac-Sitzung (eigener Kern, `apps/apple`), Konto-/Sync-Client M13/M14 nach denselben Verträgen |
 | Linux / Browser | Web-App, optional installierbar | Web-App läuft in Chrome, Edge, Firefox, Safari (CSP ohne fremde Hosts, Schrift lokal); **offen**: PWA-Installierbarkeit und Offline (Manifest vorhanden, kein Service Worker) |
@@ -78,3 +78,4 @@ Kotlin-Kern, kein Web-Wrapper.
 4. Belegprüfung der Käufe (App Store Server API, Play Developer API) → setzt `plan` am Konto.
 5. PWA/Offline im Web (Service Worker) – ja/nein für V1.
 6. GitHub Actions wieder freischalten (Abrechnung), damit Windows-/Android-Workflows laufen.
+7. Hosting-Paket (`deploy/`, `docs/release/BETRIEB.md`, 27.10.) auf einem Server in Betrieb nehmen: Domain, SMTP-Daten, Tresor-Schlüssel.

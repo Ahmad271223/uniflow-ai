@@ -157,8 +157,22 @@ def has_university_credentials(user_id: str, university: str) -> bool:
     """Reichen die gespeicherten Werte fuer den Abgleich dieser Hochschule?"""
     env = env_for(user_id)
     if university == "hildesheim":
-        return bool((env.get("HILDESHEIM_USER") and env.get("HILDESHEIM_PASSWORD")) or env.get("LEARNWEB_TOKEN"))
-    return bool(env.get("STUDIP_USER") and env.get("STUDIP_PASSWORD"))
+        return bool((env.get("HILDESHEIM_USER") and env.get("HILDESHEIM_PASSWORD")) or env.get("LEARNWEB_TOKEN")
+                    or _has_cookies(env.get("LEARNWEB_COOKIES")))
+    return bool((env.get("STUDIP_USER") and env.get("STUDIP_PASSWORD")) or _has_cookies(env.get("STUDIP_COOKIES")))
+
+
+def _has_cookies(raw: str | None) -> bool:
+    """Sitzung, die die App auf dem Geraet nach der Anmeldung im Anmeldefenster hinterlegt hat (nicht abgelaufen)."""
+    import json
+    import time
+    try:
+        cookies = json.loads(raw) if raw else []
+    except ValueError:
+        return False
+    now = time.time()
+    return any(isinstance(c, dict) and c.get("name") and (not c.get("expires") or c["expires"] < 0 or c["expires"] > now)
+               for c in cookies)
 
 
 def users_with_credentials() -> list[tuple[str, str]]:

@@ -273,6 +273,7 @@ def test_cookie_header_filters_host_and_expiry(monkeypatch):
                {"name": "b", "value": "2", "domain": ".uni-hannover.de", "expires": time.time() + 3600},
                {"name": "alt", "value": "3", "domain": "studip.uni-hannover.de", "expires": time.time() - 10},
                {"name": "fremd", "value": "4", "domain": "example.org", "expires": -1}]
+    monkeypatch.setattr(config, "is_hosted", lambda: True)        # Dienst: Sitzung aus dem Tresor (PC: Datei, tests/test_unilogin.py)
     monkeypatch.setattr(config, "secret", lambda k: json.dumps(cookies) if k == "STUDIP_COOKIES" else "")
     assert filestream.studip_cookie_header("https://studip.uni-hannover.de") == "a=1; b=2"
     monkeypatch.setattr(config, "secret", lambda k: "kaputt")

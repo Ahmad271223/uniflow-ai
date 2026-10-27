@@ -33,9 +33,10 @@ Die Apps arbeiten zuerst lokal. Auf dem Gerät gespeichert werden:
 - Stundenplan, Lernkalender, Lernpakete, Aufgaben, Karteikarten, Zeitmesser und Einstellungen;
 - Hochschul-Zugangsdaten merkt sich – wenn du das beim Anmelden erlaubst – der Passwort-Manager deines Geräts
   (Android: Google Password Manager oder Samsung Pass im Anmeldefenster; iPad: Schlüsselbund von iOS); die App
-  selbst speichert weder Benutzername noch Passwort und meldet sich nie von selbst an. Am PC liegen sie für den
-  Abgleich in der Datei `.env` bzw. im Datenordner der App. Nach der Anmeldung behält die App nur die Sitzung
-  (Cookies) der Hochschule, bis du dich abmeldest.
+  selbst speichert weder Benutzername noch Passwort und meldet sich nie von selbst an; am PC merkt sie sich das
+  Browserfenster, das die App öffnet). Nach der Anmeldung behält die App nur die Sitzung (Cookies) der Hochschule,
+  bis du dich abmeldest oder die Hochschule sie beendet. Nur wenn du es am PC ausdrücklich einträgst, liegen die
+  Zugangsdaten für den Abgleich ohne Nachfrage in der Datei `.env` im Datenordner der App – jederzeit löschbar.
 
 Der PC-Modus (eigener Server auf deinem Rechner, Ordner `data/`) ist ebenfalls rein lokal; im eigenen WLAN schützt
 eine PIN den Zugriff. Diese Daten verlassen dein Gerät nur, wenn du den Geräteabgleich (Abschnitt 7) einschaltest.

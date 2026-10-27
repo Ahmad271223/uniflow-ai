@@ -38,7 +38,29 @@ LERNAPP_MODE=hosted
 LERNAPP_DATA_DIR=/srv/uniflow/data          # accounts.db, users/<id>/..., users-deleted/
 LERNAPP_ALLOWED_HOSTS=app.example.de        # Host-Kopfzeile (Schutz gegen DNS-Rebinding)
 LERNAPP_HTTPS=1                             # Sitzungs-Cookie nur über https (Secure)
+LERNAPP_PUBLIC_URL=https://app.example.de   # Basis aller Links in Mails (Reset-Link, Willkommensmail)
+
+# Mailversand (app/mail.py): off | log | smtp. Ohne Angabe: log am PC und im Dienst ohne SMTP-Host, sonst smtp.
+LERNAPP_MAIL=smtp
+LERNAPP_SMTP_HOST=smtp.example.de           # ohne Host: Mails landen in logs/mail.log (Modus log)
+LERNAPP_SMTP_PORT=587                       # 587 = STARTTLS (Standard), 465 = SSL
+LERNAPP_SMTP_USER=postausgang               # leer = ohne Anmeldung
+LERNAPP_SMTP_PASSWORD=...
+LERNAPP_MAIL_FROM="UniFlow <no-reply@app.example.de>"   # Standard: SMTP-Nutzer bzw. no-reply@<Host der PUBLIC_URL>
+
+# „Mit Google/Apple anmelden“ (app/social_login.py): erlaubte Client-IDs (aud), kommagetrennt; ohne Eintrag ist der
+# Anbieter nicht eingerichtet (501 provider_not_configured). Web-Client-ID nur für die Anmeldeseite im Browser.
+LERNAPP_GOOGLE_CLIENT_IDS=<android-client-id>,<ios-client-id>
+LERNAPP_GOOGLE_WEB_CLIENT_ID=<web-client-id>            # zählt automatisch als erlaubt
+LERNAPP_APPLE_CLIENT_IDS=<bundle-id>,<services-id>      # iPad: Bundle-ID; Web: Services-ID
+LERNAPP_APPLE_WEB_CLIENT_ID=<services-id>
 ```
+
+Mails: `send` wirft nie; ein Versandfehler steht in `logs/mail.log` (ohne Token), die API antwortet trotzdem 200. Im
+Modus `log` steht die ganze Mail samt Reset-Link in `mail.log` (so lässt sich der Link im Betrieb ohne SMTP holen).
+Vorlagen (Deutsch, nur Text): Passwort zurücksetzen (`<PUBLIC_URL>/login?reset=<token>`, 30 Minuten) und Willkommen
+nach der Registrierung (nur Information, keine Pflichtbestätigung). Der Server hängt `mail.send_reset` beim Start im
+gehosteten Modus als `accounts.reset_sender` ein (`server.wire_hosted_services`, Lifespan). Tests `tests/test_mail.py`.
 
 HTTPS kommt von einem Reverse-Proxy (nginx/Caddy) vor uvicorn; der Proxy setzt `Host` durch und beendet TLS. Die
 Herkunftsprüfung (`same_origin_guard`) bleibt aktiv: Änderungen aus dem Browser nur mit `Origin` = `Host`; native Apps
@@ -109,11 +131,11 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
 
 - **Identität:** UniFlow-ID (32 Hex-Zeichen). E-Mail + Passwort (mind. 10, höchstens 200 Zeichen, nicht die
   E-Mail), scrypt-Hash (n=2^14, r=8, p=1, 16-Byte-Salz). „Mit Apple/Google anmelden“ verknüpft die
-  Anbieter-Kennung (`subject`) mit der UniFlow-ID (`identities`); ein neues Konto darüber nimmt die gelieferte
-  E-Mail (Relay-Adressen erlaubt) und braucht die Hochschule. Ohne eingerichteten Prüfer der Signatur antwortet der
-  Server 501 `provider_not_configured`; es wird nie ein ungeprüftes Token angenommen. Prüfer einhängen:
-  `accounts.identity_verifiers["apple"] = fn(identity_token) -> {"subject", "email"}` (Apple: Team-ID/Bundle-ID,
-  JWKS von appleid.apple.com; Google: Client-ID) – braucht die Daten des Inhabers.
+  Anbieter-Kennung (`subject`) mit der UniFlow-ID (`identities`, mit der vom Anbieter gelieferten Adresse); ein
+  neues Konto darüber nimmt die gelieferte E-Mail (Relay-Adressen erlaubt) und braucht die Hochschule. Die Prüfung der
+  ID-Tokens macht `app/social_login.py` (siehe „Mit Google/Apple anmelden“ unten); ohne Client-IDs antwortet der
+  Server 501 `provider_not_configured`; es wird nie ein ungeprüftes Token angenommen. Für Tests und Fixtures bleibt
+  `accounts.identity_verifiers["apple"] = fn(identity_token[, nonce=...]) -> {"subject", "email", "email_verified"}`.
 - **Sitzungen:** Token 32 Byte (urlsafe), gespeichert als SHA-256; 30 Tage gleitend; `logout`, `logout-all` (andere
   Geräte), Liste unter `/me`. Browser: Cookie `uniflow_session` (HttpOnly, SameSite=Lax, Secure bei HTTPS). Apps:
   `Authorization: Bearer <token>`.
@@ -129,7 +151,41 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   30 Tagen (`purge`). Mit Passwort, bei reinen Apple/Google-Konten ohne.
 - **Fehlerform:** `{"detail": "<Meldung>", "code": "<stabil>"}`; Codes in `contract.json` → `errors`.
 - **Endpunkte:** `POST register`, `login`, `login/{apple|google}`, `link/{apple|google}`, `logout`, `logout-all`,
-  `password`, `password/reset-request`, `password/reset`, `university`, `delete`; `GET me`, `GET info` (öffentlich).
+  `password`, `password/reset-request`, `password/reset`, `university`, `delete`; `GET me`, `GET info`, `GET providers`
+  (öffentlich).
+
+### Mit Google / Apple anmelden (für die Apps und die Web-Anmeldeseite)
+
+- **Einrichtung (Inhaber):** `LERNAPP_GOOGLE_CLIENT_IDS` / `LERNAPP_APPLE_CLIENT_IDS` (Betrieb, oben). Google: die
+  Client-IDs aus der Google-Cloud-Konsole (Android, iOS, Web). Apple: Bundle-ID der iPad-App und die Services-ID für
+  das Web; „Sign in with Apple“ in der App-ID aktivieren, Domain für die Services-ID bestätigen. Ohne Eintrag sind die
+  Buttons unsichtbar (Web) bzw. der Endpunkt antwortet 501.
+- **`GET /api/account/providers`** (öffentlich) → `{"google": bool, "apple": bool, "google_web_client_id": str|null,
+  "apple_web_client_id": str|null}`. Die Apps blenden die Buttons nach den Bool-Werten ein; die Web-Client-IDs sind nur
+  für die Anmeldeseite im Browser.
+- **`POST /api/account/login/google`** bzw. **`/login/apple`** (öffentlich), Body `{"id_token": "<JWT vom SDK>",
+  "university": "luh|hildesheim", "nonce": "<falls beim SDK gesetzt>", "email": "<nur Rückfall>", "device_id",
+  "device_name"}`. Antwort wie `/login`: `{"user", "token", "created"}` (201 bei neuem Konto, sonst 200), Browser
+  bekommt dasselbe Cookie `uniflow_session`. Ablauf: bekannte Kennung → Sitzung; sonst vom Anbieter bestätigte E-Mail
+  eines bestehenden Kontos → verknüpfen und anmelden; sonst neues Konto ohne Passwort (Passwort-Login gesperrt, bis
+  per „Passwort vergessen“ eines gesetzt ist). `university` ist nur für ein neues Konto nötig; `email` nur, wenn das
+  Token keine Adresse enthält (Apple liefert sie bei jeder Anmeldung, als Relay-Adresse). Alte Clients dürfen weiter
+  `identity_token` schicken.
+- **Fehler:** 401 `token_invalid` (Signatur, Ablauf, `iss`, `aud`, `nonce`), 501 `provider_not_configured`, 400
+  `university_unknown` / `email_required`, 409 `email_taken` (Adresse unbestätigt und schon vergeben) /
+  `identity_taken` (`link`: Kennung gehört zu einem anderen Konto), 404 `provider_unknown`.
+- **Prüfung (Server):** JWKS von `https://www.googleapis.com/oauth2/v3/certs` bzw. `https://appleid.apple.com/auth/keys`
+  (urllib, 1 Stunde Cache, bei unbekannter `kid` einmal frisch), RS256/ES256 mit `cryptography`, `iss`
+  (`accounts.google.com` / `https://accounts.google.com`, `https://appleid.apple.com`), `aud` ∈ Client-IDs, `exp`
+  (60 s Toleranz), `nonce` (Wert oder dessen SHA-256, wie das iOS-SDK es liefert). iPad: `ASAuthorizationAppleIDProvider`
+  mit zufälliger Nonce, SHA-256 davon in die Anfrage, Roh-Nonce an den Server; `identityToken` als `id_token`.
+- **Web:** Anmeldeseite lädt bei eingerichteten Anbietern das Google-Identity-Skript (`accounts.google.com/gsi/client`)
+  bzw. Apples JS-SDK (`appleid.cdn-apple.com`, Popup) – nur `/login` bekommt dafür die erweiterte CSP `LOGIN_CSP`
+  (script-/style-/connect-/frame-src um `accounts.google.com`, `appleid.cdn-apple.com`, `appleid.apple.com`); die
+  App-Seiten behalten `UI_CSP` ohne fremde Hosts. Ein neues Konto nimmt die Hochschule aus der Auswahl im Reiter
+  „Konto anlegen“. Verknüpfen im Konto-Menü (`link/{provider}`) gibt es im Web noch nicht.
+- **Löschen** (`delete`) entfernt die Verknüpfungen mit; danach legt dieselbe Kennung ein neues Konto an.
+  Tests `tests/test_social_login.py`.
 
 ## G2 Synchronisierung
 

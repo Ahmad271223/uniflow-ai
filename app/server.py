@@ -16,16 +16,24 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, community_api, config, db, demo, filestream, jobs, legal, planner, retention, study, timetable, universities, vault
+from . import account_api, accounts, community_api, config, db, demo, filestream, jobs, legal, mail, planner, retention, social_login, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
 from contextlib import asynccontextmanager
 
 
+def wire_hosted_services() -> None:
+    """Gehosteter Modus: Mailversand fuer Passwort-Reset-Links (app/mail.py) einhaengen. Laeuft bei jedem Start
+    (Lifespan unter uvicorn und in der Windows-App); am eigenen PC bleibt es beim Protokolleintrag ohne Token."""
+    if config.is_hosted():
+        accounts.reset_sender = mail.send_reset
+
+
 @asynccontextmanager
 async def _lifespan(_app):
-    """Gehosteter Modus: Arbeiter und Zeitplan fuer den Hochschul-Abgleich je Konto (app/jobs.py)."""
+    """Gehosteter Modus: Mailversand einhaengen, Arbeiter und Zeitplan fuer den Hochschul-Abgleich je Konto (app/jobs.py)."""
+    wire_hosted_services()
     jobs.start_background()
     yield
 
@@ -188,6 +196,15 @@ UI_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inlin
           "img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; "
           "font-src 'self' data:; worker-src 'self' blob:; frame-src 'self' blob:; "
           "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+# Nur die Anmeldeseite (/login) und nur, wenn der Inhaber "Mit Google/Apple anmelden" eingerichtet hat
+# (LERNAPP_GOOGLE_CLIENT_IDS / LERNAPP_APPLE_CLIENT_IDS): das Google-Identity-Skript und Apples JS-SDK duerfen geladen
+# werden, ihre Anmeldefenster eingebettet und angesprochen werden. Die App-Seiten behalten UI_CSP ohne fremde Hosts.
+LOGIN_CSP_HOSTS = {"script-src": "https://accounts.google.com https://appleid.cdn-apple.com",
+                   "style-src": "https://accounts.google.com",
+                   "connect-src": "https://accounts.google.com https://appleid.apple.com",
+                   "frame-src": "https://accounts.google.com https://appleid.apple.com"}
+LOGIN_CSP = "; ".join(f"{part} {LOGIN_CSP_HOSTS[d]}" if d in LOGIN_CSP_HOSTS else part
+                      for part in UI_CSP.split("; ") for d in [part.split(" ", 1)[0]])
 
 
 @app.middleware("http")
@@ -200,7 +217,8 @@ async def no_cache_static(request, call_next):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
     ctype = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
     if ctype == "text/html" and not _FILE_PATHS.match(p):
-        response.headers["Content-Security-Policy"] = UI_CSP
+        social = p == "/login" and any(social_login.configured(x) for x in social_login.PROVIDERS)
+        response.headers["Content-Security-Policy"] = LOGIN_CSP if social else UI_CSP
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "same-origin"
     return response
@@ -1026,6 +1044,65 @@ def put_settings(body: dict = Body(...)):
 def get_credentials():
     user, pw = config.credentials()
     return {"user": user, "password_set": bool(pw)}
+
+
+@app.post("/api/university/login")
+def api_university_login():
+    """PC: Anmeldefenster der Hochschule oeffnen (sichtbares Chromium); der Mensch meldet sich selbst an, der Browser
+    merkt das Passwort, die App nur die Sitzung. Laeuft als Hintergrundaufgabe (ein Profil, ein Fenster)."""
+    from . import unilogin
+    if config.is_hosted():
+        raise HTTPException(400, {"detail": "Im Dienst meldest du dich in der App auf dem Geraet an.", "code": "use_app_login"})
+    return _run_bg("Anmeldung", unilogin.run)
+
+
+@app.get("/api/university/session")
+def api_university_session():
+    from . import unilogin
+    name = unilogin.session_name()
+    return {"session": unilogin.has_session(name), "saved_at": unilogin.saved_at(name), "window": unilogin.status(),
+            "name": name, "hosted": config.is_hosted()}
+
+
+@app.delete("/api/university/session")
+def api_university_session_forget():
+    from . import unilogin
+    unilogin.forget(unilogin.session_name())
+    return {"ok": True}
+
+
+@app.put("/api/university/session")
+def api_university_session_put(body: dict = Body(...)):
+    """Dienst: Die App auf dem Geraet (Android/iPad) hinterlegt nach der Anmeldung im Anmeldefenster die Sitzung
+    (Cookies, nie das Passwort) verschluesselt im Tresor des Kontos; der Abgleich im Dienst (Kurse, Termine, Dateiliste)
+    laeuft damit ohne gespeicherte Zugangsdaten. Nur Cookies fuer die Hosts der Hochschule des Kontos."""
+    from . import unilogin
+    if not config.is_hosted():
+        raise HTTPException(400, {"detail": "Am PC meldest du dich im Browserfenster an (POST /api/university/login).", "code": "use_browser_login"})
+    cookies = body.get("cookies")
+    if not isinstance(cookies, list) or not cookies or len(cookies) > 50:
+        raise HTTPException(400, {"detail": "cookies: Liste mit 1 bis 50 Eintraegen (name, value, domain, path, expires)", "code": "cookies_invalid"})
+    key = universities.current_key()
+    allowed = [h for h in university_profile(key)["hosts"] if h] + ([urlsplit_host(universities.HILDESHEIM_CAS)] if key == "hildesheim" else [])
+    keep = []
+    for c in cookies:
+        if not isinstance(c, dict) or not c.get("name") or c.get("value") is None or not c.get("domain"):
+            raise HTTPException(400, {"detail": "Cookie braucht name, value und domain", "code": "cookies_invalid"})
+        dom = str(c["domain"]).lstrip(".").lower()
+        if not any(dom == h or h.endswith("." + dom) or dom.endswith("." + h) for h in allowed):
+            raise HTTPException(400, {"detail": f"Cookie fuer fremden Host: {dom}", "code": "cookies_foreign_host"})
+        if len(str(c["value"])) > 4096:
+            raise HTTPException(400, {"detail": "Cookie-Wert zu lang", "code": "cookies_invalid"})
+        keep.append({"name": str(c["name"])[:200], "value": str(c["value"]), "domain": str(c["domain"]), "path": str(c.get("path") or "/"),
+                     "expires": c.get("expires") if isinstance(c.get("expires"), (int, float)) else -1})
+    name = unilogin.session_name(key)
+    unilogin.save_session(name, keep)
+    return {"ok": True, "name": name, "cookies": len(keep)}
+
+
+def urlsplit_host(url: str) -> str:
+    from urllib.parse import urlsplit
+    return urlsplit(url).hostname or ""
 
 
 @app.put("/api/credentials")

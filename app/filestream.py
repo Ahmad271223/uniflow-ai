@@ -70,14 +70,11 @@ def looks_like_html(data: bytes, ctype: str) -> bool:
 # ---------------------------------------------------------------- Hochschulsitzung
 
 def cookie_header(name: str, base: str) -> str:
-    """Cookies des Abgleichs (STUDIP_COOKIES / LEARNWEB_COOKIES im Tresor, JSON-Liste wie Playwright
-    context.cookies()) fuer den Host von `base`, abgelaufene ausgelassen."""
-    raw = config.secret(name)
-    if not raw:
-        return ""
-    try:
-        cookies = json.loads(raw)
-    except ValueError:
+    """Cookies der Hochschul-Sitzung (STUDIP_COOKIES / LEARNWEB_COOKIES: Tresor im Dienst, Datei im Datenordner am PC,
+    JSON-Liste wie Playwright context.cookies()) fuer den Host von `base`, abgelaufene ausgelassen."""
+    from . import unilogin
+    cookies = unilogin.saved_cookies(name)
+    if not cookies:
         return ""
     host = urllib.parse.urlsplit(base).hostname or ""
     now = time.time()
@@ -91,11 +88,10 @@ def studip_cookie_header(base: str) -> str:
 
 
 def save_cookies(name: str, cookies: list[dict]) -> None:
-    """Nach der Anmeldung im Abgleich: Cookies verschluesselt am Konto merken (nur im Dienst, nie in der .env)."""
-    if not config.is_hosted():
-        return
-    keep = [{k: c.get(k) for k in ("name", "value", "domain", "path", "expires")} for c in cookies if c.get("name")]
-    config.set_env({name: json.dumps(keep, ensure_ascii=False)})
+    """Nach der Anmeldung: Sitzung merken (Dienst: verschluesselt im Tresor des Kontos; PC: Datei im Datenordner,
+    nie in der .env)."""
+    from . import unilogin
+    unilogin.save_session(name, cookies)
 
 
 def save_studip_cookies(cookies: list[dict]) -> None:
@@ -143,6 +139,9 @@ def refresh_studip_session() -> str:
             finally:
                 ctx.close()
     except Exception as e:  # noqa: BLE001
+        from .unilogin import LoginRequired
+        if isinstance(e, LoginRequired):
+            raise StreamError("university_session_expired", str(e), 409) from None
         raise StreamError("university_login_failed", f"Anmeldung bei der Hochschule fehlgeschlagen: {e}", 502) from None
     save_studip_cookies(cookies)
     return studip_cookie_header(studip_sync.STUDIP_BASE)

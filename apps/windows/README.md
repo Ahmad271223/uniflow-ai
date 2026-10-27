@@ -60,6 +60,16 @@ Dann steht die URL in der Zustandsdatei (oder: `pwsh apps/windows/scripts/check-
 Abfrage und Ende in einem). Für das Fenster braucht es Rust (`rustup`) und `npm install` in `apps/windows`,
 dann `npx tauri dev` (ohne Paket verbindet sich die Startseite mit `serve.py` auf Port 8765) oder `npx tauri build`.
 
+## Hochschul-Anmeldung ohne Passwort in der App
+
+Einstellungen → Zugang → „Im Browser anmelden“ öffnet das Anmeldefenster der Hochschule (sichtbares Chromium von
+Playwright mit eigenem Profil unter `%LOCALAPPDATA%\UniFlow\data\browser-profile*`). Der Mensch meldet sich selbst
+an; Chromium bietet „Passwort speichern?“ an und füllt beim nächsten Mal vor (geprüft 27.10.2026, Eintrag in
+`Login Data`, DPAPI-verschlüsselt). Die App merkt nur die Sitzung (`university-session.json` im Datenordner) und
+nutzt sie für den Abgleich und das Öffnen von Dateien (`app/unilogin.py`, `POST /api/university/login`,
+`GET/DELETE /api/university/session`). Ist die Sitzung abgelaufen, meldet der Abgleich „Anmeldung nötig“.
+Zugangsdaten in der `.env` sind nur noch eine freiwillige Alternative für den Abgleich ohne Nachfrage.
+
 ## Offen
 
 - Automatische Updates (Tauri-Updater braucht einen signierten Endpunkt) und Code-Signing.

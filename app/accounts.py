@@ -107,6 +107,15 @@ def db_path() -> Path:
     return config.BASE_DATA_DIR / "accounts.db"
 
 
+def _migrate(conn) -> None:
+    """Spalten fuer bestehende Datenbanken (Muster wie db.init_db): fehlt eine, wird sie angehaengt."""
+    def add_col(table, col, decl):
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if col not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+    add_col("identities", "email", "TEXT")          # vom Anbieter gelieferte Adresse (Apple: Relay), nur zur Anzeige
+
+
 @contextmanager
 def cursor():
     p = db_path()
@@ -116,6 +125,7 @@ def cursor():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     try:
         yield conn
         conn.commit()
@@ -326,18 +336,20 @@ def reset_password(token: str, new_password: str) -> None:
 
 # ---------------------------------------------------------------- Apple / Google als Anmeldeweg
 
-# Pruefer je Anbieter: (identity_token) -> {"subject": ..., "email": ...}. Ohne eingerichteten Pruefer (Team-ID,
-# Bundle-ID bzw. Client-ID vom Inhaber) antwortet die API 501; es wird nie ein ungeprueftes Token akzeptiert.
-identity_verifiers: dict[str, Callable[[str], dict]] = {}
+# Pruefer je Anbieter: (identity_token[, nonce=...]) -> {"subject": ..., "email": ..., "email_verified": bool}.
+# Im Dienst prueft app/social_login.py die ID-Tokens (Client-IDs des Inhabers in LERNAPP_GOOGLE_CLIENT_IDS /
+# LERNAPP_APPLE_CLIENT_IDS); dieses Woerterbuch bleibt fuer Tests und Fixtures. Ohne eingerichteten Pruefer antwortet
+# die API 501; es wird nie ein ungeprueftes Token akzeptiert.
+identity_verifiers: dict[str, Callable[..., dict]] = {}
 
 
-def verify_identity(provider: str, identity_token: str) -> dict:
+def verify_identity(provider: str, identity_token: str, nonce: str | None = None) -> dict:
     v = identity_verifiers.get(provider)
     if not v:
         raise AccountError("provider_not_configured",
                            f"Anmeldung mit {provider.capitalize()} ist noch nicht eingerichtet (Prüfung der Signatur fehlt).", 501)
     try:
-        info = v(identity_token)
+        info = v(identity_token, nonce=nonce) if nonce else v(identity_token)
     except Exception as e:  # noqa: BLE001
         raise AccountError("identity_invalid", f"Die Anmeldung bei {provider.capitalize()} konnte nicht geprüft werden: {e}", 401)
     if not info or not info.get("subject"):
@@ -345,44 +357,75 @@ def verify_identity(provider: str, identity_token: str) -> dict:
     return info
 
 
-def link_identity(user_id: str, provider: str, identity_token: str) -> dict:
-    info = verify_identity(provider, identity_token)
+def link_provider(user_id: str, provider: str, subject: str, email: str | None = None) -> dict:
+    """Geprueft (subject vom Anbieter) mit dem Konto verknuepfen; dieselbe Kennung geht nie an ein zweites Konto."""
     with cursor() as conn:
-        other = conn.execute("SELECT user_id FROM identities WHERE provider=? AND subject=?", (provider, info["subject"])).fetchone()
+        other = conn.execute("SELECT user_id FROM identities WHERE provider=? AND subject=?", (provider, subject)).fetchone()
         if other and other["user_id"] != user_id:
             raise AccountError("identity_taken", f"Diese {provider.capitalize()}-Anmeldung gehört schon zu einem anderen Konto.", 409)
-        conn.execute("INSERT OR IGNORE INTO identities(provider, subject, user_id, created_at) VALUES (?,?,?,?)",
-                     (provider, info["subject"], user_id, iso(now())))
+        conn.execute("INSERT OR IGNORE INTO identities(provider, subject, user_id, email, created_at) VALUES (?,?,?,?,?)",
+                     (provider, subject, user_id, normalize_email(email) or None, iso(now())))
     return {"provider": provider, "linked": True}
 
 
-def login_with_identity(provider: str, identity_token: str, device_id: str | None = None, device_name: str | None = None,
-                        university: str | None = None) -> tuple[dict, str, bool]:
-    """Anmelden ueber Apple/Google. Bekannte Kennung -> Sitzung. Unbekannt: neues Konto mit der vom Anbieter
-    gelieferten E-Mail (Relay-Adressen sind erlaubt), ohne Passwort. Liefert (Nutzer, Token, neu_angelegt)."""
-    info = verify_identity(provider, identity_token)
+def link_identity(user_id: str, provider: str, identity_token: str, nonce: str | None = None) -> dict:
+    info = verify_identity(provider, identity_token, nonce)
+    return link_provider(user_id, provider, info["subject"], info.get("email"))
+
+
+def login_with_provider(provider: str, subject: str, email: str | None = None, email_verified: bool = False,
+                        university: str | None = None, device_id: str | None = None, device_name: str | None = None,
+                        fallback_email: str | None = None) -> tuple[dict, str, bool]:
+    """Anmelden mit einer GEPRUEFTEN Anbieter-Kennung (app/social_login.py oder ein Pruefer aus `identity_verifiers`).
+    1. bekannte Verknuepfung -> Sitzung wie beim normalen Login;
+    2. sonst: vom Anbieter bestaetigte E-Mail und ein aktives Konto mit dieser Adresse -> verknuepfen und anmelden;
+    3. sonst: neues Konto ohne Passwort (Passwort-Login gesperrt, bis die Person per Reset eines setzt). Dafuer braucht
+       es eine Adresse (vom Anbieter, sonst `fallback_email` vom Client, dann unbestaetigt) und die Hochschule.
+    Liefert (Nutzer, Token, neu_angelegt)."""
+    if provider not in ("apple", "google"):
+        raise AccountError("provider_unknown", "Unbekannter Anbieter", 404)
+    if not subject:
+        raise AccountError("identity_invalid", f"Die Anmeldung bei {provider.capitalize()} konnte nicht geprüft werden.", 401)
+    email = normalize_email(email)
     with cursor() as conn:
         row = conn.execute("SELECT u.* FROM identities i JOIN users u ON u.id=i.user_id WHERE i.provider=? AND i.subject=? AND u.status='active'",
-                           (provider, info["subject"])).fetchone()
+                           (provider, subject)).fetchone()
         created = False
+        if not row and email and email_verified:
+            existing = conn.execute("SELECT * FROM users WHERE email=? AND status='active'", (email,)).fetchone()
+            if existing:
+                conn.execute("INSERT OR IGNORE INTO identities(provider, subject, user_id, email, created_at) VALUES (?,?,?,?,?)",
+                             (provider, subject, existing["id"], email, iso(now())))
+                row = existing
         if not row:
-            email = normalize_email(info.get("email"))
-            if not email:
-                raise AccountError("email_required", "Der Anbieter hat keine E-Mail-Adresse geliefert; bitte mit E-Mail registrieren.", 400)
-            if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
+            new_email = email or normalize_email(fallback_email)
+            if not new_email:
+                raise AccountError("email_required", "Der Anbieter hat keine E-Mail-Adresse geliefert; bitte die Adresse mitschicken "
+                                                     "oder mit E-Mail registrieren.", 400)
+            validate_email(new_email)
+            if conn.execute("SELECT 1 FROM users WHERE email=?", (new_email,)).fetchone():
                 raise AccountError("email_taken", "Für diese E-Mail-Adresse gibt es schon ein Konto. Bitte dort anmelden und die "
                                                   f"{provider.capitalize()}-Anmeldung verknüpfen.", 409)
             if university not in config.known_universities():
                 raise AccountError("university_unknown", "Bitte die Hochschule angeben.")
             uid = uuid.uuid4().hex
             conn.execute("INSERT INTO users(id, email, email_verified, pw_hash, university, created_at) VALUES (?,?,?,?,?,?)",
-                         (uid, email, 1, None, university, iso(now())))
-            conn.execute("INSERT INTO identities(provider, subject, user_id, created_at) VALUES (?,?,?,?)",
-                         (provider, info["subject"], uid, iso(now())))
+                         (uid, new_email, 1 if (email and email_verified) else 0, None, university, iso(now())))
+            conn.execute("INSERT INTO identities(provider, subject, user_id, email, created_at) VALUES (?,?,?,?,?)",
+                         (provider, subject, uid, email or None, iso(now())))
             row = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
             created = True
         token = create_session(conn, row["id"], device_id, device_name)
         return _public(row), token, created
+
+
+def login_with_identity(provider: str, identity_token: str, device_id: str | None = None, device_name: str | None = None,
+                        university: str | None = None, nonce: str | None = None, fallback_email: str | None = None) -> tuple[dict, str, bool]:
+    """Anmelden ueber Apple/Google mit einem Token, das ein Pruefer aus `identity_verifiers` bestaetigt; Ablauf wie
+    `login_with_provider`. Liefert (Nutzer, Token, neu_angelegt)."""
+    info = verify_identity(provider, identity_token, nonce)
+    return login_with_provider(provider, info["subject"], info.get("email"), bool(info.get("email_verified")),
+                               university, device_id, device_name, fallback_email)
 
 
 # ---------------------------------------------------------------- Hochschule, Loeschen

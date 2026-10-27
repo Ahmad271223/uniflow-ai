@@ -376,10 +376,10 @@ def test_store_course_files_downloads_only_changes(app, tmp_path):
 def test_hildesheim_sync_without_credentials(app, tmp_env):
     from app import db, hildesheim
     r = hildesheim.run_sync()
-    assert r["ok"] is False and "Zugangsdaten fehlen" in r["message"]
+    assert r["ok"] is False and "Anmeldung beim Learnweb noetig" in r["message"] and "Im Browser anmelden" in r["message"]
     with db.cursor() as conn:
         last = db.row(conn, "SELECT ok, message FROM sync_log ORDER BY id DESC LIMIT 1")
-    assert last["ok"] == 0 and "Zugangsdaten fehlen" in last["message"]
+    assert last["ok"] == 0 and "Anmeldung beim Learnweb noetig" in last["message"]
 
 
 def test_run_sync_dispatches_by_university(app, uni, monkeypatch):
