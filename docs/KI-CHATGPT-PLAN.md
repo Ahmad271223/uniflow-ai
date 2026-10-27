@@ -95,7 +95,7 @@ Dienst bleibt er aus, bis OpenAI Studora freigibt (`chatgpt_state` liefert dort 
 Dienst antwortet 503 `chatgpt_not_available`).
 
 - **Anmeldung:** Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“. UniFlow bindet einen
-  freien Port auf 127.0.0.1, öffnet die Autorisierung bei `auth.openai.com` im Standardbrowser (beim ersten Mal mit
+  freien Port auf 127.0.0.1, öffnet die Autorisierung bei `auth.openai.com` im Standardbrowser (Windows-App: in einem Fenster der App) (beim ersten Mal mit
   `client_id=dynamic_agent_client` und `agent_name_hint=UniFlow`; die dabei ausgestellte `oaiapp_…`-ID wird gespeichert,
   bevor der Code getauscht wird, und bei jeder weiteren Anmeldung wiederverwendet), Scope
   `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, PKCE S256, `state` und `nonce` je
@@ -117,7 +117,8 @@ Dienst antwortet 503 `chatgpt_not_available`).
   Tests ohne Netz: `tests/test_chatgpt_login.py`.
 - **Offen:** Refresh-Grant und Modelle-Endpunkt sind in OpenAIs Doku nicht beschrieben (Standard angenommen),
   Fehlercodes der Responses API bei erschöpftem Kontingent ebenso – beim ersten echten Test des Inhabers prüfen.
-  Für den Dienst gilt weiter Abschnitt 4 (Antrag); in der Windows-App öffnet die Anmeldung den Standardbrowser.
+  Für den Dienst gilt weiter Abschnitt 4 (Antrag); in der Windows-App öffnet die Anmeldung seit 0.4.1 ein Fenster der App
+  (`chatgpt_login.open_url` über den Fenster-Agenten, sonst Standardbrowser).
 
 ## 4. Was der Inhaber bei OpenAI beantragen muss
 

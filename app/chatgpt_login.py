@@ -434,9 +434,20 @@ def start(open_browser: bool = True) -> dict:
         url = build_auth_url(client_id, host, flow.redirect_uri, flow.state, flow.nonce, flow.challenge, id_token_hint=hint)
         threading.Thread(target=_serve, args=(flow,), name="uniflow-chatgpt-login", daemon=True).start()
     if open_browser:
-        import webbrowser
-        webbrowser.open(url, new=2)
+        open_url(url)
     return {"auth_url": url, "port": flow.port, "redirect_uri": flow.redirect_uri}
+
+
+def open_url(url: str) -> bool:
+    """Anmeldeseite oeffnen: in der Windows-App als Fenster der App (Fenster-Agent verbunden, wie `/api/desktop/open`),
+    sonst im Standardbrowser. Die Rueckleitung auf 127.0.0.1 funktioniert in beiden. Liefert True, wenn in der App."""
+    from . import desktop_windows
+    if desktop_windows.agent_connected():
+        desktop_windows.enqueue("open", url, "ChatGPT verbinden")
+        return True
+    import webbrowser
+    webbrowser.open(url, new=2)
+    return False
 
 
 def _handler_class():

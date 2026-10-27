@@ -138,6 +138,22 @@ def test_file_is_private_and_hosted_mode_refuses(cg, monkeypatch, tmp_path):
     assert not cg.enabled_for_ai()
 
 
+def test_login_opens_in_the_app_window_when_the_agent_is_connected(cg, monkeypatch):
+    """Windows-App: die Anmeldung geht als Fenster der App auf (Fenster-Agent verbunden), sonst Standardbrowser."""
+    from app import desktop_windows
+    desktop_windows.reset()
+    monkeypatch.setattr(desktop_windows, "agent_connected", lambda now=None: True)
+    assert cg.open_url("https://auth.openai.com/x") is True
+    cmd = desktop_windows.next_command(wait=0)
+    assert cmd["kind"] == "open" and cmd["url"] == "https://auth.openai.com/x" and cmd["title"] == "ChatGPT verbinden"
+    monkeypatch.setattr(desktop_windows, "agent_connected", lambda now=None: False)
+    opened = []
+    import webbrowser
+    monkeypatch.setattr(webbrowser, "open", lambda url, new=0: opened.append(url) or True)
+    assert cg.open_url("https://auth.openai.com/y") is False and opened == ["https://auth.openai.com/y"]
+    desktop_windows.reset()
+
+
 def test_loopback_server_completes_a_real_callback(cg, monkeypatch):
     monkeypatch.setattr(cg, "http_post_form", lambda url, fields: _token_response())
     r = cg.start(open_browser=False)

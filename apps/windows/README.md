@@ -108,8 +108,8 @@ zwei Backends auf derselben Datenbank (seit 0.3.6).
 
 ## KI über das eigene ChatGPT-Konto
 
-Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“: die Anmeldung bei OpenAI läuft im
-Standardbrowser (Sign in with ChatGPT, OAuth mit PKCE, Rückleitung auf `127.0.0.1`), das Zugriffstoken liegt danach
+Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“: die Anmeldung bei OpenAI läuft in einem
+Fenster der App (Sign in with ChatGPT, OAuth mit PKCE, Rückleitung auf `127.0.0.1`; ohne Fenster-Agent im Standardbrowser), das Zugriffstoken liegt danach
 nur in `%LOCALAPPDATA%\de.uniflow.desktop\data\chatgpt-auth.json`. Mit gewähltem Modell und eingeschaltetem Schalter
 laufen Erklärungen im Editor, Analysen und Lernpläne über das ChatGPT-Abo statt über Claude Code; Bilder und PDF-Seiten
 liest weiter nur Claude. „Trennen“ löscht das Token. Details: `docs/KI-CHATGPT-PLAN.md`, Abschnitt 3a.
