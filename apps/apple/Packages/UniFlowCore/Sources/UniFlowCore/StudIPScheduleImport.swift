@@ -58,10 +58,13 @@ enum StudIPScheduleImport {
                 fresh.append(e)
             }
         }
-        // wie auto_import: was Titel und Wochentag nach schon im Stundenplan steht, bleibt unangetastet
+        // Was schon im Stundenplan steht, bleibt unangetastet - aber nur echte Doppel: gleicher Kurs (oder ohne Kurs
+        // derselbe ganze Titel), gleicher Tag, ueberlappende Zeit. `diffAgainstExisting` (Titel auf 30 Zeichen +
+        // Wochentag, fuer ICS-Importe) hielt verschiedene Kurse mit gleichem Titelanfang fuer eine Serie: die
+        // Fragestunde neben der Vorlesung am selben Tag fehlte (Befund mit echten Daten 27.10.2026)
         let entries = try LocalTimetableImport.enrich(c, fresh)
-        let diff = try LocalTimetableImport.diffAgainstExisting(c, entries)
-        let new = diff["new"]?.array ?? []
+        let existing = try c.rows("SELECT title, course_id, weekday, start_time, end_time FROM course_events WHERE source != 'personal'")
+        let new: [JSONValue] = entries.filter { e in !existing.contains { Self.isDouble(e, $0) } }.map(JSONValue.object)
         // vom Nutzer abgewaehlte Kurszeiten (Kurs mit vielen Serien) kommen gleich als "nicht besucht"
         let skipped = try StudIPCalendar.skippedTimes(c)
         let res = try LocalTimetableImport.applyImport(c, new, source: "studip", clock: clock) { e, id in
@@ -259,6 +262,26 @@ enum StudIPScheduleImport {
     }
 
     // MARK: Hilfen
+
+    /// Steht diese Stud.IP-Serie schon im Stundenplan? Gleicher Wochentag, ueberlappende Zeit und derselbe Kurs (ohne
+    /// Kurs auf beiden Seiten: derselbe Titel, Gross-/Kleinschreibung und Leerraum egal)
+    static func isDouble(_ e: Entry, _ x: [String: JSONValue]) -> Bool {
+        guard e["weekday"]?.int == x["weekday"]?.int,
+              let es = minutes(e["start_time"]), let ee = minutes(e["end_time"]),
+              let xs = minutes(x["start_time"]), let xe = minutes(x["end_time"]), es < xe, xs < ee else { return false }
+        let ec = e["course_id"]?.string, xc = x["course_id"]?.string
+        if let ec, let xc { return ec == xc }
+        guard ec == nil, xc == nil else { return false }
+        func norm(_ v: JSONValue?) -> String { (v?.string ?? "").lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+        return norm(e["title"]) == norm(x["title"])
+    }
+
+    /// "HH:MM" -> Minuten seit Mitternacht; nil bei anderem Format
+    static func minutes(_ v: JSONValue?) -> Int? {
+        let p = (v?.string ?? "").split(separator: ":")
+        guard p.count == 2, let h = Int(p[0]), let m = Int(p[1]), (0...24).contains(h), (0..<60).contains(m) else { return nil }
+        return h * 60 + m
+    }
 
     /// Gueltige ISO-Daten einer Liste (wie `_add_cancellations`), ohne Doppelte, sortiert; nil ohne Liste
     static func isoDates(_ v: JSONValue?) -> [String]? {
