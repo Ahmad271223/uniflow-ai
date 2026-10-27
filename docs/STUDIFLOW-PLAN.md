@@ -75,7 +75,9 @@ Punkte ordnen sich dort ein.
 3. Einrichtungsassistent: Uni wählen → QIS-Anmeldung → Stud.IP-Anmeldung → Erstabgleich mit Fortschritt; dazu
    lokale Speicherung, damit die App ohne PC-Server läuft. Logik aus `study.py`/`timetable.py` nach Swift portieren
    (Einordnen in die Lernwoche).
-4. Hintergrundprüfung, Erinnerungen um 8, 15 und 20 Uhr, Hinweis „bitte neu anmelden“.
+4. Hintergrundprüfung, Erinnerungen um 8, 15 und 20 Uhr, Hinweis „bitte neu anmelden“. *Hintergrundprüfung und
+   Hinweis auf `wip/s8-hintergrund` (BGAppRefresh nur Listen, BGProcessing mit Downloads, frühestens 8/15/20 Uhr);
+   die Erinnerung zu festen Uhrzeiten (`UNCalendarNotificationTrigger`) ist noch offen, am echten iPad nicht geprüft.*
 5. *Nach Freigabe des Apple Developer Program:* Mit Apple anmelden echt testen, Kontolöschung in der App,
    Datenschutzerklärung, Privacy Manifest.
 6. Community über CloudKit: Teilen nach Sichtbarkeit (privat, Lerngruppe, Modul, anonym), Kommentare, Melden,

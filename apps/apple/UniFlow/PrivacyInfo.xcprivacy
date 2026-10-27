@@ -11,7 +11,11 @@
   Genutzte APIs mit Begruendungspflicht:
   - UserDefaults (CA92.1): Einstellungen nur dieser App (je Container eine eigene Suite)
   - Datei-Zeitstempel (C617.1): Alter der Antworten im Zwischenspeicher im App-Container (ResponseCache)
-  - Freier Speicher (E174.1): vor dem Laden einer Aufzeichnung pruefen, ob sie Platz hat (RecordingLibrary)
+  - Freier Speicher (E174.1): vor dem Laden einer Aufzeichnung pruefen, ob sie Platz hat (RecordingLibrary), ebenso
+    vor jeder Datei des Hochschul-Abgleichs (DeviceStorage)
+  Abgleich im Hintergrund (S8, BGTaskScheduler, lokale Benachrichtigungen): keine weitere API mit Begruendungspflicht,
+  keine neuen Daten; er laeuft wie der Abgleich beim Oeffnen nur zwischen dem Geraet und der Hochschule, die
+  Mitteilungen entstehen auf dem Geraet (ohne Push, ohne Server, ohne Dateinamen).
   Aendert sich etwas daran (z. B. ab V2 Abgleich ueber einen Server), Manifest und Angaben in App Store Connect
   gemeinsam anpassen.
 -->

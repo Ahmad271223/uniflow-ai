@@ -79,6 +79,9 @@ final class BackgroundSyncAppTests: XCTestCase {
         var isRunning = false
         var report = BackgroundSyncReport()
         var waitsForCancel = false
+        /// wartet, bis der Test `release` setzt (Lauf, der nach dem Loeschen des Containers endet)
+        var holds = false
+        var release = false
         private(set) var kinds: [BackgroundSyncKind] = []
         private(set) var sawCancel = false
 
@@ -91,6 +94,7 @@ final class BackgroundSyncAppTests: XCTestCase {
                 sawCancel = true
                 return BackgroundSyncReport(cancelled: true)
             }
+            while holds && !release { try? await Task.sleep(nanoseconds: 5_000_000) }
             return report
         }
     }
@@ -695,6 +699,24 @@ final class BackgroundSyncAppTests: XCTestCase {
         let files = try await count(fresh, "SELECT COUNT(*) FROM files WHERE course_id='c1'")
         XCTAssertEqual(files, 0)
         XCTAssertTrue(n.posts.isEmpty)
+
+        // ein Abgleich, den das Loeschen nicht anhalten kann, endet erst, nachdem der Container leer neu geoeffnet ist:
+        // sein Ergebnis gehoert dem alten Container und landet weder im neuen noch in einer Mitteilung
+        let fake = FakeSync()
+        fake.holds = true
+        fake.report = BackgroundSyncReport(newFiles: 4, loginNeeded: ["Stud.IP"])
+        b.target = { _ in fake }
+        let late = FakeTask()
+        b.handle(late, kind: .refresh)
+        try await bed.waitUntil("Lauf laeuft") { fake.isRunning }
+        await m.deleteUniversityData(fresh.key)
+        let renewed = try XCTUnwrap(m.active)
+        XCTAssertFalse(renewed === fresh)
+        fake.release = true
+        try await bed.waitUntil("Abschluss") { !late.completions.isEmpty }
+        XCTAssertEqual(late.completions, [false])
+        XCTAssertEqual(suiteKeys(renewed, prefix: "uniflow."), [], "kein Stand und kein Hinweis-Merker im neuen Container")
+        XCTAssertTrue(n.posts.isEmpty, "keine Mitteilung zu einem geloeschten Container")
     }
 
     // MARK: Einstellungen
