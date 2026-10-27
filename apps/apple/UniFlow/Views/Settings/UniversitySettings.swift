@@ -69,16 +69,20 @@ struct UniversitySettingsCard: View {
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
-            UFFlexWrap(gap: 9.6) {
-                UFButton("Hochschule wechseln", icon: "refresh", size: .small) { overlay.modal { UniversitySwitchDialog() } }
-                    .accessibilityIdentifier("settings.university.switch")
-                if let uni {
-                    UFButton("Daten dieser Hochschule löschen", icon: "trash", kind: .danger, size: .small) {
-                        overlay.modal { DeleteUniversityDataDialog(university: uni) }
-                    }
+            UFButton("Hochschule wechseln", icon: "refresh", size: .small) { overlay.modal { UniversitySwitchDialog() } }
+                .accessibilityIdentifier("settings.university.switch")
+                .padding(.top, 9.6)
+            // Loeschen abgesetzt unter einer Linie, nicht neben "Wechseln" (Befund 27.10.: beim Wechseln verwechselt)
+            if let uni {
+                Divider().padding(.vertical, 9.6)
+                Text("Zum Wechseln musst du nichts löschen. Löschen nur, wenn du diese Hochschule auf diesem iPad nicht mehr nutzt.")
+                    .ufFont(12.5).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                UFButton("Daten dieser Hochschule löschen", icon: "trash", kind: .danger, size: .small) {
+                    overlay.modal { DeleteUniversityDataDialog(university: uni) }
                 }
+                .padding(.top, 6.4)
             }
-            .padding(.top, 9.6)
         }
     }
 }
@@ -223,6 +227,7 @@ struct DeleteUniversityDataDialog: View {
         let other = UniversityKey.allCases.first { $0 != u }?.profile.name ?? "anderen Hochschule"
         return "Auf diesem iPad werden für dein Konto alle Daten der \(u.profile.name) gelöscht: Kurse, Lernplan und Einstellungen, "
             + "heruntergeladene Dateien, eigene Dokumente und Notizen, Zwischenspeicher, die Anmeldung in der Webansicht und die gemerkten Zugangsdaten. "
-            + "Die Daten der \(other) bleiben unberührt. Das lässt sich nicht rückgängig machen."
+            + "Die Daten der \(other) bleiben unberührt. Das lässt sich nicht rückgängig machen. "
+            + "Zum Wechseln der Hochschule musst du nichts löschen."
     }
 }
