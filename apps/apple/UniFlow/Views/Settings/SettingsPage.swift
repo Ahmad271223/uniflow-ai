@@ -104,6 +104,7 @@ struct SettingsPage: View {
                    Group {
                        switch current {
                        case "dev": DevelopmentTab(error: error)
+                       case "advanced": LocalAdvancedTab()
                        case "plan": if let local { PlanTab(s: local.s) }
                        case "modules":
                            if let local {
@@ -143,7 +144,7 @@ struct SettingsPage: View {
 }
 
 /// .set-nav: Knoepfe mit Icon 16, min. 44 pt hoch; aktiv --accent-soft / --accent-text
-private struct SettingsNav: View {
+struct SettingsNav: View {
     @Binding var tab: String
     let horizontal: Bool
     /// nur diese Bereiche zeigen (ohne Server: Zugang & Darstellung, Entwicklung)
@@ -151,9 +152,12 @@ private struct SettingsNav: View {
     static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
                                                     ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings"),
                                                     ("dev", "Entwicklung", "layers")]
-    /// ohne eigenen Server: Zugang & Darstellung, Module und Lernzeit (lokales Backend), Entwicklung (nur Debug)
-    static func localKeys(withPlan: Bool) -> [String] {
-        ["account"] + (withPlan ? ["modules", "plan"] : []) + (Session.ownServerAvailable ? ["dev"] : [])
+    /// ohne eigenen Server: Zugang & Darstellung, Module und Lernzeit (lokales Backend), Erweitert (Demo-Inhalte fuer die
+    /// App-Pruefung, auch im Release-Build: die Pruefer von Apple muessen sie finden), Entwicklung (nur Debug)
+    @MainActor static func localKeys(withPlan: Bool) -> [String] { localKeys(withPlan: withPlan, ownServer: Session.ownServerAvailable) }
+
+    static func localKeys(withPlan: Bool, ownServer: Bool) -> [String] {
+        ["account"] + (withPlan ? ["modules", "plan"] : []) + ["advanced"] + (ownServer ? ["dev"] : [])
     }
 
     /// Beschriftung eines Bereichs; ohne eigenen Server gibt es keine Wochentests (keine KI)
@@ -787,12 +791,15 @@ private struct LocalAccountTab: View {
     var term: JSONValue?
     var reload: () async -> Void = {}
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.ufDemoActive) private var demo
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Demo-Inhalte aktiv: eine Anmeldung unten gleicht erst nach dem Entfernen ab
+            if demo { DemoActiveBar() }
             AppAccountCards()
             UFGridLayout(spacing: 16, minWidth: 340) {
                 if studip.offersStudIP {
@@ -951,6 +958,16 @@ struct ConnectView: View {
 
 // MARK: - Erweitert
 
+/// "Erweitert" ohne Server: Demo-Inhalte fuer die App-Pruefung (Views/DemoViews.swift)
+private struct LocalAdvancedTab: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            DemoContentCard()
+        }
+        .frame(maxWidth: 720, alignment: .leading)
+    }
+}
+
 private struct AdvancedTab: View {
     let d: SettingsPage.Loaded
     @EnvironmentObject private var session: Session
@@ -975,6 +992,7 @@ private struct AdvancedTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {                                    // .stack
+            DemoContentCard()                                                        // Demo-Inhalte des eigenen Servers
             UFCard {
                 UFCardHead("Sync-Protokoll", icon: "sync") {
                     Button {

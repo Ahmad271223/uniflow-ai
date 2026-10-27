@@ -149,6 +149,9 @@ final class QISConnection: ObservableObject {
     @discardableResult
     func run(force: Bool = false) async -> QISGradesSync.Report? {
         guard !isRunning, !stopped, isConnected, force || due else { return nil }
+        // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
+        if await host.demoActive() { return nil }
+        guard !isRunning, !stopped else { return nil }
         isRunning = true
         let before = state
         set(.running)

@@ -8,6 +8,7 @@ import UniFlowCore
 struct CommunityPage: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
+    @Environment(\.ufDemoActive) private var demo
     @State private var showingShared = false
 
     /// Geplantes bzw. in diesem Build nicht Verfuegbares; auf dem iPad gibt es das Teilen als Datei schon (Plus,
@@ -37,7 +38,7 @@ struct CommunityPage: View {
     ]
 
     var body: some View {
-        let mode = UFDataMode.current(api: session.api, studip: studip)
+        let mode = UFDataMode.current(api: session.api, studip: studip, demo: demo)
         let connected = mode.isOnDevice && SolutionSharing.community.isConnected
         UFContent(maxWidth: 860) {
             UFPageHead("Community", sub: connected ? "Lösungen teilen und vergleichen – nur eigene Notizen, verschlüsselt." : "Lösungen vergleichen, Fragen stellen, Lerngruppen.")

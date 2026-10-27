@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 88,
+ "count": 90,
  "paths": [
   {
    "method": "DELETE",
@@ -740,6 +740,42 @@
          "type": "number"
         }
        }
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/demo",
+   "sources": [
+    "UniFlow/Views/DemoViews.swift"
+   ],
+   "request": {
+    "path": "/api/demo"
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "enabled": {
+       "type": "bool"
+      },
+      "events": {
+       "type": "number"
+      },
+      "files": {
+       "type": "number"
+      },
+      "module": {
+       "type": "string"
+      },
+      "packages": {
+       "type": "number"
       }
      }
     }
@@ -2154,6 +2190,60 @@
      "keys": {
       "ok": {
        "type": "bool"
+      }
+     }
+    }
+   },
+   "expect": {
+    "status": 200
+   }
+  },
+  {
+   "method": "POST",
+   "shape": "/api/demo",
+   "sources": [
+    "UniFlow/Services/DataContainers.swift",
+    "UniFlow/Views/DemoViews.swift"
+   ],
+   "request": {
+    "path": "/api/demo",
+    "body": {
+     "enabled": false
+    }
+   },
+   "python": {
+    "status": 200,
+    "shape": {
+     "type": "object",
+     "keys": {
+      "enabled": {
+       "type": "bool"
+      },
+      "events": {
+       "type": "number"
+      },
+      "files": {
+       "type": "number"
+      },
+      "module": {
+       "type": "string"
+      },
+      "packages": {
+       "type": "number"
+      },
+      "removed": {
+       "type": "object",
+       "keys": {
+        "events": {
+         "type": "number"
+        },
+        "files": {
+         "type": "number"
+        },
+        "packages": {
+         "type": "number"
+        }
+       }
       }
      }
     }

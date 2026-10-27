@@ -340,6 +340,12 @@ struct UFHeader: View {
     /// zur Anmeldung
     private func sync() {
         if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
+        // Demo-Inhalte: kein Abgleich mit der Hochschule, Hinweis und der Weg zum Entfernen
+        if demo {
+            toast.show(DemoTexts.syncBlocked, seconds: 4)
+            router.go(.settings(tab: "advanced"))
+            return
+        }
         guard studip.offersStudIP else {
             guard let hildesheim, hildesheim.anyConnected else {
                 toast.show("Zuerst Learnweb oder LSF verbinden")
@@ -370,6 +376,7 @@ struct UFHeader: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.hildesheim) private var hildesheim
+    @Environment(\.ufDemoActive) private var demo
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
     @State private var query = ""
     @FocusState private var searchFocused: Bool

@@ -181,6 +181,10 @@ SAMPLES: dict[str, dict] = {
                                          "reason": "nur auf dem Geraet (DueEndpoints)"}},
     "PATCH /api/due/{}": {"path": "/api/due/due-0000000000000000", "body": {"hidden": True}, "python": False,
                           "expect": {"status": 404, "reason": "nur auf dem Geraet; ohne erkannten Termin 404"}},
+    # Demo-Inhalte fuer die App-Pruefung (app/demo.py, DemoEndpoints); Inhalte und Tabellen vergleicht
+    # tools/gen-demo-fixture.py, hier nur die Form. Ausschalten, damit die Beispielanfrage nichts anlegt
+    "GET /api/demo": {"path": "/api/demo"},
+    "POST /api/demo": {"path": "/api/demo", "body": {"enabled": False}},
 }
 
 
