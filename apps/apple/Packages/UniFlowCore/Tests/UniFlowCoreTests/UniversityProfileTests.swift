@@ -71,40 +71,35 @@ final class UniversityProfileTests: XCTestCase {
 
     func testKeychainPrefixPerUniversityWithoutFallback() {
         let l = UniversityProfile.luh, h = UniversityProfile.hildesheim
-        XCTAssertEqual(h.keychainAccount(service: "cas", field: "user"), "hildesheim.cas.user")
-        XCTAssertEqual(h.keychainAccount(service: "cas", field: "password"), "hildesheim.cas.password")
-        XCTAssertEqual(l.keychainAccount(service: "studip", field: "user"), "luh.studip.user")
-        XCTAssertEqual(l.keychainAccount(service: "qis", field: "password"), "luh.qis.password")
-        // Dienst der anderen Hochschule: kein Eintrag, kein Rueckfall
-        XCTAssertNil(h.keychainAccount(service: "studip", field: "user"))
-        XCTAssertNil(l.keychainAccount(service: "cas", field: "user"))
-        XCTAssertNil(h.keychainAccount(service: "cas", field: "x"))
         // Learnweb-Schluessel: nur als Schluessel, nur in Hildesheim
-        XCTAssertEqual(h.keychainAccount(service: "learnweb", field: "token"), "hildesheim.learnweb.token")
-        XCTAssertNil(h.keychainAccount(service: "learnweb", field: "password"))
-        XCTAssertNil(h.keychainAccount(service: "cas", field: "token"))
-        XCTAssertNil(l.keychainAccount(service: "learnweb", field: "token"))
+        XCTAssertEqual(h.tokenKeychainAccount(service: "learnweb"), "hildesheim.learnweb.token")
+        XCTAssertNil(h.tokenKeychainAccount(service: "cas"), "Anmeldedienst hat keinen Schluessel")
+        XCTAssertNil(l.tokenKeychainAccount(service: "learnweb"), "kein Rueckfall auf die andere Hochschule")
+        XCTAssertNil(l.tokenKeychainAccount(service: "studip"))
+        XCTAssertNil(l.tokenKeychainAccount(service: "qis"))
         // mit Nutzer-Praefix (eine Funktion fuer alle Namen, App und Kern)
-        XCTAssertEqual(h.keychainAccount(service: "cas", field: "user", userScope: "u0123456789abcdef"), "u0123456789abcdef.hildesheim.cas.user")
-        XCTAssertTrue(h.ownsKeychainAccount("hildesheim.cas.user"))
-        XCTAssertFalse(l.ownsKeychainAccount("hildesheim.cas.user"))
+        XCTAssertEqual(h.tokenKeychainAccount(service: "learnweb", userScope: "u0123456789abcdef"), "u0123456789abcdef.hildesheim.learnweb.token")
+        XCTAssertTrue(h.ownsKeychainAccount("hildesheim.learnweb.token"))
+        XCTAssertFalse(l.ownsKeychainAccount("hildesheim.learnweb.token"))
         XCTAssertFalse(l.ownsKeychainAccount("luhx.cas.user"))
         XCTAssertNotEqual(l.keychainPrefix, h.keychainPrefix)
     }
 
-    func testPrefillFallbackOnlyWithinTheSameUniversity() {
-        // wie config.service_credentials("QIS"): ohne eigene QIS-Daten die LUH-ID aus Stud.IP; sonst kein Rueckfall
-        XCTAssertEqual(UniversityProfile.luh.loginService("qis")?.prefillFallback, "studip")
-        XCTAssertNil(UniversityProfile.luh.loginService("studip")?.prefillFallback)
-        XCTAssertNil(UniversityProfile.hildesheim.loginService("cas")?.prefillFallback)
-        for p in UniversityProfile.all {
-            for s in p.loginServices {
-                guard let f = s.prefillFallback else { continue }
-                XCTAssertNotNil(p.loginService(f), "\(p.key).\(s.key): Rueckfall nur auf einen Dienst derselben Hochschule")
-                XCTAssertNotEqual(f, s.key)
-                XCTAssertNil(p.loginService(f)?.prefillFallback, "keine Ketten")
-            }
+    /// Entscheidung des Inhabers (27.10.2026): Hochschul-Passwoerter merkt nur das System. Die Eintraege, in denen die
+    /// App sie bis dahin selbst merkte, erkennt der Kern fuer die einmalige Loeschung bei Bestandsnutzern.
+    func testRetiredLoginSecretsAreRecognisedAndTokensAreNot() {
+        for retired in ["u0123456789abcdef.luh.studip.user", "u0123456789abcdef.luh.studip.password", "u0123456789abcdef.luh.qis.user",
+                        "u0123456789abcdef.luh.qis.password", "ufedcba9876543210.hildesheim.cas.user", "ufedcba9876543210.hildesheim.cas.password",
+                        "luh.studip.user", "luh.qis.password", "hildesheim.cas.password",      // vor den Containern ohne Nutzer
+                        "u-ohne-anmeldung.luh.studip.password"] {                                // ohne offenen Container gemerkt
+            XCTAssertTrue(UniversityProfile.isRetiredLoginSecret(retired), retired)
         }
+        for kept in ["u0123456789abcdef.hildesheim.learnweb.token", "hildesheim.learnweb.token", "u0123456789abcdef.luh.studip.token",
+                     "u0123456789abcdef.luhx.studip.password", "u0123456789abcdef.luh..password", "password", "luh.password",
+                     "u0123456789abcdef.luh.studip.password.alt", "session-cookies.0000", "u0123456789abcdef.luh.studip.User", ""] {
+            XCTAssertFalse(UniversityProfile.isRetiredLoginSecret(kept), kept)
+        }
+        XCTAssertEqual(UniversityProfile.retiredLoginFields, ["user", "password"])
     }
 
     func testLoginTargetsOnlyKnownHttpsPages() {
@@ -130,9 +125,6 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertFalse(cas.allows(u("https://sso.idm.uni-hannover.de/idp/profile/SAML2/Redirect/SSO")))
         let qis = UniversityProfile.luh.loginService("qis")!
         XCTAssertTrue(qis.allows(UniversityProfile.luhQISStart))
-        XCTAssertEqual(qis.userSelectors.first, "input[name='asdf']")
-        XCTAssertEqual(cas.userSelectors.first, "#username")
-        XCTAssertEqual(cas.passwordSelectors.first, "#password")
     }
 
     // MARK: CAS

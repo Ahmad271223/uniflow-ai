@@ -3,8 +3,9 @@ import Foundation
 // Hochschul-Profile wie app/universities.py: welche Hochschule die App abgleicht, ihre Dienste, Anmelde- und
 // Datenadressen. Die eine Quelle fuer Schluessel und Adressen der Hochschulen im Kern (HildesheimCAS, Learnweb,
 // LSFClient, Datenbank-Einstellung `university`, Container). Jede Hochschule hat einen eigenen Schluessel-Praefix fuer
-// den Schluesselbund ("luh.studip.user", "hildesheim.cas.user", "hildesheim.learnweb.token"); es gibt keinen
-// Rueckfall von einer Hochschule auf die andere.
+// den Schluesselbund ("hildesheim.learnweb.token"); es gibt keinen Rueckfall von einer Hochschule auf die andere.
+// Hochschul-Passwoerter merkt sich nur das System (iOS-Passwort-Autofill im Anmeldefenster), nie die App
+// (Entscheidung des Inhabers, 27.10.2026); fuer Benutzername und Passwort gibt es deshalb keinen Eintrag mehr.
 //
 // luh        -> Stud.IP (WebSSO/Shibboleth) + QIS der Leibniz Universitaet Hannover
 // hildesheim -> Learnweb (Moodle) + LSF der Universitaet Hildesheim, Anmeldung ueber das zentrale CAS
@@ -24,7 +25,8 @@ public enum UniversityKey: String, Sendable, CaseIterable, Codable, Hashable {
 }
 
 /// Ein Ort, an dem die Hochschule nach Benutzername und Passwort fragt: nur HTTPS, genau dieser Rechner und
-/// ein Pfad, der mit `pathPrefix` beginnt. Alles andere ist keine Anmeldeseite dieser Hochschule.
+/// ein Pfad, der mit `pathPrefix` beginnt. Alles andere ist keine Anmeldeseite dieser Hochschule. Die App liest dort
+/// nichts aus und fuellt nichts aus; die Rechner bestimmen, wohin eine Sitzung weiterleiten darf.
 public struct UniversityLoginTarget: Sendable, Hashable, Codable {
     public let host: String
     public let pathPrefix: String
@@ -48,7 +50,8 @@ public struct UniversityLoginTarget: Sendable, Hashable, Codable {
     }
 }
 
-/// Dienst mit eigener Anmeldung (eigene Zugangsdaten im Schluesselbund).
+/// Dienst mit eigener Anmeldeseite der Hochschule. Benutzername und Passwort tippt der Mensch dort selbst ein; merken
+/// darf sie nur das System (iOS-Schluesselbund), nie die App.
 public struct UniversityLoginService: Sendable, Hashable {
     /// Schluessel des Dienstes innerhalb der Hochschule: "studip", "qis", "cas"
     public let key: String
@@ -57,16 +60,8 @@ public struct UniversityLoginService: Sendable, Hashable {
     public let userLabel: String
     /// Seiten, die die App zum Anmelden oeffnet (z. B. Learnweb und LSF ueber dasselbe CAS)
     public let entryURLs: [URL]
-    /// Anmeldeseiten, auf denen die App Benutzername und Passwort merken und vorausfuellen darf
+    /// Anmeldeseiten des Dienstes (Rechner und Pfad), z. B. das WebSSO, auf das eine abgelaufene Stud.IP-Sitzung leitet
     public let targets: [UniversityLoginTarget]
-    /// CSS-Selektoren fuer das Benutzerfeld (erster Treffer gewinnt); sonst das Textfeld vor dem Passwortfeld
-    public let userSelectors: [String]
-    /// CSS-Selektoren fuer das Passwortfeld; sonst das erste `input[type=password]`
-    public let passwordSelectors: [String]
-    /// Dienst derselben Hochschule, dessen gemerkte Zugangsdaten beim Vorausfuellen gelten, solange dieser Dienst
-    /// keine eigenen hat (LUH: QIS mit der LUH-ID aus Stud.IP wie `config.service_credentials("QIS")` am PC).
-    /// Nie ein Dienst einer anderen Hochschule; gespeichert wird immer unter dem eigenen Dienst.
-    public let prefillFallback: String?
 
     public func allows(_ url: URL?) -> Bool { targets.contains { $0.matches(url) } }
 }
@@ -120,27 +115,35 @@ public struct UniversityProfile: Sendable, Hashable {
 
     public func loginService(_ key: String) -> UniversityLoginService? { loginServices.first { $0.key == key } }
 
-    /// Schluesselbund-Eintrag eines Dienstes dieser Hochschule, z. B. "hildesheim.cas.user" oder
-    /// "hildesheim.learnweb.token"; mit `userScope` (Kurzkennung des Apple-Nutzers, `DataContainerKey.userScope`)
-    /// davor: "u1a2b….hildesheim.cas.user". Die eine Funktion fuer die Namen aller gemerkten Zugangsdaten (App:
-    /// `UniversityCredentialStore`, Learnweb-Schluessel). nil fuer Dienste einer anderen Hochschule (kein Rueckfall)
-    /// und fuer Felder, die der Dienst nicht hat (Benutzer/Passwort nur fuer Anmeldeseiten, Schluessel nur fuer
-    /// `tokenServices`).
-    public func keychainAccount(service: String, field: String, userScope: String? = nil) -> String? {
-        let known: Bool
-        switch field {
-        case "user", "password": known = loginService(service) != nil
-        case "token": known = tokenServices.contains(service)
-        default: known = false
-        }
-        guard known else { return nil }
-        return Self.scoped("\(keychainPrefix).\(service).\(field)", userScope: userScope)
+    /// Schluesselbund-Eintrag des Schluessels eines Dienstes dieser Hochschule ("hildesheim.learnweb.token"); mit
+    /// `userScope` (Kurzkennung des Apple-Nutzers, `DataContainerKey.userScope`) davor: "u1a2b….hildesheim.learnweb.token".
+    /// Die eine Funktion fuer die Namen (App: `UniversityTokenStore`). nil fuer Dienste ohne Schluessel und fuer Dienste
+    /// einer anderen Hochschule (kein Rueckfall). Fuer Benutzername und Passwort gibt es keinen Namen: die merkt nur
+    /// das System (Entscheidung des Inhabers, 27.10.2026).
+    public func tokenKeychainAccount(service: String, userScope: String? = nil) -> String? {
+        guard tokenServices.contains(service) else { return nil }
+        return Self.scoped("\(keychainPrefix).\(service).token", userScope: userScope)
     }
 
-    /// Nutzer-Praefix vor einem Schluesselbund-Namen ("u1a2b…." + Name); ohne `userScope` der Name selbst. Die eine
-    /// Stelle fuer das Praefix, auch fuer den Umzug alter Eintraege (`UniversityCredentialStore`).
+    /// Nutzer-Praefix vor einem Schluesselbund-Namen ("u1a2b…." + Name); ohne `userScope` der Name selbst.
     public static func scoped(_ account: String, userScope: String?) -> String {
         userScope.map { "\($0).\(account)" } ?? account
+    }
+
+    /// Felder der Eintraege, in denen die iPad-App bis 27.10.2026 Benutzername und Passwort einer Anmeldeseite selbst
+    /// merkte ("<nutzer>.luh.studip.user", "<nutzer>.hildesheim.cas.password", vor den Containern ohne Nutzer)
+    public static let retiredLoginFields: Set<String> = ["user", "password"]
+
+    /// Ist das ein solcher Eintrag ("[<praefix>.]<hochschule>.<dienst>.user|password")? Die App loescht sie einmal bei
+    /// Bestandsnutzern, fuer alle Nutzer und Hochschulen dieses Geraets. Schluessel ("….learnweb.token") und
+    /// Sitzungen sind nie gemeint.
+    public static func isRetiredLoginSecret(_ account: String) -> Bool {
+        let parts = account.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count >= 3, let field = parts.last, retiredLoginFields.contains(field), !parts[parts.count - 2].isEmpty else {
+            return false
+        }
+        let uni = parts[parts.count - 3]
+        return all.contains { $0.keychainPrefix == uni }
     }
 
     /// Alle Schluesselbund-Eintraege, die zu dieser Hochschule gehoeren koennen (zum Loeschen je Hochschule).
@@ -191,21 +194,13 @@ extension UniversityProfile {
             UniversityLoginService(
                 key: "studip", name: "Stud.IP", userLabel: "LUH-ID",
                 entryURLs: [luhStudIP.appendingPathComponent("dispatch.php/login")],
-                // Stud.IP-Anmeldeseite und das WebSSO der LUH (Felder 'loginname' und 'password', app/studip_sync.py)
+                // Stud.IP-Anmeldeseite und das WebSSO der LUH (app/studip_sync.py)
                 targets: [UniversityLoginTarget(host: luhSSOHost, pathPrefix: "/idp/"),
-                          UniversityLoginTarget(host: luhStudIP.host ?? "", pathPrefix: "/dispatch.php/login")],
-                userSelectors: ["input[name='loginname']", "#loginname", "input[name='j_username']", "#username",
-                                "input[autocomplete='username']"],
-                passwordSelectors: ["input[name='password']", "#password"], prefillFallback: nil),
+                          UniversityLoginTarget(host: luhStudIP.host ?? "", pathPrefix: "/dispatch.php/login")]),
             UniversityLoginService(
                 key: "qis", name: "QIS", userLabel: "LUH-ID",
                 entryURLs: [luhQISStart],
-                // HIS-QIS: Benutzer 'asdf', Passwort 'fdsa' (app/qis.py)
-                targets: [UniversityLoginTarget(host: "qis.verwaltung.uni-hannover.de", pathPrefix: "/qisserver/")],
-                userSelectors: ["input[name='asdf']", "#asdf"],
-                passwordSelectors: ["input[name='fdsa']", "#fdsa"],
-                // ohne eigene QIS-Daten die LUH-ID aus Stud.IP (PC: same_as_studip, solange QIS nichts Eigenes hat)
-                prefillFallback: "studip"),
+                targets: [UniversityLoginTarget(host: "qis.verwaltung.uni-hannover.de", pathPrefix: "/qisserver/")]),
         ],
         tokenServices: [],
         // SERVICES in app/server.py (gleich mit Python laut Fixture app-paths.json)
@@ -260,8 +255,7 @@ extension UniversityProfile {
                             URL(string: HildesheimCAS.lsfLoginURL)!],
                 // is_cas_page: mit und ohne "www."
                 targets: [UniversityLoginTarget(host: "www.uni-hildesheim.de", pathPrefix: "/sso/login"),
-                          UniversityLoginTarget(host: "uni-hildesheim.de", pathPrefix: "/sso/login")],
-                userSelectors: HildesheimCAS.userSelectors, passwordSelectors: HildesheimCAS.passwordSelectors, prefillFallback: nil),
+                          UniversityLoginTarget(host: "uni-hildesheim.de", pathPrefix: "/sso/login")]),
         ],
         // Learnweb-Schluessel aus dem Moodle-SSO ("hildesheim.learnweb.token")
         tokenServices: ["learnweb"],

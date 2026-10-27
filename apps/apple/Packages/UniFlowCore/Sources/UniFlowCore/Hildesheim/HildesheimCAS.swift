@@ -3,17 +3,15 @@ import Foundation
 /// Apereo-CAS der Uni Hildesheim (`app/cas.py`). Die Anmeldung selbst passiert in der App im WKWebView mit dem
 /// Website-Datenspeicher des Containers (`DataContainerKey.websiteDataStoreID`); hier nur die Adressen, die Erkennung
 /// der Loginseite und ihr Fehlertext. Ablauf: Dienst-URL ueber /login?service=... oeffnen. Gilt die CAS-Sitzung noch,
-/// leitet das CAS sofort zur service-URL zurueck. Sonst zeigt es das Formular (#username, #password); die App fuellt
-/// hoechstens vor, auf "Anmelden" tippen die Studierenden selbst. Ob die Anmeldung fertig ist, entscheidet der Dienst
-/// selbst (`LSFClient.isLoggedIn`, `Learnweb.isLoggedIn`). Der Kern ruft keine Seite auf und kennt kein Passwort.
+/// leitet das CAS sofort zur service-URL zurueck. Sonst zeigt es das Formular; die Studierenden tippen selbst und tippen
+/// selbst auf "Anmelden", ein gespeichertes Passwort setzt hoechstens iOS ein (Schluesselbund), nie die App. Ob die
+/// Anmeldung fertig ist, entscheidet der Dienst selbst (`LSFClient.isLoggedIn`, `Learnweb.isLoggedIn`). Der Kern ruft
+/// keine Seite auf und kennt kein Passwort.
 public enum HildesheimCAS {
     /// Adressen aus dem Hochschul-Profil (eine Quelle wie app/universities.py)
     public static let casBase = UniversityProfile.hildesheimCAS.absoluteString
     public static let lsfBase = UniversityProfile.hildesheimLSF.absoluteString
 
-    /// Formularfelder des CAS (Live-Test 25.10.2026, USER_SELECTORS/PASS_SELECTORS in app/cas.py)
-    public static let userSelectors = ["#username", "input[name='username']", "input[autocomplete='username']"]
-    public static let passwordSelectors = ["#password", "input[name='password']"]
     /// Fehlertext nach falscher Eingabe
     public static let errorPanelID = "loginErrorsPanel"
 

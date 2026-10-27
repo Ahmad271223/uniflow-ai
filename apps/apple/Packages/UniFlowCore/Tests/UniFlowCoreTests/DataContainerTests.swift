@@ -239,15 +239,12 @@ final class DataContainerTests: XCTestCase {
         XCTAssertNotEqual(hi.websiteDataStoreID, DataContainerKey(userID: other, university: .hildesheim).websiteDataStoreID)
         // Schluesselbund: ein Dienst, Eintraege mit Nutzer-Kurzkennung und Hochschule
         XCTAssertEqual(DataContainerKey.keychainService, "de.uniflow.ai.university")
-        XCTAssertEqual(hi.university.profile.keychainAccount(service: "learnweb", field: "token", userScope: hi.userScope), "\(hi.userScope).hildesheim.learnweb.token")
-        XCTAssertEqual(hi.university.profile.keychainAccount(service: "cas", field: "password", userScope: hi.userScope), "\(hi.userScope).hildesheim.cas.password")
-        XCTAssertEqual(luh.university.profile.keychainAccount(service: "studip", field: "user", userScope: luh.userScope), "\(luh.userScope).luh.studip.user")
-        XCTAssertNil(hi.university.profile.keychainAccount(service: "studip", field: "user", userScope: hi.userScope), "kein Rueckfall auf die andere Hochschule")
-        XCTAssertNil(luh.university.profile.keychainAccount(service: "learnweb", field: "token", userScope: luh.userScope))
-        XCTAssertNotEqual(hi.university.profile.keychainAccount(service: "cas", field: "user", userScope: hi.userScope),
-                          UniversityProfile.hildesheim.keychainAccount(service: "cas", field: "user",
-                                                                       userScope: DataContainerKey(userID: other, university: .hildesheim).userScope))
-        for name in [hi.university.profile.keychainAccount(service: "cas", field: "user", userScope: hi.userScope) ?? "", hi.websiteDataStoreID.uuidString, "\(hi)"] {
+        XCTAssertEqual(hi.university.profile.tokenKeychainAccount(service: "learnweb", userScope: hi.userScope), "\(hi.userScope).hildesheim.learnweb.token")
+        XCTAssertNil(luh.university.profile.tokenKeychainAccount(service: "learnweb", userScope: luh.userScope), "kein Rueckfall auf die andere Hochschule")
+        XCTAssertNotEqual(hi.university.profile.tokenKeychainAccount(service: "learnweb", userScope: hi.userScope),
+                          UniversityProfile.hildesheim.tokenKeychainAccount(service: "learnweb",
+                                                                            userScope: DataContainerKey(userID: other, university: .hildesheim).userScope))
+        for name in [hi.university.profile.tokenKeychainAccount(service: "learnweb", userScope: hi.userScope) ?? "", hi.websiteDataStoreID.uuidString, "\(hi)"] {
             XCTAssertFalse(name.contains("erfunden"), name)
             XCTAssertFalse(name.contains("001234"), name)
         }

@@ -268,7 +268,7 @@ final class AccountStore: ObservableObject {
     }
 
     /// Ganzer Ablauf "Konto loeschen" aus den Einstellungen: erst die Daten des Kontos entfernen (`deletionSteps`:
-    /// alle Container des Nutzers mit Dateien, Notizen, Stud.IP-Sitzung, Webdaten und gemerkten Zugangsdaten; die
+    /// alle Container des Nutzers mit Dateien, Notizen, Stud.IP-Sitzung, Webdaten und Learnweb-Schluessel; die
     /// Server-PIN), danach das Konto selbst -> Begruessung. Daten anderer Konten auf dem iPad bleiben.
     /// `beforeWelcome` laeuft direkt vor dem Wechsel zur Begruessung (Dialoge schliessen, Route zuruecksetzen).
     func deleteAccount(also steps: [() async -> Void], beforeWelcome: () -> Void = {}) async {
@@ -278,7 +278,7 @@ final class AccountStore: ObservableObject {
     }
 
     /// Schritte fuer `deleteAccount(also:)` in der App: alle Container dieses Nutzers (beide Hochschulen) samt
-    /// Webdaten, Sitzungs-Cookies, gemerkten Zugangsdaten und Einstellungen loeschen, Server-PIN loeschen
+    /// Webdaten, Sitzungs-Cookies, Learnweb-Schluessel und Einstellungen loeschen, Server-PIN loeschen
     static func deletionSteps(containers: ContainerManager, session: Session, userID: String) -> [() async -> Void] {
         [{ await containers.deleteAllData(userID: userID) }, { session.disconnect() }]
     }

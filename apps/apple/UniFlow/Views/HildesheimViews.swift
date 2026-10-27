@@ -141,6 +141,9 @@ struct HildesheimStatusLine: View {
 struct HildesheimSourcesCard: View {
     @Environment(\.hildesheim) private var hildesheim
 
+    static let text = "Learnweb (Kurse, Dateien) und LSF (Stundenplan, Notenspiegel) der Universität Hildesheim. Du meldest dich auf den Seiten der Universität mit deinem UNI-Account an und tippst selbst auf „Anmelden“; dein Passwort speichert UniFlow nicht (das kann iOS im Schlüsselbund übernehmen). Dateien und Noten bleiben nur auf diesem iPad."
+    static let signOutMessage = "Der Learnweb-Schlüssel und die Anmeldung in der Webansicht der Universität Hildesheim werden gelöscht. Dateien, Stundenplan und Noten bleiben. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
+
     var body: some View {
         if let hildesheim { Panel(connection: hildesheim) }
     }
@@ -163,7 +166,7 @@ struct HildesheimSourcesCard: View {
                         UFBadge("nicht verbunden", tone: .warn)
                     }
                 }
-                Text("Learnweb (Kurse, Dateien) und LSF (Stundenplan, Notenspiegel) der Universität Hildesheim. Du meldest dich auf den Seiten der Universität mit deinem UNI-Account an und tippst selbst auf „Anmelden“; Dateien und Noten bleiben nur auf diesem iPad.")
+                Text(HildesheimSourcesCard.text)
                     .ufFont(13.12).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 VStack(alignment: .leading, spacing: 0) {
@@ -199,7 +202,7 @@ struct HildesheimSourcesCard: View {
             .confirmationDialog("Von Learnweb und LSF abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) { Task { await connection.signOut() } }
             } message: {
-                Text("Der Learnweb-Schlüssel, die Anmeldung in der Webansicht und die auf diesem iPad gemerkten Zugangsdaten der Universität Hildesheim werden gelöscht. Dateien, Stundenplan und Noten bleiben.")
+                Text(HildesheimSourcesCard.signOutMessage)
             }
         }
     }
@@ -226,21 +229,20 @@ struct HildesheimLoginView: View {
     }
 }
 
-/// Anmeldung bei Learnweb oder LSF in der Webansicht des Containers (CAS der Uni). Mit dem Schalter "Auf diesem iPad
-/// merken" fuellt die App Benutzername und Passwort beim naechsten Mal vor; abgeschickt wird nie automatisch.
-/// `bottom` steht unter dem Schalter (erster Start: "Später anmelden"). Nur Debug mit -UFLoginStub: lokale
-/// Nachbildung statt der Seite der Universitaet; "<learnweb|lsf>-angemeldet.html" gilt als angemeldet (DebugUniStub).
+/// Anmeldung bei Learnweb oder LSF in der Webansicht des Containers (CAS der Uni). Benutzername und Passwort tippt der
+/// Mensch selbst; die App fuellt nichts vor und speichert nichts davon, ein gespeichertes Passwort setzt hoechstens iOS
+/// ein. `bottom` steht unter dem Hinweis `UniversityLoginHint` (erster Start: "Später anmelden"). Nur Debug mit
+/// -UFLoginStub: lokale Nachbildung statt der Seite der Universitaet; "<learnweb|lsf>-angemeldet.html" gilt als
+/// angemeldet (DebugUniStub).
 struct HildesheimLoginPane<Bottom: View>: View {
     @ObservedObject var login: HildesheimLogin
     @ViewBuilder let bottom: Bottom
-    @StateObject private var autofill: UniversityLoginAutofill
     /// Ladefehler der Seite (kein Netz, LSF/CAS nicht erreichbar): Karte mit "Erneut versuchen"
     @StateObject private var load = UFWebLoadState()
 
     init(login: HildesheimLogin, @ViewBuilder bottom: () -> Bottom) {
         self.login = login
         self.bottom = bottom()
-        _autofill = StateObject(wrappedValue: UniversityLoginAutofill(university: .hildesheim, serviceKey: "cas", store: login.connection.credentials)!)
     }
 
     private var service: String { login.target == .learnweb ? "learnweb" : "lsf" }
@@ -256,7 +258,7 @@ struct HildesheimLoginPane<Bottom: View>: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(UF.bg)
         case .page(let url):
-            StudIPWebView(url: DebugUniStub.loginPage(service, real: url), dataStore: login.connection.websiteDataStore, autofill: autofill,
+            StudIPWebView(url: DebugUniStub.loginPage(service, real: url), dataStore: login.connection.websiteDataStore,
                           interceptNavigation: { login.intercept($0) }, load: load) { webView in
                 if DebugUniStub.isSignedIn(webView.url, service: service) {
                     login.stubSignedIn()
@@ -279,7 +281,7 @@ struct HildesheimLoginPane<Bottom: View>: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(UF.badSoft)
                     }
-                    UniversityRememberBar(autofill: autofill)
+                    UniversityLoginHint()
                     bottom
                 }
             }

@@ -2,7 +2,7 @@ import SwiftUI
 import UniFlowCore
 import WebKit
 
-// Noten aus dem QIS der LUH auf dem iPad (F4): Anmeldung in der Webansicht des Containers (nur vorausgefuellt),
+// Noten aus dem QIS der LUH auf dem iPad (F4): Anmeldung in der Webansicht des Containers (Passwort nur von iOS gemerkt),
 // Karte "Notenspiegel (QIS)" unter Uni & Noten mit Notenschnitt und Liste wie beim LSF der Uni Hildesheim, Karte
 // "Stud.IP & QIS" in den Einstellungen und unter Uni & Noten. Leer ist kein Fehler ("Im QIS sind noch keine Noten
 // veröffentlicht."); eine abgelaufene Sitzung bietet die Anmeldung an.
@@ -36,14 +36,14 @@ struct QISLoginView: View {
 
 /// Anmeldung auf der echten QIS-Seite in der Webansicht des Containers. Fertig, sobald eine Seite des QIS angemeldet
 /// ist (`QISPage.isLoggedIn`: Abmelden-Link, kein Anmeldeformular); dann `QISConnection.signedIn()` (ruft gleich ab)
-/// und `onSignedIn`. Ohne eigene QIS-Zugangsdaten fuellt die App die LUH-ID aus Stud.IP vor (`prefillFallback`);
-/// "Anmelden" tippt der Mensch. `bottom` steht unter dem Schalter "Auf diesem iPad merken" (erster Start:
-/// "Später anmelden"). Nur Debug mit -UFLoginStub: lokale Nachbildung statt der QIS-Seite (DebugUniStub).
+/// und `onSignedIn`. Benutzername und Passwort tippt der Mensch selbst und tippt selbst auf "Anmelden"; die App fuellt
+/// nichts vor (auch nicht die LUH-ID aus Stud.IP) und speichert nichts davon, ein gespeichertes Passwort setzt
+/// hoechstens iOS ein. `bottom` steht unter dem Hinweis `UniversityLoginHint` (erster Start: "Später anmelden"). Nur
+/// Debug mit -UFLoginStub: lokale Nachbildung statt der QIS-Seite (DebugUniStub).
 struct QISLoginPane<Bottom: View>: View {
     @ObservedObject var connection: QISConnection
     let onSignedIn: () -> Void
     @ViewBuilder let bottom: Bottom
-    @StateObject private var autofill: UniversityLoginAutofill
     @StateObject private var load = UFWebLoadState()
     @State private var done = false
 
@@ -51,16 +51,15 @@ struct QISLoginPane<Bottom: View>: View {
         self.connection = connection
         self.onSignedIn = onSignedIn
         self.bottom = bottom()
-        _autofill = StateObject(wrappedValue: UniversityLoginAutofill(university: .luh, serviceKey: "qis", store: connection.credentials)!)
     }
 
     var body: some View {
         StudIPWebView(url: DebugUniStub.loginPage("qis", real: QISClient.startURL), dataStore: connection.websiteDataStore,
-                      autofill: autofill, load: load) { webView in pageLoaded(webView) }
+                      load: load) { webView in pageLoaded(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
-                    UniversityRememberBar(autofill: autofill)
+                    UniversityLoginHint()
                     bottom
                 }
             }
@@ -154,7 +153,7 @@ struct LUHSourcesCard: View {
             UFCardHead("Stud.IP & QIS", icon: "graduation") {
                 studip.phase != .signedOut ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht verbunden", tone: .warn)
             }
-            Text("Stud.IP (Kurse, Dateien, Stundenplan, Aufzeichnungen) und QIS (Notenspiegel) der Leibniz Universität Hannover. Du meldest dich auf den Seiten der Universität mit deiner LUH-ID an und tippst selbst auf „Anmelden“; Dateien und Noten bleiben nur auf diesem iPad.")
+            Text(Self.text)
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 0) {
@@ -174,6 +173,8 @@ struct LUHSourcesCard: View {
         }
         .sheet(isPresented: $studipSheet) { NavigationStack { StudIPView().toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { studipSheet = false } } } } }
     }
+
+    static let text = "Stud.IP (Kurse, Dateien, Stundenplan, Aufzeichnungen) und QIS (Notenspiegel) der Leibniz Universität Hannover. Du meldest dich auf den Seiten der Universität mit deiner LUH-ID an und tippst selbst auf „Anmelden“; dein Passwort speichert UniFlow nicht (das kann iOS im Schlüsselbund übernehmen). Dateien und Noten bleiben nur auf diesem iPad."
 
     static func studipText(_ p: StudIPSync.Phase) -> String {
         switch p {
@@ -222,7 +223,7 @@ struct LUHSourcesCard: View {
             .confirmationDialog("Vom QIS abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) { Task { await connection.signOut() } }
             } message: {
-                Text("Die QIS-Anmeldung in der Webansicht und die auf diesem iPad gemerkten QIS-Zugangsdaten werden gelöscht. Die geladenen Noten bleiben; Stud.IP bleibt angemeldet.")
+                Text(QISConnection.signOutMessage)
             }
         }
 

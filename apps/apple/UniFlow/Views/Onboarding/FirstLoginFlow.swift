@@ -3,7 +3,7 @@ import UniFlowCore
 
 // Erster Start, Entscheidung des Inhabers (docs/OFFEN-V1.md, Punkt 2): Mit Apple anmelden -> Tarif -> Hochschule ->
 // SOFORT die Anmeldeseiten der Hochschule in der App (LUH: Stud.IP, danach QIS; Uni Hildesheim: CAS fuer Learnweb,
-// danach LSF ueber dieselbe CAS-Sitzung), der Nutzer tippt selbst (Vorausfuellen beim naechsten Mal) -> Erstabgleich
+// danach LSF ueber dieselbe CAS-Sitzung), der Nutzer tippt selbst (Passwoerter merkt nur iOS, nie die App) -> Erstabgleich
 // mit Fortschritt (Dateien, Stundenplan, Noten, an der LUH auch die Opencast-Listen) -> gefuellter Startbildschirm.
 // Auf jeder Anmeldeseite ein kleiner Link "Später anmelden": dann die bisherigen Karten "… verbinden" auf der
 // Uebersicht. Der Schritt erscheint einmal je (Nutzer, Hochschule) (`AccountStore.loginDone`); Uni-Wechsel nur in den
@@ -102,7 +102,7 @@ struct FirstLoginFlow: View {
 }
 
 /// Eine Anmeldeseite: Kopf mit Schritt und Erklaerung, darunter die Anmeldeansicht der Quelle (Webansicht der
-/// Hochschule mit "Auf diesem iPad merken"), ganz unten der kleine Link "Später anmelden"
+/// Hochschule mit dem Hinweis `UniversityLoginHint`), ganz unten der kleine Link "Später anmelden"
 struct FirstLoginPage: View {
     let step: FirstLoginStep
     let index: Int
@@ -129,7 +129,7 @@ struct FirstLoginPage: View {
                 Text("Schritt \(index + 1) von \(count): \(step.title)").ufFont(20, 700, em: -0.01).foregroundStyle(UF.text)
                     .accessibilityIdentifier("firststart.title")
                 Text(step.intro).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
-                Text("Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein; UniFlow füllt sie beim nächsten Mal nur vor.")
+                Text(Self.passwordNote)
                     .ufFont(12.16).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
@@ -185,7 +185,7 @@ struct FirstLoginPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Link "Später anmelden" unter dem Schalter "Auf diesem iPad merken"
+    /// Link "Später anmelden" unter dem Hinweis zu den Passwoertern
     private var later: some View {
         HStack(spacing: 8) {
             Text(Self.laterHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
@@ -200,6 +200,7 @@ struct FirstLoginPage: View {
     }
 
     static let laterHint = "Du kannst dich auch später anmelden – die Übersicht zeigt dann die Karte zum Verbinden."
+    static let passwordNote = "Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. UniFlow speichert sie nicht; merken kann sie iOS im Schlüsselbund."
 }
 
 /// Learnweb- bzw. LSF-Anmeldung als Schritt des ersten Starts (eigener `HildesheimLogin` je Schritt)

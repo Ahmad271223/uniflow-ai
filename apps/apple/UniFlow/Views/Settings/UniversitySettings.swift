@@ -133,7 +133,7 @@ struct UniversitySwitchDialog: View {
 
     /// Hinweis vor dem Wechsel: nichts wird geloescht oder uebertragen
     static func notice(from old: UniversityKey, to new: UniversityKey) -> String {
-        "Die Daten der \(old.profile.name) bleiben getrennt auf diesem iPad erhalten – Dateien, Notizen, Lernplan, Anmeldungen und gemerkte Zugangsdaten. "
+        "Die Daten der \(old.profile.name) bleiben getrennt auf diesem iPad erhalten – Dateien, Notizen, Lernplan und Anmeldungen. "
             + "Nichts davon wird in die \(new.profile.name) übernommen. UniFlow arbeitet danach sofort mit dem Speicher der \(new.profile.name); "
             + "zurückwechseln kannst du jederzeit hier."
     }
@@ -186,7 +186,7 @@ struct ContainerSyncNotice: View {
     }
 }
 
-/// "Daten dieser Hochschule löschen": genau dieser Container mit Anmeldung, Zugangsdaten und Webdaten
+/// "Daten dieser Hochschule löschen": genau dieser Container mit Anmeldung, Learnweb-Schluessel und Webdaten
 struct DeleteUniversityDataDialog: View {
     let university: UniversityKey
     @EnvironmentObject private var account: AccountStore
@@ -226,7 +226,8 @@ struct DeleteUniversityDataDialog: View {
     static func explanation(_ u: UniversityKey) -> String {
         let other = UniversityKey.allCases.first { $0 != u }?.profile.name ?? "anderen Hochschule"
         return "Auf diesem iPad werden für dein Konto alle Daten der \(u.profile.name) gelöscht: Kurse, Lernplan und Einstellungen, "
-            + "heruntergeladene Dateien, eigene Dokumente und Notizen, Zwischenspeicher, die Anmeldung in der Webansicht und die gemerkten Zugangsdaten. "
+            + "heruntergeladene Dateien, eigene Dokumente und Notizen, Zwischenspeicher und die Anmeldung in der Webansicht"
+            + (u.profile.tokenServices.isEmpty ? ". " : " samt Learnweb-Schlüssel. ")
             + "Die Daten der \(other) bleiben unberührt. Das lässt sich nicht rückgängig machen. "
             + "Zum Wechseln der Hochschule musst du nichts löschen."
     }

@@ -8,7 +8,7 @@ import WebKit
 ///
 /// Im Ordner liegen:
 /// - `studip.html`, `qis.html`, `learnweb.html`, `lsf.html`: Anmeldeseiten, die die Anmeldeansichten statt der echten
-///   Seite laden (file-URL; das Vorausfuellen bleibt aus, es gilt nur fuer https). Eine Seite `<dienst>-angemeldet.html`
+///   Seite laden (file-URL). Eine Seite `<dienst>-angemeldet.html`
 ///   gilt als angemeldet, sobald die Webansicht sie zeigt (der Knopf "Anmelden" der Nachbildung fuehrt dorthin).
 /// - `routes.json`: Antworten der Abgleiche (Stud.IP JSON:API, Opencast, QIS, Learnweb, LSF): Liste von
 ///   `{"match": "<Teil der Adresse>", "bodyMatch": "<Teil des Anfrage-Koerpers>", "file": "<Datei im Ordner>" | "body": "<Text>",
