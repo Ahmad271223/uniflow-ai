@@ -235,7 +235,7 @@ final class AuditSolutionTests: XCTestCase {
     }
 
     /// 403 (behoben): PDF-Seite, die es in der PDF nicht (mehr) gibt (z. B. neue Fassung mit weniger Seiten), sperrte
-    /// das Teilen ganz mit "Die Lösung ist beschädigt (Inhalt: PDF-Seite 7)". Jetzt nennt der Dialog sie als nicht
+    /// das Teilen ganz mit "Die Loesung ist beschaedigt (Inhalt: PDF-Seite 7)". Jetzt nennt der Dialog sie als nicht
     /// teilbare Seite mit Grund und laesst sie aus; direkt erzeugt nennt der Fehler die Seite.
     func testMissingPDFPageIsANamedProblemNotABlocker() throws {
         let d = try AuditSolution.document()
