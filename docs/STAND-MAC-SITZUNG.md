@@ -484,3 +484,13 @@ Bitte prüfen, dass euer Renderer (PageOrder/DisplayLayout, PencilKit-Canvas) be
 darstellt und beim Anlegen von Seiten dieselben Formate anbietet; sehr große Seiten (A1/A0 quer) brauchen auf dem
 iPad ggf. gekachelte Darstellung. Zweite Änderung nur im Web: beim Tippen in ein Textfeld schalteten Kurzbefehle das
 Werkzeug um (Textfeld verlor nach dem pointerdown den Fokus) – behoben in `editor.js`.
+
+## Nachtrag der PC-Sitzung: Demo-Inhalte für die App-Prüfung (27.10.2026)
+
+Für die Prüfung ohne Hochschulkonto gibt es jetzt `app/demo.py`: ein Demo-Modul „Grundlagen der Informatik“ mit drei
+selbst erzeugten PDFs (Skript, Folien, Übungsblatt – kein fremdes Material), Stundenplan (Mo/Mi/Do), drei Lernpaketen
+dieser Woche, einer Abgabefrist und einer Ankündigung mit Raumwechsel; Schalter in Einstellungen → Erweitert und
+`GET/POST /api/demo`, rückstandslos entfernbar, Kennung `demo-`/`source = demo`. Web, Windows und Android (über den
+Dienst) haben das damit. Das iPad läuft ohne Dienst – bitte denselben Schalter lokal anbieten (gleiche Inhalte, ihr
+könnt die PDFs mit `demo.pdf_bytes` aus Python erzeugen und als Fixture ablegen oder in Swift nachbauen) und in den
+Prüfhinweisen (`docs/release/APP-STORE.md`) steht der Ablauf schon so.

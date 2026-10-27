@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, community_api, config, db, filestream, jobs, legal, planner, retention, study, timetable, universities, vault
+from . import account_api, accounts, community_api, config, db, demo, filestream, jobs, legal, planner, retention, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -978,6 +978,24 @@ def _public_settings(s: dict) -> dict:
     out["files_source"] = universities.PROFILES.get(config.university(), {}).get("files_source", "Stud.IP")
     out["mode"] = config.MODE
     return out
+
+
+@app.get("/api/demo")
+def demo_status():
+    """Demo-Inhalte (app/demo.py): fuer die App-Pruefung ohne Hochschulkonto und zum Ausprobieren."""
+    with db.cursor() as conn:
+        return demo.status(conn)
+
+
+@app.post("/api/demo")
+def demo_toggle(body: dict = Body(default={})):
+    """{enabled: true} legt den Demo-Kurs mit PDFs, Stundenplan, Lernkalender, Frist und Ankuendigung an (frisch),
+    {enabled: false} entfernt alles rueckstandslos."""
+    with db.cursor() as conn:
+        if body.get("enabled"):
+            return demo.install(conn)
+        removed = demo.remove(conn)                  # erst entfernen, dann den Stand melden
+        return {**demo.status(conn), "removed": removed}
 
 
 @app.get("/api/settings")

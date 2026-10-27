@@ -62,7 +62,7 @@ UniFlow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. V
 | Konto löschen (Pflicht bei Kontoerstellung) | in der App: Einstellungen → Konto → Konto löschen; URL `[[Domain]]/konto-loeschen` |
 | Zielgruppe und Inhalte | nur „18 und älter“ (Studierende; keine Kinder-Zielgruppe, damit die Families-Richtlinien nicht greifen) |
 | Werbung | enthält keine Werbung |
-| App-Zugriff | „Alle Funktionen sind ohne besondere Zugangsdaten verfügbar“ gilt **nicht** – Anleitung hinterlegen: Konto anlegen in der App; Hochschulfunktionen brauchen ein Hochschulkonto, Prüfung mit [[Beispielinhalten ohne Hochschule]] |
+| App-Zugriff | „Alle Funktionen sind ohne besondere Zugangsdaten verfügbar“ gilt **nicht** – Anleitung hinterlegen: Konto anlegen in der App; Hochschulfunktionen brauchen ein Hochschulkonto; Prüfung mit den Demo-Inhalten (Einstellungen → Erweitert → „Demo-Inhalte anlegen“: Demo-Modul mit PDFs, Stundenplan, Lernkalender, Frist, Ankündigung) |
 | Paketname | `de.uniflow.android` (`apps/android/app/build.gradle.kts`) |
 
 ## Inhaltseinstufung (IARC-Fragebogen)
