@@ -423,6 +423,8 @@ final class BackgroundSyncController: ObservableObject {
         }
         if owns(c) {
             state.record(BackgroundSyncRecord(finishedAt: now(), kind: kind, outcome: BackgroundSyncRecord.outcome(report)))
+            // neue Dateien und Fristen: Abgaben-Erinnerungen gleich neu planen, nicht erst beim naechsten Oeffnen
+            if report.skipped == nil, !report.cancelled, containers.active === c { DueReminderScheduler.shared.schedule(recompute: true) }
         }
         revision += 1
         return report.skipped != nil || (!report.cancelled && report.failure == nil)
