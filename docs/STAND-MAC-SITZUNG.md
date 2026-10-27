@@ -530,7 +530,7 @@ Zwei Ergänzungen zum Vertrag „Hochschul-Anmeldung auf dem Gerät“:
    `POST /api/sync` im Dienst holt Kurse, Termine, Dateiliste mit dieser Sitzung – ohne gespeicherte Zugangsdaten.
    Nur Cookies für die Hosts aus `GET /api/university/profile` (plus CAS-Host in Hildesheim), höchstens 50, Wert bis
    4 KB; fremde Hosts → 400 `cookies_foreign_host`. `DELETE /api/university/session` löscht sie, `GET` zeigt, ob eine
-   gilt. Bitte auf dem iPad nach erfolgreicher WKWebView-Anmeldung aufrufen (Android folgt in `UniversityLoginScreen`).
+   gilt. Bitte auf dem iPad nach erfolgreicher WKWebView-Anmeldung aufrufen (Android macht es seit 27.10. in `UniversityLoginScreen` → `Repo.reportUniversitySession`).
    Läuft die Sitzung ab, meldet der Abgleich „Anmeldung noetig“ (Fehlertext enthält „Im Browser anmelden“ am PC bzw.
    die App zeigt ihr Anmeldefenster). Tests: `tests/test_unilogin.py`.
 2. **PC/Windows**: `POST /api/university/login` öffnet ein sichtbares Chromium (Playwright-Profil im Datenordner) mit

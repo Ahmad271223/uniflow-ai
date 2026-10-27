@@ -296,6 +296,15 @@ class DeviceSyncApi(private val client: ApiClient) {
     fun reportPageText(fileId: String, pages: List<String>) {
         client.put("/api/files/$fileId/pagetext", buildJsonObject { put("pages", JsonArray(pages.map { JsonPrimitive(it) })) })
     }
+
+    /**
+     * Hochschul-Sitzung aus dem Anmeldefenster (nur Cookies, nie das Passwort) verschluesselt im Tresor des Kontos
+     * ablegen: PUT /api/university/session. Damit holt der Dienst Kurse, Termine und Dateiliste ohne Zugangsdaten;
+     * der Dienst nimmt nur Cookies fuer die Hosts der Hochschule (400 cookies_foreign_host).
+     */
+    fun reportSession(session: UniversitySession) {
+        client.put("/api/university/session", buildJsonObject { put("cookies", JsonArray(session.cookies.map { it.toJson() })) })
+    }
 }
 
 /** Adress-Helfer ohne Netz: Schema, Host und Pfad einer Adresse, Prozent-Kodierung wie urllib.parse.quote. */

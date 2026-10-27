@@ -57,7 +57,7 @@ fun UniversityLoginRoute(repo: Repo, onDone: () -> Unit) {
                 Text("Für die Hochschule deines Kontos gibt es noch kein Anmeldeprofil; Dateien kommen weiter über den Dienst.", color = Warn)
                 Button(onClick = onDone, modifier = Modifier.padding(top = 12.dp)) { Text("Zurück") }
             }
-        } else UniversityLoginScreen(profile, repo.universities, onDone)
+        } else UniversityLoginScreen(profile, repo.universities, onDone, onSession = repo::reportUniversitySession)
     }
 }
 
@@ -72,14 +72,15 @@ fun UniversityLoginRoute(repo: Repo, onDone: () -> Unit) {
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun UniversityLoginScreen(profile: UniversityProfile, store: UniversityStore, onDone: () -> Unit, onCancel: () -> Unit = onDone) {
+fun UniversityLoginScreen(profile: UniversityProfile, store: UniversityStore, onDone: () -> Unit, onCancel: () -> Unit = onDone,
+                          onSession: (UniversitySession) -> Unit = {}) {
     val passport = remember { UUID.randomUUID().toString() }
     var progress by remember { mutableIntStateOf(0) }
     var hint by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var webView by remember { mutableStateOf<WebView?>(null) }
     val flow = remember(profile) {
-        UniversityLoginFlow(profile, passport, store, onHint = { hint = it }, onError = { error = it }, onDone = onDone)
+        UniversityLoginFlow(profile, passport, store, onHint = { hint = it }, onError = { error = it }, onDone = onDone, onSession = onSession)
     }
 
     DisposableEffect(Unit) { onDispose { webView?.let { runCatching { it.stopLoading(); it.destroy() } }; webView = null } }
@@ -148,6 +149,7 @@ private class UniversityLoginFlow(
     private val onHint: (String?) -> Unit,
     private val onError: (String) -> Unit,
     private val onDone: () -> Unit,
+    private val onSession: (UniversitySession) -> Unit = {},
 ) {
     private var done = false
     private var launchStarted = false
@@ -204,6 +206,7 @@ private class UniversityLoginFlow(
         if (done) return
         done = true
         store.save(s)
+        onSession(s)                                        // Dienst bekommt die Sitzung (Cookies) fuer den Abgleich ohne Zugangsdaten
         onHint(null)
         onDone()
     }

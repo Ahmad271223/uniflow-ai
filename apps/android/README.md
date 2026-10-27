@@ -49,6 +49,8 @@ dieses Geräts gilt“; ein vom Worker aufgegebener Entwurf erscheint als „Kon
 
 ## Hochschul-Anmeldung auf dem Gerät
 
+Nach der Anmeldung meldet die App die Sitzung (nur Cookies, nie das Passwort, nie den Learnweb-Schlüssel) mit `PUT /api/university/session` an den Dienst (`Repo.reportUniversitySession`, `DeviceSyncApi.reportSession`); der Abgleich im Dienst (Kurse, Termine, Dateiliste) läuft damit ohne gespeicherte Zugangsdaten, bis die Hochschule die Sitzung beendet – dann zeigt die App das Anmeldefenster erneut.
+
 Hochschuldateien können direkt auf das Gerät geladen werden, ohne dass der Dienst sie herunterlädt – wie auf dem iPad.
 
 **Ablauf**

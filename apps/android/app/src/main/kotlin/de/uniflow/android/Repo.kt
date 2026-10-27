@@ -157,6 +157,17 @@ class Repo(private val session: Session, private val cacheDir: File, val univers
      * nur einem angenommenen Fingerabdruck: lehnt der Dienst ihn ab (Datei liegt schon beim Dienst, 400; andere Fassung
      * bekannt, 409), will er auch keinen Seitentext dieser Fassung.
      */
+    /**
+     * Sitzung aus dem Anmeldefenster (nur Cookies) in den Tresor des Kontos, im Hintergrund: der Abgleich im Dienst
+     * (Kurse, Termine, Dateiliste) laeuft damit ohne gespeicherte Zugangsdaten. Fehler werden nur protokolliert.
+     */
+    fun reportUniversitySession(s: UniversitySession) {
+        background.launch(Dispatchers.IO) {
+            runCatching { DeviceSyncApi(client()).reportSession(s) }
+                .onFailure { Log.w(TAG, "Hochschul-Sitzung nicht an den Dienst gemeldet: ${it.message}") }
+        }
+    }
+
     private fun report(file: LibraryFile, f: File, bytes: ByteArray) {
         background.launch(Dispatchers.IO) {
             val api = DeviceSyncApi(client())

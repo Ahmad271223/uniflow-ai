@@ -295,6 +295,12 @@ class UniversityTest {
         assertEquals("""{"pages":["Seite 1","Seite \"2\""]}""", t2.seen[1].body!!.toString(Charsets.UTF_8))
         api2.reportPageText("f2", emptyList())
         assertEquals("""{"pages":[]}""", t2.seen[2].body!!.toString(Charsets.UTF_8))
+        // Sitzung in den Tresor des Kontos: nur Cookies (Name, Wert, Domain, Pfad, Ablauf), kein Schluessel, kein Passwort
+        api2.reportSession(UniversitySession("luh", listOf(UniCookie("Seminar_Session", "s1", "studip.uni-hannover.de"),
+            UniCookie("shib", "t", ".idm.uni-hannover.de", "/idp", 1800000000L)), learnwebToken = "geheim"))
+        assertEquals("PUT", t2.seen[3].method); assertEquals("https://dienst.test/api/university/session", t2.seen[3].url)
+        assertEquals("""{"cookies":[{"name":"Seminar_Session","value":"s1","domain":"studip.uni-hannover.de","path":"/"},{"name":"shib","value":"t","domain":".idm.uni-hannover.de","path":"/idp","expires":1800000000}]}""",
+            t2.seen[3].body!!.toString(Charsets.UTF_8))
         // Fehler des Dienstes laufen wie ueberall als ApiError durch (nur 2xx ist Erfolg)
         val e = assertFailsWith<ApiError> { DeviceSyncApi(ApiClient("https://dienst.test", Recorder("""{"detail":"Datei nicht gefunden.","code":"not_found"}""", 404))).reportFingerprint("x", "y") }
         assertEquals(404, e.status); assertEquals("not_found", e.code)
