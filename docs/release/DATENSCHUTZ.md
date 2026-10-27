@@ -32,10 +32,11 @@ Die Apps arbeiten zuerst lokal. Auf dem Gerät gespeichert werden:
 - deine Notizen (Handschrift, Text, Formen, Bilder), eigene Dokumente, Lesezeichen, Papierkorb;
 - Stundenplan, Lernkalender, Lernpakete, Aufgaben, Karteikarten, Zeitmesser und Einstellungen;
 - Hochschul-Zugangsdaten merkt sich – wenn du das beim Anmelden erlaubst – der Passwort-Manager deines Geräts
-  (Android: Google Password Manager oder Samsung Pass im Anmeldefenster; iPad: Schlüsselbund von iOS); die App
-  selbst speichert weder Benutzername noch Passwort und meldet sich nie von selbst an; am PC merkt sie sich das
-  Browserfenster, das die App öffnet). Nach der Anmeldung behält die App nur die Sitzung (Cookies) der Hochschule,
-  bis du dich abmeldest oder die Hochschule sie beendet. Nur wenn du es am PC ausdrücklich einträgst, liegen die
+  (Android: Google Password Manager oder Samsung Pass im Anmeldefenster; iPad: Passwort-Autofill von iOS mit dem
+  Schlüsselbund bzw. iCloud-Schlüsselbund, verantwortlich ist Apple; am PC das von der App geöffnete Browserfenster); die App
+  selbst speichert weder Benutzername noch Passwort und meldet sich nie von selbst an. Nach der Anmeldung behält die
+  App nur die Sitzung (Cookies) der Hochschule, bei der Universität Hildesheim zusätzlich den Learnweb-Schlüssel, bis
+  du dich abmeldest oder die Hochschule sie beendet. Nur wenn du es am PC ausdrücklich einträgst, liegen die
   Zugangsdaten für den Abgleich ohne Nachfrage in der Datei `.env` im Datenordner der App – jederzeit löschbar.
 
 Der PC-Modus (eigener Server auf deinem Rechner, Ordner `data/`) ist ebenfalls rein lokal; im eigenen WLAN schützt

@@ -17,7 +17,7 @@ haben. „Getestet“ heißt: automatische Tests grün und, wo angegeben, mit ec
 | S9 „Lösung teilen“ als Datei (nur eigene Notizen, verschlüsselt) | getestet, mit echtem Übungsblatt und zwei Benutzern |
 | Opencast-Aufzeichnungen (Modul, Woche, Player, Download auf Wunsch) | getestet, erfundene Seiten |
 | Datentrennung je (Apple-Nutzer, Hochschule), Umzug alter Daten | getestet |
-| Zugangsdaten je Uni im Schlüsselbund, Anmeldeseiten nur vorausfüllen | getestet mit lokalen Seiten |
+| ~~Zugangsdaten je Uni im Schlüsselbund, Anmeldeseiten nur vorausfüllen~~ – **abgelöst 27.10.2026:** Hochschul-Passwörter merkt nur iOS (Passwort-Autofill/Schlüsselbund im Anmeldefenster), nie die App; Schalter „Auf diesem iPad merken“, eigenes Speichern und Vorausfüllen entfernt, früher gemerkte Einträge löscht die App einmal beim Start (Zweig `wip/passwort-ios`) | getestet mit lokalen Seiten und den Nachbildungen; am echten iPad offen: Schlüssel-Symbol über der Tastatur, Sichern-Angebot von iOS |
 | Hildesheim: CAS, Learnweb, LSF-Stundenplan, Noten | getestet, erfundene Antworten |
 | Dreifache Abnahme: 96 bestätigte Befunde behoben (u. a. Notizbücher öffnen, neue Kurse beim Abgleich, HTTP nur Debug, Privacy Manifest, KI-Reste entfernt, Plus-Karte ehrlich) | getestet |
 
@@ -57,7 +57,8 @@ Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (C
 - App Store Connect: App-Eintrag, Abo „Plus 1,99 €/Monat, 1 Woche gratis“, Datenschutz-Angaben.
 - Datenschutzerklärung, Nutzungsbedingungen, Impressum veröffentlichen (Entwürfe macht die PC-Sitzung in
   `docs/release/`), Links auf der Abo-Seite eintragen.
-- Anfragen an LUH (LUIS/elsa) und Hildesheim (Regel 5.2.2, Passwort-Merken, Learnweb-Schlüssel) – Entwürfe PC-Sitzung.
+- Anfragen an LUH (LUIS/elsa) und Hildesheim (Regel 5.2.2, Learnweb-Schlüssel) – Entwürfe PC-Sitzung. Passwort-Merken
+  durch die App muss nicht mehr erfragt werden (seit 27.10.2026 merkt nur iOS das Passwort).
 - Apple-Prüfung: kein Demo-Modus gewünscht (Entscheidung 26.10.); Risiko nach Regel 2.1 ist bekannt – vor der
   Einreichung klären (z. B. Prüf-Konto der Hochschule).
 - Apple Pencil, echtes iPad, echte Stud.IP-/QIS-/CAS-Anmeldung: nur der Inhaber.

@@ -160,7 +160,8 @@ final class UniversityTokenStore {
 /// vor den Containern (`UniversityProfile.isRetiredLoginSecret`). Learnweb-Schluessel ("….learnweb.token"),
 /// Stud.IP-Sitzungen (eigener Dienst) und die Webdaten der Anmeldeansichten bleiben. Dazu die Schalter
 /// "uniflow.login.remember.…". Erledigt erst, wenn der Schluesselbund danach sicher keinen solchen Eintrag mehr nennt;
-/// sonst (z. B. gesperrt beim Start im Hintergrund) beim naechsten Start bzw. Oeffnen eines Containers erneut.
+/// sonst (z. B. gesperrt beim Start im Hintergrund) beim Wechsel in den Vordergrund, beim Oeffnen eines Containers
+/// bzw. beim naechsten Start erneut (`ContainerManager.removeRememberedPasswords`).
 enum UniversityPasswordCleanup {
     /// Merker in den UserDefaults der App: erledigt
     static let doneKey = "uniflow.login.passwords.removed"

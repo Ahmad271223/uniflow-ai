@@ -126,9 +126,9 @@ Geprüft: Kern lokal im offiziellen Linux-Container `swift:6.0-jammy` (Swift 6.0
   höchstens 1500 Anfragen je Durchgang, nur der eigene Host, abgelaufene Sitzung bei 401 oder Umleitung auf die
   Anmeldung), `StudIPImport` (neu/geändert/unverändert/nicht herunterladbar/in Stud.IP entfernt, sichere
   Dateinamen, Vorauswahl der Kurse des jüngsten Semesters). Tests: `StudIPTests.swift` (11 Fälle).
-- **App:** `StudIPLoginView` (eingebettete Webansicht, Stud.IP-Seite der LUH; seit 26.10.2026 mit dem Schalter
-  „Auf diesem iPad merken“: Benutzername und Passwort nur dann im Schlüsselbund, beim nächsten Mal nur vorausgefüllt,
-  nie abgeschickt – `docs/SICHERHEITSKONZEPT-KONTEN.md` 1a; Erfolg erst, wenn
+- **App:** `StudIPLoginView` (eingebettete Webansicht, Stud.IP-Seite der LUH; seit 27.10.2026 merkt das Passwort nur
+  iOS – die App speichert und füllt nichts, der Schalter „Auf diesem iPad merken“ vom 26.10. ist wieder entfernt,
+  `docs/SICHERHEITSKONZEPT-KONTEN.md` 1a; Erfolg erst, wenn
   `users/me` mit den Cookies 200 liefert), `StudIPKeychain` (nur dieses Gerät, nicht im Backup), `StudIPSync`
   (Abgleich beim Öffnen der App, höchstens alle 30 Minuten, und auf Knopfdruck; Dateien im Container des
   Apple-Nutzers und der LUH unter `StudIP/` (bis zur Hochschulwahl Application Support/StudIP), vom iCloud-Backup

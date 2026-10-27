@@ -202,6 +202,27 @@ final class UniversityTokenStoreTests: XCTestCase {
         let c = try bed.open(m, bed.account(.hildesheim))
         XCTAssertEqual(c.tokens.token(.hildesheim, service: "learnweb"), "Schluessel-erfunden", "Learnweb-Schluessel bleibt")
     }
+    /// Beim Start gesperrt (z. B. im Hintergrund vor dem ersten Entsperren): die Container-Verwaltung versucht es beim
+    /// Wechsel in den Vordergrund erneut (`removeRememberedPasswords`, aus `UniFlowApp`)
+    @MainActor
+    func testCleanupIsRetriedWhenTheKeychainWasLockedAtStart() throws {
+        let bed = try ContainerTestBed(name: "gesperrt", clock: .fixed(berlin: "2026-10-27T09:00:00")!)
+        addTeardownBlock { @MainActor in await bed.tearDown() }
+        let me = DataContainerKey.userScope(bed.user)
+        let secrets = LockedSecrets(["\(me).luh.studip.password": "Pw-erfunden-1", "\(me).hildesheim.learnweb.token": "Schluessel-erfunden"])
+        bed.defaults.set(true, forKey: UniversityTokenStore.installedKey)
+        let m = ContainerManager(base: bed.containers,
+                                 legacy: LegacyDataMigration.Sources(support: bed.appSupport.appendingPathComponent("UniFlow", isDirectory: true),
+                                                                     studip: bed.appSupport.appendingPathComponent("StudIP", isDirectory: true)),
+                                 keychain: secrets, cookieService: bed.cookieService, defaults: bed.defaults, clock: bed.clock,
+                                 publishesCurrent: false)
+        XCTAssertFalse(bed.defaults.bool(forKey: UniversityPasswordCleanup.doneKey), "gesperrt: nicht erledigt")
+        XCTAssertFalse(m.removeRememberedPasswords())
+        secrets.locked = false
+        XCTAssertTrue(m.removeRememberedPasswords())
+        XCTAssertEqual(secrets.values, ["\(me).hildesheim.learnweb.token": "Schluessel-erfunden"])
+        XCTAssertTrue(bed.defaults.bool(forKey: UniversityPasswordCleanup.doneKey))
+    }
 }
 
 /// Schluesselbund, der gesperrt sein kann (Liste nicht lesbar, Loeschen ohne Wirkung)

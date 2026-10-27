@@ -679,7 +679,7 @@ App-Store-Betrieb einen PC; sie sind nur noch nicht portiert. Die Uni Hildesheim
 **Uni Hildesheim in der App** (Zweig `wip/v1-pc-hi`, Einzelheiten in `docs/AUFTRAG-HILDESHEIM-IPAD.md`, Abschnitt
 „Hildesheim in der App“): Der Abgleich ist die Fassung des Kerns (`HildesheimSync`), die App liefert nur Transport
 (`URLSessionUniTransport`, Cookies aus dem Datenspeicher der Webansicht des Containers), Anmeldung (CAS im WKWebView,
-nur vorausfüllen; Learnweb-Schlüssel aus dem Moodle-SSO im Schlüsselbund) und Ablauf (`HildesheimConnection`: beim
+Passwort merkt seit 27.10.2026 nur iOS; Learnweb-Schlüssel aus dem Moodle-SSO im Schlüsselbund) und Ablauf (`HildesheimConnection`: beim
 Öffnen höchstens alle 30 Minuten, auf Knopfdruck, Noten höchstens alle 20 Stunden). Die Seiten lesen dieselben
 Tabellen wie für Stud.IP: Learnweb-Dateien in Dokumente & Notizen und Module (`files.local_path` = `Learnweb/files/…`
 relativ zum Container), LSF-Serien im Stundenplan (vorlesungsfreie Tage als Ausfall), Leistungen unter „Uni & Noten“.
