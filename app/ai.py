@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import uuid
 from contextlib import contextmanager
 from datetime import date, timedelta
@@ -57,6 +58,18 @@ def ask_chatgpt(prompt: str, system: str = "") -> str:
     return text
 
 
+def no_console() -> dict:
+    """Unter Windows kein Konsolenfenster fuer `claude -p`: Die Windows-App (PyInstaller, console=False) hat keine
+    Konsole, also bekaeme jeder Aufruf ein eigenes Terminalfenster (Befund 27.10.2026: nach jedem Abgleich ging fuer
+    jede analysierte Datei ein Fenster "claude" auf). CREATE_NO_WINDOW gilt auch fuer die Kindprozesse des Starters."""
+    if sys.platform != "win32":
+        return {}
+    si = subprocess.STARTUPINFO()
+    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    si.wShowWindow = subprocess.SW_HIDE
+    return {"creationflags": subprocess.CREATE_NO_WINDOW, "startupinfo": si}
+
+
 def ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[str] | None = None,
         model: str | None = None, cwd: str | Path | None = None, blocked_tools: list[str] | None = None) -> str:
     """Schickt einen Prompt an `claude -p` und gibt den Antworttext zurueck; mit verbundenem ChatGPT-Abo an die
@@ -78,7 +91,7 @@ def ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[s
         cmd += ["--append-system-prompt", system]
     try:
         proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8",
-                              timeout=timeout, env=env, shell=False, cwd=str(cwd) if cwd else None)
+                              timeout=timeout, env=env, shell=False, cwd=str(cwd) if cwd else None, **no_console())
     except subprocess.TimeoutExpired as e:
         raise AIError(f"Claude hat nach {timeout}s nicht geantwortet") from e
     if proc.returncode != 0:
