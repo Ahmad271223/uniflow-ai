@@ -1,0 +1,5769 @@
+{
+ "generator": "tools/gen-demo-fixture.py",
+ "constants": {
+  "module": "Demo: Grundlagen der Informatik",
+  "subject": "Demo Informatik",
+  "color": "#7c3aed",
+  "courses": [
+   {
+    "id": "demo-vorlesung",
+    "title": "Demo: Grundlagen der Informatik (Vorlesung)",
+    "kind": "vorlesung",
+    "number": "DEMO-101"
+   },
+   {
+    "id": "demo-uebung",
+    "title": "Demo: Grundlagen der Informatik (Übung)",
+    "kind": "uebung",
+    "number": "DEMO-101Ü"
+   }
+  ],
+  "events": [
+   {
+    "course_id": "demo-vorlesung",
+    "title": "Grundlagen der Informatik – Vorlesung",
+    "kind": "vorlesung",
+    "weekday": 0,
+    "start_time": "10:00",
+    "end_time": "12:00",
+    "room": "Hörsaal A",
+    "lecturer": "Prof. Demo"
+   },
+   {
+    "course_id": "demo-vorlesung",
+    "title": "Grundlagen der Informatik – Vorlesung",
+    "kind": "vorlesung",
+    "weekday": 3,
+    "start_time": "08:15",
+    "end_time": "09:45",
+    "room": "Hörsaal A",
+    "lecturer": "Prof. Demo"
+   },
+   {
+    "course_id": "demo-uebung",
+    "title": "Grundlagen der Informatik – Übung",
+    "kind": "uebung",
+    "weekday": 2,
+    "start_time": "14:00",
+    "end_time": "16:00",
+    "room": "Seminarraum 3",
+    "lecturer": "Tutorium"
+   }
+  ],
+  "files": [
+   {
+    "id": "demo-skript",
+    "course_id": "demo-vorlesung",
+    "name": "Skript Kapitel 1 – Zahlensysteme.pdf",
+    "pages": [
+     [
+      "Kapitel 1: Zahlensysteme",
+      [
+       "Dezimal-, Dual- und Hexadezimalsystem.",
+       "Jede Zahl lässt sich als Summe von Potenzen der Basis schreiben.",
+       "Beispiel: 13 = 1101 (dual) = D (hexadezimal)."
+      ]
+     ],
+     [
+      "1.1 Umrechnung",
+      [
+       "Dezimal nach Dual: fortgesetzte Division durch 2, Reste von unten lesen.",
+       "Dual nach Dezimal: Stellenwerte 1, 2, 4, 8, ... addieren.",
+       "Übung: Rechne 42 ins Dualsystem um."
+      ]
+     ],
+     [
+      "1.2 Zweierkomplement",
+      [
+       "Negative Zahlen: Bits invertieren und 1 addieren.",
+       "Mit 8 Bit reicht der Bereich von -128 bis 127.",
+       "Überlauf erkennen: Vorzeichen des Ergebnisses prüfen."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "demo-folien",
+    "course_id": "demo-vorlesung",
+    "name": "Folien Woche 1 – Einführung.pdf",
+    "pages": [
+     [
+      "Grundlagen der Informatik",
+      [
+       "Willkommen zur Demo-Vorlesung.",
+       "Organisatorisches, Literatur, Prüfung."
+      ]
+     ],
+     [
+      "Was ist Informatik?",
+      [
+       "Wissenschaft der systematischen Verarbeitung von Information.",
+       "Algorithmus, Daten, Programm."
+      ]
+     ],
+     [
+      "Algorithmus",
+      [
+       "Eindeutige, endliche Handlungsvorschrift.",
+       "Beispiel: Zähneputzen, Wegbeschreibung, Sortieren."
+      ]
+     ],
+     [
+      "Nächste Woche",
+      [
+       "Zahlensysteme und Zweierkomplement.",
+       "Bitte Übungsblatt 1 bearbeiten."
+      ]
+     ]
+    ]
+   },
+   {
+    "id": "demo-blatt",
+    "course_id": "demo-uebung",
+    "name": "Übungsblatt 1 – Zahlensysteme.pdf",
+    "pages": [
+     [
+      "Übungsblatt 1",
+      [
+       "Aufgabe 1: Rechne 42, 100 und 255 ins Dualsystem um.",
+       "Aufgabe 2: Welche Dezimalzahl ist 1011 0110 (dual)?",
+       "Aufgabe 3: Bilde das Zweierkomplement von -37 mit 8 Bit."
+      ]
+     ],
+     [
+      "Aufgabe 4 (Bonus)",
+      [
+       "Warum reicht ein Byte für Werte von 0 bis 255?",
+       "Abgabe: nächste Woche vor der Übung."
+      ]
+     ]
+    ]
+   }
+  ]
+ },
+ "pdfs": {
+  "files": [
+   {
+    "id": "demo-skript",
+    "name": "Skript Kapitel 1 – Zahlensysteme.pdf",
+    "pages": [
+     [
+      "Kapitel 1: Zahlensysteme",
+      [
+       "Dezimal-, Dual- und Hexadezimalsystem.",
+       "Jede Zahl lässt sich als Summe von Potenzen der Basis schreiben.",
+       "Beispiel: 13 = 1101 (dual) = D (hexadezimal)."
+      ]
+     ],
+     [
+      "1.1 Umrechnung",
+      [
+       "Dezimal nach Dual: fortgesetzte Division durch 2, Reste von unten lesen.",
+       "Dual nach Dezimal: Stellenwerte 1, 2, 4, 8, ... addieren.",
+       "Übung: Rechne 42 ins Dualsystem um."
+      ]
+     ],
+     [
+      "1.2 Zweierkomplement",
+      [
+       "Negative Zahlen: Bits invertieren und 1 addieren.",
+       "Mit 8 Bit reicht der Bereich von -128 bis 127.",
+       "Überlauf erkennen: Vorzeichen des Ergebnisses prüfen."
+      ]
+     ]
+    ],
+    "size": 2006,
+    "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFIgOSAwIFJdL0NvdW50IDM+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDM1Mj4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKEthcGl0ZWwgMTogWmFobGVuc3lzdGVtZSkgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDczMCBUZCAoRGV6aW1hbC0sIER1YWwtIHVuZCBIZXhhZGV6aW1hbHN5c3RlbS4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEplZGUgWmFobCBs5HNzdCBzaWNoIGFscyBTdW1tZSB2b24gUG90ZW56ZW4gZGVyIEJhc2lzIHNjaHJlaWJlbi4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA2ODYgVGQgKEJlaXNwaWVsOiAxMyA9IDExMDEgXChkdWFsXCkgPSBEIFwoaGV4YWRlemltYWxcKS4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDQgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKNiAwIG9iago8PC9MZW5ndGggMzU1Pj5zdHJlYW0KQlQgL0YxIDIwIFRmIDYwIDc3MCBUZCAoMS4xIFVtcmVjaG51bmcpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKERlemltYWwgbmFjaCBEdWFsOiBmb3J0Z2VzZXR6dGUgRGl2aXNpb24gZHVyY2ggMiwgUmVzdGUgdm9uIHVudGVuIGxlc2VuLikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoRHVhbCBuYWNoIERlemltYWw6IFN0ZWxsZW53ZXJ0ZSAxLCAyLCA0LCA4LCAuLi4gYWRkaWVyZW4uKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkICjcYnVuZzogUmVjaG5lIDQyIGlucyBEdWFsc3lzdGVtIHVtLikgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFVuaUZsb3cgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjcgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNiAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago4IDAgb2JqCjw8L0xlbmd0aCAzNDU+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkICgxLjIgWndlaWVya29tcGxlbWVudCkgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDczMCBUZCAoTmVnYXRpdmUgWmFobGVuOiBCaXRzIGludmVydGllcmVuIHVuZCAxIGFkZGllcmVuLikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoTWl0IDggQml0IHJlaWNodCBkZXIgQmVyZWljaCB2b24gLTEyOCBiaXMgMTI3LikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDY4NiBUZCAo3GJlcmxhdWYgZXJrZW5uZW46IFZvcnplaWNoZW4gZGVzIEVyZ2Vibmlzc2VzIHBy/GZlbi4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDggMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDEwCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxMjMgMDAwMDAgbiAKMDAwMDAwMDIxMSAwMDAwMCBuIAowMDAwMDAwNjExIDAwMDAwIG4gCjAwMDAwMDA3MjMgMDAwMDAgbiAKMDAwMDAwMTEyNiAwMDAwMCBuIAowMDAwMDAxMjM4IDAwMDAwIG4gCjAwMDAwMDE2MzEgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDEwL1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc0MwolJUVPRgo=",
+    "page_count": 3,
+    "text": [
+     "Kapitel 1: Zahlensysteme\nDezimal-, Dual- und Hexadezimalsystem.\nJede Zahl lässt sich als Summe von Potenzen der Basis schreiben.\nBeispiel: 13 = 1101 (dual) = D (hexadezimal).\nUniFlow Demo-Inhalt",
+     "1.1 Umrechnung\nDezimal nach Dual: fortgesetzte Division durch 2, Reste von unten lesen.\nDual nach Dezimal: Stellenwerte 1, 2, 4, 8, ... addieren.\nÜbung: Rechne 42 ins Dualsystem um.\nUniFlow Demo-Inhalt",
+     "1.2 Zweierkomplement\nNegative Zahlen: Bits invertieren und 1 addieren.\nMit 8 Bit reicht der Bereich von -128 bis 127.\nÜberlauf erkennen: Vorzeichen des Ergebnisses prüfen.\nUniFlow Demo-Inhalt"
+    ]
+   },
+   {
+    "id": "demo-folien",
+    "name": "Folien Woche 1 – Einführung.pdf",
+    "pages": [
+     [
+      "Grundlagen der Informatik",
+      [
+       "Willkommen zur Demo-Vorlesung.",
+       "Organisatorisches, Literatur, Prüfung."
+      ]
+     ],
+     [
+      "Was ist Informatik?",
+      [
+       "Wissenschaft der systematischen Verarbeitung von Information.",
+       "Algorithmus, Daten, Programm."
+      ]
+     ],
+     [
+      "Algorithmus",
+      [
+       "Eindeutige, endliche Handlungsvorschrift.",
+       "Beispiel: Zähneputzen, Wegbeschreibung, Sortieren."
+      ]
+     ],
+     [
+      "Nächste Woche",
+      [
+       "Zahlensysteme und Zweierkomplement.",
+       "Bitte Übungsblatt 1 bearbeiten."
+      ]
+     ]
+    ],
+    "size": 2127,
+    "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFIgOSAwIFIgMTEgMCBSXS9Db3VudCA0Pj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iago0IDAgb2JqCjw8L0xlbmd0aCAyMzg+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkIChHcnVuZGxhZ2VuIGRlciBJbmZvcm1hdGlrKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChXaWxsa29tbWVuIHp1ciBEZW1vLVZvcmxlc3VuZy4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKE9yZ2FuaXNhdG9yaXNjaGVzLCBMaXRlcmF0dXIsIFBy/GZ1bmcuKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoVW5pRmxvdyBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgMyAwIFI+Pj4+Pj4KZW5kb2JqCjYgMCBvYmoKPDwvTGVuZ3RoIDI1ND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFdhcyBpc3QgSW5mb3JtYXRpaz8pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFdpc3NlbnNjaGFmdCBkZXIgc3lzdGVtYXRpc2NoZW4gVmVyYXJiZWl0dW5nIHZvbiBJbmZvcm1hdGlvbi4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEFsZ29yaXRobXVzLCBEYXRlbiwgUHJvZ3JhbW0uKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoVW5pRmxvdyBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKNyAwIG9iago8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA2IDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgMyAwIFI+Pj4+Pj4KZW5kb2JqCjggMCBvYmoKPDwvTGVuZ3RoIDI0Nz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKEFsZ29yaXRobXVzKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChFaW5kZXV0aWdlLCBlbmRsaWNoZSBIYW5kbHVuZ3N2b3JzY2hyaWZ0LikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoQmVpc3BpZWw6IFrkaG5lcHV0emVuLCBXZWdiZXNjaHJlaWJ1bmcsIFNvcnRpZXJlbi4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDggMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKMTAgMCBvYmoKPDwvTGVuZ3RoIDIyND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKE7kY2hzdGUgV29jaGUpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFphaGxlbnN5c3RlbWUgdW5kIFp3ZWllcmtvbXBsZW1lbnQuKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChCaXR0ZSDcYnVuZ3NibGF0dCAxIGJlYXJiZWl0ZW4uKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoVW5pRmxvdyBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKMTEgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgMTAgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDEyCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxMzAgMDAwMDAgbiAKMDAwMDAwMDIxOCAwMDAwMCBuIAowMDAwMDAwNTA0IDAwMDAwIG4gCjAwMDAwMDA2MTYgMDAwMDAgbiAKMDAwMDAwMDkxOCAwMDAwMCBuIAowMDAwMDAxMDMwIDAwMDAwIG4gCjAwMDAwMDEzMjUgMDAwMDAgbiAKMDAwMDAwMTQzNyAwMDAwMCBuIAowMDAwMDAxNzEwIDAwMDAwIG4gCnRyYWlsZXIKPDwvU2l6ZSAxMi9Sb290IDEgMCBSPj4Kc3RhcnR4cmVmCjE4MjQKJSVFT0YK",
+    "page_count": 4,
+    "text": [
+     "Grundlagen der Informatik\nWillkommen zur Demo-Vorlesung.\nOrganisatorisches, Literatur, Prüfung.\nUniFlow Demo-Inhalt",
+     "Was ist Informatik?\nWissenschaft der systematischen Verarbeitung von Information.\nAlgorithmus, Daten, Programm.\nUniFlow Demo-Inhalt",
+     "Algorithmus\nEindeutige, endliche Handlungsvorschrift.\nBeispiel: Zähneputzen, Wegbeschreibung, Sortieren.\nUniFlow Demo-Inhalt",
+     "Nächste Woche\nZahlensysteme und Zweierkomplement.\nBitte Übungsblatt 1 bearbeiten.\nUniFlow Demo-Inhalt"
+    ]
+   },
+   {
+    "id": "demo-blatt",
+    "name": "Übungsblatt 1 – Zahlensysteme.pdf",
+    "pages": [
+     [
+      "Übungsblatt 1",
+      [
+       "Aufgabe 1: Rechne 42, 100 und 255 ins Dualsystem um.",
+       "Aufgabe 2: Welche Dezimalzahl ist 1011 0110 (dual)?",
+       "Aufgabe 3: Bilde das Zweierkomplement von -37 mit 8 Bit."
+      ]
+     ],
+     [
+      "Aufgabe 4 (Bonus)",
+      [
+       "Warum reicht ein Byte für Werte von 0 bis 255?",
+       "Abgabe: nächste Woche vor der Übung."
+      ]
+     ]
+    ],
+    "size": 1343,
+    "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFJdL0NvdW50IDI+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDM1MT4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKNxidW5nc2JsYXR0IDEpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKEF1ZmdhYmUgMTogUmVjaG5lIDQyLCAxMDAgdW5kIDI1NSBpbnMgRHVhbHN5c3RlbSB1bS4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEF1ZmdhYmUgMjogV2VsY2hlIERlemltYWx6YWhsIGlzdCAxMDExIDAxMTAgXChkdWFsXCk/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkIChBdWZnYWJlIDM6IEJpbGRlIGRhcyBad2VpZXJrb21wbGVtZW50IHZvbiAtMzcgbWl0IDggQml0LikgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFVuaUZsb3cgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago2IDAgb2JqCjw8L0xlbmd0aCAyNDY+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkIChBdWZnYWJlIDQgXChCb251c1wpKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChXYXJ1bSByZWljaHQgZWluIEJ5dGUgZvxyIFdlcnRlIHZvbiAwIGJpcyAyNTU/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChBYmdhYmU6IG7kY2hzdGUgV29jaGUgdm9yIGRlciDcYnVuZy4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago3IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDYgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjAgMDAwMDAgbiAKMDAwMDAwMDExNyAwMDAwMCBuIAowMDAwMDAwMjA1IDAwMDAwIG4gCjAwMDAwMDA2MDQgMDAwMDAgbiAKMDAwMDAwMDcxNiAwMDAwMCBuIAowMDAwMDAxMDEwIDAwMDAwIG4gCnRyYWlsZXIKPDwvU2l6ZSA4L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTEyMgolJUVPRgo=",
+    "page_count": 2,
+    "text": [
+     "Übungsblatt 1\nAufgabe 1: Rechne 42, 100 und 255 ins Dualsystem um.\nAufgabe 2: Welche Dezimalzahl ist 1011 0110 (dual)?\nAufgabe 3: Bilde das Zweierkomplement von -37 mit 8 Bit.\nUniFlow Demo-Inhalt",
+     "Aufgabe 4 (Bonus)\nWarum reicht ein Byte für Werte von 0 bis 255?\nAbgabe: nächste Woche vor der Übung.\nUniFlow Demo-Inhalt"
+    ]
+   }
+  ],
+  "cases": [
+   {
+    "pages": [
+     [
+      "Titel (mit) Klammern",
+      [
+       "Zeile \\ eins",
+       "Umlaute äöü ß ÄÖÜ",
+       "Euro € – „Anführung“ … •"
+      ]
+     ]
+    ],
+    "size": 792,
+    "sha256": "aaf6dbe917da1aeb97e109a24d13620036aa592a730c0abc66b1e60a129461bc",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFJdL0NvdW50IDE+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDI1Mz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFRpdGVsIFwobWl0XCkgS2xhbW1lcm4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFplaWxlIFxcIGVpbnMpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKFVtbGF1dGUg5Pb8IN8gxNbcKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkIChFdXJvIIAgliCEQW5m/GhydW5nkyCFIJUpIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDQgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjAgMDAwMDAgbiAKMDAwMDAwMDExMSAwMDAwMCBuIAowMDAwMDAwMTk5IDAwMDAwIG4gCjAwMDAwMDA1MDAgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDYvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo2MTIKJSVFT0YK",
+    "page_count": 1,
+    "text": [
+     "Titel (mit) Klammern\nZeile \\ eins\nUmlaute äöü ß ÄÖÜ\nEuro € – „Anführung“ … •\nUniFlow Demo-Inhalt"
+    ]
+   },
+   {
+    "pages": [
+     [
+      "Nicht in cp1252: Ω 😀 ",
+      [
+       "zerlegt: ä ö",
+       "Tab\tund ) ( \\) Ende"
+      ]
+     ],
+     [
+      "Zweite Seite",
+      []
+     ]
+    ],
+    "size": 1041,
+    "sha256": "6782524121c0527f3d58e675b11c2ec662e36f39cdf29b943fa4f92341d42018",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFJdL0NvdW50IDI+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDIwND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKE5pY2h0IGluIGNwMTI1MjogPyA/ID8pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKHplcmxlZ3Q6IGE/IG8/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChUYWIJdW5kIFwpIFwoIFxcXCkgRW5kZSkgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFVuaUZsb3cgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago2IDAgb2JqCjw8L0xlbmd0aCA5Mz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFp3ZWl0ZSBTZWl0ZSkgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFVuaUZsb3cgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjcgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNiAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA2MCAwMDAwMCBuIAowMDAwMDAwMTE3IDAwMDAwIG4gCjAwMDAwMDAyMDUgMDAwMDAgbiAKMDAwMDAwMDQ1NyAwMDAwMCBuIAowMDAwMDAwNTY5IDAwMDAwIG4gCjAwMDAwMDA3MDkgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDgvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo4MjEKJSVFT0YK",
+    "page_count": 2,
+    "text": [
+     "Nicht in cp1252: ? ? ?\nzerlegt: a? o?\nTab\tund ) ( \\) Ende\nUniFlow Demo-Inhalt",
+     "Zweite Seite\nUniFlow Demo-Inhalt"
+    ]
+   }
+  ]
+ },
+ "scenarios": [
+  {
+   "name": "leer",
+   "now": "2026-10-28T09:30:00",
+   "seed": [],
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/api/demo",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": false}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 0,
+       "events": 0,
+       "packages": 0
+      }
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/demo",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": true}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/demo",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": true}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": false}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 3,
+       "events": 3,
+       "packages": 3
+      }
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/demo",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": 1}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 3,
+       "events": 3,
+       "packages": 3
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": \"nein\"}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 3,
+       "events": 3,
+       "packages": 3
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": 2.5}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": 0}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 3,
+       "events": 3,
+       "packages": 3
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": [0]}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": \"\"}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 3,
+       "events": 3,
+       "packages": 3
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": {\"x\": 1}}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": null}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 3,
+       "events": 3,
+       "packages": 3
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": 0.0}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 0,
+       "events": 0,
+       "packages": 0
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": []}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 0,
+       "events": 0,
+       "packages": 0
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"anders\": true}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 0,
+       "events": 0,
+       "packages": 0
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "[1]",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "dict_type",
+        "loc": [
+         "body"
+        ],
+        "msg": "Input should be a valid dictionary",
+        "input": [
+         1
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "null",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "dict_type",
+        "loc": [
+         "body"
+        ],
+        "msg": "Input should be a valid dictionary",
+        "input": null
+       }
+      ]
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{kaputt",
+     "status": 422,
+     "response": {
+      "detail": [
+       {
+        "type": "json_invalid",
+        "loc": [
+         "body",
+         1
+        ],
+        "msg": "JSON decode error",
+        "input": {},
+        "ctx": {
+         "error": "Expecting property name enclosed in double quotes"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/demo",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    }
+   ],
+   "marks": {
+    "angelegt": {
+     "after_step": 3,
+     "tables": {
+      "modules": [
+       {
+        "id": 1,
+        "name": "Demo: Grundlagen der Informatik",
+        "semester": null,
+        "color": "#7c3aed",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 99,
+        "created_at": "2026-10-28T09:30:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       }
+      ],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       },
+       {
+        "id": "demo-uebung",
+        "title": "Demo: Grundlagen der Informatik (Übung)",
+        "number": "DEMO-101Ü",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "uebung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 1
+       },
+       {
+        "id": "demo-vorlesung",
+        "title": "Demo: Grundlagen der Informatik (Vorlesung)",
+        "number": "DEMO-101",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 1
+       }
+      ],
+      "files": [
+       {
+        "id": "demo-blatt",
+        "course_id": "demo-uebung",
+        "name": "Übungsblatt 1 – Zahlensysteme.pdf",
+        "size": 1343,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Übungsblatt 1 – Zahlensysteme",
+        "page_count": 2,
+        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "revision": null
+       },
+       {
+        "id": "demo-folien",
+        "course_id": "demo-vorlesung",
+        "name": "Folien Woche 1 – Einführung.pdf",
+        "size": 2127,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Folien Woche 1 – Einführung",
+        "page_count": 4,
+        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "revision": null
+       },
+       {
+        "id": "demo-skript",
+        "course_id": "demo-vorlesung",
+        "name": "Skript Kapitel 1 – Zahlensysteme.pdf",
+        "size": 2006,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Skript Kapitel 1 – Zahlensysteme",
+        "page_count": 3,
+        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "revision": null
+       }
+      ],
+      "analysis": [],
+      "annotations": [],
+      "annotation_versions": [],
+      "flashcards": [],
+      "course_events": [
+       {
+        "id": 1,
+        "module_id": 1,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 0,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 2,
+        "module_id": 1,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 3,
+        "start_time": "08:15",
+        "end_time": "09:45",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 3,
+        "module_id": 1,
+        "course_id": "demo-uebung",
+        "title": "Grundlagen der Informatik – Übung",
+        "kind": "uebung",
+        "weekday": 2,
+        "start_time": "14:00",
+        "end_time": "16:00",
+        "room": "Seminarraum 3",
+        "lecturer": "Tutorium",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "event_exceptions": [],
+      "event_notes": [],
+      "study_packages": [
+       {
+        "id": 1,
+        "date": "2026-10-26",
+        "module_id": 1,
+        "subject": "Demo Informatik",
+        "title": "Vorlesung nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 2,
+        "date": "2026-10-28",
+        "module_id": 1,
+        "subject": "Demo Informatik",
+        "title": "Übungsblatt 1",
+        "week_no": 1,
+        "planned_minutes": 60,
+        "status": "geplant",
+        "sort": 1,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 3,
+        "date": "2026-10-30",
+        "module_id": 1,
+        "subject": "Demo Informatik",
+        "title": "Wiederholung",
+        "week_no": 1,
+        "planned_minutes": 25,
+        "status": "geplant",
+        "sort": 2,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "study_tasks": [
+       {
+        "id": 1,
+        "package_id": 1,
+        "type": "vorlesung",
+        "file_id": "demo-folien",
+        "test_id": null,
+        "title": "Folien Woche 1 durchgehen",
+        "sort": 0,
+        "est_minutes": 30,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 2,
+        "package_id": 1,
+        "type": "vorlesung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Skript Kapitel 1 lesen",
+        "sort": 1,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 3,
+        "package_id": 2,
+        "type": "uebung",
+        "file_id": "demo-blatt",
+        "test_id": null,
+        "title": "Aufgaben 1–3 rechnen",
+        "sort": 0,
+        "est_minutes": 60,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 4,
+        "package_id": 3,
+        "type": "wiederholung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Zweierkomplement wiederholen",
+        "sort": 0,
+        "est_minutes": 25,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "deadlines": [
+       {
+        "id": "demo-abgabe-1",
+        "source": "demo",
+        "course_id": "demo-uebung",
+        "title": "Übungsblatt 1 abgeben",
+        "full_title": "Übungsblatt 1 abgeben (Demo)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-11-04T13:45",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "announcements": [
+       {
+        "id": "demo-ankuendigung-1",
+        "source": "demo",
+        "course_id": "demo-vorlesung",
+        "title": "Raumwechsel nächste Woche",
+        "text": "Die Vorlesung am 02.11. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+        "author": "Prof. Demo",
+        "posted_at": "2026-10-28T09:30:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[{\"date\": \"2026-11-02\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+        "fetched_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "1"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": ""
+       }
+      ]
+     },
+     "files": [
+      {
+       "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+       "size": 2127,
+       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+      },
+      {
+       "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+       "size": 2006,
+       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+      },
+      {
+       "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+       "size": 1343,
+       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+      }
+     ],
+     "dirs": [
+      "files/Demo"
+     ]
+    },
+    "erneut": {
+     "after_step": 5,
+     "tables": {
+      "modules": [
+       {
+        "id": 2,
+        "name": "Demo: Grundlagen der Informatik",
+        "semester": null,
+        "color": "#7c3aed",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 99,
+        "created_at": "2026-10-28T09:30:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       }
+      ],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       },
+       {
+        "id": "demo-uebung",
+        "title": "Demo: Grundlagen der Informatik (Übung)",
+        "number": "DEMO-101Ü",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "uebung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 2
+       },
+       {
+        "id": "demo-vorlesung",
+        "title": "Demo: Grundlagen der Informatik (Vorlesung)",
+        "number": "DEMO-101",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 2
+       }
+      ],
+      "files": [
+       {
+        "id": "demo-blatt",
+        "course_id": "demo-uebung",
+        "name": "Übungsblatt 1 – Zahlensysteme.pdf",
+        "size": 1343,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Übungsblatt 1 – Zahlensysteme",
+        "page_count": 2,
+        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "revision": null
+       },
+       {
+        "id": "demo-folien",
+        "course_id": "demo-vorlesung",
+        "name": "Folien Woche 1 – Einführung.pdf",
+        "size": 2127,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Folien Woche 1 – Einführung",
+        "page_count": 4,
+        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "revision": null
+       },
+       {
+        "id": "demo-skript",
+        "course_id": "demo-vorlesung",
+        "name": "Skript Kapitel 1 – Zahlensysteme.pdf",
+        "size": 2006,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Skript Kapitel 1 – Zahlensysteme",
+        "page_count": 3,
+        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "revision": null
+       }
+      ],
+      "analysis": [],
+      "annotations": [],
+      "annotation_versions": [],
+      "flashcards": [],
+      "course_events": [
+       {
+        "id": 4,
+        "module_id": 2,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 0,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 5,
+        "module_id": 2,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 3,
+        "start_time": "08:15",
+        "end_time": "09:45",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 6,
+        "module_id": 2,
+        "course_id": "demo-uebung",
+        "title": "Grundlagen der Informatik – Übung",
+        "kind": "uebung",
+        "weekday": 2,
+        "start_time": "14:00",
+        "end_time": "16:00",
+        "room": "Seminarraum 3",
+        "lecturer": "Tutorium",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "event_exceptions": [],
+      "event_notes": [],
+      "study_packages": [
+       {
+        "id": 4,
+        "date": "2026-10-26",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Vorlesung nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 5,
+        "date": "2026-10-28",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Übungsblatt 1",
+        "week_no": 1,
+        "planned_minutes": 60,
+        "status": "geplant",
+        "sort": 1,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 6,
+        "date": "2026-10-30",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Wiederholung",
+        "week_no": 1,
+        "planned_minutes": 25,
+        "status": "geplant",
+        "sort": 2,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "study_tasks": [
+       {
+        "id": 5,
+        "package_id": 4,
+        "type": "vorlesung",
+        "file_id": "demo-folien",
+        "test_id": null,
+        "title": "Folien Woche 1 durchgehen",
+        "sort": 0,
+        "est_minutes": 30,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 6,
+        "package_id": 4,
+        "type": "vorlesung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Skript Kapitel 1 lesen",
+        "sort": 1,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 7,
+        "package_id": 5,
+        "type": "uebung",
+        "file_id": "demo-blatt",
+        "test_id": null,
+        "title": "Aufgaben 1–3 rechnen",
+        "sort": 0,
+        "est_minutes": 60,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 8,
+        "package_id": 6,
+        "type": "wiederholung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Zweierkomplement wiederholen",
+        "sort": 0,
+        "est_minutes": 25,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "deadlines": [
+       {
+        "id": "demo-abgabe-1",
+        "source": "demo",
+        "course_id": "demo-uebung",
+        "title": "Übungsblatt 1 abgeben",
+        "full_title": "Übungsblatt 1 abgeben (Demo)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-11-04T13:45",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "announcements": [
+       {
+        "id": "demo-ankuendigung-1",
+        "source": "demo",
+        "course_id": "demo-vorlesung",
+        "title": "Raumwechsel nächste Woche",
+        "text": "Die Vorlesung am 02.11. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+        "author": "Prof. Demo",
+        "posted_at": "2026-10-28T09:30:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[{\"date\": \"2026-11-02\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+        "fetched_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "1"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": ""
+       }
+      ]
+     },
+     "files": [
+      {
+       "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+       "size": 2127,
+       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+      },
+      {
+       "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+       "size": 2006,
+       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+      },
+      {
+       "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+       "size": 1343,
+       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+      }
+     ],
+     "dirs": [
+      "files/Demo"
+     ]
+    },
+    "entfernt": {
+     "after_step": 6,
+     "tables": {
+      "modules": [],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       }
+      ],
+      "files": [],
+      "analysis": [],
+      "annotations": [],
+      "annotation_versions": [],
+      "flashcards": [],
+      "course_events": [],
+      "event_exceptions": [],
+      "event_notes": [],
+      "study_packages": [],
+      "study_tasks": [],
+      "deadlines": [],
+      "announcements": [],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "0"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": ""
+       }
+      ]
+     },
+     "files": [],
+     "dirs": []
+    },
+    "zuletzt": {
+     "after_step": 20,
+     "tables": {
+      "modules": [],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       }
+      ],
+      "files": [],
+      "analysis": [],
+      "annotations": [],
+      "annotation_versions": [],
+      "flashcards": [],
+      "course_events": [],
+      "event_exceptions": [],
+      "event_notes": [],
+      "study_packages": [],
+      "study_tasks": [],
+      "deadlines": [],
+      "announcements": [],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "0"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": ""
+       }
+      ]
+     },
+     "files": [],
+     "dirs": []
+    }
+   }
+  },
+  {
+   "name": "eigene-daten",
+   "now": "2026-10-28T09:30:00",
+   "seed": [
+    {
+     "sql": "INSERT INTO modules(name, semester, color, sort, created_at) VALUES (?,?,?,?,?)",
+     "params": [
+      "Lineare Algebra Test",
+      "WiSe 2026/27",
+      "#2563eb",
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, module_id) VALUES (?,?,?,?,?,?,?,?,?)",
+     "params": [
+      "k-la",
+      "Lineare Algebra Test",
+      "LA-1",
+      "WiSe 2026/27",
+      "Lineare Algebra Test",
+      "vorlesung",
+      1,
+      "2026-10-01T09:00:00",
+      1
+     ]
+    },
+    {
+     "sql": "INSERT INTO files(id, course_id, name, status, kind, first_seen, title) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "f-la1",
+      "k-la",
+      "LA_Vorlesung_01.pdf",
+      "neu",
+      "pdf",
+      "2026-10-20T08:00:00",
+      "LA Vorlesung 01"
+     ]
+    },
+    {
+     "sql": "INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?)",
+     "params": [
+      "f-la1",
+      "{\"version\": 2, \"pages\": {\"1\": {\"objects\": []}}}",
+      "2026-10-21T10:00:00",
+      1
+     ]
+    },
+    {
+     "sql": "INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
+     "params": [
+      "f-la1",
+      1,
+      "{\"version\": 2, \"pages\": {}}",
+      "2026-10-21T10:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO flashcards(file_id, subject, question, answer, created_at, box, due) VALUES (?,?,?,?,?,?,?)",
+     "params": [
+      "f-la1",
+      "Lineare Algebra Test",
+      "Was ist eine Basis?",
+      "Erzeugendensystem",
+      "2026-10-21T10:00:00",
+      1,
+      "2026-10-22"
+     ]
+    },
+    {
+     "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, rrule, attend, source, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+     "params": [
+      1,
+      "k-la",
+      "Lineare Algebra Test – Vorlesung",
+      "vorlesung",
+      1,
+      "10:00",
+      "12:00",
+      "Raum 1",
+      "weekly",
+      1,
+      "studip",
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, rrule, attend, source, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+     "params": [
+      null,
+      null,
+      "Sport",
+      "persoenlich",
+      4,
+      "18:00",
+      "19:30",
+      null,
+      "weekly",
+      1,
+      "manual",
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO event_exceptions(event_id, date, type, created_at) VALUES (?,?,?,?)",
+     "params": [
+      1,
+      "2026-10-27",
+      "skip",
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO event_notes(event_id, note, source, updated_at) VALUES (?,?,?,?)",
+     "params": [
+      1,
+      "Raum 1 statt 2",
+      "manual",
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO study_packages(date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+     "params": [
+      "2026-10-28",
+      1,
+      "Lineare Algebra Test",
+      "LA nacharbeiten",
+      1,
+      45,
+      "geplant",
+      0,
+      1,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO study_tasks(package_id, type, file_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?,?)",
+     "params": [
+      1,
+      "vorlesung",
+      "f-la1",
+      "Vorlesung 01 lesen",
+      0,
+      45,
+      "geplant",
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO deadlines(id, source, course_id, title, full_title, kind, module, due_at, url, overdue, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+     "params": [
+      "lw-ev-1",
+      "learnweb",
+      "k-la",
+      "Blatt 1 abgeben",
+      "Blatt 1 abgeben (Fr, 30.10.)",
+      "abgabe",
+      "assign",
+      "2026-10-30T12:00",
+      "",
+      0,
+      "2026-10-01T09:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO announcements(id, source, course_id, title, text, author, posted_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+     "params": [
+      "sp-news-1",
+      "studip",
+      "k-la",
+      "Willkommen",
+      "Die Vorlesung beginnt am 27.10.",
+      "Prof. Test",
+      "2026-10-20T08:00:00",
+      "",
+      "[]",
+      "2026-10-20T08:00:00"
+     ]
+    },
+    {
+     "sql": "INSERT INTO settings(key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+     "params": [
+      "user_name",
+      "Testperson"
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/api/demo",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": true}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "sql": "touch"
+    },
+    {
+     "method": "GET",
+     "path": "/api/demo",
+     "raw": null,
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": false}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 3,
+       "events": 3,
+       "packages": 3
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": true}",
+     "status": 200,
+     "response": {
+      "enabled": true,
+      "files": 3,
+      "events": 3,
+      "packages": 3,
+      "module": "Demo: Grundlagen der Informatik"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/demo",
+     "raw": "{\"enabled\": false}",
+     "status": 200,
+     "response": {
+      "enabled": false,
+      "files": 0,
+      "events": 0,
+      "packages": 0,
+      "module": "Demo: Grundlagen der Informatik",
+      "removed": {
+       "files": 3,
+       "events": 3,
+       "packages": 3
+      }
+     }
+    }
+   ],
+   "marks": {
+    "vorher": {
+     "after_step": 0,
+     "tables": {
+      "modules": [
+       {
+        "id": 1,
+        "name": "Lineare Algebra Test",
+        "semester": "WiSe 2026/27",
+        "color": "#2563eb",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       }
+      ],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       },
+       {
+        "id": "k-la",
+        "title": "Lineare Algebra Test",
+        "number": "LA-1",
+        "semester": "WiSe 2026/27",
+        "subject": "Lineare Algebra Test",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-01T09:00:00",
+        "module_id": 1
+       }
+      ],
+      "files": [
+       {
+        "id": "f-la1",
+        "course_id": "k-la",
+        "name": "LA_Vorlesung_01.pdf",
+        "size": null,
+        "mime": null,
+        "author": null,
+        "chdate": null,
+        "download_url": null,
+        "local_path": null,
+        "downloaded_at": null,
+        "first_seen": "2026-10-20T08:00:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "LA Vorlesung 01",
+        "page_count": null,
+        "content_sha256": null,
+        "revision": null
+       }
+      ],
+      "analysis": [],
+      "annotations": [
+       {
+        "file_id": "f-la1",
+        "data": "{\"version\": 2, \"pages\": {\"1\": {\"objects\": []}}}",
+        "updated_at": "2026-10-21T10:00:00",
+        "version": 1
+       }
+      ],
+      "annotation_versions": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-21T10:00:00"
+       }
+      ],
+      "flashcards": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "subject": "Lineare Algebra Test",
+        "question": "Was ist eine Basis?",
+        "answer": "Erzeugendensystem",
+        "created_at": "2026-10-21T10:00:00",
+        "box": 1,
+        "due": "2026-10-22"
+       }
+      ],
+      "course_events": [
+       {
+        "id": 1,
+        "module_id": 1,
+        "course_id": "k-la",
+        "title": "Lineare Algebra Test – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 1,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Raum 1",
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "studip",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 2,
+        "module_id": null,
+        "course_id": null,
+        "title": "Sport",
+        "kind": "persoenlich",
+        "weekday": 4,
+        "start_time": "18:00",
+        "end_time": "19:30",
+        "room": null,
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "manual",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "event_exceptions": [
+       {
+        "id": 1,
+        "event_id": 1,
+        "date": "2026-10-27",
+        "type": "skip",
+        "new_date": null,
+        "new_start": null,
+        "new_end": null,
+        "note": null,
+        "created_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "event_notes": [
+       {
+        "event_id": 1,
+        "note": "Raum 1 statt 2",
+        "source": "manual",
+        "updated_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "study_packages": [
+       {
+        "id": 1,
+        "date": "2026-10-28",
+        "module_id": 1,
+        "subject": "Lineare Algebra Test",
+        "title": "LA nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "study_tasks": [
+       {
+        "id": 1,
+        "package_id": 1,
+        "type": "vorlesung",
+        "file_id": "f-la1",
+        "test_id": null,
+        "title": "Vorlesung 01 lesen",
+        "sort": 0,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "deadlines": [
+       {
+        "id": "lw-ev-1",
+        "source": "learnweb",
+        "course_id": "k-la",
+        "title": "Blatt 1 abgeben",
+        "full_title": "Blatt 1 abgeben (Fr, 30.10.)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-10-30T12:00",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "announcements": [
+       {
+        "id": "sp-news-1",
+        "source": "studip",
+        "course_id": "k-la",
+        "title": "Willkommen",
+        "text": "Die Vorlesung beginnt am 27.10.",
+        "author": "Prof. Test",
+        "posted_at": "2026-10-20T08:00:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[]",
+        "fetched_at": "2026-10-20T08:00:00"
+       }
+      ],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": "Testperson"
+       }
+      ]
+     },
+     "files": [],
+     "dirs": []
+    },
+    "angelegt": {
+     "after_step": 1,
+     "tables": {
+      "modules": [
+       {
+        "id": 1,
+        "name": "Lineare Algebra Test",
+        "semester": "WiSe 2026/27",
+        "color": "#2563eb",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       },
+       {
+        "id": 2,
+        "name": "Demo: Grundlagen der Informatik",
+        "semester": null,
+        "color": "#7c3aed",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 99,
+        "created_at": "2026-10-28T09:30:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       }
+      ],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       },
+       {
+        "id": "demo-uebung",
+        "title": "Demo: Grundlagen der Informatik (Übung)",
+        "number": "DEMO-101Ü",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "uebung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 2
+       },
+       {
+        "id": "demo-vorlesung",
+        "title": "Demo: Grundlagen der Informatik (Vorlesung)",
+        "number": "DEMO-101",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 2
+       },
+       {
+        "id": "k-la",
+        "title": "Lineare Algebra Test",
+        "number": "LA-1",
+        "semester": "WiSe 2026/27",
+        "subject": "Lineare Algebra Test",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-01T09:00:00",
+        "module_id": 1
+       }
+      ],
+      "files": [
+       {
+        "id": "demo-blatt",
+        "course_id": "demo-uebung",
+        "name": "Übungsblatt 1 – Zahlensysteme.pdf",
+        "size": 1343,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Übungsblatt 1 – Zahlensysteme",
+        "page_count": 2,
+        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "revision": null
+       },
+       {
+        "id": "demo-folien",
+        "course_id": "demo-vorlesung",
+        "name": "Folien Woche 1 – Einführung.pdf",
+        "size": 2127,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Folien Woche 1 – Einführung",
+        "page_count": 4,
+        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "revision": null
+       },
+       {
+        "id": "demo-skript",
+        "course_id": "demo-vorlesung",
+        "name": "Skript Kapitel 1 – Zahlensysteme.pdf",
+        "size": 2006,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Skript Kapitel 1 – Zahlensysteme",
+        "page_count": 3,
+        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "revision": null
+       },
+       {
+        "id": "f-la1",
+        "course_id": "k-la",
+        "name": "LA_Vorlesung_01.pdf",
+        "size": null,
+        "mime": null,
+        "author": null,
+        "chdate": null,
+        "download_url": null,
+        "local_path": null,
+        "downloaded_at": null,
+        "first_seen": "2026-10-20T08:00:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "LA Vorlesung 01",
+        "page_count": null,
+        "content_sha256": null,
+        "revision": null
+       }
+      ],
+      "analysis": [],
+      "annotations": [
+       {
+        "file_id": "f-la1",
+        "data": "{\"version\": 2, \"pages\": {\"1\": {\"objects\": []}}}",
+        "updated_at": "2026-10-21T10:00:00",
+        "version": 1
+       }
+      ],
+      "annotation_versions": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-21T10:00:00"
+       }
+      ],
+      "flashcards": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "subject": "Lineare Algebra Test",
+        "question": "Was ist eine Basis?",
+        "answer": "Erzeugendensystem",
+        "created_at": "2026-10-21T10:00:00",
+        "box": 1,
+        "due": "2026-10-22"
+       }
+      ],
+      "course_events": [
+       {
+        "id": 1,
+        "module_id": 1,
+        "course_id": "k-la",
+        "title": "Lineare Algebra Test – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 1,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Raum 1",
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "studip",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 2,
+        "module_id": null,
+        "course_id": null,
+        "title": "Sport",
+        "kind": "persoenlich",
+        "weekday": 4,
+        "start_time": "18:00",
+        "end_time": "19:30",
+        "room": null,
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "manual",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 3,
+        "module_id": 2,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 0,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 4,
+        "module_id": 2,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 3,
+        "start_time": "08:15",
+        "end_time": "09:45",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 5,
+        "module_id": 2,
+        "course_id": "demo-uebung",
+        "title": "Grundlagen der Informatik – Übung",
+        "kind": "uebung",
+        "weekday": 2,
+        "start_time": "14:00",
+        "end_time": "16:00",
+        "room": "Seminarraum 3",
+        "lecturer": "Tutorium",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "event_exceptions": [
+       {
+        "id": 1,
+        "event_id": 1,
+        "date": "2026-10-27",
+        "type": "skip",
+        "new_date": null,
+        "new_start": null,
+        "new_end": null,
+        "note": null,
+        "created_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "event_notes": [
+       {
+        "event_id": 1,
+        "note": "Raum 1 statt 2",
+        "source": "manual",
+        "updated_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "study_packages": [
+       {
+        "id": 1,
+        "date": "2026-10-28",
+        "module_id": 1,
+        "subject": "Lineare Algebra Test",
+        "title": "LA nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 2,
+        "date": "2026-10-26",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Vorlesung nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 3,
+        "date": "2026-10-28",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Übungsblatt 1",
+        "week_no": 1,
+        "planned_minutes": 60,
+        "status": "geplant",
+        "sort": 1,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 4,
+        "date": "2026-10-30",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Wiederholung",
+        "week_no": 1,
+        "planned_minutes": 25,
+        "status": "geplant",
+        "sort": 2,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "study_tasks": [
+       {
+        "id": 1,
+        "package_id": 1,
+        "type": "vorlesung",
+        "file_id": "f-la1",
+        "test_id": null,
+        "title": "Vorlesung 01 lesen",
+        "sort": 0,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 2,
+        "package_id": 2,
+        "type": "vorlesung",
+        "file_id": "demo-folien",
+        "test_id": null,
+        "title": "Folien Woche 1 durchgehen",
+        "sort": 0,
+        "est_minutes": 30,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 3,
+        "package_id": 2,
+        "type": "vorlesung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Skript Kapitel 1 lesen",
+        "sort": 1,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 4,
+        "package_id": 3,
+        "type": "uebung",
+        "file_id": "demo-blatt",
+        "test_id": null,
+        "title": "Aufgaben 1–3 rechnen",
+        "sort": 0,
+        "est_minutes": 60,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 5,
+        "package_id": 4,
+        "type": "wiederholung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Zweierkomplement wiederholen",
+        "sort": 0,
+        "est_minutes": 25,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "deadlines": [
+       {
+        "id": "demo-abgabe-1",
+        "source": "demo",
+        "course_id": "demo-uebung",
+        "title": "Übungsblatt 1 abgeben",
+        "full_title": "Übungsblatt 1 abgeben (Demo)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-11-04T13:45",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": "lw-ev-1",
+        "source": "learnweb",
+        "course_id": "k-la",
+        "title": "Blatt 1 abgeben",
+        "full_title": "Blatt 1 abgeben (Fr, 30.10.)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-10-30T12:00",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "announcements": [
+       {
+        "id": "demo-ankuendigung-1",
+        "source": "demo",
+        "course_id": "demo-vorlesung",
+        "title": "Raumwechsel nächste Woche",
+        "text": "Die Vorlesung am 02.11. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+        "author": "Prof. Demo",
+        "posted_at": "2026-10-28T09:30:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[{\"date\": \"2026-11-02\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+        "fetched_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": "sp-news-1",
+        "source": "studip",
+        "course_id": "k-la",
+        "title": "Willkommen",
+        "text": "Die Vorlesung beginnt am 27.10.",
+        "author": "Prof. Test",
+        "posted_at": "2026-10-20T08:00:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[]",
+        "fetched_at": "2026-10-20T08:00:00"
+       }
+      ],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "1"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": "Testperson"
+       }
+      ]
+     },
+     "files": [
+      {
+       "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+       "size": 2127,
+       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+      },
+      {
+       "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+       "size": 2006,
+       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+      },
+      {
+       "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+       "size": 1343,
+       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+      }
+     ],
+     "dirs": [
+      "files/Demo"
+     ]
+    },
+    "spuren": {
+     "after_step": 2,
+     "tables": {
+      "modules": [
+       {
+        "id": 1,
+        "name": "Lineare Algebra Test",
+        "semester": "WiSe 2026/27",
+        "color": "#2563eb",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       },
+       {
+        "id": 2,
+        "name": "Demo: Grundlagen der Informatik",
+        "semester": null,
+        "color": "#7c3aed",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 99,
+        "created_at": "2026-10-28T09:30:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       }
+      ],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       },
+       {
+        "id": "demo-uebung",
+        "title": "Demo: Grundlagen der Informatik (Übung)",
+        "number": "DEMO-101Ü",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "uebung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 2
+       },
+       {
+        "id": "demo-vorlesung",
+        "title": "Demo: Grundlagen der Informatik (Vorlesung)",
+        "number": "DEMO-101",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 2
+       },
+       {
+        "id": "k-la",
+        "title": "Lineare Algebra Test",
+        "number": "LA-1",
+        "semester": "WiSe 2026/27",
+        "subject": "Lineare Algebra Test",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-01T09:00:00",
+        "module_id": 1
+       }
+      ],
+      "files": [
+       {
+        "id": "demo-blatt",
+        "course_id": "demo-uebung",
+        "name": "Übungsblatt 1 – Zahlensysteme.pdf",
+        "size": 1343,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Übungsblatt 1 – Zahlensysteme",
+        "page_count": 2,
+        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "revision": null
+       },
+       {
+        "id": "demo-folien",
+        "course_id": "demo-vorlesung",
+        "name": "Folien Woche 1 – Einführung.pdf",
+        "size": 2127,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Folien Woche 1 – Einführung",
+        "page_count": 4,
+        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "revision": null
+       },
+       {
+        "id": "demo-skript",
+        "course_id": "demo-vorlesung",
+        "name": "Skript Kapitel 1 – Zahlensysteme.pdf",
+        "size": 2006,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Skript Kapitel 1 – Zahlensysteme",
+        "page_count": 3,
+        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "revision": null
+       },
+       {
+        "id": "f-la1",
+        "course_id": "k-la",
+        "name": "LA_Vorlesung_01.pdf",
+        "size": null,
+        "mime": null,
+        "author": null,
+        "chdate": null,
+        "download_url": null,
+        "local_path": null,
+        "downloaded_at": null,
+        "first_seen": "2026-10-20T08:00:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "LA Vorlesung 01",
+        "page_count": null,
+        "content_sha256": null,
+        "revision": null
+       }
+      ],
+      "analysis": [
+       {
+        "file_id": "demo-folien",
+        "doc_type": "vorlesung",
+        "title": "Einführung",
+        "topics": null,
+        "difficulty": null,
+        "est_minutes": null,
+        "summary": null,
+        "prerequisites": null,
+        "raw": null,
+        "created_at": "2026-10-28T10:00:00"
+       }
+      ],
+      "annotations": [
+       {
+        "file_id": "demo-skript",
+        "data": "{\"version\": 2, \"pages\": {\"1\": {\"objects\": [{\"id\": \"s1\", \"type\": \"stroke\"}]}}}",
+        "updated_at": "2026-10-28T10:00:00",
+        "version": 1
+       },
+       {
+        "file_id": "f-la1",
+        "data": "{\"version\": 2, \"pages\": {\"1\": {\"objects\": []}}}",
+        "updated_at": "2026-10-21T10:00:00",
+        "version": 1
+       }
+      ],
+      "annotation_versions": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-21T10:00:00"
+       },
+       {
+        "id": 2,
+        "file_id": "demo-skript",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-28T10:00:00"
+       }
+      ],
+      "flashcards": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "subject": "Lineare Algebra Test",
+        "question": "Was ist eine Basis?",
+        "answer": "Erzeugendensystem",
+        "created_at": "2026-10-21T10:00:00",
+        "box": 1,
+        "due": "2026-10-22"
+       }
+      ],
+      "course_events": [
+       {
+        "id": 1,
+        "module_id": 1,
+        "course_id": "k-la",
+        "title": "Lineare Algebra Test – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 1,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Raum 1",
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "studip",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 2,
+        "module_id": null,
+        "course_id": null,
+        "title": "Sport",
+        "kind": "persoenlich",
+        "weekday": 4,
+        "start_time": "18:00",
+        "end_time": "19:30",
+        "room": null,
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "manual",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 3,
+        "module_id": 2,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 0,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 4,
+        "module_id": 2,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 3,
+        "start_time": "08:15",
+        "end_time": "09:45",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 5,
+        "module_id": 2,
+        "course_id": "demo-uebung",
+        "title": "Grundlagen der Informatik – Übung",
+        "kind": "uebung",
+        "weekday": 2,
+        "start_time": "14:00",
+        "end_time": "16:00",
+        "room": "Seminarraum 3",
+        "lecturer": "Tutorium",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "event_exceptions": [
+       {
+        "id": 1,
+        "event_id": 1,
+        "date": "2026-10-27",
+        "type": "skip",
+        "new_date": null,
+        "new_start": null,
+        "new_end": null,
+        "note": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 2,
+        "event_id": 5,
+        "date": "2026-10-28",
+        "type": "skip",
+        "new_date": null,
+        "new_start": null,
+        "new_end": null,
+        "note": null,
+        "created_at": "2026-10-28T10:00:00"
+       }
+      ],
+      "event_notes": [
+       {
+        "event_id": 1,
+        "note": "Raum 1 statt 2",
+        "source": "manual",
+        "updated_at": "2026-10-01T09:00:00"
+       },
+       {
+        "event_id": 3,
+        "note": "Hörsaal B",
+        "source": "manual",
+        "updated_at": "2026-10-28T10:00:00"
+       }
+      ],
+      "study_packages": [
+       {
+        "id": 1,
+        "date": "2026-10-28",
+        "module_id": 1,
+        "subject": "Lineare Algebra Test",
+        "title": "LA nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 2,
+        "date": "2026-10-26",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Vorlesung nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 3,
+        "date": "2026-10-28",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Übungsblatt 1",
+        "week_no": 1,
+        "planned_minutes": 60,
+        "status": "geplant",
+        "sort": 1,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 4,
+        "date": "2026-10-30",
+        "module_id": 2,
+        "subject": "Demo Informatik",
+        "title": "Wiederholung",
+        "week_no": 1,
+        "planned_minutes": 25,
+        "status": "geplant",
+        "sort": 2,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "study_tasks": [
+       {
+        "id": 1,
+        "package_id": 1,
+        "type": "vorlesung",
+        "file_id": "f-la1",
+        "test_id": null,
+        "title": "Vorlesung 01 lesen",
+        "sort": 0,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 2,
+        "package_id": 2,
+        "type": "vorlesung",
+        "file_id": "demo-folien",
+        "test_id": null,
+        "title": "Folien Woche 1 durchgehen",
+        "sort": 0,
+        "est_minutes": 30,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 3,
+        "package_id": 2,
+        "type": "vorlesung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Skript Kapitel 1 lesen",
+        "sort": 1,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 4,
+        "package_id": 3,
+        "type": "uebung",
+        "file_id": "demo-blatt",
+        "test_id": null,
+        "title": "Aufgaben 1–3 rechnen",
+        "sort": 0,
+        "est_minutes": 60,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 5,
+        "package_id": 4,
+        "type": "wiederholung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Zweierkomplement wiederholen",
+        "sort": 0,
+        "est_minutes": 25,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "deadlines": [
+       {
+        "id": "demo-abgabe-1",
+        "source": "demo",
+        "course_id": "demo-uebung",
+        "title": "Übungsblatt 1 abgeben",
+        "full_title": "Übungsblatt 1 abgeben (Demo)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-11-04T13:45",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": "lw-ev-1",
+        "source": "learnweb",
+        "course_id": "k-la",
+        "title": "Blatt 1 abgeben",
+        "full_title": "Blatt 1 abgeben (Fr, 30.10.)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-10-30T12:00",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "announcements": [
+       {
+        "id": "demo-ankuendigung-1",
+        "source": "demo",
+        "course_id": "demo-vorlesung",
+        "title": "Raumwechsel nächste Woche",
+        "text": "Die Vorlesung am 02.11. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+        "author": "Prof. Demo",
+        "posted_at": "2026-10-28T09:30:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[{\"date\": \"2026-11-02\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+        "fetched_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": "sp-news-1",
+        "source": "studip",
+        "course_id": "k-la",
+        "title": "Willkommen",
+        "text": "Die Vorlesung beginnt am 27.10.",
+        "author": "Prof. Test",
+        "posted_at": "2026-10-20T08:00:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[]",
+        "fetched_at": "2026-10-20T08:00:00"
+       }
+      ],
+      "page_texts": [
+       {
+        "file_id": "demo-blatt",
+        "page": 1,
+        "text": "Übungsblatt 1"
+       }
+      ],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "1"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": "Testperson"
+       }
+      ]
+     },
+     "files": [
+      {
+       "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+       "size": 2127,
+       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+      },
+      {
+       "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+       "size": 2006,
+       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+      },
+      {
+       "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+       "size": 1343,
+       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+      }
+     ],
+     "dirs": [
+      "files/Demo"
+     ]
+    },
+    "entfernt": {
+     "after_step": 4,
+     "tables": {
+      "modules": [
+       {
+        "id": 1,
+        "name": "Lineare Algebra Test",
+        "semester": "WiSe 2026/27",
+        "color": "#2563eb",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       }
+      ],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       },
+       {
+        "id": "k-la",
+        "title": "Lineare Algebra Test",
+        "number": "LA-1",
+        "semester": "WiSe 2026/27",
+        "subject": "Lineare Algebra Test",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-01T09:00:00",
+        "module_id": 1
+       }
+      ],
+      "files": [
+       {
+        "id": "f-la1",
+        "course_id": "k-la",
+        "name": "LA_Vorlesung_01.pdf",
+        "size": null,
+        "mime": null,
+        "author": null,
+        "chdate": null,
+        "download_url": null,
+        "local_path": null,
+        "downloaded_at": null,
+        "first_seen": "2026-10-20T08:00:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "LA Vorlesung 01",
+        "page_count": null,
+        "content_sha256": null,
+        "revision": null
+       }
+      ],
+      "analysis": [],
+      "annotations": [
+       {
+        "file_id": "f-la1",
+        "data": "{\"version\": 2, \"pages\": {\"1\": {\"objects\": []}}}",
+        "updated_at": "2026-10-21T10:00:00",
+        "version": 1
+       }
+      ],
+      "annotation_versions": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-21T10:00:00"
+       },
+       {
+        "id": 2,
+        "file_id": "demo-skript",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-28T10:00:00"
+       }
+      ],
+      "flashcards": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "subject": "Lineare Algebra Test",
+        "question": "Was ist eine Basis?",
+        "answer": "Erzeugendensystem",
+        "created_at": "2026-10-21T10:00:00",
+        "box": 1,
+        "due": "2026-10-22"
+       }
+      ],
+      "course_events": [
+       {
+        "id": 1,
+        "module_id": 1,
+        "course_id": "k-la",
+        "title": "Lineare Algebra Test – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 1,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Raum 1",
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "studip",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 2,
+        "module_id": null,
+        "course_id": null,
+        "title": "Sport",
+        "kind": "persoenlich",
+        "weekday": 4,
+        "start_time": "18:00",
+        "end_time": "19:30",
+        "room": null,
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "manual",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "event_exceptions": [
+       {
+        "id": 1,
+        "event_id": 1,
+        "date": "2026-10-27",
+        "type": "skip",
+        "new_date": null,
+        "new_start": null,
+        "new_end": null,
+        "note": null,
+        "created_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "event_notes": [
+       {
+        "event_id": 1,
+        "note": "Raum 1 statt 2",
+        "source": "manual",
+        "updated_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "study_packages": [
+       {
+        "id": 1,
+        "date": "2026-10-28",
+        "module_id": 1,
+        "subject": "Lineare Algebra Test",
+        "title": "LA nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "study_tasks": [
+       {
+        "id": 1,
+        "package_id": 1,
+        "type": "vorlesung",
+        "file_id": "f-la1",
+        "test_id": null,
+        "title": "Vorlesung 01 lesen",
+        "sort": 0,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "deadlines": [
+       {
+        "id": "lw-ev-1",
+        "source": "learnweb",
+        "course_id": "k-la",
+        "title": "Blatt 1 abgeben",
+        "full_title": "Blatt 1 abgeben (Fr, 30.10.)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-10-30T12:00",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "announcements": [
+       {
+        "id": "sp-news-1",
+        "source": "studip",
+        "course_id": "k-la",
+        "title": "Willkommen",
+        "text": "Die Vorlesung beginnt am 27.10.",
+        "author": "Prof. Test",
+        "posted_at": "2026-10-20T08:00:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[]",
+        "fetched_at": "2026-10-20T08:00:00"
+       }
+      ],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "0"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": "Testperson"
+       }
+      ]
+     },
+     "files": [],
+     "dirs": []
+    },
+    "wieder": {
+     "after_step": 5,
+     "tables": {
+      "modules": [
+       {
+        "id": 1,
+        "name": "Lineare Algebra Test",
+        "semester": "WiSe 2026/27",
+        "color": "#2563eb",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       },
+       {
+        "id": 3,
+        "name": "Demo: Grundlagen der Informatik",
+        "semester": null,
+        "color": "#7c3aed",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 99,
+        "created_at": "2026-10-28T09:30:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       }
+      ],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       },
+       {
+        "id": "demo-uebung",
+        "title": "Demo: Grundlagen der Informatik (Übung)",
+        "number": "DEMO-101Ü",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "uebung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 3
+       },
+       {
+        "id": "demo-vorlesung",
+        "title": "Demo: Grundlagen der Informatik (Vorlesung)",
+        "number": "DEMO-101",
+        "semester": null,
+        "subject": "Demo Informatik",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 60,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": 3
+       },
+       {
+        "id": "k-la",
+        "title": "Lineare Algebra Test",
+        "number": "LA-1",
+        "semester": "WiSe 2026/27",
+        "subject": "Lineare Algebra Test",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-01T09:00:00",
+        "module_id": 1
+       }
+      ],
+      "files": [
+       {
+        "id": "demo-blatt",
+        "course_id": "demo-uebung",
+        "name": "Übungsblatt 1 – Zahlensysteme.pdf",
+        "size": 1343,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Übungsblatt 1 – Zahlensysteme",
+        "page_count": 2,
+        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "revision": null
+       },
+       {
+        "id": "demo-folien",
+        "course_id": "demo-vorlesung",
+        "name": "Folien Woche 1 – Einführung.pdf",
+        "size": 2127,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Folien Woche 1 – Einführung",
+        "page_count": 4,
+        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "revision": null
+       },
+       {
+        "id": "demo-skript",
+        "course_id": "demo-vorlesung",
+        "name": "Skript Kapitel 1 – Zahlensysteme.pdf",
+        "size": 2006,
+        "mime": "application/pdf",
+        "author": "Prof. Demo",
+        "chdate": 1792879200,
+        "download_url": "",
+        "local_path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+        "downloaded_at": "2026-10-28T09:30:00",
+        "first_seen": "2026-10-28T09:30:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "Skript Kapitel 1 – Zahlensysteme",
+        "page_count": 3,
+        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "revision": null
+       },
+       {
+        "id": "f-la1",
+        "course_id": "k-la",
+        "name": "LA_Vorlesung_01.pdf",
+        "size": null,
+        "mime": null,
+        "author": null,
+        "chdate": null,
+        "download_url": null,
+        "local_path": null,
+        "downloaded_at": null,
+        "first_seen": "2026-10-20T08:00:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "LA Vorlesung 01",
+        "page_count": null,
+        "content_sha256": null,
+        "revision": null
+       }
+      ],
+      "analysis": [],
+      "annotations": [
+       {
+        "file_id": "f-la1",
+        "data": "{\"version\": 2, \"pages\": {\"1\": {\"objects\": []}}}",
+        "updated_at": "2026-10-21T10:00:00",
+        "version": 1
+       }
+      ],
+      "annotation_versions": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-21T10:00:00"
+       },
+       {
+        "id": 2,
+        "file_id": "demo-skript",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-28T10:00:00"
+       }
+      ],
+      "flashcards": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "subject": "Lineare Algebra Test",
+        "question": "Was ist eine Basis?",
+        "answer": "Erzeugendensystem",
+        "created_at": "2026-10-21T10:00:00",
+        "box": 1,
+        "due": "2026-10-22"
+       }
+      ],
+      "course_events": [
+       {
+        "id": 1,
+        "module_id": 1,
+        "course_id": "k-la",
+        "title": "Lineare Algebra Test – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 1,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Raum 1",
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "studip",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 2,
+        "module_id": null,
+        "course_id": null,
+        "title": "Sport",
+        "kind": "persoenlich",
+        "weekday": 4,
+        "start_time": "18:00",
+        "end_time": "19:30",
+        "room": null,
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "manual",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 6,
+        "module_id": 3,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 0,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 7,
+        "module_id": 3,
+        "course_id": "demo-vorlesung",
+        "title": "Grundlagen der Informatik – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 3,
+        "start_time": "08:15",
+        "end_time": "09:45",
+        "room": "Hörsaal A",
+        "lecturer": "Prof. Demo",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": 8,
+        "module_id": 3,
+        "course_id": "demo-uebung",
+        "title": "Grundlagen der Informatik – Übung",
+        "kind": "uebung",
+        "weekday": 2,
+        "start_time": "14:00",
+        "end_time": "16:00",
+        "room": "Seminarraum 3",
+        "lecturer": "Tutorium",
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "demo",
+        "color": "#7c3aed",
+        "created_at": "2026-10-28T09:30:00"
+       }
+      ],
+      "event_exceptions": [
+       {
+        "id": 1,
+        "event_id": 1,
+        "date": "2026-10-27",
+        "type": "skip",
+        "new_date": null,
+        "new_start": null,
+        "new_end": null,
+        "note": null,
+        "created_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "event_notes": [
+       {
+        "event_id": 1,
+        "note": "Raum 1 statt 2",
+        "source": "manual",
+        "updated_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "study_packages": [
+       {
+        "id": 1,
+        "date": "2026-10-28",
+        "module_id": 1,
+        "subject": "Lineare Algebra Test",
+        "title": "LA nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 5,
+        "date": "2026-10-26",
+        "module_id": 3,
+        "subject": "Demo Informatik",
+        "title": "Vorlesung nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 75,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 6,
+        "date": "2026-10-28",
+        "module_id": 3,
+        "subject": "Demo Informatik",
+        "title": "Übungsblatt 1",
+        "week_no": 1,
+        "planned_minutes": 60,
+        "status": "geplant",
+        "sort": 1,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 7,
+        "date": "2026-10-30",
+        "module_id": 3,
+        "subject": "Demo Informatik",
+        "title": "Wiederholung",
+        "week_no": 1,
+        "planned_minutes": 25,
+        "status": "geplant",
+        "sort": 2,
+        "generated": 0,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "study_tasks": [
+       {
+        "id": 1,
+        "package_id": 1,
+        "type": "vorlesung",
+        "file_id": "f-la1",
+        "test_id": null,
+        "title": "Vorlesung 01 lesen",
+        "sort": 0,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 6,
+        "package_id": 5,
+        "type": "vorlesung",
+        "file_id": "demo-folien",
+        "test_id": null,
+        "title": "Folien Woche 1 durchgehen",
+        "sort": 0,
+        "est_minutes": 30,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 7,
+        "package_id": 5,
+        "type": "vorlesung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Skript Kapitel 1 lesen",
+        "sort": 1,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 8,
+        "package_id": 6,
+        "type": "uebung",
+        "file_id": "demo-blatt",
+        "test_id": null,
+        "title": "Aufgaben 1–3 rechnen",
+        "sort": 0,
+        "est_minutes": 60,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       },
+       {
+        "id": 9,
+        "package_id": 7,
+        "type": "wiederholung",
+        "file_id": "demo-skript",
+        "test_id": null,
+        "title": "Zweierkomplement wiederholen",
+        "sort": 0,
+        "est_minutes": 25,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-28T09:30:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "deadlines": [
+       {
+        "id": "demo-abgabe-1",
+        "source": "demo",
+        "course_id": "demo-uebung",
+        "title": "Übungsblatt 1 abgeben",
+        "full_title": "Übungsblatt 1 abgeben (Demo)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-11-04T13:45",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": "lw-ev-1",
+        "source": "learnweb",
+        "course_id": "k-la",
+        "title": "Blatt 1 abgeben",
+        "full_title": "Blatt 1 abgeben (Fr, 30.10.)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-10-30T12:00",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "announcements": [
+       {
+        "id": "demo-ankuendigung-1",
+        "source": "demo",
+        "course_id": "demo-vorlesung",
+        "title": "Raumwechsel nächste Woche",
+        "text": "Die Vorlesung am 02.11. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+        "author": "Prof. Demo",
+        "posted_at": "2026-10-28T09:30:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[{\"date\": \"2026-11-02\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+        "fetched_at": "2026-10-28T09:30:00"
+       },
+       {
+        "id": "sp-news-1",
+        "source": "studip",
+        "course_id": "k-la",
+        "title": "Willkommen",
+        "text": "Die Vorlesung beginnt am 27.10.",
+        "author": "Prof. Test",
+        "posted_at": "2026-10-20T08:00:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[]",
+        "fetched_at": "2026-10-20T08:00:00"
+       }
+      ],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "1"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": "Testperson"
+       }
+      ]
+     },
+     "files": [
+      {
+       "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
+       "size": 2127,
+       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+      },
+      {
+       "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
+       "size": 2006,
+       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+      },
+      {
+       "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
+       "size": 1343,
+       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+      }
+     ],
+     "dirs": [
+      "files/Demo"
+     ]
+    },
+    "wieder-entfernt": {
+     "after_step": 6,
+     "tables": {
+      "modules": [
+       {
+        "id": 1,
+        "name": "Lineare Algebra Test",
+        "semester": "WiSe 2026/27",
+        "color": "#2563eb",
+        "icon": null,
+        "priority": 2,
+        "exam_date": null,
+        "sort": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "active": 1,
+        "weekly_test": 1,
+        "test_minutes": null,
+        "color_custom": 0
+       }
+      ],
+      "courses": [
+       {
+        "id": "__user__",
+        "title": "Eigene Dokumente",
+        "number": null,
+        "semester": null,
+        "subject": null,
+        "kind": "sonstiges",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-28T09:30:00",
+        "module_id": null
+       },
+       {
+        "id": "k-la",
+        "title": "Lineare Algebra Test",
+        "number": "LA-1",
+        "semester": "WiSe 2026/27",
+        "subject": "Lineare Algebra Test",
+        "kind": "vorlesung",
+        "active": 1,
+        "test_minutes": 90,
+        "created_at": "2026-10-01T09:00:00",
+        "module_id": 1
+       }
+      ],
+      "files": [
+       {
+        "id": "f-la1",
+        "course_id": "k-la",
+        "name": "LA_Vorlesung_01.pdf",
+        "size": null,
+        "mime": null,
+        "author": null,
+        "chdate": null,
+        "download_url": null,
+        "local_path": null,
+        "downloaded_at": null,
+        "first_seen": "2026-10-20T08:00:00",
+        "status": "neu",
+        "seen_by_user": 0,
+        "text_excerpt": null,
+        "studip_folder": null,
+        "favorite": 0,
+        "last_opened": null,
+        "last_page": 1,
+        "opened_count": 0,
+        "folder_id": null,
+        "kind": "pdf",
+        "deleted_at": null,
+        "title": "LA Vorlesung 01",
+        "page_count": null,
+        "content_sha256": null,
+        "revision": null
+       }
+      ],
+      "analysis": [],
+      "annotations": [
+       {
+        "file_id": "f-la1",
+        "data": "{\"version\": 2, \"pages\": {\"1\": {\"objects\": []}}}",
+        "updated_at": "2026-10-21T10:00:00",
+        "version": 1
+       }
+      ],
+      "annotation_versions": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-21T10:00:00"
+       },
+       {
+        "id": 2,
+        "file_id": "demo-skript",
+        "version": 1,
+        "data": "{\"version\": 2, \"pages\": {}}",
+        "created_at": "2026-10-28T10:00:00"
+       }
+      ],
+      "flashcards": [
+       {
+        "id": 1,
+        "file_id": "f-la1",
+        "subject": "Lineare Algebra Test",
+        "question": "Was ist eine Basis?",
+        "answer": "Erzeugendensystem",
+        "created_at": "2026-10-21T10:00:00",
+        "box": 1,
+        "due": "2026-10-22"
+       }
+      ],
+      "course_events": [
+       {
+        "id": 1,
+        "module_id": 1,
+        "course_id": "k-la",
+        "title": "Lineare Algebra Test – Vorlesung",
+        "kind": "vorlesung",
+        "weekday": 1,
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "room": "Raum 1",
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "studip",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       },
+       {
+        "id": 2,
+        "module_id": null,
+        "course_id": null,
+        "title": "Sport",
+        "kind": "persoenlich",
+        "weekday": 4,
+        "start_time": "18:00",
+        "end_time": "19:30",
+        "room": null,
+        "lecturer": null,
+        "rrule": "weekly",
+        "date_from": null,
+        "date_to": null,
+        "attend": 1,
+        "source": "manual",
+        "color": null,
+        "created_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "event_exceptions": [
+       {
+        "id": 1,
+        "event_id": 1,
+        "date": "2026-10-27",
+        "type": "skip",
+        "new_date": null,
+        "new_start": null,
+        "new_end": null,
+        "note": null,
+        "created_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "event_notes": [
+       {
+        "event_id": 1,
+        "note": "Raum 1 statt 2",
+        "source": "manual",
+        "updated_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "study_packages": [
+       {
+        "id": 1,
+        "date": "2026-10-28",
+        "module_id": 1,
+        "subject": "Lineare Algebra Test",
+        "title": "LA nacharbeiten",
+        "week_no": 1,
+        "planned_minutes": 45,
+        "status": "geplant",
+        "sort": 0,
+        "generated": 1,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "study_tasks": [
+       {
+        "id": 1,
+        "package_id": 1,
+        "type": "vorlesung",
+        "file_id": "f-la1",
+        "test_id": null,
+        "title": "Vorlesung 01 lesen",
+        "sort": 0,
+        "est_minutes": 45,
+        "actual_minutes": null,
+        "status": "geplant",
+        "done_at": null,
+        "moved_from": null,
+        "created_at": "2026-10-01T09:00:00",
+        "start_time": null,
+        "end_time": null
+       }
+      ],
+      "deadlines": [
+       {
+        "id": "lw-ev-1",
+        "source": "learnweb",
+        "course_id": "k-la",
+        "title": "Blatt 1 abgeben",
+        "full_title": "Blatt 1 abgeben (Fr, 30.10.)",
+        "kind": "abgabe",
+        "module": "assign",
+        "due_at": "2026-10-30T12:00",
+        "url": "",
+        "overdue": 0,
+        "fetched_at": "2026-10-01T09:00:00"
+       }
+      ],
+      "announcements": [
+       {
+        "id": "sp-news-1",
+        "source": "studip",
+        "course_id": "k-la",
+        "title": "Willkommen",
+        "text": "Die Vorlesung beginnt am 27.10.",
+        "author": "Prof. Test",
+        "posted_at": "2026-10-20T08:00:00",
+        "url": "",
+        "discussion": null,
+        "dates": "[]",
+        "fetched_at": "2026-10-20T08:00:00"
+       }
+      ],
+      "page_texts": [],
+      "settings": [
+       {
+        "key": "auto_plan",
+        "value": "1"
+       },
+       {
+        "key": "auto_suggest",
+        "value": "1"
+       },
+       {
+        "key": "auto_tests",
+        "value": "1"
+       },
+       {
+        "key": "blocked_times",
+        "value": "[]"
+       },
+       {
+        "key": "break_minutes",
+        "value": "15"
+       },
+       {
+        "key": "day_start",
+        "value": "09:00"
+       },
+       {
+        "key": "demo_content",
+        "value": "0"
+       },
+       {
+        "key": "exam_priority",
+        "value": "1"
+       },
+       {
+        "key": "free_days",
+        "value": "[6]"
+       },
+       {
+        "key": "hand",
+        "value": "right"
+       },
+       {
+        "key": "hours_per_day",
+        "value": "4"
+       },
+       {
+        "key": "lan_pin",
+        "value": ""
+       },
+       {
+        "key": "learn_end",
+        "value": "21:00"
+       },
+       {
+        "key": "learn_start",
+        "value": "08:00"
+       },
+       {
+        "key": "min_slot_minutes",
+        "value": "30"
+       },
+       {
+        "key": "parts_exercise",
+        "value": "1"
+       },
+       {
+        "key": "parts_lecture",
+        "value": "1"
+       },
+       {
+        "key": "pen_input",
+        "value": "all"
+       },
+       {
+        "key": "subjects_per_day",
+        "value": "2"
+       },
+       {
+        "key": "test_default_minutes",
+        "value": "90"
+       },
+       {
+        "key": "test_minutes",
+        "value": "45"
+       },
+       {
+        "key": "tests_per_subject",
+        "value": "0"
+       },
+       {
+        "key": "theme",
+        "value": "auto"
+       },
+       {
+        "key": "travel_minutes",
+        "value": "30"
+       },
+       {
+        "key": "university",
+        "value": "luh"
+       },
+       {
+        "key": "user_name",
+        "value": "Testperson"
+       }
+      ]
+     },
+     "files": [],
+     "dirs": []
+    }
+   }
+  }
+ ],
+ "touch_demo": [
+  {
+   "sql": "INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?)",
+   "params": [
+    "demo-skript",
+    "{\"version\": 2, \"pages\": {\"1\": {\"objects\": [{\"id\": \"s1\", \"type\": \"stroke\"}]}}}",
+    "2026-10-28T10:00:00",
+    1
+   ]
+  },
+  {
+   "sql": "INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
+   "params": [
+    "demo-skript",
+    1,
+    "{\"version\": 2, \"pages\": {}}",
+    "2026-10-28T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO analysis(file_id, doc_type, title, created_at) VALUES (?,?,?,?)",
+   "params": [
+    "demo-folien",
+    "vorlesung",
+    "Einführung",
+    "2026-10-28T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_exceptions(event_id, date, type, created_at) SELECT id, ?, ?, ? FROM course_events WHERE source='demo' AND weekday=2",
+   "params": [
+    "2026-10-28",
+    "skip",
+    "2026-10-28T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_notes(event_id, note, source, updated_at) SELECT id, ?, ?, ? FROM course_events WHERE source='demo' AND weekday=0",
+   "params": [
+    "Hörsaal B",
+    "manual",
+    "2026-10-28T10:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?,?,?,?)",
+   "params": [
+    "demo-blatt",
+    1,
+    "Übungsblatt 1",
+    0
+   ]
+  }
+ ],
+ "dates": [
+  {
+   "now": "2026-10-26T08:00:00",
+   "study_packages": [
+    {
+     "date": "2026-10-26",
+     "title": "Vorlesung nacharbeiten",
+     "planned_minutes": 75,
+     "sort": 0
+    },
+    {
+     "date": "2026-10-28",
+     "title": "Übungsblatt 1",
+     "planned_minutes": 60,
+     "sort": 1
+    },
+    {
+     "date": "2026-10-30",
+     "title": "Wiederholung",
+     "planned_minutes": 25,
+     "sort": 2
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "demo-abgabe-1",
+     "due_at": "2026-11-04T13:45"
+    }
+   ],
+   "announcements": [
+    {
+     "id": "demo-ankuendigung-1",
+     "text": "Die Vorlesung am 02.11. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+     "dates": "[{\"date\": \"2026-11-02\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+     "posted_at": "2026-10-26T08:00:00"
+    }
+   ],
+   "files": [
+    {
+     "id": "demo-blatt",
+     "chdate": 1792706400,
+     "first_seen": "2026-10-26T08:00:00"
+    },
+    {
+     "id": "demo-folien",
+     "chdate": 1792706400,
+     "first_seen": "2026-10-26T08:00:00"
+    },
+    {
+     "id": "demo-skript",
+     "chdate": 1792706400,
+     "first_seen": "2026-10-26T08:00:00"
+    }
+   ]
+  },
+  {
+   "now": "2026-11-01T23:59:59",
+   "study_packages": [
+    {
+     "date": "2026-10-26",
+     "title": "Vorlesung nacharbeiten",
+     "planned_minutes": 75,
+     "sort": 0
+    },
+    {
+     "date": "2026-10-28",
+     "title": "Übungsblatt 1",
+     "planned_minutes": 60,
+     "sort": 1
+    },
+    {
+     "date": "2026-10-30",
+     "title": "Wiederholung",
+     "planned_minutes": 25,
+     "sort": 2
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "demo-abgabe-1",
+     "due_at": "2026-11-04T13:45"
+    }
+   ],
+   "announcements": [
+    {
+     "id": "demo-ankuendigung-1",
+     "text": "Die Vorlesung am 02.11. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+     "dates": "[{\"date\": \"2026-11-02\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+     "posted_at": "2026-11-01T23:59:59"
+    }
+   ],
+   "files": [
+    {
+     "id": "demo-blatt",
+     "chdate": 1793228400,
+     "first_seen": "2026-11-01T23:59:59"
+    },
+    {
+     "id": "demo-folien",
+     "chdate": 1793228400,
+     "first_seen": "2026-11-01T23:59:59"
+    },
+    {
+     "id": "demo-skript",
+     "chdate": 1793228400,
+     "first_seen": "2026-11-01T23:59:59"
+    }
+   ]
+  },
+  {
+   "now": "2026-12-31T12:00:00",
+   "study_packages": [
+    {
+     "date": "2026-12-28",
+     "title": "Vorlesung nacharbeiten",
+     "planned_minutes": 75,
+     "sort": 0
+    },
+    {
+     "date": "2026-12-30",
+     "title": "Übungsblatt 1",
+     "planned_minutes": 60,
+     "sort": 1
+    },
+    {
+     "date": "2027-01-01",
+     "title": "Wiederholung",
+     "planned_minutes": 25,
+     "sort": 2
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "demo-abgabe-1",
+     "due_at": "2027-01-06T13:45"
+    }
+   ],
+   "announcements": [
+    {
+     "id": "demo-ankuendigung-1",
+     "text": "Die Vorlesung am 04.01. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+     "dates": "[{\"date\": \"2027-01-04\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+     "posted_at": "2026-12-31T12:00:00"
+    }
+   ],
+   "files": [
+    {
+     "id": "demo-blatt",
+     "chdate": 1798412400,
+     "first_seen": "2026-12-31T12:00:00"
+    },
+    {
+     "id": "demo-folien",
+     "chdate": 1798412400,
+     "first_seen": "2026-12-31T12:00:00"
+    },
+    {
+     "id": "demo-skript",
+     "chdate": 1798412400,
+     "first_seen": "2026-12-31T12:00:00"
+    }
+   ]
+  },
+  {
+   "now": "2028-02-29T07:00:00",
+   "study_packages": [
+    {
+     "date": "2028-02-28",
+     "title": "Vorlesung nacharbeiten",
+     "planned_minutes": 75,
+     "sort": 0
+    },
+    {
+     "date": "2028-03-01",
+     "title": "Übungsblatt 1",
+     "planned_minutes": 60,
+     "sort": 1
+    },
+    {
+     "date": "2028-03-03",
+     "title": "Wiederholung",
+     "planned_minutes": 25,
+     "sort": 2
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "demo-abgabe-1",
+     "due_at": "2028-03-08T13:45"
+    }
+   ],
+   "announcements": [
+    {
+     "id": "demo-ankuendigung-1",
+     "text": "Die Vorlesung am 06.03. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+     "dates": "[{\"date\": \"2028-03-06\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+     "posted_at": "2028-02-29T07:00:00"
+    }
+   ],
+   "files": [
+    {
+     "id": "demo-blatt",
+     "chdate": 1835132400,
+     "first_seen": "2028-02-29T07:00:00"
+    },
+    {
+     "id": "demo-folien",
+     "chdate": 1835132400,
+     "first_seen": "2028-02-29T07:00:00"
+    },
+    {
+     "id": "demo-skript",
+     "chdate": 1835132400,
+     "first_seen": "2028-02-29T07:00:00"
+    }
+   ]
+  },
+  {
+   "now": "2026-10-27T00:30:00",
+   "study_packages": [
+    {
+     "date": "2026-10-26",
+     "title": "Vorlesung nacharbeiten",
+     "planned_minutes": 75,
+     "sort": 0
+    },
+    {
+     "date": "2026-10-28",
+     "title": "Übungsblatt 1",
+     "planned_minutes": 60,
+     "sort": 1
+    },
+    {
+     "date": "2026-10-30",
+     "title": "Wiederholung",
+     "planned_minutes": 25,
+     "sort": 2
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "demo-abgabe-1",
+     "due_at": "2026-11-04T13:45"
+    }
+   ],
+   "announcements": [
+    {
+     "id": "demo-ankuendigung-1",
+     "text": "Die Vorlesung am 02.11. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+     "dates": "[{\"date\": \"2026-11-02\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+     "posted_at": "2026-10-27T00:30:00"
+    }
+   ],
+   "files": [
+    {
+     "id": "demo-blatt",
+     "chdate": 1792792800,
+     "first_seen": "2026-10-27T00:30:00"
+    },
+    {
+     "id": "demo-folien",
+     "chdate": 1792792800,
+     "first_seen": "2026-10-27T00:30:00"
+    },
+    {
+     "id": "demo-skript",
+     "chdate": 1792792800,
+     "first_seen": "2026-10-27T00:30:00"
+    }
+   ]
+  },
+  {
+   "now": "2027-03-30T12:00:00",
+   "study_packages": [
+    {
+     "date": "2027-03-29",
+     "title": "Vorlesung nacharbeiten",
+     "planned_minutes": 75,
+     "sort": 0
+    },
+    {
+     "date": "2027-03-31",
+     "title": "Übungsblatt 1",
+     "planned_minutes": 60,
+     "sort": 1
+    },
+    {
+     "date": "2027-04-02",
+     "title": "Wiederholung",
+     "planned_minutes": 25,
+     "sort": 2
+    }
+   ],
+   "deadlines": [
+    {
+     "id": "demo-abgabe-1",
+     "due_at": "2027-04-07T13:45"
+    }
+   ],
+   "announcements": [
+    {
+     "id": "demo-ankuendigung-1",
+     "text": "Die Vorlesung am 05.04. findet im Hörsaal B statt. Bitte Übungsblatt 1 vorher bearbeiten.",
+     "dates": "[{\"date\": \"2027-04-05\", \"time\": \"10:00\", \"kind\": \"raumwechsel\", \"snippet\": \"Vorlesung im Hörsaal B\"}]",
+     "posted_at": "2027-03-30T12:00:00"
+    }
+   ],
+   "files": [
+    {
+     "id": "demo-blatt",
+     "chdate": 1806102000,
+     "first_seen": "2027-03-30T12:00:00"
+    },
+    {
+     "id": "demo-folien",
+     "chdate": 1806102000,
+     "first_seen": "2027-03-30T12:00:00"
+    },
+    {
+     "id": "demo-skript",
+     "chdate": 1806102000,
+     "first_seen": "2027-03-30T12:00:00"
+    }
+   ]
+  }
+ ]
+}

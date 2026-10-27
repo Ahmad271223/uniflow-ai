@@ -21,6 +21,7 @@ public final class LocalBackend: Sendable {
         FileVersionEndpoints.self,
         FlashcardEndpoints.self,
         DueEndpoints.self,
+        DemoEndpoints.self,
         PendingOverviewEndpoints.self,
         PendingServicesEndpoints.self,
     ]
