@@ -34,7 +34,7 @@ enum ContainerPaths {
 
 /// Schreibrecht in einen Container. Wer laenger schreibt, als der Container lebt (ein Dokument, das beim Schliessen noch
 /// sichert oder hochlaedt), prueft es vor jedem Schreiben (`FileBlobStore(canWrite:)`): "Daten dieser Hochschule
-/// löschen" entzieht es (`ContainerLeases.revoke`), bevor geloescht wird. Vorher legte ein spaeter Schreibzugriff den
+/// loeschen" entzieht es (`ContainerLeases.revoke`), bevor geloescht wird. Vorher legte ein spaeter Schreibzugriff den
 /// Journal-Ordner im geloeschten Container neu an bzw. landete im leer neu geoeffneten Container mit demselben
 /// Schluessel (die Notizen ueberlebten das Loeschen).
 final class ContainerLease: @unchecked Sendable {
@@ -394,7 +394,7 @@ final class ContainerManager: ObservableObject {
     /// seine Einstellungen. Die andere Hochschule bleibt unberuehrt. War er offen, geht es mit einem leeren weiter.
     /// Laufende Abgleiche des Containers werden vorher angehalten und abgewartet (`remove`).
     /// - Returns: nil, wenn alles geloescht ist; sonst die Meldung, was blieb (fuer die Oberflaeche; vorher meldete
-    ///   sie immer "gelöscht", auch wenn der Ordner oder ein Schluessel blieb)
+    ///   sie immer "geloescht", auch wenn der Ordner oder ein Schluessel blieb)
     @discardableResult
     func deleteUniversityData(_ key: DataContainerKey) async -> String? {
         let wasActive = active?.key == key
@@ -428,7 +428,7 @@ final class ContainerManager: ObservableObject {
     static let leftKey = "Learnweb-Schlüssel"
     static let leftSession = "Stud.IP-Anmeldung"
 
-    /// Meldung "Nicht alles ließ sich löschen …" zu den Resten (nil ohne Reste)
+    /// Meldung "Nicht alles liess sich loeschen ..." zu den Resten (nil ohne Reste)
     static func deletionProblem(_ left: [String]) -> String? {
         guard !left.isEmpty else { return nil }
         return "Nicht alles ließ sich löschen (\(left.joined(separator: ", "))). Bitte versuche es erneut."

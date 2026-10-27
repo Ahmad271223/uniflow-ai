@@ -64,7 +64,7 @@ final class AccountStore: ObservableObject {
     @Published var lastError: String?
     /// einmaliger Hinweis auf der Begruessung, z. B. nach "Konto loeschen"
     @Published var notice: Notice?
-    /// Nach "Konto löschen": was sich auf diesem iPad nicht loeschen liess (Begruessung zeigt es), sonst nil
+    /// Nach "Konto loeschen": was sich auf diesem iPad nicht loeschen liess (Begruessung zeigt es), sonst nil
     @Published var deletionProblem: String?
 
     enum Notice: Equatable { case deleted, signedOut }

@@ -376,7 +376,7 @@ final class AuditRunde11AppTests: XCTestCase {
 
     // MARK: 374 spaete Schreibzugriffe nach dem Loeschen
 
-    /// Ein Dokument sichert nach "Daten dieser Hochschule löschen" noch (Schliessen, Upload): es schreibt nichts mehr,
+    /// Ein Dokument sichert nach "Daten dieser Hochschule loeschen" noch (Schliessen, Upload): es schreibt nichts mehr,
     /// weder in den geloeschten noch in den leer neu geoeffneten Container mit derselben Kennung
     func testDocumentStillSavingAfterDeletionWritesNothingIntoTheNewContainer() async throws {
         let m = manager()
