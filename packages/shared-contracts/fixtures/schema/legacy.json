@@ -147,7 +147,10 @@
           {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": "90", "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "semester_end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "semester_ends_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "active_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -316,6 +319,7 @@
           {"name": "exam_date", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "sort", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "active_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "weekly_test", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
@@ -620,9 +624,9 @@
   },
   "rows": {
     "courses": [
-      {"id": "k1", "title": "Testkurs Algebra", "number": null, "semester": null, "subject": null, "kind": "vorlesung", "active": 1, "test_minutes": 90, "created_at": "2026-09-30T08:00:00", "module_id": null},
-      {"id": "k2", "title": "Testkurs Algebra Uebung", "number": null, "semester": null, "subject": null, "kind": "uebung", "active": 0, "test_minutes": 90, "created_at": "2026-09-30T08:01:00", "module_id": null},
-      {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "created_at": "2026-09-01T07:00:00", "module_id": null}
+      {"id": "k1", "title": "Testkurs Algebra", "number": null, "semester": null, "subject": null, "kind": "vorlesung", "active": 1, "test_minutes": 90, "created_at": "2026-09-30T08:00:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0},
+      {"id": "k2", "title": "Testkurs Algebra Uebung", "number": null, "semester": null, "subject": null, "kind": "uebung", "active": 0, "test_minutes": 90, "created_at": "2026-09-30T08:01:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0},
+      {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "created_at": "2026-09-01T07:00:00", "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0}
     ],
     "files": [
       {"id": "f1", "course_id": "k1", "name": "Folien_01.pdf", "size": 1024, "mime": "application/pdf", "author": null, "chdate": 1760000000, "download_url": null, "local_path": null, "downloaded_at": null, "first_seen": null, "status": "gelesen", "seen_by_user": 0, "text_excerpt": null, "studip_folder": null, "favorite": 0, "last_opened": null, "last_page": 1, "opened_count": 0, "folder_id": null, "kind": "pdf", "deleted_at": null, "title": null, "page_count": null, "content_sha256": null, "revision": null},
@@ -666,19 +670,20 @@
       {"key": "min_slot_minutes", "value": "30", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
       {"key": "blocked_times", "value": "[]", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
       {"key": "pen_input", "value": "all", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
-      {"key": "hand", "value": "right", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null}
+      {"key": "hand", "value": "right", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"key": "semester_rule_applied", "value": "1", "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null}
     ],
     "terms": [
       {"id": 1, "name": "WiSe 2026/27", "start": "2026-10-12", "end": "2027-01-30", "active": 1}
     ],
     "modules": [
-      {"id": 1, "name": "Testkurs Algebra", "semester": null, "color": "#e95905", "icon": null, "priority": 2, "exam_date": null, "sort": 0, "created_at": "2026-09-30T08:00:00", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
-      {"id": 2, "name": "Testkurs Optik", "semester": null, "color": "#167535", "icon": null, "priority": 2, "exam_date": null, "sort": 1, "created_at": "2026-09-30T08:00:01", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
-      {"id": 3, "name": "Eigenes Testfach", "semester": null, "color": "#123abc", "icon": null, "priority": 2, "exam_date": null, "sort": 2, "created_at": "2026-09-30T08:00:02", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 1, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
-      {"id": 4, "name": "Testkurs Chemie", "semester": null, "color": "#1f9682", "icon": null, "priority": 2, "exam_date": null, "sort": 4, "created_at": "2026-09-30T08:00:03", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
-      {"id": 5, "name": "Testkurs Biologie", "semester": null, "color": "#834bbf", "icon": null, "priority": 2, "exam_date": null, "sort": 3, "created_at": "2026-09-30T08:00:04", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
-      {"id": 6, "name": "Testkurs Akustik", "semester": null, "color": "#b9454c", "icon": null, "priority": 2, "exam_date": null, "sort": 4, "created_at": "2026-09-30T08:00:05", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
-      {"id": 7, "name": "Blau gewaehlt", "semester": null, "color": "#175ee8", "icon": null, "priority": 2, "exam_date": null, "sort": 5, "created_at": "2026-09-30T08:00:06", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 1, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null}
+      {"id": 1, "name": "Testkurs Algebra", "semester": null, "color": "#e95905", "icon": null, "priority": 2, "exam_date": null, "sort": 0, "created_at": "2026-09-30T08:00:00", "active_custom": 0, "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 2, "name": "Testkurs Optik", "semester": null, "color": "#167535", "icon": null, "priority": 2, "exam_date": null, "sort": 1, "created_at": "2026-09-30T08:00:01", "active_custom": 0, "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 3, "name": "Eigenes Testfach", "semester": null, "color": "#123abc", "icon": null, "priority": 2, "exam_date": null, "sort": 2, "created_at": "2026-09-30T08:00:02", "active_custom": 0, "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 1, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 4, "name": "Testkurs Chemie", "semester": null, "color": "#1f9682", "icon": null, "priority": 2, "exam_date": null, "sort": 4, "created_at": "2026-09-30T08:00:03", "active_custom": 0, "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 5, "name": "Testkurs Biologie", "semester": null, "color": "#834bbf", "icon": null, "priority": 2, "exam_date": null, "sort": 3, "created_at": "2026-09-30T08:00:04", "active_custom": 0, "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 6, "name": "Testkurs Akustik", "semester": null, "color": "#b9454c", "icon": null, "priority": 2, "exam_date": null, "sort": 4, "created_at": "2026-09-30T08:00:05", "active_custom": 0, "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 7, "name": "Blau gewaehlt", "semester": null, "color": "#175ee8", "icon": null, "priority": 2, "exam_date": null, "sort": 5, "created_at": "2026-09-30T08:00:06", "active_custom": 0, "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 1, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null}
     ]
   }
 }

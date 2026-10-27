@@ -8,6 +8,11 @@ import pytest
 TODAY = date(2026, 10, 28)                 # WiSe 2026/27
 
 
+def study_mod():
+    from app import study
+    return study
+
+
 def test_keys_and_current_semester():
     from app import semesters as s
     assert s.key("WiSe 2026/27") == (2026, 2) and s.key("SoSe 2026") == (2026, 1) and s.key("WS 26/27") == (2026, 2)
@@ -37,7 +42,7 @@ def courses(app):
 
 def test_upsert_sets_active_by_semester_and_keeps_user_choice(app, courses, monkeypatch):
     from app import db, semesters, studip_sync
-    monkeypatch.setattr(semesters, "date", _Fixed)
+    monkeypatch.setattr(study_mod(), "today", lambda: TODAY)
     with db.cursor() as conn:
         studip_sync.upsert_course(conn, {"id": "sem-alt", "title": "SEM-Technische Mechanik II", "number": None, "semester": "SoSe 2023",
                                          "semester_end": "SoSe 2023", "semester_ends_at": "2023-09-30T23:59:59+02:00"}, "2026-10-28T08:00:00")
@@ -57,7 +62,7 @@ def test_upsert_sets_active_by_semester_and_keeps_user_choice(app, courses, monk
 
 def test_modules_follow_their_courses_and_old_courses_get_no_module(app, courses, monkeypatch):
     from app import db, semesters, study
-    monkeypatch.setattr(semesters, "date", _Fixed)
+    monkeypatch.setattr(study_mod(), "today", lambda: TODAY)
     with db.cursor() as conn:
         conn.execute("INSERT INTO courses(id, title, subject, kind, semester, active, test_minutes, created_at) VALUES ('sem-a1', 'SEM-Alt VL', 'SEM-Altfach', 'vorlesung', 'SoSe 2023', 0, 90, ?)", (db.now_iso(),))
         conn.execute("INSERT INTO courses(id, title, subject, kind, semester, active, test_minutes, created_at) VALUES ('sem-n1', 'SEM-Neu VL', 'SEM-Neufach', 'vorlesung', 'WiSe 2026/27', 1, 90, ?)", (db.now_iso(),))
@@ -77,7 +82,7 @@ def test_modules_follow_their_courses_and_old_courses_get_no_module(app, courses
 
 def test_migration_runs_once(app, courses, monkeypatch):
     from app import db, semesters
-    monkeypatch.setattr(semesters, "date", _Fixed)
+    monkeypatch.setattr(study_mod(), "today", lambda: TODAY)
     with db.cursor() as conn:
         conn.execute("DELETE FROM settings WHERE key='semester_rule_applied'")
         conn.execute("INSERT INTO courses(id, title, kind, semester, active, test_minutes, created_at) VALUES ('sem-m1', 'SEM-M1', 'vorlesung', 'WiSe 2023/24', 1, 90, ?)", (db.now_iso(),))

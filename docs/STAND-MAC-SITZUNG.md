@@ -840,3 +840,8 @@ und Kurse früherer Semester dürfen nicht erscheinen. Befunde mit echten LUH-Da
   sonst entscheidet der Semestertitel. Alte Kurse bekommen keine Termine, Dateien, KI-Analysen und keine Module;
   Module ohne aktiven Kurs gehen aus. Eigene Schalter (`active_custom`) bleiben. Einmalige Umstellung in
   `db._init_db`. An echten Daten: 11 von 208 Kursen aktiv, 10 von 80 Modulen. Tests: `tests/test_semesters.py`.
+
+**Vollständige Übergabe mit allen Regeln, Feldern und Verträgen:** `docs/UEBERGABE-APPLE-2026-10-28.md`. Die
+Verträge sind neu erzeugt (Schema, Stundenplan, Studienplan, Module, Import, Demo, Einstellungen) und dazu ganz neu
+`packages/shared-contracts/fixtures/studip-schedule/woche.json` (`python tools/gen-studip-week-fixture.py --check`).
+Der Swift-Kern wird an den dort genannten Stellen rot, bis die Regeln nachgezogen sind.

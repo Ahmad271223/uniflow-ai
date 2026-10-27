@@ -19,6 +19,12 @@ from datetime import date
 _RE = re.compile(r"\b(WiSe|SoSe|WS|SS|Wintersemester|Sommersemester)\s*'?(\d{2,4})", re.I)
 
 
+def _today() -> date:
+    """Heute wie im uebrigen Kern (study.today, in Tests und Fixtures eingefroren)."""
+    from . import study
+    return study.today()
+
+
 def key(title: str | None) -> tuple[int, int] | None:
     """„WiSe 2026/27“ -> (2026, 2), „SoSe 2026“ -> (2026, 1), „WS 26/27“ -> (2026, 2); None ohne Semester."""
     m = _RE.search(title or "")
@@ -32,7 +38,7 @@ def key(title: str | None) -> tuple[int, int] | None:
 
 
 def current(today: date | None = None) -> tuple[int, int]:
-    d = today or date.today()
+    d = today or _today()
     if 4 <= d.month <= 9:
         return (d.year, 1)
     return (d.year if d.month >= 10 else d.year - 1, 2)
@@ -46,7 +52,7 @@ def label(k: tuple[int, int]) -> str:
 def is_current(semester: str | None, semester_end: str | None = None, ends_at: str | None = None,
                today: date | None = None) -> bool | None:
     """True/False, oder None, wenn sich das nicht entscheiden laesst (kein Datum, kein Semester im Titel)."""
-    d = today or date.today()
+    d = today or _today()
     if semester_end == "unbegrenzt":
         return True
     if ends_at:

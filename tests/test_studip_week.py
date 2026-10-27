@@ -91,3 +91,15 @@ def test_before_the_calendar_day_all_groups_show_and_manual_series_stay(app, wee
         only = [o for o in timetable.occurrences(conn, date(2026, 11, 16), date(2026, 11, 22)) if (o.get("course_id") or "").startswith("kw-")]
         assert {o["title"] for o in only} == {"KW-Regelungstechnik II", "KW-Übung Energiewandlung", "KW-Mechatronische Systeme"}
         assert all(o["event_id"] is None and o["source"] == "studip-kalender" for o in only)
+
+
+def test_stored_cancellation_stays_visible(app, week):
+    """Ein gespeicherter Ausfall laut Stud.IP bleibt durchgestrichen sichtbar, auch ohne Stud.IP-Termin an dem Tag."""
+    from app import db
+    with db.cursor() as conn:
+        conn.execute("""INSERT INTO course_events(course_id, title, kind, weekday, start_time, end_time, rrule, date_from, date_to, source, attend)
+                        VALUES ('kw-vl', 'KW-Regelungstechnik II', 'vorlesung', 3, '10:00', '12:00', 'biweekly', '2026-11-05', '2027-01-28', 'studip', 1)""")
+        eid = conn.execute("SELECT id FROM course_events WHERE course_id='kw-vl' AND weekday=3").fetchone()[0]
+        conn.execute("INSERT INTO event_exceptions(event_id, date, type, note, created_at) VALUES (?, '2026-11-19', 'cancelled', 'Ausfall laut Stud.IP', ?)", (eid, db.now_iso()))
+        occ = [o for o in _week(conn) if o["event_id"] == eid]
+    assert [(o["date"], o["status"]) for o in occ] == [("2026-11-19", "ausfall")]

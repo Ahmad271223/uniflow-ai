@@ -888,7 +888,8 @@
         "course_id": "k-ma-vl",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -983,7 +984,8 @@
         "course_id": "k-ma-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -1111,7 +1113,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "marks": [],
@@ -1184,7 +1187,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -1228,7 +1232,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "marks": [],
@@ -1275,6 +1280,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -1460,7 +1466,8 @@
        "course_id": "k-pg",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "studip"
       }
      ],
      "marks": [],
@@ -1504,6 +1511,7 @@
       "exam_date": "2026-11-20",
       "sort": 0,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -1531,7 +1539,8 @@
        "course_id": "k-ma-vl",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "studip"
       },
       "task_count": 3,
       "test_count": 1,
@@ -1551,6 +1560,7 @@
       "exam_date": null,
       "sort": 1,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
@@ -1575,7 +1585,8 @@
        "course_id": "k-ph",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "manual"
       },
       "task_count": 1,
       "test_count": 0,
@@ -1595,6 +1606,7 @@
       "exam_date": "2026-09-01",
       "sort": 2,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
@@ -1619,7 +1631,8 @@
        "course_id": "k-pg",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "studip"
       },
       "task_count": 1,
       "test_count": 0,
@@ -1637,6 +1650,7 @@
       "exam_date": null,
       "sort": 3,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
@@ -1663,6 +1677,7 @@
       "exam_date": null,
       "sort": 4,
       "created_at": "2026-10-23T09:15:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -1922,6 +1937,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -2226,7 +2242,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "marks": [],
@@ -2340,7 +2357,8 @@
         "course_id": "k-ma-vl",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -2414,6 +2432,7 @@
         "status": "verschoben",
         "permanent_skip": false,
         "exception": "moved",
+        "source": "studip",
         "moved_to": "2026-10-28"
        }
       ],
@@ -2487,7 +2506,8 @@
         "course_id": "k-ph",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 2,
@@ -2505,7 +2525,8 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": "moved_here",
-        "moved_from": "2026-10-27"
+        "moved_from": "2026-10-27",
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -2536,7 +2557,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "marks": [],
@@ -2567,7 +2589,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -2614,6 +2637,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -2656,7 +2680,8 @@
         "course_id": "k-ma-vl",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "packages": [
@@ -2743,6 +2768,7 @@
         "status": "verschoben",
         "permanent_skip": false,
         "exception": "moved",
+        "source": "studip",
         "moved_to": "2026-10-28"
        }
       ],
@@ -2798,7 +2824,8 @@
         "course_id": "k-ph",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 2,
@@ -2816,7 +2843,8 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": "moved_here",
-        "moved_from": "2026-10-27"
+        "moved_from": "2026-10-27",
+        "source": "studip"
        }
       ],
       "packages": [
@@ -2871,7 +2899,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [],
@@ -2909,7 +2938,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "packages": [],
@@ -2980,7 +3010,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "packages": [],
@@ -3047,7 +3078,8 @@
       "course_id": null,
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "manual"
      }
     ],
     "packages": [
@@ -3192,7 +3224,8 @@
       "course_id": "k-ma-vl",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip"
      }
     ],
     "packages": [
@@ -3769,7 +3802,8 @@
       "course_id": "k-pg",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip"
      }
     ],
     "packages": [
@@ -3912,7 +3946,8 @@
       "course_id": "k-ma-vl",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip"
      }
     ],
     "packages": [
@@ -4298,7 +4333,8 @@
         "course_id": "k-ma-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -4403,7 +4439,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "marks": [],
@@ -4476,7 +4513,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -4625,7 +4663,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "marks": [],
@@ -4780,7 +4819,8 @@
         "course_id": "k-ma-vl",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -4854,6 +4894,7 @@
         "status": "verschoben",
         "permanent_skip": false,
         "exception": "moved",
+        "source": "studip",
         "moved_to": "2026-10-28"
        }
       ],
@@ -5075,7 +5116,8 @@
         "course_id": "k-ph",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 2,
@@ -5093,7 +5135,8 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": "moved_here",
-        "moved_from": "2026-10-27"
+        "moved_from": "2026-10-27",
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -5166,7 +5209,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "marks": [],
@@ -5239,7 +5283,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -5304,6 +5349,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -5696,7 +5742,8 @@
         "course_id": "k-ma-vl",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -5770,6 +5817,7 @@
         "status": "verschoben",
         "permanent_skip": false,
         "exception": "moved",
+        "source": "studip",
         "moved_to": "2026-10-28"
        }
       ],
@@ -5969,7 +6017,8 @@
         "course_id": "k-ph",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 2,
@@ -5987,7 +6036,8 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": "moved_here",
-        "moved_from": "2026-10-27"
+        "moved_from": "2026-10-27",
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -6018,7 +6068,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "marks": [],
@@ -6091,7 +6142,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -6140,7 +6192,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "marks": [],
@@ -6187,6 +6240,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -6273,7 +6327,8 @@
        "course_id": "k-pg",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "studip"
       }
      ],
      "marks": [],
@@ -6309,6 +6364,7 @@
       "exam_date": "2026-11-20",
       "sort": 0,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -6336,7 +6392,8 @@
        "course_id": "k-ma-vl",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "studip"
       },
       "task_count": 8,
       "test_count": 1,
@@ -6356,6 +6413,7 @@
       "exam_date": null,
       "sort": 1,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
@@ -6383,7 +6441,8 @@
        "course_id": "k-ph",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "manual"
       },
       "task_count": 4,
       "test_count": 0,
@@ -6403,6 +6462,7 @@
       "exam_date": "2026-09-01",
       "sort": 2,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
@@ -6430,7 +6490,8 @@
        "course_id": "k-pg",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "studip"
       },
       "task_count": 2,
       "test_count": 0,
@@ -6448,6 +6509,7 @@
       "exam_date": null,
       "sort": 3,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
@@ -6474,6 +6536,7 @@
       "exam_date": null,
       "sort": 4,
       "created_at": "2026-10-23T09:15:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -6761,6 +6824,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -6796,6 +6860,7 @@
      "exam_date": "2026-11-20",
      "sort": 0,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -6823,7 +6888,8 @@
       "course_id": "k-ma-vl",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip"
      },
      "task_count": 8,
      "test_count": 1,
@@ -6843,6 +6909,7 @@
      "exam_date": null,
      "sort": 1,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 0,
      "test_minutes": 30,
@@ -6870,7 +6937,8 @@
       "course_id": "k-ph",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "manual"
      },
      "task_count": 4,
      "test_count": 0,
@@ -6890,6 +6958,7 @@
      "exam_date": "2026-09-01",
      "sort": 2,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": 20,
@@ -6917,7 +6986,8 @@
       "course_id": "k-pg",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip"
      },
      "task_count": 2,
      "test_count": 0,
@@ -6935,6 +7005,7 @@
      "exam_date": null,
      "sort": 3,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 0,
      "weekly_test": 1,
      "test_minutes": null,
@@ -6961,6 +7032,7 @@
      "exam_date": null,
      "sort": 4,
      "created_at": "2026-10-23T09:15:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -6994,6 +7066,7 @@
      "exam_date": "2026-11-20",
      "sort": 0,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -8308,6 +8381,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -8370,6 +8444,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -8647,7 +8722,8 @@
        "course_id": "k-ph",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "manual"
       },
       {
        "event_id": 2,
@@ -8665,7 +8741,8 @@
        "status": "teilnahme",
        "permanent_skip": false,
        "exception": "moved_here",
-       "moved_from": "2026-10-27"
+       "moved_from": "2026-10-27",
+       "source": "studip"
       }
      ],
      "marks": [],
@@ -8701,6 +8778,7 @@
       "exam_date": "2026-11-20",
       "sort": 0,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -8729,7 +8807,8 @@
        "status": "teilnahme",
        "permanent_skip": false,
        "exception": "moved_here",
-       "moved_from": "2026-10-27"
+       "moved_from": "2026-10-27",
+       "source": "studip"
       },
       "task_count": 8,
       "test_count": 1,
@@ -8749,6 +8828,7 @@
       "exam_date": null,
       "sort": 1,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
@@ -8776,7 +8856,8 @@
        "course_id": "k-ph",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "manual"
       },
       "task_count": 4,
       "test_count": 0,
@@ -8796,6 +8877,7 @@
       "exam_date": "2026-09-01",
       "sort": 2,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
@@ -8820,7 +8902,8 @@
        "course_id": "k-pg",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "studip"
       },
       "task_count": 2,
       "test_count": 0,
@@ -8838,6 +8921,7 @@
       "exam_date": null,
       "sort": 3,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
@@ -8864,6 +8948,7 @@
       "exam_date": null,
       "sort": 4,
       "created_at": "2026-10-23T09:15:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -9169,6 +9254,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -9333,6 +9419,7 @@
     ],
     "pen_input": "all",
     "hand": "right",
+    "semester_rule_applied": "1",
     "minutes_per_day": 240,
     "learn_days": [],
     "university_next": "luh",
@@ -9497,6 +9584,7 @@
     ],
     "pen_input": "all",
     "hand": "right",
+    "semester_rule_applied": "1",
     "minutes_per_day": 90,
     "learn_days": [
      0,
@@ -9751,7 +9839,8 @@
         "course_id": "k-ph",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 2,
@@ -9769,7 +9858,8 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": "moved_here",
-        "moved_from": "2026-10-27"
+        "moved_from": "2026-10-27",
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -9924,7 +10014,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "marks": [],
@@ -9997,7 +10088,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -10170,7 +10262,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "marks": [],
@@ -10325,7 +10418,8 @@
         "course_id": "k-ma-vl",
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -10480,7 +10574,8 @@
         "course_id": "k-ma-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "marks": [],
@@ -10527,6 +10622,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 90,
      "learn_days": [
       0,
@@ -11259,6 +11355,7 @@
     ],
     "pen_input": "all",
     "hand": "right",
+    "semester_rule_applied": "1",
     "minutes_per_day": 240,
     "learn_days": [
      0,
@@ -11500,7 +11597,8 @@
        "course_id": "k-ph",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "manual"
       },
       {
        "event_id": 2,
@@ -11518,7 +11616,8 @@
        "status": "teilnahme",
        "permanent_skip": false,
        "exception": "moved_here",
-       "moved_from": "2026-10-27"
+       "moved_from": "2026-10-27",
+       "source": "studip"
       }
      ],
      "marks": [],
@@ -11554,6 +11653,7 @@
       "exam_date": "2026-11-20",
       "sort": 0,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -11582,7 +11682,8 @@
        "status": "teilnahme",
        "permanent_skip": false,
        "exception": "moved_here",
-       "moved_from": "2026-10-27"
+       "moved_from": "2026-10-27",
+       "source": "studip"
       },
       "task_count": 14,
       "test_count": 1,
@@ -11602,6 +11703,7 @@
       "exam_date": null,
       "sort": 1,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
@@ -11629,7 +11731,8 @@
        "course_id": "k-ph",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "manual"
       },
       "task_count": 7,
       "test_count": 0,
@@ -11649,6 +11752,7 @@
       "exam_date": "2026-09-01",
       "sort": 2,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
@@ -11673,7 +11777,8 @@
        "course_id": "k-pg",
        "status": "teilnahme",
        "permanent_skip": false,
-       "exception": null
+       "exception": null,
+       "source": "studip"
       },
       "task_count": 2,
       "test_count": 0,
@@ -11691,6 +11796,7 @@
       "exam_date": null,
       "sort": 3,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
@@ -11717,6 +11823,7 @@
       "exam_date": null,
       "sort": 4,
       "created_at": "2026-10-23T09:15:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -12054,6 +12161,7 @@
      ],
      "pen_input": "all",
      "hand": "right",
+     "semester_rule_applied": "1",
      "minutes_per_day": 240,
      "learn_days": [
       0,
@@ -12089,6 +12197,7 @@
      "exam_date": "2026-11-20",
      "sort": 0,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -12117,7 +12226,8 @@
       "status": "teilnahme",
       "permanent_skip": false,
       "exception": "moved_here",
-      "moved_from": "2026-10-27"
+      "moved_from": "2026-10-27",
+      "source": "studip"
      },
      "task_count": 14,
      "test_count": 1,
@@ -12137,6 +12247,7 @@
      "exam_date": null,
      "sort": 1,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 0,
      "test_minutes": 30,
@@ -12164,7 +12275,8 @@
       "course_id": "k-ph",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "manual"
      },
      "task_count": 7,
      "test_count": 0,
@@ -12184,6 +12296,7 @@
      "exam_date": "2026-09-01",
      "sort": 2,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": 20,
@@ -12208,7 +12321,8 @@
       "course_id": "k-pg",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip"
      },
      "task_count": 2,
      "test_count": 0,
@@ -12226,6 +12340,7 @@
      "exam_date": null,
      "sort": 3,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 0,
      "weekly_test": 1,
      "test_minutes": null,
@@ -12252,6 +12367,7 @@
      "exam_date": null,
      "sort": 4,
      "created_at": "2026-10-23T09:15:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -13353,6 +13469,7 @@
     "exam_date": "2026-11-20",
     "sort": 0,
     "created_at": "2026-10-01T09:00:00",
+    "active_custom": 0,
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
@@ -13368,6 +13485,7 @@
     "exam_date": null,
     "sort": 1,
     "created_at": "2026-10-01T09:00:00",
+    "active_custom": 0,
     "active": 1,
     "weekly_test": 0,
     "test_minutes": 30,
@@ -13383,6 +13501,7 @@
     "exam_date": "2026-09-01",
     "sort": 2,
     "created_at": "2026-10-01T09:00:00",
+    "active_custom": 0,
     "active": 1,
     "weekly_test": 1,
     "test_minutes": 20,
@@ -13398,6 +13517,7 @@
     "exam_date": null,
     "sort": 3,
     "created_at": "2026-10-01T09:00:00",
+    "active_custom": 0,
     "active": 0,
     "weekly_test": 1,
     "test_minutes": null,
@@ -13413,6 +13533,7 @@
     "exam_date": null,
     "sort": 4,
     "created_at": "2026-10-23T09:15:00",
+    "active_custom": 0,
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
@@ -13758,7 +13879,8 @@
           "course_id": null,
           "status": "nicht_teilnahme",
           "permanent_skip": true,
-          "exception": null
+          "exception": null,
+          "source": "personal"
          }
         ],
         "marks": [],
@@ -13805,6 +13927,7 @@
        ],
        "pen_input": "all",
        "hand": "right",
+       "semester_rule_applied": "1",
        "minutes_per_day": 240,
        "learn_days": [
         0,
@@ -13872,7 +13995,8 @@
           "course_id": "k-ma-vl",
           "status": "teilnahme",
           "permanent_skip": false,
-          "exception": null
+          "exception": null,
+          "source": "studip"
          }
         ],
         "marks": [],
@@ -13946,6 +14070,7 @@
           "status": "verschoben",
           "permanent_skip": false,
           "exception": "moved",
+          "source": "studip",
           "moved_to": "2026-10-28"
          }
         ],
@@ -14082,7 +14207,8 @@
           "course_id": "k-ph",
           "status": "teilnahme",
           "permanent_skip": false,
-          "exception": null
+          "exception": null,
+          "source": "manual"
          },
          {
           "event_id": 2,
@@ -14100,7 +14226,8 @@
           "status": "teilnahme",
           "permanent_skip": false,
           "exception": "moved_here",
-          "moved_from": "2026-10-27"
+          "moved_from": "2026-10-27",
+          "source": "studip"
          }
         ],
         "marks": [],
@@ -14214,7 +14341,8 @@
           "course_id": null,
           "status": "nicht_teilnahme",
           "permanent_skip": true,
-          "exception": null
+          "exception": null,
+          "source": "personal"
          }
         ],
         "marks": [],
@@ -14328,7 +14456,8 @@
           "course_id": "k-pg",
           "status": "teilnahme",
           "permanent_skip": false,
-          "exception": null
+          "exception": null,
+          "source": "studip"
          }
         ],
         "marks": [],
@@ -14377,7 +14506,8 @@
           "course_id": null,
           "status": "teilnahme",
           "permanent_skip": false,
-          "exception": null
+          "exception": null,
+          "source": "manual"
          }
         ],
         "marks": [],
@@ -14424,6 +14554,7 @@
        ],
        "pen_input": "all",
        "hand": "right",
+       "semester_rule_applied": "1",
        "minutes_per_day": 240,
        "learn_days": [
         0,
@@ -14836,7 +14967,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "packages": [
@@ -14941,7 +15073,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "packages": [
@@ -15062,7 +15195,8 @@
         "course_id": "k-pg",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip"
        }
       ],
       "packages": [
@@ -15369,7 +15503,8 @@
           "course_id": "k-ph",
           "status": "teilnahme",
           "permanent_skip": false,
-          "exception": null
+          "exception": null,
+          "source": "manual"
          },
          {
           "event_id": 2,
@@ -15387,7 +15522,8 @@
           "status": "teilnahme",
           "permanent_skip": false,
           "exception": "moved_here",
-          "moved_from": "2026-10-27"
+          "moved_from": "2026-10-27",
+          "source": "studip"
          }
         ],
         "marks": [],
@@ -15460,7 +15596,8 @@
           "course_id": null,
           "status": "nicht_teilnahme",
           "permanent_skip": true,
-          "exception": null
+          "exception": null,
+          "source": "personal"
          }
         ],
         "marks": [],
@@ -15491,7 +15628,8 @@
           "course_id": "k-pg",
           "status": "teilnahme",
           "permanent_skip": false,
-          "exception": null
+          "exception": null,
+          "source": "studip"
          }
         ],
         "marks": [],
@@ -15582,7 +15720,8 @@
           "course_id": null,
           "status": "teilnahme",
           "permanent_skip": false,
-          "exception": null
+          "exception": null,
+          "source": "manual"
          }
         ],
         "marks": [],
@@ -15613,7 +15752,8 @@
           "course_id": "k-ma-vl",
           "status": "ausfall",
           "permanent_skip": false,
-          "exception": "cancelled"
+          "exception": "cancelled",
+          "source": "studip"
          }
         ],
         "marks": [],
@@ -15686,7 +15826,8 @@
           "course_id": "k-ma-ue",
           "status": "teilnahme",
           "permanent_skip": false,
-          "exception": null
+          "exception": null,
+          "source": "studip"
          }
         ],
         "marks": [],
@@ -15733,6 +15874,7 @@
        ],
        "pen_input": "all",
        "hand": "right",
+       "semester_rule_applied": "1",
        "minutes_per_day": 240,
        "learn_days": [
         0,
@@ -15882,7 +16024,8 @@
          "course_id": "k-ph",
          "status": "teilnahme",
          "permanent_skip": false,
-         "exception": null
+         "exception": null,
+         "source": "manual"
         },
         {
          "event_id": 2,
@@ -15900,7 +16043,8 @@
          "status": "teilnahme",
          "permanent_skip": false,
          "exception": "moved_here",
-         "moved_from": "2026-10-27"
+         "moved_from": "2026-10-27",
+         "source": "studip"
         }
        ],
        "marks": [],
@@ -15928,6 +16072,7 @@
         "exam_date": "2026-11-20",
         "sort": 0,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -15956,7 +16101,8 @@
          "status": "teilnahme",
          "permanent_skip": false,
          "exception": "moved_here",
-         "moved_from": "2026-10-27"
+         "moved_from": "2026-10-27",
+         "source": "studip"
         },
         "task_count": 6,
         "test_count": 1,
@@ -15976,6 +16122,7 @@
         "exam_date": null,
         "sort": 1,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 0,
         "test_minutes": 30,
@@ -16003,7 +16150,8 @@
          "course_id": "k-ph",
          "status": "teilnahme",
          "permanent_skip": false,
-         "exception": null
+         "exception": null,
+         "source": "manual"
         },
         "task_count": 2,
         "test_count": 0,
@@ -16023,6 +16171,7 @@
         "exam_date": "2026-09-01",
         "sort": 2,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": 20,
@@ -16050,7 +16199,8 @@
          "course_id": "k-pg",
          "status": "teilnahme",
          "permanent_skip": false,
-         "exception": null
+         "exception": null,
+         "source": "studip"
         },
         "task_count": 2,
         "test_count": 0,
@@ -16068,6 +16218,7 @@
         "exam_date": null,
         "sort": 3,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 0,
         "weekly_test": 1,
         "test_minutes": null,
@@ -16094,6 +16245,7 @@
         "exam_date": null,
         "sort": 4,
         "created_at": "2026-10-28T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -16378,6 +16530,7 @@
        ],
        "pen_input": "all",
        "hand": "right",
+       "semester_rule_applied": "1",
        "minutes_per_day": 240,
        "learn_days": [
         0,
@@ -17020,6 +17173,7 @@
       "exam_date": "2026-11-20",
       "sort": 0,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -17035,6 +17189,7 @@
       "exam_date": null,
       "sort": 1,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
@@ -17050,6 +17205,7 @@
       "exam_date": "2026-09-01",
       "sort": 2,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
@@ -17065,6 +17221,7 @@
       "exam_date": null,
       "sort": 3,
       "created_at": "2026-10-01T09:00:00",
+      "active_custom": 0,
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
@@ -17080,6 +17237,7 @@
       "exam_date": null,
       "sort": 4,
       "created_at": "2026-10-28T09:00:00",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,

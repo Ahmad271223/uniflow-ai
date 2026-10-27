@@ -118,7 +118,7 @@ def _merge_dated(conn, out: list[dict], dated: list[dict]) -> list[dict]:
         if o.get("source") == "studip" and c in known and o.get("exception") != "moved_here":
             if since and o["date"] >= since and c not in mine:
                 continue                                                # Kurs ohne eigenen Kalendertermin
-            if o.get("exception") in (None, "vorlesungsfrei") or not (known[c][0] <= o["date"] <= known[c][1]):
+            if o.get("exception") in (None, "vorlesungsfrei"):
                 continue                                                # Stud.IP kennt an diesem Tag keinen Termin
         res.append(o)
     res += [d for d in dated if id(d) not in taken]

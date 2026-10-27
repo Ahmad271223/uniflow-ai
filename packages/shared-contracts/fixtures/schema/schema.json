@@ -107,7 +107,10 @@
           {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": "90", "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
-          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0}
+          {"name": "module_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "semester_end", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "semester_ends_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "active_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0}
         ],
         "foreign_keys": [],
         "indexes": [
@@ -276,6 +279,7 @@
           {"name": "exam_date", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "sort", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "active_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "weekly_test", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
@@ -603,10 +607,11 @@
     ["min_slot_minutes", "30"],
     ["blocked_times", "[]"],
     ["pen_input", "all"],
-    ["hand", "right"]
+    ["hand", "right"],
+    ["semester_rule_applied", "1"]
   ],
   "courses": [
-    {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "module_id": null}
+    {"id": "__user__", "title": "Eigene Dokumente", "number": null, "semester": null, "subject": null, "kind": "sonstiges", "active": 1, "test_minutes": 90, "module_id": null, "semester_end": null, "semester_ends_at": null, "active_custom": 0}
   ],
   "terms": [
     {"id": 1, "name": "WiSe 2026/27", "start": "2026-10-12", "end": "2027-01-30", "active": 1}

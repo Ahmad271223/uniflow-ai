@@ -1,0 +1,1110 @@
+{
+ "today": "2026-10-28",
+ "now": "2026-10-28T08:00:00",
+ "week": {
+  "start": "2026-11-16",
+  "end": "2026-11-22",
+  "studip_dated": [
+   {
+    "event_id": null,
+    "studip_id": "e-ms-1",
+    "date": "2026-11-16",
+    "start": "15:30",
+    "end": "17:00",
+    "title": "Testmechatronik",
+    "kind": "vorlesung",
+    "module_id": 4,
+    "module_name": "Testmechatronik",
+    "color": "#834bbf",
+    "room": "Raum 003",
+    "lecturer": null,
+    "course_id": "w-ms-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-ue-a",
+    "date": "2026-11-16",
+    "start": "16:30",
+    "end": "18:15",
+    "title": "Übung: Testenergiewandlung",
+    "kind": "uebung",
+    "module_id": 3,
+    "module_name": "Testenergiewandlung",
+    "color": "#167535",
+    "room": "Raum F303: Testsaal · Raum 031: e-Classroom · Raum F102",
+    "lecturer": null,
+    "course_id": "w-ue-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-mt-1",
+    "date": "2026-11-18",
+    "start": "10:00",
+    "end": "10:45",
+    "title": "Testmesstechnik I",
+    "kind": "vorlesung",
+    "module_id": 1,
+    "module_name": "Testmesstechnik I",
+    "color": "#175ee8",
+    "room": "Raum E214: Großer Physiksaal",
+    "lecturer": null,
+    "course_id": "w-mt-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-rt-1",
+    "date": "2026-11-18",
+    "start": "11:30",
+    "end": "13:00",
+    "title": "Testregelungstechnik II",
+    "kind": "vorlesung",
+    "module_id": 2,
+    "module_name": "Testregelungstechnik II",
+    "color": "#e95905",
+    "room": "Raum 002",
+    "lecturer": null,
+    "course_id": "w-rt-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-rt-2",
+    "date": "2026-11-18",
+    "start": "13:15",
+    "end": "14:15",
+    "title": "Testregelungstechnik II",
+    "kind": "vorlesung",
+    "module_id": 2,
+    "module_name": "Testregelungstechnik II",
+    "color": "#e95905",
+    "room": "Raum 002",
+    "lecturer": null,
+    "course_id": "w-rt-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   }
+  ],
+  "occurrences": [
+   {
+    "event_id": 1,
+    "date": "2026-11-16",
+    "start": "15:30",
+    "end": "17:00",
+    "title": "Testmechatronik",
+    "kind": "vorlesung",
+    "module_id": 4,
+    "module_name": "Testmechatronik",
+    "color": "#834bbf",
+    "room": "Raum 003",
+    "lecturer": null,
+    "course_id": "w-ms-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip",
+    "note": "Skript mitbringen",
+    "studip_id": "e-ms-1"
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-ue-a",
+    "date": "2026-11-16",
+    "start": "16:30",
+    "end": "18:15",
+    "title": "Übung: Testenergiewandlung",
+    "kind": "uebung",
+    "module_id": 3,
+    "module_name": "Testenergiewandlung",
+    "color": "#167535",
+    "room": "Raum F303: Testsaal · Raum 031: e-Classroom · Raum F102",
+    "lecturer": null,
+    "course_id": "w-ue-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-mt-1",
+    "date": "2026-11-18",
+    "start": "10:00",
+    "end": "10:45",
+    "title": "Testmesstechnik I",
+    "kind": "vorlesung",
+    "module_id": 1,
+    "module_name": "Testmesstechnik I",
+    "color": "#175ee8",
+    "room": "Raum E214: Großer Physiksaal",
+    "lecturer": null,
+    "course_id": "w-mt-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-rt-1",
+    "date": "2026-11-18",
+    "start": "11:30",
+    "end": "13:00",
+    "title": "Testregelungstechnik II",
+    "kind": "vorlesung",
+    "module_id": 2,
+    "module_name": "Testregelungstechnik II",
+    "color": "#e95905",
+    "room": "Raum 002",
+    "lecturer": null,
+    "course_id": "w-rt-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
+    "event_id": null,
+    "studip_id": "e-rt-2",
+    "date": "2026-11-18",
+    "start": "13:15",
+    "end": "14:15",
+    "title": "Testregelungstechnik II",
+    "kind": "vorlesung",
+    "module_id": 2,
+    "module_name": "Testregelungstechnik II",
+    "color": "#e95905",
+    "room": "Raum 002",
+    "lecturer": null,
+    "course_id": "w-rt-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
+    "event_id": 5,
+    "date": "2026-11-18",
+    "start": "18:00",
+    "end": "19:30",
+    "title": "Testlerngruppe",
+    "kind": "persoenlich",
+    "module_id": null,
+    "module_name": null,
+    "color": "#4f5bd5",
+    "room": "",
+    "lecturer": null,
+    "course_id": null,
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "manual"
+   },
+   {
+    "event_id": 3,
+    "date": "2026-11-19",
+    "start": "08:00",
+    "end": "09:00",
+    "title": "Testmechatronik Tutorium",
+    "kind": "tutorium",
+    "module_id": 4,
+    "module_name": "Testmechatronik",
+    "color": "#834bbf",
+    "room": "",
+    "lecturer": null,
+    "course_id": "w-ms-26",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-manual"
+   },
+   {
+    "event_id": 4,
+    "date": "2026-11-19",
+    "start": "10:00",
+    "end": "12:00",
+    "title": "Testregelungstechnik II",
+    "kind": "vorlesung",
+    "module_id": 2,
+    "module_name": "Testregelungstechnik II",
+    "color": "#e95905",
+    "room": "Raum 029",
+    "lecturer": null,
+    "course_id": "w-rt-26",
+    "status": "ausfall",
+    "permanent_skip": false,
+    "exception": "cancelled",
+    "source": "studip"
+   }
+  ],
+  "busy_2026_11_18": [
+   {
+    "start": 600,
+    "end": 645,
+    "kind": "event",
+    "title": "Testmesstechnik I",
+    "campus": true
+   },
+   {
+    "start": 690,
+    "end": 780,
+    "kind": "event",
+    "title": "Testregelungstechnik II",
+    "campus": true
+   },
+   {
+    "start": 795,
+    "end": 855,
+    "kind": "event",
+    "title": "Testregelungstechnik II",
+    "campus": true
+   },
+   {
+    "start": 1080,
+    "end": 1170,
+    "kind": "event",
+    "title": "Testlerngruppe",
+    "campus": true
+   }
+  ]
+ },
+ "semester_keys": [
+  {
+   "title": "WiSe 2026/27",
+   "key": [
+    2026,
+    2
+   ]
+  },
+  {
+   "title": "SoSe 2026",
+   "key": [
+    2026,
+    1
+   ]
+  },
+  {
+   "title": "WS 26/27",
+   "key": [
+    2026,
+    2
+   ]
+  },
+  {
+   "title": "SS 2024",
+   "key": [
+    2024,
+    1
+   ]
+  },
+  {
+   "title": "Wintersemester 2025/2026",
+   "key": [
+    2025,
+    2
+   ]
+  },
+  {
+   "title": "Sommersemester 2027",
+   "key": [
+    2027,
+    1
+   ]
+  },
+  {
+   "title": "Projektkurs",
+   "key": null
+  },
+  {
+   "title": "",
+   "key": null
+  }
+ ],
+ "current": [
+  {
+   "day": "2026-10-28",
+   "key": [
+    2026,
+    2
+   ],
+   "label": "WiSe 2026/27"
+  },
+  {
+   "day": "2027-03-31",
+   "key": [
+    2026,
+    2
+   ],
+   "label": "WiSe 2026/27"
+  },
+  {
+   "day": "2027-04-01",
+   "key": [
+    2027,
+    1
+   ],
+   "label": "SoSe 2027"
+  },
+  {
+   "day": "2026-09-30",
+   "key": [
+    2026,
+    1
+   ],
+   "label": "SoSe 2026"
+  },
+  {
+   "day": "2026-01-15",
+   "key": [
+    2025,
+    2
+   ],
+   "label": "WiSe 2025/26"
+  }
+ ],
+ "semester_cases": [
+  {
+   "semester": "WiSe 2026/27",
+   "semester_end": null,
+   "ends_at": null,
+   "is_current": true
+  },
+  {
+   "semester": "SoSe 2026",
+   "semester_end": null,
+   "ends_at": null,
+   "is_current": false
+  },
+  {
+   "semester": "SoSe 2027",
+   "semester_end": null,
+   "ends_at": null,
+   "is_current": true
+  },
+  {
+   "semester": "Projektkurs",
+   "semester_end": null,
+   "ends_at": null,
+   "is_current": null
+  },
+  {
+   "semester": "SoSe 2024",
+   "semester_end": "WiSe 2026/27",
+   "ends_at": "2027-03-31T23:59:59+02:00",
+   "is_current": true
+  },
+  {
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2025/26",
+   "ends_at": "2026-03-31T23:59:59+02:00",
+   "is_current": false
+  },
+  {
+   "semester": "WiSe 2022/23",
+   "semester_end": "unbegrenzt",
+   "ends_at": null,
+   "is_current": true
+  },
+  {
+   "semester": "WiSe 2022/23",
+   "semester_end": "SoSe 2025",
+   "ends_at": null,
+   "is_current": false
+  },
+  {
+   "semester": "WiSe 2026/27",
+   "semester_end": null,
+   "ends_at": "2026-10-28T00:00:00+01:00",
+   "is_current": true
+  }
+ ],
+ "fetch_courses": {
+  "request": "users/{id}/courses?page[limit]=100&include=start-semester,end-semester",
+  "response": {
+   "data": [
+    {
+     "id": "w-alt",
+     "type": "courses",
+     "attributes": {
+      "title": "Testmesstechnik  I",
+      "course-number": "32975"
+     },
+     "relationships": {
+      "start-semester": {
+       "data": {
+        "type": "semesters",
+        "id": "s24"
+       }
+      },
+      "end-semester": {
+       "data": {
+        "type": "semesters",
+        "id": "s24"
+       }
+      }
+     }
+    },
+    {
+     "id": "w-offen",
+     "type": "courses",
+     "attributes": {
+      "title": "Testdauerkurs"
+     },
+     "relationships": {
+      "start-semester": {
+       "data": {
+        "type": "semesters",
+        "id": "s24"
+       }
+      },
+      "end-semester": {
+       "data": null
+      }
+     }
+    },
+    {
+     "id": "w-ohne",
+     "type": "courses",
+     "attributes": {
+      "title": "Testkurs alte Fassung"
+     },
+     "relationships": {
+      "start-semester": {
+       "data": {
+        "type": "semesters",
+        "id": "s26"
+       }
+      }
+     }
+    },
+    {
+     "id": "w-neu",
+     "type": "courses",
+     "attributes": {
+      "title": "Testmesstechnik I",
+      "course-number": "32975"
+     },
+     "relationships": {
+      "start-semester": {
+       "data": {
+        "type": "semesters",
+        "id": "s26"
+       }
+      },
+      "end-semester": {
+       "data": {
+        "type": "semesters",
+        "id": "s26"
+       }
+      }
+     }
+    }
+   ],
+   "included": [
+    {
+     "type": "semesters",
+     "id": "s24",
+     "attributes": {
+      "title": "WiSe 2024/25",
+      "start": "2024-10-01T00:00:00+02:00",
+      "end": "2025-03-31T23:59:59+02:00",
+      "start-of-lectures": "2024-10-14T00:00:00+02:00",
+      "end-of-lectures": "2025-02-01T23:59:00+01:00",
+      "visible": true,
+      "is-current": false
+     }
+    },
+    {
+     "type": "semesters",
+     "id": "s26",
+     "attributes": {
+      "title": "WiSe 2026/27",
+      "start": "2026-10-01T00:00:00+02:00",
+      "end": "2027-03-31T23:59:59+02:00",
+      "start-of-lectures": "2026-10-12T00:00:00+02:00",
+      "end-of-lectures": "2027-01-30T23:59:59+01:00",
+      "visible": true,
+      "is-current": true
+     }
+    }
+   ],
+   "links": {}
+  },
+  "courses": [
+   {
+    "id": "w-alt",
+    "title": "Testmesstechnik I",
+    "number": "32975",
+    "semester": "WiSe 2024/25",
+    "semester_end": "WiSe 2024/25",
+    "semester_ends_at": "2025-03-31T23:59:59+02:00"
+   },
+   {
+    "id": "w-offen",
+    "title": "Testdauerkurs",
+    "number": null,
+    "semester": "WiSe 2024/25",
+    "semester_end": "unbegrenzt",
+    "semester_ends_at": null
+   },
+   {
+    "id": "w-ohne",
+    "title": "Testkurs alte Fassung",
+    "number": null,
+    "semester": "WiSe 2026/27",
+    "semester_end": null,
+    "semester_ends_at": null
+   },
+   {
+    "id": "w-neu",
+    "title": "Testmesstechnik I",
+    "number": "32975",
+    "semester": "WiSe 2026/27",
+    "semester_end": "WiSe 2026/27",
+    "semester_ends_at": "2027-03-31T23:59:59+02:00"
+   }
+  ]
+ },
+ "merge_weekly_multi_year": {
+  "merged": [
+   {
+    "title": "Testmesstechnik I",
+    "course_id": "w-mt-24",
+    "weekday": 2,
+    "start_time": "10:00",
+    "end_time": "10:45",
+    "date_from": "2024-10-16",
+    "rrule": "weekly",
+    "date_to": "2024-10-30",
+    "count": 3
+   },
+   {
+    "title": "Testmesstechnik I",
+    "course_id": "w-mt-26",
+    "weekday": 2,
+    "start_time": "10:00",
+    "end_time": "10:45",
+    "date_from": "2026-10-21",
+    "rrule": "weekly",
+    "date_to": "2026-11-04",
+    "count": 3
+   }
+  ]
+ },
+ "courses_in": [
+  {
+   "id": "w-mt-24",
+   "title": "Testmesstechnik I",
+   "number": null,
+   "semester": "WiSe 2024/25",
+   "semester_end": "WiSe 2024/25",
+   "semester_ends_at": "2025-03-31T23:59:59+02:00"
+  },
+  {
+   "id": "w-mt-26",
+   "title": "Testmesstechnik I",
+   "number": null,
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2026/27",
+   "semester_ends_at": "2027-03-31T23:59:59+02:00"
+  },
+  {
+   "id": "w-rt-26",
+   "title": "Testregelungstechnik II",
+   "number": null,
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2026/27",
+   "semester_ends_at": "2027-03-31T23:59:59+02:00"
+  },
+  {
+   "id": "w-ue-26",
+   "title": "Übung: Testenergiewandlung",
+   "number": null,
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2026/27",
+   "semester_ends_at": "2027-03-31T23:59:59+02:00"
+  },
+  {
+   "id": "w-ms-26",
+   "title": "Testmechatronik",
+   "number": null,
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2026/27",
+   "semester_ends_at": "2027-03-31T23:59:59+02:00"
+  },
+  {
+   "id": "w-alt-23",
+   "title": "Testwerkstoffkunde",
+   "number": null,
+   "semester": "SoSe 2023",
+   "semester_end": "SoSe 2023",
+   "semester_ends_at": "2023-09-30T23:59:59+02:00"
+  },
+  {
+   "id": "w-lw",
+   "title": "Testlernweb-Kurs",
+   "number": null,
+   "semester": "SoSe 2026",
+   "semester_end": null,
+   "semester_ends_at": null
+  },
+  {
+   "id": "w-dauer",
+   "title": "Testdauerkurs",
+   "number": null,
+   "semester": "WiSe 2022/23",
+   "semester_end": "unbegrenzt",
+   "semester_ends_at": null
+  }
+ ],
+ "courses_after": [
+  {
+   "id": "w-alt-23",
+   "title": "Testwerkstoffkunde",
+   "semester": "SoSe 2023",
+   "semester_end": "SoSe 2023",
+   "semester_ends_at": "2023-09-30T23:59:59+02:00",
+   "subject": "Testwerkstoffkunde",
+   "kind": "vorlesung",
+   "active": 0,
+   "active_custom": 0,
+   "module_id": null
+  },
+  {
+   "id": "w-dauer",
+   "title": "Testdauerkurs",
+   "semester": "WiSe 2022/23",
+   "semester_end": "unbegrenzt",
+   "semester_ends_at": null,
+   "subject": "Testdauerkurs",
+   "kind": "vorlesung",
+   "active": 1,
+   "active_custom": 0,
+   "module_id": 5
+  },
+  {
+   "id": "w-lw",
+   "title": "Testlernweb-Kurs",
+   "semester": "SoSe 2026",
+   "semester_end": null,
+   "semester_ends_at": null,
+   "subject": "Testlernweb-Kurs",
+   "kind": "vorlesung",
+   "active": 0,
+   "active_custom": 0,
+   "module_id": null
+  },
+  {
+   "id": "w-ms-26",
+   "title": "Testmechatronik",
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2026/27",
+   "semester_ends_at": "2027-03-31T23:59:59+02:00",
+   "subject": "Testmechatronik",
+   "kind": "vorlesung",
+   "active": 1,
+   "active_custom": 0,
+   "module_id": 4
+  },
+  {
+   "id": "w-mt-24",
+   "title": "Testmesstechnik I",
+   "semester": "WiSe 2024/25",
+   "semester_end": "WiSe 2024/25",
+   "semester_ends_at": "2025-03-31T23:59:59+02:00",
+   "subject": "Testmesstechnik I",
+   "kind": "vorlesung",
+   "active": 0,
+   "active_custom": 0,
+   "module_id": null
+  },
+  {
+   "id": "w-mt-26",
+   "title": "Testmesstechnik I",
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2026/27",
+   "semester_ends_at": "2027-03-31T23:59:59+02:00",
+   "subject": "Testmesstechnik I",
+   "kind": "vorlesung",
+   "active": 1,
+   "active_custom": 0,
+   "module_id": 1
+  },
+  {
+   "id": "w-rt-26",
+   "title": "Testregelungstechnik II",
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2026/27",
+   "semester_ends_at": "2027-03-31T23:59:59+02:00",
+   "subject": "Testregelungstechnik II",
+   "kind": "vorlesung",
+   "active": 1,
+   "active_custom": 0,
+   "module_id": 2
+  },
+  {
+   "id": "w-ue-26",
+   "title": "Übung: Testenergiewandlung",
+   "semester": "WiSe 2026/27",
+   "semester_end": "WiSe 2026/27",
+   "semester_ends_at": "2027-03-31T23:59:59+02:00",
+   "subject": "Testenergiewandlung",
+   "kind": "uebung",
+   "active": 1,
+   "active_custom": 0,
+   "module_id": 3
+  }
+ ],
+ "modules_after": [
+  {
+   "id": 1,
+   "name": "Testmesstechnik I",
+   "semester": "WiSe 2026/27",
+   "color": "#175ee8",
+   "active": 1,
+   "active_custom": 0
+  },
+  {
+   "id": 2,
+   "name": "Testregelungstechnik II",
+   "semester": "WiSe 2026/27",
+   "color": "#e95905",
+   "active": 1,
+   "active_custom": 0
+  },
+  {
+   "id": 3,
+   "name": "Testenergiewandlung",
+   "semester": "WiSe 2026/27",
+   "color": "#167535",
+   "active": 1,
+   "active_custom": 0
+  },
+  {
+   "id": 4,
+   "name": "Testmechatronik",
+   "semester": "WiSe 2026/27",
+   "color": "#834bbf",
+   "active": 1,
+   "active_custom": 0
+  },
+  {
+   "id": 5,
+   "name": "Testdauerkurs",
+   "semester": "WiSe 2022/23",
+   "color": "#b9454c",
+   "active": 1,
+   "active_custom": 0
+  }
+ ],
+ "user_choice": {
+  "sql": "UPDATE courses SET active=1, active_custom=1 WHERE id='w-alt-23'",
+  "then_upsert": "w-alt-23",
+  "course": {
+   "id": "w-alt-23",
+   "active": 1,
+   "active_custom": 1
+  }
+ },
+ "seed": [
+  {
+   "sql": "UPDATE courses SET active=0, active_custom=0 WHERE id='w-alt-23'",
+   "params": []
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-rt-1",
+    "w-rt-26",
+    "Termin",
+    "2026-11-18T11:30:00",
+    "2026-11-18T13:00:00",
+    "Raum 002",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-rt-2",
+    "w-rt-26",
+    "Termin",
+    "2026-11-18T13:15:00",
+    "2026-11-18T14:15:00",
+    "Raum 002",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-mt-1",
+    "w-mt-26",
+    "Termin",
+    "2026-11-18T10:00:00",
+    "2026-11-18T10:45:00",
+    "Raum E214: Großer Physiksaal",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-mt-24",
+    "w-mt-24",
+    "Termin",
+    "2024-11-20T10:00:00",
+    "2024-11-20T10:45:00",
+    "Raum E214: Großer Physiksaal",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-ue-a",
+    "w-ue-26",
+    "Termin",
+    "2026-11-16T16:30:00",
+    "2026-11-16T18:15:00",
+    "Raum F303: Testsaal",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-ue-b",
+    "w-ue-26",
+    "Termin",
+    "2026-11-16T16:30:00",
+    "2026-11-16T18:15:00",
+    "Raum 031: e-Classroom",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-ue-c",
+    "w-ue-26",
+    "Termin",
+    "2026-11-16T16:30:00",
+    "2026-11-16T18:15:00",
+    "Raum F102",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-ue-x",
+    "w-ue-26",
+    "Termin",
+    "2026-11-17T08:00:00",
+    "2026-11-17T09:30:00",
+    "Raum B227",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-ms-1",
+    "w-ms-26",
+    "Termin",
+    "2026-11-16T15:30:00",
+    "2026-11-16T17:00:00",
+    "Raum 003",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-ms-0",
+    "w-ms-26",
+    "Termin",
+    "2026-11-09T15:30:00",
+    "2026-11-09T17:00:00",
+    "Raum 003",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,?,?,?,?,?,?)",
+   "params": [
+    "e-ms-2",
+    "w-ms-26",
+    "Termin",
+    "2026-11-30T15:30:00",
+    "2026-11-30T17:00:00",
+    "Raum 003",
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-rt-1",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-rt-2",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-mt-1",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-ue-a",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-ue-b",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-ue-c",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-ms-1",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-ms-0",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)",
+   "params": [
+    "e-ms-2",
+    "2026-10-27T19:07:13"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, rrule, date_from, date_to, source, attend) VALUES ((SELECT module_id FROM courses WHERE id=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+   "params": [
+    "w-ms-26",
+    "w-ms-26",
+    "Testmechatronik",
+    "vorlesung",
+    0,
+    "15:30",
+    "17:00",
+    "",
+    "weekly",
+    "2026-11-02",
+    "2027-01-25",
+    "studip"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, rrule, date_from, date_to, source, attend) VALUES ((SELECT module_id FROM courses WHERE id=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+   "params": [
+    "w-ms-26",
+    "w-ms-26",
+    "Testmechatronik (Hörsaalübung)",
+    "hoersaaluebung",
+    0,
+    "13:45",
+    "15:15",
+    "Raum 031",
+    "weekly",
+    "2026-11-02",
+    "2027-01-25",
+    "studip"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, rrule, date_from, date_to, source, attend) VALUES ((SELECT module_id FROM courses WHERE id=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+   "params": [
+    "w-ms-26",
+    "w-ms-26",
+    "Testmechatronik Tutorium",
+    "tutorium",
+    3,
+    "08:00",
+    "09:00",
+    "",
+    "weekly",
+    "2026-11-05",
+    "2027-01-28",
+    "studip-manual"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, rrule, date_from, date_to, source, attend) VALUES ((SELECT module_id FROM courses WHERE id=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+   "params": [
+    "w-rt-26",
+    "w-rt-26",
+    "Testregelungstechnik II",
+    "vorlesung",
+    3,
+    "10:00",
+    "12:00",
+    "Raum 029",
+    "biweekly",
+    "2026-11-05",
+    "2027-01-28",
+    "studip"
+   ]
+  },
+  {
+   "sql": "INSERT INTO course_events(module_id, course_id, title, kind, weekday, start_time, end_time, room, rrule, date_from, date_to, source, attend) VALUES (NULL, NULL, 'Testlerngruppe', 'persoenlich', 2, '18:00', '19:30', '', 'weekly', NULL, NULL, 'manual', 1)",
+   "params": []
+  },
+  {
+   "sql": "INSERT INTO event_notes(event_id, note, source, updated_at) VALUES ((SELECT id FROM course_events WHERE title='Testmechatronik'), 'Skript mitbringen', 'user', ?)",
+   "params": [
+    "2026-10-28T08:00:00"
+   ]
+  },
+  {
+   "sql": "INSERT INTO event_exceptions(event_id, date, type, note, created_at) VALUES ((SELECT id FROM course_events WHERE title='Testregelungstechnik II'), '2026-11-19', 'cancelled', 'Ausfall laut Stud.IP', ?)",
+   "params": [
+    "2026-10-28T08:00:00"
+   ]
+  }
+ ]
+}

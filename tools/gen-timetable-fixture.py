@@ -315,6 +315,10 @@ MERGE_CASES = [
     + [{"title": "D", "weekday": 1, "start_time": "08:00", "end_time": "09:00", "date_from": "2026-10-20"}]
     + [{"title": "C", "weekday": 1, "start_time": "08:00", "end_time": "09:30", "date_from": "2026-10-20"}],
     [{"title": "E", "weekday": 3, "start_time": "08:00", "end_time": "09:00", "date_from": d} for d in ["2026-10-22", "2026-11-05", "2026-11-12", "2026-11-26"]],
+    # Derselbe Kurstitel in zwei Jahrgaengen (zwei Kurs-IDs): zwei Serien, nicht eine mit der ID des aelteren
+    # (Ursache "Mittwoch fehlt", PC 28.10.2026)
+    [{"title": "F", "course_id": cid, "weekday": 2, "start_time": "10:00", "end_time": "10:45", "date_from": d}
+     for cid, days in (("k-f-24", ["2024-10-16", "2024-10-23", "2024-10-30"]), ("k-f-26", ["2026-10-21", "2026-10-28", "2026-11-04"])) for d in days],
 ]
 
 
