@@ -56,6 +56,7 @@ public final class MemoryBlobStore: BlobStore, @unchecked Sendable {
     private let lock = NSLock()
     private var files: [String: Data] = [:]
     private var failingPrefixes: Set<String> = []
+    private var failingRemovePrefixes: Set<String> = []
     private var failAll = false
     public private(set) var writeCount = 0
 
@@ -68,6 +69,13 @@ public final class MemoryBlobStore: BlobStore, @unchecked Sendable {
     public func setFailWrites(prefix: String, _ on: Bool) {
         lock.lock()
         if on { failingPrefixes.insert(prefix) } else { failingPrefixes.remove(prefix) }
+        lock.unlock()
+    }
+
+    /// Entfernen von Pfaden mit diesem Anfang schlaegt fehl (z. B. gesperrte Datei).
+    public func setFailRemoves(prefix: String, _ on: Bool) {
+        lock.lock()
+        if on { failingRemovePrefixes.insert(prefix) } else { failingRemovePrefixes.remove(prefix) }
         lock.unlock()
     }
 
@@ -89,6 +97,7 @@ public final class MemoryBlobStore: BlobStore, @unchecked Sendable {
 
     public func remove(_ path: String) throws {
         lock.lock(); defer { lock.unlock() }
+        if failingRemovePrefixes.contains(where: { path.hasPrefix($0) }) { throw BlobStoreError(path: path, reason: "Entfernen fehlgeschlagen") }
         files.removeValue(forKey: path)
     }
 

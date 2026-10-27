@@ -20,12 +20,18 @@ actor MockServer: AnnotationTransport {
     /// Zeitpunkte aller Speicherversuche (auch fehlgeschlagener).
     private(set) var putTimes: [Date] = []
     private var holdNextPut = false
+    /// Naechstes Speichern gelingt auf dem Server, die Antwort geht aber verloren (Verbindungsabbruch)
+    private var loseNextResponse = false
+    /// So viele Speicherversuche hintereinander bekommen 409, weil ein anderes Geraet staendig speichert
+    private var conflictStorm = 0
     private var heldPut: CheckedContinuation<Void, Never>?
     private(set) var isHoldingPut = false
 
     func setOnline(_ on: Bool) { online = on }
     func setFailStatus(_ status: Int?) { failStatus = status }
     func holdNext() { holdNextPut = true }
+    func loseNextPutResponse() { loseNextResponse = true }
+    func setConflictStorm(_ n: Int) { conflictStorm = n }
 
     func releaseHeldPut() {
         heldPut?.resume()
@@ -52,11 +58,20 @@ actor MockServer: AnnotationTransport {
             isHoldingPut = true
             await withCheckedContinuation { heldPut = $0 }      // laeuft danach weiter, auch wenn inzwischen offline
         }
+        if conflictStorm > 0 {
+            conflictStorm -= 1
+            version += 1                                        // anderes Geraet war schneller
+            return .conflict(ServerSnapshot(version: version, root: root))
+        }
         if version > 0 && baseVersion != version {
             return .conflict(ServerSnapshot(version: version, root: root))
         }
         version += 1
         root = newRoot
+        if loseNextResponse {
+            loseNextResponse = false
+            throw TestError.offline                             // gespeichert, Antwort kommt nie an
+        }
         return .saved(version: version)
     }
 

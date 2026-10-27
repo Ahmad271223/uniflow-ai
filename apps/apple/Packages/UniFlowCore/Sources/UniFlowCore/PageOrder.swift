@@ -61,8 +61,29 @@ public enum PageOrder {
 
     /// Seitengroesse ohne die zusaetzliche Drehung aus `pageOrder` (wie `baseW`/`baseH` im Web-Editor): bei 90 und
     /// 270 Grad sind Breite und Hoehe der angezeigten Seite vertauscht. Groesse neuer Leerseiten nach dieser Seite.
+    /// Ungewoehnliche Werte zaehlen wie in der Anzeige (`SolutionGeometry.normalized`: abgerundet auf Vielfache von 90,
+    /// auch negativ oder ueber 360), z. B. 45 wie 0 und -90 wie 270.
     public static func baseSize(shownWidth: Double, shownHeight: Double, extraRotation: Int) -> (width: Double, height: Double) {
-        extraRotation % 180 == 0 ? (shownWidth, shownHeight) : (shownHeight, shownWidth)
+        SolutionGeometry.normalized(extraRotation) % 180 == 0 ? (shownWidth, shownHeight) : (shownHeight, shownWidth)
+    }
+
+    /// Groesste Seitenkante (200 Zoll wie `SolutionLimits.maxPageSide`, groesste Seite nach PDF-Spezifikation)
+    public static let maxSide = SolutionLimits.maxPageSide
+
+    /// Groesse einer eingefuegten Leerseite aus ihrem Eintrag in `pageOrder` (`w`, `h`), eine Regel fuer Anzeige,
+    /// Loesungspaket und Einfuegen: fehlende, nicht endliche oder nicht positive Werte werden zu A4 (595 x 842),
+    /// groessere als `maxSide` werden begrenzt. Notizen stehen in Seitenpunkten; mit derselben Groesse ueberall liegen
+    /// sie im Editor und beim Empfaenger an derselben Stelle.
+    public static func blankSize(width w: Double?, height h: Double?) -> (width: Double, height: Double) {
+        func side(_ v: Double?, _ fallback: Double) -> Double {
+            guard let v, v.isFinite, v > 0 else { return fallback }
+            return min(v, maxSide)
+        }
+        return (side(w, 595), side(h, 842))
+    }
+
+    public static func blankSize(_ entry: JSONValue) -> (width: Double, height: Double) {
+        blankSize(width: entry["w"]?.double, height: entry["h"]?.double)
     }
 
     // MARK: Einfuegen
@@ -80,9 +101,10 @@ public enum PageOrder {
             return nil                                          // Schluessel schon vergeben
         }
         let t = templates.contains(template) ? template : "blank"
+        let size = blankSize(width: width, height: height)
         let entry: JSONValue = .object([
             "key": .string(newKey), "type": "blank", "template": .string(t),
-            "w": .number(width > 0 ? width : 595), "h": .number(height > 0 ? height : 842),
+            "w": .number(size.width), "h": .number(size.height),
         ])
         let pos = afterKey.flatMap { index(of: $0, in: order) }.map { $0 + 1 } ?? order.count
         order.insert(entry, at: pos)
@@ -144,6 +166,11 @@ public enum PageOrder {
     /// Objekten, wird die Zeichnung wie gewohnt aus den Objekten neu aufgebaut.
     /// Steht die Seite schon in `pageOrder` (z. B. nach einer Zusammenfuehrung), wird nur der Eintrag entfernt;
     /// `pages[key]` bleibt dann unberuehrt, damit seitdem entstandene Objekte nicht verloren gehen.
+    /// Hat sich `pages[key]` seit dem Loeschen geaendert (beide Geraete haben die Seite geloescht, das andere vorher
+    /// darauf geschrieben: `mergeTrash` behaelt den Papierkorb-Eintrag dieses Geraets, `pages[key]` hat den neueren
+    /// Stand), gehen diese Objekte nicht verloren: Objekte des Papierkorbs in ihrer Reihenfolge, dabei je Kennung der
+    /// Stand aus `pages[key]`, dahinter die Objekte, die nur dort stehen (`AnnotationMerge.objectID`). Ohne Aenderung
+    /// seit dem Loeschen (der Normalfall) ist das genau der Papierkorb-Eintrag wie im Web.
     @discardableResult
     public static func restore(_ doc: inout AnnotationDocument, trashIndex: Int) -> Change? {
         var deleted = doc.root["deletedPages"]?.array ?? []
@@ -161,14 +188,32 @@ public enum PageOrder {
         let before = doc.page(key)
         var page = before ?? .object([:])
         if case .object = page {} else { page = .object([:]) }
-        if let objects = d["objects"], case .array = objects { page["objects"] = objects }
-        else if page["objects"] == nil { page["objects"] = .array([]) }
+        if let objects = d["objects"]?.array {
+            page["objects"] = .array(restoredObjects(trashed: objects, current: page["objects"]?.array ?? []))
+        } else if page["objects"] == nil { page["objects"] = .array([]) }
         var changed: [String] = []
         if page != before {
             doc.pages[key] = page
             changed.append(key)
         }
         return Change(focusKey: key, changedPageKeys: changed)
+    }
+
+    /// Objekte einer wiederhergestellten Seite: Papierkorb-Objekte (Reihenfolge), je Kennung der Stand aus der Seite,
+    /// dahinter, was nur in der Seite steht. Nichts aus beiden Listen geht verloren.
+    static func restoredObjects(trashed: [JSONValue], current: [JSONValue]) -> [JSONValue] {
+        guard trashed != current else { return trashed }
+        var byID: [String: JSONValue] = [:]
+        for o in current where byID[AnnotationMerge.objectID(o)] == nil { byID[AnnotationMerge.objectID(o)] = o }
+        var out: [JSONValue] = []
+        var placed = Set<String>()
+        for o in trashed {
+            let id = AnnotationMerge.objectID(o)
+            guard placed.insert(id).inserted else { continue }
+            out.append(byID[id] ?? o)
+        }
+        for o in current where placed.insert(AnnotationMerge.objectID(o)).inserted { out.append(o) }
+        return out
     }
 }
 
@@ -213,10 +258,14 @@ public struct TemplateGeometry: Equatable, Sendable {
         template == "mm" ? 2.835 : (template == "grid" || template == "dotted") ? 14.17 : 24
     }
 
-    /// Geometrie fuer eine Seite; leer bei `blank`, `nil`, unbekannten Vorlagen und leerer Groesse.
-    public static func make(_ template: String?, width W: Double, height H: Double) -> TemplateGeometry {
+    /// Geometrie fuer eine Seite; leer bei `blank`, `nil`, unbekannten Vorlagen und leerer oder nicht endlicher
+    /// Groesse. Linien gibt es hoechstens bis `PageOrder.maxSide` (sonst liefe die Schleife bei einer beschaedigten
+    /// Seitengroesse wie 1e999 = unendlich nie zu Ende): Millimeterpapier auf der groessten Seite sind rund 5100 Linien
+    /// je Richtung.
+    public static func make(_ template: String?, width rawW: Double, height rawH: Double) -> TemplateGeometry {
         var g = TemplateGeometry()
-        guard let t = template, t != "blank", PageOrder.templates.contains(t), W > 0, H > 0 else { return g }
+        guard let t = template, t != "blank", PageOrder.templates.contains(t), rawW.isFinite, rawH.isFinite, rawW > 0, rawH > 0 else { return g }
+        let W = min(rawW, PageOrder.maxSide), H = min(rawH, PageOrder.maxSide)
         let step = step(t)
         // Positionen als Vielfache des Abstands (nicht aufsummiert), sonst wandern sie auf langen Seiten
         func run(from start: Double, below limit: Double) -> [Double] {

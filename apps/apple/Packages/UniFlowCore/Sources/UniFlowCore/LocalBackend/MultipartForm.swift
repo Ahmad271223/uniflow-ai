@@ -132,3 +132,60 @@ public struct MultipartForm: Sendable, Equatable {
         return nil
     }
 }
+
+/// Inhalt eines Formulars wie FormData im Web (`APIClient.form` in der App), Gegenstueck zu `MultipartForm.parse`.
+/// Feldname, Dateiname und Typ stehen in Kopfzeilen; dort duerfen weder Anfuehrungszeichen, Backslash noch
+/// Steuerzeichen (Zeilenumbruch) stehen, sonst liessen sich weitere Kopfzeilen oder Felder einschleusen bzw. ginge ein
+/// Zeichen verloren (der Backslash leitet in Anfuehrungszeichen eine Maskierung ein). Sie werden zu "_"; andere
+/// Unicode-Zeichen (Umlaute, Emoji, Semikolon) bleiben, wie Browser sie senden (UTF-8).
+public enum MultipartBody {
+    public struct File: Sendable {
+        public var field: String
+        public var name: String
+        public var mime: String
+        public var data: Data
+
+        public init(field: String, name: String, mime: String, data: Data) {
+            self.field = field
+            self.name = name
+            self.mime = mime
+            self.data = data
+        }
+    }
+
+    /// Text fuer einen Kopf-Parameter in Anfuehrungszeichen (Feld- oder Dateiname)
+    public static func headerValue(_ s: String) -> String {
+        String(String.UnicodeScalarView(s.unicodeScalars.map { u in
+            u == "\"" || u == "\\" || u.value < 0x20 || u.value == 0x7F ? "_" : u
+        }))
+    }
+
+    /// Inhaltstyp `typ/untertyp` aus erlaubten Zeichen (RFC 6838), sonst `application/octet-stream`
+    public static func mimeType(_ s: String) -> String {
+        let parts = s.split(separator: "/", omittingEmptySubsequences: false)
+        func ok(_ p: Substring) -> Bool {
+            !p.isEmpty && p.count <= 127 && p.unicodeScalars.allSatisfy { u in
+                (u >= "a" && u <= "z") || (u >= "A" && u <= "Z") || (u >= "0" && u <= "9") || "!#$&^_.+-".unicodeScalars.contains(u)
+            }
+        }
+        guard parts.count == 2, ok(parts[0]), ok(parts[1]) else { return "application/octet-stream" }
+        return s
+    }
+
+    /// Textfelder (nach Namen sortiert) und hoechstens eine Datei, Grenze `boundary`
+    public static func build(fields: [String: String], file: File?, boundary: String) -> Data {
+        let crlf = "\r\n"
+        var body = Data()
+        for (k, v) in fields.sorted(by: { $0.key < $1.key }) {
+            body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + headerValue(k) + "\"" + crlf + crlf + v + crlf).utf8))
+        }
+        if let file {
+            body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + headerValue(file.field) + "\"; filename=\""
+                              + headerValue(file.name) + "\"" + crlf + "Content-Type: " + mimeType(file.mime) + crlf + crlf).utf8))
+            body.append(file.data)
+            body.append(Data(crlf.utf8))
+        }
+        body.append(Data(("--" + boundary + "--" + crlf).utf8))
+        return body
+    }
+}
