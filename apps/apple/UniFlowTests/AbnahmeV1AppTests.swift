@@ -38,12 +38,20 @@ final class AbnahmeV1AppTests: XCTestCase {
 
     func testSidebarShowsOnlyAreasWithAFunctionOnTheDevice() {
         let without = UFNavItem.visible(local: true, gradesOnDevice: false, community: false).map(\.id)
-        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "files"])
+        XCTAssertEqual(without, ["dashboard", "plan", "timetable", "modules", "files", "cards"])
         let both = UFNavItem.visible(local: true, gradesOnDevice: true, community: false).map(\.id)
-        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "files", "services"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
+        XCTAssertEqual(both, ["dashboard", "plan", "timetable", "modules", "files", "cards", "services"], "Notenspiegel aus QIS (LUH) bzw. LSF (Hildesheim)")
         // Community nur mit CloudKit-Dienst im Build (iCloud-Container)
         let withCloud = UFNavItem.visible(local: true, gradesOnDevice: true, community: true).map(\.id)
-        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "files", "services", "community"])
+        XCTAssertEqual(withCloud, ["dashboard", "plan", "timetable", "modules", "files", "cards", "services", "community"])
+        // eigene Karteikarten an Stelle der Wochentests (KI), ohne Funktion auf dem Geraet kein Eintrag
+        XCTAssertEqual(UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: false).map(\.id),
+                       ["dashboard", "plan", "timetable", "modules", "files", "services"])
+        XCTAssertFalse(UFNavItem.visible(local: true, gradesOnDevice: true, community: true).contains { $0.id == "exams" })
+        XCTAssertEqual(UFNavItem.cards.title, "Karteikarten")
+        XCTAssertTrue(UFNavItem.cards.isActive(.cards))
+        XCTAssertFalse(UFNavItem.cards.isActive(.exams))
+        XCTAssertTrue(UFNavItem.main.first { $0.id == "exams" }?.isActive(.cards) == true, "am eigenen Server unter Tests & Wiederholung")
         XCTAssertEqual(UFNavItem.visible(local: false, gradesOnDevice: false, community: false).map(\.id), UFNavItem.main.map(\.id), "eigener Server")
         // dieser Testlauf hat keinen Container: der Eintrag fehlt, die Einstellungen sagen ehrlich warum
         XCTAssertFalse(SolutionSharing.community.isConnected)

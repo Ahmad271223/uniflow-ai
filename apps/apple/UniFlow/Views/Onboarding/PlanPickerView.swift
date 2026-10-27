@@ -128,7 +128,7 @@ struct PlanPickerView: View {
         var soon = false
     }
 
-    /// Inhalte aus Abschnitt 4; was noch fehlt (Uni & Noten), traegt "bald"
+    /// Inhalte aus Abschnitt 4; was noch fehlt, traegt "bald" (in V1 nichts mehr: Uni & Noten und Karteikarten sind da)
     private func rows(_ plan: UFPlan) -> [Row] {
         UFFeatureMatrix.added(in: plan).filter { !$0.isV2 }.map { f in
             Row(title: f.title, detail: f.detail, icon: f.icon, soon: UFFeatureMatrix.access(f, plan: plan) == .comingSoon)

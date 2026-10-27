@@ -113,6 +113,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
         case .community: return "Lösungen als Datei teilen, in der Community veröffentlichen und Lösungen anderer im Editor ansehen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
+        case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
         default: return nil
         }
     }
@@ -144,7 +145,7 @@ enum UFAccess: Equatable {
     case allowed
     /// gesperrt, freigeschaltet ab diesem Tarif
     case locked(UFPlan)
-    /// noch nicht vorhanden (Uni & Noten vor F4, Community, Funktionen ab V2) – als "bald" kennzeichnen, in keinem
+    /// noch nicht vorhanden (Funktionen ab V2; frueher auch Uni & Noten vor F4 und Karteikarten) – als "bald" kennzeichnen, in keinem
     /// Tarif freigeschaltet
     case comingSoon
 
@@ -162,10 +163,10 @@ enum UFFeatureMatrix {
     /// iCloud-Container im Build meldet der Dienst selbst "nicht verfügbar"; der Dateiweg bleibt.
     static let communityAvailable = true
 
-    /// Eigene Karteikarten ohne PC: Anlegen und Wiederholen gibt es im lokalen Backend noch nicht (`/api/flashcards`
-    /// ist ein Platzhalter, PendingServicesEndpoints). Bis dahin "bald" auf der Plus-Karte, nicht "enthalten"
-    /// (nichts vortaeuschen, Richtlinie 3.1.2).
-    static let flashcardsOnDevice = false
+    /// Eigene Karteikarten ohne PC: Anlegen, Wiederholen und Loeschen im lokalen Backend (`FlashcardEndpoints`, M8) und
+    /// auf der Seite "Karteikarten" (CardsPage), Teil von Plus. Vorher "bald" auf der Plus-Karte (nichts vortaeuschen,
+    /// Richtlinie 3.1.2); der Schalter bleibt fuer Tests der Matrix.
+    static let flashcardsOnDevice = true
 
     static func access(_ f: UFFeature, plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
                        community: Bool = communityAvailable, flashcards: Bool = flashcardsOnDevice) -> UFAccess {

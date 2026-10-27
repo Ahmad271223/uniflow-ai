@@ -149,15 +149,31 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
 
-    /// Eintraege der Seitenleiste. Ohne PC (lokales Backend) nur Bereiche mit Funktion (App Review 2.1/2.2): ohne
-    /// "Tests & Wiederholung" (Wochentests entfallen in V1, eigene Karteikarten "bald"), "Community" nur, wenn der
-    /// Build einen iCloud-Container hat (`community`: CloudKit-Dienst verfuegbar; sonst teilt man Loesungen im Editor
-    /// als Datei und die Einstellungen sagen ehrlich, warum) und "Uni & Noten" nur, wo der Notenspiegel auf dem
-    /// Geraet ankommt (`gradesOnDevice`: seit QIS auf dem Geraet an der LUH wie am LSF der Uni Hildesheim immer).
-    static func visible(local: Bool, gradesOnDevice: Bool, community: Bool) -> [UFNavItem] {
+    /// Eigene Karteikarten ohne PC: Eintrag an Stelle von "Tests & Wiederholung"
+    static let cards = UFNavItem(id: "cards", title: "Karteikarten", icon: "cards", route: .cards)
+
+    /// Eintraege der Seitenleiste. Ohne PC (lokales Backend) nur Bereiche mit Funktion (App Review 2.1/2.2): statt
+    /// "Tests & Wiederholung" (Wochentests entfallen in V1) "Karteikarten" (`flashcards`: eigene Karten auf dem Geraet,
+    /// Plus; ohne Plus zeigt die Seite die Sperrkarte), "Community" nur, wenn der Build einen iCloud-Container hat
+    /// (`community`: CloudKit-Dienst verfuegbar; sonst teilt man Loesungen im Editor als Datei und die Einstellungen
+    /// sagen ehrlich, warum) und "Uni & Noten" nur, wo der Notenspiegel auf dem Geraet ankommt (`gradesOnDevice`: seit
+    /// QIS auf dem Geraet an der LUH wie am LSF der Uni Hildesheim immer).
+    static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
+                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice) -> [UFNavItem] {
         guard local else { return main }
-        return main.filter { $0.id != "exams" && ($0.id != "community" || community) && ($0.id != "services" || gradesOnDevice) }
+        return main.compactMap { item in
+            switch item.id {
+            case "exams": return flashcards ? cards : nil
+            case "community": return community ? item : nil
+            case "services": return gradesOnDevice ? item : nil
+            default: return item
+            }
+        }
     }
+
+    /// Markiert: "Karteikarten" nur auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
+    /// die Karteikarten-Seite weiter unter "Tests & Wiederholung")
+    func isActive(_ route: UFRoute) -> Bool { id == "cards" ? route == .cards : route.navKey == id }
 
     /// untere Leiste (mobileNav in app.js)
     static let mobile: [UFNavItem] = [
@@ -239,7 +255,7 @@ struct UFSidebar: View {
                     // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
                     ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                               community: SolutionSharing.community.isConnected)) { item in
-                        navRow(item.title, icon: item.icon, active: router.route.navKey == item.id) { router.go(item.route) }
+                        navRow(item.title, icon: item.icon, active: item.isActive(router.route)) { router.go(item.route) }
                     }
                 }
             }
