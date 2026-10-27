@@ -66,8 +66,9 @@ struct StudIPScheduleSync {
                 }
                 if failedCourses > 0 { parts.append("Termine von \(failedCourses) \(failedCourses == 1 ? "Kurs" : "Kursen") nicht geladen") }
             }
-            // ein Teilerfolg ist nie "vollstaendig": nicht lesbare Eintraege nennen (auch nach einem spaeteren Abbruch)
-            if unreadable > 0 {
+            // ein Teilerfolg ist nie "vollstaendig": nicht lesbare Eintraege nennen (auch nach einem spaeteren Abbruch);
+            // ohne Speichern steht dort schon "Stundenplan nicht gespeichert"
+            if unreadable > 0, result != nil {
                 parts.append("\(unreadable) \(unreadable == 1 ? "Stundenplan-Eintrag" : "Stundenplan-Einträge") aus Stud.IP nicht lesbar")
             }
             return parts

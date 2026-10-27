@@ -1,5 +1,6 @@
 import Foundation
 import PDFKit
+import PencilKit
 import UIKit
 import UniFlowCore
 
@@ -192,12 +193,30 @@ enum SolutionSharing {
                                          solutionID: solutionID, createdAt: createdAt, requireOwnNotes: requireOwnNotes)
     }
 
+    /// Aeltere v2-Staende haben Striche ohne Objekt (`strokeIds` []): sie stehen nur in der nativen Zeichnung, die
+    /// ein Loesungspaket nie enthaelt, und zaehlten nicht als eigene Notizen (Pruefbericht 406). Fuer das Teilen bekommen
+    /// sie hier Objekte wie beim naechsten Speichern der Seite (`StrokeConverter.update`); angezeigt wird genau, was
+    /// der Editor zeigt (nach einer Loeschung im Browser fallen sie dort wie hier weg). Das Dokument selbst bleibt
+    /// unveraendert, andere Seiten auch.
+    static func withObjectsForLegacyStrokes(_ doc: AnnotationDocument) -> AnnotationDocument {
+        var out = doc
+        for (key, page) in doc.pages {
+            guard let stored = StoredDrawing(page: page), stored.strokeIDs.contains(where: \.isEmpty) else { continue }
+            let (drawing, state) = StrokeConverter.drawing(fromPage: page)
+            out.pages[key] = StrokeConverter.update(from: drawing, previous: page, state: state).page
+        }
+        return out
+    }
+
     /// Auswahl fuer den Dialog: alle teilbaren Seiten als Vorschau (auch ohne Notizen); Seiten mit Objekten, die
-    /// die Pruefungen nicht bestehen, werden genannt und ausgelassen (statt alles zu sperren).
+    /// die Pruefungen nicht bestehen, und PDF-Seiten, die es in der PDF nicht (mehr) gibt, werden genannt und
+    /// ausgelassen (statt alles zu sperren).
     static func draft(_ source: SolutionSource) throws -> SolutionShareDraft {
         let doc = source.document
         let candidates = SolutionBuilder.candidates(doc)
-        let problems = SolutionBuilder.pageProblems(doc, keys: candidates.filter(\.shareable).map(\.key))
+        let infos = source.pageInfos
+        let problems = SolutionBuilder.pageProblems(doc, keys: candidates.filter(\.shareable).map(\.key),
+                                                    pdfPageCount: source.pdfPageCount, pdfPage: { infos[$0] })
         let blocked = Set(problems.map(\.key))
         let keys = candidates.filter { $0.shareable && !blocked.contains($0.key) }.map(\.key)
         let content = keys.isEmpty ? nil : try SolutionSharing.content(source, keys: keys, displayName: "", requireOwnNotes: false)
@@ -382,7 +401,7 @@ extension DocumentStore {
     /// Einbetten (PNG) laeuft abseits des Hauptthreads.
     func solutionSource(loadImage: ShareExport.ImageLoader?) async throws -> SolutionSource {
         guard let pdf = originalPDF else { throw ShareExportError.notLoaded }
-        let doc = await pageStructureDocument()
+        let doc = SolutionSharing.withObjectsForLegacyStrokes(await pageStructureDocument())
         let data = try originalPDFData()
         guard let fp = await originalFingerprint() else { throw ShareExportError.notLoaded }
         let keys = SolutionBuilder.candidates(doc).filter(\.shareable).map(\.key)

@@ -65,12 +65,12 @@ struct LibraryNewDialog: View {
         .onChange(of: photos) { _, items in
             guard !items.isEmpty else { return }
             Task {
-                var files: [(String, String, Data)] = []
+                var files: [ImportItem] = []
                 var unreadable = 0
                 for (i, it) in items.enumerated() {
                     // Format aus den Daten (HEIC, PNG, JPEG …), nicht pauschal JPEG; nicht lesbare Fotos werden gezaehlt
                     if let d = try? await it.loadTransferable(type: Data.self), let type = Self.imageType(d) {
-                        files.append(("Bild \(i + 1).\(type.preferredFilenameExtension ?? "jpg")", type.preferredMIMEType ?? "image/jpeg", d))
+                        files.append(ImportItem(name: "Bild \(i + 1).\(type.preferredFilenameExtension ?? "jpg")", mime: type.preferredMIMEType ?? "image/jpeg") { d })
                     } else { unreadable += 1 }
                 }
                 await upload("image", files, unreadable: unreadable)
@@ -81,11 +81,15 @@ struct LibraryNewDialog: View {
             let kind = importKind ?? "pdf"
             importKind = nil
             guard case .success(let urls) = result else { return }
-            let files: [(String, String, Data)] = urls.compactMap { url in
-                let ok = url.startAccessingSecurityScopedResource()
-                defer { if ok { url.stopAccessingSecurityScopedResource() } }
-                guard let d = try? Data(contentsOf: url) else { return nil }
-                return (url.lastPathComponent, kind == "pdf" ? "application/pdf" : (UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "image/png"), d)
+            // erst beim Hochladen lesen, eine Datei nach der anderen (vorher lagen alle gewaehlten Dateien zugleich im
+            // Speicher, Pruefbericht 412); eine nicht lesbare zaehlt als fehlgeschlagen statt still zu fehlen
+            let files = urls.map { url in
+                ImportItem(name: url.lastPathComponent,
+                           mime: kind == "pdf" ? "application/pdf" : (UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "image/png")) {
+                    let ok = url.startAccessingSecurityScopedResource()
+                    defer { if ok { url.stopAccessingSecurityScopedResource() } }
+                    return try Data(contentsOf: url, options: .mappedIfSafe)
+                }
             }
             Task { await upload(kind, files) }
         }
@@ -117,22 +121,30 @@ struct LibraryNewDialog: View {
         return parts.isEmpty ? "Nichts importiert" : parts.joined(separator: " · ")
     }
 
+    /// Datei zum Import: Name, Typ und Inhalt, der erst beim Hochladen gelesen wird
+    struct ImportItem {
+        let name: String
+        let mime: String
+        let load: () throws -> Data
+    }
+
     /// je Datei POST /api/notebooks (kind, title ohne Endung, module_id, folder_id, upload), danach die Bilanz
     /// (importiert, fehlgeschlagen, nicht lesbar). Jede Datei ist eine eigene Anfrage: eine gescheiterte aendert an
     /// den schon importierten nichts.
-    private func upload(_ kind: String, _ files: [(String, String, Data)], unreadable: Int = 0) async {
+    private func upload(_ kind: String, _ files: [ImportItem], unreadable: Int = 0) async {
         guard let api = session.api, !files.isEmpty || unreadable > 0 else { return }
         close()
         var ok = 0
         var failed: [String] = []
-        for (name, mime, data) in files {
-            var fields = ["kind": kind, "title": (name as NSString).deletingPathExtension]
+        for item in files {
+            var fields = ["kind": kind, "title": (item.name as NSString).deletingPathExtension]
             if let moduleID { fields["module_id"] = "\(moduleID)" }
             if let folderID { fields["folder_id"] = "\(folderID)" }
             do {
-                _ = try await api.form("/api/notebooks", fields: fields, file: ("upload", name, mime, data))
+                let data = try item.load()
+                _ = try await api.form("/api/notebooks", fields: fields, file: ("upload", item.name, item.mime, data))
                 ok += 1
-            } catch { failed.append("\(name) (\(error.localizedDescription))") }
+            } catch { failed.append("\(item.name) (\(error.localizedDescription))") }
         }
         toast.show(Self.importSummary(ok: ok, failed: failed, unreadable: unreadable), seconds: failed.isEmpty && unreadable == 0 ? 2.6 : 6)
         if ok > 0 { router.reload() }

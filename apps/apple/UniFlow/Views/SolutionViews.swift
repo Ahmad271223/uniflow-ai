@@ -10,6 +10,16 @@ enum SolutionTexts {
     static let ownNotesOnly = "Geteilt werden nur deine eigenen Notizen – keine Folien, keine Aufgabenstellungen, keine PDF. Teile nur, was du selbst erstellt hast."
     static let examRules = "Bewertete Abgaben (z. B. Hausübungen, Testate, Klausuren): Es gilt die Prüfungsordnung deiner Hochschule. Teile Lösungen dazu nur, wenn es ausdrücklich erlaubt ist."
     static let communityConfirmTitle = "In der Community veröffentlichen"
+
+    /// Was ausser den Notizen im Paket steht (Pruefbericht 409): Titel und Zeitpunkt, dazu das Pseudonym
+    static func sentAlong(title: String) -> String {
+        "Mit der Lösung gehen außerdem der Titel „\(title)“ und der Zeitpunkt des Teilens mit."
+    }
+
+    /// Hinweis auf fehlende Bilder (Dialog und Bestaetigung vor dem Veroeffentlichen, Pruefbericht 407)
+    static func missingImages(_ n: Int) -> String {
+        n == 1 ? "1 Bild ist nicht verfügbar und fehlt in der Lösung." : "\(n) Bilder sind nicht verfügbar und fehlen in der Lösung."
+    }
     static let pdfExportPrivate = "Die exportierte PDF enthält das Originalmaterial deiner Hochschule (z. B. Folien und Aufgabenstellungen) zusammen mit deinen Notizen. Verwende sie nur privat, z. B. in der Dateien-App, und gib sie nicht weiter. Zum Teilen deiner Notizen gibt es „Lösung teilen …“."
 }
 
@@ -129,9 +139,7 @@ struct SolutionShareSheet: View {
                 }
                 let missing = missingImages(preview)
                 if missing > 0 {
-                    Label(missing == 1 ? "1 Bild ist nicht verfügbar und fehlt in der Lösung."
-                                       : "\(missing) Bilder sind nicht verfügbar und fehlen in der Lösung.",
-                          systemImage: "exclamationmark.triangle")
+                    Label(SolutionTexts.missingImages(missing), systemImage: "exclamationmark.triangle")
                         .ufFont(13.12).foregroundStyle(UF.warn)
                 }
                 if draft.assetPages > 0 {
@@ -153,6 +161,10 @@ struct SolutionShareSheet: View {
             UFTextInput("Leer lassen = anonym", text: $displayName)
             Text("Erscheint beim Empfänger als „Lösung von …“. Ohne Namen steht dort „Anonym“. Wird je Konto und Hochschule gemerkt; nie dein echter Name.")
                 .ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 6)
+            if let source {
+                Text(SolutionTexts.sentAlong(title: source.title)).ufFont(12.8).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true).padding(.top, 4)
+            }
         }
     }
 
@@ -228,6 +240,11 @@ struct SolutionShareSheet: View {
             VStack(alignment: .leading, spacing: 9.6) {
                 Text(CommunityTexts.copyright)
                 Text(SolutionTexts.examRules)
+                // unvollstaendiger Inhalt steht auch in der Bestaetigung, nicht nur im Dialog darunter
+                if let preview = draft?.content, missingImages(preview) > 0 {
+                    Label(SolutionTexts.missingImages(missingImages(preview)), systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(UF.warn)
+                }
                 Text("Sichtbarkeit: \(visibility.title)\(visibility == .studyGroup ? " „\(groups.first { $0.code == groupCode }?.name ?? "")“" : "") · \(name.isEmpty ? "anonym" : "als „\(name)“")")
                     .foregroundStyle(UF.text)
                 Text(CommunityTexts.privacy).foregroundStyle(UF.muted)
