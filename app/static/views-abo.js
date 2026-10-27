@@ -44,7 +44,7 @@ function quotaBar(label, q) {
 }
 
 export async function viewAbo(_, params, view) {
-  const [contract, me] = await Promise.all([api("/billing/plans"), api("/entitlements")]);
+  const [contract, me, gptLocal] = await Promise.all([api("/billing/plans"), api("/entitlements"), api("/integrations/chatgpt").catch(() => null)]);
   const labels = contract.quotas.labels, current = me.plan;
   const local = me.mode === "local";
   const status = local
@@ -78,8 +78,10 @@ export async function viewAbo(_, params, view) {
     <div class="card" style="margin-bottom:1rem">${status}</div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">${cards}</div>
     <div class="grid cols-2" style="margin-top:1rem">
-      <div class="card"><div class="card-head"><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gpt.status === "enabled" ? "ok" : "neutral"}">${gpt.status === "enabled" ? "verfügbar" : "noch nicht verfügbar"}</span></div>
-        <p class="small muted">${esc(gpt.reason || "")} Sobald OpenAI Studora freigibt, kannst du dein eigenes ChatGPT-Abo verbinden. Diese Verbindung verkaufen wir nicht: sie wird nie nur gegen einen Studora-Tarif angeboten, solange die Bedingungen von OpenAI das nicht erlauben.</p></div>
+      ${local && gptLocal?.available ? `<div class="card"><div class="card-head"><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gptLocal.connected ? (gptLocal.sharing && !gptLocal.needs_reauth ? "ok" : "warn") : "neutral"}">${gptLocal.connected ? (gptLocal.needs_reauth ? "neu anmelden" : gptLocal.sharing ? "verbunden" : "ohne Abo-Nutzung") : "nicht verbunden"}</span></div>
+        <p class="small muted">${gptLocal.connected ? `Verbunden als <b>${esc(gptLocal.email || gptLocal.name || "ChatGPT-Konto")}</b>${gptLocal.model ? `, Modell ${esc(gptLocal.model)}` : ""}. ` : "Auf dem eigenen PC kannst du dein ChatGPT-Konto (Plus, Pro oder Go) verbinden; KI-Anfragen laufen dann über dein Abo. "}Einrichten unter <a href="#/settings?tab=advanced">Einstellungen → Erweitert</a>. Das Token bleibt auf diesem Rechner; ohne Tarif, ohne Zahlung an uns.</p></div>`
+      : `<div class="card"><div class="card-head"><h2>${icon("sparkles", 18)} Eigenes ChatGPT-Konto</h2><span class="badge ${gpt.status === "enabled" ? "ok" : "neutral"}">${gpt.status === "enabled" ? "verfügbar" : "noch nicht verfügbar"}</span></div>
+        <p class="small muted">${esc(gpt.reason || "")} Sobald OpenAI Studora freigibt, kannst du dein eigenes ChatGPT-Abo verbinden. Diese Verbindung verkaufen wir nicht: sie wird nie nur gegen einen Studora-Tarif angeboten, solange die Bedingungen von OpenAI das nicht erlauben.</p></div>`}
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Abschließen, wechseln, kündigen</h2></div>
         <p class="small muted">${esc(contract.purchase.apple.note)} ${esc(contract.purchase.web.note)}</p>
         <p class="small muted">Wechsel nach oben gilt sofort, nach unten zum Ende des bezahlten Monats. Bei Kündigung oder Ablauf bleiben deine Notizen erhalten und lesbar; nur Bearbeiten und die Bezahlfunktionen werden gesperrt.</p></div>

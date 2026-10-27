@@ -6,7 +6,9 @@
 - POST /api/billing/apple/notifications   App Store Server Notifications V2 {signedPayload} (oeffentlich, Signatur geprueft)
 - GET  /api/billing/ai-usage              KI-Kosten des Monats (nur Admin)
 - GET  /api/integrations/chatgpt          Stand der offiziellen ChatGPT-Verbindung
-- POST /api/integrations/chatgpt/connect  ohne Freigabe von OpenAI: 503 chatgpt_not_available (nie eine vorgetaeuschte Verbindung)
+- POST /api/integrations/chatgpt/connect  im Dienst ohne Freigabe von OpenAI: 503 chatgpt_not_available (nie eine
+                                          vorgetaeuschte Verbindung); auf dem eigenen PC: Sign in with ChatGPT starten
+- POST /api/integrations/chatgpt/disconnect, GET .../models, PUT .../settings {model, use_for_ai}  nur auf dem eigenen PC
 
 Zahlung im Web gibt es noch nicht (kein Zahlungsanbieter eingerichtet); die Tarife werden in der Apple-App gekauft.
 """
@@ -115,6 +117,12 @@ def ai_usage(request: Request):
 
 def chatgpt_state(user: dict | None) -> dict:
     integ = plans.INTEGRATIONS["chatgpt"]
+    if not config.is_hosted():
+        # Eigener PC / Windows-App: Sign in with ChatGPT fuer den eigenen Gebrauch (app/chatgpt_login.py), ohne Tarif
+        from . import chatgpt_login
+        st = chatgpt_login.status()
+        return {**st, "reason": None, "premium_rule_plan": plans.ENTITLEMENTS["chatgpt_connection_premium"]["from"],
+                "plan_gating_allowed": False, "shown_in_ui": True}
     enabled = integ["status"] == "enabled"
     return {
         "status": integ["status"], "available": enabled, "connected": False, "reason": None if enabled else integ["reason"],
@@ -131,11 +139,49 @@ def chatgpt_status(request: Request):
     return chatgpt_state(getattr(request.state, "user", None))
 
 
+def _chatgpt_local():
+    """Nur auf dem eigenen PC; im Dienst wie bisher 503 (keine vorgetaeuschte Verbindung)."""
+    if config.is_hosted():
+        raise HTTPException(503, {"detail": plans.INTEGRATIONS["chatgpt"]["reason"], "code": "chatgpt_not_available"})
+    from . import chatgpt_login
+    return chatgpt_login
+
+
+def _chatgpt_call(fn):
+    from . import chatgpt_login
+    try:
+        return fn()
+    except chatgpt_login.ChatGPTError as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+
+
 @router.post("/api/integrations/chatgpt/connect")
-def chatgpt_connect(request: Request):
-    st = chatgpt_state(getattr(request.state, "user", None))
-    if not st["available"]:
-        raise HTTPException(503, {"detail": st["reason"], "code": "chatgpt_not_available"})
-    # Freigabe vorhanden: hier beginnt spaeter der OAuth-Ablauf (PKCE) laut docs/KI-CHATGPT-PLAN.md.
-    raise HTTPException(501, {"detail": "Die ChatGPT-Verbindung wird nach der Freigabe durch OpenAI gebaut.",
-                              "code": "chatgpt_not_implemented"})
+def chatgpt_connect(request: Request, body: dict | None = Body(default=None)):
+    """Eigener PC: Anmeldung bei OpenAI im Browser beginnen (Loopback-Rueckleitung). Liefert die Adresse und den Port;
+    die Oberflaeche fragt danach den Stand ab. Im Dienst 503, solange OpenAI nicht freigegeben hat."""
+    cg = _chatgpt_local()
+    open_browser = not (isinstance(body, dict) and body.get("open_browser") is False)
+    return _chatgpt_call(lambda: cg.start(open_browser=open_browser))
+
+
+@router.post("/api/integrations/chatgpt/disconnect")
+def chatgpt_disconnect():
+    cg = _chatgpt_local()
+    cg.disconnect()
+    return {"connected": False}
+
+
+@router.get("/api/integrations/chatgpt/models")
+def chatgpt_models(force: bool = False):
+    cg = _chatgpt_local()
+    return {"models": _chatgpt_call(lambda: cg.models(force=force)), "model": cg.model()}
+
+
+@router.put("/api/integrations/chatgpt/settings")
+def chatgpt_settings(body: dict = Body(...)):
+    cg = _chatgpt_local()
+    if "model" in body:
+        _chatgpt_call(lambda: cg.set_model(str(body.get("model") or "")))
+    if "use_for_ai" in body:
+        cg.set_use_for_ai(bool(body["use_for_ai"]))
+    return cg.status()

@@ -147,6 +147,50 @@ class OpenAIProvider:
         return Completion(text, int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0), data.get("model") or self.model)
 
 
+class ChatGPTProvider(OpenAIProvider):
+    """Responses API mit dem ChatGPT-Abo des Nutzers (Sign in with ChatGPT, app/chatgpt_login.py): das Zugriffstoken
+    kommt je Anfrage aus der Ablage dieses Rechners (erneuert sich selbst), nie ein Studora-Schluessel. 401 heisst
+    "neu anmelden", 402/403/429 "Kontingent aufgebraucht oder Nutzung in Apps nicht freigegeben" (Nutzung verwalten
+    in ChatGPT)."""
+
+    def __init__(self, model_name: str, timeout: int = 120):
+        super().__init__("", model_name, timeout)
+
+    def complete(self, system: str, prompt: str, schema: dict | None = None) -> Completion:
+        from . import chatgpt_login
+        try:
+            token = chatgpt_login.access_token()
+        except chatgpt_login.ChatGPTError as e:
+            raise AIUnavailable(e.code, e.message, e.status)
+        body: dict = {"model": self.model, "instructions": system, "input": prompt}
+        if schema:
+            body["text"] = {"format": {"type": "json_schema", "name": "studora", "schema": schema, "strict": False}}
+        req = urllib.request.Request(self.URL, data=json.dumps(body).encode("utf-8"), method="POST",
+                                     headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as r:  # noqa: S310 - feste https-Adresse
+                data = json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            detail = ""
+            try:
+                detail = e.read().decode("utf-8", "replace")[:400]
+            except Exception:  # noqa: BLE001
+                pass
+            if e.code == 401:
+                chatgpt_login.mark_reauth(why=f"Responses API 401: {detail[:120]}")
+                raise AIUnavailable("chatgpt_login_needed", "Die Anmeldung bei ChatGPT ist abgelaufen – bitte in den Einstellungen neu verbinden.", 401)
+            if e.code in (402, 403, 429):
+                raise AIUnavailable("chatgpt_limit", "Dein ChatGPT-Kontingent ist aufgebraucht oder die Nutzung in Apps ist nicht "
+                                    "freigegeben. In ChatGPT unter Einstellungen → Nutzung verwalten.", 429)
+            raise AIUnavailable("ai_provider_error", f"ChatGPT antwortete mit Fehler {e.code}: {detail[:200]}", 502)
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise AIUnavailable("ai_provider_unreachable", "ChatGPT ist nicht erreichbar.", 502)
+        text = "".join(c.get("text", "") for item in data.get("output") or [] if item.get("type") == "message"
+                       for c in item.get("content") or [] if c.get("type") == "output_text")
+        usage = data.get("usage") or {}
+        return Completion(text, int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0), data.get("model") or self.model)
+
+
 _provider_override = None
 
 

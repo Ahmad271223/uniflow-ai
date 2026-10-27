@@ -91,6 +91,10 @@ nur in bezahlten Tarifen anbieten. Bis OpenAI das für Studora schriftlich klär
 - Keine inoffiziellen Sitzungen, keine Passwörter, keine Cookies. Plan und Antrag: `docs/KI-CHATGPT-PLAN.md`.
 - Tests aus dem eigenen ChatGPT kämen nur als `chatgpt_user` mit Stufe `private` in die Bibliothek und nur nach
   ausdrücklicher Freigabe in die Moderation (Abschnitt 5).
+- **Eigener PC / Windows-App (seit 27.10.2026):** dort ist Sign in with ChatGPT gebaut und erlaubt (private, lokal
+  laufende Nutzung braucht keinen Antrag): `app/chatgpt_login.py`, Einstellungen → Erweitert, Token nur auf dem Rechner,
+  ohne Tarif, ohne Zahlung an Studora. `chatgpt_state` liefert lokal `status: local`, `available: true`,
+  `plan_gating_allowed: false`. Details `docs/KI-CHATGPT-PLAN.md`, Abschnitt 3a.
 
 ## 5. Gemeinsame KI-Testbibliothek (`app/test_library.py`, `app/library_api.py`)
 

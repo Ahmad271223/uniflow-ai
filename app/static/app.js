@@ -4,8 +4,8 @@ import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=30";
 import { viewFiles } from "./views-lib.js?v=30";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=30";
 import { viewTimetable, openEvent } from "./views-tt.js?v=30";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=30";
-import { viewAbo } from "./views-abo.js?v=30";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=31";
+import { viewAbo } from "./views-abo.js?v=31";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
