@@ -767,7 +767,9 @@ private struct DeleteAccountDialog: View {
                     busy = true
                     Task {
                         // RootView zeigt danach die Begruessung
-                        let steps = account.account.map { AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID) } ?? []
+                        let steps = account.account.map {
+                            AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID) { account.deletionProblem = $0 }
+                        } ?? []
                         await account.deleteAccount(also: steps) {
                             overlay.closeAll()
                             router.go(.dashboard)
@@ -1055,17 +1057,10 @@ private struct AdvancedTab: View {
             "Gerät: \(UIDevice.current.model), iPadOS \(UIDevice.current.systemVersion)",
             "Fenster: \(Int(windowWidth))×\(Int(UIScreen.main.bounds.height)), Pixelverhältnis \(Self.js(scale))",
             "Design: \(theme)",
-            "Adresse: \(session.api?.base.absoluteString ?? "–")",
+            "Adresse: \(Diagnostics.address(session.api?.base))",
             "App-Version: \(diag?.appVersion ?? "…")",
         ]
-        if let d = diag {
-            lines += [
-                "Lokale Notizen: \(ByteCountFormatter.string(fromByteCount: d.journalBytes, countStyle: .file))",
-                "Zwischenspeicher: \(ByteCountFormatter.string(fromByteCount: d.cacheBytes, countStyle: .file))",
-                "Ungesendete Seiten: \(d.unsentPages) in \(d.documentsWithUnsent) Dokumenten",
-                "Beschädigte lokale Dateien: \(d.damaged.isEmpty ? "keine" : d.damaged.joined(separator: ", "))",
-            ]
-        }
+        if let d = diag { lines += d.reportLines }
         return lines.joined(separator: "\n")
     }
 

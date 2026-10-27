@@ -344,6 +344,12 @@ final class StudIPSync: ObservableObject {
     /// Abmelden: Cookie aus dem Schluesselbund und alle Daten der Webansicht dieses Containers (auch die SSO-Sitzung)
     /// loeschen; die andere Hochschule bleibt angemeldet. Heruntergeladene Dateien bleiben, bis der Nutzer sie entfernt.
     func signOut() async {
+        // laufenden Abgleich zuerst anhalten und abwarten: er arbeitete sonst mit der alten Sitzung weiter und setzte
+        // danach "verbunden" (phase .idle), obwohl abgemeldet
+        if let task = current {
+            task.cancel()
+            _ = await task.value
+        }
         cookies.clear()
         setFlag(Keys.sessionExpired, false)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
