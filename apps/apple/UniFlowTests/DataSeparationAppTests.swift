@@ -564,6 +564,67 @@ final class DataSeparationAppTests: XCTestCase {
         }
     }
 
+    /// 240: Schneller Wechsel von Hochschule und Konto, waehrend der Stud.IP-Abgleich der LUH noch laedt: Jeder neue
+    /// Container bekommt einen eigenen Abgleich, eigene Cookies und eigene Webdaten; die Datei des alten Laufs landet
+    /// nur im LUH-Container des ersten Kontos.
+    func testSwitchingUniversityAndAccountDuringARunningSyncKeepsEverythingApart() async throws {
+        let a = account(user)
+        a.chooseUniversity(.luh)
+        let m = manager()
+        m.sync(account: a)
+        let luh = try active(m)
+        try luh.cookies.save([cookie("Seminar_Session", "sitzung-ada", domain: "studip.uni-hannover.de")])
+        await m.websiteDataStore(for: luh).httpCookieStore.setCookie(cookie("sso-ADA", "x", domain: "sso.idm.uni-hannover.de"))
+        let stud = WaitingStudIP()
+        let sync = m.studip
+        let run = Task { await sync.run(client: StudIPClient(base: StudIPSync.base, transport: stud, pauseMillis: 0)) }
+        try await waitUntil("Stud.IP-Download laeuft") { stud.gate.wasReached }
+
+        // Wechsel zur Uni Hildesheim, dann zu einem anderen Konto (LUH) – der Download von Ada laeuft noch
+        a.chooseUniversity(.hildesheim)
+        m.sync(account: a)
+        let hi = try active(m)
+        XCTAssertFalse(m.studip === sync, "neuer Abgleich fuer den neuen Container")
+        XCTAssertTrue(sync.isRunning, "der alte Lauf gehoert weiter seinem Container")
+        XCTAssertFalse(m.studip.hasStoredSession)
+        XCTAssertTrue(hi.cookies.load().isEmpty)
+        let b = account(otherUser)
+        b.chooseUniversity(.luh)
+        m.sync(account: b)
+        let bob = try active(m)
+        XCTAssertFalse(m.studip === sync)
+        XCTAssertEqual(m.studip.phase, .signedOut, "Bob hat keine Stud.IP-Sitzung")
+        XCTAssertTrue(bob.cookies.load().isEmpty, "Sitzungs-Cookie von Ada nicht bei Bob")
+        let bobWeb = await cookies(m, bob)
+        XCTAssertEqual(bobWeb, [])
+        let hiWeb = await cookies(m, hi)
+        XCTAssertEqual(hiWeb, [])
+        stud.gate.release()
+        await run.value
+        XCTAssertFalse(sync.isRunning)
+
+        // Datei nur bei Ada/LUH
+        let adaFiles = try await luh.host.backend().context.database.scalar("SELECT COUNT(*) FROM files WHERE course_id='c1'")?.int
+        XCTAssertEqual(adaFiles, 1)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: luh.layout.studip.appendingPathComponent("files").path))
+        for (c, who) in [(hi, "Hildesheim"), (bob, "Bob")] {
+            let n = try await c.host.backend().context.database.scalar("SELECT COUNT(*) FROM files WHERE course_id='c1'")?.int
+            XCTAssertEqual(n, 0, who)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: c.layout.studip.appendingPathComponent("files").path), who)
+        }
+        XCTAssertEqual(luh.cookies.load().map(\.value), ["sitzung-ada"], "Sitzung von Ada unveraendert")
+        let adaWeb = await cookies(m, luh)
+        XCTAssertEqual(adaWeb, ["sso-ADA"])
+        // zurueck zu Ada/LUH: ihr Abgleich kennt die Datei, Bob weiterhin nichts
+        a.chooseUniversity(.luh)
+        m.sync(account: a)
+        let again = try active(m)
+        XCTAssertEqual(again.layout.root, luh.layout.root)
+        XCTAssertTrue(m.studip.hasStoredSession)
+        try await waitUntil("Dateiliste von Ada") { !m.studip.entries.isEmpty }
+        XCTAssertEqual(m.studip.entries.count, 1)
+    }
+
     /// "Daten dieser Hochschule löschen" und "Konto löschen" waehrend eines laufenden Abgleichs: der Abgleich wird
     /// angehalten und abgewartet, danach bleiben weder Ordner noch Dateien noch Eintraege in der Einstellungs-Suite
     /// (vorher legte der Learnweb-Abgleich den geloeschten Container ohne Kennzeichnung neu an)

