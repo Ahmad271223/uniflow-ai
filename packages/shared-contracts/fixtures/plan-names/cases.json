@@ -1,0 +1,221 @@
+{
+  "about": "Kurznamen enger Kalenderbloecke: app/static/plan-names.js (tests/test_plan_names.py) und PlanNames im Swift-Kern (PlanNamesTests) muessen genau diese Werte liefern. Faecher und Titel erfunden oder allgemeine Fachtitel; Erwartungen von Hand geprueft.",
+  "single": [
+    {"title": "Signale und Systeme (für Elektrotechnik)", "tiny": "SigSys"},
+    {"title": "Elektrotechnische Grundlagen der Informatik", "tiny": "EGI"},
+    {"title": "Übung: Signale und Systeme (für Elektrotechnik)", "tiny": "Ü SigSys"},
+    {"title": "Mathematik für die Ingenieurwissenschaften III – Numerik", "tiny": "Numerik"},
+    {"title": "Mathematik für die Ingenieurwissenschaften I", "tiny": "Mathe I"},
+    {"title": "Mathematik II", "tiny": "Mathe II"},
+    {"title": "Gruppenübung: Mathematik für die Ingenieurwissenschaften I (Tranche A)", "tiny": "Ü Mathe I"},
+    {"title": "Mathematik I - Fragestunden", "tiny": "Ü Mathe I"},
+    {"title": "Hörsaalübung: Mathematik für die Ingenieurwissenschaften II", "tiny": "Ü Mathe II"},
+    {"title": "Mathematik für die Ingenieurwissenschaften I, Tranche B", "tiny": "Mathe I"},
+    {"title": "11051 Signale und Systeme", "tiny": "SigSys"},
+    {"title": "0406 Grundlagen der Elektrotechnik", "tiny": "GruEle"},
+    {"title": "7002 - Testvorlesung Pädagogik I", "tiny": "TesPäd I"},
+    {"title": "Übung: 11051 Signale und Systeme", "tiny": "Ü SigSys"},
+    {"title": "Einführung in die Sozialpädagogik", "tiny": "EinSoz"},
+    {"title": "Einführung in die Informatik", "tiny": "Info"},
+    {"title": "Einführung in die Informatik II", "tiny": "Info II"},
+    {"title": "Datenstrukturen & Algorithmen", "tiny": "DSA"},
+    {"title": "Datenstrukturen und Algorithmen (Tutorium)", "tiny": "Ü DSA"},
+    {"title": "Programmieren I", "tiny": "Prog I"},
+    {"title": "Grundlagen digitaler Systeme", "tiny": "DigiSys"},
+    {"title": "Digitale Systeme", "tiny": "DigiSys"},
+    {"title": "Lineare Algebra I", "tiny": "LinAlg I"},
+    {"title": "Psychologie", "tiny": "Psych."},
+    {"title": "Statistik", "tiny": "Stat."},
+    {"title": "Physik", "tiny": "Physik"},
+    {"title": "Elektrotechnik", "tiny": "Elektr."},
+    {"title": "Mensch-Computer-Interaktion", "tiny": "MCI"},
+    {"title": "Tutorium zu Lineare Algebra I", "tiny": "Ü LinAlg I"},
+    {"title": "Analysis (Übung)", "tiny": "Ü Analysis"},
+    {"title": "Programmierkurs Übung", "tiny": "Ü Progr."},
+    {"title": "Vorlesung: Theoretische Informatik", "tiny": "TheInf"},
+    {"title": "Testkurs Mechanik", "tiny": "TesMec"},
+    {"title": "Sport (nicht besucht)", "tiny": "Sport"},
+    {"title": "  Übung   zu  Testmathematik I  ", "tiny": "Ü Testm. I"},
+    {"title": "U\u0308bung: Testphysik", "tiny": "Ü Testph."},
+    {"title": "Mathematik A", "tiny": "Math. A"},
+    {"title": "Grundlagen der Programmierung und Datenverarbeitung für Ingenieure im Bauwesen", "tiny": "GPDIB"},
+    {"title": "Programmieren in C", "tiny": "Progr. C"},
+    {"title": "Testseminar [Blockveranstaltung] Kunst", "tiny": "TesKun"},
+    {"title": "Fragestunde: Testchemie", "tiny": "Ü Testch."},
+    {"title": "Statistik – Fragestunden", "tiny": "Ü Stat."},
+    {"title": "Übung", "tiny": "Übung"},
+    {"title": "Numerik II", "tiny": "Numerik II"},
+    {"title": "", "tiny": ""}
+  ],
+  "plans": [
+    {
+      "name": "Hildesheim: gleicher Anfang, verschiedene Faecher",
+      "items": [
+        {"title": "Einführung in die Sozialpädagogik", "module_id": 1},
+        {"title": "Einführung in die Soziologie", "module_id": 2},
+        {"title": "Übung: Einführung in die Soziologie", "module_id": 2},
+        {"title": "Einführung in die Psychologie", "module_id": 3},
+        {"title": "Einführung in die Erziehungswissenschaft", "module_id": 4}
+      ],
+      "expect": {
+        "Einführung in die Sozialpädagogik": "EinSozia",
+        "Einführung in die Soziologie": "EinSozio",
+        "Übung: Einführung in die Soziologie": "Ü EinSozio",
+        "Einführung in die Psychologie": "EinPsy",
+        "Einführung in die Erziehungswissenschaft": "EinErz"
+      }
+    },
+    {
+      "name": "LUH: Signale und Systeme ist nicht Elektrotechnik",
+      "items": [
+        {"title": "Signale und Systeme (für Elektrotechnik)", "module_id": 5},
+        {"title": "Übung: Signale und Systeme (für Elektrotechnik)", "module_id": 5},
+        {"title": "Elektrotechnische Grundlagen der Informatik", "module_id": 6},
+        {"title": "Signale und Systeme", "module_id": 5},
+        {"title": "Mathematik für die Ingenieurwissenschaften III – Numerik", "module_id": 7},
+        {"title": "Gruppenübung: Mathematik für die Ingenieurwissenschaften III – Numerik", "module_id": 7}
+      ],
+      "expect": {
+        "Signale und Systeme (für Elektrotechnik)": "SigSys",
+        "Übung: Signale und Systeme (für Elektrotechnik)": "Ü SigSys",
+        "Elektrotechnische Grundlagen der Informatik": "EGI",
+        "Signale und Systeme": "SigSys",
+        "Mathematik für die Ingenieurwissenschaften III – Numerik": "Numerik",
+        "Gruppenübung: Mathematik für die Ingenieurwissenschaften III – Numerik": "Ü Numerik"
+      }
+    },
+    {
+      "name": "Gleiche Anfangsbuchstaben: das erste verschiedene Wort wird laenger",
+      "items": [
+        {"title": "Allgemeine Didaktik der Mathematik", "module_id": 8},
+        {"title": "Angewandte Didaktik der Mathematik", "module_id": 9}
+      ],
+      "expect": {
+        "Allgemeine Didaktik der Mathematik": "AlDM",
+        "Angewandte Didaktik der Mathematik": "AnDM"
+      }
+    },
+    {
+      "name": "Fester Eintrag trifft anderes Fach: beide werden allgemein",
+      "items": [
+        {"title": "Mathematik für die Ingenieurwissenschaften I", "module_id": 10},
+        {"title": "Mathematik I - Fragestunden", "module_id": null},
+        {"title": "Mathe I", "module_id": 11}
+      ],
+      "expect": {
+        "Mathematik für die Ingenieurwissenschaften I": "MatIng I",
+        "Mathematik I - Fragestunden": "Ü Math. I",
+        "Mathe I": "Mathe I"
+      }
+    },
+    {
+      "name": "Ein langes Wort: naechste Silbengrenze",
+      "items": [
+        {"title": "Psychologie", "module_id": 12},
+        {"title": "Psychotherapie", "module_id": 13}
+      ],
+      "expect": {
+        "Psychologie": "Psychol.",
+        "Psychotherapie": "Psychoth."
+      }
+    },
+    {
+      "name": "Ohne Modul: gleicher bereinigter Titel ist ein Fach",
+      "items": [
+        {"title": "Testchemie", "module_id": null},
+        {"title": "Übung zu Testchemie", "module_id": null},
+        {"title": "Testchemie (Tranche 2)"}
+      ],
+      "expect": {
+        "Testchemie": "Testch.",
+        "Übung zu Testchemie": "Ü Testch.",
+        "Testchemie (Tranche 2)": "Testch."
+      }
+    },
+    {
+      "name": "Nummern unterscheiden schon",
+      "items": [
+        {"title": "Lineare Algebra I", "module_id": 14},
+        {"title": "Lineare Algebra II", "module_id": 15},
+        {"title": "Numerik I", "module_id": 16},
+        {"title": "Numerik II", "module_id": 17}
+      ],
+      "expect": {
+        "Lineare Algebra I": "LinAlg I",
+        "Lineare Algebra II": "LinAlg II",
+        "Numerik I": "Numerik I",
+        "Numerik II": "Numerik II"
+      }
+    },
+    {
+      "name": "Gleiche Woerter, anderer Titel: ganzer Titel",
+      "items": [
+        {"title": "Recht und Ethik", "module_id": 18},
+        {"title": "Recht, Ethik", "module_id": 19}
+      ],
+      "expect": {
+        "Recht und Ethik": "Recht und Ethik",
+        "Recht, Ethik": "Recht, Ethik"
+      }
+    },
+    {
+      "name": "Modul-ID als Text und Zahl",
+      "items": [
+        {"title": "Testphysik", "module_id": 20},
+        {"title": "Übung Experimentalphysik", "module_id": "20"},
+        {"title": "Testphysik für Ingenieure", "module_id": 21}
+      ],
+      "expect": {
+        "Testphysik": "Testph.",
+        "Übung Experimentalphysik": "Ü Exp.",
+        "Testphysik für Ingenieure": "TesIng"
+      }
+    },
+    {
+      "name": "Gleiche Namen, eine Gruppe zuerst verschieden (drei Faecher)",
+      "items": [
+        {"title": "Grundlagen der Testtechnik", "module_id": 22},
+        {"title": "Grundlagen der Testtheorie", "module_id": 23},
+        {"title": "Grundzuege der Testtechnik", "module_id": 24}
+      ],
+      "expect": {
+        "Grundlagen der Testtechnik": "GrundlTestte",
+        "Grundlagen der Testtheorie": "GrundlTestth",
+        "Grundzuege der Testtechnik": "GrundzTes"
+      }
+    },
+    {
+      "name": "Viele aehnliche Faecher (jedes eigenes Modul)",
+      "items": [
+        {"title": "Einführung in die Testkunde", "module_id": 30},
+        {"title": "Einführung in die Testkultur", "module_id": 31},
+        {"title": "Einführung in die Testkunst", "module_id": 32},
+        {"title": "Einführung in die Testkunde II", "module_id": 33},
+        {"title": "Elektrotechnische Grundlagen der Informatik", "module_id": 34},
+        {"title": "Signale und Systeme (für Elektrotechnik)", "module_id": 35},
+        {"title": "Elektrotechnik", "module_id": 36},
+        {"title": "Elektrotechnik II", "module_id": 37},
+        {"title": "Grundlagen der Testtechnik", "module_id": 38},
+        {"title": "Grundlagen der Testtheorie", "module_id": 39},
+        {"title": "Grundzüge der Testtechnik", "module_id": 40},
+        {"title": "Testpsychologie", "module_id": 41},
+        {"title": "Testpsychiatrie", "module_id": 42}
+      ],
+      "expect": {
+        "Einführung in die Testkunde": "EinTestkund",
+        "Einführung in die Testkultur": "EinTestkul",
+        "Einführung in die Testkunst": "EinTestkuns",
+        "Einführung in die Testkunde II": "EinTes II",
+        "Elektrotechnische Grundlagen der Informatik": "EGI",
+        "Signale und Systeme (für Elektrotechnik)": "SigSys",
+        "Elektrotechnik": "Elektr.",
+        "Elektrotechnik II": "Elektr. II",
+        "Grundlagen der Testtechnik": "GrundlTestte",
+        "Grundlagen der Testtheorie": "GrundlTestth",
+        "Grundzüge der Testtechnik": "GrundzTes",
+        "Testpsychologie": "Testpsychol.",
+        "Testpsychiatrie": "Testpsychiatr."
+      }
+    }
+  ]
+}

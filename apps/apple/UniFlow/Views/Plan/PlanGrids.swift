@@ -4,28 +4,15 @@ import UniFlowCore
 // Raster des Lernkalenders 1:1 nach views-plan.js: weekGrid (Woche/3 Tage), Monat, dayTimeline, Seitenspalte
 // (weekSide/daySide mit donut und miniCal) und pkgBox.
 
-// MARK: - Kurznamen fuer enge Bloecke (TINY / tinyName)
+// MARK: - Kurznamen fuer enge Bloecke (PlanNames im Kern, 1:1 wie app/static/plan-names.js)
 
-enum PlanNames {
-    private static let tiny: [(String, String)] = [
-        (#"^(Mathematik für die Ingenieurwissenschaften III.*|.*Numerik.*)$"#, "Numerik"),
-        (#"^Mathematik( für die Ingenieurwissenschaften)? I\b.*$"#, "Mathe I"),
-        (#"^Elektrotechni.*$"#, "ET"), (#"^Signale und Systeme.*$"#, "SigSys"),
-        (#"^Datenstrukturen (und|&) Algorithmen.*$"#, "DSA"), (#"^Programmieren I\b.*$"#, "Prog I"),
-        (#"^Einführung in die Informatik.*$"#, "Info"), (#"^(Grundlagen digitaler Systeme.*|Digitale Systeme.*)$"#, "DigiSys"),
-    ]
-
-    static func tinyName(_ s: String?) -> String {
-        var t = (s ?? "").trimmingCharacters(in: .whitespaces), pre = ""
-        for p in ["Übung zu ", "Übung: ", "Gruppenübung: ", "Hörsaalübung: ", "Tutorium: "] where t.hasPrefix(p) {
-            pre = "Ü "; t = String(t.dropFirst(p.count)); break
-        }
-        // JS-RegExp ohne Anker trifft auch mitten im Text; wie im Web: erster Treffer ersetzt den ganzen Namen
-        for (re, r) in tiny {
-            let unanchored = re.replacingOccurrences(of: "^", with: "").replacingOccurrences(of: "$", with: "")
-            if t.range(of: unanchored, options: [.regularExpression, .caseInsensitive]) != nil { t = r; break }
-        }
-        return pre + t
+extension PlanNames {
+    /// planTinyNames(days): Termine und Lernpakete aller Tage der Ansicht; verschiedene Faecher, verschiedene Kurznamen
+    static func forDays(_ days: [JSONValue]) -> [String: String] {
+        tinyNames(days.flatMap { dd in
+            dd.list("events").map { (title: $0.s("title") ?? "", module: moduleKey($0["module_id"])) }
+                + dd.list("packages").map { (title: $0.s("subject") ?? "", module: moduleKey($0["module_id"])) }
+        })
     }
 }
 
@@ -72,6 +59,7 @@ struct PlanWeekGrid: View {
         let days = d.days
         let (lo, hi) = range(days)
         let compact = days.count >= 7 && windowWidth < 1500
+        let names = PlanNames.forDays(days)
         // ohne Uhrzeit, aber mit Aufgaben: ein leeres Paket (alle Aufgaben verschoben) braucht keine Uhrzeit
         let unslotted = days.flatMap { dd in dd.list("packages").filter { $0.s("start_time") == nil && !$0.list("tasks").isEmpty }.map { (dd.s("date") ?? "", $0) } }
         VStack(alignment: .leading, spacing: 0) {
@@ -85,7 +73,7 @@ struct PlanWeekGrid: View {
             HStack(alignment: .top, spacing: 6) {
                 axis(lo: lo, hi: hi).frame(width: 44)
                 ForEach(Row.rows(days, key: "date")) { row in
-                    column(row.value, lo: lo, hi: hi, compact: compact).frame(maxWidth: .infinity)
+                    column(row.value, lo: lo, hi: hi, compact: compact, names: names).frame(maxWidth: .infinity)
                 }
             }
             legend.padding(.top, 11.2)
@@ -152,7 +140,7 @@ struct PlanWeekGrid: View {
     }
 
     /// .cal2-col mit freien Fenstern, Terminen, Lernbloecken, Jetzt-Linie und "+" (nur heute)
-    private func column(_ dd: JSONValue, lo: Int, hi: Int, compact: Bool) -> some View {
+    private func column(_ dd: JSONValue, lo: Int, hi: Int, compact: Bool, names: [String: String]) -> some View {
         let date = dd.s("date") ?? ""
         let today = date == UFFmt.todayISO()
         let evs = dd.list("events").filter { $0.s("status") != "verschoben" }
@@ -174,12 +162,12 @@ struct PlanWeekGrid: View {
                         .offset(x: 2, y: top)
                 }
                 ForEach(evs.indices, id: \.self) { i in
-                    PlanEventBlock(e: evs[i], lane: L[i], W: W, px: { px($0, lo) }, compact: compact) {
+                    PlanEventBlock(e: evs[i], lane: L[i], W: W, px: { px($0, lo) }, compact: compact, names: names) {
                         actions.openEvent(evs[i].i("event_id") ?? 0, date: date)
                     }
                 }
                 ForEach(pks.indices, id: \.self) { i in
-                    PlanPackageBlock(p: pks[i], lane: L[evs.count + i], W: W, px: { px($0, lo) }, compact: compact,
+                    PlanPackageBlock(p: pks[i], lane: L[evs.count + i], W: W, px: { px($0, lo) }, compact: compact, names: names,
                                      open: { actions.openPackage(pks[i].i("id") ?? 0) },
                                      toggle: { Task { await actions.togglePackageDone(pks[i].i("id") ?? 0) } })
                 }
@@ -327,13 +315,15 @@ struct PlanEventBlock: View {
     let W: CGFloat
     let px: (Int) -> CGFloat
     let compact: Bool
+    /// Kurznamen aller Bloecke der Ansicht (PlanNames.forDays)
+    var names: [String: String] = [:]
     let open: () -> Void
 
     var body: some View {
         let f = planBlockFrame(s: UFTime.hm(e.s("start")), e: UFTime.hm(e.s("end")), lane: lane, W: W, px: px)
         let off = e.s("status") != "teilnahme"
         let ec = Color(hex: e.s("color"))
-        let name = compact || lane.n > 1 ? PlanNames.tinyName(e.s("title")) : UFFmt.shortName(e.s("title"))
+        let name = compact || lane.n > 1 ? names[e.s("title") ?? ""] ?? PlanNames.tinyName(e.s("title")) : UFFmt.shortName(e.s("title"))
         let narrow = lane.n >= 3 || (compact && lane.n >= 2)
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
@@ -368,6 +358,8 @@ struct PlanPackageBlock: View {
     let W: CGFloat
     let px: (Int) -> CGFloat
     let compact: Bool
+    /// Kurznamen aller Bloecke der Ansicht (PlanNames.forDays)
+    var names: [String: String] = [:]
     let open: () -> Void
     let toggle: () -> Void
 
@@ -376,7 +368,7 @@ struct PlanPackageBlock: View {
         let status = p.s("status") ?? "geplant"
         let tasks = p.list("tasks")
         let done = tasks.filter { $0.s("status") == "erledigt" }.count
-        let name = compact || lane.n > 1 ? PlanNames.tinyName(p.s("subject")) : UFFmt.shortName(p.s("subject"))
+        let name = compact || lane.n > 1 ? names[p.s("subject") ?? ""] ?? PlanNames.tinyName(p.s("subject")) : UFFmt.shortName(p.s("subject"))
         let narrow = lane.n >= 3 || (compact && lane.n >= 2)
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 3) {
