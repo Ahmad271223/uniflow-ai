@@ -150,6 +150,16 @@ final class BackgroundSyncTests: XCTestCase {
         XCTAssertEqual(BackgroundSchedule.next(after: now, timeZone: berlin, hours: [25, -1]), now.addingTimeInterval(86400))
     }
 
+    /// Ein bestellter Termin wird nicht nach hinten geschoben (sonst kaeme der lange Lauf nie dran)
+    func testPendingRequestIsKeptUnlessLater() throws {
+        let berlin = try zone("Europe/Berlin")
+        let next = try at("2026-11-04 15:00", berlin)
+        XCTAssertTrue(BackgroundSchedule.keepsPending(try at("2026-11-04 08:00", berlin), next: next), "ueberfaellig: bleibt")
+        XCTAssertTrue(BackgroundSchedule.keepsPending(next, next: next))
+        XCTAssertTrue(BackgroundSchedule.keepsPending(nil, next: next), "ohne Uhrzeit: bleibt")
+        XCTAssertFalse(BackgroundSchedule.keepsPending(try at("2026-11-04 20:00", berlin), next: next), "spaeter: ersetzen")
+    }
+
     // MARK: Wann ein Lauf ausfaellt
 
     func testGateOrderAndReasons() {
@@ -167,6 +177,7 @@ final class BackgroundSyncTests: XCTestCase {
         s.enabled = false
         XCTAssertEqual(BackgroundSyncGate.skipReason(s), .disabled)
         XCTAssertEqual(BackgroundSkipReason.noSession.text, "keine gültige Anmeldung")
+        XCTAssertEqual(BackgroundSkipReason.deviceLocked.text, "iPad gesperrt")
         XCTAssertEqual(BackgroundSyncKind.refresh.scope, .lists)
         XCTAssertEqual(BackgroundSyncKind.processing.scope, .full)
     }

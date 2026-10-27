@@ -12,7 +12,9 @@ import UserNotifications
 //   Dateien laden
 // Beide fruehestens zum naechsten Zeitpunkt 8:00, 15:00 oder 20:00 Ortszeit (`BackgroundSchedule`); wann genau,
 // entscheidet iOS (Nutzung, Akku, Netz, Energiesparmodus, Hintergrundaktualisierung). Neu geplant beim Start, beim
-// Wechsel in den Hintergrund und nach jedem Lauf. Sicher bleibt der Abgleich beim Oeffnen (`runIfDue`).
+// Wechsel in den Hintergrund und nach jedem Lauf; ein schon bestellter, nicht spaeterer Termin bleibt dabei stehen
+// (`BackgroundSchedule.keepsPending`), sonst schoebe jeder kurze Lauf den langen nach hinten. Sicher bleibt der Abgleich
+// beim Oeffnen (`runIfDue`).
 //
 // Regeln je Lauf (`perform`, Pruefung in `BackgroundSyncGate`):
 // - nur der Container des angemeldeten Nutzers und der gewaehlten Hochschule; nicht waehrend eines Konto- oder
@@ -63,11 +65,22 @@ struct BackgroundSyncSettings {
 /// Termine bei iOS bestellen und abbestellen (BGTaskScheduler; Tests: Mitschreiber)
 @MainActor
 protocol BackgroundTaskScheduling: AnyObject {
+    /// bestellte, noch nicht gestartete Termine je Aufgabe (Wert: fruehester Beginn, nil ohne Uhrzeit)
+    func pending() async -> [BackgroundSyncKind: Date?]
     func submit(_ kind: BackgroundSyncKind, earliest: Date) throws
     func cancel(_ kind: BackgroundSyncKind)
 }
 
 final class SystemBackgroundScheduler: BackgroundTaskScheduling {
+    func pending() async -> [BackgroundSyncKind: Date?] {
+        var out: [BackgroundSyncKind: Date?] = [:]
+        for r in await BGTaskScheduler.shared.pendingTaskRequests() {
+            guard let kind = BackgroundSyncKind.allCases.first(where: { BackgroundTaskID.of($0) == r.identifier }) else { continue }
+            out[kind] = .some(r.earliestBeginDate)
+        }
+        return out
+    }
+
     func submit(_ kind: BackgroundSyncKind, earliest: Date) throws {
         let request: BGTaskRequest
         switch kind {
@@ -203,6 +216,8 @@ extension HildesheimConnection: BackgroundSyncable {
         guard !stopped else { return .skipped(.noContainer) }
         let sources = self.sources(background: true)
         guard !sources.isEmpty else { return .skipped(.noSession) }
+        // nur Learnweb mit Schluessel und das iPad gesperrt: nichts zu tun (der Lauf liesse Learnweb ohnehin aus)
+        if sources == [.learnweb], learnwebMode == .token, !protectedDataAvailable() { return .skipped(.deviceLocked) }
         let before = await sourceFileIDs()
         guard !isRunning, let report = await run(scope: kind.scope, background: true) else {
             return isRunning ? .skipped(.alreadyRunning) : BackgroundSyncReport(failure: messages.first ?? "Abgleich nicht möglich.")
@@ -241,7 +256,7 @@ final class BackgroundSyncController: ObservableObject {
     /// Abgleich des Containers (Tests: gefaelschter Abgleich)
     var target: (ActiveContainer) -> BackgroundSyncable?
     /// Gnadenfrist nach dem Ablauf, bevor die Aufgabe auch ohne Ende des Laufs abgeschlossen wird
-    var graceNanos: UInt64 = 2_000_000_000
+    var graceNanos: UInt64 = 1_000_000_000
     /// Hintergrundaktualisierung in den iPad-Einstellungen (Karte: Hinweis, wenn aus)
     var refreshStatus: () -> UIBackgroundRefreshStatus = { UIApplication.shared.backgroundRefreshStatus }
 
@@ -280,28 +295,43 @@ final class BackgroundSyncController: ObservableObject {
         }
     }
 
-    /// Beide Aufgaben auf den naechsten Zeitpunkt 8, 15 oder 20 Uhr Ortszeit legen (ersetzt bestellte); ausgeschaltet:
-    /// beide abbestellen. Unter XCTest und mit Startargumenten fuer Bildvergleiche geschieht nichts.
-    func schedule() {
-        guard allowed() else { return }
+    /// Beide Aufgaben auf den naechsten Zeitpunkt 8, 15 oder 20 Uhr Ortszeit legen; ein bestellter, nicht spaeterer
+    /// Termin bleibt (`keepsPending`), `ran` (die eben gestartete Aufgabe) bestellt immer neu. Ausgeschaltet: beide
+    /// abbestellen. Unter XCTest und mit Startargumenten fuer Bildvergleiche geschieht nichts (Tests setzen `allowed`).
+    /// Rueckgabe: neu bestellte Termine (Tests).
+    @discardableResult
+    func schedule(ran: BackgroundSyncKind? = nil) async -> [BackgroundSyncKind: Date] {
+        guard allowed() else { return [:] }
         guard settings.enabled else {
             for k in BackgroundSyncKind.allCases { scheduler.cancel(k) }
             nextPlanned = nil
-            return
+            return [:]
         }
         let at = BackgroundSchedule.next(after: now(), timeZone: timeZone())
-        var planned = false
+        let pending = await scheduler.pending()
+        // inzwischen ausgeschaltet (Schalter waehrend der Abfrage): nichts bestellen
+        guard settings.enabled else { return [:] }
+        var submitted: [BackgroundSyncKind: Date] = [:]
+        var earliest: [Date] = []
         for k in BackgroundSyncKind.allCases {
+            if k != ran, let p = pending[k], BackgroundSchedule.keepsPending(p, next: at) {
+                earliest.append(p ?? at)
+                continue
+            }
             // abgelehnt (Hintergrundaktualisierung aus, Simulator, zu viele Termine): beim naechsten Planen erneut
-            if (try? scheduler.submit(k, earliest: at)) != nil { planned = true }
+            if (try? scheduler.submit(k, earliest: at)) != nil {
+                submitted[k] = at
+                earliest.append(at)
+            }
         }
-        nextPlanned = planned ? at : nil
+        nextPlanned = earliest.min()
+        return submitted
     }
 
     /// Schalter "Im Hintergrund abgleichen"
     func setEnabled(_ on: Bool) {
         settings.enabled = on
-        schedule()
+        Task { await schedule() }
     }
 
     /// Schalter "Benachrichtigen bei neuen Dateien": erst hier fragt iOS nach der Erlaubnis. false, wenn sie fehlt
@@ -323,10 +353,9 @@ final class BackgroundSyncController: ObservableObject {
         init(_ task: BackgroundTaskHandle) { self.task = task }
     }
 
-    /// Start durch iOS: naechsten Termin gleich bestellen (auch wenn dieser Lauf abbricht oder die App beendet wird),
-    /// Lauf starten, Ablauf bricht ihn ab, genau ein Abschluss; danach erneut planen
+    /// Start durch iOS: naechsten Termin dieser Aufgabe gleich bestellen (auch wenn dieser Lauf abbricht oder die App
+    /// beendet wird), Lauf starten, Ablauf bricht ihn ab, genau ein Abschluss; danach erneut planen (`perform`)
     func handle(_ task: BackgroundTaskHandle, kind: BackgroundSyncKind) {
-        schedule()
         let box = TaskBox(task)
         let run = BackgroundTaskRun(graceNanos: graceNanos) { end in
             box.task.setTaskCompleted(success: end == .finished(success: true))
@@ -335,6 +364,7 @@ final class BackgroundSyncController: ObservableObject {
         task.expirationHandler = { run.expire() }
         run.start { [weak self] in
             guard let self else { return false }
+            await self.schedule(ran: kind)
             return await self.perform(kind, expired: { run.isExpired })
         }
     }
@@ -342,7 +372,12 @@ final class BackgroundSyncController: ObservableObject {
     /// Ein Hintergrundlauf auf dem offenen Container. Rueckgabe: Erfolg fuer `setTaskCompleted`.
     @discardableResult
     func perform(_ kind: BackgroundSyncKind, expired: @escaping () -> Bool = { false }) async -> Bool {
-        defer { schedule() }                                     // nach jedem Lauf neu planen
+        let ok = await performRun(kind, expired: expired)
+        await schedule()                                         // nach jedem Lauf neu planen
+        return ok
+    }
+
+    private func performRun(_ kind: BackgroundSyncKind, expired: @escaping () -> Bool) async -> Bool {
         let c = containers.active
         let target = c.flatMap { self.target($0) }
         let situation = BackgroundSyncSituation(
@@ -365,8 +400,8 @@ final class BackgroundSyncController: ObservableObject {
         for s in target.usableSources { state.sessionUsable(s) }
         var report = await target.runInBackground(kind)
         if expired() { report.cancelled = true }
-        // Container inzwischen geloescht: nichts mehr hineinschreiben, nichts melden
-        guard c.layout.exists() else { return false }
+        // Container inzwischen geloescht (oder geloescht und leer neu angelegt): nichts mehr hineinschreiben, nichts melden
+        guard owns(c) else { return false }
         if report.skipped == nil, containers.active === c, settings.notify, await notifier.isAllowed() {
             let thread = c.layout.identifier.uuidString
             if let n = BackgroundNotice.newFiles(report.newFiles, source: target.fileSource) {
@@ -378,11 +413,19 @@ final class BackgroundSyncController: ObservableObject {
                 due.forEach(state.markLoginNoticeSent)
             }
         }
-        if c.layout.exists() {
+        if owns(c) {
             state.record(BackgroundSyncRecord(finishedAt: now(), kind: kind, outcome: BackgroundSyncRecord.outcome(report)))
         }
         revision += 1
-        return report.skipped == nil && !report.cancelled && report.failure == nil
+        return report.skipped != nil || (!report.cancelled && report.failure == nil)
+    }
+
+    /// Darf ein Lauf noch in seinen Container schreiben? Nur, wenn es ihn noch gibt und er nicht inzwischen geloescht
+    /// und unter demselben Schluessel leer neu geoeffnet wurde (Daten der Hochschule geloescht)
+    private func owns(_ c: ActiveContainer) -> Bool {
+        guard c.layout.exists() else { return false }
+        if let a = containers.active, a.key == c.key { return a === c }
+        return true
     }
 
     // MARK: Anzeige

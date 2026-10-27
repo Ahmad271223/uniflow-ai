@@ -40,6 +40,16 @@ public enum BackgroundSchedule {
         // nur bei einer kaputten Zeitzone: einen Tag spaeter
         return now.addingTimeInterval(24 * 3600)
     }
+
+    /// Einen schon bestellten Termin (`earliest`, nil = ohne Uhrzeit) behalten statt ihn durch `next` zu ersetzen?
+    /// Ja, wenn er nicht spaeter liegt, auch ein ueberfaelliger (iOS darf ihn ab jetzt jederzeit starten): ersetzen
+    /// hiesse ihn nach hinten schieben, und der lange Lauf mit Downloads kaeme nie dran, weil jeder kurze Lauf neu
+    /// plant. Ein spaeterer (z. B. nach dem Wechsel der Zeitzone) wird ersetzt. Die gerade gelaufene Aufgabe bestellt
+    /// immer neu (ihr Termin ist verbraucht).
+    public static func keepsPending(_ earliest: Date?, next: Date) -> Bool {
+        guard let earliest else { return true }
+        return earliest <= next
+    }
 }
 
 /// Umfang eines Hochschul-Abgleichs
@@ -73,6 +83,8 @@ public enum BackgroundSkipReason: String, Sendable, Codable, Equatable {
     /// keine gueltige Sitzung (nie angemeldet, abgemeldet, als abgelaufen bekannt): nie eine Anmeldeseite, nie
     /// Zugangsdaten
     case noSession
+    /// iPad gesperrt und die Sitzung nur entsperrt lesbar (Learnweb-Schluessel im Schluesselbund, WhenUnlocked)
+    case deviceLocked
 
     /// Anzeige in den Einstellungen
     public var text: String {
@@ -82,6 +94,7 @@ public enum BackgroundSkipReason: String, Sendable, Codable, Equatable {
         case .switching: return "Wechsel von Konto oder Hochschule"
         case .alreadyRunning: return "ein Abgleich lief bereits"
         case .noSession: return "keine gültige Anmeldung"
+        case .deviceLocked: return "iPad gesperrt"
         }
     }
 }
@@ -237,6 +250,11 @@ public enum BackgroundNotice {
     public struct Content: Equatable, Sendable {
         public let title: String
         public let body: String
+
+        public init(title: String, body: String) {
+            self.title = title
+            self.body = body
+        }
     }
 
     /// Text auf dem Sperrbildschirm, wenn die Vorschau ausgeblendet ist (iOS-Einstellung "Vorschauen")
