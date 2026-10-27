@@ -535,6 +535,109 @@ final class HildesheimSyncTests: XCTestCase {
         let path = try XCTUnwrap(current)
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), v2)
     }
+
+    // MARK: Hintergrund (S8)
+
+    /// Kurzer Hintergrundlauf (BGAppRefreshTask): Kurse, Dateilisten und Stundenplan in die Datenbank, aber kein
+    /// Download; die Dateien warten (`waiting`) und kommen mit dem naechsten vollen Lauf. Die neuen Dateien ergeben
+    /// sich aus dem Unterschied der Kennungen vorher und nachher.
+    func testListsOnlyRunStoresListsWithoutDownloadsAndTheFullRunLoadsThem() async throws {
+        let (db, layout) = try await container()
+        let t = FakeUniTransport()
+        let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
+        restRoutes(t, contentsByCourse: [35: contents, 39: .array([])], courses: [35, 39])
+        t.on("\(base)/webservice/pluginfile.php/5", ok("%PDF-1.7 plan"))
+        t.on("\(base)/webservice/pluginfile.php/6", ok("%PDF-1.7 einfuehrung"))
+        lsfRoutes(t, plan: try repo("packages/shared-contracts/fixtures/hildesheim/lsf-plan.ics"))
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                  lsf: LSFClient(transport: t, retry: noWait), transport: t, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)))
+        let before = try await db.withConnection { try UniStore.sourceFileIDs($0) }
+        let r1 = await sync.run(includeGrades: false, downloads: false)
+        XCTAssertTrue(r1.ok, r1.messages.joined(separator: "; "))
+        XCTAssertEqual(r1.newFiles, [], "nichts geladen")
+        XCTAssertEqual(r1.waiting, 2)
+        XCTAssertEqual(t.count("\(base)/webservice/pluginfile.php"), 0, "kein Download im kurzen Lauf")
+        XCTAssertEqual(r1.completed, ["Learnweb", "LSF-Stundenplan"], "Listen und Stundenplan fertig, keine Noten")
+        XCTAssertNil(r1.grades)
+        XCTAssertTrue(r1.messages.contains("0 neue/geänderte Dateien aus 2 Learnweb-Kursen, 2 Dateien warten auf den Download"), "\(r1.messages)")
+        let after = try await db.withConnection { try UniStore.sourceFileIDs($0) }
+        XCTAssertEqual(after.subtracting(before).count, 2, "zwei neue Dateien fuer die Benachrichtigung")
+        let listed = try await db.rows("SELECT local_path FROM files WHERE course_id LIKE 'lw-%'")
+        XCTAssertEqual(listed.count, 2)
+        XCTAssertTrue(listed.allSatisfy { $0["local_path"]?.isNull ?? true }, "noch keine Ablage")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.learnweb.appendingPathComponent("files").path))
+        let plan = try await db.scalar("SELECT COUNT(*) FROM course_events WHERE source='lsf'")?.int
+        XCTAssertEqual(plan, 4, "Stundenplan im kurzen Lauf")
+
+        // der volle Lauf (BGProcessingTask oder beim Oeffnen) laedt die wartenden Dateien; neu sind sie nicht mehr
+        let r2 = await sync.run(includeGrades: false)
+        XCTAssertEqual(r2.newFiles.count, 2)
+        XCTAssertEqual(r2.waiting, 0)
+        let again = try await db.withConnection { try UniStore.sourceFileIDs($0) }
+        XCTAssertEqual(again, after, "keine weiteren neuen Dateien")
+        let loaded = try await db.scalar("SELECT COUNT(*) FROM files WHERE course_id LIKE 'lw-%' AND local_path IS NOT NULL")?.int
+        XCTAssertEqual(loaded, 2)
+    }
+
+    /// Download haelt an, bis der Lauf abgebrochen wird (wie der expirationHandler von iOS ueber Task.cancel)
+    private final class StallingTransport: UniTransport, @unchecked Sendable {
+        let inner: FakeUniTransport
+        private let lock = NSLock()
+        private var reached = false
+        init(_ inner: FakeUniTransport) { self.inner = inner }
+        var downloadReached: Bool { lock.withLock { reached } }
+        func send(_ request: UniRequest) async throws -> UniResponse { try await inner.send(request) }
+        func download(_ request: UniRequest, to destination: URL) async throws -> UniResponse {
+            // die halbe Datei liegt schon im Zwischenordner, als die Zeit ablaeuft
+            try Data("%PDF-1.7 halb".utf8).write(to: destination)
+            lock.withLock { reached = true }
+            try await Task.sleep(nanoseconds: 20_000_000_000)
+            return try await inner.download(request, to: destination)
+        }
+    }
+
+    /// Ablauf mitten im Download: der Lauf endet als abgebrochen, keine halbe Datei ist sichtbar (weder unter
+    /// `Learnweb/files` noch als Ablageort in der Datenbank), der Zwischenordner ist leer, die Dateilisten bleiben;
+    /// der naechste Lauf laedt die Datei vollstaendig
+    func testCancellationDuringDownloadLeavesNoHalfFile() async throws {
+        let (db, layout) = try await container()
+        let fake = FakeUniTransport()
+        let contents = try JSONValue.parse(repo("packages/shared-contracts/fixtures/hildesheim/learnweb-course-contents.json"))
+        restRoutes(fake, contentsByCourse: [35: contents], courses: [35])
+        fake.on("\(base)/webservice/pluginfile.php/5", ok("%PDF-1.7 plan"))
+        fake.on("\(base)/webservice/pluginfile.php/6", ok("%PDF-1.7 einfuehrung"))
+        let t = StallingTransport(fake)
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        let sync = HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: t, retry: noWait),
+                                  lsf: nil, transport: t, clock: clock, retry: noWait)
+        let run = Task { await sync.run(includeGrades: false) }
+        let end = Date().addingTimeInterval(5)
+        while !t.downloadReached, Date() < end { try await Task.sleep(nanoseconds: 5_000_000) }
+        XCTAssertTrue(t.downloadReached)
+        run.cancel()
+        let r = await run.value
+        XCTAssertTrue(r.cancelled)
+        XCTAssertEqual(r.newFiles, [])
+        XCTAssertFalse(r.completed.contains("Learnweb"))
+        let paths = try await db.rows("SELECT local_path FROM files WHERE course_id='lw-35'")
+        XCTAssertEqual(paths.count, 2, "Dateilisten bleiben")
+        XCTAssertTrue(paths.allSatisfy { $0["local_path"]?.isNull ?? true }, "nichts als geladen eingetragen")
+        let folder = layout.learnweb
+        let visible = (try? FileManager.default.subpathsOfDirectory(atPath: folder.appendingPathComponent("files").path)) ?? []
+        XCTAssertEqual(visible, [], "keine halbe Datei sichtbar")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: UniDownloads.partial(in: folder).path), "Zwischenordner weg")
+        let log = try await db.rows("SELECT ok FROM sync_log ORDER BY id DESC LIMIT 1")
+        XCTAssertEqual(log.first?["ok"]?.int, 0)
+
+        // naechster Lauf: vollstaendige Dateien
+        let r2 = await HildesheimSync(db: db, container: layout, learnweb: LearnwebAPI(base: base, mode: .token(tok), transport: fake, retry: noWait),
+                                      lsf: nil, transport: fake, clock: clock, retry: noWait).run(includeGrades: false)
+        XCTAssertEqual(r2.newFiles.count, 2)
+        let stored = try await db.rows("SELECT local_path FROM files WHERE course_id='lw-35' ORDER BY name")
+        let first = try XCTUnwrap(stored.first?["local_path"]?.string)
+        let text = try String(contentsOf: layout.root.appendingPathComponent(first), encoding: .utf8)
+        XCTAssertTrue(text == "%PDF-1.7 einfuehrung" || text == "%PDF-1.7 plan", text)
+    }
 }
 
 // MARK: - Fristen und Ankuendigungen im Abgleich (hildesheim.sync_deadlines, sync_announcements)

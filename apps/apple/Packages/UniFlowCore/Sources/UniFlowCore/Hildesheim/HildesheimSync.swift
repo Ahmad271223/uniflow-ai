@@ -171,6 +171,8 @@ public actor HildesheimSync {
         public var cancelled = false
         /// Learnweb-Kurse, die wegen abgelaufener Anmeldung oder Abbruch nicht (fertig) abgefragt wurden
         public var notAttempted: [String] = []
+        /// nur Listen (`downloads: false`, Hintergrund S8): Dateien, die der naechste volle Abgleich laedt
+        public var waiting = 0
         /// Container oder Datenbank gehoeren nicht zur Uni Hildesheim bzw. diesem Konto: nichts abgeglichen
         public var refused: String?
         /// Teile, die ohne Fehler zu Ende gelaufen sind (`Part`), in dieser Reihenfolge; fuer den Stand je Quelle in
@@ -231,8 +233,10 @@ public actor HildesheimSync {
             ?? (error as NSError).localizedDescription
     }
 
-    /// semesterFilter: nur Kurse, deren Semester den Text enthaelt (wie HILDESHEIM_SEMESTER_FILTER)
-    public func run(semesterFilter: String? = nil, includeGrades: Bool = true) async -> Report {
+    /// semesterFilter: nur Kurse, deren Semester den Text enthaelt (wie HILDESHEIM_SEMESTER_FILTER). `downloads: false`
+    /// (kurzer Hintergrundlauf, S8): Kurse und Dateilisten wie immer in die Datenbank, aber keine Downloads; die
+    /// Dateien stehen in `waiting` und kommen mit dem naechsten vollen Abgleich.
+    public func run(semesterFilter: String? = nil, includeGrades: Bool = true, downloads: Bool = true) async -> Report {
         var report = Report()
         if let problem = await refusal() {
             report.refused = problem
@@ -241,7 +245,7 @@ public actor HildesheimSync {
         }
         let started = clock.nowISO
         if let learnweb {
-            let courses = await syncLearnweb(learnweb, filter: semesterFilter, into: &report)
+            let courses = await syncLearnweb(learnweb, filter: semesterFilter, loadFiles: downloads, into: &report)
             // wie run_sync am PC: Fristen und Ankuendigungen nach den Dateien; ein Fehler dort stoppt den Lauf nicht,
             // nach abgelaufener Anmeldung oder Abbruch wird nichts mehr gefragt
             if let courses, !report.cancelled, !Task.isCancelled, !report.needsLogin.contains("Learnweb") {
@@ -281,7 +285,7 @@ public actor HildesheimSync {
 
     /// Liefert die abgeglichenen Kurse (fuer Fristen und Ankuendigungen); nil, wenn die Kursliste oder kein Kurs
     /// lesbar war (Learnweb gestoert: dann auch keine weiteren Anfragen)
-    private func syncLearnweb(_ api: LearnwebAPI, filter: String?, into report: inout Report) async -> [Learnweb.Course]? {
+    private func syncLearnweb(_ api: LearnwebAPI, filter: String?, loadFiles: Bool, into report: inout Report) async -> [Learnweb.Course]? {
         let courses: [Learnweb.Course]
         let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: "Learnweb")
         defer { downloads.end() }
@@ -328,6 +332,12 @@ public actor HildesheimSync {
                 let todo = try await db.transaction { conn in
                     try UniStore.storeFiles(conn, courseID: c.id, list.map(\.row), now: now, fileExists: { files.exists(stored: $0) })
                 }
+                // nur Listen: die Dateien laedt der naechste volle Abgleich (beim Oeffnen der App oder im langen
+                // Hintergrundlauf mit Netz)
+                guard loadFiles else {
+                    report.waiting += todo.count
+                    continue
+                }
                 for row in todo {
                     guard let f = list.first(where: { $0.id == row.id }) else { continue }
                     do {
@@ -355,7 +365,8 @@ public actor HildesheimSync {
         let allUnreadable = !courses.isEmpty && report.failedCourses.count == courses.count
         if report.notAttempted.isEmpty, !allUnreadable { report.completed.append(Report.Part.learnweb) }
         report.messages.append(Self.learnwebMessage(courses: courses.count, newFiles: report.newFiles.count,
-                                                    failedFiles: report.failedFiles.count, failedCourses: report.failedCourses.count))
+                                                    failedFiles: report.failedFiles.count, failedCourses: report.failedCourses.count,
+                                                    waiting: report.waiting))
         // Learnweb gestoert: keine weiteren Anfragen (Fristen, Ankuendigungen) in diesem Lauf
         return allUnreadable ? nil : courses
     }
@@ -409,13 +420,14 @@ public actor HildesheimSync {
     }
 
     /// Meldung des Learnweb-Teils fuer die Statusleiste
-    static func learnwebMessage(courses: Int, newFiles: Int, failedFiles: Int, failedCourses: Int) -> String {
+    static func learnwebMessage(courses: Int, newFiles: Int, failedFiles: Int, failedCourses: Int, waiting: Int = 0) -> String {
         if courses > 0, failedCourses == courses {
             return "Learnweb: kein Kurs lesbar (\(courses) \(courses == 1 ? "Kurs" : "Kurse")), später erneut"
         }
         var text = "\(newFiles) neue/geänderte Dateien aus \(courses) Learnweb-Kursen"
         if failedFiles > 0 { text += ", \(failedFiles) Dateien später erneut" }
         if failedCourses > 0 { text += ", \(failedCourses) Learnweb-\(failedCourses == 1 ? "Kurs" : "Kurse") nicht lesbar" }
+        if waiting > 0 { text += ", \(waiting) \(waiting == 1 ? "Datei wartet" : "Dateien warten") auf den Download" }
         return text
     }
 
