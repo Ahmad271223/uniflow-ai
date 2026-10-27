@@ -13,7 +13,7 @@ import unicodedata
 from collections import Counter
 from pathlib import Path
 
-from . import db, study
+from . import config, db, study
 
 import logging
 logging.getLogger("pypdf").setLevel(logging.ERROR)
@@ -95,15 +95,55 @@ def _extract_pages(path: str) -> list[str]:
     return pages
 
 
-def page_texts(conn, file_id: str) -> list[str]:
-    """Alle Seitentexte einer Datei (aus dem Zwischenspeicher, sonst neu gelesen)."""
+def _extract_bytes(data: bytes) -> list[str]:
+    import io
+    from pypdf import PdfReader
+    reader = PdfReader(io.BytesIO(data))
+    pages = []
+    for p in reader.pages:
+        try:
+            pages.append(p.extract_text() or "")
+        except Exception:  # noqa: BLE001
+            pages.append("")
+    return pages
+
+
+def index_bytes(conn, file_id: str, data: bytes, chdate) -> list[str]:
+    """Seitentexte aus Bytes (Betriebsart stream: Datei liegt nicht auf der Platte) ablegen, wenn noch nicht vorhanden."""
     ensure_table(conn)
-    f = db.row(conn, "SELECT local_path, chdate FROM files WHERE id=?", (file_id,))
-    if not f or not f["local_path"] or not Path(f["local_path"]).exists() or not f["local_path"].lower().endswith(".pdf"):
+    rows = db.rows(conn, "SELECT page, text, chdate FROM page_texts WHERE file_id=? ORDER BY page", (file_id,))
+    if rows and all((r["chdate"] or 0) == (chdate or 0) for r in rows):
+        return [r["text"] or "" for r in rows]
+    try:
+        pages = _extract_bytes(data)
+    except Exception:  # noqa: BLE001
+        return []
+    conn.execute("DELETE FROM page_texts WHERE file_id=?", (file_id,))
+    conn.executemany("INSERT INTO page_texts(file_id, page, text, chdate, search) VALUES (?,?,?,?,?)",
+                     [(file_id, i + 1, t, chdate, search_form(t)) for i, t in enumerate(pages)])
+    return pages
+
+
+def page_texts(conn, file_id: str) -> list[str]:
+    """Alle Seitentexte einer Datei (aus dem Zwischenspeicher, sonst neu gelesen; im Dienst ohne Datei auf der Platte
+    ueber app/filestream.py, das die Seitentexte beim Durchreichen ablegt)."""
+    ensure_table(conn)
+    f = db.row(conn, "SELECT local_path, chdate, name, download_url, course_id FROM files WHERE id=?", (file_id,))
+    if not f:
         return []
     rows = db.rows(conn, "SELECT page, text, chdate FROM page_texts WHERE file_id=? ORDER BY page", (file_id,))
     if rows and all((r["chdate"] or 0) == (f["chdate"] or 0) for r in rows):
         return [r["text"] or "" for r in rows]
+    has_file = f["local_path"] and Path(f["local_path"]).exists() and f["local_path"].lower().endswith(".pdf")
+    if not has_file:
+        if config.streams_files() and f["download_url"] and (f["name"] or "").lower().endswith(".pdf"):
+            from . import filestream
+            try:
+                filestream.content(conn, file_id)
+            except Exception:  # noqa: BLE001 - keine Sitzung, keine Datei: dann eben kein Text
+                return []
+            return [r["text"] or "" for r in db.rows(conn, "SELECT text FROM page_texts WHERE file_id=? ORDER BY page", (file_id,))]
+        return []
     try:
         pages = _extract_pages(f["local_path"])
     except Exception:  # noqa: BLE001

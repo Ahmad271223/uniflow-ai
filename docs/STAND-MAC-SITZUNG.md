@@ -450,3 +450,14 @@ und Community (G4) kommt **mit V2 für Windows/Android**. Folgen:
 - Die Mac-Sitzung arbeitet jetzt die Apple-Prüfpunkte 221–570 ab (je Punkt Beleg oder Test, Ergebnis unter
   `docs/audit/`), zieht Feiertage/Ferien-Lücken, Fristen, Ankündigungen und die pageOrder-Regel nach und schaltet
   danach „Designed for iPad“ auf Apple-Silicon-Macs frei.
+
+## Nachtrag der PC-Sitzung: Dienst speichert keine Hochschuldateien mehr (27.10.2026)
+
+Entscheidung des Inhabers („so wenig Speicher wie möglich“): Im gehosteten Dienst gilt `LERNAPP_FILES=stream` –
+der Abgleich merkt nur die Dateiliste, `GET /api/files/{id}/content` holt die Datei beim Öffnen mit der
+Hochschulsitzung des Kontos und reicht sie durch (`app/filestream.py`), nichts auf der Platte; behalten werden
+Fingerabdruck (`content_sha256`) und Seitentext. Für euch relevant, sobald der iPad-Client gegen den Dienst spricht
+(V2): Ladet ihr Dateien weiterhin direkt von Stud.IP aufs iPad (empfohlen, bleibt so), holt `POST
+/api/files/{id}/fingerprint` → `{sha256}` den Community-Schlüssel vom Dienst, falls er ihn noch nicht kennt – oder
+ihr rechnet ihn wie bisher lokal. Fehlercodes beim Durchreichen: 409 `university_session_expired`, 502
+`university_login_failed`, 413 `too_large`. Der PC-Modus und eure lokale Ablage bleiben unverändert.

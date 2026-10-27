@@ -157,6 +157,12 @@ def run_sync(show_browser: bool = False) -> dict:
             try:
                 page = ctx.new_page()
                 client, courses, used_token = _learnweb_client(page, user, pw, token)
+                if not used_token:
+                    try:
+                        from . import filestream
+                        filestream.save_cookies("LEARNWEB_COOKIES", ctx.cookies())   # Dienst: CAS-Sitzung fuer das Durchreichen
+                    except Exception as e:  # noqa: BLE001
+                        log(f"Learnweb-Sitzung nicht gemerkt: {e}")
                 n = sync_learnweb(page, client, courses, used_token, started, new_files)
                 parts.append(f"{len(new_files)} neue/geaenderte Dateien aus {n} Learnweb-Kursen")
                 try:

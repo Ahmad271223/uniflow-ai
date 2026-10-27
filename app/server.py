@@ -12,11 +12,11 @@ from pathlib import Path
 from datetime import datetime
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, community_api, config, db, jobs, legal, planner, retention, study, timetable, universities, vault
+from . import account_api, accounts, community_api, config, db, filestream, jobs, legal, planner, retention, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -511,18 +511,57 @@ def file_meta(file_id: str):
         return f
 
 
+def _stream_error(e: filestream.StreamError) -> HTTPException:
+    return HTTPException(e.status, {"detail": e.message, "code": e.code})
+
+
 @app.get("/api/files/{file_id}/content")
 def file_content(file_id: str):
     with db.cursor() as conn:
-        f = db.row(conn, "SELECT local_path, name, mime FROM files WHERE id=?", (file_id,))
-    if not f or not f["local_path"] or not Path(f["local_path"]).exists():
-        raise HTTPException(404, "Datei nicht lokal vorhanden")
+        f = db.row(conn, "SELECT local_path, name, mime, download_url, course_id FROM files WHERE id=?", (file_id,))
+    if not f:
+        raise HTTPException(404, "Datei nicht gefunden")
     mt = (f["mime"] or mimetypes.guess_type(f["name"])[0] or "application/octet-stream").split(";")[0].strip().lower()
-    if mt in _INLINE_TYPES:
-        return FileResponse(f["local_path"], media_type=mt, filename=f["name"], content_disposition_type="inline")
-    # HTML, SVG, Skripte usw. nie im Kontext der App anzeigen, sondern herunterladen
-    return FileResponse(f["local_path"], media_type="application/octet-stream", filename=f["name"],
-                        content_disposition_type="attachment")
+    if f["local_path"] and Path(f["local_path"]).exists():
+        if mt in _INLINE_TYPES:
+            return FileResponse(f["local_path"], media_type=mt, filename=f["name"], content_disposition_type="inline")
+        # HTML, SVG, Skripte usw. nie im Kontext der App anzeigen, sondern herunterladen
+        return FileResponse(f["local_path"], media_type="application/octet-stream", filename=f["name"],
+                            content_disposition_type="attachment")
+    if config.streams_files() and f["download_url"] and f["course_id"] != "__user__":
+        # Betriebsart stream (Dienst): Hochschuldatei mit der Sitzung des Kontos durchreichen, nichts speichern
+        try:
+            with db.cursor() as conn:
+                data, mime, _sha = filestream.content(conn, file_id)
+        except filestream.StreamError as e:
+            raise _stream_error(e)
+        mt = (mime or mt).split(";")[0].strip().lower()
+        from urllib.parse import quote
+        disp = "inline" if mt in _INLINE_TYPES else "attachment"
+        return Response(content=data, media_type=mt if disp == "inline" else "application/octet-stream",
+                        headers={"Content-Disposition": f"{disp}; filename*=UTF-8''{quote(f['name'] or 'datei')}", "Cache-Control": "private, max-age=600"})
+    raise HTTPException(404, "Datei nicht lokal vorhanden")
+
+
+@app.post("/api/files/{file_id}/fingerprint")
+def file_fingerprint(file_id: str):
+    """SHA-256 der Originaldatei (Community-Schluessel); im Dienst ohne Speicherung einmal durchreichen und merken."""
+    with db.cursor() as conn:
+        f = _found(db.row(conn, "SELECT local_path, content_sha256, download_url, course_id FROM files WHERE id=?", (file_id,)), "Datei")
+        if f["content_sha256"]:
+            return {"sha256": f["content_sha256"], "source": "bekannt"}
+        if f["local_path"] and Path(f["local_path"]).exists():
+            from .testshare import file_sha256
+            sha = file_sha256(Path(f["local_path"]))
+            conn.execute("UPDATE files SET content_sha256=? WHERE id=?", (sha, file_id))
+            return {"sha256": sha, "source": "datei"}
+        if config.streams_files() and f["download_url"] and f["course_id"] != "__user__":
+            try:
+                _data, _mime, sha = filestream.content(conn, file_id)
+            except filestream.StreamError as e:
+                raise _stream_error(e)
+            return {"sha256": sha, "source": "hochschule"}
+    raise HTTPException(404, {"detail": "Datei nicht vorhanden.", "code": "no_content"})
 
 
 @app.patch("/api/files/{file_id}")
@@ -632,18 +671,19 @@ def get_asset(file_id: str, name: str):
 
 @app.get("/api/files/{file_id}/pagetext")
 def page_text(file_id: str, page: int = 1):
+    """Text einer Seite aus dem Seitentext-Index (Datei auf der Platte oder, im Dienst, beim Durchreichen abgelegt)."""
+    from . import scriptsearch
     with db.cursor() as conn:
-        f = db.row(conn, "SELECT local_path FROM files WHERE id=?", (file_id,))
-    if not f or not f["local_path"] or not Path(f["local_path"]).exists():
-        raise HTTPException(404)
-    try:
-        from pypdf import PdfReader
-        reader = PdfReader(f["local_path"])
-        if page < 1 or page > len(reader.pages):
-            return {"text": "", "pages": len(reader.pages)}
-        return {"text": reader.pages[page - 1].extract_text() or "", "pages": len(reader.pages)}
-    except Exception as e:  # noqa: BLE001
-        return {"text": "", "error": str(e)}
+        _found(db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)), "Datei")
+        try:
+            pages = scriptsearch.page_texts(conn, file_id)
+        except Exception as e:  # noqa: BLE001
+            return {"text": "", "error": str(e)}
+    if not pages:
+        raise HTTPException(404, {"detail": "Kein Seitentext vorhanden.", "code": "no_content"})
+    if page < 1 or page > len(pages):
+        return {"text": "", "pages": len(pages)}
+    return {"text": pages[page - 1], "pages": len(pages)}
 
 
 # ----------------------------------------------------------------------------

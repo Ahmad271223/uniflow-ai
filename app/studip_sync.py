@@ -549,13 +549,17 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
     Datenbank bestaetigen (Commit) -> erst dann die alte Datei entfernen. Scheitert etwas dazwischen, kommt die alte
     Datei zurueck und die Datenbank bleibt bei der alten Fassung."""
     now = int(time.time()) if now is None else now
+    stream = config.streams_files()                   # Dienst: nur die Liste, Inhalt holt app/filestream.py bei Bedarf
     for f in files:
         existing = db.row(conn, "SELECT chdate, local_path, revision, first_seen FROM files WHERE id=?", (f["id"],))
         if existing and existing["local_path"]:
             reconcile_backup(conn, f["id"], Path(existing["local_path"]))
         chdate, newer = version_stamp(existing, f, now)
         f = {**f, "chdate": chdate, "revision": f.get("revision")}
-        changed = existing is None or newer or not existing["local_path"] or not Path(existing["local_path"]).exists()
+        if stream:
+            changed = existing is None or newer
+        else:
+            changed = existing is None or newer or not existing["local_path"] or not Path(existing["local_path"]).exists()
         if existing is None:
             conn.execute(
                 """INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind, revision)
@@ -575,6 +579,18 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
             )
         if f["id"] in folder_paths:
             conn.execute("UPDATE files SET studip_folder=? WHERE id=?", (folder_paths[f["id"]], f["id"]))
+        if changed and stream:
+            # neue oder geaenderte Fassung: Kopfdaten uebernehmen, alten Fingerabdruck und Seitentext verwerfen,
+            # keine Datei auf der Platte (Betriebsart stream)
+            conn.execute("UPDATE files SET size=COALESCE(?, size), mime=?, chdate=?, revision=?, local_path=NULL, "
+                         "downloaded_at=NULL, content_sha256=NULL WHERE id=?",
+                         (f["size"], f["mime"], f["chdate"], f["revision"], f["id"]))
+            from . import scriptsearch
+            scriptsearch.ensure_table(conn)
+            conn.execute("DELETE FROM page_texts WHERE file_id=?", (f["id"],))
+            new_files.append(f["id"])
+            log(f"Neu: {c['title'][:40]} / {f['name']}")
+            continue
         if changed:
             target = _files_dir() / safe_name(subject_dir(c["title"])) / safe_name(f["name"])
             other = db.row(conn, "SELECT id FROM files WHERE local_path=? AND id<>?", (str(target), f["id"]))
@@ -640,6 +656,11 @@ def run_studip_sync(show_browser: bool = False) -> dict:
             )
             page = ctx.new_page()
             login(page)
+            try:
+                from . import filestream
+                filestream.save_studip_cookies(ctx.cookies())      # Dienst: Sitzung fuer das Durchreichen von Dateien
+            except Exception as e:  # noqa: BLE001
+                log(f"Sitzung nicht gemerkt: {e}")
 
             courses = fetch_courses(page)
             if SEMESTER_FILTER:
