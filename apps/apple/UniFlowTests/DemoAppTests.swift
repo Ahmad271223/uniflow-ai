@@ -59,6 +59,7 @@ final class DemoAppTests: XCTestCase {
         XCTAssertEqual(DemoTexts.firstStart, "Ohne Hochschulkonto ansehen (Demo)")
         XCTAssertEqual(DemoTexts.summary(["files": 3, "events": 3, "packages": 3]), "3 PDFs · 3 Termine · 3 Lernpakete")
         XCTAssertEqual(DemoTexts.summary(["files": 1, "events": 1, "packages": 1]), "1 PDF · 1 Termin · 1 Lernpaket")
+        XCTAssertTrue(DemoTexts.syncBlocked.contains("Einstellungen → Erweitert"), "Sync im Demo-Betrieb: Weg zum Entfernen")
     }
 
     /// Weiche der Seiten: mit Demo keine Karte zum Verbinden, keine Statusleiste, die Seiten selbst
@@ -322,7 +323,7 @@ final class DemoAppTests: XCTestCase {
         XCTAssertTrue(shows(page.view, "Erweitert"))
         XCTAssertTrue(tap(DemoTexts.install, in: page.view), texts(page.view).joined(separator: "\n"))
         await eventually({ m.demoActive && self.shows(page.view, DemoTexts.remove) }, texts(page.view).joined(separator: "\n"))
-        XCTAssertEqual(page.toast.message, "Demo angelegt: 3 PDFs · 3 Termine · 3 Lernpakete")
+        XCTAssertEqual(page.toast.message, "Demo angelegt: 3 PDFs, 3 Termine, 3 Lernpakete", "wie im Web")
         await eventually({ self.shows(page.view, "3 PDFs · 3 Termine · 3 Lernpakete") }, texts(page.view).joined(separator: "\n"))
         XCTAssertTrue(tap(DemoTexts.remove, in: page.view))
         await eventually({ page.overlay.ask != nil })
