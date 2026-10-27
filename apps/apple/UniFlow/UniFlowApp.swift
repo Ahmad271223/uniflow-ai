@@ -15,6 +15,8 @@ struct UniFlowApp: App {
     @StateObject private var toast = UFToastCenter()
     @StateObject private var overlay = UFOverlay()
     @StateObject private var timer = StudyTimer()
+    /// Abgleich im Hintergrund (S8): Aufgaben bei iOS, Termine fruehestens 8, 15 und 20 Uhr
+    @StateObject private var background: BackgroundSyncController
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue     // wie localStorage "theme" im Web
     @Environment(\.scenePhase) private var scenePhase
 
@@ -34,9 +36,17 @@ struct UniFlowApp: App {
         c.sync(account: a)                                                // alte Daten umziehen, Container der Hochschule oeffnen
         let s = Session(local: c.active?.api ?? .local(.unavailable))
         c.onChange = { [weak s] container in s?.useLocal(container?.api ?? .local(.unavailable)) }
+        // Hintergrundaufgaben vor dem Ende des App-Starts bei iOS anmelden, dann den naechsten Termin bestellen ("beim
+        // Start"); nie unter XCTest (Tests bauen eigene mit Attrappen)
+        let b = BackgroundSyncController(containers: c, account: a)
+        if !StudIPSync.isUnderTest() {
+            b.register()
+            b.schedule()
+        }
         _account = StateObject(wrappedValue: a)
         _containers = StateObject(wrappedValue: c)
         _session = StateObject(wrappedValue: s)
+        _background = StateObject(wrappedValue: b)
     }
 
     var body: some Scene {
@@ -51,6 +61,7 @@ struct UniFlowApp: App {
                 .environmentObject(containers.studip)                     // Abgleich des offenen Containers
                 .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                 .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
+                .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
                 .environmentObject(router)
                 .environmentObject(shell)
                 .environmentObject(toast)
@@ -106,6 +117,8 @@ struct UniFlowApp: App {
                 containers.hildesheim?.runIfDue()
                 containers.qis?.runIfDue()
             }
+            // beim Wechsel in den Hintergrund den naechsten Termin 8/15/20 Uhr neu bestellen (S8)
+            if phase == .background { background.schedule() }
         }
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import os
+import UIKit
 import UniFlowCore
 import WebKit
 
@@ -23,6 +24,12 @@ import WebKit
 /// der Stand je Quelle ("Learnweb: 16:30 ok", "LSF: Anmeldung nötig"). Eine Quelle, die waehrend eines Laufs verbunden
 /// wird, bewertet erst der direkt folgende eigene Lauf. Vor dem Loeschen des Containers haelt `stop` einen laufenden
 /// Abgleich an und wartet auf sein Ende.
+///
+/// Im Hintergrund (S8, `BackgroundSyncController`, `run(scope:background:)`) nur die Quellen, deren Sitzung nicht als
+/// abgelaufen bekannt ist; kurz nur mit den Listen (Kurse, Dateilisten, LSF-Stundenplan; keine Downloads, keine Noten),
+/// lang wie beim Oeffnen. Der Learnweb-Schluessel ist nur bei entsperrtem iPad lesbar (WhenUnlocked): ist es gesperrt,
+/// bleibt Learnweb in diesem Lauf aussen vor und gilt nicht als abgemeldet. Ein Lauf nur mit Listen setzt nicht
+/// `lastRun`, sondern merkt sich wartende Downloads; der naechste Abgleich beim Oeffnen kommt dann sofort.
 @MainActor
 final class HildesheimConnection: ObservableObject {
     enum Source: String, CaseIterable, Identifiable {
@@ -69,6 +76,8 @@ final class HildesheimConnection: ObservableObject {
     private let retry: UniRetry
     /// nach einer Anmeldung sofort abgleichen (Tests schalten das ab)
     var syncsAfterSignIn = true
+    /// Daten mit Dateischutz lesbar (iPad entsperrt)? Nur der Hintergrund fragt (Learnweb-Schluessel, Tests: fest)
+    var protectedDataAvailable: @MainActor () -> Bool = { UIApplication.shared.isProtectedDataAvailable }
     /// laufender Abgleich (zum Anhalten vor dem Loeschen des Containers, `stop`)
     private var current: Task<HildesheimSync.Report?, Never>?
     /// angehalten (Container wird geloescht): kein weiterer Abgleich
@@ -103,6 +112,8 @@ final class HildesheimConnection: ObservableObject {
         static let lastRun = "uniflow.hildesheim.lastRun"
         static let messages = "uniflow.hildesheim.messages"
         static let gradesRun = "uniflow.hildesheim.grades.lastRun"
+        /// ein Lauf nur mit Listen (Hintergrund, S8) fand Learnweb-Dateien zum Laden; weg nach einem vollen Lauf
+        static let downloadsPending = "uniflow.hildesheim.downloadsPending"
         static func ok(_ s: Source) -> String { "uniflow.hildesheim.\(s.rawValue.lowercased()).ok" }
         static func login(_ s: Source) -> String { "uniflow.hildesheim.\(s.rawValue.lowercased()).login" }
     }
@@ -208,12 +219,29 @@ final class HildesheimConnection: ObservableObject {
 
     // MARK: Abgleich
 
-    /// Beim Oeffnen der App: hoechstens alle 30 Minuten, nur mit einer verbundenen Quelle
+    /// Ein Lauf nur mit Listen hat Learnweb-Dateien gefunden, die noch nicht geladen sind
+    var downloadsPending: Bool { defaults.bool(forKey: Keys.downloadsPending) }
+
+    /// Beim Oeffnen der App: hoechstens alle 30 Minuten (warten Dateien aus einem Lauf nur mit Listen: sofort), nur mit
+    /// einer verbundenen Quelle
     func runIfDue() {
         // dieselbe Regel wie beim Stud.IP-Abgleich: nie automatisch unter XCTest, -UFNoStudIPSync oder Startargumenten
         guard StudIPSync.automaticRunAllowed(), anyConnected, !isRunning else { return }
-        if let last = lastRun, clock.now.timeIntervalSince(last) < 30 * 60 { return }
+        if let last = lastRun, !downloadsPending, clock.now.timeIntervalSince(last) < 30 * 60 { return }
         Task { await run() }
+    }
+
+    /// Quellen, die ein Lauf bewertet: alle verbundenen; im Hintergrund nur die ohne bekannte abgelaufene Anmeldung
+    /// (nie eine Anmeldeseite, keine Anfrage mit einer toten Sitzung)
+    func sources(background: Bool) -> Set<Source> {
+        Set(Source.allCases.filter { isConnected($0) && (!background || state($0) != .needsLogin) })
+    }
+
+    /// Kennungen der Hochschul-Dateien in der Datenbank des Containers (Hintergrund: neue Dateien eines Laufs); nil,
+    /// wenn die Datenbank nicht lesbar ist
+    func sourceFileIDs() async -> Set<String>? {
+        guard let backend = try? await host.backend() else { return nil }
+        return try? await backend.context.database.withConnection { try UniStore.sourceFileIDs($0) }
     }
 
     /// Noten hoechstens alle 20 Stunden (wie am PC)
@@ -224,11 +252,12 @@ final class HildesheimConnection: ObservableObject {
 
     /// Ein Abgleich: Learnweb, danach LSF-Stundenplan und Noten (`HildesheimSync.run`). `forceGrades`: Noten auch vor
     /// Ablauf der 20 Stunden. Wurde waehrend des Laufs eine Quelle verbunden, folgt direkt danach ein weiterer Lauf.
+    /// `scope: .lists` (kurzer Hintergrundlauf): ohne Downloads und ohne Noten; `background`: nur `sources(background:)`.
     @discardableResult
-    func run(forceGrades: Bool = false) async -> HildesheimSync.Report? {
-        guard !isRunning, !stopped, anyConnected else { return nil }
+    func run(forceGrades: Bool = false, scope: UniSyncScope = .full, background: Bool = false) async -> HildesheimSync.Report? {
+        guard !isRunning, !stopped, !sources(background: background).isEmpty else { return nil }
         isRunning = true
-        let task = Task { await self.perform(forceGrades: forceGrades) }
+        let task = Task { await self.perform(forceGrades: forceGrades, scope: scope, background: background) }
         current = task
         let report = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         current = nil
@@ -251,23 +280,24 @@ final class HildesheimConnection: ObservableObject {
         _ = await task.value
     }
 
-    private func perform(forceGrades: Bool) async -> HildesheimSync.Report? {
+    private func perform(forceGrades: Bool, scope: UniSyncScope, background: Bool) async -> HildesheimSync.Report? {
         // nur die Quellen, die zu Beginn verbunden sind, bewertet dieser Lauf (vor dem ersten await festgehalten)
-        let sources = Set(Source.allCases.filter(isConnected))
+        let sources = self.sources(background: background)
         let before = (learnweb, lsf)
         for s in sources { set(s, .running) }
         let transport = await makeTransport(websiteDataStore)
         var lw = LearnwebAccess()
-        if sources.contains(.learnweb) { lw = await learnwebAccess(transport: transport) }
+        if sources.contains(.learnweb) { lw = await learnwebAccess(transport: transport, background: background) }
         let lsfClient = sources.contains(.lsf) ? LSFClient(transport: transport, retry: retry) : nil
-        let includeGrades = forceGrades || gradesDue
+        // Noten nicht im kurzen Hintergrundlauf (nur Listen), sonst hoechstens alle 20 Stunden
+        let includeGrades = scope == .full && (forceGrades || gradesDue)
         let database: SQLiteDatabase
         do {
             database = try await host.backend().context.database
         } catch {
             let message = LocalBackendHost.message(for: error)
             for s in sources.subtracting(connectedDuringRun) where isConnected(s) { set(s, .failed(message)) }
-            finish(messages: [message], report: nil, succeeded: false)
+            finish(messages: [message], report: nil, succeeded: false, scope: scope)
             return nil
         }
         var report = HildesheimSync.Report()
@@ -275,9 +305,9 @@ final class HildesheimConnection: ObservableObject {
             // Seitentexte mit PDFKit (Suche, Seitenzuordnung einer neuen Fassung, S7)
             report = await HildesheimSync(db: database, container: layout, learnweb: lw.api, lsf: lsfClient, transport: transport,
                                           clock: clock, retry: retry, tools: AppDocumentTools())
-                .run(includeGrades: includeGrades)
+                .run(includeGrades: includeGrades, downloads: scope == .full)
         }
-        apply(report, sources: sources.subtracting(connectedDuringRun), learnweb: lw, includeGrades: includeGrades, before: before)
+        apply(report, sources: sources.subtracting(connectedDuringRun), learnweb: lw, includeGrades: includeGrades, before: before, scope: scope)
         return report
     }
 
@@ -286,11 +316,17 @@ final class HildesheimConnection: ObservableObject {
         var api: LearnwebAPI?
         var loginNeeded = false
         var message: String?
+        /// in diesem Lauf aussen vor (Hintergrund bei gesperrtem iPad): Stand bleibt, kein "Anmeldung nötig"
+        var skipped = false
     }
 
     /// Learnweb-Zugang fuer diesen Lauf: Instanz des Semesters (`Learnweb.discoverBase`; nicht erreichbar: die beim
-    /// Verbinden gemerkte), Schluessel nur fuer die Instanz, bei der er geholt wurde
-    private func learnwebAccess(transport: UniTransport) async -> LearnwebAccess {
+    /// Verbinden gemerkte), Schluessel nur fuer die Instanz, bei der er geholt wurde. Im Hintergrund bei gesperrtem
+    /// iPad (Schluessel nicht lesbar) ohne Learnweb und ohne Anfrage.
+    private func learnwebAccess(transport: UniTransport, background: Bool) async -> LearnwebAccess {
+        if background, learnwebMode == .token, !protectedDataAvailable() {
+            return LearnwebAccess(message: "Learnweb: iPad gesperrt, Abgleich beim nächsten Öffnen", skipped: true)
+        }
         guard let mode = learnwebMode else { return LearnwebAccess() }
         let stored = defaults.string(forKey: Keys.learnwebBase)
         let found = await Learnweb.discoverBase(year: yearMonth.year, month: yearMonth.month, transport: transport)
@@ -315,7 +351,7 @@ final class HildesheimConnection: ObservableObject {
     /// Stand bleibt), sonst Fehler mit der Meldung des Kerns. Bewertet werden nur `sources` (zu Beginn des Laufs
     /// verbunden und nicht waehrend des Laufs neu angemeldet) und nur, solange sie noch verbunden sind.
     private func apply(_ r: HildesheimSync.Report, sources: Set<Source>, learnweb lw: LearnwebAccess, includeGrades: Bool,
-                       before: (State, State)) {
+                       before: (State, State), scope: UniSyncScope) {
         let now = clock.now
         let all = (lw.message.map { [$0] } ?? []) + r.messages
         func message(_ prefixes: [String]) -> String {
@@ -324,7 +360,10 @@ final class HildesheimConnection: ObservableObject {
         typealias Part = HildesheimSync.Report.Part
         var succeeded = !r.cancelled
         if sources.contains(.learnweb), isConnected(.learnweb) {
-            if lw.loginNeeded || r.needsLogin.contains(Source.learnweb.rawValue) {
+            if lw.skipped {
+                set(.learnweb, before.0)
+                succeeded = false
+            } else if lw.loginNeeded || r.needsLogin.contains(Source.learnweb.rawValue) {
                 set(.learnweb, .needsLogin)
                 succeeded = false
             } else if lw.api != nil, r.completed.contains(Part.learnweb) {
@@ -352,18 +391,21 @@ final class HildesheimConnection: ObservableObject {
             }
         }
         if r.completed.contains(Part.grades) { defaults.set(now, forKey: Keys.gradesRun) }
-        finish(messages: all, report: r, succeeded: succeeded)
+        if scope == .lists, r.waiting > 0 { defaults.set(true, forKey: Keys.downloadsPending) }
+        finish(messages: all, report: r, succeeded: succeeded, scope: scope)
     }
 
     /// Ende eines Laufs: Meldungen merken; die 30-Minuten-Sperre (`lastRun`) wie beim Stud.IP-Abgleich nur nach einem
-    /// Lauf ohne Fehler (vorher auch nach einem gescheiterten, dann wartete der naechste Versuch 30 Minuten)
-    private func finish(messages all: [String], report: HildesheimSync.Report?, succeeded: Bool) {
+    /// Lauf ohne Fehler (vorher auch nach einem gescheiterten, dann wartete der naechste Versuch 30 Minuten) und nur
+    /// nach einem vollen Lauf (einer nur mit Listen hat nichts geladen); der volle nimmt auch die wartenden Downloads mit
+    private func finish(messages all: [String], report: HildesheimSync.Report?, succeeded: Bool, scope: UniSyncScope) {
         lastReport = report
         messages = all
         defaults.set(all, forKey: Keys.messages)
-        guard succeeded else { return }
+        guard succeeded, scope == .full else { return }
         lastRun = clock.now
         defaults.set(lastRun, forKey: Keys.lastRun)
+        if defaults.object(forKey: Keys.downloadsPending) != nil { defaults.removeObject(forKey: Keys.downloadsPending) }
     }
 
     // MARK: Anzeige
