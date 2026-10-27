@@ -445,6 +445,10 @@ def _init_db(conn) -> None:
     add_col("annotations", "version", "INTEGER DEFAULT 1")
     add_col("files", "studip_folder", "TEXT")
     add_col("courses", "module_id", "INTEGER")
+    add_col("courses", "semester_end", "TEXT")          # Titel des letzten Semesters laut Stud.IP, 'unbegrenzt' oder NULL
+    add_col("courses", "semester_ends_at", "TEXT")      # Ende dieses Semesters (ISO) oder NULL
+    add_col("courses", "active_custom", "INTEGER DEFAULT 0")   # vom Nutzer selbst geschaltet: der Abgleich laesst es
+    add_col("modules", "active_custom", "INTEGER DEFAULT 0")
     add_col("files", "favorite", "INTEGER DEFAULT 0")
     add_col("files", "last_opened", "TEXT")
     add_col("files", "last_page", "INTEGER DEFAULT 1")
@@ -495,6 +499,9 @@ def _init_db(conn) -> None:
     # Doppelte Module aus dem Wettlauf in study.ensure_modules (27.10.2026) zusammenfuehren; danach ohne Wirkung
     from . import study
     study.merge_duplicate_modules(conn)
+    # Nur aktuelle Semester einplanen (28.10.2026, app/semesters.py): einmalig alle Kurse nach der Regel schalten
+    from . import semesters
+    semesters.migrate(conn)
 
 
 def ensure_term(conn, university: str) -> None:

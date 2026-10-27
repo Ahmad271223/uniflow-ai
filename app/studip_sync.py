@@ -155,18 +155,25 @@ def fetch_courses(page: Page) -> list[dict]:
                           headers={"Accept": "application/vnd.api+json"}).json()
     uid = me["data"]["id"]
     out = []
-    url = f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/courses?page[limit]=100&include=start-semester"
+    url = f"{STUDIP_BASE}/jsonapi.php/v1/users/{uid}/courses?page[limit]=100&include=start-semester,end-semester"
     while url:
         j = page.request.get(url, headers={"Accept": "application/vnd.api+json"}).json()
-        sems = {i["id"]: i["attributes"].get("title", "") for i in j.get("included", []) if i["type"] == "semesters"}
+        sems = {i["id"]: i.get("attributes") or {} for i in j.get("included", []) if i["type"] == "semesters"}
         for c in j["data"]:
             a = c["attributes"]
-            sem_id = (c.get("relationships", {}).get("start-semester", {}).get("data") or {}).get("id")
+            rel = c.get("relationships", {})
+            sem_id = (rel.get("start-semester", {}).get("data") or {}).get("id")
+            # Ende: Semester-ID, ausdruecklich keines (unbegrenzt) oder unbekannt (alte Stud.IP-Fassung ohne Angabe)
+            end_rel = rel.get("end-semester")
+            end_id = (end_rel.get("data") or {}).get("id") if end_rel else None
+            end = sems.get(end_id) if end_id else None
             out.append({
                 "id": c["id"],
                 "title": re.sub(r"\s+", " ", a.get("title", "")).strip(),
                 "number": (a.get("course-number") or "").strip() or None,
-                "semester": sems.get(sem_id, ""),
+                "semester": sems.get(sem_id, {}).get("title", ""),
+                "semester_end": end.get("title", "") if end else ("unbegrenzt" if end_rel and end_rel.get("data") is None else None),
+                "semester_ends_at": end.get("end") if end else None,
             })
         url = j.get("links", {}).get("next")
         if url and url.startswith("/"):
@@ -479,14 +486,18 @@ def upsert_course(conn, c: dict, started: str) -> None:
     """Kurs anlegen/aktualisieren; Fach und Art nur setzen, wenn noch leer (der Nutzer darf sie aendern)."""
     subject, kind = classify(c["title"])
     conn.execute(
-        """INSERT INTO courses(id, title, number, semester, subject, kind, created_at)
-           VALUES (?,?,?,?,?,?,?)
+        """INSERT INTO courses(id, title, number, semester, semester_end, semester_ends_at, subject, kind, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?)
            ON CONFLICT(id) DO UPDATE SET title=excluded.title, number=excluded.number,
-               semester=excluded.semester""",
-        (c["id"], c["title"], c["number"], c["semester"], subject, kind, started),
+               semester=excluded.semester, semester_end=COALESCE(excluded.semester_end, courses.semester_end),
+               semester_ends_at=COALESCE(excluded.semester_ends_at, courses.semester_ends_at)""",
+        (c["id"], c["title"], c["number"], c["semester"], c.get("semester_end"), c.get("semester_ends_at"), subject, kind, started),
     )
     conn.execute("UPDATE courses SET subject=COALESCE(subject, ?), kind=COALESCE(kind, ?) WHERE id=?",
                  (subject, kind, c["id"]))
+    # Nur aktuelle Kurse sind aktiv (app/semesters.py); eigene Entscheidungen des Nutzers bleiben
+    from . import semesters
+    semesters.apply_to_course(conn, c["id"], c["semester"], c.get("semester_end"), c.get("semester_ends_at"))
 
 
 BACKUP_SUFFIX = ".alt"
@@ -701,8 +712,6 @@ def run_studip_sync(show_browser: bool = False) -> dict:
 
             progress.report("Kurse lesen …")
             courses = fetch_courses(page)
-            if SEMESTER_FILTER:
-                courses = [c for c in courses if SEMESTER_FILTER.lower() in (c["semester"] or "").lower()]
             log(f"{len(courses)} Kurse gefunden.")
 
             with db.cursor() as conn:
@@ -715,6 +724,13 @@ def run_studip_sync(show_browser: bool = False) -> dict:
                     log(f"Persoenlicher Stundenplan nicht gelesen: {e}")
                 for c in courses:
                     upsert_course(conn, c, started)
+                # Termine, Ankuendigungen und Dateien nur fuer aktuelle Kurse (app/semesters.py); alte Semester bleiben
+                # als Kurs bekannt, kosten aber keinen Abruf, keinen Download und keine KI-Analyse mehr
+                active_ids = {r["id"] for r in db.rows(conn, "SELECT id FROM courses WHERE active=1")}
+                skipped = [c for c in courses if c["id"] not in active_ids]
+                if skipped:
+                    log(f"{len(skipped)} Kurse aus frueheren Semestern uebersprungen.")
+                courses = [c for c in courses if c["id"] in active_ids]
 
                 # Erst alle Listen (Termine, Ankuendigungen, Dateien), dann die Downloads: so steht vorher fest, wie
                 # viele Dateien kommen, und die Anzeige kann "Datei x von y" zeigen

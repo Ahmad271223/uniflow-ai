@@ -49,7 +49,7 @@ def ensure_modules(conn) -> None:
     ist ein einziges INSERT ... WHERE NOT EXISTS, das erst mit der Schreibsperre der Datenbank entscheidet, also auch
     zwischen Prozessen; dazu eine Sperre im Prozess. Die ID kommt danach immer aus der Datenbank."""
     with _modules_lock:
-        courses = db.rows(conn, "SELECT id, subject, kind, semester FROM courses WHERE module_id IS NULL")
+        courses = db.rows(conn, "SELECT id, subject, kind, semester FROM courses WHERE module_id IS NULL AND COALESCE(active, 1)=1")
         for c in courses:
             if c["kind"] == "sonstiges" or not c["subject"]:
                 continue
@@ -60,6 +60,8 @@ def ensure_modules(conn) -> None:
                          (name, c["semester"], colors.next_color(conn), db.now_iso(), name))
             mid = db.row(conn, "SELECT id FROM modules WHERE name=? ORDER BY id LIMIT 1", (name,))["id"]
             conn.execute("UPDATE courses SET module_id=? WHERE id=? AND module_id IS NULL", (mid, c["id"]))
+        from . import semesters
+        semesters.deactivate_stale_modules(conn)
 
 
 # Tabellen mit Verweis auf ein Modul (fuer merge_duplicate_modules)
