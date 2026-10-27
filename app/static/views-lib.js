@@ -1,6 +1,7 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
 import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=29";
 import { renderThumbnail, TEMPLATES } from "./editor.js?v=29";
+import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=29";
 
 const TYPE_FOLDERS = [["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["loesung", "Lösungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["sonstiges", "Sonstiges"]];
 const CHIPS = [["all", "Alle"], ["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["notes", "Notizen"], ["sonstiges", "Sonstiges"]];
@@ -113,10 +114,14 @@ function newMenu(path, current) {
 function notebookDialog(kind, moduleId, folderId) {
   const m = modal(`<h3>${kind === "whiteboard" ? "Neues Whiteboard" : "Neues Notizbuch"}</h3><label class="field">Titel<input class="input" id="nbTitle" value="${kind === "whiteboard" ? "Whiteboard" : "Notizen"}"></label>
     ${kind === "notebook" ? `<label class="field">Vorlage<div class="ed-tpl-grid" style="grid-template-columns:repeat(6,1fr)">${Object.entries(TEMPLATES).map(([k, n]) => `<button type="button" class="chip ${k === "lined" ? "on" : ""}" data-tpl="${k}" style="flex-direction:column"><i class="ed-tpl ${k}" style="width:38px;height:48px"></i>${n}</button>`).join("")}</div></label>` : ""}
+    <label class="field">Format<div class="row wrap" id="nbFormats">${kind === "whiteboard" ? Object.entries(WHITEBOARDS).map(([k, f]) => `<button type="button" class="chip ${k === "wb_a3" ? "on" : ""}" data-fmt="${k}" title="${f.hint || ""}">${f.name}</button>`).join("") : Object.entries(FORMATS).map(([k, f]) => `<button type="button" class="chip ${k === "a4" ? "on" : ""}" data-fmt="${k}">${f.name}</button>`).join("")}</div>${kind === "notebook" ? `<div class="seg" style="margin-top:.4rem"><button type="button" class="active" data-orient="portrait">Hoch</button><button type="button" data-orient="landscape">Quer</button></div>` : `<p class="muted tiny" style="margin:.3rem 0 0">Whiteboards sind quer; „Riesig“ braucht viel Arbeitsspeicher.</p>`}</label>
     <label class="field">Modul (optional)<select class="input" id="nbMod"><option value="">– keins –</option>${lib.modules.map(x => `<option value="${x.id}" ${x.id === moduleId ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label>
     <div class="modal-foot"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="nbOk">Erstellen</button></div>`);
-  let tpl = "lined"; $$("[data-tpl]", m).forEach(b => b.onclick = () => { tpl = b.dataset.tpl; $$("[data-tpl]", m).forEach(x => x.classList.toggle("on", x === b)); });
-  $("#nbOk", m).onclick = async () => { const fd = new FormData(); fd.append("kind", kind); fd.append("title", $("#nbTitle", m).value || "Notizen"); fd.append("template", tpl); if ($("#nbMod", m).value) fd.append("module_id", $("#nbMod", m).value); if (folderId) fd.append("folder_id", String(folderId)); const r = await api("/notebooks", { method: "POST", body: fd }); m.remove(); location.hash = `#/doc/${r.id}`; };
+  let tpl = "lined", fmt = kind === "whiteboard" ? "wb_a3" : "a4", orient = "portrait";
+  $$("[data-tpl]", m).forEach(b => b.onclick = () => { tpl = b.dataset.tpl; $$("[data-tpl]", m).forEach(x => x.classList.toggle("on", x === b)); });
+  $$("[data-fmt]", m).forEach(b => b.onclick = () => { fmt = b.dataset.fmt; $$("[data-fmt]", m).forEach(x => x.classList.toggle("on", x === b)); });
+  $$("[data-orient]", m).forEach(b => b.onclick = () => { orient = b.dataset.orient; $$("[data-orient]", m).forEach(x => x.classList.toggle("active", x === b)); });
+  $("#nbOk", m).onclick = async () => { const fd = new FormData(); fd.append("kind", kind); fd.append("title", $("#nbTitle", m).value || "Notizen"); fd.append("template", tpl); const size = formatSize(fmt, orient); fd.append("w", String(size.w)); fd.append("h", String(size.h)); if ($("#nbMod", m).value) fd.append("module_id", $("#nbMod", m).value); if (folderId) fd.append("folder_id", String(folderId)); const r = await api("/notebooks", { method: "POST", body: fd }); m.remove(); location.hash = `#/doc/${r.id}`; };
 }
 function itemMenu(key, anchor) {
   const [kind, id] = key.split(":");
