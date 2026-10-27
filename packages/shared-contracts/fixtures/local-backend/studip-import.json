@@ -3180,17 +3180,17 @@
       {
        "id": 1,
        "name": "Testmathematik I",
-       "color": "#4f6df5"
+       "color": "#175ee8"
       },
       {
        "id": 2,
        "name": "Hörsaalübung Testmathematik I",
-       "color": "#0ea5a0"
+       "color": "#e95905"
       },
       {
        "id": 3,
        "name": "Grundlagen der Beispieltechnik",
-       "color": "#e0803a"
+       "color": "#167535"
       }
      ],
      "trash": []
@@ -3205,7 +3205,7 @@
       "id": 1,
       "name": "Testmathematik I",
       "semester": "WiSe 2026/27",
-      "color": "#4f6df5",
+      "color": "#175ee8",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -3214,6 +3214,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 10,
       "new_count": 10,
       "open_tasks": 0,
@@ -3230,7 +3231,7 @@
       "id": 2,
       "name": "Hörsaalübung Testmathematik I",
       "semester": "WiSe 2026/27",
-      "color": "#0ea5a0",
+      "color": "#e95905",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -3239,6 +3240,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 1,
       "new_count": 1,
       "open_tasks": 0,
@@ -3255,7 +3257,7 @@
       "id": 3,
       "name": "Grundlagen der Beispieltechnik",
       "semester": "WiSe 2026/27",
-      "color": "#e0803a",
+      "color": "#167535",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -3264,6 +3266,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 2,
       "new_count": 2,
       "open_tasks": 0,
@@ -3287,7 +3290,7 @@
       "id": 1,
       "name": "Testmathematik I",
       "semester": "WiSe 2026/27",
-      "color": "#4f6df5",
+      "color": "#175ee8",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -3295,7 +3298,8 @@
       "created_at": "2026-10-25T14:30:05",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      },
      "courses": [
       {
@@ -3892,7 +3896,7 @@
       "id": 2,
       "name": "Hörsaalübung Testmathematik I",
       "semester": "WiSe 2026/27",
-      "color": "#0ea5a0",
+      "color": "#e95905",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -3900,7 +3904,8 @@
       "created_at": "2026-10-25T14:30:05",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      },
      "courses": [
       {
@@ -3993,7 +3998,7 @@
       "id": 3,
       "name": "Grundlagen der Beispieltechnik",
       "semester": "WiSe 2026/27",
-      "color": "#e0803a",
+      "color": "#167535",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -4001,7 +4006,8 @@
       "created_at": "2026-10-25T14:30:05",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      },
      "courses": [
       {
@@ -4366,7 +4372,7 @@
      "id": 1,
      "name": "Testmathematik I",
      "semester": "WiSe 2026/27",
-     "color": "#4f6df5",
+     "color": "#175ee8",
      "icon": null,
      "priority": 2,
      "exam_date": null,
@@ -4374,13 +4380,14 @@
      "created_at": "2026-10-25T14:30:05",
      "active": 1,
      "weekly_test": 1,
-     "test_minutes": null
+     "test_minutes": null,
+     "color_custom": 0
     },
     {
      "id": 2,
      "name": "Hörsaalübung Testmathematik I",
      "semester": "WiSe 2026/27",
-     "color": "#0ea5a0",
+     "color": "#e95905",
      "icon": null,
      "priority": 2,
      "exam_date": null,
@@ -4388,13 +4395,14 @@
      "created_at": "2026-10-25T14:30:05",
      "active": 1,
      "weekly_test": 1,
-     "test_minutes": null
+     "test_minutes": null,
+     "color_custom": 0
     },
     {
      "id": 3,
      "name": "Grundlagen der Beispieltechnik",
      "semester": "WiSe 2026/27",
-     "color": "#e0803a",
+     "color": "#167535",
      "icon": null,
      "priority": 2,
      "exam_date": null,
@@ -4402,7 +4410,8 @@
      "created_at": "2026-10-25T14:30:05",
      "active": 1,
      "weekly_test": 1,
-     "test_minutes": null
+     "test_minutes": null,
+     "color_custom": 0
     }
    ]
   }

@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import account_api, accounts, community_api, config, db, jobs, legal, planner, retention, study, timetable, universities, vault
+from . import account_api, accounts, colors, community_api, config, db, jobs, legal, planner, retention, study, timetable, universities, vault
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
 
@@ -994,9 +994,15 @@ def api_modules_auto_assign():
 def api_module_patch(module_id: int, body: dict = Body(...)):
     allowed = {"name", "color", "icon", "priority", "exam_date", "sort", "semester", "active", "weekly_test", "test_minutes"}
     with db.cursor() as conn:
+        before = db.row(conn, "SELECT color FROM modules WHERE id=?", (module_id,))
         for k, v in body.items():
             if k in allowed:
                 conn.execute(f"UPDATE modules SET {k}=? WHERE id=?", (v or None if k == "exam_date" else v, module_id))
+        # Merker fuer eine selbst gewaehlte Farbe (app/colors.py): nur, wenn sich die Farbe wirklich aendert (die
+        # Bearbeiten-Dialoge schicken sie auch unveraendert mit)
+        after = db.row(conn, "SELECT color FROM modules WHERE id=?", (module_id,)) if "color" in body and before else None
+        if after and after["color"] and after["color"] != before["color"]:
+            conn.execute("UPDATE modules SET color_custom=1 WHERE id=?", (module_id,))
         if "name" in body:
             conn.execute("UPDATE courses SET subject=? WHERE module_id=?", (body["name"], module_id))
             conn.execute("UPDATE study_packages SET subject=? WHERE module_id=?", (body["name"], module_id))
@@ -1010,8 +1016,9 @@ def api_module_create(body: dict = Body(...)):
         raise HTTPException(400, "Name fehlt")
     with db.cursor() as conn:
         n = db.row(conn, "SELECT COUNT(*) n FROM modules")["n"]
-        cur = conn.execute("INSERT INTO modules(name, semester, color, sort, created_at) VALUES (?,?,?,?,?)",
-                           (name, body.get("semester"), body.get("color") or study.PALETTE[n % len(study.PALETTE)], n, db.now_iso()))
+        # eine mitgeschickte Farbe hat der Nutzer gewaehlt (Merker color_custom), sonst die naechste freie der Palette
+        cur = conn.execute("INSERT INTO modules(name, semester, color, color_custom, sort, created_at) VALUES (?,?,?,?,?,?)",
+                           (name, body.get("semester"), body.get("color") or colors.next_color(conn), 1 if body.get("color") else 0, n, db.now_iso()))
         return db.row(conn, "SELECT * FROM modules WHERE id=?", (cur.lastrowid,))
 
 

@@ -1507,6 +1507,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 8,
       "new_count": 6,
       "open_tasks": 2,
@@ -1553,6 +1554,7 @@
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
+      "color_custom": 0,
       "file_count": 3,
       "new_count": 2,
       "open_tasks": 1,
@@ -1596,6 +1598,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
+      "color_custom": 0,
       "file_count": 2,
       "new_count": 1,
       "open_tasks": 0,
@@ -1637,6 +1640,7 @@
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 1,
       "new_count": 1,
       "open_tasks": 0,
@@ -1653,7 +1657,7 @@
       "id": 5,
       "name": "Testchemie",
       "semester": "WiSe 2026/27",
-      "color": "#d94f6b",
+      "color": "#175ee8",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -1662,6 +1666,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 1,
       "new_count": 1,
       "open_tasks": 0,
@@ -2250,7 +2255,7 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "08:00",
         "end_time": "08:45",
-        "color": "#d94f6b",
+        "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
          {
@@ -2669,7 +2674,7 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "08:00",
         "end_time": "08:45",
-        "color": "#d94f6b"
+        "color": "#175ee8"
        },
        {
         "id": 9,
@@ -3205,7 +3210,7 @@
       "created_at": "2026-10-23T09:15:00",
       "start_time": "08:00",
       "end_time": "08:45",
-      "color": "#d94f6b"
+      "color": "#175ee8"
      },
      {
       "id": 9,
@@ -4649,7 +4654,7 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "08:00",
         "end_time": "08:45",
-        "color": "#d94f6b",
+        "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
          {
@@ -5565,7 +5570,7 @@
         "created_at": "2026-10-23T09:15:00",
         "start_time": "08:00",
         "end_time": "08:45",
-        "color": "#d94f6b",
+        "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
          {
@@ -6307,6 +6312,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 8,
       "new_count": 6,
       "open_tasks": 8,
@@ -6353,6 +6359,7 @@
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
+      "color_custom": 0,
       "file_count": 3,
       "new_count": 2,
       "open_tasks": 4,
@@ -6399,6 +6406,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
+      "color_custom": 0,
       "file_count": 2,
       "new_count": 1,
       "open_tasks": 1,
@@ -6443,6 +6451,7 @@
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 1,
       "new_count": 1,
       "open_tasks": 0,
@@ -6459,7 +6468,7 @@
       "id": 5,
       "name": "Testchemie",
       "semester": "WiSe 2026/27",
-      "color": "#d94f6b",
+      "color": "#175ee8",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -6468,6 +6477,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 1,
       "new_count": 0,
       "open_tasks": 0,
@@ -6789,6 +6799,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 8,
      "new_count": 6,
      "open_tasks": 8,
@@ -6835,6 +6846,7 @@
      "active": 1,
      "weekly_test": 0,
      "test_minutes": 30,
+     "color_custom": 0,
      "file_count": 3,
      "new_count": 2,
      "open_tasks": 4,
@@ -6881,6 +6893,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": 20,
+     "color_custom": 0,
      "file_count": 2,
      "new_count": 1,
      "open_tasks": 1,
@@ -6925,6 +6938,7 @@
      "active": 0,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -6941,7 +6955,7 @@
      "id": 5,
      "name": "Testchemie",
      "semester": "WiSe 2026/27",
-     "color": "#d94f6b",
+     "color": "#175ee8",
      "icon": null,
      "priority": 2,
      "exam_date": null,
@@ -6950,6 +6964,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 1,
      "new_count": 0,
      "open_tasks": 0,
@@ -6981,7 +6996,8 @@
      "created_at": "2026-10-01T09:00:00",
      "active": 1,
      "weekly_test": 1,
-     "test_minutes": null
+     "test_minutes": null,
+     "color_custom": 0
     },
     "courses": [
      {
@@ -8672,6 +8688,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 10,
       "new_count": 8,
       "open_tasks": 8,
@@ -8719,6 +8736,7 @@
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
+      "color_custom": 0,
       "file_count": 4,
       "new_count": 3,
       "open_tasks": 4,
@@ -8765,6 +8783,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
+      "color_custom": 0,
       "file_count": 2,
       "new_count": 1,
       "open_tasks": 1,
@@ -8806,6 +8825,7 @@
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 1,
       "new_count": 1,
       "open_tasks": 0,
@@ -8822,7 +8842,7 @@
       "id": 5,
       "name": "Testchemie",
       "semester": "WiSe 2026/27",
-      "color": "#d94f6b",
+      "color": "#175ee8",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -8831,6 +8851,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 2,
       "new_count": 1,
       "open_tasks": 0,
@@ -9843,7 +9864,7 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "09:06",
         "end_time": "09:36",
-        "color": "#d94f6b",
+        "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
          {
@@ -10089,7 +10110,7 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "11:36",
         "end_time": "12:06",
-        "color": "#d94f6b",
+        "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
          {
@@ -10244,7 +10265,7 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "09:05",
         "end_time": "09:50",
-        "color": "#d94f6b",
+        "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
          {
@@ -10358,7 +10379,7 @@
         "created_at": "2026-10-28T07:45:00",
         "start_time": "08:40",
         "end_time": "08:55",
-        "color": "#d94f6b",
+        "color": "#175ee8",
         "module_name": "Testchemie",
         "tasks": [
          {
@@ -10852,7 +10873,7 @@
      "subject": "Testchemie",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 5,
-     "color": "#d94f6b",
+     "color": "#175ee8",
      "file_name": "Übung 3.pdf"
     },
     {
@@ -10944,7 +10965,7 @@
      "subject": "Testchemie",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 5,
-     "color": "#d94f6b",
+     "color": "#175ee8",
      "file_name": "Übung 3.pdf"
     },
     {
@@ -11013,7 +11034,7 @@
      "subject": "Testchemie",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 5,
-     "color": "#d94f6b",
+     "color": "#175ee8",
      "file_name": null
     },
     {
@@ -11059,7 +11080,7 @@
      "subject": "Testchemie",
      "package_title": "Woche 3 · 26.10. – 01.11.",
      "module_id": 5,
-     "color": "#d94f6b",
+     "color": "#175ee8",
      "file_name": null
     },
     {
@@ -11520,6 +11541,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 10,
       "new_count": 8,
       "open_tasks": 14,
@@ -11567,6 +11589,7 @@
       "active": 1,
       "weekly_test": 0,
       "test_minutes": 30,
+      "color_custom": 0,
       "file_count": 4,
       "new_count": 3,
       "open_tasks": 7,
@@ -11613,6 +11636,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": 20,
+      "color_custom": 0,
       "file_count": 2,
       "new_count": 1,
       "open_tasks": 1,
@@ -11654,6 +11678,7 @@
       "active": 0,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 1,
       "new_count": 1,
       "open_tasks": 0,
@@ -11670,7 +11695,7 @@
       "id": 5,
       "name": "Testchemie",
       "semester": "WiSe 2026/27",
-      "color": "#d94f6b",
+      "color": "#175ee8",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -11679,6 +11704,7 @@
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
+      "color_custom": 0,
       "file_count": 2,
       "new_count": 1,
       "open_tasks": 4,
@@ -11932,7 +11958,7 @@
       "kind": "lernpaket",
       "title": "Testchemie: Woche 3 · 26.10. – 01.11.",
       "module_id": 5,
-      "color": "#d94f6b",
+      "color": "#175ee8",
       "package_id": 20
      },
      {
@@ -12050,6 +12076,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 10,
      "new_count": 8,
      "open_tasks": 14,
@@ -12097,6 +12124,7 @@
      "active": 1,
      "weekly_test": 0,
      "test_minutes": 30,
+     "color_custom": 0,
      "file_count": 4,
      "new_count": 3,
      "open_tasks": 7,
@@ -12143,6 +12171,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": 20,
+     "color_custom": 0,
      "file_count": 2,
      "new_count": 1,
      "open_tasks": 1,
@@ -12184,6 +12213,7 @@
      "active": 0,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 1,
      "new_count": 1,
      "open_tasks": 0,
@@ -12200,7 +12230,7 @@
      "id": 5,
      "name": "Testchemie",
      "semester": "WiSe 2026/27",
-     "color": "#d94f6b",
+     "color": "#175ee8",
      "icon": null,
      "priority": 2,
      "exam_date": null,
@@ -12209,6 +12239,7 @@
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
+     "color_custom": 0,
      "file_count": 2,
      "new_count": 1,
      "open_tasks": 4,
@@ -13308,7 +13339,8 @@
     "created_at": "2026-10-01T09:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 2,
@@ -13322,7 +13354,8 @@
     "created_at": "2026-10-01T09:00:00",
     "active": 1,
     "weekly_test": 0,
-    "test_minutes": 30
+    "test_minutes": 30,
+    "color_custom": 0
    },
    {
     "id": 3,
@@ -13336,7 +13369,8 @@
     "created_at": "2026-10-01T09:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": 20
+    "test_minutes": 20,
+    "color_custom": 0
    },
    {
     "id": 4,
@@ -13350,13 +13384,14 @@
     "created_at": "2026-10-01T09:00:00",
     "active": 0,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 5,
     "name": "Testchemie",
     "semester": "WiSe 2026/27",
-    "color": "#d94f6b",
+    "color": "#175ee8",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13364,7 +13399,8 @@
     "created_at": "2026-10-23T09:15:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    }
   ],
   "files": [
@@ -13986,7 +14022,7 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "14:40",
           "end_time": "15:25",
-          "color": "#d94f6b",
+          "color": "#175ee8",
           "module_name": "Testchemie",
           "tasks": [
            {
@@ -15273,7 +15309,7 @@
           "created_at": "2026-10-28T09:00:00",
           "start_time": "14:40",
           "end_time": "15:25",
-          "color": "#d94f6b",
+          "color": "#175ee8",
           "module_name": "Testchemie",
           "tasks": [
            {
@@ -15786,7 +15822,7 @@
          "created_at": "2026-10-28T09:00:00",
          "start_time": "14:40",
          "end_time": "15:25",
-         "color": "#d94f6b",
+         "color": "#175ee8",
          "module_name": "Testchemie",
          "tasks": [
           {
@@ -15879,6 +15915,7 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
+        "color_custom": 0,
         "file_count": 8,
         "new_count": 5,
         "open_tasks": 4,
@@ -15926,6 +15963,7 @@
         "active": 1,
         "weekly_test": 0,
         "test_minutes": 30,
+        "color_custom": 0,
         "file_count": 3,
         "new_count": 2,
         "open_tasks": 2,
@@ -15972,6 +16010,7 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": 20,
+        "color_custom": 0,
         "file_count": 2,
         "new_count": 1,
         "open_tasks": 1,
@@ -16016,6 +16055,7 @@
         "active": 0,
         "weekly_test": 1,
         "test_minutes": null,
+        "color_custom": 0,
         "file_count": 1,
         "new_count": 1,
         "open_tasks": 0,
@@ -16032,7 +16072,7 @@
         "id": 5,
         "name": "Testchemie",
         "semester": "WiSe 2026/27",
-        "color": "#d94f6b",
+        "color": "#175ee8",
         "icon": null,
         "priority": 2,
         "exam_date": null,
@@ -16041,6 +16081,7 @@
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
+        "color_custom": 0,
         "file_count": 1,
         "new_count": 1,
         "open_tasks": 1,
@@ -16965,7 +17006,8 @@
       "created_at": "2026-10-01T09:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      },
      {
       "id": 2,
@@ -16979,7 +17021,8 @@
       "created_at": "2026-10-01T09:00:00",
       "active": 1,
       "weekly_test": 0,
-      "test_minutes": 30
+      "test_minutes": 30,
+      "color_custom": 0
      },
      {
       "id": 3,
@@ -16993,7 +17036,8 @@
       "created_at": "2026-10-01T09:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": 20
+      "test_minutes": 20,
+      "color_custom": 0
      },
      {
       "id": 4,
@@ -17007,13 +17051,14 @@
       "created_at": "2026-10-01T09:00:00",
       "active": 0,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      },
      {
       "id": 5,
       "name": "Testchemie",
       "semester": "WiSe 2026/27",
-      "color": "#d94f6b",
+      "color": "#175ee8",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -17021,7 +17066,8 @@
       "created_at": "2026-10-28T09:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      }
     ],
     "files": [

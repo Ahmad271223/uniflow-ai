@@ -465,6 +465,13 @@ def _init_db(conn) -> None:
     # Learnweb: Pluginfile-Revision (steigt beim Ersetzen); erkennt ueber die Sitzung eine neue Fassung, chdate bleibt
     # eine Unix-Zeit (studip_sync.version_stamp)
     add_col("files", "revision", "INTEGER")
+    # Fachfarben (27.10.2026, app/colors.py): neue Palette mit 12 klar verschiedenen Farben. Einmalig mit der neuen
+    # Spalte color_custom (Merker fuer eine selbst gewaehlte Farbe): Farben ausserhalb der alten Palette bleiben und
+    # bekommen den Merker, alle anderen Module der Reihe nach eindeutige Farben aus der neuen Palette.
+    if "color_custom" not in {r[1] for r in conn.execute("PRAGMA table_info(modules)")}:
+        conn.execute("ALTER TABLE modules ADD COLUMN color_custom INTEGER DEFAULT 0")
+        from . import colors
+        colors.migrate_palette(conn)
     # Pseudo-Kurs fuer eigene Dokumente (Notizbuecher, Whiteboards, Importe)
     conn.execute("""INSERT OR IGNORE INTO courses(id, title, number, semester, subject, kind, active, test_minutes, created_at)
                     VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))

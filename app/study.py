@@ -13,10 +13,10 @@ import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from . import db, holidays
+from . import colors, db, holidays
 from .holidays import DEADLINE_LABELS
 
-PALETTE = ["#4f6df5", "#0ea5a0", "#e0803a", "#9b59d9", "#d94f6b", "#2f9e5a", "#c7891a", "#3b82c4", "#7c5cd6", "#1aa39a"]
+PALETTE = colors.PALETTE          # Fachfarben: app/colors.py
 DEFAULT_EST = {"vorlesung": 45, "skript": 60, "uebung": 60, "loesung": 30, "test": 45, "wiederholung": 30}
 OPEN = ("geplant", "in_bearbeitung", "nachholen")
 # Arten, die zu einer Lehrwoche gehoeren (Wochenhinweis aus dem Namen, Unterlagen zum Termin, Wochentest)
@@ -48,7 +48,7 @@ def ensure_modules(conn) -> None:
         name = c["subject"]
         if name not in existing:
             cur = conn.execute("INSERT INTO modules(name, semester, color, sort, created_at) VALUES (?,?,?,?,?)",
-                               (name, c["semester"], PALETTE[n % len(PALETTE)], n, db.now_iso()))
+                               (name, c["semester"], colors.next_color(conn), n, db.now_iso()))
             existing[name] = cur.lastrowid
             n += 1
         conn.execute("UPDATE courses SET module_id=? WHERE id=?", (existing[name], c["id"]))

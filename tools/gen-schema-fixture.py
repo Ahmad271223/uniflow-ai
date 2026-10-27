@@ -5,7 +5,9 @@
   settings-Standardwerte, Pseudokurs __user__ und Standardsemester.
 - legacy.json: eine aeltere Datenbank (Grundschema ohne die per add_col nachgetragenen Spalten, teils schon halb
   migriert, mit erfundenen Zeilen), dazu Schema und Zeilen, wie init_db() sie daraus macht (sync_updated_at der
-  Geraete-Synchronisierung als "<zeit>", die SQLite-Uhr laesst sich nicht einfrieren).
+  Geraete-Synchronisierung als "<zeit>", die SQLite-Uhr laesst sich nicht einfrieren). Die Module tragen Farben der
+  alten Palette (fast gleiche Toene, Grossbuchstaben, gleiche Sortierung), eine eigene, eine aus der neuen Palette und
+  keine: die einmalige Umstellung auf app/colors.py.
 
 Der Swift-Kern (SQLiteStoreTests) legt dieselben Datenbanken mit Schema und Migrationen an und vergleicht.
 init_db() laeuft nur gegen Dateien in einem Temp-Ordner, nie gegen data/.
@@ -36,6 +38,8 @@ CREATE TABLE tests (id INTEGER PRIMARY KEY AUTOINCREMENT, subject TEXT NOT NULL,
                     duration_min INTEGER, questions TEXT NOT NULL, created_at TEXT, started_at TEXT, submitted_at TEXT,
                     answers TEXT, score REAL, max_score REAL, feedback TEXT);
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE modules (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, semester TEXT, color TEXT, icon TEXT,
+                      priority INTEGER DEFAULT 2, exam_date TEXT, sort INTEGER DEFAULT 0, created_at TEXT);
 
 INSERT INTO courses(id, title, kind, created_at) VALUES ('k1', 'Testkurs Algebra', 'vorlesung', '2026-09-30T08:00:00');
 INSERT INTO courses(id, title, kind, active, created_at) VALUES ('k2', 'Testkurs Algebra Uebung', 'uebung', 0, '2026-09-30T08:01:00');
@@ -53,10 +57,17 @@ INSERT INTO tests(subject, title, duration_min, questions, score) VALUES ('Algeb
 INSERT INTO settings(key, value) VALUES ('hours_per_day', '6');
 INSERT INTO settings(key, value) VALUES ('user_name', 'Testperson');
 INSERT INTO settings(key, value) VALUES ('eigener_schluessel', 'x');
+INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Algebra', '#4f6df5', 0, '2026-09-30T08:00:00');
+INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Optik', '#3b82c4', 1, '2026-09-30T08:00:01');
+INSERT INTO modules(name, color, sort, created_at) VALUES ('Eigenes Testfach', '#123abc', 2, '2026-09-30T08:00:02');
+INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Chemie', '#0EA5A0', 4, '2026-09-30T08:00:03');
+INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Biologie', '#1aa39a', 3, '2026-09-30T08:00:04');
+INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Akustik', NULL, 4, '2026-09-30T08:00:05');
+INSERT INTO modules(name, color, sort, created_at) VALUES ('Blau gewaehlt', '#175ee8', 5, '2026-09-30T08:00:06');
 """
 
 # Tabellen, deren Zeilen nach der Migration in legacy.json stehen
-LEGACY_ROWS = ["courses", "files", "annotations", "tests", "settings", "terms"]
+LEGACY_ROWS = ["courses", "files", "annotations", "tests", "settings", "terms", "modules"]
 
 
 def snapshot(conn: sqlite3.Connection) -> dict:

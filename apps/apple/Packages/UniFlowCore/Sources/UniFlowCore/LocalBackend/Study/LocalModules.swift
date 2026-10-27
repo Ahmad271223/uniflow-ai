@@ -4,8 +4,8 @@ import Foundation
 /// `modules_overview`. Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Uebung, ...); das
 /// Moduldetail ordnet die Dateien nach Lehrwoche (`StudyWeeks`) und Art (`StudyClassify`).
 public enum LocalModules {
-    /// `PALETTE` in app/study.py
-    public static let palette = ["#4f6df5", "#0ea5a0", "#e0803a", "#9b59d9", "#d94f6b", "#2f9e5a", "#c7891a", "#3b82c4", "#7c5cd6", "#1aa39a"]
+    /// `PALETTE` in app/study.py (Fachfarben: `ModuleColors`, app/colors.py)
+    public static var palette: [String] { ModuleColors.palette }
 
     /// `OPEN`: offene Aufgaben
     static let open: Set<String> = ["geplant", "in_bearbeitung", "nachholen"]
@@ -53,7 +53,7 @@ public enum LocalModules {
             let name = Array((subject.string ?? "").unicodeScalars)
             if existing[name] == nil {
                 try c.execute("INSERT INTO modules(name, semester, color, sort, created_at) VALUES (?,?,?,?,?)",
-                              [subject, course["semester"] ?? .null, .text(palette[n % palette.count]), .integer(Int64(n)), .text(clock.nowISO)])
+                              [subject, course["semester"] ?? .null, .text(try ModuleColors.next(c)), .integer(Int64(n)), .text(clock.nowISO)])
                 existing[name] = .integer(c.lastInsertRowID)
                 n += 1
             }

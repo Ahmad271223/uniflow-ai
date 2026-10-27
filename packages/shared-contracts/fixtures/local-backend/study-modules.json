@@ -7003,6 +7003,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
@@ -7033,6 +7034,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 10,
        "new_count": 8,
        "open_tasks": 1,
@@ -7064,6 +7066,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -7080,7 +7083,7 @@
        "id": 4,
        "name": "Zentralübung Testmathematik I",
        "semester": "WiSe 2026/27",
-       "color": "#9b59d9",
+       "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -7089,6 +7092,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 1,
        "new_count": 1,
        "open_tasks": 0,
@@ -7105,7 +7109,7 @@
        "id": 5,
        "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
-       "color": "#d94f6b",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -7114,6 +7118,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 5,
        "new_count": 5,
        "open_tasks": 0,
@@ -7130,7 +7135,7 @@
        "id": 6,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#2f9e5a",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -7139,6 +7144,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 2,
        "new_count": 1,
        "open_tasks": 0,
@@ -7155,7 +7161,7 @@
        "id": 7,
        "name": "Inaktiver Testkurs",
        "semester": "WiSe 2026/27",
-       "color": "#c7891a",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -7164,6 +7170,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -7180,7 +7187,7 @@
        "id": 8,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#3b82c4",
+       "color": "#b9454c",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -7189,6 +7196,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -7205,7 +7213,7 @@
        "id": 9,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#7c5cd6",
+       "color": "#1f9682",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -7214,6 +7222,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -7246,7 +7255,8 @@
        "created_at": "2026-10-01T08:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -8124,7 +8134,8 @@
        "created_at": "2026-10-01T08:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -8756,7 +8767,8 @@
        "created_at": "2026-10-01T08:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [],
       "weeks": [],
@@ -8778,7 +8790,7 @@
        "id": 4,
        "name": "Zentralübung Testmathematik I",
        "semester": "WiSe 2026/27",
-       "color": "#9b59d9",
+       "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -8786,7 +8798,8 @@
        "created_at": "2026-11-20T10:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -8880,7 +8893,7 @@
        "id": 5,
        "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
-       "color": "#d94f6b",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -8888,7 +8901,8 @@
        "created_at": "2026-11-20T10:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -9228,7 +9242,7 @@
        "id": 6,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#2f9e5a",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9236,7 +9250,8 @@
        "created_at": "2026-11-20T10:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -9381,7 +9396,7 @@
        "id": 7,
        "name": "Inaktiver Testkurs",
        "semester": "WiSe 2026/27",
-       "color": "#c7891a",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9389,7 +9404,8 @@
        "created_at": "2026-11-20T10:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -9418,7 +9434,7 @@
        "id": 8,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#3b82c4",
+       "color": "#b9454c",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9426,7 +9442,8 @@
        "created_at": "2026-11-20T10:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -9455,7 +9472,7 @@
        "id": 9,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#7c5cd6",
+       "color": "#1f9682",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9463,7 +9480,8 @@
        "created_at": "2026-11-20T10:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -9533,6 +9551,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
@@ -9560,6 +9579,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 10,
        "new_count": 8,
        "open_tasks": 1,
@@ -9591,6 +9611,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -9607,7 +9628,7 @@
        "id": 4,
        "name": "Zentralübung Testmathematik I",
        "semester": "WiSe 2026/27",
-       "color": "#9b59d9",
+       "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9616,6 +9637,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 1,
        "new_count": 1,
        "open_tasks": 0,
@@ -9632,7 +9654,7 @@
        "id": 5,
        "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
-       "color": "#d94f6b",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9641,6 +9663,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 5,
        "new_count": 5,
        "open_tasks": 0,
@@ -9657,7 +9680,7 @@
        "id": 6,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#2f9e5a",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9666,6 +9689,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 2,
        "new_count": 1,
        "open_tasks": 0,
@@ -9682,7 +9706,7 @@
        "id": 7,
        "name": "Inaktiver Testkurs",
        "semester": "WiSe 2026/27",
-       "color": "#c7891a",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9691,6 +9715,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -9707,7 +9732,7 @@
        "id": 8,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#3b82c4",
+       "color": "#b9454c",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9716,6 +9741,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -9732,7 +9758,7 @@
        "id": 9,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#7c5cd6",
+       "color": "#1f9682",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -9741,6 +9767,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -9773,7 +9800,8 @@
        "created_at": "2026-10-01T08:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -10648,7 +10676,8 @@
        "created_at": "2026-10-01T08:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -11286,6 +11315,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
@@ -11311,6 +11341,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 10,
        "new_count": 8,
        "open_tasks": 1,
@@ -11336,6 +11367,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -11352,7 +11384,7 @@
        "id": 4,
        "name": "Zentralübung Testmathematik I",
        "semester": "WiSe 2026/27",
-       "color": "#9b59d9",
+       "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -11361,6 +11393,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 1,
        "new_count": 1,
        "open_tasks": 0,
@@ -11377,7 +11410,7 @@
        "id": 5,
        "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
-       "color": "#d94f6b",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -11386,6 +11419,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 5,
        "new_count": 5,
        "open_tasks": 0,
@@ -11402,7 +11436,7 @@
        "id": 6,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#2f9e5a",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -11411,6 +11445,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 2,
        "new_count": 1,
        "open_tasks": 0,
@@ -11427,7 +11462,7 @@
        "id": 7,
        "name": "Inaktiver Testkurs",
        "semester": "WiSe 2026/27",
-       "color": "#c7891a",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -11436,6 +11471,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -11452,7 +11488,7 @@
        "id": 8,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#3b82c4",
+       "color": "#b9454c",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -11461,6 +11497,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -11477,7 +11514,7 @@
        "id": 9,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#7c5cd6",
+       "color": "#1f9682",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -11486,6 +11523,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -11510,7 +11548,7 @@
        "id": 5,
        "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
-       "color": "#d94f6b",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -11518,7 +11556,8 @@
        "created_at": "2026-11-20T10:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -11849,7 +11888,7 @@
       "id": 10,
       "name": "Eigenes Fach",
       "semester": "WiSe 2026/27",
-      "color": "#1aa39a",
+      "color": "#896301",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -11857,7 +11896,8 @@
       "created_at": "2026-11-20T11:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      }
     },
     {
@@ -11877,7 +11917,8 @@
       "created_at": "2026-11-20T11:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 1
      }
     },
     {
@@ -11889,7 +11930,7 @@
       "id": 12,
       "name": "Drittes Fach",
       "semester": null,
-      "color": "#0ea5a0",
+      "color": "#de5797",
       "icon": null,
       "priority": 2,
       "exam_date": null,
@@ -11897,7 +11938,8 @@
       "created_at": "2026-11-20T11:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      }
     },
     {
@@ -11973,7 +12015,8 @@
       "created_at": "2026-10-01T08:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 1
      }
     },
     {
@@ -11993,7 +12036,8 @@
       "created_at": "2026-10-01T08:00:00",
       "active": 1,
       "weekly_test": 0,
-      "test_minutes": 45.5
+      "test_minutes": 45.5,
+      "color_custom": 1
      }
     },
     {
@@ -12013,7 +12057,8 @@
       "created_at": "2026-10-01T08:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      }
     },
     {
@@ -12042,7 +12087,8 @@
       "created_at": "2026-10-01T08:00:00",
       "active": 1,
       "weekly_test": 1,
-      "test_minutes": null
+      "test_minutes": null,
+      "color_custom": 0
      }
     },
     {
@@ -12168,6 +12214,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 11,
        "new_count": 9,
        "open_tasks": 1,
@@ -12199,6 +12246,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12215,7 +12263,7 @@
        "id": 4,
        "name": "Zentralübung Testmathematik I",
        "semester": "WiSe 2026/27",
-       "color": "#9b59d9",
+       "color": "#175ee8",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -12224,6 +12272,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 1,
        "new_count": 1,
        "open_tasks": 0,
@@ -12240,7 +12289,7 @@
        "id": 5,
        "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
-       "color": "#d94f6b",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -12249,6 +12298,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 4,
        "new_count": 4,
        "open_tasks": 0,
@@ -12265,7 +12315,7 @@
        "id": 6,
        "name": "Altes Fach vom Sommer",
        "semester": "SoSe 2026",
-       "color": "#2f9e5a",
+       "color": "#167535",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -12274,6 +12324,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 2,
        "new_count": 1,
        "open_tasks": 0,
@@ -12290,7 +12341,7 @@
        "id": 7,
        "name": "Inaktiver Testkurs",
        "semester": "WiSe 2026/27",
-       "color": "#c7891a",
+       "color": "#834bbf",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -12299,6 +12350,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12315,7 +12367,7 @@
        "id": 8,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#3b82c4",
+       "color": "#b9454c",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -12324,6 +12376,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12349,6 +12402,7 @@
        "active": 1,
        "weekly_test": 0,
        "test_minutes": 45.5,
+       "color_custom": 1,
        "file_count": 14,
        "new_count": 11,
        "open_tasks": 2,
@@ -12370,7 +12424,7 @@
        "id": 9,
        "name": "Grundlagen der Prüfungstechnik",
        "semester": "WiSe 2026/27",
-       "color": "#7c5cd6",
+       "color": "#1f9682",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -12379,6 +12433,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12395,7 +12450,7 @@
        "id": 10,
        "name": "Eigenes Fach",
        "semester": "WiSe 2026/27",
-       "color": "#1aa39a",
+       "color": "#896301",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -12404,6 +12459,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 0,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12429,6 +12485,7 @@
        "active": 1,
        "weekly_test": 1,
        "test_minutes": null,
+       "color_custom": 1,
        "file_count": 0,
        "new_count": 0,
        "open_tasks": 0,
@@ -12461,7 +12518,8 @@
        "created_at": "2026-10-01T08:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -13141,7 +13199,7 @@
        "id": 5,
        "name": "Probeinformatik",
        "semester": "WiSe 2026/27",
-       "color": "#d94f6b",
+       "color": "#e95905",
        "icon": null,
        "priority": 2,
        "exam_date": null,
@@ -13149,7 +13207,8 @@
        "created_at": "2026-11-20T10:00:00",
        "active": 1,
        "weekly_test": 1,
-       "test_minutes": null
+       "test_minutes": null,
+       "color_custom": 0
       },
       "courses": [
        {
@@ -13439,7 +13498,8 @@
     "created_at": "2026-10-01T08:00:00",
     "active": 1,
     "weekly_test": 0,
-    "test_minutes": 45.5
+    "test_minutes": 45.5,
+    "color_custom": 1
    },
    {
     "id": 2,
@@ -13453,7 +13513,8 @@
     "created_at": "2026-10-01T08:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 3,
@@ -13467,13 +13528,14 @@
     "created_at": "2026-10-01T08:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 4,
     "name": "Zentralübung Testmathematik I",
     "semester": "WiSe 2026/27",
-    "color": "#9b59d9",
+    "color": "#175ee8",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13481,13 +13543,14 @@
     "created_at": "2026-11-20T10:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 5,
     "name": "Probeinformatik",
     "semester": "WiSe 2026/27",
-    "color": "#d94f6b",
+    "color": "#e95905",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13495,13 +13558,14 @@
     "created_at": "2026-11-20T10:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 6,
     "name": "Altes Fach vom Sommer",
     "semester": "SoSe 2026",
-    "color": "#2f9e5a",
+    "color": "#167535",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13509,13 +13573,14 @@
     "created_at": "2026-11-20T10:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 7,
     "name": "Inaktiver Testkurs",
     "semester": "WiSe 2026/27",
-    "color": "#c7891a",
+    "color": "#834bbf",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13523,13 +13588,14 @@
     "created_at": "2026-11-20T10:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 8,
     "name": "Grundlagen der Prüfungstechnik",
     "semester": "WiSe 2026/27",
-    "color": "#3b82c4",
+    "color": "#b9454c",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13537,13 +13603,14 @@
     "created_at": "2026-11-20T10:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 9,
     "name": "Grundlagen der Prüfungstechnik",
     "semester": "WiSe 2026/27",
-    "color": "#7c5cd6",
+    "color": "#1f9682",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13551,13 +13618,14 @@
     "created_at": "2026-11-20T10:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 10,
     "name": "Eigenes Fach",
     "semester": "WiSe 2026/27",
-    "color": "#1aa39a",
+    "color": "#896301",
     "icon": null,
     "priority": 2,
     "exam_date": null,
@@ -13565,7 +13633,8 @@
     "created_at": "2026-11-20T11:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 0
    },
    {
     "id": 11,
@@ -13579,7 +13648,8 @@
     "created_at": "2026-11-20T11:00:00",
     "active": 1,
     "weekly_test": 1,
-    "test_minutes": null
+    "test_minutes": null,
+    "color_custom": 1
    }
   ],
   "courses": [

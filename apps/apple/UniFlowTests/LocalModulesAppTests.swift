@@ -94,7 +94,7 @@ final class LocalModulesAppTests: XCTestCase {
         XCTAssertEqual(math.i("courses"), 2)
         XCTAssertEqual(math.i("file_count"), 6)
         XCTAssertEqual(math.i("weeks"), 3)
-        XCTAssertEqual(math.s("color"), "#4f6df5")
+        XCTAssertEqual(math.s("color"), ModuleColors.palette[0], "erste Farbe der Fachfarben-Palette")
 
         let d = try await api.value("/api/modules/\(math.i("id") ?? 0)")     // wie ModulePage.load()
         XCTAssertEqual(d["module"]?.s("name"), "Testmathematik I")

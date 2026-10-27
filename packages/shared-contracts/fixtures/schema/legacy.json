@@ -13,6 +13,8 @@
     "                    duration_min INTEGER, questions TEXT NOT NULL, created_at TEXT, started_at TEXT, submitted_at TEXT,",
     "                    answers TEXT, score REAL, max_score REAL, feedback TEXT);",
     "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);",
+    "CREATE TABLE modules (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, semester TEXT, color TEXT, icon TEXT,",
+    "                      priority INTEGER DEFAULT 2, exam_date TEXT, sort INTEGER DEFAULT 0, created_at TEXT);",
     "",
     "INSERT INTO courses(id, title, kind, created_at) VALUES ('k1', 'Testkurs Algebra', 'vorlesung', '2026-09-30T08:00:00');",
     "INSERT INTO courses(id, title, kind, active, created_at) VALUES ('k2', 'Testkurs Algebra Uebung', 'uebung', 0, '2026-09-30T08:01:00');",
@@ -29,7 +31,14 @@
     "INSERT INTO tests(subject, title, duration_min, questions, score) VALUES ('Algebra', 'Probetest', 45, '[]', 7.5);",
     "INSERT INTO settings(key, value) VALUES ('hours_per_day', '6');",
     "INSERT INTO settings(key, value) VALUES ('user_name', 'Testperson');",
-    "INSERT INTO settings(key, value) VALUES ('eigener_schluessel', 'x');"
+    "INSERT INTO settings(key, value) VALUES ('eigener_schluessel', 'x');",
+    "INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Algebra', '#4f6df5', 0, '2026-09-30T08:00:00');",
+    "INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Optik', '#3b82c4', 1, '2026-09-30T08:00:01');",
+    "INSERT INTO modules(name, color, sort, created_at) VALUES ('Eigenes Testfach', '#123abc', 2, '2026-09-30T08:00:02');",
+    "INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Chemie', '#0EA5A0', 4, '2026-09-30T08:00:03');",
+    "INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Biologie', '#1aa39a', 3, '2026-09-30T08:00:04');",
+    "INSERT INTO modules(name, color, sort, created_at) VALUES ('Testkurs Akustik', NULL, 4, '2026-09-30T08:00:05');",
+    "INSERT INTO modules(name, color, sort, created_at) VALUES ('Blau gewaehlt', '#175ee8', 5, '2026-09-30T08:00:06');"
   ],
   "schema": {
     "tables": {
@@ -310,6 +319,7 @@
           {"name": "active", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "weekly_test", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "test_minutes", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0},
+          {"name": "color_custom", "type": "INTEGER", "notnull": 0, "default": "0", "pk": 0},
           {"name": "sync_version", "type": "INTEGER", "notnull": 0, "default": "1", "pk": 0},
           {"name": "sync_updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
           {"name": "sync_device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0}
@@ -638,6 +648,15 @@
     ],
     "terms": [
       {"id": 1, "name": "WiSe 2026/27", "start": "2026-10-12", "end": "2027-01-30", "active": 1}
+    ],
+    "modules": [
+      {"id": 1, "name": "Testkurs Algebra", "semester": null, "color": "#e95905", "icon": null, "priority": 2, "exam_date": null, "sort": 0, "created_at": "2026-09-30T08:00:00", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 2, "name": "Testkurs Optik", "semester": null, "color": "#167535", "icon": null, "priority": 2, "exam_date": null, "sort": 1, "created_at": "2026-09-30T08:00:01", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 3, "name": "Eigenes Testfach", "semester": null, "color": "#123abc", "icon": null, "priority": 2, "exam_date": null, "sort": 2, "created_at": "2026-09-30T08:00:02", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 1, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 4, "name": "Testkurs Chemie", "semester": null, "color": "#1f9682", "icon": null, "priority": 2, "exam_date": null, "sort": 4, "created_at": "2026-09-30T08:00:03", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 5, "name": "Testkurs Biologie", "semester": null, "color": "#834bbf", "icon": null, "priority": 2, "exam_date": null, "sort": 3, "created_at": "2026-09-30T08:00:04", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 6, "name": "Testkurs Akustik", "semester": null, "color": "#b9454c", "icon": null, "priority": 2, "exam_date": null, "sort": 4, "created_at": "2026-09-30T08:00:05", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 0, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null},
+      {"id": 7, "name": "Blau gewaehlt", "semester": null, "color": "#175ee8", "icon": null, "priority": 2, "exam_date": null, "sort": 5, "created_at": "2026-09-30T08:00:06", "active": 1, "weekly_test": 1, "test_minutes": null, "color_custom": 1, "sync_version": 1, "sync_updated_at": "<zeit>", "sync_device": null}
     ]
   }
 }
