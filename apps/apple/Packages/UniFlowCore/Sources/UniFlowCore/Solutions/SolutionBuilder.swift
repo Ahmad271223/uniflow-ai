@@ -71,10 +71,18 @@ public enum SolutionBuilder {
     }
 
     /// Gewaehlte Seiten, deren Objekte die Pruefungen nicht bestehen (unbekannter Objekttyp, ungueltige Zahlen,
-    /// PDF-Daten). Der Dialog nennt sie und laesst sie aus, statt still etwas zu verlieren.
-    public static func pageProblems(_ doc: AnnotationDocument, keys: [String]) -> [PageProblem] {
+    /// PDF-Daten), und mit `pdfPage` PDF-Seiten, die es in der eigenen PDF nicht gibt. Der Dialog nennt sie und laesst
+    /// sie aus, statt still etwas zu verlieren oder das Teilen ganz zu sperren.
+    public static func pageProblems(_ doc: AnnotationDocument, keys: [String], pdfPageCount: Int? = nil,
+                                    pdfPage: ((Int) -> PDFPageInfo?)? = nil) -> [PageProblem] {
         keys.compactMap { key in
             do {
+                if let pdfPageCount, let entry = doc.pageOrder.first(where: { $0["key"]?.string == key }),
+                   (entry["type"]?.string ?? "pdf") == "pdf" {
+                    guard let i = entry["index"]?.int, i >= 1, i <= pdfPageCount, pdfPage.map({ $0(i) != nil }) ?? true else {
+                        throw SolutionError.pageNotInPDF
+                    }
+                }
                 for o in doc.objects(page: key) { try SolutionValidator.validateObject(o) }
                 return nil
             } catch {
@@ -124,14 +132,15 @@ public enum SolutionBuilder {
             switch type {
             case "pdf":
                 guard let i = entry["index"]?.int, i >= 1, i <= pdfPageCount, let info = pdfPage(i) else {
-                    throw SolutionError.invalidContent("PDF-Seite \(entry["index"]?.int ?? 0)")
+                    throw SolutionError.onPage(pageLabel(doc, key: key), .pageNotInPDF)
                 }
                 pages.append(SolutionPage(key: key, kind: .pdf, pdfIndex: i, width: info.width, height: info.height,
                                           rotation: info.rotation + extra, extraRotation: extra, objects: objects))
             case "blank":
-                let w = entry["w"]?.double ?? 595, h = entry["h"]?.double ?? 842
+                // dieselbe Groesse wie im Editor (`DisplayLayout`): Notizen liegen beim Empfaenger an derselben Stelle
+                let (w, h) = PageOrder.blankSize(entry)
                 let t = entry["template"]?.string ?? doc.page(key)?["template"]?.string
-                pages.append(SolutionPage(key: key, kind: .blank, pdfIndex: nil, width: w > 0 ? w : 595, height: h > 0 ? h : 842,
+                pages.append(SolutionPage(key: key, kind: .blank, pdfIndex: nil, width: w, height: h,
                                           rotation: extra, extraRotation: extra,
                                           template: t.flatMap { PageOrder.templates.contains($0) ? $0 : "blank" },
                                           objects: objects))
