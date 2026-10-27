@@ -1,6 +1,7 @@
 package de.uniflow.android.ui.screens
 
 import android.annotation.SuppressLint
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -105,6 +106,10 @@ fun UniversityLoginScreen(profile: UniversityProfile, store: UniversityStore, on
         // Die WebView bleibt immer dieselbe (sonst bliebe die alte offen); bei einem Fehler ist sie nur eingeklappt
         AndroidView(modifier = if (err == null) Modifier.weight(1f).fillMaxWidth() else Modifier.size(0.dp), factory = { ctx ->
             WebView(ctx).apply {
+                // Passwort merken uebernimmt der Passwort-Manager des Systems (Google Password Manager, Samsung Pass):
+                // die WebView nimmt am Android-Autofill teil, die App speichert nie Benutzername oder Passwort und fuellt
+                // nichts selbst aus (Vorgabe des Inhabers, 27.10.2026)
+                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.loadWithOverviewMode = true

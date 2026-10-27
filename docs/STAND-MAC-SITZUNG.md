@@ -494,3 +494,16 @@ dieser Woche, einer Abgabefrist und einer Ankündigung mit Raumwechsel; Schalter
 Dienst) haben das damit. Das iPad läuft ohne Dienst – bitte denselben Schalter lokal anbieten (gleiche Inhalte, ihr
 könnt die PDFs mit `demo.pdf_bytes` aus Python erzeugen und als Fixture ablegen oder in Swift nachbauen) und in den
 Prüfhinweisen (`docs/release/APP-STORE.md`) steht der Ablauf schon so.
+
+## Nachtrag der PC-Sitzung: Hochschul-Passwort merkt nur der Passwort-Manager des Systems (27.10.2026)
+
+Entscheidung des Inhabers: Das Hochschul-Passwort darf sich nur der Browser bzw. das Anmeldefenster merken, das die
+App zeigt – **nie die App selbst**. Android setzt das so um: Die WebView der Hochschul-Anmeldung nimmt am
+Android-Autofill teil (`importantForAutofill = IMPORTANT_FOR_AUTOFILL_YES`), der Google Password Manager oder Samsung
+Pass bietet das Speichern an, die App speichert weder Benutzername noch Passwort und füllt nichts per Skript aus; nach
+der Anmeldung bleibt nur die Hochschul-Sitzung (Cookies) im verschlüsselten App-Speicher. `tests/test_android_login_policy.py`
+prüft das in den Quellen und in `docs/release/DATENSCHUTZ.md` (Abschnitt 3 ist entsprechend umformuliert, Play-Store-Text
+ebenso). Bitte auf dem iPad genauso: keinen eigenen Schalter „Auf diesem Gerät merken“ mit Schlüsselbund-Eintrag der
+App, sondern die WKWebView der Anmeldung dem iCloud-Schlüsselbund überlassen (Passwort-Autofill in WKWebView ist ab
+iOS 11 Standard; nichts zusätzlich speichern, nichts per `evaluateJavaScript` vorausfüllen). Falls ihr den Schalter schon
+gebaut habt: entfernen und die Datenschutz-Formulierung („iPad: Schlüsselbund von iOS“ im Anmeldefenster) bleibt richtig.

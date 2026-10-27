@@ -70,8 +70,9 @@ des Geräts, damit ein anderes Konto sie nicht erbt. Der Cache (`cache/pdf/`) bl
 
 **Offen**
 
-- Passwort merken und vorausfüllen wie auf dem iPad (Schalter „Auf diesem Gerät merken“, Android-Schlüsselbund): noch
-  nicht; jede Anmeldung tippt der Mensch vollständig.
+- Passwort merken: übernimmt der Passwort-Manager des Systems im Anmeldefenster (WebView mit Android-Autofill:
+  Google Password Manager, Samsung Pass). Die App speichert nie Benutzername oder Passwort und füllt nichts
+  selbst aus – Entscheidung des Inhabers vom 27.10.2026; am Gerät prüfen, dass der Autofill-Dialog erscheint
 - Gerätetest: WebSSO der LUH und CAS Hildesheim in der WebView, Moodle-Rückleitung `uniflow://`, Cookie-Erkennung,
   Direkt-Download und Seitentext großer PDFs sind nur auf einem echten Gerät prüfbar (kein Android-Gerät am PC). Im
   JVM-Test geprüft: `FetchPolicy`, `PageTextRules`, `PdfCache`, `UniversityRules`.
