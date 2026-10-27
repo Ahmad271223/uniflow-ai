@@ -20,21 +20,28 @@ final class FaultyBlobStore: BlobStore, @unchecked Sendable {
 
     init(files: [String: Data] = [:]) { self.files = files }
 
-    func failList(_ dir: String, _ on: Bool = true) { lock.withLock { if on { listFails.insert(dir) } else { listFails.remove(dir) } } }
-    func failRead(_ path: String, _ on: Bool = true) { lock.withLock { if on { readFails.insert(path) } else { readFails.remove(path) } } }
-    func freeze() { lock.withLock { frozen = true } }
-    var snapshot: [String: Data] { lock.withLock { files } }
-    var paths: [String] { lock.withLock { files.keys.sorted() } }
+    func failList(_ dir: String, _ on: Bool = true) { locked { if on { listFails.insert(dir) } else { listFails.remove(dir) } } }
+    func failRead(_ path: String, _ on: Bool = true) { locked { if on { readFails.insert(path) } else { readFails.remove(path) } } }
+    func freeze() { locked { frozen = true } }
+    var snapshot: [String: Data] { locked { files } }
+    var paths: [String] { locked { files.keys.sorted() } }
+
+    /// Sperre ohne `withLock` (unter Linux nicht ueberall mit `throws`)
+    private func locked<T>(_ body: () throws -> T) rethrows -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body()
+    }
 
     func read(_ path: String) throws -> Data? {
-        try lock.withLock {
+        try locked {
             if readFails.contains(path) { throw BlobStoreError(path: path, reason: "Lesen fehlgeschlagen") }
             return files[path]
         }
     }
 
     func write(_ data: Data, to path: String) throws {
-        let n: Int = try lock.withLock {
+        let n: Int = try locked {
             if frozen { throw BlobStoreError(path: path, reason: "Prozess beendet") }
             files[path] = data
             writes += 1
@@ -44,7 +51,7 @@ final class FaultyBlobStore: BlobStore, @unchecked Sendable {
     }
 
     func remove(_ path: String) throws {
-        let n: Int = try lock.withLock {
+        let n: Int = try locked {
             if frozen { throw BlobStoreError(path: path, reason: "Prozess beendet") }
             files.removeValue(forKey: path)
             writes += 1
@@ -55,7 +62,7 @@ final class FaultyBlobStore: BlobStore, @unchecked Sendable {
 
     /// Eintraege direkt im Ordner, Dateien und Unterordner (wie das Dateisystem)
     func list(_ directory: String) throws -> [String] {
-        try lock.withLock {
+        try locked {
             if listFails.contains(directory) { throw BlobStoreError(path: directory, reason: "Ordner nicht lesbar") }
             let prefix = directory.hasSuffix("/") ? directory : directory + "/"
             let names = files.keys.filter { $0.hasPrefix(prefix) }.compactMap { $0.dropFirst(prefix.count).split(separator: "/").first.map(String.init) }
@@ -63,15 +70,15 @@ final class FaultyBlobStore: BlobStore, @unchecked Sendable {
         }
     }
 
-    func put(_ text: String, at path: String) { lock.withLock { files[path] = Data(text.utf8) } }
+    func put(_ text: String, at path: String) { locked { files[path] = Data(text.utf8) } }
 }
 
 /// Server wie `MockServer`, nach einem "Absturz" des Geraets (`crashed`) aber fuer dieses Geraet nicht mehr erreichbar
 final class CrashFlag: @unchecked Sendable {
     private let lock = NSLock()
     private var value = false
-    var isSet: Bool { lock.withLock { value } }
-    func set() { lock.withLock { value = true } }
+    var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
+    func set() { lock.lock(); value = true; lock.unlock() }
 }
 
 struct CrashableTransport: AnnotationTransport {

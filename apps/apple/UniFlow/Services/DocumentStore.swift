@@ -251,7 +251,7 @@ final class DocumentStore: ObservableObject {
             : "\(n) Striche lassen sich hier nicht anzeigen – sie bleiben unverändert gespeichert."
     }
 
-    /// Schreibrecht in den Container der Datei (entzogen, sobald "Daten dieser Hochschule löschen" ihn loescht)
+    /// Schreibrecht in den Container der Datei (entzogen, sobald "Daten dieser Hochschule loeschen" ihn loescht)
     private let lease: ContainerLease?
 
     /// - Parameter root: Ordner fuer Journal und PDF-Zwischenspeicher (Standard: App-Container; Tests: Temp-Ordner).

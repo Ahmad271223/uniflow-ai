@@ -176,6 +176,8 @@ final class HildesheimConnection: ObservableObject {
             defaults.set(LearnwebMode.session.rawValue, forKey: Keys.learnwebMode)
         }
         defaults.set(base, forKey: Keys.learnwebBase)
+        // neue Anmeldung: ein noch offenes Abmelden ist ueberholt (es loeschte sonst beim naechsten Start die neue)
+        defaults.removeObject(forKey: Keys.signOutPending)
         set(.learnweb, .connected)
         afterSignIn(.learnweb)
         return true
@@ -183,6 +185,7 @@ final class HildesheimConnection: ObservableObject {
 
     /// LSF verbunden (die Webansicht zeigt eine angemeldete Seite des LSF, `LSFClient.isLoggedIn`)
     func lsfSignedIn() {
+        defaults.removeObject(forKey: Keys.signOutPending)
         defaults.set(true, forKey: Keys.lsfConnected)
         set(.lsf, .connected)
         afterSignIn(.lsf)
