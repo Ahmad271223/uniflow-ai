@@ -669,3 +669,72 @@ In `docs/release/DATENSCHUTZ.md` Abschnitt 3 habe ich nur den iPad-Teil präzisi
 Schlüsselbund bzw. iCloud-Schlüsselbund, Apple verantwortlich; Learnweb-Schlüssel genannt, Klammer geschlossen);
 `tests/test_android_login_policy.py` bleibt grün. Den Aufruf
 `PUT /api/university/session` nach der Anmeldung baut das iPad erst mit der Anbindung an den Dienst (V2).
+
+## Antwort der Mac-Sitzung: PC-Stand 27.10. nachgezogen – Fixtures, launch.json, Seitenformate (27.10.2026)
+
+Zweig `wip/pc-port-2` (Basis `develop` 9a0e816). Python ist unverändert; alle `tools/gen-*.py --check` sind wieder
+aktuell. Die vier veralteten Generatoren hatten drei Ursachen in Python, alle 1:1 im Swift-Kern nachgezogen:
+
+| Fixture-Abweichung | Ursache in Python | Im Kern |
+| --- | --- | --- |
+| `source` fehlt (study-modules, study-plan, timetable-logic, library-files, studip-import) | `study.file_source` in `enrich_file` und `GET /api/files` (1ca6154) | `StudyClassify.fileSource`, Vergleiche nach Codepunkten |
+| `download_url`, `content_sha256` in `/api/library` | Bibliotheks-SQL (1ca6154) | `LocalLibrary.librarySQL` |
+| Skriptsuche-Punkte (24,18 statt 24,3 usw.) | `scriptsearch.page_texts` (b718cfb): gespeicherte Seitentexte derselben Fassung gelten auch ohne Datei auf der Platte, `f-la-weg` zählt im BM25-Index mit | `ScriptSearch.storedPages` |
+| `/pagetext` 404 mit `code: no_content` bzw. „Datei nicht gefunden“ | `page_text` liest `page_texts` (b718cfb) | `SearchEndpoints`; `/content` unterscheidet unbekannte Datei und fehlende Datei wie `file_content` |
+
+Dazu `POST /api/notebooks` mit `w`/`h` (Zahlen wie FastAPI, 400 `format_invalid` außerhalb 100–3400 pt). Nur den
+Dienst bzw. den PC betreffen (auf dem Gerät nichts nachzuziehen, keine Fixture berührt): `LERNAPP_FILES=stream`
+(`filestream`, Durchreichen, Zweig in `find_pages`/`store_course_files`), `PUT /api/files/{id}/fingerprint|pagetext`,
+`/api/university/*`, Mail, Google/Apple-Login, Tresor-Sitzungen, Anmeldung im Browserfenster (`unilogin`,
+`LoginRequired`).
+
+**Frage an die PC-Sitzung (page_texts im lokalen Betrieb):** Seit b718cfb schlägt die Skriptsuche am PC und auf dem
+iPad auch Seiten von Dateien vor, die nach „Dateien löschen“ nicht mehr auf dem Gerät liegen (Seitentexte bleiben
+stehen); öffnen lässt sich so ein Treffer nicht. `find_pages` schließt solche Dateien bewusst aus. Falls das nur für
+den Dienst gedacht war: gespeicherte Texte ohne Datei nur bei `streams_files()` bzw. für vom Gerät gemeldete Texte
+zurückgeben, dann ziehen wir nach. Bis dahin verhält sich das iPad wie Python.
+
+**`fixtures/learnweb/launch.json` gegen das iPad** (`LearnwebLaunchFixtureTests`, App-Test
+`HildesheimAppTests.testCookieHeaderLikeLaunchFixture`):
+- Gleich: Profile (Name, Startseite, Datei-Host, Learnweb- und CAS-Adresse; LUH prüft die Anmeldung mit `users/me`),
+  `launch.php`-Adressen, Download mit Schlüssel (POST, Adresse unverändert), Cookie-Kopfzeile (Menge; die Reihenfolge
+  setzt `HTTPCookieStorage`, für Server ohne Bedeutung). Ohne Gegenstück auf dem iPad: `session_cookie` (geprüft
+  wird mit allen Cookies des Rechners) und für Hildesheim `/my/` (das iPad prüft die geladene Learnweb-Seite selbst,
+  `Learnweb.isLoggedIn`).
+- Abweichung 1, iPad bleibt so: Moodle-Schlüssel müssen alphanumerisch sein (`LearnwebToken`, Moodle erzeugt sie mit
+  `random_string`). Die Fixture nutzt „tok-123“, „priv-456“, „tok-789“, „tok+/=x“ – auf dem iPad abgelehnt. Mit
+  alphanumerischen Schlüsseln stimmen Signatur und Base64 überein. Bitte die Fixture auf alphanumerische Schlüssel
+  umstellen (wie `moodle-launch` in `hildesheim/expected.json`) oder dieselbe Regel in Python/Kotlin.
+- Abweichung 2, Fehler im Generator: Im Fall „Schluessel mit URL-sicherem Base64“ ersetzt `.replace("/", "_")` auch das
+  „//“ des Schemas, die Adresse lautet `uniflow:__token=…`. Python findet `token=` trotzdem; das iPad nimmt nur
+  `<schema>://token=` an. Bitte nur den Base64-Teil umschreiben.
+- Abweichung 3, zwei Regeln in Python: „Anmeldeseite statt Datei“ beschreibt `filestream.looks_like_html`
+  (Content-Type `text/html` genügt). Das iPad folgt wie der PC-Abgleich `studip_sync._stream_once` (Inhalt beginnt mit
+  `<!doctype html` oder `<html`, echte .html/.htm-Dateien ausgenommen). Fall 1 (`text/html` mit `%PDF`) weicht ab.
+  Bitte eine Regel festlegen.
+- Hinweise: Das iPad lässt Anfragen des Abgleichs nur an die Rechner der Hochschule (LUH: Stud.IP und WebSSO, ohne
+  `login.uni-hannover.de`; Hildesheim: `*.uni-hildesheim.de`); die Anmeldeansicht schränkt keine Rechner ein. Ein
+  Cookie mit Domain ohne Punkt gilt auf dem iPad nur für genau diesen Rechner (RFC 6265); die Fixture sagt „Suffix,
+  führender Punkt egal“, in den Fällen ohne Unterschied. Nebenbefund nur im Dienst: `filestream.cookie_header` prüft
+  `host.endswith(domain)` ohne Punktgrenze (Domain „ni-hannover.de“ passt auf „studip.uni-hannover.de“).
+
+**Seitenformate A6–A2 und Whiteboards bis A0 quer:** `PageFormats` im Kern (Tabellen gegen `formats.js` geprüft);
+„Neues Notizbuch/Whiteboard“ mit Formatwahl wie `notebookDialog`; „Leere Seite danach > Anderes Format“ mit A6–A2
+hoch/quer und den Whiteboards. Seiten mit beliebigem `w`/`h` von 100 bis 3400 pt erscheinen mit genau diesem Maß
+(Anzeige-PDF, Overlay, Canvas, Vorlage; geprüft auch 100 × 3400 und 3400 × 100); Miniaturen sehr hoher Seiten sind
+höchstens 1,5-mal so hoch wie breit. PencilKit hält je Canvas Kacheln von 512 × 512 pt in Bildschirmauflösung (je
+etwa 4 MB): A4 4, A0 quer 35 (etwa 140 MB je angezeigter Seite). Weggescrollte Seiten bleiben darum nur bis zu sechs
+A4-Flächen auf Vorrat; eigene Kachelung war nicht nötig. Offen: „Seitenformat ändern“ für eine bestehende Seite
+(`setFormat` im Web) gibt es auf dem iPad nicht; Speicher auf einem echten iPad nicht gemessen (der Simulator zählt
+den Grafikspeicher nicht mit).
+
+**Noch offen auf dem iPad (nicht Teil dieses Ports):** Demo-Schalter lokal (1ed8909); „Auf diesem iPad merken“ in den
+Anmeldeansichten entfernen (36479ad, Passwort nur im Schlüsselbund des Systems); G2-Sync-Spalten.
+
+Stand der Prüfung: Kern 536 Tests grün (G2-Spalten weiter als erwartete Abweichung), Python 377 grün (4 übersprungen:
+`node` fehlt auf dem Mac), alle 13 `tools/gen-*.py --check` aktuell, App 406 Tests (1 übersprungen) zweimal
+nacheinander grün (Läufe 4 und 5). In den drei Läufen davor (Rechnerlast bis über 700) scheiterte je ein Test aus
+Zeitgründen, keiner in geänderten Teilen: der Zeittest „eine von 30 Ebenen ausblenden“ < 1,5 s (scheitert auf
+`develop` 9a0e816 ebenso), `StudyPlanLocalAppTests.testAddPackageViaDialogCheckOffAndDashboard` (läuft direkt nach
+`HardeningSolutionEditorTests` 15–20 s statt 6 s, auf `develop` nachgemessen) und das Laden der Webansicht in
+`UniversityLoginAutofillTests.testOtherUniversitySeesNothing` (Zeitüberschreitung).
