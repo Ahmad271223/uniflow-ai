@@ -42,8 +42,10 @@ enum DemoTexts {
         return "\(f) \(f == 1 ? "PDF" : "PDFs") · \(e) \(e == 1 ? "Termin" : "Termine") · \(p) \(p == 1 ? "Lernpaket" : "Lernpakete")"
     }
 
-    /// Meldung nach dem Anlegen
-    static func installed(_ s: JSONValue) -> String { "Demo angelegt: " + summary(s) }
+    /// Meldung nach dem Anlegen wie im Web (views-misc.js): "Demo angelegt: 3 PDFs, 3 Termine, 3 Lernpakete"
+    static func installed(_ s: JSONValue) -> String {
+        "Demo angelegt: \(s.i("files") ?? 0) PDFs, \(s.i("events") ?? 0) Termine, \(s.i("packages") ?? 0) Lernpakete"
+    }
 }
 
 /// Anlegen und Entfernen fuer die Oberflaeche: lokal ueber den Container (mit den Kopien auf dem Geraet), mit eigenem
