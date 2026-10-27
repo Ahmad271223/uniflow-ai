@@ -135,5 +135,18 @@ async function start() {
   window.__app = { route, api, state };
   api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); }).catch(() => {});
   route(); pollBg(); updateSyncChip();
+  // Windows-App: das Fenster blockiert Links in ein neues Fenster (target="_blank", window.open) still. Dort oeffnet sie
+  // der lokale Dienst im Standardbrowser (/api/desktop/open, nur http/https)
+  api("/desktop").then(d => {
+    if (!d.desktop) return;
+    state.desktop = true;
+    const openExternal = url => api("/desktop/open", { method: "POST", body: { url } }).then(() => toast("Im Browser geöffnet")).catch(e => toast(`Link nicht geöffnet: ${e.message}`));
+    document.addEventListener("click", e => {
+      const a = e.target.closest && e.target.closest('a[target="_blank"]');
+      if (!a || (a.getAttribute("href") || "#").startsWith("#") || !/^https?:/i.test(a.href)) return;
+      e.preventDefault(); openExternal(a.href);
+    }, true);
+    window.open = url => { const abs = url ? new URL(url, location.href).href : ""; if (/^https?:/i.test(abs)) openExternal(abs); return null; };
+  }).catch(() => {});
 }
 start();

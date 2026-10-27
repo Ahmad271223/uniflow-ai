@@ -32,11 +32,12 @@ def test_base_dir_and_environment(tmp_path, monkeypatch):
     base = tmp_path / "base"
     exe = tmp_path / "exe"
     exe.mkdir()
-    for k in ("LERNAPP_DATA_DIR", "LERNAPP_LOG_DIR", "LERNAPP_ENV_FILE", "PLAYWRIGHT_BROWSERS_PATH"):
+    for k in ("LERNAPP_DATA_DIR", "LERNAPP_LOG_DIR", "LERNAPP_ENV_FILE", "PLAYWRIGHT_BROWSERS_PATH", "LERNAPP_DESKTOP"):
         monkeypatch.setenv(k, "")                 # merkt sich den Stand, stellt ihn nach dem Test wieder her
         monkeypatch.delenv(k)
     values = desktop.prepare_environment(base, exe)
-    assert values == {"LERNAPP_DATA_DIR": str(base / "data"), "LERNAPP_LOG_DIR": str(base / "logs"), "LERNAPP_ENV_FILE": str(base / ".env")}
+    assert values == {"LERNAPP_DATA_DIR": str(base / "data"), "LERNAPP_LOG_DIR": str(base / "logs"), "LERNAPP_ENV_FILE": str(base / ".env"),
+                      "LERNAPP_DESKTOP": "1"}
     assert (base / "data").is_dir() and (base / "logs").is_dir() and os.environ["LERNAPP_ENV_FILE"] == str(base / ".env")
     assert not os.environ.get("PLAYWRIGHT_BROWSERS_PATH"), "ohne mitgeliefertes Chromium gilt Playwrights Standard"
     (exe / "ms-playwright" / "chromium-1").mkdir(parents=True)
@@ -120,7 +121,7 @@ def test_main_never_lets_an_exception_escape(tmp_path, monkeypatch):
     """Jeder Fehler beim Start, auch beim Anlegen der Ordner, endet mit 1 und einem Protokolleintrag – nie mit dem
     Fehlerfenster „Unhandled exception in script“ von PyInstaller."""
     from app import desktop
-    for k in ("LERNAPP_DATA_DIR", "LERNAPP_LOG_DIR", "LERNAPP_ENV_FILE", "PLAYWRIGHT_BROWSERS_PATH"):
+    for k in ("LERNAPP_DATA_DIR", "LERNAPP_LOG_DIR", "LERNAPP_ENV_FILE", "PLAYWRIGHT_BROWSERS_PATH", "LERNAPP_DESKTOP"):
         monkeypatch.setenv(k, os.environ.get(k, ""))
     monkeypatch.setenv("TEMP", str(tmp_path / "temp"))
 
@@ -135,6 +136,33 @@ def test_main_never_lets_an_exception_escape(tmp_path, monkeypatch):
     (tmp_path / "base2").write_text("Datei statt Ordner", encoding="utf-8")
     rc = desktop.main(["--base", str(tmp_path / "base2"), "--state", str(tmp_path / "b2.json")])
     assert rc == 1 and "Backend-Start fehlgeschlagen" in (tmp_path / "temp" / desktop.FALLBACK_LOG).read_text(encoding="utf-8")
+
+
+def test_desktop_opens_new_window_links_in_the_default_browser(app, monkeypatch):
+    """Windows-App: das Tauri-Fenster blockiert target="_blank" still („Im Stud.IP öffnen“ tat nichts, 27.10.2026).
+    Dort öffnet der lokale Dienst solche Links im Standardbrowser – nur in der Windows-App, nur vom eigenen Rechner,
+    nur http(s)."""
+    import webbrowser
+    opened = []
+    monkeypatch.setattr(webbrowser, "open", lambda url, new=0: opened.append(url) or True)
+    post = lambda url, client=("127.0.0.1", 5000): asgi_call(app, "POST", "/api/desktop/open", client=client, body=json.dumps({"url": url}))
+
+    monkeypatch.delenv("LERNAPP_DESKTOP", raising=False)
+    status, _, body = asgi_call(app, "GET", "/api/desktop")
+    assert status == 200 and json.loads(body) == {"desktop": False}
+    assert post("https://studip.uni-hannover.de/dispatch.php/course/overview?cid=x")[0] == 404, "im Browser und im Dienst gibt es das nicht"
+
+    monkeypatch.setenv("LERNAPP_DESKTOP", "1")
+    assert json.loads(asgi_call(app, "GET", "/api/desktop")[2]) == {"desktop": True}
+    url = "https://studip.uni-hannover.de/dispatch.php/course/overview?cid=abc&x=1"
+    status, _, body = post(url)
+    assert status == 200 and json.loads(body) == {"opened": True} and opened == [url]
+    for bad in ("javascript:alert(1)", "file:///C:/Windows/System32/calc.exe", "ms-settings:", "https://", "http://x\nexample.org", "", None, 42):
+        assert post(bad)[0] == 400, bad
+    assert post(url, client=("192.168.0.20", 5000))[0] in (401, 403), "andere Geraete: schon die PIN-Pruefung oder hier abgewiesen"
+    assert opened == [url], "abgelehnte Adressen öffnen nichts"
+    app_js = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+    assert 'api("/desktop")' in app_js and "closest('a[target=\"_blank\"]')" in app_js and "window.open = " in app_js
 
 
 def test_msix_manifest_store_values_and_workflow():
@@ -284,7 +312,7 @@ def test_backend_main_fails_before_state_when_port_taken(tmp_path, monkeypatch):
     """Fester Port belegt: der Starter bricht beim Binden ab, bevor er die Zustandsdatei schreibt (kein Fenster, das
     zu einem fremden Dienst navigiert), endet mit 1 und schreibt den Fehler ins Protokoll statt in ein Fehlerfenster."""
     from app import desktop
-    for k in ("LERNAPP_DATA_DIR", "LERNAPP_LOG_DIR", "LERNAPP_ENV_FILE", "PLAYWRIGHT_BROWSERS_PATH"):
+    for k in ("LERNAPP_DATA_DIR", "LERNAPP_LOG_DIR", "LERNAPP_ENV_FILE", "PLAYWRIGHT_BROWSERS_PATH", "LERNAPP_DESKTOP"):
         monkeypatch.setenv(k, os.environ.get(k, ""))      # merkt sich den Stand, stellt ihn nach dem Test wieder her
     blocker = desktop.bind_socket()
     state = tmp_path / "backend.json"

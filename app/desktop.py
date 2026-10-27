@@ -106,7 +106,10 @@ def browsers_path(base: Path, exe_folder: Path | None = None) -> Path | None:
 
 def prepare_environment(base: Path, exe_folder: Path | None = None) -> dict[str, str]:
     """Datenordner anlegen und die Umgebung fuer app.config setzen; liefert die gesetzten Werte."""
-    values = {"LERNAPP_DATA_DIR": str(base / "data"), "LERNAPP_LOG_DIR": str(base / "logs"), "LERNAPP_ENV_FILE": str(base / ".env")}
+    # LERNAPP_DESKTOP: die Oberflaeche laeuft im Tauri-Fenster; Links in ein neues Fenster oeffnet dann der Dienst im
+    # Standardbrowser (server.api_desktop_open), denn das Fenster blockiert target="_blank" still
+    values = {"LERNAPP_DATA_DIR": str(base / "data"), "LERNAPP_LOG_DIR": str(base / "logs"), "LERNAPP_ENV_FILE": str(base / ".env"),
+              "LERNAPP_DESKTOP": "1"}
     bp = browsers_path(base, exe_folder)
     if bp:
         values["PLAYWRIGHT_BROWSERS_PATH"] = str(bp)

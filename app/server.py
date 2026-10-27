@@ -11,7 +11,7 @@ from pathlib import Path
 
 from datetime import datetime
 
-from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -2070,6 +2070,53 @@ def api_recording_delete(rec_id: int):
 @app.get("/api/bg")
 def bg():
     return _bg()
+
+
+# ---------------------------------------------------------------- Windows-App: Links im Standardbrowser
+
+def _desktop_mode() -> bool:
+    import os
+    return os.environ.get("LERNAPP_DESKTOP") == "1" and not config.is_hosted()
+
+
+def external_url(u) -> str | None:
+    """Nur http(s)-Adressen mit Host, ohne Steuerzeichen, hoechstens 4096 Zeichen; sonst None."""
+    if not isinstance(u, str):
+        return None
+    u = u.strip()
+    if not u or len(u) > 4096 or any(ord(c) < 32 or c == "\x7f" for c in u):
+        return None
+    from urllib.parse import urlsplit
+    try:
+        p = urlsplit(u)
+    except ValueError:
+        return None
+    if p.scheme.lower() not in ("http", "https") or not p.hostname:
+        return None
+    return u
+
+
+@app.get("/api/desktop")
+def api_desktop():
+    """Laeuft die Oberflaeche in der Windows-App? Dann oeffnet sie Links in ein neues Fenster ueber /api/desktop/open."""
+    return {"desktop": _desktop_mode()}
+
+
+@app.post("/api/desktop/open")
+def api_desktop_open(request: Request, body: dict = Body(...)):
+    """Link im Standardbrowser oeffnen (Windows-App: das Tauri-Fenster blockiert target="_blank" und window.open still,
+    z. B. „Im Stud.IP öffnen“). Nur in der Windows-App, nur vom eigenen Rechner, nur http(s)."""
+    if not _desktop_mode():
+        raise HTTPException(404, "Nur in der Windows-App")
+    if (request.client.host if request.client else "") not in ("127.0.0.1", "::1"):
+        raise HTTPException(403, "Nur vom eigenen Rechner")
+    url = external_url(body.get("url"))
+    if not url:
+        raise HTTPException(400, "Nur http- und https-Adressen")
+    import webbrowser
+    if not webbrowser.open(url, new=2):
+        raise HTTPException(500, "Kein Browser gefunden")
+    return {"opened": True}
 
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
