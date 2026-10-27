@@ -21,13 +21,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import de.uniflow.android.AppScope
 import de.uniflow.android.Dates
+import de.uniflow.android.OfflineRules
 import de.uniflow.android.Repo
 import de.uniflow.android.SyncRules
 import de.uniflow.android.UniversityRules
 import de.uniflow.android.ui.Loaded
 import de.uniflow.android.ui.SectionCard
 import de.uniflow.android.ui.UiState
+import de.uniflow.android.ui.StandHinweis
 import de.uniflow.android.ui.rememberLoaded
+import de.uniflow.android.ui.rememberStand
 import de.uniflow.android.ui.theme.Bad
 import de.uniflow.android.ui.theme.Ok
 import de.uniflow.android.ui.theme.Warn
@@ -39,12 +42,14 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(repo: Repo, onLogout: () -> Unit, onOpenLibrary: () -> Unit, onUniversityLogin: () -> Unit) {
-    val (state, reload) = rememberLoaded("dashboard") { repo.dashboard() }
+    // Gespeicherte Uebersicht sofort, dann Geraete-Abgleich und frische Uebersicht vom Dienst
+    val (state, reload) = rememberStand("dashboard", local = { repo.localDashboard() }, remote = { repo.dashboard() })
     // Hochschul-Sitzung dieses Geraets: beim Zurueckkehren von der Anmeldung wird die Ansicht neu aufgebaut und laedt den Stand neu
     val (uniState, reloadUni) = rememberLoaded("university") { repo.universityStatus() }
     val scope = rememberCoroutineScope()
     var info by remember { mutableStateOf<String?>(null) }
     var syncing by remember { mutableStateOf(false) }
+    var logoutArmed by remember { mutableStateOf(false) }
 
     /** Abgleich wie `pollBg` im Web: starten, /api/bg abfragen bis fertig, dann die Uebersicht neu laden. */
     fun startSync() {
@@ -63,12 +68,17 @@ fun HomeScreen(repo: Repo, onLogout: () -> Unit, onOpenLibrary: () -> Unit, onUn
         }
     }
 
-    Loaded(state, reload) { d ->
+    Loaded(state, reload) { stand ->
+        val d = stand.value
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
                 Text("Guten Tag!", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                 // Sitzung sofort verwerfen und wechseln; der Server-Logout laeuft im Hintergrund (kein Warten bei langsamem Netz)
-                TextButton(onClick = { repo.logout(AppScope.main); onLogout() }) { Text("Abmelden") }
+                TextButton(onClick = {
+                    // offene lokale Aenderungen gehen beim Abmelden verloren (die Ablage wird fuer das naechste Konto geleert): erst hinweisen
+                    if (stand.pending > 0 && !logoutArmed) { logoutArmed = true; info = "${OfflineRules.pendingText(stand.pending)}. Erneut „Abmelden“ tippen, um sie zu verwerfen." }
+                    else { repo.logout(AppScope.main); onLogout() }
+                }) { Text("Abmelden") }
             }
             Text(buildString {
                 append(d.lastSyncAt?.let { "Zuletzt synchronisiert: ${it.take(16).replace('T', ' ')}" } ?: "Noch kein Abgleich")
@@ -79,6 +89,7 @@ fun HomeScreen(repo: Repo, onLogout: () -> Unit, onOpenLibrary: () -> Unit, onUn
                 TextButton(onClick = reload) { Text("Aktualisieren") }
             }
             info?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) }
+            StandHinweis(stand)
 
             SectionCard("Heute an der Uni") {
                 if (d.todayEvents.isEmpty()) Text("Keine Termine heute.", style = MaterialTheme.typography.bodyMedium)

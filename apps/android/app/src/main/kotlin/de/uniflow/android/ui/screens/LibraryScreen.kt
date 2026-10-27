@@ -21,23 +21,27 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import de.uniflow.android.Repo
 import de.uniflow.android.ui.Loaded
-import de.uniflow.android.ui.rememberLoaded
+import de.uniflow.android.ui.StandHinweis
+import de.uniflow.android.ui.rememberStand
 import de.uniflow.android.ui.theme.Warn
 import de.uniflow.core.LibraryFile
 
-/** Dokumente nach Modul; PDFs, die der Server geladen hat, oeffnen sich im Stift-Editor. */
+/** Dokumente nach Modul; PDFs, die der Server geladen hat, oeffnen sich im Stift-Editor. Ohne Netz: Dateiliste vom letzten Mal, PDFs aus dem Cache. */
 @Composable
 fun LibraryScreen(repo: Repo, onOpen: (LibraryFile) -> Unit) {
-    val (state, reload) = rememberLoaded("library") { repo.library() }
+    // Zuerst die gespeicherte Dateiliste (sofort, auch ohne Netz), dann frisch vom Dienst
+    val (state, reload) = rememberStand("library", local = { repo.localLibrary() }, remote = { repo.library() })
     var hint by remember { mutableStateOf<String?>(null) }
     // Beim Zurueckkehren in den Vordergrund (und aus einem Dokument) neu laden: inzwischen abgeglichene Dateien erscheinen.
     // Das erste ON_RESUME kommt direkt nach dem Anzeigen, da laedt rememberLoaded bereits.
     var resumedBefore by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (resumedBefore) reload() else resumedBefore = true }
-    Loaded(state, reload) { lib ->
+    Loaded(state, reload) { stand ->
+        val lib = stand.value
         val groups = lib.byModule().entries.sortedBy { it.key?.name ?: "~" }
         LazyColumn(Modifier.fillMaxSize()) {
             item { Text("Dokumente", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp)) }
+            item { StandHinweis(stand) }
             hint?.let { item { Text(it, color = Warn, modifier = Modifier.padding(horizontal = 16.dp)) } }
             for ((module, files) in groups) {
                 item {

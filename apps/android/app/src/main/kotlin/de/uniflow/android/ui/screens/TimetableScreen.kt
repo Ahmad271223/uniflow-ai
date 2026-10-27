@@ -23,7 +23,8 @@ import de.uniflow.android.Repo
 import de.uniflow.android.ui.DayExtras
 import de.uniflow.android.ui.Loaded
 import de.uniflow.android.ui.SectionCard
-import de.uniflow.android.ui.rememberLoaded
+import de.uniflow.android.ui.StandHinweis
+import de.uniflow.android.ui.rememberStand
 import de.uniflow.android.ui.theme.Ok
 import de.uniflow.core.Labels
 
@@ -31,7 +32,8 @@ import de.uniflow.core.Labels
 fun TimetableScreen(repo: Repo) {
     var monday by remember { mutableStateOf(Dates.mondayOf(Dates.today())) }
     val start = Dates.format(monday)
-    val (state, reload) = rememberLoaded(start) { repo.timetableWeek(start) }
+    // Gespeicherte Woche sofort (oder Termine aus dem letzten Abgleich), dann frisch vom Dienst
+    val (state, reload) = rememberStand(start, local = { repo.localTimetableWeek(start) }, remote = { repo.timetableWeek(start) })
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { monday = monday.minusWeeks(1) }) { Text("◀") }
@@ -39,8 +41,10 @@ fun TimetableScreen(repo: Repo) {
             TextButton(onClick = { monday = Dates.mondayOf(Dates.today()) }) { Text("Heute") }
             TextButton(onClick = { monday = monday.plusWeeks(1) }) { Text("▶") }
         }
-        Loaded(state, reload) { week ->
+        Loaded(state, reload) { stand ->
+            val week = stand.value
             LazyColumn(Modifier.fillMaxSize()) {
+                item { StandHinweis(stand) }
                 week.termName?.let { item { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) } }
                 items(week.days.size) { i ->
                     val d = week.days[i]

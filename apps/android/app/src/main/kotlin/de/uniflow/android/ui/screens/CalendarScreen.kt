@@ -26,18 +26,22 @@ import de.uniflow.android.ui.DayExtras
 import de.uniflow.android.ui.Loaded
 import de.uniflow.android.ui.SectionCard
 import de.uniflow.android.ui.colorOf
-import de.uniflow.android.ui.rememberLoaded
+import de.uniflow.android.ui.StandHinweis
+import de.uniflow.android.ui.rememberStand
 import de.uniflow.android.ui.theme.Bad
 import de.uniflow.core.Labels
 import kotlinx.coroutines.launch
 
-/** Lernkalender: Woche mit Lernpaketen und Aufgaben; Abhaken geht direkt zum Server (POST /api/tasks/{id}/status). */
+/**
+ * Lernkalender: Woche mit Lernpaketen und Aufgaben aus der lokalen Ablage. Abhaken schreibt lokal (sofort sichtbar,
+ * auch ohne Netz) und geht als G2-Aenderung an den Dienst (Repo.setTaskStatus, Abgleich beim Neuladen oder im Hintergrund).
+ */
 @Composable
 fun CalendarScreen(repo: Repo) {
     var monday by remember { mutableStateOf(Dates.mondayOf(Dates.today())) }
     val start = Dates.format(monday)
     val end = Dates.format(monday.plusDays(6))
-    val (state, reload) = rememberLoaded(start) { repo.calendar(start, end) }
+    val (state, reload) = rememberStand(start, local = { repo.localCalendar(start, end) }, remote = { repo.calendar(start, end) })
     val scope = rememberCoroutineScope()
     var error by remember(start) { mutableStateOf<String?>(null) }          // beim Wochenwechsel zuruecksetzen
     var busy by remember { mutableStateOf<Set<Int>>(emptySet()) }           // Aufgaben mit laufender Statusaenderung
@@ -49,8 +53,10 @@ fun CalendarScreen(repo: Repo) {
             TextButton(onClick = { monday = monday.plusWeeks(1) }) { Text("▶") }
         }
         error?.let { Text(it, color = Bad, modifier = Modifier.padding(horizontal = 12.dp)) }
-        Loaded(state, reload) { range ->
+        Loaded(state, reload) { stand ->
+            val range = stand.value
             LazyColumn(Modifier.fillMaxSize()) {
+                item { StandHinweis(stand) }
                 items(range.days.size) { i ->
                     val d = range.days[i]
                     SectionCard("${Dates.weekdaysLong[d.weekday]}, ${Dates.short(d.date).substringAfter(", ")}  ·  ${Labels.status[d.status] ?: d.status}" +

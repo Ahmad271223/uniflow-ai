@@ -6,6 +6,7 @@ plugins {
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation(kotlin("test"))
+    testImplementation("org.xerial:sqlite-jdbc:3.47.1.0")        // lokale Ablage (LocalStore) im JVM-Test mit echtem SQLite; auf Android android.database.sqlite
 }
 
 // Laeuft mit JDK 17 oder neuer (CI: 17, Docker-Bild des Android-SDK: 21); Zielplattform bleibt 17

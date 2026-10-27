@@ -620,3 +620,34 @@ Zwei Ergänzungen zum Vertrag „Hochschul-Anmeldung auf dem Gerät“:
    dem WebSSO/CAS; der Mensch meldet sich selbst an, Chromium bietet „Passwort speichern?“ an (geprüft), die App
    merkt nur die Sitzung in `university-session.json`. Für das iPad nicht relevant (dort WKWebView), nur zur Kenntnis:
    Zugangsdaten in `.env`/Tresor sind damit überall nur noch die freiwillige Alternative für den Abgleich ohne Nachfrage.
+
+## Nachtrag der PC-Sitzung: Android arbeitet offline mit lokaler Ablage und G2-Abgleich (27.10.2026)
+
+Android hat jetzt die lokale Ablage, die der Vertrag G2 für jeden Kern verlangt (`docs/VERTRAEGE-KONTO-SYNC.md`,
+Abschnitt „G2 Synchronisierung“), umgesetzt in `apps/android/core` (`LocalStore`, `SyncEngine`, `LocalViews`, Details
+in `apps/android/README.md`, Abschnitt „Offline-Betrieb und Geräte-Abgleich“). Für das iPad gelten dieselben Verträge
+und – wenn ihr es gleich bauen wollt – dieselbe Form:
+
+- Eine Tabelle `sync_rows(entity, id TEXT, data JSON, sync_version, sync_updated_at, sync_device, dirty, dirty_fields,
+  updated_at)` statt einer Tabelle je Entität reicht für die App (die Serverzeile bleibt als JSON unverändert, kein
+  Schema-Nachziehen bei neuen Spalten). Die drei `sync_*`-Spalten sind dieselben wie beim Dienst; `dirty_fields` sind
+  die Felder, die beim Push als `data` mitgehen, `updated_at` ist der Zeitstempel des Geräts für die Regel „späterer
+  Schreiber gewinnt“. Neue Zeilen tragen negative IDs (Zähler in `sync_state`), bis `mapping` sie zuordnet; danach die
+  Fremdschlüssel anderer Zeilen (`module_id`, `package_id`, `event_id`, `folder_id`, `parent_id`) nachziehen.
+- Trigger wie in `app/sync.py::ensure_schema`: Datenänderung ohne neue Serverversion → dirty; Löschen → Tombstone;
+  beides schweigt während der Übernahme vom Server (Schalter `sync_state.applying`). Löschen einer nie gesendeten
+  (negativen) Zeile erzeugt keinen Tombstone.
+- Push-Antworten: `created` → ID ersetzen; `applied`/`resurrected` → Version setzen; `conflict` → Serverzeile aus
+  `conflicts[].server` ablegen und nur die Felder aus `client_won` lokal behalten; `deleted` mit `deleted_at` → Zeile
+  weg; `edit_wins` → eigenen Tombstone verwerfen und Serverzeile zurückholen; `ignored` → erledigt; `error` → bleibt
+  dirty, Meldung zeigen. Pull: Serverzeile ersetzt den lokalen Stand, bei dirty Zeilen je Feld nach der Vertragsregel
+  (lokales `updated_at` gegen `sync_updated_at`), Basisversion = Serverversion; Tombstone löscht, eine jüngere lokale
+  Änderung überlebt und geht beim nächsten Push mit allen Feldern (`resurrected`). Erst Push, dann Pull.
+- `SyncEngineContractTest` spielt alle Fälle aus `fixtures/sync/cases.json` gegen die Ablage: die aus dem Zustand
+  erzeugte Nachricht muss der aufgezeichneten gleichen, danach wird der Zustand geprüft. Das ist auch für Swift der
+  einfachste Beweis, dass beide Kerne gleich entscheiden.
+- Ansichten: Lernpakete/Aufgaben immer aus den Zeilen (Abhaken sofort sichtbar, auch offline; Paket- und Tagesstatus wie
+  `app/study.py::_derive_status`/`calendar`), Feiertage/Fristen/Ankündigungen aus einer Momentaufnahme der
+  Server-Antwort je Woche („Stand vom …“); fehlt sie, Termine aus `course_events`/`event_exceptions` wie
+  `timetable.occurrences` ohne Feiertage. Notizen offline: zuletzt gesehener Stand bzw. Basis des Entwurfs, alles
+  Gezeichnete bleibt Entwurf und wird wie bisher mit den Merge-Regeln nachgeliefert.

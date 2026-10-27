@@ -1,16 +1,18 @@
 # UniFlow für Android
 
-**Stand 26.10.2026:** Kern und App vorhanden. Die App ist ein Client des UniFlow-Servers: des gehosteten Dienstes
+**Stand 27.10.2026:** Kern und App vorhanden. Die App ist ein Client des UniFlow-Servers: des gehosteten Dienstes
 (UniFlow-Konto, Vertrag G1) oder des eigenen PCs im WLAN (`serve.py --lan`, PIN). Sie zeigt Übersicht, Dokumente,
-Stundenplan und Lernkalender und schreibt Stift-Notizen im gemeinsamen Notizformat auf PDFs. Gebaut und getestet im
+Stundenplan und Lernkalender und schreibt Stift-Notizen im gemeinsamen Notizformat auf PDFs. Alles liegt in einer
+lokalen Ablage (SQLite) und wird mit dem Dienst über den Geräte-Abgleich G2 abgeglichen; ohne Netz zeigt die App den
+letzten Stand („Stand vom …“) und sendet Änderungen nach, sobald der Dienst erreichbar ist. Gebaut und getestet im
 Docker-Bild `ghcr.io/cirruslabs/android-sdk:35`; auf einem echten Gerät noch nicht geprüft (kein Android-Gerät am PC).
 
 ## Aufbau
 
 | Modul | Inhalt | Tests |
 | --- | --- | --- |
-| `core` (Kotlin/JVM, ohne Android) | `ApiClient` (HttpURLConnection, Bearer-Token oder PIN-Cookie), `AccountApi` (G1), `SyncApi` (G2), `AnnotationDocument` (gemeinsames Notizformat, verlustfrei), `AnnotationStore` (base_version, 409 → Zusammenführung → erneut senden), `AnnotationMerge` (Drei-Wege-Regeln), Modelle für Bibliothek, Stundenplan, Lernkalender, Übersicht | gegen `packages/shared-contracts/fixtures`: `account/contract.json` (jeder aufgezeichnete Ablauf, Anfrage und Antwort), `sync/cases.json`, `documents/web-editor.json`, `merge/cases.json` |
-| `app` (Jetpack Compose, minSdk 26) | Anmeldung (Konto oder PC+PIN), Übersicht, Dokumente nach Modul, PDF mit Stift (`PdfRenderer` + Compose-Canvas, Stift/Rot/Blau/Marker/Radierer, „Nur Stift“), Stundenplan (Woche, Feiertage grün, Fristen, Hinweise), Lernkalender (Woche, Aufgaben abhaken), Hochschul-Anmeldung in der WebView mit Direkt-Download (`UniversityLoginScreen`, `UniversityStore`, `FetchPolicy`, `PdfBoxPageText`), lokaler Notiz-Entwurf mit Nachlieferung (`Draft`, `DraftStore`, `DraftKeeper`, `DraftUploadRules`, `DraftUploadWorker`) | reine Regeln ohne Gerät: `RulesTest` (Adressen, Datum), `InkTest` (Stiftgeometrie, Farben, Breite/Deckkraft, Seitenmaß, fremde Objekte), `PdfRulesTest` (PDF-Prüfung), `PdfCacheTest` (atomare Ablage), `AnnotationSessionTest` (serialisiertes Speichern, Entwurf erst nach 2xx weg), `DraftStoreTest` (Entwurf atomar und wiederherstellbar), `DraftRestoreTest` (Entwurf + Serverstand nach `fixtures/merge/cases.json`), `DraftUploadRulesTest` (Nachlieferung: Erfolg/Wiederholung/Abbruch nach Antwortcode), `SyncRulesTest` (Abgleich abwarten), `FetchPolicyTest` (direkt oder Dienst), `PageTextRulesTest` (Grenzen des Seitentexts), `UniversityRulesTest` (Karte „Hochschule“) |
+| `core` (Kotlin/JVM, ohne Android) | `ApiClient` (HttpURLConnection, Bearer-Token oder PIN-Cookie), `AccountApi` (G1), `SyncApi` (G2), `AnnotationDocument` (gemeinsames Notizformat, verlustfrei), `AnnotationStore` (base_version, 409 → Zusammenführung → erneut senden), `AnnotationMerge` (Drei-Wege-Regeln), Modelle für Bibliothek, Stundenplan, Lernkalender, Übersicht, lokale Ablage `LocalStore` (SQLite über `SqlDb`, G2-Spalten und Trigger wie beim Dienst, Tombstones, Cursor, Momentaufnahmen), `SyncEngine` (Push/Pull mit Konfliktregeln je Feld), `LocalViews` (Ansichten aus der Ablage) | gegen `packages/shared-contracts/fixtures`: `account/contract.json` (jeder aufgezeichnete Ablauf, Anfrage und Antwort), `sync/cases.json` (als Nachrichten und gegen die Ablage: `SyncEngineContractTest`), `documents/web-editor.json`, `merge/cases.json`; `LocalStoreTest` (Rundlauf, Trigger, Neustart; echtes SQLite über sqlite-jdbc), `LocalViewsTest` |
+| `app` (Jetpack Compose, minSdk 26) | Anmeldung (Konto oder PC+PIN), Übersicht, Dokumente nach Modul, PDF mit Stift (`PdfRenderer` + Compose-Canvas, Stift/Rot/Blau/Marker/Radierer, „Nur Stift“), Stundenplan (Woche, Feiertage grün, Fristen, Hinweise), Lernkalender (Woche, Aufgaben abhaken), Hochschul-Anmeldung in der WebView mit Direkt-Download (`UniversityLoginScreen`, `UniversityStore`, `FetchPolicy`, `PdfBoxPageText`), lokaler Notiz-Entwurf mit Nachlieferung (`Draft`, `DraftStore`, `DraftKeeper`, `DraftUploadRules`, `DraftUploadWorker`), Offline-Betrieb (`AndroidSqlDb`, `Stand`, `OfflineRules`, `SyncPushWorker`, `rememberStand`/`StandHinweis`) | reine Regeln ohne Gerät: `RulesTest` (Adressen, Datum), `InkTest` (Stiftgeometrie, Farben, Breite/Deckkraft, Seitenmaß, fremde Objekte), `PdfRulesTest` (PDF-Prüfung), `PdfCacheTest` (atomare Ablage), `AnnotationSessionTest` (serialisiertes Speichern, Entwurf erst nach 2xx weg), `DraftStoreTest` (Entwurf atomar und wiederherstellbar), `DraftRestoreTest` (Entwurf + Serverstand nach `fixtures/merge/cases.json`), `DraftUploadRulesTest` (Nachlieferung: Erfolg/Wiederholung/Abbruch nach Antwortcode), `SyncRulesTest` (Abgleich abwarten), `FetchPolicyTest` (direkt oder Dienst), `PageTextRulesTest` (Grenzen des Seitentexts), `UniversityRulesTest` (Karte „Hochschule“), `OfflineRulesTest` (wann die Ablage einspringt, Text „Stand vom …“) |
 
 Sitzung: Token oder PIN liegen in `EncryptedSharedPreferences` (Android-Schlüsselbund), nie Passwörter. Öffentliche
 Adressen nur über https; http nur für private Netze (PC im WLAN). PDFs kommen unverändert vom Server und liegen im
@@ -46,6 +48,58 @@ Feldern, Seitenreihenfolge-Konflikt sichtbar), sendet ihn gleich und zeigt wie d
 zusammengeführt, N Konflikte, dieses Gerät gilt“ bzw. „Seitenreihenfolge auf beiden Geräten geändert – die Reihenfolge
 dieses Geräts gilt“; ein vom Worker aufgegebener Entwurf erscheint als „Konflikt“. Kleiner Status im Dokument:
 „Entwurf gespeichert“ / „wird gesendet“ / „gesendet“ / „Entwurf gespeichert – wird nachgeliefert“ / „Konflikt“.
+
+## Offline-Betrieb und Geräte-Abgleich (G2)
+
+Die App liest jede Ansicht zuerst aus der lokalen Ablage und holt dann den frischen Stand vom Dienst; fällt der Dienst
+aus (kein Netz, 5xx, Zeitüberschreitung – nicht 401/404), bleibt der gespeicherte Stand mit dem Hinweis „Stand vom
+27.10.2026, 14:03 – keine Verbindung“ stehen (`OfflineRules`, `rememberStand`, `StandHinweis`). Beim ersten Start ohne
+Netz gibt es keinen Stand, dann erscheint wie bisher die Fehlermeldung mit „Erneut versuchen“.
+
+**Ablage** (`files/uniflow-local.db`, `LocalStore` im Kern über `SqlDb`; Android: `AndroidSqlDb` mit
+`android.database.sqlite`, JVM-Test: sqlite-jdbc):
+
+- `sync_rows(entity, id, data, sync_version, sync_updated_at, sync_device, dirty, dirty_fields, updated_at)`: eine
+  Zeile je G2-Entität und ID (`modules`, `folders`, `course_events`, `event_exceptions`, `study_packages`,
+  `study_tasks`, `flashcards`, `settings`; Notizen laufen weiter über `AnnotationStore` und die Entwürfe). `data` ist
+  die Serverzeile als JSON, die drei `sync_*`-Spalten sind dieselben wie beim Dienst. Lokale Änderungen setzen `dirty`,
+  `dirty_fields` (nur diese Felder gehen beim Push mit) und `updated_at` (Zeitstempel dieses Geräts für die Regel
+  „späterer Schreiber gewinnt“); neue Zeilen haben negative IDs bis zur Zuordnung durch den Server.
+- Trigger wie in `app/sync.py::ensure_schema`: eine Datenänderung ohne neue Serverversion markiert die Zeile als dirty,
+  ein Löschen schreibt einen Tombstone (`sync_tombstones`) – außer während der Übernahme vom Server (`sync_state.applying`),
+  die Version und Zeitstempel selbst setzt.
+- `sync_state` (Cursor der letzten Antwort, Gerätekennung, letzter Abgleich, Zähler der lokalen IDs) und `snapshots`
+  (Momentaufnahmen der Server-Antworten mit Zeitpunkt: Bibliothek `/api/library` mit `download_url`, `content_sha256`,
+  `source` je Datei, Übersicht, je Stundenplan-Woche, je Kalenderbereich, zuletzt gesehener Notizstand je Datei).
+
+**Abgleich** (`SyncEngine`, `Repo.syncNow`, nie zwei Läufe gleichzeitig): erst Push aller dirty Zeilen und Tombstones
+(Eltern vor Kindern; neue Zeilen mit `local_id` und allen Feldern, geänderte mit `id`, `base_version`, `updated_at` und
+nur den geänderten Feldern, Einstellungen mit `local_id` = Schlüssel), dann Pull mit dem Cursor. Antworten werden nach
+`fixtures/sync/cases.json` übernommen: `created` ersetzt die lokale ID auch in Fremdschlüsseln anderer Zeilen,
+`applied`/`resurrected` setzen die Version, `conflict` legt den Serverstand ab und behält die Felder aus `client_won`,
+`deleted` (Tombstone war neuer) entfernt die Zeile, `edit_wins` verwirft die lokale Löschung und holt die Serverzeile
+zurück, `ignored` (private Einstellung) ist erledigt, `error` bleibt dirty und wird gemeldet. Beim Pull ersetzt die
+Serverzeile den lokalen Stand; ist die Zeile lokal dirty, gilt die Regel des Vertrags je Feld (`updated_at` des Geräts
+gegen `sync_updated_at` des Servers), die Basisversion wird die des Servers. Ein Tombstone löscht die Zeile; eine
+jüngere lokale Änderung überlebt und wird beim nächsten Push mit allen Feldern wiederhergestellt. Der Abgleich läuft
+beim Laden der Übersicht und des Lernkalenders; `SyncPushWorker` (WorkManager, nur mit Netz, ein Name) liefert liegen
+gebliebene Änderungen nach jeder lokalen Änderung und beim App-Start nach.
+
+**Ansichten** (`LocalViews`): Lernpakete und Aufgaben kommen immer aus den G2-Zeilen (Abhaken schreibt
+`study_tasks.status`/`done_at` nur lokal und ist sofort sichtbar; Paket- und Tagesstatus wie `app/study.py`,
+Lerntage aus `settings.free_days`); Feiertage, Fristen, Ankündigungen und berechnete Termine kommen aus der
+Momentaufnahme des Bereichs. Fehlt die (Woche nie online geöffnet), werden die Termine aus `course_events` und
+`event_exceptions` berechnet (wie `timetable.occurrences`, ohne Feiertage und Semestergrenzen; der Hinweis sagt das).
+Solange noch nie abgeglichen wurde (kein Cursor), zählt nur die Momentaufnahme – so läuft es auch am PC im WLAN.
+Dokumente: Dateiliste aus der Momentaufnahme, PDF aus dem Cache, Notizen aus dem zuletzt gesehenen Stand bzw. der
+Basis des Entwurfs; was offline gezeichnet wird, bleibt Entwurf (`files/drafts`) und wird wie bisher nachgeliefert.
+Abmelden leert die Ablage (ein anderes Konto erbt nichts); liegen noch ungesendete Änderungen, warnt die Übersicht und
+verlangt ein zweites Tippen. Offene Änderungen stehen unter dem Stand-Hinweis („2 Änderungen werden gesendet, sobald …“).
+
+Nicht lokal: Hochschul-Abgleich (`POST /api/sync`, braucht den Dienst), Fingerabdruck- und Seitentextmeldung, Konto.
+Abgehakte Aufgaben gehen als G2-Feldänderung an den Dienst, nicht mehr über `POST /api/tasks/{id}/status` (nur noch als
+Rückfall, wenn die Ablage die Aufgabe nicht kennt); `task_history` schreibt der Dienst dafür nicht, den Paketstatus
+leitet er beim nächsten Aufruf selbst ab.
 
 ## Hochschul-Anmeldung auf dem Gerät
 
@@ -126,7 +180,11 @@ App-Tests, Debug-APK und `bundleRelease` (unsigniert) als Artefakt `uniflow-andr
 
 ## Noch nicht in der App
 
-- Offline-Betrieb mit lokaler Datenbank und Geräte-Sync über G2 (der Kern kann die Nachrichten, die Ablage fehlt).
+- Offline anlegen oder ändern von Modulen, Lernpaketen, Terminen, Karteikarten und Einstellungen: die Ablage und der
+  Abgleich können es (`LocalStore.insertLocal`/`update`/`delete`, alle Fixture-Fälle), die Oberfläche bietet bisher nur
+  das Abhaken von Aufgaben an. Feiertage, Fristen und Ankündigungen gibt es offline nur für Wochen, die schon einmal
+  online geöffnet waren (Momentaufnahme); der Gerätetest des Offline-Betriebs (Flugmodus, WorkManager-Nachlieferung)
+  steht noch aus.
 - Eigene Notizbücher und Importe, Karteikarten, Noten, Community.
 - Hochschul-Abgleich (Kurse, Termine, Dateiliste) startet nur den Job auf dem Server (`POST /api/sync`) und wartet auf
   `/api/bg`; nur der Download der Dateien läuft mit Hochschul-Sitzung direkt auf dem Gerät (siehe oben).

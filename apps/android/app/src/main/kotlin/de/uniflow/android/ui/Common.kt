@@ -23,8 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import de.uniflow.android.OfflineRules
+import de.uniflow.android.Stand
 import de.uniflow.android.ui.theme.Bad
 import de.uniflow.android.ui.theme.Ok
+import de.uniflow.android.ui.theme.Warn
+import kotlinx.coroutines.CancellationException
 import de.uniflow.core.ApiError
 import de.uniflow.core.DayMark
 import de.uniflow.core.Deadline
@@ -57,6 +61,45 @@ fun <T> rememberLoaded(key: Any?, load: suspend () -> T): Pair<UiState<T>, () ->
         }
     }
     return state to { tick++ }
+}
+
+/**
+ * Ansicht mit lokaler Ablage: zuerst sofort der gespeicherte Stand (`local`, null = keiner), dann frisch vom Dienst
+ * (`remote`). Scheitert der Dienst, bleibt der gespeicherte Stand mit `offline = true` und dem Grund stehen; ohne
+ * gespeicherten Stand erscheint der Fehler wie bisher. Neu laden ueber die zweite Rueckgabe behaelt den Inhalt.
+ */
+@Composable
+fun <T> rememberStand(key: Any?, local: suspend () -> Stand<T>?, remote: suspend () -> Stand<T>): Pair<UiState<Stand<T>>, () -> Unit> {
+    var state by remember(key) { mutableStateOf<UiState<Stand<T>>>(UiState.Loading) }
+    var tick by remember(key) { mutableStateOf(0) }
+    LaunchedEffect(key, tick) {
+        if (state !is UiState.Ready) {
+            state = UiState.Loading
+            runCatching { local() }.getOrNull()?.let { state = UiState.Ready(it) }
+        }
+        try {
+            state = UiState.Ready(remote())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val cur = state
+            state = if (cur is UiState.Ready) UiState.Ready(cur.value.copy(offline = true, note = e.message))
+                    else UiState.Failed(e.message ?: e.toString(), (e as? ApiError)?.isAuth == true)
+        }
+    }
+    return state to { tick++ }
+}
+
+/** "Stand vom ... - keine Verbindung" ueber einer Ansicht aus der Ablage; dazu offene lokale Aenderungen. Nichts bei frischem Stand. */
+@Composable
+fun StandHinweis(stand: Stand<*>, modifier: Modifier = Modifier) {
+    val text = OfflineRules.standText(stand)
+    val pending = OfflineRules.pendingText(stand.pending)
+    if (text == null && pending == null) return
+    Column(modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+        text?.let { Text(it, color = Warn, style = MaterialTheme.typography.bodySmall) }
+        pending?.let { Text(it, color = MaterialTheme.colorScheme.outline, style = MaterialTheme.typography.bodySmall) }
+    }
 }
 
 @Composable

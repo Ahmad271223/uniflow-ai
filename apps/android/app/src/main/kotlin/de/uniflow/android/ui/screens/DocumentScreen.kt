@@ -138,7 +138,7 @@ fun DocumentScreen(repo: Repo, fileId: String, onBack: () -> Unit) {
         loadError = null
         var opened: PageRenderer? = null
         try {
-            val lib = repo.library()
+            val lib = repo.library().value          // frisch oder aus der Ablage (offline: Dateiliste vom letzten Mal, PDF aus dem Cache)
             val f = lib.files.firstOrNull { it.id == fileId } ?: throw ApiError(404, "not_found", "Datei nicht gefunden")
             file = f
             val got = repo.pdf(f)
