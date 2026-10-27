@@ -150,14 +150,15 @@ final class DataSeparationAppTests: XCTestCase {
 
     // MARK: Zwei Hochschulen nacheinander befuellen
 
-    /// Fuellt den offenen Container: Einstellung, Kursauswahl, gemerkte Zugangsdaten, Sitzungs-Cookie, Cookie der
-    /// Webansicht, Journal, Antwort-Zwischenspeicher, Loesungsordner
+    /// Fuellt den offenen Container: Einstellung, Kursauswahl, Learnweb-Schluessel (nur Hildesheim; Passwoerter legt die
+    /// App nie ab), Sitzungs-Cookie, Cookie der Webansicht, Journal, Antwort-Zwischenspeicher, Loesungsordner
     private func fill(_ m: ContainerManager, _ c: ActiveContainer, tag: String) async throws {
         _ = try await c.api.value("/api/settings", method: "PUT", body: ["user_name": .string("Ada \(tag)")])
         m.studip.selectedCourses = ["kurs-\(tag)"]
-        let service = c.key.university == .luh ? "studip" : "cas"
-        XCTAssertTrue(c.credentials.save(UniversityCredential(user: "nutzer-\(tag)", password: "Passwort-\(tag)"), c.key.university, service: service),
-                      "Schluesselbund nicht beschreibbar – mit CODE_SIGN_IDENTITY=- bauen")
+        if c.key.university == .hildesheim {
+            XCTAssertTrue(c.tokens.saveToken("Schluessel-\(tag)", .hildesheim, service: "learnweb"),
+                          "Schluesselbund nicht beschreibbar – mit CODE_SIGN_IDENTITY=- bauen")
+        }
         try c.cookies.save([cookie("sitzung", "wert-\(tag)", domain: "studip.uni-hannover.de")])
         await m.websiteDataStore(for: c).httpCookieStore.setCookie(cookie("sso-\(tag)", "x", domain: "sso.example.org"))
         let journal = LocalJournal(store: FileBlobStore(root: c.layout.journal), documentID: "doc-\(tag)", namespace: .local)
@@ -173,12 +174,14 @@ final class DataSeparationAppTests: XCTestCase {
         let s = try await c.api.value("/api/settings")
         XCTAssertEqual(s["user_name"]?.string, "Ada \(tag)", "Datenbank", file: file, line: line)
         XCTAssertEqual(m.studip.selectedCourses, ["kurs-\(tag)"], "Einstellungen des Abgleichs", file: file, line: line)
-        let own = c.key.university == .luh ? ("luh", "studip") : ("hildesheim", "cas")
-        let other: (UniversityKey, String) = c.key.university == .luh ? (.hildesheim, "cas") : (.luh, "studip")
-        XCTAssertEqual(c.credentials.credential(c.key.university, service: own.1)?.user, "nutzer-\(tag)", file: file, line: line)
-        XCTAssertNil(c.credentials.credential(other.0, service: other.1), "Schluesselbund: andere Hochschule nicht lesbar", file: file, line: line)
-        XCTAssertFalse(c.credentials.save(UniversityCredential(user: "x", password: "y"), other.0, service: other.1),
-                       "und nicht beschreibbar", file: file, line: line)
+        if c.key.university == .hildesheim {
+            XCTAssertEqual(c.tokens.token(.hildesheim, service: "learnweb"), "Schluessel-\(tag)", "Learnweb-Schluessel", file: file, line: line)
+        } else {
+            XCTAssertNil(c.tokens.token(.hildesheim, service: "learnweb"), "Schluesselbund: andere Hochschule nicht lesbar", file: file, line: line)
+            XCTAssertFalse(c.tokens.saveToken("x", .hildesheim, service: "learnweb"), "und nicht beschreibbar", file: file, line: line)
+        }
+        XCTAssertFalse(keychain.accounts().contains(where: UniversityProfile.isRetiredLoginSecret), "nie Benutzername oder Passwort",
+                       file: file, line: line)
         XCTAssertEqual(c.cookies.load().map(\.value), ["wert-\(tag)"], "Sitzungs-Cookie", file: file, line: line)
         let web = await cookies(m, c)
         XCTAssertEqual(web, ["sso-\(tag)"], "Cookies der Webansicht", file: file, line: line)
@@ -243,8 +246,9 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertNotEqual(bob.layout.root, luh.layout.root)
         let bs = try await bob.api.value("/api/settings")
         XCTAssertEqual(bs["user_name"]?.string, "")
-        XCTAssertNil(bob.credentials.credential(.luh, service: "studip"), "Zugangsdaten eines anderen Kontos nicht lesbar")
-        XCTAssertNil(bob.credentials.prefillCredential(.luh, service: "qis"))
+        XCTAssertNil(bob.tokens.token(.hildesheim, service: "learnweb"))
+        XCTAssertNil(UniversityTokenStore(secrets: keychain, defaults: defaults, userScope: bob.key.userScope, onlyUniversity: .hildesheim)
+            .token(.hildesheim, service: "learnweb"), "Learnweb-Schluessel eines anderen Kontos nicht lesbar")
     }
 
     // MARK: Loeschen
@@ -268,7 +272,6 @@ final class DataSeparationAppTests: XCTestCase {
         let s = try await fresh.api.value("/api/settings")
         XCTAssertEqual(s["user_name"]?.string, "", "Datenbank geloescht")
         XCTAssertTrue(m.studip.selectedCourses.isEmpty, "Einstellungen geloescht")
-        XCTAssertNil(fresh.credentials.credential(.luh, service: "studip"), "Zugangsdaten geloescht")
         XCTAssertTrue(fresh.cookies.load().isEmpty, "Sitzungs-Cookie geloescht")
         let web = await cookies(m, fresh)
         XCTAssertEqual(web, [], "Webdaten geloescht")
@@ -305,7 +308,7 @@ final class DataSeparationAppTests: XCTestCase {
             XCTAssertTrue(StudIPCookieStore(service: cookieService, container: layout.identifier).load().isEmpty)
         }
         let scope = DataContainerKey.userScope(user) + "."
-        XCTAssertFalse(keychain.accounts().contains { $0.hasPrefix(scope) }, "keine Zugangsdaten des Kontos mehr")
+        XCTAssertFalse(keychain.accounts().contains { $0.hasPrefix(scope) }, "kein Schluessel des Kontos mehr")
 
         b.chooseUniversity(.luh)
         m.sync(account: b)
@@ -315,7 +318,8 @@ final class DataSeparationAppTests: XCTestCase {
     // MARK: Umzug der alten Daten
 
     /// Stand vor dieser Version: Datenbank und Notizen unter Application Support/UniFlow, Downloads unter
-    /// Application Support/StudIP, Kursauswahl in den UserDefaults, Sitzungs-Cookie und Zugangsdaten ohne Nutzer
+    /// Application Support/StudIP, Kursauswahl in den UserDefaults, Sitzungs-Cookie und (damals von der App gemerkte)
+    /// Zugangsdaten ohne Nutzer
     private func makeLegacyData() async throws {
         let fm = FileManager.default
         try fm.createDirectory(at: legacy.support.appendingPathComponent("db"), withIntermediateDirectories: true)
@@ -334,11 +338,11 @@ final class DataSeparationAppTests: XCTestCase {
         defaults.set("1 neu/geändert", forKey: "uniflow.studip.lastSummary")
         try StudIPCookieStore(service: cookieService, account: StudIPCookieStore.legacyAccount)
             .save([cookie("sitzung", "wert-alt", domain: "studip.uni-hannover.de")])
-        defaults.set(true, forKey: UniversityCredentialStore.installedKey)            // Installation gab es schon
+        defaults.set(true, forKey: UniversityTokenStore.installedKey)                 // Installation gab es schon
         defaults.set(true, forKey: StudIPCookieStore.installedKey)
         XCTAssertTrue(keychain.write("ab1-alt", account: "luh.studip.user"))
         XCTAssertTrue(keychain.write("Passwort-alt", account: "luh.studip.password"))
-        defaults.set(false, forKey: UniversityCredentialStore.rememberKey(.luh, "qis"))
+        defaults.set(false, forKey: "uniflow.login.remember.luh.qis")                // Schalter "Auf diesem iPad merken" von damals
         defaults.set("Ada beim Teilen", forKey: SolutionDisplayName.key)
     }
 
@@ -368,9 +372,13 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: "uniflow.studip.courses"), "aus den gemeinsamen UserDefaults entfernt")
         XCTAssertEqual(c.cookies.load().map(\.value), ["wert-alt"])
         XCTAssertTrue(StudIPCookieStore(service: cookieService, account: StudIPCookieStore.legacyAccount).load().isEmpty)
-        XCTAssertEqual(c.credentials.credential(.luh, service: "studip")?.user, "ab1-alt")
+        // damals gemerkte Zugangsdaten ziehen nicht mit, sie sind geloescht (Passwoerter merkt nur noch iOS)
         XCTAssertNil(keychain.read("luh.studip.user"), "kein Eintrag ohne Nutzer mehr")
-        XCTAssertFalse(c.credentials.remember(.luh, service: "qis"), "Schalter mit umgezogen")
+        XCTAssertNil(keychain.read("luh.studip.password"))
+        XCTAssertNil(keychain.read(UniversityProfile.scoped("luh.studip.password", userScope: c.key.userScope)), "auch nicht umgezogen")
+        XCTAssertFalse(keychain.accounts().contains(where: UniversityProfile.isRetiredLoginSecret))
+        XCTAssertNil(defaults.object(forKey: "uniflow.login.remember.luh.qis"), "Schalter entfernt")
+        XCTAssertTrue(defaults.bool(forKey: UniversityPasswordCleanup.doneKey))
         XCTAssertTrue(LegacyDataMigration.isDone(base: base))
         XCTAssertEqual(SolutionDisplayName.load(c.defaults), "Ada beim Teilen", "Anzeigename beim Teilen mit umgezogen")
         XCTAssertNil(defaults.object(forKey: SolutionDisplayName.key), "nicht mehr in den gemeinsamen Einstellungen")

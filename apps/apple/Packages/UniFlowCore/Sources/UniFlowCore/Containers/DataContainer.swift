@@ -6,9 +6,10 @@ import Foundation
 // Jede Kombination hat einen eigenen Ordner (Container) mit allem, was die App fuer sie speichert: SQLite-Datenbank,
 // Journal der Notizen, PDF-Zwischenspeicher und Vorschaubilder, Loesungs-Bibliothek, eigene Dokumente und Bilder,
 // Stud.IP- bzw. Learnweb-Downloads. Der Ordnername ist eine feste UUID aus Nutzer und Hochschule; dieselbe UUID
-// benennt in der App den WKWebsiteDataStore der Anmelde-Webansichten (`websiteDataStoreID`). Gemerkte Zugangsdaten
-// liegen im Schluesselbund-Dienst `keychainService` unter `keychainAccount(service:field:)`. Die Apple-Nutzer-ID
-// steht nirgends im Dateisystem und im Schluesselbund, nur ihr Hash.
+// benennt in der App den WKWebsiteDataStore der Anmelde-Webansichten (`websiteDataStoreID`). Schluessel der
+// Hochschuldienste (Learnweb) liegen im Schluesselbund-Dienst `keychainService` unter
+// `UniversityProfile.tokenKeychainAccount(service:userScope:)`; Benutzername und Passwort legt die App nie ab. Die
+// Apple-Nutzer-ID steht nirgends im Dateisystem und im Schluesselbund, nur ihr Hash.
 //
 // Jeder Container traegt in `container.json` seine Hochschule und seinen Nutzer (Hash). Passt das beim Oeffnen
 // nicht, wird er nicht geoeffnet (wie `UniversityMismatch` der Datenbank, die ihre Hochschule zusaetzlich selbst
@@ -43,7 +44,8 @@ public struct DataContainerKey: Hashable, Sendable, CustomStringConvertible {
     /// UUID des Containers. Abmelden oder Loeschen raeumt genau diesen Speicher.
     public var websiteDataStoreID: UUID { identifier }
 
-    /// Schluesselbund-Dienst der gemerkten Hochschul-Zugangsdaten (nur dieses Geraet, nicht synchronisiert)
+    /// Schluesselbund-Dienst der Schluessel der Hochschuldienste (Learnweb; nur dieses Geraet, nicht synchronisiert).
+    /// Bis 27.10.2026 lagen hier auch gemerkte Benutzernamen und Passwoerter (`UniversityProfile.isRetiredLoginSecret`).
     public static let keychainService = "de.uniflow.ai.university"
 
     /// "u" und 16 Hex-Zeichen aus SHA-256 der Nutzerkennung

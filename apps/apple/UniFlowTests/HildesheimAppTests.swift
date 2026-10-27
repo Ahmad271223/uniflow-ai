@@ -370,19 +370,18 @@ final class HildesheimAppTests: XCTestCase {
         let passport = try XCTUnwrap(URLComponents(url: launch, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "passport" }?.value)
         XCTAssertFalse(UniStubProtocol.requests.contains { $0.url.path.contains("launch.php") }, "die Startseite oeffnet nur die Webansicht")
 
-        // Webansicht wie die Anmeldeansicht (Coordinator mit intercept), lokale Seite statt Moodle, kein Nachladen
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = .nonPersistent()
+        // Webansicht wie die Anmeldeansicht (Konfiguration und Coordinator mit intercept), lokale Seite statt Moodle, kein Nachladen
+        let config = StudIPWebView.loginConfiguration(dataStore: .nonPersistent())
         config.userContentController.add(try await blockAll())
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 800, height: 600), configuration: config)
-        let coordinator = StudIPWebView.Coordinator(onPageLoaded: { _ in }, autofill: nil, intercept: { login.intercept($0) })
+        let coordinator = StudIPWebView.Coordinator(onPageLoaded: { _ in }, intercept: { login.intercept($0) })
         web.navigationDelegate = coordinator
         let redirect = tokenRedirect(passport: passport, token: token)
         web.loadHTMLString("<!doctype html><html><body><p>Learnweb (Test)</p><script>setTimeout(function () { location.href = '\(redirect)'; }, 100);</script></body></html>",
                            baseURL: launch)
         try await waitUntil("Schluessel abgefangen") { login.stage == .done }
         XCTAssertEqual(web.url, launch, "Weiterleitung abgebrochen, nicht an das System gegeben")
-        let account = try XCTUnwrap(c.key.university.profile.keychainAccount(service: "learnweb", field: "token", userScope: c.key.userScope))
+        let account = try XCTUnwrap(c.key.university.profile.tokenKeychainAccount(service: "learnweb", userScope: c.key.userScope))
         XCTAssertEqual(account, "\(c.key.userScope).hildesheim.learnweb.token")
         XCTAssertEqual(keychain.read(account), token, "Schluessel im Schluesselbund unter dem Namen aus dem Kern")
         XCTAssertEqual(h.learnwebMode, .token)
@@ -609,7 +608,7 @@ final class HildesheimAppTests: XCTestCase {
         XCTAssertEqual(luhDay, [])
         let luhCookies = await m.websiteDataStore(for: luh).httpCookieStore.allCookies()
         XCTAssertTrue(luhCookies.isEmpty, "keine Hildesheimer Sitzung in der Webansicht der LUH")
-        XCTAssertNil(luh.credentials.token(.hildesheim, service: "learnweb"), "kein Rueckfall auf den Hildesheimer Schluessel")
+        XCTAssertNil(luh.tokens.token(.hildesheim, service: "learnweb"), "kein Rueckfall auf den Hildesheimer Schluessel")
         XCTAssertEqual(UFGatePresentation.resolve(spec: .services, mode: .local(.notConnected), phase: m.studip.phase),
                        .pageBelowConnectCard, "Uni & Noten der LUH: Notenspiegel aus dem QIS auf dem Geraet")
         XCTAssertNotNil(m.qis, "QIS-Verbindung des LUH-Containers")
@@ -667,7 +666,7 @@ final class HildesheimAppTests: XCTestCase {
         // Abmelden: Schluessel, Verbindungen und Webdaten weg; Dateien, Stundenplan und Noten bleiben
         await m.websiteDataStore(for: c).httpCookieStore.setCookie(cookie("TGC", "cas-test", domain: "www.uni-hildesheim.de"))
         await h.signOut()
-        XCTAssertNil(keychain.read(try XCTUnwrap(c.key.university.profile.keychainAccount(service: "learnweb", field: "token", userScope: c.key.userScope))))
+        XCTAssertNil(keychain.read(try XCTUnwrap(c.key.university.profile.tokenKeychainAccount(service: "learnweb", userScope: c.key.userScope))))
         XCTAssertFalse(h.anyConnected)
         XCTAssertEqual(h.learnweb, .notConnected)
         XCTAssertEqual(h.lsf, .notConnected)

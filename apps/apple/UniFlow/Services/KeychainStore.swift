@@ -3,9 +3,9 @@ import Security
 
 /// Die eine Umsetzung des Schluesselbunds der App (generic password): jeder Eintrag unter einem festen Dienst, mit
 /// ausdruecklicher Schutzklasse, nur dieses Geraet, nie synchronisiert; Fehler beim Schreiben werden gemeldet.
-/// Darauf bauen Konto und PIN (`Keychain`), das Stud.IP-Sitzungs-Cookie (`StudIPCookieStore`) und die gemerkten
-/// Hochschul-Zugangsdaten (`UniversityKeychain`) auf (vorher drei eigene SecItem-Umsetzungen; Konto und PIN ohne
-/// Dienst und mit Backup auf andere Geraete).
+/// Darauf bauen Konto und PIN (`Keychain`), das Stud.IP-Sitzungs-Cookie (`StudIPCookieStore`) und der
+/// Learnweb-Schluessel (`UniversityKeychain`) auf (vorher drei eigene SecItem-Umsetzungen; Konto und PIN ohne Dienst und
+/// mit Backup auf andere Geraete). Hochschul-Passwoerter legt die App nie ab (die merkt nur das System).
 struct KeychainStore: Sendable {
     let service: String
     /// Schutzklasse (`kSecAttrAccessible…ThisDeviceOnly`), als Text fuer Sendable
@@ -59,12 +59,18 @@ struct KeychainStore: Sendable {
         return status == errSecSuccess || status == errSecItemNotFound
     }
 
-    func accounts() -> [String] {
+    func accounts() -> [String] { accountList() ?? [] }
+
+    /// Namen aller Eintraege dieses Dienstes; "nichts da" ist eine leere Liste, nil heisst: der Schluesselbund kann sie
+    /// gerade nicht nennen (z. B. gesperrt)
+    func accountList() -> [String]? {
         var q = query(nil)
         q[kSecReturnAttributes as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitAll
         var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let items = out as? [[String: Any]] else { return [] }
+        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        if status == errSecItemNotFound { return [] }
+        guard status == errSecSuccess, let items = out as? [[String: Any]] else { return nil }
         return items.compactMap { $0[kSecAttrAccount as String] as? String }
     }
 

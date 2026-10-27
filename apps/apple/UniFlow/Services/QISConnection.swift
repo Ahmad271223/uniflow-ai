@@ -3,8 +3,8 @@ import UniFlowCore
 import WebKit
 
 // Noten aus dem QIS der LUH auf dem iPad (F4): die duenne Schicht ueber dem Kern (`QISClient`, `QISGradesSync`),
-// wie `HildesheimConnection` fuer das LSF. Die Anmeldung passiert in der Webansicht des Containers (QISLoginView,
-// nur vorausgefuellt); der Abruf laeuft mit den Cookies dieser Webansicht ueber `URLSessionUniTransport`, nur auf dem
+// wie `HildesheimConnection` fuer das LSF. Die Anmeldung passiert in der Webansicht des Containers (QISLoginView; das
+// Passwort tippt der Mensch, gespeichert hoechstens von iOS, nie von der App); der Abruf laeuft mit den Cookies dieser Webansicht ueber `URLSessionUniTransport`, nur auf dem
 // Rechner des QIS. Der Sitzungsparameter asi und die Stammdaten der Seiten werden nie gespeichert (Kern).
 
 /// Verbindung zum QIS fuer einen Container (Apple-Nutzer, LUH). Der `ContainerManager` baut je offenem LUH-Container
@@ -37,7 +37,6 @@ final class QISConnection: ObservableObject {
     let key: DataContainerKey
     /// Datenspeicher der Anmelde-Webansichten dieses Containers (Cookies der QIS-Sitzung)
     let websiteDataStore: WKWebsiteDataStore
-    let credentials: UniversityCredentialStore
     private let host: LocalBackendHost
     private let defaults: UserDefaults
     private let clock: UniFlowClock
@@ -48,6 +47,9 @@ final class QISConnection: ObservableObject {
     private var current: Task<QISGradesSync.Report?, Never>?
     private(set) var stopped = false
 
+    /// Rueckfrage vor dem Abmelden (Einstellungen, Uni & Noten)
+    static let signOutMessage = "Die QIS-Anmeldung in der Webansicht wird gelöscht. Die geladenen Noten bleiben; Stud.IP bleibt angemeldet. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
+
     /// Rechner des QIS aus dem Profil (nur dorthin gehen Anfragen)
     static var qisDomains: [String] { [UniversityProfile.luhQISStart.host?.lowercased() ?? "qis.verwaltung.uni-hannover.de"] }
 
@@ -56,7 +58,6 @@ final class QISConnection: ObservableObject {
         key = c.key
         host = c.host
         defaults = c.defaults
-        credentials = c.credentials
         self.websiteDataStore = websiteDataStore
         self.clock = clock
         self.retry = retry
@@ -117,11 +118,10 @@ final class QISConnection: ObservableObject {
         Task { await run(force: true) }
     }
 
-    /// Abmelden: Verbindung, Stand und die QIS-Cookies der Webansicht (Stud.IP bleibt angemeldet); die gemerkten
-    /// QIS-Zugangsdaten gehen mit, Noten in der Datenbank bleiben
+    /// Abmelden: Verbindung, Stand und die QIS-Cookies der Webansicht (Stud.IP bleibt angemeldet); Noten in der
+    /// Datenbank bleiben. Ein Passwort hat die App nicht zu loeschen (das merkt hoechstens iOS).
     func signOut() async {
         for k in Keys.all { defaults.removeObject(forKey: k) }
-        credentials.delete(.luh, service: "qis")
         lastMessage = nil
         lastCount = nil
         set(.notConnected)

@@ -31,16 +31,19 @@ struct StudIPView: View {
             }
         }
         .confirmationDialog("Von Stud.IP abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-            Button("Abmelden", role: .destructive) { Task { @MainActor in await studip.signOut(); UniversityCredentialStore.standard.deleteAll(for: .luh) } }
+            Button("Abmelden", role: .destructive) { Task { @MainActor in await studip.signOut() } }
             Button("Abmelden und Dateien löschen", role: .destructive) {
-                Task { @MainActor in await studip.signOut(); UniversityCredentialStore.standard.deleteAll(for: .luh); await studip.removeDownloads() }
+                Task { @MainActor in await studip.signOut(); await studip.removeDownloads() }
             }
         } message: {
-            Text("Das Sitzungs-Cookie, die Anmeldung in der Webansicht und die auf diesem iPad gemerkten LUH-Zugangsdaten werden gelöscht.")
+            Text(Self.signOutMessage)
         }
     }
 
     // MARK: Konto und Abgleich
+
+    static let accountText = "Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. UniFlow speichert nur das Sitzungs-Cookie im Schlüsselbund dieses iPads (nicht in iCloud, nie auf einem Server), nie Benutzername oder Passwort – die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck."
+    static let signOutMessage = "Das Sitzungs-Cookie und die Anmeldung in der Webansicht werden gelöscht. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     private var accountCard: some View {
         UFCard {
@@ -57,7 +60,7 @@ struct StudIPView: View {
                 }
             }
             .padding(.top, 12.8)
-            Text("Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. UniFlow speichert das Sitzungs-Cookie im Schlüsselbund dieses iPads; nur mit dem Schalter „Auf diesem iPad merken“ auch Benutzername und Passwort, damit sie beim nächsten Mal schon im Formular stehen (nicht in iCloud, nie auf einem Server). Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck.")
+            Text(Self.accountText)
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8)
@@ -207,10 +210,10 @@ struct StudIPLoginView: View {
 }
 
 /// Anmeldung auf der echten Stud.IP-Seite. Sobald Stud.IP die Sitzung bestaetigt (users/me), werden die Cookies
-/// an `onSignedIn` uebergeben. Auf den Anmeldeseiten der LUH (Stud.IP-Login, WebSSO) merkt sich die App mit dem
-/// Schalter "Auf diesem iPad merken" Benutzername und Passwort und fuellt sie beim naechsten Mal vor
-/// (UniversityLoginAutofill); abgeschickt wird nie automatisch. `bottom` steht unter dem Schalter (erster Start:
-/// "Später anmelden"). Nur Debug mit -UFLoginStub: lokale Nachbildung statt der Stud.IP-Seite (DebugUniStub).
+/// an `onSignedIn` uebergeben. Benutzername und Passwort tippt der Mensch auf den Seiten der LUH (Stud.IP-Login,
+/// WebSSO) selbst; die App liest und speichert sie nicht, ein gespeichertes Passwort setzt hoechstens iOS ein
+/// (`UniversityLoginHint` darunter). `bottom` steht unter dem Hinweis (erster Start: "Später anmelden"). Nur Debug
+/// mit -UFLoginStub: lokale Nachbildung statt der Stud.IP-Seite (DebugUniStub).
 struct StudIPLoginPane<Bottom: View>: View {
     let base: URL
     let dataStore: WKWebsiteDataStore
@@ -220,7 +223,6 @@ struct StudIPLoginPane<Bottom: View>: View {
     @State private var done = false
     /// Sitzungspruefung scheiterte (z. B. Stud.IP kurz nicht erreichbar): Knopf "Anmeldung prüfen"
     @State private var checkFailed = false
-    @StateObject private var autofill = UniversityLoginAutofill(university: .luh, serviceKey: "studip")!
     @StateObject private var load = UFWebLoadState()
 
     init(base: URL, dataStore: WKWebsiteDataStore, onSignedIn: @escaping ([HTTPCookie]) -> Void, @ViewBuilder bottom: () -> Bottom) {
@@ -232,7 +234,7 @@ struct StudIPLoginPane<Bottom: View>: View {
 
     var body: some View {
         StudIPWebView(url: DebugUniStub.loginPage("studip", real: base.appendingPathComponent("dispatch.php/login")), dataStore: dataStore,
-                      autofill: autofill, load: load) { webView in check(webView) }
+                      load: load) { webView in check(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
@@ -254,7 +256,7 @@ struct StudIPLoginPane<Bottom: View>: View {
                         .padding(.horizontal, 16).padding(.vertical, 8)
                         .background(UF.warnSoft)
                     }
-                    UniversityRememberBar(autofill: autofill)
+                    UniversityLoginHint()
                     bottom
                 }
             }
@@ -357,30 +359,40 @@ private struct UFWebLoadFailureCard: ViewModifier {
 /// Hildesheim). Eigener, dauerhafter Datenspeicher je Container (Apple-Nutzer, Hochschule;
 /// `WKWebsiteDataStore(forIdentifier:)`, nicht Safari, nicht `.default()`): die Hochschul-Anmeldung bleibt erhalten,
 /// sodass eine erneute Anmeldung oft ohne Passwort gelingt, und eine andere Hochschule oder ein anderes Konto sieht
-/// keines ihrer Cookies. Eigene Skripte nur ueber `autofill`
-/// (eigene Inhaltswelt, nur auf den Anmeldeseiten der Hochschule, gebunden an die echten Navigationen des
-/// Hauptrahmens, die der Coordinator meldet). `interceptNavigation` sieht jede Navigation vor dem Laden und bricht
-/// sie mit `true` ab (Moodle-SSO: `moodlemobile://token=…` nie an das System). Der Hauptrahmen laedt nur HTTPS (und
+/// keines ihrer Cookies.
+///
+/// Passwoerter (Entscheidung des Inhabers, 27.10.2026): merken darf sie nur iOS, nie die App. Die Webansicht hat
+/// deshalb keine eigenen Skripte, keinen Nachrichtenkanal zur Seite und greift nicht in Formulare oder `autocomplete`
+/// ein (`loginConfiguration`: nur der Datenspeicher, sonst der Standard von WebKit). Das Anmeldeformular ist genau die
+/// Seite der Hochschule; iOS bietet dort sein Passwort-Autofill aus dem (iCloud-)Schluesselbund an (Schluessel-Symbol
+/// ueber der Tastatur). Nach dem Laden liest eine Ansicht hoechstens den Seiteninhalt, um eine angemeldete Seite oder
+/// den Fehlertext des CAS zu erkennen (`outerHTML` enthaelt eingetippte Werte nicht).
+///
+/// `interceptNavigation` sieht jede Navigation vor dem Laden und bricht sie mit `true` ab (Moodle-SSO: `moodlemobile://token=…` nie an das System). Der Hauptrahmen laedt nur HTTPS (und
 /// about:blank): eine auf http herabgestufte Anmeldeseite wird nie angezeigt, auch nicht im Debug-Build mit
 /// ATS-Ausnahme fuer das lokale Netz. Ladefehler meldet `load` (Karte mit "Erneut versuchen"). Nur fuer die Anmeldung
 /// verwenden, nie fuer Inhalte.
 struct StudIPWebView: UIViewRepresentable {
     let url: URL
     let dataStore: WKWebsiteDataStore
-    var autofill: UniversityLoginAutofill? = nil
     var interceptNavigation: (@MainActor (URL) -> Bool)? = nil
     var load: UFWebLoadState? = nil
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onPageLoaded: onPageLoaded, autofill: autofill, intercept: interceptNavigation, load: load)
+        Coordinator(onPageLoaded: onPageLoaded, intercept: interceptNavigation, load: load)
+    }
+
+    /// Konfiguration jeder Anmelde-Webansicht: nur der Datenspeicher des Containers, sonst der Standard von WebKit (kein
+    /// Benutzerskript, kein Nachrichtenkanal, nichts, was das Passwort-Autofill von iOS behindert)
+    static func loginConfiguration(dataStore: WKWebsiteDataStore) -> WKWebViewConfiguration {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = dataStore
+        return config
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = dataStore
-        autofill?.install(into: config.userContentController)
-        let view = WKWebView(frame: .zero, configuration: config)
+        let view = WKWebView(frame: .zero, configuration: Self.loginConfiguration(dataStore: dataStore))
         view.navigationDelegate = context.coordinator
         load?.webView = view
         load?.lastURL = url
@@ -394,26 +406,18 @@ struct StudIPWebView: UIViewRepresentable {
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
-        UniversityLoginAutofill.uninstall(from: uiView.configuration.userContentController)
-    }
-
     final class Coordinator: NSObject, WKNavigationDelegate {
         let onPageLoaded: (WKWebView) -> Void
-        let autofill: UniversityLoginAutofill?
         let intercept: (@MainActor (URL) -> Bool)?
         let load: UFWebLoadState?
-        init(onPageLoaded: @escaping (WKWebView) -> Void, autofill: UniversityLoginAutofill?, intercept: (@MainActor (URL) -> Bool)? = nil,
-             load: UFWebLoadState? = nil) {
+        init(onPageLoaded: @escaping (WKWebView) -> Void, intercept: (@MainActor (URL) -> Bool)? = nil, load: UFWebLoadState? = nil) {
             self.onPageLoaded = onPageLoaded
-            self.autofill = autofill
             self.intercept = intercept
             self.load = load
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
-            autofill?.navigationStarts(navigationAction)
             if let url = navigationAction.request.url {
                 if intercept?(url) == true || (navigationAction.targetFrame?.isMainFrame != false && StudIPWebView.blocksMainFrame(url)) {
                     decisionHandler(.cancel)
@@ -429,14 +433,6 @@ struct StudIPWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { load?.failed(error) }
-
-        func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
-                     decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {
-            autofill?.navigationResponds(navigationResponse)
-            decisionHandler(.allow)
-        }
-
-        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { autofill?.navigationCommitted(in: webView) }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { onPageLoaded(webView) }
     }

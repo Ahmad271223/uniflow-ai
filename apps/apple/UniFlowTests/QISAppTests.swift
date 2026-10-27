@@ -172,23 +172,22 @@ final class QISAppTests: XCTestCase {
         XCTAssertEqual(q.state, .ok(clock.now))
     }
 
-    func testSignOutRemovesOnlyTheQISSessionAndCredentials() async throws {
+    func testSignOutRemovesOnlyTheQISSession() async throws {
         let (m, c, q) = try luh()
         installQIS()
         let store = m.websiteDataStore(for: c).httpCookieStore
         await store.setCookie(bed.cookie("Seminar_Session", "studip-bleibt", domain: StudIPSync.base.host!))
         await signIn(m, c, q)
         _ = await q.run(force: true)
-        c.credentials.save(UniversityCredential(user: "ab1-xyz", password: "Qis-Test-1"), .luh, service: "qis")
-        c.credentials.save(UniversityCredential(user: "ab1-xyz", password: "Studip-Test-1"), .luh, service: "studip")
         await q.signOut()
         XCTAssertEqual(q.state, .notConnected)
         XCTAssertFalse(q.isConnected)
         XCTAssertNil(q.lastCount)
         let cookies = await store.allCookies()
         XCTAssertEqual(cookies.map(\.name), ["Seminar_Session"], "nur die QIS-Cookies weg, Stud.IP bleibt angemeldet")
-        XCTAssertNil(c.credentials.credential(.luh, service: "qis"))
-        XCTAssertNotNil(c.credentials.credential(.luh, service: "studip"))
+        XCTAssertTrue(bed.keychain.accounts().isEmpty, "QIS legt nichts im Schluesselbund ab (kein Passwort, kein Schluessel)")
+        XCTAssertTrue(QISConnection.signOutMessage.contains("„Passwörter“"), "ehrlich: ein von iOS gesichertes Passwort bleibt")
+        XCTAssertFalse(QISConnection.signOutMessage.contains("Zugangsdaten"))
         let g = try await c.api.value("/api/grades")
         XCTAssertEqual(g["grades"]?.array?.count, 3, "Noten bleiben")
         XCTAssertFalse(QISConnection(container: c, websiteDataStore: m.websiteDataStore(for: c), clock: clock).isConnected)
@@ -204,7 +203,7 @@ final class QISAppTests: XCTestCase {
         XCTAssertFalse(QISLoginPane<SwiftUI.EmptyView>.isSignedIn(html: signedIn, url: URL(string: "https://studip.uni-hannover.de/x")!), "nur das QIS")
         XCTAssertFalse(QISLoginPane<SwiftUI.EmptyView>.isSignedIn(html: signedIn, url: URL(string: "http://qis.verwaltung.uni-hannover.de/x")!), "nur https")
         XCTAssertEqual(QISConnection.qisDomains, ["qis.verwaltung.uni-hannover.de"])
-        XCTAssertNotNil(UniversityLoginAutofill(university: .luh, serviceKey: "qis"), "Vorausfuellen mit der LUH-ID aus Stud.IP")
+        XCTAssertNotNil(UniversityProfile.luh.loginService("qis"), "QIS ist eine Anmeldeseite der LUH (ohne Vorausfuellen)")
     }
 
     func testStopEndsARunningFetchBeforeDeleting() async throws {

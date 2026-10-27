@@ -725,7 +725,8 @@ private struct AppAccountCards: View {
 enum DeleteAccountText {
     static func removed(ownServer: Bool) -> String {
         "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von UniFlow (Stud.IP-Sitzung, "
-            + (ownServer ? "Server-PIN, " : "") + "gemerkte Hochschul-Zugangsdaten) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung."
+            + (ownServer ? "Server-PIN, " : "") + "Learnweb-Schlüssel) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung. "
+            + "Hochschul-Passwörter speichert UniFlow nicht; was iOS gesichert hat, bleibt unter „Passwörter“."
     }
 
     static let appleID = "UniFlow speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → UniFlow."

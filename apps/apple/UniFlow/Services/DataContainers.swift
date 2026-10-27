@@ -7,8 +7,9 @@ import WebKit
 // Jede Kombination hat einen eigenen Container (UniFlowCore `DataContainerLayout`) mit Datenbank, Journal,
 // PDF-Zwischenspeicher, Vorschaubildern, Antwort-Zwischenspeicher, Loesungs-Bibliothek, eigenen Dokumenten, Bildern
 // und Stud.IP- bzw. Learnweb-Downloads; dazu je Container ein eigener Einstellungs-Bereich (UserDefaults-Suite), ein eigener
-// Schluesselbund-Eintrag fuer das Stud.IP-Sitzungs-Cookie, gemerkte Zugangsdaten mit dem Praefix des Nutzers und ein
-// eigener WKWebsiteDataStore(forIdentifier:) mit der UUID des Containers fuer alle Anmelde-Webansichten.
+// Schluesselbund-Eintrag fuer das Stud.IP-Sitzungs-Cookie, der Learnweb-Schluessel mit dem Praefix des Nutzers und ein
+// eigener WKWebsiteDataStore(forIdentifier:) mit der UUID des Containers fuer alle Anmelde-Webansichten. Hochschul-
+// Passwoerter speichert die App nicht (die merkt nur das System); frueher gemerkte entfernt `UniversityPasswordCleanup`.
 //
 // Wechsel der Hochschule (Einstellungen) oder des Kontos: `ContainerManager` oeffnet den passenden Container, die
 // Oberflaeche baut sich neu auf (RootView mit `generation`). Objekte halten ihren Container ab der Erzeugung fest;
@@ -45,8 +46,8 @@ final class ActiveContainer: @unchecked Sendable {
     /// Einstellungen dieses Containers (Stud.IP-Kursauswahl, letzter Abgleich, Learnweb/LSF, Anzeigename beim Teilen)
     let defaults: UserDefaults
     let defaultsSuite: String
-    /// gemerkte Hochschul-Zugangsdaten mit dem Praefix des Nutzers
-    let credentials: UniversityCredentialStore
+    /// Schluessel der Hochschuldienste (Learnweb) mit dem Praefix des Nutzers; nie Benutzername oder Passwort
+    let tokens: UniversityTokenStore
     /// Stud.IP-Sitzungs-Cookie dieses Containers
     let cookies: StudIPCookieStore
 
@@ -67,8 +68,7 @@ final class ActiveContainer: @unchecked Sendable {
         let localHost = host, university = key.university.rawValue
         community = CloudKitCommunityService(cloud: cloud, university: key.university, membership: CommunityMembership(defaults: defaults),
                                              courseKeys: { await CommunityCourses.courseKeys(host: localHost, university: university) })
-        credentials = UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope,
-                                                onlyUniversity: key.university)
+        tokens = UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope, onlyUniversity: key.university)
         cookies = StudIPCookieStore(service: cookieService, container: layout.identifier)
     }
 
@@ -153,6 +153,8 @@ final class ContainerManager: ObservableObject {
         self.qisTransport = qisTransport
         // Neuinstallation: Stud.IP-Sitzungen der geloeschten App nicht als Anmeldung uebernehmen (vor jedem Lesen)
         StudIPCookieStore.removeLeftoversOfEarlierInstallation(service: cookieService, defaults: defaults)
+        // Bestandsnutzer: frueher von der App gemerkte Hochschul-Passwoerter einmal loeschen (alle Container)
+        UniversityPasswordCleanup.run(secrets: keychain, defaults: defaults)
         studip = Self.idleSync()
         DataContainerLayout.purgeTrash(base: base)
     }
@@ -218,8 +220,9 @@ final class ContainerManager: ObservableObject {
     static let legacyContainerKeys = StudIPSync.defaultsKeys + [SolutionDisplayName.key]
 
     /// Schritte der App im Umzug (wiederholbar): Einstellungen des Containers (`legacyContainerKeys`) in seine Suite,
-    /// Sitzungs-Cookie und gemerkte Zugangsdaten in die Eintraege des Nutzers; die Cookies der alten gemeinsamen
-    /// Webansicht folgen nach dem Oeffnen (`moveLegacyWebData`).
+    /// Sitzungs-Cookie in den Eintrag des Containers; die Cookies der alten gemeinsamen Webansicht folgen nach dem
+    /// Oeffnen (`moveLegacyWebData`). Gemerkte Zugangsdaten aus dieser Zeit ziehen nicht mit: die loescht
+    /// `UniversityPasswordCleanup`.
     private func finishLegacyMove(into layout: DataContainerLayout) throws {
         if let suite = UserDefaults(suiteName: ActiveContainer.defaultsSuite(layout.identifier)) {
             for k in Self.legacyContainerKeys {
@@ -230,7 +233,6 @@ final class ContainerManager: ObservableObject {
         }
         try StudIPCookieStore(service: cookieService, container: layout.identifier)
             .adopt(StudIPCookieStore(service: cookieService, account: StudIPCookieStore.legacyAccount))
-        UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: layout.ownerScope).adoptEntriesWithoutUser()
         appDefaults.set(layout.identifier.uuidString, forKey: Self.legacyWebDataKey)
     }
 
@@ -252,6 +254,8 @@ final class ContainerManager: ObservableObject {
     /// oder einem anderen Konto, bleibt er zu und `problem` erklaert es.
     func activate(_ key: DataContainerKey) {
         if active?.key == key, problem == nil { return }
+        // war der Schluesselbund beim Start gesperrt, jetzt erneut (danach nur noch ein Blick in die UserDefaults)
+        UniversityPasswordCleanup.run(secrets: keychain, defaults: appDefaults)
         let c = ActiveContainer(key: key, base: base, keychain: keychain, cookieService: cookieService, appDefaults: appDefaults, clock: clock)
         do {
             try c.layout.prepare(clock: clock)
@@ -332,7 +336,7 @@ final class ContainerManager: ObservableObject {
     // MARK: Loeschen
 
     /// "Daten dieser Hochschule löschen": genau dieser Container (Datenbank, Dateien, Notizen, Zwischenspeicher),
-    /// sein Datenspeicher der Webansichten, sein Sitzungs-Cookie, die gemerkten Zugangsdaten dieser Hochschule und
+    /// sein Datenspeicher der Webansichten, sein Sitzungs-Cookie, der Learnweb-Schluessel dieser Hochschule und
     /// seine Einstellungen. Die andere Hochschule bleibt unberuehrt. War er offen, geht es mit einem leeren weiter.
     /// Laufende Abgleiche des Containers werden vorher angehalten und abgewartet (`remove`).
     func deleteUniversityData(_ key: DataContainerKey) async {
@@ -347,7 +351,7 @@ final class ContainerManager: ObservableObject {
     func deleteAllData(userID: String) async {
         if active?.key.userID == userID { deactivate() }
         for uni in UniversityKey.allCases { await remove(DataContainerKey(userID: userID, university: uni)) }
-        UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: DataContainerKey.userScope(userID)).deleteAll()
+        UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: DataContainerKey.userScope(userID)).deleteAll()
         // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
         appDefaults.removeObject(forKey: SolutionDisplayName.key)
         // empfangene Loesungen, die noch ausserhalb der Container lagen (Documents/Inbox)
@@ -365,7 +369,7 @@ final class ContainerManager: ObservableObject {
         await stopSyncs(key)
         let layout = DataContainerLayout(base: base, key: key)
         StudIPCookieStore(service: cookieService, container: layout.identifier).clear()
-        UniversityCredentialStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
+        UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: key.userScope).deleteAll(for: key.university)
         await removeWebsiteData(key.websiteDataStoreID)
         AppTemp.remove(container: layout.identifier)                       // Teilen-Dateien dieses Containers in tmp
         let suite = ActiveContainer.defaultsSuite(layout.identifier)

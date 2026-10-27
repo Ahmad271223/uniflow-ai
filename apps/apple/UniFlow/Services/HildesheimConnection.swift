@@ -62,8 +62,8 @@ final class HildesheimConnection: ObservableObject {
     let websiteDataStore: WKWebsiteDataStore
     private let host: LocalBackendHost
     private let defaults: UserDefaults
-    /// gemerkte Zugangsdaten (CAS) und Learnweb-Schluessel dieses Containers
-    let credentials: UniversityCredentialStore
+    /// Learnweb-Schluessel dieses Containers (nie Benutzername oder Passwort)
+    let tokens: UniversityTokenStore
     private let clock: UniFlowClock
     private let makeTransport: TransportFactory
     private let retry: UniRetry
@@ -83,7 +83,7 @@ final class HildesheimConnection: ObservableObject {
         layout = c.layout
         host = c.host
         defaults = c.defaults
-        credentials = c.credentials
+        tokens = c.tokens
         self.websiteDataStore = websiteDataStore
         self.clock = clock
         self.retry = retry
@@ -154,10 +154,10 @@ final class HildesheimConnection: ObservableObject {
     @discardableResult
     func learnwebSignedIn(token: LearnwebToken?, base: String) -> Bool {
         if let token {
-            guard credentials.saveToken(token.keychainValue, .hildesheim, service: Self.tokenService) else { return false }
+            guard tokens.saveToken(token.keychainValue, .hildesheim, service: Self.tokenService) else { return false }
             defaults.set(LearnwebMode.token.rawValue, forKey: Keys.learnwebMode)
         } else {
-            credentials.deleteToken(.hildesheim, service: Self.tokenService)
+            tokens.deleteToken(.hildesheim, service: Self.tokenService)
             defaults.set(LearnwebMode.session.rawValue, forKey: Keys.learnwebMode)
         }
         defaults.set(base, forKey: Keys.learnwebBase)
@@ -184,10 +184,11 @@ final class HildesheimConnection: ObservableObject {
         Task { await run() }
     }
 
-    /// Abmelden: Schluessel, Verbindungen, Anmeldungen der Webansicht (CAS, Learnweb, LSF) und die gemerkten
-    /// Zugangsdaten der Uni Hildesheim dieses Kontos; heruntergeladene Dateien, Stundenplan und Noten bleiben.
+    /// Abmelden: Schluessel, Verbindungen und Anmeldungen der Webansicht (CAS, Learnweb, LSF) der Uni Hildesheim
+    /// dieses Kontos; heruntergeladene Dateien, Stundenplan und Noten bleiben. Ein Passwort hat die App nicht zu
+    /// loeschen (das merkt hoechstens iOS im Schluesselbund).
     func signOut() async {
-        credentials.deleteAll(for: .hildesheim)
+        tokens.deleteAll(for: .hildesheim)
         for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected] { defaults.removeObject(forKey: k) }
         for s in Source.allCases {
             defaults.removeObject(forKey: Keys.ok(s))
@@ -301,7 +302,7 @@ final class HildesheimConnection: ObservableObject {
         case .session:
             return LearnwebAccess(api: LearnwebAPI(base: base, mode: .session, transport: transport, retry: retry))
         case .token:
-            guard let raw = credentials.token(.hildesheim, service: Self.tokenService), let token = LearnwebToken(raw) else {
+            guard let raw = tokens.token(.hildesheim, service: Self.tokenService), let token = LearnwebToken(raw) else {
                 return LearnwebAccess(loginNeeded: true, message: "Learnweb: Der Learnweb-Schlüssel fehlt auf diesem iPad. Bitte neu verbinden.")
             }
             guard stored == nil || stored == base else {
@@ -395,7 +396,8 @@ final class HildesheimConnection: ObservableObject {
 }
 
 /// Anmeldung bei Learnweb oder LSF in der Webansicht des Containers (CAS der Uni). Die Studierenden tippen ihre
-/// Zugangsdaten selbst ein und tippen selbst auf "Anmelden"; die App fuellt hoechstens vor (`UniversityLoginAutofill`).
+/// Zugangsdaten selbst ein und tippen selbst auf "Anmelden"; die App liest und fuellt keine Felder, ein gespeichertes
+/// Passwort setzt hoechstens iOS ein (Passwort-Autofill aus dem Schluesselbund).
 ///
 /// - LSF: `HildesheimCAS.lsfLoginURL`; fertig, sobald eine Seite des LSF angemeldet ist (`LSFClient.isLoggedIn`).
 /// - Learnweb: Instanz des Semesters (`Learnweb.discoverBase`), dann `MoodleSSO.publicConfig`. Ist das SSO moeglich,
