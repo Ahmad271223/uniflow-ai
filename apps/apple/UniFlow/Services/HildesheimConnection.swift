@@ -1,4 +1,5 @@
 import Foundation
+import os
 import UniFlowCore
 import WebKit
 
@@ -404,6 +405,8 @@ final class HildesheimConnection: ObservableObject {
 ///   `HildesheimCAS.learnwebLoginURL(base:)`: fertig auf einer angemeldeten Learnweb-Seite (`Learnweb.isLoggedIn`).
 @MainActor
 final class HildesheimLogin: ObservableObject {
+    nonisolated static let log = Logger(subsystem: "de.uniflow.ai", category: "hildesheim-login")
+
     enum Stage: Equatable {
         case preparing
         /// Webansicht mit dieser Seite
@@ -508,6 +511,9 @@ final class HildesheimLogin: ObservableObject {
         casError = nil
         switch target {
         case .lsf:
+            // Nur Rechner, Pfad und Merkmale ins Protokoll (keine Abfrage mit Ticket oder Sitzung, kein Seiteninhalt):
+            // so laesst sich eine echte LSF-Seite pruefen, die die Anmeldung nicht erkennt
+            Self.log.info("LSF-Seite \(url.host ?? "-", privacy: .public)\(url.path, privacy: .public): Laenge \(html.count), abmelden \(html.range(of: "abmelden", options: .caseInsensitive) != nil), auth.logout \(html.contains("auth.logout")), auth.login \(html.contains("auth.login"))")
             // dieselbe Regel wie fuer jede Seite im Abgleich (LSF ueber HTTPS mit "Abmelden")
             if LSFClient.isLoggedIn(html: html, url: url) {
                 connection.lsfSignedIn()

@@ -153,7 +153,15 @@ struct HildesheimSourcesCard: View {
         var body: some View {
             UFCard {
                 UFCardHead("Learnweb & LSF", icon: "graduation") {
-                    connection.anyConnected ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht verbunden", tone: .warn)
+                    // "verbunden" nur, wenn beide Quellen verbunden sind; sonst nennt der Kopf die fehlende
+                    if HildesheimConnection.Source.allCases.allSatisfy(connection.isConnected) {
+                        UFBadge("verbunden", tone: .ok)
+                    } else if let missing = HildesheimConnection.Source.allCases.first(where: { !connection.isConnected($0) }),
+                              connection.anyConnected {
+                        UFBadge("\(missing == .lsf ? "LSF" : "Learnweb") fehlt", tone: .warn)
+                    } else {
+                        UFBadge("nicht verbunden", tone: .warn)
+                    }
                 }
                 Text("Learnweb (Kurse, Dateien) und LSF (Stundenplan, Notenspiegel) der Universität Hildesheim. Du meldest dich auf den Seiten der Universität mit deinem UNI-Account an und tippst selbst auf „Anmelden“; Dateien und Noten bleiben nur auf diesem iPad.")
                     .ufFont(13.12).foregroundStyle(UF.muted)

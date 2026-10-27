@@ -182,6 +182,15 @@ final class UniversityProfileTests: XCTestCase {
         XCTAssertFalse(LSFClient.isLoggedIn(html: page, url: URL(string: "https://www.uni-hildesheim.de/sso/login?service=x")), "CAS ist nicht das LSF")
         XCTAssertFalse(LSFClient.isLoggedIn(html: page, url: URL(string: "https://lsf.uni-hildesheim.de.example.org/qisserver")))
         XCTAssertFalse(LSFClient.isLoggedIn(html: page, url: nil))
+        // Schreibweise des Links egal (Playwright has-text), Abmelde-Link auch ohne Wort; die abgemeldete Startseite
+        // hat nur auth.login
+        let lsf = URL(string: "https://lsf.uni-hildesheim.de/qisserver/rds?state=user&type=1")
+        XCTAssertTrue(LSFClient.isLoggedIn(html: "<a>ABMELDEN</a>", url: lsf))
+        XCTAssertTrue(LSFClient.isLoggedIn(html: #"<a href="rds?state=user&amp;type=4&amp;category=auth.logout"><img alt=""></a>"#, url: lsf))
+        XCTAssertFalse(LSFClient.isLoggedIn(html: #"<a href="rds?state=user&amp;type=1&amp;category=auth.login">Anmelden</a>"#, url: lsf))
+        XCTAssertTrue(LSFClient.isLoggedIn(html: "<a href=\"x\">\n<span>Abmelden</span></a>", url: lsf))
+        XCTAssertFalse(LSFClient.isLoggedIn(html: "<p>Bitte nach der Pr&uuml;fung abmelden.</p><a>Anmelden</a>", url: lsf),
+                       "das Wort im Fliesstext ist kein Abmelde-Link")
     }
 
     func testErrorTextIsShortAndHasNoTags() {
