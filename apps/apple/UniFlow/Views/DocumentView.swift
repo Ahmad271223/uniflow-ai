@@ -509,9 +509,22 @@ struct DocumentView: View {
                         Label(store.isBookmarked(pageKey: bridge.pageKey) ? "Lesezeichen entfernen" : "Lesezeichen setzen", systemImage: "bookmark")
                     }
                     Menu {
-                        ForEach(PaperTemplate.choices, id: \.id) { t in
-                            // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
-                            Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
+                        Section("Wie aktuelle Seite") {
+                            ForEach(PaperTemplate.choices, id: \.id) { t in
+                                // ueber den Editor: Groesse und Schluessel wie im Web, danach springt er zur neuen Seite
+                                Button(t.name) { Task { await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id) } }
+                            }
+                        }
+                        // Formate wie formats.js (Seite hinzufuegen im Web): A6 ... A2 hoch und quer, Whiteboards
+                        Menu("Anderes Format") {
+                            ForEach(PageFormats.paper, id: \.key) { f in
+                                ForEach(PageFormats.Orientation.allCases, id: \.self) { o in
+                                    blankPageMenu(o == .portrait ? "\(f.name) hoch" : "\(f.name) quer", format: f.key, orientation: o)
+                                }
+                            }
+                            Section("Whiteboard (immer quer)") {
+                                ForEach(PageFormats.whiteboards, id: \.key) { f in blankPageMenu(f.name, format: f.key, orientation: .landscape) }
+                            }
                         }
                     } label: { Label("Leere Seite danach", systemImage: "doc.badge.plus") }
                     Button(role: .destructive) {
@@ -544,6 +557,22 @@ struct DocumentView: View {
                 Button { showInfo = true } label: { Label("Dokumentinformation", systemImage: "info.circle") }
                 Button { fullScreen = true } label: { Label("Vollbild", systemImage: "arrow.up.left.and.arrow.down.right") }
             } label: { Label("Mehr", systemImage: "ellipsis.circle") }
+        }
+    }
+
+    /// Untermenue "Leere Seite danach > Anderes Format > <Format>": Vorlage waehlen, Seite in diesem Format einfuegen
+    private func blankPageMenu(_ title: String, format: String, orientation: PageFormats.Orientation) -> some View {
+        Menu(title) {
+            if let s = PageFormats.size(format, orientation) {
+                ForEach(PaperTemplate.choices, id: \.id) { t in
+                    Button(t.name) {
+                        Task {
+                            await bridge.controller?.insertBlankPage(after: bridge.pageKey, template: t.id,
+                                                                     size: CGSize(width: s.width, height: s.height))
+                        }
+                    }
+                }
+            }
         }
     }
 

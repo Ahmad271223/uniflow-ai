@@ -72,7 +72,7 @@ public enum LibraryEndpoints: LocalEndpointModule {
 
     /// Grenzen einer Notizseite in PDF-Punkten (`PAGE_MIN_PT`, `PAGE_MAX_PT` in app/server.py, wie formats.js):
     /// A6 (298 x 420) bis Whiteboard A0 quer (3370 x 2384)
-    public static let pageMinPT = 100, pageMaxPT = 3400
+    public static let pageMinPT = PageFormats.minSide, pageMaxPT = PageFormats.maxSide
 
     /// `x: int = Form(default=0)` wie FastAPI/pydantic: leeres Feld = Standardwert, Leerraum, Vorzeichen, Unterstriche
     /// und ein Nachkommateil aus Nullen ("595.0") gelten, sonst 422 `int_parsing` (vor dem Aufruf, also vor uuid4)

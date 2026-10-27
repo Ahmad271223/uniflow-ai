@@ -163,6 +163,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private var live: [Int: PageInkView] = [:]
     private var parked: [PageInkView] = []
     private let parkedLimit = 6
+    /// Hoechstens so viel Seitenflaeche (pt^2) geparkt: sechs A4-Seiten. PencilKit haelt je Canvas Kacheln von
+    /// 512 x 512 pt in voller Bildschirmaufloesung (je etwa 4 MB, gemessen im Simulator): A4 vier, A0 quer 35
+    /// (etwa 140 MB). Grosse Seiten (A2, Whiteboards bis A0, PC-Stand 7bcdfe5) werden darum nicht mehr auf Vorrat
+    /// gehalten, sondern beim Zurueckscrollen neu aufgebaut (der Verlauf haengt am Seitenschluessel).
+    static let parkedAreaLimit: CGFloat = 6 * 595 * 842
     private var lastFit: CGFloat = 0
     private var userZoomed = false
     private var observers: [NSObjectProtocol] = []
@@ -464,8 +469,16 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         }
         parked.append(overlay)
         // der Verlauf bleibt: er haengt am Seitenschluessel und wirkt spaeter auf ein neues Overlay oder den Store
-        while parked.count > parkedLimit { toolPicker.removeObserver(parked.removeFirst().canvas) }
+        while parked.count > parkedLimit || (!parked.isEmpty && parkedArea > Self.parkedAreaLimit) {
+            toolPicker.removeObserver(parked.removeFirst().canvas)
+        }
     }
+
+    /// Seitenflaeche der geparkten Overlays (pt^2)
+    private var parkedArea: CGFloat { parked.reduce(0) { $0 + $1.geometry.pageSize.width * $1.geometry.pageSize.height } }
+
+    /// Zahl der geparkten Overlays (nur fuer Tests)
+    var parkedCountForTesting: Int { parked.count }
 
     /// Fremde Loesungsseiten fuer ein Overlay: nur PDF-Seiten, gedreht von der Drehung des Absenders auf die
     /// angezeigte Drehung dieser Seite (`/Rotate` + eigene Drehung aus `pageOrder`).
@@ -674,22 +687,26 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// - Ersatzweg ohne Umsetzung im Store (`DocumentStore.addBlankPage`): angezeigte Groesse der Seite davor,
     ///   also mit zusaetzlicher Drehung (nach einer um 90 Grad gedrehten Seite Breite und Hoehe vertauscht), und
     ///   Schluessel "b" + 11 Hex-Zeichen.
+    /// - `size`: gewaehltes Format in PDF-Punkten (A6 ... A2 hoch/quer, Whiteboards bis A0 quer, `PageFormats`) wie
+    ///   `addBlankPage(where, template, size)` im Web; ausserhalb von `PageFormats.validSize` gilt die Groesse der
+    ///   Seite davor.
     /// - Returns: Schluessel der neuen Seite.
     @discardableResult
-    func insertBlankPage(after key: String? = nil, template: String = "blank") async -> String? {
+    func insertBlankPage(after key: String? = nil, template: String = "blank", size chosen: CGSize? = nil) async -> String? {
         guard writable else { return nil }                  // nur ansehen
         let afterKey = key ?? currentPageKey
         let t = PaperTemplate.isKnown(template) ? template : "blank"
+        let format = chosen.flatMap { PageFormats.validSize(Double($0.width), Double($0.height)) ? $0 : nil }
         guard let editor = pageEditor else {
             // ohne Umsetzung im Store: bisheriger Weg, neue Seite ueber den Vergleich der Schluessel finden
             let before = Set(store.layout?.entries.map(\.key) ?? [])
-            await store.addBlankPage(afterKey: afterKey, template: t)
+            await store.addBlankPage(afterKey: afterKey, template: t, size: format)
             let added = store.layout?.entries.first { !before.contains($0.key) }?.key
             pendingFocusKey = added
             finishPageChange(PageOrder.Change(focusKey: added, changedPageKeys: []))
             return added
         }
-        let size = afterKey.flatMap { shownLayout?.index(ofKey: $0) }.flatMap { shownLayout?.baseSize(at: $0) }
+        let size = format ?? afterKey.flatMap { shownLayout?.index(ofKey: $0) }.flatMap { shownLayout?.baseSize(at: $0) }
             ?? CGSize(width: 595, height: 842)
         let newKey = PageOrder.newBlankKey()
         let w = Double(size.width), h = Double(size.height)
