@@ -32,7 +32,8 @@ jobs:
       - name: Python-Abhaengigkeiten und PyInstaller
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pyinstaller
+          # requirements-dev.txt bringt pytest fuer den naechsten Schritt (ohne es brach jeder Lauf dort ab)
+          python -m pip install -r requirements.txt -r requirements-dev.txt pyinstaller
       - name: Backend-Tests (Starter, CSP, Paketbeschreibung)
         run: python -m pytest -q tests/test_desktop.py
       - name: Chromium fuer Playwright (wird neben die exe gelegt)
