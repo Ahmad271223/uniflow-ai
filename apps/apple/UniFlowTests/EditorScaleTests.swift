@@ -22,7 +22,9 @@ import XCTest
 ///
 /// Zeiten haengen an der Last des Rechners (volle Laeufe teilen sich den Mac mit anderen Simulatoren). Darum sind
 /// Zeitgrenzen nur grobe Haenger-Grenzen, mindestens zehnfach ueber den Werten, die unter hoher Last (Lastmittel ueber
-/// 250 auf 8 Kernen) gemessen wurden; alles andere wird nur protokolliert. Hart geprueft wird, was nicht von der Last
+/// 250 auf 8 Kernen) gemessen wurden. Ausnahme ist das Zeitlimit fuers durchgehende Blaettern (5- bis 16-fach): dort
+/// gibt der feste Takt des Tests die Dauer vor (500 Seiten mindestens 31 s), sie aendert sich mit der Last kaum.
+/// Alles andere wird nur protokolliert. Hart geprueft wird, was nicht von der Last
 /// abhaengt: Seitenzahl, Freigabe der Overlays, Striche und Speicherstand. Es gibt keine Schleifen, die Ebenen
 /// wiederholt ein- und ausblenden (daran hing `testManyForeignLayersStayFastAndAreReleased`, Plan B12), und jedes
 /// Warten hat ein festes Zeitlimit. Jeder Messwert steht als Zeile "[EditorMessung] <Test> | <Name> = <Wert> <Einheit>"
