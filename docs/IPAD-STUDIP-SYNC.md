@@ -216,9 +216,11 @@ Fach fünfmal; KW 44 ab Mittwoch stimmte. Der Grund: Am PC entscheidet der Kalen
 zählt jeder Einzeltermin, und jeder Abruf ersetzt die IDs des vorigen. Nach jedem Abgleich ist aber heute der Abruftag:
 Die Übersicht „Heute an der Uni“ und der Tag zeigten alle Gruppen, ebenso alle Wochen vor dem ersten Abruf. Auf dem iPad
 gilt deshalb (`StudIPCalendar.Coverage`, `LocalTimetable.studipDated`):
-1. **Ab dem frühesten Kalendertermin entscheidet der Kalender**, auch am Abruftag. Ausnahme: Ein Termin des Abruftags,
-   der vor dem Abruf begann und nicht im Kalender steht, wird wie Punkt 3 behandelt. Ob der Export schon begonnene
-   Termine enthält, wissen wir nicht sicher.
+1. **Ab dem ersten Abruf entscheidet der Kalender** (frühestes `fetched_at`; ältere IDs behalten ihren Zeitpunkt),
+   auch am Abruftag. Nicht erst ab dem frühesten Kalendertermin: Mit echten Daten stand am Abruftag um 08:15 eine
+   fremde Gruppe, deren Zeitschlitz erst ab einer späteren Woche die eigene ist; der erste eigene Termin des Tages war
+   um 10:15. Was vor dem ersten Abruf begann (auch am Abruftag selbst), wird wie Punkt 3 behandelt. Ob der Export
+   schon begonnene Termine enthält, wissen wir nicht sicher.
 2. **IDs früherer Abrufe bleiben.** Ein neuer Abruf entfernt nur IDs, die nicht mehr im Kalender stehen und deren
    Termin ab dem Abrufzeitpunkt beginnt; das Datum kommt aus `studip_events`. IDs ohne bekannten Termin bleiben. So
    bleiben vergangene Tage auf dem zuletzt gesehenen Stand, und `max(fetched_at)` ist der letzte Abruf.

@@ -74,6 +74,30 @@ final class StudIPCalendarFetchDayTests: XCTestCase {
         XCTAssertEqual(tue, ["Frühübung Abruf 01:00 teilnahme", "Übung Testprogrammierung Abruf 10:00 teilnahme"])
     }
 
+    /// Zwischen Abruf und erstem eigenen Termin entscheidet der Kalender: eine Gruppe dienstags 08:15, die erst ab
+    /// 10.11. die eigene ist (Befund mit echten Daten), steht am Abruftag 27.10. um 08:15 nicht im Export und ist darum
+    /// nicht die eigene, obwohl der erste Kalendertermin erst um 10:00 beginnt. Vor dem ersten Abruf (20.10.) gilt der
+    /// Zeitschlitz. Vorher (Grenze = fruehester Kalendertermin) stand sie am 27.10. da, am 03.11. nicht.
+    func testFetchDayBeforeFirstOwnDateFollowsTheCalendar() async throws {
+        let b = try await backend()
+        try await b.context.database.transaction { c in
+            try c.execute("INSERT INTO courses(id, title, semester, kind, active, created_at) VALUES ('k-spaet','Spätgruppe Abruf','WiSe 2026/27','uebung',1,'2026-10-01T08:00:00')")
+            for d in ["2026-10-20", "2026-10-27", "2026-11-03", "2026-11-10"] {
+                try c.execute("INSERT INTO studip_events(id, course_id, title, start, end, room, fetched_at) VALUES (?,'k-spaet','Termin',?,?,'',?)",
+                              [.text("sp-\(d)"), .text("\(d)T08:15:00"), .text("\(d)T09:45:00"), .text("2026-10-27T02:39:00")])
+            }
+            XCTAssertTrue(try StudIPCalendar.store(ids: calendar1 + ["sp-2026-11-10"], in: c, clock: fetch1))
+        }
+        let fetchDay = try await day(b, "2026-10-27")
+        XCTAssertEqual(fetchDay, ["Frühübung Abruf 01:00 teilnahme", "Übung Testprogrammierung Abruf 10:00 teilnahme"])
+        let next = try await day(b, "2026-11-03")
+        XCTAssertFalse(next.contains { $0.hasPrefix("Spätgruppe") }, "\(next)")
+        let own = try await day(b, "2026-11-10")
+        XCTAssertEqual(own, ["Spätgruppe Abruf 08:15 teilnahme", "Übung Testprogrammierung Abruf 10:00 teilnahme"])
+        let before = try await day(b, "2026-10-20")
+        XCTAssertEqual(before, ["Spätgruppe Abruf 08:15 teilnahme", "Übung Testprogrammierung Abruf 10:00 teilnahme"], "Zeitschlitz")
+    }
+
     /// Woche vor dem ersten Abruf: nur Termine im Zeitschlitz eines Kalendertermins desselben Kurses; ein Kurs ganz
     /// ohne Kalendertermin faellt weg. Serien: automatisch uebernommene fremde Gruppe faellt weg, ihr gespeicherter
     /// Ausfall laut Stud.IP bleibt sichtbar; von Hand bestaetigte und eigene Serien bleiben immer.

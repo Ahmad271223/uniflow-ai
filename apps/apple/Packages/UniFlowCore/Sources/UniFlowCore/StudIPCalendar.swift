@@ -173,8 +173,9 @@ enum StudIPCalendar {
         let ids: Set<String>
         /// letzter Abruf (Ortszeit) und sein Tag
         let fetched: Time
-        /// Beginn des fruehesten Kalendertermins, den es als Einzeltermin gibt; davor weiss der Kalender nichts
-        let first: Time?
+        /// erster Abruf, der noch gilt (fruehestes `fetched_at`; aeltere IDs behalten ihren Zeitpunkt): ab da steht jeder
+        /// eigene Termin im Kalender, davor weiss der Kalender nichts
+        let since: Time?
         /// Zeitschlitze der Kalendertermine: Kurs, Wochentag, Beginn, Ende
         let slots: Set<String>
         /// Kurse mit mindestens einem Kalendertermin
@@ -187,13 +188,14 @@ enum StudIPCalendar {
         }
 
         /// Zeigt die Woche diesen Stud.IP-Einzeltermin? Im Kalender: ja. Sonst nein, wenn der Kalender den Zeitpunkt
-        /// abdeckt (ab dem fruehesten Kalendertermin), ausser der Termin begann am Abruftag vor dem Abruf (ob der
-        /// Export begonnene Termine enthaelt, ist nicht sicher). Davor gilt der Zeitschlitz: derselbe Kurs, Wochentag,
-        /// Beginn und Ende wie ein Kalendertermin heisst eigener Termin; ein Kurs ganz ohne Kalendertermin faellt weg.
+        /// abdeckt (ab dem ersten Abruf; nicht erst ab dem fruehesten Kalendertermin: zwischen Abruf und erstem eigenen
+        /// Termin fehlt ein Termin nicht zufaellig, Befund mit echten Daten: fremde Gruppe am Abruftag vor der ersten
+        /// eigenen). Was vor dem ersten Abruf begann (auch am Abruftag, ob der Export begonnene Termine enthaelt, ist
+        /// nicht sicher), entscheidet der Zeitschlitz: derselbe Kurs, Wochentag, Beginn und Ende wie ein Kalendertermin
+        /// heisst eigener Termin; ein Kurs ganz ohne Kalendertermin faellt weg.
         func shows(id: String?, course: String?, start: Time, end: Time) -> Bool {
             if let id, ids.contains(id) { return true }
-            let beganBeforeFetch = start.day == fetched.day && Self.before(start, fetched)
-            if let first, !Self.before(start, first), !beganBeforeFetch { return false }
+            if let since, !Self.before(start, since) { return false }
             guard let course, courses.contains(course) else { return false }
             return slots.contains(Self.slot(course: course, start: start, end: end))
         }
@@ -204,16 +206,16 @@ enum StudIPCalendar {
         guard let cal = try calendar(c) else { return nil }
         let at = try c.queryOne("SELECT MAX(fetched_at) FROM studip_calendar_dates")?[0].string
         let fetched = LocalTimetableImport.isoDateTime(at.map(JSONValue.string)) ?? Coverage.Time(day: cal.day, minutes: 0)
-        var first: Coverage.Time?
+        let earliest = try c.queryOne("SELECT MIN(fetched_at) FROM studip_calendar_dates")?[0].string
+        let since = LocalTimetableImport.isoDateTime(earliest.map(JSONValue.string)) ?? fetched
         var slots = Set<String>(), courses = Set<String>()
         for r in try c.rows("SELECT s.course_id, s.start, s.end FROM studip_events s JOIN studip_calendar_dates d ON d.id=s.id") {
             guard let course = r["course_id"]?.string, let st = LocalTimetableImport.isoDateTime(r["start"]),
                   let en = LocalTimetableImport.isoDateTime(r["end"]) else { continue }
             courses.insert(course)
             slots.insert(Coverage.slot(course: course, start: st, end: en))
-            if first.map({ Coverage.before(st, $0) }) ?? true { first = st }
         }
-        return Coverage(ids: cal.ids, fetched: fetched, first: first, slots: slots, courses: courses)
+        return Coverage(ids: cal.ids, fetched: fetched, since: since, slots: slots, courses: courses)
     }
 
     /// Kurse, die laut Kalender ganz fehlen: entschieden, aber keine Kurszeit relevant (z. B. ohne Kalenderbindung)

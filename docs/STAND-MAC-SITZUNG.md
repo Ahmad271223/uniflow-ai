@@ -1071,8 +1071,10 @@ Ursache in `timetable.studip_dated` und `_merge_dated`: `since = Abruftag + 1`, 
 „Heute an der Uni“ und der Tag dann alle Gruppen, ebenso jede Woche vor dem ersten Abruf.
 
 Auf dem iPad behoben (Zweig `wip/stundenplan-abruftag`, Regel und Begründung in `docs/IPAD-STUDIP-SYNC.md` §10):
-1. **Kalender ab dem frühesten Kalendertermin:** Ab dort entscheidet der Kalender, auch am Abruftag. Ein Termin des
-   Abruftags, der vor dem Abruf begann und nicht im Kalender steht, wird wie Punkt 3 behandelt.
+1. **Kalender ab dem ersten Abruf** (frühestes `fetched_at`): Ab dort entscheidet der Kalender, auch am Abruftag.
+   Was vor dem ersten Abruf begann, wird wie Punkt 3 behandelt. (Erste Fassung: ab dem frühesten Kalendertermin; mit
+   echten Daten zeigte das am Abruftag eine fremde Gruppe vor dem ersten eigenen Termin, Test
+   `testFetchDayBeforeFirstOwnDateFollowsTheCalendar`.)
 2. **IDs früherer Abrufe bleiben:** Ein neuer Abruf entfernt nur IDs, deren Termin ab dem Abrufzeitpunkt beginnt und
    die nicht mehr im Kalender stehen. Das Datum kommt aus `studip_events`, IDs ohne bekannten Termin bleiben.
    `max(fetched_at)` ist weiter der letzte Abruf.
