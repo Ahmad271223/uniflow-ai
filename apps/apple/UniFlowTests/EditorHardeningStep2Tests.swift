@@ -385,6 +385,9 @@ final class EditorHardeningStep2Tests: XCTestCase {
         let checked9 = await b.pageStructureDocument()
         XCTAssertEqual(strokes(checked9), 1, "B zeigt A's Strich")
 
+        // A fertig hochladen lassen, damit spaeter nichts mehr von A kommt und jede Aenderung von B waere
+        await a.pause()
+
         // beide Fenster mit Editor
         let windows = [show(a, canEdit: a.isWritable), show(b, canEdit: b.isWritable)]
         defer { windows.forEach { $0.window.isHidden = true; $0.window.rootViewController = nil } }
