@@ -218,9 +218,12 @@ enum LocalTimetable {
     }
 
     /// `studip_dated(conn, start, end)`: die Termine, die Stud.IP dem Nutzer selbst in der Woche zeigt. Alle
-    /// Einzeltermine aktiver Kurse (`studip_events`, ohne Art "sonstiges") mit Beginn im Zeitraum; ab dem Tag nach dem
-    /// Abruf des eigenen Kalenders nur die, die darin stehen (eigene Gruppen, Kurse mit Kalenderbindung), davor und ohne
-    /// Kalender alle. Vorkommen ohne Serie (`event_id` null, `studip_id` gesetzt, `source` "studip-kalender").
+    /// Einzeltermine aktiver Kurse (`studip_events`, ohne Art "sonstiges") mit Beginn im Zeitraum, mit eigenem Kalender
+    /// nur die eigenen (`StudIPCalendar.Coverage.shows`): im Kalender, oder fuer Zeiten, die der Kalender nicht abdeckt
+    /// (vor dem ersten Abruf, am Abruftag vor dem Abruf), derselbe Zeitschlitz wie ein Kalendertermin des Kurses. Ohne
+    /// Kalender alle. Abweichung vom PC (dort ab dem Tag nach dem Abruf nur der Kalender, davor alle): Befund mit echten
+    /// Daten am 28.10.2026, der Abruftag und die Wochen davor zeigten jede parallele Gruppe, docs/IPAD-STUDIP-SYNC.md §10.
+    /// Vorkommen ohne Serie (`event_id` null, `studip_id` gesetzt, `source` "studip-kalender").
     /// Derselbe Termin eines Kurses (Kurs, Tag, Beginn, Ende) in mehreren Raeumen ist ein Vorkommen mit allen Raeumen
     /// (" · ", Reihenfolge des ersten Auftretens, ohne Doppelte; ba02e47).
     static func studipDated(_ c: SQLiteConnection, from start: Int, to end: Int) throws -> [[String: JSONValue]] {
@@ -229,16 +232,14 @@ enum LocalTimetable {
             FROM studip_events s JOIN courses c ON c.id=s.course_id LEFT JOIN modules m ON m.id=c.module_id
             WHERE c.active=1 AND c.kind != 'sonstiges' AND s.start >= ? AND s.start < ? ORDER BY s.start
             """, [.text(iso(start)), .text(iso(end + 1))])
-        let cal = try StudIPCalendar.calendar(c)
-        let since = cal.map { iso($0.day + 1) }
+        let cover = try StudIPCalendar.coverage(c)
         var out: [[String: JSONValue]] = []
         var at: [JSONValue: Int] = [:]
         for r in rows {
             guard let st = LocalTimetableImport.isoDateTime(r["start"]), let en = LocalTimetableImport.isoDateTime(r["end"]) else { continue }
             let di = iso(st.day)
-            // andere Gruppe, nicht im eigenen Kalender (Vergleich der ISO-Daten als Text wie in Python)
-            if let since, let cal, !di.unicodeScalars.lexicographicallyPrecedes(since.unicodeScalars),
-               !(r["id"]?.string.map(cal.ids.contains) ?? false) { continue }
+            // andere Gruppe oder Kurs ohne Kalendertermin: nicht im eigenen Kalender
+            if let cover, !cover.shows(id: r["id"]?.string, course: r["course_id"]?.string, start: st, end: en) { continue }
             let title = r["course_title"] ?? .null
             let o: [String: JSONValue] = [
                 "event_id": .null, "studip_id": r["id"] ?? .null, "date": .string(di), "start": .string(LocalFreeWindows.mh(st.minutes)),
@@ -278,17 +279,17 @@ enum LocalTimetable {
     /// (`sameSlot`): die Serie bleibt (Teilnahme, Ausnahmen, Notizen) und bekommt `studip_id` und, wenn leer, den Raum;
     /// jeder Einzeltermin hoechstens einmal, in der Reihenfolge der Serien. Automatisch uebernommene Serien (Quelle
     /// genau "studip") eines Kurses, von dem Einzeltermine bekannt sind, zeigen nur, was Stud.IP kennt (ausser hierher
-    /// verschoben): ab dem Tag nach dem Kalenderabruf faellt alles eines Kurses ohne eigenen Kalendertermin weg (andere
-    /// Gruppe, frueherer Jahrgang); ohne passenden Einzeltermin bleibt nur eine gespeicherte Ausnahme sichtbar (z. B.
+    /// verschoben): ab dem Tag des Kalenderabrufs (am PC erst ab dem Tag danach, siehe `studipDated`) faellt alles eines
+    /// Kurses ohne eigenen Kalendertermin weg (andere Gruppe, frueherer Jahrgang); ohne passenden Einzeltermin bleibt nur
+    /// eine gespeicherte Ausnahme sichtbar (z. B.
     /// "Ausfall laut Stud.IP"), sonst faellt das Vorkommen weg, auch bei "vorlesungsfrei". Von Hand bestaetigte
     /// ("studip-manual"), eigene und andere Serien bleiben immer. Danach die uebrigen Einzeltermine, alles stabil nach
     /// Datum und Beginn sortiert.
     static func mergeDated(_ c: SQLiteConnection, _ out: [[String: JSONValue]], _ dated: [[String: JSONValue]]) throws -> [JSONValue] {
         let known = Set(try c.rows("SELECT course_id, MIN(start) AS lo, MAX(start) AS hi FROM studip_events GROUP BY course_id").map { $0["course_id"] ?? .null })
-        let cal = try StudIPCalendar.calendar(c)
-        let since = cal.map { iso($0.day + 1) }
-        let mine: Set<JSONValue> = cal == nil ? [] : Set(try c.rows(
-            "SELECT DISTINCT course_id FROM studip_events WHERE id IN (SELECT id FROM studip_calendar_dates)").map { $0["course_id"] ?? .null })
+        let cover = try StudIPCalendar.coverage(c)
+        let since = cover.map { iso($0.fetched.day) }
+        let mine = Set((cover?.courses ?? []).map(JSONValue.string))
         var res: [JSONValue] = []
         var taken = Set<Int>()
         for var o in out {

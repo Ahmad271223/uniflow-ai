@@ -84,11 +84,23 @@ enum StudIPCalendar {
 
     /// Speichert den Kalender und entscheidet die Kurszeiten neu (in der Transaktion des Abgleichs, nach Kurszeiten und
     /// Einzelterminen). Liefert false, wenn nichts entschieden wurde (Kalender ohne Veranstaltungstermine).
+    ///
+    /// IDs frueherer Abrufe bleiben (Befund mit echten Daten, 28.10.2026): der Export beginnt mit dem Abruf, ein Ersetzen
+    /// vergass also alles davor, und vergangene Tage zeigten wieder alle parallelen Gruppen. Entfernt werden nur IDs, die
+    /// nicht mehr im Kalender stehen und deren Termin ab dem Abrufzeitpunkt beginnt (Datum aus `studip_events`); was
+    /// davor lag, bleibt auf dem zuletzt gesehenen Stand, ebenso IDs ohne bekannten Termin. Die neuen IDs bekommen den
+    /// Zeitpunkt dieses Abrufs, `max(fetched_at)` ist damit immer der letzte Abruf.
     @discardableResult
     static func store(ids: [String], in c: SQLiteConnection, clock: UniFlowClock) throws -> Bool {
         guard !ids.isEmpty else { return false }
         try c.executeScript(tables)
-        try c.execute("DELETE FROM studip_calendar_dates")
+        let fresh = Set(ids)
+        let now = LocalTimetableImport.isoDateTime(.string(clock.nowISO))
+        for r in try c.rows("SELECT d.id, s.start FROM studip_calendar_dates d LEFT JOIN studip_events s ON s.id=d.id") {
+            guard let id = r["id"]?.string, !fresh.contains(id) else { continue }
+            guard let now, let st = LocalTimetableImport.isoDateTime(r["start"]) else { continue }      // Termin unbekannt: bleibt
+            if !Coverage.before(st, now) { try c.execute("DELETE FROM studip_calendar_dates WHERE id=?", [.text(id)]) }
+        }
         for id in ids {
             try c.execute("INSERT OR REPLACE INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)", [.text(id), .text(clock.nowISO)])
         }
@@ -150,6 +162,58 @@ enum StudIPCalendar {
         guard let at = rows.compactMap({ $0["fetched_at"]?.string }).max(),
               let day = BerlinClock.parseISODate(PyText.slice(at, 0, 10)) else { return nil }
         return (Set(rows.compactMap { $0["id"]?.string }), day)
+    }
+
+    /// Was der eigene Kalender fuer die Woche abdeckt (`LocalTimetable.studipDated`, `mergeDated`). Nur auf dem Geraet,
+    /// Python entscheidet erst ab dem Tag nach dem Abruf und vergisst bei jedem Abruf die Tage davor (Bitte an die
+    /// PC-Sitzung in docs/STAND-MAC-SITZUNG.md). Regel, Begruendung: docs/IPAD-STUDIP-SYNC.md §10.
+    struct Coverage {
+        typealias Time = LocalTimetableImport.LocalTime
+        /// Termin-IDs aller Abrufe, die noch gelten
+        let ids: Set<String>
+        /// letzter Abruf (Ortszeit) und sein Tag
+        let fetched: Time
+        /// Beginn des fruehesten Kalendertermins, den es als Einzeltermin gibt; davor weiss der Kalender nichts
+        let first: Time?
+        /// Zeitschlitze der Kalendertermine: Kurs, Wochentag, Beginn, Ende
+        let slots: Set<String>
+        /// Kurse mit mindestens einem Kalendertermin
+        let courses: Set<String>
+
+        static func before(_ a: Time, _ b: Time) -> Bool { (a.day, a.minutes) < (b.day, b.minutes) }
+
+        static func slot(course: String, start: Time, end: Time) -> String {
+            "\(course)|\(BerlinClock.weekday(start.day))|\(LocalFreeWindows.mh(start.minutes))|\(LocalFreeWindows.mh(end.minutes))"
+        }
+
+        /// Zeigt die Woche diesen Stud.IP-Einzeltermin? Im Kalender: ja. Sonst nein, wenn der Kalender den Zeitpunkt
+        /// abdeckt (ab dem fruehesten Kalendertermin), ausser der Termin begann am Abruftag vor dem Abruf (ob der
+        /// Export begonnene Termine enthaelt, ist nicht sicher). Davor gilt der Zeitschlitz: derselbe Kurs, Wochentag,
+        /// Beginn und Ende wie ein Kalendertermin heisst eigener Termin; ein Kurs ganz ohne Kalendertermin faellt weg.
+        func shows(id: String?, course: String?, start: Time, end: Time) -> Bool {
+            if let id, ids.contains(id) { return true }
+            let beganBeforeFetch = start.day == fetched.day && Self.before(start, fetched)
+            if let first, !Self.before(start, first), !beganBeforeFetch { return false }
+            guard let course, courses.contains(course) else { return false }
+            return slots.contains(Self.slot(course: course, start: start, end: end))
+        }
+    }
+
+    /// Abdeckung des eigenen Kalenders; nil, solange es keinen Kalender gab
+    static func coverage(_ c: SQLiteConnection) throws -> Coverage? {
+        guard let cal = try calendar(c) else { return nil }
+        let at = try c.queryOne("SELECT MAX(fetched_at) FROM studip_calendar_dates")?[0].string
+        let fetched = LocalTimetableImport.isoDateTime(at.map(JSONValue.string)) ?? Coverage.Time(day: cal.day, minutes: 0)
+        var first: Coverage.Time?
+        var slots = Set<String>(), courses = Set<String>()
+        for r in try c.rows("SELECT s.course_id, s.start, s.end FROM studip_events s JOIN studip_calendar_dates d ON d.id=s.id") {
+            guard let course = r["course_id"]?.string, let st = LocalTimetableImport.isoDateTime(r["start"]),
+                  let en = LocalTimetableImport.isoDateTime(r["end"]) else { continue }
+            courses.insert(course)
+            slots.insert(Coverage.slot(course: course, start: st, end: en))
+            if first.map({ Coverage.before(st, $0) }) ?? true { first = st }
+        }
+        return Coverage(ids: cal.ids, fetched: fetched, first: first, slots: slots, courses: courses)
     }
 
     /// Kurse, die laut Kalender ganz fehlen: entschieden, aber keine Kurszeit relevant (z. B. ohne Kalenderbindung)

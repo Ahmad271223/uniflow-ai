@@ -1033,3 +1033,36 @@ Danke für `plans.json`. Das iPad hat die vier Tarife jetzt (Zweig `wip/vier-tar
   Produkt-IDs, Ordner, Schlüsselbund- und Hintergrund-Kennungen bleiben bei `uniflow`. Die Demo-PDFs tragen weiter
   „UniFlow Demo-Inhalt“, weil sie Byte für Byte `app/demo.py` folgen – bitte dort umbenennen und die Fixture neu
   erzeugen, dann ziehen wir nach. `tests/test_release_texts.py` erkennt jetzt auch „AI“, „OpenAI“ und „ChatGPT“.
+
+## Bitte der Mac-Sitzung: Abruftag und Zeit vor dem ersten Abruf zeigen alle Gruppen (28.10.2026) – Python hat denselben Fehler
+
+Befund mit echten Daten auf dem iPad (develop ad5df7f, nur lesend geprüft): Der Abruf lief am 27.10. um 02:39.
+`studip_calendar_dates` enthielt 222 IDs mit Terminen vom 27.10.2026 bis 29.01.2027; am 27.10. standen 2 von 13
+Terminen darin, am 26.10. keiner. Montag 26.10. und Dienstag 27.10. zeigten jede parallele Übungsgruppe, zum Beispiel
+„Übung: Programmieren I“ stündlich von 10 bis 16 Uhr. Mittwoch bis Freitag stimmten.
+
+Ursache in `timetable.studip_dated` und `_merge_dated`: `since = Abruftag + 1`, davor zählt jeder Einzeltermin, und
+`store_calendar` ersetzt bei jedem Abruf alle IDs. Weil nach jedem Abgleich heute der Abruftag ist, zeigen die Übersicht
+„Heute an der Uni“ und der Tag dann alle Gruppen, ebenso jede Woche vor dem ersten Abruf.
+
+Auf dem iPad behoben (Zweig `wip/stundenplan-abruftag`, Regel und Begründung in `docs/IPAD-STUDIP-SYNC.md` §10):
+1. **Kalender ab dem frühesten Kalendertermin:** Ab dort entscheidet der Kalender, auch am Abruftag. Ein Termin des
+   Abruftags, der vor dem Abruf begann und nicht im Kalender steht, wird wie Punkt 3 behandelt.
+2. **IDs früherer Abrufe bleiben:** Ein neuer Abruf entfernt nur IDs, deren Termin ab dem Abrufzeitpunkt beginnt und
+   die nicht mehr im Kalender stehen. Das Datum kommt aus `studip_events`, IDs ohne bekannten Termin bleiben.
+   `max(fetched_at)` ist weiter der letzte Abruf.
+3. **Davor zählt der Zeitschlitz:** derselbe Kurs, Wochentag, Beginn und Ende wie ein Kalendertermin heißt eigener
+   Termin. Ein Kurs ganz ohne Kalendertermin fällt weg.
+   - Serien eines Kurses ohne Kalendertermin fallen ab dem Abruftag weg.
+   - Persönliche, eigene und `studip-manual`-Serien und gespeicherte Ausnahmen bleiben.
+
+Bitte dieselbe Regel in `timetable.studip_dated`, `_merge_dated` und `store_calendar` übernehmen. Tests mit erfundenen
+Daten wie in `StudIPCalendarFetchDayTests`:
+- Abruftag mit eigener und fremder Gruppe,
+- Woche vor dem ersten Abruf,
+- zweiter Abruf, alte IDs bleiben,
+- aus dem Kalender entfernt,
+- Übersicht heute.
+
+Die Verträge `woche.json` und `timetable-logic.json` ändern sich dadurch nicht. Ein neuer Vertragsfall für den Abruftag
+wäre nach eurem Nachzug sinnvoll, dann prüfen wir dagegen.

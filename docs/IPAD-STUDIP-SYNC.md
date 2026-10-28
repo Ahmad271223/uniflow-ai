@@ -209,3 +209,32 @@ Automatisch übernommene Serien zeigen nur, was Stud.IP an dem Tag kennt; das gi
 Kurszeiten. Gespeicherte Ausnahmen bleiben sichtbar. Kurse früherer Semester plant der Abgleich nicht ein (`Semesters`,
 Abruf mit `end-semester`): keine Dateien, Termine, Aufzeichnungen und Module. Eigene Schalter in Einstellungen → Module
 bleiben (`active_custom`). Vertrag: `fixtures/studip-schedule/woche.json` (`StudIPWeekTests`).
+
+**iPad-Regel für den Abruftag und die Zeit davor (28.10.2026, Befund mit echten Daten).** Auf dem Echtdaten-Simulator
+lief der Abruf am 27.10. um 02:39. Montag 26.10. und Dienstag 27.10. zeigten jede parallele Übungsgruppe, also dasselbe
+Fach fünfmal; KW 44 ab Mittwoch stimmte. Der Grund: Am PC entscheidet der Kalender erst ab dem Tag nach dem Abruf, davor
+zählt jeder Einzeltermin, und jeder Abruf ersetzt die IDs des vorigen. Nach jedem Abgleich ist aber heute der Abruftag:
+Die Übersicht „Heute an der Uni“ und der Tag zeigten alle Gruppen, ebenso alle Wochen vor dem ersten Abruf. Auf dem iPad
+gilt deshalb (`StudIPCalendar.Coverage`, `LocalTimetable.studipDated`):
+1. **Ab dem frühesten Kalendertermin entscheidet der Kalender**, auch am Abruftag. Ausnahme: Ein Termin des Abruftags,
+   der vor dem Abruf begann und nicht im Kalender steht, wird wie Punkt 3 behandelt. Ob der Export schon begonnene
+   Termine enthält, wissen wir nicht sicher.
+2. **IDs früherer Abrufe bleiben.** Ein neuer Abruf entfernt nur IDs, die nicht mehr im Kalender stehen und deren
+   Termin ab dem Abrufzeitpunkt beginnt; das Datum kommt aus `studip_events`. IDs ohne bekannten Termin bleiben. So
+   bleiben vergangene Tage auf dem zuletzt gesehenen Stand, und `max(fetched_at)` ist der letzte Abruf.
+   - Absicht: entfernt wird ab dem Abrufzeitpunkt, nicht ab dem Abruftag. Sonst verlöre ein Abruf am Mittag die
+     eigenen Termine vom Vormittag, die ein früherer Abruf gesehen hatte. Spätestens beim nächsten Abruf an einem
+     anderen Tag wären sie dann aus der Woche verschwunden.
+   - Keine Migration nötig: Die Tabelle bleibt gleich, gesammelt wird ab dem nächsten Abruf.
+3. **Davor zählt der Zeitschlitz:** Für Zeiten, die der Kalender nicht abdeckt, gilt ein Termin als eigener, wenn Kurs,
+   Wochentag, Beginn und Ende einem Kalendertermin desselben Kurses entsprechen. Sonst erscheint er nicht. Ein Kurs ganz
+   ohne Kalendertermin fällt weg, wie nach dem Abruf.
+   - Automatisch übernommene Serien folgen den Einzelterminen.
+   - Persönliche, eigene und von Hand bestätigte Serien (`studip-manual`) bleiben immer, gespeicherte Ausnahmen wie
+     „Ausfall laut Stud.IP“ bleiben sichtbar.
+   - Serien eines Kurses ohne Kalendertermin fallen ab dem Abruftag weg, nicht erst ab dem Tag danach.
+
+Die Entscheidungen über Kurszeiten und Serien (`StudIPCalendar.store`, `applyCalendar`) bleiben wie am PC „ab dem Tag
+nach dem Abruf“. Sie werten nur künftige Termine aus und sind nicht betroffen. Tests mit erfundenen Daten:
+`StudIPCalendarFetchDayTests`. Die Verträge `woche.json` (Abruf 27.10., Woche 16.–22.11.) und `timetable-logic.json`
+(ohne Kalender) sind unverändert grün.
