@@ -209,7 +209,9 @@ final class FachfarbenAppTests: XCTestCase {
         XCTAssertEqual(ttColors, Set(mods.compactMap { $0.s("color") }), "Stundenplan zeigt dieselben Fachfarben")
     }
 
-    /// Enge Bloecke im Lernkalender (Woche, iPad-Breite): eindeutige Kurznamen je Fach, kein doppeltes "ET"
+    /// Enge Bloecke im Lernkalender (Woche, iPad-Breite): eindeutige Kurznamen je Fach, kein doppeltes "ET". Seit e9a40d1
+    /// wie die Web-App: Initialen erst ab drei Bloecken nebeneinander (SigSys, Ü SigSys, EGI um 10 Uhr), sonst der
+    /// lesbare Kurzname (die beiden Einfuehrungen um 14 Uhr, die Uebung allein)
     func testNarrowBlocksShowUniqueShortNames() throws {
         let (api, recorder) = try awaiting { try await self.seededAPI() }
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
@@ -218,7 +220,7 @@ final class FachfarbenAppTests: XCTestCase {
             let plan = try show(PlanView(params: (view: "week", date: "2026-10-26", module: nil)), api: api, style: style)
             XCTAssertTrue(pump { recorder.calls.contains { $0.path == "/api/calendar" } && self.shows(plan, "EGI") }, texts(plan).joined(separator: "\n"))
             let all = texts(plan)
-            for name in ["SigSys", "Ü SigSys", "EGI", "EinSozia", "EinSozio", "Ü Testm. I"] {
+            for name in ["SigSys", "Ü SigSys", "EGI", "Einführung in die Sozialpädagogik", "Einführung in die Soziologie", "Übung zu Testmathematik I"] {
                 XCTAssertTrue(all.contains { $0.contains(name) }, "\(name) fehlt: \(all)")
             }
             XCTAssertFalse(all.contains { $0.range(of: #"(^|[^A-Za-z])ET([^A-Za-z]|$)"#, options: .regularExpression) != nil }, "kein ET: \(all)")

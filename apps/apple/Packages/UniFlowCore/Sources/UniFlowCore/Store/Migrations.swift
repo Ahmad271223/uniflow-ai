@@ -5,7 +5,7 @@ import Foundation
 /// IF NOT EXISTS / OR IGNORE), also bei jedem Start gefahrlos.
 ///
 /// Reihenfolge wie in Python: Schema, Hochschule der Datenbank, Standardeinstellungen, die add_col-Folge mit der Korrektur der Dateiart
-/// mittendrin, Index, Pseudokurs `__user__`, Standardsemester (`ensure_term`). Dazu `page_texts`, die Python erst bei
+/// mittendrin, Index, Pseudokurs `__user__`, Standardsemester (`ensure_term`), einmalige Semesterregel (`semesters.migrate`). Dazu `page_texts`, die Python erst bei
 /// der ersten Skriptsuche anlegt. Aenderungen immer zuerst in app/db.py, dann hier und in den Fixtures
 /// (tools/gen-swift-schema.py, tools/gen-schema-fixture.py).
 ///
@@ -56,6 +56,10 @@ public enum Migrations {
         .addColumn("annotations", "version", "INTEGER DEFAULT 1"),
         .addColumn("files", "studip_folder", "TEXT"),
         .addColumn("courses", "module_id", "INTEGER"),
+        .addColumn("courses", "semester_end", "TEXT"),          // Titel des letzten Semesters laut Stud.IP, 'unbegrenzt' oder NULL
+        .addColumn("courses", "semester_ends_at", "TEXT"),      // Ende dieses Semesters (ISO) oder NULL
+        .addColumn("courses", "active_custom", "INTEGER DEFAULT 0"),   // vom Nutzer selbst geschaltet: der Abgleich laesst es
+        .addColumn("modules", "active_custom", "INTEGER DEFAULT 0"),
         .addColumn("files", "favorite", "INTEGER DEFAULT 0"),
         .addColumn("files", "last_opened", "TEXT"),
         .addColumn("files", "last_page", "INTEGER DEFAULT 1"),
@@ -182,6 +186,8 @@ public enum Migrations {
                 VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)
                 """, [.text(clock.nowISO)])
             try ensureTerm(conn, university: university, today: clock.today)
+            // Nur aktuelle Semester einplanen (28.10.2026, app/semesters.py): einmalig alle Kurse nach der Regel schalten
+            try Semesters.migrate(conn, today: clock.today)
             try conn.executeScript(SchemaSQL.pageTexts)
             // wie ensure_table: Suchform der Seitentexte (kam spaeter dazu; aeltere Zeilen fuellt `ScriptSearch.findPages`)
             if !(try conn.columnNames("page_texts")).contains("search") {

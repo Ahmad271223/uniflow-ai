@@ -22,8 +22,13 @@ public enum UniStore {
         public let title: String
         public let number: String?
         public let semester: String?
-        public init(id: String, title: String, number: String?, semester: String?) {
+        /// Titel des letzten Semesters laut Stud.IP (`end-semester`), "unbegrenzt" oder nil (unbekannt, z. B. Learnweb)
+        public let semesterEnd: String?
+        /// Ende dieses Semesters (ISO mit Versatz) oder nil
+        public let semesterEndsAt: String?
+        public init(id: String, title: String, number: String?, semester: String?, semesterEnd: String? = nil, semesterEndsAt: String? = nil) {
             self.id = id; self.title = title; self.number = number; self.semester = semester
+            self.semesterEnd = semesterEnd; self.semesterEndsAt = semesterEndsAt
         }
     }
 
@@ -81,14 +86,23 @@ public enum UniStore {
     }
 
     /// `upsert_course`: Kurs anlegen/aktualisieren; Fach und Art nur setzen, wenn noch leer (der Nutzer darf sie aendern).
-    public static func upsertCourse(_ conn: SQLiteConnection, _ c: CourseRow, now: String) throws {
+    /// Ende des Semesters nur ueberschreiben, wenn die Quelle eines kennt (Learnweb kennt keines). Danach `active` nach
+    /// der Semesterregel (`Semesters`, app/semesters.py), ausser der Nutzer hat selbst entschieden (`active_custom`).
+    /// `today`: heutiger Tag (ISO, Ortszeit wie `study.today()`), ohne Angabe der Tag von `now`.
+    public static func upsertCourse(_ conn: SQLiteConnection, _ c: CourseRow, now: String, today: String? = nil) throws {
         let (subject, kind) = UniRules.classify(c.title)
         try conn.execute("""
-            INSERT INTO courses(id, title, number, semester, subject, kind, created_at) VALUES (?,?,?,?,?,?,?)
-            ON CONFLICT(id) DO UPDATE SET title=excluded.title, number=excluded.number, semester=excluded.semester
-            """, [.text(c.id), .text(c.title), SQLiteValue(c.number), SQLiteValue(c.semester), .text(subject), .text(kind), .text(now)])
+            INSERT INTO courses(id, title, number, semester, semester_end, semester_ends_at, subject, kind, created_at) VALUES (?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(id) DO UPDATE SET title=excluded.title, number=excluded.number, semester=excluded.semester,
+                semester_end=COALESCE(excluded.semester_end, courses.semester_end),
+                semester_ends_at=COALESCE(excluded.semester_ends_at, courses.semester_ends_at)
+            """, [.text(c.id), .text(c.title), SQLiteValue(c.number), SQLiteValue(c.semester), SQLiteValue(c.semesterEnd),
+                  SQLiteValue(c.semesterEndsAt), .text(subject), .text(kind), .text(now)])
         try conn.execute("UPDATE courses SET subject=COALESCE(subject, ?), kind=COALESCE(kind, ?) WHERE id=?",
                          [.text(subject), .text(kind), .text(c.id)])
+        // Nur aktuelle Kurse sind aktiv; eigene Entscheidungen des Nutzers bleiben
+        try Semesters.applyToCourse(conn, courseID: c.id, semester: c.semester, semesterEnd: c.semesterEnd, endsAt: c.semesterEndsAt,
+                                    today: today ?? PyText.slice(now, 0, 10))
     }
 
     /// Erster Teil von `store_course_files`: Dateizeilen eines Kurses schreiben. Rueckgabe in Reihenfolge der Liste:

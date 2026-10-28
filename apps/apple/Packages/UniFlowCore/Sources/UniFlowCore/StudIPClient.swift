@@ -72,13 +72,21 @@ public struct StudIPCourse: Sendable, Equatable, Codable {
     public let semesterTitle: String?
     /// Beginn des Startsemesters wie geliefert (ISO-8601), zum Sortieren und fuer die Vorauswahl.
     public let semesterStart: String?
+    /// Titel des Endsemesters (`end-semester`), "unbegrenzt" bei `data: null`, nil ohne die Beziehung (aeltere
+    /// Stud.IP-Fassung), wie `fetch_courses` in app/studip_sync.py (Semesterregel, `Semesters`)
+    public let semesterEnd: String?
+    /// Ende dieses Semesters (Attribut `end`, ISO mit Versatz) oder nil
+    public let semesterEndsAt: String?
 
-    public init(id: String, title: String, number: String? = nil, semesterTitle: String? = nil, semesterStart: String? = nil) {
+    public init(id: String, title: String, number: String? = nil, semesterTitle: String? = nil, semesterStart: String? = nil,
+                semesterEnd: String? = nil, semesterEndsAt: String? = nil) {
         self.id = id
         self.title = title
         self.number = number
         self.semesterTitle = semesterTitle
         self.semesterStart = semesterStart
+        self.semesterEnd = semesterEnd
+        self.semesterEndsAt = semesterEndsAt
     }
 }
 
@@ -233,11 +241,14 @@ public actor StudIPClient {
         return id
     }
 
+    /// Kursliste wie `fetch_courses`: mit Start- und Endsemester (`include=start-semester,end-semester`, seit c0721da).
+    /// Endsemester: Titel und Ende des Semesters; Beziehung da, aber `data: null` heisst "unbegrenzt"; ohne Beziehung
+    /// (aeltere Stud.IP-Fassung) bleibt beides nil und die Semesterregel nimmt den Titel des Startsemesters.
     public func courses(userID: String) async throws -> [StudIPCourse] {
-        let (data, included) = try await list("jsonapi.php/v1/users/\(userID)/courses?page[limit]=100&include=start-semester")
-        var semesters: [String: (title: String?, start: String?)] = [:]
+        let (data, included) = try await list("jsonapi.php/v1/users/\(userID)/courses?page[limit]=100&include=start-semester,end-semester")
+        var semesters: [String: [String: JSONValue]] = [:]
         for i in included where i["type"]?.string == "semesters" {
-            if let id = i["id"]?.string { semesters[id] = (i["attributes"]?["title"]?.string, i["attributes"]?["start"]?.string) }
+            if let id = i["id"]?.string { semesters[id] = i["attributes"]?.object ?? [:] }
         }
         return data.compactMap { c in
             guard let id = c["id"]?.string else { return nil }
@@ -245,8 +256,22 @@ public actor StudIPClient {
             let semID = c["relationships"]?["start-semester"]?["data"]?["id"]?.string
             let title = (a?["title"]?.string ?? "").split(whereSeparator: \.isWhitespace).joined(separator: " ")
             let number = a?["course-number"]?.string?.trimmingCharacters(in: .whitespaces)
+            // Ende: Semester-ID, ausdruecklich keines (unbegrenzt) oder unbekannt; ein Semester ohne Attribute zaehlt
+            // wie in Python als unbekannt (`if end` auf ein leeres dict)
+            let endRel = c["relationships"]?["end-semester"]?.object
+            let endID = endRel?["data"]?["id"]?.string
+            let end = endID.flatMap { semesters[$0] }.flatMap { $0.isEmpty ? nil : $0 }
+            let semesterEnd: String?
+            if let end {
+                semesterEnd = end["title"] == nil ? "" : end["title"]?.string      // end.get("title", ""): null bleibt None
+            } else if let endRel, !endRel.isEmpty, endRel["data"] == nil || endRel["data"] == .null {
+                semesterEnd = "unbegrenzt"
+            } else {
+                semesterEnd = nil
+            }
             return StudIPCourse(id: id, title: title.isEmpty ? "Kurs" : title, number: (number?.isEmpty ?? true) ? nil : number,
-                                semesterTitle: semID.flatMap { semesters[$0]?.title }, semesterStart: semID.flatMap { semesters[$0]?.start })
+                                semesterTitle: semID.flatMap { semesters[$0]?["title"]?.string }, semesterStart: semID.flatMap { semesters[$0]?["start"]?.string },
+                                semesterEnd: semesterEnd, semesterEndsAt: end?["end"]?.string)
         }
     }
 

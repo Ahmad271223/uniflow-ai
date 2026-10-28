@@ -85,7 +85,7 @@ final class NewVersionSearchAppTests: XCTestCase {
         /// Kurs "Testkurs Lineare Algebra" mit der Datei d1 "VL03 Eigenwerte.pdf" (eine Vorlesung)
         func file(_ pdf: Data, changed: String) {
             json("/jsonapi.php/v1/users/me", #"{"data":{"id":"u1","type":"users"}}"#)
-            json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+            json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester", #"""
                 {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Lineare Algebra","course-number":"T-LA"},
                   "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
                  "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}

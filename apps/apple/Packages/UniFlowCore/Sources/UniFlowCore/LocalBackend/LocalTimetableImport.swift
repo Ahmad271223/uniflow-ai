@@ -229,13 +229,16 @@ enum LocalTimetableImport {
 
     // MARK: Serien aus Einzelterminen
 
-    /// `merge_weekly(entries)`: ab drei gleichen Terminen (Titel, Wochentag, Beginn, Ende) eine Serie, alle zwei
-    /// Wochen, wenn alle Abstaende 14 Tage sind
+    /// `merge_weekly(entries)`: ab drei gleichen Terminen (Kurs, Titel, Wochentag, Beginn, Ende) eine Serie, alle zwei
+    /// Wochen, wenn alle Abstaende 14 Tage sind. Je Kurs getrennt seit ba02e47: Stud.IP legt dieselbe Veranstaltung jedes
+    /// Jahr als neuen Kurs mit gleichem Titel an; ohne Kurs im Schluessel wurden drei Jahrgaenge eine Serie mit der
+    /// Kurs-ID des aeltesten, der eigene Kalender fand keinen kuenftigen Termin dieses Kurses und die Serie kam als
+    /// "parallele Gruppen" nie in den Stundenplan (Befund am PC mit echten Daten: der ganze Mittwoch fehlte).
     static func mergeWeekly(_ entries: [Entry]) throws -> [Entry] {
         var order: [JSONValue] = []
         var groups: [JSONValue: [Entry]] = [:]
         for e in entries {
-            let k: JSONValue = [e["title"] ?? .null, e["weekday"] ?? .null, e["start_time"] ?? .null, e["end_time"] ?? .null]
+            let k: JSONValue = [e["course_id"] ?? .null, e["title"] ?? .null, e["weekday"] ?? .null, e["start_time"] ?? .null, e["end_time"] ?? .null]
             if groups[k] == nil { order.append(k) }
             groups[k, default: []].append(e)
         }

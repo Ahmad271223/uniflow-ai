@@ -28,7 +28,7 @@ private let icsPath = "/jsonapi.php/v1/users/u-test/events.ics"
 private func routes(calendar: Bool = true, _ replace: [String: HTTPReply] = [:]) throws -> [String: HTTPReply] {
     var r: [String: HTTPReply] = [
         "/jsonapi.php/v1/users/u-test/schedule": try kalender("users-schedule.json"),
-        "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester": try kalender("users-courses.json"),
+        "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester,end-semester": try kalender("users-courses.json"),
     ]
     for id in courseIDs { r["/jsonapi.php/v1/courses/\(id)/events?page[limit]=200"] = try kalender("course-events-\(id).json") }
     if calendar { r[icsPath] = try kalender("users-events.ics", type: "text/calendar; charset=utf-8") }

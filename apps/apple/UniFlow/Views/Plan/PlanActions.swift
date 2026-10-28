@@ -22,6 +22,17 @@ struct PlanActions {
         overlay.openDrawer { EventDrawer(eventID: id, date: date) }
     }
 
+    /// Ein Vorkommen aus Woche, Tag oder Uebersicht oeffnen: eine Serie im Termin-Drawer; ein Einzeltermin aus dem
+    /// eigenen Stud.IP-Kalender ohne Serie (`event_id` null, `LocalTimetable.studipDated`) zeigt nur Titel, Datum und
+    /// den Hinweis wie in der Web-App (e9a40d1). Vorher oeffnete er den Drawer mit ID 0 ("Termin nicht gefunden").
+    func openOccurrence(_ e: JSONValue, date: String) {
+        if let id = e.i("event_id") {
+            openEvent(id, date: date)
+        } else {
+            overlay.modal { DatedEventDialog(e: e, date: date) }
+        }
+    }
+
     func addPackage(date: String, minutes: Int = 60) {
         overlay.modal { AddPackageDialog(date: date, minutes: minutes) }
     }
@@ -681,4 +692,26 @@ enum UFTime {
 
     /// mh(495) = "08:15"
     static func mh(_ m: Int) -> String { String(format: "%02d:%02d", m / 60, m % 60) }
+}
+
+/// Einzeltermin aus dem eigenen Stud.IP-Kalender ohne Serie: nur anzeigen (Teilnahme und Notizen gibt es fuer Serien)
+struct DatedEventDialog: View {
+    let e: JSONValue
+    let date: String
+    @Environment(\.ufClose) private var close
+
+    static func text(_ date: String) -> String {
+        "Termin aus deinem Stud.IP-Kalender (\(UFFmt.date(date))). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit."
+    }
+
+    var body: some View {
+        UFDialog("\(e.s("title") ?? "Termin") \(e.s("start") ?? "")–\(e.s("end") ?? "")") {
+            VStack(alignment: .leading, spacing: 6.4) {
+                if let room = e.s("room"), !room.isEmpty { Text(room).ufFont(13.12).foregroundStyle(UF.text2) }
+                Text(Self.text(date)).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+        } foot: {
+            UFButton("Schließen") { close() }
+        }
+    }
 }
