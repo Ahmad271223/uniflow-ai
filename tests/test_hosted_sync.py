@@ -13,6 +13,8 @@ def hosted(app, monkeypatch):
     from app import accounts, config, vault
     monkeypatch.setattr(config, "MODE", "hosted")
     monkeypatch.setenv("LERNAPP_JOBS", "off")
+    monkeypatch.setenv("LERNAPP_UNI_PARALLEL", "100")          # Schonung der Hochschulen eigens getestet
+    monkeypatch.setenv("LERNAPP_UNI_GAP_S", "0")
     for suffix in ("", "-wal", "-shm"):
         accounts.db_path().with_name(accounts.db_path().name + suffix).unlink(missing_ok=True)
     vault.key_file().unlink(missing_ok=True)
@@ -282,3 +284,44 @@ def test_local_mode_unchanged(app):
     assert config.MODE == "local" and config.current_user_id() is None
     st, _, b = asgi_call(app, "GET", "/api/bg")
     assert st == 200 and "job" not in json.loads(b)
+
+
+def test_universities_are_spared_across_accounts(hosted, monkeypatch):
+    """P9 (28.10.2026): hoechstens N gleichzeitige Abgleiche je Hochschule und Abstand zwischen zwei Starts; eine andere
+    Hochschule wird davon nicht aufgehalten."""
+    from app import accounts, jobs
+    monkeypatch.setenv("LERNAPP_UNI_PARALLEL", "2")
+    monkeypatch.setenv("LERNAPP_UNI_GAP_S", "0")
+    luh = [accounts.register(f"l{i}@beispiel.de", "sehr-geheim-123", "luh") for i in range(3)]
+    hi = accounts.register("h@beispiel.de", "sehr-geheim-123", "hildesheim")
+    for u in luh + [hi]:
+        jobs.enqueue(u["id"], "sync")
+    a, b = jobs.claim_next(), jobs.claim_next()
+    assert {a["user_id"], b["user_id"]} == {luh[0]["id"], luh[1]["id"]}
+    c = jobs.claim_next()
+    assert c["user_id"] == hi["id"], "dritter LUH-Job wartet, Hildesheim laeuft"
+    assert jobs.claim_next() is None
+    jobs._finish(a["id"], True, "ok")
+    assert jobs.claim_next()["user_id"] == luh[2]["id"]
+    # Abstand zwischen zwei Starts derselben Hochschule
+    monkeypatch.setenv("LERNAPP_UNI_PARALLEL", "10")
+    monkeypatch.setenv("LERNAPP_UNI_GAP_S", "3600")
+    late = accounts.register("spaet@beispiel.de", "sehr-geheim-123", "luh")
+    jobs.enqueue(late["id"], "sync")
+    assert jobs.claim_next() is None, "gerade erst ein LUH-Abgleich gestartet"
+
+
+def test_api_requests_limited_per_account(hosted, monkeypatch):
+    import json as _json
+    from app import server
+    monkeypatch.setenv("LERNAPP_LIMIT_API_PER_MIN", "3")
+    server._API_HITS.clear()
+    _, h = _register(hosted, "viel@beispiel.de")
+    codes = [asgi_call(hosted, "GET", "/api/account/me", headers=h)[0] for _ in range(4)]
+    assert codes[:3] == [200, 200, 200] and codes[3] == 429
+    st, hdrs, b = asgi_call(hosted, "GET", "/api/account/me", headers=h)
+    assert st == 429 and _json.loads(b)["code"] == "rate_limited" and any(k == b"retry-after" for k, _ in hdrs)
+    _, h2 = _register(hosted, "wenig@beispiel.de")
+    assert asgi_call(hosted, "GET", "/api/account/me", headers=h2)[0] == 200, "anderes Konto unberuehrt"
+    assert server._api_rate("x", now=0.0) == 0 and server._api_rate("x", now=1.0) == 0
+    server._API_HITS.clear()

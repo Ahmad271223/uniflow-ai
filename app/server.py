@@ -124,6 +124,35 @@ async def community_link(request, call_next):
     return Response(content=data, status_code=status, media_type=ctype, headers={"Cache-Control": "no-store"})
 
 
+# Grenze je Konto fuer alle /api-Anfragen im Dienst (P9, 28.10.2026): gleitendes Fenster im Speicher je Prozess,
+# `LERNAPP_LIMIT_API_PER_MIN` (Standard 600). Schuetzt Dienst und Hochschulen vor einem einzelnen Konto (Skripte,
+# Fehler in einem Client); normale Nutzung liegt weit darunter. Mehrere Prozesse teilen sich das Fenster nicht, die
+# Grenze gilt dann je Prozess.
+_API_HITS: dict[str, list[float]] = {}
+_API_LOCK = threading.Lock()
+
+
+def _api_rate(user_id: str, now: float | None = None) -> int:
+    import os
+    import time as _t
+    try:
+        limit = int(os.environ.get("LERNAPP_LIMIT_API_PER_MIN") or 600)
+    except ValueError:
+        limit = 600
+    t = _t.monotonic() if now is None else now
+    with _API_LOCK:
+        hits = [x for x in _API_HITS.get(user_id, []) if x > t - 60]
+        if len(hits) >= limit:
+            _API_HITS[user_id] = hits
+            return max(1, int(60 - (t - hits[0])) + 1)
+        hits.append(t)
+        _API_HITS[user_id] = hits
+        if len(_API_HITS) > 50_000:                      # alte Eintraege nicht unbegrenzt sammeln
+            for k in [k for k, v in _API_HITS.items() if not v or v[-1] < t - 60][:10_000]:
+                _API_HITS.pop(k, None)
+    return 0
+
+
 @app.middleware("http")
 async def hosted_guard(request, call_next):
     """Gehosteter Modus: jede /api-Anfrage braucht eine Sitzung (Bearer-Token oder Cookie), ausser den oeffentlichen
@@ -147,6 +176,10 @@ async def hosted_guard(request, call_next):
     user = accounts.authenticate(account_api.token_of(request))
     if not user:
         return JSONResponse({"detail": "Anmeldung erforderlich.", "code": "unauthenticated"}, status_code=401)
+    wait = _api_rate(user["id"])
+    if wait:
+        return JSONResponse({"detail": "Zu viele Anfragen in kurzer Zeit. Bitte kurz warten.", "code": "rate_limited"},
+                            status_code=429, headers={"Retry-After": str(wait)})
     request.state.user = user
     ctx = config.set_user_context(user["id"], user["university"])
     try:
