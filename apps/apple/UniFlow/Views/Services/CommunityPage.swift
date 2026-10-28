@@ -34,7 +34,7 @@ struct CommunityPage: View {
     static let howItWorks: [(icon: String, text: String)] = [
         ("layers", "Im Dokument unter „Ebenen“: „n Lösungen aus der Community zu diesem Blatt“ – laden und als eigene, nicht bearbeitbare Ebene über deiner PDF ansehen."),
         ("book", "Im Modul unter „Community“: alle veröffentlichten Lösungen zu den Dateien des Moduls, nach Lehrwoche."),
-        ("users", "Im Editor „Lösung teilen …“ → „In der Community veröffentlichen“: nur deine eigenen Notizen, sichtbar für dein Modul, deine Lerngruppe oder anonym an deiner Hochschule."),
+        ("users", "Ab \(UFPlan.plus.name) im Editor „Lösung teilen …“ → „In der Community veröffentlichen“: nur deine eigenen Notizen, sichtbar für dein Modul, deine Lerngruppe oder anonym an deiner Hochschule."),
     ]
 
     var body: some View {
@@ -53,7 +53,7 @@ struct CommunityPage: View {
     }
 
     @ViewBuilder private var connectedContent: some View {
-        UFGate(.community) {
+        UFGate(.communityRead) {
             UFCard {
                 UFCardHead("So funktioniert die Community", icon: "info") {
                     UFButton("Meine geteilten Lösungen", icon: "users", size: .small) { showingShared = true }

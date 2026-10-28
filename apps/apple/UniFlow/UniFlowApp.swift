@@ -85,16 +85,17 @@ struct UniFlowApp: App {
                         do {
                             let e = try SolutionSharing.importFile(url)
                             let label = ForeignSolutionLayer.label(displayName: e.displayName, createdAt: e.createdAt)
-                            toast.show(SolutionSharing.receivedMessage(label: label, canView: Entitlements.shared.allows(.community)), seconds: 5)
+                            toast.show(SolutionSharing.receivedMessage(label: label, canView: Entitlements.shared.allows(.communityRead)), seconds: 5)
                         } catch {
                             toast.show((error as? SolutionError)?.description ?? "Die Lösung lässt sich nicht öffnen.", seconds: 4)
                         }
                         return
                     }
-                    // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (nur mit Plus und Container)
+                    // QR-Code einer Lerngruppe (uniflow://community/join/<Code>): beitreten (Lesen, auch in Free; nur mit
+                    // Container). Anlegen braucht Plus (CommunitySettingsCard).
                     if let code = CommunityJoinLink.code(from: url) {
-                        guard containers.active != nil, Entitlements.shared.allows(.community) else {
-                            toast.show("Lerngruppen gibt es ab \(UFPlan.plus.name), nach Anmeldung und Hochschulwahl.", seconds: 4)
+                        guard containers.active != nil, Entitlements.shared.allows(.communityRead) else {
+                            toast.show("Lerngruppen gibt es nach Anmeldung und Hochschulwahl.", seconds: 4)
                             return
                         }
                         Task {

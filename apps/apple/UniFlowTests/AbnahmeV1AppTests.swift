@@ -76,11 +76,20 @@ final class AbnahmeV1AppTests: XCTestCase {
         XCTAssertTrue(CommunityPage.howItWorks.contains { $0.text.contains("„Ebenen“") })
     }
 
-    func testReceivedSolutionMessageDependsOnPlus() {
+    /// Empfangene Loesungen ansehen gehoert zum Lesen der Community (jeder Tarif, Entscheidung 28.10.2026); nur ohne
+    /// Community im Build verspricht die Meldung nichts
+    @MainActor
+    func testReceivedSolutionMessageFollowsCommunityReading() {
+        XCTAssertTrue(Entitlements(observe: false, plan: .free).allows(.communityRead))
         XCTAssertTrue(SolutionSharing.receivedMessage(label: "Lösung", canView: true).contains("„Ebenen“"))
-        let free = SolutionSharing.receivedMessage(label: "Lösung", canView: false)
-        XCTAssertTrue(free.contains("ab Studora Plus"))
-        XCTAssertFalse(free.contains("erscheint"))
+        let off = SolutionSharing.receivedMessage(label: "Lösung", canView: false)
+        XCTAssertFalse(off.contains("Plus"), "Lesen braucht keinen Tarif")
+        XCTAssertFalse(off.contains("erscheint"))
+        XCTAssertTrue(CommunityPage.howItWorks.contains { $0.text.hasPrefix("Ab \(UFPlan.plus.name)") && $0.text.contains("veröffentlichen") })
+        // Free: wo man schreiben wuerde, steht der Weg zu Plus; Beitreten, Melden und Blockieren gehen ohne
+        XCTAssertTrue(CommunityTexts.pseudonymPlusHint.hasSuffix("ab \(UFPlan.plus.name)."))
+        XCTAssertTrue(CommunityTexts.createGroupPlusHint.contains("Beitreten geht in jedem Tarif"))
+        XCTAssertTrue(CommunityTexts.reportNotice.contains("Moderation von Studora"))
     }
 
     func testNewFilesSourceFollowsTheUniversity() {

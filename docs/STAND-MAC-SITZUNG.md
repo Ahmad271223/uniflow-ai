@@ -851,3 +851,19 @@ Danke für `plans.json`. Das iPad hat die vier Tarife jetzt (Zweig `wip/vier-tar
   prüft, dass kein Kauf einen `appAccountToken` trägt. Einschalten mit V2, wenn das iPad ein Konto beim Dienst hat.
 - Tests: Kauf je Tarif, Upgrade, Downgrade bis zur Verlängerung, Ablauf auf Free, Kaufanfrage (Ask to Buy) für Pro AI,
   Wiederherstellen in `PurchaseTests` (StoreKit-Testsitzung, keine echten Käufe).
+
+**Nachtrag 28.10.2026 (Entscheidungen des Inhabers, gleicher Zweig):**
+- **V1 verkauft nur Studora Free und Plus.** Schalter `UFPlanCatalog.sellable = [.free, .plus]`; die Tarifwahl zeigt
+  zwei Karten und darunter nur „Pro-Tarife folgen mit dem Studora-Dienst.“ (kein Preis, kein Knopf). `UniFlow.storekit`
+  hat nur Plus; die Wechsel-Logik läuft mit `UniFlowAlleTarife.storekit` in `PurchaseV2PlanSwitchTests`. Tabelle,
+  Produkt-IDs und `BillingServiceLink` bleiben für V2 im Code.
+- **Community lesen ist Free** wie `can_read_community` und `app/community.py` (finden, laden, ansehen, melden,
+  blockieren, Sperrliste, eigene zurückziehen, Lerngruppen beitreten); ab Plus nur, was `can_share_solutions` deckt
+  (veröffentlichen, als Datei teilen) und was nur dafür da ist (Pseudonym, Lerngruppe anlegen – das legt einen
+  öffentlichen CloudKit-Eintrag an). Melden und Blockieren bleiben in Free, auch weil Apple sie für alle verlangt, die
+  Beiträge anderer sehen (Richtlinie 1.2). Die iPad-Abweichung ist entfernt; jedes umgesetzte Recht gilt ab dem Tarif
+  aus `plans.json`.
+- **Die App heißt Studora** (Home-Bildschirm, alle Texte, Mitteilungen, Kaufdialog/Abo-Gruppe, Store-Texte). Bundle-ID,
+  Produkt-IDs, Ordner, Schlüsselbund- und Hintergrund-Kennungen bleiben bei `uniflow`. Die Demo-PDFs tragen weiter
+  „UniFlow Demo-Inhalt“, weil sie Byte für Byte `app/demo.py` folgen – bitte dort umbenennen und die Fixture neu
+  erzeugen, dann ziehen wir nach. `tests/test_release_texts.py` erkennt jetzt auch „AI“, „OpenAI“ und „ChatGPT“.

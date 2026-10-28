@@ -89,7 +89,7 @@ struct UFRemote<Content: View>: View {
                     HStack(spacing: 7.2) { UFIcon("alert", size: 18); Text(offline ? "Server nicht erreichbar" : "Fehler").font(UF.h2) }
                         .foregroundStyle(UF.text)
                     Text(offline
-                         ? "Die App holt ihre Daten vom UniFlow-Server auf deinem PC. Der Server startet gerade neu oder wurde beendet."
+                         ? "Die App holt ihre Daten vom Studora-Server auf deinem PC. Der Server startet gerade neu oder wurde beendet."
                          : message)
                         .font(UF.body).foregroundStyle(UF.muted).padding(.vertical, 5.6)
                     HStack(spacing: 9.6) {

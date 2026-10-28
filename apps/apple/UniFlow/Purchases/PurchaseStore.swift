@@ -1,17 +1,18 @@
 import StoreKit
 import SwiftUI
 
-/// Abo ueber StoreKit 2: drei Produkte in einer Abo-Gruppe (Studora Plus, Pro Connect, Pro AI; Entscheidung des
-/// Inhabers vom 27.10.2026, docs/ABO-SYSTEM.md). Produkte laden, kaufen, wiederherstellen. Upgrade und Downgrade
-/// innerhalb der Gruppe regelt Apple: hoeher gilt sofort, kleiner ab der naechsten Verlaengerung.
+/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. V1 bietet nur Studora Plus an
+/// (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 28.10.2026); Pro Connect und Pro AI kommen mit dem
+/// Studora-Dienst in dieselbe Abo-Gruppe (docs/ABO-SYSTEM.md). Upgrade und Downgrade innerhalb der Gruppe regelt Apple:
+/// hoeher gilt sofort, kleiner ab der naechsten Verlaengerung (Logik in PlanSwitchPurchaseTests geprueft).
 ///
 /// NUR TESTKONFIGURATION: Die Produkte existieren ausschliesslich in `UniFlow.storekit` (lokales StoreKit-Testen in
 /// Xcode/Simulator). Echte Produkte in App Store Connect werden erst nach ausdruecklicher Freigabe angelegt.
 /// Den Tarif fuehrt `Entitlements` (Transaction.currentEntitlements, Transaction.updates).
 @MainActor
 final class PurchaseStore: ObservableObject {
-    /// Plus, Pro Connect, Pro AI (plans.json `apple_product_id`); Free hat kein Produkt
-    static let productIDs = UFPlan.allCases.compactMap(\.productID)
+    /// in V1 nur Plus (`UFPlanCatalog.sellableProductIDs`); Free hat kein Produkt
+    static let productIDs = UFPlanCatalog.sellableProductIDs
 
     /// Ergebnis eines Kaufs; nur bei `.success` geht die Tarifwahl weiter
     enum Outcome: Equatable { case success, cancelled, pending, failed }

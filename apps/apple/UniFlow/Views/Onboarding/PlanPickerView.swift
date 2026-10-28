@@ -1,11 +1,12 @@
 import StoreKit
 import SwiftUI
 
-// Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5; docs/ABO-SYSTEM.md): vier Karten
-// Studora Free, Plus, Pro Connect, Pro AI (Entscheidung des Inhabers vom 27.10.2026). Inhalt der Karten aus
-// `UFPlanCard`: enthalten ist nur, was auf dem iPad wirklich geht; was den Online-Dienst braucht, steht unter
-// "in Vorbereitung". Preise nur aus Product.displayPrice; "1 Woche gratis" nur bei Anspruch auf das
-// Einfuehrungsangebot (Apple fuehrt ihn je Abo-Gruppe). Wechsel zwischen den Abo-Tarifen regelt Apple in der Gruppe.
+// Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5; docs/ABO-SYSTEM.md): Karten fuer
+// die kaufbaren Tarife aus `UFPlanCatalog` – in V1 Studora Free und Plus (Entscheidung des Inhabers vom 28.10.2026),
+// darunter ein nicht anklickbarer Hinweis auf die Pro-Tarife ohne Preis. Inhalt der Karten aus `UFPlanCard`: enthalten
+// ist nur, was auf dem iPad wirklich geht; was den Online-Dienst braucht, steht unter "in Vorbereitung". Preise nur aus
+// Product.displayPrice; "1 Woche gratis" nur bei Anspruch auf das Einfuehrungsangebot (Apple fuehrt ihn je
+// Abo-Gruppe). Wechsel zwischen Abo-Tarifen (ab V2) regelt Apple in der Gruppe.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
 
@@ -50,9 +51,14 @@ struct PlanPickerView: View {
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
             UFGridLayout(spacing: 16, minWidth: 280) {
-                ForEach(UFPlan.allCases) { planCard($0) }
+                ForEach(UFPlanCatalog.cards(current: ent.plan)) { planCard($0) }
             }
             .environment(\.ufFillsCell, true)
+            if !UFPlanCatalog.upcoming.isEmpty {
+                // nur ein Hinweis: kein Preis, kein Knopf, nichts zum Antippen
+                Text(UFPlanCatalog.upcomingNote).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
+                    .accessibilityAddTraits(.isStaticText)
+            }
             footer.padding(.top, 22.4)
         }
         .task {
@@ -90,12 +96,12 @@ struct PlanPickerView: View {
         return Self.subtitle(trial: trial.map { UFOfferText.period(value: $0.0, unit: $0.1) })
     }
 
-    /// Untertitel; `trial` z. B. "1 Woche", wenn der Anspruch auf das Einfuehrungsangebot besteht
+    /// Untertitel; `trial` z. B. "1 Woche", wenn der Anspruch auf das Einfuehrungsangebot besteht. Nennt nur die
+    /// kaufbaren Tarife (V1: Free und Plus).
     static func subtitle(trial: String?) -> String {
         var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
         s += "\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu"
         s += trial.map { "; \($0) gratis zum Start. " } ?? ". "
-        s += "\(UFPlan.proConnect.name) und \(UFPlan.proAI.name) enthalten alles aus \(UFPlan.plus.name); ihre weiteren Funktionen sind in Vorbereitung. "
         s += "Du kannst den Tarif jederzeit wechseln."
         return s
     }
@@ -324,7 +330,14 @@ struct PlanPickerView: View {
     }
 
     /// Pflichtangaben unter den Karten (Richtlinie 3.1.2)
-    static let legalText = "Die Zahlung läuft über deine Apple-ID. Abos verlängern sich automatisch, wenn sie nicht spätestens 24 Stunden vor Ablauf gekündigt werden. Kündigen kannst du jederzeit unter „Abo verwalten“ oder in den Einstellungen deiner Apple-ID. Die Abo-Tarife gehören zu einem Abo: Ein Wechsel zu einem höheren Tarif gilt sofort, zu einem kleineren ab der nächsten Verlängerung. Deine Notizen bleiben in jedem Tarif erhalten."
+    static var legalText: String {
+        var s = "Die Zahlung läuft über deine Apple-ID. Abos verlängern sich automatisch, wenn sie nicht spätestens 24 Stunden vor Ablauf gekündigt werden. Kündigen kannst du jederzeit unter „Abo verwalten“ oder in den Einstellungen deiner Apple-ID. "
+        // Wechsel zwischen Abo-Tarifen gibt es erst, wenn mehr als ein Abo angeboten wird (ab V2)
+        if UFPlanCatalog.sellable.filter({ $0.productID != nil }).count > 1 {
+            s += "Die Abo-Tarife gehören zu einem Abo: Ein Wechsel zu einem höheren Tarif gilt sofort, zu einem kleineren ab der nächsten Verlängerung. "
+        }
+        return s + "Deine Notizen bleiben in jedem Tarif erhalten."
+    }
 
     /// Es gibt noch keine Rechtstexte (Entscheidung des Inhabers offen, Abschnitt 6): ehrliche Platzhalterseite
     private func legalDialog(_ page: LegalPage) -> some View {

@@ -16,7 +16,8 @@ final class EntitlementTests: XCTestCase {
         XCTAssertNil(UFPlan(productID: "de.uniflow.pro.monthly"))
         XCTAssertNil(UFPlan(productID: "fremd"))
         XCTAssertNil(UFPlan.free.productID)
-        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.proconnect.monthly", "de.uniflow.proai.monthly"])
+        // V1 bietet nur Plus an (UFPlanCatalog.sellable, Entscheidung 28.10.2026); die Pro-Produkte bleiben in der Tabelle
+        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly"])
         XCTAssertEqual(UFPlan.paid, [.plus, .proConnect, .proAI])
         XCTAssertLessThan(UFPlan.free, .plus)
         XCTAssertLessThan(UFPlan.plus, .proConnect)
@@ -36,7 +37,8 @@ final class EntitlementTests: XCTestCase {
         // eigene Karteikarten gibt es auf dem Geraet (M8): Plus, in Free das Schloss mit Weg zur Abo-Seite
         XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .free), .locked(.plus))
         XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .free, flashcards: false), .comingSoon, "Schalter bleibt pruefbar")
-        XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .free), .locked(.plus), "Lösung teilen: Schloss mit Weg zur Abo-Seite")
+        XCTAssertEqual(UFFeatureMatrix.access(.shareSolutions, plan: .free), .locked(.plus), "Lösung teilen: Schloss mit Weg zur Abo-Seite")
+        XCTAssertEqual(UFFeatureMatrix.access(.communityRead, plan: .free), .allowed, "Community lesen gehoert zu Free")
         // Uni & Noten liegt ausserhalb der Tarife: sobald nativ vorhanden, gleich in Free
         XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: true), .allowed)
     }
@@ -45,7 +47,8 @@ final class EntitlementTests: XCTestCase {
         for f: UFFeature in [.pencilWriting, .splitView, .studyPlanning, .readDocuments] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .plus), .allowed, f.rawValue)
         }
-        XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .plus, community: true), .allowed)
+        XCTAssertEqual(UFFeatureMatrix.access(.shareSolutions, plan: .plus, community: true), .allowed)
+        XCTAssertEqual(UFFeatureMatrix.access(.communityRead, plan: .plus, community: true), .allowed)
         // Plus-Karte fuehrt Karteikarten als enthalten, ohne "bald" (Anlegen, Wiederholen und Loeschen auf dem Geraet)
         XCTAssertTrue(UFFeatureMatrix.flashcardsOnDevice)
         XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .plus), .allowed)
@@ -55,11 +58,11 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFFeature.flashcards.detail, "Selbst angelegt, Wiederholung nach dem Leitner-System")
     }
 
-    /// Uni & Noten ist auf dem Geraet da (QIS der LUH, LSF der Uni Hildesheim) und gehoert zu Free. Community laeuft
-    /// auf dem Geraet (Loesung als Datei teilen und im Editor ansehen) und gehoert zu Plus; nur die Online-Community
-    /// fehlt noch.
+    /// Uni & Noten ist auf dem Geraet da (QIS der LUH, LSF der Uni Hildesheim) und gehoert zu Free. Community lesen
+    /// (finden, laden, ansehen, melden, blockieren, beitreten) gehoert zu Free wie can_read_community (Entscheidung des
+    /// Inhabers 28.10.2026), eigene Loesungen teilen zu Plus wie can_share_solutions.
     @MainActor
-    func testUniGradesInFreeCommunityInPlus() {
+    func testUniGradesInFreeCommunityReadInFreeSharingInPlus() {
         XCTAssertTrue(UFFeatureMatrix.uniGradesOnDevice)
         XCTAssertTrue(UFFeatureMatrix.communityAvailable)
         for p in UFPlan.allCases {
@@ -69,15 +72,21 @@ final class EntitlementTests: XCTestCase {
         }
         // ohne Geraete-Funktion wieder "bald" (Schalter bleibt pruefbar)
         XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: false), .comingSoon)
-        XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .free), .locked(.plus))
-        XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .plus), .allowed)
-        // ohne Geraete-Funktion wieder "bald" (Schalter bleibt pruefbar)
-        XCTAssertEqual(UFFeatureMatrix.access(.community, plan: .plus, community: false), .comingSoon)
+        XCTAssertEqual(UFFeatureMatrix.access(.shareSolutions, plan: .free), .locked(.plus))
+        XCTAssertEqual(UFFeatureMatrix.access(.shareSolutions, plan: .plus), .allowed)
+        for p in UFPlan.allCases { XCTAssertEqual(UFFeatureMatrix.access(.communityRead, plan: p), .allowed, p.rawValue) }
+        // ohne Geraete-Funktion beides wieder "bald" (Schalter bleibt pruefbar)
+        XCTAssertEqual(UFFeatureMatrix.access(.shareSolutions, plan: .plus, community: false), .comingSoon)
+        XCTAssertEqual(UFFeatureMatrix.access(.communityRead, plan: .free, community: false), .comingSoon)
         XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(.uniGrades))
         XCTAssertTrue(Entitlements(observe: false, plan: .free).allows(.uniGrades))
-        XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(.community))
-        XCTAssertFalse(Entitlements(observe: false, plan: .free).allows(.community))
-        XCTAssertTrue(UFFeature.community.detail?.contains("in der Community veröffentlichen") == true)
+        XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(.shareSolutions))
+        XCTAssertFalse(Entitlements(observe: false, plan: .free).allows(.shareSolutions))
+        XCTAssertTrue(Entitlements(observe: false, plan: .free).allows(.communityRead))
+        XCTAssertTrue(UFFeature.shareSolutions.detail?.contains("in der Community veröffentlichen") == true)
+        XCTAssertTrue(UFFeature.communityRead.detail?.contains("melden und blockieren") == true)
+        XCTAssertTrue(SolutionShareSheet.showsCommunityPublish(plan: .plus))
+        XCTAssertFalse(SolutionShareSheet.showsCommunityPublish(plan: .free))
     }
 
     /// Plus bietet schon heute mehr als Free (Schreiben, Uebung und Skript, Loesung als Datei teilen); Pro Connect und
@@ -98,8 +107,9 @@ final class EntitlementTests: XCTestCase {
     /// steht nur unter "in Vorbereitung", PlanContractTests)
     func testPlanCards() {
         XCTAssertEqual(UFFeatureMatrix.added(in: .free),
-                       [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes, .uniGrades])
-        XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 }, [.pencilWriting, .community, .splitView, .flashcards])
+                       [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes, .uniGrades,
+                        .communityRead])
+        XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 }, [.pencilWriting, .shareSolutions, .splitView, .flashcards])
         XCTAssertEqual(UFFeatureMatrix.added(in: .proConnect), [])
         XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [])
         for f in UFFeature.allCases {
@@ -193,17 +203,23 @@ final class EntitlementTests: XCTestCase {
         XCTAssertTrue(ent.allows(.pencilWriting))
         XCTAssertTrue(ent.allows(.flashcards))
         ent.setPlanForTesting(.proConnect)
-        XCTAssertTrue(ent.allows(.community))
+        XCTAssertTrue(ent.allows(.shareSolutions))
         XCTAssertTrue(ent.allows(.splitView))
         // Uni & Noten ist da (QIS bzw. LSF auf dem Geraet) und in jedem Tarif frei; die Sperrkarte kennt "bald" weiter
         XCTAssertEqual(ent.access(.uniGrades), .allowed)
         let soon = UFLockedCard.message(.uniGrades, access: .comingSoon)
         XCTAssertFalse(soon.contains("Enthalten in"))
         XCTAssertTrue(soon.contains("Bald verfügbar"))
-        // Community in Free: Schloss, "Enthalten ab Studora Plus"
+        // Teilen in Free: Schloss, "Enthalten ab Studora Plus"; Lesen frei
         let free = Entitlements(observe: false, plan: .free)
-        XCTAssertTrue(UFLockedCard.message(.community, access: free.access(.community)).contains("Enthalten ab Studora Plus."))
-        XCTAssertEqual(free.access(.community).requiredPlan, .plus)
+        XCTAssertTrue(UFLockedCard.message(.shareSolutions, access: free.access(.shareSolutions)).contains("Enthalten ab Studora Plus."))
+        XCTAssertEqual(free.access(.shareSolutions).requiredPlan, .plus)
+        XCTAssertNil(free.access(.communityRead).requiredPlan)
+        XCTAssertTrue(UFLockedCard.message(.communityRead, access: .comingSoon).contains("die Community folgt mit einem Update"))
+        // Menuepunkte gesperrter Funktionen im Editor
+        XCTAssertEqual(DocumentView.lockedLabel("Lösung teilen …", .locked(.plus)), "Lösung teilen … (Studora Plus)")
+        XCTAssertEqual(DocumentView.lockedLabel("Lösungen anderer ansehen", .comingSoon), "Lösungen anderer ansehen (bald)")
+        XCTAssertEqual(DocumentView.lockedLabel("Lösung teilen …", .allowed), "Lösung teilen …")
     }
 
     // MARK: Angebotstexte (Richtlinie 3.1.2)

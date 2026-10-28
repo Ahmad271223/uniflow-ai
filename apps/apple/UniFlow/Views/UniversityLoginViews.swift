@@ -7,7 +7,7 @@ import SwiftUI
 /// den Weg ueber "Passwörter" (App unter iOS 18, Einstellungen unter iOS 17).
 struct UniversityLoginHint: View {
     static let text = "Passwörter merkt sich iOS (Schlüsselbund). Tippe auf das Schlüssel-Symbol über der Tastatur, um ein gespeichertes Passwort einzusetzen."
-    static let detail = "UniFlow selbst speichert weder Benutzername noch Passwort. Bietet iOS das Sichern nicht von selbst an, kannst du das Passwort unter „Passwörter“ selbst hinzufügen."
+    static let detail = "Studora selbst speichert weder Benutzername noch Passwort. Bietet iOS das Sichern nicht von selbst an, kannst du das Passwort unter „Passwörter“ selbst hinzufügen."
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {

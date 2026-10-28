@@ -13,7 +13,7 @@ struct UniversityPickerView: View {
             VStack(alignment: .leading, spacing: 0) {
                 UFLogoMark(size: 52)
                 Text("Hochschule wählen").ufFont(28.8, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 19.2)
-                Text("An welcher Hochschule studierst du? UniFlow richtet danach die passenden Zugänge ein.")
+                Text("An welcher Hochschule studierst du? Studora richtet danach die passenden Zugänge ein.")
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
                     .fixedSize(horizontal: false, vertical: true)
                 VStack(spacing: 12.8) {

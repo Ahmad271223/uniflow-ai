@@ -88,6 +88,33 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     static var paid: [UFPlan] { allCases.filter { $0.productID != nil } }
 }
 
+// MARK: - Was V1 verkauft
+
+/// Welche Tarife die App anbietet. Entscheidung des Inhabers vom 28.10.2026: V1 verkauft nur Studora Free und Plus.
+/// Pro Connect und Pro AI kommen erst mit dem Studora-Dienst; ihre Zeilen in der Tabelle, die Produkt-IDs und die
+/// Dienst-Verknuepfung (BillingServiceLink.swift) bleiben dafuer im Code, werden aber weder angezeigt noch gekauft.
+/// Freischalten fuer V2: `sellable` um die Pro-Tarife erweitern, Produkte in UniFlow.storekit und App Store Connect
+/// anlegen (Werte in UniFlowAlleTarife.storekit).
+enum UFPlanCatalog {
+    /// in V1 kaufbar bzw. waehlbar
+    static let sellable: [UFPlan] = [.free, .plus]
+
+    /// Apple-Produkte, die die App laedt und anbietet
+    static var sellableProductIDs: [String] { sellable.compactMap(\.productID) }
+
+    /// noch nicht angebotene Tarife (Hinweis unter den Karten, ohne Preis und ohne Kaufknopf)
+    static var upcoming: [UFPlan] { UFPlan.allCases.filter { !sellable.contains($0) } }
+
+    /// dezenter, nicht anklickbarer Hinweis unter den Tarifkarten
+    static let upcomingNote = "Pro-Tarife folgen mit dem Studora-Dienst."
+
+    /// Karten der Tarifwahl: die kaufbaren Tarife, dazu ein laufender, der nicht (mehr) angeboten wird – wer ihn hat,
+    /// sieht ihn mit "Abo verwalten" (in V1 nicht erreichbar, aber nie eine Karte, die fehlt)
+    static func cards(current: UFPlan) -> [UFPlan] {
+        UFPlan.allCases.filter { sellable.contains($0) || $0 == current }
+    }
+}
+
 // MARK: - Rechte aus dem Vertrag
 
 /// `status` eines Rechts in plans.json: nur `available` darf als enthalten beworben werden
@@ -210,10 +237,11 @@ extension UFEntitlement {
         case .canImportDocuments: return .onDevice([.studipSync])
         case .canViewTimetable: return .onDevice([.modulesTimetable])
         case .canUseBasicPlanner: return .onDevice([.studyCalendar, .studyPlanning])
-        // Abweichung (iPadDeviations): die Community laeuft auf dem iPad ueber CloudKit und bleibt ganz in Plus
-        case .canReadCommunity: return .onDevice([.community])
+        // Lesen in Free wie im Vertrag und im Dienst (app/community.py: Lesen, Laden, Melden, Blockieren, Zurueckziehen
+        // fuer alle Konten; nur das Veroeffentlichen braucht can_share_solutions)
+        case .canReadCommunity: return .onDevice([.communityRead])
         case .canAnnotatePDF, .canUsePencilKit: return .onDevice([.pencilWriting])
-        case .canShareSolutions: return .onDevice([.community])
+        case .canShareSolutions: return .onDevice([.shareSolutions])
         case .canSyncAnnotations, .canWriteCommunityComments, .canAccessSharedTests, .canGenerateStudoraAITests,
              .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
              .canGetRecommendations, .chatgptConnectionPremium, .canUseAIExplanations, .canUseAIGeneratedQuestions,
@@ -221,11 +249,6 @@ extension UFEntitlement {
             return .needsService
         }
     }
-
-    /// Bewusste Abweichungen vom Vertrag auf dem iPad: Recht -> Tarif, ab dem es das iPad freischaltet.
-    /// `can_read_community` ist im Vertrag Free; auf dem iPad gehoert die ganze Community (Lesen, Teilen, Veroeffentlichen
-    /// ueber CloudKit) weiter zu Plus (Entscheidung des Inhabers 26.10.2026 und Auftrag vom 27.10.2026, Punkt 2).
-    static let iPadDeviations: [UFEntitlement: UFPlan] = [.canReadCommunity: .plus]
 
     /// Auf dem iPad heute nutzbar und als enthalten zu zeigen: im Vertrag `available` und auf dem Geraet umgesetzt
     var availableOnDevice: Bool {

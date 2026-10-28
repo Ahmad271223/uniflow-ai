@@ -24,17 +24,17 @@ extension EnvironmentValues {
 enum DemoTexts {
     static let cardTitle = "Demo-Inhalte für die App-Prüfung"
     static let cardText = "Nur zum Ausprobieren ohne Hochschulkonto: ein Demo-Modul „Grundlagen der Informatik“ mit drei selbst erstellten PDFs (Skript, Folien, Übungsblatt), Stundenplan, Lernkalender, einer Abgabefrist und einer Ankündigung – keine Inhalte einer Hochschule. Entfernen nimmt alles rückstandslos wieder weg, deine eigenen Daten bleiben."
-    static let offlineNote = "Solange die Demo aktiv ist, verbindet sich UniFlow nicht mit der Hochschule und braucht keine Anmeldung."
+    static let offlineNote = "Solange die Demo aktiv ist, verbindet sich Studora nicht mit der Hochschule und braucht keine Anmeldung."
     static let install = "Demo-Inhalte anlegen"
     static let remove = "Demo-Inhalte entfernen"
     static let barTitle = "Demo-Inhalte aktiv"
-    static let barText = "Beispielinhalte zum Ausprobieren ohne Hochschulkonto. UniFlow verbindet sich solange nicht mit der Hochschule."
+    static let barText = "Beispielinhalte zum Ausprobieren ohne Hochschulkonto. Studora verbindet sich solange nicht mit der Hochschule."
     static let barRemove = "Entfernen"
     static let firstStart = "Ohne Hochschulkonto ansehen (Demo)"
     static let firstStartRunning = "Demo wird angelegt …"
     static let confirmRemove = "Demo-Inhalte entfernen? Das Demo-Modul mit PDFs, Terminen, Lernpaketen und Notizen dazu verschwindet; deine eigenen Daten bleiben."
     static let removed = "Demo-Inhalte entfernt"
-    static let syncBlocked = "Demo-Inhalte aktiv: UniFlow gleicht nicht mit der Hochschule ab. Zum Abgleichen entferne die Demo unter Einstellungen → Erweitert."
+    static let syncBlocked = "Demo-Inhalte aktiv: Studora gleicht nicht mit der Hochschule ab. Zum Abgleichen entferne die Demo unter Einstellungen → Erweitert."
 
     /// "3 PDFs · 3 Termine · 3 Lernpakete" aus GET/POST /api/demo
     static func summary(_ s: JSONValue) -> String {

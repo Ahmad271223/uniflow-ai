@@ -37,9 +37,9 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
     /// Was die Anmeldung bringt (ein Satz unter dem Titel)
     var intro: String {
         switch self {
-        case .studip: return "UniFlow holt danach deine Kurse, Dateien, den Stundenplan und die Aufzeichnungen auf dieses iPad."
-        case .qis: return "Danach steht dein Notenspiegel in UniFlow. Meist dieselbe LUH-ID wie bei Stud.IP."
-        case .learnweb: return "UniFlow holt danach deine Learnweb-Kurse und -Dateien auf dieses iPad (UNI-Account)."
+        case .studip: return "Studora holt danach deine Kurse, Dateien, den Stundenplan und die Aufzeichnungen auf dieses iPad."
+        case .qis: return "Danach steht dein Notenspiegel in Studora. Meist dieselbe LUH-ID wie bei Stud.IP."
+        case .learnweb: return "Studora holt danach deine Learnweb-Kurse und -Dateien auf dieses iPad (UNI-Account)."
         case .lsf: return "Danach kommen Stundenplan und Notenspiegel aus dem LSF. Mit der Learnweb-Anmeldung geht das meist ohne neues Passwort."
         }
     }
@@ -243,7 +243,7 @@ struct FirstLoginPage: View {
     }
 
     static let laterHint = "Du kannst dich auch später anmelden – die Übersicht zeigt dann die Karte zum Verbinden."
-    static let passwordNote = "Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. UniFlow speichert sie nicht; merken kann sie iOS im Schlüsselbund."
+    static let passwordNote = "Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. Studora speichert sie nicht; merken kann sie iOS im Schlüsselbund."
 }
 
 /// Learnweb- bzw. LSF-Anmeldung als Schritt des ersten Starts (eigener `HildesheimLogin` je Schritt)
@@ -411,8 +411,8 @@ struct FirstSyncPage: View {
                     .ufFont(28.8, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 19.2)
                     .accessibilityIdentifier("firststart.sync.title")
                 Text(finished
-                     ? "Deine Daten liegen nur auf diesem iPad. Alles Weitere holt UniFlow beim Öffnen der App von selbst."
-                     : "UniFlow holt deine Daten auf dieses iPad. Das kann beim ersten Mal ein paar Minuten dauern.")
+                     ? "Deine Daten liegen nur auf diesem iPad. Alles Weitere holt Studora beim Öffnen der App von selbst."
+                     : "Studora holt deine Daten auf dieses iPad. Das kann beim ersten Mal ein paar Minuten dauern.")
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
                     .fixedSize(horizontal: false, vertical: true)
                 UFCard {

@@ -57,7 +57,7 @@ final class Session: ObservableObject {
     func connect(urlString: String, pin: String) async {
         lastError = nil
         guard Self.ownServerAvailable else {
-            lastError = "Der eigene UniFlow-Server ist nur in Entwicklungsversionen verfügbar."
+            lastError = "Der eigene Studora-Server ist nur in Entwicklungsversionen verfügbar."
             return
         }
         connecting = true

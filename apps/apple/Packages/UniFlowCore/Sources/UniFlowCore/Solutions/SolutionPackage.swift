@@ -54,8 +54,8 @@ public enum SolutionError: Error, Equatable, CustomStringConvertible, LocalizedE
     public var description: String {
         switch self {
         case .tooLarge: return "Die Lösung ist zu groß."
-        case .notASolution: return "Die Datei ist keine UniFlow-Lösung."
-        case .unsupportedVersion(let v): return "Diese Lösung hat Formatversion \(v) – bitte UniFlow aktualisieren."
+        case .notASolution: return "Die Datei ist keine Studora-Lösung."
+        case .unsupportedVersion(let v): return "Diese Lösung hat Formatversion \(v) – bitte Studora aktualisieren."
         case .invalidHeader(let f): return "Die Lösung ist beschädigt (Kopf: \(f))."
         case .fingerprintMismatch:
             return "Diese Lösung gehört zu einer anderen PDF-Datei (oder einer anderen Fassung). Sie wird hier nicht angezeigt."

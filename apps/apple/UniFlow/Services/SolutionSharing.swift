@@ -334,11 +334,11 @@ enum SolutionSharing {
         }
     }
 
-    /// Meldung nach dem Ablegen einer empfangenen Loesung. Ansehen geht nur mit Plus (im Editor gesperrt): mit Free
-    /// steht das dabei, statt "erscheint unter Ebenen" zu versprechen.
+    /// Meldung nach dem Ablegen einer empfangenen Loesung. Ansehen gehoert zum Lesen der Community (jeder Tarif); fehlt
+    /// die Community im Build, steht das dabei, statt "erscheint unter Ebenen" zu versprechen.
     static func receivedMessage(label: String, canView: Bool) -> String {
         canView ? "\(label) gespeichert – sie erscheint in der passenden PDF unter „Ebenen“."
-            : "\(label) gespeichert – ansehen kannst du sie ab \(UFPlan.plus.name) (Einstellungen → Zugang & Darstellung → Tarif)."
+            : "\(label) gespeichert – ansehen kannst du sie, sobald die Community auf diesem iPad verfügbar ist."
     }
 
     /// Datei *.uniflowsolution uebernehmen (Teilen-Menue, Dateien-App, AirDrop): Kopf pruefen, verschluesselt ablegen.

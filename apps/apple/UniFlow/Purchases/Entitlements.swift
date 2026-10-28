@@ -23,9 +23,13 @@ enum UFFeature: String, CaseIterable, Identifiable {
     case timer               // Stoppuhr, Countdown, Pomodoro
     case viewNotes           // vorhandene Notizen ansehen und als PDF exportieren
     case uniGrades           // Uni & Noten (QIS bzw. LSF auf dem Geraet, F4), Free
+    case communityRead       // Community lesen (can_read_community): Loesungen anderer finden, laden, im Editor
+                             // ansehen, empfangene Dateien oeffnen, melden, blockieren, Lerngruppen beitreten,
+                             // eigene Veroeffentlichungen zurueckziehen
     // Plus
     case pencilWriting       // Stift, Marker, Radierer, Lasso, Seiten einfuegen/drehen/Papierkorb, Lesezeichen
-    case community           // Loesungen als Datei teilen, in der Community veroeffentlichen und im Editor ansehen
+    case shareSolutions      // Eigene Loesungen teilen (can_share_solutions): als Datei, in der Community
+                             // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
     // ab V2
@@ -35,17 +39,19 @@ enum UFFeature: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     /// kleinster Tarif, in dem die Funktion enthalten ist (hoehere Tarife enthalten sie auch). Fuer Funktionen, die
-    /// ein Recht des Vertrags umsetzen (`UFEntitlement.onDevice`), gleich dessen `from`; Abweichungen stehen in
-    /// `UFEntitlement.iPadDeviations` (PlanContractTests).
+    /// ein Recht des Vertrags umsetzen (`UFEntitlement.onDevice`), gleich dessen `from` (PlanContractTests).
     var minimumPlan: UFPlan {
         switch self {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
-             .uniGrades:
+             .uniGrades, .communityRead:
             return .free
-        case .pencilWriting, .community, .splitView, .flashcards, .uniflowEditor, .deviceSync:
+        case .pencilWriting, .shareSolutions, .splitView, .flashcards, .uniflowEditor, .deviceSync:
             return .plus
         }
     }
+
+    /// Teil der Community (beide haengen am iCloud-Container des Builds)
+    var isCommunity: Bool { self == .communityRead || self == .shareSolutions }
 
     /// erst ab V2 vorhanden (UniFlow-Editor, Abgleich zwischen Geraeten)
     var isV2: Bool { self == .uniflowEditor || self == .deviceSync }
@@ -61,11 +67,12 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .timer: return "Zeitmesser (Stoppuhr, Countdown, Pomodoro)"
         case .viewNotes: return "Notizen ansehen und als PDF exportieren"
         case .uniGrades: return "Uni & Noten"
+        case .communityRead: return "Community lesen"
         case .pencilWriting: return "Schreiben mit Apple Pencil"
-        case .community: return "Community"
+        case .shareSolutions: return "Eigene Lösungen teilen"
         case .splitView: return "Übung und Skript nebeneinander"
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
-        case .uniflowEditor: return "UniFlow-Editor"
+        case .uniflowEditor: return "Studora-Editor"
         case .deviceSync: return "Abgleich zwischen deinen Geräten"
         }
     }
@@ -76,8 +83,9 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Lernplan, Lernkombination, freie Zeitfenster, Nachholen, „Woche retten“"
         case .uniGrades: return "Notenspiegel aus QIS bzw. LSF direkt in der App"
+        case .communityRead: return "Lösungen anderer finden, laden und im Editor ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
-        case .community: return "Lösungen als Datei teilen, in der Community veröffentlichen und Lösungen anderer im Editor ansehen"
+        case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
         default: return nil
@@ -94,8 +102,9 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .timer: return "clock"
         case .viewNotes: return "download"
         case .uniGrades: return "graduation"
+        case .communityRead: return "search"
         case .pencilWriting: return "pencil"
-        case .community: return "users"
+        case .shareSolutions: return "users"
         case .splitView: return "columns"
         case .flashcards: return "cards"
         case .uniflowEditor: return "pen"
@@ -130,9 +139,10 @@ enum UFFeatureMatrix {
     /// `QISConnection` das QIS (F4) - in beiden Faellen vorhanden, Teil von Free (Abschnitt 4, "bald" entfaellt).
     static let uniGradesOnDevice = true
 
-    /// Community-Funktionen: eigene Loesung als Datei teilen (nur eigene Notizen, verschluesselt), empfangene Loesungen
-    /// im Editor ansehen und die Online-Community ueber CloudKit (docs/LOESUNGEN-TEILEN.md, Abschnitt 7). Ohne
-    /// iCloud-Container im Build meldet der Dienst selbst "nicht verfügbar"; der Dateiweg bleibt.
+    /// Community-Funktionen (Lesen in Free, Teilen ab Plus): eigene Loesung als Datei teilen (nur eigene Notizen,
+    /// verschluesselt), empfangene Loesungen im Editor ansehen und die Online-Community ueber CloudKit
+    /// (docs/LOESUNGEN-TEILEN.md, Abschnitt 7). Ohne iCloud-Container im Build meldet der Dienst selbst
+    /// "nicht verfuegbar"; der Dateiweg bleibt.
     static let communityAvailable = true
 
     /// Eigene Karteikarten ohne PC: Anlegen, Wiederholen und Loeschen im lokalen Backend (`FlashcardEndpoints`, M8) und
@@ -142,7 +152,7 @@ enum UFFeatureMatrix {
 
     static func access(_ f: UFFeature, plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
                        community: Bool = communityAvailable, flashcards: Bool = flashcardsOnDevice) -> UFAccess {
-        if f.isV2 || (f == .uniGrades && !uniGrades) || (f == .community && !community) || (f == .flashcards && !flashcards) {
+        if f.isV2 || (f == .uniGrades && !uniGrades) || (f.isCommunity && !community) || (f == .flashcards && !flashcards) {
             return .comingSoon
         }
         return plan >= f.minimumPlan ? .allowed : .locked(f.minimumPlan)
@@ -205,7 +215,7 @@ enum UFPlanCard {
             UFPlanCardRow(title: $0.title, detail: $0.detail, icon: "clock", preparing: true)
         }
         let rights = UFEntitlement.allCases.filter {
-            $0.from == plan && !$0.availableOnDevice && UFEntitlement.iPadDeviations[$0] == nil
+            $0.from == plan && !$0.availableOnDevice
         }.map { UFPlanCardRow(title: $0.cardLabel, icon: "clock", preparing: true) }
         return features + rights
     }
@@ -524,9 +534,9 @@ struct UFLockedCard: View {
         switch access {
         case .allowed: return ""
         case .comingSoon:
-            if f.isV2 { return "Kommt mit der nächsten Version von UniFlow." }
+            if f.isV2 { return "Kommt mit der nächsten Version von Studora." }
             let base = f.detail.map { "\($0). " } ?? ""
-            if f == .community { return base + "Bald verfügbar – die Community folgt mit einem Update." }
+            if f.isCommunity { return base + "Bald verfügbar – die Community folgt mit einem Update." }
             return base + "Bald verfügbar – kommt mit einem Update direkt auf dein iPad."
         case .locked(let p):
             let base = f.detail.map { "\($0). " } ?? ""

@@ -8,8 +8,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 REL = ROOT / "docs" / "release"
 FILES = ("README.md", "DATENSCHUTZ.md", "NUTZUNGSBEDINGUNGEN.md", "IMPRESSUM.md", "KONTO-LOESCHEN.md", "APP-STORE.md", "PLAY-STORE.md")
-# Entscheidung des Inhabers (25.10.2026): keine KI-Funktionen anbieten oder bewerben
-AI_WORDS = re.compile(r"\bKI\b|\bK\.I\.|künstliche[nr]? Intelligenz|\bClaude\b|\bGPT\b|\bLLM\b|Sprachmodell|KI-|Tutor|automatisch erstellte[nr]? (Test|Zusammenfassung)", re.I)
+# Entscheidung des Inhabers (25.10.2026): keine KI-Funktionen anbieten oder bewerben. Seit 28.10.2026 verkauft V1 nur
+# Studora Free und Plus; "Pro AI" und andere englische Formen ("AI", "OpenAI", "ChatGPT") gehoeren erst mit dem
+# Studora-Dienst in die Store-Texte. "AI" nur in Grossbuchstaben (sonst traefe z. B. ein spanisches "ai").
+AI_WORDS = re.compile(r"\bKI\b|\bK\.I\.|künstliche[nr]? Intelligenz|\bClaude\b|\bGPT\b|\bLLM\b|Sprachmodell|KI-|Tutor"
+                      r"|automatisch erstellte[nr]? (Test|Zusammenfassung)|(?-i:\bA\.?I\b)|artificial intelligence|OpenAI|ChatGPT", re.I)
 LIMITS = {"APP-STORE.md": {"name": 30, "subtitle": 30, "promo": 170, "description": 4000, "keywords": 100, "whats-new": 4000, "review-notes": 4000},
           "PLAY-STORE.md": {"title": 30, "short": 80, "full": 4000}}
 
@@ -37,6 +40,13 @@ def test_store_fields_within_limits(name):
         assert n <= limit, f"{name} {field}: {n} > {limit} Zeichen"
     kw = f.get("keywords") or f.get("title")
     assert "  " not in kw
+
+
+def test_ai_words_catch_english_forms():
+    for hit in ("Studora Pro AI", "mit AI-Tutor", "A.I. inklusive", "Powered by OpenAI", "ChatGPT verbinden", "KI-Tests", "Artificial Intelligence"):
+        assert AI_WORDS.search(hit), hit
+    for ok in ("Mai", "Lernplan im Mai", "Kaiserslautern", "Studora Plus", "Keine Werbung"):
+        assert not AI_WORDS.search(ok), ok
 
 
 def test_store_texts_promise_no_ai():

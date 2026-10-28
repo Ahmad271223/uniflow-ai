@@ -42,8 +42,8 @@ enum SolutionSheet: Identifiable, Equatable {
     case preview(String)
     /// Loesungen aus der Community zu dieser PDF (Fingerabdruck)
     case community(String)
-    /// Free: Sperrkarte mit Weg zur Abo-Seite
-    case locked
+    /// gesperrte Community-Funktion (Teilen in Free): Sperrkarte mit Weg zur Abo-Seite
+    case locked(UFFeature)
 
     var id: String {
         switch self {
@@ -51,7 +51,7 @@ enum SolutionSheet: Identifiable, Equatable {
         case .shared: return "shared"
         case .preview(let id): return "preview-" + id
         case .community(let fp): return "community-" + fp
-        case .locked: return "locked"
+        case .locked(let f): return "locked-" + f.rawValue
         }
     }
 }
@@ -474,11 +474,11 @@ struct DocumentView: View {
                     Button { pendingExport = .document } label: { Label("Ganzes Dokument", systemImage: "doc.on.doc") }
                     Button { pendingExport = .page(bridge.pageIndex) } label: { Label("Diese Seite", systemImage: "doc") }
                 }
-                // B) nur eigene Notizen, ohne Original (Plus)
+                // B) nur eigene Notizen, ohne Original (Teilen ab Plus; "Meine geteilten Lösungen" mit Zurueckziehen fuer alle)
                 Section("Nur eigene Notizen") {
                     Button { openSolutionSheet(.share) } label: {
-                        Label(entitlements.allows(.community) ? "Lösung teilen …" : "Lösung teilen … (\(UFPlan.plus.name))",
-                              systemImage: entitlements.allows(.community) ? "person.2" : "lock")
+                        Label(Self.lockedLabel("Lösung teilen …", entitlements.access(.shareSolutions)),
+                              systemImage: entitlements.allows(.shareSolutions) ? "person.2" : "lock")
                     }
                     Button { openSolutionSheet(.shared) } label: { Label("Meine geteilten Lösungen …", systemImage: "tray.full") }
                 }
@@ -543,7 +543,7 @@ struct DocumentView: View {
                 .disabled(!ownNotesVisible || !canWrite)
                 Divider()
                 Button {
-                    if entitlements.allows(.community) { importingSolution = true } else { solutionSheet = .locked }
+                    if entitlements.allows(.communityRead) { importingSolution = true } else { solutionSheet = .locked(.communityRead) }
                 } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
                 if !store.versions.isEmpty {
                     // S7: aufbewahrte alte Fassungen mit ihren Notizen (nur zum Ansehen)
@@ -580,9 +580,9 @@ struct DocumentView: View {
 
     static var solutionType: UTType { UTType(SolutionPackage.typeIdentifier) ?? .data }
 
-    /// "n Lösungen aus der Community zu diesem Blatt" (nur mit Plus und Treffern)
+    /// "n Lösungen aus der Community zu diesem Blatt" (Lesen, auch in Free, nur mit Treffern)
     @ViewBuilder private var communityBanner: some View {
-        if !communityMatches.isEmpty, !communityBannerDismissed, entitlements.allows(.community), let fp = communityFingerprint {
+        if !communityMatches.isEmpty, !communityBannerDismissed, entitlements.allows(.communityRead), let fp = communityFingerprint {
             HStack(spacing: 10) {
                 Image(systemName: "person.2")
                 Text(CommunityTexts.matches(communityMatches.count)).font(.caption).bold().lineLimit(1)
@@ -603,7 +603,7 @@ struct DocumentView: View {
             Button { ownNotesVisible.toggle() } label: {
                 Label("Meine Notizen", systemImage: ownNotesVisible ? "checkmark.circle.fill" : "circle")
             }
-            if entitlements.allows(.community) {
+            if entitlements.allows(.communityRead) {
                 Section("Lösungen anderer") {
                     if foreignLayers.isEmpty && foreignProblems.isEmpty {
                         Text("Keine Lösungen zu dieser PDF")
@@ -644,14 +644,27 @@ struct DocumentView: View {
                     }
                 }
             } else {
-                Button { solutionSheet = .locked } label: { Label("Lösungen anderer ansehen (\(UFPlan.plus.name))", systemImage: "lock") }
+                Button { solutionSheet = .locked(.communityRead) } label: {
+                    Label(Self.lockedLabel("Lösungen anderer ansehen", entitlements.access(.communityRead)), systemImage: "lock")
+                }
             }
         } label: { Label("Ebenen", systemImage: "square.3.layers.3d") }
         .disabled(store.pdf == nil)
     }
 
+    /// Teilen braucht Plus; die Liste "Meine geteilten Lösungen" (Zurueckziehen, Entfernen) steht allen offen
     private func openSolutionSheet(_ sheet: SolutionSheet) {
-        solutionSheet = entitlements.allows(.community) ? sheet : .locked
+        let feature: UFFeature = sheet.id == SolutionSheet.share.id ? .shareSolutions : .communityRead
+        solutionSheet = entitlements.allows(feature) ? sheet : .locked(feature)
+    }
+
+    /// Menuepunkt einer gesperrten Funktion: "Lösung teilen … (Studora Plus)" bzw. "(bald)"
+    static func lockedLabel(_ title: String, _ access: UFAccess) -> String {
+        switch access {
+        case .allowed: return title
+        case .locked(let p): return "\(title) (\(p.name))"
+        case .comingSoon: return "\(title) (bald)"
+        }
     }
 
     @ViewBuilder
@@ -670,15 +683,15 @@ struct DocumentView: View {
             CommunitySolutionsSheet(fingerprint: fp, service: SolutionSharing.community,
                                     importer: { id in try await store.importFromCommunity(id, service: SolutionSharing.community) },
                                     onImported: { result in Task { await handleImport(result) } }) { solutionSheet = nil }
-        case .locked:
-            SolutionLockedSheet { solutionSheet = nil }
+        case .locked(let feature):
+            SolutionLockedSheet(feature: feature) { solutionSheet = nil }
         }
     }
 
-    /// Passende Loesungen neu laden (nur mit Plus). Passt eine nicht zur PDF, erscheint sie nicht; die Meldung kommt
+    /// Passende Loesungen neu laden (Lesen, auch in Free). Passt eine nicht zur PDF, erscheint sie nicht; die Meldung kommt
     /// einmal je Sitzung als Hinweis, danach steht sie im Ebenen-Menue (mit "Entfernen").
     private func reloadSolutionLayers() async {
-        guard entitlements.allows(.community), store.pdf != nil else {
+        guard entitlements.allows(.communityRead), store.pdf != nil else {
             foreignLayers = []
             foreignProblems = []
             return
@@ -690,10 +703,10 @@ struct DocumentView: View {
         if !unseen.isEmpty, actionError == nil { actionError = unseen.map(\.text).joined(separator: "\n") }
     }
 
-    /// Treffer aus der Community zu dieser PDF (nur mit Plus und Dienst im Build; Fehler bleiben still, die Liste
+    /// Treffer aus der Community zu dieser PDF (Lesen, auch in Free, nur mit Dienst im Build; Fehler bleiben still, die Liste
     /// zeigt sie beim Oeffnen des Blatts)
     private func loadCommunityMatches() async {
-        guard entitlements.allows(.community), store.pdf != nil, !readOnly, let fp = await store.originalFingerprint() else { return }
+        guard entitlements.allows(.communityRead), store.pdf != nil, !readOnly, let fp = await store.originalFingerprint() else { return }
         communityFingerprint = fp
         guard SolutionSharing.community.isConnected else { return }
         if let cached = CommunityMatches.shared.cached(fp) { communityMatches = cached }

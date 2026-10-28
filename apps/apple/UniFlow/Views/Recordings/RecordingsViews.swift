@@ -63,10 +63,10 @@ private struct RecordingsPanelContent: View {
         let link: StudIPLink = demo ? .demo : studip.offersStudIP ? StudIPLink(studip.phase, hasSession: studip.hasStoredSession) : .otherSources
         switch link {
         case .notConnected: return "Verbinde Stud.IP, dann erscheinen hier die Aufzeichnungen deiner Kurse nach Vorlesungswoche."
-        case .expired: return "Melde dich erneut bei Stud.IP an, damit UniFlow die Aufzeichnungen aktualisiert."
+        case .expired: return "Melde dich erneut bei Stud.IP an, damit Studora die Aufzeichnungen aktualisiert."
         case .connected:
             return studip.isRunning ? "Aufzeichnungen werden beim laufenden Abgleich geprüft …" : "Keine Aufzeichnungen zu diesem Modul."
-        case .otherSources: return "Aufzeichnungen (Opencast) gibt es in UniFlow nur über das Stud.IP der Leibniz Universität Hannover; das Learnweb der Universität Hildesheim bietet keine."
+        case .otherSources: return "Aufzeichnungen (Opencast) gibt es in Studora nur über das Stud.IP der Leibniz Universität Hannover; das Learnweb der Universität Hildesheim bietet keine."
         case .demo: return "Die Demo-Inhalte haben keine Aufzeichnungen. Sie kommen mit deiner Stud.IP-Anmeldung, wenn die Demo entfernt ist."
         }
     }
