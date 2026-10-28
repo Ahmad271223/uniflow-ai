@@ -29,9 +29,24 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       ${u.email_verified === false ? `<div class="sl-warn small">${icon("alert", 13)} E-Mail noch nicht bestätigt: Teilen, Liken und Kommentieren gehen erst danach. <button class="btn ghost sm" data-sl="resend">Mail erneut senden</button></div>` : ""}
       ${st.university_mismatch ? `<div class="sl-warn small">${icon("alert", 13)} ${esc(st.university_mismatch)}</div>` : ""}
       <div class="small muted">${esc(claims)}</div>
-      <div class="row wrap" style="gap:.4rem;margin-top:.5rem"><button class="btn sm" data-sl="claims">${icon("sync", 13)} PDFs jetzt melden</button><button class="btn sm ghost" data-sl="logout">${icon("x", 13)} Abmelden</button></div>
+      <div class="sl-sync small" style="margin-top:.5rem"></div>
+      <div class="row wrap" style="gap:.4rem;margin-top:.5rem"><button class="btn sm primary" data-sl="sync">${icon("sync", 13)} Jetzt abgleichen</button><button class="btn sm" data-sl="claims">PDFs melden</button><button class="btn sm ghost" data-sl="logout">${icon("x", 13)} Abmelden</button></div>
       <div class="sl-msg small"></div></div>`;
     const msg = $(".sl-msg", el);
+    const syncBox = $(".sl-sync", el);
+    const showSync = async () => {
+      let s; try { s = await (await fetch("/api/studora/sync")).json(); } catch { return; }
+      const l = s.last;
+      const when = l?.at ? new Date(l.at * 1000).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : null;
+      syncBox.innerHTML = `<label class="row" style="gap:.4rem;align-items:center"><input type="checkbox" data-sl="auto" ${s.enabled ? "checked" : ""}> <b>Mit dem iPad abgleichen</b> <span class="muted">(Notizen, Module, Stundenplan-Änderungen, Lernkalender, Karteikarten, Einstellungen)</span></label>
+        <div class="muted">${s.running ? "Gleicht gerade ab …" : when ? `Zuletzt ${when}: ${l.ok ? `${l.applied || 0} übernommen, ${l.pushed || 0} gesendet${l.deleted ? `, ${l.deleted} gelöscht` : ""}${l.conflicts ? `, ${l.conflicts} zusammengeführt` : ""}${l.pending ? `, ${l.pending} warten auf Dateien dieses PCs` : ""}` : `Fehler: ${esc(l.error || "")}`}` : "Noch nicht abgeglichen."}</div>
+        ${l?.plan_required ? `<div class="sl-warn">${icon("info", 13)} Notizen gleichen ab Studora Plus ab; Pläne und Module schon jetzt.</div>` : ""}`;
+      const auto = $('[data-sl="auto"]', syncBox); if (auto) auto.onchange = async () => { await fetch("/api/studora/sync/enabled", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: auto.checked }) }); showSync(); };
+    };
+    showSync();
+    $('[data-sl="sync"]', el).onclick = async e => { e.target.disabled = true; syncBox.querySelector(".muted") && (syncBox.querySelector(".muted").textContent = "Gleicht ab …");
+      try { const r = await (await fetch("/api/studora/sync", { method: "POST" })).json(); msg.textContent = r.ok ? "Abgeglichen." : (r.error || "Fehler"); } catch (x) { msg.textContent = x.message; }
+      e.target.disabled = false; showSync(); };
     $('[data-sl="claims"]', el).onclick = async e => { e.target.disabled = true; try { const c = await call("/claims", {}); msg.textContent = `${c.sent} PDFs gemeldet.`; } catch (x) { msg.textContent = x.message; } e.target.disabled = false; };
     $('[data-sl="logout"]', el).onclick = async () => { if (!confirm("Vom Studora-Konto abmelden? Deine Notizen auf diesem PC bleiben erhalten.")) return; const s = await call("/logout", {}); onChange?.(s); renderLinkCard(el, { onChange, compact }); };
     const rs = $('[data-sl="resend"]', el); if (rs) rs.onclick = async () => { try { await call("/verify-email/resend", {}); msg.textContent = "Bestätigungsmail gesendet."; } catch (x) { msg.textContent = x.message; } };

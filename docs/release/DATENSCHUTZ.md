@@ -122,6 +122,10 @@ dieselbe PDF haben.
   außen nur als Anzahl), deine **Kommentare** (Text, Pseudonym, Seite und Stelle auf der Seite, Zeitpunkt) und die
   **Fingerabdrücke der PDFs**, die dein Gerät aus dem Hochschul-Abgleich meldet, damit du Lösungen zu genau diesen
   Dateien findest (keine Dateinamen, keine Inhalte).
+- **Windows-App, Abgleich mit dem iPad:** Ist die Windows-App mit deinem Konto verbunden, gleicht sie Notizen,
+  Module, Stundenplan-Anpassungen, Lernkalender, Karteikarten und Einstellungen mit deinem Konto im Dienst ab (wie
+  in Abschnitt 7 beschrieben). Hochschuldateien selbst lädt jedes Gerät von der Hochschule; zu Notizen speichert der
+  Dienst nur Name und Kurs der Datei. Abschalten: Community → Studora-Konto → „Mit dem iPad abgleichen“.
 - **Windows-App:** Für die Community meldest du dich in der Windows-App mit deinem Studora-Konto an. Dein
   Studora-Passwort geht dabei einmal verschlüsselt an den Dienst und wird nicht gespeichert; auf dem PC liegt nur ein
   Sitzungsschlüssel, den du mit „Abmelden“ löschst. Die App schickt dem Dienst die Fingerabdrücke (SHA-256) der PDFs

@@ -36,6 +36,10 @@ async def _lifespan(_app):
     """Gehosteter Modus: Mailversand einhaengen, Arbeiter und Zeitplan fuer den Hochschul-Abgleich je Konto (app/jobs.py)."""
     wire_hosted_services()
     jobs.start_background()
+    if not config.is_hosted():
+        # Windows-App mit Studora-Konto: Geraete-Abgleich (G2) im Hintergrund (app/sync_client.py)
+        from . import sync_client
+        sync_client.start_background()
     yield
 
 
@@ -86,6 +90,20 @@ def hosted_unavailable(method: str, path: str) -> str | None:
         if m == method and rx.match(path):
             return why
     return None
+
+
+# Aenderungen der Oberflaeche, nach denen die Windows-App bald mit dem Konto abgleicht (gebuendelt)
+_NO_KICK = ("/api/studora/", "/api/community/", "/api/sync", "/api/desktop/", "/api/progress", "/api/ai")
+
+
+@app.middleware("http")
+async def sync_kick(request, call_next):
+    response = await call_next(request)
+    if (not config.is_hosted() and request.method in ("POST", "PUT", "PATCH", "DELETE") and response.status_code < 400
+            and request.url.path.startswith("/api/") and not request.url.path.startswith(_NO_KICK)):
+        from . import sync_client
+        sync_client.kick()
+    return response
 
 
 @app.middleware("http")
@@ -1172,6 +1190,9 @@ def api_studora_login(body: dict = Body(...)):
         out["claims"] = service_link.claim_local_files()
     except service_link.LinkError as e:
         out["claims_error"] = {"code": e.code, "detail": e.message}
+    from . import sync_client
+    sync_client.start_background()
+    sync_client.kick()                                   # erster Abgleich gleich im Hintergrund
     return out
 
 
@@ -1186,6 +1207,30 @@ def api_studora_claims():
     """Fingerabdruecke der eigenen Hochschul-PDFs jetzt an den Dienst melden."""
     from . import service_link
     return _link_call(service_link.claim_local_files)
+
+
+@app.get("/api/studora/sync")
+def api_studora_sync_status():
+    """Geraete-Abgleich mit dem Konto: an/aus, letzter Lauf (Zahlen, Fehler), laeuft gerade."""
+    from . import sync_client
+    if config.is_hosted():
+        return {"enabled": False, "hosted": True}
+    return sync_client.status()
+
+
+@app.post("/api/studora/sync")
+def api_studora_sync_now():
+    """Jetzt abgleichen (wartet auf das Ergebnis)."""
+    from . import sync_client
+    if config.is_hosted():
+        raise HTTPException(400, {"detail": "Im Dienst gleicht das Konto selbst ab.", "code": "already_hosted"})
+    return sync_client.run(force=True)
+
+
+@app.post("/api/studora/sync/enabled")
+def api_studora_sync_enabled(body: dict = Body(...)):
+    from . import sync_client
+    return sync_client.set_enabled(bool(body.get("on")))
 
 
 @app.post("/api/studora/verify-email/resend")

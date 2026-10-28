@@ -311,7 +311,8 @@ def _push_annotation(conn, it: dict, device: str | None, now: str) -> dict:
     """Notizen: gleiche Regel wie PUT /api/files/{id}/annotations (base_version, 409 -> Konflikt mit Serverstand)."""
     file_id = str(it.get("id") or it.get("local_id") or "")
     if not db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)):
-        return {"entity": "annotations", "id": file_id, "status": "unknown_file"}
+        if not _register_device_file(conn, file_id, it.get("file")):
+            return {"entity": "annotations", "id": file_id, "status": "unknown_file"}
     data = it.get("data") or {}
     cur = db.row(conn, "SELECT version, data FROM annotations WHERE file_id=?", (file_id,))
     cur_v = (cur["version"] or 1) if cur else 0
@@ -328,3 +329,20 @@ def _push_annotation(conn, it: dict, device: str | None, now: str) -> dict:
     conn.execute("""DELETE FROM annotation_versions WHERE file_id=? AND id NOT IN (
                         SELECT id FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT 30)""", (file_id, file_id))
     return {"entity": "annotations", "id": file_id, "status": "applied", "version": new_v}
+
+
+def _register_device_file(conn, file_id: str, info) -> bool:
+    """Notizen zu einer Hochschuldatei, die nur das Geraet kennt (Windows-App und iPad gleichen mit der Hochschule
+    selbst ab, 28.10.2026): Kurs und Datei als Kopfzeile anlegen, damit die Notizen eine Datei haben. Ohne
+    `download_url`: der Dienst laedt die Datei nie und die Community gilt dafuer nicht (`community.owns_file` braucht
+    die Adresse, dafuer melden Geraete Fingerabdruecke). Ein spaeterer Abgleich im Dienst ergaenzt die Zeile."""
+    if not isinstance(info, dict) or not str(info.get("name") or "").strip() or not str(info.get("course_id") or "").strip():
+        return False
+    if len(file_id) > 200 or str(info.get("course_id")) == "__user__":
+        return False
+    cid = str(info["course_id"])[:200]
+    conn.execute("INSERT OR IGNORE INTO courses(id, title, semester) VALUES (?,?,?)",
+                 (cid, str(info.get("course_title") or cid)[:300], (str(info.get("semester"))[:60] if info.get("semester") else None)))
+    conn.execute("INSERT OR IGNORE INTO files(id, course_id, name, mime, first_seen, status) VALUES (?,?,?,?,?, 'neu')",
+                 (file_id, cid, str(info["name"])[:300], (str(info.get("mime"))[:100] if info.get("mime") else None), db.now_iso()))
+    return True

@@ -1255,3 +1255,28 @@ Projizieren, Kommentaren an der Stelle und Likes. Auf Windows ist das jetzt geba
 5. Pakete von Windows haben `images` nur als PNG/JPEG aus eigenen Bildern und lassen eingefügte Seiten weg, wie der
    Swift-Builder. Windows bildet `width`/`height` aus `page.view` von pdf.js (CropBox geschnitten mit MediaBox).
 
+## Nachtrag der PC-Sitzung: Geräte-Abgleich (G2) in der Windows-App gebaut – das iPad muss genauso abgleichen (28.10.2026)
+
+Wunsch des Inhabers: Notizen und Pläne sind auf Windows und dem iPad gleich, mit einem Konto, und beide Apps können
+1:1 dasselbe. Auf Windows ist der Abgleich jetzt gebaut (`app/sync_client.py`) und mit zwei Geräten getestet
+(`tests/test_sync_client.py`: erster Abgleich ohne Doppelte, Striche beider Geräte bleiben, Löschen kommt an, Notizen
+warten auf die PDF, Free gleicht nur Pläne ab). Die Regeln stehen in `docs/VERTRAEGE-KONTO-SYNC.md` unter G2
+„Client-Regeln“. Für das iPad bitte:
+
+1. **G2-Client in Swift nach denselben Regeln:** abrufen → senden → abrufen; Zuordnungstabelle lokale ID ↔ ID im
+   Dienst mit `remote_version`/`local_version`/`base`; **dieselben fachlichen Schlüssel** (sonst legt das iPad beim
+   ersten Abgleich alles doppelt an, was Windows schon gesendet hat); `sync_device = "~dienst"` für Angewendetes;
+   dieselbe Liste der Einstellungen, die auf dem Gerät bleiben; `op_id` wie beschrieben.
+2. **Notizen:** `AnnotationMerge.swift` muss alle Fälle aus `fixtures/merge/cases.json` bestehen (Python und Web
+   bestehen sie jetzt beide, `tests/test_annotation_merge.py`). Beim Senden einer Notiz `file: {name, mime, course_id,
+   course_title, semester}` mitschicken. `pkdrawing` (v2) bleibt wie bisher je Strich erhalten.
+3. **Die Datei-ID muss auf beiden Geräten gleich sein** (Stud.IP-`file_id` aus `files/flat`, Learnweb
+   `lw-<cmid>-<hash>` wie `app/learnweb.py:63`). Bitte prüfen, dass `UniStore` genau diese IDs schreibt; sonst finden
+   sich Notizen zur selben PDF nicht.
+4. **Auslöser:** nach jeder Änderung gebündelt (Windows: 4 s), sonst alle 3 Minuten und beim Start; Schalter „Mit
+   anderen Geräten abgleichen“ in den Einstellungen; Status „zuletzt …: x übernommen, y gesendet“.
+5. Der Lernkalender wird auf beiden Geräten erzeugt. Erzeugte Pakete gleichen über Datum + Modul + Titel ab; wenn beide
+   Geräte neu planen, gewinnt je Feld der spätere Stand. „Neu planen“ löscht auf Windows die ersetzbaren Pakete und
+   legt neue an (`study.generate_packages(replace=True)`); das gleicht richtig ab (Löschen + neue Zeilen), erzeugt aber
+   mehr Verkehr. Bitte auf dem iPad dieselbe Planer-Regel wie `app/study.py` verwenden, damit beide gleich planen.
+

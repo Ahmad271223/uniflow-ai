@@ -246,6 +246,26 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
     dieses Gerät gewinnt, `orderConflict` muss der Client anzeigen).
     Unbekannte Datei → `unknown_file`.
   - `settings`: `local_id` = Schlüssel, `data.value`; private Schlüssel → `ignored`.
+- **Client-Regeln (Windows-App seit 28.10.2026, `app/sync_client.py`; das iPad muss genauso arbeiten):**
+  - Lauf = **abrufen → senden → abrufen**. Vor dem ersten Senden wird immer abgerufen, damit Zeilen, die beide Geräte
+    aus demselben Stud.IP angelegt haben, nicht doppelt im Konto landen.
+  - **Zuordnung** lokale ID ↔ ID im Dienst je Zeile (`sync_link_map`: `remote_version`, `local_version`, bei Notizen
+    `base` = zuletzt abgeglichenes Dokument). Lokal geändert = `sync_version` ≠ `local_version`.
+  - **Fachliche Schlüssel** für Zeilen ohne Zuordnung (Vergleich ohne Groß-/Kleinschreibung, Fremdschlüssel als
+    lokale IDs): `modules` Name + Semester; `folders` Name + Eltern + Modul; `course_events` Kurs-ID (sonst Titel) +
+    Wochentag + Beginn + Ende + `date_from` + Art; `event_exceptions` Termin + Datum + Art; `study_packages` Datum +
+    Modul + Titel (sonst Fach); `study_tasks` Paket + Art + Titel + Datei; `flashcards` Frage + Datei; `settings`
+    Schlüssel; `annotations` `file_id`. Gibt es die Zeile hier schon, gilt der spätere Stand (`sync_updated_at`).
+  - Angewendete Zeilen und Tombstones bekommen `sync_device = "~dienst"` und werden nie zurückgesendet.
+  - **Notizen:** lokal geändert und im Dienst neuer → `mergeDocument(base, lokal, Dienst)` (gemeinsame Fälle), Ergebnis
+    mit `base_version` = Version im Dienst senden; Antwort `conflict` → erneut zusammenführen und senden (höchstens
+    zweimal je Lauf). Notizen zu einer Hochschuldatei schicken `file: {name, mime, course_id, course_title,
+    semester}` mit; kennt der Dienst die Datei nicht, legt er Kurs und Datei als Kopfzeile ohne Adresse an (sonst
+    `unknown_file`). Gibt es die Datei auf dem Gerät noch nicht, wartet die Notiz und wird bei jedem Lauf neu versucht.
+  - **Nur auf dem Gerät:** Einstellungen `lan_pin`, `university`, `demo_content`, `semester_rule_applied`,
+    `pen_input` und alles mit token/secret/passw im Namen; `study_tasks.test_id` (Tests sind nicht im Abgleich).
+  - `op_id` = `<Gerät>.<Tabelle>.<lokale ID>.<sync_version>`: dieselbe Änderung hat bei Wiederholung dieselbe ID.
+  - Tarif Free: Notizen bleiben lokal (`plan_required`), alles andere gleicht ab.
 - Beide Endpunkte gibt es auch im Einzelplatzmodus (iPad ↔ PC im WLAN); im Dienst gelten sie je Konto.
 
 ## G4 Community
