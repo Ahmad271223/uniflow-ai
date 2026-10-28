@@ -19,7 +19,7 @@ verlinkten Dokumenten; hier steht, **was du tun musst**.
 ## 2. Sofort: die neue Windows-App
 
 1. UniFlow schließen.
-2. Installer starten: `apps\windows\src-tauri\target\installer-0.4.5\UniFlow_0.4.5_x64-setup.exe` (im Projektordner).
+2. Installer starten: `apps\windows\src-tauri\target\installer-0.4.6\UniFlow_0.4.6_x64-setup.exe` (im Projektordner).
    Windows warnt, weil der Installer nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.
 3. UniFlow starten, einmal „Sync“ drücken. Deine Daten bleiben erhalten (Ordner `%LOCALAPPDATA%\de.uniflow.desktop`).
 4. ChatGPT verbinden: Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“ → bei OpenAI anmelden

@@ -269,8 +269,24 @@ def day_timeline(conn, d: date) -> dict:
 # Ausnahmen / Teilnahme
 # ----------------------------------------------------------------------------
 
+STUDIP_CANCEL_NOTE = "Ausfall laut Stud.IP"
+STUDIP_CANCEL_RESET_NOTE = "Findet statt (Ausfall laut Stud.IP zurückgesetzt)"
+
+
 def set_exception(conn, event_id: int, d: str, typ: str, new_date: str | None = None, new_start: str | None = None, new_end: str | None = None, note: str = "") -> None:
+    """Ausnahme eines Tages setzen; typ "reset" nimmt sie zurueck.
+
+    Zuruecksetzen eines Ausfalls laut Stud.IP (28.10.2026, Entscheidung des Inhabers): der Termin findet statt und
+    bleibt sichtbar. Stud.IP kennt an abgesagten Tagen keinen Termin, ohne Ausnahme verschwaende der Tag ganz
+    (_merge_dated), und der naechste Abgleich truege den Ausfall wieder ein (_add_cancellations). Darum wird daraus
+    "attend" mit eigener Notiz. Wer das noch einmal zuruecksetzt, bekommt den Ausfall laut Stud.IP zurueck."""
+    old = db.row(conn, "SELECT type, note FROM event_exceptions WHERE event_id=? AND date=? ORDER BY id DESC LIMIT 1", (event_id, d))
     conn.execute("DELETE FROM event_exceptions WHERE event_id=? AND date=?", (event_id, d))
+    if typ == "reset" and old:
+        if old["type"] == "cancelled" and old["note"] == STUDIP_CANCEL_NOTE:
+            typ, note = "attend", STUDIP_CANCEL_RESET_NOTE
+        elif old["type"] == "attend" and old["note"] == STUDIP_CANCEL_RESET_NOTE:
+            typ, note = "cancelled", STUDIP_CANCEL_NOTE
     if typ != "reset":
         conn.execute("INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
                      (event_id, d, typ, new_date, new_start, new_end, note, db.now_iso()))

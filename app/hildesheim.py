@@ -75,12 +75,27 @@ def visible_courses(courses: list[dict], quiet: bool = False) -> list[dict]:
     return courses
 
 
+def active_courses(courses: list[dict]) -> list[dict]:
+    """Nur Kurse, die laut Semesterregel aktiv sind (app/semesters.py, eigene Schalter in Einstellungen -> Module).
+    Kurse, die noch nicht gespeichert sind, zaehlen als aktiv (sie werden gleich mit der Regel angelegt)."""
+    with db.cursor() as conn:
+        off = {r["id"] for r in db.rows(conn, "SELECT id FROM courses WHERE active=0")}
+    return [c for c in courses if c["id"] not in off]
+
+
 def sync_learnweb(page, client, courses: list[dict], token: str, started: str, new_files: list[str]) -> int:
+    """Learnweb-Kurse speichern und Dateien holen. Seit 28.10.2026 (Entscheidung des Inhabers) wie bei Stud.IP nur fuer
+    aktive Kurse: Kurse frueherer Semester bleiben bekannt, kosten aber keinen Abruf und keinen Download mehr."""
     courses = visible_courses(courses)
     with db.cursor() as conn:
         for c in courses:
             upsert_course(conn, c, started)
         conn.commit()
+    kept = active_courses(courses)
+    if len(kept) < len(courses):
+        log(f"Learnweb: {len(courses) - len(kept)} Kurse aus frueheren Semestern uebersprungen.")
+    courses = kept
+    with db.cursor() as conn:
         # Jeder Kurs wird einzeln gespeichert: ein Fehler in einem Kurs verwirft nicht die schon geholten Dateien
         for c in courses:
             try:
@@ -121,8 +136,8 @@ def sync_deadlines(client) -> str:
 
 
 def sync_announcements(client, courses: list[dict]) -> str:
-    """Ankuendigungsforen aller sichtbaren Kurse; geloeschte Diskussionen verschwinden auch in der App."""
-    courses = visible_courses(courses, quiet=True)
+    """Ankuendigungsforen aller sichtbaren, aktiven Kurse; geloeschte Diskussionen verschwinden auch in der App."""
+    courses = active_courses(visible_courses(courses, quiet=True))
     with db.cursor() as conn:
         known = announcements.known_discussions(conn)
     items, seen = client.announcements(courses, known)

@@ -1134,3 +1134,19 @@ Noch offen auf der PC-Seite (nicht in 0.4.5):
 5. Sichtbare Texte auf „Studora“ umbenennen (Web, Windows, `app/community.py`, `app/demo.py`).
 6. **Entscheidung des Inhabers nötig:** Soll „Zurücksetzen“ eines Stud.IP-Ausfalls den Termin als `attend` sichtbar
    lassen? Und soll Learnweb (Hildesheim) auch nur aktive Kurse laden? Bis dahin bleibt es auf beiden Seiten, wie es ist.
+
+## Entscheidungen des Inhabers (28.10.2026, Windows 0.4.6) – bitte in Swift nachziehen
+
+Zu Bitte 3 und 4 der Mac-Sitzung vom 28.10.:
+- **Zurückgesetzter Ausfall laut Stud.IP bleibt als Termin sichtbar.** `timetable.set_exception(..., "reset")`: Ist
+  die Ausnahme des Tages `cancelled` mit Notiz `Ausfall laut Stud.IP`, wird daraus `attend` mit der Notiz
+  `Findet statt (Ausfall laut Stud.IP zurückgesetzt)` (Konstanten `STUDIP_CANCEL_NOTE`, `STUDIP_CANCEL_RESET_NOTE`).
+  Weil damit eine Ausnahme am Tag steht, trägt `_add_cancellations` beim nächsten Abgleich den Ausfall nicht wieder
+  ein, und `_merge_dated` lässt das Vorkommen stehen (`status: teilnahme`, `exception: attend`). Wer genau diese
+  Ausnahme noch einmal zurücksetzt, bekommt wieder `cancelled` mit `Ausfall laut Stud.IP`. Alle anderen Ausnahmen
+  werden wie bisher gelöscht. Test: `tests/test_studip_week.py::test_reset_of_a_studip_cancellation_keeps_the_date_visible`.
+- **Learnweb nur für aktive Kurse.** `hildesheim.sync_learnweb` speichert weiter alle sichtbaren Kurse mit der
+  Semesterregel, holt Dateien aber nur für aktive (`hildesheim.active_courses`: Kurse mit `active = 0` fallen weg,
+  noch unbekannte zählen als aktiv). `sync_announcements` fragt die Foren ebenfalls nur aktiver Kurse. Fristen bleiben,
+  wie sie sind (Moodle liefert nur anstehende). Test:
+  `tests/test_hildesheim.py::test_sync_learnweb_skips_courses_of_earlier_semesters`.
