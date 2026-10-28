@@ -114,7 +114,10 @@ final class LocalTimetableTests: XCTestCase {
         let today = try XCTUnwrap(r.json?["today"])
         XCTAssertNil(jsonDiff(today["events"], fx["dashboard_today"]?["events"]), jsonDiff(today["events"], fx["dashboard_today"]?["events"]) ?? "")
         XCTAssertNil(jsonDiff(today["free"], fx["dashboard_today"]?["free"]), jsonDiff(today["free"], fx["dashboard_today"]?["free"]) ?? "")
-        XCTAssertEqual(today["events"]?.array?.count, 1, "Sonntagstermin am Tag der Zeitumstellung")
+        // Sonntagstermin am Tag der Zeitumstellung und seit e9a40d1 der Stud.IP-Einzeltermin 02:30 aus dem Blockseminar
+        // (Woche direkt aus Stud.IP, ohne Serie)
+        XCTAssertEqual(today["events"]?.array?.map { $0["title"]?.string ?? "" }, ["Blockseminar Beispiel", "Sonntagstermin"])
+        XCTAssertEqual(today["events"]?.array?.first?["source"], "studip-kalender")
     }
 
     /// Kalenderdateien: UTC, TZID (Berlin, UTC, Windows-Name, New York, unbekannt), RRULE mit UNTIL/INTERVAL,

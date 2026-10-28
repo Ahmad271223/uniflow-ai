@@ -470,9 +470,19 @@ final class StudIPSync: ObservableObject {
             if selection.selected != selectedCourses { selectedCourses = selection.selected }
             knownCourses = selection.known
 
-            let chosen = courses.filter { selectedCourses.contains($0.id) }
-            // Fach und Art wie upsert_course (classify); die Module legt ensure_modules beim naechsten Lesen an
-            try await db.transaction { try StudIPLibrary.storeCourses($0, chosen, startedAt: started) }
+            let selectedNow = courses.filter { selectedCourses.contains($0.id) }
+            // Fach und Art wie upsert_course (classify), aktiv nach der Semesterregel (`Semesters`, app/semesters.py);
+            // die Module legt ensure_modules beim naechsten Lesen an
+            let today = clock.today
+            let active = try await db.transaction { c -> Set<String> in
+                try StudIPLibrary.storeCourses(c, selectedNow, startedAt: started, today: today)
+                return Set(try c.rows("SELECT id FROM courses WHERE active=1").compactMap { $0["id"]?.string })
+            }
+            // Dateien, Termine und Aufzeichnungen nur fuer aktuelle Kurse wie run_studip_sync (c0721da): alte Semester
+            // bleiben als Kurs bekannt, kosten aber keinen Abruf und keinen Download; eigene Schalter (Einstellungen ->
+            // Module, active_custom) gelten
+            let chosen = selectedNow.filter { active.contains($0.id) }
+            let older = selectedNow.count - chosen.count
             var remote: [StudIPFile] = []
             var wanted: [StudIPFile] = []
             var checked = Set<String>()
@@ -563,6 +573,7 @@ final class StudIPSync: ObservableObject {
             if !gone.isEmpty { parts.append("\(gone.count) in Stud.IP nicht mehr vorhanden") }
             if !unreadable.isEmpty { parts.append("\(unreadable.count) \(unreadable.count == 1 ? "Kurs" : "Kurse") nicht lesbar") }
             if let n = Self.newCoursesNote(selection.newUnselected.count) { parts.append(n) }
+            if let n = Self.olderCoursesNote(older) { parts.append(n) }
             parts += timetable.summary
             parts += rec?.summary ?? []
             let expired = timetable.sessionExpired || rec?.sessionExpired == true
@@ -600,6 +611,16 @@ final class StudIPSync: ObservableObject {
             await log(database, started: started, ok: false, newFiles: loaded, message: StudIPLibrary.failure(message))
             phase = .failed(message)
             return .failed(message)
+        }
+    }
+
+    /// Hinweis auf ausgewaehlte Kurse frueherer Semester, die der Abgleich nach der Semesterregel nicht einplant
+    /// (wie "N Kurse aus frueheren Semestern uebersprungen" im Protokoll von run_studip_sync)
+    static func olderCoursesNote(_ count: Int) -> String? {
+        switch count {
+        case 0: return nil
+        case 1: return "1 Kurs aus früheren Semestern nicht eingeplant (Einstellungen → Module)"
+        default: return "\(count) Kurse aus früheren Semestern nicht eingeplant (Einstellungen → Module)"
         }
     }
 

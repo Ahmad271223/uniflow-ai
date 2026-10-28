@@ -77,7 +77,7 @@ final class TimetableLocalAppTests: XCTestCase {
         let empty = HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(#"{"data": [], "links": {}}"#.utf8))
         var routes: [String: HTTPReply] = [
             "/jsonapi.php/v1/users/u-test/schedule": try fixture("users-schedule.json"),
-            "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester": try fixture("users-courses.json"),
+            "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester,end-semester": try fixture("users-courses.json"),
             "/jsonapi.php/v1/courses/c-ana/events?page[limit]=200": try fixture("course-events-c-ana-1.json"),
             "/jsonapi.php/v1/courses/c-ana/events?page[offset]=3&page[limit]=200": try fixture("course-events-c-ana-2.json"),
             "/jsonapi.php/v1/courses/c-sem/events?page[limit]=200": try fixture("course-events-c-sem.json"),
@@ -370,7 +370,7 @@ final class TimetableLocalAppTests: XCTestCase {
         let semester = #""relationships":{"start-semester":{"data":{"type":"semesters","id":"s-test"}}}"#
         var routes: [String: HTTPReply] = [
             "/jsonapi.php/v1/users/me": ok(#"{"data":{"id":"u-flow","type":"users"}}"#),
-            "/jsonapi.php/v1/users/u-flow/courses?page[limit]=100&include=start-semester": ok(#"""
+            "/jsonapi.php/v1/users/u-flow/courses?page[limit]=100&include=start-semester,end-semester": ok(#"""
                 {"data":[
                   {"id":"c-ma","type":"courses","attributes":{"title":"Testmathematik I","course-number":"T-MA1","course-type":1},\#(semester)},
                   {"id":"c-ma-ue","type":"courses","attributes":{"title":"Übung zu Testmathematik I","course-number":"T-MA2","course-type":3},\#(semester)},
@@ -397,11 +397,14 @@ final class TimetableLocalAppTests: XCTestCase {
                  "links":{}}
                 """#),
             // Einzeltermine: die Kurszeit der Vorlesung deckt die Montage ab, die Klausur liegt ausserhalb; das Seminar hat
-            // keine Kurszeit (drei Dienstage werden wie am PC eine Serie); die Begruessung ("sonstiges") faellt heraus
+            // keine Kurszeit (drei Dienstage werden wie am PC eine Serie); die Begruessung ("sonstiges") faellt heraus.
+            // Wie in echtem Stud.IP steht jeder stattfindende Termin da (der abgesagte 02.11. fehlt): seit e9a40d1 zeigt
+            // die Woche eine automatisch uebernommene Serie nur an Tagen, die Stud.IP kennt
             "/jsonapi.php/v1/courses/c-ma/events?page[limit]=200": ok(#"""
                 {"data":[
                   {"id":"ev-ma-1","type":"course-events","attributes":{"title":"Sitzung","start":"2026-10-12T10:00:00+02:00","end":"2026-10-12T11:30:00+02:00","location":"Hörsaal Test 1","is-cancelled":false}},
                   {"id":"ev-ma-2","type":"course-events","attributes":{"title":"Sitzung","start":"2026-10-19T10:00:00+02:00","end":"2026-10-19T11:30:00+02:00","location":"Hörsaal Test 1","is-cancelled":false}},
+                  {"id":"ev-ma-3","type":"course-events","attributes":{"title":"Sitzung","start":"2026-10-26T10:00:00+01:00","end":"2026-10-26T11:30:00+01:00","location":"Hörsaal Test 1","is-cancelled":false}},
                   {"id":"ev-ma-k","type":"course-events","attributes":{"title":"Klausur","start":"2027-02-08T09:00:00+01:00","end":"2027-02-08T11:00:00+01:00","location":"Audimax Test","is-cancelled":false}}],
                  "links":{}}
                 """#),

@@ -34,7 +34,7 @@ private let courses = [
 private func routes(_ replace: [String: HTTPReply] = [:]) throws -> [String: HTTPReply] {
     var r: [String: HTTPReply] = [
         "/jsonapi.php/v1/users/u-test/schedule": try fixtureReply("users-schedule.json"),
-        "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester": try fixtureReply("users-courses.json"),
+        "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester,end-semester": try fixtureReply("users-courses.json"),
         "/jsonapi.php/v1/courses/c-ana/events?page[limit]=200": try fixtureReply("course-events-c-ana-1.json"),
         "/jsonapi.php/v1/courses/c-ana/events?page[offset]=3&page[limit]=200": try fixtureReply("course-events-c-ana-2.json"),
         "/jsonapi.php/v1/courses/c-sem/events?page[limit]=200": try fixtureReply("course-events-c-sem.json"),
@@ -230,7 +230,10 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertEqual(days[0]["events"]?.array?.map(line), ["Testanalysis I 10:00-11:30 teilnahme"])
         XCTAssertEqual(days[1]["events"]?.array?.map(line), ["Testprogrammierung 12:00-13:30 teilnahme", "Testseminar Beispiel 16:00-17:30 teilnahme"])
         XCTAssertEqual(days[2]["events"]?.array?.map(line), ["Übung Testanalysis I 14:00-15:30 teilnahme", "Lerngruppe Test alle 2 Wochen 18:00-19:30 teilnahme"])
-        XCTAssertEqual(days[3]["events"]?.array?.map(line), ["Testanalysis I 08:15-09:45 teilnahme"])
+        // Woche 1:1 aus Stud.IP (e9a40d1, `LocalTimetable.mergeDated`): die Fixture listet Einzeltermine von c-ana nur
+        // montags bis 02.11.; am Donnerstag 29.10. kennt Stud.IP keinen Termin des Kurses, die automatisch
+        // uebernommene Serie zeigt dort nichts (in echten Daten steht jeder Termin in courses/{id}/events)
+        XCTAssertEqual(days[3]["events"]?.array?.map(line), [])
         XCTAssertEqual(days[4]["events"], [], "Uebungsgruppen am Freitag warten auf die Auswahl")
         XCTAssertEqual(days[6]["events"]?.array?.map(line), ["Chorprobe 17:00-19:00 teilnahme"])
         // Ausfall laut Stud.IP am 02.11.
@@ -349,8 +352,11 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertEqual(r2.newEvents, 0)
         let after = await day(backend, "2026-11-09")
         XCTAssertEqual(after, ["Testanalysis I ausfall"])
+        // Zurueckgesetzt (keine Ausnahme mehr) und Stud.IP kennt den abgesagten Termin nicht: seit e9a40d1 zeigt die
+        // Woche dort wie am PC nichts (Frage an die PC-Sitzung in docs/STAND-MAC-SITZUNG.md); der Ausfall kommt nicht
+        // wieder (Ausnahmen unten)
         let reset = await day(backend, "2026-11-02")
-        XCTAssertEqual(reset, ["Testanalysis I teilnahme"], "vom Nutzer zurueckgesetzt, kommt nicht wieder")
+        XCTAssertEqual(reset, [], "vom Nutzer zurueckgesetzt, kommt nicht wieder")
         let ex = try await exceptions(backend, ana)
         XCTAssertEqual(ex, ["2026-11-09|cancelled|Ausfall laut Stud.IP", "2026-11-16|skip|"])
         // Stud.IP nimmt die Ausfaelle vom 09. und 16.11. zurueck: der eigene vom 16.11. bleibt
@@ -385,8 +391,10 @@ final class StudIPScheduleStoreTests: XCTestCase {
         let m = try await exceptions(backend, morning), a = try await exceptions(backend, afternoon)
         XCTAssertEqual(m, ["2026-11-02|cancelled|Ausfall laut Stud.IP"])
         XCTAssertEqual(a, ["2026-11-09|cancelled|Ausfall laut Stud.IP"])
+        // Am 09.11. kennt Stud.IP keinen Termin von c-ana (die Fixture listet nur bis 02.11.): der Vormittag ohne
+        // Ausnahme faellt seit e9a40d1 weg, der gespeicherte Ausfall des Nachmittags bleibt sichtbar
         let shown = await day(backend, "2026-11-09")
-        XCTAssertEqual(shown, ["Testanalysis I teilnahme", "Testanalysis I ausfall"])
+        XCTAssertEqual(shown, ["Testanalysis I ausfall"])
         // Nachmittag geloescht: die Vorschau bietet ihn als neu an, statt ihn mit dem Vormittag zu paaren
         _ = await call(backend, "DELETE", "/api/timetable/events/\(afternoon)")
         let preview = try await studipPreview(backend)

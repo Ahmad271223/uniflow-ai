@@ -36,7 +36,7 @@ final class StudIPCalendarAppTests: XCTestCase {
     private func studIP(calendar: Bool = true) throws -> StudIPClient {
         var routes: [String: HTTPReply] = [
             "/jsonapi.php/v1/users/u-test/schedule": try fixture("users-schedule.json"),
-            "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester": try fixture("users-courses.json"),
+            "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester,end-semester": try fixture("users-courses.json"),
         ]
         for c in Self.courses { routes["/jsonapi.php/v1/courses/\(c.id)/events?page[limit]=200"] = try fixture("course-events-\(c.id).json") }
         if calendar { routes["/jsonapi.php/v1/users/u-test/events.ics"] = try fixture("users-events.ics", type: "text/calendar; charset=utf-8") }

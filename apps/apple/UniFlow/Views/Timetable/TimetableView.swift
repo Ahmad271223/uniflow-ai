@@ -260,7 +260,7 @@ struct TimetableView: View {
                     .offset(x: 2, y: top)
             }
             ForEach(Row.rows(d.list("events"), key: "event_id")) { row in
-                TimetableEventBlock(e: row.value, width: width - 7, px: px) { actions.openEvent(row.value.i("event_id") ?? 0, date: date) }
+                TimetableEventBlock(e: row.value, width: width - 7, px: px) { actions.openOccurrence(row.value, date: date) }
                     .offset(x: 3)
             }
             ForEach(Row.rows(d.list("packages").filter { $0.s("start_time") != nil })) { row in

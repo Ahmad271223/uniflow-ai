@@ -33,13 +33,13 @@ final class StudIPClientTests: XCTestCase {
 
     func testCoursesFollowPaginationAndSemester() async throws {
         let t = StubTransport([
-            "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester": api(#"""
+            "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester": api(#"""
             {"data":[{"id":"c1","type":"courses","attributes":{"title":"Mathematik  für\n Ingenieure","course-number":" 12345 "},
               "relationships":{"start-semester":{"data":{"type":"semesters","id":"s26"}}}}],
              "included":[{"id":"s26","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}],
-             "links":{"next":"/jsonapi.php/v1/users/u1/courses?page[offset]=100&page[limit]=100&include=start-semester"}}
+             "links":{"next":"/jsonapi.php/v1/users/u1/courses?page[offset]=100&page[limit]=100&include=start-semester,end-semester"}}
             """#),
-            "/jsonapi.php/v1/users/u1/courses?page[offset]=100&page[limit]=100&include=start-semester": api(#"""
+            "/jsonapi.php/v1/users/u1/courses?page[offset]=100&page[limit]=100&include=start-semester,end-semester": api(#"""
             {"data":[{"id":"c2","type":"courses","attributes":{"title":"Programmieren I","course-number":""}}],"links":{}}
             """#),
         ])
@@ -48,6 +48,7 @@ final class StudIPClientTests: XCTestCase {
         XCTAssertEqual(courses.map(\.id), ["c1", "c2"])
         XCTAssertEqual(courses[0].title, "Mathematik für Ingenieure")
         XCTAssertEqual(courses[0].number, "12345")
+        XCTAssertNil(courses[0].semesterEnd, "ohne end-semester (aeltere Stud.IP-Fassung): unbekannt, die Regel nimmt den Titel")
         XCTAssertEqual(courses[0].semesterTitle, "WiSe 2026/27")
         XCTAssertEqual(courses[0].semesterStart, "2026-10-01T00:00:00+02:00")
         XCTAssertNil(courses[1].number)
@@ -122,7 +123,7 @@ final class StudIPClientTests: XCTestCase {
 
     func testRequestLimitStopsRun() async {
         let t = StubTransport([
-            "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester": api(#"{"data":[],"links":{"next":"/jsonapi.php/v1/next"}}"#),
+            "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester": api(#"{"data":[],"links":{"next":"/jsonapi.php/v1/next"}}"#),
             "/jsonapi.php/v1/next": api(#"{"data":[]}"#),
         ])
         do {
@@ -133,7 +134,7 @@ final class StudIPClientTests: XCTestCase {
 
     func testForeignNextLinkIsRejected() async {
         let t = StubTransport([
-            "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester": api(#"{"data":[],"links":{"next":"https://evil.test/steal"}}"#),
+            "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester": api(#"{"data":[],"links":{"next":"https://evil.test/steal"}}"#),
         ])
         do {
             _ = try await StudIPClient(base: base, transport: t, pauseMillis: 0).courses(userID: "u1")

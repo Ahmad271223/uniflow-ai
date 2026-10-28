@@ -92,7 +92,7 @@ final class LocalDocumentsAppTests: XCTestCase {
     private func fakeStudIP(pdf: Data, changed: String = "2026-10-19T10:00:00+02:00") -> FakeStudIP {
         let t = FakeStudIP()
         t.json("/jsonapi.php/v1/users/me", #"{"data":{"id":"u1","type":"users"}}"#)
-        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester", #"""
             {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
               "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],
              "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00"}}]}
@@ -251,7 +251,7 @@ final class LocalDocumentsAppTests: XCTestCase {
     private func fakeStudIPWithSubjects(pdf: Data) -> FakeStudIP {
         let t = FakeStudIP()
         t.json("/jsonapi.php/v1/users/me", #"{"data":{"id":"u1","type":"users"}}"#)
-        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester", #"""
             {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testmathematik I","course-number":"T-MA1"},
                       "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
                      {"id":"c2","type":"courses","attributes":{"title":"Übung zu Testmathematik I"},
@@ -431,7 +431,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         let dev = try device()
         let pdf = makePDF("Blatt")
         let stud = fakeStudIP(pdf: pdf)
-        stud.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+        stud.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester", #"""
             {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
                       "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
                      {"id":"c2","type":"courses","attributes":{"title":"Testkurs ohne Dateien"},
@@ -579,7 +579,7 @@ final class LocalDocumentsAppTests: XCTestCase {
         let dev = try device()
         let pdf = makePDF("Blatt")
         let stud = fakeStudIP(pdf: pdf)
-        stud.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+        stud.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester", #"""
             {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
                       "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
                      {"id":"c2","type":"courses","attributes":{"title":"Testkurs Optik","course-number":"T-43"},
@@ -850,6 +850,62 @@ final class LocalDocumentsAppTests: XCTestCase {
         let spaces = dev.support.appendingPathComponent("journal/spaces")
         let names = try FileManager.default.contentsOfDirectory(atPath: spaces.path).sorted()
         XCTAssertEqual(names, ["local", "server-10.0.0.2-8765"])
+    }
+
+    // MARK: Nur aktuelles Semester (PC c0721da, app/semesters.py)
+
+    /// Ein ausgewaehlter Kurs eines frueheren Semesters wird gespeichert, aber nicht eingeplant: keine Dateiliste, kein
+    /// Download, keine Termine; die Zusammenfassung sagt es. Schaltet der Nutzer ihn in den Einstellungen ein
+    /// (PATCH active, active_custom), laedt der naechste Abgleich ihn wie jeden anderen.
+    func testOldSemesterCourseIsNotPlannedUntilSwitchedOn() async throws {
+        let dev = try device()
+        let stud = fakeStudIP(pdf: makePDF("Testblatt"))
+        stud.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester", #"""
+            {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
+               "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}},"end-semester":{"data":{"type":"semesters","id":"s1"}}}},
+              {"id":"c-alt","type":"courses","attributes":{"title":"Testkurs Werkstoffe"},
+               "relationships":{"start-semester":{"data":{"type":"semesters","id":"s0"}},"end-semester":{"data":{"type":"semesters","id":"s0"}}}}],
+             "included":[{"id":"s1","type":"semesters","attributes":{"title":"WiSe 2026/27","start":"2026-10-01T00:00:00+02:00","end":"2027-03-31T23:59:59+02:00"}},
+                         {"id":"s0","type":"semesters","attributes":{"title":"SoSe 2023","start":"2023-04-01T00:00:00+02:00","end":"2023-09-30T23:59:59+02:00"}}]}
+            """#)
+        let sync = StudIPSync(root: dev.studipRoot, host: dev.host, clock: Self.clock, defaults: try defaults())
+        sync.selectedCourses = ["c1", "c-alt"]                       // vom Nutzer ausgewaehlt, auch der alte Kurs
+        await sync.run(client: client(stud))
+        XCTAssertEqual(sync.phase, .idle, "\(sync.phase)")
+        XCTAssertFalse(stud.requested.contains { $0.contains("/courses/c-alt/") }, "alter Kurs: kein Abruf: \(stud.requested)")
+        XCTAssertTrue(stud.requested.contains { $0.contains("/courses/c1/folders") })
+        let summary = try XCTUnwrap(sync.lastSummary)
+        XCTAssertTrue(summary.contains("1 Kurs aus früheren Semestern nicht eingeplant (Einstellungen → Module)"), summary)
+        let courses = try await dev.api.value("/api/courses").items
+        let old = try XCTUnwrap(courses.first { $0.s("id") == "c-alt" })
+        XCTAssertEqual(old.i("active"), 0)
+        XCTAssertEqual(old.s("semester_end"), "SoSe 2023")
+        XCTAssertEqual(courses.first { $0.s("id") == "c1" }?.i("active"), 1)
+
+        // in den Einstellungen eingeschaltet: eigene Entscheidung, der naechste Abgleich laesst sie und laedt den Kurs
+        let on = try await dev.api.value("/api/courses/c-alt", method: "PATCH", body: ["active": 1])
+        XCTAssertEqual(on.i("active_custom"), 1)
+        await sync.run(client: client(stud))
+        XCTAssertTrue(stud.requested.contains { $0.contains("/courses/c-alt/folders") }, "\(stud.requested)")
+        let after = try await dev.api.value("/api/courses").items.first { $0.s("id") == "c-alt" }
+        XCTAssertEqual(after?.i("active"), 1)
+        XCTAssertFalse(sync.lastSummary?.contains("früheren Semestern") ?? true)
+    }
+
+    /// Anzeige wie die Web-App: alle Raeume ohne den Teil nach dem Doppelpunkt; ein Einzeltermin aus dem Kalender ohne
+    /// Serie bekommt den Hinweis statt des Termin-Drawers
+    func testDatedEntriesAndRoomsReadLikeTheWeb() {
+        XCTAssertEqual(PlanEventBlock.rooms("Raum F303: Testsaal · Raum 031: e-Classroom · Raum F102"), "Raum F303 · Raum 031 · Raum F102")
+        XCTAssertEqual(PlanEventBlock.rooms("Hörsaal 1"), "Hörsaal 1")
+        XCTAssertEqual(DatedEventDialog.text("2026-11-16"),
+                       "Termin aus deinem Stud.IP-Kalender (16.11.2026). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit.")
+        XCTAssertEqual(StudIPSync.olderCoursesNote(0), nil)
+        XCTAssertEqual(StudIPSync.olderCoursesNote(3), "3 Kurse aus früheren Semestern nicht eingeplant (Einstellungen → Module)")
+        // Kursliste der Stud.IP-Seite: fruehere Semester markiert, unbekanntes Semester nicht
+        let old = StudIPCourse(id: "x", title: "Testkurs", semesterTitle: "SoSe 2023", semesterEnd: "SoSe 2023", semesterEndsAt: "2023-09-30T23:59:59+02:00")
+        XCTAssertTrue(StudIPView.isOlder(old, today: "2026-10-28"))
+        XCTAssertFalse(StudIPView.isOlder(StudIPCourse(id: "y", title: "Testkurs", semesterTitle: "WiSe 2026/27"), today: "2026-10-28"))
+        XCTAssertFalse(StudIPView.isOlder(StudIPCourse(id: "z", title: "Testkurs"), today: "2026-10-28"), "ohne Semester keine Entscheidung")
     }
 }
 

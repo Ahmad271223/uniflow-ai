@@ -28,8 +28,11 @@ public enum FilesEndpoints: LocalEndpointModule {
             var updates: [(String, SQLiteValue)] = []
             for m in body where courseFields.contains(m.key) { updates.append((m.key, try LocalTerms.bindable(m.value, field: m.key))) }
             let changes = updates
+            let custom = body.contains { $0.key == "active" }
             let row = try await ctx.database.transaction { c -> JSONValue in
                 for (k, v) in changes { try c.execute("UPDATE courses SET \(k)=? WHERE id=?", [v, id]) }
+                // selbst geschaltet: die Semesterregel (Semesters, app/semesters.py) laesst den Kurs danach so
+                if custom { try c.execute("UPDATE courses SET active_custom=1 WHERE id=?", [id]) }
                 // Regel G6 (server._found): kein Datensatz -> 404, nie `null` mit 200
                 guard let row = try c.queryOne("SELECT * FROM courses WHERE id=?", [id]) else { throw LocalHTTPError.notFound("Kurs nicht gefunden") }
                 return .object(row.json)

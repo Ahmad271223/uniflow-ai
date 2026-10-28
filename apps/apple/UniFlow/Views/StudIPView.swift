@@ -113,22 +113,33 @@ struct StudIPView: View {
         UFCard {
             UFCardHead("Kurse", icon: "book") { UFBadge("\(studip.selectedCourses.count) von \(studip.courses.count)", tone: .neutral) }
             VStack(alignment: .leading, spacing: 0) {
+                let today = UFFmt.todayISO()
                 ForEach(studip.courses, id: \.id) { c in
-                    CourseRow(title: c.title, semester: c.semesterTitle, isOn: Binding(
+                    CourseRow(title: c.title, semester: c.semesterTitle, older: Self.isOlder(c, today: today), isOn: Binding(
                         get: { studip.selectedCourses.contains(c.id) },
                         set: { on in if on { studip.selectedCourses.insert(c.id) } else { studip.selectedCourses.remove(c.id) } }))
                         .disabled(studip.isRunning)
                 }
             }
-            Text("Beim ersten Abgleich sind die Kurse des aktuellen Semesters ausgewählt.")
+            Text("Beim ersten Abgleich sind die Kurse des aktuellen Semesters ausgewählt. \(Self.olderHint)")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 8)
         }
+    }
+
+    /// Hinweis zur Semesterregel (`Semesters`, PC c0721da): ausgewaehlt heisst noch nicht eingeplant
+    static let olderHint = "Kurse früherer Semester plant UniFlow nicht ein, auch wenn sie ausgewählt sind; einschalten kannst du sie unter Einstellungen → Module."
+
+    /// Kurs eines frueheren Semesters laut Stud.IP (Ende oder Semestertitel); unbekannt zaehlt nicht als frueher
+    static func isOlder(_ c: StudIPCourse, today: String) -> Bool {
+        Semesters.isCurrent(semester: c.semesterTitle, semesterEnd: c.semesterEnd, endsAt: c.semesterEndsAt, today: today) == false
     }
 
     /// Kurs mit Haken (wie .check im Web): Kaestchen in --accent, Titel und Semester
     private struct CourseRow: View {
         let title: String
         let semester: String?
+        /// frueheres Semester: wird nicht eingeplant (Einstellungen -> Module)
+        var older = false
         @Binding var isOn: Bool
         @Environment(\.isEnabled) private var isEnabled
 
@@ -144,7 +155,7 @@ struct StudIPView: View {
                     .padding(.top, 2)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(title).ufFont(14.5, 550).foregroundStyle(UF.text).multilineTextAlignment(.leading)
-                        if let semester { Text(semester).ufFont(12.8).foregroundStyle(UF.muted) }
+                        if let semester { Text(older ? "\(semester) · früheres Semester, nicht eingeplant" : semester).ufFont(12.8).foregroundStyle(UF.muted) }
                     }
                     Spacer(minLength: 0)
                 }

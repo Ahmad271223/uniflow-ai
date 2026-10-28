@@ -68,9 +68,12 @@ public enum ModulesEndpoints: LocalEndpointModule {
             }
             let rename = try value(members, "name").map { try LocalTerms.bindable($0, field: "name") }
             let colorSent = members.contains { $0.key == "color" }
+            let custom = members.contains { $0.key == "active" }
             let row = try await ctx.database.transaction { c -> JSONValue in
                 let before = try c.queryOne("SELECT color FROM modules WHERE id=?", [id])
                 for (k, v) in updates { try c.execute("UPDATE modules SET \(k)=? WHERE id=?", [v, id]) }
+                // selbst geschaltet: Module ohne aktiven Kurs schaltet `Semesters.deactivateStaleModules` dann nicht aus
+                if custom { try c.execute("UPDATE modules SET active_custom=1 WHERE id=?", [id]) }
                 // Merker fuer eine selbst gewaehlte Farbe (ModuleColors): nur, wenn sich die Farbe wirklich aendert (die
                 // Bearbeiten-Dialoge schicken sie auch unveraendert mit)
                 if colorSent, let before, let after = try c.queryOne("SELECT color FROM modules WHERE id=?", [id]),

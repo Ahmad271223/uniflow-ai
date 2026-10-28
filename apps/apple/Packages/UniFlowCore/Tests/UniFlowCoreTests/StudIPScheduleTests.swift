@@ -507,12 +507,12 @@ final class StudIPScheduleClientTests: XCTestCase {
         func reply(_ s: String) -> HTTPReply { HTTPReply(status: 200, contentType: "application/vnd.api+json", body: Data(s.utf8)) }
         let t = StubTransport([
             "/jsonapi.php/v1/users/u1/schedule": reply(scheduleJSON),
-            "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester": reply(coursesJSON),
+            "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester": reply(coursesJSON),
         ])
         let c = StudIPClient(base: URL(string: "https://studip.test")!, transport: t, pauseMillis: 0)
         let r = try await c.scheduleResources(userID: "u1")
         XCTAssertEqual(StudIPSchedule.timetable(schedule: r.schedule, courses: r.courses), try fixture())
         XCTAssertEqual(t.requested, ["/jsonapi.php/v1/users/u1/schedule",
-                                     "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester"])
+                                     "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester"])
     }
 }

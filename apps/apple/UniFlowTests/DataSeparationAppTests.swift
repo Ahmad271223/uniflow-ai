@@ -592,7 +592,7 @@ final class DataSeparationAppTests: XCTestCase {
             let json: String
             switch path {
             case "/jsonapi.php/v1/users/me": json = #"{"data":{"id":"u1","type":"users"}}"#
-            case "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester":
+            case "/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester":
                 json = #"""
                     {"data":[{"id":"c1","type":"courses","attributes":{"title":"Testkurs Numerik","course-number":"T-42"},
                       "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}}],

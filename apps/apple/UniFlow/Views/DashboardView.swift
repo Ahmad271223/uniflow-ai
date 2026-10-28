@@ -179,7 +179,7 @@ struct DashboardView: View {
             ForEach(Row.rows(evs, key: "event_id")) { row in
                 let e = row.value
                 let attending = e.s("status") == "teilnahme"
-                Button { PlanEnv.make(session, overlay, toast, router).openEvent(e.i("event_id") ?? 0, date: e.s("date") ?? UFFmt.todayISO()) } label: {
+                Button { PlanEnv.make(session, overlay, toast, router).openOccurrence(e, date: e.s("date") ?? UFFmt.todayISO()) } label: {
                     HStack(spacing: 9.6) {
                         UFDot(color: Color(hex: e.s("color")))
                         Text("\(e.s("start") ?? "")–\(e.s("end") ?? "")").ufFont(13.12, 700).foregroundStyle(UF.text).frame(minWidth: 92, alignment: .leading)

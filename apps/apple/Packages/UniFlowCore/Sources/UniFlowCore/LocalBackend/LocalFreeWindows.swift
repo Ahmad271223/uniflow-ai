@@ -13,6 +13,8 @@ enum LocalFreeWindows {
         /// event | blocked | study | travel
         let kind: String
         let campus: Bool
+        /// Titel des Termins, der Sperrzeit ("Sperrzeit" ohne Titel) bzw. das Fach des Lernslots
+        var title: JSONValue = .null
     }
 
     /// `free_windows(conn, d, s, include_packages)`
@@ -25,14 +27,15 @@ enum LocalFreeWindows {
     static func busyBlocks(_ c: SQLiteConnection, day: Int, settings s: [String: JSONValue], includePackages: Bool = true) throws -> [Block] {
         var blocks: [Block] = []
         for o in try LocalTimetable.occurrences(c, from: day, to: day) where o["status"] == "teilnahme" {
-            blocks.append(Block(start: try hm(o["start"], key: "start"), end: try hm(o["end"], key: "end"), kind: "event", campus: true))
+            blocks.append(Block(start: try hm(o["start"], key: "start"), end: try hm(o["end"], key: "end"), kind: "event", campus: true,
+                                title: o["title"] ?? .null))
         }
         blocks += try blockedBlocks(day, settings: s)
         if includePackages {
             for p in try c.rows("SELECT start_time, end_time, subject FROM study_packages WHERE date=? AND start_time IS NOT NULL AND status NOT IN ('verschoben','uebersprungen')",
                                 [.text(LocalTimetable.iso(day))]) {
                 blocks.append(Block(start: try hm(p["start_time"], key: "start_time"), end: try hm(p["end_time"], key: "end_time"),
-                                    kind: "study", campus: false))
+                                    kind: "study", campus: false, title: p["subject"] ?? .null))
             }
         }
         return LocalTimetable.stableSorted(blocks) { $0.start < $1.start }
@@ -45,7 +48,8 @@ enum LocalFreeWindows {
             guard let start = b["start"], let end = b["end"] else {
                 throw LocalHTTPError(status: 500, message: "Sperrzeit ohne Beginn oder Ende")
             }
-            return Block(start: try hm(start, key: "blocked_times"), end: try hm(end, key: "blocked_times"), kind: "blocked", campus: false)
+            return Block(start: try hm(start, key: "blocked_times"), end: try hm(end, key: "blocked_times"), kind: "blocked", campus: false,
+                         title: LocalTimetable.or(b["title"], "Sperrzeit"))
         }
     }
 

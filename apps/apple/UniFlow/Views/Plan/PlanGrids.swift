@@ -168,7 +168,7 @@ struct PlanWeekGrid: View {
                 }
                 ForEach(evs.indices, id: \.self) { i in
                     PlanEventBlock(e: evs[i], lane: L[i], W: W, px: { px($0, lo) }, compact: compact, names: names) {
-                        actions.openEvent(evs[i].i("event_id") ?? 0, date: date)
+                        actions.openOccurrence(evs[i], date: date)
                     }
                 }
                 ForEach(pks.indices, id: \.self) { i in
@@ -328,15 +328,16 @@ struct PlanEventBlock: View {
         let f = planBlockFrame(s: UFTime.hm(e.s("start")), e: UFTime.hm(e.s("end")), lane: lane, W: W, px: px)
         let off = e.s("status") != "teilnahme"
         let ec = Color(hex: e.s("color"))
-        let name = compact || lane.n > 1 ? names[e.s("title") ?? ""] ?? PlanNames.tinyName(e.s("title")) : UFFmt.shortName(e.s("title"))
+        // Namen wie in Stud.IP lesbar (e9a40d1): Kurzname, erst ab drei Spuren nebeneinander die Initialen
+        let name = lane.n >= 3 ? names[e.s("title") ?? ""] ?? PlanNames.tinyName(e.s("title")) : UFFmt.shortName(e.s("title"))
         let narrow = lane.n >= 3 || (compact && lane.n >= 2)
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("\(e.s("start") ?? "")\(compact ? "" : " – \(e.s("end") ?? "")")").ufFont(10.88, lh: 1.25).foregroundStyle(UF.text2)
+                Text("\(e.s("start") ?? "")\(compact && lane.n > 1 ? "" : " – \(e.s("end") ?? "")")").ufFont(10.88, lh: 1.25).foregroundStyle(UF.text2)
                     .lineLimit(narrow ? 1 : nil).truncationMode(.tail)
-                Text(name).ufFont(narrow ? 10.88 : 12.16, 700, lh: 1.25).foregroundStyle(UF.text).lineLimit(narrow ? 1 : 2).padding(.vertical, 1.6)   // .narrow b: .68rem
+                Text(name).ufFont(narrow ? 10.88 : 12.48, 700, lh: 1.25).foregroundStyle(UF.text).lineLimit(narrow ? 1 : 3).padding(.vertical, 1.6)   // .narrow b: .68rem
                 if f.h > 54 && !narrow {
-                    Text((e.s("room").flatMap { $0.isEmpty ? nil : $0 } ?? UFKind.label[e.s("kind") ?? ""] ?? "").components(separatedBy: ":").first ?? "")
+                    Text(Self.rooms(e.s("room").flatMap { $0.isEmpty ? nil : $0 } ?? UFKind.label[e.s("kind") ?? ""] ?? ""))
                         .ufFont(10.88, lh: 1.25).foregroundStyle(UF.muted).lineLimit(1)
                 }
             }
@@ -352,7 +353,14 @@ struct PlanEventBlock: View {
         .buttonStyle(.plain)
         .offset(x: f.x, y: f.y)
         .zIndex(1)
-        .help("\(e.s("title") ?? "") \(e.s("start") ?? "")–\(e.s("end") ?? "")\(e.s("room").map { " · \($0)" } ?? "")")
+        .help("\(e.s("title") ?? "") \(e.s("start") ?? "")–\(e.s("end") ?? "")\(e.s("room").map { " · \($0)" } ?? "")"
+              + (e.i("event_id") == nil ? " · aus deinem Stud.IP-Kalender" : ""))
+    }
+
+    /// Raumzeile wie die Web-App: alle Raeume (" · "), jeweils ohne den Teil nach dem Doppelpunkt
+    /// ("Raum F303: Testsaal · Raum 031: e-Classroom" -> "Raum F303 · Raum 031")
+    static func rooms(_ text: String) -> String {
+        text.components(separatedBy: " · ").map { $0.components(separatedBy: ":").first ?? "" }.joined(separator: " · ")
     }
 }
 
@@ -619,7 +627,7 @@ struct PlanDayTimeline: View {
         var line = "\(e.s("start") ?? "") – \(e.s("end") ?? "")"
         if let r = e.s("room"), !r.isEmpty { line += " · \(r)" }
         if off { line += " · \(["nicht_teilnahme": "nicht besucht", "ausfall": "fällt aus"][e.s("status") ?? ""] ?? "")" }
-        return Button { actions.openEvent(e.i("event_id") ?? 0, date: date) } label: {
+        return Button { actions.openOccurrence(e, date: date) } label: {
             HStack(spacing: 12.8) {
                 RoundedRectangle(cornerRadius: 10).fill(Color.mix(ec, 0.18, UF.surface)).frame(width: 38, height: 38)
                     .overlay(UFIcon(UFKind.icon[kind] ?? "calendar", size: 18).foregroundStyle(ec))
