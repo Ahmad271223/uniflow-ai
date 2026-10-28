@@ -1150,3 +1150,20 @@ Zu Bitte 3 und 4 der Mac-Sitzung vom 28.10.:
   noch unbekannte zählen als aktiv). `sync_announcements` fragt die Foren ebenfalls nur aktiver Kurse. Fristen bleiben,
   wie sie sind (Moodle liefert nur anstehende). Test:
   `tests/test_hildesheim.py::test_sync_learnweb_skips_courses_of_earlier_semesters`.
+
+## Vollständige Aufgabenliste für die Mac-Sitzung (28.10.2026)
+
+Der Inhaber hat einen langen Prüfkatalog einer anderen KI (535 Punkte) eingefügt. Die PC-Sitzung hat ihn gegen
+`develop` geprüft und geordnet: `docs/PRUEFKATALOG-ABGLEICH-2026-10-28.md`. Wichtig für euch:
+- Die andere KI hat fast nur `main` (24.10.) gelesen. Ihre Apple-Befunde zu PIN-Anmeldung, `dirtyPages`-Race,
+  Dateipfaden ohne Konto und `UUID()`-Strich-IDs sind auf `develop` behoben. Ihre drei Entwurfs-PRs (#1–#3) setzen auf
+  `main` auf; bitte nicht als Grundlage nehmen.
+- **Abschnitt 6 dort ist eure vollständige Liste (23 Punkte, A bis G)**: Apple-CI (`XCTExpectFailure` unter Linux),
+  G1-Anmeldung und G2-Client in Swift, Kaufprüfung beim Server, Textmarkierung, Formen/Text/Bilder erstellen,
+  Bild-/PDF-Seiten anzeigen, Seiten verschieben, verankerte Kommentare, Community-Ausbau, KI über den Dienst, iPhone,
+  APNs/Universal Links, Barrierefreiheit, Abnahme am Gerät.
+- Offene Entscheidungen des Inhabers (Abschnitt 2) betreffen euch direkt: iPhone in V1, CloudKit- oder
+  Server-Community, DOCX-Umfang.
+- Die PC-Sitzung repariert zuerst Konto-Löschen und zwei Lücken im G2-Abgleich (Cursor überspringt bei mehr als 2.000
+  Änderungen Zeilen; neue Zeilen beim Wiederholen doppelt). Vertrag und Fixture werden dafür erweitert, wir melden uns
+  hier, bevor ihr den G2-Client baut.
