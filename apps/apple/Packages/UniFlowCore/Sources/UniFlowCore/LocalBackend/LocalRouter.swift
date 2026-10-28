@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(os)
+import os
+#endif
 
 /// Was ein Endpunkt fuer seine Arbeit bekommt: die Datenbank des Geraets, die Uhr und die Dateiablage.
 public struct LocalContext: Sendable {
@@ -174,11 +177,44 @@ public final class LocalRouter: @unchecked Sendable {
             return try await route.handler(req, context)
         } catch let e as LocalHTTPError {
             return e.response
-        } catch let e as SQLiteError {
-            return .detail(500, "Fehler der lokalen Datenbank: \(e.message)")
         } catch {
-            return .detail(500, "Interner Fehler: \(error)")
+            LocalBackendLog.unexpected(error, method: route.method, template: route.pattern.template)
+            return .detail(500, Self.internalMessage(error))
         }
+    }
+
+    /// Meldung fuer unerwartete Fehler (Pruefbericht 555). Vorher stand der Text von SQLite bzw. die ganze
+    /// Fehlerbeschreibung in der Antwort: Tabellen- und Spaltennamen, Teile von SQL, bei Dateifehlern Pfade und
+    /// Dateinamen. Die Antwort zeigt die App als Meldung an; sie nennt jetzt nur die Art des Fehlers und den Code,
+    /// die Einzelheiten stehen nur im Geraeteprotokoll (`LocalBackendLog`, als privat markiert). Speicher voll hat
+    /// einen eigenen Text, weil der Nutzer dann selbst etwas tun kann.
+    public static func internalMessage(_ error: Error) -> String {
+        if isStorageFull(error) { return "Der Speicher dieses Geräts ist voll. Gib Platz frei und versuche es erneut." }
+        if let e = error as? SQLiteError { return "Fehler der lokalen Datenbank (Code \(e.extendedCode)). Bitte versuche es erneut." }
+        return "Interner Fehler im lokalen Backend. Bitte versuche es erneut."
+    }
+
+    /// SQLITE_FULL, kein Platz beim Schreiben einer Datei (Cocoa bzw. POSIX ENOSPC), auch als zugrunde liegender Fehler
+    static func isStorageFull(_ error: Error) -> Bool {
+        if let e = error as? SQLiteError { return e.code == 13 }                         // SQLITE_FULL
+        let ns = error as NSError
+        if ns.domain == NSCocoaErrorDomain, ns.code == NSFileWriteOutOfSpaceError { return true }
+        if ns.domain == NSPOSIXErrorDomain, ns.code == Int(ENOSPC) { return true }
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? Error { return isStorageFull(underlying) }
+        return false
+    }
+}
+
+/// Protokoll unerwarteter Fehler des lokalen Backends (nur auf dem Geraet, Einzelheiten als privat markiert)
+enum LocalBackendLog {
+    #if canImport(os)
+    private static let log = Logger(subsystem: "de.uniflow.ai", category: "LocalBackend")
+    #endif
+
+    static func unexpected(_ error: Error, method: String, template: String) {
+        #if canImport(os)
+        log.error("\(method, privacy: .public) \(template, privacy: .public): \(String(describing: error), privacy: .private)")
+        #endif
     }
 }
 

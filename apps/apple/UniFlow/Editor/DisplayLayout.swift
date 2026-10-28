@@ -7,6 +7,10 @@ import UniFlowCore
 /// - eingefuegte Leerseiten mit Vorlage (liniert, kariert ...),
 /// - Platzhalter fuer eingefuegte Bild- oder PDF-Seiten (Striche darauf werden normal gespeichert),
 /// - im Browser oder hier entfernte Seiten (Papierkorb `deletedPages`, siehe `PageOrder`) fehlen auch hier.
+/// - unbekannte Seitentypen wie Leerseiten mit Vorlage (wie `renderPage` im Web-Editor, editor.js:451).
+/// Nicht angezeigt werden Eintraege ohne Schluessel, mit schon vergebenem Schluessel oder mit einer PDF-Seite, die es
+/// in dieser PDF nicht gibt; sie bleiben unveraendert gespeichert und werden gezaehlt (`hidden`, Hinweis im Editor,
+/// Pruefbericht 504/505; vorher fehlten sie still).
 struct DisplayLayout {
     struct Entry: Equatable {
         let key: String
@@ -18,6 +22,8 @@ struct DisplayLayout {
 
     let pdf: PDFDocument
     let entries: [Entry]
+    /// Eintraege der Seitenliste, die nicht angezeigt werden (siehe oben)
+    var hidden = 0
 
     func key(at index: Int) -> String? { entries.indices.contains(index) ? entries[index].key : nil }
     func index(ofKey key: String) -> Int? { entries.firstIndex { $0.key == key } }
@@ -43,14 +49,20 @@ struct DisplayLayout {
         doc.ensurePDFPages(count: original.pageCount)
         let out = PDFDocument()
         var entries: [Entry] = []
+        var keys = Set<String>()
+        var hidden = 0
         for p in doc.pageOrder {
-            guard let key = p["key"]?.string, !entries.contains(where: { $0.key == key }) else { continue }
+            guard let key = p["key"]?.string, !keys.contains(key) else { hidden += 1; continue }
             let type = p["type"]?.string ?? "pdf"
             let extra = p["rotation"]?.int ?? 0
             let page: PDFPage
             var pdfIndex: Int?
             if type == "pdf" {
-                guard let i = p["index"]?.int, let src = original.page(at: i - 1), let copy = src.copy() as? PDFPage else { continue }
+                // PDFKit liefert fuer Seiten ausserhalb der PDF nil (auch negativ), keine Ausnahme (Pruefbericht 503)
+                guard let i = p["index"]?.int, i >= 1, let src = original.page(at: i - 1), let copy = src.copy() as? PDFPage else {
+                    hidden += 1
+                    continue
+                }
                 copy.rotation = normalized(src.rotation + extra)
                 page = copy
                 pdfIndex = i
@@ -65,10 +77,11 @@ struct DisplayLayout {
                 page = blank
             }
             out.insert(page, at: out.pageCount)
+            keys.insert(key)
             let template = p["template"]?.string ?? doc.page(key)?["template"]?.string
             entries.append(Entry(key: key, kind: type, template: template, pdfIndex: pdfIndex, rotation: normalized(extra)))
         }
-        return DisplayLayout(pdf: out, entries: entries)
+        return DisplayLayout(pdf: out, entries: entries, hidden: hidden)
     }
 
     static func normalized(_ degrees: Int) -> Int { ((degrees / 90 * 90) % 360 + 360) % 360 }

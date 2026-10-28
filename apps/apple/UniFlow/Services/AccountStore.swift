@@ -4,7 +4,7 @@ import UniFlowCore
 
 /// Konto der App (V1: "Mit Apple anmelden", docs/AUFTRAG-APPSTORE-V1.md Abschnitt 2a).
 ///
-/// Nutzerkennung (`credential.user`), Name und E-Mail liegen im Schluesselbund, der Merker "Tarifwahl schon gezeigt",
+/// Nutzerkennung (`credential.user`), Name und E-Mail liegen zusammen in einem Eintrag im Schluesselbund, der Merker "Tarifwahl schon gezeigt",
 /// die gewaehlte Hochschule je Nutzer und der Merker "Anmeldeseiten der Hochschule gezeigt" je Nutzer und Hochschule
 /// in UserDefaults (Hochschulwahl nach der Tarifwahl, docs/AUFTRAG-HILDESHEIM-IPAD.md Abschnitt 1; keine Erkennung aus
 /// E-Mail oder Name; direkt danach die Anmeldeseiten der Hochschule, Views/Onboarding/FirstLoginFlow.swift). Aus Nutzer
@@ -29,7 +29,14 @@ final class AccountStore: ObservableObject {
         static let user = "uniflow.apple.user"
         static let name = "uniflow.apple.name"
         static let email = "uniflow.apple.email"
-        static let secrets = [user, name, email]
+        /// Nutzerkennung, Name und E-Mail als ein Eintrag (JSON): ein Abbruch beim Anmelden hinterlaesst nie eine Kennung
+        /// ohne Namen (Pruefbericht 513; Apple liefert Name und E-Mail nur bei der ersten Zustimmung). Bis dahin drei
+        /// Eintraege `user`, `name`, `email`, die weiter gelesen werden.
+        static let account = "uniflow.apple.account"
+        static let secrets = [account, user, name, email]
+        /// Kontodaten im Schluesselbund muessen noch weg (Neuinstallation, oder Abmelden/Loeschen liess sie stehen): bis
+        /// das gelingt, gilt kein Eintrag als Anmeldung (Pruefbericht 511, 514)
+        static let cleanupPending = "uniflow.account.cleanupPending"
         static let planShown = "uniflow.onboarding.planShown"
         /// gewaehlte Hochschule je Apple-Nutzer (Kurzkennung, nie die Apple-ID selbst)
         static func university(_ userID: String) -> String { "uniflow.university." + DataContainerKey.userScope(userID) }
@@ -80,12 +87,19 @@ final class AccountStore: ObservableObject {
         self.secrets = secrets
         self.defaults = defaults
         self.checker = checker
-        // Neuinstallation: alte Schluesselbund-Eintraege einer geloeschten App nicht als Anmeldung uebernehmen
+        // Neuinstallation: alte Schluesselbund-Eintraege einer geloeschten App nicht als Anmeldung uebernehmen. Vorher
+        // wurde der Merker auch gesetzt, wenn das Loeschen scheiterte; beim naechsten Start galt der alte Eintrag dann
+        // als Anmeldung (511). Jetzt bleibt der Auftrag stehen, bis die Eintraege nachweislich weg sind.
         if !defaults.bool(forKey: Keys.installed) {
-            Keys.secrets.forEach(secrets.delete)
+            defaults.set(true, forKey: Keys.cleanupPending)
             defaults.set(true, forKey: Keys.installed)
         }
-        account = secrets.get(Keys.user).map { Account(userID: $0, name: secrets.get(Keys.name), email: secrets.get(Keys.email)) }
+        if defaults.bool(forKey: Keys.cleanupPending) {
+            if Self.removeSecrets(secrets) { defaults.removeObject(forKey: Keys.cleanupPending) }
+            account = nil
+        } else {
+            account = Self.storedAccount(secrets)
+        }
         planShown = defaults.bool(forKey: Keys.planShown)
         university = account.flatMap { Self.storedUniversity($0.userID, defaults) }
         loginDone = Self.storedLoginDone(account?.userID, university, defaults)
@@ -147,15 +161,20 @@ final class AccountStore: ObservableObject {
     }
 
     /// Kern der Anmeldung (auch fuer Tests): Name/E-Mail fehlen bei spaeteren Anmeldungen derselben Apple-ID,
-    /// dann bleiben die gespeicherten Werte.
+    /// dann bleiben die gespeicherten Werte. Nimmt der Schluesselbund die Anmeldung nicht an, gilt sie nicht (vorher
+    /// war man nur bis zum naechsten Start angemeldet, Pruefbericht 512).
     func signIn(userID: String, name: String?, email: String?) {
         let same = account?.userID == userID
         let next = Account(userID: userID,
                            name: Self.clean(name) ?? (same ? account?.name : nil),
                            email: Self.clean(email) ?? (same ? account?.email : nil))
-        secrets.set(next.userID, for: Keys.user)
-        if let n = next.name { secrets.set(n, for: Keys.name) } else { secrets.delete(Keys.name) }
-        if let e = next.email { secrets.set(e, for: Keys.email) } else { secrets.delete(Keys.email) }
+        guard secrets.store(Self.encode(next), for: Keys.account) else {
+            lastError = "Die Anmeldung ließ sich auf diesem iPad nicht speichern. Bitte versuche es erneut."
+            return
+        }
+        // Eintraege von vor dem gemeinsamen Eintrag: gelten nicht mehr (der gemeinsame geht beim Lesen vor)
+        for key in [Keys.user, Keys.name, Keys.email] { secrets.remove(key) }
+        defaults.removeObject(forKey: Keys.cleanupPending)
         account = next
         university = Self.storedUniversity(userID, defaults)
         loginDone = Self.storedLoginDone(userID, university, defaults)
@@ -194,12 +213,41 @@ final class AccountStore: ObservableObject {
         }
     }
 
-    /// Abmelden ohne Loeschen der Studiendaten; die Tarifwahl gilt fuer dieses Geraet als gezeigt
-    func signOut() {
-        Keys.secrets.forEach(secrets.delete)
+    /// Abmelden ohne Loeschen der Studiendaten; die Tarifwahl gilt fuer dieses Geraet als gezeigt. Blieb ein Eintrag
+    /// im Schluesselbund stehen, gilt er beim naechsten Start nicht als Anmeldung und wird dann erneut entfernt (vorher
+    /// war das Konto nach einem Neustart wieder angemeldet, Pruefbericht 514). Rueckgabe: alles entfernt.
+    @discardableResult
+    func signOut() -> Bool {
+        let removed = Self.removeSecrets(secrets)
+        if !removed { defaults.set(true, forKey: Keys.cleanupPending) }
         account = nil
         university = nil
         loginDone = false
+        return removed
+    }
+
+    /// Alle Kontoeintraege entfernen (jeder wird versucht); true, wenn keiner blieb
+    private static func removeSecrets(_ secrets: AccountSecretStore) -> Bool {
+        Keys.secrets.map { secrets.remove($0) }.allSatisfy { $0 }
+    }
+
+    private struct StoredAccount: Codable {
+        var user: String
+        var name: String?
+        var email: String?
+    }
+
+    private static func encode(_ a: Account) -> String {
+        let data = (try? JSONEncoder().encode(StoredAccount(user: a.userID, name: a.name, email: a.email))) ?? Data()
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// Gemeinsamer Eintrag, sonst die drei Eintraege von vorher
+    private static func storedAccount(_ secrets: AccountSecretStore) -> Account? {
+        if let raw = secrets.get(Keys.account), let s = try? JSONDecoder().decode(StoredAccount.self, from: Data(raw.utf8)), !s.user.isEmpty {
+            return Account(userID: s.user, name: s.name, email: s.email)
+        }
+        return secrets.get(Keys.user).map { Account(userID: $0, name: secrets.get(Keys.name), email: secrets.get(Keys.email)) }
     }
 
     // MARK: Hochschule
@@ -258,34 +306,43 @@ final class AccountStore: ObservableObject {
 
     /// Richtlinie 5.1.1(v): Konto-Eintraege und Schluesselbund entfernen, zurueck zur Begruessung.
     /// Abos laufen bei Apple weiter, bis der Nutzer sie dort kuendigt (Hinweis mit `manageSubscriptionsURL`).
-    func deleteAccount() {
+    /// `problems`: was die Schritte davor nicht loeschen konnten; dazu kommt ein Rest im Schluesselbund. Die Begruessung
+    /// zeigt beides (`deletionProblem`) statt nur "gelöscht" (Pruefbericht 515).
+    func deleteAccount(problems: [String] = []) {
         if let a = account {
             defaults.removeObject(forKey: Keys.university(a.userID))
             for u in UniversityKey.allCases { defaults.removeObject(forKey: Keys.loginDone(a.userID, u)) }
         }
-        signOut()
+        var left = problems
+        if !signOut() { left.append(Self.keychainLeft) }
         planShown = false
         defaults.removeObject(forKey: Keys.planShown)
         lastError = nil
         notice = .deleted
+        deletionProblem = left.isEmpty ? nil : left.joined(separator: "\n")
     }
+
+    static let keychainLeft = "Die Anmeldung mit Apple ließ sich nicht vollständig aus dem Schlüsselbund entfernen. Sie gilt nicht mehr; beim nächsten Start versucht die App es erneut."
 
     /// Ganzer Ablauf "Konto loeschen" aus den Einstellungen: erst die Daten des Kontos entfernen (`deletionSteps`:
     /// alle Container des Nutzers mit Dateien, Notizen, Stud.IP-Sitzung, Webdaten und Learnweb-Schluessel; die
     /// Server-PIN), danach das Konto selbst -> Begruessung. Daten anderer Konten auf dem iPad bleiben.
     /// `beforeWelcome` laeuft direkt vor dem Wechsel zur Begruessung (Dialoge schliessen, Route zuruecksetzen).
-    func deleteAccount(also steps: [() async -> Void], beforeWelcome: () -> Void = {}) async {
+    /// Jeder Schritt meldet, was blieb (nil = alles weg); vorher hatten die Schritte kein Ergebnis, ein Rest wurde nur
+    /// ueber einen eigenen Rueckruf gemeldet, ein zweiter ueberschrieb den ersten (515).
+    func deleteAccount(also steps: [() async -> String?], beforeWelcome: () -> Void = {}) async {
         deletionProblem = nil
-        for step in steps { await step() }
+        var problems: [String] = []
+        for step in steps { if let p = await step() { problems.append(p) } }
         beforeWelcome()
-        deleteAccount()
+        deleteAccount(problems: problems)
     }
 
     /// Schritte fuer `deleteAccount(also:)` in der App: alle Container dieses Nutzers (beide Hochschulen) samt
     /// Webdaten, Sitzungs-Cookies, Learnweb-Schluessel und Einstellungen loeschen, Server-PIN loeschen
-    static func deletionSteps(containers: ContainerManager, session: Session, userID: String,
-                              report: @escaping @MainActor (String) -> Void = { _ in }) -> [() async -> Void] {
-        [{ if let problem = await containers.deleteAllData(userID: userID) { report(problem) } }, { session.disconnect() }]
+    static func deletionSteps(containers: ContainerManager, session: Session, userID: String) -> [() async -> String?] {
+        [{ await containers.deleteAllData(userID: userID) },
+         { session.disconnect() ? nil : "Die Server-PIN ließ sich nicht aus dem Schlüsselbund entfernen." }]
     }
 
     #if DEBUG
@@ -308,13 +365,34 @@ protocol AccountSecretStore {
     func get(_ key: String) -> String?
     func set(_ value: String, for key: String)
     func delete(_ key: String)
+    /// Schreiben mit Ergebnis: true, wenn der Wert gespeichert ist
+    func store(_ value: String, for key: String) -> Bool
+    /// Entfernen mit Ergebnis: true, wenn der Eintrag danach fehlt
+    @discardableResult func remove(_ key: String) -> Bool
 }
 
-/// Schluesselbund ueber die vorhandenen Helfer in Session.swift
+extension AccountSecretStore {
+    /// Speicher ohne eigenes Ergebnis (Arbeitsspeicher in Tests): schreiben und nachlesen
+    func store(_ value: String, for key: String) -> Bool {
+        set(value, for: key)
+        return get(key) == value
+    }
+
+    @discardableResult
+    func remove(_ key: String) -> Bool {
+        delete(key)
+        return get(key) == nil
+    }
+}
+
+/// Schluesselbund ueber die vorhandenen Helfer in Session.swift; Ergebnisse aus dem Status von SecItem (ein
+/// gesperrter Schluesselbund liefert beim Lesen nichts und gilt trotzdem nicht als geloescht)
 struct KeychainSecretStore: AccountSecretStore {
     func get(_ key: String) -> String? { Keychain.get(key) }
     func set(_ value: String, for key: String) { Keychain.set(value, for: key) }
     func delete(_ key: String) { Keychain.delete(key) }
+    func store(_ value: String, for key: String) -> Bool { Keychain.set(value, for: key) }
+    @discardableResult func remove(_ key: String) -> Bool { Keychain.delete(key) }
 }
 
 // MARK: - Stand der Apple-ID

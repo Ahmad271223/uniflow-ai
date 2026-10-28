@@ -804,7 +804,7 @@ struct DocumentView: View {
                 Divider().frame(height: 14)
                 Label("\(foreignLayers.filter(\.visible).count) Lösung(en) eingeblendet", systemImage: "square.3.layers.3d").lineLimit(1)
             }
-            if let notice = store.notice ?? store.inkNotice {
+            if let notice = store.notice ?? store.pageNotice ?? store.inkNotice {
                 Divider().frame(height: 14)
                 Text(notice).lineLimit(1)
             }

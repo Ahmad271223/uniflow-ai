@@ -223,6 +223,8 @@ enum ObjectGeometry {
 /// (siehe `PageInkView`), damit Farben auf dem weissen Papier wie im Web aussehen.
 final class PageObjectsView: UIView {
     private var signature = ""
+    /// Zuletzt gezeigter Inhalt (fuer `update(images:)`)
+    private var shown: (template: String?, placeholder: String?, objects: [JSONValue])?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -234,10 +236,15 @@ final class PageObjectsView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) wird nicht genutzt") }
 
-    /// Inhalt setzen. Baut nur neu auf, wenn sich etwas geaendert hat.
+    /// Inhalt setzen. Baut nur neu auf, wenn sich etwas geaendert hat: Vorlage, Platzhalter, Objekte oder eines der
+    /// Bilder, die die Objekte zeigen. Die Bilder zaehlen mit ihrer Identitaet, nicht nur mit dem Schluessel: ein unter
+    /// demselben Schluessel ersetztes Bild wird gezeigt (Pruefbericht 501); Bilder anderer Seiten zaehlen nicht.
     func show(template: String?, placeholder: String?, objects: [JSONValue], images: [String: UIImage]) {
+        shown = (template, placeholder, objects)
         let others = objects.filter { $0["type"]?.string != "stroke" }
-        let sig = (template ?? "") + "|" + (placeholder ?? "") + "|" + JSONValue.array(others).jsonString(sortedKeys: true) + "|" + images.keys.sorted().joined(separator: ",")
+        let sources = Set(others.compactMap { $0["type"]?.string == "image" ? $0["src"]?.string : nil }).sorted()
+        let pictures = sources.map { src in images[src].map { "\(src)#\(ObjectIdentifier($0).hashValue)" } ?? src + "#-" }
+        let sig = (template ?? "") + "|" + (placeholder ?? "") + "|" + JSONValue.array(others).jsonString(sortedKeys: true) + "|" + pictures.joined(separator: ",")
         guard sig != signature else { return }
         signature = sig
         layer.sublayers?.forEach { $0.removeFromSuperlayer() }
@@ -255,6 +262,13 @@ final class PageObjectsView: UIView {
             addSubview(label)
         }
         for o in others { add(o, images: images) }
+    }
+
+    /// Bilder sind nachgeladen: den zuletzt gezeigten Inhalt mit ihnen zeigen (Pruefbericht 502; vorher zeichnete der
+    /// Rueckruf den Stand von vor dem Laden und nahm eine inzwischen gezeigte Aenderung zurueck)
+    func update(images: [String: UIImage]) {
+        guard let s = shown else { return }
+        show(template: s.template, placeholder: s.placeholder, objects: s.objects, images: images)
     }
 
     private func add(_ o: JSONValue, images: [String: UIImage]) {

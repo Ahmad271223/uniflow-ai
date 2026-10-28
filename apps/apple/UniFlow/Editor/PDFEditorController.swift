@@ -534,9 +534,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         overlay.objectsView.show(template: entry?.template, placeholder: placeholder, objects: objects, images: store.images)
         for o in objects where o["type"]?.string == "image" {
             if let src = o["src"]?.string, store.images[src] == nil {
+                // mit dem zuletzt gezeigten Inhalt neu zeichnen, nie mit dem Stand beim Anstossen (Pruefbericht 502)
                 store.loadImage(src) { [weak self, weak overlay] in
                     guard let self, let overlay else { return }
-                    overlay.objectsView.show(template: entry?.template, placeholder: placeholder, objects: objects, images: self.store.images)
+                    overlay.objectsView.update(images: self.store.images)
                 }
             }
         }

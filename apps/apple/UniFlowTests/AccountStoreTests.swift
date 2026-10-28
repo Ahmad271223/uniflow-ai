@@ -51,9 +51,10 @@ final class AccountStoreTests: XCTestCase {
         let s = store(secrets)
         s.signIn(userID: "001.abc", name: "Ada Lovelace", email: "ada@example.com")
         XCTAssertEqual(s.stage, .planPicker)
-        XCTAssertEqual(secrets.values[AccountStore.Keys.user], "001.abc")
-        XCTAssertEqual(secrets.values[AccountStore.Keys.name], "Ada Lovelace")
-        XCTAssertEqual(secrets.values[AccountStore.Keys.email], "ada@example.com")
+        // ein Eintrag fuer Kennung, Name und E-Mail (Pruefbericht 513, AuditRunde14AppTests)
+        let stored = try? JSONSerialization.jsonObject(with: Data((secrets.values[AccountStore.Keys.account] ?? "").utf8)) as? [String: String]
+        XCTAssertEqual(stored, ["user": "001.abc", "name": "Ada Lovelace", "email": "ada@example.com"])
+        XCTAssertNil(secrets.values[AccountStore.Keys.user])
         s.markPlanShown()
         XCTAssertEqual(s.stage, .universityPicker, "nach der Tarifwahl: Hochschule wählen")
         XCTAssertNil(s.containerKey)
@@ -182,8 +183,8 @@ final class AccountStoreTests: XCTestCase {
 
         var calls: [String] = []
         await s.deleteAccount(also: [
-            { calls.append("studip:\(s.stage)") },
-            { calls.append("pin:\(s.stage)") },
+            { calls.append("studip:\(s.stage)"); return nil },
+            { calls.append("pin:\(s.stage)"); return nil },
         ]) { calls.append("close:\(s.stage)") }
 
         XCTAssertEqual(calls, ["studip:ready", "pin:ready", "close:ready"], "alle Schritte vor dem Wechsel zur Begruessung")
