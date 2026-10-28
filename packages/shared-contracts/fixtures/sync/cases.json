@@ -317,6 +317,13 @@
          "sync_device": null
         },
         {
+         "key": "semester_rule_applied",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
          "key": "subjects_per_day",
          "value": "2",
          "sync_version": 1,
@@ -361,13 +368,6 @@
         {
          "key": "user_name",
          "value": "",
-         "sync_version": 1,
-         "sync_updated_at": "<zeit>",
-         "sync_device": null
-        },
-        {
-         "key": "semester_rule_applied",
-         "value": "1",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -729,6 +729,13 @@
          "sync_device": null
         },
         {
+         "key": "semester_rule_applied",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
          "key": "subjects_per_day",
          "value": "2",
          "sync_version": 1,
@@ -773,13 +780,6 @@
         {
          "key": "user_name",
          "value": "",
-         "sync_version": 1,
-         "sync_updated_at": "<zeit>",
-         "sync_device": null
-        },
-        {
-         "key": "semester_rule_applied",
-         "value": "1",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -1134,6 +1134,13 @@
          "sync_device": null
         },
         {
+         "key": "semester_rule_applied",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
          "key": "subjects_per_day",
          "value": "2",
          "sync_version": 1,
@@ -1178,13 +1185,6 @@
         {
          "key": "user_name",
          "value": "",
-         "sync_version": 1,
-         "sync_updated_at": "<zeit>",
-         "sync_device": null
-        },
-        {
-         "key": "semester_rule_applied",
-         "value": "1",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -1477,6 +1477,13 @@
          "sync_device": null
         },
         {
+         "key": "semester_rule_applied",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
          "key": "subjects_per_day",
          "value": "2",
          "sync_version": 1,
@@ -1521,13 +1528,6 @@
         {
          "key": "user_name",
          "value": "",
-         "sync_version": 1,
-         "sync_updated_at": "<zeit>",
-         "sync_device": null
-        },
-        {
-         "key": "semester_rule_applied",
-         "value": "1",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -1720,6 +1720,13 @@
          "sync_device": null
         },
         {
+         "key": "semester_rule_applied",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
          "key": "subjects_per_day",
          "value": "2",
          "sync_version": 1,
@@ -1764,13 +1771,6 @@
         {
          "key": "user_name",
          "value": "",
-         "sync_version": 1,
-         "sync_updated_at": "<zeit>",
-         "sync_device": null
-        },
-        {
-         "key": "semester_rule_applied",
-         "value": "1",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null

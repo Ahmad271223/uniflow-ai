@@ -1106,3 +1106,31 @@ Stand der Prüfung (Zweig `wip/stundenplan-abruftag` auf develop 55b8616):
 - **App:** 512 Tests (2 übersprungen) zweimal nacheinander grün.
 - **Python:** 452 bestanden; rot nur `test_sync.py::test_sync_fixture_matches_python`, derselbe wackelnde
   Sync-Generator.
+
+## Antwort der PC-Sitzung: Abruftag nachgezogen, Sync- und Bibliotheks-Fixture repariert (28.10.2026, Windows 0.4.5)
+
+Danke für den Befund mit echten Daten. Erledigt:
+- **Abruftag und Zeit vor dem ersten Abruf:** dieselbe Regel wie `StudIPCalendar.Coverage` in
+  `timetable.calendar_coverage` und `calendar_shows`. `studip_dated` fragt die Abdeckung, `_merge_dated` lässt Serien
+  eines Kurses ohne Kalendertermin ab dem Tag des letzten Abrufs weg (vorher ab dem Tag danach). `store_calendar`
+  behält IDs früherer Abrufe und entfernt nur, was ab dem Abrufzeitpunkt beginnt und nicht mehr im Kalender steht.
+  `_apply_calendar` bleibt bei „ab dem Tag nach dem Abruf“. Die sieben Fälle aus `StudIPCalendarFetchDayTests` stehen
+  als `tests/test_studip_fetch_day.py` (sechs Tests, die Übersicht steckt in `occurrences`). `woche.json` und
+  `timetable-logic.json` bleiben unverändert.
+- **Sync-Fixture wackelte:** Die Startzeilen bekamen auf feinen Uhren verschiedene Millisekunden. `tools/gen-sync-fixture.py`
+  gibt ihnen jetzt einen gemeinsamen Zeitstempel und wartet kurz, bevor der Fall beginnt. Die Reihenfolge folgt damit
+  bei Gleichstand dem Schlüssel. Neu erzeugt; im Linux-Container 8 von 8 Läufen stabil.
+- **`library-files.json` mit leeren base64-Inhalten:** Ursache war der ASGI-Helfer der Generatoren. Er meldete sofort
+  `http.disconnect`, ohne `spec_version`. Starlette hört dann auf das Trennen und bricht `FileResponse` ab, unter
+  Linux vor dem ersten Byte. Jetzt `spec_version: "2.4"` wie in `tests/conftest.py`
+  (`gen-local-backend-fixture.py`, `gen-timetable-fixture.py`). Neu erzeugt, 0 von 8 Downloads leer.
+  `LocalLibraryFixtureTests` sollte wieder grün sein.
+
+Noch offen auf der PC-Seite (nicht in 0.4.5):
+1. `pending_groups` ohne `fremd` und `kurs_fehlt` zählen (Bitte 1 vom 27.10.).
+2. Web: `studip-manual` und `studip-auto` im Termin-Fenster als „aus Stud.IP“ (Bitte 2 vom 27.10.).
+3. `impConfirm`: `existing_id` aus der Zeile selbst statt über Titel und Wochentag (Bitte 3 vom 27.10.).
+4. `PUT /api/terms` prüfen wie auf dem iPad (569) und 500er-Texte beim Import kürzen (555).
+5. Sichtbare Texte auf „Studora“ umbenennen (Web, Windows, `app/community.py`, `app/demo.py`).
+6. **Entscheidung des Inhabers nötig:** Soll „Zurücksetzen“ eines Stud.IP-Ausfalls den Termin als `attend` sichtbar
+   lassen? Und soll Learnweb (Hildesheim) auch nur aktive Kurse laden? Bis dahin bleibt es auf beiden Seiten, wie es ist.

@@ -42,16 +42,15 @@ UNI_KINDS = {"vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium
 
 def studip_dated(conn, start: date, end: date) -> list[dict]:
     """Die Termine, die Stud.IP dem Nutzer selbst in der Wochenansicht zeigt (27.10.2026, Wunsch des Inhabers: „lies
-    einfach den Stundenplan aus, die Kalenderwochen“): alle Einzeltermine aktiver Kurse (studip_events), ab dem Tag nach
-    dem Abruf des eigenen Kalenders nur die, die darin stehen (studip_calendar_dates: eigene Gruppen, Kurse mit
-    Kalenderbindung). Vorher oder ohne Kalender: alle Termine der aktiven Kurse. Liefert Vorkommen ohne Serie
+    einfach den Stundenplan aus, die Kalenderwochen“): alle Einzeltermine aktiver Kurse (studip_events), mit Kalender nur
+    die, die calendar_shows zeigt (eigene Gruppen, Kurse mit Kalenderbindung; Regel fuer den Abruftag und die Zeit
+    davor wie auf dem iPad, 28.10.2026). Ohne Kalender: alle Termine der aktiven Kurse. Liefert Vorkommen ohne Serie
     (event_id None, studip_id gesetzt); Serien aus course_events liefern dazu Teilnahme, Ausnahmen und Notizen."""
     rows = db.rows(conn, """SELECT s.*, c.title AS course_title, c.module_id, c.kind AS course_kind, m.name AS module_name, m.color AS module_color
                             FROM studip_events s JOIN courses c ON c.id=s.course_id LEFT JOIN modules m ON m.id=c.module_id
                             WHERE c.active=1 AND c.kind != 'sonstiges' AND s.start >= ? AND s.start < ? ORDER BY s.start""",
                    (start.isoformat(), (end + timedelta(days=1)).isoformat()))
-    cal = calendar_state(conn)
-    ids, since = (cal[0], (cal[1] + timedelta(days=1)).isoformat()) if cal else (set(), None)
+    cov = calendar_coverage(conn)
     out = []
     for r in rows:
         try:
@@ -59,8 +58,8 @@ def studip_dated(conn, start: date, end: date) -> list[dict]:
         except (ValueError, TypeError):
             continue
         di = st.date().isoformat()
-        if since and di >= since and r["id"] not in ids:
-            continue                                                    # andere Gruppe, nicht im eigenen Kalender
+        if cov is not None and not calendar_shows(cov, r["id"], r["course_id"], st, en):
+            continue                                                    # andere Gruppe oder Kurs ohne Kalendertermin
         title = r["course_title"]
         out.append({"event_id": None, "studip_id": r["id"], "date": di, "start": st.strftime("%H:%M"), "end": en.strftime("%H:%M"), "title": title,
                     "kind": "uebung" if r["course_kind"] == "uebung" else guess_kind(title), "module_id": r["module_id"], "module_name": r["module_name"],
@@ -96,14 +95,14 @@ def _merge_dated(conn, out: list[dict], dated: list[dict]) -> list[dict]:
     """Serien-Vorkommen und Stud.IP-Einzeltermine zusammenfuehren: derselbe Termin (_same_slot) -> die Serie bleibt
     (sie traegt Teilnahme, Ausnahmen, Notizen) und bekommt Termin-ID und Raum aus Stud.IP; sonst kommt der Einzeltermin
     dazu. Automatisch uebernommene Stud.IP-Serien (source genau 'studip') eines Kurses, von dem Einzeltermine bekannt
-    sind, zeigen nur, was Stud.IP kennt: ab dem Tag nach dem Kalenderabruf faellt alles weg, was zu einem Kurs ohne
+    sind, zeigen nur, was Stud.IP kennt: ab dem Tag des letzten Kalenderabrufs faellt alles weg, was zu einem Kurs ohne
     eigenen Kalendertermin gehoert (andere Gruppe, fruehere Veranstaltung); an Tagen ohne Stud.IP-Termin bleibt nur ein
     gespeicherter Ausfall oder eine eigene Ausnahme sichtbar. Von Hand bestaetigte und eigene Serien bleiben immer."""
     known = {r["course_id"]: (r["lo"][:10], r["hi"][:10]) for r in db.rows(
         conn, "SELECT course_id, MIN(start) AS lo, MAX(start) AS hi FROM studip_events GROUP BY course_id")}
-    cal = calendar_state(conn)
-    since = (cal[1] + timedelta(days=1)).isoformat() if cal else None
-    mine = {r["course_id"] for r in db.rows(conn, "SELECT DISTINCT course_id FROM studip_events WHERE id IN (SELECT id FROM studip_calendar_dates)")} if cal else set()
+    cov = calendar_coverage(conn)
+    since = cov["fetched"].date().isoformat() if cov else None          # ab dem Abruftag, nicht erst ab dem Tag danach
+    mine = cov["courses"] if cov else set()
     res, taken = [], set()
     for o in out:
         c = o.get("course_id")
@@ -619,13 +618,80 @@ def calendar_date_ids(ics: str) -> list[str]:
 
 
 def store_calendar(conn, ids: list[str], fetched_at: str | None = None) -> bool:
-    """Kalender ablegen; ein leerer Kalender (Fehler, alte Stud.IP-Fassung) aendert nichts. True, wenn gespeichert."""
+    """Kalender ablegen; ein leerer Kalender (Fehler, alte Stud.IP-Fassung) aendert nichts. True, wenn gespeichert.
+
+    IDs frueherer Abrufe bleiben mit ihrem Zeitpunkt (28.10.2026, wie StudIPCalendar.store auf dem iPad): entfernt wird
+    nur, was nicht mehr im Kalender steht und ab dem Abrufzeitpunkt beginnt (Datum aus studip_events); IDs ohne
+    bekannten Termin bleiben. So bleiben vergangene Tage auf dem zuletzt gesehenen Stand, max(fetched_at) ist der
+    letzte Abruf und min(fetched_at) der erste, der noch gilt (calendar_coverage)."""
     if not ids:
         return False
     at = fetched_at or db.now_iso()
-    conn.execute("DELETE FROM studip_calendar_dates")
+    now = _local_dt(at)
+    fresh = set(ids)
+    for r in db.rows(conn, "SELECT d.id, s.start FROM studip_calendar_dates d LEFT JOIN studip_events s ON s.id=d.id"):
+        if r["id"] in fresh:
+            continue
+        st = _local_dt(r["start"])
+        if now is None or st is None:
+            continue                                                    # Termin unbekannt: bleibt
+        if not _before(st, now):
+            conn.execute("DELETE FROM studip_calendar_dates WHERE id=?", (r["id"],))
     conn.executemany("INSERT OR REPLACE INTO studip_calendar_dates(id, fetched_at) VALUES (?,?)", [(i, at) for i in ids])
     return True
+
+
+def _local_dt(v) -> datetime | None:
+    try:
+        return datetime.fromisoformat(v) if v else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _before(a: datetime, b: datetime) -> bool:
+    """a liegt vor b, auf die Minute genau (wie StudIPCalendar.Coverage.before)."""
+    return (a.date(), a.hour * 60 + a.minute) < (b.date(), b.hour * 60 + b.minute)
+
+
+def _slot(course: str, st: datetime, en: datetime) -> str:
+    return f"{course}|{st.weekday()}|{st:%H:%M}|{en:%H:%M}"
+
+
+def calendar_coverage(conn) -> dict | None:
+    """Abdeckung des eigenen Kalenders (wie StudIPCalendar.Coverage auf dem iPad); None, solange es keinen gab.
+    ids: Termin-IDs aller Abrufe, die noch gelten; fetched: letzter Abruf; since: erster Abruf, der noch gilt (ab dort
+    steht jeder eigene Termin im Kalender); slots: Kurs|Wochentag|Beginn|Ende der Kalendertermine; courses: Kurse mit
+    mindestens einem Kalendertermin."""
+    cal = calendar_state(conn)
+    if cal is None:
+        return None
+    ids, day = cal
+    r = db.row(conn, "SELECT MAX(fetched_at) AS last, MIN(fetched_at) AS first FROM studip_calendar_dates")
+    fetched = _local_dt(r["last"]) or datetime(day.year, day.month, day.day)
+    since = _local_dt(r["first"]) or fetched
+    slots, courses = set(), set()
+    for x in db.rows(conn, "SELECT s.course_id, s.start, s.end FROM studip_events s JOIN studip_calendar_dates d ON d.id=s.id"):
+        st, en = _local_dt(x["start"]), _local_dt(x["end"])
+        if not x["course_id"] or st is None or en is None:
+            continue
+        courses.add(x["course_id"])
+        slots.add(_slot(x["course_id"], st, en))
+    return {"ids": ids, "fetched": fetched, "since": since, "slots": slots, "courses": courses}
+
+
+def calendar_shows(cov: dict, studip_id: str | None, course: str | None, st: datetime, en: datetime) -> bool:
+    """Zeigt die Woche diesen Stud.IP-Einzeltermin? Im Kalender: ja. Sonst nein, wenn der Kalender den Zeitpunkt
+    abdeckt (ab dem ersten Abruf, auch am Abruftag). Was vor dem ersten Abruf begann, entscheidet der Zeitschlitz:
+    derselbe Kurs, Wochentag, Beginn und Ende wie ein Kalendertermin heisst eigener Termin; ein Kurs ganz ohne
+    Kalendertermin faellt weg. Befund mit echten Daten (iPad, 28.10.2026): vorher zeigten der Abruftag und die Wochen
+    vor dem ersten Abruf jede parallele Uebungsgruppe."""
+    if studip_id and studip_id in cov["ids"]:
+        return True
+    if cov["since"] is not None and not _before(st, cov["since"]):
+        return False
+    if not course or course not in cov["courses"]:
+        return False
+    return _slot(course, st, en) in cov["slots"]
 
 
 def calendar_state(conn) -> tuple[set, date] | None:

@@ -13,6 +13,7 @@ import os
 import sqlite3
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +44,19 @@ def fresh_conn():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     db._init_db(conn)
+    # Zeilen aus dem Start (Einstellungen, Pseudokurs, Semester) bekommen EINEN Zeitstempel, danach eine kurze Pause:
+    # sonst lagen sie mit feiner Uhr (Mac) mal in verschiedenen Millisekunden, mal gleich, und tauschten im Abruf den
+    # Platz (ORDER BY sync_updated_at, Schluessel), etwa semester_rule_applied und hours_per_day (Befund 28.10.2026).
+    # Nur Zeilen mit anderem Wert werden geaendert, so greift der Trigger fuer unveraenderte Zeilen nicht.
+    from app import sync
+    tables = [t for t in sync.ENTITIES if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (t,)).fetchone()]
+    stamps = [conn.execute(f"SELECT MAX(sync_updated_at) FROM {t}").fetchone()[0] for t in tables]
+    t0 = max((x for x in stamps if x), default=None)
+    if t0:
+        for t in tables:
+            conn.execute(f"UPDATE {t} SET sync_updated_at=? WHERE sync_updated_at IS NOT ?", (t0, t0))
+    conn.commit()
+    time.sleep(0.05)
     conn.execute("INSERT OR IGNORE INTO courses(id, title, kind, active, created_at) VALUES ('c1', 'Kurs', 'vorlesung', 1, '2026-10-26')")
     conn.execute("INSERT OR IGNORE INTO files(id, course_id, name, kind, status) VALUES ('f1', 'c1', 'x.pdf', 'pdf', 'neu')")
     conn.commit()
