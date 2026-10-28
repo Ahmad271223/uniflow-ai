@@ -193,7 +193,9 @@ public enum TimetableEndpoints: LocalEndpointModule {
                         entries = LocalTimetableImport.parseICS(text)
                     }
                 } catch {
-                    let why = (error as? LocalHTTPError)?.detail.string ?? (error as? SQLiteError)?.message ?? "\(error)"
+                    // ohne Text von SQLite oder Dateipfade (Pruefbericht 555), Einzelheiten nur im Geraeteprotokoll
+                    if !(error is LocalHTTPError) { LocalBackendLog.unexpected(error, method: "POST", template: "/api/timetable/import/preview") }
+                    let why = (error as? LocalHTTPError)?.detail.string ?? LocalRouter.internalMessage(error)
                     throw LocalHTTPError(status: 500, message: "Import fehlgeschlagen: \(why)")
                 }
                 entries = try LocalTimetableImport.enrich(c, entries)

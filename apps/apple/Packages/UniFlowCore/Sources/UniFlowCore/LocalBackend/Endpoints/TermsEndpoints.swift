@@ -39,8 +39,27 @@ public enum LocalTerms {
     }
 }
 
+extension LocalTerms {
+    /// Beginn und Ende eines neuen Semesters (Pruefbericht 569): Datum in der Form JJJJ-MM-TT, Ende nicht vor dem
+    /// Beginn. Python speichert jeden Wert; danach verglichen Stundenplan und Lernlogik die Texte (`date_from`/
+    /// `date_to` der Serien fallen auf das Semester zurueck): mit vertauschten Daten verschwanden alle Serien ohne eigene
+    /// Daten aus dem Stundenplan, mit einem Text wie "kaputt" scheiterte die Woche zweiwoechentlicher Serien (500).
+    /// Hier 422 mit Meldung, das bisherige Semester bleibt aktiv.
+    static func checkRange(start: SQLiteValue, end: SQLiteValue) throws {
+        func day(_ v: SQLiteValue, _ what: String) throws -> Int {
+            guard let s = v.string, let d = BerlinClock.parseISODate(s), BerlinClock.isoDate(d) == s else {
+                throw LocalHTTPError(status: 422, message: "\(what) des Semesters ist kein gültiges Datum (JJJJ-MM-TT).")
+            }
+            return d
+        }
+        let s = try day(start, "Beginn"), e = try day(end, "Ende")
+        guard e >= s else { throw LocalHTTPError(status: 422, message: "Das Ende des Semesters liegt vor seinem Beginn.") }
+    }
+}
+
 /// `GET/PUT /api/terms`. PUT legt ein neues aktives Semester an (die alten werden inaktiv), wie auf dem PC.
-/// Abweichung: Fehlen `start` oder `end`, antwortet Python mit 500 (KeyError); hier 422 mit Meldung.
+/// Abweichungen: Fehlen `start` oder `end`, antwortet Python mit 500 (KeyError); hier 422 mit Meldung. Ungueltige
+/// Daten oder ein Ende vor dem Beginn speichert Python, hier 422 (`LocalTerms.checkRange`).
 public enum TermsEndpoints: LocalEndpointModule {
     public static let name = "Semester"
 
@@ -58,6 +77,7 @@ public enum TermsEndpoints: LocalEndpointModule {
             let name: SQLiteValue = LocalTerms.truthy(nameValue) ? try LocalTerms.bindable(nameValue ?? .null, field: "name") : .text("Semester")
             let s = try LocalTerms.bindable(start, field: "start")
             let e = try LocalTerms.bindable(end, field: "end")
+            try LocalTerms.checkRange(start: s, end: e)
             let term = try await ctx.database.transaction { c -> JSONValue in
                 try c.execute("UPDATE terms SET active=0")
                 try c.execute("INSERT INTO terms(name, start, end, active) VALUES (?,?,?,1)", [name, s, e])

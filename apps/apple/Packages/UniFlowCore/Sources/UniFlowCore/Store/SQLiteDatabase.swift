@@ -238,14 +238,16 @@ public final class SQLiteStatement {
             case .null: rc = sqlite3_bind_null(stmt, index)
             case .integer(let n): rc = sqlite3_bind_int64(stmt, index, n)
             case .real(let d): rc = sqlite3_bind_double(stmt, index, d)
+            // Laengen als 64-Bit-Zahl (Pruefbericht 557): vorher `Int32(...)`, ab 2 GiB brach die App dort ab; jetzt
+            // lehnt SQLite zu Grosses mit SQLITE_TOOBIG ab (Grenze SQLITE_LIMIT_LENGTH), der Fehler geht an den Aufrufer
             case .text(let s):
                 // ausdrueckliche Laenge: auch Texte mit \0 bleiben vollstaendig, "" wird nicht zu NULL
-                rc = s.withCString { sqlite3_bind_text(stmt, index, $0, Int32(s.utf8.count), sqliteTransient) }
+                rc = s.withCString { sqlite3_bind_text64(stmt, index, $0, sqlite3_uint64(s.utf8.count), sqliteTransient, UInt8(SQLITE_UTF8)) }
             case .blob(let d):
                 if d.isEmpty {
                     rc = sqlite3_bind_zeroblob(stmt, index, 0)     // leerer BLOB statt NULL
                 } else {
-                    rc = d.withUnsafeBytes { sqlite3_bind_blob(stmt, index, $0.baseAddress, Int32($0.count), sqliteTransient) }
+                    rc = d.withUnsafeBytes { sqlite3_bind_blob64(stmt, index, $0.baseAddress, sqlite3_uint64($0.count), sqliteTransient) }
                 }
             }
             guard rc == SQLITE_OK else { throw connection.error(.bind, rc, sql: sql) }
