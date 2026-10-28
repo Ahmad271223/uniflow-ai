@@ -548,14 +548,20 @@ final class AuditRunde11JournalTests: XCTestCase {
             let opened = await e.open(pdfPageCount: 1)
             await e.syncNow()
             store.setFailWrites(prefix: failing, true)
+            // Upload (uploadDelay 0) anhalten, bis der Status geprueft ist: sonst kann die Bestaetigung vorher
+            // ankommen, die Basis ist dann nicht mehr noetig und der Status zu Recht "wird hochgeladen"
+            await server.holdNext()
             await e.updatePage("p1", page(["a"]))
             var meta = opened.document.rootMeta
             meta["bookmarks"] = [["key": "p1", "title": "x"]]
             await e.updateRootMeta(meta)
+            let held = await waitUntil { await server.isHoldingPut }
+            XCTAssertTrue(held, "\(failing): Upload startet nach der Aenderung")
             if failing != "docs/doc1/acks.json" {
                 let before = await e.status
                 if case .localSaveFailed = before {} else { XCTFail("\(failing) vor dem Upload: \(before)") }
             }
+            await server.releaseHeldPut()
             await e.syncNow()
             let s = await e.status
             if failing == "docs/doc1/base" {
