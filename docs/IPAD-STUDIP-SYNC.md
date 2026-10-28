@@ -201,3 +201,11 @@ dieselbe Regel wie `calendar_date_ids`. Weiter nur auf dem iPad: Kurszeiten mit 
 Fragekarten; „Kurs fehlt im Kalender“ aus Einzelterminen nur bei Kursen ohne entschiedene Kurszeit; was der Kalender
 entschieden hat (`fremd`, `kurs_fehlt`), zählt nicht als offene Gruppe. Test mit den Erwartungen von
 `tests/test_studip_calendar.py` auf derselben Fixture: `StudIPCalendarSingleDatesTests` (Kern).
+
+**iPad seit dem Nachzug von e9a40d1, c0721da und ba02e47 (28.10.2026, `docs/UEBERGABE-APPLE-2026-10-28.md`):** Die
+Woche kommt wie am PC direkt aus den Einzelterminen (`LocalTimetable.studipDated`, `mergeDated`). Ab dem Tag nach dem
+Kalenderabruf zählen nur Termine aus dem eigenen Kalender, derselbe Termin in mehreren Räumen ist ein Eintrag.
+Automatisch übernommene Serien zeigen nur, was Stud.IP an dem Tag kennt; das gilt auf dem iPad auch für Serien aus
+Kurszeiten. Gespeicherte Ausnahmen bleiben sichtbar. Kurse früherer Semester plant der Abgleich nicht ein (`Semesters`,
+Abruf mit `end-semester`): keine Dateien, Termine, Aufzeichnungen und Module. Eigene Schalter in Einstellungen → Module
+bleiben (`active_custom`). Vertrag: `fixtures/studip-schedule/woche.json` (`StudIPWeekTests`).
