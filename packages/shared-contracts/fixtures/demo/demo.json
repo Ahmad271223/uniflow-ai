@@ -719,6 +719,7 @@
         "exam_date": null,
         "sort": 99,
         "created_at": "2026-10-28T09:30:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -736,7 +737,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-uebung",
@@ -748,7 +752,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 1
+        "module_id": 1,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-vorlesung",
@@ -760,7 +767,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 1
+        "module_id": 1,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [
@@ -1136,6 +1146,10 @@
         "value": "all"
        },
        {
+        "key": "semester_rule_applied",
+        "value": "1"
+       },
+       {
         "key": "subjects_per_day",
         "value": "2"
        },
@@ -1204,6 +1218,7 @@
         "exam_date": null,
         "sort": 99,
         "created_at": "2026-10-28T09:30:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -1221,7 +1236,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-uebung",
@@ -1233,7 +1251,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 2
+        "module_id": 2,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-vorlesung",
@@ -1245,7 +1266,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 2
+        "module_id": 2,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [
@@ -1621,6 +1645,10 @@
         "value": "all"
        },
        {
+        "key": "semester_rule_applied",
+        "value": "1"
+       },
+       {
         "key": "subjects_per_day",
         "value": "2"
        },
@@ -1690,7 +1718,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [],
@@ -1778,6 +1809,10 @@
        {
         "key": "pen_input",
         "value": "all"
+       },
+       {
+        "key": "semester_rule_applied",
+        "value": "1"
        },
        {
         "key": "subjects_per_day",
@@ -1831,7 +1866,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [],
@@ -1919,6 +1957,10 @@
        {
         "key": "pen_input",
         "value": "all"
+       },
+       {
+        "key": "semester_rule_applied",
+        "value": "1"
        },
        {
         "key": "subjects_per_day",
@@ -2256,6 +2298,7 @@
         "exam_date": null,
         "sort": 1,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -2273,7 +2316,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "k-la",
@@ -2285,7 +2331,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-01T09:00:00",
-        "module_id": 1
+        "module_id": 1,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [
@@ -2546,6 +2595,10 @@
         "value": "all"
        },
        {
+        "key": "semester_rule_applied",
+        "value": "1"
+       },
+       {
         "key": "subjects_per_day",
         "value": "2"
        },
@@ -2596,6 +2649,7 @@
         "exam_date": null,
         "sort": 1,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -2611,6 +2665,7 @@
         "exam_date": null,
         "sort": 99,
         "created_at": "2026-10-28T09:30:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -2628,7 +2683,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-uebung",
@@ -2640,7 +2698,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 2
+        "module_id": 2,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-vorlesung",
@@ -2652,7 +2713,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 2
+        "module_id": 2,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "k-la",
@@ -2664,7 +2728,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-01T09:00:00",
-        "module_id": 1
+        "module_id": 1,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [
@@ -3209,6 +3276,10 @@
         "value": "all"
        },
        {
+        "key": "semester_rule_applied",
+        "value": "1"
+       },
+       {
         "key": "subjects_per_day",
         "value": "2"
        },
@@ -3277,6 +3348,7 @@
         "exam_date": null,
         "sort": 1,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -3292,6 +3364,7 @@
         "exam_date": null,
         "sort": 99,
         "created_at": "2026-10-28T09:30:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -3309,7 +3382,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-uebung",
@@ -3321,7 +3397,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 2
+        "module_id": 2,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-vorlesung",
@@ -3333,7 +3412,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 2
+        "module_id": 2,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "k-la",
@@ -3345,7 +3427,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-01T09:00:00",
-        "module_id": 1
+        "module_id": 1,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [
@@ -3939,6 +4024,10 @@
         "value": "all"
        },
        {
+        "key": "semester_rule_applied",
+        "value": "1"
+       },
+       {
         "key": "subjects_per_day",
         "value": "2"
        },
@@ -4007,6 +4096,7 @@
         "exam_date": null,
         "sort": 1,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -4024,7 +4114,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "k-la",
@@ -4036,7 +4129,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-01T09:00:00",
-        "module_id": 1
+        "module_id": 1,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [
@@ -4308,6 +4404,10 @@
         "value": "all"
        },
        {
+        "key": "semester_rule_applied",
+        "value": "1"
+       },
+       {
         "key": "subjects_per_day",
         "value": "2"
        },
@@ -4358,6 +4458,7 @@
         "exam_date": null,
         "sort": 1,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -4373,6 +4474,7 @@
         "exam_date": null,
         "sort": 99,
         "created_at": "2026-10-28T09:30:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -4390,7 +4492,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-uebung",
@@ -4402,7 +4507,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 3
+        "module_id": 3,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "demo-vorlesung",
@@ -4414,7 +4522,10 @@
         "active": 1,
         "test_minutes": 60,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": 3
+        "module_id": 3,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "k-la",
@@ -4426,7 +4537,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-01T09:00:00",
-        "module_id": 1
+        "module_id": 1,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [
@@ -4978,6 +5092,10 @@
         "value": "all"
        },
        {
+        "key": "semester_rule_applied",
+        "value": "1"
+       },
+       {
         "key": "subjects_per_day",
         "value": "2"
        },
@@ -5046,6 +5164,7 @@
         "exam_date": null,
         "sort": 1,
         "created_at": "2026-10-01T09:00:00",
+        "active_custom": 0,
         "active": 1,
         "weekly_test": 1,
         "test_minutes": null,
@@ -5063,7 +5182,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-28T09:30:00",
-        "module_id": null
+        "module_id": null,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        },
        {
         "id": "k-la",
@@ -5075,7 +5197,10 @@
         "active": 1,
         "test_minutes": 90,
         "created_at": "2026-10-01T09:00:00",
-        "module_id": 1
+        "module_id": 1,
+        "semester_end": null,
+        "semester_ends_at": null,
+        "active_custom": 0
        }
       ],
       "files": [
@@ -5345,6 +5470,10 @@
        {
         "key": "pen_input",
         "value": "all"
+       },
+       {
+        "key": "semester_rule_applied",
+        "value": "1"
        },
        {
         "key": "subjects_per_day",

@@ -3,18 +3,48 @@ import UniFlowCore
 
 struct APIError: LocalizedError {
     let status: Int
-    /// Antworttext (bei FastAPI und dem lokalen Backend JSON mit "detail")
+    /// Antworttext (bei FastAPI und dem lokalen Backend JSON mit "detail"), gekuerzt
     let message: String
     /// eigene, verstaendliche Meldung der App (z. B. "Noch nicht geladen" im Editor); geht vor
     var text: String? = nil
+    /// "detail" aus dem ganzen Antworttext (`init(status:body:)`): vorher wurde erst gekuerzt und dann gelesen, ein
+    /// laengerer Text (z. B. eine Liste von Pruefungsfehlern) war dann kein JSON mehr und die Meldung ging verloren
+    var detail: String? = nil
 
     /// wie api() in core.js: Text aus "detail" der Antwort, sonst der HTTP-Statustext (z. B. "Not Found"). Eine eigene
     /// Meldung (`text`) geht vor: vorher zeigte der Editor fuer eine Nicht-PDF "No Error" und fuer eine nicht geladene
     /// Datei "Not Found".
     var errorDescription: String? {
         if let text { return text }
-        if let v = try? JSONValue.parse(message), let d = v["detail"]?.string, !d.isEmpty { return d }
+        if let detail, !detail.isEmpty { return detail }
+        if let d = Self.detail(in: Data(message.utf8)) { return d }
         return status > 0 ? HTTPURLResponse.localizedString(forStatusCode: status).capitalized : message
+    }
+
+    /// Hoechstens so viele Zeichen fuer `message` und `detail` (ganze Zeichen, kein halbes UTF-8)
+    static let messageLimit = 400
+    static let detailLimit = 1000
+
+    /// Fehler aus einer Antwort: "detail" aus dem ganzen Text, `message` gekuerzt
+    init(status: Int, body: Data) {
+        self.status = status
+        self.message = String(String(decoding: body, as: UTF8.self).prefix(Self.messageLimit))
+        self.detail = Self.detail(in: body)
+    }
+
+    init(status: Int, message: String, text: String? = nil, detail: String? = nil) {
+        self.status = status
+        self.message = message
+        self.text = text
+        self.detail = detail
+    }
+
+    /// "detail" einer FastAPI-Antwort: Text, oder bei Pruefungsfehlern (422) die Meldungen der Liste ("msg")
+    static func detail(in body: Data) -> String? {
+        guard let v = try? JSONValue.parse(body), let d = v["detail"] else { return nil }
+        if let s = d.string, !s.isEmpty { return String(s.prefix(detailLimit)) }
+        let msgs = (d.array ?? []).compactMap { $0["msg"]?.string ?? $0.string }.filter { !$0.isEmpty }
+        return msgs.isEmpty ? nil : String(msgs.prefix(3).joined(separator: "; ").prefix(detailLimit))
     }
 }
 
@@ -40,8 +70,8 @@ extension APIError: HTTPStatusError {
     var httpStatus: Int { status }
     /// "detail" der Antwort (z. B. 409 "noch nicht moeglich" des lokalen Backends)
     var httpDetail: String? {
-        guard let v = try? JSONValue.parse(message), let d = v["detail"]?.string, !d.isEmpty else { return nil }
-        return d
+        if let detail, !detail.isEmpty { return detail }
+        return Self.detail(in: Data(message.utf8))
     }
 }
 
@@ -111,8 +141,21 @@ final class APIClient: @unchecked Sendable {
         APIClient(base: localBase, transport: LocalTransport(host: host))
     }
 
+    /// Adresse fuer einen API-Pfad. Nur Pfade unter `/api/` derselben Quelle (Schema, Host, Port wie `base`): ein
+    /// absoluter Link oder ein Pfad wie `//anderer.host/…` (z. B. `src` eines Bildobjekts aus fremden Notizen) loeste
+    /// sich sonst gegen einen fremden Host auf, beim eigenen Server mit der PIN als Cookie.
+    static func url(_ path: String, base: URL) -> URL? {
+        guard let url = URL(string: path, relativeTo: base)?.absoluteURL,
+              url.scheme?.lowercased() == base.scheme?.lowercased(), url.host?.lowercased() == base.host?.lowercased(),
+              url.port == base.port, url.user == nil else { return nil }
+        // erster Pfadteil "api" (nach Aufloesen von "..")
+        let parts = url.standardized.pathComponents
+        guard parts.count >= 3, parts[0] == "/", parts[1] == "api" else { return nil }
+        return url
+    }
+
     private func request(_ path: String, method: String, body: Data?) throws -> URLRequest {
-        guard let url = URL(string: path, relativeTo: base)?.absoluteURL else {
+        guard let url = Self.url(path, base: base) else {
             throw APIError(status: -1, message: "Ungültiger Pfad \(path)")
         }
         var r = URLRequest(url: url)
@@ -130,9 +173,7 @@ final class APIClient: @unchecked Sendable {
 
     func json<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
         let (d, http) = try await data(path)
-        guard (200..<300).contains(http.statusCode) else {
-            throw APIError(status: http.statusCode, message: String(decoding: d.prefix(400), as: UTF8.self))
-        }
+        guard (200..<300).contains(http.statusCode) else { throw APIError(status: http.statusCode, body: d) }
         return try JSONDecoder().decode(T.self, from: d)
     }
 
@@ -141,49 +182,56 @@ final class APIClient: @unchecked Sendable {
         try await form(path, fields: fields, file: (fileField, fileName, mimeType, data))
     }
 
-    /// Formular wie FormData im Web (multipart/form-data), Datei optional
+    /// Formular wie FormData im Web (multipart/form-data), Datei optional. Kopfzeilen (Feld- und Dateiname, Typ)
+    /// bereinigt `MultipartBody` im Kern; eine erfolgreiche Antwort ohne Inhalt ist `.null` wie bei `value`, kein
+    /// Lesefehler (sonst hiesse ein gespeicherter Upload "fehlgeschlagen" und ein zweiter Versuch legte ihn doppelt an).
+    /// Der Upload wird nie automatisch wiederholt.
     func form(_ path: String, fields: [String: String], file: (field: String, name: String, mime: String, data: Data)? = nil) async throws -> JSONValue {
         let boundary = "uniflow-" + UUID().uuidString
-        let crlf = "\r\n"
-        var body = Data()
-        for (k, v) in fields.sorted(by: { $0.key < $1.key }) {
-            body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + k + "\"" + crlf + crlf + v + crlf).utf8))
-        }
-        if let file {
-            let safeName = file.name.components(separatedBy: CharacterSet(charactersIn: "\"\r\n")).joined(separator: "_")
-            body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + file.field + "\"; filename=\"" + safeName + "\"" + crlf
-                              + "Content-Type: " + file.mime + crlf + crlf).utf8))
-            body.append(file.data)
-            body.append(Data(crlf.utf8))
-        }
-        body.append(Data(("--" + boundary + "--" + crlf).utf8))
+        let body = MultipartBody.build(fields: fields, file: file.map { MultipartBody.File(field: $0.field, name: $0.name, mime: $0.mime, data: $0.data) },
+                                       boundary: boundary)
         var r = try request(path, method: "POST", body: nil)
         r.httpBody = body
         r.setValue("multipart/form-data; boundary=" + boundary, forHTTPHeaderField: "Content-Type")
         let (d, http) = try await transport.send(r)
-        guard (200..<300).contains(http.statusCode) else {
-            throw APIError(status: http.statusCode, message: String(decoding: d.prefix(400), as: UTF8.self))
-        }
-        return try JSONValue.parse(d)
+        guard (200..<300).contains(http.statusCode) else { throw APIError(status: http.statusCode, body: d) }
+        return d.isEmpty ? .null : try JSONValue.parse(d)
     }
 
     /// Roh-JSON (verlustfrei, auch fuer Felder, die die App nicht kennt).
     func value(_ path: String, method: String = "GET", body: JSONValue? = nil) async throws -> JSONValue {
         let (d, http) = try await data(path, method: method, body: body?.serialized())
-        guard (200..<300).contains(http.statusCode) else {
-            throw APIError(status: http.statusCode, message: String(decoding: d.prefix(400), as: UTF8.self))
-        }
+        guard (200..<300).contains(http.statusCode) else { throw APIError(status: http.statusCode, body: d) }
         return d.isEmpty ? .null : try JSONValue.parse(d)
     }
 }
 
 /// Notizen ueber `GET/PUT /api/files/{id}/annotations` (409 bei Konflikt, siehe app/server.py).
+///
+/// Server (app/server.py) und lokales Backend (`AnnotationEndpoints`) antworten immer mit `version` (GET, PUT, 409)
+/// und `data` als Objekt (GET, 409). Fehlt das, ist die Antwort unbrauchbar: kein Stand "Version 0, leer", keine
+/// geratene Version `baseVersion + 1`, kein leeres Dokument als Konfliktstand. Ein leerer Konfliktstand liess die
+/// Zusammenfuehrung alle hier unveraenderten Seiten als "auf dem Server geloescht" werten, der naechste Upload haette
+/// sie dort geloescht. Stattdessen ein Serverfehler (502): die Notizen bleiben im Journal, der Abgleich versucht es mit
+/// wachsendem Abstand erneut (`SyncEngine`, `SyncIssue.serverfehler`).
 struct HTTPAnnotationTransport: AnnotationTransport {
     let api: APIClient
 
+    static func invalid(_ what: String) -> APIError {
+        APIError(status: 502, message: what, text: "Ungültige Antwort des Servers (\(what)) – deine Notizen bleiben lokal gesichert.")
+    }
+
+    /// `version` als ganze Zahl ab 0 (bei 409 und nach dem Speichern ab 1)
+    static func version(_ v: JSONValue, minimum: Int) -> Int? {
+        guard let n = v["version"]?.int, n >= minimum, v["version"]?.double == Double(n) else { return nil }
+        return n
+    }
+
     func fetch(documentID: String) async throws -> ServerSnapshot {
         let v = try await api.value("/api/files/\(documentID)/annotations")
-        return ServerSnapshot(version: v["version"]?.int ?? 0, root: v["data"] ?? AnnotationDocument.emptyRoot)
+        guard let version = Self.version(v, minimum: 0) else { throw Self.invalid("Notizen ohne Versionsnummer") }
+        guard let data = v["data"], data.object != nil else { throw Self.invalid("Notizen ohne Daten") }
+        return ServerSnapshot(version: version, root: data)
     }
 
     func put(documentID: String, root: JSONValue, baseVersion: Int) async throws -> PutOutcome {
@@ -191,16 +239,21 @@ struct HTTPAnnotationTransport: AnnotationTransport {
                                            method: "PUT", body: root.serialized())
         switch http.statusCode {
         case 200..<300:
-            let v = try JSONValue.parse(d)
-            return .saved(version: v["version"]?.int ?? baseVersion + 1)
+            guard let v = try? JSONValue.parse(d), let version = Self.version(v, minimum: 1) else {
+                throw Self.invalid("gespeichert ohne Versionsnummer")
+            }
+            return .saved(version: version)
         case 409:
             // Konflikt nur mit neuerem Stand; 409 ohne "version" heisst "kann hier nicht speichern" (lokales Backend:
             // Dokument fehlt in der Datenbank): Fehler mit Meldung, die Notizen bleiben im Journal
-            let v = try JSONValue.parse(d)
-            guard v["version"] != nil else { throw APIError(status: 409, message: String(decoding: d.prefix(400), as: UTF8.self)) }
-            return .conflict(ServerSnapshot(version: v["version"]?.int ?? 0, root: v["data"] ?? AnnotationDocument.emptyRoot))
+            let v = (try? JSONValue.parse(d)) ?? .null
+            guard v["version"] != nil else { throw APIError(status: 409, body: d) }
+            guard let version = Self.version(v, minimum: 1), let data = v["data"], data.object != nil else {
+                throw Self.invalid("Konflikt ohne Serverstand")
+            }
+            return .conflict(ServerSnapshot(version: version, root: data))
         default:
-            throw APIError(status: http.statusCode, message: String(decoding: d.prefix(300), as: UTF8.self))
+            throw APIError(status: http.statusCode, body: d)
         }
     }
 }

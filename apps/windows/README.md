@@ -106,6 +106,13 @@ MSIX-Paket fuer den Store (Store signiert und verteilt Updates selbst): `msix/RE
 Zweiter Start (Doppelklick bei laufender App): das Einzelinstanz-Plugin holt das offene Fenster nach vorn, es gibt nie
 zwei Backends auf derselben Datenbank (seit 0.3.6).
 
+## Nur das aktuelle Semester
+
+Stud.IP liefert alle je belegten Veranstaltungen. Die App erkennt am Semester in Stud.IP (`end-semester`, sonst
+Semestertitel), ob ein Kurs noch läuft (`app/semesters.py`): nur aktuelle Kurse sind aktiv, bekommen Termine, Dateien
+und KI-Analysen und landen im Plan; Module ohne aktiven Kurs sind aus, ihre Unterlagen bleiben in der Bibliothek.
+Einstellungen → Module: jeder Kurs hat einen Schalter, eigene Entscheidungen überschreibt der Abgleich nicht.
+
 ## Konto entfernen (Laptop weitergeben, anderer Account)
 
 Einstellungen → Konto → Stud.IP-/Learnweb-Anmeldung → „Konto entfernen“ (`POST /api/university/reset`, `app/reset.py`):

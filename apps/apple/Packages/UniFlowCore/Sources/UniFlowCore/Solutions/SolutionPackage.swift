@@ -45,6 +45,9 @@ public enum SolutionError: Error, Equatable, CustomStringConvertible, LocalizedE
     case imageTooLarge
     /// Eine andere Loesung mit derselben Loesungs-ID ist schon gespeichert (sie bleibt erhalten).
     case conflictingSolution
+    /// Beim Erzeugen: PDF-Seite aus `pageOrder`, die es in der eigenen PDF nicht (mehr) gibt (z. B. neue Fassung mit
+    /// weniger Seiten); der Editor zeigt sie nicht.
+    case pageNotInPDF
     /// Fehler auf einer bestimmten Seite beim Erzeugen (Seitenbezeichnung fuer den Dialog).
     indirect case onPage(String, SolutionError)
 
@@ -68,6 +71,7 @@ public enum SolutionError: Error, Equatable, CustomStringConvertible, LocalizedE
         case .imageTooLarge: return "Die Lösung enthält ein Bild mit zu großen Abmessungen. Sie wird nicht angezeigt."
         case .conflictingSolution:
             return "Eine andere Lösung mit derselben Kennung ist schon gespeichert. Die vorhandene Lösung bleibt erhalten."
+        case .pageNotInPDF: return "Diese Seite gibt es in der PDF-Datei nicht (mehr), z. B. nach einer neuen Fassung mit weniger Seiten."
         case .onPage(let page, let inner): return "\(page): \(inner.description)"
         }
     }

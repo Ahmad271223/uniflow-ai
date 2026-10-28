@@ -151,6 +151,7 @@
          "exam_date": null,
          "sort": 0,
          "created_at": null,
+         "active_custom": 0,
          "active": 1,
          "weekly_test": 1,
          "test_minutes": null,
@@ -363,6 +364,13 @@
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
+        },
+        {
+         "key": "semester_rule_applied",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
         }
        ]
       },
@@ -498,6 +506,7 @@
          "exam_date": null,
          "sort": 0,
          "created_at": null,
+         "active_custom": 0,
          "active": 1,
          "weekly_test": 1,
          "test_minutes": null,
@@ -560,6 +569,7 @@
          "exam_date": null,
          "sort": 0,
          "created_at": null,
+         "active_custom": 0,
          "active": 1,
          "weekly_test": 1,
          "test_minutes": null,
@@ -595,6 +605,7 @@
          "exam_date": null,
          "sort": 0,
          "created_at": null,
+         "active_custom": 0,
          "active": 1,
          "weekly_test": 1,
          "test_minutes": null,
@@ -762,6 +773,13 @@
         {
          "key": "user_name",
          "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "semester_rule_applied",
+         "value": "1",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
@@ -1163,6 +1181,13 @@
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
+        },
+        {
+         "key": "semester_rule_applied",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
         }
        ]
       },
@@ -1499,6 +1524,13 @@
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null
+        },
+        {
+         "key": "semester_rule_applied",
+         "value": "1",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
         }
        ],
        "annotations": [
@@ -1732,6 +1764,13 @@
         {
          "key": "user_name",
          "value": "",
+         "sync_version": 1,
+         "sync_updated_at": "<zeit>",
+         "sync_device": null
+        },
+        {
+         "key": "semester_rule_applied",
+         "value": "1",
          "sync_version": 1,
          "sync_updated_at": "<zeit>",
          "sync_device": null

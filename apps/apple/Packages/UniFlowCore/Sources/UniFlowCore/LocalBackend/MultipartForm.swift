@@ -22,6 +22,8 @@ public struct MultipartForm: Sendable, Equatable {
     }
 
     /// Zerlegt den Inhalt anhand der Grenze aus `Content-Type: multipart/form-data; boundary=...`.
+    /// Gelesen wird direkt im Speicher von `body` (keine Kopie des ganzen Formulars als Byte-Liste): bei einem grossen
+    /// Upload lag die Datei sonst dreimal im Speicher (Formular, Kopie, Dateiinhalt), jetzt zweimal (Pruefbericht 412).
     public static func parse(_ body: Data, contentType: String) throws -> MultipartForm {
         let params = contentType.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
         guard params.first?.lowercased() == "multipart/form-data" else { throw malformed("kein multipart/form-data") }
@@ -30,11 +32,13 @@ public struct MultipartForm: Sendable, Equatable {
             guard kv.count == 2, kv[0].lowercased() == "boundary" else { return nil }
             return unquote(String(kv[1]))
         }).first, !b.isEmpty else { throw malformed("Grenze fehlt") }
-
-        let bytes = [UInt8](body)
         let delimiter = Array("--\(b)".utf8)
+        return try body.withUnsafeBytes { try parts($0, delimiter: delimiter) }
+    }
+
+    private static func parts(_ bytes: UnsafeRawBufferPointer, delimiter: [UInt8]) throws -> MultipartForm {
         var form = MultipartForm()
-        guard var pos = find(delimiter, in: bytes, from: 0) else { throw malformed("Grenze nicht gefunden") }
+        guard var pos = find(delimiter, in: bytes, from: 0), let start = bytes.baseAddress else { throw malformed("Grenze nicht gefunden") }
         while true {
             pos += delimiter.count
             // "--" nach der Grenze: Ende des Formulars
@@ -51,7 +55,7 @@ public struct MultipartForm: Sendable, Equatable {
             var dataEnd = next
             if dataEnd >= dataStart + 2, bytes[dataEnd - 2] == 0x0D, bytes[dataEnd - 1] == 0x0A { dataEnd -= 2 }
             else if dataEnd >= dataStart + 1, bytes[dataEnd - 1] == 0x0A { dataEnd -= 1 }
-            try form.add(head: head, data: Data(bytes[dataStart..<dataEnd]))
+            try form.add(head: head, data: Data(bytes: start + dataStart, count: dataEnd - dataStart))
             pos = next
         }
         return form
@@ -110,13 +114,13 @@ public struct MultipartForm: Sendable, Equatable {
         s.count >= 2 && s.hasPrefix("\"") && s.hasSuffix("\"") ? String(s.dropFirst().dropLast()) : s
     }
 
-    private static func skipLineBreak(_ b: [UInt8], _ p: Int) -> Int {
+    private static func skipLineBreak(_ b: UnsafeRawBufferPointer, _ p: Int) -> Int {
         if p + 1 < b.count, b[p] == 0x0D, b[p + 1] == 0x0A { return p + 2 }
         if p < b.count, b[p] == 0x0A { return p + 1 }
         return p
     }
 
-    private static func find(_ needle: [UInt8], in hay: [UInt8], from start: Int) -> Int? {
+    private static func find(_ needle: [UInt8], in hay: UnsafeRawBufferPointer, from start: Int) -> Int? {
         guard !needle.isEmpty, hay.count >= needle.count, start <= hay.count - needle.count else { return nil }
         let first = needle[0]
         var i = start
@@ -130,5 +134,62 @@ public struct MultipartForm: Sendable, Equatable {
             i += 1
         }
         return nil
+    }
+}
+
+/// Inhalt eines Formulars wie FormData im Web (`APIClient.form` in der App), Gegenstueck zu `MultipartForm.parse`.
+/// Feldname, Dateiname und Typ stehen in Kopfzeilen; dort duerfen weder Anfuehrungszeichen, Backslash noch
+/// Steuerzeichen (Zeilenumbruch) stehen, sonst liessen sich weitere Kopfzeilen oder Felder einschleusen bzw. ginge ein
+/// Zeichen verloren (der Backslash leitet in Anfuehrungszeichen eine Maskierung ein). Sie werden zu "_"; andere
+/// Unicode-Zeichen (Umlaute, Emoji, Semikolon) bleiben, wie Browser sie senden (UTF-8).
+public enum MultipartBody {
+    public struct File: Sendable {
+        public var field: String
+        public var name: String
+        public var mime: String
+        public var data: Data
+
+        public init(field: String, name: String, mime: String, data: Data) {
+            self.field = field
+            self.name = name
+            self.mime = mime
+            self.data = data
+        }
+    }
+
+    /// Text fuer einen Kopf-Parameter in Anfuehrungszeichen (Feld- oder Dateiname)
+    public static func headerValue(_ s: String) -> String {
+        String(String.UnicodeScalarView(s.unicodeScalars.map { u in
+            u == "\"" || u == "\\" || u.value < 0x20 || u.value == 0x7F ? "_" : u
+        }))
+    }
+
+    /// Inhaltstyp `typ/untertyp` aus erlaubten Zeichen (RFC 6838), sonst `application/octet-stream`
+    public static func mimeType(_ s: String) -> String {
+        let parts = s.split(separator: "/", omittingEmptySubsequences: false)
+        func ok(_ p: Substring) -> Bool {
+            !p.isEmpty && p.count <= 127 && p.unicodeScalars.allSatisfy { u in
+                (u >= "a" && u <= "z") || (u >= "A" && u <= "Z") || (u >= "0" && u <= "9") || "!#$&^_.+-".unicodeScalars.contains(u)
+            }
+        }
+        guard parts.count == 2, ok(parts[0]), ok(parts[1]) else { return "application/octet-stream" }
+        return s
+    }
+
+    /// Textfelder (nach Namen sortiert) und hoechstens eine Datei, Grenze `boundary`
+    public static func build(fields: [String: String], file: File?, boundary: String) -> Data {
+        let crlf = "\r\n"
+        var body = Data()
+        for (k, v) in fields.sorted(by: { $0.key < $1.key }) {
+            body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + headerValue(k) + "\"" + crlf + crlf + v + crlf).utf8))
+        }
+        if let file {
+            body.append(Data(("--" + boundary + crlf + "Content-Disposition: form-data; name=\"" + headerValue(file.field) + "\"; filename=\""
+                              + headerValue(file.name) + "\"" + crlf + "Content-Type: " + mimeType(file.mime) + crlf + crlf).utf8))
+            body.append(file.data)
+            body.append(Data(crlf.utf8))
+        }
+        body.append(Data(("--" + boundary + "--" + crlf).utf8))
+        return body
     }
 }

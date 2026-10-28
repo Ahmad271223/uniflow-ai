@@ -321,6 +321,12 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
 
 /* ---------- Zeitmesser ---------- */
 .timer-widget { position: fixed; right: 1rem; bottom: 1rem; width: 260px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-lg); z-index: 45; padding: .8rem; animation: fade .15s ease; }
+.timer-widget { width: min(320px, calc(100vw - 2rem)); }
+.timer-widget > .row.between { flex-wrap: nowrap; gap: .4rem; align-items: center; }
+.timer-widget .seg { flex: 1; min-width: 0; display: flex; }
+.timer-widget .seg button { flex: 1 1 0; min-width: 0; padding: .3rem .35rem; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timer-widget [data-t=close] { flex: none; }
+.timer-widget .row:not(.between) { flex-wrap: wrap; gap: .35rem; }
 .timer-widget .big { font-size: 2rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; margin: .3rem 0; }
 .timer-widget .big.done { color: var(--bad); }
 .timer-pill { position: fixed; right: 1rem; bottom: 1rem; background: var(--accent); color: #fff; border-radius: 999px; padding: .4rem .8rem; font-variant-numeric: tabular-nums; z-index: 45; cursor: pointer; box-shadow: var(--sh-lg); font-weight: 600; }
@@ -349,7 +355,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
 .cal2-col { position: relative; border-left: 1px solid var(--line); background-image: linear-gradient(var(--line) 1px, transparent 1px); background-size: 100% var(--hour, 60px); border-radius: 4px; }
 .cal2-col.today { background-color: color-mix(in srgb, var(--accent-soft) 40%, transparent); } .cal2-col.drop { background-color: var(--accent-soft); }
 .cal2-ev { position: absolute; left: 3px; right: 3px; border-radius: 10px; padding: .35rem .5rem; background: color-mix(in srgb, var(--ec) 13%, var(--surface)); border-left: 3px solid var(--ec); font-size: .72rem; line-height: 1.25; overflow: hidden; cursor: pointer; color: var(--text); transition: box-shadow var(--t); }
-.cal2-ev:hover { box-shadow: var(--sh); z-index: 2; } .cal2-ev .t { color: var(--text-2); font-size: .68rem; } .cal2-ev b { display: block; font-size: .76rem; margin: .1rem 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cal2-ev:hover { box-shadow: var(--sh); z-index: 2; } .cal2-ev .t { color: var(--text-2); font-size: .68rem; } .cal2-ev b { display: block; font-size: .78rem; margin: .1rem 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .cal2-ev .r { color: var(--muted); font-size: .68rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal2-ev.study { background: color-mix(in srgb, var(--info) 10%, var(--surface)); border-left-color: var(--ec, var(--info)); }
 .cal2-ev .foot { display: flex; align-items: center; justify-content: space-between; margin-top: .3rem; gap: .3rem; } .cal2-ev .foot .status-pill { font-size: .66rem; padding: .05rem .4rem; }

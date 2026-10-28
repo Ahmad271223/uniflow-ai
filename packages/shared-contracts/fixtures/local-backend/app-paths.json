@@ -333,6 +333,9 @@
         "pen_input": {
          "type": "string"
         },
+        "semester_rule_applied": {
+         "type": "string"
+        },
         "subjects_per_day": {
          "type": "number"
         },
@@ -429,6 +432,9 @@
        "active": {
         "type": "number"
        },
+       "active_custom": {
+        "type": "number"
+       },
        "created_at": {
         "type": "string"
        },
@@ -451,6 +457,12 @@
         "type": "null"
        },
        "semester": {
+        "type": "null"
+       },
+       "semester_end": {
+        "type": "null"
+       },
+       "semester_ends_at": {
         "type": "null"
        },
        "subject": {
@@ -606,6 +618,9 @@
          "type": "number"
         },
         "pen_input": {
+         "type": "string"
+        },
+        "semester_rule_applied": {
          "type": "string"
         },
         "subjects_per_day": {
@@ -1375,6 +1390,9 @@
        "type": "number"
       },
       "pen_input": {
+       "type": "string"
+      },
+      "semester_rule_applied": {
        "type": "string"
       },
       "subjects_per_day": {
@@ -2524,6 +2542,9 @@
       "active": {
        "type": "number"
       },
+      "active_custom": {
+       "type": "number"
+      },
       "color": {
        "type": "string"
       },
@@ -3368,6 +3389,9 @@
        "type": "number"
       },
       "pen_input": {
+       "type": "string"
+      },
+      "semester_rule_applied": {
        "type": "string"
       },
       "subjects_per_day": {
