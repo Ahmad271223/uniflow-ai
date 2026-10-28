@@ -28,6 +28,7 @@ def wire_hosted_services() -> None:
     (Lifespan unter uvicorn und in der Windows-App); am eigenen PC bleibt es beim Protokolleintrag ohne Token."""
     if config.is_hosted():
         accounts.reset_sender = mail.send_reset
+        accounts.verify_sender = mail.send_verify
 
 
 @asynccontextmanager

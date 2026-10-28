@@ -59,6 +59,8 @@ def build() -> dict:
     accounts.db_path().unlink(missing_ok=True)
     accounts.identity_verifiers.clear()
     accounts.identity_verifiers["apple"] = lambda t: {"subject": "apple-subject-1", "email": "relay@privaterelay.appleid.com"} if t == "<apple-identity-token>" else None
+    mails: list[tuple[str, str]] = []
+    accounts.verify_sender = lambda email, tok: mails.append((email, tok))
     flows: list[dict] = []
 
     def call(step, method, path, body=None, token=None, cookies=None):
@@ -98,6 +100,22 @@ def build() -> dict:
     call("Reset anfordern (Antwort immer gleich)", "POST", "/api/account/password/reset-request", {"email": "erika@beispiel.de"})
     call("Reset anfordern: unbekannte Adresse", "POST", "/api/account/password/reset-request", {"email": "niemand@beispiel.de"})
     call("Reset mit ungueltigem Token", "POST", "/api/account/password/reset", {"token": "abgelaufen", "new_password": pw2})
+    # E-Mail-Adresse bestaetigen (28.10.2026): Link aus der Mail, erneut senden, ungueltiger Link
+    call("Bestaetigungslink erneut senden", "POST", "/api/account/verify-email/resend", token=login2["token"])
+    call("Bestaetigen mit ungueltigem Link", "POST", "/api/account/verify-email", {"token": "kaputt"})
+    st, _ = call("Bestaetigen mit dem Link aus der Mail (ohne Sitzung)", "POST", "/api/account/verify-email", {"token": mails[-1][1]})
+    flows[-1]["request"] = {"token": "<token aus /login?verify=...>"}
+    call("Derselbe Link noch einmal", "POST", "/api/account/verify-email", {"token": mails[-1][1]})
+    flows[-1]["request"] = {"token": "<token aus /login?verify=...>"}
+    call("Erneut senden, schon bestaetigt", "POST", "/api/account/verify-email/resend", token=login2["token"])
+    # Datenexport: ZIP (Antwort ist kein JSON; aufgezeichnet werden Status, Typ und Dateiliste)
+    st, hdrs, raw = asgi_call(app, "GET", "/api/account/export", headers={"Authorization": f"Bearer {login2['token']}"})
+    import io
+    import zipfile
+    names = sorted(n for n in zipfile.ZipFile(io.BytesIO(raw)).namelist() if not n.startswith("daten/")) if st == 200 else []
+    flows.append({"step": "Datenexport (ZIP)", "method": "GET", "path": "/api/account/export", "auth": True, "request": None,
+                  "status": st, "response": None, "content_type": dict((k.decode(), v.decode()) for k, v in hdrs).get("content-type"),
+                  "zip_entries_ohne_daten": names})
     call("Hochschule wechseln", "POST", "/api/account/university", {"university": "luh"}, token=login2["token"])
     call("Hochschule ueber Einstellungen (nicht erlaubt)", "PUT", "/api/settings", {"university": "hildesheim"}, token=login2["token"])
     call("Apple verknuepfen", "POST", "/api/account/link/apple", {"identity_token": "<apple-identity-token>"}, token=login2["token"])
@@ -112,10 +130,21 @@ def build() -> dict:
     for i in range(accounts.MAX_FAILS):
         asgi_call(app, "POST", "/api/account/login", body=json.dumps({"email": "sperre@beispiel.de", "password": "falsch"}))
     call("Nach 8 Fehlversuchen gesperrt", "POST", "/api/account/login", {"email": "sperre@beispiel.de", "password": "egal"})
+    # Grenzen (Zaehler je IP; im Generator kleine Werte, damit der Ablauf kurz bleibt)
+    saved = dict(accounts.LIMITS)
+    accounts.LIMITS.update(register_ip=(1, 60), reset_ip=(1, 60))
+    with accounts.cursor() as conn:
+        conn.execute("DELETE FROM rate_limits")
+    call("Registrieren: erste Anfrage dieser IP", "POST", "/api/account/register", {"email": "grenze@beispiel.de", "password": pw, "university": "luh"})
+    call("Registrieren: Grenze je IP erreicht (Retry-After)", "POST", "/api/account/register", {"email": "grenze2@beispiel.de", "password": pw, "university": "luh"})
+    call("Reset anfordern: erste Anfrage dieser IP", "POST", "/api/account/password/reset-request", {"email": "grenze@beispiel.de"})
+    call("Reset anfordern: Grenze je IP erreicht", "POST", "/api/account/password/reset-request", {"email": "grenze@beispiel.de"})
+    accounts.LIMITS.clear()
+    accounts.LIMITS.update(saved)
 
     errors = {}
     for f in flows:
-        r = f["response"]
+        r = f.get("response")
         if isinstance(r, dict) and r.get("code"):
             errors.setdefault(r["code"], {"status": f["status"], "message": r["detail"]})
     errors["not_hosted"] = {"status": 501, "message": "Konten gibt es nur im gehosteten Dienst (LERNAPP_MODE=hosted)."}
@@ -142,11 +171,17 @@ def build() -> dict:
             endpoints.append({"method": m, "path": r.path, "public": r.path in account_api.PUBLIC_PATHS, "summary": (r.endpoint.__doc__ or "").strip().split("\n")[0]})
     endpoints.sort(key=lambda e: (e["path"], e["method"]))
     config.MODE = "local"
+    accounts.verify_sender = None
     accounts.db_path().unlink(missing_ok=True)
     return {
         "_hinweis": "Erzeugt mit tools/gen-account-fixture.py aus der Python-Referenz (app/accounts.py, app/account_api.py); nicht von Hand aendern.",
         "rules": {"password_min": accounts.PASSWORD_MIN, "password_max": accounts.PASSWORD_MAX, "session_days": accounts.SESSION_DAYS,
-                  "reset_minutes": accounts.RESET_MINUTES, "max_fails": accounts.MAX_FAILS, "lock_minutes": accounts.LOCK_MINUTES,
+                  "reset_minutes": accounts.RESET_MINUTES, "max_fails": accounts.MAX_FAILS, "max_fails_ip": accounts.MAX_FAILS_IP,
+                  "lock_minutes": accounts.LOCK_MINUTES, "verify_hours": accounts.VERIFY_HOURS,
+                  "limits": {k: {"count": n, "minutes": m} for k, (n, m) in sorted(accounts.LIMITS.items())},
+                  "email_verification": "Willkommensmail mit /login?verify=<token>; POST /api/account/verify-email {token} ohne Sitzung; "
+                                        "Community-Veroeffentlichen erst danach (403 email_unverified); ein Passwort-Reset ueber den Mail-Link bestaetigt die Adresse auch",
+                  "export": "GET /api/account/export -> ZIP (LIESMICH.txt, konto.json, daten/, community/, testbibliothek.json); Passwoerter nie im Klartext",
                   "email_regex": accounts.EMAIL_RE.pattern, "universities": list(config.known_universities()),
                   "auth": "Authorization: Bearer <token> (Apps) oder Cookie uniflow_session (Browser)",
                   "error_shape": {"detail": "<Meldung fuer den Nutzer>", "code": "<stabiler Code>"},

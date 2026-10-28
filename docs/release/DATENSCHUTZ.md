@@ -186,8 +186,13 @@ Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Ha
 - **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen, Bestätigung mit Passwort) oder per
   E-Mail an [[E-Mail]]. Das Konto wird sofort gesperrt, alle Sitzungen enden; die Daten werden nach 30 Tagen
   endgültig gelöscht (Frist für versehentliche Löschung). Das Abo kündigst du zusätzlich bei Apple bzw. Google.
-- **Daten mitnehmen:** Notizen lassen sich als PDF exportieren; mit dem Geräteabgleich liegen alle Daten auf deinem
-  Gerät. Einen Gesamtexport (Art. 20 DSGVO) stellen wir auf Anfrage an [[E-Mail]] bereit.
+- **Daten mitnehmen:** Im Konto-Menü („Meine Daten exportieren“) lädst du alle Daten deines Kontos als ZIP herunter
+  (Auskunft nach Art. 15 und Datenübertragbarkeit nach Art. 20 DSGVO): Konto, Geräte, Käufe, Nutzung, deine Kurse,
+  Notizen, Kalender, Lernpakete, Karteikarten, Tests, eigene Dateien und Community-Beiträge. Gespeicherte Passwörter
+  und Sitzungen deiner Hochschule stehen aus Sicherheitsgründen nur als „gespeichert“ darin. Notizen lassen sich
+  außerdem als PDF exportieren.
+- **E-Mail-Adresse bestätigen:** Nach der Registrierung schicken wir einen Link zur Bestätigung. Bis dahin kannst du
+  alles nutzen außer dem Veröffentlichen in der Community.
 
 ## 16. Kinder
 

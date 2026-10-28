@@ -167,12 +167,15 @@ def purge_account_db(now: datetime, days: int = SYNC_DAYS, dry_run: bool = False
         conn.executescript("""CREATE TABLE IF NOT EXISTS sync_jobs (id INTEGER PRIMARY KEY, user_id TEXT, kind TEXT, trigger TEXT, status TEXT,
                               requested_at TEXT, started_at TEXT, finished_at TEXT, message TEXT, new_files INTEGER);
                               CREATE TABLE IF NOT EXISTS schedule_marks (slot TEXT PRIMARY KEY, created_at TEXT NOT NULL);""")
+        conn.executescript(accounts.SCHEMA)
         rules = {
             "jobs": ("sync_jobs", "status IN ('done','failed') AND requested_at < ?", (cutoff,)),
             "marks": ("schedule_marks", "created_at < ?", (cutoff,)),
             "sessions": ("sessions", "expires_at <= ? OR revoked_at IS NOT NULL", (now_iso,)),
             "reset_tokens": ("reset_tokens", "expires_at <= ? OR used_at IS NOT NULL", (now_iso,)),
             "login_attempts": ("login_attempts", "last_fail_at IS NULL OR last_fail_at < ?", (attempts_cutoff,)),
+            "verify_tokens": ("verify_tokens", "expires_at <= ? OR used_at IS NOT NULL", (now_iso,)),
+            "rate_limits": ("rate_limits", "window_start < ?", (accounts.iso(now - timedelta(days=2)),)),
         }
         for key, (table, where, params) in rules.items():
             n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}", params).fetchone()[0]

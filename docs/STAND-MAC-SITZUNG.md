@@ -1190,3 +1190,18 @@ Wie angekündigt, bevor ihr den G2-Client baut. Vertrag `docs/VERTRAEGE-KONTO-SY
   ohne Konto-Bezug. Beim Löschen sofort: Community-Lösungen zurückgezogen, wartende Abgleiche abgebrochen. Betrifft das
   iPad nur über die Seite „Konto löschen“ (Text unverändert).
 - Für das Android-Gerüst (pausiert) gilt dasselbe; dort fehlen `has_more`-Schleife und `op_id` noch.
+
+## Nachtrag der PC-Sitzung: G1 erweitert – E-Mail bestätigen, Grenzen, Datenexport (28.10.2026)
+
+Für die spätere Anmeldung am UniFlow-Konto auf dem iPad (Abschnitt 6 B4 in `docs/PRUEFKATALOG-ABGLEICH-2026-10-28.md`).
+Vertrag `docs/VERTRAEGE-KONTO-SYNC.md` (G1) und `fixtures/account/contract.json` sind erweitert, neue Fehlercodes
+`verify_invalid`, `rate_limited`, `email_unverified` (Community).
+- **E-Mail bestätigen:** `user.email_verified` in jeder Konto-Antwort. Link `https://<dienst>/login?verify=<token>`
+  aus der Willkommensmail; als Universal Link aufs iPad gelenkt (sobald `associated-domains` da ist) bitte
+  `POST /api/account/verify-email {token}` rufen, ohne Sitzung möglich. „Link erneut senden“:
+  `POST /api/account/verify-email/resend` (5/Stunde). Hinweis im Konto-Bereich, solange nicht bestätigt.
+- **429 `rate_limited`** mit `Retry-After` (Sekunden) bei Registrieren, Reset, erneutem Bestätigen und Export; bitte
+  die Wartezeit anzeigen und nicht automatisch wiederholen. Login-Sperre: 8 je Adresse, 50 je IP.
+- **Datenexport:** `GET /api/account/export` → ZIP. In der App unter Konto „Meine Daten exportieren“ (Teilen-Blatt
+  zum Sichern in Dateien). Apple verlangt das nicht, die DSGVO schon; der Dienst liefert alles, was am Konto liegt.
+

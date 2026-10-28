@@ -145,14 +145,32 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   Token bleibt im HttpOnly-Cookie. Im Dienst leitet `/` ohne Sitzung nach `/login`, `/login` mit Sitzung nach `/`; eine
   abgelaufene Sitzung (401) führt in der App zur Anmeldeseite. Abmelden und „Andere Geräte abmelden“ im Konto-Menü
   hinter dem Avatar. Am PC gibt es die Seite nicht (`/login` → `/`). Tests `tests/test_web_login.py`.
-- **Fehlversuche:** 8 je Konto und je Adresse → 10 Minuten `locked` (429), gezählt in der Datenbank.
-- **Reset:** Token 30 Minuten, einmalig, beendet alle Sitzungen; die Antwort auf `reset-request` ist immer gleich.
+- **Fehlversuche:** 8 je Adresse, 50 je IP (seit 28.10.2026; vorher 8 je IP, das hätte im Hochschulnetz mit NAT alle
+  hinter einer IP gesperrt) → 10 Minuten `locked` (429), gezählt in der Datenbank.
+- **Reset:** Token 30 Minuten, einmalig, beendet alle Sitzungen und bestätigt die Adresse; die Antwort auf
+  `reset-request` ist immer gleich.
+- **E-Mail bestätigen (seit 28.10.2026):** Die Willkommensmail enthält `/login?verify=<token>` (48 Stunden, einmalig,
+  nur für die aktuelle Adresse). `POST verify-email {token}` geht ohne Sitzung → `{ok, user}`; ungültig/abgelaufen
+  → 400 `verify_invalid`. `POST verify-email/resend` (mit Sitzung) schickt einen neuen Link, schon bestätigt →
+  `already: true`. `user.email_verified` steht in jeder Konto-Antwort. Community veröffentlichen erst danach (403
+  `email_unverified`); alles andere geht vorher. Apple/Google-Konten mit bestätigter Adresse des Anbieters sind sofort
+  bestätigt.
+- **Grenzen (seit 28.10.2026, 429 `rate_limited` mit `Retry-After`):** Registrieren 30/Stunde je IP (auch vergebene
+  Adressen zählen), Reset 30/Stunde je IP und 3/Stunde je Adresse (die zweite still: gleiche Antwort, keine Mail),
+  Bestätigungslink erneut 5/Stunde je Konto, Export 3/Tag je Konto. IP-Grenzen großzügig wegen NAT im Hochschulnetz.
+  Betreiber ändert sie mit `LERNAPP_LIMIT_<NAME>=Anzahl/Minuten` (z. B. `LERNAPP_LIMIT_REGISTER_IP=60/60`).
+  `email_taken` (409) bleibt, weil die Registrierung sofort anmeldet; das Ausprobieren begrenzt die IP-Grenze.
+- **Datenexport (seit 28.10.2026):** `GET export` (mit Sitzung) → ZIP mit `LIESMICH.txt`, `konto.json` (Konto,
+  Sitzungen, Anmeldewege, Käufe, Nutzung, KI-Nutzung, Abgleich-Aufträge, Hochschul-Zugangsdaten nur mit Namen und
+  Benutzername, Passwörter/Schlüssel/Cookies als „gespeichert“), `daten/` (Nutzerordner, SQLite-Dateien konsistent
+  kopiert, ohne Browser-Profile), `community/` (eigene Lösungen mit Paketen, Meldungen, Sperrliste),
+  `testbibliothek.json`. Referenz `app/account_export.py`.
 - **Löschen:** sofort gesperrt (alle Sitzungen weg, Adresse frei), Nutzerordner nach `users-deleted/`, endgültig nach
   30 Tagen (`purge`). Mit Passwort, bei reinen Apple/Google-Konten ohne.
 - **Fehlerform:** `{"detail": "<Meldung>", "code": "<stabil>"}`; Codes in `contract.json` → `errors`.
 - **Endpunkte:** `POST register`, `login`, `login/{apple|google}`, `link/{apple|google}`, `logout`, `logout-all`,
-  `password`, `password/reset-request`, `password/reset`, `university`, `delete`; `GET me`, `GET info`, `GET providers`
-  (öffentlich).
+  `password`, `password/reset-request`, `password/reset`, `verify-email` (öffentlich), `verify-email/resend`,
+  `university`, `delete`; `GET me`, `GET export`, `GET info`, `GET providers` (öffentlich).
 
 ### Mit Google / Apple anmelden (für die Apps und die Web-Anmeldeseite)
 

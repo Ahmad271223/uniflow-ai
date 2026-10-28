@@ -118,7 +118,7 @@ def test_login_script_uses_only_public_account_paths():
     js = (STATIC / "login.js").read_text(encoding="utf-8")
     used = {"/api/account" + p for p in re.findall(r'post\("(/[a-z/-]+)"', js)}
     assert used == {"/api/account/login", "/api/account/register", "/api/account/password/reset-request", "/api/account/password/reset",
-                    "/api/account/login/google", "/api/account/login/apple"}
+                    "/api/account/login/google", "/api/account/login/apple", "/api/account/verify-email"}
     assert used <= account_api.PUBLIC_PATHS
     assert "/api/account/info" in js and "Authorization" not in js and "localStorage" not in js
     app_js = (STATIC / "app.js").read_text(encoding="utf-8")

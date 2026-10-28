@@ -10,7 +10,8 @@ from __future__ import annotations
 import os
 
 from fastapi import APIRouter, Body, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.background import BackgroundTask
 
 from . import accounts, config, mail, social_login
 
@@ -19,7 +20,7 @@ COOKIE = "uniflow_session"
 # Pfade ohne Sitzung (alles andere unter /api braucht im gehosteten Modus eine Sitzung)
 PUBLIC_PATHS = {"/api/account/register", "/api/account/login", "/api/account/login/apple", "/api/account/login/google",
                 "/api/account/password/reset-request", "/api/account/password/reset", "/api/account/info",
-                "/api/account/providers"}
+                "/api/account/providers", "/api/account/verify-email"}
 
 
 def _providers() -> list[str]:
@@ -28,7 +29,12 @@ def _providers() -> list[str]:
 
 
 def _err(e: accounts.AccountError) -> HTTPException:
-    return HTTPException(e.status, {"detail": e.message, "code": e.code})
+    headers = {"Retry-After": str(e.retry_after)} if getattr(e, "retry_after", None) else None
+    return HTTPException(e.status, {"detail": e.message, "code": e.code}, headers=headers)
+
+
+def _ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
 
 
 def token_of(request: Request) -> str | None:
@@ -80,11 +86,13 @@ def providers():
 def register(request: Request, body: dict = Body(...)):
     _hosted_only()
     try:
-        user = accounts.register(body.get("email"), body.get("password"), (body.get("university") or "").strip().lower())
+        user = accounts.register(body.get("email"), body.get("password"), (body.get("university") or "").strip().lower(),
+                                 client_ip=_ip(request))
         _, token = accounts.login(user["email"], body.get("password"), *_device(body, request))
     except accounts.AccountError as e:
         raise _err(e)
-    mail.send_welcome(user["email"])            # nur Information; ein Fehler beim Versand aendert die Antwort nicht
+    # Willkommensmail mit Bestaetigungslink; ein Fehler beim Versand aendert die Antwort nicht
+    mail.send_welcome(user["email"], accounts.request_email_verification(user["id"], send=False, count=False))
     resp = JSONResponse({"user": user, "token": token}, status_code=201)
     _set_cookie(resp, token)
     return resp
@@ -190,11 +198,54 @@ def change_password(request: Request, body: dict = Body(...)):
 
 
 @router.post("/password/reset-request")
-def reset_request(body: dict = Body(...)):
+def reset_request(request: Request, body: dict = Body(...)):
     """Antwort immer gleich: verraet nicht, ob es das Konto gibt. Das Token geht nur ueber den Versandweg."""
     _hosted_only()
-    accounts.request_password_reset(body.get("email") or "")
+    try:
+        accounts.request_password_reset(body.get("email") or "", client_ip=_ip(request))
+    except accounts.AccountError as e:
+        raise _err(e)
     return {"ok": True, "message": "Wenn es ein Konto mit dieser Adresse gibt, wurde ein Link zum Zurücksetzen verschickt."}
+
+
+@router.post("/verify-email")
+def verify_email(body: dict = Body(...)):
+    """E-Mail-Adresse bestaetigen: {token} aus dem Link der Mail (/login?verify=<token>); ohne Sitzung moeglich."""
+    _hosted_only()
+    try:
+        return {"ok": True, "user": accounts.verify_email(body.get("token") or "")}
+    except accounts.AccountError as e:
+        raise _err(e)
+
+
+@router.post("/verify-email/resend")
+def verify_email_resend(request: Request):
+    """Bestaetigungslink erneut schicken (hoechstens 5 je Stunde); schon bestaetigt -> already."""
+    _hosted_only()
+    u = _user(request)
+    if u.get("email_verified"):
+        return {"ok": True, "already": True}
+    try:
+        accounts.request_email_verification(u["id"])
+    except accounts.AccountError as e:
+        raise _err(e)
+    return {"ok": True, "already": False, "message": "Wir haben dir einen neuen Bestätigungslink geschickt."}
+
+
+@router.get("/export")
+def export(request: Request):
+    """Alle Daten des Kontos als ZIP (Auskunft und Datenübertragbarkeit, DSGVO Art. 15 und 20); hoechstens 3 je Tag."""
+    _hosted_only()
+    u = _user(request)
+    try:
+        accounts.hit_limit("export_user", u["id"])
+    except accounts.AccountError as e:
+        raise _err(e)
+    from . import account_export
+    path = account_export.build(u)
+    name = f"studora-daten-{accounts.now().date().isoformat()}.zip"
+    return FileResponse(path, media_type="application/zip", filename=name,
+                        background=BackgroundTask(lambda: path.unlink(missing_ok=True)))
 
 
 @router.post("/password/reset")

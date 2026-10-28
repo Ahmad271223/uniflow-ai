@@ -37,8 +37,12 @@ def info(request: Request):
 
 @router.post("/solutions", status_code=201)
 def publish(request: Request, body: dict = Body(...)):
-    """Paket veroeffentlichen: {package: <uniflow-solution>, title?}; nur fuer PDFs aus dem eigenen Abgleich, Tarif Plus."""
+    """Paket veroeffentlichen: {package: <uniflow-solution>, title?}; nur fuer PDFs aus dem eigenen Abgleich, Tarif Plus,
+    bestaetigte E-Mail-Adresse (Schutz gegen Wegwerf-Konten, 28.10.2026)."""
     u = _user(request)
+    if not u.get("email_verified"):
+        raise HTTPException(403, {"detail": "Bitte bestätige zuerst deine E-Mail-Adresse (Link in der Willkommensmail, "
+                                            "neu anfordern unter Konto).", "code": "email_unverified"})
     return _run(community.publish, u, config.university(), body.get("package"), body.get("title"))
 
 
