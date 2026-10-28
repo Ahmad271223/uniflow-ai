@@ -127,7 +127,7 @@ final class HildesheimSyncTests: XCTestCase {
         let rest = "\(base)/webservice/rest/server.php"
         t.on(rest, body: "wsfunction=core_webservice_get_site_info", okJSON(.object(["userid": .number(42)])))
         t.on(rest, body: "wsfunction=core_enrol_get_users_courses",
-             okJSON(.array(courses.map { .object(["id": .number(Double($0)), "fullname": .string("SoSe 2026: 04\($0) Kurs \($0)"), "hidden": .number(0)]) })))
+             okJSON(.array(courses.map { .object(["id": .number(Double($0)), "fullname": .string("WiSe 2026/27: 04\($0) Kurs \($0)"), "hidden": .number(0)]) })))
         for c in courses {
             t.on(rest, body: "courseid=\(c)&moodlewsrestformat=json&wsfunction=core_course_get_contents", okJSON(contentsByCourse[c] ?? .array([])))
         }
@@ -446,7 +446,7 @@ final class HildesheimSyncTests: XCTestCase {
                     return ok("%PDF-1.7")
                 }
                 if form.contains("core_webservice_get_site_info") { return okJSON(["userid": 42]) }
-                if form.contains("core_enrol_get_users_courses") { return okJSON([["id": 35, "fullname": "SoSe 2026: 0435 Kurs 35"]]) }
+                if form.contains("core_enrol_get_users_courses") { return okJSON([["id": 35, "fullname": "WiSe 2026/27: 0435 Kurs 35"]]) }
                 if form.contains("core_course_get_contents") { return okJSON(contents) }
                 return UniResponse(status: 404)
             }

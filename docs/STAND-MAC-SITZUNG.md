@@ -1106,3 +1106,114 @@ Stand der Prüfung (Zweig `wip/stundenplan-abruftag` auf develop 55b8616):
 - **App:** 512 Tests (2 übersprungen) zweimal nacheinander grün.
 - **Python:** 452 bestanden; rot nur `test_sync.py::test_sync_fixture_matches_python`, derselbe wackelnde
   Sync-Generator.
+
+## Learnweb-Dateien: iPad 195, PC 539 – Ursache, Korrektur auf dem iPad und Bitten an die PC-Sitzung (28.10.2026)
+
+Ausgangslage: gleiches Konto, dieselben 9 Learnweb-Kurse. Das iPad hat 195 Dateien (je Kurs 46, 33, 28, 19, 17, 16,
+15, 13, 8), der PC 539 (Zählung vom 26.10. im frischen Datenordner, ohne Schlüssel über die Sitzung). Geprüft wurde nur
+Code gegen Code und gegen den Moodle-Quelltext, ohne Anfrage an das Learnweb und ohne echte Daten.
+
+**Zwei verschiedene Wege.** Das iPad holt sich beim Verbinden einen Schlüssel aus dem Moodle-SSO. Damit liest es je
+Kurs einmal REST `core_course_get_contents`, und Moodle listet alle Dateien jeder Ressource und jedes Ordners samt
+Unterordnern. Der PC liest ohne Schlüssel: je Kurs `core_courseformat_get_state`, dann je Ressource
+`mod/resource/view.php?redirect=1` und je Ordner `mod/folder/view.php` (`SessionClient._folder_links`). Sonst sind die
+Regeln in Python und Swift gleich. Das betrifft die Modularten (nur `resource` und `folder`), `uservisible`, versteckte
+Kurse, Datei-IDs, NFC und Ordnerpfade. Keine Seite filtert nach Typ oder Größe, keine hat Seitengrenzen (Kursliste mit
+`limit 0`), keine löscht etwas.
+
+### Ursachen und geschätzter Anteil an der Lücke (344 Zeilen)
+
+1. **Eingebettete Ordner, Fehler im Sitzungsweg (PC, bis heute auch iPad): vermutlich fast die ganze Lücke.**
+   Hat ein Ordner die Anzeige „Inhalte auf der Kursseite anzeigen“ (`FOLDER_DISPLAY_INLINE`), leitet Moodle
+   `mod/folder/view.php` auf die Kursseite weiter: `redirect(course_get_url($folder->course, $cm->sectionnum))`. Die
+   Kursseite zeigt die Dateibäume **aller** eingebetteten Ordner (`folder_cm_info_view` → `set_content`).
+   `page.request.get` folgt der Weiterleitung, `folder_links` nimmt jeden `mod_folder/content`-Link der Seite, und
+   `files_from_state` schreibt alle diesem Ordner zu. Jeder eingebettete Ordner bekommt so die Dateien aller
+   eingebetteten Ordner der Seite. Die Zeilen haben andere IDs (andere cmid), dieselbe `download_url` und einen falschen
+   Ordnerpfad. Beispiel: 4 eingebettete Ordner auf einer Kursseite mit zusammen 40 Dateien ergeben am PC 160 Zeilen.
+   Mit Schlüssel (REST) tritt das nicht auf, darum hat das iPad weniger.
+   Prüfbar ohne neue Anfrage, in der Datenbank der Zählung:
+   ```sql
+   SELECT course_id, COUNT(*) AS zeilen, COUNT(DISTINCT download_url) AS adressen
+   FROM files WHERE id LIKE 'lw-%' GROUP BY course_id ORDER BY zeilen DESC;
+   ```
+   Erwartung: `adressen` je Kurs etwa wie die iPad-Zahlen, in der Summe etwa 195.
+2. **Ressourcen mit mehreren Dateien: Gegenrichtung, klein.** REST liefert alle Dateien im Inhaltsbereich einer
+   Ressource, die Sitzung nur die Hauptdatei (Weiterleitung). Hier hat das iPad eher mehr Dateien, genau wie Python
+   mit Schlüssel (`files_from_contents`).
+3. **Zeitpunkt (26.10. gegen 27.10.): klein.** Neue oder entfernte Materialien in einem Tag.
+
+Kein Grund für die Lücke:
+- **Andere Modularten:** `assign`, `page`, `book`, `label`, `forum`, `url`, `h5p` und Kursdateien liest keine Seite.
+  Bei Bedarf als eigene Entscheidung des Inhabers.
+- **Doppelte:** Dieselbe Datei in zwei Modulen ergibt auf beiden Seiten zwei Zeilen, je cmid.
+- **Abbruch bei einzelnen Modulen:** 5xx einer Ordner- oder Ressourcenseite ergibt am PC eine leere Liste. Auf dem
+  iPad gilt der Kurs dann als nicht lesbar (bewusst, `testOverloadedFolderPageFailsTheCourseInsteadOfShorterList`),
+  nichts wird gelöscht, und der nächste Lauf versucht es erneut. Am 27.10. hatte jeder Kurs Dateien, das war also
+  nicht der Grund.
+
+### Behoben auf dem iPad (Zweig `wip/learnweb-dateien`)
+
+1. **Eingebettete Ordner im Sitzungsweg.** `LearnwebAPI.folderLinks` folgt der Weiterleitung eines Ordners nicht mehr
+   blind. Zeigt sie auf die Kursseite (`course/view.php`, ab Moodle 4.4 auch `course/section.php`), lädt das iPad die
+   Seite einmal je Kurs. Es nimmt nur die Links im Eintrag des Ordners, also ab `id="module-<cmid>"` (Moodle
+   `cmitem.mustache`) bis zum nächsten Eintrag (`Learnweb.inlineFolderLinks`). Fehlt der Eintrag, kommen keine Links,
+   nie fremde. Andere Weiterleitungen werden wie bisher verfolgt, eine Weiterleitung zur Anmeldung heißt „neu
+   anmelden“. Jetzt liefern Sitzung und Schlüssel dieselben Dateien, IDs und Ordner.
+   - Tests in `LearnwebFileGapTests`: eingebettete Ordner, die Funktion für einen Eintrag, Anmeldung.
+   - Gegenprobe ohne den Fix: 8 statt 5 Dateien, `b.pdf` zusätzlich unter „Woche 2/Blätter/Sub“. Das ist genau das
+     Verhalten des PCs.
+2. **Nur aktive Kurse bekommen Dateien (Wunsch des Inhabers).** `HildesheimSync` fragt Dateilisten und Downloads nur
+   für Kurse mit `courses.active = 1` ab, wie `run_studip_sync`. Die Semesterregel setzt `UniStore.upsertCourse`. Ein
+   vom Nutzer eingeschalteter Kurs (`active_custom`) zählt als aktiv, ein ausgeschalteter nicht. Ein Kurs ohne
+   Semester im Titel bleibt aktiv.
+   - Alte Kurse bleiben samt ihren Dateien gespeichert, sie bekommen nur keine neuen.
+   - Neu in der Meldung: „…, N Kurse aus früheren Semestern ohne Dateien (Einstellungen → Module)“, dazu
+     `Report.olderCourses`.
+   - Ankündigungen und Fristen bleiben wie bisher für alle sichtbaren Kurse. Die Fristen kommen ohnehin aus dem
+     Kalender.
+   - Tests: `testFilesOnlyForActiveCoursesUserChoiceCounts` (auch der Lauf nur mit Listen) und
+     `testOnlyOlderCoursesIsNoFailure`. Gegenprobe ohne die Regel: 5 statt 3 Dateilisten, Dateien alter und
+     ausgeschalteter Kurse kommen an.
+   - Bei den echten Daten sind 8 der 9 Kurse aus dem SoSe 2026 (182 der 195 Dateien). Ab dem nächsten Abgleich bekommt
+     nur noch ein Kurs neue Dateien, die vorhandenen bleiben.
+   - Bestehende Abgleich-Tests mit Kursen „SoSe 2026“ (Testuhr 25.10.2026) laufen jetzt mit „WiSe 2026/27“.
+
+**Vertrag:** `fixtures/hildesheim/expected.json` deckt `resource` und `folder` in beiden Wegen ab: REST-Inhalt,
+`session-state` mit Links aus Rückrufen und `folder-html`. Die Weiterleitung eingebetteter Ordner steckt im Netzteil
+(`_folder_links`) und ist nicht abgedeckt. Ohne Python-Funktion kann der Generator sie nicht erzeugen. Der Vertrag
+bleibt deshalb unverändert, geprüft wird mit eigenen Swift-Tests und erfundenen Moodle-Antworten.
+
+### Bitten an die PC-Sitzung
+
+1. **Zählung prüfen:** die Abfrage oben in der Datenbank vom 26.10. (oder einer neuen Zählung), dazu die Zahlen je
+   Learnweb-Kurs-ID. Bitte 3 vom 27.10. ist noch offen. Liegt `adressen` in der Summe bei etwa 195, ist Ursache 1
+   belegt.
+2. **`SessionClient._folder_links` wie das iPad:** `max_redirects=0`. Bei einer Weiterleitung auf `course/view.php`
+   oder `course/section.php` die Kursseite einmal je Kurs laden und nur die Links im Eintrag des Ordners nehmen;
+   andere Weiterleitungen weiter verfolgen, die Anmeldeseite als Fehler. Vorschlag für die reine Funktion:
+   ```python
+   MODULE_ANCHOR_RE = re.compile(r"""\bid\s*=\s*["']module-(\d+)["']""")
+
+   def inline_folder_links(html_text: str, cmid) -> list[str]:
+       anchors = list(MODULE_ANCHOR_RE.finditer(html_text or ""))
+       for i, m in enumerate(anchors):
+           if m.group(1) == str(cmid):
+               end = anchors[i + 1].start() if i + 1 < len(anchors) else len(html_text)
+               return folder_links(html_text[m.start():end])
+       return []
+   ```
+   Danach bitte einen Vertragsfall `inline-folder` in `tools/gen-hildesheim-fixture.py` (Kursseite, cmid, Links). Dann
+   prüft das iPad dagegen statt gegen eigene Antworten.
+3. **Learnweb nur für aktive Kurse (Inhaber):** In `hildesheim.sync_learnweb` nach `upsert_course` wie in
+   `run_studip_sync` nur Kurse mit `active=1` an `client.files` geben. Alte Kurse bleiben samt Dateien, das Protokoll
+   meldet „N Kurse aus früheren Semestern übersprungen“. Offene Frage an euch und den Inhaber: Sollen auch die
+   Ankündigungen alter Learnweb-Kurse wegfallen, wie beim Stud.IP-Abgleich am PC? Das iPad lädt sie bis dahin
+   weiter für alle sichtbaren Kurse.
+4. **Doppelte Datei-IDs in älteren PC-Datenbanken:** Seit 6d6339c (25.10.) bildet `learnweb.file_id` die ID mit
+   SHA-256 statt SHA-1, ohne Umstellung bestehender Zeilen. Eine Datenbank, die vorher schon abgeglichen hat, bekommt
+   jede Learnweb-Datei ein zweites Mal: die alte Zeile mit Notizen, die neue ohne. Die Zählung vom 26.10. lief im
+   frischen Ordner und ist davon nicht betroffen. Bitte einmalig umstellen (ID aus cmid, Pfad und Namen neu
+   berechnen, Notizen und Dokumente mitnehmen) oder nach `download_url` zusammenführen.
+
+Stand der Prüfung (Zweig `wip/learnweb-dateien` auf develop fa65a40):

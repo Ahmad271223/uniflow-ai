@@ -309,7 +309,7 @@ final class LearnwebTests: XCTestCase {
             let f = self.form(req)
             switch f["wsfunction"] {
             case "core_webservice_get_site_info": return self.json(#"{"userid": 1}"#)
-            case "core_enrol_get_users_courses": return self.json(#"[{"id": 101, "fullname": "SoSe 2026: 0101 Eins"}, {"id": 102, "fullname": "SoSe 2026: 0102 Zwei"}]"#)
+            case "core_enrol_get_users_courses": return self.json(#"[{"id": 101, "fullname": "WiSe 2026/27: 0101 Eins"}, {"id": 102, "fullname": "WiSe 2026/27: 0102 Zwei"}]"#)
             case "core_course_get_contents":
                 return okJSON(f["courseid"] == "101" ? contents(["a.pdf", "seite.html", "daten.json", "d.pdf", "e.pdf", "f.pdf"]) : .array([]))
             default: return replies[req.url.lastPathComponent] ?? UniResponse(status: 500)
@@ -380,7 +380,7 @@ final class LearnwebTests: XCTestCase {
             switch f["wsfunction"] {
             case "core_webservice_get_site_info": return self.json(#"{"userid": 1}"#)
             case "core_enrol_get_users_courses":
-                return self.json(#"[{"id": 101, "fullname": "SoSe 2026: 0101 Eins"}, {"id": 102, "fullname": "SoSe 2026: 0102 Zwei"}, {"id": 103, "fullname": "WiSe 2026/27: 0103 Drei"}, {"id": 104, "fullname": "Versteckt", "hidden": 1}]"#)
+                return self.json(#"[{"id": 101, "fullname": "WiSe 2026/27: 0101 Eins"}, {"id": 102, "fullname": "WiSe 2026/27: 0102 Zwei"}, {"id": 103, "fullname": "SoSe 2027: 0103 Drei"}, {"id": 104, "fullname": "Versteckt", "hidden": 1}]"#)
             case "core_course_get_contents":
                 if f["courseid"] == "102" { throw URLError(.timedOut) }
                 let id = f["courseid"] ?? ""
@@ -406,7 +406,7 @@ final class LearnwebTests: XCTestCase {
         // Semesterfilter wie HILDESHEIM_SEMESTER_FILTER
         let (db2, layout2) = try await container()
         let filtered = await HildesheimSync(db: db2, container: layout2, learnweb: api, lsf: nil, transport: net, clock: clock, retry: noWait)
-            .run(semesterFilter: "wise")
+            .run(semesterFilter: "sose")
         XCTAssertEqual(filtered.courses, 1)
         let only = try await db2.rows("SELECT id FROM courses WHERE id LIKE 'lw-%'")
         XCTAssertEqual(only.compactMap { $0["id"]?.string }, ["lw-103"])
@@ -483,7 +483,7 @@ final class LearnwebTests: XCTestCase {
             let u = req.url.absoluteString
             if u.hasPrefix("\(self.base)/my/courses.php") { return self.json(self.sessionPage) }
             if u.contains("info=core_course_get_enrolled_courses_by_timeline_classification") {
-                return self.ajax(#"{"courses": [{"id": 35, "fullname": "SoSe 2026: 9406 Theorien"}, {"id": 36, "fullname": "SoSe 2026: 0407 Praxis"}]}"#)
+                return self.ajax(#"{"courses": [{"id": 35, "fullname": "WiSe 2026/27: 9406 Theorien"}, {"id": 36, "fullname": "WiSe 2026/27: 0407 Praxis"}]}"#)
             }
             if u.contains("info=core_courseformat_get_state") {
                 let id = (try? JSONValue.parse(req.body ?? Data()))?.array?.first?["args"]?["courseid"]?.int ?? 0

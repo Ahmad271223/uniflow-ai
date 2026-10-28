@@ -162,6 +162,33 @@ public enum Learnweb {
         return out
     }
 
+    /// Anfang eines Eintrags der Kursseite: `<li ... id="module-<cmid>">` (Moodle cmitem.mustache, `anchor`)
+    private static let moduleAnchorRE = HText.regex(#"\bid\s*=\s*["']module-(\d+)["']"#)
+
+    /// Ordner mit der Anzeige "auf der Kursseite" (FOLDER_DISPLAY_INLINE): `mod/folder/view.php` leitet dann auf die
+    /// Kursseite weiter, und dort stehen die Dateien aller solchen Ordner der Seite. Zu diesem Ordner gehoeren nur die
+    /// Links in seinem Eintrag, vom Anker `id="module-<cmid>"` bis zum naechsten Eintrag. Ohne Anker: keine Links (nie
+    /// die Links fremder Ordner). Am PC (`_folder_links`) nimmt die Sitzung die ganze Kursseite: jede Datei jedes
+    /// eingebetteten Ordners zaehlt dort einmal je eingebettetem Ordner (Befund 28.10.2026).
+    public static func inlineFolderLinks(coursePage html: String, cmid: String) -> [String] {
+        guard !cmid.isEmpty, cmid.utf8.allSatisfy({ (0x30...0x39).contains($0) }) else { return [] }
+        let ns = html as NSString
+        let anchors = moduleAnchorRE.matches(in: html, range: NSRange(location: 0, length: ns.length))
+        guard let i = anchors.firstIndex(where: { ns.substring(with: $0.range(at: 1)) == cmid }) else { return [] }
+        let from = anchors[i].range.location
+        let to = i + 1 < anchors.count ? anchors[i + 1].range.location : ns.length
+        return folderLinks(html: ns.substring(with: NSRange(location: from, length: to - from)))
+    }
+
+    /// Kursseite dieses Learnweb (`course/view.php`, seit Moodle 4.4 auch `course/section.php`): Ziel der Weiterleitung
+    /// eines Ordners mit der Anzeige "auf der Kursseite"
+    static func isCoursePage(_ url: URL, base: String) -> Bool {
+        guard let b = URL(string: base), let host = url.host?.lowercased(), host == b.host?.lowercased() else { return false }
+        var root = b.path
+        while root.hasSuffix("/") { root.removeLast() }
+        return url.path == root + "/course/view.php" || url.path == root + "/course/section.php"
+    }
+
     /// Aktuelles Semester wie in den Learnweb-Namen: April bis September SoSe, sonst WiSe.
     public static func semesterLabel(year: Int, month: Int) -> String {
         if (4...9).contains(month) { return "SoSe \(year)" }
