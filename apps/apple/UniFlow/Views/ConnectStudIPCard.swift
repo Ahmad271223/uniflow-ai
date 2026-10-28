@@ -151,8 +151,8 @@ struct ConnectStudIPCard: View {
             UFCard {
                 UFCardHead(expired ? "Stud.IP-Anmeldung abgelaufen" : "Stud.IP verbinden", icon: "graduation")
                 Text(expired
-                     ? "Melde dich erneut bei Stud.IP an, damit UniFlow deine Kurse und Dateien weiter abgleicht."
-                     : "Melde dich bei Stud.IP der Leibniz Universität an, damit UniFlow deine Kurse und Dateien auf dieses iPad holt.")
+                     ? "Melde dich erneut bei Stud.IP an, damit Studora deine Kurse und Dateien weiter abgleicht."
+                     : "Melde dich bei Stud.IP der Leibniz Universität an, damit Studora deine Kurse und Dateien auf dieses iPad holt.")
                     .ufFont(14.5).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
                 // z. B. Schluesselbundfehler nach der Anmeldung: Meldung zeigen statt still zu verschwinden

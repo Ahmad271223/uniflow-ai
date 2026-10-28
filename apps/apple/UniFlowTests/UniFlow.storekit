@@ -23,7 +23,7 @@
       "localizations" : [
 
       ],
-      "name" : "UniFlow",
+      "name" : "Studora",
       "subscriptions" : [
         {
           "adHocOffers" : [
@@ -44,14 +44,14 @@
           },
           "localizations" : [
             {
-              "description" : "Schreiben mit Apple Pencil, Übung und Skript nebeneinander, Karteikarten, bald Community",
-              "displayName" : "UniFlow Plus",
+              "description" : "Stift, Karteikarten, Lösungen teilen",
+              "displayName" : "Studora Plus",
               "locale" : "de"
             }
           ],
           "productID" : "de.uniflow.plus.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Plus monatlich",
+          "referenceName" : "Studora Plus monatlich",
           "subscriptionGroupID" : "21500001",
           "type" : "RecurringSubscription"
         }

@@ -288,7 +288,7 @@ public enum BackgroundNotice {
         let names = sources.map(at)
         let list = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " und " + names[names.count - 1]
         return Content(title: "Bitte \(list) anmelden",
-                       body: "Die Anmeldung ist abgelaufen. Öffne UniFlow und melde dich neu an, dann geht der Abgleich weiter. Im Hintergrund meldet sich UniFlow nie selbst an.")
+                       body: "Die Anmeldung ist abgelaufen. Öffne Studora und melde dich neu an, dann geht der Abgleich weiter. Im Hintergrund meldet sich Studora nie selbst an.")
     }
 }
 

@@ -334,8 +334,14 @@ final class AccountStoreTests: XCTestCase {
         XCTAssertEqual(DebugLaunch.forcedPlan(defaults: defaults), .plus)
         defaults.set("free", forKey: "UFPlan")
         XCTAssertEqual(DebugLaunch.forcedPlan(defaults: defaults), .free)
+        defaults.set("pro_connect", forKey: "UFPlan")
+        XCTAssertEqual(DebugLaunch.forcedPlan(defaults: defaults), .proConnect)
+        defaults.set("pro_ai", forKey: "UFPlan")
+        XCTAssertEqual(DebugLaunch.forcedPlan(defaults: defaults), .proAI)
         defaults.set("pro", forKey: "UFPlan")
         XCTAssertNil(DebugLaunch.forcedPlan(defaults: defaults), "unbekannter Tarif wird ignoriert")
+        defaults.set("proAI", forKey: "UFPlan")
+        XCTAssertNil(DebugLaunch.forcedPlan(defaults: defaults), "nur die Schluessel aus plans.json")
     }
 
     func testPrepareSkipsForOldScreenshotArguments() {

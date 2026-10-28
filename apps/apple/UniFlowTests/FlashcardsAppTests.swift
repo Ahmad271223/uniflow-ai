@@ -317,6 +317,14 @@ final class FlashcardsAppTests: XCTestCase {
         XCTAssertEqual(ent.plan, .free)
         XCTAssertEqual(ent.access(.flashcards), .locked(.plus))
         XCTAssertFalse(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Bald"))
+        // Pro Connect und Pro AI (Schluessel wie in plans.json) enthalten alles aus Plus
+        for (arg, plan) in [("pro_connect", UFPlan.proConnect), ("pro_ai", .proAI)] {
+            UserDefaults.standard.set(arg, forKey: "UFPlan")
+            await ent.refresh()
+            XCTAssertEqual(ent.plan, plan, arg)
+            XCTAssertTrue(ent.allows(.flashcards), arg)
+            XCTAssertNil(ent.pendingPlan, arg)
+        }
     }
 
     // MARK: Seite im Fenster (Bedienungshilfen wie AuditRunde0910AppTests)
@@ -433,10 +441,10 @@ final class FlashcardsAppTests: XCTestCase {
     func testFreeShowsTheLockCardAndLoadsNoCards() throws {
         let (api, rec, _) = try awaiting { try await self.seededAPI(cards: [("Geheime Frage", "Antwort", nil)]) }
         let page = try show(gated(.free), api: api)
-        XCTAssertTrue(pump { self.shows(page.view, "Mit Plus freischalten") }, dump(page.view))
+        XCTAssertTrue(pump { self.shows(page.view, "Mit Studora Plus freischalten") }, dump(page.view))
         XCTAssertTrue(shows(page.view, "Karteikarten"), "Seitenkopf bleibt: \(dump(page.view))")
         XCTAssertTrue(shows(page.view, "Eigene Karteikarten mit Wiederholung"), dump(page.view))
-        XCTAssertTrue(shows(page.view, "Enthalten in Plus"), dump(page.view))
+        XCTAssertTrue(shows(page.view, "Enthalten ab Studora Plus"), dump(page.view))
         XCTAssertFalse(shows(page.view, "Karte anlegen"))
         XCTAssertFalse(shows(page.view, "Geheime Frage"))
         XCTAssertFalse(shows(page.view, "bald"))

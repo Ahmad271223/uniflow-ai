@@ -10,11 +10,11 @@ import UniFlowCore
 enum DueTexts {
     static let title = "Abgaben & Prüfungen"
     static let empty = "Keine Abgaben oder Prüfungen erkannt."
-    static let emptyHint = "UniFlow sucht in Folien, Übungsblättern und Ankündigungen nach Abgaben, Tests und Klausuren."
+    static let emptyHint = "Studora sucht in Folien, Übungsblättern und Ankündigungen nach Abgaben, Tests und Klausuren."
     static let hiddenToast = "Ausgeblendet. Unter „ausgeblendete anzeigen“ holst du ihn zurück."
     static let reminderTitle = "Erinnerungen an Abgaben und Prüfungen"
     static let reminderText = "3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 Uhr, bei Terminen mit Uhrzeit zusätzlich 2 Stunden vorher. Dabei sind die in Folien, Übungsblättern und Ankündigungen erkannten Termine, Fristen aus dem Learnweb-Kalender und eingetragene Klausurtermine – ausgeblendete nicht. Alles bleibt auf diesem iPad."
-    static let deniedText = "Mitteilungen für UniFlow sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte die Erinnerungen danach hier erneut ein."
+    static let deniedText = "Mitteilungen für Studora sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte die Erinnerungen danach hier erneut ein."
 
     /// "Sa., 05.12. 23:59 · Kurzklausur · Analysis I"
     static func sub(_ x: JSONValue) -> String {
@@ -200,7 +200,7 @@ struct DueTimeDialog: View {
                 Text("\(item.s("title") ?? "Termin") · \(UFFmt.short(item.s("date")))").ufFont(13.12, 600).foregroundStyle(UF.text)
                 if let o = item.s("origin") { Text(o).ufFont(12.16).foregroundStyle(UF.muted) }
                 UFField("Uhrzeit") { UFTimeField(hm: $time, allowEmpty: true) }
-                Text("Ohne Uhrzeit erinnert UniFlow am Morgen um 8:00 Uhr.").ufFont(12.16).foregroundStyle(UF.muted)
+                Text("Ohne Uhrzeit erinnert Studora am Morgen um 8:00 Uhr.").ufFont(12.16).foregroundStyle(UF.muted)
             }
         } foot: {
             UFButton("Abbrechen") { close() }

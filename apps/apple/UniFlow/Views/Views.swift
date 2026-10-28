@@ -105,7 +105,7 @@ struct LibraryView: View {
                     }
                 }
             }
-            .navigationTitle("UniFlow")
+            .navigationTitle("Studora")
             .toolbar { Button("Trennen", role: .destructive) { session.disconnect() } }
         } content: {
             List(files, selection: $fileSelection) { f in

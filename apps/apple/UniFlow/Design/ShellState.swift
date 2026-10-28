@@ -90,7 +90,7 @@ final class ShellState: ObservableObject {
 
     /// POST /api/sync, danach /api/bg alle 3 s bis fertig; Meldung wie im Web.
     func startSync(toast: UFToastCenter) async {
-        guard let api else { toast.show("Nicht mit dem UniFlow-Server verbunden"); return }
+        guard let api else { toast.show("Nicht mit dem Studora-Server verbunden"); return }
         do {
             _ = try await api.value("/api/sync", method: "POST")
             toast.show("Synchronisierung gestartet")

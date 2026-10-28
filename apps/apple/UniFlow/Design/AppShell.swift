@@ -244,7 +244,7 @@ struct UFSidebar: View {
                 RoundedRectangle(cornerRadius: 9).fill(UF.logoGradient)
                     .frame(width: 30, height: 30)
                     .overlay(UFIcon("graduation", size: 18).foregroundStyle(.white))
-                if !collapsed { Text("UniFlow").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
+                if !collapsed { Text("Studora").font(.uf(16.32, 700)).foregroundStyle(UF.text).lineLimit(1) }
             }
             .padding(EdgeInsets(top: 5.6, leading: 8, bottom: 14.4, trailing: 8))
             .frame(maxWidth: .infinity, alignment: collapsed ? .center : .leading)

@@ -39,7 +39,7 @@ struct ContainerProblemView: View {
                     .ufFont(14.5).foregroundStyle(UF.text2)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("container.problem")
-                Text("Damit sich die Daten verschiedener Hochschulen und Konten nie mischen, öffnet UniFlow diesen Speicher nicht. Es wurde nichts gelöscht.")
+                Text("Damit sich die Daten verschiedener Hochschulen und Konten nie mischen, öffnet Studora diesen Speicher nicht. Es wurde nichts gelöscht.")
                     .ufFont(13.12).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 8)
@@ -134,7 +134,7 @@ struct UniversitySwitchDialog: View {
     /// Hinweis vor dem Wechsel: nichts wird geloescht oder uebertragen
     static func notice(from old: UniversityKey, to new: UniversityKey) -> String {
         "Die Daten der \(old.profile.name) bleiben getrennt auf diesem iPad erhalten – Dateien, Notizen, Lernplan und Anmeldungen. "
-            + "Nichts davon wird in die \(new.profile.name) übernommen. UniFlow arbeitet danach sofort mit dem Speicher der \(new.profile.name); "
+            + "Nichts davon wird in die \(new.profile.name) übernommen. Studora arbeitet danach sofort mit dem Speicher der \(new.profile.name); "
             + "zurückwechseln kannst du jederzeit hier."
     }
 }

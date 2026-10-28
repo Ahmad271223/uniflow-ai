@@ -93,7 +93,7 @@ private final class E2EUser {
         try layout.prepare(clock: clock)
         host = LocalBackendHost(directory: layout.databaseDirectory, clock: clock, files: .container(layout), university: .luh)
         api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
-        // Tarif Plus ueber den Testsetzer (kein StoreKit): Schreiben und "Community" (Loesungen teilen und ansehen)
+        // Tarif Plus ueber den Testsetzer (kein StoreKit): Schreiben und Loesungen teilen (ansehen geht in jedem Tarif)
         entitlements = Entitlements(observe: false, plan: .free)
         entitlements.setPlanForTesting(.plus)
         solutions = SolutionLibrary(root: layout.solutions)
@@ -368,7 +368,7 @@ final class RealSheetSolutionE2ETests: XCTestCase {
     private func step2(_ a: E2EUser, _ s: E2EState, out: URL) async throws {
         let store = try XCTUnwrap(s.storeA)
         // wie SolutionShareSheet.load: nur mit "Community" (Plus)
-        XCTAssertTrue(a.entitlements.allows(.community), "Plus: Lösung teilen erlaubt")
+        XCTAssertTrue(a.entitlements.allows(.shareSolutions), "Plus: Lösung teilen erlaubt")
         let source = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(a.api))
         let draft = try await Task.detached(priority: .userInitiated) { try SolutionSharing.draft(source) }.value
         let preview = try XCTUnwrap(draft.content, draft.unavailable ?? "keine Vorschau")
@@ -477,7 +477,7 @@ final class RealSheetSolutionE2ETests: XCTestCase {
         let editor = try XCTUnwrap(s.editorB)
         let window = try XCTUnwrap(s.windowB)
         let packageURL = try XCTUnwrap(s.packageURL)
-        XCTAssertTrue(b.entitlements.allows(.community), "Plus: Lösungen ansehen erlaubt")
+        XCTAssertTrue(b.entitlements.allows(.communityRead), "Lösungen ansehen erlaubt (jeder Tarif)")
         // Zwischenstaende der eigenen Notizen (ohne Sichern), um eine Abweichung einem Schritt zuordnen zu koennen
         let notesBefore = try XCTUnwrap(s.beforeImport).notes
         var unchanged: [String: Bool] = [:]

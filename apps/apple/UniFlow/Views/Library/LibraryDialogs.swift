@@ -232,7 +232,7 @@ struct NotebookDialog: View {
         guard let api = session.api else { return }
         // Tarif inzwischen ohne Schreiben (z. B. Abo abgelaufen, waehrend der Dialog offen war)
         guard Entitlements.shared.allows(Self.feature) else {
-            toast.show("Notizbücher und Whiteboards gibt es mit Plus.")
+            toast.show("Notizbücher und Whiteboards gibt es ab \(UFPlan.plus.name).")
             return
         }
         var fields = Self.fields(kind: kind, title: title, template: tpl, format: format, orientation: orientation)

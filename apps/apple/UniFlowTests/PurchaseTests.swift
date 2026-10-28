@@ -3,15 +3,21 @@ import StoreKitTest
 import XCTest
 @testable import UniFlow
 
-/// Abo-Kauf nur in der lokalen StoreKit-Testsitzung (keine echten Produkte, keine Abrechnung).
+/// Gemeinsamer Rahmen der Kauf-Tests: lokale StoreKit-Testsitzung (keine echten Produkte, keine Abrechnung) mit der
+/// Konfiguration `configuration` und den Produkten `productIDs`.
 @MainActor
-final class PurchaseTests: XCTestCase {
-    private var session: SKTestSession!
+class StoreKitSessionTestCase: XCTestCase {
+    var session: SKTestSession!
     /// Gab es in diesem Testprozess schon einen Kauf? Dann meldet StoreKit keinen Anspruch mehr (siehe test0…).
-    private static var processHadPurchase = false
+    static var processHadPurchase = false
+
+    /// StoreKit-Konfiguration im Testbundle
+    class var configuration: String { "UniFlow" }
+    /// Produkte, die der Laden der Tests anbietet
+    class var productIDs: [String] { PurchaseStore.productIDs }
 
     override func setUp() async throws {
-        session = try SKTestSession(configurationFileNamed: "UniFlow")
+        session = try SKTestSession(configurationFileNamed: Self.configuration)
         session.resetToDefaultState()
         session.disableDialogs = true
         session.clearTransactions()
@@ -24,7 +30,7 @@ final class PurchaseTests: XCTestCase {
     }
 
     /// Bedingung wiederholt pruefen (StoreKit-Testsitzung arbeitet asynchron), hoechstens `seconds`
-    private func eventually(_ seconds: Double = 8, _ check: () async -> Bool) async -> Bool {
+    func eventually(_ seconds: Double = 8, _ check: () async -> Bool) async -> Bool {
         let end = Date().addingTimeInterval(seconds)
         while Date() < end {
             if await check() { return true }
@@ -33,12 +39,19 @@ final class PurchaseTests: XCTestCase {
         return await check()
     }
 
-    private func waitForPlan(_ ent: Entitlements, _ plan: UFPlan) async {
-        _ = await eventually { await ent.refresh(); return ent.plan == plan }
+    func waitForPlan(_ ent: Entitlements, _ plan: UFPlan, seconds: Double = 8) async {
+        _ = await eventually(seconds) { await ent.refresh(); return ent.plan == plan }
+    }
+
+    /// V1 ohne Konto beim Dienst: kein gueltiger Kauf traegt einen appAccountToken (BillingServiceLink.swift)
+    func assertNoAccountToken(file: StaticString = #filePath, line: UInt = #line) async {
+        for await result in StoreKit.Transaction.currentEntitlements {
+            if case .verified(let t) = result { XCTAssertNil(t.appAccountToken, t.productID, file: file, line: line) }
+        }
     }
 
     /// Steht eine Transaktion, die die Testsitzung noch als ausstehende Kaufanfrage fuehrt, in currentEntitlements?
-    private static func entitlementsListPendingAskToBuy(_ session: SKTestSession) async -> Bool {
+    static func entitlementsListPendingAskToBuy(_ session: SKTestSession) async -> Bool {
         let pending = Set(session.allTransactions().filter(\.pendingAskToBuyConfirmation).map { UInt64($0.identifier) })
         guard !pending.isEmpty else { return false }
         for await result in StoreKit.Transaction.currentEntitlements {
@@ -50,15 +63,20 @@ final class PurchaseTests: XCTestCase {
     /// eigener Tarif ohne Beobachter, damit sich die Tests nicht gegenseitig beeinflussen. Ausgangslage ist immer Free:
     /// Nach clearTransactions() meldet die Testsitzung den Kauf des vorigen Tests noch kurz in currentEntitlements,
     /// darum wird gewartet, bis er verschwunden ist (sonst startet z. B. die Kaufanfrage scheinbar schon mit Plus).
-    private func makeStore() async -> (PurchaseStore, Entitlements) {
+    func makeStore() async -> (PurchaseStore, Entitlements) {
         let ent = Entitlements(observe: false)
-        let store = PurchaseStore(entitlements: ent)
+        let store = PurchaseStore(entitlements: ent, productIDs: Self.productIDs)
         await store.loadProducts()
         await waitForPlan(ent, .free)
         XCTAssertEqual(ent.plan, .free, "Ausgangslage: kein Kauf aus einem vorigen Test mehr gueltig")
         return (store, ent)
     }
+}
 
+/// Abo-Kauf in V1 (Entscheidung des Inhabers vom 28.10.2026): nur Studora Plus wird angeboten. Konfiguration
+/// `UniFlow.storekit` wie in der App (Schema "Run"); die Pro-Tarife stehen darin nicht.
+@MainActor
+final class PurchaseTests: StoreKitSessionTestCase {
     /// Verhalten der StoreKit-Testsitzung (mit Prueftests unter Xcode 27.1 ermittelt): Nach dem ersten Kauf liefert
     /// `isEligibleForIntroOffer` fuer die Gruppe false, auch nach clearTransactions() und resetToDefaultState() und
     /// auch in spaeteren Testlaeufen auf demselben Simulator. Ein neuer Kauf nach clearTransactions() bekommt die
@@ -67,17 +85,23 @@ final class PurchaseTests: XCTestCase {
     /// einem Hinweis statt falsch rot. Er heisst "test0…", weil XCTest die Tests einer Klasse alphabetisch ausfuehrt.
     func test0ProductsCarryOneFreeWeekUntilFirstPurchase() async throws {
         let (store, ent) = await makeStore()
-        // nur Plus wird angeboten (Entscheidung 25.10.2026), kein Pro-Produkt mehr
+        // V1 bietet nur Studora Plus an (Entscheidung 28.10.2026); Pro Connect, Pro AI und das fruehere Pro gibt es im
+        // Laden nicht, auch nicht auf Nachfrage
         XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly"])
+        XCTAssertNil(store.product(for: .proConnect))
+        XCTAssertNil(store.product(for: .proAI))
+        let pro = try await Product.products(for: ["de.uniflow.proconnect.monthly", "de.uniflow.proai.monthly", "de.uniflow.pro.monthly"])
+        XCTAssertEqual(pro.map(\.id), [], "keine Pro-Produkte in der V1-Konfiguration")
         XCTAssertEqual(ent.plan, .free)
         let p = try XCTUnwrap(store.product(for: .plus))
+        XCTAssertEqual(p.displayName, UFPlan.plus.name)
         let eligibleNow = store.introEligible[p.id] == true
         let trial = try XCTUnwrap(p.ufFreeTrial)
         XCTAssertEqual(trial.0, 1)
         XCTAssertEqual(trial.1, .week)
         XCTAssertEqual(p.ufPeriod.1, .month)
         XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true),
-                       "Plus – 1 Woche gratis")
+                       "Studora Plus – 1 Woche gratis")
         XCTAssertTrue(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: trial, eligible: true)
             .hasPrefix("1 Woche gratis, danach \(p.displayPrice)/Monat"))
         guard eligibleNow, !Self.processHadPurchase else {
@@ -89,7 +113,7 @@ final class PurchaseTests: XCTestCase {
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
         XCTAssertEqual(store.introEligible[p.id], false)
         XCTAssertEqual(UFOfferText.button(plan: .plus, price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
-                                          eligible: false), "Plus für \(p.displayPrice)/Monat")
+                                          eligible: false), "Studora Plus für \(p.displayPrice)/Monat")
         XCTAssertFalse(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
                                            eligible: store.introEligible[p.id] == true).contains("gratis"))
     }
@@ -103,9 +127,9 @@ final class PurchaseTests: XCTestCase {
         XCTAssertTrue(ent.inIntroOffer, "Während der Gratiswoche gilt Plus mit Einführungsangebot")
         XCTAssertTrue(ent.allows(.pencilWriting))
         XCTAssertTrue(ent.allows(.splitView))
-        // Uni & Noten (QIS bzw. LSF auf dem Geraet) gehoert zu Free; Community (Loesung als Datei teilen und ansehen) zu Plus
+        // Uni & Noten (QIS bzw. LSF auf dem Geraet) gehoert zu Free; eigene Loesungen teilen zu Plus
         XCTAssertEqual(ent.access(.uniGrades), .allowed)
-        XCTAssertEqual(ent.access(.community), .allowed)
+        XCTAssertEqual(ent.access(.shareSolutions), .allowed)
         XCTAssertEqual(ent.transactionCount, 1)
         XCTAssertEqual(store.introEligible["de.uniflow.plus.monthly"], false)
     }
@@ -186,7 +210,8 @@ final class PurchaseTests: XCTestCase {
         XCTAssertFalse(bought.isEmpty)
         for t in bought { try session.disableAutoRenewForTransaction(identifier: t.identifier) }
         try session.expireSubscription(productIdentifier: plus.id)
-        await waitForPlan(ent, .free)
+        // Ablauf kommt in der Testsitzung manchmal erst nach Sekunden an (PurchaseV2PlanSwitchTests)
+        await waitForPlan(ent, .free, seconds: 30)
         XCTAssertEqual(ent.plan, .free)
         XCTAssertFalse(ent.allows(.pencilWriting))
         // Herabstufen: Notizen bleiben lesbar und exportierbar
@@ -200,7 +225,8 @@ final class PurchaseTests: XCTestCase {
         XCTAssertEqual(ent.plan, .plus)
         let t = try XCTUnwrap(session.allTransactions().first { $0.productIdentifier == plus.id })
         try session.refundTransaction(identifier: t.identifier)
-        await waitForPlan(ent, .free)
+        // Ablauf kommt in der Testsitzung manchmal erst nach Sekunden an (PurchaseV2PlanSwitchTests)
+        await waitForPlan(ent, .free, seconds: 30)
         XCTAssertEqual(ent.plan, .free)
         XCTAssertFalse(ent.allows(.pencilWriting))
         // Lernplanung bleibt in Free

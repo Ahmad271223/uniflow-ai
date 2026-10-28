@@ -231,8 +231,8 @@ final class QISConnection: ObservableObject {
     /// gelungen ohne Leistungen, noch kein Abruf)
     static func emptyText(_ state: State, lastCount: Int?) -> String {
         switch state {
-        case .notConnected: return "Verbinde QIS, damit UniFlow deinen Notenspiegel holt."
-        case .needsLogin: return "Die QIS-Anmeldung ist abgelaufen. Melde dich erneut an, dann holt UniFlow deinen Notenspiegel."
+        case .notConnected: return "Verbinde QIS, damit Studora deinen Notenspiegel holt."
+        case .needsLogin: return "Die QIS-Anmeldung ist abgelaufen. Melde dich erneut an, dann holt Studora deinen Notenspiegel."
         case .running: return "Der Notenspiegel wird gerade abgerufen …"
         case .ok, .failed, .connected:
             if lastCount == 0 { return QISGradesSync.emptyNotice + " Sobald eine Note eingetragen ist, erscheint sie hier nach dem nächsten Abruf." }

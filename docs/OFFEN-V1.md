@@ -1,4 +1,4 @@
-# Was für V1 noch fehlt (Stand 26.10.2026, 11:20)
+# Was für V1 noch fehlt (Stand 26.10.2026, 11:20; Tarife ergänzt 27.10.2026)
 
 Geschrieben von der Mac-Sitzung vor dem Ausschalten des Laptops, damit beide Sitzungen und der Inhaber dieselbe Liste
 haben. „Getestet“ heißt: automatische Tests grün und, wo angegeben, mit echten Daten im Simulator geprüft.
@@ -22,6 +22,19 @@ haben. „Getestet“ heißt: automatische Tests grün und, wo angegeben, mit ec
 | Dreifache Abnahme: 96 bestätigte Befunde behoben (u. a. Notizbücher öffnen, neue Kurse beim Abgleich, HTTP nur Debug, Privacy Manifest, KI-Reste entfernt, Plus-Karte ehrlich) | getestet |
 
 Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (Community über CloudKit, siehe unten).
+
+Zweig `wip/vier-tarife` (27./28.10.2026): **Tarife nach `docs/ABO-SYSTEM.md`, V1 verkauft nur Studora Free und Plus**
+(Entscheidung des Inhabers vom 28.10.2026). Die Tabelle aller vier Tarife steht in
+`apps/apple/UniFlow/Purchases/Plans.swift`, geprüft gegen `packages/shared-contracts/fixtures/plans/plans.json`
+(`PlanContractTests`); was die App anbietet, bestimmt der Schalter `UFPlanCatalog.sellable` (heute `[.free, .plus]`).
+Pro Connect und Pro AI erscheinen nicht als Karte, nur als nicht anklickbarer Satz „Pro-Tarife folgen mit dem
+Studora-Dienst.“ ohne Preis; ihre Produkte stehen nur in der Testkonfiguration `UniFlowAlleTarife.storekit`
+(Wechsel-Logik in `PurchaseV2PlanSwitchTests`). Community lesen (finden, laden, ansehen, melden, blockieren,
+Lerngruppen beitreten) ist Free wie `can_read_community`; Veröffentlichen, Teilen als Datei, Pseudonym und Lerngruppen
+anlegen ab Plus (`can_share_solutions`). Was den Online-Dienst braucht, steht unter „in Vorbereitung“. Kaufprüfung nur
+auf dem Gerät (StoreKit 2); `appAccountToken` und `POST /api/billing/apple/verify` vorbereitet und abgeschaltet
+(`Purchases/BillingServiceLink.swift`, V2). Die App heißt auf dem Gerät und in allen Texten **Studora**; Bundle-ID
+`de.uniflow.ai`, Produkt-IDs, Ordner und interne Kennungen bleiben.
 
 ## Noch zu bauen (Mac-Sitzung, Reihenfolge)
 
@@ -54,7 +67,14 @@ Noch nicht auf `develop`, aber auf GitHub gesichert: `wip/community-cloudkit` (C
 
 - Developer Program aktiv → Team-ID in `apps/apple/Config/Team.xcconfig`; dann „Mit Apple anmelden“ und CloudKit
   echt testbar (iCloud-Container `iCloud.de.uniflow.ai` anlegen, Schema nach Production).
-- App Store Connect: App-Eintrag, Abo „Plus 1,99 €/Monat, 1 Woche gratis“, Datenschutz-Angaben.
+- App Store Connect für V1: App-Eintrag „Studora“, Datenschutz-Angaben und **nur das Plus-Produkt**: Abo-Gruppe
+  „Studora“, `de.uniflow.plus.monthly`, Anzeigename „Studora Plus“, 1,99 €/Monat, Einführungsangebot 1 Woche gratis
+  (Texte in `docs/release/APP-STORE.md`, Abschnitt In-App-Käufe; StoreKit-Testkonfiguration
+  `apps/apple/UniFlowTests/UniFlow.storekit` mit denselben Werten). **Pro Connect und Pro AI kommen später** mit dem
+  Studora-Dienst (`de.uniflow.proconnect.monthly` 2,99 €, `de.uniflow.proai.monthly` 3,99 €, in derselben Gruppe mit
+  Stufen nach Rang: Pro AI höchste, Plus niedrigste; dazu App Store Server Notifications V2 auf
+  `/api/billing/apple/notifications`, `docs/ABO-SYSTEM.md`, Abschnitt 8). Die Werte liegen in
+  `apps/apple/UniFlowTests/UniFlowAlleTarife.storekit`.
 - Datenschutzerklärung, Nutzungsbedingungen, Impressum veröffentlichen (Entwürfe macht die PC-Sitzung in
   `docs/release/`), Links auf der Abo-Seite eintragen.
 - Anfragen an LUH (LUIS/elsa) und Hildesheim (Regel 5.2.2, Learnweb-Schlüssel) – Entwürfe PC-Sitzung. Passwort-Merken

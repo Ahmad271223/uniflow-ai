@@ -1,20 +1,23 @@
 import StoreKit
 import SwiftUI
 
-// Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5): zwei Karten Free / Plus
-// (Entscheidung des Inhabers vom 25.10.2026: Pro und KI entfallen vorerst).
-// Preise nur aus Product.displayPrice; "1 Woche gratis" nur bei Anspruch auf das Einfuehrungsangebot.
+// Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5; docs/ABO-SYSTEM.md): Karten fuer
+// die kaufbaren Tarife aus `UFPlanCatalog` – in V1 Studora Free und Plus (Entscheidung des Inhabers vom 28.10.2026),
+// darunter ein nicht anklickbarer Hinweis auf die Pro-Tarife ohne Preis. Inhalt der Karten aus `UFPlanCard`: enthalten
+// ist nur, was auf dem iPad wirklich geht; was den Online-Dienst braucht, steht unter "in Vorbereitung". Preise nur aus
+// Product.displayPrice; "1 Woche gratis" nur bei Anspruch auf das Einfuehrungsangebot (Apple fuehrt ihn je
+// Abo-Gruppe). Wechsel zwischen Abo-Tarifen (ab V2) regelt Apple in der Gruppe.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
 
 struct PlanPickerView: View {
-    enum Context {
-        /// erster Start: "Free nutzen" bzw. erfolgreicher Kauf -> onDone
+    enum Context: Equatable {
+        /// erster Start: "Studora Free nutzen" bzw. erfolgreicher Kauf -> onDone
         case onboarding
         /// Einstellungen: aktueller Tarif, Abo verwalten
         case settings
-        /// aus einer gesperrten Funktion heraus
-        case upgrade
+        /// aus einer gesperrten Funktion heraus; Tarif, der sie freischaltet
+        case upgrade(UFPlan?)
     }
 
     var context: Context = .onboarding
@@ -44,14 +47,18 @@ struct PlanPickerView: View {
 
     var body: some View {
         UFContent(maxWidth: 860) {
-            UFPageHead(title, sub: subtitle)
+            UFPageHead(Self.title(context), sub: subtitle)
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
             UFGridLayout(spacing: 16, minWidth: 280) {
-                planCard(.free)
-                planCard(.plus)
+                ForEach(UFPlanCatalog.cards(current: ent.plan)) { planCard($0) }
             }
             .environment(\.ufFillsCell, true)
+            if !UFPlanCatalog.upcoming.isEmpty {
+                // nur ein Hinweis: kein Preis, kein Knopf, nichts zum Antippen
+                Text(UFPlanCatalog.upcomingNote).ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 12.8)
+                    .accessibilityAddTraits(.isStaticText)
+            }
             footer.padding(.top, 22.4)
         }
         .task {
@@ -74,78 +81,95 @@ struct PlanPickerView: View {
 
     // MARK: Kopf
 
-    private var title: String {
+    static func title(_ context: Context) -> String {
         switch context {
         case .onboarding: return "Tarif wählen"
-        case .settings: return "Tarif"
-        case .upgrade: return "Mehr mit Plus"
+        case .settings: return "Tarif wechseln"
+        case .upgrade(let p): return p.map { "Mehr mit \($0.name)" } ?? "Tarif wechseln"
         }
     }
 
     private var subtitle: String {
-        // Dauer des Angebots aus dem Produkt, nicht fest im Code
+        // Dauer des Angebots aus dem Produkt, nicht fest im Code; der Anspruch gilt fuer die ganze Abo-Gruppe
         let plus = store.product(for: .plus)
         let trial = plus.flatMap { p in store.introEligible[p.id] == true ? p.ufFreeTrial : nil }
-        let base = "Mit Free planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos."
-        if let trial { return base + " Plus fügt das Schreiben mit Apple Pencil hinzu; \(UFOfferText.period(value: trial.0, unit: trial.1)) gratis zum Start." }
-        return base + " Plus fügt das Schreiben mit Apple Pencil hinzu. Du kannst den Tarif jederzeit wechseln."
+        return Self.subtitle(trial: trial.map { UFOfferText.period(value: $0.0, unit: $0.1) })
+    }
+
+    /// Untertitel; `trial` z. B. "1 Woche", wenn der Anspruch auf das Einfuehrungsangebot besteht. Nennt nur die
+    /// kaufbaren Tarife (V1: Free und Plus).
+    static func subtitle(trial: String?) -> String {
+        var s = "Mit \(UFPlan.free.name) planst du dein Lernen, öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
+        s += "\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu"
+        s += trial.map { "; \($0) gratis zum Start. " } ?? ". "
+        s += "Du kannst den Tarif jederzeit wechseln."
+        return s
     }
 
     // MARK: Karten
 
     private func planCard(_ plan: UFPlan) -> some View {
         let current = !ent.loading && ent.plan == plan
-        return PlanCardFrame(highlight: current && context != .onboarding) {
+        let showCurrent = current && context != .onboarding
+        let included = UFPlanCard.included(plan)
+        let preparing = UFPlanCard.preparing(plan)
+        return PlanCardFrame(highlight: showCurrent) {
             HStack(spacing: 8) {
-                Text(plan.title).ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
+                Text(plan.name).ufFont(17.6, 650, em: -0.01).foregroundStyle(UF.text)
                 Spacer(minLength: 0)
-                if current && context != .onboarding { UFBadge("Aktueller Tarif", tone: .ok, icon: "check") }
+                if showCurrent {
+                    UFBadge("Aktueller Tarif", tone: .ok, icon: "check")
+                } else if !ent.loading && ent.pendingPlan == plan {
+                    UFBadge("Vorgemerkt", tone: .info, icon: "clock")
+                }
+            }
+            if let t = UFPlanCard.tagline(plan) {
+                Text(t).ufFont(13.12).foregroundStyle(UF.text2).padding(.top, 3.2)
             }
             priceBlock(plan).padding(.top, 6.4)
             Rectangle().fill(UF.line).frame(height: 1).padding(.vertical, 14.4)
-            Text(plan == .free ? "Alles für den Uni-Alltag:" : "Alles aus Free, dazu:")
-                .ufFont(13.12, 600).foregroundStyle(UF.text2).padding(.bottom, 6.4)
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(rows(plan), id: \.title) { r in featureRow(r) }
+            Text(UFPlanCard.intro(plan)).ufFont(13.12, 600).foregroundStyle(UF.text2).padding(.bottom, 6.4)
+            if !included.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(included, id: \.title) { featureRow($0) }
+                }
             }
-            if !UFFeatureMatrix.hasAvailableExtras(in: plan) {
-                // ehrlich sagen, dass der Tarif heute noch nicht mehr bietet (Abschnitt 2 Punkt 4: nichts vortaeuschen)
-                Text("Diese Funktionen folgen mit einem Update. Bis dahin bietet \(plan.title) denselben Umfang wie Free.")
-                    .ufFont(12.8).foregroundStyle(UF.muted).padding(.top, 9.6)
+            if !preparing.isEmpty {
+                UFBadge("in Vorbereitung", tone: .neutral, icon: "clock")
+                    .padding(.top, included.isEmpty ? 2 : 14.4).padding(.bottom, 8)
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(preparing, id: \.title) { featureRow($0) }
+                }
+            }
+            if let note = UFPlanCard.note(plan) {
+                Text(note).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.top, 9.6)
             }
             Spacer(minLength: 16)
             actionButton(plan, current: current)
-            if current, context == .settings, plan != .free, ent.inIntroOffer {
-                Text(trialEndText).ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
+            if let n = buttonNote(plan, current: current) {
+                Text(n).ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
             }
         }
     }
 
-    private struct Row {
-        let title: String
-        var detail: String?
-        var icon: String
-        var soon = false
-    }
-
-    /// Inhalte aus Abschnitt 4; was noch fehlt, traegt "bald" (in V1 nichts mehr: Uni & Noten und Karteikarten sind da)
-    private func rows(_ plan: UFPlan) -> [Row] {
-        UFFeatureMatrix.added(in: plan).filter { !$0.isV2 }.map { f in
-            Row(title: f.title, detail: f.detail, icon: f.icon, soon: UFFeatureMatrix.access(f, plan: plan) == .comingSoon)
-        }
-    }
-
-    private func featureRow(_ r: Row) -> some View {
+    private func featureRow(_ r: UFPlanCardRow) -> some View {
         HStack(alignment: .top, spacing: 8.8) {
-            UFIcon("check", size: 16).foregroundStyle(UF.ok).padding(.top, 2)
+            UFIcon(r.preparing ? "clock" : "check", size: 16).foregroundStyle(r.preparing ? UF.muted : UF.ok).padding(.top, 2)
             VStack(alignment: .leading, spacing: 1.6) {
-                HStack(spacing: 6.4) {
-                    Text(r.title).ufFont(14.5, 500).foregroundStyle(UF.text)
-                    if r.soon { UFBadge("bald", tone: .neutral) }
-                }
+                Text(r.title).ufFont(14.5, r.preparing ? 400 : 500).foregroundStyle(r.preparing ? UF.text2 : UF.text)
                 if let d = r.detail { Text(d).ufFont(12.8).foregroundStyle(UF.muted) }
             }
+            // immer umbrechen statt kuerzen: die Karte ist so hoch wie die hoechste der Zeile (ufFillsCell), lange
+            // Zeilen wie "Intelligente Lernplanung (Empfehlungen fuer die Woche)" wurden sonst mit "…" abgeschnitten
+            .fixedSize(horizontal: false, vertical: true)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Self.accessibilityLabel(r))
+    }
+
+    /// VoiceOver: Titel, Zusatz und bei Zeilen in Vorbereitung die Marke (die Ueberschrift steht weiter oben)
+    static func accessibilityLabel(_ r: UFPlanCardRow) -> String {
+        ([r.title] + (r.detail.map { [$0] } ?? []) + (r.preparing ? ["in Vorbereitung"] : [])).joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -173,35 +197,58 @@ struct PlanPickerView: View {
             }
             .frame(minHeight: 50, alignment: .leading)
         } else {
+            // kein Preis aus dem Code (Richtlinie 3.1.2): ohne Produkt aus StoreKit kein Preis und kein Kaufknopf
             Text("Preis zurzeit nicht verfügbar").ufFont(13.12).foregroundStyle(UF.muted)
                 .frame(minHeight: 50, alignment: .leading)
         }
     }
+
+    /// laeuft gerade ein Abo (nicht Free)? Dann sind die anderen Abo-Tarife ein Wechsel in der Gruppe.
+    private var hasSubscription: Bool { !ent.loading && ent.plan != .free }
 
     @ViewBuilder
     private func actionButton(_ plan: UFPlan, current: Bool) -> some View {
         if plan == .free {
             if context == .settings && !current {
                 // Wechsel auf Free = Abo bei Apple kuendigen; der Zugang endet mit dem laufenden Zeitraum
-                fullButton("Zu Free wechseln", kind: .normal) { manage = true }
+                fullButton("Zu \(UFPlan.free.name) wechseln", kind: .normal) { manage = true }
             } else if context == .settings {
                 fullButton("Aktueller Tarif", kind: .normal, enabled: false) {}
             } else {
-                fullButton("Free nutzen", kind: .normal) { onDone() }
+                fullButton("\(UFPlan.free.name) nutzen", kind: .normal) { onDone() }
             }
         } else if current {
             if context == .settings {
                 fullButton("Abo verwalten", icon: "settings", kind: .normal) { manage = true }
             } else {
-                fullButton("Weiter mit \(plan.title)", kind: .primary) { onDone() }
+                fullButton("Weiter mit \(plan.name)", kind: .primary) { onDone() }
             }
+        } else if !ent.loading && ent.pendingPlan == plan {
+            // Downgrade schon vorgemerkt: kein zweiter Kauf; aendern geht ueber "Abo verwalten"
+            fullButton("Vorgemerkt", icon: "clock", kind: .normal, enabled: false) {}
         } else if let p = store.product(for: plan) {
-            let label = UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
-                                           eligible: store.introEligible[p.id] == true)
-            fullButton(label, kind: .primary, enabled: !store.busy) { Task { await buy(p) } }
+            let label = hasSubscription
+                ? UFOfferText.switchButton(to: plan)
+                : UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod, freeTrial: p.ufFreeTrial,
+                                     eligible: store.introEligible[p.id] == true)
+            fullButton(label, kind: .primary, enabled: !store.busy) { Task { await buy(p, plan: plan) } }
         } else {
-            fullButton("\(plan.title) wählen", kind: .primary, enabled: false) {}
+            fullButton("\(plan.name) wählen", kind: .primary, enabled: false) {}
         }
+    }
+
+    /// kleine Zeile unter dem Knopf: Gratiswoche, Kuendigung, vorgemerkter Wechsel, wann ein Wechsel gilt
+    private func buttonNote(_ plan: UFPlan, current: Bool) -> String? {
+        guard plan != .free, !ent.loading else { return nil }
+        if current {
+            if let next = ent.pendingPlan { return UFOfferText.pendingNote(next, at: ent.expiresAt) }
+            if ent.willRenew == false { return UFOfferText.cancelledNote(plan, endsAt: ent.expiresAt) }
+            if context == .settings && ent.inIntroOffer { return trialEndText }
+            return nil
+        }
+        if ent.pendingPlan == plan { return UFOfferText.pendingNote(plan, at: ent.expiresAt) }
+        if hasSubscription && store.product(for: plan) != nil { return UFOfferText.switchNote(to: plan, from: ent.plan) }
+        return nil
     }
 
     private func fullButton(_ title: String, icon: String? = nil, kind: UFButtonKind, enabled: Bool = true,
@@ -217,11 +264,17 @@ struct PlanPickerView: View {
         .disabled(!enabled)
     }
 
-    private func buy(_ p: Product) async {
+    private func buy(_ p: Product, plan: UFPlan) async {
         info = nil
+        let before = ent.plan
         switch await store.purchase(p) {
         case .success:
-            onDone()
+            if ent.plan != plan, ent.pendingPlan == plan {
+                // Downgrade: Apple stellt erst zur naechsten Verlaengerung um, die Seite bleibt offen und sagt es
+                info = UFOfferText.pendingNote(plan, at: ent.expiresAt) + " Bis dahin bleibt \(before.name)."
+            } else {
+                onDone()
+            }
         case .pending:
             info = "Der Kauf wartet auf Bestätigung (z. B. durch die Familienfreigabe). Sobald er bestätigt ist, wird der Tarif freigeschaltet."
         case .cancelled, .failed:
@@ -231,7 +284,7 @@ struct PlanPickerView: View {
 
     private var trialEndText: String {
         guard let d = ent.expiresAt else { return "Gratiswoche läuft." }
-        return "Gratiswoche bis \(d.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "de_DE")))). Danach verlängert sich das Abo, wenn du nicht kündigst."
+        return "Gratiswoche bis \(UFOfferText.day(d)). Danach verlängert sich das Abo, wenn du nicht kündigst."
     }
 
     // MARK: Hinweise
@@ -272,9 +325,18 @@ struct PlanPickerView: View {
                 UFButton(LegalPage.terms.rawValue, kind: .ghost, size: .small) { legal = .terms }
                 UFButton(LegalPage.privacy.rawValue, kind: .ghost, size: .small) { legal = .privacy }
             }
-            Text("Die Zahlung läuft über deine Apple-ID. Abos verlängern sich automatisch, wenn sie nicht spätestens 24 Stunden vor Ablauf gekündigt werden. Kündigen kannst du jederzeit unter „Abo verwalten“ oder in den Einstellungen deiner Apple-ID. Deine Notizen bleiben in jedem Tarif erhalten.")
-                .ufFont(12.8).foregroundStyle(UF.muted)
+            Text(Self.legalText).ufFont(12.8).foregroundStyle(UF.muted)
         }
+    }
+
+    /// Pflichtangaben unter den Karten (Richtlinie 3.1.2)
+    static var legalText: String {
+        var s = "Die Zahlung läuft über deine Apple-ID. Abos verlängern sich automatisch, wenn sie nicht spätestens 24 Stunden vor Ablauf gekündigt werden. Kündigen kannst du jederzeit unter „Abo verwalten“ oder in den Einstellungen deiner Apple-ID. "
+        // Wechsel zwischen Abo-Tarifen gibt es erst, wenn mehr als ein Abo angeboten wird (ab V2)
+        if UFPlanCatalog.sellable.filter({ $0.productID != nil }).count > 1 {
+            s += "Die Abo-Tarife gehören zu einem Abo: Ein Wechsel zu einem höheren Tarif gilt sofort, zu einem kleineren ab der nächsten Verlängerung. "
+        }
+        return s + "Deine Notizen bleiben in jedem Tarif erhalten."
     }
 
     /// Es gibt noch keine Rechtstexte (Entscheidung des Inhabers offen, Abschnitt 6): ehrliche Platzhalterseite
