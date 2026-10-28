@@ -363,3 +363,53 @@ Jede Zeile hat die Form `[EditorMessung] <Test> | <Name> = <Wert> <Einheit>`, da
 jedes Tests. Der Test mit 200 Seiten × 300 Strichen läuft nur mit `TEST_RUNNER_UNIFLOW_EDITOR_MESSUNG=gross` vor dem
 Befehl (dauert unter Last mehrere Minuten). Ohne andere Simulatoren auf dem Mac messen, sonst die Last mit angeben.
 Die `EditorScaleTests` verlängern einen vollen App-Lauf um rund drei Minuten.
+
+## 8. Nachtrag Schritt 2: Obergrenze beim Sichern (P0-3)
+
+Stand 28.10.2026, Zweig `wip/editor-2`, gleicher Mac und Simulator wie oben; Lastmittel (1 min) 30–230.
+
+**Verhalten.** Der Store rechnet nach 0,25 s Pause um und sichert ins Journal (wie bisher). Neu: Wird ohne Pause
+weitergeschrieben, verarbeitet er spätestens 2 s nach der ersten noch nicht gesicherten Änderung (`SaveTiming`,
+`DocumentStore.processWhileWriting`). Dabei gilt:
+
+- **Journal ja, Upload nein:** Eine Upload-Runde schickt immer das ganze Dokument und dauert bei dichten Dokumenten
+  Sekunden (M1). Bei einer Runde alle 2 s liefe also ständig eine. Deshalb hält die SyncEngine Runden zurück, solange
+  geschrieben wird (`updatePage(…holdUpload: true)`). Eine schon laufende Runde endet normal, eine weitere beginnt
+  nicht. Freigegeben wird nach der nächsten Schreibpause sowie bei Export, Teilen, Hintergrund und Schließen
+  (`requestUpload`/`syncNow`).
+- **Ein Durchgang je Obergrenze:** Was während der Umrechnung dazukommt, wartet auf die nächste Obergrenze oder die
+  Pause. Sonst liefe die Umrechnung bei Dauerschreiben ohne Ende mit, sobald sie für eine volle Seite länger dauert als
+  der Abstand zweier Striche (älteres iPad). Ohne diese Grenze waren es im Simulator 9 statt 4 Journal-Schreibvorgänge
+  in 10 s und 0,14 s statt 0,08 s je Verarbeitung.
+- **Datenverlust-Fenster:** höchstens etwa 2 s plus eine Umrechnung statt „bis zur letzten Pause“ (B3).
+
+**Messung** (`EditorScaleTests.testContinuousWritingOnDenseDocument50Pages`: 50 volle Seiten mit 15 000 Strichen,
+gesichert, dann 10 s lang alle 100 ms ein Strich auf der vollen Seite 1; dazu `EditorHardeningStep2Tests`):
+
+| Wert | Messläufe (4) |
+|---|---|
+| erster Journal-Eintrag beim Dauerschreiben (3 Seiten, Takt 100 ms) | 2,05–2,18 s |
+| Verarbeitungen durch die Obergrenze in 10 s | 4 |
+| je Verarbeitung (volle Seite mit 300–400 Strichen, Umrechnung + Journal, Hintergrund) | 0,05–0,08 s |
+| Journal-Schreibvorgänge in 10 s | 4 |
+| Upload-Runden während des Schreibens | 0 |
+| Hauptthread beim Dauerschreiben, längster Block | 3,6–4,7 ms |
+| nach der Pause bis „Gespeichert“ (eine Runde mit dem ganzen Dokument, 21,8 MB) | 6,4–11,5 s |
+| Upload-Runden nach der Pause | 1 |
+
+**Bewertung.** Die Obergrenze kostet bei Dauerschreiben auf einer vollen Seite etwa 0,08 s alle 2 s im Hintergrund,
+also rund 4 % eines Kerns. Den Hauptthread belastet sie nicht. Upload-Runden laufen wie vor Schritt 2 erst nach einer
+Pause; ihre Dauer (M1) senkt erst Schritt 4. Am Gerät: Abnahmeliste 18.1–18.3.
+
+**Weitere Härtungen ohne Messung** (Tests mit Gegenprobe in `EditorHardeningStep2Tests` und `SyncEngineHardeningTests`):
+
+- **P0-4 Formatschutz:** Notizen mit `version` > 2 öffnen nur zum Ansehen, im Journal wie auf dem Server. Kommt ein
+  solcher Stand erst während der Sitzung (409), werden keine Uploads mehr gemacht und es wird nichts
+  zusammengeführt. Schon Geschriebenes bleibt im Journal.
+- **P0-5 Herkunftsstempel:** `origin` wird beim ersten Speichern gesetzt, nur im lokalen Backend und nur, wenn die
+  Quelle seit dem Öffnen unverändert ist. S7 entfernt einen alten Stempel, wenn ein Dokument ohne Notizen eine neue
+  Fassung bekommt.
+- **P0-6 Zwei Fenster:** `OpenDocuments` je Container. Zeigt das erste Fenster das Dokument, öffnet das zweite nur
+  zum Ansehen. Zeigt es das Dokument nicht mehr, übernimmt das neue Fenster; das alte sichert vorher Ausstehendes und
+  schreibt danach nichts mehr. Gegenprobe ohne Verzeichnis: das zweite Fenster ersetzt die Seite des ersten im
+  Journal.
