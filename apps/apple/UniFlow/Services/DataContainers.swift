@@ -241,7 +241,7 @@ final class ContainerManager: ObservableObject {
 
     static func migrationProblem(_ message: String) -> String {
         "Deine bisherigen Daten konnten nicht in den Speicher der Leibniz Universität Hannover umziehen: \(message) "
-            + "Es wurde nichts gelöscht; UniFlow versucht es beim nächsten Start erneut."
+            + "Es wurde nichts gelöscht; Studora versucht es beim nächsten Start erneut."
     }
 
     /// Umzug der Daten von vor den Containern in den LUH-Container dieses Nutzers. true, wenn jetzt Daten in

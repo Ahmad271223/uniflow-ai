@@ -56,7 +56,7 @@ struct SolutionShareSheet: View {
     var body: some View {
         NavigationStack {
             UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
-                UFGate(.community) { content }
+                UFGate(.shareSolutions) { content }
             }
             .navigationTitle("Lösung teilen")
             .navigationBarTitleDisplayMode(.inline)
@@ -67,9 +67,9 @@ struct SolutionShareSheet: View {
         .ufModal(isPresented: $confirmingPublish) { publishDialog }
     }
 
-    /// Der Knopf "In der Community veröffentlichen" ist nur mit Plus zu sehen (die ganze Seite steht hinter
-    /// `UFGate(.community)`) und nur mit Dienst im Build benutzbar.
-    static func showsCommunityPublish(plan: UFPlan) -> Bool { UFFeatureMatrix.access(.community, plan: plan).isAllowed }
+    /// Der Knopf "In der Community veroeffentlichen" ist nur ab Plus zu sehen (die ganze Seite steht hinter
+    /// `UFGate(.shareSolutions)`) und nur mit Dienst im Build benutzbar.
+    static func showsCommunityPublish(plan: UFPlan) -> Bool { UFFeatureMatrix.access(.shareSolutions, plan: plan).isAllowed }
 
     @ViewBuilder
     private var content: some View {
@@ -282,7 +282,7 @@ struct SolutionShareSheet: View {
     /// Die Vorschau ist kein Teilen: Seiten ohne Notizen stehen darin, die Gruende fuer fehlende Notizen
     /// (ausgelassene oder eingefuegte Seiten) nennt die Seitenkarte. Ob geteilt werden kann, entscheidet die Auswahl.
     private func load() async {
-        guard draft == nil, Entitlements.shared.allows(.community) else { return }
+        guard draft == nil, Entitlements.shared.allows(.shareSolutions) else { return }
         displayName = SolutionDisplayName.load()
         groups = (try? await community.studyGroups()) ?? []
         groupCode = groups.first?.code ?? ""
@@ -422,7 +422,7 @@ struct SharedSolutionsSheet: View {
             UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
                 VStack(alignment: .leading, spacing: 16) {
                     UFCard {
-                        Text("Lösungen, die du als Datei geteilt oder in der Community veröffentlicht hast. „Zurückziehen“ entfernt eine Veröffentlichung aus der Community; „Entfernen“ löscht die Kopie auf diesem iPad. Bereits weitergegebene Dateien und schon geladene Lösungen kann UniFlow nicht zurückholen.")
+                        Text("Lösungen, die du als Datei geteilt oder in der Community veröffentlicht hast. „Zurückziehen“ entfernt eine Veröffentlichung aus der Community; „Entfernen“ löscht die Kopie auf diesem iPad. Bereits weitergegebene Dateien und schon geladene Lösungen kann Studora nicht zurückholen.")
                             .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                     }
                     if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad) }
@@ -560,15 +560,17 @@ struct SolutionPreviewSheet: View {
 
 // MARK: - Gesperrt (Free)
 
-/// Sperrkarte "Community" mit Weg zur Abo-Seite (UFGate/UFLockedCard).
+/// Sperrkarte einer Community-Funktion (Teilen ab Plus, Lesen wenn die Community fehlt) mit Weg zur Abo-Seite
+/// (UFGate/UFLockedCard).
 struct SolutionLockedSheet: View {
+    var feature: UFFeature = .shareSolutions
     let close: () -> Void
 
     var body: some View {
         NavigationStack {
             UFContent(maxWidth: 640, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
-                UFGate(.community) {
-                    UFCard { Text("Lösungen teilen und ansehen ist freigeschaltet.").ufFont(14.5).foregroundStyle(UF.text) }
+                UFGate(feature) {
+                    UFCard { Text("„\(feature.title)“ ist freigeschaltet.").ufFont(14.5).foregroundStyle(UF.text) }
                 }
             }
             .navigationTitle("Lösungen")

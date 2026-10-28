@@ -986,3 +986,50 @@ Stand der Prüfung (Zweig `wip/stundenplan-semester`):
 - **Generatoren:** 15 von 16 `tools/gen-*.py --check` aktuell; `gen-local-backend-fixture.py` meldet nur
   `library-files.json` (Bitte 1).
 - **App:** 464 Tests (1 übersprungen) zweimal nacheinander grün.
+
+## Antwort der Mac-Sitzung: vier Tarife auf dem iPad (27.10.2026)
+
+Danke für `plans.json`. Das iPad hat die vier Tarife jetzt (Zweig `wip/vier-tarife`, Entscheidung des Inhabers vom
+27.10.: Funktionen mit Dienst als „in Vorbereitung“, V1 ohne Konto beim Dienst):
+
+- **Tabelle aus dem Vertrag:** `UFPlan` = `free, plus, pro_connect, pro_ai` (Rohwerte wie in `order`), `UFEntitlement`
+  mit allen 23 Rechten (`from`, `label`, `status`), beides in `apps/apple/UniFlow/Purchases/Plans.swift`.
+  `PlanContractTests` prüft gegen die Fixture: Namen, Preise, Produkt-IDs, Taglines, Rechte je Tarif, Stand,
+  Reihenfolge der Rechte und die StoreKit-Testkonfiguration (eine Gruppe, Stufen nach Rang). Ändert ihr `app/plans.py`,
+  wird der Test rot und wir ziehen nach.
+- **Auf dem Gerät:** enthalten zeigt die App nur Rechte mit `status = available`, die das iPad wirklich kann (PDF lesen,
+  Kurse, Import, Stundenplan, Lernplanung; ab Plus Stift/PencilKit, Annotationen, Lösungen teilen). Alles, was den
+  Dienst braucht (Studora-KI, Bibliothek und neue KI-Tests, Lernstatistik, Empfehlungen, Wiederholung, Testhistorie,
+  `can_sync_annotations`, ChatGPT), sowie `can_write_community_comments` (`coming_soon`) steht auf den Karten unter
+  „in Vorbereitung“ und ist in keinem Tarif frei. Pro Connect und Pro AI enthalten alles aus Plus und sagen auf der Karte,
+  dass sie bis zum Dienst den Umfang von Plus haben; die Taglines von Pro Connect und Pro AI zeigt die App deshalb nicht.
+  Kein KI-Schlüssel in der App.
+- **Eine bewusste Abweichung:** `can_read_community` ist im Vertrag Free; auf dem iPad bleibt die ganze Community
+  (CloudKit, Lösungen anderer ansehen) in Plus wie bisher (Auftrag des Inhabers, Punkt 2). Steht als
+  `UFEntitlement.iPadDeviations` im Code und im Test. Bitte `plans.py` dafür nicht ändern; die Frage liegt beim Inhaber.
+- **Kauf:** StoreKit 2 auf dem Gerät, `Transaction.currentEntitlements`, höchster gültiger Tarif. Produkte
+  `de.uniflow.plus.monthly`, `de.uniflow.proconnect.monthly`, `de.uniflow.proai.monthly` in einer Gruppe (Stufe 1 =
+  Pro AI), je 1 Woche gratis. Upgrade gilt sofort; ein Downgrade steht aus der RenewalInfo als vorgemerkt auf der Karte
+  (wie `pending_plan`), Kündigung als „endet am …“. Startargument `-UFPlan free|plus|pro_connect|pro_ai`.
+- **Punkt 3 eures Nachtrags (Konto-Verknüpfung) nur vorbereitet:** `Purchases/BillingServiceLink.swift` hält
+  `appAccountToken` (UUID aus `apple_account_token`) und den Rumpf `{signed_transaction, signed_renewal?}` für
+  `POST /api/billing/apple/verify` fest, ist abgeschaltet (`isEnabled = false`) und wird nirgends aufgerufen; ein Test
+  prüft, dass kein Kauf einen `appAccountToken` trägt. Einschalten mit V2, wenn das iPad ein Konto beim Dienst hat.
+- Tests: Kauf je Tarif, Upgrade, Downgrade bis zur Verlängerung, Ablauf auf Free, Kaufanfrage (Ask to Buy) für Pro AI,
+  Wiederherstellen in `PurchaseTests` (StoreKit-Testsitzung, keine echten Käufe).
+
+**Nachtrag 28.10.2026 (Entscheidungen des Inhabers, gleicher Zweig):**
+- **V1 verkauft nur Studora Free und Plus.** Schalter `UFPlanCatalog.sellable = [.free, .plus]`; die Tarifwahl zeigt
+  zwei Karten und darunter nur „Pro-Tarife folgen mit dem Studora-Dienst.“ (kein Preis, kein Knopf). `UniFlow.storekit`
+  hat nur Plus; die Wechsel-Logik läuft mit `UniFlowAlleTarife.storekit` in `PurchaseV2PlanSwitchTests`. Tabelle,
+  Produkt-IDs und `BillingServiceLink` bleiben für V2 im Code.
+- **Community lesen ist Free** wie `can_read_community` und `app/community.py` (finden, laden, ansehen, melden,
+  blockieren, Sperrliste, eigene zurückziehen, Lerngruppen beitreten); ab Plus nur, was `can_share_solutions` deckt
+  (veröffentlichen, als Datei teilen) und was nur dafür da ist (Pseudonym, Lerngruppe anlegen – das legt einen
+  öffentlichen CloudKit-Eintrag an). Melden und Blockieren bleiben in Free, auch weil Apple sie für alle verlangt, die
+  Beiträge anderer sehen (Richtlinie 1.2). Die iPad-Abweichung ist entfernt; jedes umgesetzte Recht gilt ab dem Tarif
+  aus `plans.json`.
+- **Die App heißt Studora** (Home-Bildschirm, alle Texte, Mitteilungen, Kaufdialog/Abo-Gruppe, Store-Texte). Bundle-ID,
+  Produkt-IDs, Ordner, Schlüsselbund- und Hintergrund-Kennungen bleiben bei `uniflow`. Die Demo-PDFs tragen weiter
+  „UniFlow Demo-Inhalt“, weil sie Byte für Byte `app/demo.py` folgen – bitte dort umbenennen und die Fixture neu
+  erzeugen, dann ziehen wir nach. `tests/test_release_texts.py` erkennt jetzt auch „AI“, „OpenAI“ und „ChatGPT“.

@@ -4,8 +4,10 @@ import UniFlowCore
 
 // Oberflaeche der Online-Community (docs/LOESUNGEN-TEILEN.md, Abschnitt 7): Treffer zu einem Blatt im Dokument
 // (Laden und anzeigen, Melden, Blockieren, eigene zurueckziehen), Bereich "Community" im Moduldetail nach Lehrwoche,
-// Einstellungen (Pseudonym, Lerngruppen mit Code/QR, Sperrliste). Alles nur mit Plus (UFGate(.community)) und nur,
-// wenn der Build einen iCloud-Container hat (sonst "nicht verfügbar", nichts vorgetaeuscht).
+// Einstellungen (Pseudonym, Lerngruppen mit Code/QR, Sperrliste). Lesen, Laden, Melden, Blockieren, Beitreten und das
+// Zurueckziehen eigener Loesungen gehen in jedem Tarif (can_read_community, wie app/community.py); Veroeffentlichen,
+// Pseudonym und Lerngruppen anlegen ab Plus (can_share_solutions). Nur, wenn der Build einen iCloud-Container hat
+// (sonst "nicht verfuegbar", nichts vorgetaeuscht).
 
 /// Feste Texte (auch fuer Tests).
 enum CommunityTexts {
@@ -18,7 +20,10 @@ enum CommunityTexts {
     /// Einstellungen und Community-Seite ohne iCloud-Container: ehrlich, mit dem Weg, der bleibt
     static let unavailableHint = "Dieser Build hat keinen iCloud-Container (dafür braucht es das Apple Developer Program). Es wird nichts veröffentlicht und nichts gesucht. Lösungen teilst du weiterhin als verschlüsselte Datei – im Editor unter „Ebenen“."
     static let blockNotice = "Lösungen dieser Person erscheinen für dich nicht mehr. Die Sperrliste ist nur für dich sichtbar und lässt sich in den Einstellungen aufheben."
-    static let reportNotice = "Die Meldung geht an die Moderation von UniFlow. Gemeldet wird nur die Lösung, nicht deine Apple-ID. Schreib keine persönlichen Daten in den Hinweis."
+    static let reportNotice = "Die Meldung geht an die Moderation von Studora. Gemeldet wird nur die Lösung, nicht deine Apple-ID. Schreib keine persönlichen Daten in den Hinweis."
+    /// Free: wo man schreiben wuerde, steht der Weg zu Plus (Lesen, Melden, Blockieren und Beitreten gehen ohne)
+    static let pseudonymPlusHint = "Ein Pseudonym brauchst du erst zum Veröffentlichen eigener Lösungen – ab \(UFPlan.plus.name)."
+    static let createGroupPlusHint = "Eigene Lerngruppen anlegen und Lösungen veröffentlichen kannst du ab \(UFPlan.plus.name). Beitreten geht in jedem Tarif."
 
     static func matches(_ n: Int) -> String {
         n == 1 ? "1 Lösung aus der Community zu diesem Blatt" : "\(n) Lösungen aus der Community zu diesem Blatt"
@@ -77,7 +82,7 @@ struct CommunitySolutionsSheet: View {
     var body: some View {
         NavigationStack {
             UFContent(maxWidth: 760, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
-                UFGate(.community) { content }
+                UFGate(.communityRead) { content }
             }
             .navigationTitle("Lösungen aus der Community")
             .navigationBarTitleDisplayMode(.inline)
@@ -286,7 +291,7 @@ struct CommunityModulePanel: View {
     private var service: CommunityService { SolutionSharing.community }
 
     var body: some View {
-        UFGate(.community) {
+        UFGate(.communityRead) {
             VStack(alignment: .leading, spacing: 16) {
                 UFCard {
                     UFCardHead("Lösungen aus der Community", icon: "users") {
@@ -370,6 +375,10 @@ struct CommunityModulePanel: View {
 
 struct CommunitySettingsCard: View {
     @EnvironmentObject private var toast: UFToastCenter
+    /// Lesen, Beitreten und Sperrliste in jedem Tarif; Pseudonym und Lerngruppen anlegen ab Plus (`.shareSolutions`)
+    @ObservedObject var entitlements: Entitlements = .shared
+    @Environment(\.ufShowPlans) private var showPlans
+    @State private var plansSheet = false
     @State private var pseudonym = SolutionDisplayName.load()
     @State private var groups: [CommunityStudyGroup] = []
     @State private var blocked: [String] = []
@@ -387,7 +396,7 @@ struct CommunitySettingsCard: View {
             UFCardHead("Community", icon: "users") {
                 service.isConnected ? UFBadge("CloudKit", tone: .ok) : UFBadge("nicht verfügbar", tone: .warn)
             }
-            UFGate(.community) {
+            UFGate(.communityRead, entitlements: entitlements) {
                 VStack(alignment: .leading, spacing: 0) {
                     if !service.isConnected {
                         Text(CommunityTexts.unavailableHint).ufFont(13.12).foregroundStyle(UF.warn)
@@ -397,17 +406,21 @@ struct CommunitySettingsCard: View {
                     if let error { Text(error).ufFont(13.12, 600).foregroundStyle(UF.bad).padding(.top, 8).fixedSize(horizontal: false, vertical: true) }
 
                     UFCardHead("Pseudonym", icon: "user").padding(.top, 16)
-                    HStack(spacing: 9.6) {
-                        UFTextInput("Leer lassen = anonym", text: $pseudonym).frame(maxWidth: 260)
-                        UFButton("Speichern", size: .small) {
-                            let name = pseudonym.trimmingCharacters(in: .whitespacesAndNewlines)
-                            pseudonym = name
-                            SolutionDisplayName.save(name)
-                            toast.show("Pseudonym gespeichert")
+                    if canShare {
+                        HStack(spacing: 9.6) {
+                            UFTextInput("Leer lassen = anonym", text: $pseudonym).frame(maxWidth: 260)
+                            UFButton("Speichern", size: .small) {
+                                let name = pseudonym.trimmingCharacters(in: .whitespacesAndNewlines)
+                                pseudonym = name
+                                SolutionDisplayName.save(name)
+                                toast.show("Pseudonym gespeichert")
+                            }
                         }
+                        Text("Erscheint bei Lösungen, die du mit Sichtbarkeit „Modul“ oder „Lerngruppe“ veröffentlichst. Nie dein echter Name.")
+                            .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
+                    } else {
+                        shareHint(CommunityTexts.pseudonymPlusHint)
                     }
-                    Text("Erscheint bei Lösungen, die du mit Sichtbarkeit „Modul“ oder „Lerngruppe“ veröffentlichst. Nie dein echter Name.")
-                        .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
 
                     UFCardHead("Lerngruppen", icon: "users").padding(.top, 16)
                     if groups.isEmpty {
@@ -425,9 +438,11 @@ struct CommunitySettingsCard: View {
                                   })
                     }
                     UFFlexWrap(gap: 9.6) {
-                        HStack(spacing: 8) {
-                            UFTextInput("Name der neuen Lerngruppe", text: $newGroupName).frame(width: 220)
-                            UFButton("Anlegen", icon: "plus", size: .small) { create() }.disabled(busy || !service.isConnected)
+                        if canShare {
+                            HStack(spacing: 8) {
+                                UFTextInput("Name der neuen Lerngruppe", text: $newGroupName).frame(width: 220)
+                                UFButton("Anlegen", icon: "plus", size: .small) { create() }.disabled(busy || !service.isConnected)
+                            }
                         }
                         HStack(spacing: 8) {
                             UFTextInput("Beitrittscode", text: $joinCode).frame(width: 160)
@@ -436,6 +451,7 @@ struct CommunitySettingsCard: View {
                         }
                     }
                     .padding(.top, 8)
+                    if !canShare { shareHint(CommunityTexts.createGroupPlusHint).padding(.top, 8) }
 
                     UFCardHead("Sperrliste", icon: "alert").padding(.top, 16)
                     if blocked.isEmpty {
@@ -451,6 +467,7 @@ struct CommunitySettingsCard: View {
             }
         }
         .sheet(item: $showingCode) { g in StudyGroupCodeSheet(group: g) { showingCode = nil } }
+        .sheet(isPresented: $plansSheet) { UFPlanSheet(required: .plus, close: { plansSheet = false }) }
         .ufModal(isPresented: Binding(get: { leaving != nil }, set: { if !$0 { leaving = nil } })) {
             if let g = leaving {
                 UFDialog("Lerngruppe verlassen", icon: "users") {
@@ -462,6 +479,26 @@ struct CommunitySettingsCard: View {
                 }
             }
         }
+    }
+
+    /// Teilen (Pseudonym, Lerngruppe anlegen) im aktuellen Tarif erlaubt?
+    private var canShare: Bool { entitlements.allows(.shareSolutions) }
+
+    /// Hinweis an Stellen, an denen man schreiben wuerde: Schloss mit Tarif, Text; Tippen fuehrt zur Tarifwahl
+    private func shareHint(_ text: String) -> some View {
+        Button {
+            if let showPlans { showPlans() } else { plansSheet = true }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                UFLockMark(access: entitlements.access(.shareSolutions))
+                Text(text).ufFont(12.8).foregroundStyle(UF.muted).multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
+        .accessibilityLabel(text)
+        .accessibilityHint("Öffnet die Tarifwahl.")
     }
 
     private func reload() async {

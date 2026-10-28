@@ -120,7 +120,7 @@ struct SettingsPage: View {
     /// Hinweis "Server nicht erreichbar" mit Weg zu "Erneut versuchen" und "Entwicklung" (Verbindung trennen)
     private func unreachableBanner(_ error: String) -> some View {
         UFCard {
-            HStack(spacing: 7.2) { UFIcon("alert", size: 18); Text("Eigener UniFlow-Server nicht erreichbar").font(UF.h2) }
+            HStack(spacing: 7.2) { UFIcon("alert", size: 18); Text("Eigener Studora-Server nicht erreichbar").font(UF.h2) }
                 .foregroundStyle(UF.warn)
             Text("\(error)\nDie Einstellungen dieses iPads kannst du trotzdem ändern. Unter „Entwicklung“ trennst du die Verbindung.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
@@ -278,7 +278,7 @@ private struct ModulesTab: View {
                 }
                 .padding(.vertical, 9.6 - 5.6)
             } else {
-                Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet UniFlow neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung. \(Self.olderSemesters)")
+                Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet Studora neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung. \(Self.olderSemesters)")
                     .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
             }
 
@@ -692,7 +692,14 @@ private struct AppAccountCards: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufSwitchPlan) private var switchPlan
+    @ObservedObject private var ent = Entitlements.shared
     @State private var plans = false
+
+    /// kaufbare Tarife, in V1 "Studora Free oder Studora Plus" (Namen aus plans.json, `UFPlanCatalog.sellable`)
+    static var planNames: String {
+        let names = UFPlanCatalog.sellable.map(\.name)
+        return names.dropLast().joined(separator: ", ") + " oder " + names.last!
+    }
 
     var body: some View {
         UFGridLayout(spacing: 16, minWidth: 340) {
@@ -736,10 +743,12 @@ private struct AppAccountCards: View {
     /// Platz fuer den Tarif; Inhalt (aktueller Tarif, Verwalten, Wiederherstellen) baut das Abo-Paket
     private var planCard: some View {
         UFCard {
-            UFCardHead("Tarif", icon: "star")
+            UFCardHead("Tarif", icon: "star") {
+                if !ent.loading { UFBadge(ent.plan.name, tone: ent.plan == .free ? .neutral : .ok) }
+            }
             Text(canSwitchPlan
-                 ? "Free oder Plus wählen, Abo verwalten und Käufe wiederherstellen."
-                 : "Die Auswahl zwischen Free und Plus folgt hier.")
+                 ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen."
+                 : "Die Auswahl zwischen \(Self.planNames) folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
             UFFlexWrap(gap: 9.6) {
                 UFButton("Tarif wechseln", icon: "star", kind: .primary, size: .small) {
@@ -758,12 +767,12 @@ private struct AppAccountCards: View {
 /// sie in den Einstellungen des iPads.
 enum DeleteAccountText {
     static func removed(ownServer: Bool) -> String {
-        "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von UniFlow (Stud.IP-Sitzung, "
+        "Deine Anmeldung mit Apple, die Kontodaten und alle Schlüsselbund-Einträge von Studora (Stud.IP-Sitzung, "
             + (ownServer ? "Server-PIN, " : "") + "Learnweb-Schlüssel) werden von diesem iPad entfernt. Danach siehst du wieder die Begrüßung. "
-            + "Hochschul-Passwörter speichert UniFlow nicht; was iOS gesichert hat, bleibt unter „Passwörter“."
+            + "Hochschul-Passwörter speichert Studora nicht; was iOS gesichert hat, bleibt unter „Passwörter“."
     }
 
-    static let appleID = "UniFlow speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → UniFlow."
+    static let appleID = "Studora speichert dein Apple-Konto nirgends außerhalb dieses iPads. Die Verknüpfung „Mit Apple anmelden“ löst du in den Einstellungen des iPads: dein Name → Anmelden und Sicherheit → Mit Apple anmelden → Studora."
 }
 
 /// Rueckfrage "Konto loeschen" (Richtlinie 5.1.1(v)) mit Hinweis auf die Abo-Verwaltung bei Apple
@@ -928,18 +937,18 @@ private struct DevelopmentTab: View {
         VStack(alignment: .leading, spacing: 16) {
             if session.isOwnServer, let api = session.api {
                 UFCard {
-                    UFCardHead("Eigener UniFlow-Server", icon: "layers") {
+                    UFCardHead("Eigener Studora-Server", icon: "layers") {
                         error == nil ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht erreichbar", tone: .warn)
                     }
                     VStack(alignment: .leading, spacing: 7.2) {
                         (Text("Server: ").font(.uf(13.12, 700)) + Text(api.base.absoluteString))
-                        Text("Die Daten kommen von deinem UniFlow-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ kommen die Daten wieder vom iPad selbst; Notizen beider Quellen bleiben getrennt erhalten.")
+                        Text("Die Daten kommen von deinem Studora-Server. Die PIN liegt im Schlüsselbund dieses iPads. Nach „Verbindung trennen“ kommen die Daten wieder vom iPad selbst; Notizen beider Quellen bleiben getrennt erhalten.")
                             .foregroundStyle(UF.muted)
                     }
                     .ufFont(13.12).foregroundStyle(UF.text)
                     UFFlexWrap(gap: 9.6) {
                         UFButton("Verbindung trennen", icon: "log-out", kind: .danger, size: .small) {
-                            Task { if await overlay.confirm("Verbindung zum UniFlow-Server trennen?") { session.disconnect() } }
+                            Task { if await overlay.confirm("Verbindung zum Studora-Server trennen?") { session.disconnect() } }
                         }
                     }
                     .padding(.top, 9.6)
@@ -960,8 +969,8 @@ struct ConnectView: View {
 
     var body: some View {
         UFCard {
-            UFCardHead("Mit eigenem UniFlow-Server verbinden", icon: "layers") { UFBadge("Entwicklung", tone: .neutral) }
-            Text("Nur für die Entwicklung: verbindet dieses iPad mit deinem UniFlow-Server im WLAN. Am PC Start-iPad.cmd starten; Adresse und PIN stehen in der Web-App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen.")
+            UFCardHead("Mit eigenem Studora-Server verbinden", icon: "layers") { UFBadge("Entwicklung", tone: .neutral) }
+            Text("Nur für die Entwicklung: verbindet dieses iPad mit deinem Studora-Server im WLAN. Am PC Start-iPad.cmd starten; Adresse und PIN stehen in der Web-App unter Einstellungen → Zugang & Darstellung → Auf dem iPad benutzen.")
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
             UFField("Adresse") {
                 UFTextField("http://192.168.0.10:8765", text: $url)

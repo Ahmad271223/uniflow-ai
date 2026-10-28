@@ -57,7 +57,7 @@ final class Session: ObservableObject {
     func connect(urlString: String, pin: String) async {
         lastError = nil
         guard Self.ownServerAvailable else {
-            lastError = "Der eigene UniFlow-Server ist nur in Entwicklungsversionen verfügbar."
+            lastError = "Der eigene Studora-Server ist nur in Entwicklungsversionen verfügbar."
             return
         }
         connecting = true
@@ -125,8 +125,9 @@ final class Session: ObservableObject {
 ///                                     <ordner>/routes.json (DebugUniStub) - nie eine echte Uni-Seite, nie ein Netz
 ///   -UFUniversity hildesheim          Hochschule des Kontos festlegen (luh|hildesheim), wie nach der Hochschulwahl;
 ///                                     nur Debug, z. B. fuer Simulator-Ablaeufe mit der Universitaet Hildesheim
-///   -UFPlan plus                      fester Tarif ohne Kauf (free|plus), z. B. fuer "Lösung teilen" im Simulator, wo
-///                                     ohne Xcode keine StoreKit-Testkonfiguration laeuft
+///   -UFPlan plus                      fester Tarif ohne Kauf (free|plus|pro_connect|pro_ai, Schluessel wie in
+///                                     plans.json), z. B. fuer "Loesung teilen" im Simulator, wo ohne Xcode keine
+///                                     StoreKit-Testkonfiguration laeuft; unbekannte Werte gelten nicht
 ///   -UFRoute "#/plan?view=week"       oeffnet eine Ansicht wie die Hash-Route der Web-App
 ///   -UFAction "package:26"            oeffnet danach einen Drawer oder Dialog (package:<id>, event:<id>:<datum>,
 ///                                     add-package, generate, config, availability, event-new, move, task-menu:<id>,

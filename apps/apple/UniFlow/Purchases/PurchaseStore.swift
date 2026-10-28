@@ -1,15 +1,18 @@
 import StoreKit
 import SwiftUI
 
-/// Abo ueber StoreKit 2 (nur Plus, Entscheidung des Inhabers vom 25.10.2026): Produkt laden, kaufen, wiederherstellen.
+/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. V1 bietet nur Studora Plus an
+/// (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 28.10.2026); Pro Connect und Pro AI kommen mit dem
+/// Studora-Dienst in dieselbe Abo-Gruppe (docs/ABO-SYSTEM.md). Upgrade und Downgrade innerhalb der Gruppe regelt Apple:
+/// hoeher gilt sofort, kleiner ab der naechsten Verlaengerung (Logik in PlanSwitchPurchaseTests geprueft).
 ///
 /// NUR TESTKONFIGURATION: Die Produkte existieren ausschliesslich in `UniFlow.storekit` (lokales StoreKit-Testen in
 /// Xcode/Simulator). Echte Produkte in App Store Connect werden erst nach ausdruecklicher Freigabe angelegt.
 /// Den Tarif fuehrt `Entitlements` (Transaction.currentEntitlements, Transaction.updates).
 @MainActor
 final class PurchaseStore: ObservableObject {
-    /// nur "de.uniflow.plus.monthly"; Free hat kein Produkt, Pro wird vorerst nicht angeboten
-    static let productIDs = UFPlan.allCases.compactMap(\.productID)
+    /// in V1 nur Plus (`UFPlanCatalog.sellableProductIDs`); Free hat kein Produkt
+    static let productIDs = UFPlanCatalog.sellableProductIDs
 
     /// Ergebnis eines Kaufs; nur bei `.success` geht die Tarifwahl weiter
     enum Outcome: Equatable { case success, cancelled, pending, failed }
@@ -68,7 +71,8 @@ final class PurchaseStore: ObservableObject {
         defer { busy = false }
         lastError = nil
         do {
-            let result = try await product.purchase()
+            // V1 ohne Konto beim Dienst: keine Kaufoptionen (kein appAccountToken, BillingServiceLink.swift)
+            let result = try await product.purchase(options: UFBillingServiceLink.purchaseOptions(accountToken: nil))
             guard case .success(let verification) = result else { return Self.outcome(of: result) }
             guard await entitlements.handle(verification) else {
                 lastError = "Der Kauf konnte nicht bestätigt werden."
@@ -166,11 +170,39 @@ enum UFOfferText {
         return "\(regular), \(note)"
     }
 
-    /// Beschriftung des Kaufknopfs: "Plus – 1 Woche gratis" bzw. "Plus für 1,99 €/Monat"
+    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "Studora Plus – 1 Woche gratis" bzw.
+    /// "Studora Plus fuer 1,99 €/Monat"
     static func button(plan: UFPlan, price: String, period: (Int, Product.SubscriptionPeriod.Unit),
                        freeTrial: (Int, Product.SubscriptionPeriod.Unit)?, eligible: Bool) -> String {
-        if eligible, let t = freeTrial { return "\(plan.title) – \(self.period(value: t.0, unit: t.1)) gratis" }
-        return "\(plan.title) für \(price)\(per(value: period.0, unit: period.1))"
+        if eligible, let t = freeTrial { return "\(plan.name) – \(self.period(value: t.0, unit: t.1)) gratis" }
+        return "\(plan.name) für \(price)\(per(value: period.0, unit: period.1))"
+    }
+
+    /// Kaufknopf bei laufendem Abo (Wechsel innerhalb der Abo-Gruppe); der Preis steht darueber auf der Karte
+    static func switchButton(to plan: UFPlan) -> String { "Zu \(plan.name) wechseln" }
+
+    /// Hinweis unter dem Knopf: wann der Wechsel gilt (Apple: Upgrade sofort, Downgrade ab der naechsten Verlaengerung)
+    static func switchNote(to plan: UFPlan, from current: UFPlan) -> String {
+        plan > current
+            ? "Gilt sofort. Apple verrechnet den bisherigen Tarif anteilig."
+            : "Gilt ab der nächsten Verlängerung, bis dahin bleibt \(current.name)."
+    }
+
+    /// Vorgemerkter Wechsel (Downgrade): "Wechsel zu Studora Plus vorgemerkt ab 27. November."
+    static func pendingNote(_ next: UFPlan, at date: Date?) -> String {
+        guard let date else { return "Wechsel zu \(next.name) zur nächsten Verlängerung vorgemerkt." }
+        return "Wechsel zu \(next.name) vorgemerkt ab \(day(date))."
+    }
+
+    /// Gekuendigtes Abo: "Gekuendigt – Studora Plus endet am 27. November, danach gilt Studora Free."
+    static func cancelledNote(_ plan: UFPlan, endsAt date: Date?) -> String {
+        guard let date else { return "Gekündigt – danach gilt \(UFPlan.free.name)." }
+        return "Gekündigt – \(plan.name) endet am \(day(date)), danach gilt \(UFPlan.free.name)."
+    }
+
+    /// "27. November"
+    static func day(_ d: Date) -> String {
+        d.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "de_DE")))
     }
 }
 

@@ -449,7 +449,7 @@ struct FlashcardCreateDialog: View {
         guard canSave, !saving else { return }
         // lokal nur mit Plus: Tarif inzwischen abgelaufen, waehrend der Dialog offen war
         if session.api?.isLocal != false && !entitlements.allows(.flashcards) {
-            toast.show("Eigene Karteikarten gibt es mit Plus.")
+            toast.show("Eigene Karteikarten gibt es ab \(UFPlan.plus.name).")
             return
         }
         saving = true

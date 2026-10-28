@@ -17,7 +17,7 @@ enum PDFExporter {
                        pageIndices: [Int]? = nil, title: String? = nil) -> Data {
         let count = layout.pdf.pageCount
         let indices = (pageIndices ?? Array(0..<count)).filter { $0 >= 0 && $0 < count }
-        var info: [String: Any] = [kCGPDFContextCreator as String: "UniFlow"]
+        var info: [String: Any] = [kCGPDFContextCreator as String: "Studora"]
         if let title { info[kCGPDFContextTitle as String] = title }
         let out = NSMutableData()
         var standard = CGRect(x: 0, y: 0, width: 595, height: 842)

@@ -11,15 +11,15 @@ struct WelcomeView: View {
     /// Store (StoreKit, ohne appAccountToken), nicht an dieser Anmeldung; einen Abgleich zwischen Geraeten gibt es nicht.
     static let reasons: [(String, String, String)] = [
         ("graduation", "Hochschul-Zuordnung", "Deine Hochschule, ihre Verbindungen (z. B. Stud.IP) und deine Kurse werden deinem Konto zugeordnet – getrennt je Hochschule."),
-        ("user", "Getrennte Daten", "Dateien, Notizen und Anmeldungen liegen je Konto und Hochschule getrennt auf diesem iPad. Nichts davon wird an UniFlow gesendet."),
-        ("star", "Abo", "Ein Abo läuft über deine Apple-ID im App Store, unabhängig von der Anmeldung in UniFlow."),
+        ("user", "Getrennte Daten", "Dateien, Notizen und Anmeldungen liegen je Konto und Hochschule getrennt auf diesem iPad. Nichts davon wird an Studora gesendet."),
+        ("star", "Abo", "Ein Abo läuft über deine Apple-ID im App Store, unabhängig von der Anmeldung in Studora."),
     ]
 
     var body: some View {
         OnboardingPage {
             VStack(alignment: .leading, spacing: 0) {
                 UFLogoMark()
-                Text("Willkommen bei UniFlow").ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 22.4)
+                Text("Willkommen bei Studora").ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text).padding(.top, 22.4)
                 Text("Stud.IP-Dateien, Lernplan und Notizen mit dem Apple Pencil – dein Studium an einem Ort.")
                     .ufFont(16).foregroundStyle(UF.text2).padding(.top, 6.4)
                     .fixedSize(horizontal: false, vertical: true)
@@ -67,7 +67,7 @@ struct WelcomeView: View {
                 .padding(.top, 12.8)
                 #endif
 
-                Text("Dateien aus Stud.IP bleiben nur auf diesem iPad. Mit der Anmeldung erhält UniFlow von Apple eine Kennung und, wenn du zustimmst, deinen Namen und deine E-Mail-Adresse.")
+                Text("Dateien aus Stud.IP bleiben nur auf diesem iPad. Mit der Anmeldung erhält Studora von Apple eine Kennung und, wenn du zustimmst, deinen Namen und deine E-Mail-Adresse.")
                     .ufFont(11.84).foregroundStyle(UF.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 19.2)

@@ -245,7 +245,7 @@ final class HildesheimConnection: ObservableObject {
         let cookiesLeft = !(await websiteDataStore.httpCookieStore.allCookies()).isEmpty
         guard !keyLeft, !cookiesLeft else {
             return "Abmelden noch nicht vollständig (\(keyLeft ? "Learnweb-Schlüssel" : "Anmeldung der Webansicht")) – "
-                + "UniFlow versucht es beim nächsten Öffnen erneut und meldet vorher niemanden an."
+                + "Studora versucht es beim nächsten Öffnen erneut und meldet vorher niemanden an."
         }
         defaults.removeObject(forKey: Keys.signOutPending)
         return nil

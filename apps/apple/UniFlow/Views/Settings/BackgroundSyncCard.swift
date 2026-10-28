@@ -31,12 +31,12 @@ struct BackgroundSyncCard: View {
     static func notifyText(_ university: UniversityKey?) -> String {
         let files = university == .hildesheim ? "Learnweb" : "Stud.IP"
         let login = BackgroundNotice.loginNeeded([files])?.title ?? ""
-        return "Die Mitteilung nennt nur die Zahl, nie Dateinamen („3 neue Dateien aus \(files)“). Läuft die Anmeldung ab, kommt einmal „\(login)“ – im Hintergrund meldet sich UniFlow nie selbst an und benutzt keine gemerkten Zugangsdaten."
+        return "Die Mitteilung nennt nur die Zahl, nie Dateinamen („3 neue Dateien aus \(files)“). Läuft die Anmeldung ab, kommt einmal „\(login)“ – im Hintergrund meldet sich Studora nie selbst an und benutzt keine gemerkten Zugangsdaten."
     }
 
-    static let deniedText = "Mitteilungen für UniFlow sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
+    static let deniedText = "Mitteilungen für Studora sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
 
-    static let refreshOffText = "Die Hintergrundaktualisierung ist in den iPad-Einstellungen ausgeschaltet (Allgemein → Hintergrundaktualisierung). Bis dahin gleicht UniFlow nur beim Öffnen ab."
+    static let refreshOffText = "Die Hintergrundaktualisierung ist in den iPad-Einstellungen ausgeschaltet (Allgemein → Hintergrundaktualisierung). Bis dahin gleicht Studora nur beim Öffnen ab."
 
     /// "Letzter Hintergrundlauf: 08:14 – Listen: 3 neue Dateien"
     static func lastRunText(_ r: BackgroundSyncRecord?, now: Date) -> String {

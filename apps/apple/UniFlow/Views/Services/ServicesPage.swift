@@ -362,11 +362,11 @@ private struct LSFGradesCard: View {
             if rows.isEmpty {
                 UFEmpty(icon: "exam", text: connected
                         ? "Noch keine Leistungen. Nach dem nächsten Abruf erscheinen hier alle Prüfungsleistungen aus deinem LSF-Notenspiegel."
-                        : "Verbinde das LSF, damit UniFlow deinen Notenspiegel holt.", small: true)
+                        : "Verbinde das LSF, damit Studora deinen Notenspiegel holt.", small: true)
             } else {
                 GradesTable(rows: rows)
             }
-            Text("Die Noten liest UniFlow mit deiner LSF-Anmeldung aus dem Notenspiegel (nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad. Prüfungsanmeldungen bleiben im LSF selbst.")
+            Text("Die Noten liest Studora mit deiner LSF-Anmeldung aus dem Notenspiegel (nur die Leistungstabelle, keine persönlichen Daten) und speichert sie nur auf diesem iPad. Prüfungsanmeldungen bleiben im LSF selbst.")
                 .ufFont(11.84).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12.8).padding(.bottom, 5.6)
