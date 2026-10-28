@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UniFlow Sync Operation v1 (proposed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation_id",
+    "document_id",
+    "page_id",
+    "object_id",
+    "base_revision",
+    "kind",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "document_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "page_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "object_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kind": {
+      "enum": [
+        "stroke.add",
+        "object.update",
+        "object.delete",
+        "page.add",
+        "page.move",
+        "page.delete",
+        "comment.add",
+        "comment.update",
+        "comment.delete"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "client_created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
