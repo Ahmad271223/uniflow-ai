@@ -5,13 +5,14 @@ import Foundation
 // sich, welcher Stud.IP-Eintrag zu welcher Serie in course_events wurde und welche Ausfaelle schon uebernommen sind.
 // Der Abgleich laeuft hier bei jedem Oeffnen der App (hoechstens alle 30 Minuten); was auf dem PC selten auffaellt,
 // stoert dann bei jedem Lauf:
-// - Ein uebernommener Eintrag wird nicht wieder angelegt, auch wenn der Nutzer die Serie geloescht oder Titel bzw.
-//   Wochentag geaendert hat (auto_import vergleicht nur Titel und Wochentag und legt sie sonst neu an).
+// - Ein uebernommener Eintrag wird nicht wieder angelegt, auch wenn der Nutzer die Serie geloescht oder Kurs, Tag bzw.
+//   Zeit geaendert hat (auto_import vergleicht mit `diff_against_existing` und legt sie sonst neu an).
 // - Ausfaelle (EXDATES), die Stud.IP erst spaeter meldet, kommen bei jedem Abgleich in die verknuepfte Serie, auch
 //   in die gewaehlte Uebungsgruppe; nicht mehr gemeldete Ausfaelle laut Stud.IP entfallen. Tage mit einer anderen
 //   Ausnahme und Ausfaelle, die der Nutzer schon zurueckgesetzt hat, bleiben, wie er sie gelassen hat.
-// - Gruppen, aus denen schon eine Kurszeit im Stundenplan steht, zaehlen nicht mehr als offen.
-// Ohne Kurszeiten (nur Einzeltermine) bleibt die Zahl offener Gruppen wie in Python.
+// - Gruppen, aus denen schon eine Kurszeit im Stundenplan steht, zaehlen nicht mehr als offen, ebenso Serien, die der
+//   eigene Stud.IP-Kalender entschieden hat.
+// Ohne Kurszeiten und ohne Kalender (nur Einzeltermine) bleibt die Zahl offener Gruppen wie in Python.
 
 enum StudIPScheduleImport {
     typealias Entry = [String: JSONValue]
@@ -34,16 +35,33 @@ enum StudIPScheduleImport {
 
     // MARK: Abgleich
 
+    /// Ergebnis von `autoImport` mit den Schluesseln von `auto_import`: neue Serien, entfernte Serien (nicht im eigenen
+    /// Stud.IP-Kalender), ob ein Kalender bekannt ist, offene Gruppen
+    struct AutoResult: Equatable {
+        let new: Int
+        let removed: Int
+        let calendar: Bool
+        let pendingGroups: Int
+
+        /// `{"new", "removed", "calendar", "pending_groups"}` wie die Antwort von `auto_import`
+        var json: JSONValue {
+            ["new": .number(Double(new)), "removed": .number(Double(removed)), "calendar": .bool(calendar),
+             "pending_groups": .number(Double(pendingGroups))]
+        }
+    }
+
     /// `auto_import(conn)` auf dem Geraet: eindeutige Stud.IP-Eintraege, die noch nicht verknuepft sind, uebernehmen
-    /// (eine schon vorhandene gleiche Serie wird verknuepft statt neu angelegt), danach die Ausfaelle aller
-    /// verknuepften Serien nachziehen. Liefert die Zahl neuer Serien und die Eintraege offener Gruppen. Wie
-    /// `auto_import` zuerst `ensure_modules`: der Abgleich speichert neue Kurse direkt davor, ihre Termine sollen das
-    /// Modul ihres Fachs bekommen (sonst fehlen ihnen dauerhaft die Unterlagen zum Termin).
-    static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> (new: Int, pendingGroups: Int, removed: Int) {
+    /// (eine schon vorhandene gleiche Serie wird verknuepft statt neu angelegt), Serien, die laut eigenem
+    /// Stud.IP-Kalender nicht dazugehoeren, entfernen (`remove_foreign_series`), danach die Ausfaelle aller
+    /// verknuepften Serien nachziehen. Wie `auto_import` zuerst `ensure_modules`: der Abgleich speichert neue Kurse
+    /// direkt davor, ihre Termine sollen das Modul ihres Fachs bekommen (sonst fehlen ihnen dauerhaft die Unterlagen
+    /// zum Termin). `calendar` wie `calendar_state(conn) is not None`.
+    static func autoImport(_ c: SQLiteConnection, clock: UniFlowClock) throws -> AutoResult {
         try LocalModules.ensureModules(c, clock: clock)
         try c.executeScript(linkTable)
-        let removed = try removeOutsideCalendar(c)
-        let all = try LocalTimetableImport.studipEntries(c)
+        // erst entscheiden (Einzeltermine je Serie wie studip_entries), dann entfernen, was nicht dazugehoert
+        let all = try LocalTimetableImport.studipEntries(c, clock: clock)
+        let removed = try removeOutsideCalendar(c, entries: all)
         var links = try readLinks(c)
         var taken = Set(links.values.map(\.eventID))
         var fresh: [Entry] = []
@@ -58,13 +76,16 @@ enum StudIPScheduleImport {
                 fresh.append(e)
             }
         }
-        // Was schon im Stundenplan steht, bleibt unangetastet - aber nur echte Doppel: gleicher Kurs (oder ohne Kurs
-        // derselbe ganze Titel), gleicher Tag, ueberlappende Zeit. `diffAgainstExisting` (Titel auf 30 Zeichen +
-        // Wochentag, fuer ICS-Importe) hielt verschiedene Kurse mit gleichem Titelanfang fuer eine Serie: die
-        // Fragestunde neben der Vorlesung am selben Tag fehlte (Befund mit echten Daten 27.10.2026)
+        // Was schon im Stundenplan steht, bleibt unangetastet - aber nur echte Doppel wie `diff_against_existing`:
+        // gleicher Kurs (fehlt er auf einer Seite: gleicher Titelanfang), gleicher Tag, ueberlappende Zeit, und jede
+        // vorhandene Serie passt hoechstens zu einem Eintrag. Serien, die mit einem ausgewaehlten Eintrag dieses Laufs
+        // verknuepft sind, gehoeren schon ihm (in Python passt der Eintrag selbst zu ihr); Serien mit veralteter
+        // Verknuepfung (der Eintrag kommt so nicht mehr vor) sind frei wie in Python. Frueher reichte gleicher
+        // Titelanfang am selben Tag: die Fragestunde neben der Vorlesung am selben Tag fehlte (Befund mit echten
+        // Daten 27.10.2026)
+        let owned = Set(all.filter { LocalModules.truthy($0["selected"]) }.compactMap { links[key($0)]?.eventID })
         let entries = try LocalTimetableImport.enrich(c, fresh)
-        let existing = try c.rows("SELECT title, course_id, weekday, start_time, end_time FROM course_events WHERE source != 'personal'")
-        let new: [JSONValue] = entries.filter { e in !existing.contains { Self.isDouble(e, $0) } }.map(JSONValue.object)
+        let new = try LocalTimetableImport.diffAgainstExisting(c, entries, used: owned)["new"]?.array ?? []
         // vom Nutzer abgewaehlte Kurszeiten (Kurs mit vielen Serien) kommen gleich als "nicht besucht"
         let skipped = try StudIPCalendar.skippedTimes(c)
         let res = try LocalTimetableImport.applyImport(c, new, source: "studip", clock: clock) { e, id in
@@ -78,29 +99,49 @@ enum StudIPScheduleImport {
             let k = key(e)
             if let l = links[k] { try refresh(c, key: k, link: l, exdates: e["exdates"], clock: clock) }
         }
-        return (res["new"]?.int ?? 0, try openGroups(c, all).count, removed)
+        return AutoResult(new: res["new"]?.int ?? 0, removed: removed, calendar: try StudIPCalendar.calendar(c) != nil,
+                          pendingGroups: try openGroups(c, all).count)
     }
 
-    /// Serien, deren Kurszeit laut eigenem Stud.IP-Kalender nicht (mehr) zum Nutzer gehoert (StudIPCalendar: nicht
-    /// relevant, oder unentschieden in einem Kurs, der dort ganz fehlt), entfernen samt Verknuepfung. Serien mit
-    /// eigener Aenderung bleiben (`untouched`), ebenso Kurszeiten, die Stud.IP gar nicht mehr liefert (wie bisher).
-    /// Ohne Kalender aendert sich nichts. Liefert die Zahl entfernter Serien.
-    static func removeOutsideCalendar(_ c: SQLiteConnection) throws -> Int {
+    /// `remove_foreign_series` auf dem Geraet: Serien, die laut eigenem Stud.IP-Kalender nicht (mehr) zum Nutzer
+    /// gehoeren, entfernen samt Verknuepfung. Kurszeiten (StudIPCalendar): nicht relevant, oder unentschieden in einem
+    /// Kurs, der dort ganz fehlt; Serien aus Einzelterminen (`entries` aus studipEntries): "fremd" oder "kurs_fehlt".
+    /// Nur unveraenderte, automatisch uebernommene Serien (`untouched`, Quelle genau "studip"): eigene Aenderungen und
+    /// von Hand bestaetigte Vorschauen ("studip-manual") bleiben, ebenso Kurszeiten, die Stud.IP gar nicht mehr
+    /// liefert (wie bisher). Zugeordnet wird ueber die Verknuepfung (Python: Kurs, Wochentag, Beginn und Ende; das
+    /// traefe hier auch die Serie einer gleich liegenden eigenen Kurszeit). Ohne Kalender aendert sich nichts. Liefert
+    /// die Zahl entfernter Serien.
+    static func removeOutsideCalendar(_ c: SQLiteConnection, entries: [Entry] = []) throws -> Int {
         let decisions = try StudIPCalendar.decisions(c)
-        guard !decisions.isEmpty else { return 0 }
         // Kurse ohne Kalendertermine, die der Nutzer uebernommen hat, bleiben
         let choices = try StudIPCalendar.choices(c)
-        let allHidden = try StudIPCalendar.hiddenCourses(c)
+        let allHidden = decisions.isEmpty ? [] : try StudIPCalendar.hiddenCourses(c)
         let included = allHidden.filter { choices[$0]?.include == true }
         let hidden = allHidden.subtracting(included)
         var cycles: [String: StudIPScheduleStore.StoredCycle] = [:]
-        for cy in try StudIPScheduleStore.cycleEntries(c, relevance: false) { cycles[cy.entry.id] = cy }
+        if !decisions.isEmpty {
+            for cy in try StudIPScheduleStore.cycleEntries(c, relevance: false) { cycles[cy.entry.id] = cy }
+        }
+        // Serien aus Einzelterminen, die der Kalender nicht dem Nutzer zuordnet
+        var foreign: [String: Entry] = [:]
+        for e in entries where e["studip_id"]?.string == nil && (e["calendar"] == "fremd" || e["calendar"] == "kurs_fehlt") {
+            if let course = e["course_id"]?.string, !course.isEmpty { foreign[key(e)] = e }
+        }
+        guard !cycles.isEmpty || !foreign.isEmpty else { return 0 }
         var removed = 0
-        for (k, l) in try readLinks(c).sorted(by: { $0.key < $1.key }) where k.hasPrefix("cycle:") {
-            guard let cy = cycles[String(k.dropFirst("cycle:".count))] else { continue }
-            if let course = cy.entry.courseID, included.contains(course) { continue }
-            let outside = decisions[cy.entry.id].map { $0 == 0 } ?? cy.entry.courseID.map(hidden.contains) ?? false
-            guard outside, try untouched(c, eventID: l.eventID, cy.json) else { continue }
+        for (k, l) in try readLinks(c).sorted(by: { $0.key < $1.key }) {
+            let entry: Entry
+            if k.hasPrefix("cycle:") {
+                guard let cy = cycles[String(k.dropFirst("cycle:".count))] else { continue }
+                if let course = cy.entry.courseID, included.contains(course) { continue }
+                let outside = decisions[cy.entry.id].map { $0 == 0 } ?? cy.entry.courseID.map(hidden.contains) ?? false
+                guard outside else { continue }
+                entry = cy.json
+            } else {
+                guard let e = foreign[k] else { continue }
+                entry = e
+            }
+            guard try untouched(c, eventID: l.eventID, entry) else { continue }
             try c.execute("DELETE FROM event_exceptions WHERE event_id=?", [.integer(l.eventID)])
             try c.execute("DELETE FROM course_events WHERE id=?", [.integer(l.eventID)])
             try c.execute("DELETE FROM studip_timetable_links WHERE entry_key=?", [.text(k)])
@@ -109,31 +150,33 @@ enum StudIPScheduleImport {
         return removed
     }
 
-    /// Serie so, wie der Import sie angelegt hat: Quelle Stud.IP, besucht, Titel, Tag, Zeiten und Ende wie die
-    /// Kurszeit, keine Notiz und keine Ausnahme ausser den Ausfaellen laut Stud.IP. Eine geloeschte Serie zaehlt nicht
+    /// Serie so, wie der Import sie angelegt hat: Quelle genau "studip" (automatisch uebernommen; von Hand bestaetigte
+    /// Vorschauen sind "studip-manual" und bleiben wie in Python), besucht, Titel, Tag, Zeiten und Ende wie der
+    /// Eintrag, keine Notiz und keine Ausnahme ausser den Ausfaellen laut Stud.IP. Eine geloeschte Serie zaehlt nicht
     /// (ihre Verknuepfung bleibt, damit sie nicht zurueckkommt).
     static func untouched(_ c: SQLiteConnection, eventID: Int64, _ e: Entry) throws -> Bool {
         let id: SQLiteValue = .integer(eventID)
         guard let r = try c.rows("SELECT * FROM course_events WHERE id=?", [id]).first,
-              (r["source"]?.string ?? "").hasPrefix("studip"), (r["attend"]?.int ?? 1) == 1,
+              r["source"]?.string == "studip", (r["attend"]?.int ?? 1) == 1,
               r["weekday"]?.int == e["weekday"]?.int else { return false }
         for f in ["title", "start_time", "end_time", "date_to"] where r[f]?.string != e[f]?.string { return false }
         if try c.queryOne("SELECT 1 FROM event_notes WHERE event_id=?", [id]) != nil { return false }
         return try c.queryOne("SELECT 1 FROM event_exceptions WHERE event_id=? AND NOT (type='cancelled' AND note IS ?)", [id, .text(note)]) == nil
     }
 
-    /// Fuer POST /api/timetable/import/confirm: aus Stud.IP uebernommene Eintraege (Quelle "studip", z. B. die
-    /// gewaehlte Uebungsgruppe) verknuepfen, damit der Abgleich ihre Ausfaelle nachzieht. Andere Quellen: nil.
+    /// Fuer POST /api/timetable/import/confirm: aus Stud.IP uebernommene Eintraege (gespeichert als "studip-manual",
+    /// z. B. die gewaehlte Uebungsgruppe) verknuepfen, damit der Abgleich ihre Ausfaelle nachzieht. Andere Quellen: nil.
     static func confirmed(_ c: SQLiteConnection, source: String, clock: UniFlowClock) -> ((Entry, SQLiteValue) throws -> Void)? {
         guard source.hasPrefix("studip") else { return nil }
         return { e, id in try link(c, key: key(e), eventID: id, exdates: isoDates(e["exdates"]) ?? [], clock: clock) }
     }
 
     /// Vorschau "aus Stud.IP": Kurszeiten ueber die Verknuepfung ihrer Serie zuordnen. `diff_against_existing` paart
-    /// nach Titel und Wochentag; liegen zwei Serien eines Kurses am selben Tag (z. B. Vorlesung und Uebungsgruppe),
-    /// traefe die Gruppenwahl sonst die Vorlesung. Je Kurszeit: die eigene Serie; sonst (nur Gruppenoptionen) die Serie
-    /// einer anderen Gruppe derselben Art am selben Wochentag (Gruppe wechseln); gehoert die nach Titel und Wochentag
-    /// gefundene Serie einem anderen Stud.IP-Eintrag, ist die Kurszeit neu. Alles andere bleibt wie in Python.
+    /// nach Kurs, Wochentag und ueberlappender Zeit (seit 8cc7463; vorher Titel und Wochentag); die Gruppenwahl soll
+    /// aber die Serie der bisher gewaehlten Gruppe treffen, auch wenn deren Zeit ganz anders liegt. Je Kurszeit: die
+    /// eigene Serie; sonst (nur Gruppenoptionen) die Serie einer anderen Gruppe derselben Art am selben Wochentag
+    /// (Gruppe wechseln); gehoert die so gefundene Serie einem anderen Stud.IP-Eintrag, ist die Kurszeit neu. Alles
+    /// andere bleibt wie in Python.
     static func previewDiff(_ c: SQLiteConnection, _ diff: JSONValue, entries: [Entry]) throws -> JSONValue {
         let links = try readLinks(c)
         guard !links.isEmpty, var out = diff.object else { return diff }
@@ -179,9 +222,14 @@ enum StudIPScheduleImport {
 
     /// Offene Gruppenauswahl wie `pending_groups` (nicht ausgewaehlte Eintraege). Gruppen aus Kurszeiten zaehlen nicht
     /// mehr, sobald eine ihrer Kurszeiten im Stundenplan steht: verknuepft oder mit gleichem Kurs, Wochentag und
-    /// Beginn (so gewaehlt, bevor es die Verknuepfung gab). Ohne Kurszeiten wie in Python.
+    /// Beginn (so gewaehlt, bevor es die Verknuepfung gab). Serien, die der eigene Stud.IP-Kalender entschieden hat
+    /// ("fremd", "kurs_fehlt"), sind keine offene Gruppenwahl (Python zaehlt sie mit, Bitte an die PC-Sitzung in
+    /// docs/STAND-MAC-SITZUNG.md): die App zeigt dazu "Faecher mit parallelen Uebungsgruppen". Ohne Kurszeiten und
+    /// ohne Kalender wie in Python.
     static func openGroups(_ c: SQLiteConnection, _ all: [Entry]) throws -> [Entry] {
-        let pending = all.filter { !LocalModules.truthy($0["selected"]) }
+        let pending = all.filter { e in
+            !LocalModules.truthy(e["selected"]) && e["calendar"] != "fremd" && e["calendar"] != "kurs_fehlt"
+        }
         guard pending.contains(where: { $0["studip_id"]?.string != nil }) else { return pending }
         let links = try readLinks(c)
         var decided = Set<String>()
@@ -263,24 +311,12 @@ enum StudIPScheduleImport {
 
     // MARK: Hilfen
 
-    /// Steht diese Stud.IP-Serie schon im Stundenplan? Gleicher Wochentag, ueberlappende Zeit und derselbe Kurs (ohne
-    /// Kurs auf beiden Seiten: derselbe Titel, Gross-/Kleinschreibung und Leerraum egal)
-    static func isDouble(_ e: Entry, _ x: [String: JSONValue]) -> Bool {
-        guard e["weekday"]?.int == x["weekday"]?.int,
-              let es = minutes(e["start_time"]), let ee = minutes(e["end_time"]),
-              let xs = minutes(x["start_time"]), let xe = minutes(x["end_time"]), es < xe, xs < ee else { return false }
-        let ec = e["course_id"]?.string, xc = x["course_id"]?.string
-        if let ec, let xc { return ec == xc }
-        guard ec == nil, xc == nil else { return false }
-        func norm(_ v: JSONValue?) -> String { (v?.string ?? "").lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ") }
-        return norm(e["title"]) == norm(x["title"])
-    }
-
-    /// "HH:MM" -> Minuten seit Mitternacht; nil bei anderem Format
-    static func minutes(_ v: JSONValue?) -> Int? {
-        let p = (v?.string ?? "").split(separator: ":")
-        guard p.count == 2, let h = Int(p[0]), let m = Int(p[1]), (0...24).contains(h), (0..<60).contains(m) else { return nil }
-        return h * 60 + m
+    /// Steht diese Stud.IP-Serie schon im Stundenplan (Serie `x`)? Seit 8cc7463 dieselbe Regel wie Python
+    /// (`_same_series`, `LocalTimetableImport.sameSeries`): gleicher Wochentag, ueberlappende Zeit und derselbe Kurs;
+    /// fehlt der Kurs auf einer Seite, zaehlt der Titelanfang (30 Wortzeichen, klein). Vorher galt auf dem Geraet:
+    /// nur eine Seite mit Kurs = andere Serie, ohne Kurs der ganze Titel mit Leerraum.
+    static func isDouble(_ e: Entry, _ x: [String: JSONValue]) throws -> Bool {
+        try LocalTimetableImport.sameSeries(x, e)
     }
 
     /// Gueltige ISO-Daten einer Liste (wie `_add_cancellations`), ohne Doppelte, sortiert; nil ohne Liste

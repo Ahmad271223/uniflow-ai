@@ -188,7 +188,7 @@ public enum TimetableEndpoints: LocalEndpointModule {
                 var entries: [LocalTimetableImport.Entry]
                 do {
                     if source == "studip" {
-                        entries = try LocalTimetableImport.studipEntries(c)
+                        entries = try LocalTimetableImport.studipEntries(c, clock: clock)
                     } else {
                         entries = LocalTimetableImport.parseICS(text)
                     }
@@ -213,7 +213,10 @@ public enum TimetableEndpoints: LocalEndpointModule {
         router.post("/api/timetable/import/confirm") { req, ctx in
             let b = try req.objectBody()
             let entries = try iterable(b["entries"], "entries", strict: true)
-            let source = T.or(b["source"], "manual")
+            // Von Hand bestaetigte Stud.IP-Vorschau: 'studip-manual', damit der Abgleich sie nie als fremde Gruppe
+            // entfernt (wie app/server.py seit 8cc7463)
+            let given = T.or(b["source"], "manual")
+            let source: JSONValue = given == "studip" ? "studip-manual" : given
             let removeIDs = try iterable(b["remove_ids"], "remove_ids", strict: false)
             let clock = ctx.clock
             return .json(try await ctx.database.transaction { c -> JSONValue in
@@ -244,8 +247,9 @@ public enum TimetableEndpoints: LocalEndpointModule {
         }
 
         router.get("/api/timetable/auto-status") { _, ctx in
-            .json(try await ctx.database.withConnection { c -> JSONValue in
-                let entries = try LocalTimetableImport.studipEntries(c)
+            let clock = ctx.clock
+            return .json(try await ctx.database.withConnection { c -> JSONValue in
+                let entries = try LocalTimetableImport.studipEntries(c, clock: clock)
                 // Gruppen aus Kurszeiten, aus denen schon gewaehlt ist, zaehlen nicht (ohne Kurszeiten wie Python)
                 let pending = try StudIPScheduleImport.openGroups(c, entries)
                 let groups = Set(pending.compactMap { $0["title"]?.string }).sorted { $0.unicodeScalars.lexicographicallyPrecedes($1.unicodeScalars) }

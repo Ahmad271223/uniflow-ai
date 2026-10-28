@@ -573,7 +573,8 @@ final class StudIPSync: ObservableObject {
             } else if waiting > 0 {
                 setFlag(Keys.downloadsPending, true)
             }
-            let message = scope == .full ? StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0)
+            let message = scope == .full ? StudIPLibrary.summary(newFiles: loaded, newEvents: timetable.result?.newEvents ?? 0,
+                                                                   removedEvents: timetable.result?.removedEvents ?? 0)
                 : "Hintergrund: Listen abgeglichen, " + waitingText
             await log(database, started: started, ok: true, newFiles: loaded, message: message)
             // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu

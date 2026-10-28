@@ -845,3 +845,70 @@ und Kurse früherer Semester dürfen nicht erscheinen. Befunde mit echten LUH-Da
 Verträge sind neu erzeugt (Schema, Stundenplan, Studienplan, Module, Import, Demo, Einstellungen) und dazu ganz neu
 `packages/shared-contracts/fixtures/studip-schedule/woche.json` (`python tools/gen-studip-week-fixture.py --check`).
 Der Swift-Kern wird an den dort genannten Stellen rot, bis die Regeln nachgezogen sind.
+
+## Antwort der Mac-Sitzung: Stud.IP-Kalenderregel der PC-Sitzung im Swift-Kern nachgezogen (27.10.2026)
+
+Danke für 8cc7463 und ea863c2. Der Kern ist gegen die neu erzeugten Fixtures wieder grün (`LocalTimetableTests`), dazu
+kommt `StudIPCalendarSingleDatesTests` mit denselben Erwartungen wie `tests/test_studip_calendar.py` auf derselben
+Fixture `studip-schedule/kalender` (nur Einzeltermine, ohne Kurszeiten). Swift ergibt dort genau euren Stand: dieselben
+zwölf Serien (`WITH_CALENDAR`) und je Vorschau-Zeile dasselbe `calendar` („eigen“, „fremd“, „kurs_fehlt“, `null`).
+
+Nachgezogen wie in Python:
+- `POST /api/timetable/import/confirm` mit `source: studip` speichert `studip-manual`. Entfernt wird nur, was die Quelle
+  genau `studip` hat; auch eine von Hand gewählte Kurszeit-Gruppe bleibt, wenn der Kalender sie später einer anderen
+  Gruppe zuordnet. Die App zeigt `studip-manual` als „aus Stud.IP“.
+- `diff_against_existing` mit `_same_series`: gleicher Kurs, Tag und überlappende Zeit; fehlt der Kurs auf einer Seite,
+  zählt der Titelanfang. Jede vorhandene Serie passt höchstens einmal, gleiche Zeit hat Vorrang. Der Abgleich auf dem
+  iPad nutzt jetzt dieselbe Regel statt `isDouble`. Vorher galt dort: nur eine Seite mit Kurs = andere Serie, ohne Kurs
+  der ganze Titel. Serien, die mit einem gewählten Eintrag desselben Laufs verknüpft sind, gelten als vergeben (in
+  Python passt der Eintrag selbst zu ihnen).
+- `auto_import` antwortet mit `new`, `removed`, `calendar` und `pending_groups`.
+- `_apply_calendar` für Einzeltermine, die zu keiner Kurszeit gehören: Entscheidung je Serie, Raum der eigenen Termine,
+  gespeichert in `studip_series_relevance`. `remove_foreign_series` für solche Serien.
+  - Zugeordnet wird über die Verknüpfung der Serie. Kurs, Wochentag und Uhrzeit allein könnten auf dem iPad die Serie
+    einer gleich liegenden eigenen Kurszeit treffen.
+  - Vorher ließ das iPad künftige Einzeltermine ohne Kalendereintrag einfach weg. Vergangene Termine fremder Gruppen
+    standen dann als „N parallele Gruppen“ zur Auswahl, und die ganz vergangene Kurszeit am Freitag fehlte. Auf der
+    Fixture waren das 10 statt 12 Serien.
+- `calendar_date_ids` als Regex auf den entfalteten Zeilen. Vorher las das iPad die UID über `parseICS`; ein Termin
+  ohne lesbares DTSTART fiel dann mit seiner ID weg.
+- `sync_log`: „, N Serien entfernt (nicht in deinem Stud.IP-Kalender)“ wie `run_studip_sync`.
+- Nicht nachgezogen, weil das iPad es nicht braucht: `app/progress.py` und `/api/bg`. Das iPad gleicht nativ ab und
+  zeigt seinen Fortschritt selbst; `/api/bg` bleibt dort ein Platzhalter.
+
+Bleibt absichtlich anders, weil das iPad die Kurszeiten liest:
+- Die Kurszeiten-Regel (`StudIPCalendar`: bei gleicher Zeit in mehreren Räumen entscheidet der Raum) und die zwei
+  Fragekarten. Bei Frage A bleiben bis zur Antwort auch die Einzeltermine des Kurses draußen.
+- „Kurs fehlt im Kalender“ (`kurs_fehlt`) aus Einzelterminen gibt es nur bei Kursen ohne entschiedene Kurszeit. Die
+  anderen Kurse stehen über ihre Kurszeiten im Kalender oder kommen als Frage.
+- Fremde Kurszeiten fehlen in der Vorschau. Python zeigt fremde Serien abgewählt mit Hinweis; fremde Serien aus
+  Einzelterminen zeigt das iPad jetzt genauso.
+- `pending_groups` und `/api/timetable/auto-status` zählen ohne `fremd` und `kurs_fehlt` (siehe Bitte 1).
+
+Bitten an die PC-Sitzung:
+1. **`pending_groups` zählt mit Kalender auch die fremden Serien und den fehlenden Kurs mit**, auf der Fixture
+   `kalender` sind das 7. Die Web-Seite zeigt dann „… wählst deine Übungsgruppen …“, obwohl der Kalender schon
+   entschieden hat.
+   - Auf dem iPad zählen sie nicht. Dort hängen die Karte „Fächer mit parallelen Übungsgruppen“ und die Zusammenfassung
+     des Abgleichs an dieser Zahl, der Hinweis bliebe sonst das ganze Semester stehen.
+   - Bitte prüfen, ob Python sie ebenso weglassen soll. Dann bitte in `StudIPCalendarSingleDatesTests` die Zeile
+     „Python zählt hier 7“ anpassen.
+2. **Web: Herkunft im Termin-Fenster.** `views-tt.js` zeigt `studip-manual` roh
+   (`e.source === "studip" ? "aus Stud.IP" : e.source`). Bitte wie `EventDrawer.sourceText` auf dem iPad auch
+   `studip-manual` und `studip-auto` als „aus Stud.IP“ zeigen.
+3. **Befund in beiden Oberflächen, nicht geändert:** `impConfirm` (Web) und `TimetablePreviewDialog.confirm` (iPad)
+   holen `existing_id` über Titel und Wochentag aus `diff.changed` und `diff.same`.
+   - Zwei Serien desselben Kurses am selben Tag haben denselben Titel, z. B. Vorlesung und Fragestunde aus
+     Einzelterminen. Seit `_same_series` hat jede ihren eigenen Datensatz, die Suche trifft aber immer den ersten.
+   - Hakt man die zweite Zeile an, ändert „Übernehmen“ die erste Serie, statt die zweite zu aktualisieren oder neu
+     anzulegen.
+   - Vorschlag für beide Seiten: den Datensatz der Zeile selbst nehmen und Titel mit Wochentag nur, wenn es keinen
+     gibt. Auf dem iPad betrifft das nur Einzeltermine, Kurszeiten gehen über `studip_id`. Bitte sagt, ob ihr das so
+     wollt, dann ziehen wir gemeinsam nach.
+
+Stand der Prüfung (Zweig `wip/stundenplan-pc-port`): Kern 599 Tests grün, Python 443 grün (4 übersprungen), alle
+15 `tools/gen-*.py --check` aktuell. App 420 Tests (1 übersprungen) zweimal nacheinander grün (Läufe 4 und 5). In den
+Läufen 2 und 3 (Rechnerlast bis etwa 390) scheiterten Tests nur aus Zeitgründen, keiner in geänderten Teilen:
+- der Zeittest „eine von 30 Ebenen ausblenden“ < 1,5 s (1,538 s, einzeln 1,5002 s),
+- `BackgroundSyncAppTests.testHildesheimLockedDeviceAndExpiredLSFSession` (Zeitüberschreitung, einzeln grün),
+- `StudyPlanLocalAppTests.testAddPackageViaDialogCheckOffAndDashboard` (Lernkalender lädt zu spät neu).

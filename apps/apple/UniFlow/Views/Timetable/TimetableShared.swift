@@ -39,7 +39,7 @@ struct EventDrawer: View {
     /// Herkunft einer Serie lesbar (vorher stand die interne Kennung da: "· lsf", "· manual", "· ics")
     static func sourceText(_ source: String?) -> String? {
         switch source {
-        case "studip", "studip-auto": return "aus Stud.IP"
+        case "studip", "studip-auto", "studip-manual": return "aus Stud.IP"
         case "lsf", "lsf-auto": return "aus dem LSF"
         case "ics": return "aus einer Kalenderdatei"
         case "manual": return "eigener Termin"

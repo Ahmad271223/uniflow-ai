@@ -14,6 +14,8 @@ import Foundation
 // Kurszeiten ganz in der Vergangenheit und Kurse ohne geladene Einzeltermine bleiben unentschieden (bisherige Regel:
 // parallele Gruppen zur Auswahl). Entscheidungen bleiben gespeichert, damit sich am Semesterende oder bei einem
 // gescheiterten Abruf nichts zurueckdreht. Ein Kalender ganz ohne Veranstaltungstermine entscheidet nichts.
+// Einzeltermine, die zu keiner Kurszeit gehoeren (Blocktermine, Klausuren, Kurse ohne Kurszeiten), entscheidet
+// `LocalTimetableImport.applyCalendar` je Serie wie Python (`_apply_calendar`, Tabelle studip_series_relevance).
 //
 // Zwei Fragen an den Nutzer (Antworten je Kurs in studip_course_choices, also je Datenbank = je Nutzer und
 // Hochschule, gelten fuer jeden weiteren Abgleich):
@@ -59,21 +61,23 @@ enum StudIPCalendar {
         var skipped: Set<String> = []
     }
 
-    static let uidPrefix = "Stud.IP-SEM-"
-
     // MARK: Lesen der Antwort
 
-    /// Termin-IDs der Veranstaltungstermine im Kalender (UID "Stud.IP-SEM-<id>@..."); eigene Kalendertermine und
-    /// Eintraege ohne solche UID fehlen. Ohne Doppelte, sortiert.
+    private static let folded = HText.regex("\\r?\\n[ \\t]")
+    private static let uidLine = HText.regex("^UID:Stud\\.IP-SEM-([^@\\s]+)@", [.anchorsMatchLines])
+
+    /// `calendar_date_ids(ics)` wie app/timetable.py: Termin-IDs der Veranstaltungstermine im Kalender (Zeilen
+    /// "UID:Stud.IP-SEM-<id>@..." nach dem Entfalten nach RFC 5545); eigene Kalendertermine und Eintraege ohne solche
+    /// UID fehlen. Ohne Doppelte, nach Codepunkten sortiert. Vorher las das Geraet die UID ueber `parseICS`: ein
+    /// Termin ohne lesbares DTSTART fiel dann mit seiner ID weg.
     static func dateIDs(ics: String) -> [String] {
+        let text = folded.stringByReplacingMatches(in: ics, range: NSRange(location: 0, length: (ics as NSString).length), withTemplate: "")
+        let ns = text as NSString
         var out = Set<String>()
-        for e in LocalTimetableImport.parseICS(ics) {
-            guard let uid = e["uid"]?.string, uid.hasPrefix(uidPrefix) else { continue }
-            let rest = uid.dropFirst(uidPrefix.count)
-            let id = rest.split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
-            if !id.isEmpty { out.insert(id) }
+        for m in uidLine.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            out.insert(ns.substring(with: m.range(at: 1)))
         }
-        return out.sorted()
+        return out.sorted { $0.unicodeScalars.lexicographicallyPrecedes($1.unicodeScalars) }
     }
 
     // MARK: Entscheiden
