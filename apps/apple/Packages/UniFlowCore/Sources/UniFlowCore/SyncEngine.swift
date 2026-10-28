@@ -143,6 +143,13 @@ public struct SyncStats: Equatable, Sendable {
 ///   meldet `issue` (nie "Offline").
 /// - Ist nach einem Fehler nichts zu senden, prueft ein leichter Abruf, ob der Server wieder antwortet (und holt
 ///   dabei neuere Staende). So bleibt kein Fehlerzustand stehen, der spaetere Striche lokal festhaelt.
+/// - Beschaedigtes Journal (`JournalSnapshot.damaged`): Seiten mit unlesbarer Datei, fehlende oder unlesbare
+///   Wurzelfelder und Dateien, die aelter sind als ihre Bestaetigung, gelten als unbekannt. Hochgeladen wird erst, wenn
+///   der Serverstand geholt und eingearbeitet ist (sonst ersetzte der Upload Seiten, Seitenliste, Lesezeichen und
+///   Papierkorb auf dem Server durch leere Vorgaben). Unlesbare Bestaetigungen werden aus den Basisdateien hergeleitet
+///   (Basis vorhanden = ungesendet), damit im Browser Geloeschtes nicht zurueckkommt.
+/// - Laesst sich das Journal gar nicht lesen (Ordner), wird nichts hineingeschrieben und nichts hochgeladen: der
+///   Serverstand ist nur zum Ansehen da (`OpenResult.journalUnreadable`), bis das Dokument neu geoeffnet wird.
 public actor SyncEngine {
     public typealias Sleeper = @Sendable (Double) async -> Void
 
@@ -168,6 +175,8 @@ public actor SyncEngine {
 
     private var failedPageWrites: Set<String> = []
     private var failedBaseWrites: Set<String> = []
+    /// Basen bestaetigter Seiten, deren Datei erst nach der gesicherten Bestaetigung geht (`removeDroppedBaseFiles`)
+    private var droppedBaseFiles: Set<String> = []
     private var failedMetaWrite = false
     private var failedAcksWrite = false
     private var lastWriteError: String?
@@ -186,6 +195,17 @@ public actor SyncEngine {
     private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     private var unresolvedConflict: String?
     private var isShutDown = false
+    /// Seiten, deren Datei im Journal beschaedigt war: lokaler Stand unbekannt, bis der Serverstand eingearbeitet ist
+    private var unknownPages: Set<String> = []
+    /// Wurzelfelder unbekannt (meta.json fehlt neben Seiten oder ist beschaedigt): erst vom Server, bis dahin weder
+    /// hochladen noch aendern
+    private var metaUnknown = false
+    /// Bestaetigungen (acks.json) beschaedigt und hergeleitet: Serverversion unbekannt
+    private var acksUnknown = false
+    /// Journal nicht lesbar: nichts schreiben, nichts hochladen (nur ansehen)
+    private var journalUnreadable = false
+    /// Seiten mit Konflikten seit dem letzten "Verstanden" (Anzeige: welche Seiten betroffen sind)
+    private var conflictPages: Set<String> = []
 
     public private(set) var status: SyncStatus = .loading
     public private(set) var issue: SyncIssue?
@@ -221,8 +241,17 @@ public actor SyncEngine {
     public func acknowledgeMergedConflicts() {
         mergedConflictCount = 0
         orderConflict = false
+        conflictPages = []
         refreshStatus()
     }
+
+    /// Seiten, auf denen seit dem letzten "Verstanden" Objekte zusammengefuehrt werden mussten (beide Geraete hatten
+    /// dasselbe Objekt geaendert, oder eines hatte geloescht, was das andere aenderte)
+    public var conflictPageKeys: [String] { conflictPages.sorted() }
+
+    /// Wurzelfelder (Seitenliste, Lesezeichen) bekannt und aenderbar? Nach beschaedigtem oder fehlendem meta.json erst,
+    /// wenn der Serverstand geholt ist.
+    public var rootMetaKnown: Bool { !metaUnknown && !journalUnreadable }
 
     // MARK: Oeffnen
 
@@ -231,6 +260,9 @@ public actor SyncEngine {
         public var serverReachable: Bool
         public var restoredUnsentPages: Int
         public var damagedFiles: [String]
+        /// Journal nicht lesbar: angezeigt wird der Serverstand, nur zum Ansehen; nichts wird geschrieben oder
+        /// hochgeladen (erneut oeffnen versucht es wieder)
+        public var journalUnreadable = false
     }
 
     /// Laedt das lokale Journal, holt den Serverstand und fuehrt beides zusammen. Ungesendete lokale Aenderungen
@@ -241,7 +273,10 @@ public actor SyncEngine {
         do {
             snapshot = try journal.load()
         } catch {
-            recordWriteError("Lokale Notizen nicht lesbar (\(error))")
+            // nie den Serverstand ueber ein Journal schreiben, das sich nur gerade nicht lesen laesst (darin koennen
+            // ungesendete Seiten stehen): nur ansehen, bis das Dokument neu geoeffnet wird
+            journalUnreadable = true
+            recordWriteError("Lokale Notizen nicht lesbar – nur ansehen. Dokument schließen und erneut öffnen.")
         }
         if let snapshot { adopt(snapshot) }
         let restored = dirtyPageKeys.count
@@ -250,21 +285,24 @@ public actor SyncEngine {
             let server = try await transport.fetch(documentID: documentID)
             reachable = true
             noteReachable()
-            if snapshot == nil {
+            if journalUnreadable {
+                adoptServer(server, persist: false)
+            } else if snapshot == nil {
                 adoptServer(server)
-            } else if server.version != serverVersion || hasStalePages {
+            } else if server.version != serverVersion || hasStalePages || needsServerState {
                 merge(with: server)
             }
         } catch {
             noteTransportFailure(SyncIssue.classify(error))
         }
         refreshStatus()
-        if blockedBy == nil {
-            if hasDirty { scheduleUpload(after: 0) }
+        if blockedBy == nil, !journalUnreadable {
+            if hasDirty || needsServerState { scheduleUpload(after: 0) }
             else if serverErrorStatus != nil { scheduleServerRetry() }   // 5xx beim Oeffnen: spaeter erneut abrufen
         }
         return OpenResult(document: currentDocument(), serverReachable: reachable,
-                          restoredUnsentPages: restored, damagedFiles: snapshot?.damaged ?? [])
+                          restoredUnsentPages: restored, damagedFiles: snapshot?.damaged ?? [],
+                          journalUnreadable: journalUnreadable)
     }
 
     // MARK: Lesen
@@ -283,8 +321,10 @@ public actor SyncEngine {
 
     // MARK: Lokale Aenderungen
 
-    /// Neuer Stand einer Seite (vom Editor). Wird sofort lokal gesichert, Upload nach kurzer Pause.
+    /// Neuer Stand einer Seite (vom Editor). Wird sofort lokal gesichert, Upload nach kurzer Pause. Bei nicht lesbarem
+    /// Journal nicht angenommen (nur ansehen, `OpenResult.journalUnreadable`).
     public func updatePage(_ key: String, _ page: JSONValue) {
+        guard !journalUnreadable else { return }
         retryFailedWrites()
         let old = pages[key]
         guard old?.page != page else { return }
@@ -303,6 +343,7 @@ public actor SyncEngine {
     /// - Returns: `true`, wenn das Ergebnis vom uebergebenen Stand abweicht (Anzeige neu laden).
     @discardableResult
     public func updatePage(_ key: String, _ page: JSONValue, derivedFrom previous: JSONValue?) -> Bool {
+        guard !journalUnreadable else { return false }
         let current = pages[key]?.page
         guard current != previous else {
             updatePage(key, page)
@@ -312,6 +353,7 @@ public actor SyncEngine {
         if result.conflicts > 0 {
             stats.mergedConflicts += result.conflicts
             mergedConflictCount += result.conflicts
+            conflictPages.insert(key)
         }
         let merged = result.page ?? page
         updatePage(key, merged)
@@ -319,17 +361,21 @@ public actor SyncEngine {
         return merged != page
     }
 
-    /// Neue Wurzelfelder (Seitenreihenfolge, Lesezeichen ...), ohne `pages`.
-    public func updateRootMeta(_ meta: JSONValue) {
+    /// Neue Wurzelfelder (Seitenreihenfolge, Lesezeichen ...), ohne `pages`. false, solange die Wurzelfelder unbekannt
+    /// sind (`rootMetaKnown`): eine Aenderung auf der leeren Vorgabe ersetzte sonst die echte Seitenliste.
+    @discardableResult
+    public func updateRootMeta(_ meta: JSONValue) -> Bool {
+        guard rootMetaKnown else { return false }
         var m = meta
         m["pages"] = nil
-        guard m != rootMeta else { return }
+        guard m != rootMeta else { return true }
         if !isMetaDirty { baseRootMeta = rootMeta }
         rootMeta = m
         metaRev = max(metaRev, metaAckedRev) + 1
         persistMeta()
         refreshStatus()
         scheduleUploadAfterEdit()
+        return true
     }
 
     // MARK: Hochladen
@@ -396,22 +442,23 @@ public actor SyncEngine {
     }
 
     private func startUploadLoop() {
-        guard !uploading, !isShutDown else { return }
+        guard !uploading, !isShutDown, !journalUnreadable else { return }
         // eigener Task: eine neue Aenderung bricht einen laufenden Upload nie ab
         Task { await self.uploadLoop() }
     }
 
     private func uploadLoop() async {
-        if uploading { return }
+        if uploading || journalUnreadable { return }
         uploading = true
-        if !hasDirty && (serverErrorStatus != nil || blockedBy != nil || networkDown) {
-            // nichts zu senden, der letzte Versuch scheiterte aber: leichter Abruf, ob der Server wieder antwortet
+        if needsServerState || (!hasDirty && (serverErrorStatus != nil || blockedBy != nil || networkDown)) {
+            // nichts zu senden, der letzte Versuch scheiterte aber: leichter Abruf, ob der Server wieder antwortet.
+            // Unbekannter lokaler Stand (beschaedigte oder veraltete Dateien): erst den Serverstand einarbeiten
             do {
                 let server = try await transport.fetch(documentID: documentID)
                 noteReachable()
                 retryDelay = 2
                 serverRetryDelay = 2
-                if server.version != serverVersion || hasStalePages { merge(with: server) }
+                if server.version != serverVersion || hasStalePages || needsServerState { merge(with: server) }
             } catch {
                 handleTransportError(error)
                 return
@@ -456,7 +503,7 @@ public actor SyncEngine {
                 stats.conflicts += 1
                 conflictsInRow += 1
                 if conflictsInRow > 5 {
-                    unresolvedConflict = "Der Server ändert sich ständig. Bitte später erneut versuchen."
+                    unresolvedConflict = "Der Server ändert sich ständig – neuer Versuch folgt. Änderungen sind lokal gesichert."
                     break rounds
                 }
                 merge(with: server)
@@ -465,6 +512,8 @@ public actor SyncEngine {
         uploading = false
         refreshStatus()
         resumeIdleWaiters()
+        // vorher blieb es bei der Meldung, bis wieder geschrieben wurde: spaeter erneut, mit wachsendem Abstand
+        if unresolvedConflict != nil { scheduleServerRetry() }
     }
 
     /// Fehlgeschlagener Versuch (Abruf oder Speichern): Grund merken, Wiederholung planen, Wartende freigeben.
@@ -514,9 +563,22 @@ public actor SyncEngine {
         pages = s.pages
         acked = s.acked
         bases = s.bases
+        unknownPages = Set(s.damagedPageKeys).subtracting(s.pages.keys)
+        metaUnknown = s.metaUnknown
+        if s.acksDamaged {
+            // Bestaetigungen herleiten: eine Seite mit Basisdatei war ungesendet (die Basis entsteht mit der ersten
+            // Aenderung und geht erst mit der Bestaetigung), eine ohne war bestaetigt. Vorher galt jede Seite als
+            // ungesendet ohne Basis: die Zusammenfuehrung holte im Browser Geloeschtes zurueck.
+            acksUnknown = true
+            serverVersion = 0
+            acked = [:]
+            for (key, p) in pages { acked[key] = bases[key] == nil ? p.localRev : 0 }
+            metaAckedRev = baseRootMeta == nil ? metaRev : 0
+        }
     }
 
-    private func adoptServer(_ server: ServerSnapshot) {
+    /// `persist: false` bei nicht lesbarem Journal: nur im Speicher (nichts ueber die lokalen Dateien schreiben)
+    private func adoptServer(_ server: ServerSnapshot, persist: Bool = true) {
         let doc = AnnotationDocument(root: server.root)
         serverVersion = server.version
         rootMeta = doc.rootMeta
@@ -526,13 +588,18 @@ public actor SyncEngine {
         pages = [:]
         acked = [:]
         bases = [:]
+        unknownPages = []
+        metaUnknown = false
+        acksUnknown = false
         for (k, p) in doc.pages {
             pages[k] = JournalPage(page: p, localRev: 0)
             acked[k] = 0
-            persistPage(k)
+            if persist { persistPage(k) }
         }
-        persistMeta()
-        persistAcks()
+        if persist {
+            persistMeta()
+            persistAcks()
+        }
     }
 
     private func merge(with server: ServerSnapshot) {
@@ -552,12 +619,13 @@ public actor SyncEngine {
         }
         var changed: [String] = []
         var conflicts = 0
-        for key in Set(pages.keys).union(serverPages.keys) {
+        for key in Set(pages.keys).union(serverPages.keys).union(unknownPages) {
             let local = pages[key]
             let theirs = serverPages[key]
             let stale = (local?.localRev ?? 0) < (acked[key] ?? 0)
+            let unknown = unknownPages.contains(key)
             if !isDirty(key) || stale {
-                // hier nichts Ungesendetes (oder lokale Datei veraltet): Serverstand gilt
+                // hier nichts Ungesendetes (oder lokale Datei veraltet bzw. beschaedigt): Serverstand gilt
                 if local?.page != theirs {
                     if let theirs {
                         let rev = max(local?.localRev ?? 0, acked[key] ?? 0)
@@ -569,6 +637,8 @@ public actor SyncEngine {
                     }
                     persistPage(key)
                     changed.append(key)
+                } else if unknown {
+                    persistPage(key)                                   // beschaedigte Datei ersetzen bzw. entfernen
                 }
                 dropBase(key)
                 continue
@@ -577,27 +647,36 @@ public actor SyncEngine {
             let base: JSONValue? = (stored == nil || stored == .null) ? nil : stored
             let result = AnnotationMerge.mergePage(base: base, local: local?.page, server: theirs)
             conflicts += result.conflicts
+            if result.conflicts > 0 { conflictPages.insert(key) }
             if result.page != local?.page { changed.append(key) }
             let rev = (local?.localRev ?? 0) + 1
             if let merged = result.page {
                 pages[key] = JournalPage(page: merged, localRev: rev)
-                if merged == theirs {
-                    acked[key] = rev                                   // identisch mit dem Server: nichts zu senden
-                    dropBase(key)
-                } else {
-                    setBase(key, theirs)                               // neue Basis = aktueller Serverstand
-                }
             } else {
                 pages.removeValue(forKey: key)
                 acked.removeValue(forKey: key)
+            }
+            // erst die Seite, dann die neue Basis: endet der Prozess dazwischen, passt die alte Basis zur neuen Seite
+            // (umgekehrt gaelte der alte Seitenstand gegen die neue Basis als hier geaendert und gewaenne)
+            persistPage(key)
+            if let merged = result.page, merged != theirs {
+                setBase(key, theirs)                                   // neue Basis = aktueller Serverstand
+            } else {
+                if result.page != nil { acked[key] = rev }             // identisch mit dem Server: nichts zu senden
                 dropBase(key)
             }
-            persistPage(key)
         }
+        unknownPages = []
         let serverMeta = doc.rootMeta
-        if !isMetaDirty {
+        if !isMetaDirty || metaUnknown {
+            // unbekannt (beschaedigt) oder veraltet (meta.json aelter als die Bestaetigung): Stand des Servers
             rootMeta = serverMeta
             baseRootMeta = nil
+            if metaUnknown || hasStaleMeta {
+                metaRev = max(metaRev, metaAckedRev)
+                metaAckedRev = metaRev
+            }
+            metaUnknown = false
         } else {
             func withPages(_ meta: JSONValue, _ p: [String: JSONValue]) -> JSONValue {
                 var o = meta.object ?? [:]
@@ -614,6 +693,7 @@ public actor SyncEngine {
         }
         persistMeta()
         serverVersion = server.version
+        acksUnknown = false
         persistAcks()
         stats.mergedConflicts += conflicts
         mergedConflictCount += conflicts
@@ -628,6 +708,12 @@ public actor SyncEngine {
     private var hasDirty: Bool { isMetaDirty || pages.keys.contains { isDirty($0) } }
     private var dirtyCount: Int { dirtyPageKeys.count + (isMetaDirty ? 1 : 0) }
     private var hasStalePages: Bool { pages.contains { $0.value.localRev < (acked[$0.key] ?? 0) } }
+    /// meta.json aelter als die Bestaetigung (Schreiben scheiterte, die Bestaetigung nicht): Serverstand gilt
+    private var hasStaleMeta: Bool { metaRev < metaAckedRev }
+    /// Vor dem naechsten Hochladen muss der Serverstand eingearbeitet werden (lokaler Stand teils unbekannt/veraltet)
+    private var needsServerState: Bool {
+        !unknownPages.isEmpty || metaUnknown || acksUnknown || hasStalePages || hasStaleMeta
+    }
 
     /// Antwort vom Server erhalten (auch 409): Netz und Server sind wieder in Ordnung.
     private func noteReachable() {
@@ -690,6 +776,7 @@ public actor SyncEngine {
     }
 
     private func persistPage(_ key: String) {
+        guard !journalUnreadable else { return }
         do {
             if let p = pages[key] { try journal.writePage(key, p) } else { try journal.removePage(key) }
             failedPageWrites.remove(key)
@@ -702,6 +789,7 @@ public actor SyncEngine {
 
     private func setBase(_ key: String, _ page: JSONValue?) {
         bases[key] = page ?? .null
+        guard !journalUnreadable else { return }
         do {
             try journal.writeBase(key, page)
             failedBaseWrites.remove(key)
@@ -712,13 +800,25 @@ public actor SyncEngine {
         }
     }
 
+    /// Basis nicht mehr noetig (Seite bestaetigt oder vom Server uebernommen). Die Datei geht erst, wenn die Bestaetigung
+    /// gesichert ist (`persistAcks`): endete der Prozess dazwischen, gaelte die Seite sonst als ungesendet ohne Basis,
+    /// und die Zusammenfuehrung holte im Browser Geloeschtes zurueck. Eine uebrig gebliebene Basisdatei ist harmlos
+    /// (wird vor Gebrauch ersetzt bzw. beim naechsten Abgleich entfernt).
     private func dropBase(_ key: String) {
         failedBaseWrites.remove(key)
         guard bases.removeValue(forKey: key) != nil else { return }
-        try? journal.removeBase(key)          // uebrig gebliebene Basisdatei ist harmlos (wird vor Gebrauch ersetzt)
+        droppedBaseFiles.insert(key)
+    }
+
+    private func removeDroppedBaseFiles() {
+        for key in droppedBaseFiles where bases[key] == nil { try? journal.removeBase(key) }
+        droppedBaseFiles = []
     }
 
     private func persistMeta() {
+        // unbekannt: die beschaedigte bzw. fehlende Datei bleibt, bis der Serverstand da ist (sonst gaelte die leere
+        // Vorgabe nach einem Neustart als echter Stand)
+        guard !journalUnreadable, !metaUnknown else { return }
         do {
             try journal.writeMeta(rootMeta: rootMeta, metaRev: metaRev, baseRootMeta: baseRootMeta)
             failedMetaWrite = false
@@ -730,10 +830,12 @@ public actor SyncEngine {
     }
 
     private func persistAcks() {
+        guard !journalUnreadable else { return }
         do {
             try journal.writeAcks(serverVersion: serverVersion, acked: acked, metaAckedRev: metaAckedRev)
             failedAcksWrite = false
             clearWriteErrorIfRecovered()
+            removeDroppedBaseFiles()
         } catch {
             failedAcksWrite = true
             recordWriteError("Bestätigung konnte nicht lokal gesichert werden (\(error))")
