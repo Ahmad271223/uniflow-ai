@@ -70,8 +70,25 @@ def no_console() -> dict:
     return {"creationflags": subprocess.CREATE_NO_WINDOW, "startupinfo": si}
 
 
+import threading as _threading
+
+# Hoechstens so viele KI-Aufrufe gleichzeitig am PC (`LERNAPP_AI_PARALLEL`, Standard 2, Pruefpunkt 1196): jeder Aufruf
+# startet einen Prozess der KI-Kommandozeile; weitere warten (hoechstens die Zeitgrenze des Aufrufs).
+_AI_SLOTS = _threading.BoundedSemaphore(max(1, int(os.environ.get("LERNAPP_AI_PARALLEL") or 2)))
+
+
 def ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[str] | None = None,
         model: str | None = None, cwd: str | Path | None = None, blocked_tools: list[str] | None = None) -> str:
+    if not _AI_SLOTS.acquire(timeout=timeout):
+        raise AIError("Zu viele KI-Anfragen gleichzeitig. Bitte gleich noch einmal versuchen.")
+    try:
+        return _ask(prompt, system, timeout, allowed_tools, model, cwd, blocked_tools)
+    finally:
+        _AI_SLOTS.release()
+
+
+def _ask(prompt: str, system: str = "", timeout: int = 600, allowed_tools: list[str] | None = None,
+         model: str | None = None, cwd: str | Path | None = None, blocked_tools: list[str] | None = None) -> str:
     """Schickt einen Prompt an `claude -p` und gibt den Antworttext zurueck; mit verbundenem ChatGPT-Abo an die
     Responses API (dann ohne Werkzeuge: Bilder und PDF-Seiten kann nur Claude lesen, Text geht ueber beide).
     allowed_tools: z. B. ["Read"], damit Claude eine Bilddatei (Stundenplan-Screenshot) lesen darf.

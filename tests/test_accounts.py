@@ -387,3 +387,31 @@ def test_users_are_isolated_in_their_own_databases(hosted):
     da, dbb = config.user_data_dir(a["id"], "luh"), config.user_data_dir(b["id"], "luh")
     assert (da / "lernapp.db").exists() and (dbb / "lernapp.db").exists() and da != dbb
     assert not (config.DATA_DIR / "lernapp.db").read_bytes().find(marker.encode()) >= 0, "nichts im Einzelplatz-Ordner"
+
+
+def test_provider_login_takes_over_an_unverified_preregistered_account_safely(hosted):
+    """Pruefpunkt 1200: jemand registriert fremde Adresse mit eigenem Passwort (unbestaetigt). Meldet sich die echte
+    Person mit Google an (Adresse bestaetigt), verliert das Vorab-Konto Passwort und Sitzungen; verknuepft wird erst dann."""
+    from app import accounts
+    attacker_user = accounts.register("opfer@example.org", "angreifer-pw-123", "luh")
+    _, attacker_token = accounts.login("opfer@example.org", "angreifer-pw-123")
+    assert accounts.authenticate(attacker_token)
+    user, token, created = accounts.login_with_provider("google", "sub-opfer-1", email="opfer@example.org", email_verified=True)
+    assert not created and user["id"] == attacker_user["id"] and user["email_verified"]
+    assert accounts.authenticate(attacker_token) is None, "Sitzung des Vorab-Kontos widerrufen"
+    with pytest.raises(accounts.AccountError):
+        accounts.login("opfer@example.org", "angreifer-pw-123")
+    assert accounts.authenticate(token)["id"] == user["id"]
+
+
+def test_provider_login_links_a_verified_account_without_touching_it(hosted):
+    from app import accounts
+    u = accounts.register("echt@example.org", "eigenes-pw-1234", "luh")
+    _, t = accounts.login("echt@example.org", "eigenes-pw-1234")
+    accounts.mark_email_verified(u["id"])
+    user, _, created = accounts.login_with_provider("apple", "sub-echt-1", email="echt@example.org", email_verified=True)
+    assert not created and user["id"] == u["id"] and accounts.authenticate(t)
+    assert accounts.login("echt@example.org", "eigenes-pw-1234")[0]["id"] == u["id"], "Passwort bleibt"
+    # unbestaetigte Adresse vom Anbieter verknuepft nie
+    with pytest.raises(accounts.AccountError):
+        accounts.login_with_provider("google", "sub-fremd-1", email="echt@example.org", email_verified=False, university="luh")
