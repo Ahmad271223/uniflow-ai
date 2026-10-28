@@ -41,10 +41,10 @@ public enum LocalTerms {
 
 extension LocalTerms {
     /// Beginn und Ende eines neuen Semesters (Pruefbericht 569): Datum in der Form JJJJ-MM-TT, Ende nicht vor dem
-    /// Beginn. Python speichert jeden Wert; danach verglichen Stundenplan und Lernlogik die Texte (`date_from`/
-    /// `date_to` der Serien fallen auf das Semester zurueck): mit vertauschten Daten verschwanden alle Serien ohne eigene
-    /// Daten aus dem Stundenplan, mit einem Text wie "kaputt" scheiterte die Woche zweiwoechentlicher Serien (500).
-    /// Hier 422 mit Meldung, das bisherige Semester bleibt aktiv.
+    /// Beginn. Python speichert jeden Wert; der Stundenplan vergleicht die Texte (`date_from`/`date_to` der Serien
+    /// fallen auf das Semester zurueck): mit vertauschten Daten oder einem Text wie "kaputt" verschwanden alle Serien
+    /// ohne eigene Daten aus dem Stundenplan (Woche leer, ohne Hinweis). Hier 422 mit Meldung, das bisherige Semester
+    /// bleibt aktiv.
     static func checkRange(start: SQLiteValue, end: SQLiteValue) throws {
         func day(_ v: SQLiteValue, _ what: String) throws -> Int {
             guard let s = v.string, let d = BerlinClock.parseISODate(s), BerlinClock.isoDate(d) == s else {

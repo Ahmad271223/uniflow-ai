@@ -247,9 +247,9 @@ final class AuditRunde14TermTests: XCTestCase {
     }
 
     /// 569 (Fehler belegt): Ein Semester mit vertauschten Daten oder ohne gueltiges Datum wurde gespeichert. Danach
-    /// verschwanden alle Serien ohne eigene Daten aus dem Stundenplan (sie gelten im Semester), eine
-    /// zweiwoechentliche Serie liess die ganze Woche scheitern. Jetzt 422 mit Meldung, das bisherige Semester bleibt
-    /// aktiv und der Stundenplan unveraendert.
+    /// verschwanden alle Serien ohne eigene Daten aus dem Stundenplan (sie gelten im Semester; Gegenprobe ohne die
+    /// Pruefung: PUT 200, Woche ohne Termine). Jetzt 422 mit Meldung, das bisherige Semester bleibt aktiv und der
+    /// Stundenplan unveraendert.
     func testInvalidTermRangeIsRejectedAndTheTimetableStays() async throws {
         let b = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: .fixed(berlin: "2026-10-25T14:30:05")!)
         try await b.context.database.transaction { c in

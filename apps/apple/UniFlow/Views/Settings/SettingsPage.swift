@@ -20,11 +20,13 @@ struct SettingsPage: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufWindowWidth) private var windowWidth
-    @State private var data: Loaded?
-    @State private var error: String?
     @State private var tab = "modules"
+    /// Laden mit Fehlermeldung und nur dem zuletzt begonnenen Ergebnis (Pruefbericht 561-566, `SettingsLoader`)
+    @StateObject private var loader = SettingsLoader()
+    private var data: Loaded? { loader.data }
+    private var error: String? { loader.error }
     /// lokal: Einstellungen und Semester aus dem lokalen Backend
-    @State private var local: LocalLoaded?
+    private var local: LocalLoaded? { loader.local }
 
     struct LocalLoaded {
         var s: JSONValue
@@ -57,37 +59,12 @@ struct SettingsPage: View {
         .ufReload { await load() }
     }
 
-    private func load() async {
-        guard let api = session.api else { data = nil; error = nil; local = nil; return }
-        guard session.isOwnServer else {
-            data = nil; error = nil
-            async let s = try? api.value("/api/settings")
-            async let t = try? api.value("/api/terms")
-            let (sv, tv) = await (s, t)
-            // Module zuerst: GET /api/modules ordnet neue Kurse ihrem Fach zu (ensure_modules), die Kursliste danach
-            // zeigt diese Zuordnung schon
-            let mv = try? await api.value("/api/modules")
-            let cv = try? await api.value("/api/courses")
-            local = sv.map { LocalLoaded(s: $0, term: tv ?? .null, courses: cv?.items ?? [], mods: mv?.items ?? []) }
-            return
-        }
-        local = nil
-        do {
-            async let s = api.value("/api/settings")
-            async let c = api.value("/api/courses")
-            async let m = api.value("/api/modules")
-            async let l = api.value("/api/sync/status")
-            async let cr = api.value("/api/credentials")
-            async let t = api.value("/api/terms")
-            let (sv, cv, mv, lv, crv, tv) = try await (s, c, m, l, cr, t)
-            data = Loaded(s: sv, courses: cv.items, mods: mv.items, log: lv.list("log"), cred: crv, term: tv)
-            error = nil
-        } catch { if data == nil { self.error = error.localizedDescription } }
-    }
+    private func load() async { await loader.load(api: session.api, ownServer: session.isOwnServer) }
 
     @ViewBuilder private func content(_ d: Loaded) -> some View {
         UFContent(maxWidth: 1180) {
             UFPageHead("Einstellungen")
+            if let stale = loader.stale { staleBanner(stale, loaded: true) }
             layout(SettingsNav(tab: $tab, horizontal: windowWidth <= 820), SettingsBody(tab: tab, d: d, reload: { await load() }))
         }
     }
@@ -100,6 +77,7 @@ struct SettingsPage: View {
         UFContent(maxWidth: 1180) {
             UFPageHead("Einstellungen")
             if let error { unreachableBanner(error) }
+            if let stale = loader.stale { staleBanner(stale, loaded: local != nil) }
             layout(SettingsNav(tab: Binding(get: { current }, set: { tab = $0 }), horizontal: windowWidth <= 820, keys: keys),
                    Group {
                        switch current {
@@ -129,6 +107,22 @@ struct SettingsPage: View {
                 UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
                 UFButton("Entwicklung", icon: "layers", size: .small) { tab = "dev" }
             }
+        }
+        .padding(.bottom, 16)
+    }
+
+    /// Laden scheiterte (Pruefbericht 561-565): mit geladenem Stand bleibt dieser sichtbar und ist als nicht
+    /// aktualisiert gekennzeichnet; ohne Stand fehlen Module und Lernzeit, statt leer zu erscheinen
+    private func staleBanner(_ error: String, loaded: Bool) -> some View {
+        UFCard {
+            HStack(spacing: 7.2) {
+                UFIcon("alert", size: 18)
+                Text(loaded ? "Nicht aktualisiert – angezeigt wird der zuletzt geladene Stand" : "Einstellungen ließen sich nicht laden").font(UF.h2)
+            }
+            .foregroundStyle(UF.warn)
+            Text(error).ufFont(13.12).foregroundStyle(UF.muted).padding(.vertical, 5.6)
+                .fixedSize(horizontal: false, vertical: true)
+            UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
         }
         .padding(.bottom, 16)
     }
@@ -811,7 +805,7 @@ private struct DeleteAccountDialog: View {
                     Task {
                         // RootView zeigt danach die Begruessung
                         let steps = account.account.map {
-                            AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID) { account.deletionProblem = $0 }
+                            AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID)
                         } ?? []
                         await account.deleteAccount(also: steps) {
                             overlay.closeAll()

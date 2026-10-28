@@ -222,7 +222,8 @@ final class DocumentStore: ObservableObject {
     private var monitor: NWPathMonitor?
     private var lifecycle: [NSObjectProtocol] = []
     private(set) var images: [String: UIImage] = [:]
-    private var loadingImages: Set<String> = []
+    /// Bilder, die gerade laden, mit allen, die auf sie warten
+    private var imageWaiters: [String: [() -> Void]] = [:]
 
     /// Seiten (Schluessel), deren Inhalt sich durch den Server, eine Zusammenfuehrung oder eine Aktion geaendert hat.
     /// Schluessel statt Anzeige-Indizes: nach Einfuegen/Drehen von Seiten verschieben sich die Indizes.
@@ -249,6 +250,16 @@ final class DocumentStore: ObservableObject {
         guard n > 0 else { return nil }
         return n == 1 ? "1 Strich lässt sich hier nicht anzeigen – er bleibt unverändert gespeichert."
             : "\(n) Striche lassen sich hier nicht anzeigen – sie bleiben unverändert gespeichert."
+    }
+
+    /// Hinweis auf Eintraege der Seitenliste, die sich nicht anzeigen lassen (PDF-Seite fehlt in dieser PDF oder
+    /// Eintrag doppelt bzw. ohne Schluessel); sie bleiben gespeichert (Pruefbericht 504/505)
+    var pageNotice: String? { Self.pageNotice(hidden: layout?.hidden ?? 0) }
+
+    static func pageNotice(hidden n: Int) -> String? {
+        guard n > 0 else { return nil }
+        return n == 1 ? "1 Seite der Seitenliste lässt sich hier nicht anzeigen (PDF-Seite fehlt oder doppelt) – sie bleibt gespeichert."
+            : "\(n) Seiten der Seitenliste lassen sich hier nicht anzeigen (PDF-Seite fehlt oder doppelt) – sie bleiben gespeichert."
     }
 
     /// Schreibrecht in den Container der Datei (entzogen, sobald "Daten dieser Hochschule loeschen" ihn loescht)
@@ -432,15 +443,21 @@ final class DocumentStore: ObservableObject {
         (await engine.page(key))?["objects"]?.array ?? []
     }
 
-    /// Bild eines Bildobjekts laden (ueber den Server, mit PIN). Ruft `done` auf, sobald es da ist.
+    /// Bild eines Bildobjekts laden (ueber den Server, mit PIN). Ruft `done` auf, sobald es da ist. Laedt es schon,
+    /// wartet der Aufruf mit: vorher kehrte ein zweiter Aufruf fuer dasselbe Bild (z. B. dasselbe Bild auf einer
+    /// zweiten Seite) ohne Rueckruf zurueck, die Seite zeigte es bis zum naechsten Neuladen nicht (Pruefbericht 502).
+    /// Scheitert das Laden, versucht es der naechste Aufruf erneut.
     func loadImage(_ src: String, done: @escaping () -> Void) {
-        guard images[src] == nil, !loadingImages.contains(src), src.hasPrefix("/") else { return }
-        loadingImages.insert(src)
+        guard images[src] == nil, src.hasPrefix("/") else { return }
+        if imageWaiters[src] != nil { imageWaiters[src]?.append(done); return }
+        imageWaiters[src] = [done]
         Task {
-            defer { loadingImages.remove(src) }
-            guard let (data, http) = try? await api.data(src), http.statusCode == 200, let img = UIImage(data: data) else { return }
-            images[src] = img
-            done()
+            var loaded: UIImage?
+            if let (data, http) = try? await api.data(src), http.statusCode == 200 { loaded = UIImage(data: data) }
+            let waiting = imageWaiters.removeValue(forKey: src) ?? []
+            guard let loaded else { return }
+            images[src] = loaded
+            waiting.forEach { $0() }
         }
     }
 
