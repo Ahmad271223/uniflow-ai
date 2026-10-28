@@ -37,7 +37,9 @@ VERIFY_HOURS = 48          # Bestaetigungslink fuer die E-Mail-Adresse
 # Grenzen (Anzahl, Minuten) je Schluessel; jeder Versuch zaehlt (28.10.2026). IP-Grenzen grosszuegig wegen NAT im
 # Hochschulnetz, Adress- und Kontogrenzen streng. LERNAPP_LIMIT_<NAME>=Anzahl/Minuten ueberschreibt (z. B. 50/60).
 LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60), "verify_user": (5, 60), "export_user": (3, 1440),
-          "comment_user": (30, 60), "like_user": (120, 60)}
+          "comment_user": (30, 60), "like_user": (120, 60),
+          # Community Teil 2 (28.10.2026): Fragen, Antworten, Veroeffentlichen (Spam-Grenzen)
+          "question_user": (10, 60), "answer_user": (30, 60), "publish_user": (20, 1440)}
 PASSWORD_MIN = 10
 PASSWORD_MAX = 200
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")

@@ -47,10 +47,13 @@ def publish(request: Request, body: dict = Body(...)):
 
 
 @router.get("/solutions")
-def find(request: Request, fingerprint: str = ""):
-    """Loesungen zu einer PDF (Fingerabdruck = SHA-256 der Originaldatei), ohne gesperrte Autoren."""
+def find(request: Request, fingerprint: str = "", limit: int = 200, offset: int = 0):
+    """Loesungen zu einer PDF (Fingerabdruck = SHA-256 der Originaldatei), ohne gesperrte Autoren, meistgelikte
+    zuerst; seitenweise mit `limit` (hoechstens 200) und `offset`, `total` = alle."""
     u = _user(request)
-    return {"solutions": _run(community.find, u, config.university(), fingerprint.lower())}
+    rows = _run(community.find, u, config.university(), fingerprint.lower())
+    limit, offset = max(1, min(int(limit), 200)), max(0, int(offset))
+    return {"solutions": rows[offset:offset + limit], "total": len(rows)}
 
 
 @router.get("/mine")
@@ -153,3 +156,102 @@ def unblock(request: Request, pseudonym: str):
 def moderate(request: Request, solution_id: str, body: dict = Body(...)):
     """Nur Admin: hide | restore | remove | ban_author | unban_author."""
     return _run(community.moderate, _user(request), solution_id, body.get("action") or "", body.get("reason"))
+
+
+# ---------------------------------------------------------------- Teil 2: Fragen je Kurs, Lesezeichen, Benachrichtigungen
+
+from . import community_qa  # noqa: E402
+
+
+@router.get("/courses/{course_key}/questions")
+def qa_list(request: Request, course_key: str, limit: int = 30, before: str | None = None, fingerprint: str | None = None):
+    """Fragen eines Kurses (Schluessel wie CommunityKeys.courseKey), neueste Aktivitaet zuerst; `next` fuer die naechste Seite."""
+    return _run(community_qa.list_questions, _user(request), config.university(), course_key, limit, before, fingerprint)
+
+
+@router.post("/courses/{course_key}/questions", status_code=201)
+def qa_ask(request: Request, course_key: str, body: dict = Body(...)):
+    """{title, body?, fingerprint?, page?}; ab Studora Plus, bestaetigte E-Mail, 10 je Stunde."""
+    return _run(community_qa.ask, _user(request), config.university(), course_key, body.get("title"), body.get("body"),
+                body.get("fingerprint"), body.get("page"))
+
+
+@router.get("/questions/{qid}")
+def qa_get(request: Request, qid: str):
+    return _run(community_qa.get_question, _user(request), qid)
+
+
+@router.patch("/questions/{qid}")
+def qa_edit(request: Request, qid: str, body: dict = Body(...)):
+    return _run(community_qa.edit, _user(request), "question", qid, body.get("body"), body.get("title"))
+
+
+@router.delete("/questions/{qid}")
+def qa_delete(request: Request, qid: str):
+    return _run(community_qa.delete, _user(request), "question", qid)
+
+
+@router.post("/questions/{qid}/answers", status_code=201)
+def qa_answer(request: Request, qid: str, body: dict = Body(...)):
+    return _run(community_qa.answer, _user(request), qid, body.get("body"))
+
+
+@router.post("/questions/{qid}/accept")
+def qa_accept(request: Request, qid: str, body: dict = Body(...)):
+    return _run(community_qa.accept, _user(request), qid, body.get("answer_id"))
+
+
+@router.patch("/answers/{aid}")
+def qa_answer_edit(request: Request, aid: str, body: dict = Body(...)):
+    return _run(community_qa.edit, _user(request), "answer", aid, body.get("body"))
+
+
+@router.delete("/answers/{aid}")
+def qa_answer_delete(request: Request, aid: str):
+    return _run(community_qa.delete, _user(request), "answer", aid)
+
+
+@router.post("/answers/{aid}/vote")
+def qa_vote(request: Request, aid: str):
+    return _run(community_qa.vote, _user(request), aid, True)
+
+
+@router.delete("/answers/{aid}/vote")
+def qa_unvote(request: Request, aid: str):
+    return _run(community_qa.vote, _user(request), aid, False)
+
+
+@router.post("/{kind}/{target_id}/report-post")
+def qa_report(request: Request, kind: str, target_id: str, body: dict = Body(...)):
+    """Frage oder Antwort melden: kind = questions | answers."""
+    k = {"questions": "question", "answers": "answer"}.get(kind)
+    if not k:
+        raise HTTPException(404, {"detail": "Unbekannt", "code": "not_found"})
+    return _run(community_qa.report, _user(request), k, target_id, body.get("reason"))
+
+
+@router.get("/bookmarks")
+def bm_list(request: Request):
+    return community_qa.bookmarks(_user(request))
+
+
+@router.post("/bookmarks/{kind}/{target_id}")
+def bm_add(request: Request, kind: str, target_id: str):
+    return _run(community_qa.bookmark, _user(request), kind, target_id, True)
+
+
+@router.delete("/bookmarks/{kind}/{target_id}")
+def bm_del(request: Request, kind: str, target_id: str):
+    return _run(community_qa.bookmark, _user(request), kind, target_id, False)
+
+
+@router.get("/notifications")
+def notif_list(request: Request, unread: bool = False, limit: int = 50):
+    return community_qa.notifications(_user(request), unread, limit)
+
+
+@router.post("/notifications/read")
+def notif_read(request: Request, body: dict = Body(default={})):
+    """{ids?: [...]} oder alles gelesen."""
+    ids = body.get("ids") if isinstance(body, dict) else None
+    return community_qa.mark_read(_user(request), ids if isinstance(ids, list) else None)

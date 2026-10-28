@@ -58,6 +58,8 @@ class Community {
     this.list = null; this.info = null; this.err = null; this.tab = "list"; this.active = null; this.pending = null; this.placing = false;
     this.crypto = !!globalThis.crypto?.subtle;
     this.ready = this.prepare();
+    // aus "Gemerkt" oder den Mitteilungen geoeffnet: Leiste gleich zeigen
+    try { if (sessionStorage.getItem("open-community")) { sessionStorage.removeItem("open-community"); setTimeout(() => this.toggle(true), 600); } } catch {}
   }
   get available() { return !!(this.ed.pdf && this.ed.pdfBytes); }
   pdfBytes() { return new Uint8Array(this.ed.pdfBytes); }
@@ -236,17 +238,18 @@ class Community {
   async render() {
     if (this.el.hidden) return;
     const head = `<div class="com-head"><strong>${icon("users", 16)} Community</strong><span class="spacer"></span><button class="btn ghost icon sm" data-c="reload" title="Neu laden">${icon("refresh", 15)}</button><button class="btn ghost icon sm" data-c="close" title="Schließen">${icon("x", 16)}</button></div>`;
-    const tabs = `<div class="seg com-tabs"><button class="${this.tab === "list" ? "active" : ""}" data-tab="list">Lösungen${this.list ? ` (${this.list.length})` : ""}</button>${this.active ? `<button class="${this.tab === "comments" ? "active" : ""}" data-tab="comments">Kommentare</button>` : ""}<button class="${this.tab === "share" ? "active" : ""}" data-tab="share">${icon("share", 13)} Teilen</button></div>`;
+    const tabs = `<div class="seg com-tabs"><button class="${this.tab === "list" ? "active" : ""}" data-tab="list">Lösungen${this.list ? ` (${this.list.length})` : ""}</button>${this.active ? `<button class="${this.tab === "comments" ? "active" : ""}" data-tab="comments">Kommentare</button>` : ""}<button class="${this.tab === "questions" ? "active" : ""}" data-tab="questions">Fragen</button><button class="${this.tab === "share" ? "active" : ""}" data-tab="share">${icon("share", 13)} Teilen</button></div>`;
     let body;
     if (!this.available) body = `<p class="small muted">Die Community gibt es für PDF-Dateien aus deinem Hochschul-Abgleich. Dieses Dokument ist keine PDF.</p>`;
     else if (!this.crypto) body = `<p class="small muted">Lösungen werden verschlüsselt geöffnet. Das geht in der Windows-App und im Browser über https, nicht über eine einfache WLAN-Adresse.</p>`;
     else if (!this.list && !this.err) body = `<p class="small muted">Lade Lösungen …</p>`;
     else if (this.err && !this.list) body = this.errorBody();
-    else body = tabs + (this.tab === "share" ? this.shareBody() : this.tab === "comments" && this.active ? this.commentsBody() : this.listBody());
+    else body = tabs + (this.tab === "share" ? this.shareBody() : this.tab === "questions" ? `<div class="com-qa small muted">Lade Fragen …</div>` : this.tab === "comments" && this.active ? this.commentsBody() : this.listBody());
     this.el.innerHTML = head + `<div class="com-body">${body}</div><div class="com-toast small" hidden></div>`;
     this.bind();
     const lc = $(".com-link", this.el); if (lc) renderLinkCard(lc, { compact: true, onChange: () => { this.info = null; this.err = null; this.list = null; this.load(); } });
     if (this.tab === "share" && this.list) this.renderPreviews();
+    if (this.tab === "questions") this.renderQA();
   }
   errorBody() {
     const e = this.err;
@@ -267,7 +270,8 @@ class Community {
           <button class="btn sm ${vis ? "primary" : ""}" data-proj="${s.solution_id}" title="Als eigene Ebene über deine PDF legen (deine Notizen bleiben unverändert)">${icon(vis ? "eye-off" : "eye", 14)} ${vis ? "Ausblenden" : "Projizieren"}</button>
           <button class="btn sm ghost com-like${s.liked_by_me ? " liked" : ""}" data-like="${s.solution_id}" ${s.mine ? 'disabled title="Die eigene Lösung lässt sich nicht liken"' : `title="${s.liked_by_me ? "Gefällt mir nicht mehr" : "Gefällt mir"}"`}>${icon("heart", 14)} ${s.likes ?? 0}</button>
           <button class="btn sm ghost" data-com="${s.solution_id}" title="Kommentare">${icon("message", 14)} ${s.comments ?? 0}</button>
-          ${s.mine ? "" : `<button class="btn sm ghost icon" data-more="${s.solution_id}" title="Melden oder Autor sperren">${icon("more", 14)}</button>`}
+          <button class="btn sm ghost icon" data-bm="${s.solution_id}" title="Merken (Community → Gemerkt)" aria-label="Merken">${icon("bookmark", 14)}</button>
+          ${s.mine ? "" : `<button class="btn sm ghost icon" data-more="${s.solution_id}" title="Melden oder Autor sperren" aria-label="Melden oder Autor sperren">${icon("more", 14)}</button>`}
         </div>${o?.error ? `<div class="com-err small">${icon("alert", 13)} ${esc(o.error)}</div>` : ""}</div>`;
     }).join("");
     const local = own.map(([id, o]) => `<div class="com-sol${o.visible ? " on" : ""}"><div class="com-sol-title"><b>${esc(o.content.title || "Lösung aus Datei")}</b> <span class="badge neutral">Datei</span></div><div class="tiny muted">${esc(o.content.displayName || "anonym")} · ${when(o.content.createdAt)}</div><div class="com-sol-act"><button class="btn sm ${o.visible ? "primary" : ""}" data-lproj="${id}">${icon(o.visible ? "eye-off" : "eye", 14)} ${o.visible ? "Ausblenden" : "Projizieren"}</button><button class="btn sm ghost" data-ldel="${id}">${icon("x", 14)} Entfernen</button></div></div>`).join("");
@@ -312,6 +316,18 @@ class Community {
       <div class="row wrap" style="gap:.4rem;margin-top:.5rem"><button class="btn sm primary" data-c="publish" ${sel.length && objs && canShare ? "" : "disabled"}>${icon("share", 13)} Veröffentlichen</button><button class="btn sm" data-c="savefile" ${sel.length && objs ? "" : "disabled"}>${icon("download", 13)} Als Datei</button></div>
       ${canShare ? "" : `<p class="tiny muted">Veröffentlichen gibt es ab Studora Plus mit bestätigter E-Mail. Als Datei geht es immer (z. B. per Mail an Kommilitonen).</p>`}
       <div class="com-share-msg small"></div>`;
+  }
+  async renderQA() {
+    // Fragen im Kurs dieser PDF (Kurs-Schluessel wie auf dem iPad), mit "nur zu dieser PDF" und Frage zur aktuellen Seite
+    const box = $(".com-qa", this.el); if (!box) return;
+    try {
+      const f = await (await fetch(`/api/files/${encodeURIComponent(this.ed.fileId)}`)).json();
+      const q = await import("./views-qa.js?v=2");
+      const courses = await q.courseKeys(); const c = courses.find(x => x.course_id === f.course_id);
+      if (!c) { box.textContent = "Diese Datei gehört zu keinem deiner Kurse; Fragen gibt es je Kurs."; return; }
+      const pg = this.ed.pages[this.ed.currentPage];
+      q.renderQuestions(box, { courseKey: c.key, fingerprint: this.fp, page: pg?.type === "pdf" ? pg.index : undefined });
+    } catch (e) { box.textContent = e.message; }
   }
   async renderPreviews() {
     const box = $(".com-prev", this.el); if (!box || !window.Konva) return;
@@ -372,6 +388,7 @@ class Community {
       this.render();
     });
     $$("[data-com]", el).forEach(b => b.onclick = () => this.showComments(b.dataset.com));
+    $$("[data-bm]", el).forEach(b => b.onclick = async () => { try { await capi(`/bookmarks/solution/${b.dataset.bm}`, { method: "POST" }); this.toast("Gemerkt – zu finden unter Community → Gemerkt."); } catch (e) { this.toast(e.message); } });
     $$("[data-more]", el).forEach(b => b.onclick = async () => {
       const id = b.dataset.more; const pick = prompt(`Melden (Grund eingeben: ${Object.values(REASONS).join(", ")}) oder „sperren“, um Lösungen dieses Autors nicht mehr zu sehen:`);
       if (!pick) return; const p = pick.trim().toLowerCase();

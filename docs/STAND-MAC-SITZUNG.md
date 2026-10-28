@@ -1331,3 +1331,18 @@ Quellen unter der Antwort auflisten (Windows: `app/static/editor.js::askAI`).
    Windows-App (= Installationsordner `%LOCALAPPDATA%\UniFlow`), Datenordner `de.uniflow.desktop`, Cookie,
    User-Agent, Paketnamen.
 
+## Nachtrag der PC-Sitzung: Windows-Version fertig – Community Teil 2, Barrierefreiheit (28.10.2026)
+
+Auftrag des Inhabers: „mach alles fertig die ganze windows version fertig machen“. Neu seit dem letzten Nachtrag
+(Vertrag G4 „Teil 2“, `fixtures/community/contract.json` mit Flows):
+1. **Fragen je Kurs** mit Antworten, „hilfreich“-Stimmen und „als Lösung markieren“. Kurs-Schlüssel genau wie
+   `CommunityKeys.courseKey(university:courseID:)`. Bitte prüfen, dass das iPad dieselbe Kurs-ID nimmt wie die
+   Windows-App (`courses.id`: Stud.IP-Veranstaltungs-ID, Learnweb `lw-<id>`), sonst landen die Fragen in verschiedenen
+   Kursen. Fragen können eine PDF (Fingerabdruck) und Seite tragen; im Editor gibt es „nur zu dieser PDF“.
+2. **Lesezeichen** für Lösungen und Fragen, **Mitteilungen** (Glocke in der Kopfzeile, Liste, gelesen markieren).
+3. **Seitenweises Laden** (`limit`/`before` bei Fragen, `limit`/`offset` bei Lösungen) und Spam-Grenzen.
+4. **Barrierefreiheit Windows/Web:** Symbol-Knöpfe haben Namen für Bildschirmleser, sichtbarer Fokus, Sprunglink,
+   Escape schließt Fenster, reduzierte Bewegung. Auf dem iPad bleibt Dynamic Type und VoiceOver offen (Aufgabe 20).
+Für das iPad, sobald die Community über den Dienst läuft: dieselben Endpunkte und Ansichten (Fragen-Liste je Kurs,
+Frage mit Antworten, Mitteilungen, Lesezeichen).
+

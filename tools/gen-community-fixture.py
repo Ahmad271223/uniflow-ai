@@ -134,6 +134,31 @@ def build() -> dict:
     call("Suchen: mit Likes und Kommentaren", "GET", "/api/community/solutions?fingerprint=" + FP, token=tl)
     call("Rangliste ohne Rolle", "GET", "/api/community/admin/leaderboard", token=tl)
     call("Rangliste fuer den Inhaber", "GET", "/api/community/admin/leaderboard", token=tadm)
+
+    # Teil 2 (28.10.2026): Fragen je Kurs (Schluessel wie CommunityKeys.courseKey), Antworten, Lesezeichen,
+    # Benachrichtigungen, seitenweise
+    import hashlib
+    key = hashlib.sha256(("uniflow.community.course.v1\0luh\0" + "kurs-beispiel").encode()).hexdigest()
+    ids[key] = "<course-key>"
+    st, q = call("Frage im Kurs stellen", "POST", f"/api/community/courses/{key}/questions",
+                 {"title": "Wie zeige ich Konvergenz?", "body": "Aufgabe 2b", "fingerprint": FP, "page": 3}, token=tl)
+    ids[q["id"]] = "<question-id>"
+    flows[-1]["response"]["id"] = "<question-id>"
+    call("Frage ohne Plus", "POST", f"/api/community/courses/{key}/questions", {"title": "x"}, token=tf)
+    call("Fragen des Kurses", "GET", f"/api/community/courses/{key}/questions?limit=30", token=ta)
+    st, a = call("Antwort", "POST", f"/api/community/questions/{q['id']}/answers", {"body": "Sandwich-Lemma benutzen."}, token=ta)
+    ids[a["id"]] = "<answer-id>"
+    flows[-1]["response"]["id"] = "<answer-id>"
+    call("Antwort hilfreich", "POST", f"/api/community/answers/{a['id']}/vote", token=tl)
+    call("Antwort als Loesung markieren", "POST", f"/api/community/questions/{q['id']}/accept", {"answer_id": a["id"]}, token=tl)
+    call("Frage mit Antworten", "GET", f"/api/community/questions/{q['id']}", token=ta)
+    call("Lesezeichen setzen", "POST", f"/api/community/bookmarks/question/{q['id']}", token=ta)
+    call("Lesezeichen", "GET", "/api/community/bookmarks", token=ta)
+    st, n = call("Benachrichtigungen", "GET", "/api/community/notifications", token=ta)
+    for x in flows[-1]["response"].get("notifications", []):
+        x["id"] = "<notification-id>"
+    call("Alles gelesen", "POST", "/api/community/notifications/read", {}, token=ta)
+    call("Frage melden", "POST", f"/api/community/questions/{q['id']}/report-post", {"reason": "spam"}, token=ta)
     call("Kommentar loeschen", "DELETE", f"/api/community/comments/{r1['id']}", token=ta)
     call("Melden", "POST", f"/api/community/solutions/{sid}/report", {"reason": "foreignMaterial", "note": "Folien enthalten"}, token=tl)
     call("Melden: schon gemeldet", "POST", f"/api/community/solutions/{sid}/report", {"reason": "spam"}, token=tl)
@@ -180,7 +205,18 @@ def build() -> dict:
                                     "GET /api/community/solutions/{id}", "DELETE /api/community/solutions/{id}", "GET /api/community/mine",
                                     "POST /api/community/solutions/{id}/report", "POST /api/community/solutions/{id}/block",
                                     "DELETE /api/community/blocks/{pseudonym}", "GET /api/community/blocks",
-                                    "GET /api/community/moderation", "POST /api/community/solutions/{id}/moderate"]},
+                                    "GET /api/community/moderation", "POST /api/community/solutions/{id}/moderate",
+                                    "POST /api/community/claims", "POST|DELETE /api/community/solutions/{id}/like",
+                                    "GET|POST /api/community/solutions/{id}/comments", "PATCH|DELETE /api/community/comments/{id}",
+                                    "POST /api/community/comments/{id}/report", "GET /api/community/admin/leaderboard",
+                                    "GET|POST /api/community/courses/{course_key}/questions?limit=&before=&fingerprint=",
+                                    "GET|PATCH|DELETE /api/community/questions/{id}", "POST /api/community/questions/{id}/answers",
+                                    "POST /api/community/questions/{id}/accept", "PATCH|DELETE /api/community/answers/{id}",
+                                    "POST|DELETE /api/community/answers/{id}/vote", "POST /api/community/{questions|answers}/{id}/report-post",
+                                    "GET /api/community/bookmarks", "POST|DELETE /api/community/bookmarks/{solution|question}/{id}",
+                                    "GET /api/community/notifications?unread=", "POST /api/community/notifications/read"],
+                      "course_key": "SHA-256 hex von 'uniflow.community.course.v1\\0<hochschule>\\0<kurs-id>' (wie CommunityKeys.courseKey)",
+                      "notification_kinds": ["comment", "reply", "like", "answer", "accepted"]},
             "package-checks": checks, "errors": dict(sorted(errors.items())), "flows": flows}
 
 

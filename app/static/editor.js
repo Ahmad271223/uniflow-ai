@@ -97,7 +97,7 @@ export class PdfEditor {
     if (this.destroyed) { this.pdf?.destroy?.(); this.pdf = null; return; }
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
-    if (this.pdf) import("./editor-community.js?v=4").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
+    if (this.pdf) import("./editor-community.js?v=6").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
     this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
     this._online = () => this.flush(); window.addEventListener("online", this._online);
   }
@@ -237,7 +237,7 @@ export class PdfEditor {
         <aside class="ed-com" hidden></aside>
       </div>
       <div class="ed-zoomwin" hidden><div class="ed-zw-head"><b>Zoom-Ansicht</b><span class="muted small">Schreibe hier, der Text erscheint an der markierten Stelle der Seite.</span><span class="spacer"></span><button data-zw="left" title="Nach links">${icon("chevron-left", 14)}</button><button data-zw="right" title="Nach rechts">${icon("chevron-right", 14)}</button><button data-zw="down" title="Nächste Zeile">${icon("chevron-down", 14)}</button><button data-zw="close">${icon("x", 14)}</button></div><div class="ed-zw-body"><canvas class="ed-zw-canvas"></canvas></div></div>
-      <div class="ed-pageinfo"><button data-act="prev">${icon("chevron-left", 14)}</button> Seite <input class="ed-pageno" type="number" min="1" value="1"> / <span class="ed-pagecount">?</span> <button data-act="next">${icon("chevron-right", 14)}</button><span class="ed-sep"></span><button data-act="zoomout" title="Kleiner">${icon("zoom-out", 14)}</button><span class="ed-zoom">120%</span><button data-act="zoomin" title="Größer">${icon("zoom-in", 14)}</button><button data-act="fit" title="Seitenbreite">${icon("fit", 14)}</button><button data-act="fullscreen" title="Vollbild">${icon("maximize", 14)}</button></div>
+      <div class="ed-pageinfo"><button data-act="prev" title="Vorherige Seite">${icon("chevron-left", 14)}</button> Seite <input class="ed-pageno" type="number" min="1" value="1"> / <span class="ed-pagecount">?</span> <button data-act="next" title="Nächste Seite">${icon("chevron-right", 14)}</button><span class="ed-sep"></span><button data-act="zoomout" title="Kleiner">${icon("zoom-out", 14)}</button><span class="ed-zoom">120%</span><button data-act="zoomin" title="Größer">${icon("zoom-in", 14)}</button><button data-act="fit" title="Seitenbreite">${icon("fit", 14)}</button><button data-act="fullscreen" title="Vollbild">${icon("maximize", 14)}</button></div>
       <div class="ed-pop" hidden></div>`;
     this.scroll = $(".ed-scroll", this.c); this.pagesEl = $(".ed-pages", this.c); this.ctx = $(".ed-ctx-body", this.c); this.pop = $(".ed-pop", this.c);
     $$("[data-tool]", this.c).forEach(b => b.onclick = () => this.setTool(b.dataset.tool, true));

@@ -127,6 +127,12 @@ class CommunityError(ValueError):
         self.code, self.message, self.status = code, message, status
 
 
+def _schema(conn) -> None:
+    from . import community_qa
+    conn.executescript(SCHEMA)
+    conn.executescript(community_qa.SCHEMA)
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -147,7 +153,7 @@ def cursor():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    db.schema_once(conn, "community", p, lambda c: c.executescript(SCHEMA))
+    db.schema_once(conn, "community", p, _schema)
     try:
         yield conn
         conn.commit()
@@ -316,6 +322,8 @@ def publish(user: dict, university: str, pkg, title: str | None = None) -> dict:
         if conn.execute("SELECT 1 FROM bans WHERE author_id=?", (user["id"],)).fetchone():
             raise CommunityError("author_banned", "Dein Konto darf keine Lösungen mehr veröffentlichen.", 403)
         cur = conn.execute("SELECT author_id, status FROM solutions WHERE id=?", (info["id"],)).fetchone()
+        if not cur:
+            _limit("publish_user", user["id"])                 # Spam-Grenze, erneutes Veroeffentlichen zaehlt nicht
         if cur and cur["author_id"] != user["id"]:
             raise CommunityError("solution_exists", "Diese Lösung wurde schon von einem anderen Konto veröffentlicht.", 409)
         if cur and cur["status"] in ("hidden", "removed"):
@@ -400,6 +408,8 @@ def forget_author(user_id: str) -> int:
         conn.execute("DELETE FROM reports WHERE reporter_id=?", (user_id,))
         conn.execute("DELETE FROM blocks WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM bans WHERE author_id=?", (user_id,))
+    from . import community_qa
+    community_qa.forget(user_id)
     for sid in ids:
         (package_dir() / f"{sid}.uniflowsolution").unlink(missing_ok=True)
     return len(ids)
@@ -556,6 +566,9 @@ def like(user: dict, solution_id: str, on: bool = True) -> dict:
             if not conn.execute("SELECT 1 FROM likes WHERE solution_id=? AND user_id=?", (r["id"], user["id"])).fetchone():
                 _limit("like_user", user["id"])
                 conn.execute("INSERT OR IGNORE INTO likes(solution_id, user_id, created_at) VALUES (?,?,?)", (r["id"], user["id"], _now()))
+                from . import community_qa
+                community_qa.notify(conn, r["author_id"], "like", "solution", r["id"], pseudonym(user["id"]), r["title"] or r["display_name"],
+                                    None, user["id"], bundle=f"like:{r['id']}:{_now()[:10]}")
         else:
             conn.execute("DELETE FROM likes WHERE solution_id=? AND user_id=?", (r["id"], user["id"]))
         n = conn.execute("SELECT COUNT(*) FROM likes WHERE solution_id=?", (r["id"],)).fetchone()[0]
@@ -627,6 +640,15 @@ def add_comment(user: dict, solution_id: str, text: str, parent_id: str | None =
         cid, now = str(uuid.uuid4()), _now()
         conn.execute("""INSERT INTO comments(id, solution_id, author_id, pseudonym, parent_id, page_key, anchor_x, anchor_y, text, created_at)
                         VALUES (?,?,?,?,?,?,?,?,?,?)""", (cid, r["id"], user["id"], pseudonym(user["id"]), parent_id, pk, ax, ay, text, now))
+        from . import community_qa
+        told = set()
+        if parent_id:
+            pa = conn.execute("SELECT author_id FROM comments WHERE id=?", (parent_id,)).fetchone()
+            if pa:
+                community_qa.notify(conn, pa["author_id"], "reply", "solution", r["id"], pseudonym(user["id"]), text, cid, user["id"])
+                told.add(pa["author_id"])
+        if r["author_id"] not in told:
+            community_qa.notify(conn, r["author_id"], "comment", "solution", r["id"], pseudonym(user["id"]), text, cid, user["id"])
         c = conn.execute("SELECT * FROM comments WHERE id=?", (cid,)).fetchone()
         return _comment_out(c, user["id"], r["author_id"])
 

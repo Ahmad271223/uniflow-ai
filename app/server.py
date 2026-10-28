@@ -571,6 +571,34 @@ def mark_seen():
 # Kurse & Dateien
 # ----------------------------------------------------------------------------
 
+def community_course_key(university: str, course_id: str) -> str:
+    """Kurs-Schluessel der Community wie CommunityKeys.courseKey auf dem iPad (app/community_qa.py)."""
+    import hashlib
+    return hashlib.sha256(("uniflow.community.course.v1\0" + university + "\0" + course_id).encode("utf-8")).hexdigest()
+
+
+@app.get("/api/courses/community-keys")
+def courses_community_keys():
+    """Eigene aktive Kurse mit Community-Schluessel (Fragen je Kurs). Der Schluessel entsteht hier aus der Kurs-ID; der
+    Dienst bekommt nur ihn, nie Kurs-ID oder Namen."""
+    uni = config.university()
+    with db.cursor() as conn:
+        rows = db.rows(conn, """SELECT id, title, semester, subject FROM courses
+                                WHERE id NOT IN ('__user__') AND COALESCE(active, 1)=1 ORDER BY subject, title""")
+    return {"university": uni, "courses": [{"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"],
+                                            "key": community_course_key(uni, r["id"])} for r in rows]}
+
+
+@app.get("/api/files/by-fingerprint/{sha}")
+def file_by_fingerprint(sha: str):
+    """Eigene Datei zu einem Fingerabdruck (Lesezeichen und Mitteilungen zu Loesungen oeffnen)."""
+    with db.cursor() as conn:
+        f = db.row(conn, "SELECT id, name, course_id FROM files WHERE content_sha256=? AND deleted_at IS NULL ORDER BY id LIMIT 1", (sha.lower(),))
+    if not f:
+        raise HTTPException(404, {"detail": "Diese PDF ist auf diesem Gerät nicht vorhanden.", "code": "file_not_here"})
+    return {"file_id": f["id"], "name": f["name"], "course_id": f["course_id"]}
+
+
 @app.get("/api/courses")
 def courses():
     with db.cursor() as conn:

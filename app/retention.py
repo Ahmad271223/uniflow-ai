@@ -200,6 +200,9 @@ def run(now: datetime | None = None, dry_run: bool = False) -> dict:
         now = now.replace(tzinfo=timezone.utc)
     result = {"at": accounts.iso(now), "dry_run": dry_run, "access_files": purge_access_logs(now.date(), dry_run=dry_run),
               "account_logs": purge_account_logs(now, dry_run=dry_run), **purge_account_db(now, dry_run=dry_run)}
+    if not dry_run and (config.BASE_DATA_DIR / "community.db").exists():
+        from . import community_qa                     # gelesene Benachrichtigungen nach 90 Tagen (Community Teil 2)
+        result["notifications"] = community_qa.prune()
     if not dry_run:
         p = config.BASE_LOG_DIR / "retention.log"
         p.parent.mkdir(parents=True, exist_ok=True)

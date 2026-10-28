@@ -76,11 +76,11 @@ Zeichen: ✅ vorhanden · 🟡 teilweise · ❌ fehlt. Belege mit Datei und Zeil
 | KI: Tutor, Tests, Lernpläne | ✅ lokal (Claude/ChatGPT) | ❌ in Release | 🟡 Tests über Bibliothek, Generieren 501 |
 | KI: Quellen- und Seitenangaben | ✅ 28.10. | ❌ (kommt mit KI über den Dienst) | ✅ gleicher Prompt |
 | Community: eigene Lösungen teilen, melden, sperren | ✅ 28.10. (Editor-Leiste) | ✅ (CloudKit, Umstellung auf den Dienst offen) | ✅ mit Likes, Kommentaren |
-| Community: Feed, Fragen, Kommentare, Antworten, Profile, Benachrichtigungen, Lesezeichen | ❌ | ❌ | ❌ |
+| Community: Feed, Fragen, Kommentare, Antworten, Profile, Benachrichtigungen, Lesezeichen | ✅ 28.10. Fragen je Kurs, Antworten, Lesezeichen, Mitteilungen (ohne Feed/Profile) | ❌ | ✅ |
 | Abos: Rechte serverseitig, Kontingente | ✅ | ✅ Free/Plus | ✅ |
 | Abos: Kauf auf dem Server prüfen | – | ❌ abgeschaltet | ✅ Endpunkt da |
 | Push, Universal Links | ❌ | ❌ (nur lokale Mitteilungen, `uniflow://`) | ❌ |
-| Barrierefreiheit | 🟡 | 🟡 kein Dynamic Type, wenig VoiceOver | – |
+| Barrierefreiheit | ✅ 28.10. Namen für Symbol-Knöpfe, Fokusrahmen, Sprunglink, Escape, reduzierte Bewegung | 🟡 kein Dynamic Type, wenig VoiceOver | – |
 | Installer, Updates, Signatur | 🟡 NSIS, MSIX; kein Auto-Update, keine Signatur | 🟡 Team fehlt | – |
 | CI | ✅ Windows grün | ❌ rot seit 26.10. | ✅ Python grün |
 
@@ -101,7 +101,7 @@ Nach Schwere. „Bestätigt“ heißt: im Code nachgelesen, nicht durch einen Te
 | P9 | P1 ✅ behoben 28.10. (`LERNAPP_LIMIT_API_PER_MIN`, `LERNAPP_UNI_PARALLEL`, `LERNAPP_UNI_GAP_S`) | Keine allgemeine Rate-Limit-Middleware; keine Drosselung gegenüber den Hochschulen über alle Konten | `app/studip_sync.py:583, 669`, `app/filestream.py` | globale Grenzen je Konto und je Hochschule |
 | P10 | P2 ✅ behoben 28.10. | Tresor-Zwischenspeicher veraltet, wenn Jobs in einem eigenen Prozess laufen | `app/vault.py:127-143`, `app/jobs.py:10` | Zwischenspeicher mit Änderungszeit prüfen |
 | P11 | P2 ✅ behoben 28.10. (Geheimnis `LERNAPP_AGENT_TOKEN`) | Lokales Backend der Windows-App: GET-Anfragen von 127.0.0.1 sind ohne Prüfung frei; eine fremde Seite in einem App-Fenster könnte bei bekanntem Port z. B. `/api/desktop/commands` abholen | `app/server.py:173-175, 257-271`, `app/desktop_windows.py:63-74` | Token des Fenster-Agenten für `/api/desktop/*` |
-| P12 | P2 | Community: keine Beiträge, Kommentare, Gruppen, Benachrichtigungen, kein seitenweises Laden, keine Spam-Grenzen | `app/community.py`, `app/plans.py:50` | nach Entscheidung 4 |
+| P12 | P2 ✅ 28.10. bis auf Gruppen (`app/community_qa.py`) | Community: keine Beiträge, Kommentare, Gruppen, Benachrichtigungen, kein seitenweises Laden, keine Spam-Grenzen | `app/community.py`, `app/plans.py:50` | nach Entscheidung 4 |
 | P13 | P2 🟡 28.10.: Quellen mit Seite gebaut (`_tutor_sources`), Warteschlange offen | KI: keine Warteschlange, keine Quellen- und Seitenangaben; im Dienst `tests/generate`, `plan/generate` 501 | `app/ai_backend.py:311-338`, `app/server.py:60-66` | Warteschlange, Zitate mit Seite |
 | P14 | P2 🟡 28.10.: Markieren und Word-Ansicht gebaut, Handschriftsuche offen | Editor: kein Markieren von PDF-Text, keine Handschriftsuche, kein DOCX | `app/static/editor.js:209, 361, 930`, `app/server.py:755` | Textlayer-Markierungen ins gemeinsame Format |
 | P15 | P3 | Windows ohne Code-Signing und Auto-Update | `apps/windows/README.md:136` | über Microsoft Store gelöst; außerhalb Zertifikat nötig |
@@ -124,7 +124,7 @@ was davon wirklich offen ist:
 | KI (184–189, 244–249, 268–273, 402–409) | Budget gesamt und je Konto, Kontingente, Tests MC/Kurz/Rechnung | Warteschlange, Quellen mit Seite, KI auf dem iPad über den Dienst |
 | Abos (410–417) | Tarife, Rechte serverseitig, Apple-Prüfendpunkt | Prüfung vom iPad aus einschalten, Pro-Tarife verkaufen |
 | Skalierung, Betrieb (162–171, 190–195, 226–243) | Backups täglich, Löschfristen, Healthcheck | Entscheidung 5; Backup außer Haus, Monitoring, Lasttests |
-| Lieferkette, CI, Release (286–297) | Windows-, Python-, Android-Workflows grün | Apple-CI rot, SBOM/Abhängigkeits-Scan, Signierung |
+| Lieferkette, CI, Release (286–297) | Windows-, Python-, Android-Workflows grün; seit 28.10. pip-audit, npm audit, cargo audit (Hinweis), SBOM (CycloneDX) | Apple-CI rot, Signierung |
 | Barrierefreiheit (274–279) | Linkshänder-Seite in der geteilten Ansicht (iPad) | Dynamic Type, VoiceOver, reduzierte Bewegung, Tastatur |
 | Push, Deep Links (154–157, 421–422) | lokale Mitteilungen, `uniflow://` | APNs, Universal Links, Windows-Mitteilungen |
 

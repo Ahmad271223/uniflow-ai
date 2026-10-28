@@ -1,11 +1,11 @@
 // UniFlow AI – Shell, Router, Dashboard
-import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=31";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=38";
-import { viewFiles } from "./views-lib.js?v=36";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=33";
-import { viewTimetable, openEvent } from "./views-tt.js?v=31";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=42";
-import { viewAbo } from "./views-abo.js?v=31";
+import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=32";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=41";
+import { viewFiles } from "./views-lib.js?v=40";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=35";
+import { viewTimetable, openEvent } from "./views-tt.js?v=33";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=46";
+import { viewAbo } from "./views-abo.js?v=32";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
@@ -56,6 +56,13 @@ function noteError(msg, src) { const m = String(msg || "Unbekannter Fehler"); if
 window.addEventListener("error", e => noteError(e.message, e.filename ? `${e.filename.split("/").pop()}:${e.lineno}` : ""));
 window.addEventListener("unhandledrejection", e => noteError(e.reason?.message || e.reason, "promise"));
 const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim" };
+// Glocke: ungelesene Mitteilungen der Community (Dienst oder Windows-App mit Studora-Konto), alle 2 Minuten
+window.updateBell = n => { const b = $("#notifBtn"); if (!b) return; if (n == null) { b.hidden = true; return; }
+  b.hidden = false; b.innerHTML = icon("bell", 18) + (n ? `<span class="notif-badge">${n > 99 ? "99+" : n}</span>` : ""); b.setAttribute("aria-label", n ? `${n} ungelesene Mitteilungen` : "Mitteilungen"); };
+async function pollBell() { try { const { unreadCount } = await import("./views-qa.js?v=2"); window.updateBell(await unreadCount()); } catch {} }
+setTimeout(pollBell, 4000); setInterval(() => { if (!document.hidden) pollBell(); }, 120000);
+document.addEventListener("click", e => { if (e.target.closest?.("#notifBtn")) location.hash = "#/community?tab=notify"; });
+
 function accountMenu() {
   const a = state.account;
   const m = modal(`<div class="card-head"><h2>${icon("user", 18)} Studora-Konto</h2><button class="btn ghost icon" data-close>${icon("x", 16)}</button></div>

@@ -1,5 +1,5 @@
 // Lernkalender: Woche (Zeitraster), Tag (Zeitleiste), Monat, Aufgabenliste; Lernpakete, Nachholen, Neuplanung, Lernkombination
-import { holClass, holChips, dlChips, noteChips, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=31";
+import { holClass, holChips, dlChips, noteChips, $, $$, api, esc, icon, toast, modal, drawer, iso, parseISO, todayISO, fmtDate, fmtShort, fmtMin, addDays, mondayOf, hm, mh, statusPill, DAYS, DAYS_LONG, MONTHS, STATUS_TXT, TYPE_TXT, TYPE_ICON, shortName, state } from "./core.js?v=32";
 import { tinyNames } from "./plan-names.js?v=30";
 
 export const planState = { view: "week", date: todayISO(), module: "" };
@@ -27,8 +27,8 @@ export async function viewPlan(_, params, view) {
     ${backlog.length ? `<div class="card" style="border-color:transparent;background:var(--bad-soft);margin-bottom:1rem"><div class="row wrap"><b style="color:var(--bad)">${icon("alert", 16)} ${backlog.length} Aufgabe${backlog.length > 1 ? "n müssen" : " muss"} nachgeholt werden</b><span class="spacer"></span><button class="btn sm" id="catchNow">Jetzt nachholen</button><button class="btn sm primary" id="catchPlan">Neu einplanen</button><button class="btn sm ghost" id="catchSkip">Bewusst überspringen</button></div></div>` : ""}
     <div class="cal2 ${["week", "3days"].includes(planState.view) ? "wk" : ""} ${sideOff() ? "side-off" : ""}" id="cal2"><div class="cal2-main">
       <div class="cal2-bar"><div class="seg pill">${[["day", "Tag"], ["3days", "3 Tage"], ["week", "Woche"], ["month", "Monat"], ["list", "Liste"]].map(([k, l]) => `<button class="${planState.view === k ? "active" : ""}" data-view="${k}">${k === "list" ? icon("list", 14) + " " : ""}${l}</button>`).join("")}</div>
-        <span class="spacer" style="max-width:1.5rem"></span><button class="btn icon" id="prevBtn">${icon("chevron-left", 18)}</button><div class="cal2-title">${icon("calendar", 17)} <span>${label}</span></div><button class="btn icon" id="nextBtn">${icon("chevron-right", 18)}</button>
-        <span class="spacer"></span><button class="btn" id="todayBtn">Heute</button><select class="input" id="modSel" style="width:auto"><option value="">Alle Module</option>${mods.map(m => `<option value="${m.id}" ${modFilter === m.id ? "selected" : ""}>${esc(shortName(m.name))}</option>`).join("")}</select><button class="btn icon" id="cfgBtn2" title="Lernkombination">${icon("settings", 17)}</button>${["week", "3days"].includes(planState.view) ? `<button class="btn icon" id="sideBtn" title="Seitenspalte ein-/ausblenden">${icon("panel-right", 17)}</button>` : ""}</div>
+        <span class="spacer" style="max-width:1.5rem"></span><button class="btn icon" id="prevBtn" title="Zurück" aria-label="Zurück">${icon("chevron-left", 18)}</button><div class="cal2-title">${icon("calendar", 17)} <span>${label}</span></div><button class="btn icon" id="nextBtn" title="Weiter" aria-label="Weiter">${icon("chevron-right", 18)}</button>
+        <span class="spacer"></span><button class="btn" id="todayBtn">Heute</button><select class="input" id="modSel" aria-label="Nach Modul filtern" style="width:auto"><option value="">Alle Module</option>${mods.map(m => `<option value="${m.id}" ${modFilter === m.id ? "selected" : ""}>${esc(shortName(m.name))}</option>`).join("")}</select><button class="btn icon" id="cfgBtn2" title="Lernkombination">${icon("settings", 17)}</button>${["week", "3days"].includes(planState.view) ? `<button class="btn icon" id="sideBtn" title="Seitenspalte ein-/ausblenden">${icon("panel-right", 17)}</button>` : ""}</div>
       <div id="calBody"></div></div>
       <aside class="cal2-side" id="calSide"></aside></div></div>`;
   const body = $("#calBody");
@@ -113,7 +113,7 @@ export function bindCalendar(body) {
   // "Uhrzeiten vergeben": die Tage der Pakete ohne Uhrzeit, von Hand gesetzte Uhrzeiten bleiben (only_unset)
   $("#reslotWeek", body)?.addEventListener("click", async e => { await api("/timetable/reslot", { method: "POST", body: { dates: e.currentTarget.dataset.dates.split(","), only_unset: true } }); toast("Uhrzeiten vergeben"); state.route(); });
   $$(".tt-ev[data-ev], .cal2-ev[data-ev], .day2-ev[data-ev]", body).forEach(el => el.onclick = () => {
-    if (el.dataset.ev) return import("./views-tt.js?v=31").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
+    if (el.dataset.ev) return import("./views-tt.js?v=33").then(m => m.openEvent(+el.dataset.ev, el.dataset.date));
     // Einzeltermin aus dem Stud.IP-Kalender ohne eigene Serie: nur anzeigen
     modal(`<h3>${esc(el.title.split(" · ")[0])}</h3><p class="small muted">Termin aus deinem Stud.IP-Kalender (${fmtDate(el.dataset.date)}). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit.</p><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   });
@@ -144,7 +144,7 @@ function weekSide(days, backlog, monthCal, d) {
 }
 function bindSide(view, dateStr, days) {
   $$("#calSide [data-pkg]", view).forEach(el => el.onclick = () => openPackage(+el.dataset.pkg));
-  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") (await import("./views-tt.js?v=31")).availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=31")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
+  $$("#calSide [data-q]", view).forEach(b => b.onclick = async () => { const q = b.dataset.q; if (q === "pkg") addPackageDialog(dateStr); else if (q === "free") (await import("./views-tt.js?v=33")).availabilityDialog(); else if (q === "personal") (await import("./views-tt.js?v=33")).eventDialog(null, { date_from: dateStr, kind: "persoenlich" }); else location.hash = "#/exams"; });
   $$("#calSide [data-taskdone]", view).forEach(c => c.onclick = async () => { const done = c.classList.contains("on"); await api(`/tasks/${c.dataset.taskdone}/status`, { method: "POST", body: { status: done ? "geplant" : "erledigt" } }); toast(done ? "Wieder offen" : "Erledigt ✓"); state.route(); });
   $("#calSide #addTaskBtn", view)?.addEventListener("click", () => addPackageDialog(dateStr));
   $$("#calSide [data-use]", view).forEach(b => b.onclick = () => useFreeWindow(dateStr, b.dataset.use));

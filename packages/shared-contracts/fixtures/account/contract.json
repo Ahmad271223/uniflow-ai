@@ -10,6 +10,10 @@
   "lock_minutes": 10,
   "verify_hours": 48,
   "limits": {
+   "answer_user": {
+    "count": 30,
+    "minutes": 60
+   },
    "comment_user": {
     "count": 30,
     "minutes": 60
@@ -20,6 +24,14 @@
    },
    "like_user": {
     "count": 120,
+    "minutes": 60
+   },
+   "publish_user": {
+    "count": 20,
+    "minutes": 1440
+   },
+   "question_user": {
+    "count": 10,
     "minutes": 60
    },
    "register_ip": {

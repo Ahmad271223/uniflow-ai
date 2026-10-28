@@ -280,6 +280,20 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   Studora-Kontos an den Dienst weiter (`app/service_link.py`); ohne Konto 409 `not_linked`, Dienst nicht erreichbar
   502 `service_unreachable`, Konto einer anderen Hochschule 409 `university_mismatch`. 501 `not_hosted` antwortet
   nur noch der Community-Router selbst, wenn er ohne Dienst läuft.
+- **Teil 2 (28.10.2026, `app/community_qa.py`, Flows in `fixtures/community/contract.json`):**
+  - **Fragen je Kurs:** `GET|POST /api/community/courses/{course_key}/questions` (`limit`, `before` = `next` der
+    letzten Antwort, `fingerprint` für „nur zu dieser PDF“), `GET|PATCH|DELETE /questions/{id}`,
+    `POST /questions/{id}/answers`, `POST /questions/{id}/accept {answer_id|null}` (nur wer gefragt hat),
+    `PATCH|DELETE /answers/{id}`, `POST|DELETE /answers/{id}/vote` (hilfreich), `POST /{questions|answers}/{id}/report-post`.
+    `course_key` = SHA-256 hex von `uniflow.community.course.v1\0<hochschule>\0<kurs-id>` wie
+    `CommunityKeys.courseKey`; das Gerät bildet ihn (Windows: `GET /api/courses/community-keys` im eigenen Backend).
+    Schreiben ab Plus mit bestätigter E-Mail; Grenzen `question_user` 10/h, `answer_user` 30/h.
+  - **Lesezeichen:** `GET /bookmarks`, `POST|DELETE /bookmarks/{solution|question}/{id}`.
+  - **Benachrichtigungen:** `GET /notifications?unread=&limit=` (`unread`, Arten `comment`, `reply`, `like` – je Lösung und
+    Tag gebündelt mit `count` –, `answer`, `accepted`; bei Lösungen mit `fingerprint` und `title`), `POST /notifications/read
+    {ids?}`. Gelesene werden nach 90 Tagen gelöscht.
+  - **Seitenweise:** `GET /solutions?fingerprint=&limit=&offset=` liefert `total`. **Spam-Grenze** fürs Veröffentlichen:
+    20 neue Lösungen je Tag (`publish_user`).
 - **Stelle eines Kommentars:** `page_key` = Seitenschlüssel im Paket, `anchor` = 0..1 von links oben in der Anzeige
   des Absenders (Koordinaten der Objekte geteilt durch `displaySize`); Empfänger mit anderer Drehung bilden sie wie
   die Objekte ab (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 6a). Testvektoren für Pakete:

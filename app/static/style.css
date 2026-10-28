@@ -544,3 +544,26 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
 
 .sl-devs { display: flex; flex-direction: column; gap: .35rem; margin-top: .4rem; }
 .sl-dev { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border: 1px solid var(--line); border-radius: 8px; padding: .35rem .5rem; color: var(--text); }
+
+/* Community Teil 2: Fragen, Gemerkt, Mitteilungen (views-qa.js) */
+.qa-tabs { margin: .2rem 0 1rem; }
+.qa { display: flex; flex-direction: column; gap: .6rem; }
+.qa-list { display: flex; flex-direction: column; gap: .35rem; }
+.qa-item { display: flex; flex-direction: column; gap: .15rem; align-items: flex-start; text-align: left; width: 100%; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: var(--r-sm, 8px); background: var(--surface); color: var(--text); cursor: pointer; }
+.qa-item:hover, .qa-item:focus-visible { border-color: var(--accent); }
+.qa-item.unread { border-left: 3px solid var(--accent); background: var(--accent-soft); }
+.qa-form { display: flex; flex-direction: column; gap: .35rem; margin-top: .4rem; }
+.qa-new > summary { list-style: none; display: inline-flex; } .qa-new > summary::-webkit-details-marker { display: none; }
+.qa-body-text { margin: .5rem 0; line-height: 1.5; }
+.qa-answers { display: flex; flex-direction: column; gap: .5rem; }
+.qa-answer { border: 1px solid var(--line); border-radius: 8px; padding: .55rem .7rem; }
+.qa-answer.accepted { border-color: var(--ok, #22a55b); background: color-mix(in srgb, var(--ok, #22a55b) 8%, transparent); }
+.notif-btn { position: relative; }
+.notif-badge { position: absolute; top: 2px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e5322d; color: #fff; font-size: .62rem; line-height: 16px; font-weight: 700; }
+
+/* Barrierefreiheit (28.10.2026): sichtbarer Fokus fuer die Tastatur, Sprunglink zum Inhalt */
+:focus-visible { outline: 2px solid var(--accent, #4f5bd5); outline-offset: 2px; border-radius: 4px; }
+.btn:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent, #4f5bd5); outline-offset: 2px; }
+.skip-link { position: absolute; left: -9999px; top: .5rem; z-index: 1000; background: var(--surface); color: var(--text); padding: .5rem .8rem; border-radius: 8px; box-shadow: var(--sh-lg); }
+.skip-link:focus { left: .5rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

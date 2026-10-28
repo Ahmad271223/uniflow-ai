@@ -27,7 +27,32 @@
    "DELETE /api/community/blocks/{pseudonym}",
    "GET /api/community/blocks",
    "GET /api/community/moderation",
-   "POST /api/community/solutions/{id}/moderate"
+   "POST /api/community/solutions/{id}/moderate",
+   "POST /api/community/claims",
+   "POST|DELETE /api/community/solutions/{id}/like",
+   "GET|POST /api/community/solutions/{id}/comments",
+   "PATCH|DELETE /api/community/comments/{id}",
+   "POST /api/community/comments/{id}/report",
+   "GET /api/community/admin/leaderboard",
+   "GET|POST /api/community/courses/{course_key}/questions?limit=&before=&fingerprint=",
+   "GET|PATCH|DELETE /api/community/questions/{id}",
+   "POST /api/community/questions/{id}/answers",
+   "POST /api/community/questions/{id}/accept",
+   "PATCH|DELETE /api/community/answers/{id}",
+   "POST|DELETE /api/community/answers/{id}/vote",
+   "POST /api/community/{questions|answers}/{id}/report-post",
+   "GET /api/community/bookmarks",
+   "POST|DELETE /api/community/bookmarks/{solution|question}/{id}",
+   "GET /api/community/notifications?unread=",
+   "POST /api/community/notifications/read"
+  ],
+  "course_key": "SHA-256 hex von 'uniflow.community.course.v1\\0<hochschule>\\0<kurs-id>' (wie CommunityKeys.courseKey)",
+  "notification_kinds": [
+   "comment",
+   "reply",
+   "like",
+   "answer",
+   "accepted"
   ]
  },
  "package-checks": [
@@ -637,7 +662,8 @@
       "liked_by_me": false,
       "comments": 0
      }
-    ]
+    ],
+    "total": 1
    }
   },
   {
@@ -954,7 +980,8 @@
       "liked_by_me": true,
       "comments": 2
      }
-    ]
+    ],
+    "total": 1
    }
   },
   {
@@ -991,6 +1018,277 @@
       "last_published": "<zeit-utc>"
      }
     ]
+   }
+  },
+  {
+   "step": "Frage im Kurs stellen",
+   "method": "POST",
+   "path": "/api/community/courses/<course-key>/questions",
+   "auth": true,
+   "request": {
+    "title": "Wie zeige ich Konvergenz?",
+    "body": "Aufgabe 2b",
+    "fingerprint": "<base64>",
+    "page": 3
+   },
+   "status": 201,
+   "response": {
+    "id": "<question-id>",
+    "course_key": "<course-key>",
+    "title": "Wie zeige ich Konvergenz?",
+    "body": "Aufgabe 2b",
+    "pseudonym": "<pseudonym>",
+    "fingerprint": "<base64>",
+    "page": 3,
+    "created_at": "<zeit-utc>",
+    "edited_at": null,
+    "last_activity": "<zeit-utc>",
+    "answers": 0,
+    "accepted_answer": null,
+    "mine": true,
+    "status": "active",
+    "bookmarked": false
+   }
+  },
+  {
+   "step": "Frage ohne Plus",
+   "method": "POST",
+   "path": "/api/community/courses/<course-key>/questions",
+   "auth": true,
+   "request": {
+    "title": "x"
+   },
+   "status": 403,
+   "response": {
+    "detail": "Fragen stellen gibt es ab Studora Plus.",
+    "code": "plan_required"
+   }
+  },
+  {
+   "step": "Fragen des Kurses",
+   "method": "GET",
+   "path": "/api/community/courses/<course-key>/questions?limit=30",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "questions": [
+     {
+      "id": "<question-id>",
+      "course_key": "<course-key>",
+      "title": "Wie zeige ich Konvergenz?",
+      "body": "Aufgabe 2b",
+      "pseudonym": "<pseudonym>",
+      "fingerprint": "<base64>",
+      "page": 3,
+      "created_at": "<zeit-utc>",
+      "edited_at": null,
+      "last_activity": "<zeit-utc>",
+      "answers": 0,
+      "accepted_answer": null,
+      "mine": false,
+      "status": "active",
+      "bookmarked": false
+     }
+    ],
+    "next": null
+   }
+  },
+  {
+   "step": "Antwort",
+   "method": "POST",
+   "path": "/api/community/questions/<question-id>/answers",
+   "auth": true,
+   "request": {
+    "body": "Sandwich-Lemma benutzen."
+   },
+   "status": 201,
+   "response": {
+    "id": "<answer-id>",
+    "question_id": "<question-id>",
+    "pseudonym": "<pseudonym>",
+    "body": "Sandwich-Lemma benutzen.",
+    "created_at": "<zeit-utc>",
+    "edited_at": null,
+    "votes": 0,
+    "voted_by_me": false,
+    "mine": true,
+    "by_asker": false
+   }
+  },
+  {
+   "step": "Antwort hilfreich",
+   "method": "POST",
+   "path": "/api/community/answers/<answer-id>/vote",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "answer_id": "<answer-id>",
+    "voted": true,
+    "votes": 1
+   }
+  },
+  {
+   "step": "Antwort als Loesung markieren",
+   "method": "POST",
+   "path": "/api/community/questions/<question-id>/accept",
+   "auth": true,
+   "request": {
+    "answer_id": "<answer-id>"
+   },
+   "status": 200,
+   "response": {
+    "question_id": "<question-id>",
+    "accepted_answer": "<answer-id>"
+   }
+  },
+  {
+   "step": "Frage mit Antworten",
+   "method": "GET",
+   "path": "/api/community/questions/<question-id>",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "id": "<question-id>",
+    "course_key": "<course-key>",
+    "title": "Wie zeige ich Konvergenz?",
+    "body": "Aufgabe 2b",
+    "pseudonym": "<pseudonym>",
+    "fingerprint": "<base64>",
+    "page": 3,
+    "created_at": "<zeit-utc>",
+    "edited_at": null,
+    "last_activity": "<zeit-utc>",
+    "answers": 1,
+    "accepted_answer": "<answer-id>",
+    "mine": false,
+    "status": "active",
+    "bookmarked": false,
+    "answer_list": [
+     {
+      "id": "<answer-id>",
+      "question_id": "<question-id>",
+      "pseudonym": "<pseudonym>",
+      "body": "Sandwich-Lemma benutzen.",
+      "created_at": "<zeit-utc>",
+      "edited_at": null,
+      "votes": 1,
+      "voted_by_me": false,
+      "mine": true,
+      "by_asker": false
+     }
+    ]
+   }
+  },
+  {
+   "step": "Lesezeichen setzen",
+   "method": "POST",
+   "path": "/api/community/bookmarks/question/<question-id>",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "bookmarked": true
+   }
+  },
+  {
+   "step": "Lesezeichen",
+   "method": "GET",
+   "path": "/api/community/bookmarks",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "bookmarks": [
+     {
+      "kind": "question",
+      "id": "<question-id>",
+      "title": "Wie zeige ich Konvergenz?",
+      "course_key": "<course-key>",
+      "created_at": "<zeit-utc>"
+     }
+    ]
+   }
+  },
+  {
+   "step": "Benachrichtigungen",
+   "method": "GET",
+   "path": "/api/community/notifications",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "unread": 3,
+    "notifications": [
+     {
+      "id": "<notification-id>",
+      "kind": "accepted",
+      "target_kind": "question",
+      "target_id": "<question-id>",
+      "context_id": "<answer-id>",
+      "actor": "<pseudonym>",
+      "text": "Wie zeige ich Konvergenz?",
+      "count": 1,
+      "created_at": "<zeit-utc>",
+      "read": false,
+      "title": "Wie zeige ich Konvergenz?",
+      "course_key": "<course-key>"
+     },
+     {
+      "id": "<notification-id>",
+      "kind": "comment",
+      "target_kind": "solution",
+      "target_id": "<solution-id>",
+      "context_id": "<comment-id>",
+      "actor": "<pseudonym>",
+      "text": "Hier fehlt die Begründung für Schritt 2.",
+      "count": 1,
+      "created_at": "<zeit-utc>",
+      "read": false,
+      "fingerprint": "<base64>",
+      "title": "Blatt 3"
+     },
+     {
+      "id": "<notification-id>",
+      "kind": "like",
+      "target_kind": "solution",
+      "target_id": "<solution-id>",
+      "context_id": null,
+      "actor": "<pseudonym>",
+      "text": "Blatt 3",
+      "count": 1,
+      "created_at": "<zeit-utc>",
+      "read": false,
+      "fingerprint": "<base64>",
+      "title": "Blatt 3"
+     }
+    ]
+   }
+  },
+  {
+   "step": "Alles gelesen",
+   "method": "POST",
+   "path": "/api/community/notifications/read",
+   "auth": true,
+   "request": {},
+   "status": 200,
+   "response": {
+    "unread": 0
+   }
+  },
+  {
+   "step": "Frage melden",
+   "method": "POST",
+   "path": "/api/community/questions/<question-id>/report-post",
+   "auth": true,
+   "request": {
+    "reason": "spam"
+   },
+   "status": 200,
+   "response": {
+    "reported": true
    }
   },
   {
@@ -1081,7 +1379,8 @@
    "request": null,
    "status": 200,
    "response": {
-    "solutions": []
+    "solutions": [],
+    "total": 0
    }
   },
   {

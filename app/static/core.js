@@ -76,7 +76,7 @@ export const hm = t => { const [h, m] = String(t || "0:0").split(":").map(Number
 export const mh = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 export function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 let toastT; export function toast(msg, ms = 2600) { let t = $("#toastEl"); if (!t) { t = document.createElement("div"); t.id = "toastEl"; t.className = "toast"; document.body.append(t); } t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms); }
-export function modal(html, { wide } = {}) { const m = document.createElement("div"); m.className = "modal"; m.innerHTML = `<div class="modal-box" ${wide ? 'style="width:min(900px,100%)"' : ""}>${html}</div>`; m.addEventListener("click", e => { if (e.target === m) m.remove(); }); $("#overlay").append(m); $$("[data-close]", m).forEach(b => b.onclick = () => m.remove()); return m; }
+export function modal(html, { wide } = {}) { const m = document.createElement("div"); m.className = "modal"; m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true"); m.innerHTML = `<div class="modal-box" ${wide ? 'style="width:min(900px,100%)"' : ""}>${html}</div>`; m.addEventListener("click", e => { if (e.target === m) m.remove(); }); $("#overlay").append(m); $$("[data-close]", m).forEach(b => b.onclick = () => m.remove()); return m; }
 export function drawer(html) { closeDrawer(); const d = document.createElement("aside"); d.className = "drawer"; d.id = "drawerEl"; d.innerHTML = html; const bd = document.createElement("div"); bd.className = "backdrop"; bd.id = "drawerBd"; bd.onclick = closeDrawer; $("#overlay").append(bd, d); $$("[data-close]", d).forEach(b => b.onclick = closeDrawer); return d; }
 export function closeDrawer() { $("#drawerEl")?.remove(); $("#drawerBd")?.remove(); }
 export const statusPill = st => `<span class="status-pill st-${st}">${icon(STATUS_ICON[st] || "circle", 12)} ${STATUS_TXT[st] || st}</span>`;
@@ -89,3 +89,32 @@ export const shortName = s => (s || "").replace("Mathematik für die Ingenieurwi
 export const state = { route: () => {}, editors: [], hosted: false, account: null, entitlements: null };
 // Recht aus dem Abo-Stand (GET /api/entitlements). Auf dem eigenen PC ist alles erlaubt; der Server prueft trotzdem jeden Aufruf.
 export const can = name => !state.hosted || !!state.entitlements?.entitlements?.[name];
+
+// ---------------------------------------------------------------- Barrierefreiheit (28.10.2026)
+// Knoepfe nur mit Symbol bekommen ihren Titel als Namen fuer Bildschirmleser; Escape schliesst das oberste Fenster;
+// ein neues Fenster bekommt den Fokus auf sein erstes Eingabefeld bzw. seinen ersten Knopf.
+function labelIconButtons(root) {
+  const nodes = root.querySelectorAll ? root.querySelectorAll("button, a.btn, [role=button]") : [];
+  for (const b of [root, ...nodes]) {
+    if (!(b instanceof Element) || !b.matches?.("button, a.btn, [role=button]") || b.hasAttribute("aria-label")) continue;
+    const text = (b.textContent || "").trim();
+    const t = b.getAttribute("title") || b.dataset?.tip;
+    if (!text && t) b.setAttribute("aria-label", t);
+  }
+  for (const svg of root.querySelectorAll ? root.querySelectorAll("svg.ic:not([aria-hidden])") : []) svg.setAttribute("aria-hidden", "true");
+}
+function focusDialog(m) {
+  const f = m.querySelector("input:not([type=hidden]):not([disabled]), textarea, select, button:not([disabled]), a[href]");
+  if (f) setTimeout(() => { try { f.focus({ preventScroll: true }); } catch {} }, 30);
+}
+if (typeof document !== "undefined" && typeof MutationObserver !== "undefined") {
+  const mo = new MutationObserver(list => { for (const r of list) for (const n of r.addedNodes) if (n.nodeType === 1) { labelIconButtons(n); if (n.classList?.contains("modal")) focusDialog(n); } });
+  const start = () => { labelIconButtons(document.body); mo.observe(document.body, { childList: true, subtree: true }); };
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    const ms = document.querySelectorAll(".modal"); const top = ms[ms.length - 1];
+    if (top) { top.remove(); e.preventDefault(); return; }
+    const dr = document.getElementById("drawerEl"); if (dr) { closeDrawer(); e.preventDefault(); }
+  });
+}
