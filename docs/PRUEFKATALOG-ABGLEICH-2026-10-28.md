@@ -74,7 +74,7 @@ Zeichen: ✅ vorhanden · 🟡 teilweise · ❌ fehlt. Belege mit Datei und Zeil
 | Word/DOCX | ✅ ansehen 28.10. (`app/docx_view.py`) | 🟡 ansehen | ✅ ansehen |
 | Lernkalender, Planung, Nachholen | ✅ | ✅ | ✅ |
 | KI: Tutor, Tests, Lernpläne | ✅ lokal (Claude/ChatGPT) | ❌ in Release | 🟡 Tests über Bibliothek, Generieren 501 |
-| KI: Quellen- und Seitenangaben | ❌ | ❌ | ❌ |
+| KI: Quellen- und Seitenangaben | ✅ 28.10. | ❌ (kommt mit KI über den Dienst) | ✅ gleicher Prompt |
 | Community: eigene Lösungen teilen, melden, sperren | ✅ 28.10. (Editor-Leiste) | ✅ (CloudKit, Umstellung auf den Dienst offen) | ✅ mit Likes, Kommentaren |
 | Community: Feed, Fragen, Kommentare, Antworten, Profile, Benachrichtigungen, Lesezeichen | ❌ | ❌ | ❌ |
 | Abos: Rechte serverseitig, Kontingente | ✅ | ✅ Free/Plus | ✅ |
@@ -102,7 +102,7 @@ Nach Schwere. „Bestätigt“ heißt: im Code nachgelesen, nicht durch einen Te
 | P10 | P2 ✅ behoben 28.10. | Tresor-Zwischenspeicher veraltet, wenn Jobs in einem eigenen Prozess laufen | `app/vault.py:127-143`, `app/jobs.py:10` | Zwischenspeicher mit Änderungszeit prüfen |
 | P11 | P2 ✅ behoben 28.10. (Geheimnis `LERNAPP_AGENT_TOKEN`) | Lokales Backend der Windows-App: GET-Anfragen von 127.0.0.1 sind ohne Prüfung frei; eine fremde Seite in einem App-Fenster könnte bei bekanntem Port z. B. `/api/desktop/commands` abholen | `app/server.py:173-175, 257-271`, `app/desktop_windows.py:63-74` | Token des Fenster-Agenten für `/api/desktop/*` |
 | P12 | P2 | Community: keine Beiträge, Kommentare, Gruppen, Benachrichtigungen, kein seitenweises Laden, keine Spam-Grenzen | `app/community.py`, `app/plans.py:50` | nach Entscheidung 4 |
-| P13 | P2 | KI: keine Warteschlange, keine Quellen- und Seitenangaben; im Dienst `tests/generate`, `plan/generate` 501 | `app/ai_backend.py:311-338`, `app/server.py:60-66` | Warteschlange, Zitate mit Seite |
+| P13 | P2 🟡 28.10.: Quellen mit Seite gebaut (`_tutor_sources`), Warteschlange offen | KI: keine Warteschlange, keine Quellen- und Seitenangaben; im Dienst `tests/generate`, `plan/generate` 501 | `app/ai_backend.py:311-338`, `app/server.py:60-66` | Warteschlange, Zitate mit Seite |
 | P14 | P2 🟡 28.10.: Markieren und Word-Ansicht gebaut, Handschriftsuche offen | Editor: kein Markieren von PDF-Text, keine Handschriftsuche, kein DOCX | `app/static/editor.js:209, 361, 930`, `app/server.py:755` | Textlayer-Markierungen ins gemeinsame Format |
 | P15 | P3 | Windows ohne Code-Signing und Auto-Update | `apps/windows/README.md:136` | über Microsoft Store gelöst; außerhalb Zertifikat nötig |
 | P16 | P3 | Betrieb: Backup außer Haus nur auskommentiert, Monitoring nur Healthcheck, Rechtstexte mit Platzhaltern | `deploy/backup.sh`, `docs/release/BETRIEB.md:208-230` | beim Einrichten des Servers |

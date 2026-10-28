@@ -1308,3 +1308,8 @@ Dienst, Geheimnis für den Fenster-Agenten. Damit das iPad dasselbe kann, in die
 Was Windows dafür erwartet und schon liefert: dieselben Endpunkte im Dienst, dieselben Testfälle (`merge/cases.json`,
 `solutions/vectors.json`, `sync/cases.json`). Abweichungen bitte als Nachtrag hier melden, ich ziehe auf Windows nach.
 
+**Nachtrag KI-Tutor (28.10.2026):** `POST /api/ai/tutor` liefert jetzt zusätzlich `sources: [{n, file_id, name, title,
+page, snippet?, current, cited}]` ([1] = offene Seite, dann passende Seiten aus dem Modul). Die Antwort belegt mit
+`[n]`. Bitte auf dem iPad, sobald der Tutor über den Dienst läuft, `[n]` als Link zur Seite zeigen und die zitierten
+Quellen unter der Antwort auflisten (Windows: `app/static/editor.js::askAI`).
+

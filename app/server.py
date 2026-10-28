@@ -912,12 +912,13 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             course, fname = f["course_title"], f["name"]
         if not text.strip():
             text = page_text(file_id, page).get("text", "")
+    sources = _tutor_sources(file_id, fname, page, text, body) if mode != "flashcards" else []
     if hosted:
-        answer = _tutor_hosted(request, body, mode, text, course, fname, page)
+        answer = _tutor_hosted(request, body, mode, text, course, fname, page, sources)
     else:
         try:
             answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
-                              body.get("own_solution") or "", course, fname, page)
+                              body.get("own_solution") or "", course, fname, page, sources)
         except ai.AIError as e:
             raise HTTPException(500, str(e))
     cards = None
@@ -926,16 +927,45 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             cards = ai.parse_json(answer)
         except ai.AIError:
             cards = None
-    return {"answer": answer, "cards": cards}
+    cited = {int(n) for n in re.findall(r"\[(\d{1,2})\]", answer or "")}
+    return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources]}
 
 
-def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int) -> str:
+def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: dict, limit: int = 4) -> list[dict]:
+    """Quellen fuer den Tutor (28.10.2026): [1] die offene Seite, dazu bis zu `limit` passende Seiten aus dem Modul der
+    Datei (Volltext der Vorlesungs- und Skriptseiten, app/scriptsearch.py), gesucht mit Markierung, Frage oder dem
+    Anfang der Seite. Leer ohne Datei."""
+    from . import scriptsearch
+    if not file_id:
+        return []
+    out = [{"n": 1, "file_id": file_id, "name": fname, "title": fname, "page": page, "current": True}]
+    query = " ".join(x for x in (body.get("selection") or "", body.get("question") or "") if x.strip()) or (text or "")[:700]
+    try:
+        with db.cursor() as conn:
+            m = db.row(conn, "SELECT c.module_id FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", (file_id,))
+            if not m or not m["module_id"] or not query.strip():
+                return out
+            res = scriptsearch.search(conn, m["module_id"], query, exclude=None, limit=limit + 2).get("results") or []
+    except Exception:                                    # noqa: BLE001 - Quellen sind Zusatz, der Tutor laeuft auch ohne
+        return out
+    for r in res:
+        if r["file_id"] == file_id and int(r["page"]) == int(page):
+            continue
+        out.append({"n": len(out) + 1, "file_id": r["file_id"], "name": r.get("name"), "title": r.get("title") or r.get("name"),
+                    "page": r["page"], "snippet": r.get("snippet"), "current": False})
+        if len(out) > limit:
+            break
+    return out
+
+
+def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
+                  sources: list[dict] | None = None) -> str:
     """Studora-KI (Pro AI): Kontingent ai_assist, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern zurueckgebucht."""
     from . import ai, ai_backend
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
     entitlements.consume(request, "ai_assist", rid)
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
-                             body.get("own_solution") or "", course, fname, page)
+                             body.get("own_solution") or "", course, fname, page, sources)
     try:
         return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True).text
     except ai_backend.AIUnavailable as e:

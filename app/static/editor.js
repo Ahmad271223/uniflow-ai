@@ -1067,7 +1067,16 @@ export class PdfEditor {
       if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
       const j = await r.json();
       if (mode === "flashcards" && Array.isArray(j.cards)) { out.innerHTML = `<div class="ed-cards">${j.cards.map(c => `<div class="ed-card"><b>${esc(c.question)}</b><div>${esc(c.answer)}</div></div>`).join("")}</div><button class="btn primary ed-cards-save">Karteikarten speichern (${j.cards.length})</button>`; $(".ed-cards-save", out).onclick = async () => { await fetch("/api/flashcards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file_id: this.fileId, cards: j.cards }) }); $(".ed-cards-save", out).textContent = "Gespeichert ✓"; $(".ed-cards-save", out).disabled = true; }; }
-      else out.innerHTML = md(j.answer) + `<div class="ed-ai-actions"><button class="btn sm ed-ai-insert">Als Textfeld einfügen</button></div>`;
+      else {
+        // Quellen mit Seite (28.10.2026): [n] in der Antwort springt zur Seite, darunter die Liste
+        const src = Array.isArray(j.sources) ? j.sources : []; const known = new Set(src.map(x => String(x.n)));
+        const html = md(j.answer).replace(/\[(\d{1,2})\]/g, (m, n) => known.has(n) ? `<a href="#" class="ed-src" data-src="${n}">[${n}]</a>` : m);
+        const list = src.filter(x => x.cited || x.current).map(x => `<li><a href="#" class="ed-src" data-src="${x.n}">[${x.n}] ${esc(x.title || x.name || "Datei")}, Seite ${x.page}</a>${x.current ? ` <span class="muted">(diese Seite)</span>` : ""}</li>`).join("");
+        out.innerHTML = html + (list ? `<div class="ed-ai-src"><b>Quellen</b><ul>${list}</ul></div>` : "") + `<div class="ed-ai-actions"><button class="btn sm ed-ai-insert">Als Textfeld einfügen</button></div>`;
+        $$(".ed-src", out).forEach(a => a.onclick = e => { e.preventDefault(); const x = src.find(s => String(s.n) === a.dataset.src); if (!x) return;
+          if (x.file_id === this.fileId) { const i = this.pages.findIndex(p => p.type === "pdf" && p.index === +x.page); if (i >= 0) this.goToPage(i); }
+          else location.hash = `#/doc/${encodeURIComponent(x.file_id)}?page=${x.page}`; });
+      }
       $(".ed-ai-insert", out)?.addEventListener("click", () => { if (!pg?.mounted) return; const before = this.snapshot(pg); const o = { id: uid(), type: "text", x: 20, y: 20, text: j.answer.replace(/[*#`]/g, ""), ...this.textStyle, bg: "#e8eeff", width: Math.min(320, pg.w - 40), fontSize: 11, rotation: 0, scaleX: 1, scaleY: 1 }; this.model.pages[pg.key].objects.push(o); this.addNode(pg, o); pg.layer.batchDraw(); this.commit(pg, before); });
     } catch (e) { out.innerHTML = `<div class="ed-err">Fehler: ${esc(e.message)}</div>`; }
     finally { $(".ed-ai-go", this.c).disabled = false; }
