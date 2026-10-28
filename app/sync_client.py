@@ -571,7 +571,8 @@ _kick = threading.Event()
 
 def enabled() -> bool:
     st = service_link.load_state()
-    return service_link.linked(st) and st.get("sync_enabled", True) and not service_link.university_mismatch(st)
+    return (service_link.linked(st) and st.get("sync_enabled", True) and not st.get("sync_confirm")
+            and not service_link.university_mismatch(st))
 
 
 def run(force: bool = False) -> dict:
@@ -584,6 +585,10 @@ def run(force: bool = False) -> dict:
         return {"ok": False, "error": "Nicht mit einem Studora-Konto verbunden."}
     if (msg := service_link.university_mismatch(st)):
         return {"ok": False, "error": msg}
+    if st.get("sync_confirm"):
+        prev = st["sync_confirm"].get("previous_email") or "einem anderen Konto"
+        return {"ok": False, "needs_confirm": True,
+                "error": f"Die Daten dieses PCs wurden bisher mit {prev} abgeglichen. Bitte bestätigen, dass sie jetzt zu diesem Konto gehören."}
     if not _lock.acquire(blocking=False):
         return {"ok": False, "error": "Abgleich läuft schon.", "running": True}
     started = time.time()
@@ -593,10 +598,24 @@ def run(force: bool = False) -> dict:
         conn.isolation_level = None                             # Transaktionen selbst steuern
         try:
             ensure_tables(conn)
+            # Sperre in der Datenbank (Pruefpunkt 1185): zwei Prozesse (z. B. zwei Fenster mit eigenem Backend) gleichen
+            # nie gleichzeitig ab. Laeuft nach 10 Minuten ab, falls ein Prozess abgestuerzt ist.
+            own_lock = False
+            conn.execute("BEGIN IMMEDIATE")
+            held = _state(conn, "lock")
+            if held and float(held) > time.time():
+                conn.execute("ROLLBACK")
+                return {"ok": False, "error": "Abgleich läuft schon in einem anderen Fenster.", "running": True}
+            _set_state(conn, "lock", time.time() + 600)
+            conn.execute("COMMIT")
+            own_lock = True
             account = (st.get("user") or {}).get("id")
             if _state(conn, "account") != account:
                 reset(conn)
                 _set_state(conn, "account", account)
+            s0 = service_link.load_state()
+            s0["synced_account"] = {"id": account, "email": (st.get("user") or {}).get("email")}
+            service_link.save_state(s0)
             c = Client(conn, st.get("device_id") or "win")
             c.retry_notes = False
             c.pull()
@@ -609,6 +628,13 @@ def run(force: bool = False) -> dict:
             c.pull()
             out = {"ok": True, **c.stats}
         finally:
+            try:
+                if conn.in_transaction:
+                    conn.execute("ROLLBACK")
+                if locals().get("own_lock"):
+                    _set_state(conn, "lock", None)
+            except Exception:                              # noqa: BLE001
+                pass
             conn.close()
     except (SyncError, service_link.LinkError) as e:
         out = {"ok": False, "error": getattr(e, "message", None) or str(e)}
@@ -632,12 +658,15 @@ def run(force: bool = False) -> dict:
 def status() -> dict:
     st = service_link.load_state()
     return {"enabled": bool(st.get("sync_enabled", True)), "linked": service_link.linked(st), "last": st.get("sync_last"),
-            "running": _lock.locked()}
+            "running": _lock.locked(), "confirm": st.get("sync_confirm")}
 
 
 def set_enabled(on: bool) -> dict:
+    """An/aus; einschalten bestaetigt auch den Abgleich nach einem Kontowechsel (sync_confirm)."""
     st = service_link.load_state()
     st["sync_enabled"] = bool(on)
+    if on:
+        st.pop("sync_confirm", None)
     service_link.save_state(st)
     if on:
         kick()

@@ -3,6 +3,7 @@
 import { icon } from "./icons.js?v=31";
 import { mergeDocument } from "./merge.js?v=30";
 import { FORMATS, WHITEBOARDS, formatSize, formatOf, sizeLabel, validSize } from "./formats.js?v=30";
+import { describe as describeVersion, pageSig, remapToVersion } from "./pdf-version.js?v=1";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -94,10 +95,13 @@ export class PdfEditor {
       this.loadInfo.pages = this.pdf.numPages;
     }
     await this.loadModel();
+    try { await this.checkVersion(); } catch (e) { console.warn("Fassung", e); }
     if (this.destroyed) { this.pdf?.destroy?.(); this.pdf = null; return; }
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
-    if (this.pdf) import("./editor-community.js?v=6").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
+    if (this.versionNote) this.showVersionNote(this.versionNote);
+    if (this._recordVersion) this._recordVersion().catch(() => {});
+    if (this.pdf) import("./editor-community.js?v=7").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
     this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
     this._online = () => this.flush(); window.addEventListener("online", this._online);
   }
@@ -392,7 +396,8 @@ export class PdfEditor {
   buildPages() {
     this.pagesEl.innerHTML = ""; this.pages = [];
     this.model.pageOrder.forEach((p, i) => {
-      const size = p.type === "pdf" ? this.pageSizes[p.index - 1] : { w: p.w || 595, h: p.h || 842 };
+      // Schutz: eine PDF-Seite, die es nicht (mehr) gibt, nie als Absturz, sondern als leere Seite mit ihren Notizen
+      const size = (p.type === "pdf" ? this.pageSizes[p.index - 1] : null) || { w: p.w || 595, h: p.h || 842 };
       const rot = p.rotation || 0; const sw = rot % 180 ? size.h : size.w, sh = rot % 180 ? size.w : size.h;
       const el = document.createElement("div"); el.className = "ed-page" + (p.type === "blank" ? " blank" : ""); el.dataset.i = i;
       el.innerHTML = `<canvas class="ed-pdf"></canvas><div class="ed-stage"></div><canvas class="ed-live"></canvas><canvas class="ed-predict"></canvas><div class="ed-pagelabel">${i + 1}</div>`;
@@ -580,6 +585,50 @@ export class PdfEditor {
   reAdd(h) { const objs = this.model.pages[h.key]?.objects; if (!objs) return; const o = JSON.parse(h.addJson); objs.push(o); const pg = this.pages.find(x => x.key === h.key); if (pg?.mounted) { this.addNode(pg, o); pg.layer.batchDraw(); } this.markDirty(); }
   restore(key, json) { this.model.pages[key].objects = JSON.parse(json); const pg = this.pages.find(p => p.key === key); if (pg?.mounted) { this.clearSelection(); pg.layer.find(".obj").forEach(n => n.destroy()); this.model.pages[key].objects.forEach(o => this.addNode(pg, o)); pg.layer.batchDraw(); } this.markDirty(); }
   restorePages(h, which) { const snap = JSON.parse(h[which]); const cur = this.model.pageOrder.map(p => p.key); this.model.pageOrder = snap.o; this.model.deletedPages = snap.d || []; snap.o.forEach(p => { if (!this.model.pages[p.key]) this.model.pages[p.key] = (h.snapPages && h.snapPages[p.key]) || { objects: [] }; }); this.rebuildPages(); this.markDirty(); }
+  // ---------------------------------------------------------------- PDF-Fassung (app/static/pdf-version.js)
+  async pdfSha() {
+    if (!this.pdfBytes || !globalThis.crypto?.subtle) return null;
+    const h = new Uint8Array(await crypto.subtle.digest("SHA-256", this.pdfBytes));
+    return [...h].map(x => x.toString(16).padStart(2, "0")).join("");
+  }
+  async pageSigs() {
+    const n = this.pdf.numPages, sigs = new Array(n).fill(""); let next = 0;
+    const worker = async () => { while (next < n) { const i = next++; try { const p = await this.pdf.getPage(i + 1); const tc = await p.getTextContent(); sigs[i] = pageSig(tc.items.map(it => it.str || "").join(" ")); } catch {} } };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    return sigs;
+  }
+  async checkVersion() {
+    if (!this.pdf || this.readOnly && !this.model) return;
+    const sha = await this.pdfSha(); if (!sha) return;
+    this.pdfSha256 = sha;
+    const old = this.model.pdf;
+    if (old && old.sha256 === sha) return;
+    const n = this.pdf.numPages;
+    const sizes = this.pageSizes.map(s => [Math.round(s.w * 100) / 100, Math.round(s.h * 100) / 100]);
+    if (!old || !Array.isArray(old.sigs)) {
+      // erste Aufnahme der Fassung: Seiten, die es in der PDF nicht gibt, als eigene Seiten mit ihren Notizen sichern
+      // (vorher brach der Editor an einer solchen Seite ab), Signaturen im Hintergrund ergaenzen
+      let orphans = 0;
+      for (const e of this.model.pageOrder) {
+        if ((e.type || "pdf") === "pdf" && !(e.index >= 1 && e.index <= n)) { e.orphanOf = { index: e.index }; e.type = "blank"; e.template = "blank"; e.w = 595; e.h = 842; delete e.index; orphans++; }
+      }
+      if (orphans) this.versionNote = `${orphans} Seite(n) gibt es in dieser PDF nicht – ihre Notizen stehen auf eigenen Seiten.`;
+      this._recordVersion = async () => { const sigs = await this.pageSigs(); if (this.destroyed) return; this.model.pdf = { sha256: sha, pageCount: n, sigs, sizes }; this.markDirty(); };
+      return;
+    }
+    this.onStatus("Neue Fassung der PDF erkannt – ordne Notizen zu …");
+    const sigs = await this.pageSigs();
+    const { doc, report } = remapToVersion(this.model, old, { sha256: sha, pageCount: n, sigs, sizes });
+    this.model = doc; this.versionNote = describeVersion(report); this._versionChanged = true;
+    this.markDirty();
+  }
+  showVersionNote(text) {
+    $(".ed-version-note", this.c)?.remove();
+    const d = document.createElement("div"); d.className = "ed-version-note"; d.setAttribute("role", "status");
+    d.innerHTML = `${icon("info", 14)} <span></span><button class="btn ghost sm" title="Hinweis schließen" aria-label="Hinweis schließen">${icon("x", 13)}</button>`;
+    d.querySelector("span").textContent = text; d.querySelector("button").onclick = () => d.remove();
+    this.c.insertBefore(d, $(".ed-body", this.c));
+  }
   markDirty() { this.dirty = true; this.setSaveState("saving"); this.scheduleSave(); this._draftSoon(); }
   // Lokaler Entwurf unabhaengig vom Hochladen: spaetestens 1,5 s nach einer Aenderung (zwischen zwei Strichen),
   // damit ein Safari-Absturz beim Dauerschreiben nichts verliert
@@ -1091,7 +1140,8 @@ export class PdfEditor {
     const idxs = pageIdx || this.model.pageOrder.map((_, i) => i);
     for (const i of idxs) {
       const p = this.model.pageOrder[i]; if (!p) continue;
-      const size = p.type === "pdf" ? this.pageSizes[p.index - 1] : { w: p.w || 595, h: p.h || 842 };
+      // Schutz: eine PDF-Seite, die es nicht (mehr) gibt, nie als Absturz, sondern als leere Seite mit ihren Notizen
+      const size = (p.type === "pdf" ? this.pageSizes[p.index - 1] : null) || { w: p.w || 595, h: p.h || 842 };
       let page;
       if (p.type === "pdf" && src) { const [cp] = await out.copyPages(src, [p.index - 1]); page = out.addPage(cp); }
       else if (p.type === "asset") { if (!assetDocs.has(p.assetUrl)) assetDocs.set(p.assetUrl, await PDFDocument.load(await (await fetch(p.assetUrl)).arrayBuffer())); const [cp] = await out.copyPages(assetDocs.get(p.assetUrl), [p.index - 1]); page = out.addPage(cp); }

@@ -179,6 +179,12 @@ def login(url: str | None, email: str, password: str) -> dict:
     d = _json(data)
     if not d.get("token") or not isinstance(d.get("user"), dict):
         raise LinkError("service_error", "Unerwartete Antwort des Dienstes.", 502)
+    prev = st.get("synced_account")
+    if prev and prev.get("id") != d["user"].get("id"):
+        # anderes Konto als beim letzten Abgleich (Pruefpunkt 1203): die Daten dieses PCs gehoerten bisher zu einem
+        # anderen Konto. Erst nach Bestaetigung abgleichen, sonst landen sie ungefragt im neuen Konto.
+        st["sync_enabled"] = False
+        st["sync_confirm"] = {"previous_email": prev.get("email"), "since": int(time.time())}
     st.update({"url": base, "token": d["token"], "user": d["user"], "linked_at": int(time.time())})
     st.pop("expired_at", None)
     save_state(st)
@@ -202,7 +208,7 @@ def university_mismatch(st: dict) -> str | None:
 
 def status_info(st: dict | None = None, refresh: bool = True) -> dict:
     st = load_state() if st is None else st
-    out = {"linked": linked(st), "url": service_url(st) or None, "env_url": bool(os.environ.get("LERNAPP_SERVICE_URL")),
+    out = {"linked": linked(st), "url": service_url(st) or None, "sync_confirm": st.get("sync_confirm"), "env_url": bool(os.environ.get("LERNAPP_SERVICE_URL")),
            "user": _public_user(st.get("user")), "linked_at": st.get("linked_at"), "claims": st.get("claims"),
            "expired": bool(st.get("expired_at") and not st.get("token")), "offline": False,
            "last_email": st.get("last_email") or (st.get("user") or {}).get("email")}

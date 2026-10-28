@@ -280,9 +280,26 @@ def month_report(conn: sqlite3.Connection, now: datetime | None = None) -> dict:
             "cost_eur": round(r[3] / 1_000_000, 6), "budget_eur": budget_microeur() / 1_000_000}
 
 
+import threading as _threading
+
+# Gleichzeitige Anfragen an den Anbieter je Prozess (`LERNAPP_AI_PARALLEL`, Standard 8, Pruefpunkt 1196); dazu kommen
+# Budget und Grenze je Konto. Wer keinen Platz bekommt, wartet hoechstens 30 Sekunden und bekommt dann 503.
+_SLOTS = _threading.BoundedSemaphore(max(1, int(os.environ.get("LERNAPP_AI_PARALLEL") or 8)))
+
+
 def complete(user_id: str | None, purpose: str, system: str, prompt: str, schema: dict | None = None,
              cache: bool = False, now: datetime | None = None) -> Completion:
     """Eine Studora-KI-Anfrage mit Budget, Rate-Limit, Protokoll und optionalem Cache."""
+    if not _SLOTS.acquire(timeout=30):
+        raise AIUnavailable("ai_busy", "Die Studora-KI ist gerade ausgelastet. Bitte gleich noch einmal versuchen.", 503)
+    try:
+        return _complete(user_id, purpose, system, prompt, schema, cache, now)
+    finally:
+        _SLOTS.release()
+
+
+def _complete(user_id: str | None, purpose: str, system: str, prompt: str, schema: dict | None = None,
+              cache: bool = False, now: datetime | None = None) -> Completion:
     p = provider()                                   # vor der Reservierung: nicht eingerichtet -> nichts protokollieren
     conn = connect()
     try:

@@ -824,6 +824,37 @@ def put_annotations(file_id: str, body: dict = Body(...), base_version: int | No
     return _put_annotations(file_id, body, base_version)
 
 
+# Grenzen (Pruefpunkte 1194, 1197; 28.10.2026). Notizen: ein Dokument je Datei als JSON; eigene Dateien und
+# Aufnahmen je Datei; im Dienst zusaetzlich Speicher je Konto (Dateien, Bilder, Aufnahmen), `LERNAPP_STORAGE_QUOTA_MB`.
+MAX_ANNOTATION_BYTES = 40 << 20
+MAX_UPLOAD_BYTES = 300 << 20
+MAX_RECORDING_BYTES = 500 << 20
+
+
+def _storage_check(new_bytes: int, limit: int, what: str) -> None:
+    import os as _os
+    if new_bytes > limit:
+        raise HTTPException(413, {"detail": f"{what} ist zu groß (höchstens {limit >> 20} MB).", "code": "upload_too_large"})
+    if not config.is_hosted():
+        return
+    try:
+        quota = int(_os.environ.get("LERNAPP_STORAGE_QUOTA_MB") or 3000) << 20
+    except ValueError:
+        quota = 3000 << 20
+    used = 0
+    for d in (config.files_dir(), _assets_dir()):
+        if d.exists():
+            for p in d.rglob("*"):
+                try:
+                    if p.is_file():
+                        used += p.stat().st_size
+                except OSError:
+                    pass
+    if used + new_bytes > quota:
+        raise HTTPException(413, {"detail": f"Dein Speicher ist voll ({used >> 20} von {quota >> 20} MB). Lösche nicht mehr "
+                                            "benötigte eigene Dokumente oder Aufnahmen.", "code": "storage_quota"})
+
+
 def _put_annotations(file_id: str, body: dict, base_version: int | None = None):
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")      # Versionspruefung und Schreiben atomar: zwei Geraete koennen nicht beide gewinnen
@@ -834,6 +865,9 @@ def _put_annotations(file_id: str, body: dict, base_version: int | None = None):
                                                           "version": cur_v, "data": json.loads(cur["data"])})
         new_v = cur_v + 1
         payload = json.dumps(body, ensure_ascii=False)
+        if len(payload.encode("utf-8")) > MAX_ANNOTATION_BYTES:
+            raise HTTPException(413, {"detail": f"Die Notizen dieser Datei sind zu groß (höchstens {MAX_ANNOTATION_BYTES >> 20} MB). "
+                                                "Sehr große Zeichnungen bitte auf mehrere Seiten oder Dokumente verteilen.", "code": "annotations_too_large"})
         conn.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?) "
                      "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version",
                      (file_id, payload, db.now_iso(), new_v))
@@ -882,6 +916,7 @@ async def upload_asset(request: Request, file_id: str, upload: UploadFile = File
     data = await upload.read()
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(400, "Bild zu gross (max. 15 MB)")
+    _storage_check(len(data), 15 << 20, "Das Bild")
     (target / name).write_bytes(data)
     return {"url": f"/api/assets/{file_id}/{name}", "name": name}
 
@@ -2304,6 +2339,7 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
         if kind == "image" and ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"):
             raise HTTPException(400, "Nur Bilddateien")
         data = await upload.read()
+        _storage_check(len(data), MAX_UPLOAD_BYTES, "Die Datei")
         if kind == "pdf" and not data.startswith(b"%PDF"):
             raise HTTPException(400, "Die Datei ist keine PDF")
         if kind == "image":
@@ -2401,7 +2437,9 @@ async def api_recording_add(file_id: str, upload: UploadFile = File(...), page: 
         raise HTTPException(400, "Nur Audio-Aufnahmen")
     name = f"rec_{uuid.uuid4().hex}{ext}"
     target = _inside(_assets_dir(), _assets_dir() / file_id); target.mkdir(parents=True, exist_ok=True)
-    (target / name).write_bytes(await upload.read())
+    data = await upload.read()
+    _storage_check(len(data), MAX_RECORDING_BYTES, "Die Aufnahme")
+    (target / name).write_bytes(data)
     with db.cursor() as conn:
         cur = conn.execute("INSERT INTO recordings(file_id, page, title, url, duration, created_at) VALUES (?,?,?,?,?,?)",
                            (file_id, page, title or f"Aufnahme {datetime.now().strftime('%d.%m. %H:%M')}", f"/api/assets/{file_id}/{name}", duration, db.now_iso()))
