@@ -30,6 +30,8 @@ final class AbnahmeV1AppTests: XCTestCase {
     func testEventSourceIsReadable() {
         XCTAssertEqual(EventDrawer.sourceText("lsf-auto"), "aus dem LSF")
         XCTAssertEqual(EventDrawer.sourceText("studip"), "aus Stud.IP")
+        // von Hand bestaetigte Stud.IP-Vorschau (POST /api/timetable/import/confirm, wie app/server.py seit 8cc7463)
+        XCTAssertEqual(EventDrawer.sourceText("studip-manual"), "aus Stud.IP")
         XCTAssertEqual(EventDrawer.sourceText("manual"), "eigener Termin")
         XCTAssertNil(EventDrawer.sourceText(nil))
     }

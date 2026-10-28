@@ -219,7 +219,7 @@ final class LocalTimetableTests: XCTestCase {
     }
 
     /// auto_import wie nach dem Stud.IP-Abgleich: eindeutige Termine uebernehmen, parallele Gruppen bleiben offen;
-    /// ein zweiter Lauf legt nichts doppelt an. Ein eben gespeicherter Kurs mit Fach (extra_seed) bekommt vorher sein
+    /// ein zweiter Lauf legt nichts doppelt an, ohne eigenen Stud.IP-Kalender wird nichts entfernt. Ein eben gespeicherter Kurs mit Fach (extra_seed) bekommt vorher sein
     /// Modul (ensure_modules), seine Termine damit auch. Geprueft wird die Fassung der App
     /// (`StudIPScheduleImport.autoImport`, mit Verknuepfung der Serien); in den Fixtures gibt es nur Einzeltermine,
     /// dafuer zaehlt sie offene Gruppen wie Python.
@@ -234,10 +234,8 @@ final class LocalTimetableTests: XCTestCase {
             for s in extra {
                 try c.execute(s["sql"]?.string ?? "", (s["params"]?.array ?? []).map { SQLiteValue(json: $0) ?? .null })
             }
-            func run() throws -> JSONValue {
-                let r = try StudIPScheduleImport.autoImport(c, clock: clock)
-                return ["new": .number(Double(r.new)), "pending_groups": .number(Double(r.pendingGroups))]
-            }
+            // Antwort mit allen Schluesseln von auto_import (seit 8cc7463 auch "removed" und "calendar")
+            func run() throws -> JSONValue { try StudIPScheduleImport.autoImport(c, clock: clock).json }
             let a = try run(), b = try run()
             return (a, b, .array(try c.rows("SELECT * FROM modules ORDER BY id").map(JSONValue.object)))
         }

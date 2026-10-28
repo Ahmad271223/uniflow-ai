@@ -40,11 +40,99 @@ def term(conn) -> dict:
 UNI_KINDS = {"vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar"}
 
 
+def studip_dated(conn, start: date, end: date) -> list[dict]:
+    """Die Termine, die Stud.IP dem Nutzer selbst in der Wochenansicht zeigt (27.10.2026, Wunsch des Inhabers: „lies
+    einfach den Stundenplan aus, die Kalenderwochen“): alle Einzeltermine aktiver Kurse (studip_events), ab dem Tag nach
+    dem Abruf des eigenen Kalenders nur die, die darin stehen (studip_calendar_dates: eigene Gruppen, Kurse mit
+    Kalenderbindung). Vorher oder ohne Kalender: alle Termine der aktiven Kurse. Liefert Vorkommen ohne Serie
+    (event_id None, studip_id gesetzt); Serien aus course_events liefern dazu Teilnahme, Ausnahmen und Notizen."""
+    rows = db.rows(conn, """SELECT s.*, c.title AS course_title, c.module_id, c.kind AS course_kind, m.name AS module_name, m.color AS module_color
+                            FROM studip_events s JOIN courses c ON c.id=s.course_id LEFT JOIN modules m ON m.id=c.module_id
+                            WHERE c.active=1 AND c.kind != 'sonstiges' AND s.start >= ? AND s.start < ? ORDER BY s.start""",
+                   (start.isoformat(), (end + timedelta(days=1)).isoformat()))
+    cal = calendar_state(conn)
+    ids, since = (cal[0], (cal[1] + timedelta(days=1)).isoformat()) if cal else (set(), None)
+    out = []
+    for r in rows:
+        try:
+            st = datetime.fromisoformat(r["start"]); en = datetime.fromisoformat(r["end"])
+        except (ValueError, TypeError):
+            continue
+        di = st.date().isoformat()
+        if since and di >= since and r["id"] not in ids:
+            continue                                                    # andere Gruppe, nicht im eigenen Kalender
+        title = r["course_title"]
+        out.append({"event_id": None, "studip_id": r["id"], "date": di, "start": st.strftime("%H:%M"), "end": en.strftime("%H:%M"), "title": title,
+                    "kind": "uebung" if r["course_kind"] == "uebung" else guess_kind(title), "module_id": r["module_id"], "module_name": r["module_name"],
+                    "color": r["module_color"] or "#4f5bd5", "room": r["room"] or "", "lecturer": None, "course_id": r["course_id"],
+                    "status": "teilnahme", "permanent_skip": False, "exception": None, "source": "studip-kalender"})
+    # Derselbe Termin eines Kurses in mehreren Raeumen (Stud.IP legt je Raum einen Termin an, z. B. eine Uebung in
+    # drei Hoersaelen): ein Kasten mit allen Raeumen statt drei schmaler Kaesten nebeneinander
+    merged: dict[tuple, dict] = {}
+    for o in out:
+        k = (o["course_id"], o["date"], o["start"], o["end"])
+        if k not in merged:
+            merged[k] = o
+            continue
+        rooms = [x for x in merged[k]["room"].split(" · ") if x]
+        if o["room"] and o["room"] not in rooms:
+            merged[k]["room"] = " · ".join(rooms + [o["room"]])
+    return list(merged.values())
+
+
+def _same_slot(o: dict, d: dict) -> bool:
+    """Serien-Vorkommen und Stud.IP-Einzeltermin meinen denselben Termin: gleicher Tag und Beginn und dazu derselbe
+    Kurs, dasselbe Modul (Serien haengen oft noch an der Kurs-ID eines frueheren Semesters) oder derselbe Titel."""
+    if o["date"] != d["date"] or o["start"] != d["start"]:
+        return False
+    if o.get("course_id") == d["course_id"]:
+        return True
+    if o.get("module_id") and o.get("module_id") == d.get("module_id") and o["end"] == d["end"]:
+        return True
+    return (o.get("title") or "").strip().lower() == (d["title"] or "").strip().lower()
+
+
+def _merge_dated(conn, out: list[dict], dated: list[dict]) -> list[dict]:
+    """Serien-Vorkommen und Stud.IP-Einzeltermine zusammenfuehren: derselbe Termin (_same_slot) -> die Serie bleibt
+    (sie traegt Teilnahme, Ausnahmen, Notizen) und bekommt Termin-ID und Raum aus Stud.IP; sonst kommt der Einzeltermin
+    dazu. Automatisch uebernommene Stud.IP-Serien (source genau 'studip') eines Kurses, von dem Einzeltermine bekannt
+    sind, zeigen nur, was Stud.IP kennt: ab dem Tag nach dem Kalenderabruf faellt alles weg, was zu einem Kurs ohne
+    eigenen Kalendertermin gehoert (andere Gruppe, fruehere Veranstaltung); an Tagen ohne Stud.IP-Termin bleibt nur ein
+    gespeicherter Ausfall oder eine eigene Ausnahme sichtbar. Von Hand bestaetigte und eigene Serien bleiben immer."""
+    known = {r["course_id"]: (r["lo"][:10], r["hi"][:10]) for r in db.rows(
+        conn, "SELECT course_id, MIN(start) AS lo, MAX(start) AS hi FROM studip_events GROUP BY course_id")}
+    cal = calendar_state(conn)
+    since = (cal[1] + timedelta(days=1)).isoformat() if cal else None
+    mine = {r["course_id"] for r in db.rows(conn, "SELECT DISTINCT course_id FROM studip_events WHERE id IN (SELECT id FROM studip_calendar_dates)")} if cal else set()
+    res, taken = [], set()
+    for o in out:
+        c = o.get("course_id")
+        match = next((d for d in dated if id(d) not in taken and _same_slot(o, d)), None)
+        if match is not None:
+            taken.add(id(match))
+            o["studip_id"] = match["studip_id"]
+            if not o.get("room") and match["room"]:
+                o["room"] = match["room"]
+            res.append(o)
+            continue
+        if o.get("source") == "studip" and c in known and o.get("exception") != "moved_here":
+            if since and o["date"] >= since and c not in mine:
+                continue                                                # Kurs ohne eigenen Kalendertermin
+            if o.get("exception") in (None, "vorlesungsfrei"):
+                continue                                                # Stud.IP kennt an diesem Tag keinen Termin
+        res.append(o)
+    res += [d for d in dated if id(d) not in taken]
+    res.sort(key=lambda o: (o["date"], o["start"]))
+    return res
+
+
 def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> list[dict]:
-    """Alle Termine im Zeitraum, mit Ausnahmen (verschoben, ausgefallen, nicht besucht) angewendet."""
+    """Alle Termine im Zeitraum, mit Ausnahmen (verschoben, ausgefallen, nicht besucht) angewendet; dazu die
+    Einzeltermine aus dem eigenen Stud.IP-Kalender (studip_dated, _merge_dated)."""
     events = db.rows(conn, "SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
+    dated = studip_dated(conn, start, end)
     if not events:
-        return []
+        return [d for d in dated if include_skipped or d["status"] != "nicht_teilnahme"]
     ids = [e["id"] for e in events]
     exc = defaultdict(dict)
     for x in db.rows(conn, f"SELECT * FROM event_exceptions WHERE event_id IN ({','.join('?' * len(ids))})", ids):
@@ -66,7 +154,8 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
             x = exc[e["id"]].get(di)
             occ = {"event_id": e["id"], "date": di, "start": e["start_time"], "end": e["end_time"], "title": e["title"], "kind": e["kind"],
                    "module_id": e["module_id"], "module_name": e["module_name"], "color": e["color"] or e["module_color"] or "#4f5bd5", "room": e["room"],
-                   "lecturer": e["lecturer"], "course_id": e["course_id"], "status": "teilnahme" if e["attend"] else "nicht_teilnahme", "permanent_skip": not e["attend"], "exception": None}
+                   "lecturer": e["lecturer"], "course_id": e["course_id"], "status": "teilnahme" if e["attend"] else "nicht_teilnahme", "permanent_skip": not e["attend"], "exception": None,
+                   "source": e["source"]}
             if notes.get(e["id"]):
                 occ["note"] = notes[e["id"]]          # nur mit Bemerkung (Antwortform sonst unveraendert)
             if x:
@@ -95,9 +184,11 @@ def occurrences(conn, start: date, end: date, include_skipped: bool = True) -> l
             m = db.row(conn, "SELECT name, color FROM modules WHERE id=?", (x["module_id"],)) if x["module_id"] else None
             out.append({"event_id": x["event_id"], "date": di, "start": x["new_start"] or x["start_time"], "end": x["new_end"] or x["end_time"], "title": x["title"], "kind": x["kind"],
                         "module_id": x["module_id"], "module_name": m["name"] if m else None, "color": x["color"] or (m["color"] if m else None) or "#4f5bd5", "room": x["room"], "lecturer": x["lecturer"],
-                        "course_id": x["course_id"], "status": "teilnahme", "permanent_skip": False, "exception": "moved_here", "moved_from": x["date"]})
+                        "course_id": x["course_id"], "status": "teilnahme", "permanent_skip": False, "exception": "moved_here", "moved_from": x["date"], "source": x["source"]})
         d += timedelta(days=1)
-    out.sort(key=lambda o: (o["date"], o["start"]))
+    out = _merge_dated(conn, out, dated)
+    if not include_skipped:
+        out = [o for o in out if o["status"] != "nicht_teilnahme"]
     return out
 
 
@@ -398,11 +489,15 @@ def merge_weekly(entries: list[dict]) -> list[dict]:
     mit: Stud.IP legt an vorlesungsfreien Tagen keine Termine an, die Serie wuerde die Luecke sonst wieder mit
     Vorlesungen fuellen (Befund 26.10.2026: LUH 23.12.-05.01. ohne Termine, im Kalender aber belegt).
     Alle 14 Tage: alle Abstaende sind Vielfache von 14 (auch mit einer Luecke von 28 Tagen ueber Weihnachten)."""
+    # Je Kurs getrennt (28.10.2026): Stud.IP legt dieselbe Veranstaltung jedes Jahr als neuen Kurs mit gleichem Titel an
+    # (Messtechnik I WiSe 23/24, 25/26, 26/27). Ohne Kurs im Schluessel wurden drei Jahre zu einer Serie mit der
+    # Kurs-ID des aeltesten Jahrgangs; der eigene Kalender fand dann keinen kuenftigen Termin dieses Kurses, die Serie
+    # galt als "parallele Gruppen" und kam nie in den Stundenplan (Mittwoch fehlte ganz).
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for e in entries:
-        groups[(e["title"], e["weekday"], e["start_time"], e["end_time"])].append(e)
+        groups[(e.get("course_id"), e["title"], e["weekday"], e["start_time"], e["end_time"])].append(e)
     out = []
-    for (title, wd, st, en), lst in groups.items():
+    for (_course, title, wd, st, en), lst in groups.items():
         dates = sorted({x["date_from"] for x in lst if x.get("date_from")})
         if len(lst) >= 3 and len(dates) >= 2:
             days = [date.fromisoformat(d) for d in dates]

@@ -191,3 +191,13 @@ Termine. Statt der zwei Fragekarten bleibt der fehlende Kurs in der Import-Vorsc
 in deinem Stud.IP-Kalender“), Kurse mit vielen Serien werden wie in Stud.IP alle übernommen. Von Hand bestätigte
 Vorschauen heißen `studip-manual` und werden nie als fremde Gruppe entfernt. Dazu die Doppel-Regel aus 3d74b00
 (gleicher Kurs, Tag und überlappende Zeit, `timetable._same_series`).
+
+**iPad seit dem Nachzug von 8cc7463 (27.10.2026):** Einzeltermine, die zu keiner Kurszeit gehören (Blocktermine,
+Klausuren, Kurse ohne Kurszeiten), entscheidet das iPad jetzt genauso wie Python (`LocalTimetableImport.applyCalendar`,
+Tabelle `studip_series_relevance`); was laut Kalender nicht dazugehört, entfernt der Abgleich über die Verknüpfung der
+Serie, nur wenn sie unverändert und automatisch übernommen ist (Quelle genau `studip`). Von Hand bestätigte Vorschauen
+heißen auch hier `studip-manual`, die Doppel-Regel `_same_series` gilt in Vorschau und Abgleich, die Termin-IDs liest
+dieselbe Regel wie `calendar_date_ids`. Weiter nur auf dem iPad: Kurszeiten mit Raum-Entscheidung und die zwei
+Fragekarten; „Kurs fehlt im Kalender“ aus Einzelterminen nur bei Kursen ohne entschiedene Kurszeit; was der Kalender
+entschieden hat (`fremd`, `kurs_fehlt`), zählt nicht als offene Gruppe. Test mit den Erwartungen von
+`tests/test_studip_calendar.py` auf derselben Fixture: `StudIPCalendarSingleDatesTests` (Kern).

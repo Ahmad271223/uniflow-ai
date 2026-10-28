@@ -230,6 +230,26 @@ final class QISAppTests: XCTestCase {
         XCTAssertNil(after, "angehalten: kein weiterer Abruf")
     }
 
+    /// Pruefpunkt 362, Luecke beim Start: Abmelden, waehrend ein Abruf noch die Demo-Pruefung abwartet (noch ohne laufende
+    /// Aufgabe). Vorher begann er danach trotzdem, fragte das QIS mit der alten Sitzung und setzte seinen Stand zurueck.
+    func testSignOutWhileAFetchIsStillStartingKeepsItFromStarting() async throws {
+        let (m, c, q) = try luh()
+        installQIS()
+        await signIn(m, c, q)
+        let runsBefore = q.finishedRuns
+        let run = Task { await q.run(force: true) }
+        await Task.yield()                                   // der Abruf wartet jetzt in der Demo-Pruefung
+        XCTAssertFalse(q.isRunning)
+        await q.signOut()
+        let report = await run.value
+        XCTAssertNil(report, "nach dem Abmelden beginnt der Abruf nicht mehr")
+        XCTAssertEqual(q.finishedRuns, runsBefore)
+        XCTAssertEqual(q.state, .notConnected)
+        XCTAssertFalse(q.isConnected)
+        XCTAssertNil(q.lastCount)
+        XCTAssertTrue(UniStubProtocol.requests.isEmpty, "keine Anfrage an das QIS")
+    }
+
     func testUniversityPickerAndSidebarNoLongerPromiseQISForLater() {
         XCTAssertFalse(UniversityOption.services(.luh).contains("spätere"))
         XCTAssertTrue(UniversityOption.services(.luh).contains("QIS: Notenspiegel"))

@@ -83,6 +83,9 @@ struct WelcomeView: View {
                 switch n {
                 case .deleted:
                     Text("Dein Konto wurde von diesem iPad gelöscht.").ufFont(13.12, 600).foregroundStyle(UF.text)
+                    if let problem = account.deletionProblem {
+                        Text(problem).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                    }
                     Text("Ein laufendes Abo wird dadurch nicht gekündigt. Abos verwaltest du bei Apple.")
                         .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                     Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL).ufFont(13.12, 600).foregroundStyle(UF.accentText)

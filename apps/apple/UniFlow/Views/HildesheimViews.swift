@@ -152,6 +152,7 @@ struct HildesheimSourcesCard: View {
         @ObservedObject var connection: HildesheimConnection
         @State private var login: HildesheimConnection.Source?
         @State private var confirmSignOut = false
+        @EnvironmentObject private var toast: UFToastCenter
 
         var body: some View {
             UFCard {
@@ -200,7 +201,11 @@ struct HildesheimSourcesCard: View {
             }
             .sheet(item: $login) { s in HildesheimLoginView(target: s, connection: connection) }
             .confirmationDialog("Von Learnweb und LSF abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-                Button("Abmelden", role: .destructive) { Task { await connection.signOut() } }
+                Button("Abmelden", role: .destructive) {
+                    Task {
+                        if let problem = await connection.signOut() { toast.show(problem, seconds: 6) }
+                    }
+                }
             } message: {
                 Text(HildesheimSourcesCard.signOutMessage)
             }

@@ -11,10 +11,20 @@ public protocol BlobStore: Sendable {
 /// Dateien unter einem Wurzelordner; jede Datei wird atomar ersetzt (Temp-Datei + Umbenennen).
 public final class FileBlobStore: BlobStore, @unchecked Sendable {
     public let root: URL
+    /// Darf noch geschrieben werden? (App: Schreibrecht des Containers, entzogen beim Loeschen.) Ohne Recht scheitern
+    /// Schreiben und Entfernen mit einem Fehler, statt Ordner neu anzulegen.
+    private let canWrite: (@Sendable () -> Bool)?
 
-    public init(root: URL) { self.root = root }
+    public init(root: URL, canWrite: (@Sendable () -> Bool)? = nil) {
+        self.root = root
+        self.canWrite = canWrite
+    }
 
     private func url(_ path: String) -> URL { root.appendingPathComponent(path) }
+
+    private func checkWritable(_ path: String) throws {
+        if let canWrite, !canWrite() { throw BlobStoreError(path: path, reason: "Speicher gelöscht") }
+    }
 
     public func read(_ path: String) throws -> Data? {
         let u = url(path)
@@ -23,6 +33,7 @@ public final class FileBlobStore: BlobStore, @unchecked Sendable {
     }
 
     public func write(_ data: Data, to path: String) throws {
+        try checkWritable(path)
         let u = url(path)
         try FileManager.default.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
         #if os(iOS)
@@ -33,6 +44,7 @@ public final class FileBlobStore: BlobStore, @unchecked Sendable {
     }
 
     public func remove(_ path: String) throws {
+        try checkWritable(path)
         let u = url(path)
         if FileManager.default.fileExists(atPath: u.path) { try FileManager.default.removeItem(at: u) }
     }

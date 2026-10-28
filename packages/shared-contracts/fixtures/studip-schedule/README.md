@@ -12,6 +12,8 @@ der App): Abruf, Ablage in der lokalen Datenbank und Übernahme in den Stundenpl
 | `course-events-c-sem.json` | `courses/c-sem/events?page[limit]=200` | Kurs ohne Kurszeiten: drei Termine, die wie auf dem PC zu einer Serie werden |
 | `kalender/` | `users/{id}/schedule`, `users/{id}/courses…`, `courses/{id}/events?page[limit]=200`, `users/{id}/events.ics` | eigener Stud.IP-Kalender (`StudIPCalendarTests`, `StudIPCalendarAppTests`). Enthalten sind: zwei Übungsgruppen (eine eigene), eine Gruppe in zwei Zeiträumen (nur der zweite eigen), eine Kurszeit „Hauptveranst.“ neben vier Gruppen, ein Kurs ohne Kalendertermine, vier Fragestunden je Woche, dieselbe Zeit in zwei Räumen (nur einer eigen), eine vergangene Einführung, ein Ausfall mit „(fällt aus)“ und ein eigener Kalendertermin ohne Kurs |
 
+| `woche.json` | Python-Referenz (`tools/gen-studip-week-fixture.py`) | Woche 1:1 aus dem eigenen Kalender (`studip_dated`, `occurrences`), nur aktuelles Semester (`app/semesters.py`), Abruf mit `end-semester`, `merge_weekly` mit zwei Jahrgängen desselben Kurstitels. Erklärung: `docs/UEBERGABE-APPLE-2026-10-28.md` |
+
 Einträge, die sich nicht lesen lassen (ohne ID, ohne Uhrzeit, Kurszeit ohne Kurs), zählt der Abruf und nennt sie in
 der Zusammenfassung („2 Stundenplan-Einträge aus Stud.IP nicht lesbar“ für diese Fixture); ihr gespeicherter Stand
 bleibt, und ein Kurs mit Terminen ohne ID verliert keine gespeicherten Termine (externer Prüfbericht 382, 421, 425,

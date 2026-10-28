@@ -27,9 +27,11 @@ public enum StudIPLibrary {
     }
 
     /// Meldung in `sync_log` wie Python
-    /// `newEvents`: von auto_import uebernommene Stundenplan-Termine (S5), wie `message += ", N Stundenplan-Termine"`
-    public static func summary(newFiles: Int, newEvents: Int = 0) -> String {
+    /// `newEvents`: von auto_import uebernommene Stundenplan-Termine (S5), wie `message += ", N Stundenplan-Termine"`;
+    /// `removedEvents`: entfernte Serien, die nicht im eigenen Stud.IP-Kalender stehen (`r["removed"]`, seit 8cc7463)
+    public static func summary(newFiles: Int, newEvents: Int = 0, removedEvents: Int = 0) -> String {
         "\(newFiles) neue/geaenderte Dateien" + (newEvents > 0 ? ", \(newEvents) Stundenplan-Termine" : "")
+            + (removedEvents > 0 ? ", \(removedEvents) Serien entfernt (nicht in deinem Stud.IP-Kalender)" : "")
     }
     public static func failure(_ message: String) -> String { "FEHLER: \(message)" }
 

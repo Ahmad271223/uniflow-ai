@@ -118,7 +118,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-25T14:30:05",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c1",
@@ -130,7 +133,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c2",
@@ -142,7 +148,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c3",
@@ -154,7 +163,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c4",
@@ -166,7 +178,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      }
     ],
     "files": [
@@ -459,7 +474,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-25T14:30:05",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c1",
@@ -471,7 +489,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c2",
@@ -483,7 +504,10 @@
       "active": 0,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c3",
@@ -495,7 +519,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c4",
@@ -507,7 +534,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      }
     ],
     "files": [
@@ -784,7 +814,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-25T14:30:05",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c1",
@@ -796,7 +829,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c2",
@@ -808,7 +844,10 @@
       "active": 0,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c3",
@@ -820,7 +859,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c4",
@@ -832,7 +874,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      }
     ],
     "files": [
@@ -1111,7 +1156,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-25T14:30:05",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c1",
@@ -1123,7 +1171,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c2",
@@ -1135,7 +1186,10 @@
       "active": 0,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c3",
@@ -1147,7 +1201,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c4",
@@ -1159,7 +1216,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      }
     ],
     "files": [
@@ -1447,7 +1507,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-25T14:30:05",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c1",
@@ -1459,7 +1522,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c2",
@@ -1471,7 +1537,10 @@
       "active": 0,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c3",
@@ -1483,7 +1552,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c4",
@@ -1495,7 +1567,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      }
     ],
     "files": [
@@ -1758,7 +1833,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-25T14:30:05",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c1",
@@ -1770,7 +1848,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c2",
@@ -1782,7 +1863,10 @@
       "active": 0,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c3",
@@ -1794,7 +1878,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      },
      {
       "id": "c4",
@@ -1806,7 +1893,10 @@
       "active": 1,
       "test_minutes": 90,
       "created_at": "2026-10-20T08:00:00",
-      "module_id": null
+      "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0
      }
     ],
     "files": [
@@ -2295,7 +2385,10 @@
        "active": 1,
        "test_minutes": 90,
        "created_at": "2026-10-25T14:30:05",
-       "module_id": null
+       "module_id": null,
+       "semester_end": null,
+       "semester_ends_at": null,
+       "active_custom": 0
       },
       {
        "id": "b1",
@@ -2307,7 +2400,10 @@
        "active": 1,
        "test_minutes": 90,
        "created_at": "2026-10-24T08:00:00",
-       "module_id": null
+       "module_id": null,
+       "semester_end": null,
+       "semester_ends_at": null,
+       "active_custom": 0
       },
       {
        "id": "b2",
@@ -2319,7 +2415,10 @@
        "active": 1,
        "test_minutes": 90,
        "created_at": "2026-10-24T08:00:00",
-       "module_id": null
+       "module_id": null,
+       "semester_end": null,
+       "semester_ends_at": null,
+       "active_custom": 0
       },
       {
        "id": "e1",
@@ -2331,7 +2430,10 @@
        "active": 1,
        "test_minutes": 90,
        "created_at": "2026-10-24T08:00:00",
-       "module_id": null
+       "module_id": null,
+       "semester_end": null,
+       "semester_ends_at": null,
+       "active_custom": 0
       },
       {
        "id": "m1",
@@ -2343,7 +2445,10 @@
        "active": 1,
        "test_minutes": 90,
        "created_at": "2026-10-24T08:00:00",
-       "module_id": null
+       "module_id": null,
+       "semester_end": null,
+       "semester_ends_at": null,
+       "active_custom": 0
       },
       {
        "id": "m2",
@@ -2355,7 +2460,10 @@
        "active": 1,
        "test_minutes": 90,
        "created_at": "2026-10-24T08:00:00",
-       "module_id": null
+       "module_id": null,
+       "semester_end": null,
+       "semester_ends_at": null,
+       "active_custom": 0
       },
       {
        "id": "m3",
@@ -2367,7 +2475,10 @@
        "active": 1,
        "test_minutes": 90,
        "created_at": "2026-10-24T08:00:00",
-       "module_id": null
+       "module_id": null,
+       "semester_end": null,
+       "semester_ends_at": null,
+       "active_custom": 0
       },
       {
        "id": "m4",
@@ -2379,7 +2490,10 @@
        "active": 1,
        "test_minutes": 90,
        "created_at": "2026-10-24T08:00:00",
-       "module_id": null
+       "module_id": null,
+       "semester_end": null,
+       "semester_ends_at": null,
+       "active_custom": 0
       }
      ],
      "files": [
@@ -3253,6 +3367,7 @@
       "exam_date": null,
       "sort": 0,
       "created_at": "2026-10-25T14:30:05",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -3279,6 +3394,7 @@
       "exam_date": null,
       "sort": 1,
       "created_at": "2026-10-25T14:30:05",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -3305,6 +3421,7 @@
       "exam_date": null,
       "sort": 2,
       "created_at": "2026-10-25T14:30:05",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -3338,6 +3455,7 @@
       "exam_date": null,
       "sort": 0,
       "created_at": "2026-10-25T14:30:05",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -3964,6 +4082,7 @@
       "exam_date": null,
       "sort": 1,
       "created_at": "2026-10-25T14:30:05",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -4068,6 +4187,7 @@
       "exam_date": null,
       "sort": 2,
       "created_at": "2026-10-25T14:30:05",
+      "active_custom": 0,
       "active": 1,
       "weekly_test": 1,
       "test_minutes": null,
@@ -4232,6 +4352,9 @@
       "test_minutes": 90,
       "created_at": "2026-10-25T14:30:05",
       "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0,
       "file_count": 0,
       "new_count": 0
      },
@@ -4246,6 +4369,9 @@
       "test_minutes": 90,
       "created_at": "2026-10-24T08:00:00",
       "module_id": null,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0,
       "file_count": 1,
       "new_count": 1
      },
@@ -4260,6 +4386,9 @@
       "test_minutes": 90,
       "created_at": "2026-10-24T08:00:00",
       "module_id": 3,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0,
       "file_count": 1,
       "new_count": 1
      },
@@ -4274,6 +4403,9 @@
       "test_minutes": 90,
       "created_at": "2026-10-24T08:00:00",
       "module_id": 3,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0,
       "file_count": 1,
       "new_count": 1
      },
@@ -4288,6 +4420,9 @@
       "test_minutes": 90,
       "created_at": "2026-10-24T08:00:00",
       "module_id": 2,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0,
       "file_count": 1,
       "new_count": 1
      },
@@ -4302,6 +4437,9 @@
       "test_minutes": 90,
       "created_at": "2026-10-24T08:00:00",
       "module_id": 1,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0,
       "file_count": 1,
       "new_count": 1
      },
@@ -4316,6 +4454,9 @@
       "test_minutes": 90,
       "created_at": "2026-10-24T08:00:00",
       "module_id": 1,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0,
       "file_count": 4,
       "new_count": 4
      },
@@ -4330,6 +4471,9 @@
       "test_minutes": 90,
       "created_at": "2026-10-24T08:00:00",
       "module_id": 1,
+      "semester_end": null,
+      "semester_ends_at": null,
+      "active_custom": 0,
       "file_count": 5,
       "new_count": 5
      }
@@ -4348,7 +4492,10 @@
      "active": 1,
      "test_minutes": 90,
      "created_at": "2026-10-25T14:30:05",
-     "module_id": null
+     "module_id": null,
+     "semester_end": null,
+     "semester_ends_at": null,
+     "active_custom": 0
     },
     {
      "id": "b1",
@@ -4360,7 +4507,10 @@
      "active": 1,
      "test_minutes": 90,
      "created_at": "2026-10-24T08:00:00",
-     "module_id": 3
+     "module_id": 3,
+     "semester_end": null,
+     "semester_ends_at": null,
+     "active_custom": 0
     },
     {
      "id": "b2",
@@ -4372,7 +4522,10 @@
      "active": 1,
      "test_minutes": 90,
      "created_at": "2026-10-24T08:00:00",
-     "module_id": 3
+     "module_id": 3,
+     "semester_end": null,
+     "semester_ends_at": null,
+     "active_custom": 0
     },
     {
      "id": "e1",
@@ -4384,7 +4537,10 @@
      "active": 1,
      "test_minutes": 90,
      "created_at": "2026-10-24T08:00:00",
-     "module_id": null
+     "module_id": null,
+     "semester_end": null,
+     "semester_ends_at": null,
+     "active_custom": 0
     },
     {
      "id": "m1",
@@ -4396,7 +4552,10 @@
      "active": 1,
      "test_minutes": 90,
      "created_at": "2026-10-24T08:00:00",
-     "module_id": 1
+     "module_id": 1,
+     "semester_end": null,
+     "semester_ends_at": null,
+     "active_custom": 0
     },
     {
      "id": "m2",
@@ -4408,7 +4567,10 @@
      "active": 1,
      "test_minutes": 90,
      "created_at": "2026-10-24T08:00:00",
-     "module_id": 1
+     "module_id": 1,
+     "semester_end": null,
+     "semester_ends_at": null,
+     "active_custom": 0
     },
     {
      "id": "m3",
@@ -4420,7 +4582,10 @@
      "active": 1,
      "test_minutes": 90,
      "created_at": "2026-10-24T08:00:00",
-     "module_id": 1
+     "module_id": 1,
+     "semester_end": null,
+     "semester_ends_at": null,
+     "active_custom": 0
     },
     {
      "id": "m4",
@@ -4432,7 +4597,10 @@
      "active": 1,
      "test_minutes": 90,
      "created_at": "2026-10-24T08:00:00",
-     "module_id": 2
+     "module_id": 2,
+     "semester_end": null,
+     "semester_ends_at": null,
+     "active_custom": 0
     }
    ],
    "modules": [
@@ -4446,6 +4614,7 @@
      "exam_date": null,
      "sort": 0,
      "created_at": "2026-10-25T14:30:05",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -4461,6 +4630,7 @@
      "exam_date": null,
      "sort": 1,
      "created_at": "2026-10-25T14:30:05",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -4476,6 +4646,7 @@
      "exam_date": null,
      "sort": 2,
      "created_at": "2026-10-25T14:30:05",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,

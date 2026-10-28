@@ -516,6 +516,8 @@ def patch_course(course_id: str, body: dict = Body(...)):
         for k, v in body.items():
             if k in allowed:
                 conn.execute(f"UPDATE courses SET {k}=? WHERE id=?", (v, course_id))
+        if "active" in body:
+            conn.execute("UPDATE courses SET active_custom=1 WHERE id=?", (course_id,))   # app/semesters.py laesst es
         return _found(db.row(conn, "SELECT * FROM courses WHERE id=?", (course_id,)), "Kurs")
 
 
@@ -1275,6 +1277,8 @@ def api_module_patch(module_id: int, body: dict = Body(...)):
                 conn.execute(f"UPDATE modules SET {k}=? WHERE id=?", (v or None if k == "exam_date" else v, module_id))
         # Merker fuer eine selbst gewaehlte Farbe (app/colors.py): nur, wenn sich die Farbe wirklich aendert (die
         # Bearbeiten-Dialoge schicken sie auch unveraendert mit)
+        if "active" in body:
+            conn.execute("UPDATE modules SET active_custom=1 WHERE id=?", (module_id,))     # app/semesters.py laesst es
         after = db.row(conn, "SELECT color FROM modules WHERE id=?", (module_id,)) if "color" in body and before else None
         if after and after["color"] and after["color"] != before["color"]:
             conn.execute("UPDATE modules SET color_custom=1 WHERE id=?", (module_id,))

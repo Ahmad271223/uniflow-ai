@@ -961,7 +961,9 @@
         "course_id": "k-ma-vl",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip",
+        "studip_id": "se-ma-0"
        }
       ],
       "packages": [],
@@ -1000,6 +1002,44 @@
       "weekday": 1,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-pg-0-0",
+        "date": "2026-10-20",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 0",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-1-0",
+        "date": "2026-10-20",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 4,
         "date": "2026-10-20",
         "start": "18:00",
@@ -1014,7 +1054,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [],
@@ -1023,10 +1064,18 @@
       "notices": [],
       "free": [
        {
-        "start": 480,
+        "start": 570,
+        "end": 600,
+        "minutes": 30,
+        "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
+       },
+       {
+        "start": 710,
         "end": 1260,
-        "minutes": 780,
-        "start_hm": "08:00",
+        "minutes": 550,
+        "start_hm": "11:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -1036,7 +1085,27 @@
      {
       "date": "2026-10-21",
       "weekday": 2,
-      "events": [],
+      "events": [
+       {
+        "event_id": null,
+        "studip_id": "se-pg-2-0",
+        "date": "2026-10-21",
+        "start": "14:00",
+        "end": "15:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 2",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       }
+      ],
       "packages": [],
       "marks": [],
       "deadlines": [],
@@ -1044,9 +1113,17 @@
       "free": [
        {
         "start": 480,
-        "end": 1260,
-        "minutes": 780,
+        "end": 820,
+        "minutes": 340,
         "start_hm": "08:00",
+        "end_hm": "13:40",
+        "campus": false
+       },
+       {
+        "start": 950,
+        "end": 1260,
+        "minutes": 310,
+        "start_hm": "15:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -1072,7 +1149,9 @@
         "course_id": "k-ma-ue",
         "status": "nicht_teilnahme",
         "permanent_skip": false,
-        "exception": "skip"
+        "exception": "skip",
+        "source": "studip",
+        "studip_id": "se-ue-0"
        }
       ],
       "packages": [],
@@ -1108,17 +1187,37 @@
      {
       "date": "2026-10-23",
       "weekday": 4,
-      "events": [],
+      "events": [
+       {
+        "event_id": null,
+        "studip_id": "se-pg-3-0",
+        "date": "2026-10-23",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 3",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       }
+      ],
       "packages": [],
       "marks": [],
       "deadlines": [],
       "notices": [],
       "free": [
        {
-        "start": 480,
+        "start": 590,
         "end": 1260,
-        "minutes": 780,
-        "start_hm": "08:00",
+        "minutes": 670,
+        "start_hm": "09:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -1150,6 +1249,25 @@
       "weekday": 6,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-bl-2",
+        "date": "2026-10-25",
+        "start": "02:30",
+        "end": "03:30",
+        "title": "Blockseminar Beispiel",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "",
+        "lecturer": null,
+        "course_id": "k-block",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 6,
         "date": "2026-10-25",
         "start": "09:00",
@@ -1164,7 +1282,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "packages": [
@@ -1191,11 +1310,11 @@
       "free": [
        {
         "start": 480,
-        "end": 520,
-        "minutes": 40,
+        "end": 540,
+        "minutes": 60,
         "start_hm": "08:00",
-        "end_hm": "08:40",
-        "campus": false
+        "end_hm": "09:00",
+        "campus": true
        },
        {
         "start": 620,
@@ -1255,7 +1374,9 @@
         "course_id": "k-ma-vl",
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "studip",
+        "studip_id": "se-ma-1"
        }
       ],
       "packages": [],
@@ -1294,6 +1415,44 @@
       "weekday": 1,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-pg-0-1",
+        "date": "2026-10-27",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 0",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-1-1",
+        "date": "2026-10-27",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 4,
         "date": "2026-10-27",
         "start": "18:00",
@@ -1308,7 +1467,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": true,
-        "exception": "attend"
+        "exception": "attend",
+        "source": "personal"
        }
       ],
       "packages": [
@@ -1334,12 +1494,20 @@
       "notices": [],
       "free": [
        {
-        "start": 480,
-        "end": 1060,
-        "minutes": 580,
-        "start_hm": "08:00",
-        "end_hm": "17:40",
-        "campus": false
+        "start": 570,
+        "end": 600,
+        "minutes": 30,
+        "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
+       },
+       {
+        "start": 690,
+        "end": 1080,
+        "minutes": 390,
+        "start_hm": "11:30",
+        "end_hm": "18:00",
+        "campus": true
        },
        {
         "start": 1190,
@@ -1357,6 +1525,25 @@
       "weekday": 2,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-ph-1",
+        "date": "2026-10-28",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik für Ingenieure",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": null,
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 2,
         "date": "2026-10-28",
         "start": "08:30",
@@ -1371,7 +1558,27 @@
         "course_id": "k-ph",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": "edit"
+        "exception": "edit",
+        "source": "manual"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-2-1",
+        "date": "2026-10-28",
+        "start": "14:00",
+        "end": "15:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 2",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        }
       ],
       "packages": [],
@@ -1380,10 +1587,18 @@
       "notices": [],
       "free": [
        {
-        "start": 620,
+        "start": 600,
+        "end": 840,
+        "minutes": 240,
+        "start_hm": "10:00",
+        "end_hm": "14:00",
+        "campus": true
+       },
+       {
+        "start": 950,
         "end": 1260,
-        "minutes": 640,
-        "start_hm": "10:20",
+        "minutes": 310,
+        "start_hm": "15:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -1409,7 +1624,9 @@
         "course_id": "k-ma-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip",
+        "studip_id": "se-ue-1"
        }
       ],
       "packages": [
@@ -1496,6 +1713,25 @@
       "weekday": 4,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-pg-3-1",
+        "date": "2026-10-30",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 3",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 3,
         "date": "2026-10-30",
         "start": "14:00",
@@ -1510,7 +1746,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "packages": [
@@ -1536,12 +1773,12 @@
       "notices": [],
       "free": [
        {
-        "start": 480,
-        "end": 820,
-        "minutes": 340,
-        "start_hm": "08:00",
-        "end_hm": "13:40",
-        "campus": false
+        "start": 570,
+        "end": 840,
+        "minutes": 270,
+        "start_hm": "09:30",
+        "end_hm": "14:00",
+        "campus": true
        },
        {
         "start": 1040,
@@ -1598,7 +1835,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": false,
-        "exception": "skip"
+        "exception": "skip",
+        "source": "manual"
        }
       ],
       "packages": [],
@@ -1657,7 +1895,9 @@
         "status": "verschoben",
         "permanent_skip": false,
         "exception": "moved",
-        "moved_to": "2026-11-03"
+        "source": "studip",
+        "moved_to": "2026-11-03",
+        "studip_id": "se-ma-2"
        }
       ],
       "packages": [],
@@ -1696,6 +1936,25 @@
       "weekday": 1,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-pg-0-2",
+        "date": "2026-11-03",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 0",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 1,
         "date": "2026-11-03",
         "start": "10:00",
@@ -1711,7 +1970,27 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": "moved_here",
-        "moved_from": "2026-11-02"
+        "moved_from": "2026-11-02",
+        "source": "studip"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-1-2",
+        "date": "2026-11-03",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 4,
@@ -1728,7 +2007,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [
@@ -1754,12 +2034,12 @@
       "notices": [],
       "free": [
        {
-        "start": 480,
-        "end": 580,
-        "minutes": 100,
-        "start_hm": "08:00",
-        "end_hm": "09:40",
-        "campus": false
+        "start": 570,
+        "end": 600,
+        "minutes": 30,
+        "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
        },
        {
         "start": 710,
@@ -1775,7 +2055,27 @@
      {
       "date": "2026-11-04",
       "weekday": 2,
-      "events": [],
+      "events": [
+       {
+        "event_id": null,
+        "studip_id": "se-pg-2-2",
+        "date": "2026-11-04",
+        "start": "14:00",
+        "end": "15:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 2",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       }
+      ],
       "packages": [],
       "marks": [],
       "deadlines": [],
@@ -1783,9 +2083,17 @@
       "free": [
        {
         "start": 480,
-        "end": 1260,
-        "minutes": 780,
+        "end": 820,
+        "minutes": 340,
         "start_hm": "08:00",
+        "end_hm": "13:40",
+        "campus": false
+       },
+       {
+        "start": 950,
+        "end": 1260,
+        "minutes": 310,
+        "start_hm": "15:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -1795,25 +2103,7 @@
      {
       "date": "2026-11-05",
       "weekday": 3,
-      "events": [
-       {
-        "event_id": 5,
-        "date": "2026-11-05",
-        "start": "12:15",
-        "end": "13:45",
-        "title": "Übung zu Testmathematik I",
-        "kind": "uebung",
-        "module_id": 1,
-        "module_name": "Testmathematik I",
-        "color": "#111111",
-        "room": "Raum C",
-        "lecturer": "",
-        "course_id": "k-ma-ue",
-        "status": "teilnahme",
-        "permanent_skip": false,
-        "exception": null
-       }
-      ],
+      "events": [],
       "packages": [],
       "marks": [],
       "deadlines": [],
@@ -1821,17 +2111,9 @@
       "free": [
        {
         "start": 480,
-        "end": 715,
-        "minutes": 235,
-        "start_hm": "08:00",
-        "end_hm": "11:55",
-        "campus": false
-       },
-       {
-        "start": 845,
         "end": 1020,
-        "minutes": 175,
-        "start_hm": "14:05",
+        "minutes": 540,
+        "start_hm": "08:00",
         "end_hm": "17:00",
         "campus": false
        },
@@ -1855,17 +2137,37 @@
      {
       "date": "2026-11-06",
       "weekday": 4,
-      "events": [],
+      "events": [
+       {
+        "event_id": null,
+        "studip_id": "se-pg-3-2",
+        "date": "2026-11-06",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 3",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       }
+      ],
       "packages": [],
       "marks": [],
       "deadlines": [],
       "notices": [],
       "free": [
        {
-        "start": 480,
+        "start": 590,
         "end": 1260,
-        "minutes": 780,
-        "start_hm": "08:00",
+        "minutes": 670,
+        "start_hm": "09:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -1875,7 +2177,27 @@
      {
       "date": "2026-11-07",
       "weekday": 5,
-      "events": [],
+      "events": [
+       {
+        "event_id": null,
+        "studip_id": "se-bl-0",
+        "date": "2026-11-07",
+        "start": "09:00",
+        "end": "16:00",
+        "title": "Blockseminar Beispiel",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Seminarraum",
+        "lecturer": null,
+        "course_id": "k-block",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       }
+      ],
       "packages": [],
       "marks": [],
       "deadlines": [],
@@ -1883,9 +2205,17 @@
       "free": [
        {
         "start": 480,
-        "end": 1260,
-        "minutes": 780,
+        "end": 520,
+        "minutes": 40,
         "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 980,
+        "end": 1260,
+        "minutes": 280,
+        "start_hm": "16:20",
         "end_hm": "21:00",
         "campus": false
        }
@@ -1911,7 +2241,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "packages": [],
@@ -1961,25 +2292,7 @@
      {
       "date": "2027-01-25",
       "weekday": 0,
-      "events": [
-       {
-        "event_id": 1,
-        "date": "2027-01-25",
-        "start": "10:00",
-        "end": "11:30",
-        "title": "Testmathematik I",
-        "kind": "vorlesung",
-        "module_id": 1,
-        "module_name": "Testmathematik I",
-        "color": "#111111",
-        "room": "Raum A",
-        "lecturer": "Prof. Beispiel",
-        "course_id": "k-ma-vl",
-        "status": "teilnahme",
-        "permanent_skip": false,
-        "exception": null
-       }
-      ],
+      "events": [],
       "packages": [],
       "marks": [],
       "deadlines": [],
@@ -1987,10 +2300,10 @@
       "free": [
        {
         "start": 480,
-        "end": 580,
-        "minutes": 100,
+        "end": 720,
+        "minutes": 240,
         "start_hm": "08:00",
-        "end_hm": "09:40",
+        "end_hm": "12:00",
         "campus": false
        },
        {
@@ -2030,7 +2343,8 @@
         "course_id": null,
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [],
@@ -2188,6 +2502,25 @@
     "date": "2026-10-25",
     "events": [
      {
+      "event_id": null,
+      "studip_id": "se-bl-2",
+      "date": "2026-10-25",
+      "start": "02:30",
+      "end": "03:30",
+      "title": "Blockseminar Beispiel",
+      "kind": "seminar",
+      "module_id": null,
+      "module_name": null,
+      "color": "#4f5bd5",
+      "room": "",
+      "lecturer": null,
+      "course_id": "k-block",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null,
+      "source": "studip-kalender"
+     },
+     {
       "event_id": 6,
       "date": "2026-10-25",
       "start": "09:00",
@@ -2202,7 +2535,8 @@
       "course_id": null,
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "manual"
      }
     ],
     "packages": [
@@ -2226,11 +2560,11 @@
     "free": [
      {
       "start": 480,
-      "end": 520,
-      "minutes": 40,
+      "end": 540,
+      "minutes": 60,
       "start_hm": "08:00",
-      "end_hm": "08:40",
-      "campus": false
+      "end_hm": "09:00",
+      "campus": true
      },
      {
       "start": 620,
@@ -2276,7 +2610,9 @@
       "course_id": "k-ma-ue",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip",
+      "studip_id": "se-ue-1"
      }
     ],
     "packages": [
@@ -2366,6 +2702,25 @@
     "date": "2026-11-03",
     "events": [
      {
+      "event_id": null,
+      "studip_id": "se-pg-0-2",
+      "date": "2026-11-03",
+      "start": "08:00",
+      "end": "09:30",
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "module_id": 3,
+      "module_name": "Programmierkurs Beispiel",
+      "color": "#333333",
+      "room": "Pool 0",
+      "lecturer": null,
+      "course_id": "k-prog-ue",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null,
+      "source": "studip-kalender"
+     },
+     {
       "event_id": 1,
       "date": "2026-11-03",
       "start": "10:00",
@@ -2381,7 +2736,27 @@
       "status": "teilnahme",
       "permanent_skip": false,
       "exception": "moved_here",
-      "moved_from": "2026-11-02"
+      "moved_from": "2026-11-02",
+      "source": "studip"
+     },
+     {
+      "event_id": null,
+      "studip_id": "se-pg-1-2",
+      "date": "2026-11-03",
+      "start": "10:00",
+      "end": "11:30",
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "module_id": 3,
+      "module_name": "Programmierkurs Beispiel",
+      "color": "#333333",
+      "room": "Pool 1",
+      "lecturer": null,
+      "course_id": "k-prog-ue",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null,
+      "source": "studip-kalender"
      },
      {
       "event_id": 4,
@@ -2398,7 +2773,8 @@
       "course_id": null,
       "status": "nicht_teilnahme",
       "permanent_skip": true,
-      "exception": null
+      "exception": null,
+      "source": "personal"
      }
     ],
     "packages": [
@@ -2421,12 +2797,12 @@
     ],
     "free": [
      {
-      "start": 480,
-      "end": 580,
-      "minutes": 100,
-      "start_hm": "08:00",
-      "end_hm": "09:40",
-      "campus": false
+      "start": 570,
+      "end": 600,
+      "minutes": 30,
+      "start_hm": "09:30",
+      "end_hm": "10:00",
+      "campus": true
      },
      {
       "start": 710,
@@ -2575,10 +2951,18 @@
    "status": 200,
    "response": [
     {
-     "start": 620,
+     "start": 600,
+     "end": 840,
+     "minutes": 240,
+     "start_hm": "10:00",
+     "end_hm": "14:00",
+     "campus": true
+    },
+    {
+     "start": 950,
      "end": 1260,
-     "minutes": 640,
-     "start_hm": "10:20",
+     "minutes": 310,
+     "start_hm": "15:50",
      "end_hm": "21:00",
      "campus": false
     }
@@ -2955,6 +3339,7 @@
      "exam_date": null,
      "sort": 0,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -2982,7 +3367,9 @@
       "course_id": "k-ma-ue",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip",
+      "studip_id": "se-ue-1"
      },
      "task_count": 0,
      "test_count": 0,
@@ -3000,6 +3387,7 @@
      "exam_date": null,
      "sort": 1,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -3013,21 +3401,23 @@
       "title": "Paket B"
      },
      "next_event": {
-      "event_id": 2,
+      "event_id": null,
+      "studip_id": "se-ph-1",
       "date": "2026-10-28",
-      "start": "08:30",
-      "end": "10:00",
-      "title": "Testphysik",
+      "start": "08:15",
+      "end": "09:45",
+      "title": "Testphysik für Ingenieure",
       "kind": "vorlesung",
       "module_id": 2,
       "module_name": "Testphysik",
-      "color": "#ff0000",
-      "room": "Raum B",
-      "lecturer": "",
+      "color": "#222222",
+      "room": "",
+      "lecturer": null,
       "course_id": "k-ph",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": "edit"
+      "exception": null,
+      "source": "studip-kalender"
      },
      "task_count": 0,
      "test_count": 0,
@@ -3045,6 +3435,7 @@
      "exam_date": null,
      "sort": 2,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -3057,7 +3448,25 @@
       "date": "2026-10-25",
       "title": "Paket C"
      },
-     "next_event": null,
+     "next_event": {
+      "event_id": null,
+      "studip_id": "se-pg-0-1",
+      "date": "2026-10-27",
+      "start": "08:00",
+      "end": "09:30",
+      "title": "Gruppenübung Programmierkurs Beispiel",
+      "kind": "uebung",
+      "module_id": 3,
+      "module_name": "Programmierkurs Beispiel",
+      "color": "#333333",
+      "room": "Pool 0",
+      "lecturer": null,
+      "course_id": "k-prog-ue",
+      "status": "teilnahme",
+      "permanent_skip": false,
+      "exception": null,
+      "source": "studip-kalender"
+     },
      "task_count": 0,
      "test_count": 0,
      "topics": [],
@@ -4347,7 +4756,9 @@
         "course_id": "k-ma-vl",
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "studip",
+        "studip_id": "se-ma-1"
        }
       ],
       "packages": [],
@@ -4400,7 +4811,28 @@
         "course_id": "k-prog-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual",
+        "studip_id": "se-pg-0-1"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-1-1",
+        "date": "2026-10-27",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 8,
@@ -4417,7 +4849,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        },
        {
         "event_id": 4,
@@ -4434,7 +4867,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": true,
-        "exception": "attend"
+        "exception": "attend",
+        "source": "personal"
        }
       ],
       "packages": [
@@ -4461,9 +4895,17 @@
       "free": [
        {
         "start": 570,
-        "end": 960,
-        "minutes": 390,
+        "end": 600,
+        "minutes": 30,
         "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
+       },
+       {
+        "start": 690,
+        "end": 960,
+        "minutes": 270,
+        "start_hm": "11:30",
         "end_hm": "16:00",
         "campus": true
        },
@@ -4505,7 +4947,27 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-ph-1",
+        "date": "2026-10-28",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik für Ingenieure",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": null,
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 2,
@@ -4522,7 +4984,27 @@
         "course_id": "k-ph",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": "edit"
+        "exception": "edit",
+        "source": "manual"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-2-1",
+        "date": "2026-10-28",
+        "start": "14:00",
+        "end": "15:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 2",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        }
       ],
       "packages": [],
@@ -4531,18 +5013,18 @@
       "notices": [],
       "free": [
        {
-        "start": 480,
-        "end": 510,
-        "minutes": 30,
-        "start_hm": "08:00",
-        "end_hm": "08:30",
+        "start": 600,
+        "end": 840,
+        "minutes": 240,
+        "start_hm": "10:00",
+        "end_hm": "14:00",
         "campus": true
        },
        {
-        "start": 620,
+        "start": 950,
         "end": 1260,
-        "minutes": 640,
-        "start_hm": "10:20",
+        "minutes": 310,
+        "start_hm": "15:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -4568,7 +5050,9 @@
         "course_id": "k-ma-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip",
+        "studip_id": "se-ue-1"
        }
       ],
       "packages": [
@@ -4655,6 +5139,25 @@
       "weekday": 4,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-pg-3-1",
+        "date": "2026-10-30",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 3",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 3,
         "date": "2026-10-30",
         "start": "14:00",
@@ -4669,7 +5172,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 11,
@@ -4686,7 +5190,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        }
       ],
       "packages": [
@@ -4712,12 +5217,12 @@
       "notices": [],
       "free": [
        {
-        "start": 480,
-        "end": 820,
-        "minutes": 340,
-        "start_hm": "08:00",
-        "end_hm": "13:40",
-        "campus": false
+        "start": 570,
+        "end": 840,
+        "minutes": 270,
+        "start_hm": "09:30",
+        "end_hm": "14:00",
+        "campus": true
        },
        {
         "start": 1020,
@@ -5317,17 +5822,8 @@
    "status": 200,
    "response": {
     "ok": true,
-    "freed_minutes": 130,
-    "windows": [
-     {
-      "start": 480,
-      "end": 1020,
-      "minutes": 540,
-      "start_hm": "08:00",
-      "end_hm": "17:00",
-      "campus": false
-     }
-    ],
+    "freed_minutes": 0,
+    "windows": [],
     "materials": [
      {
       "id": "tf-ma-1",
@@ -5529,7 +6025,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 1,
@@ -5546,7 +6043,9 @@
         "course_id": "k-ma-vl",
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "studip",
+        "studip_id": "se-ma-1"
        }
       ],
       "packages": [],
@@ -5599,7 +6098,28 @@
         "course_id": "k-prog-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual",
+        "studip_id": "se-pg-0-1"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-1-1",
+        "date": "2026-10-27",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 8,
@@ -5616,7 +6136,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        },
        {
         "event_id": 4,
@@ -5633,7 +6154,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": "attend"
+        "exception": "attend",
+        "source": "personal"
        }
       ],
       "packages": [
@@ -5660,9 +6182,17 @@
       "free": [
        {
         "start": 570,
-        "end": 960,
-        "minutes": 390,
+        "end": 600,
+        "minutes": 30,
         "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
+       },
+       {
+        "start": 690,
+        "end": 960,
+        "minutes": 270,
+        "start_hm": "11:30",
         "end_hm": "16:00",
         "campus": true
        },
@@ -5704,7 +6234,27 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-ph-1",
+        "date": "2026-10-28",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik für Ingenieure",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": null,
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 2,
@@ -5721,7 +6271,27 @@
         "course_id": "k-ph",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": "edit"
+        "exception": "edit",
+        "source": "manual"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-2-1",
+        "date": "2026-10-28",
+        "start": "14:00",
+        "end": "15:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 2",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        }
       ],
       "packages": [],
@@ -5730,18 +6300,18 @@
       "notices": [],
       "free": [
        {
-        "start": 480,
-        "end": 510,
-        "minutes": 30,
-        "start_hm": "08:00",
-        "end_hm": "08:30",
+        "start": 600,
+        "end": 840,
+        "minutes": 240,
+        "start_hm": "10:00",
+        "end_hm": "14:00",
         "campus": true
        },
        {
-        "start": 620,
+        "start": 950,
         "end": 1260,
-        "minutes": 640,
-        "start_hm": "10:20",
+        "minutes": 310,
+        "start_hm": "15:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -5767,7 +6337,9 @@
         "course_id": "k-ma-ue",
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "studip",
+        "studip_id": "se-ue-1"
        }
       ],
       "packages": [
@@ -5854,6 +6426,25 @@
       "weekday": 4,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-pg-3-1",
+        "date": "2026-10-30",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 3",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 12,
         "date": "2026-10-30",
         "start": "09:00",
@@ -5868,7 +6459,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 3,
@@ -5886,6 +6478,7 @@
         "status": "verschoben",
         "permanent_skip": false,
         "exception": "moved",
+        "source": "manual",
         "moved_to": "2026-10-31"
        },
        {
@@ -5903,7 +6496,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        }
       ],
       "packages": [
@@ -5928,14 +6522,6 @@
       "deadlines": [],
       "notices": [],
       "free": [
-       {
-        "start": 480,
-        "end": 520,
-        "minutes": 40,
-        "start_hm": "08:00",
-        "end_hm": "08:40",
-        "campus": false
-       },
        {
         "start": 630,
         "end": 1080,
@@ -5975,7 +6561,8 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": "moved_here",
-        "moved_from": "2026-10-30"
+        "moved_from": "2026-10-30",
+        "source": "manual"
        }
       ],
       "packages": [],
@@ -6066,7 +6653,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 1,
@@ -6083,7 +6671,9 @@
         "course_id": "k-ma-vl",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip",
+        "studip_id": "se-ma-3"
        }
       ],
       "packages": [],
@@ -6136,7 +6726,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        },
        {
         "event_id": 4,
@@ -6153,7 +6744,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [],
@@ -6207,7 +6799,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        },
        {
         "event_id": 2,
@@ -6224,7 +6817,9 @@
         "course_id": "k-ph",
         "status": "nicht_teilnahme",
         "permanent_skip": false,
-        "exception": "skip"
+        "exception": "skip",
+        "source": "manual",
+        "studip_id": "se-ph-2"
        }
       ],
       "packages": [],
@@ -6263,6 +6858,7 @@
         "status": "verschoben",
         "permanent_skip": true,
         "exception": "moved",
+        "source": "studip",
         "moved_to": "2026-11-13"
        }
       ],
@@ -6316,7 +6912,8 @@
         "status": "teilnahme",
         "permanent_skip": false,
         "exception": "moved_here",
-        "moved_from": "2026-11-12"
+        "moved_from": "2026-11-12",
+        "source": "studip"
        },
        {
         "event_id": 12,
@@ -6333,7 +6930,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 11,
@@ -6350,7 +6948,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        }
       ],
       "packages": [],
@@ -6380,7 +6979,27 @@
      {
       "date": "2026-11-14",
       "weekday": 5,
-      "events": [],
+      "events": [
+       {
+        "event_id": null,
+        "studip_id": "se-bl-1",
+        "date": "2026-11-14",
+        "start": "09:00",
+        "end": "16:00",
+        "title": "Blockseminar Beispiel",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Seminarraum",
+        "lecturer": null,
+        "course_id": "k-block",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       }
+      ],
       "packages": [],
       "marks": [],
       "deadlines": [],
@@ -6388,9 +7007,17 @@
       "free": [
        {
         "start": 480,
-        "end": 1260,
-        "minutes": 780,
+        "end": 520,
+        "minutes": 40,
         "start_hm": "08:00",
+        "end_hm": "08:40",
+        "campus": false
+       },
+       {
+        "start": 980,
+        "end": 1260,
+        "minutes": 280,
+        "start_hm": "16:20",
         "end_hm": "21:00",
         "campus": false
        }
@@ -6456,24 +7083,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
-       },
-       {
-        "event_id": 15,
-        "date": "2026-11-16",
-        "start": "10:15",
-        "end": "11:45",
-        "title": "Testmathematik I",
-        "kind": "vorlesung",
-        "module_id": 1,
-        "module_name": "Testmathematik I",
-        "color": "#111111",
-        "room": "Hörsaal 1, Gebäude 3",
-        "lecturer": "Prof. Beispiel",
-        "course_id": "k-ma-vl",
-        "status": "teilnahme",
-        "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "packages": [],
@@ -6482,12 +7093,12 @@
       "notices": [],
       "free": [
        {
-        "start": 570,
-        "end": 615,
-        "minutes": 45,
-        "start_hm": "09:30",
-        "end_hm": "10:15",
-        "campus": true
+        "start": 590,
+        "end": 720,
+        "minutes": 130,
+        "start_hm": "09:50",
+        "end_hm": "12:00",
+        "campus": false
        },
        {
         "start": 780,
@@ -6526,7 +7137,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [],
@@ -6572,7 +7184,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        }
       ],
       "packages": [],
@@ -6594,25 +7207,7 @@
      {
       "date": "2026-11-19",
       "weekday": 3,
-      "events": [
-       {
-        "event_id": 5,
-        "date": "2026-11-19",
-        "start": "12:15",
-        "end": "13:45",
-        "title": "Übung zu Testmathematik I",
-        "kind": "uebung",
-        "module_id": 1,
-        "module_name": "Testmathematik I",
-        "color": "#111111",
-        "room": "Raum C",
-        "lecturer": "",
-        "course_id": "k-ma-ue",
-        "status": "nicht_teilnahme",
-        "permanent_skip": true,
-        "exception": null
-       }
-      ],
+      "events": [],
       "packages": [],
       "marks": [],
       "deadlines": [],
@@ -6662,7 +7257,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        }
       ],
       "packages": [],
@@ -6756,6 +7352,7 @@
      "exam_date": null,
      "sort": 0,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -6783,7 +7380,8 @@
       "course_id": null,
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip-manual"
      },
      "task_count": 0,
      "test_count": 0,
@@ -6801,6 +7399,7 @@
      "exam_date": null,
      "sort": 1,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -6814,21 +7413,23 @@
       "title": "Paket B"
      },
      "next_event": {
-      "event_id": 2,
+      "event_id": null,
+      "studip_id": "se-ph-1",
       "date": "2026-10-28",
-      "start": "08:30",
-      "end": "10:00",
-      "title": "Testphysik",
+      "start": "08:15",
+      "end": "09:45",
+      "title": "Testphysik für Ingenieure",
       "kind": "vorlesung",
       "module_id": 2,
       "module_name": "Testphysik",
-      "color": "#00ff00",
-      "room": "Neuer Raum",
-      "lecturer": "",
+      "color": "#222222",
+      "room": "",
+      "lecturer": null,
       "course_id": "k-ph",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": "edit"
+      "exception": null,
+      "source": "studip-kalender"
      },
      "task_count": 0,
      "test_count": 0,
@@ -6846,6 +7447,7 @@
      "exam_date": null,
      "sort": 2,
      "created_at": "2026-10-01T09:00:00",
+     "active_custom": 0,
      "active": 1,
      "weekly_test": 1,
      "test_minutes": null,
@@ -6873,7 +7475,9 @@
       "course_id": "k-prog-ue",
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "studip-manual",
+      "studip_id": "se-pg-0-1"
      },
      "task_count": 0,
      "test_count": 0,
@@ -7191,7 +7795,17 @@
     "updated": 0,
     "removed": 2,
     "ids": [],
-    "conflicts": []
+    "conflicts": [
+     {
+      "date": "2026-11-03",
+      "package_id": 5,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket D",
+      "slot": "10:30–11:00",
+      "event": "Gruppenübung Programmierkurs Beispiel",
+      "event_time": "10:00–11:30"
+     }
+    ]
    },
    "body": {
     "entries": [],
@@ -7210,7 +7824,17 @@
     "ids": [
      16
     ],
-    "conflicts": []
+    "conflicts": [
+     {
+      "date": "2026-11-03",
+      "package_id": 5,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket D",
+      "slot": "10:30–11:00",
+      "event": "Gruppenübung Programmierkurs Beispiel",
+      "event_time": "10:00–11:30"
+     }
+    ]
    },
    "body": {
     "entries": [
@@ -7256,16 +7880,7 @@
    "response": {
     "ok": true,
     "freed_minutes": 0,
-    "windows": [
-     {
-      "start": 605,
-      "end": 1260,
-      "minutes": 655,
-      "start_hm": "10:05",
-      "end_hm": "21:00",
-      "campus": false
-     }
-    ],
+    "windows": [],
     "materials": [],
     "event": {
      "id": 16,
@@ -7302,7 +7917,17 @@
     "updated": 1,
     "removed": 0,
     "ids": [],
-    "conflicts": []
+    "conflicts": [
+     {
+      "date": "2026-11-03",
+      "package_id": 5,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket D",
+      "slot": "10:30–11:00",
+      "event": "Gruppenübung Programmierkurs Beispiel",
+      "event_time": "10:00–11:30"
+     }
+    ]
    },
    "body": {
     "entries": [
@@ -7352,7 +7977,27 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-ma-2",
+        "date": "2026-11-02",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": null,
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        }
       ],
       "packages": [],
@@ -7361,12 +8006,12 @@
       "notices": [],
       "free": [
        {
-        "start": 590,
-        "end": 720,
-        "minutes": 130,
-        "start_hm": "09:50",
-        "end_hm": "12:00",
-        "campus": false
+        "start": 570,
+        "end": 600,
+        "minutes": 30,
+        "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
        },
        {
         "start": 780,
@@ -7405,7 +8050,28 @@
         "course_id": "k-prog-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual",
+        "studip_id": "se-pg-0-2"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-1-2",
+        "date": "2026-11-03",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 4,
@@ -7422,7 +8088,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [
@@ -7449,17 +8116,17 @@
       "free": [
        {
         "start": 570,
-        "end": 630,
-        "minutes": 60,
+        "end": 600,
+        "minutes": 30,
         "start_hm": "09:30",
-        "end_hm": "10:30",
+        "end_hm": "10:00",
         "campus": true
        },
        {
-        "start": 660,
+        "start": 690,
         "end": 1080,
-        "minutes": 420,
-        "start_hm": "11:00",
+        "minutes": 390,
+        "start_hm": "11:30",
         "end_hm": "18:00",
         "campus": true
        },
@@ -7493,7 +8160,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        },
        {
         "event_id": 14,
@@ -7510,7 +8178,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 16,
@@ -7527,7 +8196,27 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-2-2",
+        "date": "2026-11-04",
+        "start": "14:00",
+        "end": "15:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 2",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        }
       ],
       "packages": [],
@@ -7536,10 +8225,18 @@
       "notices": [],
       "free": [
        {
-        "start": 620,
+        "start": 600,
+        "end": 840,
+        "minutes": 240,
+        "start_hm": "10:00",
+        "end_hm": "14:00",
+        "campus": true
+       },
+       {
+        "start": 950,
         "end": 1260,
-        "minutes": 640,
-        "start_hm": "10:20",
+        "minutes": 310,
+        "start_hm": "15:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -7565,7 +8262,8 @@
         "course_id": "k-ma-ue",
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": "edit"
+        "exception": "edit",
+        "source": "studip"
        }
       ],
       "packages": [],
@@ -7603,6 +8301,25 @@
       "weekday": 4,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-pg-3-2",
+        "date": "2026-11-06",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 3",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 12,
         "date": "2026-11-06",
         "start": "09:00",
@@ -7617,7 +8334,48 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
+       }
+      ],
+      "packages": [],
+      "marks": [],
+      "deadlines": [],
+      "notices": [],
+      "free": [
+       {
+        "start": 650,
+        "end": 1260,
+        "minutes": 610,
+        "start_hm": "10:50",
+        "end_hm": "21:00",
+        "campus": false
+       }
+      ],
+      "blocked": []
+     },
+     {
+      "date": "2026-11-07",
+      "weekday": 5,
+      "events": [
+       {
+        "event_id": null,
+        "studip_id": "se-bl-0",
+        "date": "2026-11-07",
+        "start": "09:00",
+        "end": "16:00",
+        "title": "Blockseminar Beispiel",
+        "kind": "seminar",
+        "module_id": null,
+        "module_name": null,
+        "color": "#4f5bd5",
+        "room": "Seminarraum",
+        "lecturer": null,
+        "course_id": "k-block",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        }
       ],
       "packages": [],
@@ -7634,30 +8392,10 @@
         "campus": false
        },
        {
-        "start": 650,
+        "start": 980,
         "end": 1260,
-        "minutes": 610,
-        "start_hm": "10:50",
-        "end_hm": "21:00",
-        "campus": false
-       }
-      ],
-      "blocked": []
-     },
-     {
-      "date": "2026-11-07",
-      "weekday": 5,
-      "events": [],
-      "packages": [],
-      "marks": [],
-      "deadlines": [],
-      "notices": [],
-      "free": [
-       {
-        "start": 480,
-        "end": 1260,
-        "minutes": 780,
-        "start_hm": "08:00",
+        "minutes": 280,
+        "start_hm": "16:20",
         "end_hm": "21:00",
         "campus": false
        }
@@ -7705,7 +8443,17 @@
     "updated": 1,
     "removed": 0,
     "ids": [],
-    "conflicts": []
+    "conflicts": [
+     {
+      "date": "2026-11-03",
+      "package_id": 5,
+      "subject": "Programmierkurs Beispiel",
+      "title": "Paket D",
+      "slot": "10:30–11:00",
+      "event": "Gruppenübung Programmierkurs Beispiel",
+      "event_time": "10:00–11:30"
+     }
+    ]
    },
    "body": {
     "entries": [
@@ -8317,7 +9065,27 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-ma-1",
+        "date": "2026-10-26",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Testmathematik I",
+        "kind": "vorlesung",
+        "module_id": 1,
+        "module_name": "Testmathematik I",
+        "color": "#111111",
+        "room": "Hörsaal 1, Gebäude 3",
+        "lecturer": null,
+        "course_id": "k-ma-vl",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 20,
@@ -8334,7 +9102,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -8344,9 +9113,17 @@
       "free": [
        {
         "start": 570,
-        "end": 720,
-        "minutes": 150,
+        "end": 600,
+        "minutes": 30,
         "start_hm": "09:30",
+        "end_hm": "10:00",
+        "campus": true
+       },
+       {
+        "start": 690,
+        "end": 720,
+        "minutes": 30,
+        "start_hm": "11:30",
         "end_hm": "12:00",
         "campus": true
        },
@@ -8395,7 +9172,9 @@
         "course_id": "k-prog-ue",
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual",
+        "studip_id": "se-pg-0-1"
        },
        {
         "event_id": 18,
@@ -8412,7 +9191,27 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-1-1",
+        "date": "2026-10-27",
+        "start": "10:00",
+        "end": "11:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 1",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 8,
@@ -8429,7 +9228,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        },
        {
         "event_id": 4,
@@ -8446,7 +9246,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": "attend"
+        "exception": "attend",
+        "source": "personal"
        }
       ],
       "packages": [
@@ -8525,7 +9326,27 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-ph-1",
+        "date": "2026-10-28",
+        "start": "08:15",
+        "end": "09:45",
+        "title": "Testphysik für Ingenieure",
+        "kind": "vorlesung",
+        "module_id": 2,
+        "module_name": "Testphysik",
+        "color": "#222222",
+        "room": "",
+        "lecturer": null,
+        "course_id": "k-ph",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        },
        {
         "event_id": 16,
@@ -8542,7 +9363,27 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
+       },
+       {
+        "event_id": null,
+        "studip_id": "se-pg-2-1",
+        "date": "2026-10-28",
+        "start": "14:00",
+        "end": "15:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 2",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
        }
       ],
       "packages": [],
@@ -8551,18 +9392,18 @@
       "notices": [],
       "free": [
        {
-        "start": 480,
-        "end": 510,
-        "minutes": 30,
-        "start_hm": "08:00",
-        "end_hm": "08:30",
+        "start": 600,
+        "end": 840,
+        "minutes": 240,
+        "start_hm": "10:00",
+        "end_hm": "14:00",
         "campus": true
        },
        {
-        "start": 620,
+        "start": 950,
         "end": 1260,
-        "minutes": 640,
-        "start_hm": "10:20",
+        "minutes": 310,
+        "start_hm": "15:50",
         "end_hm": "21:00",
         "campus": false
        }
@@ -8588,7 +9429,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        },
        {
         "event_id": 5,
@@ -8605,7 +9447,9 @@
         "course_id": "k-ma-ue",
         "status": "nicht_teilnahme",
         "permanent_skip": true,
-        "exception": null
+        "exception": null,
+        "source": "studip",
+        "studip_id": "se-ue-1"
        },
        {
         "event_id": 17,
@@ -8622,7 +9466,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        }
       ],
       "packages": [
@@ -8701,6 +9546,25 @@
       "weekday": 4,
       "events": [
        {
+        "event_id": null,
+        "studip_id": "se-pg-3-1",
+        "date": "2026-10-30",
+        "start": "08:00",
+        "end": "09:30",
+        "title": "Gruppenübung Programmierkurs Beispiel",
+        "kind": "uebung",
+        "module_id": 3,
+        "module_name": "Programmierkurs Beispiel",
+        "color": "#333333",
+        "room": "Pool 3",
+        "lecturer": null,
+        "course_id": "k-prog-ue",
+        "status": "teilnahme",
+        "permanent_skip": false,
+        "exception": null,
+        "source": "studip-kalender"
+       },
+       {
         "event_id": 12,
         "date": "2026-10-30",
         "start": "09:00",
@@ -8715,7 +9579,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 11,
@@ -8732,7 +9597,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        }
       ],
       "packages": [
@@ -8757,14 +9623,6 @@
       "deadlines": [],
       "notices": [],
       "free": [
-       {
-        "start": 480,
-        "end": 520,
-        "minutes": 40,
-        "start_hm": "08:00",
-        "end_hm": "08:40",
-        "campus": false
-       },
        {
         "start": 630,
         "end": 1080,
@@ -8868,24 +9726,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
-       },
-       {
-        "event_id": 15,
-        "date": "2026-12-21",
-        "start": "10:15",
-        "end": "11:45",
-        "title": "Testmathematik I",
-        "kind": "vorlesung",
-        "module_id": 1,
-        "module_name": "Testmathematik I",
-        "color": "#111111",
-        "room": "Hörsaal 1, Gebäude 3",
-        "lecturer": "Prof. Beispiel",
-        "course_id": "k-ma-vl",
-        "status": "teilnahme",
-        "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 20,
@@ -8902,7 +9744,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -8912,10 +9755,10 @@
       "free": [
        {
         "start": 570,
-        "end": 615,
-        "minutes": 45,
+        "end": 720,
+        "minutes": 150,
         "start_hm": "09:30",
-        "end_hm": "10:15",
+        "end_hm": "12:00",
         "campus": true
        },
        {
@@ -8963,7 +9806,8 @@
         "course_id": null,
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "ics"
        },
        {
         "event_id": 8,
@@ -8980,7 +9824,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        },
        {
         "event_id": 4,
@@ -8997,7 +9842,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [],
@@ -9052,6 +9898,7 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "studip-manual",
         "note": "Weihnachtspause"
        },
        {
@@ -9069,7 +9916,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -9112,7 +9960,8 @@
         "course_id": null,
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "ics"
        },
        {
         "event_id": 17,
@@ -9129,7 +9978,8 @@
         "course_id": null,
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -9187,6 +10037,7 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "manual",
         "note": "1. Weihnachtstag / Weihnachtspause"
        },
        {
@@ -9205,6 +10056,7 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "studip-manual",
         "note": "1. Weihnachtstag / Weihnachtspause"
        }
       ],
@@ -9327,24 +10179,8 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "manual",
         "note": "Weihnachtspause"
-       },
-       {
-        "event_id": 15,
-        "date": "2026-12-28",
-        "start": "10:15",
-        "end": "11:45",
-        "title": "Testmathematik I",
-        "kind": "vorlesung",
-        "module_id": 1,
-        "module_name": "Testmathematik I",
-        "color": "#111111",
-        "room": "Hörsaal 1, Gebäude 3",
-        "lecturer": "Prof. Beispiel",
-        "course_id": "k-ma-vl",
-        "status": "teilnahme",
-        "permanent_skip": false,
-        "exception": null
        },
        {
         "event_id": 20,
@@ -9361,7 +10197,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -9376,19 +10213,19 @@
       "free": [
        {
         "start": 480,
-        "end": 595,
-        "minutes": 115,
+        "end": 720,
+        "minutes": 240,
         "start_hm": "08:00",
-        "end_hm": "09:55",
+        "end_hm": "12:00",
         "campus": false
        },
        {
         "start": 780,
-        "end": 840,
-        "minutes": 60,
+        "end": 820,
+        "minutes": 40,
         "start_hm": "13:00",
-        "end_hm": "14:00",
-        "campus": true
+        "end_hm": "13:40",
+        "campus": false
        },
        {
         "start": 980,
@@ -9427,7 +10264,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        },
        {
         "event_id": 4,
@@ -9444,7 +10282,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [],
@@ -9504,6 +10343,7 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "studip-manual",
         "note": "Weihnachtspause"
        },
        {
@@ -9521,7 +10361,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -9564,7 +10405,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        },
        {
         "event_id": 17,
@@ -9581,7 +10423,8 @@
         "course_id": null,
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -9647,6 +10490,7 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "manual",
         "note": "Neujahr / Weihnachtspause"
        }
       ],
@@ -9759,7 +10603,8 @@
       "course_id": null,
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "manual"
      },
      {
       "event_id": 21,
@@ -9776,24 +10621,8 @@
       "course_id": null,
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
-     },
-     {
-      "event_id": 15,
-      "date": "2027-01-18",
-      "start": "10:15",
-      "end": "11:45",
-      "title": "Testmathematik I",
-      "kind": "vorlesung",
-      "module_id": 1,
-      "module_name": "Testmathematik I",
-      "color": "#111111",
-      "room": "Hörsaal 1, Gebäude 3",
-      "lecturer": "Prof. Beispiel",
-      "course_id": "k-ma-vl",
-      "status": "teilnahme",
-      "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "ics"
      },
      {
       "event_id": 20,
@@ -9810,7 +10639,8 @@
       "course_id": null,
       "status": "teilnahme",
       "permanent_skip": false,
-      "exception": null
+      "exception": null,
+      "source": "ics"
      }
     ],
     "packages": [],
@@ -10439,24 +11269,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
-       },
-       {
-        "event_id": 15,
-        "date": "2026-12-21",
-        "start": "10:15",
-        "end": "11:45",
-        "title": "Testmathematik I",
-        "kind": "vorlesung",
-        "module_id": 1,
-        "module_name": "Testmathematik I",
-        "color": "#111111",
-        "room": "Hörsaal 1, Gebäude 3",
-        "lecturer": "Prof. Beispiel",
-        "course_id": "k-ma-vl",
-        "status": "teilnahme",
-        "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "manual"
        },
        {
         "event_id": 20,
@@ -10473,7 +11287,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -10483,10 +11298,10 @@
       "free": [
        {
         "start": 570,
-        "end": 615,
-        "minutes": 45,
+        "end": 720,
+        "minutes": 150,
         "start_hm": "09:30",
-        "end_hm": "10:15",
+        "end_hm": "12:00",
         "campus": true
        },
        {
@@ -10534,7 +11349,8 @@
         "course_id": null,
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "ics"
        },
        {
         "event_id": 8,
@@ -10551,7 +11367,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "studip-manual"
        },
        {
         "event_id": 4,
@@ -10568,7 +11385,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "personal"
        }
       ],
       "packages": [],
@@ -10623,6 +11441,7 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "studip-manual",
         "note": "Weihnachtspause"
        },
        {
@@ -10640,7 +11459,8 @@
         "course_id": null,
         "status": "teilnahme",
         "permanent_skip": false,
-        "exception": null
+        "exception": null,
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -10683,7 +11503,8 @@
         "course_id": null,
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "ics"
        },
        {
         "event_id": 17,
@@ -10700,7 +11521,8 @@
         "course_id": null,
         "status": "ausfall",
         "permanent_skip": false,
-        "exception": "cancelled"
+        "exception": "cancelled",
+        "source": "ics"
        }
       ],
       "packages": [],
@@ -10758,6 +11580,7 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "manual",
         "note": "1. Weihnachtstag / Weihnachtspause"
        },
        {
@@ -10776,6 +11599,7 @@
         "status": "ausfall",
         "permanent_skip": false,
         "exception": "vorlesungsfrei",
+        "source": "studip-manual",
         "note": "1. Weihnachtstag / Weihnachtspause"
        }
       ],
@@ -11895,6 +12719,25 @@
  "dashboard_today": {
   "events": [
    {
+    "event_id": null,
+    "studip_id": "se-bl-2",
+    "date": "2026-10-25",
+    "start": "02:30",
+    "end": "03:30",
+    "title": "Blockseminar Beispiel",
+    "kind": "seminar",
+    "module_id": null,
+    "module_name": null,
+    "color": "#4f5bd5",
+    "room": "",
+    "lecturer": null,
+    "course_id": "k-block",
+    "status": "teilnahme",
+    "permanent_skip": false,
+    "exception": null,
+    "source": "studip-kalender"
+   },
+   {
     "event_id": 6,
     "date": "2026-10-25",
     "start": "09:00",
@@ -11909,17 +12752,18 @@
     "course_id": null,
     "status": "teilnahme",
     "permanent_skip": false,
-    "exception": null
+    "exception": null,
+    "source": "manual"
    }
   ],
   "free": [
    {
     "start": 480,
-    "end": 520,
-    "minutes": 40,
+    "end": 540,
+    "minutes": 60,
     "start_hm": "08:00",
-    "end_hm": "08:40",
-    "campus": false
+    "end_hm": "09:00",
+    "campus": true
    },
    {
     "start": 620,
@@ -12845,6 +13689,82 @@
      ]
     }
    ]
+  },
+  {
+   "entries": [
+    {
+     "title": "F",
+     "course_id": "k-f-24",
+     "weekday": 2,
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date_from": "2024-10-16"
+    },
+    {
+     "title": "F",
+     "course_id": "k-f-24",
+     "weekday": 2,
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date_from": "2024-10-23"
+    },
+    {
+     "title": "F",
+     "course_id": "k-f-24",
+     "weekday": 2,
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date_from": "2024-10-30"
+    },
+    {
+     "title": "F",
+     "course_id": "k-f-26",
+     "weekday": 2,
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date_from": "2026-10-21"
+    },
+    {
+     "title": "F",
+     "course_id": "k-f-26",
+     "weekday": 2,
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date_from": "2026-10-28"
+    },
+    {
+     "title": "F",
+     "course_id": "k-f-26",
+     "weekday": 2,
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date_from": "2026-11-04"
+    }
+   ],
+   "merged": [
+    {
+     "title": "F",
+     "course_id": "k-f-24",
+     "weekday": 2,
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date_from": "2024-10-16",
+     "rrule": "weekly",
+     "date_to": "2024-10-30",
+     "count": 3
+    },
+    {
+     "title": "F",
+     "course_id": "k-f-26",
+     "weekday": 2,
+     "start_time": "10:00",
+     "end_time": "10:45",
+     "date_from": "2026-10-21",
+     "rrule": "weekly",
+     "date_to": "2026-11-04",
+     "count": 3
+    }
+   ]
   }
  ],
  "auto_import": {
@@ -13282,6 +14202,7 @@
     "exam_date": null,
     "sort": 0,
     "created_at": "2026-10-01T09:00:00",
+    "active_custom": 0,
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
@@ -13297,6 +14218,7 @@
     "exam_date": null,
     "sort": 1,
     "created_at": "2026-10-01T09:00:00",
+    "active_custom": 0,
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
@@ -13312,6 +14234,7 @@
     "exam_date": null,
     "sort": 2,
     "created_at": "2026-10-01T09:00:00",
+    "active_custom": 0,
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
@@ -13327,6 +14250,7 @@
     "exam_date": null,
     "sort": 3,
     "created_at": "2026-10-25T14:30:05",
+    "active_custom": 0,
     "active": 1,
     "weekly_test": 1,
     "test_minutes": null,
