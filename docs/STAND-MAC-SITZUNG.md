@@ -1096,3 +1096,11 @@ Nebenbefund zum Sync-Generator (Bitte 2 vom 28.10.): Heute meldete `tools/gen-sy
 nacheinander `VERALTET`. Neu erzeugt unterscheidet sich nur die Stelle der Einstellung `semester_rule_applied` in
 einer Liste; ihr `sync_updated_at` ist gleich wie bei den Nachbarn. Die Reihenfolge bei gleichem Zeitstempel ist also
 nicht fest. Bitte nach einem zweiten Schlüssel sortieren, zusätzlich zur eingefrorenen Zeit.
+
+Stand der Prüfung (Zweig `wip/stundenplan-abruftag` auf develop 55b8616):
+- **Kern:** 677 Tests in zwei vollen Läufen, rot nur `LocalLibraryFixtureTests.testStepsMatchPythonServer`
+  (`library-files.json`, Bitte 1 vom 28.10.).
+- **Neue Tests:** `StudIPCalendarFetchDayTests` mit 6 Tests, ohne den Fix alle rot.
+- **App:** 512 Tests (2 übersprungen) zweimal nacheinander grün.
+- **Python:** 452 bestanden; rot nur `test_sync.py::test_sync_fixture_matches_python`, derselbe wackelnde
+  Sync-Generator.
