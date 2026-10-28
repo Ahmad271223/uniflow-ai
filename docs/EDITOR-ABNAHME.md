@@ -325,7 +325,7 @@ mit dem ganzen Dokument startet erst nach der Pause, weil sie bei dichten Dokume
 | Nr. | Schritt | Erwartung | Ergebnis | Notiz |
 |---|---|---|---|---|
 | 18.1 | 20 s schraffieren ohne den Stift abzusetzen bzw. ohne Pause zwischen den Strichen, dabei die Statusanzeige beobachten | Status „Lokal gesichert · 1 Seite wartet“; „Speichert…“ erscheint erst nach der Pause, dann einmal und danach „Gespeichert“. Schreiben bleibt flüssig | ☐ bestanden ☐ nicht bestanden | |
-| 18.2 | Wie 18.1 auf einer schon voll beschriebenen Seite in einem dichten Dokument (D2 nach 9.2) | Schreiben ohne Ruckler. **Simulator:** je Sicherung der vollen Seite gut 0,1 s im Hintergrund, Hauptthread frei (Messung Abschnitt 8) | ☐ bestanden ☐ nicht bestanden | |
+| 18.2 | Wie 18.1 auf einer schon voll beschriebenen Seite in einem dichten Dokument (D2 nach 9.2) | Schreiben ohne Ruckler. **Simulator:** je Sicherung der vollen Seite rund 0,08 s im Hintergrund, Hauptthread frei, keine Upload-Runde während des Schreibens (`docs/EDITOR-MESSUNG.md`, Abschnitt 8) | ☐ bestanden ☐ nicht bestanden | |
 | 18.3 | Wie 10.4: 30 s schraffieren, während des Schreibens in Xcode Stop (■), neu starten | höchstens die letzten etwa 2 s fehlen; Hinweis „… ungesendete Seite(n) wiederhergestellt.“ | ☐ bestanden ☐ nicht bestanden | fehlt: |
 
 **P0-4 Formatschutz.** Notizen, die eine neuere Version von Studora gespeichert hat (Format `version` größer als 2),
