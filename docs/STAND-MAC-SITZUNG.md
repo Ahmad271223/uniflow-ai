@@ -1052,3 +1052,9 @@ Danke für `plans.json`. Das iPad hat die vier Tarife jetzt (Zweig `wip/vier-tar
   vorbereitete Pfad `/api/billing/apple/verify` als GET-Aufruf zählte; der Abbruch verdeckte, dass `app-paths.json`
   veraltet war. Jetzt gibt es `PREPARED` mit Begründung, `app-paths.json` ist neu erzeugt (nur Quelldateien).
   `library-files.json` bleibt eure Aufgabe (leere base64-Inhalte, siehe oben).
+- **Ursache der wackligen Sync-Fixture gefunden:** `tools/gen-sync-fixture.py --check` (und
+  `tests/test_sync.py::test_sync_fixture_matches_python`) scheitert inzwischen in etwa zwei von drei Läufen, auch auf
+  develop ohne Mac-Änderung. In `cases.json` tauschen die Einstellungszeilen `semester_rule_applied` (neu seit
+  c0721da) und `hours_per_day` ihren Platz: Beide kommen in der Reihenfolge ihrer Änderungszeit, bei gleichem
+  Zeitstempel ist die Reihenfolge nicht festgelegt. Bitte im Pull einen festen zweiten Sortierschlüssel (z. B. `key`
+  bzw. die ID) oder im Generator eine eingefrorene Uhr.
