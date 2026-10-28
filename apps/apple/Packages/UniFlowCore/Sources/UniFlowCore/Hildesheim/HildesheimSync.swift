@@ -137,7 +137,8 @@ extension UniStore {
 ///
 /// Ablauf wie `hildesheim.sync_learnweb` am PC: alle Kurse (`UniStore.upsertCourse`), dann je aktivem Kurs Dateiliste
 /// (Semesterregel und eigene Schalter wie beim Stud.IP-Abgleich: Kurse frueherer Semester bleiben samt ihren Dateien
-/// gespeichert, bekommen aber keine neuen; Wunsch des Inhabers 28.10.2026, am PC noch alle sichtbaren Kurse)
+/// gespeichert, bekommen aber keine neuen Dateien und keine Ankuendigungen; Wunsch des Inhabers 28.10.2026, am PC
+/// `hildesheim.active_courses` seit a7827c6)
 /// (`UniStore.storeFiles`), Downloads und je geladene Datei `UniStore.markDownloaded` ueber `UniDownloads`, dieselben
 /// Funktionen wie der Stud.IP-Abgleich. Ausfallsicher: kein Netz in einer Transaktion, jede Transaktion kurz; ein
 /// Fehler betrifft nur diesen Kurs bzw. diese Datei. Nichts wird geloescht, weil die Gegenseite nicht oder leer
@@ -174,7 +175,7 @@ public actor HildesheimSync {
         /// Learnweb-Kurse, die wegen abgelaufener Anmeldung oder Abbruch nicht (fertig) abgefragt wurden
         public var notAttempted: [String] = []
         /// Learnweb-Kurse frueherer Semester (`courses.active` = 0 nach der Semesterregel oder vom Nutzer
-        /// ausgeschaltet): gespeichert, aber ohne Dateiliste und ohne Downloads
+        /// ausgeschaltet): gespeichert, aber ohne Dateiliste, Downloads und Ankuendigungen
         public var olderCourses: [String] = []
         /// nur Listen (`downloads: false`, Hintergrund S8): Dateien, die der naechste volle Abgleich laedt
         public var waiting = 0
@@ -288,12 +289,13 @@ public actor HildesheimSync {
         return nil
     }
 
-    /// Liefert die abgeglichenen Kurse (fuer Fristen und Ankuendigungen); nil, wenn die Kursliste oder kein Kurs
-    /// lesbar war (Learnweb gestoert: dann auch keine weiteren Anfragen)
+    /// Liefert die aktiven Kurse (fuer die Ankuendigungen, wie `active_courses` in `hildesheim.sync_announcements`);
+    /// nil, wenn die Kursliste oder kein Kurs lesbar war (Learnweb gestoert: dann auch keine weiteren Anfragen)
     private func syncLearnweb(_ api: LearnwebAPI, filter: String?, loadFiles: Bool, into report: inout Report) async -> [Learnweb.Course]? {
         let courses: [Learnweb.Course]
-        /// Kurse, deren Dateien dieser Lauf abfragt: nur aktive (Semesterregel, eigene Schalter in Einstellungen ->
-        /// Module), wie run_studip_sync fuer Stud.IP; Kurse frueherer Semester bleiben gespeichert, ihre Dateien auch
+        /// Kurse, deren Dateien dieser Lauf abfragt: nur aktive wie `hildesheim.active_courses` am PC (a7827c6): Kurse
+        /// mit `active = 0` (Semesterregel oder eigener Schalter in Einstellungen -> Module) fallen weg. Kurse
+        /// frueherer Semester bleiben gespeichert, ihre Dateien auch
         let current: [Learnweb.Course]
         let downloads = UniDownloads(container, folder: container.learnweb, tools: tools, source: "Learnweb")
         defer { downloads.end() }
@@ -302,14 +304,14 @@ public actor HildesheimSync {
                 !c.hidden && (filter.map { f in f.isEmpty || c.semester.lowercased().contains(f.lowercased()) } ?? true)
             }
             let now = clock.nowISO
-            let active = try await db.transaction { conn -> Set<String> in
+            let off = try await db.transaction { conn -> Set<String> in
                 for c in courses {
                     try UniStore.upsertCourse(conn, UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semester), now: now)
                 }
-                return Set(try conn.rows("SELECT id FROM courses WHERE active=1").compactMap { $0["id"]?.string })
+                return Set(try conn.rows("SELECT id FROM courses WHERE active=0").compactMap { $0["id"]?.string })
             }
-            current = courses.filter { active.contains($0.id) }
-            report.olderCourses = courses.filter { !active.contains($0.id) }.map(\.id)
+            current = courses.filter { !off.contains($0.id) }
+            report.olderCourses = courses.filter { off.contains($0.id) }.map(\.id)
             try downloads.begin()
         } catch {
             if Self.isCancellation(error) {
@@ -378,8 +380,9 @@ public actor HildesheimSync {
         report.messages.append(Self.learnwebMessage(courses: current.count, newFiles: report.newFiles.count,
                                                     failedFiles: report.failedFiles.count, failedCourses: report.failedCourses.count,
                                                     waiting: report.waiting, older: report.olderCourses.count))
-        // Learnweb gestoert: keine weiteren Anfragen (Fristen, Ankuendigungen) in diesem Lauf
-        return allUnreadable ? nil : courses
+        // Learnweb gestoert: keine weiteren Anfragen (Fristen, Ankuendigungen) in diesem Lauf; Ankuendigungen wie am
+        // PC nur fuer aktive Kurse
+        return allUnreadable ? nil : current
     }
 
     /// `hildesheim.sync_deadlines`: Fristen aus dem Learnweb-Kalender (Abgaben, Tests) in die Tabelle `deadlines`;

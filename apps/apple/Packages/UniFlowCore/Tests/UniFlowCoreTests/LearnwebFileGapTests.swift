@@ -192,7 +192,8 @@ final class LearnwebFileGapTests: XCTestCase {
     // MARK: Nur aktive Kurse bekommen Dateien (Wunsch des Inhabers 28.10.2026)
 
     /// Fuenf Kurse: alt (SoSe 2026), aktuell, alt aber vom Nutzer eingeschaltet, aktuell aber vom Nutzer ausgeschaltet,
-    /// ohne Semester im Titel (bleibt, wie er ist: aktiv). Je Kurs eine Datei.
+    /// ohne Semester im Titel (bleibt, wie er ist; auch ohne Wert in `active` aktiv, wie `active_courses` am PC: nur
+    /// `active = 0` faellt weg). Je Kurs eine Datei.
     private func semesterLearnweb() -> FakeUniTransport {
         FakeUniTransport { req in
             let f = self.form(req)
@@ -225,11 +226,12 @@ final class LearnwebFileGapTests: XCTestCase {
         // frueherer Abgleich: Kurs 301 hat schon eine Datei; der Nutzer hat 303 ein- und 304 ausgeschaltet
         try await db.transaction { c in
             for (id, title, sem) in [("lw-301", "0301 Alt", "SoSe 2026"), ("lw-303", "0303 Eingeschaltet", "SoSe 2026"),
-                                     ("lw-304", "0304 Ausgeschaltet", "WiSe 2026/27")] {
+                                     ("lw-304", "0304 Ausgeschaltet", "WiSe 2026/27"), ("lw-305", "Ohne Semester", "")] {
                 try UniStore.upsertCourse(c, UniStore.CourseRow(id: id, title: title, number: nil, semester: sem), now: "2026-07-01T10:00:00")
             }
             try c.execute("UPDATE courses SET active=1, active_custom=1 WHERE id='lw-303'")
             try c.execute("UPDATE courses SET active=0, active_custom=1 WHERE id='lw-304'")
+            try c.execute("UPDATE courses SET active=NULL WHERE id='lw-305'")
             _ = try UniStore.storeFiles(c, courseID: "lw-301", [UniStore.FileRow(id: "lw-301-alt", name: "alt.pdf", size: 1, mime: nil, chdate: 1,
                                                                                 downloadURL: "\(base)/webservice/pluginfile.php/301/x/alt.pdf", folder: "")],
                                         now: "2026-07-01T10:00:00", fileExists: { _ in false })
@@ -262,7 +264,10 @@ final class LearnwebFileGapTests: XCTestCase {
 
         let courses = try await db.rows("SELECT id, active FROM courses WHERE id LIKE 'lw-%' ORDER BY id")
         XCTAssertEqual(courses.compactMap { $0["id"]?.string }, ["lw-301", "lw-302", "lw-303", "lw-304", "lw-305"])
-        XCTAssertEqual(courses.compactMap { $0["active"]?.int }, [0, 1, 1, 0, 1], "eigene Schalter bleiben, Regel fuer die anderen")
+        XCTAssertEqual(courses.map { $0["active"]?.int }, [0, 1, 1, 0, nil], "eigene Schalter bleiben, Regel fuer die anderen")
+        // Ankuendigungen wie `sync_announcements` am PC nur fuer aktive Kurse
+        let forums = net.requests.filter { self.form($0)["wsfunction"] == "mod_forum_get_forums_by_courses" }.last.map(self.form)
+        XCTAssertEqual(forums?.filter { $0.key.hasPrefix("courseids") }.map(\.value).sorted(), ["302", "303", "305"])
         let kept = try await db.scalar("SELECT COUNT(*) FROM files WHERE id='lw-301-alt'")?.int
         XCTAssertEqual(kept, 1, "Dateien alter Kurse bleiben stehen, nur keine neuen")
         XCTAssertEqual(HildesheimSync.learnwebMessage(courses: 1, newFiles: 0, failedFiles: 0, failedCourses: 0, older: 1),
