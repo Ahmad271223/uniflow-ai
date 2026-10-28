@@ -536,7 +536,9 @@ def test_names_are_nfc():
 
 
 def test_sync_learnweb_keeps_courses_before_an_error(app, monkeypatch):
-    from app import db, hildesheim, learnweb
+    from datetime import date
+    from app import db, hildesheim, learnweb, study
+    monkeypatch.setattr(study, "today", lambda: date(2026, 6, 1))         # SoSe 2026 ist das aktuelle Semester
 
     class Client:
         def files(self, mid):
@@ -559,6 +561,49 @@ def test_sync_learnweb_keeps_courses_before_an_error(app, monkeypatch):
         assert ids == {"lw-101", "lw-103"}
         conn.execute("DELETE FROM files WHERE course_id IN ('lw-101','lw-102','lw-103')")
         conn.execute("DELETE FROM courses WHERE id IN ('lw-101','lw-102','lw-103')")
+
+
+def test_sync_learnweb_skips_courses_of_earlier_semesters(app, monkeypatch):
+    """Learnweb wie Stud.IP nur fuer aktive Kurse (28.10.2026, Entscheidung des Inhabers): alte Kurse bleiben bekannt,
+    ohne Dateiabruf und ohne Ankuendigungen; ein von Hand eingeschalteter alter Kurs wird abgeglichen."""
+    from datetime import date
+    from app import db, hildesheim, learnweb, study
+    monkeypatch.setattr(study, "today", lambda: date(2026, 10, 28))
+    asked = []
+
+    class Client:
+        def files(self, mid):
+            asked.append(mid)
+            return [{"id": learnweb.file_id(mid, "/", "a.pdf"), "name": "a.pdf", "size": 1, "mime": "application/pdf", "author": None,
+                     "chdate": 1, "download_url": f"https://x/pluginfile.php/{mid}/mod_resource/content/1/a.pdf", "folder": None}]
+
+        def announcements(self, courses, known):
+            asked.append(("ank", sorted(c["id"] for c in courses)))
+            return [], {}
+
+    def fake_dl(page, url, target, token="", size=0):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"%PDF")
+
+    monkeypatch.setattr(hildesheim, "_download", fake_dl)
+    courses = [{"id": "lw-neu", "moodle_id": 201, "title": "Kurs neu", "number": None, "semester": "WiSe 2026/27"},
+               {"id": "lw-alt", "moodle_id": 202, "title": "Kurs alt", "number": None, "semester": "SoSe 2025"},
+               {"id": "lw-hand", "moodle_id": 203, "title": "Kurs alt, eingeschaltet", "number": None, "semester": "SoSe 2024"}]
+    try:
+        with db.cursor() as conn:
+            conn.execute("INSERT INTO courses(id, title, semester, kind, active, active_custom, test_minutes, created_at) VALUES ('lw-hand', 'x', 'SoSe 2024', 'vorlesung', 1, 1, 90, '2026-10-01')")
+        new = []
+        assert hildesheim.sync_learnweb(None, Client(), courses, "", "2026-10-28", new) == 2
+        assert sorted(asked) == [201, 203]
+        hildesheim.sync_announcements(Client(), courses)
+        assert asked[-1] == ("ank", ["lw-hand", "lw-neu"])
+        with db.cursor() as conn:
+            act = {r["id"]: r["active"] for r in db.rows(conn, "SELECT id, active FROM courses WHERE id IN ('lw-neu', 'lw-alt', 'lw-hand')")}
+        assert act == {"lw-neu": 1, "lw-alt": 0, "lw-hand": 1}
+    finally:
+        with db.cursor() as conn:
+            conn.execute("DELETE FROM files WHERE course_id IN ('lw-neu', 'lw-alt', 'lw-hand')")
+            conn.execute("DELETE FROM courses WHERE id IN ('lw-neu', 'lw-alt', 'lw-hand')")
 
 
 def test_shared_hildesheim_fixtures_match_python():

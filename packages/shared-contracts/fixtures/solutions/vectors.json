@@ -1,0 +1,400 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-solution-vectors.py (Referenz app/solution_format.py); nicht von Hand aendern. Pruefen: tests/test_solution_vectors.py (Python), tests/js/solutions.test.mjs (Browser), Swift: SolutionPackage.open/seal mit festem Salz und Nonce.",
+ "format": "uniflow-solution",
+ "formatVersion": 1,
+ "cases": [
+  {
+   "name": "drei Seiten: PDF, gedrehte PDF-Seite, Leerseite, Bild, fehlendes Bild, Sonderzeichen",
+   "pdf": "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",
+   "sha256": "150d51da92717a0b4cb29a884989765245efb57e3be276b99ebc13af75c585d2",
+   "salt": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+   "nonce": "ZGVmZ2hpamtsbW5v",
+   "key_hex": "de06ecdcd8a8e6fe72f6ad51cdba9af8ecd55904b3ec05b2826e2bfd596d829b",
+   "info": "uniflow-solution/v1|6f1c2b9e-4d3a-4e8b-9c7d-2a1b3c4d5e6f",
+   "aad": "{\"format\":\"uniflow-solution\",\"formatVersion\":1,\"header\":{\"contents\":{\"images\":1,\"missingImages\":1,\"pages\":3},\"createdAt\":\"2026-10-28T09:30:00Z\",\"displayName\":\"Jörg \\\"JJ\\\"\",\"document\":{\"pageCount\":3,\"sha256\":\"150d51da92717a0b4cb29a884989765245efb57e3be276b99ebc13af75c585d2\"},\"encryption\":{\"cipher\":\"AES-256-GCM\",\"kdf\":\"HKDF-SHA256\",\"keyMaterial\":\"original-pdf-bytes\",\"nonce\":\"ZGVmZ2hpamtsbW5v\",\"plaintextBytes\":1828,\"salt\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"},\"solutionId\":\"6f1c2b9e-4d3a-4e8b-9c7d-2a1b3c4d5e6f\"}}",
+   "plaintext": "{\"createdAt\":\"2026-10-28T09:30:00Z\",\"displayName\":\"Jörg \\\"JJ\\\"\",\"document\":{\"pageCount\":3,\"sha256\":\"150d51da92717a0b4cb29a884989765245efb57e3be276b99ebc13af75c585d2\"},\"format\":\"uniflow-solution-content\",\"formatVersion\":1,\"images\":{\"/api/files/abc/assets/bild.png\":{\"data\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQjv3wHwAEpwJ4PkhGEQAAAABJRU5ErkJggg==\",\"mime\":\"image/png\"}},\"missingImages\":[\"/api/files/abc/assets/fehlt.jpg\"],\"pages\":[{\"extraRotation\":0,\"height\":841.89,\"key\":\"p1\",\"kind\":\"pdf\",\"objects\":[{\"color\":\"#1d2130\",\"id\":\"s1\",\"opacity\":1,\"points\":[10,20,30.5,40.25,50.125,60],\"rotation\":0,\"scaleX\":1,\"scaleY\":1,\"tool\":\"pen\",\"type\":\"stroke\",\"width\":2.2,\"widths\":[2,2.4,2.1],\"x\":0,\"y\":0},{\"bg\":\"\",\"fill\":\"#e5322d\",\"fontFamily\":\"Arial\",\"fontSize\":14,\"id\":\"t1\",\"rotation\":0,\"scaleX\":1,\"scaleY\":1,\"text\":\"a² + b² = c²\\n\\tZeile 2 \\u0001 \\\\ / \\\"Zitat\\\" 😀 %PDF- im Freitext\",\"type\":\"text\",\"width\":220,\"x\":100,\"y\":120.5},{\"height\":64,\"id\":\"i1\",\"opacity\":1,\"rotation\":0,\"scaleX\":1,\"scaleY\":1,\"src\":\"/api/files/abc/assets/bild.png\",\"type\":\"image\",\"width\":64,\"x\":20,\"y\":300},{\"height\":10,\"id\":\"i2\",\"src\":\"/api/files/abc/assets/fehlt.jpg\",\"type\":\"image\",\"width\":10,\"x\":20,\"y\":400}],\"pdfIndex\":1,\"rotation\":0,\"width\":595.28},{\"extraRotation\":90,\"height\":792,\"key\":\"p3\",\"kind\":\"pdf\",\"objects\":[{\"fill\":\"\",\"height\":0.25,\"id\":\"r1\",\"opacity\":0.35,\"rotation\":-12.5,\"scaleX\":1,\"scaleY\":1,\"shape\":\"rect\",\"stroke\":\"#2b5df0\",\"strokeWidth\":1.5,\"type\":\"shape\",\"width\":50,\"x\":1e-05,\"y\":1234.5678}],\"pdfIndex\":3,\"rotation\":90,\"width\":612},{\"extraRotation\":0,\"height\":842,\"key\":\"b1\",\"kind\":\"blank\",\"objects\":[{\"fontSize\":12,\"id\":\"t2\",\"text\":\"Eigene Seite\",\"type\":\"text\",\"x\":40,\"y\":40}],\"rotation\":0,\"template\":\"lined\",\"width\":595}],\"solutionId\":\"6f1c2b9e-4d3a-4e8b-9c7d-2a1b3c4d5e6f\",\"title\":\"Übungsblatt 3 – Lösungen\"}",
+   "content": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "6f1c2b9e-4d3a-4e8b-9c7d-2a1b3c4d5e6f",
+    "createdAt": "2026-10-28T09:30:00Z",
+    "title": "Übungsblatt 3 – Lösungen",
+    "displayName": "Jörg \"JJ\"",
+    "document": {
+     "sha256": "150d51da92717a0b4cb29a884989765245efb57e3be276b99ebc13af75c585d2",
+     "pageCount": 3
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595.28,
+      "height": 841.89,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "s1",
+        "type": "stroke",
+        "tool": "pen",
+        "color": "#1d2130",
+        "width": 2.2,
+        "opacity": 1,
+        "points": [
+         10,
+         20,
+         30.5,
+         40.25,
+         50.125,
+         60
+        ],
+        "widths": [
+         2,
+         2.4,
+         2.1
+        ],
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+       },
+       {
+        "id": "t1",
+        "type": "text",
+        "x": 100,
+        "y": 120.5,
+        "text": "a² + b² = c²\n\tZeile 2 \u0001 \\ / \"Zitat\" 😀 %PDF- im Freitext",
+        "fontFamily": "Arial",
+        "fontSize": 14,
+        "fill": "#e5322d",
+        "bg": "",
+        "width": 220,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+       },
+       {
+        "id": "i1",
+        "type": "image",
+        "src": "/api/files/abc/assets/bild.png",
+        "x": 20,
+        "y": 300,
+        "width": 64,
+        "height": 64,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "opacity": 1
+       },
+       {
+        "id": "i2",
+        "type": "image",
+        "src": "/api/files/abc/assets/fehlt.jpg",
+        "x": 20,
+        "y": 400,
+        "width": 10,
+        "height": 10
+       }
+      ]
+     },
+     {
+      "key": "p3",
+      "kind": "pdf",
+      "pdfIndex": 3,
+      "width": 612,
+      "height": 792,
+      "rotation": 90,
+      "extraRotation": 90,
+      "objects": [
+       {
+        "id": "r1",
+        "type": "shape",
+        "shape": "rect",
+        "x": 1e-05,
+        "y": 1234.5678,
+        "width": 50,
+        "height": 0.25,
+        "stroke": "#2b5df0",
+        "strokeWidth": 1.5,
+        "fill": "",
+        "opacity": 0.35,
+        "rotation": -12.5,
+        "scaleX": 1,
+        "scaleY": 1
+       }
+      ]
+     },
+     {
+      "key": "b1",
+      "kind": "blank",
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "template": "lined",
+      "objects": [
+       {
+        "id": "t2",
+        "type": "text",
+        "x": 40,
+        "y": 40,
+        "text": "Eigene Seite",
+        "fontSize": 12
+       }
+      ]
+     }
+    ],
+    "images": {
+     "/api/files/abc/assets/bild.png": {
+      "mime": "image/png",
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQjv3wHwAEpwJ4PkhGEQAAAABJRU5ErkJggg=="
+     }
+    },
+    "missingImages": [
+     "/api/files/abc/assets/fehlt.jpg"
+    ]
+   },
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "6f1c2b9e-4d3a-4e8b-9c7d-2a1b3c4d5e6f",
+     "createdAt": "2026-10-28T09:30:00Z",
+     "displayName": "Jörg \"JJ\"",
+     "document": {
+      "sha256": "150d51da92717a0b4cb29a884989765245efb57e3be276b99ebc13af75c585d2",
+      "pageCount": 3
+     },
+     "contents": {
+      "pages": 3,
+      "images": 1,
+      "missingImages": 1
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "nonce": "ZGVmZ2hpamtsbW5v",
+      "plaintextBytes": 1828
+     }
+    },
+    "ciphertext": "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"
+   },
+   "package_text": "{\"ciphertext\":\"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\",\"format\":\"uniflow-solution\",\"formatVersion\":1,\"header\":{\"contents\":{\"images\":1,\"missingImages\":1,\"pages\":3},\"createdAt\":\"2026-10-28T09:30:00Z\",\"displayName\":\"Jörg \\\"JJ\\\"\",\"document\":{\"pageCount\":3,\"sha256\":\"150d51da92717a0b4cb29a884989765245efb57e3be276b99ebc13af75c585d2\"},\"encryption\":{\"cipher\":\"AES-256-GCM\",\"kdf\":\"HKDF-SHA256\",\"keyMaterial\":\"original-pdf-bytes\",\"nonce\":\"ZGVmZ2hpamtsbW5v\",\"plaintextBytes\":1828,\"salt\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"},\"solutionId\":\"6f1c2b9e-4d3a-4e8b-9c7d-2a1b3c4d5e6f\"}}"
+  },
+  {
+   "name": "anonym, eine Seite, Textmarker",
+   "pdf": "JVBERi0xLjcKJSBTdHVkb3JhLVRlc3R2ZWt0b3IgQgoAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wolJUVPRgo=",
+   "sha256": "97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad",
+   "salt": "//////////////////////////////////////////8=",
+   "nonce": "AAAAAAAAAAAAAAAA",
+   "key_hex": "e57ade8a4929beed13acba71894abab6a808b71a8bc7be1c6735ecb522dc561c",
+   "info": "uniflow-solution/v1|0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+   "aad": "{\"format\":\"uniflow-solution\",\"formatVersion\":1,\"header\":{\"contents\":{\"images\":0,\"missingImages\":0,\"pages\":1},\"createdAt\":\"2026-10-28T10:00:00Z\",\"displayName\":\"\",\"document\":{\"pageCount\":1,\"sha256\":\"97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad\"},\"encryption\":{\"cipher\":\"AES-256-GCM\",\"kdf\":\"HKDF-SHA256\",\"keyMaterial\":\"original-pdf-bytes\",\"nonce\":\"AAAAAAAAAAAAAAAA\",\"plaintextBytes\":527,\"salt\":\"//////////////////////////////////////////8=\"},\"solutionId\":\"0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d\"}}",
+   "plaintext": "{\"createdAt\":\"2026-10-28T10:00:00Z\",\"displayName\":\"\",\"document\":{\"pageCount\":1,\"sha256\":\"97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad\"},\"format\":\"uniflow-solution-content\",\"formatVersion\":1,\"images\":{},\"missingImages\":[],\"pages\":[{\"extraRotation\":0,\"height\":842,\"key\":\"p1\",\"kind\":\"pdf\",\"objects\":[{\"color\":\"#f5b400\",\"id\":\"s\",\"opacity\":0.35,\"points\":[1,2,3,4],\"tool\":\"marker\",\"type\":\"stroke\",\"width\":16}],\"pdfIndex\":1,\"rotation\":0,\"width\":595}],\"solutionId\":\"0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d\",\"title\":\"\"}",
+   "content": {
+    "format": "uniflow-solution-content",
+    "formatVersion": 1,
+    "solutionId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+    "createdAt": "2026-10-28T10:00:00Z",
+    "title": "",
+    "displayName": "",
+    "document": {
+     "sha256": "97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad",
+     "pageCount": 1
+    },
+    "pages": [
+     {
+      "key": "p1",
+      "kind": "pdf",
+      "pdfIndex": 1,
+      "width": 595,
+      "height": 842,
+      "rotation": 0,
+      "extraRotation": 0,
+      "objects": [
+       {
+        "id": "s",
+        "type": "stroke",
+        "tool": "marker",
+        "color": "#f5b400",
+        "width": 16,
+        "opacity": 0.35,
+        "points": [
+         1,
+         2,
+         3,
+         4
+        ]
+       }
+      ]
+     }
+    ],
+    "images": {},
+    "missingImages": []
+   },
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+     "createdAt": "2026-10-28T10:00:00Z",
+     "displayName": "",
+     "document": {
+      "sha256": "97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad",
+      "pageCount": 1
+     },
+     "contents": {
+      "pages": 1,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "//////////////////////////////////////////8=",
+      "nonce": "AAAAAAAAAAAAAAAA",
+      "plaintextBytes": 527
+     }
+    },
+    "ciphertext": "v+88B2zildkOvuwLqi5SZjHYpi4735WfSrAgSfh9UvujbkiFXYrmeyWWajIYcCZd8duLdz6TFbxHgChv5PmxrfOpnKIlEg25aGYXyVHbYwQiBQFtPSU0/rIOj+sJ60cvS6WfNzKiwomYyoYYjWf6UX/kAGb/1X8jT4JLGVxc50b0o9hbcxsHYUM4CY6mMLzcFAUUZWU8oRG2rSIacEEYf3vXYu+BY0HQ/Tr+3TP3DFwPzlB3+jogwH1Lk4Xr+XxESZ8XDLZjEZkRLndzznteir74nDLaapS75q22UOTuN/w6O6NkTATRaU1eCdHfzipzltBbDGxL4cSAUKBzIweStzHMdu/3kjacxs9pTemyOz+Q29rlI5vKYNFYNhMX4t3wubv73YicpHMHT9wUyuCl58E63tdePwtRyWWm4kQv/cQxqzIW2oBs8O4GnpTq2ye7QVdIrBdcOK3EOnEPUANcFHjzxIyoAKNDeUXtpjYR8IRfBAG2TkH+pyDkid6Gj33NDmb0Kpylw7q54FZ9BKgy5HgZLqIDfFM+1qIdVAcGdXNsLz4tlTs8RQCYIygcRyGMuvVdfJvlLObAdqIVK4puAtkjJyE/0no+XAqJEyg2khV3q4Xe/LMtinVbxP9Ek8Q8N9m8EIRFXpSCdYh3HPWwp0xyc6FA7SOFAdlsSLZJygUsXram19tfmVSDPAMAvWOKfuheMLlLQIf6NLmuhloZ"
+   },
+   "package_text": "{\"ciphertext\":\"v+88B2zildkOvuwLqi5SZjHYpi4735WfSrAgSfh9UvujbkiFXYrmeyWWajIYcCZd8duLdz6TFbxHgChv5PmxrfOpnKIlEg25aGYXyVHbYwQiBQFtPSU0/rIOj+sJ60cvS6WfNzKiwomYyoYYjWf6UX/kAGb/1X8jT4JLGVxc50b0o9hbcxsHYUM4CY6mMLzcFAUUZWU8oRG2rSIacEEYf3vXYu+BY0HQ/Tr+3TP3DFwPzlB3+jogwH1Lk4Xr+XxESZ8XDLZjEZkRLndzznteir74nDLaapS75q22UOTuN/w6O6NkTATRaU1eCdHfzipzltBbDGxL4cSAUKBzIweStzHMdu/3kjacxs9pTemyOz+Q29rlI5vKYNFYNhMX4t3wubv73YicpHMHT9wUyuCl58E63tdePwtRyWWm4kQv/cQxqzIW2oBs8O4GnpTq2ye7QVdIrBdcOK3EOnEPUANcFHjzxIyoAKNDeUXtpjYR8IRfBAG2TkH+pyDkid6Gj33NDmb0Kpylw7q54FZ9BKgy5HgZLqIDfFM+1qIdVAcGdXNsLz4tlTs8RQCYIygcRyGMuvVdfJvlLObAdqIVK4puAtkjJyE/0no+XAqJEyg2khV3q4Xe/LMtinVbxP9Ek8Q8N9m8EIRFXpSCdYh3HPWwp0xyc6FA7SOFAdlsSLZJygUsXram19tfmVSDPAMAvWOKfuheMLlLQIf6NLmuhloZ\",\"format\":\"uniflow-solution\",\"formatVersion\":1,\"header\":{\"contents\":{\"images\":0,\"missingImages\":0,\"pages\":1},\"createdAt\":\"2026-10-28T10:00:00Z\",\"displayName\":\"\",\"document\":{\"pageCount\":1,\"sha256\":\"97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad\"},\"encryption\":{\"cipher\":\"AES-256-GCM\",\"kdf\":\"HKDF-SHA256\",\"keyMaterial\":\"original-pdf-bytes\",\"nonce\":\"AAAAAAAAAAAAAAAA\",\"plaintextBytes\":527,\"salt\":\"//////////////////////////////////////////8=\"},\"solutionId\":\"0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d\"}}"
+  }
+ ],
+ "negative": [
+  {
+   "name": "Kopf veraendert (Anzeigename): AAD passt nicht",
+   "pdf_of": 0,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "6f1c2b9e-4d3a-4e8b-9c7d-2a1b3c4d5e6f",
+     "createdAt": "2026-10-28T09:30:00Z",
+     "displayName": "Jemand anderes",
+     "document": {
+      "sha256": "150d51da92717a0b4cb29a884989765245efb57e3be276b99ebc13af75c585d2",
+      "pageCount": 3
+     },
+     "contents": {
+      "pages": 3,
+      "images": 1,
+      "missingImages": 1
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "nonce": "ZGVmZ2hpamtsbW5v",
+      "plaintextBytes": 1828
+     }
+    },
+    "ciphertext": "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"
+   },
+   "error": "decryptionFailed"
+  },
+  {
+   "name": "Chiffrat veraendert",
+   "pdf_of": 1,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+     "createdAt": "2026-10-28T10:00:00Z",
+     "displayName": "",
+     "document": {
+      "sha256": "97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad",
+      "pageCount": 1
+     },
+     "contents": {
+      "pages": 1,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "//////////////////////////////////////////8=",
+      "nonce": "AAAAAAAAAAAAAAAA",
+      "plaintextBytes": 527
+     }
+    },
+    "ciphertext": "vu88B2zildkOvuwLqi5SZjHYpi4735WfSrAgSfh9UvujbkiFXYrmeyWWajIYcCZd8duLdz6TFbxHgChv5PmxrfOpnKIlEg25aGYXyVHbYwQiBQFtPSU0/rIOj+sJ60cvS6WfNzKiwomYyoYYjWf6UX/kAGb/1X8jT4JLGVxc50b0o9hbcxsHYUM4CY6mMLzcFAUUZWU8oRG2rSIacEEYf3vXYu+BY0HQ/Tr+3TP3DFwPzlB3+jogwH1Lk4Xr+XxESZ8XDLZjEZkRLndzznteir74nDLaapS75q22UOTuN/w6O6NkTATRaU1eCdHfzipzltBbDGxL4cSAUKBzIweStzHMdu/3kjacxs9pTemyOz+Q29rlI5vKYNFYNhMX4t3wubv73YicpHMHT9wUyuCl58E63tdePwtRyWWm4kQv/cQxqzIW2oBs8O4GnpTq2ye7QVdIrBdcOK3EOnEPUANcFHjzxIyoAKNDeUXtpjYR8IRfBAG2TkH+pyDkid6Gj33NDmb0Kpylw7q54FZ9BKgy5HgZLqIDfFM+1qIdVAcGdXNsLz4tlTs8RQCYIygcRyGMuvVdfJvlLObAdqIVK4puAtkjJyE/0no+XAqJEyg2khV3q4Xe/LMtinVbxP9Ek8Q8N9m8EIRFXpSCdYh3HPWwp0xyc6FA7SOFAdlsSLZJygUsXram19tfmVSDPAMAvWOKfuheMLlLQIf6NLmuhloZ"
+   },
+   "error": "decryptionFailed"
+  },
+  {
+   "name": "andere PDF",
+   "pdf_of": 1,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "6f1c2b9e-4d3a-4e8b-9c7d-2a1b3c4d5e6f",
+     "createdAt": "2026-10-28T09:30:00Z",
+     "displayName": "Jörg \"JJ\"",
+     "document": {
+      "sha256": "150d51da92717a0b4cb29a884989765245efb57e3be276b99ebc13af75c585d2",
+      "pageCount": 3
+     },
+     "contents": {
+      "pages": 3,
+      "images": 1,
+      "missingImages": 1
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "nonce": "ZGVmZ2hpamtsbW5v",
+      "plaintextBytes": 1828
+     }
+    },
+    "ciphertext": "RZptX6JNTfDuTJvpgrBzM5cavKAGb+xRgFbKDJ7nSN8V4ldd0GDIh73M3Hd5Q8tcRJNaLiEyM203RMb+giUfxBexTwjj75ZKwlzlEq93KuOIeI0awpGN4FMzWmd8WVTxngyF0L77IYT6HjlbpAZQHCYNaIyHSazMjmBddnKu0SToCYVj0t1cTZTQ8BLVdoxwSLVBsjclKk0czywAzHVinlstiBvdQJ7enP9ksdBAtHC6Bwa3eaw7ixn5vZJhjPxzirs6KvhGbqDXgpriNoItv1S8v39MEWLfq7JD5u6l+VvvB5lyW6Zcme2PKeR5fVFWAs9d7w+1xgEDTrNzJnBT2ZRDtCiXH108hzRa8ICawbyZ9P0Uk4oNJuLKhxbf1tGfg56lMHo8RlTIRVMMh67039R6bHY+9/cuFSHJZTH7GtabpLHBWFOhLoBD7+7BZEV4yfD06vAKsHVoww5J8SlWWgz0QGUNYbsJvwJ8Fv1q4UrijKUZKdwiNeCJKPjvJvy9pU0nKaMI8HSIfGzS4v4htqhV0dapoMfWaioHOyTGtnCpzm5y0itMWHMnWMjZNEx9U95/gS7KBxxLgg+Kn5EDqm5joGaZHQhPt7JxdmpTSx7j8RVpouKjlpXTjaepcFGDkVANhxLBCpzUQzNud5RbNoXQX+eGWVFsWqVeumKPPbzWJcN3e/tPQ/q2bDoFfcvJ5dtcSzXABahPrgITg/DGwLoY3he4S5QJKytsIkaiPvN3qDPSv9XPQ+7uWayYG+IBknMzyxTY822i0rB7++m7x9mJlr2vPKgGBqdm07gF74hP7AG5U71Y0p0ETUePsS83bjmxC4+LjGX6ACd6ahgQOH2T0sA3Q+W0uyXyOQt153H4/ezWC/nWHK5RbKbE/ccfyIlyVWzlHyuMrLstwKRD4Z2bdlJK5fy2tju+TJtgKnSQz7qPYi2zBVOVjYr01gUo8Zdu9p4w4ozbmShbpR3bLtFTK7nsqgp3co99bGe2aQkQSofxUgVTZDZg4ZXkeXpLKJe4ee0NG0E9yN2ZTNjwfoAP+CboYKV/TBZUTIJkZt58ZXSZv7I83Zn6u5YeKU4Ly0hQ2DyU7arSbhsbvZvboxHHzSK3rWO5lft8DWDlr0oPOX387H3x1+rM+f0R1awXZqvVnudVBN4ZyWCQ3wnc1h6x0JY92NGcZG0eqyJHYB0IL6/GXCuYQdLaruPOzZCCF7YP0E9Si7o2vdtk7vnLVghSJ8RNrWUTP8dTnznj0PUup4FYh8CACSN+46Xl05A7lOHPyXqtWDFtCk9YCaMamA6Hp9jIrcYWFrsZ4Lv61GQRovdOmTrqE2VKMsujGLejTrstR3nFwDyOMSzkTaLCYNjpyx1z96vYw+1DAOlN+FF40ZHSJoMHOl++xcIiDeP/NRMEuba92PCokoHBmKGg7RVLT1xKCuMM3vaqg6P0P/RCJG+1igGl3LDNFGeCrK00pN66yEr4s7VIP6/cZJh2Svw6LovZilp0pJK87vzHYJhE8dx/v6o/iQKdaYaKAZQ7/BVNKjwzrINuIrtNTP+Y4YwYpPrskp7Os3IeoS5z4o8th++A+aQ0hRSjjZSvcYUL9orXvtiSugCoP3vl2C2AWznoEvts7hyGkCovf8ImBpaOKsuMKN4vRprgUssp3OCDrOeqJSQZRTFBIyyLXzhaNqtROMFBX8nU+D4OQEna+jFqSCyHnutkr2aRlhSMUV6h/YMXpIEsMCE737ZaQ1CjpSf4hdqtz1LE20MncrwYSTIofxyKZJVHoTt6moSMTocmPrqjP1Yi/Xk+M1oJ8lSD2H9nIDab5d5fcdTUDf3TSVMUBfirKrE2rzs11OsTRg/7UAkccpgWUpbYoFTGvPWN9hft6VGa0/nbSsfuM3zXUlVmAJ6cMMOWs3z+uBcLPYyW0VB589ZAF/KJU6QWoHebhRljI2Q9lkLDgocFdi75bcu8HX8cCmzWk8W5ylU7y8F6LQw1MoDRG2p2xCM9uxsxHRDYelgKwf1Of6bFPB55I1FQEzWxbT95tAhLMCxdEglVZVUgi4jXTxjh4omm+zaaJTUPn1z3TQAU3XiQE+CB9d+mWo4n09cyzB5PBLmy9HJgtxR2PMU1jbEvv1r9UKZp3aQEYVZEeUbbuSCFD1DK0tYMz3r93E+BPfiWdAA4AEqqnWmXgEyChnJF4fDoAmuji2RjQuH4FhQJQrnYk2c5x8NubVGg1eaYqKGuMDM2/4IvWl+JlhcpWcd9MWw9X7J8fHWWi4dLcwbzfdplA6ZCeQFYC11IhGNZmkv+vFG+R/AiwnqZdh7dhxvu9T4FQ4H7U0Y0bIi4bP72jvLMV58aQsL5d0aqs2F2kB0SLIk3OSOz3U7T3GyNzClae0XLUZcNRJ7z3j3ZECZUlHwANcmMlbtvNCu6Kqpm2CLLqMIKObIEjXimYnaTe631VZCxzzXzk0o+4ug="
+   },
+   "error": "fingerprintMismatch"
+  },
+  {
+   "name": "unbekanntes Feld im Kopf",
+   "pdf_of": 1,
+   "package": {
+    "format": "uniflow-solution",
+    "formatVersion": 1,
+    "header": {
+     "solutionId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+     "createdAt": "2026-10-28T10:00:00Z",
+     "displayName": "",
+     "document": {
+      "sha256": "97ef03e64df738cc0eb439ee98a402a08bd30869663a5fc92533ff8d177130ad",
+      "pageCount": 1
+     },
+     "contents": {
+      "pages": 1,
+      "images": 0,
+      "missingImages": 0
+     },
+     "encryption": {
+      "cipher": "AES-256-GCM",
+      "kdf": "HKDF-SHA256",
+      "keyMaterial": "original-pdf-bytes",
+      "salt": "//////////////////////////////////////////8=",
+      "nonce": "AAAAAAAAAAAAAAAA",
+      "plaintextBytes": 527
+     },
+     "note": "zusätzlich"
+    },
+    "ciphertext": "v+88B2zildkOvuwLqi5SZjHYpi4735WfSrAgSfh9UvujbkiFXYrmeyWWajIYcCZd8duLdz6TFbxHgChv5PmxrfOpnKIlEg25aGYXyVHbYwQiBQFtPSU0/rIOj+sJ60cvS6WfNzKiwomYyoYYjWf6UX/kAGb/1X8jT4JLGVxc50b0o9hbcxsHYUM4CY6mMLzcFAUUZWU8oRG2rSIacEEYf3vXYu+BY0HQ/Tr+3TP3DFwPzlB3+jogwH1Lk4Xr+XxESZ8XDLZjEZkRLndzznteir74nDLaapS75q22UOTuN/w6O6NkTATRaU1eCdHfzipzltBbDGxL4cSAUKBzIweStzHMdu/3kjacxs9pTemyOz+Q29rlI5vKYNFYNhMX4t3wubv73YicpHMHT9wUyuCl58E63tdePwtRyWWm4kQv/cQxqzIW2oBs8O4GnpTq2ye7QVdIrBdcOK3EOnEPUANcFHjzxIyoAKNDeUXtpjYR8IRfBAG2TkH+pyDkid6Gj33NDmb0Kpylw7q54FZ9BKgy5HgZLqIDfFM+1qIdVAcGdXNsLz4tlTs8RQCYIygcRyGMuvVdfJvlLObAdqIVK4puAtkjJyE/0no+XAqJEyg2khV3q4Xe/LMtinVbxP9Ek8Q8N9m8EIRFXpSCdYh3HPWwp0xyc6FA7SOFAdlsSLZJygUsXram19tfmVSDPAMAvWOKfuheMLlLQIf6NLmuhloZ"
+   },
+   "error": "invalidHeader"
+  }
+ ]
+}

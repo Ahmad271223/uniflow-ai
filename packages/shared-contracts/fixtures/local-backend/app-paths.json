@@ -980,12 +980,31 @@
       "average": {
        "type": "null"
       },
+      "average_exact": {
+       "type": "null"
+      },
+      "basis": {
+       "type": "string"
+      },
+      "bereiche": {
+       "type": "array",
+       "item": null
+      },
       "credits": {
        "type": "number"
       },
       "documents": {
        "type": "array",
        "item": null
+      },
+      "failed_attempts": {
+       "type": "number"
+      },
+      "graded_count": {
+       "type": "number"
+      },
+      "graded_credits": {
+       "type": "number"
       },
       "grades": {
        "type": "array",

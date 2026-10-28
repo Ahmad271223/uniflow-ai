@@ -42,7 +42,7 @@ TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} – UniFlow</title>
+<title>{title} – Studora</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/fonts/inter.css?v=29">
@@ -51,7 +51,7 @@ TEMPLATE = """<!doctype html>
 <script src="/theme.js?v=29"></script>
 </head>
 <body class="legal">
-<header><div class="brand"><div class="logo">U</div><span>UniFlow AI</span></div><nav>{nav}</nav></header>
+<header><div class="brand"><div class="logo">S</div><span>Studora</span></div><nav>{nav}</nav></header>
 <article>{body}</article>
 <footer class="muted small">{foot}</footer>
 </body>

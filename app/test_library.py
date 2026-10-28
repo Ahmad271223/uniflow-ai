@@ -93,7 +93,8 @@ def cursor():
     conn = sqlite3.connect(p, timeout=15, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.executescript(SCHEMA)
+    from . import db
+    db.schema_once(conn, "test_library", p, lambda c: c.executescript(SCHEMA))
     try:
         yield conn
         conn.commit()
@@ -103,6 +104,19 @@ def cursor():
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def forget_owner(user_id: str) -> dict:
+    """Konto endgueltig geloescht: eigene, nicht freigegebene Fragen (privat, wartend, vom Nutzer geteilt) entfernen,
+    freigegebene Fragen ohne Besitzer behalten (sie enthalten nach der Pruefung keine persoenlichen Angaben),
+    Gesehen-Liste loeschen."""
+    owner = owner_hash(user_id)
+    with cursor() as conn:
+        gone = conn.execute("""DELETE FROM questions WHERE owner_hash=? AND (review IN ('private','pending','rejected')
+                               OR source IN ('user_shared','chatgpt_user'))""", (owner,)).rowcount
+        kept = conn.execute("UPDATE questions SET owner_hash=NULL WHERE owner_hash=?", (owner,)).rowcount
+        seen = conn.execute("DELETE FROM seen WHERE owner_hash=?", (owner,)).rowcount
+    return {"deleted": gone, "anonymized": kept, "seen": seen}
 
 
 def owner_hash(user_id: str) -> str:

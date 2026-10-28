@@ -65,7 +65,9 @@
         "width": { "type": "number", "description": "mittlere Strichbreite in Punkten" },
         "widths": { "type": "array", "items": { "type": "number" }, "description": "optional: Breite je Punkt (gleiche Anzahl wie Punkte)" },
         "points": { "type": "array", "items": { "type": "number" }, "description": "x0,y0,x1,y1,... relativ zur Objekt-Transformation (Reihenfolge: skalieren, drehen, verschieben)" },
-        "source": { "type": "string", "description": "z. B. 'pencilkit' (nur informativ)" }
+        "source": { "type": "string", "description": "z. B. 'pencilkit' (nur informativ)" },
+        "markup": { "enum": ["highlight", "underline", "strike"], "description": "nur shape (seit 28.10.2026): Markierung von PDF-Text, eine Zeile je Objekt. highlight = shape rect mit fill und opacity 0.35, stroke leer; underline/strike = shape line mit x=y=0 und points [x0,y,x1,y] (senkrechter Text: [x,y0,x,y1]). Wird als gewoehnliche Form gezeigt, Geraete ohne eigenes Werkzeug brauchen nichts weiter." },
+        "text": { "type": "string", "description": "text: Inhalt; shape mit markup: der markierte PDF-Text dieser Zeile (Suche, KI, Barrierefreiheit)" }
       },
       "additionalProperties": true
     }

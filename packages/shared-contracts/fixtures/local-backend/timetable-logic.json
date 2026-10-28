@@ -3498,7 +3498,8 @@
       "count": 4,
       "group_slots": 1,
       "selected": true,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 1
      },
      {
       "title": "Gruppenübung Programmierkurs Beispiel",
@@ -3592,7 +3593,8 @@
       "count": 3,
       "group_slots": 2,
       "selected": true,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 2
      },
      {
       "title": "Gruppenübung Programmierkurs Beispiel",
@@ -3628,7 +3630,8 @@
       "uncertain": false,
       "group_slots": 2,
       "selected": true,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 5
      },
      {
       "title": "Übung zu Testmathematik I",
@@ -4144,7 +4147,8 @@
       "uid": null,
       "description": "",
       "module_id": 1,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 1
      }
     ],
     "diff": {
@@ -4186,9 +4190,9 @@
        "description": "",
        "module_id": 1,
        "module_guess_uncertain": false,
+       "existing_id": 1,
        "old_start": "10:00",
-       "old_end": "11:30",
-       "existing_id": 1
+       "old_end": "11:30"
       }
      ],
      "same": [],
@@ -4335,7 +4339,8 @@
       "uid": null,
       "description": "",
       "module_id": 1,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 1
      }
     ],
     "diff": {
@@ -4377,9 +4382,9 @@
        "description": "",
        "module_id": 1,
        "module_guess_uncertain": false,
+       "existing_id": 1,
        "old_start": "10:00",
-       "old_end": "11:30",
-       "existing_id": 1
+       "old_end": "11:30"
       }
      ],
      "same": [],
@@ -10699,7 +10704,8 @@
       "uid": "900001:900002",
       "description": "",
       "module_id": null,
-      "module_guess_uncertain": true
+      "module_guess_uncertain": true,
+      "existing_id": 17
      },
      {
       "title": "7002 - Testvorlesung Pädagogik I",
@@ -10718,7 +10724,8 @@
       "uid": null,
       "description": "",
       "module_id": null,
-      "module_guess_uncertain": true
+      "module_guess_uncertain": true,
+      "existing_id": 18
      },
      {
       "title": "7002 - Testvorlesung Pädagogik I",
@@ -10737,7 +10744,8 @@
       "uid": null,
       "description": "",
       "module_id": null,
-      "module_guess_uncertain": true
+      "module_guess_uncertain": true,
+      "existing_id": 19
      },
      {
       "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
@@ -10754,7 +10762,8 @@
       "uid": null,
       "description": "",
       "module_id": 3,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 20
      },
      {
       "title": "7004 - Testblock Kunst",
@@ -10771,7 +10780,8 @@
       "uid": null,
       "description": "",
       "module_id": null,
-      "module_guess_uncertain": true
+      "module_guess_uncertain": true,
+      "existing_id": 21
      }
     ],
     "diff": {
@@ -12157,7 +12167,8 @@
       "count": 4,
       "group_slots": 1,
       "selected": true,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 1
      },
      {
       "title": "Gruppenübung Programmierkurs Beispiel",
@@ -12251,7 +12262,8 @@
       "count": 3,
       "group_slots": 2,
       "selected": true,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 2
      },
      {
       "title": "Gruppenübung Programmierkurs Beispiel",
@@ -12287,7 +12299,8 @@
       "uncertain": false,
       "group_slots": 2,
       "selected": true,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 5
      },
      {
       "title": "Übung zu Testmathematik I",
@@ -12459,7 +12472,8 @@
       "uid": null,
       "description": "",
       "module_id": 1,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 1
      }
     ],
     "confirmed": 0
@@ -12505,7 +12519,8 @@
       "uid": null,
       "description": "",
       "module_id": 1,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 1
      }
     ],
     "confirmed": 0
@@ -12637,7 +12652,8 @@
       "uid": "900001:900002",
       "description": "",
       "module_id": null,
-      "module_guess_uncertain": true
+      "module_guess_uncertain": true,
+      "existing_id": 17
      },
      {
       "title": "7002 - Testvorlesung Pädagogik I",
@@ -12656,7 +12672,8 @@
       "uid": null,
       "description": "",
       "module_id": null,
-      "module_guess_uncertain": true
+      "module_guess_uncertain": true,
+      "existing_id": 18
      },
      {
       "title": "7002 - Testvorlesung Pädagogik I",
@@ -12675,7 +12692,8 @@
       "uid": null,
       "description": "",
       "module_id": null,
-      "module_guess_uncertain": true
+      "module_guess_uncertain": true,
+      "existing_id": 19
      },
      {
       "title": "7003 - Testkolloquium Erinnerung (Beispiel)",
@@ -12692,7 +12710,8 @@
       "uid": null,
       "description": "",
       "module_id": 3,
-      "module_guess_uncertain": false
+      "module_guess_uncertain": false,
+      "existing_id": 20
      },
      {
       "title": "7004 - Testblock Kunst",
@@ -12709,7 +12728,8 @@
       "uid": null,
       "description": "",
       "module_id": null,
-      "module_guess_uncertain": true
+      "module_guess_uncertain": true,
+      "existing_id": 21
      }
     ],
     "confirmed": 1

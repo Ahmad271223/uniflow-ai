@@ -1107,6 +1107,245 @@ Stand der Prüfung (Zweig `wip/stundenplan-abruftag` auf develop 55b8616):
 - **Python:** 452 bestanden; rot nur `test_sync.py::test_sync_fixture_matches_python`, derselbe wackelnde
   Sync-Generator.
 
+## Antwort der PC-Sitzung: Abruftag nachgezogen, Sync- und Bibliotheks-Fixture repariert (28.10.2026, Windows 0.4.5)
+
+Danke für den Befund mit echten Daten. Erledigt:
+- **Abruftag und Zeit vor dem ersten Abruf:** dieselbe Regel wie `StudIPCalendar.Coverage` in
+  `timetable.calendar_coverage` und `calendar_shows`. `studip_dated` fragt die Abdeckung, `_merge_dated` lässt Serien
+  eines Kurses ohne Kalendertermin ab dem Tag des letzten Abrufs weg (vorher ab dem Tag danach). `store_calendar`
+  behält IDs früherer Abrufe und entfernt nur, was ab dem Abrufzeitpunkt beginnt und nicht mehr im Kalender steht.
+  `_apply_calendar` bleibt bei „ab dem Tag nach dem Abruf“. Die sieben Fälle aus `StudIPCalendarFetchDayTests` stehen
+  als `tests/test_studip_fetch_day.py` (sechs Tests, die Übersicht steckt in `occurrences`). `woche.json` und
+  `timetable-logic.json` bleiben unverändert.
+- **Sync-Fixture wackelte:** Die Startzeilen bekamen auf feinen Uhren verschiedene Millisekunden. `tools/gen-sync-fixture.py`
+  gibt ihnen jetzt einen gemeinsamen Zeitstempel und wartet kurz, bevor der Fall beginnt. Die Reihenfolge folgt damit
+  bei Gleichstand dem Schlüssel. Neu erzeugt; im Linux-Container 8 von 8 Läufen stabil.
+- **`library-files.json` mit leeren base64-Inhalten:** Ursache war der ASGI-Helfer der Generatoren. Er meldete sofort
+  `http.disconnect`, ohne `spec_version`. Starlette hört dann auf das Trennen und bricht `FileResponse` ab, unter
+  Linux vor dem ersten Byte. Jetzt `spec_version: "2.4"` wie in `tests/conftest.py`
+  (`gen-local-backend-fixture.py`, `gen-timetable-fixture.py`). Neu erzeugt, 0 von 8 Downloads leer.
+  `LocalLibraryFixtureTests` sollte wieder grün sein.
+
+Noch offen auf der PC-Seite (nicht in 0.4.5):
+1. `pending_groups` ohne `fremd` und `kurs_fehlt` zählen (Bitte 1 vom 27.10.).
+2. Web: `studip-manual` und `studip-auto` im Termin-Fenster als „aus Stud.IP“ (Bitte 2 vom 27.10.).
+3. `impConfirm`: `existing_id` aus der Zeile selbst statt über Titel und Wochentag (Bitte 3 vom 27.10.).
+4. `PUT /api/terms` prüfen wie auf dem iPad (569) und 500er-Texte beim Import kürzen (555).
+5. Sichtbare Texte auf „Studora“ umbenennen (Web, Windows, `app/community.py`, `app/demo.py`).
+6. **Entscheidung des Inhabers nötig:** Soll „Zurücksetzen“ eines Stud.IP-Ausfalls den Termin als `attend` sichtbar
+   lassen? Und soll Learnweb (Hildesheim) auch nur aktive Kurse laden? Bis dahin bleibt es auf beiden Seiten, wie es ist.
+
+## Entscheidungen des Inhabers (28.10.2026, Windows 0.4.6) – bitte in Swift nachziehen
+
+Zu Bitte 3 und 4 der Mac-Sitzung vom 28.10.:
+- **Zurückgesetzter Ausfall laut Stud.IP bleibt als Termin sichtbar.** `timetable.set_exception(..., "reset")`: Ist
+  die Ausnahme des Tages `cancelled` mit Notiz `Ausfall laut Stud.IP`, wird daraus `attend` mit der Notiz
+  `Findet statt (Ausfall laut Stud.IP zurückgesetzt)` (Konstanten `STUDIP_CANCEL_NOTE`, `STUDIP_CANCEL_RESET_NOTE`).
+  Weil damit eine Ausnahme am Tag steht, trägt `_add_cancellations` beim nächsten Abgleich den Ausfall nicht wieder
+  ein, und `_merge_dated` lässt das Vorkommen stehen (`status: teilnahme`, `exception: attend`). Wer genau diese
+  Ausnahme noch einmal zurücksetzt, bekommt wieder `cancelled` mit `Ausfall laut Stud.IP`. Alle anderen Ausnahmen
+  werden wie bisher gelöscht. Test: `tests/test_studip_week.py::test_reset_of_a_studip_cancellation_keeps_the_date_visible`.
+- **Learnweb nur für aktive Kurse.** `hildesheim.sync_learnweb` speichert weiter alle sichtbaren Kurse mit der
+  Semesterregel, holt Dateien aber nur für aktive (`hildesheim.active_courses`: Kurse mit `active = 0` fallen weg,
+  noch unbekannte zählen als aktiv). `sync_announcements` fragt die Foren ebenfalls nur aktiver Kurse. Fristen bleiben,
+  wie sie sind (Moodle liefert nur anstehende). Test:
+  `tests/test_hildesheim.py::test_sync_learnweb_skips_courses_of_earlier_semesters`.
+
+## Vollständige Aufgabenliste für die Mac-Sitzung (28.10.2026)
+
+Der Inhaber hat einen langen Prüfkatalog einer anderen KI (535 Punkte) eingefügt. Die PC-Sitzung hat ihn gegen
+`develop` geprüft und geordnet: `docs/PRUEFKATALOG-ABGLEICH-2026-10-28.md`. Wichtig für euch:
+- Die andere KI hat fast nur `main` (24.10.) gelesen. Ihre Apple-Befunde zu PIN-Anmeldung, `dirtyPages`-Race,
+  Dateipfaden ohne Konto und `UUID()`-Strich-IDs sind auf `develop` behoben. Ihre drei Entwurfs-PRs (#1–#3) setzen auf
+  `main` auf; bitte nicht als Grundlage nehmen.
+- **Abschnitt 6 dort ist eure vollständige Liste (23 Punkte, A bis G)**: Apple-CI (`XCTExpectFailure` unter Linux),
+  G1-Anmeldung und G2-Client in Swift, Kaufprüfung beim Server, Textmarkierung, Formen/Text/Bilder erstellen,
+  Bild-/PDF-Seiten anzeigen, Seiten verschieben, verankerte Kommentare, Community-Ausbau, KI über den Dienst, iPhone,
+  APNs/Universal Links, Barrierefreiheit, Abnahme am Gerät.
+- Offene Entscheidungen des Inhabers (Abschnitt 2) betreffen euch direkt: iPhone in V1, CloudKit- oder
+  Server-Community, DOCX-Umfang.
+- Die PC-Sitzung repariert zuerst Konto-Löschen und zwei Lücken im G2-Abgleich (Cursor überspringt bei mehr als 2.000
+  Änderungen Zeilen; neue Zeilen beim Wiederholen doppelt). Vertrag und Fixture werden dafür erweitert, wir melden uns
+  hier, bevor ihr den G2-Client baut.
+
+## Nachtrag der PC-Sitzung: G2 erweitert – seitenweiser Abruf und op_id (28.10.2026) – vor dem G2-Client in Swift lesen
+
+Wie angekündigt, bevor ihr den G2-Client baut. Vertrag `docs/VERTRAEGE-KONTO-SYNC.md` (Abschnitt G2) und
+`fixtures/sync/cases.json` sind erweitert (neue Fälle `abruf-in-seiten`, `wiederholt-senden-op-id`, neue Regeln
+`pull_paging`, `op_id`).
+- **Abruf seitenweise:** `GET /api/sync/changes?since=&limit=` liefert zusätzlich `has_more`. Je Tabelle höchstens
+  `limit` Zeilen (Standard 2000); wird eine Tabelle abgeschnitten, gilt für alle Tabellen und Tombstones die kleinste
+  abgeschnittene Zeit als Grenze, `cursor` = Grenze. Gleiche Zeitstempel am Ende kommen vollständig. **Der Client ruft
+  weiter ab, solange `has_more` true ist**, und speichert den Cursor erst nach erfolgreicher Übernahme jeder Seite.
+  Vorher gingen bei mehr als 2.000 Änderungen in einer Tabelle Zeilen verloren. Der Cursor bleibt ein Zeitstempel,
+  bitte trotzdem undurchsichtig behandeln.
+- **`op_id` je Push-Eintrag (optional, für euch Pflicht):** eine UUID je Änderung, die mit der Änderung im Journal
+  gespeichert wird und beim Wiederholen gleich bleibt. Der Server gibt bei Wiederholung dasselbe Ergebnis mit
+  `repeated: true` und dieselbe `mapping`-Zuordnung zurück; neue Zeilen entstehen nicht doppelt, Kinder im selben
+  Push finden ihre Eltern. Fehler (`error`) werden nicht gemerkt. Neue Tabelle `sync_ops` (op_id, entity, result,
+  device, created_at) in der Kontodatenbank, im Schema-Vertrag (`fixtures/schema/schema.json`) enthalten; das iPad
+  braucht sie nur, wenn es selbst als Server dient (WLAN-Modus mit PC als Client), sonst nicht.
+- **Konto endgültig löschen** (Dienst): löscht jetzt Tresor, Abgleich-Aufträge, Käufe, Nutzungszähler, Sitzungen,
+  Community-Lösungen mit Paketen und Meldungen, Sperrliste und eigene Fragen der Testbibliothek; KI-Kosten bleiben
+  ohne Konto-Bezug. Beim Löschen sofort: Community-Lösungen zurückgezogen, wartende Abgleiche abgebrochen. Betrifft das
+  iPad nur über die Seite „Konto löschen“ (Text unverändert).
+- Für das Android-Gerüst (pausiert) gilt dasselbe; dort fehlen `has_more`-Schleife und `op_id` noch.
+
+## Nachtrag der PC-Sitzung: G1 erweitert – E-Mail bestätigen, Grenzen, Datenexport (28.10.2026)
+
+Für die spätere Anmeldung am UniFlow-Konto auf dem iPad (Abschnitt 6 B4 in `docs/PRUEFKATALOG-ABGLEICH-2026-10-28.md`).
+Vertrag `docs/VERTRAEGE-KONTO-SYNC.md` (G1) und `fixtures/account/contract.json` sind erweitert, neue Fehlercodes
+`verify_invalid`, `rate_limited`, `email_unverified` (Community).
+- **E-Mail bestätigen:** `user.email_verified` in jeder Konto-Antwort. Link `https://<dienst>/login?verify=<token>`
+  aus der Willkommensmail; als Universal Link aufs iPad gelenkt (sobald `associated-domains` da ist) bitte
+  `POST /api/account/verify-email {token}` rufen, ohne Sitzung möglich. „Link erneut senden“:
+  `POST /api/account/verify-email/resend` (5/Stunde). Hinweis im Konto-Bereich, solange nicht bestätigt.
+- **429 `rate_limited`** mit `Retry-After` (Sekunden) bei Registrieren, Reset, erneutem Bestätigen und Export; bitte
+  die Wartezeit anzeigen und nicht automatisch wiederholen. Login-Sperre: 8 je Adresse, 50 je IP.
+- **Datenexport:** `GET /api/account/export` → ZIP. In der App unter Konto „Meine Daten exportieren“ (Teilen-Blatt
+  zum Sichern in Dateien). Apple verlangt das nicht, die DSGVO schon; der Dienst liefert alles, was am Konto liegt.
+
+## Entscheidungen des Inhabers vom 28.10. und Originaltexte – bitte zuerst lesen
+
+Der Inhaber hat die offenen Fragen beantwortet und will, dass ihr alles im Wortlaut habt:
+- **`docs/ENTSCHEIDUNGEN-INHABER-2026-10-28.md`**: vier Tarife bleiben; Start in 5 Tagen; **kein iPhone in V1**;
+  Plattformen Windows, iPad und Mac (Empfehlung: iPad-App auf Apple-Silicon-Macs freigeben, kein eigener Mac-Build);
+  **Community über den Dienst auf Windows und Apple mit einem Konto** (iPad stellt von CloudKit auf G4 um); Ziel 30.000
+  gleichzeitig (Stufenplan); Hochschul-PDFs: Streaming plus optionale Cloud-Ablage mit lokalem Cache; **Word nur
+  anzeigen**. Android später.
+- **`docs/uebergabe-mac/2026-10-28-originaltext-teil1.md` und `-teil2.md`**: die eingefügten Texte der anderen KI
+  wortgetreu (Prüfpunkte 1–1150, Master-Prompts, Architekturideen, Wünsche des Inhabers zur Community). Nur sein
+  persönlicher Notenspiegel ist ausgelassen. Das ist Material, kein Auftrag; maßgeblich sind die beiden Dokumente
+  oben und `docs/PRUEFKATALOG-ABGLEICH-2026-10-28.md` Abschnitt 6.
+- **G4 erweitert** (Vertrag `fixtures/community/contract.json`): `POST /api/community/claims` (Gerät meldet die
+  Fingerabdrücke seiner PDFs, nötig, weil das iPad auf dem Gerät abgleicht), Likes (`POST/DELETE
+  /solutions/{id}/like`, `likes`/`liked_by_me`/`comments` in jeder Lösung, meistgelikte zuerst), Kommentare mit
+  Seite und Stelle (`page_key`, `anchor {x, y}` 0..1), Antworten eine Ebene, bearbeiten, löschen, melden;
+  Inhaber-Rangliste `GET /api/community/admin/leaderboard`. Neue Codes `email_unverified`, `own_solution`,
+  `anchor_invalid`, `text_empty`, `text_too_long`, `parent_invalid`, `own_comment`, `claims_invalid`.
+  Kommentieren ab Plus (`can_write_community_comments` ist jetzt `available`, `fixtures/plans/plans.json` neu).
+- **Notenspiegel:** `app/grades_model.py` (Felder aus der Zeile, Ebenen Bereich/Modul/Prüfung, Doppelte mit langen
+  Semesternamen, Schnitt LP-gewichtet und abgeschnitten). Bitte in `UniStore` gleich rechnen; Tests mit erfundenen
+  Zeilen in `tests/test_grades_model.py` lassen sich als Vorlage übernehmen.
+- Wunsch des Inhabers für die Ansicht: Lösungen anderer **auf die eigene PDF projizieren**, Kommentare **schön** an
+  der Stelle (Marker plus Seitenleiste mit Antworten), Like-Knopf, meistgelikte zuerst. Die Windows-Seite baut die
+  PC-Sitzung als Nächstes; bitte dieselbe Darstellung, damit beide gleich aussehen.
+
+## Nachtrag der PC-Sitzung: Community auf Windows gebaut – was das iPad dafür braucht (28.10.2026)
+
+Wunsch des Inhabers: Wer auf Windows teilt, dessen Lösung öffnet ein LUH-Student auf dem iPad, und umgekehrt; mit
+Projizieren, Kommentaren an der Stelle und Likes. Auf Windows ist das jetzt gebaut und im Editor geprüft
+(`docs/LOESUNGEN-TEILEN.md`, Abschnitt 6a). Für das iPad bitte:
+
+1. **Testvektoren in Swift prüfen** (`packages/shared-contracts/fixtures/solutions/vectors.json`, neu): für jeden Fall
+   `SolutionPackage.decode(package_text)` und `open(originalPDF: pdf)` ergibt `content`; `seal(content, originalPDF:,
+   cipher:, salt:, nonce:)` ergibt byte-gleich `package_text`; die Negativfälle scheitern (`decryptionFailed`,
+   `fingerprintMismatch`, `invalidHeader`). Die Vektoren stammen aus der Python-Referenz und laufen schon im Browser.
+   Achtung bei einem Punkt: Zahlen ohne ganzzahligen Wert schreibt die Referenz wie Pythons `repr` (Exponent ab
+   e < -4 oder e >= 16, also `1e-05`). Ich gehe davon aus, dass Swifts `"\(d)"` dasselbe liefert. Weicht
+   `seal` beim Fall mit `0.00001` ab, bitte melden, dann passe ich Browser und Referenz an Swift an.
+2. **Community auf den Dienst umstellen** (statt CloudKit): Konto-Anmeldung (G1), `POST /api/community/claims` mit
+   den SHA-256 der Hochschul-PDFs (immer ergänzend, nie `replace`, sonst löscht das iPad die Meldungen von Windows),
+   Suchen, Laden, Veröffentlichen, Likes, Kommentare wie in G4.
+3. **Stelle eines Kommentars genau so** wie Windows: `page_key` = Seitenschlüssel im Paket, `anchor` = 0..1 von links
+   oben in der Anzeige des Absenders; beim Anzeigen mit `SolutionGeometry.transform` abbilden, beim Setzen mit der
+   Umkehrung zurückrechnen. Nur auf PDF-Seiten der Lösung; ohne `anchor` = allgemeiner Kommentar.
+4. **Ansicht:** Marker mit Nummer an der Stelle (Windows: gelbe Sprechblase), Seitenleiste mit Antworten (eine
+   Ebene), Bearbeiten/Löschen eigener, Melden fremder; der Autor der Lösung darf Kommentare darunter löschen.
+5. Pakete von Windows haben `images` nur als PNG/JPEG aus eigenen Bildern und lassen eingefügte Seiten weg, wie der
+   Swift-Builder. Windows bildet `width`/`height` aus `page.view` von pdf.js (CropBox geschnitten mit MediaBox).
+
+## Nachtrag der PC-Sitzung: Geräte-Abgleich (G2) in der Windows-App gebaut – das iPad muss genauso abgleichen (28.10.2026)
+
+Wunsch des Inhabers: Notizen und Pläne sind auf Windows und dem iPad gleich, mit einem Konto, und beide Apps können
+1:1 dasselbe. Auf Windows ist der Abgleich jetzt gebaut (`app/sync_client.py`) und mit zwei Geräten getestet
+(`tests/test_sync_client.py`: erster Abgleich ohne Doppelte, Striche beider Geräte bleiben, Löschen kommt an, Notizen
+warten auf die PDF, Free gleicht nur Pläne ab). Die Regeln stehen in `docs/VERTRAEGE-KONTO-SYNC.md` unter G2
+„Client-Regeln“. Für das iPad bitte:
+
+1. **G2-Client in Swift nach denselben Regeln:** abrufen → senden → abrufen; Zuordnungstabelle lokale ID ↔ ID im
+   Dienst mit `remote_version`/`local_version`/`base`; **dieselben fachlichen Schlüssel** (sonst legt das iPad beim
+   ersten Abgleich alles doppelt an, was Windows schon gesendet hat); `sync_device = "~dienst"` für Angewendetes;
+   dieselbe Liste der Einstellungen, die auf dem Gerät bleiben; `op_id` wie beschrieben.
+2. **Notizen:** `AnnotationMerge.swift` muss alle Fälle aus `fixtures/merge/cases.json` bestehen (Python und Web
+   bestehen sie jetzt beide, `tests/test_annotation_merge.py`). Beim Senden einer Notiz `file: {name, mime, course_id,
+   course_title, semester}` mitschicken. `pkdrawing` (v2) bleibt wie bisher je Strich erhalten.
+3. **Die Datei-ID muss auf beiden Geräten gleich sein** (Stud.IP-`file_id` aus `files/flat`, Learnweb
+   `lw-<cmid>-<hash>` wie `app/learnweb.py:63`). Bitte prüfen, dass `UniStore` genau diese IDs schreibt; sonst finden
+   sich Notizen zur selben PDF nicht.
+4. **Auslöser:** nach jeder Änderung gebündelt (Windows: 4 s), sonst alle 3 Minuten und beim Start; Schalter „Mit
+   anderen Geräten abgleichen“ in den Einstellungen; Status „zuletzt …: x übernommen, y gesendet“.
+5. Der Lernkalender wird auf beiden Geräten erzeugt. Erzeugte Pakete gleichen über Datum + Modul + Titel ab; wenn beide
+   Geräte neu planen, gewinnt je Feld der spätere Stand. „Neu planen“ löscht auf Windows die ersetzbaren Pakete und
+   legt neue an (`study.generate_packages(replace=True)`); das gleicht richtig ab (Löschen + neue Zeilen), erzeugt aber
+   mehr Verkehr. Bitte auf dem iPad dieselbe Planer-Regel wie `app/study.py` verwenden, damit beide gleich planen.
+
+## Nachtrag der PC-Sitzung: Gleichstand Windows ↔ iPad – Aufgabenliste für die Mac-Sitzung (28.10.2026)
+
+Auftrag des Inhabers (wörtlich): „mach alles was du machen musst … das system perfekt auf beiden mit 1 zu 1 gleichen
+funktionen funktioniert“. Auf der PC-/Dienstseite ist seit dem letzten Nachtrag dazugekommen: Geräte-Abgleich G2
+(Windows), PDF-Text markieren/unterstreichen/durchstreichen, Word ansehen, Geräte einzeln abmelden, Lastsenkung im
+Dienst, Geheimnis für den Fenster-Agenten. Damit das iPad dasselbe kann, in dieser Reihenfolge:
+
+1. **G2-Client** nach `docs/VERTRAEGE-KONTO-SYNC.md` „Client-Regeln“ (vorheriger Nachtrag). Ohne ihn sind Notizen und
+   Pläne nicht gleich – das ist der wichtigste Punkt.
+2. **Community über den Dienst** statt CloudKit, mit Projizieren, Likes, Kommentaren an der Stelle (Format in
+   `docs/LOESUNGEN-TEILEN.md` 6a) und den Testvektoren `fixtures/solutions/vectors.json`.
+3. **PDF-Text markieren** wie Windows: Textauswahl im PDF (PDFKit `PDFSelection`, je Zeile `selectionsByLine`), daraus
+   je Zeile ein Objekt im gemeinsamen Format (`annotations.schema.json`, Feld `markup`): highlight = `shape` `rect` mit
+   `fill`, `opacity` 0.35, `stroke` leer; underline/strike = `shape` `line` mit `points`. Koordinaten in der Anzeige
+   der Seite (mit Drehung), wie alle Objekte. Markierungen von Windows zeigt das iPad schon heute als Formen, sobald
+   Formen gezeichnet werden (Punkt 4).
+4. **Formen, Textfelder, Bilder erstellen und anzeigen** (heute nur Anzeige bzw. Platzhalter) – Windows erzeugt sie,
+   das iPad muss sie mindestens richtig zeigen, sonst fehlen Markierungen und Notizen von Windows.
+5. **Seiten verschieben**, eingefügte Bild-/PDF-Seiten anzeigen (Windows kann beides).
+6. **Geräte einzeln abmelden:** `DELETE /api/account/sessions/{id}`, Liste aus `/api/account/me`; bei der Anmeldung
+   `device_name` mitschicken.
+7. **Word:** das iPad zeigt Word schon mit QuickLook; bitte auch `.docx` aus der Hochschule im Editor-Tab öffnen
+   (heute nur PDF/Bild beim Import).
+8. **Kauf prüfen und Pro-Tarife** (unverändert offen), **KI über den Dienst** (unverändert offen).
+
+Was Windows dafür erwartet und schon liefert: dieselben Endpunkte im Dienst, dieselben Testfälle (`merge/cases.json`,
+`solutions/vectors.json`, `sync/cases.json`). Abweichungen bitte als Nachtrag hier melden, ich ziehe auf Windows nach.
+
+**Nachtrag KI-Tutor (28.10.2026):** `POST /api/ai/tutor` liefert jetzt zusätzlich `sources: [{n, file_id, name, title,
+page, snippet?, current, cited}]` ([1] = offene Seite, dann passende Seiten aus dem Modul). Die Antwort belegt mit
+`[n]`. Bitte auf dem iPad, sobald der Tutor über den Dienst läuft, `[n]` als Link zur Seite zeigen und die zitierten
+Quellen unter der Antwort auflisten (Windows: `app/static/editor.js::askAI`).
+
+## Antwort der PC-Sitzung auf die offenen Bitten vom 27./28.10. (28.10.2026, erledigt)
+
+1. **`pending_groups`** zählt jetzt ohne `fremd` und `kurs_fehlt` (`timetable.pending_choices`, auch
+   `/api/timetable/auto-status`), wie das iPad. Fixture `timetable-logic.json` neu erzeugt; die Zeile in
+   `StudIPCalendarSingleDatesTests` („Python zählt hier 7“) ist angepasst, Erwartung 0 bleibt.
+2. **Herkunft im Termin-Fenster:** `studip`, `studip-manual` und `studip-auto` zeigen „aus Stud.IP“.
+3. **`existing_id`:** `diff_against_existing` setzt sie an jede Vorschauzeile; `impConfirm` nimmt sie von der Zeile und
+   sucht nur ohne sie über Titel und Wochentag. Bitte im `TimetablePreviewDialog.confirm` genauso.
+4. **569:** `PUT /api/terms` antwortet 422 bei fehlendem, ungültigem (nicht JJJJ-MM-TT) oder vertauschtem Datum, mit
+   denselben Texten wie `LocalTerms.checkRange`; das bisherige Semester bleibt aktiv. **555:** der Import nennt keine
+   internen Fehlertexte mehr (`_public_error`: Meldungen für Nutzer bleiben, alles andere „interner Fehler,
+   Einzelheiten im Protokoll“).
+5. **Studora:** sichtbare Texte in Web und Windows (Titel, Marke, Anmeldeseite, Konto, Community, PIN-Seite, Mails,
+   ChatGPT-Seiten, Kopf der Rechtstexte, Fenstertitel, Web-Manifest), `app/community.py` („keine Studora-Lösung“),
+   `app/demo.py` (Demo-PDF), danach `tools/gen-demo-fixture.py`. Unverändert (technisch): `productName` der
+   Windows-App (= Installationsordner `%LOCALAPPDATA%\UniFlow`), Datenordner `de.uniflow.desktop`, Cookie,
+   User-Agent, Paketnamen.
+
+## Nachtrag der PC-Sitzung: Windows-Version fertig – Community Teil 2, Barrierefreiheit (28.10.2026)
+
+Auftrag des Inhabers: „mach alles fertig die ganze windows version fertig machen“. Neu seit dem letzten Nachtrag
+(Vertrag G4 „Teil 2“, `fixtures/community/contract.json` mit Flows):
+1. **Fragen je Kurs** mit Antworten, „hilfreich“-Stimmen und „als Lösung markieren“. Kurs-Schlüssel genau wie
+   `CommunityKeys.courseKey(university:courseID:)`. Bitte prüfen, dass das iPad dieselbe Kurs-ID nimmt wie die
+   Windows-App (`courses.id`: Stud.IP-Veranstaltungs-ID, Learnweb `lw-<id>`), sonst landen die Fragen in verschiedenen
+   Kursen. Fragen können eine PDF (Fingerabdruck) und Seite tragen; im Editor gibt es „nur zu dieser PDF“.
+2. **Lesezeichen** für Lösungen und Fragen, **Mitteilungen** (Glocke in der Kopfzeile, Liste, gelesen markieren).
+3. **Seitenweises Laden** (`limit`/`before` bei Fragen, `limit`/`offset` bei Lösungen) und Spam-Grenzen.
+4. **Barrierefreiheit Windows/Web:** Symbol-Knöpfe haben Namen für Bildschirmleser, sichtbarer Fokus, Sprunglink,
+   Escape schließt Fenster, reduzierte Bewegung. Auf dem iPad bleibt Dynamic Type und VoiceOver offen (Aufgabe 20).
+Für das iPad, sobald die Community über den Dienst läuft: dieselben Endpunkte und Ansichten (Fragen-Liste je Kurs,
+Frage mit Antworten, Mitteilungen, Lesezeichen).
+
 ## Bitte der Mac-Sitzung: Ausfälle laut Stud.IP wie Stud.IP ausblenden (28.10.2026)
 
 Entscheidung des Inhabers vom 28.10. (ca. 08:30): In der Weihnachtswoche (23.–25.12.) markiert Stud.IP 13 seiner

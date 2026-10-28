@@ -32,7 +32,14 @@ if (!info || !info.hosted) {
   $$("#pwHint, #pwHint2").forEach(h => h.textContent = `(mindestens ${info.password_min} Zeichen)`);
   $$('input[name="password"]').forEach(i => i.minLength = info.password_min);
   const token = new URLSearchParams(location.search).get("reset");
+  const verify = new URLSearchParams(location.search).get("verify");
   show(token ? "reset" : "login");
+  if (verify) {                                              // Link aus der Willkommensmail: Adresse bestaetigen
+    history.replaceState(null, "", "/login");
+    post("/verify-email", { token: verify })
+      .then(() => say("loginMsg", "E-Mail-Adresse bestätigt. Du kannst dich jetzt anmelden.", true))
+      .catch(x => say("loginMsg", x.message));
+  }
   $("#login").onsubmit = async e => {
     e.preventDefault(); const f = e.target; busy(f, true);
     try { await post("/login", { email: f.email.value.trim(), password: f.password.value, device_name: device() }); location.replace("/"); }

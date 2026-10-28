@@ -6,7 +6,53 @@
   "session_days": 30,
   "reset_minutes": 30,
   "max_fails": 8,
+  "max_fails_ip": 50,
   "lock_minutes": 10,
+  "verify_hours": 48,
+  "limits": {
+   "answer_user": {
+    "count": 30,
+    "minutes": 60
+   },
+   "comment_user": {
+    "count": 30,
+    "minutes": 60
+   },
+   "export_user": {
+    "count": 3,
+    "minutes": 1440
+   },
+   "like_user": {
+    "count": 120,
+    "minutes": 60
+   },
+   "publish_user": {
+    "count": 20,
+    "minutes": 1440
+   },
+   "question_user": {
+    "count": 10,
+    "minutes": 60
+   },
+   "register_ip": {
+    "count": 30,
+    "minutes": 60
+   },
+   "reset_email": {
+    "count": 3,
+    "minutes": 60
+   },
+   "reset_ip": {
+    "count": 30,
+    "minutes": 60
+   },
+   "verify_user": {
+    "count": 5,
+    "minutes": 60
+   }
+  },
+  "email_verification": "Willkommensmail mit /login?verify=<token>; POST /api/account/verify-email {token} ohne Sitzung; Community-Veroeffentlichen erst danach (403 email_unverified); ein Passwort-Reset ueber den Mail-Link bestaetigt die Adresse auch",
+  "export": "GET /api/account/export -> ZIP (LIESMICH.txt, konto.json, daten/, community/, testbibliothek.json); Passwoerter nie im Klartext",
   "email_regex": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]{2,}$",
   "universities": [
    "luh",
@@ -90,6 +136,12 @@
   },
   {
    "method": "GET",
+   "path": "/api/account/export",
+   "public": false,
+   "summary": "Alle Daten des Kontos als ZIP (Auskunft und Datenübertragbarkeit, DSGVO Art. 15 und 20); hoechstens 3 je Tag."
+  },
+  {
+   "method": "GET",
    "path": "/api/account/info",
    "public": true,
    "summary": "Oeffentlich: Betriebsart und Regeln, damit Clients das Formular passend bauen."
@@ -161,10 +213,28 @@
    "summary": ""
   },
   {
+   "method": "DELETE",
+   "path": "/api/account/sessions/{session_id}",
+   "public": false,
+   "summary": "Ein Geraet abmelden (Vertrag G1, 28.10.2026). Die eigene Sitzung beendet diese Anmeldung."
+  },
+  {
    "method": "POST",
    "path": "/api/account/university",
    "public": false,
    "summary": "Hochschule wechseln: die Daten jeder Hochschule bleiben in ihrem eigenen Ordner erhalten."
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/verify-email",
+   "public": true,
+   "summary": "E-Mail-Adresse bestaetigen: {token} aus dem Link der Mail (/login?verify=<token>); ohne Sitzung moeglich."
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/verify-email/resend",
+   "public": false,
+   "summary": "Bestaetigungslink erneut schicken (hoechstens 5 je Stunde); schon bestaetigt -> already."
   }
  ],
  "errors": {
@@ -208,6 +278,10 @@
    "status": 501,
    "message": "Anmeldung mit Google ist noch nicht eingerichtet (Prüfung der Signatur fehlt)."
   },
+  "rate_limited": {
+   "status": 429,
+   "message": "Zu viele Versuche. Bitte in 60 Minuten erneut versuchen."
+  },
   "reset_invalid": {
    "status": 400,
    "message": "Der Link ist ungültig oder abgelaufen."
@@ -223,6 +297,10 @@
   "use_account": {
    "status": 400,
    "message": "Die Hochschule gehoert zum Konto: POST /api/account/university"
+  },
+  "verify_invalid": {
+   "status": 400,
+   "message": "Der Bestätigungslink ist ungültig oder abgelaufen."
   }
  },
  "flows": [
@@ -606,6 +684,100 @@
    }
   },
   {
+   "step": "Bestaetigungslink erneut senden",
+   "method": "POST",
+   "path": "/api/account/verify-email/resend",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "ok": true,
+    "already": false,
+    "message": "Wir haben dir einen neuen Bestätigungslink geschickt."
+   }
+  },
+  {
+   "step": "Bestaetigen mit ungueltigem Link",
+   "method": "POST",
+   "path": "/api/account/verify-email",
+   "auth": false,
+   "request": {
+    "token": "kaputt"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Der Bestätigungslink ist ungültig oder abgelaufen.",
+    "code": "verify_invalid"
+   }
+  },
+  {
+   "step": "Bestaetigen mit dem Link aus der Mail (ohne Sitzung)",
+   "method": "POST",
+   "path": "/api/account/verify-email",
+   "auth": false,
+   "request": {
+    "token": "<token aus /login?verify=...>"
+   },
+   "status": 200,
+   "response": {
+    "ok": true,
+    "user": {
+     "id": "<user-id>",
+     "email": "erika@beispiel.de",
+     "email_verified": true,
+     "university": "hildesheim",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    }
+   }
+  },
+  {
+   "step": "Derselbe Link noch einmal",
+   "method": "POST",
+   "path": "/api/account/verify-email",
+   "auth": false,
+   "request": {
+    "token": "<token aus /login?verify=...>"
+   },
+   "status": 400,
+   "response": {
+    "detail": "Der Bestätigungslink ist ungültig oder abgelaufen.",
+    "code": "verify_invalid"
+   }
+  },
+  {
+   "step": "Erneut senden, schon bestaetigt",
+   "method": "POST",
+   "path": "/api/account/verify-email/resend",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": {
+    "ok": true,
+    "already": true
+   }
+  },
+  {
+   "step": "Datenexport (ZIP)",
+   "method": "GET",
+   "path": "/api/account/export",
+   "auth": true,
+   "request": null,
+   "status": 200,
+   "response": null,
+   "content_type": "application/zip",
+   "zip_entries_ohne_daten": [
+    "LIESMICH.txt",
+    "community/meine-loesungen.json",
+    "community/meine-meldungen.json",
+    "community/meine-sperrliste.json",
+    "konto.json",
+    "testbibliothek.json"
+   ]
+  },
+  {
    "step": "Hochschule wechseln",
    "method": "POST",
    "path": "/api/account/university",
@@ -618,7 +790,7 @@
     "user": {
      "id": "<user-id>",
      "email": "erika@beispiel.de",
-     "email_verified": false,
+     "email_verified": true,
      "university": "luh",
      "plan": "free",
      "plan_until": null,
@@ -697,7 +869,7 @@
     "user": {
      "id": "<user-id>",
      "email": "erika@beispiel.de",
-     "email_verified": false,
+     "email_verified": true,
      "university": "luh",
      "plan": "free",
      "plan_until": null,
@@ -735,7 +907,7 @@
     "user": {
      "id": "<user-id>",
      "email": "erika@beispiel.de",
-     "email_verified": false,
+     "email_verified": true,
      "university": "luh",
      "plan": "free",
      "plan_until": null,
@@ -798,6 +970,76 @@
    "response": {
     "detail": "Zu viele Fehlversuche. Bitte 10 Minuten warten.",
     "code": "locked"
+   }
+  },
+  {
+   "step": "Registrieren: erste Anfrage dieser IP",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "grenze@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "luh"
+   },
+   "status": 201,
+   "response": {
+    "user": {
+     "id": "<user-id>",
+     "email": "grenze@beispiel.de",
+     "email_verified": false,
+     "university": "luh",
+     "plan": "free",
+     "plan_until": null,
+     "role": "user",
+     "created_at": "<zeit-utc>"
+    },
+    "token": "<token>"
+   },
+   "set_cookie": "uniflow_session=<token>; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax"
+  },
+  {
+   "step": "Registrieren: Grenze je IP erreicht (Retry-After)",
+   "method": "POST",
+   "path": "/api/account/register",
+   "auth": false,
+   "request": {
+    "email": "grenze2@beispiel.de",
+    "password": "sehr-geheim-123",
+    "university": "luh"
+   },
+   "status": 429,
+   "response": {
+    "detail": "Zu viele Versuche. Bitte in 60 Minuten erneut versuchen.",
+    "code": "rate_limited"
+   }
+  },
+  {
+   "step": "Reset anfordern: erste Anfrage dieser IP",
+   "method": "POST",
+   "path": "/api/account/password/reset-request",
+   "auth": false,
+   "request": {
+    "email": "grenze@beispiel.de"
+   },
+   "status": 200,
+   "response": {
+    "ok": true,
+    "message": "Wenn es ein Konto mit dieser Adresse gibt, wurde ein Link zum Zurücksetzen verschickt."
+   }
+  },
+  {
+   "step": "Reset anfordern: Grenze je IP erreicht",
+   "method": "POST",
+   "path": "/api/account/password/reset-request",
+   "auth": false,
+   "request": {
+    "email": "grenze@beispiel.de"
+   },
+   "status": 429,
+   "response": {
+    "detail": "Zu viele Versuche. Bitte in 60 Minuten erneut versuchen.",
+    "code": "rate_limited"
    }
   }
  ]

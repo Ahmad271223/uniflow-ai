@@ -3,23 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>UniFlow AI</title>
+<title>Studora</title>
 <meta name="theme-color" content="#4f5bd5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="UniFlow">
+<meta name="apple-mobile-web-app-title" content="Studora">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/inter.css?v=30">
-<link rel="stylesheet" href="style.css?v=32">
-<link rel="stylesheet" href="editor.css?v=30">
+<link rel="stylesheet" href="style.css?v=35">
+<link rel="stylesheet" href="editor.css?v=36">
 <script src="theme.js?v=30"></script>
 </head>
 <body>
+<a class="skip-link" href="#view" id="skipLink">Zum Inhalt springen</a>
 <div class="shell" id="shell">
   <aside class="sidebar" id="sidebar">
-    <div class="brand"><div class="logo" id="brandLogo"></div><span>UniFlow AI</span></div>
+    <div class="brand"><div class="logo" id="brandLogo"></div><span>Studora</span></div>
     <nav class="nav" id="nav"></nav>
     <div class="side-foot">
       <a href="#/settings" class="nav-link" id="navSettings"></a>
@@ -33,15 +34,16 @@
       <span class="spacer"></span>
       <span class="sync-chip" id="syncChip"></span>
       <button class="btn sm" id="syncBtn" title="Jetzt mit Stud.IP synchronisieren"></button>
+      <button class="btn ghost icon notif-btn" id="notifBtn" title="Mitteilungen der Community" aria-label="Mitteilungen" hidden></button>
       <button class="btn ghost icon" id="themeBtn" title="Hell/Dunkel"></button>
       <button class="btn ghost icon" id="profileBtn" title="Profil"></button>
       <div class="avatar" id="avatar" title="Angemeldet mit deiner LUH-ID">AH</div>
     </header>
-    <main id="view"></main>
+    <main id="view" tabindex="-1" aria-live="polite"></main>
   </div>
 </div>
 <nav class="mobile-nav" id="mobileNav"></nav>
 <div id="overlay"></div>
-<script type="module" src="app.js?v=38"></script>
+<script type="module" src="app.js?v=53"></script>
 </body>
 </html>

@@ -66,7 +66,7 @@ def test_push_creates_with_mapping_and_pull_with_cursor(conn):
     task = sync.changes(conn, None)["changes"]["study_tasks"][0]
     assert task["package_id"] == m[("study_packages", -2)]
     first = sync.changes(conn, None)
-    assert sync.changes(conn, first["cursor"]) == {"cursor": first["cursor"], "changes": {}, "tombstones": []}
+    assert sync.changes(conn, first["cursor"]) == {"cursor": first["cursor"], "changes": {}, "tombstones": [], "has_more": False}
     conn.execute("UPDATE modules SET name='Mathe I'")
     again = sync.changes(conn, first["cursor"])
     assert list(again["changes"]) == ["modules"] and again["changes"]["modules"][0]["sync_version"] == 2
@@ -130,6 +130,111 @@ def test_settings_sync_skips_private_keys(conn):
     assert db.row(conn, "SELECT value FROM settings WHERE key='hours_per_day'")["value"] == "6"
     keys = {s["key"] for s in sync.changes(conn, None)["changes"]["settings"]}
     assert "hours_per_day" in keys and not ({"lan_pin", "university"} & keys)
+
+
+def _pull_all(conn, since=None, limit=3):
+    """Wie ein Client: weiter abrufen, solange has_more; liefert alle Zeilen je Tabelle, Tombstones und Seitenzahl."""
+    from app import sync
+    seen: dict[str, list] = {}
+    tombs, pages = [], 0
+    while True:
+        r = sync.changes(conn, since, limit)
+        pages += 1
+        for t, rows in r["changes"].items():
+            seen.setdefault(t, []).extend(rows)
+        tombs += r["tombstones"]
+        assert r["cursor"] is None or not since or r["cursor"] >= since
+        since = r["cursor"]
+        if not r["has_more"]:
+            return seen, tombs, pages, since
+        assert pages < 100
+
+
+def test_paged_pull_never_skips_rows(conn):
+    """Vorher (bis 28.10.2026): LIMIT je Tabelle und Cursor = Maximum ueber alle Tabellen. Mehr als LIMIT Aenderungen in
+    einer Tabelle plus eine spaetere Aenderung in einer anderen -> der Rest der ersten Tabelle war verloren."""
+    from app import sync
+    for i in range(7):
+        conn.execute("INSERT INTO flashcards(question, answer, box) VALUES (?, 'A', 1)", (f"Q{i}",))
+    # viele Zeilen mit GLEICHEM Zeitstempel (eine Anweisung): passen nicht in eine Seite, werden trotzdem vollstaendig geliefert
+    conn.execute("UPDATE flashcards SET box=2")
+    conn.execute("INSERT INTO modules(name, color, sort, created_at) VALUES ('Spaeter', '#111111', 0, '2026-10-28')")
+    conn.execute("INSERT INTO flashcards(question, answer, box) VALUES ('weg', 'A', 1)")
+    gone = conn.execute("SELECT id FROM flashcards WHERE question='weg'").fetchone()[0]
+    conn.execute("DELETE FROM flashcards WHERE id=?", (gone,))
+    full = sync.changes(conn, None)
+    assert full["has_more"] is False
+    rows, tombs, pages, cursor = _pull_all(conn, None, limit=3)
+    assert pages >= 1
+    want = {t: sorted(r["id"] if "id" in r else r["key"] for r in v) for t, v in full["changes"].items()}
+    got = {t: sorted(set(r["id"] if "id" in r else r["key"] for r in v)) for t, v in rows.items()}
+    assert got == want, "keine Zeile uebersprungen"
+    assert {(t["entity"], t["entity_id"]) for t in tombs} == {(t["entity"], t["entity_id"]) for t in full["tombstones"]}
+    assert cursor == full["cursor"]
+    assert sync.changes(conn, cursor, 3) == {"cursor": cursor, "changes": {}, "tombstones": [], "has_more": False}
+
+
+def test_paged_pull_with_more_rows_than_limit_in_one_table(conn):
+    from app import sync
+    import time
+    _, _, _, c0 = _pull_all(conn, None, limit=4)                # Startzustand (Einstellungen usw.) schon abgeholt
+    time.sleep(0.003)
+    for i in range(9):
+        conn.execute("INSERT INTO flashcards(question, answer, box) VALUES (?, 'A', 1)", (f"P{i}",))
+        time.sleep(0.003)                                       # verschiedene Zeitstempel
+    conn.execute("INSERT INTO modules(name, color, sort, created_at) VALUES ('Danach', '#111111', 0, '2026-10-28')")
+    first = sync.changes(conn, c0, 4)
+    assert first["has_more"] is True and len(first["changes"]["flashcards"]) == 4
+    assert "modules" not in first["changes"], "die spaetere Aenderung kommt erst nach den uebrigen Karten"
+    rows, _, pages, _ = _pull_all(conn, c0, limit=4)
+    assert pages >= 3
+    assert {r["question"] for r in rows["flashcards"]} >= {f"P{i}" for i in range(9)}
+    assert any(m["name"] == "Danach" for m in rows["modules"])
+
+
+def test_repeated_push_with_op_id_creates_once(conn):
+    """Verlorene Antwort, das Geraet sendet denselben Push noch einmal: mit op_id entsteht nichts doppelt, die
+    Zuordnung kommt wieder, auch fuer Kinder im selben Push. Ohne op_id wie bisher (zweite Zeile)."""
+    from app import sync
+    items = [
+        {"entity": "modules", "local_id": -1, "op_id": "op-ipad-0001", "data": {"name": "Wdh-Modul"}},
+        {"entity": "study_packages", "local_id": -2, "op_id": "op-ipad-0002", "data": {"date": "2026-11-02", "module_id": -1, "subject": "Wdh", "title": "W1"}},
+        {"entity": "flashcards", "local_id": -3, "op_id": "op-ipad-0003", "data": {"question": "Wdh?", "answer": "A", "box": 1}},
+    ]
+    a = sync.push(conn, "ipad-1", items)
+    b = sync.push(conn, "ipad-1", items)
+    assert [r["status"] for r in a["results"]] == ["created"] * 3 and not any(r.get("repeated") for r in a["results"])
+    assert [r["status"] for r in b["results"]] == ["created"] * 3 and all(r.get("repeated") for r in b["results"])
+    assert [r["id"] for r in a["results"]] == [r["id"] for r in b["results"]]
+    assert sorted((m["entity"], m["local_id"], m["id"]) for m in a["mapping"]) == sorted((m["entity"], m["local_id"], m["id"]) for m in b["mapping"])
+    assert conn.execute("SELECT COUNT(*) FROM modules WHERE name='Wdh-Modul'").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM study_packages WHERE title='W1'").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM flashcards WHERE question='Wdh?'").fetchone()[0] == 1
+    # ein neuer Eintrag im Wiederholungs-Push, der auf das wiederholte Modul zeigt, bekommt die richtige ID
+    c = sync.push(conn, "ipad-1", [items[0], {"entity": "study_packages", "local_id": -5, "op_id": "op-ipad-0005",
+                                              "data": {"date": "2026-11-09", "module_id": -1, "subject": "Wdh", "title": "W2"}}])
+    mod = a["results"][0]["id"]
+    assert conn.execute("SELECT module_id FROM study_packages WHERE title='W2'").fetchone()[0] == mod and c["results"][1]["status"] == "created"
+    # Aenderung mit op_id: Wiederholung meldet dasselbe Ergebnis, kein Konflikt aus der eigenen ersten Fassung
+    upd = [{"entity": "modules", "id": mod, "base_version": 1, "op_id": "op-ipad-0006", "data": {"name": "Wdh-Modul 2"}}]
+    u1, u2 = sync.push(conn, "ipad-1", upd), sync.push(conn, "ipad-1", upd)
+    assert u1["results"][0]["status"] == "applied" and u2["results"][0] == u1["results"][0] | {"repeated": True}
+    # Fehler werden nicht gemerkt: ein spaeterer Versuch darf gelingen
+    bad = [{"entity": "study_tasks", "local_id": -9, "op_id": "op-ipad-0009", "data": {"package_id": -77, "type": "uebung", "title": "x"}}]
+    assert sync.push(conn, "ipad-1", bad)["results"][0]["status"] == "error"
+    assert sync.push(conn, "ipad-1", bad)["results"][0].get("repeated") is None
+    # ohne op_id wie bisher
+    sync.push(conn, "ipad-1", [{"entity": "flashcards", "local_id": -1, "data": {"question": "ohne", "answer": "A", "box": 1}}])
+    sync.push(conn, "ipad-1", [{"entity": "flashcards", "local_id": -1, "data": {"question": "ohne", "answer": "A", "box": 1}}])
+    assert conn.execute("SELECT COUNT(*) FROM flashcards WHERE question='ohne'").fetchone()[0] == 2
+
+
+def test_sync_changes_endpoint_takes_a_limit(app):
+    from conftest import asgi_call
+    import json as _json
+    st, _, b = asgi_call(app, "GET", "/api/sync/changes?limit=1")
+    assert st == 200 and "has_more" in _json.loads(b)
+    assert asgi_call(app, "GET", "/api/sync/changes?limit=0")[0] == 422
 
 
 def test_sync_endpoints_local_mode(app):

@@ -140,3 +140,21 @@ def test_cookie_header_and_checks(monkeypatch):
     assert unilogin.check_cookies("hildesheim", cookies) is False
     monkeypatch.setattr(unilogin, "_get_with_cookies", lambda *a, **k: '<body class="path-my">M.cfg = {sesskey: "k"}')
     assert unilogin.check_cookies("hildesheim", cookies) is True
+
+
+def test_agent_endpoints_need_the_secret_of_the_app_window(app, monkeypatch):
+    """P11 (28.10.2026): die Windows-App gibt ihrem Backend ein Geheimnis mit; ohne es keine Auftraege und keine
+    Zustandsmeldungen, auch nicht vom eigenen Rechner (fremde Seite in einem App-Fenster)."""
+    from app import desktop_windows as dw
+    monkeypatch.setenv("LERNAPP_DESKTOP", "1")
+    monkeypatch.setenv("LERNAPP_AGENT_TOKEN", "geheim-0123456789abcdef")
+    assert asgi_call(app, "GET", "/api/desktop/commands?wait=0")[0] == 403
+    assert asgi_call(app, "GET", "/api/desktop/commands?wait=0", headers={"X-UniFlow-Agent": "falsch"})[0] == 403
+    st, _, _ = asgi_call(app, "GET", "/api/desktop/commands?wait=0", headers={"X-UniFlow-Agent": "geheim-0123456789abcdef"})
+    assert st == 204
+    w = dw.enqueue("open", "https://studip.test/y", "studip.test")
+    st, _, _ = asgi_call(app, "POST", f"/api/desktop/windows/{w.id}/state", body=json.dumps({"status": "open"}))
+    assert st == 403
+    st, _, _ = asgi_call(app, "POST", f"/api/desktop/windows/{w.id}/state", body=json.dumps({"status": "closed"}),
+                         headers={"X-UniFlow-Agent": "geheim-0123456789abcdef"})
+    assert st == 200

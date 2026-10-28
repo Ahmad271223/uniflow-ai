@@ -357,7 +357,7 @@ def handle_callback(flow: Flow, query: dict[str, str]) -> tuple[int, str]:
     if flow.done.is_set():
         return 400, _page("Diese Anmeldung ist schon abgeschlossen.", ok=False)
     if query.get("state") != flow.state:
-        return 400, _page("Die Antwort gehoert nicht zu dieser Anmeldung (state). Bitte in UniFlow erneut „ChatGPT verbinden“.", ok=False)
+        return 400, _page("Die Antwort gehoert nicht zu dieser Anmeldung (state). Bitte in Studora erneut „ChatGPT verbinden“.", ok=False)
     if query.get("error"):
         flow.error = "Anmeldung abgebrochen." if query["error"] == "access_denied" else f"OpenAI meldet: {query.get('error_description') or query['error']}"
         flow.done.set()
@@ -390,15 +390,15 @@ def handle_callback(flow: Flow, query: dict[str, str]) -> tuple[int, str]:
         return 502, _page(f"Verbindung nicht abgeschlossen: {e.message}", ok=False)
     flow.ok = True
     flow.done.set()
-    return 200, _page("UniFlow ist jetzt mit deinem ChatGPT-Konto verbunden. Du kannst dieses Fenster schliessen.", ok=True)
+    return 200, _page("Studora ist jetzt mit deinem ChatGPT-Konto verbunden. Du kannst dieses Fenster schliessen.", ok=True)
 
 
 def _page(text: str, ok: bool) -> str:
     color = "#1a7f37" if ok else "#b42318"
-    return ("<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>UniFlow – ChatGPT</title></head>"
+    return ("<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>Studora – ChatGPT</title></head>"
             "<body style=\"font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem\">"
             f"<h1 style=\"color:{color};font-size:1.3rem\">{'Verbunden' if ok else 'Nicht verbunden'}</h1>"
-            f"<p>{html.escape(text)}</p><p style=\"color:#666\">Zurueck zu UniFlow.</p></body></html>")
+            f"<p>{html.escape(text)}</p><p style=\"color:#666\">Zurueck zu Studora.</p></body></html>")
 
 
 def _serve(flow: Flow) -> None:

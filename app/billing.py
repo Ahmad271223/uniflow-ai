@@ -88,7 +88,8 @@ def connect() -> sqlite3.Connection:
     conn = sqlite3.connect(p, isolation_level=None, timeout=15, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=15000")
-    ensure_schema(conn)
+    from . import db
+    db.schema_once(conn, "billing", p, ensure_schema)
     return conn
 
 
