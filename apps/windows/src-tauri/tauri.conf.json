@@ -9,7 +9,7 @@
   "app": {
     "withGlobalTauri": false,
     "windows": [
-      { "label": "main", "title": "UniFlow", "width": 1360, "height": 900, "minWidth": 900, "minHeight": 600, "url": "index.html" }
+      { "label": "main", "title": "Studora", "width": 1360, "height": 900, "minWidth": 900, "minHeight": 600, "url": "index.html" }
     ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"

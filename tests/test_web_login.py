@@ -60,7 +60,7 @@ def test_hosted_root_redirects_to_login_without_session(hosted):
 def test_hosted_session_cookie_opens_app_and_logout_closes_it(hosted):
     cookie = _register(hosted, "web@beispiel.de")
     st, h, body = asgi_call(hosted, "GET", "/", cookies=cookie)
-    assert st == 200 and b"<title>UniFlow AI</title>" in body, "mit Sitzung die App"
+    assert st == 200 and b"<title>Studora</title>" in body, "mit Sitzung die App"
     st, h, _ = asgi_call(hosted, "GET", "/login", cookies=cookie)
     assert (st, _h(h, "location")) == (302, ["/"]), "angemeldet: Anmeldeseite leitet zur App"
     st, _, body = asgi_call(hosted, "GET", "/api/account/me", cookies=cookie)
@@ -108,7 +108,7 @@ def test_local_mode_has_no_login_page(app):
     st, h, _ = asgi_call(app, "GET", "/login")
     assert (st, _h(h, "location")) == (302, ["/"])
     st, _, body = asgi_call(app, "GET", "/")
-    assert st == 200 and b"<title>UniFlow AI</title>" in body
+    assert st == 200 and b"<title>Studora</title>" in body
 
 
 def test_login_script_uses_only_public_account_paths():

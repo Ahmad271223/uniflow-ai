@@ -210,7 +210,7 @@ export async function viewCommunity(_, __, view) {
   const info = await r.json();
   const [mine, blocks, mod] = await Promise.all([api("/community/mine"), api("/community/blocks"), info.admin ? api("/community/moderation") : Promise.resolve(null)]);
   const run = async (fn, msg) => { try { await fn(); if (msg) toast(msg); state.route(); } catch (e) { toast(e.message, 4000); } };
-  view.innerHTML = `<div class="content" style="max-width:960px"><div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – veröffentlicht vom iPad, verwaltet hier.</div></div><div class="row"><span class="badge neutral" title="Dein Name in der Community">${icon("user", 12)} ${esc(info.pseudonym)}</span>${info.plan_ok ? `<span class="badge ok">UniFlow Plus</span>` : `<span class="badge warn">UniFlow Plus nötig</span>`}</div></div>
+  view.innerHTML = `<div class="content" style="max-width:960px"><div class="page-head"><div><h1>Community</h1><div class="sub">Lösungen zu deinen Übungsblättern – geteilt auf Windows und dem iPad.</div></div><div class="row"><span class="badge neutral" title="Dein Name in der Community">${icon("user", 12)} ${esc(info.pseudonym)}</span>${info.plan_ok ? `<span class="badge ok">Studora Plus</span>` : `<span class="badge warn">Studora Plus nötig</span>`}</div></div>
     <div class="card"><div class="card-head"><h2>${icon("info", 18)} So funktioniert es</h2></div><ul class="small muted" style="margin:0">
       <li>Veröffentlichen, suchen und laden geht nur für PDFs aus deinem eigenen Hochschul-Abgleich – und nur innerhalb deiner Hochschule.</li>
       <li>Eine Lösung ist verschlüsselt; öffnen kann sie nur, wer dieselbe Original-PDF hat. Der Dienst sieht den Inhalt nie.</li>
@@ -246,7 +246,7 @@ function chatgptCard(gpt, models) {
   const pending = gpt.pending ? `<p class="small" style="color:var(--accent)">${icon("clock", 13)} Anmeldung läuft im Browser … (Port ${gpt.pending.port})</p>` : "";
   const err = gpt.last_error ? `<p class="small" style="color:var(--bad)">${esc(gpt.last_error)}</p>` : "";
   if (!gpt.connected) return `<div class="card">${head}
-      <p class="small muted">Verbinde dein eigenes ChatGPT-Konto (Plus, Pro oder Go): Erklärungen im Editor, Analyse der Unterlagen und Lernpläne laufen dann über dein Abo statt über Claude. UniFlow bekommt nur Name und E-Mail und ein Zugriffstoken, nie dein Passwort und nie deine Chats. Das Token bleibt auf diesem Rechner.</p>
+      <p class="small muted">Verbinde dein eigenes ChatGPT-Konto (Plus, Pro oder Go): Erklärungen im Editor, Analyse der Unterlagen und Lernpläne laufen dann über dein Abo statt über Claude. Studora bekommt nur Name und E-Mail und ein Zugriffstoken, nie dein Passwort und nie deine Chats. Das Token bleibt auf diesem Rechner.</p>
       ${pending}${err}<div class="row wrap"><button class="btn primary sm" id="gptConnect" ${gpt.pending ? "disabled" : ""}>${icon("log-out", 14)} ChatGPT verbinden</button>${gpt.pending ? `<button class="btn sm" id="gptOpen">Anmeldeseite erneut öffnen</button>` : ""}</div></div>`;
   const who = gpt.email || gpt.name || "ChatGPT-Konto";
   const options = (models && models.length ? models : [gpt.model].filter(Boolean)).map(m => `<option value="${esc(m)}" ${m === gpt.model ? "selected" : ""}>${esc(m)}</option>`).join("");
@@ -257,7 +257,7 @@ function chatgptCard(gpt, models) {
         <label class="field" style="margin:0;flex:1">Modell<select class="input" id="gptModel">${options || `<option value="">(Modelle laden …)</option>`}</select></label>
         <label class="small"><input type="checkbox" id="gptUse" ${gpt.use_for_ai ? "checked" : ""}> KI-Anfragen über mein ChatGPT</label></div>
       ${!gpt.model ? `<p class="small muted">Bitte ein Modell wählen, sonst bleibt Claude aktiv.</p>` : ""}
-      <p class="small muted">Verbrauch zählt gegen dein ChatGPT-Kontingent; das Wochenlimit für UniFlow setzt du in ChatGPT unter Einstellungen → Nutzung (<a href="${esc(gpt.usage_help_url || "https://chatgpt.com/#settings")}" target="_blank" rel="noopener">Nutzung verwalten</a>).</p>
+      <p class="small muted">Verbrauch zählt gegen dein ChatGPT-Kontingent; das Wochenlimit für Studora setzt du in ChatGPT unter Einstellungen → Nutzung (<a href="${esc(gpt.usage_help_url || "https://chatgpt.com/#settings")}" target="_blank" rel="noopener">Nutzung verwalten</a>).</p>
       <div class="row wrap"><button class="btn sm" id="gptReconnect">${icon("refresh", 14)} Neu verbinden</button><button class="btn ghost sm" id="gptDisconnect">Trennen</button></div></div>`;
 }
 
@@ -367,8 +367,8 @@ export async function viewSettings(_, params, view) {
       demoBtn.onclick = async () => { demoBtn.disabled = true; try { const d = await api("/demo", { method: "POST", body: { enabled: demoBtn.dataset.on !== "1" } }); showDemo(d); toast(d.enabled ? `Demo angelegt: ${d.files} PDFs, ${d.events} Termine, ${d.packages} Lernpakete` : "Demo-Inhalte entfernt"); } catch (e) { toast(e.message, 4000); } demoBtn.disabled = false; };
     }
     $("#diagTest")?.addEventListener("click", async () => { const out = $("#diagOut"); out.textContent = "Prüfe…"; const lines = []; try { const f = (await api("/library")).files.find(x => x.kind === "pdf" && x.downloaded_at); if (!f) { out.textContent = "Keine PDF vorhanden."; return; } const r = await fetch(`/api/files/${f.id}/content`); lines.push(`PDF-Abruf: HTTP ${r.status}, Typ ${r.headers.get("content-type")}`); const pdfjs = await import("./vendor/pdf.min.mjs?v=3"); pdfjs.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs?v=3"; const doc = await pdfjs.getDocument({ data: await r.arrayBuffer() }).promise; lines.push(`pdf.js: ${doc.numPages} Seiten gelesen`); const page = await doc.getPage(1); const vp = page.getViewport({ scale: 1 }); const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height; await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise; lines.push(`Canvas: Seite 1 gerendert (${Math.round(vp.width)}×${Math.round(vp.height)})`); lines.push(`Konva: ${typeof window.Konva !== "undefined" ? "geladen" : "nicht geladen (wird erst im Editor geladen)"}`); out.innerHTML = `<div style="color:var(--ok)">✅ ${lines.join("<br>")}</div><img src="${cv.toDataURL()}" style="max-width:220px;border:1px solid var(--line);margin-top:.5rem">`; } catch (e) { lines.push(`❌ ${e.message}`); out.innerHTML = `<div style="color:var(--bad)">${lines.join("<br>")}</div>`; } });
-    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=30")).configDialog(() => state.route()));
-    $("#openAvail")?.addEventListener("click", async () => (await import("./views-tt.js?v=30")).availabilityDialog());
+    $("#openCfg")?.addEventListener("click", async () => (await import("./views-plan.js?v=31")).configDialog(() => state.route()));
+    $("#openAvail")?.addEventListener("click", async () => (await import("./views-tt.js?v=31")).availabilityDialog());
   };
   render();
 }

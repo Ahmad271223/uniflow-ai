@@ -232,14 +232,14 @@ def validate_package(pkg) -> dict:
     def bad(what: str):
         raise CommunityError("package_invalid", f"Die Lösung ist beschädigt (Kopf: {what}).")
     if not isinstance(pkg, dict) or pkg.get("format") != FORMAT:
-        raise CommunityError("not_a_solution", "Die Datei ist keine UniFlow-Lösung.")
+        raise CommunityError("not_a_solution", "Die Datei ist keine Studora-Lösung.")
     if set(pkg) != TOP_KEYS:
         bad("Felder")
     v = pkg.get("formatVersion")
     if not isinstance(v, int) or isinstance(v, bool):
         bad("Formatversion")
     if v != FORMAT_VERSION:
-        raise CommunityError("unsupported_version", f"Diese Lösung hat Formatversion {v} – bitte UniFlow aktualisieren.")
+        raise CommunityError("unsupported_version", f"Diese Lösung hat Formatversion {v} – bitte Studora aktualisieren.")
     h = pkg.get("header")
     if not isinstance(h, dict) or set(h) != HEADER_KEYS:
         bad("Kopf")

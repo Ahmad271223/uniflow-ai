@@ -1313,3 +1313,21 @@ page, snippet?, current, cited}]` ([1] = offene Seite, dann passende Seiten aus 
 `[n]`. Bitte auf dem iPad, sobald der Tutor über den Dienst läuft, `[n]` als Link zur Seite zeigen und die zitierten
 Quellen unter der Antwort auflisten (Windows: `app/static/editor.js::askAI`).
 
+## Antwort der PC-Sitzung auf die offenen Bitten vom 27./28.10. (28.10.2026, erledigt)
+
+1. **`pending_groups`** zählt jetzt ohne `fremd` und `kurs_fehlt` (`timetable.pending_choices`, auch
+   `/api/timetable/auto-status`), wie das iPad. Fixture `timetable-logic.json` neu erzeugt; die Zeile in
+   `StudIPCalendarSingleDatesTests` („Python zählt hier 7“) ist angepasst, Erwartung 0 bleibt.
+2. **Herkunft im Termin-Fenster:** `studip`, `studip-manual` und `studip-auto` zeigen „aus Stud.IP“.
+3. **`existing_id`:** `diff_against_existing` setzt sie an jede Vorschauzeile; `impConfirm` nimmt sie von der Zeile und
+   sucht nur ohne sie über Titel und Wochentag. Bitte im `TimetablePreviewDialog.confirm` genauso.
+4. **569:** `PUT /api/terms` antwortet 422 bei fehlendem, ungültigem (nicht JJJJ-MM-TT) oder vertauschtem Datum, mit
+   denselben Texten wie `LocalTerms.checkRange`; das bisherige Semester bleibt aktiv. **555:** der Import nennt keine
+   internen Fehlertexte mehr (`_public_error`: Meldungen für Nutzer bleiben, alles andere „interner Fehler,
+   Einzelheiten im Protokoll“).
+5. **Studora:** sichtbare Texte in Web und Windows (Titel, Marke, Anmeldeseite, Konto, Community, PIN-Seite, Mails,
+   ChatGPT-Seiten, Kopf der Rechtstexte, Fenstertitel, Web-Manifest), `app/community.py` („keine Studora-Lösung“),
+   `app/demo.py` (Demo-PDF), danach `tools/gen-demo-fixture.py`. Unverändert (technisch): `productName` der
+   Windows-App (= Installationsordner `%LOCALAPPDATA%\UniFlow`), Datenordner `de.uniflow.desktop`, Cookie,
+   User-Agent, Paketnamen.
+

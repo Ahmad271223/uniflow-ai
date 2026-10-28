@@ -2,9 +2,9 @@
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=31";
 import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=38";
 import { viewFiles } from "./views-lib.js?v=36";
-import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=32";
-import { viewTimetable, openEvent } from "./views-tt.js?v=30";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=41";
+import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=33";
+import { viewTimetable, openEvent } from "./views-tt.js?v=31";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=42";
 import { viewAbo } from "./views-abo.js?v=31";
 
 // ---------------------------------------------------------------- Shell
@@ -58,7 +58,7 @@ window.addEventListener("unhandledrejection", e => noteError(e.reason?.message |
 const UNI_NAMES = { luh: "Leibniz Universität Hannover", hildesheim: "Universität Hildesheim" };
 function accountMenu() {
   const a = state.account;
-  const m = modal(`<div class="card-head"><h2>${icon("user", 18)} UniFlow-Konto</h2><button class="btn ghost icon" data-close>${icon("x", 16)}</button></div>
+  const m = modal(`<div class="card-head"><h2>${icon("user", 18)} Studora-Konto</h2><button class="btn ghost icon" data-close>${icon("x", 16)}</button></div>
     <p style="margin:.2rem 0"><b>${esc(a.email)}</b></p><p class="muted small" style="margin:0 0 .9rem">${esc(UNI_NAMES[a.university] || a.university)} · Tarif ${esc(state.entitlements?.plan_name || "Studora Free")}${a.role === "admin" ? " · Moderation" : ""}</p>
     ${a.email_verified ? "" : `<div class="card flat" style="background:var(--warn-soft);border-color:transparent;margin:0 0 .8rem"><b class="small">E-Mail-Adresse noch nicht bestätigt</b><div class="small muted" style="margin:.2rem 0 .5rem">Den Link findest du in der Willkommensmail. Bis dahin kannst du keine Lösungen in der Community veröffentlichen.</div><button class="btn sm" id="accVerify">Link erneut senden</button></div>`}
     <div class="row wrap"><button class="btn primary" id="accLogout">${icon("log-out", 15)} Abmelden</button><button class="btn" id="accLogoutAll" title="Alle anderen Geräte abmelden, dieses bleibt angemeldet">Andere Geräte abmelden</button><a class="btn" href="#/settings?tab=account" data-close>Hochschul-Zugang</a><a class="btn" href="/api/account/export" download title="Alle Daten dieses Kontos als ZIP (Auskunft nach DSGVO)">${icon("download", 15)} Meine Daten exportieren</a></div>

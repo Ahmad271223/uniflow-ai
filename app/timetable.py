@@ -606,7 +606,15 @@ def auto_import(conn) -> dict:
     conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES ('studip-auto', ?, 'auto', '', ?, 1)",
                  (db.now_iso(), json.dumps(diff["new"], ensure_ascii=False)))
     return {"new": res["new"], "removed": removed, "calendar": calendar_state(conn) is not None,
-            "pending_groups": len([e for e in studip_entries(conn) if not e.get("selected")])}
+            "pending_groups": len(pending_choices(studip_entries(conn)))}
+
+
+def pending_choices(entries: list[dict]) -> list[dict]:
+    """Serien, bei denen der Nutzer noch waehlen muss (parallele Uebungsgruppen). Nicht dazu gehoeren Serien, ueber die
+    der Kalender schon entschieden hat: fremde Gruppen (`calendar = "fremd"`) und Kurse ohne Termin im Kalender
+    (`"kurs_fehlt"`), wie auf dem iPad (Bitte der Mac-Sitzung vom 27.10.2026); sonst bliebe der Hinweis „waehle deine
+    Uebungsgruppen“ das ganze Semester stehen."""
+    return [e for e in entries if not e.get("selected") and e.get("calendar") not in ("fremd", "kurs_fehlt")]
 
 
 # ----------------------------------------------------------------------------
@@ -859,6 +867,9 @@ def diff_against_existing(conn, entries: list[dict]) -> dict:
             new.append(e)
             continue
         used.add(x["id"])
+        # an der Zeile selbst merken (Bitte der Mac-Sitzung vom 27.10.2026): zwei Serien desselben Kurses am selben Tag
+        # haben denselben Titel, die Suche ueber Titel und Wochentag traf beim Uebernehmen immer die erste
+        e["existing_id"] = x["id"]
         if exact:
             same.append({**e, "existing_id": x["id"]})
         else:

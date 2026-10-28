@@ -194,9 +194,9 @@ async def hosted_guard(request, call_next):
 
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
 _PIN_FAILS: dict[str, list] = {}
-PIN_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>UniFlow AI – PIN</title>
+PIN_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Studora – PIN</title>
 <style>body{font:16px/1.5 Inter,system-ui,sans-serif;background:#f6f7fb;color:#171a26;display:grid;place-items:center;min-height:100vh;margin:0}form{background:#fff;border:1px solid #e5e8f0;border-radius:16px;padding:1.6rem;width:min(360px,92vw);box-shadow:0 4px 16px rgba(20,24,40,.06)}h1{font-size:1.2rem;margin:0 0 .3rem}p{color:#7a8199;margin:0 0 1rem;font-size:.9rem}input{width:100%;font-size:1.4rem;letter-spacing:.3em;text-align:center;padding:.6rem;border:1px solid #d3d8e4;border-radius:10px;box-sizing:border-box}button{margin-top:.8rem;width:100%;padding:.7rem;border:0;border-radius:10px;background:#4f5bd5;color:#fff;font-weight:600;font-size:1rem}</style></head>
-<body><form method="get" action="/"><h1>UniFlow AI</h1><p>Dieses Gerät ist nicht der PC, auf dem die App läuft. Bitte die PIN aus „Einstellungen → Zugang“ eingeben.</p><input name="pin" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••" autofocus><button type="submit">Öffnen</button></form></body></html>"""
+<body><form method="get" action="/"><h1>Studora</h1><p>Dieses Gerät ist nicht der PC, auf dem die App läuft. Bitte die PIN aus „Einstellungen → Zugang“ eingeben.</p><input name="pin" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••" autofocus><button type="submit">Öffnen</button></form></body></html>"""
 
 
 def _lan_pin() -> str:
@@ -1919,12 +1919,25 @@ async def api_tt_import_preview(source: str = Form(...), text: str = Form(defaul
         except HTTPException:
             raise
         except Exception as e:  # noqa: BLE001
-            raise HTTPException(500, f"Import fehlgeschlagen: {e}")
+            raise HTTPException(500, _public_error("Import fehlgeschlagen", e))
         entries = timetable.enrich(conn, entries)
         diff = timetable.diff_against_existing(conn, entries)
         cur = conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES (?,?,?,?,?,0)",
                            (source, db.now_iso(), "preview", raw[:20000], json.dumps(entries, ensure_ascii=False)))
     return {"import_id": cur.lastrowid, "entries": entries, "diff": diff, "modules": _modules_brief()}
+
+
+def _public_error(what: str, e: Exception) -> str:
+    """Fehlertext fuer die Oberflaeche ohne Tabellen, Spalten, SQL oder Pfade (Pruefpunkt 555, wie auf dem iPad):
+    Meldungen, die fuer Nutzer geschrieben sind (KI, Eingaben), bleiben; alles andere steht nur im Protokoll."""
+    import logging
+    from . import ai
+    if isinstance(e, (ai.AIError, ValueError)) and not isinstance(e, (UnicodeError,)):
+        msg = str(e)
+        if not re.search(r"(?i)sqlite|select |insert |update |delete |table|column|traceback|[a-z]:\\|/srv/|/home/|/tmp/", msg):
+            return f"{what}: {msg[:300]}"
+    logging.getLogger("uniflow").exception("%s", what)
+    return f"{what} (interner Fehler, Einzelheiten im Protokoll)."
 
 
 def _modules_brief():
@@ -1973,8 +1986,27 @@ def api_terms():
         return timetable.term(conn)
 
 
+def _term_day(v, what: str) -> str:
+    """JJJJ-MM-TT, sonst 422 (wie LocalTerms.checkRange auf dem iPad, Pruefbericht 569)."""
+    try:
+        if isinstance(v, str) and date.fromisoformat(v).isoformat() == v:
+            return v
+    except ValueError:
+        pass
+    raise HTTPException(422, f"{what} des Semesters ist kein gültiges Datum (JJJJ-MM-TT).")
+
+
 @app.put("/api/terms")
 def api_terms_put(body: dict = Body(...)):
+    """Neues aktives Semester. Fehlende, ungueltige oder vertauschte Daten: 422, das bisherige Semester bleibt aktiv
+    (vorher gespeichert; danach war die Woche im Stundenplan leer)."""
+    if "start" not in body:
+        raise HTTPException(422, "Beginn des Semesters fehlt (start)")
+    if "end" not in body:
+        raise HTTPException(422, "Ende des Semesters fehlt (end)")
+    start = _term_day(body["start"], "Beginn")
+    if _term_day(body["end"], "Ende") < start:
+        raise HTTPException(422, "Das Ende des Semesters liegt vor seinem Beginn.")
     with db.cursor() as conn:
         conn.execute("UPDATE terms SET active=0")
         conn.execute("INSERT INTO terms(name, start, end, active) VALUES (?,?,?,1)", (body.get("name") or "Semester", body["start"], body["end"]))
@@ -2172,7 +2204,7 @@ def api_network():
 def api_tt_auto_status():
     with db.cursor() as conn:
         entries = timetable.studip_entries(conn)
-        pending = [e for e in entries if not e.get("selected")]
+        pending = timetable.pending_choices(entries)
         groups = sorted({e["title"] for e in pending})
     return {"pending_groups": len(pending), "courses": groups, "personal": [e for e in entries if e.get("personal")]}
 
@@ -2417,7 +2449,7 @@ def api_desktop_open(request: Request, body: dict = Body(...)):
         raise HTTPException(400, "Nur http- und https-Adressen")
     if desktop_windows.agent_connected():
         from urllib.parse import urlsplit
-        w = desktop_windows.enqueue("open", url, urlsplit(url).hostname or "UniFlow")
+        w = desktop_windows.enqueue("open", url, urlsplit(url).hostname or "Studora")
         return {"opened": True, "window": w.id, "in_app": True}
     import webbrowser
     if not webbrowser.open(url, new=2):

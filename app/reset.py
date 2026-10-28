@@ -105,7 +105,7 @@ def wipe(clear_webview: bool = True) -> dict:
     out["backups"] = _remove_tree(backup_dir())
     out["webview"] = False
     if clear_webview and desktop_windows.agent_connected():
-        w = desktop_windows.enqueue("clear", "about:blank", "UniFlow")
+        w = desktop_windows.enqueue("clear", "about:blank", "Studora")
         desktop_windows.forget(w.id)                                     # keine Rueckmeldung noetig
         out["webview"] = True
     out["ok"] = True

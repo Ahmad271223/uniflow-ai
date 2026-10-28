@@ -106,7 +106,7 @@ Nach Schwere. „Bestätigt“ heißt: im Code nachgelesen, nicht durch einen Te
 | P14 | P2 🟡 28.10.: Markieren und Word-Ansicht gebaut, Handschriftsuche offen | Editor: kein Markieren von PDF-Text, keine Handschriftsuche, kein DOCX | `app/static/editor.js:209, 361, 930`, `app/server.py:755` | Textlayer-Markierungen ins gemeinsame Format |
 | P15 | P3 | Windows ohne Code-Signing und Auto-Update | `apps/windows/README.md:136` | über Microsoft Store gelöst; außerhalb Zertifikat nötig |
 | P16 | P3 | Betrieb: Backup außer Haus nur auskommentiert, Monitoring nur Healthcheck, Rechtstexte mit Platzhaltern | `deploy/backup.sh`, `docs/release/BETRIEB.md:208-230` | beim Einrichten des Servers |
-| P17 | P3 | Offene Punkte der Mac-Sitzung vom 27./28.10. (`pending_groups`, Herkunft im Termin-Fenster, `existing_id` in der Vorschau, `PUT /api/terms` prüfen, 500er-Texte, Umbenennung „Studora“) | `docs/STAND-MAC-SITZUNG.md` | nächste PC-Runde |
+| P17 | P3 ✅ erledigt 28.10. (Antwort in STAND-MAC-SITZUNG.md) | Offene Punkte der Mac-Sitzung vom 27./28.10. (`pending_groups`, Herkunft im Termin-Fenster, `existing_id` in der Vorschau, `PUT /api/terms` prüfen, 500er-Texte, Umbenennung „Studora“) | `docs/STAND-MAC-SITZUNG.md` | nächste PC-Runde |
 
 ## 5. Was von den 535 Prüfpunkten bleibt
 
@@ -211,4 +211,4 @@ Prüfung vom 28.10. in Klammern.
 5. ✅ P7 (28.10.): Windows-App mit Studora-Konto, Geräte-Abgleich G2, Community im Editor, Geräte einzeln abmelden.
 6. P14 und C8/C12 mit der Mac-Sitzung: gemeinsames Format für Textmarkierungen und verankerte Kommentare.
 7. P12/P13 nach den Entscheidungen 4 und 5.
-8. P17: offene Bitten der Mac-Sitzung.
+8. ✅ P17 (28.10.): offene Bitten der Mac-Sitzung erledigt.

@@ -29,7 +29,7 @@ from urllib.parse import urlsplit
 from . import config
 
 SMTP_TIMEOUT = 20
-APP_NAME = "UniFlow AI"
+APP_NAME = "Studora"
 
 
 # ---------------------------------------------------------------- Konfiguration

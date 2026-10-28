@@ -173,13 +173,13 @@
      ]
     ],
     "size": 2006,
-    "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
-    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFIgOSAwIFJdL0NvdW50IDM+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDM1Mj4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKEthcGl0ZWwgMTogWmFobGVuc3lzdGVtZSkgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDczMCBUZCAoRGV6aW1hbC0sIER1YWwtIHVuZCBIZXhhZGV6aW1hbHN5c3RlbS4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEplZGUgWmFobCBs5HNzdCBzaWNoIGFscyBTdW1tZSB2b24gUG90ZW56ZW4gZGVyIEJhc2lzIHNjaHJlaWJlbi4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA2ODYgVGQgKEJlaXNwaWVsOiAxMyA9IDExMDEgXChkdWFsXCkgPSBEIFwoaGV4YWRlemltYWxcKS4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDQgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKNiAwIG9iago8PC9MZW5ndGggMzU1Pj5zdHJlYW0KQlQgL0YxIDIwIFRmIDYwIDc3MCBUZCAoMS4xIFVtcmVjaG51bmcpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKERlemltYWwgbmFjaCBEdWFsOiBmb3J0Z2VzZXR6dGUgRGl2aXNpb24gZHVyY2ggMiwgUmVzdGUgdm9uIHVudGVuIGxlc2VuLikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoRHVhbCBuYWNoIERlemltYWw6IFN0ZWxsZW53ZXJ0ZSAxLCAyLCA0LCA4LCAuLi4gYWRkaWVyZW4uKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkICjcYnVuZzogUmVjaG5lIDQyIGlucyBEdWFsc3lzdGVtIHVtLikgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFVuaUZsb3cgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjcgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNiAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago4IDAgb2JqCjw8L0xlbmd0aCAzNDU+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkICgxLjIgWndlaWVya29tcGxlbWVudCkgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDczMCBUZCAoTmVnYXRpdmUgWmFobGVuOiBCaXRzIGludmVydGllcmVuIHVuZCAxIGFkZGllcmVuLikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoTWl0IDggQml0IHJlaWNodCBkZXIgQmVyZWljaCB2b24gLTEyOCBiaXMgMTI3LikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDY4NiBUZCAo3GJlcmxhdWYgZXJrZW5uZW46IFZvcnplaWNoZW4gZGVzIEVyZ2Vibmlzc2VzIHBy/GZlbi4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDggMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDEwCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxMjMgMDAwMDAgbiAKMDAwMDAwMDIxMSAwMDAwMCBuIAowMDAwMDAwNjExIDAwMDAwIG4gCjAwMDAwMDA3MjMgMDAwMDAgbiAKMDAwMDAwMTEyNiAwMDAwMCBuIAowMDAwMDAxMjM4IDAwMDAwIG4gCjAwMDAwMDE2MzEgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDEwL1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc0MwolJUVPRgo=",
+    "sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFIgOSAwIFJdL0NvdW50IDM+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDM1Mj4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKEthcGl0ZWwgMTogWmFobGVuc3lzdGVtZSkgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDczMCBUZCAoRGV6aW1hbC0sIER1YWwtIHVuZCBIZXhhZGV6aW1hbHN5c3RlbS4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEplZGUgWmFobCBs5HNzdCBzaWNoIGFscyBTdW1tZSB2b24gUG90ZW56ZW4gZGVyIEJhc2lzIHNjaHJlaWJlbi4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA2ODYgVGQgKEJlaXNwaWVsOiAxMyA9IDExMDEgXChkdWFsXCkgPSBEIFwoaGV4YWRlemltYWxcKS4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChTdHVkb3JhIERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDQgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKNiAwIG9iago8PC9MZW5ndGggMzU1Pj5zdHJlYW0KQlQgL0YxIDIwIFRmIDYwIDc3MCBUZCAoMS4xIFVtcmVjaG51bmcpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKERlemltYWwgbmFjaCBEdWFsOiBmb3J0Z2VzZXR6dGUgRGl2aXNpb24gZHVyY2ggMiwgUmVzdGUgdm9uIHVudGVuIGxlc2VuLikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoRHVhbCBuYWNoIERlemltYWw6IFN0ZWxsZW53ZXJ0ZSAxLCAyLCA0LCA4LCAuLi4gYWRkaWVyZW4uKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkICjcYnVuZzogUmVjaG5lIDQyIGlucyBEdWFsc3lzdGVtIHVtLikgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFN0dWRvcmEgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjcgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNiAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago4IDAgb2JqCjw8L0xlbmd0aCAzNDU+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkICgxLjIgWndlaWVya29tcGxlbWVudCkgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDczMCBUZCAoTmVnYXRpdmUgWmFobGVuOiBCaXRzIGludmVydGllcmVuIHVuZCAxIGFkZGllcmVuLikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoTWl0IDggQml0IHJlaWNodCBkZXIgQmVyZWljaCB2b24gLTEyOCBiaXMgMTI3LikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDY4NiBUZCAo3GJlcmxhdWYgZXJrZW5uZW46IFZvcnplaWNoZW4gZGVzIEVyZ2Vibmlzc2VzIHBy/GZlbi4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChTdHVkb3JhIERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDggMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDEwCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxMjMgMDAwMDAgbiAKMDAwMDAwMDIxMSAwMDAwMCBuIAowMDAwMDAwNjExIDAwMDAwIG4gCjAwMDAwMDA3MjMgMDAwMDAgbiAKMDAwMDAwMTEyNiAwMDAwMCBuIAowMDAwMDAxMjM4IDAwMDAwIG4gCjAwMDAwMDE2MzEgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDEwL1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc0MwolJUVPRgo=",
     "page_count": 3,
     "text": [
-     "Kapitel 1: Zahlensysteme\nDezimal-, Dual- und Hexadezimalsystem.\nJede Zahl lässt sich als Summe von Potenzen der Basis schreiben.\nBeispiel: 13 = 1101 (dual) = D (hexadezimal).\nUniFlow Demo-Inhalt",
-     "1.1 Umrechnung\nDezimal nach Dual: fortgesetzte Division durch 2, Reste von unten lesen.\nDual nach Dezimal: Stellenwerte 1, 2, 4, 8, ... addieren.\nÜbung: Rechne 42 ins Dualsystem um.\nUniFlow Demo-Inhalt",
-     "1.2 Zweierkomplement\nNegative Zahlen: Bits invertieren und 1 addieren.\nMit 8 Bit reicht der Bereich von -128 bis 127.\nÜberlauf erkennen: Vorzeichen des Ergebnisses prüfen.\nUniFlow Demo-Inhalt"
+     "Kapitel 1: Zahlensysteme\nDezimal-, Dual- und Hexadezimalsystem.\nJede Zahl lässt sich als Summe von Potenzen der Basis schreiben.\nBeispiel: 13 = 1101 (dual) = D (hexadezimal).\nStudora Demo-Inhalt",
+     "1.1 Umrechnung\nDezimal nach Dual: fortgesetzte Division durch 2, Reste von unten lesen.\nDual nach Dezimal: Stellenwerte 1, 2, 4, 8, ... addieren.\nÜbung: Rechne 42 ins Dualsystem um.\nStudora Demo-Inhalt",
+     "1.2 Zweierkomplement\nNegative Zahlen: Bits invertieren und 1 addieren.\nMit 8 Bit reicht der Bereich von -128 bis 127.\nÜberlauf erkennen: Vorzeichen des Ergebnisses prüfen.\nStudora Demo-Inhalt"
     ]
    },
    {
@@ -216,14 +216,14 @@
      ]
     ],
     "size": 2127,
-    "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
-    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFIgOSAwIFIgMTEgMCBSXS9Db3VudCA0Pj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iago0IDAgb2JqCjw8L0xlbmd0aCAyMzg+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkIChHcnVuZGxhZ2VuIGRlciBJbmZvcm1hdGlrKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChXaWxsa29tbWVuIHp1ciBEZW1vLVZvcmxlc3VuZy4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKE9yZ2FuaXNhdG9yaXNjaGVzLCBMaXRlcmF0dXIsIFBy/GZ1bmcuKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoVW5pRmxvdyBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgMyAwIFI+Pj4+Pj4KZW5kb2JqCjYgMCBvYmoKPDwvTGVuZ3RoIDI1ND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFdhcyBpc3QgSW5mb3JtYXRpaz8pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFdpc3NlbnNjaGFmdCBkZXIgc3lzdGVtYXRpc2NoZW4gVmVyYXJiZWl0dW5nIHZvbiBJbmZvcm1hdGlvbi4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEFsZ29yaXRobXVzLCBEYXRlbiwgUHJvZ3JhbW0uKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoVW5pRmxvdyBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKNyAwIG9iago8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA2IDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgMyAwIFI+Pj4+Pj4KZW5kb2JqCjggMCBvYmoKPDwvTGVuZ3RoIDI0Nz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKEFsZ29yaXRobXVzKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChFaW5kZXV0aWdlLCBlbmRsaWNoZSBIYW5kbHVuZ3N2b3JzY2hyaWZ0LikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoQmVpc3BpZWw6IFrkaG5lcHV0emVuLCBXZWdiZXNjaHJlaWJ1bmcsIFNvcnRpZXJlbi4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDggMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKMTAgMCBvYmoKPDwvTGVuZ3RoIDIyND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKE7kY2hzdGUgV29jaGUpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFphaGxlbnN5c3RlbWUgdW5kIFp3ZWllcmtvbXBsZW1lbnQuKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChCaXR0ZSDcYnVuZ3NibGF0dCAxIGJlYXJiZWl0ZW4uKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoVW5pRmxvdyBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKMTEgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgMTAgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDEyCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxMzAgMDAwMDAgbiAKMDAwMDAwMDIxOCAwMDAwMCBuIAowMDAwMDAwNTA0IDAwMDAwIG4gCjAwMDAwMDA2MTYgMDAwMDAgbiAKMDAwMDAwMDkxOCAwMDAwMCBuIAowMDAwMDAxMDMwIDAwMDAwIG4gCjAwMDAwMDEzMjUgMDAwMDAgbiAKMDAwMDAwMTQzNyAwMDAwMCBuIAowMDAwMDAxNzEwIDAwMDAwIG4gCnRyYWlsZXIKPDwvU2l6ZSAxMi9Sb290IDEgMCBSPj4Kc3RhcnR4cmVmCjE4MjQKJSVFT0YK",
+    "sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFIgOSAwIFIgMTEgMCBSXS9Db3VudCA0Pj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iago0IDAgb2JqCjw8L0xlbmd0aCAyMzg+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkIChHcnVuZGxhZ2VuIGRlciBJbmZvcm1hdGlrKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChXaWxsa29tbWVuIHp1ciBEZW1vLVZvcmxlc3VuZy4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKE9yZ2FuaXNhdG9yaXNjaGVzLCBMaXRlcmF0dXIsIFBy/GZ1bmcuKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoU3R1ZG9yYSBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgMyAwIFI+Pj4+Pj4KZW5kb2JqCjYgMCBvYmoKPDwvTGVuZ3RoIDI1ND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFdhcyBpc3QgSW5mb3JtYXRpaz8pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFdpc3NlbnNjaGFmdCBkZXIgc3lzdGVtYXRpc2NoZW4gVmVyYXJiZWl0dW5nIHZvbiBJbmZvcm1hdGlvbi4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEFsZ29yaXRobXVzLCBEYXRlbiwgUHJvZ3JhbW0uKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoU3R1ZG9yYSBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKNyAwIG9iago8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA2IDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgMyAwIFI+Pj4+Pj4KZW5kb2JqCjggMCBvYmoKPDwvTGVuZ3RoIDI0Nz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKEFsZ29yaXRobXVzKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChFaW5kZXV0aWdlLCBlbmRsaWNoZSBIYW5kbHVuZ3N2b3JzY2hyaWZ0LikgVGogRVQKQlQgL0YxIDEyIFRmIDYwIDcwOCBUZCAoQmVpc3BpZWw6IFrkaG5lcHV0emVuLCBXZWdiZXNjaHJlaWJ1bmcsIFNvcnRpZXJlbi4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChTdHVkb3JhIERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDggMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKMTAgMCBvYmoKPDwvTGVuZ3RoIDIyND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKE7kY2hzdGUgV29jaGUpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFphaGxlbnN5c3RlbWUgdW5kIFp3ZWllcmtvbXBsZW1lbnQuKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChCaXR0ZSDcYnVuZ3NibGF0dCAxIGJlYXJiZWl0ZW4uKSBUaiBFVApCVCAvRjEgOSBUZiA2MCA0MCBUZCAoU3R1ZG9yYSBEZW1vLUluaGFsdCkgVGogRVQKCmVuZHN0cmVhbQplbmRvYmoKMTEgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgMTAgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDEyCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxMzAgMDAwMDAgbiAKMDAwMDAwMDIxOCAwMDAwMCBuIAowMDAwMDAwNTA0IDAwMDAwIG4gCjAwMDAwMDA2MTYgMDAwMDAgbiAKMDAwMDAwMDkxOCAwMDAwMCBuIAowMDAwMDAxMDMwIDAwMDAwIG4gCjAwMDAwMDEzMjUgMDAwMDAgbiAKMDAwMDAwMTQzNyAwMDAwMCBuIAowMDAwMDAxNzEwIDAwMDAwIG4gCnRyYWlsZXIKPDwvU2l6ZSAxMi9Sb290IDEgMCBSPj4Kc3RhcnR4cmVmCjE4MjQKJSVFT0YK",
     "page_count": 4,
     "text": [
-     "Grundlagen der Informatik\nWillkommen zur Demo-Vorlesung.\nOrganisatorisches, Literatur, Prüfung.\nUniFlow Demo-Inhalt",
-     "Was ist Informatik?\nWissenschaft der systematischen Verarbeitung von Information.\nAlgorithmus, Daten, Programm.\nUniFlow Demo-Inhalt",
-     "Algorithmus\nEindeutige, endliche Handlungsvorschrift.\nBeispiel: Zähneputzen, Wegbeschreibung, Sortieren.\nUniFlow Demo-Inhalt",
-     "Nächste Woche\nZahlensysteme und Zweierkomplement.\nBitte Übungsblatt 1 bearbeiten.\nUniFlow Demo-Inhalt"
+     "Grundlagen der Informatik\nWillkommen zur Demo-Vorlesung.\nOrganisatorisches, Literatur, Prüfung.\nStudora Demo-Inhalt",
+     "Was ist Informatik?\nWissenschaft der systematischen Verarbeitung von Information.\nAlgorithmus, Daten, Programm.\nStudora Demo-Inhalt",
+     "Algorithmus\nEindeutige, endliche Handlungsvorschrift.\nBeispiel: Zähneputzen, Wegbeschreibung, Sortieren.\nStudora Demo-Inhalt",
+     "Nächste Woche\nZahlensysteme und Zweierkomplement.\nBitte Übungsblatt 1 bearbeiten.\nStudora Demo-Inhalt"
     ]
    },
    {
@@ -247,12 +247,12 @@
      ]
     ],
     "size": 1343,
-    "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
-    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFJdL0NvdW50IDI+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDM1MT4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKNxidW5nc2JsYXR0IDEpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKEF1ZmdhYmUgMTogUmVjaG5lIDQyLCAxMDAgdW5kIDI1NSBpbnMgRHVhbHN5c3RlbSB1bS4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEF1ZmdhYmUgMjogV2VsY2hlIERlemltYWx6YWhsIGlzdCAxMDExIDAxMTAgXChkdWFsXCk/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkIChBdWZnYWJlIDM6IEJpbGRlIGRhcyBad2VpZXJrb21wbGVtZW50IHZvbiAtMzcgbWl0IDggQml0LikgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFVuaUZsb3cgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago2IDAgb2JqCjw8L0xlbmd0aCAyNDY+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkIChBdWZnYWJlIDQgXChCb251c1wpKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChXYXJ1bSByZWljaHQgZWluIEJ5dGUgZvxyIFdlcnRlIHZvbiAwIGJpcyAyNTU/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChBYmdhYmU6IG7kY2hzdGUgV29jaGUgdm9yIGRlciDcYnVuZy4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago3IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDYgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjAgMDAwMDAgbiAKMDAwMDAwMDExNyAwMDAwMCBuIAowMDAwMDAwMjA1IDAwMDAwIG4gCjAwMDAwMDA2MDQgMDAwMDAgbiAKMDAwMDAwMDcxNiAwMDAwMCBuIAowMDAwMDAxMDEwIDAwMDAwIG4gCnRyYWlsZXIKPDwvU2l6ZSA4L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTEyMgolJUVPRgo=",
+    "sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFJdL0NvdW50IDI+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDM1MT4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKNxidW5nc2JsYXR0IDEpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKEF1ZmdhYmUgMTogUmVjaG5lIDQyLCAxMDAgdW5kIDI1NSBpbnMgRHVhbHN5c3RlbSB1bS4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKEF1ZmdhYmUgMjogV2VsY2hlIERlemltYWx6YWhsIGlzdCAxMDExIDAxMTAgXChkdWFsXCk/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkIChBdWZnYWJlIDM6IEJpbGRlIGRhcyBad2VpZXJrb21wbGVtZW50IHZvbiAtMzcgbWl0IDggQml0LikgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFN0dWRvcmEgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago2IDAgb2JqCjw8L0xlbmd0aCAyNDY+PnN0cmVhbQpCVCAvRjEgMjAgVGYgNjAgNzcwIFRkIChBdWZnYWJlIDQgXChCb251c1wpKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzMwIFRkIChXYXJ1bSByZWljaHQgZWluIEJ5dGUgZvxyIFdlcnRlIHZvbiAwIGJpcyAyNTU/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChBYmdhYmU6IG7kY2hzdGUgV29jaGUgdm9yIGRlciDcYnVuZy4pIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChTdHVkb3JhIERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago3IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDYgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjAgMDAwMDAgbiAKMDAwMDAwMDExNyAwMDAwMCBuIAowMDAwMDAwMjA1IDAwMDAwIG4gCjAwMDAwMDA2MDQgMDAwMDAgbiAKMDAwMDAwMDcxNiAwMDAwMCBuIAowMDAwMDAxMDEwIDAwMDAwIG4gCnRyYWlsZXIKPDwvU2l6ZSA4L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTEyMgolJUVPRgo=",
     "page_count": 2,
     "text": [
-     "Übungsblatt 1\nAufgabe 1: Rechne 42, 100 und 255 ins Dualsystem um.\nAufgabe 2: Welche Dezimalzahl ist 1011 0110 (dual)?\nAufgabe 3: Bilde das Zweierkomplement von -37 mit 8 Bit.\nUniFlow Demo-Inhalt",
-     "Aufgabe 4 (Bonus)\nWarum reicht ein Byte für Werte von 0 bis 255?\nAbgabe: nächste Woche vor der Übung.\nUniFlow Demo-Inhalt"
+     "Übungsblatt 1\nAufgabe 1: Rechne 42, 100 und 255 ins Dualsystem um.\nAufgabe 2: Welche Dezimalzahl ist 1011 0110 (dual)?\nAufgabe 3: Bilde das Zweierkomplement von -37 mit 8 Bit.\nStudora Demo-Inhalt",
+     "Aufgabe 4 (Bonus)\nWarum reicht ein Byte für Werte von 0 bis 255?\nAbgabe: nächste Woche vor der Übung.\nStudora Demo-Inhalt"
     ]
    }
   ],
@@ -269,11 +269,11 @@
      ]
     ],
     "size": 792,
-    "sha256": "aaf6dbe917da1aeb97e109a24d13620036aa592a730c0abc66b1e60a129461bc",
-    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFJdL0NvdW50IDE+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDI1Mz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFRpdGVsIFwobWl0XCkgS2xhbW1lcm4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFplaWxlIFxcIGVpbnMpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKFVtbGF1dGUg5Pb8IN8gxNbcKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkIChFdXJvIIAgliCEQW5m/GhydW5nkyCFIJUpIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChVbmlGbG93IERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDQgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjAgMDAwMDAgbiAKMDAwMDAwMDExMSAwMDAwMCBuIAowMDAwMDAwMTk5IDAwMDAwIG4gCjAwMDAwMDA1MDAgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDYvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo2MTIKJSVFT0YK",
+    "sha256": "973a0170ce7689574dd2b5914e3368a24c8dc5f178bc251bc7dd6be19575e788",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFJdL0NvdW50IDE+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDI1Mz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFRpdGVsIFwobWl0XCkgS2xhbW1lcm4pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKFplaWxlIFxcIGVpbnMpIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MDggVGQgKFVtbGF1dGUg5Pb8IN8gxNbcKSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNjg2IFRkIChFdXJvIIAgliCEQW5m/GhydW5nkyCFIJUpIFRqIEVUCkJUIC9GMSA5IFRmIDYwIDQwIFRkIChTdHVkb3JhIERlbW8tSW5oYWx0KSBUaiBFVAoKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8L1R5cGUvUGFnZS9QYXJlbnQgMiAwIFIvTWVkaWFCb3hbMCAwIDU5NSA4NDJdL0NvbnRlbnRzIDQgMCBSL1Jlc291cmNlczw8L0ZvbnQ8PC9GMSAzIDAgUj4+Pj4+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjAgMDAwMDAgbiAKMDAwMDAwMDExMSAwMDAwMCBuIAowMDAwMDAwMTk5IDAwMDAwIG4gCjAwMDAwMDA1MDAgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDYvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo2MTIKJSVFT0YK",
     "page_count": 1,
     "text": [
-     "Titel (mit) Klammern\nZeile \\ eins\nUmlaute äöü ß ÄÖÜ\nEuro € – „Anführung“ … •\nUniFlow Demo-Inhalt"
+     "Titel (mit) Klammern\nZeile \\ eins\nUmlaute äöü ß ÄÖÜ\nEuro € – „Anführung“ … •\nStudora Demo-Inhalt"
     ]
    },
    {
@@ -291,12 +291,12 @@
      ]
     ],
     "size": 1041,
-    "sha256": "6782524121c0527f3d58e675b11c2ec662e36f39cdf29b943fa4f92341d42018",
-    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFJdL0NvdW50IDI+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDIwND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKE5pY2h0IGluIGNwMTI1MjogPyA/ID8pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKHplcmxlZ3Q6IGE/IG8/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChUYWIJdW5kIFwpIFwoIFxcXCkgRW5kZSkgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFVuaUZsb3cgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago2IDAgb2JqCjw8L0xlbmd0aCA5Mz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFp3ZWl0ZSBTZWl0ZSkgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFVuaUZsb3cgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjcgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNiAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA2MCAwMDAwMCBuIAowMDAwMDAwMTE3IDAwMDAwIG4gCjAwMDAwMDAyMDUgMDAwMDAgbiAKMDAwMDAwMDQ1NyAwMDAwMCBuIAowMDAwMDAwNTY5IDAwMDAwIG4gCjAwMDAwMDA3MDkgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDgvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo4MjEKJSVFT0YK",
+    "sha256": "80ef5d46a1d89575afe30197a13defc752585fc08b025d5ff626a94b16093083",
+    "base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbNSAwIFIgNyAwIFJdL0NvdW50IDI+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2EvRW5jb2RpbmcvV2luQW5zaUVuY29kaW5nPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDIwND4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKE5pY2h0IGluIGNwMTI1MjogPyA/ID8pIFRqIEVUCkJUIC9GMSAxMiBUZiA2MCA3MzAgVGQgKHplcmxlZ3Q6IGE/IG8/KSBUaiBFVApCVCAvRjEgMTIgVGYgNjAgNzA4IFRkIChUYWIJdW5kIFwpIFwoIFxcXCkgRW5kZSkgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFN0dWRvcmEgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iago2IDAgb2JqCjw8L0xlbmd0aCA5Mz4+c3RyZWFtCkJUIC9GMSAyMCBUZiA2MCA3NzAgVGQgKFp3ZWl0ZSBTZWl0ZSkgVGogRVQKQlQgL0YxIDkgVGYgNjAgNDAgVGQgKFN0dWRvcmEgRGVtby1JbmhhbHQpIFRqIEVUCgplbmRzdHJlYW0KZW5kb2JqCjcgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNTk1IDg0Ml0vQ29udGVudHMgNiAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDMgMCBSPj4+Pj4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA2MCAwMDAwMCBuIAowMDAwMDAwMTE3IDAwMDAwIG4gCjAwMDAwMDAyMDUgMDAwMDAgbiAKMDAwMDAwMDQ1NyAwMDAwMCBuIAowMDAwMDAwNTY5IDAwMDAwIG4gCjAwMDAwMDA3MDkgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDgvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo4MjEKJSVFT0YK",
     "page_count": 2,
     "text": [
-     "Nicht in cp1252: ? ? ?\nzerlegt: a? o?\nTab\tund ) ( \\) Ende\nUniFlow Demo-Inhalt",
-     "Zweite Seite\nUniFlow Demo-Inhalt"
+     "Nicht in cp1252: ? ? ?\nzerlegt: a? o?\nTab\tund ) ( \\) Ende\nStudora Demo-Inhalt",
+     "Zweite Seite\nStudora Demo-Inhalt"
     ]
    }
   ]
@@ -799,7 +799,7 @@
         "deleted_at": null,
         "title": "Übungsblatt 1 – Zahlensysteme",
         "page_count": 2,
-        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "content_sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125",
         "revision": null
        },
        {
@@ -827,7 +827,7 @@
         "deleted_at": null,
         "title": "Folien Woche 1 – Einführung",
         "page_count": 4,
-        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "content_sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239",
         "revision": null
        },
        {
@@ -855,7 +855,7 @@
         "deleted_at": null,
         "title": "Skript Kapitel 1 – Zahlensysteme",
         "page_count": 3,
-        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "content_sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4",
         "revision": null
        }
       ],
@@ -1187,17 +1187,17 @@
       {
        "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
        "size": 2127,
-       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+       "sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239"
       },
       {
        "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
        "size": 2006,
-       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+       "sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4"
       },
       {
        "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
        "size": 1343,
-       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+       "sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125"
       }
      ],
      "dirs": [
@@ -1298,7 +1298,7 @@
         "deleted_at": null,
         "title": "Übungsblatt 1 – Zahlensysteme",
         "page_count": 2,
-        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "content_sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125",
         "revision": null
        },
        {
@@ -1326,7 +1326,7 @@
         "deleted_at": null,
         "title": "Folien Woche 1 – Einführung",
         "page_count": 4,
-        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "content_sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239",
         "revision": null
        },
        {
@@ -1354,7 +1354,7 @@
         "deleted_at": null,
         "title": "Skript Kapitel 1 – Zahlensysteme",
         "page_count": 3,
-        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "content_sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4",
         "revision": null
        }
       ],
@@ -1686,17 +1686,17 @@
       {
        "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
        "size": 2127,
-       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+       "sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239"
       },
       {
        "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
        "size": 2006,
-       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+       "sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4"
       },
       {
        "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
        "size": 1343,
-       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+       "sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125"
       }
      ],
      "dirs": [
@@ -2760,7 +2760,7 @@
         "deleted_at": null,
         "title": "Übungsblatt 1 – Zahlensysteme",
         "page_count": 2,
-        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "content_sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125",
         "revision": null
        },
        {
@@ -2788,7 +2788,7 @@
         "deleted_at": null,
         "title": "Folien Woche 1 – Einführung",
         "page_count": 4,
-        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "content_sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239",
         "revision": null
        },
        {
@@ -2816,7 +2816,7 @@
         "deleted_at": null,
         "title": "Skript Kapitel 1 – Zahlensysteme",
         "page_count": 3,
-        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "content_sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4",
         "revision": null
        },
        {
@@ -3317,17 +3317,17 @@
       {
        "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
        "size": 2127,
-       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+       "sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239"
       },
       {
        "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
        "size": 2006,
-       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+       "sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4"
       },
       {
        "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
        "size": 1343,
-       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+       "sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125"
       }
      ],
      "dirs": [
@@ -3459,7 +3459,7 @@
         "deleted_at": null,
         "title": "Übungsblatt 1 – Zahlensysteme",
         "page_count": 2,
-        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "content_sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125",
         "revision": null
        },
        {
@@ -3487,7 +3487,7 @@
         "deleted_at": null,
         "title": "Folien Woche 1 – Einführung",
         "page_count": 4,
-        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "content_sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239",
         "revision": null
        },
        {
@@ -3515,7 +3515,7 @@
         "deleted_at": null,
         "title": "Skript Kapitel 1 – Zahlensysteme",
         "page_count": 3,
-        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "content_sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4",
         "revision": null
        },
        {
@@ -4065,17 +4065,17 @@
       {
        "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
        "size": 2127,
-       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+       "sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239"
       },
       {
        "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
        "size": 2006,
-       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+       "sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4"
       },
       {
        "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
        "size": 1343,
-       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+       "sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125"
       }
      ],
      "dirs": [
@@ -4569,7 +4569,7 @@
         "deleted_at": null,
         "title": "Übungsblatt 1 – Zahlensysteme",
         "page_count": 2,
-        "content_sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7",
+        "content_sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125",
         "revision": null
        },
        {
@@ -4597,7 +4597,7 @@
         "deleted_at": null,
         "title": "Folien Woche 1 – Einführung",
         "page_count": 4,
-        "content_sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469",
+        "content_sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239",
         "revision": null
        },
        {
@@ -4625,7 +4625,7 @@
         "deleted_at": null,
         "title": "Skript Kapitel 1 – Zahlensysteme",
         "page_count": 3,
-        "content_sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23",
+        "content_sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4",
         "revision": null
        },
        {
@@ -5133,17 +5133,17 @@
       {
        "path": "files/Demo/Folien Woche 1 – Einführung.pdf",
        "size": 2127,
-       "sha256": "e61ef83b683401742513eadd6ea284d8bbaaf1cf097715068110b7ae5fc85469"
+       "sha256": "8fcde8777efcc1bc82ff9c63549a0db463fd17521ff9d49d9c3eded112b0c239"
       },
       {
        "path": "files/Demo/Skript Kapitel 1 – Zahlensysteme.pdf",
        "size": 2006,
-       "sha256": "26917f16e9153a56fea35a22c6274ea73beee0a0723f2c73bd3976ee8e782f23"
+       "sha256": "96b2f4c71ff7b07c591670fbb56605a88e41a8dbefc7584e31bbd70729c435d4"
       },
       {
        "path": "files/Demo/Übungsblatt 1 – Zahlensysteme.pdf",
        "size": 1343,
-       "sha256": "fd1dbd65f6423b7b0a4a64b553ab80fa34a8d18f5c98149ba40c8cbb157a6af7"
+       "sha256": "35b4e65e72bd7edc2928820c45c21318373b7cdf98e54b185526cd6d73f14125"
       }
      ],
      "dirs": [
