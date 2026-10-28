@@ -434,4 +434,48 @@ final class StudyPlanLocalAppTests: XCTestCase {
         XCTAssertTrue(pump { self.shows(row, "Gemeinsamer Wochentest Lehrwoche 1") }, texts(row).joined(separator: "\n"))
         XCTAssertFalse(shows(row, "Test starten"), texts(row).joined(separator: "\n"))
     }
+
+    // MARK: Ausfaelle laut Stud.IP (Entscheidung des Inhabers, 28.10.2026)
+
+    /// Wie Stud.IP: ein Ausfall laut Stud.IP fehlt in Stundenplan-Woche, Lernkalender und "Heute an der Uni". Was der
+    /// Nutzer selbst als ausgefallen markiert hat (Uebung 14:00) und "heute nicht" (Physik am Mittwoch) bleiben
+    /// sichtbar, damit er es zuruecknehmen kann. Die Antworten des lokalen Backends bleiben wie in Python.
+    func testStudIPCancellationIsHiddenButOwnMarksStay() throws {
+        let (api, recorder) = try awaiting { try await self.seededAPI() }
+        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { Self.accessibilityAutomation(false) }
+        try awaiting {
+            let events = try await api.value("/api/timetable/events").items
+            let lecture = try XCTUnwrap(events.first { $0.s("title") == "Testmathematik I" }?.i("id"))
+            let exercise = try XCTUnwrap(events.first { $0.s("title") == "Übung zu Testmathematik I" }?.i("id"))
+            let physics = try XCTUnwrap(events.first { $0.s("title") == "Testphysik" }?.i("id"))
+            // wie der Abgleich: Ausnahme "cancelled" mit der Notiz laut Stud.IP
+            _ = try await api.value("/api/timetable/exceptions", method: "POST",
+                                    body: ["event_id": .number(Double(lecture)), "date": "2026-10-26", "type": "cancelled", "note": .string(StudIPCancellations.note)])
+            _ = try await api.value("/api/timetable/attendance", method: "POST",
+                                    body: ["event_id": .number(Double(exercise)), "date": "2026-10-26", "mode": "cancelled"])
+            _ = try await api.value("/api/timetable/attendance", method: "POST",
+                                    body: ["event_id": .number(Double(physics)), "date": "2026-10-28", "mode": "today_skip"])
+            let raw = try await api.value("/api/timetable/day?date=2026-10-26")
+            XCTAssertEqual(raw.list("events").map { $0.s("status") ?? "" }, ["ausfall", "ausfall"], "Antwort wie in Python")
+        }
+
+        let tt = try show(TimetableView(date: "2026-10-26"), api: api)
+        XCTAssertTrue(pump { self.shows(tt, "14:00–15:30") }, texts(tt).joined(separator: "\n"))
+        XCTAssertTrue(shows(tt, "08:15–09:45"), "nicht besucht bleibt: \(texts(tt))")
+        XCTAssertFalse(shows(tt, "10:00–11:30"), "Ausfall laut Stud.IP ausgeblendet: \(texts(tt))")
+
+        let plan = try show(PlanView(params: (view: "week", date: "2026-10-26", module: nil)), api: api)
+        XCTAssertTrue(pump { self.shows(plan, "14:00 – 15:30") }, texts(plan).joined(separator: "\n"))
+        XCTAssertTrue(shows(plan, "08:15 – 09:45"), texts(plan).joined(separator: "\n"))
+        XCTAssertFalse(shows(plan, "10:00 – 11:30"), "Ausfall laut Stud.IP ausgeblendet: \(texts(plan))")
+
+        let dash = try show(DashboardView(api: api), api: api)
+        // die Uhr des Backends steht auf Montag 26.10., das Geraet nicht: die Uebersicht holt die Ausfaelle dann fuer ihren Tag
+        XCTAssertTrue(pump { self.shows(dash, "Heute an der Uni") && self.shows(dash, "14:00–15:30") && !self.shows(dash, "10:00–11:30") },
+                      "Ausfall laut Stud.IP ausgeblendet: \(texts(dash))")
+        XCTAssertTrue(recorder.calls.contains { $0.path == "/api/timetable/studip-cancelled" })
+        XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
+    }
 }
+

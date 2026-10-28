@@ -19,6 +19,8 @@ struct DashboardView: View {
     /// Tag, fuer den die Seite gerade steht: nach Mitternacht (NSCalendarDayChanged) laedt sie neu, und Begruessung
     /// und "heute" folgen dem neuen Tag ohne Neustart
     @State private var day = UFFmt.todayISO()
+    /// Ausfaelle laut Stud.IP von heute: in "Heute an der Uni" ausgeblendet wie in Stud.IP (`StudIPCancelled`)
+    @State private var studipCancelled: Set<String> = []
     private let api: APIClient?
 
     init(api: APIClient?) {
@@ -30,11 +32,11 @@ struct DashboardView: View {
         Group {
             let mode = UFDataMode.current(api: api, studip: studip, demo: demo)
             UFRemote(data: data) { d in content(d, mode: mode) }
-                .task { await data.load() }
-                .ufReload { await data.load() }
+                .task { await load() }
+                .ufReload { await load() }
                 .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in
                     day = UFFmt.todayISO()                                   // neuer Tag: Begruessung und Datum neu, Daten neu
-                    Task { await data.load() }
+                    Task { await load() }
                 }
         }
             .ufModal(isPresented: $showGenerate) {
@@ -50,12 +52,23 @@ struct DashboardView: View {
             }
     }
 
+    /// Uebersicht und die Ausfaelle laut Stud.IP von heute (vorher geladen, damit nichts aufblitzt); nennt die
+    /// Uebersicht einen anderen Tag als das Geraet (Uhr des Backends), gilt ihrer
+    private func load() async {
+        let device = day
+        studipCancelled = await StudIPCancelled.keys(api, from: device, to: device)
+        await data.load()
+        if let shown = data.value?["today"]?.s("date"), shown != device {
+            studipCancelled = await StudIPCancelled.keys(api, from: shown, to: shown)
+        }
+    }
+
     // MARK: Inhalt
 
     @ViewBuilder private func content(_ d: JSONValue, mode: UFDataMode) -> some View {
         let today = d["today"] ?? .null
         let pk = today.list("packages")
-        let evs = today.list("events").filter { $0.s("status") != "verschoben" }
+        let evs = StudIPCancellations.visible(today.list("events").filter { $0.s("status") != "verschoben" }, keys: studipCancelled)
         let tasks = pk.flatMap { $0.list("tasks") }
         let done = tasks.filter { $0.s("status") == "erledigt" }.count
         let total = tasks.count

@@ -26,7 +26,7 @@ enum StudIPScheduleImport {
         )
         """
 
-    static let note = "Ausfall laut Stud.IP"
+    static let note = StudIPCancellations.note
 
     struct Link: Equatable {
         let eventID: Int64

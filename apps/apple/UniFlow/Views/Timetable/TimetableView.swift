@@ -51,7 +51,10 @@ struct TimetableView: View {
         if let date { Self.ttDate = date }
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
         do {
-            let w = try await api.value("/api/timetable/week?start=\(Fmt.isoDay(start))")
+            // Ausfaelle laut Stud.IP wie in Stud.IP ausblenden (`StudIPCancelled`), selbst markierte bleiben
+            let from = Fmt.isoDay(start), to = Fmt.isoDay(PlanData.add(start, 6))
+            let hidden = await StudIPCancelled.keys(api, from: from, to: to)
+            let w = StudIPCancellations.hiding(in: try await api.value("/api/timetable/week?start=\(from)"), keys: hidden)
             do {
                 conflicts = try await api.value("/api/timetable/conflicts").items
                 conflictsError = nil

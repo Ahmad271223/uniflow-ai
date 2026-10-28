@@ -240,3 +240,24 @@ Die Entscheidungen über Kurszeiten und Serien (`StudIPCalendar.store`, `applyCa
 nach dem Abruf“. Sie werten nur künftige Termine aus und sind nicht betroffen. Tests mit erfundenen Daten:
 `StudIPCalendarFetchDayTests`. Die Verträge `woche.json` (Abruf 27.10., Woche 16.–22.11.) und `timetable-logic.json`
 (ohne Kalender) sind unverändert grün.
+
+**Ausfälle laut Stud.IP blendet das iPad aus wie Stud.IP (Entscheidung des Inhabers, 28.10.2026).** In der
+Weihnachtswoche (23.–25.12.) markiert Stud.IP 13 Veranstaltungen des Inhabers als ausgefallen. Der Stud.IP-Kalender
+zeigt dann nichts, UniFlow zeigte sie durchgestrichen. Jetzt fehlen sie in Stundenplan-Woche, Lernkalender (Woche,
+3 Tage, Tag, Monat, Liste) und „Heute an der Uni“.
+- **Nur in der Anzeige:** Die Antworten des lokalen Backends bleiben wie in Python (`status: ausfall`), die Verträge
+  `woche.json` und `timetable-logic.json` sind unverändert. Die App holt die Ausfälle laut Stud.IP eines Zeitraums
+  über `GET /api/timetable/studip-cancelled?start=…&end=…` (nur auf dem Gerät) und lässt genau diese Vorkommen weg
+  (`StudIPCancellations` im Kern, `StudIPCancelled` in der App).
+- **Unterscheidung:** Ein Ausfall laut Stud.IP ist eine Ausnahme `cancelled` mit der Notiz „Ausfall laut Stud.IP“. So
+  speichert sie der Abgleich (`apply_import` mit Quelle studip, `StudIPScheduleImport.refresh`). Was der Nutzer selbst
+  als ausgefallen markiert, hat diese Notiz nicht, ebenso „heute nicht“ und „dauerhaft nicht“. Solche Termine bleiben
+  sichtbar, damit er sie zurücknehmen kann.
+- **Freie Zeit:** Belegt ist nur „teilnahme“ (`busy_blocks`). Ein Ausfall gibt die Zeit also schon frei, für freie
+  Fenster, Lernplan und Umplanen; daran hat sich nichts geändert.
+- **Nicht betroffen:** Mitteilungen (nur Fristen, Abgleich und Timer) und die Fristen-Erkennung (keine Termine) zeigen
+  keine Stundenplan-Termine. Der nächste Termin je Modul nimmt nur besuchte.
+- **Am PC-Server** gibt es den Endpunkt nicht, dort bleibt alles wie geliefert.
+
+Tests: `StudIPCancellationsTests` (Kern) und `StudyPlanLocalAppTests.testStudIPCancellationIsHiddenButOwnMarksStay`
+(App, ohne die Änderung rot).

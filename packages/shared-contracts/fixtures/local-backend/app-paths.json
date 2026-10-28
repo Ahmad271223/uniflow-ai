@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 90,
+ "count": 91,
  "paths": [
   {
    "method": "DELETE",
@@ -1733,6 +1733,21 @@
    },
    "expect": {
     "status": 200
+   }
+  },
+  {
+   "method": "GET",
+   "shape": "/api/timetable/studip-cancelled",
+   "sources": [
+    "UniFlow/Views/Timetable/TimetableShared.swift"
+   ],
+   "request": {
+    "path": "/api/timetable/studip-cancelled?start=2026-10-26&end=2026-11-01"
+   },
+   "expect": {
+    "status": 200,
+    "type": "array",
+    "reason": "nur auf dem Geraet (StudIPCancellations)"
    }
   },
   {

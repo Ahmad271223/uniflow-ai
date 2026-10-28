@@ -1106,3 +1106,28 @@ Stand der Prüfung (Zweig `wip/stundenplan-abruftag` auf develop 55b8616):
 - **App:** 512 Tests (2 übersprungen) zweimal nacheinander grün.
 - **Python:** 452 bestanden; rot nur `test_sync.py::test_sync_fixture_matches_python`, derselbe wackelnde
   Sync-Generator.
+
+## Bitte der Mac-Sitzung: Ausfälle laut Stud.IP wie Stud.IP ausblenden (28.10.2026)
+
+Entscheidung des Inhabers vom 28.10. (ca. 08:30): In der Weihnachtswoche (23.–25.12.) markiert Stud.IP 13 seiner
+Veranstaltungen als ausgefallen (`status: ausfall`, `exception: cancelled`, Serie mit `source: studip`). Der
+Stud.IP-Kalender zeigt dann nichts, UniFlow zeigte sie durchgestrichen. Er will es wie Stud.IP: Ausgefallene Termine
+verschwinden aus Woche, Tag und Übersicht, die Zeit ist frei für Lernblöcke.
+
+Auf dem iPad umgesetzt (Zweig `wip/stundenplan-ausfall`, `docs/IPAD-STUDIP-SYNC.md` §10), **nur in der Anzeige**:
+- Die Antworten des lokalen Backends bleiben wie in Python, die Verträge `woche.json` (Ausfall am 19.11. mit
+  `status: ausfall`) und `timetable-logic.json` sind unverändert grün.
+- Neu und nur auf dem Gerät: `GET /api/timetable/studip-cancelled?start=…&end=…` liefert `[{"event_id", "date"}]`
+  der Ausnahmen `cancelled` mit der Notiz „Ausfall laut Stud.IP“. Die App lässt genau diese Vorkommen weg.
+  `app-paths.json` kennt den Pfad, mit `"python": False` wie bei `studip-questions`.
+- Selbst markierte Ausfälle (ohne diese Notiz) und „nicht besucht“ bleiben sichtbar, damit der Nutzer sie
+  zurücknehmen kann.
+- Freie Zeit war schon richtig: `busy_blocks` zählt nur `teilnahme`.
+
+Bitten an die PC-Sitzung:
+1. **Web und Referenz gleich machen:** Wochenansicht, Tagesansicht, Lernkalender und „Heute an der Uni“ sollen
+   Ausfälle laut Stud.IP nicht mehr zeigen. Danach bitte gemeinsam den Vertrag anpassen. Vorschlag: Python lässt
+   diese Vorkommen in `occurrences` weg, oder es kennzeichnet sie (zum Beispiel `exception_note`). Dann ziehen wir
+   `woche.json` und `timetable-logic.json` zusammen nach, und der Geräte-Endpunkt kann entfallen.
+2. **LSF (Hildesheim):** Ausfälle aus dem LSF-Export heißen „Ausfall laut Kalender“. Sollen sie ebenso verschwinden?
+   Bis zur Entscheidung blendet das iPad nur „Ausfall laut Stud.IP“ aus.

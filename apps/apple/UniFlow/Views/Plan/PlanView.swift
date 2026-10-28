@@ -55,8 +55,11 @@ struct PlanView: View {
             async let open = api.value("/api/tasks/open")
             async let mods = api.value("/api/modules")
             let month: JSONValue? = st.view == "month" ? nil : try await api.value("/api/calendar?start=\(Fmt.isoDay(mStart))&end=\(Fmt.isoDay(mEnd))")
-            var pd = PlanData(view: st.view, date: d, start: start, end: end, module: st.module, cal: try await cal, open: try await open,
-                              modules: try await mods, month: month)
+            // Ausfaelle laut Stud.IP wie in Stud.IP ausblenden (`StudIPCancelled`), im gezeigten Zeitraum und im Monat
+            let hidden = await StudIPCancelled.keys(api, from: Fmt.isoDay(min(start, mStart)), to: Fmt.isoDay(max(end, mEnd)))
+            var pd = PlanData(view: st.view, date: d, start: start, end: end, module: st.module,
+                              cal: StudIPCancellations.hiding(in: try await cal, keys: hidden), open: try await open,
+                              modules: try await mods, month: month.map { StudIPCancellations.hiding(in: $0, keys: hidden) })
             if st.view == "week" || st.view == "3days" {
                 for w in Set([PlanData.monday(start), PlanData.monday(end)]) {
                     if let tw = try? await api.value("/api/timetable/week?start=\(Fmt.isoDay(w))") {
@@ -64,7 +67,7 @@ struct PlanView: View {
                     }
                 }
             }
-            if st.view == "day" { pd.dayTT = try? await api.value("/api/timetable/day?date=\(st.date)") }
+            if st.view == "day" { pd.dayTT = (try? await api.value("/api/timetable/day?date=\(st.date)")).map { StudIPCancellations.hiding(in: $0, keys: hidden) } }
             data = pd
             error = nil
         } catch {

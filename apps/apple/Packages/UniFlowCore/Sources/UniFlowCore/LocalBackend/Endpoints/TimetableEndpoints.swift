@@ -260,6 +260,14 @@ public enum TimetableEndpoints: LocalEndpointModule {
             })
         }
 
+        // Nur auf dem Geraet: Ausfaelle laut Stud.IP im Zeitraum (start, end einschliesslich), damit die App sie wie
+        // Stud.IP ausblendet (`StudIPCancellations`); die uebrigen Antworten bleiben wie in Python
+        router.get("/api/timetable/studip-cancelled") { req, ctx in
+            let start = try T.queryDay(req, "start"), end = try T.queryDay(req, "end")
+            guard end >= start, end - start <= 400 else { throw LocalHTTPError(status: 422, message: "Zeitraum ungültig") }
+            return .json(try await ctx.database.withConnection { try StudIPCancellations.list($0, from: start, to: end) })
+        }
+
         // Nur auf dem Geraet: Fragen zum eigenen Stud.IP-Kalender (StudIPCalendar). "hidden": belegte Kurse ohne
         // Termine im Kalender, "busy": Kurse mit drei oder mehr Serien je Woche.
         router.get("/api/timetable/studip-questions") { _, ctx in
