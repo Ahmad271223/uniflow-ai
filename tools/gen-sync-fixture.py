@@ -77,9 +77,12 @@ def build() -> dict:
             steps.append({"op": "push", "label": label, "device": device, "items": items, "deletes": deletes or [], "expect": scrub(out)})
             return out
 
-        def pull(label, since=None):
-            out = sync.changes(conn, since)
-            steps.append({"op": "pull", "label": label, "since": "<cursor>" if since else None, "expect": scrub(out)})
+        def pull(label, since=None, limit=None):
+            out = sync.changes(conn, since, limit or sync.MAX_PULL)
+            step = {"op": "pull", "label": label, "since": "<cursor>" if since else None, "expect": scrub(out)}
+            if limit:
+                step["limit"] = limit
+            steps.append(step)
             return out
         steps_fn(push, pull, conn)
         conn.close()
@@ -128,8 +131,41 @@ def build() -> dict:
         out = pull("Abruf enthaelt hours_per_day, nie lan_pin oder university")
         assert "lan_pin" not in {r["key"] for r in out["changes"].get("settings", [])}
 
+    def seiten(push, pull, conn):
+        # Startzustand abholen, dann fuenf Karten mit verschiedenen Zeitstempeln und ein spaeteres Modul
+        r = pull("Startzustand (Einstellungen usw.)")
+        cards = [{"entity": "flashcards", "local_id": -(i + 1), "data": {"question": f"S{i}", "answer": "A", "box": 1}} for i in range(5)]
+        for i, c in enumerate(cards):
+            push(f"Karte {i + 1} anlegen", "ipad-1", [c])
+            time.sleep(0.005)
+        push("Spaeter ein Modul", "mac-1", [{"entity": "modules", "local_id": -1, "data": {"name": "Danach"}}])
+        cur = r["cursor"]
+        for n in range(1, 10):
+            r = pull(f"Seite {n} mit limit=2: hoechstens 2 Zeilen je Tabelle, Cursor = Grenze, has_more bis zum Ende",
+                     since=cur, limit=2)
+            cur = r["cursor"]
+            if not r["has_more"]:
+                break
+        pull("Danach nichts mehr", since=cur, limit=2)
+
+    def wiederholen(push, pull, conn):
+        items = [{"entity": "modules", "local_id": -1, "op_id": "op-ipad-0001", "data": {"name": "Wdh"}},
+                 {"entity": "study_packages", "local_id": -2, "op_id": "op-ipad-0002",
+                  "data": {"date": "2026-11-02", "module_id": -1, "subject": "Wdh", "title": "W1"}}]
+        push("Erster Versand mit op_id je Eintrag", "ipad-1", items)
+        push("Derselbe Versand noch einmal (Antwort verloren): dasselbe Ergebnis mit repeated, keine zweite Zeile", "ipad-1", items)
+        push("Wiederholung plus neues Kind, das auf das wiederholte Modul zeigt", "ipad-1",
+             [items[0], {"entity": "study_tasks", "local_id": -3, "op_id": "op-ipad-0003",
+                         "data": {"package_id": -2, "type": "uebung", "title": "Blatt"}}, items[1]])
+        push("Fehler werden nicht gemerkt", "ipad-1",
+             [{"entity": "study_tasks", "local_id": -9, "op_id": "op-ipad-0009", "data": {"package_id": -77, "type": "uebung", "title": "x"}}])
+        push("Fehler noch einmal: wieder ausgewertet, ohne repeated", "ipad-1",
+             [{"entity": "study_tasks", "local_id": -9, "op_id": "op-ipad-0009", "data": {"package_id": -77, "type": "uebung", "title": "x"}}])
+        pull("Stand danach: ein Modul, ein Paket, eine Aufgabe")
+
     for name, fn in (("neu-anlegen-und-abrufen", neu), ("aenderungen-und-konflikte", aenderung), ("loeschen-und-wiederherstellen", loeschen),
-                     ("notizen-base-version", notizen), ("einstellungen", einstellungen)):
+                     ("notizen-base-version", notizen), ("einstellungen", einstellungen), ("abruf-in-seiten", seiten),
+                     ("wiederholt-senden-op-id", wiederholen)):
         case(name, fn)
     return {"_hinweis": "Erzeugt mit tools/gen-sync-fixture.py aus der Python-Referenz (app/sync.py); nicht von Hand aendern. "
                         "Zeitstempel des Servers sind '<zeit>'; Entscheidungen haengen nur von den Client-Zeitstempeln ab.",
@@ -137,10 +173,15 @@ def build() -> dict:
                       "columns": list(sync.SYNC_COLS), "private_settings": sorted(sync.PRIVATE_SETTINGS),
                       "timestamp": "UTC, YYYY-MM-DDTHH:MM:SS.mmmZ, Vergleich als Text",
                       "new_rows": "id weglassen, local_id negativ; Antwort mapping; Fremdschluessel mit negativen IDs werden im selben Push aufgeloest",
+                      "op_id": "optional je Eintrag, 8-100 Zeichen [A-Za-z0-9._:-], beim Wiederholen dieselbe: gemerktes Ergebnis mit repeated=true "
+                               "und derselben mapping-Zuordnung, keine zweite Zeile; Fehler (status error) werden nicht gemerkt; Frist 90 Tage",
+                      "pull_paging": "limit 1-2000 (Standard 2000) je Tabelle; wird eine Tabelle abgeschnitten, gilt fuer alle Tabellen und "
+                                     "Tombstones die kleinste abgeschnittene Zeit als Grenze: alles bis einschliesslich Grenze, cursor = Grenze, "
+                                     "has_more = true; gleiche Zeitstempel am Ende kommen vollstaendig; weiter abrufen, solange has_more",
                       "update": "base_version == Serverversion -> applied; sonst conflict: je Feld gewinnt der spaetere Schreiber (updated_at vs sync_updated_at)",
                       "delete": "deleted_at >= sync_updated_at des Servers -> deleted (Tombstone); sonst edit_wins; spaetere Aenderung nach Tombstone -> resurrected",
                       "annotations": "wie PUT /api/files/{id}/annotations: base_version muss der Serverversion entsprechen, sonst conflict mit data/version",
-                      "endpoints": {"pull": "GET /api/sync/changes?since=<cursor>&device_id=", "push": "POST /api/sync/push {device_id, items, deletes}"}},
+                      "endpoints": {"pull": "GET /api/sync/changes?since=<cursor>&device_id=&limit=", "push": "POST /api/sync/push {device_id, items, deletes}"}},
             "cases": cases}
 
 

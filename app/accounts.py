@@ -453,21 +453,66 @@ def delete_account(user_id: str, password: str | None = None) -> dict:
         conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (t, user_id))
         conn.execute("DELETE FROM identities WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM reset_tokens WHERE user_id=?", (user_id,))
+        if _has_table(conn, "sync_jobs"):                    # wartende Abgleiche laufen nicht mehr
+            conn.execute("UPDATE sync_jobs SET status='failed', finished_at=?, message='Konto gelöscht' "
+                         "WHERE user_id=? AND status='queued'", (t, user_id))
     config.retire_user_data_dir(user_id)
+    from . import community
+    community.withdraw_all(user_id, "account_deleted")      # Community-Beitraege sofort nicht mehr sichtbar
     return {"deleted": True, "purge_after_days": 30}
 
 
+# Tabellen in accounts.db mit Spalte user_id, die beim endgueltigen Loeschen geleert werden (dazu jede Tabelle mit
+# Fremdschluessel auf users, siehe _purge_user). ai_usage_log bleibt ohne Konto-Bezug fuer die Kostenrechnung.
+ACCOUNT_TABLES = ("vault", "sync_jobs", "entitlements", "usage", "usage_requests", "ai_inflight", "apple_transactions",
+                  "identities", "reset_tokens", "sessions")
+
+
+def _has_table(conn, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def _purge_user(conn, user_id: str) -> None:
+    """Alles eines Kontos endgueltig entfernen (28.10.2026). Vorher loeschte purge_deleted nur Sitzungen und die
+    Nutzerzeile; Tresor (Hochschul-Zugangsdaten) und Abgleich-Auftraege verweisen per Fremdschluessel auf users, also
+    scheiterte das Loeschen, sobald ein Konto Zugangsdaten hatte, und Abo-, Nutzungs- und Community-Daten blieben."""
+    from . import community, test_library, vault
+    community.forget_author(user_id)
+    test_library.forget_owner(user_id)
+    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+    for t in ACCOUNT_TABLES:
+        if t in tables:
+            conn.execute(f"DELETE FROM {t} WHERE user_id=?", (user_id,))
+    for t in tables:                                        # jede weitere Tabelle mit Fremdschluessel auf users
+        for fk in conn.execute(f"PRAGMA foreign_key_list({t})").fetchall():
+            if fk[2] == "users" and t != "users":
+                conn.execute(f"DELETE FROM {t} WHERE {fk[3]}=?", (user_id,))
+    if "ai_usage_log" in tables:
+        conn.execute("UPDATE ai_usage_log SET user_id=NULL WHERE user_id=?", (user_id,))
+    conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+    vault._cache.pop(user_id, None)
+
+
 def purge_deleted(days: int = 30) -> int:
-    """Endgueltig loeschen: Nutzerzeile und Datenordner von Konten, die seit `days` Tagen geloescht sind."""
+    """Endgueltig loeschen: Konten, die seit `days` Tagen geloescht sind, mit allen Daten (_purge_user) und dem
+    beiseitegelegten Datenordner. Ein Fehler bei einem Konto haelt die anderen nicht auf (Sicherungspunkt je Konto)."""
+    import logging
     import shutil
     cutoff = iso(now() - timedelta(days=days))
     n = 0
     with cursor() as conn:
         for r in conn.execute("SELECT id FROM users WHERE status='deleted' AND deleted_at<=?", (cutoff,)).fetchall():
+            conn.execute("SAVEPOINT purge_user")
+            try:
+                _purge_user(conn, r["id"])
+            except Exception:  # noqa: BLE001 - beim naechsten Lauf erneut, die uebrigen Konten laufen weiter
+                conn.execute("ROLLBACK TO purge_user")
+                conn.execute("RELEASE purge_user")
+                logging.getLogger("uniflow.accounts").exception("Konto %s nicht endgueltig geloescht", r["id"])
+                continue
+            conn.execute("RELEASE purge_user")
             for d in config.retired_user_data_dirs(r["id"]):
                 shutil.rmtree(d, ignore_errors=True)
-            conn.execute("DELETE FROM sessions WHERE user_id=?", (r["id"],))
-            conn.execute("DELETE FROM users WHERE id=?", (r["id"],))
             n += 1
     return n
 

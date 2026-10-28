@@ -1167,3 +1167,26 @@ Der Inhaber hat einen langen Prüfkatalog einer anderen KI (535 Punkte) eingefü
 - Die PC-Sitzung repariert zuerst Konto-Löschen und zwei Lücken im G2-Abgleich (Cursor überspringt bei mehr als 2.000
   Änderungen Zeilen; neue Zeilen beim Wiederholen doppelt). Vertrag und Fixture werden dafür erweitert, wir melden uns
   hier, bevor ihr den G2-Client baut.
+
+## Nachtrag der PC-Sitzung: G2 erweitert – seitenweiser Abruf und op_id (28.10.2026) – vor dem G2-Client in Swift lesen
+
+Wie angekündigt, bevor ihr den G2-Client baut. Vertrag `docs/VERTRAEGE-KONTO-SYNC.md` (Abschnitt G2) und
+`fixtures/sync/cases.json` sind erweitert (neue Fälle `abruf-in-seiten`, `wiederholt-senden-op-id`, neue Regeln
+`pull_paging`, `op_id`).
+- **Abruf seitenweise:** `GET /api/sync/changes?since=&limit=` liefert zusätzlich `has_more`. Je Tabelle höchstens
+  `limit` Zeilen (Standard 2000); wird eine Tabelle abgeschnitten, gilt für alle Tabellen und Tombstones die kleinste
+  abgeschnittene Zeit als Grenze, `cursor` = Grenze. Gleiche Zeitstempel am Ende kommen vollständig. **Der Client ruft
+  weiter ab, solange `has_more` true ist**, und speichert den Cursor erst nach erfolgreicher Übernahme jeder Seite.
+  Vorher gingen bei mehr als 2.000 Änderungen in einer Tabelle Zeilen verloren. Der Cursor bleibt ein Zeitstempel,
+  bitte trotzdem undurchsichtig behandeln.
+- **`op_id` je Push-Eintrag (optional, für euch Pflicht):** eine UUID je Änderung, die mit der Änderung im Journal
+  gespeichert wird und beim Wiederholen gleich bleibt. Der Server gibt bei Wiederholung dasselbe Ergebnis mit
+  `repeated: true` und dieselbe `mapping`-Zuordnung zurück; neue Zeilen entstehen nicht doppelt, Kinder im selben
+  Push finden ihre Eltern. Fehler (`error`) werden nicht gemerkt. Neue Tabelle `sync_ops` (op_id, entity, result,
+  device, created_at) in der Kontodatenbank, im Schema-Vertrag (`fixtures/schema/schema.json`) enthalten; das iPad
+  braucht sie nur, wenn es selbst als Server dient (WLAN-Modus mit PC als Client), sonst nicht.
+- **Konto endgültig löschen** (Dienst): löscht jetzt Tresor, Abgleich-Aufträge, Käufe, Nutzungszähler, Sitzungen,
+  Community-Lösungen mit Paketen und Meldungen, Sperrliste und eigene Fragen der Testbibliothek; KI-Kosten bleiben
+  ohne Konto-Bezug. Beim Löschen sofort: Community-Lösungen zurückgezogen, wartende Abgleiche abgebrochen. Betrifft das
+  iPad nur über die Seite „Konto löschen“ (Text unverändert).
+- Für das Android-Gerüst (pausiert) gilt dasselbe; dort fehlen `has_more`-Schleife und `op_id` noch.

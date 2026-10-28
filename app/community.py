@@ -296,6 +296,33 @@ def mine(user: dict) -> list[dict]:
     return [_summary(r, user["id"]) for r in rows]
 
 
+def withdraw_all(author_id: str, reason: str) -> int:
+    """Alle Loesungen eines Kontos zurueckziehen (Konto geloescht): nicht mehr sichtbar, Pakete weg."""
+    with cursor() as conn:
+        rows = conn.execute("SELECT id FROM solutions WHERE author_id=? AND status IN ('active','hidden')", (author_id,)).fetchall()
+        conn.execute("UPDATE solutions SET status='withdrawn', status_reason=? WHERE author_id=? AND status IN ('active','hidden')",
+                     (reason, author_id))
+    for r in rows:
+        (package_dir() / f"{r['id']}.uniflowsolution").unlink(missing_ok=True)
+    return len(rows)
+
+
+def forget_author(user_id: str) -> int:
+    """Konto endgueltig geloescht: Loesungen samt Paketen und Meldungen dazu, eigene Meldungen, Sperrliste und
+    Bann-Eintrag entfernen. Liefert die Zahl der entfernten Loesungen."""
+    with cursor() as conn:
+        ids = [r[0] for r in conn.execute("SELECT id FROM solutions WHERE author_id=?", (user_id,))]
+        for sid in ids:
+            conn.execute("DELETE FROM reports WHERE solution_id=?", (sid,))
+            conn.execute("DELETE FROM solutions WHERE id=?", (sid,))
+        conn.execute("DELETE FROM reports WHERE reporter_id=?", (user_id,))
+        conn.execute("DELETE FROM blocks WHERE user_id=?", (user_id,))
+        conn.execute("DELETE FROM bans WHERE author_id=?", (user_id,))
+    for sid in ids:
+        (package_dir() / f"{sid}.uniflowsolution").unlink(missing_ok=True)
+    return len(ids)
+
+
 def withdraw(user: dict, solution_id: str) -> dict:
     with cursor() as conn:
         r = conn.execute("SELECT * FROM solutions WHERE id=?", (solution_id.lower(),)).fetchone()

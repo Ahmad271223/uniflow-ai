@@ -164,6 +164,114 @@ def test_delete_account_locks_and_retires_data(hosted, monkeypatch):
     assert accounts.purge_deleted() == 1 and not config.retired_user_data_dirs(u["id"])
 
 
+def _seed_everything(uid: str):
+    """Ein Konto mit allem, was am Konto haengt: Zugangsdaten, Abgleich-Auftrag, Tarif, KI-Kosten, Community-Loesung
+    mit Paket und Meldung, eigene Meldung und Sperrliste, Fragen in der Testbibliothek."""
+    from app import accounts, community, jobs, test_library, vault
+    vault.set_values(uid, {"STUDIP_USER": "luh-id", "STUDIP_PASSWORD": "geheim"})
+    jobs.enqueue(uid, "sync", "manual")
+    accounts.set_plan(uid, "plus")
+    from app import billing
+    c = billing.connect()
+    try:
+        c.execute("INSERT INTO entitlements(user_id, source, plan, original_transaction_id, updated_at) VALUES (?, 'app_store', 'plus', ?, '2026-10-28')",
+                  (uid, f"otid-{uid[:8]}"))
+        c.execute("INSERT INTO usage(user_id, period, feature, count) VALUES (?, '2026-10', 'ai_assist', 3)", (uid,))
+    finally:
+        c.close()
+    with accounts.cursor() as conn:
+        from app import ai_backend
+        conn.executescript(ai_backend.SCHEMA)
+        conn.execute("INSERT INTO ai_usage_log(user_id, period, purpose, cost_microeur, state, created_at) VALUES (?, '2026-10', 'explain', 1200, 'done', '2026-10-28')", (uid,))
+    sid = f"{uid[:8]}-0000-4000-8000-000000000001"
+    with community.cursor() as conn:
+        conn.execute("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, title, created_at,
+                        published_at, page_count, pages, size) VALUES (?, ?, 'luh', ?, 'Studi-test', 'Studi-test', 'Blatt 1', '2026-10-28',
+                        '2026-10-28', 3, 1, 10)""", (sid, "a" * 64, uid))
+        conn.execute("INSERT INTO reports(solution_id, reporter_id, reason, created_at) VALUES (?, 'jemand', 'spam', '2026-10-28')", (sid,))
+        other = f"{uid[:8]}-0000-4000-8000-000000000002"            # Loesung eines anderen Kontos, von diesem gemeldet
+        conn.execute("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, title, created_at,
+                        published_at, page_count, pages, size) VALUES (?, ?, 'luh', 'fremdes-konto', 'Studi-y', 'Studi-y', 'Blatt 2',
+                        '2026-10-28', '2026-10-28', 3, 1, 10)""", (other, "b" * 64))
+        conn.execute("INSERT INTO reports(solution_id, reporter_id, reason, created_at) VALUES (?, ?, 'spam', '2026-10-28')", (other, uid))
+        conn.execute("INSERT INTO blocks(user_id, pseudonym, created_at) VALUES (?, 'Studi-x', '2026-10-28')", (uid,))
+    community.package_dir().mkdir(parents=True, exist_ok=True)
+    (community.package_dir() / f"{sid}.uniflowsolution").write_bytes(b"paket")
+    owner = test_library.owner_hash(uid)
+    with test_library.cursor() as conn:
+        for qid, review, source in ((f"q-{uid[:6]}-1", "private", "studora_ai"), (f"q-{uid[:6]}-2", "approved", "studora_ai")):
+            conn.execute("""INSERT INTO questions(id, fingerprint, subject, subject_key, topic, topic_key, question, answer, tokens,
+                            source, review, owner_hash, created_at) VALUES (?,?,'Mathe','mathe','Matrizen','matrizen','Frage?','Antwort','frage',?,?,?,'2026-10-28')""",
+                         (qid, qid, source, review, owner))
+        conn.execute("INSERT INTO seen(owner_hash, question_id, seen_at) VALUES (?, 'q-x', '2026-10-28')", (owner,))
+    return sid, owner
+
+
+def test_purge_removes_everything_of_the_account_even_with_credentials(hosted, monkeypatch):
+    """Endgueltig loeschen (28.10.2026): vorher scheiterte purge_deleted an den Fremdschluesseln von vault und
+    sync_jobs, sobald ein Konto Zugangsdaten hatte, und Abo-, Nutzungs-, Community- und Bibliotheksdaten blieben."""
+    from app import accounts, community, test_library
+    u = accounts.register("alles@beispiel.de", "sehr-geheim-123", "luh")
+    uid = u["id"]
+    sid, owner = _seed_everything(uid)
+    accounts.delete_account(uid, "sehr-geheim-123")
+    # sofort: Community-Loesung nicht mehr sichtbar, Paket weg, wartender Abgleich abgebrochen
+    with community.cursor() as conn:
+        assert conn.execute("SELECT status, status_reason FROM solutions WHERE id=?", (sid,)).fetchone()[:] == ("withdrawn", "account_deleted")
+    assert not (community.package_dir() / f"{sid}.uniflowsolution").exists()
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT status FROM sync_jobs WHERE user_id=?", (uid,)).fetchone()[0] == "failed"
+    later = accounts.now() + timedelta(days=31)
+    monkeypatch.setattr(accounts, "now", lambda: later)
+    assert accounts.purge_deleted() == 1
+    with accounts.cursor() as conn:
+        have = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert {"users", "vault", "sync_jobs", "sessions", "entitlements", "usage"} <= have
+        for t in ("users", "vault", "sync_jobs", "entitlements", "usage", "sessions", "identities", "reset_tokens"):
+            if t not in have:
+                continue
+            col = "id" if t == "users" else "user_id"
+            assert conn.execute(f"SELECT COUNT(*) FROM {t} WHERE {col}=?", (uid,)).fetchone()[0] == 0, t
+        assert conn.execute("SELECT COUNT(*) FROM ai_usage_log WHERE user_id=?", (uid,)).fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM ai_usage_log WHERE user_id IS NULL AND cost_microeur=1200").fetchone()[0] == 1, "Kosten bleiben ohne Konto"
+    with community.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM solutions WHERE author_id=?", (uid,)).fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM reports WHERE solution_id=? OR reporter_id=?", (sid, uid)).fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM blocks WHERE user_id=?", (uid,)).fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM solutions WHERE id=?", (f"{uid[:8]}-0000-4000-8000-000000000002",)).fetchone()[0] == 1, "fremde Loesung bleibt"
+    with test_library.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM questions WHERE owner_hash=?", (owner,)).fetchone()[0] == 0
+        assert conn.execute("SELECT review FROM questions WHERE id=?", (f"q-{uid[:6]}-2",)).fetchone()[0] == "approved", "freigegebene Frage bleibt ohne Besitzer"
+        assert conn.execute("SELECT COUNT(*) FROM questions WHERE id=?", (f"q-{uid[:6]}-1",)).fetchone()[0] == 0, "private Frage weg"
+        assert conn.execute("SELECT COUNT(*) FROM seen WHERE owner_hash=?", (owner,)).fetchone()[0] == 0
+    assert accounts.purge_deleted() == 0
+
+
+def test_purge_failure_of_one_account_does_not_stop_the_others(hosted, monkeypatch):
+    from app import accounts, community
+    a = accounts.register("eins@beispiel.de", "sehr-geheim-123", "luh")
+    b = accounts.register("zwei@beispiel.de", "sehr-geheim-123", "luh")
+    for u in (a, b):
+        _seed_everything(u["id"])
+        accounts.delete_account(u["id"], "sehr-geheim-123")
+    later = accounts.now() + timedelta(days=31)
+    monkeypatch.setattr(accounts, "now", lambda: later)
+    real = community.forget_author
+
+    def flaky(uid):
+        if uid == a["id"]:
+            raise RuntimeError("Community-Datenbank gesperrt")
+        return real(uid)
+    monkeypatch.setattr(community, "forget_author", flaky)
+    assert accounts.purge_deleted() == 1
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM users WHERE id=?", (a["id"],)).fetchone()[0] == 1, "bleibt fuer den naechsten Lauf"
+        assert conn.execute("SELECT COUNT(*) FROM vault WHERE user_id=?", (a["id"],)).fetchone()[0] > 0, "nichts halb geloescht"
+        assert conn.execute("SELECT COUNT(*) FROM users WHERE id=?", (b["id"],)).fetchone()[0] == 0
+    monkeypatch.setattr(community, "forget_author", real)
+    assert accounts.purge_deleted() == 1
+
+
 # ---------------------------------------------------------------- HTTP im gehosteten Modus
 
 def test_hosted_requires_session_on_every_api_path(hosted):

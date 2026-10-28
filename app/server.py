@@ -451,11 +451,12 @@ def sync_now(ai: bool = True):
 
 
 @app.get("/api/sync/changes")
-def api_sync_changes(since: str | None = None, device_id: str | None = None):
-    """Vertrag G2: alle Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones."""
+def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000)):
+    """Vertrag G2: Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones, seitenweise:
+    weiter abrufen, solange `has_more` true ist."""
     from . import sync
     with db.cursor() as conn:
-        return sync.changes(conn, since)
+        return sync.changes(conn, since, limit)
 
 
 @app.post("/api/sync/push")

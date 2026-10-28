@@ -90,9 +90,9 @@ Nach Schwere. „Bestätigt“ heißt: im Code nachgelesen, nicht durch einen Te
 
 | # | Schwere | Befund | Beleg | Lösung |
 |---|---|---|---|---|
-| P1 | P0 | **Endgültiges Löschen scheitert**, sobald das Konto Zugangsdaten oder Abgleich-Aufträge hatte: `purge_deleted` löscht `users`, aber `vault` und `sync_jobs` verweisen per Fremdschlüssel darauf (`PRAGMA foreign_keys=ON`). Tresor, Aufträge und Community-Pakete werden nie gelöscht | `app/accounts.py:460-472`, `app/vault.py:34`, `app/jobs.py:27`, `app/accounts.py:126` | abhängige Zeilen zuerst löschen, Community-Pakete des Autors entfernen, Test mit Tresor und Jobs |
-| P2 | P0 | **Abruf überspringt Zeilen:** `LIMIT 2000` je Tabelle, der Cursor ist das Maximum über alle Tabellen, kein `has_more` | `app/sync.py:100-115` | Cursor je Tabelle oder gemeinsamer Zeitpunkt = Minimum der abgeschnittenen Tabellen, `has_more` |
-| P3 | P1 | **Wiederholtes Senden legt neue Zeilen doppelt an** (keine Operations-ID für neue Zeilen) | `app/sync.py:175-190` | `client_op_id` je neuer Zeile speichern und bei Wiederholung dieselbe ID liefern (Idee aus PR #2/#3) |
+| P1 | P0 ✅ behoben 28.10. | **Endgültiges Löschen scheitert**, sobald das Konto Zugangsdaten oder Abgleich-Aufträge hatte: `purge_deleted` löscht `users`, aber `vault` und `sync_jobs` verweisen per Fremdschlüssel darauf (`PRAGMA foreign_keys=ON`). Tresor, Aufträge und Community-Pakete werden nie gelöscht | `app/accounts.py:460-472`, `app/vault.py:34`, `app/jobs.py:27`, `app/accounts.py:126` | abhängige Zeilen zuerst löschen, Community-Pakete des Autors entfernen, Test mit Tresor und Jobs |
+| P2 | P0 ✅ behoben 28.10. | **Abruf überspringt Zeilen:** `LIMIT 2000` je Tabelle, der Cursor ist das Maximum über alle Tabellen, kein `has_more` | `app/sync.py:100-115` | Cursor je Tabelle oder gemeinsamer Zeitpunkt = Minimum der abgeschnittenen Tabellen, `has_more` |
+| P3 | P1 ✅ behoben 28.10. | **Wiederholtes Senden legt neue Zeilen doppelt an** (keine Operations-ID für neue Zeilen) | `app/sync.py:175-190` | `client_op_id` je neuer Zeile speichern und bei Wiederholung dieselbe ID liefern (Idee aus PR #2/#3) |
 | P4 | P1 | Keine E-Mail-Bestätigung | `app/accounts.py:44`, `app/mail.py:180` | Bestätigungslink, Grenzen bis zur Bestätigung |
 | P5 | P1 | Kein Datenexport (DSGVO Art. 20) | keine Route | `GET /api/account/export` als ZIP |
 | P6 | P1 | Keine Grenzen für Registrierung und Passwort-Reset; `409 email_taken` verrät, ob ein Konto existiert | `app/accounts.py:217-218, 236-246` | Grenzen je IP und E-Mail, neutrale Antwort |
@@ -201,9 +201,9 @@ Prüfung vom 28.10. in Klammern.
 
 ## 7. Aufgaben für die PC-Sitzung (Reihenfolge)
 
-1. P1 Konto endgültig löschen reparieren, mit Test (Tresor, Jobs, Community-Pakete).
-2. P2 und P3 im Abgleich: Cursor ohne Überspringen, Operations-ID für neue Zeilen; Vertrag G2 und Fixture
-   erweitern, Mac-Sitzung informieren.
+1. ✅ P1 Konto endgültig löschen repariert (`tests/test_accounts.py`, zwei neue Tests).
+2. ✅ P2 und P3: seitenweiser Abruf mit `has_more`, `op_id` je Push-Eintrag; Vertrag G2 und Fixture erweitert,
+   Mac-Sitzung informiert (`tests/test_sync.py`, vier neue Tests).
 3. P4 bis P6: E-Mail-Bestätigung, Datenexport, Grenzen für Registrierung und Reset, neutrale Antworten.
 4. P8, P10, P11: Last je Anfrage senken, Tresor-Zwischenspeicher, Token für `/api/desktop/*`.
 5. P7: G2-Client im Web und Anmeldung mit UniFlow-Konto in der Windows-App (größter Baustein für „ein Konto überall“).

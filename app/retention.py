@@ -136,13 +136,22 @@ def _purge_sync_log(db_file: Path, cutoff_iso: str, dry_run: bool) -> int:
     """sync_log-Zeilen (Ortszeit-ISO wie db.now_iso) vor dem Stichtag; fehlende Tabelle = nichts zu tun."""
     conn = sqlite3.connect(db_file)
     try:
+        n = 0
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_ops'").fetchone():
+            # Operations-IDs des Geraete-Abgleichs (UTC mit Z): nach derselben Frist weg
+            utc_cut = cutoff_iso[:19] + "Z"
+            k = conn.execute("SELECT COUNT(*) FROM sync_ops WHERE created_at < ?", (utc_cut,)).fetchone()[0]
+            if k and not dry_run:
+                conn.execute("DELETE FROM sync_ops WHERE created_at < ?", (utc_cut,))
+                conn.commit()
+            n += k
         if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_log'").fetchone():
-            return 0
-        n = conn.execute("SELECT COUNT(*) FROM sync_log WHERE COALESCE(started_at, finished_at, '') < ?", (cutoff_iso,)).fetchone()[0]
-        if n and not dry_run:
+            return n
+        k = conn.execute("SELECT COUNT(*) FROM sync_log WHERE COALESCE(started_at, finished_at, '') < ?", (cutoff_iso,)).fetchone()[0]
+        if k and not dry_run:
             conn.execute("DELETE FROM sync_log WHERE COALESCE(started_at, finished_at, '') < ?", (cutoff_iso,))
             conn.commit()
-        return n
+        return n + k
     finally:
         conn.close()
 

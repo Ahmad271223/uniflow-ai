@@ -200,12 +200,23 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   `study_packages`, `study_tasks`, `flashcards`, `settings` (Schlüssel `key`; nie `lan_pin`, `university`),
   `annotations` (Schlüssel `file_id`). Eigene Dokumente mit Inhalt (Notizbücher, importierte PDFs) folgen später;
   Hochschul-PDFs lädt jedes Gerät selbst (`files`, `courses` nicht im Sync).
-- **Abruf:** `GET /api/sync/changes?since=<cursor>` → `{cursor, changes: {entity: [Zeilen inkl. sync_*]}, tombstones}`.
-  Ohne `since` alles. Der Cursor ist der größte gesehene Zeitstempel; Clients entfernen Doppelte über Version.
+- **Abruf:** `GET /api/sync/changes?since=<cursor>&limit=<1…2000>` → `{cursor, changes: {entity: [Zeilen inkl.
+  sync_*]}, tombstones, has_more}`. Ohne `since` alles. **Seitenweise (seit 28.10.2026):** je Tabelle höchstens
+  `limit` Zeilen; wird eine Tabelle abgeschnitten, gilt für alle Tabellen und Tombstones die kleinste abgeschnittene
+  Zeit als Grenze, geliefert wird alles bis einschließlich der Grenze (gleiche Zeitstempel am Ende vollständig),
+  `cursor` = Grenze, `has_more: true`. **Clients rufen weiter ab, solange `has_more` true ist.** Vorher war der Cursor
+  das Maximum über alle Tabellen; bei mehr als 2.000 Änderungen in einer Tabelle gingen Zeilen verloren. Der Cursor
+  bleibt ein Zeitstempel (undurchsichtig behandeln); Clients entfernen Doppelte über Version.
 - **Senden:** `POST /api/sync/push {device_id, items: [{entity, id | local_id, base_version, updated_at, data}],
   deletes: [{entity, id, deleted_at}]}` → `{results, mapping, conflicts, server_time}`.
   - neue Zeile: `id` weglassen, `local_id` negativ → `created` mit Server-ID in `mapping`; Fremdschlüssel mit
     negativen IDs (`module_id`, `package_id`, `event_id`, `folder_id`, `parent_id`) werden im selben Push aufgelöst.
+  - **`op_id` (seit 28.10.2026, optional, empfohlen):** je Eintrag eine eindeutige ID (8–100 Zeichen `[A-Za-z0-9._:-]`,
+    z. B. UUID), beim Wiederholen derselben Änderung dieselbe. Der Server merkt sich das Ergebnis; eine Wiederholung
+    (Antwort verloren, Neustart) bekommt dasselbe Ergebnis mit `repeated: true` und dieselbe `mapping`-Zuordnung, statt
+    eine neue Zeile doppelt anzulegen. Fehler (`error`) werden nicht gemerkt. Frist 90 Tage (`app/retention.py`).
+    Ohne `op_id` legt eine Wiederholung eine zweite Zeile an. Fälle: `abruf-in-seiten`, `wiederholt-senden-op-id` in
+    `fixtures/sync/cases.json`.
   - `base_version` = Serverversion → `applied`. Sonst `conflict`: je Feld gewinnt der spätere Schreiber (`updated_at`
     des Clients gegen `sync_updated_at` des Servers), `client_won` nennt die Felder, `conflicts` beide Stände.
   - Löschen: `deleted_at` ≥ letzte Serveränderung → `deleted` (Tombstone), sonst `edit_wins` (Zeile bleibt).
