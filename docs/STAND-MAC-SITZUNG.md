@@ -1034,6 +1034,31 @@ Danke für `plans.json`. Das iPad hat die vier Tarife jetzt (Zweig `wip/vier-tar
   „UniFlow Demo-Inhalt“, weil sie Byte für Byte `app/demo.py` folgen – bitte dort umbenennen und die Fixture neu
   erzeugen, dann ziehen wir nach. `tests/test_release_texts.py` erkennt jetzt auch „AI“, „OpenAI“ und „ChatGPT“.
 
+## Bitte der Mac-Sitzung: Name Studora überall, offene Punkte der Prüfrunde 501–570 (28.10.2026)
+
+- **Entscheidung des Inhabers (28.10.2026):** Der Name **Studora** gilt für alle Plattformen – iPad, Windows,
+  Android, Web und die Rechtstexte. Die Mac-Sitzung hat `docs/release/` umbenannt (Datenschutz,
+  Nutzungsbedingungen, Impressum, Konto löschen, Play Store, Betrieb, README; App Store schon vorher). Technische
+  Kennungen bleiben unverändert: Cookie `uniflow_session`, Paketname `de.uniflow.android`, `/srv/uniflow`,
+  Docker-Volumes und systemd-Einheiten. Bitte auf der PC-Seite nachziehen: sichtbare Texte in Windows, Android und
+  Web, die Meldung „keine UniFlow-Lösung“ in `app/community.py`, die Demo-PDFs in `app/demo.py` (danach
+  `python tools/gen-demo-fixture.py`, das iPad folgt der Fixture).
+- **569:** `PUT /api/terms` nimmt auf dem iPad jetzt keine vertauschten oder ungültigen Daten mehr an (422, das
+  bisherige Semester bleibt aktiv); vorher war danach die ganze Woche im Stundenplan leer. `app/server.py` speichert
+  weiterhin jedes Semester. Bitte dort dieselbe Prüfung, damit Web und iPad gleich antworten.
+- **555:** Die 500er-Antworten des iPad-Backends nennen keine Tabellen, Spalten, SQL oder Pfade mehr. Der PC-Server
+  gibt beim Stundenplan-Import („Import fehlgeschlagen: …“) weiter den Text der Ausnahme aus. Bitte ebenso kürzen.
+- **Fixture-Prüfung:** `tools/gen-local-backend-fixture.py` brach mit „SAMPLES passt nicht zur App“ ab, weil der nur
+  vorbereitete Pfad `/api/billing/apple/verify` als GET-Aufruf zählte; der Abbruch verdeckte, dass `app-paths.json`
+  veraltet war. Jetzt gibt es `PREPARED` mit Begründung, `app-paths.json` ist neu erzeugt (nur Quelldateien).
+  `library-files.json` bleibt eure Aufgabe (leere base64-Inhalte, siehe oben).
+- **Ursache der wackligen Sync-Fixture gefunden:** `tools/gen-sync-fixture.py --check` (und
+  `tests/test_sync.py::test_sync_fixture_matches_python`) scheitert inzwischen in etwa zwei von drei Läufen, auch auf
+  develop ohne Mac-Änderung. In `cases.json` tauschen die Einstellungszeilen `semester_rule_applied` (neu seit
+  c0721da) und `hours_per_day` ihren Platz: Beide kommen in der Reihenfolge ihrer Änderungszeit, bei gleichem
+  Zeitstempel ist die Reihenfolge nicht festgelegt. Bitte im Pull einen festen zweiten Sortierschlüssel (z. B. `key`
+  bzw. die ID) oder im Generator eine eingefrorene Uhr.
+
 ## Bitte der Mac-Sitzung: Abruftag und Zeit vor dem ersten Abruf zeigen alle Gruppen (28.10.2026) – Python hat denselben Fehler
 
 Befund mit echten Daten auf dem iPad (develop ad5df7f, nur lesend geprüft): Der Abruf lief am 27.10. um 02:39.

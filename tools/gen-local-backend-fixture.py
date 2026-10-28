@@ -51,6 +51,11 @@ EXTRA = {
     "GET /api/assets/{}/{}": "UniFlow/Services/DocumentStore.swift (Bilder aus Notizen, src)",
 }
 
+# Pfade, die die App nur als Text vorhaelt und in V1 nie aufruft (Dienst kommt spaeter): kein Aufruf, keine Probe
+PREPARED = {
+    "/api/billing/apple/verify": "UniFlow/Purchases/BillingServiceLink.swift (POST an den Dienst, in V1 aus)",
+}
+
 # Beispielanfrage je Pfad. "python": False -> nicht gegen app/server.py ausfuehren (Netzwerk, KI, .env),
 # dann ist "expect" Pflicht. "expect" ueberschreibt sonst den Status von Python, "reason" erklaert warum.
 # "expect.empty_lists": Listen (Pfad ab "$"), die lokal bewusst leer bleiben, obwohl Python sie fuellt.
@@ -246,6 +251,8 @@ def app_calls() -> dict[str, list[str]]:
                 continue
             path, end = _string_literal(text, m.start())
             shape = path.split("?", 1)[0]
+            if shape in PREPARED:
+                continue
             before = text[max(0, m.start() - 40):m.start()]
             args = _call_args(text, end)
             mm = re.search(r'method:\s*"([A-Z]+)"', args)

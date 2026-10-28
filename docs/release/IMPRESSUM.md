@@ -52,11 +52,11 @@ teilzunehmen (§ 36 VSBG). (Die EU-Plattform zur Online-Streitbeilegung wurde am
 dorthin gehört nicht mehr ins Impressum.)
 
 **Hinweis zu den Hochschulen**
-UniFlow ist ein eigenständiges Angebot und nicht mit der Leibniz Universität Hannover oder der Universität
+Studora ist ein eigenständiges Angebot und nicht mit der Leibniz Universität Hannover oder der Universität
 Hildesheim verbunden. Stud.IP, QIS, Learnweb und LSF sind Systeme der jeweiligen Hochschule.
 
 **Nicht erforderlich** (nur zur Einordnung): Angaben nach § 18 Abs. 2 MStV („Verantwortlich für den Inhalt“)
-betreffen journalistisch-redaktionelle Angebote und treffen auf UniFlow nicht zu. Eine Aufsichtsbehörde ist nur bei
+betreffen journalistisch-redaktionelle Angebote und treffen auf Studora nicht zu. Eine Aufsichtsbehörde ist nur bei
 zulassungspflichtigen Tätigkeiten zu nennen.
 
 **Verweise**

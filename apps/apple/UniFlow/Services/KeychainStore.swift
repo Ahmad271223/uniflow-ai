@@ -50,7 +50,12 @@ struct KeychainStore: Sendable {
 
     func write(_ value: String, account: String) throws { try write(Data(value.utf8), account: account) }
 
-    func remove(_ account: String) { SecItemDelete(query(account) as CFDictionary) }
+    /// true, wenn der Eintrag danach fehlt ("nichts da" gilt als Erfolg, ein gesperrter Schluesselbund nicht)
+    @discardableResult
+    func remove(_ account: String) -> Bool {
+        let status = SecItemDelete(query(account) as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
+    }
 
     /// Ein Aufruf fuer den ganzen Dienst; "nichts da" gilt als Erfolg, ein gesperrter Schluesselbund nicht
     @discardableResult
@@ -97,9 +102,11 @@ struct KeychainStore: Sendable {
     }
 
     /// Alten Eintrag ohne Dienst entfernen (nur diesen, nicht gleich benannte anderer Dienste)
-    static func removeLegacy(account: String) {
+    @discardableResult
+    static func removeLegacy(account: String) -> Bool {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrAccount as String: account,
                                 kSecAttrService as String: ""]
-        SecItemDelete(q as CFDictionary)
+        let status = SecItemDelete(q as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
     }
 }

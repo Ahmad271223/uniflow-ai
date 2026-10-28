@@ -80,14 +80,22 @@ struct ForeignSolutionLayer: Identifiable {
 /// Vorschau einer geteilten Seite OHNE Original: weisser Hintergrund, bei Leerseiten die Vorlage, darauf nur die
 /// eigenen Objekte (gleiche Zeichenroutine wie PDF-Export und Miniaturen). Bekommt nie eine PDF-Seite.
 enum SolutionPreview {
-    static func image(_ page: SolutionPage, images: [String: UIImage], width: CGFloat, scale: CGFloat = 2) -> UIImage {
+    /// Breite und Bildschirmfaktor der Vorschau: endlich und begrenzt (Pruefbericht 518; heute uebergibt die App eine
+    /// feste Breite, ein Wert wie unendlich oder 1e9 haette sonst ein riesiges Bild angefordert)
+    static let widthRange: ClosedRange<CGFloat> = 1...2_048
+    static let scaleRange: ClosedRange<CGFloat> = 1...3
+
+    static func image(_ page: SolutionPage, images: [String: UIImage], width requested: CGFloat, scale requestedScale: CGFloat = 2) -> UIImage {
+        let width = requested.isFinite ? min(widthRange.upperBound, max(widthRange.lowerBound, requested)) : widthRange.lowerBound
+        let scale = requestedScale.isFinite ? min(scaleRange.upperBound, max(scaleRange.lowerBound, requestedScale)) : 2
         let (w, h) = page.displaySize
         let size = CGSize(width: ForeignLayerView.pageSide(w), height: ForeignLayerView.pageSide(h))
         let s = width / size.width
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
         format.opaque = true
-        let out = CGSize(width: width, height: max(1, (size.height * s).rounded()))
+        // sehr schmale, hohe Seiten: hoechstens 4 Bildbreiten hoch (der Rest der Seite liegt ausserhalb der Vorschau)
+        let out = CGSize(width: width, height: min(4 * widthRange.upperBound, max(1, (size.height * s).rounded())))
         return UIGraphicsImageRenderer(size: out, format: format).image { ctx in
             UIColor.white.setFill()
             ctx.fill(CGRect(origin: .zero, size: out))

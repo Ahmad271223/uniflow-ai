@@ -94,12 +94,14 @@ final class Session: ObservableObject {
         if mode == .local { self.api = api }
     }
 
-    /// Zurueck zum lokalen Backend (PIN geloescht, Adresse bleibt als Vorschlag)
-    func disconnect() {
+    /// Zurueck zum lokalen Backend (PIN geloescht, Adresse bleibt als Vorschlag). Rueckgabe: false, wenn die PIN im
+    /// Schluesselbund blieb ("Konto loeschen" meldet es, Pruefbericht 515)
+    @discardableResult
+    func disconnect() -> Bool {
         api = localAPI
         mode = .local
         defaults.set(BackendMode.local.rawValue, forKey: Self.modeKey)
-        Keychain.delete("uniflow.pin")
+        return Keychain.delete("uniflow.pin")
     }
 }
 
@@ -261,8 +263,11 @@ enum Keychain {
         return v
     }
 
-    static func delete(_ key: String) {
-        store.remove(key)
-        KeychainStore.removeLegacy(account: key)
+    /// Entfernt den Eintrag (auch den alten ohne Dienst); false, wenn einer davon nachweislich blieb
+    @discardableResult
+    static func delete(_ key: String) -> Bool {
+        let current = store.remove(key)
+        let legacy = KeychainStore.removeLegacy(account: key)
+        return current && legacy
     }
 }

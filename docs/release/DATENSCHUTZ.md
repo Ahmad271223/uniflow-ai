@@ -1,22 +1,22 @@
-# Datenschutzerklärung UniFlow
+# Datenschutzerklärung Studora
 
 **Entwurf, Stand [[Datum]] (26.10.2026). Keine Rechtsberatung – vor der Veröffentlichung anwaltlich prüfen.**
 
-Diese Erklärung gilt für die UniFlow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
-gehosteten UniFlow-Dienst unter `[[Domain]]`. Sie ist so aufgebaut, wie UniFlow arbeitet: Vieles bleibt auf deinem
-Gerät; nur mit einem UniFlow-Konto verarbeiten wir Daten auf unseren Servern, und auch dann nur das, was du
+Diese Erklärung gilt für die Studora-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
+gehosteten Studora-Dienst unter `[[Domain]]`. Sie ist so aufgebaut, wie Studora arbeitet: Vieles bleibt auf deinem
+Gerät; nur mit einem Studora-Konto verarbeiten wir Daten auf unseren Servern, und auch dann nur das, was du
 eingeschaltet hast.
 
 ## 1. Das Wichtigste in Kürze
 
-- **Ohne UniFlow-Konto** bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts.
-- **Mit UniFlow-Konto** speichern wir deine E-Mail-Adresse, dein Passwort nur als Hash, deine Hochschule, Sitzungen
+- **Ohne Studora-Konto** bleiben alle Daten auf deinem Gerät (Abschnitt 3). Wir erhalten nichts.
+- **Mit Studora-Konto** speichern wir deine E-Mail-Adresse, dein Passwort nur als Hash, deine Hochschule, Sitzungen
   und Tarif (Abschnitt 5). Den Abgleich mit deiner Hochschule, den Abgleich zwischen deinen Geräten und die Community
   schaltest du einzeln ein (Abschnitte 6–8).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
   liegen sie verschlüsselt auf deinem Gerät oder – für den automatischen Abgleich – verschlüsselt in deinem Konto.
   Du kannst sie jederzeit löschen.
-- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** UniFlow nutzt derzeit
+- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** Studora nutzt derzeit
   keine KI-Funktionen und wertet deine Inhalte nicht automatisiert aus.
 
 ## 2. Verantwortlicher
@@ -43,25 +43,25 @@ Der PC-Modus (eigener Server auf deinem Rechner, Ordner `data/`) ist ebenfalls r
 eine PIN den Zugriff. Diese Daten verlassen dein Gerät nur, wenn du den Geräteabgleich (Abschnitt 7) einschaltest.
 Wir speichern auf deinem Gerät nur, was für die Funktion nötig ist oder was du selbst einstellst (§ 25 Abs. 2 TDDDG).
 
-Für **Version 1 der iPad-App** gilt ausschließlich dieser Abschnitt: Sie läuft ohne UniFlow-Dienst. „Mit Apple
+Für **Version 1 der iPad-App** gilt ausschließlich dieser Abschnitt: Sie läuft ohne Studora-Dienst. „Mit Apple
 anmelden“ und das Abo laufen allein über Apple (Abschnitt 9); an uns wird dabei nichts übertragen.
 
 ## 4. Systeme deiner Hochschule
 
-UniFlow liest für dich aus den Systemen deiner Hochschule – Leibniz Universität Hannover: Stud.IP, WebSSO und
+Studora liest für dich aus den Systemen deiner Hochschule – Leibniz Universität Hannover: Stud.IP, WebSSO und
 QIS; Universität Hildesheim: Learnweb, LSF und CAS-Anmeldung. Die App (oder bei eingeschaltetem Abgleich unser
 Dienst in deinem Auftrag) meldet sich dort mit **deinen** Zugangsdaten an und ruft Kurse, Dateien, Termine,
 Fristen, Ankündigungen und – nur wenn du „Noten abrufen“ wählst – deinen Notenspiegel und Bescheinigungen ab. Es
-wird ausschließlich gelesen; UniFlow schreibt nichts in die Hochschulsysteme.
+wird ausschließlich gelesen; Studora schreibt nichts in die Hochschulsysteme.
 
 Für diese Systeme ist deine Hochschule verantwortlich; es gelten ihre Datenschutzhinweise und Nutzungsregeln. Sie
-sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). UniFlow ist kein
+sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). Studora ist kein
 Angebot der Hochschulen und nicht mit ihnen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die
 Hochschulsysteme selbst.
 
-## 5. UniFlow-Konto und Anmeldung (gehosteter Dienst)
+## 5. Studora-Konto und Anmeldung (gehosteter Dienst)
 
-Wenn du ein UniFlow-Konto anlegst, verarbeiten wir:
+Wenn du ein Studora-Konto anlegst, verarbeiten wir:
 
 | Daten | Zweck | Speicherdauer |
 |---|---|---|
@@ -73,9 +73,9 @@ Wenn du ein UniFlow-Konto anlegst, verarbeiten wir:
 | Token für „Passwort vergessen“ (nur als Hash) | Passwort zurücksetzen | 30 Minuten oder bis zur Nutzung |
 | Tarif (Free/Plus) und Rolle | Funktionen freischalten, Moderation | wie das Konto |
 
-Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von UniFlow); für die Schutzmaßnahmen gegen
+Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung von Studora); für die Schutzmaßnahmen gegen
 Missbrauch Art. 6 Abs. 1 lit. f DSGVO (unser Interesse an einem sicheren Dienst). Ohne diese Daten können wir kein
-Konto führen. Du kannst UniFlow auch ohne Konto nutzen (Abschnitt 3).
+Konto führen. Du kannst Studora auch ohne Konto nutzen (Abschnitt 3).
 
 ## 6. Hochschul-Zugangsdaten im Konto und automatischer Abgleich
 
@@ -128,7 +128,7 @@ dieselbe PDF haben.
 
 ## 9. Käufe und Abos
 
-Das Abo UniFlow Plus kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und Zahlungsabwicklung,
+Das Abo Studora Plus kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und Zahlungsabwicklung,
 Rechnungen, Rückerstattungen und Kündigung laufen über Apple bzw. Google nach deren Datenschutzbestimmungen. Wir
 erhalten keine Zahlungsdaten, sondern nur die Information, dass und wie lange ein Abo besteht (Transaktions- und
 Produktkennung), um Plus freizuschalten. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
@@ -191,10 +191,10 @@ Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Ha
 
 ## 16. Kinder
 
-UniFlow richtet sich an Studierende und nicht an Kinder unter 16 Jahren. Wir erheben wissentlich keine Daten von
+Studora richtet sich an Studierende und nicht an Kinder unter 16 Jahren. Wir erheben wissentlich keine Daten von
 Kindern.
 
 ## 17. Änderungen
 
-Wir passen diese Erklärung an, wenn sich UniFlow ändert. Die jeweils aktuelle Fassung steht unter
+Wir passen diese Erklärung an, wenn sich Studora ändert. Die jeweils aktuelle Fassung steht unter
 `[[Domain]]/datenschutz`; bei wesentlichen Änderungen informieren wir dich in der App oder per E-Mail.

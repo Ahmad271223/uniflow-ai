@@ -492,6 +492,24 @@ final class SolutionPackageTests: XCTestCase {
         assertRejected(try sealRaw(Data(fakeImage.utf8), pdf: pdf, images: 1), pdf: pdf, .invalidContent("Bilddaten"))
     }
 
+    /// Pruefbericht 510: Zwei geteilte Seiten auf derselben PDF-Seite wuerden sich in der Ebene des Empfaengers
+    /// (`byPDFIndex`) ueberschreiben. Solche Pakete oeffnen sich nicht ("doppelte PDF-Seite"), ebenso doppelte
+    /// Seitenschluessel; der Builder erzeugt sie nie (eine PDF-Seite steht einmal in `pageOrder`).
+    func testDuplicatePDFPageOrKeyIsRejected() throws {
+        let pdf = fakePDF()
+        let p1 = #"{"key":"p1","kind":"pdf","pdfIndex":1,"width":595,"height":842,"rotation":0,"extraRotation":0,"objects":[{"id":"a","type":"text","text":"eins"}]}"#
+        let p1copy = #"{"key":"p1c","kind":"pdf","pdfIndex":1,"width":595,"height":842,"rotation":0,"extraRotation":0,"objects":[{"id":"b","type":"text","text":"zwei"}]}"#
+        let b1 = #"{"key":"p1","kind":"blank","width":595,"height":842,"rotation":0,"extraRotation":0,"objects":[]}"#
+        func two(_ second: String) -> Data {
+            Data(contentText(objects: "[]", page: p1, pdf: pdf).replacingOccurrences(of: p1, with: p1 + "," + second).utf8)
+        }
+        assertRejected(try sealRaw(two(p1copy), pdf: pdf, pages: 2), pdf: pdf, .invalidContent("doppelte PDF-Seite"))
+        assertRejected(try sealRaw(two(b1), pdf: pdf, pages: 2), pdf: pdf, .invalidContent("doppelte Seite"))
+        // Gegenprobe: eine Seite oeffnet
+        XCTAssertEqual(try SolutionPackage.decode(try sealRaw(Data(contentText(objects: "[]", page: p1, pdf: pdf).utf8), pdf: pdf))
+            .open(originalPDF: pdf, cipher: cipher).pages.count, 1)
+    }
+
     // MARK: Geometrie
 
     func testRotationTransformKeepsPositionOnPageContent() {
