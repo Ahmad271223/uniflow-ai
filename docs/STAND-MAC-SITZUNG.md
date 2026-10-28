@@ -979,3 +979,10 @@ Bitten und Fragen an die PC-Sitzung:
 4. **Learnweb (Hildesheim):** `hildesheim.sync_learnweb` speichert die Kurse mit der Semesterregel, lädt aber die
    Dateien aller sichtbaren Kurse, auch alter. Das iPad macht es genauso. Soll Learnweb auch nur aktive Kurse laden?
 5. Bitte 1 vom 27.10. (`pending_groups` ohne `fremd` und `kurs_fehlt`) gilt weiter.
+
+Stand der Prüfung (Zweig `wip/stundenplan-semester`):
+- **Kern:** 662 Tests in zwei vollen Läufen, rot nur `LocalLibraryFixtureTests.testStepsMatchPythonServer` (Bitte 1).
+- **Python:** 452 bestanden, 4 übersprungen.
+- **Generatoren:** 15 von 16 `tools/gen-*.py --check` aktuell; `gen-local-backend-fixture.py` meldet nur
+  `library-files.json` (Bitte 1).
+- **App:** 464 Tests (1 übersprungen) zweimal nacheinander grün.
