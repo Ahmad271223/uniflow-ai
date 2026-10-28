@@ -408,8 +408,9 @@ def forget_author(user_id: str) -> int:
         conn.execute("DELETE FROM reports WHERE reporter_id=?", (user_id,))
         conn.execute("DELETE FROM blocks WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM bans WHERE author_id=?", (user_id,))
-    from . import community_qa
+    from . import community_qa, weekly_tests
     community_qa.forget(user_id)
+    weekly_tests.forget(user_id)
     for sid in ids:
         (package_dir() / f"{sid}.uniflowsolution").unlink(missing_ok=True)
     return len(ids)

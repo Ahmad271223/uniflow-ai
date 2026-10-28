@@ -140,8 +140,18 @@ dieselbe PDF haben.
   können Lösungen verbergen oder entfernen und Konten für die Community sperren. Zurückgezogene oder entfernte
   Lösungen werden sofort gelöscht; die Kopfdaten bleiben bis zur Löschung des Kontos (Nachvollziehbarkeit bei
   Meldungen).
+- **Gemeinsamer Wochentest der Kursgruppe:** Lässt du für ein Modul den Test der Woche erstellen, schickt dein Gerät
+  die **Seitentexte** des Materials dieser Woche an den Dienst (Vorlesung, Übungen, passende Skript- und
+  Altklausurseiten; nie die Dateien, keine Notizen). Der Dienst erstellt daraus mit dem KI-Anbieter (Abschnitt 11)
+  einmal einen Test für alle deines Kurses; die Texte werden dafür an den KI-Anbieter übermittelt, im Dienst bleiben
+  nur Titel, Art und Seitenzahlen der Quellen und der Test selbst. Zu deinen Versuchen speichern wir Antworten,
+  Punkte, Rückmeldung, Beginn, Abgabe und Dauer. Offene Antworten gehen zur Bewertung an den KI-Anbieter (ohne
+  E-Mail oder Namen). In der **Rangliste** erscheinst du nur, wenn du zustimmst, mit selbst gewähltem Namen oder
+  Pseudonym, Punkten, Prozent und Dauer; sie ist erst nach der Frist sichtbar, und die Zustimmung kannst du jederzeit
+  zurücknehmen. Mit dem Konto werden deine Versuche gelöscht; ein Test, den andere nutzen, bleibt ohne Bezug zu dir.
 - Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (du veröffentlichst bewusst); Moderation und Sperren Art. 6 Abs. 1
   lit. f DSGVO (Schutz der anderen Nutzerinnen und Nutzer, Einhaltung der Regeln). Veröffentlichen ist freiwillig.
+  Rangliste: Art. 6 Abs. 1 lit. a DSGVO (Einwilligung, jederzeit widerrufbar).
 
 ## 9. Käufe und Abos
 

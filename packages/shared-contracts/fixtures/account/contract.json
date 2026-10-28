@@ -49,6 +49,10 @@
    "verify_user": {
     "count": 5,
     "minutes": 60
+   },
+   "weekly_generate_user": {
+    "count": 10,
+    "minutes": 1440
    }
   },
   "email_verification": "Willkommensmail mit /login?verify=<token>; POST /api/account/verify-email {token} ohne Sitzung; Community-Veroeffentlichen erst danach (403 email_unverified); ein Passwort-Reset ueber den Mail-Link bestaetigt die Adresse auch",

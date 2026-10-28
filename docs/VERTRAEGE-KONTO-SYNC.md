@@ -336,6 +336,29 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   (aufheben) und für Admins die Moderation; am PC erklärt sie, dass die Community nur im Dienst läuft. Veröffentlichen,
   suchen, laden, melden und sperren macht der iPad-Client im Editor (M15).
 
+### G4 Teil 3: Gemeinsamer Wochentest der Kursgruppe (28.10.2026)
+
+Ausführlich in `docs/GEMEINSAME-WOCHENTESTS.md`. Vertragsregeln:
+
+- `group_key = sha256("studora.weekly.v1\0" + hochschule + "\0" + course_key + "\0" + semester + "\0" + "YYYY-Www")`;
+  `course_key` wie oben; Kurs eines Moduls = Veranstaltung mit Art `vorlesung`, sonst kleinste ID; Woche =
+  ISO-Kalenderwoche; Semester normalisiert. Ein Test je `group_key`, eindeutig im Dienst.
+- Endpunkte unter `/api/community/weekly/...` (Tabelle in Abschnitt 4 dort), ab Plus (`can_access_shared_tests`).
+  Fehlercodes: `not_generated` (404), `materials_missing` (400), `course_invalid`, `week_invalid`, `plan_required`
+  (403), `already_submitted` (409), `practice_attempt`, `not_found` (404); Erstellen höchstens 10 je Konto und Tag.
+- Test ohne Lösungen: `{id, course_key, term, week, version, status generating|published|failed, title, topics,
+  questions: [{id, nr, level short|medium|hard, type mc|multi|number|short|text|calc, question, options, points,
+  minutes, goal, sources: [{q, page}], past_exam, past_exam_like}], max_points, levels, closes_at, materials: [{q,
+  kind, title, pages, sha256}], attempt?}`; `solutions` (je Aufgaben-ID `{answer, value, tolerance, rubric,
+  explanation, typical_errors}`) erst nach Abgabe des offiziellen Versuchs.
+- Versuch: `{id, official, status draft|grading|graded|grading_pending, started_at, submitted_at, answers, score,
+  max_score, result: {qid: {points, feedback, confident}}, needs_review, leaderboard, display_name, seconds}`.
+  Antworten als Text: `"B"`, `"A,C"`, `"3,5"`, Freitext. Bewertung nur im Dienst.
+- Rangliste: `{visible, closes_at, participants, my_rank (erst nach der Frist), mine, entries: [{rank, name, score,
+  max, percent, minutes, me}] (erst nach der Frist)}`; nur zugestimmte, sicher bewertete erste Versuche.
+- Gerät (nur Windows-Backend, das iPad rechnet selbst): `GET /api/weekly/group`, `GET /api/weekly/materials`,
+  `POST /api/weekly/request`.
+
 ## Noch offen (nächste Schritte der PC-Sitzung)
 
 - Mailversand für Reset und E-Mail-Bestätigung (`email_verified`).

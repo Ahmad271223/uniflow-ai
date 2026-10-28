@@ -599,6 +599,106 @@ def file_by_fingerprint(sha: str):
     return {"file_id": f["id"], "name": f["name"], "course_id": f["course_id"]}
 
 
+def _module_course(conn, module_id: int) -> dict | None:
+    """Kurs, ueber den ein Modul zur Kursgruppe gehoert: die Vorlesung des Moduls, sonst der Kurs mit der kleinsten ID
+    (gleiche Regel auf dem iPad, damit alle denselben Kurs-Schluessel bilden)."""
+    rows = db.rows(conn, "SELECT id, title, semester, kind FROM courses WHERE module_id=? AND id<>'__user__' ORDER BY id", (module_id,))
+    if not rows:
+        return None
+    return next((r for r in rows if (r.get("kind") or "") == "vorlesung"), rows[0])
+
+
+@app.get("/api/weekly/group")
+def weekly_group(module_id: int, date: str | None = None):
+    """Kursgruppe und Kalenderwoche fuer den gemeinsamen Wochentest eines Moduls (Schluessel, Semester, ISO-Woche)."""
+    from datetime import date as _date
+    with db.cursor() as conn:
+        c = _module_course(conn, module_id)
+    if not c:
+        raise HTTPException(404, {"detail": "Dem Modul ist kein Hochschulkurs zugeordnet.", "code": "no_course"})
+    d = _date.fromisoformat(date) if date else study.today()
+    y, w, _ = d.isocalendar()
+    from .grades_model import norm_semester
+    return {"course_key": community_course_key(config.university(), c["id"]), "term": norm_semester(c.get("semester") or "") or "ohne-semester",
+            "week": f"{y}-W{w:02d}", "monday": study.monday(d).isoformat(), "course_title": c["title"]}
+
+
+@app.get("/api/weekly/materials")
+def weekly_materials(module_id: int, date: str | None = None):
+    """Material der Kalenderwoche fuer den gemeinsamen Wochentest, nur Texte (nie Dateien): Vorlesung, Uebung,
+    Gruppen- und Hoersaaluebung, Tutorium, Loesungen der Woche; aus Skript und Altklausuren nur passende Seiten."""
+    from datetime import date as _date
+    from . import scriptsearch
+    d = _date.fromisoformat(date) if date else study.today()
+    kind_of = {"Gruppenübung": "gruppenuebung", "Hörsaalübung": "hoersaaluebung", "Tutorium": "tutorium"}
+    out = []
+    with db.cursor() as conn:
+        start = study.semester_start(conn)
+        wk = study.day_week(start, study.monday(d))
+        files = study._file_rows(conn, module_id)
+        sha = lambda fid: (db.row(conn, "SELECT content_sha256 FROM files WHERE id=?", (fid,)) or {}).get("content_sha256")  # noqa: E731
+        week_files = [f for f in files if study.file_week(start, f) == wk and f.get("doc_type") in ("vorlesung", "uebung", "loesung", "skript")]
+        for f in week_files[:12]:
+            kind = kind_of.get(f.get("sub_label") or "", f.get("doc_type"))
+            pages = scriptsearch.page_texts(conn, f["id"])[:40]
+            out.append({"kind": kind, "title": f.get("ai_title") or f.get("name"), "sha256": sha(f["id"]),
+                        "pages": [{"page": i + 1, "text": t[:6000]} for i, t in enumerate(pages) if t and t.strip()]})
+        week_text = " ".join(p["text"] for m in out for p in m["pages"])[:4000]
+        if week_text.strip():
+            # Skript: passende Seiten ueber die Volltextsuche des Moduls (ohne die Dateien der Woche)
+            hits = scriptsearch.search(conn, module_id, week_text, limit=12).get("results") or []
+            seen = {m["sha256"] for m in out}
+            for h in hits:
+                if h["file_id"] in {f["id"] for f in week_files}:
+                    continue
+                texts = scriptsearch.page_texts(conn, h["file_id"])
+                if 0 < h["page"] <= len(texts):
+                    out.append({"kind": "skript", "title": h.get("title") or h.get("name"), "sha256": sha(h["file_id"]),
+                                "pages": [{"page": h["page"], "text": texts[h["page"] - 1][:6000]}]})
+            # Altklausuren: Seiten mit den meisten gemeinsamen Begriffen mit dem Wochenstoff
+            want = set(scriptsearch.tokens(week_text))
+            cands = []
+            for f in files:
+                if f.get("doc_type") != "klausur" or not (f.get("name") or "").lower().endswith(".pdf"):
+                    continue
+                for i, t in enumerate(scriptsearch.page_texts(conn, f["id"])):
+                    score = len(want & set(scriptsearch.tokens(t)))
+                    if score >= 4:
+                        cands.append((score, f, i + 1, t))
+            for score, f, pg, t in sorted(cands, key=lambda x: -x[0])[:8]:
+                out.append({"kind": "altklausur", "title": f.get("ai_title") or f.get("name"), "sha256": sha(f["id"]),
+                            "pages": [{"page": pg, "text": t[:6000]}]})
+    out = [m for m in out if m["pages"]]
+    return {"teaching_week": wk, "materials": out, "counts": {k: sum(1 for m in out if m["kind"] == k) for k in sorted({m["kind"] for m in out})}}
+
+
+@app.post("/api/weekly/request")
+def weekly_request(request: Request, body: dict = Body(...)):
+    """Gemeinsamen Wochentest fuer ein Modul holen oder erstellen lassen: Kursgruppe und Material bildet dieses Geraet,
+    den Test erstellt einmal der Dienst (Windows-App ueber das Studora-Konto)."""
+    mid = int(body.get("module_id") or 0)
+    g = weekly_group(mid, body.get("date"))
+    mats = weekly_materials(mid, body.get("date"))["materials"]
+    payload = {"term": g["term"], "materials": mats}
+    if config.is_hosted():
+        from . import community, weekly_tests
+        from .community_api import _err
+        try:
+            return {"group": g, "test": weekly_tests.request(request.state.user, config.university(), g["course_key"], g["term"], g["week"], mats)}
+        except community.CommunityError as e:
+            raise _err(e)
+    from . import service_link
+    try:
+        status, _, data = service_link.call("POST", f"/api/community/weekly/{g['course_key']}/{g['week']}", json.dumps(payload).encode(),
+                                            timeout=service_link.UPLOAD_TIMEOUT)
+    except service_link.LinkError as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+    d = json.loads(data or b"{}")
+    if status >= 400:
+        raise HTTPException(status, {"detail": d.get("detail") or "Fehler", "code": d.get("code")})
+    return {"group": g, "test": d}
+
+
 @app.get("/api/courses")
 def courses():
     with db.cursor() as conn:

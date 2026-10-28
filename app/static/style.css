@@ -567,3 +567,30 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
 .skip-link { position: absolute; left: -9999px; top: .5rem; z-index: 1000; background: var(--surface); color: var(--text); padding: .5rem .8rem; border-radius: 8px; box-shadow: var(--sh-lg); }
 .skip-link:focus { left: .5rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Gemeinsamer Wochentest der Kursgruppe (views-weekly.js) */
+.sec-title { font-size: 1rem; margin: 1.2rem 0 .6rem; }
+.wk-card { margin-bottom: 1rem; }
+.wk-list { display: grid; gap: .35rem; }
+.wk-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; padding: .45rem .2rem; border-bottom: 1px solid var(--line); }
+.wk-row:last-child { border-bottom: 0; }
+.wk-row .wk-state { margin-left: auto; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.wk-bad { color: var(--bad); }
+.spin-dot { width: .7rem; height: .7rem; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; display: inline-block; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.wk .wk-nav { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0 0 1rem; position: sticky; top: 0; background: var(--bg); padding: .4rem 0; z-index: 2; }
+.wk-chip { min-width: 2rem; text-align: center; padding: .2rem .45rem; border-radius: 999px; border: 1px solid var(--line); font-size: .8rem; color: var(--text-2); text-decoration: none; }
+.wk-chip.done { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.wk-chip.lvl-hard { border-style: dashed; }
+.badge.lvl-short { background: var(--ok-soft); color: var(--ok); } .badge.lvl-medium { background: var(--warn-soft); color: var(--warn); } .badge.lvl-hard { background: var(--bad-soft); color: var(--bad); }
+.wk-q { margin-bottom: .8rem; display: grid; gap: .55rem; }
+.wk-text { font-size: 1rem; line-height: 1.5; }
+.wk-answer { display: grid; gap: .3rem; }
+.wk-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .35rem .5rem; border: 1px solid var(--line); border-radius: var(--r, 8px); cursor: pointer; }
+.wk-opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.wk-num { max-width: 14rem; }
+.wk-ok { border-left: 4px solid var(--ok); } .wk-part { border-left: 4px solid var(--warn); } .wk-no { border-left: 4px solid var(--bad); }
+.wk-score { margin-bottom: 1rem; display: grid; gap: .4rem; }
+.wk-big { font-size: 1.8rem; font-weight: 700; }
+.wk-me td { font-weight: 650; background: var(--accent-soft); }
+

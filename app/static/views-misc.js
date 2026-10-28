@@ -1,5 +1,6 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=32";
+import { renderWeeklyOverview, runWeekly } from "./views-weekly.js?v=1";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -75,6 +76,7 @@ async function summarizeWeek(w, m) {
 
 // ================================================================ TESTS & WIEDERHOLUNG
 export async function viewExams(parts, params, view) {
+  if (parts[0] === "w" && parts[1]) return runWeekly(parts[1], view);
   if (parts[0]) return runTest(+parts[0], params, view);
   const [tests, mods, cards] = await Promise.all([api("/tests"), api("/modules"), api("/flashcards?due=true")]);
   const modByName = Object.fromEntries(mods.map(m => [m.name, m]));
@@ -87,7 +89,8 @@ export async function viewExams(parts, params, view) {
   view.innerHTML = `<div class="content"><div class="page-head"><div><h1>Tests & Wiederholung</h1><div class="sub">Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.</div></div>
       <div class="actions"><select class="input" id="exSubj" style="width:auto">${mods.map(s => `<option value="${s.id}">${esc(shortName(s.name))}</option>`).join("")}</select><select class="input" id="exDur" style="width:auto">${[15, 30, 45, 60, 90].map(n => `<option value="${n}" ${n === 30 ? "selected" : ""}>${n} min</option>`).join("")}</select><button class="btn sm" id="exGen">${icon("plus", 14)} Zusatztest</button><button class="btn primary sm" id="exWeek">${icon("sparkles", 14)} Wochentests erstellen</button></div></div>
     <div class="statbar"><span><b>${tests.filter(t => !t.submitted_at).length}</b> offene Tests</span><span><b>${tests.filter(t => t.submitted_at).length}</b> abgeschlossen${tests.some(t => t.submitted_at) ? ` · Ø ${Math.round(tests.filter(t => t.submitted_at).reduce((a, t) => a + 100 * t.score / t.max_score, 0) / tests.filter(t => t.submitted_at).length)} %` : ""}</span><a href="#/cards"><b>${cards.length}</b> Karteikarten fällig →</a></div>
-    <div class="test-grid">${cardsHtml}</div></div>`;
+    <div id="wkBox"></div><h2 class="sec-title">Deine eigenen Tests</h2><div class="test-grid">${cardsHtml}</div></div>`;
+  renderWeeklyOverview($("#wkBox", view), mods);
   $("#exGen").onclick = async () => { try { await api("/tests/generate", { method: "POST", body: { module_id: +$("#exSubj").value, duration_min: +$("#exDur").value } }); toast("Zusatztest wird erstellt (ca. 1 Minute)…"); window.pollBg?.(); } catch (e) { toast(e.message); } };
   $("#exWeek").onclick = async () => { try { await api("/tests/generate-week", { method: "POST" }); toast("Fehlende Wochentests werden erstellt…"); window.pollBg?.(); } catch (e) { toast(e.message); } };
   // eigene Rueckfrage statt confirm(): gross genug fuer den Finger, auch in der iPad-App zuverlaessig
