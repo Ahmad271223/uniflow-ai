@@ -82,6 +82,9 @@ final class HildesheimConnection: ObservableObject {
     private var current: Task<HildesheimSync.Report?, Never>?
     /// angehalten (Container wird geloescht): kein weiterer Abgleich
     private(set) var stopped = false
+    /// zaehlt jedes Abmelden: ein Lauf, der vorher begann und noch auf die Demo-Pruefung wartete (noch ohne `current`,
+    /// das Abmelden haelt ihn also nicht an), beginnt danach nicht mehr (Pruefpunkt 362)
+    private var signOuts = 0
     /// Quellen, die waehrend eines laufenden Abgleichs (neu) verbunden wurden: der laufende bewertet sie nicht (sie
     /// bleiben "verbunden"), direkt danach folgt ein eigener Lauf
     private var connectedDuringRun: Set<Source> = []
@@ -101,6 +104,8 @@ final class HildesheimConnection: ObservableObject {
         messages = defaults.stringArray(forKey: Keys.messages) ?? []
         learnweb = storedState(.learnweb)
         lsf = storedState(.lsf)
+        // unterbrochenes Abmelden (App beendet, Schluesselbund gesperrt): den Rest gleich nachholen
+        if defaults.bool(forKey: Keys.signOutPending) { Task { await self.finishPendingSignOut() } }
     }
 
     // MARK: Einstellungen des Containers (UserDefaults-Suite, gehen mit "Daten dieser Hochschule löschen")
@@ -114,6 +119,8 @@ final class HildesheimConnection: ObservableObject {
         static let gradesRun = "uniflow.hildesheim.grades.lastRun"
         /// ein Lauf nur mit Listen (Hintergrund, S8) fand Learnweb-Dateien zum Laden; weg nach einem vollen Lauf
         static let downloadsPending = "uniflow.hildesheim.downloadsPending"
+        /// Abmelden begonnen, Schluessel oder Webdaten noch nicht nachweislich weg (`finishPendingSignOut`)
+        static let signOutPending = "uniflow.hildesheim.signOutPending"
         static func ok(_ s: Source) -> String { "uniflow.hildesheim.\(s.rawValue.lowercased()).ok" }
         static func login(_ s: Source) -> String { "uniflow.hildesheim.\(s.rawValue.lowercased()).login" }
     }
@@ -172,6 +179,8 @@ final class HildesheimConnection: ObservableObject {
             defaults.set(LearnwebMode.session.rawValue, forKey: Keys.learnwebMode)
         }
         defaults.set(base, forKey: Keys.learnwebBase)
+        // neue Anmeldung: ein noch offenes Abmelden ist ueberholt (es loeschte sonst beim naechsten Start die neue)
+        defaults.removeObject(forKey: Keys.signOutPending)
         set(.learnweb, .connected)
         afterSignIn(.learnweb)
         return true
@@ -179,6 +188,7 @@ final class HildesheimConnection: ObservableObject {
 
     /// LSF verbunden (die Webansicht zeigt eine angemeldete Seite des LSF, `LSFClient.isLoggedIn`)
     func lsfSignedIn() {
+        defaults.removeObject(forKey: Keys.signOutPending)
         defaults.set(true, forKey: Keys.lsfConnected)
         set(.lsf, .connected)
         afterSignIn(.lsf)
@@ -198,14 +208,47 @@ final class HildesheimConnection: ObservableObject {
     /// Abmelden: Schluessel, Verbindungen und Anmeldungen der Webansicht (CAS, Learnweb, LSF) der Uni Hildesheim
     /// dieses Kontos; heruntergeladene Dateien, Stundenplan und Noten bleiben. Ein Passwort hat die App nicht zu
     /// loeschen (das merkt hoechstens iOS im Schluesselbund).
-    func signOut() async {
-        tokens.deleteAll(for: .hildesheim)
-        for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected] { defaults.removeObject(forKey: k) }
+    ///
+    /// Ein laufender Abgleich wird zuerst angehalten und abgewartet (vorher lief er mit Schluessel und Cookies von
+    /// vorher weiter, lud Dateien und schrieb danach seinen Stand). Teilfehler: Der Merker `Keys.signOutPending` steht,
+    /// bis Schluessel und Webdaten nachweislich weg sind; bis dahin ist nichts verbunden, und vor der naechsten
+    /// Anmeldung sowie beim naechsten Oeffnen wird nachgeholt, was fehlte (`finishPendingSignOut`) - eine alte
+    /// Sitzung wird nie wiederverwendet.
+    /// - Returns: nil, wenn alles entfernt ist; sonst die Meldung fuer die Oberflaeche
+    @discardableResult
+    func signOut() async -> String? {
+        signOuts += 1
+        defaults.set(true, forKey: Keys.signOutPending)
+        connectedDuringRun = []
+        if let task = current {
+            task.cancel()
+            _ = await task.value
+        }
+        for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.downloadsPending] { defaults.removeObject(forKey: k) }
         for s in Source.allCases {
             defaults.removeObject(forKey: Keys.ok(s))
             set(s, .notConnected)
         }
+        messages = []
+        defaults.removeObject(forKey: Keys.messages)
+        return await finishPendingSignOut()
+    }
+
+    /// Rest eines Abmeldens: Learnweb-Schluessel und Webdaten entfernen und pruefen, dass sie weg sind. Erst dann geht
+    /// der Merker. Rueckgabe: nil, wenn nichts (mehr) aussteht.
+    @discardableResult
+    func finishPendingSignOut() async -> String? {
+        guard defaults.bool(forKey: Keys.signOutPending) else { return nil }
+        tokens.deleteAll(for: .hildesheim)
         await websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+        let keyLeft = tokens.token(.hildesheim, service: Self.tokenService) != nil
+        let cookiesLeft = !(await websiteDataStore.httpCookieStore.allCookies()).isEmpty
+        guard !keyLeft, !cookiesLeft else {
+            return "Abmelden noch nicht vollständig (\(keyLeft ? "Learnweb-Schlüssel" : "Anmeldung der Webansicht")) – "
+                + "UniFlow versucht es beim nächsten Öffnen erneut und meldet vorher niemanden an."
+        }
+        defaults.removeObject(forKey: Keys.signOutPending)
+        return nil
     }
 
     /// Transport fuer Anfragen ausserhalb eines Abgleichs (Anmeldung: Learnweb-Instanz, Moodle-Konfiguration)
@@ -260,9 +303,11 @@ final class HildesheimConnection: ObservableObject {
     @discardableResult
     func run(forceGrades: Bool = false, scope: UniSyncScope = .full, background: Bool = false) async -> HildesheimSync.Report? {
         guard !isRunning, !stopped, !sources(background: background).isEmpty else { return nil }
+        let signOutsBefore = signOuts
         // Demo-Inhalte aktiv: nie zur Hochschule, keine Anfrage (DemoContent); erst nach "Entfernen" wieder
         if await demoActive() { return nil }
-        guard !isRunning, !stopped else { return nil }
+        // waehrend der Pruefung angehalten, schon ein Lauf, abgemeldet oder nichts mehr verbunden
+        guard !isRunning, !stopped, signOuts == signOutsBefore, !sources(background: background).isEmpty else { return nil }
         isRunning = true
         let task = Task { await self.perform(forceGrades: forceGrades, scope: scope, background: background) }
         current = task
@@ -487,10 +532,12 @@ final class HildesheimLogin: ObservableObject {
         self.connection = connection
     }
 
-    /// Startseite bestimmen (Learnweb: Netz fuer Instanz und Konfiguration, ohne Anmeldedaten)
+    /// Startseite bestimmen (Learnweb: Netz fuer Instanz und Konfiguration, ohne Anmeldedaten). Ein unterbrochenes
+    /// Abmelden wird vorher zu Ende gebracht: die Anmeldeseite sieht keine Cookies der alten Sitzung.
     func prepare() async {
         stage = .preparing
         casError = nil
+        await connection.finishPendingSignOut()
         switch target {
         case .lsf:
             stage = URL(string: HildesheimCAS.lsfLoginURL).map(Stage.page) ?? .failed("Anmeldeseite des LSF fehlt.")

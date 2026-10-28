@@ -58,6 +58,10 @@ struct InkPageState: Sendable {
     var represented: Set<String> = []
     /// Nach dem Neuladen, solange noch keine Zeichnung umgerechnet wurde: dargestellte IDs der alten Canvas.
     var olderRepresented: Set<String>?
+    /// Strich-Objekte der Seite, die sich nicht darstellen lassen (ohne ID, zu wenige oder unbrauchbare Punkte,
+    /// Koordinaten oder Massstaebe ausserhalb jedes Seitenmasses). Sie bleiben beim Speichern unveraendert; der Editor
+    /// sagt, dass es sie gibt (`DocumentStore.inkNotice`).
+    var unrenderable = 0
 
     /// Erstellzeiten (als Platz in `CreationSlots`), die Striche dieses Zustands tragen.
     var creationSlots: Set<Int> {
@@ -93,6 +97,8 @@ struct InkPageUpdate: Sendable {
 /// PencilKit-Zeichnung, die zwischen Threads weitergereicht wird (PKDrawing ist ein Werttyp).
 struct DrawingBox: @unchecked Sendable {
     let drawing: PKDrawing
+    /// Strich-Objekte der Seite, die nicht dargestellt werden konnten (`InkPageState.unrenderable`)
+    var unrenderable = 0
 }
 
 enum StrokeConverter {
@@ -102,6 +108,15 @@ enum StrokeConverter {
 
     /// Tintenarten, die ab iOS 17 sicher wiederhergestellt werden koennen (`pkInk`).
     static let restorableInks: Set<PKInk.InkType> = [.pen, .pencil, .marker, .monoline, .fountainPen, .watercolor, .crayon]
+
+    /// Groesster Betrag einer Koordinate (Seitenpunkte), der noch gezeichnet wird; Seiten messen hoechstens einige
+    /// Tausend Punkte. Groesseres (beschaedigte oder fremde Daten) bliebe unsichtbar, koennte PencilKit aber beim
+    /// Zeichnen und Umrechnen lange aufhalten.
+    static let maxCoordinate = 100_000.0
+    /// Groesster Massstab bzw. groesste Breite eines Strich-Objekts, die noch gezeichnet werden
+    static let maxScale = 1_000.0
+    /// Hoechstzahl Punkte eines Strichs aus dem JSON (ein langer Strich aus dem Browser hat einige Tausend)
+    static let maxPoints = 200_000
 
     // MARK: Seite -> PencilKit
 
@@ -168,13 +183,18 @@ enum StrokeConverter {
             state.represented.formUnion(strokeIDs[i])
         }
         for o in objects {
-            guard let id = o["id"]?.string else { continue }
+            guard let id = o["id"]?.string else {
+                if o["type"]?.string == "stroke" { state.unrenderable += 1 }
+                continue
+            }
             if let i = nativeIndex[id], let objs = valid[i] {
                 if emitted.insert(i).inserted { addNative(i, objects: objs) }
             } else if let s = stroke(from: o, created: slots.next()) {
                 strokes.append(s)
                 state.entries[key(s), default: []].append(.init(ids: [id], content: contentHash(s), objects: [o]))
                 state.represented.insert(id)
+            } else if o["type"]?.string == "stroke" {
+                state.unrenderable += 1
             }
         }
         for i in objectless { addNative(i, objects: []) }
@@ -188,8 +208,11 @@ enum StrokeConverter {
         var state = InkPageState()
         var slots = CreationSlots(reserved: [], avoiding: avoiding)
         for o in objects {
-            guard let id = o["id"]?.string else { continue }
-            guard let s = stroke(from: o, created: slots.next()) else { continue }
+            let isStroke = o["type"]?.string == "stroke"
+            guard let id = o["id"]?.string, let s = stroke(from: o, created: slots.next()) else {
+                if isStroke { state.unrenderable += 1 }
+                continue
+            }
             strokes.append(s)
             state.entries[key(s), default: []].append(.init(ids: [id], content: contentHash(s), objects: [o]))
             state.represented.insert(id)
@@ -197,10 +220,13 @@ enum StrokeConverter {
         return (PKDrawing(strokes: strokes), state)
     }
 
+    /// PencilKit-Strich zu einem Strich-Objekt; nil, wenn es sich nicht darstellen laesst (Objekt bleibt dann
+    /// unveraendert, `InkPageState.unrenderable`)
     static func stroke(from o: JSONValue, created: Date) -> PKStroke? {
         guard o["type"]?.string == "stroke", let raw = o["points"]?.array else { return nil }
         let pts = raw.compactMap { $0.double }
-        guard pts.count >= 4, pts.count % 2 == 0 else { return nil }
+        guard pts.count >= 4, pts.count % 2 == 0, pts.count / 2 <= maxPoints,
+              pts.allSatisfy({ $0.isFinite && abs($0) <= maxCoordinate }) else { return nil }
         let tool = o["tool"]?.string ?? "pen"
         let width = o["width"]?.double ?? 2.2
         let widths = o["widths"]?.array?.compactMap { $0.double }
@@ -208,6 +234,9 @@ enum StrokeConverter {
         let x = o["x"]?.double ?? 0, y = o["y"]?.double ?? 0
         let rot = (o["rotation"]?.double ?? 0) * .pi / 180
         let sx = o["scaleX"]?.double ?? 1, sy = o["scaleY"]?.double ?? 1
+        guard [x, y].allSatisfy({ $0.isFinite && abs($0) <= maxCoordinate }), rot.isFinite,
+              [sx, sy, width].allSatisfy({ $0.isFinite && abs($0) <= maxScale }),
+              (widths ?? []).allSatisfy({ $0.isFinite && abs($0) <= maxScale }) else { return nil }
         // Konva-Reihenfolge: skalieren, drehen, verschieben
         let t = CGAffineTransform(translationX: x, y: y).rotated(by: rot).scaledBy(x: sx, y: sy)
         let n = pts.count / 2
@@ -413,6 +442,12 @@ enum StrokeConverter {
     /// ein Objekt, damit im Browser keine radierten Teile wieder auftauchen. `templates[i]` ist der bisherige Stand
     /// des Objekts mit `ids[i]`: seine Felder bleiben erhalten (auch unbekannte), nur Geometrie, Farbe, Deckkraft und
     /// Werkzeug werden neu gesetzt. Zusaetzliche Stuecke uebernehmen die Felder des ersten bisherigen Objekts.
+    ///
+    /// Punkte: Vom Stift geschriebene Striche werden entlang der gezeichneten Kurve abgetastet. Aus dem JSON aufgebaute
+    /// Striche (kuenstliche Erstellzeit, `CreationSlots`) behalten ihre Punkte, nur mit der Aenderung (Verschieben)
+    /// umgerechnet: PencilKit legt durch die Punkte einen glaettenden B-Spline, der nicht durch sie hindurchgeht. Vorher
+    /// wurde auch hier abgetastet, und jede Aenderung auf dem iPad schliff die Form ab (gemessen: ein Zickzack aus dem
+    /// Browser mit 40 pt Ausschlag verlor beim ersten Verschieben 13 pt an jeder Ecke, Runde fuer Runde mehr).
     static func objects(for s: PKStroke, ids: [String], templates: [JSONValue?] = []) -> [JSONValue] {
         let ranges: [ClosedRange<CGFloat>]
         if s.mask != nil {
@@ -426,15 +461,19 @@ enum StrokeConverter {
         let scale = sqrt(abs(t.a * t.d - t.b * t.c))
         let (hex, alpha) = s.ink.color.uniflowRGBA
         let firstTemplate = templates.lazy.compactMap { $0 }.first
+        let fromJSON = CreationSlots.isSynthetic(s.path.creationDate)
         var out: [JSONValue] = []
         for (i, range) in ranges.enumerated() {
             var pts: [JSONValue] = []
             var widths: [Double] = []
-            for p in s.path.interpolatedPoints(in: range, by: .distance(1.5)) {
-                let loc = p.location.applying(t)
+            let samples: [(CGPoint, CGFloat)] = fromJSON
+                ? controlPoints(of: s.path, in: range)
+                : s.path.interpolatedPoints(in: range, by: .distance(1.5)).map { ($0.location, $0.size.width) }
+            for (location, size) in samples {
+                let loc = location.applying(t)
                 pts.append(.number(round2(Double(loc.x))))
                 pts.append(.number(round2(Double(loc.y))))
-                widths.append(round2(Double(p.size.width * scale)))
+                widths.append(round2(Double(size * scale)))
             }
             if pts.count < 4, !s.path.isEmpty {
                 // einzelner Punkt (z. B. i-Punkt): wie im Web-Editor als Mini-Strich, damit der Browser ihn sieht
@@ -449,10 +488,11 @@ enum StrokeConverter {
             let id = i < ids.count ? ids[i] : newID()
             let template = (i < templates.count ? templates[i] : nil) ?? firstTemplate
             var o = template?.object ?? [:]
-            // Farbe und Deckkraft: bisherige Angabe behalten, wenn sie dieselbe Darstellung ergibt
+            // Farbe und Deckkraft: bisherige Angabe behalten, wenn sie dieselbe Darstellung ergibt. Deckkraft auf drei
+            // Stellen (zwei machten aus Marker-Alpha 0,5 = 0,175 eine 0,18, zurueck ein Alpha von 0,514)
             let oldColor = o["color"]?.string
             let color = oldColor?.lowercased() == hex ? oldColor! : hex
-            var opacity = round2(opacity(inkAlpha: alpha, tool: tool))
+            var opacity = round3(opacity(inkAlpha: alpha, tool: tool))
             if let old = o["opacity"]?.double, o["tool"]?.string == tool, abs(inkAlpha(opacity: old, tool: tool) - alpha) < 0.01 {
                 opacity = old
             }
@@ -520,6 +560,33 @@ enum StrokeConverter {
     }
 
     static func round2(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+
+    static func round3(_ v: Double) -> Double { (v * 1000).rounded() / 1000 }
+
+    /// Stuetzpunkte eines Pfads im Parameterbereich `range` (Parameter i = i-ter Punkt), an gebrochenen Enden linear
+    /// zwischen den Nachbarn: die Punkte, aus denen der Strich aufgebaut wurde, unveraendert (fuer Striche aus dem JSON)
+    static func controlPoints(of path: PKStrokePath, in range: ClosedRange<CGFloat>) -> [(CGPoint, CGFloat)] {
+        let n = path.count
+        guard n > 0 else { return [] }
+        func at(_ t: CGFloat) -> (CGPoint, CGFloat) {
+            let c = min(max(t, 0), CGFloat(n - 1))
+            let i = Int(c.rounded(.down)), j = min(i + 1, n - 1), f = c - CGFloat(i)
+            let a = path[i], b = path[j]
+            return (CGPoint(x: a.location.x + (b.location.x - a.location.x) * f, y: a.location.y + (b.location.y - a.location.y) * f),
+                    a.size.width + (b.size.width - a.size.width) * f)
+        }
+        let lo = max(range.lowerBound, 0), hi = min(range.upperBound, CGFloat(n - 1))
+        guard lo <= hi else { return [] }
+        var out: [(CGPoint, CGFloat)] = []
+        if lo != lo.rounded(.down) { out.append(at(lo)) }
+        var i = Int(lo.rounded(.up))
+        while i < n, CGFloat(i) <= hi {
+            out.append((path[i].location, path[i].size.width))
+            i += 1
+        }
+        if hi != hi.rounded(.down) { out.append(at(hi)) }
+        return out
+    }
 }
 
 /// Kuenstliche Erstellzeiten fuer aus JSON aufgebaute Striche (1000 s + n ms nach dem Referenzdatum). Zeiten, die
@@ -530,6 +597,12 @@ struct CreationSlots {
 
     init(reserved: [PKStroke], avoiding: Set<Int> = []) {
         taken = Set(reserved.map { CreationSlots.slot($0.path.creationDate) }).union(avoiding)
+    }
+
+    /// Kuenstliche Erstellzeit (aus dem JSON aufgebauter Strich)? Echte Striche tragen das Datum ihres Entstehens.
+    static func isSynthetic(_ date: Date) -> Bool {
+        let t = date.timeIntervalSinceReferenceDate
+        return t >= 1_000 && t < 2_000_000
     }
 
     static func slot(_ date: Date) -> Int {
