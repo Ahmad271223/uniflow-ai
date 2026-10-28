@@ -1066,3 +1066,8 @@ Daten wie in `StudIPCalendarFetchDayTests`:
 
 Die Verträge `woche.json` und `timetable-logic.json` ändern sich dadurch nicht. Ein neuer Vertragsfall für den Abruftag
 wäre nach eurem Nachzug sinnvoll, dann prüfen wir dagegen.
+
+Nebenbefund zum Sync-Generator (Bitte 2 vom 28.10.): Heute meldete `tools/gen-sync-fixture.py --check` dreimal
+nacheinander `VERALTET`. Neu erzeugt unterscheidet sich nur die Stelle der Einstellung `semester_rule_applied` in
+einer Liste; ihr `sync_updated_at` ist gleich wie bei den Nachbarn. Die Reihenfolge bei gleichem Zeitstempel ist also
+nicht fest. Bitte nach einem zweiten Schlüssel sortieren, zusätzlich zur eingefrorenen Zeit.
