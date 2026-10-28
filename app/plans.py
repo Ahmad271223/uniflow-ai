@@ -47,7 +47,7 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_annotate_pdf": {"from": "plus", "label": "PDF-Annotationen, Textmarker, Radierer, Zeichenwerkzeuge, Textfelder", "status": "available"},
     "can_use_pencilkit": {"from": "plus", "label": "Apple Pencil (PencilKit) und handschriftliche Notizen", "status": "available"},
     "can_sync_annotations": {"from": "plus", "label": "Notizen auf allen Geräten", "status": "available"},
-    "can_write_community_comments": {"from": "plus", "label": "Community-Kommentare schreiben", "status": "coming_soon"},
+    "can_write_community_comments": {"from": "plus", "label": "Community-Kommentare schreiben", "status": "available"},
     "can_share_solutions": {"from": "plus", "label": "Eigene Lösungen teilen", "status": "available"},
     "can_access_shared_tests": {"from": "plus", "label": "Tests aus der Studora-Bibliothek", "status": "available"},
     "can_generate_studora_ai_tests": {"from": "plus", "label": "Neue KI-Tests von Studora", "status": "available"},

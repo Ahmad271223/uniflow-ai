@@ -592,7 +592,7 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
     now = int(time.time()) if now is None else now
     stream = config.streams_files()                   # Dienst: nur die Liste, Inhalt holt app/filestream.py bei Bedarf
     for f in files:
-        existing = db.row(conn, "SELECT chdate, local_path, revision, first_seen FROM files WHERE id=?", (f["id"],))
+        existing = db.row(conn, "SELECT chdate, local_path, revision, first_seen, download_url FROM files WHERE id=?", (f["id"],))
         if existing and existing["local_path"]:
             reconcile_backup(conn, f["id"], Path(existing["local_path"]))
         chdate, newer = version_stamp(existing, f, now)
@@ -601,6 +601,9 @@ def store_course_files(conn, c: dict, files: list[dict], folder_paths: dict[str,
             changed = existing is None or newer
         else:
             changed = existing is None or newer or not existing["local_path"] or not Path(existing["local_path"]).exists()
+        if existing is not None and not existing.get("download_url"):
+            # Kopfzeile aus dem Geraete-Abgleich (app/sync.py::_register_device_file): jetzt dem echten Kurs zuordnen
+            conn.execute("UPDATE files SET course_id=?, kind=? WHERE id=?", (c["id"], file_kind(f["name"], f["mime"]), f["id"]))
         if existing is None:
             conn.execute(
                 """INSERT INTO files(id, course_id, name, size, mime, author, chdate, download_url, first_seen, status, kind, revision)
@@ -679,8 +682,14 @@ def run_sync(show_browser: bool = False) -> dict:
     db.init_db()
     if universities.current_key() == "hildesheim":
         from . import hildesheim
-        return hildesheim.run_sync(show_browser=show_browser)
-    return run_studip_sync(show_browser=show_browser)
+        res = hildesheim.run_sync(show_browser=show_browser)
+    else:
+        res = run_studip_sync(show_browser=show_browser)
+    if not config.is_hosted():
+        # Windows-App mit Studora-Konto: neue PDFs dem Dienst melden, damit ihre Loesungen sichtbar werden
+        from . import service_link
+        service_link.claim_quietly()
+    return res
 
 
 def run_studip_sync(show_browser: bool = False) -> dict:

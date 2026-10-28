@@ -131,7 +131,7 @@ final class StudIPCalendarSingleDatesTests: XCTestCase {
         XCTAssertTrue(frei["hint"]?.string?.contains("Stud.IP-Kalender") ?? false, "bleibt in der Vorschau wählbar")
         XCTAssertTrue(list.allSatisfy { $0["event_id"] == nil }, "event_id nur intern wie in Python")
         // Abweichung des Geraets (Bitte an die PC-Sitzung): was der Kalender entschieden hat, ist keine offene Gruppe
-        XCTAssertEqual(again.pendingGroups, 0, "Python zählt hier 7 (fremd und kurs_fehlt)")
+        XCTAssertEqual(again.pendingGroups, 0, "fremd und kurs_fehlt zaehlen nicht (Python gleich seit 28.10.2026)")
     }
 
     /// test_without_calendar_the_old_rule_stays

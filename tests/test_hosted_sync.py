@@ -13,6 +13,8 @@ def hosted(app, monkeypatch):
     from app import accounts, config, vault
     monkeypatch.setattr(config, "MODE", "hosted")
     monkeypatch.setenv("LERNAPP_JOBS", "off")
+    monkeypatch.setenv("LERNAPP_UNI_PARALLEL", "100")          # Schonung der Hochschulen eigens getestet
+    monkeypatch.setenv("LERNAPP_UNI_GAP_S", "0")
     for suffix in ("", "-wal", "-shm"):
         accounts.db_path().with_name(accounts.db_path().name + suffix).unlink(missing_ok=True)
     vault.key_file().unlink(missing_ok=True)
@@ -77,6 +79,41 @@ def test_vault_values_encrypted_at_rest_and_env_for(hosted):
     assert vault.delete_all(u["id"]) == 3 and vault.env_for(u["id"]) == {}
     with pytest.raises(ValueError):
         vault.set_values(u["id"], {"klein": "x"})
+
+
+def test_vault_cache_notices_changes_from_another_process(hosted):
+    """P10 (28.10.2026): ein anderer Prozess (Arbeiter, zweiter API-Prozess) schreibt am Zwischenspeicher vorbei."""
+    from app import accounts, vault
+    u = accounts.register("p10@beispiel.de", "sehr-geheim-123", "luh")
+    vault.set_values(u["id"], {"STUDIP_USER": "alt"})
+    assert vault.env_for(u["id"])["STUDIP_USER"] == "alt"
+    with accounts.cursor() as conn:                 # wie ein anderer Prozess: direkt in die Datenbank
+        conn.execute("UPDATE vault SET value_enc=? WHERE user_id=? AND name='STUDIP_USER'", (vault.encrypt(u["id"], "neu"), u["id"]))
+        conn.execute("INSERT INTO vault(user_id, name, value_enc, updated_at) VALUES (?,?,?,?)",
+                     (u["id"], "STUDIP_PASSWORD", vault.encrypt(u["id"], "pw"), "2026-10-28T10:00:00Z"))
+    assert vault.env_for(u["id"]) == {"STUDIP_USER": "neu", "STUDIP_PASSWORD": "pw"}
+    with accounts.cursor() as conn:
+        conn.execute("DELETE FROM vault WHERE user_id=? AND name='STUDIP_PASSWORD'", (u["id"],))
+    assert vault.env_for(u["id"]) == {"STUDIP_USER": "neu"}
+
+
+def test_session_last_seen_written_at_most_once_a_minute(hosted):
+    """P8 (28.10.2026): nicht bei jeder Anfrage ein UPDATE auf accounts.db."""
+    from app import accounts
+    u, token = accounts.register("p8@beispiel.de", "sehr-geheim-123", "luh"), None
+    _, token = accounts.login("p8@beispiel.de", "sehr-geheim-123")
+    with accounts.cursor() as conn:
+        conn.execute("UPDATE sessions SET last_seen_at='2026-01-01T00:00:00Z'")
+    assert accounts.authenticate(token)["id"] == u["id"]
+    with accounts.cursor() as conn:
+        first = conn.execute("SELECT last_seen_at FROM sessions").fetchone()[0]
+    assert first > "2026-01-01T00:00:00Z", "alt: wird geschrieben"
+    with accounts.cursor() as conn:
+        conn.execute("UPDATE sessions SET last_seen_at=?", (first,))
+        changes_before = conn.total_changes
+    accounts.authenticate(token)
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT last_seen_at FROM sessions").fetchone()[0] == first, "frisch: kein neues UPDATE"
 
 
 # ---------------------------------------------------------------- Kontext: Zugangsdaten und Pfade je Konto
@@ -247,3 +284,44 @@ def test_local_mode_unchanged(app):
     assert config.MODE == "local" and config.current_user_id() is None
     st, _, b = asgi_call(app, "GET", "/api/bg")
     assert st == 200 and "job" not in json.loads(b)
+
+
+def test_universities_are_spared_across_accounts(hosted, monkeypatch):
+    """P9 (28.10.2026): hoechstens N gleichzeitige Abgleiche je Hochschule und Abstand zwischen zwei Starts; eine andere
+    Hochschule wird davon nicht aufgehalten."""
+    from app import accounts, jobs
+    monkeypatch.setenv("LERNAPP_UNI_PARALLEL", "2")
+    monkeypatch.setenv("LERNAPP_UNI_GAP_S", "0")
+    luh = [accounts.register(f"l{i}@beispiel.de", "sehr-geheim-123", "luh") for i in range(3)]
+    hi = accounts.register("h@beispiel.de", "sehr-geheim-123", "hildesheim")
+    for u in luh + [hi]:
+        jobs.enqueue(u["id"], "sync")
+    a, b = jobs.claim_next(), jobs.claim_next()
+    assert {a["user_id"], b["user_id"]} == {luh[0]["id"], luh[1]["id"]}
+    c = jobs.claim_next()
+    assert c["user_id"] == hi["id"], "dritter LUH-Job wartet, Hildesheim laeuft"
+    assert jobs.claim_next() is None
+    jobs._finish(a["id"], True, "ok")
+    assert jobs.claim_next()["user_id"] == luh[2]["id"]
+    # Abstand zwischen zwei Starts derselben Hochschule
+    monkeypatch.setenv("LERNAPP_UNI_PARALLEL", "10")
+    monkeypatch.setenv("LERNAPP_UNI_GAP_S", "3600")
+    late = accounts.register("spaet@beispiel.de", "sehr-geheim-123", "luh")
+    jobs.enqueue(late["id"], "sync")
+    assert jobs.claim_next() is None, "gerade erst ein LUH-Abgleich gestartet"
+
+
+def test_api_requests_limited_per_account(hosted, monkeypatch):
+    import json as _json
+    from app import server
+    monkeypatch.setenv("LERNAPP_LIMIT_API_PER_MIN", "3")
+    server._API_HITS.clear()
+    _, h = _register(hosted, "viel@beispiel.de")
+    codes = [asgi_call(hosted, "GET", "/api/account/me", headers=h)[0] for _ in range(4)]
+    assert codes[:3] == [200, 200, 200] and codes[3] == 429
+    st, hdrs, b = asgi_call(hosted, "GET", "/api/account/me", headers=h)
+    assert st == 429 and _json.loads(b)["code"] == "rate_limited" and any(k == b"retry-after" for k, _ in hdrs)
+    _, h2 = _register(hosted, "wenig@beispiel.de")
+    assert asgi_call(hosted, "GET", "/api/account/me", headers=h2)[0] == 200, "anderes Konto unberuehrt"
+    assert server._api_rate("x", now=0.0) == 0 and server._api_rate("x", now=1.0) == 0
+    server._API_HITS.clear()

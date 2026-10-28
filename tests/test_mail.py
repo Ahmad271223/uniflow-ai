@@ -82,9 +82,12 @@ def test_log_mode_writes_subject_and_link_to_mail_log(mail_env, monkeypatch):
     assert "max@beispiel.de" in text and "Passwort" in text
     assert "https://uniflow.example/login?reset=tok-123" in text, "der Link mit dem Reset-Parameter der Anmeldeseite"
     assert "30 Minuten" in text
-    mail.send_welcome("max@beispiel.de")
+    mail.send_welcome("max@beispiel.de", "v-123")
     text = (mail_env / "mail.log").read_text(encoding="utf-8")
-    assert "Willkommen" in text and "https://uniflow.example/login" in text and "nichts bestätigen" in text
+    assert "Willkommen" in text and "https://uniflow.example/login?verify=v-123" in text and "48 Stunden" in text
+    mail.send_verify("max@beispiel.de", "v-456")
+    text = (mail_env / "mail.log").read_text(encoding="utf-8")
+    assert "E-Mail-Adresse bestätigen" in text and "https://uniflow.example/login?verify=v-456" in text
     # off: nur ein Vermerk, kein Inhalt
     monkeypatch.setenv("LERNAPP_MAIL", "off")
     assert mail.send("x@beispiel.de", "Betreff", "geheimer-inhalt") is False

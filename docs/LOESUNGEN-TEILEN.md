@@ -227,6 +227,44 @@ normalisierten Kursnamen, eigener Namensraum, für eigene Dokumente), `Community
 Beitrittscodes (8 Zeichen ohne 0/O/1/I), `CommunityRules.isVisible`/`visible` (Filter), `effectiveDisplayName`
 (anonym = nie ein Pseudonym), `validate` (Optionen), `byWeek`.
 
+## 6a. Windows-App und Web: Community im Editor (28.10.2026)
+
+Gleiches Paketformat, gleiche Krypto und derselbe Dienst wie auf dem iPad; ein Konto für beide.
+
+- **Konto:** `app/service_link.py`. Die Windows-App meldet sich mit E-Mail und Studora-Passwort am Dienst an
+  (`POST /api/studora/login`, Adresse aus `LERNAPP_SERVICE_URL` oder eingegeben, nur https bzw. 127.0.0.1). Auf dem
+  PC liegt nur das Sitzungs-Token (`service-account.json` im Datenordner), nie ein Passwort. Abgelaufenes Token
+  (401) wird vergessen. Konto einer anderen Hochschule: 409 `university_mismatch`.
+- **Weiterleitung:** Im Einzelplatzmodus gehen alle Aufrufe unter `/api/community/...` mit dem Token an den Dienst
+  (Middleware `community_link` in `app/server.py`). Die Oberfläche nutzt dieselben Pfade wie im Dienst. Ohne Konto
+  antwortet sie 409 `not_linked`, ohne Netz 502 `service_unreachable`.
+- **Eigene PDFs melden:** nach dem Anmelden und nach jedem Abgleich `POST /api/community/claims` mit den SHA-256 der
+  Hochschul-PDFs, immer ergänzend (nie `replace`), damit die Meldungen des iPads desselben Kontos bleiben.
+- **Krypto im Browser:** `app/static/solutions.js` (WebCrypto HKDF-SHA256 + AES-256-GCM, kanonisches JSON wie
+  `JSONValue.serialized`, Prüfungen wie `SolutionValidator`, `SolutionContent`, `SolutionHeader`, Builder wie
+  `SolutionBuilder`, Drehung wie `SolutionGeometry`, Seitenprüfung wie `SolutionSharing.layer`). Braucht einen sicheren
+  Kontext: in der Windows-App und über https ja, über eine WLAN-Adresse nicht.
+- **Gemeinsame Testvektoren:** `packages/shared-contracts/fixtures/solutions/vectors.json` aus
+  `tools/gen-solution-vectors.py` mit der Python-Referenz `app/solution_format.py`. Je Fall: PDF-Bytes, festes Salz
+  und Nonce, Inhalt, kanonischer Klartext, AAD, Schlüssel, fertiges Paket; dazu Negativfälle. Browser
+  (`tests/js/solutions.test.mjs`) und Python (`tests/test_solution_vectors.py`) öffnen die Pakete und versiegeln
+  byte-gleich nach. Swift soll dasselbe tun (Übergabe an die Mac-Sitzung).
+- **Editor (`app/static/editor-community.js`, Knopf mit Personen-Symbol):** Reiter „Lösungen“ (meistgelikte zuerst,
+  Projizieren/Ausblenden, Like, Kommentare, Melden oder Autor sperren, „Lösung aus Datei öffnen“), „Kommentare“ und
+  „Teilen“. Projizierte Lösungen liegen in einer eigenen Konva-Ebene über der PDF und unter den eigenen Notizen, ohne
+  Eingabe. Fremde Zahlen werden begrenzt gelesen wie `ObjectGeometry.number`. Eigene Notizen ändern sich nie.
+  Projizierte Lösungen merkt sich der Editor je PDF und blendet sie beim nächsten Öffnen wieder ein.
+- **Teilen:** Seiten wählen (eingefügte Bild-/PDF-Seiten nie), Titel, Anzeigename, Vorschau nur mit den eigenen
+  Notizen auf weißem Grund, dann „Veröffentlichen“ (Plus, bestätigte E-Mail) oder „Als Datei“ (`.uniflowsolution`,
+  öffnet auch das iPad).
+
+**Stelle eines Kommentars (gilt für alle Clients):** `page_key` ist der Schlüssel der Seite **im Paket**
+(`content.pages[].key`). `anchor = {x, y}` liegt in 0..1 von links oben, in der **Anzeige des Absenders**. Das sind
+dieselben Koordinaten wie die Objekte, geteilt durch die angezeigte Seitengröße (`displaySize`). Ein Empfänger mit
+anderer Drehung bildet die Stelle mit `SolutionGeometry.transform` ab, genau wie die Objekte. Wer kommentiert, rechnet
+seine Klickstelle mit der Umkehrung zurück. Kommentare an Stellen gibt es nur auf PDF-Seiten, die zur Lösung gehören.
+Ohne `anchor` ist es ein allgemeiner Kommentar.
+
 ## 7. Online-Community über CloudKit (S9b)
 
 Entscheidung des Inhabers vom 26.10.2026: **CloudKit für V1**, später Supabase oder ein eigener Dienst. Code:

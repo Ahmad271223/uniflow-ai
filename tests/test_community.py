@@ -28,11 +28,13 @@ def hosted(app, monkeypatch, tmp_path):
     vault.reset_master()
 
 
-def _user(app, email, plus=True, admin=False, uni="luh"):
+def _user(app, email, plus=True, admin=False, uni="luh", verified=True):
     from app import accounts
     st, _, b = asgi_call(app, "POST", "/api/account/register", body=json.dumps({"email": email, "password": "sehr-geheim-123", "university": uni}))
     assert st == 201, b
     d = json.loads(b)
+    if verified:                                    # Veroeffentlichen verlangt eine bestaetigte Adresse (28.10.2026)
+        accounts.mark_email_verified(d["user"]["id"])
     if plus:
         accounts.set_plan(d["user"]["id"], "plus")
     if admin:
@@ -121,7 +123,19 @@ def test_requires_hosted_plan_and_own_file(app, hosted, monkeypatch):
     assert (st, d["code"]) == (400, "fingerprint_invalid")
     monkeypatch.setattr(config, "MODE", "local")
     st, d = _j(asgi_call(hosted, "GET", "/api/community/info"))
-    assert (st, d["code"]) == (501, "not_hosted")
+    # Einzelplatz (Windows-App) leitet an den Dienst weiter, ohne verbundenes Studora-Konto: 409 (app/service_link.py)
+    assert (st, d["code"]) == (409, "not_linked")
+
+
+def test_publish_requires_a_confirmed_email(app, hosted):
+    """Schutz gegen Wegwerf-Konten (28.10.2026): Veroeffentlichen erst nach bestaetigter E-Mail-Adresse."""
+    from app import accounts, community
+    u, h = _user(hosted, "neu-unbestaetigt@beispiel.de", verified=False)
+    st, d = _j(asgi_call(hosted, "POST", "/api/community/solutions", headers=h, body=json.dumps({"package": community.sample_package(FP_A)})))
+    assert (st, d["code"]) == (403, "email_unverified")
+    accounts.mark_email_verified(u["id"])
+    st, d = _j(asgi_call(hosted, "POST", "/api/community/solutions", headers=h, body=json.dumps({"package": community.sample_package(FP_A)})))
+    assert (st, d["code"]) == (403, "file_not_owned"), "danach gelten die bisherigen Regeln"
 
 
 # ---------------------------------------------------------------- Ablauf: veroeffentlichen, finden, laden, zurueckziehen

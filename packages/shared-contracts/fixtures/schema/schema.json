@@ -513,6 +513,19 @@
         "foreign_keys": [],
         "indexes": []
       },
+      "sync_ops": {
+        "columns": [
+          {"name": "op_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 1},
+          {"name": "entity", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "result", "type": "TEXT", "notnull": 1, "default": null, "pk": 0},
+          {"name": "device", "type": "TEXT", "notnull": 0, "default": null, "pk": 0},
+          {"name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0}
+        ],
+        "foreign_keys": [],
+        "indexes": [
+          {"name": "sqlite_autoindex_sync_ops_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["op_id"]}
+        ]
+      },
       "sync_tombstones": {
         "columns": [
           {"name": "entity", "type": "TEXT", "notnull": 1, "default": null, "pk": 1},

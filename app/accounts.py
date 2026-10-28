@@ -31,7 +31,15 @@ from . import config
 SESSION_DAYS = 30
 RESET_MINUTES = 30
 MAX_FAILS = 8
+MAX_FAILS_IP = 50          # je IP spaeter als je Adresse: an der Hochschule sitzen viele hinter wenigen IPs (NAT, eduroam)
 LOCK_MINUTES = 10
+VERIFY_HOURS = 48          # Bestaetigungslink fuer die E-Mail-Adresse
+# Grenzen (Anzahl, Minuten) je Schluessel; jeder Versuch zaehlt (28.10.2026). IP-Grenzen grosszuegig wegen NAT im
+# Hochschulnetz, Adress- und Kontogrenzen streng. LERNAPP_LIMIT_<NAME>=Anzahl/Minuten ueberschreibt (z. B. 50/60).
+LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60), "verify_user": (5, 60), "export_user": (3, 1440),
+          "comment_user": (30, 60), "like_user": (120, 60),
+          # Community Teil 2 (28.10.2026): Fragen, Antworten, Veroeffentlichen (Spam-Grenzen)
+          "question_user": (10, 60), "answer_user": (30, 60), "publish_user": (20, 1440)}
 PASSWORD_MIN = 10
 PASSWORD_MAX = 200
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
@@ -82,15 +90,28 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     fails INTEGER DEFAULT 0,
     last_fail_at TEXT
 );
+CREATE TABLE IF NOT EXISTS verify_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    email TEXT NOT NULL,                 -- Adresse, fuer die der Link gilt
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT
+);
+CREATE TABLE IF NOT EXISTS rate_limits (
+    key TEXT PRIMARY KEY,                -- <grenze>:<ip | adresse | konto>
+    count INTEGER NOT NULL,
+    window_start TEXT NOT NULL
+);
 """
 
 
 class AccountError(ValueError):
     """Fachlicher Fehler mit stabilem Code (fuer die API und die Fixtures)."""
 
-    def __init__(self, code: str, message: str, status: int = 400):
+    def __init__(self, code: str, message: str, status: int = 400, retry_after: int | None = None):
         super().__init__(message)
-        self.code, self.message, self.status = code, message, status
+        self.code, self.message, self.status, self.retry_after = code, message, status, retry_after
 
 
 # ---------------------------------------------------------------- Zeit und Datenbank
@@ -101,6 +122,9 @@ def now() -> datetime:
 
 def iso(dt: datetime) -> str:
     return dt.isoformat().replace("+00:00", "Z")
+
+
+SEEN_EVERY_S = 60
 
 
 def db_path() -> Path:
@@ -124,8 +148,8 @@ def cursor():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    conn.executescript(SCHEMA)
-    _migrate(conn)
+    from . import db
+    db.schema_once(conn, "accounts", p, lambda c: (c.executescript(SCHEMA), _migrate(c)))
     try:
         yield conn
         conn.commit()
@@ -184,7 +208,7 @@ def _public(u) -> dict:
 
 def _locked(conn, key: str) -> bool:
     r = conn.execute("SELECT fails, last_fail_at FROM login_attempts WHERE key=?", (key,)).fetchone()
-    if not r or r["fails"] < MAX_FAILS or not r["last_fail_at"]:
+    if not r or r["fails"] < (MAX_FAILS_IP if key.startswith("ip:") else MAX_FAILS) or not r["last_fail_at"]:
         return False
     last = datetime.fromisoformat(r["last_fail_at"].replace("Z", "+00:00"))
     return now() - last < timedelta(minutes=LOCK_MINUTES)
@@ -205,15 +229,54 @@ def _clear_fails(conn, *keys: str) -> None:
         conn.execute("DELETE FROM login_attempts WHERE key=?", (k,))
 
 
+def _limit(name: str) -> tuple[int, int]:
+    import os
+    raw = (os.environ.get(f"LERNAPP_LIMIT_{name.upper()}") or "").strip()
+    if raw:
+        try:
+            n, m = (int(x) for x in raw.split("/", 1))
+            if n > 0 and m > 0:
+                return n, m
+        except ValueError:
+            pass
+    return LIMITS[name]
+
+
+def _hit(conn, name: str, ident: str) -> None:
+    """Versuch zaehlen; ueber der Grenze 429 rate_limited mit Wartezeit. Der Zaehler wird sofort gespeichert, auch wenn
+    der Aufruf danach mit einem Fehler endet (z. B. email_taken), sonst liesse sich die Grenze umgehen."""
+    limit, minutes = _limit(name)
+    key, t = f"{name}:{ident}", now()
+    r = conn.execute("SELECT count, window_start FROM rate_limits WHERE key=?", (key,)).fetchone()
+    start = datetime.fromisoformat(r["window_start"].replace("Z", "+00:00")) if r else None
+    if start and t - start < timedelta(minutes=minutes):
+        if r["count"] >= limit:
+            wait = int((start + timedelta(minutes=minutes) - t).total_seconds()) + 1
+            raise AccountError("rate_limited", f"Zu viele Versuche. Bitte in {max(1, wait // 60)} Minuten erneut versuchen.", 429, wait)
+        conn.execute("UPDATE rate_limits SET count=count+1 WHERE key=?", (key,))
+    else:
+        conn.execute("INSERT INTO rate_limits(key, count, window_start) VALUES (?,1,?) "
+                     "ON CONFLICT(key) DO UPDATE SET count=1, window_start=excluded.window_start", (key, iso(t)))
+    conn.commit()
+
+
+def hit_limit(name: str, ident: str) -> None:
+    """Grenze von aussen pruefen (z. B. Datenexport); wirft AccountError rate_limited."""
+    with cursor() as conn:
+        _hit(conn, name, ident)
+
+
 # ---------------------------------------------------------------- Konto anlegen, anmelden, Sitzungen
 
-def register(email: str, password: str, university: str) -> dict:
+def register(email: str, password: str, university: str, client_ip: str | None = None) -> dict:
     email = normalize_email(email)
     validate_email(email)
     validate_password(password, email)
     if university not in config.known_universities():
         raise AccountError("university_unknown", "Unbekannte Hochschule.")
     with cursor() as conn:
+        if client_ip:
+            _hit(conn, "register_ip", client_ip)          # begrenzt auch das Ausprobieren vergebener Adressen
         if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
             raise AccountError("email_taken", "Für diese E-Mail-Adresse gibt es schon ein Konto.", 409)
         uid = uuid.uuid4().hex
@@ -259,8 +322,11 @@ def authenticate(token: str | None) -> dict | None:
         if not s or s["revoked_at"] or s["status"] != "active" or s["expires_at"] <= iso(now()):
             return None
         t = now()
-        conn.execute("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?",
-                     (iso(t), iso(t + timedelta(days=SESSION_DAYS)), s["id"]))
+        # "zuletzt gesehen" und die gleitende Frist hoechstens einmal je Minute schreiben (P8: vorher bei jeder
+        # Anfrage ein UPDATE auf accounts.db, die Datei aller Konten)
+        if (s["last_seen_at"] or "") < iso(t - timedelta(seconds=SEEN_EVERY_S)):
+            conn.execute("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?",
+                         (iso(t), iso(t + timedelta(days=SESSION_DAYS)), s["id"]))
         return _public(conn.execute("SELECT * FROM users WHERE id=?", (s["user_id"],)).fetchone())
 
 
@@ -276,6 +342,13 @@ def logout_all(user_id: str, keep_token: str | None = None) -> int:
     with cursor() as conn:
         return conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND token_hash<>?",
                             (iso(now()), user_id, _token_hash(keep_token) if keep_token else "")).rowcount
+
+
+def revoke_session(user_id: str, session_id: int) -> bool:
+    """Ein Geraet des Kontos abmelden (Liste unter Konto -> Angemeldete Geraete); nur eigene Sitzungen."""
+    with cursor() as conn:
+        return conn.execute("UPDATE sessions SET revoked_at=? WHERE id=? AND user_id=? AND revoked_at IS NULL",
+                            (iso(now()), int(session_id), user_id)).rowcount > 0
 
 
 def sessions(user_id: str, current_token: str | None = None) -> list[dict]:
@@ -303,13 +376,20 @@ def change_password(user_id: str, old: str, new: str) -> None:
 reset_sender: Callable[[str, str], None] | None = None
 
 
-def request_password_reset(email: str) -> str | None:
+def request_password_reset(email: str, client_ip: str | None = None) -> str | None:
     """Legt ein Einmal-Token an und uebergibt es dem Versandweg. Liefert das Token nur an den Aufrufer im Prozess
-    (CLI), nie an die API: dort kommt immer dieselbe Antwort, ob es das Konto gibt oder nicht."""
+    (CLI), nie an die API: dort kommt immer dieselbe Antwort, ob es das Konto gibt oder nicht.
+    Grenzen: je IP (429, verraet nichts ueber das Konto) und je Adresse (still: keine weitere Mail, gleiche Antwort)."""
     email = normalize_email(email)
     with cursor() as conn:
+        if client_ip:
+            _hit(conn, "reset_ip", client_ip)
         u = conn.execute("SELECT id FROM users WHERE email=? AND status='active'", (email,)).fetchone()
         if not u:
+            return None
+        try:
+            _hit(conn, "reset_email", email)
+        except AccountError:
             return None
         token = secrets.token_urlsafe(32)
         t = now()
@@ -329,9 +409,56 @@ def reset_password(token: str, new_password: str) -> None:
         if not u:
             raise AccountError("reset_invalid", "Der Link ist ungültig oder abgelaufen.", 400)
         validate_password(new_password, u["email"])
-        conn.execute("UPDATE users SET pw_hash=? WHERE id=?", (hash_password(new_password), r["user_id"]))
+        # der Link kam per Mail an genau diese Adresse: damit ist sie auch bestaetigt
+        conn.execute("UPDATE users SET pw_hash=?, email_verified=1 WHERE id=?", (hash_password(new_password), r["user_id"]))
         conn.execute("UPDATE reset_tokens SET used_at=? WHERE token_hash=?", (iso(now()), r["token_hash"]))
         conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (iso(now()), r["user_id"]))
+
+
+# ---------------------------------------------------------------- E-Mail-Adresse bestaetigen (28.10.2026)
+
+# Versandweg fuer Bestaetigungslinks: (email, token) -> None; im Dienst app/mail.py::send_verify (server.py).
+verify_sender: Callable[[str, str], None] | None = None
+
+
+def request_email_verification(user_id: str, send: bool = True, count: bool = True) -> str | None:
+    """Bestaetigungslink anlegen (gilt VERIFY_HOURS, nur fuer die aktuelle Adresse) und verschicken. None, wenn das
+    Konto fehlt oder schon bestaetigt ist. `count`: zaehlt gegen die Grenze verify_user (erneut senden); der erste
+    Link bei der Registrierung zaehlt nicht."""
+    with cursor() as conn:
+        u = conn.execute("SELECT id, email, email_verified FROM users WHERE id=? AND status='active'", (user_id,)).fetchone()
+        if not u or u["email_verified"]:
+            return None
+        if count:
+            _hit(conn, "verify_user", user_id)
+        token = secrets.token_urlsafe(32)
+        t = now()
+        conn.execute("INSERT INTO verify_tokens(token_hash, user_id, email, created_at, expires_at) VALUES (?,?,?,?,?)",
+                     (_token_hash(token), user_id, u["email"], iso(t), iso(t + timedelta(hours=VERIFY_HOURS))))
+        email = u["email"]
+    if send and verify_sender:
+        verify_sender(email, token)
+    return token
+
+
+def verify_email(token: str) -> dict:
+    """Link einloesen: Adresse des Kontos bestaetigt. Ungueltig, abgelaufen, schon benutzt oder fuer eine andere
+    Adresse ausgestellt -> 400 verify_invalid."""
+    with cursor() as conn:
+        r = conn.execute("SELECT * FROM verify_tokens WHERE token_hash=?", (_token_hash(token or ""),)).fetchone()
+        u = conn.execute("SELECT * FROM users WHERE id=? AND status='active'", (r["user_id"],)).fetchone() if r else None
+        if not r or r["used_at"] or r["expires_at"] <= iso(now()) or not u or u["email"] != r["email"]:
+            raise AccountError("verify_invalid", "Der Bestätigungslink ist ungültig oder abgelaufen.", 400)
+        conn.execute("UPDATE users SET email_verified=1 WHERE id=?", (u["id"],))
+        conn.execute("UPDATE verify_tokens SET used_at=? WHERE token_hash=?", (iso(now()), r["token_hash"]))
+        return _public(conn.execute("SELECT * FROM users WHERE id=?", (u["id"],)).fetchone())
+
+
+def mark_email_verified(user_id: str) -> dict:
+    """Von Hand (Betrieb, Tests): Adresse als bestaetigt markieren."""
+    with cursor() as conn:
+        conn.execute("UPDATE users SET email_verified=1 WHERE id=?", (user_id,))
+        return _public(conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone())
 
 
 # ---------------------------------------------------------------- Apple / Google als Anmeldeweg
@@ -453,21 +580,66 @@ def delete_account(user_id: str, password: str | None = None) -> dict:
         conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (t, user_id))
         conn.execute("DELETE FROM identities WHERE user_id=?", (user_id,))
         conn.execute("DELETE FROM reset_tokens WHERE user_id=?", (user_id,))
+        if _has_table(conn, "sync_jobs"):                    # wartende Abgleiche laufen nicht mehr
+            conn.execute("UPDATE sync_jobs SET status='failed', finished_at=?, message='Konto gelöscht' "
+                         "WHERE user_id=? AND status='queued'", (t, user_id))
     config.retire_user_data_dir(user_id)
+    from . import community
+    community.withdraw_all(user_id, "account_deleted")      # Community-Beitraege sofort nicht mehr sichtbar
     return {"deleted": True, "purge_after_days": 30}
 
 
+# Tabellen in accounts.db mit Spalte user_id, die beim endgueltigen Loeschen geleert werden (dazu jede Tabelle mit
+# Fremdschluessel auf users, siehe _purge_user). ai_usage_log bleibt ohne Konto-Bezug fuer die Kostenrechnung.
+ACCOUNT_TABLES = ("vault", "sync_jobs", "entitlements", "usage", "usage_requests", "ai_inflight", "apple_transactions",
+                  "identities", "reset_tokens", "verify_tokens", "sessions")
+
+
+def _has_table(conn, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def _purge_user(conn, user_id: str) -> None:
+    """Alles eines Kontos endgueltig entfernen (28.10.2026). Vorher loeschte purge_deleted nur Sitzungen und die
+    Nutzerzeile; Tresor (Hochschul-Zugangsdaten) und Abgleich-Auftraege verweisen per Fremdschluessel auf users, also
+    scheiterte das Loeschen, sobald ein Konto Zugangsdaten hatte, und Abo-, Nutzungs- und Community-Daten blieben."""
+    from . import community, test_library, vault
+    community.forget_author(user_id)
+    test_library.forget_owner(user_id)
+    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+    for t in ACCOUNT_TABLES:
+        if t in tables:
+            conn.execute(f"DELETE FROM {t} WHERE user_id=?", (user_id,))
+    for t in tables:                                        # jede weitere Tabelle mit Fremdschluessel auf users
+        for fk in conn.execute(f"PRAGMA foreign_key_list({t})").fetchall():
+            if fk[2] == "users" and t != "users":
+                conn.execute(f"DELETE FROM {t} WHERE {fk[3]}=?", (user_id,))
+    if "ai_usage_log" in tables:
+        conn.execute("UPDATE ai_usage_log SET user_id=NULL WHERE user_id=?", (user_id,))
+    conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+    vault._cache.pop(user_id, None)
+
+
 def purge_deleted(days: int = 30) -> int:
-    """Endgueltig loeschen: Nutzerzeile und Datenordner von Konten, die seit `days` Tagen geloescht sind."""
+    """Endgueltig loeschen: Konten, die seit `days` Tagen geloescht sind, mit allen Daten (_purge_user) und dem
+    beiseitegelegten Datenordner. Ein Fehler bei einem Konto haelt die anderen nicht auf (Sicherungspunkt je Konto)."""
+    import logging
     import shutil
     cutoff = iso(now() - timedelta(days=days))
     n = 0
     with cursor() as conn:
         for r in conn.execute("SELECT id FROM users WHERE status='deleted' AND deleted_at<=?", (cutoff,)).fetchall():
+            conn.execute("SAVEPOINT purge_user")
+            try:
+                _purge_user(conn, r["id"])
+            except Exception:  # noqa: BLE001 - beim naechsten Lauf erneut, die uebrigen Konten laufen weiter
+                conn.execute("ROLLBACK TO purge_user")
+                conn.execute("RELEASE purge_user")
+                logging.getLogger("uniflow.accounts").exception("Konto %s nicht endgueltig geloescht", r["id"])
+                continue
+            conn.execute("RELEASE purge_user")
             for d in config.retired_user_data_dirs(r["id"]):
                 shutil.rmtree(d, ignore_errors=True)
-            conn.execute("DELETE FROM sessions WHERE user_id=?", (r["id"],))
-            conn.execute("DELETE FROM users WHERE id=?", (r["id"],))
             n += 1
     return n
 

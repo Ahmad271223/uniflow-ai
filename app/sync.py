@@ -41,6 +41,7 @@ ENTITIES: dict[str, dict] = {
 SYNC_COLS = ("sync_version", "sync_updated_at", "sync_device")
 PRIVATE_SETTINGS = {"lan_pin", "university"}       # nie zwischen Geraeten
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$")
+OP_RE = re.compile(r"^[A-Za-z0-9._:-]{8,100}$")             # Operations-ID eines Push-Eintrags (z. B. UUID)
 NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 
 
@@ -53,6 +54,10 @@ def now_utc() -> str:
 
 def ensure_schema(conn) -> None:
     """Idempotent, wird aus db._init_db aufgerufen."""
+    # Ergebnis je Operations-ID (op_id eines Push-Eintrags): eine Wiederholung nach verlorener Antwort bekommt dasselbe
+    # Ergebnis, statt eine neue Zeile doppelt anzulegen (28.10.2026). Loeschfrist wie sync_log (app/retention.py).
+    conn.execute("""CREATE TABLE IF NOT EXISTS sync_ops (
+        op_id TEXT PRIMARY KEY, entity TEXT NOT NULL, result TEXT NOT NULL, device TEXT, created_at TEXT NOT NULL)""")
     conn.execute("""CREATE TABLE IF NOT EXISTS sync_tombstones (
         entity TEXT NOT NULL, entity_id TEXT NOT NULL, deleted_at TEXT NOT NULL, device TEXT,
         PRIMARY KEY (entity, entity_id))""")
@@ -97,22 +102,63 @@ def _row_out(table: str, r: dict) -> dict:
 
 # ---------------------------------------------------------------- Abruf
 
-def changes(conn, since: str | None, limit: int = 2000) -> dict:
-    """Alle Aenderungen nach `since` (Cursor aus der letzten Antwort; None = alles)."""
+MAX_PULL = 2000
+
+
+def _page(conn, sql_more: str, sql_same: str, since: str, limit: int, ts_key: str) -> tuple[list[dict], str | None]:
+    """Hoechstens `limit` Zeilen nach `since`, aufsteigend nach Zeitstempel; bei abgeschnittener Liste kommen alle
+    Zeilen mit dem letzten Zeitstempel dazu (gleiche Zeitstempel lassen sich mit einem Zeit-Cursor nicht teilen).
+    Liefert (Zeilen, Grenze) - Grenze = letzter Zeitstempel, wenn es danach weitere Zeilen geben kann, sonst None."""
+    rows = db.rows(conn, sql_more, (since, limit))
+    if len(rows) < limit:
+        return rows, None
+    last = rows[-1][ts_key]
+    return [r for r in rows if r[ts_key] < last] + db.rows(conn, sql_same, (last,)), last
+
+
+def changes(conn, since: str | None, limit: int = MAX_PULL) -> dict:
+    """Alle Aenderungen nach `since` (Cursor aus der letzten Antwort; None = alles), seitenweise.
+
+    Je Tabelle hoechstens `limit` Zeilen (plus Gleichstand am Ende). Wird eine Tabelle abgeschnitten, gilt fuer alle
+    Tabellen und Tombstones dieselbe Grenze (kleinster abgeschnittener Zeitstempel): geliefert wird alles bis
+    einschliesslich der Grenze, der Cursor ist die Grenze und `has_more` ist true. Vorher (bis 28.10.2026) war der
+    Cursor das Maximum ueber alle Tabellen; bei mehr als `limit` Aenderungen in einer Tabelle gingen Zeilen verloren.
+    Clients rufen weiter ab, solange `has_more` true ist; der Cursor bleibt ein Zeitstempel (alte Clients holen den
+    Rest beim naechsten Abgleich)."""
     since = since if since and TS_RE.match(since) else ""
+    limit = max(1, min(int(limit or MAX_PULL), MAX_PULL))
+    fetched: dict[str, list] = {}
+    bounds: list[str] = []
+    for table, meta in ENTITIES.items():
+        pk = meta["pk"]
+        rows, bound = _page(conn, f"SELECT * FROM {table} WHERE sync_updated_at > ? ORDER BY sync_updated_at, {pk} LIMIT ?",
+                            f"SELECT * FROM {table} WHERE sync_updated_at = ? ORDER BY {pk}", since, limit, "sync_updated_at")
+        fetched[table] = rows
+        if bound:
+            bounds.append(bound)
+    tomb, bound = _page(conn, "SELECT entity, entity_id, deleted_at, device FROM sync_tombstones WHERE deleted_at > ? "
+                              "ORDER BY deleted_at, entity, entity_id LIMIT ?",
+                        "SELECT entity, entity_id, deleted_at, device FROM sync_tombstones WHERE deleted_at = ? ORDER BY entity, entity_id",
+                        since, limit, "deleted_at")
+    if bound:
+        bounds.append(bound)
+    cut = min(bounds) if bounds else None
     out: dict[str, list] = {}
     newest = since
-    for table, meta in ENTITIES.items():
-        rows = db.rows(conn, f"SELECT * FROM {table} WHERE sync_updated_at > ? ORDER BY sync_updated_at, {meta['pk']} LIMIT ?", (since, limit))
+    for table, rows in fetched.items():
+        if cut:
+            rows = [r for r in rows if (r["sync_updated_at"] or "") <= cut]
+        if rows:
+            newest = max(newest, rows[-1]["sync_updated_at"] or "")
         if table == "settings":
             rows = [r for r in rows if r["key"] not in PRIVATE_SETTINGS]
         if rows:
             out[table] = [_row_out(table, r) for r in rows]
-            newest = max(newest, rows[-1]["sync_updated_at"] or "")
-    tomb = db.rows(conn, "SELECT entity, entity_id, deleted_at, device FROM sync_tombstones WHERE deleted_at > ? ORDER BY deleted_at LIMIT ?", (since, limit))
+    if cut:
+        tomb = [t for t in tomb if t["deleted_at"] <= cut]
     if tomb:
         newest = max(newest, tomb[-1]["deleted_at"])
-    return {"cursor": newest or since or None, "changes": out, "tombstones": tomb}
+    return {"cursor": (cut or newest or since) or None, "changes": out, "tombstones": tomb, "has_more": cut is not None}
 
 
 # ---------------------------------------------------------------- Senden
@@ -145,7 +191,12 @@ def _merge_fields(server: dict, client: dict, client_ts: str, server_ts: str, co
 
 
 def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None = None, now: str | None = None) -> dict:
-    """items: [{entity, id | local_id, base_version, updated_at, data}], deletes: [{entity, id, deleted_at}]."""
+    """items: [{entity, id | local_id, op_id?, base_version, updated_at, data}], deletes: [{entity, id, deleted_at}].
+
+    `op_id` (optional, 8-100 Zeichen [A-Za-z0-9._:-], z. B. eine UUID je Eintrag, beim Wiederholen dieselbe): das
+    Ergebnis wird gemerkt; derselbe Eintrag noch einmal bekommt dasselbe Ergebnis mit `repeated: true` und dieselbe
+    ID-Zuordnung, statt eine neue Zeile doppelt anzulegen. Fehler werden nicht gemerkt (ein spaeterer Versuch darf
+    gelingen)."""
     now = now or now_utc()
     device = (device or "")[:80] or None
     results, mapping, conflicts = [], {}, []
@@ -158,66 +209,81 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
     for table in ENTITIES:                                      # Eltern vor Kindern
         pk, cols = ENTITIES[table]["pk"], _columns(conn, table)
         for it in by_entity.get(table, []):
-            data = {k: v for k, v in (it.get("data") or {}).items() if k in cols and k != pk}
-            if table == "settings" and (it.get("id") or it.get("local_id")) in PRIVATE_SETTINGS:
-                results.append({"entity": table, "id": it.get("id") or it.get("local_id"), "status": "ignored"})
-                continue
+            op = it.get("op_id") if isinstance(it.get("op_id"), str) and OP_RE.match(it["op_id"]) else None
+            if op:
+                prev = db.row(conn, "SELECT result FROM sync_ops WHERE op_id=? AND entity=?", (op, table))
+                if prev:                                         # Wiederholung: dasselbe Ergebnis, keine neue Zeile
+                    res = json.loads(prev["result"]) | {"repeated": True}
+                    if isinstance(res.get("local_id"), int) and res["local_id"] < 0 and res.get("id") is not None:
+                        mapping[(table, res["local_id"])] = res["id"]
+                    results.append(res)
+                    continue
+            n0 = len(results)
             try:
-                data = _resolve_fk(table, data, mapping)
-            except ValueError as e:
-                results.append({"entity": table, "local_id": it.get("local_id"), "status": "error", "message": str(e)})
-                continue
-            if table == "annotations":
-                results.append(_push_annotation(conn, it, device, now))
-                continue
-            client_ts = it.get("updated_at") if TS_RE.match(it.get("updated_at") or "") else now
-            rid = it.get("id")
-            if rid is None:
-                data["sync_version"], data["sync_updated_at"], data["sync_device"] = 1, now, device
-                keys = list(data)
-                if table == "settings":
-                    conn.execute("INSERT INTO settings(key, value, sync_version, sync_updated_at, sync_device) VALUES (?,?,?,?,?) "
-                                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value, sync_version=settings.sync_version+1, "
-                                 "sync_updated_at=excluded.sync_updated_at, sync_device=excluded.sync_device",
-                                 (it.get("local_id"), data.get("value"), 1, now, device))
-                    row = db.row(conn, "SELECT * FROM settings WHERE key=?", (it.get("local_id"),))
-                    results.append({"entity": table, "id": row["key"], "status": "applied", "version": row["sync_version"]})
+                data = {k: v for k, v in (it.get("data") or {}).items() if k in cols and k != pk}
+                if table == "settings" and (it.get("id") or it.get("local_id")) in PRIVATE_SETTINGS:
+                    results.append({"entity": table, "id": it.get("id") or it.get("local_id"), "status": "ignored"})
                     continue
-                cur = conn.execute(f"INSERT INTO {table}({','.join(keys)}) VALUES ({','.join('?' * len(keys))})", [data[k] for k in keys])
-                new_id = cur.lastrowid
-                if isinstance(it.get("local_id"), int) and it["local_id"] < 0:
-                    mapping[(table, it["local_id"])] = new_id
-                results.append({"entity": table, "local_id": it.get("local_id"), "id": new_id, "status": "created", "version": 1})
-                continue
-            rid = _coerce_id(table, rid)
-            server = db.row(conn, f"SELECT * FROM {table} WHERE {pk}=?", (rid,))
-            if server is None:
-                tomb = db.row(conn, "SELECT deleted_at FROM sync_tombstones WHERE entity=? AND entity_id=?", (table, str(rid)))
-                if tomb and tomb["deleted_at"] >= client_ts:
-                    results.append({"entity": table, "id": rid, "status": "deleted", "deleted_at": tomb["deleted_at"]})
+                try:
+                    data = _resolve_fk(table, data, mapping)
+                except ValueError as e:
+                    results.append({"entity": table, "local_id": it.get("local_id"), "status": "error", "message": str(e)})
                     continue
-                data[pk] = rid                                   # Wiederherstellen (oder unbekannte ID eines anderen Geraets)
-                data["sync_version"], data["sync_updated_at"], data["sync_device"] = 1, now, device
-                keys = list(data)
-                conn.execute(f"INSERT INTO {table}({','.join(keys)}) VALUES ({','.join('?' * len(keys))})", [data[k] for k in keys])
-                conn.execute("DELETE FROM sync_tombstones WHERE entity=? AND entity_id=?", (table, str(rid)))
-                results.append({"entity": table, "id": rid, "status": "resurrected" if tomb else "created", "version": 1})
-                continue
-            sv = server.get("sync_version") or 1
-            base = it.get("base_version")
-            if base is not None and int(base) == sv:
-                merged, won = dict(server) | data, list(data)
-                status = "applied"
-            else:
-                merged, won = _merge_fields(server, data, client_ts, server.get("sync_updated_at") or "", cols)
-                status = "conflict"
-                conflicts.append({"entity": table, "id": rid, "server": _row_out(table, server), "client": data, "client_won": won})
-            changed = {c: merged[c] for c in cols if c != pk and merged.get(c) != server.get(c)}
-            if changed:
-                sets = ", ".join(f"{c}=?" for c in changed) + ", sync_version=?, sync_updated_at=?, sync_device=?"
-                conn.execute(f"UPDATE {table} SET {sets} WHERE {pk}=?", [*changed.values(), sv + 1, now, device, rid])
-                sv += 1
-            results.append({"entity": table, "id": rid, "status": status, "version": sv, "client_won": won})
+                if table == "annotations":
+                    results.append(_push_annotation(conn, it, device, now))
+                    continue
+                client_ts = it.get("updated_at") if TS_RE.match(it.get("updated_at") or "") else now
+                rid = it.get("id")
+                if rid is None:
+                    data["sync_version"], data["sync_updated_at"], data["sync_device"] = 1, now, device
+                    keys = list(data)
+                    if table == "settings":
+                        conn.execute("INSERT INTO settings(key, value, sync_version, sync_updated_at, sync_device) VALUES (?,?,?,?,?) "
+                                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value, sync_version=settings.sync_version+1, "
+                                     "sync_updated_at=excluded.sync_updated_at, sync_device=excluded.sync_device",
+                                     (it.get("local_id"), data.get("value"), 1, now, device))
+                        row = db.row(conn, "SELECT * FROM settings WHERE key=?", (it.get("local_id"),))
+                        results.append({"entity": table, "id": row["key"], "status": "applied", "version": row["sync_version"]})
+                        continue
+                    cur = conn.execute(f"INSERT INTO {table}({','.join(keys)}) VALUES ({','.join('?' * len(keys))})", [data[k] for k in keys])
+                    new_id = cur.lastrowid
+                    if isinstance(it.get("local_id"), int) and it["local_id"] < 0:
+                        mapping[(table, it["local_id"])] = new_id
+                    results.append({"entity": table, "local_id": it.get("local_id"), "id": new_id, "status": "created", "version": 1})
+                    continue
+                rid = _coerce_id(table, rid)
+                server = db.row(conn, f"SELECT * FROM {table} WHERE {pk}=?", (rid,))
+                if server is None:
+                    tomb = db.row(conn, "SELECT deleted_at FROM sync_tombstones WHERE entity=? AND entity_id=?", (table, str(rid)))
+                    if tomb and tomb["deleted_at"] >= client_ts:
+                        results.append({"entity": table, "id": rid, "status": "deleted", "deleted_at": tomb["deleted_at"]})
+                        continue
+                    data[pk] = rid                                   # Wiederherstellen (oder unbekannte ID eines anderen Geraets)
+                    data["sync_version"], data["sync_updated_at"], data["sync_device"] = 1, now, device
+                    keys = list(data)
+                    conn.execute(f"INSERT INTO {table}({','.join(keys)}) VALUES ({','.join('?' * len(keys))})", [data[k] for k in keys])
+                    conn.execute("DELETE FROM sync_tombstones WHERE entity=? AND entity_id=?", (table, str(rid)))
+                    results.append({"entity": table, "id": rid, "status": "resurrected" if tomb else "created", "version": 1})
+                    continue
+                sv = server.get("sync_version") or 1
+                base = it.get("base_version")
+                if base is not None and int(base) == sv:
+                    merged, won = dict(server) | data, list(data)
+                    status = "applied"
+                else:
+                    merged, won = _merge_fields(server, data, client_ts, server.get("sync_updated_at") or "", cols)
+                    status = "conflict"
+                    conflicts.append({"entity": table, "id": rid, "server": _row_out(table, server), "client": data, "client_won": won})
+                changed = {c: merged[c] for c in cols if c != pk and merged.get(c) != server.get(c)}
+                if changed:
+                    sets = ", ".join(f"{c}=?" for c in changed) + ", sync_version=?, sync_updated_at=?, sync_device=?"
+                    conn.execute(f"UPDATE {table} SET {sets} WHERE {pk}=?", [*changed.values(), sv + 1, now, device, rid])
+                    sv += 1
+                results.append({"entity": table, "id": rid, "status": status, "version": sv, "client_won": won})
+            finally:
+                if op and len(results) > n0 and results[-1].get("status") not in ("error", "plan_required"):
+                    conn.execute("INSERT OR IGNORE INTO sync_ops(op_id, entity, result, device, created_at) VALUES (?,?,?,?,?)",
+                                 (op, table, json.dumps(results[-1], ensure_ascii=False), device, now))
     for d in deletes or []:
         table = d.get("entity")
         if table not in ENTITIES or table == "annotations":
@@ -245,7 +311,8 @@ def _push_annotation(conn, it: dict, device: str | None, now: str) -> dict:
     """Notizen: gleiche Regel wie PUT /api/files/{id}/annotations (base_version, 409 -> Konflikt mit Serverstand)."""
     file_id = str(it.get("id") or it.get("local_id") or "")
     if not db.row(conn, "SELECT 1 FROM files WHERE id=?", (file_id,)):
-        return {"entity": "annotations", "id": file_id, "status": "unknown_file"}
+        if not _register_device_file(conn, file_id, it.get("file")):
+            return {"entity": "annotations", "id": file_id, "status": "unknown_file"}
     data = it.get("data") or {}
     cur = db.row(conn, "SELECT version, data FROM annotations WHERE file_id=?", (file_id,))
     cur_v = (cur["version"] or 1) if cur else 0
@@ -262,3 +329,20 @@ def _push_annotation(conn, it: dict, device: str | None, now: str) -> dict:
     conn.execute("""DELETE FROM annotation_versions WHERE file_id=? AND id NOT IN (
                         SELECT id FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT 30)""", (file_id, file_id))
     return {"entity": "annotations", "id": file_id, "status": "applied", "version": new_v}
+
+
+def _register_device_file(conn, file_id: str, info) -> bool:
+    """Notizen zu einer Hochschuldatei, die nur das Geraet kennt (Windows-App und iPad gleichen mit der Hochschule
+    selbst ab, 28.10.2026): Kurs und Datei als Kopfzeile anlegen, damit die Notizen eine Datei haben. Ohne
+    `download_url`: der Dienst laedt die Datei nie und die Community gilt dafuer nicht (`community.owns_file` braucht
+    die Adresse, dafuer melden Geraete Fingerabdruecke). Ein spaeterer Abgleich im Dienst ergaenzt die Zeile."""
+    if not isinstance(info, dict) or not str(info.get("name") or "").strip() or not str(info.get("course_id") or "").strip():
+        return False
+    if len(file_id) > 200 or str(info.get("course_id")) == "__user__":
+        return False
+    cid = str(info["course_id"])[:200]
+    conn.execute("INSERT OR IGNORE INTO courses(id, title, semester) VALUES (?,?,?)",
+                 (cid, str(info.get("course_title") or cid)[:300], (str(info.get("semester"))[:60] if info.get("semester") else None)))
+    conn.execute("INSERT OR IGNORE INTO files(id, course_id, name, mime, first_seen, status) VALUES (?,?,?,?,?, 'neu')",
+                 (file_id, cid, str(info["name"])[:300], (str(info.get("mime"))[:100] if info.get("mime") else None), db.now_iso()))
+    return True

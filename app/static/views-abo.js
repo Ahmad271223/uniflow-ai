@@ -1,7 +1,7 @@
 // Studora – Abo-Übersicht: vier Tarife, eigener Stand, Kontingente (Server: /api/billing/plans, /api/entitlements).
 // Es wird nur als enthalten gezeigt, was technisch freigeschaltet ist (status "available"); alles andere steht als
 // "kommt bald" bzw. "in Vorbereitung" daneben. Abschließen geht heute nur in der Apple-App (App Store).
-import { api, esc, icon, state } from "./core.js?v=30";
+import { api, esc, icon, state } from "./core.js?v=32";
 
 const euro = c => c === 0 ? "0 €" : `${(c / 100).toFixed(2).replace(".", ",")} €`;
 const QUOTA_TXT = (q, key, labels) => {

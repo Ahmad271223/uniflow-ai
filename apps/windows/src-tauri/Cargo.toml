@@ -1,6 +1,6 @@
 [package]
 name = "uniflow-desktop"
-version = "0.4.4"
+version = "0.4.9"
 description = "UniFlow fuer Windows (Fenster plus mitgeliefertes Backend)"
 edition = "2021"
 

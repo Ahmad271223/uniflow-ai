@@ -50,7 +50,8 @@ def _now() -> str:
 def _conn():
     cm = accounts.cursor()
     conn = cm.__enter__()
-    conn.executescript(SCHEMA)
+    from . import db
+    db.schema_once(conn, "jobs", accounts.db_path(), lambda c: c.executescript(SCHEMA))
     return cm, conn
 
 
@@ -117,13 +118,37 @@ def bg_state(user_id: str) -> dict:
     return {"running": running, "task": KINDS[j["kind"]] if running else None, "message": msg, "job": j}
 
 
+def uni_limits() -> tuple[int, float]:
+    """Schonung der Hochschulen (P9, 28.10.2026): hoechstens so viele gleichzeitige Abgleiche je Hochschule ueber alle
+    Konten und Prozesse (`LERNAPP_UNI_PARALLEL`, Standard 2) und so viele Sekunden zwischen zwei Starts je Hochschule
+    (`LERNAPP_UNI_GAP_S`, Standard 15). Steht in derselben Datenbank wie die Warteschlange und gilt damit auch fuer
+    mehrere Arbeiter-Prozesse."""
+    try:
+        par = max(1, int(os.environ.get("LERNAPP_UNI_PARALLEL") or 2))
+    except ValueError:
+        par = 2
+    try:
+        gap = max(0.0, float(os.environ.get("LERNAPP_UNI_GAP_S") or 15))
+    except ValueError:
+        gap = 15.0
+    return par, gap
+
+
 def claim_next() -> dict | None:
-    """Naechsten wartenden Job atomar uebernehmen; Konten mit laufendem Job werden uebersprungen."""
+    """Naechsten wartenden Job atomar uebernehmen; Konten mit laufendem Job werden uebersprungen, ebenso Hochschulen,
+    die gerade genug Abgleiche haben oder deren letzter Start zu kurz her ist (`uni_limits`)."""
+    par, gap = uni_limits()
+    since = accounts.iso(accounts.now() - timedelta(seconds=gap))
     cm, conn = _conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
-        r = conn.execute("""SELECT id FROM sync_jobs WHERE status='queued'
-                            AND user_id NOT IN (SELECT user_id FROM sync_jobs WHERE status='running') ORDER BY id LIMIT 1""").fetchone()
+        r = conn.execute("""SELECT j.id FROM sync_jobs j JOIN users u ON u.id=j.user_id WHERE j.status='queued'
+                            AND j.user_id NOT IN (SELECT user_id FROM sync_jobs WHERE status='running')
+                            AND (SELECT COUNT(*) FROM sync_jobs x JOIN users xu ON xu.id=x.user_id
+                                 WHERE x.status='running' AND xu.university=u.university) < ?
+                            AND NOT EXISTS (SELECT 1 FROM sync_jobs y JOIN users yu ON yu.id=y.user_id
+                                 WHERE yu.university=u.university AND y.started_at > ?)
+                            ORDER BY j.id LIMIT 1""", (par, since)).fetchone()
         if not r:
             return None
         conn.execute("UPDATE sync_jobs SET status='running', started_at=? WHERE id=? AND status='queued'", (_now(), r["id"]))

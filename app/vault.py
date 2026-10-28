@@ -28,6 +28,7 @@ from . import accounts, config
 VERSION = "v1"
 _master: bytes | None = None
 _cache: dict[str, dict[str, str]] = {}
+_stamps: dict[str, tuple] = {}          # Stand in der Datenbank je Konto beim Einlesen (P10)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS vault (
@@ -101,7 +102,8 @@ def decrypt(user_id: str, token: str) -> str:
 def _conn():
     cm = accounts.cursor()
     conn = cm.__enter__()
-    conn.executescript(SCHEMA)
+    from . import db
+    db.schema_once(conn, "vault", accounts.db_path(), lambda c: c.executescript(SCHEMA))
     return cm, conn
 
 
@@ -125,14 +127,21 @@ def set_values(user_id: str, values: dict[str, str | None]) -> None:
 
 
 def env_for(user_id: str) -> dict[str, str]:
-    """Alle entschluesselten Werte eines Kontos (wie ein .env-Abbild), mit Zwischenspeicher bis zur naechsten Aenderung."""
-    if user_id in _cache:
-        return dict(_cache[user_id])
+    """Alle entschluesselten Werte eines Kontos (wie ein .env-Abbild), mit Zwischenspeicher bis zur naechsten Aenderung.
+    Der Zwischenspeicher gilt nur, solange der Stand in der Datenbank derselbe ist (P10, 28.10.2026): aendert ein
+    anderer Prozess (Arbeiter fuer den Hochschul-Abgleich, zweiter API-Prozess) die Werte, wird neu gelesen. Der
+    Vergleich ist eine Abfrage ohne Entschluesseln; die Chiffrate haben zufaellige Nonces, jede Aenderung aendert sie."""
     cm, conn = _conn()
     try:
+        st = tuple(conn.execute("SELECT COUNT(*), MAX(updated_at), MAX(value_enc), MIN(value_enc) FROM vault WHERE user_id=?",
+                                (user_id,)).fetchone())
+        hit = _cache.get(user_id)
+        if hit is not None and _stamps.get(user_id) == st:
+            return dict(hit)
         rows = conn.execute("SELECT name, value_enc FROM vault WHERE user_id=?", (user_id,)).fetchall()
     finally:
         cm.__exit__(None, None, None)
+    _stamps[user_id] = st
     out = {}
     for r in rows:
         try:

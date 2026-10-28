@@ -22,7 +22,7 @@ def test_legal_page_renders_markdown_with_csp(app, page):
     html = body.decode("utf-8")
     md = (legal.legal_dir() / legal.PAGES[page][0]).read_text(encoding="utf-8")
     title = legal.title_of(md, "")
-    assert f"<title>{title} – UniFlow</title>" in html and f"<h1>{title}</h1>" in html
+    assert f"<title>{title} – Studora</title>" in html and f"<h1>{title}</h1>" in html
     assert re.findall(r"<script[^>]*src=\"/theme.js", html) and "<script>" not in html, "kein Inline-Skript"
     for other in legal.PAGES:
         assert f'href="/{other}"' in html, "Navigation zu allen Rechtsseiten"

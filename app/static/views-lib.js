@@ -1,6 +1,6 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
-import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=30";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=30";
+import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=32";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=41";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
 
 const TYPE_FOLDERS = [["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["loesung", "Lösungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["sonstiges", "Sonstiges"]];
@@ -57,8 +57,8 @@ export async function viewFiles(_, params, view) {
   view.innerHTML = `<div class="content" style="max-width:1480px">
     <div class="page-head"><div><h1>Dokumente & Notizen</h1><div class="sub">Alle Materialien deiner Module an einem Ort. Übersichtlich, schnell und fokussiert.</div></div>
       <div class="actions"><div class="search-inline">${icon("search", 15)}<input class="input" id="libQ" placeholder="In Dokumenten suchen…" value="${esc(params.q || "")}"></div>
-        <select class="input" id="libMod" style="width:auto"><option value="">Alle Module</option>${lib.modules.map(m => `<option value="${m.id}" ${curMod === m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>
-        <select class="input" id="libSort" style="width:auto"><option value="date" ${sort === "date" ? "selected" : ""}>Zuletzt bearbeitet</option><option value="name" ${sort === "name" ? "selected" : ""}>Name</option></select>
+        <select class="input" id="libMod" aria-label="Nach Modul filtern" style="width:auto"><option value="">Alle Module</option>${lib.modules.map(m => `<option value="${m.id}" ${curMod === m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>
+        <select class="input" id="libSort" aria-label="Sortierung" style="width:auto"><option value="date" ${sort === "date" ? "selected" : ""}>Zuletzt bearbeitet</option><option value="name" ${sort === "name" ? "selected" : ""}>Name</option></select>
         <div class="seg"><button class="${mode === "grid" ? "active" : ""}" data-m="grid" title="Kacheln">${icon("grid", 15)}</button><button class="${mode === "list" ? "active" : ""}" data-m="list" title="Liste">${icon("list", 15)}</button></div><button class="btn primary" id="libNew">${icon("plus", 16)} Neu</button></div></div>
     <div class="row between wrap" style="margin-bottom:1.2rem"><div class="chips">${CHIPS.map(([k, l]) => `<button class="chip ${filter === k && section === "docs" ? "on" : ""}" data-chip="${k}">${l}</button>`).join("")}</div>
       <div class="row small" style="gap:.3rem">${[["fav", "Favoriten", "star"], ["recent", "Zuletzt", "clock"], ["new", "Neu aus Stud.IP", "sparkles"], ["trash", "Papierkorb", "trash"]].map(([k, l, i]) => `<a class="btn ghost sm ${section === k ? "active" : ""}" href="#/files?section=${k}" style="${section === k ? "background:var(--accent-soft);color:var(--accent-text)" : ""}">${icon(i, 14)} ${l}${k === "new" && newCount ? ` <span class="badge">${newCount}</span>` : ""}</a>`).join("")}</div></div>

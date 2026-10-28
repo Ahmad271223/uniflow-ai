@@ -308,13 +308,15 @@ TUTOR_MODES = {
 
 
 def tutor(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
-          course: str = "", file_name: str = "", page: int | None = None) -> str:
-    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page), TUTOR_SYSTEM)
+          course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None) -> str:
+    return ask(tutor_prompt(mode, page_text, selection, question, own_solution, course, file_name, page, sources), TUTOR_SYSTEM)
 
 
 def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str = "", own_solution: str = "",
-                 course: str = "", file_name: str = "", page: int | None = None) -> str:
-    """Prompt des KI-Tutors; gleich fuer `claude -p` am PC und die Studora-KI im Dienst (app/ai_backend.py)."""
+                 course: str = "", file_name: str = "", page: int | None = None, sources: list[dict] | None = None) -> str:
+    """Prompt des KI-Tutors; gleich fuer `claude -p` am PC und die Studora-KI im Dienst (app/ai_backend.py).
+    `sources` (28.10.2026): nummerierte Stellen aus den eigenen Unterlagen (diese Seite und passende Seiten aus dem
+    Modul); die Antwort belegt Aussagen daraus mit [Nummer], die Oberflaeche macht daraus Links zur Seite."""
     instr = TUTOR_MODES.get(mode, TUTOR_MODES["explain"])
     parts = [f"Kurs: {course}", f"Datei: {file_name}" + (f", Seite {page}" if page else ""), "", f"AUFGABE: {instr}"]
     if selection.strip():
@@ -324,6 +326,14 @@ def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str =
     if question.strip():
         parts += ["", f"MEINE FRAGE: {question.strip()[:1000]}"]
     parts += ["", "SEITENINHALT (Kontext):", "<<<", (page_text or "").strip()[:9000] or "[kein Text extrahierbar]", ">>>"]
+    if sources and mode != "flashcards":
+        parts += ["", "QUELLEN aus den Unterlagen des Studierenden. Stuetzt du dich auf eine, nenne sie direkt dahinter als "
+                      "[Nummer], z. B. [2]. Nenne nur diese Nummern, erfinde keine Quellen und keine Seitenzahlen:"]
+        for src in sources:
+            line = f"[{src['n']}] {src.get('title') or src.get('name')}, Seite {src['page']}" + (" (diese Seite)" if src.get("current") else "")
+            if src.get("snippet") and not src.get("current"):
+                line += f": {str(src['snippet'])[:400]}"
+            parts.append(line)
     return "\n".join(parts)
 
 

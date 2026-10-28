@@ -467,7 +467,7 @@ def asgi_file(app, path: str, form: dict, file: dict):
                  f'Content-Type: {file["content_type"]}\r\n\r\n{file["text"]}\r\n')
     raw = ("".join(parts) + f"--{b}--\r\n").encode()
     headers = [(b"host", b"localhost"), (b"content-type", f"multipart/form-data; boundary={b}".encode()), (b"content-length", str(len(raw)).encode())]
-    scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": "POST", "scheme": "http", "path": path,
+    scope = {"type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"}, "http_version": "1.1", "method": "POST", "scheme": "http", "path": path,
              "raw_path": path.encode(), "query_string": b"", "headers": headers, "client": ("127.0.0.1", 5000), "server": ("localhost", 80)}
     out = {"status": None, "body": b""}
     sent = {"done": False}

@@ -137,7 +137,11 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   Server 501 `provider_not_configured`; es wird nie ein ungeprüftes Token angenommen. Für Tests und Fixtures bleibt
   `accounts.identity_verifiers["apple"] = fn(identity_token[, nonce=...]) -> {"subject", "email", "email_verified"}`.
 - **Sitzungen:** Token 32 Byte (urlsafe), gespeichert als SHA-256; 30 Tage gleitend; `logout`, `logout-all` (andere
-  Geräte), Liste unter `/me`. Browser: Cookie `uniflow_session` (HttpOnly, SameSite=Lax, Secure bei HTTPS). Apps:
+  Geräte), Liste unter `/me` (`sessions[]` mit `id`, `device_name`, `last_seen_at`, `current`), **ein Gerät abmelden:
+  `DELETE /api/account/sessions/{id}`** (seit 28.10.2026; nur eigene, sonst 404 `session_not_found`; die eigene
+  Sitzung löscht auch das Cookie, `current: true`). „Zuletzt gesehen“ wird höchstens einmal je Minute geschrieben.
+  Apps senden bei der Anmeldung `device_name` (Windows: „Studora für Windows“, iPad z. B. „iPad von …“), damit die
+  Liste verständlich ist. Browser: Cookie `uniflow_session` (HttpOnly, SameSite=Lax, Secure bei HTTPS). Apps:
   `Authorization: Bearer <token>`.
 - **Web-Anmeldung** (`app/static/login.html`, `login.js`): `/login` mit Anmelden, Konto anlegen (Hochschule, Passwortregeln
   aus `/api/account/info`), Passwort vergessen (Antwort immer gleich) und neues Passwort über den Link `/login?reset=TOKEN`
@@ -145,14 +149,32 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   Token bleibt im HttpOnly-Cookie. Im Dienst leitet `/` ohne Sitzung nach `/login`, `/login` mit Sitzung nach `/`; eine
   abgelaufene Sitzung (401) führt in der App zur Anmeldeseite. Abmelden und „Andere Geräte abmelden“ im Konto-Menü
   hinter dem Avatar. Am PC gibt es die Seite nicht (`/login` → `/`). Tests `tests/test_web_login.py`.
-- **Fehlversuche:** 8 je Konto und je Adresse → 10 Minuten `locked` (429), gezählt in der Datenbank.
-- **Reset:** Token 30 Minuten, einmalig, beendet alle Sitzungen; die Antwort auf `reset-request` ist immer gleich.
+- **Fehlversuche:** 8 je Adresse, 50 je IP (seit 28.10.2026; vorher 8 je IP, das hätte im Hochschulnetz mit NAT alle
+  hinter einer IP gesperrt) → 10 Minuten `locked` (429), gezählt in der Datenbank.
+- **Reset:** Token 30 Minuten, einmalig, beendet alle Sitzungen und bestätigt die Adresse; die Antwort auf
+  `reset-request` ist immer gleich.
+- **E-Mail bestätigen (seit 28.10.2026):** Die Willkommensmail enthält `/login?verify=<token>` (48 Stunden, einmalig,
+  nur für die aktuelle Adresse). `POST verify-email {token}` geht ohne Sitzung → `{ok, user}`; ungültig/abgelaufen
+  → 400 `verify_invalid`. `POST verify-email/resend` (mit Sitzung) schickt einen neuen Link, schon bestätigt →
+  `already: true`. `user.email_verified` steht in jeder Konto-Antwort. Community veröffentlichen erst danach (403
+  `email_unverified`); alles andere geht vorher. Apple/Google-Konten mit bestätigter Adresse des Anbieters sind sofort
+  bestätigt.
+- **Grenzen (seit 28.10.2026, 429 `rate_limited` mit `Retry-After`):** Registrieren 30/Stunde je IP (auch vergebene
+  Adressen zählen), Reset 30/Stunde je IP und 3/Stunde je Adresse (die zweite still: gleiche Antwort, keine Mail),
+  Bestätigungslink erneut 5/Stunde je Konto, Export 3/Tag je Konto. IP-Grenzen großzügig wegen NAT im Hochschulnetz.
+  Betreiber ändert sie mit `LERNAPP_LIMIT_<NAME>=Anzahl/Minuten` (z. B. `LERNAPP_LIMIT_REGISTER_IP=60/60`).
+  `email_taken` (409) bleibt, weil die Registrierung sofort anmeldet; das Ausprobieren begrenzt die IP-Grenze.
+- **Datenexport (seit 28.10.2026):** `GET export` (mit Sitzung) → ZIP mit `LIESMICH.txt`, `konto.json` (Konto,
+  Sitzungen, Anmeldewege, Käufe, Nutzung, KI-Nutzung, Abgleich-Aufträge, Hochschul-Zugangsdaten nur mit Namen und
+  Benutzername, Passwörter/Schlüssel/Cookies als „gespeichert“), `daten/` (Nutzerordner, SQLite-Dateien konsistent
+  kopiert, ohne Browser-Profile), `community/` (eigene Lösungen mit Paketen, Meldungen, Sperrliste),
+  `testbibliothek.json`. Referenz `app/account_export.py`.
 - **Löschen:** sofort gesperrt (alle Sitzungen weg, Adresse frei), Nutzerordner nach `users-deleted/`, endgültig nach
   30 Tagen (`purge`). Mit Passwort, bei reinen Apple/Google-Konten ohne.
 - **Fehlerform:** `{"detail": "<Meldung>", "code": "<stabil>"}`; Codes in `contract.json` → `errors`.
 - **Endpunkte:** `POST register`, `login`, `login/{apple|google}`, `link/{apple|google}`, `logout`, `logout-all`,
-  `password`, `password/reset-request`, `password/reset`, `university`, `delete`; `GET me`, `GET info`, `GET providers`
-  (öffentlich).
+  `password`, `password/reset-request`, `password/reset`, `verify-email` (öffentlich), `verify-email/resend`,
+  `university`, `delete`; `GET me`, `GET export`, `GET info`, `GET providers` (öffentlich).
 
 ### Mit Google / Apple anmelden (für die Apps und die Web-Anmeldeseite)
 
@@ -200,12 +222,23 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   `study_packages`, `study_tasks`, `flashcards`, `settings` (Schlüssel `key`; nie `lan_pin`, `university`),
   `annotations` (Schlüssel `file_id`). Eigene Dokumente mit Inhalt (Notizbücher, importierte PDFs) folgen später;
   Hochschul-PDFs lädt jedes Gerät selbst (`files`, `courses` nicht im Sync).
-- **Abruf:** `GET /api/sync/changes?since=<cursor>` → `{cursor, changes: {entity: [Zeilen inkl. sync_*]}, tombstones}`.
-  Ohne `since` alles. Der Cursor ist der größte gesehene Zeitstempel; Clients entfernen Doppelte über Version.
+- **Abruf:** `GET /api/sync/changes?since=<cursor>&limit=<1…2000>` → `{cursor, changes: {entity: [Zeilen inkl.
+  sync_*]}, tombstones, has_more}`. Ohne `since` alles. **Seitenweise (seit 28.10.2026):** je Tabelle höchstens
+  `limit` Zeilen; wird eine Tabelle abgeschnitten, gilt für alle Tabellen und Tombstones die kleinste abgeschnittene
+  Zeit als Grenze, geliefert wird alles bis einschließlich der Grenze (gleiche Zeitstempel am Ende vollständig),
+  `cursor` = Grenze, `has_more: true`. **Clients rufen weiter ab, solange `has_more` true ist.** Vorher war der Cursor
+  das Maximum über alle Tabellen; bei mehr als 2.000 Änderungen in einer Tabelle gingen Zeilen verloren. Der Cursor
+  bleibt ein Zeitstempel (undurchsichtig behandeln); Clients entfernen Doppelte über Version.
 - **Senden:** `POST /api/sync/push {device_id, items: [{entity, id | local_id, base_version, updated_at, data}],
   deletes: [{entity, id, deleted_at}]}` → `{results, mapping, conflicts, server_time}`.
   - neue Zeile: `id` weglassen, `local_id` negativ → `created` mit Server-ID in `mapping`; Fremdschlüssel mit
     negativen IDs (`module_id`, `package_id`, `event_id`, `folder_id`, `parent_id`) werden im selben Push aufgelöst.
+  - **`op_id` (seit 28.10.2026, optional, empfohlen):** je Eintrag eine eindeutige ID (8–100 Zeichen `[A-Za-z0-9._:-]`,
+    z. B. UUID), beim Wiederholen derselben Änderung dieselbe. Der Server merkt sich das Ergebnis; eine Wiederholung
+    (Antwort verloren, Neustart) bekommt dasselbe Ergebnis mit `repeated: true` und dieselbe `mapping`-Zuordnung, statt
+    eine neue Zeile doppelt anzulegen. Fehler (`error`) werden nicht gemerkt. Frist 90 Tage (`app/retention.py`).
+    Ohne `op_id` legt eine Wiederholung eine zweite Zeile an. Fälle: `abruf-in-seiten`, `wiederholt-senden-op-id` in
+    `fixtures/sync/cases.json`.
   - `base_version` = Serverversion → `applied`. Sonst `conflict`: je Feld gewinnt der spätere Schreiber (`updated_at`
     des Clients gegen `sync_updated_at` des Servers), `client_won` nennt die Felder, `conflicts` beide Stände.
   - Löschen: `deleted_at` ≥ letzte Serveränderung → `deleted` (Tombstone), sonst `edit_wins` (Zeile bleibt).
@@ -217,13 +250,54 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
     dieses Gerät gewinnt, `orderConflict` muss der Client anzeigen).
     Unbekannte Datei → `unknown_file`.
   - `settings`: `local_id` = Schlüssel, `data.value`; private Schlüssel → `ignored`.
+- **Client-Regeln (Windows-App seit 28.10.2026, `app/sync_client.py`; das iPad muss genauso arbeiten):**
+  - Lauf = **abrufen → senden → abrufen**. Vor dem ersten Senden wird immer abgerufen, damit Zeilen, die beide Geräte
+    aus demselben Stud.IP angelegt haben, nicht doppelt im Konto landen.
+  - **Zuordnung** lokale ID ↔ ID im Dienst je Zeile (`sync_link_map`: `remote_version`, `local_version`, bei Notizen
+    `base` = zuletzt abgeglichenes Dokument). Lokal geändert = `sync_version` ≠ `local_version`.
+  - **Fachliche Schlüssel** für Zeilen ohne Zuordnung (Vergleich ohne Groß-/Kleinschreibung, Fremdschlüssel als
+    lokale IDs): `modules` Name + Semester; `folders` Name + Eltern + Modul; `course_events` Kurs-ID (sonst Titel) +
+    Wochentag + Beginn + Ende + `date_from` + Art; `event_exceptions` Termin + Datum + Art; `study_packages` Datum +
+    Modul + Titel (sonst Fach); `study_tasks` Paket + Art + Titel + Datei; `flashcards` Frage + Datei; `settings`
+    Schlüssel; `annotations` `file_id`. Gibt es die Zeile hier schon, gilt der spätere Stand (`sync_updated_at`).
+  - Angewendete Zeilen und Tombstones bekommen `sync_device = "~dienst"` und werden nie zurückgesendet.
+  - **Notizen:** lokal geändert und im Dienst neuer → `mergeDocument(base, lokal, Dienst)` (gemeinsame Fälle), Ergebnis
+    mit `base_version` = Version im Dienst senden; Antwort `conflict` → erneut zusammenführen und senden (höchstens
+    zweimal je Lauf). Notizen zu einer Hochschuldatei schicken `file: {name, mime, course_id, course_title,
+    semester}` mit; kennt der Dienst die Datei nicht, legt er Kurs und Datei als Kopfzeile ohne Adresse an (sonst
+    `unknown_file`). Gibt es die Datei auf dem Gerät noch nicht, wartet die Notiz und wird bei jedem Lauf neu versucht.
+  - **Nur auf dem Gerät:** Einstellungen `lan_pin`, `university`, `demo_content`, `semester_rule_applied`,
+    `pen_input` und alles mit token/secret/passw im Namen; `study_tasks.test_id` (Tests sind nicht im Abgleich).
+  - `op_id` = `<Gerät>.<Tabelle>.<lokale ID>.<sync_version>`: dieselbe Änderung hat bei Wiederholung dieselbe ID.
+  - Tarif Free: Notizen bleiben lokal (`plan_required`), alles andere gleicht ab.
 - Beide Endpunkte gibt es auch im Einzelplatzmodus (iPad ↔ PC im WLAN); im Dienst gelten sie je Konto.
 
 ## G4 Community
 
 - **Nur gehostet** und nur mit Tarif Plus (`users.plan = plus`, optional `plan_until`; heute per `python -m
-  app.accounts plan <email> plus [bis]`, später aus den Store-Käufen), sonst 403 `plan_required`; im Einzelplatzmodus
-  501 `not_hosted`. Sitzung wie bei G1 (Bearer oder Cookie).
+  app.accounts plan <email> plus [bis]`, später aus den Store-Käufen), sonst 403 `plan_required`. Sitzung wie bei G1
+  (Bearer oder Cookie). Die Windows-App (Einzelplatz) leitet `/api/community/...` mit dem Token des verbundenen
+  Studora-Kontos an den Dienst weiter (`app/service_link.py`); ohne Konto 409 `not_linked`, Dienst nicht erreichbar
+  502 `service_unreachable`, Konto einer anderen Hochschule 409 `university_mismatch`. 501 `not_hosted` antwortet
+  nur noch der Community-Router selbst, wenn er ohne Dienst läuft.
+- **Teil 2 (28.10.2026, `app/community_qa.py`, Flows in `fixtures/community/contract.json`):**
+  - **Fragen je Kurs:** `GET|POST /api/community/courses/{course_key}/questions` (`limit`, `before` = `next` der
+    letzten Antwort, `fingerprint` für „nur zu dieser PDF“), `GET|PATCH|DELETE /questions/{id}`,
+    `POST /questions/{id}/answers`, `POST /questions/{id}/accept {answer_id|null}` (nur wer gefragt hat),
+    `PATCH|DELETE /answers/{id}`, `POST|DELETE /answers/{id}/vote` (hilfreich), `POST /{questions|answers}/{id}/report-post`.
+    `course_key` = SHA-256 hex von `uniflow.community.course.v1\0<hochschule>\0<kurs-id>` wie
+    `CommunityKeys.courseKey`; das Gerät bildet ihn (Windows: `GET /api/courses/community-keys` im eigenen Backend).
+    Schreiben ab Plus mit bestätigter E-Mail; Grenzen `question_user` 10/h, `answer_user` 30/h.
+  - **Lesezeichen:** `GET /bookmarks`, `POST|DELETE /bookmarks/{solution|question}/{id}`.
+  - **Benachrichtigungen:** `GET /notifications?unread=&limit=` (`unread`, Arten `comment`, `reply`, `like` – je Lösung und
+    Tag gebündelt mit `count` –, `answer`, `accepted`; bei Lösungen mit `fingerprint` und `title`), `POST /notifications/read
+    {ids?}`. Gelesene werden nach 90 Tagen gelöscht.
+  - **Seitenweise:** `GET /solutions?fingerprint=&limit=&offset=` liefert `total`. **Spam-Grenze** fürs Veröffentlichen:
+    20 neue Lösungen je Tag (`publish_user`).
+- **Stelle eines Kommentars:** `page_key` = Seitenschlüssel im Paket, `anchor` = 0..1 von links oben in der Anzeige
+  des Absenders (Koordinaten der Objekte geteilt durch `displaySize`); Empfänger mit anderer Drehung bilden sie wie
+  die Objekte ab (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 6a). Testvektoren für Pakete:
+  `packages/shared-contracts/fixtures/solutions/vectors.json`.
 - **Berechtigung „Datei aus dem eigenen Hochschul-Abgleich“**: Veröffentlichen, Suchen und Laden nur, wenn in der
   Datenbank des Kontos eine Datei mit `content_sha256 = Fingerabdruck` liegt, die aus dem Abgleich stammt
   (`course_id ≠ __user__`, `download_url` gesetzt, nicht gelöscht); sonst 403 `file_not_owned`. Treffer gibt es nur
