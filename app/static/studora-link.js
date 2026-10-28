@@ -39,6 +39,12 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       let s; try { s = await (await fetch("/api/studora/sync")).json(); } catch { return; }
       const l = s.last;
       const when = l?.at ? new Date(l.at * 1000).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : null;
+      if (s.confirm) {
+        syncBox.innerHTML = `<div class="sl-warn">${icon("alert", 13)} Die Daten dieses PCs wurden bisher mit <b>${esc(s.confirm.previous_email || "einem anderen Konto")}</b> abgeglichen. Sollen sie jetzt mit diesem Konto abgeglichen werden? Bis dahin bleibt der Abgleich aus.
+          <div class="row" style="gap:.4rem;margin-top:.35rem"><button class="btn sm primary" data-sl="confirm">Ja, mit diesem Konto abgleichen</button></div></div>`;
+        $('[data-sl="confirm"]', syncBox).onclick = async () => { await fetch("/api/studora/sync/enabled", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: true }) }); showSync(); };
+        return;
+      }
       syncBox.innerHTML = `<label class="row" style="gap:.4rem;align-items:center"><input type="checkbox" data-sl="auto" ${s.enabled ? "checked" : ""}> <b>Mit dem iPad abgleichen</b> <span class="muted">(Notizen, Module, Stundenplan-Änderungen, Lernkalender, Karteikarten, Einstellungen)</span></label>
         <div class="muted">${s.running ? "Gleicht gerade ab …" : when ? `Zuletzt ${when}: ${l.ok ? `${l.applied || 0} übernommen, ${l.pushed || 0} gesendet${l.deleted ? `, ${l.deleted} gelöscht` : ""}${l.conflicts ? `, ${l.conflicts} zusammengeführt` : ""}${l.pending ? `, ${l.pending} warten auf Dateien dieses PCs` : ""}` : `Fehler: ${esc(l.error || "")}`}` : "Noch nicht abgeglichen."}</div>
         ${l?.plan_required ? `<div class="sl-warn">${icon("info", 13)} Notizen gleichen ab Studora Plus ab; Pläne und Module schon jetzt.</div>` : ""}`;

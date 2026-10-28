@@ -1,5 +1,6 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=32";
+import { renderWeeklyOverview, runWeekly } from "./views-weekly.js?v=1";
 
 // ================================================================ MODULE
 const DECO = [[/mathe/i, "grid"], [/elektro/i, "sparkles"], [/signal/i, "rotate"], [/programm/i, "type"], [/datenstruktur|algorithm/i, "layers"], [/einf/i, "columns"], [/digital/i, "cards"]];
@@ -70,11 +71,12 @@ async function summarizeWeek(w, m) {
   const box = modal(`<h3>${icon("sparkles", 18)} Zusammenfassung: ${esc(w.label)}</h3><div id="sumOut" class="muted">⏳ Die KI liest die Vorlesungsfolien dieser Woche…</div><div class="modal-foot"><button class="btn" data-close>Schließen</button></div>`);
   try { let text = ""; for (const f of w.vorlesungen.slice(0, 3)) for (let p = 1; p <= 4; p++) { const r = await api(`/files/${f.id}/pagetext?page=${p}`); if (!r.text) break; text += `\n--- ${f.name} S.${p} ---\n${r.text}`; if (text.length > 9000) break; }
     const r = await api("/ai/tutor", { method: "POST", body: { file_id: w.vorlesungen[0].id, page: 1, mode: "summary", page_text: text.slice(0, 9000), question: `Fasse die Vorlesungen der ${w.label} im Modul ${m.name} zusammen.` } });
-    const { md } = await import("./editor.js?v=41"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
+    const { md } = await import("./editor.js?v=42"); $("#sumOut", box).innerHTML = md(r.answer); $("#sumOut", box).classList.remove("muted"); } catch (e) { $("#sumOut", box).textContent = "Fehler: " + e.message; }
 }
 
 // ================================================================ TESTS & WIEDERHOLUNG
 export async function viewExams(parts, params, view) {
+  if (parts[0] === "w" && parts[1]) return runWeekly(parts[1], view);
   if (parts[0]) return runTest(+parts[0], params, view);
   const [tests, mods, cards] = await Promise.all([api("/tests"), api("/modules"), api("/flashcards?due=true")]);
   const modByName = Object.fromEntries(mods.map(m => [m.name, m]));
@@ -87,7 +89,8 @@ export async function viewExams(parts, params, view) {
   view.innerHTML = `<div class="content"><div class="page-head"><div><h1>Tests & Wiederholung</h1><div class="sub">Ein gemeinsamer Wochentest pro Modul und Lehrwoche, dazu Karteikarten zum Wiederholen.</div></div>
       <div class="actions"><select class="input" id="exSubj" style="width:auto">${mods.map(s => `<option value="${s.id}">${esc(shortName(s.name))}</option>`).join("")}</select><select class="input" id="exDur" style="width:auto">${[15, 30, 45, 60, 90].map(n => `<option value="${n}" ${n === 30 ? "selected" : ""}>${n} min</option>`).join("")}</select><button class="btn sm" id="exGen">${icon("plus", 14)} Zusatztest</button><button class="btn primary sm" id="exWeek">${icon("sparkles", 14)} Wochentests erstellen</button></div></div>
     <div class="statbar"><span><b>${tests.filter(t => !t.submitted_at).length}</b> offene Tests</span><span><b>${tests.filter(t => t.submitted_at).length}</b> abgeschlossen${tests.some(t => t.submitted_at) ? ` · Ø ${Math.round(tests.filter(t => t.submitted_at).reduce((a, t) => a + 100 * t.score / t.max_score, 0) / tests.filter(t => t.submitted_at).length)} %` : ""}</span><a href="#/cards"><b>${cards.length}</b> Karteikarten fällig →</a></div>
-    <div class="test-grid">${cardsHtml}</div></div>`;
+    <div id="wkBox"></div><h2 class="sec-title">Deine eigenen Tests</h2><div class="test-grid">${cardsHtml}</div></div>`;
+  renderWeeklyOverview($("#wkBox", view), mods);
   $("#exGen").onclick = async () => { try { await api("/tests/generate", { method: "POST", body: { module_id: +$("#exSubj").value, duration_min: +$("#exDur").value } }); toast("Zusatztest wird erstellt (ca. 1 Minute)…"); window.pollBg?.(); } catch (e) { toast(e.message); } };
   $("#exWeek").onclick = async () => { try { await api("/tests/generate-week", { method: "POST" }); toast("Fehlende Wochentests werden erstellt…"); window.pollBg?.(); } catch (e) { toast(e.message); } };
   // eigene Rueckfrage statt confirm(): gross genug fuer den Finger, auch in der iPad-App zuverlaessig
@@ -202,7 +205,7 @@ export async function viewCommunity(_, params, view) {
     view.innerHTML = `<div class="content" style="max-width:860px">${head}
       <div class="card"><div class="card-head"><h2>${icon("user", 18)} Studora-Konto</h2></div><div id="slCard"></div>${d.code && d.code !== "not_linked" ? `<p class="small" style="margin-top:.6rem">${icon("alert", 13)} ${esc(d.detail || "")}</p>` : ""}</div>
       <div class="card"><div class="card-head"><h2>${icon("info", 18)} Was du damit kannst</h2></div><ul class="small muted" style="margin:0"><li>Im PDF-Editor (Knopf ${icon("users", 13)}) die Lösungen anderer zu derselben PDF sehen und als eigene Ebene über deine Seite legen</li><li>Liken und an einer Stelle der Seite kommentieren, mit Antworten</li><li>Eigene Notizen als Lösung teilen – verschlüsselt, nur lesbar mit derselben Original-PDF</li><li>Gilt mit demselben Konto auf dem iPad; nur innerhalb deiner Hochschule</li></ul></div></div>`;
-    const { renderLinkCard } = await import("./studora-link.js?v=3");
+    const { renderLinkCard } = await import("./studora-link.js?v=4");
     renderLinkCard($("#slCard", view), { onChange: () => state.route() });
     return;
   }
@@ -236,7 +239,7 @@ export async function viewCommunity(_, params, view) {
     ${mod ? `<div class="card"><div class="card-head"><h2>${icon("settings", 18)} Moderation</h2><span class="badge ${mod.solutions.some(s => s.status === "hidden") ? "warn" : "neutral"}">${mod.solutions.length} gemeldet oder gesperrt</span></div>
       ${mod.solutions.length ? `<table class="tbl"><tr><th>Lösung</th><th>Umfang</th><th>Veröffentlicht</th><th>Geladen</th><th>Status</th><th></th></tr>${mod.solutions.map(s => solRow(s, `<span class="tiny muted" style="flex:1">${esc(s.pseudonym)}${s.author_banned ? " · Autor gesperrt" : ""}<br>${s.reports.map(x => esc(REPORT_TXT[x.reason] || x.reason) + (x.note ? `: ${esc(x.note)}` : "")).join(" · ")}</span>${s.status === "active" ? `<button class="btn sm" data-mod="hide" data-id="${s.solution_id}">Verbergen</button>` : ""}${s.status === "hidden" || s.status === "removed" ? `<button class="btn sm" data-mod="restore" data-id="${s.solution_id}">Wiederherstellen</button>` : ""}${s.status !== "removed" ? `<button class="btn sm" data-mod="remove" data-id="${s.solution_id}">Entfernen</button>` : ""}${s.author_banned ? `<button class="btn sm" data-mod="unban_author" data-id="${s.solution_id}">Autor freigeben</button>` : `<button class="btn sm danger" data-mod="ban_author" data-id="${s.solution_id}">Autor sperren</button>`}`)).join("")}</table>` : `<p class="muted small" style="margin:0">Keine Meldungen offen.</p>`}</div>` : ""}</div>`;
   bindTabs();
-  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=3").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
+  if (!state.hosted && $("#slCard", view)) import("./studora-link.js?v=4").then(m => m.renderLinkCard($("#slCard", view), { onChange: () => state.route() }));
   $$("[data-withdraw]", view).forEach(b => b.onclick = () => { if (confirm("Lösung zurückziehen? Andere können sie dann nicht mehr laden.")) run(() => api(`/community/solutions/${b.dataset.withdraw}`, { method: "DELETE" }), "Lösung zurückgezogen"); });
   $$("[data-unblock]", view).forEach(b => b.onclick = () => run(() => api(`/community/blocks/${encodeURIComponent(b.dataset.unblock)}`, { method: "DELETE" }), "Sperre aufgehoben"));
   $$("[data-mod]", view).forEach(b => b.onclick = () => { const a = b.dataset.mod; if ((a === "remove" || a === "ban_author") && !confirm(a === "remove" ? "Lösung endgültig entfernen?" : "Autor sperren? Alle seine Lösungen werden entfernt.")) return; run(() => api(`/community/solutions/${b.dataset.id}/moderate`, { method: "POST", body: { action: a } }), "Moderation gespeichert"); });

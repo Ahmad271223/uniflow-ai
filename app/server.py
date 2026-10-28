@@ -599,6 +599,106 @@ def file_by_fingerprint(sha: str):
     return {"file_id": f["id"], "name": f["name"], "course_id": f["course_id"]}
 
 
+def _module_course(conn, module_id: int) -> dict | None:
+    """Kurs, ueber den ein Modul zur Kursgruppe gehoert: die Vorlesung des Moduls, sonst der Kurs mit der kleinsten ID
+    (gleiche Regel auf dem iPad, damit alle denselben Kurs-Schluessel bilden)."""
+    rows = db.rows(conn, "SELECT id, title, semester, kind FROM courses WHERE module_id=? AND id<>'__user__' ORDER BY id", (module_id,))
+    if not rows:
+        return None
+    return next((r for r in rows if (r.get("kind") or "") == "vorlesung"), rows[0])
+
+
+@app.get("/api/weekly/group")
+def weekly_group(module_id: int, date: str | None = None):
+    """Kursgruppe und Kalenderwoche fuer den gemeinsamen Wochentest eines Moduls (Schluessel, Semester, ISO-Woche)."""
+    from datetime import date as _date
+    with db.cursor() as conn:
+        c = _module_course(conn, module_id)
+    if not c:
+        raise HTTPException(404, {"detail": "Dem Modul ist kein Hochschulkurs zugeordnet.", "code": "no_course"})
+    d = _date.fromisoformat(date) if date else study.today()
+    y, w, _ = d.isocalendar()
+    from .grades_model import norm_semester
+    return {"course_key": community_course_key(config.university(), c["id"]), "term": norm_semester(c.get("semester") or "") or "ohne-semester",
+            "week": f"{y}-W{w:02d}", "monday": study.monday(d).isoformat(), "course_title": c["title"]}
+
+
+@app.get("/api/weekly/materials")
+def weekly_materials(module_id: int, date: str | None = None):
+    """Material der Kalenderwoche fuer den gemeinsamen Wochentest, nur Texte (nie Dateien): Vorlesung, Uebung,
+    Gruppen- und Hoersaaluebung, Tutorium, Loesungen der Woche; aus Skript und Altklausuren nur passende Seiten."""
+    from datetime import date as _date
+    from . import scriptsearch
+    d = _date.fromisoformat(date) if date else study.today()
+    kind_of = {"Gruppenübung": "gruppenuebung", "Hörsaalübung": "hoersaaluebung", "Tutorium": "tutorium"}
+    out = []
+    with db.cursor() as conn:
+        start = study.semester_start(conn)
+        wk = study.day_week(start, study.monday(d))
+        files = study._file_rows(conn, module_id)
+        sha = lambda fid: (db.row(conn, "SELECT content_sha256 FROM files WHERE id=?", (fid,)) or {}).get("content_sha256")  # noqa: E731
+        week_files = [f for f in files if study.file_week(start, f) == wk and f.get("doc_type") in ("vorlesung", "uebung", "loesung", "skript")]
+        for f in week_files[:12]:
+            kind = kind_of.get(f.get("sub_label") or "", f.get("doc_type"))
+            pages = scriptsearch.page_texts(conn, f["id"])[:40]
+            out.append({"kind": kind, "title": f.get("ai_title") or f.get("name"), "sha256": sha(f["id"]),
+                        "pages": [{"page": i + 1, "text": t[:6000]} for i, t in enumerate(pages) if t and t.strip()]})
+        week_text = " ".join(p["text"] for m in out for p in m["pages"])[:4000]
+        if week_text.strip():
+            # Skript: passende Seiten ueber die Volltextsuche des Moduls (ohne die Dateien der Woche)
+            hits = scriptsearch.search(conn, module_id, week_text, limit=12).get("results") or []
+            seen = {m["sha256"] for m in out}
+            for h in hits:
+                if h["file_id"] in {f["id"] for f in week_files}:
+                    continue
+                texts = scriptsearch.page_texts(conn, h["file_id"])
+                if 0 < h["page"] <= len(texts):
+                    out.append({"kind": "skript", "title": h.get("title") or h.get("name"), "sha256": sha(h["file_id"]),
+                                "pages": [{"page": h["page"], "text": texts[h["page"] - 1][:6000]}]})
+            # Altklausuren: Seiten mit den meisten gemeinsamen Begriffen mit dem Wochenstoff
+            want = set(scriptsearch.tokens(week_text))
+            cands = []
+            for f in files:
+                if f.get("doc_type") != "klausur" or not (f.get("name") or "").lower().endswith(".pdf"):
+                    continue
+                for i, t in enumerate(scriptsearch.page_texts(conn, f["id"])):
+                    score = len(want & set(scriptsearch.tokens(t)))
+                    if score >= 4:
+                        cands.append((score, f, i + 1, t))
+            for score, f, pg, t in sorted(cands, key=lambda x: -x[0])[:8]:
+                out.append({"kind": "altklausur", "title": f.get("ai_title") or f.get("name"), "sha256": sha(f["id"]),
+                            "pages": [{"page": pg, "text": t[:6000]}]})
+    out = [m for m in out if m["pages"]]
+    return {"teaching_week": wk, "materials": out, "counts": {k: sum(1 for m in out if m["kind"] == k) for k in sorted({m["kind"] for m in out})}}
+
+
+@app.post("/api/weekly/request")
+def weekly_request(request: Request, body: dict = Body(...)):
+    """Gemeinsamen Wochentest fuer ein Modul holen oder erstellen lassen: Kursgruppe und Material bildet dieses Geraet,
+    den Test erstellt einmal der Dienst (Windows-App ueber das Studora-Konto)."""
+    mid = int(body.get("module_id") or 0)
+    g = weekly_group(mid, body.get("date"))
+    mats = weekly_materials(mid, body.get("date"))["materials"]
+    payload = {"term": g["term"], "materials": mats}
+    if config.is_hosted():
+        from . import community, weekly_tests
+        from .community_api import _err
+        try:
+            return {"group": g, "test": weekly_tests.request(request.state.user, config.university(), g["course_key"], g["term"], g["week"], mats)}
+        except community.CommunityError as e:
+            raise _err(e)
+    from . import service_link
+    try:
+        status, _, data = service_link.call("POST", f"/api/community/weekly/{g['course_key']}/{g['week']}", json.dumps(payload).encode(),
+                                            timeout=service_link.UPLOAD_TIMEOUT)
+    except service_link.LinkError as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+    d = json.loads(data or b"{}")
+    if status >= 400:
+        raise HTTPException(status, {"detail": d.get("detail") or "Fehler", "code": d.get("code")})
+    return {"group": g, "test": d}
+
+
 @app.get("/api/courses")
 def courses():
     with db.cursor() as conn:
@@ -824,6 +924,37 @@ def put_annotations(file_id: str, body: dict = Body(...), base_version: int | No
     return _put_annotations(file_id, body, base_version)
 
 
+# Grenzen (Pruefpunkte 1194, 1197; 28.10.2026). Notizen: ein Dokument je Datei als JSON; eigene Dateien und
+# Aufnahmen je Datei; im Dienst zusaetzlich Speicher je Konto (Dateien, Bilder, Aufnahmen), `LERNAPP_STORAGE_QUOTA_MB`.
+MAX_ANNOTATION_BYTES = 40 << 20
+MAX_UPLOAD_BYTES = 300 << 20
+MAX_RECORDING_BYTES = 500 << 20
+
+
+def _storage_check(new_bytes: int, limit: int, what: str) -> None:
+    import os as _os
+    if new_bytes > limit:
+        raise HTTPException(413, {"detail": f"{what} ist zu groß (höchstens {limit >> 20} MB).", "code": "upload_too_large"})
+    if not config.is_hosted():
+        return
+    try:
+        quota = int(_os.environ.get("LERNAPP_STORAGE_QUOTA_MB") or 3000) << 20
+    except ValueError:
+        quota = 3000 << 20
+    used = 0
+    for d in (config.files_dir(), _assets_dir()):
+        if d.exists():
+            for p in d.rglob("*"):
+                try:
+                    if p.is_file():
+                        used += p.stat().st_size
+                except OSError:
+                    pass
+    if used + new_bytes > quota:
+        raise HTTPException(413, {"detail": f"Dein Speicher ist voll ({used >> 20} von {quota >> 20} MB). Lösche nicht mehr "
+                                            "benötigte eigene Dokumente oder Aufnahmen.", "code": "storage_quota"})
+
+
 def _put_annotations(file_id: str, body: dict, base_version: int | None = None):
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")      # Versionspruefung und Schreiben atomar: zwei Geraete koennen nicht beide gewinnen
@@ -834,6 +965,9 @@ def _put_annotations(file_id: str, body: dict, base_version: int | None = None):
                                                           "version": cur_v, "data": json.loads(cur["data"])})
         new_v = cur_v + 1
         payload = json.dumps(body, ensure_ascii=False)
+        if len(payload.encode("utf-8")) > MAX_ANNOTATION_BYTES:
+            raise HTTPException(413, {"detail": f"Die Notizen dieser Datei sind zu groß (höchstens {MAX_ANNOTATION_BYTES >> 20} MB). "
+                                                "Sehr große Zeichnungen bitte auf mehrere Seiten oder Dokumente verteilen.", "code": "annotations_too_large"})
         conn.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?) "
                      "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version",
                      (file_id, payload, db.now_iso(), new_v))
@@ -882,6 +1016,7 @@ async def upload_asset(request: Request, file_id: str, upload: UploadFile = File
     data = await upload.read()
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(400, "Bild zu gross (max. 15 MB)")
+    _storage_check(len(data), 15 << 20, "Das Bild")
     (target / name).write_bytes(data)
     return {"url": f"/api/assets/{file_id}/{name}", "name": name}
 
@@ -2304,6 +2439,7 @@ async def api_notebook_create(kind: str = Form(default="notebook"), title: str =
         if kind == "image" and ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"):
             raise HTTPException(400, "Nur Bilddateien")
         data = await upload.read()
+        _storage_check(len(data), MAX_UPLOAD_BYTES, "Die Datei")
         if kind == "pdf" and not data.startswith(b"%PDF"):
             raise HTTPException(400, "Die Datei ist keine PDF")
         if kind == "image":
@@ -2401,7 +2537,9 @@ async def api_recording_add(file_id: str, upload: UploadFile = File(...), page: 
         raise HTTPException(400, "Nur Audio-Aufnahmen")
     name = f"rec_{uuid.uuid4().hex}{ext}"
     target = _inside(_assets_dir(), _assets_dir() / file_id); target.mkdir(parents=True, exist_ok=True)
-    (target / name).write_bytes(await upload.read())
+    data = await upload.read()
+    _storage_check(len(data), MAX_RECORDING_BYTES, "Die Aufnahme")
+    (target / name).write_bytes(data)
     with db.cursor() as conn:
         cur = conn.execute("INSERT INTO recordings(file_id, page, title, url, duration, created_at) VALUES (?,?,?,?,?,?)",
                            (file_id, page, title or f"Aufnahme {datetime.now().strftime('%d.%m. %H:%M')}", f"/api/assets/{file_id}/{name}", duration, db.now_iso()))

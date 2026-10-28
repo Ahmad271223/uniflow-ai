@@ -193,3 +193,43 @@ def test_first_link_keeps_changed_settings_against_fresh_defaults(two_devices):
         assert db.row(conn, "SELECT value FROM settings WHERE key='hours_per_day'")["value"] == "6"
     changes, _ = ipad_pull(app, ipad)
     assert {s["key"]: s["value"] for s in changes["settings"]}["hours_per_day"] == "6"
+
+
+def test_other_account_on_this_pc_needs_confirmation(two_devices):
+    """Pruefpunkt 1203: nach einem Kontowechsel gleicht der PC erst nach Bestaetigung ab."""
+    app, ipad = two_devices
+    from app import accounts, db, service_link, sync_client
+    with db.cursor() as conn:
+        conn.execute("INSERT INTO modules(name) VALUES ('Privat von Konto A')")
+    assert sync_client.run()["ok"]
+    st, d = _hosted(app, "POST", "/api/account/register", {"email": "zweit@example.org", "password": "sehr-geheim-123", "university": "luh"})
+    accounts.mark_email_verified(d["user"]["id"])
+    second = {"Authorization": f"Bearer {d['token']}"}
+    st, _ = _j(asgi_call(app, "POST", "/api/studora/login", body=json.dumps({"url": SERVICE, "email": "zweit@example.org", "password": "sehr-geheim-123"})))
+    assert st == 200
+    out = sync_client.run()
+    assert not out["ok"] and out["needs_confirm"] and "studi@example.org" in out["error"]
+    assert "modules" not in _hosted(app, "GET", "/api/sync/changes", headers=second)[1]["changes"], "nichts ungefragt im neuen Konto"
+    assert service_link.status_info(refresh=False)["sync_confirm"]["previous_email"] == "studi@example.org"
+    sync_client.set_enabled(True)
+    assert sync_client.run()["ok"]
+    assert [m["name"] for m in _hosted(app, "GET", "/api/sync/changes", headers=second)[1]["changes"]["modules"]] == ["Privat von Konto A"]
+
+
+def test_second_process_does_not_sync_at_the_same_time(two_devices):
+    """Pruefpunkt 1185: Sperre in der Datenbank; eine abgelaufene Sperre (Absturz) haelt nicht auf."""
+    import time
+    from app import db, sync_client
+    sync_client.run()
+    conn = db.connect()
+    sync_client._set_state(conn, "lock", time.time() + 300)          # anderer Prozess gleicht gerade ab
+    conn.commit()
+    out = sync_client.run()
+    assert not out["ok"] and out["running"]
+    assert sync_client._state(conn, "lock"), "fremde Sperre bleibt"
+    sync_client._set_state(conn, "lock", time.time() - 1)            # abgestuerzt, abgelaufen
+    conn.commit(); conn.close()
+    assert sync_client.run()["ok"]
+    conn = db.connect()
+    assert sync_client._state(conn, "lock") is None
+    conn.close()

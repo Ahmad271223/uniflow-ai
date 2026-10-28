@@ -401,6 +401,16 @@ def now_iso() -> str:
     return datetime.now().replace(microsecond=0).isoformat()
 
 
+def add_column(conn: sqlite3.Connection, table: str, col: str, decl: str) -> None:
+    """Spalte anhaengen; legt ein zweiter Prozess sie gerade gleichzeitig an (zwei API-Prozesse nach einem Update,
+    Pruefpunkt 1208), ist das kein Fehler."""
+    try:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+    except sqlite3.OperationalError as e:
+        if "duplicate column" not in str(e).lower():
+            raise
+
+
 _schema_done: set = set()
 _schema_lock = __import__("threading").Lock()
 
@@ -463,7 +473,7 @@ def _init_db(conn) -> None:
     def add_col(table, col, decl):
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         if col not in cols:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+            add_column(conn, table, col, decl)
     add_col("annotations", "version", "INTEGER DEFAULT 1")
     add_col("files", "studip_folder", "TEXT")
     add_col("courses", "module_id", "INTEGER")

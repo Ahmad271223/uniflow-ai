@@ -68,7 +68,7 @@ def ensure_schema(conn) -> None:
             continue
         for col, decl in (("sync_version", "INTEGER DEFAULT 1"), ("sync_updated_at", "TEXT"), ("sync_device", "TEXT")):
             if col not in cols:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                db.add_column(conn, table, col, decl)
         pk = meta["pk"]
         # Einfuegen durch die App (ohne Zeitstempel): Zeitstempel setzen. Der Push fuegt mit Zeitstempel ein, dann nichts.
         conn.execute(f"""CREATE TRIGGER IF NOT EXISTS sync_ins_{table} AFTER INSERT ON {table}
@@ -103,6 +103,7 @@ def _row_out(table: str, r: dict) -> dict:
 # ---------------------------------------------------------------- Abruf
 
 MAX_PULL = 2000
+MAX_ANNOTATION_BYTES = 40 << 20                 # wie app/server.py (Pruefpunkt 1194)
 
 
 def _page(conn, sql_more: str, sql_same: str, since: str, limit: int, ts_key: str) -> tuple[list[dict], str | None]:
@@ -321,6 +322,8 @@ def _push_annotation(conn, it: dict, device: str | None, now: str) -> dict:
         return {"entity": "annotations", "id": file_id, "status": "conflict", "version": cur_v, "data": json.loads(cur["data"])}
     new_v = cur_v + 1
     payload = json.dumps(data, ensure_ascii=False)
+    if len(payload.encode("utf-8")) > MAX_ANNOTATION_BYTES:
+        return {"entity": "annotations", "id": file_id, "status": "too_large", "max_bytes": MAX_ANNOTATION_BYTES}
     conn.execute("INSERT INTO annotations(file_id, data, updated_at, version, sync_version, sync_updated_at, sync_device) VALUES (?,?,?,?,?,?,?) "
                  "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version, "
                  "sync_version=excluded.version, sync_updated_at=excluded.sync_updated_at, sync_device=excluded.sync_device",

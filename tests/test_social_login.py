@@ -242,6 +242,7 @@ def test_verified_email_links_existing_account_and_delete_removes_link(hosted, k
     st, reg, _ = _j(asgi_call(hosted, "POST", "/api/account/register",
                               body=json.dumps({"email": "erika@beispiel.de", "password": "sehr-geheim-123", "university": "luh"})))
     assert st == 201
+    accounts.mark_email_verified(reg["user"]["id"])   # Adresse bestaetigt; unbestaetigt: Pruefpunkt 1200 (tests/test_accounts.py)
     # bestaetigte E-Mail des Anbieters = bestehendes Konto -> verknuepfen, kein neues Konto
     st, d, _ = _login(hosted, "apple", {"id_token": keys.token(apple_claims(email="Erika@Beispiel.de"), alg="ES256", kid="ec-1")})
     assert st == 200 and d["created"] is False and d["user"]["id"] == reg["user"]["id"]

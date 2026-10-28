@@ -1346,3 +1346,51 @@ Auftrag des Inhabers: „mach alles fertig die ganze windows version fertig mach
 Für das iPad, sobald die Community über den Dienst läuft: dieselben Endpunkte und Ansichten (Fragen-Liste je Kurs,
 Frage mit Antworten, Mitteilungen, Lesezeichen).
 
+## Nachtrag der PC-Sitzung: Audit 1181–1210 – was das iPad nachziehen muss (28.10.2026)
+
+Bericht: `docs/AUDIT-1181-1210.md`. Auf der PC-/Dienstseite behoben: 1185, 1187–1190, 1194, 1196, 1197, 1200,
+1203, 1208. Für das iPad (und den Mac über die iPad-App):
+
+1. **PDF-Fassung der Notizen (1187–1191, P0/P1):** Das Notizdokument trägt jetzt
+   `pdf: {sha256, pageCount, sigs, sizes}` (Wurzelfeld, die Zusammenführung behandelt es wie andere Wurzelfelder).
+   `sigs[i]` = FNV-1a 32 Bit hex über den Seitentext, normalisiert: Kleinbuchstaben, NFKD, nur Buchstaben und Ziffern;
+   weniger als 12 Zeichen → `""`. Beim Öffnen mit anderem sha256 die Seitenreihenfolge genau wie
+   `app/static/pdf-version.js::remapToVersion` anpassen (eindeutige Signatur → neuer Index; ohne Signatur gleicher
+   Index als „unsicher“; Seite weg oder Inhalt geändert → eigene Seite mit `orphanOf`, Notizen bleiben; neue Seiten an
+   ihrer Stelle). Die Testfälle in `tests/js/pdf-version.test.mjs` bitte in Swift übernehmen. Wichtig: das iPad darf
+   bei einer PDF-Seite außerhalb der Datei nie abstürzen (Windows tat das bis heute).
+2. **Kontowechsel (1203):** nach dem Anmelden mit einem anderen Konto als beim letzten Abgleich erst nach Bestätigung
+   abgleichen.
+3. **1200 (Dienst):** Anmelden mit Apple/Google bei einem unbestätigten Konto gleicher Adresse übernimmt es nur mit
+   neuem Passwort und ohne alte Sitzungen; für das iPad ändert sich nichts, außer dass die Person danach ggf. per Reset
+   ein Passwort setzt.
+4. **Grenzen:** Notizdokument höchstens 40 MB (Dienst antwortet 413 `annotations_too_large`, im Abgleich `too_large`);
+   Speicher je Konto 3 GB (`storage_quota`); KI-Anfragen bei Überlast 503 `ai_busy`. Bitte als verständliche Meldung
+   zeigen.
+5. **1206/1207** (inkompatible Datenbankversion beim Start, Beenden während Hintergrundspeicherung) sind nur auf dem
+   Mac prüfbar.
+
+## Nachtrag der PC-Sitzung: Gemeinsamer Wochentest der Kursgruppe – Auftrag für das iPad (28.10.2026)
+
+Dienst und Windows-App sind fertig und geprüft (`docs/GEMEINSAME-WOCHENTESTS.md`, Vertrag in
+`docs/VERTRAEGE-KONTO-SYNC.md` → „G4 Teil 3“). Alle mit demselben Kurs bekommen in derselben Kalenderwoche denselben
+Test; jeder hat seinen Versuch; Bewertung im Dienst; Rangliste freiwillig und erst nach der Frist. Für das iPad:
+
+1. **Gruppe bilden wie Windows:** Kurs des Moduls = Veranstaltung mit Art `vorlesung`, sonst kleinste Kurs-ID;
+   `course_key` wie in der Community; Woche = ISO-Kalenderwoche (`2026-W44`), nicht die Lehrwoche; Semester des
+   Kurses (der Dienst normalisiert). Bitte mit `tests/test_weekly_local.py` vergleichen.
+2. **Material bilden wie `GET /api/weekly/materials`:** Dateien der Lehrwoche (Vorlesung, Übung, Lösung, Skript;
+   Unterart Gruppenübung/Hörsaalübung/Tutorium), je Datei höchstens 40 Seiten zu 6.000 Zeichen; passende
+   Skriptseiten über die eigene Volltextsuche; Altklausur-Seiten mit mindestens 4 gemeinsamen Begriffen (beste 8).
+   Nur Texte, `sha256` der Datei mitschicken (dann funktioniert der Quellen-Link).
+3. **Endpunkte:** `GET|POST /api/community/weekly/{course_key}/{week}`, `POST /weekly/tests/{id}/attempt`,
+   `PUT /weekly/attempts/{id}`, `POST /weekly/attempts/{id}/submit`, `POST /weekly/attempts/{id}/leaderboard`,
+   `GET /weekly/tests/{id}/leaderboard`. Antworten als Text (`"B"`, `"A,C"`, `"3,5"`).
+4. **Oberfläche wie Windows (`app/static/views-weekly.js`):** in „Tests“ oben je Modul Status (Erstellen lassen /
+   wird erstellt / Starten / Weiter / Ergebnis), Bearbeiten mit Aufgabenleiste und automatischem Speichern,
+   Abgabe-Dialog mit Ranglisten-Zustimmung und Name, Ergebnis mit Lösung, Erklärung, typischen Fehlern und Quelle
+   (öffnet die eigene PDF an der Seite), Rangliste (vor der Frist nur Datum und Zahl), „Noch einmal üben“.
+5. **Weitermachen auf einem anderen Gerät** geht, weil der offene Versuch im Dienst liegt: beim Öffnen immer
+   `POST …/attempt` aufrufen, dann sind die Antworten des PCs da.
+6. Nicht auf dem iPad bewerten und keine Lösungen vor der Abgabe anzeigen (der Dienst schickt sie auch nicht).
+

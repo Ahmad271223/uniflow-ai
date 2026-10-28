@@ -39,7 +39,8 @@ VERIFY_HOURS = 48          # Bestaetigungslink fuer die E-Mail-Adresse
 LIMITS = {"register_ip": (30, 60), "reset_email": (3, 60), "reset_ip": (30, 60), "verify_user": (5, 60), "export_user": (3, 1440),
           "comment_user": (30, 60), "like_user": (120, 60),
           # Community Teil 2 (28.10.2026): Fragen, Antworten, Veroeffentlichen (Spam-Grenzen)
-          "question_user": (10, 60), "answer_user": (30, 60), "publish_user": (20, 1440)}
+          "question_user": (10, 60), "answer_user": (30, 60), "publish_user": (20, 1440),
+          "weekly_generate_user": (10, 1440)}
 PASSWORD_MIN = 10
 PASSWORD_MAX = 200
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
@@ -136,7 +137,8 @@ def _migrate(conn) -> None:
     def add_col(table, col, decl):
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         if col not in cols:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+            from . import db
+            db.add_column(conn, table, col, decl)
     add_col("identities", "email", "TEXT")          # vom Anbieter gelieferte Adresse (Apple: Relay), nur zur Anzeige
 
 
@@ -521,6 +523,14 @@ def login_with_provider(provider: str, subject: str, email: str | None = None, e
         if not row and email and email_verified:
             existing = conn.execute("SELECT * FROM users WHERE email=? AND status='active'", (email,)).fetchone()
             if existing:
+                if not existing["email_verified"]:
+                    # Pruefpunkt 1200: das Konto wurde nie bestaetigt, jemand kann es mit fremder Adresse angelegt
+                    # haben ("Vorab-Uebernahme"). Der Anbieter bestaetigt die Adresse: Passwort und alle Sitzungen des
+                    # unbestaetigten Kontos verfallen, erst dann wird verknuepft. Die Person setzt bei Bedarf per
+                    # Reset ein neues Passwort.
+                    conn.execute("UPDATE users SET pw_hash=NULL, email_verified=1 WHERE id=?", (existing["id"],))
+                    conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (iso(now()), existing["id"]))
+                    existing = conn.execute("SELECT * FROM users WHERE id=?", (existing["id"],)).fetchone()
                 conn.execute("INSERT OR IGNORE INTO identities(provider, subject, user_id, email, created_at) VALUES (?,?,?,?,?)",
                              (provider, subject, existing["id"], email, iso(now())))
                 row = existing

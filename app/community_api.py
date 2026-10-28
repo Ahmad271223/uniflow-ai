@@ -255,3 +255,51 @@ def notif_read(request: Request, body: dict = Body(default={})):
     """{ids?: [...]} oder alles gelesen."""
     ids = body.get("ids") if isinstance(body, dict) else None
     return community_qa.mark_read(_user(request), ids if isinstance(ids, list) else None)
+
+
+# ---------------------------------------------------------------- Gemeinsamer Wochentest je Kursgruppe (app/weekly_tests.py)
+
+from . import weekly_tests  # noqa: E402
+
+
+@router.get("/weekly/{course_key}")
+def wk_list(request: Request, course_key: str, term: str = ""):
+    return _run(weekly_tests.list_for_course, _user(request), config.university(), course_key, term)
+
+
+@router.get("/weekly/{course_key}/{week}")
+def wk_get(request: Request, course_key: str, week: str, term: str = ""):
+    """Test der Kursgruppe fuer die Kalenderwoche (ohne Loesungen, bis man abgegeben hat); 404 not_generated."""
+    return _run(weekly_tests.get_for_week, _user(request), config.university(), course_key, term, week)
+
+
+@router.post("/weekly/{course_key}/{week}", status_code=202)
+def wk_request(request: Request, course_key: str, week: str, body: dict = Body(...)):
+    """{term, materials: [{kind, title, sha256, pages: [{page, text}]}]}: den Test holen oder einmal erstellen lassen."""
+    return _run(weekly_tests.request, _user(request), config.university(), course_key, body.get("term"), week, body.get("materials"))
+
+
+@router.post("/weekly/tests/{test_id}/attempt")
+def wk_start(request: Request, test_id: str, body: dict = Body(default={})):
+    return _run(weekly_tests.start, _user(request), test_id, bool((body or {}).get("practice")))
+
+
+@router.put("/weekly/attempts/{attempt_id}")
+def wk_save(request: Request, attempt_id: str, body: dict = Body(...)):
+    return _run(weekly_tests.save, _user(request), attempt_id, body.get("answers"))
+
+
+@router.post("/weekly/attempts/{attempt_id}/submit")
+def wk_submit(request: Request, attempt_id: str, body: dict = Body(default={})):
+    b = body or {}
+    return _run(weekly_tests.submit, _user(request), attempt_id, b.get("answers"), bool(b.get("leaderboard")), b.get("display_name"))
+
+
+@router.post("/weekly/attempts/{attempt_id}/leaderboard")
+def wk_lb_set(request: Request, attempt_id: str, body: dict = Body(...)):
+    return _run(weekly_tests.set_leaderboard, _user(request), attempt_id, bool(body.get("on")), body.get("display_name"))
+
+
+@router.get("/weekly/tests/{test_id}/leaderboard")
+def wk_lb(request: Request, test_id: str):
+    return _run(weekly_tests.leaderboard, _user(request), test_id)
