@@ -79,6 +79,41 @@ def test_vault_values_encrypted_at_rest_and_env_for(hosted):
         vault.set_values(u["id"], {"klein": "x"})
 
 
+def test_vault_cache_notices_changes_from_another_process(hosted):
+    """P10 (28.10.2026): ein anderer Prozess (Arbeiter, zweiter API-Prozess) schreibt am Zwischenspeicher vorbei."""
+    from app import accounts, vault
+    u = accounts.register("p10@beispiel.de", "sehr-geheim-123", "luh")
+    vault.set_values(u["id"], {"STUDIP_USER": "alt"})
+    assert vault.env_for(u["id"])["STUDIP_USER"] == "alt"
+    with accounts.cursor() as conn:                 # wie ein anderer Prozess: direkt in die Datenbank
+        conn.execute("UPDATE vault SET value_enc=? WHERE user_id=? AND name='STUDIP_USER'", (vault.encrypt(u["id"], "neu"), u["id"]))
+        conn.execute("INSERT INTO vault(user_id, name, value_enc, updated_at) VALUES (?,?,?,?)",
+                     (u["id"], "STUDIP_PASSWORD", vault.encrypt(u["id"], "pw"), "2026-10-28T10:00:00Z"))
+    assert vault.env_for(u["id"]) == {"STUDIP_USER": "neu", "STUDIP_PASSWORD": "pw"}
+    with accounts.cursor() as conn:
+        conn.execute("DELETE FROM vault WHERE user_id=? AND name='STUDIP_PASSWORD'", (u["id"],))
+    assert vault.env_for(u["id"]) == {"STUDIP_USER": "neu"}
+
+
+def test_session_last_seen_written_at_most_once_a_minute(hosted):
+    """P8 (28.10.2026): nicht bei jeder Anfrage ein UPDATE auf accounts.db."""
+    from app import accounts
+    u, token = accounts.register("p8@beispiel.de", "sehr-geheim-123", "luh"), None
+    _, token = accounts.login("p8@beispiel.de", "sehr-geheim-123")
+    with accounts.cursor() as conn:
+        conn.execute("UPDATE sessions SET last_seen_at='2026-01-01T00:00:00Z'")
+    assert accounts.authenticate(token)["id"] == u["id"]
+    with accounts.cursor() as conn:
+        first = conn.execute("SELECT last_seen_at FROM sessions").fetchone()[0]
+    assert first > "2026-01-01T00:00:00Z", "alt: wird geschrieben"
+    with accounts.cursor() as conn:
+        conn.execute("UPDATE sessions SET last_seen_at=?", (first,))
+        changes_before = conn.total_changes
+    accounts.authenticate(token)
+    with accounts.cursor() as conn:
+        assert conn.execute("SELECT last_seen_at FROM sessions").fetchone()[0] == first, "frisch: kein neues UPDATE"
+
+
 # ---------------------------------------------------------------- Kontext: Zugangsdaten und Pfade je Konto
 
 def test_config_reads_credentials_and_paths_from_account_context(hosted):

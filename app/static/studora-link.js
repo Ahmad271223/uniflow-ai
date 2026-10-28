@@ -30,6 +30,7 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       ${st.university_mismatch ? `<div class="sl-warn small">${icon("alert", 13)} ${esc(st.university_mismatch)}</div>` : ""}
       <div class="small muted">${esc(claims)}</div>
       <div class="sl-sync small" style="margin-top:.5rem"></div>
+      <details class="small" style="margin-top:.5rem"><summary>Angemeldete Geräte</summary><div class="sl-devlist small muted">Lade …</div></details>
       <div class="row wrap" style="gap:.4rem;margin-top:.5rem"><button class="btn sm primary" data-sl="sync">${icon("sync", 13)} Jetzt abgleichen</button><button class="btn sm" data-sl="claims">PDFs melden</button><button class="btn sm ghost" data-sl="logout">${icon("x", 13)} Abmelden</button></div>
       <div class="sl-msg small"></div></div>`;
     const msg = $(".sl-msg", el);
@@ -44,6 +45,12 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
       const auto = $('[data-sl="auto"]', syncBox); if (auto) auto.onchange = async () => { await fetch("/api/studora/sync/enabled", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: auto.checked }) }); showSync(); };
     };
     showSync();
+    const det = $("details", el);
+    det.ontoggle = async () => { if (!det.open) return; const box = $(".sl-devlist", el);
+      try { const r = await fetch("/api/studora/devices"); const d = await r.json(); if (!r.ok) throw new Error(d.detail || "Fehler");
+        deviceList(box, d.sessions, async (id, cur) => { const x = await fetch(`/api/studora/devices/${id}`, { method: "DELETE" }); if (!x.ok) throw new Error((await x.json()).detail);
+          if (cur) { onChange?.(); return renderLinkCard(el, { onChange, compact }); } det.ontoggle(); });
+      } catch (e) { box.textContent = e.message; } };
     $('[data-sl="sync"]', el).onclick = async e => { e.target.disabled = true; syncBox.querySelector(".muted") && (syncBox.querySelector(".muted").textContent = "Gleicht ab …");
       try { const r = await (await fetch("/api/studora/sync", { method: "POST" })).json(); msg.textContent = r.ok ? "Abgeglichen." : (r.error || "Fehler"); } catch (x) { msg.textContent = x.message; }
       e.target.disabled = false; showSync(); };
@@ -69,4 +76,15 @@ export async function renderLinkCard(el, { onChange, compact = false } = {}) {
     } catch (x) { msg.textContent = x.message; b.disabled = false; }
   };
   return st;
+}
+
+// Angemeldete Geraete eines Kontos mit "Abmelden" je Geraet (Dienst: /api/account, Windows-App: /api/studora)
+export function deviceList(el, sessions, revoke) {
+  const fmt = iso => { try { return new Date(iso).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }); } catch { return ""; } };
+  el.innerHTML = sessions.length ? `<div class="sl-devs">${sessions.map(x => `<div class="sl-dev"><div><b>${esc(x.device_name || "Unbekanntes Gerät")}</b>${x.current ? ` <span class="badge ok">dieses Gerät</span>` : ""}<div class="tiny muted">zuletzt ${fmt(x.last_seen_at)} · angemeldet ${fmt(x.created_at)}</div></div><button class="btn sm ghost" data-rev="${x.id}">Abmelden</button></div>`).join("")}</div>` : `<p class="small muted">Keine Geräte.</p>`;
+  el.querySelectorAll("[data-rev]").forEach(b => b.onclick = async () => {
+    const cur = sessions.find(x => String(x.id) === b.dataset.rev)?.current;
+    if (!confirm(cur ? "Dieses Gerät abmelden?" : "Dieses Gerät abmelden? Es muss sich danach neu anmelden.")) return;
+    b.disabled = true; try { await revoke(b.dataset.rev, cur); } catch (e) { b.disabled = false; alert(e.message); }
+  });
 }

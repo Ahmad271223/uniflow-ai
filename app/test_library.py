@@ -93,7 +93,8 @@ def cursor():
     conn = sqlite3.connect(p, timeout=15, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.executescript(SCHEMA)
+    from . import db
+    db.schema_once(conn, "test_library", p, lambda c: c.executescript(SCHEMA))
     try:
         yield conn
         conn.commit()

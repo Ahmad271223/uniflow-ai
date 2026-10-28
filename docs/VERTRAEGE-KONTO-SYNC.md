@@ -137,7 +137,11 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
   Server 501 `provider_not_configured`; es wird nie ein ungeprüftes Token angenommen. Für Tests und Fixtures bleibt
   `accounts.identity_verifiers["apple"] = fn(identity_token[, nonce=...]) -> {"subject", "email", "email_verified"}`.
 - **Sitzungen:** Token 32 Byte (urlsafe), gespeichert als SHA-256; 30 Tage gleitend; `logout`, `logout-all` (andere
-  Geräte), Liste unter `/me`. Browser: Cookie `uniflow_session` (HttpOnly, SameSite=Lax, Secure bei HTTPS). Apps:
+  Geräte), Liste unter `/me` (`sessions[]` mit `id`, `device_name`, `last_seen_at`, `current`), **ein Gerät abmelden:
+  `DELETE /api/account/sessions/{id}`** (seit 28.10.2026; nur eigene, sonst 404 `session_not_found`; die eigene
+  Sitzung löscht auch das Cookie, `current: true`). „Zuletzt gesehen“ wird höchstens einmal je Minute geschrieben.
+  Apps senden bei der Anmeldung `device_name` (Windows: „Studora für Windows“, iPad z. B. „iPad von …“), damit die
+  Liste verständlich ist. Browser: Cookie `uniflow_session` (HttpOnly, SameSite=Lax, Secure bei HTTPS). Apps:
   `Authorization: Bearer <token>`.
 - **Web-Anmeldung** (`app/static/login.html`, `login.js`): `/login` mit Anmelden, Konto anlegen (Hochschule, Passwortregeln
   aus `/api/account/info`), Passwort vergessen (Antwort immer gleich) und neues Passwort über den Link `/login?reset=TOKEN`

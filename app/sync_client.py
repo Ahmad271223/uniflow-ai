@@ -196,8 +196,16 @@ class Client:
             else:
                 dirty = m is not None and cur.get("sync_version") != m["local_version"]
                 if m is None:
-                    # erster Abgleich mit gleicher Zeile: der spaetere Stand gewinnt
+                    # erster Abgleich mit gleicher Zeile: der spaetere Stand gewinnt. Einstellungen: ein geaenderter Wert
+                    # schlaegt immer den Standardwert (ein neues Konto im Dienst hat frische Standardwerte, die sonst
+                    # die eigenen Einstellungen dieses PCs ueberschreiben wuerden)
                     newer_here = (cur.get("sync_updated_at") or "") > (row.get("sync_updated_at") or "")
+                    if table == "settings":
+                        default = db.DEFAULT_SETTINGS.get(rid)
+                        if default is not None and str(row.get("value")) == default and str(cur.get("value")) != default:
+                            newer_here = True
+                        elif default is not None and str(cur.get("value")) == default and str(row.get("value")) != default:
+                            newer_here = False
                     if newer_here:
                         self.set_map(table, rid, lid, rv, -1)
                         return "skipped"

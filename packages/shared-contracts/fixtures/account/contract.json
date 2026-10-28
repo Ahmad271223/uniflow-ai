@@ -201,6 +201,12 @@
    "summary": ""
   },
   {
+   "method": "DELETE",
+   "path": "/api/account/sessions/{session_id}",
+   "public": false,
+   "summary": "Ein Geraet abmelden (Vertrag G1, 28.10.2026). Die eigene Sitzung beendet diese Anmeldung."
+  },
+  {
    "method": "POST",
    "path": "/api/account/university",
    "public": false,

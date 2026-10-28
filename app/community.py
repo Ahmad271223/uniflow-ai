@@ -147,7 +147,7 @@ def cursor():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    conn.executescript(SCHEMA)
+    db.schema_once(conn, "community", p, lambda c: c.executescript(SCHEMA))
     try:
         yield conn
         conn.commit()

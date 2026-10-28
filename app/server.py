@@ -625,6 +625,29 @@ def file_content(file_id: str):
     raise HTTPException(404, "Datei nicht lokal vorhanden")
 
 
+@app.get("/api/files/{file_id}/docx")
+def file_docx(file_id: str):
+    """Word-Dokument (DOCX) als sicheres HTML zum Ansehen (app/docx_view.py); Bearbeiten gibt es noch nicht."""
+    from . import docx_view
+    with db.cursor() as conn:
+        f = _found(db.row(conn, "SELECT id, name, local_path, download_url, course_id FROM files WHERE id=?", (file_id,)), "Datei")
+        data = None
+        if f["local_path"] and Path(f["local_path"]).is_file():
+            data = Path(f["local_path"]).read_bytes()
+        elif config.streams_files() and f["download_url"] and f["course_id"] != "__user__":
+            try:
+                data, _mime, _sha = filestream.content(conn, file_id)
+            except filestream.StreamError as e:
+                raise _stream_error(e)
+    if data is None:
+        raise HTTPException(404, {"detail": "Datei nicht vorhanden.", "code": "no_content"})
+    try:
+        out = docx_view.to_html(data)
+    except docx_view.DocxError as e:
+        raise HTTPException(422, {"detail": str(e), "code": "docx_unreadable"})
+    return {**out, "name": f["name"]}
+
+
 @app.post("/api/files/{file_id}/fingerprint")
 def file_fingerprint(file_id: str):
     """SHA-256 der Originaldatei (Community-Schluessel); im Dienst ohne Speicherung einmal durchreichen und merken."""
@@ -1207,6 +1230,18 @@ def api_studora_claims():
     """Fingerabdruecke der eigenen Hochschul-PDFs jetzt an den Dienst melden."""
     from . import service_link
     return _link_call(service_link.claim_local_files)
+
+
+@app.get("/api/studora/devices")
+def api_studora_devices():
+    from . import service_link
+    return _link_call(service_link.devices)
+
+
+@app.delete("/api/studora/devices/{session_id}")
+def api_studora_device_revoke(session_id: int):
+    from . import service_link
+    return _link_call(service_link.revoke_device, session_id)
 
 
 @app.get("/api/studora/sync")
@@ -2327,10 +2362,22 @@ def api_desktop_open(request: Request, body: dict = Body(...)):
     return {"opened": True, "in_app": False}
 
 
+def _agent_only(request: Request) -> None:
+    """Fenster-Agent: nur mit dem Geheimnis, das die Windows-App ihrem Backend beim Start mitgibt
+    (`LERNAPP_AGENT_TOKEN`, Kopfzeile `X-UniFlow-Agent`). Vorher (bis 28.10.2026) reichte der eigene Rechner; eine
+    fremde Seite in einem App-Fenster haette bei bekanntem Port Auftraege abholen koennen (Pruefung P11)."""
+    import hmac
+    import os
+    _desktop_only(request)
+    want = os.environ.get("LERNAPP_AGENT_TOKEN") or ""
+    if want and not hmac.compare_digest(want, request.headers.get("x-uniflow-agent") or ""):
+        raise HTTPException(403, "Nur für das Fenster der Windows-App")
+
+
 @app.get("/api/desktop/commands")
 def api_desktop_commands(request: Request, wait: float = Query(default=25, ge=0, le=30)):
     """Fenster-Agent des Tauri-Fensters: naechster Auftrag (open | login), lange Abfrage; 204 = nichts."""
-    _desktop_only(request)
+    _agent_only(request)
     cmd = desktop_windows.next_command(wait)
     if cmd is None:
         return Response(status_code=204)
@@ -2341,7 +2388,7 @@ def api_desktop_commands(request: Request, wait: float = Query(default=25, ge=0,
 def api_desktop_window_state(window_id: str, request: Request, body: dict = Body(...)):
     """Zustand eines App-Fensters (offen/geschlossen, Adresse, Cookies der gewuenschten Hosts); Antwort `done` =
     Fenster schliessen. Cookies gehen nie in eine Antwort und nie ins Protokoll."""
-    _desktop_only(request)
+    _agent_only(request)
     return desktop_windows.report(window_id, body.get("status"), body.get("url"), body.get("cookies"))
 
 

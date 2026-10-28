@@ -1,6 +1,6 @@
 // Dokument-Ansicht mit Tabs, Notizfläche, geteilter Ansicht und Zeitmesser
 import { $, $$, api, can, esc, icon, toast, modal, debounce, typeBadge, diffBadge, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=31";
-import { PdfEditor } from "./editor.js?v=33";
+import { PdfEditor } from "./editor.js?v=37";
 
 const TABS_KEY = "uniflow-doc-tabs";
 export const docTabs = { list: [], state: {} };
@@ -135,6 +135,18 @@ export async function mountDoc(host, f, { page = 1, onPage, penInput, restore, p
     return ed;
   }
   if (/\.(py|txt|md|c|h|java|pf|csv|tex)$/i.test(f.name)) { const pre = document.createElement("div"); pre.className = "nonpdf"; pre.textContent = await (await fetch(`/api/files/${f.id}/content`)).text(); host.append(pre); return null; }
+  if (/\.docx$/i.test(f.name)) {
+    // Word nur ansehen (Entscheidung 28.10.2026); HTML kommt geprueft vom Backend (app/docx_view.py)
+    host.innerHTML = `<div class="pane-empty">Word-Dokument wird geladen …</div>`;
+    try {
+      const r = await fetch(`/api/files/${f.id}/docx`); const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || `Fehler ${r.status}`);
+      host.innerHTML = `<div class="docx-wrap"><div class="docx-bar"><span class="badge neutral">${icon("file-text", 12)} Word – nur ansehen</span><span class="spacer"></span><a class="btn sm" href="/api/files/${f.id}/content" download>${icon("download", 14)} Herunterladen</a></div><article class="docx-view">${d.html}</article></div>`;
+    } catch (e) {
+      host.innerHTML = `<div class="pane-empty">${icon("alert", 24)} ${e.message}<a class="btn sm" href="/api/files/${f.id}/content" download>${icon("download", 14)} Herunterladen</a></div>`;
+    }
+    return null;
+  }
   if (/\.(png|jpe?g|gif|webp)$/i.test(f.name)) { host.innerHTML = `<div class="nonpdf" style="text-align:center"><img src="/api/files/${f.id}/content" style="max-width:100%"></div>`; return null; }
   host.innerHTML = `<div class="pane-empty">Keine Vorschau für diesen Dateityp.<a class="btn sm" href="/api/files/${f.id}/content" target="_blank">${icon("download", 14)} Öffnen / Herunterladen</a></div>`; return null;
 }

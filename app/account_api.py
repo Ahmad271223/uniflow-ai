@@ -168,6 +168,20 @@ def me(request: Request):
     return {"user": u, "sessions": accounts.sessions(u["id"], token_of(request))}
 
 
+@router.delete("/sessions/{session_id}")
+def revoke_session(request: Request, session_id: int):
+    """Ein Geraet abmelden (Vertrag G1, 28.10.2026). Die eigene Sitzung beendet diese Anmeldung."""
+    _hosted_only()
+    u = _user(request)
+    current = next((x for x in accounts.sessions(u["id"], token_of(request)) if x["current"]), None)
+    if not accounts.revoke_session(u["id"], session_id):
+        raise HTTPException(404, {"detail": "Gerät nicht gefunden oder schon abgemeldet.", "code": "session_not_found"})
+    resp = JSONResponse({"ok": True, "current": bool(current and current["id"] == session_id)})
+    if current and current["id"] == session_id:
+        _set_cookie(resp, None)
+    return resp
+
+
 @router.post("/logout")
 def logout(request: Request):
     _hosted_only()

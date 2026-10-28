@@ -56,26 +56,26 @@ Zeichen: ✅ vorhanden · 🟡 teilweise · ❌ fehlt. Belege mit Datei und Zeil
 |---|---|---|---|
 | Konto anlegen, anmelden, Passwort zurücksetzen | ✅ (im Dienst) | 🟡 Sign in with Apple, kein Dienst-Konto | ✅ |
 | E-Mail bestätigen | ❌ | – | ❌ |
-| Geräte ansehen, einzeln abmelden | 🟡 nur „andere abmelden“ | ❌ | 🟡 |
+| Geräte ansehen, einzeln abmelden | ✅ 28.10. | ❌ | ✅ 28.10. |
 | Konto löschen, Daten exportieren | 🟡 / ❌ | 🟡 „Daten dieser Hochschule löschen“ | 🟡 fehlerhaft / ❌ |
 | Daten getrennt je Konto | ✅ (Einzelplatz; im Dienst eigene SQLite je Konto) | ✅ Container je Apple-ID und Hochschule | ✅ |
-| Abgleich zwischen Geräten (G2) | ❌ Web/Windows nutzen G2 nicht | ❌ fehlt in Swift | 🟡 Lücken (Abschnitt 4) |
+| Abgleich zwischen Geräten (G2) | ✅ Windows 28.10. (`app/sync_client.py`) | ❌ fehlt in Swift | ✅ |
 | Stud.IP-Abgleich, Stundenplan 1:1, nur aktuelles Semester | ✅ | ✅ | ✅ |
 | Editor: Stift, Marker, Radierer, Lasso, Lineal, Undo | ✅ | ✅ (System-Werkzeuge) | – |
 | Editor: Formen, Textfelder, Bilder erstellen | ✅ | 🟡 nur anzeigen | – |
 | Editor: Seiten einfügen, löschen, drehen | ✅ | ✅ | – |
 | Editor: Seiten verschieben | ✅ | ❌ | – |
 | Editor: eingefügte Bild-/PDF-Seiten anzeigen | ✅ | 🟡 Platzhalter | – |
-| PDF-Text markieren, unterstreichen, durchstreichen | ❌ | ❌ | – |
-| Verankerte Kommentare wie in Word | 🟡 Haftnotiz | ❌ | – |
+| PDF-Text markieren, unterstreichen, durchstreichen | ✅ 28.10. | ❌ (zeigt sie als Formen) | – |
+| Verankerte Kommentare wie in Word | ✅ an Lösungen (Community) 28.10.; eigene Notizen: Haftnotiz | ❌ | ✅ |
 | Handschrift durchsuchen | ❌ | ❌ | – |
 | PDF-Export mit Notizen | ✅ | ✅ | – |
 | Geteilte Ansicht, Tabs | ✅ | ✅ (ab Plus) | – |
-| Word/DOCX | ❌ | 🟡 ansehen | ❌ |
+| Word/DOCX | ✅ ansehen 28.10. (`app/docx_view.py`) | 🟡 ansehen | ✅ ansehen |
 | Lernkalender, Planung, Nachholen | ✅ | ✅ | ✅ |
 | KI: Tutor, Tests, Lernpläne | ✅ lokal (Claude/ChatGPT) | ❌ in Release | 🟡 Tests über Bibliothek, Generieren 501 |
 | KI: Quellen- und Seitenangaben | ❌ | ❌ | ❌ |
-| Community: eigene Lösungen teilen, melden, sperren | 🟡 ansehen, zurückziehen, Moderation | ✅ (CloudKit) | ✅ Lösungspakete |
+| Community: eigene Lösungen teilen, melden, sperren | ✅ 28.10. (Editor-Leiste) | ✅ (CloudKit, Umstellung auf den Dienst offen) | ✅ mit Likes, Kommentaren |
 | Community: Feed, Fragen, Kommentare, Antworten, Profile, Benachrichtigungen, Lesezeichen | ❌ | ❌ | ❌ |
 | Abos: Rechte serverseitig, Kontingente | ✅ | ✅ Free/Plus | ✅ |
 | Abos: Kauf auf dem Server prüfen | – | ❌ abgeschaltet | ✅ Endpunkt da |
@@ -96,14 +96,14 @@ Nach Schwere. „Bestätigt“ heißt: im Code nachgelesen, nicht durch einen Te
 | P4 | P1 ✅ behoben 28.10. | Keine E-Mail-Bestätigung | `app/accounts.py:44`, `app/mail.py:180` | Bestätigungslink, Grenzen bis zur Bestätigung |
 | P5 | P1 ✅ behoben 28.10. | Kein Datenexport (DSGVO Art. 20) | keine Route | `GET /api/account/export` als ZIP |
 | P6 | P1 ✅ behoben 28.10. (409 bleibt, siehe G1) | Keine Grenzen für Registrierung und Passwort-Reset; `409 email_taken` verrät, ob ein Konto existiert | `app/accounts.py:217-218, 236-246` | Grenzen je IP und E-Mail, neutrale Antwort |
-| P7 | P1 | Web und Windows gleichen nicht mit dem Konto ab; die Windows-App ist Einzelplatz | `docs/FERTIGSTELLUNG-WINDOWS-UND-DIENST.md:45` | G2-Client im Web, Anmeldung mit UniFlow-Konto in der Windows-App |
-| P8 | P1 | Last je Anfrage: neue Verbindung, `executescript(SCHEMA)` und ein UPDATE auf `accounts.db` | `app/accounts.py:119-133, 262` | Schema einmal beim Start, „zuletzt gesehen“ höchstens minütlich |
+| P7 | P1 ✅ behoben 28.10. (Windows: `app/sync_client.py`) | Web und Windows gleichen nicht mit dem Konto ab; die Windows-App ist Einzelplatz | `docs/FERTIGSTELLUNG-WINDOWS-UND-DIENST.md:45` | G2-Client im Web, Anmeldung mit UniFlow-Konto in der Windows-App |
+| P8 | P1 ✅ behoben 28.10. (`db.schema_once`, „zuletzt gesehen“ je Minute) | Last je Anfrage: neue Verbindung, `executescript(SCHEMA)` und ein UPDATE auf `accounts.db` | `app/accounts.py:119-133, 262` | Schema einmal beim Start, „zuletzt gesehen“ höchstens minütlich |
 | P9 | P1 | Keine allgemeine Rate-Limit-Middleware; keine Drosselung gegenüber den Hochschulen über alle Konten | `app/studip_sync.py:583, 669`, `app/filestream.py` | globale Grenzen je Konto und je Hochschule |
-| P10 | P2 | Tresor-Zwischenspeicher veraltet, wenn Jobs in einem eigenen Prozess laufen | `app/vault.py:127-143`, `app/jobs.py:10` | Zwischenspeicher mit Änderungszeit prüfen |
-| P11 | P2 | Lokales Backend der Windows-App: GET-Anfragen von 127.0.0.1 sind ohne Prüfung frei; eine fremde Seite in einem App-Fenster könnte bei bekanntem Port z. B. `/api/desktop/commands` abholen | `app/server.py:173-175, 257-271`, `app/desktop_windows.py:63-74` | Token des Fenster-Agenten für `/api/desktop/*` |
+| P10 | P2 ✅ behoben 28.10. | Tresor-Zwischenspeicher veraltet, wenn Jobs in einem eigenen Prozess laufen | `app/vault.py:127-143`, `app/jobs.py:10` | Zwischenspeicher mit Änderungszeit prüfen |
+| P11 | P2 ✅ behoben 28.10. (Geheimnis `LERNAPP_AGENT_TOKEN`) | Lokales Backend der Windows-App: GET-Anfragen von 127.0.0.1 sind ohne Prüfung frei; eine fremde Seite in einem App-Fenster könnte bei bekanntem Port z. B. `/api/desktop/commands` abholen | `app/server.py:173-175, 257-271`, `app/desktop_windows.py:63-74` | Token des Fenster-Agenten für `/api/desktop/*` |
 | P12 | P2 | Community: keine Beiträge, Kommentare, Gruppen, Benachrichtigungen, kein seitenweises Laden, keine Spam-Grenzen | `app/community.py`, `app/plans.py:50` | nach Entscheidung 4 |
 | P13 | P2 | KI: keine Warteschlange, keine Quellen- und Seitenangaben; im Dienst `tests/generate`, `plan/generate` 501 | `app/ai_backend.py:311-338`, `app/server.py:60-66` | Warteschlange, Zitate mit Seite |
-| P14 | P2 | Editor: kein Markieren von PDF-Text, keine Handschriftsuche, kein DOCX | `app/static/editor.js:209, 361, 930`, `app/server.py:755` | Textlayer-Markierungen ins gemeinsame Format |
+| P14 | P2 🟡 28.10.: Markieren und Word-Ansicht gebaut, Handschriftsuche offen | Editor: kein Markieren von PDF-Text, keine Handschriftsuche, kein DOCX | `app/static/editor.js:209, 361, 930`, `app/server.py:755` | Textlayer-Markierungen ins gemeinsame Format |
 | P15 | P3 | Windows ohne Code-Signing und Auto-Update | `apps/windows/README.md:136` | über Microsoft Store gelöst; außerhalb Zertifikat nötig |
 | P16 | P3 | Betrieb: Backup außer Haus nur auskommentiert, Monitoring nur Healthcheck, Rechtstexte mit Platzhaltern | `deploy/backup.sh`, `docs/release/BETRIEB.md:208-230` | beim Einrichten des Servers |
 | P17 | P3 | Offene Punkte der Mac-Sitzung vom 27./28.10. (`pending_groups`, Herkunft im Termin-Fenster, `existing_id` in der Vorschau, `PUT /api/terms` prüfen, 500er-Texte, Umbenennung „Studora“) | `docs/STAND-MAC-SITZUNG.md` | nächste PC-Runde |
@@ -206,8 +206,9 @@ Prüfung vom 28.10. in Klammern.
    Mac-Sitzung informiert (`tests/test_sync.py`, vier neue Tests).
 3. ✅ P4 bis P6: E-Mail-Bestätigung, Datenexport, Grenzen für Registrierung, Reset und Login je IP (NAT im
    Hochschulnetz berücksichtigt); `tests/test_account_limits_export.py`, Vertrag G1 erweitert.
-4. P8, P10, P11: Last je Anfrage senken, Tresor-Zwischenspeicher, Token für `/api/desktop/*`.
-5. P7: G2-Client im Web und Anmeldung mit UniFlow-Konto in der Windows-App (größter Baustein für „ein Konto überall“).
+4. ✅ P8, P10, P11 (28.10.): Schema einmal je Prozess, „zuletzt gesehen“ je Minute, Tresor prüft den Stand in der
+   Datenbank, Geheimnis für den Fenster-Agenten.
+5. ✅ P7 (28.10.): Windows-App mit Studora-Konto, Geräte-Abgleich G2, Community im Editor, Geräte einzeln abmelden.
 6. P14 und C8/C12 mit der Mac-Sitzung: gemeinsames Format für Textmarkierungen und verankerte Kommentare.
 7. P12/P13 nach den Entscheidungen 4 und 5.
 8. P17: offene Bitten der Mac-Sitzung.

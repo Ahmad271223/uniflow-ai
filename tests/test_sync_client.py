@@ -178,3 +178,18 @@ def test_free_plan_keeps_notes_local_but_syncs_plans(two_devices):
     assert out["ok"] and out["plan_required"], out
     changes, _ = ipad_pull(app, ipad)
     assert [m["name"] for m in changes["modules"]] == ["Nur Plan"] and "annotations" not in changes
+
+
+def test_first_link_keeps_changed_settings_against_fresh_defaults(two_devices):
+    """Ein neues Konto im Dienst hat frische Standardwerte; die eigenen Einstellungen des PCs duerfen sie nicht
+    ueberschreiben, auch wenn sie aelter sind."""
+    app, ipad = two_devices
+    from app import db, sync_client
+    with db.cursor() as conn:
+        conn.execute("UPDATE settings SET value='6', sync_updated_at='2020-01-01T00:00:00.000Z' WHERE key='hours_per_day'")
+    _hosted(app, "GET", "/api/sync/changes?limit=1", headers=ipad)             # Dienst-Datenbank mit Standardwerten anlegen
+    assert sync_client.run()["ok"]
+    with db.cursor() as conn:
+        assert db.row(conn, "SELECT value FROM settings WHERE key='hours_per_day'")["value"] == "6"
+    changes, _ = ipad_pull(app, ipad)
+    assert {s["key"]: s["value"] for s in changes["settings"]}["hours_per_day"] == "6"

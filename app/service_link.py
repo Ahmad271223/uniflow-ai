@@ -235,6 +235,26 @@ def logout() -> dict:
     return status_info(keep, refresh=False)
 
 
+def devices() -> dict:
+    """Angemeldete Geraete des Kontos (Windows, iPad, Browser) mit diesem PC als `current`."""
+    status, _, data = call("GET", "/api/account/me")
+    if status >= 400:
+        code, msg = _detail(data, "Geräte konnten nicht geladen werden.")
+        raise LinkError(code, msg, status)
+    return {"sessions": _json(data).get("sessions") or []}
+
+
+def revoke_device(session_id: int) -> dict:
+    status, _, data = call("DELETE", f"/api/account/sessions/{int(session_id)}")
+    if status >= 400:
+        code, msg = _detail(data, "Gerät konnte nicht abgemeldet werden.")
+        raise LinkError(code, msg, status)
+    d = _json(data)
+    if d.get("current"):
+        logout()
+    return d
+
+
 def resend_verification() -> dict:
     status, _, data = call("POST", "/api/account/verify-email/resend", b"{}")
     if status >= 400:

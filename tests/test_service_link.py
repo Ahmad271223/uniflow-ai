@@ -175,3 +175,24 @@ def test_unreachable_service_is_a_clear_error(service, monkeypatch):
     assert st == 502 and e["code"] == "service_unreachable"
     st, info = _j(asgi_call(app, "GET", "/api/studora/status"))
     assert st == 200 and info["linked"] and info["offline"] and info["user"]["email"] == "b@example.org"
+
+
+def test_devices_listed_and_signed_out_one_by_one(service):
+    """Geraete einzeln abmelden (28.10.2026): im Dienst je Sitzung, aus der Windows-App ueber das Konto."""
+    app, _, _ = service
+    from app import service_link
+    _, ipad = _account(app, "geraete@example.org")
+    st, _ = _j(asgi_call(app, "POST", "/api/studora/login", body=json.dumps({"url": SERVICE, "email": "geraete@example.org", "password": "sehr-geheim-123"})))
+    assert st == 200
+    st, d = _j(asgi_call(app, "GET", "/api/studora/devices"))
+    assert st == 200 and len(d["sessions"]) == 2
+    me = next(x for x in d["sessions"] if x["current"])
+    other = next(x for x in d["sessions"] if not x["current"])
+    assert me["device_name"] == "Studora für Windows"
+    st, r = _j(asgi_call(app, "DELETE", f"/api/studora/devices/{other['id']}"))
+    assert st == 200 and not r["current"]
+    assert _hosted(app, "GET", "/api/account/me", headers=ipad)[0] == 401, "das andere Geraet ist abgemeldet"
+    st, r = _hosted(app, "DELETE", f"/api/account/sessions/{other['id']}", headers={"Authorization": "Bearer " + service_link.load_state()["token"]})
+    assert st == 404 and r["code"] == "session_not_found"
+    st, r = _j(asgi_call(app, "DELETE", f"/api/studora/devices/{me['id']}"))
+    assert st == 200 and r["current"] and not service_link.linked(), "dieses Geraet: Verbindung getrennt"

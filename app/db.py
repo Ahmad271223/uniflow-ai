@@ -401,6 +401,28 @@ def now_iso() -> str:
     return datetime.now().replace(microsecond=0).isoformat()
 
 
+_schema_done: set = set()
+_schema_lock = __import__("threading").Lock()
+
+
+def schema_once(conn: sqlite3.Connection, key: str, path, fn) -> None:
+    """Schema-Arbeit (CREATE IF NOT EXISTS, Spalten anhaengen) je Datei nur einmal je Prozess statt bei jeder
+    Verbindung (Pruefung P8, 28.10.2026: im Dienst lief `executescript(SCHEMA)` bei jeder Anfrage, mehrfach). Eine neu
+    angelegte oder ersetzte Datei (andere Erstellungszeit oder Dateinummer, z. B. in Tests) bekommt das Schema erneut."""
+    import os
+    try:
+        st = os.stat(path)
+        ident = (key, str(path), st.st_ino, st.st_ctime_ns)
+    except OSError:
+        ident = None
+    if ident is not None and ident in _schema_done:
+        return
+    with _schema_lock:
+        fn(conn)
+        if ident is not None:
+            _schema_done.add(ident)
+
+
 def connect() -> sqlite3.Connection:
     from . import config
     # hosted: Datenbank des angemeldeten Kontos; sonst DB_PATH (Modulvariable, von Werkzeugen und Tests umlenkbar)

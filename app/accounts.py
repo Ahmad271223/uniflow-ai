@@ -122,6 +122,9 @@ def iso(dt: datetime) -> str:
     return dt.isoformat().replace("+00:00", "Z")
 
 
+SEEN_EVERY_S = 60
+
+
 def db_path() -> Path:
     return config.BASE_DATA_DIR / "accounts.db"
 
@@ -143,8 +146,8 @@ def cursor():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    conn.executescript(SCHEMA)
-    _migrate(conn)
+    from . import db
+    db.schema_once(conn, "accounts", p, lambda c: (c.executescript(SCHEMA), _migrate(c)))
     try:
         yield conn
         conn.commit()
@@ -317,8 +320,11 @@ def authenticate(token: str | None) -> dict | None:
         if not s or s["revoked_at"] or s["status"] != "active" or s["expires_at"] <= iso(now()):
             return None
         t = now()
-        conn.execute("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?",
-                     (iso(t), iso(t + timedelta(days=SESSION_DAYS)), s["id"]))
+        # "zuletzt gesehen" und die gleitende Frist hoechstens einmal je Minute schreiben (P8: vorher bei jeder
+        # Anfrage ein UPDATE auf accounts.db, die Datei aller Konten)
+        if (s["last_seen_at"] or "") < iso(t - timedelta(seconds=SEEN_EVERY_S)):
+            conn.execute("UPDATE sessions SET last_seen_at=?, expires_at=? WHERE id=?",
+                         (iso(t), iso(t + timedelta(days=SESSION_DAYS)), s["id"]))
         return _public(conn.execute("SELECT * FROM users WHERE id=?", (s["user_id"],)).fetchone())
 
 
@@ -334,6 +340,13 @@ def logout_all(user_id: str, keep_token: str | None = None) -> int:
     with cursor() as conn:
         return conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND token_hash<>?",
                             (iso(now()), user_id, _token_hash(keep_token) if keep_token else "")).rowcount
+
+
+def revoke_session(user_id: str, session_id: int) -> bool:
+    """Ein Geraet des Kontos abmelden (Liste unter Konto -> Angemeldete Geraete); nur eigene Sitzungen."""
+    with cursor() as conn:
+        return conn.execute("UPDATE sessions SET revoked_at=? WHERE id=? AND user_id=? AND revoked_at IS NULL",
+                            (iso(now()), int(session_id), user_id)).rowcount > 0
 
 
 def sessions(user_id: str, current_token: str | None = None) -> list[dict]:

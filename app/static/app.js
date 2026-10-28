@@ -1,10 +1,10 @@
 // UniFlow AI – Shell, Router, Dashboard
 import { $, $$, api, esc, safeUrl, noteChips, chipRef, icon, toast, modal, debounce, fmtDate, fmtShort, fmtMin, parseISO, todayISO, statusPill, shortName, DAYS, TYPE_ICON, TYPE_TXT, state } from "./core.js?v=31";
-import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=33";
-import { viewFiles } from "./views-lib.js?v=31";
+import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=37";
+import { viewFiles } from "./views-lib.js?v=35";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=32";
 import { viewTimetable, openEvent } from "./views-tt.js?v=30";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=36";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=40";
 import { viewAbo } from "./views-abo.js?v=31";
 
 // ---------------------------------------------------------------- Shell
@@ -62,7 +62,12 @@ function accountMenu() {
     <p style="margin:.2rem 0"><b>${esc(a.email)}</b></p><p class="muted small" style="margin:0 0 .9rem">${esc(UNI_NAMES[a.university] || a.university)} · Tarif ${esc(state.entitlements?.plan_name || "Studora Free")}${a.role === "admin" ? " · Moderation" : ""}</p>
     ${a.email_verified ? "" : `<div class="card flat" style="background:var(--warn-soft);border-color:transparent;margin:0 0 .8rem"><b class="small">E-Mail-Adresse noch nicht bestätigt</b><div class="small muted" style="margin:.2rem 0 .5rem">Den Link findest du in der Willkommensmail. Bis dahin kannst du keine Lösungen in der Community veröffentlichen.</div><button class="btn sm" id="accVerify">Link erneut senden</button></div>`}
     <div class="row wrap"><button class="btn primary" id="accLogout">${icon("log-out", 15)} Abmelden</button><button class="btn" id="accLogoutAll" title="Alle anderen Geräte abmelden, dieses bleibt angemeldet">Andere Geräte abmelden</button><a class="btn" href="#/settings?tab=account" data-close>Hochschul-Zugang</a><a class="btn" href="/api/account/export" download title="Alle Daten dieses Kontos als ZIP (Auskunft nach DSGVO)">${icon("download", 15)} Meine Daten exportieren</a></div>
+    <details class="small" style="margin-top:.8rem" id="accDevs"><summary><b>Angemeldete Geräte</b></summary><div class="sl-devlist muted">Lade …</div></details>
     <p class="muted tiny" style="margin:.9rem 0 0"><a href="/datenschutz" target="_blank" rel="noopener">Datenschutz</a> · <a href="/nutzungsbedingungen" target="_blank" rel="noopener">Nutzungsbedingungen</a> · <a href="/impressum" target="_blank" rel="noopener">Impressum</a> · <a href="/konto-loeschen" target="_blank" rel="noopener">Konto löschen</a></p>`);
+  const devs = $("#accDevs", m);
+  devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=3");
+    try { const d = await api("/account/me"); deviceList($(".sl-devlist", devs), d.sessions || [], async (id, cur) => { await api(`/account/sessions/${id}`, { method: "DELETE" }); if (cur) location.replace("/login"); else devs.ontoggle(); }); }
+    catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
   $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} location.replace("/login"); };
   $("#accVerify", m)?.addEventListener("click", async e => { e.target.disabled = true; try { const r = await api("/account/verify-email/resend", { method: "POST" }); toast(r.already ? "Schon bestätigt" : "Neuer Link verschickt", 4000); } catch (x) { toast(x.message, 5000); e.target.disabled = false; } });
   $("#accLogoutAll", m).onclick = async () => { try { const r = await api("/account/logout-all", { method: "POST" }); toast(r.revoked ? `${r.revoked} andere Sitzung(en) beendet` : "Keine anderen Geräte angemeldet"); } catch (e) { toast(e.message); } };

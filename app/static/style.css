@@ -530,3 +530,17 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
 .ann-item .body { white-space: pre-line; font-size: .84rem; margin: .4rem 0; max-height: 240px; overflow: auto; }
 .ann-dates { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .25rem; } .ann-dates .note-chip { margin: 0; }
 .cal2-legend .lg-note { background: var(--info-soft); border: 1px solid var(--info); }
+
+/* Word-Ansicht (views-doc.js, app/docx_view.py) */
+.docx-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.docx-bar { display: flex; align-items: center; gap: .5rem; padding: .4rem .2rem; }
+.docx-bar .spacer { flex: 1; }
+.docx-view { flex: 1; overflow: auto; background: #fff; color: #1d2130; max-width: 820px; width: 100%; margin: 0 auto; padding: 2.4rem 2.6rem; box-shadow: 0 2px 10px rgba(0,0,0,.18); border-radius: 4px; line-height: 1.5; font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 11pt; }
+.docx-view h1 { font-size: 1.7em; margin: .6em 0 .3em; } .docx-view h2 { font-size: 1.4em; margin: .6em 0 .3em; } .docx-view h3 { font-size: 1.2em; }
+.docx-view p { margin: 0 0 .55em; } .docx-view img { max-width: 100%; height: auto; }
+.docx-view .dx-table { border-collapse: collapse; margin: .5em 0; width: 100%; } .docx-view .dx-table td { border: 1px solid #c8ccd6; padding: .25em .45em; vertical-align: top; }
+.docx-view .dx-table td p { margin: 0; } .docx-view .dx-tab { display: inline-block; width: 2.2em; } .docx-view .dx-page { border: 0; border-top: 1px dashed #c8ccd6; margin: 1.4em 0; }
+.docx-view .dx-math { font-family: "Cambria Math", serif; } .docx-view .dx-missing { color: #8a8f9c; font-style: italic; }
+
+.sl-devs { display: flex; flex-direction: column; gap: .35rem; margin-top: .4rem; }
+.sl-dev { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border: 1px solid var(--line); border-radius: 8px; padding: .35rem .5rem; color: var(--text); }

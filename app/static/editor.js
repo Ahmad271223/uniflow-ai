@@ -97,7 +97,7 @@ export class PdfEditor {
     if (this.destroyed) { this.pdf?.destroy?.(); this.pdf = null; return; }
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
-    if (this.pdf) import("./editor-community.js?v=3").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
+    if (this.pdf) import("./editor-community.js?v=4").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
     this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
     this._online = () => this.flush(); window.addEventListener("online", this._online);
   }
@@ -208,7 +208,7 @@ export class PdfEditor {
           <button data-tool="shape" title="Formen (S)">${icon("square")}</button>
           <button data-tool="image" title="Bild einfügen">${icon("image")}</button>
           <button data-tool="sticky" title="Haftnotiz">${icon("note")}</button>
-          <button data-tool="textselect" title="PDF-Text markieren (für KI)">${icon("text-select")}</button>
+          <button data-tool="textselect" title="PDF-Text markieren, unterstreichen, durchstreichen (oder an die KI)">${icon("text-select")}</button>
           <button data-tool="hand" title="Verschieben (Leertaste)">${icon("hand")}</button>
           <span class="ed-sep"></span>
           <button data-act="accessories" title="Zubehör">${icon("more")} ${icon("chevron-down", 12)}</button>
@@ -361,7 +361,7 @@ export class PdfEditor {
     else if (t === "lasso") { const s = this.selection[0]?.node.getAttr("obj"); html = this.selection.length ? `<span class="ed-group"><span class="small muted">${this.selection.length} ausgewählt</span><button data-act="duplicate" title="Duplizieren">${icon("copy")}</button><button data-act="copy" title="Kopieren">${icon("copy")}</button><button data-act="cut" title="Ausschneiden">${icon("eraser")}</button><button data-act="delete" title="Löschen">${icon("trash")}</button></span>${s && (s.type === "stroke" || s.type === "shape") ? `<span class="ed-group"><label>${icon("pen", 12)}<input type="range" class="ed-width" min="0.5" max="40" step="0.5" value="${s.width || s.strokeWidth || 2}"></label><label>${icon("circle", 12)}<input type="range" class="ed-opacity" min="0.1" max="1" step="0.05" value="${s.opacity ?? 1}"></label></span>${sw(s.color || s.stroke, "color")}` : ""}` : `<span class="muted small">Umkreise Notizen mit dem Lasso oder ziehe ein Rechteck. Dann verschieben, skalieren, drehen, kopieren.</span>`; }
     else if (t === "image") html = `<span class="muted small">Klicke auf die Seite, um ein Bild einzufügen, oder füge einen Screenshot mit Strg+V ein.</span><button data-act="image">${icon("image")} Bild wählen</button>`;
     else if (t === "sticky") html = `<span class="muted small">Klicke auf die Seite, um eine Haftnotiz zu platzieren.</span>${sw(this.stickyColor || "#fff7a8", "sticky")}`;
-    else if (t === "textselect") html = `<span class="muted small">Ziehe ein Rechteck über PDF-Text, der Text landet in der KI-Seitenleiste.</span>`;
+    else if (t === "textselect") html = `<span class="muted small">Ziehe ein Rechteck über PDF-Text: markieren, unterstreichen, durchstreichen, kopieren oder an den KI-Tutor.</span>`;
     else if (t === "hand") html = `<span class="muted small">Ziehen zum Verschieben, Strg+Mausrad oder zwei Finger zum Zoomen.</span>`;
     this.ctx.innerHTML = html;
     $$("[data-pen]", this.ctx).forEach(b => b.onclick = () => { this.penType = b.dataset.pen; const d = PEN_DEFAULTS[this.penType]; this.width = d.width; this.opacity = d.opacity; this.renderCtx(); });
@@ -726,7 +726,7 @@ export class PdfEditor {
       else if (drawing?.tool === "eraser") { if (drawing.changed) this.commit(pg, drawing.before); }
       else if (lasso) { const poly = lasso.points(); lasso.destroy(); pg.tmp.batchDraw(); if (poly.length >= 6) this.selectByPolygon(pg, poly); }
       else if (marquee) { const r = marquee.rect; const box = { x: Math.min(marquee.x0, marquee.x0 + r.width()), y: Math.min(marquee.y0, marquee.y0 + r.height()), w: Math.abs(r.width()), h: Math.abs(r.height()) }; r.destroy(); pg.tmp.batchDraw(); if (box.w > 3 && box.h > 3) this.selectByRect(pg, box); }
-      else if (tsel) { const r = tsel.rect; const box = { x: Math.min(tsel.x0, tsel.x0 + r.width()), y: Math.min(tsel.y0, tsel.y0 + r.height()), w: Math.abs(r.width()), h: Math.abs(r.height()) }; r.destroy(); pg.tmp.batchDraw(); this.extractText(pg, box); }
+      else if (tsel) { const r = tsel.rect; const box = { x: Math.min(tsel.x0, tsel.x0 + r.width()), y: Math.min(tsel.y0, tsel.y0 + r.height()), w: Math.abs(r.width()), h: Math.abs(r.height()) }; r.destroy(); pg.tmp.batchDraw(); this.textSelection(pg, box); }
       else if (shape?.node) { const o = shape.node.getAttr("obj"); shape.node.destroy(); pg.tmp.batchDraw(); if (o && (Math.abs(o.width || 0) > 2 || (o.points && o.points.length))) { const before = this.snapshot(pg); o.id = uid(); this.model.pages[pg.key].objects.push(o); this.addNode(pg, o); pg.layer.batchDraw(); this.commit(pg, before); } }
       drawing = lasso = shape = marquee = tsel = null;
     };
@@ -943,7 +943,81 @@ export class PdfEditor {
 
   async search(q) { const out = $(".ed-search-res", this.pop); if (!out) return; q = (q || "").trim().toLowerCase(); if (!q) { out.innerHTML = ""; return; } out.innerHTML = "Suche…"; const hits = []; for (const p of this.pages) { if (p.type !== "pdf") continue; const t = await this.pageText(p.index); const i = t.toLowerCase().indexOf(q); if (i >= 0) hits.push({ i: this.pages.indexOf(p), ctx: t.slice(Math.max(0, i - 30), i + 40).replace(/\s+/g, " ") }); } out.innerHTML = hits.length ? hits.map(h => `<a href="#" data-i="${h.i}"><b>S. ${h.i + 1}</b> …${esc(h.ctx)}…</a>`).join("") : "<span class='muted small'>Nichts gefunden</span>"; $$("a", out).forEach(a => a.onclick = e => { e.preventDefault(); this.pop.hidden = true; this.goToPage(+a.dataset.i); }); }
   async pageText(index) { if (!this.pdf) return ""; if (this.textCache.has(index)) return this.textCache.get(index); const page = await this.pdf.getPage(index); const tc = await page.getTextContent(); const t = tc.items.map(i => i.str).join(" "); this.textCache.set(index, t); return t; }
-  async extractText(pg, box) { if (pg.type !== "pdf") return; const page = await this.pdf.getPage(pg.index); const tc = await page.getTextContent(); const vp = page.getViewport({ scale: 1 }); const parts = []; tc.items.forEach(it => { if (!it.str) return; const [x, y] = vp.convertToViewportPoint(it.transform[4], it.transform[5]); const h = Math.hypot(it.transform[2], it.transform[3]) || 10; const w = it.width || 0; const ix = x, iy = y - h; if (ix + w >= box.x && ix <= box.x + box.w && iy + h >= box.y && iy <= box.y + box.h) parts.push({ y: Math.round(iy / 4), x: ix, s: it.str }); }); parts.sort((a, b) => a.y - b.y || a.x - b.x); let text = "", lastY = null; parts.forEach(p => { if (lastY !== null && p.y !== lastY) text += "\n"; else if (text && !text.endsWith(" ")) text += " "; text += p.s; lastY = p.y; }); $(".ed-ai", this.c).hidden = false; $(".ed-ai-sel", this.c).value = text.trim(); this.onStatus(text.trim() ? "Text übernommen – Modus wählen und Fragen" : "Kein Text im markierten Bereich"); }
+  // ---------------------------------------------------------------- PDF-Text: markieren, unterstreichen, durchstreichen
+  // Format (28.10.2026, fuer alle Geraete): normale Formen, damit jede App sie ohne Update zeigt. Je Textzeile ein
+  // Objekt mit `markup` = highlight | underline | strike und dem markierten Text in `text`:
+  //   highlight: {type: "shape", shape: "rect", x, y, width, height, fill, opacity 0.35, stroke: ""}
+  //   underline/strike: {type: "shape", shape: "line", x: 0, y: 0, points: [x0, y, x1, y], stroke, strokeWidth}
+  // Koordinaten wie alle Objekte: angezeigte Seite (mit Drehung), PDF-Punkte, links oben.
+  async textItems(pg) {
+    const page = await this.pdf.getPage(pg.index); const rot = ((page.rotate || 0) + (pg.rotation || 0)) % 360; const key = `${pg.index}:${rot}`;
+    if (this._textItems?.key === key) return this._textItems.items;
+    const tc = await page.getTextContent(); const vp = page.getViewport({ scale: 1, rotation: rot }); const items = [];
+    for (const it of tc.items) {
+      if (!it.str || !it.str.trim()) continue;
+      const [a, b, c, d, e, f] = it.transform; const len = Math.hypot(a, b) || 1, h = Math.hypot(c, d) || 10, w = it.width || 0;
+      const ux = a / len, uy = b / len, vx = -uy, vy = ux;            // Schreibrichtung und "oben" im PDF-Raum
+      const pts = [[e, f], [e + ux * w, f + uy * w], [e + ux * w + vx * h, f + uy * w + vy * h], [e + vx * h, f + vy * h]].map(([x, y]) => vp.convertToViewportPoint(x, y));
+      const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+      const upx = pts[3][0] - pts[0][0], upy = pts[3][1] - pts[0][1], ul = Math.hypot(upx, upy) || 1;   // "oben" in der Anzeige
+      items.push({ str: it.str, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys), up: [upx / ul, upy / ul] });
+    }
+    this._textItems = { key, items }; return items;
+  }
+  textLines(items) {
+    // Zeilen: gleiche Mitte quer zur Schreibrichtung (auf gedrehten Seiten laeuft der Text senkrecht), in Leserichtung
+    const lines = [];
+    const vert = it => Math.abs(it.up?.[0] ?? 0) > Math.abs(it.up?.[1] ?? 1);
+    const across = it => vert(it) ? it.x + it.w / 2 : it.y + it.h / 2, thick = it => vert(it) ? it.w : it.h, along = it => vert(it) ? it.y : it.x;
+    for (const it of [...items].sort((p, q) => across(p) - across(q) || along(p) - along(q))) {
+      const c = across(it), v = vert(it);
+      const ln = lines.find(l => l.vertical === v && Math.abs(l.c - c) < Math.max(3, Math.min(l.t, thick(it)) * 0.5));
+      if (ln) { ln.items.push(it); ln.x0 = Math.min(ln.x0, it.x); ln.x1 = Math.max(ln.x1, it.x + it.w); ln.y0 = Math.min(ln.y0, it.y); ln.y1 = Math.max(ln.y1, it.y + it.h); }
+      else lines.push({ c, t: thick(it), vertical: v, up: it.up || [0, -1], x0: it.x, x1: it.x + it.w, y0: it.y, y1: it.y + it.h, items: [it] });
+    }
+    lines.forEach(l => { l.items.sort((p, q) => along(p) - along(q)); l.text = l.items.map(i => i.str).join(" ").replace(/\s+/g, " ").trim(); });
+    return lines;
+  }
+  async textSelection(pg, box) {
+    if (pg.type !== "pdf" || !this.pdf) { this.onStatus("Text markieren geht auf PDF-Seiten"); return; }
+    const hit = (await this.textItems(pg)).filter(it => it.x + it.w >= box.x && it.x <= box.x + box.w && it.y + it.h >= box.y && it.y <= box.y + box.h);
+    if (!hit.length) { this.onStatus("Kein Text im markierten Bereich"); return; }
+    const lines = this.textLines(hit); const text = lines.map(l => l.text).join("\n");
+    const r = pg.el.getBoundingClientRect(); const z = this.zoom;
+    const anchor = { getBoundingClientRect: () => ({ left: r.left + box.x * z, right: r.left + (box.x + box.w) * z, top: r.top + box.y * z, bottom: r.top + (box.y + box.h) * z }) };
+    const colors = ["#f5d90a", "#7ee081", "#7cc4ff", "#ff9ecb"];
+    const c0 = this._markColor || colors[0];
+    this.showPop(anchor, `<div class="ed-mk"><div class="row" style="gap:.25rem">${colors.map(c => `<button class="ed-mk-c${c === c0 ? " active" : ""}" data-mkc="${c}" style="background:${c}" title="Farbe"></button>`).join("")}</div>
+      <button data-mk="highlight">${icon("highlighter", 15)} Markieren</button><button data-mk="underline"><u>U</u> Unterstreichen</button><button data-mk="strike"><s>S</s> Durchstreichen</button>
+      <button data-mk="copy">${icon("copy", 15)} Kopieren</button><button data-mk="ai">${icon("sparkles", 15)} An den KI-Tutor</button></div>`);
+    $$("[data-mkc]", this.pop).forEach(b => b.onclick = () => { this._markColor = b.dataset.mkc; $$("[data-mkc]", this.pop).forEach(x => x.classList.toggle("active", x === b)); });
+    $$("[data-mk]", this.pop).forEach(b => b.onclick = async () => {
+      const k = b.dataset.mk; this.pop.hidden = true;
+      if (k === "copy") { try { await navigator.clipboard.writeText(text); this.onStatus("Text kopiert"); } catch { this.onStatus("Kopieren nicht erlaubt"); } return; }
+      if (k === "ai") { $(".ed-ai", this.c).hidden = false; this.community?.toggle(false); $(".ed-ai-sel", this.c).value = text; this.onStatus("Text übernommen – Modus wählen und Fragen"); return; }
+      this.addMarkup(pg, lines, k, this._markColor || colors[0]);
+    });
+  }
+  addMarkup(pg, lines, kind, color) {
+    if (this.readOnly) return;
+    const before = this.snapshot(pg); const r2 = v => Math.round(v * 100) / 100;
+    for (const l of lines) {
+      let o;
+      if (kind === "highlight") o = { id: uid(), type: "shape", shape: "rect", markup: "highlight", text: l.text, x: r2(l.x0), y: r2(l.y0), width: r2(l.x1 - l.x0), height: r2(l.y1 - l.y0), fill: color, stroke: "", strokeWidth: 0, opacity: 0.35, rotation: 0, scaleX: 1, scaleY: 1 };
+      else {
+        // Linie quer zur Schreibrichtung: unten an der Schrift (gegen "oben") bzw. in der Mitte
+        const [ux, uy] = l.up; const v = Math.abs(ux) > Math.abs(uy); const t = v ? l.x1 - l.x0 : l.y1 - l.y0;
+        const lo = v ? (ux > 0 ? l.x0 : l.x1) : (uy < 0 ? l.y1 : l.y0), dir = v ? -(Math.sign(ux) || 1) : -(Math.sign(uy) || -1);   // weg von "oben", knapp unter die Grundlinie
+        const pos = r2(kind === "underline" ? lo + dir * t * 0.08 : (v ? l.x0 + t * 0.45 : l.y0 + t * 0.55));
+        o = { id: uid(), type: "shape", shape: "line", markup: kind, text: l.text, x: 0, y: 0, points: v ? [pos, r2(l.y0), pos, r2(l.y1)] : [r2(l.x0), pos, r2(l.x1), pos],
+              stroke: color === "#f5d90a" ? "#e5322d" : color, strokeWidth: r2(Math.max(1, t * 0.08)), fill: "", opacity: 1, rotation: 0, scaleX: 1, scaleY: 1, width: 1, height: 1 };
+      }
+      this.model.pages[pg.key].objects.push(o); if (pg.mounted) this.addNode(pg, o);
+    }
+    pg.layer?.batchDraw(); this.commit(pg, before);
+    this.onStatus({ highlight: "Markiert", underline: "Unterstrichen", strike: "Durchgestrichen" }[kind] + ` (${lines.length} Zeile${lines.length === 1 ? "" : "n"})`);
+  }
+  async extractText(pg, box) { const hit = (await this.textItems(pg)).filter(it => it.x + it.w >= box.x && it.x <= box.x + box.w && it.y + it.h >= box.y && it.y <= box.y + box.h); return this.textLines(hit).map(l => l.text).join("\n"); }
 
   // ---------------------------------------------------------------- Zubehör: Lineal
   toggleRuler() { if (this.ruler) { this.ruler.pg?.tmp?.listening(false); this.ruler.group?.destroy(); this.ruler.pg?.tmp?.batchDraw(); this.ruler = null; return; } const rpg = this.pages[this.currentPage]; let rx = 80, ry = 200; if (rpg?.el) { const sr = this.scroll.getBoundingClientRect(); const c = this.toPage(rpg, sr.left + sr.width / 2, sr.top + sr.height / 2); rx = Math.max(0, c.x - 200); ry = Math.max(0, c.y - 17); } this.ruler = { pg: null, x: rx, y: ry, angle: 0, len: 400 }; this.showRuler(this.pages[this.currentPage]); }

@@ -1280,3 +1280,31 @@ warten auf die PDF, Free gleicht nur Pläne ab). Die Regeln stehen in `docs/VERT
    legt neue an (`study.generate_packages(replace=True)`); das gleicht richtig ab (Löschen + neue Zeilen), erzeugt aber
    mehr Verkehr. Bitte auf dem iPad dieselbe Planer-Regel wie `app/study.py` verwenden, damit beide gleich planen.
 
+## Nachtrag der PC-Sitzung: Gleichstand Windows ↔ iPad – Aufgabenliste für die Mac-Sitzung (28.10.2026)
+
+Auftrag des Inhabers (wörtlich): „mach alles was du machen musst … das system perfekt auf beiden mit 1 zu 1 gleichen
+funktionen funktioniert“. Auf der PC-/Dienstseite ist seit dem letzten Nachtrag dazugekommen: Geräte-Abgleich G2
+(Windows), PDF-Text markieren/unterstreichen/durchstreichen, Word ansehen, Geräte einzeln abmelden, Lastsenkung im
+Dienst, Geheimnis für den Fenster-Agenten. Damit das iPad dasselbe kann, in dieser Reihenfolge:
+
+1. **G2-Client** nach `docs/VERTRAEGE-KONTO-SYNC.md` „Client-Regeln“ (vorheriger Nachtrag). Ohne ihn sind Notizen und
+   Pläne nicht gleich – das ist der wichtigste Punkt.
+2. **Community über den Dienst** statt CloudKit, mit Projizieren, Likes, Kommentaren an der Stelle (Format in
+   `docs/LOESUNGEN-TEILEN.md` 6a) und den Testvektoren `fixtures/solutions/vectors.json`.
+3. **PDF-Text markieren** wie Windows: Textauswahl im PDF (PDFKit `PDFSelection`, je Zeile `selectionsByLine`), daraus
+   je Zeile ein Objekt im gemeinsamen Format (`annotations.schema.json`, Feld `markup`): highlight = `shape` `rect` mit
+   `fill`, `opacity` 0.35, `stroke` leer; underline/strike = `shape` `line` mit `points`. Koordinaten in der Anzeige
+   der Seite (mit Drehung), wie alle Objekte. Markierungen von Windows zeigt das iPad schon heute als Formen, sobald
+   Formen gezeichnet werden (Punkt 4).
+4. **Formen, Textfelder, Bilder erstellen und anzeigen** (heute nur Anzeige bzw. Platzhalter) – Windows erzeugt sie,
+   das iPad muss sie mindestens richtig zeigen, sonst fehlen Markierungen und Notizen von Windows.
+5. **Seiten verschieben**, eingefügte Bild-/PDF-Seiten anzeigen (Windows kann beides).
+6. **Geräte einzeln abmelden:** `DELETE /api/account/sessions/{id}`, Liste aus `/api/account/me`; bei der Anmeldung
+   `device_name` mitschicken.
+7. **Word:** das iPad zeigt Word schon mit QuickLook; bitte auch `.docx` aus der Hochschule im Editor-Tab öffnen
+   (heute nur PDF/Bild beim Import).
+8. **Kauf prüfen und Pro-Tarife** (unverändert offen), **KI über den Dienst** (unverändert offen).
+
+Was Windows dafür erwartet und schon liefert: dieselben Endpunkte im Dienst, dieselben Testfälle (`merge/cases.json`,
+`solutions/vectors.json`, `sync/cases.json`). Abweichungen bitte als Nachtrag hier melden, ich ziehe auf Windows nach.
+

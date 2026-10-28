@@ -50,7 +50,8 @@ def _now() -> str:
 def _conn():
     cm = accounts.cursor()
     conn = cm.__enter__()
-    conn.executescript(SCHEMA)
+    from . import db
+    db.schema_once(conn, "jobs", accounts.db_path(), lambda c: c.executescript(SCHEMA))
     return cm, conn
 
 
