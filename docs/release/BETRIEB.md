@@ -1,6 +1,6 @@
 # Betrieb des gehosteten Dienstes (Hosting-Paket `deploy/`) – Entwurf, Stand 27.10.2026
 
-Schritt für Schritt vom leeren VPS zum laufenden UniFlow-Dienst (`LERNAPP_MODE=hosted`): ein Server in der EU,
+Schritt für Schritt vom leeren VPS zum laufenden Studora-Dienst (`LERNAPP_MODE=hosted`): ein Server in der EU,
 Docker, ein Container mit der App (uvicorn, intern auf 8765) und Caddy davor (TLS von Let's Encrypt, Ports 80/443).
 Grundlage: `docs/VERTRAEGE-KONTO-SYNC.md` (Betrieb, Tresor, Jobs, Löschfristen) und
 `docs/LIVE-BLOCKER-TEST-2026-10-25.md` (Serverplanung nach Nutzerzahl).

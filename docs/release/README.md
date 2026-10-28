@@ -23,7 +23,7 @@ Regeln für alle Texte (Entscheidung des Inhabers vom 25.10.2026):
 - **Nur, was wirklich funktioniert.** Uni & Noten auf dem iPad und die Online-Community gelten erst als Funktion,
   wenn sie am Gerät laufen („bald“ ist kein Store-Text). Fristen, Termine und Noten sind Abbilder der
   Hochschulsysteme; verbindlich bleibt immer die Hochschule – das steht in jedem Text.
-- **Keine Hochschule als Partner darstellen.** UniFlow ist nicht mit der Leibniz Universität Hannover oder der
+- **Keine Hochschule als Partner darstellen.** Studora ist nicht mit der Leibniz Universität Hannover oder der
   Universität Hildesheim verbunden; keine Uni-Logos in Screenshots ohne Erlaubnis.
 
 ## Platzhalter

@@ -9,7 +9,7 @@ Android-App läuft.
 ## Store-Eintrag
 
 ```text title
-UniFlow – Studium & Notizen
+Studora – Studium & Notizen
 ```
 
 ```text short
@@ -17,10 +17,10 @@ Stud.IP und Learnweb auf dem Tablet: Dateien, Stundenplan, Lernkalender, Stift.
 ```
 
 ```text full
-UniFlow bringt dein Studium an einen Ort: die Dateien und Termine aus den Systemen deiner Hochschule, dein Stundenplan, dein Lernkalender und deine handschriftlichen Notizen – auf dem Tablet, mit dem Stift.
+Studora bringt dein Studium an einen Ort: die Dateien und Termine aus den Systemen deiner Hochschule, dein Stundenplan, dein Lernkalender und deine handschriftlichen Notizen – auf dem Tablet, mit dem Stift.
 
 FÜR STUDIERENDE DER LEIBNIZ UNIVERSITÄT HANNOVER UND DER UNIVERSITÄT HILDESHEIM
-Melde dich mit deinem UniFlow-Konto an und verbinde deine Hochschule. UniFlow holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und übernimmt Vorlesungs- und Übungstermine, Abgabefristen und Ankündigungen der Lehrenden. Die App liest nur und schreibt nichts in die Hochschulsysteme.
+Melde dich mit deinem Studora-Konto an und verbinde deine Hochschule. Studora holt neue Skripte, Übungsblätter und Folien aus deinen Kursen, ordnet sie nach Modulen und übernimmt Vorlesungs- und Übungstermine, Abgabefristen und Ankündigungen der Lehrenden. Die App liest nur und schreibt nichts in die Hochschulsysteme.
 
 DOKUMENTE LESEN UND BESCHREIBEN
 • Bibliothek mit Modulordnern und Dokumenten
@@ -35,7 +35,7 @@ STUNDENPLAN UND LERNKALENDER
 [[• Lösungen zu Übungsblättern mit anderen vergleichen – verschlüsselt, unter Pseudonym, mit Melden und Sperren (Plus)]]
 
 EIN KONTO FÜR ALLE GERÄTE
-Mit deinem UniFlow-Konto zeigen Android-Tablet, iPad, Windows und Web denselben Stand: Dokumente, Notizen, Stundenplan und Lernkalender.
+Mit deinem Studora-Konto zeigen Android-Tablet, iPad, Windows und Web denselben Stand: Dokumente, Notizen, Stundenplan und Lernkalender.
 
 DEINE DATEN
 • Kein Tracking, keine Werbung, keine Analyse-Werkzeuge Dritter.
@@ -43,12 +43,12 @@ DEINE DATEN
 • Konto löschen direkt in der App.
 
 UNIFLOW FREE UND PLUS
-Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und Lernplanung. UniFlow Plus (1,99 € pro Monat, die erste Woche gratis) schaltet das Schreiben mit dem Stift und den Abgleich zwischen deinen Geräten frei[[, dazu Karteikarten und das Teilen von Lösungen]]. Das Abo verlängert sich automatisch um einen Monat, wenn du es nicht vor Ende des laufenden Zeitraums in Google Play kündigst. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
+Free ist dauerhaft kostenlos: Abgleich mit der Hochschule, Lesen, Stundenplan, Lernkalender und Lernplanung. Studora Plus (1,99 € pro Monat, die erste Woche gratis) schaltet das Schreiben mit dem Stift und den Abgleich zwischen deinen Geräten frei[[, dazu Karteikarten und das Teilen von Lösungen]]. Das Abo verlängert sich automatisch um einen Monat, wenn du es nicht vor Ende des laufenden Zeitraums in Google Play kündigst. Nach dem Ende von Plus bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: [[Domain]]/nutzungsbedingungen
 Datenschutz: [[Domain]]/datenschutz
 
-UniFlow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
+Studora ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
 ## Weitere Angaben
@@ -91,7 +91,7 @@ verschlüsselte Pakete, kein Chat), mit Moderation, Melden und Sperren; bis dahi
 
 Hochschul-Zugangsdaten erhebt die Android-App nicht: Die Anmeldung läuft im Anmeldefenster der Hochschule (WebView),
 Merken übernimmt der Passwort-Manager des Systems, die App behält nur die Sitzung (Cookies) der Hochschule bis zur
-Abmeldung – sie laufen nie über den UniFlow-Dienst. [[Mit der Google-Dokumentation zum Zeitpunkt der Einreichung
+Abmeldung – sie laufen nie über den Studora-Dienst. [[Mit der Google-Dokumentation zum Zeitpunkt der Einreichung
 abgleichen, ob die Sitzungs-Cookies anzugeben sind.]]
 
 ## Abo-Produkt (Play Billing)
@@ -99,7 +99,7 @@ abgleichen, ob die Sitzungs-Cookies anzugeben sind.]]
 | Feld | Wert |
 |---|---|
 | Produkt-ID | `plus_monthly` |
-| Name | UniFlow Plus |
+| Name | Studora Plus |
 | Beschreibung | Stift, Geräteabgleich, Karteikarten, Lösungen teilen |
 | Basisplan | `monthly`, 1 Monat, automatisch verlängernd, 1,99 € |
 | Angebot | `trial-7d`, 7 Tage gratis, einmal je Google-Konto |
@@ -110,4 +110,4 @@ in Google Play, Links zu Nutzungsbedingungen und Datenschutzerklärung.
 ## Bildschirmfotos (Tablet, 16:10 oder 16:9)
 
 1. PDF mit Stift-Notizen · 2. Bibliothek nach Modulen · 3. Stundenplan · 4. Lernkalender · 5. Anmeldung mit
-UniFlow-Konto. Nur echte App-Inhalte, keine Uni-Logos ohne Erlaubnis, keine echten Namen oder Noten.
+Studora-Konto. Nur echte App-Inhalte, keine Uni-Logos ohne Erlaubnis, keine echten Namen oder Noten.
