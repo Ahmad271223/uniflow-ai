@@ -251,8 +251,15 @@ kein Mailversand eingerichtet ist; `accounts.reset_sender` nimmt eine Versandfun
 ## G4 Community
 
 - **Nur gehostet** und nur mit Tarif Plus (`users.plan = plus`, optional `plan_until`; heute per `python -m
-  app.accounts plan <email> plus [bis]`, später aus den Store-Käufen), sonst 403 `plan_required`; im Einzelplatzmodus
-  501 `not_hosted`. Sitzung wie bei G1 (Bearer oder Cookie).
+  app.accounts plan <email> plus [bis]`, später aus den Store-Käufen), sonst 403 `plan_required`. Sitzung wie bei G1
+  (Bearer oder Cookie). Die Windows-App (Einzelplatz) leitet `/api/community/...` mit dem Token des verbundenen
+  Studora-Kontos an den Dienst weiter (`app/service_link.py`); ohne Konto 409 `not_linked`, Dienst nicht erreichbar
+  502 `service_unreachable`, Konto einer anderen Hochschule 409 `university_mismatch`. 501 `not_hosted` antwortet
+  nur noch der Community-Router selbst, wenn er ohne Dienst läuft.
+- **Stelle eines Kommentars:** `page_key` = Seitenschlüssel im Paket, `anchor` = 0..1 von links oben in der Anzeige
+  des Absenders (Koordinaten der Objekte geteilt durch `displaySize`); Empfänger mit anderer Drehung bilden sie wie
+  die Objekte ab (`docs/LOESUNGEN-TEILEN.md`, Abschnitt 6a). Testvektoren für Pakete:
+  `packages/shared-contracts/fixtures/solutions/vectors.json`.
 - **Berechtigung „Datei aus dem eigenen Hochschul-Abgleich“**: Veröffentlichen, Suchen und Laden nur, wenn in der
   Datenbank des Kontos eine Datei mit `content_sha256 = Fingerabdruck` liegt, die aus dem Abgleich stammt
   (`course_id ≠ __user__`, `download_url` gesetzt, nicht gelöscht); sonst 403 `file_not_owned`. Treffer gibt es nur

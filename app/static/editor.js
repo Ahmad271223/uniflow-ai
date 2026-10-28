@@ -1,6 +1,6 @@
 // UniFlow Editor 2.0 – PDF- und Notizeditor (pdf.js + Konva + pdf-lib)
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
-import { icon } from "./icons.js?v=30";
+import { icon } from "./icons.js?v=31";
 import { mergeDocument } from "./merge.js?v=30";
 import { FORMATS, WHITEBOARDS, formatSize, formatOf, sizeLabel, validSize } from "./formats.js?v=30";
 const $ = (s, el = document) => el.querySelector(s);
@@ -97,6 +97,7 @@ export class PdfEditor {
     if (this.destroyed) { this.pdf?.destroy?.(); this.pdf = null; return; }
     this.zoom = this.model.zoom || 1.2;
     this.buildPages(); this.renderSide(); this.updateZoomLabel(); this.setTool(this.tool); this.applyPrefs(); this.updatePenInputBtn();
+    if (this.pdf) import("./editor-community.js?v=2").then(m => { if (!this.destroyed) { this.community = m.attach(this); this.pages.forEach(pg => this.community.mountPage(pg)); } }).catch(e => console.warn("Community", e));
     this.onStatus(this._mergedOnLoad ? "Offline-Notizen mit neuerem Stand zusammengeführt" : "Gespeichert");
     this._online = () => this.flush(); window.addEventListener("online", this._online);
   }
@@ -196,6 +197,7 @@ export class PdfEditor {
           <button data-act="side" title="Seitenleiste">${icon("panel-left")}</button>
           <button data-act="search" title="Im Dokument suchen">${icon("search")}</button>
           <button data-act="ai" title="KI-Assistent">${icon("sparkles")}</button>
+          <button data-act="community" class="ed-combtn" title="Community: Lösungen anderer, Kommentare, eigene Lösung teilen">${icon("users")}</button>
         </div>
         <div class="ed-group ed-tools">
           <button data-tool="lasso" title="Lasso (L)">${icon("lasso")}</button>
@@ -232,6 +234,7 @@ export class PdfEditor {
           <label class="small"><input type="checkbox" class="ed-ai-ctx" checked> Aktuelle Seite als Kontext mitgeben</label>
           <button class="btn primary ed-ai-go">Fragen</button><div class="ed-ai-out"></div>
         </aside>
+        <aside class="ed-com" hidden></aside>
       </div>
       <div class="ed-zoomwin" hidden><div class="ed-zw-head"><b>Zoom-Ansicht</b><span class="muted small">Schreibe hier, der Text erscheint an der markierten Stelle der Seite.</span><span class="spacer"></span><button data-zw="left" title="Nach links">${icon("chevron-left", 14)}</button><button data-zw="right" title="Nach rechts">${icon("chevron-right", 14)}</button><button data-zw="down" title="Nächste Zeile">${icon("chevron-down", 14)}</button><button data-zw="close">${icon("x", 14)}</button></div><div class="ed-zw-body"><canvas class="ed-zw-canvas"></canvas></div></div>
       <div class="ed-pageinfo"><button data-act="prev">${icon("chevron-left", 14)}</button> Seite <input class="ed-pageno" type="number" min="1" value="1"> / <span class="ed-pagecount">?</span> <button data-act="next">${icon("chevron-right", 14)}</button><span class="ed-sep"></span><button data-act="zoomout" title="Kleiner">${icon("zoom-out", 14)}</button><span class="ed-zoom">120%</span><button data-act="zoomin" title="Größer">${icon("zoom-in", 14)}</button><button data-act="fit" title="Seitenbreite">${icon("fit", 14)}</button><button data-act="fullscreen" title="Vollbild">${icon("maximize", 14)}</button></div>
@@ -436,8 +439,11 @@ export class PdfEditor {
     pg.stage = stage; pg.layer = layer; pg.tmp = tmp; layer.listening(this.tool === "lasso"); this.sizeStage(pg);
     pg.tr = new Konva.Transformer({ rotateEnabled: true, keepRatio: false, padding: 4, anchorSize: 9, borderStroke: "#4f5bd5", anchorStroke: "#4f5bd5", enabledAnchors: ["top-left", "top-right", "bottom-left", "bottom-right", "middle-left", "middle-right", "top-center", "bottom-center"] });
     layer.add(pg.tr);
+    // Ebene fuer projizierte Loesungen anderer: ueber der PDF, unter den eigenen Notizen, ohne Eingabe
+    pg.foreign = new Konva.Layer({ listening: false }); stage.add(pg.foreign); pg.foreign.moveToBottom();
     this.model.pages[pg.key].objects.forEach(o => this.addNode(pg, o));
     layer.batchDraw(); this.bindStage(pg);
+    this.community?.mountPage(pg);
     if (this.ruler && this.pages[this.currentPage] === pg) this.showRuler(pg);
   }
   updateToolButtons() { const act = this.tool === "pen" && this.penType === "marker" ? "marker" : this.tool; $$("[data-tool]", this.c).forEach(b => b.classList.toggle("active", b.dataset.tool === act)); }
@@ -445,7 +451,7 @@ export class PdfEditor {
   applyToolState(st) { if (!st) return; Object.assign(this, { penType: st.penType, color: st.color, width: st.width, opacity: st.opacity, eraserMode: st.eraserMode, eraserSize: st.eraserSize, shapeKind: st.shapeKind }); this._penCustom = true; if (this.tool !== st.tool) this.setTool(st.tool); else this.renderCtx(); }
   saveEraser() { try { localStorage.setItem("ed-eraser", JSON.stringify({ size: this.eraserSize, mode: this.eraserMode })); } catch {} }
   updatePenInputBtn() { const b = $(".ed-peninput", this.c); if (!b) return; const po = this.penInput === "pen_only"; b.innerHTML = po ? `${icon("pen", 16)}<span class="ed-pi">Stift</span>` : `${icon("hand", 16)}<span class="ed-pi">Finger</span>`; b.classList.toggle("active", po); b.title = po ? "Nur der Stift schreibt, Finger scrollt und zoomt (tippen zum Umschalten)" : "Finger und Stift schreiben (tippen für „Nur Stift“)"; }
-  unmount(pg) { this._pendMount?.delete(pg); if (!pg.mounted) return; pg.mounted = false; if (pg._rq) { renderQ.wait.delete(pg._rq); pg._rq = null; } pg.layerPR = pg.hitPR = pg.stageZoom = undefined; if (this._livePg === pg) this._livePg = null; const lv = $(".ed-live", pg.el); if (lv) { lv.width = 0; lv.height = 0; } const pv = $(".ed-predict", pg.el); if (pv) { pv.width = 0; pv.height = 0; } pg.renderTask?.cancel?.(); pg.renderTask = null; if (pg.stage) { pg.stage.destroy(); pg.stage = null; pg.layer = null; } const cv = $(".ed-pdf", pg.el); cv.width = cv.height = 0; this.selection = this.selection.filter(s => s.pg !== pg); }
+  unmount(pg) { this._pendMount?.delete(pg); if (!pg.mounted) return; pg.mounted = false; if (pg._rq) { renderQ.wait.delete(pg._rq); pg._rq = null; } pg.layerPR = pg.hitPR = pg.stageZoom = undefined; if (this._livePg === pg) this._livePg = null; const lv = $(".ed-live", pg.el); if (lv) { lv.width = 0; lv.height = 0; } const pv = $(".ed-predict", pg.el); if (pv) { pv.width = 0; pv.height = 0; } pg.renderTask?.cancel?.(); pg.renderTask = null; if (pg.stage) { pg.stage.destroy(); pg.stage = null; pg.layer = null; pg.foreign = null; } const cv = $(".ed-pdf", pg.el); cv.width = cv.height = 0; this.selection = this.selection.filter(s => s.pg !== pg); }
   // Vorlagenseiten sofort, PDF-Seiten ueber die gemeinsame Warteschlange
   renderPdf(pg) {
     if (pg.type !== "pdf" && pg.type !== "asset") { this.renderTemplate($(".ed-pdf", pg.el), pg, pageDpr(pg, this.zoom)); return; }
@@ -498,6 +504,16 @@ export class PdfEditor {
 
   // ---------------------------------------------------------------- Objekte -> Konva
   addNode(pg, o) {
+    const node = this.makeNode(pg, o);
+    if (!node) return null;
+    node.setAttr("obj", o);
+    if (!pg.inked) { pg.inked = true; if (pg.stage && pg.layerPR !== undefined) { const r = pageDpr(pg, this.zoom); pg.layer.getCanvas().setPixelRatio(r); pg.layerPR = r; } }
+    pg.layer.add(node); pg.tr.moveToTop();
+    node.on("dragend transformend", () => this.syncNode(pg, node));
+    return node;
+  }
+  // foreign: {image(src) -> URL oder null} fuer fremde Loesungen und Vorschauen (nicht bearbeitbar)
+  makeNode(pg, o, foreign = null) {
     let node;
     const common = { id: o.id, name: "obj", x: o.x || 0, y: o.y || 0, rotation: o.rotation || 0, scaleX: o.scaleX || 1, scaleY: o.scaleY || 1, opacity: o.opacity ?? 1, draggable: false };
     if (o.type === "stroke" && o.tool !== "marker" && o.points && o.points.length >= 4) {
@@ -509,7 +525,7 @@ export class PdfEditor {
       node = new Konva.Group({ ...common });
       const txt = new Konva.Text({ name: "txt", text: o.text || "", width: o.width || 200, fontFamily: o.fontFamily, fontSize: o.fontSize, fill: o.fill, fontStyle: `${o.bold ? "bold" : ""} ${o.italic ? "italic" : ""}`.trim() || "normal", textDecoration: o.underline ? "underline" : "", align: o.align || "left", padding: 4, lineHeight: o.lineHeight || 1.25, wrap: "word" });
       const bg = new Konva.Rect({ name: "bg", width: txt.width(), height: txt.height(), fill: o.bg || undefined, cornerRadius: 3 });
-      node.add(bg, txt); node.on("dblclick dbltap", () => this.editText(pg, node));
+      node.add(bg, txt); if (!foreign) node.on("dblclick dbltap", () => this.editText(pg, node));
     } else if (o.type === "shape") {
       const s = { ...common, stroke: o.stroke, strokeWidth: o.strokeWidth, fill: o.fill || undefined, hitStrokeWidth: 12 };
       if (o.shape === "rect") node = new Konva.Rect({ ...s, width: o.width, height: o.height });
@@ -520,14 +536,11 @@ export class PdfEditor {
       else node = new Konva.Line({ ...s, points: o.points });
     } else if (o.type === "image") {
       node = new Konva.Image({ ...common, width: o.width, height: o.height });
-      const img = new Image(); img.onload = () => { if (o.crop) node.crop(o.crop); node.image(img); pg.layer?.batchDraw(); }; img.src = o.src;
+      const src = foreign ? foreign.image(o.src) : o.src; if (!src) return null;
+      const img = new Image(); img.onload = () => { if (o.crop) node.crop(o.crop); node.image(img); (node.getLayer() || pg.layer)?.batchDraw(); }; img.src = src;
     }
-    if (!node) return null;
-    node.setAttr("obj", o);
-    if (!pg.inked) { pg.inked = true; if (pg.stage && pg.layerPR !== undefined) { const r = pageDpr(pg, this.zoom); pg.layer.getCanvas().setPixelRatio(r); pg.layerPR = r; } }
-    pg.layer.add(node); pg.tr.moveToTop();
-    node.on("dragend transformend", () => this.syncNode(pg, node));
-    return node;
+    if (node && foreign) { node.listening(false); node.name("foreign-obj"); }
+    return node || null;
   }
   syncNode(pg, node) {
     const o = node.getAttr("obj"); const before = this.snapshot(pg);
@@ -864,7 +877,8 @@ export class PdfEditor {
       peninput: () => { this._penManual = true; this.penInput = this.penInput === "pen_only" ? "all" : "pen_only"; this.updatePenInputBtn(); this.onStatus(this.penInput === "pen_only" ? "Nur Stift schreibt – Finger scrollt und zoomt" : "Finger darf schreiben"); fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pen_input: this.penInput }) }).catch(() => {}); },
       side: () => this.toggleSide(), undo: () => (this.delegate?.() || this).undo(), redo: () => (this.delegate?.() || this).redo(), delete: () => this.deleteSelection(), duplicate: () => this.duplicateSelection(), copy: () => { this.copySelection(); this.onStatus("Kopiert"); }, cut: () => { this.copySelection(); this.deleteSelection(); },
       zoomin: () => this.zoomTo(this.zoom * 1.2), zoomout: () => this.zoomTo(this.zoom / 1.2), fit: () => this.fitWidth(), fullscreen: () => this.toggleFullscreen(), prev: () => this.goToPage(this.currentPage - 1), next: () => this.goToPage(this.currentPage + 1),
-      ai: () => { const p = $(".ed-ai", this.c); p.hidden = !p.hidden; }, nobg: () => this.setTextStyle({ bg: "" }), nofill: () => { this.shapeFill = ""; this.applyToSelection({ fill: "" }); this.renderCtx(); },
+      ai: () => { const p = $(".ed-ai", this.c); p.hidden = !p.hidden; if (!p.hidden) this.community?.toggle(false); },
+      community: () => { if (this.community) this.community.toggle(); else this.onStatus("Community lädt …"); }, nobg: () => this.setTextStyle({ bg: "" }), nofill: () => { this.shapeFill = ""; this.applyToSelection({ fill: "" }); this.renderCtx(); },
       image: () => { const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.onchange = () => this.insertImageFile(inp.files[0]); inp.click(); },
       search: () => this.searchPop(btn), addpage: () => this.addPagePop(btn), export: () => this.exportPop(btn), more: () => this.morePop(btn), accessories: () => this.accessoriesPop(btn),
     };

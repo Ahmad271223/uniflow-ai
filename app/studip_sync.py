@@ -679,8 +679,14 @@ def run_sync(show_browser: bool = False) -> dict:
     db.init_db()
     if universities.current_key() == "hildesheim":
         from . import hildesheim
-        return hildesheim.run_sync(show_browser=show_browser)
-    return run_studip_sync(show_browser=show_browser)
+        res = hildesheim.run_sync(show_browser=show_browser)
+    else:
+        res = run_studip_sync(show_browser=show_browser)
+    if not config.is_hosted():
+        # Windows-App mit Studora-Konto: neue PDFs dem Dienst melden, damit ihre Loesungen sichtbar werden
+        from . import service_link
+        service_link.claim_quietly()
+    return res
 
 
 def run_studip_sync(show_browser: bool = False) -> dict:

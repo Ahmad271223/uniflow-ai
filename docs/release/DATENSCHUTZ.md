@@ -122,6 +122,10 @@ dieselbe PDF haben.
   außen nur als Anzahl), deine **Kommentare** (Text, Pseudonym, Seite und Stelle auf der Seite, Zeitpunkt) und die
   **Fingerabdrücke der PDFs**, die dein Gerät aus dem Hochschul-Abgleich meldet, damit du Lösungen zu genau diesen
   Dateien findest (keine Dateinamen, keine Inhalte).
+- **Windows-App:** Für die Community meldest du dich in der Windows-App mit deinem Studora-Konto an. Dein
+  Studora-Passwort geht dabei einmal verschlüsselt an den Dienst und wird nicht gespeichert; auf dem PC liegt nur ein
+  Sitzungsschlüssel, den du mit „Abmelden“ löschst. Die App schickt dem Dienst die Fingerabdrücke (SHA-256) der PDFs
+  aus deinem Hochschul-Abgleich, nie die Dateien. Lösungen werden auf deinem PC ver- und entschlüsselt.
 - **Auswertung durch den Betreiber:** Wir sehen intern, welche Konten die meisten Likes bekommen haben (Rangliste mit
   E-Mail-Adresse), um hilfreiche Beiträge zu würdigen und Missbrauch zu erkennen. Andere Nutzer sehen das nie.
 - **Moderation:** Ab drei Meldungen verschiedener Konten ist eine Lösung verborgen, bis wir entscheiden; wir

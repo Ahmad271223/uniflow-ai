@@ -123,7 +123,8 @@ def test_requires_hosted_plan_and_own_file(app, hosted, monkeypatch):
     assert (st, d["code"]) == (400, "fingerprint_invalid")
     monkeypatch.setattr(config, "MODE", "local")
     st, d = _j(asgi_call(hosted, "GET", "/api/community/info"))
-    assert (st, d["code"]) == (501, "not_hosted")
+    # Einzelplatz (Windows-App) leitet an den Dienst weiter, ohne verbundenes Studora-Konto: 409 (app/service_link.py)
+    assert (st, d["code"]) == (409, "not_linked")
 
 
 def test_publish_requires_a_confirmed_email(app, hosted):

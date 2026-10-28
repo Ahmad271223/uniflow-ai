@@ -89,6 +89,24 @@ def hosted_unavailable(method: str, path: str) -> str | None:
 
 
 @app.middleware("http")
+async def community_link(request, call_next):
+    """Einzelplatz (Windows-App): /api/community/... geht mit dem Token des verbundenen Studora-Kontos an den Dienst
+    (app/service_link.py). Im Dienst selbst beantwortet community_api diese Pfade."""
+    path = request.url.path
+    if config.is_hosted() or not path.startswith("/api/community/"):
+        return await call_next(request)
+    from starlette.concurrency import run_in_threadpool
+    from . import service_link
+    body = await request.body() if request.method not in ("GET", "HEAD", "DELETE") else None
+    try:
+        status, ctype, data = await run_in_threadpool(service_link.proxy, request.method, path[len("/api/community/"):],
+                                                      request.url.query, body, request.headers.get("content-type"))
+    except service_link.LinkError as e:
+        return JSONResponse({"detail": e.message, "code": e.code}, status_code=e.status)
+    return Response(content=data, status_code=status, media_type=ctype, headers={"Cache-Control": "no-store"})
+
+
+@app.middleware("http")
 async def hosted_guard(request, call_next):
     """Gehosteter Modus: jede /api-Anfrage braucht eine Sitzung (Bearer-Token oder Cookie), ausser den oeffentlichen
     Kontopfaden. Der angemeldete Nutzer bestimmt den Datenordner der Anfrage (config.set_user_context)."""
@@ -1121,6 +1139,59 @@ def api_university_login():
     if config.is_hosted():
         raise HTTPException(400, {"detail": "Im Dienst meldest du dich in der App auf dem Geraet an.", "code": "use_app_login"})
     return _run_bg("Anmeldung", unilogin.run)
+
+
+# ---------------------------------------------------------------- Studora-Konto der Windows-App (app/service_link.py)
+
+def _link_call(fn, *args):
+    from . import service_link
+    if config.is_hosted():
+        raise HTTPException(400, {"detail": "Im Dienst bist du schon mit deinem Konto angemeldet.", "code": "already_hosted"})
+    try:
+        return fn(*args)
+    except service_link.LinkError as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+
+
+@app.get("/api/studora/status")
+def api_studora_status(refresh: bool = True):
+    """Verbindung zum Studora-Konto: angemeldet, Konto (E-Mail, Tarif, Hochschule, bestaetigt), letzte Meldung der PDFs."""
+    from . import service_link
+    if config.is_hosted():
+        return {"linked": False, "hosted": True}
+    return _link_call(service_link.status_info, None, refresh)
+
+
+@app.post("/api/studora/login")
+def api_studora_login(body: dict = Body(...)):
+    """Anmelden am Dienst; das Passwort wird nur durchgereicht, gespeichert wird das Sitzungs-Token. Danach werden
+    die eigenen Hochschul-PDFs gemeldet (Fehler dabei verhindern die Anmeldung nicht)."""
+    from . import service_link
+    out = _link_call(service_link.login, body.get("url"), str(body.get("email") or ""), str(body.get("password") or ""))
+    try:
+        out["claims"] = service_link.claim_local_files()
+    except service_link.LinkError as e:
+        out["claims_error"] = {"code": e.code, "detail": e.message}
+    return out
+
+
+@app.post("/api/studora/logout")
+def api_studora_logout():
+    from . import service_link
+    return _link_call(service_link.logout)
+
+
+@app.post("/api/studora/claims")
+def api_studora_claims():
+    """Fingerabdruecke der eigenen Hochschul-PDFs jetzt an den Dienst melden."""
+    from . import service_link
+    return _link_call(service_link.claim_local_files)
+
+
+@app.post("/api/studora/verify-email/resend")
+def api_studora_resend():
+    from . import service_link
+    return _link_call(service_link.resend_verification)
 
 
 @app.get("/api/university/session")

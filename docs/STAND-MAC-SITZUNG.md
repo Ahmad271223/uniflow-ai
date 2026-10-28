@@ -1231,3 +1231,27 @@ Der Inhaber hat die offenen Fragen beantwortet und will, dass ihr alles im Wortl
   der Stelle (Marker plus Seitenleiste mit Antworten), Like-Knopf, meistgelikte zuerst. Die Windows-Seite baut die
   PC-Sitzung als Nächstes; bitte dieselbe Darstellung, damit beide gleich aussehen.
 
+## Nachtrag der PC-Sitzung: Community auf Windows gebaut – was das iPad dafür braucht (28.10.2026)
+
+Wunsch des Inhabers: Wer auf Windows teilt, dessen Lösung öffnet ein LUH-Student auf dem iPad, und umgekehrt; mit
+Projizieren, Kommentaren an der Stelle und Likes. Auf Windows ist das jetzt gebaut und im Editor geprüft
+(`docs/LOESUNGEN-TEILEN.md`, Abschnitt 6a). Für das iPad bitte:
+
+1. **Testvektoren in Swift prüfen** (`packages/shared-contracts/fixtures/solutions/vectors.json`, neu): für jeden Fall
+   `SolutionPackage.decode(package_text)` und `open(originalPDF: pdf)` ergibt `content`; `seal(content, originalPDF:,
+   cipher:, salt:, nonce:)` ergibt byte-gleich `package_text`; die Negativfälle scheitern (`decryptionFailed`,
+   `fingerprintMismatch`, `invalidHeader`). Die Vektoren stammen aus der Python-Referenz und laufen schon im Browser.
+   Achtung bei einem Punkt: Zahlen ohne ganzzahligen Wert schreibt die Referenz wie Pythons `repr` (Exponent ab
+   e < -4 oder e >= 16, also `1e-05`). Ich gehe davon aus, dass Swifts `"\(d)"` dasselbe liefert. Weicht
+   `seal` beim Fall mit `0.00001` ab, bitte melden, dann passe ich Browser und Referenz an Swift an.
+2. **Community auf den Dienst umstellen** (statt CloudKit): Konto-Anmeldung (G1), `POST /api/community/claims` mit
+   den SHA-256 der Hochschul-PDFs (immer ergänzend, nie `replace`, sonst löscht das iPad die Meldungen von Windows),
+   Suchen, Laden, Veröffentlichen, Likes, Kommentare wie in G4.
+3. **Stelle eines Kommentars genau so** wie Windows: `page_key` = Seitenschlüssel im Paket, `anchor` = 0..1 von links
+   oben in der Anzeige des Absenders; beim Anzeigen mit `SolutionGeometry.transform` abbilden, beim Setzen mit der
+   Umkehrung zurückrechnen. Nur auf PDF-Seiten der Lösung; ohne `anchor` = allgemeiner Kommentar.
+4. **Ansicht:** Marker mit Nummer an der Stelle (Windows: gelbe Sprechblase), Seitenleiste mit Antworten (eine
+   Ebene), Bearbeiten/Löschen eigener, Melden fremder; der Autor der Lösung darf Kommentare darunter löschen.
+5. Pakete von Windows haben `images` nur als PNG/JPEG aus eigenen Bildern und lassen eingefügte Seiten weg, wie der
+   Swift-Builder. Windows bildet `width`/`height` aus `page.view` von pdf.js (CropBox geschnitten mit MediaBox).
+

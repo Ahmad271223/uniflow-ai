@@ -74,9 +74,11 @@ den Inhaber eine Übersicht, wer die meisten Likes bekommen hat.
 gibt es keine gemeinsamen PDFs, also auch keine gemeinsamen Lösungen; die Regel „gleiche Hochschule“ bleibt.
 
 **Offen (nächste Schritte):**
-1. **Windows-App mit dem Studora-Konto verbinden** (PC-Sitzung): Anmelden am Dienst aus der Windows-App, Token nur
+1. **Gebaut am 28.10.:** Windows-App mit dem Studora-Konto verbinden (PC-Sitzung, `app/service_link.py`,
+   `docs/LOESUNGEN-TEILEN.md` 6a): Anmelden am Dienst aus der Windows-App, Token nur
    auf dem PC, Community-Aufrufe über den Dienst, Fingerabdrücke der eigenen PDFs melden.
-2. **Community im Editor (Web/Windows, PC-Sitzung):** Leiste „Lösungen anderer“ zur offenen PDF (meistgelikte zuerst),
+2. **Gebaut am 28.10.:** Community im Editor (Web/Windows, PC-Sitzung, `app/static/editor-community.js`, Testvektoren
+   `fixtures/solutions/vectors.json`): Leiste „Lösungen anderer“ zur offenen PDF (meistgelikte zuerst),
    Projizieren als eigene, schreibgeschützte Ebene über der eigenen PDF, Kommentar-Marker an der Stelle,
    Seitenleiste mit Antworten, Like-Knopf, „Lösung teilen“ mit Vorschau. Das Paket entsteht und öffnet sich mit
    WebCrypto (HKDF-SHA256 über die ganzen PDF-Bytes, Info `uniflow-solution/v1|<Lösungs-ID>`, AES-256-GCM, Kopf als
