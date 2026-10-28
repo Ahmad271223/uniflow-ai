@@ -117,6 +117,24 @@ def build() -> dict:
     sid = pkg["header"]["solutionId"]
     call("Laden", "GET", f"/api/community/solutions/{sid}", token=tl)
     call("Meine Veroeffentlichungen", "GET", "/api/community/mine", token=ta)
+    # Geraete melden ihre PDFs (Windows-App, iPad: Abgleich auf dem Geraet), Likes, Kommentare, Rangliste (28.10.2026)
+    call("Geraet meldet seine PDFs", "POST", "/api/community/claims", {"fingerprints": [FP, "kaputt"]}, token=tl)
+    call("Gefaellt mir", "POST", f"/api/community/solutions/{sid}/like", token=tl)
+    call("Gefaellt mir: eigene Loesung", "POST", f"/api/community/solutions/{sid}/like", token=ta)
+    st, c1 = call("Kommentar an einer Stelle der Seite", "POST", f"/api/community/solutions/{sid}/comments",
+                  {"text": "Hier fehlt die Begründung für Schritt 2.", "page_key": "p1", "anchor": {"x": 0.42, "y": 0.31}}, token=tl)
+    ids[c1["id"]] = "<comment-id>"
+    flows[-1]["response"]["id"] = "<comment-id>"
+    st, r1 = call("Antwort des Autors", "POST", f"/api/community/solutions/{sid}/comments", {"text": "Danke, ergänze ich.", "parent_id": c1["id"]}, token=ta)
+    ids[r1["id"]] = "<reply-id>"
+    flows[-1]["response"]["id"] = "<reply-id>"
+    call("Kommentieren ohne Plus", "POST", f"/api/community/solutions/{sid}/comments", {"text": "Danke"}, token=tf)
+    call("Kommentare lesen", "GET", f"/api/community/solutions/{sid}/comments", token=tl)
+    call("Kommentar bearbeiten", "PATCH", f"/api/community/comments/{c1['id']}", {"text": "Hier fehlt die Begründung."}, token=tl)
+    call("Suchen: mit Likes und Kommentaren", "GET", "/api/community/solutions?fingerprint=" + FP, token=tl)
+    call("Rangliste ohne Rolle", "GET", "/api/community/admin/leaderboard", token=tl)
+    call("Rangliste fuer den Inhaber", "GET", "/api/community/admin/leaderboard", token=tadm)
+    call("Kommentar loeschen", "DELETE", f"/api/community/comments/{r1['id']}", token=ta)
     call("Melden", "POST", f"/api/community/solutions/{sid}/report", {"reason": "foreignMaterial", "note": "Folien enthalten"}, token=tl)
     call("Melden: schon gemeldet", "POST", f"/api/community/solutions/{sid}/report", {"reason": "spam"}, token=tl)
     call("Melden: eigene Loesung", "POST", f"/api/community/solutions/{sid}/report", {"reason": "spam"}, token=ta)

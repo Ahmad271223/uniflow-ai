@@ -118,7 +118,12 @@ dieselbe PDF haben.
 - **Was der Dienst speichert:** das Paket mit deinen Notizen **verschlüsselt** (Schlüssel aus der Original-PDF,
   nur wer dieselbe PDF hat, kann es öffnen; der Dienst kann den Inhalt nicht lesen), den Fingerabdruck der PDF
   (SHA-256), Kopfdaten des Pakets, Status, Downloadzähler; Meldungen (Grund, Hinweis, meldendes Konto – intern),
-  deine Sperrliste; bei Verstößen Sperren von Konten.
+  deine Sperrliste; bei Verstößen Sperren von Konten. Dazu deine **Likes** (welches Konto welche Lösung mag, nach
+  außen nur als Anzahl), deine **Kommentare** (Text, Pseudonym, Seite und Stelle auf der Seite, Zeitpunkt) und die
+  **Fingerabdrücke der PDFs**, die dein Gerät aus dem Hochschul-Abgleich meldet, damit du Lösungen zu genau diesen
+  Dateien findest (keine Dateinamen, keine Inhalte).
+- **Auswertung durch den Betreiber:** Wir sehen intern, welche Konten die meisten Likes bekommen haben (Rangliste mit
+  E-Mail-Adresse), um hilfreiche Beiträge zu würdigen und Missbrauch zu erkennen. Andere Nutzer sehen das nie.
 - **Moderation:** Ab drei Meldungen verschiedener Konten ist eine Lösung verborgen, bis wir entscheiden; wir
   können Lösungen verbergen oder entfernen und Konten für die Community sperren. Zurückgezogene oder entfernte
   Lösungen werden sofort gelöscht; die Kopfdaten bleiben bis zur Löschung des Kontos (Nachvollziehbarkeit bei

@@ -68,6 +68,59 @@ def moderation(request: Request):
     return {"solutions": _run(community.moderation_queue, _user(request))}
 
 
+@router.post("/claims")
+def claims(request: Request, body: dict = Body(...)):
+    """Geraet meldet die Fingerabdruecke (SHA-256) seiner PDFs aus dem Hochschul-Abgleich: {fingerprints: [...],
+    replace?: bool}. Danach findet, laedt, liked und kommentiert das Konto Loesungen zu diesen PDFs."""
+    u = _user(request)
+    return _run(community.claim_files, u, config.university(), body.get("fingerprints") or [], bool(body.get("replace")))
+
+
+@router.post("/solutions/{solution_id}/like")
+def like(request: Request, solution_id: str):
+    """Gefaellt mir (nicht fuer die eigene Loesung; bestaetigte E-Mail)."""
+    return _run(community.like, _user(request), solution_id, True)
+
+
+@router.delete("/solutions/{solution_id}/like")
+def unlike(request: Request, solution_id: str):
+    return _run(community.like, _user(request), solution_id, False)
+
+
+@router.get("/solutions/{solution_id}/comments")
+def comments(request: Request, solution_id: str):
+    """Kommentare zur Loesung, Antworten direkt unter ihrem Kommentar; mit Seite und Stelle (anchor x/y 0..1)."""
+    return {"comments": _run(community.comments, _user(request), solution_id)}
+
+
+@router.post("/solutions/{solution_id}/comments", status_code=201)
+def add_comment(request: Request, solution_id: str, body: dict = Body(...)):
+    """{text, parent_id?, page_key?, anchor?: {x, y}}; ab Studora Plus, bestaetigte E-Mail."""
+    return _run(community.add_comment, _user(request), solution_id, body.get("text"), body.get("parent_id"),
+                body.get("page_key"), body.get("anchor"))
+
+
+@router.patch("/comments/{comment_id}")
+def edit_comment(request: Request, comment_id: str, body: dict = Body(...)):
+    return _run(community.edit_comment, _user(request), comment_id, body.get("text"))
+
+
+@router.delete("/comments/{comment_id}")
+def delete_comment(request: Request, comment_id: str):
+    return _run(community.delete_comment, _user(request), comment_id)
+
+
+@router.post("/comments/{comment_id}/report")
+def report_comment(request: Request, comment_id: str, body: dict = Body(...)):
+    return _run(community.report_comment, _user(request), comment_id, body.get("reason"))
+
+
+@router.get("/admin/leaderboard")
+def leaderboard(request: Request, limit: int = 50):
+    """Nur Inhaber (Rolle admin): Autoren nach erhaltenen Likes, mit Konto-E-Mail."""
+    return {"authors": _run(community.leaderboard, _user(request), limit)}
+
+
 @router.get("/solutions/{solution_id}")
 def download(request: Request, solution_id: str):
     """Das Paket (verschluesselt) samt Kopfdaten; zaehlt als Download, ausser bei der eigenen Loesung."""

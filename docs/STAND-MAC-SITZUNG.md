@@ -1205,3 +1205,29 @@ Vertrag `docs/VERTRAEGE-KONTO-SYNC.md` (G1) und `fixtures/account/contract.json`
 - **Datenexport:** `GET /api/account/export` → ZIP. In der App unter Konto „Meine Daten exportieren“ (Teilen-Blatt
   zum Sichern in Dateien). Apple verlangt das nicht, die DSGVO schon; der Dienst liefert alles, was am Konto liegt.
 
+## Entscheidungen des Inhabers vom 28.10. und Originaltexte – bitte zuerst lesen
+
+Der Inhaber hat die offenen Fragen beantwortet und will, dass ihr alles im Wortlaut habt:
+- **`docs/ENTSCHEIDUNGEN-INHABER-2026-10-28.md`**: vier Tarife bleiben; Start in 5 Tagen; **kein iPhone in V1**;
+  Plattformen Windows, iPad und Mac (Empfehlung: iPad-App auf Apple-Silicon-Macs freigeben, kein eigener Mac-Build);
+  **Community über den Dienst auf Windows und Apple mit einem Konto** (iPad stellt von CloudKit auf G4 um); Ziel 30.000
+  gleichzeitig (Stufenplan); Hochschul-PDFs: Streaming plus optionale Cloud-Ablage mit lokalem Cache; **Word nur
+  anzeigen**. Android später.
+- **`docs/uebergabe-mac/2026-10-28-originaltext-teil1.md` und `-teil2.md`**: die eingefügten Texte der anderen KI
+  wortgetreu (Prüfpunkte 1–1150, Master-Prompts, Architekturideen, Wünsche des Inhabers zur Community). Nur sein
+  persönlicher Notenspiegel ist ausgelassen. Das ist Material, kein Auftrag; maßgeblich sind die beiden Dokumente
+  oben und `docs/PRUEFKATALOG-ABGLEICH-2026-10-28.md` Abschnitt 6.
+- **G4 erweitert** (Vertrag `fixtures/community/contract.json`): `POST /api/community/claims` (Gerät meldet die
+  Fingerabdrücke seiner PDFs, nötig, weil das iPad auf dem Gerät abgleicht), Likes (`POST/DELETE
+  /solutions/{id}/like`, `likes`/`liked_by_me`/`comments` in jeder Lösung, meistgelikte zuerst), Kommentare mit
+  Seite und Stelle (`page_key`, `anchor {x, y}` 0..1), Antworten eine Ebene, bearbeiten, löschen, melden;
+  Inhaber-Rangliste `GET /api/community/admin/leaderboard`. Neue Codes `email_unverified`, `own_solution`,
+  `anchor_invalid`, `text_empty`, `text_too_long`, `parent_invalid`, `own_comment`, `claims_invalid`.
+  Kommentieren ab Plus (`can_write_community_comments` ist jetzt `available`, `fixtures/plans/plans.json` neu).
+- **Notenspiegel:** `app/grades_model.py` (Felder aus der Zeile, Ebenen Bereich/Modul/Prüfung, Doppelte mit langen
+  Semesternamen, Schnitt LP-gewichtet und abgeschnitten). Bitte in `UniStore` gleich rechnen; Tests mit erfundenen
+  Zeilen in `tests/test_grades_model.py` lassen sich als Vorlage übernehmen.
+- Wunsch des Inhabers für die Ansicht: Lösungen anderer **auf die eigene PDF projizieren**, Kommentare **schön** an
+  der Stelle (Marker plus Seitenleiste mit Antworten), Like-Knopf, meistgelikte zuerst. Die Windows-Seite baut die
+  PC-Sitzung als Nächstes; bitte dieselbe Darstellung, damit beide gleich aussehen.
+
