@@ -124,12 +124,15 @@ enum LocalTimetable {
     static let uniKinds: Set<String> = ["vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar"]
 
     /// `occurrences(conn, start, end, include_skipped)`: alle Termine im Zeitraum mit angewendeten Ausnahmen
-    /// (verschoben, ausgefallen, nicht besucht), dazu hierher verschobene Termine anderer Tage; nach Datum und Beginn.
+    /// (verschoben, ausgefallen, nicht besucht), dazu hierher verschobene Termine anderer Tage und die Einzeltermine aus
+    /// dem eigenen Stud.IP-Kalender (`studipDated`, `mergeDated`, PC-Stand e9a40d1/81eecf0); nach Datum und Beginn.
     /// Serien ohne eigenen Zeitraum fallen an Feiertagen und in der vorlesungsfreien Zeit aus (`exception`
-    /// "vorlesungsfrei" mit `note`); eine Bemerkung der Quelle (`event_notes`, LSF) steht als `note`.
+    /// "vorlesungsfrei" mit `note`); eine Bemerkung der Quelle (`event_notes`, LSF) steht als `note`. Jedes Vorkommen
+    /// traegt `source` (Quelle der Serie, bei Einzelterminen "studip-kalender").
     static func occurrences(_ c: SQLiteConnection, from start: Int, to end: Int, includeSkipped: Bool = true) throws -> [JSONValue] {
         let events = try c.rows("SELECT e.*, m.name AS module_name, m.color AS module_color FROM course_events e LEFT JOIN modules m ON m.id=e.module_id")
-        if events.isEmpty { return [] }
+        let dated = try studipDated(c, from: start, to: end)
+        if events.isEmpty { return dated.map(JSONValue.object).filter { includeSkipped || $0["status"] != "nicht_teilnahme" } }
         let ids = events.compactMap { $0["id"].flatMap(SQLiteValue.init(json:)) }
         // je Termin und Datum die Ausnahme; bei mehreren gilt wie im dict von Python die letzte
         var exc: [JSONValue: [String: [String: JSONValue]]] = [:]
@@ -161,7 +164,7 @@ enum LocalTimetable {
                     "color": or(e["color"], or(e["module_color"], "#4f5bd5")), "room": e["room"] ?? .null,
                     "lecturer": e["lecturer"] ?? .null, "course_id": e["course_id"] ?? .null,
                     "status": LocalModules.truthy(e["attend"]) ? "teilnahme" : "nicht_teilnahme", "permanent_skip": .bool(!LocalModules.truthy(e["attend"])),
-                    "exception": .null,
+                    "exception": .null, "source": e["source"] ?? .null,
                 ]
                 if LocalModules.truthy(note) { occ["note"] = note }          // nur mit Bemerkung (Antwortform sonst unveraendert)
                 if let x {
@@ -205,13 +208,109 @@ enum LocalTimetable {
                     "module_id": x["module_id"] ?? .null, "module_name": m.map { $0["name"] ?? .null } ?? .null,
                     "color": or(x["color"], or(m?["color"], "#4f5bd5")), "room": x["room"] ?? .null, "lecturer": x["lecturer"] ?? .null,
                     "course_id": x["course_id"] ?? .null, "status": "teilnahme", "permanent_skip": false, "exception": "moved_here",
-                    "moved_from": x["date"] ?? .null,
+                    "moved_from": x["date"] ?? .null, "source": x["source"] ?? .null,
                 ])
             }
             d += 1
         }
-        // out.sort(key=lambda o: (o["date"], o["start"])), stabil
-        return try stableSorted(out) { a, b in
+        let merged = try mergeDated(c, out.compactMap(\.object), dated)
+        return includeSkipped ? merged : merged.filter { $0["status"] != "nicht_teilnahme" }
+    }
+
+    /// `studip_dated(conn, start, end)`: die Termine, die Stud.IP dem Nutzer selbst in der Woche zeigt. Alle
+    /// Einzeltermine aktiver Kurse (`studip_events`, ohne Art "sonstiges") mit Beginn im Zeitraum; ab dem Tag nach dem
+    /// Abruf des eigenen Kalenders nur die, die darin stehen (eigene Gruppen, Kurse mit Kalenderbindung), davor und ohne
+    /// Kalender alle. Vorkommen ohne Serie (`event_id` null, `studip_id` gesetzt, `source` "studip-kalender").
+    /// Derselbe Termin eines Kurses (Kurs, Tag, Beginn, Ende) in mehreren Raeumen ist ein Vorkommen mit allen Raeumen
+    /// (" · ", Reihenfolge des ersten Auftretens, ohne Doppelte; ba02e47).
+    static func studipDated(_ c: SQLiteConnection, from start: Int, to end: Int) throws -> [[String: JSONValue]] {
+        let rows = try c.rows("""
+            SELECT s.*, c.title AS course_title, c.module_id, c.kind AS course_kind, m.name AS module_name, m.color AS module_color
+            FROM studip_events s JOIN courses c ON c.id=s.course_id LEFT JOIN modules m ON m.id=c.module_id
+            WHERE c.active=1 AND c.kind != 'sonstiges' AND s.start >= ? AND s.start < ? ORDER BY s.start
+            """, [.text(iso(start)), .text(iso(end + 1))])
+        let cal = try StudIPCalendar.calendar(c)
+        let since = cal.map { iso($0.day + 1) }
+        var out: [[String: JSONValue]] = []
+        var at: [JSONValue: Int] = [:]
+        for r in rows {
+            guard let st = LocalTimetableImport.isoDateTime(r["start"]), let en = LocalTimetableImport.isoDateTime(r["end"]) else { continue }
+            let di = iso(st.day)
+            // andere Gruppe, nicht im eigenen Kalender (Vergleich der ISO-Daten als Text wie in Python)
+            if let since, let cal, !di.unicodeScalars.lexicographicallyPrecedes(since.unicodeScalars),
+               !(r["id"]?.string.map(cal.ids.contains) ?? false) { continue }
+            let title = r["course_title"] ?? .null
+            let o: [String: JSONValue] = [
+                "event_id": .null, "studip_id": r["id"] ?? .null, "date": .string(di), "start": .string(LocalFreeWindows.mh(st.minutes)),
+                "end": .string(LocalFreeWindows.mh(en.minutes)), "title": title,
+                "kind": .string(r["course_kind"] == "uebung" ? "uebung" : UniRules.eventKind(title.string ?? "")),
+                "module_id": r["module_id"] ?? .null, "module_name": r["module_name"] ?? .null, "color": or(r["module_color"], "#4f5bd5"),
+                "room": or(r["room"], ""), "lecturer": .null, "course_id": r["course_id"] ?? .null, "status": "teilnahme",
+                "permanent_skip": false, "exception": .null, "source": "studip-kalender",
+            ]
+            let k: JSONValue = [o["course_id"] ?? .null, o["date"] ?? .null, o["start"] ?? .null, o["end"] ?? .null]
+            guard let i = at[k] else {
+                at[k] = out.count
+                out.append(o)
+                continue
+            }
+            // rooms = [x for x in merged[k]["room"].split(" · ") if x]; neuer Raum dazu, wenn noch nicht dabei
+            let rooms = text(out[i]["room"]).components(separatedBy: " · ").filter { !$0.isEmpty }
+            if let room = o["room"]?.string, !room.isEmpty, !rooms.contains(where: { $0.unicodeScalars.elementsEqual(room.unicodeScalars) }) {
+                out[i]["room"] = .string((rooms + [room]).joined(separator: " · "))
+            }
+        }
+        return out
+    }
+
+    /// `_same_slot(o, d)`: Serien-Vorkommen und Stud.IP-Einzeltermin meinen denselben Termin: gleicher Tag und Beginn
+    /// und dazu derselbe Kurs, dasselbe Modul mit gleichem Ende (Serien haengen oft noch an der Kurs-ID eines
+    /// frueheren Semesters) oder derselbe Titel (ohne Leerraum aussen, klein)
+    static func sameSlot(_ o: [String: JSONValue], _ d: [String: JSONValue]) -> Bool {
+        guard o["date"] == d["date"], o["start"] == d["start"] else { return false }
+        if (o["course_id"] ?? .null) == (d["course_id"] ?? .null) { return true }
+        if LocalModules.truthy(o["module_id"]), o["module_id"] == d["module_id"], o["end"] == d["end"] { return true }
+        func norm(_ v: JSONValue?) -> String { PyText.lower(PyText.strip(LocalModules.truthy(v) ? (v?.string ?? text(v)) : "")) }
+        return norm(o["title"]).unicodeScalars.elementsEqual(norm(d["title"]).unicodeScalars)
+    }
+
+    /// `_merge_dated(conn, out, dated)`: Serien-Vorkommen und Stud.IP-Einzeltermine zusammenfuehren. Derselbe Termin
+    /// (`sameSlot`): die Serie bleibt (Teilnahme, Ausnahmen, Notizen) und bekommt `studip_id` und, wenn leer, den Raum;
+    /// jeder Einzeltermin hoechstens einmal, in der Reihenfolge der Serien. Automatisch uebernommene Serien (Quelle
+    /// genau "studip") eines Kurses, von dem Einzeltermine bekannt sind, zeigen nur, was Stud.IP kennt (ausser hierher
+    /// verschoben): ab dem Tag nach dem Kalenderabruf faellt alles eines Kurses ohne eigenen Kalendertermin weg (andere
+    /// Gruppe, frueherer Jahrgang); ohne passenden Einzeltermin bleibt nur eine gespeicherte Ausnahme sichtbar (z. B.
+    /// "Ausfall laut Stud.IP"), sonst faellt das Vorkommen weg, auch bei "vorlesungsfrei". Von Hand bestaetigte
+    /// ("studip-manual"), eigene und andere Serien bleiben immer. Danach die uebrigen Einzeltermine, alles stabil nach
+    /// Datum und Beginn sortiert.
+    static func mergeDated(_ c: SQLiteConnection, _ out: [[String: JSONValue]], _ dated: [[String: JSONValue]]) throws -> [JSONValue] {
+        let known = Set(try c.rows("SELECT course_id, MIN(start) AS lo, MAX(start) AS hi FROM studip_events GROUP BY course_id").map { $0["course_id"] ?? .null })
+        let cal = try StudIPCalendar.calendar(c)
+        let since = cal.map { iso($0.day + 1) }
+        let mine: Set<JSONValue> = cal == nil ? [] : Set(try c.rows(
+            "SELECT DISTINCT course_id FROM studip_events WHERE id IN (SELECT id FROM studip_calendar_dates)").map { $0["course_id"] ?? .null })
+        var res: [JSONValue] = []
+        var taken = Set<Int>()
+        for var o in out {
+            let course = o["course_id"] ?? .null
+            if let i = dated.indices.first(where: { !taken.contains($0) && sameSlot(o, dated[$0]) }) {
+                taken.insert(i)
+                o["studip_id"] = dated[i]["studip_id"] ?? .null
+                if !LocalModules.truthy(o["room"]), LocalModules.truthy(dated[i]["room"]) { o["room"] = dated[i]["room"] }
+                res.append(.object(o))
+                continue
+            }
+            if o["source"] == "studip", known.contains(course), o["exception"] != "moved_here" {
+                if let since, let day = o["date"]?.string, !day.unicodeScalars.lexicographicallyPrecedes(since.unicodeScalars),
+                   !mine.contains(course) { continue }                 // Kurs ohne eigenen Kalendertermin
+                let x = o["exception"] ?? .null
+                if x == .null || x == "vorlesungsfrei" { continue }   // Stud.IP kennt an diesem Tag keinen Termin
+            }
+            res.append(.object(o))
+        }
+        res += dated.indices.filter { !taken.contains($0) }.map { .object(dated[$0]) }
+        // res.sort(key=lambda o: (o["date"], o["start"])), stabil
+        return try stableSorted(res) { a, b in
             let da = a["date"]?.string ?? "", db = b["date"]?.string ?? ""
             if da != db { return da.unicodeScalars.lexicographicallyPrecedes(db.unicodeScalars) }
             guard let sa = a["start"]?.string, let sb = b["start"]?.string else {

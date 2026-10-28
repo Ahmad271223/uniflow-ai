@@ -258,7 +258,7 @@ private struct ModulesTab: View {
         UFCard {
             UFCardHead(withTests ? "Module & Wochentests" : "Module") { UFBadge("\(active.count) aktiv", tone: .ok) }
             if withTests {
-                (Text("Ein Modul fasst mehrere Stud.IP-Kurse zusammen (Vorlesung, Hörsaalübung, Gruppenübung …). Pro Modul und Lehrwoche entsteht höchstens ")
+                (Text("Ein Modul fasst mehrere Stud.IP-Kurse zusammen (Vorlesung, Hörsaalübung, Gruppenübung …). \(Self.olderSemesters) Pro Modul und Lehrwoche entsteht höchstens ")
                  + Text("ein gemeinsamer Wochentest").font(.uf(13.12, 700))
                  + Text(", und nur wenn in der Woche neue Inhalte vorliegen."))
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
@@ -278,7 +278,7 @@ private struct ModulesTab: View {
                 }
                 .padding(.vertical, 9.6 - 5.6)
             } else {
-                Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet UniFlow neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung.")
+                Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet UniFlow neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung. \(Self.olderSemesters)")
                     .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
             }
 
@@ -349,7 +349,7 @@ private struct ModulesTab: View {
             .contentShape(Rectangle())
             .onTapGesture { openMod = open ? nil : id }
             if open {
-                CoursesTable(courses: cs, mods: d.mods, setKind: setKind, assign: assign)
+                CoursesTable(courses: cs, mods: d.mods, setKind: setKind, assign: assign, setActive: setActive)
                     .padding(.top, 8)
                     .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
                     .padding(.top, 9.6)
@@ -371,6 +371,16 @@ private struct ModulesTab: View {
         } else {
             Task { await api.put(["test_minutes": .number(Double(v))], toast: "Testdauer gespeichert", reload: true) }
         }
+    }
+
+    /// Hinweis wie in der Web-App (c0721da): Semesterregel `Semesters`, Schalter je Kurs in der Kurstabelle
+    static let olderSemesters = "Kurse aus früheren Semestern erkennt die App am Semester in Stud.IP und plant sie nicht ein; ihre Unterlagen bleiben in der Bibliothek."
+
+    /// Kurs eingeplant ja/nein: PATCH active, das lokale Backend merkt sich die eigene Entscheidung (active_custom)
+    private func setActive(_ c: JSONValue, _ on: Bool) {
+        guard let id = c.s("id") else { return }
+        Task { _ = await api.send("/api/courses/\(id)", method: "PATCH", body: ["active": .number(on ? 1 : 0)],
+                                  toast: on ? "Kurs eingeplant" : "Kurs nicht mehr eingeplant") }
     }
 
     private func setKind(_ c: JSONValue, _ kind: String) {
@@ -410,18 +420,25 @@ private struct ActiveToggle: View {
     }
 }
 
-/// table.tbl: Stud.IP-Kurs / Art / Modul mit Auswahlfeldern
+/// table.tbl: Stud.IP-Kurs (mit Haken "eingeplant") / Semester / Art / Modul mit Auswahlfeldern; Kurse frueherer
+/// Semester (active=0) grau wie `tr.muted` in der Web-App
 private struct CoursesTable: View {
     let courses: [JSONValue]
     let mods: [JSONValue]
     let setKind: (JSONValue, String) -> Void
     let assign: (JSONValue, Int) -> Void
+    let setActive: (JSONValue, Bool) -> Void
     private static let kinds = ["vorlesung", "uebung", "hoersaaluebung", "gruppenuebung", "tutorium", "labor", "seminar", "sonstiges"]
+
+    /// Hinweis zum Haken wie das title-Attribut der Web-App
+    static func activeHelp(_ c: JSONValue) -> String {
+        c.i("active") == 0 ? "Früheres Semester – nicht eingeplant. Einschalten, wenn du den Kurs doch brauchst." : "Eingeplant"
+    }
 
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
             GridRow {
-                ForEach(["Stud.IP-Kurs", "Art", "Modul"], id: \.self) { h in
+                ForEach(["Stud.IP-Kurs", "Semester", "Art", "Modul"], id: \.self) { h in
                     Text(h.uppercased()).ufFont(12.16, 600, em: 0.04).foregroundStyle(UF.muted)
                         .padding(.vertical, 7.2).padding(.horizontal, 8)
                         .frame(maxWidth: h == "Stud.IP-Kurs" ? .infinity : nil, alignment: .leading)
@@ -435,7 +452,20 @@ private struct CoursesTable: View {
             ForEach(courses.indices, id: \.self) { i in
                 let c = courses[i]
                 GridRow(alignment: .center) {
-                    Text(c.s("title") ?? "").ufFont(13.76).foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                    let on = c.i("active") != 0
+                    Button { setActive(c, !on) } label: {
+                        HStack(spacing: 6.4) {
+                            Image(systemName: on ? "checkmark.square.fill" : "square").foregroundStyle(on ? UF.accent : UF.muted)
+                            Text(c.s("title") ?? "").ufFont(13.76).foregroundStyle(on ? UF.text : UF.muted).multilineTextAlignment(.leading)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(c.s("title") ?? "")
+                    .accessibilityValue(on ? "eingeplant" : "nicht eingeplant")
+                    .accessibilityHint(Self.activeHelp(c))
+                    .help(Self.activeHelp(c))
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                    Text(c.s("semester") ?? "").ufFont(12.16).foregroundStyle(UF.muted).padding(8)
                     UFSelect(options: Self.kinds.map { ($0, UFKind.text($0)) },
                              selection: Binding(get: { c.s("kind") ?? "sonstiges" }, set: { setKind(c, $0) }), cell: true).padding(8)
                     UFSelect(options: mods.compactMap { m in m.i("id").map { ($0, UFFmt.shortName(m.s("name"))) } } + [(0, "– kein Modul –")],

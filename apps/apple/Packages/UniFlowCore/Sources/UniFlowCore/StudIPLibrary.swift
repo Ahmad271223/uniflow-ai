@@ -39,7 +39,8 @@ public enum StudIPLibrary {
 
     /// Kurs wie in `courses()` von app/studip_sync.py: Semester als Text, ohne Semester ""
     public static func courseRow(_ c: StudIPCourse) -> UniStore.CourseRow {
-        UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semesterTitle ?? "")
+        UniStore.CourseRow(id: c.id, title: c.title, number: c.number, semester: c.semesterTitle ?? "", semesterEnd: c.semesterEnd,
+                           semesterEndsAt: c.semesterEndsAt)
     }
 
     /// Datei mit Aenderungszeit als Unix-Zeit, Download-Adresse der JSON:API und Ordnerpfad im Kurs ("" = Wurzelordner,
@@ -51,9 +52,10 @@ public enum StudIPLibrary {
 
     // MARK: Schreiben
 
-    /// Kurse eines Durchgangs wie `upsert_course` (`UniStore.upsertCourse`)
-    public static func storeCourses(_ c: SQLiteConnection, _ courses: [StudIPCourse], startedAt: String) throws {
-        for course in courses { try UniStore.upsertCourse(c, courseRow(course), now: startedAt) }
+    /// Kurse eines Durchgangs wie `upsert_course` (`UniStore.upsertCourse`, mit Semesterregel); `today` wie
+    /// `study.today()`, ohne Angabe der Tag von `startedAt`
+    public static func storeCourses(_ c: SQLiteConnection, _ courses: [StudIPCourse], startedAt: String, today: String? = nil) throws {
+        for course in courses { try UniStore.upsertCourse(c, courseRow(course), now: startedAt, today: today) }
     }
 
     /// Vollstaendige Dateiliste eines Kurses (`UniStore.storeFiles`). Rueckgabe: Dateien, die wie in Python geladen

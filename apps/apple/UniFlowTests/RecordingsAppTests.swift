@@ -86,7 +86,7 @@ final class RecordingsAppTests: XCTestCase {
     private func fakeStudIP() throws -> FakeStudIP {
         let t = FakeStudIP()
         t.json("/jsonapi.php/v1/users/me", #"{"data":{"id":"u1","type":"users"}}"#)
-        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester", #"""
+        t.json("/jsonapi.php/v1/users/u1/courses?page[limit]=100&include=start-semester,end-semester", #"""
             {"data":[{"id":"c-ana","type":"courses","attributes":{"title":"Testanalysis I"},
                       "relationships":{"start-semester":{"data":{"type":"semesters","id":"s1"}}}},
                      {"id":"c-prog","type":"courses","attributes":{"title":"Testprogrammierung"},

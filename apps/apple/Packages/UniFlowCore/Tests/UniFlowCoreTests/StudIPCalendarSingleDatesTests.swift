@@ -47,7 +47,7 @@ final class StudIPCalendarSingleDatesTests: XCTestCase {
         let api = "application/vnd.api+json"
         var r: [String: HTTPReply] = [
             "/jsonapi.php/v1/users/u-test/schedule": HTTPReply(status: 200, contentType: api, body: JSONValue.object(schedule).serialized()),
-            "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester": HTTPReply(status: 200, contentType: api, body: try kalender("users-courses.json")),
+            "/jsonapi.php/v1/users/u-test/courses?page[limit]=100&include=start-semester,end-semester": HTTPReply(status: 200, contentType: api, body: try kalender("users-courses.json")),
         ]
         for (id, _) in courseTitles {
             r["/jsonapi.php/v1/courses/\(id)/events?page[limit]=200"] = HTTPReply(status: 200, contentType: api, body: try kalender("course-events-\(id).json"))

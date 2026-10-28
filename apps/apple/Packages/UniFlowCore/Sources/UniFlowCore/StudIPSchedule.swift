@@ -638,10 +638,11 @@ enum BerlinClock {
 
 extension StudIPClient {
     /// `data`-Listen von users/{id}/schedule (Kurszeiten und eigene Eintraege) und users/{id}/courses (mit
-    /// course-type). Nur lesend, zwei Abrufe plus Folgeseiten.
+    /// course-type). Nur lesend, zwei Abrufe plus Folgeseiten. Die Kursliste mit derselben Anfrage wie
+    /// `StudIPClient.courses` (Start- und Endsemester, seit c0721da).
     public func scheduleResources(userID: String) async throws -> (schedule: [JSONValue], courses: [JSONValue]) {
         let (schedule, _) = try await list("jsonapi.php/v1/users/\(userID)/schedule")
-        let (courses, _) = try await list("jsonapi.php/v1/users/\(userID)/courses?page[limit]=100&include=start-semester")
+        let (courses, _) = try await list("jsonapi.php/v1/users/\(userID)/courses?page[limit]=100&include=start-semester,end-semester")
         return (schedule, courses)
     }
 }

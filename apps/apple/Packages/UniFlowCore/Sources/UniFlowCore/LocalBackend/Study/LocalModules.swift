@@ -37,7 +37,9 @@ public enum LocalModules {
     // MARK: ensure_modules
 
     /// `ensure_modules(conn)`: je Fach (`courses.subject`) ein Modul, Kurse ohne Modul werden zugeordnet (Art
-    /// "sonstiges" und Kurse ohne Fach nicht). Gleiche Reihenfolge, Farben und Sortierung wie Python. Schreibt.
+    /// "sonstiges" und Kurse ohne Fach nicht). Gleiche Reihenfolge, Farben und Sortierung wie Python. Seit c0721da nur
+    /// fuer aktive Kurse (alte Semester bekommen kein Modul), danach gehen Module ohne aktiven Kurs aus
+    /// (`Semesters.deactivateStaleModules`). Schreibt.
     public static func ensureModules(_ c: SQLiteConnection, clock: UniFlowClock) throws {
         // Schluessel wie ein Python-dict mit str: Codepunkte (Swift-Strings waeren kanonisch aequivalent gleich, also
         // "ü" und "u" + U+0308 ein Fach)
@@ -47,7 +49,7 @@ public enum LocalModules {
             existing[Array(name.unicodeScalars)] = r["id"] ?? .null      // letzter gewinnt
         }
         var n = existing.count                                             // len(existing)
-        for course in try c.query("SELECT id, subject, kind, semester FROM courses WHERE module_id IS NULL") {
+        for course in try c.query("SELECT id, subject, kind, semester FROM courses WHERE module_id IS NULL AND COALESCE(active, 1)=1") {
             if course["kind"]?.string == "sonstiges" || !truthy(course["subject"]) { continue }
             let subject = course["subject"] ?? .null
             let name = Array((subject.string ?? "").unicodeScalars)
@@ -59,6 +61,7 @@ public enum LocalModules {
             }
             try c.execute("UPDATE courses SET module_id=? WHERE id=?", [existing[name] ?? .null, course["id"] ?? .null])
         }
+        try Semesters.deactivateStaleModules(c)
     }
 
     // MARK: Dateien eines Moduls

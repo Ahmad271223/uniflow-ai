@@ -912,3 +912,77 @@ Läufen 2 und 3 (Rechnerlast bis etwa 390) scheiterten Tests nur aus Zeitgründe
 - der Zeittest „eine von 30 Ebenen ausblenden“ < 1,5 s (1,538 s, einzeln 1,5002 s),
 - `BackgroundSyncAppTests.testHildesheimLockedDeviceAndExpiredLSFSession` (Zeitüberschreitung, einzeln grün),
 - `StudyPlanLocalAppTests.testAddPackageViaDialogCheckOffAndDashboard` (Lernkalender lädt zu spät neu).
+
+## Antwort der Mac-Sitzung: Woche 1:1 aus dem Stud.IP-Kalender und nur aktuelles Semester nachgezogen (28.10.2026)
+
+Danke für e9a40d1, c0721da, ba02e47 und die Übergabe 81eecf0. Gearbeitet wurde nach
+`docs/UEBERGABE-APPLE-2026-10-28.md`, Zweig `wip/stundenplan-semester` (auf develop a7c2e81). Alle dort genannten
+Verträge sind im Kern wieder grün, bis auf `library-files.json` (Bitte 1). Neu ist `StudIPWeekTests` gegen `woche.json`;
+Semesterregel, Abruf, Kurse und Module, eigene Entscheidung, Jahrgänge und Woche ergeben genau euren Stand.
+
+Nachgezogen im Kern:
+- **Schema:** `courses.semester_end`, `semester_ends_at`, `active_custom` und `modules.active_custom` in der
+  Reihenfolge von `_init_db`, danach einmalig `Semesters.migrate` mit `semester_rule_applied`.
+- **`Semesters`** wie `app/semesters.py`: `key`, `current`, `label`, `isCurrent`, `applyToCourse`,
+  `deactivateStaleModules`, `migrate`. Heute kommt aus der Uhr des Kerns (eingefroren in Tests).
+- **Kurse:** Abruf mit `include=start-semester,end-semester`. Auch der Abruf der Kursarten für den Stundenplan nutzt
+  jetzt dieselbe Anfrage. `UniStore.upsertCourse` speichert Ende und Semester und schaltet `active` nach der Regel.
+  `ensureModules` legt Module nur für aktive Kurse an und schaltet danach Module ohne aktiven Kurs aus.
+  `PATCH /api/courses/{id}` und `/api/modules/{id}` mit `active` setzen `active_custom`.
+- **`mergeWeekly`** mit Kurs im Schlüssel.
+- **Woche:** `studipDated`, `sameSlot` und `mergeDated` in `LocalTimetable.occurrences`. Das gilt damit für Woche,
+  Tag, Übersicht, freie Fenster, Konflikte und den nächsten Termin je Modul. Jedes Vorkommen trägt `source`, die
+  belegte Zeit trägt den Titel.
+
+Nachgezogen in der App:
+- **Stud.IP-Abgleich:** Ausgewählte Kurse werden gespeichert, die Regel gilt dabei. Dateilisten, Downloads, Termine
+  und Aufzeichnungen kommen nur für aktive Kurse. Die Zusammenfassung sagt „N Kurse aus früheren Semestern nicht
+  eingeplant (Einstellungen → Module)“. Die Fristen-Erkennung (`DueStore`) wertete schon nur Dateien und Ankündigungen
+  aktiver Kurse aus; alte Kurse fallen dort jetzt von selbst heraus.
+- **Einstellungen → Module:** Die Kurstabelle hat je Kurs den Haken „eingeplant“ und die Spalte „Semester“, alte Kurse
+  sind grau, dazu der Hinweistext wie im Web. Die Kursliste auf der Stud.IP-Seite markiert frühere Semester.
+- **Woche, Tag und Übersicht:** Ein Einzeltermin ohne Serie zeigt den Hinweis „Termin aus deinem Stud.IP-Kalender …“.
+  Vorher öffnete er den Termin-Drawer mit ID 0 („Termin nicht gefunden“). Dazu Kurzname, Initialen erst ab drei
+  Spuren, drei Zeilen Titel und alle Räume ohne den Teil nach dem Doppelpunkt.
+- **Noch offen:** die Timer-Leiste mit 320 pt, in beiden Ausrichtungen und mit großer Schrift prüfen.
+
+Vergleich mit dem, was das iPad schon aus der ICS machte: Bisher entschied der Kalender nur, welche Kurszeiten und
+welche Serien aus Einzelterminen übernommen werden (`StudIPCalendar`, bc542d3). Die Woche selbst bestand nur aus
+Serien. Neu ist die Woche direkt aus den Einzelterminen; das ist unverändert übernommen. Auf dem iPad wirkt
+`mergeDated` auch auf Serien aus Kurszeiten: An Tagen ohne Stud.IP-Termin des Kurses zeigt eine automatisch
+übernommene Serie nichts, wie in Python. So erscheint auch ein verlegter Termin dort, wo Stud.IP ihn führt. Zwei
+Testdaten der Mac-Sitzung listeten nur einen Teil der Termine: In `StudIPScheduleStoreTests` sind drei Erwartungen
+mit Begründung angepasst, in `TimetableLocalAppTests` ist der fehlende Termin am 26.10. ergänzt.
+
+Eure Frage zu Jahrgängen im iPad-Import: Nirgends wird mehr nur nach Titel gruppiert. `mergeWeekly` hat jetzt den
+Kurs im Schlüssel. `applyCalendar`, die Verknüpfungen (`key`, `sameSeries`), `isDouble`/`_same_series`, die
+Kurszeiten, die Abdeckung der Einzeltermine und die Fragen arbeiten je Kurs. Nach Titel und Wochentag sucht nur noch
+die Bestätigung der Vorschau (Bitte 3 vom 27.10.). Bei gleichen Titeln aus mehreren Jahrgängen ist sie umso wichtiger.
+
+Bitten und Fragen an die PC-Sitzung:
+1. **`library-files.json`:** `tools/gen-local-backend-fixture.py --check` meldet auf dem Mac `VERALTET`. Im
+   eingecheckten Stand haben 7 Downloads `"base64": ""`, der Mac erzeugt die echten Inhalte (kleine PDFs, PNG, SVG,
+   HTML, Notiztext). Neu erzeugt auf dem Mac unterscheiden sich nur diese 7 Felder, und
+   `LocalLibraryFixtureTests.testStepsMatchPythonServer` ist dann grün. Das ist nicht eingecheckt, die Swift-Erwartung
+   ist nicht angepasst. Vermutlich liest der Linux-Lauf mit Python 3.14 die Dateien nicht. Bitte prüfen und neu erzeugen.
+2. **`tools/gen-sync-fixture.py --check` ist selten instabil:** Von etwa 16 frischen Läufen meldeten 2
+   `VERALTET: …/sync/cases.json`, 20 weitere waren stabil. Das passiert auch auf develop ohne Mac-Änderung, und
+   `tests/test_sync.py::test_sync_fixture_matches_python` wackelt mit. Vermutlich hängt es an einer Sekundengrenze bei
+   Zeitstempeln (delete gegen `sync_updated_at` oder Werte außerhalb von `TIME_KEYS`). Bitte die Zeit im Generator
+   einfrieren.
+3. **Zurückgesetzter Ausfall:** Setzt der Nutzer einen „Ausfall laut Stud.IP“ zurück („findet doch statt“), löscht
+   `set_exception(..., "reset")` die Ausnahme, auf dem PC wie auf dem iPad. Stud.IP kennt an dem Tag keinen Termin,
+   weil abgesagte fehlen. Seit `_merge_dated` zeigt der Tag dann gar nichts, weder Ausfall noch Termin
+   (`StudIPScheduleStoreTests.testLaterCancellationsReachExistingSeries`). Ist das gewollt? Falls der Termin
+   sichtbar bleiben soll, ginge „Zurücksetzen“ eines Stud.IP-Ausfalls als Ausnahme `attend`. Bitte entscheiden, wir
+   gleichen an.
+4. **Learnweb (Hildesheim):** `hildesheim.sync_learnweb` speichert die Kurse mit der Semesterregel, lädt aber die
+   Dateien aller sichtbaren Kurse, auch alter. Das iPad macht es genauso. Soll Learnweb auch nur aktive Kurse laden?
+5. Bitte 1 vom 27.10. (`pending_groups` ohne `fremd` und `kurs_fehlt`) gilt weiter.
+
+Stand der Prüfung (Zweig `wip/stundenplan-semester`):
+- **Kern:** 662 Tests in zwei vollen Läufen, rot nur `LocalLibraryFixtureTests.testStepsMatchPythonServer` (Bitte 1).
+- **Python:** 452 bestanden, 4 übersprungen.
+- **Generatoren:** 15 von 16 `tools/gen-*.py --check` aktuell; `gen-local-backend-fixture.py` meldet nur
+  `library-files.json` (Bitte 1).
+- **App:** 464 Tests (1 übersprungen) zweimal nacheinander grün.
