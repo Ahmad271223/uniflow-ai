@@ -214,7 +214,7 @@
   "can_write_community_comments": {
    "from": "plus",
    "label": "Community-Kommentare schreiben",
-   "status": "coming_soon"
+   "status": "available"
   },
   "can_share_solutions": {
    "from": "plus",

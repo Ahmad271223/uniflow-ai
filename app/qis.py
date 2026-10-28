@@ -58,7 +58,10 @@ def _doc_dir():
 def _profile_dir(prof: dict):
     return config.data_dir() / prof["profile_dir"].name if config.current_user_id() else prof["profile_dir"]
 GRADE_HEADERS = {"bezeichnung": "text", "leistung": "text", "prüfungsnr": "pruefungsnr", "nr": "pruefungsnr", "prüfungstext": "text", "text": "text", "semester": "semester", "note": "note",
-                 "status": "status", "credits": "credits", "ects": "credits", "bonus": "credits", "versuch": "versuch", "vermerk": "status", "datum": "datum", "prüfungsdatum": "datum"}
+                 "status": "status", "credits": "credits", "ects": "credits", "bonus": "credits", "versuch": "versuch", "vermerk": "status", "datum": "datum", "prüfungsdatum": "datum",
+                 # LUH-Kopfzeile (28.10.2026: Nummer und LP wurden nicht erkannt; app/grades_model.py liest sie sonst aus der Zeile)
+                 "prfgnr": "pruefungsnr", "pnr": "pruefungsnr", "lp": "credits", "leistungspunkte": "credits", "cp": "credits",
+                 "kreditpunkte": "credits", "punkte": "credits"}
 
 
 def log(msg: str) -> None:
@@ -570,21 +573,25 @@ def run(show_browser: bool = False, with_documents: bool = True, university: str
 
 
 def summary(conn) -> dict:
-    rows = db.rows(conn, "SELECT * FROM grades ORDER BY semester DESC, text")
-    graded = []
-    for r in rows:
-        try:
-            n = float(str(r["note"]).replace(",", "."))
-            c = float(str(r["credits"] or "0").replace(",", "."))
-            if 1.0 <= n <= 5.0 and (r["status"] or "").lower().startswith(("be", "bestanden", "")):
-                graded.append((n, c))
-        except (TypeError, ValueError):
-            pass
-    cp = sum(c for _, c in graded)
-    avg = round(sum(n * c for n, c in graded) / cp, 2) if cp else (round(sum(n for n, _ in graded) / len(graded), 2) if graded else None)
+    """Notenspiegel fuer die Oberflaeche (app/grades_model.py): bereinigte Zeilen mit Ebene, aktueller Schnitt der
+    bestandenen Module (LP-gewichtet, nach der ersten Nachkommastelle abgeschnitten, dazu genau), LP, Bereiche.
+    Vorher (bis 28.10.2026) zaehlten Doppelte, Modul- und Pruefungszeilen und nicht bestandene Versuche mit."""
+    from . import grades_model
+    rows = db.rows(conn, "SELECT * FROM grades ORDER BY id")
+    s = grades_model.summary(rows)
+    order = {"bereich": 0, "modul": 1, "pruefung": 2}
+    grades = sorted(s.pop("rows"), key=lambda r: (order[r["level"]], _sem_key(r["semester_norm"]), r.get("text") or ""))
     last = db.row(conn, "SELECT * FROM qis_runs ORDER BY id DESC LIMIT 1")
     docs = db.rows(conn, "SELECT * FROM qis_documents ORDER BY id DESC")
-    return {"grades": rows, "average": avg, "credits": cp, "passed": len([r for r in rows if (r["status"] or "").lower().startswith("be")]), "last_run": last, "documents": docs}
+    return {"grades": grades, **s, "last_run": last, "documents": docs}
+
+
+def _sem_key(s: str) -> tuple:
+    """Neueste Semester zuerst: 'WiSe 25/26' -> (-2025, -2), 'SoSe 26' -> (-2026, -1); ohne Semester ans Ende."""
+    m = re.match(r"^(WiSe|SoSe) (\d{2})", s or "")
+    if not m:
+        return (1, 0)
+    return (-(2000 + int(m.group(2))), -2 if m.group(1) == "WiSe" else -1)
 
 
 if __name__ == "__main__":

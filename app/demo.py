@@ -66,7 +66,7 @@ def pdf_bytes(pages: list[tuple[str, list[str]]]) -> bytes:
         for line in lines:
             content += b"BT /F1 12 Tf 60 " + str(y).encode() + b" Td (" + _esc(line) + b") Tj ET\n"
             y -= 22
-        content += b"BT /F1 9 Tf 60 40 Td (UniFlow Demo-Inhalt) Tj ET\n"
+        content += b"BT /F1 9 Tf 60 40 Td (Studora Demo-Inhalt) Tj ET\n"
         objs.append(b"<</Length " + str(len(content)).encode() + b">>stream\n" + content + b"\nendstream")
         stream_no = len(objs)
         objs.append(b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents " + str(stream_no).encode()

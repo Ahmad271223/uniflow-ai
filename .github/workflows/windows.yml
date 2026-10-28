@@ -73,6 +73,22 @@ jobs:
       - name: Installer bauen
         working-directory: apps/windows
         run: npx tauri build
+      # Bekannte Schwachstellen in den Rust-Abhaengigkeiten der App (Cargo.lock aus diesem Bau). Nur Hinweis: ein
+      # Befund soll die Auslieferung nicht stoppen, steht aber im Protokoll und in der Zusammenfassung des Laufs.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+        continue-on-error: true
+      - name: Rust-Abhaengigkeiten pruefen (cargo audit)
+        working-directory: apps/windows/src-tauri
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          cargo audit --json > cargo-audit.json
+          $r = Get-Content cargo-audit.json -Raw | ConvertFrom-Json
+          $n = $r.vulnerabilities.count
+          "### cargo audit: $n bekannte Schwachstellen" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          if ($n -gt 0) { $r.vulnerabilities.list | ForEach-Object { "- $($_.advisory.id) $($_.package.name) $($_.package.version): $($_.advisory.title)" } | Out-File -Append $env:GITHUB_STEP_SUMMARY }
       - name: Installer still installieren, installiertes Backend pruefen, deinstallieren
         shell: pwsh
         run: ./apps/windows/scripts/check-installer.ps1
@@ -82,6 +98,7 @@ jobs:
           path: |
             apps/windows/src-tauri/target/release/bundle/nsis/*.exe
             apps/windows/src-tauri/Cargo.lock
+            apps/windows/src-tauri/cargo-audit.json
           retention-days: 14
 
       # Microsoft Store: MSIX aus derselben App (apps/windows/msix/README.md). Erst nach dem Hochladen des Installers,

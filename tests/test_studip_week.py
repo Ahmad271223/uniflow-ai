@@ -103,3 +103,29 @@ def test_stored_cancellation_stays_visible(app, week):
         conn.execute("INSERT INTO event_exceptions(event_id, date, type, note, created_at) VALUES (?, '2026-11-19', 'cancelled', 'Ausfall laut Stud.IP', ?)", (eid, db.now_iso()))
         occ = [o for o in _week(conn) if o["event_id"] == eid]
     assert [(o["date"], o["status"]) for o in occ] == [("2026-11-19", "ausfall")]
+
+
+def test_reset_of_a_studip_cancellation_keeps_the_date_visible(app, week):
+    """Zuruecksetzen eines Ausfalls laut Stud.IP (28.10.2026, Entscheidung des Inhabers): der Termin findet statt und
+    bleibt sichtbar, auch wenn Stud.IP an dem Tag keinen Termin kennt; der Abgleich traegt den Ausfall nicht wieder
+    ein; noch einmal zuruecksetzen bringt den Ausfall zurueck."""
+    from app import db, timetable
+    with db.cursor() as conn:
+        conn.execute("""INSERT INTO course_events(course_id, title, kind, weekday, start_time, end_time, rrule, date_from, date_to, source, attend)
+                        VALUES ('kw-vl', 'KW-Regelungstechnik II', 'vorlesung', 3, '10:00', '12:00', 'biweekly', '2026-11-05', '2027-01-28', 'studip', 1)""")
+        eid = conn.execute("SELECT id FROM course_events WHERE course_id='kw-vl' AND weekday=3").fetchone()[0]
+        timetable._add_cancellations(conn, eid, ["2026-11-19"], timetable.STUDIP_CANCEL_NOTE)
+        assert [(o["date"], o["status"]) for o in _week(conn) if o["event_id"] == eid] == [("2026-11-19", "ausfall")]
+        timetable.set_attendance(conn, eid, "2026-11-19", "reset")
+        occ = [o for o in _week(conn) if o["event_id"] == eid]
+        assert [(o["date"], o["status"], o["exception"]) for o in occ] == [("2026-11-19", "teilnahme", "attend")]
+        x = db.row(conn, "SELECT type, note FROM event_exceptions WHERE event_id=? AND date='2026-11-19'", (eid,))
+        assert x == {"type": "attend", "note": timetable.STUDIP_CANCEL_RESET_NOTE}
+        timetable._add_cancellations(conn, eid, ["2026-11-19"], timetable.STUDIP_CANCEL_NOTE)        # naechster Abgleich
+        assert db.row(conn, "SELECT type FROM event_exceptions WHERE event_id=? AND date='2026-11-19'", (eid,))["type"] == "attend"
+        timetable.set_attendance(conn, eid, "2026-11-19", "reset")
+        assert [(o["date"], o["status"]) for o in _week(conn) if o["event_id"] == eid] == [("2026-11-19", "ausfall")]
+        # eine eigene Ausnahme (z. B. heute nicht) wird wie bisher einfach geloescht
+        timetable.set_attendance(conn, eid, "2026-12-03", "today_skip")
+        timetable.set_attendance(conn, eid, "2026-12-03", "reset")
+        assert not db.row(conn, "SELECT 1 AS x FROM event_exceptions WHERE event_id=? AND date='2026-12-03'", (eid,))

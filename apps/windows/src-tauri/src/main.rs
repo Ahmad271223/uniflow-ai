@@ -19,7 +19,7 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use tauri::{Manager, RunEvent};
@@ -49,8 +49,29 @@ fn backend_exe(resource_dir: &Path) -> Option<PathBuf> {
     candidates.into_iter().find(|p| p.is_file())
 }
 
+/// Geheimnis zwischen diesem Fenster und seinem Backend (P11, 28.10.2026): nur wer es kennt, darf Auftraege des
+/// Fenster-Agenten abholen und Fensterzustaende melden (`/api/desktop/commands`, `/api/desktop/windows/*`). Eine fremde
+/// Seite in einem App-Fenster kennt den Port, aber nicht das Geheimnis. Zufall aus `RandomState` (vom System geseedet).
+fn agent_token() -> &'static str {
+    static TOKEN: OnceLock<String> = OnceLock::new();
+    TOKEN.get_or_init(|| {
+        use std::collections::hash_map::RandomState;
+        use std::hash::{BuildHasher, Hasher};
+        let mut out = String::new();
+        for i in 0..4u64 {
+            let mut h = RandomState::new().build_hasher();
+            h.write_u64(i);
+            h.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0));
+            h.write_u32(std::process::id());
+            out.push_str(&format!("{:016x}", h.finish()));
+        }
+        out
+    })
+}
+
 fn spawn_backend(exe: &Path, state: &Path) -> std::io::Result<Child> {
     let mut cmd = Command::new(exe);
+    cmd.env("LERNAPP_AGENT_TOKEN", agent_token());
     cmd.arg("--parent-pid")
         .arg(std::process::id().to_string())
         .arg("--state")
@@ -146,7 +167,8 @@ fn backend_json(port: u16, method: &str, path: &str, body: Option<&serde_json::V
     stream.set_read_timeout(Some(timeout)).ok()?;
     let payload = body.map(|b| b.to_string()).unwrap_or_default();
     let request = format!(
-        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAccept: application/json\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAccept: application/json\r\nContent-Type: application/json\r\nX-UniFlow-Agent: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+        agent_token(),
         payload.len()
     );
     stream.write_all(request.as_bytes()).ok()?;

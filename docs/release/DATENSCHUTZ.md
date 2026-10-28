@@ -118,7 +118,24 @@ dieselbe PDF haben.
 - **Was der Dienst speichert:** das Paket mit deinen Notizen **verschlüsselt** (Schlüssel aus der Original-PDF,
   nur wer dieselbe PDF hat, kann es öffnen; der Dienst kann den Inhalt nicht lesen), den Fingerabdruck der PDF
   (SHA-256), Kopfdaten des Pakets, Status, Downloadzähler; Meldungen (Grund, Hinweis, meldendes Konto – intern),
-  deine Sperrliste; bei Verstößen Sperren von Konten.
+  deine Sperrliste; bei Verstößen Sperren von Konten. Dazu deine **Likes** (welches Konto welche Lösung mag, nach
+  außen nur als Anzahl), deine **Kommentare** (Text, Pseudonym, Seite und Stelle auf der Seite, Zeitpunkt) und die
+  **Fingerabdrücke der PDFs**, die dein Gerät aus dem Hochschul-Abgleich meldet, damit du Lösungen zu genau diesen
+  Dateien findest (keine Dateinamen, keine Inhalte).
+- **Windows-App, Abgleich mit dem iPad:** Ist die Windows-App mit deinem Konto verbunden, gleicht sie Notizen,
+  Module, Stundenplan-Anpassungen, Lernkalender, Karteikarten und Einstellungen mit deinem Konto im Dienst ab (wie
+  in Abschnitt 7 beschrieben). Hochschuldateien selbst lädt jedes Gerät von der Hochschule; zu Notizen speichert der
+  Dienst nur Name und Kurs der Datei. Abschalten: Community → Studora-Konto → „Mit dem iPad abgleichen“.
+- **Windows-App:** Für die Community meldest du dich in der Windows-App mit deinem Studora-Konto an. Dein
+  Studora-Passwort geht dabei einmal verschlüsselt an den Dienst und wird nicht gespeichert; auf dem PC liegt nur ein
+  Sitzungsschlüssel, den du mit „Abmelden“ löschst. Die App schickt dem Dienst die Fingerabdrücke (SHA-256) der PDFs
+  aus deinem Hochschul-Abgleich, nie die Dateien. Lösungen werden auf deinem PC ver- und entschlüsselt.
+- **Fragen und Antworten je Kurs:** Fragen, Antworten und „hilfreich“-Stimmen speichern wir mit deinem Pseudonym,
+  Zeitpunkt und einem Kurs-Schlüssel (aus Hochschule und Kurs-ID berechnet, ohne Kursnamen). **Lesezeichen** sind
+  privat. **Mitteilungen** (z. B. „hat deine Frage beantwortet“) liegen in deinem Konto; gelesene löschen wir nach
+  90 Tagen. Mit dem Konto wird alles gelöscht.
+- **Auswertung durch den Betreiber:** Wir sehen intern, welche Konten die meisten Likes bekommen haben (Rangliste mit
+  E-Mail-Adresse), um hilfreiche Beiträge zu würdigen und Missbrauch zu erkennen. Andere Nutzer sehen das nie.
 - **Moderation:** Ab drei Meldungen verschiedener Konten ist eine Lösung verborgen, bis wir entscheiden; wir
   können Lösungen verbergen oder entfernen und Konten für die Community sperren. Zurückgezogene oder entfernte
   Lösungen werden sofort gelöscht; die Kopfdaten bleiben bis zur Löschung des Kontos (Nachvollziehbarkeit bei
@@ -186,8 +203,13 @@ Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Ha
 - **Konto löschen** geht in der App (Einstellungen → Konto → Konto löschen, Bestätigung mit Passwort) oder per
   E-Mail an [[E-Mail]]. Das Konto wird sofort gesperrt, alle Sitzungen enden; die Daten werden nach 30 Tagen
   endgültig gelöscht (Frist für versehentliche Löschung). Das Abo kündigst du zusätzlich bei Apple bzw. Google.
-- **Daten mitnehmen:** Notizen lassen sich als PDF exportieren; mit dem Geräteabgleich liegen alle Daten auf deinem
-  Gerät. Einen Gesamtexport (Art. 20 DSGVO) stellen wir auf Anfrage an [[E-Mail]] bereit.
+- **Daten mitnehmen:** Im Konto-Menü („Meine Daten exportieren“) lädst du alle Daten deines Kontos als ZIP herunter
+  (Auskunft nach Art. 15 und Datenübertragbarkeit nach Art. 20 DSGVO): Konto, Geräte, Käufe, Nutzung, deine Kurse,
+  Notizen, Kalender, Lernpakete, Karteikarten, Tests, eigene Dateien und Community-Beiträge. Gespeicherte Passwörter
+  und Sitzungen deiner Hochschule stehen aus Sicherheitsgründen nur als „gespeichert“ darin. Notizen lassen sich
+  außerdem als PDF exportieren.
+- **E-Mail-Adresse bestätigen:** Nach der Registrierung schicken wir einen Link zur Bestätigung. Bis dahin kannst du
+  alles nutzen außer dem Veröffentlichen in der Community.
 
 ## 16. Kinder
 

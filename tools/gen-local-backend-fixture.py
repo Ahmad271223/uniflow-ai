@@ -284,7 +284,7 @@ def asgi(app, method: str, path: str, body=None, form=None, raw_body: str | None
         raw = json.dumps(body).encode() if body is not None else b""
         ctype = "application/json"
     headers = [(b"host", b"localhost"), (b"content-type", ctype.encode()), (b"content-length", str(len(raw)).encode())]
-    scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": method, "scheme": "http",
+    scope = {"type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"}, "http_version": "1.1", "method": method, "scheme": "http",
              "path": p, "raw_path": p.encode(), "query_string": q.encode(), "headers": headers,
              "client": ("127.0.0.1", 5000), "server": ("localhost", 80)}
     out = {"status": None, "body": b""}
@@ -867,7 +867,7 @@ def asgi_raw(app, method: str, path: str, raw: bytes = b"", ctype: str = "applic
     from urllib.parse import unquote
     p, _, q = path.partition("?")
     headers = [(b"host", b"localhost"), (b"content-type", ctype.encode()), (b"content-length", str(len(raw)).encode())]
-    scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": method, "scheme": "http",
+    scope = {"type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"}, "http_version": "1.1", "method": method, "scheme": "http",
              "path": unquote(p), "raw_path": p.encode(), "query_string": q.encode(), "headers": headers,
              "client": ("127.0.0.1", 5000), "server": ("localhost", 80)}
     out = {"status": None, "headers": {}, "body": b""}

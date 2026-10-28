@@ -47,6 +47,23 @@ jobs:
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt --strict
+      - name: Bekannte Schwachstellen in der Windows-Werkzeugkette (npm audit)
+        working-directory: apps/windows
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=high
+      - name: Stueckliste der Abhaengigkeiten (SBOM, CycloneDX)
+        run: |
+          pip install cyclonedx-bom
+          mkdir -p sbom
+          cyclonedx-py requirements requirements.txt --of JSON -o sbom/python-requirements.cdx.json
+          (cd apps/windows && npx --yes @cyclonedx/cyclonedx-npm@4.0.0 --output-file ../../sbom/windows-npm.cdx.json --omit dev || true)
+          ls -la sbom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/*.json
+          retention-days: 90
       - name: Keine Zugangsdaten im Repository
         run: |
           test ! -e .env || { echo ".env darf nicht eingecheckt sein"; exit 1; }

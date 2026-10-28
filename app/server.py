@@ -28,6 +28,7 @@ def wire_hosted_services() -> None:
     (Lifespan unter uvicorn und in der Windows-App); am eigenen PC bleibt es beim Protokolleintrag ohne Token."""
     if config.is_hosted():
         accounts.reset_sender = mail.send_reset
+        accounts.verify_sender = mail.send_verify
 
 
 @asynccontextmanager
@@ -35,6 +36,10 @@ async def _lifespan(_app):
     """Gehosteter Modus: Mailversand einhaengen, Arbeiter und Zeitplan fuer den Hochschul-Abgleich je Konto (app/jobs.py)."""
     wire_hosted_services()
     jobs.start_background()
+    if not config.is_hosted():
+        # Windows-App mit Studora-Konto: Geraete-Abgleich (G2) im Hintergrund (app/sync_client.py)
+        from . import sync_client
+        sync_client.start_background()
     yield
 
 
@@ -87,6 +92,67 @@ def hosted_unavailable(method: str, path: str) -> str | None:
     return None
 
 
+# Aenderungen der Oberflaeche, nach denen die Windows-App bald mit dem Konto abgleicht (gebuendelt)
+_NO_KICK = ("/api/studora/", "/api/community/", "/api/sync", "/api/desktop/", "/api/progress", "/api/ai")
+
+
+@app.middleware("http")
+async def sync_kick(request, call_next):
+    response = await call_next(request)
+    if (not config.is_hosted() and request.method in ("POST", "PUT", "PATCH", "DELETE") and response.status_code < 400
+            and request.url.path.startswith("/api/") and not request.url.path.startswith(_NO_KICK)):
+        from . import sync_client
+        sync_client.kick()
+    return response
+
+
+@app.middleware("http")
+async def community_link(request, call_next):
+    """Einzelplatz (Windows-App): /api/community/... geht mit dem Token des verbundenen Studora-Kontos an den Dienst
+    (app/service_link.py). Im Dienst selbst beantwortet community_api diese Pfade."""
+    path = request.url.path
+    if config.is_hosted() or not path.startswith("/api/community/"):
+        return await call_next(request)
+    from starlette.concurrency import run_in_threadpool
+    from . import service_link
+    body = await request.body() if request.method not in ("GET", "HEAD", "DELETE") else None
+    try:
+        status, ctype, data = await run_in_threadpool(service_link.proxy, request.method, path[len("/api/community/"):],
+                                                      request.url.query, body, request.headers.get("content-type"))
+    except service_link.LinkError as e:
+        return JSONResponse({"detail": e.message, "code": e.code}, status_code=e.status)
+    return Response(content=data, status_code=status, media_type=ctype, headers={"Cache-Control": "no-store"})
+
+
+# Grenze je Konto fuer alle /api-Anfragen im Dienst (P9, 28.10.2026): gleitendes Fenster im Speicher je Prozess,
+# `LERNAPP_LIMIT_API_PER_MIN` (Standard 600). Schuetzt Dienst und Hochschulen vor einem einzelnen Konto (Skripte,
+# Fehler in einem Client); normale Nutzung liegt weit darunter. Mehrere Prozesse teilen sich das Fenster nicht, die
+# Grenze gilt dann je Prozess.
+_API_HITS: dict[str, list[float]] = {}
+_API_LOCK = threading.Lock()
+
+
+def _api_rate(user_id: str, now: float | None = None) -> int:
+    import os
+    import time as _t
+    try:
+        limit = int(os.environ.get("LERNAPP_LIMIT_API_PER_MIN") or 600)
+    except ValueError:
+        limit = 600
+    t = _t.monotonic() if now is None else now
+    with _API_LOCK:
+        hits = [x for x in _API_HITS.get(user_id, []) if x > t - 60]
+        if len(hits) >= limit:
+            _API_HITS[user_id] = hits
+            return max(1, int(60 - (t - hits[0])) + 1)
+        hits.append(t)
+        _API_HITS[user_id] = hits
+        if len(_API_HITS) > 50_000:                      # alte Eintraege nicht unbegrenzt sammeln
+            for k in [k for k, v in _API_HITS.items() if not v or v[-1] < t - 60][:10_000]:
+                _API_HITS.pop(k, None)
+    return 0
+
+
 @app.middleware("http")
 async def hosted_guard(request, call_next):
     """Gehosteter Modus: jede /api-Anfrage braucht eine Sitzung (Bearer-Token oder Cookie), ausser den oeffentlichen
@@ -110,6 +176,10 @@ async def hosted_guard(request, call_next):
     user = accounts.authenticate(account_api.token_of(request))
     if not user:
         return JSONResponse({"detail": "Anmeldung erforderlich.", "code": "unauthenticated"}, status_code=401)
+    wait = _api_rate(user["id"])
+    if wait:
+        return JSONResponse({"detail": "Zu viele Anfragen in kurzer Zeit. Bitte kurz warten.", "code": "rate_limited"},
+                            status_code=429, headers={"Retry-After": str(wait)})
     request.state.user = user
     ctx = config.set_user_context(user["id"], user["university"])
     try:
@@ -124,9 +194,9 @@ async def hosted_guard(request, call_next):
 
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "testclient"}
 _PIN_FAILS: dict[str, list] = {}
-PIN_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>UniFlow AI – PIN</title>
+PIN_PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Studora – PIN</title>
 <style>body{font:16px/1.5 Inter,system-ui,sans-serif;background:#f6f7fb;color:#171a26;display:grid;place-items:center;min-height:100vh;margin:0}form{background:#fff;border:1px solid #e5e8f0;border-radius:16px;padding:1.6rem;width:min(360px,92vw);box-shadow:0 4px 16px rgba(20,24,40,.06)}h1{font-size:1.2rem;margin:0 0 .3rem}p{color:#7a8199;margin:0 0 1rem;font-size:.9rem}input{width:100%;font-size:1.4rem;letter-spacing:.3em;text-align:center;padding:.6rem;border:1px solid #d3d8e4;border-radius:10px;box-sizing:border-box}button{margin-top:.8rem;width:100%;padding:.7rem;border:0;border-radius:10px;background:#4f5bd5;color:#fff;font-weight:600;font-size:1rem}</style></head>
-<body><form method="get" action="/"><h1>UniFlow AI</h1><p>Dieses Gerät ist nicht der PC, auf dem die App läuft. Bitte die PIN aus „Einstellungen → Zugang“ eingeben.</p><input name="pin" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••" autofocus><button type="submit">Öffnen</button></form></body></html>"""
+<body><form method="get" action="/"><h1>Studora</h1><p>Dieses Gerät ist nicht der PC, auf dem die App läuft. Bitte die PIN aus „Einstellungen → Zugang“ eingeben.</p><input name="pin" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••" autofocus><button type="submit">Öffnen</button></form></body></html>"""
 
 
 def _lan_pin() -> str:
@@ -451,11 +521,12 @@ def sync_now(ai: bool = True):
 
 
 @app.get("/api/sync/changes")
-def api_sync_changes(since: str | None = None, device_id: str | None = None):
-    """Vertrag G2: alle Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones."""
+def api_sync_changes(since: str | None = None, device_id: str | None = None, limit: int = Query(default=2000, ge=1, le=2000)):
+    """Vertrag G2: Aenderungen nach dem Cursor `since` (aus der letzten Antwort), plus Tombstones, seitenweise:
+    weiter abrufen, solange `has_more` true ist."""
     from . import sync
     with db.cursor() as conn:
-        return sync.changes(conn, since)
+        return sync.changes(conn, since, limit)
 
 
 @app.post("/api/sync/push")
@@ -499,6 +570,34 @@ def mark_seen():
 # ----------------------------------------------------------------------------
 # Kurse & Dateien
 # ----------------------------------------------------------------------------
+
+def community_course_key(university: str, course_id: str) -> str:
+    """Kurs-Schluessel der Community wie CommunityKeys.courseKey auf dem iPad (app/community_qa.py)."""
+    import hashlib
+    return hashlib.sha256(("uniflow.community.course.v1\0" + university + "\0" + course_id).encode("utf-8")).hexdigest()
+
+
+@app.get("/api/courses/community-keys")
+def courses_community_keys():
+    """Eigene aktive Kurse mit Community-Schluessel (Fragen je Kurs). Der Schluessel entsteht hier aus der Kurs-ID; der
+    Dienst bekommt nur ihn, nie Kurs-ID oder Namen."""
+    uni = config.university()
+    with db.cursor() as conn:
+        rows = db.rows(conn, """SELECT id, title, semester, subject FROM courses
+                                WHERE id NOT IN ('__user__') AND COALESCE(active, 1)=1 ORDER BY subject, title""")
+    return {"university": uni, "courses": [{"course_id": r["id"], "title": r["title"], "semester": r["semester"], "subject": r["subject"],
+                                            "key": community_course_key(uni, r["id"])} for r in rows]}
+
+
+@app.get("/api/files/by-fingerprint/{sha}")
+def file_by_fingerprint(sha: str):
+    """Eigene Datei zu einem Fingerabdruck (Lesezeichen und Mitteilungen zu Loesungen oeffnen)."""
+    with db.cursor() as conn:
+        f = db.row(conn, "SELECT id, name, course_id FROM files WHERE content_sha256=? AND deleted_at IS NULL ORDER BY id LIMIT 1", (sha.lower(),))
+    if not f:
+        raise HTTPException(404, {"detail": "Diese PDF ist auf diesem Gerät nicht vorhanden.", "code": "file_not_here"})
+    return {"file_id": f["id"], "name": f["name"], "course_id": f["course_id"]}
+
 
 @app.get("/api/courses")
 def courses():
@@ -585,6 +684,29 @@ def file_content(file_id: str):
         return Response(content=data, media_type=mt if disp == "inline" else "application/octet-stream",
                         headers={"Content-Disposition": f"{disp}; filename*=UTF-8''{quote(f['name'] or 'datei')}", "Cache-Control": "private, max-age=600"})
     raise HTTPException(404, "Datei nicht lokal vorhanden")
+
+
+@app.get("/api/files/{file_id}/docx")
+def file_docx(file_id: str):
+    """Word-Dokument (DOCX) als sicheres HTML zum Ansehen (app/docx_view.py); Bearbeiten gibt es noch nicht."""
+    from . import docx_view
+    with db.cursor() as conn:
+        f = _found(db.row(conn, "SELECT id, name, local_path, download_url, course_id FROM files WHERE id=?", (file_id,)), "Datei")
+        data = None
+        if f["local_path"] and Path(f["local_path"]).is_file():
+            data = Path(f["local_path"]).read_bytes()
+        elif config.streams_files() and f["download_url"] and f["course_id"] != "__user__":
+            try:
+                data, _mime, _sha = filestream.content(conn, file_id)
+            except filestream.StreamError as e:
+                raise _stream_error(e)
+    if data is None:
+        raise HTTPException(404, {"detail": "Datei nicht vorhanden.", "code": "no_content"})
+    try:
+        out = docx_view.to_html(data)
+    except docx_view.DocxError as e:
+        raise HTTPException(422, {"detail": str(e), "code": "docx_unreadable"})
+    return {**out, "name": f["name"]}
 
 
 @app.post("/api/files/{file_id}/fingerprint")
@@ -818,12 +940,13 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             course, fname = f["course_title"], f["name"]
         if not text.strip():
             text = page_text(file_id, page).get("text", "")
+    sources = _tutor_sources(file_id, fname, page, text, body) if mode != "flashcards" else []
     if hosted:
-        answer = _tutor_hosted(request, body, mode, text, course, fname, page)
+        answer = _tutor_hosted(request, body, mode, text, course, fname, page, sources)
     else:
         try:
             answer = ai.tutor(mode, text, body.get("selection") or "", body.get("question") or "",
-                              body.get("own_solution") or "", course, fname, page)
+                              body.get("own_solution") or "", course, fname, page, sources)
         except ai.AIError as e:
             raise HTTPException(500, str(e))
     cards = None
@@ -832,16 +955,45 @@ def ai_tutor(request: Request, body: dict = Body(...)):
             cards = ai.parse_json(answer)
         except ai.AIError:
             cards = None
-    return {"answer": answer, "cards": cards}
+    cited = {int(n) for n in re.findall(r"\[(\d{1,2})\]", answer or "")}
+    return {"answer": answer, "cards": cards, "sources": [{**x, "cited": x["n"] in cited} for x in sources]}
 
 
-def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int) -> str:
+def _tutor_sources(file_id: str | None, fname: str, page: int, text: str, body: dict, limit: int = 4) -> list[dict]:
+    """Quellen fuer den Tutor (28.10.2026): [1] die offene Seite, dazu bis zu `limit` passende Seiten aus dem Modul der
+    Datei (Volltext der Vorlesungs- und Skriptseiten, app/scriptsearch.py), gesucht mit Markierung, Frage oder dem
+    Anfang der Seite. Leer ohne Datei."""
+    from . import scriptsearch
+    if not file_id:
+        return []
+    out = [{"n": 1, "file_id": file_id, "name": fname, "title": fname, "page": page, "current": True}]
+    query = " ".join(x for x in (body.get("selection") or "", body.get("question") or "") if x.strip()) or (text or "")[:700]
+    try:
+        with db.cursor() as conn:
+            m = db.row(conn, "SELECT c.module_id FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", (file_id,))
+            if not m or not m["module_id"] or not query.strip():
+                return out
+            res = scriptsearch.search(conn, m["module_id"], query, exclude=None, limit=limit + 2).get("results") or []
+    except Exception:                                    # noqa: BLE001 - Quellen sind Zusatz, der Tutor laeuft auch ohne
+        return out
+    for r in res:
+        if r["file_id"] == file_id and int(r["page"]) == int(page):
+            continue
+        out.append({"n": len(out) + 1, "file_id": r["file_id"], "name": r.get("name"), "title": r.get("title") or r.get("name"),
+                    "page": r["page"], "snippet": r.get("snippet"), "current": False})
+        if len(out) > limit:
+            break
+    return out
+
+
+def _tutor_hosted(request: Request, body: dict, mode: str, text: str, course: str, fname: str, page: int,
+                  sources: list[dict] | None = None) -> str:
     """Studora-KI (Pro AI): Kontingent ai_assist, Budget und Rate-Limit in app/ai_backend.py; bei Fehlern zurueckgebucht."""
     from . import ai, ai_backend
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
     entitlements.consume(request, "ai_assist", rid)
     prompt = ai.tutor_prompt(mode, text, body.get("selection") or "", body.get("question") or "",
-                             body.get("own_solution") or "", course, fname, page)
+                             body.get("own_solution") or "", course, fname, page, sources)
     try:
         return ai_backend.complete(request.state.user["id"], f"tutor:{mode}", ai.TUTOR_SYSTEM, prompt, cache=True).text
     except ai_backend.AIUnavailable as e:
@@ -1119,6 +1271,98 @@ def api_university_login():
     if config.is_hosted():
         raise HTTPException(400, {"detail": "Im Dienst meldest du dich in der App auf dem Geraet an.", "code": "use_app_login"})
     return _run_bg("Anmeldung", unilogin.run)
+
+
+# ---------------------------------------------------------------- Studora-Konto der Windows-App (app/service_link.py)
+
+def _link_call(fn, *args):
+    from . import service_link
+    if config.is_hosted():
+        raise HTTPException(400, {"detail": "Im Dienst bist du schon mit deinem Konto angemeldet.", "code": "already_hosted"})
+    try:
+        return fn(*args)
+    except service_link.LinkError as e:
+        raise HTTPException(e.status, {"detail": e.message, "code": e.code})
+
+
+@app.get("/api/studora/status")
+def api_studora_status(refresh: bool = True):
+    """Verbindung zum Studora-Konto: angemeldet, Konto (E-Mail, Tarif, Hochschule, bestaetigt), letzte Meldung der PDFs."""
+    from . import service_link
+    if config.is_hosted():
+        return {"linked": False, "hosted": True}
+    return _link_call(service_link.status_info, None, refresh)
+
+
+@app.post("/api/studora/login")
+def api_studora_login(body: dict = Body(...)):
+    """Anmelden am Dienst; das Passwort wird nur durchgereicht, gespeichert wird das Sitzungs-Token. Danach werden
+    die eigenen Hochschul-PDFs gemeldet (Fehler dabei verhindern die Anmeldung nicht)."""
+    from . import service_link
+    out = _link_call(service_link.login, body.get("url"), str(body.get("email") or ""), str(body.get("password") or ""))
+    try:
+        out["claims"] = service_link.claim_local_files()
+    except service_link.LinkError as e:
+        out["claims_error"] = {"code": e.code, "detail": e.message}
+    from . import sync_client
+    sync_client.start_background()
+    sync_client.kick()                                   # erster Abgleich gleich im Hintergrund
+    return out
+
+
+@app.post("/api/studora/logout")
+def api_studora_logout():
+    from . import service_link
+    return _link_call(service_link.logout)
+
+
+@app.post("/api/studora/claims")
+def api_studora_claims():
+    """Fingerabdruecke der eigenen Hochschul-PDFs jetzt an den Dienst melden."""
+    from . import service_link
+    return _link_call(service_link.claim_local_files)
+
+
+@app.get("/api/studora/devices")
+def api_studora_devices():
+    from . import service_link
+    return _link_call(service_link.devices)
+
+
+@app.delete("/api/studora/devices/{session_id}")
+def api_studora_device_revoke(session_id: int):
+    from . import service_link
+    return _link_call(service_link.revoke_device, session_id)
+
+
+@app.get("/api/studora/sync")
+def api_studora_sync_status():
+    """Geraete-Abgleich mit dem Konto: an/aus, letzter Lauf (Zahlen, Fehler), laeuft gerade."""
+    from . import sync_client
+    if config.is_hosted():
+        return {"enabled": False, "hosted": True}
+    return sync_client.status()
+
+
+@app.post("/api/studora/sync")
+def api_studora_sync_now():
+    """Jetzt abgleichen (wartet auf das Ergebnis)."""
+    from . import sync_client
+    if config.is_hosted():
+        raise HTTPException(400, {"detail": "Im Dienst gleicht das Konto selbst ab.", "code": "already_hosted"})
+    return sync_client.run(force=True)
+
+
+@app.post("/api/studora/sync/enabled")
+def api_studora_sync_enabled(body: dict = Body(...)):
+    from . import sync_client
+    return sync_client.set_enabled(bool(body.get("on")))
+
+
+@app.post("/api/studora/verify-email/resend")
+def api_studora_resend():
+    from . import service_link
+    return _link_call(service_link.resend_verification)
 
 
 @app.get("/api/university/session")
@@ -1703,12 +1947,25 @@ async def api_tt_import_preview(source: str = Form(...), text: str = Form(defaul
         except HTTPException:
             raise
         except Exception as e:  # noqa: BLE001
-            raise HTTPException(500, f"Import fehlgeschlagen: {e}")
+            raise HTTPException(500, _public_error("Import fehlgeschlagen", e))
         entries = timetable.enrich(conn, entries)
         diff = timetable.diff_against_existing(conn, entries)
         cur = conn.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES (?,?,?,?,?,0)",
                            (source, db.now_iso(), "preview", raw[:20000], json.dumps(entries, ensure_ascii=False)))
     return {"import_id": cur.lastrowid, "entries": entries, "diff": diff, "modules": _modules_brief()}
+
+
+def _public_error(what: str, e: Exception) -> str:
+    """Fehlertext fuer die Oberflaeche ohne Tabellen, Spalten, SQL oder Pfade (Pruefpunkt 555, wie auf dem iPad):
+    Meldungen, die fuer Nutzer geschrieben sind (KI, Eingaben), bleiben; alles andere steht nur im Protokoll."""
+    import logging
+    from . import ai
+    if isinstance(e, (ai.AIError, ValueError)) and not isinstance(e, (UnicodeError,)):
+        msg = str(e)
+        if not re.search(r"(?i)sqlite|select |insert |update |delete |table|column|traceback|[a-z]:\\|/srv/|/home/|/tmp/", msg):
+            return f"{what}: {msg[:300]}"
+    logging.getLogger("uniflow").exception("%s", what)
+    return f"{what} (interner Fehler, Einzelheiten im Protokoll)."
 
 
 def _modules_brief():
@@ -1757,8 +2014,27 @@ def api_terms():
         return timetable.term(conn)
 
 
+def _term_day(v, what: str) -> str:
+    """JJJJ-MM-TT, sonst 422 (wie LocalTerms.checkRange auf dem iPad, Pruefbericht 569)."""
+    try:
+        if isinstance(v, str) and date.fromisoformat(v).isoformat() == v:
+            return v
+    except ValueError:
+        pass
+    raise HTTPException(422, f"{what} des Semesters ist kein gültiges Datum (JJJJ-MM-TT).")
+
+
 @app.put("/api/terms")
 def api_terms_put(body: dict = Body(...)):
+    """Neues aktives Semester. Fehlende, ungueltige oder vertauschte Daten: 422, das bisherige Semester bleibt aktiv
+    (vorher gespeichert; danach war die Woche im Stundenplan leer)."""
+    if "start" not in body:
+        raise HTTPException(422, "Beginn des Semesters fehlt (start)")
+    if "end" not in body:
+        raise HTTPException(422, "Ende des Semesters fehlt (end)")
+    start = _term_day(body["start"], "Beginn")
+    if _term_day(body["end"], "Ende") < start:
+        raise HTTPException(422, "Das Ende des Semesters liegt vor seinem Beginn.")
     with db.cursor() as conn:
         conn.execute("UPDATE terms SET active=0")
         conn.execute("INSERT INTO terms(name, start, end, active) VALUES (?,?,?,1)", (body.get("name") or "Semester", body["start"], body["end"]))
@@ -1956,7 +2232,7 @@ def api_network():
 def api_tt_auto_status():
     with db.cursor() as conn:
         entries = timetable.studip_entries(conn)
-        pending = [e for e in entries if not e.get("selected")]
+        pending = timetable.pending_choices(entries)
         groups = sorted({e["title"] for e in pending})
     return {"pending_groups": len(pending), "courses": groups, "personal": [e for e in entries if e.get("personal")]}
 
@@ -2201,7 +2477,7 @@ def api_desktop_open(request: Request, body: dict = Body(...)):
         raise HTTPException(400, "Nur http- und https-Adressen")
     if desktop_windows.agent_connected():
         from urllib.parse import urlsplit
-        w = desktop_windows.enqueue("open", url, urlsplit(url).hostname or "UniFlow")
+        w = desktop_windows.enqueue("open", url, urlsplit(url).hostname or "Studora")
         return {"opened": True, "window": w.id, "in_app": True}
     import webbrowser
     if not webbrowser.open(url, new=2):
@@ -2209,10 +2485,22 @@ def api_desktop_open(request: Request, body: dict = Body(...)):
     return {"opened": True, "in_app": False}
 
 
+def _agent_only(request: Request) -> None:
+    """Fenster-Agent: nur mit dem Geheimnis, das die Windows-App ihrem Backend beim Start mitgibt
+    (`LERNAPP_AGENT_TOKEN`, Kopfzeile `X-UniFlow-Agent`). Vorher (bis 28.10.2026) reichte der eigene Rechner; eine
+    fremde Seite in einem App-Fenster haette bei bekanntem Port Auftraege abholen koennen (Pruefung P11)."""
+    import hmac
+    import os
+    _desktop_only(request)
+    want = os.environ.get("LERNAPP_AGENT_TOKEN") or ""
+    if want and not hmac.compare_digest(want, request.headers.get("x-uniflow-agent") or ""):
+        raise HTTPException(403, "Nur für das Fenster der Windows-App")
+
+
 @app.get("/api/desktop/commands")
 def api_desktop_commands(request: Request, wait: float = Query(default=25, ge=0, le=30)):
     """Fenster-Agent des Tauri-Fensters: naechster Auftrag (open | login), lange Abfrage; 204 = nichts."""
-    _desktop_only(request)
+    _agent_only(request)
     cmd = desktop_windows.next_command(wait)
     if cmd is None:
         return Response(status_code=204)
@@ -2223,7 +2511,7 @@ def api_desktop_commands(request: Request, wait: float = Query(default=25, ge=0,
 def api_desktop_window_state(window_id: str, request: Request, body: dict = Body(...)):
     """Zustand eines App-Fensters (offen/geschlossen, Adresse, Cookies der gewuenschten Hosts); Antwort `done` =
     Fenster schliessen. Cookies gehen nie in eine Antwort und nie ins Protokoll."""
-    _desktop_only(request)
+    _agent_only(request)
     return desktop_windows.report(window_id, body.get("status"), body.get("url"), body.get("cookies"))
 
 

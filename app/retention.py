@@ -136,13 +136,22 @@ def _purge_sync_log(db_file: Path, cutoff_iso: str, dry_run: bool) -> int:
     """sync_log-Zeilen (Ortszeit-ISO wie db.now_iso) vor dem Stichtag; fehlende Tabelle = nichts zu tun."""
     conn = sqlite3.connect(db_file)
     try:
+        n = 0
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_ops'").fetchone():
+            # Operations-IDs des Geraete-Abgleichs (UTC mit Z): nach derselben Frist weg
+            utc_cut = cutoff_iso[:19] + "Z"
+            k = conn.execute("SELECT COUNT(*) FROM sync_ops WHERE created_at < ?", (utc_cut,)).fetchone()[0]
+            if k and not dry_run:
+                conn.execute("DELETE FROM sync_ops WHERE created_at < ?", (utc_cut,))
+                conn.commit()
+            n += k
         if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_log'").fetchone():
-            return 0
-        n = conn.execute("SELECT COUNT(*) FROM sync_log WHERE COALESCE(started_at, finished_at, '') < ?", (cutoff_iso,)).fetchone()[0]
-        if n and not dry_run:
+            return n
+        k = conn.execute("SELECT COUNT(*) FROM sync_log WHERE COALESCE(started_at, finished_at, '') < ?", (cutoff_iso,)).fetchone()[0]
+        if k and not dry_run:
             conn.execute("DELETE FROM sync_log WHERE COALESCE(started_at, finished_at, '') < ?", (cutoff_iso,))
             conn.commit()
-        return n
+        return n + k
     finally:
         conn.close()
 
@@ -158,12 +167,15 @@ def purge_account_db(now: datetime, days: int = SYNC_DAYS, dry_run: bool = False
         conn.executescript("""CREATE TABLE IF NOT EXISTS sync_jobs (id INTEGER PRIMARY KEY, user_id TEXT, kind TEXT, trigger TEXT, status TEXT,
                               requested_at TEXT, started_at TEXT, finished_at TEXT, message TEXT, new_files INTEGER);
                               CREATE TABLE IF NOT EXISTS schedule_marks (slot TEXT PRIMARY KEY, created_at TEXT NOT NULL);""")
+        conn.executescript(accounts.SCHEMA)
         rules = {
             "jobs": ("sync_jobs", "status IN ('done','failed') AND requested_at < ?", (cutoff,)),
             "marks": ("schedule_marks", "created_at < ?", (cutoff,)),
             "sessions": ("sessions", "expires_at <= ? OR revoked_at IS NOT NULL", (now_iso,)),
             "reset_tokens": ("reset_tokens", "expires_at <= ? OR used_at IS NOT NULL", (now_iso,)),
             "login_attempts": ("login_attempts", "last_fail_at IS NULL OR last_fail_at < ?", (attempts_cutoff,)),
+            "verify_tokens": ("verify_tokens", "expires_at <= ? OR used_at IS NOT NULL", (now_iso,)),
+            "rate_limits": ("rate_limits", "window_start < ?", (accounts.iso(now - timedelta(days=2)),)),
         }
         for key, (table, where, params) in rules.items():
             n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {where}", params).fetchone()[0]
@@ -188,6 +200,9 @@ def run(now: datetime | None = None, dry_run: bool = False) -> dict:
         now = now.replace(tzinfo=timezone.utc)
     result = {"at": accounts.iso(now), "dry_run": dry_run, "access_files": purge_access_logs(now.date(), dry_run=dry_run),
               "account_logs": purge_account_logs(now, dry_run=dry_run), **purge_account_db(now, dry_run=dry_run)}
+    if not dry_run and (config.BASE_DATA_DIR / "community.db").exists():
+        from . import community_qa                     # gelesene Benachrichtigungen nach 90 Tagen (Community Teil 2)
+        result["notifications"] = community_qa.prune()
     if not dry_run:
         p = config.BASE_LOG_DIR / "retention.log"
         p.parent.mkdir(parents=True, exist_ok=True)

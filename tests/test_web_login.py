@@ -60,7 +60,7 @@ def test_hosted_root_redirects_to_login_without_session(hosted):
 def test_hosted_session_cookie_opens_app_and_logout_closes_it(hosted):
     cookie = _register(hosted, "web@beispiel.de")
     st, h, body = asgi_call(hosted, "GET", "/", cookies=cookie)
-    assert st == 200 and b"<title>UniFlow AI</title>" in body, "mit Sitzung die App"
+    assert st == 200 and b"<title>Studora</title>" in body, "mit Sitzung die App"
     st, h, _ = asgi_call(hosted, "GET", "/login", cookies=cookie)
     assert (st, _h(h, "location")) == (302, ["/"]), "angemeldet: Anmeldeseite leitet zur App"
     st, _, body = asgi_call(hosted, "GET", "/api/account/me", cookies=cookie)
@@ -108,7 +108,7 @@ def test_local_mode_has_no_login_page(app):
     st, h, _ = asgi_call(app, "GET", "/login")
     assert (st, _h(h, "location")) == (302, ["/"])
     st, _, body = asgi_call(app, "GET", "/")
-    assert st == 200 and b"<title>UniFlow AI</title>" in body
+    assert st == 200 and b"<title>Studora</title>" in body
 
 
 def test_login_script_uses_only_public_account_paths():
@@ -118,7 +118,7 @@ def test_login_script_uses_only_public_account_paths():
     js = (STATIC / "login.js").read_text(encoding="utf-8")
     used = {"/api/account" + p for p in re.findall(r'post\("(/[a-z/-]+)"', js)}
     assert used == {"/api/account/login", "/api/account/register", "/api/account/password/reset-request", "/api/account/password/reset",
-                    "/api/account/login/google", "/api/account/login/apple"}
+                    "/api/account/login/google", "/api/account/login/apple", "/api/account/verify-email"}
     assert used <= account_api.PUBLIC_PATHS
     assert "/api/account/info" in js and "Authorization" not in js and "localStorage" not in js
     app_js = (STATIC / "app.js").read_text(encoding="utf-8")

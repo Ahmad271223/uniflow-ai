@@ -29,7 +29,7 @@ from urllib.parse import urlsplit
 from . import config
 
 SMTP_TIMEOUT = 20
-APP_NAME = "UniFlow AI"
+APP_NAME = "Studora"
 
 
 # ---------------------------------------------------------------- Konfiguration
@@ -53,6 +53,11 @@ def public_url() -> str:
 def reset_link(token: str) -> str:
     """Link, den die Anmeldeseite versteht (app/static/login.js liest den Parameter `reset`)."""
     return f"{public_url()}/login?reset={token}"
+
+
+def verify_link(token: str) -> str:
+    """Bestaetigungslink; die Anmeldeseite (app/static/login.js) liest den Parameter `verify`."""
+    return f"{public_url()}/login?verify={token}"
 
 
 def sender_address() -> str:
@@ -172,12 +177,15 @@ def reset_text(link: str) -> str:
             f"{APP_NAME}")
 
 
-def welcome_text(email: str) -> str:
+def welcome_text(email: str, link: str | None = None) -> str:
+    confirm = (f"Bitte bestätige deine E-Mail-Adresse mit diesem Link (gilt 48 Stunden):\n\n{link}\n\n"
+               f"Bis dahin kannst du alles nutzen, nur noch keine Lösungen in der Community veröffentlichen.\n\n") if link else ""
     return (f"Hallo,\n\n"
             f"dein {APP_NAME}-Konto für {email} ist angelegt. Du kannst dich damit auf allen deinen Geräten anmelden:\n\n"
             f"{public_url()}/login\n\n"
+            f"{confirm}"
             f"Die Zugangsdaten deiner Hochschule gibst du erst in der App ein; sie liegen verschlüsselt am Konto und werden "
-            f"nur für den Abgleich genutzt. Diese Mail ist nur zur Information, du musst nichts bestätigen.\n\n"
+            f"nur für den Abgleich genutzt.\n\n"
             f"Wenn du dieses Konto nicht angelegt hast, antworte bitte kurz auf diese Mail oder lösche das Konto in der App "
             f"unter Konto → Konto löschen.\n\n"
             f"{APP_NAME}")
@@ -188,5 +196,17 @@ def send_reset(email: str, token: str) -> None:
     send(email, f"{APP_NAME}: Passwort zurücksetzen", reset_text(reset_link(token)))
 
 
-def send_welcome(email: str) -> None:
-    send(email, f"{APP_NAME}: Willkommen", welcome_text(email))
+def send_welcome(email: str, verify_token: str | None = None) -> None:
+    send(email, f"{APP_NAME}: Willkommen", welcome_text(email, verify_link(verify_token) if verify_token else None))
+
+
+def verify_text(link: str) -> str:
+    return (f"Hallo,\n\n"
+            f"bitte bestätige die E-Mail-Adresse deines {APP_NAME}-Kontos mit diesem Link:\n\n{link}\n\n"
+            f"Der Link gilt 48 Stunden und nur einmal. Wenn du das nicht angefordert hast, kannst du diese Mail ignorieren.\n\n"
+            f"{APP_NAME}")
+
+
+def send_verify(email: str, token: str) -> None:
+    """Versandweg fuer accounts.verify_sender: (email, token) -> None."""
+    send(email, f"{APP_NAME}: E-Mail-Adresse bestätigen", verify_text(verify_link(token)))
