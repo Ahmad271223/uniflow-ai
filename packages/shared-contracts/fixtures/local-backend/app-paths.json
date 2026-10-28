@@ -417,7 +417,7 @@
    "sources": [
     "UniFlow/Views/Library/LibraryPage.swift",
     "UniFlow/Views/Modules/ModulesPage.swift",
-    "UniFlow/Views/Settings/SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsLoader.swift"
    ],
    "request": {
     "path": "/api/courses"
@@ -486,7 +486,7 @@
    "method": "GET",
    "shape": "/api/credentials",
    "sources": [
-    "UniFlow/Views/Settings/SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsLoader.swift"
    ],
    "request": {
     "path": "/api/credentials"
@@ -1053,7 +1053,7 @@
     "UniFlow/Views/Modules/ModulesPage.swift",
     "UniFlow/Views/Plan/PlanActions.swift",
     "UniFlow/Views/Plan/PlanView.swift",
-    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Settings/SettingsLoader.swift",
     "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
@@ -1314,7 +1314,7 @@
     "UniFlow/Design/ShellState.swift",
     "UniFlow/Services/Session.swift",
     "UniFlow/Views/PlanDialogs.swift",
-    "UniFlow/Views/Settings/SettingsPage.swift",
+    "UniFlow/Views/Settings/SettingsLoader.swift",
     "UniFlow/Views/Timetable/TimetableShared.swift"
    ],
    "request": {
@@ -1434,7 +1434,7 @@
    "shape": "/api/sync/status",
    "sources": [
     "UniFlow/Design/ShellState.swift",
-    "UniFlow/Views/Settings/SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsLoader.swift"
    ],
    "request": {
     "path": "/api/sync/status"
@@ -1493,7 +1493,7 @@
    "method": "GET",
    "shape": "/api/terms",
    "sources": [
-    "UniFlow/Views/Settings/SettingsPage.swift"
+    "UniFlow/Views/Settings/SettingsLoader.swift"
    ],
    "request": {
     "path": "/api/terms"
