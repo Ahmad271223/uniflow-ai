@@ -9,32 +9,44 @@ import XCTest
 /// docs/EDITOR-MESSUNG.md). Geprueft wird der echte Weg: DocumentStore mit lokalem Backend (SQLite) im Temp-Ordner,
 /// PDFEditorController als Inhalt eines eigenen Fensters, PDFKit setzt die Seiten-Overlays selbst ein.
 ///
-/// - Oeffnen und durchgehendes Blaettern bei 100, 300 und 500 Seiten (Zeit, Hauptthread, Speicher, Overlays),
-///   bei 500 Seiten zusaetzlich Drehen und Einfuegen (Strukturwechsel baut das Anzeige-PDF neu).
+/// - Oeffnen und durchgehendes Blaettern bei 100, 250 und 500 Seiten (Zeit, Hauptthread, Speicher, ob Overlays und
+///   ihre PencilKit-Canvas wieder freigegeben werden), bei 500 Seiten zusaetzlich Drehen und Einfuegen
+///   (Strukturwechsel baut das Anzeige-PDF neu).
 /// - Dichtes Skript 100 Seiten x 300 Striche: Umrechnung, Journal, Speicherrunden (ganzes Dokument plus Versionskopie
 ///   im Backend) bei 20, 50 und 100 Seiten, Aufteilung einer Runde.
 /// - 50 volle Seiten: durchgehend blaettern, volle Seiten anspringen, erneut oeffnen.
 /// - 200 Seiten x 300 Striche nur auf Anforderung (`UNIFLOW_EDITOR_MESSUNG=gross`, dauert unter Last zu lange).
 /// - Zoom bis zum Maximum (Zeit, Speicher, Kantenschaerfe von Tinte und PDF im Bild des Fensters).
 /// - Eingefuegte Leerseiten A6 bis A0 (Lage eines Strichs, Einpassen, Speicher).
+/// - Rueckgaengig und Wiederholen ueber Seiten, deren Overlay schon freigegeben ist.
 ///
-/// Die Grenzen sind absichtlich grosszuegig (mehrfach ueber den Werten unter Last): Sie sollen grobe Rueckschritte
-/// fangen, nicht Schwankungen. Es gibt keine Schleifen, die Ebenen wiederholt ein- und ausblenden (daran hing
-/// `testManyForeignLayersStayFastAndAreReleased` einmal), und jedes Warten hat ein festes Zeitlimit. Jeder Messwert
-/// steht als Zeile "[EditorMessung] <Test> | <Name> = <Wert> <Einheit>" auf der Konsole.
+/// Zeiten haengen an der Last des Rechners (volle Laeufe teilen sich den Mac mit anderen Simulatoren). Darum sind
+/// Zeitgrenzen nur grobe Haenger-Grenzen, mindestens zehnfach ueber den Werten, die unter hoher Last (Lastmittel ueber
+/// 250 auf 8 Kernen) gemessen wurden; alles andere wird nur protokolliert. Hart geprueft wird, was nicht von der Last
+/// abhaengt: Seitenzahl, Freigabe der Overlays, Striche und Speicherstand. Es gibt keine Schleifen, die Ebenen
+/// wiederholt ein- und ausblenden (daran hing `testManyForeignLayersStayFastAndAreReleased`, Plan B12), und jedes
+/// Warten hat ein festes Zeitlimit. Jeder Messwert steht als Zeile "[EditorMessung] <Test> | <Name> = <Wert> <Einheit>"
+/// auf der Konsole, dazu das Lastmittel bei Beginn und Ende jedes Tests (Auswertung in docs/EDITOR-MESSUNG.md).
 /// Alle Daten sind erfunden (PDFs aus UIGraphicsPDFRenderer, Striche mit festem Startwert).
 @MainActor
 final class EditorScaleTests: XCTestCase {
 
     // MARK: Grenzen
 
-    /// Grenzen je Seitenzahl fuer Oeffnen und Blaettern (Sekunden bzw. MB).
+    /// Grenzen je Seitenzahl fuer Oeffnen und Blaettern (Sekunden bzw. MB). Gemessen unter hoher Last: Oeffnen unter
+    /// 0,1 s, erste Seite unter 0,2 s, Blaettern 8 / 23 / 40 s (100 / 250 / 500 Seiten, die Dauer gibt vor allem der
+    /// Takt des Tests vor), Zuwachs hoechstens 130 MB.
     struct OpenLimits {
         var open: Double
         var firstPage: Double
+        /// Zeitlimit fuers Blaettern bis zum Ende (danach bricht der Test mit Meldung ab)
         var scroll: Double
         var growthMB: Double
     }
+
+    /// Hoechstens so viele Overlays bzw. PencilKit-Canvas leben nach dem Blaettern: sichtbare (bis 3) + geparkte (6)
+    /// + die, deren Laden noch laeuft. Gemessen: 9 bis 10, unabhaengig von der Seitenzahl.
+    static let aliveLimit = 40
 
     // MARK: Oeffnen und Blaettern
 
@@ -42,12 +54,12 @@ final class EditorScaleTests: XCTestCase {
         try await openAndScroll(pages: 100, limits: OpenLimits(open: 15, firstPage: 15, scroll: 120, growthMB: 700))
     }
 
-    func testOpenAndScroll300Pages() async throws {
-        try await openAndScroll(pages: 300, limits: OpenLimits(open: 25, firstPage: 20, scroll: 200, growthMB: 900))
+    func testOpenAndScroll250Pages() async throws {
+        try await openAndScroll(pages: 250, limits: OpenLimits(open: 25, firstPage: 20, scroll: 180, growthMB: 900))
     }
 
     func testOpenAndScroll500PagesWithStructureChange() async throws {
-        try await openAndScroll(pages: 500, limits: OpenLimits(open: 40, firstPage: 25, scroll: 240, growthMB: 1100),
+        try await openAndScroll(pages: 500, limits: OpenLimits(open: 40, firstPage: 25, scroll: 220, growthMB: 1100),
                                 structureChange: true)
     }
 
@@ -81,19 +93,19 @@ final class EditorScaleTests: XCTestCase {
         m.memory("nach dem Oeffnen", opened, since: base)
         m.blocking("Hauptthread beim Oeffnen", main.take())
 
-        let scroll = try await scrollThrough(shown, timeLimit: limits.scroll * 1.5)
+        let scroll = try await scrollThrough(shown, timeLimit: limits.scroll)
         m.scroll(scroll)
         let scrolled = Speicher.now()
         m.memory("nach dem Blaettern", scrolled, since: base)
         m.add("Zuwachs durch Blaettern (phys_footprint)", Double(Int64(scrolled.footprint) - Int64(opened.footprint)) / 1_048_576, "MB")
         m.blocking("Hauptthread beim Blaettern", main.take())
 
-        XCTAssertLessThan(open, limits.open, "Oeffnen von \(n) Seiten dauert zu lange")
-        XCTAssertLessThan(firstPage, limits.firstPage, "erste Seite erscheint zu spaet")
-        XCTAssertLessThan(scroll.seconds, limits.scroll, "Blaettern durch \(n) Seiten dauert zu lange")
-        XCTAssertTrue(scroll.reachedEnd, "Ende des Dokuments nicht erreicht (Zeitlimit)")
+        XCTAssertLessThan(open, limits.open, "Oeffnen von \(n) Seiten haengt")
+        XCTAssertLessThan(firstPage, limits.firstPage, "erste Seite haengt")
+        XCTAssertTrue(scroll.reachedEnd, "Ende des Dokuments nicht in \(Int(limits.scroll)) s erreicht")
         XCTAssertGreaterThanOrEqual(scroll.seen.count, n * 95 / 100, "PDFKit hat fuer zu wenige Seiten ein Overlay eingesetzt")
-        XCTAssertLessThanOrEqual(scroll.aliveOverlays, 40, "Overlays werden nicht freigegeben (sichtbare + 6 geparkte erwartet)")
+        XCTAssertLessThanOrEqual(scroll.aliveOverlays, Self.aliveLimit, "Overlays werden nicht freigegeben (sichtbare + 6 geparkte erwartet)")
+        XCTAssertLessThanOrEqual(scroll.aliveCanvases, Self.aliveLimit, "PencilKit-Canvas werden nicht freigegeben")
         let growth = Double(Int64(scrolled.footprint) - Int64(base.footprint)) / 1_048_576
         XCTAssertLessThan(growth, limits.growthMB, "Speicher waechst beim Oeffnen und Blaettern zu stark")
 
@@ -101,6 +113,7 @@ final class EditorScaleTests: XCTestCase {
 
         main.stop()
         await store.close()
+        m.finish()
     }
 
     /// Seite drehen und Leerseite einfuegen: das Anzeige-PDF wird mit Kopien aller Seiten neu gebaut
@@ -140,7 +153,8 @@ final class EditorScaleTests: XCTestCase {
 
     // MARK: Dichtes Skript
 
-    /// Grenzen fuer das dichte Skript (Sekunden).
+    /// Grenzen fuer das dichte Skript (Sekunden). Gemessen unter hoher Last: Umrechnung 4 s (50 Seiten) bzw. 8 s
+    /// (100 Seiten), Speicherrunde 9 s bzw. 16,5 s, erneut oeffnen 6 s (50 Seiten).
     struct DenseLimits {
         /// Umrechnung und Journal aller Striche
         var convert: Double
@@ -197,7 +211,10 @@ final class EditorScaleTests: XCTestCase {
             while fed < checkpoint {
                 let chunk = min(25, checkpoint - fed)
                 var t = Uhr.now()
-                let drawings = (fed..<(fed + chunk)).map { $0 == 0 ? page1 : Handschrift.page($0, strokes: perPage) }
+                // Testdaten erzeugen laeuft auf dem Hauptthread des Tests: zaehlt nicht zur Messung des Hauptthreads
+                let drawings = main.excluding {
+                    (fed..<(fed + chunk)).map { $0 == 0 ? page1 : Handschrift.page($0, strokes: perPage) }
+                }
                 generate += Uhr.since(t)
                 for (i, d) in drawings.enumerated() { store.canvasChanged(pageKey: "p\(fed + i + 1)", drawing: d) }
                 t = Uhr.now()
@@ -207,6 +224,7 @@ final class EditorScaleTests: XCTestCase {
             }
             m.add("\(fed) Seiten: Umrechnung und Journal bisher", convert, "s")
             m.blocking("\(fed) Seiten: Hauptthread beim Umrechnen", main.take())
+            m.add("\(fed) Seiten: Spitze phys_footprint beim Umrechnen", Double(peak.current().footprint) / 1_048_576, "MB")
 
             page1.strokes.append(Handschrift.extraStroke(fed))
             extra += 1
@@ -217,25 +235,28 @@ final class EditorScaleTests: XCTestCase {
 
             let putsBefore = await engine.stats.puts
             _ = main.take()
+            peak.reset()                                       // Spitze nur dieser Runde (ohne die Auswertung davor)
             t = Uhr.now()
             await store.pause()                                // genau eine Runde: alles Ausstehende in einem PUT
             lastRound = Uhr.since(t)
+            let roundPeak = peak.current()
             m.add("\(fed) Seiten: eine Speicherrunde (ganzes Dokument)", lastRound, "s")
             m.add("\(fed) Seiten: PUTs in dieser Runde", Double(await engine.stats.puts - putsBefore), "")
             m.blocking("\(fed) Seiten: Hauptthread waehrend der Speicherrunde", main.take())
+            m.add("\(fed) Seiten: Spitze phys_footprint waehrend der Runde", Double(roundPeak.footprint) / 1_048_576, "MB")
             let info = await store.info()
             XCTAssertEqual(info.unsentPages, 0, "\(fed) Seiten: alles gespeichert")
-            try await m.storage("\(fed) Seiten", store: store, fx: fx)
-            if fed == breakdownAt { try await m.roundParts("\(fed) Seiten", store: store, round: lastRound) }
-            let top = peak.current()
-            m.add("\(fed) Seiten: Spitze phys_footprint bisher", Double(top.footprint) / 1_048_576, "MB")
+            // Groessen und nachgestellte Runde (serialisieren, parsen) laufen auf dem Hauptthread des Tests und
+            // zaehlen nicht zur Messung des Hauptthreads
+            try await main.excluding {
+                try await m.storage("\(fed) Seiten", store: store, fx: fx)
+                if fed == breakdownAt { try await m.roundParts("\(fed) Seiten", store: store, round: lastRound) }
+            }
+            peak.reset()                                       // naechster Abschnitt ohne die Auswertung
         }
         m.add("Striche erzeugen (nur Vorbereitung)", generate, "s")
         m.add("Umrechnung und Journal je Seite (\(perPage) Striche)", convert / Double(pages), "s")
-        let top = peak.stop()
-        m.add("Spitze phys_footprint", Double(top.footprint) / 1_048_576, "MB")
-        m.add("Spitze resident_size", Double(top.resident) / 1_048_576, "MB")
-        m.add("Spitzenzuwachs phys_footprint seit Testbeginn", Double(Int64(top.footprint) - Int64(base.footprint)) / 1_048_576, "MB")
+        _ = peak.stop()
         m.memory("nach dem Speichern", Speicher.now(), since: base)
         try await m.versions(fx)
 
@@ -252,17 +273,18 @@ final class EditorScaleTests: XCTestCase {
             _ = try await waitForOverlay(shown.editor, page: 0, timeout: 30)
             _ = main.take()
             let before = Speicher.now()
-            let r = try await scrollThrough(shown, timeLimit: 150, drain: 90)
+            // Zeitlimit 100 s (gemessen unter hoher Last: 5 s), Abarbeiten hoechstens 60 s
+            let r = try await scrollThrough(shown, timeLimit: 100, drain: 60)
             m.scroll(r)
             m.blocking("Hauptthread beim Blaettern durch volle Seiten", main.take())
             let after = Speicher.now()
             m.memory("nach dem Blaettern und Abarbeiten", after, since: base)
             m.add("Spitzenzuwachs beim Blaettern (phys_footprint)",
                   Double(Int64(r.peak.footprint) - Int64(before.footprint)) / 1_048_576, "MB")
-            XCTAssertTrue(r.reachedEnd, "Ende nicht erreicht")
+            XCTAssertTrue(r.reachedEnd, "Ende nicht in 100 s erreicht")
             XCTAssertGreaterThanOrEqual(r.seen.count, pages * 95 / 100)
-            XCTAssertLessThan(r.seconds, 150, "Blaettern durch \(pages) volle Seiten dauert zu lange")
-            XCTAssertLessThanOrEqual(r.aliveAfterDrain, 40, "Overlays bleiben nach dem Laden am Leben (Leck)")
+            XCTAssertLessThanOrEqual(r.aliveAfterDrain, Self.aliveLimit, "Overlays bleiben nach dem Laden am Leben (Leck)")
+            XCTAssertLessThanOrEqual(r.aliveCanvases, Self.aliveLimit, "PencilKit-Canvas werden nicht freigegeben")
             let last = try XCTUnwrap(installedOverlays(shown.editor).last, "sichtbare Seite am Ende")
             XCTAssertTrue(last.loaded, "sichtbare Seite am Ende geladen")
             XCTAssertGreaterThanOrEqual(last.canvas.drawing.strokes.count, perPage, "volle Seite auf der Canvas")
@@ -286,19 +308,36 @@ final class EditorScaleTests: XCTestCase {
         }
         main.stop()
         await store.close()
-        guard reopen else { return }
+        guard reopen else { m.finish(); return }
 
-        // erneut oeffnen: Journal (eine Datei je Seite) und Stand aus der Datenbank
-        let t = Uhr.now()
+        // erneut oeffnen: Journal (eine Datei je Seite) und Stand aus der Datenbank. Steht die Oberflaeche dabei?
+        let reopenMain = Hauptthread()
+        reopenMain.start()
+        var t = Uhr.now()
         let again = try await openStore(fx)
         let reopen = Uhr.since(t)
-        m.add("erneut oeffnen (\(pages * perPage) Striche)", reopen, "s")
+        m.add("erneut oeffnen (\(pages * perPage) Striche, DocumentStore.load)", reopen, "s")
+        m.blocking("Hauptthread beim erneuten Oeffnen", reopenMain.take())
+        reopenMain.stop()
         let p1 = await again.objects(forPageKey: "p1")
         XCTAssertEqual(p1.count, perPage + extra, "Seite 1 nach dem erneuten Oeffnen vollstaendig")
         let notice = again.notice ?? ""
         XCTAssertFalse(notice.contains("beschädigt"), notice)
-        XCTAssertLessThan(reopen, limits.reopen, "erneutes Oeffnen dauert zu lange")
+        XCTAssertLessThan(reopen, limits.reopen, "erneutes Oeffnen haengt")
+        // was davon der Abruf des gespeicherten Stands kostet (dieselbe Anfrage wie SyncEngine.open, nachgestellt)
+        t = Uhr.now()
+        let stored = try await fx.api.value("/api/files/\(fx.file.id)/annotations")
+        m.add("davon nachgestellt: gespeicherten Stand abrufen (GET annotations)", Uhr.since(t), "s")
+        XCTAssertNotNil(stored["data"]?["pages"], "gespeicherter Stand mit Seiten")
+        // bis die erste volle Seite mit ihren Strichen im Bild ist
+        t = Uhr.now()
+        let shown = show(again)
+        defer { hide(shown) }
+        _ = try await waitForCanvas(shown.editor, page: 0, strokes: perPage + extra, timeout: 30)
+        m.add("danach Editor bis erste volle Seite mit Strichen", Uhr.since(t), "s")
+        hide(shown)
         await again.close()
+        m.finish()
     }
 
     // MARK: Zoom auf das Maximum
@@ -355,7 +394,8 @@ final class EditorScaleTests: XCTestCase {
             let now = Speicher.now()
             m.add("\(name): Zuwachs phys_footprint", Double(Int64(now.footprint) - Int64(before.footprint)) / 1_048_576, "MB")
             if factor == 6 { m.memory("beim Maximum", now, since: base) }
-            let sharp = try await sharpness(shown, page: 0, waitForPDF: factor == 1 ? 4 : 8)
+            // wartet nur, bis PDFKit die Linie scharf nachgezeichnet hat (gemessen unter Last: 0,6 s)
+            let sharp = try await sharpness(shown, page: 0, waitForPDF: 15)
             m.sharpness(name, sharp)
             if let o = installedOverlay(editor, page: 0) { m.text("\(name): Ebenen der Canvas", Bild.layerInfo(o.canvas)) }
             before = Speicher.now()
@@ -384,6 +424,7 @@ final class EditorScaleTests: XCTestCase {
         XCTAssertLessThan(pdfSharpAtMax.edge, 4, "PDFKit zeichnet beim Zoom nicht scharf nach (Messaufbau pruefen)")
         XCTAssertNotNil(atMax.ink, "Tinte beim Maximum im Bild des Fensters")
         await store.close()
+        m.finish()
     }
 
     // MARK: Eingefuegte Seiten A6 bis A0
@@ -446,6 +487,83 @@ final class EditorScaleTests: XCTestCase {
             XCTAssertEqual(ys.reduce(0, +) / Double(max(ys.count, 1)), f.h / 2, accuracy: 3, "\(f.name): Strich senkrecht in der Mitte")
         }
         await store.close()
+        m.finish()
+    }
+
+    // MARK: Rueckgaengig ueber Seiten
+
+    /// Dokumentweiter Verlauf (PDFEditorController.registerUndo): je ein Strich auf Seite 2, Seite 9 und einer vollen
+    /// Seite 30 (300 Striche von frueher, nicht im Verlauf). Danach weit weg blaettern, bis keine der drei Seiten mehr
+    /// ein Overlay hat (weder sichtbar noch geparkt): Rueckgaengig wirkt dann auf den gespeicherten Stand und springt
+    /// zur Seite. Dreimal Rueckgaengig nimmt die Striche in umgekehrter Reihenfolge zurueck, dreimal Wiederholen bringt
+    /// sie zurueck; nach dem erneuten Oeffnen ist der letzte Stand da. Gemessen wird die Zeit je Schritt, bis die Seite
+    /// mit dem erwarteten Stand auf der Canvas liegt (nur protokolliert).
+    func testUndoRedoAcrossPagesAfterScrollingAway() async throws {
+        let m = Messwerte("Rueckgaengig ueber Seiten")
+        let fx = try await makeFixture(pdf: Skript.pdf(pages: 60, .schlicht), pageCount: 60)
+        let store = try await openStore(fx)
+        store.canvasChanged(pageKey: "p30", drawing: Handschrift.page(29, strokes: 300))
+        _ = await store.pageStructureDocument()
+        let shown = show(store)
+        defer { hide(shown) }
+        let editor = shown.editor
+        _ = try await waitForOverlay(editor, page: 0, timeout: 30)
+        XCTAssertFalse(editor.undoManager?.canUndo ?? true, "Verlauf am Anfang leer")
+
+        let pages: [(key: String, index: Int, before: Int)] = [("p2", 1, 0), ("p9", 8, 0), ("p30", 29, 300)]
+        for (n, p) in pages.enumerated() {
+            editor.goToPage(p.index)
+            let o = try await waitForCanvas(editor, page: p.index, strokes: p.before, timeout: 30)
+            let y = 200 + CGFloat(n) * 40
+            drawStroke(editor, on: o, Handschrift.line(from: CGPoint(x: 100, y: y), to: CGPoint(x: 300, y: y),
+                                                       created: Date(timeIntervalSinceReferenceDate: 796_000_000 + Double(n))))
+            try await Task.sleep(nanoseconds: 150_000_000)     // eigener Schritt (UndoManager fasst je Durchlauf zusammen)
+        }
+
+        // weit weg: so lange springen, bis keine der drei Seiten mehr ein Overlay hat
+        var jumps = 0
+        for far in [40, 44, 48, 52, 56, 59, 42, 46, 50, 54] {
+            if Set(pages.map(\.key)).isDisjoint(with: boundKeys(editor)) { break }
+            editor.goToPage(far)
+            _ = try await waitForOverlay(editor, page: far, timeout: 30)
+            try await Task.sleep(nanoseconds: 100_000_000)
+            jumps += 1
+        }
+        m.add("Spruenge, bis keine der Seiten mehr ein Overlay hat", Double(jumps), "")
+        XCTAssertTrue(Set(pages.map(\.key)).isDisjoint(with: boundKeys(editor)),
+                      "Messaufbau: Seiten noch gebunden \(boundKeys(editor).intersection(pages.map(\.key)))")
+
+        for p in pages.reversed() {
+            let t = Uhr.now()
+            editor.undo()
+            _ = try await waitForCanvas(editor, page: p.index, strokes: p.before, timeout: 30)
+            m.add("Rueckgaengig \(p.key) (\(p.before) Striche): bis Seite mit altem Stand im Bild", Uhr.since(t), "s")
+            XCTAssertEqual(editor.currentPageKey, p.key, "Rueckgaengig springt zur Seite \(p.index + 1)")
+        }
+        XCTAssertFalse(editor.undoManager?.canUndo ?? true, "genau drei Schritte im Verlauf")
+        await store.flush()
+        for p in pages {
+            let n = await store.objects(forPageKey: p.key).count
+            XCTAssertEqual(n, p.before, "\(p.key) nach dem Rueckgaengig gespeichert")
+        }
+
+        for p in pages {
+            let t = Uhr.now()
+            editor.redo()
+            _ = try await waitForCanvas(editor, page: p.index, strokes: p.before + 1, timeout: 30)
+            m.add("Wiederholen \(p.key): bis Seite mit neuem Stand im Bild", Uhr.since(t), "s")
+        }
+        XCTAssertFalse(editor.undoManager?.canRedo ?? true, "nichts mehr zu wiederholen")
+        hide(shown)
+        await store.close()
+
+        let again = try await openStore(fx)
+        for p in pages {
+            let n = await again.objects(forPageKey: p.key).count
+            XCTAssertEqual(n, p.before + 1, "\(p.key) nach Wiederholen und erneutem Oeffnen")
+        }
+        await again.close()
+        m.finish()
     }
 
     // MARK: Dokument im lokalen Backend
@@ -557,6 +675,29 @@ final class EditorScaleTests: XCTestCase {
         throw MessFehler("PDFKit hat in \(Int(timeout)) s kein geladenes Overlay fuer Seite \(page + 1) eingesetzt")
     }
 
+    /// Wie `waitForOverlay`, dazu genau `strokes` Striche auf der Canvas.
+    private func waitForCanvas(_ editor: PDFEditorController, page: Int, strokes: Int, timeout: Double) async throws -> PageInkView {
+        let end = Uhr.now() + timeout
+        var seen = -1
+        while Uhr.now() < end {
+            if let o = installedOverlay(editor, page: page), o.loaded, o.bounds.width > 0 {
+                seen = o.canvas.drawing.strokes.count
+                if seen == strokes { return o }
+            }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        throw MessFehler("Seite \(page + 1): nach \(Int(timeout)) s \(seen) statt \(strokes) Striche auf der Canvas")
+    }
+
+    /// Seitenschluessel, fuer die der Editor gerade ein Overlay des aktuellen Seitenaufbaus haelt (sichtbar oder
+    /// geparkt). Private Felder ueber Mirror, nur fuer den Messaufbau.
+    private func boundKeys(_ editor: PDFEditorController) -> Set<String> {
+        let mirror = Mirror(reflecting: editor)
+        let live = (mirror.children.first { $0.label == "live" }?.value as? [Int: PageInkView]).map { Array($0.values) } ?? []
+        let parked = mirror.children.first { $0.label == "parked" }?.value as? [PageInkView] ?? []
+        return Set((live + parked).filter { $0.generation == editor.shownLayoutVersion }.map(\.pageKey))
+    }
+
     private func scrollView(_ editor: PDFEditorController) -> UIScrollView? {
         func find(_ v: UIView) -> UIScrollView? {
             if let s = v as? UIScrollView, !(v is PKCanvasView) { return s }
@@ -593,6 +734,9 @@ final class EditorScaleTests: XCTestCase {
         var stepOverrun: [Double] = []
         /// PageInkView-Objekte, die nach dem Blaettern noch leben (sichtbar, geparkt oder von PDFKit gehalten)
         var aliveOverlays = 0
+        /// PencilKit-Canvas-Ansichten (je Overlay eine), die nach dem Blaettern noch leben. Haelt etwas anderes als
+        /// das Overlay sie fest (z. B. die Palette als Beobachter), bleiben sie hier stehen, auch wenn das Overlay weg ist.
+        var aliveCanvases = 0
         /// neu angelegte PageInkView-Objekte waehrend des Blaetterns
         var createdOverlays = 0
         var liveInEditor = -1
@@ -622,6 +766,7 @@ final class EditorScaleTests: XCTestCase {
         var loaded: Set<Int> = []
         // je Objekt-Adresse ein schwacher Verweis; eine wiederverwendete Adresse (freigegeben, neu angelegt) ersetzt ihn
         var everSeen: [ObjectIdentifier: WeakBox<PageInkView>] = [:]
+        var canvases: [ObjectIdentifier: WeakBox<PKCanvasView>] = [:]
         var created = 0
         let step = max(40, scroll.bounds.height * stepFraction)
         let start = Uhr.now()
@@ -640,6 +785,8 @@ final class EditorScaleTests: XCTestCase {
                     everSeen[id] = WeakBox(o)
                     created += 1
                 }
+                let cid = ObjectIdentifier(o.canvas)
+                if canvases[cid]?.value !== o.canvas { canvases[cid] = WeakBox(o.canvas) }
                 if firstSeen[o.pageIndex] == nil { firstSeen[o.pageIndex] = now }
                 if o.loaded, loaded.insert(o.pageIndex).inserted { r.loadLatency.append(now - firstSeen[o.pageIndex]!) }
             }
@@ -669,6 +816,7 @@ final class EditorScaleTests: XCTestCase {
         r.seconds = Uhr.since(start)
         try await Task.sleep(nanoseconds: 200_000_000)
         r.aliveOverlays = everSeen.values.filter { $0.value != nil }.count
+        r.aliveCanvases = canvases.values.filter { $0.value != nil }.count
         let drainStart = Uhr.now()
         r.aliveAfterDrain = r.aliveOverlays
         while drain > 0 {
@@ -744,7 +892,18 @@ final class EditorScaleTests: XCTestCase {
 @MainActor
 final class Messwerte {
     let test: String
-    init(_ test: String) { self.test = test }
+    private let start = Uhr.now()
+
+    init(_ test: String) {
+        self.test = test
+        text("Lastmittel bei Beginn (1/5/15 min)", Last.text())
+    }
+
+    /// Am Ende des Tests: Lastmittel und Dauer (die Last schwankt waehrend voller Laeufe stark).
+    func finish() {
+        text("Lastmittel am Ende (1/5/15 min)", Last.text())
+        add("Dauer des Tests", Uhr.since(start), "s")
+    }
 
     func add(_ name: String, _ value: Double, _ unit: String) {
         print("[EditorMessung] \(test) | \(name) = \(String(format: value.magnitude >= 100 ? "%.0f" : "%.3f", value)) \(unit)")
@@ -786,6 +945,7 @@ final class Messwerte {
         }
         add("Blaettern: Overlays angelegt", Double(r.createdOverlays), "")
         add("Blaettern: Overlays noch lebendig", Double(r.aliveOverlays), "")
+        add("Blaettern: Canvas-Ansichten noch lebendig", Double(r.aliveCanvases), "")
         add("Blaettern: im Editor sichtbar/geparkt", Double(r.liveInEditor), "/ \(r.parkedInEditor)")
         if r.drainSeconds > 0 {
             add("Blaettern: Ladevorgaenge abgearbeitet nach", r.drainSeconds, "s")
@@ -821,7 +981,8 @@ final class Messwerte {
         add("\(name): je Strich", Double(body.count) / Double(max(strokes, 1)), "Byte")
         add("\(name): Journal auf der Platte", Double(Dateien.size(fx.root.appendingPathComponent("journal", isDirectory: true))) / 1_048_576, "MB")
         let db = fx.host.databaseURL
-        add("\(name): Datenbank (Datei + WAL)", Double(Dateien.fileSize(db) + Dateien.fileSize(URL(fileURLWithPath: db.path + "-wal"))) / 1_048_576, "MB")
+        add("\(name): Datenbank (Datei)", Double(Dateien.fileSize(db)) / 1_048_576, "MB")
+        add("\(name): Datenbank (WAL)", Double(Dateien.fileSize(URL(fileURLWithPath: db.path + "-wal"))) / 1_048_576, "MB")
         let backend = try await fx.host.backend()
         let rows = try await backend.context.database.rows(
             "SELECT version, length(CAST(data AS BLOB)) AS size FROM annotation_versions WHERE file_id=? ORDER BY version",
@@ -874,6 +1035,15 @@ struct MessFehler: Error, CustomStringConvertible {
 }
 
 // MARK: - Zeit und Speicher
+
+/// Lastmittel des Rechners (im Simulator das des Macs): 1, 5 und 15 Minuten.
+enum Last {
+    static func text() -> String {
+        var l = [Double](repeating: 0, count: 3)
+        guard getloadavg(&l, 3) == 3 else { return "unbekannt" }
+        return l.map { String(format: "%.0f", $0) }.joined(separator: " / ")
+    }
+}
 
 enum Uhr {
     static func now() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1e9 }
@@ -929,6 +1099,15 @@ final class Spitze: @unchecked Sendable {
         }
     }
 
+    /// Spitze neu beginnen (ab dem jetzigen Stand)
+    func reset() {
+        let f = Speicher.footprintBytes(), r = Speicher.residentBytes()
+        lock.lock()
+        footprint = f
+        resident = r
+        lock.unlock()
+    }
+
     /// Spitze bis jetzt (Abtastung laeuft weiter)
     func current() -> Speicher {
         lock.lock()
@@ -956,15 +1135,36 @@ final class Hauptthread {
 
     private var task: Task<Void, Never>?
     private var delays: [Double] = []
+    /// Waehrend `excluding` laeuft: Werte verwerfen. `epoch` zaehlt jeden Wechsel, damit auch ein Wert verworfen wird,
+    /// der vor dem Abschnitt begann und erst danach fertig wurde.
+    private var excluded = false
+    private var epoch = 0
 
     func start() {
         task = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 let t = Uhr.now()
+                let e = self?.epoch ?? 0
                 try? await Task.sleep(nanoseconds: 10_000_000)
-                self?.delays.append(max(0, Uhr.since(t) - 0.010))
+                guard let me = self else { return }
+                if !me.excluded, me.epoch == e { me.delays.append(max(0, Uhr.since(t) - 0.010)) }
             }
         }
+    }
+
+    /// Arbeit des Tests selbst (Testdaten erzeugen, Groessen auswerten) zaehlt nicht zur Messung.
+    func excluding<T>(_ body: () throws -> T) rethrows -> T {
+        excluded = true
+        epoch += 1
+        defer { excluded = false; epoch += 1 }
+        return try body()
+    }
+
+    func excluding<T>(_ body: () async throws -> T) async rethrows -> T {
+        excluded = true
+        epoch += 1
+        defer { excluded = false; epoch += 1 }
+        return try await body()
     }
 
     /// Bisherige Werte zusammenfassen und zuruecksetzen.
