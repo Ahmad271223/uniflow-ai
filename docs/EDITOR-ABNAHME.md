@@ -1,7 +1,8 @@
 # Abnahmeliste PDF-Editor (iPad mit Apple Pencil)
 
-Stand 28.10.2026 · Grundlage: `docs/PENCILKIT-ANALYSE-PLAN.md` (Schritt 0 / P0-1 und P0-2) · Messwerte aus dem
-Simulator: `docs/EDITOR-MESSUNG.md` (Befunde M1 bis M10).
+Stand 28.10.2026 nach Schritt 2 (Härtungen) · Grundlage: `docs/PENCILKIT-ANALYSE-PLAN.md` (Schritt 0 / P0-1 und
+P0-2, Härtungen P0-3 bis P0-6) · Messwerte aus dem Simulator: `docs/EDITOR-MESSUNG.md` (Befunde M1 bis M10,
+Abschnitt 8 zu Schritt 2). Die Gerätepunkte zu Schritt 2 stehen gesammelt in Abschnitt 18.
 
 Diese Liste prüft der Inhaber am **echten iPad mit Apple Pencil**, bevor der Editor umgebaut wird, und danach nach
 jedem Schritt erneut. Die App heißt in allen sichtbaren Texten und auf dem Home-Bildschirm **Studora**; das Xcode-Ziel
@@ -174,16 +175,16 @@ Code; was passiert, ist Verhalten von iPadOS und der Systempalette.
 
 ## 10. Hintergrund und Beenden
 
-Die App sichert jede Seite 0,25 s nach dem letzten Strich ins lokale Journal. Solange ohne Pause weitergeschrieben
-wird, liegt der neueste Stand nur im Speicher (Plan B3, Obergrenze kommt mit Schritt 2). Diese Prüfungen zeigen, wie
-groß das Fenster am Gerät ist. **Nur mit D5.**
+Die App sichert jede Seite 0,25 s nach dem letzten Strich ins lokale Journal. Seit Schritt 2 gilt eine Obergrenze:
+Auch wenn ohne Pause weitergeschrieben wird, landet der Stand spätestens nach etwa 2 s im Journal (P0-3). Hochgeladen
+wird weiterhin erst nach einer Schreibpause. Diese Prüfungen zeigen, wie groß das Fenster am Gerät ist. **Nur mit D5.**
 
 | Nr. | Schritt | Erwartung | Ergebnis | Notiz |
 |---|---|---|---|---|
 | 10.1 | Strich schreiben und sofort zum Home-Bildschirm wischen; nach 1 min zurück | Strich da, Status „Gespeichert“ | ☐ bestanden ☐ nicht bestanden | |
 | 10.2 | Einen Strich schreiben, 2 s warten, App im App-Umschalter wegwischen, neu öffnen | Strich da | ☐ bestanden ☐ nicht bestanden | |
 | 10.3 | Strich schreiben und **sofort** (unter 1 s) wegwischen | Strich da, wenn mehr als ¼ s vergangen ist; notieren, wie viel fehlt | ☐ bestanden ☐ nicht bestanden | |
-| 10.4 | 30 s ohne Pause schreiben (z. B. schraffieren) und während des Schreibens in Xcode auf Stop (■) drücken – das beendet die App wie ein Absturz | nach dem Neustart: alles bis zur letzten Schreibpause da; notieren, wie viel fehlt. **Bekannt (B3):** heute können bis zu den letzten 30 s fehlen | ☐ bestanden ☐ nicht bestanden | fehlt: |
+| 10.4 | 30 s ohne Pause schreiben (z. B. schraffieren) und während des Schreibens in Xcode auf Stop (■) drücken – das beendet die App wie ein Absturz | nach dem Neustart: höchstens die letzten etwa 2 s fehlen (Obergrenze P0-3, vor Schritt 2 bis zu 30 s); notieren, wie viel fehlt. **Simulator:** erster Journal-Eintrag nach 2,1–2,2 s Dauerschreiben | ☐ bestanden ☐ nicht bestanden | fehlt: |
 | 10.5 | Wie 10.4, aber mit kurzen Pausen (Strich, Pause, Strich) | höchstens der letzte Strich fehlt | ☐ bestanden ☐ nicht bestanden | |
 | 10.6 | Dicht beschriebenes D2 (nach 9.2): Strich schreiben, sofort Home-Bildschirm, nach 30 s zurück | Strich da, Status „Gespeichert“. **Simulator:** eine Speicherrunde dauert hier mehrere Sekunden (M1); iPadOS gibt einer App im Hintergrund nur begrenzt Zeit – notieren, ob „Gespeichert“ kommt | ☐ bestanden ☐ nicht bestanden | |
 
@@ -221,7 +222,7 @@ Zahlen sind nur eine Größenordnung (`docs/EDITOR-MESSUNG.md`, Abschnitt 6).
 | 13.2 | Abwechselnd links und rechts schreiben | eine Palette für beide, jedes Dokument speichert seine eigenen Striche | ☐ bestanden ☐ nicht bestanden | |
 | 13.3 | Danach zweimal „Rückgängig“ | nimmt den zuletzt geschriebenen Strich zurück, egal in welchem Dokument | ☐ bestanden ☐ nicht bestanden | |
 | 13.4 | „Teilung beenden“, beide Dokumente einzeln neu öffnen | alle Striche beider Dokumente da | ☐ bestanden ☐ nicht bestanden | |
-| 13.5 | Studora zweimal nebeneinander (Split View oder Stage Manager) und in beiden **dasselbe** Dokument D5 öffnen, in beiden schreiben, beide schließen, neu öffnen | **Risiko (Plan B11, Schritt 2):** es gibt keine Sperre für doppelt geöffnete Dokumente. Nur mit D5! Notieren, ob danach Striche fehlen | ☐ alles da ☐ Striche fehlen ☐ entfällt | |
+| 13.5 | Studora zweimal nebeneinander (Split View oder Stage Manager) und in beiden **dasselbe** Dokument D5 öffnen, in beiden schreiben, beide schließen, neu öffnen | seit Schritt 2 (P0-6): das zweite Fenster zeigt „In einem anderen Fenster offen – nur ansehen“, der Stift schreibt dort nicht; nach dem Schließen und Öffnen sind alle Striche des ersten Fensters da. Einzelheiten in 18.8–18.11. Nur mit D5! | ☐ alles da ☐ Striche fehlen ☐ entfällt | |
 
 ## 14. Eingefügte Seiten A6 bis A0
 
@@ -312,3 +313,44 @@ Die Mac-Sitzung trägt die Ergebnisse in diese Datei ein (Spalten „Ergebnis“
 Reihenfolge der Härtungen ab (`docs/PENCILKIT-ANALYSE-PLAN.md`, Abschnitt 6; Befunde in `docs/EDITOR-MESSUNG.md`,
 Abschnitt 4). Nach jedem Umbauschritt wird dieselbe Liste wiederholt; Punkte mit „bekannt“ wechseln dann auf eine
 normale Erwartung.
+
+## 18. Gerätepunkte zu Schritt 2 (Härtungen P0-3 bis P0-6)
+
+Neu mit Schritt 2. Die Simulator-Tests dazu stehen in `EditorHardeningStep2Tests` (App) und
+`SyncEngineHardeningTests` (Kern). **Nur mit D5.**
+
+**P0-3 Obergrenze beim Sichern.** Ohne Schreibpause wird spätestens alle 2 s ins Journal gesichert. Eine Upload-Runde
+mit dem ganzen Dokument startet erst nach der Pause, weil sie bei dichten Dokumenten Sekunden dauert (M1).
+
+| Nr. | Schritt | Erwartung | Ergebnis | Notiz |
+|---|---|---|---|---|
+| 18.1 | 20 s schraffieren ohne den Stift abzusetzen bzw. ohne Pause zwischen den Strichen, dabei die Statusanzeige beobachten | Status „Lokal gesichert · 1 Seite wartet“; „Speichert…“ erscheint erst nach der Pause, dann einmal und danach „Gespeichert“. Schreiben bleibt flüssig | ☐ bestanden ☐ nicht bestanden | |
+| 18.2 | Wie 18.1 auf einer schon voll beschriebenen Seite in einem dichten Dokument (D2 nach 9.2) | Schreiben ohne Ruckler. **Simulator:** je Sicherung der vollen Seite gut 0,1 s im Hintergrund, Hauptthread frei (Messung Abschnitt 8) | ☐ bestanden ☐ nicht bestanden | |
+| 18.3 | Wie 10.4: 30 s schraffieren, während des Schreibens in Xcode Stop (■), neu starten | höchstens die letzten etwa 2 s fehlen; Hinweis „… ungesendete Seite(n) wiederhergestellt.“ | ☐ bestanden ☐ nicht bestanden | fehlt: |
+
+**P0-4 Formatschutz.** Notizen, die eine neuere Version von Studora gespeichert hat (Format `version` größer als 2),
+öffnen nur zum Ansehen und werden nie gespeichert.
+
+| Nr. | Schritt | Erwartung | Ergebnis | Notiz |
+|---|---|---|---|---|
+| 18.4 | Testdokument mit Notizen in Format 3 öffnen (Testdatei bekommt der Inhaber auf Wunsch von der Mac-Sitzung; ohne sie „entfällt“, im Simulator geprüft) | Seitenleiste „Neueres Notizformat – nur ansehen“ und Hinweis „Diese Notizen stammen aus einer neueren Version von Studora – hier nur ansehen …“; keine Palette, der Stift schreibt nicht, Seiten-Menüpunkte gesperrt | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 18.5 | Danach schließen und erneut öffnen | Notizen unverändert sichtbar, weiterhin nur ansehen | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+
+**P0-5 Herkunftsstempel.** Beim ersten Speichern merkt sich das Dokument, zu welcher PDF die Notizen gehören. Beim
+Öffnen wird das wie bisher geprüft.
+
+| Nr. | Schritt | Erwartung | Ergebnis | Notiz |
+|---|---|---|---|---|
+| 18.6 | Neues Dokument ohne Notizen öffnen, einen Strich schreiben, schließen, erneut öffnen und weiterschreiben | kein Hinweis „Neue Fassung angekommen“, Schreiben geht | ☐ bestanden ☐ nicht bestanden | |
+| 18.7 | Falls Stud.IP eine neue Fassung eines beschriebenen Dokuments liefert: Dokument öffnen | Hinweis „Neue Fassung aus Stud.IP – Notizen übernommen“, Notizen auf den passenden Seiten, Schreiben geht (nach dem erneuten Öffnen) | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+
+**P0-6 Dasselbe Dokument in zwei Fenstern.** Zwei Fenster dürfen nicht gleichzeitig in dasselbe Dokument schreiben.
+Ist es im anderen Fenster zu sehen, öffnet das zweite nur zum Ansehen. Ist es dort nicht mehr zu sehen (anderes
+Dokument gewählt, Fenster im Hintergrund), übernimmt das neue Fenster.
+
+| Nr. | Schritt | Erwartung | Ergebnis | Notiz |
+|---|---|---|---|---|
+| 18.8 | Stage Manager oder Split View mit zwei Studora-Fenstern. Fenster A: D5 öffnen und schreiben. Fenster B: dasselbe D5 öffnen | B zeigt A's Striche, Seitenleiste „In einem anderen Fenster offen – nur ansehen“, Hinweis „… zum Schreiben dort schließen und hier neu öffnen“; in B keine Palette, der Stift schreibt nicht | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 18.9 | In A weiterschreiben, dann in A ein anderes Dokument wählen; in B D5 schließen und neu öffnen | B kann jetzt schreiben; A's Striche sind alle da | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 18.10 | A: D5 offen, Strich schreiben und sofort in A ein anderes Dokument wählen; dann in B D5 öffnen | B schreibt (Übernahme), der letzte Strich aus A ist in B zu sehen; kehrt man in A zu D5 zurück, während B es noch zeigt, ist A nur zum Ansehen | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 18.11 | Nach 18.8–18.10 beide Fenster schließen, D5 in einem Fenster öffnen | alle Striche aus beiden Fenstern da, kein Hinweis „beschädigt“ | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |

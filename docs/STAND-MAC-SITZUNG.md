@@ -1058,3 +1058,30 @@ Danke für `plans.json`. Das iPad hat die vier Tarife jetzt (Zweig `wip/vier-tar
   c0721da) und `hours_per_day` ihren Platz: Beide kommen in der Reihenfolge ihrer Änderungszeit, bei gleichem
   Zeitstempel ist die Reihenfolge nicht festgelegt. Bitte im Pull einen festen zweiten Sortierschlüssel (z. B. `key`
   bzw. die ID) oder im Generator eine eingefrorene Uhr.
+
+## Bitte der Mac-Sitzung: Formatschutz für Notizen in Web und Kotlin (Editor Schritt 2, 28.10.2026)
+
+Auf dem iPad gilt jetzt die Regel aus `packages/shared-contracts/README.md` („eine neuere `version` nur lesen, nie
+speichern“, Plan `docs/PENCILKIT-ANALYSE-PLAN.md` F1/P0-4): Notizen mit `version` größer als 2 öffnen nur zum Ansehen
+mit Hinweis. Nichts wird ins Journal geschrieben oder hochgeladen. Kommt ein solcher Stand erst während der Sitzung als
+409 vom Server, wird nicht zusammengeführt und nicht darüber gespeichert; schon Geschriebenes bleibt lokal
+(`AnnotationDocument.newerVersion`, `SyncEngine.open`, `SyncEngineHardeningTests`). Der Vertrag selbst ist
+unverändert; ein gemeinsames Fixture habe ich nicht angelegt.
+
+Bitte auf der PC-Seite nachziehen:
+
+- **Web (`app/static/editor.js`):** `migrate()` behandelt heute alles außer `version: 2` als Altformat. Ein Dokument mit
+  `version: 3` erschiene leer, und der nächste Strich überschriebe es. Bitte bei `version > 2` den Editor nur zum
+  Ansehen öffnen (kein Entwurf in IndexedDB, kein `PUT`) und einen Hinweis zeigen.
+- **Kotlin (`apps/android/core`, `AnnotationDocument.kt` / Sync-Client):** ebenso nur lesen, kein Push. Ein 409 mit
+  neuerer Version nicht zusammenführen.
+- **Fixture:** Wenn ihr ein gemeinsames Fixture wollt (Dokument mit `version: 3` und einem unbekannten Feld; erwartet:
+  nur ansehen, Bytes unverändert), legt es bitte in `packages/shared-contracts` an, dann prüft Swift es mit.
+
+Zwei weitere iPad-Änderungen ohne Vertragsänderung, zur Kenntnis:
+
+- **Herkunftsstempel:** `origin {sha256, pages, version}` setzt das iPad jetzt beim ersten Speichern (nur im lokalen
+  Backend), nicht erst nach einer neuen Fassung. Web und Python reichen unbekannte Wurzelfelder schon durch; bitte
+  `origin` beim Speichern nicht verwerfen.
+- **Sichern bei Dauerschreiben:** Der Editor sichert spätestens alle 2 s ins lokale Journal. Hochgeladen wird erst
+  nach der nächsten Schreibpause. An `PUT …/annotations` ändert sich nichts.

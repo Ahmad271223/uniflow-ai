@@ -500,6 +500,33 @@ final class FileVersionKeeperTests: XCTestCase {
         XCTAssertEqual(none.plan, .none)
     }
 
+    /// Herkunftsstempel ohne Notizen (der Editor setzt `origin` beim ersten Speichern, P0-5; danach wurde alles
+    /// radiert): mit der neuen Fassung geht auch der Stempel der alten weg. Sonst gaelte das Dokument bei jedem Oeffnen
+    /// als "neue Fassung angekommen" und bliebe nur zum Ansehen. Gegenprobe: mit Notizen setzt das Umhaengen den
+    /// Stempel der neuen Fassung (testNewVersionWithNotesKeepsOldVersionAndMovesNotes), ohne neue Fassung bleibt er.
+    func testNewVersionWithoutNotesDropsTheOldOriginStamp() async throws {
+        let e = try await env()
+        let stamp: JSONValue = ["sha256": "alter-inhalt", "pages": 4, "version": 1]
+        _ = try await seed(e, notes: ["version": 2, "origin": stamp, "pageOrder": [["key": "p1", "type": "pdf", "index": 1]],
+                                      "pages": ["p1": ["objects": []]]])
+        let same = try await e.keeper.prepare(fileID: "d1", newSHA: SolutionSHA256.hex(pdfData(oldPages)))
+        XCTAssertEqual(same.plan, .none, "gleicher Inhalt: nichts")
+        let unchanged = try await document(e, "d1")
+        XCTAssertEqual(unchanged.root["origin"], stamp, "ohne neue Fassung bleibt der Stempel")
+        let d = try await download(e, oldPages + ["Neue Seite"])
+        XCTAssertEqual(d.prepared.plan, .resetPageList)
+        try await commit(e, d, chdate: 200)
+        let doc = try await document(e, "d1")
+        XCTAssertNil(doc.root["origin"], "Stempel der alten Fassung entfernt")
+        XCTAssertEqual(doc.pageOrder, [])
+
+        // nur noch der Stempel (Seitenliste schon leer): ebenso entfernt
+        try await put(e, "d1", ["version": 2, "origin": stamp, "pageOrder": [], "pages": [:]], base: 2)
+        try await commit(e, try await download(e, oldPages + ["Neue Seite", "Noch eine"]), chdate: 300)
+        let emptied = try await document(e, "d1")
+        XCTAssertNil(emptied.root["origin"])
+    }
+
     /// Kopie der Datei ("Duplizieren", gleiche PDF) mit eigenen Notizen: bekommt die neue Fassung mit, ihre Notizen
     /// werden ebenso umgehaengt (eigene alte Fassung mit derselben aufbewahrten PDF), ihr Ladezeitpunkt geht mit
     func testCopySharingTheFileMovesItsNotesToo() async throws {

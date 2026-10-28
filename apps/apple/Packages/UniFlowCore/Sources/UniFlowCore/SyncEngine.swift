@@ -124,6 +124,22 @@ public struct SyncStats: Equatable, Sendable {
     public var conflicts = 0
     public var mergedConflicts = 0
     public var localWriteFailures = 0
+    /// Seiten, die ins Journal geschrieben wurden (fuer Messungen der Obergrenze beim Sichern)
+    public var pageWrites = 0
+}
+
+/// Warum ein Dokument nur zum Ansehen offen ist. Dann schreibt die SyncEngine nichts ins Journal und laedt nichts
+/// hoch (`newerFormatOnServer`: nur nichts hoch).
+public enum NotesViewOnlyReason: Equatable, Sendable {
+    /// Journal nicht lesbar (Ordner), angezeigt wird der Serverstand
+    case journalUnreadable
+    /// Notizen in einer neueren Formatversion (`AnnotationDocument.supportedVersion`): nur lesen, nie speichern
+    case newerFormat(Int)
+    /// Dasselbe Dokument ist schon in einem anderen Fenster offen (zwei Schreiber auf einem Journal)
+    case openElsewhere
+    /// Waehrend das Dokument offen war, hat ein anderes Geraet eine neuere Formatversion gespeichert: nichts mehr
+    /// hochladen; schon Geschriebenes bleibt im Journal (geht mit einer neueren App wieder mit)
+    case newerFormatOnServer(Int)
 }
 
 // MARK: - Synchronisierung
@@ -150,6 +166,13 @@ public struct SyncStats: Equatable, Sendable {
 ///   (Basis vorhanden = ungesendet), damit im Browser Geloeschtes nicht zurueckkommt.
 /// - Laesst sich das Journal gar nicht lesen (Ordner), wird nichts hineingeschrieben und nichts hochgeladen: der
 ///   Serverstand ist nur zum Ansehen da (`OpenResult.journalUnreadable`), bis das Dokument neu geoeffnet wird.
+/// - Nur ansehen auch bei Notizen in einer neueren Formatversion und wenn dasselbe Dokument schon in einem anderen
+///   Fenster offen ist (`open(pdfPageCount:openElsewhere:)`): nichts ins Journal, nichts hochladen
+///   (`OpenResult.viewOnly`). Kommt die neuere Version erst waehrend der Sitzung vom Server, wird nur nicht mehr
+///   hochgeladen (`viewOnlyHandler`).
+/// - Obergrenze beim Sichern (Editor schreibt ohne Pause): `updatePage(_:_:derivedFrom:holdUpload: true)` sichert ins
+///   Journal, startet aber keine neue Upload-Runde, bis `releaseUploadHold`, `requestUpload` oder `syncNow` kommt oder
+///   eine Aenderung ohne Halten eintrifft. So laufen bei Dauerschreiben keine Runden mit dem ganzen Dokument hintereinander.
 public actor SyncEngine {
     public typealias Sleeper = @Sendable (Double) async -> Void
 
@@ -204,6 +227,17 @@ public actor SyncEngine {
     private var acksUnknown = false
     /// Journal nicht lesbar: nichts schreiben, nichts hochladen (nur ansehen)
     private var journalUnreadable = false
+    /// Nur ansehen aus einem anderen Grund (neueres Format, anderes Fenster): nichts schreiben, nichts hochladen
+    private var viewOnly: NotesViewOnlyReason?
+    /// Neueres Format kam waehrend der Sitzung vom Server: nichts mehr hochladen (Journal bleibt beschreibbar)
+    private var uploadsStopped: NotesViewOnlyReason?
+    /// Editor schreibt ohne Pause: keine neue Upload-Runde beginnen (siehe `updatePage(...holdUpload:)`)
+    private var uploadHeld = false
+    private var viewOnlyHandler: (@Sendable (NotesViewOnlyReason) -> Void)?
+    /// Weder Journal noch Upload
+    private var writesBlocked: Bool { journalUnreadable || viewOnly != nil }
+    /// Kein Upload
+    private var uploadsBlocked: Bool { writesBlocked || uploadsStopped != nil }
     /// Seiten mit Konflikten seit dem letzten "Verstanden" (Anzeige: welche Seiten betroffen sind)
     private var conflictPages: Set<String> = []
 
@@ -237,6 +271,28 @@ public actor SyncEngine {
         handler?(issue)
     }
 
+    /// Meldet, wenn das Dokument waehrend der Sitzung nur noch zum Ansehen ist (neueres Format vom Server).
+    public func setViewOnlyHandler(_ handler: (@Sendable (NotesViewOnlyReason) -> Void)?) {
+        viewOnlyHandler = handler
+    }
+
+    /// Ab jetzt nur ansehen (ein anderes Fenster hat das Dokument uebernommen): nichts mehr ins Journal, keine Uploads,
+    /// keine Bestaetigungen. Eine laufende Runde endet; was sie bestaetigt, wird nicht mehr gesichert (der neue Schreiber
+    /// sendet es erneut, der Server fuehrt gleiche Staende ohne Konflikt zusammen).
+    public func enterViewOnly(_ reason: NotesViewOnlyReason) {
+        if viewOnly == nil { viewOnly = reason }
+        uploadHeld = false
+        debounceTask?.cancel()
+        debounceTask = nil
+        serverRetryScheduled = false
+    }
+
+    /// Grund, warum nichts geschrieben oder hochgeladen wird; nil = normal
+    public var viewOnlyReason: NotesViewOnlyReason? {
+        if journalUnreadable { return .journalUnreadable }
+        return viewOnly ?? uploadsStopped
+    }
+
     /// Hinweis "Konflikte zusammengefuehrt" gesehen: zuruecksetzen.
     public func acknowledgeMergedConflicts() {
         mergedConflictCount = 0
@@ -251,7 +307,7 @@ public actor SyncEngine {
 
     /// Wurzelfelder (Seitenliste, Lesezeichen) bekannt und aenderbar? Nach beschaedigtem oder fehlendem meta.json erst,
     /// wenn der Serverstand geholt ist.
-    public var rootMetaKnown: Bool { !metaUnknown && !journalUnreadable }
+    public var rootMetaKnown: Bool { !metaUnknown && !writesBlocked }
 
     // MARK: Oeffnen
 
@@ -263,12 +319,18 @@ public actor SyncEngine {
         /// Journal nicht lesbar: angezeigt wird der Serverstand, nur zum Ansehen; nichts wird geschrieben oder
         /// hochgeladen (erneut oeffnen versucht es wieder)
         public var journalUnreadable = false
+        /// Nur zum Ansehen geoeffnet (Grund); nil = normal
+        public var viewOnly: NotesViewOnlyReason?
     }
 
     /// Laedt das lokale Journal, holt den Serverstand und fuehrt beides zusammen. Ungesendete lokale Aenderungen
     /// haben Vorrang vor einem aelteren Serverstand und werden danach hochgeladen.
-    public func open(pdfPageCount: Int) async -> OpenResult {
+    /// - Parameter openElsewhere: dasselbe Dokument ist schon in einem anderen Fenster offen: nur ansehen (Journal und
+    ///   Serverstand werden gelesen und im Speicher zusammengefuehrt, nichts wird geschrieben oder hochgeladen).
+    ///   Notizen in einer neueren Formatversion (im Journal oder auf dem Server) oeffnen ebenso nur zum Ansehen.
+    public func open(pdfPageCount: Int, openElsewhere: Bool = false) async -> OpenResult {
         self.pdfPageCount = pdfPageCount
+        if openElsewhere { viewOnly = .openElsewhere }
         var snapshot: JournalSnapshot?
         do {
             snapshot = try journal.load()
@@ -278,13 +340,18 @@ public actor SyncEngine {
             journalUnreadable = true
             recordWriteError("Lokale Notizen nicht lesbar – nur ansehen. Dokument schließen und erneut öffnen.")
         }
-        if let snapshot { adopt(snapshot) }
+        if let snapshot {
+            // neueres Format schon im Journal (z. B. nach dem Zurueckspielen einer aelteren App): vor jedem Schreiben
+            if viewOnly == nil, let v = AnnotationDocument.newerVersion(snapshot.rootMeta) { viewOnly = .newerFormat(v) }
+            adopt(snapshot)
+        }
         let restored = dirtyPageKeys.count
         var reachable = false
         do {
             let server = try await transport.fetch(documentID: documentID)
             reachable = true
             noteReachable()
+            if viewOnly == nil, let v = AnnotationDocument.newerVersion(server.root) { viewOnly = .newerFormat(v) }
             if journalUnreadable {
                 adoptServer(server, persist: false)
             } else if snapshot == nil {
@@ -296,13 +363,13 @@ public actor SyncEngine {
             noteTransportFailure(SyncIssue.classify(error))
         }
         refreshStatus()
-        if blockedBy == nil, !journalUnreadable {
+        if blockedBy == nil, !uploadsBlocked {
             if hasDirty || needsServerState { scheduleUpload(after: 0) }
             else if serverErrorStatus != nil { scheduleServerRetry() }   // 5xx beim Oeffnen: spaeter erneut abrufen
         }
         return OpenResult(document: currentDocument(), serverReachable: reachable,
                           restoredUnsentPages: restored, damagedFiles: snapshot?.damaged ?? [],
-                          journalUnreadable: journalUnreadable)
+                          journalUnreadable: journalUnreadable, viewOnly: viewOnlyReason)
     }
 
     // MARK: Lesen
@@ -321,10 +388,13 @@ public actor SyncEngine {
 
     // MARK: Lokale Aenderungen
 
-    /// Neuer Stand einer Seite (vom Editor). Wird sofort lokal gesichert, Upload nach kurzer Pause. Bei nicht lesbarem
-    /// Journal nicht angenommen (nur ansehen, `OpenResult.journalUnreadable`).
-    public func updatePage(_ key: String, _ page: JSONValue) {
-        guard !journalUnreadable else { return }
+    /// Neuer Stand einer Seite (vom Editor). Wird sofort lokal gesichert, Upload nach kurzer Pause. Nur zum Ansehen
+    /// geoeffnet (`OpenResult.viewOnly`): nicht angenommen.
+    /// - Parameter holdUpload: der Editor schreibt noch (Obergrenze beim Sichern): sichern, aber keine Upload-Runde
+    ///   anstossen und keine neue beginnen, bis eine Aenderung ohne Halten, `releaseUploadHold`, `requestUpload` oder
+    ///   `syncNow` kommt. Eine schon laufende Runde endet normal.
+    public func updatePage(_ key: String, _ page: JSONValue, holdUpload: Bool = false) {
+        guard !writesBlocked else { return }
         retryFailedWrites()
         let old = pages[key]
         guard old?.page != page else { return }
@@ -333,7 +403,12 @@ public actor SyncEngine {
         pages[key] = JournalPage(page: page, localRev: rev)
         persistPage(key)
         refreshStatus()
-        scheduleUploadAfterEdit()
+        if holdUpload {
+            uploadHeld = true
+        } else {
+            uploadHeld = false
+            scheduleUploadAfterEdit()
+        }
     }
 
     /// Neuer Stand einer Seite, den der Editor aus `previous` berechnet hat. Hat sich die Seite inzwischen geaendert
@@ -342,11 +417,11 @@ public actor SyncEngine {
     /// Ergaenztes bleibt.
     /// - Returns: `true`, wenn das Ergebnis vom uebergebenen Stand abweicht (Anzeige neu laden).
     @discardableResult
-    public func updatePage(_ key: String, _ page: JSONValue, derivedFrom previous: JSONValue?) -> Bool {
-        guard !journalUnreadable else { return false }
+    public func updatePage(_ key: String, _ page: JSONValue, derivedFrom previous: JSONValue?, holdUpload: Bool = false) -> Bool {
+        guard !writesBlocked else { return false }
         let current = pages[key]?.page
         guard current != previous else {
-            updatePage(key, page)
+            updatePage(key, page, holdUpload: holdUpload)
             return false
         }
         let result = AnnotationMerge.mergePage(base: previous, local: page, server: current)
@@ -356,7 +431,7 @@ public actor SyncEngine {
             conflictPages.insert(key)
         }
         let merged = result.page ?? page
-        updatePage(key, merged)
+        updatePage(key, merged, holdUpload: holdUpload)
         refreshStatus()
         return merged != page
     }
@@ -374,14 +449,25 @@ public actor SyncEngine {
         metaRev = max(metaRev, metaAckedRev) + 1
         persistMeta()
         refreshStatus()
+        uploadHeld = false
         scheduleUploadAfterEdit()
         return true
     }
 
+    /// Der Editor hat eine Schreibpause erkannt: gehaltene Uploads freigeben (Runde nach der ueblichen kurzen Pause).
+    public func releaseUploadHold() {
+        guard uploadHeld else { return }
+        uploadHeld = false
+        if hasDirty { scheduleUploadAfterEdit() }
+    }
+
     // MARK: Hochladen
 
-    /// Upload anstossen, ohne darauf zu warten.
-    public func requestUpload() { scheduleUpload(after: 0) }
+    /// Upload anstossen, ohne darauf zu warten (hebt ein Halten auf).
+    public func requestUpload() {
+        uploadHeld = false
+        scheduleUpload(after: 0)
+    }
 
     /// Beendet geplante Uploads und Wiederholungen (Dokument geschlossen). Ungesendetes bleibt im Journal und wird
     /// beim naechsten Oeffnen hochgeladen.
@@ -394,6 +480,7 @@ public actor SyncEngine {
 
     /// Sofort hochladen und warten, bis nichts mehr aussteht oder der Server nicht erreichbar ist.
     public func syncNow() async {
+        uploadHeld = false
         debounceTask?.cancel()
         if uploading {
             await withCheckedContinuation { idleWaiters.append($0) }
@@ -442,13 +529,16 @@ public actor SyncEngine {
     }
 
     private func startUploadLoop() {
-        guard !uploading, !isShutDown, !journalUnreadable else { return }
+        guard !uploading, !isShutDown, !uploadsBlocked, !uploadHeld else { return }
         // eigener Task: eine neue Aenderung bricht einen laufenden Upload nie ab
         Task { await self.uploadLoop() }
     }
 
     private func uploadLoop() async {
-        if uploading || journalUnreadable { return }
+        if uploading || uploadsBlocked {
+            if !uploading { resumeIdleWaiters() }
+            return
+        }
         uploading = true
         if needsServerState || (!hasDirty && (serverErrorStatus != nil || blockedBy != nil || networkDown)) {
             // nichts zu senden, der letzte Versuch scheiterte aber: leichter Abruf, ob der Server wieder antwortet.
@@ -458,6 +548,10 @@ public actor SyncEngine {
                 noteReachable()
                 retryDelay = 2
                 serverRetryDelay = 2
+                if stopUploadsIfNewerFormat(server) {
+                    finishUploadLoop()
+                    return
+                }
                 if server.version != serverVersion || hasStalePages || needsServerState { merge(with: server) }
             } catch {
                 handleTransportError(error)
@@ -468,6 +562,8 @@ public actor SyncEngine {
         rounds: while true {
             retryFailedWrites()
             guard hasDirty else { break }
+            // Editor schreibt noch (Obergrenze beim Sichern): keine weitere Runde mit dem ganzen Dokument
+            guard !uploadHeld, !uploadsBlocked else { break }
             let sentPages = pages
             let sentMeta = rootMeta
             let sentMetaRev = metaRev
@@ -501,6 +597,7 @@ public actor SyncEngine {
                 persistAcks()
             case .conflict(let server):
                 stats.conflicts += 1
+                if stopUploadsIfNewerFormat(server) { break rounds }
                 conflictsInRow += 1
                 if conflictsInRow > 5 {
                     unresolvedConflict = "Der Server ändert sich ständig – neuer Versuch folgt. Änderungen sind lokal gesichert."
@@ -509,11 +606,28 @@ public actor SyncEngine {
                 merge(with: server)
             }
         }
+        finishUploadLoop()
+        // vorher blieb es bei der Meldung, bis wieder geschrieben wurde: spaeter erneut, mit wachsendem Abstand
+        if unresolvedConflict != nil, !uploadsBlocked { scheduleServerRetry() }
+    }
+
+    private func finishUploadLoop() {
         uploading = false
         refreshStatus()
         resumeIdleWaiters()
-        // vorher blieb es bei der Meldung, bis wieder geschrieben wurde: spaeter erneut, mit wachsendem Abstand
-        if unresolvedConflict != nil { scheduleServerRetry() }
+    }
+
+    /// Serverstand in einer neueren Formatversion (ein anderes Geraet mit neuerer App hat gespeichert): nie
+    /// zusammenfuehren und nie darueber speichern. Ungesendetes bleibt im Journal.
+    /// - Returns: true, wenn ab jetzt nichts mehr hochgeladen wird
+    private func stopUploadsIfNewerFormat(_ server: ServerSnapshot) -> Bool {
+        guard let v = AnnotationDocument.newerVersion(server.root) else { return false }
+        if uploadsStopped == nil, viewOnly == nil {
+            uploadsStopped = .newerFormatOnServer(v)
+            debounceTask?.cancel()
+            viewOnlyHandler?(.newerFormatOnServer(v))
+        }
+        return true
     }
 
     /// Fehlgeschlagener Versuch (Abruf oder Speichern): Grund merken, Wiederholung planen, Wartende freigeben.
@@ -776,9 +890,10 @@ public actor SyncEngine {
     }
 
     private func persistPage(_ key: String) {
-        guard !journalUnreadable else { return }
+        guard !writesBlocked else { return }
         do {
             if let p = pages[key] { try journal.writePage(key, p) } else { try journal.removePage(key) }
+            stats.pageWrites += 1
             failedPageWrites.remove(key)
             clearWriteErrorIfRecovered()
         } catch {
@@ -789,7 +904,7 @@ public actor SyncEngine {
 
     private func setBase(_ key: String, _ page: JSONValue?) {
         bases[key] = page ?? .null
-        guard !journalUnreadable else { return }
+        guard !writesBlocked else { return }
         do {
             try journal.writeBase(key, page)
             failedBaseWrites.remove(key)
@@ -818,7 +933,7 @@ public actor SyncEngine {
     private func persistMeta() {
         // unbekannt: die beschaedigte bzw. fehlende Datei bleibt, bis der Serverstand da ist (sonst gaelte die leere
         // Vorgabe nach einem Neustart als echter Stand)
-        guard !journalUnreadable, !metaUnknown else { return }
+        guard !writesBlocked, !metaUnknown else { return }
         do {
             try journal.writeMeta(rootMeta: rootMeta, metaRev: metaRev, baseRootMeta: baseRootMeta)
             failedMetaWrite = false
@@ -830,7 +945,7 @@ public actor SyncEngine {
     }
 
     private func persistAcks() {
-        guard !journalUnreadable else { return }
+        guard !writesBlocked else { return }
         do {
             try journal.writeAcks(serverVersion: serverVersion, acked: acked, metaAckedRev: metaAckedRev)
             failedAcksWrite = false

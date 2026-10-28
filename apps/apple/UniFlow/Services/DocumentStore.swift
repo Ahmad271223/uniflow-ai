@@ -166,11 +166,24 @@ struct DocumentInfo {
     var status: String
 }
 
+/// Wann der Store Striche umrechnet und ins Journal schreibt (P0-3).
+struct SaveTiming {
+    /// nach so viel Ruhe (Sekunden)
+    var pause: Double = 0.25
+    /// spaetestens so lange nach der ersten noch nicht gesicherten Aenderung, auch ohne Pause (Sekunden); nil = ohne
+    /// Obergrenze (nur fuer die Gegenprobe im Test, so war es vor P0-3)
+    var maxDelay: Double? = 2.0
+
+    static let standard = SaveTiming()
+}
+
 /// Zustand eines geoeffneten Dokuments.
 ///
 /// Ablauf beim Schreiben: Strich fertig -> `canvasChanged` merkt nur die neueste Zeichnung (Hauptthread, sofort
 /// zurueck) -> nach 0,25 s Pause Umrechnung im `InkProcessor` -> `SyncEngine.updatePage` sichert lokal und laedt hoch.
 /// Eingabe, Umrechnung, lokales Sichern und Upload laufen dadurch getrennt; ein Upload unterbricht nie einen Strich.
+/// Ohne Pause (Dauerschreiben) greift nach 2 s die Obergrenze: umrechnen und ins Journal, hochgeladen wird erst nach
+/// der naechsten Pause (`SaveTiming`, `processWhileWriting`).
 @MainActor
 final class DocumentStore: ObservableObject {
     @Published private(set) var layout: DisplayLayout?
@@ -194,6 +207,13 @@ final class DocumentStore: ObservableObject {
     /// Das lokale Journal liess sich beim Oeffnen nicht lesen: der Serverstand ist nur zum Ansehen da, nichts wird
     /// geschrieben (`SyncEngine.OpenResult.journalUnreadable`), bis das Dokument erneut geoeffnet wird
     @Published private(set) var journalUnreadable = false
+    /// Notizen in einer neueren Formatversion (beim Oeffnen oder waehrend der Sitzung vom Server): nur ansehen, nie
+    /// speichern (P0-4, packages/shared-contracts/README.md); die Nummer der Version
+    @Published private(set) var newerFormatVersion: Int?
+    /// Dasselbe Dokument ist schon in einem anderen Fenster offen und zu sehen: hier nur ansehen (P0-6)
+    @Published private(set) var openElsewhere = false
+    /// Ein anderes Fenster hat das Dokument uebernommen, waehrend dieses nicht zu sehen war: nur noch ansehen (P0-6)
+    @Published private(set) var handedOver = false
     /// Je Seite: Strich-Objekte, die sich nicht darstellen lassen (bleiben unveraendert gespeichert)
     @Published private(set) var hiddenStrokes: [String: Int] = [:]
     /// Seiten (1-basiert) mit zusammengefuehrten Konflikten seit dem letzten "Verstanden"
@@ -219,6 +239,14 @@ final class DocumentStore: ObservableObject {
     private var processingKey: String?
     private var processingWaiters: [CheckedContinuation<Void, Never>] = []
     private var processTask: Task<Void, Never>?
+    /// Obergrenze beim Sichern: laeuft ab der ersten noch nicht gesicherten Aenderung (P0-3)
+    private var deadlineTask: Task<Void, Never>?
+    /// Zeitpunkte fuer `saveTiming`; Tests setzen andere Werte (Gegenprobe ohne Obergrenze)
+    var saveTiming = SaveTiming.standard
+    /// Wie oft die Obergrenze gegriffen hat (Verarbeitung, obwohl ohne Pause weitergeschrieben wurde) und wie lange
+    /// diese Verarbeitungen zusammen dauerten (Messung, docs/EDITOR-MESSUNG.md)
+    private(set) var forcedSaves = 0
+    private(set) var forcedSaveSeconds = 0.0
     private var monitor: NWPathMonitor?
     private var lifecycle: [NSObjectProtocol] = []
     private(set) var images: [String: UIImage] = [:]
@@ -241,8 +269,18 @@ final class DocumentStore: ObservableObject {
     /// Notizen bleiben sichtbar und exportierbar; was vorher gezeichnet wurde und noch aussteht, wird gesichert.
     var canEdit = true
     /// Schreibende Aktionen erlaubt (Notizen eingeblendet, Tarif mit Schreiben, keine neue Fassung seit dem Oeffnen,
-    /// lokales Journal lesbar)
-    var isWritable: Bool { canEdit && !ownNotesReadOnly && !outdatedByNewVersion && !journalUnreadable }
+    /// lokales Journal lesbar, Notizformat bekannt, in keinem anderen Fenster zum Schreiben offen)
+    var isWritable: Bool { canEdit && !ownNotesReadOnly && !outdatedByNewVersion && !journalUnreadable && !viewOnlyHere }
+
+    /// Nur ansehen aus einem Grund, den kein Schalter hier aendert (neueres Format, anderes Fenster)
+    var viewOnlyHere: Bool { newerFormatVersion != nil || openElsewhere || handedOver }
+
+    /// Kurzer Hinweis fuer die Seitenleiste, warum hier nur angesehen werden kann (nil = kein solcher Grund)
+    var viewOnlyLabel: String? {
+        if newerFormatVersion != nil { return "Neueres Notizformat – nur ansehen" }
+        if openElsewhere || handedOver { return "In einem anderen Fenster offen – nur ansehen" }
+        return nil
+    }
 
     /// Hinweis auf Striche, die sich nicht anzeigen lassen (beschaedigte oder fremde Daten); sie bleiben gespeichert
     var inkNotice: String? {
@@ -281,6 +319,31 @@ final class DocumentStore: ObservableObject {
                                                         canWrite: lease.map { l in { l.isValid } }),
                                    documentID: file.id, namespace: api.namespace)
         self.engine = SyncEngine(documentID: file.id, transport: transport, journal: journal)
+        self.openKey = OpenDocuments.key(root: root, namespace: api.namespace, fileID: file.id)
+    }
+
+    // MARK: Offen in mehreren Fenstern (P0-6)
+
+    /// Schluessel im Verzeichnis offener Dokumente: Container (Ordner), Datenquelle, Datei
+    let openKey: String
+    /// Ist das Dokument gerade in einem Fenster zu sehen? (DocumentView: beim Erscheinen und Verschwinden.) Ein Store,
+    /// der nicht zu sehen ist, gibt das Schreiben an ein anderes Fenster ab, das dasselbe Dokument oeffnet.
+    private(set) var isShown = true
+    /// Schreibrecht abgegeben (geschlossen oder an ein anderes Fenster uebergeben)
+    private(set) var released = false
+
+    func setShown(_ shown: Bool) { isShown = shown }
+
+    /// Ein anderes Fenster oeffnet dasselbe Dokument, waehrend dieses nicht zu sehen ist: Ausstehendes ins Journal, danach
+    /// schreibt dieser Store nichts mehr (auch kein Upload, keine Bestaetigung). Das neue Fenster liest das Journal
+    /// danach und laedt hoch, was noch fehlt.
+    func handOver() async {
+        guard !released else { return }
+        released = true
+        await settlePending()
+        await engine.enterViewOnly(.openElsewhere)
+        handedOver = true
+        notice = "Dieses Dokument ist jetzt in einem anderen Fenster geöffnet – hier nur ansehen."
     }
 
     // MARK: Laden
@@ -291,6 +354,15 @@ final class DocumentStore: ObservableObject {
     func load() async {
         guard !loadStarted else { return }          // .task laeuft bei jedem Erscheinen erneut (z. B. Tabwechsel)
         loadStarted = true
+        // dasselbe Dokument in einem anderen Fenster: zwei Stores auf einem Journal ueberschrieben sich gegenseitig
+        // Seiten (jeder kennt nur seinen Stand). Ist das andere zu sehen, hier nur ansehen; sonst uebernehmen.
+        if !isOldVersion {
+            switch OpenDocuments.shared.claim(openKey, by: self) {
+            case .granted: break
+            case .shownElsewhere: openElsewhere = true
+            case .takeOver(let previous): await previous.handOver()
+            }
+        }
         do {
             let pdfDocument: PDFDocument
             if isNotebook {
@@ -310,11 +382,19 @@ final class DocumentStore: ObservableObject {
                     await self?.refreshConflictPages()
                 }
             }
-            let opened = await engine.open(pdfPageCount: pdfDocument.pageCount)
+            await engine.setViewOnlyHandler { [weak self] reason in
+                Task { @MainActor in self?.viewOnlyDuringSession(reason) }
+            }
+            let opened = await engine.open(pdfPageCount: pdfDocument.pageCount, openElsewhere: openElsewhere)
             journalUnreadable = opened.journalUnreadable
+            if case .newerFormat(let v) = opened.viewOnly { newerFormatVersion = v }
             apply(document: opened.document, forceLayout: true)
             if opened.journalUnreadable {
                 notice = "Lokale Notizen lassen sich gerade nicht lesen – nur ansehen. Schließe das Dokument und öffne es erneut."
+            } else if newerFormatVersion != nil {
+                notice = Self.newerFormatNotice
+            } else if openElsewhere {
+                notice = "Dieses Dokument ist schon in einem anderen Fenster geöffnet – hier nur ansehen. Zum Schreiben dort schließen und hier neu öffnen."
             } else if !opened.damagedFiles.isEmpty {
                 notice = "\(opened.damagedFiles.count) lokale Datei(en) beschädigt – Serverstand verwendet, wo möglich."
             } else if opened.restoredUnsentPages > 0 {
@@ -323,9 +403,13 @@ final class DocumentStore: ObservableObject {
             startMonitoring()
             await checkOrigin(opened.document)
             await loadVersions()
+            prepareOriginStamp(opened.document)
             indexPageTexts()
         } catch {
             errorMessage = error.localizedDescription
+            // nicht geoeffnet: das Dokument nicht fuer andere Fenster sperren
+            released = true
+            OpenDocuments.shared.release(openKey, by: self)
         }
     }
 
@@ -338,6 +422,7 @@ final class DocumentStore: ObservableObject {
         let url = originalPDFURL
         let meta = isOldVersion ? nil : try? await api.value("/api/files/\(file.id)")
         let stamp = meta.map(Self.stamp)
+        loadedSourceStamp = stamp
         if let stamp, FileManager.default.fileExists(atPath: url.path), (try? String(contentsOf: stampURL, encoding: .utf8)) != stamp {
             try? FileManager.default.removeItem(at: url)
         }
@@ -465,15 +550,39 @@ final class DocumentStore: ObservableObject {
     /// Seitenaufbau, mit dem die Canvas angelegt wurde (bleibt richtig, auch wenn sich die Reihenfolge aendert).
     func canvasChanged(pageKey key: String, drawing: PKDrawing) {
         // ohne Schreiben im Tarif keine neuen Zeichnungen (auch nicht ueber Rueckgaengig); Ausstehendes bleibt
-        guard !key.isEmpty, canEdit, !outdatedByNewVersion, !journalUnreadable else { return }
+        guard !key.isEmpty, canEdit, !outdatedByNewVersion, !journalUnreadable, !viewOnlyHere else { return }
         pendingDrawings[key] = DrawingBox(drawing: drawing)
         canvasEdits[key, default: 0] += 1
         processTask?.cancel()
+        let pause = saveTiming.pause
         processTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(pause * 1_000_000_000))
             guard !Task.isCancelled else { return }
             await self?.processPending()
+            await self?.engine.releaseUploadHold()          // Schreibpause: gehaltene Uploads freigeben
         }
+        // Obergrenze (P0-3): ohne Pause weitergeschrieben, spaetestens nach `maxDelay` ab der ersten noch nicht
+        // gesicherten Aenderung verarbeiten und ins Journal schreiben
+        if deadlineTask == nil, let maxDelay = saveTiming.maxDelay {
+            deadlineTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(maxDelay * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                await self?.processWhileWriting()
+            }
+        }
+    }
+
+    /// Obergrenze erreicht, der Stift schreibt noch: ins Journal, aber ohne Upload-Runde (`holdUpload`). Bei dichten
+    /// Dokumenten dauert eine Runde mit dem ganzen Dokument Sekunden (docs/EDITOR-MESSUNG.md, M1); alle 2 s eine Runde
+    /// waere Dauerlast. Hochgeladen wird nach der naechsten Schreibpause (wie bisher) oder beim Sichern fuer Export,
+    /// Hintergrund und Schliessen.
+    private func processWhileWriting() async {
+        deadlineTask = nil
+        guard !pendingDrawings.isEmpty else { return }
+        forcedSaves += 1
+        let start = DispatchTime.now().uptimeNanoseconds
+        await processPending(holdUpload: true)
+        forcedSaveSeconds += Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9
     }
 
     /// Alles Ausstehende sofort verarbeiten (vor dem Schliessen, beim Wechsel in den Hintergrund, vor Export und
@@ -484,7 +593,11 @@ final class DocumentStore: ObservableObject {
         await engine.requestUpload()
     }
 
-    private func processPending() async {
+    /// - Parameter holdUpload: der Stift schreibt noch (Obergrenze erreicht): sichern, aber keine Upload-Runde. Dann
+    ///   nur ein Durchgang ueber die Seiten, die beim Start ausstanden: Striche, die waehrend der Umrechnung dazukommen,
+    ///   warten auf die naechste Obergrenze oder die Pause. Sonst liefe die Schleife bei Dauerschreiben ohne Ende mit,
+    ///   sobald die Umrechnung einer vollen Seite laenger dauert als der Abstand zweier Striche (langsames iPad).
+    private func processPending(holdUpload: Bool = false) async {
         guard !processing else { return }
         processing = true
         defer {
@@ -494,21 +607,38 @@ final class DocumentStore: ObservableObject {
             processingWaiters = []
             waiters.forEach { $0.resume() }
         }
+        // was jetzt verarbeitet wird, braucht keine Obergrenze mehr; spaetere Aenderungen starten eine neue
+        deadlineTask?.cancel()
+        deadlineTask = nil
+        if !pendingDrawings.isEmpty { await stampOriginIfNeeded() }
         var outdated: [String] = []
-        while let (key, box) = pendingDrawings.first {
-            pendingDrawings.removeValue(forKey: key)
+        var onePass: Set<String>? = holdUpload ? Set(pendingDrawings.keys) : nil
+        while let (key, box) = takeNextPending(&onePass) {
             processingKey = key
             let previous = await engine.page(key)
             let update = await ink.page(key: key, drawing: box, previous: previous)
             // hat eine Zusammenfuehrung die Seite waehrend der Umrechnung geaendert, wird zusammengefuehrt statt
             // ueberschrieben (im Browser Geloeschtes kommt nicht zurueck)
-            let merged = await engine.updatePage(key, update.page, derivedFrom: previous)
+            let merged = await engine.updatePage(key, update.page, derivedFrom: previous, holdUpload: holdUpload)
             if update.canvasOutdated || merged { outdated.append(key) }
         }
         processingKey = nil
         // Canvas zeigt anderswo geloeschte oder geaenderte Striche: aus dem gespeicherten Stand neu laden
         let reload = outdated.filter { pendingDrawings[$0] == nil }
         if !reload.isEmpty { onPagesChanged?(reload) }
+    }
+
+    /// Naechste ausstehende Zeichnung (aus `pendingDrawings` genommen); mit `onePass` nur noch Seiten daraus.
+    private func takeNextPending(_ onePass: inout Set<String>?) -> (String, DrawingBox)? {
+        if var keys = onePass {
+            guard let key = keys.first(where: { pendingDrawings[$0] != nil }) else { return nil }
+            keys.remove(key)
+            onePass = keys
+            return pendingDrawings.removeValue(forKey: key).map { (key, $0) }
+        }
+        guard let (key, box) = pendingDrawings.first else { return nil }
+        pendingDrawings.removeValue(forKey: key)
+        return (key, box)
     }
 
     /// Hinweis "Konflikte zusammengefuehrt" gesehen.
@@ -563,6 +693,52 @@ final class DocumentStore: ObservableObject {
         outdatedByNewVersion = true
     }
 
+    // MARK: Herkunftsstempel beim ersten Speichern (P0-5)
+
+    /// Stand der Quelle (`stamp`), aus dem die angezeigte PDF stammt (beim Oeffnen gelesen); nil ohne Antwort
+    private var loadedSourceStamp: String?
+    /// Stempel, der beim ersten Speichern gesetzt wird (ohne SHA-256, das erst dann berechnet wird); nil = keiner
+    private var originCandidate: (pages: Int, version: Int)?
+
+    /// Nach dem Oeffnen: soll beim ersten Speichern `origin` gesetzt werden? Nur im lokalen Backend (dort haengt S7
+    /// Notizen auf neue Fassungen um und setzt den Stempel neu; am eigenen PC-Server gibt es das nicht, ein alter
+    /// Stempel machte das Dokument dort nach einer neuen Fassung dauerhaft schreibgeschuetzt), nur fuer eine Datei mit
+    /// PDF, nur wenn es noch keinen Stempel gibt und der Stand der Quelle bekannt ist.
+    private func prepareOriginStamp(_ doc: AnnotationDocument) {
+        guard api.isLocal, !isOldVersion, !isNotebook, isWritable, loadedSourceStamp != nil, doc.root["origin"] == nil,
+              let pages = original?.pageCount, pages > 0 else { return }
+        originCandidate = (pages, (versions.map(\.version).max() ?? 0) + 1)
+    }
+
+    /// Erstes Speichern: Herkunftsstempel setzen (Inhalts-Hash der angezeigten PDF, Seitenzahl, Nummer der Fassung,
+    /// dasselbe Format wie `NoteTransfer.transfer`). Vorher wird geprueft, dass die Quelle seit dem Oeffnen keine neue
+    /// Fassung hat: sonst gehoerten die Notizen schon zu ihr, und der Stempel der alten machte das Dokument beim
+    /// naechsten Oeffnen schreibgeschuetzt. Einmal je Sitzung; die Pruefung beim Oeffnen (`checkOrigin`) bleibt.
+    private func stampOriginIfNeeded() async {
+        guard let candidate = originCandidate else { return }
+        originCandidate = nil
+        guard isWritable, await engine.rootMetaKnown else { return }
+        var meta = (await engine.currentDocument()).rootMeta
+        guard meta["origin"] == nil,
+              let source = try? await api.value("/api/files/\(file.id)"), Self.stamp(source) == loadedSourceStamp,
+              let sha = await originalFingerprint() else { return }
+        meta["origin"] = .object(["sha256": .string(sha), "pages": .number(Double(candidate.pages)),
+                                  "version": .number(Double(candidate.version))])
+        await engine.updateRootMeta(meta)
+    }
+
+    // MARK: Nur ansehen waehrend der Sitzung
+
+    static let newerFormatNotice = "Diese Notizen stammen aus einer neueren Version von Studora – hier nur ansehen. Aktualisiere Studora, um weiterzuschreiben."
+
+    /// Ein anderes Geraet hat waehrend der Sitzung eine neuere Formatversion gespeichert (P0-4): ab jetzt nur ansehen.
+    /// Was hier schon geschrieben wurde, bleibt im lokalen Journal.
+    private func viewOnlyDuringSession(_ reason: NotesViewOnlyReason) {
+        guard case .newerFormatOnServer(let v) = reason, newerFormatVersion == nil else { return }
+        newerFormatVersion = v
+        notice = "Auf einem anderen Gerät wurden diese Notizen mit einer neueren Version von Studora gespeichert – hier nur noch ansehen. Deine Striche bleiben auf diesem iPad gesichert."
+    }
+
     // MARK: Bearbeiten der Struktur (gleiches Format wie der Web-Editor)
 
     /// Seitenliste/Lesezeichen unbekannt (beschaedigte meta.json, Serverstand noch nicht da): sagen statt still nichts tun
@@ -577,6 +753,7 @@ final class DocumentStore: ObservableObject {
     private func updateMeta(_ change: (inout [String: JSONValue]) -> Void) async {
         guard await rootMetaWritable() else { return }
         await processPending()
+        await stampOriginIfNeeded()
         var doc = await engine.currentDocument()
         var meta = doc.rootMeta.object ?? [:]
         change(&meta)
@@ -636,6 +813,7 @@ final class DocumentStore: ObservableObject {
     func addText(_ text: String, pageKey key: String) async {
         guard !text.isEmpty, isWritable else { return }
         await processPending()
+        await stampOriginIfNeeded()
         var page = (await engine.page(key)) ?? .object(["objects": .array([])])
         var objects = page["objects"]?.array ?? []
         objects.append(.object([
@@ -747,6 +925,10 @@ final class DocumentStore: ObservableObject {
         await flush()
         await engine.syncNow()
         await engine.shutdown()
+        deadlineTask?.cancel()
+        deadlineTask = nil
+        released = true
+        OpenDocuments.shared.release(openKey, by: self)
         monitor?.cancel()
         lifecycle.forEach { NotificationCenter.default.removeObserver($0) }
         lifecycle = []
@@ -765,6 +947,7 @@ extension DocumentStore: PageStructureEditing {
         guard isWritable else { return nil }                // nur ansehen
         guard await rootMetaWritable() else { return nil }
         await settlePending()
+        await stampOriginIfNeeded()
         var doc = await engine.currentDocument()
         guard let result = change(&doc) else { return nil }
         for key in result.changedPageKeys {

@@ -308,10 +308,13 @@ public struct FileVersionKeeper: Sendable {
                 case .none:
                     continue
                 case .resetPageList:
-                    guard !doc.pageOrder.isEmpty else { continue }
+                    guard !doc.pageOrder.isEmpty || doc.root["origin"] != nil else { continue }
                     var reset = doc
                     reset.root["pageOrder"] = .array([])
                     reset.pages = [:]
+                    // Herkunftsstempel der alten Fassung weg (der Editor setzt ihn beim ersten Speichern, P0-5): sonst
+                    // gaelte das Dokument bei jedem Oeffnen als "neue Fassung angekommen" und bliebe nur zum Ansehen
+                    reset.root["origin"] = nil
                     try Self.save(c, fileID: target, reset, now: now)
                 case .keep(let k):
                     let oldCount = k.pageTexts?.count ?? NoteTransfer.highestPDFIndex(doc)

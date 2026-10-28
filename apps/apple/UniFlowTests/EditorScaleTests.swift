@@ -19,6 +19,8 @@ import XCTest
 /// - Zoom bis zum Maximum (Zeit, Speicher, Kantenschaerfe von Tinte und PDF im Bild des Fensters).
 /// - Eingefuegte Leerseiten A6 bis A0 (Lage eines Strichs, Einpassen, Speicher).
 /// - Rueckgaengig und Wiederholen ueber Seiten, deren Overlay schon freigegeben ist.
+/// - Dauerschreiben auf einem dichten Dokument (Obergrenze beim Sichern, Schritt 2): Journal alle ~2 s, keine
+///   Upload-Runde waehrend des Schreibens.
 ///
 /// Zeiten haengen an der Last des Rechners (volle Laeufe teilen sich den Mac mit anderen Simulatoren). Darum sind
 /// Zeitgrenzen nur grobe Haenger-Grenzen, mindestens zehnfach ueber den Werten, die unter hoher Last (Lastmittel ueber
@@ -339,6 +341,73 @@ final class EditorScaleTests: XCTestCase {
         m.add("danach Editor bis erste volle Seite mit Strichen", Uhr.since(t), "s")
         hide(shown)
         await again.close()
+        m.finish()
+    }
+
+    // MARK: Dauerschreiben auf einem dichten Dokument (Obergrenze beim Sichern, Schritt 2)
+
+    /// 50 volle Seiten (15 000 Striche, gesichert und hochgeladen), dann 10 s ohne Pause auf der vollen Seite 1: ein
+    /// Strich je 100 ms wie beim Schraffieren. Gemessen (nur protokolliert): wie oft die Obergrenze gegriffen hat, was eine
+    /// solche Verarbeitung kostet, Journal-Schreibvorgaenge und Upload-Runden waehrend des Schreibens, Hauptthread,
+    /// danach die Zeit bis "Gespeichert". Erwartet: Journal alle ~2 s, keine Runde mit dem ganzen Dokument waehrend des
+    /// Schreibens (sie dauert hier Sekunden, M1), genau eine danach. Hart geprueft wird nur, dass am Ende jeder Strich
+    /// gespeichert ist (Haenger-Grenze 180 s fuers Speichern).
+    func testContinuousWritingOnDenseDocument50Pages() async throws {
+        let m = Messwerte("Dauerschreiben 50 x 300")
+        let fx = try await makeFixture(pdf: Skript.pdf(pages: 50, .schlicht), pageCount: 50)
+        let store = try await openStore(fx)
+        let engine = try XCTUnwrap(Mirror(reflecting: store).children.first { $0.label == "engine" }?.value as? SyncEngine)
+        var page1 = Handschrift.page(0, strokes: 300)
+        for first in stride(from: 0, to: 50, by: 25) {
+            let drawings = (first..<(first + 25)).map { $0 == 0 ? page1 : Handschrift.page($0, strokes: 300) }
+            for (i, d) in drawings.enumerated() { store.canvasChanged(pageKey: "p\(first + i + 1)", drawing: d) }
+            _ = await store.pageStructureDocument()
+        }
+        await store.pause()
+        let ready = await store.info()
+        XCTAssertEqual(ready.unsentPages, 0, "Aufbau gespeichert")
+
+        let main = Hauptthread()
+        main.start()
+        let puts0 = await engine.stats.puts, writes0 = await engine.stats.pageWrites
+        let forced0 = store.forcedSaves, forcedTime0 = store.forcedSaveSeconds
+        let start = Uhr.now()
+        var n = 0
+        while Uhr.since(start) < 10 {
+            page1.strokes.append(Handschrift.extraStroke(n))
+            n += 1
+            store.canvasChanged(pageKey: "p1", drawing: page1)
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let writing = Uhr.since(start)
+        let forced = store.forcedSaves - forced0
+        let putsWriting = await engine.stats.puts - puts0
+        let writesWriting = await engine.stats.pageWrites - writes0
+        m.add("Dauer des Dauerschreibens", writing, "s")
+        m.add("Striche dabei", Double(n), "")
+        m.add("Obergrenze gegriffen (Verarbeitungen waehrend des Schreibens)", Double(forced), "")
+        m.add("je Verarbeitung durch die Obergrenze (Umrechnung + Journal, Seite mit 300+ Strichen)",
+              forced > 0 ? (store.forcedSaveSeconds - forcedTime0) / Double(forced) : 0, "s")
+        m.add("Journal-Schreibvorgaenge waehrend des Schreibens", Double(writesWriting), "")
+        m.add("Upload-Runden (PUT) waehrend des Schreibens", Double(putsWriting), "")
+        m.blocking("Hauptthread beim Dauerschreiben", main.take())
+
+        let t = Uhr.now()
+        var saved = false
+        while Uhr.since(t) < 180 {
+            if store.status == .saved, await store.info().unsentPages == 0 { saved = true; break }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        m.add("nach der Schreibpause bis Gespeichert", Uhr.since(t), "s")
+        m.add("Upload-Runden nach der Pause", Double(await engine.stats.puts - puts0 - putsWriting), "")
+        main.stop()
+        XCTAssertTrue(saved, "nach der Schreibpause nicht gespeichert (Haenger)")
+        await store.close()
+        let backend = try await fx.host.backend()
+        let text = try await backend.context.database.rows("SELECT data FROM annotations WHERE file_id=?", [.text(fx.file.id)])
+            .first?["data"]?.string
+        let doc = AnnotationDocument(root: try JSONValue.parse(Data((text ?? "{}").utf8)))
+        XCTAssertEqual(doc.objects(page: "p1").count, 300 + n, "jeder Strich gespeichert")
         m.finish()
     }
 

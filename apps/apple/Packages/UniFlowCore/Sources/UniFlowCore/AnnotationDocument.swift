@@ -31,6 +31,18 @@ public struct AnnotationDocument: Equatable, Sendable {
 
     public static func empty() -> AnnotationDocument { AnnotationDocument(root: emptyRoot) }
 
+    /// Hoechste Formatversion, die diese App lesen und schreiben darf (packages/shared-contracts/README.md: eine
+    /// neuere `version` nur lesen, nie speichern).
+    public static let supportedVersion = 2
+
+    /// Formatversion der Wurzel, wenn sie neuer ist als `supportedVersion` (auch 2.5 gilt als neuer, gemeldet als 3);
+    /// sonst nil. Fehlt `version` oder ist sie keine Zahl, gilt das Dokument als lesbar (aeltere Staende ohne Feld
+    /// migriert der Editor wie bisher).
+    public static func newerVersion(_ root: JSONValue) -> Int? {
+        guard let v = root["version"]?.double, v.isFinite, v > Double(supportedVersion) else { return nil }
+        return v < 9.0e15 ? Int(v.rounded(.up)) : Int.max
+    }
+
     public var pageOrder: [JSONValue] { root["pageOrder"]?.array ?? [] }
 
     public var pages: [String: JSONValue] {

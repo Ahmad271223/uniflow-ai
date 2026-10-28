@@ -168,7 +168,9 @@ struct DocumentView: View {
 
     /// Schreiben mit dem Pencil, Seiten und Lesezeichen nur mit Plus; Free und nach dem Herabstufen nur ansehen
     /// (Notizen bleiben sichtbar und exportierbar, docs/AUFTRAG-APPSTORE-V1.md Abschnitt 4)
-    private var canWrite: Bool { planAllowsWriting && !readOnly && !store.outdatedByNewVersion && !store.journalUnreadable }
+    private var canWrite: Bool {
+        planAllowsWriting && !readOnly && !store.outdatedByNewVersion && !store.journalUnreadable && !store.viewOnlyHere
+    }
 
     /// Tarif mit Schreiben (sonst Schloss mit Weg zur Abo-Seite)
     private var planAllowsWriting: Bool { entitlements.notes.canEdit }
@@ -286,7 +288,10 @@ struct DocumentView: View {
             await reloadSolutionLayers()
             await loadCommunityMatches()
         }
+        // zu sehen oder nicht: ein anderes Fenster darf ein nicht sichtbares Dokument uebernehmen (OpenDocuments)
+        .onAppear { store.setShown(true) }
         .onDisappear {
+            store.setShown(false)
             suggestionTask?.cancel()
             Task { await store.pause() }       // Tabwechsel: weiter synchronisieren; endgueltig beendet beim Schliessen
         }
@@ -790,6 +795,9 @@ struct DocumentView: View {
             } else if store.journalUnreadable {
                 Divider().frame(height: 14)
                 Label("Lokale Notizen nicht lesbar – nur ansehen", systemImage: "exclamationmark.triangle").lineLimit(1)
+            } else if let label = store.viewOnlyLabel {
+                Divider().frame(height: 14)
+                Label(label, systemImage: "eye").lineLimit(1)
             } else if !planAllowsWriting {
                 Divider().frame(height: 14)
                 Button { lockedFeature = .pencilWriting } label: {
@@ -858,13 +866,17 @@ struct CompanionView: View {
             } else if store.pdf != nil {
                 PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                               toolPicker: toolPicker, ownsToolPicker: false, undoManager: undoManager, initialPDFPage: pdfPage,
-                              canEdit: canEdit && !store.journalUnreadable)
+                              canEdit: canEdit && !store.journalUnreadable && !store.viewOnlyHere)
             } else {
                 ProgressView().frame(maxHeight: .infinity)
             }
         }
         .task { await store.load() }
-        .onDisappear { Task { await store.pause() } }
+        .onAppear { store.setShown(true) }
+        .onDisappear {
+            store.setShown(false)
+            Task { await store.pause() }
+        }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
     }
 }
