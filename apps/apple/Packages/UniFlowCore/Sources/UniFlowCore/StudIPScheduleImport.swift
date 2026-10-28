@@ -177,7 +177,9 @@ enum StudIPScheduleImport {
     /// eigene Serie; sonst (nur Gruppenoptionen) die Serie einer anderen Gruppe derselben Art am selben Wochentag
     /// (Gruppe wechseln); gehoert die so gefundene Serie einem anderen Stud.IP-Eintrag, ist die Kurszeit neu. Alles
     /// andere bleibt wie in Python.
-    static func previewDiff(_ c: SQLiteConnection, _ diff: JSONValue, entries: [Entry]) throws -> JSONValue {
+    /// Die Zeilen der Kurszeiten in `entries` bekommen danach die `existing_id` dieser Zuordnung (ohne Serie: kein
+    /// Schluessel), damit die Uebernahme sie von der Zeile nehmen kann (196555e).
+    static func previewDiff(_ c: SQLiteConnection, _ diff: JSONValue, entries: inout [Entry]) throws -> JSONValue {
         let links = try readLinks(c)
         guard !links.isEmpty, var out = diff.object else { return diff }
         var groupOf: [String: String] = [:]
@@ -217,6 +219,16 @@ enum StudIPScheduleImport {
             }
         }
         for (name, list) in lists { out[name] = .array(list) }
+        var paired: [String: JSONValue] = [:]
+        for name in ["changed", "same"] {
+            for item in lists[name] ?? [] {
+                if let id = item["studip_id"]?.string, let x = item["existing_id"], x != .null { paired[id] = x }
+            }
+        }
+        for i in entries.indices {
+            guard let id = entries[i]["studip_id"]?.string else { continue }
+            if let x = paired[id] { entries[i]["existing_id"] = x } else { entries[i].removeValue(forKey: "existing_id") }
+        }
         return .object(out)
     }
 

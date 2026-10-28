@@ -91,4 +91,35 @@ final class StudIPCancellationsTests: XCTestCase {
         XCTAssertFalse(busy.contains { $0.kind == "event" }, "alle drei Termine frei: Ausfall laut Stud.IP, eigener Ausfall, nicht besucht")
         XCTAssertTrue(free.contains { ($0["start"]?.int ?? 9999) <= 10 * 60 && ($0["end"]?.int ?? 0) >= 11 * 60 + 30 }, "\(free)")
     }
+
+    /// Zuruecksetzen eines Ausfalls laut Stud.IP (Entscheidung des Inhabers, a7827c6): der Termin findet statt und bleibt
+    /// sichtbar ("attend" mit eigener Notiz, nicht ausgeblendet); noch einmal zuruecksetzen bringt den Ausfall laut
+    /// Stud.IP zurueck; ein selbst markierter Ausfall wird beim Zuruecksetzen wie bisher geloescht
+    func testResetOfAStudIPCancellationKeepsTheDateVisible() async throws {
+        let b = try await seeded()
+        func exceptions(_ id: Int) async throws -> [String] {
+            try await b.context.database.rows("SELECT type, note FROM event_exceptions WHERE event_id=? AND date='2026-10-26'", [.integer(Int64(id))])
+                .map { "\($0["type"]?.string ?? "")|\($0["note"]?.string ?? "")" }
+        }
+        func monday() async throws -> [String] {
+            let keys = StudIPCancellations.keys(await call(b, "GET", "/api/timetable/studip-cancelled?start=2026-10-26&end=2026-10-26").json)
+            let r = await call(b, "GET", "/api/timetable/day?date=2026-10-26")
+            let day = try XCTUnwrap(r.json)
+            return (StudIPCancellations.hiding(in: day, keys: keys)["events"]?.array ?? []).map { "\($0["start"]?.string ?? "") \($0["status"]?.string ?? "")" }
+        }
+        _ = await call(b, "POST", "/api/timetable/attendance", ["event_id": 1, "date": "2026-10-26", "mode": "reset"])
+        let attend = try await exceptions(1)
+        XCTAssertEqual(attend, ["attend|\(StudIPCancellations.resetNote)"])
+        let shown = try await monday()
+        XCTAssertEqual(shown, ["10:00 teilnahme", "14:00 ausfall", "16:00 nicht_teilnahme"], "findet statt und bleibt sichtbar")
+        _ = await call(b, "POST", "/api/timetable/attendance", ["event_id": 1, "date": "2026-10-26", "mode": "reset"])
+        let back = try await exceptions(1)
+        XCTAssertEqual(back, ["cancelled|\(StudIPCancellations.note)"], "noch einmal zurueckgesetzt: wieder Ausfall laut Stud.IP")
+        let hiddenAgain = try await monday()
+        XCTAssertEqual(hiddenAgain, ["14:00 ausfall", "16:00 nicht_teilnahme"])
+        _ = await call(b, "POST", "/api/timetable/attendance", ["event_id": 2, "date": "2026-10-26", "mode": "reset"])
+        let own = try await exceptions(2)
+        XCTAssertEqual(own, [], "selbst markierter Ausfall: zurueckgesetzt heisst geloescht")
+    }
 }
+

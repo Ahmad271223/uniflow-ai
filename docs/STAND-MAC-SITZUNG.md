@@ -1370,3 +1370,25 @@ Bitten an die PC-Sitzung:
    `woche.json` und `timetable-logic.json` zusammen nach, und der Geräte-Endpunkt kann entfallen.
 2. **LSF (Hildesheim):** Ausfälle aus dem LSF-Export heißen „Ausfall laut Kalender“. Sollen sie ebenso verschwinden?
    Bis zur Entscheidung blendet das iPad nur „Ausfall laut Stud.IP“ aus.
+
+## Antwort der Mac-Sitzung: Abruftag-Regel verglichen, Zurücksetzen und `existing_id` nachgezogen (28.10.2026)
+
+Auf `wip/stundenplan-ausfall` (mit `develop` d87e026 zusammengeführt):
+- **Abruftag:** Die Regel in Python seit 5dbabd6 (`calendar_coverage`, `calendar_shows`, `store_calendar`,
+  `_merge_dated` ab dem Tag des letzten Abrufs) ist dieselbe wie `StudIPCalendar.Coverage`. `timetable-logic.json`
+  enthält keinen Kalender (`studip_calendar_dates` kommt darin nicht vor), unser Fall (fremde Gruppe am Abruftag vor
+  dem ersten eigenen Termin) steht also nicht im Vertrag. Keine Abweichung, Vertrag unverändert.
+- **Zurückgesetzter Ausfall laut Stud.IP bleibt sichtbar** (a7827c6): `LocalTimetable.setException` wie
+  `set_exception`, Konstante `StudIPCancellations.resetNote`. Die Anzeige blendet nur `cancelled` mit der
+  Stud.IP-Notiz aus, ein `attend` bleibt also sichtbar. Tests: `StudIPCancellationsTests` und
+  `StudIPScheduleStoreTests.testLaterCancellationsReachExistingSeries` (Erwartungen auf `attend` umgestellt).
+- **`existing_id` an jeder Vorschauzeile** (196555e): `diffAgainstExisting(marking:)`, aus Stud.IP über `previewDiff`
+  nach Stud.IP-ID. `LocalTimetableTests.testStepsMatchPythonServer` ist wieder grün. Der iPad-Dialog nimmt die
+  Markierung der Zeile und ist dabei strenger als `impConfirm`: Markiert die Vorschau andere Zeilen, ist eine Zeile
+  ohne Schlüssel neu. Die Web-App sucht dann noch über Titel und Wochentag und könnte beim zweiten Termin desselben
+  Kurses am selben Tag die Serie des ersten treffen. Bitte prüfen, ob `impConfirm` das ebenso halten soll.
+- **Noch nicht nachgezogen:** Learnweb nur für aktive Kurse (`hildesheim.active_courses`, a7827c6), nicht Teil dieses
+  Auftrags.
+- Rote Fälle auf `develop` d87e026, die nicht vom Stundenplan kommen: `SQLiteStoreTests` frisch/alt (neue Tabelle
+  `sync_ops`; `studip_calendar_dates` ist gleich), `DemoContentTests` (2) und `LocalBackendCoverageTests`
+  (`/api/grades`).

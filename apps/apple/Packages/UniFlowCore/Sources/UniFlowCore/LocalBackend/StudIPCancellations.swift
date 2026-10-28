@@ -8,11 +8,17 @@ import Foundation
 ///
 /// Ausfall laut Stud.IP heisst: Ausnahme `cancelled` mit der Notiz, die der Abgleich setzt (`StudIPScheduleImport.note`,
 /// `apply_import` mit Quelle studip*). Was der Nutzer selbst als ausgefallen oder nicht besucht markiert (Ausnahme ohne
-/// diese Notiz, `attend=0`), bleibt sichtbar, damit er es zuruecknehmen kann. Belegte Zeit ist ein Ausfall ohnehin nicht
+/// diese Notiz, `attend=0`), bleibt sichtbar, damit er es zuruecknehmen kann. Setzt der Nutzer einen Ausfall laut Stud.IP
+/// zurueck, wird daraus "attend" mit `resetNote` (`set_exception` wie Python seit a7827c6): der Termin ist dann kein
+/// Ausfall mehr und bleibt sichtbar; der naechste Abgleich traegt den Ausfall nicht wieder ein, weil der Tag schon eine
+/// Ausnahme hat. Belegte Zeit ist ein Ausfall ohnehin nicht
 /// (`busy_blocks` zaehlt nur "teilnahme"), freie Fenster und Lernplan haben die Zeit also schon frei.
 public enum StudIPCancellations {
-    /// Notiz der Ausnahme, die der Stud.IP-Abgleich setzt
+    /// Notiz der Ausnahme, die der Stud.IP-Abgleich setzt (`STUDIP_CANCEL_NOTE`)
     public static let note = "Ausfall laut Stud.IP"
+    /// Notiz, wenn der Nutzer einen Ausfall laut Stud.IP zuruecksetzt (`STUDIP_CANCEL_RESET_NOTE`, a7827c6): der Termin
+    /// steht als "attend" da und bleibt sichtbar
+    public static let resetNote = "Findet statt (Ausfall laut Stud.IP zurückgesetzt)"
 
     /// Ausfaelle laut Stud.IP mit Datum im Zeitraum (ISO-Tage, einschliesslich): `[{"event_id", "date"}]`
     static func list(_ c: SQLiteConnection, from start: Int, to end: Int) throws -> JSONValue {

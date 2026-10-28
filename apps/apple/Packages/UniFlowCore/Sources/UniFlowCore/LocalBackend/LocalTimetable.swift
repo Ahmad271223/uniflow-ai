@@ -373,11 +373,24 @@ enum LocalTimetable {
 
     // MARK: Ausnahmen und Teilnahme
 
-    /// `set_exception(conn, event_id, d, typ, new_date, new_start, new_end, note)`
+    /// `set_exception(conn, event_id, d, typ, new_date, new_start, new_end, note)`; `typ` "reset" nimmt die Ausnahme
+    /// zurueck. Zuruecksetzen eines Ausfalls laut Stud.IP (Entscheidung des Inhabers, a7827c6): der Termin findet statt
+    /// und bleibt sichtbar, als "attend" mit eigener Notiz. Ohne Ausnahme verschwaende der Tag ganz (`mergeDated`: Stud.IP
+    /// kennt an abgesagten Tagen keinen Termin), und der naechste Abgleich truege den Ausfall wieder ein. Wer genau diese
+    /// Ausnahme noch einmal zuruecksetzt, bekommt den Ausfall laut Stud.IP zurueck.
     static func setException(_ c: SQLiteConnection, eventID: SQLiteValue, date: SQLiteValue, type: SQLiteValue,
                              newDate: SQLiteValue = .null, newStart: SQLiteValue = .null, newEnd: SQLiteValue = .null,
                              note: SQLiteValue = "", clock: UniFlowClock) throws {
+        let old = try c.queryOne("SELECT type, note FROM event_exceptions WHERE event_id=? AND date=? ORDER BY id DESC LIMIT 1", [eventID, date])
         try c.execute("DELETE FROM event_exceptions WHERE event_id=? AND date=?", [eventID, date])
+        var type = type, note = note
+        if type == .text("reset"), let old {
+            if old["type"]?.string == "cancelled", old["note"]?.string == StudIPCancellations.note {
+                (type, note) = (.text("attend"), .text(StudIPCancellations.resetNote))
+            } else if old["type"]?.string == "attend", old["note"]?.string == StudIPCancellations.resetNote {
+                (type, note) = (.text("cancelled"), .text(StudIPCancellations.note))
+            }
+        }
         if type != .text("reset") {
             try c.execute("INSERT INTO event_exceptions(event_id, date, type, new_date, new_start, new_end, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
                           [eventID, date, type, newDate, newStart, newEnd, note, .text(clock.nowISO)])

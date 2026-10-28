@@ -239,7 +239,9 @@ gilt deshalb (`StudIPCalendar.Coverage`, `LocalTimetable.studipDated`):
 Die Entscheidungen über Kurszeiten und Serien (`StudIPCalendar.store`, `applyCalendar`) bleiben wie am PC „ab dem Tag
 nach dem Abruf“. Sie werten nur künftige Termine aus und sind nicht betroffen. Tests mit erfundenen Daten:
 `StudIPCalendarFetchDayTests`. Die Verträge `woche.json` (Abruf 27.10., Woche 16.–22.11.) und `timetable-logic.json`
-(ohne Kalender) sind unverändert grün.
+(ohne Kalender) sind unverändert grün. Seit 5dbabd6 gilt am PC dieselbe Regel (`calendar_coverage`, `calendar_shows`,
+`store_calendar`; `tests/test_studip_fetch_day.py`). `timetable-logic.json` enthält keinen Kalender, der Fall kommt im
+Vertrag also nicht vor.
 
 **Ausfälle laut Stud.IP blendet das iPad aus wie Stud.IP (Entscheidung des Inhabers, 28.10.2026).** In der
 Weihnachtswoche (23.–25.12.) markiert Stud.IP 13 Veranstaltungen des Inhabers als ausgefallen. Der Stud.IP-Kalender
@@ -257,7 +259,20 @@ zeigt dann nichts, UniFlow zeigte sie durchgestrichen. Jetzt fehlen sie in Stund
   Fenster, Lernplan und Umplanen; daran hat sich nichts geändert.
 - **Nicht betroffen:** Mitteilungen (nur Fristen, Abgleich und Timer) und die Fristen-Erkennung (keine Termine) zeigen
   keine Stundenplan-Termine. Der nächste Termin je Modul nimmt nur besuchte.
+- **Zurückgesetzt bleibt sichtbar** (Entscheidung des Inhabers, a7827c6, wie `set_exception` in Python): Setzt der
+  Nutzer einen Ausfall laut Stud.IP zurück, wird daraus `attend` mit der Notiz „Findet statt (Ausfall laut Stud.IP
+  zurückgesetzt)“. Der Termin steht als `teilnahme` da, der nächste Abgleich trägt den Ausfall nicht wieder ein, und
+  `dropStaleCancellations` entfernt nur Ausnahmen `cancelled` mit der Stud.IP-Notiz. Wer noch einmal zurücksetzt,
+  bekommt den Ausfall laut Stud.IP zurück; alle anderen Ausnahmen werden wie bisher gelöscht.
 - **Am PC-Server** gibt es den Endpunkt nicht, dort bleibt alles wie geliefert.
 
 Tests: `StudIPCancellationsTests` (Kern) und `StudyPlanLocalAppTests.testStudIPCancellationIsHiddenButOwnMarksStay`
 (App, ohne die Änderung rot).
+
+**Vorschau: `existing_id` an jeder Zeile (wie 196555e).** `diff_against_existing` setzt `existing_id` an jede Zeile mit
+vorhandener Serie (`LocalTimetableImport.diffAgainstExisting(marking:)`, aus Stud.IP über `previewDiff` nach
+Stud.IP-ID). Der Dialog (`TimetablePreviewDialog.existingID`) nimmt die Markierung der Zeile selbst. Strenger als die
+Web-App: Markiert die Vorschau andere Zeilen, ist eine Zeile ohne Schlüssel neu. Die Web-App sucht dann noch über
+Titel und Wochentag und träfe beim zweiten Termin desselben Kurses am selben Tag die Serie des ersten. Nur eine
+Vorschau ganz ohne Markierung (älterer PC-Server) sucht wie bisher. Tests: `StudIPCalendarSingleDatesTests`,
+`StudIPScheduleStoreTests.testGroupOnLectureDayKeepsLecture` (Kern), `TimetableLocalAppTests.testPreviewRowUsesItsOwnExistingID` (App).

@@ -199,9 +199,11 @@ public enum TimetableEndpoints: LocalEndpointModule {
                     throw LocalHTTPError(status: 500, message: "Import fehlgeschlagen: \(why)")
                 }
                 entries = try LocalTimetableImport.enrich(c, entries)
-                var diff = try LocalTimetableImport.diffAgainstExisting(c, entries)
-                // Kurszeiten ueber die Verknuepfung zuordnen statt ueber Titel und Wochentag (nur auf dem Geraet)
-                if source == "studip" { diff = try StudIPScheduleImport.previewDiff(c, diff, entries: entries) }
+                // jede Zeile mit vorhandener Serie traegt deren existing_id selbst (wie diff_against_existing)
+                var diff = try LocalTimetableImport.diffAgainstExisting(c, marking: &entries)
+                // Kurszeiten ueber die Verknuepfung zuordnen statt ueber Titel und Wochentag (nur auf dem Geraet); die
+                // Zeilen der Kurszeiten bekommen die existing_id dieser Zuordnung
+                if source == "studip" { diff = try StudIPScheduleImport.previewDiff(c, diff, entries: &entries) }
                 let list: JSONValue = .array(entries.map(JSONValue.object))
                 try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES (?,?,?,?,?,0)",
                               [.text(source), .text(clock.nowISO), "preview", .text(PyText.slice(text, 0, 20000)),

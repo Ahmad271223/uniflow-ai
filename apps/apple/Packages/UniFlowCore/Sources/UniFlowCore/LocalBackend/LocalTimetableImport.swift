@@ -581,10 +581,19 @@ enum LocalTimetableImport {
     /// `used`: Serien, die schon vergeben sind (nur auf dem Geraet: mit einem ausgewaehlten Stud.IP-Eintrag dieses
     /// Laufs verknuepft, `StudIPScheduleImport.autoImport`); sie zaehlen auch nicht als entfernt.
     static func diffAgainstExisting(_ c: SQLiteConnection, _ entries: [Entry], used taken: Set<Int64> = []) throws -> JSONValue {
+        var copy = entries
+        return try diffAgainstExisting(c, marking: &copy, used: taken)
+    }
+
+    /// Wie oben, und jede Zeile mit vorhandener Serie bekommt deren `existing_id` selbst (196555e, Bitte der
+    /// Mac-Sitzung vom 27.10.): zwei Serien desselben Kurses am selben Tag haben denselben Titel, die Suche ueber Titel
+    /// und Wochentag traf beim Uebernehmen immer die erste. Zeilen ohne vorhandene Serie bleiben ohne den Schluessel.
+    static func diffAgainstExisting(_ c: SQLiteConnection, marking entries: inout [Entry], used taken: Set<Int64> = []) throws -> JSONValue {
         let existing = try c.rows("SELECT * FROM course_events WHERE source != 'personal'")
         var new: [JSONValue] = [], changed: [JSONValue] = [], same: [JSONValue] = []
         var used = Set<JSONValue>(taken.map { JSONValue.number(Double($0)) })
-        for e in entries {
+        for i in entries.indices {
+            let e = entries[i]
             var cands: [[String: JSONValue]] = []
             for x in existing where !used.contains(x["id"] ?? .null) {
                 if try sameSeries(x, e) { cands.append(x) }
@@ -595,7 +604,8 @@ enum LocalTimetableImport {
                 continue
             }
             used.insert(x["id"] ?? .null)
-            var o = e
+            entries[i]["existing_id"] = x["id"] ?? .null
+            var o = entries[i]
             if exact != nil {
                 o["existing_id"] = x["id"] ?? .null
                 same.append(.object(o))

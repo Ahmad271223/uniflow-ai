@@ -230,6 +230,13 @@ final class StudIPCalendarSingleDatesTests: XCTestCase {
         d = try await diff([e("10:00", "11:30"), e("10:00", "11:30")])
         XCTAssertEqual(d["same"]?.array?.count, 1)
         XCTAssertEqual(d["new"]?.array?.count, 1, "eine vorhandene Serie passt nur zu einem Eintrag")
+        // jede Zeile mit vorhandener Serie traegt deren existing_id selbst, die neue Zeile keine (196555e)
+        let rows = try await backend.context.database.withConnection { c -> [LocalTimetableImport.Entry] in
+            var list = [e("10:00", "11:30"), e("10:00", "11:30")]
+            _ = try LocalTimetableImport.diffAgainstExisting(c, marking: &list)
+            return list
+        }
+        XCTAssertEqual(rows.map { $0["existing_id"] }, [.number(1), nil])
         XCTAssertEqual(d["removed"]?.array?.count, 0)
         d = try await diff([])
         XCTAssertEqual(d["removed"]?.array?.compactMap { $0["title"]?.string }, ["Mathe I"])
