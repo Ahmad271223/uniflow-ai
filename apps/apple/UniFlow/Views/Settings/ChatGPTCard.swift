@@ -5,7 +5,7 @@ import UniFlowCore
 /// (Apple 5.1.2), verbundenes Konto, Modell, Schalter, "Nutzung verwalten", trennen. Nur sichtbar, wenn
 /// `ChatGPTLink.available` (Debug oder von OpenAI vergebene Client-ID).
 struct ChatGPTCard: View {
-    @EnvironmentObject private var link: ChatGPTLink
+    @ObservedObject var link: ChatGPTLink
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.openURL) private var openURL
 

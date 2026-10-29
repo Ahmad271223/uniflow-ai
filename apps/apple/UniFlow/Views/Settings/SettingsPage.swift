@@ -997,9 +997,11 @@ struct ConnectView: View {
 /// "Erweitert" ohne Server: KI ueber das ChatGPT-Abo (sichtbar nur mit `ChatGPTLink.available`), Demo-Inhalte fuer
 /// die App-Pruefung (Views/DemoViews.swift)
 private struct LocalAdvancedTab: View {
+    @Environment(\.ufChatGPTLink) private var chatgpt
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if ChatGPTLink.available { ChatGPTCard() }
+            if ChatGPTLink.available, let chatgpt { ChatGPTCard(link: chatgpt) }
             DemoContentCard()
         }
         .frame(maxWidth: 720, alignment: .leading)

@@ -308,3 +308,14 @@ struct UFAIEnabledProvider: ViewModifier {
     @ObservedObject var link: ChatGPTLink
     func body(content: Content) -> some View { content.environment(\.ufAIEnabled, link.enabled) }
 }
+
+/// Der ChatGPT-Anschluss fuer Ansichten, die ihn zeigen (Einstellungen → Erweitert); nil ohne Anschluss (Tests,
+/// Vorschauen), dann erscheint die Karte nicht
+private struct UFChatGPTLinkKey: EnvironmentKey { static let defaultValue: ChatGPTLink? = nil }
+
+extension EnvironmentValues {
+    var ufChatGPTLink: ChatGPTLink? {
+        get { self[UFChatGPTLinkKey.self] }
+        set { self[UFChatGPTLinkKey.self] = newValue }
+    }
+}
