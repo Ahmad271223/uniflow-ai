@@ -46,8 +46,6 @@ enum DroppedEndpoints: LocalEndpointModule {
     static let noTests = "Wochentests gibt es in dieser Version nicht."
 
     static func register(on router: LocalRouter) {
-        router.post("/api/ai/tutor") { _, _ in throw LocalHTTPError.notFound(noAI) }
-
         router.get("/api/tests") { _, _ in .json([]) }
         router.get("/api/tests/{test_id:int}") { _, _ in throw LocalHTTPError.notFound(noTests) }
         router.post("/api/tests/generate") { _, _ in throw LocalHTTPError.notFound(noTests) }

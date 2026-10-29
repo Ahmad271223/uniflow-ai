@@ -13,6 +13,8 @@ public struct LocalContext: Sendable {
     public let newHex: @Sendable () -> String
     /// Index der Skriptsuche je Modul (`_CACHE` in app/scriptsearch.py), je Datenbank
     let scriptIndex = ScriptSearch.IndexCache()
+    /// KI des Nutzers (ChatGPT), von der App gesetzt; nil = keine KI
+    public let ai = LocalAI()
 
     public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
                 newHex: @escaping @Sendable () -> String = LocalContext.randomHex) {
