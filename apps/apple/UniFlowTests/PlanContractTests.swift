@@ -176,8 +176,10 @@ final class PlanContractTests: XCTestCase {
                                         .canReviewWrongAnswers, .canUseExtendedTestHistory, .canSyncAnnotations,
                                         .chatgptConnectionPremium]
         for e in service { XCTAssertEqual(e.onDevice, .needsService, e.rawValue) }
-        // nicht im Vertrag available -> nie auf dem Geraet umgesetzt
-        XCTAssertEqual(UFEntitlement.canWriteCommunityComments.status, .comingSoon)
+        // Kommentare sind im Vertrag seit PC d0d1c74 available, laufen aber ueber den Dienst (G4); das iPad V1 mit
+        // CloudKit-Community gibt sie nicht als vorhanden aus (Umstellung D15)
+        XCTAssertEqual(UFEntitlement.canWriteCommunityComments.status, .available)
+        XCTAssertEqual(UFEntitlement.canWriteCommunityComments.onDevice, .needsService)
         XCTAssertFalse(UFEntitlement.canWriteCommunityComments.availableOnDevice)
     }
 
