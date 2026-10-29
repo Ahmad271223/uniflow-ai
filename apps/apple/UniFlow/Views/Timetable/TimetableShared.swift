@@ -583,3 +583,16 @@ struct UFDayExtraChips: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+/// Ausfaelle laut Stud.IP wie Stud.IP selbst ausblenden (Entscheidung des Inhabers, 28.10.2026): in Woche, Tag,
+/// Lernkalender und Uebersicht fehlen sie, die Zeit ist frei. Nur in der Anzeige; die Antworten des lokalen Backends
+/// bleiben wie in Python (`StudIPCancellations` im Kern). Selbst markierte Ausfaelle und "nicht besucht" bleiben
+/// sichtbar. Am PC-Server gibt es den Endpunkt nicht: dort bleibt alles wie geliefert.
+enum StudIPCancelled {
+    /// Schluessel der Ausfaelle laut Stud.IP zwischen `from` und `to` (ISO-Tage, einschliesslich)
+    static func keys(_ api: APIClient?, from: String, to: String) async -> Set<String> {
+        guard let api, api.isLocal else { return [] }
+        return StudIPCancellations.keys(try? await api.value("/api/timetable/studip-cancelled?start=\(from)&end=\(to)"))
+    }
+}
+

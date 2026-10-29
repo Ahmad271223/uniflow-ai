@@ -124,6 +124,11 @@ SAMPLES: dict[str, dict] = {
     "POST /api/timetable/reslot": {"path": "/api/timetable/reslot", "body": {"dates": ["2026-10-26"]}},
     "POST /api/timetable/import/preview": {"path": "/api/timetable/import/preview", "form": {"source": "studip"}},
     "POST /api/timetable/import/confirm": {"path": "/api/timetable/import/confirm", "body": {"entries": []}},
+    # Ausfaelle laut Stud.IP blendet die App wie Stud.IP aus (StudIPCancellations, Entscheidung des Inhabers 28.10.2026);
+    # die Liste gibt es nur auf dem Geraet, am PC 404 (dort bleibt alles, wie es kommt)
+    "GET /api/timetable/studip-cancelled": {"path": "/api/timetable/studip-cancelled?start=2026-10-26&end=2026-11-01", "python": False,
+                                            "expect": {"status": 200, "type": "array",
+                                                       "reason": "nur auf dem Geraet (StudIPCancellations)"}},
     # Fragen zum eigenen Stud.IP-Kalender gibt es nur auf dem Geraet (StudIPCalendar); am PC 404
     "GET /api/timetable/studip-questions": {"path": "/api/timetable/studip-questions", "python": False,
                                             "expect": {"status": 200, "type": "object", "keys": ["busy", "hidden"],

@@ -336,7 +336,7 @@ final class StudIPScheduleStoreTests: XCTestCase {
     // MARK: Nachbesserung S5: Verknuepfung Stud.IP-Eintrag -> Serie (StudIPScheduleImport)
 
     /// Ausfaelle, die Stud.IP erst nach der ersten Uebernahme meldet, kommen in die vorhandene Serie; was der Nutzer
-    /// an einem Tag geaendert hat, bleibt; ein zurueckgenommener Ausfall entfaellt wieder
+    /// an einem Tag geaendert hat, bleibt; ein zurueckgenommener Ausfall entfaellt wieder (nur der laut Stud.IP)
     func testLaterCancellationsReachExistingSeries() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
         let (d, _) = try await download()
@@ -352,18 +352,19 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertEqual(r2.newEvents, 0)
         let after = await day(backend, "2026-11-09")
         XCTAssertEqual(after, ["Testanalysis I ausfall"])
-        // Zurueckgesetzt (keine Ausnahme mehr) und Stud.IP kennt den abgesagten Termin nicht: seit e9a40d1 zeigt die
-        // Woche dort wie am PC nichts (Frage an die PC-Sitzung in docs/STAND-MAC-SITZUNG.md); der Ausfall kommt nicht
-        // wieder (Ausnahmen unten)
+        // Zurueckgesetzt: seit a7827c6 (Entscheidung des Inhabers, wie Python set_exception) wird aus dem Ausfall laut
+        // Stud.IP eine Ausnahme "attend"; der Termin bleibt sichtbar und der Ausfall kommt nicht wieder
         let reset = await day(backend, "2026-11-02")
-        XCTAssertEqual(reset, [], "vom Nutzer zurueckgesetzt, kommt nicht wieder")
+        XCTAssertEqual(reset, ["Testanalysis I teilnahme"], "vom Nutzer zurueckgesetzt, findet statt")
         let ex = try await exceptions(backend, ana)
-        XCTAssertEqual(ex, ["2026-11-09|cancelled|Ausfall laut Stud.IP", "2026-11-16|skip|"])
-        // Stud.IP nimmt die Ausfaelle vom 09. und 16.11. zurueck: der eigene vom 16.11. bleibt
+        XCTAssertEqual(ex, ["2026-11-02|attend|Findet statt (Ausfall laut Stud.IP zurückgesetzt)",
+                            "2026-11-09|cancelled|Ausfall laut Stud.IP", "2026-11-16|skip|"])
+        // Stud.IP nimmt die Ausfaelle vom 09. und 16.11. zurueck: entfernt wird nur der Ausfall laut Stud.IP; der eigene
+        // vom 16.11. und das "attend" vom 02.11. bleiben (wie Python)
         let (d3, _) = try await download()
         _ = try await store(d3, backend)
         let back = try await exceptions(backend, ana)
-        XCTAssertEqual(back, ["2026-11-16|skip|"])
+        XCTAssertEqual(back, ["2026-11-02|attend|Findet statt (Ausfall laut Stud.IP zurückgesetzt)", "2026-11-16|skip|"])
         let n = try await backend.context.database.scalar("SELECT COUNT(*) FROM course_events")
         XCTAssertEqual(n, .integer(8), "nichts doppelt")
     }
@@ -527,6 +528,10 @@ final class StudIPScheduleStoreTests: XCTestCase {
         XCTAssertNotNil(c, "Gruppe am Vorlesungstag ist neu")
         XCTAssertNil(c?["existing_id"])
         XCTAssertEqual(preview["diff"]?["same"]?.array?.first { $0["studip_id"] == "cy-prog-vl" }?["existing_id"]?.int, lecture)
+        // die Zeilen selbst tragen dieselbe Zuordnung (196555e): Vorlesung mit ihrer Serie, die neue Gruppe ohne
+        let rowsOf = preview["entries"]?.array ?? []
+        XCTAssertEqual(rowsOf.first { $0["studip_id"] == "cy-prog-vl" }?["existing_id"]?.int, lecture)
+        XCTAssertNil(rowsOf.first { $0["room"] == "Pool Test C" }?["existing_id"], "Gruppe am Vorlesungstag ist neu")
 
         let res = try await choose(backend, room: "Pool Test C")
         XCTAssertEqual(res["new"], 1)

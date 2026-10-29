@@ -1346,6 +1346,178 @@ Auftrag des Inhabers: „mach alles fertig die ganze windows version fertig mach
 Für das iPad, sobald die Community über den Dienst läuft: dieselben Endpunkte und Ansichten (Fragen-Liste je Kurs,
 Frage mit Antworten, Mitteilungen, Lesezeichen).
 
+## Bitte der Mac-Sitzung: Ausfälle laut Stud.IP wie Stud.IP ausblenden (28.10.2026)
+
+Entscheidung des Inhabers vom 28.10. (ca. 08:30): In der Weihnachtswoche (23.–25.12.) markiert Stud.IP 13 seiner
+Veranstaltungen als ausgefallen (`status: ausfall`, `exception: cancelled`, Serie mit `source: studip`). Der
+Stud.IP-Kalender zeigt dann nichts, UniFlow zeigte sie durchgestrichen. Er will es wie Stud.IP: Ausgefallene Termine
+verschwinden aus Woche, Tag und Übersicht, die Zeit ist frei für Lernblöcke.
+
+Auf dem iPad umgesetzt (Zweig `wip/stundenplan-ausfall`, `docs/IPAD-STUDIP-SYNC.md` §10), **nur in der Anzeige**:
+- Die Antworten des lokalen Backends bleiben wie in Python, die Verträge `woche.json` (Ausfall am 19.11. mit
+  `status: ausfall`) und `timetable-logic.json` sind unverändert grün.
+- Neu und nur auf dem Gerät: `GET /api/timetable/studip-cancelled?start=…&end=…` liefert `[{"event_id", "date"}]`
+  der Ausnahmen `cancelled` mit der Notiz „Ausfall laut Stud.IP“. Die App lässt genau diese Vorkommen weg.
+  `app-paths.json` kennt den Pfad, mit `"python": False` wie bei `studip-questions`.
+- Selbst markierte Ausfälle (ohne diese Notiz) und „nicht besucht“ bleiben sichtbar, damit der Nutzer sie
+  zurücknehmen kann.
+- Freie Zeit war schon richtig: `busy_blocks` zählt nur `teilnahme`.
+
+Bitten an die PC-Sitzung:
+1. **Web und Referenz gleich machen:** Wochenansicht, Tagesansicht, Lernkalender und „Heute an der Uni“ sollen
+   Ausfälle laut Stud.IP nicht mehr zeigen. Danach bitte gemeinsam den Vertrag anpassen. Vorschlag: Python lässt
+   diese Vorkommen in `occurrences` weg, oder es kennzeichnet sie (zum Beispiel `exception_note`). Dann ziehen wir
+   `woche.json` und `timetable-logic.json` zusammen nach, und der Geräte-Endpunkt kann entfallen.
+2. **LSF (Hildesheim):** Ausfälle aus dem LSF-Export heißen „Ausfall laut Kalender“. Sollen sie ebenso verschwinden?
+   Bis zur Entscheidung blendet das iPad nur „Ausfall laut Stud.IP“ aus.
+
+## Antwort der Mac-Sitzung: Abruftag-Regel verglichen, Zurücksetzen und `existing_id` nachgezogen (28.10.2026)
+
+Auf `wip/stundenplan-ausfall` (mit `develop` d87e026 zusammengeführt):
+- **Abruftag:** Die Regel in Python seit 5dbabd6 (`calendar_coverage`, `calendar_shows`, `store_calendar`,
+  `_merge_dated` ab dem Tag des letzten Abrufs) ist dieselbe wie `StudIPCalendar.Coverage`. `timetable-logic.json`
+  enthält keinen Kalender (`studip_calendar_dates` kommt darin nicht vor), unser Fall (fremde Gruppe am Abruftag vor
+  dem ersten eigenen Termin) steht also nicht im Vertrag. Keine Abweichung, Vertrag unverändert.
+- **Zurückgesetzter Ausfall laut Stud.IP bleibt sichtbar** (a7827c6): `LocalTimetable.setException` wie
+  `set_exception`, Konstante `StudIPCancellations.resetNote`. Die Anzeige blendet nur `cancelled` mit der
+  Stud.IP-Notiz aus, ein `attend` bleibt also sichtbar. Tests: `StudIPCancellationsTests` und
+  `StudIPScheduleStoreTests.testLaterCancellationsReachExistingSeries` (Erwartungen auf `attend` umgestellt).
+- **`existing_id` an jeder Vorschauzeile** (196555e): `diffAgainstExisting(marking:)`, aus Stud.IP über `previewDiff`
+  nach Stud.IP-ID. `LocalTimetableTests.testStepsMatchPythonServer` ist wieder grün. Der iPad-Dialog nimmt die
+  Markierung der Zeile und ist dabei strenger als `impConfirm`: Markiert die Vorschau andere Zeilen, ist eine Zeile
+  ohne Schlüssel neu. Die Web-App sucht dann noch über Titel und Wochentag und könnte beim zweiten Termin desselben
+  Kurses am selben Tag die Serie des ersten treffen. Bitte prüfen, ob `impConfirm` das ebenso halten soll.
+- **Noch nicht nachgezogen:** Learnweb nur für aktive Kurse (`hildesheim.active_courses`, a7827c6), nicht Teil dieses
+  Auftrags.
+- Rote Fälle auf `develop` d87e026, die nicht vom Stundenplan kommen: `SQLiteStoreTests` frisch/alt (neue Tabelle
+  `sync_ops`; `studip_calendar_dates` ist gleich), `DemoContentTests` (2) und `LocalBackendCoverageTests`
+  (`/api/grades`).
+
+## Übergabe der Mac-Sitzung und zwei Bitten an die PC-Sitzung (29.10.2026)
+
+- Die Mac-Sitzung wechselt (Nutzungslimit). Vollständiger Stand, Regeln, Entscheidungen des Inhabers und die
+  Reihenfolge der offenen Arbeit: **`docs/UEBERGABE-MAC-NEUE-SITZUNG-2026-10-29.md`**. Offene Mac-Zweige:
+  `wip/stundenplan-ausfall`, `wip/learnweb-dateien`, `wip/editor-2` (develop d87e026 jeweils eingemischt, noch nicht
+  fertig geprüft).
+- **Bitte 1 – Ausfälle laut Stud.IP ausblenden (Entscheidung des Inhabers vom 28.10., ca. 08:30):** In der
+  Weihnachtswoche zeigt der Stud.IP-Kalender des Inhabers nichts, weil 13 Veranstaltungen ausfallen; Studora zeigte sie
+  durchgestrichen. Der Inhaber will sie wie in Stud.IP **nicht anzeigen** (Woche, Tag, Übersicht), die Zeit wird frei.
+  Das iPad blendet sie nur in der Anzeige aus und lässt das Backend bei der Parität (`woche.json` erwartet den Ausfall
+  am 19.11. mit `status: ausfall`). Bitte in Web/Windows genauso und danach den Vertrag gemeinsam anpassen. Vom Nutzer
+  gesetzte und zurückgesetzte Ausnahmen (`attend`, 0.4.6) bleiben sichtbar.
+- **Bitte 2 – Notenspiegel-Vertrag:** Gibt es für `app/grades_model.py` eine Fixture (Generator), gegen die das iPad
+  testen kann? Sonst bauen wir Tests nach `tests/test_grades_model.py` mit erfundenen Daten.
+
+## Learnweb-Dateien: iPad 195, PC 539 – Ursache, Korrektur auf dem iPad und Bitten an die PC-Sitzung (28.10.2026)
+
+Ausgangslage: gleiches Konto, dieselben 9 Learnweb-Kurse. Das iPad hat 195 Dateien (je Kurs 46, 33, 28, 19, 17, 16,
+15, 13, 8), der PC 539 (Zählung vom 26.10. im frischen Datenordner, ohne Schlüssel über die Sitzung). Geprüft wurde nur
+Code gegen Code und gegen den Moodle-Quelltext, ohne Anfrage an das Learnweb und ohne echte Daten.
+
+**Zwei verschiedene Wege.** Das iPad holt sich beim Verbinden einen Schlüssel aus dem Moodle-SSO. Damit liest es je
+Kurs einmal REST `core_course_get_contents`, und Moodle listet alle Dateien jeder Ressource und jedes Ordners samt
+Unterordnern. Der PC liest ohne Schlüssel: je Kurs `core_courseformat_get_state`, dann je Ressource
+`mod/resource/view.php?redirect=1` und je Ordner `mod/folder/view.php` (`SessionClient._folder_links`). Sonst sind die
+Regeln in Python und Swift gleich. Das betrifft die Modularten (nur `resource` und `folder`), `uservisible`, versteckte
+Kurse, Datei-IDs, NFC und Ordnerpfade. Keine Seite filtert nach Typ oder Größe, keine hat Seitengrenzen (Kursliste mit
+`limit 0`), keine löscht etwas.
+
+### Ursachen und geschätzter Anteil an der Lücke (344 Zeilen)
+
+1. **Eingebettete Ordner, Fehler im Sitzungsweg (PC, bis heute auch iPad): vermutlich fast die ganze Lücke.**
+   Hat ein Ordner die Anzeige „Inhalte auf der Kursseite anzeigen“ (`FOLDER_DISPLAY_INLINE`), leitet Moodle
+   `mod/folder/view.php` auf die Kursseite weiter: `redirect(course_get_url($folder->course, $cm->sectionnum))`. Die
+   Kursseite zeigt die Dateibäume **aller** eingebetteten Ordner (`folder_cm_info_view` → `set_content`).
+   `page.request.get` folgt der Weiterleitung, `folder_links` nimmt jeden `mod_folder/content`-Link der Seite, und
+   `files_from_state` schreibt alle diesem Ordner zu. Jeder eingebettete Ordner bekommt so die Dateien aller
+   eingebetteten Ordner der Seite. Die Zeilen haben andere IDs (andere cmid), dieselbe `download_url` und einen falschen
+   Ordnerpfad. Beispiel: 4 eingebettete Ordner auf einer Kursseite mit zusammen 40 Dateien ergeben am PC 160 Zeilen.
+   Mit Schlüssel (REST) tritt das nicht auf, darum hat das iPad weniger.
+   Prüfbar ohne neue Anfrage, in der Datenbank der Zählung:
+   ```sql
+   SELECT course_id, COUNT(*) AS zeilen, COUNT(DISTINCT download_url) AS adressen
+   FROM files WHERE id LIKE 'lw-%' GROUP BY course_id ORDER BY zeilen DESC;
+   ```
+   Erwartung: `adressen` je Kurs etwa wie die iPad-Zahlen, in der Summe etwa 195.
+2. **Ressourcen mit mehreren Dateien: Gegenrichtung, klein.** REST liefert alle Dateien im Inhaltsbereich einer
+   Ressource, die Sitzung nur die Hauptdatei (Weiterleitung). Hier hat das iPad eher mehr Dateien, genau wie Python
+   mit Schlüssel (`files_from_contents`).
+3. **Zeitpunkt (26.10. gegen 27.10.): klein.** Neue oder entfernte Materialien in einem Tag.
+
+Kein Grund für die Lücke:
+- **Andere Modularten:** `assign`, `page`, `book`, `label`, `forum`, `url`, `h5p` und Kursdateien liest keine Seite.
+  Bei Bedarf als eigene Entscheidung des Inhabers.
+- **Doppelte:** Dieselbe Datei in zwei Modulen ergibt auf beiden Seiten zwei Zeilen, je cmid.
+- **Abbruch bei einzelnen Modulen:** 5xx einer Ordner- oder Ressourcenseite ergibt am PC eine leere Liste. Auf dem
+  iPad gilt der Kurs dann als nicht lesbar (bewusst, `testOverloadedFolderPageFailsTheCourseInsteadOfShorterList`),
+  nichts wird gelöscht, und der nächste Lauf versucht es erneut. Am 27.10. hatte jeder Kurs Dateien, das war also
+  nicht der Grund.
+
+### Behoben auf dem iPad (Zweig `wip/learnweb-dateien`)
+
+1. **Eingebettete Ordner im Sitzungsweg.** `LearnwebAPI.folderLinks` folgt der Weiterleitung eines Ordners nicht mehr
+   blind. Zeigt sie auf die Kursseite (`course/view.php`, ab Moodle 4.4 auch `course/section.php`), lädt das iPad die
+   Seite einmal je Kurs. Es nimmt nur die Links im Eintrag des Ordners, also ab `id="module-<cmid>"` (Moodle
+   `cmitem.mustache`) bis zum nächsten Eintrag (`Learnweb.inlineFolderLinks`). Fehlt der Eintrag, kommen keine Links,
+   nie fremde. Andere Weiterleitungen werden wie bisher verfolgt, eine Weiterleitung zur Anmeldung heißt „neu
+   anmelden“. Jetzt liefern Sitzung und Schlüssel dieselben Dateien, IDs und Ordner.
+   - Tests in `LearnwebFileGapTests`: eingebettete Ordner, die Funktion für einen Eintrag, Anmeldung.
+   - Gegenprobe ohne den Fix: 8 statt 5 Dateien, `b.pdf` zusätzlich unter „Woche 2/Blätter/Sub“. Das ist genau das
+     Verhalten des PCs.
+2. **Nur aktive Kurse bekommen Dateien (Wunsch des Inhabers), genau wie `hildesheim.active_courses` am PC
+   (a7827c6).** `HildesheimSync` speichert alle sichtbaren Kurse mit der Semesterregel (`UniStore.upsertCourse`).
+   Dateilisten, Downloads und Ankündigungen fragt es nur für Kurse ohne `active = 0` ab. Ein vom Nutzer
+   eingeschalteter Kurs (`active_custom`) zählt als aktiv, ein ausgeschalteter nicht. Ein Kurs ohne Semester im Titel
+   bleibt, wie er ist, auch ohne Wert in `active`.
+   - Alte Kurse bleiben samt ihren Dateien gespeichert, sie bekommen nur keine neuen.
+   - Neu in der Meldung: „…, N Kurse aus früheren Semestern ohne Dateien (Einstellungen → Module)“, dazu
+     `Report.olderCourses`.
+   - Fristen bleiben wie am PC unverändert (Kalender, Moodle liefert nur anstehende).
+   - Tests: `testFilesOnlyForActiveCoursesUserChoiceCounts` (auch der Lauf nur mit Listen, Ankündigungsforen nur
+     aktiver Kurse, Kurs ohne Wert in `active`) und `testOnlyOlderCoursesIsNoFailure`. Gegenprobe ohne die Regel: 5
+     statt 3 Dateilisten, Dateien alter und ausgeschalteter Kurse kommen an.
+   - Bei den echten Daten sind 8 der 9 Kurse aus dem SoSe 2026 (182 der 195 Dateien). Ab dem nächsten Abgleich bekommt
+     nur noch ein Kurs neue Dateien, die vorhandenen bleiben.
+   - Bestehende Abgleich-Tests mit Kursen „SoSe 2026“ (Testuhr 25.10.2026) laufen jetzt mit „WiSe 2026/27“.
+
+**Vertrag:** `fixtures/hildesheim/expected.json` deckt `resource` und `folder` in beiden Wegen ab: REST-Inhalt,
+`session-state` mit Links aus Rückrufen und `folder-html`. Die Weiterleitung eingebetteter Ordner steckt im Netzteil
+(`_folder_links`) und ist nicht abgedeckt. Ohne Python-Funktion kann der Generator sie nicht erzeugen. Der Vertrag
+bleibt deshalb unverändert, geprüft wird mit eigenen Swift-Tests und erfundenen Moodle-Antworten.
+
+### Bitten an die PC-Sitzung
+
+1. **Zählung prüfen:** die Abfrage oben in der Datenbank vom 26.10. (oder einer neuen Zählung), dazu die Zahlen je
+   Learnweb-Kurs-ID. Bitte 3 vom 27.10. ist noch offen. Liegt `adressen` in der Summe bei etwa 195, ist Ursache 1
+   belegt.
+2. **`SessionClient._folder_links` wie das iPad:** `max_redirects=0`. Bei einer Weiterleitung auf `course/view.php`
+   oder `course/section.php` die Kursseite einmal je Kurs laden und nur die Links im Eintrag des Ordners nehmen;
+   andere Weiterleitungen weiter verfolgen, die Anmeldeseite als Fehler. Vorschlag für die reine Funktion:
+   ```python
+   MODULE_ANCHOR_RE = re.compile(r"""\bid\s*=\s*["']module-(\d+)["']""")
+
+   def inline_folder_links(html_text: str, cmid) -> list[str]:
+       anchors = list(MODULE_ANCHOR_RE.finditer(html_text or ""))
+       for i, m in enumerate(anchors):
+           if m.group(1) == str(cmid):
+               end = anchors[i + 1].start() if i + 1 < len(anchors) else len(html_text)
+               return folder_links(html_text[m.start():end])
+       return []
+   ```
+   Danach bitte einen Vertragsfall `inline-folder` in `tools/gen-hildesheim-fixture.py` (Kursseite, cmid, Links). Dann
+   prüft das iPad dagegen statt gegen eigene Antworten.
+3. **Learnweb nur für aktive Kurse:** am PC schon erledigt (a7827c6, danke). Das iPad folgt jetzt genau dieser Regel
+   (`active = 0` fällt weg, Dateien und Ankündigungen), kein zweiter Weg.
+4. **Doppelte Datei-IDs in älteren PC-Datenbanken:** Seit 6d6339c (25.10.) bildet `learnweb.file_id` die ID mit
+   SHA-256 statt SHA-1, ohne Umstellung bestehender Zeilen. Eine Datenbank, die vorher schon abgeglichen hat, bekommt
+   jede Learnweb-Datei ein zweites Mal: die alte Zeile mit Notizen, die neue ohne. Die Zählung vom 26.10. lief im
+   frischen Ordner und ist davon nicht betroffen. Bitte einmalig umstellen (ID aus cmid, Pfad und Namen neu
+   berechnen, Notizen und Dokumente mitnehmen) oder nach `download_url` zusammenführen.
+
+Eine Antwort der PC-Sitzung mit den Zahlen je Kurs steht bis develop d87e026 noch aus.
+
+Stand der Prüfung (Zweig `wip/learnweb-dateien`, develop d87e026 zusammengeführt):
+
 ## Bitte der Mac-Sitzung: Formatschutz für Notizen in Web und Kotlin (Editor Schritt 2, 28.10.2026)
 
 Auf dem iPad gilt jetzt die Regel aus `packages/shared-contracts/README.md` („eine neuere `version` nur lesen, nie

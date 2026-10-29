@@ -199,9 +199,11 @@ public enum TimetableEndpoints: LocalEndpointModule {
                     throw LocalHTTPError(status: 500, message: "Import fehlgeschlagen: \(why)")
                 }
                 entries = try LocalTimetableImport.enrich(c, entries)
-                var diff = try LocalTimetableImport.diffAgainstExisting(c, entries)
-                // Kurszeiten ueber die Verknuepfung zuordnen statt ueber Titel und Wochentag (nur auf dem Geraet)
-                if source == "studip" { diff = try StudIPScheduleImport.previewDiff(c, diff, entries: entries) }
+                // jede Zeile mit vorhandener Serie traegt deren existing_id selbst (wie diff_against_existing)
+                var diff = try LocalTimetableImport.diffAgainstExisting(c, marking: &entries)
+                // Kurszeiten ueber die Verknuepfung zuordnen statt ueber Titel und Wochentag (nur auf dem Geraet); die
+                // Zeilen der Kurszeiten bekommen die existing_id dieser Zuordnung
+                if source == "studip" { diff = try StudIPScheduleImport.previewDiff(c, diff, entries: &entries) }
                 let list: JSONValue = .array(entries.map(JSONValue.object))
                 try c.execute("INSERT INTO schedule_imports(source, created_at, status, raw, parsed, confirmed) VALUES (?,?,?,?,?,0)",
                               [.text(source), .text(clock.nowISO), "preview", .text(PyText.slice(text, 0, 20000)),
@@ -258,6 +260,14 @@ public enum TimetableEndpoints: LocalEndpointModule {
                 return ["pending_groups": .number(Double(pending.count)), "courses": .array(groups.map(JSONValue.string)),
                         "personal": .array(entries.filter { LocalModules.truthy($0["personal"]) }.map(JSONValue.object))]
             })
+        }
+
+        // Nur auf dem Geraet: Ausfaelle laut Stud.IP im Zeitraum (start, end einschliesslich), damit die App sie wie
+        // Stud.IP ausblendet (`StudIPCancellations`); die uebrigen Antworten bleiben wie in Python
+        router.get("/api/timetable/studip-cancelled") { req, ctx in
+            let start = try T.queryDay(req, "start"), end = try T.queryDay(req, "end")
+            guard end >= start, end - start <= 400 else { throw LocalHTTPError(status: 422, message: "Zeitraum ungültig") }
+            return .json(try await ctx.database.withConnection { try StudIPCancellations.list($0, from: start, to: end) })
         }
 
         // Nur auf dem Geraet: Fragen zum eigenen Stud.IP-Kalender (StudIPCalendar). "hidden": belegte Kurse ohne

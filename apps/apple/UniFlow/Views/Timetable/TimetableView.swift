@@ -51,7 +51,11 @@ struct TimetableView: View {
         if let date { Self.ttDate = date }
         guard let api = session.api else { error = "Nicht mit dem Server verbunden."; return }
         do {
-            let w = try await api.value("/api/timetable/week?start=\(Fmt.isoDay(start))")
+            // Ausfaelle laut Stud.IP wie in Stud.IP ausblenden (`StudIPCancelled`), selbst markierte bleiben
+            let from = Fmt.isoDay(start), to = Fmt.isoDay(PlanData.add(start, 6))
+            async let hidden = StudIPCancelled.keys(api, from: from, to: to)
+            let reply = try await api.value("/api/timetable/week?start=\(from)")
+            let w = StudIPCancellations.hiding(in: reply, keys: await hidden)
             do {
                 conflicts = try await api.value("/api/timetable/conflicts").items
                 conflictsError = nil
@@ -565,7 +569,7 @@ struct TimetablePreviewDialog: View {
         .onAppear {
             if entries.isEmpty {
                 entries = r.list("entries").enumerated().map { i, e in
-                    Entry(id: i, selected: Self.preselected(e, diff: diff, source: source), title: e.s("title") ?? "", kind: e.s("kind") ?? "vorlesung",
+                    Entry(id: i, selected: Self.preselected(e, diff: diff, source: source, rows: r.list("entries")), title: e.s("title") ?? "", kind: e.s("kind") ?? "vorlesung",
                           start: e.s("start_time") ?? "", end: e.s("end_time") ?? "", room: e.s("room") ?? "", weekday: e.i("weekday") ?? 0,
                           module: e.i("module_id") ?? 0, raw: e)
                 }
@@ -580,7 +584,8 @@ struct TimetablePreviewDialog: View {
         if r.list("entries").contains(where: { $0["uncertain"]?.bool == true }) {
             s += "Orange markierte Zeilen sind unsicher (z. B. mehrere parallele Übungsgruppen): bitte prüfen und nur deine Gruppe auswählen."
         }
-        if source == "studip", r.list("entries").contains(where: { Self.existing(diff, $0) != nil }) {
+        let rows = r.list("entries")
+        if source == "studip", rows.contains(where: { Self.existingID(diff, $0, rows: rows) != nil }) {
             s += (s.hasSuffix(". ") ? "" : " ") + "Schon übernommene Termine sind nicht angehakt; Anhaken setzt Zeit, Raum und Art auf Stud.IP zurück."
         }
         return s
@@ -599,12 +604,23 @@ struct TimetablePreviewDialog: View {
         existing(diff, title: e.s("title"), weekday: e.i("weekday"), studipID: e.s("studip_id"))
     }
 
+    /// Vorhandene Serie einer Zeile wie `impConfirm` seit 196555e: die `existing_id` der Zeile selbst
+    /// (`diff_against_existing` setzt sie an jede Zeile mit vorhandener Serie). Strenger als die Web-App: markiert die
+    /// Vorschau schon andere Zeilen, ist eine Zeile ohne Schluessel neu; die Suche ueber Titel und Wochentag traefe
+    /// sonst die Serie einer anderen Zeile desselben Kurses am selben Tag. Nur ohne jede Markierung (aeltere Fassung des
+    /// PC-Servers) wie bisher ueber diff.changed/diff.same; `title`/`weekday` sind dann die Werte des Dialogs.
+    static func existingID(_ diff: JSONValue, _ e: JSONValue, rows: [JSONValue], title: String? = nil, weekday: Int? = nil) -> JSONValue? {
+        if let x = e["existing_id"], x != .null { return x }
+        if rows.contains(where: { ($0["existing_id"] ?? .null) != .null }) { return nil }
+        return existing(diff, title: title ?? e.s("title"), weekday: weekday ?? e.i("weekday"), studipID: e.s("studip_id"))?["existing_id"]
+    }
+
     /// Vorauswahl einer Zeile: wie in der Web-App alle ausser offenen Gruppen. Aus Stud.IP (auf dem Geraet der Weg zur
     /// Gruppenwahl) bleiben schon uebernommene Termine frei; sonst setzte "Übernehmen" Zeit, Raum, Art und Modul, die
     /// der Nutzer geaendert hat, auf die Werte aus Stud.IP zurueck.
-    static func preselected(_ e: JSONValue, diff: JSONValue, source: String) -> Bool {
+    static func preselected(_ e: JSONValue, diff: JSONValue, source: String, rows: [JSONValue] = []) -> Bool {
         guard e["selected"]?.bool != false else { return false }
-        return source != "studip" || existing(diff, e) == nil
+        return source != "studip" || existingID(diff, e, rows: rows) == nil
     }
 
     private var header: some View {
@@ -662,7 +678,7 @@ struct TimetablePreviewDialog: View {
             o["title"] = .string(e.title); o["kind"] = .string(e.kind); o["weekday"] = .number(Double(e.weekday))
             o["start_time"] = .string(e.start); o["end_time"] = .string(e.end); o["room"] = .string(e.room)
             o["module_id"] = e.module == 0 ? .null : .number(Double(e.module))
-            o["existing_id"] = Self.existing(diff, title: e.title, weekday: e.weekday, studipID: e.raw.s("studip_id"))?["existing_id"] ?? .null
+            o["existing_id"] = Self.existingID(diff, e.raw, rows: r.list("entries"), title: e.title, weekday: e.weekday) ?? .null
             return .object(o)
         }
         guard let api = session.api else { return }

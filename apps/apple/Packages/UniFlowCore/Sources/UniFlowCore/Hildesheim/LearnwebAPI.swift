@@ -134,13 +134,14 @@ public actor LearnwebAPI {
             guard let text = data.string, let state = try? JSONValue.parse(text) else {
                 throw HildesheimError.badResponse("core_courseformat_get_state")
             }
-            // Links vorab laden (Netz), dann rein rechnen
+            // Links vorab laden (Netz), dann rein rechnen; die Kursseite (eingebettete Ordner) nur einmal je Kurs
             var links: [String: [String]] = [:]
+            var coursePages: [String: String] = [:]
             for cm in state["cm"]?.array ?? [] {
                 let module = cm["module"]?.string ?? ""
                 guard module == "resource" || module == "folder", cm["uservisible"]?.bool != false else { continue }
                 let cmid = cm["id"].map(Learnweb.idString) ?? ""
-                links[cmid] = module == "resource" ? try await resourceLink(cmid) : try await folderLinks(cmid)
+                links[cmid] = module == "resource" ? try await resourceLink(cmid) : try await folderLinks(cmid, coursePages: &coursePages)
             }
             return Learnweb.filesFromState(state, resourceLinks: { links[$0] ?? [] }, folderLinks: { links[$0] ?? [] })
         }
@@ -324,11 +325,35 @@ public actor LearnwebAPI {
         return [m.replacingOccurrences(of: "&amp;", with: "&")]
     }
 
-    private func folderLinks(_ cmid: String) async throws -> [String] {
+    /// Dateilinks eines Ordners ueber seine Seite. Ein Ordner mit der Anzeige "auf der Kursseite" leitet auf die
+    /// Kursseite weiter (Moodle mod/folder/view.php, FOLDER_DISPLAY_INLINE); dort zaehlen nur die Links seines Eintrags
+    /// (`Learnweb.inlineFolderLinks`), die Kursseite wird je Kurs einmal geladen (`coursePages`, Adresse ohne #).
+    /// Andere Weiterleitungen werden wie bisher verfolgt. 403/404 (nicht sichtbar): leere Liste wie am PC.
+    private func folderLinks(_ cmid: String, coursePages: inout [String: String]) async throws -> [String] {
         guard Self.isDigits(cmid), let url = URL(string: "\(base)/mod/folder/view.php?id=\(cmid)") else { return [] }
+        let resp = try await transport.fetch(UniRequest(url: url, followRedirects: false), retry: retry)
+        if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
+        guard (300...399).contains(resp.status) else { return resp.status == 200 ? Learnweb.folderLinks(html: resp.text) : [] }
+        guard let loc = resp.headers["location"], let target = URL(string: loc, relativeTo: URL(string: base + "/"))?.absoluteURL else {
+            return []
+        }
+        if isLogin(target.absoluteString) { throw HildesheimError.sessionExpired("Learnweb") }
+        if Learnweb.isCoursePage(target, base: base) {
+            var c = URLComponents(url: target, resolvingAgainstBaseURL: false)
+            c?.fragment = nil
+            let page = c?.url ?? target
+            let key = page.absoluteString
+            if coursePages[key] == nil { coursePages[key] = try await followed(page) ?? "" }
+            return Learnweb.inlineFolderLinks(coursePage: coursePages[key] ?? "", cmid: cmid)
+        }
+        return try await followed(target).map(Learnweb.folderLinks(html:)) ?? []
+    }
+
+    /// Seite hinter einer Weiterleitung (weiteren Weiterleitungen folgen); nil ohne HTTP 200
+    private func followed(_ url: URL) async throws -> String? {
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
         if isLogin(resp.finalURL?.absoluteString ?? "") { throw HildesheimError.sessionExpired("Learnweb") }
-        return resp.status == 200 ? Learnweb.folderLinks(html: resp.text) : []
+        return resp.status == 200 ? resp.text : nil
     }
 }
 

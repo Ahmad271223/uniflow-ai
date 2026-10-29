@@ -258,7 +258,7 @@ final class DataContainerTests: XCTestCase {
         let t = FakeUniTransport()
         let rest = "\(base)/webservice/rest/server.php"
         t.on(rest, body: "wsfunction=core_webservice_get_site_info", okJSON(["userid": 7]))
-        t.on(rest, body: "wsfunction=core_enrol_get_users_courses", okJSON([["id": 35, "fullname": "SoSe 2026: 0435 Testkurs Hildesheim"]]))
+        t.on(rest, body: "wsfunction=core_enrol_get_users_courses", okJSON([["id": 35, "fullname": "WiSe 2026/27: 0435 Testkurs Hildesheim"]]))
         t.on(rest, body: "wsfunction=core_course_get_contents", ok("""
             [{"section": 1, "name": "1", "modules": [{"id": 80, "modname": "resource", "name": "Folien", "contents": [
               {"type": "file", "filename": "Folien.pdf", "filepath": "/", "timemodified": 3,
