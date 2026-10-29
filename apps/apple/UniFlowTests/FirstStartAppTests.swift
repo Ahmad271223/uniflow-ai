@@ -182,7 +182,9 @@ final class FirstStartAppTests: XCTestCase {
         XCTAssertTrue(FirstSyncProgress.isFinished(rows))
         let grades = try await c.api.value("/api/grades")
         XCTAssertEqual(grades["grades"]?.array?.count, 3)
-        XCTAssertEqual(grades["average"], 1.96, "(2,0·8 + 1,3·6 + 2,7·5) / 19")
+        // Schnitt wie app/grades_model.py: nach der ersten Nachkommastelle abgeschnitten, dazu genau
+        XCTAssertEqual(grades["average_exact"], 1.96, "(2,0·8 + 1,3·6 + 2,7·5) / 19")
+        XCTAssertEqual(grades["average"], 1.9)
         XCTAssertEqual(grades["credits"], 19)
 
         // Ende: Oberflaeche; beim naechsten Start nicht wieder die Anmeldeseiten

@@ -60,6 +60,30 @@ struct ServicesPage: View {
     /// String(zahl) wie in JavaScript: ganze Zahlen ohne ".0"
     static func js(_ d: Double) -> String { d == d.rounded() && abs(d) < 1e15 ? String(Int(d)) : "\(d)" }
 
+    /// zahl.toFixed(n) mit Komma
+    static func decimal(_ d: Double, _ n: Int) -> String {
+        String(format: "%.\(n)f", d).replacingOccurrences(of: ".", with: ",")
+    }
+
+    /// "Aktueller Schnitt · genau 2,40 · 3 benotete Module, 20,5 LP" wie die Web-App (abgeschnitten und genau)
+    static func averageLabel(_ g: JSONValue) -> String {
+        guard let exact = g.n("average_exact") else { return "Aktueller Schnitt" }
+        let modules = g.s("basis") == "module"
+        return "Aktueller Schnitt · genau \(decimal(exact, 2)) · \(g.i("graded_count") ?? 0) \(modules ? "benotete Module" : "Noten"), "
+            + "\(js(g.n("graded_credits") ?? 0).replacingOccurrences(of: ".", with: ",")) LP"
+    }
+
+    static func averageHint(_ g: JSONValue) -> String {
+        "Bestandene, benotete \(g.s("basis") == "module" ? "Module" : "Leistungen"), nach Leistungspunkten gewichtet; wie in Prüfungsordnungen üblich nach der ersten Nachkommastelle abgeschnitten."
+    }
+
+    /// "aus 5 bestandenen Modulen · 1 nicht bestandene Versuche"
+    static func creditsLabel(_ g: JSONValue) -> String {
+        let failed = g.i("failed_attempts") ?? 0
+        return "aus \(g.i("passed") ?? 0) bestandenen \(g.s("basis") == "module" ? "Modulen" : "Leistungen")"
+            + (failed > 0 ? " · \(failed) nicht bestandene Versuche" : "")
+    }
+
     /// toLocaleDateString("de-DE") ohne Optionen: T.M.JJJJ
     static func plainDate(_ s: String?) -> String {
         guard let d = Fmt.date(s) else { return s ?? "" }
@@ -84,9 +108,10 @@ struct ServicesPage: View {
                        ? "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel" + (qisLocal == nil ? "" : " aus dem QIS") + " direkt in der App."
                        : "Alle Dienste der Universität Hildesheim an einem Ort, Notenspiegel aus dem LSF direkt in der App.")
             UFGrid(columns: 3) {
-                UFCard { UFKPI(value: g.n("average").map { Self.js($0).replacingOccurrences(of: ".", with: ",") } ?? "–",
-                               label: "Notendurchschnitt" + ((g.n("credits") ?? 0) != 0 ? " · \(Self.js(g.n("credits") ?? 0)) LP" : "")) }
-                UFCard { UFKPI(value: "\(rows.count)", label: "Leistungen im Notenspiegel" + ((g.i("passed") ?? 0) != 0 ? " · \(g.i("passed") ?? 0) bestanden" : "")) }
+                UFCard { UFKPI(value: g.n("average").map { Self.decimal($0, 1) } ?? "–", label: Self.averageLabel(g)) }
+                    .accessibilityHint(Self.averageHint(g))
+                UFCard { UFKPI(value: "\(Self.js(g.n("credits") ?? 0).replacingOccurrences(of: ".", with: ",")) LP",
+                               label: Self.creditsLabel(g)) }
                 UFCard { UFKPI(value: last.map { Self.plainDate($0.s("finished_at")) } ?? "–",
                                label: last == nil ? "noch nicht abgerufen" : lastOK ? "zuletzt abgerufen" : "letzter Abruf fehlgeschlagen") }
             }
@@ -376,39 +401,82 @@ private struct LSFGradesCard: View {
     }
 }
 
-/// table.tbl: Prüfung (+ Nr · Abschluss), Semester, Note, LP, Status-Badge, Versuch (auch QISGradesCard)
+/// Notenspiegel wie die Web-App (views-misc.js, seit 28.10.2026 mit app/grades_model.py): Bereiche als Chips, Schalter
+/// "Module" / "Alle Prüfungen und Versuche" (nur wenn es beides gibt), table.tbl mit Prüfung (+ Nr · Art), Semester,
+/// Note, LP, Status-Badge, Versuch; Prüfungszeilen gedämpft. Zeilen ohne Ebene (älterer PC-Server) zeigt sie alle.
+/// Auch QISGradesCard und LSFGradesCard.
 struct GradesTable: View {
     let rows: [JSONValue]
+    @State private var showAll = false
+
+    private var bereiche: [JSONValue] { rows.filter { $0.s("level") == "bereich" } }
+    private var hasModules: Bool { rows.contains { $0.s("level") == "modul" } }
+    private var hasExams: Bool { rows.contains { $0.s("level") == "pruefung" } }
+    private var visible: [JSONValue] {
+        rows.filter { r in r.s("level") != "bereich" && (showAll || r.s("level") == "modul" || !hasModules) }
+    }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if !bereiche.isEmpty {
+                UFFlexWrap(gap: 6.4) {
+                    ForEach(bereiche.indices, id: \.self) { i in bereichChip(bereiche[i]) }
+                }
+                .padding(.bottom, 9.6)
+            }
+            if hasModules && hasExams {
+                UFSegmented(options: [(false, "Module"), (true, "Alle Prüfungen und Versuche")], selection: $showAll)
+                    .padding(.bottom, 9.6)
+                    .accessibilityIdentifier("grades.view")
+            }
+            table
+        }
+    }
+
+    /// span.chip "Bereich laut Notenspiegel": Text · Note · LP
+    private func bereichChip(_ b: JSONValue) -> some View {
+        (Text(b.s("text") ?? "")
+         + Text((b.s("note") ?? "").isEmpty ? "" : " · ") + Text(b.s("note") ?? "").fontWeight(.bold)
+         + Text((b.s("credits") ?? "").isEmpty ? "" : " · \(b.s("credits") ?? "") LP"))
+            .ufFont(12.8).foregroundStyle(UF.text2)
+            .padding(.vertical, 4 + ufB).padding(.horizontal, 10.4 + ufB)
+            .background(Capsule().fill(UF.surface))
+            .overlay(Capsule().strokeBorder(UF.line, lineWidth: 1))
+            .accessibilityLabel("Bereich laut Notenspiegel: " + [b.s("text"), b.s("note"), (b.s("credits") ?? "").isEmpty ? nil : "\(b.s("credits") ?? "") LP"]
+                .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))
+    }
+
+    private var table: some View {
         Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
             GridRow {
-                ForEach(["Prüfung", "Semester", "Note", "LP", "Status", "Versuch"], id: \.self) { h in
+                ForEach([showAll || !hasModules ? "Prüfung" : "Modul", "Semester", "Note", "LP", "Status", "Versuch"], id: \.self) { h in
                     Text(h.uppercased()).ufFont(12.16, 600, em: 0.04).foregroundStyle(UF.muted)
                         .padding(.vertical, 7.2).padding(.horizontal, 8)
-                        .frame(maxWidth: h == "Prüfung" ? .infinity : nil, alignment: .leading)
+                        .frame(maxWidth: h == "Prüfung" || h == "Modul" ? .infinity : nil, alignment: .leading)
                 }
             }
             line
-            ForEach(rows.indices, id: \.self) { i in
-                let r = rows[i]
+            let shown = visible
+            ForEach(shown.indices, id: \.self) { i in
+                let r = shown[i]
                 let st = (r.s("status") ?? "").lowercased()
+                let sub = [r.s("pruefungsnr"), r.s("art")].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+                let semester = (r.s("semester_norm") ?? "").isEmpty ? r.s("semester") ?? "" : r.s("semester_norm") ?? ""
                 GridRow(alignment: .center) {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(r.s("text") ?? "").ufFont(13.76, 700).foregroundStyle(UF.text)
-                        if let nr = r.s("pruefungsnr"), !nr.isEmpty {
-                            Text(nr + ((r.s("abschluss") ?? "").isEmpty ? "" : " · " + (r.s("abschluss") ?? ""))).ufFont(11.84).foregroundStyle(UF.muted)
-                        }
+                        if !sub.isEmpty { Text(sub).ufFont(11.84).foregroundStyle(UF.muted) }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
-                    cell(r.s("semester") ?? "", small: true)
+                    cell(semester, small: true)
                     Text(r.s("note").flatMap { $0.isEmpty ? nil : $0 } ?? "–").ufFont(13.76, 700).foregroundStyle(UF.text).padding(8)
                     cell(r.s("credits") ?? "", small: true)
                     UFBadge(r.s("status").flatMap { $0.isEmpty ? nil : $0 } ?? "–",
                             tone: st.hasPrefix("be") ? .ok : st.hasPrefix("ni") ? .bad : .neutral).padding(8)
                     cell(r.s("versuch") ?? "", small: true)
                 }
+                .opacity(r.s("level") == "pruefung" ? 0.72 : 1)          // tr.muted
                 line
             }
         }

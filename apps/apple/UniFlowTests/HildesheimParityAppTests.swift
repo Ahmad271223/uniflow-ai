@@ -121,7 +121,8 @@ final class HildesheimParityAppTests: XCTestCase {
         // Noten aus dem LSF: nur die Leistungstabelle, Notenschnitt nach LP
         let grades = try await c.api.value("/api/grades")
         XCTAssertEqual(grades["grades"]?.array?.count, 3, "zwei benotete, eine angemeldete")
-        XCTAssertEqual(grades["average"], 1.94)
+        XCTAssertEqual(grades["average_exact"], 1.94)
+        XCTAssertEqual(grades["average"], 1.9, "abgeschnitten wie app/grades_model.py")
         XCTAssertEqual(grades["passed"], 2)
         let dump = try await c.host.backend().context.database.rows("SELECT * FROM grades")
         XCTAssertFalse(JSONValue.array(dump.map(JSONValue.object)).jsonString().contains("Beispiel"), "Stammdaten nie gespeichert")

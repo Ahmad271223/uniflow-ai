@@ -602,7 +602,8 @@ final class HildesheimAppTests: XCTestCase {
         // Uni & Noten: nur die Leistungstabelle, keine Stammdaten
         let grades = try await c.api.value("/api/grades")
         XCTAssertEqual(grades["grades"]?.array?.compactMap { $0["text"]?.string }.sorted(), ["TM 1: Grundlagen", "TM 2: Wohnen"])
-        XCTAssertEqual(grades["average"], 1.94)
+        XCTAssertEqual(grades["average_exact"], 1.94)
+        XCTAssertEqual(grades["average"], 1.9, "abgeschnitten wie app/grades_model.py")
         XCTAssertEqual(grades["passed"], 2)
         XCTAssertEqual(grades["last_run"]?["ok"], 1)
         let all = try await db.rows("SELECT * FROM grades")
