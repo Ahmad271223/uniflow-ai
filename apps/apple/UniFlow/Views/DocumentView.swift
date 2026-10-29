@@ -1160,7 +1160,12 @@ struct SearchSheet: View {
 struct InfoSheet: View {
     @ObservedObject var store: DocumentStore
     @Environment(\.dismiss) private var dismiss
+    /// KI ueber das ChatGPT-Abo verbunden: "Mit KI einordnen" (nur diese Datei, POST /api/files/{id}/analyze)
+    @Environment(\.ufAIEnabled) private var aiEnabled
     @State private var info: DocumentInfo?
+    @State private var analysis: JSONValue?
+    @State private var analyzing = false
+    @State private var analysisError: String?
 
     var body: some View {
         NavigationStack {
@@ -1186,13 +1191,49 @@ struct InfoSheet: View {
                         LabeledContent("Ungesendete Seiten", value: "\(i.unsentPages)")
                         LabeledContent("Serverversion", value: "\(i.serverVersion)")
                     }
+                    if aiEnabled || analysis?.s("summary") != nil { analysisSection }
                 } else {
                     ProgressView()
                 }
             }
             .navigationTitle("Dokumentinformation")
             .toolbar { Button("Fertig") { dismiss() } }
-            .task { info = await store.info() }
+            .task {
+                info = await store.info()
+                analysis = try? await store.api.value("/api/files/\(store.file.id)")
+            }
+        }
+    }
+
+    /// KI-Einordnung wie `ai.analyze_file`: Art, Titel, Themen, Schwierigkeit, Lernzeit, Zusammenfassung
+    @ViewBuilder private var analysisSection: some View {
+        Section("KI-Einordnung") {
+            if let a = analysis, a.s("summary") != nil || a.s("ai_title") != nil {
+                if let t = a.s("ai_title") { LabeledContent("Titel", value: t) }
+                if let d = a.s("doc_type") { LabeledContent("Art", value: d) }
+                if let n = a.i("difficulty") { LabeledContent("Schwierigkeit", value: "\(n) von 5") }
+                if let m = a.i("est_minutes") { LabeledContent("Lernzeit", value: "ca. \(m) min") }
+                if let s = a.s("summary") { Text(s).font(.callout) }
+            }
+            if aiEnabled {
+                Button(analyzing ? "Die KI liest die Datei …" : "Mit KI einordnen") { Task { await analyze() } }
+                    .disabled(analyzing)
+                    .accessibilityIdentifier("doc.analyze")
+                Text("Schickt den Text dieser Datei an dein ChatGPT (nur diese Datei).").font(.caption).foregroundStyle(.secondary)
+            }
+            if let e = analysisError { Text(e).font(.caption).foregroundStyle(.red) }
+        }
+    }
+
+    private func analyze() async {
+        analyzing = true
+        analysisError = nil
+        defer { analyzing = false }
+        do {
+            _ = try await store.api.value("/api/files/\(store.file.id)/analyze", method: "POST", body: .object([:]))
+            analysis = try await store.api.value("/api/files/\(store.file.id)")
+        } catch {
+            analysisError = error.localizedDescription
         }
     }
 }

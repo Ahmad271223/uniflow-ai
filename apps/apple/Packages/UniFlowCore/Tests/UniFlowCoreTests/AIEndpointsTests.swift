@@ -54,6 +54,40 @@ final class AIEndpointsTests: XCTestCase {
         }
     }
 
+    func testAnalysisOfOneFileIsStoredLikePlannerAndOnlyThisFile() async throws {
+        let b = try await backend()
+        try await seed(b)
+        let none = await post(b, "/api/files/f1/analyze", [:])
+        XCTAssertEqual(none.status, 404, "ohne KI")
+        let ai = FakeAI(#"```json\n{"doc_type": "vorlesung", "title": "Folgen und Grenzwerte", "topics": ["Folgen", "Konvergenz"], "difficulty": "4", "est_minutes": 75.9, "summary": "Worum es geht", "prerequisites": []}\n```"#)
+        b.context.ai.set(ai)
+        let r = await post(b, "/api/files/f1/analyze", [:])
+        XCTAssertEqual(r.status, 200, String(decoding: r.body, as: UTF8.self))
+        let a = try XCTUnwrap(r.json?["analysis"])
+        XCTAssertEqual(a["doc_type"], "vorlesung")
+        XCTAssertEqual(a["difficulty"], 4, "int(\"4\") wie in Python")
+        XCTAssertEqual(a["est_minutes"], 75, "int(75.9)")
+        XCTAssertEqual(a["topics"], #"["Folgen", "Konvergenz"]"#)
+        XCTAssertTrue(a["raw"]?.string?.contains(#""_input": "text""#) ?? false)
+        XCTAssertEqual(ai.prompts.count, 1, "genau eine Anfrage: nur diese Datei")
+        let prompt = try XCTUnwrap(ai.prompts.first?.prompt)
+        XCTAssertTrue(prompt.hasPrefix("Analysiere diese Lernunterlage aus dem Kurs \"Testmathe I\".\nDateiname: vl03.pdf"), prompt)
+        XCTAssertTrue(prompt.contains("Grenzwerte von Folgen und Konvergenz im Reellen"), "Seitentext der Datei")
+        let other = try await b.context.database.queryOne("SELECT 1 FROM analysis WHERE file_id=\u{27}f2\u{27} AND created_at IS NOT NULL")
+        XCTAssertNil(other, "andere Dateien unberuehrt")
+        let excerpt = try await b.context.database.scalar("SELECT text_excerpt FROM files WHERE id=\u{27}f1\u{27}")?.string
+        XCTAssertTrue(excerpt?.hasPrefix("Grenzwerte von Folgen") ?? false)
+        // Antwort ohne Einordnung: nichts gespeichert
+        ai.reply = #"{"title": "ohne Art"}"#
+        let bad = await post(b, "/api/files/f2/analyze", [:])
+        XCTAssertEqual(bad.status, 502)
+        XCTAssertEqual(bad.json?["detail"]?["code"], "ai_no_analysis")
+        let kept = try await b.context.database.scalar("SELECT doc_type FROM analysis WHERE file_id=\u{27}f2\u{27}")?.string
+        XCTAssertEqual(kept, "skript", "alte Einordnung bleibt")
+        let missing = await post(b, "/api/files/fx/analyze", [:])
+        XCTAssertEqual(missing.status, 404)
+    }
+
     func testWithoutAIStill404() async throws {
         let b = try await backend()
         let r = await post(b, "/api/ai/tutor", ["mode": "explain"])
