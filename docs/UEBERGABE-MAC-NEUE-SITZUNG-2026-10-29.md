@@ -174,7 +174,7 @@ CAS). Danach prüfen:
 | A1 | Apple-CI grün (`XCTExpectFailure` unter Linux) | in A4 oben |
 | A2 | Nachzüge vom 28.10. (`UEBERGABE-APPLE-2026-10-28.md`, Ende STAND-MAC-SITZUNG) | Semesterregel, Woche 1:1, Abruftag erledigt (develop); Ausfall-Reset, Learnweb aktiv in A1/A2 oben; Notenspiegel A4 |
 | A3 | Release-Signierung (`Config/Team.xcconfig`, Sign in with Apple, CloudKit) | **blockiert**: Developer Program abgelehnt |
-| B4 | Anmeldung am Studora-Konto (G1) zusätzlich zu Apple, Vertrag `fixtures/account/contract.json` (E-Mail bestätigen, `rate_limited` mit Retry-After, Datenexport als ZIP) | nach Start, braucht Server |
+| B4 | Anmeldung am Studora-Konto (G1) zusätzlich zu Apple, Vertrag `fixtures/account/contract.json` (E-Mail bestätigen, `rate_limited` mit Retry-After, Datenexport als ZIP) | **V1** (Entscheidung 29.10., Plan in `ENTSCHEIDUNGEN-INHABER-2026-10-29.md` §3), nach A5; sichtbar erst mit Server |
 | B5 | G2-Client in Swift (Spalten, Tombstones, Push/Pull nach `fixtures/sync/cases.json`, seitenweiser Abruf mit `has_more`, `op_id` je Änderung im Journal) | nach Start, braucht Server; Vertrag `docs/VERTRAEGE-KONTO-SYNC.md` G2 lesen |
 | B6 | Notizen geräteübergreifend, Zusammenführung je Objekt mit Tombstones | mit PC-Sitzung Vertrag festlegen; iPad hat `localRev`/`acked` und stabile Strich-IDs |
 | B7 | Kaufprüfung beim Server (`BillingServiceLink.isEnabled`), dann Pro-Tarife verkaufbar | nach Start, braucht Server und Team |
