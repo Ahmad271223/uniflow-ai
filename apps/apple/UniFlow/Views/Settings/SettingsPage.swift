@@ -831,12 +831,14 @@ private struct LocalAccountTab: View {
     @AppStorage("theme") private var theme = UFThemeMode.light.rawValue
     @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
     @AppStorage("uniflow.hand") private var hand = "right"
+    @Environment(\.ufStudoraAccount) private var studoraAccount
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Demo-Inhalte aktiv: eine Anmeldung unten gleicht erst nach dem Entfernen ab
             if demo { DemoActiveBar() }
             AppAccountCards()
+            if StudoraAccountLink.available, let studoraAccount { StudoraAccountCard(link: studoraAccount) }
             UFGridLayout(spacing: 16, minWidth: 340) {
                 if studip.offersStudIP {
                     LUHSourcesCard()                                         // Stud.IP und QIS der LUH (Views/QISViews.swift)

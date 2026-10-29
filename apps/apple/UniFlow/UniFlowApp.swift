@@ -61,6 +61,7 @@ struct UniFlowApp: App {
                 .environmentObject(session)
                 .environmentObject(containers.studip)                     // Abgleich des offenen Containers
                 .environment(\.ufChatGPTLink, containers.chatgpt)          // KI ueber das ChatGPT-Abo des Nutzers
+                .environment(\.ufStudoraAccount, containers.account)       // Studora-Konto (mit Dienst-Adresse)
                 .modifier(UFAIEnabledProvider(link: containers.chatgpt))
                 .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                 .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
