@@ -1,0 +1,3732 @@
+{
+ "_hinweis": "Erzeugt mit tools/gen-ai-contract.py aus app/ai.py und app/chatgpt_login.py; nicht von Hand aendern.",
+ "texts": {
+  "system": "Du bist ein Lerncoach fuer ein Informatik-/Elektrotechnik-Studium (Leibniz Universitaet Hannover, 1. Semester). Antworte ausschliesslich mit gueltigem JSON, ohne Erklaertext, ohne Markdown-Zaeune.",
+  "tutor_system": "Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester (Leibniz Universitaet Hannover). Antworte auf Deutsch, klar strukturiert in Markdown, mit kurzen Absaetzen und Formeln als Text. Beziehe dich konkret auf den gegebenen Seiteninhalt.",
+  "tutor_modes": {
+   "explain": "Erklaere den markierten Text bzw. die Formel verstaendlich. Erst einfach, dann etwas genauer, mit einem kleinen Beispiel.",
+   "explain_simple": "Erklaere so einfach wie moeglich, als waere ich Anfaenger. Keine Fachbegriffe ohne Erklaerung.",
+   "summary": "Fasse die Seite in 5-8 Stichpunkten zusammen und nenne, was man danach koennen muss.",
+   "steps": "Loese die Aufgabe (markierter Text oder Seiteninhalt) Schritt fuer Schritt. Erklaere jeden Schritt kurz.",
+   "hints": "Gib NUR Hinweise zur Loesung der Aufgabe, keine fertige Loesung. Maximal 3 Hinweise, vom allgemeinen zum konkreten.",
+   "check": "Pruefe meine Loesung (unter 'Meine Loesung'). Sage, was richtig ist, wo Fehler sind und wie man sie behebt. Gib am Ende eine Einschaetzung in Punkten von 10.",
+   "similar": "Erstelle eine aehnliche Uebungsaufgabe mit gleichem Schwierigkeitsgrad und gib die Loesung getrennt darunter an.",
+   "terms": "Definiere die Fachbegriffe auf dieser Seite kurz und praezise (Begriff: Definition).",
+   "flashcards": "Erstelle 6-10 Karteikarten aus dem Seiteninhalt. Antworte NUR mit JSON: [{\"question\": \"...\", \"answer\": \"...\"}]"
+  },
+  "analysis_fields": "Gib ein JSON-Objekt mit genau diesen Feldern zurueck:\n{\n  \"doc_type\": \"vorlesung\" | \"uebung\" | \"loesung\" | \"skript\" | \"organisatorisch\" | \"klausur\" | \"sonstiges\",\n  \"title\": \"kurzer sprechender Titel (max. 60 Zeichen)\",\n  \"topics\": [\"Thema 1\", \"Thema 2\", ...],              // 2-6 Stichworte\n  \"difficulty\": 1-5,                                   // 1 = sehr leicht, 5 = sehr schwer, fuer Erstsemester\n  \"est_minutes\": Zahl,                                 // realistische Lernzeit in Minuten zum Durcharbeiten\n  \"summary\": \"2-3 Saetze: worum geht es, was muss man danach koennen\",\n  \"prerequisites\": [\"Vorwissen 1\", ...]                // optional, kann leer sein\n}",
+  "week_test_difficulty": {
+   "leicht": 4,
+   "mittel": 6,
+   "schwer": 5
+  },
+  "week_test_total": 15,
+  "week_test_types": [
+   "mc",
+   "short",
+   "calc"
+  ]
+ },
+ "prompts": {
+  "tutor": [
+   {
+    "in": {
+     "mode": "explain",
+     "page_text": "Definition: Eine Folge heisst konvergent ...",
+     "selection": "konvergent",
+     "course": "Testmathe I",
+     "file_name": "vl02.pdf",
+     "page": 3
+    },
+    "prompt": "Kurs: Testmathe I\nDatei: vl02.pdf, Seite 3\n\nAUFGABE: Erklaere den markierten Text bzw. die Formel verstaendlich. Erst einfach, dann etwas genauer, mit einem kleinen Beispiel.\n\nMARKIERTER TEXT:\n<<<\nkonvergent\n>>>\n\nSEITENINHALT (Kontext):\n<<<\nDefinition: Eine Folge heisst konvergent ...\n>>>"
+   },
+   {
+    "in": {
+     "mode": "check",
+     "page_text": "Aufgabe 1",
+     "own_solution": "x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 ",
+     "question": "Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? ",
+     "course": "Testphysik",
+     "file_name": "blatt1.pdf"
+    },
+    "prompt": "Kurs: Testphysik\nDatei: blatt1.pdf\n\nAUFGABE: Pruefe meine Loesung (unter 'Meine Loesung'). Sage, was richtig ist, wo Fehler sind und wie man sie behebt. Gib am Ende eine Einschaetzung in Punkten von 10.\n\nMEINE LOESUNG:\n<<<\nx = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = 2 x = \n>>>\n\nMEINE FRAGE: Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stimmt das? Stim\n\nSEITENINHALT (Kontext):\n<<<\nAufgabe 1\n>>>"
+   },
+   {
+    "in": {
+     "mode": "unbekannt",
+     "page_text": "",
+     "course": "",
+     "file_name": ""
+    },
+    "prompt": "Kurs: \nDatei: \n\nAUFGABE: Erklaere den markierten Text bzw. die Formel verstaendlich. Erst einfach, dann etwas genauer, mit einem kleinen Beispiel.\n\nSEITENINHALT (Kontext):\n<<<\n[kein Text extrahierbar]\n>>>"
+   },
+   {
+    "in": {
+     "mode": "summary",
+     "page_text": "Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 ",
+     "selection": "  \n ",
+     "course": "Testkurs",
+     "file_name": "s.pdf",
+     "page": 1,
+     "sources": [
+      {
+       "n": 1,
+       "title": "Testskript Kapitel 2",
+       "page": 4,
+       "current": true,
+       "snippet": "wird nicht angehaengt"
+      },
+      {
+       "n": 2,
+       "name": "vl03.pdf",
+       "page": 12,
+       "snippet": "Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert "
+      },
+      {
+       "n": 3,
+       "title": "Uebungsblatt 3",
+       "page": 1
+      }
+     ]
+    },
+    "prompt": "Kurs: Testkurs\nDatei: s.pdf, Seite 1\n\nAUFGABE: Fasse die Seite in 5-8 Stichpunkten zusammen und nenne, was man danach koennen muss.\n\nSEITENINHALT (Kontext):\n<<<\nLange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Seite ä€😀 Lange Se\n>>>\n\nQUELLEN aus den Unterlagen des Studierenden. Stuetzt du dich auf eine, nenne sie direkt dahinter als [Nummer], z. B. [2]. Nenne nur diese Nummern, erfinde keine Quellen und keine Seitenzahlen:\n[1] Testskript Kapitel 2, Seite 4 (diese Seite)\n[2] vl03.pdf, Seite 12: Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert \n[3] Uebungsblatt 3, Seite 1"
+   },
+   {
+    "in": {
+     "mode": "flashcards",
+     "page_text": "Begriffe",
+     "course": "Testkurs",
+     "file_name": "k.pdf",
+     "page": 2,
+     "sources": [
+      {
+       "n": 1,
+       "title": "Testskript Kapitel 2",
+       "page": 4,
+       "current": true,
+       "snippet": "wird nicht angehaengt"
+      },
+      {
+       "n": 2,
+       "name": "vl03.pdf",
+       "page": 12,
+       "snippet": "Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert Grenzwert "
+      },
+      {
+       "n": 3,
+       "title": "Uebungsblatt 3",
+       "page": 1
+      }
+     ]
+    },
+    "prompt": "Kurs: Testkurs\nDatei: k.pdf, Seite 2\n\nAUFGABE: Erstelle 6-10 Karteikarten aus dem Seiteninhalt. Antworte NUR mit JSON: [{\"question\": \"...\", \"answer\": \"...\"}]\n\nSEITENINHALT (Kontext):\n<<<\nBegriffe\n>>>"
+   },
+   {
+    "in": {
+     "mode": "hints",
+     "page_text": "  Aufgabe 2  ",
+     "selection": "  markiert  ",
+     "course": "K",
+     "file_name": "f.pdf",
+     "page": 0,
+     "sources": []
+    },
+    "prompt": "Kurs: K\nDatei: f.pdf\n\nAUFGABE: Gib NUR Hinweise zur Loesung der Aufgabe, keine fertige Loesung. Maximal 3 Hinweise, vom allgemeinen zum konkreten.\n\nMARKIERTER TEXT:\n<<<\nmarkiert\n>>>\n\nSEITENINHALT (Kontext):\n<<<\nAufgabe 2\n>>>"
+   }
+  ],
+  "analysis": [
+   {
+    "in": {
+     "course": "Testmathe I",
+     "file_name": "vl01.pdf",
+     "text": "Folgen und Reihen"
+    },
+    "prompt": "Analysiere diese Lernunterlage aus dem Kurs \"Testmathe I\".\nDateiname: vl01.pdf\n\nGib ein JSON-Objekt mit genau diesen Feldern zurueck:\n{\n  \"doc_type\": \"vorlesung\" | \"uebung\" | \"loesung\" | \"skript\" | \"organisatorisch\" | \"klausur\" | \"sonstiges\",\n  \"title\": \"kurzer sprechender Titel (max. 60 Zeichen)\",\n  \"topics\": [\"Thema 1\", \"Thema 2\", ...],              // 2-6 Stichworte\n  \"difficulty\": 1-5,                                   // 1 = sehr leicht, 5 = sehr schwer, fuer Erstsemester\n  \"est_minutes\": Zahl,                                 // realistische Lernzeit in Minuten zum Durcharbeiten\n  \"summary\": \"2-3 Saetze: worum geht es, was muss man danach koennen\",\n  \"prerequisites\": [\"Vorwissen 1\", ...]                // optional, kann leer sein\n}\n\nInhalt (ggf. gekuerzt):\n<<<\nFolgen und Reihen\n>>>"
+   },
+   {
+    "in": {
+     "course": "Testkurs",
+     "file_name": "leer.pdf",
+     "text": "  \n"
+    },
+    "prompt": "Analysiere diese Lernunterlage aus dem Kurs \"Testkurs\".\nDateiname: leer.pdf\n\nGib ein JSON-Objekt mit genau diesen Feldern zurueck:\n{\n  \"doc_type\": \"vorlesung\" | \"uebung\" | \"loesung\" | \"skript\" | \"organisatorisch\" | \"klausur\" | \"sonstiges\",\n  \"title\": \"kurzer sprechender Titel (max. 60 Zeichen)\",\n  \"topics\": [\"Thema 1\", \"Thema 2\", ...],              // 2-6 Stichworte\n  \"difficulty\": 1-5,                                   // 1 = sehr leicht, 5 = sehr schwer, fuer Erstsemester\n  \"est_minutes\": Zahl,                                 // realistische Lernzeit in Minuten zum Durcharbeiten\n  \"summary\": \"2-3 Saetze: worum geht es, was muss man danach koennen\",\n  \"prerequisites\": [\"Vorwissen 1\", ...]                // optional, kann leer sein\n}\n\nInhalt (ggf. gekuerzt):\n<<<\n[kein Text extrahierbar - schaetze anhand des Dateinamens]\n>>>"
+   },
+   {
+    "in": {
+     "course": "K \"zitiert\"",
+     "file_name": "a b.pdf",
+     "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "prompt": "Analysiere diese Lernunterlage aus dem Kurs \"K \"zitiert\"\".\nDateiname: a b.pdf\n\nGib ein JSON-Objekt mit genau diesen Feldern zurueck:\n{\n  \"doc_type\": \"vorlesung\" | \"uebung\" | \"loesung\" | \"skript\" | \"organisatorisch\" | \"klausur\" | \"sonstiges\",\n  \"title\": \"kurzer sprechender Titel (max. 60 Zeichen)\",\n  \"topics\": [\"Thema 1\", \"Thema 2\", ...],              // 2-6 Stichworte\n  \"difficulty\": 1-5,                                   // 1 = sehr leicht, 5 = sehr schwer, fuer Erstsemester\n  \"est_minutes\": Zahl,                                 // realistische Lernzeit in Minuten zum Durcharbeiten\n  \"summary\": \"2-3 Saetze: worum geht es, was muss man danach koennen\",\n  \"prerequisites\": [\"Vorwissen 1\", ...]                // optional, kann leer sein\n}\n\nInhalt (ggf. gekuerzt):\n<<<\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n>>>"
+   }
+  ],
+  "week_plan": [
+   {
+    "in": {
+     "week_start": "2026-10-26",
+     "materials": [
+      {
+       "id": "f1",
+       "subject": "Testmathe",
+       "course_title": "Testmathematik für Ingenieure I – Vorlesung und Übung",
+       "doc_type": "vorlesung",
+       "difficulty": 4,
+       "est_minutes": 90,
+       "title": "Kapitel 1: Folgen",
+       "name": "vl01.pdf"
+      },
+      {
+       "id": "f2",
+       "subject": "Testphysik",
+       "course_title": "Testphysik",
+       "name": "blatt1.pdf"
+      }
+     ],
+     "subjects": [
+      {
+       "subject": "Testmathe",
+       "test_minutes": 45
+      },
+      {
+       "subject": "Testphysik",
+       "test_minutes": 60
+      }
+     ],
+     "settings": {
+      "free_days": [
+       5,
+       6
+      ],
+      "hours_per_day": 3.5,
+      "day_start": "09:00"
+     },
+     "carry_over": [
+      {
+       "title": "Blatt 2 nachholen",
+       "subject": "Testmathe"
+      },
+      {
+       "title": "Ohne Fach"
+      }
+     ],
+     "today": "2026-10-28"
+    },
+    "prompt": "Erstelle einen Lernplan fuer die Woche ab Montag 2026-10-26 (bis Sonntag 2026-11-01).\n\nRahmen:\n- Heute ist Mittwoch, der 2026-10-28. Tage vor heute NICHT belegen.\n- HARTES LIMIT: maximal 210 Minuten pro Tag (Summe aller Bloecke eines Tages, Tests eingeschlossen). Lernbeginn ab 09:00\n- Freie Tage (dort NICHTS einplanen, auch keine Tests): Samstag, Sonntag\n- Lieber weniger Bloecke als das Tageslimit ueberschreiten; nicht alles muss in diese Woche\n- Bloecke zwischen 30 und 120 Minuten, Pausen nicht einplanen (werden automatisch gemacht)\n- Reihenfolge nach Sinn: erst Vorlesung lesen, dann die passende Uebung, dann Wiederholung\n- Schwierige Themen (4-5) auf mehrere Bloecke verteilen und frueh in der Woche\n- Jedes Fach bekommt genau EINEN Block \"test\" mit der angegebenen Testdauer, bevorzugt am Ende der Woche (Fr/Sa), nie am freien Tag\n- Nicht erledigte Punkte der Vorwoche zuerst einplanen\n\nFaecher:\n- Testmathe (Wochentest 45 min)\n- Testphysik (Wochentest 60 min)\n\nNicht erledigt aus der Vorwoche:\n- Blatt 2 nachholen (Testmathe)\n- Ohne Fach (None)\n\nNeue / offene Materialien (nach Schwierigkeit und Kurs geordnet):\n- file_id=f1 | Fach: Testmathe | Kurs: Testmathematik für Ingenieure I – Vorles | vorlesung | Schwierigkeit 4/5 | ca. 90 min | Kapitel 1: Folgen\n- file_id=f2 | Fach: Testphysik | Kurs: Testphysik | ? | Schwierigkeit ?/5 | ca. ? min | blatt1.pdf\n\nGib ein JSON-Objekt zurueck:\n{\n  \"notes\": \"2-3 Saetze: wie die Woche aufgebaut ist und worauf der Fokus liegt\",\n  \"items\": [\n    {\"day\": 0-6, \"start_time\": \"HH:MM\", \"duration_min\": Zahl, \"subject\": \"Fachname exakt wie oben\",\n      \"file_id\": \"file_id oder null\", \"title\": \"konkrete Aufgabe, z. B. 'GDS Kap. 2 lesen + Zusammenfassung'\",\n      \"kind\": \"lernen\" | \"ueben\" | \"wiederholen\" | \"test\"}\n  ]\n}\nday: 0=Montag ... 6=Sonntag. Keine Ueberschneidungen am gleichen Tag."
+   },
+   {
+    "in": {
+     "week_start": "2026-11-02",
+     "materials": [
+      {
+       "id": "f1",
+       "subject": "Testmathe",
+       "course_title": "Testmathematik für Ingenieure I – Vorlesung und Übung",
+       "doc_type": "vorlesung",
+       "difficulty": 4,
+       "est_minutes": 90,
+       "title": "Kapitel 1: Folgen",
+       "name": "vl01.pdf"
+      },
+      {
+       "id": "f2",
+       "subject": "Testphysik",
+       "course_title": "Testphysik",
+       "name": "blatt1.pdf"
+      }
+     ],
+     "subjects": [
+      {
+       "subject": "Testmathe",
+       "test_minutes": 45
+      },
+      {
+       "subject": "Testphysik",
+       "test_minutes": 60
+      }
+     ],
+     "settings": {
+      "free_days": [
+       5,
+       6
+      ],
+      "hours_per_day": 3.5,
+      "day_start": "09:00"
+     },
+     "carry_over": [],
+     "today": "2026-10-28"
+    },
+    "prompt": "Erstelle einen Lernplan fuer die Woche ab Montag 2026-11-02 (bis Sonntag 2026-11-08).\n\nRahmen:\n- Heute ist der 2026-10-28, die Planung gilt fuer die kommende Woche.\n- HARTES LIMIT: maximal 210 Minuten pro Tag (Summe aller Bloecke eines Tages, Tests eingeschlossen). Lernbeginn ab 09:00\n- Freie Tage (dort NICHTS einplanen, auch keine Tests): Samstag, Sonntag\n- Lieber weniger Bloecke als das Tageslimit ueberschreiten; nicht alles muss in diese Woche\n- Bloecke zwischen 30 und 120 Minuten, Pausen nicht einplanen (werden automatisch gemacht)\n- Reihenfolge nach Sinn: erst Vorlesung lesen, dann die passende Uebung, dann Wiederholung\n- Schwierige Themen (4-5) auf mehrere Bloecke verteilen und frueh in der Woche\n- Jedes Fach bekommt genau EINEN Block \"test\" mit der angegebenen Testdauer, bevorzugt am Ende der Woche (Fr/Sa), nie am freien Tag\n- Nicht erledigte Punkte der Vorwoche zuerst einplanen\n\nFaecher:\n- Testmathe (Wochentest 45 min)\n- Testphysik (Wochentest 60 min)\n\nNicht erledigt aus der Vorwoche:\n- keine\n\nNeue / offene Materialien (nach Schwierigkeit und Kurs geordnet):\n- file_id=f1 | Fach: Testmathe | Kurs: Testmathematik für Ingenieure I – Vorles | vorlesung | Schwierigkeit 4/5 | ca. 90 min | Kapitel 1: Folgen\n- file_id=f2 | Fach: Testphysik | Kurs: Testphysik | ? | Schwierigkeit ?/5 | ca. ? min | blatt1.pdf\n\nGib ein JSON-Objekt zurueck:\n{\n  \"notes\": \"2-3 Saetze: wie die Woche aufgebaut ist und worauf der Fokus liegt\",\n  \"items\": [\n    {\"day\": 0-6, \"start_time\": \"HH:MM\", \"duration_min\": Zahl, \"subject\": \"Fachname exakt wie oben\",\n      \"file_id\": \"file_id oder null\", \"title\": \"konkrete Aufgabe, z. B. 'GDS Kap. 2 lesen + Zusammenfassung'\",\n      \"kind\": \"lernen\" | \"ueben\" | \"wiederholen\" | \"test\"}\n  ]\n}\nday: 0=Montag ... 6=Sonntag. Keine Ueberschneidungen am gleichen Tag."
+   },
+   {
+    "in": {
+     "week_start": "2026-10-19",
+     "materials": [],
+     "subjects": [
+      {
+       "subject": "Testmathe",
+       "test_minutes": 45
+      },
+      {
+       "subject": "Testphysik",
+       "test_minutes": 60
+      }
+     ],
+     "settings": {
+      "free_days": [],
+      "hours_per_day": 2,
+      "day_start": "08:30"
+     },
+     "carry_over": [],
+     "today": "2026-10-28"
+    },
+    "prompt": "Erstelle einen Lernplan fuer die Woche ab Montag 2026-10-19 (bis Sonntag 2026-10-25).\n\nRahmen:\n- HARTES LIMIT: maximal 120 Minuten pro Tag (Summe aller Bloecke eines Tages, Tests eingeschlossen). Lernbeginn ab 08:30\n- Freie Tage (dort NICHTS einplanen, auch keine Tests): keine\n- Lieber weniger Bloecke als das Tageslimit ueberschreiten; nicht alles muss in diese Woche\n- Bloecke zwischen 30 und 120 Minuten, Pausen nicht einplanen (werden automatisch gemacht)\n- Reihenfolge nach Sinn: erst Vorlesung lesen, dann die passende Uebung, dann Wiederholung\n- Schwierige Themen (4-5) auf mehrere Bloecke verteilen und frueh in der Woche\n- Jedes Fach bekommt genau EINEN Block \"test\" mit der angegebenen Testdauer, bevorzugt am Ende der Woche (Fr/Sa), nie am freien Tag\n- Nicht erledigte Punkte der Vorwoche zuerst einplanen\n\nFaecher:\n- Testmathe (Wochentest 45 min)\n- Testphysik (Wochentest 60 min)\n\nNicht erledigt aus der Vorwoche:\n- keine\n\nNeue / offene Materialien (nach Schwierigkeit und Kurs geordnet):\n- (keine neuen Materialien)\n\nGib ein JSON-Objekt zurueck:\n{\n  \"notes\": \"2-3 Saetze: wie die Woche aufgebaut ist und worauf der Fokus liegt\",\n  \"items\": [\n    {\"day\": 0-6, \"start_time\": \"HH:MM\", \"duration_min\": Zahl, \"subject\": \"Fachname exakt wie oben\",\n      \"file_id\": \"file_id oder null\", \"title\": \"konkrete Aufgabe, z. B. 'GDS Kap. 2 lesen + Zusammenfassung'\",\n      \"kind\": \"lernen\" | \"ueben\" | \"wiederholen\" | \"test\"}\n  ]\n}\nday: 0=Montag ... 6=Sonntag. Keine Ueberschneidungen am gleichen Tag."
+   }
+  ],
+  "week_test": [
+   {
+    "in": {
+     "subject": "Testmathe",
+     "duration_min": 45,
+     "materials": [
+      {
+       "name": "vl05.pdf",
+       "title": "Kapitel 5: Reihen",
+       "doc_type": "vorlesung",
+       "difficulty": 4,
+       "text": "Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen "
+      },
+      {
+       "name": "blatt5.pdf",
+       "doc_type": "uebung",
+       "text": "Aufgabe 1: Konvergenz"
+      },
+      {
+       "name": "ohne-text.pdf",
+       "text": null
+      }
+     ],
+     "exam": null
+    },
+    "text_block": "### Kapitel 5: Reihen (vorlesung, Schwierigkeit 4)\nReihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen \n\n### blatt5.pdf (uebung, Schwierigkeit None)\nAufgabe 1: Konvergenz\n\n### ohne-text.pdf (None, Schwierigkeit None)\n",
+    "exam_block": "",
+    "prompt": "Erstelle einen Wochentest fuer das Fach \"Testmathe\" mit einer Bearbeitungszeit von 45 Minuten.\nGenau 15 Aufgaben: genau 4 leicht, genau 6 mittel und genau 5 schwer (schwer = klausurnah).\nMischung aus Multiple-Choice (genau eine richtige Antwort), Kurzantwort und Rechen-/Programmieraufgaben.\nDie Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.\nRechne jede Musterloesung selbst nach. Punkte insgesamt = 100.\n\nMaterialien dieser Woche:\n### Kapitel 5: Reihen (vorlesung, Schwierigkeit 4)\nReihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen \n\n### blatt5.pdf (uebung, Schwierigkeit None)\nAufgabe 1: Konvergenz\n\n### ohne-text.pdf (None, Schwierigkeit None)\n\n\nGib ein JSON-Objekt zurueck:\n{\n  \"title\": \"Wochentest Testmathe – Thema(n)\",\n  \"questions\": [\n    {\"nr\": 1, \"type\": \"mc\" | \"short\" | \"calc\", \"difficulty\": \"leicht\" | \"mittel\" | \"schwer\",\n      \"question\": \"Aufgabentext (LaTeX-frei, Formeln als Text)\",\n      \"options\": [\"A ...\", \"B ...\", \"C ...\", \"D ...\"],   // nur bei mc\n      \"answer\": \"Musterloesung / richtige Option\",\n      \"points\": Zahl, \"exam_style\": false}\n  ]\n}"
+   },
+   {
+    "in": {
+     "subject": "Testmathe",
+     "duration_min": 90,
+     "materials": [
+      {
+       "name": "vl05.pdf",
+       "title": "Kapitel 5: Reihen",
+       "doc_type": "vorlesung",
+       "difficulty": 4,
+       "text": "Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen "
+      },
+      {
+       "name": "blatt5.pdf",
+       "doc_type": "uebung",
+       "text": "Aufgabe 1: Konvergenz"
+      },
+      {
+       "name": "ohne-text.pdf",
+       "text": null
+      }
+     ],
+     "exam": {
+      "name": "klausur-ws25.pdf",
+      "title": "Testklausur WiSe 25/26",
+      "text": "Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... "
+     }
+    },
+    "text_block": "### Kapitel 5: Reihen (vorlesung, Schwierigkeit 4)\nReihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen \n\n### blatt5.pdf (uebung, Schwierigkeit None)\nAufgabe 1: Konvergenz\n\n### ohne-text.pdf (None, Schwierigkeit None)\n",
+    "exam_block": "### Testklausur WiSe 25/26\nAufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen",
+    "prompt": "Erstelle einen Wochentest fuer das Fach \"Testmathe\" mit einer Bearbeitungszeit von 90 Minuten.\nGenau 15 Aufgaben: genau 4 leicht, genau 6 mittel und genau 5 schwer (schwer = klausurnah).\nMischung aus Multiple-Choice (genau eine richtige Antwort), Kurzantwort und Rechen-/Programmieraufgaben.\nDie Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.\nRechne jede Musterloesung selbst nach. Punkte insgesamt = 100.\n\nMaterialien dieser Woche:\n### Kapitel 5: Reihen (vorlesung, Schwierigkeit 4)\nReihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen \n\n### blatt5.pdf (uebung, Schwierigkeit None)\nAufgabe 1: Konvergenz\n\n### ohne-text.pdf (None, Schwierigkeit None)\n\n\nAltklausur des Moduls (Ausschnitt). Genau EINE der 5 schweren Aufgaben ist im Stil dieser Klausur (Aufbau, Umfang, Art der Fragestellung) und hat \"exam_style\": true; alle anderen \"exam_style\": false:\n### Testklausur WiSe 25/26\nAufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen Sie ... Aufgabe 1: Bestimmen\n\nGib ein JSON-Objekt zurueck:\n{\n  \"title\": \"Wochentest Testmathe – Thema(n)\",\n  \"questions\": [\n    {\"nr\": 1, \"type\": \"mc\" | \"short\" | \"calc\", \"difficulty\": \"leicht\" | \"mittel\" | \"schwer\",\n      \"question\": \"Aufgabentext (LaTeX-frei, Formeln als Text)\",\n      \"options\": [\"A ...\", \"B ...\", \"C ...\", \"D ...\"],   // nur bei mc\n      \"answer\": \"Musterloesung / richtige Option\",\n      \"points\": Zahl, \"exam_style\": false}\n  ]\n}"
+   },
+   {
+    "in": {
+     "subject": "Testphysik",
+     "duration_min": 30,
+     "materials": [
+      {
+       "name": "vl05.pdf",
+       "title": "Kapitel 5: Reihen",
+       "doc_type": "vorlesung",
+       "difficulty": 4,
+       "text": "Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen "
+      },
+      {
+       "name": "blatt5.pdf",
+       "doc_type": "uebung",
+       "text": "Aufgabe 1: Konvergenz"
+      },
+      {
+       "name": "ohne-text.pdf",
+       "text": null
+      }
+     ],
+     "exam": {
+      "name": "alt.pdf",
+      "text": ""
+     }
+    },
+    "text_block": "### Kapitel 5: Reihen (vorlesung, Schwierigkeit 4)\nReihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen \n\n### blatt5.pdf (uebung, Schwierigkeit None)\nAufgabe 1: Konvergenz\n\n### ohne-text.pdf (None, Schwierigkeit None)\n",
+    "exam_block": "### alt.pdf\n",
+    "prompt": "Erstelle einen Wochentest fuer das Fach \"Testphysik\" mit einer Bearbeitungszeit von 30 Minuten.\nGenau 15 Aufgaben: genau 4 leicht, genau 6 mittel und genau 5 schwer (schwer = klausurnah).\nMischung aus Multiple-Choice (genau eine richtige Antwort), Kurzantwort und Rechen-/Programmieraufgaben.\nDie Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.\nRechne jede Musterloesung selbst nach. Punkte insgesamt = 100.\n\nMaterialien dieser Woche:\n### Kapitel 5: Reihen (vorlesung, Schwierigkeit 4)\nReihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen Reihen \n\n### blatt5.pdf (uebung, Schwierigkeit None)\nAufgabe 1: Konvergenz\n\n### ohne-text.pdf (None, Schwierigkeit None)\n\n\nAltklausur des Moduls (Ausschnitt). Genau EINE der 5 schweren Aufgaben ist im Stil dieser Klausur (Aufbau, Umfang, Art der Fragestellung) und hat \"exam_style\": true; alle anderen \"exam_style\": false:\n### alt.pdf\n\n\nGib ein JSON-Objekt zurueck:\n{\n  \"title\": \"Wochentest Testphysik – Thema(n)\",\n  \"questions\": [\n    {\"nr\": 1, \"type\": \"mc\" | \"short\" | \"calc\", \"difficulty\": \"leicht\" | \"mittel\" | \"schwer\",\n      \"question\": \"Aufgabentext (LaTeX-frei, Formeln als Text)\",\n      \"options\": [\"A ...\", \"B ...\", \"C ...\", \"D ...\"],   // nur bei mc\n      \"answer\": \"Musterloesung / richtige Option\",\n      \"points\": Zahl, \"exam_style\": false}\n  ]\n}"
+   }
+  ],
+  "grade": [
+   {
+    "in": {
+     "subject": "Testmathe",
+     "questions": [
+      {
+       "nr": 1,
+       "points": 6,
+       "type": "mc",
+       "question": "Welche Reihe konvergiert?",
+       "answer": "B"
+      },
+      {
+       "nr": "2",
+       "points": 8,
+       "type": "calc",
+       "question": "Summe von 1/2^n",
+       "answer": "2"
+      }
+     ],
+     "answers": {
+      "1": "B",
+      "2": "2"
+     }
+    },
+    "prompt": "Bewerte diesen Wochentest im Fach \"Testmathe\". Sei fair aber streng, Teilpunkte sind erlaubt.\nBei Multiple-Choice zaehlt nur die exakte Option (Buchstabe oder Text).\n\nAufgabe 1 (6 P., mc): Welche Reihe konvergiert?\n  Musterloesung: B\n  Antwort des Studierenden: B\nAufgabe 2 (8 P., calc): Summe von 1/2^n\n  Musterloesung: 2\n  Antwort des Studierenden: 2\n\nGib ein JSON-Objekt zurueck:\n{\n  \"total\": Zahl,\n  \"max\": Zahl,\n  \"per_question\": [{\"nr\": 1, \"points\": Zahl, \"max\": Zahl, \"feedback\": \"1-2 Saetze, was richtig/falsch war\"}],\n  \"summary\": \"3-4 Saetze Gesamtfeedback mit konkreten Lernempfehlungen\",\n  \"weak_topics\": [\"Thema\", ...]\n}"
+   },
+   {
+    "in": {
+     "subject": "Testmathe",
+     "questions": [
+      {
+       "nr": 1,
+       "points": 6,
+       "type": "mc",
+       "question": "Welche Reihe konvergiert?",
+       "answer": "B"
+      },
+      {
+       "nr": "2",
+       "points": 8,
+       "type": "calc",
+       "question": "Summe von 1/2^n",
+       "answer": "2"
+      }
+     ],
+     "answers": {
+      "1": ""
+     }
+    },
+    "prompt": "Bewerte diesen Wochentest im Fach \"Testmathe\". Sei fair aber streng, Teilpunkte sind erlaubt.\nBei Multiple-Choice zaehlt nur die exakte Option (Buchstabe oder Text).\n\nAufgabe 1 (6 P., mc): Welche Reihe konvergiert?\n  Musterloesung: B\n  Antwort des Studierenden: [keine Antwort]\nAufgabe 2 (8 P., calc): Summe von 1/2^n\n  Musterloesung: 2\n  Antwort des Studierenden: [keine Antwort]\n\nGib ein JSON-Objekt zurueck:\n{\n  \"total\": Zahl,\n  \"max\": Zahl,\n  \"per_question\": [{\"nr\": 1, \"points\": Zahl, \"max\": Zahl, \"feedback\": \"1-2 Saetze, was richtig/falsch war\"}],\n  \"summary\": \"3-4 Saetze Gesamtfeedback mit konkreten Lernempfehlungen\",\n  \"weak_topics\": [\"Thema\", ...]\n}"
+   },
+   {
+    "in": {
+     "subject": "Testmathe",
+     "questions": [
+      {
+       "nr": 1,
+       "points": 6,
+       "type": "mc",
+       "question": "Welche Reihe konvergiert?",
+       "answer": "B"
+      },
+      {
+       "nr": "2",
+       "points": 8,
+       "type": "calc",
+       "question": "Summe von 1/2^n",
+       "answer": "2"
+      }
+     ],
+     "answers": {}
+    },
+    "prompt": "Bewerte diesen Wochentest im Fach \"Testmathe\". Sei fair aber streng, Teilpunkte sind erlaubt.\nBei Multiple-Choice zaehlt nur die exakte Option (Buchstabe oder Text).\n\nAufgabe 1 (6 P., mc): Welche Reihe konvergiert?\n  Musterloesung: B\n  Antwort des Studierenden: [keine Antwort]\nAufgabe 2 (8 P., calc): Summe von 1/2^n\n  Musterloesung: 2\n  Antwort des Studierenden: [keine Antwort]\n\nGib ein JSON-Objekt zurueck:\n{\n  \"total\": Zahl,\n  \"max\": Zahl,\n  \"per_question\": [{\"nr\": 1, \"points\": Zahl, \"max\": Zahl, \"feedback\": \"1-2 Saetze, was richtig/falsch war\"}],\n  \"summary\": \"3-4 Saetze Gesamtfeedback mit konkreten Lernempfehlungen\",\n  \"weak_topics\": [\"Thema\", ...]\n}"
+   }
+  ]
+ },
+ "parse_json": [
+  {
+   "in": "{\"a\": 1}",
+   "out": {
+    "a": 1
+   }
+  },
+  {
+   "in": "```json\n{\"a\": [1, 2]}\n```",
+   "out": {
+    "a": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "in": "Hier ist das Ergebnis:\n{\"title\": \"T\", \"x\": {\"y\": 2}}\nViel Erfolg!",
+   "out": {
+    "title": "T",
+    "x": {
+     "y": 2
+    }
+   }
+  },
+  {
+   "in": "[{\"question\": \"Q\", \"answer\": \"A\"}]",
+   "out": [
+    {
+     "question": "Q",
+     "answer": "A"
+    }
+   ]
+  },
+  {
+   "in": "  ```\n[1, 2]\n```  ",
+   "out": [
+    1,
+    2
+   ]
+  },
+  {
+   "in": "kein JSON hier",
+   "error": "KI-Antwort enthaelt kein JSON"
+  },
+  {
+   "in": "{\"a\": 1,}",
+   "error": "KI-Antwort ist kein gueltiges JSON"
+  },
+  {
+   "in": "{\"a\": \"ä\\u00fc\"}",
+   "out": {
+    "a": "äü"
+   }
+  },
+  {
+   "in": "Text {\"a\": 1} und {\"b\": 2} Ende",
+   "error": "KI-Antwort ist kein gueltiges JSON"
+  }
+ ],
+ "check_week_test": [
+  {
+   "name": "gueltig",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": null
+  },
+  {
+   "name": "14 Aufgaben",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "14 statt 15 Aufgaben"
+  },
+  {
+   "name": "16 Aufgaben",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "16 statt 15 Aufgaben"
+  },
+  {
+   "name": "Verteilung",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Verteilung 3 leicht, 7 mittel, 5 schwer statt 4 leicht, 6 mittel, 5 schwer"
+  },
+  {
+   "name": "unbekannte Schwierigkeit",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "einfach",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Aufgabe 4 ohne gueltige Schwierigkeit"
+  },
+  {
+   "name": "unbekannter Typ",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "essay",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Aufgabe 5 mit unbekanntem Typ"
+  },
+  {
+   "name": "mc ohne Optionen",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "mc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false,
+      "options": [
+       "A"
+      ]
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Aufgabe 3 (Multiple-Choice) ohne Antwortmoeglichkeiten"
+  },
+  {
+   "name": "mc mit Optionen",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "mc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false,
+      "options": [
+       "A",
+       "B"
+      ]
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": null
+  },
+  {
+   "name": "leere Loesung",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": " ",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Aufgabe 6 ohne Text oder Musterloesung"
+  },
+  {
+   "name": "ohne Text",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": null,
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Aufgabe 7 ohne Text oder Musterloesung"
+  },
+  {
+   "name": "Punkte bool",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": true,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Aufgabe 8 ohne Punkte"
+  },
+  {
+   "name": "Punkte 0",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 0,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Aufgabe 8 ohne Punkte"
+  },
+  {
+   "name": "Punkte Kommazahl",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 2.5,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": null
+  },
+  {
+   "name": "kein Objekt",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     "Text",
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "Aufgabe 9 ist kein Objekt"
+  },
+  {
+   "name": "Liste statt Objekt",
+   "exam": false,
+   "in": [],
+   "reason": "keine JSON-Objekt-Antwort"
+  },
+  {
+   "name": "ohne questions",
+   "exam": false,
+   "in": {
+    "title": "T"
+   },
+   "reason": "0 statt 15 Aufgaben"
+  },
+  {
+   "name": "Klausur verlangt, fehlt",
+   "exam": true,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "nicht genau eine schwere Aufgabe im Stil der Altklausur"
+  },
+  {
+   "name": "Klausuraufgabe schwer",
+   "exam": true,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": true
+     }
+    ]
+   },
+   "reason": null
+  },
+  {
+   "name": "Klausuraufgabe ohne Klausur",
+   "exam": false,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": true
+     }
+    ]
+   },
+   "reason": "Aufgabe im Stil einer Altklausur ohne Altklausur"
+  },
+  {
+   "name": "Klausuraufgabe leicht",
+   "exam": true,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": true
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     }
+    ]
+   },
+   "reason": "nicht genau eine schwere Aufgabe im Stil der Altklausur"
+  },
+  {
+   "name": "zwei Klausuraufgaben",
+   "exam": true,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": true
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": true
+     }
+    ]
+   },
+   "reason": "nicht genau eine schwere Aufgabe im Stil der Altklausur"
+  },
+  {
+   "name": "exam_style kein bool",
+   "exam": true,
+   "in": {
+    "title": "T",
+    "questions": [
+     {
+      "nr": 1,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A0",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 2,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A1",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 3,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A2",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 4,
+      "type": "calc",
+      "difficulty": "leicht",
+      "question": "A3",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 5,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A4",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 6,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A5",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 7,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A6",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 8,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A7",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 9,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A8",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 10,
+      "type": "calc",
+      "difficulty": "mittel",
+      "question": "A9",
+      "answer": "1",
+      "points": 6,
+      "exam_style": false
+     },
+     {
+      "nr": 11,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A10",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 12,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A11",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 13,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A12",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 14,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A13",
+      "answer": "1",
+      "points": 8,
+      "exam_style": false
+     },
+     {
+      "nr": 15,
+      "type": "calc",
+      "difficulty": "schwer",
+      "question": "A14",
+      "answer": "1",
+      "points": 8,
+      "exam_style": "ja"
+     }
+    ]
+   },
+   "reason": "nicht genau eine schwere Aufgabe im Stil der Altklausur"
+  }
+ ],
+ "chatgpt": {
+  "auth_url": "https://auth.openai.com/api/accounts/authorize",
+  "token_url": "https://auth.openai.com/api/accounts/oauth/token",
+  "issuer": "https://auth.openai.com",
+  "jwks_url": "https://auth.openai.com/.well-known/jwks.json",
+  "resource": "https://api.openai.com/v1",
+  "responses_url": "https://api.openai.com/v1/responses",
+  "models_url": "https://api.openai.com/v1/models",
+  "usage_help_url": "https://chatgpt.com/#settings",
+  "scope": "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct",
+  "usage_scope": "chatgpt.tokens.use.direct",
+  "first_client_id": "dynamic_agent_client",
+  "agent_name": "UniFlow",
+  "callback_path": "/auth/callback",
+  "flow_timeout_s": 600,
+  "refresh_margin_s": 60,
+  "token_request": {
+   "code": [
+    "grant_type=authorization_code",
+    "client_id",
+    "code",
+    "code_verifier",
+    "redirect_uri",
+    "resource"
+   ],
+   "refresh": [
+    "grant_type=refresh_token",
+    "refresh_token",
+    "client_id",
+    "resource"
+   ],
+   "content_type": "application/x-www-form-urlencoded"
+  },
+  "id_token": {
+   "algorithms": [
+    "RS256",
+    "ES256"
+   ],
+   "checks": [
+    "kid in JWKS (bei unbekanntem kid einmal neu laden)",
+    "iss == issuer",
+    "client_id in aud",
+    "exp + 60 s >= jetzt",
+    "nonce"
+   ]
+  },
+  "authorize": [
+   {
+    "client_id": null,
+    "host": "urn:uuid:00000000-0000-4000-8000-000000000001",
+    "redirect_uri": "http://127.0.0.1:53682/auth/callback",
+    "state": "st-1",
+    "nonce": "no-1",
+    "challenge": "ch-1",
+    "id_token_hint": null,
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=UniFlow&ext_agent_host_id=urn%3Auuid%3A00000000-0000-4000-8000-000000000001&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fauth%2Fcallback&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=st-1&nonce=no-1&code_challenge=ch-1&code_challenge_method=S256"
+   },
+   {
+    "client_id": "oaiapp_testclient",
+    "host": "urn:uuid:00000000-0000-4000-8000-000000000002",
+    "redirect_uri": "http://127.0.0.1:1/auth/callback",
+    "state": "s t/+&=ä",
+    "nonce": "n",
+    "challenge": "c",
+    "id_token_hint": "eyJ.hint.x",
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=oaiapp_testclient&ext_agent_host_id=urn%3Auuid%3A00000000-0000-4000-8000-000000000002&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A1%2Fauth%2Fcallback&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s+t%2F%2B%26%3D%C3%A4&nonce=n&code_challenge=c&code_challenge_method=S256&id_token_hint=eyJ.hint.x"
+   },
+   {
+    "client_id": null,
+    "host": "h",
+    "redirect_uri": "r",
+    "state": "s",
+    "nonce": "n",
+    "challenge": "c",
+    "id_token_hint": "ignoriert",
+    "url": "https://auth.openai.com/api/accounts/authorize?client_id=dynamic_agent_client&agent_name_hint=UniFlow&ext_agent_host_id=h&response_type=code&redirect_uri=r&scope=openid+profile+email+offline_access+resource.invoke+chatgpt.tokens.use.direct&resource=https%3A%2F%2Fapi.openai.com%2Fv1&state=s&nonce=n&code_challenge=c&code_challenge_method=S256"
+   }
+  ],
+  "pkce": [
+   {
+    "verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+    "challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+   },
+   {
+    "verifier": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "challenge": "7kyqVRioZvM-F01ucbo5YahsoAp0hrEy5anwG_qh15Q"
+   }
+  ],
+  "credentials": [
+   {
+    "response": {
+     "access_token": "at-1",
+     "refresh_token": "rt-1",
+     "id_token": "id-1",
+     "expires_in": 3600,
+     "scope": "openid chatgpt.tokens.use.direct",
+     "token_type": "Bearer"
+    },
+    "previous": null,
+    "credentials": {
+     "access_token": "at-1",
+     "refresh_token": "rt-1",
+     "id_token": "id-1",
+     "token_type": "Bearer",
+     "scopes": [
+      "openid",
+      "chatgpt.tokens.use.direct"
+     ],
+     "expires_in_used": 3600
+    }
+   },
+   {
+    "response": {
+     "access_token": "at-2",
+     "expires_in": "120"
+    },
+    "previous": {
+     "refresh_token": "rt-1",
+     "id_token": "id-1",
+     "scopes": [
+      "openid",
+      "chatgpt.tokens.use.direct"
+     ]
+    },
+    "credentials": {
+     "access_token": "at-2",
+     "refresh_token": "rt-1",
+     "id_token": "id-1",
+     "token_type": "Bearer",
+     "scopes": [
+      "openid",
+      "chatgpt.tokens.use.direct"
+     ],
+     "expires_in_used": 120
+    }
+   },
+   {
+    "response": {
+     "access_token": "at-3",
+     "expires_in": "kaputt",
+     "scope": "  openid   profile "
+    },
+    "previous": null,
+    "credentials": {
+     "access_token": "at-3",
+     "refresh_token": null,
+     "id_token": null,
+     "token_type": "Bearer",
+     "scopes": [
+      "openid",
+      "profile"
+     ],
+     "expires_in_used": 3600
+    }
+   },
+   {
+    "response": {
+     "access_token": "",
+     "expires_in": 10
+    },
+    "previous": null,
+    "error": "chatgpt_token_invalid"
+   },
+   {
+    "response": {
+     "refresh_token": "rt"
+    },
+    "previous": null,
+    "error": "chatgpt_token_invalid"
+   }
+  ],
+  "responses_request": [
+   {
+    "model": "gpt-test",
+    "system": "SYS",
+    "prompt": "Frage",
+    "schema": null,
+    "body": {
+     "model": "gpt-test",
+     "instructions": "SYS",
+     "input": "Frage"
+    }
+   },
+   {
+    "model": "gpt-test",
+    "system": "",
+    "prompt": "Plan",
+    "schema": {
+     "type": "object",
+     "properties": {
+      "notes": {
+       "type": "string"
+      }
+     }
+    },
+    "body": {
+     "model": "gpt-test",
+     "instructions": "",
+     "input": "Plan",
+     "text": {
+      "format": {
+       "type": "json_schema",
+       "name": "studora",
+       "schema": {
+        "type": "object",
+        "properties": {
+         "notes": {
+          "type": "string"
+         }
+        }
+       },
+       "strict": false
+      }
+     }
+    }
+   }
+  ],
+  "responses_output": [
+   {
+    "response": {
+     "model": "gpt-x",
+     "output": [
+      {
+       "type": "reasoning",
+       "summary": []
+      },
+      {
+       "type": "message",
+       "content": [
+        {
+         "type": "output_text",
+         "text": "Hallo "
+        },
+        {
+         "type": "refusal",
+         "refusal": "nein"
+        },
+        {
+         "type": "output_text",
+         "text": "Welt"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "content": [
+        {
+         "type": "output_text",
+         "text": "!"
+        }
+       ]
+      }
+     ],
+     "usage": {
+      "input_tokens": 12,
+      "output_tokens": 3
+     }
+    },
+    "text": "Hallo Welt!"
+   },
+   {
+    "response": {
+     "output": [],
+     "usage": {}
+    },
+    "text": ""
+   },
+   {
+    "response": {},
+    "text": ""
+   }
+  ],
+  "errors": [
+   {
+    "status": 401,
+    "code": "chatgpt_login_needed",
+    "message": "Die Anmeldung bei ChatGPT ist abgelaufen – bitte in den Einstellungen neu verbinden."
+   },
+   {
+    "status": 402,
+    "code": "chatgpt_limit",
+    "message": "Dein ChatGPT-Kontingent ist aufgebraucht oder die Nutzung in Apps ist nicht freigegeben. In ChatGPT unter Einstellungen → Nutzung verwalten."
+   },
+   {
+    "status": 403,
+    "code": "chatgpt_limit"
+   },
+   {
+    "status": 429,
+    "code": "chatgpt_limit"
+   },
+   {
+    "status": 500,
+    "code": "ai_provider_error"
+   },
+   {
+    "status": 0,
+    "code": "ai_provider_unreachable",
+    "message": "ChatGPT ist nicht erreichbar."
+   }
+  ]
+ }
+}

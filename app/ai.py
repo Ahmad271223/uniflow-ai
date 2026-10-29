@@ -418,13 +418,27 @@ def check_week_test(res, exam: bool = False) -> str | None:
     return None
 
 
+def _material_label(m: dict) -> str:
+    return f"{m.get('title') or m.get('name')} ({m.get('doc_type')}, Schwierigkeit {m.get('difficulty')})"
+
+
+def test_text_block(materials: list[dict]) -> str:
+    """Materialien als Text fuer den Wochentest (Textweg; auch die Geraete-Kerne, Vertrag packages/shared-contracts/ai)."""
+    return "\n\n".join(f"### {_material_label(m)}\n{(m.get('text') or '')[:3500]}" for m in materials)
+
+
+def exam_text_block(exam: dict | None) -> str:
+    """Ausschnitt der Altklausur fuer den Wochentest; leer ohne Klausur."""
+    return f"### {exam.get('title') or exam.get('name')}\n{(exam.get('text') or '')[:3500]}" if exam else ""
+
+
 def generate_test(subject: str, duration_min: int, materials: list[dict], exam: dict | None = None) -> dict:
     """Wochentest mit dem Material-Modell (Standard Haiku 5.5). PDF-Materialien werden als Seiten gelesen
     (je Datei hoechstens PDF_PAGES_PER_MATERIAL, zusammen PDF_PAGES_TOTAL); Rueckfall auf Text bei Fehlern.
     exam: Altklausur des Moduls ({title, name, text}); dann ist eine schwere Aufgabe im Stil der Klausur.
     Jede Antwort muss `check_week_test` bestehen; je Weg ein zweiter Versuch, sonst AIError."""
-    label = lambda m: f"{m.get('title') or m.get('name')} ({m.get('doc_type')}, Schwierigkeit {m.get('difficulty')})"
-    exam_block = f"### {exam.get('title') or exam.get('name')}\n{(exam.get('text') or '')[:3500]}" if exam else ""
+    label = _material_label
+    exam_block = exam_text_block(exam)
     pdf_mats, budget = [], PDF_PAGES_TOTAL
     for m in materials:
         if is_pdf(m.get("local_path")) and budget > 0:
@@ -447,7 +461,7 @@ def generate_test(subject: str, duration_min: int, materials: list[dict], exam: 
             except Exception as e:  # noqa: BLE001
                 _log(f"PDF-Wochentest fehlgeschlagen ({subject}, Versuch {attempt + 1}): {e}")
         _log(f"PDF-Wochentest: Rueckfall auf Text ({subject})")
-    block = "\n\n".join(f"### {label(m)}\n{(m.get('text') or '')[:3500]}" for m in materials)
+    block = test_text_block(materials)
     why = None
     for attempt in range(2):
         res = parse_json(ask(_test_prompt(subject, duration_min, block, exam_block), SYSTEM, model=CLAUDE_MODEL_MATERIAL))
