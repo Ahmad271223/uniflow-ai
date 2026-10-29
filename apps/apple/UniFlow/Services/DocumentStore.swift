@@ -558,8 +558,7 @@ final class DocumentStore: ObservableObject {
         processTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(pause * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            await self?.processPending()
-            await self?.engine.releaseUploadHold()          // Schreibpause: gehaltene Uploads freigeben
+            await self?.processAfterPause()
         }
         // Obergrenze (P0-3): ohne Pause weitergeschrieben, spaetestens nach `maxDelay` ab der ersten noch nicht
         // gesicherten Aenderung verarbeiten und ins Journal schreiben
@@ -568,6 +567,22 @@ final class DocumentStore: ObservableObject {
                 try? await Task.sleep(nanoseconds: UInt64(maxDelay * 1_000_000_000))
                 guard !Task.isCancelled else { return }
                 await self?.processWhileWriting()
+            }
+        }
+    }
+
+    /// Schreibpause: alles Ausstehende verarbeiten, dann gehaltene Uploads freigeben. Laeuft gerade eine Verarbeitung
+    /// durch die Obergrenze, erst auf sie warten: sie setzt das Halten beim Sichern erneut, und ihr einer Durchgang
+    /// laesst Striche liegen, die waehrenddessen dazukamen. Ein neuer Strich bricht ab (seine eigene Pause folgt).
+    private func processAfterPause() async {
+        while !Task.isCancelled {
+            if processing {
+                await withCheckedContinuation { processingWaiters.append($0) }
+            } else if !pendingDrawings.isEmpty {
+                await processPending()
+            } else {
+                await engine.releaseUploadHold()
+                return
             }
         }
     }
@@ -962,7 +977,8 @@ extension DocumentStore: PageStructureEditing {
     /// Ausstehende Striche vollstaendig verarbeiten. `processPending` kehrt sofort zurueck, wenn schon eine
     /// Verarbeitung laeuft; dann auf deren Ende warten, bis nichts mehr aussteht (sonst landen veraltete Objekte
     /// im Papierkorb, Wiederherstellen schreibt diesen Stand zurueck, und Export oder Teilen kaemen ohne die
-    /// gerade umgerechneten Striche).
+    /// gerade umgerechneten Striche). Danach ist nichts mehr ausstehend: ein Halten durch die Obergrenze endet hier,
+    /// denn die abgebrochene Pause-Verarbeitung gibt es nicht mehr frei.
     private func settlePending() async {
         processTask?.cancel()
         while true {
@@ -971,6 +987,7 @@ extension DocumentStore: PageStructureEditing {
             } else if !pendingDrawings.isEmpty {
                 await processPending()
             } else {
+                await engine.releaseUploadHold()
                 return
             }
         }

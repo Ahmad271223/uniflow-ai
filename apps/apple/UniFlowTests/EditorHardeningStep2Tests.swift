@@ -202,6 +202,32 @@ final class EditorHardeningStep2Tests: XCTestCase {
         await store.close()
     }
 
+    /// Wettlauf (Befund im Messtest Dauerschreiben 50 x 300, 29.10.2026): die Schreibpause faellt in eine laufende
+    /// Verarbeitung durch die Obergrenze (volle Seite, die Umrechnung dauert). Vorher kehrte die Pause sofort zurueck und
+    /// gab das Halten frei; danach setzte die Obergrenze es wieder, der letzte Strich blieb nur im Speicher, keine
+    /// Upload-Runde, nie "Gespeichert". Obergrenze kuerzer als die Pause, damit sie zuerst greift.
+    func testPauseDuringCapProcessingStillSavesAndUploads() async throws {
+        let fx = try await makeFixture()
+        let store = await openStore(fx, timing: SaveTiming(pause: 0.08, maxDelay: 0.03))
+        try await Task.sleep(nanoseconds: 500_000_000)                // Netzueberwachung meldet sich beim Start
+        let sync = try engine(store)
+        let putsBefore = await sync.stats.puts
+        var drawing = Handschrift.page(0, strokes: 3000)                 // Umrechnung dauert deutlich laenger als 0,1 s
+        store.canvasChanged(pageKey: "p1", drawing: drawing)
+        // die Obergrenze rechnet jetzt die volle Seite um; ein weiterer Strich, dessen Pause in diese Umrechnung faellt
+        try await Task.sleep(nanoseconds: 100_000_000)
+        drawing.strokes.append(Handschrift.extraStroke(0))
+        store.canvasChanged(pageKey: "p1", drawing: drawing)
+        let saved = await waitUntilSaved(store, timeout: 60)
+        XCTAssertGreaterThanOrEqual(store.forcedSaves, 1, "die Obergrenze hat gegriffen")
+        XCTAssertTrue(saved, "nach der Schreibpause gespeichert")
+        let puts = await sync.stats.puts - putsBefore
+        XCTAssertGreaterThanOrEqual(puts, 1, "nach der Schreibpause hochgeladen")
+        let uploaded = try await storedDocument(fx)
+        XCTAssertEqual(strokes(uploaded), 3001, "auch der letzte Strich ist hochgeladen, ohne zu schliessen")
+        await store.close()
+    }
+
     private func waitUntilSaved(_ store: DocumentStore, timeout: Double) async -> Bool {
         let end = now() + timeout
         while now() < end {
