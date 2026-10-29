@@ -1564,3 +1564,25 @@ Zwei weitere iPad-Änderungen ohne Vertragsänderung, zur Kenntnis:
 - **Neue Entscheidung des Inhabers (Wochentests):** `docs/ENTSCHEIDUNGEN-INHABER-2026-10-29.md`, mit Bitte an die
   PC-Sitzung: jedes Modul, genau 15 Aufgaben (4 leicht, 6 mittel, 5 schwer), alle Folien der Woche, eine Klausuraufgabe
   unter den schweren, Prüfung der Antwort.
+
+## Mac-Sitzung: Wochentest-Regel in Python umgesetzt, gemeinsamer KI-Vertrag, KI im Swift-Kern (29.10.2026)
+
+Die Bitte aus `docs/ENTSCHEIDUNGEN-INHABER-2026-10-29.md` §2 hat die Mac-Sitzung selbst erledigt, damit der gemeinsame
+Vertrag entstehen konnte. **Bitte beim nächsten Arbeiten an `app/ai.py` beachten:**
+
+- **Wochentest (`app/ai.py`):** `_test_prompt` verlangt genau 15 Aufgaben (4 leicht, 6 mittel, 5 schwer) mit
+  `difficulty` je Aufgabe; mit Altklausur ist genau eine schwere Aufgabe `exam_style: true`. `check_week_test` prüft die
+  Antwort; `generate_test` verwirft eine falsche Form und fordert je Weg (PDF, Text) einmal neu an, sonst `AIError`
+  statt eines falschen Tests. `planner._exam_for_test` nimmt die neueste Altklausur des Moduls (Analyse `klausur`),
+  auch im Schlüssel des gemeinsamen Tests. **`testshare.VERSION` ist jetzt `wt2`** (Python, Swift, `cases.json`).
+  Tests: `tests/test_week_test_rule.py`; `tests/test_ai_pdf.py` nutzt gültige 15er-Tests.
+- **Prompt-Bausteine** (byte-gleich zum alten Stand geprüft): `analysis_prompt`, `week_plan_prompt`, `grade_prompt`,
+  `test_text_block`, `exam_text_block`. Die Funktionen rufen sie wie bisher auf.
+- **Gemeinsamer Vertrag** `packages/shared-contracts/ai/contract.json` aus `tools/gen-ai-contract.py`, dazu
+  `tools/gen-swift-ai-texts.py` (Swift-Konstanten). **`tests/test_ai_contract.py` wird rot, wenn ein Prompt, eine
+  Prüfregel oder die Anmeldung sich ändert, ohne den Generator laufen zu lassen.** Das iPad baut daraus byte-gleiche
+  Prompts (`AIContractTests`).
+- **`chatgpt_login.AGENT_NAME` ist „Studora“** (sichtbar auf der Zustimmungsseite von OpenAI, Entscheidung 28.10.);
+  bereits ausgestellte Client-IDs bleiben gültig.
+- **Für Windows/Web offen:** Die Testansicht kann die Schwierigkeit je Aufgabe (`difficulty`) und die Klausuraufgabe
+  (`exam_style`) anzeigen; ältere Tests ohne diese Felder bleiben lesbar.

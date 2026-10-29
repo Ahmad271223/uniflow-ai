@@ -32,10 +32,11 @@ Ergänzt `docs/ENTSCHEIDUNGEN-INHABER-2026-10-28.md` und Abschnitt 3 von
      `[n]` belegt, wie der KI-Tutor mit Quellen und Seitenangabe (PC 3b12273). Die KI nennt nur Seiten, die ihr
      vorlagen.
 
-## 2. Bitte an die PC-Sitzung
+## 2. Umsetzung in Python (erledigt von der Mac-Sitzung, 29.10.)
 
-Wochentests in `app/ai.py` und Windows auf diese Regel umstellen (15 Aufgaben, 4/6/5, alle Folien der Woche,
-Klausuraufgabe, Prüfung der Antwort), damit der gemeinsame Vertrag entstehen kann. Die Mac-Sitzung zieht Swift nach.
+`app/ai.py` und `app/planner.py` setzen die Regel um (15 Aufgaben, 4/6/5, alle Folien der Woche, Klausuraufgabe,
+Prüfung der Antwort, ein zweiter Versuch); gemeinsamer Vertrag `packages/shared-contracts/ai/`. Für Windows/Web bleibt
+nur die Anzeige der Schwierigkeit je Aufgabe (Ende von `docs/STAND-MAC-SITZUNG.md`).
 
 ## 3. Start in zwei Stufen, Studora-Konto aber schon in V1 auf dem iPad
 
