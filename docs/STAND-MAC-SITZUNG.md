@@ -1544,3 +1544,23 @@ Zwei weitere iPad-Änderungen ohne Vertragsänderung, zur Kenntnis:
   `origin` beim Speichern nicht verwerfen.
 - **Sichern bei Dauerschreiben:** Der Editor sichert spätestens alle 2 s ins lokale Journal. Hochgeladen wird erst
   nach der nächsten Schreibpause. An `PUT …/annotations` ändert sich nichts.
+
+## Antwort der Mac-Sitzung: Notenspiegel auf dem iPad, Vertrag grades.json, Kern wieder grün (29.10.2026)
+
+- **Notenspiegel wie `app/grades_model.py`** (Zweig `wip/notenspiegel`): `GradesModel.swift` rechnet Ebenen,
+  Doppelte, Schnitt (abgeschnitten und genau), LP, Bereiche und nicht bestandene Versuche wie Python;
+  `GET /api/grades` antwortet wie `qis.summary` (Sortierung Bereich/Modul/Prüfung, neueste Semester zuerst).
+  Vergleich nach Codepunkten und stabile Sortierung wie Python.
+- **Bitte 2 erledigt, Vertrag selbst erzeugt:** `tools/gen-grades-fixture.py` →
+  `packages/shared-contracts/fixtures/local-backend/grades.json` (nur erfundene Zeilen): fünf Notenspiegel (LUH-Aufbau mit
+  Doppel und verschobener Bereichszeile, Abschneiden 3,46 → 3,4, Hildesheim ohne Modulzeilen, Leistungen ohne LP, leer)
+  mit der echten Antwort von `GET /api/grades`, dazu Einzelfälle für `norm_semester`, `truncate1`, `fields_from_raw`.
+  Bitte bei Änderungen an `grades_model.py` oder `qis.summary` den Generator laufen lassen.
+- **Ansicht** wie `views-misc.js`: Bereiche als Chips, Schalter „Module“ / „Alle Prüfungen und Versuche“, Kennzahlen
+  „Aktueller Schnitt · genau …“ und „LP aus … bestandenen Modulen · … nicht bestandene Versuche“.
+- **Kern auf develop wieder ganz grün** (699 Tests): Demo-PDFs mit „Studora Demo-Inhalt“, `sync_ops` im Schema-Test wie die
+  anderen G2-Tabellen ausgenommen, `expectKnownFailure` statt `XCTExpectFailure` (gibt es unter Linux nicht; dort wird
+  nur der Block der bekannten Abweichung übersprungen). Ob der CI-Job unter Linux damit grün ist, zeigt der nächste Lauf.
+- **Neue Entscheidung des Inhabers (Wochentests):** `docs/ENTSCHEIDUNGEN-INHABER-2026-10-29.md`, mit Bitte an die
+  PC-Sitzung: jedes Modul, genau 15 Aufgaben (4 leicht, 6 mittel, 5 schwer), alle Folien der Woche, eine Klausuraufgabe
+  unter den schweren, Prüfung der Antwort.

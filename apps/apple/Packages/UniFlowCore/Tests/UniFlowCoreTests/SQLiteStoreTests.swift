@@ -89,17 +89,19 @@ final class SQLiteStoreTests: XCTestCase {
     // MARK: - Schema und Migrationen
 
     /// Vertrag G2 (Geraete-Synchronisierung ueber UniFlow-Konten, app/sync.py) haengt am PC an jede synchronisierte
-    /// Tabelle die Spalten sync_version/sync_updated_at/sync_device und legt sync_tombstones an. Das iPad V1 hat keine
+    /// Tabelle die Spalten sync_version/sync_updated_at/sync_device und legt sync_tombstones sowie (seit f6f5250, op_id
+    /// gegen doppelte Zeilen) sync_ops an. Das iPad V1 hat keine
     /// Konten und keinen Geraete-Sync: Fixture ohne diese Teile, der strenge Vergleich steht als erwartete Abweichung
-    /// in den Tests (XCTExpectFailure), damit er mit G2 wieder greift.
+    /// in den Tests (`expectKnownFailure`), damit er mit G2 wieder greift.
     private static let syncColumns: Set<String> = ["sync_version", "sync_updated_at", "sync_device"]
+    private static let syncTables: Set<String> = ["sync_tombstones", "idx_tombstones_time", "sync_ops"]
 
     private func withoutSync(_ value: JSONValue?) -> JSONValue? {
         guard let value else { return nil }
         switch value {
         case .object(let o):
             var out: [String: JSONValue] = [:]
-            for (k, v) in o where !Self.syncColumns.contains(k) && k != "sync_tombstones" && k != "idx_tombstones_time" {
+            for (k, v) in o where !Self.syncColumns.contains(k) && !Self.syncTables.contains(k) {
                 out[k] = withoutSync(v)
             }
             return .object(out)
@@ -114,7 +116,7 @@ final class SQLiteStoreTests: XCTestCase {
     }
 
     private func assertSchemaExceptSync(_ actual: JSONValue, _ expected: JSONValue?, file: StaticString = #filePath, line: UInt = #line) {
-        XCTExpectFailure("G2-Sync-Spalten und sync_tombstones (PC-Stand 26.10.2026) fehlen im iPad V1 ohne Konten", strict: true) {
+        expectKnownFailure("G2-Sync-Spalten, sync_tombstones und sync_ops (PC-Stand) fehlen im iPad V1 ohne Konten", strict: true) {
             assertSchema(actual, expected, file: file, line: line)
         }
         assertSchema(actual, withoutSync(expected), file: file, line: line)
@@ -202,7 +204,7 @@ final class SQLiteStoreTests: XCTestCase {
         assertSchemaExceptSync(try snapshot(c), onDevice(try fixture("schema.json")["schema"]))      // alt migriert == neu angelegt
         for (table, rows) in fx["rows"]?.object ?? [:] {
             if rows.jsonString().contains("sync_version") {
-                XCTExpectFailure("G2-Sync-Spalten in den Zeilen von \(table) (PC-Stand) fehlen im iPad V1", strict: true) {
+                expectKnownFailure("G2-Sync-Spalten in den Zeilen von \(table) (PC-Stand) fehlen im iPad V1", strict: true) {
                     XCTAssertEqual(try? tableRows(c, table), rows.array, table)
                 }
             }

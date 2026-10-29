@@ -120,7 +120,7 @@ public enum DemoContent {
                 content += bytes("BT /F1 12 Tf 60 \(y) Td (") + escape(line) + bytes(") Tj ET\n")
                 y -= 22
             }
-            content += bytes("BT /F1 9 Tf 60 40 Td (UniFlow Demo-Inhalt) Tj ET\n")
+            content += bytes("BT /F1 9 Tf 60 40 Td (Studora Demo-Inhalt) Tj ET\n")
             objs.append(bytes("<</Length \(content.count)>>stream\n") + content + bytes("\nendstream"))
             let streamNo = objs.count
             objs.append(bytes("<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents \(streamNo) 0 R/Resources<</Font<</F1 \(fontNo) 0 R>>>>>>"))

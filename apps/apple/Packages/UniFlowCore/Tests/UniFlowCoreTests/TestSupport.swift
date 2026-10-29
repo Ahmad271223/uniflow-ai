@@ -1,7 +1,18 @@
 import Foundation
+import XCTest
 @testable import UniFlowCore
 
 enum TestError: Error { case offline }
+
+/// Bekannte, gewollte Abweichung (wie XCTExpectFailure). XCTExpectFailure gibt es nur mit Objective-C (macOS, iOS);
+/// unter Linux (CI-Job core-linux) wird der Block nicht ausgefuehrt: die Abweichung selbst wird dort nicht geprueft,
+/// alle anderen Pruefungen des Tests laufen. `strict`: auf Apple-Systemen schlaegt der Test fehl, wenn der Block
+/// wider Erwarten nicht scheitert (die Abweichung ist behoben, Test anpassen).
+func expectKnownFailure(_ reason: String, strict: Bool = false, _ block: () throws -> Void) rethrows {
+    #if canImport(ObjectiveC)
+    try XCTExpectFailure(reason, strict: strict, failingBlock: block)
+    #endif
+}
 
 /// Antwort mit HTTP-Status wie `APIError` der App.
 struct TestHTTPError: HTTPStatusError { let httpStatus: Int }

@@ -415,7 +415,7 @@ final class AuditMergeTests: XCTestCase {
     func testDuplicateIDsCollapseAsInTheSharedContract() {
         let one: JSONValue = ["id": "d", "type": "text", "text": "eins"], two: JSONValue = ["id": "d", "type": "text", "text": "zwei"]
         let r = AnnotationMerge.mergePage(base: pageWith([]), local: pageWith([one, two]), server: pageWith([stroke("s")]))
-        XCTExpectFailure("Vertrag offen (Pruefbericht 433): doppelte IDs fallen zusammen, Entscheidung mit der PC-Sitzung") {
+        expectKnownFailure("Vertrag offen (Pruefbericht 433): doppelte IDs fallen zusammen, Entscheidung mit der PC-Sitzung") {
             XCTAssertEqual(r.page?["objects"]?.array?.count, 3, "beide Objekte mit Kennung d und der Strich des Servers")
         }
         XCTAssertEqual(r.page?["objects"]?.array?.count, 2, "heutiger Stand des Vertrags")
