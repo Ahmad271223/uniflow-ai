@@ -6,6 +6,16 @@ public protocol AnnotationTransport: Sendable {
     func fetch(documentID: String) async throws -> ServerSnapshot
     /// Speichert den ganzen Stand. Antwortet der Server mit 409, kommt `.conflict` mit dem neueren Serverstand.
     func put(documentID: String, root: JSONValue, baseVersion: Int) async throws -> PutOutcome
+    /// Wie oben; `snapshot` (`?snapshot=true`, beim Schliessen und nach einem Konflikt): der ersetzte und der neue
+    /// Stand stehen danach im Versionsverlauf (sonst legt der Server hoechstens alle 5 Minuten eine an, Editor-Schritt 4).
+    func put(documentID: String, root: JSONValue, baseVersion: Int, snapshot: Bool) async throws -> PutOutcome
+}
+
+extension AnnotationTransport {
+    /// Ohne Versionsverlauf (Testtransporte): wie ein normales Speichern
+    public func put(documentID: String, root: JSONValue, baseVersion: Int, snapshot: Bool) async throws -> PutOutcome {
+        try await put(documentID: documentID, root: root, baseVersion: baseVersion)
+    }
 }
 
 public struct ServerSnapshot: Equatable, Sendable {
@@ -233,6 +243,10 @@ public actor SyncEngine {
     private var uploadsStopped: NotesViewOnlyReason?
     /// Editor schreibt ohne Pause: keine neue Upload-Runde beginnen (siehe `updatePage(...holdUpload:)`)
     private var uploadHeld = false
+    /// Naechste Runde mit `snapshot` (Schliessen); bleibt bis zu einem erfolgreichen Speichern
+    private var snapshotRequested = false
+    /// Seit dem letzten Snapshot gespeichert (der Stand steht vielleicht nicht im Versionsverlauf)
+    private var savedSinceSnapshot = false
     private var viewOnlyHandler: (@Sendable (NotesViewOnlyReason) -> Void)?
     /// Weder Journal noch Upload
     private var writesBlocked: Bool { journalUnreadable || viewOnly != nil }
@@ -478,8 +492,11 @@ public actor SyncEngine {
         serverRetryScheduled = false
     }
 
-    /// Sofort hochladen und warten, bis nichts mehr aussteht oder der Server nicht erreichbar ist.
-    public func syncNow() async {
+    /// Sofort hochladen und warten, bis nichts mehr aussteht oder der Server nicht erreichbar ist. `snapshot`
+    /// (Schliessen): der hochgeladene Stand kommt sicher in den Versionsverlauf; ist nichts mehr offen, wurde seit
+    /// dem letzten Snapshot aber gespeichert, wird der Stand dafuer noch einmal gesendet.
+    public func syncNow(snapshot: Bool = false) async {
+        if snapshot { snapshotRequested = true }
         uploadHeld = false
         debounceTask?.cancel()
         if uploading {
@@ -561,7 +578,11 @@ public actor SyncEngine {
         var conflictsInRow = 0
         rounds: while true {
             retryFailedWrites()
-            guard hasDirty else { break }
+            let snapshotOnly = !hasDirty && snapshotRequested && savedSinceSnapshot
+            guard hasDirty || snapshotOnly else {
+                if !hasDirty && !savedSinceSnapshot { snapshotRequested = false }   // Stand steht schon im Verlauf
+                break
+            }
             // Editor schreibt noch (Obergrenze beim Sichern): keine weitere Runde mit dem ganzen Dokument
             guard !uploadHeld, !uploadsBlocked else { break }
             let sentPages = pages
@@ -571,8 +592,9 @@ public actor SyncEngine {
             refreshStatus()
             stats.puts += 1
             let outcome: PutOutcome
+            let snapshot = snapshotRequested
             do {
-                outcome = try await transport.put(documentID: documentID, root: root, baseVersion: serverVersion)
+                outcome = try await transport.put(documentID: documentID, root: root, baseVersion: serverVersion, snapshot: snapshot)
             } catch {
                 handleTransportError(error)
                 return
@@ -581,6 +603,7 @@ public actor SyncEngine {
             switch outcome {
             case .saved(let version):
                 serverVersion = version
+                if snapshot { snapshotRequested = false; savedSinceSnapshot = false } else { savedSinceSnapshot = true }
                 retryDelay = 2
                 serverRetryDelay = 2
                 conflictsInRow = 0
@@ -597,6 +620,7 @@ public actor SyncEngine {
                 persistAcks()
             case .conflict(let server):
                 stats.conflicts += 1
+                snapshotRequested = true          // die naechste Runde ersetzt den fremden Stand: er bleibt im Verlauf
                 if stopUploadsIfNewerFormat(server) { break rounds }
                 conflictsInRow += 1
                 if conflictsInRow > 5 {

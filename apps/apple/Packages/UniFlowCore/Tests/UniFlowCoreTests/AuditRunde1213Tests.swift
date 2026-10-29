@@ -512,8 +512,14 @@ private struct AuditBackendTransport: AnnotationTransport {
     }
 
     func put(documentID: String, root: JSONValue, baseVersion: Int) async throws -> PutOutcome {
+        try await put(documentID: documentID, root: root, baseVersion: baseVersion, snapshot: false)
+    }
+
+    func put(documentID: String, root: JSONValue, baseVersion: Int, snapshot: Bool) async throws -> PutOutcome {
+        var query: [LocalRequest.QueryItem] = [.init("base_version", "\(baseVersion)")]
+        if snapshot { query.append(.init("snapshot", "true")) }
         let r = await backend.handle(LocalRequest(method: "PUT", path: "/api/files/\(documentID)/annotations",
-                                                  query: [.init("base_version", "\(baseVersion)")], body: root.serialized()))
+                                                  query: query, body: root.serialized()))
         if r.status == 409, let v = r.json, let version = v["version"]?.int, let data = v["data"], data.object != nil {
             return .conflict(ServerSnapshot(version: version, root: data))
         }

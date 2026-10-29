@@ -235,7 +235,11 @@ struct HTTPAnnotationTransport: AnnotationTransport {
     }
 
     func put(documentID: String, root: JSONValue, baseVersion: Int) async throws -> PutOutcome {
-        let (d, http) = try await api.data("/api/files/\(documentID)/annotations?base_version=\(baseVersion)",
+        try await put(documentID: documentID, root: root, baseVersion: baseVersion, snapshot: false)
+    }
+
+    func put(documentID: String, root: JSONValue, baseVersion: Int, snapshot: Bool) async throws -> PutOutcome {
+        let (d, http) = try await api.data("/api/files/\(documentID)/annotations?base_version=\(baseVersion)" + (snapshot ? "&snapshot=true" : ""),
                                            method: "PUT", body: root.serialized())
         switch http.statusCode {
         case 200..<300:

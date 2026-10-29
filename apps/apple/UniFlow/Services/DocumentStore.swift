@@ -133,6 +133,10 @@ final class SwitchableAnnotationTransport: AnnotationTransport, @unchecked Senda
     func put(documentID: String, root: JSONValue, baseVersion: Int) async throws -> PutOutcome {
         try await transport.put(documentID: documentID, root: root, baseVersion: baseVersion)
     }
+
+    func put(documentID: String, root: JSONValue, baseVersion: Int, snapshot: Bool) async throws -> PutOutcome {
+        try await transport.put(documentID: documentID, root: root, baseVersion: baseVersion, snapshot: snapshot)
+    }
 }
 
 /// Lesezeichen (gleiches Feld `bookmarks` wie im Web-Editor).
@@ -944,7 +948,7 @@ final class DocumentStore: ObservableObject {
     /// Dokument schliessen: Ausstehendes sichern, Wiederholungen beenden (Ungesendetes bleibt im Journal).
     func close() async {
         await flush()
-        await engine.syncNow()
+        await engine.syncNow(snapshot: isWritable)                      // Stand beim Schliessen in den Versionsverlauf
         await engine.shutdown()
         deadlineTask?.cancel()
         deadlineTask = nil

@@ -1038,9 +1038,11 @@ def library_steps(hexid):
         ("GET", "/api/files/f1/annotations", None),
         ("PUT", "/api/files/gibtsnicht/annotations?base_version=0", J({"version": 2, "pages": {}})),
         ("PUT", "/api/files/f1/annotations?base_version=abc", J({"version": 2, "pages": {}})),
+        ("PUT", "/api/files/f1/annotations?snapshot=vielleicht", J({"version": 2, "pages": {}})),
         ("PUT", "/api/files/f1/annotations", J([1])),
     ]
-    steps += [("PUT", "/api/files/f2/annotations", J({"version": 2, "pages": {}, "n": i})) for i in range(31)]
+    # snapshot=true: jede Runde eine Version (sonst hoechstens alle 5 min, die Uhr steht hier), um die Grenze 30 zu pruefen
+    steps += [("PUT", "/api/files/f2/annotations?snapshot=true", J({"version": 2, "pages": {}, "n": i})) for i in range(31)]
     steps += [
         ("GET", "/api/files/f2/annotations/versions", None), ("GET", "/api/files/f2/annotations", None),
         ("POST", "/api/files/f1/assets", ({}, {"upload": ("bild.png", "image/png", PNG)})),

@@ -56,6 +56,14 @@ actor MockServer: AnnotationTransport {
         return ServerSnapshot(version: version, root: root)
     }
 
+    /// `snapshot` je Speicherversuch (Versionsverlauf beim Schliessen, Editor-Schritt 4)
+    private(set) var snapshots: [Bool] = []
+
+    func put(documentID: String, root newRoot: JSONValue, baseVersion: Int, snapshot: Bool) async throws -> PutOutcome {
+        snapshots.append(snapshot)
+        return try await put(documentID: documentID, root: newRoot, baseVersion: baseVersion)
+    }
+
     func put(documentID: String, root newRoot: JSONValue, baseVersion: Int) async throws -> PutOutcome {
         guard online else { throw TestError.offline }
         putTimes.append(Date())

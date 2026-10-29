@@ -19,6 +19,52 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(order, 3, "Seitenliste wird mitgesendet")
     }
 
+    // MARK: Versionsverlauf beim Schliessen (Editor-Schritt 4)
+
+    /// Schliessen mit offener Aenderung: diese Runde traegt `snapshot`. Ohne offene Aenderung, aber seit dem letzten
+    /// Snapshot gespeichert: der Stand wird dafuer noch einmal gesendet. Danach (nichts Neues) kein weiterer Versuch.
+    func testSnapshotOnCloseOnlyWhenNeeded() async {
+        let server = MockServer(), store = MemoryBlobStore()
+        let engine = makeEngine(server, store)
+        _ = await engine.open(pdfPageCount: 1)
+        await engine.updatePage("p1", page(["a"]))
+        await engine.syncNow()
+        await engine.updatePage("p1", page(["a", "b"]))
+        await engine.syncNow(snapshot: true)
+        var sent = await server.snapshots
+        XCTAssertEqual(sent, [false, true], "offene Aenderung: dieselbe Runde mit snapshot")
+
+        await engine.syncNow(snapshot: true)
+        sent = await server.snapshots
+        XCTAssertEqual(sent, [false, true], "nichts seit dem Snapshot: kein Versuch")
+
+        await engine.updatePage("p1", page(["a", "b", "c"]))
+        await engine.syncNow()
+        await engine.syncNow(snapshot: true)
+        sent = await server.snapshots
+        XCTAssertEqual(sent, [false, true, false, true], "gespeichert ohne Snapshot: Stand noch einmal mit snapshot")
+        let ids = await server.objectIDs(page: "p1")
+        XCTAssertEqual(ids, ["a", "b", "c"])
+        let status = await engine.status
+        XCTAssertEqual(status, .saved)
+    }
+
+    /// Ohne Netz beim Schliessen bleibt der Wunsch bestehen und gilt fuer die naechste erfolgreiche Runde
+    func testSnapshotWishSurvivesOffline() async {
+        let server = MockServer(), store = MemoryBlobStore()
+        let engine = makeEngine(server, store)
+        _ = await engine.open(pdfPageCount: 1)
+        await server.setOnline(false)
+        await engine.updatePage("p1", page(["a"]))
+        await engine.syncNow(snapshot: true)
+        await server.setOnline(true)
+        await engine.syncNow()
+        let sent = await server.snapshots
+        XCTAssertEqual(sent.last, true)
+        let ids = await server.objectIDs(page: "p1")
+        XCTAssertEqual(ids, ["a"])
+    }
+
     // MARK: Viele Striche
 
     func test1000Strokes() async { await runManyStrokes(1000, pages: 4) }

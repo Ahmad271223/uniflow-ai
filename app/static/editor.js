@@ -589,12 +589,15 @@ export class PdfEditor {
   setSaveState(st) { const el = $(".ed-status", this.c); if (el) el.dataset.state = st; this.onStatus(st === "saving" ? "Speichert…" : st === "offline" ? "Offline – wird nachgeholt" : "Gespeichert"); }
   scheduleSave() { clearTimeout(this._t); if (!this._dirtySince) this._dirtySince = Date.now(); this._t = setTimeout(() => this._saveTick(), 1200); }
   _saveTick() { const busy = (this.penDown && Date.now() - (this.penSeenAt || 0) < 15000) || (this._activeLive && Date.now() - (this._liveAt || 0) < 15000); const waited = Date.now() - (this._dirtySince || Date.now()); if (busy || (Date.now() - (this.penLiftAt || 0) < 900 && waited < 20000)) { this._t = setTimeout(() => this._saveTick(), 400); return; } this._dirtySince = 0; const dd = this.diffFromBase(); IDB.put("drafts", { fileId: this.fileId, data: this.model, version: this.version, dirty: true, savedAt: Date.now(), dirtyKeys: dd.keys, struct: dd.struct, meta: dd.meta, basePages: Object.fromEntries(dd.keys.map(k => [k, this.base?.pages?.[k] ?? null])) }); this.flush(); }
-  async flush() {
-    if (this.readOnly || !this.dirty || this.saving) return; this.saving = true;
+  // snapshot (Schliessen, nach Konflikt): ersetzter und neuer Stand in den Versionsverlauf (sonst hoechstens alle 5 min,
+  // Editor-Schritt 4); ohne
+  // offene Aenderung wird dafuer noch einmal gesendet, falls seit dem letzten Snapshot gespeichert wurde
+  async flush(snapshot = false) {
+    if (this.readOnly || this.saving || !(this.dirty || (snapshot && this._savedSinceSnapshot))) return; this.saving = true;
     let retryConflict = false;
     try {
       const sentJson = JSON.stringify(this.model);
-      const r = await fetch(`/api/files/${this.fileId}/annotations?base_version=${this.version}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: sentJson });
+      const r = await fetch(`/api/files/${this.fileId}/annotations?base_version=${this.version}${snapshot ? "&snapshot=true" : ""}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: sentJson });
       if (r.status === 409) {
         const srv = await r.json();
         this._conflicts = (this._conflicts || 0) + 1;
@@ -602,7 +605,7 @@ export class PdfEditor {
         this.applyServerMerge(srv.data, srv.version); retryConflict = true; return;
       }
       if (!r.ok) throw new Error(r.statusText);
-      const j = await r.json(); this.version = j.version; this._conflicts = 0;
+      const j = await r.json(); this.version = j.version; this._conflicts = 0; this._savedSinceSnapshot = !snapshot;
       this.base = this.snap(JSON.parse(sentJson));
       const changedMeanwhile = JSON.stringify(this.model) !== sentJson;   // waehrend des Sendens weitergeschrieben?
       this.dirty = changedMeanwhile;
@@ -611,7 +614,7 @@ export class PdfEditor {
       IDB.del("thumbs", this.fileId + ":" + (this.pages[0]?.key || ""));
       this.offline = false;
     } catch (e) { this.offline = true; this.setSaveState("offline"); setTimeout(() => this.flush(), 15000); }
-    finally { this.saving = false; if (retryConflict) this.flush(); }
+    finally { this.saving = false; if (retryConflict) this.flush(true); }   // nach Konflikt: verworfener Stand bleibt im Verlauf
   }
 
   // ---------------------------------------------------------------- Werkzeuge
@@ -1140,7 +1143,7 @@ export class PdfEditor {
     this.pdf?.destroy?.(); this.assetDocs.forEach(d => d.destroy?.()); this.c.innerHTML = ""; this.c.classList.remove("ed");
     this._prev.forEach(u => u && URL.revokeObjectURL(u)); this._prev.clear();
     // der Entwurf liegt schon in IndexedDB; das Senden laeuft weiter, Schliessen und Seitenwechsel warten hoechstens 1,5 s
-    if (unsaved) await Promise.race([this.flush(), new Promise(r => setTimeout(r, 1500))]);
+    if (unsaved || this._savedSinceSnapshot) await Promise.race([this.flush(true), new Promise(r => setTimeout(r, 1500))]);
   }
 }
 

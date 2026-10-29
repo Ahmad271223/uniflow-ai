@@ -817,31 +817,60 @@ def get_annotations(file_id: str):
 
 
 @app.put("/api/files/{file_id}/annotations")
-def put_annotations(file_id: str, body: dict = Body(...), base_version: int | None = None, request: Request = None):
+def put_annotations(file_id: str, body: dict = Body(...), base_version: int | None = None, snapshot: bool = False,
+                    request: Request = None):
     """Speichert Annotationen. Mit base_version wird ein Konflikt (409) gemeldet, wenn der Server neuer ist.
+    snapshot=true (Schliessen, Speichern nach einem Konflikt): der ersetzte und der neue Stand stehen danach sicher im
+    Versionsverlauf (eine verworfene Fassung des anderen Geraets bleibt wiederherstellbar).
     Im Dienst nur mit dem Recht can_annotate_pdf (ab Studora Plus); vorhandene Notizen bleiben immer lesbar."""
     entitlements.require(request, "can_annotate_pdf")
-    return _put_annotations(file_id, body, base_version)
+    return _put_annotations(file_id, body, base_version, snapshot=snapshot)
 
 
-def _put_annotations(file_id: str, body: dict, base_version: int | None = None):
+# Versionsverlauf (Editor-Schritt 4, P0-9): hoechstens eine Version je 5 Minuten; mit snapshot (Schliessen, nach einem
+# Konflikt, Wiederherstellen) dazu der ersetzte und der neue Stand; die letzten 30 bleiben. Vorher war jede
+# Speicherrunde eine volle Kopie (bis > 1 GB je Dokument).
+VERSION_EVERY_S = 300
+KEPT_VERSIONS = 30
+
+
+def _version_due(conn, file_id: str, now: str) -> bool:
+    last = db.row(conn, "SELECT created_at FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT 1", (file_id,))
+    if not last or not last["created_at"]:
+        return True
+    try:
+        elapsed = (datetime.fromisoformat(now) - datetime.fromisoformat(last["created_at"])).total_seconds()
+    except ValueError:
+        return True
+    return elapsed >= VERSION_EVERY_S or elapsed < 0      # Uhr zurueckgestellt: lieber eine Version zu viel
+
+
+def _put_annotations(file_id: str, body: dict, base_version: int | None = None, snapshot: bool = False):
     with db.cursor() as conn:
         conn.execute("BEGIN IMMEDIATE")      # Versionspruefung und Schreiben atomar: zwei Geraete koennen nicht beide gewinnen
-        cur = db.row(conn, "SELECT version, data FROM annotations WHERE file_id=?", (file_id,))
+        cur = db.row(conn, "SELECT version, data, updated_at FROM annotations WHERE file_id=?", (file_id,))
         cur_v = (cur["version"] or 1) if cur else 0
+        cur_updated = cur["updated_at"] if cur else None
         if base_version is not None and cur and cur_v != base_version:
             return JSONResponse(status_code=409, content={"detail": "Konflikt: Server hat eine neuere Version",
                                                           "version": cur_v, "data": json.loads(cur["data"])})
         new_v = cur_v + 1
         payload = json.dumps(body, ensure_ascii=False)
+        now = db.now_iso()
+        due = snapshot or _version_due(conn, file_id, now)
         conn.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?) "
                      "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version",
-                     (file_id, payload, db.now_iso(), new_v))
-        conn.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
-                     (file_id, new_v, payload, db.now_iso()))
-        conn.execute("""DELETE FROM annotation_versions WHERE file_id=? AND id NOT IN (
-                            SELECT id FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT 30)""",
-                     (file_id, file_id))
+                     (file_id, payload, now, new_v))
+        if snapshot and cur and cur["data"] != payload and not db.row(
+                conn, "SELECT 1 FROM annotation_versions WHERE file_id=? AND version=?", (file_id, cur_v)):
+            conn.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
+                         (file_id, cur_v, cur["data"], cur_updated or now))
+        if due:
+            conn.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
+                         (file_id, new_v, payload, now))
+            conn.execute(f"""DELETE FROM annotation_versions WHERE file_id=? AND id NOT IN (
+                                SELECT id FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT {KEPT_VERSIONS})""",
+                         (file_id, file_id))
     return {"ok": True, "version": new_v}
 
 
@@ -858,7 +887,7 @@ def restore_version(file_id: str, version: int, request: Request = None):
         r = db.row(conn, "SELECT data FROM annotation_versions WHERE file_id=? AND version=?", (file_id, version))
         if not r:
             raise HTTPException(404, "Version nicht gefunden")
-    return _put_annotations(file_id, json.loads(r["data"]))
+    return _put_annotations(file_id, json.loads(r["data"]), snapshot=True)      # Stand davor bleibt im Verlauf
 
 
 ASSETS_DIR = DATA_DIR / "assets"

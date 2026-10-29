@@ -274,9 +274,13 @@ final class LocalAnnotationsTests: XCTestCase {
         XCTAssertEqual(forced.json?["version"], 2)
     }
 
+    /// Mit `snapshot` (Schliessen) wird jede Runde eine Version (ohne nur alle 5 min, AnnotationVersionTests)
     func testAtMostThirtyVersionsAndRestore() async throws {
         let b = try await backend()
-        for i in 1...35 { _ = await put(b, #"{"n": \#(i)}"#, base: i - 1) }
+        for i in 1...35 {
+            _ = await b.handle(LocalRequest(method: "PUT", path: "/api/files/d1/annotations",
+                                            query: [.init("base_version", String(i - 1)), .init("snapshot", "1")], body: Data(#"{"n": \#(i)}"#.utf8)))
+        }
         let listed = await b.handle(LocalRequest(method: "GET", path: "/api/files/d1/annotations/versions"))
         let versions = try XCTUnwrap(listed.json?.array)
         XCTAssertEqual(versions.count, 30)

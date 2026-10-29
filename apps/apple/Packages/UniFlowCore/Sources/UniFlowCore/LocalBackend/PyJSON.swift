@@ -99,6 +99,12 @@ public indirect enum PyJSON: Equatable, Sendable {
     /// maskiert (\n, \r, \t, \b, \f, sonst \u00XX), alles andere bleibt stehen (auch DEL und Zeichen ausserhalb der BMP).
     static func writeUnicode(_ s: String, into out: inout String) {
         out += "\""
+        // nichts zu maskieren (der Normalfall): am Stueck
+        if !s.utf8.contains(where: { $0 == 0x22 || $0 == 0x5C || $0 < 0x20 }) {
+            out += s
+            out += "\""
+            return
+        }
         for u in s.unicodeScalars {
             switch u.value {
             case 0x22: out += "\\\""
@@ -159,7 +165,12 @@ public indirect enum PyJSON: Equatable, Sendable {
         func error(_ reason: String) -> JSONParseError { JSONParseError(offset: index, reason: reason) }
 
         mutating func skipWhitespace() {
-            while index < bytes.count, [0x20, 0x0A, 0x0D, 0x09].contains(bytes[index]) { index += 1 }
+            while index < bytes.count {
+                switch bytes[index] {
+                case 0x20, 0x0A, 0x0D, 0x09: index += 1
+                default: return
+                }
+            }
         }
 
         mutating func value(depth: Int) throws -> PyJSON {
@@ -199,8 +210,17 @@ public indirect enum PyJSON: Equatable, Sendable {
                 index += 1
                 skipWhitespace()
                 let v = try value(depth: depth + 1)
-                if let p = position[key] { members[p].value = v } else {
-                    position[key] = members.count
+                // doppelte Schluessel sind selten; bei kleinen Objekten (Striche, Seiten) ist Suchen billiger als ein
+                // Woerterbuch je Objekt
+                let p: Int?
+                if members.count < 16 {
+                    p = members.firstIndex { $0.key == key }
+                } else {
+                    if position.isEmpty { for (i, m) in members.enumerated() { position[m.key] = i } }
+                    p = position[key]
+                }
+                if let p { members[p].value = v } else {
+                    if !position.isEmpty { position[key] = members.count }
                     members.append(Member(key, v))
                 }
                 skipWhitespace()
@@ -268,6 +288,18 @@ public indirect enum PyJSON: Equatable, Sendable {
 
         mutating func string() throws -> String {
             index += 1
+            // ohne Escape-Folge (der Normalfall): direkt aus den Bytes, ungueltiges UTF-8 wie unten als U+FFFD
+            let start = index
+            var i = index
+            while i < bytes.count {
+                let c = bytes[i]
+                if c == 0x22 {
+                    index = i + 1
+                    return String(decoding: bytes[start..<i], as: UTF8.self)
+                }
+                if c == 0x5C || c < 0x20 { break }
+                i += 1
+            }
             var units: [UInt16] = []
             var raw: [UInt8] = []
             func flush() {

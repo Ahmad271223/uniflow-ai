@@ -3,8 +3,10 @@ import Foundation
 /// Notizen eines Dokuments mit Versionen und Bilder der Notizen wie in app/server.py.
 ///
 /// `PUT .../annotations?base_version=n`: Ist der gespeicherte Stand neuer, kommt 409 mit `version` und `data` (die
-/// App fuehrt zusammen). Gespeichert wird derselbe Text wie in Python (`json.dumps(body, ensure_ascii=False)`), die
-/// letzten 30 Versionen bleiben erhalten.
+/// App fuehrt zusammen). Gespeichert wird derselbe Text wie in Python (`json.dumps(body, ensure_ascii=False)`).
+/// Versionsverlauf wie `_put_annotations` (Editor-Schritt 4, P0-9): hoechstens eine Version je 5 Minuten; mit
+/// `snapshot=true` (Schliessen, nach einem Konflikt, Wiederherstellen) dazu der ersetzte und der neue Stand; die
+/// letzten 30 bleiben erhalten.
 ///
 /// Abweichung: Fuer ein Dokument, das es in der lokalen Datenbank nicht gibt, scheitert Python mit 500 (Fremdschluessel
 /// `annotations.file_id`); hier 409 mit Meldung und ohne `version` – die App wertet das als "kann hier nicht
@@ -14,8 +16,10 @@ import Foundation
 public enum AnnotationEndpoints: LocalEndpointModule {
     public static let name = "Notizen"
 
-    /// Hoechstens so viele Versionen je Dokument
+    /// Hoechstens so viele Versionen je Dokument (`KEPT_VERSIONS`)
     static let keptVersions = 30
+    /// Hoechstens eine Version je so vielen Sekunden (`VERSION_EVERY_S`)
+    static let versionEvery = 300
 
     /// `_SAFE_ID`: Datei-IDs werden fuer Pfade benutzt
     static func isSafeID(_ s: String) -> Bool {
@@ -60,9 +64,17 @@ public enum AnnotationEndpoints: LocalEndpointModule {
                 }
                 base = v
             }
-            _ = try req.objectBody()                                              // 422 wie FastAPI, wenn kein Objekt
-            let body = try PyJSON.parse(req.body)
-            return try await save(fileID: req.param("file_id"), body: body, baseVersion: base, ctx)
+            let snapshot = try req.boolQuery("snapshot") ?? false
+            // einmal lesen (bei dichten Dokumenten der groesste Posten einer Runde, docs/EDITOR-MESSUNG.md M1); nur
+            // wenn es kein Objekt ist, noch einmal fuer dieselbe 422 wie FastAPI
+            let body: PyJSON
+            if let parsed = try? PyJSON.parse(req.body), case .object = parsed {
+                body = parsed
+            } else {
+                _ = try req.objectBody()
+                body = try PyJSON.parse(req.body)
+            }
+            return try await save(fileID: req.param("file_id"), body: body, baseVersion: base, snapshot: snapshot, ctx)
         }
 
         router.get("/api/files/{file_id}/annotations/versions") { req, ctx in
@@ -79,7 +91,7 @@ public enum AnnotationEndpoints: LocalEndpointModule {
             }
             let body: PyJSON
             do { body = try PyJSON.parse(data) } catch { throw LocalHTTPError(status: 500, message: "Gespeicherte Version ist kein gültiges JSON") }
-            return try await save(fileID: id, body: body, baseVersion: nil, ctx)
+            return try await save(fileID: id, body: body, baseVersion: nil, snapshot: true, ctx)    // Stand davor bleibt im Verlauf
         }
 
         // MARK: Bilder der Notizen
@@ -125,16 +137,18 @@ public enum AnnotationEndpoints: LocalEndpointModule {
         do { return try JSONValue.parse(text) } catch { throw LocalHTTPError(status: 500, message: "Gespeicherte Notizen sind kein gültiges JSON") }
     }
 
-    /// Schreiben wie `put_annotations` nach der Versionspruefung (in einer Transaktion): Stand, Versionsverlauf, die
-    /// letzten `keptVersions` Versionen bleiben. Auch fuer Notizen, die eine neue Original-Fassung umhaengt
-    /// (`FileVersionKeeper`). Rueckgabe: die geschriebene Version.
+    /// Schreiben wie `put_annotations` nach der Versionspruefung (in einer Transaktion): Stand und, wenn faellig
+    /// (`snapshot` oder `versionDue`), Versionsverlauf; die letzten `keptVersions` Versionen bleiben. Auch fuer Notizen,
+    /// die eine neue Original-Fassung umhaengt (`FileVersionKeeper`, immer mit Version). Rueckgabe: die geschriebene Version.
     @discardableResult
-    static func write(_ c: SQLiteConnection, fileID: String, payload: String, version: Int, now: String) throws -> Int {
+    static func write(_ c: SQLiteConnection, fileID: String, payload: String, version: Int, now: String, snapshot: Bool = true) throws -> Int {
         let id = SQLiteValue.text(fileID)
         let newV = Int64(version)
+        let due = try snapshot || versionDue(c, fileID: fileID, now: now)
         try c.execute("INSERT INTO annotations(file_id, data, updated_at, version) VALUES (?,?,?,?) "
                       + "ON CONFLICT(file_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at, version=excluded.version",
                       [id, .text(payload), .text(now), .integer(newV)])
+        guard due else { return version }
         try c.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
                       [id, .integer(newV), .text(payload), .text(now)])
         try c.execute("""
@@ -144,20 +158,65 @@ public enum AnnotationEndpoints: LocalEndpointModule {
         return version
     }
 
+    /// `_version_due`: keine Version bisher, die letzte mindestens `versionEvery` Sekunden alt oder die Uhr zurueckgestellt.
+    /// Wie Python rechnet der Abstand mit der Ortszeit ohne Zone (`datetime.fromisoformat`).
+    static func versionDue(_ c: SQLiteConnection, fileID: String, now: String) throws -> Bool {
+        guard let last = try c.scalar("SELECT created_at FROM annotation_versions WHERE file_id=? ORDER BY version DESC LIMIT 1",
+                                      [.text(fileID)])?.string, !last.isEmpty,
+              let a = naiveSeconds(last), let b = naiveSeconds(now) else { return true }
+        let elapsed = b - a
+        return elapsed >= versionEvery || elapsed < 0
+    }
+
+    /// "YYYY-MM-DDTHH:MM:SS" (auch ohne Sekunden, mit Leerzeichen statt "T") als Sekunden ohne Zone
+    static func naiveSeconds(_ s: String) -> Int? {
+        let u = Array(s.utf8)
+        func num(_ r: Range<Int>) -> Int? {
+            guard r.upperBound <= u.count, r.allSatisfy({ (0x30...0x39).contains(u[$0]) }) else { return nil }
+            return r.reduce(0) { $0 * 10 + Int(u[$1] - 0x30) }
+        }
+        guard u.count >= 16, u[4] == 0x2D, u[7] == 0x2D, u[10] == 0x54 || u[10] == 0x20, u[13] == 0x3A,
+              let y = num(0..<4), let mo = num(5..<7), let d = num(8..<10), let h = num(11..<13), let mi = num(14..<16),
+              (1...12).contains(mo), (1...31).contains(d), h < 24, mi < 60 else { return nil }
+        var sec = 0
+        if u.count > 16 {
+            guard u.count == 19, u[16] == 0x3A, let x = num(17..<19), x < 60 else { return nil }
+            sec = x
+        }
+        // Tage seit 1970-01-01 (proleptischer gregorianischer Kalender)
+        let yy = mo <= 2 ? y - 1 : y
+        let era = (yy >= 0 ? yy : yy - 399) / 400
+        let yoe = yy - era * 400
+        let doy = (153 * (mo + (mo > 2 ? -3 : 9)) + 2) / 5 + d - 1
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+        let days = era * 146_097 + doe - 719_468
+        return days * 86_400 + h * 3600 + mi * 60 + sec
+    }
+
     /// `put_annotations(file_id, body, base_version)`: Versionspruefung und Schreiben in einer Transaktion
-    static func save(fileID: String, body: PyJSON, baseVersion: Int?, _ ctx: LocalContext) async throws -> LocalResponse {
+    static func save(fileID: String, body: PyJSON, baseVersion: Int?, snapshot: Bool = false, _ ctx: LocalContext) async throws -> LocalResponse {
         let payload = body.dumps(ensureASCII: false)
         let now = ctx.clock.nowISO
         let id = SQLiteValue.text(fileID)
         enum Outcome: Sendable { case saved(Int), conflict(Int, String), unknownFile }
         let outcome = try await ctx.database.transaction { c -> Outcome in
-            let cur = try c.queryOne("SELECT version, data FROM annotations WHERE file_id=?", [id])
+            // nur die Version lesen; den gespeicherten Text (bei dichten Dokumenten zig MB) nur bei einem Konflikt
+            let cur = try c.queryOne("SELECT version FROM annotations WHERE file_id=?", [id])
             let curV = cur.map { version($0["version"]) } ?? 0
-            if let baseVersion, let cur, curV != baseVersion {
-                return .conflict(curV, cur["data"]?.string ?? "null")
+            if let baseVersion, cur != nil, curV != baseVersion {
+                return .conflict(curV, try c.scalar("SELECT data FROM annotations WHERE file_id=?", [id])?.string ?? "null")
             }
             guard try c.queryOne("SELECT 1 FROM files WHERE id=?", [id]) != nil else { return .unknownFile }
-            let v = try write(c, fileID: fileID, payload: payload, version: curV + 1, now: now)
+            // snapshot: auch der ersetzte Stand kommt in den Verlauf (nur hier wird der gespeicherte Text gelesen)
+            if snapshot, cur != nil,
+               try c.queryOne("SELECT 1 FROM annotation_versions WHERE file_id=? AND version=?", [id, .integer(Int64(curV))]) == nil,
+               let old = try c.queryOne("SELECT data, updated_at FROM annotations WHERE file_id=?", [id]),
+               old["data"]?.string != payload {
+                let at = old["updated_at"].flatMap { LocalModules.truthy($0) ? $0 : nil } ?? .text(now)
+                try c.execute("INSERT INTO annotation_versions(file_id, version, data, created_at) VALUES (?,?,?,?)",
+                              [id, .integer(Int64(curV)), old["data"] ?? .null, at])
+            }
+            let v = try write(c, fileID: fileID, payload: payload, version: curV + 1, now: now, snapshot: snapshot)
             // nur auf dem Geraet (S7): spaete Striche auf Seiten, die eine neue Fassung entfernt hat, zur alten Fassung
             try FileVersions.keepLateNotes(c, fileID: fileID, payload: payload)
             return .saved(v)
