@@ -451,3 +451,42 @@ wirft es, wird die Zeichnung wie kaputte Daten ersetzt. Gerätetest 19.5.
 **Tests.** `EditorStep3Tests` (6, App), `PageOrderTests` (+3) und `SharedFixtureTests.testRotateCasesMatchWebEditor`
 (Kern). Gegenprobe: ohne Mitdrehen der Objekte bzw. ohne Durchreichen werden 3 der 6 App-Tests rot.
 
+## 10. Nachtrag Schritt 4: Speicherlast (P0-9)
+
+Stand 29.10.2026, Zweig `wip/editor-4`, gleicher Mac und Simulator; Lastmittel am Ende 61/30/20.
+
+**Änderungen.**
+
+1. **Versionsverlauf seltener (M2, Vertragsänderung in Python und Swift gemeinsam):** `PUT …/annotations` legt
+   höchstens alle 5 Minuten eine Version an (`VERSION_EVERY_S = 300`, Abstand in Ortszeit ohne Zone wie
+   `datetime.fromisoformat`; Uhr zurückgestellt → Version). Mit `?snapshot=true` kommen der **ersetzte und der neue**
+   Stand in den Verlauf. Die Apps senden das beim Schließen und in der Runde direkt nach einem Konflikt, damit die
+   verworfene Fassung des anderen Geräts wiederherstellbar bleibt (Prüfpunkt 431). Wiederherstellen läuft über
+   denselben Weg. Die letzten 30 Versionen bleiben. Ist beim Schließen nichts offen, wurde seit dem letzten Snapshot
+   aber gespeichert, sendet das iPad den Stand dafür noch einmal (`SyncEngine.syncNow(snapshot:)`), der Web-Editor
+   ebenso (`flush(true)` in `destroy`). Tests: `tests/test_annotation_versions.py`, `AnnotationVersionTests`,
+   `SyncEngineTests.testSnapshot…`, Fixture `library-files.json` (Schleife mit `snapshot=true` für die Grenze 30).
+2. **Einmal lesen (M1):** `PUT` liest den Text nur noch einmal mit `PyJSON` (vorher zusätzlich `objectBody`); nur
+   wenn es kein Objekt ist, noch einmal für dieselbe 422 wie FastAPI.
+3. **Alten Stand nur bei Konflikt:** aus SQLite wird nur die Versionsnummer gelesen, der gespeicherte Text nur bei
+   einem Konflikt oder einem Snapshot.
+4. **`PyJSON` schneller:** Leerraum ohne Liste je Zeichen, Texte ohne Escape direkt aus den Bytes, kleine Objekte ohne
+   Wörterbuch, `dumps` schreibt Texte ohne Maskierung am Stück. Gemessen (18 MB, Debug): Lesen 2,8 s → 0,9 s,
+   Schreiben 0,50 s → 0,44 s; Text byte-gleich zum alten Leser.
+
+**Messung** (`EditorScaleTests.testDenseScriptSaveRounds100PagesWith300Strokes`, 100 Seiten × 300 Striche):
+
+| Wert | vorher (Abschnitt 3.2) | Schritt 4 |
+|---|---|---|
+| eine Speicherrunde (ganzes Dokument, 43,5 MB) | 13,2–16,0 s | 4,4 s |
+| Versionen im Verlauf nach dem Test | eine volle Kopie je Runde | 1 (die erste Runde) |
+| Datenbank-Datei + WAL | 127 + 94 MB | 80 + 47 MB |
+| Speicherspitze während der Runde | 410–600 MB | 380 MB |
+| Hauptthread während der Runde, längster Block | frei | 1,1 ms |
+| ein Strich mehr auf voller Seite (Umrechnung + Journal) | 0,04–0,09 s | 0,04 s |
+
+**Offen.** Die Runde schickt weiter das ganze Dokument. Eine Ablage je Seite (Plan 5.5, Punkt 3) wäre der nächste
+Schritt und eine Vertragsänderung mit Python zuerst; nach dieser Messung (4,4 s im Hintergrund, Hauptthread frei)
+nicht nötig für V1. M4 (Laden weggescrollter Seiten abbrechen) und M5/P0-10 (Zoom-Schärfe) nur nach dem Gerätetest
+(Abnahmeliste 5.1, 6).
+
