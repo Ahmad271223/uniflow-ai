@@ -16,8 +16,9 @@ eingeschaltet hast.
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
   liegen sie verschlüsselt auf deinem Gerät oder – für den automatischen Abgleich – verschlüsselt in deinem Konto.
   Du kannst sie jederzeit löschen.
-- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** Studora nutzt derzeit
-  keine KI-Funktionen und wertet deine Inhalte nicht automatisiert aus.
+- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** Studora wertet deine
+  Inhalte nicht selbst automatisiert aus. KI gibt es nur, wenn du **dein eigenes ChatGPT** verbindest (Abschnitt 8a):
+  dann gehen Texte, die du für eine KI-Funktion auswählst, direkt von deinem Gerät an OpenAI.
 
 ## 2. Verantwortlicher
 
@@ -143,6 +144,25 @@ dieselbe PDF haben.
 - Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (du veröffentlichst bewusst); Moderation und Sperren Art. 6 Abs. 1
   lit. f DSGVO (Schutz der anderen Nutzerinnen und Nutzer, Einhaltung der Regeln). Veröffentlichen ist freiwillig.
 
+## 8a. KI über dein ChatGPT (freiwillig) – Entwurf, vor Veröffentlichung rechtlich prüfen
+
+- **Wann:** nur wenn du in den Einstellungen „ChatGPT verbinden“ wählst, dem Hinweis zustimmst und dich bei OpenAI
+  anmeldest. Ohne Verbindung gibt es keine KI; alles andere in Studora funktioniert genauso.
+- **Was gesendet wird:** erst wenn du eine KI-Funktion antippst (Frage im Editor, Wochentest, Zusammenfassung,
+  Bewertung eines Tests): der Text der betroffenen Seite oder deiner Markierung, deine Frage oder Lösung, die Namen von
+  Kurs und Datei, passende Stellen aus deinen eigenen Unterlagen (Quellen) und bei Wochentests die Texte der Unterlagen
+  der Woche. Nie gesendet werden Zugangsdaten, Hochschul-Sitzungen, Noten, ganze Dateien oder Notizen anderer.
+- **Wohin:** direkt von deinem Gerät an OpenAI (OpenAI OpCo, LLC, USA) über die Schnittstelle „Sign in with ChatGPT“.
+  Die Anfragen laufen über dein ChatGPT-Abo und zählen gegen dessen Grenzen. **Studora sieht weder Anfragen noch
+  Antworten** und speichert sie auf keinem Server; Antworten bleiben auf deinem Gerät.
+- **Anmeldung:** Studora erhält von OpenAI nur deine Kennung, deinen Namen und deine E-Mail-Adresse sowie Zugriffs- und
+  Erneuerungs-Token. Sie liegen nur im Schlüsselbund dieses Geräts (Windows: auf diesem PC), nie in deinem
+  Studora-Konto und nie im Abgleich zwischen Geräten. Studora hat keinen Zugriff auf deine ChatGPT-Unterhaltungen.
+- **Rechtsgrundlage:** deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du mit „Trennen“ jederzeit widerrufen
+  kannst; dabei werden Token und Profil vom Gerät gelöscht. „Konto löschen“ entfernt die Verbindung ebenfalls.
+- **Verantwortlich bei OpenAI:** Für die Verarbeitung bei OpenAI gelten deren Bedingungen und Datenschutzerklärung,
+  auch deine Einstellung, ob Inhalte zum Training verwendet werden dürfen. Übermittlung in die USA: siehe Abschnitt 12.
+
 ## 9. Käufe und Abos
 
 Das Abo Studora Plus kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und Zahlungsabwicklung,
@@ -179,6 +199,9 @@ Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetz
   eigene Verantwortliche. Sitz in den USA; für die Übermittlung gelten die EU-Standardvertragsklauseln bzw. die
   Zertifizierung nach dem EU-US Data Privacy Framework der jeweiligen Anbieter.
 - **Deine Hochschule** erhält die Verbindungsdaten des Abrufs (Abschnitt 4).
+- **OpenAI** (USA) erhält nur dann Daten, wenn du dein ChatGPT verbindest und eine KI-Funktion nutzt (Abschnitt 8a);
+  eigener Verantwortlicher, Übermittlung nach dem EU-US Data Privacy Framework bzw. den Standardvertragsklauseln von
+  OpenAI.
 - Sonst geben wir keine Daten weiter – nicht an Werbenetzwerke, nicht an Analyse-Dienste, nicht an Dritte zum
   Verkauf. Behörden erhalten Daten nur, wenn wir gesetzlich dazu verpflichtet sind.
 
@@ -186,8 +209,9 @@ Auftragsverarbeitung nach Art. 28 DSGVO. E-Mails zum Konto (Passwort zurücksetz
 
 Kein Tracking über Apps oder Websites hinweg, keine Werbung, keine Profilbildung, keine automatisierten
 Entscheidungen mit rechtlicher Wirkung (Art. 22 DSGVO), keine Analyse- oder Absturz-SDKs von Dritten, keine
-Auswertung deiner Notizen und Dateien durch KI-Systeme. Sollten wir später KI-Funktionen anbieten, ergänzen wir
-diese Erklärung vorher und du schaltest sie selbst ein.
+Auswertung deiner Notizen und Dateien durch eigene KI-Systeme von Studora. KI nutzt du nur über dein eigenes ChatGPT,
+wenn du es selbst verbindest (Abschnitt 8a). Eine KI im Studora-Dienst (Tarif Pro AI) ergänzen wir hier, bevor es
+sie gibt.
 
 ## 14. Deine Rechte
 

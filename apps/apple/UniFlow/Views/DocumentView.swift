@@ -224,7 +224,9 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
         .sheet(isPresented: $showTutor) {
-            TutorSheet(fileID: store.file.id, page: Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex)) { id, page in
+            // Seite der Original-PDF aus dem Seitenaufbau (wie der Skriptvorschlag), sonst aus dem Schluessel
+            TutorSheet(fileID: store.file.id, page: store.entry(forPageIndex: bridge.pageIndex)?.pdfIndex
+                       ?? Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex)) { id, page in
                 if id == store.file.id { bridge.controller?.goToPage(page - 1) }
             }
         }
