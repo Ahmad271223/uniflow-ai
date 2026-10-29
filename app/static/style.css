@@ -479,3 +479,27 @@ body.fullscreen-doc .fs-exit { display: inline-flex; position: fixed; top: 10px;
 .script-hint > .ic { color: var(--accent-text); flex: none; }
 .script-hint .m { display: flex; flex-direction: column; min-width: 0; } .script-hint .m span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
+
+/* Lernfortschritt & Wochentests (Seitenmarker) */
+.doc-lecmark.warn { color: var(--warn); }
+.wt-box .card-head { margin-bottom: .4rem; }
+.wt-list { display: flex; flex-direction: column; }
+.wt-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: .7rem; align-items: center; padding: .55rem 0; border-top: 1px solid var(--line); }
+.wt-row:first-child { border-top: 0; }
+.wt-w { font-weight: 600; font-size: .85rem; color: var(--text-2); }
+.wt-t { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.wt-t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wt-a { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
+.wt-row.wt-st-leer .wt-t b { color: var(--muted); font-weight: 500; }
+.wt-warn { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: .45rem .7rem; font-size: .85rem; margin-bottom: .5rem; }
+.wt-facts { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: .55rem .9rem; align-items: start; }
+.wt-facts > span { color: var(--muted); font-size: .85rem; padding-top: .3rem; }
+.wt-marks { display: flex; flex-direction: column; gap: .3rem; }
+.wt-mark { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .35rem .5rem; border: 1px solid var(--line); border-radius: 10px; font-size: .88rem; }
+.wt-mark.review { border-color: var(--warn); background: var(--warn-soft); }
+@media (max-width: 640px) {
+  .wt-row { grid-template-columns: minmax(0, 1fr); gap: .3rem; }
+  .wt-a { justify-content: flex-start; }
+  .wt-facts { grid-template-columns: minmax(0, 1fr); gap: .2rem; }
+  .wt-facts > span { padding-top: .5rem; }
+}

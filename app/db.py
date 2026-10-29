@@ -390,6 +390,10 @@ def init_db() -> None:
                         VALUES ('__user__', 'Eigene Dokumente', NULL, NULL, NULL, 'sonstiges', 1, 90, ?)""", (now_iso(),))
         if not conn.execute("SELECT 1 FROM terms").fetchone():
             conn.execute("INSERT INTO terms(name, start, end, active) VALUES ('WiSe 2026/27', '2026-10-12', '2027-01-30', 1)")
+        # Seitenmarker, Aufgabenindex, gemeinsame Wochentests (app/weekly.py)
+        from . import scriptsearch, weekly
+        scriptsearch.ensure_table(conn)
+        weekly.ensure_schema(conn)
 
 
 @contextmanager

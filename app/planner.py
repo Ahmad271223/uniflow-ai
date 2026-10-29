@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from . import ai, db
 from .extract import extract_text
@@ -277,6 +277,9 @@ def create_weekly_tests(week_start: date | None = None, log=print) -> list[int]:
         s = db.get_settings(conn)
         todo = []
         for m in db.rows(conn, "SELECT * FROM modules WHERE active=1 AND weekly_test=1"):
+            # Module mit Vorlesungs-Seitenmarkern laufen ueber app/weekly.py (Stoff nur bis zum Marker)
+            if db.row(conn, "SELECT 1 FROM lecture_markers WHERE module_id=? AND deleted_at IS NULL", (m["id"],)):
+                continue
             weeks = sorted({study.week_index(start, f["chdate"]) for f in study._file_rows(conn, m["id"]) if f.get("doc_type") in ("vorlesung", "uebung") and study.week_index(start, f["chdate"]) >= 1})
             for w in weeks[-2:]:  # die beiden juengsten Lehrwochen mit Inhalten
                 if not db.row(conn, "SELECT 1 FROM tests WHERE module_id=? AND week_no=? AND auto=1", (m["id"], w)):
@@ -294,12 +297,24 @@ def grade(test_id: int, answers: dict) -> dict:
         t = db.row(conn, "SELECT * FROM tests WHERE id=?", (test_id,))
     if not t:
         raise RuntimeError("Test nicht gefunden")
+    if t["submitted_at"] and t.get("def_id"):
+        raise RuntimeError("Dieser gemeinsame Test wurde bereits abgegeben und wird nicht neu bewertet.")
     questions = json.loads(t["questions"])
     res = ai.grade_test(t["subject"], questions, answers)
+    duration = None
+    if t.get("def_id"):
+        # Gemeinsamer Wochentest: Multiple Choice ohne KI, Punkte begrenzt -> gleiche Kriterien fuer alle
+        from . import weekly
+        res = weekly.grade_consistent(questions, answers, res)
+    if t.get("started_at"):
+        try:
+            duration = int((datetime.now() - datetime.fromisoformat(t["started_at"])).total_seconds())
+        except ValueError:
+            duration = None
     with db.cursor() as conn:
-        conn.execute("UPDATE tests SET submitted_at=?, answers=?, score=?, max_score=?, feedback=? WHERE id=?",
+        conn.execute("UPDATE tests SET submitted_at=?, answers=?, score=?, max_score=?, feedback=?, duration_sec=? WHERE id=?",
                      (db.now_iso(), json.dumps(answers, ensure_ascii=False), float(res.get("total") or 0),
                       float(res.get("max") or sum(q.get("points", 0) for q in questions)),
-                      json.dumps(res, ensure_ascii=False), test_id))
+                      json.dumps(res, ensure_ascii=False), duration, test_id))
         conn.execute("UPDATE plan_items SET done=1 WHERE test_id=?", (test_id,))
     return res

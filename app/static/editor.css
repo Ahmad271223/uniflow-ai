@@ -61,6 +61,8 @@
 .ed-thumb.active .ed-thumb-img { border-color: var(--accent); }
 .ed-thumb-img canvas { display: block; max-width: 100%; height: auto; }
 .ed-thumb-bm { position: absolute; top: 2px; right: 4px; color: var(--accent); }
+.ed-thumb-lm { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 10px; font-weight: 600; color: #fff; background: var(--accent); border-radius: 0 0 4px 4px; padding: 1px 0; }
+.ed-thumb-lm.review { background: var(--warn); }
 .ed-thumb-foot { display: flex; align-items: center; justify-content: space-between; margin-top: .15rem; }
 .ed-thumb-menu { height: 22px !important; min-width: 22px !important; padding: 0 !important; }
 .ed-ol { display: flex; align-items: center; gap: .4rem; padding: .35rem .3rem; border-bottom: 1px solid var(--line); font-size: .84rem; cursor: pointer; }

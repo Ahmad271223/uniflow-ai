@@ -8,6 +8,7 @@ from pathlib import Path
 _TMP = tempfile.mkdtemp(prefix="lernapp-test-")
 os.environ["LERNAPP_DATA_DIR"] = str(Path(_TMP) / "data")
 os.environ["LERNAPP_LOG_DIR"] = str(Path(_TMP) / "logs")
+os.environ["LERNAPP_NO_SCHEDULER"] = "1"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest  # noqa: E402
