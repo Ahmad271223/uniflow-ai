@@ -33,6 +33,7 @@ def _tutor_cases(ai) -> list[dict]:
     inputs = [
         {"mode": "explain", "page_text": "Definition: Eine Folge heisst konvergent ...", "selection": "konvergent",
          "course": "Testmathe I", "file_name": "vl02.pdf", "page": 3},
+        {"mode": "steps", "page_text": "Aufgabe 3", "selection": "Markierung ü " * 400, "course": "Testkurs", "file_name": "m.pdf", "page": 7},
         {"mode": "check", "page_text": "Aufgabe 1", "own_solution": "x = 2 " * 1200, "question": "Stimmt das? " * 200,
          "course": "Testphysik", "file_name": "blatt1.pdf"},
         {"mode": "unbekannt", "page_text": "", "course": "", "file_name": ""},
@@ -61,6 +62,7 @@ def _plan_cases(ai) -> list[dict]:
         ("2026-10-26", "2026-10-28", mats, carry, settings),                                    # heute in der Woche
         ("2026-11-02", "2026-10-28", mats, [], settings),                                       # kommende Woche
         ("2026-10-19", "2026-10-28", [], [], {"free_days": [], "hours_per_day": 2, "day_start": "08:30"}),  # vergangen, leer
+        ("2026-12-28", "2026-12-31", mats, carry, {"free_days": [0], "hours_per_day": 3.33, "day_start": "10:00"}),  # krumme Minuten, Jahreswechsel
     ]:
         args = {"week_start": ws, "materials": m, "subjects": subjects, "settings": st, "carry_over": c, "today": today}
         cases.append({"in": args, "prompt": ai.week_plan_prompt(date.fromisoformat(ws), m, subjects, st, c, date.fromisoformat(today))})

@@ -96,7 +96,7 @@ Dienst antwortet 503 `chatgpt_not_available`).
 
 - **Anmeldung:** Einstellungen → Erweitert → „KI über mein ChatGPT“ → „ChatGPT verbinden“. UniFlow bindet einen
   freien Port auf 127.0.0.1, öffnet die Autorisierung bei `auth.openai.com` im Standardbrowser (Windows-App: in einem Fenster der App) (beim ersten Mal mit
-  `client_id=dynamic_agent_client` und `agent_name_hint=UniFlow`; die dabei ausgestellte `oaiapp_…`-ID wird gespeichert,
+  `client_id=dynamic_agent_client` und `agent_name_hint=Studora`; die dabei ausgestellte `oaiapp_…`-ID wird gespeichert,
   bevor der Code getauscht wird, und bei jeder weiteren Anmeldung wiederverwendet), Scope
   `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, PKCE S256, `state` und `nonce` je
   Versuch, `ext_agent_host_id` als feste Rechnerkennung.

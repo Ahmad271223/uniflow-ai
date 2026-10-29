@@ -53,7 +53,7 @@ def test_pkce_and_authorization_url(cg):
     first = urllib.parse.urlsplit(cg.build_auth_url(None, host, "http://127.0.0.1:1455/auth/callback", "st", "no", challenge))
     q = dict(urllib.parse.parse_qsl(first.query))
     assert first.scheme == "https" and first.netloc == "auth.openai.com" and first.path == "/api/accounts/authorize"
-    assert q["client_id"] == "dynamic_agent_client" and q["agent_name_hint"] == "UniFlow" and q["ext_agent_host_id"] == host
+    assert q["client_id"] == "dynamic_agent_client" and q["agent_name_hint"] == "Studora" and q["ext_agent_host_id"] == host
     assert q["scope"] == "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
     assert q["resource"] == "https://api.openai.com/v1" and q["response_type"] == "code"
     assert q["redirect_uri"] == "http://127.0.0.1:1455/auth/callback" and "localhost" not in q["redirect_uri"]
