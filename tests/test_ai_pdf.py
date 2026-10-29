@@ -15,6 +15,14 @@ def _pdf(path: Path, pages: int) -> Path:
     return path
 
 
+def valid_test(title="Wochentest"):
+    """Wochentest in der Form vom 29.10.2026: 15 Aufgaben, 4 leicht, 6 mittel, 5 schwer"""
+    diffs = ["leicht"] * 4 + ["mittel"] * 6 + ["schwer"] * 5
+    return {"title": title, "questions": [{"nr": i + 1, "type": "calc", "difficulty": d, "question": f"Aufgabe {i + 1}",
+                                           "answer": "1", "points": 6 if i < 10 else 8, "exam_style": False}
+                                          for i, d in enumerate(diffs)]}
+
+
 @pytest.fixture
 def captured(monkeypatch):
     """ai.ask ersetzen: merkt sich Aufrufe und den Inhalt des Arbeitsordners waehrend des Aufrufs."""
@@ -89,7 +97,7 @@ def test_analysis_of_non_pdf_uses_text(captured, tmp_path):
 def test_weekly_test_page_budget_and_text_rest(captured, tmp_path):
     from app import ai
     calls, answers = captured
-    answers.append({"title": "Wochentest", "questions": [{"nr": i, "type": "calc", "question": "x", "answer": "1", "points": 25} for i in range(4)]})
+    answers.append(valid_test())
     mats = [{"name": f"vl{i}.pdf", "title": f"VL {i}", "doc_type": "vorlesung", "difficulty": 3,
              "local_path": str(_pdf(tmp_path / f"vl{i}.pdf", 15)), "text": f"Text {i}"} for i in range(5)]
     mats.append({"name": "code.py", "title": "Code", "doc_type": "uebung", "local_path": None, "text": "def f(): pass"})
@@ -104,8 +112,8 @@ def test_weekly_test_page_budget_and_text_rest(captured, tmp_path):
 def test_weekly_test_falls_back_to_text(captured, tmp_path):
     from app import ai
     calls, answers = captured
-    answers += [{"title": "leer"}, {"title": "PDF nicht lesbar", "questions": [{"nr": 1}] * 5},       # zwei untaugliche PDF-Antworten
-                {"title": "Wochentest", "questions": [{"nr": 1, "points": 100}]}]
+    answers += [{"title": "leer"}, valid_test("PDF nicht lesbar"),       # zwei untaugliche PDF-Antworten
+                valid_test()]
     mats = [{"name": "vl.pdf", "local_path": str(_pdf(tmp_path / "vl.pdf", 3)), "text": "Grenzwerte"}]
     res = ai.generate_test("Mathe I", 45, mats)
     assert res["_input"] == "text" and "Grenzwerte" in calls[2]["prompt"] and calls[2]["cwd"] is None

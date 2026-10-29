@@ -8,7 +8,7 @@ import Foundation
 /// Schluessel bleibt mit seinen Erwartungswerten (fixtures/testshare/cases.json) gleich wie am PC, damit V2 ihn
 /// unveraendert nutzen kann.
 public enum TestShare {
-    public static let version = "wt1"
+    public static let version = "wt2"
     public static let minuteSteps = [15, 30, 45, 60, 90, 120]
 
     /// `minutes_bucket`: naechste feste Stufe; ohne Angabe oder 0 wie `int(minutes or 45)` die Stufe 45 (vorher

@@ -8,8 +8,8 @@ Der Schluessel haengt nur an Dingen, die fuer alle Studierenden gleich sind:
 Nicht im Schluessel: Modulname und Lehrwochen-Nummer (pro Nutzer verschieden einstellbar), Nutzer, Geraet.
 Wer eine andere Uebungsgruppe mit anderem Blatt hat, bekommt dadurch automatisch einen eigenen Test.
 
-Version "wt1": aendert sich der Aufbau eines Tests (Prompt, Format), wird die Version erhoeht, damit alte
-Tests nicht mit neuen vermischt werden. Dieselbe Berechnung steht fuer die iPad-App in
+Version: aendert sich der Aufbau eines Tests (Prompt, Format), wird sie erhoeht, damit alte Tests nicht mit neuen
+vermischt werden. "wt2" seit 29.10.2026: genau 15 Aufgaben (4 leicht, 6 mittel, 5 schwer), Altklausur im Schluessel. Dieselbe Berechnung steht fuer die iPad-App in
 packages/shared-contracts/fixtures/testshare/ (Erwartungswerte).
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ import hashlib
 import json
 from pathlib import Path
 
-VERSION = "wt1"
+VERSION = "wt2"
 MINUTE_STEPS = (15, 30, 45, 60, 90, 120)
 
 

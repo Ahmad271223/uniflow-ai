@@ -266,6 +266,22 @@ def _materials_for_test(conn, subject: str, limit: int = 8, module_id: int | Non
     return rows
 
 
+def _exam_for_test(conn, module_id: int | None) -> dict | None:
+    """Neueste Altklausur des Moduls (Analyse `klausur`) mit Text, fuer die Klausuraufgabe im Wochentest
+    (Entscheidung 29.10.2026); None ohne Modul oder Klausur."""
+    if not module_id:
+        return None
+    from . import study
+    exams = [f for f in study._file_rows(conn, module_id) if f.get("doc_type") == "klausur"]
+    if not exams:
+        return None
+    f = exams[-1]                                    # _file_rows ist nach chdate sortiert
+    p = db.row(conn, "SELECT text_excerpt, local_path, content_sha256 FROM files WHERE id=?", (f["id"],)) or {}
+    text = p.get("text_excerpt") or (extract_text(p["local_path"], 3500) if p.get("local_path") else "")
+    return {"id": f["id"], "name": f["name"], "title": f.get("ai_title"), "text": text,
+            "local_path": p.get("local_path"), "content_sha256": p.get("content_sha256")}
+
+
 def create_test(subject: str, duration_min: int | None = None, week_start: date | None = None, log=print,
                 module_id: int | None = None, week_no: int | None = None, auto: bool = False) -> int:
     """Erstellt einen Test. auto=True: gemeinsamer Wochentest des Moduls fuer die Lehrwoche (hoechstens einer)."""
@@ -283,9 +299,11 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
             m = db.row(conn, "SELECT test_minutes FROM modules WHERE id=?", (module_id,)) if module_id else None
             duration_min = int((m or {}).get("test_minutes") or s["test_minutes"])
         mats = _materials_for_test(conn, subject, module_id=module_id, week_no=week_no)
-        # Gemeinsamer Wochentest: gleiche Materialien (Inhalt) + gleiche Dauer -> derselbe Test, ohne neue KI-Anfrage
+        exam = _exam_for_test(conn, module_id)
+        # Gemeinsamer Wochentest: gleiche Materialien (Inhalt) + gleiche Dauer -> derselbe Test, ohne neue KI-Anfrage;
+        # die Altklausur gehoert mit in den Schluessel (sie praegt eine Aufgabe)
         from . import testshare, universities
-        key = testshare.share_key(universities.current_key(), duration_min, mats) if (auto and mats) else None
+        key = testshare.share_key(universities.current_key(), duration_min, mats + ([exam] if exam else [])) if (auto and mats) else None
         shared = testshare.lookup_local(conn, key) if key else None
     if not mats:
         raise RuntimeError(f"Keine Materialien fuer {subject}")
@@ -294,7 +312,7 @@ def create_test(subject: str, duration_min: int | None = None, week_start: date 
         res = {"title": re.sub(r"^Lehrwoche \d+:\s*", "", shared["title"] or ""), "questions": json.loads(shared["questions"] or "[]")}
         log(f"Gemeinsamer Wochentest wiederverwendet ({key[:16]}…)")
     else:
-        res = ai.generate_test(subject, duration_min, mats)
+        res = ai.generate_test(subject, duration_min, mats, exam=exam)
     title = res.get("title") or f"Wochentest {subject}"
     if week_no:
         title = f"Lehrwoche {week_no}: " + title.replace(f"Wochentest {subject}", "").strip(" –-:") or title

@@ -5,7 +5,7 @@ denselben Wochentest**. Nicht jeder bekommt einen eigenen.
 
 ## Regel
 
-Ein Wochentest wird durch einen **gemeinsamen Schlüssel** beschrieben (`app/testshare.py`, Version `wt1`):
+Ein Wochentest wird durch einen **gemeinsamen Schlüssel** beschrieben (`app/testshare.py`, Version `wt2` seit 29.10.2026: 15 Aufgaben 4/6/5, Altklausur im Schlüssel):
 
 | Teil des Schlüssels | Warum |
 | --- | --- |

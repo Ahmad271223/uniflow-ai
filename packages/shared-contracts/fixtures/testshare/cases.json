@@ -1,5 +1,5 @@
 {
- "version": "wt1",
+ "version": "wt2",
  "minute_steps": [
   15,
   30,
@@ -8,7 +8,7 @@
   90,
   120
  ],
- "canonical": "sha256(JSON mit sortierten Schluesseln, ohne Leerzeichen: {materials: sortierte eindeutige Inhalts-Hashes, minutes: Stufe, uni, v}), Ergebnis 'wt1:' + hex",
+ "canonical": "sha256(JSON mit sortierten Schluesseln, ohne Leerzeichen: {materials: sortierte eindeutige Inhalts-Hashes, minutes: Stufe, uni, v}), Ergebnis 'wt2:' + hex",
  "cases": [
   {
    "name": "VL + Blatt A, 45 min",
@@ -18,7 +18,7 @@
     "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
     "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36"
    ],
-   "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
+   "expected_key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5"
   },
   {
    "name": "gleiche Materialien, andere Reihenfolge, 40 min (gleiche Stufe)",
@@ -28,7 +28,7 @@
     "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36",
     "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f"
    ],
-   "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
+   "expected_key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5"
   },
   {
    "name": "andere Uebungsgruppe",
@@ -38,7 +38,7 @@
     "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
     "924ed833cb5d5d08e79df1e626ff9f1e0c5ee56cb27c1f925591c04eefa4eddf"
    ],
-   "expected_key": "wt1:8b2b26d49504376f3890e7201447700859f6346ec1acb935f5b804ded5c98b4f"
+   "expected_key": "wt2:e896f9e8589db9e8484bfcf2c3428d1cd45c0dde290162b5937ab29166aea243"
   },
   {
    "name": "andere Uni",
@@ -48,7 +48,7 @@
     "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
     "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36"
    ],
-   "expected_key": "wt1:61ced5e02df59dc1dc928f99ef59baef4103881d40ab9553ef6ae5ec8eaba079"
+   "expected_key": "wt2:9accbdb384d7a56fb42b19f887f5c1283327cd64d522ba5f306c8a66b1fb9794"
   },
   {
    "name": "Dauer 60",
@@ -58,7 +58,7 @@
     "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
     "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36"
    ],
-   "expected_key": "wt1:e3dade83cf57cf11c46f3ab8f0cdacec398dd54ba4725c071564721e6085e6a9"
+   "expected_key": "wt2:aa61362094bd160b1b83547d739113e9e25682de836937f29b0098315bfe7855"
   },
   {
    "name": "doppelte Datei zaehlt einmal",
@@ -69,7 +69,7 @@
     "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36",
     "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f"
    ],
-   "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
+   "expected_key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5"
   },
   {
    "name": "Dauer 0 gilt als 45 (int(minutes or 45))",
@@ -79,7 +79,7 @@
     "f101a01cd85897c881d6871d9b49004de97922ba01b92b5f36176dfab27c134f",
     "343f0bcd6973f724316d673bda4b45338b78ca1e2590e299626b8da8ad3e5b36"
    ],
-   "expected_key": "wt1:a95ef67247d0d1703976c081e4308ad3fcd9902cce643821583f38562d91a184"
+   "expected_key": "wt2:ed2997c927f085c7fc9184b87665fd89f47cd11633c4624c0bae918a0726f3a5"
   }
  ]
 }

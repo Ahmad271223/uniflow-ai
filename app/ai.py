@@ -208,6 +208,13 @@ ANALYSIS_FIELDS = """Gib ein JSON-Objekt mit genau diesen Feldern zurueck:
 }"""
 
 
+def analysis_prompt(course_title: str, file_name: str, text: str) -> str:
+    """Prompt der Analyse aus dem Text der Datei (auch die Geraete-Kerne, Vertrag packages/shared-contracts/ai)."""
+    head = f'Analysiere diese Lernunterlage aus dem Kurs "{course_title}".\nDateiname: {file_name}\n\n'
+    return (head + ANALYSIS_FIELDS + "\n\nInhalt (ggf. gekuerzt):\n<<<\n"
+            + (text if text.strip() else "[kein Text extrahierbar - schaetze anhand des Dateinamens]") + "\n>>>")
+
+
 def analyze_file(course_title: str, file_name: str, text: str, pdf_path: str | None = None) -> dict:
     """Analyse mit dem Material-Modell (Standard Haiku 5.5). PDFs werden als Seiten gelesen; scheitert das,
     wird mit dem extrahierten Text analysiert."""
@@ -223,9 +230,7 @@ def analyze_file(course_title: str, file_name: str, text: str, pdf_path: str | N
             except Exception as e:  # noqa: BLE001
                 _log(f"PDF-Analyse fehlgeschlagen ({file_name}, Versuch {attempt + 1}): {e}")
         _log(f"PDF-Analyse: Rueckfall auf Text ({file_name})")
-    prompt = (head + ANALYSIS_FIELDS + "\n\nInhalt (ggf. gekuerzt):\n<<<\n"
-              + (text if text.strip() else "[kein Text extrahierbar - schaetze anhand des Dateinamens]") + "\n>>>")
-    res = parse_json(ask(prompt, SYSTEM, model=CLAUDE_MODEL_MATERIAL))
+    res = parse_json(ask(analysis_prompt(course_title, file_name, text), SYSTEM, model=CLAUDE_MODEL_MATERIAL))
     if isinstance(res, dict):
         res["_input"] = "text"
     return res
@@ -237,9 +242,14 @@ def analyze_file(course_title: str, file_name: str, text: str, pdf_path: str | N
 
 def build_week_plan(week_start: date, materials: list[dict], subjects: list[dict], settings: dict,
                     carry_over: list[dict], today: date | None = None) -> dict:
+    return parse_json(ask(week_plan_prompt(week_start, materials, subjects, settings, carry_over, today or date.today()), SYSTEM))
+
+
+def week_plan_prompt(week_start: date, materials: list[dict], subjects: list[dict], settings: dict,
+                     carry_over: list[dict], today: date) -> str:
+    """Prompt des KI-Wochenplans (auch die Geraete-Kerne, Vertrag packages/shared-contracts/ai)."""
     days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
     free = ", ".join(days[d] for d in settings["free_days"]) or "keine"
-    today = today or date.today()
     past_note = ""
     if week_start <= today <= week_start + timedelta(days=6):
         past_note = f"- Heute ist {days[today.weekday()]}, der {today.isoformat()}. Tage vor heute NICHT belegen.\n"
@@ -283,7 +293,7 @@ Gib ein JSON-Objekt zurueck:
   ]
 }}
 day: 0=Montag ... 6=Sonntag. Keine Ueberschneidungen am gleichen Tag."""
-    return parse_json(ask(prompt, SYSTEM))
+    return prompt
 
 
 # ----------------------------------------------------------------------------
@@ -341,32 +351,80 @@ def tutor_prompt(mode: str, page_text: str, selection: str = "", question: str =
 # 3) Test erzeugen und bewerten
 # ----------------------------------------------------------------------------
 
-def _test_prompt(subject: str, duration_min: int, mats_block: str) -> str:
-    n_q = 8 if duration_min <= 60 else 12
+# Wochentest (Entscheidung des Inhabers vom 29.10.2026, docs/ENTSCHEIDUNGEN-INHABER-2026-10-29.md): jedes Modul,
+# aus allen Folien der Woche, genau 15 Aufgaben mit genau dieser Verteilung; gibt es eine Altklausur, ist eine der
+# schweren Aufgaben im Stil der Klausur. Antworten in anderer Form werden verworfen und einmal neu angefordert.
+WEEK_TEST_DIFFICULTY = {"leicht": 4, "mittel": 6, "schwer": 5}
+WEEK_TEST_TOTAL = sum(WEEK_TEST_DIFFICULTY.values())
+WEEK_TEST_TYPES = ("mc", "short", "calc")
+
+
+def _test_prompt(subject: str, duration_min: int, mats_block: str, exam_block: str = "") -> str:
+    exam = ("\nAltklausur des Moduls (Ausschnitt). Genau EINE der 5 schweren Aufgaben ist im Stil dieser Klausur "
+            "(Aufbau, Umfang, Art der Fragestellung) und hat \"exam_style\": true; alle anderen \"exam_style\": false:\n"
+            + exam_block + "\n") if exam_block.strip() else ""
     return f"""Erstelle einen Wochentest fuer das Fach "{subject}" mit einer Bearbeitungszeit von {duration_min} Minuten.
-Etwa {n_q} Aufgaben, Mischung aus Multiple-Choice (genau eine richtige Antwort), Kurzantwort und Rechen-/Programmieraufgaben.
-Schwierigkeit gemischt (leicht bis klausurnah). Aufgaben muessen sich auf die Materialien beziehen.
+Genau {WEEK_TEST_TOTAL} Aufgaben: genau {WEEK_TEST_DIFFICULTY["leicht"]} leicht, genau {WEEK_TEST_DIFFICULTY["mittel"]} mittel und genau {WEEK_TEST_DIFFICULTY["schwer"]} schwer (schwer = klausurnah).
+Mischung aus Multiple-Choice (genau eine richtige Antwort), Kurzantwort und Rechen-/Programmieraufgaben.
+Die Aufgaben muessen sich auf die Materialien dieser Woche beziehen und alle Materialien abdecken.
 Rechne jede Musterloesung selbst nach. Punkte insgesamt = 100.
 
 Materialien dieser Woche:
 {mats_block}
-
+{exam}
 Gib ein JSON-Objekt zurueck:
 {{
   "title": "Wochentest {subject} – Thema(n)",
   "questions": [
-    {{"nr": 1, "type": "mc" | "short" | "calc", "question": "Aufgabentext (LaTeX-frei, Formeln als Text)",
+    {{"nr": 1, "type": "mc" | "short" | "calc", "difficulty": "leicht" | "mittel" | "schwer",
+      "question": "Aufgabentext (LaTeX-frei, Formeln als Text)",
       "options": ["A ...", "B ...", "C ...", "D ..."],   // nur bei mc
       "answer": "Musterloesung / richtige Option",
-      "points": Zahl}}
+      "points": Zahl, "exam_style": false}}
   ]
 }}"""
 
 
-def generate_test(subject: str, duration_min: int, materials: list[dict]) -> dict:
+def check_week_test(res, exam: bool = False) -> str | None:
+    """Prueft einen erzeugten Wochentest gegen die Regel vom 29.10.2026; None = in Ordnung, sonst der Grund."""
+    if not isinstance(res, dict):
+        return "keine JSON-Objekt-Antwort"
+    qs = res.get("questions")
+    if not isinstance(qs, list) or len(qs) != WEEK_TEST_TOTAL:
+        return f"{len(qs) if isinstance(qs, list) else 0} statt {WEEK_TEST_TOTAL} Aufgaben"
+    counts = {k: 0 for k in WEEK_TEST_DIFFICULTY}
+    for i, q in enumerate(qs, 1):
+        if not isinstance(q, dict):
+            return f"Aufgabe {i} ist kein Objekt"
+        d = q.get("difficulty")
+        if d not in counts:
+            return f"Aufgabe {i} ohne gueltige Schwierigkeit"
+        counts[d] += 1
+        if q.get("type") not in WEEK_TEST_TYPES:
+            return f"Aufgabe {i} mit unbekanntem Typ"
+        if not str(q.get("question") or "").strip() or not str(q.get("answer") or "").strip():
+            return f"Aufgabe {i} ohne Text oder Musterloesung"
+        if q["type"] == "mc" and (not isinstance(q.get("options"), list) or len(q["options"]) < 2):
+            return f"Aufgabe {i} (Multiple-Choice) ohne Antwortmoeglichkeiten"
+        if isinstance(q.get("points"), bool) or not isinstance(q.get("points"), (int, float)) or q["points"] <= 0:
+            return f"Aufgabe {i} ohne Punkte"
+    if counts != WEEK_TEST_DIFFICULTY:
+        return "Verteilung " + ", ".join(f"{counts[k]} {k}" for k in WEEK_TEST_DIFFICULTY) + " statt 4 leicht, 6 mittel, 5 schwer"
+    styled = [q for q in qs if q.get("exam_style") is True]
+    if exam and (len(styled) != 1 or styled[0].get("difficulty") != "schwer"):
+        return "nicht genau eine schwere Aufgabe im Stil der Altklausur"
+    if not exam and styled:
+        return "Aufgabe im Stil einer Altklausur ohne Altklausur"
+    return None
+
+
+def generate_test(subject: str, duration_min: int, materials: list[dict], exam: dict | None = None) -> dict:
     """Wochentest mit dem Material-Modell (Standard Haiku 5.5). PDF-Materialien werden als Seiten gelesen
-    (je Datei hoechstens PDF_PAGES_PER_MATERIAL, zusammen PDF_PAGES_TOTAL); Rueckfall auf Text bei Fehlern."""
+    (je Datei hoechstens PDF_PAGES_PER_MATERIAL, zusammen PDF_PAGES_TOTAL); Rueckfall auf Text bei Fehlern.
+    exam: Altklausur des Moduls ({title, name, text}); dann ist eine schwere Aufgabe im Stil der Klausur.
+    Jede Antwort muss `check_week_test` bestehen; je Weg ein zweiter Versuch, sonst AIError."""
     label = lambda m: f"{m.get('title') or m.get('name')} ({m.get('doc_type')}, Schwierigkeit {m.get('difficulty')})"
+    exam_block = f"### {exam.get('title') or exam.get('name')}\n{(exam.get('text') or '')[:3500]}" if exam else ""
     pdf_mats, budget = [], PDF_PAGES_TOTAL
     for m in materials:
         if is_pdf(m.get("local_path")) and budget > 0:
@@ -379,23 +437,34 @@ def generate_test(subject: str, duration_min: int, materials: list[dict]) -> dic
             f"\n\n### {label(m)}\n{(m.get('text') or '')[:3500]}" for m in others) if others else "")
         for attempt in range(2):
             try:
-                res = parse_json(ask_pdf(_test_prompt(subject, duration_min, block), SYSTEM,
+                res = parse_json(ask_pdf(_test_prompt(subject, duration_min, block, exam_block), SYSTEM,
                                          [(m["local_path"], take) for m, take in pdf_mats], labels=[label(m) for m, _ in pdf_mats]))
-                if isinstance(res, dict) and len(res.get("questions") or []) >= 3 and not UNREADABLE.search(str(res.get("title") or "")):
+                why = check_week_test(res, exam=bool(exam_block))
+                if why is None and not UNREADABLE.search(str(res.get("title") or "")):
                     res["_input"] = "pdf"
                     return res
-                _log(f"PDF-Wochentest ohne gueltiges Ergebnis ({subject}, Versuch {attempt + 1})")
+                _log(f"PDF-Wochentest ohne gueltiges Ergebnis ({subject}, Versuch {attempt + 1}): {why or 'nicht lesbar'}")
             except Exception as e:  # noqa: BLE001
                 _log(f"PDF-Wochentest fehlgeschlagen ({subject}, Versuch {attempt + 1}): {e}")
         _log(f"PDF-Wochentest: Rueckfall auf Text ({subject})")
     block = "\n\n".join(f"### {label(m)}\n{(m.get('text') or '')[:3500]}" for m in materials)
-    res = parse_json(ask(_test_prompt(subject, duration_min, block), SYSTEM, model=CLAUDE_MODEL_MATERIAL))
-    if isinstance(res, dict):
-        res["_input"] = "text"
-    return res
+    why = None
+    for attempt in range(2):
+        res = parse_json(ask(_test_prompt(subject, duration_min, block, exam_block), SYSTEM, model=CLAUDE_MODEL_MATERIAL))
+        why = check_week_test(res, exam=bool(exam_block))
+        if why is None:
+            res["_input"] = "text"
+            return res
+        _log(f"Wochentest ohne gueltige Form ({subject}, Versuch {attempt + 1}): {why}")
+    raise AIError(f"Die KI hat den Wochentest zweimal nicht in der geforderten Form geliefert ({why}). Bitte spaeter erneut versuchen.")
 
 
 def grade_test(subject: str, questions: list[dict], answers: dict) -> dict:
+    return parse_json(ask(grade_prompt(subject, questions, answers), SYSTEM))
+
+
+def grade_prompt(subject: str, questions: list[dict], answers: dict) -> str:
+    """Prompt der Bewertung eines Tests (auch die Geraete-Kerne, Vertrag packages/shared-contracts/ai)."""
     qa = []
     for q in questions:
         nr = str(q["nr"])
@@ -414,4 +483,4 @@ Gib ein JSON-Objekt zurueck:
   "summary": "3-4 Saetze Gesamtfeedback mit konkreten Lernempfehlungen",
   "weak_topics": ["Thema", ...]
 }}"""
-    return parse_json(ask(prompt, SYSTEM))
+    return prompt

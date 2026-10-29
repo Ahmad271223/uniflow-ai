@@ -63,7 +63,7 @@ def two_modules_same_course(app, tmp_path, monkeypatch):
 
     calls = []
 
-    def fake_generate(subject, minutes, materials):
+    def fake_generate(subject, minutes, materials, exam=None):
         calls.append(subject)
         return {"title": f"Wochentest {subject}", "questions": [{"q": f"Frage aus {subject}", "points": 1}]}
 
