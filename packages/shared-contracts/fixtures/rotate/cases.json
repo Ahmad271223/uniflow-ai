@@ -1,0 +1,47 @@
+{
+  "about": "Seite drehen ohne Verrutschen (P0-7). Referenz app/static/pagerotate.js (rotateObjects), Swift: UniFlowCore/PageRotation.swift. width/height = angezeigte Seite vor dem Drehen, deg im Uhrzeigersinn. Je 90 Grad: Ursprung (x, y) -> (H - y, x), rotation + 90; alle anderen Felder bleiben. x/y auf 2 Nachkommastellen (Math.round), rotation in [0, 360).",
+  "cases": [
+    {
+      "name": "Strich A4 hoch, 90 Grad",
+      "width": 595, "height": 842, "deg": 90,
+      "objects": [{"id": "s1", "type": "stroke", "tool": "pen", "color": "#e5322d", "width": 2.2, "opacity": 1, "points": [100, 100, 200, 150], "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1}],
+      "expect": [{"id": "s1", "type": "stroke", "tool": "pen", "color": "#e5322d", "width": 2.2, "opacity": 1, "points": [100, 100, 200, 150], "x": 842, "y": 0, "rotation": 90, "scaleX": 1, "scaleY": 1}]
+    },
+    {
+      "name": "Textfeld verschoben und gedreht, 90 Grad, unbekannte Felder bleiben",
+      "width": 595, "height": 842, "deg": 90,
+      "objects": [{"id": "t1", "type": "text", "text": "Hallo", "x": 40.5, "y": 120.25, "width": 220, "rotation": 300, "scaleX": 1.5, "scaleY": 0.5, "source": "ipad", "zukunft": {"a": 1}}],
+      "expect": [{"id": "t1", "type": "text", "text": "Hallo", "x": 721.75, "y": 40.5, "width": 220, "rotation": 30, "scaleX": 1.5, "scaleY": 0.5, "source": "ipad", "zukunft": {"a": 1}}]
+    },
+    {
+      "name": "Rechteck quer (842 x 595), 180 Grad",
+      "width": 842, "height": 595, "deg": 180,
+      "objects": [{"id": "r1", "type": "shape", "shape": "rect", "x": 10, "y": 20, "width": 100, "height": 50, "rotation": 0, "scaleX": 1, "scaleY": 1}],
+      "expect": [{"id": "r1", "type": "shape", "shape": "rect", "x": 832, "y": 575, "width": 100, "height": 50, "rotation": 180, "scaleX": 1, "scaleY": 1}]
+    },
+    {
+      "name": "Bild ohne x/y/rotation, 270 Grad",
+      "width": 595, "height": 842, "deg": 270,
+      "objects": [{"id": "i1", "type": "image", "src": "/api/files/f/assets/a.png", "width": 80, "height": 60}],
+      "expect": [{"id": "i1", "type": "image", "src": "/api/files/f/assets/a.png", "width": 80, "height": 60, "x": 0, "y": 595, "rotation": 270}]
+    },
+    {
+      "name": "viermal 90 Grad = unveraendert (bis auf Rundung)",
+      "width": 595, "height": 842, "deg": 360,
+      "objects": [{"id": "s2", "type": "stroke", "points": [1, 2, 3, 4], "x": 5.5, "y": 6.25, "rotation": 45, "scaleX": 1, "scaleY": 1}],
+      "expect": [{"id": "s2", "type": "stroke", "points": [1, 2, 3, 4], "x": 5.5, "y": 6.25, "rotation": 45, "scaleX": 1, "scaleY": 1}]
+    },
+    {
+      "name": "Rundung auf 2 Stellen, ausserhalb der Seite",
+      "width": 595.3, "height": 841.89, "deg": 90,
+      "objects": [{"id": "m1", "type": "shape", "shape": "rect", "markup": "highlight", "x": -12.347, "y": 900.123, "width": 10, "height": 5, "rotation": 0, "scaleX": 1, "scaleY": 1}],
+      "expect": [{"id": "m1", "type": "shape", "shape": "rect", "markup": "highlight", "x": -58.23, "y": -12.35, "width": 10, "height": 5, "rotation": 90, "scaleX": 1, "scaleY": 1}]
+    },
+    {
+      "name": "Objekte ohne Feld id oder kein Objekt bleiben erhalten",
+      "width": 100, "height": 200, "deg": 90,
+      "objects": [{"type": "stroke", "points": [0, 0, 1, 1]}, 7],
+      "expect": [{"type": "stroke", "points": [0, 0, 1, 1], "x": 200, "y": 0, "rotation": 90}, 7]
+    }
+  ]
+}

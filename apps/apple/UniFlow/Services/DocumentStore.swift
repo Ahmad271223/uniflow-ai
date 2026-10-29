@@ -812,15 +812,21 @@ final class DocumentStore: ObservableObject {
         }
     }
 
-    /// Seite um 90 Grad drehen (wie "Drehen" im Web-Editor; Notizen behalten ihre Koordinaten).
+    /// Seite um 90 Grad drehen wie "Drehen" im Web-Editor; die Notizen drehen mit und bleiben auf demselben Inhalt
+    /// (P0-7, `PageOrder.rotate`), die native Zeichnung ebenso (`StrokeConverter.rotatedNative`).
     func rotatePage(key: String) async {
-        guard isWritable else { return }
-        await updateMeta { meta in
-            var order = meta["pageOrder"]?.array ?? []
-            guard let i = order.firstIndex(where: { $0["key"]?.string == key }) else { return }
-            let r = (order[i]["rotation"]?.int ?? 0) + 90
-            order[i]["rotation"] = .number(Double(DisplayLayout.normalized(r)))
-            meta["pageOrder"] = .array(order)
+        guard isWritable, let i = layout?.index(ofKey: key), let shown = layout?.pdf.page(at: i)
+            .map({ PageGeometry(boxSize: $0.bounds(for: .cropBox).size, rotation: $0.rotation).pageSize }) else { return }
+        _ = await applyPageStructure { doc in
+            let before = doc.objects(page: key)
+            guard let change = PageOrder.rotate(&doc, key: key, shownWidth: Double(shown.width),
+                                                shownHeight: Double(shown.height)) else { return nil }
+            if change.changedPageKeys.contains(key), let page = doc.page(key) {
+                let t = PageRotation.transform(width: Double(shown.width), height: Double(shown.height))
+                doc.pages[key] = StrokeConverter.rotatedNative(page: page, objectsBefore: before,
+                                                               transform: CGAffineTransform(a: t.a, b: t.b, c: t.c, d: t.d, tx: t.tx, ty: t.ty))
+            }
+            return change
         }
     }
 

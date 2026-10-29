@@ -117,6 +117,26 @@ public enum PageOrder {
         return Change(focusKey: newKey, changedPageKeys: changed)
     }
 
+    // MARK: Drehen
+
+    /// Seite um `degrees` (Vielfaches von 90) im Uhrzeigersinn drehen, wie `rotatePage` im Web-Editor: `rotation` im
+    /// Eintrag von `pageOrder`, die Objekte der Seite drehen mit (P0-7, `PageRotation`), damit sie auf demselben Inhalt
+    /// bleiben. `shownWidth` x `shownHeight` = angezeigte Seite vor dem Drehen. Andere Felder der Seite bleiben; die
+    /// native Zeichnung (`pkdrawing`) rechnet das iPad selbst um (sonst wird sie wie gewohnt aus den Objekten gebaut).
+    @discardableResult
+    public static func rotate(_ doc: inout AnnotationDocument, key: String, shownWidth: Double, shownHeight: Double,
+                              degrees: Int = 90) -> Change? {
+        var order = doc.pageOrder
+        guard let i = index(of: key, in: order) else { return nil }
+        order[i]["rotation"] = .number(Double(SolutionGeometry.normalized((order[i]["rotation"]?.int ?? 0) + degrees)))
+        doc.root["pageOrder"] = .array(order)
+        let objects = doc.objects(page: key)
+        guard !objects.isEmpty, var page = doc.page(key) else { return Change(focusKey: key, changedPageKeys: []) }
+        page["objects"] = .array(PageRotation.rotate(objects, width: shownWidth, height: shownHeight, degrees: degrees))
+        doc.pages[key] = page
+        return Change(focusKey: key, changedPageKeys: [key])
+    }
+
     // MARK: Papierkorb
 
     /// Seite in den Papierkorb legen. Die letzte verbliebene Seite bleibt (wie im Web-Editor).

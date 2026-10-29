@@ -413,3 +413,39 @@ Pause; ihre Dauer (M1) senkt erst Schritt 4. Am Gerät: Abnahmeliste 18.1–18.3
   zum Ansehen. Zeigt es das Dokument nicht mehr, übernimmt das neue Fenster; das alte sichert vorher Ausstehendes und
   schreibt danach nichts mehr. Gegenprobe ohne Verzeichnis: das zweite Fenster ersetzt die Seite des ersten im
   Journal.
+
+## 9. Nachtrag Schritt 3: Drehen ohne Verrutschen (P0-7) und fremde Zeichnung (P0-8)
+
+Stand 29.10.2026, Zweig `wip/editor-3`.
+
+**P0-7.** Notizobjekte stehen in Punkten der angezeigten Seite. Beim Drehen um 90 Grad im Uhrzeigersinn wird jedes
+Objekt als Ganzes mitgedreht: Ursprung (x, y) einer Seite mit angezeigter Größe W × H → (H − y, x), Drehung + 90 Grad;
+Punkte, Breite, Höhe, Maßstab und unbekannte Felder bleiben. Eine Regel für alle Objektarten (Striche, Formen, Text,
+Bilder, Textmarker), weil Konva und `StrokeConverter.stroke(from:)` dieselbe Reihenfolge rechnen (skalieren, drehen,
+verschieben).
+
+- Web: `app/static/pagerotate.js` (`rotateObjects`), eingebunden in `rotatePage`. Rückgängig dreht jetzt Seite **und**
+  Notizen zurück (vorher stellte `restorePages` nur die Seitenliste wieder her).
+- iPad: `PageRotation.rotate` und `PageOrder.rotate` im Kern, `DocumentStore.rotatePage` über `applyPageStructure`
+  (ausstehende Striche zuerst verarbeitet, ein Schreibvorgang für Seite und Seitenliste). Die native Zeichnung dreht
+  mit derselben Abbildung mit (`StrokeConverter.rotatedNative`); neue Signaturen nur für Striche, deren Signatur vor
+  dem Drehen gültig war.
+- Gemeinsame Fälle: `packages/shared-contracts/fixtures/rotate/cases.json` (Web: `tests/js/rotate.test.mjs`, Kern:
+  `SharedFixtureTests`). Node ist auf dem Mac nicht installiert; die Fälle liefen gegen `pagerotate.js` mit
+  JavaScriptCore (`jsc -m`), alle 7 gleich.
+- Dreht der Browser eine Seite, kann er `pkdrawing` nicht mitdrehen: die Signaturen passen dann nicht mehr, und das
+  iPad baut die Striche aus dem JSON auf (wie bei jeder Browser-Änderung an einem Strich).
+- Android (`apps/android/core`) dreht noch ohne Objekte; gleiche Fixture verwenden, sobald dort gedreht wird.
+
+**P0-8.** Kann dieses Gerät die gespeicherte native Zeichnung nicht vollständig lesen (nicht dekodierbar, Strichzahl
+passt nicht zu den IDs, unbekanntes Format oder `requiredContentVersion` über dem, was das laufende iPadOS kann:
+iOS 17 → 2, 17.5 → 3, 26 → 4, 27 → 5; nicht `PKContentVersion.latest`, das ist der Stand des SDK), zeigt es den
+Aufbau aus den Objekten und lässt `pkdrawing` beim Speichern bytegleich stehen (`InkPageState.keepsForeignNative`).
+Das andere Gerät behält für unveränderte Striche sein Pinselbild (v2 prüft je Strich). Preis: auf diesem Gerät wird
+die eigene native Zeichnung der Seite so lange nicht gespeichert; seine Striche erscheinen nach dem Wiederöffnen im
+JSON-Aufbau. Ob `PKDrawing(data:)` neuere Inhalte wirft oder still verkürzt, ist ungeprüft (beides ist abgedeckt);
+Gerätetest 19.5.
+
+**Tests.** `EditorStep3Tests` (6, App), `PageOrderTests` (+3) und `SharedFixtureTests.testRotateCasesMatchWebEditor`
+(Kern). Gegenprobe: ohne Mitdrehen der Objekte bzw. ohne Durchreichen werden 3 der 6 App-Tests rot.
+

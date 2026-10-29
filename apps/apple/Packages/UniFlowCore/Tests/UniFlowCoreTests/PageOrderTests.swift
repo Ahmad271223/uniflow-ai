@@ -62,6 +62,51 @@ final class PageOrderTests: XCTestCase {
 
     // MARK: Papierkorb
 
+    // MARK: Drehen (P0-7)
+
+    func testRotateTurnsEntryAndObjectsAndKeepsOtherFields() throws {
+        var d = try doc(#"""
+        {"version":2,"pages":{"p1":{"objects":[{"id":"t1","type":"text","x":40.5,"y":120.25,"rotation":0}],"pkdrawing":{"data":"QUJD","objectsSig":"sig"},"extra":1}},
+         "pageOrder":[{"key":"p1","type":"pdf","index":1,"rotation":270}]}
+        """#)
+        let c = PageOrder.rotate(&d, key: "p1", shownWidth: 842, shownHeight: 595)
+        XCTAssertEqual(c, PageOrder.Change(focusKey: "p1", changedPageKeys: ["p1"]))
+        XCTAssertEqual(d.pageOrder[0]["rotation"]?.int, 0, "270 + 90 = 0")
+        let t = try XCTUnwrap(d.objects(page: "p1").first)
+        XCTAssertEqual(t["x"]?.double, 474.75)
+        XCTAssertEqual(t["y"]?.double, 40.5)
+        XCTAssertEqual(t["rotation"]?.double, 90)
+        XCTAssertEqual(d.page("p1")?["extra"], 1)
+        XCTAssertEqual(d.page("p1")?["pkdrawing"]?["data"], "QUJD", "native Zeichnung rechnet das iPad selbst um")
+    }
+
+    func testRotateEmptyPageChangesOnlyTheEntryAndUnknownKeyNothing() throws {
+        var d = try threePages()
+        let before = d.page("p1")
+        XCTAssertEqual(PageOrder.rotate(&d, key: "p1", shownWidth: 595, shownHeight: 842),
+                       PageOrder.Change(focusKey: "p1", changedPageKeys: []))
+        XCTAssertEqual(d.pageOrder[0]["rotation"]?.int, 90)
+        XCTAssertEqual(d.page("p1"), before)
+        let snapshot = d.root
+        XCTAssertNil(PageOrder.rotate(&d, key: "fehlt", shownWidth: 1, shownHeight: 1))
+        XCTAssertEqual(d.root, snapshot)
+    }
+
+    func testRotatingFourTimesRestoresTheObjects() throws {
+        var d = try threePages()
+        let before = d.objects(page: "p2")
+        for _ in 0..<4 {
+            let shown = d.pageOrder[1]["rotation"]?.int.map { $0 % 180 == 0 } ?? true ? (842.0, 595.0) : (595.0, 842.0)
+            PageOrder.rotate(&d, key: "p2", shownWidth: shown.0, shownHeight: shown.1)
+        }
+        XCTAssertEqual(d.pageOrder[1]["rotation"]?.int, 90)
+        let after = d.objects(page: "p2")
+        XCTAssertEqual(after.first?["id"], before.first?["id"])
+        XCTAssertEqual(after.first?["x"]?.double, 0)
+        XCTAssertEqual(after.first?["y"]?.double, 0)
+        XCTAssertEqual(after.first?["rotation"]?.double, 0)
+    }
+
     func testTrashMovesEntryWithObjectsIntoDeletedPages() throws {
         var d = try threePages()
         let now = Date(timeIntervalSince1970: 1_700_000_000.5)

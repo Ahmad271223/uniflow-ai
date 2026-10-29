@@ -2,6 +2,7 @@
 // Koordinaten: alle Objekte in Seiteneinheiten (PDF-Punkte bei Zoom 1); Stage wird mit dem Zoom skaliert.
 import { icon } from "./icons.js?v=31";
 import { mergeDocument } from "./merge.js?v=30";
+import { rotateObjects } from "./pagerotate.js?v=1";
 import { FORMATS, WHITEBOARDS, formatSize, formatOf, sizeLabel, validSize } from "./formats.js?v=30";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -572,14 +573,14 @@ export class PdfEditor {
   // ---------------------------------------------------------------- Historie & Speichern
   snapshot(pg) { return JSON.stringify(this.model.pages[pg.key].objects); }
   commit(pg, before) { const after = this.snapshot(pg); if (before === after) return; this.history.push({ key: pg.key, before, after }); if (this.history.length > 150) this.history.shift(); this.future = []; this.markDirty(); }
-  commitPages(before) { const after = JSON.stringify({ o: this.model.pageOrder, p: Object.keys(this.model.pages), d: this.model.deletedPages }); this.history.push({ pages: true, before, after, snapPages: JSON.parse(JSON.stringify(this.model.pages)) }); this.future = []; this.markDirty(); }
+  commitPages(before, objs) { const after = JSON.stringify({ o: this.model.pageOrder, p: Object.keys(this.model.pages), d: this.model.deletedPages }); this.history.push({ pages: true, before, after, objs, snapPages: JSON.parse(JSON.stringify(this.model.pages)) }); this.future = []; this.markDirty(); }
   pagesSnap() { return JSON.stringify({ o: this.model.pageOrder, p: Object.keys(this.model.pages), d: this.model.deletedPages }); }
   undo() { const h = this.history.pop(); if (!h) return; this.future.push(h); if (h.addJson) return this.unAdd(h); h.pages ? this.restorePages(h, "before") : this.restore(h.key, h.before); }
   redo() { const h = this.future.pop(); if (!h) return; this.history.push(h); if (h.addJson) return this.reAdd(h); h.pages ? this.restorePages(h, "after") : this.restore(h.key, h.after); }
   unAdd(h) { const objs = this.model.pages[h.key]?.objects; if (!objs) return; const i = objs.findIndex(x => x.id === h.id); if (i >= 0) objs.splice(i, 1); const pg = this.pages.find(x => x.key === h.key); if (pg?.mounted) { this.clearSelection(); pg.layer.find(".obj").filter(n => n.getAttr("obj")?.id === h.id).forEach(n => n.destroy()); pg.layer.batchDraw(); } this.markDirty(); }
   reAdd(h) { const objs = this.model.pages[h.key]?.objects; if (!objs) return; const o = JSON.parse(h.addJson); objs.push(o); const pg = this.pages.find(x => x.key === h.key); if (pg?.mounted) { this.addNode(pg, o); pg.layer.batchDraw(); } this.markDirty(); }
   restore(key, json) { this.model.pages[key].objects = JSON.parse(json); const pg = this.pages.find(p => p.key === key); if (pg?.mounted) { this.clearSelection(); pg.layer.find(".obj").forEach(n => n.destroy()); this.model.pages[key].objects.forEach(o => this.addNode(pg, o)); pg.layer.batchDraw(); } this.markDirty(); }
-  restorePages(h, which) { const snap = JSON.parse(h[which]); const cur = this.model.pageOrder.map(p => p.key); this.model.pageOrder = snap.o; this.model.deletedPages = snap.d || []; snap.o.forEach(p => { if (!this.model.pages[p.key]) this.model.pages[p.key] = (h.snapPages && h.snapPages[p.key]) || { objects: [] }; }); this.rebuildPages(); this.markDirty(); }
+  restorePages(h, which) { const snap = JSON.parse(h[which]); const cur = this.model.pageOrder.map(p => p.key); this.model.pageOrder = snap.o; this.model.deletedPages = snap.d || []; snap.o.forEach(p => { if (!this.model.pages[p.key]) this.model.pages[p.key] = (h.snapPages && h.snapPages[p.key]) || { objects: [] }; }); if (h.objs && this.model.pages[h.objs.key]) this.model.pages[h.objs.key].objects = JSON.parse(h.objs[which]); this.rebuildPages(); this.markDirty(); }
   markDirty() { this.dirty = true; this.setSaveState("saving"); this.scheduleSave(); this._draftSoon(); }
   // Lokaler Entwurf unabhaengig vom Hochladen: spaetestens 1,5 s nach einer Aenderung (zwischen zwei Strichen),
   // damit ein Safari-Absturz beim Dauerschreiben nichts verliert
@@ -818,7 +819,8 @@ export class PdfEditor {
     $$("[data-fmt]", this.pop).forEach(b => b.onclick = () => { this.pop.hidden = true; this.setFormat(i, formatSize(b.dataset.fmt, orient)); });
   }
   duplicatePage(i = this.currentPage) { const src = this.model.pageOrder[i]; const key = (src.type === "pdf" ? "p" + src.index + "c" : "b") + uid(); const before = this.pagesSnap(); this.model.pageOrder.splice(i + 1, 0, { ...src, key }); this.model.pages[key] = JSON.parse(JSON.stringify(this.model.pages[src.key])); this.model.pages[key].objects.forEach(o => o.id = uid()); this.rebuildPages(); this.commitPages(before); }
-  rotatePage(i = this.currentPage, deg = 90) { const before = this.pagesSnap(); const p = this.model.pageOrder[i]; p.rotation = ((p.rotation || 0) + deg) % 360; this.rebuildPages(); this.commitPages(before); }
+  // Notizen drehen mit (P0-7, pagerotate.js): sie bleiben auf demselben Inhalt der Seite; Rueckgaengig dreht beides zurueck
+  rotatePage(i = this.currentPage, deg = 90) { const before = this.pagesSnap(); const p = this.model.pageOrder[i]; const size = p.type === "pdf" ? this.pageSizes[p.index - 1] : { w: p.w || 595, h: p.h || 842 }; const rot = p.rotation || 0; const sw = rot % 180 ? size.h : size.w, sh = rot % 180 ? size.w : size.h; const page = (this.model.pages[p.key] ||= { objects: [] }); const objBefore = JSON.stringify(page.objects || []); page.objects = rotateObjects(page.objects || [], sw, sh, deg); p.rotation = (rot + deg) % 360; this.clearSelection(); this.rebuildPages(); this.commitPages(before, { key: p.key, before: objBefore, after: JSON.stringify(page.objects) }); }
   deletePage(i = this.currentPage) { if (this.pages.length <= 1) return; const before = this.pagesSnap(); const [p] = this.model.pageOrder.splice(i, 1); this.model.deletedPages.push({ entry: p, objects: this.model.pages[p.key]?.objects || [], at: Date.now(), pos: i }); this.rebuildPages(); this.commitPages(before); this.onStatus("Seite in den Papierkorb gelegt (Mehr → Papierkorb)"); }
   restorePage(idx) { const before = this.pagesSnap(); const d = this.model.deletedPages.splice(idx, 1)[0]; this.model.pageOrder.splice(Math.min(d.pos, this.model.pageOrder.length), 0, d.entry); this.model.pages[d.entry.key] = { objects: d.objects }; this.rebuildPages(); this.commitPages(before); }
   clearPage(i = this.currentPage) { const pg = this.pages[i]; const before = this.snapshot(pg); this.model.pages[pg.key].objects = []; if (pg.mounted) { pg.layer.find(".obj").forEach(n => n.destroy()); pg.layer.batchDraw(); } this.commit(pg, before); }

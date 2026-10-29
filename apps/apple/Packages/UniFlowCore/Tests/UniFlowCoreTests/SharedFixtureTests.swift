@@ -36,6 +36,26 @@ final class SharedFixtureTests: XCTestCase {
         }
     }
 
+    /// Drehen ohne Verrutschen (P0-7): dieselben Faelle wie app/static/pagerotate.js (tests/js/rotate.test.mjs)
+    func testRotateCasesMatchWebEditor() throws {
+        let fixture = try JSONValue.parse(repoFile("packages/shared-contracts/fixtures/rotate/cases.json"))
+        let cases = fixture["cases"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(cases.count, 7)
+        for c in cases {
+            let got = PageRotation.rotate(c["objects"]?.array ?? [], width: c["width"]?.double ?? 0,
+                                          height: c["height"]?.double ?? 0, degrees: c["deg"]?.int ?? 0)
+            XCTAssertEqual(got, c["expect"]?.array ?? [], c["name"]?.string ?? "?")
+        }
+        // Die Abbildung fuer die native Zeichnung passt zu den Objekten: Ursprung (0, 0) landet wie x/y
+        let t = PageRotation.transform(width: 595, height: 842, degrees: 270)
+        let p = t.apply(x: 0, y: 0)
+        XCTAssertEqual(p.x, 0, accuracy: 1e-9)
+        XCTAssertEqual(p.y, 595, accuracy: 1e-9)
+        let q = PageRotation.transform(width: 595, height: 842).apply(x: 40.5, y: 120.25)
+        XCTAssertEqual(q.x, 721.75, accuracy: 1e-9)
+        XCTAssertEqual(q.y, 40.5, accuracy: 1e-9)
+    }
+
     /// `documentCases`: dieselben 18 Faelle wie Web (tests/test_merge_contract.py) und Kotlin
     /// (SharedFixtureTest.documentCasesMatchOtherPlatforms) fuer `mergeDocument`
     func testDocumentCasesMatchOtherPlatforms() throws {

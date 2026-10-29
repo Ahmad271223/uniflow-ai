@@ -145,7 +145,7 @@ Code; was passiert, ist Verhalten von iPadOS und der Systempalette.
 |---|---|---|---|---|
 | 7.1 | iPad drehen (hoch ↔ quer), einmal eingepasst und einmal gezoomt | eingepasst bleibt eingepasst, ein eigener Zoom bleibt relativ gleich; Striche an der richtigen Stelle | ☐ bestanden ☐ nicht bestanden | |
 | 7.2 | Auf D4 (Querformat oder gedrehte Seite) schreiben | Striche dort, wo geschrieben; im Browser an derselben Stelle (falls PC vorhanden) | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
-| 7.3 | D5: beschriebene Seite über Mehr → „Seite drehen“ | **bekannt (Plan B5, Schritt 3):** die Seite dreht sich, die Notizen behalten ihre Koordinaten und liegen danach über anderem PDF-Inhalt. Notieren, wie es aussieht | ☐ wie beschrieben ☐ anders | |
+| 7.3 | D5: beschriebene Seite über Mehr → „Seite drehen“ | **seit Schritt 3 (P0-7):** die Notizen drehen mit und liegen danach auf demselben Inhalt wie vorher; Stift-Striche behalten ihr Aussehen (Pinsel, Druck) | ☐ bestanden ☐ nicht bestanden | |
 | 7.4 | D2 (250+ Seiten): eine Seite drehen bzw. „Leere Seite danach“ | Anzeige baut neu auf und bleibt auf derselben Seite; Wartezeit notieren. **Simulator:** Neuaufbau bei 500 Seiten 0,1–0,2 s (M10) | ☐ bestanden ☐ nicht bestanden | Zeit: |
 
 ## 8. Rückgängig und Wiederholen
@@ -354,3 +354,17 @@ Dokument gewählt, Fenster im Hintergrund), übernimmt das neue Fenster.
 | 18.9 | In A weiterschreiben, dann in A ein anderes Dokument wählen; in B D5 schließen und neu öffnen | B kann jetzt schreiben; A's Striche sind alle da | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 18.10 | A: D5 offen, Strich schreiben und sofort in A ein anderes Dokument wählen; dann in B D5 öffnen | B schreibt (Übernahme), der letzte Strich aus A ist in B zu sehen; kehrt man in A zu D5 zurück, während B es noch zeigt, ist A nur zum Ansehen | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
 | 18.11 | Nach 18.8–18.10 beide Fenster schließen, D5 in einem Fenster öffnen | alle Striche aus beiden Fenstern da, kein Hinweis „beschädigt“ | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+
+## 19. Gerätepunkte zu Schritt 3 (Drehen P0-7, fremde Zeichnung P0-8)
+
+Neu mit Schritt 3. Die Simulator-Tests dazu stehen in `EditorStep3Tests` (App), `PageOrderTests` und
+`SharedFixtureTests.testRotateCasesMatchWebEditor` (Kern) sowie `tests/js/rotate.test.mjs` (Web, gleiche Fälle).
+
+| Nr. | Schritt | Erwartung | Ergebnis | Notiz |
+|---|---|---|---|---|
+| 19.1 | D5: Seite mit Strichen, Textfeld und Textmarker viermal hintereinander drehen | nach jedem Drehen liegt alles auf demselben Inhalt; nach dem vierten Mal genau wie am Anfang | ☐ bestanden ☐ nicht bestanden | |
+| 19.2 | Gedrehte Seite schließen und wieder öffnen | Striche sofort im eigenen Aussehen (nicht kurz anders gezeichnet), an derselben Stelle | ☐ bestanden ☐ nicht bestanden | |
+| 19.3 | Mit PC: Seite im Browser drehen, dann auf dem iPad öffnen | Notizen auf demselben Inhalt; Stift-Striche erscheinen im Browser-Aussehen (Pinselbild geht wie bei jeder Browser-Änderung am Strich verloren) | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 19.4 | Mit PC: im Browser drehen, dann **Rückgängig** | Seite und Notizen wieder wie vorher (vorher blieben die Notizen gedreht stehen) | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+| 19.5 | Nur mit zwei iPads verschiedener iPadOS-Versionen: auf dem neueren mit einem neuen Stift (z. B. Schreibfeder ab iPadOS 26) schreiben, auf dem älteren daneben schreiben, wieder auf dem neueren öffnen | die Striche des neueren iPads behalten dort ihr Aussehen (P0-8); auf dem älteren erscheinen sie in Ersatzdarstellung | ☐ bestanden ☐ nicht bestanden ☐ entfällt | |
+

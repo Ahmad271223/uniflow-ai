@@ -62,6 +62,11 @@ struct InkPageState: Sendable {
     /// Koordinaten oder Massstaebe ausserhalb jedes Seitenmasses). Sie bleiben beim Speichern unveraendert; der Editor
     /// sagt, dass es sie gibt (`DocumentStore.inkNotice`).
     var unrenderable = 0
+    /// Die Seite hat eine native Zeichnung, die dieses Geraet nicht lesen kann (neuere iPadOS-Version, unbekanntes
+    /// Format, beschaedigt; P0-8). Angezeigt wird der Aufbau aus den Objekten; beim Speichern bleibt die fremde
+    /// Zeichnung unveraendert stehen, statt mit dem Aufbau ueberschrieben zu werden. Fuer Striche, die hier nicht
+    /// geaendert wurden, behaelt das andere Geraet so sein Pinselbild (v2 prueft je Strich).
+    var keepsForeignNative = false
 
     /// Erstellzeiten (als Platz in `CreationSlots`), die Striche dieses Zustands tragen.
     var creationSlots: Set<Int> {
@@ -126,9 +131,10 @@ enum StrokeConverter {
     /// Canvas vor dem Neuladen, siehe `InkPageState.carryingOver`).
     static func drawing(fromPage page: JSONValue?, avoiding: Set<Int> = []) -> (PKDrawing, InkPageState) {
         let objects = page?["objects"]?.array ?? []
-        guard let stored = StoredDrawing(page: page), let data = Data(base64Encoded: stored.data),
-              let native = try? PKDrawing(data: data), native.strokes.count == stored.strokeIDs.count else {
-            return rebuild(objects: objects, avoiding: avoiding)
+        guard let stored = StoredDrawing(page: page), let native = readable(stored) else {
+            var built = rebuild(objects: objects, avoiding: avoiding)
+            built.1.keepsForeignNative = page?["pkdrawing"] != nil
+            return built
         }
         if let sigs = stored.strokeSignatures, sigs.count == stored.strokeIDs.count {
             return combine(native: native, strokeIDs: stored.strokeIDs, signatures: sigs, objects: objects, avoiding: avoiding)
@@ -148,6 +154,55 @@ enum StrokeConverter {
             if complete { return (native, state) }
         }
         return rebuild(objects: objects, avoiding: avoiding)
+    }
+
+    /// Hoechste PencilKit-Inhaltsversion, die dieses Geraet lesen kann. Nicht `PKContentVersion.latest`: das ist der
+    /// Stand des SDK beim Bauen, nicht der des iPadOS, auf dem die App laeuft.
+    static var supportedContentVersion: Int {
+        if #available(iOS 27.0, *) { return 5 }
+        if #available(iOS 26.0, *) { return 4 }
+        if #available(iOS 17.5, *) { return 3 }
+        return 2
+    }
+
+    /// Native Zeichnung, wenn dieses Geraet sie vollstaendig lesen kann (P0-8): dekodierbar, so viele Striche wie
+    /// gespeicherte IDs, Inhaltsversion hoechstens `supportedContentVersion`. Sonst nil.
+    static func readable(_ stored: StoredDrawing) -> PKDrawing? {
+        guard let data = Data(base64Encoded: stored.data), let native = try? PKDrawing(data: data),
+              native.strokes.count == stored.strokeIDs.count,
+              native.requiredContentVersion.rawValue <= supportedContentVersion else { return nil }
+        return native
+    }
+
+    /// Seite gedreht (P0-7, `PageOrder.rotate`): die native Zeichnung mit derselben Abbildung `t` mitdrehen, damit
+    /// das Pinselbild bleibt. Signaturen werden nur fuer Striche neu berechnet, deren gespeicherte Signatur zu den
+    /// Objekten vor dem Drehen passte (ein schon veralteter Strich bleibt veraltet). Kann dieses Geraet die Zeichnung
+    /// nicht lesen, faellt sie weg: sie laege nach dem Drehen ohnehin neben dem Inhalt, und die Objekte sind gedreht.
+    static func rotatedNative(page: JSONValue, objectsBefore: [JSONValue], transform t: CGAffineTransform) -> JSONValue {
+        guard page["pkdrawing"] != nil else { return page }
+        var p = page
+        guard let stored = StoredDrawing(page: page), let native = readable(stored) else {
+            p["pkdrawing"] = nil
+            return p
+        }
+        let after = page["objects"]?.array ?? []
+        func index(_ list: [JSONValue]) -> [String: JSONValue] {
+            var m: [String: JSONValue] = [:]
+            for o in list { if let id = o["id"]?.string { m[id] = o } }
+            return m
+        }
+        let oldByID = index(objectsBefore), newByID = index(after)
+        let sigs = stored.strokeSignatures.map { old in
+            zip(stored.strokeIDs, old).map { ids, sig -> String in
+                let was = ids.compactMap { oldByID[$0] }, now = ids.compactMap { newByID[$0] }
+                guard !ids.isEmpty, was.count == ids.count, now.count == ids.count, strokeSignature(was) == sig else { return sig }
+                return strokeSignature(now)
+            }
+        }
+        let whole = stored.signature == signature(objectsBefore) ? signature(after) : stored.signature
+        p["pkdrawing"] = StoredDrawing(data: native.transformed(using: t).dataRepresentation().base64EncodedString(),
+                                       signature: whole, strokeIDs: stored.strokeIDs, strokeSignatures: sigs).json
+        return p
     }
 
     /// v2: native Striche, deren Objekte unveraendert sind (Signatur je Strich), behalten ihr Aussehen; alle anderen
@@ -432,9 +487,12 @@ enum StrokeConverter {
         let complete = result.allSatisfy { o in
             o["type"]?.string != "stroke" || (o["id"]?.string).map { nativeIDs.contains($0) } == true
         }
-        p["pkdrawing"] = StoredDrawing(data: native.dataRepresentation().base64EncodedString(),
-                                       signature: complete ? signature(result) : "teilweise",
-                                       strokeIDs: strokeIDs, strokeSignatures: strokeSigs).json
+        next.keepsForeignNative = state.keepsForeignNative && p["pkdrawing"] != nil
+        if !next.keepsForeignNative {
+            p["pkdrawing"] = StoredDrawing(data: native.dataRepresentation().base64EncodedString(),
+                                           signature: complete ? signature(result) : "teilweise",
+                                           strokeIDs: strokeIDs, strokeSignatures: strokeSigs).json
+        }                                                                       // sonst: fremde Zeichnung bleibt (P0-8)
         return InkPageUpdate(page: .object(p), state: next, canvasOutdated: outdated)
     }
 
