@@ -23,3 +23,13 @@ final class AccessibilityAppTests: XCTestCase {
         XCTAssertEqual(big * 4, (big * 4).rounded(), "Viertelpunkte, damit der Schrift-Zwischenspeicher klein bleibt")
     }
 }
+
+/// VoiceOver: Knoepfe nur mit Symbol haben einen deutschen Namen statt des Symbolnamens
+final class AccessibilityLabelAppTests: XCTestCase {
+    func testIconOnlyButtonsHaveGermanNames() {
+        for icon in ["x", "trash", "chevron-left", "chevron-right", "settings", "panel-right", "more", "menu", "clock", "book", "sun", "moon"] {
+            XCTAssertNotEqual(UFButton.spoken(icon), icon, icon)
+        }
+        XCTAssertEqual(UFButton.spoken("x"), "Schließen")
+    }
+}

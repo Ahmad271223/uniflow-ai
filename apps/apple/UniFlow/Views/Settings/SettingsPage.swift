@@ -337,6 +337,7 @@ private struct ModulesTab: View {
                 }
                 .fixedSize()
                 Button { overlay.modal { ModuleEditDialog(m: m) } } label: { UFIcon("settings", size: 14) }
+                    .accessibilityLabel("Modul bearbeiten")
                     .buttonStyle(UFButtonStyle(kind: .ghost, size: .small, iconOnly: true))
                 UFIcon(open ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(inactive ? UF.muted : UF.text)
             }

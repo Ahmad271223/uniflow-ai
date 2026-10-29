@@ -96,6 +96,7 @@ struct WelcomeView: View {
             }
             Spacer(minLength: 0)
             Button { account.notice = nil } label: { UFIcon("x", size: 14) }
+                .accessibilityLabel("Hinweis schließen")
                 .buttonStyle(UFButtonStyle(kind: .ghost, size: .small, iconOnly: true))
                 .accessibilityLabel("Hinweis schließen")
         }

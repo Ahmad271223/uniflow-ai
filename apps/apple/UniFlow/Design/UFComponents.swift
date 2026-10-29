@@ -90,7 +90,15 @@ struct UFButton: View {
             }
         }
         .buttonStyle(UFButtonStyle(kind: kind, size: size, iconOnly: title == nil))
-        .accessibilityLabel(title ?? icon ?? "")
+        .accessibilityLabel(title ?? icon.map(Self.spoken) ?? "")
+    }
+
+    /// VoiceOver-Name fuer Knoepfe nur mit Symbol (die Symbole selbst sind ausgeblendet)
+    static func spoken(_ icon: String) -> String {
+        let names = ["x": "Schließen", "trash": "Löschen", "chevron-left": "Früher", "chevron-right": "Später",
+                     "settings": "Einstellungen", "panel-right": "Seitenleiste", "more": "Mehr", "menu": "Menü",
+                     "clock": "Zeitmesser", "book": "Öffnen", "sun": "Darstellung wechseln", "moon": "Darstellung wechseln"]
+        return names[icon] ?? icon
     }
 }
 
