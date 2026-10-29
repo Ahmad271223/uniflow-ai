@@ -1,6 +1,6 @@
 {
  "generator": "tools/gen-local-backend-fixture.py",
- "count": 91,
+ "count": 92,
  "paths": [
   {
    "method": "DELETE",
@@ -826,6 +826,7 @@
    "shape": "/api/files/{}",
    "sources": [
     "UniFlow/Services/DocumentStore.swift",
+    "UniFlow/Views/DocumentView.swift",
     "UniFlow/Views/Views.swift"
    ],
    "request": {
@@ -2118,7 +2119,8 @@
    "method": "POST",
    "shape": "/api/ai/tutor",
    "sources": [
-    "UniFlow/Views/Modules/ModulesPage.swift"
+    "UniFlow/Views/Modules/ModulesPage.swift",
+    "UniFlow/Views/TutorSheet.swift"
    ],
    "request": {
     "path": "/api/ai/tutor",
@@ -2368,6 +2370,20 @@
   },
   {
    "method": "POST",
+   "shape": "/api/files/{}/analyze",
+   "sources": [
+    "UniFlow/Views/DocumentView.swift"
+   ],
+   "request": {
+    "path": "/api/files/f1/analyze"
+   },
+   "expect": {
+    "status": 404,
+    "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"
+   }
+  },
+  {
+   "method": "POST",
    "shape": "/api/files/{}/favorite",
    "sources": [
     "UniFlow/Views/Library/LibraryDialogs.swift",
@@ -2442,7 +2458,8 @@
    "method": "POST",
    "shape": "/api/flashcards",
    "sources": [
-    "UniFlow/Views/Exams/CardsPage.swift"
+    "UniFlow/Views/Exams/CardsPage.swift",
+    "UniFlow/Views/TutorSheet.swift"
    ],
    "request": {
     "path": "/api/flashcards",

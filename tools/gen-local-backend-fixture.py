@@ -154,6 +154,8 @@ SAMPLES: dict[str, dict] = {
     "DELETE /api/flashcards/{}": {"path": "/api/flashcards/1"},
     "POST /api/ai/tutor": {"path": "/api/ai/tutor", "body": {"mode": "explain"}, "python": False,
                            "expect": {"status": 404, "reason": "KI entfaellt in V1"}},
+    "POST /api/files/{}/analyze": {"path": "/api/files/f1/analyze", "python": False,
+                                   "expect": {"status": 404, "reason": "nur mit der KI des Nutzers (ChatGPT); ohne KI 404"}},
     "GET /api/settings": {"path": "/api/settings"},
     "PUT /api/settings": {"path": "/api/settings", "body": {"user_name": "Testperson"}},
     "GET /api/terms": {"path": "/api/terms"},
