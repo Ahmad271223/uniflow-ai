@@ -218,13 +218,21 @@ final class EditorHardeningStep2Tests: XCTestCase {
         try await Task.sleep(nanoseconds: 100_000_000)
         drawing.strokes.append(Handschrift.extraStroke(0))
         store.canvasChanged(pageKey: "p1", drawing: drawing)
-        let saved = await waitUntilSaved(store, timeout: 60)
+        // auf den Stand im Backend warten: Striche in der Umrechnung zaehlen nicht als ungesendet, "Gespeichert"
+        // allein kann davor schon stehen
+        let end = now() + 60
+        var uploaded = 0
+        while now() < end {
+            uploaded = strokes(try await storedDocument(fx))
+            if uploaded == 3001 { break }
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
         XCTAssertGreaterThanOrEqual(store.forcedSaves, 1, "die Obergrenze hat gegriffen")
-        XCTAssertTrue(saved, "nach der Schreibpause gespeichert")
+        XCTAssertEqual(uploaded, 3001, "auch der letzte Strich ist hochgeladen, ohne zu schliessen")
         let puts = await sync.stats.puts - putsBefore
         XCTAssertGreaterThanOrEqual(puts, 1, "nach der Schreibpause hochgeladen")
-        let uploaded = try await storedDocument(fx)
-        XCTAssertEqual(strokes(uploaded), 3001, "auch der letzte Strich ist hochgeladen, ohne zu schliessen")
+        let saved = await waitUntilSaved(store, timeout: 10)
+        XCTAssertTrue(saved, "danach Gespeichert")
         await store.close()
     }
 
