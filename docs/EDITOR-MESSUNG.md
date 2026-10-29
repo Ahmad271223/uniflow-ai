@@ -437,14 +437,16 @@ verschieben).
   iPad baut die Striche aus dem JSON auf (wie bei jeder Browser-Änderung an einem Strich).
 - Android (`apps/android/core`) dreht noch ohne Objekte; gleiche Fixture verwenden, sobald dort gedreht wird.
 
-**P0-8.** Kann dieses Gerät die gespeicherte native Zeichnung nicht vollständig lesen (nicht dekodierbar, Strichzahl
-passt nicht zu den IDs, unbekanntes Format oder `requiredContentVersion` über dem, was das laufende iPadOS kann:
-iOS 17 → 2, 17.5 → 3, 26 → 4, 27 → 5; nicht `PKContentVersion.latest`, das ist der Stand des SDK), zeigt es den
-Aufbau aus den Objekten und lässt `pkdrawing` beim Speichern bytegleich stehen (`InkPageState.keepsForeignNative`).
+**P0-8.** Ist die gespeicherte native Zeichnung neuer, als dieses Gerät lesen kann (unbekanntes Format oder
+`requiredContentVersion` über dem, was das laufende iPadOS kann: iOS 17 → 2, 17.5 → 3, 26 → 4, 27 → 5; nicht
+`PKContentVersion.latest`, das ist der Stand des SDK), zeigt es den Aufbau aus den Objekten und lässt `pkdrawing` beim
+Speichern bytegleich stehen (`StrokeConverter.isForeign`, `InkPageState.keepsForeignNative`). Kaputte Daten im
+bekannten Format (kein Base64, nicht dekodierbar, Strichzahl passt nicht) werden wie bisher ersetzt
+(`AuditRunde11PencilTests`).
 Das andere Gerät behält für unveränderte Striche sein Pinselbild (v2 prüft je Strich). Preis: auf diesem Gerät wird
 die eigene native Zeichnung der Seite so lange nicht gespeichert; seine Striche erscheinen nach dem Wiederöffnen im
-JSON-Aufbau. Ob `PKDrawing(data:)` neuere Inhalte wirft oder still verkürzt, ist ungeprüft (beides ist abgedeckt);
-Gerätetest 19.5.
+JSON-Aufbau. Ob `PKDrawing(data:)` neuere Inhalte liest (so ist `requiredContentVersion` gedacht) oder wirft, ist ungeprüft;
+wirft es, wird die Zeichnung wie kaputte Daten ersetzt. Gerätetest 19.5.
 
 **Tests.** `EditorStep3Tests` (6, App), `PageOrderTests` (+3) und `SharedFixtureTests.testRotateCasesMatchWebEditor`
 (Kern). Gegenprobe: ohne Mitdrehen der Objekte bzw. ohne Durchreichen werden 3 der 6 App-Tests rot.

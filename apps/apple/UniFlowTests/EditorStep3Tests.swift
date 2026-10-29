@@ -78,7 +78,7 @@ final class EditorStep3Tests: XCTestCase {
 
     // MARK: P0-8 fremde native Zeichnung
 
-    /// Native Zeichnung, die dieses Geraet nicht lesen kann (hier: unbekanntes Format): angezeigt wird der Aufbau aus
+    /// Native Zeichnung eines neueren Formats, die dieses Geraet nicht lesen kann: angezeigt wird der Aufbau aus
     /// den Objekten, und beim Speichern eines neuen Strichs bleibt das Feld `pkdrawing` bytegleich. Gegenprobe: eine
     /// lesbare Zeichnung wird wie bisher durch die neue ersetzt.
     func testUnreadableNativeDrawingIsPassedThroughOnSave() throws {
@@ -98,10 +98,14 @@ final class EditorStep3Tests: XCTestCase {
         XCTAssertEqual(saved.page["objects"]?.array?.count, 2, "neuer Strich als Objekt gespeichert")
         XCTAssertTrue(saved.state.keepsForeignNative, "bleibt fuer die naechste Runde")
 
-        // Kaputte Daten im bekannten Format gelten genauso als nicht lesbar
+        // Kaputte Daten im bekannten Format sind nicht fremd: sie werden ersetzt (AuditRunde11PencilTests)
         let broken: JSONValue = ["objects": objects, "pkdrawing": ["data": "QUJD", "objectsSig": "x", "format": "pkdrawing-v2",
                                                                    "strokeIds": [["a"]], "strokeSigs": ["b"]]]
-        XCTAssertTrue(StrokeConverter.drawing(fromPage: broken).1.keepsForeignNative)
+        let (brokenShown, brokenState) = StrokeConverter.drawing(fromPage: broken)
+        XCTAssertFalse(brokenState.keepsForeignNative)
+        XCTAssertNotEqual(StrokeConverter.update(from: brokenShown, previous: broken, state: brokenState).page["pkdrawing"], broken["pkdrawing"])
+        XCTAssertFalse(StrokeConverter.isForeign(["data": "", "objectsSig": "x"]), "v1 ohne Daten: kaputt, nicht fremd")
+        XCTAssertTrue(StrokeConverter.isForeign(["format": "pkdrawing-v3"]), "unbekanntes Format: fremd")
 
         // Gegenprobe: lesbare Zeichnung wird ersetzt
         let own = StrokeConverter.page(from: browser, previous: ["objects": []], state: InkPageState()).0

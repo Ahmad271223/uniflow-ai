@@ -62,8 +62,9 @@ struct InkPageState: Sendable {
     /// Koordinaten oder Massstaebe ausserhalb jedes Seitenmasses). Sie bleiben beim Speichern unveraendert; der Editor
     /// sagt, dass es sie gibt (`DocumentStore.inkNotice`).
     var unrenderable = 0
-    /// Die Seite hat eine native Zeichnung, die dieses Geraet nicht lesen kann (neuere iPadOS-Version, unbekanntes
-    /// Format, beschaedigt; P0-8). Angezeigt wird der Aufbau aus den Objekten; beim Speichern bleibt die fremde
+    /// Die Seite hat eine native Zeichnung, die dieses Geraet nicht lesen kann, weil sie neuer ist (Inhaltsversion
+    /// eines neueren iPadOS, unbekanntes Format; P0-8, `StrokeConverter.isForeign`). Kaputte Daten im bekannten Format
+    /// zaehlen nicht dazu (sie werden ersetzt). Angezeigt wird der Aufbau aus den Objekten; beim Speichern bleibt die fremde
     /// Zeichnung unveraendert stehen, statt mit dem Aufbau ueberschrieben zu werden. Fuer Striche, die hier nicht
     /// geaendert wurden, behaelt das andere Geraet so sein Pinselbild (v2 prueft je Strich).
     var keepsForeignNative = false
@@ -133,7 +134,7 @@ enum StrokeConverter {
         let objects = page?["objects"]?.array ?? []
         guard let stored = StoredDrawing(page: page), let native = readable(stored) else {
             var built = rebuild(objects: objects, avoiding: avoiding)
-            built.1.keepsForeignNative = page?["pkdrawing"] != nil
+            built.1.keepsForeignNative = isForeign(page?["pkdrawing"])
             return built
         }
         if let sigs = stored.strokeSignatures, sigs.count == stored.strokeIDs.count {
@@ -163,6 +164,19 @@ enum StrokeConverter {
         if #available(iOS 26.0, *) { return 4 }
         if #available(iOS 17.5, *) { return 3 }
         return 2
+    }
+
+    /// Neuere native Zeichnung, die beim Speichern stehen bleibt (P0-8): ein Format ausser `pkdrawing-v1`/`-v2`, oder
+    /// eine dekodierbare Zeichnung mit hoeherer Inhaltsversion, als das laufende iPadOS kann. PencilKit liest neuere
+    /// Zeichnungen und zeigt unbekannte Tinten nur ersatzweise; erst beim Speichern ginge das Original verloren.
+    /// Nicht fremd sind kaputte Daten im bekannten Format (kein Base64, nicht dekodierbar, Strichzahl passt nicht):
+    /// sie werden wie bisher durch die Zeichnung aus den Objekten ersetzt (Pruefbericht Runde 11).
+    static func isForeign(_ pk: JSONValue?) -> Bool {
+        guard let pk else { return false }
+        if let format = pk["format"]?.string, format != StoredDrawing.formatV1, format != StoredDrawing.formatV2 { return true }
+        guard let stored = StoredDrawing(json: pk), let data = Data(base64Encoded: stored.data),
+              let native = try? PKDrawing(data: data) else { return false }
+        return native.requiredContentVersion.rawValue > supportedContentVersion
     }
 
     /// Native Zeichnung, wenn dieses Geraet sie vollstaendig lesen kann (P0-8): dekodierbar, so viele Striche wie
