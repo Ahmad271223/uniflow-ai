@@ -15,6 +15,8 @@ public struct LocalContext: Sendable {
     let scriptIndex = ScriptSearch.IndexCache()
     /// KI des Nutzers (ChatGPT), von der App gesetzt; nil = keine KI
     public let ai = LocalAI()
+    /// Hintergrundauftrag wie `_run_bg` (Wochentests erzeugen), Stand unter `/api/bg`
+    public let jobs = LocalBackgroundJob()
 
     public init(database: SQLiteDatabase, clock: UniFlowClock = .system, files: LocalFiles? = nil,
                 newHex: @escaping @Sendable () -> String = LocalContext.randomHex) {

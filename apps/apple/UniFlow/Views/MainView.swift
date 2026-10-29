@@ -8,6 +8,8 @@ struct MainView: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var shell: ShellState
     @EnvironmentObject private var overlay: UFOverlay
+    /// KI ueber das ChatGPT-Abo verbunden: Wochentests auch ohne PC
+    @Environment(\.ufAIEnabled) private var aiEnabled
 
     var body: some View {
         AppShell { route in
@@ -26,9 +28,9 @@ struct MainView: View {
                 // mit der Aufgabe des Lernplans ("Erledigt" im Editor, wie views-doc.js)
                 UFServerGate(.document) { LibraryView(openFile: id, openPage: page, openTask: task) }  // Editor ohne Leiste darueber
             case .exams:
-                UFServerGate(.exams) { ExamsPage() }                                          // 1:1
+                UFServerGate(aiEnabled ? .examsWithAI : .exams) { ExamsPage() }               // 1:1
             case .exam(let id, let task):
-                UFServerGate(.exams) { ExamRunPage(id: id, task: task) }                      // 1:1
+                UFServerGate(aiEnabled ? .examsWithAI : .exams) { ExamRunPage(id: id, task: task) }   // 1:1
             case .cards:
                 // ohne PC nur mit Plus (UFGate(.flashcards) unter dem Seitenkopf), am eigenen Server ohne Tarif
                 UFServerGate(.cards) { CardsPage() }                                            // 1:1

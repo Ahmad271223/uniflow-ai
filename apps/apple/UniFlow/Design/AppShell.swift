@@ -158,15 +158,17 @@ struct UFNavItem: Identifiable {
     /// (`community`: CloudKit-Dienst verfuegbar; sonst teilt man Loesungen im Editor als Datei und die Einstellungen
     /// sagen ehrlich, warum) und "Uni & Noten" nur, wo der Notenspiegel auf dem Geraet ankommt (`gradesOnDevice`: seit
     /// QIS auf dem Geraet an der LUH wie am LSF der Uni Hildesheim immer).
+    /// `ai`: KI ueber das ChatGPT-Abo verbunden; dann gibt es auch ohne PC "Tests & Wiederholung" (Wochentests),
+    /// "Karteikarten" bleibt daneben
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
-                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice) -> [UFNavItem] {
+                        flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false) -> [UFNavItem] {
         guard local else { return main }
-        return main.compactMap { item in
+        return main.flatMap { item -> [UFNavItem] in
             switch item.id {
-            case "exams": return flashcards ? cards : nil
-            case "community": return community ? item : nil
-            case "services": return gradesOnDevice ? item : nil
-            default: return item
+            case "exams": return (ai ? [item] : []) + (flashcards ? [cards] : [])
+            case "community": return community ? [item] : []
+            case "services": return gradesOnDevice ? [item] : []
+            default: return [item]
             }
         }
     }
@@ -233,6 +235,7 @@ struct AppShell<Content: View>: View {
 struct UFSidebar: View {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
+    @Environment(\.ufAIEnabled) private var aiEnabled
     @EnvironmentObject private var studip: StudIPSync
     @AppStorage("sidebar") private var sidebarMode = "full"
     let collapsed: Bool
@@ -254,7 +257,7 @@ struct UFSidebar: View {
                     // Noten auf dem Geraet wie bei UFServerGate (`Spec.services.localWithOtherSources`): an beiden Hochschulen
                     // (QIS an der LUH, LSF in Hildesheim); Community nur mit CloudKit-Dienst des aktiven Containers
                     ForEach(UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
-                                              community: SolutionSharing.community.isConnected)) { item in
+                                              community: SolutionSharing.community.isConnected, ai: aiEnabled)) { item in
                         navRow(item.title, icon: item.icon, active: item.isActive(router.route)) { router.go(item.route) }
                     }
                 }

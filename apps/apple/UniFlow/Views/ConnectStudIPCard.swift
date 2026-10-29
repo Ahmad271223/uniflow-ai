@@ -305,6 +305,8 @@ extension UFNoServerPage.Spec {
     // Wochentests sind KI (entfallen in V1), Noten kommen erst mit QIS (F4): lokal der leere Zustand
     static let exams = Self(title: "Tests & Wiederholung", sub: "Deine eigenen Karteikarten wiederholst du unter „Karteikarten“.",
                             kind: .exams, local: false)
+    /// mit KI ueber das ChatGPT-Abo des Nutzers (`ufAIEnabled`): Wochentests auch auf dem Geraet (lokales Backend)
+    static let examsWithAI = Self(title: "Tests & Wiederholung", sub: "Wochentests deiner Module, erstellt mit deinem ChatGPT.", kind: .exams)
     static let cards = Self(title: "Karteikarten", kind: .cards, maxWidth: 820)
     // Notenspiegel auf dem Geraet an beiden Hochschulen: LUH aus dem QIS (QISConnection), Uni Hildesheim aus dem LSF
     // (HildesheimSync); die Seite ist lokal immer echt

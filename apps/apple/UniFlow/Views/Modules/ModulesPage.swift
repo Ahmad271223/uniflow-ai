@@ -139,8 +139,9 @@ struct ModuleCard: View {
     let open: () -> Void
     @Environment(\.ufFillsCell) private var fills
     @EnvironmentObject private var session: Session
-    /// Wochentests gibt es nur am eigenen Server (KI); ohne PC weder anbieten noch ankuendigen ("0 Wochentests")
-    private var showsTests: Bool { session.api?.isLocal == false }
+    @Environment(\.ufAIEnabled) private var aiEnabled
+    /// Wochentests am eigenen Server oder mit KI ueber das ChatGPT-Abo; sonst weder anbieten noch ankuendigen
+    private var showsTests: Bool { session.api?.isLocal == false || aiEnabled }
 
     var body: some View {
         let mc = Color(hex: m.s("color"))
@@ -554,6 +555,7 @@ struct UFDocCard: View {
 struct ModuleEditDialog: View {
     let m: JSONValue
     @EnvironmentObject private var session: Session
+    @Environment(\.ufAIEnabled) private var aiEnabled
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
     @Environment(\.ufClose) private var close
@@ -580,8 +582,8 @@ struct ModuleEditDialog: View {
             }
             HStack(alignment: .top, spacing: 9.6) {
                 UFCheckbox("Modul aktiv (wird eingeplant)", isOn: $active).frame(maxWidth: .infinity, alignment: .leading)
-                // Wochentests (KI) nur am eigenen Server; ohne PC weder anbieten noch ankuendigen
-                if session.api?.isLocal == false {
+                // Wochentests (KI) am eigenen Server oder ueber das ChatGPT-Abo; sonst weder anbieten noch ankuendigen
+                if session.api?.isLocal == false || aiEnabled {
                     UFCheckbox("Gemeinsamer Wochentest", isOn: $weekly).frame(maxWidth: .infinity, alignment: .leading)
                     UFField("Abweichende Testdauer") { UFSelect(options: [(0, "Standard")] + [15, 30, 45, 60, 90].map { ($0, "\($0) min") }, selection: $tmin, fill: true) }
                 }

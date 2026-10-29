@@ -6,7 +6,8 @@ enum PendingOverviewEndpoints: LocalEndpointModule {
     static let name = "Hintergrund (Platzhalter)"
 
     static func register(on router: LocalRouter) {
-        router.get("/api/bg", placeholder: true) { _, _ in .json(LocalPending.bg) }
+        // Hintergrundauftrag des Geraets (Wochentests mit der KI des Nutzers); sonst nichts im Hintergrund
+        router.get("/api/bg") { _, ctx in .json(await ctx.jobs.state) }
 
         // Abgleich mit Stud.IP laeuft auf dem iPad direkt (StudIPSync), nicht ueber diesen Pfad
         router.post("/api/sync", placeholder: true) { _, _ in

@@ -7,6 +7,16 @@ import UniFlowCore
 @MainActor
 final class ChatGPTLinkAppTests: XCTestCase {
 
+    func testWithAIThereAreWeeklyTestsBesideTheFlashcards() {
+        let off = UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: true).map(\.id)
+        XCTAssertFalse(off.contains("exams"), "ohne KI keine Wochentests auf dem Geraet")
+        XCTAssertTrue(off.contains("cards"))
+        let on = UFNavItem.visible(local: true, gradesOnDevice: true, community: false, flashcards: true, ai: true).map(\.id)
+        XCTAssertEqual(on.filter { ["exams", "cards"].contains($0) }, ["exams", "cards"])
+        XCTAssertEqual(UFNoServerPage.Spec.examsWithAI.local, true)
+        XCTAssertEqual(UFNoServerPage.Spec.exams.local, false)
+    }
+
     func testKeychainKeepsEachAppleUserApart() throws {
         let a = ChatGPTKeychainStore(userScope: "test-a-\(UUID().uuidString)"), b = ChatGPTKeychainStore(userScope: "test-b-\(UUID().uuidString)")
         defer { ChatGPTKeychainStore.remove(userScope: a.userScope); ChatGPTKeychainStore.remove(userScope: b.userScope) }

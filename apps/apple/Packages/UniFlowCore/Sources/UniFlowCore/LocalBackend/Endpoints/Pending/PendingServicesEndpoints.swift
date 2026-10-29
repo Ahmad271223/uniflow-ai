@@ -46,14 +46,6 @@ enum DroppedEndpoints: LocalEndpointModule {
     static let noTests = "Wochentests gibt es in dieser Version nicht."
 
     static func register(on router: LocalRouter) {
-        router.get("/api/tests") { _, _ in .json([]) }
-        router.get("/api/tests/{test_id:int}") { _, _ in throw LocalHTTPError.notFound(noTests) }
-        router.post("/api/tests/generate") { _, _ in throw LocalHTTPError.notFound(noTests) }
-        router.post("/api/tests/generate-week") { _, _ in throw LocalHTTPError.notFound(noTests) }
-        router.post("/api/tests/{test_id:int}/submit") { _, _ in throw LocalHTTPError.notFound(noTests) }
-        router.delete("/api/tests/{test_id:int}") { _, _ in throw LocalHTTPError.notFound("Test nicht gefunden") }   // Regel G6
-        router.post("/api/tasks/{task_id:int}/start-test") { _, _ in throw LocalHTTPError.notFound(noTests) }
-
         router.get("/api/credentials") { _, _ in .json(["user": .null, "password_set": false]) }
         router.put("/api/credentials/{service}") { _, _ in
             throw LocalHTTPError.notFound("Zugangsdaten merkt sich die App nur im Schlüsselbund dieses iPads, auf der Anmeldeseite der Hochschule.")

@@ -16,6 +16,7 @@ public final class LocalBackend: Sendable {
         TimetableEndpoints.self,
         DroppedEndpoints.self,
         AIEndpoints.self,
+        TestEndpoints.self,
         ModulesEndpoints.self,
         StudyEndpoints.self,
         SearchEndpoints.self,
