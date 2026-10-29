@@ -148,7 +148,7 @@ Generatoren, Geheimnis-Prüfung, dann als Fast-Forward auf develop.
    - App: Einstellungen → KI (verbinden, trennen, Konto, Modell, Schalter je Funktion, „Nutzung verwalten“),
      Editor-Seitenleiste „KI“, „Plan vorschlagen“, „Test erstellen“, „Analysieren“. Datenschutz-Abschnitt „KI über
      ChatGPT“ als Entwurf. Den echten Test mit seinem ChatGPT macht der Inhaber selbst.
-6. **Lese-Auftrag (offen):** aus `docs/uebergabe-mac/` alles heraussuchen, was der **Inhaber selbst** gesagt oder
+6. **Lese-Auftrag (erledigt 29.10., `docs/ABGLEICH-ORIGINALTEXTE-INHABER-2026-10-29.md`; zwei Fragen an den Inhaber dort in Abschnitt 3):** aus `docs/uebergabe-mac/` alles heraussuchen, was der **Inhaber selbst** gesagt oder
    gewünscht hat (getrennt von der anderen KI), Widersprüche zu Abschnitt 3 und Lücken gegenüber Abschnitt 6 des
    PRUEFKATALOG melden. Ein Agent hatte beide Texte gelesen, brach aber vor dem Bericht ab.
 
