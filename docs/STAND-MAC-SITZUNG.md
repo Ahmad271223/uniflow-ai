@@ -1392,3 +1392,18 @@ Auf `wip/stundenplan-ausfall` (mit `develop` d87e026 zusammengeführt):
 - Rote Fälle auf `develop` d87e026, die nicht vom Stundenplan kommen: `SQLiteStoreTests` frisch/alt (neue Tabelle
   `sync_ops`; `studip_calendar_dates` ist gleich), `DemoContentTests` (2) und `LocalBackendCoverageTests`
   (`/api/grades`).
+
+## Übergabe der Mac-Sitzung und zwei Bitten an die PC-Sitzung (29.10.2026)
+
+- Die Mac-Sitzung wechselt (Nutzungslimit). Vollständiger Stand, Regeln, Entscheidungen des Inhabers und die
+  Reihenfolge der offenen Arbeit: **`docs/UEBERGABE-MAC-NEUE-SITZUNG-2026-10-29.md`**. Offene Mac-Zweige:
+  `wip/stundenplan-ausfall`, `wip/learnweb-dateien`, `wip/editor-2` (develop d87e026 jeweils eingemischt, noch nicht
+  fertig geprüft).
+- **Bitte 1 – Ausfälle laut Stud.IP ausblenden (Entscheidung des Inhabers vom 28.10., ca. 08:30):** In der
+  Weihnachtswoche zeigt der Stud.IP-Kalender des Inhabers nichts, weil 13 Veranstaltungen ausfallen; Studora zeigte sie
+  durchgestrichen. Der Inhaber will sie wie in Stud.IP **nicht anzeigen** (Woche, Tag, Übersicht), die Zeit wird frei.
+  Das iPad blendet sie nur in der Anzeige aus und lässt das Backend bei der Parität (`woche.json` erwartet den Ausfall
+  am 19.11. mit `status: ausfall`). Bitte in Web/Windows genauso und danach den Vertrag gemeinsam anpassen. Vom Nutzer
+  gesetzte und zurückgesetzte Ausnahmen (`attend`, 0.4.6) bleiben sichtbar.
+- **Bitte 2 – Notenspiegel-Vertrag:** Gibt es für `app/grades_model.py` eine Fixture (Generator), gegen die das iPad
+  testen kann? Sonst bauen wir Tests nach `tests/test_grades_model.py` mit erfundenen Daten.
