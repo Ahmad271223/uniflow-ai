@@ -165,7 +165,8 @@ final class LocalStudyPlanTests: XCTestCase {
             XCTAssertFalse(route.placeholder, "\(m) \(p)")
             XCTAssertEqual(route.module, StudyEndpoints.name, "\(m) \(p)")
         }
-        XCTAssertEqual(backend.route(method: "POST", path: "/api/tasks/1/start-test")?.module, DroppedEndpoints.name, "Wochentests entfallen")
+        // Wochentests mit der KI des Nutzers (ChatGPT); ohne KI antwortet der Pfad weiter 404 (TestEndpointsTests)
+        XCTAssertEqual(backend.route(method: "POST", path: "/api/tasks/1/start-test")?.module, TestEndpoints.name, "Wochentests mit KI")
     }
 
     /// Bewusste Abweichungen: falsche Datumsangaben 422 statt 500, Zeitraeume hoechstens 3660 Tage; eine fehlerhafte

@@ -17,6 +17,14 @@ final class ChatGPTLinkAppTests: XCTestCase {
         XCTAssertEqual(UFNoServerPage.Spec.exams.local, false)
     }
 
+    func testTutorAsksForThePDFPageNotTheDisplayPosition() {
+        XCTAssertEqual(DocumentView.pdfPage(key: "p3", index: 0), 3, "Originalseite 3, auch wenn sie vorne steht")
+        XCTAssertEqual(DocumentView.pdfPage(key: "blank-1", index: 4), 5, "eingefuegte Seite: Position")
+        XCTAssertEqual(DocumentView.pdfPage(key: nil, index: 0), 1)
+        XCTAssertEqual(DocumentView.pdfPage(key: "p0", index: 2), 3, "kein gueltiger Seitenschluessel")
+        XCTAssertEqual(TutorSheet.modes.map(\.key), AIPrompts.tutorModeKeys, "dieselben Modi wie app/ai.py")
+    }
+
     func testKeychainKeepsEachAppleUserApart() throws {
         let a = ChatGPTKeychainStore(userScope: "test-a-\(UUID().uuidString)"), b = ChatGPTKeychainStore(userScope: "test-b-\(UUID().uuidString)")
         defer { ChatGPTKeychainStore.remove(userScope: a.userScope); ChatGPTKeychainStore.remove(userScope: b.userScope) }

@@ -84,6 +84,9 @@ struct DocumentView: View {
     @State private var fullScreen = false
     @State private var showSidebar = false
     @State private var showSearch = false
+    @State private var showTutor = false
+    /// KI ueber das ChatGPT-Abo verbunden (Knopf "KI" in der Leiste)
+    @Environment(\.ufAIEnabled) private var aiEnabled
     @State private var showInfo = false
     @State private var showTrash = false
     @State private var choosingCompanion = false
@@ -220,6 +223,11 @@ struct DocumentView: View {
             }
         }
         .sheet(isPresented: $showSearch) { SearchSheet(store: store, bridge: bridge) }
+        .sheet(isPresented: $showTutor) {
+            TutorSheet(fileID: store.file.id, page: Self.pdfPage(key: bridge.pageKey, index: bridge.pageIndex)) { id, page in
+                if id == store.file.id { bridge.controller?.goToPage(page - 1) }
+            }
+        }
         .sheet(isPresented: $showInfo) { InfoSheet(store: store) }
         .sheet(isPresented: $showTrash) { PageTrashSheet(bridge: bridge) }
         .onChange(of: ObjectIdentifier(api)) { _, _ in Task { await store.updateAPI(api) } }
@@ -435,6 +443,12 @@ struct DocumentView: View {
         }
     }
 
+    /// Seite der PDF zur angezeigten Seite: Originalseiten heissen "p<N>" (Seitenaufbau), sonst die Position
+    static func pdfPage(key: String?, index: Int) -> Int {
+        if let key, key.hasPrefix("p"), let n = Int(key.dropFirst()), n >= 1 { return n }
+        return index + 1
+    }
+
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarLeading) {
@@ -461,6 +475,10 @@ struct DocumentView: View {
             StatusLabel(status: store.status)
             SyncIssueBadge(store: store)
             Button { showSearch = true } label: { Label("Suchen", systemImage: "magnifyingglass") }
+            if aiEnabled {
+                Button { showTutor = true } label: { Label("KI", systemImage: "sparkles") }
+                    .accessibilityIdentifier("doc.tutor")
+            }
             Button {
                 if companion != nil { companion = nil }
                 else if entitlements.allows(.splitView) { choosingCompanion = true }

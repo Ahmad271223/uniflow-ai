@@ -36,6 +36,9 @@ public enum AIPrompts {
 
     // MARK: Tutor (`ai.tutor_prompt`)
 
+    /// Schluessel der Modi wie `ai.TUTOR_MODES` (fuer die Auswahl in der App)
+    public static var tutorModeKeys: [String] { AIPromptTexts.tutorModes.map(\.key) }
+
     /// Text des Modus; unbekannte Modi wie `explain`
     static func tutorInstruction(_ mode: String) -> String {
         AIPromptTexts.tutorModes.first { $0.key.unicodeScalars.elementsEqual(mode.unicodeScalars) }?.text
