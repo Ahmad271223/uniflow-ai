@@ -1346,6 +1346,68 @@ Auftrag des Inhabers: „mach alles fertig die ganze windows version fertig mach
 Für das iPad, sobald die Community über den Dienst läuft: dieselben Endpunkte und Ansichten (Fragen-Liste je Kurs,
 Frage mit Antworten, Mitteilungen, Lesezeichen).
 
+## Bitte der Mac-Sitzung: Ausfälle laut Stud.IP wie Stud.IP ausblenden (28.10.2026)
+
+Entscheidung des Inhabers vom 28.10. (ca. 08:30): In der Weihnachtswoche (23.–25.12.) markiert Stud.IP 13 seiner
+Veranstaltungen als ausgefallen (`status: ausfall`, `exception: cancelled`, Serie mit `source: studip`). Der
+Stud.IP-Kalender zeigt dann nichts, UniFlow zeigte sie durchgestrichen. Er will es wie Stud.IP: Ausgefallene Termine
+verschwinden aus Woche, Tag und Übersicht, die Zeit ist frei für Lernblöcke.
+
+Auf dem iPad umgesetzt (Zweig `wip/stundenplan-ausfall`, `docs/IPAD-STUDIP-SYNC.md` §10), **nur in der Anzeige**:
+- Die Antworten des lokalen Backends bleiben wie in Python, die Verträge `woche.json` (Ausfall am 19.11. mit
+  `status: ausfall`) und `timetable-logic.json` sind unverändert grün.
+- Neu und nur auf dem Gerät: `GET /api/timetable/studip-cancelled?start=…&end=…` liefert `[{"event_id", "date"}]`
+  der Ausnahmen `cancelled` mit der Notiz „Ausfall laut Stud.IP“. Die App lässt genau diese Vorkommen weg.
+  `app-paths.json` kennt den Pfad, mit `"python": False` wie bei `studip-questions`.
+- Selbst markierte Ausfälle (ohne diese Notiz) und „nicht besucht“ bleiben sichtbar, damit der Nutzer sie
+  zurücknehmen kann.
+- Freie Zeit war schon richtig: `busy_blocks` zählt nur `teilnahme`.
+
+Bitten an die PC-Sitzung:
+1. **Web und Referenz gleich machen:** Wochenansicht, Tagesansicht, Lernkalender und „Heute an der Uni“ sollen
+   Ausfälle laut Stud.IP nicht mehr zeigen. Danach bitte gemeinsam den Vertrag anpassen. Vorschlag: Python lässt
+   diese Vorkommen in `occurrences` weg, oder es kennzeichnet sie (zum Beispiel `exception_note`). Dann ziehen wir
+   `woche.json` und `timetable-logic.json` zusammen nach, und der Geräte-Endpunkt kann entfallen.
+2. **LSF (Hildesheim):** Ausfälle aus dem LSF-Export heißen „Ausfall laut Kalender“. Sollen sie ebenso verschwinden?
+   Bis zur Entscheidung blendet das iPad nur „Ausfall laut Stud.IP“ aus.
+
+## Antwort der Mac-Sitzung: Abruftag-Regel verglichen, Zurücksetzen und `existing_id` nachgezogen (28.10.2026)
+
+Auf `wip/stundenplan-ausfall` (mit `develop` d87e026 zusammengeführt):
+- **Abruftag:** Die Regel in Python seit 5dbabd6 (`calendar_coverage`, `calendar_shows`, `store_calendar`,
+  `_merge_dated` ab dem Tag des letzten Abrufs) ist dieselbe wie `StudIPCalendar.Coverage`. `timetable-logic.json`
+  enthält keinen Kalender (`studip_calendar_dates` kommt darin nicht vor), unser Fall (fremde Gruppe am Abruftag vor
+  dem ersten eigenen Termin) steht also nicht im Vertrag. Keine Abweichung, Vertrag unverändert.
+- **Zurückgesetzter Ausfall laut Stud.IP bleibt sichtbar** (a7827c6): `LocalTimetable.setException` wie
+  `set_exception`, Konstante `StudIPCancellations.resetNote`. Die Anzeige blendet nur `cancelled` mit der
+  Stud.IP-Notiz aus, ein `attend` bleibt also sichtbar. Tests: `StudIPCancellationsTests` und
+  `StudIPScheduleStoreTests.testLaterCancellationsReachExistingSeries` (Erwartungen auf `attend` umgestellt).
+- **`existing_id` an jeder Vorschauzeile** (196555e): `diffAgainstExisting(marking:)`, aus Stud.IP über `previewDiff`
+  nach Stud.IP-ID. `LocalTimetableTests.testStepsMatchPythonServer` ist wieder grün. Der iPad-Dialog nimmt die
+  Markierung der Zeile und ist dabei strenger als `impConfirm`: Markiert die Vorschau andere Zeilen, ist eine Zeile
+  ohne Schlüssel neu. Die Web-App sucht dann noch über Titel und Wochentag und könnte beim zweiten Termin desselben
+  Kurses am selben Tag die Serie des ersten treffen. Bitte prüfen, ob `impConfirm` das ebenso halten soll.
+- **Noch nicht nachgezogen:** Learnweb nur für aktive Kurse (`hildesheim.active_courses`, a7827c6), nicht Teil dieses
+  Auftrags.
+- Rote Fälle auf `develop` d87e026, die nicht vom Stundenplan kommen: `SQLiteStoreTests` frisch/alt (neue Tabelle
+  `sync_ops`; `studip_calendar_dates` ist gleich), `DemoContentTests` (2) und `LocalBackendCoverageTests`
+  (`/api/grades`).
+
+## Übergabe der Mac-Sitzung und zwei Bitten an die PC-Sitzung (29.10.2026)
+
+- Die Mac-Sitzung wechselt (Nutzungslimit). Vollständiger Stand, Regeln, Entscheidungen des Inhabers und die
+  Reihenfolge der offenen Arbeit: **`docs/UEBERGABE-MAC-NEUE-SITZUNG-2026-10-29.md`**. Offene Mac-Zweige:
+  `wip/stundenplan-ausfall`, `wip/learnweb-dateien`, `wip/editor-2` (develop d87e026 jeweils eingemischt, noch nicht
+  fertig geprüft).
+- **Bitte 1 – Ausfälle laut Stud.IP ausblenden (Entscheidung des Inhabers vom 28.10., ca. 08:30):** In der
+  Weihnachtswoche zeigt der Stud.IP-Kalender des Inhabers nichts, weil 13 Veranstaltungen ausfallen; Studora zeigte sie
+  durchgestrichen. Der Inhaber will sie wie in Stud.IP **nicht anzeigen** (Woche, Tag, Übersicht), die Zeit wird frei.
+  Das iPad blendet sie nur in der Anzeige aus und lässt das Backend bei der Parität (`woche.json` erwartet den Ausfall
+  am 19.11. mit `status: ausfall`). Bitte in Web/Windows genauso und danach den Vertrag gemeinsam anpassen. Vom Nutzer
+  gesetzte und zurückgesetzte Ausnahmen (`attend`, 0.4.6) bleiben sichtbar.
+- **Bitte 2 – Notenspiegel-Vertrag:** Gibt es für `app/grades_model.py` eine Fixture (Generator), gegen die das iPad
+  testen kann? Sonst bauen wir Tests nach `tests/test_grades_model.py` mit erfundenen Daten.
+
 ## Learnweb-Dateien: iPad 195, PC 539 – Ursache, Korrektur auf dem iPad und Bitten an die PC-Sitzung (28.10.2026)
 
 Ausgangslage: gleiches Konto, dieselben 9 Learnweb-Kurse. Das iPad hat 195 Dateien (je Kurs 46, 33, 28, 19, 17, 16,

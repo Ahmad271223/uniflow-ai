@@ -193,14 +193,18 @@ final class TimetableLocalAppTests: XCTestCase {
         let preview = try await api.form("/api/timetable/import/preview", fields: ["source": "studip"])
         let diff = preview["diff"] ?? .null
         let rows = preview.list("entries")
-        XCTAssertEqual(rows.filter { TimetablePreviewDialog.preselected($0, diff: diff, source: "studip") }.count, 0,
+        XCTAssertEqual(rows.filter { TimetablePreviewDialog.preselected($0, diff: diff, source: "studip", rows: rows) }.count, 0,
                        "alles schon uebernommen, offene Gruppen nicht angehakt")
-        XCTAssertEqual(rows.filter { TimetablePreviewDialog.preselected($0, diff: diff, source: "ics") }.count, rows.count - 3,
+        XCTAssertEqual(rows.filter { TimetablePreviewDialog.preselected($0, diff: diff, source: "ics", rows: rows) }.count, rows.count - 3,
                        "andere Quellen wie in der Web-App")
+        // seit 196555e markiert die Vorschau jede Zeile mit vorhandener Serie; die offene Gruppe ist neu
+        XCTAssertNotNil(rows.first { $0["existing_id"] != nil }, "Vorschau markiert vorhandene Serien")
         // wie confirm: angehakte Zeilen (hier nur die gewaehlte Gruppe) mit existing_id
         var group = try XCTUnwrap(rows.first { $0.s("room") == "Pool Test B" }?.object)
+        XCTAssertNil(group["existing_id"])
+        XCTAssertNil(TimetablePreviewDialog.existingID(diff, .object(group), rows: rows), "Zeile ohne Schluessel ist neu")
         group["selected"] = true
-        group["existing_id"] = TimetablePreviewDialog.existing(diff, .object(group))?["existing_id"] ?? .null
+        group["existing_id"] = TimetablePreviewDialog.existingID(diff, .object(group), rows: rows) ?? .null
         let res = try await api.value("/api/timetable/import/confirm", method: "POST",
                                       body: ["entries": [.object(group)], "source": "studip", "import_id": preview["import_id"] ?? .null, "remove_ids": []])
         XCTAssertEqual(res.i("new"), 1)
@@ -215,6 +219,20 @@ final class TimetableLocalAppTests: XCTestCase {
         XCTAssertEqual(again.summary, ["Stud.IP-Kalender nicht gelesen: eigene Übungsgruppen nicht sicher bekannt", "2 Stundenplan-Einträge aus Stud.IP nicht lesbar"], "Gruppe gewählt: kein Gruppenhinweis mehr")
         let status = try await api.value("/api/timetable/auto-status")
         XCTAssertEqual(status.i("pending_groups"), 0)
+    }
+
+    /// Serie einer Vorschauzeile (erfundene Werte): die eigene Markierung gilt; markiert die Vorschau andere Zeilen, ist
+    /// eine Zeile ohne Schluessel neu, auch wenn ein anderer Termin desselben Kurses am selben Tag vorhanden ist; nur
+    /// eine Vorschau ganz ohne Markierung (aelterer PC-Server) sucht wie bisher ueber Titel und Wochentag
+    func testPreviewRowUsesItsOwnExistingID() {
+        let diff: JSONValue = ["changed": [["title": "Testkurs", "weekday": 0, "existing_id": 7]], "same": []]
+        let marked: JSONValue = ["title": "Testkurs", "weekday": 0, "start_time": "10:00", "existing_id": 7]
+        let second: JSONValue = ["title": "Testkurs", "weekday": 0, "start_time": "14:00"]
+        XCTAssertEqual(TimetablePreviewDialog.existingID(diff, marked, rows: [marked, second]), .number(7))
+        XCTAssertNil(TimetablePreviewDialog.existingID(diff, second, rows: [marked, second]), "zweiter Termin am Tag ist neu")
+        XCTAssertTrue(TimetablePreviewDialog.preselected(second, diff: diff, source: "studip", rows: [marked, second]))
+        XCTAssertFalse(TimetablePreviewDialog.preselected(marked, diff: diff, source: "studip", rows: [marked, second]))
+        XCTAssertEqual(TimetablePreviewDialog.existingID(diff, second, rows: [second]), .number(7), "ohne Markierung wie bisher")
     }
 
     // MARK: Seiten im Fenster

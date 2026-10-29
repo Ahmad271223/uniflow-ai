@@ -204,7 +204,6 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     /// `status` aus plans.json
     var status: UFContractStatus {
         switch self {
-        case .canWriteCommunityComments: return .comingSoon
         case .chatgptConnectionPremium: return .disabled
         default: return .available
         }

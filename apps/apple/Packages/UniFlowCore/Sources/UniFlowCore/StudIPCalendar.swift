@@ -164,9 +164,9 @@ enum StudIPCalendar {
         return (Set(rows.compactMap { $0["id"]?.string }), day)
     }
 
-    /// Was der eigene Kalender fuer die Woche abdeckt (`LocalTimetable.studipDated`, `mergeDated`). Nur auf dem Geraet,
-    /// Python entscheidet erst ab dem Tag nach dem Abruf und vergisst bei jedem Abruf die Tage davor (Bitte an die
-    /// PC-Sitzung in docs/STAND-MAC-SITZUNG.md). Regel, Begruendung: docs/IPAD-STUDIP-SYNC.md §10.
+    /// Was der eigene Kalender fuer die Woche abdeckt (`LocalTimetable.studipDated`, `mergeDated`). Seit 5dbabd6 dieselbe
+    /// Regel wie Python (`timetable.calendar_coverage`, `calendar_shows`, `store_calendar`). Regel, Begruendung:
+    /// docs/IPAD-STUDIP-SYNC.md §10.
     struct Coverage {
         typealias Time = LocalTimetableImport.LocalTime
         /// Termin-IDs aller Abrufe, die noch gelten
