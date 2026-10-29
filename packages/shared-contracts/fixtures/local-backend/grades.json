@@ -1,0 +1,1296 @@
+{
+ "generator": "tools/gen-grades-fixture.py",
+ "now": "2026-10-29T09:00:00",
+ "cases": [
+  {
+   "name": "luh",
+   "rows": [
+    {
+     "id": 1,
+     "pruefungsnr": null,
+     "text": "Kompetenzbereich Grundlagen",
+     "semester": "3,3",
+     "note": "bestanden",
+     "status": "13",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "10 | Kompetenzbereich Grundlagen |  | 3,3 | bestanden | 13 |  |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 2,
+     "pruefungsnr": "110",
+     "text": "Testmathe I",
+     "semester": "WiSe 23/24",
+     "note": "3,3",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": "",
+     "datum": null,
+     "abschluss": null,
+     "raw": "110 | Testmathe I |  | WiSe 23/24 | 3,3 | bestanden | 8 | 22.01.2024 |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 3,
+     "pruefungsnr": "111",
+     "text": "Testmathe I",
+     "semester": "WiSe 23/24",
+     "note": "3,3",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": "1",
+     "datum": null,
+     "abschluss": null,
+     "raw": "111 | Testmathe I | PL | WiSe 23/24 | 3,3 | bestanden | 8 | 22.01.2024 | 1 |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 4,
+     "pruefungsnr": "112",
+     "text": "Testmathe I",
+     "semester": "WiSe 23/24",
+     "note": "",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": "1",
+     "datum": null,
+     "abschluss": null,
+     "raw": "112 | Testmathe I | SL | WiSe 23/24 |  | bestanden | 0 | 15.01.2024 | 1 |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 5,
+     "pruefungsnr": "111",
+     "text": "Testmathe I",
+     "semester": "Wintersemester 23/24",
+     "note": "3,3",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": "1",
+     "datum": null,
+     "abschluss": null,
+     "raw": "111 | Testmathe I | PL | Wintersemester 23/24 | 3,3 | bestanden | 8 | 22.01.2024 | 1 |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 6,
+     "pruefungsnr": "121",
+     "text": "Testphysik",
+     "semester": "SoSe 24",
+     "note": "5,0",
+     "status": "nicht bestanden",
+     "credits": null,
+     "versuch": "1",
+     "datum": null,
+     "abschluss": null,
+     "raw": "121 | Testphysik | PL | SoSe 24 | 5,0 | nicht bestanden | 0 | 20.07.2024 | 1 | OWR | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 7,
+     "pruefungsnr": "120",
+     "text": "Testphysik",
+     "semester": "WiSe 24/25",
+     "note": "",
+     "status": "",
+     "credits": null,
+     "versuch": "",
+     "datum": null,
+     "abschluss": null,
+     "raw": "120 | Testphysik |  | WiSe 24/25 | 2,0 | bestanden | 5 | 10.02.2025 |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 8,
+     "pruefungsnr": "121",
+     "text": "Testphysik",
+     "semester": "WiSe 24/25",
+     "note": "2,0",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": "1",
+     "datum": null,
+     "abschluss": null,
+     "raw": "121 | Testphysik | PL | WiSe 24/25 | 2,0 | bestanden | 5 | 10.02.2025 | 1 |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 9,
+     "pruefungsnr": "521",
+     "text": "Testlabor",
+     "semester": "SoSe 24",
+     "note": "",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": "1",
+     "datum": null,
+     "abschluss": null,
+     "raw": "521 | Testlabor | LA | SoSe 24 |  | bestanden | 2 | 23.07.2024 | 1 |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 10,
+     "pruefungsnr": "599",
+     "text": "Pflichtmodule",
+     "semester": "SoSe 25",
+     "note": "",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "599 | Pflichtmodule |  | SoSe 25 |  | bestanden | 6 | 13.06.2025 |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 11,
+     "pruefungsnr": "510",
+     "text": "Einstiegsmodul",
+     "semester": "SoSe 25",
+     "note": "",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "510 | Einstiegsmodul |  | SoSe 25 |  | bestanden | 6 | 13.06.2025 |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 12,
+     "pruefungsnr": "130",
+     "text": "Testinformatik",
+     "semester": "Sommersemester 25",
+     "note": "1,7",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": "",
+     "datum": null,
+     "abschluss": null,
+     "raw": "130 | Testinformatik |  | Sommersemester 25 | 1,7 | bestanden | 7,5 | 01.08.2025 |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 13,
+     "pruefungsnr": "140",
+     "text": "Testsprachkurs",
+     "semester": "WiSe 25/26",
+     "note": "",
+     "status": "anerkannt",
+     "credits": null,
+     "versuch": "",
+     "datum": null,
+     "abschluss": null,
+     "raw": "140 | Testsprachkurs |  | WiSe 25/26 |  | anerkannt | 4 |  |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 14,
+     "pruefungsnr": "151",
+     "text": "Testchemie",
+     "semester": "WS 2025/2026",
+     "note": "5,0",
+     "status": "endgültig nicht bestanden",
+     "credits": null,
+     "versuch": "3",
+     "datum": null,
+     "abschluss": null,
+     "raw": "151 | Testchemie | KL | WS 2025/2026 | 5,0 | endgültig nicht bestanden | 0 | 12.02.2026 | 3 |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    }
+   ],
+   "response": {
+    "grades": [
+     {
+      "id": 10,
+      "pruefungsnr": "599",
+      "text": "Pflichtmodule",
+      "semester": "SoSe 25",
+      "note": "",
+      "status": "bestanden",
+      "credits": "6",
+      "versuch": null,
+      "datum": "13.06.2025",
+      "abschluss": null,
+      "raw": "599 | Pflichtmodule |  | SoSe 25 |  | bestanden | 6 | 13.06.2025 |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "SoSe 25",
+      "level": "bereich",
+      "passed": true,
+      "graded": false
+     },
+     {
+      "id": 1,
+      "pruefungsnr": "10",
+      "text": "Kompetenzbereich Grundlagen",
+      "semester": "",
+      "note": "3,3",
+      "status": "bestanden",
+      "credits": "13",
+      "versuch": null,
+      "datum": null,
+      "abschluss": null,
+      "raw": "10 | Kompetenzbereich Grundlagen |  | 3,3 | bestanden | 13 |  |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "",
+      "level": "bereich",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 13,
+      "pruefungsnr": "140",
+      "text": "Testsprachkurs",
+      "semester": "WiSe 25/26",
+      "note": "",
+      "status": "anerkannt",
+      "credits": "4",
+      "versuch": "",
+      "datum": null,
+      "abschluss": null,
+      "raw": "140 | Testsprachkurs |  | WiSe 25/26 |  | anerkannt | 4 |  |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "WiSe 25/26",
+      "level": "modul",
+      "passed": true,
+      "graded": false
+     },
+     {
+      "id": 11,
+      "pruefungsnr": "510",
+      "text": "Einstiegsmodul",
+      "semester": "SoSe 25",
+      "note": "",
+      "status": "bestanden",
+      "credits": "6",
+      "versuch": null,
+      "datum": "13.06.2025",
+      "abschluss": null,
+      "raw": "510 | Einstiegsmodul |  | SoSe 25 |  | bestanden | 6 | 13.06.2025 |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "SoSe 25",
+      "level": "modul",
+      "passed": true,
+      "graded": false
+     },
+     {
+      "id": 12,
+      "pruefungsnr": "130",
+      "text": "Testinformatik",
+      "semester": "Sommersemester 25",
+      "note": "1,7",
+      "status": "bestanden",
+      "credits": "7,5",
+      "versuch": "",
+      "datum": "01.08.2025",
+      "abschluss": null,
+      "raw": "130 | Testinformatik |  | Sommersemester 25 | 1,7 | bestanden | 7,5 | 01.08.2025 |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "SoSe 25",
+      "level": "modul",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 7,
+      "pruefungsnr": "120",
+      "text": "Testphysik",
+      "semester": "WiSe 24/25",
+      "note": "2,0",
+      "status": "bestanden",
+      "credits": "5",
+      "versuch": "",
+      "datum": "10.02.2025",
+      "abschluss": null,
+      "raw": "120 | Testphysik |  | WiSe 24/25 | 2,0 | bestanden | 5 | 10.02.2025 |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "WiSe 24/25",
+      "level": "modul",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 2,
+      "pruefungsnr": "110",
+      "text": "Testmathe I",
+      "semester": "WiSe 23/24",
+      "note": "3,3",
+      "status": "bestanden",
+      "credits": "8",
+      "versuch": "",
+      "datum": "22.01.2024",
+      "abschluss": null,
+      "raw": "110 | Testmathe I |  | WiSe 23/24 | 3,3 | bestanden | 8 | 22.01.2024 |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "WiSe 23/24",
+      "level": "modul",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 14,
+      "pruefungsnr": "151",
+      "text": "Testchemie",
+      "semester": "WS 2025/2026",
+      "note": "5,0",
+      "status": "endgültig nicht bestanden",
+      "credits": "0",
+      "versuch": "3",
+      "datum": "12.02.2026",
+      "abschluss": null,
+      "raw": "151 | Testchemie | KL | WS 2025/2026 | 5,0 | endgültig nicht bestanden | 0 | 12.02.2026 | 3 |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "KL",
+      "semester_norm": "WiSe 25/26",
+      "level": "pruefung",
+      "passed": false,
+      "graded": false
+     },
+     {
+      "id": 8,
+      "pruefungsnr": "121",
+      "text": "Testphysik",
+      "semester": "WiSe 24/25",
+      "note": "2,0",
+      "status": "bestanden",
+      "credits": "5",
+      "versuch": "1",
+      "datum": "10.02.2025",
+      "abschluss": null,
+      "raw": "121 | Testphysik | PL | WiSe 24/25 | 2,0 | bestanden | 5 | 10.02.2025 | 1 |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "PL",
+      "semester_norm": "WiSe 24/25",
+      "level": "pruefung",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 9,
+      "pruefungsnr": "521",
+      "text": "Testlabor",
+      "semester": "SoSe 24",
+      "note": "",
+      "status": "bestanden",
+      "credits": "2",
+      "versuch": "1",
+      "datum": "23.07.2024",
+      "abschluss": null,
+      "raw": "521 | Testlabor | LA | SoSe 24 |  | bestanden | 2 | 23.07.2024 | 1 |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "LA",
+      "semester_norm": "SoSe 24",
+      "level": "pruefung",
+      "passed": true,
+      "graded": false
+     },
+     {
+      "id": 6,
+      "pruefungsnr": "121",
+      "text": "Testphysik",
+      "semester": "SoSe 24",
+      "note": "5,0",
+      "status": "nicht bestanden",
+      "credits": "0",
+      "versuch": "1",
+      "datum": "20.07.2024",
+      "abschluss": null,
+      "raw": "121 | Testphysik | PL | SoSe 24 | 5,0 | nicht bestanden | 0 | 20.07.2024 | 1 | OWR | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "PL",
+      "vermerk": "OWR",
+      "semester_norm": "SoSe 24",
+      "level": "pruefung",
+      "passed": false,
+      "graded": false
+     },
+     {
+      "id": 3,
+      "pruefungsnr": "111",
+      "text": "Testmathe I",
+      "semester": "WiSe 23/24",
+      "note": "3,3",
+      "status": "bestanden",
+      "credits": "8",
+      "versuch": "1",
+      "datum": "22.01.2024",
+      "abschluss": null,
+      "raw": "111 | Testmathe I | PL | WiSe 23/24 | 3,3 | bestanden | 8 | 22.01.2024 | 1 |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "PL",
+      "semester_norm": "WiSe 23/24",
+      "level": "pruefung",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 4,
+      "pruefungsnr": "112",
+      "text": "Testmathe I",
+      "semester": "WiSe 23/24",
+      "note": "",
+      "status": "bestanden",
+      "credits": "0",
+      "versuch": "1",
+      "datum": "15.01.2024",
+      "abschluss": null,
+      "raw": "112 | Testmathe I | SL | WiSe 23/24 |  | bestanden | 0 | 15.01.2024 | 1 |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "SL",
+      "semester_norm": "WiSe 23/24",
+      "level": "pruefung",
+      "passed": true,
+      "graded": false
+     }
+    ],
+    "average": 2.3,
+    "average_exact": 2.4,
+    "graded_count": 3,
+    "graded_credits": 20.5,
+    "credits": 30.5,
+    "passed": 5,
+    "basis": "module",
+    "bereiche": [
+     {
+      "text": "Kompetenzbereich Grundlagen",
+      "note": "3,3",
+      "credits": "13",
+      "status": "bestanden"
+     },
+     {
+      "text": "Pflichtmodule",
+      "note": "",
+      "credits": "6",
+      "status": "bestanden"
+     }
+    ],
+    "failed_attempts": 1,
+    "last_run": null,
+    "documents": []
+   }
+  },
+  {
+   "name": "abschneiden",
+   "rows": [
+    {
+     "id": 1,
+     "pruefungsnr": "200",
+     "text": "Testmodul A",
+     "semester": "WiSe 24/25",
+     "note": "3,7",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "200 | Testmodul A |  | WiSe 24/25 | 3,7 | bestanden | 6 | 01.02.2025 |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 2,
+     "pruefungsnr": "210",
+     "text": "Testmodul B",
+     "semester": "SoSe 25",
+     "note": "3,3",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "210 | Testmodul B |  | SoSe 25 | 3,3 | bestanden | 5 | 01.08.2025 |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 3,
+     "pruefungsnr": "220",
+     "text": "Testmodul C",
+     "semester": "SoSe 25",
+     "note": "3,3",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "220 | Testmodul C |  | SoSe 25 | 3,3 | bestanden | 4 | 02.08.2025 |  |  | ",
+     "fetched_at": "2026-10-29T09:00:00"
+    }
+   ],
+   "response": {
+    "grades": [
+     {
+      "id": 2,
+      "pruefungsnr": "210",
+      "text": "Testmodul B",
+      "semester": "SoSe 25",
+      "note": "3,3",
+      "status": "bestanden",
+      "credits": "5",
+      "versuch": null,
+      "datum": "01.08.2025",
+      "abschluss": null,
+      "raw": "210 | Testmodul B |  | SoSe 25 | 3,3 | bestanden | 5 | 01.08.2025 |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "SoSe 25",
+      "level": "modul",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 3,
+      "pruefungsnr": "220",
+      "text": "Testmodul C",
+      "semester": "SoSe 25",
+      "note": "3,3",
+      "status": "bestanden",
+      "credits": "4",
+      "versuch": null,
+      "datum": "02.08.2025",
+      "abschluss": null,
+      "raw": "220 | Testmodul C |  | SoSe 25 | 3,3 | bestanden | 4 | 02.08.2025 |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "SoSe 25",
+      "level": "modul",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 1,
+      "pruefungsnr": "200",
+      "text": "Testmodul A",
+      "semester": "WiSe 24/25",
+      "note": "3,7",
+      "status": "bestanden",
+      "credits": "6",
+      "versuch": null,
+      "datum": "01.02.2025",
+      "abschluss": null,
+      "raw": "200 | Testmodul A |  | WiSe 24/25 | 3,7 | bestanden | 6 | 01.02.2025 |  |  | ",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "WiSe 24/25",
+      "level": "modul",
+      "passed": true,
+      "graded": true
+     }
+    ],
+    "average": 3.4,
+    "average_exact": 3.46,
+    "graded_count": 3,
+    "graded_credits": 15.0,
+    "credits": 15.0,
+    "passed": 3,
+    "basis": "module",
+    "bereiche": [],
+    "failed_attempts": 0,
+    "last_run": null,
+    "documents": []
+   }
+  },
+  {
+   "name": "hildesheim",
+   "rows": [
+    {
+     "id": 1,
+     "pruefungsnr": "5011",
+     "text": "TM 1: Grundlagen",
+     "semester": null,
+     "note": "1,7",
+     "status": "bestanden",
+     "credits": "6",
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "5011 | TM 1 | 1,7 | bestanden | 6",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 2,
+     "pruefungsnr": "4220",
+     "text": "Grundlagen I",
+     "semester": null,
+     "note": "2,3",
+     "status": "bestanden",
+     "credits": "6",
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "4220 | Grundlagen I | 2,3 | bestanden | 6",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 3,
+     "pruefungsnr": "5032",
+     "text": "TM 2",
+     "semester": null,
+     "note": "",
+     "status": "angemeldet (SoSe 26)",
+     "credits": "0",
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "5032 | TM 2 |  | angemeldet (SoSe 26) | 0",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 4,
+     "pruefungsnr": "10010",
+     "text": "Pflichtmodule (mindestens 12 LP)",
+     "semester": null,
+     "note": "",
+     "status": "Prüfung vorhanden",
+     "credits": "6",
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "10010 | Pflichtmodule",
+     "fetched_at": "2026-10-29T09:00:00"
+    }
+   ],
+   "response": {
+    "grades": [
+     {
+      "id": 4,
+      "pruefungsnr": "10010",
+      "text": "Pflichtmodule (mindestens 12 LP)",
+      "semester": null,
+      "note": "",
+      "status": "Prüfung vorhanden",
+      "credits": "6",
+      "versuch": null,
+      "datum": null,
+      "abschluss": null,
+      "raw": "10010 | Pflichtmodule",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "",
+      "level": "bereich",
+      "passed": false,
+      "graded": false
+     },
+     {
+      "id": 2,
+      "pruefungsnr": "4220",
+      "text": "Grundlagen I",
+      "semester": null,
+      "note": "2,3",
+      "status": "bestanden",
+      "credits": "6",
+      "versuch": null,
+      "datum": null,
+      "abschluss": null,
+      "raw": "4220 | Grundlagen I | 2,3 | bestanden | 6",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "",
+      "level": "modul",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 1,
+      "pruefungsnr": "5011",
+      "text": "TM 1: Grundlagen",
+      "semester": null,
+      "note": "1,7",
+      "status": "bestanden",
+      "credits": "6",
+      "versuch": null,
+      "datum": null,
+      "abschluss": null,
+      "raw": "5011 | TM 1 | 1,7 | bestanden | 6",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "",
+      "level": "modul",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 3,
+      "pruefungsnr": "5032",
+      "text": "TM 2",
+      "semester": null,
+      "note": "",
+      "status": "angemeldet (SoSe 26)",
+      "credits": "0",
+      "versuch": null,
+      "datum": null,
+      "abschluss": null,
+      "raw": "5032 | TM 2 |  | angemeldet (SoSe 26) | 0",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "",
+      "semester_norm": "",
+      "level": "modul",
+      "passed": false,
+      "graded": false
+     }
+    ],
+    "average": 2.0,
+    "average_exact": 2.0,
+    "graded_count": 2,
+    "graded_credits": 12.0,
+    "credits": 12.0,
+    "passed": 2,
+    "basis": "module",
+    "bereiche": [
+     {
+      "text": "Pflichtmodule (mindestens 12 LP)",
+      "note": "",
+      "credits": "6",
+      "status": "Prüfung vorhanden"
+     }
+    ],
+    "failed_attempts": 0,
+    "last_run": null,
+    "documents": []
+   }
+  },
+  {
+   "name": "ohne_lp",
+   "rows": [
+    {
+     "id": 1,
+     "pruefungsnr": "301",
+     "text": "Testseminar",
+     "semester": null,
+     "note": "1,3",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "301 | Testseminar | PL | 1,3 | bestanden",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 2,
+     "pruefungsnr": "302",
+     "text": "Testprojekt",
+     "semester": null,
+     "note": "2,0",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "302 | Testprojekt | PL | 2,0 | bestanden",
+     "fetched_at": "2026-10-29T09:00:00"
+    },
+    {
+     "id": 3,
+     "pruefungsnr": "303",
+     "text": "Testreferat",
+     "semester": null,
+     "note": "4,3",
+     "status": "bestanden",
+     "credits": null,
+     "versuch": null,
+     "datum": null,
+     "abschluss": null,
+     "raw": "303 | Testreferat | PL | 4,3 | bestanden",
+     "fetched_at": "2026-10-29T09:00:00"
+    }
+   ],
+   "response": {
+    "grades": [
+     {
+      "id": 2,
+      "pruefungsnr": "302",
+      "text": "Testprojekt",
+      "semester": null,
+      "note": "2,0",
+      "status": "bestanden",
+      "credits": null,
+      "versuch": null,
+      "datum": null,
+      "abschluss": null,
+      "raw": "302 | Testprojekt | PL | 2,0 | bestanden",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "PL",
+      "semester_norm": "",
+      "level": "pruefung",
+      "passed": true,
+      "graded": true
+     },
+     {
+      "id": 3,
+      "pruefungsnr": "303",
+      "text": "Testreferat",
+      "semester": null,
+      "note": "4,3",
+      "status": "bestanden",
+      "credits": null,
+      "versuch": null,
+      "datum": null,
+      "abschluss": null,
+      "raw": "303 | Testreferat | PL | 4,3 | bestanden",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "PL",
+      "semester_norm": "",
+      "level": "pruefung",
+      "passed": true,
+      "graded": false
+     },
+     {
+      "id": 1,
+      "pruefungsnr": "301",
+      "text": "Testseminar",
+      "semester": null,
+      "note": "1,3",
+      "status": "bestanden",
+      "credits": null,
+      "versuch": null,
+      "datum": null,
+      "abschluss": null,
+      "raw": "301 | Testseminar | PL | 1,3 | bestanden",
+      "fetched_at": "2026-10-29T09:00:00",
+      "art": "PL",
+      "semester_norm": "",
+      "level": "pruefung",
+      "passed": true,
+      "graded": true
+     }
+    ],
+    "average": 1.6,
+    "average_exact": 1.65,
+    "graded_count": 2,
+    "graded_credits": 0.0,
+    "credits": 0.0,
+    "passed": 3,
+    "basis": "leistungen",
+    "bereiche": [],
+    "failed_attempts": 0,
+    "last_run": null,
+    "documents": []
+   }
+  },
+  {
+   "name": "leer",
+   "rows": [],
+   "response": {
+    "grades": [],
+    "average": null,
+    "average_exact": null,
+    "graded_count": 0,
+    "graded_credits": 0,
+    "credits": 0,
+    "passed": 0,
+    "basis": "leistungen",
+    "bereiche": [],
+    "failed_attempts": 0,
+    "last_run": null,
+    "documents": []
+   }
+  }
+ ],
+ "norm_semester": [
+  {
+   "in": "WiSe 23/24",
+   "out": "WiSe 23/24"
+  },
+  {
+   "in": "Wintersemester 23/24",
+   "out": "WiSe 23/24"
+  },
+  {
+   "in": "Sommersemester 26",
+   "out": "SoSe 26"
+  },
+  {
+   "in": "SoSe 26",
+   "out": "SoSe 26"
+  },
+  {
+   "in": "WS 2024/2025",
+   "out": "WiSe 24/25"
+  },
+  {
+   "in": "SS 2025",
+   "out": "SoSe 25"
+  },
+  {
+   "in": "ws 24/25",
+   "out": "WiSe 24/25"
+  },
+  {
+   "in": "Wintersemester 2025",
+   "out": "WiSe 25"
+  },
+  {
+   "in": "Sommersemester2024",
+   "out": "SoSe 24"
+  },
+  {
+   "in": "3,3",
+   "out": "3,3"
+  },
+  {
+   "in": "",
+   "out": ""
+  },
+  {
+   "in": "  WiSe 25/26  ",
+   "out": "WiSe 25/26"
+  },
+  {
+   "in": "Winter 23/24",
+   "out": "Winter 23/24"
+  }
+ ],
+ "truncate1": [
+  {
+   "in": 3.47,
+   "out": 3.4
+  },
+  {
+   "in": 3.0,
+   "out": 3.0
+  },
+  {
+   "in": 1.99,
+   "out": 1.9
+  },
+  {
+   "in": 2.8,
+   "out": 2.8
+  },
+  {
+   "in": 2.0000000001,
+   "out": 2.0
+  },
+  {
+   "in": 1.0,
+   "out": 1.0
+  },
+  {
+   "in": 4.0,
+   "out": 4.0
+  },
+  {
+   "in": 3.4666666666666663,
+   "out": 3.4
+  },
+  {
+   "in": 2.95,
+   "out": 2.9
+  },
+  {
+   "in": 0.30000000000000004,
+   "out": 0.3
+  }
+ ],
+ "fields_from_raw": [
+  {
+   "in": "10 | Kompetenzbereich Grundlagen |  | 3,3 | bestanden | 13 |  |  |  | ",
+   "out": {
+    "pruefungsnr": "10",
+    "note": "3,3",
+    "status": "bestanden",
+    "credits": "13"
+   }
+  },
+  {
+   "in": "110 | Testmathe I |  | WiSe 23/24 | 3,3 | bestanden | 8 | 22.01.2024 |  |  | ",
+   "out": {
+    "pruefungsnr": "110",
+    "semester": "WiSe 23/24",
+    "note": "3,3",
+    "status": "bestanden",
+    "datum": "22.01.2024",
+    "credits": "8"
+   }
+  },
+  {
+   "in": "111 | Testmathe I | PL | WiSe 23/24 | 3,3 | bestanden | 8 | 22.01.2024 | 1 |  | ",
+   "out": {
+    "pruefungsnr": "111",
+    "art": "PL",
+    "semester": "WiSe 23/24",
+    "note": "3,3",
+    "status": "bestanden",
+    "datum": "22.01.2024",
+    "credits": "8",
+    "versuch": "1"
+   }
+  },
+  {
+   "in": "112 | Testmathe I | SL | WiSe 23/24 |  | bestanden | 0 | 15.01.2024 | 1 |  | ",
+   "out": {
+    "pruefungsnr": "112",
+    "art": "SL",
+    "semester": "WiSe 23/24",
+    "status": "bestanden",
+    "datum": "15.01.2024",
+    "credits": "0",
+    "versuch": "1"
+   }
+  },
+  {
+   "in": "111 | Testmathe I | PL | Wintersemester 23/24 | 3,3 | bestanden | 8 | 22.01.2024 | 1 |  | ",
+   "out": {
+    "pruefungsnr": "111",
+    "art": "PL",
+    "semester": "Wintersemester 23/24",
+    "note": "3,3",
+    "status": "bestanden",
+    "datum": "22.01.2024",
+    "credits": "8",
+    "versuch": "1"
+   }
+  },
+  {
+   "in": "121 | Testphysik | PL | SoSe 24 | 5,0 | nicht bestanden | 0 | 20.07.2024 | 1 | OWR | ",
+   "out": {
+    "pruefungsnr": "121",
+    "art": "PL",
+    "semester": "SoSe 24",
+    "note": "5,0",
+    "status": "nicht bestanden",
+    "datum": "20.07.2024",
+    "credits": "0",
+    "versuch": "1",
+    "vermerk": "OWR"
+   }
+  },
+  {
+   "in": "120 | Testphysik |  | WiSe 24/25 | 2,0 | bestanden | 5 | 10.02.2025 |  |  | ",
+   "out": {
+    "pruefungsnr": "120",
+    "semester": "WiSe 24/25",
+    "note": "2,0",
+    "status": "bestanden",
+    "datum": "10.02.2025",
+    "credits": "5"
+   }
+  },
+  {
+   "in": "121 | Testphysik | PL | WiSe 24/25 | 2,0 | bestanden | 5 | 10.02.2025 | 1 |  | ",
+   "out": {
+    "pruefungsnr": "121",
+    "art": "PL",
+    "semester": "WiSe 24/25",
+    "note": "2,0",
+    "status": "bestanden",
+    "datum": "10.02.2025",
+    "credits": "5",
+    "versuch": "1"
+   }
+  },
+  {
+   "in": "521 | Testlabor | LA | SoSe 24 |  | bestanden | 2 | 23.07.2024 | 1 |  | ",
+   "out": {
+    "pruefungsnr": "521",
+    "art": "LA",
+    "semester": "SoSe 24",
+    "status": "bestanden",
+    "datum": "23.07.2024",
+    "credits": "2",
+    "versuch": "1"
+   }
+  },
+  {
+   "in": "599 | Pflichtmodule |  | SoSe 25 |  | bestanden | 6 | 13.06.2025 |  |  | ",
+   "out": {
+    "pruefungsnr": "599",
+    "semester": "SoSe 25",
+    "status": "bestanden",
+    "datum": "13.06.2025",
+    "credits": "6"
+   }
+  },
+  {
+   "in": "510 | Einstiegsmodul |  | SoSe 25 |  | bestanden | 6 | 13.06.2025 |  |  | ",
+   "out": {
+    "pruefungsnr": "510",
+    "semester": "SoSe 25",
+    "status": "bestanden",
+    "datum": "13.06.2025",
+    "credits": "6"
+   }
+  },
+  {
+   "in": "130 | Testinformatik |  | Sommersemester 25 | 1,7 | bestanden | 7,5 | 01.08.2025 |  |  | ",
+   "out": {
+    "pruefungsnr": "130",
+    "semester": "Sommersemester 25",
+    "note": "1,7",
+    "status": "bestanden",
+    "datum": "01.08.2025",
+    "credits": "7,5"
+   }
+  },
+  {
+   "in": "140 | Testsprachkurs |  | WiSe 25/26 |  | anerkannt | 4 |  |  |  | ",
+   "out": {
+    "pruefungsnr": "140",
+    "semester": "WiSe 25/26",
+    "status": "anerkannt",
+    "credits": "4"
+   }
+  },
+  {
+   "in": "151 | Testchemie | KL | WS 2025/2026 | 5,0 | endgültig nicht bestanden | 0 | 12.02.2026 | 3 |  | ",
+   "out": {
+    "pruefungsnr": "151",
+    "art": "KL",
+    "semester": "WS 2025/2026",
+    "note": "5,0",
+    "status": "endgültig nicht bestanden",
+    "datum": "12.02.2026",
+    "credits": "0",
+    "versuch": "3"
+   }
+  },
+  {
+   "in": "200 | Testmodul A |  | WiSe 24/25 | 3,7 | bestanden | 6 | 01.02.2025 |  |  | ",
+   "out": {
+    "pruefungsnr": "200",
+    "semester": "WiSe 24/25",
+    "note": "3,7",
+    "status": "bestanden",
+    "datum": "01.02.2025",
+    "credits": "6"
+   }
+  },
+  {
+   "in": "210 | Testmodul B |  | SoSe 25 | 3,3 | bestanden | 5 | 01.08.2025 |  |  | ",
+   "out": {
+    "pruefungsnr": "210",
+    "semester": "SoSe 25",
+    "note": "3,3",
+    "status": "bestanden",
+    "datum": "01.08.2025",
+    "credits": "5"
+   }
+  },
+  {
+   "in": "220 | Testmodul C |  | SoSe 25 | 3,3 | bestanden | 4 | 02.08.2025 |  |  | ",
+   "out": {
+    "pruefungsnr": "220",
+    "semester": "SoSe 25",
+    "note": "3,3",
+    "status": "bestanden",
+    "datum": "02.08.2025",
+    "credits": "4"
+   }
+  },
+  {
+   "in": "5011 | TM 1 | 1,7 | bestanden | 6",
+   "out": {
+    "pruefungsnr": "5011",
+    "note": "1,7",
+    "status": "bestanden",
+    "credits": "6"
+   }
+  },
+  {
+   "in": "4220 | Grundlagen I | 2,3 | bestanden | 6",
+   "out": {
+    "pruefungsnr": "4220",
+    "note": "2,3",
+    "status": "bestanden",
+    "credits": "6"
+   }
+  },
+  {
+   "in": "5032 | TM 2 |  | angemeldet (SoSe 26) | 0",
+   "out": {
+    "pruefungsnr": "5032",
+    "status": "angemeldet (SoSe 26)",
+    "credits": "0"
+   }
+  },
+  {
+   "in": "10010 | Pflichtmodule",
+   "out": {
+    "pruefungsnr": "10010"
+   }
+  },
+  {
+   "in": "301 | Testseminar | PL | 1,3 | bestanden",
+   "out": {
+    "pruefungsnr": "301",
+    "art": "PL",
+    "note": "1,3",
+    "status": "bestanden"
+   }
+  },
+  {
+   "in": "302 | Testprojekt | PL | 2,0 | bestanden",
+   "out": {
+    "pruefungsnr": "302",
+    "art": "PL",
+    "note": "2,0",
+    "status": "bestanden"
+   }
+  },
+  {
+   "in": "303 | Testreferat | PL | 4,3 | bestanden",
+   "out": {
+    "pruefungsnr": "303",
+    "art": "PL",
+    "note": "4,3",
+    "status": "bestanden"
+   }
+  },
+  {
+   "in": "",
+   "out": {}
+  },
+  {
+   "in": "Kein | Feld",
+   "out": {}
+  },
+  {
+   "in": "12 | Text | sl | SoSe 24 | 1,0 | Bestanden | 3 | 01.01.2024 | 2 | RT",
+   "out": {
+    "pruefungsnr": "12",
+    "art": "SL",
+    "semester": "SoSe 24",
+    "note": "1,0",
+    "status": "Bestanden",
+    "datum": "01.01.2024",
+    "credits": "3",
+    "versuch": "2",
+    "vermerk": "RT"
+   }
+  },
+  {
+   "in": "13 | Text | PL | WiSe 24/25 | 2,7 | bestanden | 5,5 | 02.02.2025 | 10",
+   "out": {
+    "pruefungsnr": "13",
+    "art": "PL",
+    "semester": "WiSe 24/25",
+    "note": "2,7",
+    "status": "bestanden",
+    "datum": "02.02.2025",
+    "credits": "5,5",
+    "versuch": "10"
+   }
+  },
+  {
+   "in": "14 | Text | PL | WiSe 24/25 | 2,7 | bestanden | x | 02.02.2025 | 1 | abc",
+   "out": {
+    "pruefungsnr": "14",
+    "art": "PL",
+    "semester": "WiSe 24/25",
+    "note": "2,7",
+    "status": "bestanden",
+    "datum": "02.02.2025",
+    "versuch": "1"
+   }
+  }
+ ]
+}

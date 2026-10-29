@@ -148,13 +148,17 @@ final class QISHildesheimTests: XCTestCase {
         XCTAssertEqual(GradeRows.parse(rows: cells, abschluss: "Abschluss 82 Bachelor of Science").map(\.text), ["Mathematik I"])
     }
 
-    /// GET /api/grades wie qis.summary: Reihenfolge "semester DESC, text" (NULL zuletzt, Bytes wie SQLite), Durchschnitt
-    /// nach Credits ueber alle Noten 1,0 bis 5,0, bestanden = Status beginnt mit "be", letzter Abruf. Erwartete Werte aus
-    /// qis.summary mit denselben erfundenen Zeilen: average 2.96, credits 15.0, passed 3.
+    /// GET /api/grades wie qis.summary mit app/grades_model.py (seit 28.10.2026): Module (keine Art, kein Versuch), neueste
+    /// Semester zuerst, darin nach Text (Codepunkte), ohne Semester zuletzt; Schnitt der bestandenen benoteten Module nach
+    /// LP, abgeschnitten (die 5,0 zaehlt nicht mehr); letzter Abruf. Erwartete Werte aus grades_model.summary mit
+    /// denselben erfundenen Zeilen: average 1.9, average_exact 1.94, credits 10.0, passed 3. Der ganze Vertrag:
+    /// GradesModelTests (grades.json).
     func testGradesEndpointMatchesQISSummary() async throws {
         let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: .fixed(Date(timeIntervalSince1970: 1_792_900_000)))
         let empty = await backend.handle(LocalRequest(method: "GET", path: "/api/grades"))
-        XCTAssertEqual(empty.json, ["grades": [], "average": .null, "credits": 0, "passed": 0, "last_run": .null, "documents": []])
+        XCTAssertEqual(empty.json, ["grades": [], "average": .null, "average_exact": .null, "graded_count": 0, "graded_credits": 0,
+                                    "credits": 0, "passed": 0, "basis": "leistungen", "bereiche": [], "failed_attempts": 0,
+                                    "last_run": .null, "documents": []])
         XCTAssertEqual(backend.route(method: "GET", path: "/api/grades")?.placeholder, false)
         let grades = [QISGrade(pruefungsnr: "5011", text: "TM 1: Grundlagen", semester: "WiSe 25/26", note: "1,7", status: "bestanden", credits: "6"),
                       QISGrade(pruefungsnr: "5020", text: "Statistik", semester: "SoSe 26", note: "2,3", status: "bestanden", credits: "4"),
@@ -167,14 +171,17 @@ final class QISHildesheimTests: XCTestCase {
         }
         let filled = await backend.handle(LocalRequest(method: "GET", path: "/api/grades"))
         let r = try XCTUnwrap(filled.json)
-        XCTAssertEqual(r["grades"]?.array?.compactMap { $0["text"]?.string }, ["TM 1: Grundlagen", "Statistik", "Zusatz", "Ästhetik", "TM 2: Kindheit"])
-        XCTAssertEqual(r["average"], 2.96)
-        XCTAssertEqual(r["credits"], 15)
+        XCTAssertEqual(r["grades"]?.array?.compactMap { $0["text"]?.string }, ["Statistik", "Zusatz", "Ästhetik", "TM 1: Grundlagen", "TM 2: Kindheit"])
+        XCTAssertEqual(r["average"], 1.9)
+        XCTAssertEqual(r["average_exact"], 1.94)
+        XCTAssertEqual(r["credits"], 10)
+        XCTAssertEqual(r["basis"], "module")
         XCTAssertEqual(r["passed"], 3)
         XCTAssertEqual(r["last_run"]?["message"], "4 Leistungen")
         XCTAssertEqual(r["last_run"]?["ok"], 1)
         XCTAssertEqual(r["documents"], [])
         XCTAssertEqual(r["grades"]?.array?.first?["fetched_at"], "2026-10-26T10:00:00")
+        XCTAssertEqual(r["grades"]?.array?.first?["level"], "modul")
 
         // erneuter Abruf (Hildesheim: ohne Semester und Versuch, NULL in der UNIQUE-Spalte): aktualisiert statt doppelt
         var again = grades
