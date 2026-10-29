@@ -45,12 +45,15 @@ public enum PageOrder {
     // MARK: Schluessel
 
     /// Neuer Schluessel fuer eine Leerseite wie `"b" + uid()` im Web-Editor (8 Zufallszeichen + 4 Zeitzeichen, Basis 36).
-    public static func newBlankKey(now: Date = Date()) -> String {
+    public static func newBlankKey(now: Date = Date()) -> String { "b" + uid(now: now) }
+
+    /// `uid()` des Web-Editors: 8 Zufallszeichen + 4 Zeitzeichen (Basis 36); auch fuer Objekt-IDs kopierter Seiten.
+    public static func uid(now: Date = Date()) -> String {
         let alphabet = Array("0123456789abcdefghijklmnopqrstuvwxyz")
         var rng = SystemRandomNumberGenerator()
         let random = String((0..<8).map { _ in alphabet[Int(rng.next() % 36)] })
         let time = String(Int(now.timeIntervalSince1970 * 1000), radix: 36)
-        return "b" + random + String(time.suffix(4))
+        return random + String(time.suffix(4))
     }
 
     static func keys(_ doc: AnnotationDocument) -> [String] { doc.pageOrder.compactMap { $0["key"]?.string } }
@@ -93,6 +96,19 @@ public enum PageOrder {
     @discardableResult
     public static func insertBlank(_ doc: inout AnnotationDocument, after afterKey: String?, template: String,
                                    width: Double = 595, height: Double = 842, key: String? = nil) -> Change? {
+        let pos = afterKey.flatMap { index(of: $0, in: doc.pageOrder) }.map { $0 + 1 } ?? doc.pageOrder.count
+        return insertBlank(&doc, at: pos, template: template, width: width, height: height, key: key)
+    }
+
+    /// Leerseite vor `beforeKey` einfuegen ("Leere Seite davor" im Web; unbekannter Schluessel: am Anfang).
+    @discardableResult
+    public static func insertBlank(_ doc: inout AnnotationDocument, before beforeKey: String, template: String,
+                                   width: Double = 595, height: Double = 842, key: String? = nil) -> Change? {
+        insertBlank(&doc, at: index(of: beforeKey, in: doc.pageOrder) ?? 0, template: template, width: width, height: height, key: key)
+    }
+
+    private static func insertBlank(_ doc: inout AnnotationDocument, at pos: Int, template: String,
+                                    width: Double, height: Double, key: String?) -> Change? {
         var order = doc.pageOrder
         var newKey = key ?? newBlankKey()
         if key == nil {
@@ -106,8 +122,7 @@ public enum PageOrder {
             "key": .string(newKey), "type": "blank", "template": .string(t),
             "w": .number(size.width), "h": .number(size.height),
         ])
-        let pos = afterKey.flatMap { index(of: $0, in: order) }.map { $0 + 1 } ?? order.count
-        order.insert(entry, at: pos)
+        order.insert(entry, at: min(max(pos, 0), order.count))
         doc.root["pageOrder"] = .array(order)
         var changed: [String] = []
         if doc.page(newKey) == nil {
@@ -115,6 +130,113 @@ public enum PageOrder {
             changed.append(newKey)
         }
         return Change(focusKey: newKey, changedPageKeys: changed)
+    }
+
+    // MARK: Seitenwerkzeuge (Editor-Schritt 5, P1-1; wie movePage, duplicatePage, clearPage, setTemplate, setFormat)
+
+    /// Seite an Platz `target` (0-basiert) verschieben, wie `movePage(from, to)`: ausserhalb der Liste oder am selben
+    /// Platz nichts.
+    @discardableResult
+    public static func move(_ doc: inout AnnotationDocument, key: String, to target: Int) -> Change? {
+        var order = doc.pageOrder
+        guard let i = index(of: key, in: order), target != i, target >= 0, target < order.count else { return nil }
+        let entry = order.remove(at: i)
+        order.insert(entry, at: target)
+        doc.root["pageOrder"] = .array(order)
+        return Change(focusKey: key, changedPageKeys: [])
+    }
+
+    /// Seite kopieren, wie `duplicatePage`: dahinter ein Eintrag mit neuem Schluessel ("p<Index>c…" fuer PDF-Seiten,
+    /// "b…" sonst), alle Felder des Eintrags bleiben (Drehung, Vorlage, Groesse). Die Seite wird ganz kopiert, jedes
+    /// Objekt bekommt eine neue ID; die native Zeichnung passt dann nicht mehr und wird aus den Objekten gebaut.
+    @discardableResult
+    public static func duplicate(_ doc: inout AnnotationDocument, key: String, newKey: String? = nil,
+                                 newID: () -> String = { uid() }) -> Change? {
+        var order = doc.pageOrder
+        guard let i = index(of: key, in: order), var entry = order[i].object else { return nil }
+        var copyKey = newKey ?? ""
+        if newKey == nil {
+            repeat {
+                copyKey = (entry["type"]?.string == "pdf" ? "p\(entry["index"]?.int ?? 0)c" : "b") + uid()
+            } while doc.page(copyKey) != nil || index(of: copyKey, in: order) != nil
+        } else if index(of: copyKey, in: order) != nil || doc.page(copyKey) != nil {
+            return nil
+        }
+        entry["key"] = .string(copyKey)
+        order.insert(.object(entry), at: i + 1)
+        var page = doc.page(key) ?? .object(["objects": .array([])])
+        page["objects"] = .array((page["objects"]?.array ?? []).map { o in
+            guard var obj = o.object else { return o }
+            obj["id"] = .string(newID())
+            return .object(obj)
+        })
+        doc.root["pageOrder"] = .array(order)
+        doc.pages[copyKey] = page
+        return Change(focusKey: copyKey, changedPageKeys: [copyKey])
+    }
+
+    /// Alle Notizen der Seite entfernen, wie `clearPage` (andere Felder der Seite bleiben). Leere Seite: nichts.
+    @discardableResult
+    public static func clear(_ doc: inout AnnotationDocument, key: String) -> Change? {
+        guard index(of: key, in: doc.pageOrder) != nil, var page = doc.page(key), !doc.objects(page: key).isEmpty else { return nil }
+        page["objects"] = .array([])
+        doc.pages[key] = page
+        return Change(focusKey: key, changedPageKeys: [key])
+    }
+
+    /// Vorlage einer Leerseite wechseln (`setTemplate`). Abweichung vom Web: PDF-Seiten werden nicht zu Leerseiten
+    /// gemacht, denn die fehlende PDF-Seite kaeme beim naechsten Oeffnen ans Ende zurueck (`ensurePDFPages`).
+    @discardableResult
+    public static func setTemplate(_ doc: inout AnnotationDocument, key: String, template: String) -> Change? {
+        var order = doc.pageOrder
+        guard let i = index(of: key, in: order), order[i]["type"]?.string == "blank" else { return nil }
+        let t = templates.contains(template) ? template : "blank"
+        guard order[i]["template"]?.string != t else { return nil }
+        order[i]["template"] = .string(t)
+        doc.root["pageOrder"] = .array(order)
+        return Change(focusKey: key, changedPageKeys: [])
+    }
+
+    /// Format einer Leerseite aendern (`setFormat`, nur gueltige Groessen wie `validSize`); Objekte behalten ihre Lage.
+    @discardableResult
+    public static func setFormat(_ doc: inout AnnotationDocument, key: String, width: Double, height: Double) -> Change? {
+        var order = doc.pageOrder
+        guard PageFormats.validSize(width, height), let i = index(of: key, in: order),
+              order[i]["type"]?.string == "blank" else { return nil }
+        order[i]["w"] = .number(width)
+        order[i]["h"] = .number(height)
+        doc.root["pageOrder"] = .array(order)
+        return Change(focusKey: key, changedPageKeys: [])
+    }
+
+    // MARK: Gliederung (P1-2, `outline` wie im Web: [{key, title}])
+
+    public static func outline(_ doc: AnnotationDocument) -> [(key: String, title: String)] {
+        (doc.root["outline"]?.array ?? []).compactMap { e in
+            guard let k = e["key"]?.string else { return nil }
+            return (k, e["title"]?.string ?? "")
+        }
+    }
+
+    /// Gliederungspunkt am Ende anfuegen, wie `addOutline` (leerer Titel: nichts)
+    @discardableResult
+    public static func addOutline(_ doc: inout AnnotationDocument, key: String, title: String) -> Change? {
+        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty, index(of: key, in: doc.pageOrder) != nil else { return nil }
+        var list = doc.root["outline"]?.array ?? []
+        list.append(.object(["key": .string(key), "title": .string(t)]))
+        doc.root["outline"] = .array(list)
+        return Change(focusKey: key, changedPageKeys: [])
+    }
+
+    /// Gliederungspunkt an Platz `position` entfernen
+    @discardableResult
+    public static func removeOutline(_ doc: inout AnnotationDocument, at position: Int) -> Change? {
+        var list = doc.root["outline"]?.array ?? []
+        guard list.indices.contains(position) else { return nil }
+        list.remove(at: position)
+        doc.root["outline"] = .array(list)
+        return Change(focusKey: nil, changedPageKeys: [])
     }
 
     // MARK: Drehen

@@ -661,7 +661,7 @@ private struct AccountTab: View {
                             localHand = v                                         // Seite des Skripts in der geteilten Ansicht
                             Task { await api.put(["hand": .string(v)], toast: "Schreibhand gespeichert") }
                         }))
-            Text("Geteilte Ansicht: Das Skript öffnet auf der Seite der freien Hand (35 %), das Übungsblatt daneben.")
+            Text("Seitenleiste und Skript in der geteilten Ansicht liegen auf der Seite der freien Hand; die Stiftpalette lässt sich an jeden Rand ziehen.")
                 .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4).padding(.bottom, 5.6)
         }
     }
@@ -856,7 +856,7 @@ private struct LocalAccountTab: View {
                              selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
                     UFCardHead("Schreibhand", icon: "hand").padding(.top, 16)
                     UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
-                    Text("Geteilte Ansicht: Das Skript öffnet auf der Seite der freien Hand (35 %), das Übungsblatt daneben.")
+                    Text("Seitenleiste und Skript in der geteilten Ansicht liegen auf der Seite der freien Hand; die Stiftpalette lässt sich an jeden Rand ziehen.")
                         .ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4).padding(.bottom, 5.6)
                 }
                 BackgroundSyncCard()                                         // Abgleich im Hintergrund (S8)

@@ -5,7 +5,8 @@ import UniFlowCore
 /// Anzeige-PDF in der Seitenreihenfolge des Notizmodells (`pageOrder`), wie im Web-Editor:
 /// - PDF-Seiten mit zusaetzlicher Drehung aus dem Web-Editor (`pageOrder[i].rotation`),
 /// - eingefuegte Leerseiten mit Vorlage (liniert, kariert ...),
-/// - Platzhalter fuer eingefuegte Bild- oder PDF-Seiten (Striche darauf werden normal gespeichert),
+/// - im Browser eingefuegte PDF-Seiten (`type: "asset"`, `assetUrl`, `index`) mit ihrem Inhalt, sobald die Datei
+///   geladen ist (`assets`, Editor-Schritt 5, P1-3); bis dahin ein Platzhalter (Striche darauf werden normal gespeichert),
 /// - im Browser oder hier entfernte Seiten (Papierkorb `deletedPages`, siehe `PageOrder`) fehlen auch hier.
 /// - unbekannte Seitentypen wie Leerseiten mit Vorlage (wie `renderPage` im Web-Editor, editor.js:451).
 /// Nicht angezeigt werden Eintraege ohne Schluessel, mit schon vergebenem Schluessel oder mit einer PDF-Seite, die es
@@ -18,6 +19,8 @@ struct DisplayLayout {
         let template: String?
         let pdfIndex: Int?          // 1-basiert, nur pdf
         var rotation: Int = 0       // zusaetzliche Drehung aus pageOrder
+        /// Asset-Seite mit ihrem Inhalt (sonst Platzhalter)
+        var assetShown = false
     }
 
     let pdf: PDFDocument
@@ -44,7 +47,8 @@ struct DisplayLayout {
         JSONValue.array(doc.pageOrder).jsonString(sortedKeys: true)
     }
 
-    static func build(original: PDFDocument, document: AnnotationDocument) -> DisplayLayout {
+    /// `assets`: geladene PDFs eingefuegter Seiten je `assetUrl`
+    static func build(original: PDFDocument, document: AnnotationDocument, assets: [String: PDFDocument] = [:]) -> DisplayLayout {
         var doc = document
         doc.ensurePDFPages(count: original.pageCount)
         let out = PDFDocument()
@@ -57,7 +61,13 @@ struct DisplayLayout {
             let extra = p["rotation"]?.int ?? 0
             let page: PDFPage
             var pdfIndex: Int?
-            if type == "pdf" {
+            var assetShown = false
+            if type == "asset", let url = p["assetUrl"]?.string, let i = p["index"]?.int, i >= 1,
+               let src = assets[url]?.page(at: i - 1), let copy = src.copy() as? PDFPage {
+                copy.rotation = normalized(src.rotation + extra)
+                page = copy
+                assetShown = true
+            } else if type == "pdf" {
                 // PDFKit liefert fuer Seiten ausserhalb der PDF nil (auch negativ), keine Ausnahme (Pruefbericht 503)
                 guard let i = p["index"]?.int, i >= 1, let src = original.page(at: i - 1), let copy = src.copy() as? PDFPage else {
                     hidden += 1
@@ -79,7 +89,8 @@ struct DisplayLayout {
             out.insert(page, at: out.pageCount)
             keys.insert(key)
             let template = p["template"]?.string ?? doc.page(key)?["template"]?.string
-            entries.append(Entry(key: key, kind: type, template: template, pdfIndex: pdfIndex, rotation: normalized(extra)))
+            entries.append(Entry(key: key, kind: type, template: template, pdfIndex: pdfIndex, rotation: normalized(extra),
+                                 assetShown: assetShown))
         }
         return DisplayLayout(pdf: out, entries: entries, hidden: hidden)
     }

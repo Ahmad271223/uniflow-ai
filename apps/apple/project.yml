@@ -31,6 +31,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai
         TARGETED_DEVICE_FAMILY: "2"           # nur iPad (V1, Auftrag Abschnitt 2 Punkt 5)
+        # Mac ueber die iPad-App ("Designed for iPad", Entscheidung 28.10.): kein eigener Mac-Build; freigeschaltet wird
+        # es in App Store Connect (Preise und Verfuegbarkeit -> iPhone- und iPad-Apps auf Apple-Silicon-Macs)
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
