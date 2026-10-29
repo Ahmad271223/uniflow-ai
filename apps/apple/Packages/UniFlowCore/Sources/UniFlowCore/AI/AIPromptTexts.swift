@@ -46,23 +46,23 @@ Gib ein JSON-Objekt mit genau diesen Feldern zurueck:
     static let weekTestTypes = [#"mc"#, #"short"#, #"calc"#]
 }
 
-/// Konstanten von Sign in with ChatGPT wie app/chatgpt_login.py
-enum ChatGPTConstants {
-    static let authURL = #"https://auth.openai.com/api/accounts/authorize"#
-    static let tokenURL = #"https://auth.openai.com/api/accounts/oauth/token"#
-    static let issuer = #"https://auth.openai.com"#
-    static let jwksURL = #"https://auth.openai.com/.well-known/jwks.json"#
-    static let resource = #"https://api.openai.com/v1"#
-    static let responsesURL = #"https://api.openai.com/v1/responses"#
-    static let modelsURL = #"https://api.openai.com/v1/models"#
-    static let usageHelpURL = #"https://chatgpt.com/#settings"#
-    static let scope = #"openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"#
-    static let usageScope = #"chatgpt.tokens.use.direct"#
-    static let firstClientID = #"dynamic_agent_client"#
-    static let agentName = #"Studora"#
-    static let callbackPath = #"/auth/callback"#
+/// Konstanten von Sign in with ChatGPT wie app/chatgpt_login.py (oeffentlich: die App baut damit die Rueckleitung)
+public enum ChatGPTConstants {
+    public static let authURL = #"https://auth.openai.com/api/accounts/authorize"#
+    public static let tokenURL = #"https://auth.openai.com/api/accounts/oauth/token"#
+    public static let issuer = #"https://auth.openai.com"#
+    public static let jwksURL = #"https://auth.openai.com/.well-known/jwks.json"#
+    public static let resource = #"https://api.openai.com/v1"#
+    public static let responsesURL = #"https://api.openai.com/v1/responses"#
+    public static let modelsURL = #"https://api.openai.com/v1/models"#
+    public static let usageHelpURL = #"https://chatgpt.com/#settings"#
+    public static let scope = #"openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"#
+    public static let usageScope = #"chatgpt.tokens.use.direct"#
+    public static let firstClientID = #"dynamic_agent_client"#
+    public static let agentName = #"Studora"#
+    public static let callbackPath = #"/auth/callback"#
     /// Sekunden bis zum Abbruch einer Anmeldung
-    static let flowTimeout: Double = 600
+    public static let flowTimeout: Double = 600
     /// Zugriffstoken so viele Sekunden vor Ablauf erneuern
-    static let refreshMargin: Double = 60
+    public static let refreshMargin: Double = 60
 }

@@ -137,6 +137,8 @@ extension HildesheimConnection: ContainerSync {}
 @MainActor
 final class ContainerManager: ObservableObject {
     @Published private(set) var active: ActiveContainer?
+    /// KI ueber das ChatGPT-Abo des Apple-Nutzers dieses Containers (gehoert zum Nutzer, nicht zur Hochschule)
+    let chatgpt = ChatGPTLink()
     /// Stud.IP-Abgleich des aktiven Containers (ohne Container ein leerer, der nichts tut)
     @Published private(set) var studip: StudIPSync
     /// Learnweb und LSF des aktiven Containers der Uni Hildesheim (an der LUH und ohne Container nil)
@@ -330,6 +332,7 @@ final class ContainerManager: ObservableObject {
         demoActive = false
         generation += 1
         onChange?(c)
+        chatgpt.use(userScope: key.userScope, host: c.host)
         Task { await checkDatabase(c) }
         Task { await refreshDemo() }
         Task { await moveLegacyWebData(into: c) }
@@ -375,6 +378,7 @@ final class ContainerManager: ObservableObject {
         demoActive = false
         generation += 1
         onChange?(nil)
+        chatgpt.use(userScope: nil, host: nil)
     }
 
     // MARK: Demo-Inhalte (App-Pruefung ohne Hochschulkonto)
@@ -448,6 +452,8 @@ final class ContainerManager: ObservableObject {
            !left.contains(Self.leftKey) {
             left.append(Self.leftKey)
         }
+        // Verbindung mit ChatGPT dieses Apple-Nutzers (Token im Schluesselbund)
+        if !ChatGPTKeychainStore.remove(userScope: DataContainerKey.userScope(userID)) { left.append(Self.leftChatGPT) }
         // Anzeigename von vor den Containern (gemeinsame UserDefaults), falls der Umzug ihn nicht mitgenommen hat
         appDefaults.removeObject(forKey: SolutionDisplayName.key)
         // empfangene Loesungen, die noch ausserhalb der Container lagen (Documents/Inbox)
@@ -458,6 +464,7 @@ final class ContainerManager: ObservableObject {
     static let leftFiles = "Dateien und Notizen"
     static let leftKey = "Learnweb-Schlüssel"
     static let leftSession = "Stud.IP-Anmeldung"
+    static let leftChatGPT = "ChatGPT-Verbindung"
 
     /// Meldung "Nicht alles liess sich loeschen ..." zu den Resten (nil ohne Reste)
     static func deletionProblem(_ left: [String]) -> String? {

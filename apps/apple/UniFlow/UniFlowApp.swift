@@ -60,6 +60,8 @@ struct UniFlowApp: App {
                 .environmentObject(containers)
                 .environmentObject(session)
                 .environmentObject(containers.studip)                     // Abgleich des offenen Containers
+                .environmentObject(containers.chatgpt)                    // KI ueber das ChatGPT-Abo des Nutzers
+                .modifier(UFAIEnabledProvider(link: containers.chatgpt))
                 .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                 .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
                 .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"

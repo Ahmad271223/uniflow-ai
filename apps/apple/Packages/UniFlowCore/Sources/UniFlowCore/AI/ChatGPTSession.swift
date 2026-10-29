@@ -186,6 +186,14 @@ public actor ChatGPTSession {
 
     public func cancelLogin() { pending = nil }
 
+    /// Von OpenAI vergebene Client-ID aus der Konfiguration der App (nach der Aufnahme, docs/KI-CHATGPT-PLAN.md §4):
+    /// dann keine Erstregistrierung mit `dynamic_agent_client`. Eine schon ausgestellte ID bleibt.
+    public func useConfiguredClientID(_ id: String?) throws {
+        guard let id, !id.isEmpty, state.clientID == nil else { return }
+        state.clientID = id
+        try persist()
+    }
+
     /// Rueckleitung auswerten (`handle_callback`): falscher state, Abbruch oder fehlender Code tauschen nichts; bei der
     /// Erstregistrierung wird die ausgestellte Client-ID VOR dem Tausch gemerkt.
     public func completeLogin(query: [String: String]) async throws {

@@ -34,7 +34,7 @@ def render(ai, cl) -> str:
               ("resource", cl.RESOURCE), ("responsesURL", cl.RESPONSES_URL), ("modelsURL", cl.MODELS_URL),
               ("usageHelpURL", cl.USAGE_HELP_URL), ("scope", cl.SCOPE), ("usageScope", cl.USAGE_SCOPE),
               ("firstClientID", cl.FIRST_CLIENT_ID), ("agentName", cl.AGENT_NAME), ("callbackPath", cl.CALLBACK_PATH)]
-    chat = "\n".join(f"    static let {n} = {raw(v)}" for n, v in consts)
+    chat = "\n".join(f"    public static let {n} = {raw(v)}" for n, v in consts)
     return f"""// erzeugt von tools/gen-swift-ai-texts.py, nicht von Hand aendern
 // Quelle: app/ai.py und app/chatgpt_login.py
 
@@ -64,13 +64,13 @@ enum AIPromptTexts {{
     static let weekTestTypes = [{types}]
 }}
 
-/// Konstanten von Sign in with ChatGPT wie app/chatgpt_login.py
-enum ChatGPTConstants {{
+/// Konstanten von Sign in with ChatGPT wie app/chatgpt_login.py (oeffentlich: die App baut damit die Rueckleitung)
+public enum ChatGPTConstants {{
 {chat}
     /// Sekunden bis zum Abbruch einer Anmeldung
-    static let flowTimeout: Double = {cl.FLOW_TIMEOUT_S}
+    public static let flowTimeout: Double = {cl.FLOW_TIMEOUT_S}
     /// Zugriffstoken so viele Sekunden vor Ablauf erneuern
-    static let refreshMargin: Double = {cl.REFRESH_MARGIN_S}
+    public static let refreshMargin: Double = {cl.REFRESH_MARGIN_S}
 }}
 """
 

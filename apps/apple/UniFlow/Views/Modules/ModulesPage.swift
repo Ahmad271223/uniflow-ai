@@ -273,6 +273,8 @@ struct ModuleListRow: View {
 struct ModulePage: View {
     let id: Int
     @EnvironmentObject private var session: Session
+    /// KI ueber das ChatGPT-Abo des Nutzers verbunden (dann gibt es die Zusammenfassung auch ohne PC)
+    @Environment(\.ufAIEnabled) private var aiEnabled
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var toast: UFToastCenter
@@ -426,8 +428,8 @@ struct ModulePage: View {
                         .accessibilityHint("Zeigt die Aufzeichnungen dieser Woche")
                 }
                 Text("\(w.i("count") ?? 0) Dokumente").ufFont(12.8).foregroundStyle(UF.muted)
-                // KI-Zusammenfassung nur mit dem PC-Server; ohne PC gibt es keine KI (AUFTRAG-APPSTORE-V1, 2.4)
-                if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true {
+                // KI-Zusammenfassung mit dem PC-Server oder ueber das ChatGPT-Abo des Nutzers (LocalContext.ai)
+                if !w.list("vorlesungen").isEmpty, session.api?.isLocal != true || aiEnabled {
                     UFButton("Zusammenfassen", icon: "sparkles", kind: .ghost, size: .small) { overlay.modal { WeekSummaryDialog(w: w, m: m) } }
                 }
             }
