@@ -434,7 +434,7 @@ struct UFProgress: View {
                 Capsule().fill(track ?? UF.surface2)
                 Capsule().fill(color ?? (ok ? UF.ok : UF.accent))
                     .frame(width: max(0, min(1, value)) * g.size.width)
-                    .animation(.easeInOut(duration: 0.3), value: value)
+                    .animation(UF.motion(.easeInOut(duration: 0.3)), value: value)
             }
         }
         .frame(height: height)
@@ -705,7 +705,7 @@ struct UFToastOverlay: ViewModifier {
                     .allowsHitTesting(false)
             }
         }
-        .animation(.easeOut(duration: 0.15), value: center.message)
+        .animation(UF.motion(.easeOut(duration: 0.15)), value: center.message)
     }
 }
 
@@ -726,7 +726,7 @@ extension View {
                 .zIndex(50)
             }
         }
-        .animation(.easeOut(duration: 0.12), value: isPresented.wrappedValue)
+        .animation(UF.motion(.easeOut(duration: 0.12)), value: isPresented.wrappedValue)
     }
 }
 

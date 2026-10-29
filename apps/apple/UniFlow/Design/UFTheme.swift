@@ -51,7 +51,9 @@ enum UF {
     static let sidebar: CGFloat = 248    // --sidebar
     static let sidebarMin: CGFloat = 68  // --sidebar-min
     static let header: CGFloat = 56      // --header
-    static let transition = Animation.easeInOut(duration: 0.16)   // --t: .16s ease
+    static var transition: Animation? { motion(.easeInOut(duration: 0.16)) }   // --t: .16s ease
+    /// Bewegung nur ohne "Bewegung reduzieren" (Bedienungshilfen); sonst springt die Ansicht ohne Animation
+    static func motion(_ a: Animation) -> Animation? { UIAccessibility.isReduceMotionEnabled ? nil : a }
 
     // MARK: Schrift (body 14.5px/1.5, h1 1.45rem, h2 1.1rem, h3 .95rem, h4 .85rem, .small .82rem, .tiny .74rem; Gewicht 650)
     static let body = Font.uf(14.5)
@@ -139,10 +141,30 @@ extension View {
     /// Schrift wie im Web inklusive `line-height` (body: 1.5). SwiftUI setzt nur die Zeilenhoehe der Schrift
     /// (SF: etwa 1.19 x Groesse); der Rest kommt als Abstand oben/unten und als Zeilenabstand dazu, damit
     /// Karten, Zeilen und Listen dieselbe Hoehe wie im Browser haben. `em`: letter-spacing in em (h1-h4: -.01).
+    /// Folgt der Textgroesse aus den Einstellungen (Dynamic Type); in der Standardgroesse genau die Web-Masse.
     func ufFont(_ size: CGFloat, _ weight: CGFloat = 400, lh: CGFloat = 1.5, em: CGFloat = 0) -> some View {
-        let extra = max(0, size * lh - UFTypeface.font(size, weight).lineHeight)
-        return self.font(.uf(size, weight))
-            .tracking(em * size)
+        modifier(UFScaledFont(size: size, weight: weight, lh: lh, em: em))
+    }
+}
+
+/// Textgroesse wie `UIFontMetrics` (Stil "body"): Faktor 1 in der Standardgroesse "Gross", groesser oder kleiner
+/// mit der Einstellung; begrenzt auf Bedienungshilfen-Stufe 3, damit Seitenleiste und Karten bedienbar bleiben.
+struct UFScaledFont: ViewModifier {
+    let size: CGFloat, weight: CGFloat, lh: CGFloat, em: CGFloat
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    static func scaled(_ size: CGFloat, _ typeSize: DynamicTypeSize) -> CGFloat {
+        let t = min(typeSize, .accessibility3)
+        guard t != .large else { return size }
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(t))
+        return (UIFontMetrics(forTextStyle: .body).scaledValue(for: size, compatibleWith: traits) * 4).rounded() / 4
+    }
+
+    func body(content: Content) -> some View {
+        let s = Self.scaled(size, typeSize)
+        let extra = max(0, s * lh - UFTypeface.font(s, weight).lineHeight)
+        return content.font(.uf(s, weight))
+            .tracking(em * s)
             .lineSpacing(extra)
             .padding(.vertical, extra / 2)
     }

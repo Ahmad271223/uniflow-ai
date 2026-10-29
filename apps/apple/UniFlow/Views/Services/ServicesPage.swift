@@ -531,7 +531,7 @@ private struct ServiceTile: View {
 /// .mod-card:active – kein Hover auf dem iPad; beim Druecken leicht anheben wie :hover (translateY -2px)
 private struct UFLiftStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.offset(y: configuration.isPressed ? -2 : 0).animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+        configuration.label.offset(y: configuration.isPressed ? -2 : 0).animation(UF.motion(.easeOut(duration: 0.12)), value: configuration.isPressed)
     }
 }
 

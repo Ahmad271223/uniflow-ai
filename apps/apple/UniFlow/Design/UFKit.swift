@@ -390,7 +390,7 @@ struct UFModalHost: ViewModifier {
                         .transition(.opacity)
                     }
                 }
-                .animation(.easeOut(duration: 0.12), value: overlay.modals.map(\.id))
+                .animation(UF.motion(.easeOut(duration: 0.12)), value: overlay.modals.map(\.id))
             }
             .alert(alertTitle, isPresented: Binding(get: { overlay.ask != nil }, set: { if !$0 { finish(nil) } })) {
                 if case .prompt = overlay.ask {
@@ -451,7 +451,7 @@ struct UFDrawerHost: ViewModifier {
                 .transition(.opacity)
             }
         }
-        .animation(.easeOut(duration: 0.18), value: overlay.drawer?.id)
+        .animation(UF.motion(.easeOut(duration: 0.18)), value: overlay.drawer?.id)
     }
 }
 

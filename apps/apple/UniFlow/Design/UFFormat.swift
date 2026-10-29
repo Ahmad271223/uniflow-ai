@@ -133,7 +133,7 @@ struct UFSkeleton: View {
                 .fill(LinearGradient(stops: [.init(color: UF.surface2, location: 0.25), .init(color: UF.line, location: 0.5),
                                              .init(color: UF.surface2, location: 0.75)],
                                      startPoint: UnitPoint(x: phase, y: 0.5), endPoint: UnitPoint(x: phase + 1, y: 0.5)))
-                .onAppear { withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = -1 } }
+                .onAppear { withAnimation(UF.motion(.linear(duration: 1.2).repeatForever(autoreverses: false))) { phase = -1 } }
                 .frame(width: g.size.width, height: g.size.height)
         }
         .frame(minHeight: 14)

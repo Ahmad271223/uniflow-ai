@@ -278,7 +278,7 @@ struct StudyTimerHost: ViewModifier {
                     }
                 }
                 .ignoresSafeArea()
-                .animation(.easeOut(duration: 0.15), value: timer.open)
+                .animation(UF.motion(.easeOut(duration: 0.15)), value: timer.open)
             }
             .onAppear { timer.toast = toast }
             .onChange(of: scenePhase) { _, phase in
