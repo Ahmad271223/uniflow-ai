@@ -236,8 +236,9 @@ final class StudyPlanLocalAppTests: XCTestCase {
         XCTAssertEqual(pkg.list("tasks").map { $0.s("type") ?? "" }, ["frei"])
         let pid = try XCTUnwrap(pkg.i("id")), tid = try XCTUnwrap(pkg.list("tasks").first?.i("id"))
 
-        // nach dem Anlegen laedt der Lernkalender neu und zeigt das Paket
-        XCTAssertTrue(pump { self.shows(plan, "Kapitel 2 lernen") }, texts(plan).joined(separator: "\n"))
+        // nach dem Anlegen laedt der Lernkalender neu und zeigt das Paket; erst wenn der Dialog weg ist, sonst traefe
+        // "Kapitel 2 lernen" noch sein eigenes Textfeld (beim Ausblenden)
+        XCTAssertTrue(pump { !self.shows(plan, "Neues Lernpaket") && self.shows(plan, "Kapitel 2 lernen") }, texts(plan).joined(separator: "\n"))
         XCTAssertFalse(recorder.calls.contains { $0.status >= 400 }, "keine Fehlerantwort: \(recorder.calls)")
 
         // ohne Beginn angelegt: "Uhrzeiten vergeben" der Wochenansicht gibt ihm eine Uhrzeit im freien Fenster vor der

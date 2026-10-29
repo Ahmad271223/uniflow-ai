@@ -53,8 +53,9 @@ struct TimetableView: View {
         do {
             // Ausfaelle laut Stud.IP wie in Stud.IP ausblenden (`StudIPCancelled`), selbst markierte bleiben
             let from = Fmt.isoDay(start), to = Fmt.isoDay(PlanData.add(start, 6))
-            let hidden = await StudIPCancelled.keys(api, from: from, to: to)
-            let w = StudIPCancellations.hiding(in: try await api.value("/api/timetable/week?start=\(from)"), keys: hidden)
+            async let hidden = StudIPCancelled.keys(api, from: from, to: to)
+            let reply = try await api.value("/api/timetable/week?start=\(from)")
+            let w = StudIPCancellations.hiding(in: reply, keys: await hidden)
             do {
                 conflicts = try await api.value("/api/timetable/conflicts").items
                 conflictsError = nil

@@ -54,9 +54,11 @@ struct PlanView: View {
             async let cal = api.value("/api/calendar?start=\(Fmt.isoDay(start))&end=\(Fmt.isoDay(end))")
             async let open = api.value("/api/tasks/open")
             async let mods = api.value("/api/modules")
+            // Ausfaelle laut Stud.IP wie in Stud.IP ausblenden (`StudIPCancelled`), im gezeigten Zeitraum und im Monat;
+            // gleichzeitig mit den anderen Anfragen, damit das Neuladen nicht laenger dauert
+            async let hiddenKeys = StudIPCancelled.keys(api, from: Fmt.isoDay(min(start, mStart)), to: Fmt.isoDay(max(end, mEnd)))
             let month: JSONValue? = st.view == "month" ? nil : try await api.value("/api/calendar?start=\(Fmt.isoDay(mStart))&end=\(Fmt.isoDay(mEnd))")
-            // Ausfaelle laut Stud.IP wie in Stud.IP ausblenden (`StudIPCancelled`), im gezeigten Zeitraum und im Monat
-            let hidden = await StudIPCancelled.keys(api, from: Fmt.isoDay(min(start, mStart)), to: Fmt.isoDay(max(end, mEnd)))
+            let hidden = await hiddenKeys
             var pd = PlanData(view: st.view, date: d, start: start, end: end, module: st.module,
                               cal: StudIPCancellations.hiding(in: try await cal, keys: hidden), open: try await open,
                               modules: try await mods, month: month.map { StudIPCancellations.hiding(in: $0, keys: hidden) })
