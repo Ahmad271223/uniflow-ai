@@ -179,7 +179,9 @@ Regel: Der Inhaber hat den Lauf im Akkubetrieb freigegeben; auf dem Netzteil lie
 - Neu (Entscheidung des Inhabers): `LoginReminder`. Liegt die letzte Anmeldung bei der Hochschule 6 Stunden zurück,
   fragt die App beim Öffnen; sonst kommt eine vorgemerkte Mitteilung am nächsten Termin 8/15/20 Uhr, nur mit
   eingeschaltetem Schalter „Benachrichtigen“. Mitteilung und Frage sind nur in Tests geprüft, nicht von Hand.
-- Stand am Ende: Kern 776 ×2 (vor Debug-Knopf und `CFBundleName`), App 564 ×2.
+- Wochentest im Hintergrund nie bei Demo-Inhalten, auch kein Termin dafür (die Anfragen gingen sonst gegen das Abo).
+- `testBackgroundPollingIsSingleAndStopsVisibly` war wacklig (die Aufrufe überlappten nicht immer), Test behoben.
+- Stand am Ende: Kern 776 ×2 (vor Debug-Knopf und `CFBundleName`), App 565 ×2.
 - Hinweise für die nächste Sitzung: `xcode-select` zeigt hier auf die Command Line Tools, darum
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` setzen. Im Lauf mit `test-without-building` fielen die 19
   Kauf-Tests durch, mit `xcodebuild test` waren sie grün; Grund nicht geklärt, darum `xcodebuild test` nehmen.

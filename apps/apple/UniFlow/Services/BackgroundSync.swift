@@ -415,7 +415,7 @@ final class BackgroundSyncController: ObservableObject {
     /// offenen Plan mit Versuchen, ohne verbundene KI, ohne Backend oder waehrend eines Wechsels
     private func weeklyNextAt() async -> Date? {
         guard let c = containers.active, c.key == account.containerKey, account.stage == .ready, containers.problem == nil,
-              let backend = try? await c.host.backend(),
+              !containers.demoActive, let backend = try? await c.host.backend(),
               let decision = try? await WeeklyBackground.decision(backend.context), decision.action != "no_ai" else { return nil }
         return decision.nextAt
     }
@@ -483,7 +483,7 @@ final class BackgroundSyncController: ObservableObject {
         // Wochentests nur im langen Lauf, unabhaengig vom Gate des Abgleichs (auch mit abgelaufener Sitzung oder
         // ausgeschaltetem Abgleich), aber nur im passenden Container und nie neben einem laufenden Abgleich
         // (direkt aus der Lage: bei ausgeschaltetem Abgleich nennt das Gate nur .disabled)
-        let weekly = kind == .processing && allowed() && situation.hasContainer && !situation.switching && !situation.syncRunning
+        let weekly = kind == .processing && allowed() && situation.hasContainer && !situation.switching && !situation.syncRunning && !situation.demo
         if let reason {
             // im passenden Container festhalten, dass iOS gestartet hat (nicht waehrend eines Wechsels)
             if let c, reason != .noContainer, reason != .switching, c.layout.exists() {

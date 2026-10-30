@@ -751,6 +751,22 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertNil(n.planned[id])
     }
 
+    /// Demo-Inhalte: kein Wochentest im Hintergrund, die Anfragen an die KI gingen sonst gegen das Abo des Nutzers
+    func testLongRunSkipsTheWeeklyStepInTheDemo() async throws {
+        let m = manager()
+        let (a, luh) = try ready(m, .luh)
+        let (b, _, _) = controller(m, a)
+        let spy = WeeklyTickSpy()
+        b.weeklyTick = { await spy.tick($0) }
+        let backend = try await luh.host.backend()
+        try await duePlan(backend)
+        backend.context.ai.set(FakeAI())
+        try await m.setDemo(true)
+        try await launch(b, .processing)
+        XCTAssertEqual(b.lastRecord?.outcome, .skipped(.demo))
+        XCTAssertEqual(spy.count, 0)
+    }
+
     func testLongRunRunsTheWeeklyStepEvenWithoutSessionTheShortRunNever() async throws {
         let m = manager()
         let (a, luh) = try ready(m, .luh)                        // keine Stud.IP-Sitzung: der Abgleich faellt aus

@@ -419,6 +419,7 @@ final class AuditRunde0910AppTests: XCTestCase {
         let shell = ShellState()
         shell.api = api
         let toast = UFToastCenter()
+        t.delayFirst("/api/bg", ms: 300)                                     // die Aufrufe ueberlappen sicher
         async let one: Void = shell.pollBackground(toast: toast)
         async let two: Void = shell.pollBackground(toast: toast)
         _ = await (one, two)
