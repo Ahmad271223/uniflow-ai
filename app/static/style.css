@@ -336,6 +336,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .86rem; } .tbl th
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); font-weight: 700; font-size: .78rem; display: grid; place-items: center; flex: none; cursor: default; }
 .header .search .kbd { position: absolute; right: .7rem; top: 50%; transform: translateY(-50%); font-size: .68rem; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 0 .35rem; background: var(--surface); }
 .sync-chip .ok { color: var(--ok); }
+.sync-chip.offline { color: var(--warn); font-weight: 600; }
+.pwa-hint { margin-bottom: 1rem; border-color: var(--accent-soft); }
 .seg.pill { background: var(--surface-2); padding: 4px; border-radius: 10px; } .seg.pill button { padding: .4rem .9rem; border-radius: 8px; display: inline-flex; align-items: center; gap: .3rem; }
 .seg.pill button.active { background: var(--accent); color: #fff; box-shadow: none; }
 .cal2 { display: grid; grid-template-columns: minmax(0, 1fr) 286px; gap: 1rem; align-items: start; }

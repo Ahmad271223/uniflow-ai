@@ -126,11 +126,17 @@ def plan_for_product(product_id: str | None) -> str | None:
     return None
 
 
+# Probe fuer jedes neue Konto (Entscheidung 30.10.2026): 7 Tage alles frei wie Pro AI, danach Aufforderung, einen
+# Tarif zu waehlen; ohne Wahl gilt Free. Quelle "trial" in app/billing.py, nie verlaengerbar, einmal je Konto.
+TRIAL = {"days": 7, "plan": "pro_ai"}
+
+
 def contract() -> dict:
     """Die Tabelle als JSON fuer die Fixture und GET /api/billing/plans."""
     return {
         "version": 1,
         "order": list(ORDER),
+        "trial": dict(TRIAL),
         "plans": {k: {**PLANS[k], "entitlements": entitlements(k), "quotas": QUOTAS[k]} for k in ORDER},
         "entitlements": ENTITLEMENTS,
         "quotas": {"labels": QUOTA_LABELS, "fair_use": FAIR_USE},

@@ -50,6 +50,7 @@ def two_devices(app, monkeypatch, tmp_path):
     st, d = _hosted(app, "POST", "/api/account/register", {"email": "studi@example.org", "password": "sehr-geheim-123", "university": "luh"})
     assert st == 201
     accounts.mark_email_verified(d["user"]["id"])
+    accounts.end_trial(d["user"]["id"])             # Tarif-Tests meinen den Stand nach der 7-Tage-Probe
     accounts.set_plan(d["user"]["id"], "plus")
     ipad = {"Authorization": f"Bearer {d['token']}"}
     with db.cursor() as conn:

@@ -1,5 +1,6 @@
 // Module (Vorlage), Tests & Wiederholung, Einstellungen (Module & Wochentests), Uni & Noten, Community
 import { renderWeeklyBox } from "./views-weekly.js?v=1";
+import { installCard, bindInstallBanner } from "./pwa.js?v=1";
 import { $, $$, api, esc, icon, toast, modal, fmtDate, fmtShort, fmtMin, diffBadge, typeBadge, initial, shortName, TYPE_TXT, TYPE_ICON, KIND_TXT, DAYS, PALETTE, state } from "./core.js?v=32";
 
 // ================================================================ MODULE
@@ -42,6 +43,7 @@ async function viewModule(id, view) {
       <div class="tabs">${[["overview", "Übersicht"], ["lectures", "Vorlesungen"], ["exercises", "Übungen"], ["solutions", "Lösungen"], ["scripts", "Skripte"], ["exams", "Klausuren"], ["notes", "Notizen"]].map(([k, t]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${t}</button>`).join("")}</div>
       ${body}</div>`;
     $$("[data-tab]", view).forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+    bindInstallBanner(view);
     $$("[data-mode]", view).forEach(b => b.onclick = () => { mode = b.dataset.mode; render(); });
     $$(".week-block .wh", view).forEach(h => h.onclick = e => { if (e.target.closest(".ai-week")) return; const wb = $(".wb", h.parentElement); wb.hidden = !wb.hidden; });
     $$(".ai-week", view).forEach(b => b.onclick = () => summarizeWeek(d.weeks.find(w => w.week === +b.dataset.w), m));
@@ -318,7 +320,7 @@ export async function viewSettings(_, params, view) {
         <div class="card-head" style="margin-top:1rem"><h2>${icon("settings", 18)} Learnweb-Schlüssel</h2>${svc.learnweb?.token_set ? `<span class="badge ok">gesetzt</span>` : `<span class="badge neutral">optional</span>`}</div>
         <p class="muted small">Mit Schlüssel holt die App die Dateien direkt über die Moodle-Schnittstelle, ohne Browser-Anmeldung, und Moodle markiert nichts als angesehen. Erzeugen: im Learnweb Profil → Einstellungen → Sicherheitsschlüssel → „Moodle mobile web service“.</p>
         <div class="row"><input class="input" id="lwToken" type="password" placeholder="${svc.learnweb?.token_set ? "•••••••• (neu eingeben zum Ersetzen)" : "Schlüssel einfügen"}" autocomplete="off" style="flex:1"><button class="btn sm" id="lwSave">Speichern</button>${svc.learnweb?.token_set ? `<button class="btn ghost sm" id="lwClear">Entfernen</button>` : ""}</div></div>`;
-    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : credCard}${looksCard}${ipadCard}</div>`; const advancedTab = `<div class="stack">${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
+    const accountTab = `<div class="grid cols-2">${uniCard}${loginCard}${uniKey === "hildesheim" ? hiCard : credCard}${looksCard}${ipadCard}${installCard()}</div>`; const advancedTab = `<div class="stack">${chatgptCard(gpt, gptModels)}${logCard}${diagTab()}</div>`;
     view.innerHTML = `<div class="content" style="max-width:1180px"><div class="page-head"><div><h1>Einstellungen</h1></div></div>
       <div class="set-layout"><nav class="set-nav">${[["modules", "Module & Wochentests", "book"], ["plan", "Lernzeit & Verfügbarkeit", "clock"], ["account", "Zugang & Darstellung", "user"], ["abo", "Abo & Tarife", "star"], ["advanced", "Erweitert", "settings"]].map(([k, l, i]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${icon(i, 16)}<span>${l}</span></button>`).join("")}</nav><div class="set-body">
       ${tab === "modules" ? modulesTab : tab === "account" ? accountTab : tab === "advanced" ? advancedTab : `<div class="card"><div class="card-head"><h2>Lernzeit & Verfügbarkeit</h2></div><p class="muted small">Lernkombination (Fächer pro Tag, Vorlesung/Übungen/Wochentest) und persönliche Verfügbarkeit (Lernzeiten, Fahrtzeit, Sperrzeiten).</p><div class="row wrap"><button class="btn primary" id="openCfg">${icon("settings", 16)} Lernkombination</button><button class="btn" id="openAvail">${icon("clock", 16)} Verfügbarkeit & Sperrzeiten</button></div><div class="small muted" style="margin-top:.8rem">Aktuell: ${s.subjects_per_day} Fächer pro Tag · ${fmtMin(s.minutes_per_day)} · Lernzeit ${s.learn_start}–${s.learn_end} · freie Tage: ${s.free_days.map(d => DAYS[d]).join(", ") || "keine"} · Fahrtzeit ${s.travel_minutes} min</div></div>`}</div></div></div>`;

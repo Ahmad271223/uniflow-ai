@@ -36,8 +36,18 @@ prüfen, Rechtstexte in die Oberfläche einbauen (heute Platzhalter), Monitoring
 
 1. **Installieren wie eine App:** Hinweis-Seite „Zum Home-Bildschirm“ (iPad) und „Zum Dock hinzufügen“ (Mac ab
    macOS 14), Symbole und Startbild im Manifest. Hinweis auf dem Mac: Safari, nicht Chrome.
+   **Gebaut 30.10. (Cloud):** `app/static/pwa.js` zeigt den Hinweis einmal auf der Übersicht (iPad-Safari, Mac-Safari,
+   Edge/Chrome mit „Installieren“) und als Karte unter Einstellungen → Zugang & Darstellung; in der installierten App
+   nicht mehr.
 2. **Offline:** Service Worker für die Oberfläche und die zuletzt geöffneten PDFs, Notizen zwischenspeichern und beim
    nächsten Netz senden. Ein Journal wie `LocalJournal` auf dem iPad gibt es im Web nicht, das muss gebaut werden.
+   **Gebaut 30.10. (Cloud):** `app/static/sw.js` mit Regeln in `sw-policy.js` (ohne Browser geprüft,
+   `tests/js/sw.test.mjs`): Netz zuerst, Ablage als Rückfall für Oberfläche (400), zuletzt geöffnete Dateien (40) und
+   gelesene Listen (300); nie aus der Ablage: Konto, Aufträge, Abgleich, Suche, Bezahlung, Zugangsdaten. Änderungen
+   ohne Netz scheitern mit Code `offline` (503). Beim Abmelden oder Kontowechsel wird die Ablage geleert. Im Kopf
+   steht „Offline – zuletzt geladene Inhalte“. Echter Browserlauf in `tests/test_pwa.py` (Chromium: laden, Netz aus,
+   neu laden, Übersicht aus der Ablage, Änderung scheitert mit `offline`, Konto nie aus der Ablage).
+   **Offen:** Notizen ohne Netz zwischenspeichern und nachsenden (Journal im Web), Prüfung in Safari auf iPad und Mac.
 3. **Dateien hereinbekommen, Entscheidung 1 (siehe 4):** Upload von Hand gibt es (`server.py:2479`). Der Abgleich
    durch den Dienst mit Uni-Zugangsdaten gibt es auch, ist aber die heikle Variante.
 4. **Wochentests im Dienst:** Takt je Konto statt nur lokal, Ausführung über die Job-Warteschlange (`jobs.py`),
@@ -106,6 +116,17 @@ prüfen. Nur Punkt 8 braucht den Mac.
    als Marke frei ist, bevor Store-Einträge entstehen.
 5. **Plus-Kontingent 3 oder 6 Tests, geteilter Test gegen das Kontingent?** (aus `GEMEINSAME-WOCHENTESTS.md`,
    `ABO-SYSTEM.md`, weiter offen).
+
+### Entschieden am 30.10.2026 (abends)
+
+1. **Uni-Passwörter beim Dienst: ja.** Web-Nutzer lassen den Dienst mit ihren Hochschul-Zugangsdaten abgleichen
+   (`vault.py`, `jobs.py`). Bedingung: ausdrückliche Zustimmung je Nutzer in der Oberfläche, Text in der
+   Datenschutzerklärung, Anfrage an LUH und Hildesheim läuft parallel.
+2. **KI im Web: beides.** (b) ChatGPT-Abo des Nutzers im Browser, sobald OpenAI freigibt; (c) Studora-KI über den Dienst
+   als Pro AI auf Kosten des Inhabers, mit Kontingenten (`ai_backend.py`, Kostenkontrolle).
+3. **Bezahlen: erst Free, Stripe wird gebaut.** Jedes neue Konto bekommt **7 Tage Probe mit allen Rechten**
+   (wie Pro AI), danach die Aufforderung, einen Tarif zu wählen; ohne Wahl gilt Free. Stripe (Checkout, Kundenportal,
+   Webhooks) für Web; Apple bleibt für die App; Microsoft Store später.
 
 ## 5. Was dieser Plan nicht löst
 

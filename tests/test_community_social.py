@@ -30,6 +30,7 @@ def _user(app, email, plus=True, admin=False, verified=True, uni="luh"):
     from app import accounts
     st, d = _j(asgi_call(app, "POST", "/api/account/register", body=json.dumps({"email": email, "password": "sehr-geheim-123", "university": uni})))
     assert st == 201, d
+    accounts.end_trial(d["user"]["id"])             # Tarif-Tests meinen den Stand nach der 7-Tage-Probe
     if verified:
         accounts.mark_email_verified(d["user"]["id"])
     if plus:

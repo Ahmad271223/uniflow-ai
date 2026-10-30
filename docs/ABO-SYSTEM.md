@@ -76,6 +76,32 @@ Feld `users.plan`). Es gilt der höchste aktive Tarif.
 **Web, Windows, Android:** kein Zahlungsweg vorhanden (kein Zahlungsanbieter eingerichtet). `GET /api/billing/plans`
 meldet `purchase.web.available = false`; ein Abo aus der Apple-App gilt automatisch auf allen Geräten desselben Kontos.
 
+## 3a. Probe und Stripe (30.10.2026)
+
+Entscheidung des Inhabers: **jedes neue Konto bekommt 7 Tage Probe mit allen Rechten** (wie Pro AI), danach die
+Aufforderung, einen Tarif zu wählen; ohne Wahl gilt Free. Im Web und unter Windows wird über **Stripe** abgeschlossen,
+in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten desselben Kontos.
+
+- `plans.TRIAL = {"days": 7, "plan": "pro_ai"}` steht im Vertrag (`plans.json`, `GET /api/billing/plans`).
+- `billing.start_trial` beim Anlegen des Kontos (`accounts.register`, Apple/Google-Anmeldung), Quelle `trial`, läuft
+  nie nach, nur einmal je Konto; `billing.end_trial` für Betrieb und Tests. `GET /api/entitlements` liefert `trial`
+  (`active`, `ends_at`, `days_left`, `expired`), `plan_choice` und `needs_plan_choice` (Probe vorbei, kein bezahlter
+  Tarif, noch keine Antwort). Die Oberfläche zeigt dann einmal die Aufforderung; `POST /api/billing/plan-choice {plan}`
+  merkt die Antwort und liefert für einen bezahlten Tarif gleich die Checkout-Adresse.
+- Stripe (`app/stripe_billing.py`): `POST /api/billing/stripe/checkout {plan}` (Checkout-Sitzung, Monatsabo),
+  `POST /api/billing/stripe/portal` (Kundenportal: Wechsel, Kündigung, Rechnungen), `POST /api/billing/stripe/webhook`
+  (öffentlich, Signatur `Stripe-Signature` geprüft, höchstens 5 Minuten alt, jedes Ereignis zählt einmal). Verarbeitet:
+  `checkout.session.completed` (Abo nachladen), `customer.subscription.created/updated/deleted`. Stand: active/trialing →
+  active, past_due → billing_retry, unpaid/canceled → expired; `cancel_at_period_end` → läuft bis zum Periodenende ohne
+  Verlängerung. Unbekannter Preis oder Kunde: quittiert (200), nie als Tarif übernommen. Ein Abo gehört genau einem
+  Konto (409 `subscription_owned_by_other_account`).
+- Konfiguration des Dienstes: `LERNAPP_STRIPE_SECRET_KEY`, `LERNAPP_STRIPE_WEBHOOK_SECRET`,
+  `LERNAPP_STRIPE_PRICES="plus=price_…,pro_connect=price_…,pro_ai=price_…"`, `LERNAPP_PUBLIC_URL`. Ohne Schlüssel bleibt
+  der Web-Abschluss ehrlich aus (`purchase.web.available = false`, 503 `stripe_not_configured`).
+- Tests: `tests/test_trial_stripe.py` (13), dazu `tests/test_subscriptions.py` (die Tarif-Tests beenden die Probe zuerst).
+- Offen: Downgrade über das Kundenportal (Stripe plant ihn als Abo-Änderung, `pending_plan` bleibt leer, bis der Wechsel
+  wirkt), Microsoft-Store-Beleg, Stripe-Preise in Partner-Konto anlegen (Inhaber).
+
 ## 4. ChatGPT-Verbindung
 
 `chatgpt_connection_premium` (ab Pro Connect) ist eine **reine Produktregel für die Anzeige**. Die offizielle

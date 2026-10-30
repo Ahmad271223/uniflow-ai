@@ -323,7 +323,14 @@ def test_hosted_local_only_paths_answer_501(hosted):
                  ("POST", "/api/files/abc/analyze"), ("POST", "/api/tests/generate-week")):
         st, data, _ = _json(asgi_call(hosted, m, p, headers=_auth(token), body="{}"))
         assert st == 501 and data["code"] == "not_available_hosted", (m, p, st, data)
-    # KI im Editor gibt es im Dienst ueber die Studora-KI (Pro AI); ohne Tarif 403 plan_required statt 501
+    # KI im Editor gibt es im Dienst ueber die Studora-KI (Pro AI); ohne Tarif (nach der Probe) 403 plan_required statt 501
+    from app import billing
+    conn = billing.connect()
+    try:
+        uid = conn.execute("SELECT id FROM users WHERE email='k@beispiel.de'").fetchone()[0]
+        billing.end_trial(conn, uid)
+    finally:
+        conn.close()
     st, data, _ = _json(asgi_call(hosted, "POST", "/api/ai/tutor", headers=_auth(token), body="{}"))
     assert st == 403 and data["code"] == "plan_required" and data["required_plan"] == "pro_ai", data
     assert asgi_call(hosted, "GET", "/api/sync/status", headers=_auth(token))[0] == 200
