@@ -77,6 +77,8 @@ targets:
         # Name auf dem Home-Bildschirm (Entscheidung des Inhabers 28.10.2026: die App heisst Studora). Bundle-ID,
         # Produkt-IDs, Ordner und interne Kennungen bleiben bei uniflow, sonst gingen Daten und Einstellungen verloren.
         CFBundleDisplayName: Studora
+        # Systemabfragen (z. B. Anmeldung ueber ASWebAuthenticationSession) nennen diesen Namen, nicht den Anzeigenamen
+        CFBundleName: Studora
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen:

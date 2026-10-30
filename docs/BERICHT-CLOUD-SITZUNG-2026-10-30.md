@@ -170,9 +170,16 @@ Regel: Der Inhaber hat den Lauf im Akkubetrieb freigegeben; auf dem Netzteil lie
   - **ChatGPT verbinden:** Karte, Zustimmung, Systemabfrage und echte Anmeldeseite von `auth.openai.com` gehen auf;
     Abbrechen zeigt „Anmeldung abgebrochen.“ Die Anmeldung selbst ist ungeprüft (nur der Inhaber).
   - **Freigabe nachholen:** nicht geprüft. Der Knopf erscheint nur bei verbundenem Konto ohne Freigabe.
-  - **Hintergrundlauf:** `_simulateLaunchForTaskWithIdentifier` wurde laut Log angenommen, die Karte zeigte danach aber
-    „noch keiner“: Der Lauf kam in der App nicht an, die Ursache ist nicht geklärt. Geprüft ist er nur in den App-Tests.
-- Offen: Die Systemabfrage nennt „UniFlow“ statt „Studora“ (`CFBundleName` ist `$(PRODUCT_NAME)`).
+  - **Hintergrundlauf:** Der Simulator kann ihn nicht starten: `submitTaskRequest` liefert
+    `BGTaskSchedulerErrorDomain` Code 1 („not available on this platform“), danach meldet das Log „No task request …
+    has been scheduled“, der Handler wird nie erreicht. Das ist kein Fehler der App. Dafür gibt es jetzt auf der Karte
+    den Debug-Knopf „Langen Hintergrundlauf starten (Debug)“ (`perform(.processing)`, derselbe Lauf). Im Simulator
+    zeigte die Karte danach „übersprungen: keine gültige Anmeldung“. Der Start durch iOS selbst geht nur am Gerät.
+- `CFBundleName` ist jetzt „Studora“, die Systemabfrage nennt im Simulator „Studora“.
+- Neu (Entscheidung des Inhabers): `LoginReminder`. Liegt die letzte Anmeldung bei der Hochschule 6 Stunden zurück,
+  fragt die App beim Öffnen; sonst kommt eine vorgemerkte Mitteilung am nächsten Termin 8/15/20 Uhr, nur mit
+  eingeschaltetem Schalter „Benachrichtigen“. Mitteilung und Frage sind nur in Tests geprüft, nicht von Hand.
+- Stand am Ende: Kern 776 ×2 (vor Debug-Knopf und `CFBundleName`), App 564 ×2.
 - Hinweise für die nächste Sitzung: `xcode-select` zeigt hier auf die Command Line Tools, darum
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` setzen. Im Lauf mit `test-without-building` fielen die 19
   Kauf-Tests durch, mit `xcodebuild test` waren sie grün; Grund nicht geklärt, darum `xcodebuild test` nehmen.

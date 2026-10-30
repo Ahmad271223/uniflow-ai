@@ -97,6 +97,15 @@ struct BackgroundSyncCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 9.6)
                     .accessibilityIdentifier("background.last")
+                #if DEBUG
+                // Im Simulator lehnt iOS BGTaskScheduler ab ("not available on this platform", Code 1): derselbe Lauf
+                // wie beim Start durch iOS, nur von Hand
+                UFButton("Langen Hintergrundlauf starten (Debug)", size: .small) {
+                    Task { _ = await background.perform(.processing) }
+                }
+                .padding(.top, 8)
+                .accessibilityIdentifier("background.debugRun")
+                #endif
             }
             .onAppear {
                 enabled = background.settings.enabled
