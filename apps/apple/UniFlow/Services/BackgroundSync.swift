@@ -429,8 +429,8 @@ final class BackgroundSyncController: ObservableObject {
         let reason = BackgroundSyncGate.skipReason(situation)
         // Wochentests nur im langen Lauf, unabhaengig vom Gate des Abgleichs (auch mit abgelaufener Sitzung oder
         // ausgeschaltetem Abgleich), aber nur im passenden Container und nie neben einem laufenden Abgleich
-        let withoutWeekly: [BackgroundSkipReason] = [.noContainer, .switching, .alreadyRunning]
-        let weekly = kind == .processing && allowed() && (reason.map { !withoutWeekly.contains($0) } ?? true)
+        // (direkt aus der Lage: bei ausgeschaltetem Abgleich nennt das Gate nur .disabled)
+        let weekly = kind == .processing && allowed() && situation.hasContainer && !situation.switching && !situation.syncRunning
         if let reason {
             // im passenden Container festhalten, dass iOS gestartet hat (nicht waehrend eines Wechsels)
             if let c, reason != .noContainer, reason != .switching, c.layout.exists() {

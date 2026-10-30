@@ -64,18 +64,23 @@ final class StudyPlanLocalAppTests: XCTestCase {
     /// Lokales Backend mit Seed: zwei Faecher (Vorlesung + Uebung, Physik) mit Dateien in den Lehrwochen 1 und 2
     /// (Vorlesungsbeginn 12.10.), eine Begruessung ohne Fach, Stundenplan mit Vorlesung und Uebung am Montag und
     /// Physik am Mittwoch. Einstellungen wie neu (4 Stunden, 2 Faecher, ohne Wochentest, 30 Minuten Fahrt).
-    private func seededAPI(now: String = "2026-10-26T07:30:00") async throws -> (APIClient, RecordingTransport) {
+    /// `thisWeek`: dazu Unterlagen der laufenden Lehrwoche 3 (geplant wird je Lehrwoche nur deren Stoff, Regel des Inhabers vom 30.10.2026)
+    private func seededAPI(now: String = "2026-10-26T07:30:00", thisWeek: Bool = false) async throws -> (APIClient, RecordingTransport) {
         let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true),
                                     clock: .fixed(berlin: now)!)
         let backend = try await host.backend()
         let courses: [(String, String)] = [("k-ma", "Testmathematik I"), ("k-ma-ue", "Übung zu Testmathematik I"),
                                            ("k-ph", "Testphysik"), ("k-erst", "Begrüßung der Erstsemester")]
-        let files: [(String, String, String, String?, String)] = [
+        var files: [(String, String, String, String?, String)] = [
             ("f-v1", "k-ma", "VL01.pdf", "Vorlesung", "2026-10-12T10:00"), ("f-u1", "k-ma-ue", "Blatt 1.pdf", "Übungsblätter", "2026-10-13T09:00"),
             ("f-p1", "k-ph", "Folien Einführung.pdf", nil, "2026-10-14T12:00"), ("f-w", "k-erst", "Willkommen.pdf", nil, "2026-10-12T08:00"),
             ("f-v2", "k-ma", "VL02.pdf", "Vorlesung", "2026-10-19T10:00"), ("f-u2", "k-ma-ue", "Blatt 2.pdf", "Übungsblätter", "2026-10-20T09:00"),
             ("f-p2", "k-ph", "Folien Kapitel 2.pdf", nil, "2026-10-21T12:00"),
         ]
+        if thisWeek {
+            files += [("f-v3", "k-ma", "VL03.pdf", "Vorlesung", "2026-10-26T06:00"), ("f-u3", "k-ma-ue", "Blatt 3.pdf", "Übungsblätter", "2026-10-26T06:10"),
+                      ("f-p3", "k-ph", "Folien Kapitel 3.pdf", nil, "2026-10-26T06:20")]
+        }
         let rows = files.map { f in [SQLiteValue.text(f.0), .text(f.1), .text(f.2), f.3.map(SQLiteValue.text) ?? .null, ts(f.4)] }
         let events: [(String, String, Int, String, String)] = [
             ("Testmathematik I", "vorlesung", 0, "10:00", "11:30"), ("Übung zu Testmathematik I", "uebung", 0, "14:00", "15:30"),
@@ -275,7 +280,7 @@ final class StudyPlanLocalAppTests: XCTestCase {
     /// "Plan erstellen" im Lernkalender -> Dialog (ohne Wochentest) -> "Erstellen": Lernpakete in den freien Fenstern
     /// neben Vorlesung, Uebung und Fahrtzeit, kein Konflikt; Termine und Lernbloecke stehen im Stundenplan
     func testGeneratePlanFillsFreeWindowsNextToEvents() throws {
-        let (api, recorder) = try awaiting { try await self.seededAPI() }
+        let (api, recorder) = try awaiting { try await self.seededAPI(thisWeek: true) }
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }
         let overlay = UFOverlay()
@@ -305,7 +310,7 @@ final class StudyPlanLocalAppTests: XCTestCase {
                 slotted.append((d.s("date") ?? "", p.s("start_time") ?? "", p.s("end_time") ?? "", p.s("title") ?? ""))
             }
         }
-        XCTAssertGreaterThanOrEqual(slotted.count, 4, "\(slotted)")
+        XCTAssertEqual(slotted.count, 2, "nur der Stoff der Lehrwoche 3, nichts aus Woche 1 und 2: \(slotted)")
         let monday = slotted.filter { $0.day == "2026-10-26" }
         XCTAssertEqual(monday.count, 2, "Montag: zwei Fächer neben Vorlesung und Übung: \(slotted)")
         let conflicts = try awaiting { try await api.value("/api/timetable/conflicts") }
@@ -348,7 +353,7 @@ final class StudyPlanLocalAppTests: XCTestCase {
     /// "Plan erstellen" in der Wochenansicht am Mittwoch: "Ab" ist der Montag, geplant wird erst ab heute (vorher lagen
     /// die Unterlagen zuerst auf Montag und Dienstag und waren sofort nachzuholen)
     func testPlanFromMondaySkipsPastDays() throws {
-        let (api, recorder) = try awaiting { try await self.seededAPI(now: "2026-10-28T07:30:00") }
+        let (api, recorder) = try awaiting { try await self.seededAPI(now: "2026-10-28T07:30:00", thisWeek: true) }
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }
         let plan = try show(PlanView(params: (view: "week", date: "2026-10-28", module: nil)), api: api)

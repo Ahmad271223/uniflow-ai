@@ -747,6 +747,14 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertEqual(b.lastRecord?.outcome, .skipped(.disabled))
         XCTAssertEqual(spy.count, 2)
         XCTAssertEqual(n.posts.count, 1)
+        // ... aber auch ausgeschaltet nie neben einem laufenden Abgleich
+        let running = FakeSync()
+        running.isRunning = true
+        let target = b.target
+        b.target = { _ in running }
+        try await launch(b, .processing)
+        XCTAssertEqual(spy.count, 2)
+        b.target = target
         BackgroundSyncSettings(defaults: bed.defaults).enabled = true
 
         // ohne Schalter "Benachrichtigen" keine Mitteilung, der Takt laeuft trotzdem

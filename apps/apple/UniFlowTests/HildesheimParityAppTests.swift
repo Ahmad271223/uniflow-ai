@@ -142,6 +142,8 @@ final class HildesheimParityAppTests: XCTestCase {
         XCTAssertEqual(byModule["modules"]?.array?.compactMap { $0["name"]?.string }, ["Bildungssoziologie"])
 
         // Lernplan: Pakete aus den Learnweb-Materialien neben den LSF-Terminen
+        // geplant wird je Lehrwoche nur deren Stoff (Regel vom 30.10.2026): die Unterlagen in die laufende Woche legen
+        try await c.host.backend().context.database.transaction { try $0.execute("UPDATE files SET chdate=?", [.integer(1793001600)]) }
         _ = try await c.api.value("/api/calendar/generate", method: "POST", body: ["start": "2026-10-26"])
         let cal = try await c.api.value("/api/calendar?start=2026-10-26&end=2026-11-01")
         let packages = cal.list("days").map { $0.list("packages").count }.reduce(0, +)
