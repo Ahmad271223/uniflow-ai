@@ -48,7 +48,7 @@ final class WeeklyAutoTicker {
             if changed { NotificationCenter.default.post(name: .uniflowWeeklyChanged, object: nil) }
         case .failed(let message):
             Self.log.error("Wochentest-Takt: \(message, privacy: .public)")
-        case .off, .noAI, .busy:
+        case .off, .noAI, .busy, .cancelled:
             break
         }
         return r

@@ -7,9 +7,49 @@ import Foundation
 /// "background_cases"). Zeiten sind naive Ortszeit in Sekunden wie `Weekly.seconds`/`Weekly.iso` (Kalendertage ohne
 /// Zone, darum gilt um die Zeitumstellung weiter 8:00 Ortszeit wie bei `BackgroundSchedule.next`).
 ///
-/// Die Anbindung an die App (BGTaskScheduler, Anmelden des naechsten Termins, Start des Laufs) kommt spaeter in
-/// UniFlow/Services und gehoert nicht hierher.
+/// Die Anbindung an die App (BGTaskScheduler, Anmelden des naechsten Termins, Start des Laufs) steht in
+/// UniFlow/Services/BackgroundSync.swift (`BackgroundSyncController`) und ruft `decision(_:)`; `date(_:)` macht aus
+/// `next_at` den Zeitpunkt fuer `earliestBeginDate`.
 public enum WeeklyBackground {
+    /// `decide` als Werte fuer die App
+    public struct Decision: Equatable, Sendable {
+        /// off | no_ai | busy | limit | run | idle
+        public var action: String
+        /// faellige Plaene (`wt_plans.id`)
+        public var due: [Int]
+        /// naechster Termin (8, 15 oder 20 Uhr Berliner Zeit) als Zeitpunkt; nil = kein Lauf noetig
+        public var nextAt: Date?
+
+        public init(action: String, due: [Int] = [], nextAt: Date? = nil) {
+            self.action = action
+            self.due = due
+            self.nextAt = nextAt
+        }
+
+        init(_ json: JSONValue) {
+            action = json["action"]?.string ?? "idle"
+            due = (json["due"]?.array ?? []).compactMap(\.int)
+            nextAt = json["next_at"]?.string.flatMap(WeeklyBackground.date)
+        }
+    }
+
+    /// Entscheidung fuer den offenen Container der App: `snapshot` + `decide` mit der Uhr des Backends. `ai` und
+    /// `busy` wie `WeeklyAutoTick.run` (KI gesetzt, kein anderer Hintergrundauftrag), wenn nicht uebergeben.
+    public static func decision(_ ctx: LocalContext, ai: Bool? = nil, busy: Bool? = nil) async throws -> Decision {
+        let now = Weekly.now(ctx)
+        let hasAI = ai ?? (ctx.ai.provider != nil)
+        let isBusy: Bool
+        if let busy { isBusy = busy } else { isBusy = (await ctx.jobs.state["running"]?.bool) == true }
+        let snap = try await ctx.database.withConnection { c in try snapshot(c, now: now) }
+        return Decision(decide(snap, now: now, ai: hasAI, busy: isBusy))
+    }
+
+    /// `next_at` ("YYYY-MM-DDTHH:MM:SS", naive Berliner Ortszeit) als Zeitpunkt (`BerlinClock.utcSeconds`); nil,
+    /// wenn der Text keine Zeit ist
+    public static func date(_ naiveISO: String) -> Date? {
+        BerlinClock.utcSeconds(localISO: naiveISO).map { Date(timeIntervalSince1970: TimeInterval($0)) }
+    }
+
     /// `BACKGROUND_HOURS`: dieselben Termine wie der Hintergrundabgleich
     public static let hours: [Int] = BackgroundSchedule.hours
     /// `OPEN_STATES`

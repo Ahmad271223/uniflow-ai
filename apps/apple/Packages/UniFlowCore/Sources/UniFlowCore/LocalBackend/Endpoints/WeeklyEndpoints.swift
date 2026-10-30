@@ -161,7 +161,9 @@ extension Weekly {
 /// Takt der gemeinsamen Wochentests auf dem iPad wie `_weekly_loop` in app/server.py: alle 10 min, nur mit
 /// `auto_tests`, nie neben einem anderen Hintergrundauftrag (am PC `_bg_lock`). Zusaetzlich gilt: ohne verbundene KI
 /// kein Lauf, denn jeder Lauf ohne KI wuerde einen der drei Versuche eines faelligen Plans verbrauchen. Die App ruft
-/// ihn beim Oeffnen und danach im Vordergrund alle `interval` Sekunden auf (`WeeklyAutoTicker`).
+/// ihn beim Oeffnen und danach im Vordergrund alle `interval` Sekunden auf (`WeeklyAutoTicker`), nach jedem vollen
+/// Abgleich (`StudIPSync.autoPlan`, wie `_full_sync` am PC) und im langen Hintergrundlauf (`BackgroundSyncController`,
+/// nach `WeeklyBackground.decision`).
 public enum WeeklyAutoTick {
     public static let interval: TimeInterval = 600
 
@@ -171,6 +173,9 @@ public enum WeeklyAutoTick {
         case ran(String, changed: Bool)
         /// am PC nur `print(f"Wochentest-Takt: {e}")`
         case failed(String)
+        /// abgebrochen (iOS hat die Hintergrundzeit beendet, `Task.cancel`): kein Versuch verbraucht, Status und Sperre
+        /// der Plaene wie vorher (`Weekly.processPlan`)
+        case cancelled
     }
 
     public static func run(_ ctx: LocalContext) async -> Outcome {
@@ -184,6 +189,8 @@ public enum WeeklyAutoTick {
             let r = try await Weekly.tick(ctx)
             let changed = !(r["published"]?.array ?? []).isEmpty || !(r["nachtraege"]?.array ?? []).isEmpty
             return .ran(Weekly.summary(r) ?? "", changed: changed)
+        } catch where Weekly.isCancellation(error) || _Concurrency.Task.isCancelled {
+            return .cancelled
         } catch {
             return .failed("\(error)")
         }

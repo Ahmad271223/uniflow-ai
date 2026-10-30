@@ -133,14 +133,30 @@ Inhalte abfragen, die erst Wochen später drankommen.
   solange die App im Vordergrund ist. Bedingungen: `auto_tests` ist an, die KI ist verbunden, und kein anderer
   Hintergrundauftrag läuft. Ohne KI gibt es keinen Lauf, damit fällige Pläne ihre drei Versuche nicht verbrauchen. Im
   Hintergrund läuft auf dem iPad kein Takt, der nächste Lauf folgt beim Öffnen.
-- **Hintergrundlauf (vorbereitet, 30.10.):** Für einen Lauf bei geschlossener App zu den Zeiten des Hintergrundabgleichs
-  (8, 15, 20 Uhr) gibt es die Entscheidung als reine Logik in Python (`weekly.background_snapshot`,
-  `weekly.background_decision`, `slot_at_or_after`, `next_slot`) und im Swift-Kern (`WeeklyBackground`), gegen dieselben
-  Prüfdaten (`weekly.json`, Schritte `background` und `background_cases`). Sie sagt, ob ein Lauf etwas täte (`run`, `idle`,
-  `limit`, `off`, `no_ai`, `busy`), welche Pläne fällig sind und wann der nächste Termin nötig ist (`next_at`, oder keiner,
-  wenn kein offener Plan mit Versuchen bleibt). Noch nicht gebaut, weil es Xcode braucht: der Aufruf aus dem langen
-  Hintergrundlauf (`BackgroundSyncController`, unabhängig vom Stud.IP-Gate), das Bestellen des Termins aus `next_at`,
-  dass ein Abbruch durch iOS keinen Versuch kostet, und der `Weekly.tick` nach dem Abgleich wie am PC (`_full_sync`).
+- **Hintergrundlauf (gebaut in der Cloud am 30.10., auf dem Mac ungeprüft):** Bei geschlossener App läuft der Takt zu
+  den Zeiten des Hintergrundabgleichs (8, 15, 20 Uhr) im langen Hintergrundlauf (`BGProcessingTask`), nie im kurzen.
+  - Entscheidung als reine Logik in Python (`weekly.background_snapshot`, `weekly.background_decision`,
+    `slot_at_or_after`, `next_slot`) und im Swift-Kern (`WeeklyBackground.snapshot`/`decide`; für die App
+    `WeeklyBackground.decision(ctx)` mit `next_at` als `Date` über `BerlinClock.utcSeconds`), gegen dieselben Prüfdaten
+    (`weekly.json`, Schritte `background` und `background_cases`). Sie sagt, ob ein Lauf etwas täte (`run`, `idle`,
+    `limit`, `off`, `no_ai`, `busy`), welche Pläne fällig sind und wann der nächste Termin nötig ist (`next_at`).
+  - App (`BackgroundSyncController.performRun`): im langen Lauf nach dem Abgleich, auch wenn der ausfiel (Sitzung
+    abgelaufen, „Im Hintergrund abgleichen“ aus), bei `run` der Takt `WeeklyAutoTick.run`; nicht ohne passenden
+    Container, nicht während eines Wechsels, nicht neben einem laufenden Abgleich. Hat er etwas veröffentlicht, laden
+    offene Boxen neu, und mit dem Schalter „Benachrichtigen“ kommt „Neuer Wochentest verfügbar“ (ohne Fach, ohne
+    Inhalt, eigene Kennung in der Gruppe des Containers).
+  - Termin (`schedule`): der lange Lauf wird auch mit ausgeschaltetem Abgleich bestellt, wenn `next_at` gesetzt ist
+    und die KI verbunden ist (der kurze dann abbestellt); eingeschaltet ist sein frühester Beginn der frühere von
+    `BackgroundSchedule.next` und `next_at`.
+  - Abbruch durch iOS (`BackgroundTaskRun.expire` → `Task.cancel`) kostet keinen Versuch: `Weekly.processPlan` löst
+    nur die Sperre, Status und `attempts` bleiben, `Weekly.ask` stellt keine Anfrage mehr, `WeeklyAutoTick.run`
+    liefert `.cancelled`. Python kennt keinen Abbruch; die Prüfdaten sind unverändert.
+  - Nach jedem vollen Abgleich (Stud.IP und Hildesheim, `StudIPSync.autoPlan`) läuft der Takt wie `_full_sync` am PC,
+    nicht nach dem kurzen Hintergrundlauf mit Listen.
+  - Geprüft: Kern-Tests (Abbruch durch `CancellationError`, `URLError.cancelled` und `Task.cancel` mitten in der
+    KI-Anfrage; Entscheidung und Termin für die App). Die App-Tests (`BackgroundSyncAppTests`, `WeeklyAppTests`)
+    sind geschrieben, aber ohne Xcode nicht gelaufen; Syntax der App-Dateien mit `swiftc -parse` geprüft. Wann iOS
+    den Lauf wirklich startet, zeigt nur das Gerät über Tage.
 
 ## Grenzen (ehrlich)
 

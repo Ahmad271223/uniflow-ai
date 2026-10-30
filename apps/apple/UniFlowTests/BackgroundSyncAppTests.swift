@@ -176,6 +176,33 @@ final class BackgroundSyncAppTests: XCTestCase {
         }
     }
 
+    /// Takt der Wochentests statt `WeeklyAutoTick.run` (zaehlt die Aufrufe, liefert ein festes Ergebnis)
+    private final class WeeklyTickSpy: @unchecked Sendable {
+        private let lock = NSLock()
+        private var calls = 0
+        var outcome: WeeklyAutoTick.Outcome = .ran("1 veröffentlicht, 0 wartend, 0 fehlgeschlagen, 0 Nachträge", changed: true)
+        var count: Int { lock.withLock { calls } }
+        func tick(_ ctx: LocalContext) async -> WeeklyAutoTick.Outcome {
+            lock.withLock { calls += 1 }
+            return outcome
+        }
+    }
+
+    /// Verbundene KI (der Takt ist eine Attrappe, sie wird nie gefragt)
+    private struct FakeAI: AIProvider {
+        func answer(system: String, prompt: String) async throws -> String { throw AIError("test", "nicht erwartet") }
+    }
+
+    /// Ein faelliger Wochentest-Plan (Montag, 26.10.2026, 10:00: veroeffentlichen ab Sonntag 11:00, noch kein Versuch)
+    private func duePlan(_ backend: LocalBackend) async throws {
+        try await backend.context.database.transaction { c in
+            try c.execute("""
+                INSERT INTO wt_plans(module_id, week_no, scope, scope_key, coverage, lecture_end, publish_at, deadline_at, attempts)
+                VALUES(1, 1, 'personal', 'k', '{}', '2026-10-25T10:00:00', '2026-10-25T11:00:00', '2026-10-28T11:00:00', 0)
+                """)
+        }
+    }
+
     /// Schluesselbund-Zugriffe mitschreiben (gemerkte Zugangsdaten duerfen im Hintergrund nie gelesen werden)
     private final class SpySecrets: UniversitySecretStoring {
         let inner: UniversityKeychain
@@ -678,6 +705,121 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertTrue(n.posts.isEmpty)
     }
 
+    // MARK: Wochentests im langen Lauf
+
+    /// Der lange Lauf prueft die Wochentests auch ohne Stud.IP-Sitzung und mit ausgeschaltetem Abgleich; der kurze
+    /// nie. Ein veroeffentlichter Test bringt die Mitteilung "Neuer Wochentest verfügbar" (eigene Kennung, Gruppe des
+    /// Containers, ohne Fach); ohne KI oder ohne faelligen Plan laeuft der Takt nicht.
+    func testLongRunRunsTheWeeklyStepEvenWithoutSessionTheShortRunNever() async throws {
+        let m = manager()
+        let (a, luh) = try ready(m, .luh)                        // keine Stud.IP-Sitzung: der Abgleich faellt aus
+        let (b, _, n) = controller(m, a)
+        let spy = WeeklyTickSpy()
+        b.weeklyTick = { await spy.tick($0) }
+        let backend = try await luh.host.backend()
+        try await duePlan(backend)
+
+        // ohne KI: nichts zu tun (Entscheidung no_ai), kein Takt, kein Versuch verbraucht
+        try await launch(b, .processing)
+        XCTAssertEqual(b.lastRecord?.outcome, .skipped(.noSession))
+        XCTAssertEqual(spy.count, 0)
+        XCTAssertNil(b.lastWeekly)
+
+        // mit KI: der Takt laeuft trotz ausgefallenem Abgleich, Mitteilung ohne Dateinamen
+        backend.context.ai.set(FakeAI())
+        try await launch(b, .processing)
+        XCTAssertEqual(b.lastRecord?.outcome, .skipped(.noSession))
+        XCTAssertEqual(spy.count, 1)
+        XCTAssertEqual(b.lastWeekly, spy.outcome)
+        XCTAssertEqual(n.posts.map(\.content), [BackgroundNotice.weeklyTest])
+        XCTAssertEqual(n.posts.first?.content.title, "Neuer Wochentest verfügbar")
+        XCTAssertTrue(n.posts.first?.id.hasPrefix("de.uniflow.ai.sync.weekly.") == true, "eigene Kennung")
+        XCTAssertEqual(n.posts.first?.thread, "de.uniflow.ai.sync." + luh.layout.identifier.uuidString, "Gruppe des Containers")
+
+        // der kurze Lauf nie
+        try await launch(b, .refresh)
+        XCTAssertEqual(spy.count, 1)
+
+        // Abgleich ausgeschaltet: der lange Lauf nur fuer die Wochentests; nichts veroeffentlicht, keine Mitteilung
+        BackgroundSyncSettings(defaults: bed.defaults).enabled = false
+        spy.outcome = .ran("0 veröffentlicht, 0 wartend, 1 fehlgeschlagen, 0 Nachträge", changed: false)
+        try await launch(b, .processing)
+        XCTAssertEqual(b.lastRecord?.outcome, .skipped(.disabled))
+        XCTAssertEqual(spy.count, 2)
+        XCTAssertEqual(n.posts.count, 1)
+        BackgroundSyncSettings(defaults: bed.defaults).enabled = true
+
+        // ohne Schalter "Benachrichtigen" keine Mitteilung, der Takt laeuft trotzdem
+        BackgroundSyncSettings(defaults: bed.defaults).notify = false
+        spy.outcome = .ran("1 veröffentlicht, 0 wartend, 0 fehlgeschlagen, 0 Nachträge", changed: true)
+        try await launch(b, .processing)
+        XCTAssertEqual(spy.count, 3)
+        XCTAssertEqual(n.posts.count, 1)
+        BackgroundSyncSettings(defaults: bed.defaults).notify = true
+
+        // mit (gefaelschtem) Abgleich: der Schritt nach dem Abgleich, beide Mitteilungen
+        let fake = FakeSync()
+        fake.report = BackgroundSyncReport(newFiles: 2)
+        b.target = { _ in fake }
+        try await launch(b, .processing)
+        XCTAssertEqual(fake.kinds, [.processing])
+        XCTAssertEqual(spy.count, 4)
+        XCTAssertEqual(n.posts.map(\.content.title).suffix(2), ["Neue Dateien", "Neuer Wochentest verfügbar"])
+
+        // nichts mehr faellig (Plan veroeffentlicht): kein Takt
+        _ = try await backend.context.database.execute("UPDATE wt_plans SET status='veroeffentlicht'")
+        try await launch(b, .processing)
+        XCTAssertEqual(spy.count, 4)
+    }
+
+    /// Termine fuer die Wochentests: ausgeschaltet bleibt der lange Lauf bestellt, wenn ein Plan einen Termin braucht
+    /// (`next_at`, 15:00 Berliner Zeit), der kurze wird abbestellt; ohne KI oder ohne offenen Plan beide abbestellt;
+    /// eingeschaltet beide zum naechsten Termin
+    func testScheduleOrdersTheLongRunForWeeklyTestsEvenWhenOff() async throws {
+        let m = manager()
+        let (a, luh) = try ready(m, .luh)
+        let (b, s, _) = controller(m, a)
+        let backend = try await luh.host.backend()
+        BackgroundSyncSettings(defaults: bed.defaults).enabled = false
+
+        // kein Plan: beide abbestellt
+        let none = await b.schedule()
+        XCTAssertEqual(none, [:])
+        XCTAssertEqual(Set(s.cancelled), [.refresh, .processing])
+        XCTAssertNil(b.nextPlanned)
+
+        // faelliger Plan, aber keine KI: ein Lauf taete nichts, nichts bestellt
+        try await duePlan(backend)
+        s.cancelled = []
+        let noAI = await b.schedule()
+        XCTAssertEqual(noAI, [:])
+        XCTAssertEqual(Set(s.cancelled), [.refresh, .processing])
+
+        // mit KI: nur der lange Lauf, fruehestens zum naechsten Termin 15:00
+        backend.context.ai.set(FakeAI())
+        s.cancelled = []
+        let off = await b.schedule()
+        XCTAssertEqual(off.mapValues(local), [.processing: "2026-10-26 15:00"])
+        XCTAssertEqual(s.cancelled, [.refresh])
+        XCTAssertEqual(b.nextPlanned.map(local), "2026-10-26 15:00")
+        XCTAssertEqual((s.pendingRequests[.processing] ?? nil).map(local), "2026-10-26 15:00")
+
+        // eingeschaltet: beide; der lange zum frueheren der beiden Termine (hier derselbe)
+        BackgroundSyncSettings(defaults: bed.defaults).enabled = true
+        s.pendingRequests = [:]
+        let on = await b.schedule()
+        XCTAssertEqual(on.mapValues(local), [.refresh: "2026-10-26 15:00", .processing: "2026-10-26 15:00"])
+
+        // Plan veroeffentlicht und ausgeschaltet: wieder beide abbestellt
+        _ = try await backend.context.database.execute("UPDATE wt_plans SET status='veroeffentlicht'")
+        BackgroundSyncSettings(defaults: bed.defaults).enabled = false
+        s.cancelled = []
+        let done = await b.schedule()
+        XCTAssertEqual(done, [:])
+        XCTAssertEqual(Set(s.cancelled), [.refresh, .processing])
+        XCTAssertNil(b.nextPlanned)
+    }
+
     // MARK: Geloeschter Container
 
     /// Daten der Hochschule loeschen waehrend eines Hintergrundlaufs: der Lauf wird angehalten, danach steht im
@@ -759,6 +901,7 @@ final class BackgroundSyncAppTests: XCTestCase {
 
     func testCardTextsAreHonestAndTheCardRenders() async throws {
         XCTAssertTrue(BackgroundSyncCard.timingText.hasPrefix("iOS entscheidet, wann genau; frühestens 8, 15 und 20 Uhr."))
+        XCTAssertTrue(BackgroundSyncCard.timingText.contains("fällige Wochentests"))
         XCTAssertTrue(BackgroundSyncCard.notifyText(.luh).contains("„Bitte bei Stud.IP anmelden“"))
         XCTAssertTrue(BackgroundSyncCard.notifyText(.hildesheim).contains("„3 neue Dateien aus Learnweb“"))
         XCTAssertTrue(BackgroundSyncCard.notifyText(.luh).contains("nie Dateinamen"))

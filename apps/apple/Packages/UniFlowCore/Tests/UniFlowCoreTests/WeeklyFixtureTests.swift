@@ -8,16 +8,16 @@ import XCTest
 /// Tabellen der Wochentests (JSON-Texte byte-gleich).
 final class WeeklyFixtureTests: XCTestCase {
 
-    private func fixtureData() throws -> Data {
+    fileprivate static func fixtureData() throws -> Data {
         var url = URL(fileURLWithPath: #filePath)
         for _ in 0..<7 { url.deleteLastPathComponent() }
         return try Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/local-backend/weekly.json"))
     }
 
-    private func fixture() throws -> JSONValue { try JSONValue.parse(fixtureData()) }
+    fileprivate static func fixture() throws -> JSONValue { try JSONValue.parse(fixtureData()) }
 
     /// Anfragetexte in der Reihenfolge der Referenz (JSONValue kennt keine Reihenfolge der Schluessel)
-    private func orderedBodies() throws -> [PyJSON?] {
+    fileprivate static func orderedBodies() throws -> [PyJSON?] {
         guard case .object(let root) = try PyJSON.parse(fixtureData()),
               case .array(let steps)? = root.first(where: { $0.key == "steps" })?.value else { return [] }
         return steps.map { s -> PyJSON? in
@@ -60,7 +60,7 @@ final class WeeklyFixtureTests: XCTestCase {
         }
     }
 
-    private func sql(_ v: JSONValue) -> SQLiteValue {
+    private static func sql(_ v: JSONValue) -> SQLiteValue {
         switch v {
         case .null: return .null
         case .string(let s): return .text(s)
@@ -70,7 +70,7 @@ final class WeeklyFixtureTests: XCTestCase {
         }
     }
 
-    private func run(_ b: LocalBackend, _ statements: [JSONValue]) async throws {
+    fileprivate static func run(_ b: LocalBackend, _ statements: [JSONValue]) async throws {
         try await b.context.database.transaction { c in
             for s in statements {
                 guard let a = s.array, let q = a.first?.string else { continue }
@@ -79,7 +79,7 @@ final class WeeklyFixtureTests: XCTestCase {
         }
     }
 
-    private func request(_ method: String, _ full: String, _ body: PyJSON?) -> LocalRequest {
+    fileprivate static func request(_ method: String, _ full: String, _ body: PyJSON?) -> LocalRequest {
         let parts = full.split(separator: "?", maxSplits: 1).map(String.init)
         let query: [LocalRequest.QueryItem] = parts.count > 1 ? parts[1].split(separator: "&").map { kv in
             let p = kv.split(separator: "=", maxSplits: 1).map(String.init)
@@ -92,29 +92,56 @@ final class WeeklyFixtureTests: XCTestCase {
     /// Fehlerantworten: gleiche Meldung (FastAPI `detail`)
     private func comparable(_ v: JSONValue?) -> JSONValue { v ?? .null }
 
+    /// Ablauf der Referenz bis einschliesslich Schritt `n` (ohne die reinen `background`-Pruefungen) mit der
+    /// aufgezeichneten KI; die Uhr steht danach auf der Zeit des Schritts `n`. Fuer Tests, die mitten im Ablauf etwas
+    /// anderes tun (Abbruch, Entscheidung fuer die App).
+    fileprivate static func replay(throughStep n: Int) async throws -> (LocalBackend, Ticker) {
+        let fx = try Self.fixture()
+        let ticker = Ticker()
+        ticker.set(fx["start"]?.string ?? "2026-10-19T12:00:00")
+        let b = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: ticker.clock)
+        b.context.ai.set(RecordedAI(fx["ai"]?.array ?? []))
+        try await Self.run(b, fx["seed"]?.array ?? [])
+        let bodies = try Self.orderedBodies()
+        for (i, step) in (fx["steps"]?.array ?? []).prefix(n).enumerated() {
+            let now = step["now"]?.string ?? ""
+            ticker.set(now)
+            switch step["op"]?.string {
+            case "http":
+                let r = await b.handle(Self.request(step["method"]?.string ?? "GET", step["path"]?.string ?? "", i < bodies.count ? bodies[i] : nil))
+                XCTAssertEqual(r.status, step["status"]?.int, "Schritt \(i + 1)")
+            case "tick": _ = try await Weekly.tick(b.context, now: Weekly.seconds(now))
+            case "sql": try await Self.run(b, step["sql"]?.array ?? [])
+            default: break
+            }
+            while (await b.context.jobs.state["running"]?.bool) == true { try await Task.sleep(nanoseconds: 5_000_000) }
+        }
+        return (b, ticker)
+    }
+
     func testFlowMatchesPythonServer() async throws {
-        let fx = try fixture()
+        let fx = try Self.fixture()
         let ticker = Ticker()
         ticker.set(fx["start"]?.string ?? "2026-10-19T12:00:00")
         let b = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: ticker.clock)
         let ai = RecordedAI(fx["ai"]?.array ?? [])
         b.context.ai.set(ai)
-        try await run(b, fx["seed"]?.array ?? [])
-        let bodies = try orderedBodies()
+        try await Self.run(b, fx["seed"]?.array ?? [])
+        let bodies = try Self.orderedBodies()
         for (n, step) in (fx["steps"]?.array ?? []).enumerated() {
             let now = step["now"]?.string ?? ""
             ticker.set(now)
             let label = "Schritt \(n + 1) \(step["op"]?.string ?? "") \(step["method"]?.string ?? "") \(step["path"]?.string ?? "")"
             switch step["op"]?.string {
             case "http":
-                let r = await b.handle(request(step["method"]?.string ?? "GET", step["path"]?.string ?? "", n < bodies.count ? bodies[n] : nil))
+                let r = await b.handle(Self.request(step["method"]?.string ?? "GET", step["path"]?.string ?? "", n < bodies.count ? bodies[n] : nil))
                 XCTAssertEqual(r.status, step["status"]?.int, label + " " + (r.json?.jsonString() ?? ""))
                 XCTAssertEqual(comparable(r.json), comparable(step["response"]), label)
             case "tick":
                 let res = try await Weekly.tick(b.context, now: Weekly.seconds(now))
                 XCTAssertEqual(res, step["result"], label)
             case "sql":
-                try await run(b, step["sql"]?.array ?? [])
+                try await Self.run(b, step["sql"]?.array ?? [])
             case "background":
                 let nowSeconds = Weekly.seconds(now) ?? 0
                 let snap = try await b.context.database.withConnection { c in try WeeklyBackground.snapshot(c, now: nowSeconds) }
@@ -180,7 +207,7 @@ final class WeeklyFixtureTests: XCTestCase {
     /// `background_decision` wie Python fuer alle Faelle ohne Datenbank (Termingrenzen, Monats- und Jahreswechsel,
     /// Zeitumstellung, Sperre, Versuche, Tageslimit, aus/keine KI/beschaeftigt)
     func testBackgroundCasesMatchPython() throws {
-        let cases = try fixture()["background_cases"]?.array ?? []
+        let cases = try Self.fixture()["background_cases"]?.array ?? []
         XCTAssertGreaterThan(cases.count, 0, "background_cases fehlen")
         for c in cases {
             let name = c["name"]?.string ?? "?"
@@ -265,5 +292,121 @@ final class WeeklyAutoTickTests: XCTestCase {
         while (await b.context.jobs.state["running"]?.bool) == true { try await Task.sleep(nanoseconds: 20_000_000) }
         let ran = await WeeklyAutoTick.run(b.context)
         XCTAssertEqual(ran, .ran("0 veröffentlicht, 0 wartend, 0 fehlgeschlagen, 0 Nachträge", changed: false))
+    }
+
+    /// KI, deren Anfrage abgebrochen wird (iOS beendet die Hintergrundzeit, `URLSession` wirft `cancelled`)
+    struct Cancelled: AIProvider {
+        var asURLError = false
+        func answer(system: String, prompt: String) async throws -> String {
+            if asURLError { throw URLError(.cancelled) }
+            throw CancellationError()
+        }
+    }
+
+    /// KI, die wie `ChatGPTSession.complete` jeden Transportfehler als `AIError` meldet und erst antwortet, wenn der
+    /// Task abgebrochen ist
+    final class WaitsForCancel: AIProvider, @unchecked Sendable {
+        func answer(system: String, prompt: String) async throws -> String {
+            while !Task.isCancelled { try? await Task.sleep(nanoseconds: 5_000_000) }
+            throw AIError("chatgpt_network", "Keine Verbindung zu OpenAI.")
+        }
+    }
+
+    private func plan1(_ b: LocalBackend) async throws -> [String: JSONValue] {
+        let rows = try await b.context.database.rows("SELECT status, attempts, lock_until, lock_token, last_error FROM wt_plans WHERE id=1")
+        return try XCTUnwrap(rows.first)
+    }
+
+    /// Abbruch durch iOS kostet keinen Versuch: Plan 1 der Referenz ist am 20.10. um 11:31 faellig (Schritt 17 wuerde
+    /// ihn mit der KI erzeugen). Bricht die KI-Anfrage ab, bleiben Status, `attempts` und `last_error`, die Sperre ist
+    /// geloest; ein echter Fehler zaehlt weiter einen Versuch.
+    func testCancellationKeepsAttemptsAndReleasesTheLock() async throws {
+        for provider in [Cancelled(), Cancelled(asURLError: true)] {
+            let (b, _) = try await WeeklyFixtureTests.replay(throughStep: 16)
+            let before = try await plan1(b)
+            XCTAssertEqual(before["status"], "geplant")
+            XCTAssertEqual(before["attempts"], .number(0))
+            b.context.ai.set(provider)
+            let r = await WeeklyAutoTick.run(b.context)
+            XCTAssertEqual(r, .cancelled, "\(provider)")
+            let after = try await plan1(b)
+            XCTAssertEqual(after["status"], "geplant", "\(provider)")
+            XCTAssertEqual(after["attempts"], .number(0), "\(provider)")
+            XCTAssertEqual(after["lock_until"], .null, "Sperre geloest: \(provider)")
+            XCTAssertEqual(after["lock_token"], .null, "\(provider)")
+            XCTAssertEqual(after["last_error"], before["last_error"], "\(provider)")
+            // `Weekly.tick` selbst wirft den Abbruch weiter (die Referenz kennt nur published/waiting/failed)
+            do {
+                _ = try await Weekly.tick(b.context)
+                XCTFail("Abbruch muss weitergehen: \(provider)")
+            } catch {
+                XCTAssertTrue(Weekly.isCancellation(error), "\(error)")
+            }
+            let still = try await plan1(b)
+            XCTAssertEqual(still["attempts"], .number(0))
+            // ein echter Fehler der KI zaehlt wie bisher
+            b.context.ai.set(NoAnswer())
+            let failed = await WeeklyAutoTick.run(b.context)
+            XCTAssertEqual(failed, .ran("0 veröffentlicht, 0 wartend, 1 fehlgeschlagen, 0 Nachträge", changed: false))
+            let counted = try await plan1(b)
+            XCTAssertEqual(counted["status"], "fehlgeschlagen")
+            XCTAssertEqual(counted["attempts"], .number(1))
+            XCTAssertEqual(counted["lock_until"], .null)
+        }
+    }
+
+    /// Abbruch des Tasks (`BackgroundTaskRun.expire` -> `Task.cancel`), waehrend die Anbindung den Fehler als
+    /// `AIError` verpackt: im abgebrochenen Task gilt er nicht als Fehler des Plans
+    func testTaskCancellationDuringTheAIRequestKeepsAttempts() async throws {
+        let (b, _) = try await WeeklyFixtureTests.replay(throughStep: 16)
+        b.context.ai.set(WaitsForCancel())
+        let ctx = b.context
+        let run = Task { await WeeklyAutoTick.run(ctx) }
+        // warten, bis der Plan belegt ist (die KI-Anfrage laeuft)
+        var locked = false
+        for _ in 0..<400 where !locked {
+            try await Task.sleep(nanoseconds: 10_000_000)
+            locked = try await plan1(b)["lock_token"] != .null
+        }
+        XCTAssertTrue(locked, "Plan 1 wurde belegt")
+        run.cancel()
+        let r = await run.value
+        XCTAssertEqual(r, .cancelled)
+        let after = try await plan1(b)
+        XCTAssertEqual(after["status"], "geplant")
+        XCTAssertEqual(after["attempts"], .number(0))
+        XCTAssertEqual(after["lock_until"], .null)
+        XCTAssertEqual(after["lock_token"], .null)
+        // ein schon abgebrochener Task belegt gar nicht erst
+        let early = Task { await WeeklyAutoTick.run(ctx) }
+        early.cancel()
+        let earlyOutcome = await early.value
+        XCTAssertEqual(earlyOutcome, .cancelled)
+        let untouched = try await plan1(b)
+        XCTAssertEqual(untouched["attempts"], .number(0))
+    }
+
+    /// `WeeklyBackground.decision` und `date` fuer die App: dieselbe Antwort wie Schritt 15/16 der Referenz, `next_at`
+    /// als Zeitpunkt (20.10.2026 15:00 Berlin = 13:00 UTC), `ai`/`busy` aus dem Kontext
+    func testDecisionAndDateForTheApp() async throws {
+        let (b, _) = try await WeeklyFixtureTests.replay(throughStep: 16)
+        b.context.ai.set(nil)
+        let noAI = try await WeeklyBackground.decision(b.context)
+        XCTAssertEqual(noAI, WeeklyBackground.Decision(action: "no_ai", due: [1], nextAt: Date(timeIntervalSince1970: 1_792_501_200)))
+        b.context.ai.set(NoAnswer())
+        let run = try await WeeklyBackground.decision(b.context)
+        XCTAssertEqual(run.action, "run")
+        let busy = try await WeeklyBackground.decision(b.context, busy: true)
+        XCTAssertEqual(busy.action, "busy")
+        let forcedNoAI = try await WeeklyBackground.decision(b.context, ai: false)
+        XCTAssertEqual(forcedNoAI.action, "no_ai")
+        _ = try await b.context.database.execute("INSERT OR REPLACE INTO settings(key, value) VALUES('auto_tests', '0')")
+        let off = try await WeeklyBackground.decision(b.context)
+        XCTAssertEqual(off, WeeklyBackground.Decision(action: "off"))
+        XCTAssertEqual(WeeklyBackground.date("2026-10-26T15:00:00"), Date(timeIntervalSince1970: 1_793_023_200), "Winterzeit")
+        XCTAssertEqual(WeeklyBackground.date("2026-10-20T15:00:00"), Date(timeIntervalSince1970: 1_792_501_200), "Sommerzeit")
+        XCTAssertNil(WeeklyBackground.date("bald"))
+        XCTAssertEqual(BackgroundNotice.weeklyTest.title, "Neuer Wochentest verfügbar")
+        XCTAssertFalse(BackgroundNotice.weeklyTest.body.contains("Prog"), "kein Fach, kein Inhalt")
     }
 }

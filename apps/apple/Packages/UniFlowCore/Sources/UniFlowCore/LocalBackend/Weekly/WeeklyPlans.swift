@@ -136,6 +136,7 @@ extension Weekly {
                 """, [.text(iso(now))]).compactMap { $0["id"]?.int.map(Int64.init) }
         }
         for id in due {
+            try _Concurrency.Task.checkCancellation()                                             // Abbruch durch iOS: keinen Plan mehr belegen
             guard let r = try await processPlan(ctx, id, now: now, indexes: &indexes) else { continue }
             switch r["result"]?.string {
             case "published": published.append(r)
@@ -166,13 +167,27 @@ extension Weekly {
             return (tok, plan)
         }
         guard let (tok, plan) = claimed else { return nil }
-        let result = await processClaimed(ctx, planID, plan, now: now, indexes: &indexes)
+        let result: JSONValue
+        do {
+            result = try await processClaimed(ctx, planID, plan, now: now, indexes: &indexes)
+        } catch {
+            try? await ctx.database.transaction { c in try release(c, planID, tok) }      // wie `finally` in Python
+            throw error
+        }
         try? await ctx.database.transaction { c in try release(c, planID, tok) }          // wie `finally` in Python
         return result
     }
 
+    /// Abbruch durch iOS (`Task.cancel` aus `BackgroundTaskRun.expire`, `CancellationError`, `URLError.cancelled`):
+    /// kein Fehler des Plans. Python kennt keinen Abbruch (`process_plan` zaehlt jeden Fehler).
+    static func isCancellation(_ e: Error) -> Bool {
+        e is CancellationError || (e as? URLError)?.code == .cancelled
+    }
+
+    /// Ein belegter Plan: Ergebnis published/waiting/failed wie `process_plan`. Ein Abbruch kostet keinen Versuch:
+    /// Status und `attempts` bleiben, nur die Sperre loest `processPlan`, der Fehler geht weiter (`tick` endet damit).
     private static func processClaimed(_ ctx: LocalContext, _ planID: Int64, _ plan: [String: JSONValue], now: Int,
-                                       indexes: inout [Int: ScriptSearch.Index]) async -> JSONValue {
+                                       indexes: inout [Int: ScriptSearch.Index]) async throws -> JSONValue {
         let moduleID = plan["module_id"]?.int ?? 0
         do {
             let idx = try await index(moduleID, ctx, &indexes)
@@ -215,6 +230,8 @@ extension Weekly {
             try await ctx.database.transaction { c in try publish(c, planID, defID, now: now, nowISO: ctx.clock.nowISO) }
             return ["result": "published", "plan_id": .number(Double(planID)), "def_id": .number(Double(defID)),
                     "missing": .array(missing.map(JSONValue.string))]
+        } catch where isCancellation(error) || _Concurrency.Task.isCancelled {
+            throw error                                                                  // abgebrochen: kein Versuch verbraucht
         } catch {
             let message = String("\(error)".unicodeScalars.prefix(800))
             try? await ctx.database.transaction { c in
@@ -559,7 +576,14 @@ extension Weekly {
 extension Weekly {
     static func ask(_ ctx: LocalContext, _ prompt: String) async throws -> PyJSON {
         guard let ai = ctx.ai.provider else { throw Failure("Keine KI verbunden (Einstellungen → Erweitert → KI über mein ChatGPT).") }
-        return try AIAnswers.parseJSON(try await ai.answer(system: system, prompt: prompt))
+        try _Concurrency.Task.checkCancellation()                                 // abgebrochen (iOS): keine Anfrage mehr
+        do {
+            return try AIAnswers.parseJSON(try await ai.answer(system: system, prompt: prompt))
+        } catch {
+            // die Anbindung verpackt einen abgebrochenen Transport als AIError: im abgebrochenen Task zaehlt das nicht als Fehler
+            if _Concurrency.Task.isCancelled { throw CancellationError() }
+            throw error
+        }
     }
 
     static func set(_ q: PyJSON, _ k: String, _ value: PyJSON) -> PyJSON {
@@ -581,7 +605,7 @@ extension Weekly {
     static func runPipeline(_ app: LocalContext, _ ctx: Context, tag: String, kind: String) async throws -> (PyJSON, PyJSON) {
         var rounds: [PyJSON] = []
         var res: PyJSON
-        do { res = try await ask(app, genPrompt(ctx, kind: tag)) } catch { throw Failure("KI-Entwurf unbrauchbar: \(error)") }
+        do { res = try await ask(app, genPrompt(ctx, kind: tag)) } catch where isCancellation(error) { throw error } catch { throw Failure("KI-Entwurf unbrauchbar: \(error)") }
         var qs = questions(of: res)
         for rnd in 0..<2 {
             let probs = validate(ctx, qs, kind: kind)
@@ -592,6 +616,8 @@ extension Weekly {
                     review = rejected(rv)
                     let n = { () -> Int in if case .array(let a)? = field(rv, "results") { return a.count } else { return 0 } }()
                     if n < list.count { review.append(.object([.init("nr", .null), .init("issue", .string("Fachprüfung unvollständig"))])) }
+                } catch where isCancellation(error) {
+                    throw error
                 } catch {
                     review = [.object([.init("nr", .null), .init("issue", .string("Fachprüfung fehlgeschlagen: \(error)"))])]
                 }
@@ -605,6 +631,8 @@ extension Weekly {
             do {
                 res = try await ask(app, genPrompt(ctx, kind: tag, extra: "\nKORREKTUR NOETIG. Behebe diese Probleme vollstaendig:\n\(fix)\n"))
                 qs = questions(of: res)
+            } catch where isCancellation(error) {
+                throw error
             } catch {
                 rounds.append(.object([.init("rules", .array([.string("Reparatur unbrauchbar: \(error)")])), .init("review", .array([]))]))
                 break

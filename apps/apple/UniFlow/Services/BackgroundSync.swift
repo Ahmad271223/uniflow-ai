@@ -28,6 +28,11 @@ import UserNotifications
 //   iOS, nie mit Dateinamen; um die Erlaubnis fragt erst der Schalter, nie der Start der App
 // - Stand je Container (letzter Lauf, Hinweis gezeigt) in dessen Einstellungs-Suite; nach dem Loeschen eines
 //   Containers schreibt ein spaet endender Lauf nichts mehr hinein
+// - Wochentests (docs/WOCHENTESTS.md "Hintergrundlauf"): der lange Lauf prueft nach dem Abgleich, auch wenn dieser
+//   ausfiel (Sitzung abgelaufen, Schalter aus), ob ein gemeinsamer Wochentest faellig ist (`WeeklyBackground.decision`),
+//   und erzeugt ihn (`WeeklyAutoTick.run`); dafuer wird der lange Lauf auch mit ausgeschaltetem Abgleich zum Termin
+//   `next_at` bestellt. Ein Abbruch durch iOS kostet keinen der drei Versuche eines Plans. Mitteilung "Neuer Wochentest
+//   verfügbar" nach denselben Regeln wie die zu neuen Dateien.
 
 /// Kennungen der Aufgaben (Info.plist BGTaskSchedulerPermittedIdentifiers)
 enum BackgroundTaskID {
@@ -268,6 +273,10 @@ final class BackgroundSyncController: ObservableObject {
     var graceNanos: UInt64 = 1_000_000_000
     /// Hintergrundaktualisierung in den iPad-Einstellungen (Karte: Hinweis, wenn aus)
     var refreshStatus: () -> UIBackgroundRefreshStatus = { UIApplication.shared.backgroundRefreshStatus }
+    /// Takt der Wochentests im langen Lauf (Tests: Attrappe)
+    var weeklyTick: (LocalContext) async -> WeeklyAutoTick.Outcome = { await WeeklyAutoTick.run($0) }
+    /// Ergebnis des letzten Wochentest-Schritts eines Hintergrundlaufs in diesem Prozess (nil: noch keiner; Tests)
+    private(set) var lastWeekly: WeeklyAutoTick.Outcome?
 
     private static var registered = false
 
@@ -306,35 +315,56 @@ final class BackgroundSyncController: ObservableObject {
 
     /// Beide Aufgaben auf den naechsten Zeitpunkt 8, 15 oder 20 Uhr Ortszeit legen; ein bestellter, nicht spaeterer
     /// Termin bleibt (`keepsPending`), `ran` (die eben gestartete Aufgabe) bestellt immer neu. Ausgeschaltet: beide
-    /// abbestellen. Unter XCTest und mit Startargumenten fuer Bildvergleiche geschieht nichts (Tests setzen `allowed`).
+    /// abbestellen; nur der lange Lauf bleibt bestellt, wenn ein Wochentest einen Termin braucht (`next_at` aus
+    /// `WeeklyBackground.decision`, Berliner Zeit); mit Schalter ist sein fruehester Beginn der fruehere der beiden
+    /// Termine. Unter XCTest und mit Startargumenten fuer Bildvergleiche geschieht nichts (Tests setzen `allowed`).
     /// Rueckgabe: neu bestellte Termine (Tests).
     @discardableResult
     func schedule(ran: BackgroundSyncKind? = nil) async -> [BackgroundSyncKind: Date] {
         guard allowed() else { return [:] }
-        guard settings.enabled else {
+        let weeklyAt = await weeklyNextAt()
+        guard settings.enabled || weeklyAt != nil else {
             for k in BackgroundSyncKind.allCases { scheduler.cancel(k) }
             nextPlanned = nil
             return [:]
         }
         let at = BackgroundSchedule.next(after: now(), timeZone: timeZone())
         let pending = await scheduler.pending()
-        // inzwischen ausgeschaltet (Schalter waehrend der Abfrage): nichts bestellen
-        guard settings.enabled else { return [:] }
+        // inzwischen ausgeschaltet (Schalter waehrend der Abfrage): nur noch der Termin der Wochentests
+        let enabled = settings.enabled
         var submitted: [BackgroundSyncKind: Date] = [:]
         var earliest: [Date] = []
         for k in BackgroundSyncKind.allCases {
-            if k != ran, let p = pending[k], BackgroundSchedule.keepsPending(p, next: at) {
-                earliest.append(p ?? at)
+            let wanted: Date?
+            switch k {
+            case .refresh: wanted = enabled ? at : nil
+            case .processing: wanted = enabled ? min(at, weeklyAt ?? at) : weeklyAt
+            }
+            guard let wanted else {
+                scheduler.cancel(k)
+                continue
+            }
+            if k != ran, let p = pending[k], BackgroundSchedule.keepsPending(p, next: wanted) {
+                earliest.append(p ?? wanted)
                 continue
             }
             // abgelehnt (Hintergrundaktualisierung aus, Simulator, zu viele Termine): beim naechsten Planen erneut
-            if (try? scheduler.submit(k, earliest: at)) != nil {
-                submitted[k] = at
-                earliest.append(at)
+            if (try? scheduler.submit(k, earliest: wanted)) != nil {
+                submitted[k] = wanted
+                earliest.append(wanted)
             }
         }
         nextPlanned = earliest.min()
         return submitted
+    }
+
+    /// Naechster Termin, an dem ein Wochentest des offenen Containers etwas zu tun haben kann (`next_at`); nil ohne
+    /// offenen Plan mit Versuchen, ohne verbundene KI, ohne Backend oder waehrend eines Wechsels
+    private func weeklyNextAt() async -> Date? {
+        guard let c = containers.active, c.key == account.containerKey, account.stage == .ready, containers.problem == nil,
+              let backend = try? await c.host.backend(),
+              let decision = try? await WeeklyBackground.decision(backend.context), decision.action != "no_ai" else { return nil }
+        return decision.nextAt
     }
 
     /// Schalter "Im Hintergrund abgleichen"
@@ -396,12 +426,18 @@ final class BackgroundSyncController: ObservableObject {
             syncRunning: (c.map { containers.isSyncing($0.key) } ?? false) || (target?.isRunning ?? false),
             usableSession: !(target?.usableSources.isEmpty ?? true),
             demo: containers.demoActive)
-        if let reason = BackgroundSyncGate.skipReason(situation) {
+        let reason = BackgroundSyncGate.skipReason(situation)
+        // Wochentests nur im langen Lauf, unabhaengig vom Gate des Abgleichs (auch mit abgelaufener Sitzung oder
+        // ausgeschaltetem Abgleich), aber nur im passenden Container und nie neben einem laufenden Abgleich
+        let withoutWeekly: [BackgroundSkipReason] = [.noContainer, .switching, .alreadyRunning]
+        let weekly = kind == .processing && allowed() && (reason.map { !withoutWeekly.contains($0) } ?? true)
+        if let reason {
             // im passenden Container festhalten, dass iOS gestartet hat (nicht waehrend eines Wechsels)
             if let c, reason != .noContainer, reason != .switching, c.layout.exists() {
                 BackgroundSyncState(defaults: c.defaults).record(BackgroundSyncRecord(finishedAt: now(), kind: kind, outcome: .skipped(reason)))
                 revision += 1
             }
+            if weekly, let c { await runWeekly(c, expired: expired) }
             return true
         }
         guard let c, let target else { return true }
@@ -429,8 +465,31 @@ final class BackgroundSyncController: ObservableObject {
             // neue Dateien und Fristen: Abgaben-Erinnerungen gleich neu planen, nicht erst beim naechsten Oeffnen
             if report.skipped == nil, !report.cancelled, containers.active === c { DueReminderScheduler.shared.schedule(recompute: true) }
         }
+        // nach dem Abgleich (der volle Abgleich hat selbst schon getaktet): faellige Wochentests, solange Zeit ist
+        if weekly, !report.cancelled { await runWeekly(c, expired: expired) }
         revision += 1
         return report.skipped != nil || (!report.cancelled && report.failure == nil)
+    }
+
+    /// Wochentests im langen Lauf (docs/WOCHENTESTS.md "Hintergrundlauf"): Entscheidung aus dem Stand der Plaene
+    /// (`WeeklyBackground.decision`: `auto_tests`, KI verbunden, kein anderer Auftrag, ein Plan faellig), bei `run` der
+    /// Takt wie im Vordergrund (`weeklyTick`). Hat er etwas veroeffentlicht, laden offene Boxen neu und es kommt
+    /// "Neuer Wochentest verfügbar" (nur mit dem Schalter und der Erlaubnis von iOS, ohne Fach oder Inhalt). Ein
+    /// Abbruch durch iOS (`Task.cancel` aus `BackgroundTaskRun.expire`) kostet keinen Versuch (`.cancelled`).
+    /// Rueckgabe: nil ohne Lauf (nichts faellig, Zeit um, Backend nicht offen, Container inzwischen geloescht).
+    @discardableResult
+    private func runWeekly(_ c: ActiveContainer, expired: @escaping () -> Bool) async -> WeeklyAutoTick.Outcome? {
+        guard !expired(), owns(c), let backend = try? await c.host.backend(),
+              let decision = try? await WeeklyBackground.decision(backend.context), decision.action == "run" else { return nil }
+        let outcome = await weeklyTick(backend.context)
+        lastWeekly = outcome
+        guard case .ran(_, let changed) = outcome, changed, owns(c), containers.active === c else { return outcome }
+        NotificationCenter.default.post(name: .uniflowWeeklyChanged, object: nil)
+        if settings.notify, await notifier.isAllowed() {
+            let container = c.layout.identifier.uuidString, prefix = SystemBackgroundNotifier.prefix
+            await notifier.post(BackgroundNotice.weeklyTest, id: prefix + "weekly.\(container).\(UUID().uuidString)", thread: prefix + container)
+        }
+        return outcome
     }
 
     /// Darf ein Lauf noch in seinen Container schreiben? Nur, wenn es ihn noch gibt und er nicht inzwischen geloescht

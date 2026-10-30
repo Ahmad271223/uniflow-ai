@@ -358,7 +358,7 @@ final class HildesheimConnection: ObservableObject {
             report = await HildesheimSync(db: database, container: layout, learnweb: lw.api, lsf: lsfClient, transport: transport,
                                           clock: clock, retry: retry, tools: AppDocumentTools())
                 .run(includeGrades: includeGrades, downloads: scope == .full)
-            if !report.cancelled { await StudIPSync.autoPlan(host: host, newFiles: report.newFiles.count) }   // Lernplan wie nach run_sync
+            if !report.cancelled { await StudIPSync.autoPlan(host: host, newFiles: report.newFiles.count, weekly: scope == .full) }   // Lernplan und Wochentests wie nach run_sync
         }
         apply(report, sources: sources.subtracting(connectedDuringRun), learnweb: lw, includeGrades: includeGrades, before: before, scope: scope)
         return report

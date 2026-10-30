@@ -600,7 +600,7 @@ final class StudIPSync: ObservableObject {
                                                                    removedEvents: timetable.result?.removedEvents ?? 0)
                 : "Hintergrund: Listen abgeglichen, " + waitingText
             await log(database, started: started, ok: true, newFiles: loaded, message: message)
-            await Self.autoPlan(host: host, newFiles: loaded)
+            await Self.autoPlan(host: host, newFiles: loaded, weekly: scope == .full)
             // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu
             phase = expired ? .needsLogin : .idle
             setFlag(Keys.sessionExpired, expired)
@@ -656,11 +656,18 @@ final class StudIPSync: ObservableObject {
     }
 
     /// Lernplan nach dem Abgleich wie am PC (`study.auto_plan_week` nach run_sync): mit `auto_plan` die laufende Woche
-    /// planen, nur Stoff der Lehrwoche und den Skriptrest nach dem Marker der Vorwoche. Nicht nach einem Abbruch (der
-    /// Container wird vielleicht gerade geloescht); ein Fehler stoppt den Abgleich nicht.
-    nonisolated static func autoPlan(host: LocalBackendHost, newFiles: Int) async {
+    /// planen, nur Stoff der Lehrwoche und den Skriptrest nach dem Marker der Vorwoche. Danach die gemeinsamen
+    /// Wochentests wie `_full_sync` am PC (`WeeklyAutoTick.run`: nur mit `auto_tests`, verbundener KI und ohne anderen
+    /// Hintergrundauftrag; hat er etwas veroeffentlicht, laden offene Boxen neu), nur nach einem vollen Abgleich
+    /// (`weekly`), nicht im kurzen Hintergrundlauf. Nicht nach einem Abbruch (der Container wird vielleicht gerade
+    /// geloescht; ein Abbruch im Takt kostet keinen Versuch); ein Fehler stoppt den Abgleich nicht.
+    nonisolated static func autoPlan(host: LocalBackendHost, newFiles: Int, weekly: Bool = true) async {
         guard !Task.isCancelled, let backend = try? await host.backend() else { return }
         _ = try? await StudyAutoPlan.afterSync(backend, newFiles: newFiles)
+        guard weekly, !Task.isCancelled else { return }
+        if case .ran(_, let changed) = await WeeklyAutoTick.run(backend.context), changed {
+            await MainActor.run { NotificationCenter.default.post(name: .uniflowWeeklyChanged, object: nil) }
+        }
     }
 
     private func finish(summary: String) {

@@ -54,22 +54,31 @@ Gebaut (reine Logik, ohne iOS, gegen dieselben Prüfdaten):
 - Tests: Python 4 neue (`test_weekly.py`), Swift 2 neue (`WeeklyFixtureTests`, darunter ein Abgleich von `nextSlot`
   mit `BackgroundSchedule.next` in Europe/Berlin). Absichtlicher Fehler (`>=` → `>`) wird von 9 Fällen gefunden.
 
-Was noch fehlt und Xcode braucht (für die Mac-Sitzung, Reihenfolge nach Nutzen):
+Nachtrag (später am 30.10., zweite Cloud-Sitzung): die Punkte 1–5 sind gebaut, der Kern geprüft, die App ungeprüft
+(kein Xcode in der Cloud; Syntax mit `swiftc -parse`). Stand je Punkt:
 
-1. `StudIPSync.autoPlan` und `HildesheimConnection`: nach `StudyAutoPlan.afterSync` auch `WeeklyAutoTick.run`
-   aufrufen, wie `_full_sync` am PC. Kleiner Schritt, sofort nützlich.
-2. `BackgroundSyncController.performRun`: im langen Lauf (`.processing`) `WeeklyBackground.snapshot` + `decide`
-   auswerten und bei `run` den Tick starten, unabhängig vom Stud.IP-Gate (heute endet der Lauf bei abgelaufener
-   Sitzung vorher).
-3. `schedule()`: den langen Lauf auch bestellen, wenn „Im Hintergrund abgleichen“ aus ist, aber `next_at` gesetzt ist.
-   Frühester Beginn = Minimum aus `BackgroundSchedule.next` und `next_at` (naive Berliner Zeit → `Date` über
-   `BerlinClock.utcSeconds`).
-4. Abbruch durch iOS (`BackgroundTaskRun.expire`) darf keinen Versuch kosten: `CancellationError`/`URLError.cancelled`
-   in `processClaimed` nur die Sperre lösen. In Python dazu ein optionaler Rückruf an `process_plan`, damit die
-   Prüfdaten gleich bleiben.
-5. Mitteilung „Neuer Wochentest verfügbar“ nach dem Muster von `BackgroundNotice`; Satz in `BackgroundSyncCard`
-   anpassen; App-Tests in `BackgroundSyncAppTests` und `WeeklyAppTests`.
-6. Auf dem Gerät über Tage beobachten; wann iOS wirklich startet, lässt sich nicht testen.
+1. **Erledigt (ungeprüft in der App):** `StudIPSync.autoPlan(host:newFiles:weekly:)` ruft nach `StudyAutoPlan.afterSync`
+   auch `WeeklyAutoTick.run` (Stud.IP und Hildesheim), nur nach einem vollen Abgleich (`weekly: scope == .full`), nicht
+   im kurzen Hintergrundlauf. Hat der Takt etwas veröffentlicht, kommt `.uniflowWeeklyChanged`.
+2. **Erledigt (ungeprüft in der App):** `BackgroundSyncController.performRun` wertet im langen Lauf
+   `WeeklyBackground.decision(ctx)` (Kern: `snapshot` + `decide`, `ai`/`busy` aus dem Kontext) aus und startet bei
+   `run` den Takt (`weeklyTick`, Tests: Attrappe), auch wenn das Gate den Abgleich übersprang (abgelaufene Sitzung,
+   Schalter aus); nicht ohne Container, nicht beim Wechsel, nicht neben einem laufenden Abgleich.
+3. **Erledigt (ungeprüft in der App):** `schedule()` bestellt den langen Lauf auch bei ausgeschaltetem Abgleich, wenn
+   `next_at` gesetzt und die KI verbunden ist (der kurze wird abbestellt); eingeschaltet frühester Beginn = Minimum aus
+   `BackgroundSchedule.next` und `next_at` (`WeeklyBackground.date`, Berliner Zeit über `BerlinClock.utcSeconds`).
+4. **Erledigt und im Kern geprüft:** `CancellationError`, `URLError.cancelled` und ein abgebrochener Task
+   (`Task.isCancelled`, auch wenn die Anbindung den Fehler als `AIError` verpackt) werfen aus `processClaimed` weiter,
+   `processPlan` löst nur die Sperre, `Weekly.ask` stellt im abgebrochenen Task keine Anfrage mehr,
+   `WeeklyAutoTick.run` liefert `.cancelled`. Kein Rückruf in Python nötig: die Prüfdaten und Fixture-Vergleiche sind
+   unverändert. Drei neue Kern-Tests in `WeeklyAutoTickTests` (Abbruch mit beiden Fehlern, `Task.cancel` während der
+   KI-Anfrage, Entscheidung und Termin für die App).
+5. **Erledigt (ungeprüft in der App):** `BackgroundNotice.weeklyTest` („Neuer Wochentest verfügbar“, ohne Fach oder
+   Inhalt) nach denselben Regeln wie die Mitteilung zu neuen Dateien; Satz in `BackgroundSyncCard.timingText`; neue
+   App-Tests `testLongRunRunsTheWeeklyStepEvenWithoutSessionTheShortRunNever`,
+   `testScheduleOrdersTheLongRunForWeeklyTestsEvenWhenOff` (`BackgroundSyncAppTests`) und
+   `testAutoPlanAfterSyncRunsTheWeeklyTick` (`WeeklyAppTests`) – laufen erst auf dem Mac.
+6. **Offen:** auf dem Gerät über Tage beobachten; wann iOS wirklich startet, lässt sich nicht testen.
 
 ## 3. Wie die App aufgebaut ist (Kurzfassung der Analyse)
 

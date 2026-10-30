@@ -25,7 +25,7 @@ struct BackgroundSyncCard: View {
     }
 
     /// Ehrlicher Satz zu den Zeiten (Wunsch 8/15/20 Uhr, iOS garantiert keine Uhrzeit)
-    static let timingText = "iOS entscheidet, wann genau; frühestens 8, 15 und 20 Uhr. Ein kurzer Lauf holt neue Kurse, Dateilisten und den Stundenplan, ein längerer mit Netz lädt die neuen Dateien. Sicher ist der Abgleich beim Öffnen der App."
+    static let timingText = "iOS entscheidet, wann genau; frühestens 8, 15 und 20 Uhr. Ein kurzer Lauf holt neue Kurse, Dateilisten und den Stundenplan, ein längerer mit Netz lädt die neuen Dateien. Sicher ist der Abgleich beim Öffnen der App. Der längere Lauf erzeugt dabei auch fällige Wochentests, wenn die KI verbunden ist – auch bei ausgeschaltetem Abgleich."
 
     /// Erklaerung unter "Benachrichtigen" mit der Quelle der Hochschule
     static func notifyText(_ university: UniversityKey?) -> String {

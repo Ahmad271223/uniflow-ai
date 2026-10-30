@@ -209,6 +209,37 @@ extension LocalModulesAppTests {
         XCTAssertEqual(again.list("days").flatMap { $0.list("packages") }.flatMap { $0.list("tasks") }.compactMap { $0.s("title") }, ["VL06.pdf"])
     }
 
+    /// Nach einem vollen Abgleich laeuft auch der Takt der Wochentests wie `_full_sync` am PC: ohne KI nicht (kein
+    /// Versuch verbraucht), im kurzen Hintergrundlauf (`weekly: false`) nicht, sonst ja. Der Plan ohne markierten
+    /// Stoff scheitert dabei und zaehlt einen Versuch (so ist der Lauf sichtbar).
+    func testAutoPlanAfterSyncRunsTheWeeklyTick() async throws {
+        let (_, recorder) = try await seededAPI()                   // Freitag, 20.11.2026
+        let host = recorder.inner.host
+        let backend = try await host.backend()
+        try await backend.context.database.transaction { c in
+            try c.execute("""
+                INSERT INTO wt_plans(module_id, week_no, scope, scope_key, coverage, lecture_end, publish_at, deadline_at, attempts)
+                VALUES(1, 1, 'personal', 'k', '{}', '2026-11-19T10:00:00', '2026-11-19T11:00:00', '2026-11-22T11:00:00', 0)
+                """)
+        }
+        func plan() async throws -> [String: JSONValue] {
+            let rows = try await backend.context.database.rows("SELECT status, attempts, lock_until FROM wt_plans")
+            return try XCTUnwrap(rows.first)
+        }
+        await StudIPSync.autoPlan(host: host, newFiles: 0)
+        let noAI = try await plan()
+        XCTAssertEqual(noAI["attempts"], .number(0), "ohne KI kein Takt")
+        backend.context.ai.set(EchoAI())
+        await StudIPSync.autoPlan(host: host, newFiles: 0, weekly: false)
+        let lists = try await plan()
+        XCTAssertEqual(lists["attempts"], .number(0), "kurzer Hintergrundlauf: kein Takt")
+        await StudIPSync.autoPlan(host: host, newFiles: 0)
+        let after = try await plan()
+        XCTAssertEqual(after["attempts"], .number(1), "der Takt lief nach dem vollen Abgleich")
+        XCTAssertEqual(after["status"], "fehlgeschlagen")
+        XCTAssertEqual(after["lock_until"], .null, "Sperre geloest")
+    }
+
     // MARK: Takt im Vordergrund
 
     private struct EchoAI: AIProvider {

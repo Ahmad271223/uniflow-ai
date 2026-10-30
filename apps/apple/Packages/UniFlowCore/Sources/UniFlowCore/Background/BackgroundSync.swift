@@ -279,6 +279,11 @@ public enum BackgroundNotice {
         return Content(title: "Neue Dateien", body: newFilesText(count, source: source))
     }
 
+    /// Nach einem Hintergrundlauf, der einen gemeinsamen Wochentest veroeffentlicht hat (`WeeklyAutoTick`, `changed`):
+    /// ohne Fach, Woche oder Inhalt
+    public static let weeklyTest = Content(title: "Neuer Wochentest verfügbar",
+                                           body: "Ein gemeinsamer Wochentest wurde erzeugt und veröffentlicht. Öffne Studora, um ihn zu bearbeiten.")
+
     /// "bei Stud.IP", "bei Learnweb", "beim LSF"
     static func at(_ source: String) -> String { source == "LSF" ? "beim LSF" : "bei \(source)" }
 
