@@ -2,7 +2,7 @@
 den Swift-Kern des iPads portiert (docs/IPAD-OHNE-PC.md, S6; Entscheidungen 1 und 2 des Inhabers). Jeder Test hat
 eine eigene, frische Datenbank und eine feste Uhr. Alle Werte erfunden."""
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -157,16 +157,22 @@ def test_package_emptied_by_moving_stays_moved(fresh):
     assert (old["status"], old["planned_minutes"]) == ("geplant", 30)
 
 
-def _module_files(weeks: int = 2) -> None:
-    """Ein Modul mit Vorlesung und Uebungsblatt je Lehrwoche (Vorlesungsbeginn 12.10.2026)"""
+def _module_files(weeks: int = 2, first: int = 3) -> int:
+    """Ein Modul mit Vorlesung und Uebungsblatt je Lehrwoche ab Lehrwoche `first` (Vorlesungsbeginn 12.10.2026: eine
+    Begruessung ohne Fach am 13.10. legt ihn fest). Der Lernplan nimmt je Tag nur den Stoff seiner Lehrwoche (Regel
+    des Inhabers vom 30.10.2026), darum liegen die Unterlagen standardmaessig in der Woche von "heute" (26.10.)."""
     from app import db
     with db.cursor() as conn:
         mid = conn.execute("INSERT INTO modules(name, color, sort, created_at) VALUES ('Testfach Ersetzen', '#123456', 0, '2026-10-01T09:00:00')").lastrowid
         conn.execute("INSERT INTO courses(id, title, subject, kind, module_id, created_at) VALUES ('ke', 'Testfach Ersetzen', 'Testfach Ersetzen', 'vorlesung', ?, '2026-10-01')", (mid,))
+        conn.execute("INSERT INTO courses(id, title, kind, created_at) VALUES ('kx', 'Begrüßung', 'sonstiges', '2026-10-01')")
+        conn.execute("INSERT INTO files(id, course_id, name, chdate) VALUES ('fx', 'kx', 'Willkommen.pdf', ?)", (int(datetime(2026, 10, 13, 9).timestamp()),))
         for w in range(weeks):
-            for fid, name, folder in ((f"fe-v{w}", f"VL0{w + 1}.pdf", "Vorlesung"), (f"fe-u{w}", f"Blatt {w + 1}.pdf", "Übungsblätter")):
+            n = first + w
+            for fid, name, folder in ((f"fe-v{n}", f"VL0{n}.pdf", "Vorlesung"), (f"fe-u{n}", f"Blatt {n}.pdf", "Übungsblätter")):
                 conn.execute("INSERT INTO files(id, course_id, name, chdate, studip_folder) VALUES (?, 'ke', ?, ?, ?)",
-                             (fid, name, int(datetime(2026, 10, 13 + 7 * w, 10).timestamp()), folder))
+                             (fid, name, int((datetime(2026, 10, 13, 10) + timedelta(weeks=n - 1)).timestamp()), folder))
+    return mid
 
 
 def _generated(*pids: int) -> None:
@@ -193,7 +199,7 @@ def test_replace_keeps_started_packages(fresh):
     assert st == 200 and [t["status"] for t in p["tasks"]] == ["erledigt", "geplant"]
     assert call(fresh, "GET", f"/api/packages/{untouched}")[0] == 404
     st, cal = call(fresh, "GET", "/api/calendar?start=2026-10-27&end=2026-10-28")
-    assert [[p["title"] for p in x["packages"]] for x in cal["days"]] == [["begonnen"], ["Woche 1 · 12.10. – 18.10."]]
+    assert [[p["title"] for p in x["packages"]] for x in cal["days"]] == [["begonnen"], ["Woche 3 · 26.10. – 01.11."]]
 
 
 def test_replace_keeps_own_and_moved_packages(fresh):
@@ -217,18 +223,18 @@ def test_replace_keeps_own_and_moved_packages(fresh):
 
     # nichts zu planen (keine Unterlagen): nichts geloescht
     st, r = call(fresh, "POST", "/api/calendar/generate", {"start": "2026-10-27", "days": 7, "replace": True})
-    assert (st, r["created"], r["message"]) == (200, 0, "Keine offenen Vorlesungen oder Übungen für die Planung.")
+    assert (st, r["created"], r["message"]) == (200, 0, "Keine offenen Vorlesungen oder Übungen für diese Woche.")
     assert [call(fresh, "GET", f"/api/packages/{pid}")[0] for pid in kept] == [200] * 6
 
-    _module_files(2)
+    _module_files(2)                                    # Lehrwoche 3 und 4: geplant wird nur Woche 3
     st, r = call(fresh, "POST", "/api/calendar/generate", {"start": "2026-10-27", "days": 5, "replace": True})
-    assert st == 200 and r["created"] == 2
+    assert st == 200 and r["created"] == 1
     gone = [pid for pid in kept if call(fresh, "GET", f"/api/packages/{pid}")[0] == 404]
     assert gone == [emptied, stale], "nur das leere und das automatische, nicht begonnene Paket"
     st, p = call(fresh, "GET", f"/api/packages/{rescued}")
     assert [t["moved_from"] for t in p["tasks"]] == [None, "2026-10-26"], "die neu eingeplante Aufgabe bleibt"
     st, cal = call(fresh, "GET", "/api/calendar?start=2026-10-27&end=2026-10-31")
-    assert [len(x["packages"]) for x in cal["days"]] == [2, 1, 1, 2, 0], "neu geplant nur am 27.10., dem Tag des leeren Pakets"
+    assert [len(x["packages"]) for x in cal["days"]] == [1, 1, 1, 2, 0], "neu geplant nur am 27.10., dem Tag des leeren Pakets"
     assert {p["generated"] for p in cal["days"][0]["packages"]} == {1}
     st, opened = call(fresh, "GET", "/api/tasks/open")
     assert len([t for t in opened if t["package_id"] == rescued]) == 2
@@ -241,9 +247,9 @@ def test_plan_skips_past_days(fresh, monkeypatch):
     monkeypatch.setattr(study, "today", lambda: date(2026, 10, 28))     # Mittwoch
     _module_files(2)
     st, r = call(fresh, "POST", "/api/calendar/generate", {"start": "2026-10-26", "days": 7})
-    assert (st, r["created"]) == (200, 2)
+    assert (st, r["created"]) == (200, 1)
     st, cal = call(fresh, "GET", "/api/calendar?start=2026-10-26&end=2026-11-01")
-    assert [len(x["packages"]) for x in cal["days"]] == [0, 0, 2, 0, 0, 0, 0]
+    assert [len(x["packages"]) for x in cal["days"]] == [0, 0, 1, 0, 0, 0, 0]
     st, d = call(fresh, "GET", "/api/dashboard")
     assert d["backlog"] == 0
 
@@ -270,7 +276,7 @@ def test_plan_without_test_tasks_by_default(fresh):
         conn.execute("INSERT INTO courses(id, title, subject, kind, module_id, created_at) VALUES ('kp', 'Testfach Plan', 'Testfach Plan', 'vorlesung', ?, '2026-10-01')", (mid,))
         for fid, name, folder in (("fp1", "VL01.pdf", "Vorlesung"), ("fp2", "Blatt 1.pdf", "Übungsblätter")):
             conn.execute("INSERT INTO files(id, course_id, name, chdate, studip_folder) VALUES (?, 'kp', ?, ?, ?)",
-                         (fid, name, int(datetime(2026, 10, 13, 10).timestamp()), folder))
+                         (fid, name, int(datetime(2026, 10, 27, 10).timestamp()), folder))    # Woche von "heute"
     st, f = call(fresh, "GET", "/api/calendar/feasibility")
     assert (f["per_day_need"], f["hint"]) == (210, None)
     st, r = call(fresh, "POST", "/api/calendar/generate", {"start": "2026-10-27", "days": 1})
@@ -360,8 +366,9 @@ def test_moved_package_gets_free_slot(fresh):
 
 def test_free_window_plans_one_unit_into_the_window(fresh):
     """"Lerneinheit automatisch einplanen" im freien Fenster: ein Paket genau in dieses Fenster, auch wenn am Tag schon
-    ein Paket liegt. Vorher rief es die Planung fuer den Tag auf und meldete "0 Lernpakete erstellt"."""
-    _module_files(2)
+    ein Paket liegt. Vorher rief es die Planung fuer den Tag auf und meldete "0 Lernpakete erstellt". Das freie Fenster
+    plant auch aeltere offene Unterlagen (Lehrwoche 1 und 2), die der Wochenplan seit dem 30.10.2026 nicht mehr nimmt."""
+    _module_files(2, first=1)
     _package(fresh, "2026-10-27", [30], "eigenes Paket")
     st, r = call(fresh, "POST", "/api/calendar/generate", {"start": "2026-10-27", "days": 1})
     assert (st, r["created"]) == (200, 0), "die Planung fuer den Tag uebergeht ihn weiter"

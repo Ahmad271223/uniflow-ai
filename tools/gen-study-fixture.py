@@ -19,7 +19,9 @@ Inhalt:
 - tables_after: study_packages, study_tasks, task_history, modules und die Dateien (Status, gesehen)
 - scenarios: weitere Ablaeufe auf eigener, frischer Datenbank mit demselben Seed ("nachgebessert": Korrekturen nach
   der Pruefung von S6 am 26.10.2026: freies Fenster, Plan ab Montag, Uhrzeit von Hand, Verschieben, "Uhrzeiten
-  vergeben", leere Pakete, Ersetzen), je mit now, steps und tables_after
+  vergeben", leere Pakete, Ersetzen; "lehrwoche": nur der Stoff der Lehrwoche, Skriptrest nach dem Marker der
+  Vorwoche, study.auto_plan_week als Schritt {"auto": neue Dateien, "result": ...}), je mit now, steps und
+  tables_after
 - derive_status: study._derive_status fuer alle Kombinationen der Aufgabenstatus
 
 Keine KI-Aufrufe. Der Server laeuft nur gegen Dateien in einem Temp-Ordner (tools/schema_source.py), nie gegen data/.
@@ -171,21 +173,22 @@ STEPS: list[dict] = [
     {"method": "GET", "path": "/api/dashboard"},
     {"method": "GET", "path": "/api/packages/1"},
     {"method": "GET", "path": "/api/packages/5"},
-    # Plan ueber die Zeitumstellung: Samstag frei, Sonntag 25.10. mit Sperrzeit und Termin, 27.10. hat schon ein Paket
+    # Plan ueber die Zeitumstellung: Samstag frei, Sonntag 25.10. mit Sperrzeit und Termin, 27.10. hat schon ein Paket;
+    # je Tag nur der Stoff seiner Lehrwoche (30.10.2026): Lehrwoche 2 am Sonntag, fuer Lehrwoche 3 noch nichts
     {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-24", "days": 7}},
     {"method": "GET", "path": "/api/calendar?start=2026-10-24&end=2026-10-30"},
     {"method": "GET", "path": "/api/timetable/week?start=2026-10-26"},
     {"method": "GET", "path": "/api/timetable/day?date=2026-10-25"},
     {"method": "GET", "path": "/api/timetable/conflicts"},
-    # Uhrzeit von Hand in die Vorlesung gelegt -> Konflikt -> Lernslots neu legen
-    {"method": "PATCH", "path": "/api/packages/{pkg:2026-10-26:0}", "body": {"start_time": "10:15", "end_time": "11:15"}},
+    # Uhrzeit von Hand in den Sonntagstermin gelegt -> Konflikt -> Lernslots neu legen
+    {"method": "PATCH", "path": "/api/packages/{pkg:2026-10-25:0}", "body": {"start_time": "16:15", "end_time": "17:15"}},
     {"method": "GET", "path": "/api/timetable/conflicts"},
     {"method": "POST", "path": "/api/timetable/reslot", "body": {}},
-    {"method": "GET", "path": "/api/timetable/day?date=2026-10-26"},
+    {"method": "GET", "path": "/api/timetable/day?date=2026-10-25"},
     {"method": "POST", "path": "/api/timetable/reslot", "body": {"dates": ["2026-10-29"]}},
     {"method": "POST", "path": "/api/timetable/reslot"},
     # Aufgaben abhaken, bearbeiten, Fehler
-    {"method": "POST", "path": "/api/tasks/{task:2026-10-26:0:0}/status", "body": {"status": "erledigt", "actual_minutes": 40, "note": "gut"}},
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-25:0:0}/status", "body": {"status": "erledigt", "actual_minutes": 40, "note": "gut"}},
     {"method": "POST", "path": "/api/tasks/{task:2026-10-25:1:0}/status", "body": {"status": "in_bearbeitung"}},
     {"method": "POST", "path": "/api/tasks/1/status", "body": {"status": "kaputt"}},
     {"method": "POST", "path": "/api/tasks/999/status", "body": {"status": "erledigt"}},
@@ -268,6 +271,8 @@ STEPS: list[dict] = [
 # diesem Tag liegen Physik 08:15-09:45 und die verlegte Uebung 10:00-11:30 (frei erst ab 11:50).
 FIXES_NOW = "2026-10-28T09:00:00"
 FIXES: list[dict] = [
+    # Unterlagen der Lehrwoche 3 sind da (der Plan nimmt je Tag nur den Stoff seiner Lehrwoche)
+    {"now": FIXES_NOW, "sql": "WEEK3"},
     # "Lerneinheit automatisch einplanen" im freien Fenster: ein Paket genau in dieses Fenster, auch an einem Tag mit
     # Paket (die Planung fuer den Tag uebergeht ihn weiter); zu kleines Fenster; falsche Uhrzeiten 400
     {"method": "POST", "path": "/api/packages", "name": "eigenes", "body": {"date": "2026-10-29", "title": "Eigenes Kapitel", "minutes": 30}},
@@ -310,13 +315,52 @@ FIXES: list[dict] = [
     # gibt es nichts zu planen, wird nichts geloescht
     {"method": "POST", "path": "/api/calendar/apply", "body": {"moves": [{"task_id": "{task:2026-10-30:0:0}", "to": "2026-11-01"}]}},
     {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/status", "body": {"status": "erledigt"}},
-    {"method": "POST", "path": "/api/calendar/apply", "body": {"moves": [{"task_id": "{task:2026-10-30:1:0}", "to": "2026-11-12"}]}},
+    # (seit dem 30.10.2026 hat das Paket am 30.10. nur diese eine Aufgabe: mit dem Verschieben oben ist es schon leer)
     {"now": FIXES_NOW, "sql": ["UPDATE modules SET active=0"]},
     {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-28", "days": 7, "replace": True}},
     {"now": FIXES_NOW, "sql": ["UPDATE modules SET active=1 WHERE name != 'Altmodul'"]},
     {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-28", "days": 7, "replace": True}},
     {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-03"},
     {"method": "GET", "path": "/api/dashboard"},
+]
+
+# Regel des Inhabers vom 30.10.2026: je Tag nur der Stoff seiner Lehrwoche, davor der Rest eines Skripts nach dem
+# Marker der Vorwoche; study.auto_plan_week nach einem Abgleich ("auto": Anzahl neuer Dateien). Eigene Datenbank mit
+# demselben Seed, Mittwoch 28.10.2026 (Lehrwoche 3).
+def _marker(fid: str, module: int, page: int, count: int, week: int, **extra) -> str:
+    row = {"user_id": "'local'", "module_id": module, "file_id": f"'{fid}'", "doc_version": "'v1'", "page": page, "page_count": count,
+           "lecture_date": f"'2026-10-{12 + 7 * (week - 1) + 1:02d}'", "week_no": week, "scope": "'personal'",
+           "created_at": "'2026-10-27T12:00:00'", **extra}
+    return f"INSERT INTO lecture_markers({', '.join(row)}) VALUES ({', '.join(str(v) for v in row.values())})"
+
+
+WEEK_NOW = "2026-10-28T09:00:00"
+WEEK_RULE: list[dict] = [
+    {"now": WEEK_NOW, "sql": "WEEK3"},
+    {"now": WEEK_NOW, "sql": [
+        _marker("f-ma-v2", 1, 20, 50, 2), _marker("f-ma-v2", 1, 12, 50, 2),
+        _marker("f-ma-v1", 1, 30, 30, 1),                                        # ganz behandelt: kein Rest
+        _marker("f-ph-v1", 2, 5, 30, 2, needs_review=1),                       # zu pruefen: zaehlt nicht
+        _marker("f-ph-v1", 2, 9, 30, 2, deleted_at="'2026-10-27T13:00:00'"),
+        _marker("f-ma-u2", 1, 2, 6, 2),                                          # Uebungsblatt: kein Skript
+        _marker("f-ma-v2", 1, 45, 50, 2, scope="'course'"),
+    ]},
+    {"auto": 4},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+    {"auto": 0},                                          # schon geplant, keine neuen Dateien: nichts
+    {"auto": 2},                                          # neue Dateien: die Woche ab heute neu (nicht begonnene Pakete)
+    {"method": "POST", "path": "/api/tasks/{task:2026-10-28:0:0}/status", "body": {"status": "in_bearbeitung"}},
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-10-29", "days": 3, "replace": True}},
+    {"method": "GET", "path": "/api/calendar?start=2026-10-28&end=2026-11-01"},
+    # Montag, 2.11. (Lehrwoche 4): VL02 bis zum Ende, VL03 bis Folie 12; keine neuen Dateien, aber noch kein Paket
+    {"now": "2026-11-02T08:00:00", "sql": [_marker("f-ma-v2", 1, 50, 50, 3), _marker("f-ma-v3", 1, 12, 40, 3),
+                                           _marker("f-ph-v3", 2, 30, 30, 3)]},
+    {"auto": 0},
+    {"method": "GET", "path": "/api/calendar?start=2026-11-02&end=2026-11-08"},
+    # Lehrwoche 5: kein Marker in Woche 4, darum kein Rest von VL03
+    {"method": "POST", "path": "/api/calendar/generate", "body": {"start": "2026-11-09", "days": 7}},
+    {"method": "PUT", "path": "/api/settings", "body": {"auto_plan": False}},
+    {"auto": 5},
 ]
 
 # study._derive_status: alle Teilmengen der Aufgabenstatus, je vergangen und nicht
@@ -382,6 +426,12 @@ def run(src: SchemaSource, gen, name: str, now: str, seed: list, plan: list[dict
             conn.execute(sql, params)
     steps, names = [], {}
     for s in plan:
+        if "auto" in s:                                   # wie nach einem Abgleich mit `auto` neuen Dateien
+            from app import study
+            with src.db.cursor() as conn:
+                r = study.auto_plan_week(conn, s["auto"], log=lambda *_: None)
+            steps.append({"auto": s["auto"], "result": r})
+            continue
         if "now" in s:
             CLOCK["now"] = s["now"]
             sql = _week3_files() if s["sql"] == "WEEK3" else [(q, []) for q in s["sql"]]
@@ -419,13 +469,15 @@ def build(check: bool) -> int:
         spec.loader.exec_module(gen)
         steps, after = run(src, gen, "lernplan", START, seed, STEPS)
         fix_steps, fix_after = run(src, gen, "nachgebessert", FIXES_NOW, seed, FIXES)
+        week_steps, week_after = run(src, gen, "lehrwoche", WEEK_NOW, seed, WEEK_RULE)
         derive = [{"statuses": list(c), "past": past, "status": study._derive_status(list(c), past)}
                   for n in range(len(DERIVE_STATUSES) + 1) for c in itertools.combinations(DERIVE_STATUSES, n) for past in (False, True)]
     finally:
         src.cleanup()
     out = {"generator": "tools/gen-study-fixture.py", "now": START, "timezone": "Europe/Berlin",
            "seed": [{"sql": q, "params": p} for q, p in seed], "steps": steps, "tables_after": after,
-           "scenarios": [{"name": "nachgebessert", "now": FIXES_NOW, "steps": fix_steps, "tables_after": fix_after}],
+           "scenarios": [{"name": "nachgebessert", "now": FIXES_NOW, "steps": fix_steps, "tables_after": fix_after},
+                         {"name": "lehrwoche", "now": WEEK_NOW, "steps": week_steps, "tables_after": week_after}],
            "derive_status": derive}
     out = without_sync(out)                       # G2-Spalten: siehe schema_source
     ok = write_or_check(OUT, json.dumps(out, ensure_ascii=False, indent=1) + "\n", check)

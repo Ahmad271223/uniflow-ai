@@ -67,7 +67,6 @@ HOSTED_UNAVAILABLE = (
     ("POST", "/api/files/{id}/analyze", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tests/generate", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tests/generate-week", "KI-Funktionen kommen mit dem KI-Update."),
-    ("POST", "/api/plan/generate", "KI-Funktionen kommen mit dem KI-Update."),
 )
 _HOSTED_UNAVAILABLE_RE = [(m, re.compile("^" + "[^/]+".join(re.escape(part) for part in p.split("{id}")) + "$"), why)
                           for m, p, why in HOSTED_UNAVAILABLE]
@@ -471,9 +470,9 @@ def _full_sync():
     n = planner.analyze_pending()
     with db.cursor() as conn:
         s = db.get_settings(conn)
-        plan_exists = db.row(conn, "SELECT 1 FROM plans WHERE week_start=?", (planner.planning_week().isoformat(),))
-    if s["auto_plan"] and (res["new_files"] or not plan_exists):
-        planner.generate_plan()
+        # Lernkalender: laufende Woche nach neuen Dateien planen (nur Stoff der Lehrwoche und Skriptrest nach dem Marker
+        # der Vorwoche); vorher der KI-Wochenplan, dessen Ergebnis keine Ansicht zeigte
+        study.auto_plan_week(conn, len(res["new_files"]))
     if s["auto_tests"]:
         planner.create_weekly_tests()
         try:
@@ -1103,12 +1102,6 @@ def get_plan(week: str | None = None):
     prev = (date.fromisoformat(ws) - timedelta(days=7)).isoformat()
     nxt = (date.fromisoformat(ws) + timedelta(days=7)).isoformat()
     return {"week_start": ws, "prev": prev, "next": nxt, "plan": plan, "items": items, "tests": tests}
-
-
-@app.post("/api/plan/generate")
-def gen_plan(week: str | None = None, keep_manual: bool = True):
-    ws = date.fromisoformat(week) if week else None
-    return _run_bg("Wochenplan", lambda: planner.generate_plan(ws, keep_manual=keep_manual))
 
 
 @app.post("/api/plan/items")
@@ -1808,6 +1801,15 @@ def api_task_start_test(task_id: int):
             raise HTTPException(404, "Testaufgabe nicht gefunden")
         if t["test_id"]:
             return {"test_id": t["test_id"]}
+        # Fach mit Vorlesungs-Markern: der gemeinsame Wochentest aus app/weekly.py (noch nicht veroeffentlicht -> 409)
+        if t["module_id"] and t["week_no"]:
+            try:
+                wid = weekly.task_test(conn, t["module_id"], t["week_no"])
+            except weekly.WeeklyError as e:
+                raise HTTPException(409, str(e))
+            if wid:
+                conn.execute("UPDATE study_tasks SET test_id=?, status=CASE WHEN status='geplant' THEN 'in_bearbeitung' ELSE status END WHERE id=?", (wid, task_id))
+                return {"test_id": wid}
         # Gemeinsamer Wochentest des Moduls fuer diese Lehrwoche bereits vorhanden? -> wiederverwenden (idempotent)
         ex = db.row(conn, "SELECT id FROM tests WHERE module_id=? AND week_no=? AND auto=1", (t["module_id"], t["week_no"])) if t["module_id"] and t["week_no"] else None
         if ex:

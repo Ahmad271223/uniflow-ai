@@ -708,6 +708,30 @@ extension Weekly {
     }
 
     /// `attempt_for(conn, def_id, user_id)`: Bearbeitungsversuch (Kopie der unveraenderlichen Testversion in `tests`)
+    /// `task_test(conn, module_id, week_no)`: Testaufgabe des Lernplans ("Gemeinsamer Wochentest Lehrwoche N") in
+    /// einem Fach mit Markern: der Versuch am veroeffentlichten gemeinsamen Wochentest dieser Lehrwoche (erster Teil),
+    /// statt daneben einen klassischen Test zu erzeugen. nil = Fach ohne Marker (klassischer Wochentest). Vorher
+    /// `Failure` mit dem Grund (noch nicht veroeffentlicht, wird geplant, kein Stoff markiert).
+    static func taskTest(_ c: SQLiteConnection, moduleID: SQLiteValue, weekNo: SQLiteValue, user: String = localUser, nowISO: String) throws -> Int? {
+        guard try c.queryOne("SELECT 1 FROM lecture_markers WHERE module_id=? AND deleted_at IS NULL", [moduleID]) != nil else { return nil }
+        let mine = "module_id=? AND week_no=? AND (user_id=? OR scope='course')"
+        let args: [SQLiteValue] = [moduleID, weekNo, .text(user)]
+        if let d = try c.queryOne("SELECT def_id FROM wt_plans WHERE \(mine) AND status='veroeffentlicht' AND def_id IS NOT NULL ORDER BY part, id LIMIT 1", args)?["def_id"]?.int64 {
+            return try attemptFor(c, d, user: user, nowISO: nowISO)
+        }
+        let week = weekNo.int.map(String.init) ?? pyStr(weekNo.json.map(PyJSON.init))
+        if let at = try c.queryOne("SELECT publish_at FROM wt_plans WHERE \(mine) AND status IN ('geplant','wartet','fehlgeschlagen') ORDER BY part, id LIMIT 1",
+                                   args)?["publish_at"]?.string {
+            let ch = Array(at)
+            let day = ch.count >= 16 ? "\(String(ch[8..<10])).\(String(ch[5..<7]))." : at, time = ch.count >= 16 ? String(ch[11..<16]) : ""
+            throw Failure("Der gemeinsame Wochentest der Lehrwoche \(week) erscheint voraussichtlich am \(day) um \(time) Uhr.")
+        }
+        if try c.queryOne("SELECT 1 FROM lecture_markers WHERE module_id=? AND week_no=? AND deleted_at IS NULL", [moduleID, weekNo]) != nil {
+            throw Failure("Der gemeinsame Wochentest der Lehrwoche \(week) wird gerade geplant. Bitte später erneut versuchen.")
+        }
+        throw Failure("Für die Lehrwoche \(week) ist noch kein Vorlesungsstoff markiert („Vorlesung bis hier“ im Skript setzen).")
+    }
+
     static func attemptFor(_ c: SQLiteConnection, _ defID: Int64, user: String = localUser, nowISO: String) throws -> Int {
         if let ex = try c.scalar("SELECT id FROM tests WHERE def_id=? AND user_id=?", [.integer(defID), .text(user)])?.int { return ex }
         guard let d = try c.rows("SELECT * FROM wt_defs WHERE id=?", [.integer(defID)]).first, d["status"]?.string == "veroeffentlicht" else {

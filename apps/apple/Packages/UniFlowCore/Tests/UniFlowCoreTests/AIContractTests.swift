@@ -73,16 +73,6 @@ final class AIContractTests: XCTestCase {
         }
     }
 
-    func testWeekPlanPromptsMatchPython() throws {
-        for (i, c) in list(g(try contract(), "prompts"), "week_plan").enumerated() {
-            let a = g(c, "in")
-            let p = AIPrompts.weekPlan(weekStart: try XCTUnwrap(AIPrompts.Day(iso: s(a, "week_start"))), materials: list(a, "materials"),
-                                       subjects: list(a, "subjects"), settings: g(a, "settings") ?? .null, carryOver: list(a, "carry_over"),
-                                       today: try XCTUnwrap(AIPrompts.Day(iso: s(a, "today"))))
-            same(p, s(c, "prompt"), "Wochenplan \(i)")
-        }
-    }
-
     func testWeekTestPromptsMatchPython() throws {
         for (i, c) in list(g(try contract(), "prompts"), "week_test").enumerated() {
             let a = g(c, "in")

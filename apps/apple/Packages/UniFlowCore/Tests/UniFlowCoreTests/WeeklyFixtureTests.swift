@@ -132,7 +132,7 @@ final class WeeklyFixtureTests: XCTestCase {
         XCTAssertEqual(ai.index, fx["ai"]?.array?.count, "gleich viele KI-Aufrufe")
         XCTAssertTrue(ai.mismatches.isEmpty, ai.mismatches.joined(separator: "\n\n"))
         for (table, rows) in fx["tables"]?.object ?? [:] {
-            let order = ["lecture_markers": "id", "doc_index": "file_id", "task_index": "file_id, nr", "wt_plans": "id", "wt_defs": "id", "tests": "id"][table] ?? "rowid"
+            let order = ["lecture_markers": "id", "doc_index": "file_id", "task_index": "file_id, nr", "wt_plans": "id", "wt_defs": "id", "tests": "id", "study_tasks": "id"][table] ?? "rowid"
             var mine = try await b.context.database.rows("SELECT * FROM \(table) ORDER BY \(order)")
             let want = rows.array ?? []
             let cols = Set(want.first?.object?.keys.map { $0 } ?? [])

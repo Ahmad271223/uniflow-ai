@@ -182,6 +182,33 @@ extension LocalModulesAppTests {
         XCTAssertEqual(WeeklyText.lecture(["lecture": ["start": "10:00", "end": "11:30", "room": "F 102"]]), "10:00–11:30 · F 102 (Stundenplan)")
     }
 
+    // MARK: Lernplan nach dem Abgleich
+
+    /// Nach einem Abgleich plant das iPad die laufende Woche wie der PC (`study.auto_plan_week`, Regel vom 30.10.2026):
+    /// nur der Stoff dieser Lehrwoche (VL06), nicht die offenen Vorlesungen frueherer Wochen; mit auto_plan = 0 nichts
+    func testAutoPlanAfterSyncPlansOnlyTheCurrentWeek() async throws {
+        let (api, recorder) = try await seededAPI()                  // Freitag, 20.11.2026 = Lehrwoche 6
+        let backend = try await recorder.inner.host.backend()
+        let tuesday = ts("2026-11-17T10:00"), wednesday = ts("2026-11-18T10:00")
+        try await backend.context.database.transaction { c in
+            try c.execute("INSERT INTO files(id, course_id, name, studip_folder, chdate, status, kind) VALUES ('f-11', 'k-a-v', 'VL06.pdf', 'Vorlesung', ?, 'neu', 'pdf')",
+                          [tuesday])
+        }
+        await StudIPSync.autoPlan(host: recorder.inner.host, newFiles: 1)
+        let cal = try await api.value("/api/calendar?start=2026-11-20&end=2026-11-22")
+        let titles = cal.list("days").flatMap { $0.list("packages") }.flatMap { $0.list("tasks") }.compactMap { $0.s("title") }
+        XCTAssertEqual(titles, ["VL06.pdf"], "nur die Lehrwoche 6: \(titles)")
+        // aus: kein weiterer Lauf, auch mit neuen Dateien
+        _ = try await api.value("/api/settings", method: "PUT", body: ["auto_plan": false])
+        try await backend.context.database.transaction { c in
+            try c.execute("INSERT INTO files(id, course_id, name, studip_folder, chdate, status, kind) VALUES ('f-12', 'k-a-gu', 'GU06.pdf', 'Gruppenübung', ?, 'neu', 'pdf')",
+                          [wednesday])
+        }
+        await StudIPSync.autoPlan(host: recorder.inner.host, newFiles: 1)
+        let again = try await api.value("/api/calendar?start=2026-11-20&end=2026-11-22")
+        XCTAssertEqual(again.list("days").flatMap { $0.list("packages") }.flatMap { $0.list("tasks") }.compactMap { $0.s("title") }, ["VL06.pdf"])
+    }
+
     // MARK: Takt im Vordergrund
 
     private struct EchoAI: AIProvider {

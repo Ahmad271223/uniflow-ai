@@ -165,17 +165,35 @@ enum StudyPlan {
         return defaultEst[f.docType ?? ""] ?? 45
     }
 
-    /// `_units(conn, module_id, exclude_files)`: je Lehrwoche ab 1 die offenen Vorlesungen und Uebungen (ohne schon
-    /// eingeplante, ohne erledigte Dateien); Wochen ohne beides fallen weg
-    static func units(_ c: SQLiteConnection, moduleID: SQLiteValue, exclude: Set<String>, dates: LocalModules.Dates) throws -> [Unit] {
+    /// Datei und Lehrwoche einer Aufgabe (`_planned_file_weeks`)
+    struct FileWeek: Hashable {
+        let file: String
+        let week: Int
+    }
+
+    /// `_units(conn, module_id, exclude_files, week, done_weeks)`: je Lehrwoche ab 1 die offenen Vorlesungen und
+    /// Uebungen (ohne schon eingeplante, ohne erledigte Dateien); Wochen ohne beides fallen weg. Mit `week` nur die
+    /// Einheit dieser Lehrwoche (Regel des Inhabers vom 30.10.2026, zuerst in Python) und davor der Rest eines Skripts
+    /// nach dem Marker der Vorwoche (`markerRest`).
+    static func units(_ c: SQLiteConnection, moduleID: SQLiteValue, exclude: Set<String>, dates: LocalModules.Dates,
+                      week: Int? = nil, doneWeeks: Set<FileWeek> = []) throws -> [Unit] {
         var weeks: [Int: (files: [LocalModules.FileRow], lectures: [LocalModules.FileRow], exercises: [LocalModules.FileRow])] = [:]
-        for f in try LocalModules.fileRows(c, moduleID: moduleID) {
+        let files = try LocalModules.fileRows(c, moduleID: moduleID)
+        for f in files {
             if let id = f.id.string, exclude.contains(id) { continue }
             if f.json["status"]?.string == "erledigt" { continue }
             let w = try LocalModules.week(f, dates: dates)
             if w < 1 { continue }                    // alte und vorsemesterliche Unterlagen und Klausuren nicht automatisch einplanen
+            if let week, w != week { continue }
             weeks[w, default: ([], [], [])].files.append(f)
             if f.docType == "vorlesung" { weeks[w]!.lectures.append(f) } else if f.docType == "uebung" { weeks[w]!.exercises.append(f) }
+        }
+        if let week {
+            let rest = try markerRest(c, moduleID: moduleID, week: week, dates: dates, files: files, doneWeeks: doneWeeks)
+            if !rest.isEmpty {                       // der aeltere Stoff zuerst
+                weeks[week, default: ([], [], [])].lectures.insert(contentsOf: rest, at: 0)
+                weeks[week]!.files.insert(contentsOf: rest, at: 0)
+            }
         }
         var out: [Unit] = []
         for w in weeks.keys.sorted() {
@@ -183,6 +201,45 @@ enum StudyPlan {
             if u.lectures.isEmpty && u.exercises.isEmpty { continue }
             out.append(Unit(week: w, label: StudyWeeks.weekLabel(start: dates.start, week: w), topic: try LocalModules.weekTopic(u.files),
                             lectures: u.lectures, exercises: u.exercises))
+        }
+        return out
+    }
+
+    /// `_marker_rest(conn, module_id, week, start, files, done_weeks)`: Rest eines Vorlesungsskripts frueherer
+    /// Lehrwochen fuer die Lehrwoche `week`. Gibt es in der Vorwoche einen Marker ("Vorlesung bis hier") und endet der
+    /// letzte Marker vor dieser Woche mitten im Skript, gehoeren die Seiten danach in diese Woche, bis zum Marker dieser
+    /// Woche oder bis zur letzten Seite. Nur eigene Marker, keine geloeschten und keine zu pruefenden; kein Rest fuer
+    /// erledigte Dateien und keiner, der schon in einem Paket dieser Lehrwoche steht. Dauer anteilig nach Seiten.
+    static func markerRest(_ c: SQLiteConnection, moduleID: SQLiteValue, week: Int, dates: LocalModules.Dates,
+                           files: [LocalModules.FileRow], doneWeeks: Set<FileWeek>) throws -> [LocalModules.FileRow] {
+        var per: [String: [SQLiteRow]] = [:]
+        for m in try c.query("""
+            SELECT file_id, page, page_count, week_no FROM lecture_markers
+            WHERE module_id=? AND deleted_at IS NULL AND COALESCE(needs_review,0)=0 AND scope='personal'
+            AND user_id='local' AND week_no IS NOT NULL ORDER BY id
+            """, [moduleID]) {
+            if let f = m["file_id"]?.string { per[f, default: []].append(m) }
+        }
+        var out: [LocalModules.FileRow] = []
+        for f in files {
+            guard let id = f.id.string, let ms = per[id], f.json["status"]?.string != "erledigt",
+                  ["vorlesung", "skript"].contains(f.docType ?? ""), !doneWeeks.contains(FileWeek(file: id, week: week)) else { continue }
+            let fw = try LocalModules.week(f, dates: dates)
+            guard 1 <= fw, fw < week else { continue }
+            let before = ms.filter { ($0["week_no"]?.int ?? 0) < week }
+            guard before.contains(where: { $0["week_no"]?.int == week - 1 }) else { continue }
+            // max(before, key=page): bei gleicher Seite der erste
+            var last = before[0]
+            for m in before.dropFirst() where (m["page"]?.int ?? 0) > (last["page"]?.int ?? 0) { last = m }
+            let page = last["page"]?.int ?? 0, count = last["page_count"]?.int ?? 0
+            if page >= count { continue }            // Skript bis zur letzten Seite behandelt
+            let now = ms.filter { $0["week_no"]?.int == week }.compactMap { $0["page"]?.int }.filter { $0 > page }
+            let to = now.isEmpty ? count : min(now.max()!, count)
+            let est = max(10, -BerlinClock.floorDiv(-(try est(f)) * (to - page), count))
+            var g = f
+            g.json["pages"] = .array([.number(Double(page + 1)), .number(Double(to))])
+            g.json["est_minutes"] = .number(Double(est))
+            out.append(g)
         }
         return out
     }
@@ -236,7 +293,10 @@ enum StudyPlan {
             var tasks: [NewTask] = []
             func add(_ kind: String, _ f: LocalModules.FileRow) throws {
                 let est = try est(f)
-                let title = T.or(f.json["ai_title"], f.json["name"] ?? .null)
+                var title = T.or(f.json["ai_title"], f.json["name"] ?? .null)
+                if let p = f.json["pages"]?.array, p.count == 2 {    // Rest nach dem Marker der Vorwoche
+                    title = .string("\(T.text(title)) · S. \(p[0].int ?? 0)–\(p[1].int ?? 0)")
+                }
                 if est > budget {                     // lange Materialien in Teile splitten (max. 4)
                     let n = min(4, -BerlinClock.floorDiv(-est, budget))
                     let part = -BerlinClock.floorDiv(-est, n)
@@ -337,15 +397,28 @@ enum StudyPlan {
         return Set(try c.query(sql, packages).compactMap { $0[0].string })
     }
 
-    /// `_queues(conn, planned_files, s)`: Warteschlangen der aktiven Module mit offenen Einheiten und ihre
-    /// Reihenfolge (hoechste Bewertung zuerst, bei Gleichstand wie die Module sortiert sind)
-    static func queues(_ c: SQLiteConnection, planned: Set<String>, settings s: Settings, today: Int, clock: UniFlowClock) throws -> ([Int64: Queue], [Int64]) {
+    /// `_planned_file_weeks(conn, exclude_packages)`: (Datei, Lehrwoche) der Aufgaben in Paketen wie `plannedFiles`;
+    /// ein Skriptrest steht je Lehrwoche hoechstens einmal im Plan
+    static func plannedFileWeeks(_ c: SQLiteConnection, excluding packages: [SQLiteValue] = []) throws -> Set<FileWeek> {
+        var sql = """
+            SELECT t.file_id, p.week_no FROM study_tasks t JOIN study_packages p ON p.id=t.package_id
+            WHERE t.file_id IS NOT NULL AND p.week_no IS NOT NULL AND t.status IN ('geplant','in_bearbeitung','erledigt','nachholen')
+            """
+        if !packages.isEmpty { sql += " AND t.package_id NOT IN (\(Array(repeating: "?", count: packages.count).joined(separator: ",")))" }
+        return Set(try c.query(sql, packages).compactMap { r in r[0].string.flatMap { f in r[1].int.map { FileWeek(file: f, week: $0) } } })
+    }
+
+    /// `_queues(conn, planned_files, s, week, done_weeks)`: Warteschlangen der aktiven Module mit offenen Einheiten und
+    /// ihre Reihenfolge (hoechste Bewertung zuerst, bei Gleichstand wie die Module sortiert sind); mit `week` nur die
+    /// Einheiten dieser Lehrwoche
+    static func queues(_ c: SQLiteConnection, planned: Set<String>, settings s: Settings, today: Int, clock: UniFlowClock,
+                       week: Int? = nil, doneWeeks: Set<FileWeek> = []) throws -> ([Int64: Queue], [Int64]) {
         let dates = try LocalModules.Dates(c, clock: clock)
         var queues: [Int64: Queue] = [:]
         var queueOrder: [Int64] = []
         for m in try c.query("SELECT * FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort") {
             guard let id = m["id"]?.int64 else { continue }
-            let units = try units(c, moduleID: .integer(id), exclude: planned, dates: dates)
+            let units = try units(c, moduleID: .integer(id), exclude: planned, dates: dates, week: week, doneWeeks: doneWeeks)
             if !units.isEmpty {
                 if queues[id] == nil { queueOrder.append(id) }
                 queues[id] = Queue(module: m, units: units)
@@ -357,11 +430,13 @@ enum StudyPlan {
     }
 
     static let nothingToPlan: JSONValue = ["created": 0, "message": "Keine offenen Vorlesungen oder Übungen für die Planung."]
+    static let nothingThisWeek: JSONValue = ["created": 0, "message": "Keine offenen Vorlesungen oder Übungen für diese Woche."]
 
     /// `generate_packages(conn, start, days, replace)`: Lernpakete fuer `days` Tage ab `start` (sonst heute) nach der
     /// Lernkombination; danach Zeitslots in den freien Fenstern. Tage vor heute werden nicht geplant; mit `replace`
     /// werden nur Pakete aus `replaceable` ersetzt, und erst, wenn es etwas zu planen gibt (Korrekturen vom
-    /// 26.10.2026, zuerst in Python).
+    /// 26.10.2026, zuerst in Python). Ein Tag bekommt nur Stoff seiner Lehrwoche und den Skriptrest nach dem Marker der
+    /// Vorwoche (Regel des Inhabers vom 30.10.2026); aeltere offene Unterlagen plant das freie Fenster (`planWindow`).
     static func generatePackages(_ c: SQLiteConnection, start: Int?, days: Int, replace: Bool, clock: UniFlowClock) throws -> JSONValue {
         try LocalModules.ensureModules(c, clock: clock)
         let today = T.today(clock)
@@ -370,8 +445,17 @@ enum StudyPlan {
         let start = start ?? today
         let end = start + days - 1
         let drop = replace ? try replaceable(c, from: start, to: end) : []
-        let (queues, order) = try queues(c, planned: try plannedFiles(c, excluding: drop), settings: s, today: today, clock: clock)
-        if queues.isEmpty { return nothingToPlan }
+        let planned = try plannedFiles(c, excluding: drop), doneWeeks = try plannedFileWeeks(c, excluding: drop)
+        let sem = try LocalModules.Dates(c, clock: clock).start
+        var perWeek: [Int: (queues: [Int64: Queue], rr: [Int64])] = [:]       // Lehrwoche -> Warteschlangen, Reihenfolge
+        for i in 0..<max(0, days) {
+            let lw = StudyWeeks.dayWeek(start: sem, day: start + i, today: today)
+            if lw >= 1 && perWeek[lw] == nil {
+                let (q, order) = try queues(c, planned: planned, settings: s, today: today, clock: clock, week: lw, doneWeeks: doneWeeks)
+                perWeek[lw] = (q, order)
+            }
+        }
+        if !perWeek.values.contains(where: { !$0.queues.isEmpty }) { return nothingThisWeek }
         for pid in drop {
             try c.execute("DELETE FROM study_tasks WHERE package_id=?", [pid])
             try c.execute("DELETE FROM study_packages WHERE id=?", [pid])
@@ -379,7 +463,6 @@ enum StudyPlan {
 
         let budgetDay = s.minutesPerDay
         let perPackage = max(30, BerlinClock.floorDiv(budgetDay, max(1, s.subjectsPerDay)))
-        var rr = order
         var created = 0
         var existing: Set<String> = []
         for r in try c.query("SELECT date, COUNT(*) n FROM study_packages WHERE date BETWEEN ? AND ? GROUP BY date", [.text(iso(start)), .text(iso(end))])
@@ -389,6 +472,10 @@ enum StudyPlan {
         for i in 0..<max(0, days) {
             let d = start + i
             if d < today || !s.isLearnDay(d) || existing.contains(iso(d)) { continue }
+            let lw = StudyWeeks.dayWeek(start: sem, day: d, today: today)
+            let queues = perWeek[lw]?.queues ?? [:]
+            var rr = perWeek[lw]?.rr ?? []
+            defer { if perWeek[lw] != nil { perWeek[lw]!.rr = rr } }
             var picked: [(Queue, Int64)] = []
             var dayUsed = 0
             var attempts = 0
@@ -430,6 +517,19 @@ enum StudyPlan {
         for i in 0..<max(0, days) { try assignSlots(c, day: start + i) }
         let feas = try feasibility(c, clock: clock)
         return ["created": .number(Double(created)), "message": .string("\(created) Lernpakete erstellt"), "feasibility": feas]
+    }
+
+    /// `auto_plan_week(conn, new_files)`: nach einem Abgleich mit `auto_plan` die laufende Woche ab heute planen, wenn
+    /// neue Dateien kamen oder in dieser Woche noch kein automatisches Paket liegt; ersetzt nur automatisch erstellte,
+    /// nicht begonnene Pakete. Am PC vorher der KI-Wochenplan (`planner.generate_plan`), dessen Ergebnis keine Ansicht
+    /// zeigte; auf dem iPad gab es nach dem Abgleich gar keine Planung.
+    static func autoPlanWeek(_ c: SQLiteConnection, newFiles: Int, clock: UniFlowClock) throws -> JSONValue? {
+        guard try LocalSettings.read(c)["auto_plan"]?.bool == true else { return nil }
+        let t0 = T.today(clock)
+        let sunday = StudyWeeks.monday(t0) + 6
+        let planned = try c.queryOne("SELECT 1 FROM study_packages WHERE generated=1 AND date BETWEEN ? AND ?", [.text(iso(t0)), .text(iso(sunday))]) != nil
+        if newFiles == 0 && planned { return nil }
+        return try generatePackages(c, start: t0, days: sunday - t0 + 1, replace: true, clock: clock)
     }
 
     // MARK: Zeitslots
@@ -607,5 +707,15 @@ enum StudyPlan {
         }
         return ["open_minutes": .number(Double(total)), "available_minutes_4w": .number(Double(avail)), "per_day_need": .number(Double(need)),
                 "per_day_available": .number(Double(s.minutesPerDay)), "hint": hint]
+    }
+}
+
+/// Lernplan nach einem Abgleich auf dem iPad (Stud.IP, Learnweb), wie `study.auto_plan_week` nach `_full_sync` am PC:
+/// mit `auto_plan` die laufende Woche planen, nur Stoff der Lehrwoche und den Skriptrest nach dem Marker der Vorwoche
+public enum StudyAutoPlan {
+    /// Ergebnis der Planung, nil = nichts geplant (aus, oder schon geplant und keine neuen Dateien)
+    public static func afterSync(_ backend: LocalBackend, newFiles: Int) async throws -> JSONValue? {
+        let clock = backend.context.clock
+        return try await backend.context.database.transaction { c in try StudyPlan.autoPlanWeek(c, newFiles: newFiles, clock: clock) }
     }
 }

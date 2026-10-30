@@ -1229,6 +1229,27 @@ def attempt_for(conn, def_id: int, user_id: str = LOCAL_USER) -> int:
         return db.row(conn, "SELECT id FROM tests WHERE def_id=? AND user_id=?", (def_id, user_id))["id"]
 
 
+def task_test(conn, module_id: int, week_no: int, user_id: str = LOCAL_USER) -> int | None:
+    """Testaufgabe des Lernplans ("Gemeinsamer Wochentest Lehrwoche N") in einem Fach mit Markern: der Versuch am
+    veroeffentlichten gemeinsamen Wochentest dieser Lehrwoche (erster Teil), statt daneben einen klassischen Test zu
+    erzeugen. None = Fach ohne Marker (dann der klassische Wochentest aus app/planner.py)."""
+    if not db.row(conn, "SELECT 1 FROM lecture_markers WHERE module_id=? AND deleted_at IS NULL", (module_id,)):
+        return None
+    mine = "module_id=? AND week_no=? AND (user_id=? OR scope='course')"
+    p = db.row(conn, f"SELECT def_id FROM wt_plans WHERE {mine} AND status='veroeffentlicht' AND def_id IS NOT NULL ORDER BY part, id LIMIT 1",
+               (module_id, week_no, user_id))
+    if p:
+        return attempt_for(conn, p["def_id"], user_id)
+    nxt = db.row(conn, f"SELECT publish_at FROM wt_plans WHERE {mine} AND status IN ('geplant','wartet','fehlgeschlagen') ORDER BY part, id LIMIT 1",
+                 (module_id, week_no, user_id))
+    if nxt:
+        t = datetime.fromisoformat(nxt["publish_at"])
+        raise WeeklyError(f"Der gemeinsame Wochentest der Lehrwoche {week_no} erscheint voraussichtlich am {t:%d.%m.} um {t:%H:%M} Uhr.")
+    if db.row(conn, "SELECT 1 FROM lecture_markers WHERE module_id=? AND week_no=? AND deleted_at IS NULL", (module_id, week_no)):
+        raise WeeklyError(f"Der gemeinsame Wochentest der Lehrwoche {week_no} wird gerade geplant. Bitte später erneut versuchen.")
+    raise WeeklyError(f"Für die Lehrwoche {week_no} ist noch kein Vorlesungsstoff markiert („Vorlesung bis hier“ im Skript setzen).")
+
+
 def grade_consistent(questions: list[dict], answers: dict, ai_result: dict) -> dict:
     """Multiple Choice wird fuer alle Teilnehmer identisch und ohne KI bewertet; KI-Punkte werden auf die Aufgabenpunkte begrenzt."""
     per = {str(p.get("nr")): p for p in (ai_result.get("per_question") or [])}
