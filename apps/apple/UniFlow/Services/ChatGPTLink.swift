@@ -150,15 +150,10 @@ final class ChatGPTLink: ObservableObject {
         (Bundle.main.object(forInfoDictionaryKey: "StudoraChatGPTClientID") as? String).flatMap { $0.isEmpty ? nil : $0 }
     }
 
-    /// Sichtbar: im Debug-Build (eigene Nutzung des Inhabers, wie das private Projekt am PC) oder sobald OpenAI eine
-    /// Client-ID vergeben hat. Im Release ohne Aufnahme unsichtbar.
-    nonisolated static var available: Bool {
-        #if DEBUG
-        return true
-        #else
-        return configuredClientID != nil
-        #endif
-    }
+    /// Sichtbar in jedem Build: die Erstregistrierung bei OpenAI laeuft mit `dynamic_agent_client`
+    /// (docs/KI-CHATGPT-PLAN.md, Abschnitt 9) und braucht keine vorab vergebene Client-ID mehr. Eine konfigurierte ID
+    /// (`configuredClientID`) wird weiter benutzt, wenn eine da ist.
+    nonisolated static var available: Bool { true }
 
     @Published private(set) var status: ChatGPTSession.Status?
     @Published private(set) var connecting = false
@@ -207,7 +202,18 @@ final class ChatGPTLink: ObservableObject {
 
     // MARK: Verbinden
 
-    func connect() async {
+    /// Anmeldeversuch beim Kern beginnen (ohne Fenster, auch fuer Tests): `newAccount` = anderes ChatGPT-Konto, also
+    /// neue Registrierung (Client-ID, Profil und Zugangsdaten weg, der Stand wird gleich neu geladen); `reconsent` =
+    /// Zustimmungsseite erzwingen, damit der Nutzer die Nutzung seines Abos freigibt
+    func loginAttempt(port: UInt16, newAccount: Bool = false, reconsent: Bool = false) async throws -> ChatGPTLoginAttempt {
+        guard let session else { throw AIError("chatgpt_flow", "ChatGPT ist fuer diesen Nutzer nicht eingerichtet.") }
+        let attempt = try await session.beginLogin(redirectURI: "http://127.0.0.1:\(port)\(ChatGPTConstants.callbackPath)",
+                                                   newAccount: newAccount, reconsent: reconsent)
+        if newAccount { await refresh() }
+        return attempt
+    }
+
+    func connect(newAccount: Bool = false, reconsent: Bool = false) async {
         guard let session, !connecting else { return }
         connecting = true
         message = nil
@@ -216,7 +222,7 @@ final class ChatGPTLink: ObservableObject {
         loopback = lb
         do {
             let port = try await lb.start()
-            let attempt = await session.beginLogin(redirectURI: "http://127.0.0.1:\(port)\(ChatGPTConstants.callbackPath)")
+            let attempt = try await loginAttempt(port: port, newAccount: newAccount, reconsent: reconsent)
             guard let url = URL(string: attempt.url) else { throw AIError("chatgpt_flow", "Anmeldeadresse ungültig.") }
             // Die Rueckleitung kommt ueber den Listener; die Sitzung zeigt nur die Seite von OpenAI (kein eigenes Schema)
             let a = ASWebAuthenticationSession(url: url, callbackURLScheme: "studora-chatgpt") { _, error in

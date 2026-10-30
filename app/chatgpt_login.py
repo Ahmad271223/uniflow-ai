@@ -293,8 +293,8 @@ def _same_account(d: dict, claims: dict) -> None:
     `account_mismatch`); ein anderes Konto gehoert zu einer neuen Registrierung (`start(new_account=True)`)."""
     old = (d.get("profile") or {}).get("sub")
     if old and claims.get("sub") and claims["sub"] != old:
-        raise ChatGPTError("chatgpt_account_mismatch", "Diese Anmeldung gehoert zu einem anderen ChatGPT-Konto. Bitte das "
-                           "urspruengliche Konto waehlen oder in Studora „Anderes Konto verbinden“.", 409)
+        raise ChatGPTError("chatgpt_account_mismatch", "Diese Anmeldung gehört zu einem anderen ChatGPT-Konto. Bitte das "
+                           "ursprüngliche Konto wählen oder in Studora „Anderes Konto verbinden“.", 409)
 
 
 def complete_login(d: dict, client_id: str, code: str, verifier: str, redirect_uri: str, nonce: str) -> dict:

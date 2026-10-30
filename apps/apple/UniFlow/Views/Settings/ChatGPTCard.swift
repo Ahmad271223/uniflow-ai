@@ -2,8 +2,8 @@ import SwiftUI
 import UniFlowCore
 
 /// Einstellungen → Erweitert → "KI über mein ChatGPT" (wie am PC, docs/KI-CHATGPT-PLAN.md): verbinden mit Zustimmung
-/// (Apple 5.1.2), verbundenes Konto, Modell, Schalter, "Nutzung verwalten", trennen. Nur sichtbar, wenn
-/// `ChatGPTLink.available` (Debug oder von OpenAI vergebene Client-ID).
+/// (Apple 5.1.2), verbundenes Konto, Modell, Schalter, "Freigabe nachholen", "Anderes Konto verbinden",
+/// "Nutzung verwalten", trennen. Nur sichtbar, wenn `ChatGPTLink.available`.
 struct ChatGPTCard: View {
     @ObservedObject var link: ChatGPTLink
     @EnvironmentObject private var overlay: UFOverlay
@@ -59,8 +59,13 @@ struct ChatGPTCard: View {
                 Text("Die Anmeldung bei ChatGPT ist abgelaufen. Bitte neu verbinden.").ufFont(13.12).foregroundStyle(UF.warn)
                 UFButton("Neu verbinden", icon: "sync", kind: .primary, size: .small) { Task { await link.connect() } }
             } else if !s.sharing {
-                Text("Die Nutzung deines ChatGPT-Abos wurde bei der Anmeldung nicht freigegeben. Trenne die Verbindung und verbinde neu, um sie zu erlauben.")
+                Text("Ohne Freigabe laufen keine KI-Anfragen über dein Abo.")
                     .ufFont(13.12).foregroundStyle(UF.warn).fixedSize(horizontal: false, vertical: true)
+                UFButton(link.connecting ? "Verbinde …" : "Freigabe nachholen", icon: "sync", kind: .primary, size: .small) {
+                    Task { await link.connect(reconsent: true) }
+                }
+                .disabled(link.connecting)
+                .accessibilityIdentifier("chatgpt.reconsent")
             }
             Toggle(isOn: Binding(get: { s.useForAI }, set: { (v: Bool) in _ = Task<Void, Never> { await link.setUseForAI(v) } })) {
                 Text("KI-Anfragen über mein ChatGPT").ufFont(14.5, 550).foregroundStyle(UF.text)
@@ -81,6 +86,14 @@ struct ChatGPTCard: View {
                 UFButton("Nutzung verwalten", icon: "layers", size: .small) {
                     if let u = URL(string: ChatGPTConstants.usageHelpURL) { openURL(u) }
                 }
+                UFButton("Anderes Konto verbinden", icon: "log-out", size: .small) {
+                    Task {
+                        guard await overlay.confirm("Anderes ChatGPT-Konto verbinden?\n\nDie bisherige Verbindung wird gelöscht und Studora registriert sich bei OpenAI neu.") else { return }
+                        await link.connect(newAccount: true)
+                    }
+                }
+                .disabled(link.connecting)
+                .accessibilityIdentifier("chatgpt.newAccount")
                 UFButton("Trennen", icon: "log-out", kind: .danger, size: .small) {
                     Task { if await overlay.confirm("Verbindung mit ChatGPT trennen? Die Anmeldung wird von diesem iPad gelöscht.") { await link.disconnect() } }
                 }

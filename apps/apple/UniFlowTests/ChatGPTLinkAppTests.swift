@@ -66,10 +66,62 @@ final class ChatGPTLinkAppTests: XCTestCase {
         }
     }
 
+    func testCardIsAvailableInEveryBuildWithoutAConfiguredClientID() {
+        // dynamische Registrierung (`dynamic_agent_client`): keine vorab vergebene Client-ID noetig, auch im Release
+        // (nicht mehr an `StudoraChatGPTClientID` gebunden)
+        XCTAssertTrue(ChatGPTLink.available)
+    }
+
+    func testOtherAccountStartsANewRegistrationAndReconsentForcesTheConsentPage() async throws {
+        let bed = try ContainerTestBed(name: "chatgpt-switch", clock: .fixed(berlin: "2026-10-30T09:00:00")!)
+        let store = ChatGPTKeychainStore(userScope: DataContainerKey.userScope(bed.user))
+        defer { ChatGPTKeychainStore.remove(userScope: store.userScope) }
+        // bisheriges Konto: ausgestellte Client-ID und Profil (ohne Zugangsdaten, also nicht verbunden)
+        var s = ChatGPTState.new()
+        s.clientID = "oaiapp_alt"
+        // der Memberwise-Initialisierer von `Profile` ist nicht oeffentlich: ueber Codable anlegen
+        s.profile = try JSONDecoder().decode(ChatGPTState.Profile.self,
+                                             from: Data(#"{"sub":"sub-alt","email":"alt@example.org","name":"Alt"}"#.utf8))
+        try store.save(s)
+        let m = bed.manager()
+        _ = try bed.open(m, bed.account(.luh))
+        await m.chatgpt.refresh()
+        XCTAssertEqual(m.chatgpt.status?.registered, true)
+        XCTAssertEqual(m.chatgpt.status?.email, "alt@example.org")
+
+        // Anmeldung mit demselben Konto: ausgestellte ID und login_hint, keine Zustimmungsseite erzwungen
+        let same = try await m.chatgpt.loginAttempt(port: 4321)
+        XCTAssertEqual(same.clientID, "oaiapp_alt")
+        XCTAssertTrue(same.url.contains("client_id=oaiapp_alt"))
+        XCTAssertTrue(same.url.contains("login_hint=alt%40example.org"))
+        XCTAssertFalse(same.url.contains("prompt=consent"))
+
+        // Freigabe nachholen: Zustimmungsseite erzwingen, Konto bleibt
+        let consent = try await m.chatgpt.loginAttempt(port: 4321, reconsent: true)
+        XCTAssertTrue(consent.url.contains("prompt=consent"))
+        XCTAssertEqual(consent.clientID, "oaiapp_alt")
+        XCTAssertEqual(m.chatgpt.status?.registered, true)
+
+        // Anderes Konto: neue Registrierung ohne Client-ID und Profil, Host-ID bleibt
+        let fresh = try await m.chatgpt.loginAttempt(port: 4321, newAccount: true)
+        XCTAssertNil(fresh.clientID)
+        XCTAssertTrue(fresh.url.contains("client_id=\(ChatGPTConstants.firstClientID)"))
+        XCTAssertTrue(fresh.url.contains("client_id=dynamic_agent_client"))
+        XCTAssertFalse(fresh.url.contains("login_hint="))
+        XCTAssertFalse(fresh.url.contains("prompt=consent"))
+        XCTAssertEqual(m.chatgpt.status?.registered, false, "Stand nach dem Zuruecksetzen neu geladen")
+        XCTAssertNil(m.chatgpt.status?.email)
+        let saved = try XCTUnwrap(store.load())
+        XCTAssertNil(saved.clientID)
+        XCTAssertNil(saved.profile)
+        XCTAssertNil(saved.credentials)
+        XCTAssertEqual(saved.hostID, s.hostID, "die Geraetekennung bleibt")
+        XCTAssertTrue(fresh.url.contains("ext_agent_host_id="))
+        await m.chatgpt.session?.cancelLogin()
+    }
+
     func testDebugBuildShowsTheCardAndDeleteAccountRemovesTheConnection() async throws {
-        #if DEBUG
-        XCTAssertTrue(ChatGPTLink.available, "im Debug-Build fuer die eigene Nutzung des Inhabers")
-        #endif
+        XCTAssertTrue(ChatGPTLink.available, "in jedem Build (dynamische Registrierung)")
         let bed = try ContainerTestBed(name: "chatgpt", clock: .fixed(berlin: "2026-10-29T09:00:00")!)
         // gespeicherte Verbindung des Nutzers (von einem frueheren Start), bevor sein Container aufgeht
         let store = ChatGPTKeychainStore(userScope: DataContainerKey.userScope(bed.user))

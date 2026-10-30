@@ -234,7 +234,15 @@ Daraus folgt:
   eine Lizenzdatei ins Repo legen.
 - Gehosteter Dienst (Web): bleibt aus (`available()` = nicht gehostet), bis OpenAI freigibt.
 
-**Für die Mac-Sitzung (App, braucht Xcode):** `ChatGPTLink.available` im Release-Build nicht mehr an eine
-konfigurierte Client-ID binden (die dynamische Registrierung braucht keine); `beginLogin(redirectURI:newAccount:reconsent:)`
-aufrufen; Knöpfe „Freigabe nachholen“ und „Anderes Konto verbinden“ in den Einstellungen; Meldungen für
-`chatgpt_account_mismatch` und `chatgpt_refresh_not_ready`; `ChatGPTSessionTests` (nur Apple) laufen lassen.
+**Gebaut am 30.10. in der Cloud, ungeprüft auf dem Mac:** `ChatGPTLink.available` ist in jedem Build wahr (die
+dynamische Registrierung braucht keine konfigurierte Client-ID; `configuredClientID` bleibt optional);
+`ChatGPTLink.connect(newAccount:reconsent:)` reicht beide Schalter an `beginLogin(redirectURI:newAccount:reconsent:)`
+durch (`loginAttempt(port:newAccount:reconsent:)` ohne Fenster, für Tests); in `ChatGPTCard` bei fehlender Freigabe der
+Hinweis „Ohne Freigabe laufen keine KI-Anfragen über dein Abo.“ mit „Freigabe nachholen“ und immer „Anderes Konto
+verbinden“ mit Rückfrage; Meldungen für `chatgpt_account_mismatch` und `chatgpt_refresh_not_ready` kommen als
+`AIError.message` aus dem Kern (die App hat keine eigene Zuordnung der Codes); Tests in `ChatGPTLinkAppTests`
+(`available`, anderes Konto → `dynamic_agent_client` ohne Client-ID und Profil, `reconsent` → `prompt=consent`).
+Die Dateien wurden nur geparst (`swiftc -parse`), nicht gebaut. **Die Mac-Sitzung muss nur noch:** das Xcode-Projekt
+bauen (Debug und Release), `ChatGPTLinkAppTests` und `ChatGPTSessionTests` (nur Apple) laufen lassen, die Karte in
+Einstellungen → Erweitert einmal durchklicken (Verbinden, Freigabe nachholen, Anderes Konto verbinden mit Rückfrage,
+Trennen) und die Meldungen bei abgebrochener Anmeldung prüfen.

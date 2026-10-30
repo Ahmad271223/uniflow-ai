@@ -273,8 +273,8 @@ public actor ChatGPTSession {
     /// (Devkit `account_mismatch`); ein anderes Konto gehoert zu einer neuen Registrierung (`beginLogin(newAccount:)`)
     private func sameAccount(_ claims: JSONValue) throws {
         guard let old = state.profile?.sub, !old.isEmpty, let new = claims["sub"]?.string, !new.isEmpty, new != old else { return }
-        throw AIError("chatgpt_account_mismatch", "Diese Anmeldung gehoert zu einem anderen ChatGPT-Konto. Bitte das "
-                      + "urspruengliche Konto waehlen oder in Studora „Anderes Konto verbinden“.")
+        throw AIError("chatgpt_account_mismatch", "Diese Anmeldung gehört zu einem anderen ChatGPT-Konto. Bitte das "
+                      + "ursprüngliche Konto wählen oder in Studora „Anderes Konto verbinden“.")
     }
 
     // MARK: Token
