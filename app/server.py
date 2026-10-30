@@ -1376,7 +1376,8 @@ def _weekly_loop():
 @app.on_event("startup")
 def _start_weekly_loop():
     import os
-    if os.environ.get("LERNAPP_NO_SCHEDULER"):
+    # im Dienst (mehrere Konten) noch nicht: der Takt arbeitet auf der einen lokalen Datenbank
+    if os.environ.get("LERNAPP_NO_SCHEDULER") or config.is_hosted():
         return
     threading.Thread(target=_weekly_loop, daemon=True, name="wochentests").start()
 
