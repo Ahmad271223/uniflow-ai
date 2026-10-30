@@ -426,7 +426,7 @@ def schema_once(conn: sqlite3.Connection, key: str, path, fn) -> None:
 def connect() -> sqlite3.Connection:
     from . import config
     # hosted: Datenbank des angemeldeten Kontos; sonst DB_PATH (Modulvariable, von Werkzeugen und Tests umlenkbar)
-    conn = sqlite3.connect(config.db_path() if config.current_user_id() else DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(config.db_path() if config.current_user_id() else DB_PATH, check_same_thread=False, timeout=15)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
