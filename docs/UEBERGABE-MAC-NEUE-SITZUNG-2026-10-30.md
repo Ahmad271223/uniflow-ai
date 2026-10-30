@@ -4,6 +4,12 @@ Der bisherige Mac wird abgegeben. Die Arbeit geht auf einem anderen Rechner weit
 Repo: Code, Branches, offene Schritte und Regeln. Das Gedächtnis der Claude-Sitzung (`~/.claude/...`) wandert nicht
 mit, darum stehen die wichtigsten Regeln und Entscheidungen unten noch einmal.
 
+> **Nachtrag 30.10.2026, Cloud-Sitzung:** `wip/lernplan-woche` ist nach `develop` übernommen (ohne App-Lauf, vom
+> Inhaber freigegeben), der wacklige Sync-Test ist behoben, die JS-Tests sind grün, und der Kern-Teil der
+> Hintergrund-Wochentests ist gebaut. Der aktuelle Stand, die Testzahlen und die offene Liste stehen in
+> `BERICHT-CLOUD-SITZUNG-2026-10-30.md`; die Abschnitte 1 und 5 unten sind damit überholt. Der erste Schritt auf dem
+> Mac bleibt der volle App-Lauf, jetzt auf `develop`.
+
 ## 1. Stand auf GitHub (`Ahmad271223/uniflow-ai`)
 
 | Ref | Commit | Inhalt | Geprüft |
