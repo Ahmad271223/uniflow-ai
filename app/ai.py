@@ -12,7 +12,6 @@ import subprocess
 import sys
 import uuid
 from contextlib import contextmanager
-from datetime import date, timedelta
 from pathlib import Path
 
 from .config import CLAUDE_MODEL, CLAUDE_MODEL_MATERIAL, DATA_DIR, LOG_DIR
@@ -237,67 +236,7 @@ def analyze_file(course_title: str, file_name: str, text: str, pdf_path: str | N
 
 
 # ----------------------------------------------------------------------------
-# 2) Wochenplan
-# ----------------------------------------------------------------------------
-
-def build_week_plan(week_start: date, materials: list[dict], subjects: list[dict], settings: dict,
-                    carry_over: list[dict], today: date | None = None) -> dict:
-    return parse_json(ask(week_plan_prompt(week_start, materials, subjects, settings, carry_over, today or date.today()), SYSTEM))
-
-
-def week_plan_prompt(week_start: date, materials: list[dict], subjects: list[dict], settings: dict,
-                     carry_over: list[dict], today: date) -> str:
-    """Prompt des KI-Wochenplans (auch die Geraete-Kerne, Vertrag packages/shared-contracts/ai)."""
-    days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
-    free = ", ".join(days[d] for d in settings["free_days"]) or "keine"
-    past_note = ""
-    if week_start <= today <= week_start + timedelta(days=6):
-        past_note = f"- Heute ist {days[today.weekday()]}, der {today.isoformat()}. Tage vor heute NICHT belegen.\n"
-    elif today < week_start:
-        past_note = f"- Heute ist der {today.isoformat()}, die Planung gilt fuer die kommende Woche.\n"
-    mat_lines = "\n".join(
-        f"- file_id={m['id']} | Fach: {m['subject']} | Kurs: {m['course_title'][:40]} | {m.get('doc_type') or '?'} | "
-        f"Schwierigkeit {m.get('difficulty') or '?'}/5 | ca. {m.get('est_minutes') or '?'} min | {m.get('title') or m['name']}"
-        for m in materials
-    ) or "- (keine neuen Materialien)"
-    subj_lines = "\n".join(f"- {s['subject']} (Wochentest {s['test_minutes']} min)" for s in subjects)
-    carry = "\n".join(f"- {c['title']} ({c.get('subject')})" for c in carry_over) or "- keine"
-    prompt = f"""Erstelle einen Lernplan fuer die Woche ab Montag {week_start.isoformat()} (bis Sonntag {(week_start + timedelta(days=6)).isoformat()}).
-
-Rahmen:
-{past_note}- HARTES LIMIT: maximal {int(settings['hours_per_day'] * 60)} Minuten pro Tag (Summe aller Bloecke eines Tages, Tests eingeschlossen). Lernbeginn ab {settings['day_start']}
-- Freie Tage (dort NICHTS einplanen, auch keine Tests): {free}
-- Lieber weniger Bloecke als das Tageslimit ueberschreiten; nicht alles muss in diese Woche
-- Bloecke zwischen 30 und 120 Minuten, Pausen nicht einplanen (werden automatisch gemacht)
-- Reihenfolge nach Sinn: erst Vorlesung lesen, dann die passende Uebung, dann Wiederholung
-- Schwierige Themen (4-5) auf mehrere Bloecke verteilen und frueh in der Woche
-- Jedes Fach bekommt genau EINEN Block "test" mit der angegebenen Testdauer, bevorzugt am Ende der Woche (Fr/Sa), nie am freien Tag
-- Nicht erledigte Punkte der Vorwoche zuerst einplanen
-
-Faecher:
-{subj_lines}
-
-Nicht erledigt aus der Vorwoche:
-{carry}
-
-Neue / offene Materialien (nach Schwierigkeit und Kurs geordnet):
-{mat_lines}
-
-Gib ein JSON-Objekt zurueck:
-{{
-  "notes": "2-3 Saetze: wie die Woche aufgebaut ist und worauf der Fokus liegt",
-  "items": [
-    {{"day": 0-6, "start_time": "HH:MM", "duration_min": Zahl, "subject": "Fachname exakt wie oben",
-      "file_id": "file_id oder null", "title": "konkrete Aufgabe, z. B. 'GDS Kap. 2 lesen + Zusammenfassung'",
-      "kind": "lernen" | "ueben" | "wiederholen" | "test"}}
-  ]
-}}
-day: 0=Montag ... 6=Sonntag. Keine Ueberschneidungen am gleichen Tag."""
-    return prompt
-
-
-# ----------------------------------------------------------------------------
-# 2b) Tutor im Editor (freier Text, Markdown)
+# 2) Tutor im Editor (freier Text, Markdown); der KI-Wochenplan ist entfallen (Lernplan in app/study.py, ohne KI)
 # ----------------------------------------------------------------------------
 
 TUTOR_SYSTEM = ("Du bist ein geduldiger Tutor fuer ein Informatik-/Elektrotechnik-Studium im ersten Semester "

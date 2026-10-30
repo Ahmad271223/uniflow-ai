@@ -87,10 +87,34 @@ final class LocalStudyPlanTests: XCTestCase {
         XCTAssertNil(jsonDiff(t, scenario["tables_after"]), jsonDiff(t, scenario["tables_after"]) ?? "")
     }
 
-    /// Schritte nacheinander an das lokale Backend; liefert die Abweichungen von Status und Antwort
+    /// Regel des Inhabers vom 30.10.2026 (Szenario "lehrwoche", Mittwoch 28.10. = Lehrwoche 3): je Tag nur der Stoff
+    /// seiner Lehrwoche, davor der Rest eines Skripts nach dem Marker der Vorwoche (eigene Marker, nicht geloescht,
+    /// nicht zu pruefen, nur mit Marker in der Vorwoche), derselbe Rest je Lehrwoche einmal; `StudyPlan.autoPlanWeek`
+    /// nach einem Abgleich ("auto"-Schritte)
+    func testWeekRuleScenarioMatchesPythonServer() async throws {
+        let fx = try fixture()
+        let scenario = try XCTUnwrap(fx["scenarios"]?.array?.first { $0["name"] == "lehrwoche" })
+        let now = Now(try XCTUnwrap(scenario["now"]?.string))
+        let backend = try await seeded(fx, now: now)
+        let steps = scenario["steps"]?.array ?? []
+        XCTAssertGreaterThanOrEqual(steps.count, 14)
+        XCTAssertGreaterThanOrEqual(steps.filter { $0["auto"] != nil }.count, 4)
+        let problems = try await replay(steps, on: backend, now: now)
+        XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+        let t = try await tables(backend)
+        XCTAssertNil(jsonDiff(t, scenario["tables_after"]), jsonDiff(t, scenario["tables_after"]) ?? "")
+    }
+
+    /// Schritte nacheinander an das lokale Backend; liefert die Abweichungen von Status und Antwort. "auto"-Schritte
+    /// planen wie nach einem Abgleich (`StudyAutoPlan.afterSync`, am PC `study.auto_plan_week`).
     private func replay(_ steps: [JSONValue], on backend: LocalBackend, now: Now) async throws -> [String] {
         var problems: [String] = []
         for (i, s) in steps.enumerated() {
+            if let n = s["auto"]?.int {
+                let r = try await StudyAutoPlan.afterSync(backend, newFiles: n) ?? .null
+                if let d = jsonDiff(r, s["result"] ?? .null) { problems.append("\(i) auto \(n): \(d)") }
+                continue
+            }
             if let t = s["now"]?.string {
                 now.set(t)
                 let sql = s["sql"]?.array ?? []
@@ -122,11 +146,16 @@ final class LocalStudyPlanTests: XCTestCase {
     }
 
     /// Abnahme S6 im Kern: "Plan erstellen" legt die Lernpakete in die freien Fenster neben die Termine des
-    /// Stundenplans (Vorlesung, Sperrzeit, Fahrtzeit), nie in einen Termin
+    /// Stundenplans (Vorlesung, Sperrzeit, Fahrtzeit), nie in einen Termin. Mit den Unterlagen der Lehrwoche 3 (der
+    /// Plan nimmt je Tag nur den Stoff seiner Lehrwoche, Regel vom 30.10.2026).
     func testPlanFillsFreeWindowsNextToEvents() async throws {
         let fx = try fixture()
         let now = Now(try XCTUnwrap(fx["now"]?.string))
         let backend = try await seeded(fx, now: now)
+        let week3 = try XCTUnwrap(fx["steps"]?.array?.first { $0["now"]?.string == "2026-10-28T07:45:00" }?["sql"]?.array)
+        try await backend.context.database.transaction { c in
+            for q in week3 { try c.execute(q["sql"]?.string ?? "", (q["params"]?.array ?? []).map { SQLiteValue(json: $0) ?? .null }) }
+        }
         let gen = await backend.handle(LocalRequest(method: "POST", path: "/api/calendar/generate", body: Data(#"{"start": "2026-10-26", "days": 5}"#.utf8)))
         XCTAssertEqual(gen.status, 200)
         XCTAssertGreaterThan(gen.json?["created"]?.int ?? 0, 0)
@@ -204,7 +233,7 @@ final class LocalStudyPlanTests: XCTestCase {
         let rescue = await send("POST", "/api/calendar/suggest", #"{"rescue": true}"#)
         XCTAssertEqual(rescue.json, ["moves": [], "message": "Keine offenen Aufgaben."])
         let plan = await send("POST", "/api/calendar/generate", "")
-        XCTAssertEqual(plan.json?["message"], "Keine offenen Vorlesungen oder Übungen für die Planung.")
+        XCTAssertEqual(plan.json?["message"], "Keine offenen Vorlesungen oder Übungen für diese Woche.")
     }
 
     /// Ohne Testaufgaben als Standard (Entscheidung 2): neue Datenbank mit tests_per_subject 0

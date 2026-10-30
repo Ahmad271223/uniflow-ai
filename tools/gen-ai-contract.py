@@ -4,7 +4,7 @@ stellt (iPad mit dem ChatGPT-Abo des Nutzers), baut daraus byte-gleiche Prompts 
 
 Inhalt:
 - texts: System-Prompts, Modi des Tutors, Analysefelder, Regel des Wochentests (29.10.2026)
-- prompts: je Funktion Eingaben -> Prompt (Tutor mit Quellen und Kuerzungen, Analyse aus Text, Wochenplan,
+- prompts: je Funktion Eingaben -> Prompt (Tutor mit Quellen und Kuerzungen, Analyse aus Text,
   Wochentest mit und ohne Altklausur samt Materialblock, Bewertung)
 - parse_json: Antworttext -> JSON oder Fehler
 - check_week_test: Antwort -> Grund (null = in Ordnung)
@@ -18,7 +18,6 @@ import json
 import os
 import sys
 import tempfile
-from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,25 +47,6 @@ def _tutor_cases(ai) -> list[dict]:
         args = {k: v for k, v in i.items() if k != "mode"}
         out.append({"in": i, "prompt": ai.tutor_prompt(i["mode"], args.pop("page_text"), **args)})
     return out
-
-
-def _plan_cases(ai) -> list[dict]:
-    mats = [{"id": "f1", "subject": "Testmathe", "course_title": "Testmathematik für Ingenieure I – Vorlesung und Übung",
-             "doc_type": "vorlesung", "difficulty": 4, "est_minutes": 90, "title": "Kapitel 1: Folgen", "name": "vl01.pdf"},
-            {"id": "f2", "subject": "Testphysik", "course_title": "Testphysik", "name": "blatt1.pdf"}]
-    subjects = [{"subject": "Testmathe", "test_minutes": 45}, {"subject": "Testphysik", "test_minutes": 60}]
-    settings = {"free_days": [5, 6], "hours_per_day": 3.5, "day_start": "09:00"}
-    carry = [{"title": "Blatt 2 nachholen", "subject": "Testmathe"}, {"title": "Ohne Fach"}]
-    cases = []
-    for ws, today, m, c, st in [
-        ("2026-10-26", "2026-10-28", mats, carry, settings),                                    # heute in der Woche
-        ("2026-11-02", "2026-10-28", mats, [], settings),                                       # kommende Woche
-        ("2026-10-19", "2026-10-28", [], [], {"free_days": [], "hours_per_day": 2, "day_start": "08:30"}),  # vergangen, leer
-        ("2026-12-28", "2026-12-31", mats, carry, {"free_days": [0], "hours_per_day": 3.33, "day_start": "10:00"}),  # krumme Minuten, Jahreswechsel
-    ]:
-        args = {"week_start": ws, "materials": m, "subjects": subjects, "settings": st, "carry_over": c, "today": today}
-        cases.append({"in": args, "prompt": ai.week_plan_prompt(date.fromisoformat(ws), m, subjects, st, c, date.fromisoformat(today))})
-    return cases
 
 
 def _test_cases(ai) -> list[dict]:
@@ -230,7 +210,7 @@ def main() -> int:
                     "analysis": [{"in": {"course": c, "file_name": f, "text": t}, "prompt": ai.analysis_prompt(c, f, t)}
                                  for c, f, t in [("Testmathe I", "vl01.pdf", "Folgen und Reihen"), ("Testkurs", "leer.pdf", "  \n"),
                                                  ("K \"zitiert\"", "a b.pdf", "x" * 50)]],
-                    "week_plan": _plan_cases(ai), "week_test": _test_cases(ai), "grade": _grade_cases(ai)},
+                    "week_test": _test_cases(ai), "grade": _grade_cases(ai)},
         "parse_json": _parse_cases(ai),
         "check_week_test": _check_cases(ai),
         "chatgpt": _chatgpt(chatgpt_login, ai_backend),

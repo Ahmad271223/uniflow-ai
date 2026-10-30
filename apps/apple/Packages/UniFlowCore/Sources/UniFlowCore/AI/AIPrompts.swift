@@ -83,9 +83,7 @@ public enum AIPrompts {
             + (PyText.strip(text).isEmpty ? "[kein Text extrahierbar - schaetze anhand des Dateinamens]" : text) + "\n>>>"
     }
 
-    // MARK: Wochenplan (`ai.week_plan_prompt`)
-
-    static let days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+    // MARK: Tag (der KI-Wochenplan `ai.week_plan_prompt` ist entfallen, der Tag bleibt fuer die Wochentests)
 
     /// Tag als (Jahr, Monat, Tag) fuer Vergleiche und Rechnen ohne Zeitzone
     public struct Day: Comparable, Sendable {
@@ -113,72 +111,6 @@ public enum AIPrompts {
             return Day(c.year!, c.month!, c.day!)
         }
         public static func < (a: Day, b: Day) -> Bool { (a.year, a.month, a.day) < (b.year, b.month, b.day) }
-    }
-
-    /// `int(x * 60)` fuer Stunden pro Tag (ganze Zahl oder Kommazahl)
-    static func minutes(_ hours: PyJSON?) -> String {
-        switch hours {
-        case .some(.int(let digits)): return String((Int(digits) ?? 0) * 60)
-        case .some(.float(let d)): return String(Int((d * 60).rounded(.towardZero)))
-        case .some(.bool(let b)): return b ? "60" : "0"
-        default: return "0"
-        }
-    }
-
-    public static func weekPlan(weekStart: Day, materials: [PyJSON], subjects: [PyJSON], settings: PyJSON, carryOver: [PyJSON], today: Day) -> String {
-        let freeDays: [String] = {
-            guard case .array(let a)? = get(settings, "free_days") else { return [] }
-            return a.compactMap { if case .int(let d) = $0, let i = Int(d), days.indices.contains(i) { return days[i] }; return nil }
-        }()
-        let free = freeDays.isEmpty ? "keine" : freeDays.joined(separator: ", ")
-        let end = weekStart.adding(6)
-        var pastNote = ""
-        if weekStart <= today, today <= end {
-            pastNote = "- Heute ist \(days[today.weekday]), der \(today.iso). Tage vor heute NICHT belegen.\n"
-        } else if today < weekStart {
-            pastNote = "- Heute ist der \(today.iso), die Planung gilt fuer die kommende Woche.\n"
-        }
-        let matLines = materials.map { m in
-            "- file_id=\(str(get(m, "id"))) | Fach: \(str(get(m, "subject"))) | Kurs: \(head(str(get(m, "course_title")), 40)) | "
-                + "\(str(or(get(m, "doc_type"), .string("?")))) | "
-                + "Schwierigkeit \(str(or(get(m, "difficulty"), .string("?"))))/5 | ca. \(str(or(get(m, "est_minutes"), .string("?")))) min | "
-                + str(or(get(m, "title"), get(m, "name")))
-        }.joined(separator: "\n")
-        let subjLines = subjects.map { "- \(str(get($0, "subject"))) (Wochentest \(str(get($0, "test_minutes"))) min)" }.joined(separator: "\n")
-        let carry = carryOver.map { "- \(str(get($0, "title"))) (\(str(get($0, "subject"))))" }.joined(separator: "\n")
-        return """
-        Erstelle einen Lernplan fuer die Woche ab Montag \(weekStart.iso) (bis Sonntag \(end.iso)).
-
-        Rahmen:
-        \(pastNote)- HARTES LIMIT: maximal \(minutes(get(settings, "hours_per_day"))) Minuten pro Tag (Summe aller Bloecke eines Tages, Tests eingeschlossen). Lernbeginn ab \(str(get(settings, "day_start")))
-        - Freie Tage (dort NICHTS einplanen, auch keine Tests): \(free)
-        - Lieber weniger Bloecke als das Tageslimit ueberschreiten; nicht alles muss in diese Woche
-        - Bloecke zwischen 30 und 120 Minuten, Pausen nicht einplanen (werden automatisch gemacht)
-        - Reihenfolge nach Sinn: erst Vorlesung lesen, dann die passende Uebung, dann Wiederholung
-        - Schwierige Themen (4-5) auf mehrere Bloecke verteilen und frueh in der Woche
-        - Jedes Fach bekommt genau EINEN Block "test" mit der angegebenen Testdauer, bevorzugt am Ende der Woche (Fr/Sa), nie am freien Tag
-        - Nicht erledigte Punkte der Vorwoche zuerst einplanen
-
-        Faecher:
-        \(subjLines)
-
-        Nicht erledigt aus der Vorwoche:
-        \(carry.isEmpty ? "- keine" : carry)
-
-        Neue / offene Materialien (nach Schwierigkeit und Kurs geordnet):
-        \(matLines.isEmpty ? "- (keine neuen Materialien)" : matLines)
-
-        Gib ein JSON-Objekt zurueck:
-        {
-          "notes": "2-3 Saetze: wie die Woche aufgebaut ist und worauf der Fokus liegt",
-          "items": [
-            {"day": 0-6, "start_time": "HH:MM", "duration_min": Zahl, "subject": "Fachname exakt wie oben",
-              "file_id": "file_id oder null", "title": "konkrete Aufgabe, z. B. 'GDS Kap. 2 lesen + Zusammenfassung'",
-              "kind": "lernen" | "ueben" | "wiederholen" | "test"}
-          ]
-        }
-        day: 0=Montag ... 6=Sonntag. Keine Ueberschneidungen am gleichen Tag.
-        """
     }
 
     // MARK: Wochentest (`ai.test_text_block`, `ai.exam_text_block`, `ai._test_prompt`)

@@ -600,6 +600,7 @@ final class StudIPSync: ObservableObject {
                                                                    removedEvents: timetable.result?.removedEvents ?? 0)
                 : "Hintergrund: Listen abgeglichen, " + waitingText
             await log(database, started: started, ok: true, newFiles: loaded, message: message)
+            await Self.autoPlan(host: host, newFiles: loaded)
             // Sitzung erst beim Stundenplan oder den Aufzeichnungen abgelaufen: Dateien sind da, die Anmeldung muss neu
             phase = expired ? .needsLogin : .idle
             setFlag(Keys.sessionExpired, expired)
@@ -652,6 +653,14 @@ final class StudIPSync: ObservableObject {
         _ = try? await db.transaction {
             try UniStore.logSync($0, startedAt: started, finishedAt: finished, ok: ok, newFiles: newFiles, message: message)
         }
+    }
+
+    /// Lernplan nach dem Abgleich wie am PC (`study.auto_plan_week` nach run_sync): mit `auto_plan` die laufende Woche
+    /// planen, nur Stoff der Lehrwoche und den Skriptrest nach dem Marker der Vorwoche. Nicht nach einem Abbruch (der
+    /// Container wird vielleicht gerade geloescht); ein Fehler stoppt den Abgleich nicht.
+    nonisolated static func autoPlan(host: LocalBackendHost, newFiles: Int) async {
+        guard !Task.isCancelled, let backend = try? await host.backend() else { return }
+        _ = try? await StudyAutoPlan.afterSync(backend, newFiles: newFiles)
     }
 
     private func finish(summary: String) {

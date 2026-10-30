@@ -2121,6 +2121,75 @@
    }
   },
   {
+   "op": "sql",
+   "now": "2026-10-26T12:00:00",
+   "sql": [
+    [
+     "INSERT INTO study_packages(id, date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at) VALUES (900, '2026-10-29', ?, 'Programmieren 1', 'Woche 3', 3, 45, 'geplant', 0, 1, '2026-10-26T12:00:00')",
+     [
+      1
+     ]
+    ],
+    [
+     "INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) VALUES (900, 900, 'test', 'Gemeinsamer Wochentest Lehrwoche 3', 0, 45, 'geplant', '2026-10-26T12:00:00')",
+     []
+    ],
+    [
+     "INSERT INTO study_packages(id, date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at) VALUES (901, '2026-10-29', ?, 'Programmieren 1', 'Woche 5', 5, 45, 'geplant', 0, 1, '2026-10-26T12:00:00')",
+     [
+      1
+     ]
+    ],
+    [
+     "INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) VALUES (901, 901, 'test', 'Gemeinsamer Wochentest Lehrwoche 5', 0, 45, 'geplant', '2026-10-26T12:00:00')",
+     []
+    ]
+   ]
+  },
+  {
+   "op": "http",
+   "now": "2026-10-26T12:00:00",
+   "method": "POST",
+   "path": "/api/tasks/900/start-test",
+   "body": null,
+   "status": 409,
+   "response": {
+    "detail": "Der gemeinsame Wochentest der Lehrwoche 3 wird gerade geplant. Bitte später erneut versuchen."
+   }
+  },
+  {
+   "op": "http",
+   "now": "2026-10-26T12:00:00",
+   "method": "POST",
+   "path": "/api/tasks/901/start-test",
+   "body": null,
+   "status": 409,
+   "response": {
+    "detail": "Für die Lehrwoche 5 ist noch kein Vorlesungsstoff markiert („Vorlesung bis hier“ im Skript setzen)."
+   }
+  },
+  {
+   "op": "tick",
+   "now": "2026-10-26T13:00:00",
+   "result": {
+    "published": [],
+    "waiting": [],
+    "failed": [],
+    "nachtraege": []
+   }
+  },
+  {
+   "op": "http",
+   "now": "2026-10-26T13:00:00",
+   "method": "POST",
+   "path": "/api/tasks/900/start-test",
+   "body": null,
+   "status": 409,
+   "response": {
+    "detail": "Der gemeinsame Wochentest der Lehrwoche 3 erscheint voraussichtlich am 27.10. um 11:30 Uhr."
+   }
+  },
+  {
    "op": "tick",
    "now": "2026-10-27T11:31:00",
    "result": {
@@ -2135,6 +2204,38 @@
     "waiting": [],
     "failed": [],
     "nachtraege": []
+   }
+  },
+  {
+   "op": "http",
+   "now": "2026-10-27T11:31:00",
+   "method": "POST",
+   "path": "/api/tasks/900/start-test",
+   "body": null,
+   "status": 200,
+   "response": {
+    "test_id": 2
+   }
+  },
+  {
+   "op": "sql",
+   "now": "2026-10-27T11:31:00",
+   "sql": [
+    [
+     "INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) VALUES (902, 900, 'test', 'Gemeinsamer Wochentest Lehrwoche 3', 1, 45, 'geplant', '2026-10-27T11:31:00')",
+     []
+    ]
+   ]
+  },
+  {
+   "op": "http",
+   "now": "2026-10-27T11:31:00",
+   "method": "POST",
+   "path": "/api/tasks/902/start-test",
+   "body": null,
+   "status": 200,
+   "response": {
+    "test_id": 2
    }
   },
   {
@@ -2185,6 +2286,28 @@
       "new_tasks": 1
      }
     ]
+   }
+  },
+  {
+   "op": "http",
+   "now": "2026-10-28T10:00:00",
+   "method": "POST",
+   "path": "/api/tasks/900/start-test",
+   "body": null,
+   "status": 200,
+   "response": {
+    "test_id": 2
+   }
+  },
+  {
+   "op": "http",
+   "now": "2026-10-28T10:00:00",
+   "method": "POST",
+   "path": "/api/tasks/900/start-test",
+   "body": null,
+   "status": 200,
+   "response": {
+    "test_id": 2
    }
   },
   {
@@ -3027,7 +3150,7 @@
     "last_check": "2026-10-27T11:31:00",
     "last_error": null,
     "attempts": 0,
-    "created_at": "2026-10-27T11:31:00"
+    "created_at": "2026-10-26T13:00:00"
    }
   ],
   "wt_defs": [
@@ -3114,6 +3237,23 @@
     "status": "veroeffentlicht",
     "created_at": "2026-10-28T12:00:00",
     "published_at": "2026-10-28T12:00:00"
+   }
+  ],
+  "study_tasks": [
+   {
+    "id": 900,
+    "test_id": 2,
+    "status": "geplant"
+   },
+   {
+    "id": 901,
+    "test_id": null,
+    "status": "geplant"
+   },
+   {
+    "id": 902,
+    "test_id": 2,
+    "status": "in_bearbeitung"
    }
   ],
   "tests": [

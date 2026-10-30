@@ -142,5 +142,5 @@ mit einer selbst erzeugten Zertifikatskette, KI mit einer Attrappe. Gesamtlauf: 
   `PurchaseStore.productIDs`), `appAccountToken` setzen, Transaktionen an `/api/billing/apple/verify` melden,
   Abo-Seite mit vier Tarifen, PencilKit nur mit `can_use_pencilkit`. Siehe Nachtrag in `docs/STAND-MAC-SITZUNG.md`.
 - **Noch nicht gebaut:** Zahlung im Web/Windows, Community-Kommentare, die ChatGPT-Verbindung selbst,
-  KI-Wochenplan im Dienst (`/api/plan/generate` bleibt 501; „Intelligente Lernplanung“ ist heute regelbasiert über
-  Empfehlungen), Einbettungen für die Themenerkennung.
+  Einbettungen für die Themenerkennung. Den KI-Wochenplan (`/api/plan/generate`) gibt es seit dem 30.10.2026 nicht
+  mehr: Der Lernplan ist regelbasiert (`app/study.py`, nur Stoff der Lehrwoche plus Skriptrest nach dem Marker).

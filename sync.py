@@ -34,7 +34,6 @@ def main(argv: list[str]) -> int:
 
     with db.cursor() as conn:
         settings = db.get_settings(conn)
-        plan_exists = db.row(conn, "SELECT 1 FROM plans WHERE week_start=?", (planner.planning_week().isoformat(),)) is not None
 
     analyzed = 0
     try:
@@ -42,18 +41,13 @@ def main(argv: list[str]) -> int:
     except Exception as e:  # noqa: BLE001
         log(f"Analyse-Fehler: {e}")
 
+    # Lernkalender: laufende Woche nach neuen Dateien planen (study.auto_plan_week, wie der Abgleich im Server; der
+    # KI-Wochenplan ist entfallen)
     try:
-        if settings["auto_plan"] and (force_plan or res["new_files"] or not plan_exists):
-            planner.generate_plan(log=log)
-    except Exception as e:  # noqa: BLE001
-        log(f"Plan-Fehler: {e}")
-
-    # Lernkalender: fehlende Tage der naechsten 7 Tage mit Lernpaketen fuellen (bestehende bleiben unangetastet)
-    try:
-        if settings["auto_plan"]:
-            from app import study
-            with db.cursor() as conn:
-                r = study.generate_packages(conn, days=7, log=log)
+        from app import study
+        with db.cursor() as conn:
+            r = study.auto_plan_week(conn, len(res["new_files"]) or int(force_plan), log=log)
+        if r:
             log(f"Lernkalender: {r['message']}")
     except Exception as e:  # noqa: BLE001
         log(f"Lernkalender-Fehler: {e}")
@@ -79,7 +73,7 @@ def main(argv: list[str]) -> int:
         log(f"QIS-Fehler: {e}")
 
     try:
-        if settings["auto_tests"] and (force_tests or date.today().weekday() in (0, 1) or not plan_exists or res["new_files"]):
+        if settings["auto_tests"] and (force_tests or date.today().weekday() in (0, 1) or res["new_files"]):
             planner.create_weekly_tests(log=log)
     except Exception as e:  # noqa: BLE001
         log(f"Test-Fehler: {e}")

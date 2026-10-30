@@ -180,6 +180,12 @@ def build() -> dict:
             steps.append({"op": "tick", "now": clock["now"].isoformat(), "result": res})
             return res
 
+        def run_sql(stmts):
+            with src.db.cursor() as c:
+                for s, p in stmts:
+                    c.execute(s, p)
+            steps.append({"op": "sql", "now": clock["now"].isoformat(), "sql": stmts})
+
         def add(fid, name, folder, pages, when):
             at(when)
             stmts = add_file(fid, name, folder, pages)
@@ -218,9 +224,29 @@ def build() -> dict:
         at("2026-10-26T12:00:00")
         http("POST", "/api/markers", {"file_id": LEC, "page": 62, "lecture_date": "2026-10-26", "topic": "Schleifen"})
         http("POST", "/api/markers", {"file_id": LEC, "page": 50, "lecture_date": "2026-10-27"})
+        # Testaufgabe im Lernplan (study.py) fuer die Lehrwoche 3: oeffnet den gemeinsamen Wochentest, vorher 409 mit Grund
+        run_sql([("INSERT INTO study_packages(id, date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at) "
+                  "VALUES (900, '2026-10-29', ?, 'Programmieren 1', 'Woche 3', 3, 45, 'geplant', 0, 1, '2026-10-26T12:00:00')", [MOD]),
+                 ("INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) "
+                  "VALUES (900, 900, 'test', 'Gemeinsamer Wochentest Lehrwoche 3', 0, 45, 'geplant', '2026-10-26T12:00:00')", []),
+                 ("INSERT INTO study_packages(id, date, module_id, subject, title, week_no, planned_minutes, status, sort, generated, created_at) "
+                  "VALUES (901, '2026-10-29', ?, 'Programmieren 1', 'Woche 5', 5, 45, 'geplant', 0, 1, '2026-10-26T12:00:00')", [MOD]),
+                 ("INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) "
+                  "VALUES (901, 901, 'test', 'Gemeinsamer Wochentest Lehrwoche 5', 0, 45, 'geplant', '2026-10-26T12:00:00')", [])])
+        http("POST", "/api/tasks/900/start-test")
+        http("POST", "/api/tasks/901/start-test")
+        tick("2026-10-26T13:00:00")                              # Plan der Woche 3 angelegt, noch nicht faellig
+        http("POST", "/api/tasks/900/start-test")
         tick("2026-10-27T11:31:00")
+        http("POST", "/api/tasks/900/start-test")              # beim Veroeffentlichen verknuepft
+        # nach der Veroeffentlichung geplante Testaufgabe: der Versuch am gemeinsamen Test, Status in Bearbeitung
+        run_sql([("INSERT INTO study_tasks(id, package_id, type, title, sort, est_minutes, status, created_at) "
+                  "VALUES (902, 900, 'test', 'Gemeinsamer Wochentest Lehrwoche 3', 1, 45, 'geplant', '2026-10-27T11:31:00')", [])])
+        http("POST", "/api/tasks/902/start-test")
         add("gue2", "GÜ 2.pdf", "Gruppenübung", GUE, "2026-10-28T09:00:00")
         tick("2026-10-28T10:00:00")
+        http("POST", "/api/tasks/900/start-test")
+        http("POST", "/api/tasks/900/start-test")
         http("GET", f"/api/weekly/module/{MOD}")
         http("POST", "/api/weekly/defs/2/attempt")
         http("POST", "/api/weekly/defs/99/attempt")
@@ -247,6 +273,7 @@ def build() -> dict:
                          ("task_index", "SELECT * FROM task_index ORDER BY file_id, nr"),
                          ("wt_plans", "SELECT * FROM wt_plans ORDER BY id"),
                          ("wt_defs", "SELECT * FROM wt_defs ORDER BY id"),
+                         ("study_tasks", "SELECT id, test_id, status FROM study_tasks ORDER BY id"),
                          ("tests", "SELECT id, subject, title, duration_min, questions, created_at, started_at, submitted_at, answers, "
                                    "score, max_score, feedback, module_id, week_no, auto, def_id, user_id, duration_sec FROM tests ORDER BY id")):
                 rows = [dict(r) for r in c.execute(q).fetchall()]

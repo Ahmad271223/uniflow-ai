@@ -1642,3 +1642,40 @@ Vertrag entstehen konnte. **Bitte beim nächsten Arbeiten an `app/ai.py` beachte
     nächsten Szenarien hinein, und `library-files.json` bekam „no such table: wt_plans“.
 - **Offen:** ein Durchlauf mit echtem Skript und echter KI auf dem iPad. Dafür braucht es eine echte Stud.IP-PDF und
   das verbundene ChatGPT-Abo, beides nur mit dem Inhaber.
+
+## Mac-Sitzung: Lernplan nach der Regel des Inhabers, KI-Wochenplan entfernt (30.10.2026)
+
+Entscheidung des Inhabers zu Frage 5 oben:
+- Der KI-Wochenplan entfällt.
+- Wenn neue Unterlagen kommen, plant die App die Woche automatisch.
+- In KW N stehen nur die Sachen der Lehrwoche N im Plan. Der Rest eines Skripts kommt nur dazu, wenn in der Vorwoche ein Marker gesetzt wurde.
+
+**In `app/` geändert, bitte am PC ansehen** (Windows nutzt denselben Server):
+
+1. **`study.generate_packages`:** Ein Tag bekommt nur den Stoff seiner Lehrwoche (`_units(..., week, done_weeks)`).
+   Davor steht der Rest eines Skripts nach dem Marker der Vorwoche (`_marker_rest`), etwa „VL02.pdf · S. 21–50“ mit
+   anteiliger Dauer.
+   - Es zählen nur eigene Marker, keine gelöschten und keine zu prüfenden.
+   - Ohne Marker in der Vorwoche gibt es keinen Rest, sonst stünde derselbe Rest jede Woche wieder im Plan.
+   - Je Lehrwoche steht derselbe Rest höchstens einmal im Plan (`_planned_file_weeks`).
+   - Ältere offene Unterlagen plant das freie Fenster (`plan_window`, unverändert).
+   - Neue Meldung ohne Stoff: „Keine offenen Vorlesungen oder Übungen für diese Woche.“
+2. **`study.auto_plan_week(conn, new_files)`:** Nach jedem Abgleich (`_full_sync`, `sync.py`) plant es mit `auto_plan`
+   die Woche ab heute. Bedingung: neue Dateien oder noch kein automatisches Paket in dieser Woche (`replace=True`).
+   Vorher lief hier `planner.generate_plan`, dessen Ergebnis keine Ansicht zeigte.
+3. **Entfernt:**
+   - `POST /api/plan/generate`, `planner.generate_plan`, `_enforce_limits`, `_open_materials`, `_subjects`
+   - `ai.build_week_plan`, `ai.week_plan_prompt`
+   - die Wochenplan-Fälle im KI-Vertrag (`contract.json` neu erzeugt) und im Swift-Kern
+   - Die Tabelle `plan_items` und `GET /api/plan` bleiben für alte Daten.
+4. **`POST /api/tasks/{id}/start-test`:** In Fächern mit Markern öffnet es den gemeinsamen Wochentest der Lehrwoche
+   (`weekly.task_test`). Vorher kommt 409 mit Grund: „erscheint voraussichtlich am …“, „wird gerade geplant“ oder
+   „noch kein Vorlesungsstoff markiert“. Ohne Marker bleibt es beim klassischen Test.
+5. **Tests:**
+   - `tests/test_week_plan_rule.py` (neu)
+   - `tests/test_study_plan.py` an die Regel angepasst: Unterlagen in der Woche von „heute“, das freie Fenster mit älteren Wochen
+   - Fixtures `study-plan.json` (Szenario „lehrwoche“ mit `auto`-Schritten) und `weekly.json` (start-test)
+
+**iPad:**
+- dieselbe Logik im Kern (`StudyPlan.markerRest`, `plannedFileWeeks`, `autoPlanWeek`, `Weekly.taskTest`), gegen beide Fixtures geprüft
+- `StudyAutoPlan.afterSync` nach dem Stud.IP- und dem Learnweb-Abgleich

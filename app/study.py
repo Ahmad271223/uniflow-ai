@@ -396,8 +396,12 @@ def _est(f: dict) -> int:
     return int(f.get("est_minutes") or DEFAULT_EST.get(f.get("doc_type") or "", 45))
 
 
-def _units(conn, module_id: int, exclude_files: set[str]) -> list[dict]:
-    """Lerneinheiten eines Moduls: pro Semesterwoche Vorlesungen + Uebungen, die noch offen sind."""
+def _units(conn, module_id: int, exclude_files: set[str], week: int | None = None,
+           done_weeks: frozenset | set = frozenset()) -> list[dict]:
+    """Lerneinheiten eines Moduls: pro Semesterwoche Vorlesungen + Uebungen, die noch offen sind. Mit `week` nur die
+    Einheit dieser Lehrwoche (Lernplan, Regel des Inhabers vom 30.10.2026: in KW N nur der Stoff der Lehrwoche N,
+    keine Vorlesungen frueherer Wochen) und davor der Rest eines Skripts nach einem Marker der Vorwochen
+    (`_marker_rest`)."""
     start = semester_start(conn)
     files = _file_rows(conn, module_id)
     weeks: dict[int, dict] = defaultdict(lambda: {"vorlesungen": [], "uebungen": [], "files": []})
@@ -407,17 +411,58 @@ def _units(conn, module_id: int, exclude_files: set[str]) -> list[dict]:
         w = file_week(start, f)
         if w < 1:
             continue  # alte und vorsemesterliche Unterlagen und Klausuren nicht automatisch einplanen
+        if week is not None and w != week:
+            continue
         weeks[w]["files"].append(f)
         if f.get("doc_type") == "vorlesung":
             weeks[w]["vorlesungen"].append(f)
         elif f.get("doc_type") == "uebung":
             weeks[w]["uebungen"].append(f)
+    if week is not None:
+        rest = _marker_rest(conn, module_id, week, start, files, done_weeks)
+        if rest:
+            weeks[week]["vorlesungen"][:0] = rest           # der aeltere Stoff zuerst
+            weeks[week]["files"][:0] = rest
     out = []
     for w in sorted(weeks):
         u = weeks[w]
         if not u["vorlesungen"] and not u["uebungen"]:
             continue
         out.append({"week": w, "label": week_label(start, w), "topic": week_topic(u["files"]), "vorlesungen": u["vorlesungen"], "uebungen": u["uebungen"]})
+    return out
+
+
+def _marker_rest(conn, module_id: int, week: int, start: date, files: list[dict], done_weeks) -> list[dict]:
+    """Rest eines Vorlesungsskripts frueherer Lehrwochen fuer die Lehrwoche `week`: Gibt es in der Vorwoche einen Marker
+    ("Vorlesung bis hier", app/weekly.py) und endet der letzte Marker vor dieser Woche mitten im Skript, gehoeren die
+    Seiten danach in diese Woche, bis zum Marker dieser Woche oder bis zur letzten Seite. Ohne Marker in der Vorwoche
+    kein Rest (sonst stuende derselbe Rest jede Woche wieder im Plan). Nur eigene Marker, keine geloeschten und keine, die nach einer
+    Dokumentaenderung zu pruefen sind; kein Rest fuer erledigte Dateien und keiner, der schon als Aufgabe in einem
+    Paket dieser Lehrwoche steht (`done_weeks`). Die Dauer ist der Anteil der Seiten an der Dauer der Datei."""
+    marks = db.rows(conn, """SELECT file_id, page, page_count, week_no FROM lecture_markers
+                             WHERE module_id=? AND deleted_at IS NULL AND COALESCE(needs_review,0)=0 AND scope='personal'
+                             AND user_id='local' AND week_no IS NOT NULL ORDER BY id""", (module_id,))
+    per: dict[str, list[dict]] = defaultdict(list)
+    for m in marks:
+        per[m["file_id"]].append(m)
+    out = []
+    for f in files:
+        ms = per.get(f["id"])
+        if not ms or f["status"] == "erledigt" or f.get("doc_type") not in ("vorlesung", "skript") or (f["id"], week) in done_weeks:
+            continue
+        if not 1 <= file_week(start, f) < week:
+            continue
+        before = [m for m in ms if m["week_no"] < week]
+        if not any(m["week_no"] == week - 1 for m in before):
+            continue
+        last = max(before, key=lambda m: m["page"])
+        count = last["page_count"] or 0
+        if last["page"] >= count:
+            continue                                       # Skript bis zur letzten Seite behandelt
+        now = [m["page"] for m in ms if m["week_no"] == week and m["page"] > last["page"]]
+        to = min(max(now), count) if now else count
+        est = max(10, -(-_est(f) * (to - last["page"]) // count))
+        out.append({**f, "pages": [last["page"] + 1, to], "est_minutes": est})
     return out
 
 
@@ -461,11 +506,24 @@ def _planned_files(conn, exclude_packages: list[int] = ()) -> set[str]:
     return {r["file_id"] for r in db.rows(conn, sql, ex)}
 
 
-def _queues(conn, planned_files: set[str], s: dict) -> tuple[dict, list[int]]:
-    """Warteschlangen der aktiven Module mit offenen Lerneinheiten und ihre Reihenfolge (hoechste Bewertung zuerst)"""
+def _planned_file_weeks(conn, exclude_packages: list[int] = ()) -> set[tuple[str, int]]:
+    """(Datei, Lehrwoche) der Aufgaben in Paketen wie `_planned_files`: ein Skriptrest steht je Lehrwoche hoechstens
+    einmal im Plan"""
+    ex = list(exclude_packages)
+    sql = """SELECT t.file_id, p.week_no FROM study_tasks t JOIN study_packages p ON p.id=t.package_id
+             WHERE t.file_id IS NOT NULL AND p.week_no IS NOT NULL AND t.status IN ('geplant','in_bearbeitung','erledigt','nachholen')"""
+    if ex:
+        sql += f" AND t.package_id NOT IN ({','.join('?' * len(ex))})"
+    return {(r["file_id"], r["week_no"]) for r in db.rows(conn, sql, ex)}
+
+
+def _queues(conn, planned_files: set[str], s: dict, week: int | None = None,
+            done_weeks: frozenset | set = frozenset()) -> tuple[dict, list[int]]:
+    """Warteschlangen der aktiven Module mit offenen Lerneinheiten und ihre Reihenfolge (hoechste Bewertung zuerst);
+    mit `week` nur die Einheiten dieser Lehrwoche (`_units`)"""
     queues = {}
     for m in db.rows(conn, "SELECT * FROM modules WHERE COALESCE(active,1)=1 ORDER BY sort"):
-        units = _units(conn, m["id"], planned_files)
+        units = _units(conn, m["id"], planned_files, week, done_weeks)
         if units:
             queues[m["id"]] = {"module": m, "units": units, "pos": 0, "pending": []}  # pending: Aufgaben der angefangenen Einheit
     order = sorted(queues, key=lambda mid: -_module_score(queues[mid]["module"], len(queues[mid]["units"]), s))
@@ -476,7 +534,11 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     """Erstellt Lernpakete fuer `days` Tage ab `start` nach der Lernkombination in den Einstellungen. Tage vor heute
     werden nicht geplant: "Plan erstellen" in der Wochenansicht beginnt am Montag, und frueher waren die Pakete der
     vergangenen Tage sofort "nachholen" (Korrektur vom 26.10.2026). Mit `replace` werden nur Pakete aus
-    `_replaceable` ersetzt, und erst, wenn es etwas zu planen gibt."""
+    `_replaceable` ersetzt, und erst, wenn es etwas zu planen gibt.
+
+    Ein Tag bekommt nur Stoff seiner Lehrwoche (Regel des Inhabers vom 30.10.2026): die Vorlesungen und Uebungen dieser
+    Woche und den Rest eines Skripts nach dem Marker der Vorwoche. Aeltere offene Unterlagen plant das freie Fenster
+    (`plan_window`), frueher kamen sie hier zuerst dran."""
     ensure_modules(conn)
     refresh_statuses(conn)
     s = db.get_settings(conn)
@@ -484,22 +546,29 @@ def generate_packages(conn, start: date | None = None, days: int = 7, replace: b
     start = start or t0
     end = start + timedelta(days=days - 1)
     drop = _replaceable(conn, start, end) if replace else []
-    queues, order = _queues(conn, _planned_files(conn, drop), s)
-    if not queues:
-        return {"created": 0, "message": "Keine offenen Vorlesungen oder Übungen für die Planung."}
+    planned, done_weeks = _planned_files(conn, drop), _planned_file_weeks(conn, drop)
+    sem = semester_start(conn)
+    per_week: dict[int, tuple[dict, list[int]]] = {}         # Lehrwoche -> Warteschlangen und Reihenfolge
+    for i in range(days):
+        lw = day_week(sem, start + timedelta(days=i))
+        if lw >= 1 and lw not in per_week:
+            q, order = _queues(conn, planned, s, lw, done_weeks)
+            per_week[lw] = (q, list(order))
+    if not any(q for q, _ in per_week.values()):
+        return {"created": 0, "message": "Keine offenen Vorlesungen oder Übungen für diese Woche."}
     for pid in drop:
         conn.execute("DELETE FROM study_tasks WHERE package_id=?", (pid,))
         conn.execute("DELETE FROM study_packages WHERE id=?", (pid,))
 
     budget_day = s["minutes_per_day"]
     per_pkg = max(30, budget_day // max(1, s["subjects_per_day"]))
-    rr = list(order)
     created = 0
     existing_days = {r["date"]: r["n"] for r in db.rows(conn, "SELECT date, COUNT(*) n FROM study_packages WHERE date BETWEEN ? AND ? GROUP BY date", (start.isoformat(), end.isoformat()))}
     for i in range(days):
         d = start + timedelta(days=i)
         if d < t0 or d.weekday() not in s["learn_days"] or existing_days.get(d.isoformat()):
             continue
+        queues, rr = per_week.get(day_week(sem, d), ({}, []))
         picked: list[tuple[dict, int]] = []
         day_used = 0
         attempts = 0
@@ -706,6 +775,8 @@ def _next_tasks(q: dict, s: dict, budget: int) -> list[dict]:
         def add(kind, f):
             est = _est(f)
             title = f.get("ai_title") or f["name"]
+            if f.get("pages"):                                  # Rest nach dem Marker der Vorwoche
+                title += f" · S. {f['pages'][0]}–{f['pages'][1]}"
             if est > budget:  # lange Materialien in Teile splitten (max. 4)
                 n = min(4, -(-est // budget))
                 part = -(-est // n)
@@ -744,6 +815,21 @@ def _insert_package(conn, d: date, m: dict, tasks: list[dict], unit: dict | None
         conn.execute("INSERT INTO study_tasks(package_id, type, file_id, test_id, title, sort, est_minutes, status, created_at) VALUES (?,?,?,?,?,?,?, 'geplant', ?)",
                      (pid, t["type"], t["file_id"], None, t["title"], i, t["est"], db.now_iso()))
     return pid
+
+
+def auto_plan_week(conn, new_files: int, log=print) -> dict | None:
+    """Nach einem Abgleich (am PC `_full_sync`, auf dem iPad nach dem Stud.IP-Abgleich): mit `auto_plan` die laufende
+    Woche ab heute planen, wenn neue Dateien kamen oder in dieser Woche noch kein automatisches Paket liegt. Ersetzt
+    nur automatisch erstellte, nicht begonnene Pakete (`replace`). Frueher lief hier der KI-Wochenplan
+    (`planner.generate_plan`), dessen Ergebnis keine Ansicht zeigte."""
+    if not db.get_settings(conn)["auto_plan"]:
+        return None
+    t0 = today()
+    sunday = monday(t0) + timedelta(days=6)
+    planned = db.row(conn, "SELECT 1 FROM study_packages WHERE generated=1 AND date BETWEEN ? AND ?", (t0.isoformat(), sunday.isoformat()))
+    if not new_files and planned:
+        return None
+    return generate_packages(conn, t0, (sunday - t0).days + 1, replace=True, log=log)
 
 
 def feasibility(conn) -> dict:

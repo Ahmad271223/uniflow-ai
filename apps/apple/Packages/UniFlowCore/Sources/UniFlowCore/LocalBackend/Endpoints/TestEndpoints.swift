@@ -157,8 +157,29 @@ enum TestEndpoints: LocalEndpointModule {
         }
 
         router.post("/api/tasks/{task_id:int}/start-test") { req, ctx in
-            guard let ai = ctx.ai.provider else { throw LocalHTTPError.notFound(DroppedEndpoints.noTests) }
             let taskID = Int64(req.param("task_id")) ?? 0
+            // Fach mit Vorlesungs-Markern: der gemeinsame Wochentest (app/weekly.py), ohne KI; noch nicht veroeffentlicht -> 409
+            let nowISO = ctx.clock.nowISO, hasAI = ctx.ai.provider != nil
+            let marker: Int64? = try await ctx.database.transaction { c in
+                guard let t = try c.queryOne("""
+                    SELECT t.*, p.week_no, p.module_id FROM study_tasks t JOIN study_packages p ON p.id=t.package_id WHERE t.id=?
+                    """, [.integer(taskID)]), t["type"]?.string == "test" else {
+                    // ohne KI wie bisher: Wochentests gibt es dann nicht (die Aufgabe fehlt oder ist keine Testaufgabe)
+                    throw LocalHTTPError.notFound(hasAI ? "Testaufgabe nicht gefunden" : DroppedEndpoints.noTests)
+                }
+                if let tid = t["test_id"]?.int64, LocalModules.truthy(t["test_id"]) { return tid }
+                guard LocalModules.truthy(t["module_id"]), LocalModules.truthy(t["week_no"]) else { return nil }
+                let wid: Int?
+                do { wid = try Weekly.taskTest(c, moduleID: t["module_id"]!, weekNo: t["week_no"]!, nowISO: nowISO) } catch let e as Weekly.Failure {
+                    throw LocalHTTPError(status: 409, message: e.message)
+                }
+                guard let wid else { return nil }
+                _ = try c.execute("UPDATE study_tasks SET test_id=?, status=CASE WHEN status='geplant' THEN 'in_bearbeitung' ELSE status END WHERE id=?",
+                                  [.integer(Int64(wid)), .integer(taskID)])
+                return Int64(wid)
+            }
+            if let marker { return .json(["test_id": .number(Double(marker))]) }
+            guard let ai = ctx.ai.provider else { throw LocalHTTPError.notFound(DroppedEndpoints.noTests) }
             enum Found { case test(Int64), create(subject: String, minutes: Int, module: Int64?, week: Int?) }
             let found: Found = try await ctx.database.transaction { c in
                 guard let t = try c.queryOne("""

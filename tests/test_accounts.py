@@ -320,7 +320,7 @@ def test_hosted_register_login_me_logout(hosted):
 def test_hosted_local_only_paths_answer_501(hosted):
     _, token, _ = _register(hosted, "k@beispiel.de")
     for m, p in (("GET", "/api/network"),
-                 ("POST", "/api/files/abc/analyze"), ("POST", "/api/tests/generate-week"), ("POST", "/api/plan/generate")):
+                 ("POST", "/api/files/abc/analyze"), ("POST", "/api/tests/generate-week")):
         st, data, _ = _json(asgi_call(hosted, m, p, headers=_auth(token), body="{}"))
         assert st == 501 and data["code"] == "not_available_hosted", (m, p, st, data)
     # KI im Editor gibt es im Dienst ueber die Studora-KI (Pro AI); ohne Tarif 403 plan_required statt 501
