@@ -49,8 +49,9 @@ Umgesetzt in Python und auf dem iPad, gegen dieselben Prüfdaten:
 2. **Voller App-Lauf auf `wip/lernplan-woche`**, zweimal, am Netzteil:
    - Neu ist, dass nach einem Stud.IP- oder Learnweb-Abgleich automatisch geplant wird. App-Tests, die nach einem Abgleich Lernpakete zählen, könnten dadurch anders ausfallen. Erst prüfen, dann anpassen.
    - Bekannte lastabhängige Tests einzeln wiederholen, bevor man einen Fehler annimmt: `AuditRunde11AppTests.testDiagnosisWithManyFilesKeepsTheMainThreadFree` und `HardeningSolutionEditorTests.testManyForeignLayersStayFastAndAreReleased`.
-3. Wenn alles grün ist: `develop` vorspulen und pushen:
-   - `git checkout develop && git merge --ff-only wip/lernplan-woche && git push origin develop`
+3. Wenn alles grün ist, den Branch nach `develop` übernehmen und pushen:
+   - `git checkout develop && git pull && git merge wip/lernplan-woche && git push origin develop`
+   - Diese Übergabe liegt auf beiden Branches mit gleichem Inhalt, der Merge läuft ohne Konflikt.
 4. Danach offen, siehe 5.
 
 ## 4. Einrichten auf dem neuen Rechner
