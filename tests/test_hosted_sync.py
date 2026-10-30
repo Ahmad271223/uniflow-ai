@@ -166,7 +166,7 @@ def test_job_runs_in_account_context_and_records_result(hosted, monkeypatch):
     assert seen["user"] == u["id"] and seen["creds"] == ("ab12cd", "pw-pw-pw-1") and seen["dir"] == config.user_data_dir(u["id"], "luh")
     assert config.current_user_id() is None, "Kontext nach dem Job zurueckgesetzt"
     done = jobs.latest(u["id"])
-    assert (done["status"], done["message"], done["new_files"]) == ("done", "2 neue Dateien", 2)
+    assert (done["status"], done["message"], done["new_files"]) == ("done", "2 neue Dateien · Wochentests: 0 veröffentlicht, 0 wartend, 0 fehlgeschlagen, 0 Nachträge", 2), "nach dem Abgleich laeuft der Wochentest-Takt (30.10.2026)"
     t = config.set_user_context(u["id"], "luh")
     try:
         with db.cursor() as conn:
@@ -220,17 +220,18 @@ def test_schedule_due_once_per_slot(hosted, monkeypatch):
     from app import accounts, jobs, vault
     u = accounts.register("s@beispiel.de", "sehr-geheim-123", "hildesheim")
     vault.set_values(u["id"], {"HILDESHEIM_USER": "peev", "HILDESHEIM_PASSWORD": "pw-pw-pw"})
-    accounts.register("ohne@beispiel.de", "sehr-geheim-123", "luh")      # ohne Zugangsdaten: kein Job
+    o = accounts.register("ohne@beispiel.de", "sehr-geheim-123", "luh")  # ohne Zugangsdaten: statt Abgleich der Wochentest-Takt
     monkeypatch.setenv("LERNAPP_SYNC_TIMES", "08:00, 15:00, kaputt")
     assert jobs.sync_times() == ["08:00", "15:00"]
     assert jobs.due_slots(datetime(2026, 10, 26, 7, 59)) == []
     assert jobs.due_slots(datetime(2026, 10, 26, 15, 30)) == ["2026-10-26T08:00", "2026-10-26T15:00"]
-    assert jobs.schedule_due(datetime(2026, 10, 26, 9, 0)) == 1
+    assert jobs.schedule_due(datetime(2026, 10, 26, 9, 0)) == 2
+    assert jobs.latest(u["id"])["kind"] == "sync" and jobs.latest(o["id"])["kind"] == "weekly"
     assert jobs.schedule_due(datetime(2026, 10, 26, 9, 5)) == 0, "08:00 ist schon bearbeitet"
-    assert jobs.schedule_due(datetime(2026, 10, 26, 15, 1)) == 0, "Job von 08:00 wartet noch: kein zweiter"
-    j = jobs.latest(u["id"])
-    jobs._finish(j["id"], True, "ok")
-    assert jobs.schedule_due(datetime(2026, 10, 27, 8, 0)) == 1
+    assert jobs.schedule_due(datetime(2026, 10, 26, 15, 1)) == 0, "Jobs von 08:00 warten noch: kein zweiter"
+    for uid in (u["id"], o["id"]):
+        jobs._finish(jobs.latest(uid)["id"], True, "ok")
+    assert jobs.schedule_due(datetime(2026, 10, 27, 8, 0)) == 2
     assert jobs.latest(u["id"])["trigger"] == "scheduled" and jobs.latest("x" * 32) is None
 
 
@@ -242,12 +243,17 @@ def test_hosted_credentials_and_sync_endpoints(hosted, monkeypatch):
     st, _, b = asgi_call(hosted, "POST", "/api/sync", headers=h)
     assert st == 400 and json.loads(b)["code"] == "credentials_missing"
     st, _, b = asgi_call(hosted, "GET", "/api/credentials", headers=h)
-    assert st == 200 and json.loads(b) == {"user": "", "password_set": False}
+    assert st == 200 and json.loads(b) == {"user": "", "password_set": False, "consent_at": None}
+    # Dienst: ohne ausdrueckliche Zustimmung keine Zugangsdaten (Entscheidung 30.10.2026)
     st, _, b = asgi_call(hosted, "PUT", "/api/credentials", headers=h, body=json.dumps({"user": "ab12cd", "password": "Pa$$wort-1"}))
+    assert st == 400 and json.loads(b)["code"] == "consent_required"
+    assert json.loads(asgi_call(hosted, "GET", "/api/credentials", headers=h)[2])["password_set"] is False
+    st, _, b = asgi_call(hosted, "PUT", "/api/credentials", headers=h, body=json.dumps({"user": "ab12cd", "password": "Pa$$wort-1", "consent": True}))
     assert st == 200 and json.loads(b)["password_set"]
     assert not (config.ROOT / ".env").exists() or "ab12cd" not in (config.ROOT / ".env").read_text(encoding="utf-8")
     st, _, b = asgi_call(hosted, "GET", "/api/credentials", headers=h)
-    assert json.loads(b) == {"user": "ab12cd", "password_set": True}
+    d = json.loads(b)
+    assert d["user"] == "ab12cd" and d["password_set"] and d["consent_at"] and d["consent_at"].startswith("20")
     st, _, b = asgi_call(hosted, "GET", "/api/services", headers=h)
     d = json.loads(b)
     assert st == 200 and d["credentials"]["studip"]["user"] == "ab12cd" and d["university_next"] == "luh"
@@ -263,14 +269,16 @@ def test_hosted_credentials_and_sync_endpoints(hosted, monkeypatch):
     assert jobs.work_once()
     st, _, b = asgi_call(hosted, "GET", "/api/sync/status", headers=h)
     d = json.loads(b)
-    assert not d["bg"]["running"] and d["jobs"][0]["status"] == "done" and d["jobs"][0]["message"] == "0 neue Dateien"
+    assert not d["bg"]["running"] and d["jobs"][0]["status"] == "done" and d["jobs"][0]["message"].startswith("0 neue Dateien · Wochentests:")
     st, _, b = asgi_call(hosted, "POST", "/api/grades/sync", headers=h)
     assert st == 200 and json.loads(b)["started"] == "Notenspiegel"
     # Zugangsdaten anderer Konten bleiben getrennt
     _, h2 = _register(hosted, "f@beispiel.de", "luh")
     st, _, b = asgi_call(hosted, "GET", "/api/credentials", headers=h2)
-    assert json.loads(b) == {"user": "", "password_set": False}
+    assert json.loads(b) == {"user": "", "password_set": False, "consent_at": None}
     st, _, b = asgi_call(hosted, "PUT", "/api/credentials/hildesheim", headers=h2, body=json.dumps({"user": "peev", "password": "pw-pw-pw"}))
+    assert st == 400 and json.loads(b)["code"] == "consent_required"
+    st, _, b = asgi_call(hosted, "PUT", "/api/credentials/hildesheim", headers=h2, body=json.dumps({"user": "peev", "password": "pw-pw-pw", "consent": True}))
     assert st == 200
     st, _, b = asgi_call(hosted, "GET", "/api/services", headers=h2)
     assert json.loads(b)["credentials"]["hildesheim"]["configured"]
@@ -325,3 +333,134 @@ def test_api_requests_limited_per_account(hosted, monkeypatch):
     assert asgi_call(hosted, "GET", "/api/account/me", headers=h2)[0] == 200, "anderes Konto unberuehrt"
     assert server._api_rate("x", now=0.0) == 0 and server._api_rate("x", now=1.0) == 0
     server._API_HITS.clear()
+
+
+# ---------------------------------------------------------------- Zugangsdaten loeschen, Wochentests je Konto (30.10.2026)
+
+def test_clear_credentials_removes_vault_values_and_consent(hosted):
+    from app import vault
+    u, h = _register(hosted, "loesch@beispiel.de", "luh")
+    asgi_call(hosted, "PUT", "/api/credentials", headers=h, body=json.dumps({"user": "ab12cd", "password": "Pa$$wort-1", "consent": True}))
+    assert vault.has_university_credentials(u["id"], "luh") and vault.env_for(u["id"]).get("UNI_CONSENT_AT")
+    st, _, b = asgi_call(hosted, "POST", "/api/credentials/clear", headers=h, body="{}")
+    assert st == 200 and json.loads(b) == {"ok": True, "user": "", "password_set": False}
+    assert not vault.has_university_credentials(u["id"], "luh") and "UNI_CONSENT_AT" not in vault.env_for(u["id"])
+    assert json.loads(asgi_call(hosted, "GET", "/api/credentials", headers=h)[2]) == {"user": "", "password_set": False, "consent_at": None}
+
+
+def test_weekly_quota_follows_the_plan(hosted):
+    from app import accounts, billing, jobs
+    u = accounts.register("quota@beispiel.de", "sehr-geheim-123", "luh")
+    accounts.end_trial(u["id"])
+    q = jobs.HostedQuota(accounts.get_user(u["id"]))
+    assert "Plus" in q.check() and "Free" in q.check(), "Free: keine KI-Wochentests, mit Grund"
+    accounts.set_plan(u["id"], "plus")
+    q = jobs.HostedQuota(accounts.get_user(u["id"]))
+    assert q.check() is None
+    for i in range(3):
+        q.consume(f"weekly:{i}:1")
+    q.consume("weekly:0:1")                                             # dieselbe Anfrage zaehlt einmal
+    conn = billing.connect()
+    try:
+        assert billing.used(conn, u["id"], "ai_tests_new") == 3
+    finally:
+        conn.close()
+    assert "aufgebraucht" in q.check() and "3 von 3" in q.check()
+    accounts.set_plan(u["id"], "pro_ai")
+    assert jobs.HostedQuota(accounts.get_user(u["id"])).check() is None, "Pro AI: 40 im Monat"
+
+
+def test_weekly_job_runs_in_account_context_with_quota_and_after_sync(hosted, monkeypatch):
+    from app import accounts, config, db, jobs, studip_sync, vault, weekly
+    u = accounts.register("wt@beispiel.de", "sehr-geheim-123", "luh")
+    accounts.set_plan(u["id"], "plus")
+    seen = []
+
+    def fake_tick(now=None, user_id="local", log=print):
+        q = weekly._QUOTA.get()
+        seen.append((config.current_user_id(), type(q).__name__ if q else None, q.user["id"] if q else None))
+        return {"published": [{"plan_id": 1}], "waiting": [], "failed": [], "nachtraege": []}
+    monkeypatch.setattr(weekly, "tick", fake_tick)
+    # eigener Job "weekly" (Konto ohne Zugangsdaten)
+    j = jobs.enqueue(u["id"], "weekly", "scheduled")
+    assert j["status"] == "queued"
+    assert jobs.work_once()
+    done = jobs.latest(u["id"])
+    assert done["status"] == "done" and done["message"] == "Wochentests: 1 veröffentlicht, 0 wartend, 0 fehlgeschlagen, 0 Nachträge", done
+    assert seen == [(u["id"], "HostedQuota", u["id"])] and weekly._QUOTA.get() is None and config.current_user_id() is None
+    # nach einem Abgleich laeuft der Takt mit (wie _full_sync am PC)
+    vault.set_values(u["id"], {"STUDIP_USER": "ab12cd", "STUDIP_PASSWORD": "pw-pw-pw-1"})
+    monkeypatch.setattr(studip_sync, "run_sync", lambda show_browser=False: {"ok": True, "new_files": ["f1"], "message": "1 neue Datei"})
+    jobs.enqueue(u["id"], "sync", "manual")
+    assert jobs.work_once()
+    done = jobs.latest(u["id"])
+    assert done["status"] == "done" and done["message"] == "1 neue Datei · Wochentests: 1 veröffentlicht, 0 wartend, 0 fehlgeschlagen, 0 Nachträge" and done["new_files"] == 1
+    assert len(seen) == 2
+    # auto_tests aus: kein Takt
+    t = config.set_user_context(u["id"], "luh")
+    try:
+        db.init_db()
+        with db.cursor() as conn:
+            db.set_setting(conn, "auto_tests", "0")
+    finally:
+        config.reset_user_context(t)
+    jobs.enqueue(u["id"], "weekly", "manual")
+    assert jobs.work_once() and jobs.latest(u["id"])["message"] == "Wochentests: aus" and len(seen) == 2
+    # ein Fehler im Takt laesst den Abgleich erfolgreich
+    monkeypatch.setattr(weekly, "tick", lambda **k: (_ for _ in ()).throw(RuntimeError("KI weg")))
+    with db.cursor() as conn:
+        pass
+    t = config.set_user_context(u["id"], "luh")
+    try:
+        with db.cursor() as conn:
+            db.set_setting(conn, "auto_tests", "1")
+    finally:
+        config.reset_user_context(t)
+    jobs.enqueue(u["id"], "sync", "manual")
+    assert jobs.work_once()
+    done = jobs.latest(u["id"])
+    assert done["status"] == "done" and "Wochentests: FEHLER KI weg" in done["message"]
+
+
+def test_weekly_jobs_are_not_throttled_like_browser_jobs_and_get_scheduled(hosted, monkeypatch):
+    from app import accounts, jobs, vault, weekly
+    monkeypatch.setenv("LERNAPP_UNI_PARALLEL", "1")
+    monkeypatch.setenv("LERNAPP_UNI_GAP_S", "3600")
+    a = accounts.register("a@beispiel.de", "sehr-geheim-123", "luh")
+    b = accounts.register("b@beispiel.de", "sehr-geheim-123", "luh")
+    vault.set_values(a["id"], {"STUDIP_USER": "x", "STUDIP_PASSWORD": "y"})
+    # Zeitplan: Konto mit Zugangsdaten -> sync, ohne -> weekly
+    n = jobs.schedule_due(datetime(2026, 10, 30, 8, 5), ["08:00"])
+    assert n == 2
+    kinds = {j["user_id"]: j["kind"] for j in [jobs.latest(a["id"]), jobs.latest(b["id"])]}
+    assert kinds == {a["id"]: "sync", b["id"]: "weekly"}
+    # der Abgleich von a laeuft (belegt die Hochschule); der Wochentest-Job von b darf trotzdem starten
+    monkeypatch.setattr(weekly, "tick", lambda **k: {"published": [], "waiting": [], "failed": [], "nachtraege": []})
+    first = jobs.claim_next()
+    assert first["kind"] == "sync" and first["user_id"] == a["id"]
+    second = jobs.claim_next()
+    assert second is not None and second["kind"] == "weekly" and second["user_id"] == b["id"], "nicht von uni_limits gebremst"
+    jobs._finish(first["id"], True, "ok"); jobs._finish(second["id"], True, "ok")
+    # zweiter Abgleich derselben Hochschule innerhalb der Pause: gebremst
+    jobs.enqueue(a["id"], "sync", "manual")
+    assert jobs.claim_next() is None
+
+
+def test_weekly_ask_uses_the_studora_ai_in_the_service(hosted, monkeypatch):
+    from app import accounts, ai_backend, config, weekly
+    u = accounts.register("ki@beispiel.de", "sehr-geheim-123", "luh")
+    calls = []
+
+    class C:
+        text = "ANTWORT"
+    monkeypatch.setattr(ai_backend, "complete", lambda user_id, purpose, system, prompt, schema=None, cache=False, now=None: calls.append((user_id, purpose, system, prompt)) or C())
+    t = config.set_user_context(u["id"], "luh")
+    try:
+        assert weekly._ask("Frage", "SYS") == "ANTWORT"
+        assert calls == [(u["id"], "weekly_test", "SYS", "Frage")]
+        monkeypatch.setattr(ai_backend, "complete", lambda *a, **k: (_ for _ in ()).throw(ai_backend.AIUnavailable("ai_not_configured", "Studora-KI ist nicht eingerichtet.", 503)))
+        with pytest.raises(weekly.WeeklyError) as e:
+            weekly._ask("Frage", "SYS")
+        assert "nicht eingerichtet" in str(e.value)
+    finally:
+        config.reset_user_context(t)

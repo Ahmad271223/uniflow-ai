@@ -9,7 +9,7 @@ import uuid
 from datetime import date, timedelta
 from pathlib import Path
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
@@ -1333,6 +1333,11 @@ def api_weekly_tick():
     # "Erneut versuchen": fehlgeschlagene Plaene bekommen wieder drei Versuche (nie veroeffentlicht ohne Pruefung)
     with db.cursor() as conn:
         conn.execute("UPDATE wt_plans SET attempts=0 WHERE status='fehlgeschlagen'")
+    if config.is_hosted():
+        # Dienst: als Job je Konto (Kontingent des Tarifs, Studora-KI), nicht im Hintergrund des API-Prozesses
+        from . import jobs
+        j = jobs.enqueue(config.current_user_id(), "weekly", "manual")
+        return {"started": "Wochentests", "status": j["status"], "job_id": j["id"], "already": j["already"]}
     return _run_bg("Wochentests", lambda: weekly.tick())
 
 
@@ -1431,10 +1436,26 @@ def put_settings(body: dict = Body(...)):
         return _public_settings(db.get_settings(conn))
 
 
+def _uni_consent(body: dict) -> None:
+    """Dienst (Entscheidung 30.10.2026): Hochschul-Zugangsdaten nur mit ausdruecklicher Zustimmung je Konto. Der Dienst
+    meldet sich damit von seiner Adresse bei der Hochschule an und laedt die Unterlagen in das Konto."""
+    if not config.is_hosted():
+        return
+    if body.get("consent") is not True:
+        raise HTTPException(400, {"detail": "Bitte zuerst zustimmen, dass der Dienst sich mit deinen Zugangsdaten bei der Hochschule "
+                                            "anmeldet und deine Unterlagen in dein Konto lädt.", "code": "consent_required"})
+    from . import vault
+    vault.set_values(config.current_user_id(), {"UNI_CONSENT_AT": datetime.now(timezone.utc).replace(microsecond=0).isoformat()})
+
+
 @app.get("/api/credentials")
 def get_credentials():
     user, pw = config.credentials()
-    return {"user": user, "password_set": bool(pw)}
+    out = {"user": user, "password_set": bool(pw)}
+    if config.is_hosted():
+        from . import vault
+        out["consent_at"] = vault.env_for(config.current_user_id()).get("UNI_CONSENT_AT")
+    return out
 
 
 @app.post("/api/university/login")
@@ -1608,12 +1629,23 @@ def urlsplit_host(url: str) -> str:
     return urlsplit(url).hostname or ""
 
 
+@app.post("/api/credentials/clear")
+def clear_credentials():
+    """Hochschul-Zugangsdaten entfernen (Dienst: aus dem Tresor des Kontos, samt Zustimmung); Unterlagen bleiben."""
+    values = {"STUDIP_USER": None, "STUDIP_PASSWORD": None, "STUDIP_SAME_AS": None}
+    if config.is_hosted():
+        values["UNI_CONSENT_AT"] = None
+    config.set_env(values)
+    return {"ok": True, "user": "", "password_set": False}
+
+
 @app.put("/api/credentials")
 def put_credentials(body: dict = Body(...)):
     user = (body.get("user") or "").strip()
     pw = body.get("password") or ""
     if not user:
         raise HTTPException(400, "LUH-ID fehlt")
+    _uni_consent(body)
     if not pw:
         # Passwort leer gelassen: nur Benutzer aktualisieren, altes Passwort behalten
         _, pw = config.credentials()
@@ -2377,6 +2409,7 @@ def put_service_credentials(service: str, body: dict = Body(...)):
     user = (body.get("user") or "").strip(); pw = body.get("password") or ""
     if not user or not pw:
         raise HTTPException(400, "Benutzername und Passwort angeben")
+    _uni_consent(body)
     config.save_credentials(user, pw, prefix)
     return {"ok": True, "configured": True}
 
