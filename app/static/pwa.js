@@ -1,7 +1,9 @@
 // Studora als App im Browser (Web zuerst, docs/PLAN-WEB-ZUERST-2026-10-30.md Stufe B): Service Worker anmelden,
 // Online/Offline anzeigen, Hinweis "Zum Home-Bildschirm" (iPad) bzw. "Zum Dock hinzufuegen" (Mac) bzw. "Installieren"
-// (Edge, Chrome), Ablage beim Abmelden oder Kontowechsel leeren. Die Regeln des Workers stehen in sw-policy.js.
+// (Edge, Chrome), Ablage beim Abmelden oder Kontowechsel leeren, Notizen ohne Netz nachsenden (notes-queue.js). Die Regeln
+// des Workers stehen in sw-policy.js.
 import { $, icon, toast, state } from "./core.js?v=32";
+import { notesQueue } from "./notes-queue.js?v=1";
 
 const HINT_KEY = "pwa-hint-dismissed";
 let installPrompt = null;             // beforeinstallprompt (Edge, Chrome); Safari kennt das nicht
@@ -38,17 +40,32 @@ export async function registerWorker() {
   } catch (e) { console.warn("Service Worker nicht angemeldet:", e.message); return null; }
 }
 
-/// Ablage des Workers leeren (Abmelden, anderes Konto): Dateien und Listen des alten Kontos verschwinden
+/// Ablage des Workers leeren (Abmelden, anderes Konto): Dateien und Listen des alten Kontos verschwinden. Die
+/// Notiz-Warteschlange (IndexedDB) bleibt: ungesendete Notizen gehen sonst verloren.
 export function clearWorkerCache() {
   try { navigator.serviceWorker?.controller?.postMessage({ type: "clear" }); } catch {}
 }
 
-/// Gehoert die Ablage noch zum angemeldeten Konto? Sonst leeren und das Konto merken
+/// Notizen nachsenden, die ohne Netz liegen blieben (Start, online-Ereignis, Editor oeffnen); Erfolg und Fehler als Toast
+export function flushNotesQueue() {
+  return notesQueue.flush().catch(e => { console.warn("Notizen nachsenden:", e?.message || e); return null; });
+}
+
+/// Gehoert die Ablage noch zum angemeldeten Konto? Sonst leeren und das Konto merken. Ungesendete Notizen des alten
+/// Kontos werden nicht unter dem neuen gesendet (gleiche Datei-IDs bei Stud.IP-Dateien, die Sitzung des alten Kontos
+/// ist weg): sie bleiben mit Kontovermerk auf dem Geraet, gehen raus, sobald das Konto wieder angemeldet ist, und der
+/// Nutzer erfaehrt das, statt dass sie still verschwinden.
 export function keepCacheForAccount(accountId) {
   const key = "pwa-account"; let last = null;
   try { last = localStorage.getItem(key); } catch {}
   const id = accountId == null ? "" : String(accountId);
-  if (last !== null && last !== id) clearWorkerCache();
+  if (last !== null && last !== id) {
+    clearWorkerCache();
+    notesQueue.claimUntagged(last).then(() => notesQueue.count(last)).then(n => {
+      if (n) toast(`${n} ungesendete Notiz${n === 1 ? "" : "en"} des vorherigen Kontos bleib${n === 1 ? "t" : "en"} auf diesem Gerät und wird gesendet, wenn es sich wieder anmeldet`, 7000);
+    }).catch(() => {});
+  }
+  notesQueue.setAccount(id);
   try { localStorage.setItem(key, id); } catch {}
 }
 
@@ -86,5 +103,8 @@ export function installCard() {
 
 export function initPWA() {
   window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; });
-  registerWorker(); watchConnection();
+  notesQueue.hooks.sent = n => toast(n === 1 ? "Notizen nachgesendet" : `Notizen nachgesendet (${n} Dateien)`, 4000);
+  notesQueue.hooks.error = (fileId, msg) => toast(`Notizen einer Datei nicht gesendet: ${msg} – sie bleiben auf diesem Gerät`, 6000);
+  window.addEventListener("online", () => flushNotesQueue());        // Netz wieder da: liegen gebliebene Notizen senden
+  registerWorker(); watchConnection(); flushNotesQueue();
 }

@@ -1,6 +1,6 @@
 // Bibliothek: Modulordner (Vorlage), Schnellzugriff, Typ-Chips, Ordner, Vorschauen, Favoriten, Zuletzt, Papierkorb, Neu-Menü
 import { $, $$, api, esc, icon, toast, modal, fmtDate, debounce, initial, TYPE_TXT, TYPE_ICON, state } from "./core.js?v=32";
-import { renderThumbnail, TEMPLATES } from "./editor.js?v=44";
+import { renderThumbnail, TEMPLATES } from "./editor.js?v=45";
 import { FORMATS, WHITEBOARDS, formatSize } from "./formats.js?v=30";
 
 const TYPE_FOLDERS = [["vorlesung", "Vorlesungen"], ["uebung", "Übungen"], ["loesung", "Lösungen"], ["skript", "Skripte"], ["klausur", "Klausuren"], ["sonstiges", "Sonstiges"]];
