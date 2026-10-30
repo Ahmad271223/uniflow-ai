@@ -135,7 +135,7 @@ Nur mit Vorbehalt, weil die Prüfung mit echten Diensten fehlt:
 | Test mit echten Daten und Pencil am iPad | Inhaber + Mac-Sitzung | Stud.IP, QIS, CAS, Pencil-Abnahme (`EDITOR-ABNAHME.md`) |
 | Word-Import | später | Ansehen reicht laut Inhaber |
 | Android: Seite drehen mit Notizen | PC-Sitzung | `rotate/cases.json` |
-| Flaky unter Last | Cloud- oder PC-Sitzung | Ein pytest-Lauf von 7 fiel unter Last; Name nicht gesichert. Nächster Lauf unter Last mit `-rf`, dann gezielt. |
+| Flaky unter Last | Cloud- oder PC-Sitzung | Ein pytest-Lauf von 7 fiel unter Last; Name nicht gesichert. Nachtrag: drei weitere Läufe unter Last (parallel zu weiteren Testläufen) mit `-rf` je 577 grün, nicht wiederholbar. Bei erneutem Auftreten den Namen sichern. |
 | Alte Branches von Ahmad271223 | Inhaber | Durchsehen, dann schließen (erst nach Ja) |
 | Rechtstexte, Kosten, Verträge | Inhaber | Platzhalterseite in `PlanPickerView`, `[[Name]]` usw. in `docs/release/`, Server/Domain/Mail, Datenschutz, Impressum, Anfragen an LUH und Hildesheim |
 | Offene Entscheidungen | Inhaber | Geteilter Wochentest gegen das Kontingent? Plus-Kontingent 3 oder 6? (`GEMEINSAME-WOCHENTESTS.md`, `ABO-SYSTEM.md`) |

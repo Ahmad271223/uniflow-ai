@@ -36,8 +36,18 @@ prüfen, Rechtstexte in die Oberfläche einbauen (heute Platzhalter), Monitoring
 
 1. **Installieren wie eine App:** Hinweis-Seite „Zum Home-Bildschirm“ (iPad) und „Zum Dock hinzufügen“ (Mac ab
    macOS 14), Symbole und Startbild im Manifest. Hinweis auf dem Mac: Safari, nicht Chrome.
+   **Gebaut 30.10. (Cloud):** `app/static/pwa.js` zeigt den Hinweis einmal auf der Übersicht (iPad-Safari, Mac-Safari,
+   Edge/Chrome mit „Installieren“) und als Karte unter Einstellungen → Zugang & Darstellung; in der installierten App
+   nicht mehr.
 2. **Offline:** Service Worker für die Oberfläche und die zuletzt geöffneten PDFs, Notizen zwischenspeichern und beim
    nächsten Netz senden. Ein Journal wie `LocalJournal` auf dem iPad gibt es im Web nicht, das muss gebaut werden.
+   **Gebaut 30.10. (Cloud):** `app/static/sw.js` mit Regeln in `sw-policy.js` (ohne Browser geprüft,
+   `tests/js/sw.test.mjs`): Netz zuerst, Ablage als Rückfall für Oberfläche (400), zuletzt geöffnete Dateien (40) und
+   gelesene Listen (300); nie aus der Ablage: Konto, Aufträge, Abgleich, Suche, Bezahlung, Zugangsdaten. Änderungen
+   ohne Netz scheitern mit Code `offline` (503). Beim Abmelden oder Kontowechsel wird die Ablage geleert. Im Kopf
+   steht „Offline – zuletzt geladene Inhalte“. Echter Browserlauf in `tests/test_pwa.py` (Chromium: laden, Netz aus,
+   neu laden, Übersicht aus der Ablage, Änderung scheitert mit `offline`, Konto nie aus der Ablage).
+   **Offen:** Notizen ohne Netz zwischenspeichern und nachsenden (Journal im Web), Prüfung in Safari auf iPad und Mac.
 3. **Dateien hereinbekommen, Entscheidung 1 (siehe 4):** Upload von Hand gibt es (`server.py:2479`). Der Abgleich
    durch den Dienst mit Uni-Zugangsdaten gibt es auch, ist aber die heikle Variante.
 4. **Wochentests im Dienst:** Takt je Konto statt nur lokal, Ausführung über die Job-Warteschlange (`jobs.py`),

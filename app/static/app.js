@@ -4,8 +4,9 @@ import { viewDoc, toggleTimer, docTabs } from "./views-doc.js?v=41";
 import { viewFiles } from "./views-lib.js?v=40";
 import { viewPlan, openPackage, suggestFlow, generatePlan, bindCalendar, taskRow, bindTaskRows, dayTimeline, bindDayExtras, tasksListHtml } from "./views-plan.js?v=35";
 import { viewTimetable, openEvent } from "./views-tt.js?v=33";
-import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=47";
+import { viewModules, viewExams, viewCards, viewCommunity, viewSettings, viewServices } from "./views-misc.js?v=48";
 import { viewAbo } from "./views-abo.js?v=32";
+import { initPWA, installBanner, bindInstallBanner, keepCacheForAccount, clearWorkerCache } from "./pwa.js?v=1";
 
 // ---------------------------------------------------------------- Shell
 const NAV = [["dashboard", "Übersicht", "home"], ["plan", "Lernkalender", "calendar"], ["timetable", "Stundenplan", "clock"], ["modules", "Meine Module", "book"], ["files", "Dokumente & Notizen", "folder"], ["exams", "Tests & Wiederholung", "exam"], ["services", "Uni & Noten", "graduation"], ["community", "Community", "users"]];
@@ -75,7 +76,7 @@ function accountMenu() {
   devs.ontoggle = async () => { if (!devs.open) return; const { deviceList } = await import("./studora-link.js?v=3");
     try { const d = await api("/account/me"); deviceList($(".sl-devlist", devs), d.sessions || [], async (id, cur) => { await api(`/account/sessions/${id}`, { method: "DELETE" }); if (cur) location.replace("/login"); else devs.ontoggle(); }); }
     catch (e) { $(".sl-devlist", devs).textContent = e.message; } };
-  $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} location.replace("/login"); };
+  $("#accLogout", m).onclick = async () => { try { await api("/account/logout", { method: "POST" }); } catch {} clearWorkerCache(); location.replace("/login"); };
   $("#accVerify", m)?.addEventListener("click", async e => { e.target.disabled = true; try { const r = await api("/account/verify-email/resend", { method: "POST" }); toast(r.already ? "Schon bestätigt" : "Neuer Link verschickt", 4000); } catch (x) { toast(x.message, 5000); e.target.disabled = false; } });
   $("#accLogoutAll", m).onclick = async () => { try { const r = await api("/account/logout-all", { method: "POST" }); toast(r.revoked ? `${r.revoked} andere Sitzung(en) beendet` : "Keine anderen Geräte angemeldet"); } catch (e) { toast(e.message); } };
 }
@@ -92,6 +93,7 @@ async function route() {
   const view = $("#view"); view.className = ""; view.innerHTML = `<div class="content"><div class="skeleton" style="height:28px;width:40%;margin-bottom:1rem"></div><div class="grid cols-3"><div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:120px"></div></div></div>`;
   try { await (routes[name] || viewDashboard)(parts.slice(1), params, view); } catch (e) {
     console.error(e); const offline = /Failed to fetch|NetworkError|Load failed|fetch/i.test(e.message || "");
+    if (offline && !navigator.onLine) { view.innerHTML = `<div class="content"><div class="card" style="max-width:600px"><h2>${icon("alert", 18)} Offline</h2><p class="muted">Diese Seite wurde auf diesem Gerät noch nicht geladen. Zuletzt geöffnete Unterlagen und Listen sind ohne Netz da; alles andere, sobald wieder Netz ist.</p><div class="row"><a class="btn" href="#/dashboard">${icon("home", 15)} Zur Übersicht</a><button class="btn primary" onclick="location.reload()">${icon("refresh", 15)} Neu laden</button></div></div></div>`; return; }
     view.innerHTML = offline ? `<div class="content"><div class="card" style="max-width:600px"><h2>${icon("alert", 18)} Server nicht erreichbar</h2><p class="muted">Die App läuft auf deinem PC (serve.py). Der Server startet gerade neu oder wurde beendet. Es wird automatisch weiter versucht…</p><div class="row"><button class="btn primary" onclick="location.reload()">${icon("refresh", 15)} Jetzt neu laden</button><a class="btn" href="#/settings?tab=diag">Diagnose</a></div></div></div>`
       : `<div class="content"><div class="card"><h2>Fehler</h2><p class="muted">${esc(e.message)}</p></div></div>`;
     if (offline) setTimeout(() => api("/bg").then(() => route()).catch(() => {}), 3000);
@@ -109,7 +111,7 @@ async function viewDashboard(_, __, view) {
   const doneToday = pk.reduce((n, p) => n + p.tasks.filter(t => t.status === "erledigt").length, 0); const totalToday = pk.reduce((n, p) => n + p.tasks.length, 0);
   const newByMod = {}; d.new_files.forEach(f => (newByMod[f.subject || "Sonstiges"] ||= []).push(f));
   const nextOpen = pk.flatMap(p => p.tasks.filter(t => !["erledigt", "uebersprungen"].includes(t.status)).map(t => ({ ...t, p })))[0];
-  view.innerHTML = `<div class="content" style="max-width:1120px">
+  view.innerHTML = `<div class="content" style="max-width:1120px">${installBanner()}
     <div class="page-head greet"><div><h1>${greet}!</h1><div class="date">${new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })} · ${pk.length ? `heute ${pk.length} Lernpaket${pk.length > 1 ? "e" : ""}` : "heute ist nichts geplant"}${evs.length ? ` · ${evs.filter(e => e.status === "teilnahme").length} Uni-Termine` : ""}</div></div>
       <div class="actions"><a class="btn" href="#/plan?view=day&date=${today.date}">${icon("calendar", 16)} Tagesansicht</a>${nextOpen ? `<a class="btn primary" href="${nextOpen.file_id ? `#/doc/${nextOpen.file_id}?task=${nextOpen.id}` : `#/plan?view=day&date=${today.date}`}">${icon("play", 16)} Weiterlernen</a>` : ""}</div></div>
     <div class="grid cols-3" style="margin-bottom:1.2rem"><div class="card kpi"><b>${fmtMin(today.minutes || 0)}</b><span>heute geplant${today.free?.length ? ` · ${fmtMin(today.free.reduce((a, w) => a + w.minutes, 0))} frei` : ""}</span></div><div class="card kpi"><b>${doneToday} / ${totalToday}</b><span>Aufgaben erledigt</span><div class="progress ok" style="margin-top:.4rem"><i style="width:${totalToday ? Math.round(100 * doneToday / totalToday) : 0}%"></i></div></div><div class="card kpi" style="${d.backlog ? "border-color:var(--bad)" : ""}"><b style="${d.backlog ? "color:var(--bad)" : ""}">${d.backlog}</b><span>nachzuholen${d.backlog ? ` · <a href="#" id="rescueBtn">neu planen</a>` : ""}</span></div></div>
@@ -130,6 +132,7 @@ async function viewDashboard(_, __, view) {
         <div class="card"><div class="card-head"><h2>${icon("clock", 18)} Diese Woche</h2><span class="muted small">${d.week.done}/${d.week.total}</span></div><div class="progress ok" style="margin-bottom:.7rem"><i style="width:${d.week.total ? Math.round(100 * d.week.done / d.week.total) : 0}%"></i></div><div class="week-strip">${d.week.days.map(w => `<a class="d ${w.date === today.date ? "today" : ""}" href="#/plan?view=day&date=${w.date}"><b>${DAYS[(parseISO(w.date).getDay() + 6) % 7]}</b><span class="sd ${w.status}" style="margin:0 auto"></span><span class="m">${w.minutes ? fmtMin(w.minutes) : "–"}</span></a>`).join("")}</div></div>
         <div class="card"><div class="card-head"><h2>${icon("sparkles", 18)} Neu aus ${esc(d.settings?.files_source || "Stud.IP")}</h2><span class="muted small">${d.new_total}</span></div>${d.new_total ? Object.entries(newByMod).slice(0, 4).map(([s, fs]) => `<a class="item" href="#/files?section=new"><div class="main"><div class="title">${esc(shortName(s))}</div><div class="sub">${fs.length} neue ${fs.length === 1 ? "Datei" : "Dateien"} · ${esc(fs[0].ai_title || fs[0].name)}${fs.length > 1 ? " …" : ""}</div></div><span class="badge">${fs.length}</span></a>`).join("") + `<div class="row between" style="margin-top:.4rem"><a class="small" href="#/files?section=new">Alle anzeigen</a><button class="btn ghost sm" id="markSeenBtn">Gesehen</button></div>` : `<div class="empty small">Nichts Neues.</div>`}</div>
       </div></div></div>`;
+  bindInstallBanner(view);
   $$("[data-pkg]", view).forEach(el => el.onclick = () => openPackage(+el.dataset.pkg));
   $$("[data-ev]", view).forEach(el => el.onclick = () => openEvent(+el.dataset.ev, today.date));
   $("#rescueBtn")?.addEventListener("click", e => { e.preventDefault(); suggestFlow({ rescue: true }); });
@@ -147,7 +150,9 @@ async function start() {
     try { state.entitlements = await fetch("/api/entitlements").then(x => x.ok ? x.json() : null); } catch {}
     if (r.ok) { state.account = (await r.json()).user; const av = $("#avatar"); av.textContent = state.account.email.slice(0, 2).toUpperCase(); av.title = `${state.account.email} – Konto und Abmelden`; av.style.cursor = "pointer"; av.onclick = accountMenu; }
   }
+  keepCacheForAccount(state.hosted ? state.account?.id ?? state.account?.email : "local");
   buildShell(); setTheme((() => { try { return localStorage.getItem("theme") || "light"; } catch { return "light"; } })());
+  initPWA();
   window.__app = { route, api, state };
   api("/settings").then(s => { const n = (s.user_name || "").trim(); if (n) $("#avatar").textContent = n.split(/\s+/).map(x => x[0]).join("").slice(0, 2).toUpperCase(); }).catch(() => {});
   route(); pollBg(); updateSyncChip();
