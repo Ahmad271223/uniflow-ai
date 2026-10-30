@@ -58,7 +58,8 @@ enum TestEndpoints: LocalEndpointModule {
         router.get("/api/tests") { _, ctx in
             let rows = try await ctx.database.rows("""
                 SELECT id, subject, week_start, title, duration_min, created_at, started_at, submitted_at,
-                       score, max_score, module_id, week_no, auto, questions FROM tests ORDER BY created_at DESC LIMIT \(historyBasic)
+                       score, max_score, module_id, week_no, auto, def_id, questions FROM tests WHERE COALESCE(user_id,'local')='local'
+                ORDER BY created_at DESC LIMIT \(historyBasic)
                 """)
             return .json(.array(rows.map { r in
                 var o = r
@@ -81,9 +82,9 @@ enum TestEndpoints: LocalEndpointModule {
             }) else { throw LocalHTTPError.notFound() }
             var questions = (t["questions"]?.string).flatMap { try? JSONValue.parse(Data($0.utf8)) }?.array ?? []
             if !LocalModules.truthy(t["submitted_at"]) {
-                questions = questions.map { q in                       // Loesung erst nach Abgabe sichtbar
+                questions = questions.map { q in                       // Loesung, Loesungsweg und Quellen erst nach Abgabe sichtbar
                     guard var o = q.object else { return q }
-                    o["answer"] = nil
+                    for k in ["answer", "steps", "rubric", "refs", "from_exam", "exam_mode"] { o[k] = nil }
                     return .object(o)
                 }
             }
@@ -116,7 +117,8 @@ enum TestEndpoints: LocalEndpointModule {
             guard let ai = ctx.ai.provider else { throw LocalHTTPError.notFound(DroppedEndpoints.noTests) }
             return .json(try await ctx.jobs.start("Wochentests") {
                 let n = try await WeekTests.createWeekly(ctx: ctx, ai: ai).count
-                return n == 0 ? nil : String(n)
+                let published = try await Weekly.tick(ctx)["published"]?.array?.count ?? 0
+                return "\(n) klassisch, \(published) mit Seitenmarker"
             })
         }
 
@@ -136,8 +138,12 @@ enum TestEndpoints: LocalEndpointModule {
             let id = Int64(req.param("test_id")) ?? 0
             let now = ctx.clock.nowISO
             try await ctx.database.transaction { c in
-                guard let t = try c.queryOne("SELECT auto, module_id, week_no FROM tests WHERE id=?", [.integer(id)]) else {
+                guard let t = try c.queryOne("SELECT auto, module_id, week_no, def_id, submitted_at FROM tests WHERE id=?", [.integer(id)]) else {
                     throw LocalHTTPError.notFound("Test nicht gefunden")
+                }
+                // abgegebene gemeinsame Wochentests (app/weekly.py) bleiben fuer Rangliste und Lernverlauf
+                if LocalModules.truthy(t["def_id"]), LocalModules.truthy(t["submitted_at"]) {
+                    throw LocalHTTPError(status: 400, message: "Abgegebene gemeinsame Tests bleiben für Rangliste und Lernverlauf erhalten.")
                 }
                 // sonst legt "Wochentests erstellen" denselben Wochentest sofort wieder an
                 if LocalModules.truthy(t["auto"]), let m = t["module_id"], m != .null, let w = t["week_no"], w != .null {
@@ -359,6 +365,8 @@ enum WeekTests {
             var out: [(String, Int64, Int, Int)] = []
             for m in try c.rows("SELECT * FROM modules WHERE active=1 AND weekly_test=1") {
                 guard let mid = m["id"]?.int64 else { continue }
+                // Module mit Vorlesungs-Seitenmarkern laufen ueber Weekly (Stoff nur bis zum Marker)
+                if try c.queryOne("SELECT 1 FROM lecture_markers WHERE module_id=? AND deleted_at IS NULL", [.integer(mid)]) != nil { continue }
                 var weeks = Set<Int>()
                 for f in try LocalModules.fileRows(c, moduleID: .integer(mid)) where ["vorlesung", "uebung"].contains(f.docType ?? "") {
                     let w = try LocalModules.week(f, dates: dates)
@@ -390,9 +398,19 @@ enum WeekTests {
         }
         let questionsValue = (try? PyJSON.parse(t["questions"]?.string ?? "[]")) ?? .array([])
         guard case .array(let questions) = questionsValue else { throw LocalHTTPError(status: 500, message: "Test ohne Aufgaben") }
+        let shared = LocalModules.truthy(t["def_id"])
+        if shared, LocalModules.truthy(t["submitted_at"]) {
+            throw LocalHTTPError(status: 500, message: "Dieser gemeinsame Test wurde bereits abgegeben und wird nicht neu bewertet.")
+        }
         let answersValue = PyJSON.object(answers.map { .init(PyText.str(.string($0.key)), $0.value) })
-        let res = try AIAnswers.parseJSON(try await ai.answer(system: AIPromptTexts.system,
+        var res = try AIAnswers.parseJSON(try await ai.answer(system: AIPromptTexts.system,
                                                               prompt: AIPrompts.grade(subject: t["subject"]?.string ?? "", questions: questions, answers: answersValue)))
+        // gemeinsamer Wochentest: Multiple Choice ohne KI, Punkte begrenzt -> gleiche Kriterien fuer alle
+        if shared { res = Weekly.gradeConsistent(questions, answers, res) }
+        var duration: SQLiteValue = .null
+        if let started = t["started_at"]?.string, !started.isEmpty, let a = Weekly.seconds(started), let b = Weekly.seconds(ctx.clock.nowISO) {
+            duration = .integer(Int64(b - a))
+        }
         func number(_ v: PyJSON?) -> Double? {
             switch v { case .some(.int(let d)): return Double(d); case .some(.float(let f)): return f; default: return nil }
         }
@@ -401,9 +419,9 @@ enum WeekTests {
             : PyMath.sum(questions.map { number(AIPrompts.get($0, "points")) ?? 0 })
         let now = ctx.clock.nowISO
         try await ctx.database.transaction { c in
-            _ = try c.execute("UPDATE tests SET submitted_at=?, answers=?, score=?, max_score=?, feedback=? WHERE id=?",
+            _ = try c.execute("UPDATE tests SET submitted_at=?, answers=?, score=?, max_score=?, feedback=?, duration_sec=? WHERE id=?",
                               [.text(now), .text(answersValue.dumps(ensureASCII: false)), .real(total), .real(maxScore),
-                               .text(res.dumps(ensureASCII: false)), .integer(testID)])
+                               .text(res.dumps(ensureASCII: false)), duration, .integer(testID)])
             _ = try c.execute("UPDATE plan_items SET done=1 WHERE test_id=?", [.integer(testID)])
         }
         return res.json

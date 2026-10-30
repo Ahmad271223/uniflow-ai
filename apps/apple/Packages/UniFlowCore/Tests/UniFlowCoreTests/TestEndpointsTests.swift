@@ -131,7 +131,7 @@ final class TestEndpointsTests: XCTestCase {
         let v4 = await call(b, "POST", "/api/tests/generate-week").json
         XCTAssertEqual(v4, ["started": "Wochentests"])
         let message = try await waitForJob(b)
-        XCTAssertEqual(message, "Wochentests: fertig (1)")
+        XCTAssertEqual(message, "Wochentests: fertig (1 klassisch, 0 mit Seitenmarker)", "wie am PC seit den Seitenmarkern")
         XCTAssertEqual(ai.calls, 2)
         XCTAssertTrue(ai.prompts[0].contains("Genau EINE der 5 schweren Aufgaben ist im Stil dieser Klausur"))
         XCTAssertTrue(ai.prompts[0].contains("Bestimmen Sie den Grenzwert"))
@@ -146,7 +146,7 @@ final class TestEndpointsTests: XCTestCase {
         // noch einmal: gibt es schon, keine neue Anfrage
         _ = await call(b, "POST", "/api/tests/generate-week")
         let v6 = try await waitForJob(b)
-        XCTAssertEqual(v6, "Wochentests: fertig")
+        XCTAssertEqual(v6, "Wochentests: fertig (0 klassisch, 0 mit Seitenmarker)")
         XCTAssertEqual(ai.calls, 2)
         // geloescht: kommt nicht wieder
         let id = Int(t["id"]?.double ?? 0)
