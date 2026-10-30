@@ -57,7 +57,8 @@ services:
       - "443:443/udp"           # HTTP/3
     environment:
       UNIFLOW_DOMAIN: ${UNIFLOW_DOMAIN:?deploy/.env fehlt oder UNIFLOW_DOMAIN ist leer}
-      UNIFLOW_ACME_EMAIL: ${UNIFLOW_ACME_EMAIL:-}
+      # Pflicht: mit leerer Adresse scheitert Caddy beim Lesen des Caddyfile ("email" ohne Argument) und startet nicht
+      UNIFLOW_ACME_EMAIL: "${UNIFLOW_ACME_EMAIL:?deploy/.env fehlt oder UNIFLOW_ACME_EMAIL ist leer (Kontaktadresse fuer Let's Encrypt)}"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data        # Zertifikate (Let's Encrypt) – nie loeschen, sonst Rate-Limits beim Neuausstellen

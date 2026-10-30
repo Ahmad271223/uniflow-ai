@@ -30,6 +30,8 @@
 		-Server
 	}
 
+	# Alles geht unveraendert an die App, auch POST /api/billing/stripe/webhook: kein Cache, keine Drosselung,
+	# keine Umschreibung des Pfads (Stripe prueft die Signatur ueber den rohen Body).
 	reverse_proxy app:8765 {
 		# Client-IP und Schema fuer uvicorn (--proxy-headers); der Original-Host bleibt erhalten
 		header_up X-Forwarded-Proto {scheme}
