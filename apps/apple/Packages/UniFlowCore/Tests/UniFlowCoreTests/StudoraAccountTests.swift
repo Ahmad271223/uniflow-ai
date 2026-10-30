@@ -56,6 +56,20 @@ final class StudoraAccountTests: XCTestCase {
         await fake.on(f["method"]?.string ?? "", path, Int(f["status"]?.double ?? 0), f["response"], headers: headers)
     }
 
+    func testPlanStatusReadsTrialAndChoice() async throws {
+        let (acc, fake, _) = make("token")
+        await fake.on("GET", "/api/entitlements", 200, ["plan": "pro_ai", "trial": ["granted": true, "active": true, "days_left": 3, "expired": false, "plan": "pro_ai"], "needs_plan_choice": false])
+        let running = try await acc.planStatus()
+        XCTAssertEqual(running, .init(plan: "pro_ai", trialActive: true, trialDaysLeft: 3, trialPlan: "pro_ai"))
+        await fake.on("GET", "/api/entitlements", 200, ["plan": "free", "trial": ["granted": true, "active": false, "days_left": 0, "expired": true, "plan": "pro_ai"], "needs_plan_choice": true])
+        let over = try await acc.planStatus()
+        XCTAssertEqual(over, .init(plan: "free", needsPlanChoice: true), "abgelaufen: kein Plan der Probe mehr")
+        await fake.on("POST", "/api/billing/plan-choice", 200, ["plan": "free"])
+        try await acc.stayOnFree()
+        let sent = await fake.last("/api/billing/plan-choice")
+        XCTAssertEqual(try JSONValue.parse(XCTUnwrap(sent?.body))["plan"]?.string, "free")
+    }
+
     func testEmailLoginStoresOnlyTheTokenAndReadsTheUser() async throws {
         let (acc, fake, store) = make()
         let f = try flow("Anmelden auf zweitem Geraet")

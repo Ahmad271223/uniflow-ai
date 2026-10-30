@@ -52,6 +52,24 @@ public actor StudoraAccount {
         public var current: Bool
     }
 
+    /// Tarif beim Dienst mit Stand der 7-Tage-Probe (`GET /api/entitlements`, docs/ABO-SYSTEM.md Abschnitt 3a)
+    public struct PlanStatus: Equatable, Sendable {
+        public var plan: String
+        public var trialActive: Bool
+        public var trialDaysLeft: Int
+        /// Plan der Probe (`plans.TRIAL`), solange sie laeuft
+        public var trialPlan: String?
+        public var needsPlanChoice: Bool
+
+        public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, needsPlanChoice: Bool = false) {
+            self.plan = plan
+            self.trialActive = trialActive
+            self.trialDaysLeft = trialDaysLeft
+            self.trialPlan = trialPlan
+            self.needsPlanChoice = needsPlanChoice
+        }
+    }
+
     private let base: String
     private let http: ServiceHTTPTransport
     private let tokens: AccountTokenStore
@@ -151,6 +169,21 @@ public actor StudoraAccount {
                            lastSeen: s["last_seen_at"]?.string ?? s["last_seen"]?.string, current: s["current"]?.bool ?? false)
         }
         return (u, sessions)
+    }
+
+    /// Tarif und Probe des Kontos
+    public func planStatus() async throws -> PlanStatus {
+        let j = json(try await request("GET", "/api/entitlements"))
+        let t = j["trial"]
+        let active = t?["active"]?.bool ?? false
+        return PlanStatus(plan: j["plan"]?.string ?? "free", trialActive: active, trialDaysLeft: Int(t?["days_left"]?.double ?? 0),
+                          trialPlan: active ? t?["plan"]?.string : nil, needsPlanChoice: j["needs_plan_choice"]?.bool ?? false)
+    }
+
+    /// "Bei Free bleiben" nach der Probe. Bezahlte Tarife waehlt das iPad nur im App Store (Antwort des Dienstes dazu
+    /// ist eine Stripe-Adresse, die die App nie oeffnen darf).
+    public func stayOnFree() async throws {
+        _ = try await request("POST", "/api/billing/plan-choice", body: ["plan": .string("free")])
     }
 
     /// Ein anderes Geraet abmelden; die eigene Sitzung beendet diese Anmeldung

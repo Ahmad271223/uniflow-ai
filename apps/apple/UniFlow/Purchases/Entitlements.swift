@@ -305,6 +305,8 @@ final class Entitlements: ObservableObject {
     static let shared = Entitlements()
 
     @Published private(set) var plan: UFPlan = .free
+    private var storePlan: UFPlan = .free
+    private var serviceTrial: UFPlan?
     /// gueltiger Tarif laeuft in der Gratiswoche
     @Published private(set) var inIntroOffer = false
     /// Ablauf bzw. naechste Verlaengerung des gueltigen Abos
@@ -347,6 +349,13 @@ final class Entitlements: ObservableObject {
 
     /// Tarif neu aus Transaction.currentEntitlements bestimmen (nur verifizierte Transaktionen, hoechster gueltiger
     /// Tarif der Abo-Gruppe), dazu Verlaengerung und vorgemerkter Wechsel aus der RenewalInfo
+    /// Laufende Probe des Studora-Kontos (docs/ABO-SYSTEM.md 3a): gilt zusaetzlich zum App-Store-Kauf, solange der
+    /// Dienst sie meldet; nur im Speicher, ohne Antwort des Dienstes bleibt der Kauf allein massgeblich
+    func useServiceTrial(_ trial: UFPlan?) {
+        serviceTrial = trial
+        plan = max(storePlan, trial ?? .free)
+    }
+
     func refresh() async {
         var entries: [UFEntitlementEntry] = []
         var active: [String: StoreKit.Transaction] = [:]
@@ -365,7 +374,8 @@ final class Entitlements: ObservableObject {
         // StoreKit-Testkonfiguration
         if let forced = DebugLaunch.forcedPlan() { p = forced; renewal = nil }
         #endif
-        plan = p
+        storePlan = p
+        plan = max(p, serviceTrial ?? .free)
         inIntroOffer = UFEntitlementResolver.inIntroOffer(entries, plan: p, now: now)
         expiresAt = p.productID.flatMap { active[$0]?.expirationDate }
         willRenew = renewal?.willAutoRenew

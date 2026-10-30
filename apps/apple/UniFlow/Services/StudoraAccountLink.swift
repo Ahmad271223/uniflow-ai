@@ -56,6 +56,10 @@ final class StudoraAccountLink: ObservableObject {
 
     @Published private(set) var user: StudoraAccount.User?
     @Published private(set) var sessions: [StudoraAccount.Session] = []
+    /// Tarif und Probe beim Dienst (nil: nicht angemeldet oder noch nicht geladen)
+    @Published private(set) var planStatus: StudoraAccount.PlanStatus? {
+        didSet { Entitlements.shared.useServiceTrial(planStatus?.trialPlan.flatMap(UFPlan.init(rawValue:))) }
+    }
     @Published private(set) var busy = false
     @Published var message: String?
 
@@ -67,6 +71,7 @@ final class StudoraAccountLink: ObservableObject {
         scope = userScope
         user = nil
         sessions = []
+        planStatus = nil
         account = nil
         guard let userScope, let base = Self.serviceURL else { return }
         account = StudoraAccount(base: base, http: URLSessionServiceTransport(), tokens: StudoraAccountKeychain(userScope: userScope),
@@ -81,19 +86,26 @@ final class StudoraAccountLink: ObservableObject {
         defer { busy = false }
         do { try await op(account) } catch let e as AccountError {
             message = e.retryAfter.map { "\(e.message) (in \(max(1, $0 / 60)) min erneut versuchen)" } ?? e.message
-            if e.code == "unauthenticated" { user = nil; sessions = [] }
+            if e.code == "unauthenticated" { user = nil; sessions = []; planStatus = nil }
         } catch {
             message = error.localizedDescription
         }
     }
 
     func refresh() async {
-        guard let account, await account.isSignedIn else { user = nil; sessions = []; return }
+        guard let account, await account.isSignedIn else { user = nil; sessions = []; planStatus = nil; return }
         await run { a in
             let me = try await a.me()
             self.user = me.user
             self.sessions = me.sessions
+            self.planStatus = try await a.planStatus()
         }
+    }
+
+    /// "Bei Free bleiben" nach der Probe
+    func stayOnFree() async {
+        await run { a in try await a.stayOnFree() }
+        await refresh()
     }
 
     func login(email: String, password: String) async {
@@ -115,6 +127,7 @@ final class StudoraAccountLink: ObservableObject {
         if let account { await account.logout() }
         user = nil
         sessions = []
+        planStatus = nil
     }
 
     /// ZIP in eine temporaere Datei (zum Teilen); nil bei Fehler
@@ -132,7 +145,7 @@ final class StudoraAccountLink: ObservableObject {
     func delete(password: String?) async -> Bool {
         var ok = false
         await run { a in _ = try await a.delete(password: password); ok = true }
-        if ok { user = nil; sessions = [] }
+        if ok { user = nil; sessions = []; planStatus = nil }
         return ok
     }
 }

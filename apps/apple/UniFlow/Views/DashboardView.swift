@@ -5,6 +5,7 @@ import UniFlowCore
 /// Aufgaben erledigt, nachzuholen), "Heute für dich geplant" mit Lernpaketen, "Heute an der Uni", "Nächste Termine",
 /// "Diese Woche" mit Wochenstreifen, "Neu aus Stud.IP". Daten: GET /api/dashboard.
 struct DashboardView: View {
+    @Environment(\.ufStudoraAccount) private var studoraAccount
     @StateObject private var data: RemoteData
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var shell: ShellState
@@ -94,6 +95,7 @@ struct DashboardView: View {
                 // der Abgleichstand (die neuen Dateien stehen unten unter "Neu aus Stud.IP"). Mit Demo-Inhalten statt
                 // dessen der Hinweis "Demo-Inhalte aktiv" mit "Entfernen"
                 if mode.isDemo { DemoActiveBar().padding(.bottom, 19.2) }
+                if let studoraAccount { TrialBanner(link: studoraAccount).padding(.bottom, 19.2) }
                 if mode.showsConnectCard { ConnectStudIPCard(mode: mode).padding(.bottom, 19.2) }
                 if statusBar(mode) { UFStudIPStatusBar(kind: .dashboard, mode: mode).padding(.bottom, 19.2) }
 
