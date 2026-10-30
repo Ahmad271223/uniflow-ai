@@ -72,6 +72,29 @@ def test_push_creates_with_mapping_and_pull_with_cursor(conn):
     assert list(again["changes"]) == ["modules"] and again["changes"]["modules"][0]["sync_version"] == 2
 
 
+def test_pull_cursor_never_in_current_millisecond(conn):
+    """Befund 30.10.2026: eine Aenderung in derselben Millisekunde wie der Cursor bekam denselben Zeitstempel und fiel
+    beim naechsten Abruf (`sync_updated_at > cursor`) durch. Der Abruf wartet, bis die Uhr ueber den Cursor hinaus ist.
+    Hier liegt die Push-Zeit absichtlich 20 ms in der Zukunft, damit das Fenster sicher getroffen wird."""
+    from datetime import datetime, timedelta, timezone
+    from app import sync
+    t = datetime.now(timezone.utc) + timedelta(milliseconds=20)
+    ahead = t.strftime("%Y-%m-%dT%H:%M:%S.") + f"{t.microsecond // 1000:03d}Z"
+    sync.push(conn, "ipad-1", [{"entity": "modules", "local_id": -1, "data": {"name": "Mathe"}}], now=ahead)
+    first = sync.changes(conn, None)
+    assert first["cursor"] == ahead and sync.now_utc() > first["cursor"], "nach dem Abruf ist die Uhr ueber dem Cursor"
+    conn.execute("UPDATE modules SET name='Mathe I'")                                   # Trigger: strftime('now')
+    sync.push(conn, "mac-1", [{"entity": "flashcards", "local_id": -2, "data": {"question": "Q", "answer": "A"}}])  # now_utc()
+    again = sync.changes(conn, first["cursor"])
+    assert sorted(again["changes"]) == ["flashcards", "modules"] and again["changes"]["modules"][0]["sync_version"] == 2
+    assert again["cursor"] > first["cursor"]
+    far = "2099-01-01T00:00:00.000Z"                                                   # weit voraus: kein Warten
+    conn.execute("UPDATE modules SET name='Mathe II', sync_version=9, sync_updated_at=?", (far,))
+    import time
+    t0 = time.monotonic()
+    assert sync.changes(conn, None)["cursor"] == far and time.monotonic() - t0 < 1.0
+
+
 def test_update_rules_applied_conflict_and_last_writer_per_field(conn):
     from app import db, sync
     sync.push(conn, "ipad-1", [{"entity": "modules", "local_id": -1, "data": {"name": "Physik", "color": "#111111", "priority": 2}}])

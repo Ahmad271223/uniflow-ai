@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from datetime import datetime, timezone
 
 from . import db
@@ -48,6 +49,23 @@ NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 def now_utc() -> str:
     t = datetime.now(timezone.utc)
     return t.strftime("%Y-%m-%dT%H:%M:%S.") + f"{t.microsecond // 1000:03d}Z"
+
+
+CURSOR_WAIT_MAX = 0.1    # Sekunden; ein Cursor weiter in der Zukunft (von Hand gesetzter Zeitstempel) wird nicht abgewartet
+
+
+def _clock_past(cursor: str) -> None:
+    """Wartet, bis die Uhr des Servers ueber die Millisekunde des Cursors hinaus ist (in der Regel unter 1 ms).
+
+    Der Cursor ist der Zeitstempel der neuesten gelieferten Zeile, der Abruf filtert mit `sync_updated_at > cursor`.
+    Eine Aenderung direkt nach dem Abruf, noch in derselben Millisekunde (Trigger mit strftime('now') oder Push mit
+    now_utc(), beide dieselbe Systemuhr in Millisekunden), bekaeme sonst denselben Zeitstempel wie der Cursor und
+    fiele beim naechsten Abruf durch (Befund 30.10.2026: tests/test_sync.py, Aenderung des Moduls nach dem Abruf in
+    rund jedem fuenften engen Durchlauf verloren). Nach dem Warten ist jeder spaeter vergebene Zeitstempel echt
+    groesser als der Cursor; der Cursor und das Format bleiben unveraendert."""
+    deadline = time.monotonic() + CURSOR_WAIT_MAX
+    while now_utc() <= cursor and time.monotonic() < deadline:
+        time.sleep(0.0002)
 
 
 # ---------------------------------------------------------------- Schema: Spalten, Trigger, Tombstones
@@ -158,7 +176,10 @@ def changes(conn, since: str | None, limit: int = MAX_PULL) -> dict:
         tomb = [t for t in tomb if t["deleted_at"] <= cut]
     if tomb:
         newest = max(newest, tomb[-1]["deleted_at"])
-    return {"cursor": (cut or newest or since) or None, "changes": out, "tombstones": tomb, "has_more": cut is not None}
+    cursor = (cut or newest or since) or None
+    if cursor:
+        _clock_past(cursor)
+    return {"cursor": cursor, "changes": out, "tombstones": tomb, "has_more": cut is not None}
 
 
 # ---------------------------------------------------------------- Senden
