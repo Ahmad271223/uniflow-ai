@@ -1,5 +1,5 @@
-"""Erzeugt apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Store/SchemaSQL.swift aus app.db.SCHEMA und der
-Tabelle page_texts aus app/scriptsearch.py (ensure_table).
+"""Erzeugt apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Store/SchemaSQL.swift aus app.db.SCHEMA, der
+Tabelle page_texts aus app/scriptsearch.py (ensure_table) und app.weekly.SCHEMA (Seitenmarker, gemeinsame Wochentests).
 
 Das Schema steht woertlich als String-Konstante im Swift-Kern (keine Ressource: Bundle.module verhaelt sich unter
 Linux anders). Nach jeder Aenderung an SCHEMA erneut ausfuehren, danach tools/gen-schema-fixture.py.
@@ -26,9 +26,9 @@ def swift_raw(text: str) -> str:
     return '#"""\n' + text + '\n"""#'
 
 
-def render(schema: str, page_texts: str) -> str:
+def render(schema: str, page_texts: str, weekly: str) -> str:
     return f"""// erzeugt von tools/gen-swift-schema.py, nicht von Hand aendern
-// Quelle: app/db.py (SCHEMA) und app/scriptsearch.py (ensure_table, Tabelle page_texts)
+// Quelle: app/db.py (SCHEMA), app/scriptsearch.py (ensure_table, Tabelle page_texts), app/weekly.py (SCHEMA)
 
 /// Schema der Python-Referenz, woertlich. `Migrations` fuehrt es aus und bringt bestehende Datenbanken danach wie
 /// `init_db()` auf den aktuellen Stand.
@@ -38,6 +38,8 @@ enum SchemaSQL {{
 
     /// `app.scriptsearch.ensure_table` (in Python erst bei der ersten Skriptsuche angelegt)
     static let pageTexts = {swift_raw(page_texts)}
+    /// `app.weekly.SCHEMA` (Vorlesungs-Seitenmarker, Aufgabenindex, gemeinsame Wochentests; `weekly.ensure_schema`)
+    static let weekly = {swift_raw(weekly)}
 }}
 """
 
@@ -46,7 +48,8 @@ def main() -> int:
     check = "--check" in sys.argv[1:]
     src = SchemaSource()
     try:
-        content = render(src.db.SCHEMA, src.page_texts_sql())
+        from app import weekly
+        content = render(src.db.SCHEMA, src.page_texts_sql(), weekly.SCHEMA.strip("\n"))
     finally:
         src.cleanup()
     ok = write_or_check(OUT, content, check)

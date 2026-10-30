@@ -5,8 +5,8 @@ import Foundation
 /// IF NOT EXISTS / OR IGNORE), also bei jedem Start gefahrlos.
 ///
 /// Reihenfolge wie in Python: Schema, Hochschule der Datenbank, Standardeinstellungen, die add_col-Folge mit der Korrektur der Dateiart
-/// mittendrin, Index, Pseudokurs `__user__`, Standardsemester (`ensure_term`), einmalige Semesterregel (`semesters.migrate`). Dazu `page_texts`, die Python erst bei
-/// der ersten Skriptsuche anlegt. Aenderungen immer zuerst in app/db.py, dann hier und in den Fixtures
+/// mittendrin, Index, Pseudokurs `__user__`, Standardsemester (`ensure_term`), einmalige Semesterregel (`semesters.migrate`),
+/// `page_texts` (`scriptsearch.ensure_table`) und das Schema der gemeinsamen Wochentests (`weekly.ensure_schema`). Aenderungen immer zuerst in app/db.py, dann hier und in den Fixtures
 /// (tools/gen-swift-schema.py, tools/gen-schema-fixture.py).
 ///
 /// Bekannte Abweichung: `sync.ensure_schema` (Vertrag G2, Geraete-Synchronisierung ueber UniFlow-Konten: Spalten
@@ -40,6 +40,21 @@ public enum Migrations {
         ("blocked_times", "[]"),         // [{"weekday":0,"start":"12:00","end":"13:00","title":"Mittag"}]
         ("pen_input", "all"),            // all | pen_only
         ("hand", "right"),               // Schreibhand: right | left (geteilte Ansicht: Skript auf der freien Seite)
+    ]
+
+    /// `weekly.DEFAULTS` (app/weekly.py), in derselben Reihenfolge
+    static let weeklyDefaults: [(String, String)] = [
+        ("weekly_publish_hours", "24"), ("weekly_max_delay_hours", "48"), ("weekly_ai_daily_limit", "8"),
+        ("weekly_questions", "15"), ("weekly_mode", "marker"),
+    ]
+
+    /// `add_col` in `weekly.ensure_schema`
+    static let weeklyColumns: [(String, String, String)] = [
+        ("tests", "def_id", "INTEGER"),
+        ("tests", "user_id", "TEXT DEFAULT 'local'"),
+        ("tests", "duration_sec", "INTEGER"),
+        ("modules", "expected_materials", "TEXT"),            // JSON, z. B. ["hoersaaluebung", "gruppenuebung"]
+        ("modules", "exam_reuse", "TEXT DEFAULT 'paraphrase'"),   // original | paraphrase
     ]
 
     enum Step {
@@ -193,6 +208,15 @@ public enum Migrations {
             if !(try conn.columnNames("page_texts")).contains("search") {
                 try conn.execute("ALTER TABLE page_texts ADD COLUMN search TEXT")
             }
+            // Vorlesungs-Seitenmarker, Aufgabenindex, gemeinsame Wochentests (app/weekly.py: ensure_schema)
+            try conn.executeScript(SchemaSQL.weekly)
+            for (key, value) in weeklyDefaults {
+                try conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", [.text(key), .text(value)])
+            }
+            for (table, column, decl) in weeklyColumns where !(try conn.columnNames(table)).contains(column) {
+                try conn.execute("ALTER TABLE \(table) ADD COLUMN \(column) \(decl)")
+            }
+            try conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_tests_def_user ON tests(def_id, user_id) WHERE def_id IS NOT NULL")
 
             var version = try conn.scalar("PRAGMA user_version")?.int64 ?? 0
             for step in deviceSteps.sorted(by: { $0.version < $1.version }) where Int64(step.version) > version {

@@ -1,5 +1,5 @@
 // erzeugt von tools/gen-swift-schema.py, nicht von Hand aendern
-// Quelle: app/db.py (SCHEMA) und app/scriptsearch.py (ensure_table, Tabelle page_texts)
+// Quelle: app/db.py (SCHEMA), app/scriptsearch.py (ensure_table, Tabelle page_texts), app/weekly.py (SCHEMA)
 
 /// Schema der Python-Referenz, woertlich. `Migrations` fuehrt es aus und bringt bestehende Datenbanken danach wie
 /// `init_db()` auf den aktuellen Stand.
@@ -373,5 +373,126 @@ CREATE TABLE IF NOT EXISTS sync_log (
 CREATE TABLE IF NOT EXISTS page_texts (
         file_id TEXT NOT NULL, page INTEGER NOT NULL, text TEXT, chdate INTEGER, search TEXT,
         PRIMARY KEY (file_id, page))
+"""#
+    /// `app.weekly.SCHEMA` (Vorlesungs-Seitenmarker, Aufgabenindex, gemeinsame Wochentests; `weekly.ensure_schema`)
+    static let weekly = #"""
+CREATE TABLE IF NOT EXISTS lecture_markers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL DEFAULT 'local',
+    module_id INTEGER NOT NULL,
+    file_id TEXT NOT NULL,
+    doc_version TEXT NOT NULL,          -- Fingerabdruck der Datei (Aenderungsdatum, Seitenzahl, Text-Hash)
+    page INTEGER NOT NULL,              -- letzte behandelte PDF-Seite (1-basiert, Originalseite)
+    page_key TEXT,                      -- Seitenschluessel im Editor
+    page_fingerprint TEXT,              -- Hash des Seitentexts zum Wiederfinden nach Dokumentaenderung
+    page_count INTEGER,
+    lecture_date TEXT NOT NULL,         -- YYYY-MM-DD
+    lecture_end TEXT,                   -- ISO-Zeitpunkt Vorlesungsende
+    lecture_source TEXT,                -- stundenplan | manuell
+    iso_week TEXT,                      -- z. B. 2026-W44
+    week_no INTEGER,                    -- Lehrwoche
+    topic TEXT,
+    scope TEXT NOT NULL DEFAULT 'personal',   -- personal | course (nur nach ausdruecklicher Freigabe)
+    released_at TEXT,
+    released_by TEXT,
+    needs_review INTEGER DEFAULT 0,
+    review_note TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT,
+    deleted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_markers_mod ON lecture_markers(module_id, file_id);
+
+CREATE TABLE IF NOT EXISTS doc_index (
+    file_id TEXT PRIMARY KEY,
+    version TEXT NOT NULL,              -- Dateiversion + Vorlesungsstand des Moduls
+    module_id INTEGER,
+    role TEXT,
+    tasks INTEGER,
+    indexed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS task_index (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id TEXT NOT NULL,
+    version TEXT NOT NULL,
+    module_id INTEGER,
+    source TEXT NOT NULL,               -- hoersaaluebung | gruppenuebung | uebungsblatt | zusatz | tutorium | altklausur | loesung
+    nr TEXT NOT NULL,
+    label TEXT,
+    page_from INTEGER,
+    page_to INTEGER,
+    text TEXT,
+    solution_file_id TEXT,
+    solution_text TEXT,
+    points REAL,
+    difficulty INTEGER,
+    exam_term TEXT,
+    lecture_refs TEXT,                  -- JSON [{file_id, page, score}]
+    content_hash TEXT,
+    indexed_at TEXT,
+    UNIQUE(file_id, nr)
+);
+CREATE INDEX IF NOT EXISTS ix_task_mod ON task_index(module_id, source);
+
+CREATE TABLE IF NOT EXISTS wt_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module_id INTEGER NOT NULL,
+    week_no INTEGER NOT NULL,
+    part INTEGER NOT NULL DEFAULT 1,    -- 2, 3 ... wenn nach Veroeffentlichung in derselben Woche neuer Stoff markiert wurde
+    scope TEXT NOT NULL,                -- personal | course
+    scope_key TEXT NOT NULL,            -- Hash des Stoffumfangs (gleich fuer alle mit gleichem Kursstand)
+    user_id TEXT,
+    coverage TEXT NOT NULL,             -- JSON
+    lecture_end TEXT NOT NULL,
+    publish_at TEXT NOT NULL,
+    deadline_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'geplant',   -- geplant | wartet | veroeffentlicht | fehlgeschlagen | ersetzt
+    expected TEXT,                      -- JSON Liste erwarteter Quellen (aus Moduleinstellung)
+    missing TEXT,                       -- JSON fehlende erwartete Quellen
+    def_id INTEGER,
+    last_check TEXT,
+    last_error TEXT,
+    attempts INTEGER DEFAULT 0,
+    lock_token TEXT,
+    lock_until TEXT,
+    created_at TEXT,
+    UNIQUE(module_id, week_no, scope_key)
+);
+
+CREATE TABLE IF NOT EXISTS wt_defs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,                 -- wochentest | nachtrag | probeklausur
+    plan_id INTEGER,
+    parent_id INTEGER,
+    module_id INTEGER NOT NULL,
+    week_no INTEGER,
+    scope_key TEXT NOT NULL,
+    material_hash TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    title TEXT,
+    topic TEXT,
+    duration_min INTEGER,
+    questions TEXT NOT NULL,
+    sources TEXT,
+    coverage TEXT,
+    qa TEXT,
+    status TEXT NOT NULL DEFAULT 'entwurf',   -- entwurf | geprueft | veroeffentlicht | verworfen
+    created_at TEXT,
+    published_at TEXT,
+    UNIQUE(kind, module_id, scope_key, material_hash)
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_wt_defs_frozen
+BEFORE UPDATE OF questions, sources, coverage, scope_key, material_hash, title, duration_min ON wt_defs
+WHEN OLD.status = 'veroeffentlicht'
+BEGIN
+    SELECT RAISE(ABORT, 'veroeffentlichte Testversion ist unveraenderlich');
+END;
+CREATE TRIGGER IF NOT EXISTS trg_wt_defs_nodelete
+BEFORE DELETE ON wt_defs WHEN OLD.status = 'veroeffentlicht'
+BEGIN
+    SELECT RAISE(ABORT, 'veroeffentlichte Testversion kann nicht geloescht werden');
+END;
 """#
 }
