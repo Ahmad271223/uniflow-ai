@@ -3,7 +3,7 @@
 Warteschlange `sync_jobs` in `accounts.db` (nie in einem Nutzerordner). Arbeiter-Threads holen Jobs atomar ab,
 hoechstens ein laufender Job je Konto; jeder Job laeuft im Kontext seines Kontos (Datenordner, Datenbank,
 Browser-Profil, Protokolle unter `users/<id>/`, Zugangsdaten aus dem Tresor `app/vault.py`), mit demselben Code wie
-im Einzelplatzmodus (`studip_sync.run_sync`, `qis.run`). Zeitplan: `LERNAPP_SYNC_TIMES` (Standard 08:00,15:00,
+im Einzelplatzmodus (`studip_sync.run_sync`, `qis.run`). Zeitplan: `LERNAPP_SYNC_TIMES` (Standard 08:00,15:00,20:00,
 Ortszeit des Servers) legt fuer jedes Konto mit Zugangsdaten einen Job an; jede Uhrzeit hoechstens einmal am Tag,
 auch nach einem Neustart (`schedule_marks`).
 
@@ -218,7 +218,7 @@ def work_once() -> bool:
 # ---------------------------------------------------------------- Zeitplan
 
 def sync_times() -> list[str]:
-    raw = os.environ.get("LERNAPP_SYNC_TIMES", "08:00,15:00")
+    raw = os.environ.get("LERNAPP_SYNC_TIMES", "08:00,15:00,20:00")
     out = []
     for t in raw.split(","):
         t = t.strip()
