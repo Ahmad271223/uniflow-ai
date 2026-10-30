@@ -21,6 +21,7 @@ user_id (Standard 'local'), damit Kursmarker, gemeinsame Tests und Ranglisten mi
 """
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import json
 import math
@@ -938,8 +939,14 @@ def process_plan(plan_id: int, now: datetime | None = None, log=print) -> dict |
             if not reuse and today_n >= s["daily_limit"]:
                 conn.execute("UPDATE wt_plans SET last_error=? WHERE id=?", (f"Tageslimit für KI-Tests erreicht ({s['daily_limit']}), nächster Versuch beim nächsten Lauf.", plan_id))
                 return {"result": "waiting", "plan_id": plan_id, "missing": ["ki-limit"]}
+            quota = _QUOTA.get()
+            if not reuse and quota is not None and (why := quota.check()):
+                conn.execute("UPDATE wt_plans SET status='wartet', last_error=? WHERE id=?", (why, plan_id))
+                return {"result": "waiting", "plan_id": plan_id, "missing": ["kontingent"]}
             ctx = build_context(conn, plan, cands, missing)
         d = reuse or generate_weekly(ctx, now, log)
+        if not reuse and quota is not None:
+            quota.consume(f"weekly:{plan_id}:{d['id']}")
         with db.cursor() as conn:
             publish(conn, plan_id, d["id"], now)
         log(f"Wochentest veröffentlicht: Modul {plan['module_id']} Woche {plan['week_no']} (Def {d['id']})")
@@ -1004,8 +1011,21 @@ def build_context(conn, plan: dict, cands: dict, missing: list[str], n_questions
 
 # ============================================================================ KI-Erzeugung + Pruefung
 def _ask(prompt: str, system: str = "") -> str:      # in Tests ersetzt
-    from . import ai
+    from . import ai, config
+    if config.is_hosted():
+        # Dienst: Studora-KI mit Budget und Protokoll je Konto (app/ai_backend.py); ein Fehler dort (Budget, Rate,
+        # nicht eingerichtet) laesst den Plan "fehlgeschlagen" mit Grund, wie jeder andere KI-Fehler
+        from . import ai_backend
+        try:
+            return ai_backend.complete(config.current_user_id(), "weekly_test", system, prompt).text
+        except ai_backend.AIUnavailable as e:
+            raise WeeklyError(f"Studora-KI: {e}") from e
     return ai.ask(prompt, system)
+
+
+# Kontingent je Konto im Dienst (app/jobs.py setzt je Job ein Objekt mit check() -> Grund | None und consume(id)):
+# geprueft, bevor ein neuer Test erzeugt wird; verbraucht wird je erzeugtem Test. Je Arbeiter-Thread eigener Wert.
+_QUOTA = contextvars.ContextVar("weekly_quota", default=None)
 
 
 def _parse(text: str):

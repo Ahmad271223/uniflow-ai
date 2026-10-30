@@ -7,6 +7,9 @@ im Einzelplatzmodus (`studip_sync.run_sync`, `qis.run`). Zeitplan: `LERNAPP_SYNC
 Ortszeit des Servers) legt fuer jedes Konto mit Zugangsdaten einen Job an; jede Uhrzeit hoechstens einmal am Tag,
 auch nach einem Neustart (`schedule_marks`).
 
+Wochentests (30.10.2026, Entscheidung 2c): `weekly.tick()` laeuft je Konto nach jedem Abgleich und als eigener Job
+`weekly` zu den Zeitfenstern fuer Konten ohne Zugangsdaten (Upload von Hand); die KI ist die Studora-KI, jeder neue
+Test verbraucht eins aus dem Monatskontingent `ai_tests_new` des Tarifs (Free: keins -> Plan wartet).
 Betrieb: im API-Prozess (`LERNAPP_JOBS=inproc`, Standard im gehosteten Modus) oder getrennt mit
 `python -m app.jobs` (dann `LERNAPP_JOBS=off` fuer den API-Prozess). `LERNAPP_JOB_WORKERS` (Standard 2) begrenzt die
 gleichzeitigen Browser (je etwa 300 MB).
@@ -20,7 +23,8 @@ from datetime import datetime, timedelta
 
 from . import accounts, config, db, vault
 
-KINDS = {"sync": "Sync", "grades": "Notenspiegel"}
+KINDS = {"sync": "Sync", "grades": "Notenspiegel", "weekly": "Wochentests"}
+BROWSER_KINDS = ("sync", "grades")     # nur diese belasten die Hochschule (uni_limits)
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sync_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,10 +148,11 @@ def claim_next() -> dict | None:
         conn.execute("BEGIN IMMEDIATE")
         r = conn.execute("""SELECT j.id FROM sync_jobs j JOIN users u ON u.id=j.user_id WHERE j.status='queued'
                             AND j.user_id NOT IN (SELECT user_id FROM sync_jobs WHERE status='running')
-                            AND (SELECT COUNT(*) FROM sync_jobs x JOIN users xu ON xu.id=x.user_id
-                                 WHERE x.status='running' AND xu.university=u.university) < ?
-                            AND NOT EXISTS (SELECT 1 FROM sync_jobs y JOIN users yu ON yu.id=y.user_id
-                                 WHERE yu.university=u.university AND y.started_at > ?)
+                            AND (j.kind NOT IN ('sync','grades') OR (
+                                (SELECT COUNT(*) FROM sync_jobs x JOIN users xu ON xu.id=x.user_id
+                                 WHERE x.status='running' AND x.kind IN ('sync','grades') AND xu.university=u.university) < ?
+                                AND NOT EXISTS (SELECT 1 FROM sync_jobs y JOIN users yu ON yu.id=y.user_id
+                                 WHERE yu.university=u.university AND y.kind IN ('sync','grades') AND y.started_at > ?)))
                             ORDER BY j.id LIMIT 1""", (par, since)).fetchone()
         if not r:
             return None
@@ -194,6 +199,10 @@ def run_job(job: dict) -> dict:
             from . import studip_sync
             res = studip_sync.run_sync()
             ok, message, new_files = bool(res.get("ok")), res.get("message") or "", len(res.get("new_files") or [])
+            if ok:
+                message = _with_weekly(user, message)          # wie _full_sync am PC: nach dem Abgleich die Wochentests
+        elif job["kind"] == "weekly":
+            ok, message = True, weekly_summary(run_weekly(user))
         else:
             from . import qis
             res = qis.run(show_browser=False)
@@ -205,6 +214,80 @@ def run_job(job: dict) -> dict:
         config.reset_user_context(t_user)
     _finish(job["id"], ok, message, new_files)
     return {"ok": ok, "message": message, "new_files": new_files}
+
+
+# ---------------------------------------------------------------- Wochentests je Konto
+
+class HostedQuota:
+    """Kontingent `ai_tests_new` des Tarifs fuer weekly.process_plan (app/billing.py): check() liefert einen Grund,
+    wenn nichts mehr frei ist; consume() zaehlt einen erzeugten Test (Anfrage-ID = Plan und Def, zaehlt einmal)."""
+
+    def __init__(self, user: dict):
+        self.user = user
+
+    def _legacy(self) -> dict:
+        return {"plan": self.user.get("plan"), "plan_until": self.user.get("plan_until")}
+
+    def check(self) -> str | None:
+        from . import billing, plans
+        conn = billing.connect()
+        try:
+            plan = billing.current_plan(conn, self.user["id"], legacy=self._legacy())
+            limit = plans.quota_limit(plan, "ai_tests_new")
+            used = billing.used(conn, self.user["id"], "ai_tests_new")
+        finally:
+            conn.close()
+        if limit <= 0:
+            return f"Wochentests mit KI gibt es ab {plans.PLANS['plus']['name']} (dein Tarif: {plans.PLANS[plan]['name']})."
+        if used >= limit:
+            return f"Kontingent für neue KI-Tests in diesem Monat aufgebraucht ({used} von {limit}); nächster Versuch im neuen Monat."
+        return None
+
+    def consume(self, request_id: str) -> None:
+        from . import billing
+        conn = billing.connect()
+        try:
+            billing.consume(conn, self.user["id"], "ai_tests_new", request_id, legacy=self._legacy())
+        finally:
+            conn.close()
+
+
+def run_weekly(user: dict) -> dict:
+    """weekly.tick() im Kontext des Kontos (der Aufrufer hat ihn gesetzt): Kontingent des Tarifs, Studora-KI."""
+    from . import weekly
+    with db.cursor() as conn:
+        on = db.get_settings(conn)["auto_tests"]
+    if not on:
+        return {"off": True, "published": [], "waiting": [], "failed": [], "nachtraege": []}
+    token = weekly._QUOTA.set(HostedQuota(user))
+    try:
+        return weekly.tick(log=lambda *_: None)
+    finally:
+        weekly._QUOTA.reset(token)
+
+
+def weekly_summary(res: dict) -> str:
+    if res.get("off"):
+        return "Wochentests: aus"
+    return f"Wochentests: {len(res['published'])} veröffentlicht, {len(res['waiting'])} wartend, {len(res['failed'])} fehlgeschlagen, {len(res['nachtraege'])} Nachträge"
+
+
+def _with_weekly(user: dict, message: str) -> str:
+    try:
+        return f"{message} · {weekly_summary(run_weekly(user))}"
+    except Exception as e:  # noqa: BLE001 - der Abgleich bleibt erfolgreich, auch wenn die Wochentests scheitern
+        return f"{message} · Wochentests: FEHLER {e}"
+
+
+def active_users_without_credentials() -> list[str]:
+    """Konten, die selbst hochladen (kein Abgleich durch den Dienst): sie bekommen den Wochentest-Takt als eigenen Job."""
+    with_creds = {uid for uid, _ in vault.users_with_credentials()}
+    cm, conn = _conn()
+    try:
+        rows = conn.execute("SELECT id FROM users WHERE status='active'").fetchall()
+    finally:
+        cm.__exit__(None, None, None)
+    return [r["id"] for r in rows if r["id"] not in with_creds]
 
 
 def work_once() -> bool:
@@ -247,6 +330,9 @@ def schedule_due(now: datetime | None = None, times: list[str] | None = None) ->
             cm.__exit__(None, None, None)
         for uid, _uni in vault.users_with_credentials():
             if not enqueue(uid, "sync", "scheduled")["already"]:
+                n += 1
+        for uid in active_users_without_credentials():
+            if not enqueue(uid, "weekly", "scheduled")["already"]:
                 n += 1
     return n
 

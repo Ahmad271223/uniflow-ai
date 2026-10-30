@@ -15,7 +15,9 @@ eingeschaltet hast.
   schaltest du einzeln ein (Abschnitte 6–8).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
   liegen sie verschlüsselt auf deinem Gerät oder – für den automatischen Abgleich – verschlüsselt in deinem Konto.
-  Du kannst sie jederzeit löschen.
+  Für den Abgleich durch den Dienst stimmst du vorher ausdrücklich zu: Der Dienst meldet sich dann um 8 und 15 Uhr
+  von seiner Adresse bei deiner Hochschule an und lädt neue Unterlagen in dein Konto. Du kannst die Zugangsdaten
+  jederzeit löschen; die Zustimmung endet damit, deine Unterlagen bleiben.
 - **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** Studora wertet deine
   Inhalte nicht selbst automatisiert aus. KI gibt es nur, wenn du **dein eigenes ChatGPT** verbindest (Abschnitt 8a):
   dann gehen Texte, die du für eine KI-Funktion auswählst, direkt von deinem Gerät an OpenAI.

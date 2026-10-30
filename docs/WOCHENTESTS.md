@@ -158,6 +158,13 @@ Inhalte abfragen, die erst Wochen später drankommen.
     sind geschrieben, aber ohne Xcode nicht gelaufen; Syntax der App-Dateien mit `swiftc -parse` geprüft. Wann iOS
     den Lauf wirklich startet, zeigt nur das Gerät über Tage.
 
+- **Dienst (gehostet, 30.10.):** Der Takt läuft je Konto als Job (`app/jobs.py`): nach jedem Abgleich durch den
+  Dienst, zu den Zeitfenstern (`LERNAPP_SYNC_TIMES`) für Konten ohne hinterlegte Zugangsdaten, und auf Knopfdruck
+  (`POST /api/weekly/tick` legt einen Job an). Die KI ist die Studora-KI (`ai_backend`); jeder neue Test verbraucht eins
+  aus dem Monatskontingent `ai_tests_new` des Tarifs. Reicht es nicht, wartet der Plan mit Grund (`kontingent`), ohne
+  Versuche zu verbrauchen. Ein Test gilt nur für das eigene Konto; das Teilen eines Tests zwischen Konten kommt mit dem
+  V2-Dienst (`GEMEINSAME-WOCHENTESTS.md`).
+
 ## Grenzen (ehrlich)
 
 - Die Zuordnung arbeitet auf der Textebene der PDFs. Gescannte oder handschriftliche Seiten und Abbildungen werden

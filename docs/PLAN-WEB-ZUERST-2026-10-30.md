@@ -128,6 +128,17 @@ prüfen. Nur Punkt 8 braucht den Mac.
    (wie Pro AI), danach die Aufforderung, einen Tarif zu wählen; ohne Wahl gilt Free. Stripe (Checkout, Kundenportal,
    Webhooks) für Web; Apple bleibt für die App; Microsoft Store später.
 
+**Umgesetzt am 30.10. (Cloud, Python geprüft):**
+- Zu 1: `PUT /api/credentials` verlangt im Dienst `consent: true` (sonst 400 `consent_required`), die Zustimmung steht
+  mit Zeitpunkt im Tresor (`UNI_CONSENT_AT`) und in `GET /api/credentials`; Karte in den Einstellungen mit Erklärung,
+  Häkchen und „Zugangsdaten löschen“ (`POST /api/credentials/clear`); Satz in `docs/release/DATENSCHUTZ.md`.
+- Zu 2c: Wochentest-Takt je Konto im Dienst (`jobs.py`): nach jedem Abgleich wie `_full_sync` am PC, als eigener Job
+  `weekly` zu den Zeitfenstern für Konten ohne Zugangsdaten, `POST /api/weekly/tick` legt im Dienst einen Job an.
+  KI = Studora-KI (`ai_backend.complete`, Budget und Protokoll je Konto). Jeder neue Test verbraucht eins aus
+  `ai_tests_new` (Free 0 → Plan wartet mit Grund, Plus 3, Pro AI 40). Wochentest-Jobs werden nicht von den
+  Hochschul-Grenzen (`uni_limits`) gebremst. Noch kein Teilen eines Tests zwischen Konten (V2-Dienst).
+- Zu 3: Probe, Tarifwahl und Stripe, siehe `docs/ABO-SYSTEM.md` Abschnitt 3a.
+
 ## 5. Was dieser Plan nicht löst
 
 - Die KI hängt an OpenAI (Freigabe) oder an deinen Kosten. Keine Stufe hier ändert das.
